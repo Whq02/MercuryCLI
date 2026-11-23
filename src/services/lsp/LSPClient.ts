@@ -13,6 +13,7 @@ import {
 import type { InitializeParams, InitializeResult, ServerCapabilities } from 'vscode-languageserver-protocol'
 
 import { logForDebugging } from '../../utils/debug.js'
+import { getErrnoCode } from '../../utils/errors.js'
 import { logError } from '../../utils/log.js'
 import { endProcessTree, endProcessTreeSurvivors } from '../../utils/processGroup.js'
 import { passedOver } from '../../utils/passedOver.js'
@@ -51,7 +52,7 @@ export function createLspMessageWriter(output: Writable): MessageWriter {
     try {
       await write(message)
     } catch (error) {
-      const code = (error as NodeJS.ErrnoException)?.code
+      const code = getErrnoCode(error)
       if ((output.destroyed || output.writableEnded) && (code === 'ERR_STREAM_DESTROYED' || code === 'ERR_STREAM_WRITE_AFTER_END' || code === 'EPIPE')) return
       throw error
     }

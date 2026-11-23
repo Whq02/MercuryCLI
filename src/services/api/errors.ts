@@ -35,6 +35,7 @@ import { ImageSizeError } from '../imageValidation.js'
 import { API_ERROR_MESSAGE_PREFIX, startsWithApiErrorPrefix } from './errorPrefix.js'
 import { providerAskedWaitMs } from './recoveryBudget.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { isRecord } from '../../utils/isRecord.js'
 import { clearEnvVarCommandWords } from '../../utils/platform/words.js'
 export { API_ERROR_MESSAGE_PREFIX, startsWithApiErrorPrefix } from './errorPrefix.js'
 
@@ -149,7 +150,7 @@ const PDF_PAGES_PATTERN = /maximum of \d+ PDF pages/
 
 
 function messageOf(error: unknown): string {
-  const message = (error as { message?: unknown } | null)?.message
+  const message = isRecord(error) ? error.message : undefined
   return typeof message === 'string' ? message : ''
 }
 
@@ -402,7 +403,7 @@ function homeFailoverCauseOf(error: unknown, row: AssistantMessage): FailoverCau
   if (row.error === 'authentication_failed') return 'sign-in'
   const status = statusOf(error)
   if (status === 404) return 'unknown-model'
-  if (isTimeoutError(error) || isConnectionError(error) || (error as { name?: unknown } | null)?.name === 'ReconnectBudgetSpentError') return 'unreachable'
+  if (isTimeoutError(error) || isConnectionError(error) || (isRecord(error) && error.name === 'ReconnectBudgetSpentError')) return 'unreachable'
   if (status !== undefined && status >= 500 && status !== 529) return 'unreachable'
   return undefined
 }
@@ -414,7 +415,7 @@ function anthropicWireCredential(model: string, status: number | undefined): Wir
 }
 
 function requestIdOf(error: unknown): string {
-  const direct = (error as { request_id?: unknown } | null)?.request_id
+  const direct = isRecord(error) ? error.request_id : undefined
   if (direct !== undefined && direct !== null && direct !== '') return String(direct)
   const fromHeader = headerValue(errorHeaders(error), 'request-id')
   if (fromHeader !== undefined && fromHeader !== '') return String(fromHeader)

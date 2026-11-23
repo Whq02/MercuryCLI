@@ -38,6 +38,7 @@ import { APIError, APIUserAbortError } from '../../utils/api/sdkErrors.js'
 import { deepestErrorDetail, isStaleSocketCode, transportCutOf, transportCutWords } from '../../utils/api/transportEvidence.js'
 import { messageEffortRefusedBy } from '../providers/anthropic/messageEffort.js'
 import { passedOverAs } from '../../utils/passedOver.js'
+import { isRecord } from '../../utils/isRecord.js'
 const BASE_DELAY_MS = 500
 const MAX_DELAY_MS = 32_000
 const MAX_RETRY_AFTER_MS = 21_600_000
@@ -108,12 +109,12 @@ function getDefaultMaxRetries(): number {
 
 
 function errorMessage(error: unknown): string {
-  const message = (error as { message?: unknown } | null)?.message
+  const message = isRecord(error) ? error.message : undefined
   return typeof message === 'string' ? message : String(error)
 }
 
 function statusOf(error: unknown): number | undefined {
-  const status = (error as { status?: unknown } | null)?.status
+  const status = isRecord(error) ? error.status : undefined
   return typeof status === 'number' ? status : undefined
 }
 

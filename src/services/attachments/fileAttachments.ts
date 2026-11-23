@@ -8,7 +8,7 @@ import { isRemotePath } from '../../utils/remoteFiles/target.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { FileReadTool, MaxFileReadTokenExceededError, readImageWithTokenBudget, type Output as ReadOutput } from '../../tools/FileReadTool/FileReadTool.js'
 import { isDirectoryTarget } from '../../tools/FileReadTool/readTarget.js'
-import { isENOENT } from '../../utils/errors.js'
+import { getErrnoCode, isENOENT } from '../../utils/errors.js'
 import { getFileModificationTimeAsync, isFileWithinReadSizeLimit } from '../../utils/file.js'
 import { formatFileSize } from '../../utils/format.js'
 import { isImageFilePath } from '../../utils/imagePaste.js'
@@ -107,7 +107,7 @@ async function unreadMention(filename: string, context: ToolUseContext, mode: Re
   try {
     standing = (await getFsImplementation().stat(filename)).isFile()
   } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code
+    const code = getErrnoCode(error)
     standing = code !== 'ENOENT' && code !== 'ENOTDIR'
   }
   if (!standing) return null

@@ -3,6 +3,7 @@ import { extname, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { logForDebugging } from '../../utils/debug.js'
+import { getErrnoCode, isENOENT } from '../../utils/errors.js'
 import { logError } from '../../utils/log.js'
 import { getAllLspServers } from './config.js'
 import type { LSPStopResult } from './LSPClient.js'
@@ -59,7 +60,7 @@ async function forEachClaimantOf(
   try {
     await action(primary, true)
   } catch (err) {
-    if ((err as { code?: unknown } | null)?.code === 'ABORT_ERR') throw err
+    if (getErrnoCode(err) === 'ABORT_ERR') throw err
     const wrapped = new Error(
       `LSP ${operation} failed for ${path}: ${err instanceof Error ? err.message : String(err)}`,
     )
@@ -109,7 +110,7 @@ async function revalidateOpenDocumentsOf(
     try {
       stat = statSync(path)
     } catch (err) {
-      if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') {
+      if (isENOENT(err)) {
         try {
           await closeFile(path)
           report.closed.push(path)
