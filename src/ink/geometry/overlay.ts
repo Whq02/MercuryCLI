@@ -2,7 +2,6 @@ import type { Screen, StylePool } from '../cell-grid.js'
 import { cellAtIndex, CellWidth, setCellStyleId } from '../cell-grid.js'
 import type { Rectangle } from '../layout/geometry.js'
 import { selectionBounds, type SelectionState } from './selection-model.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export class OverlayRecord {
   private readonly cells: number[] = []
@@ -79,5 +78,22 @@ export function applySelectionOverlay(
   stylePool: StylePool,
   record?: OverlayRecord,
 ): void {
-  return notBuilt('src/ink/geometry/overlay.ts:75')
+  const bounds = selectionBounds(selection)
+  if (!bounds) return
+  const firstRow = Math.max(0, bounds.start.row, selection.clipTop ?? 0)
+  const lastRow = Math.min(screen.height - 1, bounds.end.row, selection.clipBottom ?? screen.height - 1)
+  const bandLo = Math.max(0, selection.clipLo ?? 0)
+  const bandHi = Math.min(screen.width - 1, selection.clipHi ?? screen.width - 1)
+  for (let row = firstRow; row <= lastRow; row++) {
+    const colStart = Math.max(row === bounds.start.row ? bounds.start.col : 0, bandLo)
+    const colEnd = Math.min(row === bounds.end.row ? bounds.end.col : screen.width - 1, bandHi)
+    const rowStart = row * screen.width
+    for (let col = colStart; col <= colEnd; col++) {
+      const index = rowStart + col
+      if (screen.noSelect[index] === 1) continue
+      const cell = cellAtIndex(screen, index)
+      if (cell.width === CellWidth.SpacerTail || cell.width === CellWidth.SpacerHead) continue
+      restyleCell(screen, col, row, stylePool.withSelectionBg(cell.styleId), record)
+    }
+  }
 }
