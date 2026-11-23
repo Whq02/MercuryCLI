@@ -33,7 +33,7 @@ import { logError } from '../../../utils/log.js'
 import { AMBER, CRIMSON, SECOND, TEAL } from '../../mercuryPalette.js'
 import { truncateToWidth } from '../../../utils/glyphs.js'
 import type { generateAgent } from '../generateAgent.js'
-import { startTimeout, stopTimeout } from '../../../utils/timers.js'
+import { startTimeout, stopTimeout, type TimerHandle } from '../../../utils/timers.js'
 
 
 export type StudioDraftBase = {
@@ -338,8 +338,8 @@ interface StudioEditorDeps {
   listDrafts: () => DraftListResult['drafts'] | DraftListResult
   discardDraft: (path: string) => ReturnType<typeof discardAgentDraft> | void
   generate: typeof generateAgent
-  setTimer: (fn: () => void, ms: number) => unknown
-  clearTimer: (handle: unknown) => void
+  setTimer: (fn: () => void, ms: number) => TimerHandle
+  clearTimer: (handle: TimerHandle) => void
 }
 
 function unpackDraftList(result: ReturnType<StudioEditorDeps['listDrafts']>): DraftListResult {
@@ -360,7 +360,7 @@ function liveDeps(): StudioEditorDeps {
     generate: async (prompt, model, existingIdentifiers, signal) =>
       (await import('../generateAgent.js')).generateAgent(prompt, model, existingIdentifiers, signal),
     setTimer: (fn, ms) => startTimeout(fn, ms),
-    clearTimer: handle => stopTimeout(handle as NodeJS.Timeout),
+    clearTimer: handle => stopTimeout(handle),
   }
 }
 
@@ -419,7 +419,7 @@ interface StudioEditorState {
   textCursor: number
   recoverOffer: { path: string; raw: string } | null
   generationAbort: AbortController | null
-  autosaveTimer: unknown
+  autosaveTimer: TimerHandle | null
   disposed: boolean
 }
 

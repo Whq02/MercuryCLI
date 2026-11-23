@@ -2,7 +2,7 @@
 import type { TextPhase } from '../../types/wire.js'
 import { fluxCount, fluxMark } from '../flux/fluxProbe.js'
 import { registerFlushProbe } from '../../ink/root/flush-registry.js'
-import { startTimeout, stopTimeout } from '../timers.js'
+import { startTimeout, stopTimeout, type TimerHandle } from '../timers.js'
 
 const TAIL_INTERVAL_MS = 32
 
@@ -24,8 +24,8 @@ export type StreamingTailStore = {
 
 type StreamingTailStoreOpts = {
   intervalMs?: number
-  setTimer?: (fn: () => void, ms: number) => unknown
-  clearTimer?: (handle: unknown) => void
+  setTimer?: (fn: () => void, ms: number) => TimerHandle
+  clearTimer?: (handle: TimerHandle) => void
   now?: () => number
 }
 
@@ -34,8 +34,7 @@ export function createStreamingTailStore(
 ): StreamingTailStore {
   const intervalMs = opts.intervalMs ?? TAIL_INTERVAL_MS
   const setTimer = opts.setTimer ?? ((fn: () => void, ms: number) => startTimeout(fn, ms))
-  const clearTimer =
-    opts.clearTimer ?? ((h: unknown) => stopTimeout(h as ReturnType<typeof setTimeout>))
+  const clearTimer = opts.clearTimer ?? stopTimeout
   const now = opts.now ?? (() => performance.now())
 
   let fresh: string | null = null
@@ -48,7 +47,7 @@ export function createStreamingTailStore(
   let pendingPhase: TextPhase | null = null
   let currentPhase: TextPhase | null = null
   let settledPhase: TextPhase | null = null
-  let timer: unknown = null
+  let timer: TimerHandle | null = null
   let lastPublishAt = -Infinity
   let disposed = false
   const listeners = new Set<() => void>()

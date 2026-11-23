@@ -1,7 +1,7 @@
 import type { Key } from '../../ink/events/input-event.js'
 import * as pendingInput from '../../input-core/pending-input.js'
 import { HOLD_TO_TALK_MS, cancelVoiceCapture, startVoiceCapture, stopVoiceCapture, voiceSnapshot } from './voiceSession.js'
-import { startImmediate, startTimeout, stopTimeout } from '../../utils/timers.js'
+import { startImmediate, startTimeout, stopTimeout, type TimerHandle } from '../../utils/timers.js'
 
 export { HOLD_TO_TALK_MS }
 export const FIRST_REPEAT_WINDOW_MS = 1_000
@@ -17,8 +17,8 @@ export interface HoldEditor {
 
 export interface HoldClock {
   now(): number
-  setTimeout(fn: () => void, ms: number): unknown
-  clearTimeout(handle: unknown): void
+  setTimeout(fn: () => void, ms: number): TimerHandle
+  clearTimeout(handle: TimerHandle): void
   defer(fn: () => void): void
 }
 
@@ -40,7 +40,7 @@ interface Hold {
   heldBack: number
   interval: number | null
   released: boolean
-  timer: unknown
+  timer: TimerHandle | null
 }
 
 const realClock: HoldClock = {
@@ -51,7 +51,7 @@ const realClock: HoldClock = {
     return handle
   },
   clearTimeout: handle => {
-    stopTimeout(handle as ReturnType<typeof setTimeout>)
+    stopTimeout(handle)
   },
   defer: fn => {
     startImmediate(fn)

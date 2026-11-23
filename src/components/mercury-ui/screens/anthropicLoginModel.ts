@@ -22,7 +22,7 @@ import { recordSignIn as recordSignInLedger, type SignInKind } from '../../../ut
 import { setClipboard } from '../../../ink/termio/osc.js'
 import { logError } from '../../../utils/log.js'
 import { getAuthScope } from '../../../utils/envUtils.js'
-import { afterMicrotask, startTimeout, stopTimeout } from '../../../utils/timers.js'
+import { afterMicrotask, startTimeout, stopTimeout, type TimerHandle } from '../../../utils/timers.js'
 
 
 const ONE_YEAR_SECONDS = 365 * 24 * 60 * 60
@@ -133,8 +133,8 @@ export interface AnthropicLoginDeps {
   clipboard: (text: string) => Promise<string | null>
   writeStdout: (sequence: string) => void
   log: (error: unknown) => void
-  setTimer: (fn: () => void, ms: number) => unknown
-  clearTimer: (handle: unknown) => void
+  setTimer: (fn: () => void, ms: number) => TimerHandle
+  clearTimer: (handle: TimerHandle) => void
 }
 
 function liveDeps(): AnthropicLoginDeps {
@@ -154,7 +154,7 @@ function liveDeps(): AnthropicLoginDeps {
     writeStdout: sequence => process.stdout.write(sequence),
     log: error => logError(error),
     setTimer: (fn, ms) => startTimeout(fn, ms),
-    clearTimer: handle => stopTimeout(handle as NodeJS.Timeout),
+    clearTimer: handle => stopTimeout(handle),
   }
 }
 
@@ -202,7 +202,7 @@ export function createAnthropicLoginMachine(
   let disposed = false
   let generation = 0
   let rolesRequest: AbortController | null = null
-  const timers = new Set<unknown>()
+  const timers = new Set<TimerHandle>()
 
   const snapshot = (): AnthropicLoginSnapshot => ({ flow, pastePromptUp, noCodeYet, browserOpened, copied, shadowWarning, accountLabel })
   const publish = (): void => {

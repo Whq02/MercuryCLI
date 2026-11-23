@@ -10,6 +10,7 @@ import { localServerName } from './local/localCatalogue.js'
 import { REAL_STREAM_TIMERS, type StreamTimers } from './streamIdleBudget.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import type { TimerHandle } from '../../utils/timers.js'
 
 export const LOCAL_FIRST_BYTE_CAP_MS = 2 * 60 * 60_000
 export const LOCAL_REQUEST_CAP_MS = LOCAL_FIRST_BYTE_CAP_MS
@@ -405,7 +406,7 @@ export function startLocalLivenessLoop(args: {
   const startedAt = timers.now()
   const gap = args.retryGapMs ?? LOCAL_LIVENESS_RETRY_GAP_MS
   let stopped = false
-  let handle: unknown = null
+  let handle: TimerHandle | null = null
   let inFlight = false
   function arm(ms: number): void {
     if (stopped) return

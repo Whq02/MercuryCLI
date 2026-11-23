@@ -44,6 +44,7 @@ import {
 } from '../openaicompat/compatChatClient.js'
 import type { ZaiContentPart } from '../zai/zaiClient.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
+import type { TimerHandle } from '../../../utils/timers.js'
 
 const TOTAL_TIMEOUT_MS = 50 * 60_000
 export const OLLAMA_WIRE_DUMP_CHARS = 2_000
@@ -382,11 +383,11 @@ export async function* streamOllamaChat(options: CompatStreamOptions, knobs: Oll
     const publish = (next: RequestWaitV1 | null): void => options.firstByte?.onWait?.(next)
     publish(wait)
     let firstByteFired = false
-    let firstByteTimer: unknown = null
+    let firstByteTimer: TimerHandle | null = null
     let headersLanded = false
     let ingestStartedAt = timers.now()
     let promiseLoop: LocalLivenessLoop | null = null
-    let loadingHandle: unknown = null
+    let loadingHandle: TimerHandle | null = null
     const stopIngestWatch = (): void => {
       promiseLoop?.stop()
       promiseLoop = null

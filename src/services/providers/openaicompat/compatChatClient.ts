@@ -41,11 +41,12 @@ import {
 import type { DeferralWireForm } from '../deferralWire.js'
 import { isBedrockThrottle } from '../../api/bedrockThrottle.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
+import type { TimerHandle } from '../../../utils/timers.js'
 
 const TOTAL_TIMEOUT_MS = 50 * 60_000
 
-function unrefTimer(handle: unknown): void {
-  ;(handle as { unref?: () => void } | null | undefined)?.unref?.()
+function unrefTimer(handle: TimerHandle | null): void {
+  if (handle !== null && typeof handle === 'object') handle.unref?.()
 }
 
 
@@ -304,7 +305,7 @@ export function startLocalSilenceWatch(args: {
   let lastActivityAt = timers.now()
   let warned = false
   let stopped = false
-  let handle: unknown = null
+  let handle: TimerHandle | null = null
   let loop: LocalLivenessLoop | null = null
   function arm(): void {
     if (stopped || handle !== null) return
@@ -733,11 +734,11 @@ async function* streamCompatChatRaw(
 }
 
 type CompatStreamState = {
-  livenessTimer: unknown
+  livenessTimer: TimerHandle | null
   firstByteFired: boolean
   firstByteExtended: boolean
   slotWords: string | null
-  firstByteTimer: unknown
+  firstByteTimer: TimerHandle | null
   headersLanded: boolean
   ingestStartedAt: number
   quietSinceMs: number
@@ -789,7 +790,7 @@ function firstByteWaitOf(needs: Pick<CompatStreamNeeds, 'options' | 'local' | 'i
 function watchFirstByte(s: CompatStreamState, needs: Pick<CompatStreamNeeds, 'local' | 'timers' | 'options' | 'cut' | 'controller' | 'firstByteBudget' | 'wait' | 'publish'>): () => void {
   const { local, timers, options, cut, controller, firstByteBudget, wait, publish } = needs
   let promiseLoop: LocalLivenessLoop | null = null
-  let loadingHandle: unknown = null
+  let loadingHandle: TimerHandle | null = null
   const stopIngestWatch = (): void => {
     promiseLoop?.stop()
     promiseLoop = null

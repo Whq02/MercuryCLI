@@ -1,4 +1,5 @@
-type TimeoutHandle = NodeJS.Timeout | string | number | undefined
+export type TimerHandle = NodeJS.Timeout | string | number
+type TimeoutHandle = TimerHandle | undefined
 
 export function startTimeout<TArgs extends unknown[]>(callback: (...args: TArgs) => void, delay?: number, ...args: TArgs): NodeJS.Timeout
 export function startTimeout(callback: (_: void) => void, delay?: number): NodeJS.Timeout

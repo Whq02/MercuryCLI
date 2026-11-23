@@ -1,3 +1,5 @@
+import type { TimerHandle } from '../../utils/timers.js'
+
 export const BURST_WINDOW_MS = 200
 export const DELIVERY_INTERVAL_MS = 30_000
 export const WALL_RECHECK_MS = 60_000
@@ -11,8 +13,8 @@ type WatchMailboxDeps = {
   now: () => number
   wall: () => WatchWall
   deliver: (text: string, summary: { count: number; last: string }) => void
-  setTimer: (fn: () => void, ms: number) => unknown
-  clearTimer: (handle: unknown) => void
+  setTimer: (fn: () => void, ms: number) => TimerHandle
+  clearTimer: (handle: TimerHandle) => void
 }
 
 type WatchMailbox = {
@@ -45,13 +47,13 @@ export function createWatchMailbox(deps: WatchMailboxDeps): WatchMailbox {
   let burst: string[] = []
   let held: string[] = []
   let dropped = 0
-  let burstTimer: unknown = null
-  let recheckTimer: unknown = null
+  let burstTimer: TimerHandle | null = null
+  let recheckTimer: TimerHandle | null = null
   let disposed = false
   let pending: string[] = []
   let lastHeld = ''
   let lastDeliveredAt: number | null = null
-  let deliveryTimer: unknown = null
+  let deliveryTimer: TimerHandle | null = null
 
   const hold = (lines: string[]): void => {
     for (const line of lines) {

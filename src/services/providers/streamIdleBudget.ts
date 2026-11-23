@@ -3,7 +3,7 @@ import { EMPTY_STREAM_END_MARKER, EMPTY_STREAM_REASON_WORDS, outageCauseWordsOf 
 import type { SystemAPIErrorMessage } from '../../types/message.js'
 import { currentPatience, PATIENCE_NORMAL } from './patience.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { startTimeout, stopTimeout } from '../../utils/timers.js'
+import { startTimeout, stopTimeout, type TimerHandle } from '../../utils/timers.js'
 
 export const STREAM_IDLE_DEFAULT_MS = 2 * 60_000
 
@@ -77,14 +77,14 @@ export function streamIdleTimeoutMsForRoute(route: string | null, dialect?: stri
 
 export interface StreamTimers {
   now(): number
-  setTimeout(fn: () => void, ms: number): unknown
-  clearTimeout(handle: unknown): void
+  setTimeout(fn: () => void, ms: number): TimerHandle
+  clearTimeout(handle: TimerHandle): void
 }
 
 export const REAL_STREAM_TIMERS: StreamTimers = {
   now: () => Date.now(),
   setTimeout: (fn, ms) => startTimeout(fn, ms),
-  clearTimeout: handle => stopTimeout(handle as ReturnType<typeof setTimeout>),
+  clearTimeout: handle => stopTimeout(handle),
 }
 
 
