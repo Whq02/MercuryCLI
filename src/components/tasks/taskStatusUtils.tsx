@@ -9,10 +9,9 @@ import {
   deriveAgentLifecycle,
   type AgentLifecycle,
 } from '../../services/agentResults/lifecycle.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 function isTerminalStatus(status: string): boolean {
-  return notBuilt('src/components/tasks/taskStatusUtils.tsx:14')
+  return status === 'completed' || status === 'failed' || status === 'killed'
 }
 
 export function isManageableTask(task: TaskState): task is BackgroundTaskState {
@@ -28,20 +27,50 @@ export function isManageableTask(task: TaskState): task is BackgroundTaskState {
   return false
 }
 
-type TaskStatusFlags = Unbuilt
+type TaskStatusFlags = {
+  isIdle?: boolean
+  hasError?: boolean
+  shutdownRequested?: boolean
+}
 
 export function getTaskStatusIcon(
   status: string,
   flags?: TaskStatusFlags,
 ): string {
-  return notBuilt('src/components/tasks/taskStatusUtils.tsx:37')
+  if (flags?.hasError) return GLYPH.fail
+  if (flags?.shutdownRequested) return GLYPH.warn
+  switch (status) {
+    case 'running':
+      return flags?.isIdle ? '…' : GLYPH.inProgress
+    case 'completed':
+      return GLYPH.check
+    case 'failed':
+    case 'killed':
+      return GLYPH.fail
+    default:
+      return GLYPH.dot
+  }
 }
 
 export function getTaskStatusColor(
   status: string,
   flags?: TaskStatusFlags,
 ): 'success' | 'error' | 'warning' | 'background' {
-  return notBuilt('src/components/tasks/taskStatusUtils.tsx:53')
+  if (flags?.hasError) return 'error'
+  if (flags?.shutdownRequested) return 'warning'
+  if (flags?.isIdle) return 'background'
+  switch (status) {
+    case 'running':
+      return 'background'
+    case 'completed':
+      return 'success'
+    case 'failed':
+      return 'error'
+    case 'killed':
+      return 'warning'
+    default:
+      return 'background'
+  }
 }
 
 
