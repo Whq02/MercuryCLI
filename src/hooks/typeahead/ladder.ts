@@ -200,6 +200,21 @@ export function ladderMentions({
   return false
 }
 
+function progressiveHintOf(
+  command: Command | undefined,
+  input: string,
+  name: string,
+  rest: string,
+): string | undefined {
+  if (command === undefined) return undefined
+  if (command.argumentHint && input === `/${name} `) return command.argumentHint
+  if (!/\s$/.test(input)) return undefined
+  return generateProgressiveArgumentHint(
+    parseArgumentNames(command.argumentHint ?? ''),
+    parseArguments(rest),
+  )
+}
+
 export function ladderCommands({
   input,
   cursor,
@@ -207,25 +222,21 @@ export function ladderCommands({
   commands,
   publish,
   clearSuggestions,
-  setSuggestionType,
-  setSuggestionsState,
   inputRef,
 }: LadderContext): boolean {
   if (mode !== 'prompt') return false
 
-  const sessionsMatch = input.match(/^\/sessions\s+([\s\S]*)$/)
+  const sessionsMatch = input.match(/^\/sessions\s+(.*)$/)
   if (sessionsMatch) {
-    const query = sessionsMatch[1]!.trim()
-    const expectedInput = input
-    void searchSessionsByCustomTitle(query, { limit: RESUME_TITLE_LIMIT })
+    void searchSessionsByCustomTitle(sessionsMatch[1]!, { limit: RESUME_TITLE_LIMIT })
       .then(sessions => {
-        if (inputRef.current !== expectedInput) return
+        if (inputRef.current !== input) return
         if (sessions.length === 0) {
           clearSuggestions()
           return
         }
         const items: Suggestion[] = sessions.map(session => {
-          const label = session.customTitle || session.sessionId || ''
+          const label = session.customTitle ?? session.sessionId ?? ''
           return {
             id: label,
             displayText: label,
@@ -233,65 +244,25 @@ export function ladderCommands({
             metadata: session.sessionId,
           }
         })
-        publish(items, 'custom-title', { selected: 0 })
+        publish(items, 'custom-title')
       })
       .catch(error => logError(error))
     return true
   }
 
-  if (!input.startsWith('/') || cursor <= 0) return false
+  if (!input.startsWith('/') || cursor <= 0 || hasCommandArgs(input)) return false
 
   const spaceIndex = input.indexOf(' ')
-  if (hasCommandArgs(input)) {
-    if (spaceIndex !== -1 && /\s$/.test(input)) {
-      const cmdName = input.slice(1, spaceIndex)
-      const rest = input.slice(spaceIndex + 1)
-      const matched = commands.find(
-        c => !c.isHidden && (c.userFacingName?.() === cmdName || c.name === cmdName),
-      )
-      if (matched && matched.type === 'prompt') {
-        const argNames = parseArgumentNames(matched.argNames)
-        const hint =
-          argNames.length > 0
-            ? generateProgressiveArgumentHint(argNames, parseArguments(rest))
-            : undefined
-        if (hint !== undefined) {
-          setSuggestionType('none')
-          setSuggestionsState({
-            suggestions: [],
-            selectedSuggestion: -1,
-            commandArgumentHint: hint,
-          })
-          return true
-        }
-      }
-    }
-    return false
-  }
-
   if (spaceIndex !== -1) {
-    const cmdName = input.slice(1, spaceIndex)
-    const matched = commands.find(
-      c => !c.isHidden && (c.userFacingName?.() === cmdName || c.name === cmdName),
-    )
-    if (matched) {
-      const argNames =
-        matched.type === 'prompt' ? parseArgumentNames(matched.argNames) : []
-      const hint =
-        matched.argumentHint ??
-        (argNames.length > 0
-          ? generateProgressiveArgumentHint(argNames, [])
-          : undefined)
-      if (hint !== undefined) {
-        setSuggestionType('none')
-        setSuggestionsState({
-          suggestions: [],
-          selectedSuggestion: -1,
-          commandArgumentHint: hint,
-        })
-      } else {
-        clearSuggestions()
-      }
+    const name = input.slice(1, spaceIndex)
+    const rest = input.slice(spaceIndex + 1)
+    const command = commands.find(c => c.userFacingName?.() === name || c.name === name)
+    if (command !== undefined || rest.trim() !== '') {
+      const hint = progressiveHintOf(command, input, name, rest)
+      publish([], 'none', {
+        selected: -1,
+        ...(hint !== undefined ? { argumentHint: hint } : {}),
+      })
       return true
     }
   }
