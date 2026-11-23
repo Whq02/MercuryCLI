@@ -29,14 +29,23 @@ import { UserNoticeMessage } from './UserNoticeMessage.js'
 import { UserPromptMessage } from './UserPromptMessage.js'
 import { UserResourceUpdateMessage } from './UserResourceUpdateMessage.js'
 import { formatClock, useMessageMeta } from './TranscriptNameplate.js'
-import type { Unbuilt } from '../../pi/holes.js'
 
 function noticeArrivalClock(sentAt?: string, deliveredAt?: string): string | null {
   const gap = Date.parse(deliveredAt ?? '') - Date.parse(sentAt ?? '')
   return Number.isFinite(gap) && gap >= ROW_SECOND_CLOCK_GAP_MS ? formatClock(sentAt) : null
 }
 
-type Props = Unbuilt
+type Props = {
+  addMargin: boolean
+  param: TextBlockParam
+  verbose: boolean
+  isTranscriptMode?: boolean
+  timestamp?: string
+  notice?: boolean
+  noticeSentAt?: string
+  noticeDeliveredAt?: string
+  origin?: unknown
+}
 
 export function UserTextMessage({
   addMargin,
