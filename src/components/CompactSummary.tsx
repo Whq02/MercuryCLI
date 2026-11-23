@@ -13,10 +13,7 @@ type Props = {
 };
 
 function reclaimPct(message: NormalizedUserMessage): number | undefined {
-  const meta = message.summarizeMetadata as
-    | { contextReclaimedPct?: number }
-    | undefined;
-  const v = meta?.contextReclaimedPct;
+  const v = message.summarizeMetadata?.contextReclaimedPct;
   return typeof v === 'number' && Number.isFinite(v) ? v : undefined;
 }
 
