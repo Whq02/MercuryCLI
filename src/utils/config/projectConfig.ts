@@ -29,7 +29,6 @@ import {
   noteConfigContentionRefusal,
   noteConfigLocklessFallback,
 } from './globalConfig.js'
-import { notBuilt } from '../../pi/holes.js'
 
 type SliceUpdater = (currentConfig: ProjectConfig) => ProjectConfig
 
@@ -63,12 +62,20 @@ function withRecordReplaced(config: GlobalConfig, key: string, updater: SliceUpd
   return next === current ? null : { ...config, projects: { ...config.projects, [key]: next } }
 }
 
+function readProjectRecord(key: string): ProjectConfig {
+  const record = recordOf(getGlobalConfig(), key)
+  if (record !== DEFAULT_PROJECT_CONFIG && typeof record.allowedTools === 'string') {
+    record.allowedTools = (safeParseJSON(record.allowedTools) ?? []) as string[]
+  }
+  return record
+}
+
 export function getCurrentProjectConfig(): ProjectConfig {
-  return notBuilt('src/utils/config/projectConfig.ts:73')
+  return underTest() ? TEST_PROJECT_CONFIG_FOR_TESTING : readProjectRecord(getProjectPathForConfig())
 }
 
 export function getProjectConfigForWorkspace(workspaceDir: string): ProjectConfig {
-  return notBuilt('src/utils/config/projectConfig.ts:77')
+  return underTest() ? TEST_PROJECT_CONFIG_FOR_TESTING : readProjectRecord(projectConfigKeyForWorkspace(workspaceDir))
 }
 
 function saveTestProjectSlice(updater: SliceUpdater): void {
@@ -78,8 +85,59 @@ function saveTestProjectSlice(updater: SliceUpdater): void {
 
 const refuse = (why: string): void => logForDebugging(why, { level: 'error' })
 
+function writeProjectSliceUnderLock(file: string, key: string, updater: SliceUpdater): void {
+  const made: { replaced: GlobalConfig | null } = { replaced: null }
+  const written = saveConfigWithLock(file, createDefaultGlobalConfig, current => {
+    made.replaced = withRecordReplaced(current, key, updater)
+    return made.replaced ?? current
+  })
+  if (written && made.replaced !== null) writeThroughGlobalConfigCache(made.replaced)
+}
+
+function rereadForLocklessWrite(file: string): GlobalConfig | null {
+  let fresh: GlobalConfig
+  try {
+    fresh = getConfig(file, createDefaultGlobalConfig)
+  } catch (error) {
+    if (!(error instanceof ConfigReadError)) throw error
+    refuse(`saveCurrentProjectConfig fallback: refusing the write — ${error.message}`)
+    return null
+  }
+  if (wouldLoseAuthState(fresh)) {
+    refuse('saveCurrentProjectConfig fallback: the re-read view lost auth state the cache still holds; refusing the write (auth-wipe guard).')
+    return null
+  }
+  return fresh
+}
+
+function writeProjectSliceWithoutLock(file: string, key: string, updater: SliceUpdater): void {
+  const fresh = rereadForLocklessWrite(file)
+  if (fresh === null) return
+  const folded = foldPendingUpdaters(fresh)
+  const replaced = withRecordReplaced(folded, key, updater)
+  if (replaced === null && !hasPendingDeferredGlobalConfigSaves()) return
+  const next = replaced ?? folded
+  saveConfig(file, next, DEFAULT_GLOBAL_CONFIG)
+  writeThroughGlobalConfigCache(next)
+}
+
 function writeProjectSlice(absolutePath: string, updater: SliceUpdater): void {
-  return notBuilt('src/utils/config/projectConfig.ts:122')
+  const file = getGlobalMercuryFile()
+  try {
+    writeProjectSliceUnderLock(file, absolutePath, updater)
+  } catch (error) {
+    if (error instanceof ConfigReadError) {
+      refuse(`saveCurrentProjectConfig: refusing the write — ${error.message}`)
+      return
+    }
+    if ((error as NodeJS.ErrnoException | null)?.code === 'ELOCKED') {
+      noteConfigContentionRefusal('writeProjectSlice')
+      return
+    }
+    refuse(`Failed to save config with lock: ${error}`)
+    noteConfigLocklessFallback()
+    writeProjectSliceWithoutLock(file, absolutePath, updater)
+  }
 }
 
 export function saveCurrentProjectConfigDeferred(updater: SliceUpdater): void {
@@ -92,7 +150,11 @@ export function saveCurrentProjectConfigDeferred(updater: SliceUpdater): void {
 }
 
 export function saveCurrentProjectConfig(updater: SliceUpdater): void {
-  return notBuilt('src/utils/config/projectConfig.ts:150')
+  if (underTest()) {
+    saveTestProjectSlice(updater)
+    return
+  }
+  writeProjectSlice(getProjectPathForConfig(), updater)
 }
 
 export function saveProjectConfigForWorkspace(workspaceDir: string, updater: SliceUpdater): void {
