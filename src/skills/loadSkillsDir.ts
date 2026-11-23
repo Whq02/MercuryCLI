@@ -442,12 +442,16 @@ const pendingConditional = new Map<string, Command>()
 const conditionalBases = new Map<string, string>()
 const activatedSkillNames = new Set<string>()
 
+function pathFiltersOf(command: Command): string[] {
+  return command.type === 'prompt' ? (command.pathFilters ?? []) : []
+}
+
 function splitConditional(commands: Command[]): Command[] {
   const unconditional: Command[] = []
   let withheld = 0
   for (const command of commands) {
-    const filters = (command as { pathFilters?: string[] }).pathFilters
-    if (filters && filters.length > 0 && !activatedSkillNames.has(command.name)) {
+    const filters = pathFiltersOf(command)
+    if (filters.length > 0 && !activatedSkillNames.has(command.name)) {
       pendingConditional.set(command.name, command)
       withheld++
       continue
@@ -458,7 +462,7 @@ function splitConditional(commands: Command[]): Command[] {
   return unconditional
 }
 
-const getSkillDirCommandsMemoized = memoize(
+const loadAllSkillsMemo = memoize(
   async (cwd: string): Promise<Command[]> => {
     const managedDir = getSkillsPath('policySettings', 'skills')
     const userDir = getSkillsPath('userSettings', 'skills')
@@ -534,11 +538,11 @@ const getSkillDirCommandsMemoized = memoize(
 )
 
 export function getSkillDirCommands(cwd: string): Promise<Command[]> {
-  return getSkillDirCommandsMemoized(cwd)
+  return loadAllSkillsMemo(cwd)
 }
 
 export function clearSkillCaches(): void {
-  getSkillDirCommandsMemoized.cache.clear?.()
+  loadAllSkillsMemo.cache.clear?.()
   clearMarkdownFileCache()
   pendingConditional.clear()
   conditionalBases.clear()
@@ -629,10 +633,6 @@ async function loadDynamicDir(dir: string): Promise<{ entries: DynamicSkillEntry
     }
   })
   return { entries, seen }
-}
-
-function pathFiltersOf(command: Command): string[] {
-  return (command as { pathFilters?: string[] }).pathFilters ?? []
 }
 
 function seatDynamicEntry(dir: string, entry: DynamicSkillEntry, wasActive: boolean): boolean {
