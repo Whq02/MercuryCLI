@@ -1,17 +1,24 @@
 import { createElement, type ReactNode } from 'react'
 import { ThemeProvider } from './components/design-system/ThemeProvider.js'
 import renderBare, { createRoot as createBareRoot, type Instance, type RenderOptions, type Root } from './ink/root.js'
-import { notBuilt } from './pi/holes.js'
+
+function withTheme(node: ReactNode): ReactNode {
+  return createElement(ThemeProvider, null, node)
+}
 
 export function render(
   node: ReactNode,
   options?: NodeJS.WriteStream | RenderOptions,
 ): Promise<Instance> {
-  return notBuilt('src/ink.ts:9')
+  return renderBare(withTheme(node), options)
 }
 
 export async function createRoot(options?: RenderOptions): Promise<Root> {
-  return notBuilt('src/ink.ts:16')
+  const root = await createBareRoot(options)
+  return {
+    ...root,
+    render: (node: ReactNode) => root.render(withTheme(node)),
+  }
 }
 
 export type { Instance, RenderOptions, Root }
