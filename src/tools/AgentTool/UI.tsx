@@ -111,7 +111,7 @@ function messagesOf(progressMessages: readonly ProgressMessage[]): Array<{
 
 function displayRows(progressMessages: readonly ProgressMessage[]) {
   return messagesOf(progressMessages).filter(
-    row => row.data.message!.type !== 'user',
+    row => row.data.message.type !== 'user',
   )
 }
 
@@ -122,7 +122,7 @@ function latestTokenTotal(
     const data = (progressMessages[i] as { data?: AgentProgressData }).data
     const message = data?.message
     if (!message || message.type !== 'assistant') continue
-    const usage = (message as AssistantMessage).message.usage
+    const usage = message.message.usage
     if (!usage) continue
     return getTokenCountFromUsage(usage as ApiUsage)
   }
@@ -132,17 +132,12 @@ function latestTokenTotal(
 
 function AgentPromptDisplay({
   prompt,
-  dim,
 }: {
   prompt: string
-  theme?: unknown
-  dim?: boolean
 }): React.ReactNode {
   return (
     <Box flexDirection="column">
-      <Text bold dimColor={dim}>
-        Prompt:
-      </Text>
+      <Text bold>Prompt:</Text>
       <Box marginLeft={2} flexDirection="column">
         <Markdown>{prompt}</Markdown>
       </Box>
@@ -154,7 +149,6 @@ function AgentResponseDisplay({
   content,
 }: {
   content: ReadonlyArray<{ type: 'text'; text: string }>
-  theme?: unknown
 }): React.ReactNode {
   const blocks = content.filter(block => block.text.trim() !== '')
   return (
@@ -413,7 +407,7 @@ export function renderToolResultMessage(
           {options.isTranscriptMode ? (
             prompt !== undefined ? (
               <Box marginTop={1}>
-                <AgentPromptDisplay prompt={prompt} theme={options.theme} />
+                <AgentPromptDisplay prompt={prompt} />
               </Box>
             ) : null
           ) : (
@@ -475,7 +469,7 @@ export function renderToolResultMessage(
     <MessageResponse>
       <Box flexDirection="column">
         {options.isTranscriptMode && prompt !== undefined ? (
-          <AgentPromptDisplay prompt={prompt} theme={options.theme} />
+          <AgentPromptDisplay prompt={prompt} />
         ) : null}
         {transcriptLookups !== null ? (
           <SubAgentProvider>
@@ -500,7 +494,7 @@ export function renderToolResultMessage(
         ) : null}
         {(options.isTranscriptMode || options.verbose) &&
         textBlocks.length > 0 ? (
-          <AgentResponseDisplay content={textBlocks} theme={options.theme} />
+          <AgentResponseDisplay content={textBlocks} />
         ) : null}
         {record.status === 'failed' ? (
           <Text color="error">
