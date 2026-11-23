@@ -1,4 +1,4 @@
-import React, { Suspense, memo, useRef, useState } from 'react'
+import React, { memo, useRef, useState } from 'react'
 import { useMeasure } from '../hooks/effects.js'
 import { Ansi, Box, NoSelect, Text, measureElement } from '../ink.js'
 import type { DOMElement } from '../ink.js'
@@ -6,6 +6,7 @@ import { useAppState } from '../state/AppState.js'
 import { isFullscreenEnvEnabled } from '../utils/fullscreen.js'
 import { linkifyCodeUrls } from '../utils/hyperlink.js'
 import { HighlightedCodeFallback } from './HighlightedCode/Fallback.js'
+import { Suspense } from 'react'
 
 type HighlightedCodeProps = {
   code: string
@@ -34,11 +35,9 @@ export const HighlightedCode: React.NamedExoticComponent<HighlightedCodeProps> =
       }
     })
 
-    const boxProps = width !== undefined ? { width } : {}
-
     if (!isFullscreenEnvEnabled()) {
       return (
-        <Box ref={boxRef} flexDirection="column" {...boxProps}>
+        <Box ref={boxRef} width={width} flexDirection="column">
           <HighlightedCodeFallback
             code={code}
             filePath={filePath}
@@ -53,7 +52,7 @@ export const HighlightedCode: React.NamedExoticComponent<HighlightedCodeProps> =
     const gutterDigits = String(lines.length).length
 
     return (
-      <Box ref={boxRef} flexDirection="column" {...boxProps}>
+      <Box ref={boxRef} width={width} flexDirection="column">
         {lines.map((line, index) => {
           const lineText = line === '' ? ' ' : line
           const gutter = `${String(index + 1).padStart(gutterDigits)}  `
@@ -62,18 +61,16 @@ export const HighlightedCode: React.NamedExoticComponent<HighlightedCodeProps> =
               <NoSelect fromLeftEdge flexShrink={0}>
                 <Text dimColor>{gutter}</Text>
               </NoSelect>
-              <Box flexGrow={1} flexShrink={1} minWidth={0}>
-                <Suspense
-                  fallback={<Ansi dimColor={dim}>{linkifyCodeUrls(lineText)}</Ansi>}
-                >
-                  <HighlightedCodeFallback
-                    code={lineText}
-                    filePath={filePath}
-                    dim={dim}
-                    skipColoring={syntaxOff}
-                  />
-                </Suspense>
-              </Box>
+              <Suspense
+                fallback={<Ansi dimColor={dim}>{linkifyCodeUrls(lineText)}</Ansi>}
+              >
+                <HighlightedCodeFallback
+                  code={lineText}
+                  filePath={filePath}
+                  dim={dim}
+                  skipColoring={syntaxOff}
+                />
+              </Suspense>
             </Box>
           )
         })}
