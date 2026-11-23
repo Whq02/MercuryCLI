@@ -78,7 +78,7 @@ const DISPLAY_NAMES: Readonly<Record<string, string>> = {
 } satisfies Record<RateLimitType, string>
 
 export function getRateLimitDisplayName(type: string): string {
-  return Object.hasOwn(DISPLAY_NAMES, type) ? DISPLAY_NAMES[type] : type
+  return DISPLAY_NAMES[type] ?? type
 }
 
 export function rateLimitTypeOfClaim(claim: string): RateLimitType {
