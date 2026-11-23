@@ -6,10 +6,17 @@ import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
 import { ROW_SECOND_CLOCK_GAP_MS, taskNoticeBlock } from '../../utils/messages/noticeRows.js'
 import { UserNoticeMessage } from './UserNoticeMessage.js'
 import { formatClock, MessageMetaProvider, useMessageMeta } from './TranscriptNameplate.js'
-import { notBuilt } from '../../pi/holes.js'
-
 function statusColor(status: string | null, accent: string): string {
-  return notBuilt('src/components/messages/UserAgentNotificationMessage.tsx:10')
+  switch (status) {
+    case 'completed':
+      return 'success'
+    case 'failed':
+      return 'error'
+    case 'killed':
+      return 'warning'
+    default:
+      return accent
+  }
 }
 
 export function partialResultOf(text: string): string | null {
