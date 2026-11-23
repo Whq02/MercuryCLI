@@ -19,7 +19,6 @@ import type { ImageDimensions } from '../../../utils/imageResizer.js'
 import { editPromptInEditor } from '../../../utils/promptEditor.js'
 import { type OptionWithDescription, Select, SelectMulti } from '../../CustomSelect/index.js'
 import { decodeDomNavKey } from '../../mercury-ui/navSemantics.js'
-import { InteractiveRow } from '../../mercury-ui/InteractiveRow.js'
 import { Divider } from '../../design-system/Divider.js'
 import { PermissionRequestTitle } from '../PermissionRequestTitle.js'
 import { PreviewQuestionView } from './PreviewQuestionView.js'
@@ -272,7 +271,7 @@ export function QuestionView(props: Props): React.ReactNode {
         />
         <PermissionRequestTitle title={question.question} color="text" />
         <Box flexDirection="column" minHeight={minContentHeight}>
-          <Box marginTop={1} flexDirection="column">
+          <Box marginTop={1}>
             {question.multiSelect ? (
               <SelectMulti
                 key={question.question}
@@ -358,9 +357,11 @@ export function QuestionView(props: Props): React.ReactNode {
               />
             )}
           </Box>
-          {renderDiscussFooter(footerNumber, isFooterFocused, onRespondToModel)}
+          {renderDiscussFooter(footerNumber, isFooterFocused)}
           <Box marginTop={1}>
-            <Text dimColor>{helpLine}</Text>
+            <Text color="inactive" dimColor>
+              {helpLine}
+            </Text>
           </Box>
         </Box>
       </Box>
@@ -402,29 +403,14 @@ function buildQuestionOptions({
 function renderDiscussFooter(
   footerNumber: number,
   isFooterFocused: boolean,
-  onRespondToModel?: () => void | Promise<void>,
 ): React.ReactNode {
   return (
-    <Box flexDirection="column" marginTop={1}>
+    <Box flexDirection="column">
       <Divider color="inactive" />
-      <InteractiveRow
-        id="question:discuss-footer"
-        directActivate
-        selectionBand={false}
-        onActivate={
-          onRespondToModel
-            ? () => {
-                void onRespondToModel()
-              }
-            : undefined
-        }
-      >
-        <Text color={isFooterFocused ? 'suggestion' : undefined} bold={isFooterFocused}>
-          {isFooterFocused ? `${figures.pointer} ` : '  '}
-          <Text dimColor={!isFooterFocused}>{`${footerNumber}. `}</Text>
-          {DISCUSS_OPTION_LABEL}
-        </Text>
-      </InteractiveRow>
+      <Box flexDirection="row" gap={1}>
+        {isFooterFocused ? <Text color="suggestion">{figures.pointer}</Text> : <Text> </Text>}
+        <Text color={isFooterFocused ? 'suggestion' : undefined}>{`${footerNumber}. ${DISCUSS_OPTION_LABEL}`}</Text>
+      </Box>
     </Box>
   )
 }
