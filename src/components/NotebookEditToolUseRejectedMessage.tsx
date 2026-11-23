@@ -28,30 +28,23 @@ export function NotebookEditToolUseRejectedMessage({
   const operation =
     edit_mode === 'delete' ? 'delete' : `${edit_mode ?? 'replace'} cell in`
 
-  const headline = (
-    <MessageResponse height={1}>
-      <Text dimColor wrap="wrap">
-        Operator rejected {operation} <Text bold>{displayPath}</Text> (cell{' '}
-        {cell_id ?? '?'})
-      </Text>
-    </MessageResponse>
-  )
-
-  if (edit_mode === 'delete') {
-    return headline
-  }
-
   return (
     <Box flexDirection="column">
-      {headline}
-      <MessageResponse>
-        <HighlightedCode
-          code={new_source}
-          filePath={cell_type === 'markdown' ? 'cell.md' : 'cell.py'}
-          width={Math.max(10, columns - BODY_INSET)}
-          dim
-        />
+      <MessageResponse height={1}>
+        <Text dimColor wrap="wrap">
+          Operator rejected {operation} <Text bold>{displayPath}</Text> (cell{' '}
+          {cell_id ?? '?'})
+        </Text>
       </MessageResponse>
+      {edit_mode === 'delete' ? null : (
+        <MessageResponse>
+          <HighlightedCode
+            code={new_source}
+            filePath={cell_type === 'markdown' ? 'cell.md' : 'cell.py'}
+            width={columns - BODY_INSET}
+          />
+        </MessageResponse>
+      )}
     </Box>
   )
 }
