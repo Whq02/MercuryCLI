@@ -26,7 +26,6 @@ import { findSection, planAppend, planSectionEdit } from '../sectionEdit.js'
 import { ONE_GIB, type FarHeld, type EditMode, tooLargeToEdit, decodeFileBuffer, notFoundSuggestionSentence, staleAtValidation, hasText, hunksInUse, editMode, attemptStaleHunkRecovery, splitLeadingBom } from './fileFacts.js'
 import { linesOfMatches, noMatchWords, readKnowledge, readKnowledgeRefusal } from './readKnowledge.js'
 import { notUniqueRefusal, IDENTICAL_EDIT_MESSAGE, notFoundMessage, withoutReadPrefixes, linesOfHunks } from './exactMatch.js'
-import { notBuilt, type Unbuilt } from '../../../pi/holes.js'
 
 function pathShapeVerdict(input: FileEditInput, context: ToolUseContext) {
   const pathRefusal = controlCharacterPathRefusal(input.file_path)
@@ -55,8 +54,64 @@ function pathShapeVerdict(input: FileEditInput, context: ToolUseContext) {
   return null
 }
 
-function modeShapeRefusal(input: FileEditInput, usingHunks: boolean, mode: EditMode): Unbuilt {
-  return notBuilt('src/tools/FileEditTool/edit/validate.ts:57')
+function modeShapeRefusal(input: FileEditInput, usingHunks: boolean, mode: EditMode) {
+  if (mode === 'append' || mode === 'section') {
+    const clash =
+      hasText(input.old_string) ||
+      (Array.isArray(input.hunks) && input.hunks.length > 0) ||
+      input.replace_all === true ||
+      (mode === 'append' && hasText(input.new_string)) ||
+      (mode === 'section' && hasText(input.append) && hasText(input.new_string)) ||
+      (mode === 'section' && !hasText(input.append) && input.new_string === undefined)
+    if (clash) {
+      return {
+        result: false as const,
+        behavior: 'ask' as const,
+        message:
+          mode === 'append'
+            ? 'append stands alone (or with section): drop old_string, new_string and hunks.'
+            : 'section takes exactly one of new_string (replace the section) or append (add inside it), and no old_string or hunks.',
+        errorCode: 13,
+      }
+    }
+  } else if (!usingHunks && (input.old_string === undefined || input.new_string === undefined)) {
+    return {
+      result: false as const,
+      behavior: 'ask' as const,
+      message: 'old_string and new_string are required unless hunks, append or section are provided.',
+      errorCode: 13,
+    }
+  }
+  if (
+    usingHunks &&
+    (hasText(input.old_string) || hasText(input.new_string) || hasText(input.section) || hasText(input.append) || input.replace_all)
+  ) {
+    return {
+      result: false as const,
+      behavior: 'ask' as const,
+      message:
+        'hunks and old_string/new_string/replace_all are mutually exclusive — use one edit mode per call.',
+      errorCode: 13,
+    }
+  }
+  if (usingHunks && !hasText(input.expected_anchor)) {
+    const everyHunkAnchorQualified =
+      lineAnchorsEnabled() &&
+      (input.hunks ?? []).every(h => parseHashedLinesSpelling(h.lines) !== null)
+    if (!everyHunkAnchorQualified) {
+      return {
+        result: false as const,
+        behavior: 'ask' as const,
+        message:
+          'hunks require expected_anchor — the bare fa:… or ra:… value inside the "(anchor: …)" of your preceding Read of this file, without the wrapper.' +
+          (lineAnchorsEnabled()
+            ? ' (Or anchor-qualify every hunk\'s lines from a line_anchors read, such as "12#ab3f", in place of expected_anchor.)'
+            : ''),
+        errorCode: 13,
+      }
+    }
+  }
+  return null
 }
 
 function hunksPlanVerdict(input: FileEditInput, expandedPath: string, currentContent: string, recoveredHunks: EditHunkInput[] | undefined, recoveredAnchor: string | undefined) {

@@ -7,7 +7,6 @@ import { editSearchString, locateActualString, preserveQuoteStyleCandidates, str
 import { matchRangesOf, notUniqueMessage, spellNamedRanges } from '../editResult.js'
 import { coalesceLineRanges, type LineRange } from '../readThrough.js'
 import { noMatchWords } from './readKnowledge.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 type NotUniqueRefusal = { result: false; behavior: 'ask'; message: string; errorCode: 9; meta: Record<string, string> }
 
@@ -76,7 +75,13 @@ export function matchExactEdit(
 }
 
 export function withoutReadPrefixes(input: FileEditInput, referenceText: string): FileEditInput {
-  return notBuilt('src/tools/FileEditTool/edit/exactMatch.ts:77')
+  return {
+    ...input,
+    ...(input.old_string !== undefined ? { old_string: stripSequentialReadPrefixes(input.old_string, referenceText) } : {}),
+    ...(input.new_string !== undefined ? { new_string: stripSequentialReadPrefixes(input.new_string, referenceText) } : {}),
+    ...(input.append !== undefined ? { append: stripSequentialReadPrefixes(input.append, referenceText) } : {}),
+    ...(input.hunks !== undefined ? { hunks: input.hunks.map(hunk => ({ ...hunk, replace: stripSequentialReadPrefixes(hunk.replace, referenceText) })) } : {}),
+  }
 }
 
 export function linesOfHunks(hunks: readonly EditHunkInput[] | undefined): LineRange[] | null {

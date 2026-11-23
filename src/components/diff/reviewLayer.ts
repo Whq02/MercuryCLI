@@ -18,7 +18,6 @@ import {
 import { computeWorkingTreeDigestAsync } from '../../utils/verification/verificationState.js'
 import { getCwd } from '../../utils/cwd.js'
 import type { DiffData } from '../../hooks/useDiffData.js'
-import { notBuilt } from '../../pi/holes.js'
 
 
 export function buildAnchorForHunk(
@@ -72,7 +71,22 @@ export function buildAnchorForHunk(
 const sourceArtifacts = new Map<string, string>()
 
 export function diffDataToBodyFiles(diffData: DiffData): DiffBodyFile[] {
-  return notBuilt('src/components/diff/reviewLayer.ts:74')
+  const files: DiffBodyFile[] = []
+  for (const f of diffData.files) {
+    const hunks = diffData.hunks.get(f.path)
+    if (!hunks || hunks.length === 0) continue
+    files.push({
+      path: f.path,
+      hunks: hunks.map(h => ({
+        oldStart: h.oldStart,
+        oldLines: h.oldLines,
+        newStart: h.newStart,
+        newLines: h.newLines,
+        lines: [...h.lines],
+      })),
+    })
+  }
+  return files
 }
 
 function boundKey(sourceKey: string): string {
