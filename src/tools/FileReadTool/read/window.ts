@@ -42,7 +42,7 @@ export function firstWindowUnderCap(
   )
   const startLine = lineOffset + 1
   const plan = planReadThrough(
-    whole.content,
+    rendered,
     [{ start: startLine, end: lineOffset + shownCount }],
     resolvedPath,
     { maxLines: MAX_LINES_TO_READ, maxTokens: allowance },
