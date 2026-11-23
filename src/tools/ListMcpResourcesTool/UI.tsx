@@ -7,18 +7,39 @@ import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.j
 import { Box, Text } from '../../ink.js'
 import { plural } from '../../utils/stringUtils.js'
 import type { Output } from './ListMcpResourcesTool.js'
-import { notBuilt } from '../../pi/holes.js'
 
 
 export function renderToolUseMessage(input?: { server?: string }): React.ReactNode {
   return input?.server ?? 'all'
 }
 
-function ResourceListCard(arg0: {
+function ResourceListCard({
+  output,
+  verbose,
+}: {
   output: Output
   verbose: boolean
 }): React.ReactNode {
-  return notBuilt('src/tools/ListMcpResourcesTool/UI.tsx:16')
+  const tokens = useMercuryTokens()
+  if (output.length === 0) {
+    return (
+      <MessageResponse>
+        <Text color={tokens.textMuted}>no resources</Text>
+      </MessageResponse>
+    )
+  }
+  return (
+    <MessageResponse>
+      <Box flexDirection="column">
+        <Text>
+          <ToolCardMarker />
+          Found <Text bold color={toolCardCountColor()}>{output.length}</Text>{' '}
+          {plural(output.length, 'resource')}
+        </Text>
+        <OutputLine content={JSON.stringify(output, null, 2)} verbose={verbose} />
+      </Box>
+    </MessageResponse>
+  )
 }
 
 export function renderToolResultMessage(
