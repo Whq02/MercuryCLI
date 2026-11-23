@@ -139,15 +139,16 @@ function rankResults(
   results: ReadonlyArray<{ item: IndexedCommand; score?: number }>,
   query: string,
 ): Command[] {
-  return [...results]
-    .sort((a, b) => {
-      const tierDiff = matchTier(a.item, query) - matchTier(b.item, query)
-      if (tierDiff !== 0) return tierDiff
-      const scoreDiff = (a.score ?? 1) - (b.score ?? 1)
-      if (scoreDiff !== 0) return scoreDiff
-      return a.item.name.length - b.item.name.length || a.item.name.localeCompare(b.item.name)
-    })
-    .map(result => result.item.command)
+  return results
+    .map(result => ({ entry: result.item, tier: matchTier(result.item, query), score: result.score ?? 1 }))
+    .sort(
+      (a, b) =>
+        a.tier - b.tier ||
+        (a.tier === 5 ? a.score - b.score : 0) ||
+        a.entry.name.length - b.entry.name.length ||
+        a.entry.name.localeCompare(b.entry.name),
+    )
+    .map(ranked => ranked.entry.command)
 }
 
 function sortByName(commands: Command[]): Command[] {
