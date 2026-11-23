@@ -35,6 +35,12 @@ async function summarizeViaCacheSharingFork(
   const estTokens = tokenCountWithEstimation(messages)
   const cold = coldPrefixOf(messages, model)
   const bound = armFoldBound(context.abortController.signal, 'fork', estTokens, model, cold)
+  const handOverAtBound = (): null => {
+    const elapsed = Date.now() - startedAt
+    logForDebugging(`compact: fork lane cut for ${foldCutWords(bound)} after ${elapsed} ms — handing over to direct lane`, { level: 'warn' })
+    recordFoldRoad(model, 'fork', startedAt, 'handover', `fold bound after ${elapsed} ms`)
+    return null
+  }
   context.setResponseLength?.(() => 0)
   try {
     const getAppState = () => {
@@ -80,11 +86,7 @@ async function summarizeViaCacheSharingFork(
         getAppState,
       },
     })
-    if (bound.hitDeadline()) {
-      logForDebugging(`compact: fork lane cut for ${foldCutWords(bound)} after ${Date.now() - startedAt} ms — handing over to direct lane`, { level: 'warn' })
-      recordFoldRoad(model, 'fork', startedAt, 'handover', foldCutWords(bound))
-      return null
-    }
+    if (bound.hitDeadline()) return handOverAtBound()
     if (context.abortController.signal.aborted) {
       recordFoldRoad(model, 'fork', startedAt, 'aborted')
       return null
@@ -119,15 +121,11 @@ async function summarizeViaCacheSharingFork(
       }
     }
     logForDebugging('compact: fork lane did not produce a usable summary — handing over to direct lane', { level: 'warn' })
-    recordFoldRoad(model, 'fork', startedAt, 'handover')
+    recordFoldRoad(model, 'fork', startedAt, 'handover', 'no usable summary')
     return null
   } catch (error) {
     if (error instanceof CompactionRefusedForHistoryError) throw error
-    if (bound.hitDeadline()) {
-      logForDebugging(`compact: fork lane cut for ${foldCutWords(bound)} after ${Date.now() - startedAt} ms — handing over to direct lane`, { level: 'warn' })
-      recordFoldRoad(model, 'fork', startedAt, 'handover', foldCutWords(bound))
-      return null
-    }
+    if (bound.hitDeadline()) return handOverAtBound()
     if (context.abortController.signal.aborted) {
       recordFoldRoad(model, 'fork', startedAt, 'aborted')
       return null
@@ -302,7 +300,7 @@ async function summarizeDirect(
           }),
         )
       }
-      recordFoldRoad(model, 'direct', startedAt, 'incomplete')
+      recordFoldRoad(model, 'direct', startedAt, 'refused')
       throw new Error(text !== '' ? text : ERROR_MESSAGE_INCOMPLETE_RESPONSE)
     }
 
