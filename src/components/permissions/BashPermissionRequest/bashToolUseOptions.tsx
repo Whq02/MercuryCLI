@@ -4,7 +4,6 @@ import { BASH_TOOL_NAME } from '../../../constants/tools/bash.js'
 import { extractOutputRedirections } from '../../../utils/bash/commands.js'
 import { generateShellSuggestionsLabel } from '../shellPermissionHelpers.js'
 import type { PermissionDecisionReason, PermissionUpdate } from '../../../types/permissions.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 export type BashToolUseOption = 'yes' | 'yes-apply-suggestions' | 'yes-edited-prefix' | 'no'
 
@@ -38,7 +37,16 @@ function bashRuleCount(suggestions: PermissionUpdate[]): number {
   return count
 }
 
-export function bashToolUseOptions(arg0: {
+export function bashToolUseOptions({
+  suggestions,
+  decisionReason,
+  onRejectFeedbackChange,
+  onAcceptFeedbackChange,
+  yesInputMode,
+  noInputMode,
+  editablePrefix,
+  onEditablePrefixChange,
+}: {
   suggestions?: PermissionUpdate[]
   decisionReason?: PermissionDecisionReason
   onRejectFeedbackChange: (feedback: string) => void
@@ -48,5 +56,66 @@ export function bashToolUseOptions(arg0: {
   editablePrefix?: string
   onEditablePrefixChange?: (prefix: string) => void
 }): OptionWithDescription<BashToolUseOption>[] {
-  return notBuilt('src/components/permissions/BashPermissionRequest/bashToolUseOptions.tsx:40')
+  const options: OptionWithDescription<BashToolUseOption>[] = [
+    yesInputMode
+      ? {
+          type: 'input',
+          label: 'Yes',
+          value: 'yes',
+          onChange: onAcceptFeedbackChange,
+          placeholder: 'tell Mercury what to do next',
+          allowEmptySubmitToCancel: true,
+        }
+      : {
+          label: 'Yes',
+          value: 'yes',
+        },
+  ]
+
+  if (suggestions && suggestions.length > 0) {
+    const canEdit =
+      editableCanRepresent(suggestions) &&
+      (decisionReason?.type !== 'subcommandResults' || bashRuleCount(suggestions) <= 1) &&
+      editablePrefix !== undefined &&
+      onEditablePrefixChange !== undefined
+    if (canEdit) {
+      options.push({
+        type: 'input',
+        label: "Yes, and don't ask again for commands starting with",
+        value: 'yes-edited-prefix',
+        initialValue: editablePrefix,
+        placeholder: 'npm run *',
+        onChange: onEditablePrefixChange,
+        showLabelWithValue: true,
+        labelValueSeparator: ': ',
+        resetCursorOnUpdate: true,
+      })
+    } else {
+      const label = generateShellSuggestionsLabel(suggestions, BASH_TOOL_NAME, stripRedirections)
+      if (label !== null) {
+        options.push({
+          label: <Text>{label}</Text>,
+          value: 'yes-apply-suggestions',
+        })
+      }
+    }
+  }
+
+  options.push(
+    noInputMode
+      ? {
+          type: 'input',
+          label: 'No, and tell Mercury what to do differently (esc)',
+          value: 'no',
+          onChange: onRejectFeedbackChange,
+          placeholder: 'tell Mercury what to do differently',
+          allowEmptySubmitToCancel: true,
+        }
+      : {
+          label: 'No, and tell Mercury what to do differently (esc)',
+          value: 'no',
+        },
+  )
+
+  return options
 }
