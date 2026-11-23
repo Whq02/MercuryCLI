@@ -52,7 +52,6 @@ import { remoteLocalForms } from '../thisMachine.js'
 import { passedOver } from '../passedOver.js'
 import { hostEnv } from '../hostEnv.js'
 import { startTimeout, stopTimeout } from '../timers.js'
-import { notBuilt } from '../../pi/holes.js'
 
 
 const DANGEROUS_FILES: string[] = [
@@ -431,16 +430,49 @@ export function checkPathSafetyForAutoEdit(
 
 
 export function getSkillScope(filePath: string): { skillName: string; pattern: string } | null {
-  return notBuilt('src/utils/permissions/filesystem.ts:433')
+  const expanded = expandPath(filePath)
+  const folded = normalizeCaseForComparison(expanded)
+  const bases: ReadonlyArray<readonly [string, string]> = [
+    [expandPath(joinWithSep(joinWithSep(getOriginalCwd(), MERCURY_PROJECT_DIR), 'skills')), `/${MERCURY_PROJECT_DIR}/skills/`],
+    [expandPath(joinWithSep(getMercuryHome(), 'skills')), `~/${MERCURY_PROJECT_DIR}/skills/`],
+  ]
+  for (const [base, prefix] of bases) {
+    const baseTrimmed = base.replace(/[\\/]+$/, '')
+    const baseFolded = normalizeCaseForComparison(baseTrimmed)
+    const sep = folded[baseFolded.length]
+    if (!folded.startsWith(baseFolded) || (sep !== platformSep && sep !== '/')) continue
+    const rest = expanded.slice(baseTrimmed.length + 1)
+    const nativeIdx = rest.indexOf(platformSep)
+    const slashIdx = rest.indexOf('/')
+    const nextSep =
+      nativeIdx === -1
+        ? slashIdx
+        : slashIdx === -1
+          ? nativeIdx
+          : Math.min(nativeIdx, slashIdx)
+    if (nextSep <= 0) return null
+    const skillName = rest.slice(0, nextSep)
+    if (skillName === '.' || skillName.includes('..') || /[*?[\]]/.test(skillName)) return null
+    return { skillName, pattern: `${prefix}${skillName}/**` }
+  }
+  return null
 }
 
 
-export function checkEditableInternalPath(absolutePath: string, _input?: Record<string, unknown>): PermissionResult {
-  return notBuilt('src/utils/permissions/filesystem.ts:461')
+export function checkEditableInternalPath(absolutePath: string, input?: Record<string, unknown>): PermissionResult {
+  const category = editableInternalCategory(expandPath(absolutePath))
+  if (category !== null) {
+    return allow(input, { type: 'other', reason: category })
+  }
+  return { behavior: 'passthrough', message: '' }
 }
 
-export function checkReadableInternalPath(absolutePath: string, _input?: Record<string, unknown>): PermissionResult {
-  return notBuilt('src/utils/permissions/filesystem.ts:474')
+export function checkReadableInternalPath(absolutePath: string, input?: Record<string, unknown>): PermissionResult {
+  const category = readableInternalCategory(expandPath(absolutePath))
+  if (category !== null) {
+    return allow(input, { type: 'other', reason: category })
+  }
+  return { behavior: 'passthrough', message: '' }
 }
 
 function isAgentMemory(path: string): boolean {
@@ -581,7 +613,35 @@ export function rootForPattern(
 const rememberedSourceRoots = new Map<PermissionRule['source'], string>()
 
 function rootForSource(source: PermissionRule['source'], behavior?: 'allow' | 'deny' | 'ask'): string | null | undefined {
-  return notBuilt('src/utils/permissions/filesystem.ts:624')
+  switch (source) {
+    case 'cliArg':
+    case 'command':
+    case 'session':
+    case 'toolsNarrowing':
+    case 'mcpServerPolicy':
+      return getOriginalCwd()
+    default: {
+      try {
+        const settingsPath = getSettingsFilePathForSource(source)
+        if (!settingsPath) return null
+        const root = getDirectoryForPath(settingsPath)
+        rememberedSourceRoots.set(source, root)
+        return root
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        const remembered = rememberedSourceRoots.get(source)
+        if (remembered !== undefined) {
+          logForDebugging(`permission root for ${source} failed (${message}); using remembered root ${remembered}`, { level: 'warn' })
+          return remembered
+        }
+        if (behavior === 'deny') {
+          logForDebugging(`permission root for ${source} failed (${message}); rooting deny rule at original cwd`, { level: 'warn' })
+          return getOriginalCwd()
+        }
+        return undefined
+      }
+    }
+  }
 }
 
 export function matchingRuleForInput(
@@ -590,7 +650,7 @@ export function matchingRuleForInput(
   toolType: 'edit' | 'read',
   behavior: 'allow' | 'deny' | 'ask',
 ): PermissionRule | null {
-  return notBuilt('src/utils/permissions/filesystem.ts:655')
+  return walkMatchingRules(path, context, toolType, behavior, false)[0] ?? null
 }
 
 export function matchingRulesForInput(
@@ -599,7 +659,7 @@ export function matchingRulesForInput(
   toolType: 'edit' | 'read',
   behavior: 'allow' | 'deny' | 'ask',
 ): PermissionRule[] {
-  return notBuilt('src/utils/permissions/filesystem.ts:664')
+  return walkMatchingRules(path, context, toolType, behavior, true)
 }
 
 function walkMatchingRules(
@@ -621,7 +681,26 @@ function absoluteUnderRoot(root: string, literal: string): string {
 }
 
 function resolvedPatternForms(pattern: string, source: PermissionRule['source'], behavior?: 'allow' | 'deny' | 'ask'): string[] {
-  return notBuilt('src/utils/permissions/filesystem.ts:691')
+  const { root, relative } = rootForPattern(pattern, source, undefined, behavior)
+  if (root === REMOTE_RULE_ROOT) return remoteRuleEndpointForms(pattern)
+  if (root === null || root === undefined) return []
+  const globAt = relative.search(GLOB_SEGMENT)
+  const slashBefore = globAt === -1 ? -1 : relative.lastIndexOf('/', globAt)
+  const literal = globAt === -1 ? relative : slashBefore === -1 ? '' : relative.slice(0, slashBefore)
+  const suffix = globAt === -1 ? '' : slashBefore === -1 ? relative : relative.slice(slashBefore)
+  const typed = absoluteUnderRoot(root, literal)
+  const forms = getPathsForPermissionCheck(typed)
+  const out: string[] = []
+  for (const form of forms) {
+    if (form === typed) continue
+    const alt = form.replace(/\\/g, '/')
+    const joined =
+      suffix === '' || suffix.startsWith('/') || alt.endsWith('/')
+        ? `${alt}${suffix}`
+        : `${alt}/${suffix}`
+    out.push(joined.startsWith('/') ? `/${joined}` : joined)
+  }
+  return out
 }
 
 function cwdForms(): string[] {
@@ -754,7 +833,76 @@ export function normalizePatternsToPath(
   patternsByRoot: Map<string | null, string[]>,
   root: string,
 ): string[] {
-  return notBuilt('src/utils/permissions/filesystem.ts:843')
+  const out: string[] = []
+  const seen = new Set<string>()
+  const add = (glob: string): void => {
+    if (!seen.has(glob)) {
+      seen.add(glob)
+      out.push(glob)
+    }
+  }
+  const emitAnchored = (
+    prefix: readonly string[],
+    ruleSegs: readonly string[],
+    folderOnly: boolean,
+  ): void => {
+    const trimmed =
+      ruleSegs.length > 0 && ruleSegs[ruleSegs.length - 1] === '**'
+        ? ruleSegs.slice(0, -1)
+        : ruleSegs
+    const translated: string[] = []
+    for (const seg of trimmed) {
+      const spelled = ripgrepSpelling(seg)
+      if (spelled === null) return
+      translated.push(spelled)
+    }
+    const all = [...prefix, ...translated]
+    if (all.length === 0) {
+      add('/**')
+      return
+    }
+    const anchored = `/${all.join('/')}`
+    if (!folderOnly) add(anchored)
+    add(`${anchored}/**`)
+  }
+  const projectRooted = (ruleRoot: string, pattern: string): void => {
+    const segments = ruleSegments(pattern)
+    if (segments === null) return
+    const folderOnly = pattern.endsWith('/')
+    const fromScan = relativePath(root, ruleRoot)
+    if (!relativePathEscapes(fromScan)) {
+      const prefix = fromScan === '' ? [] : fromScan.split('/').filter(Boolean).map(escapeGlobSegment)
+      emitAnchored(prefix, segments, folderOnly)
+      return
+    }
+    const fromRule = relativePath(ruleRoot, root)
+    if (!relativePathEscapes(fromRule) && pattern.includes('/')) {
+      const folders = fromRule.split('/').filter(Boolean)
+      for (const remaining of segmentsBelow(segments, folders)) {
+        emitAnchored([], remaining, folderOnly)
+      }
+    }
+  }
+
+  let workingDirs: string[] | undefined
+  for (const [ruleRoot, patterns] of patternsByRoot) {
+    if (ruleRoot === null) {
+      for (const pattern of patterns) {
+        const direct = ripgrepSpelling(pattern)
+        if (direct === null) continue
+        add(direct)
+        if (pattern.includes('/')) {
+          workingDirs ??= cwdForms()
+          for (const cwd of workingDirs) projectRooted(cwd, pattern)
+        }
+      }
+      continue
+    }
+    for (const pattern of patterns) {
+      projectRooted(ruleRoot, pattern)
+    }
+  }
+  return out
 }
 
 export function getFileReadIgnorePatterns(context: ToolPermissionContext): Map<string | null, string[]> {
