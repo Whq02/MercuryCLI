@@ -39,7 +39,6 @@ import {
   type AgentSource,
   type CustomAgentDefinition,
 } from '../../types/agent.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
 const PRECEDENCE_DESCENDING: readonly AgentSource[] = [
@@ -87,7 +86,20 @@ function getActiveAgentsFromList(
 export function computeActiveAgents(
   allAgents: readonly AgentDefinition[],
 ): AgentDefinition[] {
-  return notBuilt('src/tools/AgentTool/loadAgentsDir.ts:87')
+  return getActiveAgentsFromList(allAgents).filter(agent => agent.disabled !== true)
+}
+
+function makeSystemPromptCallback(
+  agentType: string,
+  prompt: string,
+  memory: AgentMemoryScope | undefined,
+): () => string {
+  return () => {
+    if (memory !== undefined && isMnemeEnabled()) {
+      return `${prompt}\n\n${loadAgentMemoryPrompt(agentType, memory)}`
+    }
+    return prompt
+  }
 }
 
 const agentMcpServerSpecSchema = z.union([
@@ -135,7 +147,65 @@ function parseAgentFromMarkdown(
   rawContent?: string,
   failures?: { path: string; error: string }[],
 ): CustomAgentDefinition | null {
-  return notBuilt('src/tools/AgentTool/loadAgentsDir.ts:143')
+  try {
+    const raw = rawContent ?? rebuildRawDocument(frontmatter, content)
+    const doc = decodeAgentDocument(raw)
+    const errors = doc.diagnostics.filter(d => d.severity === 'error')
+    for (const d of doc.diagnostics) {
+      if (d.severity !== 'info') {
+        logForDebugging(`agents: ${filePath} ${d.severity} [${d.code}] ${d.message}`)
+      }
+    }
+    if (errors.length > 0) {
+      if (failures) {
+        for (const err of errors) {
+          const prefix = err.line !== undefined ? `line ${err.line}: ` : ''
+          failures.push({ path: filePath, error: `${prefix}[${err.code}] ${err.message}` })
+        }
+      }
+      return null
+    }
+    const { fields } = doc
+    if (!fields.name) return null
+    const agentType = fields.name
+    const whenToUse = fields.description || ''
+    const promptBody = doc.body.trim()
+    const tools = withMemoryVerbs(fields.tools, fields.memory)
+    const mcpServers = validateMcpServers(fields.mcpServers, filePath)
+    const hooks = validateHooks(frontmatter['hooks'], filePath)
+    const standingRule = readStandingRule(frontmatter)
+
+    return {
+      agentType,
+      whenToUse,
+      source,
+      filename: basenameWithoutMarkdownExtension(filePath),
+      baseDir,
+      filePath,
+      revision: revisionDigest(raw),
+      getSystemPrompt: makeSystemPromptCallback(agentType, promptBody, fields.memory),
+      ...(tools !== undefined ? { tools } : {}),
+      ...(fields.disallowedTools !== undefined ? { disallowedTools: fields.disallowedTools } : {}),
+      ...(fields.skills !== undefined ? { skills: fields.skills } : {}),
+      ...(fields.color !== undefined ? { color: fields.color } : {}),
+      ...(fields.model !== undefined ? { model: fields.model } : {}),
+      ...(fields.effort !== undefined ? { effort: fields.effort } : {}),
+      ...(fields.instructionProfile !== undefined ? { instructionProfile: fields.instructionProfile } : {}),
+      ...(fields.permissionMode !== undefined ? { permissionMode: fields.permissionMode } : {}),
+      ...(fields.maxTurns !== undefined ? { maxTurns: fields.maxTurns } : {}),
+      ...(fields.background !== undefined ? { background: fields.background } : {}),
+      ...(fields.initialPrompt !== undefined ? { initialPrompt: fields.initialPrompt } : {}),
+      ...(fields.memory !== undefined ? { memory: fields.memory } : {}),
+      ...(fields.isolation !== undefined ? { isolation: fields.isolation } : {}),
+      ...(mcpServers !== undefined ? { mcpServers } : {}),
+      ...(hooks !== undefined ? { hooks } : {}),
+      ...(standingRule !== undefined ? { standingRule } : {}),
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    logForDebugging(`agents: failed to parse ${filePath}: ${message}`)
+    return null
+  }
 }
 
 function basenameWithoutMarkdownExtension(filePath: string): string {
@@ -167,14 +237,73 @@ const toolRuleSchema = z.string().superRefine((spec, context) => {
   const problem = agentToolRuleProblem(spec)
   if (problem !== null) context.addIssue({ code: 'custom', message: problem })
 })
-const jsonAgentSchema: Unbuilt = unbuilt('src/tools/AgentTool/loadAgentsDir.ts:262')
+const jsonAgentSchema = z.object({
+  description: z.string().min(1),
+  prompt: z.string().min(1),
+  tools: z.array(toolRuleSchema).optional(),
+  disallowedTools: z.array(toolRuleSchema).optional(),
+  model: z
+    .string()
+    .transform(value => value.trim())
+    .pipe(z.string().min(1))
+    .transform(value => (value.toLowerCase() === 'inherit' ? 'inherit' : value))
+    .optional(),
+  effort: z.union([z.enum(EFFORT_LEVELS), z.number().int()]).optional(),
+  instructionProfile: z.enum(['auto', 'native']).optional(),
+  permissionMode: z.enum(PERMISSION_MODES).optional(),
+  mcpServers: z.array(agentMcpServerSpecSchema).optional(),
+  hooks: z.unknown().optional(),
+  maxTurns: z.number().int().positive().optional(),
+  skills: z.array(z.string()).optional(),
+  initialPrompt: z.string().optional(),
+  standingRule: z.string().optional(),
+  memory: z.enum(['user', 'project', 'local']).optional(),
+  background: z.boolean().optional(),
+  isolation: z.literal('worktree').optional(),
+})
 
 export function parseAgentFromJson(
   name: string,
   definition: unknown,
-  source?: Exclude<AgentSource, 'built-in' | 'extension'>,
+  source: Exclude<AgentSource, 'built-in' | 'extension'> = 'flagSettings',
 ): CustomAgentDefinition | null {
-  return notBuilt('src/tools/AgentTool/loadAgentsDir.ts:294')
+  const parsed = jsonAgentSchema.safeParse(definition)
+  if (!parsed.success) {
+    logForDebugging(
+      `agents: JSON definition '${name}' failed validation: ${parsed.error.message}`,
+    )
+    return null
+  }
+  const data = parsed.data
+  const tools = withMemoryVerbs(data.tools, data.memory)
+  const mcpServers =
+    data.mcpServers !== undefined && data.mcpServers.length > 0
+      ? (data.mcpServers as AgentMcpServerSpec[])
+      : undefined
+  const hooks = validateHooks(data.hooks, `json:${name}`)
+  const standingRule = readStandingRule(data)
+
+  return {
+    agentType: name,
+    whenToUse: data.description,
+    source,
+    getSystemPrompt: makeSystemPromptCallback(name, data.prompt, data.memory),
+    ...(tools !== undefined ? { tools } : {}),
+    ...(data.disallowedTools !== undefined ? { disallowedTools: data.disallowedTools } : {}),
+    ...(data.model !== undefined ? { model: data.model } : {}),
+    ...(data.effort !== undefined ? { effort: data.effort } : {}),
+    ...(data.instructionProfile !== undefined ? { instructionProfile: data.instructionProfile } : {}),
+    ...(data.permissionMode !== undefined ? { permissionMode: data.permissionMode } : {}),
+    ...(mcpServers !== undefined ? { mcpServers } : {}),
+    ...(hooks !== undefined ? { hooks } : {}),
+    ...(data.maxTurns !== undefined ? { maxTurns: data.maxTurns } : {}),
+    ...(data.skills !== undefined && data.skills.length > 0 ? { skills: data.skills } : {}),
+    ...(data.initialPrompt !== undefined ? { initialPrompt: data.initialPrompt } : {}),
+    ...(standingRule !== undefined ? { standingRule } : {}),
+    ...(data.memory !== undefined ? { memory: data.memory } : {}),
+    ...(data.background !== undefined ? { background: data.background } : {}),
+    ...(data.isolation !== undefined ? { isolation: data.isolation } : {}),
+  }
 }
 
 export function parseAgentsFromJson(
