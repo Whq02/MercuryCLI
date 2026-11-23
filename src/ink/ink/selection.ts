@@ -8,7 +8,6 @@ import { nodeCache } from '../node-cache.js'
 import { termWrite } from '../terminalOut.js'
 import { setClipboard } from '../termio/osc.js'
 import type Ink from '../ink.js'
-import { notBuilt } from '../../pi/holes.js'
 
 function samePoint(a: Point | null, b: Point | null): boolean {
   return a === b || (a !== null && b !== null && a.col === b.col && a.row === b.row)
@@ -77,15 +76,66 @@ function offerTextGesture(this: Pick<Ink, 'rootNode' | 'textGesture'>, col: numb
 }
 
 export function handleSelectionStart(this: Pick<Ink, 'frontFrame' | 'rootNode' | 'altScreenActive' | 'selection' | 'textGesture' | 'notifySelectionChange'>, col: number, row: number, pressHadAlt: boolean): void {
-  return notBuilt('src/ink/ink/selection.ts:84')
+  if (!this.altScreenActive) return
+  if (offerTextGesture.call(this, col, row, 1)) {
+    if (this.selection.anchor !== null) {
+      clearSelection(this.selection)
+      this.notifySelectionChange()
+    }
+    return
+  }
+  startSelection(this.selection, col, row)
+  applySelectionClipBand.call(this, col, row)
+  this.selection.lastPressHadAlt = pressHadAlt
+  this.notifySelectionChange()
 }
 
 export function handleMultiClick(this: Pick<Ink, 'frontFrame' | 'rootNode' | 'altScreenActive' | 'selection' | 'textGesture' | 'notifySelectionChange'>, col: number, row: number, count: 2 | 3): void {
-  return notBuilt('src/ink/ink/selection.ts:96')
+  if (!this.altScreenActive) return
+  if (offerTextGesture.call(this, col, row, count)) {
+    if (this.selection.anchor !== null) {
+      clearSelection(this.selection)
+      this.notifySelectionChange()
+    }
+    return
+  }
+  startSelection(this.selection, col, row)
+  applySelectionClipBand.call(this, col, row)
+  if (this.selection.anchor !== null) {
+    if (count === 2) {
+      selectWordAt(this.selection, this.frontFrame.screen, col, row)
+    } else {
+      selectLineAt(this.selection, this.frontFrame.screen, row)
+    }
+    if (this.selection.anchor !== null && this.selection.focus === null) {
+      this.selection.focus = { col: this.selection.anchor.col, row: this.selection.anchor.row }
+    }
+  }
+  this.notifySelectionChange()
 }
 
 export function handleSelectionDrag(this: Pick<Ink, 'frontFrame' | 'altScreenActive' | 'selection' | 'textGesture' | 'notifySelectionChange'>, col: number, row: number): void {
-  return notBuilt('src/ink/ink/selection.ts:113')
+  if (!this.altScreenActive) return
+  const gesture = this.textGesture
+  if (gesture) {
+    gesture.handler({
+      kind: 'drag',
+      localCol: col - gesture.rect.x,
+      localRow: row - gesture.rect.y,
+      clickCount: 1,
+    })
+    return
+  }
+  const prevAnchor = this.selection.anchor
+  const prevFocus = this.selection.focus
+  if (this.selection.anchorSpan) {
+    extendSelection(this.selection, this.frontFrame.screen, col, row)
+  } else {
+    updateSelection(this.selection, col, row)
+  }
+  if (!samePoint(prevAnchor, this.selection.anchor) || !samePoint(prevFocus, this.selection.focus)) {
+    this.notifySelectionChange()
+  }
 }
 
 export function handleSelectionRelease(this: Pick<Ink, 'textGesture'>, col: number, row: number): boolean {
@@ -97,15 +147,67 @@ export function handleSelectionRelease(this: Pick<Ink, 'textGesture'>, col: numb
 }
 
 export function moveSelectionFocus(this: Pick<Ink, 'frontFrame' | 'altScreenActive' | 'selection' | 'notifySelectionChange'>, move: FocusMove): void {
-  return notBuilt('src/ink/ink/selection.ts:140')
+  if (!this.altScreenActive || !this.selection.focus) return
+  const screen = this.frontFrame.screen
+  const maxCol = Math.max(0, screen.width - 1)
+  const maxRow = Math.max(0, screen.height - 1)
+  let { col, row } = this.selection.focus
+  switch (move) {
+    case 'left':
+      if (col > 0) {
+        col--
+      } else if (row > 0) {
+        row--
+        col = maxCol
+      }
+      break
+    case 'right':
+      if (col < maxCol) {
+        col++
+      } else if (row < maxRow) {
+        row++
+        col = 0
+      }
+      break
+    case 'up':
+      row = Math.max(0, row - 1)
+      break
+    case 'down':
+      row = Math.min(maxRow, row + 1)
+      break
+    case 'lineStart':
+      col = 0
+      break
+    case 'lineEnd':
+      col = maxCol
+      break
+    default:
+      return
+  }
+  if (col === this.selection.focus.col && row === this.selection.focus.row) return
+  moveFocus(this.selection, col, row)
+  this.notifySelectionChange()
 }
 
 export function copySelectionNoClear(this: Pick<Ink, 'options' | 'frontFrame' | 'selection'>): string {
-  return notBuilt('src/ink/ink/selection.ts:180')
+  if (!hasSelection(this.selection)) return ''
+  const text = getSelectedText(this.selection, this.frontFrame.screen)
+  if (text) {
+    void setClipboard(text)
+      .then(sequence => {
+        if (sequence) termWrite(this.options.stdout, sequence)
+      })
+      .catch(logError)
+  }
+  return text
 }
 
 export function copySelection(this: Pick<Ink, 'selection' | 'notifySelectionChange' | 'copySelectionNoClear'>): string {
-  return notBuilt('src/ink/ink/selection.ts:193')
+  if (!hasSelection(this.selection)) return ''
+  const text = this.copySelectionNoClear()
+  clearSelection(this.selection)
+  this.notifySelectionChange()
+  return text
 }
 
 export function copyText(this: Pick<Ink, 'options'>, text: string): void {
@@ -118,9 +220,21 @@ export function copyText(this: Pick<Ink, 'options'>, text: string): void {
 }
 
 export function clearTextSelection(this: Pick<Ink, 'selection' | 'notifySelectionChange'>): void {
-  return notBuilt('src/ink/ink/selection.ts:210')
+  if (!hasSelection(this.selection)) return
+  clearSelection(this.selection)
+  this.notifySelectionChange()
 }
 
 export function setSelectionBgColor(this: Pick<Ink, 'stylePool'>, color: string): void {
-  return notBuilt('src/ink/ink/selection.ts:216')
+  const probe = colorize('\x00', color, 'background')
+  const idx = probe.indexOf('\x00')
+  if (idx > 0 && idx < probe.length - 1) {
+    this.stylePool.setSelectionBg({
+      type: 'ansi',
+      code: probe.slice(0, idx),
+      endCode: probe.slice(idx + 1),
+    })
+  } else {
+    this.stylePool.setSelectionBg(null)
+  }
 }
