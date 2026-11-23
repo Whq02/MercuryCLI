@@ -397,7 +397,7 @@ export async function runForegroundAgentExecution(
     if (error instanceof AbortError) {
       throw error
     }
-    logForDebugging(`runForegroundAgentExecution: ${errorMessage(error)}`)
+    logForDebugging(`Sync agent error: ${errorMessage(error)}`)
   } finally {
     toolUseContext.setToolJSX?.(null)
     removeTurnAbortListener?.()
@@ -512,7 +512,7 @@ async function settleForegroundResult(args: {
       throw heldError
     }
     logForDebugging(
-      `runForegroundAgentExecution: recovering partial result after error: ${errorMessage(heldError)}`,
+      `Sync agent recovered with partial output: ${errorMessage(heldError)}`,
     )
   }
 
@@ -819,7 +819,11 @@ async function runDetachedContinuation(
     }
   } finally {
     stopForegroundSummarization()
-    clearInvokedSkillsForAgent(syncAgentId)
+    try {
+      clearInvokedSkillsForAgent(syncAgentId)
+    } catch (error) {
+      logForDebugging(`foreground agent: backgrounded cleanup failed: ${errorMessage(error)}`)
+    }
   }
 }
 

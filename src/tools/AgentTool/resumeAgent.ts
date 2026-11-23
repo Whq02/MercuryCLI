@@ -98,12 +98,27 @@ export function boardResumeRefusal(agentId: string, tasks: Record<string, unknow
 
 export class AgentNotRecorded extends Error {}
 
-async function existingDirectory(path: string | undefined): Promise<string | undefined> {
+async function existingDirectory(
+  path: string | undefined,
+  kind: 'worktree' | 'directory',
+  silent: boolean,
+): Promise<string | undefined> {
   if (!path) return undefined
+  const prefix =
+    kind === 'worktree'
+      ? 'resumeAgent: recorded worktree'
+      : 'resumeAgent: recorded directory'
   try {
-    return (await stat(path)).isDirectory() ? path : undefined
+    if ((await stat(path)).isDirectory()) return path
+    if (!silent) {
+      logForDebugging(`${prefix} ${path} is not a directory — resuming in the parent cwd`)
+    }
+    return undefined
   } catch (error) {
     passedOver(error)
+    if (!silent) {
+      logForDebugging(`${prefix} ${path} is gone — resuming in the parent cwd`)
+    }
     return undefined
   }
 }
@@ -207,11 +222,21 @@ export async function resumeAgentBackground(args: {
   const boundKey = restoreBoundPrefixFromMessages(transcript.messages, { rosterOnly: true })
   const restoredContexts =
     boundKey !== null ? recordedRequestContexts(transcript.messages, boundKey) : null
+  if (restoredContexts !== null) {
+    logForDebugging(
+      `resumeAgent: ${agentId} resumes with the contexts its first exchange recorded (${Object.keys(restoredContexts).join(', ')}), so its signed prefix holds`,
+    )
+  }
   try {
-    rebuildSeenLinesFromTranscript(processOwnerForLane(agentId), transcript.messages)
+    const rebuilt = rebuildSeenLinesFromTranscript(processOwnerForLane(agentId), transcript.messages)
+    if (rebuilt.files > 0) {
+      logForDebugging(
+        `read ledger: crewmate ${agentId} read or wrote ${rebuilt.files} file(s) before this resume; they still read the same and count as read`,
+      )
+    }
   } catch (error) {
     logForDebugging(
-      `resumeAgent: failed to rebuild seen-lines ledger for ${agentId}: ${errorMessage(error)}`,
+      `read ledger: crewmate ${agentId}'s transcript could not be read back for the seen lines (${errorMessage(error)})`,
     )
   }
   const structuredOutputSpec = restoreStructuredOutputSpec(meta?.structuredOutputSpec)
@@ -224,13 +249,13 @@ export async function resumeAgentBackground(args: {
     transcript.contentReplacements,
   )
 
-  const worktreePath = await existingDirectory(meta?.worktreePath)
+  const isBoardResume = args.boardEventIds !== undefined
+  const worktreePath = await existingDirectory(meta?.worktreePath, 'worktree', isBoardResume)
   if (worktreePath !== undefined) {
     const now = new Date()
     await utimes(worktreePath, now, now).catch(passedOver)
   }
-  const cwdPath = await existingDirectory(meta?.cwd)
-  const isBoardResume = args.boardEventIds !== undefined
+  const cwdPath = await existingDirectory(meta?.cwd, 'directory', isBoardResume)
   if (isBoardResume) {
     if (meta?.worktreePath && worktreePath === undefined) {
       throw new BoardResumeDirectoryError(meta.worktreePath, 'worktree')
@@ -268,7 +293,7 @@ export async function resumeAgentBackground(args: {
   }
   if (isBoardResume) {
     if (args.automatic !== true || args.canUseTool === undefined) {
-      throw new Error("A board resume needs the lead's guarded resume context.")
+      throw new Error('A board resume needs the lead’s guarded resume context.')
     }
     const refusal = boardResumeRefusal(agentId, tasks)
     if (refusal !== null) {
@@ -292,6 +317,11 @@ export async function resumeAgentBackground(args: {
     meta?.compactOnResume === true || previousTask?.compactRequested === true
       ? true
       : undefined
+  if (compactRequested === true) {
+    logForDebugging(
+      `resumeAgent: ${agentId} compacts first — the operator asked for it from the crew view`,
+    )
+  }
 
   const task = registerAsyncAgent({
     agentId,

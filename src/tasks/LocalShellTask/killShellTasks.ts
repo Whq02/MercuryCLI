@@ -3,6 +3,7 @@ import type { AppState } from '../../state/AppState.js'
 import type { ExecResult, ShellCommand } from '../../utils/ShellCommand.js'
 import type { ProcessTreeKillReceipt } from '../../utils/processGroup.js'
 import { withDeadline } from '../../utils/deadline.js'
+import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
 import { dequeueAllMatching } from '../../utils/messageQueueManager.js'
 import { evictTaskOutput } from '../../utils/task/diskOutput.js'
@@ -177,6 +178,7 @@ export function killShellTasksForAgent(
       task.status === 'running' &&
       task.agentId === agentId
     ) {
+      logForDebugging(`killing orphaned shell task ${taskId}`)
       void killTask(taskId, setAppState, 'agent-end')
     }
   }

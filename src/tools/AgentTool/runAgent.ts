@@ -40,6 +40,7 @@ import { EMPTY_USAGE } from '../../utils/api/emptyUsage.js'
 import { accumulateUsage, updateUsage } from '../../services/providers/anthropic/cacheAndUsage.js'
 import { OUTCOME_SENTENCES, type OutcomeStatus } from '../../rows/vocabulary.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { logError } from '../../utils/log.js'
 import { DeadlineExceededError, minutesKnobToMs } from '../../utils/deadline.js'
 import { honourRecoveryWait, makeRecoveryBudget, retryWaitWords, settleRecoveryWait, type RecoveryBudget, type RecoveryNoticeFacts, type RecoveryReservation } from '../../services/api/recoveryBudget.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
@@ -481,9 +482,8 @@ async function preloadSkills(
 ): Promise<Message[]> {
   if (!definition.skills || definition.skills.length === 0) return []
   const commands: Command[] = await getSkillToolCommands(getProjectRoot())
-  const byName = new Map<string, Command & PromptCommand>()
+  const byName = new Map<string, Command>()
   for (const cmd of commands) {
-    if (!isPromptCommand(cmd)) continue
     byName.set(cmd.name, cmd)
     if (cmd.aliases) {
       for (const alias of cmd.aliases) {
@@ -496,7 +496,13 @@ async function preloadSkills(
     const command = byName.get(skillName)
     if (!command) {
       logForDebugging(
-        `runAgent: skill '${skillName}' declared by ${definition.agentType} was not found`,
+        `runAgent: skill '${skillName}' declared by ${definition.agentType} is not a registered skill command — skipped`,
+      )
+      continue
+    }
+    if (!isPromptCommand(command)) {
+      logForDebugging(
+        `runAgent: skill '${skillName}' resolves to a non-prompt command — skipped`,
       )
       continue
     }
@@ -506,7 +512,7 @@ async function preloadSkills(
         messages.push(createUserMessage({ content: blocks, isMeta: true }))
       }
     } catch (error) {
-      logForDebugging(`runAgent: failed to preload skill '${skillName}': ${errorMessage(error)}`)
+      logError(error)
     }
   }
   return messages
@@ -772,7 +778,13 @@ export async function* runAgent(
             conversationRows.push(message)
             yield message
             if (message.attachment.type === 'max_turns_reached' || message.attachment.type === 'loop_stopped') {
-              crewmateRun.endedBy = message.attachment.type === 'max_turns_reached' ? 'turn_limit' : 'loop_stopped'
+              if (message.attachment.type === 'max_turns_reached') {
+                logForDebugging(`runAgent: ${agentId} hit its max-turns limit — stopping`)
+                crewmateRun.endedBy = 'turn_limit'
+              } else {
+                logForDebugging(`runAgent: ${agentId} was ended by the loop guard — stopping`)
+                crewmateRun.endedBy = 'loop_stopped'
+              }
               stoppedEarly = true
               break
             }
@@ -795,6 +807,9 @@ export async function* runAgent(
 
       const retry = refusalRetryRowOf(lastAssistant, retriedRefusals, resolvedAgentModel)
       if (retry === null) break
+      logForDebugging(
+        `runAgent: ${agentId} ended on a refused ${retry.refusalClass} — one retry from its transcript`,
+      )
       retriedRefusals.add(retry.refusalClass)
       lastRecordedUuid = await landAgentTranscriptRows([retry.row], agentId, lastRecordedUuid)
       yield retry.row
@@ -805,9 +820,7 @@ export async function* runAgent(
     if (run.watchdog.fired) throw stalledError()
     if (abortController.signal.aborted) throw new AbortError()
     if (isBuiltInAgent(agentDefinition) && agentDefinition.callback !== undefined) {
-      void Promise.resolve(agentDefinition.callback()).catch(error => {
-        logForDebugging(`runAgent: callback failed for ${agentDefinition.agentType}: ${errorMessage(error)}`)
-      })
+      void Promise.resolve(agentDefinition.callback()).catch(logError)
     }
   } catch (error) {
     let normalized: unknown = error
