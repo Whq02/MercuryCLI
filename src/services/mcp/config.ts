@@ -32,7 +32,7 @@ import {
   type McpUnexpandedStrings,
   type ScopedMcpServerConfig,
 } from '../../utils/mcp/types.js'
-import { describeMcpConfigIssues, getProjectMcpServerStatus, mcpVariableCarriesCode } from './utils.js'
+import { getProjectMcpServerStatus, mcpVariableCarriesCode } from './utils.js'
 import { PROJECT_MCP_FILE, getEnterpriseMcpFilePath, projectMcpFilePath } from './configPaths.js'
 import { expandEnvVarsInString } from './envExpansion.js'
 import { mcpStdioCommandRefusal } from './stdioCommandSafety.js'
