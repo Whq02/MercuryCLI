@@ -403,14 +403,7 @@ export function usageWindowPauseOf(messages: readonly Message[], model: string |
       return {}
     }
   })()
-  const who = ((): string => {
-    if (model === undefined || model === null) return family
-    try {
-      return getMarketingNameForModel(model) ?? model
-    } catch {
-      return model
-    }
-  })()
+  const who = pauseModelWords(model)
   const resumesAtMs = asked ?? (window.resetsAtMs !== undefined && window.resetsAtMs > Date.now() ? window.resetsAtMs : undefined)
   const content = last.message.content
   const words = (typeof content === 'string' ? content : content.flatMap(block => block.type === 'text' ? [block.text] : []).join('\n')).trim()
@@ -425,7 +418,8 @@ function pauseModelWords(model: string | null | undefined): string {
   if (model === undefined || model === null) return providerFamilyOfSetting(null)
   try {
     return getMarketingNameForModel(model) ?? model
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return model
   }
 }
@@ -901,7 +895,7 @@ function updateAgentProgress(
   })
 }
 
-const deferredPublishes = new Map<string, ReturnType<typeof setTimeout>>()
+const deferredPublishes = new Map<string, NodeJS.Timeout>()
 
 const USAGE_SETTLE_GRACE_MS = 750
 
@@ -953,7 +947,7 @@ export function setAgentWaitLine(taskId: string, line: string | null, setAppStat
     if (line === null) {
       if (task.wait === undefined) return task
       const { wait: _gone, ...rest } = task
-      return rest as LocalAgentTaskState
+      return rest
     }
     if (task.wait === line) return task
     return { ...task, wait: line }
@@ -966,7 +960,7 @@ export function setAgentPendingAsks(taskId: string, count: number, setAppState: 
     if (count <= 0) {
       if (task.pendingAsks === undefined) return task
       const { pendingAsks: _gone, ...rest } = task
-      return rest as LocalAgentTaskState
+      return rest
     }
     if (task.pendingAsks === count) return task
     return { ...task, pendingAsks: count }
