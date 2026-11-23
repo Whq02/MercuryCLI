@@ -1,5 +1,12 @@
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
+import type { Command } from '../../commands.js'
 
-const exit: Unbuilt = unbuilt('src/commands/exit/index.ts:3')
+const exit: Command = {
+  type: 'local-jsx',
+  name: 'exit',
+  aliases: ['quit'],
+  description: 'Close Mercury and hand the terminal back',
+  immediate: true,
+  load: () => import('./exit.js'),
+}
 
 export default exit
