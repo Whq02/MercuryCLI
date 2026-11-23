@@ -104,89 +104,43 @@ function changedFraction(parts: DiffPart[]): number {
   return changed / denominator
 }
 
-type StyledSegment = {
+type Cell = {
   text: string
   emphasized: boolean
 }
 
-function appendSegment(
-  row: StyledSegment[],
-  text: string,
-  emphasized: boolean,
-): void {
-  if (text === '') return
-  const last = row[row.length - 1]
-  if (last && last.emphasized === emphasized) {
-    last.text += text
-  } else {
-    row.push({ text, emphasized })
-  }
-}
-
-function wrapStyledSegments(
-  segments: StyledSegment[],
-  width: number,
-): StyledSegment[][] {
-  const rows: StyledSegment[][] = [[]]
-  let col = 0
-
-  const pushChars = (text: string, emphasized: boolean): void => {
-    for (const ch of Array.from(text)) {
-      const chWidth = stringWidth(ch)
-      if (col > 0 && col + chWidth > width) {
-        rows.push([])
-        col = 0
-      }
-      appendSegment(rows[rows.length - 1]!, ch, emphasized)
-      col += chWidth
-    }
-  }
-
-  for (const segment of segments) {
-    const tokens = segment.text.match(/\s+|[^\s]+/g)
-    if (!tokens) continue
-    for (const token of tokens) {
-      const tokenWidth = stringWidth(token)
-      if (col + tokenWidth <= width) {
-        appendSegment(rows[rows.length - 1]!, token, segment.emphasized)
-        col += tokenWidth
-      } else if (/^\s+$/.test(token)) {
-        pushChars(token, segment.emphasized)
-      } else if (tokenWidth <= width) {
-        rows.push([])
-        col = 0
-        appendSegment(rows[rows.length - 1]!, token, segment.emphasized)
-        col = tokenWidth
-      } else {
-        pushChars(token, segment.emphasized)
-      }
-    }
-  }
-
-  return rows
-}
-
-function buildWordDiffRows(
-  line: DiffLine,
-  contentWidth: number,
-): StyledSegment[][] | null {
-  if (!line.wordDiff || !line.matchedLine) return null
+function wordPartsOf(line: DiffLine, dim: boolean): DiffPart[] | null {
+  if (!line.wordDiff || !line.matchedLine || dim) return null
   const parts: DiffPart[] =
-    line.type === 'remove'
-      ? diffWordsWithSpace(line.code, line.matchedLine.code)
-      : diffWordsWithSpace(line.matchedLine.code, line.code)
-  if (changedFraction(parts) > WORD_DIFF_MAX_CHANGED_FRACTION) return null
-  const segments: StyledSegment[] = []
+    line.type === 'add'
+      ? diffWordsWithSpace(line.matchedLine.code, line.code)
+      : diffWordsWithSpace(line.code, line.matchedLine.code)
+  return changedFraction(parts) <= WORD_DIFF_MAX_CHANGED_FRACTION ? parts : null
+}
+
+function wordRowsOf(
+  line: DiffLine,
+  parts: DiffPart[],
+  contentWidth: number,
+): Cell[][] {
+  let current: Cell[] = []
+  const rows: Cell[][] = [current]
+  let column = 0
   for (const part of parts) {
-    if (line.type === 'remove') {
-      if (part.added) continue
-      segments.push({ text: part.value, emphasized: Boolean(part.removed) })
-    } else {
-      if (part.removed) continue
-      segments.push({ text: part.value, emphasized: Boolean(part.added) })
-    }
+    if (line.type === 'add' ? part.removed : part.added) continue
+    const emphasized = Boolean(part.added || part.removed)
+    wrapLines(part.value, contentWidth).forEach((piece, index) => {
+      const pieceWidth = stringWidth(piece)
+      if (index > 0 || column + pieceWidth > contentWidth) {
+        current = []
+        rows.push(current)
+        column = 0
+      }
+      current.push({ text: piece, emphasized })
+      column += pieceWidth
+    })
   }
-  return wrapStyledSegments(segments, contentWidth)
+  return rows
 }
 
 export function StructuredDiffFallback({
@@ -200,23 +154,24 @@ export function StructuredDiffFallback({
 }): React.ReactNode {
   const [themeName] = useTheme()
   const theme = getTheme(themeName)
+  const targetWidth = Math.max(1, Math.floor(width))
   const numberedLines = numberDiffLines(
     processAdjacentLines(transformLinesToObjects(patch.lines)),
     patch.oldStart,
     patch.newStart,
   )
-  const maxDigitWidth = numberedLines.reduce(
-    (max, line) => Math.max(max, String(line.lineNumber).length),
-    1,
-  )
-  const gutterWidth = maxDigitWidth + 1
-  const targetWidth = Math.max(1, Math.floor(width))
-  const contentWidth = Math.max(1, targetWidth - gutterWidth - 2)
-  const continuationGutter = ' '.repeat(gutterWidth + 1)
+  const numberColumn =
+    numberedLines.reduce(
+      (max, line) => Math.max(max, String(line.lineNumber).length),
+      1,
+    ) + 1
+  const contentWidth = Math.max(1, targetWidth - numberColumn - 2)
+  const continuation = `${' '.repeat(numberColumn)} `
+  const fill = (used: number): string =>
+    ' '.repeat(Math.max(0, contentWidth - used))
 
   const rows: React.ReactNode[] = []
-  for (let lineIndex = 0; lineIndex < numberedLines.length; lineIndex++) {
-    const line = numberedLines[lineIndex]!
+  numberedLines.forEach((line, lineIndex) => {
     const isAdd = line.type === 'add'
     const isRemove = line.type === 'remove'
     const sigil = isAdd ? '+' : isRemove ? '-' : ' '
@@ -229,55 +184,59 @@ export function StructuredDiffFallback({
           ? theme.diffRemovedDimmed
           : theme.diffRemoved
         : undefined
-    const wordBg = isAdd
-      ? theme.diffAddedWord
-      : isRemove
-        ? theme.diffRemovedWord
-        : undefined
+    const wordBg = isAdd ? theme.diffAddedWord : theme.diffRemovedWord
+    const numberText = `${String(line.lineNumber).padStart(numberColumn - 1)} ${sigil}`
+    const parts = wordPartsOf(line, dim)
 
-    const wrappedRows =
-      (!dim ? buildWordDiffRows(line, contentWidth) : null) ??
-      wrapLines(line.code, contentWidth).map(text => [
-        { text, emphasized: false },
-      ])
-
-    for (let rowIndex = 0; rowIndex < wrappedRows.length; rowIndex++) {
-      const row = wrappedRows[rowIndex]!
-      const gutterText =
-        rowIndex === 0
-          ? `${String(line.lineNumber).padStart(maxDigitWidth, ' ')} ${sigil}`
-          : continuationGutter
-      const rowWidth = row.reduce(
-        (sum, seg) => sum + stringWidth(seg.text),
-        0,
+    if (parts === null) {
+      wrapLines(line.code === '' ? ' ' : line.code, contentWidth).forEach(
+        (segment, rowIndex) => {
+          rows.push(
+            <Box key={`${lineIndex}-${rowIndex}`}>
+              <NoSelect fromLeftEdge>
+                <Text
+                  backgroundColor={rowBg}
+                  color={theme.text}
+                  dimColor={line.type === 'nochange' || dim}
+                >
+                  {rowIndex === 0 ? numberText : continuation}
+                </Text>
+              </NoSelect>
+              <Text backgroundColor={rowBg} color={theme.text} dimColor={dim}>
+                {segment}
+                {fill(stringWidth(segment))}
+              </Text>
+            </Box>,
+          )
+        },
       )
-      const pad = Math.max(0, contentWidth - rowWidth)
+      return
+    }
+
+    wordRowsOf(line, parts, contentWidth).forEach((cells, rowIndex) => {
       rows.push(
         <Box key={`${lineIndex}-${rowIndex}`}>
-          <NoSelect fromLeftEdge flexShrink={0}>
-            <Text
-              dimColor={line.type === 'nochange' || dim}
-              backgroundColor={rowBg}
-            >
-              {gutterText}
+          <NoSelect fromLeftEdge>
+            <Text backgroundColor={rowBg} color={theme.text}>
+              {rowIndex === 0 ? numberText : continuation}
             </Text>
           </NoSelect>
-          <Text dimColor={dim} backgroundColor={rowBg}>
-            {row.map((seg, segIndex) =>
-              seg.emphasized ? (
-                <Text key={segIndex} backgroundColor={wordBg}>
-                  {seg.text}
-                </Text>
-              ) : (
-                <React.Fragment key={segIndex}>{seg.text}</React.Fragment>
-              ),
-            )}
-            {pad > 0 ? ' '.repeat(pad) : null}
+          <Text backgroundColor={rowBg} color={theme.text}>
+            {cells.map((cell, cellIndex) => (
+              <Text
+                key={cellIndex}
+                backgroundColor={cell.emphasized ? wordBg : rowBg}
+                color={theme.text}
+              >
+                {cell.text}
+              </Text>
+            ))}
+            {fill(cells.reduce((sum, cell) => sum + stringWidth(cell.text), 0))}
           </Text>
         </Box>,
       )
-    }
-  }
+    })
+  })
 
   return <Box flexDirection="column">{rows}</Box>
 }
