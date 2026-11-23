@@ -1,7 +1,6 @@
 import { z } from 'zod/v4'
 import { GLYPH } from '../glyphs.js'
 import { EXTERNAL_PERMISSION_MODES, PERMISSION_MODES, type PermissionMode } from '../../types/permissions.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 export {
   EXTERNAL_PERMISSION_MODES,
@@ -27,8 +26,8 @@ const sealOf = (mode: PermissionMode): ModeSeal => (mode in SEALS ? SEALS[mode a
 
 const wordsOf = (modes: readonly string[]) => z.enum(modes)
 
-export function permissionModeSchema(): Unbuilt {
-  return notBuilt('src/utils/permissions/PermissionMode.ts:29')
+export function permissionModeSchema() {
+  return wordsOf(PERMISSION_MODES)
 }
 
 export function externalPermissionModeSchema() {
@@ -40,21 +39,23 @@ export function modeBypassesPermissions(mode: PermissionMode): boolean {
 }
 
 export function permissionModeFromString(str: string): PermissionMode {
-  return notBuilt('src/utils/permissions/PermissionMode.ts:43')
+  return (PERMISSION_MODES as readonly string[]).includes(str)
+    ? (str as PermissionMode)
+    : 'default'
 }
 
 export function isDefaultMode(mode: PermissionMode | undefined): boolean {
-  return notBuilt('src/utils/permissions/PermissionMode.ts:47')
+  return mode === undefined || mode === 'default'
 }
 
 export function permissionModeTitle(mode: PermissionMode): string {
-  return notBuilt('src/utils/permissions/PermissionMode.ts:51')
+  return sealOf(mode)[0]
 }
 
 export function permissionModeSymbol(mode: PermissionMode): string {
-  return notBuilt('src/utils/permissions/PermissionMode.ts:55')
+  return sealOf(mode)[1]
 }
 
 export function getModeColor(mode: PermissionMode): ModeColorKey {
-  return notBuilt('src/utils/permissions/PermissionMode.ts:59')
+  return sealOf(mode)[2]
 }
