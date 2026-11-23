@@ -14,7 +14,6 @@ import { createSignal } from '../signal.js'
 import { ignoringSpecialFiles, resolveWatchRoot } from '../watchRoot.js'
 import { passedOver } from '../passedOver.js'
 import { startTimeout, stopTimeout } from '../timers.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
 type TimingOverrides = {
@@ -49,14 +48,130 @@ let birthWatcher: SkillWatcher | null = null
 let reloadTimer: NodeJS.Timeout | null = null
 let pendingPaths = new Set<string>()
 let dynamicSkillsRegistered = false
-const changeSignal: Unbuilt = unbuilt('src/utils/skills/skillChangeDetector.ts:52')
+const changeSignal = createSignal()
+let unregisterCleanup: (() => void) | null = null
+
+function scheduleReload(path: string): void {
+  pendingPaths.add(path)
+  if (reloadTimer !== null) return
+  reloadTimer = startTimeout(() => {
+    reloadTimer = null
+    pendingPaths = new Set()
+    clearSkillCaches()
+    clearCommandsCache()
+    resetSentSkillNames()
+    changeSignal.emit()
+  }, debounceMs)
+  reloadTimer.unref?.()
+}
+
+function registerDynamicSkills(): void {
+  if (dynamicSkillsRegistered) return
+  dynamicSkillsRegistered = true
+  onDynamicSkillsLoaded(() => {
+    clearCommandMemoizationCaches()
+    changeSignal.emit()
+  })
+}
+
+function closeWatchers(): Promise<void[]> {
+  const closing = Promise.all([watcher?.close(), birthWatcher?.close()])
+  watcher = null
+  birthWatcher = null
+  return closing
+}
+
+function armWatchers(generation: number): string[] {
+  const roots = [getSkillsPath('userSettings', 'skills'), ...getProjectSkillsWatchPaths('skills')]
+  const targets: string[] = []
+  const ancestors = new Set<string>()
+  const missing: string[] = []
+  for (const root of roots) {
+    try {
+      if (existsSync(root)) targets.push(root)
+      else {
+        const ancestor = nearestWatchableAncestor(root)
+        if (ancestor !== null) {
+          ancestors.add(ancestor)
+          missing.push(resolveWatchRoot(resolve(root)))
+        }
+      }
+    } catch (error) {
+      passedOver(error)
+    }
+  }
+  const stale = () => disposed || generation !== watcherGeneration
+  if ((!targets.length && !ancestors.size) || stale()) return []
+  const polling = typeof Bun === 'undefined' ? {} : { usePolling: true, interval: bunPollIntervalMs }
+  if (ancestors.size) {
+    const onChain = (path: string) => {
+      const candidate = resolve(path)
+      return missing.some(root => candidate === root || root.startsWith(candidate + sep) || candidate.startsWith(root + sep))
+    }
+    const birth = watcherFactory([...ancestors].map(resolveWatchRoot), {
+      persistent: true, ignoreInitial: true, depth: 1, ignorePermissionErrors: true, atomic: true,
+      ...polling, ignored: ignoringSpecialFiles(path => !onChain(path)),
+    })
+    const added = (path: string) => {
+      if (onChain(path)) {
+        scheduleReload(resolve(path))
+        void rearmWatchRoots()
+      }
+    }
+    birth.on('addDir', added)
+    birth.on('add', added)
+    birth.on('error', error => logForDebugging(`skill birth watcher error: ${String(error)}`))
+    if (stale()) {
+      void birth.close()
+      return []
+    }
+    birthWatcher = birth
+  }
+  if (targets.length) {
+    const target = watcherFactory(targets.map(resolveWatchRoot), {
+      persistent: true, ignoreInitial: true, depth: SKILL_WALK_MAX_DEPTH,
+      awaitWriteFinish: { stabilityThreshold: stabilityThresholdMs, pollInterval: pollIntervalMs },
+      ignorePermissionErrors: true, atomic: true, ...polling,
+      ignored: ignoringSpecialFiles(path => {
+        if (resolve(path).split(sep).includes('.git')) return true
+        try {
+          const info = statSync(path)
+          return info.isSocket() || info.isFIFO() || info.isCharacterDevice() || info.isBlockDevice()
+        } catch (error) {
+          passedOver(error)
+          return false
+        }
+      }),
+    })
+    target.on('add', scheduleReload)
+    target.on('change', scheduleReload)
+    target.on('unlink', scheduleReload)
+    target.on('error', logError)
+    if (stale()) {
+      void target.close()
+      return []
+    }
+    watcher = target
+  }
+  unregisterCleanup ??= registerCleanup(dispose)
+  return targets
+}
 
 async function initialize(): Promise<void> {
-  return notBuilt('src/utils/skills/skillChangeDetector.ts:77')
+  if (initialized || disposed) return
+  initialized = true
+  registerDynamicSkills()
+  armWatchers(++watcherGeneration)
 }
 
 async function rearmWatchRoots(): Promise<string[]> {
-  return notBuilt('src/utils/skills/skillChangeDetector.ts:84')
+  if (disposed) return []
+  initialized = true
+  registerDynamicSkills()
+  const generation = ++watcherGeneration
+  await closeWatchers()
+  if (generation !== watcherGeneration || disposed) return []
+  return armWatchers(generation)
 }
 
 function nearestWatchableAncestor(path: string): string | null {
@@ -83,7 +198,15 @@ function subscribe(listener: () => void): () => void {
 }
 
 async function dispose(): Promise<void> {
-  return notBuilt('src/utils/skills/skillChangeDetector.ts:232')
+  disposed = true
+  watcherGeneration++
+  if (reloadTimer !== null) stopTimeout(reloadTimer)
+  reloadTimer = null
+  pendingPaths = new Set()
+  changeSignal.clear()
+  unregisterCleanup?.()
+  unregisterCleanup = null
+  await closeWatchers()
 }
 
 async function resetForTesting(overrides?: TimingOverrides): Promise<void> {
@@ -109,4 +232,4 @@ async function resetForTesting(overrides?: TimingOverrides): Promise<void> {
 
 export { initialize, dispose, subscribe, rearmWatchRoots, resetForTesting }
 
-export const skillChangeDetector: Unbuilt = unbuilt('src/utils/skills/skillChangeDetector.ts:274')
+export const skillChangeDetector = { initialize, dispose, subscribe, rearmWatchRoots, resetForTesting }
