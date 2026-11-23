@@ -4,7 +4,6 @@ import { describeInvalidArgTypeError, isAbortError, ShellError } from './errors.
 import { INTERRUPT_MESSAGE } from './messages/rejectionText.js'
 import { OUTPUT_HEAD_SHARE } from './shell/outputLimits.js'
 import { passedOver } from './passedOver.js'
-import { notBuilt } from '../pi/holes.js'
 
 
 const MAX_ERROR_LENGTH = 10_000
@@ -56,7 +55,28 @@ function getErrorParts(error: Error): string[] {
 }
 
 export function formatError(error: unknown): string {
-  return notBuilt('src/utils/toolErrors.ts:57')
+  if (isAbortError(error)) {
+    return error instanceof Error && error.message.length > 0 ? error.message : INTERRUPT_MESSAGE
+  }
+  if (!(error instanceof Error)) {
+    return String(error)
+  }
+  const combined = getErrorParts(error)
+    .filter(part => part.length > 0)
+    .join('\n')
+    .trim()
+  if (combined === '') {
+    return 'The command failed and produced no output.'
+  }
+  if (combined.length <= MAX_ERROR_LENGTH || windowedErrors.has(error)) {
+    return combined
+  }
+  const spillCut = cutAroundSpillNotice(combined, MAX_ERROR_LENGTH)
+  if (spillCut !== null) {
+    return spillCut
+  }
+  const removed = combined.length - ERROR_HEAD - ERROR_TAIL
+  return `${combined.slice(0, ERROR_HEAD)}\n\n… [${removed} characters removed] …\n\n${combined.slice(-ERROR_TAIL)}`
 }
 
 function formatIssuePath(path: ReadonlyArray<PropertyKey>): string {
@@ -186,5 +206,25 @@ export function formatZodValidationError(
   error: z.ZodError,
   inputSchema?: unknown,
 ): string {
-  return notBuilt('src/utils/toolErrors.ts:203')
+  const invalidTypePaths = new Set<string>()
+  for (const issue of error.issues) {
+    if (issue.code === 'invalid_type') {
+      invalidTypePaths.add(formatIssuePath(issue.path))
+    }
+  }
+  const lines: string[] = []
+  for (const issue of error.issues) {
+    if (
+      (issue.code === 'too_small' || issue.code === 'too_big') &&
+      invalidTypePaths.has(formatIssuePath(issue.path))
+    ) {
+      continue
+    }
+    lines.push(...formatIssue(issue as IssueLike, inputSchema, toolName))
+  }
+  if (lines.length === 0) {
+    return error.message
+  }
+  const label = lines.length === 1 ? 'issue' : 'issues'
+  return `${toolName} failed (${label}):\n${lines.join('\n')}`
 }
