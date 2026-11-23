@@ -1,8 +1,8 @@
 import { featureReached } from '../../substrate/featureReached.js'
 
 import * as React from 'react'
-import { randomUUID, type UUID } from 'node:crypto'
-import { statSync } from 'node:fs'
+import type { UUID } from 'node:crypto'
+import { existsSync } from 'node:fs'
 import { Box, Text } from '../../ink.js'
 import type { CanUseToolFn, SetToolJSXFn, ToolUseContext } from '../../Tool.js'
 import type { Command } from '../../commands.js'
@@ -25,7 +25,6 @@ import type { ContentBlockParam } from '../../types/wire.js'
 import type {
   AttachmentMessage,
   Message,
-  UserMessage,
 } from '../../types/message.js'
 import {
   createAttachmentMessage,
@@ -46,10 +45,8 @@ import { isNothingToCompactMessage } from '../compact/compact/limits.js'
 import { resetMicrocompactState } from '../compact/microCompact.js'
 import { recordSkillUsage } from '../../utils/suggestions/skillUsageTracking.js'
 import { getAgentContext } from '../../utils/agentContext.js'
-import { addInvokedSkill, getIsNonInteractiveSession } from '../../bootstrap/state.js'
+import { addInvokedSkill, getIsNonInteractiveSession, getSessionId } from '../../bootstrap/state.js'
 import { registerSkillHooks } from '../../utils/hooks/registerFrontmatterHooks.js'
-
-import { getSessionId } from '../../bootstrap/state.js'
 import { isRestrictedToExtensionsOnly } from '../../utils/settings/extensionOnlyPolicy.js'
 import { parseSlashCommandToolsFromFrontmatter } from '../../utils/markdownConfigLoader.js'
 import type {
@@ -64,7 +61,8 @@ class TaggedMalformedCommandError extends Error {
 function isMalformedCommandError(error: unknown): error is Error {
   return (
     error instanceof Error &&
-    (error as { isMalformedCommand?: unknown }).isMalformedCommand === true
+    'isMalformedCommand' in error &&
+    error.isMalformedCommand === true
   )
 }
 
@@ -86,12 +84,16 @@ export function unknownCommandLine(name: string, commands: Command[]): string {
   if (registered !== undefined) return unavailableCommandLine(registered)
   let near: string | undefined
   try {
-    const byNameAlone = commands
+    const byNameAlone: Command[] = commands
       .filter(command => command.type !== 'prompt' && command.isHidden !== true)
-      .map(command => ({ ...command, description: '' }) as Command)
+      .map(command => (
+        command.type === 'local'
+          ? { ...command, description: '' }
+          : { ...command, description: '' }
+      ))
     const top = generateCommandSuggestions(`/${name}`, byNameAlone)[0]
-    const meta = top?.metadata as Command | undefined
-    if (meta !== undefined && typeof meta === 'object' && typeof meta.type === 'string') near = getCommandName(meta)
+    const matched = byNameAlone.find(command => command === top?.metadata)
+    if (matched !== undefined) near = getCommandName(matched)
   } catch (error) {
     passedOver(error)
   }
@@ -104,13 +106,7 @@ function looksLikeCommand(commandName: string): boolean {
 }
 
 function isExistingPath(slashPrefixed: string): boolean {
-  try {
-    statSync(slashPrefixed)
-    return true
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
+  return existsSync(slashPrefixed)
 }
 
 
@@ -177,99 +173,6 @@ function findCommand(commands: Command[], name: string): Command | undefined {
   )
 }
 
-
-async function runPromptCommand(
-  command: Command & { type: 'prompt' },
-  args: string,
-  context: ToolUseContext,
-  imageContentBlocks: ContentBlockParam[],
-  attachmentMessages: AttachmentMessage[],
-  uuid?: UUID,
-  setToolJSX?: SetToolJSXFn,
-  _canUseTool?: CanUseToolFn,
-): Promise<ProcessUserInputBaseResult> {
-  const fullName = getCommandName(command)
-  featureReached('command', command.name)
-  const isSkill =
-    command.loadedFrom === 'skills' ||
-    command.loadedFrom === 'bundled' ||
-    command.loadedFrom === 'extension'
-  if (isSkill) {
-    recordSkillUsage(fullName)
-  }
-  if (
-    command.hooks !== undefined &&
-    context.setAppState !== undefined &&
-    (!isRestrictedToExtensionsOnly('hooks') ||
-      command.source === 'extension' ||
-      command.source === 'policySettings' ||
-      command.source === 'bundled')
-  ) {
-    registerSkillHooks(context.setAppState, { sessionId: getSessionId() }, command.hooks, {
-      name: fullName,
-      root: command.skillRoot ?? '',
-    })
-  }
-  const echoed = createUserMessage({
-    content: formatCommandLoadingMetadata(fullName, args),
-    ...(uuid ? { uuid } : {}),
-  })
-  if (setToolJSX !== undefined && command.progressMessage) {
-    setToolJSX({
-      jsx: (
-        <Box>
-          <Text dimColor>{command.progressMessage}</Text>
-        </Box>
-      ),
-      shouldHidePromptInput: false,
-      showSpinner: true,
-    })
-  }
-  let promptBlocks: ContentBlockParam[]
-  try {
-    promptBlocks = await command.getPromptForCommand(args, context)
-  } finally {
-    if (setToolJSX !== undefined && command.progressMessage) {
-      setToolJSX({ jsx: null, shouldHidePromptInput: false })
-    }
-  }
-  if (context.abortController?.signal?.aborted) {
-    return {
-      messages: [echoed, createUserMessage({ content: INTERRUPT_MESSAGE })],
-      shouldQuery: false,
-    }
-  }
-  if (isSkill) {
-    const promptText = promptBlocks
-      .filter((block): block is Extract<ContentBlockParam, { type: 'text' }> => block.type === 'text')
-      .map(block => block.text)
-      .join('\n')
-    addInvokedSkill(
-      fullName,
-      command.skillRoot ?? '',
-      promptText,
-      getAgentContext()?.agentId ?? context.agentId ?? null,
-    )
-  }
-  const combinedContent: ContentBlockParam[] =
-    imageContentBlocks.length > 0 ? [...promptBlocks, ...imageContentBlocks] : promptBlocks
-  const promptMessage = createUserMessage({
-    content: combinedContent,
-    isMeta: true,
-  })
-  const allowedTools =
-    command.allowedTools !== undefined && command.allowedTools.length > 0
-      ? parseSlashCommandToolsFromFrontmatter(command.allowedTools)
-      : undefined
-  return {
-    messages: [echoed, promptMessage, ...attachmentMessages],
-    shouldQuery: true,
-    ...(allowedTools !== undefined && allowedTools.length > 0 ? { allowedTools } : {}),
-    ...(command.model !== undefined ? { model: command.model } : {}),
-    ...(command.effort !== undefined ? { effort: command.effort } : {}),
-  }
-}
-
 function finalizeCommandResult(
   result: ProcessUserInputBaseResult,
 ): ProcessUserInputBaseResult {
@@ -325,8 +228,9 @@ export async function processPromptSlashCommand(
       `Command /${commandName} is not a prompt command — use the command directly in the main conversation.`,
     )
   }
-  const result = await runPromptCommand(
+  const result = await executePromptCommand(
     command,
+    commandName,
     args,
     context,
     imageContentBlocks ?? [],
@@ -349,7 +253,6 @@ async function executePromptCommand(
 ): Promise<ProcessUserInputBaseResult> {
   try {
     featureReached('command', command.name)
-    const hookMessages: Message[] = []
 
     if (command.context === 'fork') {
       return await runForkedPromptCommand(
@@ -357,7 +260,6 @@ async function executePromptCommand(
         commandName,
         args,
         context,
-        hookMessages,
         setToolJSXForFork,
         canUseToolForFork,
       )
@@ -375,7 +277,7 @@ async function executePromptCommand(
     }
 
     const expansionText = expansion
-      .map(block => (block.type === 'text' ? (block as { text: string }).text : ''))
+      .map(block => (block.type === 'text' ? block.text : ''))
       .join('\n')
     addInvokedSkill(
       command.name,
@@ -399,7 +301,7 @@ async function executePromptCommand(
     const contentBlocks: ContentBlockParam[] = [
       ...imageContentBlocks,
       ...expansion,
-    ] as ContentBlockParam[]
+    ]
     const extraAttachments: AttachmentMessage[] = []
     for await (const attachment of getAttachmentMessages(
       expansionText,
@@ -426,7 +328,6 @@ async function executePromptCommand(
         contentMessage,
         ...attachmentMessages,
         ...extraAttachments,
-        ...hookMessages,
         permissionsAttachment,
       ],
       shouldQuery: true,
@@ -439,7 +340,7 @@ async function executePromptCommand(
       content: formatCommandLoadingMetadata(commandName, args),
       ...(uuid ? { uuid } : {}),
     })
-    if ((error as { name?: string } | null)?.name === 'AbortError') {
+    if (error instanceof Error && error.name === 'AbortError') {
       return {
         messages: [echoed, createUserMessage({ content: INTERRUPT_MESSAGE })],
         shouldQuery: false,
@@ -461,7 +362,6 @@ async function runForkedPromptCommand(
   commandName: string,
   args: string,
   context: ToolUseContext,
-  hookMessages: Message[],
   setToolJSX: SetToolJSXFn,
   canUseTool: CanUseToolFn | undefined,
 ): Promise<ProcessUserInputBaseResult> {
@@ -483,8 +383,7 @@ async function runForkedPromptCommand(
     const baseAgent = command.effort !== undefined
       ? { ...prepared.baseAgent, effort: command.effort }
       : prepared.baseAgent
-    const promptMessages = [...prepared.promptMessages, ...hookMessages]
-
+    const promptMessages = [...prepared.promptMessages]
     let emitted = 0
     let responseLength = 0
     const renderProgress = (): void => {
@@ -519,8 +418,8 @@ async function runForkedPromptCommand(
               const content = message.message.content
               if (Array.isArray(content)) {
                 for (const block of content) {
-                  if ((block as { type?: string }).type === 'text') {
-                    responseLength += ((block as { text?: string }).text ?? '').length
+                  if (block.type === 'text') {
+                    responseLength += block.text.length
                   }
                 }
               }
@@ -697,12 +596,13 @@ export async function processSlashCommand(
         uuid,
       )
     } else if (command.type === 'local') {
-      result = await runLocalCommand(command, commandName, args, context, uuid)
+      result = await runLocalCommand(command, args, context, uuid)
     } else if (requiresArgument(command) && args.trim() === '') {
       result = answerBareUsage(command, args, uuid)
     } else {
-      result = await runPromptCommand(
+      result = await executePromptCommand(
         command,
+        commandName,
         args,
         context,
         imageContentBlocks,
@@ -739,8 +639,9 @@ async function runLocalJsxCommand(
   setToolJSX: SetToolJSXFn,
   uuid?: UUID,
 ): Promise<ProcessUserInputBaseResult> {
+  const echoedContent = formatCommandLoadingMetadata(getCommandName(command), args)
   const echoed = createUserMessage({
-    content: formatCommandLoadingMetadata(getCommandName(command), args),
+    content: echoedContent,
     ...(uuid ? { uuid } : {}),
   })
   return new Promise(resolve => {
@@ -776,7 +677,7 @@ async function runLocalJsxCommand(
         }
         finish({
           messages: [
-            { ...createCommandInputMessage(echoed.message.content as string), uuid: echoed.uuid, timestamp: echoed.timestamp },
+            { ...createCommandInputMessage(echoedContent), uuid: echoed.uuid, timestamp: echoed.timestamp },
             createCommandInputMessage(stdoutWrapped(resultText ?? NO_CONTENT_MESSAGE)),
             ...metaMessages,
           ],
@@ -804,8 +705,7 @@ async function runLocalJsxCommand(
         const module = await command.load()
         featureReached('command', command.name)
         const element = await module.call(done, context, args, commandName)
-        if ((context as { options?: { isNonInteractiveSession?: boolean } }).options
-          ?.isNonInteractiveSession === true && element) {
+        if (context.options.isNonInteractiveSession === true && element) {
           finish({ messages: [], shouldQuery: false })
           return
         }
@@ -816,7 +716,7 @@ async function runLocalJsxCommand(
           return
         }
         setToolJSX({
-          jsx: element as React.ReactNode,
+          jsx: element,
           shouldHidePromptInput: true,
           showSpinner: false,
           isLocalJSXCommand: true,
@@ -859,7 +759,6 @@ function answerBareUsage(
 
 async function runLocalCommand(
   command: Command & { type: 'local' },
-  commandName: string,
   args: string,
   context: ProcessUserInputContext,
   uuid?: UUID,

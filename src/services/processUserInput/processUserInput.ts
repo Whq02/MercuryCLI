@@ -182,7 +182,7 @@ export async function processUserInput(
 
 
 function isImageBlock(block: ContentBlockParam): block is ImageBlockParam {
-  return (block as { type?: string }).type === 'image'
+  return block.type === 'image'
 }
 
 async function normalizeInputBlocks(
