@@ -191,7 +191,7 @@ export async function getURLMarkdownContent(
   }
 
   const response: RawResponse | RedirectResult = await fetchPage(fetchUrl, abortController.signal)
-  if ('type' in response) return response
+  if ('statusCode' in response) return response
 
   const rawBytes = Buffer.from(response.data)
   const rawContentType = typeof response.headers['content-type'] === 'string'
