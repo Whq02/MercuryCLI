@@ -10,6 +10,7 @@ import type { Command } from '../../commands/catalogue/command.js'
 import type { ToolCapability } from '../../permissions/capability/contract.js'
 import type { ContentReplacementState } from '../../engine/tool-dispatch/toolResultStorage.js'
 import type { AppState } from '../../screen/app-state/AppState.js'
+import type { QueuedCommand } from '../../screen/composer/input-core/textInput.js'
 import type { MCPServerConnection } from '../../integrations/mcp-shapes/mcpServerRecords.js'
 import type { AgentDefinition } from '../../crew/agents/agentDefinition.js'
 import type { FileHistoryState } from '../../sessions/transcripts/fileHistory.js'
@@ -252,6 +253,7 @@ export type ToolTerminalOptions = {
   setIsInterruptibleToolRunning?: (v: boolean) => void
   onCompactProgress?: (event: CompactProgressEvent) => void
   setSDKStatus?: (status: any) => void
+  takeModeNotice?: () => QueuedCommand | null
   openMessageSelector?: () => void
   setConversationId?: (id: any) => void
 }

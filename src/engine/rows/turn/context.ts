@@ -67,6 +67,7 @@ export function contextBuilder({ config, thinkingConfig, turnId, abortController
     },
     handleElicitation: config.handleElicitation,
     setSDKStatus: config.setSDKStatus,
+    takeModeNotice: config.takeModeNotice,
     discoveredSkillNames,
     loadedNestedMemoryPaths,
     nestedMemoryAttachmentTriggers: new Set<string>(),

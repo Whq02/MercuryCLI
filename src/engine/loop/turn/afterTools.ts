@@ -26,13 +26,15 @@ async function* drainQueuedCommands(run: RunCtx, iter: IterationState, toolUseCo
   const sleepRan = iter.toolUseBlocks.some(block => block.name === SLEEP_TOOL_NAME)
   const isMainThread = run.querySource.startsWith('main_thread') || run.querySource === 'sdk'
   const selected = selectDrainableCommands(getDrainableCommands(sleepRan), { sleepRan, isMainThread, agentId: toolUseContext.agentId }, isSlashCommand)
+  const modeNotice = isMainThread && toolUseContext.agentId === undefined ? (toolUseContext.takeModeNotice?.() ?? null) : null
+  const riding = modeNotice === null ? selected : [...selected, modeNotice]
   const history = [...iter.messagesForQuery, ...iter.assistantMessages, ...iter.toolResults]
   const delivered = new Set<string>()
   let drained = false
   markDraining(selected)
   try {
     try {
-      for await (const row of getAttachmentMessages(null, toolUseContext, selected, history, run.querySource)) {
+      for await (const row of getAttachmentMessages(null, toolUseContext, riding, history, run.querySource)) {
         if (row.attachment.type === 'queued_command' && row.attachment.source_uuid !== undefined) delivered.add(row.attachment.source_uuid)
         yield run.emit({ kind: 'attachment', message: row })
         iter.toolResults.push(row)

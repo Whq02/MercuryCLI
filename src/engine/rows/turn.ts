@@ -53,6 +53,7 @@ export type ConversationConfig = {
   onLiveness?: () => void
   onToolRoundSettled?: (messages: readonly Message[]) => void
   setSDKStatus?: ToolUseContext['setSDKStatus']
+  takeModeNotice?: ToolUseContext['takeModeNotice']
   abortController?: AbortController
 }
 

@@ -292,6 +292,7 @@ export async function runPrintTurn(command: QueuedCommand, batch: QueuedCommand[
             params.elicitationId,
           ),
         agents: live.activeAgents,
+        takeModeNotice: ports.takeModeNotice,
         setSDKStatus: (status: unknown) => {
           if (statusIsProgress(status)) turnWatchdog.touch()
           const promised = promisedWaitOf(status)
