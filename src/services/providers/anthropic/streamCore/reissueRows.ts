@@ -1,4 +1,4 @@
-import type { APIError } from '../../../../utils/api/sdkErrors.js'
+import { APIError } from '../../../../utils/api/sdkErrors.js'
 import type { ApiMessage as BetaMessage } from '../../../../types/wire.js'
 import { logForDebugging } from 'src/utils/debug.js'
 import { logForDiagnosticsNoPII } from 'src/utils/diagLogs.js'
@@ -62,7 +62,8 @@ export function oneShotNoticeRow(call: CallState, pass: StreamPass, options: Opt
     `The stream failed; the request is retried as one shot: ${errorMessage(streamingError)}`,
     { level: 'error' },
   )
-  if (pass.streamIdleAborted || cut !== null) resetApiConnectionPool()
+  if (pass.streamIdleAborted) resetApiConnectionPool()
+  if (cut !== null) resetApiConnectionPool()
   call.didFallBackToNonStreaming = true
   if (options.onStreamingFallback) {
     options.onStreamingFallback()
@@ -84,9 +85,7 @@ export function oneShotNoticeRow(call: CallState, pass: StreamPass, options: Opt
           new Error(`${transportCutWords('Anthropic', cut)}${call.streamCutRetryUsed ? ', twice' : ''} — ${fallbackWaitWords}`),
           { cause: streamingError },
         )
-      : streamingError instanceof Error
-        ? streamingError
-        : new Error(errorMessage(streamingError))
+      : (streamingError as APIError)
   return createSystemAPIErrorMessage(noticeError, 0, 1, 1, {
     recoveryTimeoutMs: getNonstreamingFallbackTimeoutMs(),
   })
