@@ -268,7 +268,7 @@ section('§0 the reader on a planted estate: each of the laws is red by its own 
     mkdirSync(dirname(join(estate, rel)), { recursive: true })
     writeFileSync(join(estate, rel), text)
   }
-  plant(MAIN, `import { part } from './run/part.js'\nexport async function daemonMain(): Promise<void> {\n  await ${UNIT}()\n}\nasync function ${UNIT}(): Promise<void> {\n  let first = 1\n  const fixed = 2\n  let second = 3, third = 4\n  if (fixed > first) {\n    let inner = 5\n    first = inner + second + third\n  }\n  part()\n}\n`)
+  plant(MAIN, `import { part } from '../run/part.js'\nexport async function daemonMain(): Promise<void> {\n  await ${UNIT}()\n}\nasync function ${UNIT}(): Promise<void> {\n  let first = 1\n  const fixed = 2\n  let second = 3, third = 4\n  if (fixed > first) {\n    let inner = 5\n    first = inner + second + third\n  }\n  part()\n}\n`)
   plant(`${PARTS}part.ts`, `const LIMIT = 60_000\nconst BELOW = -1\nconst WORDS = 'said'\nconst STEPS: readonly string[] = ['first', WORDS]\nconst PAIR = ['a', 'b'] as const\nconst twice = (n: number): number => n * 2\nexport function part(): number {\n  return twice(LIMIT + BELOW + STEPS.length + PAIR.length)\n}\n`)
   plant(`${PARTS}state.ts`, `import { part } from './part.js'\nexport const made = (): number => part()\n`)
   plant('src/daemon/neighbour.ts', `export const near = 1\n`)
@@ -283,7 +283,7 @@ section('§0 the reader on a planted estate: each of the laws is red by its own 
   const outside = judge(readProgram(estate), 3)
   check('an import of a part planted outside is red by its own line: static, dynamic, in a type, by require, and spelled from the root as tsconfig.json lets it be', outside.length === 5 && ['src/daemon/neighbour.ts:1 imports src/daemon/run/part', 'src/screens/far.tsx:2 imports src/daemon/run/state', 'src/cli/typed.ts:1 imports src/daemon/run/state', 'src/cli/typed.ts:2 imports src/daemon/run/part', 'src/cli/rooted.ts:1 imports src/daemon/run/part'].every(head => outside.some(line => line.startsWith(head))), outside.join(' | ') + '; importsOf and the outside law of readProgram in ' + SELF + ' must find every way of importing a part')
   for (const rel of ['src/daemon/neighbour.ts', 'src/screens/far.tsx', 'src/cli/typed.ts', 'src/cli/rooted.ts']) rmSync(join(estate, rel))
-  plant(`${PARTS}part.ts`, `import { daemonMain } from '../main.js'\nlet remembered = 0\nexport function part(): number {\n  remembered++\n  return daemonMain.length\n}\n`)
+  plant(`${PARTS}part.ts`, `import { daemonMain } from '../control/main.js'\nlet remembered = 0\nexport function part(): number {\n  remembered++\n  return daemonMain.length\n}\n`)
   const back = judge(readProgram(estate), 3)
   check('a part that imports the file that starts it is red, and so is a variable a part keeps at module level', back.length === 2 && back.some(line => line.startsWith(`${PARTS}part.ts:1 imports ${MAIN}`)) && back.some(line => line.startsWith(`${PARTS}part.ts:2 keeps a variable at module level (remembered)`)), back.join(' | ') + '; the back and module laws of readProgram in ' + SELF + ' must flag both')
   plant(`${PARTS}part.ts`, `import { daemonMain } from 'src/daemon/control/main.js'\nconst remembered = new Map<string, number>()\nconst table = { seen: 0 }\nconst open = ['a']\nconst read = String(daemonMain.length)\nexport function part(): number {\n  return remembered.size + table.seen + open.length + read.length\n}\n`)

@@ -26,7 +26,10 @@ const project = (name: string, packageName: string, palette: boolean, git = true
   if (git) mkdirSync(join(dir, '.git'))
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: packageName }))
   writeFileSync(join(dir, 'src', 'components', 'Button.tsx'), 'export const color = "blue"\n')
-  if (palette) copyFileSync(join(root, 'src', 'screen', 'theme', 'mercuryPalette.ts'), join(dir, 'src', 'components', 'mercuryPalette.ts'))
+  if (palette) {
+    mkdirSync(join(dir, 'src', 'screen', 'theme'), { recursive: true })
+    copyFileSync(join(root, 'src', 'screen', 'theme', 'mercuryPalette.ts'), join(dir, 'src', 'screen', 'theme', 'mercuryPalette.ts'))
+  }
   return dir
 }
 const judge = async (cwd: string, file: string, text: string, mode = 'default', tool = 'Edit') => runWithCwdOverride(cwd, async () => {

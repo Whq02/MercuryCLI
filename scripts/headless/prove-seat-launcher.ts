@@ -50,7 +50,7 @@ else {
   const built = existsSync(DIST) ? launcher.seatRuntime(join(root, 'decide-built')) : null
   tally.check('PREBUILT=1 → runtime node, script dist/mercury.mjs', built !== null && built.runtime === 'node' && built.script === DIST && built.exe === NODE, built === null ? `${DIST} is absent: build first` : launcher.describeSeat(built))
   const source = launcher.seatRuntime(root, { source: 'required', name: 'source-required.ts' })
-  tally.check("PREBUILT=1 with source: 'required' → runtime bun, a launcher importing src/boot/entrypoints/cli.tsx", source.runtime === 'bun' && existsSync(source.script) && readFileSync(source.script, 'utf8').includes(join('src', 'entrypoints', 'cli.tsx')), launcher.describeSeat(source))
+  tally.check("PREBUILT=1 with source: 'required' → runtime bun, a launcher importing src/boot/entrypoints/cli.tsx", source.runtime === 'bun' && existsSync(source.script) && readFileSync(source.script, 'utf8').includes(join('src', 'boot', 'entrypoints', 'cli.tsx')), launcher.describeSeat(source))
   delete process.env.MERCURY_GATE_PREBUILT
   const local = launcher.seatRuntime(root, { name: 'local.ts' })
   tally.check('no PREBUILT → runtime bun from the source (the local reading keeps the source road)', local.runtime === 'bun' && local.from === 'the source' && basename(local.script) === 'local.ts', launcher.describeSeat(local))
