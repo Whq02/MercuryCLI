@@ -5,6 +5,7 @@ import type {
   PermissionRule, PermissionRuleSource, PermissionUpdate,
 } from '../../types/permissions.js'
 import { logForDebugging } from '../debug.js'
+import { isOneOf } from '../isOneOf.js'
 import { applyPermissionUpdate, applyPermissionUpdates } from './PermissionUpdate.js'
 import { noteAllowRulesOfSettingsChange } from './lateAllowRules.js'
 import { decideRuleBasedPermissions } from './decision/engine.js'
@@ -52,7 +53,7 @@ export function applyPermissionRulesToPermissionContext(context: ToolPermissionC
 function withoutRulesSetAsideFrom(context: ToolPermissionContext, sources: readonly PermissionRuleSource[]): ToolPermissionContext {
   const aside = context.strippedDangerousRules
   if (aside === undefined || !sources.some(source => aside[source] !== undefined)) return context
-  const kept = Object.fromEntries(Object.entries(aside).filter(([source]) => !(sources as readonly string[]).includes(source)))
+  const kept = Object.fromEntries(Object.entries(aside).filter(([source]) => !isOneOf(sources, source)))
   return { ...context, strippedDangerousRules: kept }
 }
 

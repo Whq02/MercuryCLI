@@ -1,5 +1,6 @@
 import { z } from 'zod/v4'
 import { GLYPH } from '../glyphs.js'
+import { isOneOf } from '../isOneOf.js'
 import { EXTERNAL_PERMISSION_MODES, PERMISSION_MODES, type PermissionMode } from '../../types/permissions.js'
 
 export {
@@ -39,10 +40,7 @@ export function modeBypassesPermissions(mode: PermissionMode): boolean {
 }
 
 export function permissionModeFromString(str: string): PermissionMode {
-  for (const mode of PERMISSION_MODES) {
-    if (mode === str) return mode
-  }
-  return 'default'
+  return isOneOf(PERMISSION_MODES, str) ? str : 'default'
 }
 
 export function isDefaultMode(mode: PermissionMode | undefined): boolean {

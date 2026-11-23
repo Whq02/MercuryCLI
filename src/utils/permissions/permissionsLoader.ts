@@ -3,6 +3,7 @@ import { logError } from '../log.js'
 import { logForDebugging } from '../debug.js'
 import { errorMessage, isENOENT } from '../errors.js'
 import { stripBOM } from '../jsonRead.js'
+import { isOneOf } from '../isOneOf.js'
 import { getFsImplementation, safeResolvePath } from '../fsOperations.js'
 import type {
   PermissionBehavior,
@@ -28,7 +29,7 @@ const BEHAVIORS: PermissionBehavior[] = ['allow', 'deny', 'ask']
 const EDITABLE_SOURCES: EditableSettingSource[] = ['userSettings', 'projectSettings', 'localSettings']
 
 function isEditableSource(source: PermissionRuleSource): source is EditableSettingSource {
-  return (EDITABLE_SOURCES as string[]).includes(source)
+  return isOneOf(EDITABLE_SOURCES, source)
 }
 
 export function shouldAllowManagedPermissionRulesOnly(): boolean {
