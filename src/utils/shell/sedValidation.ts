@@ -140,7 +140,10 @@ function hasDangerousSedExpression(expression: string): boolean {
 export function sedCommandIsAllowedByAllowlist(command: string, options?: { allowFileWrites?: boolean }): boolean {
   const allowFileWrites = options?.allowFileWrites ?? false
   if (!/^sed\s/.test(command)) return false
-  if (/\s-[a-zA-Z]*(?:e[wWe]|w[eE])/.test(command)) return false
+  if (/\s-[a-zA-Z]*(?:e[wWe]|w[eE])/.test(command)) {
+    passedOver(new Error('sed: dangerous combined flags'))
+    return false
+  }
 
   let tokens: string[]
   try {

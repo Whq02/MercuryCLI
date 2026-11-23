@@ -180,13 +180,13 @@ export function bashToolCheckPermission(
     return unprovenAsk(
       parsed.kind === 'too-complex'
         ? parsed.reason
-        : 'the shell parser could not produce a syntax tree for this command',
+        : 'the shell parser has not produced a tree; retry the command, or approve',
     )
   }
   const semantics = pinnedCommandAnalysis.checkSemantics(parsed.commands)
   if (!semantics.ok) return unprovenAsk(semantics.reason)
   if (parsed.commands.length !== 1) {
-    return unprovenAsk('this command contains more than one simple command')
+    return unprovenAsk('this entry needs one parsed command; split the command, or approve')
   }
   const simple = parsed.commands[0]!
 

@@ -28,10 +28,10 @@ function compoundMessage(reason: CompoundReason): string {
     case 'unparseable':
       return 'This command could not be split into simple commands, so it needs approval.'
     case 'comment':
-      return 'This command contains a shell comment, so it needs approval.'
+      return 'This command uses shell operators that require approval.'
     case 'operator':
       return reason.target
-        ? `This command uses the shell operator \`${reason.operator}\` with ${reason.target}, which needs approval.`
+        ? `This command uses the shell operator \`${reason.operator}\` with a target the shell expands (\`${reason.target}\`), which needs approval.`
         : `This command uses the shell operator \`${reason.operator}\`, which needs approval.`
   }
 }
