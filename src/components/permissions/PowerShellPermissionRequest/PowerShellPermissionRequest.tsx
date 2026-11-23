@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useLoad } from '../../../hooks/effects.js'
 import { Box, Text } from '../../../ink.js'
 import { ConsentBodyText } from '../ConsentBodyText.js'
@@ -50,7 +50,7 @@ export function PowerShellPermissionRequest({
     { context: 'Confirmation' },
   )
 
-  const messages: Message[] = toolUseConfirm.toolUseContext.messages
+  const messages: Message[] | undefined = toolUseConfirm.toolUseContext?.messages
   const explainer = usePermissionExplainerUI({
     toolName: POWERSHELL_TOOL_NAME,
     toolInput: toolUseConfirm.input,
@@ -91,10 +91,10 @@ export function PowerShellPermissionRequest({
     }
   }, [command, isSingleLine])
 
-  const handleEditablePrefixChange = (next: string): void => {
+  const handleEditablePrefixChange = useCallback((next: string): void => {
     userEditedRef.current = true
     setEditablePrefix(next)
-  }
+  }, [])
 
   const options = useMemo(
     () =>
@@ -114,6 +114,7 @@ export function PowerShellPermissionRequest({
       feedback.yesInputMode,
       feedback.noInputMode,
       editablePrefix,
+      handleEditablePrefixChange,
     ],
   )
 
@@ -182,8 +183,10 @@ export function PowerShellPermissionRequest({
             tail=" (the whole command runs)"
             dimColor={explainer.visible}
           />
-        ) : (
+        ) : typeof toolUseMessage === 'string' ? (
           <Text dimColor={explainer.visible}>{toolUseMessage}</Text>
+        ) : (
+          toolUseMessage
         )}
         {!explainer.visible && description ? <Text dimColor>{description}</Text> : null}
         <PermissionExplainerContent
