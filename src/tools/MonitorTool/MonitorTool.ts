@@ -17,7 +17,6 @@ import { BURST_WINDOW_MS, DELIVERY_INTERVAL_MS, createWatchMailbox } from './wat
 import { monitorNoticeBlock, WATCH_STARTED_LINE } from './watchReceipts.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { startImmediate, startTimeout, stopTimeout } from '../../utils/timers.js'
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 export { MONITOR_TOOL_NAME }
 
@@ -83,4 +82,228 @@ const outputSchema = lazySchema(() =>
 type OutputSchema = ReturnType<typeof outputSchema>
 export type Output = z.infer<OutputSchema>
 
-export const MonitorTool: Unbuilt = unbuilt('src/tools/MonitorTool/MonitorTool.ts:85')
+export const MonitorTool = buildTool({
+  name: MONITOR_TOOL_NAME,
+  userFacingName: () => 'Monitor',
+  searchHint: 'watch a command, log or process and deliver each new line as a notification',
+  shouldDefer: true,
+  isEnabled: () => true,
+  isConcurrencySafe: () => false,
+  maxResultSizeChars: 10_000,
+  straightQuoteInputs: ['command'],
+  shellCommandOf(input: unknown) {
+    return stringInputField(input, 'command')
+  },
+  get inputSchema(): InputSchema {
+    return inputSchema()
+  },
+  get outputSchema(): OutputSchema {
+    return outputSchema()
+  },
+  async description() {
+    return DESCRIPTION
+  },
+  async prompt() {
+    return DESCRIPTION
+  },
+  getActivityDescription(input?: { description?: string }) {
+    return input?.description ? `Monitoring: ${input.description}` : 'Monitoring'
+  },
+  renderToolUseMessage(
+    input?: { command?: unknown; description?: string },
+    options?: { verbose?: boolean },
+  ) {
+    const command =
+      typeof input?.command === 'string'
+        ? options?.verbose
+          ? input.command
+          : oneLineCommandDisplay(input.command)
+        : ''
+    return input?.description ? `${command} — ${input.description}` : command
+  },
+  async checkPermissions(input, context) {
+    const permissionContext: ToolPermissionContext = context.getAppState().toolPermissionContext
+    const result = await shellCommandHasPermission(
+      MONITOR_TOOL_NAME,
+      { command: input.command },
+      permissionContext,
+    )
+    if (result.behavior !== 'allow') return result
+    const approvedCommand =
+      typeof result.updatedInput?.command === 'string'
+        ? result.updatedInput.command
+        : input.command
+    return {
+      ...result,
+      updatedInput: {
+        ...input,
+        command: approvedCommand,
+      },
+    }
+  },
+  async call(input, context) {
+    const setAppState = context.setAppStateForTasks ?? context.setAppState
+    const persistent = input.persistent === true
+    const { timeoutMs, clamped } = monitorDeadline(input.timeout_ms, persistent)
+
+    let taskId = ''
+    let shellCommand: Awaited<ReturnType<typeof exec>> | null = null
+    let stopped = false
+    let admittedEvents = 0
+    let expiryTimer: ReturnType<typeof startTimeout> | null = null
+
+    const mailbox = createWatchMailbox({
+      now: () => Date.now(),
+      wall: () => sessionLaneWall(),
+      deliver: (text, summary) => {
+        enqueuePendingNotification({
+          value: monitorNoticeBlock(taskId, input.description, text, summary),
+          mode: 'task-notification',
+          priority: 'next',
+          agentId: context.agentId,
+        })
+      },
+      setTimer: (fn, ms) => {
+        const handle = startTimeout(fn, ms)
+        handle.unref?.()
+        return handle
+      },
+      clearTimer: handle => {
+        stopTimeout(handle as ReturnType<typeof startTimeout>)
+      },
+    })
+
+    const requestStop = (): void => {
+      if (taskId) {
+        void stopTask(taskId, {
+          getAppState: context.getAppState,
+          setAppState,
+        }).catch((error: unknown) => {
+          logForDebugging(
+            `Monitor stopTask(${taskId}) failed: ${error instanceof Error ? error.message : String(error)}`,
+            { level: 'warn' },
+          )
+          shellCommand?.kill()
+        })
+      } else {
+        shellCommand?.kill()
+      }
+    }
+
+    let tokens = RATE_BURST
+    let lastRefill = Date.now()
+    let suppressedCount = 0
+    let suppressedSince: number | null = null
+
+    const onStdout = (chunk: string): void => {
+      if (stopped || chunk === '') return
+      const now = Date.now()
+      const elapsedSec = (now - lastRefill) / 1000
+      if (elapsedSec > 0) {
+        tokens = Math.min(RATE_BURST, tokens + elapsedSec * RATE_REFILL_PER_SEC)
+        lastRefill = now
+      }
+      if (tokens >= 1) {
+        tokens -= 1
+        if (suppressedCount > 0) {
+          mailbox.push(
+            `[${suppressedCount} events suppressed — output rate too high. Consider using TaskStop to restart this monitor with a more selective filter.]`,
+          )
+          suppressedCount = 0
+          suppressedSince = null
+        }
+        admittedEvents += 1
+        mailbox.push(chunk)
+        return
+      }
+      suppressedCount += 1
+      if (suppressedSince === null) {
+        suppressedSince = now
+      }
+      const streakMs = now - suppressedSince
+      if (streakMs > OVERFLOW_STOP_MS) {
+        const seconds = Math.round(streakMs / 1000)
+        mailbox.push(
+          `[Monitor stopped: your script produced too much output (${suppressedCount} events suppressed over ${seconds}s). Start a new monitor with a tighter filter, such as grep --line-buffered or a wrapper script that emits only the events you need.]`,
+        )
+        stopped = true
+        if (expiryTimer !== null) {
+          stopTimeout(expiryTimer)
+          expiryTimer = null
+        }
+        requestStop()
+      }
+    }
+
+    shellCommand = await exec(input.command, context.abortController.signal, 'bash', {
+      preventCwdChanges: true,
+      onStdout,
+    })
+
+    const handle = await spawnShellTask(
+      {
+        command: input.command,
+        description: input.description,
+        shellCommand,
+        toolUseId: context.toolUseId,
+        agentId: context.agentId,
+        kind: 'monitor',
+        persistent,
+      },
+      {
+        abortController: context.abortController,
+        getAppState: context.getAppState,
+        setAppState,
+      },
+    )
+    taskId = handle.taskId
+
+    if (handle.accepted === false) {
+      const result = await shellCommand.result
+      if (result.preSpawnError !== undefined) {
+        stopped = true
+        throw new ShellError('', result.preSpawnError, result.code, result.interrupted, false)
+      }
+    }
+
+    void shellCommand.result.finally(() => {
+      startImmediate(() => {
+        stopped = true
+        if (expiryTimer !== null) {
+          stopTimeout(expiryTimer)
+          expiryTimer = null
+        }
+      })
+    })
+
+    if (!persistent && timeoutMs > 0) {
+      expiryTimer = startTimeout(() => {
+        expiryTimer = null
+        if (stopped) return
+        stopped = true
+        mailbox.push(monitorExpiryNotice(input.description, taskId, timeoutMs, admittedEvents))
+        requestStop()
+      }, timeoutMs)
+      expiryTimer.unref?.()
+    }
+
+    return {
+      data: {
+        taskId,
+        timeoutMs,
+        persistent,
+        ...(clamped !== null ? { clamped } : {}),
+      },
+    }
+  },
+  mapToolResultToToolResultBlockParam(output: Output, toolUseID: string) {
+    const schedule = output.persistent
+      ? 'persistent — runs until TaskStop or session end'
+      : `timeout ${output.timeoutMs}ms${output.clamped ? `; ${output.clamped}` : ''}`
+    return {
+      tool_use_id: toolUseID,
+      type: 'tool_result' as const,
+      content: `${WATCH_STARTED_LINE}${output.taskId}, ${schedule}). You will receive batched events, at most once every 30 seconds during ongoing output. Keep working — do not poll or sleep. Events may arrive while you are waiting for the user — an event is not their reply.`,
+    }
+  },
+} satisfies ToolDef<InputSchema, Output>)
