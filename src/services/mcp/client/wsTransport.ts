@@ -30,18 +30,20 @@ function toWsError(payload: unknown): Error {
 }
 
 function messageText(payload: unknown): string {
-  if (typeof payload === 'string') return payload
-  if (Buffer.isBuffer(payload)) return payload.toString('utf8')
-  if (payload instanceof ArrayBuffer) return Buffer.from(payload).toString('utf8')
-  if (ArrayBuffer.isView(payload)) return Buffer.from(payload.buffer, payload.byteOffset, payload.byteLength).toString('utf8')
-  if (Array.isArray(payload)) {
-    return Buffer.concat(payload.filter((chunk): chunk is Buffer => Buffer.isBuffer(chunk))).toString('utf8')
+  const raw =
+    payload && typeof payload === 'object'
+      ? ((payload as { data?: unknown }).data ?? payload)
+      : payload
+  if (typeof raw === 'string') return raw
+  if (Buffer.isBuffer(raw)) return raw.toString('utf8')
+  if (raw instanceof ArrayBuffer) return Buffer.from(raw).toString('utf8')
+  if (ArrayBuffer.isView(raw)) {
+    return Buffer.from(raw.buffer, raw.byteOffset, raw.byteLength).toString('utf8')
   }
-  if (payload && typeof payload === 'object') {
-    const data = (payload as { data?: unknown }).data
-    if (data !== undefined) return messageText(data)
+  if (Array.isArray(raw)) {
+    return Buffer.concat(raw.filter((chunk): chunk is Buffer => Buffer.isBuffer(chunk))).toString('utf8')
   }
-  return String(payload)
+  return String(raw)
 }
 
 async function openWs(url: string, headers: Record<string, string>): Promise<WsLike> {
@@ -49,10 +51,12 @@ async function openWs(url: string, headers: Record<string, string>): Promise<WsL
   if (typeof Bun !== 'undefined') {
     const proxyUrl = getWebSocketProxyUrl(url)
     const options: {
+      protocols: string[]
       headers: Record<string, string>
       tls?: tls.SecureContextOptions
       proxy?: string
     } = {
+      protocols: ['mcp'],
       headers,
       ...(tlsOptions ? { tls: tlsOptions } : {}),
       ...(proxyUrl ? { proxy: proxyUrl } : {}),
@@ -62,7 +66,7 @@ async function openWs(url: string, headers: Record<string, string>): Promise<WsL
   }
   const proxyAgent = getWebSocketProxyAgent(url)
   const { default: NodeWebSocket } = await import('ws')
-  return new NodeWebSocket(url, {
+  return new NodeWebSocket(url, 'mcp', {
     headers,
     ...(tlsOptions ?? {}),
     ...(proxyAgent ? { agent: proxyAgent } : {}),
@@ -70,41 +74,33 @@ async function openWs(url: string, headers: Record<string, string>): Promise<WsL
 }
 
 export async function createWsTransport(url: string, headers: Record<string, string>): Promise<Transport> {
-  let socket: WsLike | null = null
-  let closed = false
+  const ws = await openWs(url, headers)
 
   const transport: Transport = {
-    async start(): Promise<void> {
-      if (socket !== null) return
-      closed = false
-      const ws = await openWs(url, headers)
-      socket = ws
-      await new Promise<void>((resolve, reject) => {
+    start(): Promise<void> {
+      return new Promise<void>((resolve, reject) => {
         let settled = false
-        listen(ws, 'open', () => {
+        const settleResolve = (): void => {
           if (settled) return
           settled = true
           resolve()
+        }
+        const settleReject = (error: Error): void => {
+          if (settled) return
+          settled = true
+          reject(error)
+        }
+
+        listen(ws, 'open', () => {
+          settleResolve()
         })
         listen(ws, 'error', payload => {
           const error = toWsError(payload)
-          if (!settled) {
-            settled = true
-            reject(error)
-            return
-          }
           transport.onerror?.(error)
+          settleReject(error)
         })
         listen(ws, 'close', () => {
-          if (socket === ws) socket = null
-          if (!settled) {
-            settled = true
-            reject(new Error('WebSocket closed before open'))
-          }
-          if (!closed) {
-            closed = true
-            transport.onclose?.()
-          }
+          transport.onclose?.()
         })
         listen(ws, 'message', payload => {
           try {
@@ -114,24 +110,17 @@ export async function createWsTransport(url: string, headers: Record<string, str
             transport.onerror?.(error instanceof Error ? error : new Error(String(error)))
           }
         })
+
+        if (ws.readyState === 1) {
+          settleResolve()
+        }
       })
     },
     async send(message: JSONRPCMessage): Promise<void> {
-      if (socket === null || socket.readyState !== 1) {
-        throw new Error('WebSocket is not connected')
-      }
-      socket.send(JSON.stringify(message))
+      ws.send(JSON.stringify(message))
     },
     async close(): Promise<void> {
-      const current = socket
-      socket = null
-      if (current !== null && current.readyState !== 3) {
-        current.close()
-      }
-      if (!closed) {
-        closed = true
-        transport.onclose?.()
-      }
+      ws.close()
     },
   }
 
