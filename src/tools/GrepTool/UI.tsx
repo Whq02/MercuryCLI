@@ -13,10 +13,18 @@ import type { ToolResultBlockParam } from '../../types/wire.js'
 import { FILE_NOT_FOUND_CWD_NOTE } from '../../utils/file.js'
 import { truncate } from '../../utils/format.js'
 import { extractTag } from '../../services/messages.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 
-type GrepRenderOutput = Unbuilt
+type GrepRenderOutput = {
+  mode?: 'content' | 'files_with_matches' | 'count'
+  numFiles: number
+  filenames: string[]
+  content?: string
+  numLines?: number
+  numMatches?: number
+  appliedLimit?: number
+  appliedOffset?: number
+}
 
 type GrepRenderInput = { pattern?: string; path?: string }
 
@@ -36,12 +44,63 @@ type SearchResultSummaryProps = {
   trailer?: string
 }
 
-export function SearchResultSummary(arg0: SearchResultSummaryProps): React.ReactNode {
-  return notBuilt('src/tools/GrepTool/UI.tsx:47')
+export function SearchResultSummary({
+  count,
+  label,
+  secondaryCount,
+  secondaryLabel,
+  body,
+  verbose,
+  trailer,
+}: SearchResultSummaryProps): React.ReactNode {
+  const tokens = useMercuryTokens()
+  const hasBody = Boolean(body)
+  const showExpandHint = count > 0 && hasBody && !verbose
+
+  const summary = (
+    <Text>
+      <ToolCardMarker />
+      Found{' '}
+      <Text bold color={toolCardCountColor()}>
+        {count}
+      </Text>{' '}
+      {labelForCount(count, label)}
+      {secondaryCount !== undefined && secondaryLabel ? (
+        <>
+          {' across '}
+          <Text bold color={toolCardCountColor()}>
+            {secondaryCount}
+          </Text>{' '}
+          {labelForCount(secondaryCount, secondaryLabel)}
+        </>
+      ) : null}
+      <ToolCardMeta text={trailer} />
+      {showExpandHint ? (
+        <Text color={tokens.textMuted}>
+          {' '}
+          <CtrlOToExpand />
+        </Text>
+      ) : null}
+    </Text>
+  )
+
+  return (
+    <MessageResponse>
+      <Box flexDirection="column">
+        {summary}
+        {verbose && hasBody ? (
+          <Box paddingLeft={2}>
+            <Text>{body}</Text>
+          </Box>
+        ) : null}
+      </Box>
+    </MessageResponse>
+  )
 }
 
 export function getToolUseSummary(input: GrepRenderInput | undefined): string | null {
-  return notBuilt('src/tools/GrepTool/UI.tsx:100')
+  if (!input?.pattern) return null
+  return truncate(input.pattern, TOOL_SUMMARY_MAX_LENGTH)
 }
 
 export function renderToolUseMessage(
