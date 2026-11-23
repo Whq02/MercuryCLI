@@ -478,40 +478,25 @@ export async function processSlashCommand(
   const { commandName, args } = parsed
   const commands = context.options?.commands ?? []
   const command = findCommand(commands, commandName)
-  const isHeadless =
-    context.options?.isNonInteractiveSession ?? getIsNonInteractiveSession()
+  const availabilityAnswer = (line: string): ProcessUserInputBaseResult => ({
+    messages: [caveat, ...attachmentMessages, createUserMessage({ content: line })],
+    shouldQuery: false,
+    resultText: line,
+    commandRefused: true,
+  })
 
   if (command === undefined) {
-    if (!looksLikeCommand(commandName) || isExistingPath(`/${commandName}`)) {
-      return {
-        messages: [
-          createUserMessage({
-            content: inputString,
-            ...(uuid ? { uuid } : {}),
-          }),
-          ...attachmentMessages,
-        ],
-        shouldQuery: true,
-      }
-    }
     const builtin = findCommand([...builtinCommands()], commandName)
     if (builtin !== undefined) {
-      if (isHeadless && commandSeat(builtin) === 'screen') {
-        const line = unavailableCommandLine(builtin, args)
-        return {
-          messages: [],
-          shouldQuery: false,
-          resultText: line,
-          commandRefused: true,
+      if (builtin.type === 'local' && builtin.userPrivate === true && isCommandEnabled(builtin)) {
+        if (builtin.seat === 'screen' && getIsNonInteractiveSession()) {
+          return {
+            messages: [],
+            shouldQuery: false,
+            resultText: unavailableCommandLine(builtin),
+            commandRefused: true,
+          }
         }
-      }
-      if (
-        builtin.type === 'local' &&
-        builtin.userPrivate === true &&
-        isCommandEnabled(builtin) &&
-        meetsAvailabilityRequirement(builtin) &&
-        !commandOffInPlainWorld(builtin)
-      ) {
         try {
           const module = await builtin.load()
           featureReached('command', builtin.name)
@@ -523,29 +508,26 @@ export async function processSlashCommand(
             ...(text !== '' ? { resultText: text } : {}),
           }
         } catch (error) {
-          logError(
-            new Error(`/${getCommandName(builtin)} failed — ${String(error)}`),
-          )
+          logError(error)
           return {
             messages: [],
             shouldQuery: false,
-            commandError: String(error),
+            resultText: `/${commandName} failed — ${String(error)}`,
           }
         }
       }
-      const line = unavailableCommandLine(builtin, args)
+      return availabilityAnswer(unavailableCommandLine(builtin))
+    }
+    if (!looksLikeCommand(commandName) || isExistingPath(`/${commandName}`)) {
       return {
         messages: [
-          caveat,
-          ...attachmentMessages,
           createUserMessage({
-            content: line,
+            content: inputString,
             ...(uuid ? { uuid } : {}),
           }),
+          ...attachmentMessages,
         ],
-        shouldQuery: false,
-        resultText: line,
-        commandRefused: true,
+        shouldQuery: true,
       }
     }
     const line = unknownCommandLine(commandName, commands)
@@ -559,34 +541,22 @@ export async function processSlashCommand(
   }
 
   if (!isCommandEnabled(command)) {
-    const line = unavailableCommandLine(command, args)
-    return {
-      messages: [
-        caveat,
-        ...attachmentMessages,
-        createUserMessage({
-          content: line,
-          ...(uuid ? { uuid } : {}),
-        }),
-      ],
-      shouldQuery: false,
-      resultText: line,
-      commandRefused: true,
-    }
+    return availabilityAnswer(unavailableCommandLine(command, args))
   }
 
   if (command.userInvocable === false) {
-    const fullName = getCommandName(command)
-    const explanation = `The ${fullName} skill can only be invoked by the assistant. Ask for it by name instead.`
-    const echoed = createUserMessage({
-      content: formatCommandLoadingMetadata(fullName, args),
-      ...(uuid ? { uuid } : {}),
-    })
-    return finalizeCommandResult({
-      messages: [echoed, createCommandInputMessage(stdoutWrapped(explanation))],
+    return {
+      messages: [
+        createUserMessage({
+          content: formatCommandLoadingMetadata(getCommandName(command), args),
+          ...(uuid ? { uuid } : {}),
+        }),
+        createUserMessage({
+          content: `The ${command.name} skill can only be invoked by the assistant. Ask for it by name instead.`,
+        }),
+      ],
       shouldQuery: false,
-      resultText: explanation,
-    }, caveat)
+    }
   }
 
   try {
