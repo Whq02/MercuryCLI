@@ -3,9 +3,11 @@ import { getGlobalConfig } from '../../utils/config.js'
 import { logError } from '../../utils/log.js'
 import { logForDebugging } from '../../utils/debug.js'
 import type { Message } from '../../types/message.js'
+import type { RiskLevel } from '../../types/permissions.js'
 import { getEngineModel } from '../model/model.js'
 import { sideQuery } from '../api/sideQuery.js'
-export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH'
+
+export type { RiskLevel }
 
 export type PermissionExplanation = {
   explanation: string
@@ -50,23 +52,25 @@ export function isPermissionExplainerEnabled(): boolean {
 function extractConversationContext(messages: Message[]): string {
   const assistantTexts: string[] = []
   for (const message of messages) {
-    if ((message as { type?: string }).type !== 'assistant') continue
-    const content = (message as { message?: { content?: unknown } }).message?.content
+    if (message.type !== 'assistant') continue
+    const content = message.message?.content
     if (!Array.isArray(content)) continue
-    const text = content
-      .filter((block: { type?: string }) => block.type === 'text')
-      .map((block: { text?: string }) => block.text ?? '')
-      .join(' ')
-    assistantTexts.push(text)
+    const parts: string[] = []
+    for (const block of content) {
+      if (block.type === 'text') {
+        parts.push(block.text)
+      }
+    }
+    assistantTexts.push(parts.join(' '))
   }
 
   const lastThree = assistantTexts.slice(-3)
   let budget = 1000
   const keptNewestFirst: string[] = []
   for (let i = lastThree.length - 1; i >= 0; i--) {
-    const piece = lastThree[i] as string
-    if (piece === '') continue
-    if (budget <= 0) continue
+    const piece = lastThree[i]
+    if (!piece) continue
+    if (budget <= 0) break
     if (piece.length > budget) {
       keptNewestFirst.push(piece.slice(0, budget - 1) + '…')
       budget = 0

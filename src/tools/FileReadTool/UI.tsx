@@ -136,7 +136,7 @@ function ReadResultSummary({ output }: { output: Output }): React.ReactNode {
 
 export function renderToolResultMessage(output: Output): React.ReactNode {
   return (
-    <MessageResponse>
+    <MessageResponse height={1}>
       <ReadResultSummary output={output} />
     </MessageResponse>
   )
