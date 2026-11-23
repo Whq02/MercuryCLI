@@ -102,7 +102,6 @@ export function QuestionView(props: Props): React.ReactNode {
     questionStates,
     hideSubmitTab = false,
     minContentHeight,
-    minContentWidth,
     onUpdateQuestionState,
     onAnswer,
     onTextInputFocus,
@@ -113,7 +112,6 @@ export function QuestionView(props: Props): React.ReactNode {
     onImagePaste,
     pastedContents,
     onRemoveImage,
-    onNotesPasteLarge,
   } = props
 
   const hasPreview =
@@ -219,50 +217,19 @@ export function QuestionView(props: Props): React.ReactNode {
   )
 
   if (hasPreview) {
-    return (
-      <PreviewQuestionView
-        question={question}
-        questions={questions}
-        currentQuestionIndex={currentQuestionIndex}
-        answers={answers}
-        questionStates={questionStates}
-        hideSubmitTab={hideSubmitTab}
-        minContentHeight={minContentHeight}
-        minContentWidth={minContentWidth}
-        onUpdateQuestionState={onUpdateQuestionState}
-        onAnswer={onAnswer}
-        onTextInputFocus={onTextInputFocus}
-        onCancel={onCancel}
-        onTabNext={onTabNext}
-        onTabPrev={onTabPrev}
-        onRespondToModel={onRespondToModel}
-        onNotesPasteLarge={onNotesPasteLarge}
-      />
-    )
+    return <PreviewQuestionView {...props} hideSubmitTab={hideSubmitTab} />
   }
 
-  const optionItems: OptionWithDescription<string>[] = [
-    ...question.options.map((opt, idx) => ({
-      type: 'text' as const,
-      value: opt.label,
-      label: opt.label,
-      description: opt.description,
-      ...(isApolloMode ? { indexLabel: apolloIndexLabel(idx) } : {}),
-    })),
-    {
-      type: 'input' as const,
-      value: OTHER_OPTION_VALUE,
-      label: 'Other',
-      placeholder: question.multiSelect ? 'Type something' : 'Type something.',
-      initialValue: textInputValue,
-      onChange: (val: string) => {
-        textInputRef.current = val
-        setEmptyOtherHint(false)
-        onUpdateQuestionState(question.question, { textInputValue: val })
-      },
-      ...(isApolloMode ? { indexLabel: apolloCustomIndexLabel() } : {}),
+  const optionItems = buildQuestionOptions({
+    question,
+    isApolloMode,
+    textInputValue,
+    onChangeOther: val => {
+      textInputRef.current = val
+      setEmptyOtherHint(false)
+      onUpdateQuestionState(question.question, { textInputValue: val })
     },
-  ]
+  })
 
   const isLastQuestion = currentQuestionIndex === questions.length - 1
   const singleSelected =
@@ -319,14 +286,14 @@ export function QuestionView(props: Props): React.ReactNode {
               isDisabled={isFooterFocused}
               scrollMovesFocus={!cockpitActive}
               submitButtonText={isLastQuestion ? 'Submit' : 'Next'}
-              onFocus={value => {
+              onFocus={(value: string) => {
                 const onOther = value === OTHER_OPTION_VALUE
                 setIsSubmitFocused(false)
                 setIsFocusedOnOther(onOther)
                 if (!onOther) setEmptyOtherHint(false)
                 onTextInputFocus(onOther)
               }}
-              onSubmitFocus={focused => {
+              onSubmitFocus={(focused: boolean) => {
                 setIsSubmitFocused(focused)
                 if (focused) {
                   setIsFocusedOnOther(false)
@@ -334,13 +301,18 @@ export function QuestionView(props: Props): React.ReactNode {
                   onTextInputFocus(false)
                 }
               }}
-              onChange={values => {
+              onChange={(values: string[]) =>
                 onUpdateQuestionState(question.question, { selectedValue: values })
-              }}
-              onSubmit={values => {
+              }
+              onSubmit={(values: string[]) => {
                 setEmptyOtherHint(false)
                 onUpdateQuestionState(question.question, { selectedValue: values })
-                onAnswer(question.question, values, textInputRef.current, true)
+                onAnswer(
+                  question.question,
+                  values,
+                  values.includes(OTHER_OPTION_VALUE) ? textInputRef.current : undefined,
+                  true,
+                )
               }}
               onEmptyInputSubmit={() => setEmptyOtherHint(true)}
               onCancel={onCancel}
@@ -351,10 +323,7 @@ export function QuestionView(props: Props): React.ReactNode {
                 setEmptyOtherHint(false)
                 onTextInputFocus(false)
               }}
-              onTabOut={dir => {
-                if (dir === 'next') onTabNext?.()
-                else onTabPrev?.()
-              }}
+              onTabOut={(dir: 'next' | 'prev') => (dir === 'next' ? onTabNext?.() : onTabPrev?.())}
               onOpenEditor={handleOpenEditor}
               onImagePaste={boundImagePaste}
               pastedContents={pastedContents}
@@ -385,7 +354,7 @@ export function QuestionView(props: Props): React.ReactNode {
                   onAnswer(question.question, OTHER_OPTION_VALUE, textInputRef.current, true)
                 } else {
                   onUpdateQuestionState(question.question, { selectedValue: value })
-                  onAnswer(question.question, value, textInputRef.current, true)
+                  onAnswer(question.question, value, undefined, true)
                 }
               }}
               onEmptyInputSubmit={() => setEmptyOtherHint(true)}
@@ -401,23 +370,64 @@ export function QuestionView(props: Props): React.ReactNode {
               onRemoveImage={boundRemoveImage}
             />
           )}
-          <Box
-            marginTop={1}
-            onClick={() => {
-              void onRespondToModel?.()
-            }}
-          >
-            <Text color={isFooterFocused ? 'suggestion' : undefined} bold={isFooterFocused}>
-              {isFooterFocused ? `${figures.pointer} ` : '  '}
-              <Text dimColor={!isFooterFocused}>{`${footerNumber}. `}</Text>
-              {DISCUSS_OPTION_LABEL}
-            </Text>
-          </Box>
+          {renderDiscussFooter(footerNumber, isFooterFocused, onRespondToModel)}
         </Box>
         <Box marginTop={1}>
           <Text dimColor>{helpLine}</Text>
         </Box>
       </Box>
+    </Box>
+  )
+}
+
+function buildQuestionOptions({
+  question,
+  isApolloMode,
+  textInputValue,
+  onChangeOther,
+}: {
+  question: Question
+  isApolloMode: boolean
+  textInputValue: string
+  onChangeOther: (val: string) => void
+}): OptionWithDescription<string>[] {
+  return [
+    ...question.options.map((opt, idx) => ({
+      type: 'text' as const,
+      value: opt.label,
+      label: opt.label,
+      description: opt.description,
+      ...(isApolloMode ? { indexLabel: apolloIndexLabel(idx) } : {}),
+    })),
+    {
+      type: 'input' as const,
+      value: OTHER_OPTION_VALUE,
+      label: 'Other',
+      placeholder: question.multiSelect ? 'Type something' : 'Type something.',
+      initialValue: textInputValue,
+      onChange: onChangeOther,
+      ...(isApolloMode ? { indexLabel: apolloCustomIndexLabel() } : {}),
+    },
+  ]
+}
+
+function renderDiscussFooter(
+  footerNumber: number,
+  isFooterFocused: boolean,
+  onRespondToModel?: () => void | Promise<void>,
+): React.ReactNode {
+  return (
+    <Box
+      marginTop={1}
+      onClick={() => {
+        void onRespondToModel?.()
+      }}
+    >
+      <Text color={isFooterFocused ? 'suggestion' : undefined} bold={isFooterFocused}>
+        {isFooterFocused ? `${figures.pointer} ` : '  '}
+        <Text dimColor={!isFooterFocused}>{`${footerNumber}. `}</Text>
+        {DISCUSS_OPTION_LABEL}
+      </Text>
     </Box>
   )
 }
