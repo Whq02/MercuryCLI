@@ -1,5 +1,3 @@
-import { notBuilt } from '../pi/holes.js'
-
 const MAX_PASSES = 10
 
 const PROPERTY_CLASS_STRIP = /[\p{Cf}\p{Co}\p{Cn}]/gu
@@ -7,7 +5,13 @@ const PROPERTY_CLASS_STRIP = /[\p{Cf}\p{Co}\p{Cn}]/gu
 const EXPLICIT_RANGE_STRIP = /[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF\uE000-\uF8FF]/g
 
 export function partiallySanitizeUnicode(prompt: string): string {
-  return notBuilt('src/utils/sanitization.ts:8')
+  let current = prompt
+  for (let pass = 0; pass < MAX_PASSES; pass++) {
+    const cleaned = current.normalize('NFKC').replace(PROPERTY_CLASS_STRIP, '').replace(EXPLICIT_RANGE_STRIP, '')
+    if (cleaned === current) return current
+    current = cleaned
+  }
+  throw new Error(`Unicode sanitization did not converge within ${MAX_PASSES} passes; input begins: ${prompt.slice(0, 100)}`)
 }
 
 export function recursivelySanitizeUnicode(value: string): string
@@ -15,7 +19,14 @@ export function recursivelySanitizeUnicode<T>(value: T[]): T[]
 export function recursivelySanitizeUnicode<T extends object>(value: T): T
 export function recursivelySanitizeUnicode<T>(value: T): T
 export function recursivelySanitizeUnicode(value: unknown): unknown {
-  return notBuilt('src/utils/sanitization.ts:29')
+  if (typeof value === 'string') return partiallySanitizeUnicode(value)
+  if (Array.isArray(value)) return value.map(item => recursivelySanitizeUnicode(item))
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [
+      partiallySanitizeUnicode(key), recursivelySanitizeUnicode(item),
+    ]))
+  }
+  return value
 }
 
 export function hiddenCommandCharacterReason(command: string, includeCodePoint = true): string | null {
