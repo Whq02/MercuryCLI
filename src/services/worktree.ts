@@ -1287,11 +1287,8 @@ function filterRelaunchArgs(args: string[]): string[] {
 }
 
 export async function execIntoTmuxWorktree(args: string[]): Promise<{ handled: boolean; error?: string }> {
-  switch (process.platform) {
-    case 'win32':
-      return { handled: false, error: '--multiplex is not supported on Windows' }
-    default:
-      break
+  if (process.platform === 'win32') {
+    return { handled: false, error: '--multiplex is not supported on Windows' }
   }
 
   if (runTmuxSync(['-V']).status !== 0) {
