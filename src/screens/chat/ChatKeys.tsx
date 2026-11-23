@@ -19,9 +19,46 @@ import { ASK_USER_QUESTION_TOOL_NAME } from '../../tools/AskUserQuestionTool/pro
 import type { Message } from '../../types/message.js';
 import type { FocusedInputDialog } from './focusedDialog.js';
 import type { Screen } from './screen.js';
-import { notBuilt } from '../../pi/holes.js'
 
-export function ChatKeys(arg0: {
+const SUSPEND_NOTICE = '\nMercury suspended — `fg` brings it back.\n';
+
+export function ChatKeys({
+  legacyTranscript,
+  fullscreen,
+  compactWork,
+  screen,
+  setScreen,
+  showAllInTranscript,
+  setShowAllInTranscript,
+  messages,
+  handleEnterTranscript,
+  handleExitTranscript,
+  inVirtualTranscriptMode,
+  inVirtualTranscript,
+  searchBarOpen,
+  helpOpen,
+  isSearchingHistory,
+  messageCursorActive,
+  messageActions,
+  messageActionsDisabled,
+  focusedInputDialog,
+  toolUseConfirmQueue,
+  showMessageSelector,
+  showBashesDialog,
+  vimMode,
+  dialogOwnsKeys,
+  centredModalUp,
+  permissionOverlay,
+  viewStreamMode,
+  seatLive,
+  onSubmit,
+  commands,
+  scrollRef,
+  modalScrollRef,
+  onScroll,
+  onTranscriptScroll,
+  children,
+}: {
   legacyTranscript: boolean;
   fullscreen: boolean;
   compactWork: CompactWorkControls;
@@ -58,5 +95,115 @@ export function ChatKeys(arg0: {
   onTranscriptScroll: (sticky: boolean, handle: ScrollBoxHandle) => void;
   children: React.ReactNode;
 }): React.ReactNode {
-  return notBuilt('src/screens/chat/ChatKeys.tsx:23')
+  useHoldsEscape(helpOpen || isSearchingHistory || messageCursorActive);
+
+  const { internal_eventEmitter } = useStdin();
+  const [remountKey, setRemountKey] = useState(0);
+  useClaim(() => {
+    const onSuspend = (): void => {
+      if (!fullscreen) {
+        process.stdout.write(SUSPEND_NOTICE);
+      }
+    };
+    const onResume = (): void => {
+      setRemountKey(n => n + 1);
+    };
+    internal_eventEmitter.on('suspend', onSuspend);
+    internal_eventEmitter.on('resume', onResume);
+    return () => {
+      internal_eventEmitter.off('suspend', onSuspend);
+      internal_eventEmitter.off('resume', onResume);
+    };
+  }, [internal_eventEmitter, fullscreen]);
+
+  const globalHandler = (
+    <GlobalKeybindingHandlers
+      screen={screen}
+      setScreen={setScreen}
+      showAllInTranscript={showAllInTranscript}
+      setShowAllInTranscript={setShowAllInTranscript}
+      messageCount={messages.length}
+      onEnterTranscript={handleEnterTranscript}
+      onExitTranscript={handleExitTranscript}
+      virtualScrollActive={inVirtualTranscriptMode}
+      searchBarOpen={searchBarOpen}
+      compactWork={compactWork}
+    />
+  );
+
+  const commandHandler = (
+    <CommandKeybindingHandlers
+      onSubmit={onSubmit}
+      commands={commands}
+      isActive={!dialogOwnsKeys}
+    />
+  );
+
+  const cancelHandler = (
+    <CancelRequestHandler
+      focusedTurnActive={seatLive.inFlight}
+      compactWork={compactWork}
+      isInterviewFocused={
+        focusedInputDialog === 'tool-permission' &&
+        toolUseConfirmQueue[0]?.tool.name === ASK_USER_QUESTION_TOOL_NAME
+      }
+      isMessageSelectorVisible={showMessageSelector || showBashesDialog !== false}
+      screen={screen}
+      vimMode={isVimModeEnabled() ? vimMode : undefined}
+      isLocalJSXCommand={dialogOwnsKeys}
+      isSearchingHistory={isSearchingHistory}
+      isHelpOpen={helpOpen}
+      isInputDialogFocused={focusedInputDialog !== undefined}
+      streamMode={viewStreamMode}
+    />
+  );
+
+  if (legacyTranscript) {
+    return (
+      <>
+        {globalHandler}
+        {commandHandler}
+        {cancelHandler}
+        {children}
+      </>
+    );
+  }
+
+  const modalUp = centredModalUp && dialogOwnsKeys;
+  const scrollActive =
+    inVirtualTranscript ||
+    (fullscreen &&
+      (centredModalUp ||
+        focusedInputDialog === undefined ||
+        focusedInputDialog === 'tool-permission'));
+  const scrollCallback = inVirtualTranscript
+    ? onTranscriptScroll
+    : modalUp || permissionOverlay != null
+      ? undefined
+      : onScroll;
+
+  return (
+    <>
+      {globalHandler}
+      {commandHandler}
+      <ScrollKeybindingHandler
+        scrollRef={scrollRef}
+        isActive={scrollActive}
+        onScroll={scrollCallback}
+        isModal={inVirtualTranscript ? !searchBarOpen : false}
+        modalScrollRef={modalScrollRef}
+        modalUp={modalUp}
+      />
+      {fullscreen && messageCursorActive ? (
+        <MessageActionsKeybindings
+          handlers={messageActions.handlers}
+          isActive={!messageActionsDisabled && focusedInputDialog === undefined}
+        />
+      ) : null}
+      {cancelHandler}
+      <SwitchboardAttributionProvider key={remountKey}>
+        {children}
+      </SwitchboardAttributionProvider>
+    </>
+  );
 }
