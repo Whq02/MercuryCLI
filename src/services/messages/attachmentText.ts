@@ -2,7 +2,6 @@ import type { ContentBlockParam, TextBlockParam } from '../../types/wire.js'
 import type { AnyObject, Tool } from '../../Tool.js'
 import type { MessageOrigin, UserMessage } from '../../types/message.js'
 import { CONTRACT_TOOL_NAME } from '../../constants/tools/contract.js'
-import type { FileReadToolOutput } from '../../types/fileReadOutput.js'
 import { FILE_READ_TOOL_NAME } from '../../constants/tools/fileRead.js'
 import { SEND_MESSAGE_TOOL_NAME } from '../../constants/tools/sendMessage.js'
 import { RESUME_AGENT_TOOL_NAME } from '../../constants/tools/resumeAgent.js'
@@ -46,7 +45,7 @@ function toolResult<Output>(tool: ToolWording<Output>, output: Output): UserMess
   try {
     const payload = tool.mapToolResultToToolResultBlockParam(output, '1').content
     const carriesImage = Array.isArray(payload) && payload.some(block => block.type === 'image')
-    return meta(carriesImage ? payload as ContentBlockParam[] : `${tool.name} returned:\n${typeof payload === 'string' ? payload : jsonStringify(payload)}`)
+    return meta(carriesImage ? payload : `${tool.name} returned:\n${typeof payload === 'string' ? payload : jsonStringify(payload)}`)
   } catch {
     return meta(`${tool.name} returned an error`)
   }
@@ -58,7 +57,7 @@ function toolRead<Output>(tool: ToolWording<Output>, input: Record<string, strin
 }
 
 function fileRows(file: Of<'file'>): UserMessage[] {
-  const payload = file.content as FileReadToolOutput
+  const payload = file.content
   if (!['text', 'image', 'notebook', 'pdf'].includes(payload.type)) return []
   const rows = toolRead(fileReadWording, { file_path: file.filename }, payload)
   if (payload.type === 'text' && file.truncated) {

@@ -2,7 +2,7 @@ import { readRequestGauge } from '../run/requestGauge.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
 import { getTokenCountFromUsage } from '../../utils/tokenUsage.js'
 export { getTokenCountFromUsage } from '../../utils/tokenUsage.js'
-import { getTokenUsage, messageContextFill, type ContentBlockLike, type ContextFill } from './messageContextFill.js'
+import { getTokenUsage, messageContextFill, type ContextFill } from './messageContextFill.js'
 export { getTokenUsage, messageContextFill } from './messageContextFill.js'
 
 export function usageAnchorModel(messages: readonly Message[]): string | undefined {
@@ -59,8 +59,7 @@ export function getAssistantMessageContentLength(message: AssistantMessage): num
   const content = message.message.content
   if (!Array.isArray(content)) return 0
   let length = 0
-  for (const raw of content) {
-    const block = raw as ContentBlockLike
+  for (const block of content) {
     if (block.type === 'text' && typeof block.text === 'string') {
       length += block.text.length
     } else if (block.type === 'thinking' && typeof block.thinking === 'string') {

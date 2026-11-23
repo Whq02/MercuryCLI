@@ -104,9 +104,9 @@ function characterHeuristic(deferrableTools: Tool[]): number {
   let total = 0
   for (const tool of deferrableTools) {
     total += tool.name.length
-    const description = (tool as { description?: unknown }).description
+    const description: unknown = tool.description
     if (typeof description === 'string') total += description.length
-    const preRendered = (tool as { inputJSONSchema?: unknown }).inputJSONSchema
+    const preRendered = tool.inputJSONSchema
     if (preRendered !== undefined) {
       total += JSON.stringify(preRendered).length
     } else {

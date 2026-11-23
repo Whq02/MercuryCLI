@@ -87,7 +87,7 @@ export function wireParamsFor(call: CallState, wire: WireInputs): (context: Retr
     const rawExtraOutputConfig = extraBodyParams.output_config
     const outputConfig: BetaOutputConfig =
       rawExtraOutputConfig && typeof rawExtraOutputConfig === 'object' && !Array.isArray(rawExtraOutputConfig)
-        ? { ...(rawExtraOutputConfig as BetaOutputConfig) }
+        ? { ...rawExtraOutputConfig }
         : {}
 
     configureEffortParams(wire.effort, outputConfig, extraBodyParams, wire.options.model)
@@ -133,7 +133,7 @@ export function wireParamsFor(call: CallState, wire: WireInputs): (context: Retr
     const boundThinking = applyThinkingBinding(
       applyThinkingDisplay(wire.options.model, rawThinking, requestBetas),
       requestBetas,
-    ) as BetaMessageStreamParams['thinking']
+    )
     const betweenTools =
       wire.thinkingConfig.type === 'disabled' &&
       modelThinkingOffIsBetweenTools(wire.options.model, outputConfig)

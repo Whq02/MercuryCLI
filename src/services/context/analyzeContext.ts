@@ -241,8 +241,8 @@ function collectUsedToolNames(messages: readonly Message[]): Set<string> {
     const content = message.message.content
     if (!Array.isArray(content)) continue
     for (const block of content) {
-      if (typeof block === 'object' && block !== null && (block as { type?: unknown }).type === 'tool_use') {
-        const name = (block as { name?: unknown }).name
+      if (typeof block === 'object' && block !== null && block.type === 'tool_use') {
+        const name = block.name
         if (typeof name === 'string') names.add(name)
       }
     }
@@ -486,10 +486,9 @@ function computeMessageBreakdown(messages: Message[]): {
       if (
         typeof block === 'object' &&
         block !== null &&
-        (block as { type?: unknown }).type === 'tool_use'
+        block.type === 'tool_use'
       ) {
-        const use = block as { id?: string; name?: string }
-        if (use.id && use.name) toolNameByUseId.set(use.id, use.name)
+        if (block.id && block.name) toolNameByUseId.set(block.id, block.name)
       }
     }
   }
@@ -499,10 +498,9 @@ function computeMessageBreakdown(messages: Message[]): {
       const content = message.message.content
       if (!Array.isArray(content)) continue
       for (const block of content) {
-        const type = (block as { type?: string }).type
         const tokens = roughBlockTokens(block, markUnmeasured)
-        if (type === 'tool_use') {
-          const name = (block as { name?: string }).name ?? UNKNOWN_NAME
+        if (block.type === 'tool_use') {
+          const name = block.name ?? UNKNOWN_NAME
           toolCallTokensByName.set(name, (toolCallTokensByName.get(name) ?? 0) + tokens)
         } else {
           assistantMessageTokens += tokens
@@ -516,10 +514,9 @@ function computeMessageBreakdown(messages: Message[]): {
       }
       if (!Array.isArray(content)) continue
       for (const block of content) {
-        const type = (block as { type?: string }).type
         const tokens = roughBlockTokens(block, markUnmeasured)
-        if (type === 'tool_result') {
-          const useId = (block as { tool_use_id?: string }).tool_use_id
+        if (block.type === 'tool_result') {
+          const useId = block.tool_use_id
           const name = (useId !== undefined && toolNameByUseId.get(useId)) || UNKNOWN_NAME
           toolResultTokensByName.set(name, (toolResultTokensByName.get(name) ?? 0) + tokens)
         } else {
@@ -527,7 +524,7 @@ function computeMessageBreakdown(messages: Message[]): {
         }
       }
     } else if (message.type === 'attachment') {
-      const attachmentType = (message.attachment as { type?: string }).type ?? UNKNOWN_NAME
+      const attachmentType = message.attachment.type ?? UNKNOWN_NAME
       const tokens = roughBlockTokens(message.attachment, markUnmeasured)
       attachmentTokensByType.set(attachmentType, (attachmentTokensByType.get(attachmentType) ?? 0) + tokens)
     }
@@ -688,8 +685,8 @@ export async function analyzeContextUsage(
     ? mcRaw
     : mcRaw !== null &&
         typeof mcRaw === 'object' &&
-        Array.isArray((mcRaw as { messages?: unknown }).messages)
-      ? (mcRaw as { messages: Message[] }).messages
+        Array.isArray(mcRaw.messages)
+      ? mcRaw.messages
       : messages
 
   const {

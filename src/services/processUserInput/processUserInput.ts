@@ -161,7 +161,7 @@ export async function processUserInput(
     { turn_id: readToolCallChain(context)?.key ?? '', prompt: promptText },
     { scope: { sessionId: String(getSessionId()), ...(context.agentId !== undefined ? { crewmateId: context.agentId } : {}) }, signal: context.abortController.signal, toolUseContext: context },
   )
-  const hookMessages: Message[] = [...settingsMessages, ...hookRowsOfResult(started).map(row => createAttachmentMessage(row) as Message)]
+  const hookMessages: Message[] = [...settingsMessages, ...hookRowsOfResult(started).map(row => createAttachmentMessage(row))]
   if (started.answer.block !== undefined) {
     return {
       messages: [

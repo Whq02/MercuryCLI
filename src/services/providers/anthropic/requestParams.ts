@@ -173,7 +173,7 @@ export async function verifyApiKey(apiKey: string, isNonInteractiveSession: bool
   const rawExtraOutputConfig = extraBody.output_config
   const outputConfig: BetaOutputConfig =
     rawExtraOutputConfig && typeof rawExtraOutputConfig === 'object' && !Array.isArray(rawExtraOutputConfig)
-      ? { ...(rawExtraOutputConfig as BetaOutputConfig) }
+      ? { ...rawExtraOutputConfig }
       : {}
   const probeEffort = utilityCallFor(model, { named: true }).effortValue
   if (

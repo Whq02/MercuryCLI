@@ -95,7 +95,7 @@ function firstUserPrompt(messages: readonly Message[] | undefined): string | und
     if (message.type !== 'user' || message.isMeta === true) continue
     const content = message.message.content
     if (typeof content === 'string') return content
-    const text = content.filter(block => block.type === 'text').map(block => (block as { text: string }).text).join('\n')
+    const text = content.filter(block => block.type === 'text').map(block => block.text).join('\n')
     if (text !== '') return text
   }
   return undefined
@@ -131,7 +131,7 @@ export function prependUserContext(
 const serializedSchemaKeys = new WeakMap<object, string>()
 
 function toolCacheKey(tool: Tool): string {
-  const explicit = (tool as { inputJSONSchema?: unknown }).inputJSONSchema
+  const explicit = tool.inputJSONSchema
   if (explicit === undefined) return tool.name
   if (typeof explicit !== 'object' || explicit === null) {
     return `${tool.name}:${jsonStringify(explicit)}`
@@ -193,7 +193,7 @@ export async function toolToAPISchema(
       allowedAgentTypes: options.allowedAgentTypes,
       model,
     })
-    const explicit = (tool as { inputJSONSchema?: Record<string, unknown> }).inputJSONSchema
+    const explicit = tool.inputJSONSchema
     let schema: ToolInputSchema
     if (explicit !== undefined) {
       const serialized =

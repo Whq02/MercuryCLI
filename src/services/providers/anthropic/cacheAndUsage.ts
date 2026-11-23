@@ -147,7 +147,7 @@ export function addCacheBreakpoints(
           if (block != null && typeof block === 'object' && block.type === 'tool_result' && block.tool_use_id) {
             stamped.push({ ...block, cache_reference: block.tool_use_id } as typeof block)
           } else {
-            stamped.push(block!)
+            stamped.push(block)
           }
         }
         msg.content = stamped
@@ -180,7 +180,7 @@ function foldUsage(before: Readonly<NonNullableUsage>, incoming: ApiMessageDelta
     input_tokens: token('input_tokens'),
     cache_creation_input_tokens: token('cache_creation_input_tokens'),
     cache_read_input_tokens: token('cache_read_input_tokens'),
-    output_tokens: adding ? before.output_tokens + incoming.output_tokens! : incoming.output_tokens ?? before.output_tokens,
+    output_tokens: adding ? before.output_tokens + incoming.output_tokens : incoming.output_tokens ?? before.output_tokens,
     server_tool_use: server(),
     service_tier: adding ? settled.service_tier : before.service_tier,
     cache_creation: usageGroup(cacheCounters, () => before.cache_creation, () => wire.cache_creation, adding),

@@ -829,7 +829,7 @@ export async function queryWithModel(question: OneShotQuestion): Promise<Assista
     return [settleAssistantTurn(replies, question.signal.aborted)]
   }
   const [reply] = await withVCR(recordedInput, answer)
-  return reply! as AssistantMessage
+  return reply
 }
 
 export { MAX_NON_STREAMING_TOKENS, adjustParamsForNonStreaming } from './streamCore/nonStreaming.js'
