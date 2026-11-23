@@ -37,11 +37,9 @@ const NARROW_COLUMNS = 80
 
 export function PromptInputFooter({
   suggestions,
-  suggestionType,
   onSuggestionPick,
   onSuggestionHover,
   helpOpen = false,
-  input,
   mode,
   isLoading,
   exitPending,
@@ -102,7 +100,7 @@ export function PromptInputFooter({
   const composerCrewmate = useComposerCrewmate()
   const viewedCrewmate = useViewedCrewmate()
 
-  const hasSuggestions = suggestions.length > 0 && suggestionType !== 'none'
+  const hasSuggestions = suggestions.length > 0
   const overlayData = useMemo(
     () =>
       fullscreen && hasSuggestions
@@ -124,14 +122,13 @@ export function PromptInputFooter({
           suggestions={suggestions}
           onPick={onSuggestionPick}
           onHover={onSuggestionHover}
-          maxRows={suggestionRows}
         />
       </Box>
     )
   }
 
   if (helpOpen) {
-    const help = <PromptInputHelpMenu dimColor fixedWidth paddingX={2} />
+    const help = <PromptInputHelpMenu dimColor />
     if (compact) {
       return (
         <Box maxHeight={maxRows} overflow="hidden">
@@ -142,22 +139,26 @@ export function PromptInputFooter({
     return help
   }
 
+  const leftSide = (
+    <PromptInputFooterLeftSide
+      compact={compact}
+      exitPending={exitPending}
+      exitKeyName={exitKeyName}
+      isPasting={isPasting}
+      searchField={searchField}
+      vimInsert={vimInsert}
+      mode={mode}
+      isLoading={isLoading}
+      hintsEnabled={hintsEnabled}
+      crewmateFooterIndex={crewmateFooterIndex}
+      onOpenTasksDialog={onOpenTasksDialog}
+    />
+  )
+
   if (compact) {
     return (
-      <Box maxHeight={maxRows} overflow="hidden">
-        <PromptInputFooterLeftSide
-          exitPending={exitPending}
-          exitKeyName={exitKeyName}
-          isPasting={isPasting}
-          searchField={searchField}
-          vimInsert={vimInsert}
-          mode={mode}
-          isLoading={isLoading}
-          hintsEnabled={hintsEnabled}
-          crewmateFooterIndex={crewmateFooterIndex}
-          onOpenTasksDialog={onOpenTasksDialog}
-          compact
-        />
+      <Box flexDirection="column" maxHeight={maxRows} overflow="hidden">
+        {leftSide}
       </Box>
     )
   }
@@ -167,7 +168,6 @@ export function PromptInputFooter({
     composerCrewmate !== null
       ? crewmateComposerHint(targetWords(composerCrewmate), viewedWords(viewedCrewmate))
       : null
-  const formattedStripHint = fullscreen ? footerStripHint(stripHint) : ''
 
   return (
     <Box
@@ -177,23 +177,12 @@ export function PromptInputFooter({
       gap={narrow ? undefined : 2}
     >
       <Box flexDirection="column" flexShrink={1} minWidth={0}>
-        <PromptInputFooterLeftSide
-          exitPending={exitPending}
-          exitKeyName={exitKeyName}
-          isPasting={isPasting}
-          searchField={searchField}
-          vimInsert={vimInsert}
-          mode={mode}
-          isLoading={isLoading}
-          hintsEnabled={hintsEnabled}
-          crewmateFooterIndex={crewmateFooterIndex}
-          onOpenTasksDialog={onOpenTasksDialog}
-        />
+        {leftSide}
         {!exitPending && !isPasting ? (
           <Text dimColor wrap="truncate-end">
             {getNewlineInstructions()}
             {crewmateHint !== null ? ` · ${crewmateHint}` : ''}
-            {formattedStripHint !== '' ? ` · ${formattedStripHint}` : ''}
+            {fullscreen && stripHint !== '' ? ` · ${footerStripHint(stripHint)}` : ''}
           </Text>
         ) : null}
       </Box>
@@ -210,7 +199,6 @@ export function PromptInputFooter({
             verbose={verbose}
             messages={messages}
             mcpClients={mcpClients}
-            isInputWrapped={input.includes('\n')}
             alignStart={narrow}
           />
         ) : null}
