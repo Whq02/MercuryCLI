@@ -81,7 +81,7 @@ export function startAgentSummarization(
         },
         canUseTool: async () => ({
           behavior: 'deny',
-          message: 'Tools are disabled during agent summarization',
+          message: 'tools are unavailable to the summariser',
           decisionReason: { type: 'other', reason: 'agent_summary' },
         }),
         querySource: 'agent_summary',
@@ -101,7 +101,7 @@ export function startAgentSummarization(
       }
     } catch (error) {
       if (!stopped && error instanceof Error) {
-        logForDebugging(`[agentSummary] ${error.message}`)
+        logForDebugging(`agentSummary: tick failed: ${error.message}`)
       }
     } finally {
       inflightController = null

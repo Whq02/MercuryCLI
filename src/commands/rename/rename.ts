@@ -34,7 +34,7 @@ export async function call(
       return null
     }
     if (generated === null || generated.trim() === '') {
-      onDone('No conversation context yet — use /rename <name> to name the session directly.', { display: 'system' })
+      onDone('No conversation context to generate a name from yet. Use /rename <name> to name the session directly.', { display: 'system' })
       return null
     }
     rawName = generated
@@ -70,10 +70,10 @@ export async function call(
           : reply.detail
             ? reply.detail
             : 'the daemon refused it'
-        onDone(`Could not rename this session — ${reason}`, { display: 'system' })
+        onDone(`The session was not renamed — ${reason}`, { display: 'system' })
       }
     } catch {
-      onDone('Could not rename this session — the daemon that hosts sessions was unreachable.', { display: 'system' })
+      onDone('The session was not renamed — the daemon that hosts sessions was unreachable.', { display: 'system' })
     }
     return null
   }
