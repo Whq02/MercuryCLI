@@ -21,7 +21,6 @@ import {
 } from '../../utils/permissions/bypassPermissionsKillswitch.js'
 import { resetUserCache } from '../../utils/user.js'
 import { loginFamilyFocusFor } from '../../components/loginFamilyRows.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export function Login({
   onDone,
