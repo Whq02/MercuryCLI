@@ -1,79 +1,69 @@
-import { resolve } from 'node:path'
+import { needsPowerShellBom } from './fileEncoding.js'
 import { readFileSyncWithMetadata } from './fileRead.js'
 import { getFsImplementation, safeResolvePath } from './fsOperations.js'
-import { passedOver } from './passedOver.js'
 
 const MAX_ENTRIES = 1000
 
-export type FileReadCacheEntry = {
+type CachedFileEntry = {
   content: string
   encoding: BufferEncoding
   mtimeMs: number
   size: number
 }
 
+export type FileReadCacheStats = {
+  size: number
+  keys: string[]
+}
+
 export type FileReadCache = {
   readFile(filePath: string): { content: string; encoding: BufferEncoding }
-  get(filePath: string): FileReadCacheEntry | undefined
-  set(filePath: string, entry: FileReadCacheEntry): void
-  delete(filePath: string): boolean
   clear(): void
+  invalidate(filePath: string): void
+  getStats(): FileReadCacheStats
 }
 
-const entries = new Map<string, FileReadCacheEntry>()
-
-function setEntry(key: string, entry: FileReadCacheEntry): void {
-  if (!entries.has(key) && entries.size >= MAX_ENTRIES) {
-    const oldestKey = entries.keys().next().value
-    if (oldestKey !== undefined) entries.delete(oldestKey)
-  }
-  entries.set(key, entry)
-}
+const entries = new Map<string, CachedFileEntry>()
 
 export const fileReadCache: FileReadCache = {
   readFile(filePath: string): { content: string; encoding: BufferEncoding } {
     const fs = getFsImplementation()
-    const key = resolve(filePath)
-    const { resolvedPath } = safeResolvePath(fs, key)
-    const stats = fs.statSync(resolvedPath)
-    const cached = entries.get(key)
+    const { resolvedPath } = safeResolvePath(fs, filePath)
+    let stats: { mtimeMs: number; size: number }
+    try {
+      stats = fs.statSync(resolvedPath)
+    } catch (error) {
+      entries.delete(filePath)
+      throw error
+    }
+    const cached = entries.get(filePath)
     if (cached !== undefined && cached.mtimeMs === stats.mtimeMs && cached.size === stats.size) {
       return { content: cached.content, encoding: cached.encoding }
     }
-    const { content, encoding } = readFileSyncWithMetadata(key)
-    setEntry(key, { content, encoding, mtimeMs: stats.mtimeMs, size: stats.size })
-    return { content, encoding }
-  },
-
-  get(filePath: string): FileReadCacheEntry | undefined {
-    const key = resolve(filePath)
-    const cached = entries.get(key)
-    if (cached === undefined) return undefined
-    try {
-      const fs = getFsImplementation()
-      const { resolvedPath } = safeResolvePath(fs, key)
-      const stats = fs.statSync(resolvedPath)
-      if (cached.mtimeMs !== stats.mtimeMs || cached.size !== stats.size) {
-        entries.delete(key)
-        return undefined
-      }
-      return cached
-    } catch (error) {
-      passedOver(error)
-      entries.delete(key)
-      return undefined
+    let { content, encoding } = readFileSyncWithMetadata(filePath)
+    if (content.startsWith('\uFEFF') && needsPowerShellBom(filePath)) {
+      content = content.slice(1)
     }
-  },
-
-  set(filePath: string, entry: FileReadCacheEntry): void {
-    setEntry(resolve(filePath), entry)
-  },
-
-  delete(filePath: string): boolean {
-    return entries.delete(resolve(filePath))
+    if (!entries.has(filePath) && entries.size >= MAX_ENTRIES) {
+      const oldestKey = entries.keys().next().value
+      if (oldestKey !== undefined) entries.delete(oldestKey)
+    }
+    entries.set(filePath, { content, encoding, mtimeMs: stats.mtimeMs, size: stats.size })
+    return { content, encoding }
   },
 
   clear(): void {
     entries.clear()
+  },
+
+  invalidate(filePath: string): void {
+    entries.delete(filePath)
+  },
+
+  getStats(): FileReadCacheStats {
+    return {
+      size: entries.size,
+      keys: [...entries.keys()],
+    }
   },
 }
