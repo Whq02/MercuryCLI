@@ -164,7 +164,7 @@ const START_PROCESS_VALUE_PARAMS = new Set([
 
 function checkNewObject(cmd: ParsedCommandElement): Verdict | null {
   if (hasParam(cmd, '-comobject', '-com')) {
-    return ASK('New-Object -ComObject requires approval.')
+    return ASK('The command instantiates a COM object, which may have execution capabilities.')
   }
   let checkedType = false
   for (let i = 0; i < cmd.args.length; i++) {
@@ -176,17 +176,17 @@ function checkNewObject(cmd: ParsedCommandElement): Verdict | null {
         if (inlineValue !== undefined) {
           const val = stripQuotes(inlineValue)
           if (!val || !isClmAllowedType(val)) {
-            return ASK(`New-Object type "${val}" is not in the CLM allowlist and requires approval.`)
+            return ASK(`The command instantiates a type outside the allowlist: ${val}`)
           }
         } else if (i + 1 < cmd.args.length) {
           i++
           const kind = argumentTypeAt(cmd, i)
           const val = stripQuotes(cmd.args[i]!)
           if ((kind !== undefined && kind !== 'StringConstant') || !isClmAllowedType(val)) {
-            return ASK(`New-Object type "${val}" is not in the CLM allowlist and requires approval.`)
+            return ASK(`The command instantiates a type outside the allowlist: ${val}`)
           }
         } else {
-          return ASK('New-Object with missing type name requires approval.')
+          return ASK('The command instantiates a type outside the allowlist:')
         }
       } else if (
         inlineValue === undefined &&
@@ -200,7 +200,7 @@ function checkNewObject(cmd: ParsedCommandElement): Verdict | null {
       const kind = argumentTypeAt(cmd, i)
       const val = stripQuotes(raw)
       if ((kind !== undefined && kind !== 'StringConstant') || !isClmAllowedType(val)) {
-        return ASK(`New-Object type "${val}" is not in the CLM allowlist and requires approval.`)
+        return ASK(`The command instantiates a type outside the allowlist: ${val}`)
       }
     }
   }
@@ -234,13 +234,13 @@ function checkStartProcess(cmd: ParsedCommandElement): Verdict | null {
       if (name === '-verb') {
         const val = inlineValue !== undefined ? stripQuotes(inlineValue) : i + 1 < cmd.args.length ? stripQuotes(cmd.args[++i]!) : ''
         if (val.toLowerCase() === 'runas') {
-          return ASK('Start-Process -Verb RunAs requires approval.')
+          return ASK('The command requests elevated privileges (runas).')
         }
       } else if (name.startsWith('-f') && '-filepath'.startsWith(name)) {
         seenFilePath = true
         const val = inlineValue !== undefined ? stripQuotes(inlineValue) : i + 1 < cmd.args.length ? stripQuotes(cmd.args[++i]!) : ''
         if (isPsExecutable(val)) {
-          return ASK('Start-Process launching nested PowerShell requires approval.')
+          return ASK('The command launches an unvalidatable nested PowerShell.')
         }
       } else if (inlineValue === undefined) {
         for (const vp of START_PROCESS_VALUE_PARAMS) {
@@ -253,7 +253,7 @@ function checkStartProcess(cmd: ParsedCommandElement): Verdict | null {
     } else if (!seenFilePath) {
       seenFilePath = true
       if (isPsExecutable(stripQuotes(raw))) {
-        return ASK('Start-Process launching nested PowerShell requires approval.')
+        return ASK('The command launches an unvalidatable nested PowerShell.')
       }
     }
   }
@@ -277,7 +277,7 @@ function checkCommandHazards(
     if (canonical === 'invoke-expression') hasIex = true
   }
   if (hasDownload && hasIex) {
-    return ASK('Download-and-execute pattern (download cmdlet with Invoke-Expression) requires approval.')
+    return ASK('The command downloads and executes remote code.')
   }
 
   for (let i = 0; i < commands.length; i++) {
@@ -287,7 +287,7 @@ function checkCommandHazards(
     const exe = baseExeName(cmd.name)
 
     if (canonical === 'invoke-expression' || rawLower === 'iex') {
-      return ASK('Invoke-Expression executes arbitrary strings and requires approval.')
+      return ASK('The command can execute arbitrary code via Invoke-Expression.')
     }
 
     if (
@@ -296,28 +296,28 @@ function checkCommandHazards(
       cmd.elementTypes.length > 0 &&
       cmd.elementTypes[0] !== 'StringConstant'
     ) {
-      return ASK('Dynamically computed command name requires approval.')
+      return ASK('The command name is computed at runtime and cannot be validated.')
     }
 
     if (isPsExecutable(cmd.name)) {
       if (hasParam(cmd, '-encodedcommand', '-e') || hasParam(cmd, '-ec', '-ec')) {
-        return ASK('Nested PowerShell with -EncodedCommand requires approval.')
+        return ASK('The command uses parameters that obscure its intent (an encoded command).')
       }
-      return ASK('Nested PowerShell execution requires approval.')
+      return ASK('The command spawns a nested PowerShell process that cannot be validated.')
     }
 
     if (canonical === 'start-bitstransfer') {
-      return ASK('Start-BitsTransfer requires approval.')
+      return ASK('The command downloads a file via BITS.')
     }
     if (exe === 'certutil' && hasParam(cmd, '-urlcache', '-urlcache')) {
-      return ASK('certutil -urlcache requires approval.')
+      return ASK('The command downloads from a URL via certutil.')
     }
     if (exe === 'bitsadmin' && hasParam(cmd, '-transfer', '-transfer')) {
-      return ASK('bitsadmin /transfer requires approval.')
+      return ASK('The command transfers a file via bitsadmin.')
     }
 
     if (canonical === 'add-type') {
-      return ASK('Add-Type compiles or loads .NET code and requires approval.')
+      return ASK('The command compiles and loads .NET code via Add-Type.')
     }
 
     if (canonical === 'new-object') {
@@ -326,29 +326,28 @@ function checkCommandHazards(
     }
 
     if (FILEPATH_EXECUTION_CMDLETS.has(canonical)) {
-      if (
-        hasParam(cmd, '-filepath', '-f') ||
-        hasParam(cmd, '-literalpath', '-lit') ||
-        hasPositionalStringArg(cmd, FILEPATH_CMDLET_SWITCHES)
-      ) {
-        return ASK(`${cmd.name} executing a script file requires approval.`)
+      if (hasParam(cmd, '-filepath', '-f') || hasParam(cmd, '-literalpath', '-lit')) {
+        return ASK('The command executes a script file.')
+      }
+      if (hasPositionalStringArg(cmd, FILEPATH_CMDLET_SWITCHES)) {
+        return ASK('The command executes a script file (positional path).')
       }
     }
 
     if (canonical === 'invoke-item') {
-      return ASK('Invoke-Item requires approval.')
+      return ASK('Invoke-Item opens files with the default handler; on an executable this runs arbitrary code.')
     }
 
     if (SCHEDULED_TASK_CMDLETS.has(canonical)) {
-      return ASK('Scheduled task creation or modification requires approval.')
+      return ASK(`${cmd.name} creates or modifies a scheduled task (a persistence primitive).`)
     }
     if (exe === 'schtasks' && (hasParam(cmd, '-create', '-create') || hasParam(cmd, '-change', '-change'))) {
-      return ASK('schtasks /create or /change requires approval.')
+      return ASK('The command creates or changes a scheduled task.')
     }
 
     if (canonical === 'foreach-object') {
       if (hasParam(cmd, '-membername', '-m') || hasPositionalStringArg(cmd, FOREACH_SWITCHES)) {
-        return ASK('ForEach-Object invoking a method by name requires approval.')
+        return ASK('ForEach-Object invokes a method by string name, which cannot be validated.')
       }
     }
 
@@ -362,7 +361,7 @@ function checkCommandHazards(
 
 export function powershellCommandIsSafe(_command: string, parsed: ParsedPowerShellCommand): Verdict {
   if (!parsed.valid) {
-    return ASK('PowerShell command could not be parsed safely.')
+    return ASK('The command could not be parsed for security analysis.')
   }
 
   const commands = getAllCommands(parsed)
@@ -379,12 +378,12 @@ export function powershellCommandIsSafe(_command: string, parsed: ParsedPowerShe
       const cmd = commands[i]!
       const canonical = canonicals[i]!
       if (DANGEROUS_SCRIPT_BLOCK_CMDLETS.has(canonical)) {
-        return ASK(`Script block with ${cmd.name} requires approval.`)
+        return ASK('A script block contains a dangerous cmdlet that may execute arbitrary code.')
       }
       if (commandHasScriptBlock(cmd)) {
         anyCarrier = true
         if (!SAFE_SCRIPT_BLOCK_CMDLETS.has(canonical)) {
-          return ASK(`Script block passed to ${cmd.name} requires approval.`)
+          return ASK('The command contains a script block that may execute arbitrary code.')
         }
       }
     }
@@ -392,50 +391,50 @@ export function powershellCommandIsSafe(_command: string, parsed: ParsedPowerShe
       for (const nested of stmt.nestedCommands) {
         const canonical = resolveToCanonical(nested.name)
         if (!SAFE_SCRIPT_BLOCK_CMDLETS.has(canonical)) {
-          return ASK(`Script block containing ${nested.name} requires approval.`)
+          return ASK('The command contains a script block that may execute arbitrary code.')
         }
       }
     }
     if (!anyCarrier) {
-      return ASK('Script block requires approval.')
+      return ASK('The command contains a script block that may execute arbitrary code.')
     }
   }
 
   if (flags.hasSubExpressions) {
-    return ASK('Sub-expressions require approval.')
+    return ASK('The command contains sub-expressions.')
   }
   if (flags.hasExpandableStrings) {
-    return ASK('Expandable strings require approval.')
+    return ASK('The command embeds expressions inside string literals.')
   }
   if (flags.hasSplatting) {
-    return ASK('Variable splatting requires approval.')
+    return ASK('The command uses splatting, which obscures arguments.')
   }
   if (flags.hasStopParsing) {
-    return ASK('Stop-parsing token (--%) requires approval.')
+    return ASK('The command uses the stop-parsing token (--%), which stops PowerShell parsing the rest of the line.')
   }
   if (flags.hasMemberInvocations) {
-    return ASK('.NET member invocations require approval.')
+    return ASK('The command invokes .NET methods.')
   }
 
   for (const typeName of parsed.typeLiterals ?? []) {
     if (!isClmAllowedType(typeName)) {
-      return ASK(`Type literal [${typeName}] is not in the CLM allowlist and requires approval.`)
+      return ASK(`The command uses a type literal outside the allowlist: ${typeName}`)
     }
   }
 
   const envVars = getVariablesByScope(parsed, 'env')
   if (envVars.length > 0) {
     if (flags.hasAssignments) {
-      return ASK('Modifying environment variables requires approval.')
+      return ASK('The command modifies environment variables.')
     }
     if (canonicals.some(c => ENV_WRITING_CMDLETS.has(c))) {
-      return ASK('Modifying environment variables requires approval.')
+      return ASK('The command modifies environment variables.')
     }
   }
   for (let i = 0; i < commands.length; i++) {
     const canonical = canonicals[i]!
     if (ENV_WRITING_CMDLETS.has(canonical) && commands[i]!.args.some(a => /^env:/i.test(stripQuotes(a)))) {
-      return ASK('Modifying environment variables requires approval.')
+      return ASK('The command modifies environment variables.')
     }
   }
 
@@ -443,13 +442,13 @@ export function powershellCommandIsSafe(_command: string, parsed: ParsedPowerShe
     const canonical = canonicals[i]!
     const rawLower = commands[i]!.name.toLowerCase()
     if (MODULE_LOADING_CMDLETS.has(canonical) || MODULE_LOADING_CMDLETS.has(rawLower)) {
-      return ASK('Loading or installing PowerShell modules requires approval.')
+      return ASK('The command loads, installs, or downloads a module, which can execute arbitrary code.')
     }
     if (STATE_MUTATION_CMDLETS.has(canonical) || STATE_MUTATION_CMDLETS.has(rawLower)) {
-      return ASK('Mutating PowerShell aliases or variables requires approval.')
+      return ASK('The command creates or modifies an alias or variable, affecting future command resolution.')
     }
     if (WMI_CIM_CMDLETS.has(canonical) || WMI_CIM_CMDLETS.has(rawLower)) {
-      return ASK('WMI/CIM method invocation requires approval.')
+      return ASK(`${commands[i]!.name} can spawn arbitrary processes through WMI/CIM.`)
     }
   }
 
