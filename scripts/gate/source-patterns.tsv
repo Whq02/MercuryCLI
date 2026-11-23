@@ -3,125 +3,125 @@ setTimeout	src/tools/browser/ops/settle.ts	1
 setTimeout	src/tools/read/sqliteQueryProcess.ts	1
 Atomics.wait	src/tools/read/jsonQueryWorker.mjs	1
 useSubscription	src/screen/fullscreen-layout/MercuryFilesMenu.tsx	1
-useSubscription	src/screen/widgets/useCursorFollow.ts	1
-useSubscription	src/screen/virtual-message-list/useVirtualScroll.ts	1
 useSubscription	src/screen/renderer/bindings/use-animation-frame.ts	1
 useSubscription	src/screen/renderer/bindings/use-animation-value.ts	1
 useSubscription	src/screen/renderer/bindings/use-interval.ts	1
+useSubscription	src/screen/virtual-message-list/useVirtualScroll.ts	1
+useSubscription	src/screen/widgets/useCursorFollow.ts	1
 useLayoutSubscription	src/screen/select/popup-list.tsx	2
-useDerivedState	src/screen/composer/ComposerHelpMenu.tsx	1
 useDerivedState	src/screen/chat/useChatDialogs.tsx	2
-useMeasure	src/screen/overlays/CommandPopupSlot.tsx	1
-useMeasure	src/screen/fullscreen-layout/CrewViewSlot.tsx	1
+useDerivedState	src/screen/composer/ComposerHelpMenu.tsx	1
+useMeasure	src/boot/first-run/MercurySetupFrame.tsx	1
+useMeasure	src/commands/appearance/ThemePicker.tsx	1
 useMeasure	src/screen/chat/CrewmateTranscript.tsx	1
+useMeasure	src/screen/chat/useChatScroll.ts	1
+useMeasure	src/screen/composer/text-input/TextInput.tsx	1
+useMeasure	src/screen/fullscreen-layout/CrewViewSlot.tsx	1
 useMeasure	src/screen/fullscreen-layout/FilesMenuSlot.tsx	1
 useMeasure	src/screen/fullscreen-layout/FullscreenLayout.tsx	2
-useMeasure	src/screen/highlighted-code/HighlightedCode.tsx	1
 useMeasure	src/screen/fullscreen-layout/MercuryFilesMenu.tsx	1
-useMeasure	src/boot/first-run/MercurySetupFrame.tsx	1
+useMeasure	src/screen/highlighted-code/HighlightedCode.tsx	1
+useMeasure	src/screen/overlays/CommandPopupSlot.tsx	1
 useMeasure	src/screen/overlays/ModelPickerPopupSlot.tsx	1
+useMeasure	src/screen/overlays/SettingsPopupSlot.tsx	1
+useMeasure	src/screen/renderer/bindings/use-terminal-viewport.ts	1
 useMeasure	src/screen/settings/Usage.tsx	1
 useMeasure	src/screen/settings/usage/lines.tsx	1
-useMeasure	src/screen/overlays/SettingsPopupSlot.tsx	1
-useMeasure	src/screen/composer/text-input/TextInput.tsx	1
-useMeasure	src/commands/appearance/ThemePicker.tsx	1
-useMeasure	src/screen/virtual-message-list/VirtualMessageList.tsx	1
 useMeasure	src/screen/theme/Ratchet.tsx	1
+useMeasure	src/screen/virtual-message-list/VirtualMessageList.tsx	1
 useMeasure	src/screen/virtual-message-list/useVirtualScroll.ts	1
-useMeasure	src/screen/renderer/bindings/use-terminal-viewport.ts	1
-useMeasure	src/screen/chat/useChatScroll.ts	1
 useInsertionEffect	src/screen/fullscreen-layout/FullscreenLayout.tsx	1
-useInsertionEffect	src/screen/routes/SurfaceRouter.tsx	1
 useInsertionEffect	src/screen/renderer/elements/AlternateScreen.tsx	1
-useImperativeHandle	src/screen/virtual-message-list/VirtualMessageList.tsx	2
+useInsertionEffect	src/screen/routes/SurfaceRouter.tsx	1
 useImperativeHandle	src/screen/renderer/elements/ScrollBox.tsx	1
+useImperativeHandle	src/screen/virtual-message-list/VirtualMessageList.tsx	2
 lifecycle-method	src/screen/renderer/elements/App.tsx	3
-as-unknown-as	src/integrations/lsp/web-sidecar/sidecar.ts	1
 as-unknown-as	src/engine/run/runSidecar.ts	1
+as-unknown-as	src/integrations/lsp/web-sidecar/sidecar.ts	1
 as-unknown-as	src/models/facts/tokenEstimation.ts	1
 as-unknown-as	src/platform/network/proxy.ts	1
-as-never	src/screen/concourse/route/useConcourseAdmissionPump.ts	1
 as-never	src/engine/connector/daemonConnector.ts	1
 as-never	src/models/roads/openai/openaiSocketTransport.ts	1
+as-never	src/screen/concourse/route/useConcourseAdmissionPump.ts	1
 empty-catch	src/platform/update-channel/vendoredRuntime.ts	1
 empty-catch	src/platform/update-channel/verifyArtifactStandalone.ts	1
 empty-catch	src/tools/read/jsonQueryWorker.mjs	1
-catch-default	src/tools/engines/eval-kernels/jsCellTransform.ts	2
 catch-default	src/platform/update-channel/provenanceNotice.ts	2
 catch-default	src/platform/update-channel/vendoredPython.ts	1
 catch-default	src/platform/update-channel/vendoredRuntime.ts	1
+catch-default	src/tools/engines/eval-kernels/jsCellTransform.ts	2
 env-read	src/boot/process-state/processState.ts	1
-env-read	src/engine/requestContext.ts	1
-env-read	src/screen/renderer/reconciler.ts	1
 env-read	src/boot/setupScreens.tsx	1
-env-read	src/models/sign-in/lifecycle/oauthLifecycle.ts	1
+env-read	src/boot/warningHandler.ts	1
 env-read	src/engine/messages/apiSystemAndToolSchema.ts	1
-env-read	src/tools/kit/toolList.ts	1
-env-read	src/tools/grep/GrepTool.ts	1
-env-read	src/tools/testing-permission/TestingPermissionTool.tsx	1
+env-read	src/engine/requestContext.ts	1
 env-read	src/models/sign-in/credentials/auth.ts	1
+env-read	src/models/sign-in/lifecycle/oauthLifecycle.ts	1
 env-read	src/platform/config/globalConfig.ts	6
 env-read	src/platform/config/projectConfig.ts	1
-env-read	src/platform/logs/debugLog.ts	1
-env-read	src/screen/composer/exampleCommands.ts	1
 env-read	src/platform/git/gitFilesystem.ts	1
-env-read	src/platform/processes/gracefulShutdown.ts	2
-env-read	src/sessions/transcripts/paths.ts	1
+env-read	src/platform/logs/debugLog.ts	1
 env-read	src/platform/logs/slowOperations.ts	1
-env-read	src/boot/warningHandler.ts	1
+env-read	src/platform/processes/gracefulShutdown.ts	2
+env-read	src/screen/composer/exampleCommands.ts	1
+env-read	src/screen/renderer/reconciler.ts	1
+env-read	src/sessions/transcripts/paths.ts	1
+env-read	src/tools/grep/GrepTool.ts	1
+env-read	src/tools/kit/toolList.ts	1
+env-read	src/tools/testing-permission/TestingPermissionTool.tsx	1
 Promise.race	src/boot/launchGraph.ts	1	events 1
 Promise.race	src/daemon/runner/runnerAsks.ts	1	events 1
 Promise.race	src/integrations/acp/acpSignIn.ts	1	events 1
-Promise.race	src/tools/engines/eval-kernels/procKernel.ts	1	events 1
-Promise.race	src/models/hosting/door.ts	1	events 1
 Promise.race	src/integrations/lsp/LSPClient.ts	1	events 1
+Promise.race	src/models/hosting/door.ts	1	events 1
 Promise.race	src/models/sign-in/oauth/index.ts	1	events 1
 Promise.race	src/tools/crewmate/foregroundExecution.tsx	1	events 1
-Promise.race	src/tools/shell/BashTool.tsx	1	events 1
+Promise.race	src/tools/engines/eval-kernels/procKernel.ts	1	events 1
 Promise.race	src/tools/mcp-auth/McpAuthTool.ts	1	events 1
 Promise.race	src/tools/powershell/PowerShellTool.tsx	1	events 1
+Promise.race	src/tools/shell/BashTool.tsx	1	events 1
+startInterval	src/boot/main/eventLoopStallDetector.ts	1	clock 1
+startInterval	src/boot/main/interactiveLaunch.ts	1	heartbeat 1
+startInterval	src/commands/llmhost/LlmHostDialog.tsx	1	clock 1
+startInterval	src/daemon/concourse-workers/workerParentWatch.ts	1	periodic 1
+startInterval	src/daemon/control/ownerWatch.ts	1	heartbeat 1
+startInterval	src/daemon/run/periodic.ts	1	periodic 1
 startInterval	src/daemon/runner/boot/watchBuildBehind.ts	1	periodic 1
 startInterval	src/daemon/runner/boot/wireProcess.ts	1	periodic 1
 startInterval	src/daemon/runner/hostAskLiveness.ts	1	heartbeat 1
-startInterval	src/commands/llmhost/LlmHostDialog.tsx	1	clock 1
-startInterval	src/screen/composer/Notifications.tsx	1	clock 1
-startInterval	src/screen/spinner/Spinner.tsx	1	clock 1
-startInterval	src/permissions/cards/PermissionExplanation.tsx	1	clock 1
-startInterval	src/daemon/run/periodic.ts	1	periodic 1
 startInterval	src/daemon/saturn/saturnTicker.ts	1	periodic 1
-startInterval	src/daemon/concourse-workers/workerParentWatch.ts	1	periodic 1
-startInterval	src/screen/renderer/elements/ClockContext.tsx	1	clock 1
-startInterval	src/screen/renderer/screenInstance.tsx	1	periodic 1
-startInterval	src/boot/main/interactiveLaunch.ts	1	heartbeat 1
-startInterval	src/integrations/blender/bridgeClient.ts	1	heartbeat 1
+startInterval	src/daemon/switchboard/screenPresence.ts	1	heartbeat 1
 startInterval	src/engine/compaction/fold/summarise.ts	1	heartbeat 1
-startInterval	src/screen/concourse-model/sessionTitleMint.ts	1	periodic 1
 startInterval	src/engine/connector/daemon/live.ts	1	heartbeat 1
 startInterval	src/engine/connector/projectionFeed.ts	2	clock 2
-startInterval	src/tools/engines/eval-kernels/kernelManager.ts	1	periodic 1
-startInterval	src/models/hosting/bankPull.ts	1	clock 1
-startInterval	src/models/hosting/keepSafe.ts	1	heartbeat 1
-startInterval	src/models/hosting/notices.ts	1	periodic 1
-startInterval	src/models/hosting/store.ts	1	periodic 1
-startInterval	src/integrations/mcp/client.ts	1	heartbeat 1
-startInterval	src/platform/host-os/preventSleep.ts	1	periodic 1
-startInterval	src/models/roads/local/localWarm.ts	1	heartbeat 1
-startInterval	src/daemon/switchboard/screenPresence.ts	1	heartbeat 1
-startInterval	src/models/tensorfold/pull.ts	1	clock 1
+startInterval	src/engine/task-framework/taskOutput.ts	1	periodic 1
 startInterval	src/engine/tool-dispatch/toolExecution.ts	1	clock 1
+startInterval	src/integrations/blender/bridgeClient.ts	1	heartbeat 1
+startInterval	src/integrations/mcp/client.ts	1	heartbeat 1
 startInterval	src/integrations/unity/bridgeClient.ts	1	heartbeat 1
 startInterval	src/integrations/vulcan/engine/liveness.ts	1	heartbeat 1
 startInterval	src/integrations/vulcan/engine/service.ts	1	periodic 1
 startInterval	src/integrations/vulcan/vulcanClient.ts	1	heartbeat 1
-startInterval	src/screen/workbench/projection.ts	1	heartbeat 1
-startInterval	src/platform/substrate/fileStore.ts	1	periodic 1
-startInterval	src/tools/crewmate/run/watch.ts	1	heartbeat 1
-startInterval	src/tools/eval/EvalTool.ts	1	clock 1
-startInterval	src/platform/shell/shellProcess.ts	1	periodic 1
-startInterval	src/screen/cockpit/uiClock.ts	1	clock 1
-startInterval	src/boot/main/eventLoopStallDetector.ts	1	clock 1
+startInterval	src/models/hosting/bankPull.ts	1	clock 1
+startInterval	src/models/hosting/keepSafe.ts	1	heartbeat 1
+startInterval	src/models/hosting/notices.ts	1	periodic 1
+startInterval	src/models/hosting/store.ts	1	periodic 1
+startInterval	src/models/roads/local/localWarm.ts	1	heartbeat 1
+startInterval	src/models/tensorfold/pull.ts	1	clock 1
+startInterval	src/permissions/cards/PermissionExplanation.tsx	1	clock 1
+startInterval	src/platform/host-os/preventSleep.ts	1	periodic 1
 startInterval	src/platform/processes/gracefulShutdown.ts	1	periodic 1
-startInterval	src/daemon/control/ownerWatch.ts	1	heartbeat 1
 startInterval	src/platform/settings/changeDetector.ts	1	periodic 1
-startInterval	src/engine/task-framework/taskOutput.ts	1	periodic 1
+startInterval	src/platform/shell/shellProcess.ts	1	periodic 1
+startInterval	src/platform/substrate/fileStore.ts	1	periodic 1
 startInterval	src/platform/verification/verificationState.ts	1	periodic 1
+startInterval	src/screen/cockpit/uiClock.ts	1	clock 1
+startInterval	src/screen/composer/Notifications.tsx	1	clock 1
+startInterval	src/screen/concourse-model/sessionTitleMint.ts	1	periodic 1
+startInterval	src/screen/renderer/elements/ClockContext.tsx	1	clock 1
+startInterval	src/screen/renderer/screenInstance.tsx	1	periodic 1
+startInterval	src/screen/spinner/Spinner.tsx	1	clock 1
+startInterval	src/screen/workbench/projection.ts	1	heartbeat 1
+startInterval	src/tools/crewmate/run/watch.ts	1	heartbeat 1
+startInterval	src/tools/engines/eval-kernels/kernelManager.ts	1	periodic 1
+startInterval	src/tools/eval/EvalTool.ts	1	clock 1
