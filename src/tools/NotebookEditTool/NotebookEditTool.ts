@@ -9,7 +9,6 @@ import { isENOENT } from '../../utils/errors.js'
 import { getCheckedFileModificationTime, getDisplayPath, getFileModificationTime, writeTextContent } from '../../utils/file.js'
 import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../services/changeTransaction/fileHistory.js'
 import { readFileSyncWithMetadata } from '../../utils/fileRead.js'
-import { jsonParse } from '../../utils/slowOperations.js'
 import { safeParseJSON } from '../../utils/json.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { parseCellId } from '../../utils/notebook.js'
@@ -122,6 +121,16 @@ function effectFor(
   }
 }
 
+function isNotebookContent(value: unknown): value is NotebookContent {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function readNotebookContent(content: string, mutable = false): NotebookContent | null {
+  const parsed = safeParseJSON(content, false)
+  if (!isNotebookContent(parsed)) return null
+  return mutable ? structuredClone(parsed) : parsed
+}
+
 function failedCall(
   input: Input,
   resolvedPath: string,
@@ -226,11 +235,10 @@ export const NotebookEditTool = buildTool({
       throw error
     }
 
-    const parsed = safeParseJSON(content, false)
-    if (!parsed || typeof parsed !== 'object') {
+    const notebook = readNotebookContent(content)
+    if (notebook === null) {
       return refuse('Notebook is not valid JSON.', 6)
     }
-    const notebook = parsed as Partial<NotebookContent>
     const cells = Array.isArray(notebook.cells) ? notebook.cells : []
     const refusal = cellRefusal(cells, input.cell_id, input.edit_mode)
     if (refusal !== null) return refuse(refusal.message, refusal.errorCode)
@@ -255,10 +263,8 @@ export const NotebookEditTool = buildTool({
 
     try {
       const { content, encoding, lineEndings } = readFileSyncWithMetadata(resolvedPath)
-      let rawParsed: unknown
-      try {
-        rawParsed = jsonParse(content)
-      } catch {
+      const notebook = readNotebookContent(content, true)
+      if (notebook === null) {
         return failedCall(
           input,
           resolvedPath,
@@ -267,17 +273,6 @@ export const NotebookEditTool = buildTool({
           'notebook is not valid JSON',
         )
       }
-      if (!rawParsed || typeof rawParsed !== 'object') {
-        return failedCall(
-          input,
-          resolvedPath,
-          startedAt,
-          'Notebook is not valid JSON.',
-          'notebook is not valid JSON',
-        )
-      }
-
-      const notebook = rawParsed as NotebookContent
       if (!Array.isArray(notebook.cells)) {
         notebook.cells = []
       }
