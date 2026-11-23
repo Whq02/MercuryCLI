@@ -278,7 +278,6 @@ export function ModelPicker({
           onFocus={handleFocus}
           onVisibleWindowChange={handleVisibleWindowChange}
           onCancel={onCancel}
-          inlineDescriptions
         />
         {remainingBelow > 0 ? (
           <Text dimColor>{`…and ${remainingBelow} more below`}</Text>
