@@ -2,13 +2,12 @@ import type { ContentBlockParam, ToolResultBlockParam } from '../../types/wire.j
 import type { AttachmentMessage, Message, SystemLocalCommandMessage, UserMessage } from '../../types/message.js'
 import { STRIPPED_ADMISSION_RECORD_TEXT } from '../../constants/tools/toolSearch.js'
 import { isToolReferenceBlock } from './toolSearch.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-type ResultItem = Unbuilt
-type ReferencePolicy = (...args: Unbuilt[]) => Unbuilt
+type ResultItem = Exclude<ToolResultBlockParam['content'], string | undefined>[number]
+type ReferencePolicy = (item: ResultItem) => boolean
 
 function resultArray(block: ContentBlockParam): block is ToolResultBlockParam & { content: ResultItem[] } {
-  return notBuilt('src/services/messages/apiViewRows.ts:10')
+  return block.type === 'tool_result' && Array.isArray(block.content)
 }
 
 function projectReferences(row: UserMessage, remove: ReferencePolicy, empty: ResultItem): UserMessage {
@@ -23,21 +22,62 @@ function projectReferences(row: UserMessage, remove: ReferencePolicy, empty: Res
 }
 
 export function stripToolReferenceBlocksFromUserMessage(message: UserMessage): UserMessage {
-  return notBuilt('src/services/messages/apiViewRows.ts:25')
+  return projectReferences(message, isToolReferenceBlock, { type: 'text', text: STRIPPED_ADMISSION_RECORD_TEXT })
 }
 
 export function stripUnavailableToolReferencesFromUserMessage(message: UserMessage, availableToolNames: Set<string>): UserMessage {
-  return notBuilt('src/services/messages/apiViewRows.ts:29')
+  return projectReferences(
+    message,
+    item =>
+      isToolReferenceBlock(item) &&
+      item.type === 'tool_reference' &&
+      typeof item.tool_name === 'string' &&
+      item.tool_name.length > 0 &&
+      !availableToolNames.has(item.tool_name),
+    { type: 'text', text: '[Tool references removed - tools no longer available]' },
+  )
 }
 
 export function withToolReferenceTurnBoundary(message: UserMessage): UserMessage {
-  return notBuilt('src/services/messages/apiViewRows.ts:38')
+  const blocks = message.message.content
+  if (!Array.isArray(blocks)) return message
+  const boundary = 'Tool loaded.'
+  if (blocks.some(block => block.type === 'text' && block.text.startsWith(boundary))) return message
+  if (!blocks.some(block => resultArray(block) && block.content.some(isToolReferenceBlock))) return message
+  return {
+    ...message,
+    message: {
+      ...message.message,
+      content: [...blocks, { type: 'text', text: boundary }],
+    },
+  }
 }
 
 export function isSystemLocalCommandMessage(message: Message): message is SystemLocalCommandMessage {
-  return notBuilt('src/services/messages/apiViewRows.ts:49')
+  return message.type === 'system' && message.subtype === 'local_command'
+}
+
+function isAttachmentAnchor(message: Message): boolean {
+  if (message.type === 'assistant') return true
+  if (message.type !== 'user' || !Array.isArray(message.message.content)) return false
+  return message.message.content[0]?.type === 'tool_result'
 }
 
 export function reorderAttachmentsForAPI(messages: Message[]): Message[] {
-  return notBuilt('src/services/messages/apiViewRows.ts:59')
+  const result: Message[] = []
+  let attachments: AttachmentMessage[] = []
+  let rest: Message[] = []
+  for (const message of messages) {
+    if (isAttachmentAnchor(message)) {
+      result.push(...attachments, ...rest, message)
+      attachments = []
+      rest = []
+    } else if (message.type === 'attachment') {
+      attachments.push(message)
+    } else {
+      rest.push(message)
+    }
+  }
+  result.push(...attachments, ...rest)
+  return result
 }
