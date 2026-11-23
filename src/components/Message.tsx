@@ -65,22 +65,14 @@ function hasThinkingContent(m: RenderableMessage | AssistantMessage): boolean {
   )
 }
 
-function displayMessageOf(
-  message: RenderableMessage | AssistantMessage,
-): RenderableMessage | AssistantMessage {
-  if (
-    message.type === 'grouped_tool_use' ||
-    message.type === 'collapsed_read_search'
-  ) {
-    return message.displayMessage
+function displayMessageOf(message: RenderableMessage | AssistantMessage): NormalizedMessage | AssistantMessage | null {
+  if (message.type === 'grouped_tool_use') {
+    return (message as { displayMessage?: NormalizedMessage }).displayMessage ?? null
   }
-  return message
-}
-
-function timestampOf(
-  message: RenderableMessage | AssistantMessage,
-): string | undefined {
-  return message.type === 'turn_receipt' ? undefined : message.timestamp
+  if (message.type === 'collapsed_read_search') {
+    return (message as { displayMessage?: NormalizedMessage }).displayMessage ?? null
+  }
+  return message as NormalizedMessage | AssistantMessage
 }
 
 function renderSystemBody(
@@ -379,11 +371,10 @@ function MessageInner(props: Props): React.ReactNode {
     message.heldFor === 'compaction'
       ? ('compaction' as const)
       : undefined
-  const displayTimestamp = timestampOf(displayMessage)
   const metaMessage = {
     uuid: sourceUuid ?? message.uuid,
     type: message.type,
-    timestamp: displayTimestamp,
+    timestamp: displayMessage?.timestamp,
     ...(queued ? { queued: true as const } : {}),
     ...(heldFor !== undefined ? { heldFor } : {}),
   }
@@ -393,22 +384,23 @@ function MessageInner(props: Props): React.ReactNode {
   )
 
   const displayIsAssistantWithText =
+    displayMessage !== null &&
     displayMessage.type === 'assistant' &&
     Array.isArray(displayMessage.message.content) &&
     displayMessage.message.content.some(block => block.type === 'text')
   const displayModel =
-    displayMessage.type === 'assistant'
+    displayMessage !== null && displayMessage.type === 'assistant'
       ? displayMessage.message.model
       : undefined
   const showHeader =
     isTranscriptMode &&
     displayIsAssistantWithText &&
-    (Boolean(displayTimestamp) ||
+    (Boolean(displayMessage.timestamp) ||
       (typeof displayModel === 'string' &&
         displayModel.length > 0 &&
         displayModel !== SYNTHETIC_MODEL))
 
-  if (showHeader) {
+  if (showHeader && displayMessage !== null) {
     return (
       <Box flexDirection="column" width="100%" marginTop={1}>
         <Box justifyContent="flex-end" gap={1}>
@@ -448,8 +440,8 @@ function areMessagePropsEqual(prev: Props, next: Props): boolean {
       : undefined
   if (prevHeldFor !== nextHeldFor) return false
   if (
-    timestampOf(displayMessageOf(prev.message)) !==
-    timestampOf(displayMessageOf(next.message))
+    displayMessageOf(prev.message)?.timestamp !==
+    displayMessageOf(next.message)?.timestamp
   ) {
     return false
   }

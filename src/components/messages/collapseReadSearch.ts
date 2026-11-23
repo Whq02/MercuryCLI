@@ -462,7 +462,7 @@ export function collapseReadSearchGroups(
           flush()
           out.push(message)
         } else if (info.isCollapsible) {
-          group.messages.push(message)
+          group.messages.push(message as CollapsibleMessage)
           absorbToolUse(group, info, described)
         } else if (groupOpen() && message.type === 'assistant' && isStatusUpdateTool(described.toolName)) {
           group.deferred.push(message)
@@ -500,7 +500,8 @@ export function collapseReadSearchGroups(
     }
 
     if (message.type === 'attachment') {
-      if (message.attachment.type === 'nested_memory' && groupOpen()) {
+      const attachment = message.attachment as { type?: string }
+      if (attachment.type === 'nested_memory' && groupOpen()) {
         out.push(message)
         continue
       }

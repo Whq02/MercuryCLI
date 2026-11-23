@@ -3,7 +3,7 @@ import type { Command } from '../commands.js'
 
 export function useMergedCommands(
   initialCommands: Command[],
-  mcpCommands?: Command[],
+  mcpCommands: Command[] | undefined,
 ): Command[] {
   return useMemo(() => {
     if (!mcpCommands || mcpCommands.length === 0) return initialCommands

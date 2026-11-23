@@ -1,5 +1,4 @@
 import React, { Suspense, use } from 'react'
-import { LRUCache } from 'lru-cache'
 import { Ansi } from '../../ink.js'
 import {
   getCliHighlightPromise,
@@ -10,8 +9,8 @@ import { hashPair } from '../../utils/hash.js'
 import { linkifyCodeUrls } from '../../utils/hyperlink.js'
 import { passedOver } from '../../utils/passedOver.js'
 
+const highlightCache = new Map<string, string>()
 const HIGHLIGHT_CACHE_LIMIT = 500
-const highlightCache = new LRUCache<string, string>({ max: HIGHLIGHT_CACHE_LIMIT })
 
 function detabbed(code: string): string {
   return code.replace(/^\t+/gm, tabs => '  '.repeat(tabs.length))
@@ -29,7 +28,11 @@ function highlightText(
 ): string {
   const key = hashPair(language, prepared)
   const cached = highlightCache.get(key)
-  if (cached !== undefined) return cached
+  if (cached !== undefined) {
+    highlightCache.delete(key)
+    highlightCache.set(key, cached)
+    return cached
+  }
 
   let chosen = language
   if (!api.supportsLanguage(language)) {
@@ -57,6 +60,10 @@ function highlightText(
     }
   }
 
+  if (highlightCache.size >= HIGHLIGHT_CACHE_LIMIT) {
+    const oldest = highlightCache.keys().next().value
+    if (oldest !== undefined) highlightCache.delete(oldest)
+  }
   highlightCache.set(key, result)
   return result
 }
@@ -96,3 +103,5 @@ export function HighlightedCodeFallback({
     </Suspense>
   )
 }
+
+export default HighlightedCodeFallback

@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { useClaim } from './effects.js'
-import { existsSync, watch, type FSWatcher } from 'node:fs'
+import { watch, type FSWatcher } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { resolveWatchRoot, watchDirectory } from '../utils/watchRoot.js'
 import {

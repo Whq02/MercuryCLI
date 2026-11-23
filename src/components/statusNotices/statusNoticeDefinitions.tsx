@@ -92,12 +92,14 @@ const largeAgentDescriptionsNotice: StatusNoticeDefinition = {
 const claudeAiExternalTokenNotice: StatusNoticeDefinition = {
   id: 'claude-ai-external-token',
   type: 'warning',
-  isActive: () => {
+  isActive: (context: StatusNoticeContext) => {
+    void context
     if (!isClaudeAISubscriber()) return false
     const tokenSource = getAuthTokenSource().source
     return tokenSource === 'ANTHROPIC_AUTH_TOKEN' || tokenSource === 'credentials.keyCommand'
   },
-  render: () => {
+  render: (context: StatusNoticeContext) => {
+    void context
     const tokenSource = getAuthTokenSource().source
     return (
       <Box marginTop={1}>
@@ -215,8 +217,12 @@ export function pinnedOverLimitLine(status: { pinned: number; used: number; limi
 const pinnedOverLimitNotice: StatusNoticeDefinition = {
   id: 'pinned-over-limit',
   type: 'info',
-  isActive: () => pinnedOverLimit() !== null,
-  render: () => {
+  isActive: (context: StatusNoticeContext) => {
+    void context
+    return pinnedOverLimit() !== null
+  },
+  render: (context: StatusNoticeContext) => {
+    void context
     const status = pinnedOverLimit()
     if (!status) return null
     return (

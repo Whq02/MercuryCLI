@@ -85,7 +85,7 @@ export function computeUnseenDivider(
   }
   if (!anchor) return undefined
   const count = Math.max(1, countUnseenAssistantTurns(messages, dividerIndex))
-  return { firstUnseenUuid: anchor.uuid, count }
+  return { firstUnseenUuid: (anchor as { uuid: string }).uuid, count }
 }
 
 export function useUnseenDivider(

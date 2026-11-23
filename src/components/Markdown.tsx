@@ -54,6 +54,9 @@ function useCliHighlight(disabled: boolean): CliHighlight | null {
 function stripControls(text: string): string {
   return stripAnsi(text).replace(/[\x00-\x08\x0b-\x1f\x7f]/g, '')
 }
+
+type Rendered = { elements: React.ReactNode[]; firstIsProse: boolean }
+
 type MarkdownBlock =
   | { kind: 'prose'; text: string }
   | { kind: 'table'; token: Tokens.Table }
@@ -94,7 +97,7 @@ function renderBlocks(
   highlight: CliHighlight | null,
   leadingInline: React.ReactNode,
   trailingInline: React.ReactNode,
-): React.ReactNode[] {
+): Rendered {
   const firstIsProse = blocks.length > 0 && blocks[0]!.kind === 'prose'
   const lastIsProse =
     blocks.length > 0 && blocks[blocks.length - 1]!.kind === 'prose'
@@ -138,7 +141,7 @@ function renderBlocks(
       </Text>,
     )
   }
-  return elements
+  return { elements, firstIsProse }
 }
 
 export function Markdown({
@@ -185,7 +188,7 @@ export function Markdown({
     return null
   }
 
-  const elements = renderBlocks(
+  const { elements } = renderBlocks(
     blocks,
     textColor,
     dimColor,
