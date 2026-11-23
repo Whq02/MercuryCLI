@@ -169,7 +169,7 @@ export const MonitorTool = buildTool({
         return handle
       },
       clearTimer: handle => {
-        stopTimeout(handle as ReturnType<typeof startTimeout>)
+        stopTimeout(handle)
       },
     })
 
