@@ -5,7 +5,7 @@ import { copyFile, cp, lstat, mkdir, readdir, readFile, realpath, rm, stat, syml
 import { basename, dirname, join, resolve, sep } from 'node:path'
 
 import chalk from 'chalk'
-
+import ignore from 'ignore'
 import { getSessionId } from '../bootstrap/state.js'
 import type { ToolPermissionContext } from '../Tool.js'
 import { getCwd } from '../utils/cwd.js'
@@ -19,7 +19,6 @@ import { containsPathTraversal } from '../utils/path.js'
 import { MERCURY_PROJECT_DIR, PROJECT_CONFIG_DIR_NAMES, resolveProjectConfigPath } from '../utils/projectConfig.js'
 import { execFileNoThrowWithCwd } from '../utils/execFileNoThrow.js'
 import { startCommandHook } from '../utils/hooks/commandRunner.js'
-import { logError } from '../utils/log.js'
 import { symlinkDeniedByPrivilege } from '../utils/platform/files.js'
 import { projectLocalPath } from '../utils/projectLocal/paths.js'
 import { getInitialSettings, getRelativeSettingsFilePathForSource, getSettingsFilePathForSource } from '../utils/settings/settings.js'
@@ -32,13 +31,24 @@ import { runGit } from '../utils/worktree/git.js'
 import { getCurrentWorktreeSession, restoreWorktreeSession, type WorktreeSession } from '../utils/worktree/session.js'
 import { passedOver, passedOverAs } from '../utils/passedOver.js'
 import { hostEnv } from '../utils/hostEnv.js'
-import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 
 const MAX_SLUG_LENGTH = 64
 
 export function validateWorktreeSlug(slug: string): void {
-  return notBuilt('src/services/worktree.ts:41')
+  if (slug.length > MAX_SLUG_LENGTH) {
+    throw new Error(`Worktree name exceeds the 64-character limit (${slug.length})`)
+  }
+  for (const segment of slug.split(/\//)) {
+    if (segment === '.' || segment === '..') {
+      throw new Error(`Worktree name "${slug}" contains a "." or ".." segment`)
+    }
+    if (segment.length === 0 || !/^[A-Za-z0-9._-]+$/.test(segment)) {
+      throw new Error(
+        `Worktree name "${slug}" is invalid: each slash-separated segment must be non-empty and may contain only letters, digits, dots, underscores and dashes`,
+      )
+    }
+  }
 }
 
 
@@ -51,7 +61,7 @@ function flattenSlug(slug: string): string {
 }
 
 export function worktreeBranchName(slug: string): string {
-  return notBuilt('src/services/worktree.ts:66')
+  return `worktree-${flattenSlug(slug)}`
 }
 
 function worktreePathForSlug(gitRoot: string, slug: string): string {
@@ -105,17 +115,146 @@ function createOrResumeWorktree(repoRoot: string, slug: string, options?: Create
   return serialiseWorktreeCreation(repoRoot, () => createOrResumeWorktreeNow(repoRoot, slug, options))
 }
 
-async function createOrResumeWorktreeNow(
-  repoRoot: string,
-  slug: string,
-  options?: CreateOrResumeOptions,
-): Promise<CreateOrResumeResult> {
-  return notBuilt('src/services/worktree.ts:121')
+const FULL_SHA_PATTERN = /^[0-9a-f]{40}$/
+const COMMIT_SPELLING_PATTERN = /^[A-Za-z0-9._/~^-]+$/
+
+async function createOrResumeWorktreeNow(repoRoot: string, slug: string, options?: CreateOrResumeOptions): Promise<CreateOrResumeResult> {
+  const worktreePath = worktreePathForSlug(repoRoot, slug)
+  const home = worktreesHome(repoRoot)
+  const baseCwd = options?.baseFrom ?? repoRoot
+  if (options?.at !== undefined) {
+    const ref = options.at
+    if (!COMMIT_SPELLING_PATTERN.test(ref)) throw new Error(`The worktree commit ${JSON.stringify(ref)} is not a commit spelling`)
+    const verified = await runGit(['rev-parse', '--verify', `${ref}^{commit}`], baseCwd)
+    const resolvedSha = verified.stdout.trim()
+    if (verified.code !== 0 || !FULL_SHA_PATTERN.test(resolvedSha)) throw new Error(`The worktree commit ${ref} does not resolve to a commit in this repository`)
+    const existingHead = await readWorktreeHeadSha(worktreePath)
+    if (existingHead !== null) {
+      if (existingHead === resolvedSha) return { worktreePath, headCommit: existingHead, existed: true }
+      throw new Error(`The worktree ${worktreePath} already exists at ${existingHead.slice(0, 12)}, not at ${resolvedSha.slice(0, 12)}`)
+    }
+    await mkdir(home, { recursive: true })
+    const add = await runWorktreeAdd(['worktree', 'add', '--detach', worktreePath, resolvedSha], repoRoot)
+    if (add.code !== 0) throw new Error(`git worktree add failed: ${add.stderr.trim()}`)
+    await writeWorktreeBaseline(worktreePath, resolvedSha)
+    return { worktreePath, headCommit: resolvedSha, existed: false }
+  }
+  const worktreeBranch = worktreeBranchName(slug)
+  const existingHead = await readWorktreeHeadSha(worktreePath)
+  if (existingHead !== null) {
+    const baseline = await readWorktreeBaseline(worktreePath).catch(passedOverAs(null))
+    return { worktreePath, worktreeBranch, headCommit: baseline ?? existingHead, existed: true }
+  }
+  await mkdir(home, { recursive: true })
+  let baseCommit: string
+  let baseBranch: string | undefined
+  if (options?.prNumber !== undefined) {
+    const fetched = await runGit(['fetch', 'origin', `pull/${options.prNumber}/head`], repoRoot, { suppressPrompts: true })
+    if (fetched.code !== 0) {
+      const detail = fetched.stderr.trim() || 'the PR may not exist, or this repository may have no origin remote'
+      throw new Error(`Could not fetch PR #${options.prNumber}: ${detail}`)
+    }
+    const resolved = await runGit(['rev-parse', '--verify', 'FETCH_HEAD^{commit}'], repoRoot)
+    const sha = resolved.stdout.trim()
+    if (resolved.code !== 0 || !FULL_SHA_PATTERN.test(sha)) throw new Error('Could not resolve the worktree base ref FETCH_HEAD')
+    baseCommit = sha
+  } else {
+    const resolved = await runGit(['rev-parse', '--verify', 'HEAD^{commit}'], baseCwd)
+    const sha = resolved.stdout.trim()
+    if (resolved.code !== 0 || !FULL_SHA_PATTERN.test(sha)) throw new Error('Could not resolve the worktree base ref HEAD')
+    baseCommit = sha
+    const baseGitDir = await resolveGitDir(baseCwd)
+    const head = baseGitDir !== null ? await readGitHead(baseGitDir) : null
+    baseBranch = head?.type === 'branch' ? head.name : 'HEAD'
+  }
+  const sparsePaths = getInitialSettings().workspace?.worktree?.sparsePaths ?? []
+  const useSparse = sparsePaths.length > 0
+  const addArgs = ['worktree', 'add', ...(useSparse ? ['--no-checkout'] : []), '--no-track', '-b', worktreeBranch, worktreePath, baseCommit]
+  const add = await runWorktreeAdd(addArgs, repoRoot)
+  if (add.code !== 0) throw new Error(`git worktree add failed: ${add.stderr.trim()}`)
+  if (useSparse) {
+    const sparse = await runGit(['sparse-checkout', 'set', '--cone', ...sparsePaths], worktreePath)
+    if (sparse.code !== 0) {
+      await runGit(['worktree', 'remove', '--force', worktreePath], repoRoot)
+      throw new Error(`git sparse-checkout failed: ${sparse.stderr.trim()}`)
+    }
+    const checkout = await runGit(['checkout', 'HEAD'], worktreePath)
+    if (checkout.code !== 0) {
+      await runGit(['worktree', 'remove', '--force', worktreePath], repoRoot)
+      throw new Error(`git checkout failed in the sparse worktree: ${checkout.stderr.trim()}`)
+    }
+  }
+  await writeWorktreeBaseline(worktreePath, baseCommit)
+  return { worktreePath, worktreeBranch, headCommit: baseCommit, existed: false, ...(baseBranch !== undefined ? { baseBranch } : {}) }
 }
 
+function isDirJustifiedByPatterns(dirNoSlash: string, patterns: readonly string[], matcher: ReturnType<typeof ignore>): boolean {
+  if (matcher.ignores(dirNoSlash)) return true
+  const dirSlash = `${dirNoSlash}/`
+  for (const rawRule of patterns) {
+    if (rawRule.startsWith('!')) continue
+    const rule = rawRule.startsWith('/') ? rawRule.slice(1) : rawRule
+    const globIndex = rule.search(/[*?[{]/)
+    if (globIndex === -1) {
+      const clean = rule.replace(/\/+$/, '')
+      if (clean === dirNoSlash || clean.startsWith(dirSlash) || dirNoSlash.startsWith(`${clean}/`)) return true
+      continue
+    }
+    const literalPrefix = rule.slice(0, globIndex)
+    if (literalPrefix.length > 0 && (literalPrefix.startsWith(dirSlash) || dirSlash.startsWith(literalPrefix))) return true
+  }
+  return false
+}
 
 async function copyWorktreeIncludeFiles(repoRoot: string, worktreePath: string, preserveExisting?: boolean): Promise<string[]> {
-  return notBuilt('src/services/worktree.ts:232')
+  let content: string
+  try {
+    content = await readFile(join(repoRoot, '.worktreeinclude'), 'utf8')
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code !== 'ENOENT' && code !== 'ENOTDIR') {
+      logForDebugging(`.worktreeinclude could not be read (${String(error)}), so the files it lists were not copied into ${worktreePath}`, { level: 'warn' })
+    }
+    return []
+  }
+  const patterns = content.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0 && !line.startsWith('#'))
+  if (patterns.length === 0) return []
+  const listed = await runGit(['ls-files', '--others', '--ignored', '--exclude-standard', '--directory', '-z'], repoRoot)
+  if (listed.code !== 0 || listed.stdout === '') return []
+  const matcher = ignore().add(content)
+  const selected: string[] = []
+  const dirsToExpand: string[] = []
+  for (const entry of listed.stdout.split('\0')) {
+    if (entry === '') continue
+    if (entry.endsWith('/')) {
+      const dirNoSlash = entry.slice(0, -1)
+      if (dirNoSlash !== '' && isDirJustifiedByPatterns(dirNoSlash, patterns, matcher)) dirsToExpand.push(entry)
+    } else if (matcher.ignores(entry)) {
+      selected.push(entry)
+    }
+  }
+  for (const dirEntry of dirsToExpand) {
+    const expanded = await runGit(['ls-files', '--others', '--ignored', '--exclude-standard', '-z', '--', dirEntry], repoRoot)
+    if (expanded.code !== 0 || expanded.stdout === '') continue
+    for (const file of expanded.stdout.split('\0')) {
+      if (file !== '' && !file.endsWith('/') && matcher.ignores(file)) selected.push(file)
+    }
+  }
+  const copied: string[] = []
+  const copyMode = preserveExisting ? constants.COPYFILE_EXCL : 0
+  for (const relative of selected) {
+    const dest = join(worktreePath, relative)
+    try {
+      await mkdir(dirname(dest), { recursive: true })
+      await copyFile(join(repoRoot, relative), dest, copyMode)
+      copied.push(relative)
+    } catch (error) {
+      if (preserveExisting && (error as NodeJS.ErrnoException).code === 'EEXIST') continue
+      logForDebugging(`worktreeinclude copy failed for ${relative}: ${String(error)}`, { level: 'warn' })
+    }
+  }
+  if (copied.length > 0) logForDebugging(`worktreeinclude copied ${copied.length} files: ${copied.join(', ')}`)
+  return copied
 }
 
 const DEPENDENCY_LINK_ROOT = 'node_modules'
@@ -305,12 +444,133 @@ async function carryIgnoredEntries(sourceRoot: string, worktreePath: string, pla
   return true
 }
 
+async function copyDirectoryWithHoldback(sourceRoot: string, source: string, target: string, relPath: string, heldUnder: () => Promise<((root: string) => HeldBack) | undefined>): Promise<boolean> {
+  const heldFactory = await heldUnder()
+  if (heldFactory === allHeld) {
+    logForDebugging(`worktree copy skipped (the Read rules could not be read, and this account may not link it): ${relPath}`, { level: 'warn' })
+    return false
+  }
+  let isHeld: ((entryPath: string) => Promise<boolean>) | undefined
+  if (heldFactory !== undefined) {
+    let sourceRootReal: string
+    try {
+      sourceRootReal = await realpath(sourceRoot)
+    } catch (error) {
+      passedOver(error)
+      logForDebugging(`worktree copy skipped (the Read rules could not be read, and this account may not link it): ${relPath}`, { level: 'warn' })
+      return false
+    }
+    const heldAtSpelling = heldFactory(resolve(sourceRoot))
+    const heldAtReal = heldFactory(sourceRootReal)
+    isHeld = async (entryPath: string): Promise<boolean> => {
+      if (heldAtSpelling(entryPath) || heldAtReal(entryPath)) return true
+      try {
+        const resolved = await realpath(entryPath)
+        return heldAtSpelling(resolved) || heldAtReal(resolved)
+      } catch (error) {
+        passedOver(error)
+        return true
+      }
+    }
+    if (await isHeld(source)) {
+      logForDebugging(`worktree copy skipped (it stays behind, and this account may not link it): ${relPath}`, { level: 'warn' })
+      return false
+    }
+  }
+  try {
+    await cp(source, target, { recursive: true, dereference: true, force: false, errorOnExist: true, ...(isHeld !== undefined ? { filter: async (src: string) => !(await isHeld(src)) } : {}) })
+    return true
+  } catch (copyError) {
+    await rm(target, { recursive: true, force: true }).catch(passedOver)
+    const copyCode = (copyError as NodeJS.ErrnoException).code
+    if (copyCode !== 'ENOENT' && copyCode !== 'EEXIST') logForDebugging(`worktree symlink failed for ${relPath}: ${copyCode ?? String(copyError)}`, { level: 'warn' })
+    return false
+  }
+}
+
 async function linkCheckoutDirectories(sourceRoot: string, worktreePath: string, relPaths: readonly string[], heldUnder: () => Promise<((root: string) => HeldBack) | undefined>): Promise<string[]> {
-  return notBuilt('src/services/worktree.ts:496')
+  const placed: string[] = []
+  for (const relPath of relPaths) {
+    if (containsPathTraversal(relPath)) {
+      logForDebugging(`worktree symlink entry skipped (path traversal): ${relPath}`, { level: 'warn' })
+      continue
+    }
+    const segments = relPath.split(/[\\/]+/).filter(segment => segment !== '' && segment !== '.')
+    if (segments.length === 0) continue
+    const source = join(sourceRoot, ...segments)
+    const target = join(worktreePath, ...segments)
+    try {
+      await stat(source)
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      if (code !== 'ENOENT' && code !== 'ENOTDIR') logForDebugging(`worktree symlink failed for ${relPath}: ${code ?? String(error)}`, { level: 'warn' })
+      continue
+    }
+    let targetExists = false
+    try {
+      await lstat(target)
+      targetExists = true
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      if (code !== 'ENOENT' && code !== 'ENOTDIR') {
+        logForDebugging(`worktree symlink failed for ${relPath}: ${code ?? String(error)}`, { level: 'warn' })
+        continue
+      }
+    }
+    if (targetExists) continue
+    try {
+      await mkdir(dirname(target), { recursive: true })
+      await symlink(source, target, 'dir')
+      placed.push(relPath)
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      if (code === 'ENOENT' || code === 'EEXIST') continue
+      if (symlinkDeniedByPrivilege(error)) {
+        if (await copyDirectoryWithHoldback(sourceRoot, source, target, relPath, heldUnder)) placed.push(relPath)
+        continue
+      }
+      logForDebugging(`worktree symlink failed for ${relPath}: ${code ?? String(error)}`, { level: 'warn' })
+    }
+  }
+  return placed
 }
 
 async function hideLinksFromGit(repoRoot: string, worktreePath: string, sourceRoot: string, linked: readonly string[]): Promise<void> {
-  return notBuilt('src/services/worktree.ts:547')
+  if (linked.length === 0) return
+  const toHide: string[] = []
+  for (const raw of linked) {
+    const rel = checkoutRelativeName(raw)
+    if (rel !== '' && (await ignoredIn(sourceRoot, rel)) && !(await ignoredIn(worktreePath, rel))) toHide.push(`/${rel}`)
+  }
+  if (toHide.length === 0) return
+  const gitDir = await resolveGitDir(repoRoot)
+  if (gitDir === null) return
+  const excludePath = join((await getCommonDir(gitDir)) ?? gitDir, 'info', 'exclude')
+  let existing = ''
+  try {
+    existing = await readFile(excludePath, 'utf8')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      logForDebugging(`worktree exclude read failed: ${String(error)}`, { level: 'warn' })
+      return
+    }
+  }
+  const existingLines = new Set(existing.split(/\r?\n/))
+  const additions: string[] = []
+  for (const line of toHide) {
+    if (!existingLines.has(line)) {
+      existingLines.add(line)
+      additions.push(line)
+    }
+  }
+  if (additions.length === 0) return
+  const separator = existing.length > 0 && !existing.endsWith('\n') ? '\n' : ''
+  try {
+    await mkdir(dirname(excludePath), { recursive: true })
+    await writeFile(excludePath, `${existing}${separator}${additions.join('\n')}\n`, 'utf8')
+  } catch (error) {
+    logForDebugging(`worktree exclude write failed: ${String(error)}`, { level: 'warn' })
+  }
 }
 
 async function propagateLocalSettings(repoRoot: string, worktreePath: string, preserveExisting: boolean): Promise<void> {
@@ -352,7 +612,32 @@ export async function prepareWorktreeFiles(repoRoot: string, worktreePath: strin
 }
 
 async function setWorktreeHooksPath(repoRoot: string, worktreePath: string): Promise<void> {
-  return notBuilt('src/services/worktree.ts:620')
+  try {
+    let hooksPath: string | null = null
+    for (const candidate of [join(repoRoot, '.husky'), join(repoRoot, '.git', 'hooks')]) {
+      try {
+        if ((await stat(candidate)).isDirectory()) {
+          hooksPath = candidate
+          break
+        }
+      } catch (error) {
+        passedOver(error)
+      }
+    }
+    if (hooksPath === null) return
+    const gitDir = await resolveGitDir(repoRoot)
+    const commonDir = gitDir !== null ? ((await getCommonDir(gitDir)) ?? gitDir) : null
+    const existing = commonDir !== null ? await parseGitConfigValue(commonDir, 'core', null, 'hooksPath') : null
+    if (existing === hooksPath) return
+    const set = await runGit(['config', 'core.hooksPath', hooksPath], worktreePath)
+    if (set.code === 0) {
+      logForDebugging(`worktree hooksPath set to ${hooksPath}`)
+    } else {
+      logForDebugging(`worktree hooksPath set failed: ${set.stderr.trim()}`, { level: 'warn' })
+    }
+  } catch (error) {
+    logForDebugging(`worktree hooks-path setup failed: ${String(error)}`, { level: 'warn' })
+  }
 }
 
 async function runPostCreationSetup(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string, permission?: SessionRules, carry = false): Promise<string | undefined> {
@@ -420,17 +705,52 @@ function persistWorktreeSession(session: WorktreeSession | null): void {
   })
 }
 
-export async function createWorktreeForSession(
-  sessionId: string,
-  slug: string,
-  tmuxSessionName?: string,
-  options?: { prNumber?: number; gitRoot?: string; permission?: ToolPermissionContext },
-): Promise<WorktreeSession> {
-  return notBuilt('src/services/worktree.ts:714')
+export async function createWorktreeForSession(sessionId: string, slug: string, tmuxSessionName?: string, options?: { prNumber?: number; gitRoot?: string; permission?: ToolPermissionContext }): Promise<WorktreeSession> {
+  validateWorktreeSlug(slug)
+  const originalCwd = getCwd()
+  const gitRoot = options?.gitRoot ?? findCanonicalGitRoot(originalCwd)
+  if (!gitRoot) throw new Error('Cannot create a worktree: this is not a git repository.')
+  const baseFrom = findGitRoot(originalCwd) ?? gitRoot
+  const gitDir = await resolveGitDir(baseFrom)
+  const head = gitDir !== null ? await readGitHead(gitDir) : null
+  const originalBranch = head?.type === 'branch' ? head.name : undefined
+  const startedAt = Date.now()
+  const created = await createOrResumeWorktree(gitRoot, slug, { ...(options?.prNumber !== undefined ? { prNumber: options.prNumber } : {}), baseFrom })
+  const creationDurationMs = Date.now() - startedAt
+  logForDebugging(created.existed ? `resumed worktree ${created.worktreePath}` : `created worktree ${created.worktreePath} from ${created.baseBranch ?? 'HEAD'}`)
+  const prepareFailure = created.existed ? undefined : await runPostCreationSetup(gitRoot, created.worktreePath, originalCwd, options?.permission, options?.prNumber === undefined)
+  const usedSparsePaths = !created.existed && (getInitialSettings().workspace?.worktree?.sparsePaths ?? []).length > 0
+  const session: WorktreeSession = {
+    originalCwd,
+    worktreePath: created.worktreePath,
+    worktreeName: slug,
+    worktreeBranch: created.worktreeBranch,
+    ...(originalBranch !== undefined ? { originalBranch } : {}),
+    ...(created.headCommit !== null ? { originalHeadCommit: created.headCommit } : {}),
+    sessionId,
+    ...(tmuxSessionName !== undefined ? { tmuxSessionName } : {}),
+    ...(!created.existed ? { creationDurationMs } : {}),
+    ...(usedSparsePaths ? { usedSparsePaths: true } : {}),
+    ...(prepareFailure !== undefined ? { prepareFailure } : {}),
+  }
+  restoreWorktreeSession(session)
+  persistWorktreeSession(session)
+  return session
 }
 
 export async function keepWorktree(): Promise<void> {
-  return notBuilt('src/services/worktree.ts:763')
+  const session = getCurrentWorktreeSession()
+  if (session === null) return
+  try {
+    process.chdir(session.originalCwd)
+    restoreWorktreeSession(null)
+    persistWorktreeSession(null)
+    const branchNote = session.worktreeBranch !== undefined ? ` (branch ${session.worktreeBranch})` : ''
+    logForDebugging(`worktree preserved at ${session.worktreePath}${branchNote}; cd there to continue working in it`)
+  } catch (error) {
+    logForDebugging(`keepWorktree failed: ${String(error)}`, { level: 'warn' })
+    throw error
+  }
 }
 
 async function removeWorktreeTree(worktreePath: string, cwd: string): Promise<{ code: number; stdout: string; stderr: string }> {
@@ -447,11 +767,40 @@ async function removeWorktreeTree(worktreePath: string, cwd: string): Promise<{ 
 }
 
 export async function cleanupWorktree(): Promise<void> {
-  return notBuilt('src/services/worktree.ts:792')
+  const session = getCurrentWorktreeSession()
+  if (session === null) return
+  try {
+    process.chdir(session.originalCwd)
+  } catch (error) {
+    logForDebugging(`cleanupWorktree chdir failed: ${String(error)}`, { level: 'warn' })
+    throw error
+  }
+  try {
+    const repoCwd = findCanonicalGitRoot(session.originalCwd) ?? session.originalCwd
+    const removed = await removeWorktreeTree(session.worktreePath, repoCwd)
+    if (removed.code !== 0) {
+      throw new Error(removed.stderr.trim() || removed.stdout.trim() || `git worktree remove exited ${removed.code}`)
+    }
+    restoreWorktreeSession(null)
+    persistWorktreeSession(null)
+    if (session.worktreeBranch !== undefined) {
+      await sleep(100)
+      const deleted = await runGit(['branch', '-D', session.worktreeBranch], repoCwd)
+      if (deleted.code !== 0) logForDebugging(`worktree branch delete failed: ${deleted.stderr.trim()}`, { level: 'warn' })
+    }
+  } catch (error) {
+    logForDebugging(`cleanupWorktree failed: ${String(error)}`, { level: 'warn' })
+    throw error
+  }
 }
 
 
-type WorktreeCapability = Unbuilt
+type WorktreeCapability = {
+  available: boolean
+  detail: string
+  prerequisite?: 'git-repository'
+  repeatCount?: number
+}
 
 const refusalCountsByDirectory = new Map<string, number>()
 
@@ -484,25 +833,64 @@ export function preflightWorktreeCapability(cwd: string = getCwd()): WorktreeCap
 
 export async function createAgentWorktree(
   slug: string,
-  options?: {
-    at?: string
-    from?: string
-    foldersBehindLaunch?: boolean
-    permission?: ToolPermissionContext
-  },
-): Promise<{
-  worktreePath: string
-  worktreeBranch?: string
-  headCommit?: string
-  gitRoot?: string
-  prepareFailure?: string
-  ready?: Promise<void>
-}> {
-  return notBuilt('src/services/worktree.ts:860')
+  options?: { at?: string; from?: string; foldersBehindLaunch?: boolean; permission?: ToolPermissionContext },
+): Promise<{ worktreePath: string; worktreeBranch?: string; headCommit?: string; gitRoot?: string; prepareFailure?: string; ready?: Promise<void> }> {
+  validateWorktreeSlug(slug)
+  const sourceDir = options?.from ?? getCwd()
+  const gitRoot = findCanonicalGitRoot(sourceDir)
+  if (!gitRoot) {
+    throw new Error('Worktree isolation is unavailable here: this is not a git repository. Retry the same Crewmate call WITHOUT the isolation parameter; the crewmate will run in the current directory.')
+  }
+  const baseFrom = findGitRoot(sourceDir) ?? gitRoot
+  const created = await createOrResumeWorktree(gitRoot, slug, { ...(options?.at !== undefined ? { at: options.at } : {}), baseFrom })
+  if (created.existed) {
+    const now = new Date()
+    await utimes(created.worktreePath, now, now).catch(passedOver)
+    logForDebugging(`resumed agent worktree ${created.worktreePath}`)
+    return { worktreePath: created.worktreePath, worktreeBranch: created.worktreeBranch, ...(created.headCommit !== null ? { headCommit: created.headCommit } : {}), gitRoot }
+  }
+  await markAgentLane(created.worktreePath, slug)
+  const behindLaunch = options?.foldersBehindLaunch === true && !(await launchWaitsForFolders(gitRoot))
+  let prepareFailure: string | undefined
+  if (behindLaunch) {
+    await propagateLocalSettings(gitRoot, created.worktreePath, false)
+  } else {
+    prepareFailure = await runPostCreationSetup(gitRoot, created.worktreePath, baseFrom, options?.permission, options?.at === undefined)
+  }
+  const lock = await runGit(['worktree', 'lock', created.worktreePath, '--reason', `agent ${slug} (pid ${process.pid})`], gitRoot)
+  if (lock.code !== 0) logForDebugging(`worktree lock failed for ${created.worktreePath}: ${lock.stderr.trim()}`, { level: 'warn' })
+  const ready = behindLaunch ? placeFoldersBehindLaunch(gitRoot, created.worktreePath, baseFrom, options?.permission, options?.at === undefined) : undefined
+  return {
+    worktreePath: created.worktreePath,
+    worktreeBranch: created.worktreeBranch,
+    ...(created.headCommit !== null ? { headCommit: created.headCommit } : {}),
+    gitRoot,
+    ...(prepareFailure !== undefined ? { prepareFailure } : {}),
+    ...(ready !== undefined ? { ready } : {}),
+  }
 }
 
 export async function unlockAgentWorktree(worktreePath: string, gitRoot: string): Promise<void> {
-  return notBuilt('src/services/worktree.ts:923')
+  await runGit(['worktree', 'unlock', worktreePath], gitRoot)
+}
+
+async function removeAgentWorktree(worktreePath: string, worktreeBranch?: string, repoRoot?: string): Promise<boolean> {
+  const gitRoot = repoRoot ?? findCanonicalGitRoot(worktreePath)
+  if (!gitRoot) {
+    logForDebugging(`removeAgentWorktree: no git root for ${worktreePath}`, { level: 'warn' })
+    return false
+  }
+  await unlockAgentWorktree(worktreePath, gitRoot)
+  const removed = await removeWorktreeTree(worktreePath, gitRoot)
+  if (removed.code !== 0) {
+    logForDebugging(`agent worktree remove failed: ${removed.stderr.trim()}`, { level: 'warn' })
+    return false
+  }
+  if (worktreeBranch !== undefined) {
+    const deleted = await runGit(['branch', '-D', worktreeBranch], gitRoot)
+    if (deleted.code !== 0) logForDebugging(`agent worktree branch delete failed: ${deleted.stderr.trim()}`, { level: 'warn' })
+  }
+  return true
 }
 
 
@@ -586,8 +974,169 @@ async function isDisownedWorktree(worktreePath: string): Promise<boolean> {
   }
 }
 
+type JanitorCandidate = {
+  path: string
+  branch?: string
+  registered: boolean
+}
+
+const MIN_VALID_DATE_MS = -8_640_000_000_000_000
+
+async function collectJanitorCandidates(
+  gitRoot: string,
+  home: string,
+): Promise<{ candidates: Map<string, JanitorCandidate>; registryAvailable: boolean }> {
+  const candidates = new Map<string, JanitorCandidate>()
+  const registeredPaths = new Set<string>()
+  const listResult = await runGit(['worktree', 'list', '--porcelain'], gitRoot)
+  const registryAvailable = listResult.code === 0
+  const canonicalGitRoot = await realpath(gitRoot).catch(passedOverAs(resolve(gitRoot)))
+
+  if (registryAvailable) {
+    for (const block of listResult.stdout.split(/\n\n+/)) {
+      let wtPath: string | undefined
+      let wtBranch: string | undefined
+      for (const line of block.split(/\r?\n/)) {
+        if (line.startsWith('worktree ')) {
+          wtPath = line.slice('worktree '.length).trim()
+        } else if (line.startsWith('branch refs/heads/')) {
+          wtBranch = line.slice('branch refs/heads/'.length).trim()
+        }
+      }
+      if (!wtPath) continue
+      const resolvedWt = resolve(wtPath)
+      const canonicalWt = await realpath(resolvedWt).catch(passedOverAs(resolvedWt))
+      registeredPaths.add(resolvedWt)
+      registeredPaths.add(canonicalWt)
+      if (canonicalWt === canonicalGitRoot) continue
+      if (basename(dirname(resolvedWt)) !== 'worktrees') continue
+      candidates.set(resolvedWt, {
+        path: resolvedWt,
+        branch: wtBranch,
+        registered: true,
+      })
+    }
+  }
+
+  let homeEntries: string[] = []
+  try {
+    homeEntries = await readdir(home)
+  } catch (error) {
+    passedOver(error)
+  }
+  for (const entry of homeEntries) {
+    const entryPath = resolve(home, entry)
+    const canonicalEntry = await realpath(entryPath).catch(passedOverAs(entryPath))
+    const existing = candidates.get(entryPath)
+    const registered = existing?.registered ?? (registeredPaths.has(entryPath) || registeredPaths.has(canonicalEntry))
+    candidates.set(entryPath, {
+      path: entryPath,
+      branch: existing?.branch,
+      registered,
+    })
+  }
+
+  return { candidates, registryAvailable }
+}
+
+async function sweepAdoptingSiblings(home: string, effectiveCutoffMs: number): Promise<number> {
+  const parent = dirname(home)
+  const prefix = `${basename(home)}.adopting-`
+  let entries: string[]
+  try {
+    entries = await readdir(parent)
+  } catch (error) {
+    passedOver(error)
+    return 0
+  }
+  let swept = 0
+  for (const entry of entries) {
+    if (!entry.startsWith(prefix)) continue
+    const siblingPath = join(parent, entry)
+    try {
+      const info = await lstat(siblingPath)
+      if (info.mtimeMs >= effectiveCutoffMs) continue
+      await rm(siblingPath, { recursive: true, force: true })
+      swept++
+    } catch (error) {
+      passedOver(error)
+    }
+  }
+  return swept
+}
+
 export async function cleanupStaleAgentWorktrees(cutoffDate: Date): Promise<number> {
-  return notBuilt('src/services/worktree.ts:1032')
+  const requestedCutoffMs = cutoffDate.getTime()
+  if (!Number.isFinite(requestedCutoffMs) || requestedCutoffMs <= MIN_VALID_DATE_MS) return 0
+  const gitRoot = findCanonicalGitRoot(getCwd())
+  if (!gitRoot) return 0
+
+  const effectiveCutoffMs = Math.max(requestedCutoffMs, Date.now() - EPHEMERAL_RETENTION_FLOOR_MS)
+  const home = worktreesHome(gitRoot)
+  const { candidates, registryAvailable } = await collectJanitorCandidates(gitRoot, home)
+  const activeSession = getCurrentWorktreeSession()
+  const activePath = activeSession ? resolve(activeSession.worktreePath) : null
+
+  let removed = 0
+  for (const candidate of candidates.values()) {
+    const slug = basename(candidate.path)
+    if (activePath !== null && resolve(candidate.path) === activePath) continue
+    const agentLane = await isAgentLane(slug, candidate.path)
+    if (!agentLane && !isEphemeralSlug(slug)) continue
+
+    let mtimeMs: number
+    try {
+      mtimeMs = (await stat(candidate.path)).mtimeMs
+    } catch (error) {
+      passedOver(error)
+      continue
+    }
+    if (mtimeMs >= effectiveCutoffMs) continue
+
+    if (agentLane) {
+      if (registryAvailable && !candidate.registered && (await isDisownedWorktree(candidate.path))) {
+        continue
+      }
+      const verdict = await worktreeRemovalSafe(candidate.path, candidate.branch)
+      if (!verdict.safe) {
+        logForDebugging(`worktree janitor keeps ${candidate.path}: ${verdict.detail}`)
+        continue
+      }
+      if (await removeAgentWorktree(candidate.path, candidate.branch, gitRoot)) {
+        removed++
+      }
+      continue
+    }
+
+    if (registryAvailable && !candidate.registered && (await isDisownedWorktree(candidate.path))) {
+      try {
+        await rm(candidate.path, { recursive: true, force: true })
+        removed++
+      } catch (error) {
+        passedOver(error)
+      }
+      continue
+    }
+
+    const delta = await readWorktreeDelta(candidate.path)
+    if (deltaBlocksSettlement(delta)) continue
+    const unpushed = await runGit(['rev-list', '--count', 'HEAD', '--not', '--remotes'], candidate.path)
+    if (unpushed.code !== 0) continue
+    const unpushedCount = parseInt(unpushed.stdout.trim(), 10)
+    if (Number.isNaN(unpushedCount) || unpushedCount > 0) continue
+    if (await removeAgentWorktree(candidate.path, candidate.branch, gitRoot)) {
+      removed++
+    }
+  }
+
+  removed += sweepSetAside(home)
+  removed += await sweepAdoptingSiblings(home, effectiveCutoffMs)
+
+  if (removed > 0) {
+    await runGit(['worktree', 'prune'], gitRoot)
+    logForDebugging(`worktree janitor removed ${removed} stale lanes`)
+  }
+  return removed
 }
 
 
@@ -666,21 +1215,213 @@ export async function isTmuxAvailable(): Promise<boolean> {
   return result.code === 0
 }
 
+const THROWAWAY_ADJECTIVES = ['quick', 'calm', 'brisk', 'quiet', 'bright', 'spare'] as const
+const THROWAWAY_NOUNS = ['lane', 'bench', 'desk', 'nook', 'yard', 'shed'] as const
+
+function generateThrowawaySlug(): string {
+  const adjective = THROWAWAY_ADJECTIVES[Math.floor(Math.random() * THROWAWAY_ADJECTIVES.length)]!
+  const noun = THROWAWAY_NOUNS[Math.floor(Math.random() * THROWAWAY_NOUNS.length)]!
+  const suffix = Math.floor(Math.random() * 36 ** 4).toString(36).padStart(4, '0')
+  return `${adjective}-${noun}-${suffix}`
+}
+
+function runTmuxSync(
+  args: string[],
+  options?: { cwd?: string; env?: NodeJS.ProcessEnv; inherit?: boolean },
+): { status: number; stdout: string } {
+  const result = spawnSync('tmux', args, {
+    cwd: options?.cwd,
+    env: options?.env,
+    encoding: 'utf8',
+    stdio: options?.inherit ? 'inherit' : ['ignore', 'pipe', 'ignore'],
+    ...(options?.inherit ? {} : { timeout: 15_000 }),
+    windowsHide: options?.inherit !== true,
+  })
+  return {
+    status: result.status ?? 1,
+    stdout: typeof result.stdout === 'string' ? result.stdout : '',
+  }
+}
+
 export function getTmuxInstallInstructions(): string {
-  return notBuilt('src/services/worktree.ts:1214')
+  switch (process.platform) {
+    case 'darwin':
+      return 'Install tmux with: brew install tmux'
+    case 'linux':
+      return 'Install tmux with: sudo apt install tmux (or: sudo dnf install tmux)'
+    case 'win32':
+      return 'tmux is not natively available on Windows; consider WSL or Cygwin'
+    default:
+      return 'Install tmux through your system package manager'
+  }
 }
 
 export async function createTmuxSessionForWorktree(
   sessionName: string,
   worktreePath: string,
 ): Promise<{ created: boolean; error?: string }> {
-  return notBuilt('src/services/worktree.ts:1227')
+  const result = await execFileNoThrowWithCwd('tmux', ['new-session', '-d', '-s', sessionName, '-c', worktreePath], {})
+  if (result.code === 0) return { created: true }
+  return { created: false, error: result.stderr.trim() }
 }
 
 export function generateTmuxSessionName(repoPath: string, branch: string): string {
-  return notBuilt('src/services/worktree.ts:1238')
+  return `${basename(repoPath)}_${branch}`.replace(/[/.]/g, '_')
+}
+
+function filterRelaunchArgs(args: string[]): string[] {
+  const kept: string[] = []
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i] as string
+    if (arg === '--multiplex' || arg.startsWith('--multiplex=')) continue
+    if (arg.startsWith('--worktree=')) continue
+    if (arg === '-w' || arg === '--worktree') {
+      const next = args[i + 1]
+      if (next !== undefined && !next.startsWith('-')) i++
+      continue
+    }
+    kept.push(arg)
+  }
+  return kept
 }
 
 export async function execIntoTmuxWorktree(args: string[]): Promise<{ handled: boolean; error?: string }> {
-  return notBuilt('src/services/worktree.ts:1270')
+  switch (process.platform) {
+    case 'win32':
+      return { handled: false, error: '--multiplex is not supported on Windows' }
+    default:
+      break
+  }
+
+  if (runTmuxSync(['-V']).status !== 0) {
+    const hint =
+      process.platform === 'darwin'
+        ? 'Install it with: brew install tmux'
+        : 'Install it with: sudo apt install tmux'
+    return { handled: false, error: `tmux is not installed. ${hint}` }
+  }
+
+  let requestedName: string | undefined
+  let classicMode = false
+  let hasPendingBlockTools = false
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i] as string
+    if (arg === '--multiplex=classic') {
+      classicMode = true
+    } else if (arg === '--block-tools' || arg.startsWith('--block-tools=')) {
+      hasPendingBlockTools = true
+    } else if (arg === '-w' || arg === '--worktree') {
+      const next = args[i + 1]
+      if (next !== undefined && !next.startsWith('-')) {
+        requestedName = next
+        i++
+      }
+    } else if (arg.startsWith('--worktree=')) {
+      const value = arg.slice('--worktree='.length)
+      if (value !== '') requestedName = value
+    }
+  }
+
+  let prNumber: number | undefined
+  let slug: string
+  if (requestedName !== undefined) {
+    const parsedPr = parsePRReference(requestedName)
+    if (parsedPr !== null) {
+      prNumber = parsedPr
+      slug = `pr-${parsedPr}`
+    } else {
+      slug = requestedName
+    }
+  } else {
+    slug = generateThrowawaySlug()
+  }
+
+  try {
+    validateWorktreeSlug(slug)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return { handled: false, error: `✕ ${message}` }
+  }
+
+  const cwd = getCwd()
+  const gitRoot = findCanonicalGitRoot(cwd)
+  if (!gitRoot) {
+    return { handled: false, error: '--worktree requires a git repository' }
+  }
+
+  const baseCheckout = findGitRoot(cwd) ?? gitRoot
+  let created: CreateOrResumeResult
+  try {
+    created = await createOrResumeWorktree(gitRoot, slug, {
+      ...(prNumber !== undefined ? { prNumber } : {}),
+      baseFrom: baseCheckout,
+    })
+    if (!created.existed) {
+      process.stdout.write(`Created worktree ${created.worktreePath} (based on ${created.baseBranch ?? 'HEAD'})\n`)
+      const prepareFailure = await runPostCreationSetup(
+        gitRoot,
+        created.worktreePath,
+        baseCheckout,
+        hasPendingBlockTools ? 'unknown' : undefined,
+        prNumber === undefined,
+      )
+      if (prepareFailure !== undefined) {
+        process.stderr.write(`${prepareFailure}\n`)
+      }
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return { handled: false, error: message }
+  }
+
+  const sessionName = generateTmuxSessionName(gitRoot, created.worktreeBranch ?? worktreeBranchName(slug))
+  const relaunchArgs = filterRelaunchArgs(args)
+  const childCommand = [process.execPath, ...(process.argv[1] ? [process.argv[1]] : []), ...relaunchArgs]
+  const sessionExists = runTmuxSync(['has-session', '-t', sessionName]).status === 0
+  const insideTmux = isInsideTmuxSync()
+  const useControlMode = !insideTmux && !classicMode && isInITerm2()
+  if (!sessionExists && useControlMode) {
+    const noticeLines = [
+      '┌─ iTerm2 tip ─────────────────────────────────────────┐',
+      '│ Set "Preferences > General > tmux > open tmux windows │',
+      '│ as tabs in the attaching window" to open this session │',
+      '│ as a tab instead of a new window.                     │',
+      '└───────────────────────────────────────────────────────┘',
+    ]
+    for (const line of noticeLines) {
+      process.stdout.write(`${chalk.yellow(line)}\n`)
+    }
+  }
+  const childEnv: NodeJS.ProcessEnv = { ...hostEnv() }
+
+  if (insideTmux) {
+    if (!sessionExists) {
+      runTmuxSync(
+        ['new-session', '-d', '-s', sessionName, '-c', created.worktreePath, '--', ...childCommand],
+        { cwd: created.worktreePath, env: childEnv },
+      )
+    }
+    runTmuxSync(['switch-client', '-t', sessionName], {
+      cwd: created.worktreePath,
+      env: childEnv,
+      inherit: true,
+    })
+    return { handled: true }
+  }
+
+  runTmuxSync(
+    [
+      ...(useControlMode ? ['-CC'] : []),
+      'new-session',
+      '-A',
+      '-s',
+      sessionName,
+      '-c',
+      created.worktreePath,
+      '--',
+      ...childCommand,
+    ],
+    { cwd: created.worktreePath, env: childEnv, inherit: true },
+  )
+  return { handled: true }
 }
