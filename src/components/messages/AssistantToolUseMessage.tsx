@@ -181,7 +181,7 @@ export function AssistantToolUseMessage({
     toolStartStamps.delete(param.id)
   }
 
-  const displayName = safeUserFacingName(tool, param.input)
+  const displayName = safeUserFacingName(tool, param.input, param.name)
   if (displayName === '') {
     return null
   }
