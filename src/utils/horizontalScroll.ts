@@ -50,15 +50,6 @@ export function calculateHorizontalScrollWindow(
     }
   }
 
-  if (selected === 0) {
-    return {
-      startIndex: 0,
-      endIndex: 1,
-      showLeftArrow: false,
-      showRightArrow: count > 1,
-    }
-  }
-
   const end = selected + 1
   let start = selected
   while (start > 0 && fits(start - 1, end)) {

@@ -15,9 +15,9 @@ import {
   sanitizePath,
   type LiteSessionFile,
 } from './sessionStoragePortable.js'
+import { getErrnoCode } from './errors.js'
 import { passedOver } from './passedOver.js'
 import { foldPathCase } from './platform/paths.js'
-
 
 type SessionInfo = {
   sessionId: string
@@ -59,7 +59,7 @@ function byMtimeThenIdDesc(a: Candidate, b: Candidate): number {
 }
 
 function isAbsenceError(error: unknown): boolean {
-  const code = (error as NodeJS.ErrnoException | null)?.code
+  const code = getErrnoCode(error)
   return code === 'ENOENT' || code === 'ENOTDIR'
 }
 
@@ -199,15 +199,7 @@ async function collectDirCandidates(
   doStat: boolean,
 ): Promise<Candidate[]> {
   const canonicalDir = await canonicalizePath(dir)
-  let worktrees: string[] = []
-  if (includeWorktrees) {
-    try {
-      worktrees = await getWorktreePathsPortable(canonicalDir)
-    } catch (error) {
-      passedOver(error)
-      worktrees = []
-    }
-  }
+  const worktrees = includeWorktrees ? await getWorktreePathsPortable(canonicalDir) : []
   if (!includeWorktrees || worktrees.length <= 1) {
     const projectDir = await findProjectDir(canonicalDir)
     if (!projectDir) return []
@@ -224,11 +216,11 @@ async function collectDirCandidates(
     canonicalWorktrees.push(resolved)
   }
 
-  const exactByFoldedDir = new Map<string, string>()
+  const exactByFoldedDir = new Map<string, { dir: string; projectPath: string }>()
   const matchers: Array<{ worktree: string; exactName: string; prefix: string }> = []
   for (const wt of canonicalWorktrees) {
     const found = await findProjectDir(wt)
-    if (found) exactByFoldedDir.set(foldPathCase(found), wt)
+    if (found) exactByFoldedDir.set(foldPathCase(found), { dir: found, projectPath: wt })
     const sanitized = sanitizePath(wt)
     const exactName = foldPathCase(sanitized)
     const prefix = foldPathCase(
@@ -236,7 +228,7 @@ async function collectDirCandidates(
     )
     matchers.push({ worktree: wt, exactName, prefix })
   }
-
+  matchers.sort((a, b) => b.prefix.length - a.prefix.length)
   const projectsDir = getProjectsDir()
   let entries: string[]
   try {
@@ -266,7 +258,7 @@ async function collectDirCandidates(
     const foldedFull = foldPathCase(full)
     const exactOwner = exactByFoldedDir.get(foldedFull)
     if (exactOwner !== undefined) {
-      matchedDirs.set(foldedFull, { dir: full, projectPath: exactOwner })
+      matchedDirs.set(foldedFull, { dir: full, projectPath: exactOwner.projectPath })
       continue
     }
     const foldedEntry = foldPathCase(entry)
@@ -278,10 +270,9 @@ async function collectDirCandidates(
     }
   }
 
-  for (const [foldedFull, wt] of exactByFoldedDir) {
+  for (const [foldedFull, entry] of exactByFoldedDir) {
     if (!matchedDirs.has(foldedFull)) {
-      const found = await findProjectDir(wt)
-      if (found) matchedDirs.set(foldedFull, { dir: found, projectPath: wt })
+      matchedDirs.set(foldedFull, entry)
     }
   }
 
