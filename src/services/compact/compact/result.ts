@@ -6,11 +6,30 @@ import { foldedTurnReceipts } from '../../../utils/cockpit/turnReceipt.js'
 import { collectAwayWork } from '../../../utils/cockpit/awaySummary.js'
 import { getMercuryTempDir } from '../../../utils/permissions/filesystem.js'
 import { defersUnderLaw } from '../../providers/toolEconomy.js'
-import { notBuilt, type Unbuilt } from '../../../pi/holes.js'
 
-export type CompactionResult = Unbuilt
+export type CompactionResult = {
+  boundaryMarker: SystemCompactBoundaryMessage
+  operatorMessages?: AttachmentMessage
+  summaryMessages: UserMessage[]
+  messagesToKeep?: Message[]
+  attachments: AttachmentMessage[]
+  hookResults: Message[]
+  preCompactTokenCount: number
+  postCompactTokenCount: number
+  truePostCompactTokenCount?: number
+  compactionUsage?: NonNullableUsage
+  notes?: string[]
+}
 
-export type RecompactionInfo = Unbuilt
+export type RecompactionInfo = {
+  isRecompaction: boolean
+  turnsSincePreviousCompact: number
+  autoCompactThreshold: number
+  previousCompactTurnId?: string
+  querySource?: string
+  restoreFiles?: boolean
+  mustShrink?: boolean
+}
 
 
 export function foldDefersNow(context: ToolUseContext): (name: string) => boolean {
@@ -38,11 +57,24 @@ export function annotateBoundaryWithPreservedSegment(
   anchorUuid: UUID,
   messagesToKeep: Message[],
 ): SystemCompactBoundaryMessage {
-  return notBuilt('src/services/compact/compact/result.ts:55')
+  if (messagesToKeep.length === 0) return boundary
+  const head = messagesToKeep[0]
+  const tail = messagesToKeep[messagesToKeep.length - 1]
+  if (head !== undefined && tail !== undefined) {
+    boundary.compactMetadata.preservedSegment = {
+      headUuid: head.uuid,
+      anchorUuid,
+      tailUuid: tail.uuid,
+    }
+  }
+  return boundary
 }
 
 export function foldedWorkOf(messages: Message[], kept: Message[], summaryUuid: UUID): NonNullable<CompactMetadata['work']> {
-  return notBuilt('src/services/compact/compact/result.ts:71')
+  return {
+    receipts: foldedTurnReceipts(messages, kept, summaryUuid, getMercuryTempDir()),
+    recap: collectAwayWork(messages, new Set(kept.map(message => message.uuid))),
+  }
 }
 
 export function annotateBoundaryWithWork(
@@ -51,5 +83,5 @@ export function annotateBoundaryWithWork(
   kept: Message[],
   summaryUuid: UUID,
 ): void {
-  return notBuilt('src/services/compact/compact/result.ts:78')
+  boundary.compactMetadata.work = foldedWorkOf(messages, kept, summaryUuid)
 }
