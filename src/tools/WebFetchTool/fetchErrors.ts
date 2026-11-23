@@ -1,10 +1,15 @@
-import { notBuilt } from '../../pi/holes.js'
-
 export class EgressBlockedError extends Error {
   public readonly domain: string
   constructor(domain: string) {
-    notBuilt('src/tools/WebFetchTool/fetchErrors.ts:3')
-    super(...(notBuilt('src/tools/WebFetchTool/fetchErrors.ts:3') as ConstructorParameters<typeof Error>))
+    super(
+      JSON.stringify({
+        error_type: 'EGRESS_BLOCKED',
+        domain,
+        message: `Access to ${domain} is blocked by the network egress proxy.`,
+      }),
+    )
+    this.name = 'EgressBlockedError'
+    this.domain = domain
   }
 }
 export class FetchRefusedError extends Error {
