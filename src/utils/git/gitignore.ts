@@ -1,11 +1,11 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 
 import { getCwd } from '../cwd.js'
 import { isENOENT } from '../errors.js'
 import { execFileNoThrowWithCwd } from '../execFileNoThrow.js'
 import { logError } from '../log.js'
+import { xdgAndRoamingConfigRoots } from '../platform/files.js'
 import { gitExe } from './gitExe.js'
 import { findGitRoot } from './gitRoot.js'
 
@@ -25,8 +25,7 @@ async function resolveGlobalIgnoreFile(cwd: string): Promise<string> {
   )
   const configured = result.code === 0 ? result.stdout.trim() : ''
   if (configured !== '') return configured
-  const xdgConfigHome = process.env.XDG_CONFIG_HOME
-  return xdgConfigHome ? join(xdgConfigHome, 'git', 'ignore') : join(homedir(), '.config', 'git', 'ignore')
+  return join(xdgAndRoamingConfigRoots()[0]!, 'git', 'ignore')
 }
 
 export async function addFileGlobRuleToGitignore(filename: string, cwd?: string): Promise<void> {
@@ -50,11 +49,13 @@ export async function addFileGlobRuleToGitignore(filename: string, cwd?: string)
     }
     if (existing !== null && existing.includes(entry)) return
 
-    const next =
-      existing === null
-        ? `${entry}\n`
-        : `${existing.endsWith('\n') ? existing : `${existing}\n`}${entry}\n`
-    await writeFile(ignoreFile, next, 'utf8')
+    const prefix =
+      existing === null || existing === ''
+        ? ''
+        : existing.endsWith('\n')
+          ? existing
+          : `${existing}\n`
+    await writeFile(ignoreFile, `${prefix}${entry}\n`, 'utf8')
   } catch (error) {
     logError(error)
   }

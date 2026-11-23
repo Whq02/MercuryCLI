@@ -7,7 +7,7 @@ function matchesSectionHeader(line: string, section: string, subsection: string 
   let index = 1
   let name = ''
   while (index < line.length) {
-    const char = line[index] as string
+    const char = line[index]!
     if (char === ']' || char === '"' || char === ' ' || char === '\t') break
     name += char
     index++
@@ -23,7 +23,7 @@ function matchesSectionHeader(line: string, section: string, subsection: string 
   index++
   let parsed = ''
   while (index < line.length) {
-    const char = line[index] as string
+    const char = line[index]!
     if (char === '\\') {
       const next = line[index + 1]
       if (next === undefined) return false
@@ -44,14 +44,14 @@ function parseValueText(text: string): string {
   let value = ''
   let inQuotes = false
   for (let index = 0; index < text.length; index++) {
-    const char = text[index] as string
+    const char = text[index]!
     if (!inQuotes && (char === '#' || char === ';')) break
     if (char === '"') {
       inQuotes = !inQuotes
       continue
     }
     if (char === '\\' && index + 1 < text.length) {
-      const next = text[index + 1] as string
+      const next = text[index + 1]!
       if (inQuotes) {
         if (next === 'n') value += '\n'
         else if (next === 't') value += '\t'
@@ -100,7 +100,7 @@ function parseGitConfigString(
   let inSection = false
   let found: string | null = null
   for (let i = 0; i < lines.length; i++) {
-    let trimmed = (lines[i] as string).trimStart()
+    let trimmed = lines[i]!.trimStart()
     if (trimmed === '' || trimmed.startsWith('#') || trimmed.startsWith(';')) continue
     if (trimmed.startsWith('[')) {
       inSection = matchesSectionHeader(trimmed, section, subsection)
@@ -112,7 +112,7 @@ function parseGitConfigString(
       for (let j = trimmed.length - 1; j >= 0 && trimmed[j] === '\\'; j--) backslashes++
       if (backslashes % 2 === 0) break
       i++
-      trimmed = trimmed.slice(0, -1) + (lines[i] as string)
+      trimmed = trimmed.slice(0, -1) + lines[i]!
     }
     const parsed = parseKeyValueLine(trimmed, key)
     if (parsed !== null) {
