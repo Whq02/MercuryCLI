@@ -145,10 +145,8 @@ export function SelectMulti<T = string>({
                   value={inputValue}
                   onChange={text => state.updateInputValue(val, text)}
                   onSubmit={() => state.activateInputValue(val, 'enter')}
-                  onExit={onCancel}
                   index={optionIndex + 1}
                   reservedIndexWidth={reservedIndexWidth}
-                  hideIndexes={hideIndexes}
                   onOpenEditor={onOpenEditor}
                   onImagePaste={onImagePaste}
                   pastedContents={pastedContents}

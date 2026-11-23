@@ -41,18 +41,15 @@ type SelectInputOptionProps<T = string> = {
   option: InputOption<T>
   isFocused: boolean
   isSelected?: boolean
-  shouldShowDownArrow?: boolean
-  shouldShowUpArrow?: boolean
   value: string
   onChange: (value: string) => void
   onSubmit: (value: string) => void
-  onExit?: () => void
-  layout?: 'compact' | 'expanded' | 'compact-vertical'
-  index?: number
-  reservedIndexWidth?: number
-  hideIndexes?: boolean
-  inlineDescription?: boolean
+  reservedIndexWidth: number
+  index: number
   showLabelWithValue?: boolean
+  layout?: 'compact' | 'expanded' | 'compact-vertical'
+  shouldShowDownArrow?: boolean
+  shouldShowUpArrow?: boolean
   children?: React.ReactNode
   onOpenEditor?: (value: string, setValue: (value: string) => void) => void
   onImagePaste?: (
@@ -65,42 +62,30 @@ type SelectInputOptionProps<T = string> = {
   onRemoveImage?: (id: number) => void
   isImageSelectionMode?: boolean
   selectedImageIndex?: number
-  onSelectedImageIndexChange?: (index: number) => void
+  onSelectImage?: (index: number) => void
   onExitImageSelection?: () => void
 }
 
-function inputOrdinalPrefix(
-  option: { indexLabel?: string },
-  index: number | undefined,
-  reservedIndexWidth: number,
-  hideIndexes: boolean,
-): string {
-  if (hideIndexes) return ''
+function inputOrdinalPrefix(option: { indexLabel?: string }, index: number, reservedIndexWidth: number): string {
   if (option.indexLabel !== undefined) {
-    const width = Math.max(reservedIndexWidth + 2, option.indexLabel.length + 1)
-    return option.indexLabel.padEnd(width)
+    return option.indexLabel.padEnd(Math.max(reservedIndexWidth + 2, option.indexLabel.length + 1))
   }
-  if (index === undefined) return ''
-  const raw = index >= 1 && index <= 9 ? `${index}.` : ''
-  return raw.padEnd(reservedIndexWidth + 2)
+  return (index <= 9 ? `${index}.` : '').padEnd(reservedIndexWidth + 2)
 }
 
 export function SelectInputOption<T>({
   option,
   isFocused,
   isSelected = false,
-  shouldShowDownArrow = false,
-  shouldShowUpArrow = false,
   value,
   onChange,
   onSubmit,
-  onExit,
-  layout = 'compact',
+  reservedIndexWidth,
   index,
-  reservedIndexWidth = 0,
-  hideIndexes = false,
-  inlineDescription = false,
   showLabelWithValue = false,
+  layout = 'compact',
+  shouldShowDownArrow = false,
+  shouldShowUpArrow = false,
   children,
   onOpenEditor,
   onImagePaste,
@@ -108,163 +93,148 @@ export function SelectInputOption<T>({
   onRemoveImage,
   isImageSelectionMode = false,
   selectedImageIndex = 0,
-  onSelectedImageIndexChange,
+  onSelectImage,
   onExitImageSelection,
 }: SelectInputOptionProps<T>): React.ReactNode {
-  const { columns: termCols } = useTerminalSize()
-  const inputColumns = Math.max(20, Math.min(INPUT_WRAP_COLUMNS, termCols - 6))
   const [cursorOffset, setCursorOffset] = useState(value.length)
   const [pasteError, setPasteError] = useState<string | null>(null)
+  const { columns: termCols } = useTerminalSize()
+  const inputColumns = Math.max(20, Math.min(INPUT_WRAP_COLUMNS, termCols - 6))
 
-  const lastEditedValueRef = useRef<string | null>(null)
+  const keystrokeRef = useRef(false)
   const prevValueRef = useRef(value)
   const prevFocusedRef = useRef(isFocused)
-
   if (option.resetCursorOnUpdate) {
-    if (value !== prevValueRef.current) {
-      if (value !== lastEditedValueRef.current) {
-        setCursorOffset(value.length)
-      }
-      lastEditedValueRef.current = null
-      prevValueRef.current = value
-    }
-    if (isFocused && !prevFocusedRef.current) {
+    const valueChanged = value !== prevValueRef.current
+    const focusGained = isFocused && !prevFocusedRef.current
+    if (isFocused && ((valueChanged && !keystrokeRef.current) || focusGained) && cursorOffset !== value.length) {
       setCursorOffset(value.length)
     }
-  } else {
-    prevValueRef.current = value
+    if (valueChanged) keystrokeRef.current = false
   }
+  prevValueRef.current = value
   prevFocusedRef.current = isFocused
 
-  const images = Object.values(pastedContents ?? {}).filter(item => item.type === 'image')
-  const hasImages = images.length > 0
-  const inImageMode = Boolean(isImageSelectionMode && isFocused && hasImages)
-  const clampedImageIndex = hasImages
-    ? Math.max(0, Math.min(selectedImageIndex, images.length - 1))
-    : 0
-
-  usePublish(() => {
-    if (!isFocused && isImageSelectionMode) {
-      onExitImageSelection?.()
-    }
-  }, [isFocused, isImageSelectionMode, onExitImageSelection])
-
-  const handleChange = (next: string): void => {
-    lastEditedValueRef.current = next
+  const handleChange = (text: string): void => {
+    keystrokeRef.current = true
     if (pasteError !== null) setPasteError(null)
-    onChange(next)
+    onChange(text)
   }
 
-  const handleOpenEditor = (): void => {
-    onOpenEditor?.(value, next => {
-      if (pasteError !== null) setPasteError(null)
-      onChange(next)
-    })
-  }
+  const images = Object.values(pastedContents ?? {}).filter(item => item.type === 'image')
 
-  useKeybinding('chat:externalEditor', handleOpenEditor, {
+  const openEditor = (): void => {
+    onOpenEditor?.(value, onChange)
+  }
+  useKeybinding('chat:externalEditor', openEditor, {
     context: 'Chat',
-    isActive: isFocused && !inImageMode && Boolean(onOpenEditor),
+    isActive: isFocused && onOpenEditor !== undefined,
   })
-  useKeybinding('chat:externalEditor', handleOpenEditor, {
+  useKeybinding('chat:externalEditor', openEditor, {
     context: 'Confirmation',
-    isActive: isFocused && !inImageMode && Boolean(onOpenEditor),
+    isActive: isFocused && onOpenEditor !== undefined,
   })
 
   useKeybinding(
     'chat:imagePaste',
     () => {
-      void runSelectImagePaste({
-        onImagePaste,
-        onError: setPasteError,
-      })
+      void runSelectImagePaste({ onImagePaste, onError: setPasteError })
     },
-    {
-      context: 'Chat',
-      isActive: isFocused && !inImageMode && Boolean(onImagePaste),
-    },
+    { context: 'Chat', isActive: isFocused && onImagePaste !== undefined },
   )
 
   useKeybinding(
+    'attachments:remove',
+    () => {
+      if (isImageSelectionMode) {
+        const target = images[selectedImageIndex]
+        if (target === undefined) return
+        onRemoveImage?.(target.id)
+        if (images.length <= 1) {
+          onExitImageSelection?.()
+        } else if (selectedImageIndex >= images.length - 1) {
+          onSelectImage?.(images.length - 2)
+        }
+        return
+      }
+      if (value !== '') return
+      const newest = images.reduce((best, img) => (img.id > best.id ? img : best))
+      onRemoveImage?.(newest.id)
+    },
+    {
+      context: 'Attachments',
+      isActive: isFocused && images.length > 0 && onRemoveImage !== undefined,
+    },
+  )
+  useKeybinding(
     'attachments:next',
     () => {
-      if (images.length > 0) {
-        onSelectedImageIndexChange?.((clampedImageIndex + 1) % images.length)
-      }
+      if (images.length > 1) onSelectImage?.((selectedImageIndex + 1) % images.length)
     },
-    { context: 'Attachments', isActive: inImageMode },
+    { context: 'Attachments', isActive: isFocused && isImageSelectionMode },
   )
   useKeybinding(
     'attachments:previous',
     () => {
-      if (images.length > 0) {
-        onSelectedImageIndexChange?.((clampedImageIndex - 1 + images.length) % images.length)
+      if (images.length > 1) {
+        onSelectImage?.((((selectedImageIndex - 1) % images.length) + images.length) % images.length)
       }
     },
-    { context: 'Attachments', isActive: inImageMode },
-  )
-  useKeybinding(
-    'attachments:remove',
-    () => {
-      const target = images[clampedImageIndex]
-      if (!target) return
-      onRemoveImage?.(target.id)
-      if (images.length <= 1) {
-        onExitImageSelection?.()
-      } else if (clampedImageIndex >= images.length - 1) {
-        onSelectedImageIndexChange?.(images.length - 2)
-      }
-    },
-    { context: 'Attachments', isActive: inImageMode },
+    { context: 'Attachments', isActive: isFocused && isImageSelectionMode },
   )
   useKeybinding(
     'attachments:exit',
     () => {
       onExitImageSelection?.()
     },
-    { context: 'Attachments', isActive: inImageMode },
+    { context: 'Attachments', isActive: isFocused && isImageSelectionMode },
   )
 
   useInput(
     (_input, key, event) => {
-      if (inImageMode) {
-        if (key.upArrow) {
-          event.stopImmediatePropagation()
-          onExitImageSelection?.()
-        }
-        return
-      }
-      if (
-        isFocused &&
-        (key.backspace || key.delete) &&
-        value === '' &&
-        hasImages &&
-        onRemoveImage
-      ) {
-        let newest = images[0]!
-        for (const img of images) {
-          if (img.id > newest.id) newest = img
-        }
-        event.stopImmediatePropagation()
-        onRemoveImage(newest.id)
-      }
+      if (!key.upArrow) return
+      event.stopImmediatePropagation()
+      onExitImageSelection?.()
     },
-    { isActive: isFocused && (inImageMode || (hasImages && Boolean(onRemoveImage))) },
+    { isActive: isFocused && isImageSelectionMode },
   )
 
-  const removeKey = useShortcutDisplay('attachments:remove', 'Attachments', 'backspace')
-  const nextKey = useShortcutDisplay('attachments:next', 'Attachments', '→')
-  const prevKey = useShortcutDisplay('attachments:previous', 'Attachments', '←')
+  usePublish(() => {
+    if (!isFocused && isImageSelectionMode) onExitImageSelection?.()
+  }, [isFocused, isImageSelectionMode, onExitImageSelection])
 
-  const prefix = inputOrdinalPrefix(option, index, reservedIndexWidth, hideIndexes)
-  const effectiveShowLabel = Boolean(showLabelWithValue || option.showLabelWithValue)
-  const separator = option.labelValueSeparator ?? ', '
-  const effectivePlaceholder =
+  const nextKey = useShortcutDisplay('attachments:next', 'Attachments', '→')
+  const previousKey = useShortcutDisplay('attachments:previous', 'Attachments', '←')
+  const removeKey = useShortcutDisplay('attachments:remove', 'Attachments', 'backspace')
+  const exitKey = useShortcutDisplay('attachments:exit', 'Attachments', 'esc')
+
+  const number = inputOrdinalPrefix(option, index, reservedIndexWidth)
+  const placeholder =
     option.placeholder ?? (typeof option.label === 'string' ? option.label : undefined)
-  const belowIndent = reservedIndexWidth + (layout === 'expanded' ? 3 : 4)
+  const separator = option.labelValueSeparator ?? ', '
+  const showsLabel = showLabelWithValue || option.showLabelWithValue === true
+  const indent = reservedIndexWidth + (layout === 'expanded' ? 3 : 4)
   const description =
     option.description !== undefined && option.description !== '' ? option.description : undefined
-  const dimDescription = option.dimDescription !== false
+
+  const field = isFocused ? (
+    <TextInput
+      value={value}
+      onChange={handleChange}
+      onSubmit={text => onSubmit(text)}
+      columns={inputColumns}
+      cursorOffset={cursorOffset}
+      onChangeCursorOffset={setCursorOffset}
+      multiline
+      showCursor
+      focus={!isImageSelectionMode}
+      placeholder={showsLabel ? undefined : placeholder}
+    />
+  ) : value !== '' ? (
+    <Text>{value}</Text>
+  ) : showsLabel ? null : (
+    <Text color="inactive">{placeholder ?? ''}</Text>
+  )
 
   return (
     <Box flexDirection="column">
@@ -275,77 +245,52 @@ export function SelectInputOption<T>({
         shouldShowUpArrow={shouldShowUpArrow}
         declareCursor={false}
       >
-        <Box flexShrink={1} minWidth={0}>
-          {prefix !== '' ? <Text dimColor>{prefix}</Text> : null}
-          {children}
-          {effectiveShowLabel ? (
-            <Text
-              color={isFocused ? 'suggestion' : isSelected ? 'success' : undefined}
-              dimColor={option.disabled}
-            >
+        <Box>
+          <Text dimColor>{number}</Text>
+          {children ? <Box marginRight={1}>{children}</Box> : null}
+          {showsLabel ? (
+            <Text color={isFocused ? 'suggestion' : undefined}>
               {option.label}
-              {separator}
+              {isFocused || value !== '' ? separator : ''}
             </Text>
           ) : null}
-          {isFocused && !option.disabled ? (
-            <TextInput
-              value={value}
-              onChange={handleChange}
-              onSubmit={onSubmit}
-              onExit={onExit}
-              cursorOffset={cursorOffset}
-              onChangeCursorOffset={setCursorOffset}
-              columns={inputColumns}
-              placeholder={effectivePlaceholder}
-              multiline
-              focus={!inImageMode}
-              showCursor={!inImageMode}
-              disableCursorMovementForUpDownKeys
-              disablePageKeyCursorMovement
-            />
-          ) : value !== '' ? (
-            <Text color={isSelected ? 'success' : undefined} dimColor={option.disabled}>
-              {value}
-            </Text>
-          ) : (
-            <Text dimColor>{effectivePlaceholder ?? option.label}</Text>
-          )}
-          {description !== undefined && inlineDescription ? (
-            <Text dimColor={dimDescription}> {description}</Text>
-          ) : null}
+          {field}
         </Box>
       </SelectOption>
-      {description !== undefined && !inlineDescription ? (
-        <Box paddingLeft={belowIndent}>
-          <Text dimColor={dimDescription}>{description}</Text>
+      {description !== undefined ? (
+        <Box paddingLeft={indent}>
+          <Text color="inactive" dimColor={option.dimDescription !== false}>
+            {description}
+          </Text>
         </Box>
       ) : null}
-      {hasImages ? (
-        <Box paddingLeft={belowIndent} gap={1} flexWrap="wrap">
-          {images.map((img, idx) => (
-            <ClickableImageRef
-              key={img.id}
-              imageId={img.id}
-              isSelected={inImageMode && idx === clampedImageIndex}
-            />
-          ))}
-          {inImageMode ? (
-            <Byline>
-              {images.length > 1 ? (
-                <Text dimColor>
-                  {prevKey}/{nextKey} select
-                </Text>
-              ) : null}
-              <Text dimColor>{removeKey} remove</Text>
-              <Text dimColor>esc cancel</Text>
-            </Byline>
-          ) : isFocused ? (
+      {isFocused && images.length > 0 ? (
+        <Box flexDirection="column" paddingLeft={indent}>
+          <Box gap={1}>
+            {images.map((img, place) => (
+              <ClickableImageRef
+                key={img.id}
+                imageId={img.id}
+                isSelected={isImageSelectionMode && place === selectedImageIndex}
+              />
+            ))}
+          </Box>
+          {isImageSelectionMode ? (
+            <Text dimColor>
+              <Byline>
+                {images.length > 1 ? <Text dimColor>{nextKey} next</Text> : null}
+                {images.length > 1 ? <Text dimColor>{previousKey} previous</Text> : null}
+                <Text dimColor>{removeKey} remove</Text>
+                <Text dimColor>{exitKey} cancel</Text>
+              </Byline>
+            </Text>
+          ) : (
             <Text dimColor>(press ↓ to select images)</Text>
-          ) : null}
+          )}
         </Box>
       ) : null}
-      {pasteError !== null ? (
-        <Box paddingLeft={belowIndent}>
+      {isFocused && pasteError !== null ? (
+        <Box paddingLeft={indent}>
           <Text color="error">{pasteError}</Text>
         </Box>
       ) : null}
