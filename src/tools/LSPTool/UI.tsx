@@ -16,7 +16,6 @@ import { extractTag } from '../../services/messages.js'
 import { collapseAndClip } from '../../utils/stringUtils.js'
 import { getSymbolAtPosition } from './symbolContext.js'
 import type { Output } from './LSPTool.js'
-import { notBuilt } from '../../pi/holes.js'
 
 
 type RenderInput = Partial<{
@@ -186,11 +185,67 @@ export function renderToolResultMessage(
   return <LspResultSummary output={output} verbose={revealed} />
 }
 
-function LspResultSummary(arg0: {
+function LspResultSummary({
+  output,
+  verbose,
+}: {
   output: Output
   verbose: boolean
 }): React.ReactNode {
-  return notBuilt('src/tools/LSPTool/UI.tsx:188')
+  const tokens = useMercuryTokens()
+  if (output.resultCount === undefined || output.outcome === 'failed') {
+    const firstLine = output.result.split('\n')[0] ?? ''
+    const text = verbose ? output.result : collapseAndClip(firstLine, LSP_ONE_LINE_MAX)
+    return (
+      <MessageResponse>
+        <Text>
+          <OutcomeBadge output={output} />
+          <Text color={tokens.textMuted}>{text}</Text>
+        </Text>
+      </MessageResponse>
+    )
+  }
+
+  const count = output.resultCount
+  const fileCount = output.fileCount ?? 0
+  const foundText = RESULT_LABELS[output.operation]?.found
+
+  const summary = (
+    <Text>
+      <OutcomeBadge output={output} />
+      {foundText && count > 0 ? (
+        foundText
+      ) : (
+        <>
+          Found <Text color={tokens.accent}>{count}</Text> {labelFor(output.operation, count)}
+          {fileCount > 1 ? (
+            <>
+              {' '}across <Text color={tokens.accent}>{fileCount}</Text> files
+            </>
+          ) : null}
+        </>
+      )}
+      {count > 0 && !verbose ? (
+        <Text color={tokens.textMuted}>
+          {' '}
+          <CtrlOToExpand />
+        </Text>
+      ) : null}
+    </Text>
+  )
+
+  return (
+    <MessageResponse>
+      <Box flexDirection="column">
+        {summary}
+        {verbose && output.result ? (
+          <Box paddingLeft={2}>
+            <Text>{output.result}</Text>
+          </Box>
+        ) : null}
+      </Box>
+    </MessageResponse>
+  )
 }
 
 export function renderToolUseErrorMessage(
