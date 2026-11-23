@@ -36,7 +36,6 @@ import { API_ERROR_MESSAGE_PREFIX, startsWithApiErrorPrefix } from './errorPrefi
 import { providerAskedWaitMs } from './recoveryBudget.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { clearEnvVarCommandWords } from '../../utils/platform/words.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 export { API_ERROR_MESSAGE_PREFIX, startsWithApiErrorPrefix } from './errorPrefix.js'
 
 export function malformedStreamFrameText(
@@ -101,32 +100,40 @@ export function reasoningOnlyNoticeLine(outputLimit: string | null, again: boole
   return `${head}${again ? ' again' : ''} — ${action}`
 }
 
-export const PROMPT_TOO_LONG_ERROR_MESSAGE: Unbuilt = unbuilt('src/services/api/errors.ts:104')
+export const PROMPT_TOO_LONG_ERROR_MESSAGE = 'Prompt is too long'
 
-export const CREDIT_BALANCE_TOO_LOW_ERROR_MESSAGE: Unbuilt = unbuilt('src/services/api/errors.ts:106')
+export const CREDIT_BALANCE_TOO_LOW_ERROR_MESSAGE = 'Credit balance is too low'
 
-export const INVALID_API_KEY_ERROR_MESSAGE: Unbuilt =
-  unbuilt('src/services/api/errors.ts:108')
+export const INVALID_API_KEY_ERROR_MESSAGE = 'Not logged in · Please run /logins'
 
-export const INVALID_API_KEY_ERROR_MESSAGE_EXTERNAL: Unbuilt =
-  unbuilt('src/services/api/errors.ts:111')
+export const INVALID_API_KEY_ERROR_MESSAGE_EXTERNAL = 'Invalid API key · Fix external API key'
 
 export function invalidCredentialWords(source: WireCredentialSource): string {
-  return notBuilt('src/services/api/errors.ts:114')
+  if (source.kind === 'env') {
+    return source.name === 'ANTHROPIC_API_KEY'
+      ? `Invalid API key · Fix ${source.name}`
+      : `Invalid credential · Fix ${source.name}`
+  }
+  if (source.kind === 'helper') return 'Invalid API key · Fix the credentials.keyCommand'
+  return INVALID_API_KEY_ERROR_MESSAGE
 }
 
 export function isInvalidCredentialWords(text: string): boolean {
-  return notBuilt('src/services/api/errors.ts:129')
+  return (
+    text === INVALID_API_KEY_ERROR_MESSAGE_EXTERNAL ||
+    text.startsWith('Invalid API key · Fix ') ||
+    text.startsWith('Invalid credential · Fix ')
+  )
 }
 
-export const REPEATED_529_ERROR_MESSAGE: Unbuilt =
-  unbuilt('src/services/api/errors.ts:133')
+export const REPEATED_529_ERROR_MESSAGE =
+  'Repeated API overload errors (529). The provider is under sustained load; try again shortly.'
 
-export const CUSTOM_OFF_SWITCH_MESSAGE: Unbuilt =
-  unbuilt('src/services/api/errors.ts:136')
+export const CUSTOM_OFF_SWITCH_MESSAGE =
+  'The top-tier model is under high load. Switch to the mid-tier model with /model for faster replies.'
 
-export const API_TIMEOUT_ERROR_MESSAGE: Unbuilt =
-  unbuilt('src/services/api/errors.ts:139')
+export const API_TIMEOUT_ERROR_MESSAGE =
+  'Request timed out. Check your internet connection and proxy settings.'
 
 const SDK_REQUEST_ABORTED_MESSAGE = 'Request was aborted.'
 
@@ -195,23 +202,34 @@ function providerNameOfModel(model: string): string {
 
 
 export function getPdfTooLargeErrorMessage(): string {
-  return notBuilt('src/services/api/errors.ts:208')
+  const prefix = `The PDF is too large for the API. PDFs are limited to ${API_PDF_MAX_PAGES} pages and ${formatFileSize(PDF_TARGET_RAW_SIZE)}. `
+  return getIsNonInteractiveSession()
+    ? `${prefix}Try reading the file another way, e.g. extracting its text with a PDF-to-text tool.`
+    : `${prefix}Use /rewind (or shift+up) to edit your last message, then retry with a smaller PDF or convert it to text first.`
 }
 
 export function getPdfPasswordProtectedErrorMessage(): string {
-  return notBuilt('src/services/api/errors.ts:216')
+  return getIsNonInteractiveSession()
+    ? 'The API cannot read a password-protected PDF. Extract or convert its contents with a CLI tool first.'
+    : 'The API cannot read a password-protected PDF. Use /rewind (or shift+up) to edit your message.'
 }
 
 export function getPdfInvalidErrorMessage(): string {
-  return notBuilt('src/services/api/errors.ts:223')
+  return getIsNonInteractiveSession()
+    ? 'The API could not read this invalid PDF. Convert it to text first.'
+    : 'The API could not read this invalid PDF. Use /rewind (or shift+up) to edit your message and try another file.'
 }
 
 export function getImageTooLargeErrorMessage(): string {
-  return notBuilt('src/services/api/errors.ts:230')
+  return getIsNonInteractiveSession()
+    ? 'The image is too large for the API. Resize it or take another approach.'
+    : 'The image is too large for the API. Use /rewind (or shift+up) to edit your last message, then retry with a smaller image.'
 }
 
 export function getRequestTooLargeErrorMessage(): string {
-  return notBuilt('src/services/api/errors.ts:237')
+  return getIsNonInteractiveSession()
+    ? 'The request is too large for the API (32 MB maximum). Use a smaller file.'
+    : 'The request is too large for the API (32 MB maximum). Use /rewind (or shift+up) to edit your message and remove or shrink the attached content.'
 }
 
 
@@ -395,12 +413,326 @@ function anthropicWireCredential(model: string, status: number | undefined): Wir
   return wireCredentialSource().kind === 'none' ? undefined : 'key'
 }
 
+function requestIdOf(error: unknown): string {
+  const direct = (error as { request_id?: unknown } | null)?.request_id
+  if (direct !== undefined && direct !== null && direct !== '') return String(direct)
+  const fromHeader = headerValue(errorHeaders(error), 'request-id')
+  if (fromHeader !== undefined && fromHeader !== '') return String(fromHeader)
+  return 'unknown'
+}
+
+function composeRateLimitErrorMessage(
+  error: unknown,
+  model: string,
+  message: string,
+  nonInteractive: boolean,
+  isWindow: boolean,
+): AssistantMessage {
+  const headers = errorHeaders(error)
+  const claim = headerValue(headers, 'anthropic-ratelimit-unified-representative-claim')
+  const overageStatus = headerValue(headers, 'anthropic-ratelimit-unified-overage-status')
+  const reset = headerValue(headers, 'anthropic-ratelimit-unified-reset')
+  const overageReset = headerValue(headers, 'anthropic-ratelimit-unified-overage-reset')
+  const overageDisabledReason = headerValue(headers, 'anthropic-ratelimit-unified-overage-disabled-reason')
+
+  if (isWindow && (Boolean(claim) || Boolean(overageStatus))) {
+    const limits: AnthropicLimits = {
+      status: 'rejected',
+      unifiedRateLimitFallbackAvailable: false,
+      isUsingOverage: false,
+      ...(reset !== undefined && reset !== '' ? { resetsAt: Number(reset) } : {}),
+      ...(overageReset !== undefined && overageReset !== '' ? { overageResetsAt: Number(overageReset) } : {}),
+      ...(claim !== undefined && claim !== '' ? { rateLimitType: rateLimitTypeOfClaim(claim) } : {}),
+      ...(overageStatus !== undefined && overageStatus !== '' ? { overageStatus: overageStatus as QuotaStatus } : {}),
+      ...(overageDisabledReason !== undefined && overageDisabledReason !== ''
+        ? { overageDisabledReason: overageDisabledReason as OverageDisabledReason }
+        : {}),
+    }
+    const rateLimitText = getRateLimitErrorMessage(limits, model)
+    const content = rateLimitText
+      ? `${rateLimitText}${composeAnthropicWallRemedies({ carryWords: () => anthropicCarryWords(limits) })}`
+      : NO_RESPONSE_REQUESTED
+    return createAssistantAPIErrorMessage({
+      content,
+      error: 'rate_limit',
+    })
+  }
+
+  if (message.includes(LONG_CONTEXT_EXTRA_USAGE_PHRASE)) {
+    const switchCmd = nonInteractive ? '--model' : '/model'
+    return createAssistantAPIErrorMessage({
+      content: `${API_ERROR_MESSAGE_PREFIX}: Anthropic says "Extra usage is required for long context". Enable extra usage in your Claude settings on the web, or switch to standard context with ${switchCmd}.`,
+      error: 'rate_limit',
+      errorDetails: message,
+    })
+  }
+
+  const detail = extract429Detail(message)
+  const body =
+    detail === null
+      ? 'Anthropic sent no detail; check https://status.anthropic.com.'
+      : detail.providerSentence
+        ? `Anthropic says: ${detail.text}`
+        : detail.text
+  return createAssistantAPIErrorMessage({
+    content: `${API_ERROR_MESSAGE_PREFIX} (429, request rejected): ${body}`,
+    error: 'rate_limit',
+    errorDetails: message,
+  })
+}
+
 function composeAssistantMessageFromError(
   error: unknown,
   model: string,
   _context?: { messages?: Message[]; messagesForAPI?: unknown[]; modelRefusalRequest?: ModelRefusalRequest | undefined },
 ): AssistantMessage {
-  return notBuilt('src/services/api/errors.ts:425')
+  const nonInteractive = getIsNonInteractiveSession()
+  const message = messageOf(error)
+  const status = statusOf(error)
+
+  if (isTimeoutError(error)) {
+    const content = message.startsWith('no first byte from ')
+      ? `${message} — the turn was aborted`
+      : API_TIMEOUT_ERROR_MESSAGE
+    return createAssistantAPIErrorMessage({ content, error: 'unknown' })
+  }
+
+  if (error instanceof ImageSizeError || error instanceof ImageResizeError) {
+    return createAssistantAPIErrorMessage({ content: getImageTooLargeErrorMessage() })
+  }
+
+  if (message.includes(CUSTOM_OFF_SWITCH_MESSAGE)) {
+    return createAssistantAPIErrorMessage({ content: CUSTOM_OFF_SWITCH_MESSAGE, error: 'rate_limit' })
+  }
+
+  if (isBedrockThrottle(error)) {
+    const waitMs = retryAfterHeaderMs(headerValue(errorHeaders(error), 'retry-after'))
+    const row = createAssistantAPIErrorMessage({
+      content: `${API_ERROR_MESSAGE_PREFIX}: ${message}`,
+      error: 'rate_limit',
+      errorDetails: message,
+    })
+    return waitMs !== undefined ? stampProviderWait(row, waitMs) : row
+  }
+
+  const anthropicRefusal = classifyAnthropicRefusal(anthropicRefusalFactsOf(error))
+  if (anthropicRefusal === 'rate-limit') {
+    const waitMs = retryAfterHeaderMs(headerValue(errorHeaders(error), 'retry-after'))
+    if (waitMs !== undefined) {
+      const detail = extract429Detail(message)?.text ?? message
+      return stampProviderWait(
+        createAssistantAPIErrorMessage({
+          content: `${API_ERROR_MESSAGE_PREFIX}: Anthropic is rate limited (${providerWaitWords(waitMs)} wait): ${detail}`,
+          error: 'rate_limit',
+          errorDetails: message,
+        }),
+        waitMs,
+      )
+    }
+  }
+  if ((anthropicRefusal === 'window' || anthropicRefusal === 'rate-limit') && shouldProcessRateLimits(isClaudeAISubscriber())) {
+    return composeRateLimitErrorMessage(error, model, message, nonInteractive, anthropicRefusal === 'window')
+  }
+
+  if (message.toLowerCase().includes(PROMPT_TOO_LONG_ERROR_MESSAGE.toLowerCase())) {
+    const overflow = classifyOverflowFault({ family: overflowFamilyOfModel(model), status, message })
+    return createAssistantAPIErrorMessage({
+      content: PROMPT_TOO_LONG_ERROR_MESSAGE,
+      error: 'invalid_request',
+      errorDetails: message,
+      ...(overflow !== null ? { overflow } : {}),
+    })
+  }
+
+  if (PDF_PAGES_PATTERN.test(message)) {
+    return createAssistantAPIErrorMessage({
+      content: getPdfTooLargeErrorMessage(),
+      error: 'invalid_request',
+      errorDetails: message,
+    })
+  }
+
+  if (message.includes(PDF_PASSWORD_PHRASE)) {
+    return createAssistantAPIErrorMessage({
+      content: getPdfPasswordProtectedErrorMessage(),
+      error: 'invalid_request',
+    })
+  }
+
+  if (message.includes(PDF_INVALID_PHRASE)) {
+    return createAssistantAPIErrorMessage({
+      content: getPdfInvalidErrorMessage(),
+      error: 'invalid_request',
+    })
+  }
+
+  if (status === 400 && message.includes('image exceeds') && message.includes('maximum')) {
+    return createAssistantAPIErrorMessage({
+      content: getImageTooLargeErrorMessage(),
+      errorDetails: message,
+    })
+  }
+
+  if (status === 400 && message.includes('image dimensions exceed') && isManyImageRefusal(message)) {
+    const limit = statedManyImageLimit(message) ?? ANTHROPIC_IMAGE_LIMITS.manyImages?.maxSidePx ?? 3000
+    const suffix = nonInteractive ? '' : ' Continue, or run /compact to drop old images.'
+    return createAssistantAPIErrorMessage({
+      content: `An image exceeds the API's stricter ${limit}-pixel limit for a request with more than 20 images. The images in this conversation are sized to that limit at the next send, and an image that cannot be sized is left out of the request; nothing is dropped from the transcript.${suffix}`,
+      error: 'invalid_request',
+      errorDetails: message,
+    })
+  }
+
+  if (
+    error instanceof Error &&
+    status === 400 &&
+    message.includes('image dimensions exceed') &&
+    message.includes('max allowed size')
+  ) {
+    const suffix = nonInteractive ? '' : ' Continue, or run /compact to drop old images.'
+    return createAssistantAPIErrorMessage({
+      content: `An image exceeds the API limit of 8000px on any side. The oversized image is sized to that limit at the next send, and an image that cannot be sized is left out of the request; nothing is dropped from the transcript.${suffix}`,
+      error: 'invalid_request',
+      errorDetails: message,
+    })
+  }
+
+  if (status === 413) {
+    const overflow = classifyOverflowFault({ family: overflowFamilyOfModel(model), status, message })
+    return createAssistantAPIErrorMessage({
+      content: getRequestTooLargeErrorMessage(),
+      error: 'invalid_request',
+      ...(overflow !== null ? { overflow } : {}),
+    })
+  }
+
+  if (status === 400 && message.includes(ADJACENCY_PHRASE)) {
+    const suffix = nonInteractive ? '' : ' Run /rewind to recover from an earlier point.'
+    return createAssistantAPIErrorMessage({
+      content: `${API_ERROR_MESSAGE_PREFIX} (400): a tool-use concurrency problem left a tool use without its result.${suffix}`,
+      error: 'invalid_request',
+      errorDetails: message,
+    })
+  }
+
+  if (status === 400 && message.includes(DUPLICATE_TOOL_USE_PHRASE)) {
+    const suffix = nonInteractive ? '' : ' Run /rewind to recover from an earlier point.'
+    return createAssistantAPIErrorMessage({
+      content: `${API_ERROR_MESSAGE_PREFIX} (400): a duplicate tool-use id exists in conversation history.${suffix}`,
+      error: 'invalid_request',
+      errorDetails: message,
+    })
+  }
+
+  if ((status === 400 || status === 403 || status === 404) && routeOfModel(model) === 'anthropic') {
+    const refusal = modelRefusalFromError(error, model, _context?.modelRefusalRequest)
+    if (refusal !== null) {
+      noteModelRefusal(refusal, _context?.modelRefusalRequest?.home)
+      logForDebugging(`[api] model refusal (${refusal.kind}) on ${model} — the wire said: ${message}`)
+      return createAssistantAPIErrorMessage({
+        content: `${API_ERROR_MESSAGE_PREFIX} (${status}): ${refusal.words}`,
+        error: 'invalid_request',
+        ...(status === 404 ? { errorDetails: `HTTP 404 · model: ${model} · request_id: ${requestIdOf(error)}` } : {}),
+      })
+    }
+  }
+
+  if (message.includes(CREDIT_BALANCE_PROVIDER_PHRASE)) {
+    return createAssistantAPIErrorMessage({
+      content: CREDIT_BALANCE_TOO_LOW_ERROR_MESSAGE,
+      error: 'billing_error',
+      errorDetails: message,
+    })
+  }
+
+  if (needsAnthropicWorkspace(message)) {
+    return createAssistantAPIErrorMessage({
+      content: ANTHROPIC_WORKSPACE_FIX,
+      error: 'invalid_request',
+    })
+  }
+
+  const hasXApiKey = message.toLowerCase().includes('x-api-key')
+  if (status === 401 || hasXApiKey) {
+    const helperFailure = getApiKeyHelperFailure()
+    if (
+      helperFailure !== null &&
+      getAnthropicApiKeyWithSource({ skipRetrievingKeyFromApiKeyHelper: true }).source === 'credentials.keyCommand'
+    ) {
+      return createAssistantAPIErrorMessage({
+        content: `${API_ERROR_MESSAGE_PREFIX}: the configured credentials.keyCommand failed (${helperFailure.message}) — no credential was sent; fix the helper and retry`,
+        error: 'authentication_failed',
+      })
+    }
+    if (hasXApiKey) {
+      return createAssistantAPIErrorMessage({
+        content: invalidCredentialWords(wireCredentialSource('x-api-key')),
+        error: 'authentication_failed',
+      })
+    }
+  }
+
+  const wallKind =
+    classifyCredentialWall(status, message, anthropicWireCredential(model, status)) ??
+    (classifyAnthropicRefusal(anthropicRefusalFactsOf(error, isAnthropicOAuthSignInExpired())) === 'sign-in'
+      ? 'sign-in'
+      : undefined)
+  if (wallKind !== undefined) {
+    logForDebugging(`[api] credential wall (${wallKind}) on ${model} — the wire said: ${message}`)
+    return createAssistantAPIErrorMessage({
+      content: `${API_ERROR_MESSAGE_PREFIX}: ${credentialWallLine(routeOfModel(model), wallKind, { nonInteractive })}`,
+      error: 'authentication_failed',
+    })
+  }
+
+  if (status === 401 || status === 403) {
+    return composeAuthFailureMessage(status, model, message, nonInteractive)
+  }
+
+  if (status === 404) {
+    const cmd = nonInteractive ? '`--model`' : '`/model`'
+    return createAssistantAPIErrorMessage({
+      content: `Model ${model} was not found or is not accessible (HTTP 404, request_id: ${requestIdOf(error)}). Run ${cmd} to pick another model.`,
+      error: 'invalid_request',
+    })
+  }
+
+  if (isConnectionError(error)) {
+    return createAssistantAPIErrorMessage({
+      content: `${API_ERROR_MESSAGE_PREFIX}: ${formatConnectionFallback(error)}`,
+      error: 'unknown',
+    })
+  }
+
+  if (error instanceof Error) {
+    const overflow = classifyOverflowFault({ family: overflowFamilyOfModel(model), status, message: error.message })
+    if (status !== undefined && status >= 400 && status <= 499) {
+      logForDebugging(`[api] ${status} on ${model} — the wire said: ${error.message}`)
+      const detail = extractProviderDetail(status, error.message)
+      const family = providerNameOfModel(model)
+      const words =
+        detail === null
+          ? `${family} sent no detail`
+          : detail.providerSentence
+            ? `${family} says: ${detail.text}`
+            : detail.text
+      return createAssistantAPIErrorMessage({
+        content: `${API_ERROR_MESSAGE_PREFIX} (${status}): ${words}`,
+        error: 'unknown',
+        ...(overflow !== null ? { overflow } : {}),
+      })
+    }
+    return createAssistantAPIErrorMessage({
+      content: `${API_ERROR_MESSAGE_PREFIX}: ${error.message}`,
+      error: 'unknown',
+      ...(overflow !== null ? { overflow } : {}),
+    })
+  }
+
+  return createAssistantAPIErrorMessage({
+    content: API_ERROR_MESSAGE_PREFIX,
+    error: 'unknown',
+  })
 }
 
 function composeAuthFailureMessage(status: number, model: string, message: string, nonInteractive: boolean): AssistantMessage {
