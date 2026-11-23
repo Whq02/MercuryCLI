@@ -152,16 +152,16 @@ export function registerMcpAddCommand(mcp: CommanderCommand): void {
 
         if (transport === 'sse' || transport === 'http') {
           const lines = [
-            `Added ${transport.toUpperCase()} MCP server ${name} with URL: ${describeUrlRedacted(commandOrUrl)} to ${scope} config`,
+            `Added ${transport.toUpperCase()} MCP server ${name} at ${describeUrlRedacted(commandOrUrl)} (${scope} scope)`,
           ]
           if (headers !== undefined && Object.keys(headers).length > 0) {
-            lines.push(`Headers: ${describeHeadersRedacted(headers)}`)
+            lines.push(`headers: ${describeHeadersRedacted(headers)}`)
           }
           lines.push(`Configuration written to ${describeMcpConfigFilePath(scope)}`)
           summary = lines.join('\n')
         } else {
           const commandSummary = [commandOrUrl, ...(args ?? [])].join(' ')
-          summary = `Added stdio MCP server ${name} with command: ${commandSummary} to ${scope} config\nConfiguration written to ${describeMcpConfigFilePath(scope)}`
+          summary = `Added stdio MCP server ${name} (${commandSummary}) in ${scope} scope\nConfiguration written to ${describeMcpConfigFilePath(scope)}`
         }
       } catch (error) {
         cliError(error instanceof Error ? error.message : String(error))
