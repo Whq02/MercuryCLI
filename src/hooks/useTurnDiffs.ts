@@ -40,13 +40,6 @@ function isToolResultMessage(message: UserMessage): boolean {
   )
 }
 
-type FileEditLikeResult = {
-  filePath?: unknown
-  structuredPatch?: unknown
-  type?: unknown
-  content?: unknown
-}
-
 type TurnFileEntry = LineChanges & {
   filePath: string
   hunks: Hunk[]
@@ -101,6 +94,16 @@ function synthesizeCreateHunks(content: string): Hunk[] {
   ]
 }
 
+function isHunk(value: unknown): value is Hunk {
+  if (typeof value !== 'object' || value === null) return false
+  if (!('oldStart' in value) || typeof value.oldStart !== 'number') return false
+  if (!('oldLines' in value) || typeof value.oldLines !== 'number') return false
+  if (!('newStart' in value) || typeof value.newStart !== 'number') return false
+  if (!('newLines' in value) || typeof value.newLines !== 'number') return false
+  if (!('lines' in value) || !Array.isArray(value.lines)) return false
+  return value.lines.every(line => typeof line === 'string')
+}
+
 function extractFileEdit(result: unknown): {
   filePath: string
   hunks: Hunk[]
@@ -109,19 +112,20 @@ function extractFileEdit(result: unknown): {
   if (typeof result !== 'object' || result === null || Array.isArray(result)) {
     return null
   }
-  const edit = result as FileEditLikeResult
-  if (typeof edit.filePath !== 'string') return null
-  const isNewFile = edit.type === 'create'
-  const patch = Array.isArray(edit.structuredPatch)
-    ? (edit.structuredPatch as Hunk[])
-    : []
-  if (patch.length > 0) {
-    return { filePath: edit.filePath, hunks: patch, isNewFile }
+  if (!('filePath' in result) || typeof result.filePath !== 'string') {
+    return null
   }
-  if (isNewFile && typeof edit.content === 'string') {
-    const hunks = synthesizeCreateHunks(edit.content)
+  const isNewFile = 'type' in result && result.type === 'create'
+  if ('structuredPatch' in result && Array.isArray(result.structuredPatch)) {
+    const patch = result.structuredPatch.filter(isHunk)
+    if (patch.length > 0) {
+      return { filePath: result.filePath, hunks: patch, isNewFile }
+    }
+  }
+  if (isNewFile && 'content' in result && typeof result.content === 'string') {
+    const hunks = synthesizeCreateHunks(result.content)
     if (hunks.length > 0) {
-      return { filePath: edit.filePath, hunks, isNewFile: true }
+      return { filePath: result.filePath, hunks, isNewFile: true }
     }
   }
   return null
@@ -130,17 +134,19 @@ function extractFileEdit(result: unknown): {
 function finalizeTurn(turn: MutableTurn): TurnDiff {
   let linesAdded = 0
   let linesRemoved = 0
-  for (const file of turn.files.values()) {
+  const files = new Map<string, TurnFileEntry>()
+  for (const [key, file] of turn.files) {
     linesAdded += file.linesAdded
     linesRemoved += file.linesRemoved
+    files.set(key, { ...file, hunks: [...file.hunks] })
   }
   return {
     turnIndex: turn.turnIndex,
     userPromptPreview: turn.userPromptPreview,
     timestamp: turn.timestamp,
-    files: new Map(turn.files),
+    files,
     stats: {
-      filesChanged: turn.files.size,
+      filesChanged: files.size,
       linesAdded,
       linesRemoved,
     },

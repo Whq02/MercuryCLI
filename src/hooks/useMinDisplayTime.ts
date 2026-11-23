@@ -4,13 +4,15 @@ import { startTimeout, stopTimeout } from '../utils/timers.js'
 
 export function useMinDisplayTime<T>(value: T, minMs: number): T {
   const [shown, setShown] = useState<T>(() => value)
-  const shownAtRef = useRef<number>(Date.now())
+  const [initialShownAt] = useState<number>(() => Date.now())
+  const shownAtRef = useRef<number>(initialShownAt)
 
   useTimer(() => {
     if (Object.is(value, shown)) return
-    const elapsed = Date.now() - shownAtRef.current
+    const now = Date.now()
+    const elapsed = now - shownAtRef.current
     if (elapsed >= minMs) {
-      shownAtRef.current = Date.now()
+      shownAtRef.current = now
       setShown(() => value)
       return
     }
