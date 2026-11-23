@@ -1,7 +1,6 @@
 import sliceAnsi from '../utils/sliceAnsi.js'
 import { stringWidth } from './stringWidth.js'
 import { wrapAnsi } from './wrapAnsi.js'
-import { notBuilt } from '../pi/holes.js'
 
 const ELLIPSIS = '…'
 
@@ -68,7 +67,17 @@ export function truncateParts(
   maxWidth: number,
   wrapType: string,
 ): { lead: string; ellipsis: boolean; trail: string } | null {
-  return notBuilt('src/ink/wrap-text.ts:66')
+  if (!wrapType.startsWith('truncate')) return null
+  if (maxWidth < 1) return { lead: '', ellipsis: false, trail: '' }
+  if (maxWidth === 1) return { lead: '', ellipsis: true, trail: '' }
+  if (stringWidth(text) <= maxWidth) return null
+  const room = maxWidth - 1
+  if (wrapType === 'truncate-start') return { lead: '', ellipsis: true, trail: trailingSlice(text, room) }
+  if (wrapType === 'truncate-middle') {
+    const lead = leadingSlice(text, Math.floor(room / 2))
+    return { lead, ellipsis: true, trail: trailingSlice(text, room - stringWidth(lead)) }
+  }
+  return { lead: leadingSlice(text, room), ellipsis: true, trail: '' }
 }
 
 export default function wrapText(
@@ -76,5 +85,8 @@ export default function wrapText(
   maxWidth: number,
   wrapType: string,
 ): string {
-  return notBuilt('src/ink/wrap-text.ts:88')
+  if (wrapType === 'wrap') return stripSoftWrapLeadingSpaces(text, wrapAnsi(text, maxWidth, { hard: true, trim: false }))
+  if (wrapType === 'wrap-trim') return wrapAnsi(text, maxWidth, { hard: true, trim: true })
+  const parts = truncateParts(text, maxWidth, wrapType)
+  return parts === null ? text : parts.lead + (parts.ellipsis ? ELLIPSIS : '') + parts.trail
 }
