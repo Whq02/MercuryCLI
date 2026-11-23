@@ -16,10 +16,64 @@ import {
   SAND,
   TEAL,
 } from '../components/mercuryPalette.js'
-import type { Unbuilt } from '../pi/holes.js'
 
 
-export type Theme = Unbuilt
+export type Theme = {
+  autoAccept: string
+  bashBorder: string
+  brand: string
+  brandShimmer: string
+  systemSpinner: string
+  systemSpinnerShimmer: string
+  permission: string
+  permissionShimmer: string
+  info: string
+  infoShimmer: string
+  ide: string
+  promptBorder: string
+  promptBorderShimmer: string
+  promptBorderResting: string
+  text: string
+  inverseText: string
+  inactive: string
+  inactiveShimmer: string
+  subtle: string
+  suggestion: string
+  remember: string
+  background: string
+  success: string
+  error: string
+  warning: string
+  merged: string
+  warningShimmer: string
+  cardBrown: string
+  diffAdded: string
+  diffRemoved: string
+  diffAddedDimmed: string
+  diffRemovedDimmed: string
+  diffAddedWord: string
+  diffRemovedWord: string
+  red_FOR_SUBAGENTS_ONLY: string
+  blue_FOR_SUBAGENTS_ONLY: string
+  green_FOR_SUBAGENTS_ONLY: string
+  yellow_FOR_SUBAGENTS_ONLY: string
+  purple_FOR_SUBAGENTS_ONLY: string
+  orange_FOR_SUBAGENTS_ONLY: string
+  pink_FOR_SUBAGENTS_ONLY: string
+  cyan_FOR_SUBAGENTS_ONLY: string
+  professionalBlue: string
+  chromeYellow: string
+  userMessageBackground: string
+  userMessageBackgroundHover: string
+  messageActionsBackground: string
+  selectionBg: string
+  bashMessageBackgroundColor: string
+  memoryBackgroundColor: string
+  rate_limit_fill: string
+  rate_limit_empty: string
+  briefLabelYou: string
+  briefLabelAssistant: string
+}
 
 export const THEME_NAMES = ['dark', 'true-black', 'mono'] as const
 
