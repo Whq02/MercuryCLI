@@ -17,7 +17,11 @@ const CHARS_PER_TOKEN = 4
 const IMAGE_CHAR_CHARGE = IMAGE_TOKEN_ESTIMATE * CHARS_PER_TOKEN
 
 function truncationNotice(maxTokens: number): string {
-  return `\n\n[Output truncated: exceeded the ${maxTokens.toLocaleString()} token limit]`
+  return (
+    `\n\n[Output truncated: the tool result exceeded the ${maxTokens}-token MCP output limit. ` +
+    'If this MCP server offers pagination or filtering tools, use them to fetch the specific portions you need. ' +
+    'If pagination is unavailable, tell the user that you are working with truncated output and that the results may be incomplete.]'
+  )
 }
 
 export function getMaxMcpOutputTokens(): number {
