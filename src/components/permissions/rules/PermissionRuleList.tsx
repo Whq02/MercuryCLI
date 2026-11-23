@@ -149,14 +149,14 @@ function RulesTabContent({
       filtered.length <= 1
         ? null
         : index < filtered.length - 1
-          ? ruleKey(filtered[index + 1]!)
-          : ruleKey(filtered[index - 1]!)
+          ? ruleKey(filtered[index + 1] as PermissionRule)
+          : ruleKey(filtered[index - 1] as PermissionRule)
     onSelectRule(rule, next)
   }
 
   return (
     <Box flexDirection="column">
-      <Text dimColor>{TAB_SUBTITLE[behavior]}</Text>
+      <Text dimColor>{TAB_SUBTITLE[behavior as 'allow' | 'ask' | 'deny']}</Text>
       <Select
         options={options}
         visibleOptionCount={visibleCount}

@@ -12,7 +12,6 @@ import { projectDirectoryIdentity, resolveDirectoryIdentity, resolveProjectStore
 import { setStoreHealth, transcriptStoreHealth } from './sessionStorage/writer/storeHealth.js'
 import { stripGroundNote } from './isolationNote.js'
 import { passedOver } from './passedOver.js'
-import { isOneOf } from './isOneOf.js'
 
 export const LITE_READ_BUF_SIZE = 65_536
 export const MAX_SANITIZED_LENGTH = 200
@@ -346,7 +345,7 @@ const projectDirMemo = new Map<string, string>()
 
 export function foldProjectConfigHomeTail(dir: string): string {
   const base = basename(dir)
-  if (!isOneOf(PROJECT_CONFIG_DIR_NAMES, base)) return dir
+  if (!(PROJECT_CONFIG_DIR_NAMES as readonly string[]).includes(base)) return dir
   const parent = dirname(dir)
   const parentBase = basename(parent)
   if (parentBase.length === 0 || parentBase === base) return dir

@@ -15,6 +15,7 @@ type LineObject = {
   code: string
   type: 'add' | 'remove' | 'nochange'
   wordDiff: boolean
+  originalCode: string
   matchedLine?: LineObject
 }
 
@@ -37,6 +38,7 @@ function transformLinesToObjects(lines: string[]): LineObject[] {
       code: line.slice(1),
       type,
       wordDiff: false,
+      originalCode: line,
     }
   })
 }

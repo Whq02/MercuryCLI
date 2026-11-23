@@ -39,7 +39,7 @@ export function PreviewBox(props: PreviewBoxProps): React.ReactNode {
 }
 
 function PreviewBoxWithHighlight(props: PreviewBoxProps): React.ReactNode {
-  const highlight = use(getCliHighlightPromise())
+  const highlight = use(getCliHighlightPromise()) as CliHighlight | null
   return <PreviewBoxBody {...props} highlight={highlight} />
 }
 
