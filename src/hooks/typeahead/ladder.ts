@@ -47,7 +47,7 @@ export type LadderContext = {
   cursor: number
   mode: PromptInputMode
   commands: Command[]
-  commandArgumentHint?: string
+  argumentHint: string | undefined
   appStateStore: AppStateStore
   publish: Publish
   clearSuggestions: () => void

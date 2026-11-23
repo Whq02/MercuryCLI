@@ -284,7 +284,7 @@ export function useTypeahead({
       cursor: cursorOffsetRef.current,
       mode,
       commands,
-      commandArgumentHint: commandArgumentHintRef.current,
+      argumentHint: commandArgumentHintRef.current,
       appStateStore,
       publish,
       clearSuggestions,
