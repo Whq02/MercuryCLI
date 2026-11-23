@@ -1,5 +1,12 @@
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
+import type { Command } from '../../commands.js'
 
-const keybindings: Unbuilt = unbuilt('src/commands/keybindings/index.ts:3')
+const keybindings: Command = {
+  name: 'keybindings',
+  description: 'Edit your keybindings file (/keys shows the effective map)',
+  supportsNonInteractive: false,
+  seat: 'screen',
+  type: 'local',
+  load: () => import('./keybindings.js'),
+}
 
 export default keybindings
