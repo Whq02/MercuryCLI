@@ -26,9 +26,13 @@ import { matchingRuleForInput } from '../../utils/permissions/filesystem.js'
 import { isFileReadDenied } from '../../utils/attachments/shared.js'
 import type { AlreadyReadFileAttachment, Attachment, CompactFileReferenceAttachment, DroppedImageAttachment, FileAttachment, PDFReferenceAttachment } from '../../utils/attachments/types.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-type FileRow = Unbuilt
+type FileRow =
+  | FileAttachment
+  | AlreadyReadFileAttachment
+  | CompactFileReferenceAttachment
+  | PDFReferenceAttachment
+  | DroppedImageAttachment
 type ReadWindow = { offset?: number; limit?: number }
 type ReadRequest = ReadWindow & { file_path: string }
 type ReadMode = 'compact' | 'at-mention'
@@ -36,8 +40,9 @@ const modes = {
   compact: { checkSize: false, referencePDF: false, reuseRead: false, oversizedReference: true },
   'at-mention': { checkSize: true, referencePDF: true, reuseRead: true, oversizedReference: false },
 } as const
+const PDF_ESTIMATED_BYTES_PER_PAGE = 102400
 const displayOf = (filename: string): string => relative(getCwd(), filename)
-const pdfPath = (filename: string): boolean => notBuilt('src/services/attachments/fileAttachments.ts:39')
+const pdfPath = (filename: string): boolean => isPDFExtension(parse(filename).ext.toLowerCase())
 
 async function fileRow(input: ReadRequest, context: ToolUseContext, clipped = false): Promise<FileAttachment> {
   const answer = await FileReadTool.call(input, context)
@@ -123,12 +128,75 @@ async function tooLargeToMention(filename: string): Promise<FileRow | null | fal
   }
 }
 
+function alreadyReadRow(filename: string, cached: FileState, startLine: number): AlreadyReadFileAttachment {
+  const numLines = countCharInString(cached.content, '\n') + 1
+  return {
+    type: 'already_read_file',
+    filename,
+    displayPath: displayOf(filename),
+    content: {
+      type: 'text',
+      file: {
+        filePath: filename,
+        content: cached.content,
+        numLines,
+        startLine,
+        totalLines: numLines,
+      },
+    },
+  }
+}
+
+async function reusableRead(filename: string, context: ToolUseContext, offset?: number): Promise<AlreadyReadFileAttachment | null> {
+  const cached = context.readFileState.get(filename)
+  if (!cached) return null
+  if ((cached.offset ?? 0) !== 0 || cached.limit !== undefined) return null
+  try {
+    if (await getFileModificationTimeAsync(filename) !== cached.timestamp) return null
+  } catch (error) {
+    passedOver(error)
+    return null
+  }
+  return alreadyReadRow(filename, cached, offset ?? 1)
+}
+
 export async function generateFileAttachment(filename: string, context: ToolUseContext, mode: ReadMode, options?: ReadWindow): Promise<FileRow | null> {
-  return notBuilt('src/services/attachments/fileAttachments.ts:139')
+  if (isRemotePath(filename) || isFileReadDenied(filename, context.getAppState().toolPermissionContext)) return null
+  const policy = modes[mode]
+  if (policy.checkSize) {
+    const oversized = await tooLargeToMention(filename)
+    if (oversized !== false) return oversized
+  }
+  if (policy.referencePDF) {
+    const pdf = await tryGetPDFReference(filename)
+    if (pdf !== null) return pdf
+  }
+  if (policy.reuseRead) {
+    const cached = await reusableRead(filename, context, options?.offset)
+    if (cached !== null) return cached
+  }
+  return validatedRead({ file_path: filename, offset: options?.offset, limit: options?.limit }, context, mode)
 }
 
 export async function tryGetPDFReference(filename: string): Promise<PDFReferenceAttachment | null> {
-  return notBuilt('src/services/attachments/fileAttachments.ts:160')
+  if (!pdfPath(filename)) return null
+  try {
+    const stats = await getFsImplementation().stat(filename)
+    if (!stats.isFile()) return null
+    const measured = await getPDFPageCount(filename)
+    const pageCount = measured ?? Math.ceil(stats.size / PDF_ESTIMATED_BYTES_PER_PAGE)
+    if (pageCount <= PDF_AT_MENTION_INLINE_THRESHOLD) return null
+    return {
+      type: 'pdf_reference',
+      filename,
+      displayPath: displayOf(filename),
+      pageCount,
+      fileSize: stats.size,
+    }
+  } catch (error) {
+    passedOver(error)
+    return null
+  }
 }
 
 async function changedContent(filename: string, previous: string, output: ReadOutput, startLine = 1): Promise<Attachment[]> {
