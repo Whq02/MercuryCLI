@@ -72,7 +72,7 @@ const JQ_LONG_FILE_FLAG_RE = /^--(?:from-file|rawfile|slurpfile|library-path)(?:
 
 function readClusterTakesNext(cluster: string): boolean {
   for (let i = 1; i < cluster.length; i++) {
-    if (READ_DATA_FLAGS.has(cluster[i] as string)) return i === cluster.length - 1
+    if (READ_DATA_FLAGS.has(cluster[i]!)) return i === cluster.length - 1
   }
   return false
 }
@@ -93,10 +93,10 @@ const subscriptOperands: SemanticCheck = (name, argv) => {
   const flags = SUBSCRIPT_FLAGS.get(name)
   if (!flags) return null
   for (let i = 1; i < argv.length; i++) {
-    const arg = argv[i] as string
+    const arg = argv[i]!
     if (!arg.startsWith('-') || arg.startsWith('--')) continue
     for (const flag of flags) {
-      const letter = flag[1] as string
+      const letter = flag[1]!
       if (arg === flag) {
         const next = argv[i + 1]
         if (next !== undefined && next.includes('[')) {
@@ -118,8 +118,8 @@ const subscriptOperands: SemanticCheck = (name, argv) => {
 const arithmeticComparison: SemanticCheck = (name, argv) => {
   if (name !== '[[') return null
   for (let i = 2; i < argv.length; i++) {
-    if (!ARITHMETIC_COMPARISONS.has(argv[i] as string)) continue
-    const left = argv[i - 1] as string
+    if (!ARITHMETIC_COMPARISONS.has(argv[i]!)) continue
+    const left = argv[i - 1]!
     const right = argv[i + 1]
     if (left.includes('[') || (right !== undefined && right.includes('['))) {
       return 'arithmetic comparison inside [[ ]] evaluates bracketed subscripts, which can execute code'
@@ -132,7 +132,7 @@ const bareNameOperands: SemanticCheck = (name, argv) => {
   if (name !== 'read' && name !== 'unset') return null
   let i = 1
   while (i < argv.length) {
-    const arg = argv[i] as string
+    const arg = argv[i]!
     if (arg.startsWith('-')) {
       if (name === 'read' && readClusterTakesNext(arg)) i += 1
       i += 1
@@ -244,7 +244,7 @@ export function checkSemantics(commands: SimpleCommand[]): SemanticCheckResult {
     const isEcho = command.argv[0] === 'echo'
     for (let i = 0; i < command.argv.length; i++) {
       if (isEcho && i > 0) continue
-      if (!isKnown(command.argv[i] as string)) {
+      if (!isKnown(command.argv[i]!)) {
         return { ok: false, reason: UNKNOWN_VALUE_REASON }
       }
     }
@@ -260,7 +260,7 @@ export function checkSemantics(commands: SimpleCommand[]): SemanticCheckResult {
     }
     if (peeled.length === 0) continue
 
-    const name = peeled[0] as string
+    const name = peeled[0]!
     if (name === 'xargs' && peeled.length === 1) {
       return {
         ok: false,

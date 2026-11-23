@@ -308,7 +308,7 @@ export function rewriteReadOnlyGitCommand(command: string, cwd: string, depth = 
 function asWrittenSingle(command: string, fallback: string, cwd: string): string {
   const posixCwd = nativePathToShell(cwd)
   const written = splitListSegments(command).filter(segment => segment !== `cd ${cwd}` && segment !== `cd ${posixCwd}`)
-  return written.length === 1 ? (written[0] as string) : fallback
+  return written.length === 1 ? written[0]! : fallback
 }
 
 
@@ -662,8 +662,8 @@ async function decideBashPermission(
   if (originalPath.behavior === 'ask' && !anySubcommandAsked) return originalPath
 
   const nonAllow = decisions.filter(d => d.behavior !== 'allow')
-  if (nonAllow.length === 1 && (nonAllow[0] as PermissionResult).behavior === 'ask') {
-    return nonAllow[0] as PermissionResult
+  if (nonAllow.length === 1 && nonAllow[0]!.behavior === 'ask') {
+    return nonAllow[0]!
   }
 
   if (exact.behavior === 'allow' && !anySubcommandAsked) return exact
@@ -676,7 +676,7 @@ async function decideBashPermission(
     decisions[index]!.behavior === 'allow' && isCurrentDirectoryCommand(parsedSubcommands[index]!, cwd) ? [] : [index])
   if (substantiveIndices.length === 1) {
     const index = substantiveIndices[0]!
-    const subcommand = subcommands[index] as string
+    const subcommand = subcommands[index]!
     const single = await checkCommandAndSuggestRules(
       { ...input, command: subcommand },
       context,
@@ -704,7 +704,7 @@ async function decideBashPermission(
   const collected: ReturnType<typeof suggestionForExactCommand> = []
   const seen = new Set<string>()
   subcommands.forEach((sub, i) => {
-    const result = merged[i] as PermissionResult
+    const result = merged[i]!
     if (result.behavior === 'allow') return
     let rules = ('suggestions' in result && result.suggestions) || []
     if (result.behavior === 'ask' && rules.length === 0 && result.decisionReason?.type !== 'rule') {
@@ -730,7 +730,7 @@ async function decideBashPermission(
 
 function subcommandResultsReason(subcommands: string[], results: PermissionResult[]): PermissionDecisionReason {
   const map = new Map<string, PermissionResult>()
-  subcommands.forEach((sub, i) => map.set(sub, results[i] as PermissionResult))
+  subcommands.forEach((sub, i) => map.set(sub, results[i]!))
   return { type: 'subcommandResults', reasons: map }
 }
 
@@ -784,7 +784,7 @@ const PRIVILEGE_VALUE_LONGS = new Set(['--user', '--group', '--close-from', '--c
 function privilegeTarget(argv: string[]): string[] {
   let i = 1
   while (i < argv.length) {
-    const word = argv[i] as string
+    const word = argv[i]!
     if (word === '--') {
       i++
       break
@@ -808,11 +808,11 @@ function privilegeTarget(argv: string[]): string[] {
 function decodeAnsiCString(text: string): string | null {
   const match = text.match(/^\$'([\s\S]*)'$/)
   if (!match) return null
-  const body = match[1] as string
+  const body = match[1]!
   const simple: Record<string, string> = { a: '\x07', b: '\b', e: '\x1b', E: '\x1b', f: '\f', n: '\n', r: '\r', t: '\t', v: '\v', '\\': '\\', "'": "'", '"': '"', '?': '?' }
   let out = ''
   for (let i = 0; i < body.length; i++) {
-    const char = body[i] as string
+    const char = body[i]!
     if (char !== '\\') {
       out += char
       continue
@@ -859,7 +859,7 @@ const FIND_EXEC_FLAGS: ReadonlySet<string> = new Set(['-exec', '-execdir', '-ok'
 function unwrapCommandBuiltin(argv: string[]): string[] | null {
   let i = 1
   while (i < argv.length) {
-    const word = argv[i] as string
+    const word = argv[i]!
     if (word === '--') {
       i++
       break
@@ -879,7 +879,7 @@ function shortFlagLetters(word: string): string | undefined {
 function unwrapExecBuiltin(argv: string[]): string[] | null {
   let i = 1
   while (i < argv.length) {
-    const word = argv[i] as string
+    const word = argv[i]!
     if (word === '--') {
       i++
       break
@@ -905,7 +905,7 @@ function unwrapExecBuiltin(argv: string[]): string[] | null {
 function unwrapXargs(argv: string[]): string[] | null {
   let i = 1
   while (i < argv.length) {
-    const word = argv[i] as string
+    const word = argv[i]!
     if (word === '--') {
       i++
       break
@@ -923,7 +923,7 @@ function unwrapXargs(argv: string[]): string[] | null {
     }
     let tookNext = false
     for (let k = 1; k < word.length; k++) {
-      const ch = word[k] as string
+      const ch = word[k]!
       if (XARGS_VALUE_SHORTS.includes(ch)) {
         if (k === word.length - 1) tookNext = true
         break
@@ -937,10 +937,10 @@ function unwrapXargs(argv: string[]): string[] | null {
 function unwrapFindExecs(argv: string[]): string[][] {
   const results: string[][] = []
   for (let i = 1; i < argv.length; i++) {
-    if (!FIND_EXEC_FLAGS.has(argv[i] as string)) continue
+    if (!FIND_EXEC_FLAGS.has(argv[i]!)) continue
     const inner: string[] = []
     for (let j = i + 1; j < argv.length; j++) {
-      const token = argv[j] as string
+      const token = argv[j]!
       if (token === ';' || token === '+') {
         i = j
         break
@@ -975,7 +975,7 @@ function restrictedCommandCandidates(command: SimpleCommand, depth = 0): string[
 
   while (queue.length > 0) {
     const argv = queue.shift() as string[]
-    const head = argv[0] as string
+    const head = argv[0]!
     const normalizedHead = head.replace(/\\/g, '/')
     const name = posixPath.basename(normalizedHead)
     if (name !== head && name !== '') {
@@ -989,7 +989,7 @@ function restrictedCommandCandidates(command: SimpleCommand, depth = 0): string[
 
     if (name === 'time') {
       let i = 1
-      while (i < argv.length && (shortFlagLetters(argv[i] as string) === 'p' || argv[i] === '--')) {
+      while (i < argv.length && (shortFlagLetters(argv[i]!) === 'p' || argv[i] === '--')) {
         const stop = argv[i] === '--'
         i++
         if (stop) break
@@ -1052,7 +1052,7 @@ function restrictedCommandCandidates(command: SimpleCommand, depth = 0): string[
 function optionValues(args: string[], short: string, longs: readonly string[]): string[] {
   const values: string[] = []
   for (let i = 0; i < args.length; i++) {
-    const arg = args[i] as string
+    const arg = args[i]!
     const long = longs.find(name => arg === name || arg.startsWith(`${name}=`))
     if (long !== undefined) {
       const value = arg === long ? args[++i] : arg.slice(long.length + 1)

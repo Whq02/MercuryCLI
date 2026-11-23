@@ -43,7 +43,7 @@ function getCompletionContext(beforeCursor: string): CompletionContext {
   if (!parsed.success) {
     const parts = beforeCursor.trim().split(/\s+/).filter(Boolean)
     if (parts.length === 0) return { prefix: '', type: 'command' }
-    const last = parts[parts.length - 1] as string
+    const last = parts[parts.length - 1]!
     if (parts.length === 1) return { prefix: last, type: 'command' }
     return { prefix: last, type: classifyToken(last) }
   }
@@ -52,7 +52,7 @@ function getCompletionContext(beforeCursor: string): CompletionContext {
   if (stringTokens.length === 0) return { prefix: '', type: 'command' }
   if (/\s$/.test(beforeCursor)) return { prefix: '', type: 'file' }
 
-  const lastToken = stringTokens[stringTokens.length - 1] as string
+  const lastToken = stringTokens[stringTokens.length - 1]!
   let type = classifyToken(lastToken)
   if (type === 'command') {
     const prevOp = findTokenBefore(parsed.tokens, lastToken)

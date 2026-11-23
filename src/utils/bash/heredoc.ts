@@ -66,7 +66,7 @@ function advanceScan(text: string, from: number, to: number, state: ScanState): 
       state.quote = 'single'
     } else if (ch === '"' && precedingBackslashCount(text, i) % 2 === 0) {
       state.quote = 'double'
-    } else if (ch === '#' && (i === 0 || DELIMITER_TERMINATORS.has(text[i - 1] as string))) {
+    } else if (ch === '#' && (i === 0 || DELIMITER_TERMINATORS.has(text[i - 1]!))) {
       state.comment = true
     }
   }
@@ -243,7 +243,7 @@ function parseCandidateAt(command: string, opIndex: number): Candidate | null {
       j++
     }
     const wordStart = j
-    while (j < command.length && /[A-Za-z0-9_]/.test(command[j] as string)) j++
+    while (j < command.length && /[A-Za-z0-9_]/.test(command[j]!)) j++
     if (j === wordStart && body === '') return null
     if (command[j] !== quoteChar) return null
     body += command.slice(wordStart, j)
@@ -258,7 +258,7 @@ function parseCandidateAt(command: string, opIndex: number): Candidate | null {
       j++
     }
     const wordStart = j
-    while (j < command.length && /[A-Za-z0-9_]/.test(command[j] as string)) j++
+    while (j < command.length && /[A-Za-z0-9_]/.test(command[j]!)) j++
     if (j === wordStart) return null
     delimiter = command.slice(wordStart, j)
     literalBody = escaped

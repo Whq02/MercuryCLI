@@ -224,7 +224,7 @@ export function sedCommandIsAllowedByAllowlist(command: string, options?: { allo
 
 function isWellFormedSubstitutionWithoutWriteFlags(expression: string): boolean {
   if (expression.length < 4 || expression[0] !== 's') return false
-  const delimiter = expression[1] as string
+  const delimiter = expression[1]!
   if (delimiter === '\\' || delimiter === '\n') return false
   let count = 0
   let flagsStart = -1

@@ -30,7 +30,7 @@ export function parseSedEditCommand(command: string): SedEditInfo | null {
 
   const args = simple.argv.slice(1)
   for (let i = 0; i < args.length; i++) {
-    const arg = args[i] as string
+    const arg = args[i]!
     if (arg === '-i' || arg === '--in-place') {
       inPlace = true
       const next = args[i + 1]
@@ -77,9 +77,9 @@ export function parseSedEditCommand(command: string): SedEditInfo | null {
   const sections: string[] = []
   let current = ''
   for (let i = 2; i < program.length; i++) {
-    const ch = program[i] as string
+    const ch = program[i]!
     if (ch === '\\' && i + 1 < program.length) {
-      current += ch + (program[i + 1] as string)
+      current += ch + program[i + 1]!
       i++
       continue
     }
@@ -153,9 +153,9 @@ const BRE_SPECIALS: ReadonlySet<string> = new Set(['+', '?', '|', '(', ')', '{',
 function translatePattern(pattern: string, extendedRegex: boolean): string {
   let out = ''
   for (let i = 0; i < pattern.length; i++) {
-    const ch = pattern[i] as string
+    const ch = pattern[i]!
     if (ch === '\\' && i + 1 < pattern.length) {
-      const next = pattern[i + 1] as string
+      const next = pattern[i + 1]!
       if (next === '/') {
         out += '/'
         i++
@@ -187,9 +187,9 @@ function translatePattern(pattern: string, extendedRegex: boolean): string {
 function translateReplacement(replacement: string): string {
   let out = ''
   for (let i = 0; i < replacement.length; i++) {
-    const ch = replacement[i] as string
+    const ch = replacement[i]!
     if (ch === '\\' && i + 1 < replacement.length) {
-      const next = replacement[i + 1] as string
+      const next = replacement[i + 1]!
       if (next === '/') {
         out += '/'
       } else if (next === '&') {

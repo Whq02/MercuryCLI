@@ -20,7 +20,7 @@ import { findTaskOutcome, type TaskOutcomeEnvelope, type TaskOutcomeState } from
 export function resolveStopTargetId(raw: string, state: Pick<AppState, 'tasks' | 'agentNameRegistry'>): string {
   const tasks = state.tasks ?? {}
   if (tasks[raw] !== undefined) return raw
-  const registered = (state.agentNameRegistry as ReadonlyMap<string, string> | undefined)?.get(raw)
+  const registered = state.agentNameRegistry?.get(raw)
   if (registered !== undefined && tasks[String(registered)] !== undefined) return String(registered)
   return raw
 }

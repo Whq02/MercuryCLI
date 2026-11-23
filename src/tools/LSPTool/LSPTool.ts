@@ -785,7 +785,7 @@ function makeLspTool(name: LspToolName): Tool {
     validateInput: async (input: LspInput) => validateInput(name, scoped(input)),
     async call(input: LspInput, context: ToolUseContext, canUseTool, parentMessage) {
       const own = scoped(input)
-      const messageId = parentMessage?.uuid as UUID | undefined
+      const messageId = parentMessage?.uuid
       const requestWritePermission = typeof canUseTool === 'function' && parentMessage
         ? async (path: string): Promise<boolean> => {
             const requested = { ...own, filePath: path }

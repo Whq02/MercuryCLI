@@ -1,3 +1,4 @@
+import { isOneOf } from '../../utils/isOneOf.js'
 import type { Theme } from '../../utils/theme.js'
 
 const UNBRANDED_AGENT_TYPE = 'mercury-crew'
@@ -29,10 +30,7 @@ export const AGENT_COLOR_TO_THEME_COLOR: Record<AgentColorName, keyof Theme> = {
 const agentColorRegistry = new Map<string, AgentColorName>()
 
 function isPaletteColor(value: unknown): value is AgentColorName {
-  return (
-    typeof value === 'string' &&
-    (AGENT_COLORS as readonly string[]).includes(value)
-  )
+  return isOneOf(AGENT_COLORS, value)
 }
 
 export function getAgentColor(agentType: string): keyof Theme | undefined {

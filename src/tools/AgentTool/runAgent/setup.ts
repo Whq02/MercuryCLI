@@ -11,7 +11,6 @@ import { subagentDefaultEffort } from '../../../utils/agentDefaults.js'
 import { createFileStateCacheWithSizeLimit } from '../../../utils/fileStateCache.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { getSchemaBoundStructuredOutputTool } from '../../SyntheticOutputTool/structuredOutputTool.js'
-import type { PermissionMode } from '../../../utils/permissions/PermissionMode.js'
 import { recordAtRunStart } from '../../../services/crew/crewmateRecord.js'
 import { swarmBrief } from '../../../services/crewBoard/seam.js'
 import { type ThinkingConfig, sessionThinkingConfig } from '../../../utils/thinking.js'
@@ -26,9 +25,7 @@ type PostureNeeds = Pick<RunAgentParams, 'toolUseContext' | 'agentDefinition' | 
 
 export function agentPostureOf({ toolUseContext, agentDefinition, isAsync, canShowPermissionPrompts, allowedTools, effortOverride, useExactTools, resolveAgentEffort }: PostureNeeds) {
   const parentGetAppState = toolUseContext.getAppState
-  const definitionMode = agentDefinition.permissionMode as
-    | PermissionMode
-    | undefined
+  const definitionMode = agentDefinition.permissionMode
   const parentPermissionContext = parentGetAppState?.()?.toolPermissionContext
   if (
     definitionMode !== undefined &&
