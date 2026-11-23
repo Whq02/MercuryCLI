@@ -113,7 +113,7 @@ export const CronCreateTool: Tool<InputSchema, CreateOutput> = buildTool({
     }
     if (normalized.length > SATURN_PROMPT_CAP) {
       return refuse(
-        `prompt is ${normalized.length.toLocaleString('en-US')} characters; a schedule holds at most ${SATURN_PROMPT_CAP.toLocaleString('en-US')}. Put the long instructions in a file and schedule a short prompt that names the file. Nothing was scheduled.`,
+        `prompt is ${normalized.length.toLocaleString('en-US')} characters; a schedule holds at most 20,000. Put the long instructions in a file and schedule a short prompt that names the file. Nothing was scheduled.`,
       )
     }
     if (input.title !== undefined && cleanSaturnTitle(input.title) === null) {

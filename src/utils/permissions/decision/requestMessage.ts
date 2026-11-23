@@ -36,9 +36,9 @@ const REASON_LINES: ReasonLines<ReasonByType> = {
       }
     }
     const count = parts.length
+    if (count === 0) return `Several parts of this ${toolName} command need approval`
     const lead = count === 1 ? 'One' : 'Several'
-    const head = `${lead} ${plural(count, 'part')} of this ${toolName} command ${plural(count, 'needs', 'need')} approval`
-    return count === 0 ? head : `${head}: ${parts.join(', ')}`
+    return `${lead} ${plural(count, 'part')} of this ${toolName} command ${plural(count, 'needs', 'need')} approval: ${parts.join(', ')}`
   },
   permissionPromptTool: (toolName, reason) =>
     `Tool '${reason.permissionPromptToolName ?? ''}' requires approval for this ${toolName} command`,

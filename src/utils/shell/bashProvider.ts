@@ -76,7 +76,7 @@ export async function createBashShellProvider(
       lastUsedSnapshot = usableSnapshot !== undefined
       if (usableSnapshot === undefined) {
         const why = loginFilesNotCarried()?.why
-        logForDebugging(why ? `no shell snapshot in use (${why})` : 'no shell snapshot in use')
+        logForDebugging(`no shell snapshot in use${why ? ` (${why})` : ''}`)
       }
 
       const isWindows = getPlatform() === 'windows'

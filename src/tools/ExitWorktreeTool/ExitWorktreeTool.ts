@@ -132,7 +132,9 @@ export const ExitWorktreeTool = buildTool({
     if (counts === null) {
       return {
         result: false,
-        message: `Could not verify the state of the worktree at ${session.worktreePath} — refusing to remove it without explicit confirmation. Either re-invoke with discard_changes: true after confirming with the user, or use action: "keep" to preserve it.`,
+        message:
+          `Could not verify the state of the worktree at ${session.worktreePath} — refusing to remove it without explicit confirmation. ` +
+          'Either re-invoke with discard_changes: true after confirming with the user, or use action: "keep" to preserve it.',
         errorCode: 3,
       }
     }
@@ -149,7 +151,9 @@ export const ExitWorktreeTool = buildTool({
       }
       return {
         result: false,
-        message: `The worktree has ${parts.join(' and ')}. Removing it will discard this work permanently. Confirm with the user first, then re-invoke with discard_changes: true — or use action: "keep" to preserve the worktree.`,
+        message:
+          `The worktree has ${parts.join(' and ')}. Removing it will discard this work permanently. ` +
+          'Confirm with the user first, then re-invoke with discard_changes: true — or use action: "keep" to preserve the worktree.',
         errorCode: 2,
       }
     }

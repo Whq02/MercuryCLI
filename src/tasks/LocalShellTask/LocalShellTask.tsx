@@ -185,9 +185,12 @@ function armStallWatchdog(args: {
       }
 
       const summary = [
-        `${BACKGROUND_BASH_SUMMARY_PREFIX}"${args.description}" seems to be blocked waiting for keyboard input. Last output:`,
+        `${BACKGROUND_BASH_SUMMARY_PREFIX}"${args.description}" seems to be blocked ` +
+          'waiting for keyboard input' +
+          '. Last output:',
         tail.trimEnd(),
-        'To proceed: stop the task, then launch the command again with its answers piped into standard input, or with whatever non-interactive option it offers.',
+        'To proceed: stop the task, then launch the command again with its answers ' +
+          'piped into standard input, or with whatever non-interactive option it offers.',
       ].join('\n')
 
       const lines = [

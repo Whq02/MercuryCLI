@@ -110,9 +110,7 @@ export const CronListTool: Tool<InputSchema, ListOutput> = buildTool({
     const hiddenCount = output.pastDueHidden ?? 0
     const hidden =
       hiddenCount > 0
-        ? hiddenCount === 1
-          ? ' 1 fire row whose fire time has passed is not shown.'
-          : ` ${hiddenCount} fire rows whose fire time has passed are not shown.`
+        ? ` ${hiddenCount} fire row${hiddenCount === 1 ? '' : 's'} whose fire time has passed ${hiddenCount === 1 ? 'is' : 'are'} not shown.`
         : ''
     if (output.schedules.length === 0) {
       return {

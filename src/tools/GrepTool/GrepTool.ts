@@ -93,7 +93,7 @@ const inputSchema = z.strictObject({
   '-i': semanticBoolean(z.boolean().optional()).describe('Match case-insensitively (rg -i)'),
   type: z.string().optional().describe('Search only one file type (rg --type): js, py, rust, go and the like.'),
   head_limit: semanticNumber(z.number().optional()).describe(
-    'Cap the output at the first N lines/entries (default 250); applies in every output mode; 0 lifts the cap.',
+    `Cap the output at the first N lines/entries (default ${DEFAULT_HEAD_LIMIT}); applies in every output mode; 0 lifts the cap.`,
   ),
   offset: semanticNumber(z.number().optional()).describe(
     'Skip this many lines/entries before the head_limit window applies (paging). Default 0.',

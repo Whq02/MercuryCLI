@@ -80,7 +80,7 @@ export const ProviderSearchTool = buildTool({
     const family = nativeSearchFamilyOf(model)
     if (!family) {
       throw new Error(
-        `ProviderSearch is the provider's own search, and this session's model (${model}) belongs to a family whose wire carries none — use WebSearch (the vendored search) instead.`,
+        `${PROVIDER_SEARCH_TOOL_NAME} is the provider's own search, and this session's model (${model}) belongs to a family whose wire carries none — use WebSearch (the vendored search) instead.`,
       )
     }
     const outcome = await nativeSearch(

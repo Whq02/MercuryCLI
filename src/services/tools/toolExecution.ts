@@ -583,7 +583,7 @@ async function runTransactionBody(args: {
   const { decision } = resolved
   const decisionMs = Date.now() - decisionStartedAt
   if (decisionMs > SLOW_PHASE_THRESHOLD_MS && permissionMode === 'flow') {
-    logForDebugging(`permission decision for ${tool.name} took ${decisionMs}ms (mode flow) → ${decision.behavior}`)
+    logForDebugging(`permission decision for ${tool.name} took ${decisionMs}ms (mode ${permissionMode}) → ${decision.behavior}`)
   }
 
   const decided = await permissionDecidedHooks(

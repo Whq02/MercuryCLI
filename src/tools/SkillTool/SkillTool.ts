@@ -456,7 +456,7 @@ export const SkillTool: Tool<InputSchema, Output, SkillToolProgress> = buildTool
     if (command.disableModelInvocation) {
       return {
         result: false,
-        message: `Skill "${name}" cannot be invoked through Skill: it sets disable-model-invocation in its frontmatter.`,
+        message: `Skill "${name}" cannot be invoked through ${SKILL_TOOL_NAME}: it sets disable-model-invocation in its frontmatter.`,
         errorCode: 4,
       }
     }
