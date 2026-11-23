@@ -1,4 +1,4 @@
-import type { MCPServerConnection } from '../../utils/mcp/types.js'
+import type { ConnectedMCPServer, MCPServerConnection } from '../../utils/mcp/types.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { createSignal } from '../../utils/signal.js'
 import { passedOver } from '../../utils/passedOver.js'
@@ -9,21 +9,10 @@ const CALL_TIMEOUT_MS = 5000
 const CACHE_CAP = 50
 const SUGGESTION_CAP = 10
 
-type ConnectedSlackClient = MCPServerConnection & {
-  type: 'connected'
-  client: {
-    callTool: (
-      params: { name: string; arguments: Record<string, unknown> },
-      resultSchema?: undefined,
-      options?: { timeout?: number },
-    ) => Promise<unknown>
-  }
-}
-
-function findSlackClient(clients: MCPServerConnection[]): ConnectedSlackClient | null {
+function findSlackClient(clients: MCPServerConnection[]): ConnectedMCPServer | null {
   for (const client of clients) {
     if (client.type === 'connected' && client.name.toLowerCase().includes('slack')) {
-      return client as ConnectedSlackClient
+      return client
     }
   }
   return null
@@ -57,13 +46,16 @@ function cachedChannelsFor(query: string, token: string): string[] | null {
   const direct = responseCache.get(query)
   if (direct !== undefined) return direct
   let bestKey: string | null = null
-  for (const key of responseCache.keys()) {
+  let bestChannels: string[] | null = null
+  for (const [key, channels] of responseCache) {
     if (!query.startsWith(key)) continue
-    const channels = responseCache.get(key) as string[]
     if (!channels.some(channel => channel.startsWith(token))) continue
-    if (bestKey === null || key.length > bestKey.length) bestKey = key
+    if (bestKey === null || key.length > bestKey.length) {
+      bestKey = key
+      bestChannels = channels
+    }
   }
-  return bestKey !== null ? (responseCache.get(bestKey) as string[]) : null
+  return bestChannels
 }
 
 function queryPrefixFor(token: string): string {
@@ -86,27 +78,26 @@ function collectNamesFromJson(value: unknown, out: Set<string>): void {
     for (const item of value) collectNamesFromJson(item, out)
     return
   }
-  if (value && typeof value === 'object') {
-    const record = value as Record<string, unknown>
-    if (typeof record.name === 'string') {
-      const name = normalizeChannelName(record.name)
+  if (value !== null && typeof value === 'object') {
+    if ('name' in value && typeof value.name === 'string') {
+      const name = normalizeChannelName(value.name)
       if (name !== null) out.add(name)
     }
-    for (const key of ['channels', 'results', 'items', 'data'] as const) {
-      if (record[key] !== undefined) collectNamesFromJson(record[key], out)
-    }
+    if ('channels' in value) collectNamesFromJson(value.channels, out)
+    if ('results' in value) collectNamesFromJson(value.results, out)
+    if ('items' in value) collectNamesFromJson(value.items, out)
+    if ('data' in value) collectNamesFromJson(value.data, out)
   }
 }
 
 function parseChannelsFromToolResult(result: unknown): string[] {
   const out = new Set<string>()
-  if (!result || typeof result !== 'object') return []
-  const content = (result as { content?: unknown }).content
-  if (Array.isArray(content)) {
-    for (const block of content) {
-      if (!block || typeof block !== 'object') continue
-      const text = (block as { text?: unknown }).text
-      if (typeof text !== 'string') continue
+  if (result === null || typeof result !== 'object') return []
+  if ('content' in result && Array.isArray(result.content)) {
+    for (const block of result.content) {
+      if (block === null || typeof block !== 'object' || !('text' in block)) continue
+      if (typeof block.text !== 'string') continue
+      const text = block.text
       let parsedJson = false
       try {
         const parsed: unknown = JSON.parse(text)
@@ -130,11 +121,10 @@ function parseChannelsFromToolResult(result: unknown): string[] {
   return [...out]
 }
 
-async function fetchSlackChannels(client: ConnectedSlackClient, query: string): Promise<string[]> {
+async function fetchSlackChannels(client: ConnectedMCPServer, query: string): Promise<string[]> {
   try {
     const raw = await client.client.callTool(
       { name: 'slack_search_channels', arguments: { query, limit: QUERY_LIMIT } },
-      undefined,
       { timeout: CALL_TIMEOUT_MS },
     )
     const channels = parseChannelsFromToolResult(raw)
