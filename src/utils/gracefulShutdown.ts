@@ -433,12 +433,12 @@ function leaveWatchesToProcessEnd(): void {
   }
 }
 
-async function loadRestorationOnTty(door: string): Promise<void> {
+async function loadRestorationOnTty(failureLine: string): Promise<void> {
   if (!process.stdout.isTTY || restorationModule) return
   try {
     restorationModule = await import('./shutdownRestoration.js')
   } catch (error) {
-    logForDebugging(`${door}: restoration module import failed: ${String(error)}`)
+    logForDebugging(`${failureLine}${String(error)}`)
   }
 }
 
@@ -454,7 +454,7 @@ export async function gracefulShutdown(
   if (shutdownInProgress) return
   shutdownInProgress = true
   leaveWatchesToProcessEnd()
-  await loadRestorationOnTty('gracefulShutdown')
+  await loadRestorationOnTty('gracefulShutdown: restoration module import failed: ')
   failsafeTimer = startTimeout(
     () => restoreThenForceExit(exitCode),
     Math.max(FAILSAFE_FLOOR_MS, SESSION_END_HOOK_BUDGET_MS + FAILSAFE_HOOK_MARGIN_MS),
@@ -528,7 +528,7 @@ export async function crashShutdown(exitCode: number): Promise<void> {
   if (shutdownInProgress) return
   shutdownInProgress = true
   leaveWatchesToProcessEnd()
-  await loadRestorationOnTty('crashShutdown')
+  await loadRestorationOnTty('crashShutdown: restoration module import failed: ')
   const cap = startTimeout(() => restoreThenForceExit(exitCode), CRASH_SHUTDOWN_BUDGET_MS)
   cap.unref()
   process.exitCode = exitCode

@@ -38,7 +38,7 @@ const MAX_SLUG_LENGTH = 64
 
 export function validateWorktreeSlug(slug: string): void {
   if (slug.length > MAX_SLUG_LENGTH) {
-    throw new Error(`Worktree name exceeds the 64-character limit (${slug.length})`)
+    throw new Error(`Worktree name exceeds the ${MAX_SLUG_LENGTH}-character limit (${slug.length})`)
   }
   for (const segment of slug.split(/\//)) {
     if (segment === '.' || segment === '..') {
@@ -155,14 +155,16 @@ async function createOrResumeWorktreeNow(repoRoot: string, slug: string, options
       const detail = fetched.stderr.trim() || 'the PR may not exist, or this repository may have no origin remote'
       throw new Error(`Could not fetch PR #${options.prNumber}: ${detail}`)
     }
-    const resolved = await runGit(['rev-parse', '--verify', 'FETCH_HEAD^{commit}'], repoRoot)
+    const ref = 'FETCH_HEAD'
+    const resolved = await runGit(['rev-parse', '--verify', `${ref}^{commit}`], repoRoot)
     const sha = resolved.stdout.trim()
-    if (resolved.code !== 0 || !FULL_SHA_PATTERN.test(sha)) throw new Error('Could not resolve the worktree base ref FETCH_HEAD')
+    if (resolved.code !== 0 || !FULL_SHA_PATTERN.test(sha)) throw new Error(`Could not resolve the worktree base ref ${ref}`)
     baseCommit = sha
   } else {
-    const resolved = await runGit(['rev-parse', '--verify', 'HEAD^{commit}'], baseCwd)
+    const ref = 'HEAD'
+    const resolved = await runGit(['rev-parse', '--verify', `${ref}^{commit}`], baseCwd)
     const sha = resolved.stdout.trim()
-    if (resolved.code !== 0 || !FULL_SHA_PATTERN.test(sha)) throw new Error('Could not resolve the worktree base ref HEAD')
+    if (resolved.code !== 0 || !FULL_SHA_PATTERN.test(sha)) throw new Error(`Could not resolve the worktree base ref ${ref}`)
     baseCommit = sha
     const baseGitDir = await resolveGitDir(baseCwd)
     const head = baseGitDir !== null ? await readGitHead(baseGitDir) : null
@@ -840,7 +842,10 @@ export async function createAgentWorktree(
   const sourceDir = options?.from ?? getCwd()
   const gitRoot = findCanonicalGitRoot(sourceDir)
   if (!gitRoot) {
-    throw new Error('Worktree isolation is unavailable here: this is not a git repository. Retry the same Crewmate call WITHOUT the isolation parameter; the crewmate will run in the current directory.')
+    throw new Error(
+      'Worktree isolation is unavailable here: this is not a git repository. ' +
+        'Retry the same Crewmate call WITHOUT the isolation parameter; the crewmate will run in the current directory.',
+    )
   }
   const baseFrom = findGitRoot(sourceDir) ?? gitRoot
   const created = await createOrResumeWorktree(gitRoot, slug, { ...(options?.at !== undefined ? { at: options.at } : {}), baseFrom })

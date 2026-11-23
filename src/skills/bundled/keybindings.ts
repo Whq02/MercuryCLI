@@ -57,7 +57,7 @@ function buildReservedSection(): string {
     [
       'Terminal-reserved:',
       ...TERMINAL_RESERVED.map(
-        s => `- ${s.key} — ${s.reason}${s.severity === 'error' ? ' (will not work)' : ' (may conflict)'}`,
+        s => `- ${s.key} — ${s.reason} (${s.severity === 'error' ? 'will not work' : 'may conflict'})`,
       ),
     ],
     ['macOS-reserved (errors on macOS):', ...MACOS_RESERVED.map(s => `- ${s.key} — ${s.reason}`)],

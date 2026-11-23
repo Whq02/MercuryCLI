@@ -85,7 +85,7 @@ export function registerDebugSkill(): void {
         `- local: ${localSettings}`,
         '',
         'Steps:',
-        '1. Read the 20-line tail above, then Grep the full log file for `[ERROR]` and `[WARN]`.',
+        `1. Read the ${TAIL_LINES}-line tail above, then Grep the full log file for \`[ERROR]\` and \`[WARN]\`.`,
         '2. Correlate hits with user actions and inspect relevant settings files.',
         `3. Invoke \`${MERCURY_DOCS_SKILL_NAME}\` when checking harness behavior.`,
         '4. Report plain-language findings and concrete next steps.',
