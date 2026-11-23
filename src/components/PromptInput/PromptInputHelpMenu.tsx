@@ -12,13 +12,18 @@ import { isDeckPaneActive } from '../../utils/fullscreen.js'
 import { GLYPH, displayWidth } from '../../utils/glyphs.js'
 import { stripKeyMapHint } from '../../context/surfaceRoute.js'
 import { getNewlineInstructions } from './utils.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 function formatShortcut(shortcut: string): string {
-  return notBuilt('src/components/PromptInput/PromptInputHelpMenu.tsx:16')
+  return shortcut.replaceAll('+', ' + ')
 }
 
-type Props = Unbuilt
+type Props = {
+  dimColor?: boolean
+  fixedWidth?: boolean
+  gap?: number
+  paddingX?: number
+  availableColumns?: number
+}
 
 export function PromptInputHelpMenu(props: Props): React.ReactNode {
   const { dimColor, fixedWidth, gap, paddingX, availableColumns } = props
