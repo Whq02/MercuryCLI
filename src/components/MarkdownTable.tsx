@@ -1,8 +1,7 @@
 import React from 'react'
 import type { Tokens } from 'marked'
 import wrapAnsi from 'wrap-ansi'
-import { Box } from '../ink.js'
-import { Ansi } from '../ink.js'
+import { Ansi, Box } from '../ink.js'
 import { stringWidth } from '../ink/stringWidth.js'
 import sliceAnsi from '../utils/sliceAnsi.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
@@ -12,8 +11,6 @@ import type { CliHighlight } from '../utils/cliHighlight.js'
 
 const MIN_COL_WIDTH = 3
 const MAX_ROW_LINES = 4
-
-type Cell = { text: string }
 
 function inlineText(
   raw: string,
@@ -43,9 +40,9 @@ function padTo(text: string, width: number, align: string): string {
   return text + ' '.repeat(deficit)
 }
 
-function wrapCell(text: string, width: number, hard: boolean): string[] {
+function wrapCell(text: string, width: number): string[] {
   if (text === '') return ['']
-  const wrapped = wrapAnsi(text, width, { hard, trim: false, wordWrap: true })
+  const wrapped = wrapAnsi(text, width, { hard: false, trim: false, wordWrap: true })
   const out: string[] = []
   for (const rawLine of wrapped.split('\n')) {
     const line = rawLine.trimEnd()
@@ -158,7 +155,7 @@ export function MarkdownTable({
 
   const rows = token.rows.map(row =>
     Array.from({ length: columnCount }, (_, c) =>
-      inlineText((row[c] as Cell | undefined)?.text ?? '', themeName, highlight),
+      inlineText(row[c]?.text ?? '', themeName, highlight),
     ),
   )
   const aligns = Array.from({ length: columnCount }, (_, c) => token.align[c] ?? 'left')
@@ -183,32 +180,24 @@ export function MarkdownTable({
   const idealTotal = idealWidths.reduce((sum, w) => sum + w, 0)
   const minTotal = minWidths.reduce((sum, w) => sum + w, 0)
 
-  let widths: number[]
-  let hardBreak = false
-  if (idealTotal <= available) {
-    widths = idealWidths
-  } else if (minTotal <= available) {
-    const spare = available - minTotal
-    const wants = idealWidths.map((ideal, c) => Math.max(0, ideal - minWidths[c]!))
-    const totalWant = wants.reduce((sum, w) => sum + w, 0)
-    widths = minWidths.map((min, c) =>
-      totalWant === 0 ? min : min + Math.floor((spare * wants[c]!) / totalWant),
-    )
-  } else {
-    hardBreak = true
-    const safeAvailable = Math.max(columnCount * MIN_COL_WIDTH, available)
-    widths = idealWidths.map(ideal =>
-      Math.max(MIN_COL_WIDTH, Math.floor((safeAvailable * ideal) / Math.max(1, idealTotal))),
-    )
-  }
-
   let output: string
-  if (hardBreak) {
+  if (minTotal > available) {
     output = renderVerticalCards(headers, rows, terminalWidth)
   } else {
-    const wrappedHeader = headers.map((cell, c) => wrapCell(cell, widths[c]!, false))
+    let widths: number[]
+    if (idealTotal <= available) {
+      widths = idealWidths
+    } else {
+      const spare = available - minTotal
+      const wants = idealWidths.map((ideal, c) => Math.max(0, ideal - minWidths[c]!))
+      const totalWant = wants.reduce((sum, w) => sum + w, 0)
+      widths = minWidths.map((min, c) =>
+        totalWant === 0 ? min : min + Math.floor((spare * wants[c]!) / totalWant),
+      )
+    }
+    const wrappedHeader = headers.map((cell, c) => wrapCell(cell, widths[c]!))
     const wrappedRows = rows.map(row =>
-      row.map((cell, c) => wrapCell(cell, widths[c]!, false)),
+      row.map((cell, c) => wrapCell(cell, widths[c]!)),
     )
     const exceedsRowLines =
       wrappedHeader.some(lines => lines.length > MAX_ROW_LINES) ||
