@@ -136,14 +136,6 @@ function handleMultiSelectKey<T>(
     if (!isAllowedInInput) return
   }
 
-  if (key.escape) {
-    if (onCancel) {
-      event.stopImmediatePropagation()
-      onCancel()
-    }
-    return
-  }
-
   const firstIdx = firstEnabledIndexOf(options)
   const lastIdx = lastEnabledIndexOf(options)
   const currentIdx = options.findIndex(option => option.value === navigation.focusedValue)
@@ -152,95 +144,37 @@ function handleMultiSelectKey<T>(
     event.stopImmediatePropagation()
     if (onTabOut) {
       onTabOut(key.shift ? 'previous' : 'next')
-      return
-    }
-    if (hasSubmitButton) {
-      if (key.shift) {
-        if (isSubmitFocused) {
-          setSubmitFocus(false)
-          navigation.focusLastOption()
-        } else if (currentIdx === firstIdx) {
-          setSubmitFocus(true)
-        } else {
-          navigation.focusPreviousOption()
-        }
-      } else if (isSubmitFocused) {
-        setSubmitFocus(false)
-        navigation.focusFirstOption()
-      } else if (currentIdx === lastIdx) {
-        setSubmitFocus(true)
-      } else {
-        navigation.focusNextOption()
-      }
     } else if (key.shift) {
-      navigation.focusPreviousOption()
+      if (isSubmitFocused) {
+        setSubmitFocus(false)
+        navigation.focusLastOption()
+      } else {
+        navigation.focusPreviousOption()
+      }
+    } else if (isSubmitFocused) {
+      return
+    } else if (currentIdx === lastIdx && hasSubmitButton) {
+      setSubmitFocus(true)
     } else {
       navigation.focusNextOption()
     }
     return
   }
 
-  if (!inInput && !hideIndexes && !key.ctrl && !key.meta) {
-    const normalizedDigit = normalizeFullWidthDigits(input)
-    if (/^[1-9]$/.test(normalizedDigit)) {
-      const targetIdx = Number(normalizedDigit) - 1
-      if (targetIdx >= 0 && targetIdx < options.length) {
-        event.stopImmediatePropagation()
-        const target = options[targetIdx]!
-        if (!target.disabled) {
-          const val = optionValueOf(target)
-          if (isInputOption(target)) {
-            activateInputFromOrdinal(val)
-          } else {
-            setSubmitFocus(false)
-            navigation.focusValue(val)
-            toggleValue(val)
-          }
-        }
-        return
-      }
-    }
-    if (/^[a-zA-Z]$/.test(input)) {
-      const upper = input.toUpperCase()
-      const target = options.find(option => letterOrdinalOf(option) === upper)
-      if (target) {
-        event.stopImmediatePropagation()
-        if (!target.disabled) {
-          const val = optionValueOf(target)
-          if (isInputOption(target)) {
-            activateInputFromOrdinal(val)
-          } else {
-            setSubmitFocus(false)
-            navigation.focusValue(val)
-            toggleValue(val)
-          }
-        }
-        return
-      }
-    }
-  }
-
   const isDown =
     key.downArrow ||
     (key.ctrl && input === 'n') ||
-    (!inInput && !key.ctrl && !key.meta && input === 'j') ||
+    (!key.ctrl && !key.shift && input === 'j') ||
     (scrollMovesFocus && key.wheelDown)
   if (isDown) {
     event.stopImmediatePropagation()
     if (isSubmitFocused) {
-      if (onDownFromLastItem) {
-        onDownFromLastItem()
-      } else {
-        setSubmitFocus(false)
-        navigation.focusFirstOption()
-      }
-    } else if (currentIdx === lastIdx && lastIdx >= 0) {
+      onDownFromLastItem?.()
+    } else if (currentIdx === lastIdx) {
       if (hasSubmitButton) {
         setSubmitFocus(true)
-      } else if (onDownFromLastItem) {
-        onDownFromLastItem()
       } else {
-        navigation.focusNextOption()
+        onDownFromLastItem?.()
       }
     } else {
       navigation.focusNextOption()
@@ -251,21 +185,14 @@ function handleMultiSelectKey<T>(
   const isUp =
     key.upArrow ||
     (key.ctrl && input === 'p') ||
-    (!inInput && !key.ctrl && !key.meta && input === 'k') ||
+    (!key.ctrl && !key.shift && input === 'k') ||
     (scrollMovesFocus && key.wheelUp)
   if (isUp) {
     event.stopImmediatePropagation()
     if (isSubmitFocused) {
       setSubmitFocus(false)
-      navigation.focusLastOption()
-    } else if (currentIdx === firstIdx && firstIdx >= 0 && navigation.visibleFromIndex === 0) {
-      if (onUpFromFirstItem) {
-        onUpFromFirstItem()
-      } else if (hasSubmitButton) {
-        setSubmitFocus(true)
-      } else {
-        navigation.focusPreviousOption()
-      }
+    } else if (currentIdx === firstIdx && onUpFromFirstItem) {
+      onUpFromFirstItem()
     } else {
       navigation.focusPreviousOption()
     }
@@ -274,47 +201,58 @@ function handleMultiSelectKey<T>(
 
   if (key.pageDown) {
     event.stopImmediatePropagation()
-    if (isSubmitFocused) setSubmitFocus(false)
-    navigation.focusNextPage()
+    if (!isSubmitFocused) navigation.focusNextPage()
     return
   }
 
   if (key.pageUp) {
     event.stopImmediatePropagation()
-    if (isSubmitFocused) setSubmitFocus(false)
-    navigation.focusPreviousPage()
-    return
-  }
-
-  if (key.return) {
-    event.stopImmediatePropagation()
-    if (inInput) {
-      if (key.ctrl) {
-        onSubmit?.(selectedValues)
-      } else if (navigation.focusedValue !== undefined) {
-        activateInputFromKey(navigation.focusedValue)
-      }
-    } else if (isSubmitFocused) {
-      onSubmit?.(selectedValues)
-    } else if (!hasSubmitButton) {
-      if (onSubmit) {
-        onSubmit(selectedValues)
-      } else if (navigation.focusedValue !== undefined) {
-        toggleValue(navigation.focusedValue)
-      }
-    } else if (navigation.focusedValue !== undefined) {
-      toggleValue(navigation.focusedValue)
-    }
-    return
-  }
-
-  if (!inInput && !key.ctrl && !key.meta && normalizeFullWidthSpace(input) === ' ') {
-    event.stopImmediatePropagation()
     if (isSubmitFocused) {
-      onSubmit?.(selectedValues)
+      setSubmitFocus(false)
+    } else {
+      navigation.focusPreviousPage()
+    }
+    return
+  }
+
+  if (key.return || normalizeFullWidthSpace(input) === ' ') {
+    event.stopImmediatePropagation()
+    if (key.return && key.ctrl && inInput && onSubmit) {
+      onSubmit(selectedValues)
+    } else if (key.return && isSubmitFocused && onSubmit) {
+      onSubmit(selectedValues)
+    } else if (key.return && !hasSubmitButton && onSubmit) {
+      onSubmit(selectedValues)
+    } else if (key.return && inInput && navigation.focusedValue !== undefined) {
+      activateInputFromKey(navigation.focusedValue)
     } else if (navigation.focusedValue !== undefined) {
       toggleValue(navigation.focusedValue)
     }
+    return
+  }
+
+  if (!hideIndexes && !key.ctrl && !key.meta) {
+    const digits = normalizeFullWidthDigits(input)
+    const target = /^[0-9]+$/.test(digits)
+      ? options[Number(digits) - 1]
+      : /^[a-zA-Z]$/.test(input)
+        ? options.find(option => letterOrdinalOf(option) === input.toUpperCase())
+        : undefined
+    if (target) {
+      event.stopImmediatePropagation()
+      const val = optionValueOf(target)
+      if (isInputOption(target)) {
+        activateInputFromOrdinal(val)
+      } else {
+        toggleValue(val)
+      }
+      return
+    }
+  }
+
+  if (key.escape && onCancel) {
+    event.stopImmediatePropagation()
+    onCancel()
   }
 }
 
