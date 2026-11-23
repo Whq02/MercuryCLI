@@ -14,16 +14,11 @@ function storeDir(): string {
   return join(getMercuryHome(), STORE_DIR_NAME)
 }
 
-function isPasteHash(hash: string): boolean {
-  return /^[0-9a-f]{16}$/.test(hash)
-}
-
 export function hashPastedText(content: string): string {
   return createHash('sha256').update(content, 'utf8').digest('hex').slice(0, 16)
 }
 
 export async function storePastedText(hash: string, content: string): Promise<void> {
-  if (!isPasteHash(hash)) return
   try {
     const dir = storeDir()
     await mkdir(dir, { recursive: true })
@@ -34,7 +29,6 @@ export async function storePastedText(hash: string, content: string): Promise<vo
 }
 
 export async function retrievePastedText(hash: string): Promise<string | null> {
-  if (!isPasteHash(hash)) return null
   try {
     return await readFile(join(storeDir(), hash + STORE_EXTENSION), 'utf8')
   } catch (error) {
