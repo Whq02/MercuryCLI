@@ -9,11 +9,11 @@ import {
   getModeFromInput,
   getValueFromInput,
 } from './inputModes.js'
-import type { PromptInputMode } from './input-core/textInput.js'
+import type { InputMode } from './input-core/textInput.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
-export type HistoryMode = PromptInputMode
+export type HistoryMode = InputMode
 
 const CHUNK = 10
 const SEARCH_HINT_KEY = 'history-search-hint'
@@ -112,13 +112,13 @@ async function loadHistoryEntries(
 export function useArrowKeyHistory(
   onSetInput: (
     value: string,
-    mode: PromptInputMode,
+    mode: InputMode,
     pastedContents: Record<number, PastedContent>,
   ) => void,
   currentInput: string,
   pastedContents: Record<number, PastedContent>,
   setCursorOffset?: (offset: number) => void,
-  currentMode?: PromptInputMode,
+  currentMode?: InputMode,
   recallFitsOneRow?: (value: string) => boolean,
 ): {
   historyIndex: number
@@ -134,7 +134,7 @@ export function useArrowKeyHistory(
   const savedDraftRef = useRef<
     | {
         display: string
-        mode: PromptInputMode
+        mode: InputMode
         pastedContents: Record<number, PastedContent>
       }
     | undefined

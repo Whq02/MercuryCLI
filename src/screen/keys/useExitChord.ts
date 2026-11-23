@@ -16,7 +16,7 @@ type UseKeybindingsHook = (
   options?: UseKeybindingOptions,
 ) => void
 
-export function useExitOnCtrlCD(
+export function useExitChord(
   useKeybindingsHook: UseKeybindingsHook,
   onInterrupt?: () => boolean,
   onExit?: () => void,

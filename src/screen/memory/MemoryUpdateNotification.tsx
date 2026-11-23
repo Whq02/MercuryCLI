@@ -3,7 +3,7 @@ import { sep } from 'path'
 import { getCwd } from '../../platform/files/cwd.js'
 import { toTildePath } from '../../platform/files/path.js'
 
-export function getRelativeMemoryPath(filePath: string): string {
+export function getRelativeInstructionFilePath(filePath: string): string {
   const candidates: string[] = []
 
   const tilde = toTildePath(filePath)

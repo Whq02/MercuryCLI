@@ -2,14 +2,14 @@ import { mkdirSync } from 'fs'
 import * as React from 'react'
 import { use, useMemo, useState } from 'react'
 import { Box, Text } from '../themedRenderer.js'
-import { useExitOnCtrlCDWithKeybindings } from '../keys/useExitChordKeys.js'
+import { useExitChordKeys } from '../keys/useExitChordKeys.js'
 import { useKeybinding } from '../keys/useKeybinding.js'
 import { getInstructionFiles } from '../../sessions/instructions/instructionFiles.js'
 import { attachedRows, getInstructionListing, listingRowWords, loadedStateOf, toolPrefixOf } from '../../sessions/instructions/listing.js'
 import type { AttachedInstruction } from '../../sessions/instructions/attachedText.js'
 import type { InstructionSourceEntry } from '../../sessions/instruction-contracts/contracts.js'
 import { openPath } from '../../platform/host-os/browser.js'
-import { getMemoryPath } from '../../platform/settings/config.js'
+import { getInstructionFilePath } from '../../platform/settings/config.js'
 import { errorMessage } from '../../platform/errors/errors.js'
 import { logError } from '../../platform/logs/errorLog.js'
 import { toTildePath } from '../../platform/files/path.js'
@@ -17,8 +17,8 @@ import { getMnemeHome, isMnemeEnabled } from '../../sessions/mneme/paths.js'
 import { updateSettingsForSource } from '../../platform/settings/settings.js'
 import { Select } from '../select/Select.js'
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js'
-import { getRelativeMemoryPath } from './MemoryUpdateNotification.js'
-import { memoryFileListLayout } from './memoryCentreLayout.js'
+import { getRelativeInstructionFilePath } from './MemoryUpdateNotification.js'
+import { instructionFileListLayout } from './memoryCentreLayout.js'
 
 export function openMemoryFolder(
   dir: string,
@@ -78,7 +78,7 @@ function prefixOf(entry: InstructionSourceEntry): string {
   return ''
 }
 
-export function MemoryFileSelector({
+export function InstructionFileSelector({
   onSelect,
   onCancel,
   held = DEFAULT_HELD,
@@ -101,7 +101,7 @@ export function MemoryFileSelector({
   const [openError, setOpenError] = useState<string | null>(null)
   const [focusedToggle, setFocusedToggle] = useState<number | null>(null)
 
-  useExitOnCtrlCDWithKeybindings()
+  useExitChordKeys()
 
   useKeybinding(
     'select:previous',
@@ -135,14 +135,14 @@ export function MemoryFileSelector({
 
   const rows = useMemo((): Row[] => {
     const out: Row[] = []
-    const userPath = getMemoryPath('User')
-    const projectPath = getMemoryPath('Project')
+    const userPath = getInstructionFilePath('User')
+    const projectPath = getInstructionFilePath('Project')
     const byPath = new Map(files.map(entry => [entry.path, entry]))
 
     for (const entry of files) {
       const depth = importDepthOf(entry, byPath)
       const prefix = prefixOf(entry)
-      const relPath = getRelativeMemoryPath(entry.path)
+      const relPath = getRelativeInstructionFilePath(entry.path)
       if (entry.path === userPath) {
         out.push({
           label: 'User memory',
@@ -156,7 +156,7 @@ export function MemoryFileSelector({
           description: `${prefix}${relPath} · loads every session`,
         })
       } else if (depth > 0) {
-        const from = entry.parent ? ` from ${getRelativeMemoryPath(entry.parent)}` : ''
+        const from = entry.parent ? ` from ${getRelativeInstructionFilePath(entry.parent)}` : ''
         out.push({
           label: `${'  '.repeat(depth)}↳ ${relPath}`,
           value: entry.path,
@@ -175,7 +175,7 @@ export function MemoryFileSelector({
     const wasAttached = attached !== undefined ? held : undefined
     for (const row of [...listing, ...attachedRows(held, listedPaths, attached)]) {
       out.push({
-        label: getRelativeMemoryPath(row.path),
+        label: getRelativeInstructionFilePath(row.path),
         value: row.path,
         description: listingRowWords(row, '', held, wasAttached),
       })
@@ -192,7 +192,7 @@ export function MemoryFileSelector({
       out.push({
         label: 'Project memory (new)',
         value: projectPath,
-        description: `will be written at ${getRelativeMemoryPath(projectPath)}`,
+        description: `will be written at ${getRelativeInstructionFilePath(projectPath)}`,
       })
     }
 
@@ -216,7 +216,7 @@ export function MemoryFileSelector({
 
   const listBudget = Math.max(1, rowBudget - 2 - (openError !== null ? 1 : 0))
   const listLayout = useMemo(
-    () => memoryFileListLayout(rows, width, listBudget, firstVisible),
+    () => instructionFileListLayout(rows, width, listBudget, firstVisible),
     [rows, width, listBudget, firstVisible],
   )
   const options = useMemo(

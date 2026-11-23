@@ -138,7 +138,7 @@ async function readActivityWhenNotesAreUnseen(): Promise<void> {
   if (notes.length > 0) await getRecentActivity()
 }
 
-export async function setup(
+export async function sessionSetup(
   cwd: string,
   permissionMode: PermissionMode,
   _allowDangerousSkip: boolean,

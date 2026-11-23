@@ -5,7 +5,7 @@ import { checker, openWorld } from './instructionWorld.ts'
 const world = openWorld('attached-listed')
 const { check, section, close } = checker()
 const same = (got: string[], want: string[]): boolean => JSON.stringify([...got].sort()) === JSON.stringify([...want].sort())
-const listedHint = ' | change attachedRows, listingRowWords or getInstructionListing in src/sessions/instructions/listing.ts, or the attaching in getNestedMemoryAttachmentsForFile in src/engine/attachments/nestedInstructions.ts'
+const listedHint = ' | change attachedRows, listingRowWords or getInstructionListing in src/sessions/instructions/listing.ts, or the attaching in getNestedInstructionAttachmentsForFile in src/engine/attachments/nestedInstructions.ts'
 
 try {
   const project = world.project({

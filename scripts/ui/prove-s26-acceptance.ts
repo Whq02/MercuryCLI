@@ -5,7 +5,7 @@ import { join } from 'node:path'
 process.env.NODE_ENV = 'test'
 
 import { hunkPatchText } from '../../src/screen/diff/DiffDialog.js'
-import { getRelativeMemoryPath } from '../../src/screen/memory/MemoryUpdateNotification.js'
+import { getRelativeInstructionFilePath } from '../../src/screen/memory/MemoryUpdateNotification.js'
 import {
   NULL_RENDERING_ATTACHMENT_TYPES,
   isNullRenderingAttachment,
@@ -16,7 +16,7 @@ let passes = 0
 let s26SectionName = ''
 function s26Where(): string {
   if (s26SectionName === 'hunk patch grammar') return 'change hunkPatchText in src/screen/diff/DiffDialog.tsx'
-  if (s26SectionName === 'memory path helper') return 'change getRelativeMemoryPath in src/screen/memory/MemoryUpdateNotification.tsx'
+  if (s26SectionName === 'memory path helper') return 'change getRelativeInstructionFilePath in src/screen/memory/MemoryUpdateNotification.tsx'
   return 'change NULL_RENDERING_ATTACHMENT_TYPES or isNullRenderingAttachment in src/screen/messages/nullRenderingAttachments.ts'
 }
 function check(label: string, cond: boolean, detail = ''): void {
@@ -55,12 +55,12 @@ section('memory path helper')
   const os = await import('node:os')
   const cwd = getCwd()
   const inCwd = join(cwd, 'X.md')
-  const rel = getRelativeMemoryPath(inCwd)
+  const rel = getRelativeInstructionFilePath(inCwd)
   check('a cwd file renders cwd-relative (./…) when shorter', rel === './X.md' || rel.startsWith('~'), `got ${rel}`)
   const home = os.homedir()
   const inHome = join(home, 'Y.md')
-  check('a home file renders home-relative (~/…)', getRelativeMemoryPath(inHome) === '~/Y.md')
-  check('an unrelated absolute path stays absolute', getRelativeMemoryPath('/opt/z.md') === '/opt/z.md')
+  check('a home file renders home-relative (~/…)', getRelativeInstructionFilePath(inHome) === '~/Y.md')
+  check('an unrelated absolute path stays absolute', getRelativeInstructionFilePath('/opt/z.md') === '/opt/z.md')
 }
 
 section('null-rendering registry')

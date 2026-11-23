@@ -8,7 +8,7 @@ process.env.FORCE_COLOR = '3'
 
 const React = await import('react')
 const h = React.createElement
-const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.tsx')
 const { default: instances } = await import('../../src/screen/renderer/instances.ts')
 const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
 const { AlternateScreen } = await import('../../src/screen/renderer/elements/AlternateScreen.tsx')
@@ -145,12 +145,12 @@ function Scene({ tick, short = false }: { tick: number; short?: boolean }): Reac
 
 const settle = (ms = 220): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
-type World = { ink: InstanceType<typeof Ink>; screen: Terminal; keys: Keyboard; show: (tick: number) => void; end: () => Promise<void> }
+type World = { ink: InstanceType<typeof ScreenInstance>; screen: Terminal; keys: Keyboard; show: (tick: number) => void; end: () => Promise<void> }
 
 async function world(): Promise<World> {
   const screen = new Terminal()
   const keys = new Keyboard()
-  const ink = new Ink({ stdout: screen as never, stdin: keys as never, stderr: new Terminal() as never, patchConsole: false, exitOnCtrlC: false })
+  const ink = new ScreenInstance({ stdout: screen as never, stdin: keys as never, stderr: new Terminal() as never, patchConsole: false, exitOnCtrlC: false })
   instances.set(screen as never, ink)
   const show = (tick: number): void => ink.render(h(Scene, { tick }))
   show(1)

@@ -550,8 +550,8 @@ if (ONLY.has('4')) {
   const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
   const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
   const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
-  const { HelpV2 } = await import('../../src/screen/help/HelpV2.tsx')
-  const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+  const { Help } = await import('../../src/screen/help/HelpV2.tsx')
+  const { default: Composer } = await import('../../src/screen/composer/Composer.tsx')
   const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
   const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
   const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
@@ -582,7 +582,7 @@ if (ONLY.has('4')) {
       statusBandActive: count > 0,
       modal: modal === null ? undefined : h(Box, { width: '100%', flexDirection: 'column' }, modal),
       modalScrollRef,
-      bottom: h(PromptInput, {
+      bottom: h(Composer, {
         debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
         setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [], isLoading: false,
         verbose: false, submitCount: 0, onShowMessageSelector: () => {}, mcpClients: [], vimMode, setVimMode,
@@ -732,7 +732,7 @@ if (ONLY.has('4')) {
     const scene = await mountOffscreen(wrap(h(Harness, { columns: 80 })), 80, 24)
     await settledFrame(scene, frame => frame.includes('transcript row') && frame.includes('Type a prompt'))
     ledger.settle('80x24 settled chrome')
-    setModal(h(HelpV2, { commands: [], onClose: () => setModal(null) }))
+    setModal(h(Help, { commands: [], onClose: () => setModal(null) }))
     check('80x24 help: the sheet opened', await settledFrame(scene, frame => frame.includes('Mercury — help')).catch(() => false))
     firstEmission('80x24 help sheet', ledger.settle('80x24 help sheet', true), 'Mercury — help')
     const before = scene.screen()

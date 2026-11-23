@@ -10,7 +10,7 @@ export {
 
 export {
   getDirectoriesToProcess,
-  memoryFilesToAttachments,
+  instructionFilesToAttachments,
 } from './nestedInstructions.js'
 
 export {

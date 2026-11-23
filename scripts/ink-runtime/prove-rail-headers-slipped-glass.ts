@@ -12,7 +12,7 @@ delete process.env.WT_SESSION
 delete process.env.TERM_PROGRAM
 process.env.MERCURY_REDUCED_MOTION = '1'
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
-const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.js')
 const { default: instances } = await import('../../src/screen/renderer/instances.js')
 const { Box, Text } = await import('../../src/screen/themedRenderer.js')
 
@@ -74,7 +74,7 @@ function Cockpit({ asked, spinner }: Turn): React.ReactElement {
       h(Text, null, 'shift + ↵ for a new line · shift + ← concourse')))
 }
 
-function composed(ink: InstanceType<typeof Ink>): string[] {
+function composed(ink: InstanceType<typeof ScreenInstance>): string[] {
   const lines = stripAnsi(ink.lastFrameText()).split('\n').map(line => line.trimEnd())
   while (lines.length < ROWS) lines.push('')
   return lines.slice(0, ROWS)
@@ -94,7 +94,7 @@ function feedTo(glass: AnsiEmulator, bytes: string): void {
 console.log('110x32: a 24-column rail beside a spinner card through a turn — the renderer keeps every section header whole; a glass that slipped one row does not')
 
 const stdout = new Output()
-const ink = new Ink({ stdout: stdout as never, stdin: new Input() as never, stderr: new Output() as never, exitOnCtrlC: false, patchConsole: false })
+const ink = new ScreenInstance({ stdout: stdout as never, stdin: new Input() as never, stderr: new Output() as never, exitOnCtrlC: false, patchConsole: false })
 instances.set(stdout as never, ink)
 ink.setAltScreenActive(true, false)
 

@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events'
-import Ink from '../../src/screen/renderer/screenInstance.js'
+import ScreenInstance from '../../src/screen/renderer/screenInstance.js'
 import type { FrameEvent } from '../../src/screen/renderer/frame.js'
 import stripAnsi from 'strip-ansi'
 
@@ -50,7 +50,7 @@ export function runtime(columns: number, rows: number) {
   const stdin = new InputStream()
   const events: FrameEvent[] = []
   const frames: string[][] = []
-  const ink = new Ink({
+  const ink = new ScreenInstance({
     stdout: stdout as never, stdin: stdin as never, stderr: new ConsoleStream(columns, rows) as never,
     exitOnCtrlC: false, patchConsole: false,
     onFrame: event => {
@@ -62,7 +62,7 @@ export function runtime(columns: number, rows: number) {
   return { ink, stdout, stdin, events, frames, dispose() { stdin.isTTY = false; ink.unmount() } }
 }
 
-export function plain(ink: Ink): string[] {
+export function plain(ink: ScreenInstance): string[] {
   return stripAnsi(ink.lastFrameText()).split('\n').map(line => line.trimEnd())
 }
 

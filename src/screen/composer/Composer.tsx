@@ -14,7 +14,7 @@ import * as pendingInput from './input-core/pending-input.js'
 import type { AppState } from '../app-state/AppState.js'
 import type { Message } from '../../engine/message-shapes/message.js'
 import type { VimMode } from './input-core/textInput.js'
-import { usePromptInputPlaceholder } from './useComposerPlaceholder.js'
+import { useComposerPlaceholder } from './useComposerPlaceholder.js'
 import { useCrewBanner } from './useCrewBanner.js'
 import { useComposerSubmit } from './useComposerSubmit.js'
 import { useComposerRawKeys } from './useComposerRawKeys.js'
@@ -34,8 +34,8 @@ import { useComposerState } from './useComposerState.js'
 import { useComposerWiring } from './useComposerWiring.js'
 import { composerGates, composerInputBody, composerTextInputProps, composerView } from './composerView.js'
 import type { CompactWorkControls, CompactWorkFocus } from '../tasks/CompactWorkSummary.js'
-import type { PromptInputHelpers } from './input-core/promptInputHelpers.js'
-export type PromptInputProps = {
+import type { ComposerHelpers } from './input-core/promptInputHelpers.js'
+export type ComposerProps = {
   toolPermissionContext: AppState['toolPermissionContext']
   setToolPermissionContext: (
     context: AppState['toolPermissionContext'],
@@ -57,7 +57,7 @@ export type PromptInputProps = {
   debug: boolean
   onSubmit: (
     input: string,
-    helpers: PromptInputHelpers,
+    helpers: ComposerHelpers,
     speculationAccept?: {
       state: unknown
       sessionTimeSaved: number
@@ -88,7 +88,7 @@ export type PromptInputProps = {
   } | null>
 }
 
-function PromptInputInner(props: PromptInputProps): React.ReactNode {
+function ComposerInner(props: ComposerProps): React.ReactNode {
   fluxMark('render:composer')
   const {
     toolPermissionContext, setToolPermissionContext, apiKeyStatus, commands, agents,
@@ -248,7 +248,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     sentEffort, effortValue, bornEffort, addNotification, removeNotification,
   })
 
-  const placeholder = usePromptInputPlaceholder({
+  const placeholder = useComposerPlaceholder({
     input, submitCount, viewingAgentName: viewedAgentName,
     cockpitActive, compact: isCompact,
   })
@@ -333,5 +333,5 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   })
 }
 
-const PromptInput = React.memo(PromptInputInner)
-export default PromptInput
+const Composer = React.memo(ComposerInner)
+export default Composer

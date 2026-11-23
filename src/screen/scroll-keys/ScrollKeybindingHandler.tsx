@@ -2,7 +2,7 @@ import React, { useCallback, useRef } from 'react'
 import { useClaim } from '../effects/effects.js'
 import { WHEEL_ROWS_PER_NOTCH } from '../widgets/composerFloor.js'
 import type { ScrollBoxHandle } from '../renderer/elements/ScrollBox.js'
-import { InkInstanceContext } from '../renderer/elements/InkInstanceContext.js'
+import { ScreenInstanceContext } from '../renderer/elements/InkInstanceContext.js'
 import { isMessageCursorActive } from '../messages/messageCursorStore.js'
 import { getHelmFocus } from '../cockpit/helmFocus.js'
 import { settingsPopupRequest } from '../cockpit/settingsPopup.js'
@@ -275,7 +275,7 @@ export function ScrollKeybindingHandler({
   modalScrollRef?: React.RefObject<ScrollBoxHandle | null>
   modalUp?: boolean
 }): React.ReactNode {
-  const ink = React.useContext(InkInstanceContext)
+  const ink = React.useContext(ScreenInstanceContext)
   const selection = useSelection()
   const { addNotification } = useNotifications()
   const onScrollRef = useRef(onScroll)

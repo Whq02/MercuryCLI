@@ -89,12 +89,12 @@ console.log('L2 the sweep — a broken settings file that held the key stops the
     fs.writeFileSync(userSettingsPath, '{ "records": { "retentionDays": 365, ')
     const planted = plantOldDebugLog()
     const cleanup = await import(${JSON.stringify(join(SRC, 'sessions/transcripts/retentionSweep.ts'))})
-    out.receipt = await cleanup.cleanupOldMessageFilesInBackground()
+    out.receipt = await cleanup.sweepOldMessageFilesInBackground()
     out.survived = fs.existsSync(planted)
   `)
   const receipt = r.receipt as { messages: number; errors: number }
-  check('the 40-day-old debug log SURVIVES', r.survived === true, 'the sweep deleted it on the 30-day default', 'cleanupOldMessageFilesInBackground in src/sessions/transcripts/retentionSweep.ts must stop the sweep when rawSettingsContainsKey says a broken settings file may hold records.retentionDays')
-  check('the receipt carries one error and no finished look', receipt.errors === 1 && receipt.messages === 0, JSON.stringify(receipt), 'cleanupOldMessageFilesInBackground in src/sessions/transcripts/retentionSweep.ts must return one error and no messages when it stops for a broken settings file')
+  check('the 40-day-old debug log SURVIVES', r.survived === true, 'the sweep deleted it on the 30-day default', 'sweepOldMessageFilesInBackground in src/sessions/transcripts/retentionSweep.ts must stop the sweep when rawSettingsContainsKey says a broken settings file may hold records.retentionDays')
+  check('the receipt carries one error and no finished look', receipt.errors === 1 && receipt.messages === 0, JSON.stringify(receipt), 'sweepOldMessageFilesInBackground in src/sessions/transcripts/retentionSweep.ts must return one error and no messages when it stops for a broken settings file')
 }
 
 console.log('L3 control — healthy settings, the sweep runs')
@@ -104,10 +104,10 @@ console.log('L3 control — healthy settings, the sweep runs')
     fs.writeFileSync(userSettingsPath, JSON.stringify({ theme: 'dark' }))
     const planted = plantOldDebugLog()
     const cleanup = await import(${JSON.stringify(join(SRC, 'sessions/transcripts/retentionSweep.ts'))})
-    out.receipt = await cleanup.cleanupOldMessageFilesInBackground()
+    out.receipt = await cleanup.sweepOldMessageFilesInBackground()
     out.survived = fs.existsSync(planted)
   `)
-  check('the old debug log is swept on the default window', r.survived === false, 'still present', 'cleanupOldMessageFilesInBackground in src/sessions/transcripts/retentionSweep.ts must sweep a 40-day-old debug log when settings are healthy')
+  check('the old debug log is swept on the default window', r.survived === false, 'still present', 'sweepOldMessageFilesInBackground in src/sessions/transcripts/retentionSweep.ts must sweep a 40-day-old debug log when settings are healthy')
 }
 
 console.log('L4 policy — a registry/plist-delivered retention window is seen')
@@ -162,7 +162,7 @@ for (const road of ['settings', 'runtime', 'invalid-cutoff']) {
       const trees = await import(${JSON.stringify(join(SRC, 'platform/git/worktree/worktree.ts'))})
       await images.cleanupOldImageCaches(new Date(NaN))
       await trees.cleanupStaleAgentWorktrees(new Date(NaN))
-    } else out.receipt = await cleanup.cleanupOldMessageFilesInBackground()
+    } else out.receipt = await cleanup.sweepOldMessageFilesInBackground()
     out.image = fs.existsSync(image) && fs.readFileSync(image, 'utf8') === 'keep this image'
     out.tree = fs.existsSync(tree)
     out.log = fs.existsSync(oldLog)
@@ -170,7 +170,7 @@ for (const road of ['settings', 'runtime', 'invalid-cutoff']) {
   check(`${road}: oversized retention is refused by name`, r.refused === true, '', 'SettingsSchema in src/platform/settings/settingsSchema.ts must reject records.retentionDays above its maximum with an issue on records.retentionDays')
   check(`${road}: another session's pasted image survives`, r.image === true, '', 'the retention window handling in src/sessions/transcripts/retentionSweep.ts and cleanupOldImageCaches in src/platform/images/imageStore.ts must not delete image-cache files when retentionDays is oversized or the cutoff is invalid')
   check(`${road}: the ten-day-old clean worktree survives`, r.tree === true, '', 'the retention window handling in src/sessions/transcripts/retentionSweep.ts and cleanupStaleAgentWorktrees in src/platform/git/worktree/worktree.ts must not remove agent worktrees when retentionDays is oversized or the cutoff is invalid')
-  check(`${road}: the old debug log survives`, r.log === true, '', 'cleanupOldMessageFilesInBackground in src/sessions/transcripts/retentionSweep.ts must not delete old debug logs when retentionDays is oversized')
+  check(`${road}: the old debug log survives`, r.log === true, '', 'sweepOldMessageFilesInBackground in src/sessions/transcripts/retentionSweep.ts must not delete old debug logs when retentionDays is oversized')
 }
 
 console.log('L6 an aged error log is a removal, not a failed sweep')
@@ -185,7 +185,7 @@ console.log('L6 an aged error log is a removal, not a failed sweep')
     fs.mkdirSync(CACHE_PATHS.errors(), { recursive: true })
     fs.writeFileSync(planted, 'old error')
     const cleanup = await import(${JSON.stringify(join(SRC, 'sessions/transcripts/retentionSweep.ts'))})
-    out.receipt = await cleanup.cleanupOldMessageFilesInBackground()
+    out.receipt = await cleanup.sweepOldMessageFilesInBackground()
     out.removed = !fs.existsSync(planted)
     fs.writeFileSync(planted, 'old error')
     const housekeeping = await import(${JSON.stringify(join(SRC, 'platform/housekeeping/backgroundHousekeeping.ts'))})
@@ -205,8 +205,8 @@ console.log('L6 an aged error log is a removal, not a failed sweep')
     out.advanced = fs.statSync(sentinel).mtimeMs > before && fs.readFileSync(sentinel, 'utf8') !== 'previous sweep'
   `)
   const receipt = r.receipt as { messages: number; errors: number }
-  check('one aged error log is removed', r.removed === true, '', 'cleanupOldMessageFilesInBackground in src/sessions/transcripts/retentionSweep.ts must remove error logs older than the retention window')
-  check('the receipt counts one removal and no failures', receipt.messages === 1 && receipt.errors === 0, JSON.stringify(receipt), 'cleanupOldMessageFilesInBackground in src/sessions/transcripts/retentionSweep.ts must count a removed aged error log as one message and no error')
+  check('one aged error log is removed', r.removed === true, '', 'sweepOldMessageFilesInBackground in src/sessions/transcripts/retentionSweep.ts must remove error logs older than the retention window')
+  check('the receipt counts one removal and no failures', receipt.messages === 1 && receipt.errors === 0, JSON.stringify(receipt), 'sweepOldMessageFilesInBackground in src/sessions/transcripts/retentionSweep.ts must count a removed aged error log as one message and no error')
   check('the cycle removes the aged error log and completes cleanly', r.cycleRemoved === true && r.outcome === 'cycle-complete', String(r.outcome), 'runCleanupCycleStep in src/platform/housekeeping/backgroundHousekeeping.ts must remove the aged error log and reach cycle-complete')
   check('the successful cycle advances the stale sentinel', r.advanced === true, '', 'runLifecycleVerbOpportunity in src/platform/housekeeping/backgroundHousekeeping.ts must rewrite the .last-cleanup sentinel after a completed cycle')
 }

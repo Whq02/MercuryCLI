@@ -31,13 +31,13 @@ for (const base of ['ANTHROPIC_BASE_URL', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OP
 for (const key of ['MERCURY_MODEL', 'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'HF_TOKEN', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY', 'NODE_ENV']) delete process.env[key]
 
 const React = await import('react')
-const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.tsx')
 const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
 const { App } = await import('../../src/boot/App.tsx')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
 const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { default: Composer } = await import('../../src/screen/composer/Composer.tsx')
 const { useCompactWorkControls } = await import('../../src/screen/tasks/CompactWorkSummary.tsx')
 const { GlobalKeybindingHandlers } = await import('../../src/screen/chat/useGlobalKeybindings.tsx')
 const { LAYOUT_BREAKPOINTS, resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
@@ -165,7 +165,7 @@ async function openScene(cols: number, rows: number): Promise<Scene> {
             h(CockpitBottomStatus, null, strip),
           ),
           isCompact ? null : h(FocusedSessionStatusRow),
-          h(PromptInput, {
+          h(Composer, {
             compactWork: controls, compactFocus: focus,
             debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
             setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [zenCommand], agents: [],
@@ -184,7 +184,7 @@ async function openScene(cols: number, rows: number): Promise<Scene> {
   stdout.columns = cols
   stdout.rows = rows
   const stdin = new Input()
-  const ink = new Ink({ stdout: stdout as never, stdin: stdin as never, stderr: new Output() as never, exitOnCtrlC: false, patchConsole: false })
+  const ink = new ScreenInstance({ stdout: stdout as never, stdin: stdin as never, stderr: new Output() as never, exitOnCtrlC: false, patchConsole: false })
   instances.set(stdout as never, ink)
   ink.render(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(Harness)))
   const lines = (): string[] => stripAnsi(ink.lastFrameText()).replace(/\n$/, '').split('\n')

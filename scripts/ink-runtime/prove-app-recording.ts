@@ -138,7 +138,7 @@ async function loadProduct() {
   const { default: useInput } = await import('../../src/screen/renderer/bindings/use-input.js')
   const { default: Text } = await import('../../src/screen/renderer/elements/Text.js')
   const { default: Box } = await import('../../src/screen/renderer/elements/Box.js')
-  const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+  const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.js')
   const { default: instances } = await import('../../src/screen/renderer/instances.js')
   const { default: reconciler } = await import('../../src/screen/renderer/reconciler.js')
   const { createNode } = await import('../../src/screen/renderer/dom.js')
@@ -162,7 +162,7 @@ async function loadProduct() {
     useInput,
     Text,
     Box,
-    Ink,
+    Ink: ScreenInstance,
     instances,
     reconciler,
     createNode,

@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { logError } from '../../platform/logs/errorLog.js'
 import { Box, MotionParkContext, measureElement, type DOMElement } from '../themedRenderer.js'
 import type { ScrollBoxHandle } from '../renderer/elements/ScrollBox.js'
-import { InkInstanceContext } from '../renderer/elements/InkInstanceContext.js'
+import { ScreenInstanceContext } from '../renderer/elements/InkInstanceContext.js'
 import instances from '../renderer/instances.js'
 import { useTerminalSize } from './useTerminalSize.js'
 import { useLayoutChrome } from './layoutChromeContext.js'
@@ -255,7 +255,7 @@ export function FullscreenLayout({
   const tokens = useMercuryTokens()
   const elevatedRef = useElevatedSurface()
   const viewedCrewmate = useViewedCrewmate()
-  const ink = useContext(InkInstanceContext)
+  const ink = useContext(ScreenInstanceContext)
   const motionParked = useContext(MotionParkContext)
 
   const modelPickerClaimed = useSyncExternalStore(

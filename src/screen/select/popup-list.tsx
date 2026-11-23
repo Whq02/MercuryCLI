@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Box, Text, useInput } from '../themedRenderer.js'
-import { InkInstanceContext } from '../renderer/elements/InkInstanceContext.js'
+import { ScreenInstanceContext } from '../renderer/elements/InkInstanceContext.js'
 import type { DOMElement } from '../themedRenderer.js'
 import type { ScrollBoxHandle } from '../renderer/elements/ScrollBox.js'
 import type { Key } from '../renderer/events/input-event.js'
@@ -61,7 +61,7 @@ export function PopupListViewport({ above, below, rows, children }: {
 }): React.ReactNode {
   const scrolls = above > 0 || below > 0
   const bodyRef = React.useRef<DOMElement | null>(null)
-  const ink = React.useContext(InkInstanceContext)
+  const ink = React.useContext(ScreenInstanceContext)
   const [measured, setMeasured] = React.useState(0)
   const measure = React.useCallback(() => {
     const next = Math.ceil(bodyRef.current?.layoutNode?.getComputedHeight() ?? 0)
@@ -99,7 +99,7 @@ export function usePopupListPaging(cursor: number, total: number, rows: number |
 }
 
 export function usePopupScrollWindow(ref: React.RefObject<ScrollBoxHandle | null>): { top: number; total: number; rows: number } {
-  const ink = React.useContext(InkInstanceContext)
+  const ink = React.useContext(ScreenInstanceContext)
   const [view, setView] = React.useState({ top: 0, total: 0, rows: 0 })
   const measure = React.useCallback(() => {
     const body = ref.current

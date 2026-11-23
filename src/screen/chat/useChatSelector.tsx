@@ -13,7 +13,7 @@ import { getFocusedSessionConnector } from '../../engine/connector/focusedConnec
 import { waitForTurnEnd } from '../../engine/connector/turnEnd.js';
 import type { RewindReceiptV1 } from '../../engine/connector/types.js';
 import type { Message, NormalizedUserMessage, UserMessage } from '../../engine/message-shapes/message.js';
-import type { PromptInputMode } from '../composer/input-core/textInput.js';
+import type { InputMode } from '../composer/input-core/textInput.js';
 import { getCwd } from '../../platform/files/cwd.js';
 import { textForResubmit } from '../../engine/messages/messages.js';
 import { modelDisplayString } from '../../models/catalogue/engineModel.js';
@@ -66,7 +66,7 @@ export function useChatSelectorView({
 }: {
   addNotification: ReturnType<typeof useNotifications>['addNotification'];
   setInputValue: (value: string) => void;
-  setInputMode: (mode: PromptInputMode) => void;
+  setInputMode: (mode: InputMode) => void;
   setShowMessageSelector: (show: boolean) => void;
   messageSelectorPreselect: UserMessage | undefined;
   setMessageSelectorPreselect: (message: UserMessage | undefined) => void;

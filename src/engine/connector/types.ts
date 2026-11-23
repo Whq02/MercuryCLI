@@ -2,7 +2,7 @@ import type { Message } from '../message-shapes/message.js'
 import type { ToolUseConfirm } from '../../permissions/cards/PermissionRequest.js'
 import type { PermissionMode, PermissionUpdate } from '../../permissions/rules/permissions.js'
 import type { ModelSetting } from '../../models/catalogue/engineModel.js'
-import type { PromptInputMode } from '../../screen/composer/input-core/textInput.js'
+import type { InputMode } from '../../screen/composer/input-core/textInput.js'
 import type { PastedContent } from '../../platform/config/schema.js'
 import type { MCPServerConnection } from '../../integrations/mcp-shapes/mcpServerRecords.js'
 import type { ContentBlockParam } from '../message-shapes/wire.js'
@@ -19,7 +19,7 @@ export type EngineCarrierKind = 'in-process' | 'daemon'
 
 
 export type SendWordsOptions = {
-  mode?: PromptInputMode
+  mode?: InputMode
   pastedContents?: Record<number, PastedContent>
   fromKeybinding?: boolean
   metaFrom?: { command: string }
@@ -33,7 +33,7 @@ export type SendReceiptV1 =
 export type RecallableSendV1 = { clientMessageId: string; text: string }
 
 export type WithdrawReceiptV1 =
-  | { withdrawn: true; text: string; mode: PromptInputMode; pastedContents: Record<number, PastedContent> }
+  | { withdrawn: true; text: string; mode: InputMode; pastedContents: Record<number, PastedContent> }
   | {
       withdrawn: false
       reason: 'taken' | 'unknown' | 'refused'

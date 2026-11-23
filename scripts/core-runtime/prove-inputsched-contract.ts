@@ -22,7 +22,7 @@ const { createStreamingTailStore } = await import('../../src/engine/message-shap
 const { RenderScheduler } = await import('../../src/screen/renderer/root/render-scheduler.js')
 const { FRAME_INTERVAL_MS } = await import('../../src/screen/renderer/constants.js')
 const React = await import('react')
-const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.js')
 const { default: instances } = await import('../../src/screen/renderer/instances.js')
 const { Box, Text, useInput } = await import('../../src/screen/themedRenderer.js')
 const { AnsiEmulator } = await import('../ink-runtime/ansiEmulator.js')
@@ -834,7 +834,7 @@ function isFrameWrite(w: string): boolean {
 {
   const stdout = new FakeStdout()
   const stdin = new FakeStdin()
-  const ink = new Ink({
+  const ink = new ScreenInstance({
     stdout: stdout as never,
     stdin: stdin as never,
     stderr: new FakeStdout() as never,

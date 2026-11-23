@@ -23,7 +23,7 @@ mock.module('../../src/platform/settings/settings.js', () => ({
     return { error: refused ? new Error('fixture write refused') : null }
   },
 }))
-const { MemoryFileSelector } = await import('../../src/screen/memory/MemoryFileSelector.js')
+const { InstructionFileSelector } = await import('../../src/screen/memory/MemoryFileSelector.js')
 const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
 const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
@@ -33,7 +33,7 @@ enableConfigs()
 let inputReady = false
 function ReadyPicker(): React.ReactNode {
   React.useEffect(() => { inputReady = true }, [])
-  return <MemoryFileSelector onSelect={() => {}} onCancel={() => {}} />
+  return <InstructionFileSelector onSelect={() => {}} onCancel={() => {}} />
 }
 const view = await mountOffscreen(<AppStateProvider><ThemeProvider><KeybindingSetup><Box width={100} height={32} flexDirection="column"><React.Suspense fallback={<Text>loading</Text>}><ReadyPicker /></React.Suspense></Box></KeybindingSetup></ThemeProvider></AppStateProvider>, 100, 32)
 try {

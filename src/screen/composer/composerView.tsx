@@ -14,10 +14,10 @@ import { composerNotices } from './composerFrame.js'
 import { composerHistoryDown, composerRouteInput } from './composerRouteInput.js'
 import HistorySearchInput from './HistorySearchInput.js'
 import { Notifications } from './Notifications.js'
-import type { PromptInputProps } from './Composer.js'
-import { PromptInputFooter } from './ComposerFooter.js'
-import { PromptInputModeIndicator } from './ComposerModeIndicator.js'
-import { PromptInputStashNotice } from './ComposerStashNotice.js'
+import type { ComposerProps } from './Composer.js'
+import { ComposerFooter } from './ComposerFooter.js'
+import { ComposerModeIndicator } from './ComposerModeIndicator.js'
+import { ComposerStashNotice } from './ComposerStashNotice.js'
 import type { ComposerAttachments } from './useComposerAttachments.js'
 import type { useComposerCrewmateRefs } from './useComposerCrewmateRefs.js'
 import type { useComposerHistory } from './useComposerHistory.js'
@@ -27,7 +27,7 @@ import type { useComposerState } from './useComposerState.js'
 import type { ComposerSubmit } from './useComposerSubmit.js'
 import type { useComposerSuggestions } from './useComposerSuggestions.js'
 import type { useComposerHoldToTalk } from './useComposerVoice.js'
-import type { usePromptInputPlaceholder } from './useComposerPlaceholder.js'
+import type { useComposerPlaceholder } from './useComposerPlaceholder.js'
 import { isVimModeEnabled } from './composerConfig.js'
 
 type ComposerState = ReturnType<typeof useComposerState>
@@ -48,7 +48,7 @@ export function composerGates({
   footerSelection,
   surfaceCovered,
   compactFocus,
-}: Pick<PromptInputProps, 'isSearchingHistory' | 'showBashesDialog' | 'isLocalJSXCommandActive'>
+}: Pick<ComposerProps, 'isSearchingHistory' | 'showBashesDialog' | 'isLocalJSXCommandActive'>
   & Pick<ComposerState, 'overlay' | 'showCommandPalette' | 'showFileOpen' | 'showContentSearch' | 'footerSelection'>
   & {
     historySearch: ReturnType<typeof useHistorySearch>
@@ -127,7 +127,7 @@ export function composerTextInputProps({
   maxVisibleLines,
   performUndo,
 }: Pick<ComposerState, 'input' | 'onChange' | 'cursorOffset' | 'deferredSpaceShiftRef' | 'setCursorOffset' | 'pastePendingRef' | 'keybindings' | 'isCompact' | 'summaryVisible' | 'setMode' | 'footerSelection' | 'appStateStore' | 'setAppState' | 'setIsPasting' | 'mode' | 'composerBloom'>
-  & Pick<PromptInputProps, 'compactWork' | 'isSearchingHistory' | 'setHelpOpen' | 'onExit'>
+  & Pick<ComposerProps, 'compactWork' | 'isSearchingHistory' | 'setHelpOpen' | 'onExit'>
   & Pick<ComposerGates, 'keyboardOwnedByOverlay' | 'helmOnPrompt' | 'inputAvailable' | 'inputFocused' | 'showCursor'>
   & Pick<ComposerGeometry, 'textColumns' | 'maxVisibleLines'>
   & Pick<ComposerAttachments, 'handleTextPaste' | 'handleImagePaste' | 'handleImageError'>
@@ -142,7 +142,7 @@ export function composerTextInputProps({
     suggestionsMirrorRef: ReturnType<typeof useComposerSuggestions>['suggestionsMirrorRef']
     canFocusSummary: () => boolean
     suggestionApi: ReturnType<typeof usePromptSuggestion>
-    placeholder: ReturnType<typeof usePromptInputPlaceholder>
+    placeholder: ReturnType<typeof useComposerPlaceholder>
     highlights: TextHighlight[]
     typeahead: ReturnType<typeof useTypeahead>
     performUndo: () => void
@@ -255,7 +255,7 @@ export function composerInputBody({
   cursorOffset,
   pastedContents,
 }: Pick<ComposerState, 'isCompact' | 'compactBudget' | 'mode' | 'input' | 'inputBoxRef' | 'inputSelectionRangeRef' | 'clearOwnSelection' | 'selectionApi' | 'cursorOffset' | 'pastedContents'>
-  & Pick<PromptInputProps, 'isLoading' | 'vimMode' | 'setVimMode'>
+  & Pick<ComposerProps, 'isLoading' | 'vimMode' | 'setVimMode'>
   & Pick<ComposerGeometry, 'maxVisibleLines'>
   & Pick<ComposerGates, 'vimEnabled'>
   & Pick<ComposerCrewmateRefs, 'viewedAgentName' | 'viewedAgentColor'>
@@ -266,7 +266,7 @@ export function composerInputBody({
   }): React.ReactNode {
   const inputBody = (
     <Box flexDirection="row" maxHeight={isCompact ? maxVisibleLines : undefined} overflow={isCompact ? "hidden" : undefined}>
-      <PromptInputModeIndicator
+      <ComposerModeIndicator
         cells={isCompact ? compactBudget?.inputPrefixColumns : undefined}
         mode={mode}
         isLoading={isLoading}
@@ -340,7 +340,7 @@ export function composerView({
   crewmateFooterIndex,
   setOverlay,
 }: Pick<ComposerState, 'isCompact' | 'summaryVisible' | 'columns' | 'stash' | 'fullscreen' | 'messages' | 'input' | 'compactBudget' | 'mode' | 'exitState' | 'isPasting' | 'setOverlay'>
-  & Pick<PromptInputProps, 'hasSuppressedDialogs' | 'compactWork' | 'vimMode' | 'apiKeyStatus' | 'debug' | 'verbose' | 'mcpClients' | 'helpOpen' | 'isLoading' | 'isSearchingHistory'>
+  & Pick<ComposerProps, 'hasSuppressedDialogs' | 'compactWork' | 'vimMode' | 'apiKeyStatus' | 'debug' | 'verbose' | 'mcpClients' | 'helpOpen' | 'isLoading' | 'isSearchingHistory'>
   & Pick<ComposerGeometry, 'compactTransientRows' | 'compactSuggestionRows'>
   & Pick<ReturnType<typeof useComposerModelDoors>, 'capLaneLine' | 'capLaneCut'>
   & Pick<ComposerGates, 'vimEnabled' | 'searchField'>
@@ -356,7 +356,7 @@ export function composerView({
       {composerNotices({ isCompact, compactTransientRows, capLaneLine, capLaneCut, hasSuppressedDialogs })}
       {frame}
       {summaryVisible && compactWork !== undefined ? <CompactWorkSummary columns={columns} focused={compactFocus === 'summary'} vimInsert={vimEnabled && vimMode === 'INSERT'} onFocus={() => { if (canFocusSummary()) compactWork.set('summary') }} /> : null}
-      {!isCompact ? <PromptInputStashNotice hasStash={stash !== undefined} /> : null}
+      {!isCompact ? <ComposerStashNotice hasStash={stash !== undefined} /> : null}
       {fullscreen ? (
         <Box maxHeight={isCompact ? Math.floor(compactTransientRows / 2) : undefined} overflow="hidden">
           <Notifications
@@ -371,7 +371,7 @@ export function composerView({
           />
         </Box>
       ) : null}
-      <PromptInputFooter
+      <ComposerFooter
         compact={isCompact}
         maxRows={isCompact ? (helpOpen ? Math.max(2, (compactBudget?.editorPoolRows ?? 2) - 1) : compactBudget?.noticeRows ?? 0) : undefined}
         suggestionRows={isCompact ? compactSuggestionRows : undefined}

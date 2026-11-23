@@ -1,6 +1,6 @@
 import { usePublish } from '../effects/effects.js'
 import { usePromptSuggestion } from './usePromptSuggestion.js'
-import type { PromptInputProps } from './Composer.js'
+import type { ComposerProps } from './Composer.js'
 import { useComposerAttachments } from './useComposerAttachments.js'
 import { useComposerCrewmateRefs } from './useComposerCrewmateRefs.js'
 import { useComposerModelDoors } from './useComposerModelDoors.js'
@@ -44,7 +44,7 @@ export function useComposerWiring({
   insertTextRef,
   modalOverlayUp,
 }: Pick<ComposerState, 'overlay' | 'setOverlay' | 'messages' | 'engineModel' | 'engineModelForSession' | 'focusedMainModel' | 'focusedEffectiveModel' | 'isCompact' | 'columns' | 'appStateStore' | 'setAppState' | 'addNotification' | 'viewedTask' | 'input' | 'mode' | 'cursorOffset' | 'draft' | 'pastedContents' | 'buffer' | 'rows' | 'inputSelectionRangeRef' | 'writeDraft' | 'setCursorOffset' | 'setMode' | 'setPastedContents' | 'deferredSpaceArmedRef'>
-  & Pick<PromptInputProps, 'isLoading' | 'insertTextRef'>
+  & Pick<ComposerProps, 'isLoading' | 'insertTextRef'>
   & { modalOverlayUp: boolean }): {
   doors: ComposerModelDoors
   capLaneLine: ComposerModelDoors['capLaneLine']

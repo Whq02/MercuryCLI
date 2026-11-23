@@ -31,7 +31,7 @@ mock.module('../../src/sessions/transcripts/sessionStorage.js', () => ({
 }))
 mock.module('../../src/platform/git/worktree/worktreePathsPortable.js', () => ({ getWorktreePathsPortable: async () => [home] }))
 mock.module('../../src/screen/session-chooser/sessionResumeFilter.js', () => ({ filterResumableSessions: (rows: unknown[]) => rows }))
-mock.module('../../src/screen/session-chooser/SessionBrowser.js', () => ({ LogSelector: (props: { onSelect: typeof selected }) => { selected = props.onSelect; return null } }))
+mock.module('../../src/screen/session-chooser/SessionBrowser.js', () => ({ SessionBrowser: (props: { onSelect: typeof selected }) => { selected = props.onSelect; return null } }))
 mock.module('../../src/screen/spinner/Spinner.js', () => ({ Spinner: () => null }))
 const { call } = await import('../../src/commands/sessions/sessions.js')
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -56,7 +56,7 @@ hydrationFails = true
 const done: Array<string | undefined> = []
 const node = await call(message => { done.push(message) }, {} as never, '')
 const mounted = await mountOffscreen(React.createElement(React.Fragment, {}, node), 120, 40)
-check('the fallback picker loads its selectable row', await waitFor(() => selected !== undefined, 1500), 'the LogSelector never received onSelect; check that call in src/commands/sessions/sessions.tsx still renders the picker when the argument is empty and context.resume is absent')
+check('the fallback picker loads its selectable row', await waitFor(() => selected !== undefined, 1500), 'the SessionBrowser never received onSelect; check that call in src/commands/sessions/sessions.tsx still renders the picker when the argument is empty and context.resume is absent')
 selected?.(logs[0])
 await waitFor(() => done.length > 0 || unhandled.length > 0, 1500)
 check('a failed transcript hydration settles through the existing error receipt', done.length === 1 && done[0] === 'Failed to resume: fixture transcript unreadable' && unhandled.length === 0, JSON.stringify({ done, unhandled: unhandled.map(String) }) + ' — the selection handler in src/commands/sessions/sessions.tsx must catch a fillSessionListing rejection and call onDone with Failed to resume: and the error message, not let it escape')

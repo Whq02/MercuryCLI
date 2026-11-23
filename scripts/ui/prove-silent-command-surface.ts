@@ -20,7 +20,7 @@ Object.assign(process.env, {
   FORCE_COLOR: '3',
 })
 const React = await import('react')
-const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.tsx')
 const { Box, Text, MotionParkContext, measureElement } = await import('../../src/screen/themedRenderer.ts')
 const { App } = await import('../../src/boot/App.tsx')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
@@ -57,7 +57,7 @@ class Input extends EventEmitter {
   read(): null { return null }
   get readableLength(): number { return 0 }
 }
-async function settle(ink: InstanceType<typeof Ink>): Promise<void> {
+async function settle(ink: InstanceType<typeof ScreenInstance>): Promise<void> {
   await new Promise<void>(resolve => setImmediate(resolve))
   ink.onRender()
   await new Promise<void>(resolve => setImmediate(resolve))
@@ -68,7 +68,7 @@ for (const [columns, rows] of [[178, 51], [80, 21]] as const) {
     initializeSurfaceRoute(ROOT_CHAT_ROUTE)
     resetChromeModeLatchForTests()
     const stdout = new Output(columns, rows)
-    const ink = new Ink({ stdout: stdout as never, stdin: new Input() as never, stderr: stdout as never, exitOnCtrlC: false, patchConsole: false })
+    const ink = new ScreenInstance({ stdout: stdout as never, stdin: new Input() as never, stderr: stdout as never, exitOnCtrlC: false, patchConsole: false })
     let mounts = 0
     let unmounts = 0
     let backgroundParked = false

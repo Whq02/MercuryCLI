@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react'
 import { exitChordNoticeText } from '../../screen/composer/ExitChordNotice.js'
 import { setupTerminal, shouldOfferTerminalSetup } from '../../commands/keysetup/keysetup.js'
 import { usePublish } from '../../screen/effects/effects.js'
-import { useExitOnCtrlCDWithKeybindings } from '../../screen/keys/useExitChordKeys.js'
+import { useExitChordKeys } from '../../screen/keys/useExitChordKeys.js'
 import { useTerminalSize } from '../../screen/fullscreen-layout/useTerminalSize.js'
 import { Box, Text, usePreviewTheme, useTheme, useThemeSetting } from '../../screen/themedRenderer.js'
 import { isAnthropicAuthEnabled } from '../../models/sign-in/credentials/auth.js'
@@ -378,7 +378,7 @@ export function Onboarding({ onDone }: Props): React.ReactNode {
   const [stepIndex, setStepIndex] = useState(0)
   const [oauthEnabled] = useState(() => isAnthropicAuthEnabled() && !Object.values(resolveProviderUsability()).some(lane => lane.provider !== 'local' && lane.usable))
   const [theme] = useTheme()
-  const exitState = useExitOnCtrlCDWithKeybindings(() => {
+  const exitState = useExitChordKeys(() => {
     void gracefulShutdown(0)
   })
   const notes = bootNotes()

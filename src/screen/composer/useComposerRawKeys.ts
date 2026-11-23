@@ -15,7 +15,7 @@ import { crewClearedWords, crewClearRefusedWords, crewmateEscBackWords, crewmate
 import { crewStateLabel } from '../../engine/connector/crewFacts.js'
 import { clearCrewmate } from '../app-state/crewLedger.js'
 import { interruptCrewmate } from '../tasks/crewmateInterrupt.js'
-import type { PromptInputMode } from './input-core/textInput.js'
+import type { InputMode } from './input-core/textInput.js'
 import type { Message } from '../../engine/message-shapes/message.js'
 import {
   currentHelmRow,
@@ -45,7 +45,7 @@ type ComposerRawKeysInput = {
   compactWork?: CompactWorkControls
   input: string
   cursorOffset: number
-  mode: PromptInputMode
+  mode: InputMode
   footerSelection: AppState['footerSelection']
   helpOpen: boolean
   isSearchingHistory: boolean
@@ -63,7 +63,7 @@ type ComposerRawKeysInput = {
     model: string,
   ) => LocalJSXCommandContext
   insertAtCursor: (text: string) => void
-  setMode: (mode: PromptInputMode) => void
+  setMode: (mode: InputMode) => void
   setHelpOpen: (open: boolean) => void
   setCursorOffset: (offset: number) => void
   onShowMessageSelector: () => void

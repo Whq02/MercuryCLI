@@ -1,7 +1,7 @@
 import { useCallback, useContext, useRef } from 'react'
 import { useMeasure } from '../../effects/effects.js'
 import { LiveTerminalSizeContext, TerminalSizeContext } from '../elements/TerminalSizeContext.js'
-import { InkInstanceContext } from '../elements/InkInstanceContext.js'
+import { ScreenInstanceContext } from '../elements/InkInstanceContext.js'
 import type { DOMElement } from '../dom.js'
 
 type ViewportEntry = { isVisible: boolean }
@@ -17,7 +17,7 @@ export function useTerminalViewport(): [
   const entryRef = useRef<ViewportEntry>(VISIBLE)
   const size = useContext(TerminalSizeContext)
   const liveSize = useContext(LiveTerminalSizeContext)
-  const ink = useContext(InkInstanceContext)
+  const ink = useContext(ScreenInstanceContext)
 
   const ref = useCallback((el: DOMElement | null) => {
     elementRef.current = el

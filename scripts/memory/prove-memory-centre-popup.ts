@@ -128,7 +128,7 @@ const { App } = await import('../../src/boot/App.tsx')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
 const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { default: Composer } = await import('../../src/screen/composer/Composer.tsx')
 const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
 const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
 const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
@@ -147,7 +147,7 @@ function Harness({ columns }: { columns: number }): React.ReactNode {
     statusBand: h(Text, null, 'live transcript behind the popup'),
     statusBandActive: false,
     modalScrollRef,
-    bottom: h(PromptInput, {
+    bottom: h(Composer, {
       debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
       setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [], isLoading: false,
       verbose: false, submitCount: 0, onShowMessageSelector: () => {}, mcpClients: [], vimMode, setVimMode,
@@ -375,7 +375,7 @@ failHint = 'the journal, topics or search views of the /memory popup (src/comman
 }
 
 section('§5 the instruction files picker rides the same popup; /memory files opens straight into it')
-failHint = 'the instruction files picker inside the /memory popup: check the files argument and MEMORY_FILES_CLOSED in src/commands/memory/memory.tsx, and the footers in memoryFooter in src/screen/memory/memoryCentreLayout.ts'
+failHint = 'the instruction files picker inside the /memory popup: check the files argument and INSTRUCTION_FILES_CLOSED in src/commands/memory/memory.tsx, and the footers in memoryFooter in src/screen/memory/memoryCentreLayout.ts'
 {
   const scene = await openMemory(120, 40)
   await moveTo(scene.m, 'instruction files')
@@ -391,7 +391,7 @@ failHint = 'the instruction files picker inside the /memory popup: check the fil
   check('/memory files opens the picker directly, its footer closing rather than backing', CLOSES.test(rowOf(direct.m, 'open in editor')))
   direct.m.push(KEY.esc)
   const closed = await waitFor(() => !direct.m.screen().includes(TITLE), 6000)
-  check('esc closes it outright with the closed line', closed && JSON.stringify(direct.done[0]) === JSON.stringify([memoryCommand.MEMORY_FILES_CLOSED, { display: 'system' }]), JSON.stringify(direct.done))
+  check('esc closes it outright with the closed line', closed && JSON.stringify(direct.done[0]) === JSON.stringify([memoryCommand.INSTRUCTION_FILES_CLOSED, { display: 'system' }]), JSON.stringify(direct.done))
   await closeScene(direct)
 }
 

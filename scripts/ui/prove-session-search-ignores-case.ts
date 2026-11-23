@@ -19,7 +19,7 @@ const { Box } = await import('../../src/screen/themedRenderer.ts')
 const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
 const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
-const { LogSelector } = await import('../../src/screen/session-chooser/SessionBrowser.tsx')
+const { SessionBrowser } = await import('../../src/screen/session-chooser/SessionBrowser.tsx')
 
 const at = (minute: number): string => new Date(Date.UTC(2026, 0, 1, 10, minute)).toISOString()
 const listing = (minute: number, title: string, more: Partial<SessionListing>): SessionListing => ({
@@ -47,7 +47,7 @@ const h = React.createElement
 const noop = (): void => {}
 
 async function found(query: string): Promise<string[]> {
-  const list = h(LogSelector as never, { logs, onSelect: noop, onCancel: noop, maxHeight: 40 })
+  const list = h(SessionBrowser as never, { logs, onSelect: noop, onCancel: noop, maxHeight: 40 })
   const screen = await mountOffscreen(h(AppStateProvider as never, {}, h(ThemeProvider as never, {}, h(KeybindingSetup as never, {}, h(Box as never, { width: 120, height: 44, flexDirection: 'column' }, list)))), 120, 44)
   try {
     const shown = (text: string): boolean => screen.screen().includes(text)

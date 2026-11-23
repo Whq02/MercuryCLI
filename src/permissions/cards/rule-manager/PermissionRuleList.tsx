@@ -10,7 +10,7 @@ import { Select } from '../../../screen/select/Select.js'
 import { Tab, Tabs, useTabHeaderFocus } from '../../../screen/theme/Tabs.js'
 import { useKeybinding } from '../../../screen/keys/useKeybinding.js'
 import { usePublish } from '../../../screen/effects/effects.js'
-import { useExitOnCtrlCDWithKeybindings } from '../../../screen/keys/useExitChordKeys.js'
+import { useExitChordKeys } from '../../../screen/keys/useExitChordKeys.js'
 import { useSearchInput } from '../../../screen/composer/text-input/useSearchInput.js'
 import { useTerminalFocus } from '../../../screen/themedRenderer.js'
 import { useAppState, useSetAppState } from '../../../screen/app-state/AppState.js'
@@ -180,7 +180,7 @@ function RuleDetailDialog({
   onDelete: () => void
   onCancel: () => void
 }): React.ReactNode {
-  const exitState = useExitOnCtrlCDWithKeybindings()
+  const exitState = useExitChordKeys()
   const isManaged = rule.source === 'policySettings'
   const ruleStr = permissionRuleValueToString(rule.ruleValue)
   const sourceDisplay = permissionRuleSourceDisplayString(rule.source)
@@ -282,7 +282,7 @@ export function PermissionRuleList({
   const focusHeaderRef = useRef<() => void>(() => {})
   const exitedRef = useRef(false)
 
-  const exitState = useExitOnCtrlCDWithKeybindings(undefined, undefined, subDialog === null)
+  const exitState = useExitChordKeys(undefined, undefined, subDialog === null)
 
   const setToolPermissionContext = useCallback(
     (next: ToolPermissionContext) => {

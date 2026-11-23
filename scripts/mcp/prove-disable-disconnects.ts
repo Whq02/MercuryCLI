@@ -71,7 +71,7 @@ section('§1b derived managed paths all live UNDER the managed root')
   const { getManagedFilePath, getManagedSettingsDropInDir } = await import('../../src/platform/settings/managedPath.ts')
   const { getSettingsFilePathForSource } = await import('../../src/platform/settings/settings.ts')
   const { getEnterpriseMcpFilePath } = await import('../../src/integrations/mcp/serverConfigs.ts')
-  const { getManagedRulesDir, getMemoryPath } = await import('../../src/platform/config/derived.ts')
+  const { getManagedRulesDir, getInstructionFilePath } = await import('../../src/platform/config/derived.ts')
   const { getSkillsPath } = await import('../../src/integrations/skills/loadSkillsDir.ts')
   const root = getManagedFilePath()
   const doors: Array<[string, string | undefined]> = [
@@ -79,7 +79,7 @@ section('§1b derived managed paths all live UNDER the managed root')
     ['getManagedSettingsDropInDir()', getManagedSettingsDropInDir()],
     ['getEnterpriseMcpFilePath()', getEnterpriseMcpFilePath()],
     ['getManagedRulesDir()', getManagedRulesDir()],
-    ['getMemoryPath(Managed)', getMemoryPath('Managed' as never)],
+    ['getInstructionFilePath(Managed)', getInstructionFilePath('Managed' as never)],
     ['getSkillsPath(policySettings, skills)', getSkillsPath('policySettings' as never, 'skills')],
   ]
   for (const [label, derived] of doors) {

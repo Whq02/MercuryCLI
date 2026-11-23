@@ -6,7 +6,7 @@ process.env.TERM = 'xterm-256color'
 
 const React = await import('react')
 const h = React.createElement
-const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.tsx')
 const { default: instances } = await import('../../src/screen/renderer/instances.ts')
 const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
 const { AlternateScreen } = await import('../../src/screen/renderer/elements/AlternateScreen.tsx')
@@ -96,7 +96,7 @@ type Road = 'the resize event' | 'a render'
 
 async function maximizeThenRestore(platform: NodeJS.Platform, bufferFollowsWindow: boolean, road: Road = 'the resize event'): Promise<Walk> {
   const host = new ConsoleHost(bufferFollowsWindow)
-  const ink = new Ink({ stdout: host as never, stdin: new Keys() as never, stderr: new ConsoleHost(true) as never, patchConsole: false, exitOnCtrlC: false })
+  const ink = new ScreenInstance({ stdout: host as never, stdin: new Keys() as never, stderr: new ConsoleHost(true) as never, patchConsole: false, exitOnCtrlC: false })
   instances.set(host as never, ink)
   const scene = (label: string): React.ReactNode => h(AlternateScreen, { mouseTracking: false }, h(Box, { flexDirection: 'column', width: '100%' }, h(Text, { wrap: 'truncate-end' }, '═'.repeat(400)), h(Text, null, label)))
   const becomes = (cols: number, rows: number, label: string): void => {

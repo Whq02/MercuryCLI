@@ -72,7 +72,7 @@ config.enableConfigs()
 let focusedModel = `local/${MODEL_27}`
 const connector = { modelFacts: () => ({ main: focusedModel, effective: focusedModel }), subscribeModel: () => () => {}, records: () => [], subscribeRecords: () => () => {}, usage: () => ({ totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0, hasUnknownModelCost: false }) }
 await stub('src/screen/keys/useKeybinding.ts', { useKeybinding: () => undefined, useKeybindings: () => undefined })
-await stub('src/screen/keys/useExitChord.ts', { useExitOnCtrlCD: () => undefined })
+await stub('src/screen/keys/useExitChord.ts', { useExitChord: () => undefined })
 await stub('src/screen/notifications/notifications.tsx', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
 await stub('src/platform/health/healthCertSnapshot.ts', { healthCertSnapshot: () => ({ state: 'unavailable' }) })
 await stub('src/engine/connector/focusedConnector.ts', {

@@ -94,7 +94,7 @@ try {
   {
     const reactModule = (await import('react')) as typeof import('react')
     const React = reactModule.default ?? reactModule
-    const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+    const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.js')
     const { default: instances } = await import('../../src/screen/renderer/instances.js')
     const { App } = await import('../../src/boot/App.js')
     const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
@@ -131,7 +131,7 @@ try {
     }
     const mount = async (node: ReactNode): Promise<string> => {
       const stdout = new Output()
-      const ink = new Ink({ stdout: stdout as never, stdin: new Input() as never, stderr: new Output() as never, exitOnCtrlC: false, patchConsole: false })
+      const ink = new ScreenInstance({ stdout: stdout as never, stdin: new Input() as never, stderr: new Output() as never, exitOnCtrlC: false, patchConsole: false })
       instances.set(stdout as never, ink)
       ink.render(React.createElement(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined }, node as never))
       await sleep(250)

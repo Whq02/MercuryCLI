@@ -56,7 +56,7 @@ const { getDefaultAppState } = await import('../../src/screen/app-state/AppState
 const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
 const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.js')
-const { default: PromptInput } = await import('../../src/screen/composer/Composer.js')
+const { default: Composer } = await import('../../src/screen/composer/Composer.js')
 const { useCompactWorkControls } = await import('../../src/screen/tasks/CompactWorkSummary.js')
 const { GlobalKeybindingHandlers } = await import('../../src/screen/chat/useGlobalKeybindings.js')
 const { CancelRequestHandler } = await import('../../src/screen/chat/interruptKeys.js')
@@ -136,7 +136,7 @@ resetChromeModeLatchForTests()
 pending.edit('')
 pending.setMode('prompt')
 const scrollRef = React.createRef<import('../../src/screen/renderer/elements/ScrollBox.js').ScrollBoxHandle>()
-const insertRef = { current: null } as React.MutableRefObject<import('../../src/screen/composer/Composer.js').PromptInputProps['insertTextRef']['current']>
+const insertRef = { current: null } as React.MutableRefObject<import('../../src/screen/composer/Composer.js').ComposerProps['insertTextRef']['current']>
 function Transcript(): React.ReactNode {
   return h(Text, null, Array.from({ length: 6 }, (_, i) => `transcript row ${i}`).join('\n'))
 }
@@ -158,7 +158,7 @@ function Cockpit(): React.ReactNode {
       statusBand: h(Text, null, 'activity specimen'),
       statusBandActive: false,
       modal: undefined,
-      bottom: h(PromptInput, {
+      bottom: h(Composer, {
         compactWork: controls,
         compactFocus: focus,
         debug: false,

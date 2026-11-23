@@ -486,7 +486,7 @@ function descriptionOf(activeForm: IssueForm, finalAnswers: Record<string, strin
   )
 }
 
-export function Feedback({
+export function BugReport({
   abortSignal,
   messages,
   initialDescription = '',
@@ -781,4 +781,4 @@ export function Feedback({
   })
 }
 
-export default Feedback
+export default BugReport

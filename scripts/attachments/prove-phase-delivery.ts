@@ -8,7 +8,7 @@ const engine = await import(join(root, 'sessions/instructions/instructionFiles.t
 const bootstrap = await import(join(root, 'boot/process-state/processState.ts'))
 const permissions = await import(join(root, 'permissions/rules/filesystem.ts'))
 const framework = await import(join(root, 'engine/task-framework/taskRegistry.ts'))
-const { getNestedMemoryAttachmentsForFile, getDirectoriesToProcess } = await import(join(root, 'engine/attachments/nestedInstructions.ts'))
+const { getNestedInstructionAttachmentsForFile, getDirectoriesToProcess } = await import(join(root, 'engine/attachments/nestedInstructions.ts'))
 const { getUnifiedTaskAttachments } = await import(join(root, 'engine/attachment-shapes/taskStatus.ts'))
 const base = resolve(process.env.MERCURY_CONFIG_DIR!, 'project')
 const file = join(base, 'sub', 'deep', 'file.ts')
@@ -32,18 +32,18 @@ const spies = [
 ]
 try {
   const directories = getDirectoriesToProcess(file, base)
-  const rows = await getNestedMemoryAttachmentsForFile(file, context as never, { toolPermissionContext: {} } as never)
+  const rows = await getNestedInstructionAttachmentsForFile(file, context as never, { toolPermissionContext: {} } as never)
   assert.deepEqual(events, ['managed', ...directories.nestedDirs.map((directory: string) => 'nested:' + directory), ...directories.cwdLevelDirs.map((directory: string) => 'root:' + directory)])
   assert.equal(rows.length, events.length)
   assert(ledgers.every(seen => seen === ledgers[0]), 'nested memory phases did not share one dedup ledger Set in src/engine/attachments/nestedInstructions.ts')
   assert.equal(context.readFileState.size, events.length)
   events.length = 0; ledgers.length = 0; context.readFileState.clear(); context.loadedNestedMemoryPaths.clear()
   failAt = directories.nestedDirs[0]!
-  const partial = await getNestedMemoryAttachmentsForFile(file, context as never, { toolPermissionContext: {} } as never)
+  const partial = await getNestedInstructionAttachmentsForFile(file, context as never, { toolPermissionContext: {} } as never)
   assert.equal(partial.length, 1)
   assert.deepEqual(events, ['managed', 'nested:' + failAt])
   allowed = false; events.length = 0
-  assert.deepEqual(await getNestedMemoryAttachmentsForFile(file, context as never, { toolPermissionContext: {} } as never), [])
+  assert.deepEqual(await getNestedInstructionAttachmentsForFile(file, context as never, { toolPermissionContext: {} } as never), [])
   assert.deepEqual(events, [])
   console.log('PASS nested phase order, live admission before next load, shared ledger, partial failure and allowed-path gate')
   const state = { fixture: true }

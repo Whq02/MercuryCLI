@@ -12,7 +12,7 @@ pinSourceRef()
 delete process.env.NODE_ENV
 process.env.MERCURY_REDUCED_MOTION = '1'
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
-const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.js')
 const { default: instances } = await import('../../src/screen/renderer/instances.js')
 const { Box, Text } = await import('../../src/screen/themedRenderer.js')
 const { MercurySetupFrame } = await import('../../src/boot/first-run/MercurySetupFrame.js')
@@ -49,7 +49,7 @@ class Input extends EventEmitter {
 }
 function rig(columns: number, rows: number, alt = true) {
   const stdout = new Output(columns, rows)
-  const ink = new Ink({ stdout: stdout as never, stdin: new Input() as never, stderr: new Output(columns, rows) as never, exitOnCtrlC: false, patchConsole: false })
+  const ink = new ScreenInstance({ stdout: stdout as never, stdin: new Input() as never, stderr: new Output(columns, rows) as never, exitOnCtrlC: false, patchConsole: false })
   instances.set(stdout as never, ink)
   if (alt) ink.setAltScreenActive(true, false)
   return { ink, stdout }
@@ -60,12 +60,12 @@ function feed(terminal: AnsiEmulator, writes: readonly string[]): void {
     terminal.feed(bytes.replace(probe, ''))
   }
 }
-function model(ink: InstanceType<typeof Ink>, rows: number): string[] {
+function model(ink: InstanceType<typeof ScreenInstance>, rows: number): string[] {
   const lines = stripAnsi(ink.lastFrameText()).split('\n').map(line => line.trimEnd())
   while (lines.length < rows) lines.push('')
   return lines
 }
-function sameGlass(label: string, terminal: AnsiEmulator, ink: InstanceType<typeof Ink>): void {
+function sameGlass(label: string, terminal: AnsiEmulator, ink: InstanceType<typeof ScreenInstance>): void {
   const want = model(ink, terminal.height)
   const got = terminal.lines()
   check(label, JSON.stringify(got) === JSON.stringify(want), got.flatMap((line, y) => line === want[y] ? [] : [`row ${y}: ${JSON.stringify(line)} != ${JSON.stringify(want[y])}`]).slice(0, 4).join(' | ') + ' | the cells the terminal drew differ from the composed frame; look at the frame diff and whole-frame repaint in renderFrame (src/screen/renderer/instance/frame-loop.ts) and src/screen/renderer/frame-writer.ts')

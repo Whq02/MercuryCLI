@@ -5,7 +5,7 @@ import { pressSendNow } from './input-core/sendNowChord.js'
 import { focusedSendNowLive, sendFocusedWordsNow } from '../../engine/connector/sendNowLive.js'
 import { splitWayOut, type Notification } from '../notifications/notifications.js'
 import type { PastedContent } from '../../platform/settings/config.js'
-import type { useInputBuffer } from './useInputUndo.js'
+import type { useInputUndo } from './useInputUndo.js'
 import { useKeybinding, useKeybindings } from '../keys/useKeybinding.js'
 import { getShortcutDisplay } from '../keys/shortcutFormat.js'
 import type { AppState } from '../app-state/AppState.js'
@@ -27,7 +27,7 @@ type ComposerKeybindingsInput = {
   input: string
   cursorOffset: number
   pastedContents: Record<number, PastedContent>
-  buffer: ReturnType<typeof useInputBuffer>
+  buffer: ReturnType<typeof useInputUndo>
   writeDraft: (text: string) => void
   setCursorOffset: (offset: number) => void
   lastSelfWriteRef: React.MutableRefObject<string>

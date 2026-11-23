@@ -70,7 +70,7 @@ async function stub(relative: string, overrides: Record<string, unknown>): Promi
   const actual = await import(path)
   mock.module(path, () => ({ ...actual, ...overrides }))
 }
-await stub('src/screen/keys/useExitChord.ts', { useExitOnCtrlCD: () => undefined })
+await stub('src/screen/keys/useExitChord.ts', { useExitChord: () => undefined })
 await stub('src/screen/keys/useKeybinding.ts', { useKeybinding: () => undefined, useKeybindings: () => undefined })
 await stub('src/screen/notifications/notifications.tsx', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
 await stub('src/models/roads/anthropic/anthropicCatalogue.ts', { refreshAnthropicCatalogue: async () => [] })

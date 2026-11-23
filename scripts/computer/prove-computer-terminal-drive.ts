@@ -13,7 +13,7 @@ if (windowHome) {
   enableConfigs()
   globalThis.fetch = (async () => { throw new Error('this terminal proof has no network') }) as typeof fetch
   const React = await import('react')
-  const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+  const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.tsx')
   const { default: instances } = await import('../../src/screen/renderer/instances.ts')
   const { Box } = await import('../../src/screen/themedRenderer.ts')
   const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
@@ -22,7 +22,7 @@ if (windowHome) {
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
   const { openSettingsPopup } = await import('../../src/screen/cockpit/settingsPopup.ts')
   const { runHostedModel } = await import('../../src/models/hosting/index.ts')
-  const ink = new Ink({ stdout: process.stdout, stdin: process.stdin, stderr: process.stderr, exitOnCtrlC: false, patchConsole: false })
+  const ink = new ScreenInstance({ stdout: process.stdout, stdin: process.stdin, stderr: process.stderr, exitOnCtrlC: false, patchConsole: false })
   instances.set(process.stdout, ink)
   ink.setAltScreenActive(true, true)
   ink.render(React.createElement(AppStateProvider, {}, React.createElement(ThemeProvider, {}, React.createElement(Box, { flexDirection: 'column', width: 170, height: 48 }, React.createElement(SettingsPopupSlot)))))

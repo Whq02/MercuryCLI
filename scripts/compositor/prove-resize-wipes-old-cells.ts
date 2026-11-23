@@ -2,7 +2,7 @@
 import { EventEmitter } from 'node:events'
 import { PassThrough } from 'node:stream'
 import { createElement } from 'react'
-import Ink from '../../src/screen/renderer/screenInstance.js'
+import ScreenInstance from '../../src/screen/renderer/screenInstance.js'
 import { Text } from '../../src/screen/themedRenderer.js'
 import { RESIZE_SETTLE_MS } from '../../src/screen/renderer/constants.js'
 import { settle } from '../lib/settingsPopupHarness.js'
@@ -21,7 +21,7 @@ class Output extends EventEmitter {
 async function shrink(program: string): Promise<string> {
   process.env.TERM_PROGRAM = program
   const out = new Output()
-  const ink = new Ink({ stdout: out as never, stderr: out as never, stdin: new PassThrough() as never, patchConsole: false, exitOnCtrlC: false })
+  const ink = new ScreenInstance({ stdout: out as never, stderr: out as never, stdin: new PassThrough() as never, patchConsole: false, exitOnCtrlC: false })
   try {
     ink.setAltScreenActive(true, false)
     ink.render(createElement(Text, null, 'right edge '.repeat(24)))

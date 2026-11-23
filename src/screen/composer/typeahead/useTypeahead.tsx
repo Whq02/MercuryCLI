@@ -16,7 +16,7 @@ import { useKeybindings } from '../../keys/useKeybinding.js'
 import { useAppStateStore } from '../../app-state/AppState.js'
 import type {
   InlineGhostText,
-  PromptInputMode,
+  InputMode,
 } from '../input-core/textInput.js'
 import {
   findChannelTargetQuery,
@@ -44,7 +44,7 @@ export type { SuggestionsState } from './state.js'
 type UseTypeaheadProps = {
   input: string
   cursorOffset: number
-  mode: PromptInputMode
+  mode: InputMode
   commands: Command[]
   agents?: AgentDefinition[]
   suppressSuggestions?: boolean
@@ -55,7 +55,7 @@ type UseTypeaheadProps = {
   onInputChange: (value: string) => void
   setCursorOffset: (offset: number) => void
   onSubmit?: (value: string, isSubmittingSlashCommand?: boolean) => void
-  onModeChange?: (mode: PromptInputMode) => void
+  onModeChange?: (mode: InputMode) => void
   markAccepted?: () => void
 }
 

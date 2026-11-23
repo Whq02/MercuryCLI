@@ -177,7 +177,7 @@ console.log('── 4. class sweep ──')
 console.log('── 6. per-row boundary ──')
 {
   const React = await import('react')
-  const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+  const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.js')
   const { Box, Text } = await import('../../src/screen/themedRenderer.js')
   const { RowErrorBoundary } = await import('../../src/screen/messages/RowErrorBoundary.js')
   class FakeStdout extends EventEmitter {
@@ -201,7 +201,7 @@ console.log('── 6. per-row boundary ──')
     read(): null { return null }
   }
   const stdout = new FakeStdout()
-  const ink = new Ink({ stdout: stdout as never, stdin: new FakeStdin() as never, stderr: new FakeStdout() as never, exitOnCtrlC: false, patchConsole: false })
+  const ink = new ScreenInstance({ stdout: stdout as never, stdin: new FakeStdin() as never, stderr: new FakeStdout() as never, exitOnCtrlC: false, patchConsole: false })
   const Thrower = (): never => {
     throw new TypeError("Cannot read properties of undefined (reading 'trim')")
   }

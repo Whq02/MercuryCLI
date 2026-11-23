@@ -9,7 +9,7 @@ process.env.FORCE_COLOR = '3'
 
 const React = await import('react')
 const h = React.createElement
-const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.tsx')
 const { default: instances } = await import('../../src/screen/renderer/instances.ts')
 const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
 const { default: ScrollBox } = await import('../../src/screen/renderer/elements/ScrollBox.tsx')
@@ -138,7 +138,7 @@ async function world(variant: Variant, at?: number, tick = 0, gone: ReadonlySet<
   screen.columns = cols
   const shots: Shot[] = []
   const shown = { tick, rows: ROWS, cols, gone }
-  const ink = new Ink({
+  const ink = new ScreenInstance({
     stdout: screen as never,
     stdin: new Keyboard() as never,
     stderr: new Terminal(ROWS) as never,

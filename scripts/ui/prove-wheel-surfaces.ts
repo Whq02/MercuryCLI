@@ -26,7 +26,7 @@ const { CrewChatPanel } = await import('../../src/screen/prompts-panel/CrewChatP
 const { CrewView } = await import('../../src/screen/widgets/faces/CrewView.js')
 const { addSavedPrompt } = await import('../../src/sessions/saved-prompts/savedPromptsStore.js')
 const { MercuryModelPicker } = await import('../../src/commands/model/picker/MercuryModelPicker.js')
-const { LogSelector } = await import('../../src/screen/session-chooser/SessionBrowser.js')
+const { SessionBrowser } = await import('../../src/screen/session-chooser/SessionBrowser.js')
 const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.js')
 const popup = await import('../../src/screen/cockpit/settingsPopup.js')
 const { configPopupRequest } = await import('../../src/commands/config/config.js')
@@ -123,7 +123,7 @@ try {
   boardOn = true
   await equivalent('CrewView Board tab', () => h(CrewView, { onClose: noop }), '\t', 'up')
   boardOn = false
-  await equivalent('sessions list', () => h(LogSelector, { logs, onSelect: noop, onCancel: noop, maxHeight: 30 }), '', 'down')
+  await equivalent('sessions list', () => h(SessionBrowser, { logs, onSelect: noop, onCancel: noop, maxHeight: 30 }), '', 'down')
   await equivalent('model picker', () => h(MercuryModelPicker, { models, current: models[0]!.id, ctxPct: null, onClose: noop }), '', 'down')
 
   async function config(): Promise<Mounted> {

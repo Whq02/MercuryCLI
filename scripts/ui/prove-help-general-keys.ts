@@ -39,10 +39,10 @@ const { App } = await import('../../src/boot/App.tsx')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
 const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
-const { HelpV2 } = await import('../../src/screen/help/HelpV2.tsx')
+const { Help } = await import('../../src/screen/help/HelpV2.tsx')
 const { builtinCommands } = await import('../../src/commands/catalogue/commands.ts')
-const defaultPromptInput = await import('../../src/screen/composer/Composer.tsx')
-const PromptInput = defaultPromptInput.default
+const defaultComposer = await import('../../src/screen/composer/Composer.tsx')
+const Composer = defaultComposer.default
 const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
 const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
 const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
@@ -68,7 +68,7 @@ function Harness({ columns }: { columns: number }): React.ReactNode {
     statusBandActive: false,
     modal: modal === null ? undefined : h(Box, { width: '100%', flexDirection: 'column' }, modal),
     modalScrollRef,
-    bottom: h(PromptInput, {
+    bottom: h(Composer, {
       debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
       setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [], isLoading: false,
       verbose: false, submitCount: 0, onShowMessageSelector: () => {}, mcpClients: [], vimMode, setVimMode,
@@ -95,7 +95,7 @@ async function openHelp(columns: number, rows: number): Promise<Mounted> {
   const m = await mountOffscreen(wrap(h(Harness, { columns })), columns, rows, { mouseTracking: true })
   await waitFor(() => m.screen().includes('TTTT'), 4000)
   await settle(150)
-  setModal(h(HelpV2, { commands: COMMANDS, onClose: () => setModal(null) }))
+  setModal(h(Help, { commands: COMMANDS, onClose: () => setModal(null) }))
   await waitFor(() => m.screen().includes('Mercury — help') && tabsLineOf(m).includes('commands'), 8000)
   await settle(400)
   return m
@@ -181,7 +181,7 @@ console.log('------------------------------------------------------------')
 {
   const m = await openHelp(120, 40)
   const tabs = tabsLineOf(m)
-  check('120x40: /help opened on the general tab', tabs.includes('general'), `HelpV2 must open on the general tab (useState initial value in src/screen/help/HelpV2.tsx); tabs line = ${tabs}`)
+  check('120x40: /help opened on the general tab', tabs.includes('general'), `Help must open on the general tab (useState initial value in src/screen/help/HelpV2.tsx); tabs line = ${tabs}`)
   m.push(KEY.right)
   await settle(300)
   const moved = await waitFor(() => m.screen().includes('Browse default commands'), 4000)

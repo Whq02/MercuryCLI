@@ -24,7 +24,7 @@ const { App } = await import('../../src/boot/App.tsx')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
 const { PermissionRequest } = await import('../../src/permissions/cards/PermissionRequest.tsx')
-const { InkInstanceContext } = await import('../../src/screen/renderer/elements/InkInstanceContext.ts')
+const { ScreenInstanceContext } = await import('../../src/screen/renderer/elements/InkInstanceContext.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
 const { registerComposerSeeder } = await import('../../src/screen/cockpit/composerSeed.ts')
@@ -39,7 +39,7 @@ const toolOf = (name: string): unknown => roster.find(tool => tool.name === name
 
 let painter: { pause: () => void; resume: () => void } | undefined
 function Painter(): null {
-  painter = React.useContext(InkInstanceContext) as typeof painter
+  painter = React.useContext(ScreenInstanceContext) as typeof painter
   return null
 }
 

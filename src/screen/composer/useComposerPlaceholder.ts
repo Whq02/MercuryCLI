@@ -9,7 +9,7 @@ import { crewmatePlaceholder } from '../cockpit/crewmateWords.js'
 
 const AGENT_NAME_MAX_COLUMNS = 24
 
-export function usePromptInputPlaceholder({
+export function useComposerPlaceholder({
   input,
   submitCount,
   viewingAgentName,

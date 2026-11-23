@@ -22,7 +22,7 @@ const { getInstructionFiles, getInstructionCompositionState, resetInstructionFil
 const { setSessionInstructionProfile } = await import(join(repo, 'src/sessions/instructions/profile.ts'))
 const { getInstructionListing, listingRowWords } = await import(join(repo, 'src/sessions/instructions/listing.ts'))
 const { getUserContext } = await import(join(repo, 'src/engine/requestContext.ts'))
-const { getNestedMemoryAttachmentsForFile } = await import(join(repo, 'src/engine/attachments/nestedInstructions.ts'))
+const { getNestedInstructionAttachmentsForFile } = await import(join(repo, 'src/engine/attachments/nestedInstructions.ts'))
 const { createFileStateCacheWithSizeLimit } = await import(join(repo, 'src/platform/files/fileStateCache.ts'))
 const cwd = process.cwd()
 const state = { toolPermissionContext: getEmptyToolPermissionContext() }
@@ -30,7 +30,7 @@ const reading = async (file: string): Promise<{ paths: string[]; first: string; 
   getUserContext.cache?.clear?.()
   const files = await getInstructionFiles()
   const context = { readFileState: createFileStateCacheWithSizeLimit(100), loadedNestedMemoryPaths: new Set(), nestedMemoryAttachmentTriggers: new Set(), getAppState: () => state }
-  const attached = (await getNestedMemoryAttachmentsForFile(join(cwd, file), context as never, state)).map((a: any) => a.path)
+  const attached = (await getNestedInstructionAttachmentsForFile(join(cwd, file), context as never, state)).map((a: any) => a.path)
   const listed = (await getInstructionListing()).map((row: any) => listingRowWords(row, row.path.replace(cwd, '.'), () => false))
   return { paths: files.map((f: any) => f.path), first: (await getUserContext()).instructions ?? '', composed: getInstructionCompositionState().fallbackComposed, attached, listed }
 }
@@ -103,7 +103,7 @@ try {
   const loads = (reading: Reading): boolean => same(reading.paths, OTHERS) && reading.composed && same(reading.attached, scoped) && ['agents-needle', 'guide-needle', 'always-needle'].every(needle => reading.first.includes(needle))
 
   console.log('one session, the instruction caches reset between each step')
-  check("at the start the other tools' files load and a matching file attaches the scoped rule", loads(steps.start), JSON.stringify(steps.start).slice(0, 600), "change what getInstructionFiles in src/sessions/instructions/instructionFiles.ts loads from AGENTS.md, GEMINI.md and .cursor/rules, or what getNestedMemoryAttachmentsForFile in src/engine/attachments/nestedInstructions.ts attaches")
+  check("at the start the other tools' files load and a matching file attaches the scoped rule", loads(steps.start), JSON.stringify(steps.start).slice(0, 600), "change what getInstructionFiles in src/sessions/instructions/instructionFiles.ts loads from AGENTS.md, GEMINI.md and .cursor/rules, or what getNestedInstructionAttachmentsForFile in src/engine/attachments/nestedInstructions.ts attaches")
   check('a MERCURY.md written into the project changes nothing until the caches are reset', same(steps.unrefreshed.paths, OTHERS), steps.unrefreshed.paths.join(' '), 'getInstructionFiles in src/sessions/instructions/instructionFiles.ts is memoized and must only re-read after resetInstructionFilesCache or clearInstructionFileCaches')
   check('after the reset MERCURY.md decides: it alone loads, a matching file attaches nothing, and each other file says which import brings it back', same(steps.decided.paths, [at('MERCURY.md')]) && !steps.decided.composed && steps.decided.attached.length === 0 && steps.decided.first.includes('native-needle') && !steps.decided.first.includes('guide-needle') && steps.decided.listed.length === 3 && steps.decided.listed.every(row => row.includes('not loaded: MERCURY.md decides; import it with @')), JSON.stringify(steps.decided).slice(0, 700), 'fix the MERCURY.md-decides rule in getInstructionFiles (src/sessions/instructions/instructionFiles.ts) or the not-loaded wording in listingRowWords (src/sessions/instructions/listing.ts)')
   check('with MERCURY.md removed and the caches cleared the others load again and the scoped rule attaches again', loads(steps.undecided), JSON.stringify(steps.undecided).slice(0, 600), 'clearInstructionFileCaches in src/sessions/instructions/instructionFiles.ts must drop the decided state so getInstructionFiles reads the other tools again')

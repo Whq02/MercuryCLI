@@ -32,7 +32,7 @@ process.env.BROWSER = '/usr/bin/true'
 const mod = async <T>(rel: string): Promise<T> => (await import(join(ROOT, rel))) as T
 const reactModule = await mod<{ default?: typeof import('react') } & typeof import('react')>('node_modules/react/index.js')
 const React = reactModule.default ?? reactModule
-const { default: Ink } = await mod<typeof import('../../src/screen/renderer/screenInstance.tsx')>('src/screen/renderer/screenInstance.tsx')
+const { default: ScreenInstance } = await mod<typeof import('../../src/screen/renderer/screenInstance.tsx')>('src/screen/renderer/screenInstance.tsx')
 const { App } = await mod<typeof import('../../src/boot/App.tsx')>('src/boot/App.tsx')
 const { getDefaultAppState } = await mod<typeof import('../../src/screen/app-state/AppStateStore.ts')>('src/screen/app-state/AppStateStore.ts')
 const { SpinnerWithVerb } = await mod<typeof import('../../src/screen/spinner/Spinner.tsx')>('src/screen/spinner/Spinner.tsx')
@@ -140,7 +140,7 @@ class Input extends EventEmitter {
 const ref = <V,>(current: V) => ({ current })
 async function mountRow(columns: number, node: ReactNode): Promise<string> {
   const stdout = new Output(columns)
-  const ink = new Ink({ stdout: stdout as never, stdin: new Input() as never, stderr: new Output(columns) as never, exitOnCtrlC: false, patchConsole: false })
+  const ink = new ScreenInstance({ stdout: stdout as never, stdin: new Input() as never, stderr: new Output(columns) as never, exitOnCtrlC: false, patchConsole: false })
   instances.set(stdout as never, ink)
   ink.render(node)
   await sleep(350)

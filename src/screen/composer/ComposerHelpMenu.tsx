@@ -25,7 +25,7 @@ type Props = {
   availableColumns?: number
 }
 
-export function PromptInputHelpMenu(props: Props): React.ReactNode {
+export function ComposerHelpMenu(props: Props): React.ReactNode {
   const { dimColor, fixedWidth, gap, paddingX, availableColumns } = props
   const cockpitActive = React.useContext(CockpitActiveContext)
 

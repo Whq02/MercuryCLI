@@ -33,7 +33,7 @@ const frames = at < 0 ? undefined : process.argv[at + 1]
 if (frames) mkdirSync(frames, { recursive: true })
 
 const React = await import('react')
-const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.tsx')
 const { Text } = await import('../../src/screen/themedRenderer.ts')
 const { App } = await import('../../src/boot/App.tsx')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
@@ -87,7 +87,7 @@ try {
     resetChromeModeLatchForTests()
     resetHelmFocusForTest()
     const stdout = new Output(cols, rows)
-    const ink = new Ink({ stdout: stdout as never, stdin: new Input() as never, stderr: new Output(cols, rows) as never, exitOnCtrlC: false, patchConsole: false })
+    const ink = new ScreenInstance({ stdout: stdout as never, stdin: new Input() as never, stderr: new Output(cols, rows) as never, exitOnCtrlC: false, patchConsole: false })
     instances.set(stdout as never, ink)
     const scrollRef = React.createRef<import('../../src/screen/renderer/elements/ScrollBox.tsx').ScrollBoxHandle>()
     ink.render(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined },

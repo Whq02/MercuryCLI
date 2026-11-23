@@ -50,8 +50,8 @@ const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProvid
 const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
 const { BootSplashScreen } = await import('../../src/screen/boot-face/BootSplashScreen.tsx')
 const { RowPickModal } = await import('../../src/screen/concourse/RowPickModal.tsx')
-const { HelpV2 } = await import('../../src/screen/help/HelpV2.tsx')
-const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { Help } = await import('../../src/screen/help/HelpV2.tsx')
+const { default: Composer } = await import('../../src/screen/composer/Composer.tsx')
 const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
 const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
 const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
@@ -87,7 +87,7 @@ function Harness({ columns }: { columns: number }): React.ReactNode {
     statusBandActive: false,
     modal: modal === null ? undefined : h(Box, { width: '100%', flexDirection: 'column' }, modal),
     modalScrollRef,
-    bottom: h(PromptInput, {
+    bottom: h(Composer, {
       debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
       setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [], isLoading: false,
       verbose: false, submitCount: 0, onShowMessageSelector: () => {}, mcpClients: [], vimMode, setVimMode,
@@ -146,7 +146,7 @@ const surfaces = [
   { name: 'crew', title: 'Mercury — crew', open: async () => { crew.openCrewView() } },
 ]
 const sheets = [
-  { name: 'help-sheet', title: 'Mercury — help', open: async () => setModal(h(HelpV2, { commands: [], onClose: () => setModal(null) })) },
+  { name: 'help-sheet', title: 'Mercury — help', open: async () => setModal(h(Help, { commands: [], onClose: () => setModal(null) })) },
   { name: 'submodels-sheet', title: 'Mercury — submodels', open: async () => setModal(await submodelsCommand.call(() => setModal(null), context, '')) },
 ]
 async function close(scene: Mounted): Promise<void> {

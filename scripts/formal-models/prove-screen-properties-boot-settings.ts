@@ -102,7 +102,7 @@ const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
 const surfaceRoute = await import('../../src/screen/routes/surfaceRoute.ts')
-const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.js')
 const { default: instances } = await import('../../src/screen/renderer/instances.js')
 const { default: reconciler } = await import('../../src/screen/renderer/reconciler.js')
 const { disposeKeybindingWatcher } = await import('../../src/screen/keys/loadUserBindings.js')
@@ -257,7 +257,7 @@ function focusedRowLabels(frame: string): RowLabel[] {
 
 const stdout = new FakeStdout(120, 34)
 const stdin = new FakeStdin()
-const ink = new Ink({
+const ink = new ScreenInstance({
   stdout: stdout as never,
   stdin: stdin as never,
   stderr: new FakeStdout(120, 34) as never,

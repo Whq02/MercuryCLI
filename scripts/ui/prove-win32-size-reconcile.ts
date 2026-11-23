@@ -98,7 +98,7 @@ section('§1 refreshConsoleSize')
 section('§2 the renderer under a forced win32 platform')
 {
   const React = await import('react')
-  const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+  const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.js')
   const { Box, Text } = await import('../../src/screen/themedRenderer.js')
   const { getMercuryHome } = await import('../../src/platform/environment/envUtils.js')
   const home = getMercuryHome()
@@ -106,7 +106,7 @@ section('§2 the renderer under a forced win32 platform')
   const stdout = new FakeConsole()
   Object.defineProperty(process, 'platform', { value: 'win32', configurable: true })
   try {
-    const ink = new Ink({ stdout: stdout as never, stdin: new FakeStdin() as never, stderr: new FakeConsole() as never, exitOnCtrlC: false, patchConsole: false })
+    const ink = new ScreenInstance({ stdout: stdout as never, stdin: new FakeStdin() as never, stderr: new FakeConsole() as never, exitOnCtrlC: false, patchConsole: false })
     ink.render(React.createElement(Box, null, React.createElement(Text, null, 'geometry')))
     await sleep(150)
     const before = stdout.refreshCalls

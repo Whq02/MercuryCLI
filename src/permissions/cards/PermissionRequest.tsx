@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { useContext } from 'react'
 import { useClaim } from '../../screen/effects/effects.js'
-import { InkInstanceContext } from '../../screen/renderer/elements/InkInstanceContext.js'
+import { ScreenInstanceContext } from '../../screen/renderer/elements/InkInstanceContext.js'
 import { useKeybinding } from '../../screen/keys/useKeybinding.js'
 import { armComposerSeed } from '../../screen/cockpit/composerSeed.js'
 import { armPermissionFocus } from '../rules/permissionFocus.js'
@@ -106,7 +106,7 @@ export function PermissionRequest(props: PermissionRequestProps): React.ReactNod
 
   useClaim(() => armPermissionFocus(), [])
 
-  const ink = useContext(InkInstanceContext)
+  const ink = useContext(ScreenInstanceContext)
   useClaim(() => ink?.registerArrowKeyOwner(() => true), [ink])
 
   useKeysHeldUntilFirstPaint()

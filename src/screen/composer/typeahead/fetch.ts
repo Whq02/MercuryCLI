@@ -7,7 +7,7 @@ import type {
 import { getSelectedSuggestion } from '../suggestionSelectionStore.js'
 import type { AppStateStore } from '../../app-state/AppStateStore.js'
 import type { AgentDefinition } from '../../../crew/agents/agentDefinition.js'
-import type { InlineGhostText, PromptInputMode } from '../input-core/textInput.js'
+import type { InlineGhostText, InputMode } from '../input-core/textInput.js'
 import { logError } from '../../../platform/logs/errorLog.js'
 import {
   findMidInputSlashCommand,
@@ -111,7 +111,7 @@ export function promptGhostOf({
   cursorOffset,
   commands,
 }: {
-  mode: PromptInputMode
+  mode: InputMode
   input: string
   cursorOffset: number
   commands: Command[]

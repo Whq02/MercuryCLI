@@ -107,7 +107,7 @@ try {
   await stub('../../src/models/catalogue/computedDefault.js', { recentSignIns: () => [{ family: 'openrouter' }] })
   await stub('../../src/screen/model-picker/useProviderUsageOnShow.js', { useProviderUsageOnShow: () => undefined })
   await stub('../../src/screen/keys/useKeybinding.js', { useKeybinding: () => undefined, useKeybindings: () => undefined })
-  await stub('../../src/screen/keys/useExitChord.js', { useExitOnCtrlCD: () => undefined })
+  await stub('../../src/screen/keys/useExitChord.js', { useExitChord: () => undefined })
   await stub('../../src/screen/notifications/notifications.js', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
   const connector = { modelFacts: () => ({ main: 'openrouter/fixture/model' }), subscribeModel: () => () => {}, usage: () => ({ totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0, hasUnknownModelCost: false }) }
   await stub('../../src/engine/connector/focusedConnector.js', { getFocusedSessionConnector: () => connector, subscribeThroughFocused: () => () => () => {} })

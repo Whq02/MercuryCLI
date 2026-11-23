@@ -1,5 +1,5 @@
 
-import type Ink from './screenInstance.js'
+import type ScreenInstance from './screenInstance.js'
 
-const instances = new Map<NodeJS.WriteStream, Ink>()
+const instances = new Map<NodeJS.WriteStream, ScreenInstance>()
 export default instances

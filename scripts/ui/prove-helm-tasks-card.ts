@@ -47,13 +47,13 @@ process.env.BROWSER = '/usr/bin/true'
 const mod = async <T>(rel: string): Promise<T> => (await import(join(ROOT, rel))) as T
 const reactModule = await mod<{ default?: typeof import('react') } & typeof import('react')>('node_modules/react/index.js')
 const React = reactModule.default ?? reactModule
-const { default: Ink } = await mod<typeof import('../../src/screen/renderer/screenInstance.tsx')>('src/screen/renderer/screenInstance.tsx')
+const { default: ScreenInstance } = await mod<typeof import('../../src/screen/renderer/screenInstance.tsx')>('src/screen/renderer/screenInstance.tsx')
 const { Text } = await mod<typeof import('../../src/screen/themedRenderer.ts')>('src/screen/themedRenderer.ts')
 const { App } = await mod<typeof import('../../src/boot/App.tsx')>('src/boot/App.tsx')
 const { getDefaultAppState } = await mod<typeof import('../../src/screen/app-state/AppStateStore.ts')>('src/screen/app-state/AppStateStore.ts')
 const { KeybindingSetup } = await mod<typeof import('../../src/screen/keys/KeybindingProviderSetup.tsx')>('src/screen/keys/KeybindingProviderSetup.tsx')
 const { FullscreenLayout } = await mod<typeof import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')>('src/screen/fullscreen-layout/FullscreenLayout.tsx')
-const { default: PromptInput } = await mod<typeof import('../../src/screen/composer/Composer.tsx')>('src/screen/composer/Composer.tsx')
+const { default: Composer } = await mod<typeof import('../../src/screen/composer/Composer.tsx')>('src/screen/composer/Composer.tsx')
 const { SpinnerWithVerb } = await mod<typeof import('../../src/screen/spinner/Spinner.tsx')>('src/screen/spinner/Spinner.tsx')
 const { GlobalKeybindingHandlers } = await mod<typeof import('../../src/screen/chat/useGlobalKeybindings.tsx')>('src/screen/chat/useGlobalKeybindings.tsx')
 const { resetChromeModeLatchForTests } = await mod<typeof import('../../src/screen/fullscreen-layout/useLayoutTier.ts')>('src/screen/fullscreen-layout/useLayoutTier.ts')
@@ -68,7 +68,7 @@ const helm = await mod<typeof import('../../src/screen/cockpit/helmFocus.ts')>('
 type WorkRoster = import('../../src/engine/connector/types.ts').WorkRosterV1
 type Connector = import('../../src/engine/connector/types.ts').EngineConnectorV1
 type Row = import('../../src/screen/cockpit/helmFocus.ts').HelmRow
-type InsertRef = import('../../src/screen/composer/Composer.tsx').PromptInputProps['insertTextRef']
+type InsertRef = import('../../src/screen/composer/Composer.tsx').ComposerProps['insertTextRef']
 type ScrollHandle = import('../../src/screen/renderer/elements/ScrollBox.tsx').ScrollBoxHandle
 
 enableConfigs()
@@ -139,7 +139,7 @@ const railHits = (frame: string, needle: RegExp): string => railColumns(frame).f
 const lanesRows = (): Row[] => helm.getHelmRows('lanes')
 const missionLabels = (): string[] => lanesRows().map(row => row.label).filter(label => label.startsWith('mission:'))
 
-type Mount = { ink: InstanceType<typeof Ink>; stdin: Input; frame: () => string; frames: () => number; close: () => Promise<void> }
+type Mount = { ink: InstanceType<typeof ScreenInstance>; stdin: Input; frame: () => string; frames: () => number; close: () => Promise<void> }
 async function mount(name: string, work: WorkRoster): Promise<Mount> {
   roster = work
   for (const listener of workListeners) listener()
@@ -151,7 +151,7 @@ async function mount(name: string, work: WorkRoster): Promise<Mount> {
   const stdout = new Output()
   const stdin = new Input()
   let frames = 0
-  const ink = new Ink({ stdout: stdout as never, stdin: stdin as never, stderr: new Output() as never, exitOnCtrlC: false, patchConsole: false, onFrame: () => { frames++ } })
+  const ink = new ScreenInstance({ stdout: stdout as never, stdin: stdin as never, stderr: new Output() as never, exitOnCtrlC: false, patchConsole: false, onFrame: () => { frames++ } })
   instances.set(stdout as never, ink)
   const scrollRef = React.createRef<ScrollHandle>()
   const insertRef: InsertRef = { current: null }
@@ -181,7 +181,7 @@ async function mount(name: string, work: WorkRoster): Promise<Mount> {
           activeToolLabel: null, leaderIsIdle: false,
         }),
         statusBandActive: true,
-        bottom: h(PromptInput, {
+        bottom: h(Composer, {
           debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
           setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [],
           isLoading: false, verbose: false, submitCount: 0, onShowMessageSelector: () => {},

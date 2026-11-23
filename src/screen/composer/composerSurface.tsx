@@ -15,7 +15,7 @@ import { BackgroundTasksDialog } from '../tasks/BackgroundTasksDialog.js'
 import type { useComposerCrewmate } from '../tasks/useCrewmateView.js'
 import type { OverlaySurface } from './composerOverlay.js'
 import { crewmateCommandReceipt, openCrewmateModelPickerFor } from './crewmateCommands.js'
-import type { PromptInputProps } from './Composer.js'
+import type { ComposerProps } from './Composer.js'
 import type { ComposerAttachments } from './useComposerAttachments.js'
 import type { useComposerModelDoors } from './useComposerModelDoors.js'
 
@@ -50,7 +50,7 @@ export function composerSurface({
   borderColor: keyof Theme
   overlay: OverlaySurface
   setOverlay: React.Dispatch<React.SetStateAction<OverlaySurface>>
-  getToolUseContext: PromptInputProps['getToolUseContext']
+  getToolUseContext: ComposerProps['getToolUseContext']
   messages: Message[]
   engineModel: AppState['engineModel']
   showCommandPalette: boolean

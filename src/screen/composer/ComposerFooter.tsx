@@ -7,7 +7,7 @@ import {
 import { useTerminalSize } from '../fullscreen-layout/useTerminalSize.js'
 import type { MCPServerConnection } from '../../integrations/mcp-shapes/mcpServerRecords.js'
 import type { Message } from '../../engine/message-shapes/message.js'
-import type { PromptInputMode } from './input-core/textInput.js'
+import type { InputMode } from './input-core/textInput.js'
 import type { VerificationStatus } from '../../models/sign-in/credentials/useApiKeyVerification.js'
 import { useSetPromptOverlay } from '../overlays/promptOverlay.js'
 import {
@@ -18,10 +18,10 @@ import {
 import { isFullscreenEnvEnabled } from '../fullscreen-layout/fullscreen.js'
 import { MercuryMissionIndicator } from './MercuryMissionIndicator.js'
 import { Notifications } from './Notifications.js'
-import { PromptInputFooterLeftSide } from './ComposerFooterLeftSide.js'
-import { PromptInputHelpMenu } from './ComposerHelpMenu.js'
+import { ComposerFooterLeftSide } from './ComposerFooterLeftSide.js'
+import { ComposerHelpMenu } from './ComposerHelpMenu.js'
 import {
-  PromptInputFooterSuggestions,
+  ComposerFooterSuggestions,
   type SuggestionItem,
   type SuggestionType,
 } from './ComposerFooterSuggestions.js'
@@ -35,7 +35,7 @@ export function footerStripHint(hint: string): string {
 
 const NARROW_COLUMNS = 80
 
-export function PromptInputFooter({
+export function ComposerFooter({
   suggestions,
   onSuggestionPick,
   onSuggestionHover,
@@ -65,7 +65,7 @@ export function PromptInputFooter({
   onSuggestionHover?: (index: number) => void
   helpOpen?: boolean
   input: string
-  mode: PromptInputMode
+  mode: InputMode
   isLoading: boolean
   exitPending: boolean
   exitKeyName: string | null
@@ -118,7 +118,7 @@ export function PromptInputFooter({
   if (!fullscreen && hasSuggestions) {
     return (
       <Box paddingX={2}>
-        <PromptInputFooterSuggestions
+        <ComposerFooterSuggestions
           suggestions={suggestions}
           onPick={onSuggestionPick}
           onHover={onSuggestionHover}
@@ -128,7 +128,7 @@ export function PromptInputFooter({
   }
 
   if (helpOpen) {
-    const help = <PromptInputHelpMenu dimColor />
+    const help = <ComposerHelpMenu dimColor />
     if (compact) {
       return (
         <Box maxHeight={maxRows} overflow="hidden">
@@ -140,7 +140,7 @@ export function PromptInputFooter({
   }
 
   const leftSide = (
-    <PromptInputFooterLeftSide
+    <ComposerFooterLeftSide
       compact={compact}
       exitPending={exitPending}
       exitKeyName={exitKeyName}

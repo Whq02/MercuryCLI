@@ -2,7 +2,7 @@ import { appendFileSync } from 'node:fs'
 import { type Screen, charInCellAt } from '../cell-grid.js'
 import type { DOMElement } from '../dom.js'
 import type { Frame, Patch } from '../frame.js'
-import type Ink from '../screenInstance.js'
+import type ScreenInstance from '../screenInstance.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
 import { hostEnv } from '../../../platform/environment/hostEnv.js'
 
@@ -30,7 +30,7 @@ export function safeAppend(path: string, line: string): void {
   }
 }
 
-export function teeCommitGeometry(this: Pick<Ink, 'rootNode'>, layoutMs: number): void {
+export function teeCommitGeometry(this: Pick<ScreenInstance, 'rootNode'>, layoutMs: number): void {
   try {
     const rectOf = (node: DOMElement) => {
       const l = node.layoutNode
@@ -166,7 +166,7 @@ export function teeAfterDiff(patches: Patch[]): void {
   }
 }
 
-export function dumpTree(this: Pick<Ink, 'rootNode' | 'treeDumpBudget'>, reason: string | null): void {
+export function dumpTree(this: Pick<ScreenInstance, 'rootNode' | 'treeDumpBudget'>, reason: string | null): void {
   if (!TREE_DUMP_PATH || this.treeDumpBudget <= 0) return
   this.treeDumpBudget--
   try {

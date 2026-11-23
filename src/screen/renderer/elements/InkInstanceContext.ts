@@ -1,4 +1,4 @@
 import { createContext } from 'react'
-import type Ink from '../screenInstance.js'
+import type ScreenInstance from '../screenInstance.js'
 
-export const InkInstanceContext = createContext<Ink | undefined>(undefined)
+export const ScreenInstanceContext = createContext<ScreenInstance | undefined>(undefined)

@@ -39,7 +39,7 @@ function show(bytes: string): string {
 const JOURNEY = `
 import { EventEmitter } from 'node:events'
 import * as React from 'react'
-import Ink from '${SRC}/src/screen/renderer/screenInstance.js'
+import ScreenInstance from '${SRC}/src/screen/renderer/screenInstance.js'
 import instances from '${SRC}/src/screen/renderer/instances.js'
 import { Box, Text } from '${SRC}/src/screen/themedRenderer.js'
 import { AlternateScreen } from '${SRC}/src/screen/renderer/elements/AlternateScreen.js'
@@ -80,7 +80,7 @@ const ESC = String.fromCharCode(27)
 const ENTER = ESC + '[?1049h'
 const RESET = ESC + '[r'
 const stdout = new FakeStdout()
-const ink = new Ink({
+const ink = new ScreenInstance({
   stdout: stdout as never,
   stdin: new FakeStdin() as never,
   stderr: new FakeStdout() as never,

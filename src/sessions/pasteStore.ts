@@ -43,7 +43,7 @@ export async function retrievePastedText(hash: string): Promise<string | null> {
   }
 }
 
-export async function cleanupOldPastes(cutoffDate: Date, retained?: ReadonlySet<string>): Promise<void> {
+export async function sweepOldPastes(cutoffDate: Date, retained?: ReadonlySet<string>): Promise<void> {
   try {
     const dir = storeDir()
     for (const name of await readdir(dir)) {

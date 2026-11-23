@@ -30,7 +30,7 @@ delete process.env.MERCURY_HOME
 
 const src = (rel: string): string => join(ROOT, 'src', rel)
 const React = (await import(Bun.resolveSync('react', join(ROOT, 'src')))).default as typeof import('react')
-const { default: Ink } = await import(src('screen/renderer/screenInstance.tsx'))
+const { default: ScreenInstance } = await import(src('screen/renderer/screenInstance.tsx'))
 const { App } = await import(src('boot/App.tsx'))
 const { getDefaultAppState } = await import(src('screen/app-state/AppStateStore.ts'))
 const { AppStateProvider } = await import(src('screen/app-state/AppState.tsx'))
@@ -322,7 +322,7 @@ section('§B the screen road — the rows over identity-kept records settle when
   row._seedToolStartStamp(EDIT_ID, now - 54_000)
   initializeSurfaceRoute(ROOT_CHAT_ROUTE)
   const stdout = new Output(140, 40)
-  const ink = new Ink({ stdout: stdout as never, stdin: new Input() as never, stderr: new Output(140, 40) as never, exitOnCtrlC: false, patchConsole: false })
+  const ink = new ScreenInstance({ stdout: stdout as never, stdin: new Input() as never, stderr: new Output(140, 40) as never, exitOnCtrlC: false, patchConsole: false })
   instances.set(stdout as never, ink)
   ink.render(h(App, { initialState: { ...getDefaultAppState(), expandedView: 'none' }, getFpsMetrics: () => undefined }, h(Harness)))
   const frame = (): string => stripAnsi(ink.lastFrameText())

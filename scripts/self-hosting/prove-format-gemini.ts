@@ -7,7 +7,7 @@ const world = openWorld('format-gemini')
 const { check, section, close } = checker()
 const contents = (path: string, body: string): string => `Contents of ${path} (project instructions, checked into the codebase):\n\n${body}`
 const geminiWhere = ' | change geminiConvention in src/sessions/instructions/adapters/gemini.ts or getInstructionFiles in src/sessions/instructions/instructionFiles.ts'
-const geminiAttachWhere = ' | change getNestedMemoryAttachmentsForFile in src/engine/attachments/nestedInstructions.ts'
+const geminiAttachWhere = ' | change getNestedInstructionAttachmentsForFile in src/engine/attachments/nestedInstructions.ts'
 
 try {
   section('§1 a project whose only guide is GEMINI.md')

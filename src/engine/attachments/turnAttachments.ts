@@ -14,7 +14,7 @@ import {
   getModePackAttachments,
 } from '../attachment-shapes/dateAndModeNotices.js'
 import { foldAttachmentsIntoCapsule, getContextCapsuleAttachment } from './contextCapsule.js'
-import { getNestedMemoryAttachments } from './nestedInstructions.js'
+import { getNestedInstructionAttachments } from './nestedInstructions.js'
 import {
   processAgentMentions,
   processAtMentionedFiles,
@@ -193,7 +193,7 @@ export async function getAttachments(
       maybe('lsp_diagnostics', () => getLSPDiagnosticAttachments(toolUseContext), {
         inputScoped: true,
       }),
-      maybe('nested_memory', () => getNestedMemoryAttachments(clonedContext)),
+      maybe('nested_memory', () => getNestedInstructionAttachments(clonedContext)),
       maybe('dynamic_skill', () => getDynamicSkillAttachments(clonedContext)),
       maybe('skill_listing', () => getSkillListingAttachments(clonedContext)),
       maybe('mode_pack', () => getModePackAttachments(history, toolUseContext)),

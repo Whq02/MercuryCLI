@@ -19,14 +19,14 @@ const { enableConfigs } = await import(join(repo, 'src/platform/config/globalCon
 enableConfigs()
 const { getEmptyToolPermissionContext } = await import(join(repo, 'src/tools/kit/tool.ts'))
 const { getInstructionFiles } = await import(join(repo, 'src/sessions/instructions/instructionFiles.ts'))
-const { getNestedMemoryAttachmentsForFile } = await import(join(repo, 'src/engine/attachments/nestedInstructions.ts'))
+const { getNestedInstructionAttachmentsForFile } = await import(join(repo, 'src/engine/attachments/nestedInstructions.ts'))
 const { createFileStateCacheWithSizeLimit } = await import(join(repo, 'src/platform/files/fileStateCache.ts'))
 const plan = JSON.parse(process.env.DRV_PLAN ?? '{}')
 const files = await getInstructionFiles()
 const state = { toolPermissionContext: getEmptyToolPermissionContext() }
 const context = { readFileState: createFileStateCacheWithSizeLimit(100), loadedNestedMemoryPaths: new Set(), nestedMemoryAttachmentTriggers: new Set(), getAppState: () => state }
 const attached: string[] = []
-for (const file of plan.touch ?? []) attached.push(...(await getNestedMemoryAttachmentsForFile(file, context as never, state)).map((a: any) => a.path))
+for (const file of plan.touch ?? []) attached.push(...(await getNestedInstructionAttachmentsForFile(file, context as never, state)).map((a: any) => a.path))
 writeFileSync(process.argv[2]!, JSON.stringify({ files: files.map((f: any) => f.path), attached }))
 `)
 

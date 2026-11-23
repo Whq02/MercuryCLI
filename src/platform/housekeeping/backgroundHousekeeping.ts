@@ -6,7 +6,7 @@ import { getMercuryHome } from '../environment/envUtils.js'
 
 import { getIsInteractive, getLastInteractionTime } from '../../boot/process-state/processState.js'
 import { runLifecyclePass } from '../substrate/stateLifecycle.js'
-import { cleanupOldMessageFilesInBackground } from '../../sessions/transcripts/retentionSweep.js'
+import { sweepOldMessageFilesInBackground } from '../../sessions/transcripts/retentionSweep.js'
 import { logForDebugging } from '../logs/debugLog.js'
 import { passedOver } from '../errors/passedOver.js'
 import { startTimeout } from '../async/timers.js'
@@ -60,7 +60,7 @@ export async function runCleanupCycleStep(opts?: {
 }): Promise<CycleStepOutcome> {
   if (!cycle.legacyDone) {
     try {
-      const legacy = await cleanupOldMessageFilesInBackground()
+      const legacy = await sweepOldMessageFilesInBackground()
       cycle.legacyErrors = legacy.errors
     } catch {
       cycle.legacyErrors = 1

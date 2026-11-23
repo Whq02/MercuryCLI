@@ -154,14 +154,14 @@ async function stub(path: string, fixture: (actual: Record<string, unknown>) => 
 await stub('../../src/screen/tasks/useFocusedWork.ts', () => ({ focusedRunnerPresence: () => 'live' }))
 
 const React = await import('react')
-const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.tsx')
 const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
 const { App } = await import('../../src/boot/App.tsx')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { useAppStateStore } = await import('../../src/screen/app-state/AppState.tsx')
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
 const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { default: Composer } = await import('../../src/screen/composer/Composer.tsx')
 const { FocusedSessionStatusRow } = await import('../../src/screen/chat/SwitchboardTagBar.tsx')
 const { useCompactWorkControls } = await import('../../src/screen/tasks/CompactWorkSummary.tsx')
 const { GlobalKeybindingHandlers } = await import('../../src/screen/chat/useGlobalKeybindings.tsx')
@@ -282,7 +282,7 @@ function Harness(): React.ReactNode {
       statusBandActive: true,
       modalScrollRef,
       bottom: h(Box, { flexDirection: 'column' },
-        h(PromptInput, {
+        h(Composer, {
           compactWork: controls, compactFocus: focus,
           debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
           setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [],
@@ -307,7 +307,7 @@ async function mount(cols: number, rows: number): Promise<Scene> {
   pending.setMode('prompt')
   const stdout = new Output(cols, rows)
   const stdin = new Input()
-  const ink = new Ink({ stdout: stdout as never, stdin: stdin as never, stderr: new Output(cols, rows) as never, exitOnCtrlC: false, patchConsole: false })
+  const ink = new ScreenInstance({ stdout: stdout as never, stdin: stdin as never, stderr: new Output(cols, rows) as never, exitOnCtrlC: false, patchConsole: false })
   instances.set(stdout as never, ink)
   ink.render(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(Harness)))
   const painted = await until(() => ink.lastFrameText() !== '' && stripAnsi(ink.lastFrameText()).includes('CREW'))

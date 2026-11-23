@@ -166,7 +166,7 @@ try {
   check('headers do not erase the token wait', words.liveCounterWords(waiting.facts, waiting.facts.sentAtMs! + 2000).phase === 'waiting for the first token', JSON.stringify(waiting.facts))
   check('reasoning and text feed the shared live counter', snapshots.filter(s => s.tag !== 'waiting').every(s => words.liveCounterFigure(s.facts).total > 0))
   const React = await import('react')
-  const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+  const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.tsx')
   const { default: instances } = await import('../../src/screen/renderer/instances.ts')
   const { App } = await import('../../src/boot/App.tsx')
   const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
@@ -178,7 +178,7 @@ try {
   type SpinnerProps = Parameters<typeof SpinnerWithVerb>[0]
   const renderRow = async (columns: number, compact: boolean, f: Facts, over: Partial<SpinnerProps>): Promise<string> => {
     const stdout = new Output(columns)
-    const ink = new Ink({ stdout: stdout as never, stdin: new Input() as never, stderr: stdout as never, exitOnCtrlC: false, patchConsole: false })
+    const ink = new ScreenInstance({ stdout: stdout as never, stdin: new Input() as never, stderr: stdout as never, exitOnCtrlC: false, patchConsole: false })
     instances.set(stdout as never, ink)
     const row = React.createElement(SpinnerWithVerb, {
       mode: f.phase === 'writing' ? 'responding' : f.phase === 'thinking' ? 'thinking' : 'requesting', compact,

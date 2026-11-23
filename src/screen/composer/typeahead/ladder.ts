@@ -7,7 +7,7 @@ import type {
 import { swarmView } from '../../../crew/board/seam.js'
 import { getFocusedSessionConnector, hasFocusedSession } from '../../../engine/connector/focusedConnector.js'
 import type { AppStateStore } from '../../app-state/AppStateStore.js'
-import type { InlineGhostText, PromptInputMode } from '../input-core/textInput.js'
+import type { InlineGhostText, InputMode } from '../input-core/textInput.js'
 import {
   generateProgressiveArgumentHint,
   parseArgumentNames,
@@ -44,7 +44,7 @@ const RESUME_TITLE_LIMIT = 10
 export type LadderContext = {
   input: string
   cursor: number
-  mode: PromptInputMode
+  mode: InputMode
   commands: Command[]
   argumentHint: string | undefined
   appStateStore: AppStateStore

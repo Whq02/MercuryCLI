@@ -52,7 +52,7 @@ export {
   binaryName,
   getCustomApiKeyStatus,
   getManagedRulesDir,
-  getMemoryPath,
+  getInstructionFilePath,
   getRemoteControlAtStartup,
   getUserRulesDir,
   isCopyOnSelectEnabled,

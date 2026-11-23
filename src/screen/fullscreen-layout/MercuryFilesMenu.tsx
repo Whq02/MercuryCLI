@@ -11,7 +11,7 @@ import { ProductLockup } from '../widgets/components.js'
 import { branchChip, displayWidth, truncateToWidth } from '../theme/glyphs.js'
 import { POPUP_PAGE_HINT, PopupListViewport, popupListMotion, popupListWindow } from '../select/popup-list.js'
 import ScrollBox, { type ScrollBoxHandle } from '../renderer/elements/ScrollBox.js'
-import { InkInstanceContext } from '../renderer/elements/InkInstanceContext.js'
+import { ScreenInstanceContext } from '../renderer/elements/InkInstanceContext.js'
 import { Markdown } from '../messages/Markdown.js'
 import { readFilesMenuMarkdown, FILE_READER_CHUNK_BYTES, type FileReaderDocument } from '../cockpit/filesMenu.js'
 import { MenuFilterLine, cutToWidth, foldLead } from '../widgets/menuFold.js'
@@ -289,7 +289,7 @@ function FilesReader({ document, width, rowBudget, onBack, onPick }: {
   const tokens = useMercuryTokens()
   const ground = estateGroundBg(tokens)
   const scroll = useRef<ScrollBoxHandle | null>(null)
-  const ink = useContext(InkInstanceContext)
+  const ink = useContext(ScreenInstanceContext)
   const height = Math.max(1, rowBudget)
   const [view, setView] = useState({ top: 0, total: 0 })
   const sync = useCallback(() => {

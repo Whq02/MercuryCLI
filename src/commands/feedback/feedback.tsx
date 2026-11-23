@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Feedback } from './BugReport.js'
+import { BugReport } from './BugReport.js'
 import type { Message } from '../../engine/message-shapes/message.js'
 import type {
   LocalJSXCommandContext,
@@ -7,20 +7,20 @@ import type {
 } from '../catalogue/command.js'
 import type { IssueKind } from './issueForms.js'
 
-export type FeedbackBackgroundTasks = {
+export type BugReportBackgroundTasks = {
   [taskId: string]: { type: string; identity?: { agentId: string }; messages?: Message[] }
 }
 
-function renderFeedbackComponent(
+function renderBugReport(
   onDone: LocalJSXCommandOnDone,
   abortSignal: AbortSignal,
   messages: Message[],
   initialDescription: string = '',
-  backgroundTasks: FeedbackBackgroundTasks = {},
+  backgroundTasks: BugReportBackgroundTasks = {},
   kind?: IssueKind,
 ): React.ReactNode {
   return (
-    <Feedback
+    <BugReport
       abortSignal={abortSignal}
       messages={messages}
       onDone={(result, options) => onDone(result, options)}
@@ -38,7 +38,7 @@ export async function call(
   invokedAs?: string,
 ): Promise<React.ReactNode> {
   const short = /^--short(?:\s|$)/.test(args.trimStart())
-  return renderFeedbackComponent(
+  return renderBugReport(
     onDone,
     context.abortController.signal,
     context.messages,

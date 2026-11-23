@@ -19,8 +19,8 @@ import type { AppState } from '../app-state/AppStateStore.js';
 import type { SetToolJSXFn } from '../../tools/kit/tool.js';
 import type { SessionListing } from '../../sessions/transcripts/transcriptEntries.js';
 import type { Message, UserMessage } from '../../engine/message-shapes/message.js';
-import type { PromptInputHelpers } from '../composer/input-core/promptInputHelpers.js';
-import type { PromptInputMode } from '../composer/input-core/textInput.js';
+import type { ComposerHelpers } from '../composer/input-core/promptInputHelpers.js';
+import type { InputMode } from '../composer/input-core/textInput.js';
 import type { PastedContent } from '../../platform/config/schema.js';
 import { logForDebugging } from '../../platform/logs/debugLog.js';
 import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE, type FileStateCache } from '../../platform/files/fileStateCache.js';
@@ -181,7 +181,7 @@ type SubmitArgs = {
   addNotification: ReturnType<typeof useNotifications>['addNotification'];
   setAppState: ReturnType<typeof useSetAppState>;
   setInputValue: (value: string) => void;
-  setInputMode: (mode: PromptInputMode) => void;
+  setInputMode: (mode: InputMode) => void;
   setPastedContents: (next: Record<number, PastedContent>) => void;
   authWallHold: ReturnType<typeof useAuthWallHold>;
   repinToBottom: () => void;
@@ -205,7 +205,7 @@ export function useChatSubmit({ addNotification, setAppState, setInputValue, set
     if (next === undefined) return;
     void onSubmitRef.current(next.input, INERT_PROMPT_HELPERS, undefined, { rearmed: true, submittedAt: next.submittedAt, pastedContents: next.pastedContents });
   }, []);
-  const onSubmit = useCallback(async (input: string, helpers: PromptInputHelpers, _speculationAccept?: unknown, options?: SubmitOptions): Promise<void> => {
+  const onSubmit = useCallback(async (input: string, helpers: ComposerHelpers, _speculationAccept?: unknown, options?: SubmitOptions): Promise<void> => {
     const submittedAt = options?.submittedAt ?? new Date().toISOString();
     const text = input.trim();
     if (text === '') return;

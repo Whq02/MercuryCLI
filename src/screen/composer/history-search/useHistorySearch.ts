@@ -7,7 +7,7 @@ import {
   getModeFromInput,
   getValueFromInput,
 } from '../inputModes.js'
-import type { PromptInputMode } from '../input-core/textInput.js'
+import type { InputMode } from '../input-core/textInput.js'
 import { useKeybinding, useKeybindings } from '../../keys/useKeybinding.js'
 import { currentSurfaceRoute } from '../../routes/surfaceRoute.js'
 import type { KeyboardEvent } from '../../renderer/events/keyboard-event.js'
@@ -70,7 +70,7 @@ export function resolveFixedMatch(
 type OriginalDraft = {
   input: string
   cursorOffset: number
-  mode: PromptInputMode
+  mode: InputMode
   pastedContents: Record<number, PastedContent>
 }
 
@@ -86,8 +86,8 @@ export function useHistorySearch(
   onInputChange: (input: string) => void,
   onCursorChange: (cursorOffset: number) => void,
   currentCursorOffset: number,
-  onModeChange: (mode: PromptInputMode) => void,
-  currentMode: PromptInputMode,
+  onModeChange: (mode: InputMode) => void,
+  currentMode: InputMode,
   isSearching: boolean,
   setIsSearching: (isSearching: boolean) => void,
   setPastedContents: (pastedContents: Record<number, PastedContent>) => void,

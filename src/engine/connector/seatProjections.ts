@@ -8,7 +8,7 @@ import type { EffortResolution } from '../../models/effort/effort.js'
 import type { RequestWaitV1 } from '../../models/roads/streamIdleBudget.js'
 import type { TextPhase } from '../message-shapes/wire.js'
 import type { DecisionReasonWireV1 } from '../../permissions/rules/decisionReasonWire.js'
-import type { PromptInputMode, QueuePriority } from '../../screen/composer/input-core/textInput.js'
+import type { InputMode, QueuePriority } from '../../screen/composer/input-core/textInput.js'
 import type {
   AdvisorFactsV1,
   EditOutcomeRowV1,
@@ -32,7 +32,7 @@ import { passedOver } from '../../platform/errors/passedOver.js'
 export interface QueuedFactV1 {
   uuid?: string
   value: string
-  mode: PromptInputMode
+  mode: InputMode
   origin?: import('../message-shapes/message.js').MessageOrigin
   priority?: QueuePriority
   isMeta?: true

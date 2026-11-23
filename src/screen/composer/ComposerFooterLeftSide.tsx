@@ -34,14 +34,14 @@ import { BASH_MODE_CHARACTER } from './inputModes.js'
 import { ExitChordNotice } from './ExitChordNotice.js'
 import { noticeBlockRows, noticeRowBlock, noticeRowDetail, noticeRowText, noticeRowWayOut } from './Notifications.js'
 import { standsUntilRemoved } from '../notifications/notifications.js'
-import type { PromptInputMode } from './input-core/textInput.js'
+import type { InputMode } from './input-core/textInput.js'
 import { LEAD_ROW_NAME } from '../cockpit/crewmateWords.js'
 import { crewmateLive, useViewedCrewmate } from '../tasks/useCrewmateView.js'
 import { footerClusterOf } from './footerLeftSideView.js'
 
 const XTERMJS_HOSTS = new Set(['vscode', 'cursor', 'windsurf', 'codium', 'antigravity'])
 
-export function PromptInputFooterLeftSide({
+export function ComposerFooterLeftSide({
   exitPending,
   exitKeyName,
   isPasting,
@@ -59,7 +59,7 @@ export function PromptInputFooterLeftSide({
   isPasting: boolean
   searchField?: React.ReactNode
   vimInsert?: boolean
-  mode: PromptInputMode
+  mode: InputMode
   isLoading: boolean
   hintsEnabled?: boolean
   crewmateFooterIndex?: number

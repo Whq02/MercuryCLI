@@ -424,7 +424,7 @@ async function countSystemPrompt(
 
   return { tokens, sections, requestSystem }
 }
-async function countMemoryFiles(): Promise<{
+async function countInstructionFiles(): Promise<{
   tokens: number
   details: Array<{ path: string; type: string; tokens: number }>
 }> {
@@ -698,7 +698,7 @@ export async function analyzeContextUsage(
     requestSystem,
   } = await countSystemPrompt(tools, model, messages, toolUseContext, mainThreadAgentDefinition)
 
-  const { tokens: memoryTokens, details: memoryFileDetails } = await countMemoryFiles()
+  const { tokens: memoryTokens, details: memoryFileDetails } = await countInstructionFiles()
 
   const mcpTools = tools.filter(tool => tool.name.startsWith('mcp__'))
   const builtinTools = tools.filter(tool => !tool.name.startsWith('mcp__'))

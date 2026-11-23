@@ -55,7 +55,7 @@ import {
   loadMarkdownFilesForSubdir,
   clearMarkdownFileCache,
 } from '../../src/platform/settings/markdownConfigLoader.js'
-import { hashPastedText, storePastedText, retrievePastedText, cleanupOldPastes } from '../../src/sessions/pasteStore.js'
+import { hashPastedText, storePastedText, retrievePastedText, sweepOldPastes } from '../../src/sessions/pasteStore.js'
 import { getTheme, lerpHex, themeColorToAnsi, THEME_NAMES, type Theme, type ThemeName } from '../../src/screen/theme/theme.js'
 import { slowLogging, SLOW_OPERATION_THRESHOLD_MS } from '../../src/platform/logs/slowOperations.js'
 import { isImageFilePath } from '../../src/screen/composer/imagePaste.js'
@@ -112,7 +112,7 @@ const S32_FAIL_HINTS: Record<string, string> = {
   '47.': 'src/platform/settings/markdownConfigLoader.ts, loadMarkdownFilesForSubdir with a missing directory or an unreadable file (a run as root reads the file, so check the user)',
   '48.': 'src/platform/settings/markdownConfigLoader.ts, clearMarkdownFileCache must clear the memoized loadMarkdownFilesForSubdir',
   '49.': 'src/sessions/pasteStore.ts, hashPastedText, storePastedText and retrievePastedText',
-  '50.': 'src/sessions/pasteStore.ts, cleanupOldPastes (only store files older than the cutoff, a missing directory tolerated)',
+  '50.': 'src/sessions/pasteStore.ts, sweepOldPastes (only store files older than the cutoff, a missing directory tolerated)',
   '51.': 'src/sessions/pasteStore.ts, storePastedText file mode (0o600)',
   '52.': 'src/screen/theme/theme.ts, getTheme must return a non-empty string for every role and every theme name',
   '53.': 'src/screen/theme/theme.ts, getTheme and the MERCURY_WARM_INK=0 switch',
@@ -859,7 +859,7 @@ const git = (cwd: string, cmd: string): string => execSync(`git ${cmd}`, { cwd, 
   const past = new Date('2020-01-01')
   utimesSync(join(dir, oldFile), past, past)
   utimesSync(stranger, past, past)
-  await cleanupOldPastes(new Date('2025-01-01'))
+  await sweepOldPastes(new Date('2025-01-01'))
   const left = readdirSync(dir)
   const oldGone = !left.includes(oldFile)
   const newKept = (await retrievePastedText(hNew)) === 'new-entry'
@@ -867,7 +867,7 @@ const git = (cwd: string, cmd: string): string => execSync(`git ${cmd}`, { cwd, 
   execSync(`rm -rf ${dir}`)
   let missingDirOk = true
   try {
-    await cleanupOldPastes(new Date())
+    await sweepOldPastes(new Date())
   } catch {
     missingDirOk = false
   }

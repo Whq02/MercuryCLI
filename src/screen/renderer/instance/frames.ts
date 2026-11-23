@@ -1,13 +1,13 @@
 import { createScreen, CharPool, HyperlinkPool, migrateScreenPools } from '../cell-grid.js'
 import { type Frame, emptyFrame, type Patch } from '../frame.js'
 import { cursorPosition } from '../termio/csi.js'
-import type Ink from '../screenInstance.js'
+import type ScreenInstance from '../screenInstance.js'
 
 export const DEFAULT_COLUMNS = 80
 
 export const DEFAULT_ROWS = 24
 
-export function newEmptyFrame(this: Pick<Ink, 'stylePool' | 'charPool' | 'hyperlinkPool' | 'cachedColumns' | 'cachedRows'>): Frame {
+export function newEmptyFrame(this: Pick<ScreenInstance, 'stylePool' | 'charPool' | 'hyperlinkPool' | 'cachedColumns' | 'cachedRows'>): Frame {
   return emptyFrame(
     this.cachedRows,
     this.cachedColumns,
@@ -17,11 +17,11 @@ export function newEmptyFrame(this: Pick<Ink, 'stylePool' | 'charPool' | 'hyperl
   )
 }
 
-export function buildParkPatch(this: Pick<Ink, 'cachedRows'>): Patch {
+export function buildParkPatch(this: Pick<ScreenInstance, 'cachedRows'>): Patch {
   return { type: 'stdout', content: cursorPosition(this.cachedRows, 1) }
 }
 
-export function liveSize(this: Pick<Ink, 'options'>): { columns: number; rows: number } {
+export function liveSize(this: Pick<ScreenInstance, 'options'>): { columns: number; rows: number } {
   return {
     columns: this.options.stdout.columns || DEFAULT_COLUMNS,
     rows: this.options.stdout.rows || DEFAULT_ROWS,
@@ -29,7 +29,7 @@ export function liveSize(this: Pick<Ink, 'options'>): { columns: number; rows: n
 }
 
 type ResetFramesForAltScreenReads = Pick<
-  Ink,
+  ScreenInstance,
   | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'cachedColumns' | 'cachedRows' | 'ledger' | 'displayCursor'
   | 'glassOverlay'
 >
@@ -55,7 +55,7 @@ export function resetFramesForAltScreen(this: ResetFramesForAltScreenReads): voi
 }
 
 type RepaintMainScreenReads = Pick<
-  Ink,
+  ScreenInstance,
   | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'ledger' | 'displayCursor' | 'glassOverlay'
 >
 
@@ -76,7 +76,7 @@ export function repaintMainScreen(this: RepaintMainScreenReads): void {
 }
 
 type ResetLineCountReads = Pick<
-  Ink,
+  ScreenInstance,
   | 'isTTY' | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'altScreenActive' | 'displayCursor'
 >
 
@@ -93,7 +93,7 @@ export function resetLineCount(this: ResetLineCountReads): void {
   this.displayCursor = null
 }
 
-export function resetPools(this: Pick<Ink, 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'lastPoolReset'>): void {
+export function resetPools(this: Pick<ScreenInstance, 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'lastPoolReset'>): void {
   this.charPool = new CharPool()
   this.hyperlinkPool = new HyperlinkPool()
   migrateScreenPools(this.frontFrame.screen, this.charPool, this.hyperlinkPool)

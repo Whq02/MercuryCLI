@@ -8,7 +8,7 @@ import { isENOENT } from '../../platform/errors/errors.js'
 import { getFsImplementation } from '../../platform/files/fsOperations.js'
 import { cleanupOldImageCaches } from '../../platform/images/imageStore.js'
 import { logError } from '../../platform/logs/errorLog.js'
-import { cleanupOldPastes } from '../pasteStore.js'
+import { sweepOldPastes } from '../pasteStore.js'
 import { historyPasteHashes } from '../promptHistory.js'
 import { draftPasteHashes } from '../../screen/composer/input-core/promptDraft.js'
 import { getProjectsDir } from './sessionStorage.js'
@@ -19,18 +19,18 @@ import { cleanupStaleAgentWorktrees } from '../../platform/git/worktree/worktree
 import { passedOver } from '../../platform/errors/passedOver.js'
 
 
-const DEFAULT_CLEANUP_PERIOD_DAYS = 30
+const DEFAULT_RETENTION_DAYS = 30
 
 export function retentionWindowDays(): number {
-  return getInitialSettings().records?.retentionDays ?? DEFAULT_CLEANUP_PERIOD_DAYS
+  return getInitialSettings().records?.retentionDays ?? DEFAULT_RETENTION_DAYS
 }
 
-type CleanupResult = {
+type SweepResult = {
   messages: number
   errors: number
 }
 
-function addResults(a: CleanupResult, b: CleanupResult): CleanupResult {
+function addResults(a: SweepResult, b: SweepResult): SweepResult {
   return { messages: a.messages + b.messages, errors: a.errors + b.errors }
 }
 
@@ -42,7 +42,7 @@ function parseLogDate(filename: string): Date | null {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
-async function cleanupLogDirectory(
+async function sweepLogDirectory(
   dir: string,
   cutoff: Date,
 ): Promise<{ messages: number; readable: boolean }> {
@@ -69,10 +69,10 @@ async function cleanupLogDirectory(
   return { messages, readable: true }
 }
 
-async function cleanupOldMessageLogFiles(cutoff: Date): Promise<CleanupResult> {
+async function sweepOldMessageLogFiles(cutoff: Date): Promise<SweepResult> {
   const fs = getFsImplementation()
   let messages = 0
-  const errorsResult = await cleanupLogDirectory(CACHE_PATHS.errors(), cutoff)
+  const errorsResult = await sweepLogDirectory(CACHE_PATHS.errors(), cutoff)
   messages += errorsResult.messages
 
   const baseLogs = CACHE_PATHS.baseLogs()
@@ -86,7 +86,7 @@ async function cleanupOldMessageLogFiles(cutoff: Date): Promise<CleanupResult> {
   for (const entry of baseEntries) {
     if (!entry.name.startsWith('mcp-logs-')) continue
     const mcpDir = join(baseLogs, entry.name)
-    const mcpResult = await cleanupLogDirectory(mcpDir, cutoff)
+    const mcpResult = await sweepLogDirectory(mcpDir, cutoff)
     messages += mcpResult.messages
     if (mcpResult.readable) {
       await fs.rmdir(mcpDir).catch(passedOver)
@@ -150,7 +150,7 @@ export async function collectReferencedBlobDirs(transcriptPath: string, cutoff: 
   }
 }
 
-export async function cleanupOldSessionFiles(): Promise<CleanupResult> {
+export async function sweepOldSessionFiles(): Promise<SweepResult> {
   const fs = getFsImplementation()
   const cutoff = computeCutoffDate()
   const projectsDir = getProjectsDir()
@@ -297,11 +297,11 @@ export async function recordingsUnderSweep(): Promise<{ count: number; bytes: nu
   return { count, bytes }
 }
 
-async function cleanupAgedDirectories(
+async function sweepAgedDirectories(
   root: string,
   cutoff: Date,
   parallel: boolean,
-): Promise<CleanupResult> {
+): Promise<SweepResult> {
   const fs = getFsImplementation()
   let entries: Awaited<ReturnType<typeof fs.readdir>>
   try {
@@ -337,7 +337,7 @@ async function cleanupAgedDirectories(
   return { messages, errors }
 }
 
-async function cleanupOldDebugFiles(cutoff: Date): Promise<CleanupResult> {
+async function sweepOldDebugFiles(cutoff: Date): Promise<SweepResult> {
   const fs = getFsImplementation()
   const debugDir = join(getMercuryHome(), 'debug')
   let entries: Awaited<ReturnType<typeof fs.readdir>>
@@ -406,11 +406,11 @@ export async function fileHistoryStorage(): Promise<{ bytes: number; limit: numb
   return { bytes: directories.reduce((sum, dir) => sum + dir.bytes, 0), limit: FILE_HISTORY_MAX_BYTES, sessions: directories.length }
 }
 
-export async function cleanupOldFileHistoryBackups(): Promise<CleanupResult> {
+export async function sweepOldFileHistoryBackups(): Promise<SweepResult> {
   const fs = getFsImplementation()
   const cutoff = computeCutoffDate()
   const root = join(getMercuryHome(), 'file-history')
-  const result = await cleanupAgedDirectories(root, cutoff, true)
+  const result = await sweepAgedDirectories(root, cutoff, true)
   try {
     const directories = await fileHistoryDirectories()
     let totalBytes = directories.reduce((sum, dir) => sum + dir.bytes, 0)
@@ -438,7 +438,7 @@ async function recallablePasteHashes(): Promise<Set<string>> {
   return retained
 }
 
-export async function cleanupOldMessageFilesInBackground(): Promise<CleanupResult> {
+export async function sweepOldMessageFilesInBackground(): Promise<SweepResult> {
   const cutoffMs = retentionCutoffMs()
   if (cutoffMs === null) {
     logForDebugging(
@@ -447,15 +447,15 @@ export async function cleanupOldMessageFilesInBackground(): Promise<CleanupResul
     return { messages: 0, errors: 1 }
   }
   const cutoff = new Date(cutoffMs)
-  let total: CleanupResult = { messages: 0, errors: 0 }
-  total = addResults(total, await cleanupOldMessageLogFiles(cutoff))
-  total = addResults(total, await cleanupOldSessionFiles())
-  total = addResults(total, await cleanupOldFileHistoryBackups())
+  let total: SweepResult = { messages: 0, errors: 0 }
+  total = addResults(total, await sweepOldMessageLogFiles(cutoff))
+  total = addResults(total, await sweepOldSessionFiles())
+  total = addResults(total, await sweepOldFileHistoryBackups())
   total = addResults(
     total,
-    await cleanupAgedDirectories(join(getMercuryHome(), 'session-env'), cutoff, false),
+    await sweepAgedDirectories(join(getMercuryHome(), 'session-env'), cutoff, false),
   )
-  total = addResults(total, await cleanupOldDebugFiles(cutoff))
+  total = addResults(total, await sweepOldDebugFiles(cutoff))
 
   try {
     await cleanupOldImageCaches(cutoff)
@@ -466,7 +466,7 @@ export async function cleanupOldMessageFilesInBackground(): Promise<CleanupResul
 
   try {
     const retained = await recallablePasteHashes()
-    await cleanupOldPastes(cutoff, retained)
+    await sweepOldPastes(cutoff, retained)
   } catch (error) {
     logError(error)
     total.errors++

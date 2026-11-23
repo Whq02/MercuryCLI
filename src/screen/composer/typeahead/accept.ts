@@ -2,7 +2,7 @@ import type React from 'react'
 import type { Command } from '../../../commands/catalogue/commands.js'
 import type { SuggestionItem as Suggestion } from '../ComposerFooterSuggestions.js'
 import { findLongestCommonPrefix } from './fileSuggestions.js'
-import type { InlineGhostText, PromptInputMode } from '../input-core/textInput.js'
+import type { InlineGhostText, InputMode } from '../input-core/textInput.js'
 import { getShellCompletions } from '../../../platform/shell/bash/shellCompletion.js'
 import { logError } from '../../../platform/logs/errorLog.js'
 import {
@@ -28,7 +28,7 @@ export type AcceptContext = {
   currentInput: string
   cursor: number
   list: Suggestion[]
-  mode: PromptInputMode
+  mode: InputMode
   commands: Command[]
   setInput: (value: string) => void
   setCursorOffset: (offset: number) => void

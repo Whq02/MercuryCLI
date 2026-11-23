@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import type { UUID } from 'crypto'
 import * as React from 'react'
 import { Box, Text } from '../../screen/themedRenderer.js'
-import { LogSelector } from '../../screen/session-chooser/SessionBrowser.js'
+import { SessionBrowser } from '../../screen/session-chooser/SessionBrowser.js'
 import { MessageResponse } from '../../tools/kit/MessageResponse.js'
 import { Spinner } from '../../screen/spinner/Spinner.js'
 import { SessionManagerView } from '../../screen/widgets/faces/SessionManagerView.js'
@@ -166,7 +166,7 @@ function SessionsLogPicker({
   }
   const maxHeight = insideModal ? Math.floor(size.rows / 2) : size.rows - 2
   return (
-    <LogSelector
+    <SessionBrowser
       logs={logs}
       onSelect={handleSelect}
       maxHeight={maxHeight}

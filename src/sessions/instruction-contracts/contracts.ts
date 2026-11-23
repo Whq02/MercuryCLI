@@ -1,5 +1,5 @@
 import type { FrontmatterData } from '../../platform/text/frontmatterParser.js'
-import type { MemoryType } from '../memory-shapes/types.js'
+import type { InstructionFileType } from '../memory-shapes/types.js'
 
 export type InstructionProfile = 'auto' | 'native'
 
@@ -12,7 +12,7 @@ export type InstructionProfileOrigin = 'default' | 'session' | 'agent'
 
 export type InstructionSourceEntry = {
   path: string
-  type: MemoryType
+  type: InstructionFileType
   content: string
   parent?: string
   globs?: string[]
@@ -76,7 +76,7 @@ export type InstructionConvention = {
   userRulesDir(): string | null
   managedFile(): string | null
   managedRulesDir(): string | null
-  isExcluded(filePath: string, type: MemoryType): boolean
+  isExcluded(filePath: string, type: InstructionFileType): boolean
   readonly instructionFileNames: readonly string[]
   readonly rulesPathMarkers: readonly string[]
   folderOf?(filePath: string): string | null
@@ -124,7 +124,7 @@ export type InstructionBundle = {
 
 export type InstructionBundleEntry = {
   path: string
-  type: MemoryType
+  type: InstructionFileType
   family: InstructionFamily
   origin: InstructionOrigin
   contentDigest: string

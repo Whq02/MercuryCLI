@@ -3,30 +3,30 @@ import { addToHistory, expandPastedTextRefs } from '../../../sessions/promptHist
 import * as pendingInput from '../../composer/input-core/pending-input.js';
 import { getFocusedSessionConnector } from '../../../engine/connector/focusedConnector.js';
 import type { CommandSeat } from '../../../commands/catalogue/command.js';
-import type { PromptInputHelpers } from '../../composer/input-core/promptInputHelpers.js';
-import type { PromptInputMode } from '../../composer/input-core/textInput.js';
+import type { ComposerHelpers } from '../../composer/input-core/promptInputHelpers.js';
+import type { InputMode } from '../../composer/input-core/textInput.js';
 import type { PastedContent } from '../../../platform/config/schema.js';
 import { createUserMessage } from '../../../engine/messages/messages.js';
 import { resolveUnknownSlashName, unavailableCommandLine, unknownCommandLine } from '../../../engine/user-input/processSlashCommand.js';
 import type { useChatSubmit } from '../useChatSubmit.js';
 
-export const INERT_PROMPT_HELPERS: PromptInputHelpers = {
+export const INERT_PROMPT_HELPERS: ComposerHelpers = {
   setCursorOffset: () => {},
   clearBuffer: () => {},
   resetHistory: () => {},
 };
 
-export type SubmitOptions = { fromKeybinding?: boolean; rearmed?: boolean; submittedAt?: string; pastedContents?: Record<number, PastedContent>; armedMode?: PromptInputMode };
-type OnSubmit = (input: string, helpers: PromptInputHelpers, _speculationAccept?: unknown, options?: SubmitOptions) => Promise<void>;
+export type SubmitOptions = { fromKeybinding?: boolean; rearmed?: boolean; submittedAt?: string; pastedContents?: Record<number, PastedContent>; armedMode?: InputMode };
+type OnSubmit = (input: string, helpers: ComposerHelpers, _speculationAccept?: unknown, options?: SubmitOptions) => Promise<void>;
 export type SubmitDeps = Omit<Parameters<typeof useChatSubmit>[0], 'toolJSX' | 'lastCompletedAt'> & { drainQueuedDialogCommand: () => void; onSubmitRef: { current: OnSubmit } };
 export type SubmitLine = {
   input: string;
-  helpers: PromptInputHelpers;
+  helpers: ComposerHelpers;
   options: SubmitOptions | undefined;
   submittedAt: string;
   text: string;
   focusedNow: ReturnType<typeof getFocusedSessionConnector>;
-  seatMode: PromptInputMode;
+  seatMode: InputMode;
   seatPastes: Record<number, PastedContent>;
   seatCommand: Command | undefined;
   seat: 'session' | CommandSeat;
@@ -57,7 +57,7 @@ function resolveGatedPlainWorldCommand(input: string, commands: Command[]): Comm
   return real !== undefined && commandOffInPlainWorld(real) ? real : undefined;
 }
 
-export function readSubmitLine({ commandsRef }: SubmitDeps, input: string, helpers: PromptInputHelpers, options: SubmitOptions | undefined, submittedAt: string, text: string): SubmitLine {
+export function readSubmitLine({ commandsRef }: SubmitDeps, input: string, helpers: ComposerHelpers, options: SubmitOptions | undefined, submittedAt: string, text: string): SubmitLine {
   const focusedNow = getFocusedSessionConnector();
   const seatMode = options?.armedMode ?? pendingInput.mode();
   const seatPastes = options?.pastedContents ?? pendingInput.pastedContents();

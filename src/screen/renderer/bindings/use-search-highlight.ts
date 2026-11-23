@@ -1,5 +1,5 @@
 import { useContext, useMemo } from 'react'
-import { InkInstanceContext } from '../elements/InkInstanceContext.js'
+import { ScreenInstanceContext } from '../elements/InkInstanceContext.js'
 import type { DOMElement } from '../dom.js'
 import type { MatchPosition } from '../matchPositions.js'
 
@@ -20,7 +20,7 @@ const noop = (): void => {}
 const noPositions = (): MatchPosition[] => []
 
 export function useSearchHighlight(): SearchHighlightApi {
-  const ink = useContext(InkInstanceContext)
+  const ink = useContext(ScreenInstanceContext)
   return useMemo<SearchHighlightApi>(() => {
     if (!ink) {
       return {

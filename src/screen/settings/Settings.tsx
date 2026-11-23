@@ -2,7 +2,7 @@ import React, { createContext, Suspense, useCallback, useContext, useMemo, useSt
 import { LOCAL_COMMAND_STDOUT_TAG } from '../../engine/message-shapes/messageTags.js'
 import { useNotifications, type Notification } from '../notifications/notifications.js'
 import { isTopOverlayNow, useRegisterOverlay } from '../overlays/overlayHooks.js'
-import { useExitOnCtrlCD } from '../keys/useExitChord.js'
+import { useExitChord } from '../keys/useExitChord.js'
 import { Box, Text } from '../themedRenderer.js'
 import { useKeybinding, useKeybindings } from '../keys/useKeybinding.js'
 import { getFocusedSessionConnector } from '../../engine/connector/focusedConnector.js'
@@ -104,7 +104,7 @@ export function Settings({
     },
     { context: 'Settings', isActive: !bodyOwnsEscape && !request.bodyOwnsEscape },
   )
-  useExitOnCtrlCD(useKeybindings)
+  useExitChord(useKeybindings)
   const ground = estateGroundBg(tok)
   const inner = geometry.inner
   const fixed = geometry.rows !== null

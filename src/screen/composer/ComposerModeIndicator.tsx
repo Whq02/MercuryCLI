@@ -1,7 +1,7 @@
 
 import React from 'react'
 import { Box, Text } from '../themedRenderer.js'
-import type { PromptInputMode } from './input-core/textInput.js'
+import type { InputMode } from './input-core/textInput.js'
 import { AGENT_COLOR_TO_THEME_COLOR } from '../../tools/crewmate/crewmateColors.js'
 import type { Theme } from '../theme/theme.js'
 import { ReadyBreath } from '../widgets/LiveGlyphs.js'
@@ -15,7 +15,7 @@ function validatedThemeColor(raw: string | undefined): keyof Theme | undefined {
   return (AGENT_COLOR_TO_THEME_COLOR as Record<string, keyof Theme>)[raw]
 }
 
-export function PromptInputModeIndicator({
+export function ComposerModeIndicator({
   mode,
   isLoading,
   inputEmpty,
@@ -23,7 +23,7 @@ export function PromptInputModeIndicator({
   viewedAgentColor,
   cells = 2,
 }: {
-  mode: PromptInputMode
+  mode: InputMode
   isLoading: boolean
   inputEmpty: boolean
   viewedAgentName?: string

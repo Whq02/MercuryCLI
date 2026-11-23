@@ -2979,7 +2979,7 @@ src/platform/cache-clock/cacheClock.ts	rollupFailureStreak	owner	module	session;
 src/platform/cache-clock/cacheClock.ts	rollupTeardownRegistered	process	module	one-time process registerCleanup guard for flushing cache clock on exit
 src/platform/cache-clock/cacheClockCore.ts	CACHE_COST	process	module	Load-time table with no local writer
 src/platform/cache-clock/cacheClockCore.ts	TTL_MS	process	module	Load-time table with no local writer
-src/platform/config/derived.ts	MEMORY_HOME_FILE	process	module	immutable map of pure path-builder functions
+src/platform/config/derived.ts	INSTRUCTION_HOME_FILE	process	module	immutable map of pure path-builder functions
 src/platform/config/globalConfig.ts	OPTIONAL_GLOBAL_CONFIG_FIELD_SHAPES	process	module	immutable schema shape table
 src/platform/config/globalConfig.ts	TEST_GLOBAL_CONFIG_FOR_TESTING	test	module	mutable in-memory global config used only under NODE_ENV=test
 src/platform/config/globalConfig.ts	authStateLosses	process	module	immutable predicate list for auth-wipe guard
@@ -3952,7 +3952,7 @@ src/screen/cockpit/uiClock.ts	buckets	process	module	single-terminal shared cade
 src/screen/cockpit/uiClock.ts	lastTickByCadence	process	module	single-terminal quantized last-tick timestamps keyed by cadence ms
 src/screen/cockpit/uiClock.ts	meterForProofs	test	module	test-only UI clock budget/probe override set solely by _setUiClockMeterForProofs
 src/screen/cockpit/usageActivity.ts	pulses	process	module	bounded 400-entry ring buffer of session cost pulses for single-terminal cockpit sparkline (shared session totals)
-src/screen/composer/Composer.tsx	PromptInput	process	module	Load-time definition shared by all callers
+src/screen/composer/Composer.tsx	Composer	process	module	Load-time definition shared by all callers
 src/screen/composer/ComposerFooterLeftSide.tsx	XTERMJS_HOSTS	process	module	Load-time lookup with no local writer
 src/screen/composer/ComposerFooterSuggestions.tsx	UNIFIED_GLYPHS	process	module	Load-time list with no local writer
 src/screen/composer/Notifications.tsx	subscribeFocusedModel	process	module	Load-time definition shared by all callers
@@ -4352,7 +4352,7 @@ src/screen/renderer/elements/Button.tsx	Button	process	module	Load-time definiti
 src/screen/renderer/elements/ClockContext.tsx	ClockContext	process	module	Load-time definition shared by all callers
 src/screen/renderer/elements/ClockContext.tsx	REAL_CLOCK_TIMERS	process	module	Load-time table with no local writer
 src/screen/renderer/elements/CursorDeclarationContext.ts	CursorDeclarationContext	process	module	Load-time definition shared by all callers
-src/screen/renderer/elements/InkInstanceContext.ts	InkInstanceContext	process	module	Load-time definition shared by all callers
+src/screen/renderer/elements/InkInstanceContext.ts	ScreenInstanceContext	process	module	Load-time definition shared by all callers
 src/screen/renderer/elements/MotionParkContext.ts	MotionParkContext	process	module	Load-time definition shared by all callers
 src/screen/renderer/elements/ScrollBox.tsx	INNER_STYLE	process	module	load-time data; no local writer
 src/screen/renderer/elements/ScrollBox.tsx	ScrollBox	process	module	Load-time definition shared by all callers
@@ -4658,7 +4658,7 @@ src/screen/status-notices/statusNoticeDefinitions.tsx	apiKeyConflictNotice	proce
 src/screen/status-notices/statusNoticeDefinitions.tsx	bothAuthMethodsNotice	process	module	Load-time table with no local writer
 src/screen/status-notices/statusNoticeDefinitions.tsx	claudeAiExternalTokenNotice	process	module	Load-time table with no local writer
 src/screen/status-notices/statusNoticeDefinitions.tsx	largeAgentDescriptionsNotice	process	module	Load-time table with no local writer
-src/screen/status-notices/statusNoticeDefinitions.tsx	largeMemoryFilesNotice	process	module	Load-time table with no local writer
+src/screen/status-notices/statusNoticeDefinitions.tsx	largeInstructionFilesNotice	process	module	Load-time table with no local writer
 src/screen/status-notices/statusNoticeDefinitions.tsx	pinnedOverLimitAtStart	owner	module	session; startup pinned-memory-over-limit notice latched to first project/session; missing end
 src/screen/status-notices/statusNoticeDefinitions.tsx	pinnedOverLimitNotice	process	module	Load-time table with no local writer
 src/screen/status-notices/statusNoticeDefinitions.tsx	statusNoticeDefinitions	process	module	Load-time list with no local writer
@@ -4828,7 +4828,7 @@ src/sessions/instructions/profile.ts	agentProfile	owner	module	agent level (modu
 src/sessions/instructions/profile.ts	sessionProfile	owner	module	Session state retained in this module
 src/sessions/instructions/sourceText.ts	COMPOSABLE_EXTENSIONS	process	module	Load-time table with no local writer
 src/sessions/instructions/sourceText.ts	TEXT_FILE_EXTENSIONS	process	module	Load-time lookup with no local writer
-src/sessions/memory-shapes/types.ts	MEMORY_TYPE_VALUES	process	module	Load-time list with no local writer
+src/sessions/memory-shapes/types.ts	INSTRUCTION_FILE_TYPE_VALUES	process	module	Load-time list with no local writer
 src/sessions/mission/goalJudge.ts	GOAL_QUESTION	process	module	Load-time table with no local writer
 src/sessions/mission/goalJudge.ts	helperForTesting	test	module	test-only goal judge override installed by _setMissionJudgeForTesting
 src/sessions/mission/projection.ts	TERMINAL_RUN	process	module	Load-time lookup with no local writer

@@ -10,13 +10,13 @@ import { createAttachmentMessage } from '../../attachments/turnAttachments.js'
 import type { Attachment } from '../../attachment-shapes/attachmentTypes.js'
 import { isFileReadDenied } from '../../attachment-shapes/fileReadDenied.js'
 import { getUserContextAttachment } from '../../attachment-shapes/userContext.js'
-import { getMemoryPath } from '../../../platform/config/derived.js'
+import { getInstructionFilePath } from '../../../platform/config/derived.js'
 import { getCwd } from '../../../platform/files/cwd.js'
 import { logForDebugging } from '../../../platform/logs/debugLog.js'
 import { getDefaultFileReadingLimits } from '../../../tools/read/call/fileReadLimits.js'
 import { isImageFilePath } from '../../../screen/composer/imagePaste.js'
 import { getCommandQueue } from '../../../daemon/runner/messageQueueManager.js'
-import { MEMORY_TYPE_VALUES } from '../../../sessions/memory-shapes/types.js'
+import { INSTRUCTION_FILE_TYPE_VALUES } from '../../../sessions/memory-shapes/types.js'
 import { expandPath } from '../../../platform/files/path.js'
 import type { FileState } from '../../../platform/files/fileStateCache.js'
 import { isRemotePath } from '../../../platform/remote-file-target/target.js'
@@ -168,9 +168,9 @@ export async function createPostCompactFileAttachments(
 ): Promise<AttachmentMessage[]> {
   const preservedReads = collectPreservedReadPaths(preservedMessages)
   const memoryPaths = new Set<string>()
-  for (const memoryType of MEMORY_TYPE_VALUES) {
+  for (const memoryType of INSTRUCTION_FILE_TYPE_VALUES) {
     try {
-      memoryPaths.add(expandPath(getMemoryPath(memoryType)))
+      memoryPaths.add(expandPath(getInstructionFilePath(memoryType)))
     } catch (error) {
       passedOver(error)
     }

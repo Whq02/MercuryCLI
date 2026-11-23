@@ -9,7 +9,7 @@ import { TagTabs } from './TagTabs.js'
 import TextInput from '../composer/text-input/TextInput.js'
 import { TreeSelect } from '../tree-select/TreeSelect.js'
 import { Select } from '../select/index.js'
-import type { useExitOnCtrlCDWithKeybindings } from '../keys/useExitChordKeys.js'
+import type { useExitChordKeys } from '../keys/useExitChordKeys.js'
 import type { useSearchInput } from '../composer/text-input/useSearchInput.js'
 import { packFooter } from '../widgets/footerHint.js'
 import type { MercuryThemeTokens } from '../theme/mercuryTokens.js'
@@ -43,7 +43,7 @@ function EmptyLogList({
   )
 }
 
-export function logSelectorView({
+export function sessionBrowserView({
   grouped,
   emptyReasons,
   renaming,
@@ -110,7 +110,7 @@ export function logSelectorView({
   submitRename: (title: string) => void
   renameCursor: number
   setRenameCursor: React.Dispatch<React.SetStateAction<number>>
-  exitState: ReturnType<typeof useExitOnCtrlCDWithKeybindings>
+  exitState: ReturnType<typeof useExitChordKeys>
   hints: string[]
   expandHint: string | null
 }): React.ReactNode {

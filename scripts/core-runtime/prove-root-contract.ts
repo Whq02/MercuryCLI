@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import * as React from 'react'
-import Ink from '../../src/screen/renderer/screenInstance.js'
+import ScreenInstance from '../../src/screen/renderer/screenInstance.js'
 import instances from '../../src/screen/renderer/instances.js'
 import { Box, Text } from '../../src/screen/themedRenderer.js'
 import { AlternateScreen } from '../../src/screen/renderer/elements/AlternateScreen.js'
@@ -98,7 +98,7 @@ class FakeStdin extends EventEmitter {
 }
 
 type Rig = {
-  ink: Ink
+  ink: ScreenInstance
   stdout: FakeStdout
   stdin: FakeStdin
   bornAt: number
@@ -112,7 +112,7 @@ function makeRig(): Rig {
   const stdout = new FakeStdout()
   const stdin = new FakeStdin()
   const bornAt = Date.now()
-  const ink = new Ink({
+  const ink = new ScreenInstance({
     stdout: stdout as never,
     stdin: stdin as never,
     stderr: new FakeStdout() as never,
@@ -151,7 +151,7 @@ console.log('native-core T6 — renderer-root lifecycle contract')
 {
   const stdout = new FakeStdout()
   const stdin = new FakeStdin()
-  const a = new Ink({
+  const a = new ScreenInstance({
     stdout: stdout as never,
     stdin: stdin as never,
     stderr: new FakeStdout() as never,
@@ -221,7 +221,7 @@ console.log('native-core T6 — renderer-root lifecycle contract')
   writeFileSync(childPath, `
 import { EventEmitter } from 'node:events'
 import * as React from 'react'
-import Ink from '${repoRoot}/src/screen/renderer/screenInstance.js'
+import ScreenInstance from '${repoRoot}/src/screen/renderer/screenInstance.js'
 import { Text } from '${repoRoot}/src/screen/themedRenderer.js'
 class FakeStdout extends EventEmitter {
   isTTY = true; columns = ${COLS}; rows = ${ROWS}; writes: string[] = []
@@ -235,7 +235,7 @@ class FakeStdin extends EventEmitter {
   read(): null { return null }
 }
 const stdout = new FakeStdout()
-const ink = new Ink({ stdout: stdout as never, stdin: new FakeStdin() as never,
+const ink = new ScreenInstance({ stdout: stdout as never, stdin: new FakeStdin() as never,
   stderr: new FakeStdout() as never, exitOnCtrlC: false, patchConsole: false })
 ink.render(React.createElement(Text, null, 'teardown content'))
 await new Promise(r => setTimeout(r, 150))

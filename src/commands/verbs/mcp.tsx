@@ -124,8 +124,8 @@ export async function mcpServeHandler(options: {
     throw error
   }
   try {
-    const { setup } = await import('../../boot/sessionSetup.js')
-    await setup(cwd, 'default', false, false, undefined, false)
+    const { sessionSetup } = await import('../../boot/sessionSetup.js')
+    await sessionSetup(cwd, 'default', false, false, undefined, false)
     const { startMCPServer } = await import('../../integrations/mcp/mcpServer.js')
     await startMCPServer(cwd, options.debug === true)
   } catch (error) {

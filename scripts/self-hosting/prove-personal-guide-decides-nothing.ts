@@ -18,7 +18,7 @@ const { enableConfigs } = await import(${JSON.stringify(join(repo, 'src/platform
 enableConfigs()
 const { getEmptyToolPermissionContext } = await import(${JSON.stringify(join(repo, 'src/tools/kit/tool.ts'))})
 const { getInstructionFiles, composeInstructionPrompt, getInstructionBundle, getInstructionCompositionState, isInstructionFilePath } = await import(${JSON.stringify(join(repo, 'src/sessions/instructions/instructionFiles.ts'))})
-const { getNestedMemoryAttachmentsForFile } = await import(${JSON.stringify(join(repo, 'src/engine/attachments/nestedInstructions.ts'))})
+const { getNestedInstructionAttachmentsForFile } = await import(${JSON.stringify(join(repo, 'src/engine/attachments/nestedInstructions.ts'))})
 const { createFileStateCacheWithSizeLimit } = await import(${JSON.stringify(join(repo, 'src/platform/files/fileStateCache.ts'))})
 const { getSteps } = await import(${JSON.stringify(join(repo, 'src/boot/projectOnboarding.ts'))})
 const { composedGuideFilesAt } = await import(${JSON.stringify(join(repo, 'src/sessions/instructions/adapters/index.ts'))})
@@ -28,7 +28,7 @@ const files = await getInstructionFiles()
 const bundle = await getInstructionBundle()
 const state = { toolPermissionContext: getEmptyToolPermissionContext() }
 const context = { readFileState: createFileStateCacheWithSizeLimit(100), loadedNestedMemoryPaths: new Set(), nestedMemoryAttachmentTriggers: new Set(), getAppState: () => state }
-const touched = process.env.DRV_TOUCH ? await getNestedMemoryAttachmentsForFile(process.env.DRV_TOUCH, context as never, state) : []
+const touched = process.env.DRV_TOUCH ? await getNestedInstructionAttachmentsForFile(process.env.DRV_TOUCH, context as never, state) : []
 writeFileSync(process.argv[2]!, JSON.stringify({
   home: getMercuryHome(),
   paths: files.map(f => f.path),
@@ -118,7 +118,7 @@ try {
   check('the guide list of the working directory names it', JSON.stringify(d1.guides) === JSON.stringify([join(proj1, 'AGENTS.md')]), `${JSON.stringify(d1.guides)}; see composedGuideFilesAt in src/sessions/instructions/adapters/index.ts`)
   check('that AGENTS.md classifies as an instruction file', d1.classified === true, `got ${d1.classified}; see isInstructionFilePath in src/sessions/instructions/instructionFiles.ts`)
   const d1t = drive(home1, proj1, { touch: join(proj1, 'sub/file.ts') })
-  check('a nested AGENTS.md attaches when a file beside it is touched', d1t.touched.includes(join(proj1, 'sub/AGENTS.md')), `${d1t.touched.join(', ')}; see getNestedMemoryAttachmentsForFile in src/engine/attachments/nestedInstructions.ts and getInstructionFilesForNestedDirectory in src/sessions/instructions/instructionFiles.ts`)
+  check('a nested AGENTS.md attaches when a file beside it is touched', d1t.touched.includes(join(proj1, 'sub/AGENTS.md')), `${d1t.touched.join(', ')}; see getNestedInstructionAttachmentsForFile in src/engine/attachments/nestedInstructions.ts and getInstructionFilesForNestedDirectory in src/sessions/instructions/instructionFiles.ts`)
 
   console.log('§2 the control: the same files under a relocated config home')
   const home2 = world({ 'cfg/MERCURY.md': 'personal-needle\n', 'work/proj/AGENTS.md': 'shared-needle\n' })

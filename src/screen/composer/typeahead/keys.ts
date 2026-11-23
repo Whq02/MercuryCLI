@@ -8,7 +8,7 @@ import { KeyboardEvent } from '../../renderer/events/keyboard-event.js'
 import type { useOptionalKeybindingContext } from '../../keys/KeybindingContext.js'
 import { getShortcutDisplay } from '../../keys/shortcutFormat.js'
 import type { AppStateStore } from '../../app-state/AppStateStore.js'
-import type { InlineGhostText, PromptInputMode } from '../input-core/textInput.js'
+import type { InlineGhostText, InputMode } from '../input-core/textInput.js'
 
 const THINKING_HINT_KEY = 'thinking-toggle-hint'
 
@@ -21,7 +21,7 @@ export function acceptPromptSuggestionOf({
 }: {
   appStateStore: AppStateStore
   markAccepted: (() => void) | undefined
-  onModeChange: ((mode: PromptInputMode) => void) | undefined
+  onModeChange: ((mode: InputMode) => void) | undefined
   setInput: (value: string) => void
   setCursorOffset: (offset: number) => void
 }): void {

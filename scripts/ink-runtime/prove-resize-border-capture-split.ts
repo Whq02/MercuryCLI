@@ -12,7 +12,7 @@ delete process.env.WT_SESSION
 delete process.env.TERM_PROGRAM
 process.env.MERCURY_REDUCED_MOTION = '1'
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
-const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.js')
 const { default: instances } = await import('../../src/screen/renderer/instances.js')
 const { Box, Text } = await import('../../src/screen/themedRenderer.js')
 const { useTerminalSize } = await import('../../src/screen/fullscreen-layout/useTerminalSize.js')
@@ -85,7 +85,7 @@ function cropped(from: AnsiEmulator, columns: number, rows: number, altScreen = 
   to.cursorY = Math.min(from.cursorY, rows - 1)
   return to
 }
-function composed(ink: InstanceType<typeof Ink>, rows: number): string[] {
+function composed(ink: InstanceType<typeof ScreenInstance>, rows: number): string[] {
   const lines = stripAnsi(ink.lastFrameText()).split('\n').map(line => line.trimEnd())
   while (lines.length < rows) lines.push('')
   return lines.slice(0, rows)
@@ -111,7 +111,7 @@ function cutInsideFirstRuleAfter(text: string, marker: string): number {
 console.log('resize 110x32 → 80x24 → 140x40 → 110x32 with a full-width composer border — what the renderer writes, and what a per-read decoder makes of it')
 
 const stdout = new Output(110, 32)
-const ink = new Ink({ stdout: stdout as never, stdin: new Input() as never, stderr: new Output(110, 32) as never, exitOnCtrlC: false, patchConsole: false })
+const ink = new ScreenInstance({ stdout: stdout as never, stdin: new Input() as never, stderr: new Output(110, 32) as never, exitOnCtrlC: false, patchConsole: false })
 instances.set(stdout as never, ink)
 ink.setAltScreenActive(true, false)
 ink.render(h(Cockpit))

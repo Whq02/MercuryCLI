@@ -39,7 +39,7 @@ for (const key of [
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const React = await import('react')
-const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.js')
 const { default: instances } = await import('../../src/screen/renderer/instances.js')
 const { AnsiEmulator } = await import('../ink-runtime/ansiEmulator.js')
 const { subscribeClipboardReceipts } = await import('../../src/screen/renderer/termio/osc.js')
@@ -104,7 +104,7 @@ const emulatorRefusals: string[] = []
 function mount(element: React.ReactElement): Mounted {
   const stdout = new FakeStdout()
   const stdin = new FakeStdin()
-  const ink = new Ink({
+  const ink = new ScreenInstance({
     stdout: stdout as never,
     stdin: stdin as never,
     stderr: new FakeStdout() as never,

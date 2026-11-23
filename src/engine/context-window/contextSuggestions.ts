@@ -13,8 +13,8 @@ const TOOL_MIN_TOKENS = 10_000
 const TOOL_MIN_SHARE = 0.15
 const OTHER_TOOL_MIN_SHARE = 0.2
 const READ_NARROW_MIN_SHARE = 0.05
-const MEMORY_MIN_TOKENS = 5_000
-const MEMORY_MIN_SHARE = 0.05
+const INSTRUCTION_FILES_MIN_TOKENS = 5_000
+const INSTRUCTION_FILES_MIN_SHARE = 0.05
 
 export function generateContextSuggestions(data: ContextData): ContextSuggestion[] {
   const suggestions: ContextSuggestion[] = []
@@ -104,7 +104,7 @@ export function generateContextSuggestions(data: ContextData): ContextSuggestion
 
   if (windowTokens > 0 && data.memoryFiles.length > 0) {
     const totalMemory = data.memoryFiles.reduce((sum, file) => sum + file.tokens, 0)
-    if (totalMemory >= MEMORY_MIN_TOKENS && totalMemory / windowTokens >= MEMORY_MIN_SHARE) {
+    if (totalMemory >= INSTRUCTION_FILES_MIN_TOKENS && totalMemory / windowTokens >= INSTRUCTION_FILES_MIN_SHARE) {
       const pct = Math.round((totalMemory / windowTokens) * 100)
       const topFiles = [...data.memoryFiles]
         .sort((a, b) => b.tokens - a.tokens)

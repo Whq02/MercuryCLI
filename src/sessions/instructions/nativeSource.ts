@@ -1,7 +1,7 @@
 import { join, sep } from 'path'
 
-import { getManagedRulesDir, getMemoryPath, getUserRulesDir } from '../../platform/settings/config.js'
-import type { MemoryType } from '../memory-shapes/types.js'
+import { getManagedRulesDir, getInstructionFilePath, getUserRulesDir } from '../../platform/settings/config.js'
+import type { InstructionFileType } from '../memory-shapes/types.js'
 import { projectConfigDirs } from '../../platform/settings/projectConfig.js'
 import { getInitialSettings, getSettingsForSource } from '../../platform/settings/settings.js'
 import type { InstructionConvention } from '../instruction-contracts/contracts.js'
@@ -9,7 +9,7 @@ import { matchesInstructionExcludes } from './discovery.js'
 
 export const NATIVE_INSTRUCTION_FILE_NAMES = ['MERCURY.md', 'MERCURY.local.md'] as const
 
-export function isProjectInstructionExcluded(filePath: string, type: MemoryType): boolean {
+export function isProjectInstructionExcluded(filePath: string, type: InstructionFileType): boolean {
   if (type !== 'User' && type !== 'Project' && type !== 'Local') return false
   const patterns = type === 'User'
     ? [
@@ -43,13 +43,13 @@ export const mercuryNativeConvention: InstructionConvention = {
     ]
   },
   userFile(): string {
-    return getMemoryPath('User')
+    return getInstructionFilePath('User')
   },
   userRulesDir(): string {
     return getUserRulesDir()
   },
   managedFile(): string {
-    return getMemoryPath('Managed')
+    return getInstructionFilePath('Managed')
   },
   managedRulesDir(): string {
     return getManagedRulesDir()

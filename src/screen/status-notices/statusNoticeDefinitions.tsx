@@ -5,7 +5,7 @@ import React from 'react'
 import { flagEnv } from '../../platform/substrate/flagRegistry.js'
 import { GLYPH } from '../theme/glyphs.js'
 import { Box, Text } from '../themedRenderer.js'
-import { getLargeMemoryFiles, MAX_MEMORY_CHARACTER_COUNT } from '../../sessions/instructions/instructionFiles.js'
+import { getLargeInstructionFiles, MAX_INSTRUCTION_FILE_CHARACTER_COUNT } from '../../sessions/instructions/instructionFiles.js'
 import type { InstructionSourceEntry } from '../../sessions/instruction-contracts/contracts.js'
 import type { AgentDefinitionsResult } from '../../crew/agents/agentDefinition.js'
 import {
@@ -41,7 +41,7 @@ type StatusNoticeDefinition = {
   render: (context: StatusNoticeContext) => React.ReactNode
 }
 
-function shortenMemoryPath(filePath: string): string {
+function shortenInstructionFilePath(filePath: string): string {
   const cwd = getCwd()
   return filePath.startsWith(cwd) ? relative(cwd, filePath) : filePath
 }
@@ -50,20 +50,20 @@ function describeTokenSource(source: string): string {
   return source === 'claude.ai' ? `your ${getSubscriptionName()} login` : source
 }
 
-const largeMemoryFilesNotice: StatusNoticeDefinition = {
+const largeInstructionFilesNotice: StatusNoticeDefinition = {
   id: 'large-memory-files',
   type: 'warning',
-  isActive: (context: StatusNoticeContext) => getLargeMemoryFiles(context.memoryFiles).length > 0,
+  isActive: (context: StatusNoticeContext) => getLargeInstructionFiles(context.memoryFiles).length > 0,
   render: (context: StatusNoticeContext) => {
-    const largeFiles = getLargeMemoryFiles(context.memoryFiles)
+    const largeFiles = getLargeInstructionFiles(context.memoryFiles)
     if (largeFiles.length === 0) return null
     return (
       <Box flexDirection="column">
         {largeFiles.map(file => (
           <Text key={file.path} color="warning" wrap="truncate-middle">
             {GLYPH.warn} Large memory file slows every session:{' '}
-            <Text bold>{shortenMemoryPath(file.path)}</Text> (
-            {formatNumber(file.content.length)} chars &gt; {formatNumber(MAX_MEMORY_CHARACTER_COUNT)}){' '}
+            <Text bold>{shortenInstructionFilePath(file.path)}</Text> (
+            {formatNumber(file.content.length)} chars &gt; {formatNumber(MAX_INSTRUCTION_FILE_CHARACTER_COUNT)}){' '}
             <Text dimColor>See /memory</Text>
           </Text>
         ))}
@@ -236,7 +236,7 @@ const pinnedOverLimitNotice: StatusNoticeDefinition = {
 }
 
 const statusNoticeDefinitions: StatusNoticeDefinition[] = [
-  largeMemoryFilesNotice,
+  largeInstructionFilesNotice,
   largeAgentDescriptionsNotice,
   pinnedOverLimitNotice,
   claudeAiExternalTokenNotice,

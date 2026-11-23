@@ -86,7 +86,7 @@ const { App } = await import('../../src/boot/App.tsx')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
 const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { default: Composer } = await import('../../src/screen/composer/Composer.tsx')
 const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
 const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
 const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
@@ -107,7 +107,7 @@ function Harness({ columns, element }: { columns: number; element: React.ReactNo
     statusBandActive: false,
     ...(element === null ? {} : { modal: h(Box, { width: '100%', flexDirection: 'column' }, element) }),
     modalScrollRef,
-    bottom: h(PromptInput, {
+    bottom: h(Composer, {
       debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
       setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [], isLoading: false,
       verbose: false, submitCount: 0, onShowMessageSelector: () => {}, mcpClients: [], vimMode, setVimMode,

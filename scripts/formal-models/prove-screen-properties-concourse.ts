@@ -48,7 +48,7 @@ enableConfigs()
 const { recordCapacityDecision } = await import('../../src/daemon/switchboard-capacity/capacityCheck.ts')
 await recordCapacityDecision(false)
 
-const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.js')
 const { default: instances } = await import('../../src/screen/renderer/instances.js')
 const { default: reconciler } = await import('../../src/screen/renderer/reconciler.js')
 const { disposeKeybindingWatcher } = await import('../../src/screen/keys/loadUserBindings.js')
@@ -273,7 +273,7 @@ function focusedMarkers(frame: string): string[] {
 
 const stdout = new FakeStdout(COLS, ROWS)
 const stdin = new FakeStdin()
-const ink = new Ink({
+const ink = new ScreenInstance({
   stdout: stdout as never,
   stdin: stdin as never,
   stderr: new FakeStdout(COLS, ROWS) as never,

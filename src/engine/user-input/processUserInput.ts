@@ -13,7 +13,7 @@ import type {
 } from '../message-shapes/message.js'
 import type { EffortValue } from '../../models/effort/effort.js'
 import type { PastedContent } from '../../platform/settings/config.js'
-import type { BatchedPrompt, PromptInputMode } from '../../screen/composer/input-core/textInput.js'
+import type { BatchedPrompt, InputMode } from '../../screen/composer/input-core/textInput.js'
 import type { LocalJSXCommandContext } from '../../commands/catalogue/command.js'
 import {
   createAttachmentMessage,
@@ -59,7 +59,7 @@ export type ProcessUserInputBaseResult = {
 type ProcessUserInputOptions = {
   input: string | ContentBlockParam[]
   syntaxInput?: string
-  mode: PromptInputMode
+  mode: InputMode
   setToolJSX: SetToolJSXFn
   context: ProcessUserInputContext
   pastedContents?: Record<number, PastedContent>

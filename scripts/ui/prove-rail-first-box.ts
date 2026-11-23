@@ -100,13 +100,13 @@ const workListeners = new Set<() => void>()
 const roster = { rows: rosterRows(), mission: [], samples: [], reported: true }
 
 const React = await import('react')
-const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.tsx')
 const { Text } = await import('../../src/screen/themedRenderer.ts')
 const { App } = await import('../../src/boot/App.tsx')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
 const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { default: Composer } = await import('../../src/screen/composer/Composer.tsx')
 const { useCompactWorkControls } = await import('../../src/screen/tasks/CompactWorkSummary.tsx')
 const { GlobalKeybindingHandlers } = await import('../../src/screen/chat/useGlobalKeybindings.tsx')
 const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
@@ -151,9 +151,9 @@ async function renderAt(columns: number, rows: number): Promise<string[]> {
   pending.setMode('prompt')
   const stdout = new Output(columns, rows)
   const stdin = new Input()
-  const ink = new Ink({ stdout: stdout as never, stdin: stdin as never, stderr: new Output(columns, rows) as never, exitOnCtrlC: false, patchConsole: false })
+  const ink = new ScreenInstance({ stdout: stdout as never, stdin: stdin as never, stderr: new Output(columns, rows) as never, exitOnCtrlC: false, patchConsole: false })
   instances.set(stdout as never, ink)
-  const insertRef = { current: null } as React.MutableRefObject<import('../../src/screen/composer/Composer.tsx').PromptInputProps['insertTextRef']['current']>
+  const insertRef = { current: null } as React.MutableRefObject<import('../../src/screen/composer/Composer.tsx').ComposerProps['insertTextRef']['current']>
   function Harness(): React.ReactNode {
     const { controls, focus } = useCompactWorkControls()
     const [vimMode, setVimMode] = React.useState<'INSERT' | 'NORMAL'>('INSERT')
@@ -167,7 +167,7 @@ async function renderAt(columns: number, rows: number): Promise<string[]> {
         scrollable: h(Transcript),
         statusBand: h(Text, null, 'waiting on 2 crewmates'),
         statusBandActive: true,
-        bottom: h(PromptInput, {
+        bottom: h(Composer, {
           compactWork: controls, compactFocus: focus,
           debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
           setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [],

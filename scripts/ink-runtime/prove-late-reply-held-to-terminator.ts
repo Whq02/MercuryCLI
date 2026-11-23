@@ -5,7 +5,7 @@ import { InputEvent } from '../../src/screen/renderer/events/input-event.ts'
 import { INITIAL_STATE, parseMultipleKeypresses, type KeyParseState, type ParsedInput } from '../../src/screen/renderer/input/input-decoder.ts'
 import Text from '../../src/screen/renderer/elements/Text.tsx'
 import useInput from '../../src/screen/renderer/bindings/use-input.ts'
-import Ink from '../../src/screen/renderer/screenInstance.tsx'
+import ScreenInstance from '../../src/screen/renderer/screenInstance.tsx'
 
 let failures = 0
 let checks = 0
@@ -219,7 +219,7 @@ console.log('\n the sender: the identity probe (version, colour, sync, kitty) le
   }
   const stdout = new Output()
   const stdin = new Input()
-  const ink = new Ink({ stdout: stdout as never, stdin: stdin as never, stderr: new Output() as never, patchConsole: false, exitOnCtrlC: false })
+  const ink = new ScreenInstance({ stdout: stdout as never, stdin: stdin as never, stderr: new Output() as never, patchConsole: false, exitOnCtrlC: false })
   const versionQueries = (): number => stdout.writes.join('').split(`${ESC}[>0q`).length - 1
   const settle = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 30))
   ink.render(React.createElement(Host, { which: 'a' }))

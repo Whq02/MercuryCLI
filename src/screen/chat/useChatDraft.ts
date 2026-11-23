@@ -5,7 +5,7 @@ import type { VimMode } from '../composer/vim/useVimInput.js';
 import * as pendingInput from '../composer/input-core/pending-input.js';
 import { conversationIdHere, getFocusedSessionConnector } from '../../engine/connector/focusedConnector.js';
 import type { Message } from '../../engine/message-shapes/message.js';
-import type { PromptInputMode } from '../composer/input-core/textInput.js';
+import type { InputMode } from '../composer/input-core/textInput.js';
 import { registerComposerSeeder, registerComposerSeedTrimmer } from '../cockpit/composerSeed.js';
 import type { PastedContent } from '../../platform/config/schema.js';
 import { consumeEarlyInput } from '../../boot/earlyInput.js';
@@ -24,7 +24,7 @@ export function useChatDraft({
   lastUserScrollAtRef: { current: number };
 }) {
   const isPromptInputActive = useSyncExternalStore(pendingInput.subscribeActive, pendingInput.active, pendingInput.active);
-  const [inputMode, setInputModeState] = useState<PromptInputMode>(() => pendingInput.mode());
+  const [inputMode, setInputModeState] = useState<InputMode>(() => pendingInput.mode());
   void inputMode;
   const [vimMode, setVimMode] = useState<VimMode>('INSERT');
   const [isSearchingHistory, setIsSearchingHistory] = useState(false);
@@ -36,7 +36,7 @@ export function useChatDraft({
   const setInputValue = useCallback((value: string) => {
     pendingInput.edit(value);
   }, []);
-  const setInputMode = useCallback((mode: PromptInputMode) => {
+  const setInputMode = useCallback((mode: InputMode) => {
     pendingInput.setMode(mode);
     setInputModeState(mode);
   }, []);

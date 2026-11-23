@@ -11,7 +11,7 @@ import { normalizePathForComparison } from '../../platform/files/file.js'
 import { detectEncodingForResolvedPath } from '../../platform/files/syncFileRead.js'
 import type { FsOperations } from '../../platform/files/fsOperations.js'
 import { getFsImplementation, isUncLikePath, safeResolvePath } from '../../platform/files/fsOperations.js'
-import type { MemoryType } from '../memory-shapes/types.js'
+import type { InstructionFileType } from '../memory-shapes/types.js'
 import { pathInWorkingPath } from '../../permissions/rules/filesystem.js'
 import { rememberedPlatform } from '../../platform/host-os/host.js'
 import { hostOrWin32PathModule, isWindowsShareRooted, normalizedDriveRoot, picomatchPathOptions } from '../../platform/host-os/paths.js'
@@ -37,7 +37,7 @@ export function pathInInstructionRoots(path: string): boolean {
 
 export async function safelyReadInstructionFileAsync(
   filePath: string,
-  type: MemoryType,
+  type: InstructionFileType,
   includeBasePath?: string,
 ): Promise<{
   info: InstructionSourceEntry | null
@@ -175,7 +175,7 @@ async function tryImportRecognizedRule(
   fs: FsOperations,
   includePath: string,
   parentPath: string,
-  type: MemoryType,
+  type: InstructionFileType,
   processedPaths: Set<string>,
   diagnostics?: InstructionDiagnostic[],
 ): Promise<InstructionSourceEntry[] | null> {
@@ -246,7 +246,7 @@ async function tryImportRecognizedRule(
 export async function processInstructionFile(
   convention: InstructionConvention,
   filePath: string,
-  type: MemoryType,
+  type: InstructionFileType,
   processedPaths: Set<string>,
   includeExternal: ExternalImports,
   depth: number = 0,
@@ -445,7 +445,7 @@ export function importedRuleGoverns(entry: InstructionSourceEntry, targetPath: s
 export async function processRuleFile(
   convention: InstructionConvention,
   filePath: string,
-  type: MemoryType,
+  type: InstructionFileType,
   processedPaths: Set<string>,
   diagnostics?: InstructionDiagnostic[],
   alone: boolean = false,
@@ -573,7 +573,7 @@ export async function processRulesDir({
 }: {
   convention: InstructionConvention
   rulesDir: string
-  type: MemoryType
+  type: InstructionFileType
   processedPaths: Set<string>
   includeExternal: ExternalImports
   conditionalRule: boolean
@@ -679,7 +679,7 @@ export async function processRulesDir({
   }
 }
 
-function ruleAnchorOf(convention: InstructionConvention, type: MemoryType, rulesDir: string): string {
+function ruleAnchorOf(convention: InstructionConvention, type: InstructionFileType, rulesDir: string): string {
   if (type !== 'Project') return getOriginalCwd()
   return convention.ruleAnchor?.(rulesDir) ?? dirname(dirname(rulesDir))
 }
@@ -700,7 +700,7 @@ export async function processConditionedRules(
   convention: InstructionConvention,
   targetPath: string,
   rulesDir: string,
-  type: MemoryType,
+  type: InstructionFileType,
   processedPaths: Set<string>,
   includeExternal: boolean,
 ): Promise<InstructionSourceEntry[]> {

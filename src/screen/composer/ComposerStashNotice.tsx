@@ -1,7 +1,7 @@
 import figures from 'figures';
 import { Box, Text } from 'src/screen/themedRenderer.js';
 
-export function PromptInputStashNotice({ hasStash }: { hasStash: boolean }) {
+export function ComposerStashNotice({ hasStash }: { hasStash: boolean }) {
   if (!hasStash) return null;
   return (
     <Box paddingLeft={2}>

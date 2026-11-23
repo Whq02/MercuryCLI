@@ -6,8 +6,8 @@ import { getFocusedSessionConnector } from '../../engine/connector/focusedConnec
 import type { Notification } from '../notifications/notifications.js'
 import type { AppState } from '../app-state/AppState.js'
 import type { PastedContent } from '../../platform/settings/config.js'
-import type { PromptInputMode } from './input-core/textInput.js'
-import { useInputBuffer } from './useInputUndo.js'
+import type { InputMode } from './input-core/textInput.js'
+import { useInputUndo } from './useInputUndo.js'
 import { bindLiveInputState, type LiveInputState } from './text-input/useTextInput.js'
 import { getShortcutDisplay } from '../keys/shortcutFormat.js'
 import { getGlobalConfig } from '../../platform/settings/config.js'
@@ -35,7 +35,7 @@ type ComposerDraftInput = {
 type ComposerDraft = {
   editGen: number
   input: string
-  mode: PromptInputMode
+  mode: InputMode
   pastedContents: Record<number, PastedContent>
   stash: pendingInput.StashedPrompt | undefined
   cursorOffset: number
@@ -43,8 +43,8 @@ type ComposerDraft = {
   setCursorOffset: (offset: number) => void
   lastSelfWriteRef: React.MutableRefObject<string>
   writeDraft: (text: string) => void
-  buffer: ReturnType<typeof useInputBuffer>
-  setMode: (mode: PromptInputMode) => void
+  buffer: ReturnType<typeof useInputUndo>
+  setMode: (mode: InputMode) => void
   setPastedContents: (
     next:
       | Record<number, PastedContent>
@@ -100,7 +100,7 @@ export function useComposerDraft({
   const deferredSpaceShiftRef = useRef<number>(0)
   const peakLengthRef = useRef<number>(input.length)
 
-  const buffer = useInputBuffer({
+  const buffer = useInputUndo({
     maxBufferSize: UNDO_BUFFER_SIZE,
     debounceMs: UNDO_DEBOUNCE_MS,
   })
@@ -135,7 +135,7 @@ export function useComposerDraft({
     }
   }, [])
 
-  const setMode = useCallback((nextMode: PromptInputMode) => {
+  const setMode = useCallback((nextMode: InputMode) => {
     pendingInput.setMode(nextMode)
   }, [])
 

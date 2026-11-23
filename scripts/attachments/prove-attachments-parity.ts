@@ -71,7 +71,7 @@ const SKIPPED: Record<string, string> = {
   getDateChangeAttachments: 'reads session clock state',
   getDeferredToolsDeltaAttachment: 'reads MCP registry state',
   getMcpInstructionsDeltaAttachment: 'reads MCP connection state',
-  memoryFilesToAttachments: 'filesystem-coupled (mneme reads)',
+  instructionFilesToAttachments: 'filesystem-coupled (mneme reads)',
   getChangedFiles: 'reads readFileState vs disk mtimes',
   resetSentSkillNames: 'module-state mutator',
   suppressNextSkillListing: 'module-state mutator',

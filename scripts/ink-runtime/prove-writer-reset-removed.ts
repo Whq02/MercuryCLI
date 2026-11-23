@@ -11,7 +11,7 @@ import Text from '../../src/screen/renderer/elements/Text.js'
 import { appendChildNode, createNode } from '../../src/screen/renderer/dom.js'
 import { emptyFrame } from '../../src/screen/renderer/frame.js'
 import { FrameWriter } from '../../src/screen/renderer/frame-writer.js'
-import Ink from '../../src/screen/renderer/screenInstance.js'
+import ScreenInstance from '../../src/screen/renderer/screenInstance.js'
 import instances from '../../src/screen/renderer/instances.js'
 import createRenderer from '../../src/screen/renderer/renderer.js'
 import { buildDom, makeContext } from './frameHarness.js'
@@ -102,7 +102,7 @@ console.log('\n§2 Inline scrollback boundary (flushedRows) and alt/main reset r
 
   const out = new Out()
   const err = new Out()
-  const ink = new Ink({
+  const ink = new ScreenInstance({
     stdout: out as unknown as NodeJS.WriteStream,
     stdin,
     stderr: err as unknown as NodeJS.WriteStream,

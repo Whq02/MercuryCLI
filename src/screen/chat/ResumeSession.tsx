@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react'
 import { useLoad } from '../effects/effects.js'
 import { useAppStateStore } from '../app-state/AppState.js'
-import { LogSelector } from '../session-chooser/SessionBrowser.js'
+import { SessionBrowser } from '../session-chooser/SessionBrowser.js'
 import { SpinnerGlyph } from '../spinner/SpinnerGlyph.js'
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js'
 import { SurfaceRouter } from '../routes/SurfaceRouter.js'
@@ -399,7 +399,7 @@ export function ResumeConversation({
             </Text>
           </Box>
         ) : null}
-        <LogSelector
+        <SessionBrowser
           logs={logs}
           onSelect={handleSelect}
           onCancel={handleCancelExit}

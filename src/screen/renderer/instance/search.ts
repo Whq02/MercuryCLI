@@ -5,20 +5,20 @@ import composeTree from '../compose-walk.js'
 import { type DOMElement, markDirty } from '../dom.js'
 import { type MatchPosition, scanPositions } from '../matchPositions.js'
 import type { SearchPositions } from '../root/overlay-pass.js'
-import type Ink from '../screenInstance.js'
+import type ScreenInstance from '../screenInstance.js'
 
-export function setSearchHighlight(this: Pick<Ink, 'searchQuery' | 'scheduleRender'>, query: string): void {
+export function setSearchHighlight(this: Pick<ScreenInstance, 'searchQuery' | 'scheduleRender'>, query: string): void {
   if (query === this.searchQuery) return
   this.searchQuery = query
   this.scheduleRender()
 }
 
-export function setSearchPositions(this: Pick<Ink, 'searchPositions' | 'scheduleRender'>, state: SearchPositions | null): void {
+export function setSearchPositions(this: Pick<ScreenInstance, 'searchPositions' | 'scheduleRender'>, state: SearchPositions | null): void {
   this.searchPositions = state
   this.scheduleRender()
 }
 
-export function scanElementSubtree(this: Pick<Ink, 'stylePool' | 'charPool' | 'hyperlinkPool' | 'searchQuery'>, el: DOMElement): MatchPosition[] {
+export function scanElementSubtree(this: Pick<ScreenInstance, 'stylePool' | 'charPool' | 'hyperlinkPool' | 'searchQuery'>, el: DOMElement): MatchPosition[] {
   if (!this.searchQuery) return []
   const layout = el.layoutNode
   if (!layout) return []

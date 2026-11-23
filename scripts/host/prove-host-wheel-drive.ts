@@ -26,7 +26,7 @@ globalThis.fetch = Object.assign(async () => { networkCalls++; throw new Error('
 const React = await import('react')
 const { Box, Text, useInput } = await import('../../src/screen/themedRenderer.ts')
 const { default: ScrollBox } = await import('../../src/screen/renderer/elements/ScrollBox.tsx')
-const { InkInstanceContext } = await import('../../src/screen/renderer/elements/InkInstanceContext.ts')
+const { ScreenInstanceContext } = await import('../../src/screen/renderer/elements/InkInstanceContext.ts')
 const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
 const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
@@ -44,9 +44,9 @@ const h = React.createElement
 const wheel = (down: boolean, x = 40, y = 15) => `\x1b[<${down ? 65 : 64};${x};${y}M`
 const x10 = (down: boolean) => '\x1b[M' + String.fromCharCode(32 + (down ? 65 : 64), 72, 47)
 const seen: string[] = []
-let ink: React.ContextType<typeof InkInstanceContext>
+let ink: React.ContextType<typeof ScreenInstanceContext>
 function Tap({ name }: { name: string }): null {
-  ink = React.useContext(InkInstanceContext)
+  ink = React.useContext(ScreenInstanceContext)
   useInput((_input, _key, event) => { seen.push(name + ':' + event.keypress.name) })
   return null
 }

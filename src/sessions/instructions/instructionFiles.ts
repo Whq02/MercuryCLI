@@ -19,7 +19,7 @@ import type { FileStateCache } from '../../platform/files/fileStateCache.js'
 import { getFsImplementation, safeResolvePath } from '../../platform/files/fsOperations.js'
 import { findCanonicalGitRoot, findGitRoot } from '../../platform/git/git.js'
 import { stripBOM } from '../../platform/storage/jsonRead.js'
-import type { MemoryType } from '../memory-shapes/types.js'
+import type { InstructionFileType } from '../memory-shapes/types.js'
 import { getEngineModel } from '../../models/catalogue/engineModel.js'
 import { pathInWorkingPath } from '../../permissions/rules/filesystem.js'
 import { isSettingSourceEnabled } from '../../platform/settings/settingSources.js'
@@ -50,27 +50,27 @@ import {
 import { resolveRequestedInstructionProfile } from './profile.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
-export const MIN_MEMORY_CHARACTER_COUNT = 40000
+export const MIN_INSTRUCTION_FILE_CHARACTER_COUNT = 40000
 
 export const MAX_INSTRUCTION_FILE_TOKEN_CONTEXT_RATIO = 0.05
 
 const CHARS_PER_TOKEN_ESTIMATE = 4
 
-export function getMaxMemoryCharacterCount(
+export function getMaxInstructionFileCharacterCount(
   model: string = getEngineModel(),
 ): number {
   const limit = getContextWindowForModel(model, getSdkBetas())
   const contextTokens =
     Number.isFinite(limit) && limit > 0 ? limit : MODEL_CONTEXT_WINDOW_DEFAULT
   return Math.max(
-    MIN_MEMORY_CHARACTER_COUNT,
+    MIN_INSTRUCTION_FILE_CHARACTER_COUNT,
     Math.round(
       contextTokens * MAX_INSTRUCTION_FILE_TOKEN_CONTEXT_RATIO * CHARS_PER_TOKEN_ESTIMATE,
     ),
   )
 }
 
-export const MAX_MEMORY_CHARACTER_COUNT = MIN_MEMORY_CHARACTER_COUNT
+export const MAX_INSTRUCTION_FILE_CHARACTER_COUNT = MIN_INSTRUCTION_FILE_CHARACTER_COUNT
 
 type InstructionCompositionState = {
   resolution: InstructionProfileResolution
@@ -505,10 +505,10 @@ export function resetInstructionFilesCache(
   clearInstructionFileCaches()
 }
 
-export function getLargeMemoryFiles(
+export function getLargeInstructionFiles(
   files: InstructionSourceEntry[],
 ): InstructionSourceEntry[] {
-  const cap = getMaxMemoryCharacterCount()
+  const cap = getMaxInstructionFileCharacterCount()
   return files.filter(file => file.content.length > cap)
 }
 
@@ -520,7 +520,7 @@ export function filterInjectedInstructionFiles(
 
 export const composeInstructionPrompt = (
   memoryFiles: InstructionSourceEntry[],
-  filter?: (type: MemoryType) => boolean,
+  filter?: (type: InstructionFileType) => boolean,
 ): string => {
   const sections: string[] = []
   const offeredPointers: string[] = []

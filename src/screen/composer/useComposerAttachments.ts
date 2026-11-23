@@ -3,14 +3,14 @@ import { useCallback, useRef } from 'react'
 import * as pendingInput from './input-core/pending-input.js'
 import type { Notification } from '../notifications/notifications.js'
 import type { Message } from '../../engine/message-shapes/message.js'
-import type { PromptInputMode } from './input-core/textInput.js'
+import type { InputMode } from './input-core/textInput.js'
 import type { ImageDimensions } from '../../platform/images/imageResizer.js'
 import type { PastedContent } from '../../platform/settings/config.js'
-import type { useInputBuffer } from './useInputUndo.js'
+import type { useInputUndo } from './useInputUndo.js'
 import type { LiveInputState } from './text-input/useTextInput.js'
 import { useClaim } from '../effects/effects.js'
 import { normalizePastedLines } from './input-core/composer-document.js'
-import { useMaybeTruncateInput } from './useInputTruncation.js'
+import { useInputTruncation } from './useInputTruncation.js'
 import { getModeFromInput, getValueFromInput } from './inputModes.js'
 import { setComposerInsert } from './composerInsert.js'
 import { formatImageRef, formatPastedTextRef, getPastedTextRefNumLines, parseReferences } from '../../sessions/promptHistory.js'
@@ -28,11 +28,11 @@ type ComposerAttachmentsInput = {
   readLiveState: () => LiveInputState
   messages: Message[]
   rows: number
-  buffer: ReturnType<typeof useInputBuffer>
+  buffer: ReturnType<typeof useInputUndo>
   inputSelectionRangeRef: React.MutableRefObject<() => { start: number; end: number } | null>
   writeDraft: (text: string) => void
   setCursorOffset: (offset: number) => void
-  setMode: (mode: PromptInputMode) => void
+  setMode: (mode: InputMode) => void
   setPastedContents: (
     next:
       | Record<number, PastedContent>
@@ -112,7 +112,7 @@ export function useComposerAttachments({
   deferredSpaceArmedRef,
   insertTextRef,
 }: ComposerAttachmentsInput): ComposerAttachments {
-  useMaybeTruncateInput({
+  useInputTruncation({
     input,
     pastedContents,
     onInputChange: writeDraft,

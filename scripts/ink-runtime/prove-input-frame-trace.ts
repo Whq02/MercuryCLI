@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
 import React, { useState } from 'react'
-import Ink from '../../src/screen/renderer/screenInstance.tsx'
+import ScreenInstance from '../../src/screen/renderer/screenInstance.tsx'
 import Text from '../../src/screen/renderer/elements/Text.tsx'
 import useInput from '../../src/screen/renderer/bindings/use-input.ts'
 import instances from '../../src/screen/renderer/instances.ts'
@@ -38,7 +38,7 @@ function Scene(): React.ReactElement {
 }
 const stdout = new Output()
 const stdin = new Input()
-const ink = new Ink({ stdout: stdout as never, stdin: stdin as never, stderr: new Output() as never, patchConsole: false, exitOnCtrlC: false, onFrame: recordFrameTrace })
+const ink = new ScreenInstance({ stdout: stdout as never, stdin: stdin as never, stderr: new Output() as never, patchConsole: false, exitOnCtrlC: false, onFrame: recordFrameTrace })
 instances.set(stdout as never, ink)
 ink.render(React.createElement(Scene))
 await new Promise(resolve => setTimeout(resolve, 350))

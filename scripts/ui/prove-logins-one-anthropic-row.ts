@@ -58,7 +58,7 @@ await stub('../../src/screen/widgets/faces/anthropicLoginModel.js', {
   }),
 })
 
-const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.js')
 const { default: instances } = await import('../../src/screen/renderer/instances.js')
 const { AnsiEmulator } = await import('../ink-runtime/ansiEmulator.js')
 const owner = (await import('../../src/models/sign-in/flow-cards/loginFamilyRows.js')) as Record<string, unknown>
@@ -173,7 +173,7 @@ const PROBE_CSI = /\x1b\[(?:[<>=][0-9;]*[a-zA-Z]|\?[0-9;]*\$p|\?[0-9;]*u|[0-9;]*
 function mount(element: React.ReactElement): Mounted {
   const stdout = new FakeStdout()
   const stdin = new FakeStdin()
-  const ink = new Ink({ stdout: stdout as never, stdin: stdin as never, stderr: new FakeStdout() as never, exitOnCtrlC: false, patchConsole: false })
+  const ink = new ScreenInstance({ stdout: stdout as never, stdin: stdin as never, stderr: new FakeStdout() as never, exitOnCtrlC: false, patchConsole: false })
   instances.set(stdout as never, ink)
   ink.render(element)
   return {

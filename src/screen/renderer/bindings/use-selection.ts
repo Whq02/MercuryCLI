@@ -1,7 +1,7 @@
 import { useContext, useMemo, useSyncExternalStore } from 'react'
-import { InkInstanceContext } from '../elements/InkInstanceContext.js'
+import { ScreenInstanceContext } from '../elements/InkInstanceContext.js'
 import { type FocusMove, type SelectionState } from '../geometry/selection.js'
-import type Ink from '../screenInstance.js'
+import type ScreenInstance from '../screenInstance.js'
 
 export type SelectionApi = {
   copySelection: () => string
@@ -34,7 +34,7 @@ function inertApi(): SelectionApi {
   }
 }
 
-function instanceApi(ink: Ink): SelectionApi {
+function instanceApi(ink: ScreenInstance): SelectionApi {
   return {
     copySelection: () => ink.copySelection(),
     copySelectionNoClear: () => ink.copySelectionNoClear(),
@@ -49,7 +49,7 @@ function instanceApi(ink: Ink): SelectionApi {
 }
 
 export function useSelection(): SelectionApi {
-  const ink = useContext(InkInstanceContext)
+  const ink = useContext(ScreenInstanceContext)
   return useMemo(() => (ink ? instanceApi(ink) : inertApi()), [ink])
 }
 

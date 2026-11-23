@@ -1,10 +1,10 @@
 import { useKeybindings } from './useKeybinding.js'
-import { useExitOnCtrlCD, type ExitState } from './useExitChord.js'
+import { useExitChord, type ExitState } from './useExitChord.js'
 
-export function useExitOnCtrlCDWithKeybindings(
+export function useExitChordKeys(
   onExit?: () => void,
   onInterrupt?: () => boolean,
   isActive?: boolean,
 ): ExitState {
-  return useExitOnCtrlCD(useKeybindings, onInterrupt, onExit, isActive)
+  return useExitChord(useKeybindings, onInterrupt, onExit, isActive)
 }

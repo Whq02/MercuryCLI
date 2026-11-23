@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useMeasure, usePublish } from '../effects/effects.js';
 import { computeUnseenDivider, countUnseenAssistantTurns, useUnseenDivider } from '../fullscreen-layout/FullscreenLayout.js';
 import { setMessageCursor } from '../messages/messageCursorStore.js';
-import { InkInstanceContext } from '../renderer/elements/InkInstanceContext.js';
+import { ScreenInstanceContext } from '../renderer/elements/InkInstanceContext.js';
 import type { ScrollBoxHandle } from '../renderer/elements/ScrollBox.js';
 import type { Message } from '../../engine/message-shapes/message.js';
 import { isHumanTurn } from './messagePredicates.js';
@@ -48,7 +48,7 @@ export function useChatScroll({
     scrollRestoreRef.current = { gap, sticky: handle.isSticky() || gap === 0 };
   }, []);
   const [flipGeneration, setFlipGeneration] = useState(0);
-  const flipInk = React.useContext(InkInstanceContext);
+  const flipInk = React.useContext(ScreenInstanceContext);
   useMeasure(() => {
     const restore = scrollRestoreRef.current;
     if (!restore || !flipInk) return;

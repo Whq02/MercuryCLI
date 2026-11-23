@@ -1,7 +1,7 @@
 import { format as formatArgs } from 'node:util'
 import { logForDebugging } from '../../../platform/logs/debugLog.js'
 import { logError } from '../../../platform/logs/errorLog.js'
-import type Ink from '../screenInstance.js'
+import type ScreenInstance from '../screenInstance.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
 
 const CONSOLE_DEBUG_METHODS = [
@@ -38,7 +38,7 @@ function patchMethod<K extends ConsoleMethod>(
   })
 }
 
-export function patchConsole(this: Pick<Ink, 'options' | 'ledger' | 'isUnmounted' | 'isPaused' | 'altScreenActive' | 'scheduleRender'>): () => void {
+export function patchConsole(this: Pick<ScreenInstance, 'options' | 'ledger' | 'isUnmounted' | 'isPaused' | 'altScreenActive' | 'scheduleRender'>): () => void {
   const restorers: Array<() => void> = []
   for (const method of CONSOLE_DEBUG_METHODS) {
     patchMethod(restorers, method, (...args: unknown[]) => {
@@ -63,7 +63,7 @@ export function patchConsole(this: Pick<Ink, 'options' | 'ledger' | 'isUnmounted
   }
 }
 
-function interceptStderr(this: Pick<Ink, 'options' | 'ledger' | 'isUnmounted' | 'isPaused' | 'altScreenActive' | 'scheduleRender'>): () => void {
+function interceptStderr(this: Pick<ScreenInstance, 'options' | 'ledger' | 'isUnmounted' | 'isPaused' | 'altScreenActive' | 'scheduleRender'>): () => void {
   const stream = this.options.stderr
   const originalWrite = stream.write.bind(stream)
   let reentered = false

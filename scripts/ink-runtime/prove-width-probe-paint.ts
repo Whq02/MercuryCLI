@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
 import React from 'react'
-import Ink from '../../src/screen/renderer/screenInstance.tsx'
+import ScreenInstance from '../../src/screen/renderer/screenInstance.tsx'
 import Text from '../../src/screen/renderer/elements/Text.tsx'
 import { AlternateScreen } from '../../src/screen/renderer/elements/AlternateScreen.tsx'
 import useInput from '../../src/screen/renderer/bindings/use-input.ts'
@@ -35,7 +35,7 @@ let redraws = 0
 let frames = 0
 let finish: () => void = () => {}
 const repainted = new Promise<void>(resolve => { finish = resolve })
-const ink = new Ink({
+const ink = new ScreenInstance({
   stdout: stdout as never,
   stdin: new Input() as never,
   stderr: new Output() as never,
@@ -84,7 +84,7 @@ await exited
 
 const inlineStdout = new Output()
 let inlineRedraws = 0
-const inlineInk = new Ink({
+const inlineInk = new ScreenInstance({
   stdout: inlineStdout as never,
   stdin: new Input() as never,
   stderr: new Output() as never,

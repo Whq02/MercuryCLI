@@ -20,7 +20,7 @@ enableConfigs()
 const { getEmptyToolPermissionContext } = await import(join(repo, 'src/tools/kit/tool.ts'))
 const { getInstructionFiles } = await import(join(repo, 'src/sessions/instructions/instructionFiles.ts'))
 const { conventionsForProfile } = await import(join(repo, 'src/sessions/instructions/compositionOrder.ts'))
-const { getNestedMemoryAttachmentsForFile } = await import(join(repo, 'src/engine/attachments/nestedInstructions.ts'))
+const { getNestedInstructionAttachmentsForFile } = await import(join(repo, 'src/engine/attachments/nestedInstructions.ts'))
 const { createFileStateCacheWithSizeLimit } = await import(join(repo, 'src/platform/files/fileStateCache.ts'))
 const { getFsImplementation } = await import(join(repo, 'src/platform/files/fsOperations.ts'))
 const plan = JSON.parse(process.env.DRV_PLAN ?? '{}')
@@ -38,7 +38,7 @@ const atStart = log.length
 const state = { toolPermissionContext: getEmptyToolPermissionContext() }
 const context = { readFileState: createFileStateCacheWithSizeLimit(100), loadedNestedMemoryPaths: new Set(), nestedMemoryAttachmentTriggers: new Set(), getAppState: () => state }
 const attached: string[] = []
-for (const file of plan.touch ?? []) attached.push(...(await getNestedMemoryAttachmentsForFile(file, context as never, state)).map((a: any) => a.path))
+for (const file of plan.touch ?? []) attached.push(...(await getNestedInstructionAttachmentsForFile(file, context as never, state)).map((a: any) => a.path))
 writeFileSync(process.argv[2]!, JSON.stringify({ names, log, atStart, files: files.map((f: any) => f.path), attached }))
 `)
 
@@ -46,7 +46,7 @@ type Drive = { names: string[]; log: string[]; atStart: number; files: string[];
 
 let passed = 0
 let failed = 0
-const otherToolsHint = 'change the lookups of other tools files in getInstructionFiles (src/sessions/instructions/instructionFiles.ts) and getNestedMemoryAttachmentsForFile (src/engine/attachments/nestedInstructions.ts), or the conventions from conventionsForProfile (src/sessions/instructions/compositionOrder.ts);'
+const otherToolsHint = 'change the lookups of other tools files in getInstructionFiles (src/sessions/instructions/instructionFiles.ts) and getNestedInstructionAttachmentsForFile (src/engine/attachments/nestedInstructions.ts), or the conventions from conventionsForProfile (src/sessions/instructions/compositionOrder.ts);'
 function check(label: string, ok: boolean, detail = ''): void {
   ok ? passed++ : failed++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${otherToolsHint} ${detail.slice(0, 900)}` : ''}`)

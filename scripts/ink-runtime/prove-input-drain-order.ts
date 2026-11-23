@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
 import React, { useState } from 'react'
-import Ink from '../../src/screen/renderer/screenInstance.tsx'
+import ScreenInstance from '../../src/screen/renderer/screenInstance.tsx'
 import Text from '../../src/screen/renderer/elements/Text.tsx'
 import useInput from '../../src/screen/renderer/bindings/use-input.ts'
 import instances from '../../src/screen/renderer/instances.ts'
@@ -53,7 +53,7 @@ async function scene(name: string, act: (stdin: Input) => Promise<void>): Promis
   const log: string[] = []
   const stdout = new Output()
   const stdin = new Input()
-  const ink = new Ink({ stdout: stdout as never, stdin: stdin as never, stderr: new Output() as never, patchConsole: false, exitOnCtrlC: false })
+  const ink = new ScreenInstance({ stdout: stdout as never, stdin: stdin as never, stderr: new Output() as never, patchConsole: false, exitOnCtrlC: false })
   instances.set(stdout as never, ink)
   ink.render(React.createElement(Scene, { log }))
   await settle(150)

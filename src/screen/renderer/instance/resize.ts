@@ -6,13 +6,13 @@ import { syncOutputSupportedNow, syncOutputCapabilityNow } from '../terminal-ses
 import { writeDiffToTerminal } from '../terminal-session/frameDelivery.js'
 import { ENTER_ALT_SCREEN } from '../termio/dec.js'
 import { liveSize, buildParkPatch, resetFramesForAltScreen } from './frames.js'
-import type Ink from '../screenInstance.js'
+import type ScreenInstance from '../screenInstance.js'
 import { startTimeout, stopTimeout } from '../../../platform/async/timers.js'
 import { consoleSizeNeedsPolling } from '../../../platform/host-os/terminal.js'
 import { hostEnv } from '../../../platform/environment/hostEnv.js'
 
 type HandleResizeReads = Pick<
-  Ink,
+  ScreenInstance,
   | 'options' | 'isTTY' | 'frontFrame' | 'cachedColumns' | 'cachedRows' | 'writer' | 'scheduler' | 'isPaused' | 'isRendering' | 'altScreenActive'
   | 'displayCursor' | 'wholeFrameDue' | 'resizeSettleTimer' | 'fittingConsoleBuffer' | 'applySettledResize'
 >
@@ -23,7 +23,7 @@ export function handleResize(this: HandleResizeReads): void {
 }
 
 type SettleResizeReads = Pick<
-  Ink,
+  ScreenInstance,
   | 'options' | 'isTTY' | 'frontFrame' | 'cachedColumns' | 'cachedRows' | 'writer' | 'scheduler' | 'isPaused' | 'altScreenActive' | 'displayCursor'
   | 'wholeFrameDue' | 'resizeSettleTimer' | 'applySettledResize'
 >
@@ -40,7 +40,7 @@ export function settleResize(this: SettleResizeReads): void {
   this.resizeSettleTimer = startTimeout(this.applySettledResize, RESIZE_SETTLE_MS)
 }
 
-export function handleWinch(this: Pick<Ink, 'options' | 'cachedColumns' | 'cachedRows' | 'resizeSettleTimer' | 'overwriteScreen'>): void {
+export function handleWinch(this: Pick<ScreenInstance, 'options' | 'cachedColumns' | 'cachedRows' | 'resizeSettleTimer' | 'overwriteScreen'>): void {
   refreshConsoleSize(this.options.stdout)
   if (this.resizeSettleTimer !== null) return
   const { columns, rows } = liveSize.call(this)
@@ -48,7 +48,7 @@ export function handleWinch(this: Pick<Ink, 'options' | 'cachedColumns' | 'cache
 }
 
 type PaintResizeHoldReads = Pick<
-  Ink,
+  ScreenInstance,
   | 'options' | 'isTTY' | 'frontFrame' | 'writer' | 'isPaused' | 'altScreenActive' | 'displayCursor' | 'wholeFrameDue'
 >
 
@@ -64,11 +64,11 @@ function paintResizeHold(this: PaintResizeHoldReads, columns: number, rows: numb
   this.displayCursor = null
 }
 
-export function consoleBufferOutlivesWindow(this: Pick<Ink, 'isTTY' | 'isPaused' | 'altScreenActive'>): boolean {
+export function consoleBufferOutlivesWindow(this: Pick<ScreenInstance, 'isTTY' | 'isPaused' | 'altScreenActive'>): boolean {
   return consoleSizeNeedsPolling() && !syncOutputCapabilityNow() && this.altScreenActive && !this.isPaused && this.isTTY
 }
 
-function fitConsoleBufferToWindow(this: Pick<Ink, 'options' | 'isTTY' | 'isPaused' | 'altScreenActive' | 'fittingConsoleBuffer'>): void {
+function fitConsoleBufferToWindow(this: Pick<ScreenInstance, 'options' | 'isTTY' | 'isPaused' | 'altScreenActive' | 'fittingConsoleBuffer'>): void {
   if (!consoleBufferOutlivesWindow.call(this)) return
   termWrite(this.options.stdout, ENTER_ALT_SCREEN)
   this.fittingConsoleBuffer = true
@@ -80,7 +80,7 @@ function fitConsoleBufferToWindow(this: Pick<Ink, 'options' | 'isTTY' | 'isPause
 }
 
 type ApplySettledResizeReads = Pick<
-  Ink,
+  ScreenInstance,
   | 'options' | 'isTTY' | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'cachedColumns' | 'cachedRows' | 'parkPatch'
   | 'scheduler' | 'ledger' | 'currentTree' | 'isPaused' | 'altScreenActive' | 'mouseTracking' | 'displayCursor' | 'wholeFrameDue' | 'resizeSettleTimer'
   | 'glassOverlay' | 'resizeEraseDue' | 'fittingConsoleBuffer' | 'render'
@@ -96,7 +96,7 @@ export function applySettledResize(this: ApplySettledResizeReads): void {
 }
 
 type ApplySizeReads = Pick<
-  Ink,
+  ScreenInstance,
   | 'options' | 'isTTY' | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'cachedColumns' | 'cachedRows' | 'parkPatch'
   | 'ledger' | 'isPaused' | 'altScreenActive' | 'mouseTracking' | 'displayCursor' | 'wholeFrameDue' | 'resizeEraseDue' | 'currentTree' | 'glassOverlay'
 >
@@ -114,7 +114,7 @@ export function applySize(this: ApplySizeReads, columns: number, rows: number): 
   }
 }
 
-export function clearResizeSettle(this: Pick<Ink, 'scheduler' | 'resizeSettleTimer'>): void {
+export function clearResizeSettle(this: Pick<ScreenInstance, 'scheduler' | 'resizeSettleTimer'>): void {
   if (this.resizeSettleTimer !== null) {
     stopTimeout(this.resizeSettleTimer)
     this.resizeSettleTimer = null
@@ -122,7 +122,7 @@ export function clearResizeSettle(this: Pick<Ink, 'scheduler' | 'resizeSettleTim
   this.scheduler.releaseSettleHold(false)
 }
 
-export function reconcileSize(this: Pick<Ink, 'options' | 'handleResize'>): void {
+export function reconcileSize(this: Pick<ScreenInstance, 'options' | 'handleResize'>): void {
   if (!consoleSizeNeedsPolling()) return;
   if (!refreshConsoleSize(this.options.stdout)) this.handleResize();
 }

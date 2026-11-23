@@ -25,23 +25,23 @@ import { writeFileSync } from 'node:fs'
 const { enableConfigs } = await import(${JSON.stringify(join(repo, 'src/platform/config/globalConfig.ts'))})
 enableConfigs()
 const { getEmptyToolPermissionContext } = await import(${JSON.stringify(join(repo, 'src/tools/kit/tool.ts'))})
-const { getInstructionFiles, composeInstructionPrompt, getInstructionBundle, getMaxMemoryCharacterCount, getLargeMemoryFiles } = await import(${JSON.stringify(join(repo, 'src/sessions/instructions/instructionFiles.ts'))})
+const { getInstructionFiles, composeInstructionPrompt, getInstructionBundle, getMaxInstructionFileCharacterCount, getLargeInstructionFiles } = await import(${JSON.stringify(join(repo, 'src/sessions/instructions/instructionFiles.ts'))})
 const { getUserContext, isInstructionDiscoveryDisabled } = await import(${JSON.stringify(join(repo, 'src/engine/requestContext.ts'))})
-const { getNestedMemoryAttachmentsForFile } = await import(${JSON.stringify(join(repo, 'src/engine/attachments/nestedInstructions.ts'))})
+const { getNestedInstructionAttachmentsForFile } = await import(${JSON.stringify(join(repo, 'src/engine/attachments/nestedInstructions.ts'))})
 const { createFileStateCacheWithSizeLimit } = await import(${JSON.stringify(join(repo, 'src/platform/files/fileStateCache.ts'))})
 const files = await getInstructionFiles()
 const composed = composeInstructionPrompt(files)
 const bundle = await getInstructionBundle()
 const state = { toolPermissionContext: getEmptyToolPermissionContext() }
 const context = { readFileState: createFileStateCacheWithSizeLimit(100), loadedNestedMemoryPaths: new Set(), nestedMemoryAttachmentTriggers: new Set(), getAppState: () => state }
-const touched = process.env.DRV_TOUCH ? await getNestedMemoryAttachmentsForFile(process.env.DRV_TOUCH, context as never, state) : []
-writeFileSync(process.argv[2]!, JSON.stringify({ paths: files.map(f => f.path), composed, resolution: bundle.resolution.resolved, entries: bundle.entries.map(e => ({ path: e.path, root: e.root, origin: e.origin })), cap: getMaxMemoryCharacterCount(), large: getLargeMemoryFiles(files).map(f => f.path), disabled: isInstructionDiscoveryDisabled(), user: (await getUserContext()).instructions ?? '', touched: touched.map(a => a.path) }))
+const touched = process.env.DRV_TOUCH ? await getNestedInstructionAttachmentsForFile(process.env.DRV_TOUCH, context as never, state) : []
+writeFileSync(process.argv[2]!, JSON.stringify({ paths: files.map(f => f.path), composed, resolution: bundle.resolution.resolved, entries: bundle.entries.map(e => ({ path: e.path, root: e.root, origin: e.origin })), cap: getMaxInstructionFileCharacterCount(), large: getLargeInstructionFiles(files).map(f => f.path), disabled: isInstructionDiscoveryDisabled(), user: (await getUserContext()).instructions ?? '', touched: touched.map(a => a.path) }))
 `)
 let passed = 0
 let failed = 0
 function check(label: string, ok: boolean): void {
   ok ? passed++ : failed++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — to fix, change how src/sessions/instructions/instructionFiles.ts (getInstructionFiles, composeInstructionPrompt, getInstructionBundle) chooses and composes the guides of the starting folder, how src/engine/attachments/nestedInstructions.ts (getNestedMemoryAttachmentsForFile) attaches nested guides, or how getUserContext and isInstructionDiscoveryDisabled in src/engine/requestContext.ts pass them on'}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — to fix, change how src/sessions/instructions/instructionFiles.ts (getInstructionFiles, composeInstructionPrompt, getInstructionBundle) chooses and composes the guides of the starting folder, how src/engine/attachments/nestedInstructions.ts (getNestedInstructionAttachmentsForFile) attaches nested guides, or how getUserContext and isInstructionDiscoveryDisabled in src/engine/requestContext.ts pass them on'}`)
 }
 function drive(options: { touch?: string; bare?: boolean; retired?: boolean } = {}) {
   const home = mkdtempSync(join(scratch, 'home-'))

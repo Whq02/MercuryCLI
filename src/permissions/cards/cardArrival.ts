@@ -3,7 +3,7 @@ import { ReadStream } from 'node:tty'
 import { useContext, useRef } from 'react'
 import { useClaim, useLayoutClaim, usePublish } from '../../screen/effects/effects.js'
 import { useStdin } from '../../screen/themedRenderer.js'
-import { InkInstanceContext } from '../../screen/renderer/elements/InkInstanceContext.js'
+import { ScreenInstanceContext } from '../../screen/renderer/elements/InkInstanceContext.js'
 import { type InputEvent, markInputConsumedThroughCurrentSeq } from '../../screen/renderer/events/input-event.js'
 import { useSetAppState } from '../../screen/app-state/AppState.js'
 import { trySeedComposer } from '../../screen/cockpit/composerSeed.js'
@@ -29,7 +29,7 @@ export function usePermissionRequestLogging(toolUseConfirm: ToolUseConfirm, scre
 }
 
 export function useKeysHeldUntilFirstPaint(): void {
-  const ink = useContext(InkInstanceContext)
+  const ink = useContext(ScreenInstanceContext)
   const { stdin, internal_eventEmitter } = useStdin()
   const painted = useRef(false)
 

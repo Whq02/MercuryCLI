@@ -4,7 +4,7 @@ import { exitChordNoticeText } from '../composer/ExitChordNotice.js'
 import React from 'react';
 import { useTimer } from '../effects/effects.js';
 import { setSessionTrustAccepted } from '../../boot/process-state/processState.js';
-import { useExitOnCtrlCDWithKeybindings } from '../keys/useExitChordKeys.js';
+import { useExitChordKeys } from '../keys/useExitChordKeys.js';
 import { Box, Text } from '../themedRenderer.js';
 import { useKeybinding } from '../keys/useKeybinding.js';
 import { checkHasTrustDialogAccepted, getProjectPathForConfig, saveCurrentProjectConfig } from '../../platform/settings/config.js';
@@ -42,7 +42,7 @@ export function TrustDialog({ onDone }: Props): React.ReactNode {
     };
   }, [alreadyTrusted, onDone]);
 
-  const exitState = useExitOnCtrlCDWithKeybindings(exit);
+  const exitState = useExitChordKeys(exit);
 
   useKeybinding('confirm:no', exit, { context: 'Confirmation' });
 

@@ -3,7 +3,7 @@ import { usePublish } from '../effects/effects.js'
 import type { PastedContent } from '../../platform/settings/config.js'
 import { maybeTruncateInput } from './inputTruncation.js'
 
-export function useMaybeTruncateInput({
+export function useInputTruncation({
   input,
   pastedContents,
   onInputChange,

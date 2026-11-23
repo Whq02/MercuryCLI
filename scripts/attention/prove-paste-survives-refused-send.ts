@@ -7,7 +7,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'paste-crash-home-')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.BROWSER = '/usr/bin/true'
 let failures = 0
-const WHERE = 'To fix, look at expandPastedTextRefs and resolvePastedContents in src/sessions/promptHistory.ts, storePastedText and cleanupOldPastes in src/sessions/pasteStore.ts, and saveDraftDebounced, readDraftSync and draftPasteHashes in src/screen/composer/input-core/promptDraft.ts'
+const WHERE = 'To fix, look at expandPastedTextRefs and resolvePastedContents in src/sessions/promptHistory.ts, storePastedText and sweepOldPastes in src/sessions/pasteStore.ts, and saveDraftDebounced, readDraftSync and draftPasteHashes in src/screen/composer/input-core/promptDraft.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${[detail, WHERE].filter(Boolean).join('. ')}` : ''}`)
@@ -66,9 +66,9 @@ section('§C the crash road: the chip carries its hash, the bytes are on disk fr
   const past = new Date('2020-01-01')
   utimesSync(file, past, past)
   const retained = typeof drafts.draftPasteHashes === 'function' ? drafts.draftPasteHashes() : new Set<string>()
-  await store.cleanupOldPastes(new Date(), retained)
+  await store.sweepOldPastes(new Date(), retained)
   check('C7 the sweep keeps a paste a draft still names, past the cutoff', existsSync(file) && retained.has(hash), `retained=${[...retained].join(',')}`)
-  await store.cleanupOldPastes(new Date())
+  await store.sweepOldPastes(new Date())
   check('C8 …and with nothing naming it the same sweep removes it', !existsSync(file))
 }
 

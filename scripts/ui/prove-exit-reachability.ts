@@ -49,7 +49,7 @@ try {
   const { Dialog } = await import('../../src/screen/theme/Dialog.tsx')
   const { TranscriptFooter } = await import('../../src/screen/chat/useChatSearch.tsx')
   const { ThemePicker } = await import('../../src/commands/appearance/ThemePicker.tsx')
-  const { HelpV2 } = await import('../../src/screen/help/HelpV2.tsx')
+  const { Help } = await import('../../src/screen/help/HelpV2.tsx')
   const { SelectInputOption } = await import('../../src/screen/select/SelectInputOption.tsx')
   const { Select } = await import('../../src/screen/select/Select.tsx')
   const { MessageSelector } = await import('../../src/screen/rewind-picker/RewindPicker.tsx')
@@ -248,7 +248,7 @@ try {
       prove: async () => {
         let closed = false
         const view = await mountScreen(
-          h(HelpV2, { commands: [], onClose: () => { closed = true } }),
+          h(Help, { commands: [], onClose: () => { closed = true } }),
           { columns: 120, rows: 30, contexts: ['Help'] },
         )
         try {

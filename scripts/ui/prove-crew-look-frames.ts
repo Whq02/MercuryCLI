@@ -159,7 +159,7 @@ await stub('../../src/sessions/transcripts/loading.ts', actual => {
 })
 
 const React = await import('react')
-const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.tsx')
 const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
 const { App } = await import('../../src/boot/App.tsx')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
@@ -167,7 +167,7 @@ const { useAppStateStore } = await import('../../src/screen/app-state/AppState.t
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
 const { FullscreenLayout, useUnseenDivider } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
 const { ScrollKeybindingHandler } = await import('../../src/screen/scroll-keys/ScrollKeybindingHandler.tsx')
-const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { default: Composer } = await import('../../src/screen/composer/Composer.tsx')
 const { FocusedSessionStatusRow } = await import('../../src/screen/chat/SwitchboardTagBar.tsx')
 const { useCompactWorkControls } = await import('../../src/screen/tasks/CompactWorkSummary.tsx')
 const { GlobalKeybindingHandlers } = await import('../../src/screen/chat/useGlobalKeybindings.tsx')
@@ -275,7 +275,7 @@ function Harness({ scrollRef }: { scrollRef: React.RefObject<ScrollBoxHandle | n
       statusBandActive: true,
       modal: modal === null ? undefined : h(Box, { width: '100%', flexDirection: 'column' }, modal),
       modalScrollRef,
-      bottom: h(Box, { flexDirection: 'column', flexShrink: 0 }, h(FocusedSessionStatusRow), h(PromptInput, {
+      bottom: h(Box, { flexDirection: 'column', flexShrink: 0 }, h(FocusedSessionStatusRow), h(Composer, {
         compactWork: controls, compactFocus: focus,
         debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
         setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [],
@@ -300,7 +300,7 @@ async function mount(cols: number, rows: number): Promise<Scene> {
   const scrollRef = React.createRef<ScrollBoxHandle | null>()
   const stdout = new Output(cols, rows)
   const stdin = new Input()
-  const ink = new Ink({ stdout: stdout as never, stdin: stdin as never, stderr: new Output(cols, rows) as never, exitOnCtrlC: false, patchConsole: false })
+  const ink = new ScreenInstance({ stdout: stdout as never, stdin: stdin as never, stderr: new Output(cols, rows) as never, exitOnCtrlC: false, patchConsole: false })
   instances.set(stdout as never, ink)
   ink.render(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(Harness, { scrollRef })))
   const painted = await until(() => ink.lastFrameText() !== '' && stripAnsi(ink.lastFrameText()).includes('CREW'))

@@ -18,13 +18,13 @@ process.env.MERCURY_REDUCED_MOTION = '1'
 process.env.BROWSER = '/usr/bin/true'
 
 const React = await import('react')
-const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.tsx')
 const { Text } = await import('../../src/screen/themedRenderer.ts')
 const { App } = await import('../../src/boot/App.tsx')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
 const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { default: Composer } = await import('../../src/screen/composer/Composer.tsx')
 const { useCompactWorkControls } = await import('../../src/screen/tasks/CompactWorkSummary.tsx')
 const { GlobalKeybindingHandlers } = await import('../../src/screen/chat/useGlobalKeybindings.tsx')
 const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
@@ -125,9 +125,9 @@ async function renderAt(columns: number, rows: number): Promise<string[]> {
   stdout.columns = columns
   stdout.rows = rows
   const stdin = new Input()
-  const ink = new Ink({ stdout: stdout as never, stdin: stdin as never, stderr: new Output() as never, exitOnCtrlC: false, patchConsole: false })
+  const ink = new ScreenInstance({ stdout: stdout as never, stdin: stdin as never, stderr: new Output() as never, exitOnCtrlC: false, patchConsole: false })
   instances.set(stdout as never, ink)
-  const insertRef = { current: null } as React.MutableRefObject<import('../../src/screen/composer/Composer.tsx').PromptInputProps['insertTextRef']['current']>
+  const insertRef = { current: null } as React.MutableRefObject<import('../../src/screen/composer/Composer.tsx').ComposerProps['insertTextRef']['current']>
   function Transcript(): React.ReactNode {
     return h(Text, null, Array.from({ length: 3 }, (_, index) => `13:00:0${index + 1} [sam] ❯ task ${index + 1}`).join('\n'))
   }
@@ -144,7 +144,7 @@ async function renderAt(columns: number, rows: number): Promise<string[]> {
         scrollable: h(Transcript),
         statusBand: h(Text, null, 'activity specimen'),
         statusBandActive: false,
-        bottom: h(PromptInput, {
+        bottom: h(Composer, {
           compactWork: controls, compactFocus: focus,
           debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
           setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [],
@@ -161,7 +161,7 @@ async function renderAt(columns: number, rows: number): Promise<string[]> {
   ink.render(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined }, h(Harness)))
   try {
     const painted = await until(() => insertRef.current !== null && ink.lastFrameText().includes('Type a prompt') && ink.lastFrameText().includes('lanes'))
-    check(`${columns}x${rows}: the cockpit paints its composer placeholder and the lanes header`, painted, ink.lastFrameText().slice(0, 400), 'FullscreenLayout in src/screen/fullscreen-layout/FullscreenLayout.tsx or PromptInput did not paint the composer placeholder and the lanes header within 15s; read the frame text above')
+    check(`${columns}x${rows}: the cockpit paints its composer placeholder and the lanes header`, painted, ink.lastFrameText().slice(0, 400), 'FullscreenLayout in src/screen/fullscreen-layout/FullscreenLayout.tsx or Composer did not paint the composer placeholder and the lanes header within 15s; read the frame text above')
     await new Promise<void>(resolve => setTimeout(resolve, 150))
     return ink.lastFrameText().replace(/\n$/, '').split('\n')
   } finally {
@@ -182,7 +182,7 @@ for (const [columns, rows] of SIZES) {
   check(`${columns}x${rows}: the first row is the frame's top (no blank rows above)`, shape.frameTop === 0 && shape.firstInkRow === 0 && lines[0]!.includes('lanes'), `frame top ${shape.frameTop}, first ink row ${shape.firstInkRow}`, 'FullscreenLayout in src/screen/fullscreen-layout/FullscreenLayout.tsx must start its frame on row 0 with the lanes header')
   check(`${columns}x${rows}: the last row is the frame's bottom (no blank rows below)`, shape.lastInkRow === rows - 1, `last ink row ${shape.lastInkRow}`, 'FullscreenLayout in src/screen/fullscreen-layout/FullscreenLayout.tsx must paint down to the terminal last row')
   check(`${columns}x${rows}: the outline spans every row from the frame top to the centre column's bottom border`, shape.outlineRows === shape.centreBottom + 1, `${shape.outlineRows} outline rows over ${shape.centreBottom + 1}`, 'the centre column outline in FullscreenLayout (src/screen/fullscreen-layout/FullscreenLayout.tsx) must stretch to the bottom border row')
-  check(`${columns}x${rows}: every row is at most ${columns} cells wide`, lines.every(line => [...line.replace(/\x1b\[[0-9;]*m/g, '')].length <= columns), '', 'a painted row is wider than the terminal; check the widths in FullscreenLayout (src/screen/fullscreen-layout/FullscreenLayout.tsx) and PromptInput')
+  check(`${columns}x${rows}: every row is at most ${columns} cells wide`, lines.every(line => [...line.replace(/\x1b\[[0-9;]*m/g, '')].length <= columns), '', 'a painted row is wider than the terminal; check the widths in FullscreenLayout (src/screen/fullscreen-layout/FullscreenLayout.tsx) and Composer')
 }
 const base = shapes.get('120x40')!
 for (const [columns, rows] of SIZES) {

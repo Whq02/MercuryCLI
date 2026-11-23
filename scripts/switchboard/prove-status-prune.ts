@@ -12,7 +12,7 @@ for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spell
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const shown = cond ? detail : `${detail}${detail ? ' — ' : ''}fix the census in src/sessions/transcripts/sessionListings.ts (transcriptCensus), the sweep in src/sessions/transcripts/retentionSweep.ts (recordingsUnderSweep, retentionWindowDays, cleanupOldSessionFiles) or the offer and the delete door in src/daemon/switchboard/transcriptPruneDoor.ts (buildPruneOffer, operatorPruneTranscripts)`
+  const shown = cond ? detail : `${detail}${detail ? ' — ' : ''}fix the census in src/sessions/transcripts/sessionListings.ts (transcriptCensus), the sweep in src/sessions/transcripts/retentionSweep.ts (recordingsUnderSweep, retentionWindowDays, sweepOldSessionFiles) or the offer and the delete door in src/daemon/switchboard/transcriptPruneDoor.ts (buildPruneOffer, operatorPruneTranscripts)`
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
@@ -20,7 +20,7 @@ const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 const { getProjectsDir } = await import('../../src/sessions/transcripts/paths.ts')
 const { transcriptCensus } = await import('../../src/sessions/transcripts/sessionListings.ts')
-const { cleanupOldSessionFiles, recordingsUnderSweep, retentionWindowDays } = await import('../../src/sessions/transcripts/retentionSweep.ts')
+const { sweepOldSessionFiles, recordingsUnderSweep, retentionWindowDays } = await import('../../src/sessions/transcripts/retentionSweep.ts')
 const { buildPruneOffer, operatorPruneTranscripts } = await import('../../src/daemon/switchboard/transcriptPruneDoor.ts')
 
 const NOW = Date.now()
@@ -108,7 +108,7 @@ console.log('D — the REAL sweep over the scratch estate: aged recordings go, n
 {
   const preT = await transcriptCensus()
   const preR = await recordingsUnderSweep()
-  const result = await cleanupOldSessionFiles()
+  const result = await sweepOldSessionFiles()
   const postT = await transcriptCensus()
   const postR = await recordingsUnderSweep()
   check('the sweep took exactly the aged recordings (2: the 90-day .cast pair), zero errors', result.messages === 2 && result.errors === 0, JSON.stringify(result))

@@ -23,7 +23,7 @@ process.chdir(cwd)
 let failures = 0
 const check = (name: string, ok: boolean, detail?: unknown): void => {
   if (!ok) failures++
-  const rewindHint = 'change handleRewindSession or handleFileRestoreSession in src/daemon/runner/controlHandlers.ts, the snapshots in src/tools/engines/change-transaction/fileHistory.ts, the daemon route rewindSession in src/daemon/session-seat/verbs.ts, or the 500 MB sweep cleanupOldMessageFilesInBackground in src/sessions/transcripts/retentionSweep.ts (the /health row lifecycle-collection is in src/platform/health/sections/crew/scratch.ts)'
+  const rewindHint = 'change handleRewindSession or handleFileRestoreSession in src/daemon/runner/controlHandlers.ts, the snapshots in src/tools/engines/change-transaction/fileHistory.ts, the daemon route rewindSession in src/daemon/session-seat/verbs.ts, or the 500 MB sweep sweepOldMessageFilesInBackground in src/sessions/transcripts/retentionSweep.ts (the /health row lifecycle-collection is in src/platform/health/sections/crew/scratch.ts)'
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ` — ${detail === undefined ? '' : `${JSON.stringify(detail)} | `}${rewindHint}`}`)
 }
 const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
@@ -168,7 +168,7 @@ try {
   const newest = makeStore('a-newest', 200 * mb, 1000)
   const oldest = makeStore('z-oldest', 200 * mb, 3000)
   const middle = makeStore('m-middle', 100 * mb, 2000)
-  const sweep = () => cleanup.cleanupOldMessageFilesInBackground()
+  const sweep = () => cleanup.sweepOldMessageFilesInBackground()
   const atLimit = await sweep()
   check('exactly 500 MB is retained', atLimit.errors === 0 && existsSync(oldest) && existsSync(middle) && existsSync(newest), atLimit)
   const extra = makeStore('b-latest', 1, 0)

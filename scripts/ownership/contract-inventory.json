@@ -63,8 +63,8 @@
     "getCustomApiKeyStatus",
     "getGlobalConfig",
     "getGlobalConfigWriteCount",
+    "getInstructionFilePath",
     "getManagedRulesDir",
-    "getMemoryPath",
     "getProjectConfigForWorkspace",
     "getProjectPathForConfig",
     "getRemoteControlAtStartup",
@@ -684,7 +684,7 @@
    ],
    "src/screen/composer/Composer.tsx": [
     "default",
-    "type:PromptInputProps"
+    "type:ComposerProps"
    ]
   }
  },

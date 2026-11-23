@@ -3,7 +3,7 @@ import { exitChordNoticeText } from '../composer/ExitChordNotice.js'
 import { Box, Text, useInput } from '../themedRenderer.js'
 import { useElapsedTime } from '../effects/useElapsedTime.js'
 import { useKeybinding, useKeybindings } from '../keys/useKeybinding.js'
-import { useExitOnCtrlCD } from '../keys/useExitChord.js'
+import { useExitChord } from '../keys/useExitChord.js'
 import type { LocalAgentTaskState } from '../../engine/tasks/local-agent/crewmateTask.js'
 import type { ToolActivity } from '../../engine/tasks/local-agent/crewmateTask.js'
 import { getAllBaseTools } from '../../tools/kit/toolList.js'
@@ -37,7 +37,7 @@ export function AsyncAgentDetailDialog({
   onBack?: () => void
   onForeground?: () => void
 }): React.ReactNode {
-  const exitState = useExitOnCtrlCD(useKeybindings)
+  const exitState = useExitChord(useKeybindings)
   const [themeName] = useTheme()
   const theme = getTheme(themeName)
   const tokens = useMercuryTokens()

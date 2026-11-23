@@ -40,7 +40,7 @@ const { Chat } = await import('../../src/screen/chat/Chat.js')
 const route = await import('../../src/screen/routes/surfaceRoute.js')
 const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.js')
 const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.js')
-const { InkInstanceContext } = await import('../../src/screen/renderer/elements/InkInstanceContext.js')
+const { ScreenInstanceContext } = await import('../../src/screen/renderer/elements/InkInstanceContext.js')
 const { resolveAlternateScrollIntent } = await import('../../src/screen/renderer/termio/alternateScrollPolicy.js')
 const { parseMultipleKeypresses, INITIAL_STATE } = await import('../../src/screen/renderer/input/input-decoder.js')
 const pending = await import('../../src/screen/composer/input-core/pending-input.js')
@@ -79,8 +79,8 @@ function wheelHint(label: string): string {
   return 'the key or report this check sends did not do what the label says; start from resolveAlternateScrollIntent in src/screen/renderer/termio/alternateScrollPolicy.ts and the screen or text printed above'
 }
 let mounted: Mounted | undefined
-let ink: React.ContextType<typeof InkInstanceContext>
-function Tap(): null { ink = React.useContext(InkInstanceContext); return null }
+let ink: React.ContextType<typeof ScreenInstanceContext>
+function Tap(): null { ink = React.useContext(ScreenInstanceContext); return null }
 function chatTree(): React.ReactElement {
   return h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined, children: h(React.Fragment, null, h(Tap), h(SurfaceRouter, null, h(Chat, { commands, initialTools: [] }))) })
 }

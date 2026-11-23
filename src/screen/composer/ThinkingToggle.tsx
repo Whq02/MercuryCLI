@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { exitChordNoticeText } from './ExitChordNotice.js'
 import { Box, Text } from '../themedRenderer.js'
-import { useExitOnCtrlCDWithKeybindings } from '../keys/useExitChordKeys.js'
+import { useExitChordKeys } from '../keys/useExitChordKeys.js'
 import { useKeybinding } from '../keys/useKeybinding.js'
 import { useShortcutDisplay } from '../keys/useShortcutDisplay.js'
 import { Select } from '../select/index.js'
@@ -24,7 +24,7 @@ export function ThinkingToggle({
   onCancel,
 }: Props): React.ReactNode {
   const [pendingValue, setPendingValue] = useState<boolean | null>(null)
-  const exitState = useExitOnCtrlCDWithKeybindings()
+  const exitState = useExitChordKeys()
   const cancelKey = useShortcutDisplay('confirm:no', 'Confirmation', 'esc')
 
   useKeybinding(

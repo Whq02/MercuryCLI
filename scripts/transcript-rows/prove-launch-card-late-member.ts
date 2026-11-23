@@ -30,7 +30,7 @@ delete process.env.MERCURY_HOME
 
 const src = (rel: string): string => join(ROOT, 'src', rel)
 const React = (await import(Bun.resolveSync('react', join(ROOT, 'src')))).default as typeof import('react')
-const { default: Ink } = await import(src('screen/renderer/screenInstance.tsx'))
+const { default: ScreenInstance } = await import(src('screen/renderer/screenInstance.tsx'))
 const { App } = await import(src('boot/App.tsx'))
 const { getDefaultAppState } = await import(src('screen/app-state/AppStateStore.ts'))
 const { KeybindingSetup } = await import(src('screen/keys/KeybindingProviderSetup.tsx'))
@@ -206,7 +206,7 @@ async function mount(first: Stage): Promise<Screen> {
   }
   initializeSurfaceRoute(ROOT_CHAT_ROUTE)
   const stdout = new Output(140, 44)
-  const ink = new Ink({ stdout: stdout as never, stdin: new Input() as never, stderr: new Output(140, 44) as never, exitOnCtrlC: false, patchConsole: false })
+  const ink = new ScreenInstance({ stdout: stdout as never, stdin: new Input() as never, stderr: new Output(140, 44) as never, exitOnCtrlC: false, patchConsole: false })
   instances.set(stdout as never, ink)
   ink.render(h(App, { initialState: { ...getDefaultAppState(), expandedView: 'none' }, getFpsMetrics: () => undefined }, h(Harness)))
   const frame = (): string => stripAnsi(ink.lastFrameText())

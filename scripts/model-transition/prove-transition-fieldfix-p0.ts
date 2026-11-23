@@ -136,7 +136,7 @@ section('§D G04 — blob lifetime is reachability + age (behavioral, the repro 
   enableConfigs()
   const { getProjectsDir } = await import('../../src/sessions/transcripts/sessionStorage.js')
   const { TOOL_RESULTS_SUBDIR } = await import('../../src/engine/tool-dispatch/toolResultStorage.js')
-  const { cleanupOldSessionFiles } = await import('../../src/sessions/transcripts/retentionSweep.js')
+  const { sweepOldSessionFiles } = await import('../../src/sessions/transcripts/retentionSweep.js')
 
   const projectDir = join(getProjectsDir(), 'g04-proj')
   const sid = 'aaaaaaaa-bbbb-cccc-dddd-000000000001'
@@ -167,7 +167,7 @@ section('§D G04 — blob lifetime is reachability + age (behavioral, the repro 
   wf(deadTranscript, JSON.stringify({ type: 'user', uuid: sid2, message: { role: 'user', content: `x ${deadBlob}` } }) + '\n')
   utimesSync(deadTranscript, old, old)
 
-  await cleanupOldSessionFiles()
+  await sweepOldSessionFiles()
   check('an aged-but-REFERENCED blob under a live transcript SURVIVES', existsSync(refBlob))
   check('an aged unreferenced blob ages out', !existsSync(orphanBlob))
   check('the live transcript survives beside its payload', existsSync(transcriptPath))

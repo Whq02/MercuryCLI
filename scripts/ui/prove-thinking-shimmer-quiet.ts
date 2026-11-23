@@ -28,7 +28,7 @@ process.env.FORCE_COLOR = '3'
 const mod = async <T>(rel: string): Promise<T> => (await import(join(ROOT, rel))) as T
 const reactModule = await mod<{ default?: typeof import('react') } & typeof import('react')>('node_modules/react/index.js')
 const React = reactModule.default ?? reactModule
-const { default: Ink } = await mod<typeof import('../../src/screen/renderer/screenInstance.tsx')>('src/screen/renderer/screenInstance.tsx')
+const { default: ScreenInstance } = await mod<typeof import('../../src/screen/renderer/screenInstance.tsx')>('src/screen/renderer/screenInstance.tsx')
 const { SpinnerAnimationRow } = await mod<typeof import('../../src/screen/spinner/SpinnerAnimationRow.tsx')>('src/screen/spinner/SpinnerAnimationRow.tsx')
 const { enableConfigs } = await mod<typeof import('../../src/platform/settings/config.ts')>('src/platform/settings/config.ts')
 const { default: instances } = await mod<typeof import('../../src/screen/renderer/instances.ts')>('src/screen/renderer/instances.ts')
@@ -82,7 +82,7 @@ const labelInk = (raw: string): string | null => {
 }
 async function mountAndSample(reducedMotion: boolean, samplesMs: number[], respondingFirstMs = 0): Promise<Array<string | null>> {
   const stdout = new Output(120)
-  const ink = new Ink({ stdout: stdout as never, stdin: new Input() as never, stderr: new Output(120) as never, exitOnCtrlC: false, patchConsole: false })
+  const ink = new ScreenInstance({ stdout: stdout as never, stdin: new Input() as never, stderr: new Output(120) as never, exitOnCtrlC: false, patchConsole: false })
   instances.set(stdout as never, ink)
   if (respondingFirstMs > 0) {
     ink.render(row(reducedMotion, 'responding'))

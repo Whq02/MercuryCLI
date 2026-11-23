@@ -6,12 +6,12 @@ import { writeDiffToTerminal } from '../terminal-session/frameDelivery.js'
 import { clearResizeSettle } from './resize.js'
 import { teardownHost } from './stop-continue.js'
 import { drainStdin } from './stdin.js'
-import type Ink from '../screenInstance.js'
+import type ScreenInstance from '../screenInstance.js'
 import type { ExitOutcome } from './record.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
 
 type UnmountReads = Pick<
-  Ink,
+  ScreenInstance,
   | 'options' | 'isTTY' | 'frontFrame' | 'rootNode' | 'container' | 'writer' | 'scheduler' | 'isUnmounted' | 'restoreConsole' | 'removeTtySubscriptions'
   | 'exitOutcomeLatch' | 'altScreenActive' | 'resizeSettleTimer' | 'exitOutcome' | 'unsubscribeExit' | 'resolveExitPromise' | 'rejectExitPromise'
   | 'onRender'
@@ -59,7 +59,7 @@ export function unmount(this: UnmountReads, error?: Error | number | null): void
   else this.resolveExitPromise()
 }
 
-export function waitUntilExit(this: Pick<Ink, 'options' | 'exitPromise' | 'exitOutcomeLatch' | 'resolveExitPromise' | 'rejectExitPromise'>): Promise<void> {
+export function waitUntilExit(this: Pick<ScreenInstance, 'options' | 'exitPromise' | 'exitOutcomeLatch' | 'resolveExitPromise' | 'rejectExitPromise'>): Promise<void> {
   if (this.options.waitUntilExit) return this.options.waitUntilExit()
   if (this.exitPromise) return this.exitPromise
   const latch = this.exitOutcomeLatch
@@ -73,7 +73,7 @@ export function waitUntilExit(this: Pick<Ink, 'options' | 'exitPromise' | 'exitO
   return this.exitPromise
 }
 
-export function detachForShutdown(this: Pick<Ink, 'options' | 'scheduler' | 'isUnmounted' | 'resizeSettleTimer'>): void {
+export function detachForShutdown(this: Pick<ScreenInstance, 'options' | 'scheduler' | 'isUnmounted' | 'resizeSettleTimer'>): void {
   this.isUnmounted = true
   clearResizeSettle.call(this)
   this.scheduler.cancel()

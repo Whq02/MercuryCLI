@@ -5,7 +5,7 @@ import { AlternateScreen } from '../../src/screen/renderer/elements/AlternateScr
 import Box from '../../src/screen/renderer/elements/Box.js'
 import Text from '../../src/screen/renderer/elements/Text.js'
 import useInput from '../../src/screen/renderer/bindings/use-input.js'
-import Ink from '../../src/screen/renderer/screenInstance.js'
+import ScreenInstance from '../../src/screen/renderer/screenInstance.js'
 import instances from '../../src/screen/renderer/instances.js'
 import { readTerminalWidthMeasurements, WIDTH_PROBE_SAMPLES } from '../../src/screen/renderer/terminal-session/widthProbe.js'
 import { AnsiEmulator } from './ansiEmulator.js'
@@ -100,7 +100,7 @@ console.log('§1 a first screen that takes the alternate screen and the keyboard
   const out = new Terminal()
   const err = new Terminal()
   const stdin = makeStdin()
-  const ink = new Ink({
+  const ink = new ScreenInstance({
     stdout: out as unknown as NodeJS.WriteStream,
     stdin,
     stderr: err as unknown as NodeJS.WriteStream,
@@ -163,7 +163,7 @@ console.log('§2 a first screen that gives the alternate screen up before its en
 {
   const out = new Terminal()
   const err = new Terminal()
-  const ink = new Ink({
+  const ink = new ScreenInstance({
     stdout: out as unknown as NodeJS.WriteStream,
     stdin: makeStdin(),
     stderr: err as unknown as NodeJS.WriteStream,

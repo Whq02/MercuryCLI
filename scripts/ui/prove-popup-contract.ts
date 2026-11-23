@@ -631,7 +631,7 @@ for (const cols of [80, 120]) {
 }
 
 
-const { LogSelector } = await import('../../src/screen/session-chooser/SessionBrowser.tsx')
+const { SessionBrowser } = await import('../../src/screen/session-chooser/SessionBrowser.tsx')
 const { MercuryCommandPalette } = await import('../../src/screen/composer/MercuryCommandPalette.tsx')
 const { SelectEventMode } = await import('../../src/screen/event-hooks-menu/SelectEventMode.tsx')
 const { SelectMatcherMode } = await import('../../src/screen/event-hooks-menu/SelectMatcherMode.tsx')
@@ -648,7 +648,7 @@ for (const cols of [80, 120]) {
     let picked = ''
     const close = () => { closed = true }
     const pick = (value: unknown) => { picked = String(value) }
-    const body = name === 'log-selector' ? h(LogSelector, { logs: logs as never, maxHeight: 18, forceWidth: cols - 4, onCancel: close, onSelect: pick })
+    const body = name === 'log-selector' ? h(SessionBrowser, { logs: logs as never, maxHeight: 18, forceWidth: cols - 4, onCancel: close, onSelect: pick })
       : name === 'palette' ? h(MercuryCommandPalette, { commands: options.map(row => ({ name: row.label.replace(' ', '-'), description: 'Fixture command', type: 'local', isEnabled: () => true, userFacingName: () => row.label.replace(' ', '-') })) as never, onRun: pick, onClose: close })
       : name === 'hook-events' ? h(SelectEventMode, { events: options.map(row => row.label) as never, moments: {}, countsByEvent: {}, totalCount: 24, onSelect: pick, onExit: close })
       : name === 'hook-matchers' ? h(SelectMatcherMode, { event: 'beforeTool' as never, card: { moment: 'Fixture moment', match: 'tool' } as never, matches: options.map(row => row.label), hooksByMatch: {}, onSelect: pick, onBack: close })
@@ -1021,7 +1021,7 @@ mock.module('../../src/sessions/mneme/mnemeLibrary.ts', () => ({ ...libraryModul
 const maintenanceModule = await import('../../src/sessions/mneme/mnemeMaintenance.ts')
 mock.module('../../src/sessions/mneme/mnemeMaintenance.ts', () => ({ ...maintenanceModule, mnemeStatus: () => ({ enabled: true, entryCount: 480, buffered: 0, pendingConsuming: 0, historyCount: 0, topicCount: 24, due: false, dueReason: '', running: false, degraded: false, lastConsolidatedAt: null }) }))
 const { MemoryCentreView } = await import('../../src/screen/memory/MemoryCentreView.tsx')
-const { MemoryFileSelector } = await import('../../src/screen/memory/MemoryFileSelector.tsx')
+const { InstructionFileSelector } = await import('../../src/screen/memory/MemoryFileSelector.tsx')
 const { memoryFooter } = await import('../../src/screen/memory/memoryCentreLayout.ts')
 const { useSettingsPopupFrame } = await import('../../src/screen/settings/Settings.tsx')
 function MemoryFixture({ width, rows }: { width: number; rows: number }): React.ReactNode {
@@ -1057,7 +1057,7 @@ for (const cols of [80, 120]) {
   finally { scene.unmount(); closeSettingsPopup() }
   let picked = ''
   let closed = false
-  const fileScene = await mount(h(Dialog, { title: 'Memory files', onCancel: () => { closed = true }, inputGuide: () => h(Text, {}, memoryFooter({ kind: 'files', direct: true })) }, h(React.Suspense, { fallback: null }, h(MemoryFileSelector, { onSelect: value => { picked = value }, onCancel: () => { closed = true } }))), cols)
+  const fileScene = await mount(h(Dialog, { title: 'Memory files', onCancel: () => { closed = true }, inputGuide: () => h(Text, {}, memoryFooter({ kind: 'files', direct: true })) }, h(React.Suspense, { fallback: null }, h(InstructionFileSelector, { onSelect: value => { picked = value }, onCancel: () => { closed = true } }))), cols)
   try {
     await settledFrame(fileScene, frame => frame.includes('/fixture/instruction-'))
     const first = fileScene.lines()[fileScene.cursor().y] ?? ''

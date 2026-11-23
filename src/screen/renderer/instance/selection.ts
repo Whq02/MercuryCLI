@@ -7,25 +7,25 @@ import { clearSelection, setSelectionClipBand, startSelection, selectWordAt, sel
 import { nodeCache } from '../node-cache.js'
 import { termWrite } from '../terminalOut.js'
 import { setClipboard } from '../termio/osc.js'
-import type Ink from '../screenInstance.js'
+import type ScreenInstance from '../screenInstance.js'
 
 function samePoint(a: Point | null, b: Point | null): boolean {
   return a === b || (a !== null && b !== null && a.col === b.col && a.row === b.row)
 }
 
-export function notifySelectionChange(this: Pick<Ink, 'selectionListeners' | 'onRender'>): void {
+export function notifySelectionChange(this: Pick<ScreenInstance, 'selectionListeners' | 'onRender'>): void {
   this.onRender()
   for (const listener of this.selectionListeners) listener()
 }
 
-export function subscribeToSelectionChange(this: Pick<Ink, 'selectionListeners'>, callback: () => void): () => void {
+export function subscribeToSelectionChange(this: Pick<ScreenInstance, 'selectionListeners'>, callback: () => void): () => void {
   this.selectionListeners.add(callback)
   return () => {
     this.selectionListeners.delete(callback)
   }
 }
 
-function applySelectionClipBand(this: Pick<Ink, 'frontFrame' | 'rootNode' | 'selection'>, col: number, row: number): void {
+function applySelectionClipBand(this: Pick<ScreenInstance, 'frontFrame' | 'rootNode' | 'selection'>, col: number, row: number): void {
   try {
     const hit = hitTest(this.rootNode, col, row)
     let owner: DOMElement | null = null
@@ -57,7 +57,7 @@ function applySelectionClipBand(this: Pick<Ink, 'frontFrame' | 'rootNode' | 'sel
   }
 }
 
-function offerTextGesture(this: Pick<Ink, 'rootNode' | 'textGesture'>, col: number, row: number, clickCount: 1 | 2 | 3): boolean {
+function offerTextGesture(this: Pick<ScreenInstance, 'rootNode' | 'textGesture'>, col: number, row: number, clickCount: 1 | 2 | 3): boolean {
   this.textGesture = null
   let node: DOMElement | undefined = hitTest(this.rootNode, col, row) ?? undefined
   while (node) {
@@ -75,7 +75,7 @@ function offerTextGesture(this: Pick<Ink, 'rootNode' | 'textGesture'>, col: numb
   return false
 }
 
-export function handleSelectionStart(this: Pick<Ink, 'frontFrame' | 'rootNode' | 'altScreenActive' | 'selection' | 'textGesture' | 'notifySelectionChange'>, col: number, row: number, pressHadAlt: boolean): void {
+export function handleSelectionStart(this: Pick<ScreenInstance, 'frontFrame' | 'rootNode' | 'altScreenActive' | 'selection' | 'textGesture' | 'notifySelectionChange'>, col: number, row: number, pressHadAlt: boolean): void {
   if (!this.altScreenActive) return
   if (offerTextGesture.call(this, col, row, 1)) {
     if (this.selection.anchor !== null) {
@@ -90,7 +90,7 @@ export function handleSelectionStart(this: Pick<Ink, 'frontFrame' | 'rootNode' |
   this.notifySelectionChange()
 }
 
-export function handleMultiClick(this: Pick<Ink, 'frontFrame' | 'rootNode' | 'altScreenActive' | 'selection' | 'textGesture' | 'notifySelectionChange'>, col: number, row: number, count: 2 | 3): void {
+export function handleMultiClick(this: Pick<ScreenInstance, 'frontFrame' | 'rootNode' | 'altScreenActive' | 'selection' | 'textGesture' | 'notifySelectionChange'>, col: number, row: number, count: 2 | 3): void {
   if (!this.altScreenActive) return
   if (offerTextGesture.call(this, col, row, count)) {
     if (this.selection.anchor !== null) {
@@ -114,7 +114,7 @@ export function handleMultiClick(this: Pick<Ink, 'frontFrame' | 'rootNode' | 'al
   this.notifySelectionChange()
 }
 
-export function handleSelectionDrag(this: Pick<Ink, 'frontFrame' | 'altScreenActive' | 'selection' | 'textGesture' | 'notifySelectionChange'>, col: number, row: number): void {
+export function handleSelectionDrag(this: Pick<ScreenInstance, 'frontFrame' | 'altScreenActive' | 'selection' | 'textGesture' | 'notifySelectionChange'>, col: number, row: number): void {
   if (!this.altScreenActive) return
   const gesture = this.textGesture
   if (gesture) {
@@ -138,7 +138,7 @@ export function handleSelectionDrag(this: Pick<Ink, 'frontFrame' | 'altScreenAct
   }
 }
 
-export function handleSelectionRelease(this: Pick<Ink, 'textGesture'>, col: number, row: number): boolean {
+export function handleSelectionRelease(this: Pick<ScreenInstance, 'textGesture'>, col: number, row: number): boolean {
   const gesture = this.textGesture
   if (!gesture) return false
   this.textGesture = null
@@ -146,7 +146,7 @@ export function handleSelectionRelease(this: Pick<Ink, 'textGesture'>, col: numb
   return true
 }
 
-export function moveSelectionFocus(this: Pick<Ink, 'frontFrame' | 'altScreenActive' | 'selection' | 'notifySelectionChange'>, move: FocusMove): void {
+export function moveSelectionFocus(this: Pick<ScreenInstance, 'frontFrame' | 'altScreenActive' | 'selection' | 'notifySelectionChange'>, move: FocusMove): void {
   if (!this.altScreenActive || !this.selection.focus) return
   const screen = this.frontFrame.screen
   const maxCol = Math.max(0, screen.width - 1)
@@ -189,7 +189,7 @@ export function moveSelectionFocus(this: Pick<Ink, 'frontFrame' | 'altScreenActi
   this.notifySelectionChange()
 }
 
-export function copySelectionNoClear(this: Pick<Ink, 'options' | 'frontFrame' | 'selection'>): string {
+export function copySelectionNoClear(this: Pick<ScreenInstance, 'options' | 'frontFrame' | 'selection'>): string {
   if (!hasSelection(this.selection)) return ''
   const text = getSelectedText(this.selection, this.frontFrame.screen)
   if (text) {
@@ -202,7 +202,7 @@ export function copySelectionNoClear(this: Pick<Ink, 'options' | 'frontFrame' | 
   return text
 }
 
-export function copySelection(this: Pick<Ink, 'selection' | 'notifySelectionChange' | 'copySelectionNoClear'>): string {
+export function copySelection(this: Pick<ScreenInstance, 'selection' | 'notifySelectionChange' | 'copySelectionNoClear'>): string {
   if (!hasSelection(this.selection)) return ''
   const text = this.copySelectionNoClear()
   clearSelection(this.selection)
@@ -210,7 +210,7 @@ export function copySelection(this: Pick<Ink, 'selection' | 'notifySelectionChan
   return text
 }
 
-export function copyText(this: Pick<Ink, 'options'>, text: string): void {
+export function copyText(this: Pick<ScreenInstance, 'options'>, text: string): void {
   if (!text) return
   void setClipboard(text)
     .then(sequence => {
@@ -219,13 +219,13 @@ export function copyText(this: Pick<Ink, 'options'>, text: string): void {
     .catch(logError)
 }
 
-export function clearTextSelection(this: Pick<Ink, 'selection' | 'notifySelectionChange'>): void {
+export function clearTextSelection(this: Pick<ScreenInstance, 'selection' | 'notifySelectionChange'>): void {
   if (!hasSelection(this.selection)) return
   clearSelection(this.selection)
   this.notifySelectionChange()
 }
 
-export function setSelectionBgColor(this: Pick<Ink, 'stylePool'>, color: string): void {
+export function setSelectionBgColor(this: Pick<ScreenInstance, 'stylePool'>, color: string): void {
   const probe = colorize('\x00', color, 'background')
   const idx = probe.indexOf('\x00')
   if (idx > 0 && idx < probe.length - 1) {

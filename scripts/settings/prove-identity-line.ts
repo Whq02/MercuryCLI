@@ -269,7 +269,7 @@ const FAMILIES: Family[] = [
 const popupLine = (family: Family, leg: Leg): string => (family.account[leg] ? `${SIGNED_IN_AS} ${family.line[leg]}` : family.line[leg])
 
 await stub('src/screen/keys/useKeybinding.ts', { useKeybinding: () => undefined, useKeybindings: () => undefined })
-await stub('src/screen/keys/useExitChord.ts', { useExitOnCtrlCD: () => undefined })
+await stub('src/screen/keys/useExitChord.ts', { useExitChord: () => undefined })
 await stub('src/screen/notifications/notifications.tsx', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
 await stub('src/platform/health/healthCertSnapshot.ts', { healthCertSnapshot: () => ({ state: 'unavailable' }) })
 let focusedModel = FAMILIES[0]!.model

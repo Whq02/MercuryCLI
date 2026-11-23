@@ -2,7 +2,7 @@
 import { EventEmitter } from 'node:events'
 import { Readable } from 'node:stream'
 
-const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.tsx')
 const { default: instances } = await import('../../src/screen/renderer/instances.ts')
 
 let failures = 0
@@ -74,7 +74,7 @@ const tick = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 20)
 async function lend(platform: NodeJS.Platform): Promise<{ during: { cooked: boolean; reading: boolean; calls: string[] }; after: { enters: number; calls: string[]; reading: boolean; raw: boolean; heard: string } }> {
   const keys = new Console()
   const screen = new Screen()
-  const ink = new Ink({ stdout: screen as never, stdin: keys as never, stderr: new Screen() as never, patchConsole: false, exitOnCtrlC: false })
+  const ink = new ScreenInstance({ stdout: screen as never, stdin: keys as never, stderr: new Screen() as never, patchConsole: false, exitOnCtrlC: false })
   instances.set(screen as never, ink)
   let heard = ''
   keys.setRawMode(true)

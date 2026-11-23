@@ -2,7 +2,7 @@ import React from 'react'
 import { Box, Text } from '../themedRenderer.js'
 import { stringWidth } from '../renderer/stringWidth.js'
 import type { AppState } from '../app-state/AppState.js'
-import type { PromptInputMode } from './input-core/textInput.js'
+import type { InputMode } from './input-core/textInput.js'
 import { isDefaultMode } from '../../permissions/rules/permissionMode.js'
 import type { Theme } from '../theme/theme.js'
 import type { useTypeahead } from './typeahead/useTypeahead.js'
@@ -30,7 +30,7 @@ export function composerGeometry({
   rows: number
   columns: number
   toolPermissionContext: AppState['toolPermissionContext']
-  mode: PromptInputMode
+  mode: InputMode
   input: string
   typeahead: ReturnType<typeof useTypeahead>
   fullscreen: boolean

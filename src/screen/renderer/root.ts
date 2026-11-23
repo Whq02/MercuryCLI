@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import type { FrameEvent } from './frame.js'
-import Ink, { type Options as InkOptions } from './screenInstance.js'
+import ScreenInstance, { type Options as InkOptions } from './screenInstance.js'
 import instances from './instances.js'
 import { nextMicrotask } from '../../platform/async/timers.js'
 
@@ -40,14 +40,14 @@ function knobsFor(options: NodeJS.WriteStream | RenderOptions = {}): InkOptions 
 
 type Seat = 'reuse' | 'fresh'
 
-function mount(options: NodeJS.WriteStream | RenderOptions | undefined, seat: Seat): { engine: Ink; stdout: NodeJS.WriteStream } {
+function mount(options: NodeJS.WriteStream | RenderOptions | undefined, seat: Seat): { engine: ScreenInstance; stdout: NodeJS.WriteStream } {
   const knobs = knobsFor(options)
-  const engine = (seat === 'reuse' ? instances.get(knobs.stdout) : undefined) ?? new Ink(knobs)
+  const engine = (seat === 'reuse' ? instances.get(knobs.stdout) : undefined) ?? new ScreenInstance(knobs)
   instances.set(knobs.stdout, engine)
   return { engine, stdout: knobs.stdout }
 }
 
-const rootDoors = (engine: Ink): Root => ({ render: engine.render.bind(engine), unmount: engine.unmount, waitUntilExit: engine.waitUntilExit.bind(engine) })
+const rootDoors = (engine: ScreenInstance): Root => ({ render: engine.render.bind(engine), unmount: engine.unmount, waitUntilExit: engine.waitUntilExit.bind(engine) })
 
 export function renderSync(node: ReactNode, options?: NodeJS.WriteStream | RenderOptions): Instance {
   const { engine, stdout } = mount(options, 'reuse')

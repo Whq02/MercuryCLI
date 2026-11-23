@@ -55,13 +55,13 @@ process.env.BROWSER = '/usr/bin/true'
 
 const src = (rel: string): string => join(ROOT, 'src', rel)
 const React = (await import(Bun.resolveSync('react', join(ROOT, 'src')))).default as typeof import('react')
-const { default: Ink } = await import(src('screen/renderer/screenInstance.tsx'))
+const { default: ScreenInstance } = await import(src('screen/renderer/screenInstance.tsx'))
 const { Box } = await import(src('screen/themedRenderer.ts'))
 const { App } = await import(src('boot/App.tsx'))
 const { getDefaultAppState } = await import(src('screen/app-state/AppStateStore.ts'))
 const { KeybindingSetup } = await import(src('screen/keys/KeybindingProviderSetup.tsx'))
 const { FullscreenLayout } = await import(src('screen/fullscreen-layout/FullscreenLayout.tsx'))
-const { default: PromptInput } = await import(src('screen/composer/Composer.tsx'))
+const { default: Composer } = await import(src('screen/composer/Composer.tsx'))
 const { SpinnerWithVerb } = await import(src('screen/spinner/Spinner.tsx'))
 const { FocusedSessionStatusRow } = await import(src('screen/chat/SwitchboardTagBar.tsx'))
 const { CancelRequestHandler, backgroundShellNotice } = await import(src('screen/chat/interruptKeys.ts'))
@@ -308,7 +308,7 @@ function sceneElement(scene: Scene): ReactNode {
   return scene.withKeybindings === false ? node : h(KeybindingSetup, null, node)
 }
 
-type World = { ink: InstanceType<typeof Ink>; stdin: Input; frame: () => string; lines: () => string[]; close: () => Promise<void> }
+type World = { ink: InstanceType<typeof ScreenInstance>; stdin: Input; frame: () => string; lines: () => string[]; close: () => Promise<void> }
 async function mountTree(columns: number, rows: number, tree: ReactNode): Promise<World> {
   initializeSurfaceRoute(ROOT_CHAT_ROUTE)
   resetChromeModeLatchForTests()
@@ -317,7 +317,7 @@ async function mountTree(columns: number, rows: number, tree: ReactNode): Promis
   pending.setMode('prompt')
   const stdout = new Output(columns, rows)
   const stdin = new Input()
-  const ink = new Ink({ stdout: stdout as never, stdin: stdin as never, stderr: new Output(columns, rows) as never, exitOnCtrlC: false, patchConsole: false })
+  const ink = new ScreenInstance({ stdout: stdout as never, stdin: stdin as never, stderr: new Output(columns, rows) as never, exitOnCtrlC: false, patchConsole: false })
   instances.set(stdout as never, ink)
   ink.render(h(App, { initialState: { ...getDefaultAppState(), expandedView: 'none' }, getFpsMetrics: () => undefined }, tree))
   const frame = (): string => stripAnsi(ink.lastFrameText())
@@ -592,7 +592,7 @@ async function chromeWorld(name: string, helmHome: '0' | '1'): Promise<void> {
   seedStamp(toolId, Date.now() - 110_000)
   publishShellTick(toolId, 110)
   const scrollRef = React.createRef<import('../../src/screen/renderer/elements/ScrollBox.tsx').ScrollBoxHandle>()
-  const insertRef = { current: null } as import('../../src/screen/composer/Composer.tsx').PromptInputProps['insertTextRef']
+  const insertRef = { current: null } as import('../../src/screen/composer/Composer.tsx').ComposerProps['insertTextRef']
   const startedAt = { current: Date.now() - 115_000 }
   const paused = { current: 0 }
   const pauseStart = { current: null as number | null }
@@ -626,7 +626,7 @@ async function chromeWorld(name: string, helmHome: '0' | '1'): Promise<void> {
         statusBandActive: true,
         bottom: h(Box, { flexDirection: 'column' },
           h(FocusedSessionStatusRow),
-          h(PromptInput, {
+          h(Composer, {
             debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
             setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [],
             isLoading: live.inFlight, verbose: false, submitCount: 0, onShowMessageSelector: () => {},

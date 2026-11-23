@@ -71,7 +71,7 @@ enableConfigs()
 const { registerBootDoors } = await import('../../src/boot/doors/registerDoors.ts')
 registerBootDoors()
 
-const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.js')
 const { default: instances } = await import('../../src/screen/renderer/instances.js')
 const { default: reconciler } = await import('../../src/screen/renderer/reconciler.js')
 const { disposeKeybindingWatcher } = await import('../../src/screen/keys/loadUserBindings.js')
@@ -237,7 +237,7 @@ function buildFacts(signedMask: readonly number[], expiredIdx: number | null): L
 
 const stdout = new FakeStdout(120, 40)
 const stdin = new FakeStdin()
-const ink = new Ink({
+const ink = new ScreenInstance({
   stdout: stdout as never,
   stdin: stdin as never,
   stderr: new FakeStdout(120, 40) as never,

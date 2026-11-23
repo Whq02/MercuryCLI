@@ -80,7 +80,7 @@ const { getDefaultAppState } = await import('../../src/screen/app-state/AppState
 const { App } = await import('../../src/boot/App.tsx')
 const { SurfaceRouter } = await import('../../src/screen/routes/SurfaceRouter.tsx')
 const { Chat } = await import('../../src/screen/chat/Chat.tsx')
-const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.js')
 const { default: instances } = await import('../../src/screen/renderer/instances.js')
 const { default: reconciler } = await import('../../src/screen/renderer/reconciler.js')
 const { disposeKeybindingWatcher } = await import('../../src/screen/keys/loadUserBindings.js')
@@ -197,7 +197,7 @@ const COLS = 120
 const ROWS = 34
 const stdout = new FakeStdout(COLS, ROWS)
 const stdin = new FakeStdin()
-const ink = new Ink({
+const ink = new ScreenInstance({
   stdout: stdout as never,
   stdin: stdin as never,
   stderr: new FakeStdout(COLS, ROWS) as never,

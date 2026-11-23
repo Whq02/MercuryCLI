@@ -46,7 +46,7 @@ const { getDefaultAppState } = await import('../../src/screen/app-state/AppState
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
 const { FullscreenLayout, useUnseenDivider } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.js')
 const { ScrollKeybindingHandler } = await import('../../src/screen/scroll-keys/ScrollKeybindingHandler.js')
-const { default: PromptInput } = await import('../../src/screen/composer/Composer.js')
+const { default: Composer } = await import('../../src/screen/composer/Composer.js')
 const { useCompactWorkControls } = await import('../../src/screen/tasks/CompactWorkSummary.js')
 const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.js')
 const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.js')
@@ -103,7 +103,7 @@ async function mountCockpit(initial: Row[], countsNewRows = false): Promise<{ m:
   pending.edit('')
   pending.setMode('prompt')
   const scrollRef = React.createRef<ScrollBoxHandle | null>() as React.MutableRefObject<ScrollBoxHandle | null>
-  const insertRef = { current: null } as React.MutableRefObject<import('../../src/screen/composer/Composer.js').PromptInputProps['insertTextRef']['current']>
+  const insertRef = { current: null } as React.MutableRefObject<import('../../src/screen/composer/Composer.js').ComposerProps['insertTextRef']['current']>
   const api: Api = { setRows: () => {}, handle: () => scrollRef.current, armed: () => false }
   function Cockpit(): React.ReactNode {
     const [rows, setRows] = React.useState<Row[]>(initial)
@@ -130,7 +130,7 @@ async function mountCockpit(initial: Row[], countsNewRows = false): Promise<{ m:
         scrollable: h(Transcript, { rows }),
         statusBand: h(Text, null, 'activity specimen'),
         statusBandActive: false,
-        bottom: h(PromptInput, {
+        bottom: h(Composer, {
           compactWork: controls, compactFocus: focus,
           debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
           setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [],

@@ -2,13 +2,13 @@ import { useMemo, useRef } from 'react'
 import { useKeybindings } from '../keys/useKeybinding.js'
 import { useOptionalKeybindingContext } from '../keys/KeybindingContext.js'
 import { useIsModalOverlayActive } from '../overlays/overlayHooks.js'
-import type { PromptInputHelpers } from '../composer/input-core/promptInputHelpers.js'
+import type { ComposerHelpers } from '../composer/input-core/promptInputHelpers.js'
 import { findCommand } from '../../commands/catalogue/commands.js'
 import type { Command } from '../../commands/catalogue/commands.js'
 
 const COMMAND_PREFIX = 'command:'
 
-const inertHelpers: PromptInputHelpers = {
+const inertHelpers: ComposerHelpers = {
   setCursorOffset: () => {},
   clearBuffer: () => {},
   resetHistory: () => {},
@@ -21,7 +21,7 @@ export function CommandKeybindingHandlers({
 }: {
   onSubmit: (
     input: string,
-    helpers: PromptInputHelpers,
+    helpers: ComposerHelpers,
     speculationAccept?: undefined,
     options?: { fromKeybinding?: boolean },
   ) => Promise<void>

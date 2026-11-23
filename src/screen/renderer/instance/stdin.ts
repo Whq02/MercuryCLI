@@ -3,7 +3,7 @@ import { ReadStream as TtyReadStream } from 'node:tty'
 import { logForDebugging } from '../../../platform/logs/debugLog.js'
 import { markConsoleLent, markConsoleReturned } from '../../../platform/processes/process.js'
 import { holdConsoleRead } from '../root/console-read.js'
-import type Ink from '../screenInstance.js'
+import type ScreenInstance from '../screenInstance.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
 import { startTimeout } from '../../../platform/async/timers.js'
 
@@ -56,7 +56,7 @@ export function drainStdin(stdin: NodeJS.ReadStream = process.stdin): void {
   }
 }
 
-export function suspendStdin(this: Pick<Ink, 'options' | 'storedReadableListeners' | 'wasRawMode' | 'consoleReadHeld'>): void {
+export function suspendStdin(this: Pick<ScreenInstance, 'options' | 'storedReadableListeners' | 'wasRawMode' | 'consoleReadHeld'>): void {
   const { stdin } = this.options
   if (!stdin.isTTY) return
   markConsoleLent()
@@ -73,7 +73,7 @@ export function suspendStdin(this: Pick<Ink, 'options' | 'storedReadableListener
 }
 
 type ResumeStdinReads = Pick<
-  Ink,
+  ScreenInstance,
   | 'options' | 'storedReadableListeners' | 'wasRawMode' | 'consoleReadHeld' | 'reconcileSize' | 'reassertScreenState' | 'armScreenWatchdog'
 >
 
@@ -102,7 +102,7 @@ export function resumeStdin(this: ResumeStdinReads): void {
 }
 
 type RecoverStdinReads = Pick<
-  Ink,
+  ScreenInstance,
   | 'options' | 'isTTY' | 'currentTree' | 'isUnmounted' | 'storedReadableListeners' | 'wasRawMode' | 'consoleReadHeld' | 'stdinRecoveryArmed' | 'render'
 >
 
@@ -113,7 +113,7 @@ export function recoverStdin(this: RecoverStdinReads, code: string, syscall: str
 }
 
 type RearmStdinAfterFaultReads = Pick<
-  Ink,
+  ScreenInstance,
   | 'options' | 'currentTree' | 'isUnmounted' | 'storedReadableListeners' | 'wasRawMode' | 'consoleReadHeld' | 'stdinRecoveryArmed' | 'render'
 >
 

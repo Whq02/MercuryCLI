@@ -7,9 +7,9 @@ import type { ParsedKey } from '../input/input-decoder.js'
 import { nodeCache } from '../node-cache.js'
 import { dispatcher } from '../reconciler.js'
 import { termWrite } from '../terminalOut.js'
-import type Ink from '../screenInstance.js'
+import type ScreenInstance from '../screenInstance.js'
 
-export function getHyperlinkAt(this: Pick<Ink, 'frontFrame' | 'altScreenActive'>, col: number, row: number): string | undefined {
+export function getHyperlinkAt(this: Pick<ScreenInstance, 'frontFrame' | 'altScreenActive'>, col: number, row: number): string | undefined {
   if (!this.altScreenActive) return undefined
   const screen = this.frontFrame.screen
   const cell = cellAt(screen, col, row)
@@ -21,12 +21,12 @@ export function getHyperlinkAt(this: Pick<Ink, 'frontFrame' | 'altScreenActive'>
   return findPlainTextUrlAt(screen, col, row)
 }
 
-export function dispatchClick(this: Pick<Ink, 'stylePool' | 'frontFrame' | 'rootNode' | 'altScreenActive'>, col: number, row: number): boolean {
+export function dispatchClick(this: Pick<ScreenInstance, 'stylePool' | 'frontFrame' | 'rootNode' | 'altScreenActive'>, col: number, row: number): boolean {
   if (!this.altScreenActive) return false
   return dispatchClickInTree(this.rootNode, col, row, pointerOnBlank.call(this, col, row))
 }
 
-function pointerOnBlank(this: Pick<Ink, 'stylePool' | 'frontFrame' | 'rootNode'>, col: number, row: number): boolean {
+function pointerOnBlank(this: Pick<ScreenInstance, 'stylePool' | 'frontFrame' | 'rootNode'>, col: number, row: number): boolean {
   const screen = this.frontFrame.screen
   if (!isInklessCellAt(screen, col, row, this.stylePool)) return false
   const hit = hitTest(this.rootNode, col, row)
@@ -34,7 +34,7 @@ function pointerOnBlank(this: Pick<Ink, 'stylePool' | 'frontFrame' | 'rootNode'>
   return box === undefined || !inkFlanksCellAt(screen, col, row, Math.floor(box.x), Math.floor(box.x + box.width), this.stylePool)
 }
 
-export function dispatchHover(this: Pick<Ink, 'options' | 'frontFrame' | 'rootNode' | 'altScreenActive' | 'hoveredNodes'>, col: number, row: number): void {
+export function dispatchHover(this: Pick<ScreenInstance, 'options' | 'frontFrame' | 'rootNode' | 'altScreenActive' | 'hoveredNodes'>, col: number, row: number): void {
   if (!this.altScreenActive) return
   const screen = this.frontFrame.screen
   const selectable =
@@ -48,7 +48,7 @@ export function dispatchHover(this: Pick<Ink, 'options' | 'frontFrame' | 'rootNo
   dispatchHoverInTree(this.rootNode, col, row, this.hoveredNodes)
 }
 
-export function dispatchKeyboardEvent(this: Pick<Ink, 'rootNode' | 'focusManager'>, parsedKey: ParsedKey): void {
+export function dispatchKeyboardEvent(this: Pick<ScreenInstance, 'rootNode' | 'focusManager'>, parsedKey: ParsedKey): void {
   const target = this.focusManager.activeElement ?? this.rootNode
   const event = new KeyboardEvent(parsedKey)
   const notPrevented = dispatcher.dispatchDiscrete(target, event)

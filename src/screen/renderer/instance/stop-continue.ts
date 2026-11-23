@@ -10,22 +10,22 @@ import { HIDE_CURSOR } from '../termio/dec.js'
 import { supportsTabStatus } from '../termio/osc.js'
 import { reenterAltScreen } from './alt-screen.js'
 import { drainStdin } from './stdin.js'
-import type Ink from '../screenInstance.js'
+import type ScreenInstance from '../screenInstance.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
 
-export function attachStopListeners(this: Pick<Ink, 'stopListenersAttached' | 'stopForSignal'>): void {
+export function attachStopListeners(this: Pick<ScreenInstance, 'stopListenersAttached' | 'stopForSignal'>): void {
   if (this.stopListenersAttached || !stopSignalsSupported()) return
   for (const signal of POSIX_STOP_SIGNALS) process.on(signal, this.stopForSignal)
   this.stopListenersAttached = true
 }
 
-export function detachStopListeners(this: Pick<Ink, 'stopListenersAttached' | 'stopForSignal'>): void {
+export function detachStopListeners(this: Pick<ScreenInstance, 'stopListenersAttached' | 'stopForSignal'>): void {
   if (!this.stopListenersAttached) return
   for (const signal of POSIX_STOP_SIGNALS) process.off(signal, this.stopForSignal)
   this.stopListenersAttached = false
 }
 
-export function teardownHost(this: Pick<Ink, 'options' | 'altScreenActive'>): TeardownHost {
+export function teardownHost(this: Pick<ScreenInstance, 'options' | 'altScreenActive'>): TeardownHost {
   return {
     altScreenActive: this.altScreenActive,
     tabStatusSupported: supportsTabStatus(),
@@ -38,7 +38,7 @@ export function teardownHost(this: Pick<Ink, 'options' | 'altScreenActive'>): Te
 }
 
 type StopForSignalReads = Pick<
-  Ink,
+  ScreenInstance,
   | 'options' | 'isTTY' | 'isUnmounted' | 'altScreenActive' | 'rawModeOffForStop' | 'stopListenersAttached' | 'stopForSignal'
 >
 
@@ -58,7 +58,7 @@ export function stopForSignal(this: StopForSignalReads, signal: NodeJS.Signals):
 }
 
 type ResumeAfterContinueReads = Pick<
-  Ink,
+  ScreenInstance,
   | 'options' | 'isTTY' | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'cachedColumns' | 'cachedRows' | 'ledger'
   | 'isUnmounted' | 'altScreenActive' | 'mouseTracking' | 'displayCursor' | 'wholeFrameDue' | 'glassOverlay' | 'rawModeOffForStop'
   | 'stopListenersAttached' | 'scheduleRender' | 'armScreenWatchdog' | 'stopForSignal'

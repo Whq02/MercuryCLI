@@ -6,7 +6,7 @@ process.env.FORCE_COLOR = '3'
 
 const React = await import('react')
 const h = React.createElement
-const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.tsx')
 const { default: instances } = await import('../../src/screen/renderer/instances.ts')
 const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
 const { AlternateScreen } = await import('../../src/screen/renderer/elements/AlternateScreen.tsx')
@@ -71,7 +71,7 @@ type World = { click: (col: number, row: number) => Verdict; frame: () => string
 async function world(ground: string | undefined): Promise<World> {
   const heard: boolean[] = []
   const screen = new Terminal()
-  const ink = new Ink({ stdout: screen as never, stdin: new Keyboard() as never, stderr: new Terminal() as never, patchConsole: false, exitOnCtrlC: false })
+  const ink = new ScreenInstance({ stdout: screen as never, stdin: new Keyboard() as never, stderr: new Terminal() as never, patchConsole: false, exitOnCtrlC: false })
   instances.set(screen as never, ink)
   const line = (key: string, words: React.ReactNode, width = ROW_WIDTH): React.ReactNode =>
     h(Box, { key, width, flexShrink: 0, onClick: (event: { cellIsBlank: boolean }) => heard.push(event.cellIsBlank) }, words)

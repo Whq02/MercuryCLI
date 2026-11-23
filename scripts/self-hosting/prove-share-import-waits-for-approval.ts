@@ -60,7 +60,7 @@ const discovery = await import(join(repo, 'src/sessions/instructions/discovery.t
 const writer = await import(join(repo, 'src/sessions/instructions/projectInstructionWriter.ts'))
 const listing = await import(join(repo, 'src/sessions/instructions/listing.ts'))
 const { getUserContext } = await import(join(repo, 'src/engine/requestContext.ts'))
-const { getNestedMemoryAttachmentsForFile } = await import(join(repo, 'src/engine/attachments/nestedInstructions.ts'))
+const { getNestedInstructionAttachmentsForFile } = await import(join(repo, 'src/engine/attachments/nestedInstructions.ts'))
 const orient = await import(join(repo, 'src/commands/orient/orient.ts'))
 const plan = JSON.parse(process.env.DRV_PLAN ?? '{}')
 
@@ -141,7 +141,7 @@ roads.memory = calls.splice(0)
 await orient.default.getPromptForCommand()
 roads.orient = calls.splice(0)
 
-const attached = (await getNestedMemoryAttachmentsForFile(join(process.cwd(), 'sub', 'a.ts'), context as never, state)).map((a: any) => a.path)
+const attached = (await getNestedInstructionAttachmentsForFile(join(process.cwd(), 'sub', 'a.ts'), context as never, state)).map((a: any) => a.path)
 roads.nested = calls.splice(0)
 
 await engine.getInstructionBundle()

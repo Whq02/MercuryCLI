@@ -34,7 +34,7 @@ const { UserAgentNotificationMessage } = await import(join(ROOT, 'src/screen/mes
 const { UserNoticeMessage } = await import(join(ROOT, 'src/screen/messages/UserNoticeMessage.tsx'))
 const { MessageMetaProvider } = await import(join(ROOT, 'src/screen/messages/TranscriptNameplate.tsx'))
 const { KeybindingSetup } = await import(join(ROOT, 'src/screen/keys/KeybindingProviderSetup.tsx'))
-const { PromptInputHelpMenu } = await import(join(ROOT, 'src/screen/composer/ComposerHelpMenu.tsx'))
+const { ComposerHelpMenu } = await import(join(ROOT, 'src/screen/composer/ComposerHelpMenu.tsx'))
 const h = React.createElement as (...args: unknown[]) => React.ReactElement
 const strip = (s: string): string => s.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '')
 const settle = (ms = 120): Promise<void> => new Promise(r => setTimeout(r, ms))
@@ -119,23 +119,23 @@ section(
 
 section(
   '§2 ? shortcuts list: shift + tab cycles the mode',
-  'change the mode row text in PromptInputHelpMenu in src/screen/composer/ComposerHelpMenu.tsx',
+  'change the mode row text in ComposerHelpMenu in src/screen/composer/ComposerHelpMenu.tsx',
 )
 {
-  const help = await paint(h(PromptInputHelpMenu as never, { availableColumns: 120 }), { columns: 120, rows: 30 })
+  const help = await paint(h(ComposerHelpMenu as never, { availableColumns: 120 }), { columns: 120, rows: 30 })
   check('? shortcuts list names "shift + tab to cycle the mode" and never "for implement mode"', help.includes('shift + tab to cycle the mode') && !help.includes('for implement mode'), help)
 }
 
 section(
   '§3 ? shortcuts list and composer footer agree on "! for shell mode"',
-  'change the ! row text in PromptInputHelpMenu in src/screen/composer/ComposerHelpMenu.tsx and the bash-mode hint in src/screen/composer/ComposerFooterLeftSide.tsx',
+  'change the ! row text in ComposerHelpMenu in src/screen/composer/ComposerHelpMenu.tsx and the bash-mode hint in src/screen/composer/ComposerFooterLeftSide.tsx',
 )
 {
-  const { PromptInputFooterLeftSide } = await import(join(ROOT, 'src/screen/composer/ComposerFooterLeftSide.tsx'))
-  const help = await paint(h(PromptInputHelpMenu as never, { availableColumns: 120 }), { columns: 120, rows: 30 })
+  const { ComposerFooterLeftSide } = await import(join(ROOT, 'src/screen/composer/ComposerFooterLeftSide.tsx'))
+  const help = await paint(h(ComposerHelpMenu as never, { availableColumns: 120 }), { columns: 120, rows: 30 })
   check('? shortcuts list says "! for shell mode" and never "! for bash mode"', help.includes('! for shell mode') && !help.includes('! for bash mode'), help)
   const footer = await paint(
-    h(PromptInputFooterLeftSide as never, { exitPending: false, exitKeyName: null, isPasting: false, mode: 'bash', isLoading: false }),
+    h(ComposerFooterLeftSide as never, { exitPending: false, exitKeyName: null, isPasting: false, mode: 'bash', isLoading: false }),
     { columns: 120, rows: 10 },
   )
   check('composer footer hint also says "! for shell mode"', footer.includes('! for shell mode') && !footer.includes('! for bash mode'), footer)

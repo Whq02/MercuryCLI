@@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events'
 
 const React = await import('react')
 const h = React.createElement
-const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.tsx')
 const { default: instances } = await import('../../src/screen/renderer/instances.ts')
 const { Box, Text, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.ts')
 const { AlternateScreen } = await import('../../src/screen/renderer/elements/AlternateScreen.tsx')
@@ -15,7 +15,7 @@ const TALL = ['row line 1', 'row line 2', 'row line 3', 'row line 4', 'row line 
 const SHUT = 'row shut'
 
 let failures = 0
-const LAYOUT_FIX = 'fix subscribeLayout and layoutAfterCommit in src/screen/renderer/instance/layout.ts (the Ink.subscribeLayout door is in src/screen/renderer/screenInstance.tsx): listeners must run after the commit, inside the same painted frame, and a thrown or unsubscribed listener must not disturb the rest'
+const LAYOUT_FIX = 'fix subscribeLayout and layoutAfterCommit in src/screen/renderer/instance/layout.ts (the ScreenInstance.subscribeLayout door is in src/screen/renderer/screenInstance.tsx): listeners must run after the commit, inside the same painted frame, and a thrown or unsubscribed listener must not disturb the rest'
 const t = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${LAYOUT_FIX}`}`)
   if (!ok) failures = 1
@@ -108,7 +108,7 @@ const states = (painted: string[], before: string): string[] => painted.filter((
 
 const frames: string[] = []
 const screen = new Terminal()
-const ink = new Ink({
+const ink = new ScreenInstance({
   stdout: screen as never,
   stdin: new Keyboard() as never,
   stderr: new Terminal() as never,

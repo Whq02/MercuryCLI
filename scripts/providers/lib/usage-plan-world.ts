@@ -144,7 +144,7 @@ export async function usagePlanWorld() {
   })
   await stub('src/models/catalogue/computedDefault.ts', { recentSignIns: () => [{ family: 'moonshot' }, { family: 'zai' }] })
   await stub('src/screen/keys/useKeybinding.ts', { useKeybinding: () => undefined, useKeybindings: () => undefined })
-  await stub('src/screen/keys/useExitChord.ts', { useExitOnCtrlCD: () => undefined })
+  await stub('src/screen/keys/useExitChord.ts', { useExitChord: () => undefined })
   await stub('src/screen/notifications/notifications.tsx', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
   let model = 'glm-fixture'
   const modelListeners = new Set<() => void>()

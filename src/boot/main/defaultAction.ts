@@ -15,7 +15,7 @@ import { getDefaultEngineModelSetting, getEngineModel } from '../../models/catal
 import { profileCheckpoint } from '../startupProfiler.js'
 import { checkHasTrustDialogAccepted } from '../../platform/settings/config.js'
 import { registerCleanup } from '../../platform/processes/cleanupRegistry.js'
-import { setup } from '../sessionSetup.js'
+import { sessionSetup } from '../sessionSetup.js'
 import { applyMergedConfigEnv, failCli, typedString, writeErr, type RootOptions } from './cli.js'
 import { readBriefFile, readRunFormats, refuseMissingTmux, refuseModeAndBriefClashes, refuseResumeClashes, refuseSchemaFlag, refuseSessionIdClash, refuseTerminalMismatch } from './bootFlags.js'
 import { agentsWithCliDefs, mainThreadAgentOf, resolvePermissions, thinkingConfigOf } from './sessionChoices.js'
@@ -177,7 +177,7 @@ export async function defaultAction(inputPromptArg: string | undefined, opts: Ro
     void getInstructionFiles().catch(passedOver)
   }
   profileCheckpoint('action_before_setup')
-  const setupPromise = setup(
+  const setupPromise = sessionSetup(
     cwd,
     permissionMode,
     allowDangerousSkip,

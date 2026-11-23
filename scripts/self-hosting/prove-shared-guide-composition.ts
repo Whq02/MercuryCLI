@@ -18,7 +18,7 @@ enableConfigs()
 const { getEmptyToolPermissionContext } = await import(${JSON.stringify(join(repo, 'src/tools/kit/tool.ts'))})
 const { getInstructionFiles, composeInstructionPrompt, getInstructionBundle, getInstructionCompositionState, isInstructionFilePath } = await import(${JSON.stringify(join(repo, 'src/sessions/instructions/instructionFiles.ts'))})
 const { getUserContext } = await import(${JSON.stringify(join(repo, 'src/engine/requestContext.ts'))})
-const { getNestedMemoryAttachmentsForFile } = await import(${JSON.stringify(join(repo, 'src/engine/attachments/nestedInstructions.ts'))})
+const { getNestedInstructionAttachmentsForFile } = await import(${JSON.stringify(join(repo, 'src/engine/attachments/nestedInstructions.ts'))})
 const { createFileStateCacheWithSizeLimit } = await import(${JSON.stringify(join(repo, 'src/platform/files/fileStateCache.ts'))})
 const { getSteps } = await import(${JSON.stringify(join(repo, 'src/boot/projectOnboarding.ts'))})
 const { composedGuideFilesAt } = await import(${JSON.stringify(join(repo, 'src/sessions/instructions/adapters/index.ts'))})
@@ -28,7 +28,7 @@ const composed = composeInstructionPrompt(files)
 const bundle = await getInstructionBundle()
 const state = { toolPermissionContext: getEmptyToolPermissionContext() }
 const context = { readFileState: createFileStateCacheWithSizeLimit(100), loadedNestedMemoryPaths: new Set(), nestedMemoryAttachmentTriggers: new Set(), getAppState: () => state }
-const touched = process.env.DRV_TOUCH ? await getNestedMemoryAttachmentsForFile(process.env.DRV_TOUCH, context as never, state) : []
+const touched = process.env.DRV_TOUCH ? await getNestedInstructionAttachmentsForFile(process.env.DRV_TOUCH, context as never, state) : []
 writeFileSync(process.argv[2]!, JSON.stringify({
   paths: files.map(f => f.path),
   composed,

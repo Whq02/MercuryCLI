@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react'
 import { useClaim, useMeasure } from '../../screen/effects/effects.js'
 import { exitChordNoticeText } from '../../screen/composer/ExitChordNotice.js'
 import { Box, Text } from '../../screen/themedRenderer.js'
-import { useExitOnCtrlCDWithKeybindings } from '../../screen/keys/useExitChordKeys.js'
+import { useExitChordKeys } from '../../screen/keys/useExitChordKeys.js'
 import { useSettings } from '../../screen/settings/useSettings.js'
 import { useTerminalSize } from '../../screen/fullscreen-layout/useTerminalSize.js'
 import useApp from '../../screen/renderer/bindings/use-app.js'
@@ -99,7 +99,7 @@ export function ThemePicker({
   const setAppState = useSetAppState()
   const { columns } = useTerminalSize()
   const app = useApp()
-  const exitState = useExitOnCtrlCDWithKeybindings(
+  const exitState = useExitChordKeys(
     skipExitHandling ? noop : undefined,
   )
 

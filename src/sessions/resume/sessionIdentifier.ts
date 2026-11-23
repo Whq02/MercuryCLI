@@ -2,13 +2,13 @@ import { randomUUID, type UUID } from 'node:crypto'
 
 import { validateUuid } from '../../platform/primitives/uuid.js'
 
-type ParsedSessionUrl = {
+type ParsedSessionIdentifier = {
   sessionId: UUID
   jsonlFile: string | null
   isJsonlFile: boolean
 }
 
-export function parseSessionIdentifier(resumeIdentifier: string): ParsedSessionUrl | null {
+export function parseSessionIdentifier(resumeIdentifier: string): ParsedSessionIdentifier | null {
   if (resumeIdentifier.toLowerCase().endsWith('.jsonl')) {
     return {
       sessionId: randomUUID(),

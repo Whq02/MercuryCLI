@@ -2,12 +2,12 @@ import type React from 'react'
 import { useCallback, useMemo } from 'react'
 import type { Notification } from '../notifications/notifications.js'
 import { useArrowKeyHistory } from './useArrowKeyHistory.js'
-import type { useInputBuffer } from './useInputUndo.js'
+import type { useInputUndo } from './useInputUndo.js'
 import * as pendingInput from './input-core/pending-input.js'
 import { stringWidth } from '../renderer/stringWidth.js'
 import { getFocusedSessionConnector } from '../../engine/connector/focusedConnector.js'
-import type { PromptInputHelpers } from './input-core/promptInputHelpers.js'
-import type { PromptInputMode } from './input-core/textInput.js'
+import type { ComposerHelpers } from './input-core/promptInputHelpers.js'
+import type { InputMode } from './input-core/textInput.js'
 import type { PastedContent } from '../../platform/settings/config.js'
 import type { CompactFrameBudget } from '../widgets/geometry.js'
 
@@ -29,11 +29,11 @@ export function useComposerHistory({
 }: {
   input: string
   pastedContents: Record<number, PastedContent>
-  mode: PromptInputMode
+  mode: InputMode
   onChange: (value: string) => void
-  setMode: (mode: PromptInputMode) => void
+  setMode: (mode: InputMode) => void
   setCursorOffset: (offset: number) => void
-  buffer: ReturnType<typeof useInputBuffer>
+  buffer: ReturnType<typeof useInputUndo>
   columns: number
   isCompact: boolean
   compactBudget: CompactFrameBudget | null
@@ -42,7 +42,7 @@ export function useComposerHistory({
 }): {
   history: ReturnType<typeof useArrowKeyHistory>
   recallQueuedSend: () => boolean
-  helpers: PromptInputHelpers
+  helpers: ComposerHelpers
 } {
   const inputWidth = isCompact ? (compactBudget?.inputColumns ?? columns) : columns - 3
   const maxOneRowWidth = Math.max(1, inputWidth - 1)
@@ -54,7 +54,7 @@ export function useComposerHistory({
   const onSetInput = useCallback(
     (
       value: string,
-      nextMode: PromptInputMode,
+      nextMode: InputMode,
       nextPastedContents: Record<number, PastedContent>,
     ) => {
       onChange(value)
@@ -101,7 +101,7 @@ export function useComposerHistory({
 
   const { clearBuffer } = buffer
   const { resetHistory } = history
-  const helpers = useMemo<PromptInputHelpers>(
+  const helpers = useMemo<ComposerHelpers>(
     () => ({
       setCursorOffset,
       clearBuffer,

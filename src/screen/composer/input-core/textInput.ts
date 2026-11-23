@@ -101,7 +101,7 @@ export type VimInputState = TextInputState & {
   setMode: (mode: VimMode) => void
 }
 
-export type PromptInputMode =
+export type InputMode =
   | 'bash'
   | 'prompt'
   | 'task-notification'
@@ -110,7 +110,7 @@ export type QueuePriority = 'now' | 'next' | 'later'
 
 type QueuedPayload = {
   value: string | Array<ContentBlockParam>
-  mode: PromptInputMode
+  mode: InputMode
   schema?: Record<string, unknown>
   pastedContents?: Record<number, PastedContent>
   preExpansionValue?: string

@@ -68,7 +68,7 @@ enableConfigs()
 const { getEmptyToolPermissionContext } = await import(join(repo, 'src/tools/kit/tool.ts'))
 const { getInstructionFiles, getInstructionBundle, getInstructionCompositionState, isInstructionFilePath, seedFileKnowledgeFromInjectedInstructions } = await import(join(repo, 'src/sessions/instructions/instructionFiles.ts'))
 const { getUserContext } = await import(join(repo, 'src/engine/requestContext.ts'))
-const { getNestedMemoryAttachmentsForFile } = await import(join(repo, 'src/engine/attachments/nestedInstructions.ts'))
+const { getNestedInstructionAttachmentsForFile } = await import(join(repo, 'src/engine/attachments/nestedInstructions.ts'))
 const { normalizeAttachmentForAPI } = await import(join(repo, 'src/engine/messages/attachmentText.ts'))
 const { createFileStateCacheWithSizeLimit } = await import(join(repo, 'src/platform/files/fileStateCache.ts'))
 const { composedGuideFilesAt } = await import(join(repo, 'src/sessions/instructions/adapters/index.ts'))
@@ -85,8 +85,8 @@ const screens = async (): Promise<{ rows: string[]; listed: string[]; attached: 
   } catch {
     return { rows: [], listed: [], attached: [], words: { footer: '', centre: '', health: '' } }
   }
-  const { getRelativeMemoryPath } = await import(join(repo, 'src/screen/memory/MemoryUpdateNotification.tsx'))
-  const shown = (path: string): string => getRelativeMemoryPath(path).split(sep).join('/')
+  const { getRelativeInstructionFilePath } = await import(join(repo, 'src/screen/memory/MemoryUpdateNotification.tsx'))
+  const shown = (path: string): string => getRelativeInstructionFilePath(path).split(sep).join('/')
   const { profileStatusLine } = await import(join(repo, 'src/commands/memory/memory.tsx'))
   const { filesRow } = await import(join(repo, 'src/screen/memory/memoryCentreLayout.ts'))
   listing.getInstructionListing.cache.clear()
@@ -111,7 +111,7 @@ const told = (attachment: unknown): string =>
     .join('\\n')
 const touched = []
 for (const file of plan.touch ?? []) {
-  const got = await getNestedMemoryAttachmentsForFile(file, context as never, state)
+  const got = await getNestedInstructionAttachmentsForFile(file, context as never, state)
   touched.push({ file, attached: got.map((a: any) => ({ path: a.path, told: told(a), partial: context.readFileState.get(a.path)?.isPartialView === true })) })
 }
 const seedCache = createFileStateCacheWithSizeLimit(100)
@@ -125,7 +125,7 @@ if (plan.drop) {
   context.loadedNestedMemoryPaths.clear()
   const then = await screens()
   dropped = { attached: then.attached, listed: then.listed }
-  for (const file of plan.touch ?? []) for (const a of await getNestedMemoryAttachmentsForFile(file, context as never, state)) told(a)
+  for (const file of plan.touch ?? []) for (const a of await getNestedInstructionAttachmentsForFile(file, context as never, state)) told(a)
   const again = await screens()
   returned = { attached: again.attached, listed: again.listed }
 }

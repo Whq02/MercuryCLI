@@ -4,7 +4,7 @@ import { dirname, extname, win32 } from 'path'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { parseFrontmatter, splitPathInFrontmatter } from '../../platform/text/frontmatterParser.js'
 import { stripBOM } from '../../platform/storage/jsonRead.js'
-import type { MemoryType } from '../memory-shapes/types.js'
+import type { InstructionFileType } from '../memory-shapes/types.js'
 import { expandPath } from '../../platform/files/path.js'
 import { getPlatform } from '../../platform/environment/platform.js'
 import type { InstructionRuleFormat, InstructionRuleReading, InstructionSourceEntry } from '../instruction-contracts/contracts.js'
@@ -170,7 +170,7 @@ function readBody(body: string, includeBasePath: string | undefined): { content:
 
 function entryOf(
   path: string,
-  type: MemoryType,
+  type: InstructionFileType,
   raw: string,
   content: string,
   globs: string[] | undefined,
@@ -182,7 +182,7 @@ function entryOf(
 export function parseInstructionFileContent(
   rawContent: string,
   filePath: string,
-  type: MemoryType,
+  type: InstructionFileType,
   includeBasePath?: string,
 ): { info: InstructionSourceEntry | null } & IncludeMentions {
   if (!composable(filePath)) {
@@ -198,7 +198,7 @@ export function parseInstructionFileContent(
 export function readRuleSource(
   rawContent: string,
   filePath: string,
-  type: MemoryType,
+  type: InstructionFileType,
   format: InstructionRuleFormat,
   alone: boolean,
 ): { info: InstructionSourceEntry; unreadable: boolean; reading: InstructionRuleReading | null } {

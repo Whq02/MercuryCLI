@@ -19,7 +19,7 @@ import { fluxMark } from '../../../integrations/media-flux/fluxProbe.js'
 import useStdin from '../bindings/use-stdin.js'
 import type { InputEvent } from '../events/input-event.js'
 import { elevatedSurfaceOwnsNode } from '../recessLayer.js'
-import { InkInstanceContext } from './InkInstanceContext.js'
+import { ScreenInstanceContext } from './InkInstanceContext.js'
 import { startMicrotask } from '../../../platform/async/timers.js'
 
 function markUnstick(scroll: { stickyScroll?: boolean }): void {
@@ -69,7 +69,7 @@ const ScrollBox = forwardRef<ScrollBoxHandle, Omit<ScrollBoxProps, 'ref'>>(
     const renderQueuedRef = useRef(false)
     const restsAtTopRef = useRef(restsAtTop)
     restsAtTopRef.current = restsAtTop
-    const ink = useContext(InkInstanceContext)
+    const ink = useContext(ScreenInstanceContext)
     const inkRef = useRef(ink)
     inkRef.current = ink
     const [, forceRender] = useReducer((n: number) => n + 1, 0)

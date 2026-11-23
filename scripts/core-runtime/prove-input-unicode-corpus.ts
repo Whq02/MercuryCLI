@@ -257,7 +257,7 @@ const FAMILY = '\u{1f468}\u{200d}\u{1f469}\u{200d}\u{1f467}\u{200d}\u{1f466}'
 
 {
   const React = await import('react')
-  const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+  const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.js')
   const { default: instances } = await import('../../src/screen/renderer/instances.js')
   const { Text, useInput } = await import('../../src/screen/themedRenderer.js')
   const { usePasteHandler } = await import('../../src/screen/composer/usePasteHandler.js')
@@ -306,7 +306,7 @@ const FAMILY = '\u{1f468}\u{200d}\u{1f469}\u{200d}\u{1f467}\u{200d}\u{1f466}'
   const mount = (element: React.ReactElement): { stdin: FakeStdin; unmount: () => void } => {
     const stdout = new FakeStdout()
     const stdin = new FakeStdin()
-    const ink = new Ink({
+    const ink = new ScreenInstance({
       stdout: stdout as never,
       stdin: stdin as never,
       stderr: new FakeStdout() as never,

@@ -1,4 +1,4 @@
-export type PromptInputHelpers = {
+export type ComposerHelpers = {
   setCursorOffset: (offset: number) => void
   clearBuffer: () => void
   resetHistory: () => void

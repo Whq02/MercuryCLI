@@ -11,7 +11,7 @@ import type { SessionListing } from '../../sessions/transcripts/transcriptEntrie
 import { getLogDisplayTitle } from '../../platform/logs/errorLog.js'
 import { SessionPreview } from './SessionPreview.js'
 import { useKeybinding } from '../keys/useKeybinding.js'
-import { useExitOnCtrlCDWithKeybindings } from '../keys/useExitChordKeys.js'
+import { useExitChordKeys } from '../keys/useExitChordKeys.js'
 import { useSearchInput } from '../composer/text-input/useSearchInput.js'
 import { useTerminalSize } from '../fullscreen-layout/useTerminalSize.js'
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js'
@@ -28,7 +28,7 @@ import {
 } from '../../sessions/transcripts/sessionStorage.js'
 import { logError } from '../../platform/logs/errorLog.js'
 import type { UUID } from 'crypto'
-import { logSelectorView } from './views.js'
+import { sessionBrowserView } from './views.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
 export function commitLogRename(
@@ -54,7 +54,7 @@ export function commitLogRename(
     })
 }
 
-type LogSelectorProps = {
+type SessionBrowserProps = {
   logs: SessionListing[]
   maxHeight?: number
   forceWidth?: number
@@ -193,7 +193,7 @@ function hintsOf(facts: {
   ]
 }
 
-export function LogSelector({
+export function SessionBrowser({
   logs,
   maxHeight,
   forceWidth,
@@ -205,7 +205,7 @@ export function LogSelector({
   initialSearchQuery,
   showAllProjects = false,
   onToggleAllProjects,
-}: LogSelectorProps): React.ReactNode {
+}: SessionBrowserProps): React.ReactNode {
   const tokens = useMercuryTokens()
   const terminalSize = useTerminalSize()
   const columns = forceWidth ?? terminalSize.columns
@@ -317,7 +317,7 @@ export function LogSelector({
     }
   })
 
-  const exitState = useExitOnCtrlCDWithKeybindings(() => onCancel?.())
+  const exitState = useExitChordKeys(() => onCancel?.())
 
   const submitRename = useCallback(
     (title: string) => {
@@ -381,7 +381,7 @@ export function LogSelector({
     return <SessionPreview log={previewLog} onExit={() => setPreviewLog(null)} onSelect={onSelect} />
   }
 
-  const view = logSelectorView({
+  const view = sessionBrowserView({
     grouped,
     emptyReasons,
     renaming,
@@ -427,4 +427,4 @@ export function LogSelector({
   )
 }
 
-export default LogSelector
+export default SessionBrowser

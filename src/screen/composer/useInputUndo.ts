@@ -1,18 +1,18 @@
 import { useCallback, useRef, useState } from 'react'
 import type { PastedContent } from '../../platform/settings/config.js'
 
-type InputBufferEntry = {
+type InputUndoEntry = {
   text: string
   cursorOffset: number
   pastedContents: Record<number, PastedContent>
 }
 
-type UseInputBufferProps = {
+type UseInputUndoProps = {
   maxBufferSize: number
   debounceMs: number
 }
 
-type UseInputBufferResult = {
+type UseInputUndoResult = {
   pushToBuffer: (
     text: string,
     cursorOffset: number,
@@ -23,16 +23,16 @@ type UseInputBufferResult = {
     cursorOffset: number,
     pastedContents?: Record<number, PastedContent>,
   ) => void
-  undo: (current: InputBufferEntry) => InputBufferEntry | undefined
-  redo: (current: InputBufferEntry) => InputBufferEntry | undefined
+  undo: (current: InputUndoEntry) => InputUndoEntry | undefined
+  redo: (current: InputUndoEntry) => InputUndoEntry | undefined
   canUndo: boolean
   canRedo: boolean
   clearBuffer: () => void
 }
 
 function pushBounded(
-  stack: InputBufferEntry[],
-  entry: InputBufferEntry,
+  stack: InputUndoEntry[],
+  entry: InputUndoEntry,
   maxSize: number,
 ): void {
   const cap = Math.max(0, maxSize)
@@ -46,12 +46,12 @@ function pushBounded(
   }
 }
 
-export function useInputBuffer({
+export function useInputUndo({
   maxBufferSize,
   debounceMs,
-}: UseInputBufferProps): UseInputBufferResult {
-  const undoStackRef = useRef<InputBufferEntry[]>([])
-  const redoStackRef = useRef<InputBufferEntry[]>([])
+}: UseInputUndoProps): UseInputUndoResult {
+  const undoStackRef = useRef<InputUndoEntry[]>([])
+  const redoStackRef = useRef<InputUndoEntry[]>([])
   const lastPushTimeRef = useRef<number | null>(null)
   const [flags, setFlags] = useState({ canUndo: false, canRedo: false })
 
@@ -113,7 +113,7 @@ export function useInputBuffer({
   )
 
   const undo = useCallback(
-    (current: InputBufferEntry): InputBufferEntry | undefined => {
+    (current: InputUndoEntry): InputUndoEntry | undefined => {
       lastPushTimeRef.current = null
       const popped = undoStackRef.current.pop()
       if (popped === undefined) return undefined
@@ -125,7 +125,7 @@ export function useInputBuffer({
   )
 
   const redo = useCallback(
-    (current: InputBufferEntry): InputBufferEntry | undefined => {
+    (current: InputUndoEntry): InputUndoEntry | undefined => {
       lastPushTimeRef.current = null
       const popped = redoStackRef.current.pop()
       if (popped === undefined) return undefined

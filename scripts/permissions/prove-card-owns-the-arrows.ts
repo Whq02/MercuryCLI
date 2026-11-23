@@ -24,7 +24,7 @@ const { App } = await import('../../src/boot/App.tsx')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
 const { PermissionRequest } = await import('../../src/permissions/cards/PermissionRequest.tsx')
-const { InkInstanceContext } = await import('../../src/screen/renderer/elements/InkInstanceContext.ts')
+const { ScreenInstanceContext } = await import('../../src/screen/renderer/elements/InkInstanceContext.ts')
 const { resolveAlternateScrollIntent } = await import('../../src/screen/renderer/termio/alternateScrollPolicy.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
@@ -44,7 +44,7 @@ const WINDOWS_BEFORE_A_WHEEL_REPORT = { altScreenActive: true, mouseTrackingEnab
 
 let painter: { arrowKeysOwned?: () => boolean } | undefined
 function Painter(): null {
-  painter = React.useContext(InkInstanceContext) as typeof painter
+  painter = React.useContext(ScreenInstanceContext) as typeof painter
   return null
 }
 const owned = (): boolean => painter?.arrowKeysOwned?.() === true

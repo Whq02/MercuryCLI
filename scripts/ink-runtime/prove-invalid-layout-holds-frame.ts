@@ -12,7 +12,7 @@ import { appendChildNode, createNode, type DOMElement } from '../../src/screen/r
 import { emptyFrame, type FlickerRecord, type Frame } from '../../src/screen/renderer/frame.js'
 import { FrameWriter } from '../../src/screen/renderer/frame-writer.js'
 import useInput from '../../src/screen/renderer/bindings/use-input.js'
-import Ink from '../../src/screen/renderer/screenInstance.js'
+import ScreenInstance from '../../src/screen/renderer/screenInstance.js'
 import instances from '../../src/screen/renderer/instances.js'
 import { createLayoutNode } from '../../src/screen/renderer/layout/engine.js'
 import createRenderer from '../../src/screen/renderer/renderer.js'
@@ -100,7 +100,7 @@ console.log('§1 Ink on the alternate screen: an uncomputed or missing root layo
   const out = new TerminalStream()
   const err = new TerminalStream()
   const flickers: FlickerRecord[] = []
-  const ink = new Ink({
+  const ink = new ScreenInstance({
     stdout: out as unknown as NodeJS.WriteStream,
     stdin: makeStdin(),
     stderr: err as unknown as NodeJS.WriteStream,
@@ -133,7 +133,7 @@ console.log('§1 Ink on the alternate screen: an uncomputed or missing root layo
   const out = new TerminalStream()
   const err = new TerminalStream()
   const flickers: FlickerRecord[] = []
-  const ink = new Ink({
+  const ink = new ScreenInstance({
     stdout: out as unknown as NodeJS.WriteStream,
     stdin: makeStdin(),
     stderr: err as unknown as NodeJS.WriteStream,

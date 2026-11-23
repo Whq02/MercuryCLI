@@ -131,7 +131,7 @@ function StandardRow({
   )
 }
 
-export function PromptInputFooterSuggestions({
+export function ComposerFooterSuggestions({
   suggestions,
   selectedSuggestion,
   maxColumnWidth,
@@ -225,4 +225,4 @@ export function PromptInputFooterSuggestions({
   )
 }
 
-export default React.memo(PromptInputFooterSuggestions)
+export default React.memo(ComposerFooterSuggestions)

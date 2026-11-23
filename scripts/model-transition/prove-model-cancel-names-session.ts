@@ -41,7 +41,7 @@ class Output extends EventEmitter {
 }
 
 const React = await import('react')
-const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.tsx')
 const { App } = await import('../../src/boot/App.tsx')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
@@ -90,7 +90,7 @@ async function mount(carrier: 'daemon' | 'in-process', screenMessages: unknown[]
   const element = await call((message: string) => { done.push(message) }, { messages: screenMessages } as never, TARGET)
   const stdout = new Output(120, 40)
   const stdin = Object.assign(new Readable({ read() {} }), { isTTY: true, setRawMode() {}, ref() {}, unref() {} })
-  const ink = new Ink({ stdout: stdout as never, stdin: stdin as never, stderr: new Output(120, 40) as never, exitOnCtrlC: false, patchConsole: false })
+  const ink = new ScreenInstance({ stdout: stdout as never, stdin: stdin as never, stderr: new Output(120, 40) as never, exitOnCtrlC: false, patchConsole: false })
   instances.set(stdout as never, ink)
   const state = { ...getDefaultAppState(), engineModel: null, engineModelForSession: null }
   ink.render(h(App, { initialState: state as never, getFpsMetrics: () => undefined }, h(KeybindingSetup, null, element as never)))

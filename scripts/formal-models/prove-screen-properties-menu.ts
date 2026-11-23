@@ -92,7 +92,7 @@ const {
 type SettingsEditor = import('../../src/screen/boot-face/settings/menuModel.ts').SettingsEditor
 const { settingsEditors } = await import('../../src/screen/boot-face/settings/menuModel.ts')
 const { BootSettingsScreen, withJevRow } = await import('../../src/screen/boot-face/BootSettingsScreen.tsx')
-const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.js')
 const { default: instances } = await import('../../src/screen/renderer/instances.js')
 const { default: reconciler } = await import('../../src/screen/renderer/reconciler.js')
 const { disposeKeybindingWatcher } = await import('../../src/screen/keys/loadUserBindings.js')
@@ -190,7 +190,7 @@ const ALL_LABELS_DESC = [...settingsEditors.map(e => e.label), ...ALL_MENU_ROWS.
 
 const stdout = new FakeStdout(124, 30)
 const stdin = new FakeStdin()
-const ink = new Ink({
+const ink = new ScreenInstance({
   stdout: stdout as never,
   stdin: stdin as never,
   stderr: new FakeStdout(124, 30) as never,

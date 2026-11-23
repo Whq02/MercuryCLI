@@ -7,7 +7,7 @@ import {
   getMercuryHome,
   isEnvDefinedFalsy,
   } from '../environment/envUtils.js'
-import type { MemoryType } from '../../sessions/memory-shapes/types.js'
+import type { InstructionFileType } from '../../sessions/memory-shapes/types.js'
 import { getManagedFilePath } from '../settings/managedPath.js'
 
 import { getGlobalConfig, isConfigReadingAllowed, saveGlobalConfigDeferred } from './globalConfig.js'
@@ -50,15 +50,15 @@ export function recordFirstStartTime(): void {
   saveGlobalConfigDeferred(current => ({ ...current, firstStartTime: current.firstStartTime ?? firstStartTime }))
 }
 
-const MEMORY_HOME_FILE: Record<MemoryType, (originalCwd: string) => string> = {
+const INSTRUCTION_HOME_FILE: Record<InstructionFileType, (originalCwd: string) => string> = {
   User: () => join(getMercuryHome(), 'MERCURY.md'),
   Local: originalCwd => join(originalCwd, 'MERCURY.local.md'),
   Project: originalCwd => join(originalCwd, 'MERCURY.md'),
   Managed: () => join(getManagedFilePath(), 'MERCURY.md'),
 }
 
-export function getMemoryPath(memoryType: MemoryType): string {
-  return MEMORY_HOME_FILE[memoryType](getOriginalCwd())
+export function getInstructionFilePath(memoryType: InstructionFileType): string {
+  return INSTRUCTION_HOME_FILE[memoryType](getOriginalCwd())
 }
 
 export function getManagedRulesDir(): string {

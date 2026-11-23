@@ -39,7 +39,7 @@ function check(label: string, ok: boolean, detail = ''): void {
 
 const React = await import('react')
 const h = React.createElement
-const { InkInstanceContext } = await import('../../src/screen/renderer/elements/InkInstanceContext.ts')
+const { ScreenInstanceContext } = await import('../../src/screen/renderer/elements/InkInstanceContext.ts')
 const { App } = await import('../../src/boot/App.tsx')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { SurfaceRouter } = await import('../../src/screen/routes/SurfaceRouter.tsx')
@@ -77,7 +77,7 @@ const { createAssistantMessage, createUserMessage } = await import('../../src/en
 type Message = import('../../src/engine/message-shapes/message.ts').Message
 type SessionLiveV1 = import('../../src/engine/connector/seatLive.ts').SessionLiveV1
 type SeatStatusV1 = import('../../src/engine/connector/seatLive.ts').SeatStatusV1
-type InkInstance = NonNullable<React.ContextType<typeof InkInstanceContext>>
+type InkInstance = NonNullable<React.ContextType<typeof ScreenInstanceContext>>
 type InkInternal = {
   scheduler?: { state: () => string }
   frameListeners?: ReadonlySet<unknown>
@@ -176,7 +176,7 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
   let frameSeq = 0
   let baseListeners = 0
   function InkTap(): null {
-    const ink = React.useContext(InkInstanceContext)
+    const ink = React.useContext(ScreenInstanceContext)
     inkTap = ink
     React.useLayoutEffect(() => {
       if (!ink) return

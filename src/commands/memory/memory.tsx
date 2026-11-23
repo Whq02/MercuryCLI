@@ -3,7 +3,7 @@ import { Suspense, useCallback, useState } from 'react'
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { Box, Text, wrapText } from '../../screen/themedRenderer.js'
 import { MemoryCentreView } from '../../screen/memory/MemoryCentreView.js'
-import { MemoryFileSelector } from '../../screen/memory/MemoryFileSelector.js'
+import { InstructionFileSelector } from '../../screen/memory/MemoryFileSelector.js'
 import {
   MEMORY_POPUP_ROWS,
   MEMORY_POPUP_TITLE_VIEW,
@@ -36,7 +36,7 @@ import { hostEnv } from '../../platform/environment/hostEnv.js'
 
 export type MemoryRoute = 'centre' | 'files'
 
-export const MEMORY_FILES_CLOSED = 'Closed memory files'
+export const INSTRUCTION_FILES_CLOSED = 'Closed memory files'
 
 export function profileStatusLine(): string {
   const { resolution } = getInstructionCompositionState()
@@ -45,7 +45,7 @@ export function profileStatusLine(): string {
     : "profile auto: MERCURY.md, or other tools' files when there is none · a row says when its file loads"
 }
 
-async function openMemoryFile(path: string, onDone: LocalJSXCommandOnDone): Promise<void> {
+async function openInstructionFile(path: string, onDone: LocalJSXCommandOnDone): Promise<void> {
   try {
     if (path.includes(getMercuryHome())) {
       mkdirSync(getMercuryHome(), { recursive: true })
@@ -86,7 +86,7 @@ type Settle = (...args: Parameters<LocalJSXCommandOnDone>) => void
 
 type Held = (path: string) => boolean
 
-function MemoryFilesRoute({ direct, onPick, onCancel, held, attached, width, rowBudget }: { direct: boolean; onPick: (path: string) => void; onCancel: () => void; held: Held; attached?: readonly AttachedInstruction[]; width: number; rowBudget: number }): React.ReactNode {
+function InstructionFilesRoute({ direct, onPick, onCancel, held, attached, width, rowBudget }: { direct: boolean; onPick: (path: string) => void; onCancel: () => void; held: Held; attached?: readonly AttachedInstruction[]; width: number; rowBudget: number }): React.ReactNode {
   const frame = useSettingsPopupFrame()
   const tokens = useMercuryTokens()
   const footer = profileStatusLine()
@@ -97,7 +97,7 @@ function MemoryFilesRoute({ direct, onPick, onCancel, held, attached, width, row
   return (
     <Box flexDirection="column">
       <Suspense>
-        <MemoryFileSelector onSelect={onPick} onCancel={onCancel} held={held} attached={attached} width={width} rowBudget={rowBudget - footerRows} />
+        <InstructionFileSelector onSelect={onPick} onCancel={onCancel} held={held} attached={attached} width={width} rowBudget={rowBudget - footerRows} />
       </Suspense>
       <Text color={tokens.textMuted} wrap="wrap">{footer}</Text>
     </Box>
@@ -142,7 +142,7 @@ export function MemoryPopupBody({
         }}
         initialRow={returnRow}
         onOpenFile={path => {
-          void openMemoryFile(path, (text, options) => close(text, options))
+          void openInstructionFile(path, (text, options) => close(text, options))
         }}
         width={geometry.inner}
         rowBudget={geometry.rowBudget}
@@ -151,17 +151,17 @@ export function MemoryPopupBody({
     )
   }
   return (
-    <MemoryFilesRoute
+    <InstructionFilesRoute
       width={geometry.inner}
       rowBudget={geometry.rowBudget}
       held={held}
       attached={attached}
       direct={initialRoute === 'files'}
       onPick={path => {
-        void openMemoryFile(path, (text, options) => close(text, options))
+        void openInstructionFile(path, (text, options) => close(text, options))
       }}
       onCancel={() => {
-        if (initialRoute === 'files') close(MEMORY_FILES_CLOSED, { display: 'system' })
+        if (initialRoute === 'files') close(INSTRUCTION_FILES_CLOSED, { display: 'system' })
         else setRoute('centre')
       }}
     />

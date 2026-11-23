@@ -1,5 +1,5 @@
 import React, { createContext, type PropsWithChildren, useContext, useInsertionEffect, useRef } from 'react';
-import { InkInstanceContext } from './InkInstanceContext.js';
+import { ScreenInstanceContext } from './InkInstanceContext.js';
 import { consumeLauncherAltHold } from '../launcherAltHold.js';
 import { DISABLE_ALTERNATE_SCROLL, DISABLE_MOUSE_TRACKING, ENABLE_ALTERNATE_SCROLL, ENABLE_MOUSE_TRACKING, ENTER_ALT_SCREEN, EXIT_ALT_SCREEN } from '../termio/dec.js';
 import { noteModeAcquired, noteModeReleased } from '../root/terminalModeLedger.js';
@@ -17,7 +17,7 @@ const AltScreenDepthContext = createContext(0)
 
 export function AlternateScreen({ children, mouseTracking = true }: Props): React.ReactNode {
   const write = useContext(TerminalWriteContext)
-  const ink = useContext(InkInstanceContext)
+  const ink = useContext(ScreenInstanceContext)
   const size = useContext(TerminalSizeContext)
   const depth = useContext(AltScreenDepthContext)
   const mouseTrackingRef = useRef(mouseTracking)

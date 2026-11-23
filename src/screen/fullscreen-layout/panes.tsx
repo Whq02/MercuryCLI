@@ -6,7 +6,7 @@ import { useCursorFollow } from '../widgets/useCursorFollow.js'
 import { useLayoutClaim, useLayoutPublish } from '../effects/effects.js'
 import { usePromptOverlay, usePromptOverlayDialog } from '../overlays/promptOverlay.js'
 import { InteractiveRow } from '../widgets/InteractiveRow.js'
-import { PromptInputFooterSuggestions } from '../composer/ComposerFooterSuggestions.js'
+import { ComposerFooterSuggestions } from '../composer/ComposerFooterSuggestions.js'
 
 export type UnseenDivider = { firstUnseenUuid: string; count: number }
 
@@ -16,7 +16,7 @@ export function PromptOverlayStrip(): React.ReactNode {
   if (dialog) return <Box flexDirection="column">{dialog}</Box>
   if (!data) return null
   return (
-    <PromptInputFooterSuggestions
+    <ComposerFooterSuggestions
       suggestions={data.suggestions}
       overlay
       onPick={data.onPick}

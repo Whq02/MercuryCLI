@@ -95,7 +95,7 @@ class Input extends EventEmitter {
   get readableLength(): number { return 0 }
 }
 const React = await import('react')
-const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.tsx')
 const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
 const { App } = await import('../../src/boot/App.tsx')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
@@ -200,7 +200,7 @@ for (const [cols, rows] of [[178, 51], [120, 40]] as const) {
   resetChromeModeLatchForTests()
   resetHelmFocusForTest()
   const stdout = new Output(cols, rows)
-  const ink = new Ink({ stdout: stdout as never, stdin: new Input() as never, stderr: new Output(cols, rows) as never, exitOnCtrlC: false, patchConsole: false })
+  const ink = new ScreenInstance({ stdout: stdout as never, stdin: new Input() as never, stderr: new Output(cols, rows) as never, exitOnCtrlC: false, patchConsole: false })
   instances.set(stdout as never, ink)
   ink.render(h(App, { initialState: { ...getDefaultAppState(), effortValue: 'high' } as AppState, getFpsMetrics: () => undefined }, h(Harness)))
   const lines = (): string[] => stripAnsi(ink.lastFrameText()).replace(/\n$/, '').split('\n')

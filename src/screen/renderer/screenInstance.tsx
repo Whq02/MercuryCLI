@@ -10,7 +10,7 @@ import { consoleSizeNeedsPolling } from '../../platform/host-os/terminal.js'
 import { CharPool, HyperlinkPool, StylePool } from './cell-grid.js'
 import App from './elements/App.js'
 import type { CursorDeclaration } from './elements/CursorDeclarationContext.js'
-import { InkInstanceContext } from './elements/InkInstanceContext.js'
+import { ScreenInstanceContext } from './elements/InkInstanceContext.js'
 import { createNode, type DOMElement } from './dom.js'
 import type { TextGestureHandler } from './events/text-gesture.js'
 import { FocusManager } from './focus.js'
@@ -61,7 +61,7 @@ export type Options = {
   onFrame?: (event: FrameEvent) => void
 }
 
-export default class Ink {
+export default class ScreenInstance {
   readonly options: Options
   readonly isTTY: boolean
   readonly stylePool = new StylePool()
@@ -281,7 +281,7 @@ export default class Ink {
   render(node: ReactNode): void {
     this.currentTree = node
     const tree = (
-      <InkInstanceContext.Provider value={this}>
+      <ScreenInstanceContext.Provider value={this}>
         <App
           stdin={this.options.stdin}
           stdout={this.options.stdout}
@@ -306,7 +306,7 @@ export default class Ink {
         >
           <TerminalWriteProvider value={this.isTTY ? this.writeRaw : null}>{node}</TerminalWriteProvider>
         </App>
-      </InkInstanceContext.Provider>
+      </ScreenInstanceContext.Provider>
     )
     reconciler.updateContainerSync(tree, this.container, null, null)
     reconciler.flushSyncWork()

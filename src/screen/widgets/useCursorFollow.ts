@@ -2,7 +2,7 @@ import { useCallback, useContext, useRef } from 'react'
 import { useSubscription, useTimer } from '../effects/effects.js'
 import type { RefObject } from 'react'
 import CursorDeclarationContext, { type CursorDeclaration, type CursorDeclarationSetter } from '../renderer/elements/CursorDeclarationContext.js'
-import { InkInstanceContext } from '../renderer/elements/InkInstanceContext.js'
+import { ScreenInstanceContext } from '../renderer/elements/InkInstanceContext.js'
 import type { ScrollBoxHandle } from '../renderer/elements/ScrollBox.js'
 import { startTimeout, stopTimeout } from '../../platform/async/timers.js'
 
@@ -12,7 +12,7 @@ export function useCursorFollow(
   options: { restOnClear?: boolean } = {},
 ): CursorDeclarationSetter {
   const publishCursor = useContext(CursorDeclarationContext)
-  const ink = useContext(InkInstanceContext)
+  const ink = useContext(ScreenInstanceContext)
   const cursor = useRef<CursorDeclaration | null>(null)
   const followedTop = useRef<number | undefined>(undefined)
   const pending = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)

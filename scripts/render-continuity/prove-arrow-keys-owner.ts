@@ -5,7 +5,7 @@ import { Readable } from 'node:stream'
 
 const React = await import('react')
 const h = React.createElement
-const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.tsx')
 const { default: instances } = await import('../../src/screen/renderer/instances.ts')
 const { Box, Text, useInput } = await import('../../src/screen/themedRenderer.ts')
 const { AlternateScreen } = await import('../../src/screen/renderer/elements/AlternateScreen.tsx')
@@ -71,7 +71,7 @@ const settle = (ms = 80): Promise<void> => new Promise(resolve => setTimeout(res
   }
   const keys = new Keys()
   const screen = new Screen()
-  const ink = new Ink({ stdout: screen as never, stdin: keys as never, stderr: new Screen() as never, patchConsole: false, exitOnCtrlC: false })
+  const ink = new ScreenInstance({ stdout: screen as never, stdin: keys as never, stderr: new Screen() as never, patchConsole: false, exitOnCtrlC: false })
   instances.set(screen as never, ink)
   ink.render(h(AlternateScreen, { mouseTracking: false }, h(Listener)))
   await settle(250)

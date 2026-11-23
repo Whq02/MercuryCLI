@@ -17,10 +17,10 @@ import { appendMessageToLocalAgent, isLocalAgentTask, queueOperatorMessage } fro
 import { createUserMessage } from '../../engine/message-shapes/factories.js'
 import { danglingReferences, expandPastedTextRefs, pasteUnavailableLine, resolvePastedContents } from '../../sessions/promptHistory.js'
 import { handleSpeculationAccept } from '../prompt-suggestion/speculation.js'
-import type { PromptInputHelpers } from './input-core/promptInputHelpers.js'
+import type { ComposerHelpers } from './input-core/promptInputHelpers.js'
 import type { SuggestionsState } from './typeahead/useTypeahead.js'
 import type { usePromptSuggestion } from './usePromptSuggestion.js'
-import type { useInputBuffer } from './useInputUndo.js'
+import type { useInputUndo } from './useInputUndo.js'
 import type { useArrowKeyHistory } from './useArrowKeyHistory.js'
 import type { CompactWorkControls } from '../tasks/CompactWorkSummary.js'
 import type { useComposerCrewmate } from '../tasks/useCrewmateView.js'
@@ -39,12 +39,12 @@ type ComposerSubmitInput = {
   setAppState: (f: (prev: AppState) => AppState) => void
   suggestionApi: ReturnType<typeof usePromptSuggestion>
   commands: Command[]
-  helpers: PromptInputHelpers
-  buffer: ReturnType<typeof useInputBuffer>
+  helpers: ComposerHelpers
+  buffer: ReturnType<typeof useInputUndo>
   history: ReturnType<typeof useArrowKeyHistory>
   onSubmit: (
     input: string,
-    helpers: PromptInputHelpers,
+    helpers: ComposerHelpers,
     speculationAccept?: {
       state: unknown
       sessionTimeSaved: number

@@ -22,7 +22,7 @@ import { ERASE_SCREEN } from '../termio/csi.js'
 import { COMPOSED_TEE_PATH, safeAppend, WRITE_TEE_PATH, dumpTree, teeBeforeDiff, teeAfterDiff } from './tees.js'
 import { liveSize, resetFramesForAltScreen } from './frames.js'
 import { consoleBufferOutlivesWindow, settleResize, applySize } from './resize.js'
-import type Ink from '../screenInstance.js'
+import type ScreenInstance from '../screenInstance.js'
 import { startMicrotask } from '../../../platform/async/timers.js'
 import { consoleSizeNeedsPolling } from '../../../platform/host-os/terminal.js'
 
@@ -37,7 +37,7 @@ const POOL_RESET_INTERVAL_MS = 5 * 60_000
 const HOME_CURSOR = Object.freeze({ x: 0, y: 0, visible: false })
 
 type OnRenderReads = Pick<
-  Ink,
+  ScreenInstance,
   | 'options' | 'isTTY' | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'cachedColumns' | 'cachedRows' | 'parkPatch'
   | 'pendingAltEntry' | 'lastPoolReset' | 'rootNode' | 'renderer' | 'writer' | 'scheduler' | 'ledger' | 'layoutCounters' | 'currentTree' | 'isUnmounted'
   | 'isPaused' | 'isRendering' | 'lastRenderTime' | 'altScreenActive' | 'mouseTracking' | 'displayCursor' | 'wholeFrameDue' | 'resizeEraseDue' | 'wholeFrameAt'
@@ -76,7 +76,7 @@ export function onRender(this: OnRenderReads): void {
 }
 
 type RecoverFromRenderFaultReads = Pick<
-  Ink,
+  ScreenInstance,
   | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'cachedColumns' | 'cachedRows' | 'ledger' | 'altScreenActive'
   | 'displayCursor' | 'wholeFrameDue' | 'glassOverlay' | 'scheduleRender' | 'renderFaultStreak'
 >
@@ -99,7 +99,7 @@ function recoverFromRenderFault(this: RecoverFromRenderFaultReads, error: unknow
 }
 
 type RenderFrameReads = Pick<
-  Ink,
+  ScreenInstance,
   | 'options' | 'isTTY' | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'cachedColumns' | 'cachedRows' | 'parkPatch'
   | 'pendingAltEntry' | 'lastPoolReset' | 'rootNode' | 'renderer' | 'writer' | 'scheduler' | 'ledger' | 'layoutCounters' | 'lastRenderTime'
   | 'altScreenActive' | 'displayCursor' | 'wholeFrameDue' | 'resizeEraseDue' | 'wholeFrameAt' | 'watchdogCommitsRemaining' | 'zeroByteRenderStreak' | 'selection'
@@ -343,14 +343,14 @@ function renderFrame(this: RenderFrameReads): void {
   }
 }
 
-export function subscribeFrame(this: Pick<Ink, 'frameListeners'>, listener: () => void): () => void {
+export function subscribeFrame(this: Pick<ScreenInstance, 'frameListeners'>, listener: () => void): () => void {
   this.frameListeners.add(listener)
   return () => {
     this.frameListeners.delete(listener)
   }
 }
 
-function resolveCursorTarget(this: Pick<Ink, 'cursorDeclaration'>): CursorPoint | null {
+function resolveCursorTarget(this: Pick<ScreenInstance, 'cursorDeclaration'>): CursorPoint | null {
   const declaration = this.cursorDeclaration
   if (!declaration) return null
   const rect = nodeCache.get(declaration.node)
@@ -358,7 +358,7 @@ function resolveCursorTarget(this: Pick<Ink, 'cursorDeclaration'>): CursorPoint 
   return { x: rect.x + declaration.relativeX, y: rect.y + declaration.relativeY }
 }
 
-export function setCursorDeclaration(this: Pick<Ink, 'cursorDeclaration'>, declaration: CursorDeclaration | null, clearIfNode?: DOMElement | null): void {
+export function setCursorDeclaration(this: Pick<ScreenInstance, 'cursorDeclaration'>, declaration: CursorDeclaration | null, clearIfNode?: DOMElement | null): void {
   if (declaration === null && clearIfNode) {
     if (this.cursorDeclaration?.node !== clearIfNode) return
   }

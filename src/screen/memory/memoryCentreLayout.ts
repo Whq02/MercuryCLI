@@ -23,7 +23,7 @@ export function memoryBodySpacing(rowBudget: number): { roomy: boolean; fixedRow
   return { roomy, fixedRows: roomy ? 3 + detailLines : 2, detailLines }
 }
 
-export function memoryFileListLayout(options: Array<{ label: string; description?: string }>, width: number, rowBudget: number, firstVisible: number): { layout: 'compact' | 'compact-vertical'; visibleOptionCount: number } {
+export function instructionFileListLayout(options: Array<{ label: string; description?: string }>, width: number, rowBudget: number, firstVisible: number): { layout: 'compact' | 'compact-vertical'; visibleOptionCount: number } {
   const room = Math.max(1, width - 1)
   const digits = String(options.length).length
   const labelWidth = Math.max(0, ...options.map(option => displayWidth(option.label))) + digits + 4

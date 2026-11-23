@@ -1,6 +1,6 @@
 import type { PastedContent } from '../../../platform/settings/config.js'
 import type {
-  PromptInputMode,
+  InputMode,
 } from './textInput.js'
 import { getSessionId, onSessionSwitch, updateLastInteractionTime } from '../../../boot/process-state/processState.js'
 import { getFocusedSessionConnector } from '../../../engine/connector/focusedConnector.js'
@@ -27,14 +27,14 @@ export function sanitizeComposerText(raw: string): string {
 export type ComposerDraft = {
   text: string
   cursorOffset: number
-  mode: PromptInputMode
+  mode: InputMode
   pastedContents: Record<number, PastedContent>
 }
 
 export type StashedPrompt = {
   text: string
   cursorOffset: number
-  mode: PromptInputMode
+  mode: InputMode
   pastedContents: Record<number, PastedContent>
 }
 
@@ -117,7 +117,7 @@ export function text(): string {
   return draft.text
 }
 
-export function mode(): PromptInputMode {
+export function mode(): InputMode {
   return draft.mode
 }
 
@@ -136,7 +136,7 @@ export function editGeneration(): number {
 
 export function initOnce(seed: {
   text: string
-  mode: PromptInputMode
+  mode: InputMode
   pastedContents: Record<number, PastedContent>
   cursorOffset?: number
 }): void {
@@ -272,7 +272,7 @@ export function append(seed: string): void {
 }
 
 
-export function setMode(next: PromptInputMode): void {
+export function setMode(next: InputMode): void {
   if (draft.mode === next) return
   draft = { ...draft, mode: next }
   commit()

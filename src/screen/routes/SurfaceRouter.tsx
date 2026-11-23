@@ -1,5 +1,5 @@
 import React, { useContext, useInsertionEffect, useState, useSyncExternalStore } from 'react';
-import { InkInstanceContext } from '../renderer/elements/InkInstanceContext.js';
+import { ScreenInstanceContext } from '../renderer/elements/InkInstanceContext.js';
 import { Box, MotionParkContext, Text } from '../themedRenderer.js';
 import { useTerminalSize } from '../fullscreen-layout/useTerminalSize.js';
 import {
@@ -81,7 +81,7 @@ export function SurfaceRouter({ children }: { children: React.ReactNode }): Reac
   useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion);
   const route = currentSurfaceRoute();
   const routeId = surfaceRouteId(route);
-  const ink = useContext(InkInstanceContext);
+  const ink = useContext(ScreenInstanceContext);
   useInsertionEffect(() => {
     ink?.repaintAfterNestedAltScreenClose();
   }, [ink, routeId]);

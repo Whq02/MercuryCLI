@@ -35,7 +35,7 @@ for (const key of Object.keys(process.env)) {
   if (/^(ANTHROPIC_AUTH_TOKEN|ANTHROPIC_API_KEY|MERCURY_OAUTH_TOKEN|MERCURY_API_KEY_FILE_DESCRIPTOR|OPENAI_API_KEY|ZAI_API_KEY|OPENROUTER_API_KEY|GOOGLE_API_KEY|GEMINI_API_KEY|MOONSHOT_API_KEY|DEEPSEEK_API_KEY|HF_TOKEN|XAI_API_KEY|MODEL_API_KEY|MERCURY_COMPAT_BASE_URL|MERCURY_LOCAL_BASE_URL|TERM_PROGRAM|TERM_PROGRAM_VERSION|WT_SESSION|CURSOR_TRACE_ID|VSCODE_GIT_ASKPASS_MAIN|__CFBundleIdentifier|VisualStudioVersion|TERMINAL_EMULATOR|TMUX|MERCURY_FULLSCREEN)$/.test(key)) delete process.env[key]
 }
 
-const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.js')
 const { default: instances } = await import('../../src/screen/renderer/instances.js')
 const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
@@ -104,7 +104,7 @@ function glass(stdout: Output): string[] {
   return terminal.lines()
 }
 
-function composed(ink: InstanceType<typeof Ink>): string[] {
+function composed(ink: InstanceType<typeof ScreenInstance>): string[] {
   const lines = stripAnsi(ink.lastFrameText()).split('\n').map(line => line.trimEnd())
   while (lines.length < ROWS) lines.push('')
   return lines.slice(0, ROWS)
@@ -118,7 +118,7 @@ async function walk(road: 'active' | 'idle'): Promise<void> {
   console.log(`\n§ ${road === 'idle' ? 'each step key arrives after a quiet gap longer than 30 s (the renderer resets its diff base first)' : 'each step key arrives while the renderer is warm'}`)
   const stdout = new Output()
   const stdin = new Input()
-  const ink = new Ink({ stdout: stdout as never, stdin: stdin as never, stderr: new Output() as never, exitOnCtrlC: false, patchConsole: false })
+  const ink = new ScreenInstance({ stdout: stdout as never, stdin: stdin as never, stderr: new Output() as never, exitOnCtrlC: false, patchConsole: false })
   instances.set(stdout as never, ink)
   ink.setAltScreenActive(true, false)
   ink.render(h(AppStateProvider as never, {} as never, h(KeybindingSetup as never, {} as never, h(Onboarding as never, { onDone: () => {} } as never))))

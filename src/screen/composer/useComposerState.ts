@@ -15,7 +15,7 @@ import { getTheme } from '../theme/theme.js'
 import { useTheme } from '../theme/ThemeProvider.js'
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js'
 import type { OverlaySurface } from './composerOverlay.js'
-import type { PromptInputProps } from './Composer.js'
+import type { ComposerProps } from './Composer.js'
 import { useComposerDraft } from './useComposerDraft.js'
 import { useComposerSelectionState } from './useComposerSelection.js'
 import { useComposerVoiceReceipt } from './useComposerVoice.js'
@@ -29,7 +29,7 @@ export function useComposerState({
   helpOpen,
   setHelpOpen,
 }: {
-  props: PromptInputProps
+  props: ComposerProps
   helpOpen: boolean
   setHelpOpen: (open: boolean) => void
 }) {
