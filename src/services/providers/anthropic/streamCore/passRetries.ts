@@ -12,6 +12,7 @@ import type {
   SystemAPIErrorMessage,
 } from '../../../../types/message.js'
 import { isTurnOwningQuerySource } from '../../../../utils/effort.js'
+import { isRecord } from '../../../../utils/isRecord.js'
 import { getPublicModelDisplayName } from '../../../model/model.js'
 import { anthropicLimitVerdict } from '../../../anthropicLimits.js'
 import { refreshProviderUsage } from '../../providerUsage.js'
@@ -162,7 +163,7 @@ export function streamPassRetries(
       } catch (error) {
         if (isFirstByteTimeout(error) && !signal.aborted) {
           const requestDeadline =
-            (error as { requestDeadline?: unknown } | null)?.requestDeadline === true
+            isRecord(error) && error.requestDeadline === true
           const elapsedMs = requestDeadline
             ? budgetMs
             : Math.min(budgetMs, Math.max(0, Date.now() - wait.sinceMs))

@@ -5,6 +5,7 @@ import { getCwd } from '../../utils/cwd.js'
 import { getGlobalMercuryFile } from '../../utils/env.js'
 import { errorMessage, errorMessageWithCause, getErrnoCode } from '../../utils/errors.js'
 import { isOneOf } from '../../utils/isOneOf.js'
+import { isRecord } from '../../utils/isRecord.js'
 import { getEnabledSettingsForSource, getSettingsForSource, updateSettingsForSource } from '../../utils/settings/settings.js'
 import { getMcpPrefix } from '../../utils/mcp/mcpStringUtils.js'
 import { normalizeNameForMCP } from '../../utils/mcp/normalization.js'
@@ -166,7 +167,7 @@ function stripErrorClassPrefixes(text: string): string {
 
 export function describeMcpConnectFailure(error: unknown, context: McpConnectFailureContext): string {
   const message = errorMessage(error)
-  if ((error as { telemetryMessage?: unknown } | null)?.telemetryMessage === MCP_CONNECT_TIMEOUT_TELEMETRY) return message
+  if (isRecord(error) && error.telemetryMessage === MCP_CONNECT_TIMEOUT_TELEMETRY) return message
   const code = errnoCodeInChain(error)
   if (context.transport === 'stdio') {
     const command = context.command ?? 'the command'

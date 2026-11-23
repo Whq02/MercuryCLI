@@ -269,8 +269,8 @@ export function createSubagentContext(
 }
 
 
-function usageOf(event: unknown): ApiMessageDeltaUsage | undefined {
-  const usage = (event as { usage?: ApiMessageDeltaUsage } | undefined)?.usage
+function usageOf(event: { usage?: ApiMessageDeltaUsage } | undefined): ApiMessageDeltaUsage | undefined {
+  const usage = event?.usage
   return usage && typeof usage === 'object' ? usage : undefined
 }
 
@@ -278,7 +278,7 @@ type ForkUsageFold = { total: NonNullableUsage; open: NonNullableUsage | null }
 export const EMPTY_FORK_USAGE_FOLD: ForkUsageFold = { total: EMPTY_USAGE, open: null }
 export function foldForkUsageEvent(
   fold: ForkUsageFold,
-  event: { type?: string; usage?: unknown; message?: { usage?: unknown } },
+  event: { type?: string; usage?: ApiMessageDeltaUsage; message?: { usage?: ApiMessageDeltaUsage } },
 ): ForkUsageFold {
   if (event.type === 'message_start') {
     return { total: fold.total, open: updateUsage(EMPTY_USAGE, usageOf(event.message)) }

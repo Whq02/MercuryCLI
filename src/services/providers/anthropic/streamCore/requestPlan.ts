@@ -34,6 +34,7 @@ import { retireOlderScreenshots } from '../../../desktop/screenshotRetention.js'
 import { APIConnectionTimeoutError, APIError } from '../../../../utils/api/sdkErrors.js'
 import { isTurnOwningQuerySource } from '../../../../utils/effort.js'
 import { computeFingerprintFromMessages } from '../../../../utils/fingerprint.js'
+import { isRecord } from '../../../../utils/isRecord.js'
 import { getAnthropicClient } from '../../../api/client.js'
 import { buildTurnSystemBlocks } from '../cacheAndUsage.js'
 import { getPromptCachingEnabled } from '../requestParams.js'
@@ -76,8 +77,8 @@ async function sendGatewayProbe(
     const status =
       error instanceof APIError && typeof error.status === 'number'
         ? error.status
-        : typeof (error as { status?: unknown } | null)?.status === 'number'
-          ? (error as { status: number }).status
+        : isRecord(error) && typeof error.status === 'number'
+          ? error.status
           : null
     const bodyText = error instanceof Error ? error.message : String(error)
     return { status, bodyText }
