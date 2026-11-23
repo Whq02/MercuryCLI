@@ -143,16 +143,9 @@ async function summarizeViaCacheSharingFork(
   }
 }
 
-function throwIfDirectLaneCut(bound: FoldBound, model: string, startedAt: number): void {
-  if (bound.hitDeadline()) {
-    logForDebugging(`compact: direct lane cut for ${foldCutWords(bound)} after ${Date.now() - startedAt} ms — nothing folded`, { level: 'warn' })
-    recordFoldRoad(model, 'direct', startedAt, 'timeout', foldCutWords(bound))
-    throw new Error(ERROR_MESSAGE_FOLD_TIMEOUT)
-  }
-  if (bound.signal.aborted) {
-    recordFoldRoad(model, 'direct', startedAt, 'aborted')
-    throw new APIUserAbortError()
-  }
+function throwIfDirectLaneCut(bound: FoldBound): void {
+  if (bound.hitDeadline()) throw new Error(ERROR_MESSAGE_FOLD_TIMEOUT)
+  if (bound.signal.aborted) throw new APIUserAbortError()
 }
 
 async function summarizeDirect(
@@ -236,12 +229,15 @@ async function summarizeDirect(
       },
     })
 
+    const attempts = 1
+    let streamingStarted = false
     const assistantMessages: AssistantMessage[] = []
     try {
       for await (const item of stream) {
         bound.content()
         if (item.type === 'stream_event') {
           if (item.event.type === 'content_block_start' && item.event.content_block.type === 'text') {
+            streamingStarted = true
             context.setStreamMode?.('responding')
           } else if (item.event.type === 'content_block_delta') {
             if (item.event.delta.type === 'text_delta') {
@@ -257,36 +253,26 @@ async function summarizeDirect(
         }
       }
     } catch (error) {
-      throwIfDirectLaneCut(bound, model, startedAt)
+      throwIfDirectLaneCut(bound)
       throw error
     }
-    throwIfDirectLaneCut(bound, model, startedAt)
+    throwIfDirectLaneCut(bound)
 
     const captured = assistantMessages.at(-1)
     if (captured === undefined) {
-      logError(new Error('compact: direct summarization returned no assistant message'))
-      recordFoldRoad(model, 'direct', startedAt, 'incomplete')
+      logForDebugging(`compact: streaming fallback produced no response after ${attempts} attempt(s) (streaming started: ${streamingStarted})`, { level: 'error' })
       throw new Error(ERROR_MESSAGE_INCOMPLETE_RESPONSE)
     }
     if (captured.isApiErrorMessage !== true) {
       recordFoldRoad(model, 'direct', startedAt, 'summary')
       return settleAssistantTurn(assistantMessages, false)
     }
-    if (isOverflowAnswer(captured)) {
-      recordFoldRoad(model, 'direct', startedAt, 'overflow')
-      return captured
-    }
-    if (summaryRefusedByModel(captured)) {
+    if (summaryAnswerFault(captured) !== null || isOverflowAnswer(captured) || summaryRefusedByModel(captured)) {
       recordFoldRoad(model, 'direct', startedAt, 'refused')
-      return captured
-    }
-    if (summaryAnswerFault(captured) !== null) {
-      recordFoldRoad(model, 'direct', startedAt, 'incomplete')
       return captured
     }
     const malformed = malformedHistoryRefusalOf(captured)
     if (malformed !== null) {
-      recordFoldRoad(model, 'direct', startedAt, 'refused')
       throw new CompactionRefusedForHistoryError(malformed, {
         nonInteractive: foldRemedyIsHeadless(context.options.isNonInteractiveSession),
       })
@@ -294,7 +280,6 @@ async function summarizeDirect(
     const text = getAssistantMessageText(captured) ?? ''
     const fitFacts = localFitRefusalFacts(text)
     if (fitFacts !== null) {
-      recordFoldRoad(model, 'direct', startedAt, 'refused')
       throw new Error(
         foldWindowRefusalText({
           window: fitFacts.window,
@@ -304,8 +289,22 @@ async function summarizeDirect(
         }),
       )
     }
-    recordFoldRoad(model, 'direct', startedAt, 'refused')
     throw new Error(text !== '' ? text : ERROR_MESSAGE_INCOMPLETE_RESPONSE)
+  } catch (failure) {
+    const message = failure instanceof Error ? failure.message : String(failure)
+    let outcome: 'timeout' | 'incomplete' | 'aborted' | 'refused'
+    if (message === ERROR_MESSAGE_FOLD_TIMEOUT) {
+      logForDebugging(`compact: direct lane cut for ${foldCutWords(bound)} after ${Date.now() - startedAt} ms — nothing folded`, { level: 'warn' })
+      outcome = 'timeout'
+    } else if (message === ERROR_MESSAGE_INCOMPLETE_RESPONSE) {
+      outcome = 'incomplete'
+    } else if (context.abortController.signal.aborted || failure instanceof APIUserAbortError) {
+      outcome = 'aborted'
+    } else {
+      outcome = 'refused'
+    }
+    recordFoldRoad(model, 'direct', startedAt, outcome, message.slice(0, 160))
+    throw failure
   } finally {
     bound.dispose()
   }
