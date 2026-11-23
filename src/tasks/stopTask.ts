@@ -194,15 +194,12 @@ export async function finishedTaskOnDisk(taskId: string): Promise<FinishedTaskOn
   return null
 }
 
-function asKillReceipt(value: unknown): TaskKillReceipt | undefined {
-  if (
+function isKillReceipt(value: unknown): value is TaskKillReceipt {
+  return (
     typeof value === 'object' &&
     value !== null &&
-    typeof (value as { settled?: unknown }).settled === 'boolean'
-  ) {
-    return value as TaskKillReceipt
-  }
-  return undefined
+    typeof Reflect.get(value, 'settled') === 'boolean'
+  )
 }
 
 export async function stopTask(
@@ -242,7 +239,7 @@ export async function stopTask(
     )
   }
   const rawSettlement = await implementation.kill(taskId, context.setAppState)
-  const settlement = asKillReceipt(rawSettlement)
+  const settlement = isKillReceipt(rawSettlement) ? rawSettlement : undefined
   if (isLocalShellTask(task)) {
     let flipped = false
     updateTaskState<LocalShellTaskState>(taskId, context.setAppState, current => {
