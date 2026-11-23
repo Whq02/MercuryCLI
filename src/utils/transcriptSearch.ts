@@ -17,7 +17,9 @@ function isInterruptionSentinel(text: string): boolean {
   return isTurnCutText(text)
 }
 
-type ToolUseLike = {
+type BlockLike = {
+  type?: string
+  text?: string
   name?: string
   input?: unknown
 }
@@ -46,7 +48,7 @@ function extractTextBlocks(blocks: readonly unknown[]): string {
   return parts.join('\n')
 }
 
-function extractToolInputSearchText(block: ToolUseLike): string {
+function extractToolInputSearchText(block: BlockLike): string {
   const parts: string[] = []
   if (typeof block.name === 'string' && block.name !== '') parts.push(block.name)
   if (isRecord(block.input)) {
@@ -164,10 +166,10 @@ function computeSearchText(message: RenderableMessage, resolveTool?: ResolveSear
 }
 
 export function renderableSearchText(msg: RenderableMessage, resolveTool?: ResolveSearchTool): string {
-  const cached = searchTextCache.get(msg)
+  const cached = searchTextCache.get(msg as object)
   if (cached !== undefined) return cached
   const text = stripSystemReminders(computeSearchText(msg, resolveTool)).toLowerCase()
-  searchTextCache.set(msg, text)
+  searchTextCache.set(msg as object, text)
   return text
 }
 
