@@ -2,7 +2,6 @@ import { type AnsiCode, ansiCodesToString, diffAnsiCodes } from '@alcalzone/ansi
 import type { Point, Rectangle, Size } from './layout/geometry.js'
 import { BEL, ESC, SEP } from './termio/ansi.js'
 import * as warn from './warn.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
 export const enum CellWidth { Narrow = 0, Wide = 1, SpacerTail = 2, SpacerHead = 3 }
 
@@ -38,29 +37,45 @@ interface Interning<Value> {
   get(slot: number): Value
 }
 
+const ASCII_END = 0x80
+
 export class CharPool implements Interning<string> {
-  private glyphs: string[] = unbuilt('src/ink/cell-grid.ts:47')
-  private slotOf: Map<string, number> = unbuilt('src/ink/cell-grid.ts:48')
-  private asciiSlots: Unbuilt = unbuilt('src/ink/cell-grid.ts:49')
+  private glyphs: string[] = [' ', '']
+  private slotOf = new Map<string, number>([[' ', BLANK_GLYPH], ['', SPACER_GLYPH]])
+  private asciiSlots = new Int32Array(ASCII_END).fill(-1)
 
   intern(glyph: string): number {
-    return notBuilt('src/ink/cell-grid.ts:51')
+    if (glyph.length === 1) {
+      const code = glyph.charCodeAt(0)
+      if (code < ASCII_END) {
+        const known = this.asciiSlots[code]!
+        return known === -1 ? this.rememberAscii(code, glyph) : known
+      }
+    }
+    const known = this.slotOf.get(glyph)
+    return known === undefined ? this.remember(glyph) : known
   }
 
   private rememberAscii(code: number, glyph: string): number {
-    return notBuilt('src/ink/cell-grid.ts:59')
+    const known = this.slotOf.get(glyph)
+    const slot = known === undefined ? this.remember(glyph) : known
+    this.asciiSlots[code] = slot
+    return slot
   }
 
   private remember(glyph: string): number {
-    return notBuilt('src/ink/cell-grid.ts:66')
+    const slot = this.glyphs.length
+    this.glyphs.push(glyph)
+    this.slotOf.set(glyph, slot)
+    return slot
   }
 
   get(slot: number): string {
-    return notBuilt('src/ink/cell-grid.ts:73')
+    return this.glyphs[slot] ?? ' '
   }
 
   size(): number {
-    return notBuilt('src/ink/cell-grid.ts:77')
+    return this.glyphs.length
   }
 }
 
@@ -116,22 +131,29 @@ const rememberPair = (cache: Map<number, string>, from: number, to: number, seri
 }
 
 export class StylePool implements Interning<AnsiCode[]> {
-  private idOfKey: Map<string, number> = unbuilt('src/ink/cell-grid.ts:134')
-  private styles: Array<AnsiCode[]> = unbuilt('src/ink/cell-grid.ts:135')
-  private transitions: Map<number, string> = unbuilt('src/ink/cell-grid.ts:136')
-  readonly none: Unbuilt = unbuilt('src/ink/cell-grid.ts:137')
-  private inverseOf: Map<number, number> = unbuilt('src/ink/cell-grid.ts:138')
-  private currentMatchOf: Map<number, number> = unbuilt('src/ink/cell-grid.ts:139')
-  private selectionGround: AnsiCode | null = unbuilt('src/ink/cell-grid.ts:140')
-  private selectionBgOf: Map<number, number> = unbuilt('src/ink/cell-grid.ts:141')
-  private recessCfg: RecessTransform | null = unbuilt('src/ink/cell-grid.ts:142')
-  private recessCfgKey: string = unbuilt('src/ink/cell-grid.ts:143')
-  private recessOf: Map<number, number> = unbuilt('src/ink/cell-grid.ts:144')
-  private recessIds: Set<number> = unbuilt('src/ink/cell-grid.ts:145')
-  private recessBudgetWarned: boolean = unbuilt('src/ink/cell-grid.ts:146')
+  private idOfKey = new Map<string, number>()
+  private styles: Array<AnsiCode[]> = []
+  private transitions = new Map<number, string>()
+  readonly none = this.intern([])
+  private inverseOf = new Map<number, number>()
+  private currentMatchOf = new Map<number, number>()
+  private selectionGround: AnsiCode | null = null
+  private selectionBgOf = new Map<number, number>()
+  private recessCfg: RecessTransform | null = null
+  private recessCfgKey = ''
+  private recessOf = new Map<number, number>()
+  private recessIds = new Set<number>()
+  private recessBudgetWarned = false
 
   intern(codes: AnsiCode[]): number {
-    return notBuilt('src/ink/cell-grid.ts:148')
+    let key = ''
+    for (const code of codes) key += '\0' + code.code
+    const known = this.idOfKey.get(key)
+    if (known !== undefined) return known
+    const id = (this.styles.length << 1) | (codes.some(code => VISIBLE_ON_SPACE.has(code.endCode)) ? 1 : 0)
+    this.styles.push(codes.length === 0 ? [] : codes)
+    this.idOfKey.set(key, id)
+    return id
   }
 
   get(styleId: number): AnsiCode[] {
@@ -322,11 +344,31 @@ export function createScreen(width: number, height: number, styles: StylePool, c
 }
 
 export function resetScreen(grid: Screen, width: number, height: number): void {
-  return notBuilt('src/ink/cell-grid.ts:347')
+  const columns = wholeCells(width, 'resetScreen width')
+  const rows = wholeCells(height, 'resetScreen height')
+  const cellCount = columns * rows
+  if (grid.cells64.length < cellCount) Object.assign(grid, cellPlanes(cellCount))
+  if (grid.softWrap.length < rows) grid.softWrap = new Int32Array(rows)
+  grid.cells64.fill(EMPTY_CELL, 0, cellCount)
+  grid.noSelect.fill(0, 0, cellCount)
+  grid.softWrap.fill(0, 0, rows)
+  grid.width = columns
+  grid.height = rows
+  grid.damage = undefined
 }
 
 export function migrateScreenPools(grid: Screen, charPool: CharPool, hyperlinkPool: HyperlinkPool): void {
-  return notBuilt('src/ink/cell-grid.ts:361')
+  if (grid.charPool === charPool && grid.hyperlinkPool === hyperlinkPool) return
+  const words = grid.cells
+  const end = (grid.width * grid.height) << 1
+  for (let at = 0; at < end; at += 2) {
+    const word = words[at + 1]!
+    const linkId = linkOf(word)
+    words[at] = charPool.intern(grid.charPool.get(words[at]!))
+    if (linkId !== 0) words[at + 1] = packWord(word >>> STYLE_OFFSET, hyperlinkPool.intern(grid.hyperlinkPool.get(linkId)), word & WIDTH_BITS)
+  }
+  grid.charPool = charPool
+  grid.hyperlinkPool = hyperlinkPool
 }
 
 function touch(grid: Screen, left: number, top: number, right: number, bottom: number): void {
@@ -457,11 +499,68 @@ export function setCellAt(grid: Screen, column: number, row: number, cell: Cell)
 }
 
 export function setCellStyleId(grid: Screen, column: number, row: number, styleId: number): void {
-  return notBuilt('src/ink/cell-grid.ts:504')
+  if (outside(grid, column, row)) return
+  const at = ((row * grid.width + column) << 1) + 1
+  const word = grid.cells[at]!
+  const width = word & WIDTH_BITS
+  if (spacer(width)) return
+  grid.cells[at] = packWord(styleId, linkOf(word), width)
+  touch(grid, column, row, column + 1, row + 1)
 }
 
+const widthAt = (words: Int32Array, at: number): number => words[at + 1]! & WIDTH_BITS
+const sameCellAt = (words: Int32Array, others: Int32Array, at: number): boolean => words[at] === others[at] && words[at + 1] === others[at + 1]
+
 export function blitRegion(into: Screen, from: Screen, regionX: number, regionY: number, maxX: number, maxY: number): void {
-  return notBuilt('src/ink/cell-grid.ts:514')
+  const left = Math.max(0, regionX)
+  const top = Math.max(0, regionY)
+  if (left >= maxX || top >= maxY) return
+  const columns = into.width
+  const sameWidth = columns === from.width
+  if (sameWidth && left === 0 && maxX === columns) {
+    into.cells64.set(from.cells64.subarray(top * columns, maxY * columns), top * columns)
+    into.noSelect.set(from.noSelect.subarray(top * columns, maxY * columns), top * columns)
+    into.softWrap.set(from.softWrap.subarray(top, maxY), top)
+    touch(into, left, top, maxX, maxY)
+    return
+  }
+  const words = into.cells
+  const source = from.cells
+  const span = maxX - left
+  const leftNeighbour = left > 0
+  const rightNeighbour = maxX < columns
+  let touchedLeft = left
+  let touchedRight = maxX
+  for (let row = top; row < maxY; row++) {
+    const intoStart = row * columns + left
+    const fromStart = row * from.width + left
+    const first = intoStart << 1
+    const last = (intoStart + span - 1) << 1
+    const sourceFirst = fromStart << 1
+    const sourceLast = (fromStart + span - 1) << 1
+    const leftPairKept =
+      sameWidth && leftNeighbour && widthAt(source, sourceFirst) === CellWidth.SpacerTail && widthAt(source, sourceFirst - 2) === CellWidth.Wide && sameCellAt(words, source, first - 2)
+    const rightPairKept =
+      sameWidth && rightNeighbour && widthAt(source, sourceLast) === CellWidth.Wide && widthAt(source, sourceLast + 2) === CellWidth.SpacerTail && sameCellAt(words, source, last + 2)
+    if (leftNeighbour && !leftPairKept && widthAt(words, first) === CellWidth.SpacerTail && widthAt(words, first - 2) === CellWidth.Wide) {
+      blankCell(into, first - 2)
+      touchedLeft = left - 1
+    }
+    if (rightNeighbour && !rightPairKept && widthAt(words, last) === CellWidth.Wide && widthAt(words, last + 2) === CellWidth.SpacerTail) {
+      blankCell(into, last + 2)
+      touchedRight = maxX + 1
+    }
+    into.cells64.set(from.cells64.subarray(fromStart, fromStart + span), intoStart)
+    into.noSelect.set(from.noSelect.subarray(fromStart, fromStart + span), intoStart)
+    into.softWrap[row] = from.softWrap[row]!
+    if (!leftPairKept && widthAt(words, first) === CellWidth.SpacerTail) blankCell(into, first)
+    if (rightNeighbour && !rightPairKept && widthAt(words, last) === CellWidth.Wide) {
+      words[last + 2] = SPACER_GLYPH
+      words[last + 3] = packWord(into.emptyStyleId, 0, CellWidth.SpacerTail)
+      touchedRight = maxX + 1
+    }
+  }
+  touch(into, touchedLeft, top, touchedRight, maxY)
 }
 
 const packedBlankBuffer = new ArrayBuffer(8)
@@ -615,10 +714,68 @@ export function diffEach(prev: Screen, next: Screen, cb: DiffCallback, fromRow =
   return walk(prev, next, region.x, endX, region.y, endY, removedView, addedView, cb)
 }
 
+function walkGone(prev: Screen, row: number, left: number, right: number, removedView: Cell, cb: DiffCallback): boolean {
+  for (let column = left, at = (row * prev.width + left) << 1; column < right; column++, at += 2) {
+    decodeInto(prev, at, removedView)
+    if (cb(column, row, removedView, undefined)) return true
+  }
+  return false
+}
+
+function walkCome(next: Screen, row: number, left: number, right: number, addedView: Cell, cb: DiffCallback): boolean {
+  const words = next.cells
+  for (let column = left, at = (row * next.width + left) << 1; column < right; column++, at += 2) {
+    if (words[at] === 0 && words[at + 1] === 0) continue
+    decodeInto(next, at, addedView)
+    if (cb(column, row, undefined, addedView)) return true
+  }
+  return false
+}
+
 function walkSameWidth(prev: Screen, next: Screen, left: number, right: number, top: number, bottom: number, removedView: Cell, addedView: Cell, cb: DiffCallback): boolean {
-  return notBuilt('src/ink/cell-grid.ts:746')
+  const columns = prev.width
+  const before = prev.cells
+  const after = next.cells
+  const shared = Math.min(bottom, prev.height, next.height)
+  for (let row = top; row < shared; row++) {
+    const rowStart = row * columns
+    const end = (rowStart + right) << 1
+    let at = (rowStart + left) << 1
+    while (at < end) {
+      if (before[at] === after[at]) {
+        at++
+        continue
+      }
+      const cell = at & ~1
+      decodeInto(prev, cell, removedView)
+      decodeInto(next, cell, addedView)
+      if (cb((cell >> 1) - rowStart, row, removedView, addedView)) return true
+      at = cell + 2
+    }
+  }
+  for (let row = Math.max(top, shared); row < bottom; row++) {
+    if (row < prev.height ? walkGone(prev, row, left, right, removedView, cb) : walkCome(next, row, left, right, addedView, cb)) return true
+  }
+  return false
 }
 
 function walkResize(prev: Screen, next: Screen, left: number, right: number, top: number, bottom: number, removedView: Cell, addedView: Cell, cb: DiffCallback): boolean {
-  return notBuilt('src/ink/cell-grid.ts:796')
+  const before = prev.cells
+  const after = next.cells
+  for (let row = top; row < bottom; row++) {
+    const prevEnd = row < prev.height ? Math.min(right, prev.width) : left
+    const nextEnd = row < next.height ? Math.min(right, next.width) : left
+    const shared = Math.min(prevEnd, nextEnd)
+    let prevAt = (row * prev.width + left) << 1
+    let nextAt = (row * next.width + left) << 1
+    for (let column = left; column < shared; column++, prevAt += 2, nextAt += 2) {
+      if (before[prevAt] === after[nextAt] && before[prevAt + 1] === after[nextAt + 1]) continue
+      decodeInto(prev, prevAt, removedView)
+      decodeInto(next, nextAt, addedView)
+      if (cb(column, row, removedView, addedView)) return true
+    }
+    if (walkGone(prev, row, shared, prevEnd, removedView, cb)) return true
+    if (walkCome(next, row, shared, nextEnd, addedView, cb)) return true
+  }
+  return false
 }
