@@ -66,7 +66,7 @@ const COMPLETE_TAG_MARKERS = [
 ]
 const CREWMATE_PREFIX = `<${CREWMATE_MESSAGE_TAG}`
 const CONVERSATION_DESCRIPTION =
-  'The conversation winds back to this point (later messages stay in the transcript)'
+  "The conversation winds back to before this point — later messages leave the model's view (the transcript keeps them)"
 
 function isTurnCutRow(message: UserMessage): boolean {
   const content = message.message.content
