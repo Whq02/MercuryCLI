@@ -166,105 +166,6 @@ function expandServerConfig(
 const SCHEMA_MISMATCH = 'does not match the MCP server configuration schema'
 export const MCP_SERVERS_MAX_PER_DOCUMENT = 64
 
-function expandServerEntry(entry: McpServerConfig): {
-  config: McpServerConfig
-  unexpanded?: McpUnexpandedStrings
-  missingVars: string[]
-} {
-  const missingVars: string[] = []
-  const noteMissing = (names: string[]): void => {
-    for (const varName of names) {
-      if (!missingVars.includes(varName)) missingVars.push(varName)
-    }
-  }
-  const expandStr = (raw: string): string => {
-    const { expanded, missingVars: missing } = expandEnvVarsInString(raw)
-    noteMissing(missing)
-    return expanded
-  }
-  const record = entry as {
-    type?: string
-    command?: string
-    args?: string[]
-    env?: Record<string, string>
-    url?: string
-    headers?: Record<string, string>
-    oauth?: { clientId?: string; callbackPort?: number; authServerMetadataUrl?: string }
-  }
-  const type = record.type ?? 'stdio'
-  if (type === 'stdio' && typeof record.command === 'string') {
-    const unexpanded: { command?: string; args?: string[]; env?: Record<string, string> } = {}
-    const expandedCommand = expandStr(record.command)
-    if (expandedCommand !== record.command) unexpanded.command = record.command
-    const rawArgs = record.args ?? []
-    let argsChanged = false
-    const expandedArgs = rawArgs.map(arg => {
-      const next = expandStr(arg)
-      if (next !== arg) argsChanged = true
-      return next
-    })
-    if (argsChanged) unexpanded.args = [...rawArgs]
-    let expandedEnv: Record<string, string> | undefined
-    if (record.env !== undefined) {
-      expandedEnv = {}
-      const unexpandedCodeEnv: Record<string, string> = {}
-      for (const [key, value] of Object.entries(record.env)) {
-        const next = expandStr(value)
-        expandedEnv[key] = next
-        if (next !== value && mcpVariableCarriesCode(key)) {
-          unexpandedCodeEnv[key] = value
-        }
-      }
-      if (Object.keys(unexpandedCodeEnv).length > 0) unexpanded.env = unexpandedCodeEnv
-    }
-    const hasUnexpanded = Object.keys(unexpanded).length > 0
-    return {
-      config: {
-        ...entry,
-        command: expandedCommand,
-        args: expandedArgs,
-        ...(expandedEnv !== undefined ? { env: expandedEnv } : {}),
-      } as McpServerConfig,
-      ...(hasUnexpanded ? { unexpanded } : {}),
-      missingVars,
-    }
-  }
-  if ((type === 'sse' || type === 'http' || type === 'ws') && typeof record.url === 'string') {
-    const unexpanded: { url?: string } = {}
-    const expandedUrl = expandStr(record.url)
-    if (expandedUrl !== record.url) unexpanded.url = record.url
-    let expandedHeaders: Record<string, string> | undefined
-    if (record.headers !== undefined) {
-      expandedHeaders = {}
-      for (const [key, value] of Object.entries(record.headers)) {
-        expandedHeaders[key] = expandStr(value)
-      }
-    }
-    let expandedOauth = record.oauth
-    if (record.oauth !== undefined) {
-      expandedOauth = {
-        ...record.oauth,
-        ...(record.oauth.clientId !== undefined ? { clientId: expandStr(record.oauth.clientId) } : {}),
-        ...(record.oauth.authServerMetadataUrl !== undefined
-          ? { authServerMetadataUrl: expandStr(record.oauth.authServerMetadataUrl) }
-          : {}),
-      }
-    }
-    const hasUnexpanded = Object.keys(unexpanded).length > 0
-    return {
-      config: {
-        ...entry,
-        url: expandedUrl,
-        ...(expandedHeaders !== undefined ? { headers: expandedHeaders } : {}),
-        ...(expandedOauth !== undefined ? { oauth: expandedOauth } : {}),
-      } as McpServerConfig,
-      ...(hasUnexpanded ? { unexpanded } : {}),
-      missingVars,
-    }
-  }
-  return { config: entry, missingVars }
-}
-
 export function parseMcpConfig({
   configObject,
   expandVars,
@@ -326,7 +227,7 @@ export function parseMcpConfig({
     let effectiveConfig: McpServerConfig = parsedEntry.data
     let unexpanded: McpUnexpandedStrings | undefined
     if (expandVars) {
-      const expanded = expandServerEntry(parsedEntry.data)
+      const expanded = expandServerConfig(parsedEntry.data)
       effectiveConfig = expanded.config
       unexpanded = expanded.unexpanded
       if (expanded.missingVars.length > 0) {
