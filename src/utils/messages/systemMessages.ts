@@ -105,11 +105,11 @@ export function createMicrocompactBoundaryMessage(
 
 type ErrorDetail = NonNullable<Rows.SystemAPIErrorMessage['errorDetail']>
 
-function transportOf(deep: ReturnType<typeof deepestErrorDetail>): ErrorDetail['transport'] {
+function transportOf(deep: ReturnType<typeof deepestErrorDetail>, name: string, message: string): ErrorDetail['transport'] {
   if (deep.code) {
     return { code: deep.code, ...(deep.errno !== undefined ? { errno: deep.errno } : {}), ...(deep.syscall ? { syscall: deep.syscall } : {}), via: 'cause-chain' }
   }
-  const timedOut = deep.name === 'APIConnectionTimeoutError' || /request timed out/i.test(deep.message)
+  const timedOut = name === 'APIConnectionTimeoutError' || /request timed out/i.test(message)
   const recent = timedOut ? recentTransportFailure() : undefined
   if (recent === undefined) return undefined
   return {
@@ -123,11 +123,14 @@ function transportOf(deep: ReturnType<typeof deepestErrorDetail>): ErrorDetail['
 
 export function apiErrorDetailOf(error: unknown): ErrorDetail {
   const deep = deepestErrorDetail(error)
-  const status = (error as { status?: unknown } | null | undefined)?.status
-  const transport = transportOf(deep)
+  const thrown = error as { message?: unknown; name?: unknown; status?: unknown } | null | undefined
+  const message = typeof thrown?.message === 'string' && thrown.message ? thrown.message : String(error ?? 'unknown error')
+  const name = typeof thrown?.name === 'string' && thrown.name ? thrown.name : 'Error'
+  const status = thrown?.status
+  const transport = transportOf(deep, name, message)
   return {
-    message: deep.message,
-    name: deep.name,
+    message,
+    name,
     ...(deep.code !== undefined ? { code: deep.code } : {}),
     ...(typeof status === 'number' ? { status } : {}),
     ...(transport !== undefined ? { transport } : {}),
