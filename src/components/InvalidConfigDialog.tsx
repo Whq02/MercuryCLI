@@ -44,9 +44,11 @@ function quarantineBeforeReset(filePath: string): string | null {
 function InvalidConfigView({
   error,
   backupPath,
+  onChoice,
 }: {
   error: ConfigParseError
   backupPath: string | null
+  onChoice: (choice: Choice) => void
 }): React.ReactNode {
   const tokens = useMercuryTokens()
 
@@ -61,65 +63,36 @@ function InvalidConfigView({
     },
   ]
 
-  const handleExit = (): void => {
-    gracefulShutdownSync(1)
-  }
-
-  const handleSelect = (choice: Choice): void => {
-    if (choice === 'exit') {
-      handleExit()
-      return
-    }
-    if (choice === 'restore' && backupPath !== null) {
-      try {
-        const { quarantinePath } = restoreConfigFromBackup(error.filePath, backupPath)
-        const suffix = quarantinePath ? ` (corrupted copy saved at ${quarantinePath})` : ''
-        writeStderrLine(`Restored ${error.filePath} from ${backupPath}${suffix}.`)
-        gracefulShutdownSync(0)
-      } catch (err) {
-        logError(err)
-        const detail = err instanceof Error ? err.message : String(err)
-        writeStderrLine(`Could not restore backup (${detail}). Restore manually with:`)
-        writeStderrLine(`  cp ${JSON.stringify(backupPath)} ${JSON.stringify(error.filePath)}`)
-        gracefulShutdownSync(1)
-      }
-      return
-    }
-    if (choice === 'reset') {
-      const quarantinePath = quarantineBeforeReset(error.filePath)
-      try {
-        writeFileSync(error.filePath, `${JSON.stringify(error.defaultConfig, null, 2)}\n`, 'utf8')
-        const suffix = quarantinePath ? ` (corrupted copy saved at ${quarantinePath})` : ''
-        writeStderrLine(`Reset ${error.filePath} to default configuration${suffix}.`)
-        gracefulShutdownSync(0)
-      } catch (err) {
-        logError(err)
-        const detail = err instanceof Error ? err.message : String(err)
-        writeStderrLine(`Could not write default configuration to ${error.filePath}: ${detail}`)
-        gracefulShutdownSync(1)
-      }
-    }
-  }
-
   return (
     <Box
       flexDirection="column"
       borderStyle="round"
       borderColor={tokens.failure}
-      padding={1}
+      paddingX={1}
       gap={1}
     >
-      <Text bold color={tokens.failureText}>
+      <Text bold color={tokens.failure}>
         Configuration file is corrupted
       </Text>
       <Box flexDirection="column">
-        <Text color={tokens.textPrimary}>{error.filePath}</Text>
-        <Text color={tokens.textSecondary}>{error.message}</Text>
-        {backupPath !== null ? (
-          <Text color={tokens.textMuted}>Newest backup: {backupPath}</Text>
-        ) : null}
+        <Text>
+          The configuration file at <Text bold>{error.filePath}</Text> could
+          not be parsed:
+        </Text>
+        <Text dimColor>{error.message}</Text>
+        {backupPath !== null && (
+          <Text>
+            The newest good copy is at <Text bold>{backupPath}</Text> — restoring it keeps your account,
+            trust grants and project records.
+          </Text>
+        )}
       </Box>
-      <Select options={options} onChange={handleSelect} onCancel={handleExit} />
+      <Select
+        options={options}
+        onChange={onChoice}
+        onCancel={() => onChoice('exit')}
+      />
+      <Text dimColor>↑↓ move · ↵ select · esc exit</Text>
     </Box>
   )
 }
@@ -130,11 +103,53 @@ export async function showInvalidConfigDialog({
   error: ConfigParseError
 }): Promise<void> {
   const backupPath = lookupNewestBackup(error.filePath)
+  const onChoice = (choice: Choice): void => {
+    if (choice === 'exit') {
+      gracefulShutdownSync(1)
+      return
+    }
+    if (choice === 'restore' && backupPath !== null) {
+      try {
+        const { quarantinePath } = restoreConfigFromBackup(error.filePath, backupPath)
+        const kept = quarantinePath ? ` — the corrupt bytes are kept at ${quarantinePath}` : ''
+        writeStderrLine(
+          `mercury: the configuration was restored from ${backupPath}${kept}. Start Mercury again.`,
+        )
+        gracefulShutdownSync(0)
+      } catch (err) {
+        logError(err)
+        const detail = err instanceof Error ? err.message : String(err)
+        writeStderrLine(
+          `mercury: the restore from ${backupPath} failed (${detail}) — the file is unchanged; copy it by hand: cp "${backupPath}" "${error.filePath}"`,
+        )
+        gracefulShutdownSync(1)
+      }
+      return
+    }
+    if (choice === 'reset') {
+      const quarantinePath = quarantineBeforeReset(error.filePath)
+      try {
+        writeFileSync(error.filePath, `${JSON.stringify(error.defaultConfig, null, 2)}\n`, 'utf8')
+        const kept = quarantinePath ? ` — the corrupt bytes are kept at ${quarantinePath}` : ''
+        writeStderrLine(
+          `mercury: the configuration was reset to defaults${kept}. Start Mercury again.`,
+        )
+        gracefulShutdownSync(0)
+      } catch (err) {
+        logError(err)
+        const detail = err instanceof Error ? err.message : String(err)
+        writeStderrLine(
+          `mercury: the reset could not write ${error.filePath} (${detail}) — the file is unchanged; fix or replace it by hand.`,
+        )
+        gracefulShutdownSync(1)
+      }
+    }
+  }
   await render(
     <AppStateProvider>
       <KeybindingSetup>
         <ThemeProvider initialState={DEFAULT_THEME_SETTING}>
-          <InvalidConfigView error={error} backupPath={backupPath} />
+          <InvalidConfigView error={error} backupPath={backupPath} onChoice={onChoice} />
         </ThemeProvider>
       </KeybindingSetup>
     </AppStateProvider>,

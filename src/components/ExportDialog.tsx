@@ -57,38 +57,39 @@ export function ExportDialog({
 
   const lineCount = content === '' ? 0 : content.split('\n').length
   const byteSize = formatByteSize(Buffer.byteLength(content, 'utf8'))
-  const normalizedName = normalizeTxtFilename(filename.trim() || defaultFilename)
+  const normalizedName = normalizeTxtFilename(filename)
   const resolvedPath = join(cwd, normalizedName)
 
-  const handleMethodSelect = (method: ExportMethod): void => {
-    if (method === 'file') {
-      setStep('filename')
-      return
+  const handleCopyToClipboard = async (): Promise<void> => {
+    try {
+      const receipt = await setClipboardWithReceipt(content)
+      if (receipt.sequence) {
+        process.stdout.write(receipt.sequence)
+      }
+      onDone({
+        success: true,
+        message: `Conversation ${receipt.confirmation}`,
+      })
+    } catch (error) {
+      onDone({
+        success: false,
+        message: `Failed to export conversation: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      })
     }
-    void setClipboardWithReceipt(content).then(
-      receipt => {
-        if (receipt.sequence) {
-          process.stdout.write(receipt.sequence)
-        }
-        onDone({
-          success: !receipt.noRoad,
-          message: `Conversation ${receipt.confirmation}`,
-        })
-      },
-      error => {
-        onDone({
-          success: false,
-          message: `Failed to export conversation: ${error instanceof Error ? error.message : String(error)}`,
-        })
-      },
-    )
   }
 
-  const handleFilenameSubmit = (submitted: string): void => {
-    const targetName = normalizeTxtFilename(submitted.trim() || defaultFilename)
-    const targetPath = join(getFocusedWorkspaceCwd(), targetName)
+  const handleMethodSelect = (method: ExportMethod): void => {
+    if (method === 'clipboard') {
+      void handleCopyToClipboard()
+      return
+    }
+    setStep('filename')
+  }
+
+  const handleFilenameSubmit = (): void => {
+    const targetPath = join(getFocusedWorkspaceCwd(), normalizedName)
     try {
-      writeFileSync(targetPath, content, { encoding: 'utf8', flush: true })
+      writeFileSync(targetPath, content, { encoding: 'utf-8', flush: true })
       onDone({
         success: true,
         message: `Conversation exported to: ${targetPath}`,
@@ -96,7 +97,7 @@ export function ExportDialog({
     } catch (error) {
       onDone({
         success: false,
-        message: `Failed to export conversation: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Failed to export conversation: ${error instanceof Error ? error.message : 'Unknown error'}`,
       })
     }
   }
@@ -107,47 +108,37 @@ export function ExportDialog({
       borderStyle="round"
       borderColor={tokens.borderSubtle}
       paddingX={1}
+      gap={1}
     >
-      <Box justifyContent="space-between">
-        <Text bold color={tokens.accent}>
-          Export conversation
-        </Text>
-        <Text color={tokens.textSecondary}>
-          {lineCount} lines · {byteSize}
-        </Text>
-      </Box>
+      <Text bold>Export conversation</Text>
+      <Text dimColor>
+        {lineCount} lines · {byteSize}
+      </Text>
       {step === 'method' ? (
-        <Box flexDirection="column" marginTop={1}>
-          <Select
-            options={METHOD_OPTIONS}
-            onChange={handleMethodSelect}
-            onCancel={() => onDone({ success: false, message: 'Export cancelled' })}
-          />
-          <Box marginTop={1}>
-            <Text color={tokens.textMuted}>↑↓ move · ↵ choose · esc cancel</Text>
-          </Box>
-        </Box>
+        <Select
+          options={METHOD_OPTIONS}
+          onChange={handleMethodSelect}
+          onCancel={() => onDone({ success: false, message: 'Export cancelled' })}
+        />
       ) : (
-        <Box flexDirection="column" marginTop={1}>
-          <Text color={tokens.textPrimary}>Enter filename:</Text>
-          <Box marginTop={1}>
+        <Box flexDirection="column" gap={1}>
+          <Box>
+            <Text>Filename: </Text>
             <TextInput
               value={filename}
               onChange={setFilename}
               onSubmit={handleFilenameSubmit}
+              columns={50}
               cursorOffset={cursorOffset}
               onChangeCursorOffset={setCursorOffset}
-              columns={50}
-              focus
             />
           </Box>
-          <Box marginTop={1}>
-            <Text dimColor>Will write to: {resolvedPath}</Text>
-          </Box>
-          <Box marginTop={1}>
-            <Text dimColor>enter to save · esc back</Text>
-          </Box>
+          <Text dimColor>Will write to: {resolvedPath}</Text>
+          <Text dimColor>enter to save · esc back</Text>
         </Box>
+      )}
+      {step === 'method' && (
+        <Text dimColor>↑↓ move · ↵ select · esc cancel</Text>
       )}
     </Box>
   )
