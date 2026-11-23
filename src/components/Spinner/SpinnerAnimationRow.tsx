@@ -104,7 +104,7 @@ export function SpinnerAnimationRow(props: SpinnerAnimationRowProps): React.Reac
   )
   return (
     <Box flexDirection="column" width="100%" marginTop={inWorkCapsule ? 0 : 1}>
-      <Box flexDirection="row" width="100%">
+      <Box width="100%">
         {still ? (
           <Box ref={glyphRef} width={2} height={1} flexWrap="wrap"><Text color={color}>{GLYPH.spark}</Text></Box>
         ) : (
@@ -120,7 +120,7 @@ export function SpinnerAnimationRow(props: SpinnerAnimationRowProps): React.Reac
         {plan.segBVisible && !plan.secondRow && <Text>{suffix}{figures}</Text>}
       </Box>
       {plan.secondRow && (
-        <Box flexDirection="row" height={1} width="100%">
+        <Box height={1} width="100%">
           {plan.segBVisible && <Text wrap="truncate-end">{suffix}{figures}</Text>}
         </Box>
       )}

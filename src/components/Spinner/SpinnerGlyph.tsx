@@ -53,13 +53,6 @@ export function SpinnerGlyph({ messageColor, frame, cadence = 'standard', attent
     const dim = Math.floor(time / REDUCED_MOTION_HALF_BREATH_MS) % 2 !== 0
     return <Cell color={messageColor} dim={dim}>●</Cell>
   }
-  let color: string = messageColor
-  if (attentionIntensity > 0) {
-    const theme = getTheme(themeName)
-    const base = parseRGB(theme[messageColor] ?? '')
-    const warning = parseRGB(theme.warning)
-    if (base && warning) color = toRGBColor(interpolateColor(base, warning, attentionIntensity))
-    else if (attentionIntensity >= STILL_WAITING_MAX_INTENSITY / 2) color = 'warning'
-  }
+  const color = attentionIntensity > 0 ? attentionColor(getTheme(themeName), messageColor, attentionIntensity) : messageColor
   return <Cell color={color}>{glyphAt(frame, cadence)}</Cell>
 }
