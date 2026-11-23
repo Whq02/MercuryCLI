@@ -81,7 +81,7 @@ export function SubmitQuestionsView({
             </Box>
           ) : null}
           <PermissionRuleExplanation permissionResult={permissionResult} />
-          <Text dimColor>Select a decision to revise it, or submit:</Text>
+          <Text color="inactive">Select a decision to revise it, or submit:</Text>
           <Box marginTop={1}>
             <Select
               options={options}
