@@ -26,7 +26,6 @@ import { samplesRoadText } from '../../utils/attachments/samplesRoad.js'
 import { BASH_TOOL_NAME } from '../../constants/tools/bash.js'
 import { mapResultToBlock } from '../../tools/BashTool/resultBlock.js'
 import { mapToolResultToToolResultBlockParam } from '../../tools/FileReadTool/read/resultBlock.js'
-import { notBuilt } from '../../pi/holes.js'
 
 type Kind = Attachment['type']
 type Of<K extends Kind> = Extract<Attachment, { type: K }>
@@ -36,7 +35,7 @@ type Body = string | ContentBlockParam[]
 const meta = (content: Body): UserMessage => createUserMessage({ isMeta: true, content })
 const reminders = (...bodies: Body[]): UserMessage[] => wrapMessagesInSystemReminder(bodies.map(meta))
 const notice = (body: string): UserMessage[] => [meta(wrapInSystemReminder(body))]
-const text = (body: string): TextBlockParam => notBuilt('src/services/messages/attachmentText.ts:38')
+const text = (body: string): TextBlockParam => ({ type: 'text', text: body })
 
 type ToolWording<Output> = Pick<Tool<AnyObject, Output>, 'name' | 'mapToolResultToToolResultBlockParam'>
 
@@ -71,7 +70,20 @@ function fileRows(file: Of<'file'>): UserMessage[] {
 }
 
 function resourceBlocks(item: unknown): ContentBlockParam[] {
-  return notBuilt('src/services/messages/attachmentText.ts:72')
+  if (typeof item !== 'object' || item === null) return []
+  const record = item as { text?: unknown; blob?: unknown; mimeType?: unknown }
+  if (typeof record.text === 'string') {
+    return [
+      text('Full contents of resource:'),
+      text(record.text),
+      text('These are the complete contents — re-read the resource only if you have reason to believe it changed.'),
+    ]
+  }
+  if (record.blob !== undefined) {
+    const mime = record.mimeType === undefined || record.mimeType === null || record.mimeType === '' ? 'application/octet-stream' : String(record.mimeType)
+    return [text(`[Binary content: ${mime}]`)]
+  }
+  return []
 }
 
 function resourceRows(resource: Of<'mcp_resource'>): UserMessage[] {
@@ -80,14 +92,81 @@ function resourceRows(resource: Of<'mcp_resource'>): UserMessage[] {
 }
 
 function queuedRows(queued: Of<'queued_command'>): UserMessage[] {
-  return notBuilt('src/services/messages/attachmentText.ts:88')
+  const origin: MessageOrigin | undefined = queued.origin ?? (queued.commandMode === 'task-notification' ? { kind: 'task-notification' } : undefined)
+  const raw = Array.isArray(queued.prompt)
+    ? queued.prompt.flatMap(block => (block.type === 'text' ? [block.text] : [])).join('\n')
+    : String(queued.prompt)
+  const wrapped = queued.boardEventIds !== undefined ? protectReminder(raw) : wrapCommandText(raw, origin)
+  const content: Body = Array.isArray(queued.prompt)
+    ? [text(wrapped), ...queued.prompt.filter(block => block.type === 'image')]
+    : wrapped
+  const isMeta = queued.isMeta === true || (origin !== undefined && !isAdvisorOrigin(origin)) ? true : undefined
+  return wrapMessagesInSystemReminder([
+    createUserMessage({
+      content,
+      origin,
+      uuid: queued.source_uuid,
+      queued: true,
+      isMeta,
+    }),
+  ])
 }
 
 const workingSetGuidance = 'These are evidence-ranked STARTING POINTS (exact task names > active work > import adjacency > current changes), not a complete file list — dereference to read, verify before relying, and explore beyond them when the task needs it.'
 const protectReminder = (body: string): string => body.replace(/<(\/?)system-reminder/g, '<\u200b$1system-reminder')
 
 function capsuleRows(capsule: Of<'context_capsule'>): UserMessage[] {
-  return notBuilt('src/services/messages/attachmentText.ts:102')
+  const delta = capsule.delta ? `Working-set delta vs the previous capsule: ${capsule.delta}` : ''
+  if (capsule.sections === undefined) {
+    return reminders(`${capsule.markdown}\n\n${workingSetGuidance}\ncapsule-digest:${capsule.digest}${delta ? `\n${delta}` : ''}`)
+  }
+  const blocks: ContentBlockParam[] = []
+  const chunks: string[] = []
+  const flush = (): void => {
+    if (chunks.length === 0) return
+    blocks.push(text(chunks.join('\n\n')))
+    chunks.length = 0
+  }
+  if (capsule.markdown) {
+    chunks.push(capsule.markdown, workingSetGuidance)
+  } else {
+    chunks.push('# Working set')
+    if (capsule.workingSet && capsule.workingSet.length > 0) {
+      chunks.push(capsule.workingSet.map(ref => `- ${ref.path} — ${ref.reason}`).join('\n'))
+    }
+  }
+  if (delta) chunks.push(delta)
+  for (const section of capsule.sections) {
+    chunks.push(`## ${section.name}`)
+    for (const block of section.content) {
+      if (block.type === 'text') chunks.push(block.text)
+      else {
+        flush()
+        blocks.push(block)
+      }
+    }
+  }
+  chunks.push(`capsule-digest:${capsule.digest}`)
+  flush()
+  const textIndexes: number[] = []
+  const protectedBlocks = blocks.map((block, index) => {
+    if (block.type !== 'text') return block
+    textIndexes.push(index)
+    return text(protectReminder(block.text))
+  })
+  const first = textIndexes[0]
+  const last = textIndexes.at(-1)
+  if (first !== undefined && last !== undefined) {
+    const firstBlock = protectedBlocks[first] as TextBlockParam
+    if (first === last) {
+      protectedBlocks[first] = text(`<system-reminder>\n${firstBlock.text}\n</system-reminder>`)
+    } else {
+      const lastBlock = protectedBlocks[last] as TextBlockParam
+      protectedBlocks[first] = text(`<system-reminder>\n${firstBlock.text}`)
+      protectedBlocks[last] = text(`${lastBlock.text}\n</system-reminder>`)
+    }
+  }
+  return [meta(protectedBlocks)]
 }
 
 function skillListing(listing: Of<'skill_listing'>): UserMessage[] {
@@ -109,11 +188,26 @@ function contractRows(contract: Of<'contract_reminder'>): UserMessage[] {
 }
 
 function taskRows(tasks: Of<'task_reminder'>): UserMessage[] {
-  return notBuilt('src/services/messages/attachmentText.ts:148')
+  if (!isTaskToolsEnabled()) return []
+  const head = `Task list idle: if tracked progress helps here, use ${TASK_CREATE_TOOL_NAME} and ${TASK_UPDATE_TOOL_NAME} (in_progress on start, completed on finish); clean up stale items.\n`
+  if (tasks.content.length === 0) return reminders(head)
+  const list = tasks.content.map(task => `#${task.id}. [${task.status}] ${task.subject}`).join('\n')
+  return reminders(`${head}\n\nCurrent tasks:\n\n${list}`)
 }
 
 function rosterLine(row: Of<'agent_roster'>['rows'][number]): string {
-  return notBuilt('src/services/messages/attachmentText.ts:155')
+  const parts: string[] = [row.status]
+  if (row.wait) parts.push(row.wait)
+  if (row.phase) parts.push(`phase: ${row.phase}`)
+  if (row.agents && row.agents.length > 0) {
+    parts.push(`crewmates: ${row.agents.map((agent: { label: string; state: string }) => `${agent.label} — ${agent.state}`).join(', ')}`)
+  }
+  if (row.description && row.description !== row.name) parts.push(`asked: ${row.description}`)
+  if (row.owed) parts.push(`owed: ${row.owed}`)
+  if (row.error) parts.push(`error: ${row.error}`)
+  parts.push(row.address !== null ? `reach it: ${SEND_MESSAGE_TOOL_NAME} to "${row.address}"` : `reach it: ${TASK_STOP_TOOL_NAME} by its id`)
+  if (row.outputFilePath) parts.push(`output: ${row.outputFilePath}`)
+  return `- ${row.taskType} "${row.name}" [${row.taskId}]: ${parts.join(' · ')}`
 }
 
 function rosterRows(roster: Of<'agent_roster'>): UserMessage[] {
@@ -200,5 +294,8 @@ const renderers: Renderers = {
 }
 
 export function normalizeAttachmentForAPI(attachment: Attachment): UserMessage[] {
-  return notBuilt('src/services/messages/attachmentText.ts:256')
+  if (attachment.capsuleReceipt) return []
+  if (!Object.hasOwn(renderers, attachment.type)) return []
+  const renderer = (renderers as Partial<Record<Kind, (value: Attachment) => UserMessage[]>>)[attachment.type]
+  return renderer ? renderer(attachment) : []
 }
