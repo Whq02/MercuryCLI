@@ -46,7 +46,7 @@ type Props = {
   onTabNext?: () => void
   onTabPrev?: () => void
   onRespondToModel?: () => void | Promise<void>
-  onNotesPasteLarge?: (text: string) => void
+  onNotesPasteLarge?: (questionText: string, text: string) => void
 }
 
 export function PreviewQuestionView({
@@ -190,7 +190,7 @@ export function PreviewQuestionView({
     (pasted: string) => {
       const normalized = normalizePastedInput(pasted)
       if (normalized.length > PASTE_THRESHOLD && onNotesPasteLarge) {
-        onNotesPasteLarge(normalized)
+        onNotesPasteLarge(question.question, normalized)
         return
       }
       const current = notesRef.current

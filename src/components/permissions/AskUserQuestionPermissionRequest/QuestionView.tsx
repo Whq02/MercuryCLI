@@ -60,7 +60,7 @@ type Props = {
   ) => void
   pastedContents?: Record<number, PastedContent>
   onRemoveImage?: (id: number) => void
-  onNotesPasteLarge?: (text: string) => void
+  onNotesPasteLarge?: (questionText: string, text: string) => void
 }
 
 function buildQuestionHelpLine(args: {
