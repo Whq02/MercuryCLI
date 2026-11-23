@@ -38,7 +38,7 @@ async function summarizeViaCacheSharingFork(
   const bound = armFoldBound(context.abortController.signal, 'fork', estTokens, model, cold)
   const handOverAtBound = (): null => {
     const elapsed = Date.now() - startedAt
-    logForDebugging(`compact: fork lane cut for ${foldCutWords(bound)} after ${elapsed} ms — handing over to direct lane`, { level: 'warn' })
+    logForDebugging(`compact: fork lane cut for ${foldCutWords(bound)} after ${elapsed} ms — handing over to the direct call`, { level: 'warn' })
     recordFoldRoad(model, 'fork', startedAt, 'handover', `fold bound after ${elapsed} ms`)
     return null
   }
