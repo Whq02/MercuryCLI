@@ -110,9 +110,10 @@ async function main(): Promise<void> {
   }
 
   const { flagEnv, stampFlagEnv } = await import('../substrate/flagRegistry.js')
-  const userHome = hostEnv().HOME || hostEnv().USERPROFILE
-  const home = flagEnv('MERCURY_CONFIG_DIR') || flagEnv('MERCURY_HOME') || (userHome ? join(userHome, '.mercury') : null)
-  const consoleWantsUtf8 = consoleNeedsUtf8Codepage() && flagEnv('MERCURY_WIN32_UTF8_PRESET') !== '1'
+  const env = hostEnv()
+  const userHome = env.HOME || env.USERPROFILE
+  const home = flagEnv('MERCURY_CONFIG_DIR', env) || flagEnv('MERCURY_HOME', env) || (userHome ? join(userHome, '.mercury') : null)
+  const consoleWantsUtf8 = consoleNeedsUtf8Codepage() && flagEnv('MERCURY_WIN32_UTF8_PRESET', env) !== '1'
   if (args.length === 0 && process.stdout.isTTY && !projectGiven) {
     if (consoleWantsUtf8) {
       const { ensureWin32ConsoleUtf8 } = await import('../utils/runtime/win32Console.js')
@@ -121,7 +122,7 @@ async function main(): Promise<void> {
     const { runDirectSplash } = await import('../substrate/directSplash.js')
     if (runDirectSplash({ home }).verdict === 'cancel') return
   }
-  if (flagEnv('MERCURY_SPLASH_HANDOFF') === '1') {
+  if (flagEnv('MERCURY_SPLASH_HANDOFF', env) === '1') {
     const { consumeSplashHandover } = await import('../substrate/splashHandover.js')
     consumeSplashHandover()
   }
@@ -130,9 +131,10 @@ async function main(): Promise<void> {
   applyBankedFlagSpellings(process.argv)
   if (underNode && home !== null) {
     await armCompileCache(home)
-    if (hostEnv().NODE_DISABLE_COMPILE_CACHE === undefined) {
-      const { pruneCompileCache } = await import('../utils/runtime/compileCachePrune.js')
-      void pruneCompileCache(home).catch(passedOver)
+    if (env.NODE_DISABLE_COMPILE_CACHE === undefined) {
+      void import('../utils/runtime/compileCachePrune.js')
+        .then(({ pruneCompileCache }) => pruneCompileCache(home))
+        .catch(passedOver)
     }
   }
   if (consoleWantsUtf8 && process.stdout.isTTY) {
