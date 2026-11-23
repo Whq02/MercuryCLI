@@ -22,7 +22,6 @@ import type { Input, Output } from './FileReadTool.js'
 import { resultResolvedNames } from './read/results.js'
 import { FILE_READ_TOOL_NAME } from '../../constants/tools/fileRead.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { notBuilt } from '../../pi/holes.js'
 
 
 const TASK_ID_PATTERN = /^[A-Za-z0-9_-]{1,20}$/
@@ -42,18 +41,46 @@ function agentOutputTaskId(filePath: string | undefined): string | null {
 }
 
 export function userFacingName(input?: Partial<Input>): string {
-  return notBuilt('src/tools/FileReadTool/UI.tsx:43')
+  return agentOutputTaskId(input?.file_path) !== null ? 'Read crewmate output' : FILE_READ_TOOL_NAME
 }
 
 export function getToolUseSummary(input: Partial<Input> | undefined): string | null {
-  return notBuilt('src/tools/FileReadTool/UI.tsx:48')
+  if (!input?.file_path) return null
+  const taskId = agentOutputTaskId(input.file_path)
+  if (taskId !== null) return taskId
+  return truncatePathMiddle(getDisplayPath(input.file_path), TOOL_SUMMARY_MAX_LENGTH)
 }
 
 export function renderToolUseMessage(
   input: Partial<Input>,
-  arg1: { verbose: boolean },
+  { verbose }: { verbose: boolean },
 ): React.ReactNode {
-  return notBuilt('src/tools/FileReadTool/UI.tsx:55')
+  if (!input.file_path) return null
+  if (agentOutputTaskId(input.file_path) !== null) return ''
+  const link = (
+    <FilePathLink filePath={input.file_path}>
+      {verbose ? input.file_path : getDisplayPath(input.file_path)}
+    </FilePathLink>
+  )
+  if (input.pages) {
+    return (
+      <>
+        {link} · pages {input.pages}
+      </>
+    )
+  }
+  if (verbose && (input.offset !== undefined || input.limit !== undefined)) {
+    const start = input.offset ?? 1
+    const suffix =
+      input.limit !== undefined ? ` · lines ${start}-${start + input.limit - 1}` : ` · from line ${start}`
+    return (
+      <>
+        {link}
+        {suffix}
+      </>
+    )
+  }
+  return link
 }
 
 export function renderToolUseTag(input?: Partial<Input>): string | null {
@@ -108,11 +135,22 @@ function ReadResultSummary({ output }: { output: Output }): React.ReactNode {
 }
 
 export function renderToolResultMessage(output: Output): React.ReactNode {
-  return notBuilt('src/tools/FileReadTool/UI.tsx:130')
+  return (
+    <MessageResponse>
+      <ReadResultSummary output={output} />
+    </MessageResponse>
+  )
 }
 
-function ShortErrorLine(arg0: { text: string }): React.ReactNode {
-  return notBuilt('src/tools/FileReadTool/UI.tsx:138')
+function ShortErrorLine({ text }: { text: string }): React.ReactNode {
+  const tokens = useMercuryTokens()
+  return (
+    <MessageResponse>
+      <Text color={tokens.warning}>
+        {GLYPH.warn} {text}
+      </Text>
+    </MessageResponse>
+  )
 }
 
 export function renderToolUseErrorMessage(
