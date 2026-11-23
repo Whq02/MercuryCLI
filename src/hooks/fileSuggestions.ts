@@ -455,7 +455,6 @@ export async function generateFileSuggestions(
         payloadJson: JSON.stringify(payload),
         timeoutMs: FILE_SUGGESTER_TIMEOUT_MS,
         source: { kind: 'settings' },
-        cwd: payload.cwd,
       })
       const end = await proc.result
       if (end.kind !== 'exited' || end.code !== 0) {
