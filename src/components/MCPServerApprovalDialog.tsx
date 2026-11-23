@@ -40,19 +40,18 @@ export function MCPServerApprovalDialog({
   )
 
   const handleCancel = useCallback(() => {
-    recordProjectMcpServerChoices({ rejected: [serverName] })
-    onDone()
-  }, [serverName, onDone])
+    handleSelect('disable')
+  }, [handleSelect])
 
   return (
     <Box
       flexDirection="column"
       gap={1}
-      padding={1}
+      paddingX={1}
       borderStyle="round"
       borderColor={tokens.warning}
     >
-      <Text bold color={tokens.warning}>
+      <Text bold>
         {"New MCP server found in this project's .mercury/mcp.json: "}
         <Text color={tokens.info}>{serverName}</Text>
       </Text>

@@ -32,13 +32,14 @@ import {
 } from './StructuredDiff/colorDiff.js'
 
 type ThemePickerProps = {
-  initialTheme?: ThemeSetting
   onThemeSelect: (theme: ThemeSetting) => void
-  onCancel?: () => void
   showIntroText?: boolean
-  hideTitle?: boolean
+  helpText?: string
+  showHelpTextBelow?: boolean
   hideEscToCancel?: boolean
+  hideTitle?: boolean
   skipExitHandling?: boolean
+  onCancel?: () => void
 }
 
 const THEME_LABELS_BY_SETTING: Record<string, string> = THEME_LABELS
@@ -80,13 +81,14 @@ function toThemeSetting(value: string): ThemeSetting {
 }
 
 export function ThemePicker({
-  initialTheme,
   onThemeSelect,
-  onCancel,
   showIntroText = false,
-  hideTitle = false,
+  helpText,
+  showHelpTextBelow = false,
   hideEscToCancel = false,
+  hideTitle = false,
   skipExitHandling = false,
+  onCancel,
 }: ThemePickerProps): React.ReactNode {
   useRegisterKeybindingContext('ThemePicker')
 
@@ -99,8 +101,6 @@ export function ThemePicker({
   const app = useApp()
   const exitState = useExitOnCtrlCDWithKeybindings(
     skipExitHandling ? noop : undefined,
-    undefined,
-    !skipExitHandling,
   )
 
   const cancelPreviewRef = useRef(cancelPreview)
@@ -123,11 +123,11 @@ export function ThemePicker({
     if (width > 0 && width !== measuredWidth) {
       setMeasuredWidth(width)
     }
-  }, [columns, measuredWidth])
+  })
 
   const syntaxOff = settings.view?.syntaxOff ?? false
   const colorDiffAvailable =
-    expectColorDiff() !== null && getColorModuleUnavailableReason() === null
+    getColorModuleUnavailableReason() === null && expectColorDiff() !== null
   const toggleSyntaxChord = useShortcutDisplay(
     'theme:toggleSyntaxHighlighting',
     'ThemePicker',
@@ -153,26 +153,28 @@ export function ThemePicker({
     { context: 'ThemePicker', isActive: colorDiffAvailable },
   )
 
-  const initial = toThemeSetting(initialTheme ?? savedThemeSetting)
+  const initial = toThemeSetting(savedThemeSetting)
   const previewWidth =
     measuredWidth !== null && measuredWidth > 0 ? measuredWidth : columns
 
-  let syntaxStatusLine: string | null = null
-  if (colorDiffAvailable) {
-    if (syntaxOff) {
-      syntaxStatusLine = `Syntax highlighting disabled (${toggleSyntaxChord} to enable)`
-    } else if (isMonochromeTheme(resolvedTheme)) {
-      syntaxStatusLine = `Syntax highlighting enabled — no colour on Black and white (${toggleSyntaxChord} to disable)`
+  let syntaxStatusLine: string
+  if (syntaxOff) {
+    syntaxStatusLine = `Syntax highlighting disabled (${toggleSyntaxChord} to enable)`
+  } else if (isMonochromeTheme(resolvedTheme)) {
+    syntaxStatusLine = `Syntax highlighting enabled — no colour on Black and white (${toggleSyntaxChord} to disable)`
+  } else {
+    const syntaxTheme = getSyntaxTheme(resolvedTheme)
+    if (syntaxTheme) {
+      const fromSource = syntaxTheme.source ? ` from ${syntaxTheme.source}` : ''
+      syntaxStatusLine = `Syntax theme: ${syntaxTheme.theme}${fromSource} (${toggleSyntaxChord} to disable)`
     } else {
-      const syntaxTheme = getSyntaxTheme(resolvedTheme)
-      if (syntaxTheme) {
-        const fromSource = syntaxTheme.source ? ` from ${syntaxTheme.source}` : ''
-        syntaxStatusLine = `Syntax theme: ${syntaxTheme.theme}${fromSource} (${toggleSyntaxChord} to disable)`
-      } else {
-        syntaxStatusLine = `Syntax highlighting enabled (${toggleSyntaxChord} to disable)`
-      }
+      syntaxStatusLine = `Syntax highlighting enabled (${toggleSyntaxChord} to disable)`
     }
   }
+
+  const hasHelpText = helpText !== undefined && helpText !== ''
+  const showHelpAbove = hasHelpText && !showHelpTextBelow
+  const showHelpBelow = hasHelpText && showHelpTextBelow
 
   const handleFocus = (value: string): void => {
     setPreviewTheme(toThemeSetting(value))
@@ -193,53 +195,66 @@ export function ThemePicker({
     }
   }
 
-  return (
+  const content = (
     <Box flexDirection="column">
       {showIntroText ? (
         <Text>Welcome — pick how the terminal should look.</Text>
       ) : !hideTitle ? (
-        <Text bold>Theme</Text>
+        <Text bold color="permission">
+          Theme
+        </Text>
       ) : null}
-      <Text>The Mercury appearance:</Text>
+      <Text bold>The Mercury appearance:</Text>
+      {showHelpAbove && <Text dimColor>{helpText}</Text>}
       <Select
         options={THEME_OPTIONS}
         defaultValue={initial}
         defaultFocusValue={initial}
+        visibleOptionCount={THEME_OPTIONS.length}
         onFocus={handleFocus}
         onChange={handleSelect}
         onCancel={handleCancel}
       />
-      <Box ref={previewRef} flexDirection="column" width="100%">
-        <Divider width={previewWidth} char="┄" />
+      {showHelpBelow && !showIntroText && (
+        <Box paddingLeft={3}>
+          <Text dimColor>{helpText}</Text>
+        </Box>
+      )}
+      <Box ref={previewRef} flexDirection="column">
+        <Divider char="┄" color="subtle" width={previewWidth} />
         <StructuredDiff
           patch={DEMO_PATCH}
           dim={false}
-          width={previewWidth}
           filePath={DEMO_FILE_PATH}
           firstLine={DEMO_FIRST_LINE}
+          width={previewWidth}
         />
-        <Divider width={previewWidth} char="┄" />
+        <Divider char="┄" color="subtle" width={previewWidth} />
       </Box>
-      {syntaxStatusLine !== null && (
-        <Box marginTop={1}>
-          <Text dimColor>{syntaxStatusLine}</Text>
-        </Box>
-      )}
-      {!showIntroText && (
-        <Box marginTop={1}>
-          {exitState.pending ? (
-            <Text dimColor>{exitChordNoticeText(exitState.keyName)}</Text>
-          ) : (
-            <Text dimColor>
-              <Byline>
-                <Text>↑↓ move</Text>
-                <Text>↵ select</Text>
-                {!hideEscToCancel && <Text>esc to cancel</Text>}
-              </Byline>
-            </Text>
-          )}
-        </Box>
-      )}
+      <Box height={1} />
+      <Text dimColor>{syntaxStatusLine}</Text>
+    </Box>
+  )
+
+  if (showIntroText) {
+    return content
+  }
+
+  return (
+    <Box flexDirection="column">
+      {content}
+      <Box marginTop={1}>
+        {exitState.pending ? (
+          <Text dimColor>{exitChordNoticeText(exitState.keyName)}</Text>
+        ) : (
+          <Text dimColor>
+            <Byline>
+              <Text dimColor>↑↓ move · ↵ select</Text>
+              {!hideEscToCancel && <Text dimColor>esc to cancel</Text>}
+            </Byline>
+          </Text>
+        )}
+      </Box>
     </Box>
   )
 }

@@ -76,12 +76,12 @@ export function WorktreeExitDialog({
   onCancel?: () => void
 }): React.ReactNode {
   const [session] = useState<WorktreeSession | null>(() => getCurrentWorktreeSession())
-  const [phase, setPhase] = useState<Phase>(() =>
-    session === null ? { kind: 'done' } : { kind: 'loading' },
-  )
-  const resultRef = useRef<string | undefined>(
-    session === null ? 'No worktree session to exit.' : undefined,
-  )
+  const [phase, setPhase] = useState<Phase>({ kind: 'loading' })
+  const statusRef = useRef<{ changedFiles: number; commits: number }>({
+    changedFiles: 0,
+    commits: 0,
+  })
+  const resultRef = useRef<string | undefined>(undefined)
   const reportedRef = useRef(false)
   const busyRef = useRef(false)
   const signalRef = useRef<AbortSignal | null>(null)
@@ -127,6 +127,8 @@ export function WorktreeExitDialog({
         }
       }
 
+      statusRef.current = { changedFiles, commits }
+
       const isProvenClean = statusOk && changedFiles === 0 && commitsKnown && commits === 0
       if (!isProvenClean) {
         setPhase({ kind: 'asking', changedFiles, commits })
@@ -136,186 +138,203 @@ export function WorktreeExitDialog({
       setPhase({ kind: 'removing' })
       try {
         await cleanupWorktree()
+        const restoreNote = restoreWorktreeDirectories(session)
+        await recordWorktreeExit()
+        if (signal.aborted) return
+        resultRef.current = appendRestoreNote(
+          'Removed the worktree — there was nothing to keep.',
+          restoreNote,
+        )
       } catch (error) {
         if (signal.aborted) return
         logError(error)
-        resultRef.current = `Could not remove worktree at ${session.worktreePath}: ${errorMessage(error)}. Resolve the issue and retry.`
-        setPhase({ kind: 'done' })
-        return
+        resultRef.current = `Could not remove ${session.worktreePath}: ${errorMessage(error)}. Fix the error and try again.`
       }
-
-      if (session.tmuxSessionName) {
-        await killTmuxSession(session.tmuxSessionName)
-      }
-      const restoreNote = restoreWorktreeDirectories(session)
-      await recordWorktreeExit()
-      if (signal.aborted) return
-      resultRef.current = appendRestoreNote(
-        'Removed the worktree — there was nothing to keep.',
-        restoreNote,
-      )
       setPhase({ kind: 'done' })
     }
 
     void probe()
   }, [session])
 
-  if (session === null || phase.kind === 'done') {
+  if (session === null) {
+    if (!reportedRef.current) {
+      reportedRef.current = true
+      onDone('No worktree session to exit.', { displayMode: 'system' })
+    }
     return null
   }
 
-  const executeChoice = async (
-    choice: ExitChoice,
-    counts: { changedFiles: number; commits: number },
-  ): Promise<void> => {
+  if (phase.kind === 'loading' || phase.kind === 'done') {
+    return null
+  }
+
+  const handleKeep = async (tmuxAction: 'none' | 'leave' | 'kill'): Promise<void> => {
     if (busyRef.current) return
     busyRef.current = true
-
-    if (choice === 'keep' || choice === 'keep-with-tmux' || choice === 'keep-kill-tmux') {
-      setPhase({ kind: 'keeping' })
-      try {
-        await keepWorktree()
-      } catch (error) {
-        logError(error)
-        if (signalRef.current?.aborted) return
-        resultRef.current = `Could not keep worktree at ${session.worktreePath}: ${errorMessage(error)}.`
-        setPhase({ kind: 'done' })
-        return
-      }
-      if (choice === 'keep-kill-tmux' && session.tmuxSessionName) {
+    setPhase({ kind: 'keeping' })
+    try {
+      if (tmuxAction === 'kill' && session.tmuxSessionName) {
         await killTmuxSession(session.tmuxSessionName)
       }
+      await keepWorktree()
       const restoreNote = restoreWorktreeDirectories(session)
       await recordWorktreeExit()
       if (signalRef.current?.aborted) return
-      const branchPart = session.worktreeBranch ? ` on branch ${session.worktreeBranch}` : ''
-      let summary = `Kept worktree at ${session.worktreePath}${branchPart}.`
-      if (choice === 'keep-with-tmux' && session.tmuxSessionName) {
-        summary = `Kept worktree at ${session.worktreePath}${branchPart}. Reattach with: tmux attach -t ${session.tmuxSessionName}`
-      } else if (choice === 'keep-kill-tmux' && session.tmuxSessionName) {
-        summary = `Kept worktree at ${session.worktreePath}${branchPart} and ended tmux session ${session.tmuxSessionName}.`
+      const branchPart = session.worktreeBranch ? ` on ${session.worktreeBranch}` : ''
+      let summary = `Work saved at ${session.worktreePath}${branchPart}.`
+      if (tmuxAction === 'leave' && session.tmuxSessionName) {
+        summary += ` Reattach with: tmux attach -t ${session.tmuxSessionName}`
+      } else if (tmuxAction === 'kill') {
+        summary += ' The tmux session was terminated.'
       }
       resultRef.current = appendRestoreNote(summary, restoreNote)
-      setPhase({ kind: 'done' })
-      return
-    }
-
-    setPhase({ kind: 'removing' })
-    try {
-      await cleanupWorktree()
     } catch (error) {
       logError(error)
       if (signalRef.current?.aborted) return
-      resultRef.current = `Could not remove worktree at ${session.worktreePath}: ${errorMessage(error)}. Resolve the issue and retry.`
-      setPhase({ kind: 'done' })
-      return
+      resultRef.current = 'Keeping the worktree failed; exiting anyway.'
     }
-
-    if (choice === 'remove-with-tmux' && session.tmuxSessionName) {
-      await killTmuxSession(session.tmuxSessionName)
-    }
-    const restoreNote = restoreWorktreeDirectories(session)
-    await recordWorktreeExit()
-    if (signalRef.current?.aborted) return
-
-    const discarded: string[] = []
-    if (counts.commits > 0) {
-      const commitPart = `${counts.commits} ${plural(counts.commits, 'commit')}`
-      discarded.push(
-        session.worktreeBranch ? `${commitPart} on ${session.worktreeBranch}` : commitPart,
-      )
-    }
-    if (counts.changedFiles > 0) {
-      discarded.push(`${counts.changedFiles} uncommitted ${plural(counts.changedFiles, 'change')}`)
-    }
-    const target = session.tmuxSessionName ? 'worktree and tmux session' : 'worktree'
-    const summary =
-      discarded.length > 0
-        ? `Removed ${target} (discarded ${discarded.join(' and ')}).`
-        : `Removed the ${target} — there was nothing to keep.`
-    resultRef.current = appendRestoreNote(summary, restoreNote)
     setPhase({ kind: 'done' })
   }
 
-  if (phase.kind === 'loading') {
-    return (
-      <Box>
-        <Spinner />
-        <Text>Checking worktree status…</Text>
-      </Box>
-    )
+  const handleRemove = async (withTmuxWord: boolean): Promise<void> => {
+    if (busyRef.current) return
+    busyRef.current = true
+    setPhase({ kind: 'removing' })
+    try {
+      if (session.tmuxSessionName) {
+        await killTmuxSession(session.tmuxSessionName)
+      }
+      await cleanupWorktree()
+      const restoreNote = restoreWorktreeDirectories(session)
+      await recordWorktreeExit()
+      if (signalRef.current?.aborted) return
+      const status = statusRef.current
+      const discarded: string[] = []
+      if (status.commits > 0) {
+        const branch = session.worktreeBranch || 'the worktree branch'
+        discarded.push(`${status.commits} ${plural(status.commits, 'commit')} on ${branch}`)
+      }
+      if (status.changedFiles > 0) {
+        discarded.push('uncommitted changes')
+      }
+      let summary =
+        discarded.length > 0
+          ? `Removed the worktree and discarded ${discarded.join(' and ')}.`
+          : 'Removed the worktree (nothing to keep).'
+      if (withTmuxWord && session.tmuxSessionName) {
+        summary += ' The tmux session was terminated.'
+      }
+      resultRef.current = appendRestoreNote(summary, restoreNote)
+    } catch (error) {
+      logError(error)
+      if (signalRef.current?.aborted) return
+      resultRef.current = `Could not remove ${session.worktreePath}: ${errorMessage(error)}. Fix the error and try again.`
+    }
+    setPhase({ kind: 'done' })
   }
 
   if (phase.kind === 'keeping') {
     return (
-      <Box>
+      <Box marginY={1}>
         <Spinner />
-        <Text>Keeping the worktree…</Text>
+        <Text> Keeping the worktree…</Text>
       </Box>
     )
   }
 
   if (phase.kind === 'removing') {
     return (
-      <Box>
+      <Box marginY={1}>
         <Spinner />
-        <Text>Removing the worktree…</Text>
+        <Text> Removing the worktree…</Text>
       </Box>
     )
   }
-
-  const counts = { changedFiles: phase.changedFiles, commits: phase.commits }
-  const defaultChoice: ExitChoice = session.tmuxSessionName ? 'keep-with-tmux' : 'keep'
-  const options: Array<{ label: string; value: ExitChoice }> = session.tmuxSessionName
-    ? [
-        { label: 'Keep worktree and tmux session', value: 'keep-with-tmux' },
-        { label: 'Keep worktree, kill tmux session', value: 'keep-kill-tmux' },
-        { label: 'Remove worktree and tmux session', value: 'remove-with-tmux' },
-      ]
-    : [
-        { label: 'Keep worktree', value: 'keep' },
-        { label: 'Remove worktree', value: 'remove' },
-      ]
 
   const stakes: string[] = []
   if (phase.changedFiles > 0) {
     stakes.push(`${phase.changedFiles} uncommitted ${plural(phase.changedFiles, 'file')}`)
   }
   if (phase.commits > 0) {
-    stakes.push(`${phase.commits} ${plural(phase.commits, 'commit')}`)
+    stakes.push(`${phase.commits} ${plural(phase.commits, 'commit')} on the branch`)
   }
-  const stakeText =
+  const subtitle =
     stakes.length > 0
-      ? `This worktree has ${stakes.join(' and ')}.`
-      : 'Could not verify whether this worktree has unsaved work.'
+      ? `${stakes.join(' and ')} will be lost (and the branch deleted) if the worktree is removed.`
+      : 'Keep the worktree around, or clean it up.'
+  const removeDescription =
+    phase.changedFiles > 0 || phase.commits > 0
+      ? 'All changes and commits in the worktree will be lost'
+      : 'The worktree directory is cleaned up'
+
+  const defaultChoice: ExitChoice = session.tmuxSessionName ? 'keep-with-tmux' : 'keep'
+  const options: Array<{ label: string; value: ExitChoice; description: string }> =
+    session.tmuxSessionName
+      ? [
+          {
+            label: 'Keep worktree and tmux session',
+            value: 'keep-with-tmux',
+            description: `Work stays at ${session.worktreePath}; reattach with: tmux attach -t ${session.tmuxSessionName}`,
+          },
+          {
+            label: 'Keep worktree, kill tmux session',
+            value: 'keep-kill-tmux',
+            description: `Work stays at ${session.worktreePath}`,
+          },
+          {
+            label: 'Remove worktree and tmux session',
+            value: 'remove-with-tmux',
+            description: removeDescription,
+          },
+        ]
+      : [
+          {
+            label: 'Keep worktree',
+            value: 'keep',
+            description: `Work stays at ${session.worktreePath}`,
+          },
+          {
+            label: 'Remove worktree',
+            value: 'remove',
+            description: removeDescription,
+          },
+        ]
+
+  const handleChoice = (choice: ExitChoice): void => {
+    if (choice === 'keep') {
+      void handleKeep('none')
+    } else if (choice === 'keep-with-tmux') {
+      void handleKeep('leave')
+    } else if (choice === 'keep-kill-tmux') {
+      void handleKeep('kill')
+    } else if (choice === 'remove') {
+      void handleRemove(false)
+    } else {
+      void handleRemove(true)
+    }
+  }
 
   const handleCancel = (): void => {
     if (onCancel) {
       onCancel()
     } else {
-      void executeChoice(defaultChoice, counts)
+      void handleKeep(session.tmuxSessionName ? 'leave' : 'none')
     }
   }
 
   return (
-    <Dialog title="Exit worktree?" onCancel={handleCancel}>
-      <Box flexDirection="column" gap={1}>
-        <Text color="warning">
-          {GLYPH.warn} {stakeText}
-        </Text>
-        <Text dimColor>
-          {session.worktreePath}
-          {session.worktreeBranch ? ` (${session.worktreeBranch})` : ''}
-        </Text>
-        <Select<ExitChoice>
-          options={options}
-          defaultFocusValue={defaultChoice}
-          onChange={choice => {
-            void executeChoice(choice, counts)
-          }}
-          onCancel={handleCancel}
-        />
-      </Box>
+    <Dialog
+      title={`${GLYPH.warn} Exiting a worktree session`}
+      subtitle={subtitle}
+      onCancel={handleCancel}
+    >
+      <Select<ExitChoice>
+        options={options}
+        defaultFocusValue={defaultChoice}
+        visibleOptionCount={options.length}
+        onChange={handleChoice}
+        onCancel={handleCancel}
+      />
     </Dialog>
   )
 }
