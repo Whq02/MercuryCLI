@@ -20,7 +20,7 @@ export function applySettingsChange(
 
   setAppState(prev => {
     let toolPermissionContext = syncPermissionRulesFromDisk(prev.toolPermissionContext, diskRules)
-    if (isSovereignDisabled()) {
+    if (isSovereignDisabled() && toolPermissionContext.mode !== undefined) {
       toolPermissionContext = createSovereignDisabledContext(toolPermissionContext)
     }
     if (toolPermissionContext.mode === 'flow') {
