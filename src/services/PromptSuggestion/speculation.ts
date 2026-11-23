@@ -29,8 +29,9 @@ export function clearPromptSuggestion(prev: AppState): AppState {
 }
 
 export function isSpeculationEnabled(): boolean {
-  logForDebugging('speculation enabled: false')
-  return false
+  const enabled = false
+  logForDebugging(`speculation enabled: ${enabled}`)
+  return enabled
 }
 
 export async function startSpeculation(
