@@ -6,6 +6,7 @@ import type {
 import type { PermissionUpdate, PermissionRule } from '../../types/permissions.js'
 import {
   getPipelineSegments,
+  isNullRedirectionTarget,
   isPowerShellParameter,
   type ParsedPowerShellCommand,
   type ParsedCommandElement,
@@ -30,13 +31,20 @@ import { getPlatform } from '../../utils/platform.js'
 import { containsWindowsDevicePath, WINDOWS_DEVICE_PATH_MESSAGE } from '../../utils/permissions/windowsPath.js'
 import { resolveToCanonical } from './readOnlyValidation.js'
 import { COMMON_PARAMETERS } from './commonParameters.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 type OperationType = 'read' | 'write'
 const STD = ['-path', '-literalpath', '-pspath', '-lp']
 const PS_DASH_RE = /[-–—―]/
 
-type PathConfig = Unbuilt
+type PathConfig = {
+  operation: OperationType
+  paths: string[]
+  leafOnly?: string[]
+  switches: string[]
+  values: string[]
+  positionalSkip?: number
+  optionalWrite?: boolean
+}
 
 const IWR_SWITCHES = '-allowinsecureredirect -allowunencryptedauthentication -disablekeepalive -nobodyprogress -passthru -preservefileauthorizationmetadata -resume -skipcertificatecheck -skipheadervalidation -skiphttperrorcheck -usebasicparsing -usedefaultcredentials'.split(' ')
 const IWR_VALUES = '-uri -method -body -contenttype -headers -maximumredirection -maximumretrycount -proxy -proxycredential -retryintervalsec -sessionvariable -timeoutsec -token -transferencoding -useragent -websession -credential -authentication -certificate -certificatethumbprint -form -httpversion'.split(' ')
@@ -100,8 +108,162 @@ function isComplexColonValue(value: string): boolean {
 
 type ExtractResult = { paths: string[]; operation: OperationType; unvalidatable: boolean; optionalWrite: boolean; hasConfig: boolean }
 
+type ParamCategory = 'path' | 'leaf' | 'switch' | 'value'
+
+function isCommonSwitch(name: string): boolean {
+  return name === '-verbose' || name === '-debug'
+}
+
+function matchParameterCategory(name: string, config: PathConfig): ParamCategory | null {
+  if (config.paths.includes(name)) return 'path'
+  if (config.leafOnly?.includes(name)) return 'leaf'
+  if (config.switches.includes(name) || isCommonSwitch(name)) return 'switch'
+  if (config.values.includes(name) || COMMON_PARAMETERS.has(name)) return 'value'
+  if (name.length < 2) return null
+
+  const candidates: Array<{ param: string; category: ParamCategory }> = []
+  for (const p of config.paths) candidates.push({ param: p, category: 'path' })
+  if (config.leafOnly) {
+    for (const p of config.leafOnly) candidates.push({ param: p, category: 'leaf' })
+  }
+  for (const p of config.switches) candidates.push({ param: p, category: 'switch' })
+  for (const p of config.values) candidates.push({ param: p, category: 'value' })
+  for (const p of COMMON_PARAMETERS) {
+    candidates.push({ param: p, category: isCommonSwitch(p) ? 'switch' : 'value' })
+  }
+
+  const seen = new Map<string, ParamCategory>()
+  for (const c of candidates) {
+    if (c.param.startsWith(name) && !seen.has(c.param)) {
+      seen.set(c.param, c.category)
+    }
+  }
+  if (seen.size !== 1) return null
+  return seen.values().next().value ?? null
+}
+
+function isStaticElementType(type: ReturnType<typeof argumentTypeAt>): boolean {
+  return type === undefined || type === 'StringConstant' || type === 'Parameter'
+}
+
+function isUnsafeLeafName(raw: string): boolean {
+  let v = raw
+  if (/^['"]/.test(v)) v = v.slice(1)
+  if (/['"]$/.test(v)) v = v.slice(0, -1)
+  return v.includes('/') || v.includes('\\') || v === '.' || v === '..'
+}
+
 function extractPaths(element: ParsedCommandElement): ExtractResult {
-  return notBuilt('src/tools/PowerShellTool/pathValidation.ts:110')
+  const canonical = resolveToCanonical(element.name)
+  const config = PATH_CONFIG[canonical]
+  if (!config) {
+    return { paths: [], operation: 'read', unvalidatable: false, optionalWrite: false, hasConfig: false }
+  }
+
+  const paths: string[] = []
+  let unvalidatable = false
+  let positionalSeen = 0
+  const skip = config.positionalSkip ?? 0
+
+  for (let i = 0; i < element.args.length; i++) {
+    const arg = element.args[i]!
+    const argType = argumentTypeAt(element, i)
+    if (isPowerShellParameter(arg, argType)) {
+      const normed = normDash(arg)
+      const colon = normed.indexOf(':', 1)
+      const rawName = (colon === -1 ? normed : normed.slice(0, colon)).toLowerCase()
+      const colonValue = colon === -1 ? undefined : normed.slice(colon + 1)
+      const category = matchParameterCategory(rawName, config)
+
+      if (category === null) {
+        unvalidatable = true
+        continue
+      }
+      if (category === 'switch') {
+        if (colonValue !== undefined && isComplexColonValue(colonValue)) {
+          unvalidatable = true
+        }
+        continue
+      }
+      if (category === 'path') {
+        if (colonValue !== undefined) {
+          const childType = element.children?.[i]?.[0]?.type
+          if (colonValue === '' || isComplexColonValue(colonValue) || !isStaticElementType(childType)) {
+            unvalidatable = true
+          } else {
+            paths.push(colonValue)
+          }
+        } else if (i + 1 < element.args.length) {
+          const nextArg = element.args[i + 1]!
+          const nextType = argumentTypeAt(element, i + 1)
+          if (isPowerShellParameter(nextArg, nextType)) {
+            unvalidatable = true
+          } else {
+            i++
+            if (isStaticElementType(nextType)) {
+              paths.push(nextArg)
+            } else {
+              unvalidatable = true
+            }
+          }
+        } else {
+          unvalidatable = true
+        }
+        continue
+      }
+      if (category === 'leaf') {
+        if (colonValue !== undefined) {
+          const childType = element.children?.[i]?.[0]?.type
+          if (colonValue === '' || isComplexColonValue(colonValue) || !isStaticElementType(childType) || isUnsafeLeafName(colonValue)) {
+            unvalidatable = true
+          }
+        } else if (i + 1 < element.args.length) {
+          const nextArg = element.args[i + 1]!
+          const nextType = argumentTypeAt(element, i + 1)
+          if (isPowerShellParameter(nextArg, nextType)) {
+            unvalidatable = true
+          } else {
+            i++
+            if (!isStaticElementType(nextType) || isUnsafeLeafName(nextArg)) {
+              unvalidatable = true
+            }
+          }
+        } else {
+          unvalidatable = true
+        }
+        continue
+      }
+      if (category === 'value') {
+        if (colonValue !== undefined) {
+          if (isComplexColonValue(colonValue)) unvalidatable = true
+        } else if (i + 1 < element.args.length) {
+          const nextArg = element.args[i + 1]!
+          const nextType = argumentTypeAt(element, i + 1)
+          if (!isPowerShellParameter(nextArg, nextType)) {
+            i++
+            if (!isStaticElementType(nextType)) unvalidatable = true
+          }
+        }
+        continue
+      }
+    }
+
+    positionalSeen++
+    if (config.paths.length === 0 || positionalSeen <= skip) continue
+    if (isStaticElementType(argType)) {
+      paths.push(arg)
+    } else {
+      unvalidatable = true
+    }
+  }
+
+  return {
+    paths,
+    operation: config.operation,
+    unvalidatable,
+    optionalWrite: config.optionalWrite ?? false,
+    hasConfig: true,
+  }
 }
 
 function normDash(arg: string): string {
@@ -146,7 +308,34 @@ function resolveAndDecide(rawPath: string, cwd: string, context: ToolPermissionC
 }
 
 function decideResolved(resolved: string, context: ToolPermissionContext, operation: OperationType): ResolveResult {
-  return notBuilt('src/tools/PowerShellTool/pathValidation.ts:228')
+  const permType = operation === 'read' ? 'read' : 'edit'
+  const deny = matchDeny(resolved, context, permType)
+  if (deny) return notAllowed(resolved, { type: 'rule', rule: deny })
+
+  if (operation === 'write') {
+    if (checkEditableInternalPath(resolved).behavior === 'allow') {
+      return { allowed: true, resolvedPath: resolved }
+    }
+    const safety = checkPathSafetyForAutoEdit(resolved, undefined, context)
+    if (!safety.safe) {
+      return notAllowed(resolved, { type: 'safetyCheck', reason: safety.message, operatorOnly: safety.operatorOnly })
+    }
+  }
+
+  if (pathInAllowedWorkingPath(resolved, context)) {
+    if (operation === 'read' || context.mode === 'implement') {
+      return { allowed: true, resolvedPath: resolved }
+    }
+  }
+
+  if (operation === 'read' && checkReadableInternalPath(resolved).behavior === 'allow') {
+    return { allowed: true, resolvedPath: resolved }
+  }
+
+  const allow = matchingRuleForInput(resolved, context, permType, 'allow')
+  if (allow) return { allowed: true, resolvedPath: resolved }
+
+  return { allowed: false, resolvedPath: resolved }
 }
 
 function matchDeny(path: string, context: ToolPermissionContext, permType: 'read' | 'edit'): PermissionRule | null {
@@ -185,22 +374,81 @@ export function isDangerousRemovalRawPath(path: string): boolean {
 }
 
 export function dangerousRemovalDeny(path: string): PermissionResult {
-  return notBuilt('src/tools/PowerShellTool/pathValidation.ts:287')
+  return {
+    behavior: 'deny',
+    message: `Remove-Item of "${path}" is refused: this location is under blanket protection against deletion and cannot be approved.`,
+    decisionReason: other(`Dangerous removal of a protected path: ${path}`),
+  }
 }
 
-
 export function checkPowerShellCwd(cwd: string, context: ToolPermissionContext): PermissionResult | null {
-  return notBuilt('src/tools/PowerShellTool/pathValidation.ts:296')
+  const decision = resolveAndDecide(cwd, getShellCwd(), context, 'read')
+  if (decision.allowed) return null
+  if (decision.reason?.type === 'rule') {
+    return { behavior: 'deny', message: pathMessage('set-location', decision, context), decisionReason: decision.reason }
+  }
+  return askForPath('set-location', decision, 'read', context)
 }
 
 export function checkPathConstraints(
-  input: { command: string },
+  _input: { command: string },
   parsed: ParsedPowerShellCommand,
   context: ToolPermissionContext,
-  compoundCommandHasCd?: boolean,
-  cwd?: Unbuilt,
+  compoundCommandHasCd = false,
+  cwd = getShellCwd(),
 ): PermissionResult {
-  return notBuilt('src/tools/PowerShellTool/pathValidation.ts:303')
+  if (!parsed.valid) {
+    return { behavior: 'passthrough', message: 'Parsed PowerShell AST is not valid.' }
+  }
+
+  let firstAsk: PermissionResult | null = null
+  for (const statement of getPipelineSegments(parsed)) {
+    if (compoundCommandHasCd) {
+      const msg = 'This compound changes the working directory (Set-Location / Push-Location / Pop-Location / New-PSDrive), so relative paths cannot be validated against the original working directory.'
+      firstAsk ??= { behavior: 'ask', message: msg, decisionReason: other(msg) }
+    }
+
+    for (const cmd of statement.commands) {
+      const verdict = checkOneCommand(cmd, cwd, context)
+      if (!verdict) continue
+      if (verdict.behavior === 'deny') return verdict
+      if (verdict.behavior === 'ask') firstAsk ??= verdict
+    }
+
+    for (const cmd of statement.nestedCommands) {
+      const verdict = checkOneCommandNested(cmd, cwd, context)
+      if (!verdict) continue
+      if (verdict.behavior === 'deny') return verdict
+      if (verdict.behavior === 'ask') firstAsk ??= verdict
+    }
+
+    for (const redir of statement.redirections) {
+      if (redir.isMerging || isNullRedirectionTarget(redir.target)) continue
+      const decision = resolveAndDecide(redir.target, cwd, context, 'write')
+      if (!decision.allowed) {
+        const message = redirMessage(decision, context)
+        if (decision.reason?.type === 'rule') {
+          return { behavior: 'deny', message, decisionReason: decision.reason }
+        }
+        firstAsk ??= {
+          behavior: 'ask',
+          message,
+          decisionReason: decision.reason ?? { type: 'workingDir', reason: message },
+          ...(decision.resolvedPath
+            ? {
+                suggestions: [
+                  editGrant(decision.resolvedPath),
+                  { type: 'setMode', destination: 'session', mode: 'implement' },
+                ],
+              }
+            : {}),
+        }
+      }
+    }
+  }
+
+  if (firstAsk) return firstAsk
+  return { behavior: 'passthrough', message: 'All PowerShell paths passed validation.' }
 }
 
 function checkOneCommand(command: ParsedCommandElement, cwd: string, context: ToolPermissionContext): PermissionResult | null {
@@ -234,7 +482,23 @@ function checkOneCommandNested(command: ParsedCommandElement, cwd: string, conte
 }
 
 function askForPath(canonical: string, decision: ResolveResult, operation: OperationType, context: ToolPermissionContext): PermissionResult {
-  return notBuilt('src/tools/PowerShellTool/pathValidation.ts:372')
+  const message = pathMessage(canonical, decision, context)
+  const suggestions: PermissionUpdate[] = []
+  if (decision.resolvedPath) {
+    if (operation === 'read') {
+      const suggestion = createReadRuleSuggestion(getDirectoryForPath(decision.resolvedPath))
+      if (suggestion) suggestions.push(suggestion)
+    } else {
+      suggestions.push(editGrant(decision.resolvedPath))
+      suggestions.push({ type: 'setMode', destination: 'session', mode: 'implement' })
+    }
+  }
+  return {
+    behavior: 'ask',
+    message,
+    decisionReason: decision.reason ?? { type: 'workingDir', reason: message },
+    ...(suggestions.length > 0 ? { suggestions } : {}),
+  }
 }
 
 function editGrant(resolvedPath: string): PermissionUpdate {
