@@ -196,16 +196,11 @@ function recordMountCostEma(
   renderStart: number,
 ): void {
   const prevCommitted = prevCommittedRangeRef.current
-  let added: number
-  if (prevCommitted === null) {
-    added = effectiveEnd - effectiveStart
-  } else {
-    const overlap = Math.max(
-      0,
-      Math.min(prevCommitted[1], effectiveEnd) - Math.max(prevCommitted[0], effectiveStart),
-    )
-    added = effectiveEnd - effectiveStart - overlap
-  }
+  const added =
+    prevCommitted === null
+      ? effectiveEnd - effectiveStart
+      : Math.max(0, prevCommitted[0] - effectiveStart) +
+        Math.max(0, effectiveEnd - prevCommitted[1])
   prevCommittedRangeRef.current = [effectiveStart, effectiveEnd]
   if (added >= MOUNT_COST_SAMPLE_MIN) {
     const sample = clampNumber(
@@ -334,12 +329,13 @@ export function useVirtualScroll(
   const pane: VirtualScrollPane = { box, viewportHeight, pendingDelta, sticky, itemCount }
   const scrollTop = scrollTopHeldByThePin(view, tools, pane, box ? box.getScrollTop() : Number.NaN)
   const offsets = tools.ensureOffsets()
+  const frozen = freezeRendersRef.current > 0
   const { start, end, movedDown } = rangeToMount(
-    view, tools, pane, scrollTop, offsets, freezeRendersRef.current > 0, prevRangeRef.current,
+    view, tools, pane, scrollTop, offsets, frozen, prevRangeRef.current,
   )
 
   const immediateRange = useMemo<readonly [number, number]>(() => [start, end], [start, end])
-  prevRangeRef.current = immediateRange
+  if (!frozen) prevRangeRef.current = immediateRange
   const deferredRange = useDeferredValue(immediateRange)
   const prevCommittedRangeRef = useRef<readonly [number, number] | null>(null)
   const renderStart = performance.now()
