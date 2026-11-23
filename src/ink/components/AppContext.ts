@@ -1,7 +1,13 @@
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
+import { createContext } from 'react'
 
-export type Props = Unbuilt
+export type Props = {
+  readonly exit: (error?: Error) => void
+}
 
-const AppContext: Unbuilt = unbuilt('src/ink/components/AppContext.ts:8')
+const AppContext = createContext<Props>({
+  exit() {},
+})
+
+AppContext.displayName = 'InternalAppContext'
 
 export default AppContext
