@@ -1,12 +1,12 @@
-import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
+export const SLOW_OPERATION_THRESHOLD_MS = process.env.NODE_ENV === 'development' ? 20 : Number.POSITIVE_INFINITY
 
-export const SLOW_OPERATION_THRESHOLD_MS: Unbuilt = unbuilt('src/utils/slowOperations.ts:7')
+const NOOP_DISPOSABLE: Disposable = Object.freeze({ [Symbol.dispose]() {} })
 
 export function slowLogging(
   _strings: TemplateStringsArray,
   ..._values: unknown[]
 ): Disposable {
-  return notBuilt('src/utils/slowOperations.ts:13')
+  return NOOP_DISPOSABLE
 }
 
 export function jsonStringify(
@@ -27,12 +27,13 @@ export function jsonStringify(
     | null,
   space?: string | number,
 ): string {
-  return notBuilt('src/utils/slowOperations.ts:30')
+  if (typeof replacer === 'function') return JSON.stringify(value, replacer, space)
+  return JSON.stringify(value, replacer, space)
 }
 
 export function jsonParse(
   text: string,
   reviver?: (this: unknown, key: string, value: unknown) => unknown,
 ): any {
-  return notBuilt('src/utils/slowOperations.ts:42')
+  return JSON.parse(text, reviver)
 }
