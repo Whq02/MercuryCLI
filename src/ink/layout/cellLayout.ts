@@ -555,11 +555,11 @@ function roomFor(flow: Flow, basisTotal: number, ownerMain: number | undefined, 
 function settleLine(flow: Flow, items: Item[], ownerMain: number | undefined, padBorderMain: number, performLayout: boolean): Line {
   const gaps = flow.gapMain * (items.length - 1)
   let basisTotal = 0
-  for (const item of items) basisTotal += item.basis + item.mainMargin
+  for (const item of items) basisTotal = basisTotal + item.basis + item.mainMargin
   basisTotal += gaps
   resolveFlexibleLengths(items, roomFor(flow, basisTotal, ownerMain, padBorderMain), basisTotal, (child, size) => clampMain(flow, child, size))
   let used = gaps
-  let cross = Number.NEGATIVE_INFINITY
+  let cross = 0
   for (const item of items) {
     item.crossSize = askChild(flow, item.node, [item.targetMain, 'exactly'], crossOffer(flow, item, false), performLayout, true).cross
     used += item.targetMain + item.mainMargin
@@ -617,7 +617,6 @@ function layoutContainer(
   let contentMain = 0
   let contentCross = 0
   if (lines.length > 0) {
-    contentMain = Number.NEGATIVE_INFINITY
     for (const line of lines) {
       contentMain = Math.max(contentMain, line.used)
       contentCross += line.cross
