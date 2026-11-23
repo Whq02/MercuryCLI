@@ -8,13 +8,62 @@ import { plural } from '../../utils/stringUtils.js';
 import { paneWindow } from '../mercury-ui/paneWindow.js';
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js';
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js';
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
+type Props = {
+  files: DiffFile[];
+  selectedIndex: number;
+  listRows?: number;
+  listWidth?: number;
+  onSelect?: (index: number) => void;
+  onActivate?: (index: number) => void;
+};
 
-type Props = Unbuilt;
+export function DiffFileList({
+  files,
+  selectedIndex,
+  listRows,
+  listWidth,
+  onSelect,
+  onActivate,
+}: Props): React.ReactNode {
+  const tokens = useMercuryTokens();
+  const { columns } = useTerminalSize();
 
-export function DiffFileList(arg0: Props): React.ReactNode {
-  return notBuilt('src/components/diff/DiffFileList.tsx:22')
+  if (files.length === 0) {
+    return <Text dimColor>No changed files</Text>;
+  }
+
+  const span = listRows ?? files.length;
+  const win = paneWindow(files.length, selectedIndex, span);
+  const maxPathWidth = Math.max(20, (listWidth ?? columns) - 23);
+
+  return (
+    <Box flexDirection="column">
+      {win.above > 0 ? (
+        <Text color={tokens.textMuted}>
+          {` ↑ ${win.above} more ${plural(win.above, 'file')}`}
+        </Text>
+      ) : null}
+      {files.slice(win.start, win.end).map((file, offset) => {
+        const index = win.start + offset;
+        return (
+          <FileItem
+            key={file.path}
+            file={file}
+            isSelected={index === selectedIndex}
+            maxPathWidth={maxPathWidth}
+            onSelect={() => onSelect?.(index)}
+            onActivate={() => onActivate?.(index)}
+          />
+        );
+      })}
+      {win.below > 0 ? (
+        <Text color={tokens.textMuted}>
+          {` ↓ ${win.below} more ${plural(win.below, 'file')}`}
+        </Text>
+      ) : null}
+    </Box>
+  );
 }
 
 function FileItem({
@@ -52,6 +101,49 @@ function FileItem({
   );
 }
 
-function FileStats(arg0: { file: DiffFile; isSelected: boolean }): React.ReactNode {
-  return notBuilt('src/components/diff/DiffFileList.tsx:97')
+function FileStats({
+  file,
+  isSelected,
+}: {
+  file: DiffFile;
+  isSelected: boolean;
+}): React.ReactNode {
+  if (file.isUntracked) {
+    return (
+      <Text bold={isSelected} color={isSelected ? 'background' : undefined} dimColor={!isSelected} inverse={isSelected}>
+        {' untracked'}
+      </Text>
+    );
+  }
+  if (file.isBinary) {
+    return (
+      <Text bold={isSelected} color={isSelected ? 'background' : undefined} dimColor={!isSelected} inverse={isSelected}>
+        {' binary'}
+      </Text>
+    );
+  }
+  if (file.isLargeFile) {
+    return (
+      <Text bold={isSelected} color={isSelected ? 'background' : undefined} dimColor={!isSelected} inverse={isSelected}>
+        {' large'}
+      </Text>
+    );
+  }
+  if (file.linesAdded === 0 && file.linesRemoved === 0) {
+    return null;
+  }
+  return (
+    <Box flexDirection="row" gap={1}>
+      {file.linesAdded > 0 ? (
+        <Text bold={isSelected} color={isSelected ? 'background' : 'success'} inverse={isSelected}>
+          {`+${file.linesAdded}`}
+        </Text>
+      ) : null}
+      {file.linesRemoved > 0 ? (
+        <Text bold={isSelected} color={isSelected ? 'background' : 'error'} inverse={isSelected}>
+          {`-${file.linesRemoved}`}
+        </Text>
+      ) : null}
+    </Box>
+  );
 }
