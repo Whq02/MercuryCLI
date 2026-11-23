@@ -1,6 +1,7 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { armImagePack, imagePackPackages, imagePackPlatform, vendoredImagePackDir } from './imagePackArm.js'
 import { javascriptImageProcessor } from './imageProcessorJs.js'
+import { isRecord } from '../isRecord.js'
 
 export { IMAGE_PACK_PATH, imagePackPackages, imagePackPlatform } from './imagePackArm.js'
 
@@ -54,10 +55,9 @@ export async function imageProcessorState(): Promise<ImageProcessorState> {
 }
 
 function unwrapModule(loaded: unknown): SharpFunction {
-  const candidate = loaded as { default?: unknown }
+  const candidate = typeof loaded === 'function' ? loaded : isRecord(loaded) ? loaded.default : undefined
   if (typeof candidate === 'function') return candidate as SharpFunction
-  if (typeof candidate?.default === 'function') return candidate.default as SharpFunction
-  const shape = candidate && typeof candidate === 'object' ? Object.keys(candidate).slice(0, 12).join(', ') : typeof candidate
+  const shape = isRecord(loaded) ? Object.keys(loaded).slice(0, 12).join(', ') : typeof loaded
   throw new Error(`image processor module did not export a callable entry point (module shape: ${shape || 'empty'})`)
 }
 
