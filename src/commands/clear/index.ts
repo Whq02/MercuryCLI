@@ -1,5 +1,13 @@
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
+import type { Command } from '../../commands.js'
 
-const clear: Unbuilt = unbuilt('src/commands/clear/index.ts:3')
+const clear: Command = {
+  type: 'local',
+  name: 'clear',
+  aliases: ['reset', 'new'],
+  description: 'Start fresh — drop this conversation and reclaim its context',
+  supportsNonInteractive: false,
+  seat: 'screen',
+  load: () => import('./clear.js'),
+}
 
 export default clear
