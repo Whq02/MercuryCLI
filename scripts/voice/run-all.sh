@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/integrations/voice/** src/commands/voice/** native/voice/** native/whisper/** vendor/whisper-models.lock.json build.ts
+# gate-watch: native/voice/** native/whisper/** vendor/whisper-models.lock.json build.ts src/commands/voice/** src/integrations/voice/**
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

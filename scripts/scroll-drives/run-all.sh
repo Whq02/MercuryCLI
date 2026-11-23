@@ -3,8 +3,8 @@
 # gate-env: MERCURY_SCROLL_REFLOW_STRICT
 # gate-watch: scripts/scroll/**
 # gate-watch: scripts/lib/* src/screen/chat/Chat.tsx
-# gate-watch: src/screen/scroll-keys/ScrollKeybindingHandler.tsx src/screen/virtual-message-list/VirtualMessageList.tsx
-# gate-watch: scripts/lib/settingsPopupHarness.ts src/screen/help/HelpV2.tsx src/screen/widgets/components.tsx
+# gate-watch: src/screen/help/HelpV2.tsx src/screen/scroll-keys/*
+# gate-watch: scripts/lib/settingsPopupHarness.ts src/screen/virtual-message-list/* src/screen/widgets/components.tsx
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

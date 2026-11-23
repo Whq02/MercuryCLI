@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-env: MERCURY_BROWSER_CACHE_DIR
-# gate-watch: src/integrations/browser/** src/commands/browser/**
+# gate-watch: src/commands/browser/** src/integrations/browser/**
 # gate-watch: scripts/vendor/patches/puppeteer-core@25.9.0.patch
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

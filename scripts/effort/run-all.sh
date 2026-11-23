@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/platform/config/** src/models/effort/effort.ts src/models/effort/effortLadder.ts src/models/effort/effortStamp.ts src/platform/settings/settings.ts src/platform/settings/settingsCache.ts
-# gate-watch: src/screen/composer/Composer.tsx
-# gate-watch: src/engine/attachment-shapes/attachmentMessage.ts src/engine/attachment-shapes/attachmentTypes.ts src/engine/attachment-shapes/capsuleKinds.ts src/engine/attachment-shapes/capsuleState.ts src/engine/attachment-shapes/dateAndModeNotices.ts src/engine/attachment-shapes/fileReadDenied.ts src/engine/attachment-shapes/mentions.ts src/engine/attachment-shapes/missionStatus.ts src/engine/attachment-shapes/samplesRoad.ts src/engine/attachment-shapes/skillListing.ts src/engine/attachment-shapes/taskStatus.ts src/engine/attachment-shapes/userContext.ts src/engine/messages/attachmentText.ts
-# gate-watch: src/models/effort/thinking.ts
+# gate-watch: src/engine/attachment-shapes/* src/engine/messages/attachmentText.ts src/models/effort/*
+# gate-watch: src/platform/config/**
+# gate-watch: src/platform/settings/* src/screen/composer/Composer.tsx
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

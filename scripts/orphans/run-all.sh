@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/boot/entrypoints/cli.tsx src/boot/entrypoints/init.ts src/boot/entrypoints/projectRoot.ts src/boot/entrypoints/shellParentGuard.ts src/boot/entrypoints/tensorfoldAdapter.ts src/integrations/mcp/mcpServer.ts
+# gate-watch: src/**
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

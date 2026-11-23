@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/boot/main.tsx scripts/lib/spawnCapture.ts
+# gate-watch: scripts/lib/spawnCapture.ts src/boot/main.tsx
 # gate-watch: src/models/facts/pins/deepseekPins.ts
 # gate-watch: scripts/ui/gridToPng.ts scripts/ui/vshot.py
 set -u

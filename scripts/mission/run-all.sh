@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/commands/mission/**
-# gate-watch: src/sessions/mission/** src/models/jev/**
-# gate-watch: src/permissions/guards/**
+# gate-watch: src/models/jev/** src/permissions/guards/**
+# gate-watch: src/sessions/mission/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

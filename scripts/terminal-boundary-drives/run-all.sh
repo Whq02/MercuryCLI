@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: scripts/terminal-boundary/**
-# gate-watch: src/daemon/runner/runArgs.ts src/daemon/runner/runHeadless.ts src/screen/renderer/elements/ErrorOverview.tsx src/screen/renderer/elements/App.tsx src/boot/main.tsx
-# gate-watch: src/sessions/transcripts/clearedSessions.ts
-# gate-watch: src/engine/rows/* src/daemon/runner-wire/* scripts/lib/rows.ts
+# gate-watch: src/boot/main.tsx src/daemon/runner-wire/* src/daemon/runner/* src/engine/rows/*
+# gate-watch: src/screen/renderer/elements/*
+# gate-watch: scripts/lib/rows.ts src/sessions/transcripts/clearedSessions.ts
 # gate-watch: scripts/lib/runnerHost.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

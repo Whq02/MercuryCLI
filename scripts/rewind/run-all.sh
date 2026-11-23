@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/engine/message-shapes/noticeRows.ts
-# gate-watch: src/engine/message-shapes/message.ts
 # gate-watch: src/engine/connector/**
+# gate-watch: src/engine/message-shapes/message.ts
+# gate-watch: src/engine/message-shapes/noticeRows.ts
 # gate-watch: src/engine/rows/*
 # gate-watch: src/platform/health/sections/crew.ts
 set -u

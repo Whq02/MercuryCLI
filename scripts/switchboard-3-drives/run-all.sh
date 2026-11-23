@@ -2,8 +2,8 @@
 # gate-class: pty
 # gate-env: MERCURY_UNIFY_CAPTURE_DIR MERCURY_UNIFY_KEEP MERCURY_UNIFY_BIN MERCURY_UNIFY_MODE MERCURY_UNIFY_TIMING_RUNS MERCURY_UNIFY_ONLY
 # gate-watch: scripts/switchboard/** scripts/switchboard-3/**
-# gate-watch: src/screen/concourse/**
 # gate-watch: src/daemon/switchboard/attachedSession.ts
+# gate-watch: src/screen/concourse/**
 # gate-watch: scripts/lib/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: scripts/release/package.mjs
-# gate-watch: src/models/roads/privacyLevel.ts src/engine/requests/clientContractLearned.ts
+# gate-watch: src/engine/requests/clientContractLearned.ts src/models/roads/privacyLevel.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

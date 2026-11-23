@@ -2,7 +2,7 @@
 # gate-class: pure
 # gate-watch: scripts/computer/computerDriveKit.ts scripts/lib/* src/screen/chat/Chat.tsx
 # gate-watch: scripts/lib/seedTranscript.ts
-# gate-watch: src/screen/scroll-keys/ScrollKeybindingHandler.tsx src/screen/virtual-message-list/VirtualMessageList.tsx
+# gate-watch: src/screen/scroll-keys/* src/screen/virtual-message-list/*
 # gate-watch: scripts/lib/captureDriver.ts scripts/ui/vshot.py
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

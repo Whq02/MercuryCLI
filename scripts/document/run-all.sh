@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-env: MERCURY_BROWSER_CACHE_DIR
-# gate-watch: src/tools/document/** vendor/pdfjs.lock.json
-# gate-watch: src/integrations/skills/bundled/index.ts bun.lock
-# gate-watch: src/permissions/rules/filesystem.ts
+# gate-watch: vendor/pdfjs.lock.json src/integrations/skills/bundled/index.ts
+# gate-watch: bun.lock src/permissions/rules/filesystem.ts
+# gate-watch: src/tools/document/**
 # gate-watch: vendor/document-licences/** build.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

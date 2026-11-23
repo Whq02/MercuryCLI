@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: scripts/lib/seedTranscript.ts
-# gate-watch: src/engine/run/** src/screen/workbench/** src/sessions/mission/** src/commands/run/** src/commands/diff/** src/commands/runs/** src/screen/prompts-panel/** src/screen/chat/Chat.tsx
+# gate-watch: src/commands/diff/** src/commands/run/** src/commands/runs/** src/engine/run/** src/screen/chat/Chat.tsx src/screen/prompts-panel/** src/screen/workbench/** src/sessions/mission/**
 # gate-watch: scripts/lib/captureDriver.ts scripts/ui/vshot.py
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

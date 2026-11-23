@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/engine/tool-errors/**
-# gate-watch: src/permissions/rules/permissionDoor.ts src/permissions/rules/permissionsLoader.ts
+# gate-watch: src/permissions/rules/*
 # gate-watch: src/platform/shell/bash/bashParser.ts src/platform/shell/bash/commands.ts src/platform/shell/bash/parsedCommand.ts src/platform/shell/bash/treeSitterAnalysis.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: pure
+# gate-watch: src/integrations/ide/*
+# gate-watch: src/platform/substrate/*
 # gate-watch: src/tools/unity/**
-# gate-watch: src/platform/substrate/startupMenu.ts
-# gate-watch: src/integrations/ide/blenderBridgeSession.ts src/integrations/ide/blenderDebug.ts src/integrations/ide/cppBuild.ts src/integrations/ide/cppProject.ts src/integrations/ide/cppProjectProfile.ts src/integrations/ide/godotSession.ts src/integrations/ide/ideTransaction.ts src/integrations/ide/launchProfiles.ts src/integrations/ide/launchTasks.ts src/integrations/ide/projectRunners.ts src/integrations/ide/pythonProject.ts src/integrations/ide/pythonTests.ts src/integrations/ide/runnerReporters.ts src/integrations/ide/testDebugPlans.ts src/integrations/ide/txAutoCapture.ts src/integrations/ide/unityBridgeSession.ts src/integrations/ide/unityTests.ts src/integrations/ide/vscodeText.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

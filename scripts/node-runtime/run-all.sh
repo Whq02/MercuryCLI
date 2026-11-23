@@ -2,7 +2,6 @@
 # gate-class: cpu
 # gate-watch: scripts/release/** .github/workflows/**
 # gate-watch: src/**
-# gate-watch: src/engine/rows/* src/daemon/runner-wire/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

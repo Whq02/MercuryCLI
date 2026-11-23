@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: scripts/golden-journeys/**
-# gate-watch: src/engine/run/** src/screen/workbench/** src/sessions/mission/** src/commands/run/** src/commands/diff/** src/commands/runs/** src/screen/prompts-panel/** src/screen/chat/Chat.tsx
+# gate-watch: src/commands/diff/** src/commands/run/** src/commands/runs/** src/engine/run/** src/screen/chat/Chat.tsx src/screen/prompts-panel/** src/screen/workbench/** src/sessions/mission/**
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/tools/engines/change-transaction/** src/tools/change-set/**
-# gate-watch: src/permissions/cards/change-set/**
-# gate-watch: src/platform/substrate/recoveryOrchestrator.ts
+# gate-watch: src/permissions/cards/change-set/** src/platform/substrate/recoveryOrchestrator.ts
+# gate-watch: src/tools/change-set/**
+# gate-watch: src/tools/engines/change-transaction/**
 # gate-watch: scripts/lib/captureDriver.ts scripts/ui/renderScenarios.ts scripts/ui/vshot.py
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

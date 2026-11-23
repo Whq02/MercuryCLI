@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: scripts/memory/**
-# gate-watch: src/sessions/mneme/** src/tools/journal/**
+# gate-watch: src/commands/catalogue/commands.ts src/crew/agents/agentMemory.ts
 # gate-watch: docs/MNEME.md docs/MEMORY-FINDINGS.md
-# gate-watch: src/engine/compaction/foldConversation.ts
-# gate-watch: src/tools/engines/eval-kernels/evalBridge.ts src/sessions/instructions/sourceText.ts
-# gate-watch: src/permissions/capability/declarations.ts src/engine/turn-entry/stopHooks.ts
-# gate-watch: src/commands/catalogue/commands.ts src/sessions/memory-shapes/types.ts src/crew/agents/agentMemory.ts
-# gate-watch: src/screen/widgets/useFlatList.ts
+# gate-watch: src/daemon/runner/runHeadless.ts
+# gate-watch: src/engine/compaction/foldConversation.ts src/engine/turn-entry/stopHooks.ts
+# gate-watch: src/integrations/samples/** src/models/jev/jevClient.ts
+# gate-watch: src/permissions/capability/declarations.ts src/permissions/rules/decision/engine.ts src/permissions/rules/permissionDoor.ts
+# gate-watch: src/permissions/rules/permissionMode.ts
 # gate-watch: scripts/lib/rows.ts
 # gate-watch: scripts/hooks/lib/runDoor.ts
 # gate-watch: scripts/project-intel/fixtures/materialize.ts
 # gate-watch: scripts/ui/** scripts/memory-study/**
-# gate-watch: scripts/jev/lib/jevStandin.ts src/models/jev/jevClient.ts
-# gate-watch: src/permissions/rules/decision/engine.ts src/permissions/rules/permissionDoor.ts src/permissions/rules/permissionMode.ts src/daemon/runner/runHeadless.ts
-# gate-watch: docs/SAMPLES.md src/integrations/samples/**
+# gate-watch: scripts/jev/lib/jevStandin.ts src/screen/widgets/useFlatList.ts
+# gate-watch: src/sessions/instructions/sourceText.ts src/sessions/memory-shapes/types.ts src/sessions/mneme/** src/tools/engines/eval-kernels/evalBridge.ts
+# gate-watch: docs/SAMPLES.md src/tools/journal/**
 # gate-watch: .gitignore scripts/vendor/build-embed.ts scripts/vendor/fetch-embed-models.ts native/embed/**
 # gate-watch: scripts/lib/hermetic.ts
 # gate-watch: scripts/lib/flagRegistrySource.ts

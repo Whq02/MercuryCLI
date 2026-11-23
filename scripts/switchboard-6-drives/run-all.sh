@@ -2,8 +2,8 @@
 # gate-class: pty
 # gate-env: MERCURY_CHATMODE_CAPTURE_DIR MERCURY_CHATMODE_KEEP
 # gate-watch: scripts/switchboard/** scripts/switchboard-6/**
-# gate-watch: src/screen/concourse/**
 # gate-watch: src/daemon/switchboard/attachedSession.ts
+# gate-watch: src/screen/concourse/**
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

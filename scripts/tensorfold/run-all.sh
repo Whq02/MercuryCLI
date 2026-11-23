@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/models/tensorfold/** src/commands/tensorfold/**
-# gate-watch: src/models/local-server/localWindowFit.ts
-# gate-watch: src/screen/tensorfold/** src/models/facts/modelPickerGroups.ts src/models/facts/modelPickerFooter.ts
-# gate-watch: src/models/roads/local/tensorfoldHelper.ts src/daemon/lan/pairing.ts src/models/hosting/tensorfoldPod.ts src/models/hosting/tensorfoldRelease.ts
-# gate-watch: src/boot/entrypoints/tensorfoldAdapter.ts src/daemon/control/ownerWatch.ts src/platform/archive/zip.ts
+# gate-watch: src/boot/entrypoints/tensorfoldAdapter.ts src/commands/tensorfold/**
+# gate-watch: src/daemon/control/ownerWatch.ts
+# gate-watch: src/daemon/lan/pairing.ts src/models/facts/modelPickerFooter.ts src/models/facts/modelPickerGroups.ts
+# gate-watch: src/models/hosting/tensorfoldPod.ts src/models/hosting/tensorfoldRelease.ts src/models/local-server/localWindowFit.ts src/models/roads/local/tensorfoldHelper.ts
+# gate-watch: src/models/tensorfold/** src/platform/archive/* src/screen/tensorfold/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

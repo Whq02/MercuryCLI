@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/screen/chat/Chat.tsx
-# gate-watch: src/platform/verification/verificationState.ts
+# gate-watch: src/platform/verification/*
+# gate-watch: src/screen/chat/*
 # gate-watch: scripts/consistency-census/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: build.ts src/platform/product/product.ts
+# gate-watch: build.ts
 # gate-watch: *.md **/*.md .github/**
 # gate-watch: src/** scripts/**
 set -u

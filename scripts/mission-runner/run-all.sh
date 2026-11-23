@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/sessions/mission/** src/integrations/resources/adapters/mission.ts
+# gate-watch: src/daemon/runner-wire/* src/engine/rows/*
+# gate-watch: src/integrations/resources/adapters/mission.ts
 # gate-watch: src/models/roads/openai/openaiCatalogue.ts
-# gate-watch: src/models/roads/openai/qualificationStore.ts
-# gate-watch: src/engine/rows/* src/daemon/runner-wire/*
+# gate-watch: src/models/roads/openai/qualificationStore.ts src/sessions/mission/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

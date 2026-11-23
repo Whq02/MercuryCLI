@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/platform/update-channel/** scripts/release/** scripts/updater/**
+# gate-watch: scripts/release/** scripts/updater/** src/platform/update-channel/**
 # gate-watch: .github/workflows/private-release.yml
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

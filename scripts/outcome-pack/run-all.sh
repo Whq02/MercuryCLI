@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/daemon/runner-wire/methods.ts src/tools/shell/BashTool.tsx src/engine/tasks/local-shell/shellTask.tsx src/platform/shell/shellProcess.ts
-# gate-watch: src/daemon/control/protocol.ts
+# gate-watch: src/daemon/control/protocol.ts src/daemon/runner-wire/methods.ts src/engine/tasks/local-shell/shellTask.tsx src/platform/shell/shellProcess.ts
+# gate-watch: src/tools/shell/BashTool.tsx
 # gate-env: MERCURY_BUILD_OUTDIR
 set -euo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

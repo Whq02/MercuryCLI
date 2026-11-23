@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/tools/test/* src/tools/shell/* src/integrations/ide/projectRunners.ts
-# gate-watch: src/tools/tool-search/** src/models/facts/capabilities.ts
-# gate-watch: src/engine/message-shapes/message.ts src/engine/attachment-shapes/attachmentTypes.ts
-# gate-watch: src/engine/loop/turn/**
+# gate-watch: src/engine/attachment-shapes/attachmentTypes.ts src/engine/loop/turn/** src/engine/message-shapes/message.ts
+# gate-watch: src/integrations/ide/projectRunners.ts src/models/facts/*
+# gate-watch: src/tools/shell/* src/tools/test/*
+# gate-watch: src/tools/tool-search/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-watch: src/integrations/samples/** src/screen/samples/** src/commands/samples/** src/screen/tasks/useFocusedWork.ts src/screen/tasks/CompactWorkSummary.tsx src/screen/tasks/BackgroundTasksDialog.tsx src/engine/connector/seatWire.ts build.ts
+# gate-watch: build.ts src/commands/samples/** src/engine/connector/seatWire.ts src/integrations/samples/** src/screen/samples/** src/screen/tasks/BackgroundTasksDialog.tsx src/screen/tasks/CompactWorkSummary.tsx src/screen/tasks/useFocusedWork.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

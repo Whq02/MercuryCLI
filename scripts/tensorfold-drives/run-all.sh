@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: scripts/tensorfold/fixtures/**
-# gate-watch: src/models/tensorfold/** src/commands/tensorfold/**
-# gate-watch: src/screen/chat/SwitchboardTagBar.tsx src/engine/connector/daemonConnector.ts
-# gate-watch: src/daemon/concourse-workers/concourseWorkers.ts src/daemon/switchboard/bornSession.ts src/daemon/switchboard/hopIntoSession.ts
+# gate-watch: src/commands/tensorfold/** src/daemon/concourse-workers/concourseWorkers.ts
+# gate-watch: src/daemon/switchboard/bornSession.ts src/daemon/switchboard/hopIntoSession.ts
+# gate-watch: src/engine/connector/daemonConnector.ts src/models/tensorfold/** src/screen/chat/SwitchboardTagBar.tsx
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78
