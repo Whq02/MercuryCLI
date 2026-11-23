@@ -10,6 +10,7 @@ import {
   focusedOptionSupports1m,
   getModelOptions,
   isCatalogueDoorRow,
+  isProviderActionRow,
   resolvesToExistingOption,
   stripContext1m,
   withContext1m,
@@ -98,7 +99,7 @@ export function ModelPicker({
     if (focusVal === undefined && trimmedInitial !== null) {
       list.push({
         value: trimmedInitial,
-        label: trimmedInitial,
+        label: getPublicModelDisplayName(trimmedInitial) ?? trimmedInitial,
         description: 'current model',
       })
       focusVal = trimmedInitial
@@ -114,15 +115,8 @@ export function ModelPicker({
     () =>
       options.map(opt => ({
         value: opt.value,
-        label: opt.value,
-        description:
-          opt.description !== ''
-            ? opt.label !== opt.value
-              ? `${opt.label} · ${opt.description}`
-              : opt.description
-            : opt.label !== opt.value
-              ? opt.label
-              : undefined,
+        label: isProviderActionRow(opt.value) ? opt.label : opt.value,
+        description: opt.description,
       })),
     [options],
   )
