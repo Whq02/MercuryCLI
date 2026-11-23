@@ -1,4 +1,3 @@
-import figures from 'figures'
 import React, { useRef, useState } from 'react'
 import { GLYPH } from '../theme/glyphs.js'
 import { Box, Text } from '../themedRenderer.js'

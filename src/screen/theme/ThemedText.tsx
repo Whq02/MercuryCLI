@@ -1,6 +1,6 @@
 import React, { createContext, useContext } from 'react'
 import Text from '../renderer/elements/Text.js'
-import type { Color, Styles } from '../renderer/styles.js'
+import type { Styles } from '../renderer/styles.js'
 import { getTheme, type Theme } from './theme.js'
 import { useSessionAccent } from '../widgets/sessionAccent.js'
 import { resolveThemeColor } from './color.js'
