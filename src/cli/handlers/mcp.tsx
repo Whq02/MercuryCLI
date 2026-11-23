@@ -40,6 +40,7 @@ import { errorMessage, getErrnoCode } from '../../utils/errors.js'
 import { gracefulShutdown } from '../../utils/gracefulShutdown.js'
 import { safeParseJSONC } from '../../utils/json.js'
 import { withDeadline } from '../../utils/deadline.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type ProbeOutcome =
   | 'connected'
@@ -86,12 +87,12 @@ function renderStatus(result: ProbeResult): string {
   }
 }
 
-const VALID_SCOPES = ['local', 'user', 'project'] as const
+const VALID_SCOPES = ['local', 'project', 'user'] as const
 type CliScope = (typeof VALID_SCOPES)[number]
 
 function normalizeScope(scope: string | undefined, fallback: CliScope): CliScope {
   if (scope === undefined) return fallback
-  if ((VALID_SCOPES as readonly string[]).includes(scope)) return scope as CliScope
+  if (scope === 'local' || scope === 'project' || scope === 'user') return scope
   return cliError(`Invalid scope '${scope}'. Valid scopes: ${VALID_SCOPES.join(', ')}`)
 }
 
@@ -110,21 +111,26 @@ function scopeConfigFileLabel(scope: CliScope): string {
 export async function mcpServeHandler(options: {
   debug?: boolean
 }): Promise<void> {
-  let cwd: string
+  let cwd: string | undefined
   try {
     cwd = process.cwd()
     await stat(cwd)
   } catch (error) {
     const code = getErrnoCode(error)
     if (code === 'ENOENT' || code === 'EACCES' || code === 'EPERM') {
-      return cliError(`Current working directory is not accessible (${code}): ${errorMessage(error)}`)
+      const pathPart = cwd !== undefined ? ` (${cwd})` : ''
+      return cliError(`Current working directory is not accessible${pathPart}: ${errorMessage(error)}`)
     }
-    return cliError(`Failed to inspect current working directory: ${errorMessage(error)}`)
+    throw error
   }
-  const { setup } = await import('../../setup.js')
-  await setup(cwd, 'default', false, false, undefined, false)
-  const { startMCPServer } = await import('../../entrypoints/mcp.js')
-  await startMCPServer(cwd, options.debug === true)
+  try {
+    const { setup } = await import('../../setup.js')
+    await setup(cwd, 'default', false, false, undefined, false)
+    const { startMCPServer } = await import('../../entrypoints/mcp.js')
+    await startMCPServer(cwd, options.debug === true)
+  } catch (error) {
+    return cliError(`Failed to start the MCP server: ${errorMessage(error)}`)
+  }
 }
 
 
@@ -156,12 +162,17 @@ export async function mcpRemoveHandler(
       }
     }
     if (holders.length === 0) {
-      return cliError(`No MCP server named ${name} found in any scope`)
+      return cliError(`No MCP server named ${name} is configured`)
     }
     if (holders.length > 1) {
-      const scopeList = holders.map(holder => holder.scope).join(', ')
+      const details = holders
+        .map(holder => `  - ${holder.scope} (${scopeConfigFileLabel(holder.scope)})`)
+        .join('\n')
+      const commands = holders
+        .map(holder => `  ${binaryName()} mcp remove "${name}" -s ${holder.scope}`)
+        .join('\n')
       return cliError(
-        `MCP server "${name}" exists in multiple scopes (${scopeList}). Specify a scope with --scope (${scopeList}), e.g. ${binaryName()} mcp remove ${name} --scope ${holders[0]!.scope}`,
+        `MCP server "${name}" exists in multiple scopes:\n${details}\n\nTo remove from a specific scope, run:\n${commands}`,
       )
     }
     targetScope = holders[0]!.scope
@@ -169,16 +180,16 @@ export async function mcpRemoveHandler(
   }
 
   let revoked: Promise<void> | undefined
-  const isRemoteAuth =
-    targetConfig !== undefined &&
-    (targetConfig.type === 'sse' || targetConfig.type === 'http')
-  const remoteConfig = isRemoteAuth ? targetConfig : undefined
+  const remoteConfig =
+    targetConfig !== undefined && (targetConfig.type === 'sse' || targetConfig.type === 'http')
+      ? targetConfig
+      : undefined
   const beforeRemoval =
     remoteConfig !== undefined
       ? (): void => {
           refuseUnreadTokenStore(name, remoteConfig)
           const pending = revokeServerTokens(name, remoteConfig)
-          pending.catch(() => {})
+          pending.catch(passedOver)
           clearServerTokensFromLocalStorage(name, remoteConfig)
           clearMcpClientConfig(name, remoteConfig)
           revoked = pending
@@ -205,18 +216,17 @@ export async function mcpRemoveHandler(
 
 function formatServerSummary(config: ScopedMcpServerConfig): string {
   const written = mcpConfigAsWritten(config)
-  if (written.url !== undefined) {
-    const label =
-      config.type === 'http'
-        ? 'HTTP'
-        : config.type === 'sse'
-          ? 'SSE'
-          : config.type === 'ws'
-            ? 'WS'
-            : config.type ?? ''
-    return `${describeUrlRedacted(written.url)}${label ? ` (${label})` : ''}`
+  if (config.type === undefined || config.type === 'stdio') {
+    return [written.command ?? config.command, ...written.args].filter(Boolean).join(' ')
   }
-  return [written.command ?? '', ...written.args].filter(Boolean).join(' ')
+  if (config.type === 'http' || config.type === 'sse') {
+    return `${describeUrlRedacted(written.url ?? config.url)} (${config.type.toUpperCase()})`
+  }
+  if (config.type === 'claudeai-proxy') {
+    return describeUrlRedacted(written.url ?? config.url)
+  }
+  const url = written.url
+  return url ? `${describeUrlRedacted(url)} (${config.type})` : `(${config.type})`
 }
 
 export async function mcpListHandler(): Promise<void> {
@@ -238,9 +248,14 @@ export async function mcpListHandler(): Promise<void> {
     console.log(item.line)
   }
 
-  const entries = Object.entries(servers)
+  const entries = Object.entries(servers).sort(([a], [b]) => a.localeCompare(b))
   if (entries.length === 0) {
-    if (configFaults.length === 0 && trustLine === null && approvalLines.length === 0) {
+    if (
+      configFaults.length === 0 &&
+      boundedNotices.length === 0 &&
+      trustLine === null &&
+      approvalLines.length === 0
+    ) {
       console.log(`No MCP servers configured. Use \`${binaryName()} mcp add\` to add a server.`)
     }
     await gracefulShutdown(0)
@@ -259,7 +274,7 @@ export async function mcpListHandler(): Promise<void> {
   )
 
   for (const { name, config, result } of results) {
-    console.log(`${name}: ${formatServerSummary(config)} - ${renderStatus(result)}`)
+    console.log(`${name}: ${formatServerSummary(config)} — ${renderStatus(result)}`)
   }
 
   await gracefulShutdown(0)
@@ -288,8 +303,9 @@ export async function mcpGetHandler(name: string): Promise<void> {
   const result = await probeServer(name, config)
   const written = mcpConfigAsWritten(config)
 
+  const scope = config.scope ?? 'local'
   console.log(`${name}:`)
-  console.log(`  Scope: ${config.scope}`)
+  console.log(`  Scope: ${scope}`)
   console.log(`  Status: ${renderStatus(result)}`)
   console.log(`  Type: ${config.type ?? 'stdio'}`)
 
@@ -305,7 +321,12 @@ export async function mcpGetHandler(name: string): Promise<void> {
         console.log(`    ${line}`)
       }
     }
-  } else {
+  } else if (
+    config.type === 'http' ||
+    config.type === 'sse' ||
+    config.type === 'ws' ||
+    config.type === 'claudeai-proxy'
+  ) {
     console.log(`  URL: ${describeUrlRedacted(written.url ?? config.url)}`)
     if (
       (config.type === 'http' || config.type === 'sse' || config.type === 'ws') &&
@@ -322,7 +343,14 @@ export async function mcpGetHandler(name: string): Promise<void> {
       if (clientConfig?.clientSecret) {
         console.log('  Client Secret: [configured]')
       }
+      if (config.oauth?.callbackPort !== undefined) {
+        console.log(`  Callback Port: ${config.oauth.callbackPort}`)
+      }
     }
+  }
+
+  if (scope === 'local' || scope === 'project' || scope === 'user') {
+    console.log(`\nTo remove this server, run: ${binaryName()} mcp remove "${name}" -s ${scope}`)
   }
 
   await gracefulShutdown(0)
@@ -335,7 +363,7 @@ export async function mcpAddJsonHandler(
 ): Promise<void> {
   const scope = normalizeScope(options.scope, 'local')
   const parsed = safeParseJSONC(json)
-  if (parsed === null) {
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
     return cliError('Invalid JSON string provided')
   }
 
@@ -347,8 +375,10 @@ export async function mcpAddJsonHandler(
   }
 
   const config: McpServerConfig = validated.data
+  const hasRemoteClientId =
+    (config.type === 'http' || config.type === 'sse') && Boolean(config.oauth?.clientId)
   let clientSecret: string | undefined
-  if (options.clientSecret) {
+  if (options.clientSecret && hasRemoteClientId) {
     try {
       clientSecret = await readClientSecret()
     } catch (error) {
@@ -366,7 +396,7 @@ export async function mcpAddJsonHandler(
   }
 
   return cliOk(
-    `Added ${config.type ?? 'stdio'} MCP server ${name} to ${scope} config\nModified: ${scopeConfigFileLabel(scope)}`,
+    `Added ${config.type ?? 'stdio'} MCP server ${name} to ${scope} scope\nModified: ${scopeConfigFileLabel(scope)}`,
   )
 }
 
@@ -381,5 +411,7 @@ export async function mcpResetChoicesHandler(): Promise<void> {
   if (error !== null) {
     return cliError(errorMessage(error))
   }
-  return cliOk('All project-scoped MCP server approvals and rejections were reset.')
+  return cliOk(
+    'All project-scoped MCP server approvals and rejections were reset. You will be prompted for approval next time you start Mercury.',
+  )
 }
