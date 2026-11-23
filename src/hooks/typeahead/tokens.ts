@@ -1,6 +1,5 @@
 import type { SuggestionItem as Suggestion } from '../../components/PromptInput/PromptInputFooterSuggestions.js'
 import type { ShellCompletionType } from '../../utils/bash/shellCompletion.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export function extractSearchToken({
   token,
@@ -19,7 +18,14 @@ export function extractSearchToken({
   return token.startsWith('@') ? token.slice(1) : token
 }
 
-export function formatReplacementValue(arg0: {
+export function formatReplacementValue({
+  displayText,
+  mode,
+  hasAtPrefix,
+  needsQuotes,
+  isQuoted,
+  isComplete,
+}: {
   displayText: string
   mode: string
   hasAtPrefix: boolean
@@ -27,7 +33,13 @@ export function formatReplacementValue(arg0: {
   isQuoted?: boolean
   isComplete: boolean
 }): string {
-  return notBuilt('src/hooks/typeahead/tokens.ts:21')
+  const space = isComplete ? ' ' : ''
+  if (needsQuotes || isQuoted) {
+    const prefix = mode === 'bash' ? '' : '@'
+    return `${prefix}"${displayText}"${space}`
+  }
+  const prefix = hasAtPrefix ? '@' : ''
+  return `${prefix}${displayText}${space}`
 }
 
 export function applyShellSuggestion(
@@ -38,7 +50,17 @@ export function applyShellSuggestion(
   setCursorOffset: (offset: number) => void,
   completionType: ShellCompletionType | undefined,
 ): void {
-  return notBuilt('src/hooks/typeahead/tokens.ts:45')
+  const beforeCursor = input.slice(0, cursorOffset)
+  const afterCursor = input.slice(cursorOffset)
+  const lastSpace = beforeCursor.lastIndexOf(' ')
+  const start = lastSpace === -1 ? 0 : lastSpace + 1
+  const prefix = completionType === 'variable' ? '$' : ''
+  const suffix =
+    completionType === 'variable' || completionType === 'command' ? ' ' : ''
+  const replacement = `${prefix}${suggestion.displayText}${suffix}`
+  const nextInput = input.slice(0, start) + replacement + afterCursor
+  onInputChange(nextInput)
+  setCursorOffset(start + replacement.length)
 }
 
 export function applyDirectorySuggestion(
@@ -87,7 +109,61 @@ export function extractCompletionToken(
   cursorPos: number,
   includeAtSymbol?: boolean,
 ): { token: string; startPos: number; isQuoted?: boolean } | null {
-  return notBuilt('src/hooks/typeahead/tokens.ts:107')
+  if (!text) return null
+  const clamped = Math.max(0, Math.min(cursorPos, text.length))
+
+  if (includeAtSymbol) {
+    let quoteStart = -1
+    for (let i = clamped - 1; i >= 0; i--) {
+      if (text[i] === '@' && text[i + 1] === '"') {
+        quoteStart = i
+        break
+      }
+      if (text[i] === '\n') break
+    }
+    if (quoteStart !== -1) {
+      const closeQuote = text.indexOf('"', quoteStart + 2)
+      const endPos = closeQuote === -1 ? text.length : closeQuote + 1
+      if (endPos >= clamped) {
+        return {
+          token: text.slice(quoteStart, endPos),
+          startPos: quoteStart,
+          isQuoted: true,
+        }
+      }
+    }
+
+    const beforeCursor = text.slice(0, clamped)
+    const lastAt = beforeCursor.lastIndexOf('@')
+    if (
+      lastAt !== -1 &&
+      (lastAt === 0 || /\s/.test(text[lastAt - 1]!)) &&
+      !/\s/.test(beforeCursor.slice(lastAt))
+    ) {
+      let end = clamped
+      while (end < text.length && TOKEN_CHAR.test(text[end]!)) {
+        end++
+      }
+      return {
+        token: text.slice(lastAt, end),
+        startPos: lastAt,
+      }
+    }
+  }
+
+  let start = clamped
+  while (start > 0 && TOKEN_CHAR.test(text[start - 1]!)) {
+    start--
+  }
+  let end = clamped
+  while (end < text.length && TOKEN_CHAR.test(text[end]!)) {
+    end++
+  }
+  if (start === end) return null
+  return {
+    token: text.slice(start, end),
+    startPos: start,
+  }
 }
 
 export function preservedSelection(
