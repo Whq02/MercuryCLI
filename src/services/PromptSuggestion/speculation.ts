@@ -19,7 +19,8 @@ function isActiveSpeculation(
   return (
     state !== null &&
     typeof state === 'object' &&
-    (state as { status?: unknown }).status === 'active'
+    'status' in state &&
+    state.status === 'active'
   )
 }
 
