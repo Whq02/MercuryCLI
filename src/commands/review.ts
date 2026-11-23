@@ -1,6 +1,5 @@
 import type { Command } from '../types/command.js'
 import type { ContentBlockParam } from '../types/wire.js'
-import { unbuilt, type Unbuilt } from '../pi/holes.js'
 
 function buildReviewPrompt(args: string): string {
   return `Act as an expert code reviewer.
@@ -21,6 +20,22 @@ Keep it concise but thorough, weighting correctness, project conventions, perfor
 coverage and security. Format the review with clear sections and bullet points.`
 }
 
-const review: Unbuilt = unbuilt('src/commands/review.ts:23')
+const review: Command = {
+  type: 'prompt',
+  name: 'review',
+  description: 'Have Mercury review a pull request (bare: pick from open PRs)',
+  argumentHint: '[PR number]',
+  progressMessage: 'reviewing a pull request',
+  contentLength: 0,
+  source: 'builtin',
+  async getPromptForCommand(args: string): Promise<ContentBlockParam[]> {
+    return [
+      {
+        type: 'text',
+        text: buildReviewPrompt(args),
+      },
+    ]
+  },
+}
 
 export default review
