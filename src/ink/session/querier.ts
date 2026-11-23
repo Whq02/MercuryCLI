@@ -4,48 +4,79 @@ import type { TerminalResponse } from '../input/input-decoder.js'
 import { csi } from '../termio/csi.js'
 import { osc } from '../termio/osc.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-type TerminalQuery<T extends TerminalResponse = TerminalResponse> = Unbuilt
+type TerminalQuery<T extends TerminalResponse = TerminalResponse> = {
+  request: string
+  match: (r: TerminalResponse) => r is T
+  stringReply?: boolean
+}
 
-type DecrpmResponse = Unbuilt
-type Da1Response = Unbuilt
-type Da2Response = Unbuilt
-type KittyResponse = Unbuilt
-type CursorPosResponse = Unbuilt
-type OscResponse = Unbuilt
-type XtversionResponse = Unbuilt
-
+type DecrpmResponse = Extract<TerminalResponse, { type: 'decrpm' }>
+type Da1Response = Extract<TerminalResponse, { type: 'da1' }>
+type Da2Response = Extract<TerminalResponse, { type: 'da2' }>
+type KittyResponse = Extract<TerminalResponse, { type: 'kittyKeyboard' }>
+type CursorPosResponse = Extract<TerminalResponse, { type: 'cursorPosition' }>
+type OscResponse = Extract<TerminalResponse, { type: 'osc' }>
+type XtversionResponse = Extract<TerminalResponse, { type: 'xtversion' }>
 
 export function decrqm(mode: number): TerminalQuery<DecrpmResponse> {
-  return notBuilt('src/ink/session/querier.ts:23')
+  return {
+    request: csi(`?${mode}$p`),
+    match: (r): r is DecrpmResponse => r.type === 'decrpm' && r.mode === mode,
+  }
 }
 
 export function da1(): TerminalQuery<Da1Response> {
-  return notBuilt('src/ink/session/querier.ts:30')
+  return {
+    request: csi('c'),
+    match: (r): r is Da1Response => r.type === 'da1',
+  }
 }
 
 export function da2(): TerminalQuery<Da2Response> {
-  return notBuilt('src/ink/session/querier.ts:37')
+  return {
+    request: csi('>c'),
+    match: (r): r is Da2Response => r.type === 'da2',
+  }
 }
 
 export function kittyKeyboard(): TerminalQuery<KittyResponse> {
-  return notBuilt('src/ink/session/querier.ts:44')
+  return {
+    request: csi('?u'),
+    match: (r): r is KittyResponse => r.type === 'kittyKeyboard',
+  }
 }
 
 export function cursorPosition(): TerminalQuery<CursorPosResponse> {
-  return notBuilt('src/ink/session/querier.ts:51')
+  return {
+    request: csi('?6n'),
+    match: (r): r is CursorPosResponse => r.type === 'cursorPosition',
+  }
 }
 
 export function oscColor(code: number): TerminalQuery<OscResponse> {
-  return notBuilt('src/ink/session/querier.ts:58')
+  return {
+    request: osc(code, '?'),
+    match: (r): r is OscResponse => r.type === 'osc' && r.code === code,
+    stringReply: true,
+  }
 }
 
 export function xtversion(): TerminalQuery<XtversionResponse> {
-  return notBuilt('src/ink/session/querier.ts:66')
+  return {
+    request: csi('>0q'),
+    match: (r): r is XtversionResponse => r.type === 'xtversion',
+    stringReply: true,
+  }
 }
 
-type PendingQuery = Unbuilt
+const SENTINEL = csi('c')
+
+type PendingQuery = {
+  match: (r: TerminalResponse) => boolean
+  resolve: (r: TerminalResponse | undefined) => void
+  stringReply: boolean
+}
 
 type Batch = {
   queries: PendingQuery[]
@@ -93,24 +124,77 @@ export class TerminalQuerier {
     return this.batches.some(batch => batch.sentinel !== null && batch.queries.some(query => query.stringReply))
   }
 
-  whenSettled(deadlineMs?: number): Promise<QuerySettleOutcome> {
-    return notBuilt('src/ink/session/querier.ts:129')
+  whenSettled(deadlineMs: number = terminalQuerySettleMs()): Promise<QuerySettleOutcome> {
+    if (this.settled()) return Promise.resolve('settled')
+    const oldest = this.batches.find(batch => batch.sentinel !== null)
+    if (!oldest) return Promise.resolve('settled')
+    const remaining = deadlineMs - (Date.now() - oldest.flushedAt)
+    if (remaining <= 0) return Promise.resolve('deadline')
+    return new Promise<QuerySettleOutcome>(resolve => {
+      const onSettled = (): void => {
+        stopTimeout(timer)
+        resolve('settled')
+      }
+      const timer = startTimeout(() => {
+        const idx = this.settleWaiters.indexOf(onSettled)
+        if (idx !== -1) this.settleWaiters.splice(idx, 1)
+        resolve('deadline')
+      }, remaining)
+      this.settleWaiters.push(onSettled)
+    })
   }
 
   private notifySettled(): void {
-    return notBuilt('src/ink/session/querier.ts:147')
+    if (!this.settled()) return
+    const waiters = this.settleWaiters.splice(0)
+    for (const waiter of waiters) waiter()
   }
 
   send<T extends TerminalResponse>(query: TerminalQuery<T>): Promise<T | undefined> {
-    return notBuilt('src/ink/session/querier.ts:154')
+    return new Promise<T | undefined>(resolve => {
+      this.openBatch.queries.push({
+        match: query.match,
+        resolve: r => resolve(r !== undefined && query.match(r) ? r : undefined),
+        stringReply: query.stringReply === true,
+      })
+      this.pendingRequests += query.request
+    })
   }
 
   flush(): Promise<void> {
-    return notBuilt('src/ink/session/querier.ts:165')
+    return new Promise<void>(resolve => {
+      const batch = this.openBatch
+      batch.sentinel = resolve
+      batch.flushedAt = Date.now()
+      const timer = startTimeout(() => this.closeBatch(batch), 250)
+      timer.unref?.()
+      batch.timer = timer
+      this.batches.push({ queries: [], sentinel: null, flushedAt: 0 })
+      const wire = this.pendingRequests + SENTINEL
+      this.pendingRequests = ''
+      termWrite(this.stdout, wire)
+    })
   }
 
   onResponse(r: TerminalResponse): void {
-    return notBuilt('src/ink/session/querier.ts:179')
+    const now = Date.now()
+    for (const batch of [...this.batches]) {
+      if (batch.sentinel !== null && now - batch.flushedAt >= 250) {
+        this.closeBatch(batch)
+      }
+    }
+    for (const batch of this.batches) {
+      const index = batch.queries.findIndex(query => query.match(r))
+      if (index !== -1) {
+        const [matched] = batch.queries.splice(index, 1)
+        matched!.resolve(r)
+        return
+      }
+    }
+    if (r.type === 'da1') {
+      const oldest = this.batches.find(batch => batch.sentinel !== null)
+      if (oldest) this.closeBatch(oldest)
+    }
   }
 
   private closeBatch(batch: Batch): void {
