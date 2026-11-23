@@ -15,8 +15,8 @@ type Props = {
   selectedIndex: number;
   visibleRows: number;
   listWidth?: number;
-  onSelect?: (filePath: string) => void;
-  onActivate?: (filePath: string) => void;
+  onSelect: (filePath: string) => void;
+  onActivate: (filePath: string) => void;
 };
 
 export function DiffFileList(arg0: Props): React.ReactNode {
@@ -33,8 +33,8 @@ function FileItem({
   file: DiffFile;
   isSelected: boolean;
   maxPathWidth: number;
-  onSelect?: (filePath: string) => void;
-  onActivate?: (filePath: string) => void;
+  onSelect: () => void;
+  onActivate: () => void;
 }): React.ReactNode {
   const displayPath = truncateStartToWidth(file.path, maxPathWidth);
   const pointer = isSelected ? figures.pointer + ' ' : '  ';
@@ -43,8 +43,8 @@ function FileItem({
       id={`diff:file:${file.path}`}
       selected={isSelected}
       selectionBand={false}
-      onSelect={onSelect ? () => onSelect(file.path) : undefined}
-      onActivate={onActivate ? () => onActivate(file.path) : undefined}
+      onSelect={onSelect}
+      onActivate={onActivate}
       height={1}
       flexDirection="row"
     >

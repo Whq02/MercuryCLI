@@ -20,7 +20,7 @@ type TreeNode<T> = {
 
 type TreeSelectProps<T> = {
   nodes: readonly TreeNode<T>[]
-  onSelect: (value: T) => void
+  onSelect: (node: TreeNode<T>) => void
   onFocus?: (node: TreeNode<T>) => void
   onCancel?: () => void
   onUpFromFirstItem?: () => void
@@ -127,7 +127,7 @@ export function TreeSelect<T>({
 
   const handleSelect = (id: string): void => {
     const row = rowById.get(id)
-    if (row) onSelect(row.node.value)
+    if (row) onSelect(row.node)
   }
 
   const handleFocus = (id: string): void => {

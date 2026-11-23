@@ -59,8 +59,8 @@ type Props = {
     sourcePath?: string,
   ) => void
   pastedContents?: Record<number, PastedContent>
-  onRemoveImage?: (questionText: string, id: number) => void
-  onNotesPasteLarge?: (questionText: string, text: string) => void
+  onRemoveImage?: (id: number) => void
+  onNotesPasteLarge?: (text: string) => void
 }
 
 function buildQuestionHelpLine(args: {
@@ -236,9 +236,6 @@ export function QuestionView(props: Props): React.ReactNode {
     typeof selectedValue === 'string' ? selectedValue : undefined
   const multiSelected = Array.isArray(selectedValue) ? selectedValue : []
 
-  const boundRemoveImage = onRemoveImage
-    ? (id: number) => onRemoveImage(question.question, id)
-    : undefined
 
   const helpLine = buildQuestionHelpLine({
     multiSelect: question.multiSelect,
@@ -319,7 +316,7 @@ export function QuestionView(props: Props): React.ReactNode {
               onOpenEditor={handleOpenEditor}
               onImagePaste={onImagePaste}
               pastedContents={pastedContents}
-              onRemoveImage={boundRemoveImage}
+              onRemoveImage={onRemoveImage}
             />
           ) : (
             <Select
@@ -359,7 +356,7 @@ export function QuestionView(props: Props): React.ReactNode {
               onOpenEditor={handleOpenEditor}
               onImagePaste={onImagePaste}
               pastedContents={pastedContents}
-              onRemoveImage={boundRemoveImage}
+              onRemoveImage={onRemoveImage}
             />
           )}
           {renderDiscussFooter(footerNumber, isFooterFocused, onRespondToModel)}
