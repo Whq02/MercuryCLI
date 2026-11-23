@@ -156,8 +156,8 @@ export const FileReadTool = buildTool({
   call(
     input: Input,
     context: ToolUseContext,
-    canUseTool: CanUseToolFn,
-    parentAssistantMessage: AssistantMessage,
+    canUseTool?: CanUseToolFn,
+    parentAssistantMessage?: AssistantMessage,
   ) {
     return readFileCall(input, context, canUseTool, parentAssistantMessage, readToolItself)
   },
