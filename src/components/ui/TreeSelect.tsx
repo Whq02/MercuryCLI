@@ -21,7 +21,7 @@ type TreeNode<T> = {
 type TreeSelectProps<T> = {
   nodes: readonly TreeNode<T>[]
   onSelect: (value: T) => void
-  onFocus?: (value: T) => void
+  onFocus?: (node: TreeNode<T>) => void
   onCancel?: () => void
   onUpFromFirstItem?: () => void
   visibleOptionCount?: number
@@ -138,7 +138,7 @@ export function TreeSelect<T>({
     if (lastNotifiedIdRef.current === id) return
     lastNotifiedIdRef.current = id
     const row = rowById.get(id)
-    if (row) onFocus?.(row.node.value)
+    if (row) onFocus?.(row.node)
   }
 
   const handleKeyDown = (e: KeyboardEvent): void => {
@@ -172,7 +172,7 @@ export function TreeSelect<T>({
         lastNotifiedIdRef.current = current.parentId
         setFocusNodeId(current.parentId)
         if (parent) {
-          onFocus?.(parent.node.value)
+          onFocus?.(parent.node)
         }
         collapseNode(current.parentId)
       }

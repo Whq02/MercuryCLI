@@ -13,7 +13,7 @@ import { notBuilt } from '../../pi/holes.js'
 type Props = {
   files: DiffFile[];
   selectedIndex: number;
-  listRows?: number;
+  visibleRows: number;
   listWidth?: number;
   onSelect?: (filePath: string) => void;
   onActivate?: (filePath: string) => void;

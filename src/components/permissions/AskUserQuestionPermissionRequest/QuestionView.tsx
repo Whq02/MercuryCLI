@@ -51,7 +51,6 @@ type Props = {
   onTabPrev?: () => void
   onRespondToModel?: () => void | Promise<void>
   onImagePaste?: (
-    questionText: string,
     base64Image: string,
     mediaType?: string,
     filename?: string,
@@ -236,14 +235,6 @@ export function QuestionView(props: Props): React.ReactNode {
     typeof selectedValue === 'string' ? selectedValue : undefined
   const multiSelected = Array.isArray(selectedValue) ? selectedValue : []
 
-  const boundImagePaste = onImagePaste
-    ? (
-        base64Image: string,
-        mediaType?: string,
-        filename?: string,
-        dimensions?: ImageDimensions,
-      ) => onImagePaste(question.question, base64Image, mediaType, filename, dimensions)
-    : undefined
   const boundRemoveImage = onRemoveImage
     ? (id: number) => onRemoveImage(question.question, id)
     : undefined
@@ -325,7 +316,7 @@ export function QuestionView(props: Props): React.ReactNode {
               }}
               onTabOut={(dir: 'next' | 'prev') => (dir === 'next' ? onTabNext?.() : onTabPrev?.())}
               onOpenEditor={handleOpenEditor}
-              onImagePaste={boundImagePaste}
+              onImagePaste={onImagePaste}
               pastedContents={pastedContents}
               onRemoveImage={boundRemoveImage}
             />
@@ -365,7 +356,7 @@ export function QuestionView(props: Props): React.ReactNode {
                 onTextInputFocus(false)
               }}
               onOpenEditor={handleOpenEditor}
-              onImagePaste={boundImagePaste}
+              onImagePaste={onImagePaste}
               pastedContents={pastedContents}
               onRemoveImage={boundRemoveImage}
             />
