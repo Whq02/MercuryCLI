@@ -512,10 +512,10 @@ export async function compactConversation(
     const memoryEnvelope = retireFoldToMemory({
       messages,
       owner,
-      epoch: nextEpoch,
-      records: ledger.sourceRecordIds.length,
+      epoch: ledger.epoch,
+      records: ledger.totals.records,
       aborted: context.abortController.signal.aborted,
-      agent: context.agentId,
+      ...(context.agentId !== undefined ? { agent: String(context.agentId) } : {}),
       wrote: id => {
         writtenMemoryId = id
       },
