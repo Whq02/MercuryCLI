@@ -42,8 +42,6 @@ export type CacheLane =
   | 'fireworks'
 
 type PromptStateSnapshot = {
-  model: string
-  querySource: string
   system: ReadonlyArray<{ text: string; cache_control?: unknown }>
   toolSchemas: ReadonlyArray<{
     name: string
@@ -51,16 +49,18 @@ type PromptStateSnapshot = {
     input_schema?: unknown
     cache_control?: unknown
   }>
+  querySource: string
+  model: string
   agentId?: string | null
-  lane?: CacheLane
-  callReference?: ModelCallReference
-  cacheStrategy?: 'tool_based' | 'system_prompt' | 'none'
+  globalCacheStrategy?: 'tool_based' | 'system_prompt' | 'none'
   betas?: readonly string[]
+  flowActive?: boolean
+  overageInUse?: boolean
+  cachedMicrocompact?: boolean
   effortValue?: string | null
   extraBodyParams?: Record<string, unknown>
-  isFlow?: boolean
-  isUsingOverage?: boolean
-  hasCachedMicrocompact?: boolean
+  lane?: CacheLane
+  callReference?: ModelCallReference
 }
 
 type PromptCacheBreakReceipt = {
@@ -254,7 +254,7 @@ function latestAssistantAgeMs(messages: readonly Message[], now: number): number
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i]
     if (msg?.type === 'assistant') {
-      const ts = (msg as { timestamp?: unknown }).timestamp
+      const ts = msg.timestamp
       if (typeof ts !== 'string' || ts === '') return null
       const parsed = Date.parse(ts)
       return Number.isFinite(parsed) ? now - parsed : null
@@ -317,9 +317,12 @@ function formatUnchangedReason(ageMs: number | null): string {
   return 'likely server-side (prompt unchanged, <5min gap)'
 }
 
-async function writeDiffPatch(beforeText: string, afterText: string): Promise<string | undefined> {
+async function writeDiffPatch(
+  renderBefore: () => string,
+  renderAfter: () => string,
+): Promise<string | undefined> {
   try {
-    const patch = createTwoFilesPatch('prompt-state', 'prompt-state', beforeText, afterText, 'before', 'after')
+    const patch = createTwoFilesPatch('prompt-state', 'prompt-state', renderBefore(), renderAfter(), 'before', 'after')
     const dir = join(tmpdir(), 'mercury')
     await mkdir(dir, { recursive: true })
     const filePath = join(dir, `cache-break-${randomDiffId()}.diff`)
@@ -357,11 +360,11 @@ export function recordPromptState(snapshot: PromptStateSnapshot): void {
       toolHashes.set(name, fastHash(safeStringify(strippedTools[i])))
     }
 
-    const cacheStrategy = snapshot.cacheStrategy ?? ''
+    const cacheStrategy = snapshot.globalCacheStrategy ?? ''
     const sortedBetas = snapshot.betas ? [...snapshot.betas].sort() : []
-    const isFlow = snapshot.isFlow === true
-    const isUsingOverage = snapshot.isUsingOverage === true
-    const hasCachedMicrocompact = snapshot.hasCachedMicrocompact === true
+    const isFlow = snapshot.flowActive === true
+    const isUsingOverage = snapshot.overageInUse === true
+    const hasCachedMicrocompact = snapshot.cachedMicrocompact === true
     const effortValue = snapshot.effortValue ?? ''
     const extraBodyHash =
       snapshot.extraBodyParams !== undefined ? fastHash(safeStringify(snapshot.extraBodyParams)) : 0
@@ -373,7 +376,8 @@ export function recordPromptState(snapshot: PromptStateSnapshot): void {
         systemBlocks: snapshot.system,
         tools: snapshot.toolSchemas,
       })
-    } catch {
+    } catch (error) {
+      passedOver(error)
       prefixFingerprint = null
     }
 
@@ -565,9 +569,8 @@ export async function checkResponseForCacheBreak(
 
     let diffPath: string | undefined
     if (pending !== null) {
-      diffPath = await writeDiffPatch(pending.previousRenderPrompt(), state.renderPrompt())
+      diffPath = await writeDiffPatch(pending.previousRenderPrompt, state.renderPrompt)
     }
-
     const diffClause = diffPath !== undefined ? `, diff: ${diffPath}` : ''
     logForDebugging(
       `[PROMPT CACHE BREAK] ${reason} [source=${querySource}, call #${state.callCount}, cache read: ${prevCacheRead} → ${cacheReadTokens}, creation: ${cacheCreationTokens}${diffClause}]`,
@@ -618,7 +621,7 @@ export async function checkResponseForCacheBreak(
   }
 }
 
-export function notifyCacheDeletion(querySource: string, agentId?: string): void {
+export function notifyCacheDeletion(querySource: string, agentId?: string | null): void {
   const key = resolveStateKey(querySource, agentId)
   if (key === null) return
   const state = laneStates.get(key)
@@ -627,7 +630,7 @@ export function notifyCacheDeletion(querySource: string, agentId?: string): void
   }
 }
 
-export function notifyCompaction(querySource: string, agentId?: string): void {
+export function notifyCompaction(querySource: string, agentId?: string | null): void {
   const key = resolveStateKey(querySource, agentId)
   if (key === null) return
   const state = laneStates.get(key)
