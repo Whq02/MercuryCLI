@@ -38,7 +38,7 @@ const VALID_CONTEXTS = [
 const COMMAND_BINDING_RE = /^command:[a-zA-Z0-9:\-_]+$/
 
 function isValidContext(context: string): boolean {
-  return (VALID_CONTEXTS as readonly string[]).includes(context)
+  return VALID_CONTEXTS.some(valid => valid === context)
 }
 
 export function isUserConfigContext(context: string): boolean {
