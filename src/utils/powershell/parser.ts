@@ -243,16 +243,20 @@ function asArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [value as T]
 }
 
+function textOf(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined
+}
+
 const NULL_TARGET_RE = /^\$\{?null\}?$/i
 
 function transformRedirection(raw: RawRedirection): ParsedRedirection {
   const streams: Record<string, string> = { All: '*', Output: '1', Error: '2', Warning: '3', Verbose: '4', Debug: '5', Information: '6' }
   if (raw.type === 'MergingRedirectionAst') {
-    return { operator: `${streams[raw.stream as string] ?? '2'}>&${streams[raw.toStream as string] ?? '1'}`, target: '', isMerging: true }
+    return { operator: `${streams[textOf(raw.stream) ?? ''] ?? '2'}>&${streams[textOf(raw.toStream) ?? ''] ?? '1'}`, target: '', isMerging: true }
   }
-  const stream = streams[raw.stream as string] ?? '1'
+  const stream = streams[textOf(raw.stream) ?? ''] ?? '1'
   const operator = `${stream === '1' ? '' : stream}${raw.append === true ? '>>' : '>'}`
-  return { operator, target: (raw.target as string) ?? '', isMerging: false }
+  return { operator, target: textOf(raw.target) ?? '', isMerging: false }
 }
 
 function extractCommandName(elements: RawCommandElement[]): {
@@ -261,13 +265,13 @@ function extractCommandName(elements: RawCommandElement[]): {
 } {
   const first = elements[0]
   if (!first) return { name: '', classification: 'unknown' }
-  const typeName = first.type as string
+  const typeName = textOf(first.type)
   const isStringLiteral = typeName === 'StringConstantExpressionAst' || typeName === 'ExpandableStringExpressionAst'
   let raw: string
   if (isStringLiteral && typeof first.value === 'string') {
     raw = first.value
   } else {
-    raw = (first.text as string) ?? ''
+    raw = textOf(first.text) ?? ''
   }
   if (raw.length >= 2 && /['"]/.test(raw[0]!) && /['"]/.test(raw[raw.length - 1]!)) {
     raw = raw.slice(1, -1)
@@ -285,18 +289,23 @@ function transformCommandAst(raw: RawCommandElement): ParsedCommandElement {
   let anyChild = false
 
   elements.forEach((element, index) => {
-    const typeName = element.type as string
-    const elementType = mapElementType(typeName, element.wrappedType as string | undefined)
+    const typeName = textOf(element.type)
+    const elementType = mapElementType(typeName, textOf(element.wrappedType))
     elementTypes.push(elementType)
     if (index === 0) return
     const isStringLiteral = typeName === 'StringConstantExpressionAst' || typeName === 'ExpandableStringExpressionAst'
     const value =
-      isStringLiteral && typeof element.value === 'string' ? element.value : (element.text as string) ?? ''
+      isStringLiteral && typeof element.value === 'string' ? element.value : textOf(element.text) ?? ''
     args.push(value)
-    const child = element.child as RawCommandElement | undefined
-    if (child) {
+    const child = element.child
+    if (typeof child === 'object' && child !== null && !Array.isArray(child)) {
       anyChild = true
-      children.push([{ type: mapElementType(child.type as string), text: (child.text as string) ?? '' }])
+      children.push([
+        {
+          type: mapElementType('type' in child ? textOf(child.type) : undefined),
+          text: ('text' in child ? textOf(child.text) : undefined) ?? '',
+        },
+      ])
     } else {
       children.push(undefined)
     }
@@ -304,7 +313,7 @@ function transformCommandAst(raw: RawCommandElement): ParsedCommandElement {
 
   return {
     name,
-    text: (raw.text as string) ?? '',
+    text: textOf(raw.text) ?? '',
     nameType: classification,
     args,
     elementTypes,
@@ -315,9 +324,9 @@ function transformCommandAst(raw: RawCommandElement): ParsedCommandElement {
 }
 
 function transformExpressionElement(raw: RawPipelineElement): ParsedCommandElement {
-  const text = (raw.text as string) ?? ''
-  const wrapped = raw.wrappedType as string | undefined
-  const rawKind = raw.type as string
+  const text = textOf(raw.text) ?? ''
+  const wrapped = textOf(raw.wrappedType)
+  const rawKind = textOf(raw.type)
   return {
     name: text,
     text,
@@ -416,12 +425,12 @@ function transformStatement(raw: RawStatement): ParsedStatement {
 function normaliseResult(raw: Record<string, unknown>): ParsedPowerShellCommand {
   const statements = asArray<RawStatement>(raw.statements).map(transformStatement)
   const variables = asArray<Record<string, unknown>>(raw.variables).map(v => ({
-    path: (v.path as string) ?? '',
+    path: textOf(v.path) ?? '',
     splatted: v.splatted === true,
   }))
   const errors = asArray<Record<string, unknown>>(raw.errors).map(e => ({
-    message: (e.message as string) ?? '',
-    errorId: (e.errorId as string) ?? '',
+    message: textOf(e.message) ?? '',
+    errorId: textOf(e.errorId) ?? '',
   }))
   const typeLiterals = asArray<string>(raw.typeLiterals)
   const result: ParsedPowerShellCommand = {
@@ -430,7 +439,7 @@ function normaliseResult(raw: Record<string, unknown>): ParsedPowerShellCommand 
     variables,
     errors,
     hasStopParsing: raw.hasStopParsing === true,
-    originalCommand: (raw.command as string) ?? '',
+    originalCommand: textOf(raw.command) ?? '',
   }
   if (typeLiterals.length > 0) result.typeLiterals = typeLiterals
   if (raw.hasUsingStatements === true) result.hasUsingStatements = true
@@ -476,13 +485,13 @@ async function runAnalysis(
     new Promise(resolve => {
       execFile(pwshPath, args, { windowsHide: true, timeout: parseTimeoutMs(), maxBuffer: 16 * 1024 * 1024, env: { ...subprocessEnv() } }, (error, stdout, stderr) => {
         if (error) {
-          const timedOut = (error as { killed?: boolean; signal?: string }).killed === true
+          const timedOut = error.killed === true
           if (timedOut) {
             resolve({ code: null, stdout, stderr, timedOut: true })
             return
           }
-          const code = typeof (error as { code?: unknown }).code === 'number' ? ((error as { code: number }).code) : 1
-          if ((error as { code?: unknown }).code !== undefined && typeof (error as { code: unknown }).code !== 'number') {
+          const code = typeof error.code === 'number' ? error.code : 1
+          if (error.code !== undefined && typeof error.code !== 'number') {
             resolve({ code: 1, stdout, stderr, timedOut: false, spawnError: error })
             return
           }
