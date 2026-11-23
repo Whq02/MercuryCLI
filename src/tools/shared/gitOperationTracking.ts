@@ -77,17 +77,11 @@ function prActionFor(command: string): PrAction | undefined {
   return undefined
 }
 
-const GIT_COMMIT_COMMAND = gitSubcommandPattern('commit')
-const GIT_CHERRY_PICK_COMMAND = gitSubcommandPattern('cherry-pick')
-const GIT_PUSH_COMMAND = gitSubcommandPattern('push')
-const GIT_MERGE_COMMAND = gitSubcommandPattern('merge')
-const GIT_REBASE_COMMAND = gitSubcommandPattern('rebase')
-
 export function detectGitOperation(command: string, output: string): GitOperationDetection {
   const detection: GitOperationDetection = {}
 
-  const isCherryPick = GIT_CHERRY_PICK_COMMAND.test(command)
-  const isCommit = !isCherryPick && GIT_COMMIT_COMMAND.test(command)
+  const isCherryPick = gitSubcommandPattern('cherry-pick').test(command)
+  const isCommit = !isCherryPick && gitSubcommandPattern('commit').test(command)
   if (isCherryPick || isCommit) {
     const sha = parseGitCommitId(output)
     if (sha !== undefined) {
@@ -100,19 +94,19 @@ export function detectGitOperation(command: string, output: string): GitOperatio
     }
   }
 
-  if (GIT_PUSH_COMMAND.test(command)) {
+  if (gitSubcommandPattern('push').test(command)) {
     const pushMatch = PUSH_REF_UPDATE_LINE.exec(output)
     if (pushMatch && pushMatch[1]) {
       detection.push = { branch: pushMatch[1] }
     }
   }
 
-  if (GIT_MERGE_COMMAND.test(command) && FAST_FORWARD_OR_MERGE_MADE.test(output)) {
+  if (gitSubcommandPattern('merge').test(command) && FAST_FORWARD_OR_MERGE_MADE.test(output)) {
     const ref = refAfterSubcommand(command, 'merge')
     if (ref !== undefined) {
       detection.branch = { ref, action: 'merged' }
     }
-  } else if (GIT_REBASE_COMMAND.test(command) && SUCCESSFUL_REBASE.test(output)) {
+  } else if (gitSubcommandPattern('rebase').test(command) && SUCCESSFUL_REBASE.test(output)) {
     const ref = refAfterSubcommand(command, 'rebase')
     if (ref !== undefined) {
       detection.branch = { ref, action: 'rebased' }
