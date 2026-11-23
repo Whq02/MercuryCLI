@@ -52,7 +52,7 @@ export async function call(
         { op: 'sessionControl', action: 'set-title', sessionId: focusedSessionId, by: 'operator', title: name, titleSource: 'operator' },
         { timeoutMs: 10_000 },
       )
-      if (reply.ok && 'outcome' in reply && reply.outcome === 'applied') {
+      if (reply.ok && reply.op === 'sessionControl' && reply.outcome === 'applied') {
         if (hasFocusedSession() && getFocusedSessionConnector().sessionId() === focusedSessionId) {
           context.setAppState(prev => ({
             ...prev,
@@ -66,7 +66,7 @@ export async function call(
       } else {
         const reason = !reply.ok
           ? reply.error
-          : 'outcome' in reply && reply.detail
+          : reply.op === 'sessionControl' && reply.detail
             ? reply.detail
             : 'the daemon refused it'
         onDone(`Could not rename this session — ${reason}`, { display: 'system' })
