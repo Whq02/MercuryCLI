@@ -20,7 +20,7 @@ export function OffscreenFreeze({
   }
 
   return (
-    <Box ref={viewportRef} flexDirection="column">
+    <Box ref={viewportRef}>
       {isVisible ? children : frozenRef.current}
     </Box>
   )
