@@ -10,7 +10,6 @@ import { getMercuryHome } from './envUtils.js'
 import { isFsInaccessible } from './errors.js'
 import { isProcessRunning } from './genericProcessUtils.js'
 import { passedOver } from './passedOver.js'
-import { notBuilt } from '../pi/holes.js'
 
 type SessionKind = 'interactive' | 'bg' | 'daemon'
 
@@ -32,9 +31,9 @@ const RECORD_NAME = /^(\d+)\.json$/
 const sessionsDir = (): string => join(getMercuryHome(), 'sessions')
 const recordPathOf = (pid: number): string => join(sessionsDir(), `${pid}.json`)
 
-const note = (what: string, err: unknown): void => notBuilt('src/utils/concurrentSessions.ts:34')
+const note = (what: string, err: unknown): void => logForDebugging(`concurrentSessions: ${what}: ${String(err)}`)
 
-const unlinkQuietly = async (path: string): Promise<void> => notBuilt('src/utils/concurrentSessions.ts:36')
+const unlinkQuietly = async (path: string): Promise<void> => unlink(path).catch(passedOver)
 
 const writeOwnRecord = (record: SessionRecord): Promise<void> =>
   writeFile(recordPathOf(process.pid), JSON.stringify(record), { mode: PRIVATE_FILE })
@@ -49,15 +48,26 @@ async function patchOwnRecord(patch: Partial<SessionRecord>): Promise<void> {
 }
 
 export async function registerSession(): Promise<boolean> {
-  return notBuilt('src/utils/concurrentSessions.ts:63')
+  registerCleanup(() => unlinkQuietly(recordPathOf(process.pid)))
+  try {
+    const dir = sessionsDir()
+    await mkdir(dir, { recursive: true, mode: PRIVATE_DIR })
+    await chmod(dir, PRIVATE_DIR)
+    await writeOwnRecord({ pid: process.pid, sessionId: getSessionId(), cwd: getOriginalCwd(), startedAt: Date.now(), kind: 'interactive', entrypoint: flagEnv('MERCURY_ENTRYPOINT') })
+    onSessionSwitch(sessionId => { void patchOwnRecord({ sessionId }) })
+    return true
+  } catch (error) {
+    note('registration failed', error)
+    return false
+  }
 }
 
 export async function updateSessionName(name: string | undefined): Promise<void> {
-  return notBuilt('src/utils/concurrentSessions.ts:77')
+  if (name) await patchOwnRecord({ name })
 }
 
 export async function updateSessionBridgeId(bridgeSessionId: string | null): Promise<void> {
-  return notBuilt('src/utils/concurrentSessions.ts:81')
+  await patchOwnRecord({ bridgeSessionId })
 }
 
 async function recordedPids(): Promise<number[]> {
