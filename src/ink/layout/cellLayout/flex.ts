@@ -12,32 +12,31 @@ export function resolveFlexibleLengths<N extends Flexible>(
     return
   }
   const free = flexAvail - lineBasis
-  const growing = free >= 0
-  const settled = line.map(item => (growing ? item.node.flexGrow : item.node.flexShrink) === 0)
+  const settled = line.map(item => (free >= 0 ? item.node.flexGrow : item.node.flexShrink) === 0)
   line.forEach((item, at) => {
     item.targetMain = settled[at] ? clamped(item.node, item.basis) : item.basis
   })
   for (let round = 0; round <= line.length && settled.includes(false); round++) {
+    let growSum = 0
+    let shrinkWeight = 0
+    let shrinkSum = 0
     let moved = 0
-    let factors = 0
-    let weights = 0
     line.forEach((item, at) => {
       if (settled[at]) {
         moved += item.targetMain - item.basis
       } else {
-        factors += growing ? item.node.flexGrow : item.node.flexShrink
-        weights += item.node.flexShrink * item.basis
+        growSum += item.node.flexGrow
+        shrinkWeight += item.node.flexShrink * item.basis
+        shrinkSum += item.node.flexShrink
       }
     })
     let left = free - moved
-    if (growing && factors > 0 && factors < 1) left = Math.min(left, free * factors)
-    if (!growing && factors < 1) left = Math.max(left, free * factors)
-    const grows = growing && left > 0 && factors > 0
-    const shrinks = !growing && left < 0 && weights > 0
+    if (left > 0 && growSum > 0 && growSum < 1) left = Math.min(left, free * growSum)
+    else if (left < 0 && shrinkWeight > 0 && shrinkSum < 1) left = Math.max(left, free * shrinkSum)
     const wanted = line.map((item, at) => {
       if (settled[at]) return item.targetMain
-      if (grows) return item.basis + (left * item.node.flexGrow) / factors
-      if (shrinks) return item.basis + (left * (item.node.flexShrink * item.basis)) / weights
+      if (left > 0 && growSum > 0) return item.basis + (left * item.node.flexGrow) / growSum
+      if (left < 0 && shrinkWeight > 0) return item.basis + (left * (item.node.flexShrink * item.basis)) / shrinkWeight
       return item.basis
     })
     let difference = 0
