@@ -5,8 +5,6 @@ import { popById, holdQueuedWordsForTurnEnd } from '../../utils/messageQueueMana
 import { resolvePermissionModeTransition, handleRewindSession, handleFileRestoreSession } from './controlHandlers.js'
 import type { PermissionMode as WirePermissionMode } from '../../types/permissions.js'
 import { refused } from '../../runner/wire/errors.js'
-import { markSessionPermissionMode } from '../../utils/cockpit/runtimePosture.js'
-import { wrapInSystemReminder } from '../../utils/messages/text.js'
 import { resolveHeadlessModel } from './model.js'
 import { getDefaultEngineModelSetting, getEngineModel } from '../../services/model/model.js'
 import { errorMessage } from '../../utils/errors.js'
@@ -76,12 +74,6 @@ export function runnerArmsOf(ports: RunnerPorts): RunnerArms {
       if (!resolved.ok) throw refused(resolved.error, 'mode')
       const nextContext = resolved.context
       setAppState(previous => ({ ...previous, toolPermissionContext: nextContext }))
-      const modeReminder = markSessionPermissionMode(nextContext.mode)
-      if (modeReminder !== null) {
-        void import('../../utils/messageQueueManager.js').then(({ enqueuePendingNotification }) => {
-          enqueuePendingNotification({ value: wrapInSystemReminder(modeReminder), mode: 'task-notification', priority: 'next', ridesNextWords: true })
-        })
-      }
       void asks.recheckPendingPermissionRequests()
       return { mode: params.mode }
     },
