@@ -7,6 +7,7 @@ import { deepestErrorDetail, recentTransportFailure } from '../api/transportEvid
 import { MESSAGE_STAMPER } from '../../rows/project.js'
 import { logForDebugging } from '../debug.js'
 import { formatTokens } from '../format.js'
+import { isRecord } from '../isRecord.js'
 
 type StoredRow = Rows.Message | Rows.NormalizedMessage
 type SystemKind = Rows.SystemMessage['subtype']
@@ -123,7 +124,7 @@ function transportOf(deep: ReturnType<typeof deepestErrorDetail>, name: string, 
 
 export function apiErrorDetailOf(error: unknown): ErrorDetail {
   const deep = deepestErrorDetail(error)
-  const thrown = error as { message?: unknown; name?: unknown; status?: unknown } | null | undefined
+  const thrown = isRecord(error) ? error : undefined
   const message = typeof thrown?.message === 'string' && thrown.message ? thrown.message : String(error ?? 'unknown error')
   const name = typeof thrown?.name === 'string' && thrown.name ? thrown.name : 'Error'
   const status = thrown?.status
