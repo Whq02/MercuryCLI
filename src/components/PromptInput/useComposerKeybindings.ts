@@ -68,6 +68,40 @@ type ComposerKeybindings = {
   crewmateFooterIndex: number
 }
 
+function pasteImageFromClipboard(
+  handleImagePaste: ComposerAttachments['handleImagePaste'],
+  handleImageError: ComposerAttachments['handleImageError'],
+  addNotification: (notification: Notification) => void,
+): void {
+  void getImageFromClipboard().then(
+    image => {
+      if (image !== null) {
+        handleImagePaste(
+          image.base64,
+          image.mediaType,
+          undefined,
+          image.dimensions,
+          undefined,
+          image.byteLength,
+        )
+      } else {
+        const text = hostEnv().SSH_TTY
+          ? 'no image in the clipboard (over SSH, transfer the file instead)'
+          : 'no image in the clipboard (copy one, then press the paste chord)'
+        addNotification({
+          key: 'no-image-in-clipboard',
+          text,
+          priority: 'low',
+          timeoutMs: 1000,
+        })
+      }
+    },
+    error => {
+      handleImageError(error instanceof Error ? error.message : String(error))
+    },
+  )
+}
+
 export function useComposerKeybindings({
   input,
   cursorOffset,
