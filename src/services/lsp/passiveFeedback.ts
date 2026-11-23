@@ -19,9 +19,8 @@ type HandlerRegistrationResult = {
 
 function formatDiagnosticMessage(raw: unknown): string {
   if (typeof raw === 'string') return raw
-  if (raw !== null && typeof raw === 'object') {
-    const value = (raw as { value?: unknown }).value
-    return value === undefined || value === null ? '' : String(value)
+  if (raw !== null && typeof raw === 'object' && 'value' in raw) {
+    return raw.value === undefined || raw.value === null ? '' : String(raw.value)
   }
   return ''
 }
@@ -102,7 +101,7 @@ export function registerLSPNotificationHandlers(manager: LSPServerManager): Hand
               uri = foldDriveCase(fileURLToPath(uri))
             } catch (err) {
               logForDebugging(
-                `passiveFeedback: failed to convert URI ${uri} from ${serverName}: ${err instanceof Error ? err.message : String(err)}`,
+                `passiveFeedback: could not convert URI ${uri}: ${err instanceof Error ? err.message : String(err)}`,
               )
             }
           }
@@ -111,7 +110,7 @@ export function registerLSPNotificationHandlers(manager: LSPServerManager): Hand
           const version = typeof publish.version === 'number' ? publish.version : undefined
           recordPublishedReport(serverName, file, version)
           if (diagnostics.length === 0) {
-            logForDebugging(`passiveFeedback: empty diagnostics for ${uri} from ${serverName}`)
+            logForDebugging(`passiveFeedback: ${serverName} published an empty diagnostic set for ${publish.uri}`)
           }
           registerPendingLSPDiagnostic({
             serverName,
@@ -144,13 +143,9 @@ export function registerLSPNotificationHandlers(manager: LSPServerManager): Hand
 
   if (registrationErrors.length > 0) {
     const failedNames = registrationErrors.map(entry => entry.serverName).join(', ')
-    logError(
-      new Error(
-        `passiveFeedback: failed to register diagnostic handlers for ${registrationErrors.length}/${totalServers} servers (${failedNames})`,
-      ),
-    )
+    logError(new Error(`passiveFeedback: diagnostic handler registration failed for ${failedNames}`))
     logForDebugging(
-      `passiveFeedback: registered diagnostic handlers for ${successCount}/${totalServers} servers (${registrationErrors.length} failed: ${failedNames})`,
+      `passiveFeedback: ${successCount}/${totalServers} handlers registered; diagnostics from failed servers will not be delivered`,
     )
   } else {
     logForDebugging(`passiveFeedback: registered diagnostic handlers for ${successCount}/${totalServers} servers`)
