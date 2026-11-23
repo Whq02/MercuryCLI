@@ -10,9 +10,16 @@ import { getTheme } from '../../../utils/theme.js'
 import { useTheme } from '../../design-system/ThemeProvider.js'
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
 import { FallbackToolUseRejectedMessage } from '../../FallbackToolUseRejectedMessage.js'
-import { notBuilt } from '../../../pi/holes.js'
 
-export function UserToolRejectMessage(arg0: {
+export function UserToolRejectMessage({
+  input,
+  progressMessagesForMessage,
+  tool,
+  tools,
+  style,
+  verbose,
+  isTranscriptMode,
+}: {
   input: Record<string, unknown>
   progressMessagesForMessage: ProgressMessage[]
   tool: Tool
@@ -22,5 +29,27 @@ export function UserToolRejectMessage(arg0: {
   verbose: boolean
   isTranscriptMode?: boolean
 }): React.ReactNode {
-  return notBuilt('src/components/messages/UserToolResultMessage/UserToolRejectMessage.tsx:15')
+  const [themeName] = useTheme()
+  const { columns } = useTerminalSize()
+  if (!tool.renderToolUseRejectedMessage) {
+    return <FallbackToolUseRejectedMessage />
+  }
+  const parsed = tool.inputSchema.safeParse(input)
+  if (!parsed.success) {
+    return <FallbackToolUseRejectedMessage />
+  }
+  const rendered = tool.renderToolUseRejectedMessage(parsed.data, {
+    columns,
+    width: columns,
+    progressMessagesForMessage: filterToolProgressMessages(progressMessagesForMessage),
+    style,
+    theme: getTheme(themeName),
+    tools,
+    verbose,
+    isTranscriptMode,
+  })
+  if (rendered === null || rendered === undefined) {
+    return <FallbackToolUseRejectedMessage />
+  }
+  return rendered
 }
