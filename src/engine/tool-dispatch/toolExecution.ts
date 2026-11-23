@@ -13,7 +13,7 @@ import { completionIdentity } from '../../crew/agent-results/summaryRoom.js'
 import { addToToolDuration, canAnswerAsks, getSessionId, getSessionKind, getStatsStore } from '../../boot/process-state/processState.js'
 import { guardKeysOf, judgeToolCall } from '../../permissions/guards/guards.js'
 import type { AssistantMessage, Message, UserMessage } from '../message-shapes/message.js'
-import type { PermissionAllowDecision, PermissionDecisionReason } from '../../permissions/rules/permissions.js'
+import type { PermissionAllowDecision } from '../../permissions/rules/permissions.js'
 import { createPermissionRequestMessage } from '../../permissions/rules/decision/requestMessage.js'
 import type { ContentBlockParam, ToolResultBlockParam, ToolUseBlock } from '../message-shapes/wire.js'
 import { jsonStringify } from '../../platform/logs/slowOperations.js'
@@ -442,7 +442,6 @@ async function runTransactionBody(args: {
   const { tool, toolUseID, rawInput, assistantMessage, canUseTool, toolUseContext, push } = args
   const { signal } = toolUseContext.abortController
   const sourceUUID = assistantMessage.uuid
-  const owner = ownerFromToolUseContext(toolUseContext)
 
   let traced = false
   const traceOnce: TraceOnce = opts => {

@@ -27,7 +27,6 @@ import {
 } from '../../host-os/loginShell.js'
 import { birthAfter, birthMark, endMsysGroupBeside, endProcessBornAfter, endProcessBornAt, endProcessTree, strikeProcessGroupNow, type BirthMark } from '../../processes/processGroup.js'
 import { ripgrepCommand } from '../ripgrep.js'
-import { sleep } from '../../async/sleep.js'
 import { withDeadline } from '../../async/deadline.js'
 import { loginExportsCarried, pathWithLoginEntries, subprocessEnv } from '../../processes/subprocessEnv.js'
 import { SNAPSHOT_KEEPS_ALIASES, SNAPSHOT_OPTIONS, SNAPSHOT_READS_BACK, SNAPSHOT_READS_BACK_ALIASES, SNAPSHOT_READS_FUNCTIONS, argv0FunctionBody, noteLoginExports, noteLoginFiles, snapshotProfileOf, zshNamedBeforeBash, type LoginFilesAbsence, type ShellRecord } from '../shellRecord.js'

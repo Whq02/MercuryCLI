@@ -13,13 +13,12 @@ import { getCwd } from '../../platform/files/cwd.js'
 import { isEnvTruthy } from '../../platform/environment/envUtils.js'
 import {
   EFFORT_LEVELS,
-  type EffortLevel,
 } from '../../models/effort/effort.js'
 import {
   clearMarkdownFileCache,
   loadMarkdownFilesForSubdir,
 } from '../../platform/settings/markdownConfigLoader.js'
-import { PERMISSION_MODES, type PermissionMode } from '../../permissions/rules/permissionMode.js'
+import { PERMISSION_MODES } from '../../permissions/rules/permissionMode.js'
 import { clearExtensionAgentCache, getExtensionAgents } from '../../integrations/extensions/load/agents.js'
 import { readHooksMap } from '../../integrations/event-hook-schemas/hooks.js'
 import type { HooksSettings } from '../../platform/settings/settingsSchema.js'

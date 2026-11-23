@@ -39,7 +39,6 @@ import {
 import { registerTask, updateTaskState } from '../../task-framework/taskRegistry.js'
 import { getToolResultPath } from '../../tool-dispatch/toolResultStorage.js'
 import { recordShellCommandOutcome } from '../../../platform/verification/verificationState.js'
-import type { AgentId } from '../../../sessions/transcripts/ids.js'
 import { asAgentId } from '../../../sessions/transcripts/ids.js'
 import type { BashTaskKind, LocalShellTaskState, ShellKillSource } from './shellTaskState.js'
 import { isLocalShellTask } from './shellTaskState.js'
