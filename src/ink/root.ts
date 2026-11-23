@@ -4,13 +4,29 @@ import type { FrameEvent } from './frame.js'
 import Ink, { type Options as InkOptions } from './ink.js'
 import instances from './instances.js'
 import { nextMicrotask } from '../utils/timers.js'
-import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
-export type RenderOptions = Unbuilt
+export type RenderOptions = {
+  stdout?: NodeJS.WriteStream
+  stdin?: NodeJS.ReadStream
+  stderr?: NodeJS.WriteStream
+  exitOnCtrlC?: boolean
+  patchConsole?: boolean
+  onFrame?: (event: FrameEvent) => void
+}
 
-export type Instance = Unbuilt
+export type Instance = {
+  rerender: (node: ReactNode) => void
+  unmount: (error?: Error | number | null) => void
+  waitUntilExit: () => Promise<void>
+  cleanup: () => void
+  lastFrame: () => string
+}
 
-export type Root = Unbuilt
+export type Root = {
+  render: (node: ReactNode) => void
+  unmount: (error?: Error | number | null) => void
+  waitUntilExit: () => Promise<void>
+}
 
 const isStream = (value: unknown): value is NodeJS.WriteStream => typeof value === 'object' && value !== null && 'write' in value
 
@@ -49,7 +65,10 @@ export default async function render(
   node: ReactNode,
   options?: NodeJS.WriteStream | RenderOptions,
 ): Promise<Instance> {
-  return notBuilt('src/ink/root.ts:64')
+  await nextMicrotask()
+  const instance = renderSync(node, options)
+  logForDebugging(`ink render mounted ${sinceProcessStartMs()}ms after process start`)
+  return instance
 }
 
 export async function createRoot(options?: RenderOptions): Promise<Root> {
