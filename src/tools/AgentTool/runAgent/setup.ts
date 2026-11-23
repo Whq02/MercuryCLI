@@ -92,7 +92,7 @@ export function agentToolsOf({
     if (!swarm && tool.name === 'CrewBoard') continue
     if (seen.has(tool.name)) continue
     seen.add(tool.name)
-    merged.push(tool)
+    merged.push(tool.name === 'CrewBoard' ? { ...tool, alwaysLoad: true } : tool)
   }
   let tools: Tools = merged
   if (reviewReceipt !== undefined && worktreePath !== undefined) {
