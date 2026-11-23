@@ -131,7 +131,8 @@ function extractQuoteContext(rootNode: unknown, command: string): QuoteContext {
   let unquotedKeepQuoteChars = command
   for (const span of outerSpans) {
     fullyUnquoted = fullyUnquoted.slice(0, span.start) + fullyUnquoted.slice(span.end)
-    const replacement = span.kind === 'double' ? '""' : span.kind === 'ansiC' ? "$''" : "''"
+    const replacement =
+      span.kind === 'double' ? '""' : span.kind === 'ansiC' ? "$''" : span.kind === 'quotedHeredoc' ? '' : "''"
     unquotedKeepQuoteChars =
       unquotedKeepQuoteChars.slice(0, span.start) + replacement + unquotedKeepQuoteChars.slice(span.end)
   }
@@ -140,6 +141,14 @@ function extractQuoteContext(rootNode: unknown, command: string): QuoteContext {
 }
 
 const OPERATOR_TYPES: ReadonlySet<string> = new Set(['&&', '||', ';'])
+const STATEMENT_CONTAINERS: ReadonlySet<string> = new Set([
+  'negated_command',
+  'if_statement',
+  'while_statement',
+  'for_statement',
+  'case_statement',
+  'function_definition',
+])
 
 function extractCompoundStructure(rootNode: unknown, command: string): CompoundStructure {
   const result: CompoundStructure = {
@@ -155,49 +164,50 @@ function extractCompoundStructure(rootNode: unknown, command: string): CompoundS
     result.segments.push(command)
     return result
   }
-  const visit = (node: Node): void => {
-    switch (node.type) {
-      case '&&':
-      case '||':
-      case ';':
-        result.operators.push(node.type)
-        break
-      case 'list':
-      case 'negated_command':
-      case 'if_statement':
-      case 'while_statement':
-      case 'for_statement':
-      case 'c_style_for_statement':
-      case 'case_statement':
-      case 'function_definition':
-      case 'do_group':
-      case 'elif_clause':
-      case 'else_clause':
-      case 'case_item':
-        for (const child of node.children) visit(child)
-        break
-      case 'pipeline':
-        result.hasPipeline = true
-        result.segments.push(node.text)
-        break
-      case 'subshell':
-        result.hasSubshell = true
-        result.segments.push(node.text)
-        break
-      case 'compound_statement':
-        result.hasCommandGroup = true
-        result.segments.push(node.text)
-        break
-      case 'command':
-      case 'declaration_command':
-      case 'variable_assignment':
-        result.segments.push(node.text)
-        break
-      default:
-        break
+  const extract = (node: Node, inList: boolean): void => {
+    for (const child of node.children) {
+      switch (child.type) {
+        case '&&':
+        case '||':
+        case ';':
+          result.operators.push(child.type)
+          break
+        case 'list':
+          extract(child, true)
+          break
+        case 'redirected_statement':
+          for (const inner of child.children) extract(inner, false)
+          break
+        case 'pipeline':
+          result.hasPipeline = true
+          result.segments.push(child.text)
+          break
+        case 'subshell':
+          result.hasSubshell = true
+          result.segments.push(child.text)
+          break
+        case 'compound_statement':
+          result.hasCommandGroup = true
+          result.segments.push(child.text)
+          break
+        case 'command':
+        case 'declaration_command':
+        case 'variable_assignment':
+          result.segments.push(child.text)
+          break
+        case 'test_command':
+          if (inList) result.segments.push(child.text)
+          break
+        default:
+          if (STATEMENT_CONTAINERS.has(child.type)) {
+            result.segments.push(child.text)
+            extract(child, false)
+          }
+          break
+      }
     }
   }
-  for (const child of root.children) visit(child)
+  extract(root, false)
   if (result.segments.length === 0) result.segments.push(command)
   result.hasCompoundOperators = result.operators.length > 0
   return result
