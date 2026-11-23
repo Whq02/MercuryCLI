@@ -6,9 +6,13 @@ import { stringWidth } from '../../../ink/stringWidth.js'
 import { Box, Text } from '../../../ink.js'
 import type { Question } from '../../../tools/AskUserQuestionTool/AskUserQuestionTool.js'
 import { truncateToWidth } from '../../../utils/format.js'
-import { notBuilt, type Unbuilt } from '../../../pi/holes.js'
 
-type Props = Unbuilt
+type Props = {
+  questions: Question[]
+  currentQuestionIndex: number
+  answers: Record<string, string>
+  hideSubmitTab?: boolean
+}
 
 const CHIP_OVERHEAD = 4
 
@@ -33,6 +37,51 @@ function chipTexts(
   )
 }
 
-export function QuestionNavigationBar(arg0: Props): React.ReactNode {
-  return notBuilt('src/components/permissions/AskUserQuestionPermissionRequest/QuestionNavigationBar.tsx:40')
+export function QuestionNavigationBar({
+  questions,
+  currentQuestionIndex,
+  answers,
+  hideSubmitTab = false,
+}: Props): React.ReactNode {
+  const { columns } = useTerminalSize()
+  const leftArrow = `${figures.arrowLeft} `
+  const rightArrow = ` ${figures.arrowRight}`
+  const submitText = ` ${GLYPH.check} Submit `
+  const arrowsWidth = stringWidth(leftArrow) + stringWidth(rightArrow)
+  const submitWidth = hideSubmitTab ? 0 : stringWidth(submitText)
+  const availableForTabs = columns - arrowsWidth - submitWidth
+  const labels = chipTexts(questions, currentQuestionIndex, availableForTabs)
+
+  const showArrows = !(questions.length === 1 && hideSubmitTab)
+  const isOnSubmit = currentQuestionIndex === questions.length
+
+  return (
+    <Box flexDirection="row" marginBottom={1}>
+      {showArrows ? <Text dimColor={currentQuestionIndex === 0}>{leftArrow}</Text> : null}
+      {questions.map((q, idx) => {
+        const isSelected = idx === currentQuestionIndex
+        const isAnswered = Boolean(answers[q.question])
+        const icon = isAnswered ? figures.checkboxOn : figures.checkboxOff
+        const label = labels[idx] || q.header || `Q${idx + 1}`
+        return (
+          <Text
+            key={q.question}
+            backgroundColor={isSelected ? 'permission' : undefined}
+            color={isSelected ? 'inverseText' : undefined}
+          >
+            {` ${icon} ${label} `}
+          </Text>
+        )
+      })}
+      {!hideSubmitTab ? (
+        <Text
+          backgroundColor={isOnSubmit ? 'permission' : undefined}
+          color={isOnSubmit ? 'inverseText' : undefined}
+        >
+          {submitText}
+        </Text>
+      ) : null}
+      {showArrows ? <Text dimColor={isOnSubmit}>{rightArrow}</Text> : null}
+    </Box>
+  )
 }
