@@ -13,7 +13,6 @@ import {
 } from '../../services/permissions/permissionExplainer.js'
 import { passedOverAs } from '../../utils/passedOver.js'
 import { startInterval, stopInterval } from '../../utils/timers.js'
-import { notBuilt } from '../../pi/holes.js'
 
 const RISK_LABEL: Record<RiskLevel, string> = {
   LOW: 'Low risk',
@@ -26,7 +25,12 @@ const RISK_COLOR: Record<RiskLevel, string> = {
   HIGH: 'error',
 }
 
-export function usePermissionExplainerUI(arg0: {
+export function usePermissionExplainerUI({
+  toolName,
+  toolInput,
+  toolDescription,
+  messages,
+}: {
   toolName: string
   toolInput: unknown
   toolDescription?: string
@@ -36,7 +40,40 @@ export function usePermissionExplainerUI(arg0: {
   enabled: boolean
   promise: Promise<PermissionExplanation | null> | null
 } {
-  return notBuilt('src/components/permissions/PermissionExplanation.tsx:28')
+  const enabled = isPermissionExplainerEnabled()
+  const [visible, setVisible] = useState(false)
+  const [promise, setPromise] = useState<Promise<PermissionExplanation | null> | null>(null)
+  const promiseRef = useRef<Promise<PermissionExplanation | null> | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
+
+  useLoad(() => {
+    return () => {
+      abortRef.current?.abort()
+    }
+  }, [])
+
+  useKeybinding(
+    'confirm:toggleExplanation',
+    () => {
+      if (!promiseRef.current) {
+        const controller = new AbortController()
+        abortRef.current = controller
+        const started = generatePermissionExplanation({
+          toolName,
+          toolInput,
+          toolDescription,
+          messages,
+          signal: controller.signal,
+        }).catch(passedOverAs(null))
+        promiseRef.current = started
+        setPromise(started)
+      }
+      setVisible(prev => !prev)
+    },
+    { context: 'Confirmation', isActive: enabled },
+  )
+
+  return { visible, enabled, promise }
 }
 
 function ShimmerLine({ message }: { message: string }): React.ReactNode {
@@ -62,10 +99,59 @@ function ShimmerLine({ message }: { message: string }): React.ReactNode {
   )
 }
 
-export function PermissionExplainerContent(arg0: {
+export function PermissionExplainerContent({
+  visible,
+  promise,
+  fallback,
+}: {
   visible: boolean
   promise: Promise<PermissionExplanation | null> | null
   fallback?: React.ReactNode
 }): React.ReactNode {
-  return notBuilt('src/components/permissions/PermissionExplanation.tsx:92')
+  const [status, setStatus] = useState<'pending' | 'done'>('pending')
+  const [result, setResult] = useState<PermissionExplanation | null>(null)
+
+  useLoad(() => {
+    if (!promise) return
+    let cancelled = false
+    setStatus('pending')
+    setResult(null)
+    promise.catch(passedOverAs(null)).then(value => {
+      if (cancelled) return
+      setResult(value)
+      setStatus('done')
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [promise])
+
+  if (!visible || !promise) return null
+
+  if (status === 'pending') {
+    return (
+      <Box marginTop={1}>
+        <ShimmerLine message="Explaining…" />
+      </Box>
+    )
+  }
+
+  if (result === null) {
+    return (
+      <Box marginTop={1}>
+        {fallback ?? <Text dimColor>No explanation available</Text>}
+      </Box>
+    )
+  }
+
+  return (
+    <Box flexDirection="column" marginTop={1}>
+      <Text>{result.explanation}</Text>
+      <Text dimColor>{result.reasoning}</Text>
+      <Text>
+        <Text color={RISK_COLOR[result.riskLevel]}>{RISK_LABEL[result.riskLevel]}</Text>
+        {`: ${result.risk}`}
+      </Text>
+    </Box>
+  )
 }
