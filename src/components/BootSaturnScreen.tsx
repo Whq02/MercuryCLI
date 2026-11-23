@@ -182,13 +182,6 @@ export function saturnDetailLines(row: SaturnScreenRowV1, nowMs: number, receipt
     lines.push('');
     lines.push(...wrapPlain(`birth: ${b.presence} in ${b.workspaceDir}`, DETAIL_W));
     if (b.kitPreset !== undefined) lines.push(...wrapPlain(`wearing: preset '${b.kitPreset}'`, DETAIL_W));
-    lines.push(
-      b.contract === undefined
-        ? 'contract: not pre-answered'
-        : b.contract === null
-          ? 'contract: no-contract (pre-answered)'
-          : 'contract: pre-answered',
-    );
     lines.push(b.opening !== undefined ? 'born-working (opening mission set)' : 'born-waiting');
   }
   if (row.held.length > 0) {
@@ -264,12 +257,11 @@ export interface SaturnFormStateV1 {
   presence: 'headless' | 'screen-present';
   kitPreset: string | null;
   opening: string | null;
-  contract: { kind: 'unset' } | { kind: 'none' } | { kind: 'text'; text: string };
   title: string | null;
   note: string | null;
 }
 
-export const SATURN_FORM_ROWS: readonly SaturnFormRowId[] = ['when', 'model', 'workspace', 'presence', 'kit', 'opening', 'contract', 'title', 'note'];
+export const SATURN_FORM_ROWS: readonly SaturnFormRowId[] = ['when', 'model', 'workspace', 'presence', 'kit', 'opening', 'title', 'note'];
 
 export function freshSaturnForm(defaults: { modelKey: string; workspaceDir: string }): SaturnFormStateV1 {
   return {
@@ -279,14 +271,9 @@ export function freshSaturnForm(defaults: { modelKey: string; workspaceDir: stri
     presence: 'headless',
     kitPreset: null,
     opening: null,
-    contract: { kind: 'unset' },
     title: null,
     note: null,
   };
-}
-
-export function saturnContractWords(c: SaturnFormStateV1['contract']): string {
-  return c.kind === 'unset' ? 'not pre-answered' : c.kind === 'none' ? 'no-contract (pre-answered)' : `“${clampText(c.text, 24)}”`;
 }
 
 
@@ -348,7 +335,6 @@ export function saturnFormEntries(form: SaturnFormStateV1): SaturnEntry[] {
     ),
     row('kit', 'Kit preset', 'born wearing', form.kitPreset ?? 'none', true, 'the extensions it is born wearing (↵ picks)'),
     row('opening', 'Opening mission', 'born wearing', form.opening !== null ? clampText(form.opening, 28) : 'born-waiting', true, '↵ picks: audit · review · custom — born-waiting when none'),
-    row('contract', 'Contract', 'born wearing', saturnContractWords(form.contract), true, '↵ cycles unset → no-contract → text…'),
     row('title', 'Title', 'words', form.title ?? '(the door names it)', true, 'the born session’s name (↵ edits)'),
     row('note', 'Note', 'words', form.note ?? '—', true, 'a word for the board (↵ edits)'),
   ];
@@ -425,7 +411,6 @@ export function saturnFormDetailLines(
     ),
   );
   lines.push(form.opening !== null ? 'born-working: the opening mission is its first turn' : 'born-waiting: it appears and waits');
-  lines.push(...wrapPlain(`contract: ${saturnContractWords(form.contract)}`, DETAIL_W));
   lines.push('');
   lines.push(...wrapPlain('at fire time the session appears on the concourse, receipted "born by schedule"', DETAIL_W));
   return lines;
@@ -504,8 +489,6 @@ function formPromptCap(field: SaturnFormRowId): number {
     case 'workspace':
       return 4096;
     case 'opening':
-      return 20_000;
-    case 'contract':
       return 20_000;
     case 'note':
       return 500;

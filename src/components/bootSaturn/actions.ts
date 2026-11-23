@@ -6,7 +6,7 @@ import { addBoxSchedule } from '../../daemon/saturnBoxSchedules.js';
 import { compileWhenSpelling } from '../../services/saturn/whenSpelling.js';
 import type { SaturnFormStateV1, SaturnScreenRowV1, saturnOpeningPickOptions as saturnOpeningPickOptionsDoor, saturnWorkspacePickOptions as saturnWorkspacePickOptionsDoor } from '../BootSaturnScreen.js';
 
-export type SaturnFormRowId = 'when' | 'model' | 'workspace' | 'presence' | 'kit' | 'opening' | 'contract' | 'title' | 'note';
+export type SaturnFormRowId = 'when' | 'model' | 'workspace' | 'presence' | 'kit' | 'opening' | 'title' | 'note';
 
 export function scheduleEditRpcOf({ busy, setNote, refresh }: { busy: RefObject<boolean>; setNote: Dispatch<SetStateAction<string | null>>; refresh: () => void }, row: SaturnScreenRowV1, op: 'remove' | 'pause' | 'resume', pendingWord: string, doneWord: string): void {
   if (busy.current) return;
@@ -80,8 +80,6 @@ export function commitPromptOf({ setForm }: { setForm: Dispatch<SetStateAction<S
         return text === '' ? f : { ...f, workspaceDir: text };
       case 'opening':
         return { ...f, opening: text === '' ? null : text };
-      case 'contract':
-        return { ...f, contract: text === '' ? { kind: 'none' } : { kind: 'text', text } };
       case 'title':
         return { ...f, title: text === '' ? null : text };
       case 'note':
@@ -115,11 +113,6 @@ export function editFormRowOf({ form, setFormNote, setFormPrompt, setFormPick, m
     case 'opening':
       setFormPick({ field: 'opening', options: saturnOpeningPickOptions() });
       return;
-    case 'contract':
-      if (f.contract.kind === 'unset') setForm({ ...f, contract: { kind: 'none' } });
-      else if (f.contract.kind === 'none') setFormPrompt({ field: 'contract', draft: '' });
-      else setForm({ ...f, contract: { kind: 'unset' } });
-      return;
     case 'title':
       setFormPrompt({ field: 'title', draft: f.title ?? '' });
       return;
@@ -139,8 +132,6 @@ export function clearFormRowOf({ setForm }: { setForm: Dispatch<SetStateAction<S
         return { ...f, kitPreset: null };
       case 'opening':
         return { ...f, opening: null };
-      case 'contract':
-        return { ...f, contract: { kind: 'unset' } };
       case 'title':
         return { ...f, title: null };
       case 'note':
@@ -169,7 +160,6 @@ export function submitFormOf({ form, setFormNote, setForm, setFormPrompt, setFor
     presence: f.presence,
     ...(f.kitPreset !== null ? { kitPreset: f.kitPreset } : {}),
     ...(f.opening !== null ? { opening: f.opening } : {}),
-    ...(f.contract.kind === 'none' ? { contract: null } : f.contract.kind === 'text' ? { contract: { text: f.contract.text } } : {}),
     ...(f.title !== null ? { title: f.title } : {}),
   };
   const res = addBoxSchedule(
