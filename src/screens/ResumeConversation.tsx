@@ -329,14 +329,16 @@ export function ResumeConversation({
             setResumed(true)
           } else {
             setResuming(false)
-            setResumeNotice(`could not resume — ${outcome.reason}`)
+            setResumeNotice(
+              `could not resume — ${outcome.reason} · the picker stays open; the file was left untouched`,
+            )
           }
         } catch (thrown) {
           if (resumeGenRef.current !== gen) return
           logError(thrown)
           setResuming(false)
           setResumeNotice(
-            `could not resume — ${thrown instanceof Error ? thrown.message : String(thrown)}`,
+            `could not resume — ${thrown instanceof Error ? thrown.message : String(thrown)} · the picker stays open; the file was left untouched`,
           )
         }
       })()
@@ -363,7 +365,7 @@ export function ResumeConversation({
     body = (
       <ResumeWait
         text="Resuming conversation…"
-        hint="esc or ctrl+c to cancel"
+        hint="esc or ctrl+c cancels — back to the picker"
         onCancel={handleCancelResume}
       />
     )
@@ -373,7 +375,7 @@ export function ResumeConversation({
     body = (
       <ResumeWait
         text="Loading conversations…"
-        hint="esc or ctrl+c to cancel"
+        hint="esc or ctrl+c quits"
         onCancel={handleCancelExit}
       />
     )
