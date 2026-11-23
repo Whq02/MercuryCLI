@@ -431,6 +431,8 @@ function dispatchPreviewKeyDown(
     if (action === 'movePrevious') {
       e.stopPropagation()
       ctx.onLeaveFooter(Math.max(0, ctx.options.length - 1))
+    } else if (action === 'moveNext') {
+      e.stopPropagation()
     } else if (action === 'activate') {
       e.stopPropagation()
       void ctx.onRespondToModel?.()
