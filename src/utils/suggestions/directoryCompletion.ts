@@ -1,31 +1,23 @@
 import { readdir } from 'node:fs/promises'
-import { join } from 'node:path'
+import { sep } from 'node:path'
 
 import { LRUCache } from 'lru-cache'
 
+import type { SuggestionItem } from '../../types/suggestions.js'
 import { getCwd } from '../cwd.js'
 import { logForDebugging } from '../debug.js'
 import { expandPath } from '../path.js'
 
-
 type PathEntry = {
   name: string
-  path: string
   kind: 'file' | 'directory'
 }
 
 type PathCompletionOptions = {
   basePath?: string
   maxResults?: number
+  includeFiles?: boolean
   includeHidden?: boolean
-  directoriesOnly?: boolean
-}
-
-type PathSuggestionItem = {
-  id: string
-  displayText: string
-  description?: string
-  metadata?: unknown
 }
 
 const SCAN_CAP = 100
@@ -42,7 +34,10 @@ function splitPartialPath(partialPath: string): {
   if (partialPath === '~') {
     return { rawDir: '~/', displayPrefix: '~/', namePrefix: '' }
   }
-  const lastSep = Math.max(partialPath.lastIndexOf('/'), partialPath.lastIndexOf('\\'))
+  const lastSep = Math.max(
+    partialPath.lastIndexOf('/'),
+    sep === '/' ? -1 : partialPath.lastIndexOf(sep),
+  )
   if (lastSep === -1) {
     return { rawDir: '', displayPrefix: '', namePrefix: partialPath }
   }
@@ -70,7 +65,6 @@ async function listDirectoryEntries(
       if (!includeHidden && dirent.name.startsWith('.')) continue
       entries.push({
         name: dirent.name,
-        path: join(dirPath, dirent.name),
         kind: dirent.isDirectory() ? 'directory' : 'file',
       })
       if (entries.length >= SCAN_CAP) break
@@ -90,12 +84,12 @@ async function listDirectoryEntries(
 export async function getPathCompletions(
   partialPath: string,
   options?: PathCompletionOptions,
-): Promise<PathSuggestionItem[]> {
+): Promise<SuggestionItem[]> {
   const basePath = options?.basePath ?? getCwd()
   const maxResults = options?.maxResults ?? DEFAULT_MAX_RESULTS
-  const directoriesOnly = options?.directoriesOnly ?? false
+  const includeFiles = options?.includeFiles ?? true
+  const includeHidden = options?.includeHidden ?? false
   const { rawDir, displayPrefix, namePrefix } = splitPartialPath(partialPath)
-  const includeHidden = (options?.includeHidden ?? false) || namePrefix.startsWith('.')
 
   let resolvedDir: string
   try {
@@ -108,26 +102,30 @@ export async function getPathCompletions(
 
   const entries = await listDirectoryEntries(resolvedDir, includeHidden)
   const lowerPrefix = namePrefix.toLowerCase()
-  const results: PathSuggestionItem[] = []
-  for (const entry of entries) {
-    if (directoriesOnly && entry.kind !== 'directory') continue
-    if (!entry.name.toLowerCase().startsWith(lowerPrefix)) continue
-    const suffix = entry.kind === 'directory' ? '/' : ''
-    const completed = `${displayPrefix}${entry.name}${suffix}`
-    results.push({
-      id: completed,
-      displayText: completed,
-      description: entry.kind === 'directory' ? 'directory' : undefined,
-      metadata: entry,
-    })
-    if (results.length >= maxResults) break
-  }
-  return results
+  const matched = entries
+    .filter(
+      entry =>
+        (includeFiles || entry.kind === 'directory') &&
+        entry.name.toLowerCase().startsWith(lowerPrefix),
+    )
+    .slice(0, Math.max(0, maxResults))
+
+  return matched.map(entry => {
+    const reconstructed = `${displayPrefix}${entry.name}`
+    return {
+      id: reconstructed,
+      displayText: entry.kind === 'directory' ? `${reconstructed}/` : reconstructed,
+      metadata: entry.kind,
+    }
+  })
 }
 
 export function isPathLikeToken(token: string): boolean {
   if (!token) return false
   if (
+    token === '~' ||
+    token === '.' ||
+    token === '..' ||
     token.startsWith('/') ||
     token.startsWith('./') ||
     token.startsWith('.\\') ||
@@ -135,7 +133,6 @@ export function isPathLikeToken(token: string): boolean {
     token.startsWith('..\\') ||
     token.startsWith('~/') ||
     token.startsWith('~\\') ||
-    token === '~' ||
     token.startsWith('\\\\')
   ) {
     return true

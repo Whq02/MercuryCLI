@@ -28,10 +28,10 @@ async function getCorpus(): Promise<string[]> {
       commands.push(command)
       if (commands.length >= CORPUS_CAP) break
     }
-    corpusCache = { commands, cachedAt: now }
+    corpusCache = { commands, cachedAt: Date.now() }
   } catch (error) {
     logForDebugging(`shellHistoryCompletion: failed to load history: ${String(error)}`)
-    return corpusCache?.commands ?? []
+    return []
   }
   return commands
 }

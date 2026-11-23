@@ -32,7 +32,7 @@ export function recordSkillUsage(skillName: string): void {
 
 export function getSkillUsageScore(skillName: string): number {
   const entry = getGlobalConfig().skillUsage?.[skillName]
-  if (!entry || entry.usageCount <= 0) return 0
+  if (!entry) return 0
   const ageMs = Math.max(0, Date.now() - entry.lastUsedAt)
   const recencyFactor = Math.max(RECENCY_FACTOR_FLOOR, Math.pow(0.5, ageMs / HALF_LIFE_MS))
   return entry.usageCount * recencyFactor
