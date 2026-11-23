@@ -1,10 +1,21 @@
 import figures from 'figures'
 import { GLYPH } from './glyphs.js'
-import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
-export type Diagnostic = Unbuilt
+export type Diagnostic = {
+  message: string
+  severity: 'Error' | 'Warning' | 'Info' | 'Hint'
+  range: {
+    start: { line: number; character: number }
+    end: { line: number; character: number }
+  }
+  source?: string
+  code?: string
+}
 
-export type DiagnosticFile = Unbuilt
+export type DiagnosticFile = {
+  uri: string
+  diagnostics: Diagnostic[]
+}
 
 const SUMMARY_CHAR_CAP = 4000
 const TRUNCATION_MARKER = '… [diagnostics truncated]'
@@ -35,10 +46,11 @@ const capped = (summary: string): string =>
 
 export class DiagnosticTrackingService {
   static getSeveritySymbol(severity: string): string {
-    return notBuilt('src/utils/diagnosticTracking.ts:48')
+    return SEVERITY_SYMBOLS.get(severity) ?? figures.bullet
   }
 
   static formatDiagnosticsSummary(files: DiagnosticFile[]): string {
-    return notBuilt('src/utils/diagnosticTracking.ts:52')
+    if (files.length === 0) return ''
+    return capped(files.map(fileSection).join('\n\n'))
   }
 }
