@@ -598,10 +598,7 @@ export function MessageSelector({
   }
 
   const preview = previewOf(chosen, columns - 16)
-  const parsedTime = Date.parse(chosen.timestamp)
-  const age = Number.isNaN(parsedTime)
-    ? ''
-    : formatRelativeTimeAgo(new Date(parsedTime), { style: 'short' })
+  const age = formatRelativeTimeAgo(new Date(chosen.timestamp))
   const options = confirmOptionsOf({
     canRestoreCode,
     conversationText: CONVERSATION_DESCRIPTION,
