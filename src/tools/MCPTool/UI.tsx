@@ -12,7 +12,6 @@ import { formatNumber } from '../../utils/format.js'
 import { createHyperlink } from '../../utils/hyperlink.js'
 import { getContentSizeEstimate, type MCPToolResult } from '../../services/mcp/mcpValidation.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { notBuilt } from '../../pi/holes.js'
 
 
 const LARGE_RESPONSE_TOKEN_THRESHOLD = 10_000
@@ -33,7 +32,41 @@ export function renderToolUseMessage(
 export function renderToolUseProgressMessage(
   progressMessages: ProgressMessage<MCPProgress>[],
 ): React.ReactNode {
-  return notBuilt('src/tools/MCPTool/UI.tsx:32')
+  const latest = progressMessages[progressMessages.length - 1]?.data
+  const progress = latest?.progress
+  if (typeof progress !== 'number' || !Number.isFinite(progress)) {
+    return (
+      <MessageResponse height={1}>
+        <Text dimColor>Running…</Text>
+      </MessageResponse>
+    )
+  }
+
+  const total = latest?.total
+  const message = latest?.progressMessage
+  if (typeof total === 'number' && Number.isFinite(total) && total > 0) {
+    const ratio = Math.min(1, Math.max(0, progress / total))
+    const percent = Math.round(ratio * 100)
+    return (
+      <MessageResponse height={1}>
+        <Box gap={1}>
+          {message ? <Ansi dimColor>{message}</Ansi> : null}
+          <ProgressBar ratio={ratio} width={PROGRESS_BAR_WIDTH} />
+          <Text dimColor>{`${percent}%`}</Text>
+        </Box>
+      </MessageResponse>
+    )
+  }
+
+  return (
+    <MessageResponse height={1}>
+      {message ? (
+        <Ansi dimColor>{message}</Ansi>
+      ) : (
+        <Text dimColor>{`Processing… (${progress})`}</Text>
+      )}
+    </MessageResponse>
+  )
 }
 
 
@@ -86,10 +119,101 @@ function ImagePlaceholder(): React.ReactNode {
   )
 }
 
+function trySlackSendCompact(output: MCPToolResult, input: unknown): string | null {
+  if (Array.isArray(output) && output.length !== 1) return null
+  const raw = candidateText(output)
+  if (raw === undefined || raw.length > SLACK_PAYLOAD_MAX_CHARS || !raw.includes(MESSAGE_LINK_TOKEN)) return null
+  let value: unknown
+  try { value = JSON.parse(raw) } catch (error) { passedOver(error); return null }
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return null
+  const record = value as Record<string, unknown>
+  if (Object.keys(record).length > SLACK_PAYLOAD_MAX_KEYS) return null
+  if (typeof record.message_link !== 'string') return null
+  const match = SLACK_PERMALINK.exec(record.message_link)
+  if (!match) return null
+  const inputRecord = input !== null && typeof input === 'object' && !Array.isArray(input)
+    ? (input as Record<string, unknown>)
+    : undefined
+  const rawChannel =
+    (typeof inputRecord?.channel_id === 'string' && inputRecord.channel_id.trim()) ||
+    (typeof inputRecord?.channel === 'string' && inputRecord.channel.trim()) ||
+    match[1] ||
+    'slack'
+  const channel = rawChannel.replace(/^#/, '')
+  return `Message sent to ${createHyperlink(record.message_link, `#${channel}`)}`
+}
+
 export function renderToolResultMessage(
   output: MCPToolResult,
   _progressMessages: unknown,
   arg2: { verbose: boolean; input?: unknown },
 ): React.ReactNode {
-  return notBuilt('src/tools/MCPTool/UI.tsx:181')
+  const { verbose, input } = arg2
+
+  if (!verbose) {
+    const craftCompact = tryCraftStatusCompact(output)
+    if (craftCompact !== null) {
+      return (
+        <MessageResponse>
+          <Text>{craftCompact}</Text>
+        </MessageResponse>
+      )
+    }
+    const slackCompact = trySlackSendCompact(output, input)
+    if (slackCompact !== null) {
+      return (
+        <MessageResponse>
+          <Ansi>{slackCompact}</Ansi>
+        </MessageResponse>
+      )
+    }
+  }
+
+  const estimatedTokens = getContentSizeEstimate(output)
+  const warning = estimatedTokens > LARGE_RESPONSE_TOKEN_THRESHOLD ? (
+    <MessageResponse>
+      <Text color="warning">
+        {`${GLYPH.warn} Large MCP response (~${formatNumber(estimatedTokens)} tokens) — responses this size eat context fast`}
+      </Text>
+    </MessageResponse>
+  ) : null
+
+  let body: React.ReactNode
+  if (Array.isArray(output)) {
+    if (output.length === 0) {
+      body = (
+        <MessageResponse height={1}>
+          <Text dimColor>(No content)</Text>
+        </MessageResponse>
+      )
+    } else {
+      body = (
+        <Box flexDirection="column">
+          {output.map((block, index) => {
+            if (block.type === 'image') return <ImagePlaceholder key={index} />
+            if (block.type === 'text') {
+              return <OutputLine key={index} content={block.text} verbose={verbose} />
+            }
+            return null
+          })}
+        </Box>
+      )
+    }
+  } else if (typeof output === 'string' && output.length > 0) {
+    body = <OutputLine content={output} verbose={verbose} />
+  } else {
+    body = (
+      <MessageResponse height={1}>
+        <Text dimColor>(No content)</Text>
+      </MessageResponse>
+    )
+  }
+
+  if (warning === null) return body
+  return (
+    <Box flexDirection="column">
+      {warning}
+      {body}
+    </Box>
+  )
 }
