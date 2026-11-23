@@ -13,7 +13,6 @@ import type { useExitOnCtrlCDWithKeybindings } from '../../hooks/useExitOnCtrlCD
 import type { useSearchInput } from '../../hooks/useSearchInput.js'
 import { packFooter } from '../mercury-ui/footerHint.js'
 import type { MercuryThemeTokens } from '../../utils/mercuryTokens.js'
-import { notBuilt } from '../../pi/holes.js'
 
 function EmptyLogList({
   emptyReasons,
@@ -44,7 +43,42 @@ function EmptyLogList({
   )
 }
 
-export function logSelectorView(arg0: {
+export function logSelectorView({
+  grouped,
+  emptyReasons,
+  renaming,
+  searchMode,
+  rowLabel,
+  describeLogFitted,
+  showAllProjects,
+  labelWidth,
+  MIN_LABEL_WIDTH,
+  visibleCount,
+  forceExpanded,
+  expanded,
+  setExpanded,
+  setFocusedLog,
+  onSelect,
+  onCancel,
+  setSearchMode,
+  tokens,
+  tagTabs,
+  selectedTag,
+  columns,
+  positionSuffix,
+  query,
+  search,
+  filterParts,
+  inRename,
+  renameValue,
+  setRenameValue,
+  submitRename,
+  renameCursor,
+  setRenameCursor,
+  exitState,
+  hints,
+  expandHint,
+}: {
   grouped: { log: SessionListing; children: SessionListing[] }[]
   emptyReasons: string[]
   renaming: boolean
@@ -80,5 +114,123 @@ export function logSelectorView(arg0: {
   hints: string[]
   expandHint: string | null
 }): React.ReactNode {
-  return notBuilt('src/components/logSelector/views.tsx:46')
+  const listBody = grouped.length === 0 ? (
+    <EmptyLogList emptyReasons={emptyReasons} isDisabled={searchMode} onCancel={onCancel} />
+  ) : renaming ? (
+    <TreeSelect<SessionListing>
+      isDisabled={searchMode}
+      nodes={grouped.map(row => ({
+        id: row.log.sessionId ?? `path:${row.log.fullPath ?? row.log.value}`,
+        value: row.log,
+        label: rowLabel(row.log, row.children.length > 0 ? 'header' : 'flat', row.children.length),
+        description: describeLogFitted(row.log, showAllProjects, labelWidth),
+        dimDescription: true,
+        children: row.children.map(child => ({
+          id: `${child.sessionId}:${child.value}`,
+          value: child,
+          label: rowLabel(child, 'child', 0),
+          description: `    ${describeLogFitted(child, showAllProjects, Math.max(MIN_LABEL_WIDTH, labelWidth - 4))}`,
+          dimDescription: true,
+        })),
+      }))}
+      visibleOptionCount={visibleCount}
+      isNodeExpanded={nodeId =>
+        forceExpanded || expanded.has(String(nodeId))
+      }
+      onExpand={nodeId =>
+        setExpanded(previous => new Set([...previous, String(nodeId)]))
+      }
+      onCollapse={nodeId =>
+        setExpanded(previous => {
+          const next = new Set(previous)
+          next.delete(String(nodeId))
+          return next
+        })
+      }
+      onFocus={node => setFocusedLog(node.value)}
+      onSelect={node => onSelect(node.value)}
+      onCancel={onCancel}
+      onUpFromFirstItem={() => setSearchMode(true)}
+    />
+  ) : (
+    <Select
+      isDisabled={searchMode}
+      options={grouped.map((row, index) => ({
+        label: rowLabel(row.log, 'flat', 0),
+        description: describeLogFitted(row.log, showAllProjects, labelWidth),
+        value: String(index),
+      }))}
+      visibleOptionCount={visibleCount}
+      onFocus={value => {
+        const row = grouped[Number(value)]
+        if (row) setFocusedLog(row.log)
+      }}
+      onChange={value => {
+        const row = grouped[Number(value)]
+        if (row) onSelect(row.log)
+      }}
+      onCancel={onCancel}
+      onUpFromFirstItem={() => setSearchMode(true)}
+    />
+  )
+
+  return (
+    <Box
+      flexDirection="column"
+      borderStyle="round"
+      borderColor={tokens.borderSubtle}
+      paddingX={1}
+    >
+      <Text bold color={tokens.accent}>
+        Mercury · resume
+      </Text>
+      <Box height={1} />
+      {tagTabs.length > 0 ? (
+        <TagTabs
+          tabs={tagTabs.map((label, index) => ({ label, isAll: index === 0 }))}
+          selectedIndex={selectedTag === null ? 0 : Math.max(0, tagTabs.indexOf(selectedTag))}
+          availableWidth={columns - 4}
+          showAllProjects={showAllProjects}
+        />
+      ) : (
+        <Text bold>
+          Select a session{positionSuffix}
+        </Text>
+      )}
+      <SearchBox
+        query={query}
+        isFocused={searchMode}
+        isTerminalFocused
+        cursorOffset={search.cursorOffset}
+        placeholder="Search sessions…"
+        borderless
+      />
+      {filterParts.length > 0 ? (
+        <Text dimColor>{filterParts.join(' · ')}</Text>
+      ) : null}
+      {inRename ? (
+        <Box>
+          <Text color={tokens.info}>Rename: </Text>
+          <TextInput value={renameValue}
+            onChange={setRenameValue}
+            onSubmit={submitRename}
+            columns={Math.max(20, columns - 12)}
+            cursorOffset={renameCursor}
+            onChangeCursorOffset={setRenameCursor}
+          />
+        </Box>
+      ) : (
+        listBody
+      )}
+      <Text dimColor>
+        {exitState.pending
+          ? exitChordNoticeText(exitState.keyName)
+          :
+            packFooter(
+              [...hints, ...(expandHint ? [expandHint] : [])].join(' · '),
+              Math.max(0, columns - 4),
+            )}
+      </Text>
+    </Box>
+  )
 }
