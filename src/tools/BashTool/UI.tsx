@@ -65,7 +65,7 @@ export function renderToolUseProgressMessage(
   const latest = progressMessages[progressMessages.length - 1]?.data
   if (!latest) {
     return (
-      <MessageResponse>
+      <MessageResponse height={1}>
         <Text color={FAINT} dimColor>
           running…
         </Text>

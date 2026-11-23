@@ -35,7 +35,7 @@ export function renderToolUseProgressMessage(
 ): React.ReactNode {
   const latest = progressMessages[progressMessages.length - 1]?.data
   const progress = latest?.progress
-  if (typeof progress !== 'number' || !Number.isFinite(progress)) {
+  if (typeof progress !== 'number') {
     return (
       <MessageResponse height={1}>
         <Text dimColor>Running…</Text>
@@ -45,15 +45,17 @@ export function renderToolUseProgressMessage(
 
   const total = latest?.total
   const message = latest?.progressMessage
-  if (typeof total === 'number' && Number.isFinite(total) && total > 0) {
+  if (typeof total === 'number' && total > 0) {
     const ratio = Math.min(1, Math.max(0, progress / total))
     const percent = Math.round(ratio * 100)
     return (
-      <MessageResponse height={1}>
-        <Box gap={1}>
+      <MessageResponse>
+        <Box flexDirection="column">
           {message ? <Ansi dimColor>{message}</Ansi> : null}
-          <ProgressBar ratio={ratio} width={PROGRESS_BAR_WIDTH} />
-          <Text dimColor>{`${percent}%`}</Text>
+          <Box>
+            <ProgressBar ratio={ratio} width={PROGRESS_BAR_WIDTH} />
+            <Text>{` ${percent}%`}</Text>
+          </Box>
         </Box>
       </MessageResponse>
     )
