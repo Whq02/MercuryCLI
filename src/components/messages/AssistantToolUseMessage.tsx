@@ -114,13 +114,18 @@ export function RunningShellBackgroundHint({ id }: { id: string }): React.ReactN
 function editMetaCounts(
   rawResult: unknown,
 ): { added: number; removed: number } | null {
-  const patch = (rawResult as { structuredPatch?: Array<{ lines?: string[] }> })
-    ?.structuredPatch
+  if (typeof rawResult !== 'object' || rawResult === null || !('structuredPatch' in rawResult)) {
+    return null
+  }
+  const patch = rawResult.structuredPatch
   if (!Array.isArray(patch)) return null
   let added = 0
   let removed = 0
   for (const hunk of patch) {
-    for (const line of hunk.lines ?? []) {
+    if (typeof hunk !== 'object' || hunk === null || !('lines' in hunk)) continue
+    if (!Array.isArray(hunk.lines)) continue
+    for (const line of hunk.lines) {
+      if (typeof line !== 'string') continue
       if (line.startsWith('+')) added += 1
       else if (line.startsWith('-')) removed += 1
     }
@@ -336,7 +341,7 @@ export function AssistantToolUseMessage({
       marginTop={addMargin ? 1 : 0}
       backgroundColor={selectedBg}
     >
-      <Box flexDirection="row">
+      <Box>
         {shouldShowDot ? (
           <Box flexShrink={0}>
             <TranscriptNameplate />
