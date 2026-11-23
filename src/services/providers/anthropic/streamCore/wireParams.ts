@@ -1,5 +1,4 @@
 import { flagEnv } from '../../../../substrate/flagRegistry.js'
-import type { JsonOutputFormat as BetaJSONOutputFormat } from '../../../../types/wire.js'
 import type { AnthropicMessageParams as BetaMessageStreamParams, AnthropicOutputConfig as BetaOutputConfig } from '../../../../types/anthropicWire.js'
 import { MESSAGE_EFFORT_BETA_HEADER, STRUCTURED_OUTPUTS_BETA_HEADER } from 'src/constants/betas.js'
 import { applyThinkingBinding } from '../thinkingBinding.js'
@@ -51,8 +50,10 @@ function isCachedMCEditsBlock(value: unknown): value is CachedMCEditsBlock {
   return (
     typeof value === 'object' &&
     value !== null &&
-    (value as { type?: unknown }).type === 'cache_edits' &&
-    Array.isArray((value as { edits?: unknown }).edits)
+    'type' in value &&
+    value.type === 'cache_edits' &&
+    'edits' in value &&
+    Array.isArray(value.edits)
   )
 }
 
@@ -63,11 +64,11 @@ type WireInputs = {
   betas: string[]
   rosterOwnerKey: string
   planned: PlannedRequest
-  effortValue: ReturnType<typeof resolveAppliedEffort>
   cachedMCEnabled: boolean
   cacheEditingHeaderLatched: boolean
-  newCacheEdits: ReturnType<typeof consumePendingCacheEdits>
-  pinnedEdits: ReturnType<typeof getPinnedCacheEdits>
+  effort: ReturnType<typeof resolveAppliedEffort>
+  consumedCacheEdits: ReturnType<typeof consumePendingCacheEdits>
+  consumedPinnedEdits: ReturnType<typeof getPinnedCacheEdits>
 }
 
 export function wireParamsFor(call: CallState, wire: WireInputs): (context: RetryContext) => BetaMessageStreamParams {
@@ -89,10 +90,10 @@ export function wireParamsFor(call: CallState, wire: WireInputs): (context: Retr
         ? { ...(rawExtraOutputConfig as BetaOutputConfig) }
         : {}
 
-    configureEffortParams(wire.effortValue, outputConfig, extraBodyParams, wire.options.model)
+    configureEffortParams(wire.effort, outputConfig, extraBodyParams, wire.options.model)
 
     if (wire.options.outputFormat && !Object.hasOwn(outputConfig, 'format')) {
-      outputConfig.format = wire.options.outputFormat as BetaJSONOutputFormat
+      outputConfig.format = wire.options.outputFormat
       if (modelSupportsStructuredOutputs(wire.options.model) && !requestBetas.includes(STRUCTURED_OUTPUTS_BETA_HEADER)) {
         requestBetas.push(STRUCTURED_OUTPUTS_BETA_HEADER)
       }
@@ -172,10 +173,10 @@ export function wireParamsFor(call: CallState, wire: WireInputs): (context: Retr
     }
 
     const freshEdits: CachedMCEditsBlock | null =
-      wire.newCacheEdits !== null && isCachedMCEditsBlock(wire.newCacheEdits.block)
-        ? wire.newCacheEdits.block
+      wire.consumedCacheEdits !== null && isCachedMCEditsBlock(wire.consumedCacheEdits.block)
+        ? wire.consumedCacheEdits.block
         : null
-    const pinnedEdits: CachedMCPinnedEdits[] = wire.pinnedEdits.flatMap(entry =>
+    const pinnedEdits: CachedMCPinnedEdits[] = wire.consumedPinnedEdits.flatMap(entry =>
       isCachedMCEditsBlock(entry.block) ? [{ userMessageIndex: entry.userMessageIndex, block: entry.block }] : [],
     )
     let wirePrefix: WirePrefixParts = {
