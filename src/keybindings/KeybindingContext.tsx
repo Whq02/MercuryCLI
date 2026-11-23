@@ -42,7 +42,8 @@ export function KeybindingProvider({ activeContexts, bindings, children, handler
     entries.add(registration)
     registry.set(action, entries)
     return () => {
-      if (entries.delete(registration) && !entries.size) registry.delete(action)
+      const current = registry.get(action)
+      if (current?.delete(registration) && !current.size) registry.delete(action)
     }
   }, [handlerRegistryRef])
   const invokeAction = useCallback((action: string) => {

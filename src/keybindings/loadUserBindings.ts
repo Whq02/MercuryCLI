@@ -193,7 +193,8 @@ export async function initializeKeybindingWatcher(): Promise<void> {
       logForDebugging(`keybindings watcher: ${home} is not a directory; not watching`)
       return
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     logForDebugging(`keybindings watcher: cannot stat ${home}; not watching`)
     return
   }
