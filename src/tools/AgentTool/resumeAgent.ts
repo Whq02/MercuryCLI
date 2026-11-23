@@ -6,7 +6,7 @@ import { getAgentModel } from '../../services/model/agent.js'
 import { crewmateModelOverride } from '../../services/crew/crewmateModelWord.js'
 import { recordAfterResume } from '../../services/crew/crewmateRecord.js'
 import type { Message } from '../../types/message.js'
-import type { AgentId } from '../../types/ids.js'
+import { asAgentId, type AgentId } from '../../types/ids.js'
 import type { CanUseToolFn, ToolUseContext } from '../../Tool.js'
 import { assembleToolPool } from '../../tools.js'
 import { latchSwarmAgent, settleSwarmAgent, swarmResumeAdmitted } from '../../services/crewBoard/seam.js'
@@ -25,11 +25,11 @@ import {
 import { runWithCwdOverride } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'
 import {
+  createUserMessage,
   filterOrphanedThinkingOnlyMessages,
   filterWhitespaceOnlyAssistantMessages,
 } from '../../services/messages.js'
 import { settleToolUsesOfEndedRun } from '../../services/messages/apiFilters.js'
-import { createUserMessage } from '../../services/messages.js'
 import { createAttachmentMessage } from '../../services/attachments/orchestrator.js'
 import { errorMessage } from '../../utils/errors.js'
 import { getQuerySourceForAgent } from '../../utils/promptCategory.js'
@@ -46,9 +46,8 @@ import { getCwdState, getSdkAgentProgressSummariesEnabled } from '../../bootstra
 import { automaticResumePending, cancelAutomaticResume, resolveWorkerTools, runAsyncAgentLifecycle } from './agentToolUtils.js'
 import { operatorPauseGate } from '../../run-core/pauseGate.js'
 import { MERCURY_CREW_AGENT_TYPE } from '../../constants/tools/agent.js'
-import type { AgentDefinition } from '../../types/agent.js'
+import { isBuiltInAgent, type AgentDefinition } from '../../types/agent.js'
 import { getAgentDefinitionsWithOverrides } from './loadAgentsDir.js'
-import { isBuiltInAgent } from '../../types/agent.js'
 import { runAgent } from './runAgent.js'
 import { continuationDirectoryNote } from './continuationNote.js'
 import { EFFORT_LEVELS, isEffortLevel, resolveStampedEffortTruth, type EffortLevel } from '../../utils/effort.js'
@@ -107,6 +106,9 @@ async function existingDirectory(path: string | undefined): Promise<string | und
   }
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
 function restoreStructuredOutputSpec(
   stored:
     | {
@@ -128,15 +130,10 @@ function restoreStructuredOutputSpec(
     const mark = restore?.marks.find(entry => entry.name === STRUCTURED_OUTPUT_TOOL_NAME)
     if (mark?.definition !== undefined) {
       try {
-        const parsed = JSON.parse(mark.definition) as { input_schema?: unknown } | null
-        if (
-          parsed !== null &&
-          typeof parsed.input_schema === 'object' &&
-          parsed.input_schema !== null &&
-          !Array.isArray(parsed.input_schema)
-        ) {
+        const parsed: unknown = JSON.parse(mark.definition)
+        if (isRecord(parsed) && isRecord(parsed.input_schema)) {
           spec = {
-            schema: parsed.input_schema as Record<string, unknown>,
+            schema: parsed.input_schema,
             mode: 'permissive',
             source: 'dispatch',
           }
@@ -169,7 +166,7 @@ export async function resumeAgentBackground(args: {
   onAdmitted?: () => void
 }): Promise<ResumeAgentResult> {
   const { agentId, prompt, toolUseContext } = args
-  const typedAgentId = agentId as AgentId
+  const typedAgentId = asAgentId(agentId)
   const [transcript, meta] = await Promise.all([
     getAgentTranscript(typedAgentId),
     readAgentMetadata(typedAgentId),
@@ -289,9 +286,9 @@ export async function resumeAgentBackground(args: {
     recordedDescription(previousTask?.description) ||
     RESUMED_AGENT_DESCRIPTION
   const replyTarget = args.replyTarget ?? previousTask?.replyTarget
-  const compactRequested =
+  const compactRequested: true | undefined =
     meta?.compactOnResume === true || previousTask?.compactRequested === true
-      ? (true as const)
+      ? true
       : undefined
 
   const task = registerAsyncAgent({
@@ -303,7 +300,7 @@ export async function resumeAgentBackground(args: {
     model: lifecycleModel,
     toolUseId: toolUseContext.toolUseId,
     ...(replyTarget !== undefined ? { replyTarget } : {}),
-    ...(compactRequested === true ? { compactRequested: true as const } : {}),
+    ...(compactRequested === true ? { compactRequested } : {}),
   })
 
   const workerPermissionMode = selectedAgent.permissionMode ?? 'implement'
