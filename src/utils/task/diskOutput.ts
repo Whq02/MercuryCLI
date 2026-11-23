@@ -13,22 +13,34 @@ import { sleep } from '../sleep.js'
 import { startTimeout, stopTimeout } from '../timers.js'
 import { resolveWatchRoot } from '../watchRoot.js'
 import { passedOver, passedOverAs } from '../passedOver.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
 export const TASK_OUTPUT_RETRY_DELAY_MS = 50
 
-export const MAX_TASK_OUTPUT_BYTES: Unbuilt = unbuilt('src/utils/task/diskOutput.ts:20')
-export const MAX_TASK_OUTPUT_BYTES_DISPLAY: Unbuilt = unbuilt('src/utils/task/diskOutput.ts:21')
+export const MAX_TASK_OUTPUT_BYTES: number = 5 * 1024 * 1024 * 1024
+export const MAX_TASK_OUTPUT_BYTES_DISPLAY: string = '5GB'
 
-const DEFAULT_READ_BUDGET_BYTES: Unbuilt = unbuilt('src/utils/task/diskOutput.ts:23')
+const DEFAULT_READ_BUDGET_BYTES: number = 8 * 1024 * 1024
+
+let memoizedTasksDir: { sessionId: string; projectTemp: string; dir: string } | null = null
 
 export function getTaskOutputDir(): string {
-  return notBuilt('src/utils/task/diskOutput.ts:27')
+  const sessionId = getSessionId()
+  const projectTemp = getProjectTempDir()
+  if (
+    memoizedTasksDir !== null &&
+    memoizedTasksDir.sessionId === sessionId &&
+    memoizedTasksDir.projectTemp === projectTemp
+  ) {
+    return memoizedTasksDir.dir
+  }
+  const dir = join(projectTemp, sessionId, 'tasks')
+  memoizedTasksDir = { sessionId, projectTemp, dir }
+  return dir
 }
 
 export function getTaskOutputPath(taskId: string): string {
-  return notBuilt('src/utils/task/diskOutput.ts:34')
+  return join(getTaskOutputDir(), `${taskId}.output`)
 }
 
 function ensureTasksDir(): Promise<void> {
@@ -99,7 +111,11 @@ async function replaceEmptyOutputWithLink(outputPath: string, transcriptPath: st
 }
 
 async function linkWhenAwaited(transcriptPath: string): Promise<void> {
-  return notBuilt('src/utils/task/diskOutput.ts:105')
+  const key = transcriptKey(transcriptPath)
+  const outputPath = outputsAwaitingTranscript.get(key)
+  if (outputPath === undefined) return
+  outputsAwaitingTranscript.delete(key)
+  await replaceEmptyOutputWithLink(outputPath, transcriptPath)
 }
 
 export function linkTaskOutputToTranscript(transcriptPath: string): void {
@@ -169,15 +185,24 @@ export class DiskTaskOutput {
   }
 
   append(content: string): void {
-    return notBuilt('src/utils/task/diskOutput.ts:179')
+    if (this.capped || content.length === 0) return
+    if (this.totalLength + content.length > MAX_TASK_OUTPUT_BYTES) {
+      this.capped = true
+      this.queue.push(`\n<task output truncated: the ${MAX_TASK_OUTPUT_BYTES_DISPLAY} disk limit was exceeded>\n`)
+      this.startDrain()
+      return
+    }
+    this.totalLength += content.length
+    this.queue.push(content)
+    this.startDrain()
   }
 
   flush(): Promise<void> {
-    return notBuilt('src/utils/task/diskOutput.ts:192')
+    return this.flushPromise
   }
 
   cancel(): void {
-    return notBuilt('src/utils/task/diskOutput.ts:196')
+    this.queue = []
   }
 
   private startDrain(): void {
@@ -196,7 +221,22 @@ export class DiskTaskOutput {
   }
 
   private async drain(): Promise<void> {
-    return notBuilt('src/utils/task/diskOutput.ts:215')
+    try {
+      await this.drainCycle()
+    } catch (firstError) {
+      logError(firstError)
+      if (this.queue.length === 0) return
+      await sleep(TASK_OUTPUT_RETRY_DELAY_MS, undefined, { unref: true })
+      if (this.queue.length === 0) return
+      try {
+        await this.drainCycle()
+      } catch (secondError) {
+        logError(secondError)
+        this.lostChars += this.pendingChars()
+        this.queue = []
+        this.lastWriteError = secondError instanceof Error ? secondError.message : String(secondError)
+      }
+    }
   }
 
   private async writeLossNoteIfOwed(handle: fs.promises.FileHandle): Promise<void> {
@@ -226,15 +266,32 @@ export class DiskTaskOutput {
 }
 
 function takeQueuedPayload(queue: string[]): Buffer {
-  return notBuilt('src/utils/task/diskOutput.ts:260')
+  const payload = queue.splice(0, queue.length).join('')
+  return Buffer.from(payload, 'utf8')
 }
 
+const writers = new Map<string, DiskTaskOutput>()
+
 export function acquireTaskOutputWriter(taskId: string): DiskTaskOutput {
-  return notBuilt('src/utils/task/diskOutput.ts:274')
+  let writer = writers.get(taskId)
+  if (writer === undefined) {
+    writer = new DiskTaskOutput(taskId)
+    writers.set(taskId, writer)
+  }
+  return writer
 }
 
 export function evictTaskOutput(taskId: string): Promise<void> {
-  return notBuilt('src/utils/task/diskOutput.ts:283')
+  forgetOutputAwaiting(taskId)
+  const writer = writers.get(taskId)
+  if (writer === undefined) return Promise.resolve()
+  return track(
+    writer.flush().finally(() => {
+      if (writers.get(taskId) === writer) {
+        writers.delete(taskId)
+      }
+    }),
+  )
 }
 
 export async function getTaskOutputDelta(
