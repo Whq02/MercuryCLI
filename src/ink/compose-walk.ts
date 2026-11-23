@@ -943,9 +943,26 @@ function composeScrollBox(node: FrameNode, walk: Walk, prevScreen: Screen | unde
   settle(content)
 }
 
+function isColor(value: string): value is Color {
+  return (
+    value.startsWith('#') ||
+    (value.startsWith('rgb(') && value.endsWith(')')) ||
+    (value.startsWith('ansi256(') && value.endsWith(')')) ||
+    value.startsWith('ansi:')
+  )
+}
+
+function asRowGround(fn: ((row: number) => string | undefined) | undefined): RowGround | undefined {
+  if (fn === undefined) return undefined
+  return (row: number): Color | undefined => {
+    const color = fn(row)
+    return color !== undefined && isColor(color) ? color : undefined
+  }
+}
+
 function composeBox(node: FrameNode, walk: Walk, placement: Placement, x: number, y: number, width: number, height: number, layoutNode: LayoutNode, hasRemovedChild: boolean): void {
   const ownBg: Color | undefined = node.style.backgroundColor
-  const ownRowBg: RowGround | undefined = node.style.fillRowBg
+  const ownRowBg: RowGround | undefined = asRowGround(node.style.fillRowBg)
   const rowSampler: RowGround | undefined = ownBg !== undefined ? undefined : (ownRowBg ?? placement.inheritedRowBg)
   const uniformBg: Color | undefined = ownBg ?? (rowSampler !== undefined ? undefined : placement.inheritedBackgroundColor)
 

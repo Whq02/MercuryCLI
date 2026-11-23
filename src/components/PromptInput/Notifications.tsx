@@ -205,7 +205,8 @@ function NotificationsColumn({
     'Chat',
     'ctrl+x ctrl+e',
   )
-  const rawEditor = hostEnv('VISUAL') || hostEnv('EDITOR') || ''
+  const env = hostEnv()
+  const rawEditor = env.VISUAL || env.EDITOR || ''
   const trimmedEditor = rawEditor.trim()
   const editorBin = trimmedEditor.split(/\s+/)[0] ?? ''
   const editorName = editorBin !== '' ? basename(editorBin) || 'editor' : 'editor'
