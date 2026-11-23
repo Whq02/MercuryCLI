@@ -5,8 +5,7 @@ import { guardKeysOf, judgeToolCall } from '../../guards/guards.js'
 import type { Tool, ToolUseContext } from '../../Tool.js'
 import { BashTool } from '../../tools/BashTool/BashTool.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { MalformedCommandError, ShellError } from '../../utils/errors.js'
-import { errorMessage } from '../../utils/errors.js'
+import { errorMessage, MalformedCommandError, ShellError } from '../../utils/errors.js'
 import type { FrontmatterShell } from '../../utils/frontmatterParser.js'
 import { createAssistantMessage } from '../messages.js'
 import { hasPermissionsToUseTool } from '../../utils/permissions/permissions.js'
@@ -16,8 +15,6 @@ import { processToolResultBlock } from '../../utils/toolResultStorage.js'
 type ShellMatch = {
   fullMatch: string
   command: string
-  start: number
-  end: number
 }
 
 function findShellMatches(text: string): ShellMatch[] {
@@ -27,18 +24,16 @@ function findShellMatches(text: string): ShellMatch[] {
   for (const match of text.matchAll(fencedRegex)) {
     const start = match.index
     const fullMatch = match[0]
-    const end = start + fullMatch.length
-    fencedRanges.push({ start, end })
-    matches.push({ fullMatch, command: match[1] ?? '', start, end })
+    fencedRanges.push({ start, end: start + fullMatch.length })
+    matches.push({ fullMatch, command: match[1] ?? '' })
   }
   if (text.includes('!`')) {
     const inlineRegex = /(?:^|(?<=\s))!`([^`]+)`/g
     for (const match of text.matchAll(inlineRegex)) {
       const start = match.index
       const fullMatch = match[0]
-      const end = start + fullMatch.length
       if (fencedRanges.some(range => start >= range.start && start < range.end)) continue
-      matches.push({ fullMatch, command: match[1] ?? '', start, end })
+      matches.push({ fullMatch, command: match[1] ?? '' })
     }
   }
   return matches
@@ -48,7 +43,7 @@ function isAsyncIterable(value: unknown): value is AsyncIterable<unknown> {
   return (
     typeof value === 'object' &&
     value !== null &&
-    typeof (value as { [Symbol.asyncIterator]?: unknown })[Symbol.asyncIterator] === 'function'
+    typeof Reflect.get(value, Symbol.asyncIterator) === 'function'
   )
 }
 
@@ -131,9 +126,9 @@ async function runPromptShellCommand(
       }
       rawResult = last
     }
-    const resultData =
+    const resultData: unknown =
       typeof rawResult === 'object' && rawResult !== null && Object.hasOwn(rawResult, 'data')
-        ? (rawResult as { data: unknown }).data
+        ? Reflect.get(rawResult, 'data')
         : rawResult
 
     const block = await processToolResultBlock(
@@ -143,12 +138,16 @@ async function runPromptShellCommand(
       context.options.engineModel,
     )
     if (typeof block.content === 'string') return block.content
-    const shellResult =
+    const rawStdout: unknown =
       typeof resultData === 'object' && resultData !== null
-        ? (resultData as { stdout?: unknown; stderr?: unknown })
-        : {}
-    const stdout = typeof shellResult.stdout === 'string' ? shellResult.stdout : ''
-    const stderr = typeof shellResult.stderr === 'string' ? shellResult.stderr : ''
+        ? Reflect.get(resultData, 'stdout')
+        : undefined
+    const rawStderr: unknown =
+      typeof resultData === 'object' && resultData !== null
+        ? Reflect.get(resultData, 'stderr')
+        : undefined
+    const stdout = typeof rawStdout === 'string' ? rawStdout : ''
+    const stderr = typeof rawStderr === 'string' ? rawStderr : ''
     return formatShellOutput(stdout, stderr)
   } catch (err) {
     if (err instanceof MalformedCommandError) throw err
