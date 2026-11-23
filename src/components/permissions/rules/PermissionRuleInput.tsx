@@ -32,9 +32,8 @@ export function PermissionRuleInput({
   useKeybinding('confirm:no', onCancel, { context: 'Settings' })
 
   const handleSubmit = (value: string): void => {
-    const trimmed = value.trim()
-    if (trimmed === '') return
-    onSubmit(permissionRuleValueFromString(trimmed))
+    if (value.trim() === '') return
+    onSubmit(permissionRuleValueFromString(value))
   }
 
   const webFetchExample = permissionRuleValueToString({ toolName: WebFetchTool.name })
@@ -44,39 +43,34 @@ export function PermissionRuleInput({
   })
 
   return (
-    <Box flexDirection="column">
-      <Box
-        flexDirection="column"
-        borderStyle="round"
-        borderColor="permission"
-        paddingX={1}
-        gap={1}
-      >
-        <Text bold color="permission">
-          Add {ruleBehavior} permission rule
-        </Text>
-        <Text dimColor>
-          A rule is a tool name, optionally followed by a specifier in
-          parentheses — for example{' '}
-          <Text bold>{webFetchExample}</Text> or <Text bold>{bashExample}</Text>
-        </Text>
-        <TextInput
-          value={input}
-          onChange={setInput}
-          onSubmit={handleSubmit}
-          columns={columns - 6}
-          cursorOffset={input.length}
-          onChangeCursorOffset={() => {}}
-          showCursor
-        />
-      </Box>
-      <Box marginLeft={1}>
-        <Text dimColor>
-          {exitState.pending
-            ? exitChordNoticeText(exitState.keyName)
-            : 'enter submit · esc cancel'}
-        </Text>
-      </Box>
+    <Box
+      flexDirection="column"
+      borderStyle="round"
+      borderColor="permission"
+      paddingX={1}
+    >
+      <Text bold color="permission">
+        Add {ruleBehavior} permission rule
+      </Text>
+      <Text dimColor>
+        A rule is a tool name, optionally followed by a specifier in
+        parentheses — for example{' '}
+        <Text bold>{webFetchExample}</Text> or <Text bold>{bashExample}</Text>
+      </Text>
+      <TextInput
+        value={input}
+        onChange={setInput}
+        onSubmit={handleSubmit}
+        columns={columns - 6}
+        cursorOffset={input.length}
+        onChangeCursorOffset={() => {}}
+        showCursor
+      />
+      <Text color="subtle">
+        {exitState.pending
+          ? exitChordNoticeText(exitState.keyName)
+          : 'enter submit · esc cancel'}
+      </Text>
     </Box>
   )
 }
