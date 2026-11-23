@@ -50,7 +50,7 @@ export function FallbackPermissionRequest({
 }): React.ReactNode {
   usePermissionRequestLogging(toolUseConfirm, screen)
 
-  const rawName = toolUseConfirm.tool.userFacingName(toolUseConfirm.input) || toolUseConfirm.tool.name
+  const rawName = toolUseConfirm.tool.userFacingName(toolUseConfirm.input)
   const isMcp = rawName.endsWith(MCP_SUFFIX)
   const displayName = isMcp ? rawName.slice(0, -MCP_SUFFIX.length) : rawName
 
@@ -110,55 +110,30 @@ export function FallbackPermissionRequest({
     }
   }
 
-  function handleCancel(): void {
-    toolUseConfirm.onReject()
-    onReject()
-    onDone()
-  }
-
-  let bodyNode: React.ReactNode = null
-  if (body !== undefined) {
-    bodyNode = body === null ? null : (
-      <Box flexDirection="column" paddingX={2} paddingY={1}>
-        {body}
-      </Box>
-    )
-  } else {
+  let bodyRows: React.ReactNode = body
+  if (body === undefined) {
     const useMessage = toolUseConfirm.tool.renderToolUseMessage(toolUseConfirm.input, {
       theme: resolveThemeName(),
       verbose: true,
     })
-    const isStringMessage =
-      typeof useMessage === 'string' || useMessage === null || useMessage === undefined
-    const shown = isStringMessage ? `${displayName}(${useMessage ?? ''})` : ''
-    const startedLines = sentOrStarted(toolUseConfirm.tool, toolUseConfirm.input, shown)
-    bodyNode = (
-      <Box flexDirection="column" paddingX={2} paddingY={1}>
-        {isStringMessage ? (
-          <ConsentBodyText
-            text={shown}
-            after={isMcp ? <Text dimColor>{MCP_SUFFIX}</Text> : undefined}
-          />
+    const suffix = isMcp ? <Text dimColor>{MCP_SUFFIX}</Text> : undefined
+    const started = sentOrStarted(
+      toolUseConfirm.tool,
+      toolUseConfirm.input,
+      typeof useMessage === 'string' ? useMessage : '',
+    )
+    bodyRows = (
+      <>
+        {typeof useMessage === 'string' ? (
+          <ConsentBodyText text={`${displayName}(${useMessage})`} after={suffix} />
         ) : (
-          <Box flexDirection="column">
-            <Text>
-              {displayName}
-              {isMcp ? <Text dimColor>{MCP_SUFFIX}</Text> : null}
-            </Text>
-            {useMessage}
-          </Box>
+          <Text>
+            {displayName}({useMessage}){suffix}
+          </Text>
         )}
-        {startedLines.length > 0 ? (
-          <Box flexDirection="column" marginTop={1}>
-            {startedLines.map((line, index) => (
-              <Text key={index} dimColor>{line}</Text>
-            ))}
-          </Box>
-        ) : null}
-        {toolUseConfirm.description ? (
-          <Text dimColor>{truncateToLines(toolUseConfirm.description, 3)}</Text>
-        ) : null}
-      </Box>
+        {started.length > 0 ? <ConsentBodyText text={started.join('\n')} /> : null}
+        <Text dimColor>{truncateToLines(toolUseConfirm.description, 3)}</Text>
+      </>
     )
   }
 
@@ -168,13 +143,13 @@ export function FallbackPermissionRequest({
       crewmate={toolUseConfirm.crewmate}
       workerBadge={workerBadge}
     >
-      {bodyNode}
       <Box flexDirection="column">
+        {bodyRows}
         <PermissionRuleExplanation permissionResult={toolUseConfirm.permissionResult} />
         <PermissionPrompt
           options={options}
           onSelect={handleSelect}
-          onCancel={handleCancel}
+          onCancel={() => handleSelect('no')}
         />
       </Box>
     </PermissionDialog>
