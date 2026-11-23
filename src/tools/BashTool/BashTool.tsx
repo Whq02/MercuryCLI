@@ -259,17 +259,6 @@ function isBashReadOnly(input: BashToolInput): boolean {
   return preparedBashReadsOnly(input)
 }
 
-async function preparePermissionMatcher(input: BashToolInput): Promise<(pattern: string) => boolean> {
-  const parsed = await parseForSecurity(input.command)
-  if (parsed.kind !== 'simple') {
-    return () => true
-  }
-  const argvTexts = parsed.commands.map(command => command.argv.join(' '))
-  return (pattern: string): boolean => {
-    return argvTexts.some(argv => matchGlob(pattern, argv))
-  }
-}
-
 function matchGlob(pattern: string, text: string): boolean {
   const body = pattern
     .split('*')
