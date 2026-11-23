@@ -1,7 +1,6 @@
 import { satisfies } from 'semver'
 import type { ActionGraph } from './actionGraph.js'
 import type { KeybindingBlock } from './types.js'
-import { unbuilt } from '../pi/holes.js'
 
 type GraphAction = keyof ActionGraph
 type GraphContext = ActionGraph[GraphAction]['contexts'][number]
@@ -242,4 +241,4 @@ const SHIPPED_KEYS = {
   },
 } satisfies ShippedRows
 
-export const DEFAULT_BINDINGS: KeybindingBlock[] = unbuilt('src/keybindings/defaultBindings.ts:238')
+export const DEFAULT_BINDINGS: KeybindingBlock[] = Object.entries(SHIPPED_KEYS).map(([context, bindings]) => ({ context, bindings }))
