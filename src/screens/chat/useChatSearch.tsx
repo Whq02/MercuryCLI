@@ -116,29 +116,25 @@ export function TranscriptSearchBar({
   });
   queryRef.current = query;
 
-  useLoad(() => {
-    let cancelled = false;
+  useLoad(signal => {
     let noticeTimer: ReturnType<typeof startTimeout> | null = null;
     const startedAt = Date.now();
     warmSearchIndex().then(
       reportedMs => {
-        if (cancelled) return;
+        if (signal.aborted) return;
         setWarming(false);
         const elapsed = Number.isFinite(reportedMs) ? reportedMs : Date.now() - startedAt;
         if (elapsed >= SEARCH_WARMUP_QUIET_MS) {
           setWarmNotice(`indexed in ${Math.round(elapsed)}ms`);
-          noticeTimer = startTimeout(() => {
-            if (!cancelled) setWarmNotice(null);
-          }, SEARCH_WARMUP_SHOW_MS);
+          noticeTimer = startTimeout(() => setWarmNotice(null), SEARCH_WARMUP_SHOW_MS);
         }
       },
       () => {
-        if (cancelled) return;
+        if (signal.aborted) return;
         setWarming(false);
       },
     );
     return () => {
-      cancelled = true;
       if (noticeTimer !== null) stopTimeout(noticeTimer);
     };
   }, [warmSearchIndex]);

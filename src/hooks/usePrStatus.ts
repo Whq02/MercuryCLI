@@ -32,14 +32,13 @@ export function usePrStatus(
   const lastInteractionRef = useRef<number>(getLastInteractionTime())
   const disabledRef = useRef(false)
 
-  useTimer(() => {
+  useTimer(signal => {
     if (!enabled || disabledRef.current) return
 
-    let cancelled = false
     let timer: NodeJS.Timeout | null = null
 
     const run = async (): Promise<void> => {
-      if (cancelled || disabledRef.current) return
+      if (signal.aborted || disabledRef.current) return
       const interaction = getLastInteractionTime()
       if (
         interaction === lastInteractionRef.current &&
@@ -58,7 +57,7 @@ export function usePrStatus(
         passedOver(error)
         return
       }
-      if (cancelled) return
+      if (signal.aborted) return
 
       const endedAt = Date.now()
       if (endedAt - startedAt > SLOW_FETCH_DISABLE_MS) {
@@ -85,7 +84,7 @@ export function usePrStatus(
     }
 
     const schedule = (): void => {
-      if (cancelled || disabledRef.current) return
+      if (signal.aborted || disabledRef.current) return
       const delay =
         lastFetchStartRef.current === null
           ? 0
@@ -100,11 +99,7 @@ export function usePrStatus(
     schedule()
 
     return () => {
-      cancelled = true
-      if (timer !== null) {
-        stopTimeout(timer)
-        timer = null
-      }
+      if (timer !== null) stopTimeout(timer)
     }
   }, [enabled, isLoading])
 

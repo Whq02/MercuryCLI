@@ -61,9 +61,8 @@ export function useLspInitializationNotification(): void {
     return false
   }, [reportError])
 
-  useTimer(() => {
+  useTimer(signal => {
     if (!shouldPoll) return
-    const controller = new AbortController()
     let skipImmediate = true
     void pollUntil(
       () => {
@@ -76,10 +75,7 @@ export function useLspInitializationNotification(): void {
       POLL_INTERVAL_MS,
       Number.POSITIVE_INFINITY,
       () => undefined,
-      { signal: controller.signal, onAbort: () => undefined },
+      { signal, onAbort: () => undefined },
     )
-    return () => {
-      controller.abort()
-    }
   }, [shouldPoll, checkForErrors])
 }

@@ -42,15 +42,11 @@ function lexMarkdown(text: string): Token[] {
 }
 function useCliHighlight(disabled: boolean): CliHighlight | null {
   const [highlight, setHighlight] = useState<CliHighlight | null>(null)
-  useLoad(() => {
+  useLoad(signal => {
     if (disabled) return
-    let live = true
     void getCliHighlightPromise().then(api => {
-      if (live && api) setHighlight(api)
+      if (!signal.aborted && api) setHighlight(api)
     })
-    return () => {
-      live = false
-    }
   }, [disabled])
   return disabled ? null : highlight
 }

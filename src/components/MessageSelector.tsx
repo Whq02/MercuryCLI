@@ -184,24 +184,20 @@ function useSelectorLoads({
     useState<ReadonlySet<string> | null>(null)
   const [storeStats, setStoreStats] = useState<CodeStats | undefined>(undefined)
 
-  useLoad(() => {
+  useLoad(signal => {
     if (!claimed) return
-    let cancelled = false
     void findMutatingShellToolUseIds(messages).then(
       ids => {
-        if (!cancelled) setMutatingShellIds(ids)
+        if (!signal.aborted) setMutatingShellIds(ids)
       },
       error => {
         passedOver(error)
-        if (!cancelled) setMutatingShellIds(null)
+        if (!signal.aborted) setMutatingShellIds(null)
       },
     )
-    return () => {
-      cancelled = true
-    }
   }, [claimed, messages])
 
-  useLoad(() => {
+  useLoad(signal => {
     if (
       !claimed ||
       phase !== 'confirm' ||
@@ -211,13 +207,12 @@ function useSelectorLoads({
       setStoreStats(undefined)
       return
     }
-    let cancelled = false
     setStoreStats(undefined)
     void getFocusedSessionConnector()
       .rewind({ userMessageId: chosenUuid, mode: 'code', dryRun: true })
       .then(
         receipt => {
-          if (cancelled) return
+          if (signal.aborted) return
           if (receipt.outcome !== 'refused' && receipt.code !== undefined) {
             setStoreStats(receipt.code)
           } else {
@@ -226,12 +221,9 @@ function useSelectorLoads({
         },
         error => {
           passedOver(error)
-          if (!cancelled) setStoreStats(undefined)
+          if (!signal.aborted) setStoreStats(undefined)
         },
       )
-    return () => {
-      cancelled = true
-    }
   }, [claimed, phase, canRestoreCode, chosenUuid])
 
   return { mutatingShellIds, storeStats }
@@ -305,13 +297,7 @@ function useSelectorActions({
     setError(null)
     setBusy(true)
     try {
-      const focused = getFocusedSessionConnector() as {
-        transcriptFile?: () => string | null | undefined
-      }
-      const sourceTranscriptPath =
-        typeof focused.transcriptFile === 'function'
-          ? focused.transcriptFile()
-          : null
+      const sourceTranscriptPath = getFocusedSessionConnector().transcriptFile?.()
       if (!sourceTranscriptPath) {
         if (mountedRef.current) {
           setError('this session has no transcript file to branch from')
