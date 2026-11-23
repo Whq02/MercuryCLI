@@ -111,16 +111,6 @@ function commonWordPrefix(prefixes: string[]): string {
   return common.join(' ')
 }
 
-function optionTakesArgument(spec: CommandSpec | null, flagText: string): boolean {
-  if (!spec?.options) return false
-  const lower = flagText.toLowerCase()
-  for (const option of spec.options) {
-    const names = Array.isArray(option.name) ? option.name : [option.name]
-    if (names.some(n => n.toLowerCase() === lower)) return option.args !== undefined
-  }
-  return false
-}
-
 export async function getCompoundCommandPrefixesStatic(
   command: string,
   excludeSubcommand?: (element: ParsedCommandElement) => boolean,
