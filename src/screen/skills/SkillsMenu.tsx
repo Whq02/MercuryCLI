@@ -60,30 +60,18 @@ function groupTitle(source: SkillSource): string {
 }
 
 function mcpServerName(skill: SkillCommand): string | undefined {
-  const displayName = getCommandName(skill)
-  const colon = displayName.indexOf(':')
-  if (colon > 0) return displayName.slice(0, colon)
-  if (skill.name.startsWith('mcp__')) {
-    const parts = skill.name.split('__')
-    if (parts[1]) return parts[1]
-  }
-  return undefined
+  const colon = skill.name.indexOf(':')
+  return colon > 0 ? skill.name.slice(0, colon) : undefined
 }
 
 function groupSubtitle(source: SkillSource, skills: SkillCommand[]): string | undefined {
   if (source === 'mcp') {
     const servers = Array.from(
-      new Set(
-        skills
-          .map(mcpServerName)
-          .filter((name): name is string => name !== undefined && name !== ''),
-      ),
+      new Set(skills.map(mcpServerName).filter((name): name is string => name !== undefined)),
     )
     return servers.length > 0 ? servers.join(', ') : undefined
   }
-  if (source === 'extension') return undefined
-  const path = getSkillsPath(source, 'skills')
-  return path ? getDisplayPath(path) : undefined
+  return getDisplayPath(getSkillsPath(source, 'skills'))
 }
 
 function MercurySkillsMenu({ onExit, commands }: Props): React.ReactNode {
@@ -131,16 +119,15 @@ function MercurySkillsMenu({ onExit, commands }: Props): React.ReactNode {
             return (
               <Box key={source} flexDirection="column">
                 <SectionHeader count={items.length}>{groupTitle(source)}</SectionHeader>
-                {sub !== undefined ? <Text color={FAINT}>{sub}</Text> : null}
+                {sub ? <Text color={FAINT}>{sub}</Text> : null}
                 {items.map(skill => {
                   const extName = source === 'extension' ? skill.extensionInfo?.manifest.name : undefined
                   const tokens = formatTokens(estimateSkillFrontmatterTokens(skill))
                   return (
-                    <Box key={skill.name}>
+                    <Text key={skill.name}>
                       <Text color={IVORY}>{getCommandName(skill)}</Text>
-                      {extName ? <Text color={FAINT}> · {extName}</Text> : null}
-                      <Text color={FAINT}> · ~{tokens} tokens</Text>
-                    </Box>
+                      <Text color={FAINT}>{`${extName ? ` · ${extName}` : ''} · ~${tokens} tokens`}</Text>
+                    </Text>
                   )
                 })}
               </Box>
