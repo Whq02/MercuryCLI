@@ -36,8 +36,8 @@ export class Mailbox {
       waiter => waiter.predicate === undefined || waiter.predicate(message),
     )
     if (waiterIdx !== -1) {
-      const [waiter] = this.waiters.splice(waiterIdx, 1)
-      waiter!.resolve(message)
+      const waiter = this.waiters.splice(waiterIdx, 1)[0]!
+      waiter.resolve(message)
       this.changed.emit()
       return
     }
