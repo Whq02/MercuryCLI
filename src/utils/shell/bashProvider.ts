@@ -55,7 +55,6 @@ export async function createBashShellProvider(
   record: ShellRecord,
   options?: { skipSnapshot?: boolean },
 ): Promise<ShellProvider> {
-  const isWindows = getPlatform() === 'windows'
   let snapshotFilePath: string | undefined
   if (!options?.skipSnapshot) {
     snapshotFilePath = await createAndSaveSnapshot(record).catch(passedOverAs(undefined))
@@ -80,6 +79,7 @@ export async function createBashShellProvider(
         logForDebugging(why ? `no shell snapshot in use (${why})` : 'no shell snapshot in use')
       }
 
+      const isWindows = getPlatform() === 'windows'
       const cwdFile = cwdFileName(opts.id)
       const cwdFileNative = join(tmpdir(), cwdFile)
       const cwdFileInShell = isWindows ? windowsPathToPosixPath(cwdFileNative) : cwdFileNative
@@ -174,7 +174,7 @@ export async function createBashShellProvider(
     },
 
     getSpawnArgs(commandString: string): string[] {
-      if (isWindows) {
+      if (getPlatform() === 'windows') {
         return msysSpawnArgs(commandString, lastUsedSnapshot || loginRunFailed(record.path))
       }
       return ['-c', commandString]
