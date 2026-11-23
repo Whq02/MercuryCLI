@@ -1,15 +1,14 @@
 import { ProtocolError, SdkError, SdkErrorCode } from '../../../utils/mcp/sdk.js'
 import { deepestErrorDetail, isStaleSocketCode } from '../../../utils/api/transportEvidence.js'
 import { errorMessage, TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../../utils/errors.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 export class McpAuthError extends Error {
   constructor(
     public readonly serverName: string,
     message: string,
   ) {
-    notBuilt('src/services/mcp/client/errors.ts:6')
-    super(...(notBuilt('src/services/mcp/client/errors.ts:6') as ConstructorParameters<typeof Error>))
+    super(message)
+    this.name = 'McpAuthError'
   }
 }
 
@@ -19,15 +18,15 @@ export class McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS extends T
     telemetryMessage: string,
     public readonly mcpMeta?: Record<string, unknown>,
   ) {
-    notBuilt('src/services/mcp/client/errors.ts:16')
-    super(...(notBuilt('src/services/mcp/client/errors.ts:16') as ConstructorParameters<typeof TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS>))
+    super(message, telemetryMessage)
+    this.name = 'McpToolCallError'
   }
 }
 
 export class McpSessionExpiredError extends Error {
   constructor(serverName: string) {
-    notBuilt('src/services/mcp/client/errors.ts:27')
-    super(...(notBuilt('src/services/mcp/client/errors.ts:27') as ConstructorParameters<typeof Error>))
+    super(`MCP session for ${serverName} expired`)
+    this.name = 'McpSessionExpiredError'
   }
 }
 
