@@ -133,7 +133,7 @@ export async function summariseForFold({
     proseSkippedReceipt = proseSkippedNote(message)
     response = undefined
     rawSummary = ''
-    logForDebugging(`compact: ${proseSkippedReceipt}`, { level: 'warn' })
+    logForDebugging(`compact: the ladder's bottom — ${message}; the fold lands on Mercury's own records without a prose summary`, { level: 'warn' })
   }
 
   return { splitRounds, response, rawSummary, proseSkipped, proseSkippedReceipt }
