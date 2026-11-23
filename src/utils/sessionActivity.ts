@@ -1,19 +1,37 @@
-import { notBuilt, type Unbuilt } from '../pi/holes.js'
+import { registerCleanup } from './cleanupRegistry.js'
+import { logForDiagnosticsNoPII } from './diagLogs.js'
 
-type SessionActivityReason = Unbuilt
+type SessionActivityReason = 'api_call' | 'tool_exec'
 
-export function sendSessionActivitySignal(): void {
-  return notBuilt('src/utils/sessionActivity.ts:14')
-}
+let refcount = 0
+const perReason: Record<SessionActivityReason, number> = { api_call: 0, tool_exec: 0 }
+let oldestActivityStartMs: number | null = null
+let shutdownDiagnosticRegistered = false
+
+export function sendSessionActivitySignal(): void {}
 
 export function isSessionActivityTrackingActive(): boolean {
-  return notBuilt('src/utils/sessionActivity.ts:18')
+  return false
 }
 
 export function startSessionActivity(reason: SessionActivityReason): void {
-  return notBuilt('src/utils/sessionActivity.ts:22')
+  if (refcount === 0) oldestActivityStartMs = Date.now()
+  refcount++
+  perReason[reason]++
+  if (!shutdownDiagnosticRegistered) {
+    shutdownDiagnosticRegistered = true
+    registerCleanup(async () => {
+      logForDiagnosticsNoPII('info', 'session_activity_at_shutdown', {
+        refcount,
+        active: { ...perReason },
+        oldest_activity_ms: refcount > 0 && oldestActivityStartMs !== null ? Date.now() - oldestActivityStartMs : null,
+      })
+    })
+  }
 }
 
 export function stopSessionActivity(reason: SessionActivityReason): void {
-  return notBuilt('src/utils/sessionActivity.ts:38')
+  if (refcount > 0) refcount--
+  if (perReason[reason] > 0) perReason[reason]--
+  if (refcount === 0) oldestActivityStartMs = null
 }
