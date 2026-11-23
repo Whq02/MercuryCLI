@@ -82,8 +82,8 @@ function pathListSignature(paths: string[]): string {
   const parts: string[] = [String(paths.length)]
   if (paths.length > 0) {
     const stride = Math.max(1, Math.floor(paths.length / SIGNATURE_SAMPLES))
-    for (let i = 0; i < paths.length; i += stride) parts.push(paths[i] as string)
-    parts.push(paths[0] as string, paths[paths.length - 1] as string)
+    for (let i = 0; i < paths.length; i += stride) parts.push(paths[i]!)
+    parts.push(paths[0]!, paths[paths.length - 1]!)
   }
   return parts.join('\u0000')
 }
@@ -288,7 +288,7 @@ export function resolveGitDir(gitRoot: string): string | null {
     if (statSync(dotGit).isDirectory()) return dotGit
     const m = /^gitdir:\s*(.+?)\s*$/m.exec(readFileSync(dotGit, 'utf8'))
     if (m === null) return null
-    const target = m[1] as string
+    const target = m[1]!
     return isAbsolute(target) ? target : resolve(gitRoot, target)
   } catch (error) {
     passedOver(error)

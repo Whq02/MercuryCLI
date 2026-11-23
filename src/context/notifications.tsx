@@ -103,7 +103,7 @@ export function enqueueNotification(
     const { current, queue } = prev.notifications
     if (incoming.fold) {
       if (current?.key === incoming.key) {
-        const folded = incoming.fold(current as Notification, incoming)
+        const folded = incoming.fold(current, incoming)
         foldedIntoCurrent = folded
         return {
           ...prev,
@@ -112,7 +112,7 @@ export function enqueueNotification(
       }
       const at = queue.findIndex(entry => entry.key === incoming.key)
       if (at !== -1) {
-        const folded = incoming.fold(queue[at] as Notification, incoming)
+        const folded = incoming.fold(queue[at]!, incoming)
         const nextQueue = [...queue]
         nextQueue[at] = folded
         return {
@@ -141,7 +141,7 @@ export function enqueueNotification(
       ...prev,
       notifications: {
         current: invalidatesCurrent || yields ? null : current,
-        queue: [...filtered, incoming, ...(yields ? [current as Notification] : [])],
+        queue: [...filtered, incoming, ...(yields ? [current] : [])],
       },
     }
   })

@@ -89,7 +89,7 @@ export function selectableUserMessagesFilter(
   const noticeText = typeof content === 'string'
     ? content
     : content.every(block => block.type === 'text')
-      ? content.map(block => (block as { text: string }).text).join('\n')
+      ? content.map(block => block.text).join('\n')
       : undefined
   if (noticeText !== undefined) {
     if (wrappedNoticeBlocks(noticeText) !== null) return false

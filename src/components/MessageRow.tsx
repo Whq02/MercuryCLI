@@ -127,11 +127,7 @@ export function hasContentAfterIndex(
         }
         if (block.type === 'tool_use') {
           const tool = findToolByName(tools, block.name)
-          const collapsible =
-            tool !== undefined &&
-            (tool as { isReadOnly?: (input?: unknown) => boolean }).isReadOnly?.(
-              block.input,
-            ) === true
+          const collapsible = tool !== undefined && tool.isReadOnly(block.input)
           if (collapsible) continue
           if (streamingToolUseIDs.has(block.id)) continue
           meaningful = true

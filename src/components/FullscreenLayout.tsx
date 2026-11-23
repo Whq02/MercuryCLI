@@ -41,15 +41,9 @@ export function countUnseenAssistantTurns(
     const message = messages[i]!
     if (message.type === 'progress') continue
     if (message.type === 'assistant') {
-      const content = (message as NormalizedMessage & { message: { content: unknown } })
-        .message?.content
-      const hasVisibleText =
-        Array.isArray(content) &&
-        content.some(
-          block =>
-            (block as { type?: string; text?: string }).type === 'text' &&
-            ((block as { text?: string }).text ?? '') !== '',
-        )
+      const hasVisibleText = message.message.content.some(
+        block => block.type === 'text' && block.text !== '',
+      )
       if (!hasVisibleText) continue
       if (!previousWasAssistant) turns += 1
       previousWasAssistant = true
@@ -85,7 +79,7 @@ export function computeUnseenDivider(
   }
   if (!anchor) return undefined
   const count = Math.max(1, countUnseenAssistantTurns(messages, dividerIndex))
-  return { firstUnseenUuid: (anchor as { uuid: string }).uuid, count }
+  return { firstUnseenUuid: anchor.uuid, count }
 }
 
 export function useUnseenDivider(

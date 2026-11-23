@@ -221,7 +221,7 @@ export function copyTextOf(msg: NavigableMessage): string {
         if (typeof attachment.prompt === 'string') return attachment.prompt
         return attachment.prompt
           .filter(block => block.type === 'text')
-          .map(block => (block as { text: string }).text)
+          .map(block => block.text)
           .join('\n')
       }
       return `[${attachment.type}]`
