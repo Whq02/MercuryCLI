@@ -34,6 +34,7 @@ import { fetchSystemPromptParts } from '../../services/agents/queryContext.js'
 import type { CacheSafeParams } from '../../services/agents/forkedAgent.js'
 import { isAbortError, errorMessage, hasExactErrorMessage } from '../../utils/errors.js'
 import { logError } from '../../utils/log.js'
+import { getUserContext } from '../../context.js'
 
 export { NOTHING_TO_COMPACT_KEY, nothingToCompactLine } from '../../services/compact/compact.js'
 
@@ -70,9 +71,9 @@ function enrichSummaryForLiveDisplay(
   }
 }
 
-async function resolveCacheSafeParams(
-  context: LocalJSXCommandContext,
+async function buildCompactCacheSafeParams(
   messages: Message[],
+  context: LocalJSXCommandContext,
 ): Promise<CacheSafeParams> {
   const cached = getLastCacheSafeParams()
   if (cached !== null) {
@@ -105,121 +106,106 @@ async function resolveCacheSafeParams(
   }
 }
 
-export async function call(
+async function callUnderFoldStatus(
   args: string,
   context: LocalJSXCommandContext,
 ): Promise<LocalCommandResult> {
-  const customInstructions = args.trim()
   const messages = getMessagesAfterCompactBoundary(context.messages)
   if (messages.length === 0) {
     throw new Error(NO_MESSAGES_TO_COMPACT)
   }
-
-  const model = context.options.engineModel
-  const estTokens = tokenCountWithEstimation(messages, model)
-  await awaitContextWindowSource(model, { estTokens })
-  const threshold = getAutoCompactThreshold(model)
-
-  const cacheSafeParams = await resolveCacheSafeParams(context, messages)
-  const refold = isRefold(messages)
-  const projection = await projectManualFold(messages, context, cacheSafeParams, threshold)
-  if (projection !== null && manualFoldHasNothingToFold(projection)) {
-    throw new Error(nothingToCompactLine(projection.context, nothingToCompactReason(projection, refold)))
-  }
-  const restoreFiles = projection?.restoreFiles ?? true
-
-  const foldChoice = foldModelFor(messages, model, { forced: false })
-  if (foldChoice.source === 'history') {
-    logForDebugging(
-      `compact: the summary is written by ${foldChoice.model} — the seated ${model}'s window does not hold the history (about ${foldChoice.count} tokens by Mercury's count)`,
-    )
-  }
-
-  const useSessionMemory = customInstructions === '' && shouldUseSessionMemoryCompaction()
-
-  let compactionResult: CompactionResult
+  const customInstructions = args.trim()
   try {
-    compactionResult = await withFoldStatus(
+    if (customInstructions === '') {
+      if (shouldUseSessionMemoryCompaction()) {
+        context.onCompactProgress?.({ type: 'stage', stage: 'session-memory' })
+      }
+      const sessionMemoryResult = await trySessionMemoryCompaction(messages, context.agentId, undefined, context, 'manual')
+      if (sessionMemoryResult !== null) {
+        getUserContext.cache.clear()
+        runPostCompactCleanup(undefined, buildPostCompactMessages(sessionMemoryResult))
+        suppressCompactWarning()
+        return {
+          type: 'compact',
+          compactionResult: sessionMemoryResult,
+          displayText: manualCompactDisplayText(context, sessionMemoryResult, messages.length),
+        }
+      }
+    }
+
+    const model = context.options.engineModel
+    await awaitContextWindowSource(model, { estTokens: tokenCountWithEstimation(messages, model) })
+    const cacheSafeParams = await buildCompactCacheSafeParams(messages, context)
+    const refold = isRefold(messages)
+    const projection = await projectManualFold(messages, context, cacheSafeParams, getAutoCompactThreshold(model))
+    if (projection !== null && (refold ? manualFoldHasNothingToFold(projection) : projection.after >= projection.before)) {
+      logForDebugging(
+        `compact: refused before the summariser — ${projection.folds} of ${messages.length} messages would fold (${projection.workingRoundsFolded} working rounds), the fold would land at ${projection.after} tokens against ${projection.before} by the same estimate`,
+      )
+      throw new Error(nothingToCompactLine(projection.context, nothingToCompactReason(projection, refold)))
+    }
+
+    const foldChoice = foldModelFor(messages, model, { forced: false })
+    if (foldChoice.source === 'history') {
+      logForDebugging(
+        `compact: the summary is written by ${foldChoice.model} — the seated ${model}'s window does not hold the history (about ${foldChoice.count} tokens by Mercury's count)`,
+      )
+    }
+
+    const compactionResult = await compactConversation(
+      messages,
       context,
-      async scoped => {
-        const scopedParams: CacheSafeParams = {
-          ...cacheSafeParams,
-          toolUseContext: scoped,
-        }
-        if (useSessionMemory) {
-          scoped.onCompactProgress?.({ type: 'stage', stage: 'session-memory' })
-          const smResult = await trySessionMemoryCompaction(
-            messages,
-            scoped.agentId,
-            threshold,
-            scoped,
-            'manual',
-          )
-          if (smResult !== null) return smResult
-        }
-        return await compactConversation(
-          messages,
-          scoped,
-          scopedParams,
-          false,
-          customInstructions || undefined,
-          false,
-          {
-            isRecompaction: refold,
-            turnsSincePreviousCompact: -1,
-            autoCompactThreshold: threshold,
-            restoreFiles,
-            mustShrink: true,
-          },
-          undefined,
-          foldChoice.model,
-        )
-      },
+      cacheSafeParams,
+      false,
+      customInstructions || undefined,
+      false,
       {
-        trigger: 'manual',
-        sessionMemory: useSessionMemory,
-        microcompaction: false,
+        isRecompaction: false,
+        turnsSincePreviousCompact: -1,
+        autoCompactThreshold: getAutoCompactThreshold(model),
+        restoreFiles: projection?.restoreFiles ?? true,
+        mustShrink: true,
       },
+      undefined,
+      foldChoice.model,
     )
+
+    setLastSummarizedMessageId(undefined)
+    suppressCompactWarning()
+    getUserContext.cache.clear()
+    runPostCompactCleanup(undefined, buildPostCompactMessages(compactionResult))
+    if (shouldEnrichForLiveDisplay(context)) {
+      enrichSummaryForLiveDisplay(compactionResult, messages.length, customInstructions)
+    }
+    return {
+      type: 'compact',
+      compactionResult,
+      displayText: manualCompactDisplayText(context, compactionResult, messages.length),
+    }
   } catch (err) {
-    if (
-      context.abortController.signal.aborted ||
-      err instanceof APIUserAbortError ||
-      isAbortError(err) ||
-      hasExactErrorMessage(err, ERROR_MESSAGE_USER_ABORT)
-    ) {
-      throw new Error(ERROR_MESSAGE_USER_ABORT)
+    if (context.abortController.signal.aborted || isAbortError(err)) {
+      throw new APIUserAbortError({ message: ERROR_MESSAGE_USER_ABORT })
     }
     if (
-      (err instanceof Error && isNothingToCompactMessage(err.message)) ||
-      hasExactErrorMessage(err, ERROR_MESSAGE_NOT_ENOUGH_MESSAGES)
+      hasExactErrorMessage(err, ERROR_MESSAGE_NOT_ENOUGH_MESSAGES) ||
+      hasExactErrorMessage(err, ERROR_MESSAGE_INCOMPLETE_RESPONSE) ||
+      hasExactErrorMessage(err, ERROR_MESSAGE_FOLD_TIMEOUT) ||
+      (err instanceof Error && isNothingToCompactMessage(err.message))
     ) {
       throw err
     }
-    if (
-      !hasExactErrorMessage(err, ERROR_MESSAGE_INCOMPLETE_RESPONSE) &&
-      !hasExactErrorMessage(err, ERROR_MESSAGE_FOLD_TIMEOUT)
-    ) {
-      logError(err)
-    }
+    logError(err)
     throw new Error(`Error during compaction: ${errorMessage(err)}`)
   }
+}
 
-  setLastSummarizedMessageId(undefined)
-  suppressCompactWarning()
-  runPostCompactCleanup(
-    { querySource: context.options.querySource, agentId: context.agentId },
-    buildPostCompactMessages(compactionResult),
-  )
-
-  if (shouldEnrichForLiveDisplay(context)) {
-    enrichSummaryForLiveDisplay(compactionResult, messages.length, customInstructions)
-  }
-
-  const displayText = manualCompactDisplayText(context, compactionResult, messages.length)
-  return {
-    type: 'compact',
-    compactionResult,
-    displayText,
-  }
+export async function call(
+  args: string,
+  context: LocalJSXCommandContext,
+): Promise<LocalCommandResult> {
+  return withFoldStatus(context, scoped => callUnderFoldStatus(args, scoped), {
+    trigger: 'manual',
+    sessionMemory: args.trim() === '' && shouldUseSessionMemoryCompaction(),
+    microcompaction: false,
+  })
 }
