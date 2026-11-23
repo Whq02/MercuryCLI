@@ -35,6 +35,13 @@ export function checkCrossProjectResume(
   if (normalizedProject === currentCwd) {
     return { isCrossProject: false }
   }
+  try {
+    if (!existsSync(projectPath)) {
+      return { isCrossProject: false }
+    }
+  } catch {
+    return { isCrossProject: false }
+  }
   const isSameRepoWorktree = worktreePaths.some(worktreePath => {
     const normalizedWorktree = normalizeDir(worktreePath)
     const prefix = normalizedWorktree.endsWith(sep) ? normalizedWorktree : `${normalizedWorktree}${sep}`
@@ -42,9 +49,6 @@ export function checkCrossProjectResume(
   })
   if (isSameRepoWorktree) {
     return { isCrossProject: true, isSameRepoWorktree: true, projectPath }
-  }
-  if (!existsSync(projectPath)) {
-    return { isCrossProject: false }
   }
   const sessionId = sessionIdOfListing(log)
   if (!sessionId) {
