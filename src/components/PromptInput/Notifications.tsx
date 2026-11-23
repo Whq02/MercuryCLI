@@ -15,7 +15,7 @@ import type { Message } from '../../types/message.js'
 import type { VerificationStatus } from '../../hooks/useApiKeyVerification.js'
 import { useAppState, type AppState } from '../../state/AppState.js'
 import { useAnthropicLimits } from '../../services/anthropicLimitsHook.js'
-import { useNotifications, type Notification } from '../../context/notifications.js'
+import { isNodeNotice, useNotifications, type Notification } from '../../context/notifications.js'
 import {
   getApiKeyHelperElapsedMs,
   getConfiguredApiKeyHelper,
@@ -42,7 +42,7 @@ export const FOOTER_TEMPORARY_STATUS_TIMEOUT = 5000
 
 export function noticeRowText(current: Notification | null): React.ReactNode | null {
   if (current === null) return null
-  if ('jsx' in current) {
+  if (isNodeNotice(current)) {
     return React.isValidElement(current.jsx) && current.jsx.type === Text ? current.jsx : null
   }
   const line = footerNoticeLine(current.text)
@@ -50,12 +50,12 @@ export function noticeRowText(current: Notification | null): React.ReactNode | n
 }
 
 export function noticeRowDetail(current: Notification | null): React.ReactNode | null {
-  if (current === null || 'jsx' in current || current.detail === undefined) return null
+  if (current === null || isNodeNotice(current) || current.detail === undefined) return null
   return current.color === undefined ? current.detail : <Text color={current.color}>{current.detail}</Text>
 }
 
 export function noticeRowWayOut(current: Notification | null): React.ReactNode | null {
-  if (current === null || 'jsx' in current || current.wayOut === undefined || current.wayOut === '') return null
+  if (current === null || isNodeNotice(current) || current.wayOut === undefined || current.wayOut === '') return null
   return current.color === undefined ? current.wayOut : <Text color={current.color}>{current.wayOut}</Text>
 }
 
@@ -89,7 +89,7 @@ function noticeBlockChildren(block: React.ReactNode): React.ReactNode[] | null {
 }
 
 export function noticeRowBlock(current: Notification | null): React.ReactNode | null {
-  if (current === null || !('jsx' in current)) return null
+  if (current === null || !isNodeNotice(current)) return null
   if (!React.isValidElement(current.jsx) || current.jsx.type === Text) return React.isValidElement(current.jsx) ? null : current.jsx
   const rows = noticeBlockChildren(current.jsx)
   if (rows === null || rows.length <= NOTICE_BLOCK_MAX_ROWS) return current.jsx
