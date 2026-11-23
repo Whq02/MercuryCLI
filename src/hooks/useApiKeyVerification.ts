@@ -9,7 +9,6 @@ import {
   isClaudeAISubscriber,
 } from '../utils/auth.js'
 import { passedOver, passedOverAs } from '../utils/passedOver.js'
-import { notBuilt } from '../pi/holes.js'
 
 export type VerificationStatus = 'loading' | 'valid' | 'invalid' | 'missing' | 'error'
 
@@ -61,5 +60,24 @@ export function useApiKeyVerification(): {
   reverify: (opts?: { probe?: boolean }) => Promise<void>
   error: Error | null
 } {
-  return notBuilt('src/hooks/useApiKeyVerification.ts:58')
+  const [status, setStatus] = useState<VerificationStatus>(() => {
+    if (bypassed()) return 'valid'
+    try {
+      return statusOnFile()
+    } catch (thrown) {
+      passedOver(thrown)
+      return 'missing'
+    }
+  })
+  const [error, setError] = useState<Error | null>(null)
+
+  const reverify = useCallback(async (opts?: { probe?: boolean }): Promise<void> => {
+    const verdict = bypassed()
+      ? VALID
+      : await resolvedVerdict(opts).catch(faulted)
+    setStatus(verdict.status)
+    if (verdict.error !== undefined) setError(verdict.error)
+  }, [])
+
+  return useMemo(() => ({ status, reverify, error }), [status, reverify, error])
 }
