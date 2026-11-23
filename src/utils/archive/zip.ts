@@ -1,99 +1,58 @@
-import { unzip } from 'fflate'
+import { isAbsolute, normalize } from 'node:path'
 import { logForDebugging } from '../debug.js'
 import { containsPathTraversal } from '../path.js'
 
-const MAX_FILE_BYTES = 100 * 1024 * 1024
-const MAX_TOTAL_BYTES = 500 * 1024 * 1024
-const MAX_FILES = 10_000
-const MAX_COMPRESSION_RATIO = 100
+const MAX_FILES = 100_000
+const MAX_ENTRY_BYTES = 512 * 1024 * 1024
+const MAX_TOTAL_BYTES = 1024 * 1024 * 1024
+const MAX_COMPRESSION_RATIO = 50
+const MIB = 1024 * 1024
 
 const EOCD_SIGNATURE = 0x06054b50
 const CENTRAL_DIR_SIGNATURE = 0x02014b50
 const EOCD_MIN_LEN = 22
 const MAX_ZIP_COMMENT_LEN = 65_535
 
-type ZipValidationCounts = {
-  fileCount: number
-  totalSize: number
+type ZipRun = {
+  count: number
+  sum: number
+  readonly archiveBytes: number
 }
 
-type ZipValidationResult = { valid: true } | { valid: false; reason: string }
-
-function hasUnsafeEntryPath(entryName: string): boolean {
-  if (entryName.includes('\0')) return true
-  if (entryName.startsWith('/') || entryName.startsWith('\\')) return true
-  if (/^[A-Za-z]:/.test(entryName)) return true
-  return containsPathTraversal(entryName)
-}
-
-function validateZipEntry(
-  name: string,
-  entrySize: number,
-  counts: ZipValidationCounts,
-  archiveByteLength: number,
-): ZipValidationResult {
-  counts.fileCount += 1
-  if (counts.fileCount > MAX_FILES) {
-    return { valid: false, reason: `ZIP archive exceeds maximum entry count (${MAX_FILES})` }
+function entryFailure(run: ZipRun, name: string, size: number): string | undefined {
+  run.count += 1
+  let reason: string | undefined
+  if (run.count > MAX_FILES) {
+    reason = `Zip contains too many files (${run.count} > 100000)`
   }
-  if (hasUnsafeEntryPath(name)) {
-    return { valid: false, reason: `ZIP archive contains unsafe path: ${name}` }
+  if (containsPathTraversal(name) || isAbsolute(normalize(name))) {
+    reason = `Zip entry has an unsafe path: ${name} (path traversal and absolute paths are not allowed)`
   }
-  if (entrySize > MAX_FILE_BYTES) {
-    return { valid: false, reason: `ZIP entry "${name}" exceeds maximum size (${MAX_FILE_BYTES} bytes)` }
+  if (size > MAX_ENTRY_BYTES) {
+    reason = `Zip entry ${name} is too large (${Math.round(size / MIB)}MB > 512MB)`
   }
-  counts.totalSize += entrySize
-  if (counts.totalSize > MAX_TOTAL_BYTES) {
-    return { valid: false, reason: `ZIP archive exceeds maximum uncompressed size (${MAX_TOTAL_BYTES} bytes)` }
+  run.sum += size
+  if (run.sum > MAX_TOTAL_BYTES) {
+    reason = `Zip uncompressed total is too large (${Math.round(run.sum / MIB)}MB > 1024MB)`
   }
-  if (archiveByteLength > 0 && counts.totalSize / archiveByteLength > MAX_COMPRESSION_RATIO) {
-    return { valid: false, reason: `ZIP archive exceeds maximum compression ratio (${MAX_COMPRESSION_RATIO}:1)` }
+  if (run.archiveBytes > 0 && run.sum / run.archiveBytes > MAX_COMPRESSION_RATIO) {
+    reason = `Zip compression ratio is suspicious (${(run.sum / run.archiveBytes).toFixed(1)}:1 > 50:1); this may be a zip bomb`
   }
-  return { valid: true }
+  return reason
 }
 
 export async function unzipFile(zipData: Buffer): Promise<Record<string, Uint8Array>> {
-  const bytes = new Uint8Array(zipData.buffer, zipData.byteOffset, zipData.byteLength)
-  const archiveByteLength = zipData.byteLength
-  return new Promise<Record<string, Uint8Array>>((resolve, reject) => {
-    let rejection: Error | null = null
-    const declaredCounts: ZipValidationCounts = { fileCount: 0, totalSize: 0 }
-
-    unzip(
-      bytes,
-      {
-        filter(file) {
-          if (rejection !== null) return false
-          const check = validateZipEntry(file.name, file.originalSize, declaredCounts, archiveByteLength)
-          if (!check.valid) {
-            rejection = new Error(check.reason)
-            return false
-          }
-          return true
-        },
-      },
-      (err, unzipped) => {
-        if (rejection !== null) {
-          reject(rejection)
-          return
-        }
-        if (err) {
-          reject(err)
-          return
-        }
-        const actualCounts: ZipValidationCounts = { fileCount: 0, totalSize: 0 }
-        for (const [name, content] of Object.entries(unzipped)) {
-          const check = validateZipEntry(name, content.byteLength, actualCounts, archiveByteLength)
-          if (!check.valid) {
-            reject(new Error(check.reason))
-            return
-          }
-        }
-        logForDebugging(`Unzipped ${actualCounts.fileCount} files (${Math.round(actualCounts.totalSize / 1024)} KiB)`)
-        resolve(unzipped)
-      },
-    )
+  const { unzipSync } = await import('fflate')
+  const run: ZipRun = { count: 0, sum: 0, archiveBytes: zipData.byteLength }
+  const unzipped = unzipSync(zipData, {
+    filter(file) {
+      const reason = entryFailure(run, file.name, file.originalSize)
+      if (reason !== undefined) throw new Error(reason)
+      return true
+    },
   })
+  logForDebugging(`unzipped ${run.count} files (${Math.round(run.sum / 1024)}KB uncompressed)`)
+  return unzipped
 }
 
 export function parseZipModes(data: Uint8Array): Record<string, number> {
