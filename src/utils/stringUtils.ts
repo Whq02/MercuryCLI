@@ -1,8 +1,12 @@
 import stripAnsi from 'strip-ansi'
-export { escapeRegExp } from 'lodash-es'
+import { escapeRegExp as escapePattern } from 'lodash-es'
 
 const MAX_CONTENT_SIZE = 2 ** 25
 const TRUNCATION_MARK = '…[content truncated]'
+
+export function escapeRegExp(str: string): string {
+  return escapePattern(str)
+}
 
 export function capitalize(str: string): string {
   return str.slice(0, 1).toUpperCase() + str.slice(1)
@@ -45,10 +49,11 @@ type IndexSearchable = {
 export function countCharInString(haystack: IndexSearchable, char: string, start = 0): number {
   let count = 0
   let index = haystack.indexOf(char, start)
-  while (index >= 0 && index >= start) {
+  while (index >= 0) {
     count++
-    start = index + 1
-    index = haystack.indexOf(char, start)
+    const next = haystack.indexOf(char, index + 1)
+    if (next <= index) break
+    index = next
   }
   return count
 }
