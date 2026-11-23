@@ -83,7 +83,7 @@ function processCell(cell: NotebookCell, index: number, language: string, includ
       cellSource.outputs = [
         {
           output_type: 'stream',
-          text: `Outputs are too large to include. Use ${BASH_TOOL_NAME} with: jq '.cells[${index}].outputs' <notebook_path>`,
+          text: `Outputs are too large to include. Use ${BASH_TOOL_NAME} to read them:\ncat <notebook_path> | jq '.cells[${index}].outputs'`,
         },
       ]
     } else {

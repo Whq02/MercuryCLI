@@ -139,7 +139,7 @@ async function editFileInEditorInner(filePath: string): Promise<EditorResult> {
   } catch (error) {
     return { content: null, error: errorMessage(error) }
   } finally {
-    reclaimTerminalAfterChild(editorCommand)
+    reclaimTerminalAfterChild(isGui ? 'prompt editor (gui)' : 'prompt editor')
     if (isGui) {
       instance.resumeStdin()
       instance.resume()

@@ -24,14 +24,20 @@ function formatFileTooLargeMessage(
   const size = formatFileSize(sizeInBytes)
   const maxSize = formatFileSize(maxSizeBytes)
   if (lineCount === undefined) {
-    return `File content (${size}) exceeds the maximum allowed size (${maxSize}). Use offset and limit to read portions of the file, or search for content instead of reading the whole file.`
+    return (
+      `File content (${size}) exceeds the maximum allowed size (${maxSize}). ` +
+      'Use offset and limit to read portions of the file, or search for content instead of reading the whole file.'
+    )
   }
   const linesWord = lineCount === 1 ? '1 line' : `${lineCount} lines`
   const sliceAdvice =
     lineCount > 100
       ? `Read(offset: 1, limit: 100) reads the first 100 lines, Read(offset: ${lineCount - 99}, limit: 100) the last 100`
       : `Read(offset: 1, limit: ${lineCount}) reads all of it, each line cut at 2000 characters`
-  return `File content (${size}, ${linesWord}) exceeds the maximum allowed size (${maxSize}) for a Read without a limit. Pass offset and limit to read a slice — ${sliceAdvice} — or search for content instead of reading the whole file.`
+  return (
+    `File content (${size}, ${linesWord}) exceeds the maximum allowed size (${maxSize}) for a Read without a limit. ` +
+    `Pass offset and limit to read a slice — ${sliceAdvice} — or search for content instead of reading the whole file.`
+  )
 }
 
 export class FileTooLargeError extends Error {

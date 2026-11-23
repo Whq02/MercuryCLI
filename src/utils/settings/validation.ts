@@ -212,7 +212,9 @@ export function validateSettingsFileContent(
 }
 
 function ruleRemark(rule: string, verdict: ReturnType<typeof validatePermissionRule>, stays: boolean): string {
-  const opening = `${stays ? 'Permission rule' : 'Skipped invalid permission rule'} "${rule}"${verdict.error ? `: ${verdict.error}` : ''}`
+  const opening = stays
+    ? `Permission rule "${rule}"${verdict.error ? `: ${verdict.error}` : ''}`
+    : `Skipped invalid permission rule "${rule}"${verdict.error ? `: ${verdict.error}` : ''}`
   if (stays && verdict.readAs !== undefined) return `${opening}: read as ${verdict.readAs}`
   return verdict.suggestion ? `${opening}. ${verdict.suggestion}` : opening
 }
@@ -229,7 +231,7 @@ export function filterInvalidPermissionRules(data: unknown, filePath: string): V
     const path = `guardrails.${name}`
     lists[name] = rules.filter((rule: unknown) => {
       if (typeof rule !== 'string') {
-        found.push({ file: filePath, path, message: `Removed a non-string value from ${path}`, invalidValue: rule, severity: 'warning' })
+        found.push({ file: filePath, path, message: `Removed a non-string value from guardrails.${name}`, invalidValue: rule, severity: 'warning' })
         return false
       }
       const verdict = validatePermissionRule(rule)
