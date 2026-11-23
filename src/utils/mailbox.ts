@@ -6,8 +6,9 @@ type Message = {
   id: string
   source: MessageSource
   content: string
+  from?: string
+  color?: string
   timestamp: number
-  metadata?: Record<string, unknown>
 }
 
 type Predicate = (message: Message) => boolean
@@ -50,13 +51,15 @@ export class Mailbox {
     const idx = predicate === undefined ? (this.queue.length > 0 ? 0 : -1) : this.queue.findIndex(predicate)
     if (idx === -1) return undefined
     const [message] = this.queue.splice(idx, 1)
-    this.changed.emit()
     return message
   }
 
   receive(predicate?: Predicate): Promise<Message> {
     const existing = this.poll(predicate)
-    if (existing !== undefined) return Promise.resolve(existing)
+    if (existing !== undefined) {
+      this.changed.emit()
+      return Promise.resolve(existing)
+    }
     return new Promise<Message>(resolve => {
       this.waiters.push({ predicate, resolve })
     })
