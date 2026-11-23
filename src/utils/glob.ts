@@ -23,7 +23,10 @@ export function extractGlobBaseDirectory(pattern: string): { baseDir: string; re
   const staticPrefix = metaIndex === -1 ? pattern : pattern.slice(0, metaIndex)
   const sepIndex = lastSeparatorIndex(staticPrefix)
   if (sepIndex === -1) {
-    return { baseDir: '', relativePattern: pattern }
+    return {
+      baseDir: metaIndex === -1 ? dirname(pattern) : '',
+      relativePattern: pattern,
+    }
   }
   if (sepIndex === 0) {
     return { baseDir: pattern.slice(0, 1), relativePattern: pattern.slice(1) }
@@ -91,16 +94,17 @@ export async function glob(
   searchDir = prefixed.searchDir
   const pattern = prefixed.pattern
 
+  const resolvedTarget = safeResolvePath(getFsImplementation(), searchDir)
+  const canonicalTarget = resolvedTarget.isCanonical ? resolvedTarget.resolvedPath : searchDir
+
   let isFileTarget = false
   try {
-    isFileTarget = statSync(searchDir).isFile()
+    isFileTarget = statSync(canonicalTarget).isFile()
   } catch (error) {
     passedOver(error)
   }
 
-  const rgCwd = isFileTarget ? dirname(searchDir) : searchDir
-  const resolvedSearchDir = safeResolvePath(getFsImplementation(), rgCwd).resolvedPath
-
+  const rgCwd = isFileTarget ? dirname(canonicalTarget) : canonicalTarget
   const resolvedGlobs = resolveSearchGlob(pattern, rgCwd)
   const maxDepth = globSearchDepth(resolvedGlobs)
 
@@ -120,8 +124,9 @@ export async function glob(
 
   const ignoreByRoot = getFileReadIgnorePatterns(toolPermissionContext)
   const ignorePatterns = new Set<string>(normalizePatternsToPath(ignoreByRoot, rgCwd))
-  if (resolvedSearchDir !== rgCwd) {
-    for (const ignorePattern of normalizePatternsToPath(ignoreByRoot, resolvedSearchDir)) {
+  const suppliedCwd = isFileTarget ? dirname(searchDir) : searchDir
+  if (suppliedCwd !== rgCwd) {
+    for (const ignorePattern of normalizePatternsToPath(ignoreByRoot, suppliedCwd)) {
       ignorePatterns.add(ignorePattern)
     }
   }
@@ -134,16 +139,33 @@ export async function glob(
   const rgOptions = { cwd: rgCwd }
 
   const [mainAnswer, unignoredAnswer] = await Promise.all([
-    ripGrepAnswer(mainArgs, searchDir, abortSignal, rgOptions),
-    ripGrepAnswer(unignoredArgs, searchDir, abortSignal, rgOptions),
+    ripGrepAnswer(mainArgs, canonicalTarget, abortSignal, rgOptions),
+    ripGrepAnswer(unignoredArgs, canonicalTarget, abortSignal, rgOptions),
   ])
 
+  const suppliedBase = searchDir.replace(/[\\/]+$/, '')
+  const restoreSpelling = (file: string): string => {
+    if (canonicalTarget === searchDir) return file
+    if (file === canonicalTarget) return searchDir
+    if (file.startsWith(canonicalTarget)) {
+      const next = file.charAt(canonicalTarget.length)
+      if (next === '/' || next === '\\') {
+        return `${suppliedBase}${file.slice(canonicalTarget.length)}`
+      }
+    }
+    return file
+  }
+
   const isDenied = readDenialFilter(toolPermissionContext, searchDir)
-  const visible = mainAnswer.lines.filter(file => !isDenied(file))
-  const visibleSet = new Set(visible)
+  const visible = mainAnswer.lines.map(restoreSpelling).filter(file => !isDenied(file))
+
   let ignored = 0
-  for (const file of unignoredAnswer.lines) {
-    if (!visibleSet.has(file) && !isDenied(file)) ignored++
+  if (mainAnswer.complete && unignoredAnswer.complete) {
+    const visibleSet = new Set(visible)
+    for (const rawFile of unignoredAnswer.lines) {
+      const file = restoreSpelling(rawFile)
+      if (!isDenied(file) && !visibleSet.has(file)) ignored++
+    }
   }
 
   const { limit, offset } = arg2
