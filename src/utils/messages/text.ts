@@ -247,6 +247,6 @@ export function wrapCommandText(
   raw: string,
   origin: MessageOrigin | undefined,
 ): string {
-  const framing = origin === undefined ? operatorFraming : FRAMINGS[origin.kind] ?? operatorFraming
+  const framing = origin !== undefined && Object.hasOwn(FRAMINGS, origin.kind) ? FRAMINGS[origin.kind] ?? operatorFraming : operatorFraming
   return framing(raw, origin as MessageOrigin)
 }
