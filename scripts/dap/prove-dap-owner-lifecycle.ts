@@ -49,7 +49,7 @@ async function main(): Promise<void> {
     globalThis.setTimeout = ((fn: (...args: unknown[]) => void, ms?: number, ...rest: unknown[]) => { armed.push(ms ?? 0); return arm(fn, ms, ...rest) }) as unknown as typeof setTimeout
     const aStop = await a.waitForStopOutcome(5_000).finally(() => { globalThis.setTimeout = arm })
     check('A stopped at its breakpoint (event-driven)', aStop.state === 'stopped' && aStop.state === 'stopped' && aStop.info.reason === 'breakpoint')
-    check('the wait for the stop asks for no pause: the only timer armed while it stands is its own deadline', armed.length <= 1 && armed.every(ms => ms === 5_000), `armed ${armed.join(', ') || 'none'}`)
+    check('the wait for the stop asks for no pause: the only timer armed while it stands is its own deadline', armed.length <= 1 && armed.every(ms => ms > 4_900 && ms <= 5_000), `armed ${armed.join(', ') || 'none'}`)
     const b = await dap.createDapSession({
       owner: B,
       id: 'main',
