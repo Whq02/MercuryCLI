@@ -38,6 +38,8 @@ import type { ComposerSubmit } from './useComposerSubmit.js'
 const KEYSETUP_COMMAND = '/keysetup'
 const OPTION_META_CHARS = 'åß∂ƒ©˙∆˚¬…æ∑'
 
+type VoicePhase = 'idle' | 'recording' | 'transcribing'
+
 type ComposerRawKeysInput = {
   modalOverlayUp: boolean
   compactWork?: CompactWorkControls
@@ -52,9 +54,8 @@ type ComposerRawKeysInput = {
   speculationActive: boolean
   appStateStore: AppStateStore
   setAppState: (f: (prev: AppState) => AppState) => void
-  engineModel: AppState['engineModel']
+  engineModel: string | null
   cockpitActive: boolean
-  voice: { phase: 'idle' | 'recording' | 'transcribing' }
   getToolUseContext: (
     messages: Message[],
     newMessages: Message[],
@@ -70,7 +71,7 @@ type ComposerRawKeysInput = {
   submitRef: React.MutableRefObject<ComposerSubmit>
   suggestionsMirrorRef: React.MutableRefObject<SuggestionsState>
   viewedCrewmateRef: React.MutableRefObject<ReturnType<typeof useViewedCrewmate>>
-}
+} & ({ voicePhase: VoicePhase } | { voice: { phase: VoicePhase } })
 
 function isPrintableRun(rawInput: string, key: Key): boolean {
   return (
@@ -96,35 +97,34 @@ function isPrintableRun(rawInput: string, key: Key): boolean {
   )
 }
 
-export function useComposerRawKeys({
-  modalOverlayUp,
-  compactWork,
-  input,
-  cursorOffset,
-  mode,
-  footerSelection,
-  helpOpen,
-  isSearchingHistory,
-  messages,
-  isLoading,
-  speculationActive,
-  appStateStore,
-  setAppState,
-  engineModel,
-  cockpitActive,
-  voice,
-  getToolUseContext,
-  insertAtCursor,
-  setMode,
-  setHelpOpen,
-  setCursorOffset,
-  onShowMessageSelector,
-  addNotification,
-  submitRef,
-  suggestionsMirrorRef,
-  viewedCrewmateRef,
-}: ComposerRawKeysInput): void {
-  void submitRef
+export function useComposerRawKeys(params: ComposerRawKeysInput): void {
+  const {
+    modalOverlayUp,
+    compactWork,
+    input,
+    cursorOffset,
+    mode,
+    footerSelection,
+    helpOpen,
+    isSearchingHistory,
+    messages,
+    isLoading,
+    speculationActive,
+    appStateStore,
+    setAppState,
+    engineModel,
+    cockpitActive,
+    getToolUseContext,
+    insertAtCursor,
+    setMode,
+    setHelpOpen,
+    setCursorOffset,
+    onShowMessageSelector,
+    addNotification,
+    suggestionsMirrorRef,
+    viewedCrewmateRef,
+  } = params
+  const voicePhase = 'voicePhase' in params ? params.voicePhase : params.voice.phase
   const noopSetPending = useCallback(() => {}, [])
   const handleDoubleEsc = useDoublePress(noopSetPending, onShowMessageSelector, undefined, 800)
 
@@ -218,7 +218,7 @@ export function useComposerRawKeys({
     }
 
     if (key.escape) {
-      if (voice.phase === 'recording') {
+      if (voicePhase === 'recording') {
         event.stopImmediatePropagation()
         cancelVoiceCapture()
         return

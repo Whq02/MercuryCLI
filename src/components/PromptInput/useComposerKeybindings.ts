@@ -30,7 +30,7 @@ type ComposerKeybindingsInput = {
   buffer: ReturnType<typeof useInputBuffer>
   writeDraft: (text: string) => void
   setCursorOffset: (offset: number) => void
-  setPastedContents: (
+  setPastedContents?: (
     next:
       | Record<number, PastedContent>
       | ((previous: Record<number, PastedContent>) => Record<number, PastedContent>),
@@ -51,7 +51,7 @@ type ComposerKeybindingsInput = {
   footerSelection: AppState['footerSelection']
   appStateStore: AppStateStore
   setAppState: (f: (prev: AppState) => AppState) => void
-  toolPermissionContext?: AppState['toolPermissionContext']
+  toolPermissionContext: AppState['toolPermissionContext']
   setToolPermissionContext: (
     context: AppState['toolPermissionContext'],
     options?: { preserveMode?: boolean },
@@ -143,7 +143,11 @@ export function useComposerKeybindings({
     if (restored === undefined) return
     writeDraft(restored.text)
     setCursorOffset(restored.cursorOffset)
-    setPastedContents(restored.pastedContents)
+    if (setPastedContents !== undefined) {
+      setPastedContents(restored.pastedContents)
+    } else {
+      pendingInput.setPastedContents(restored.pastedContents)
+    }
     addNotification({
       key: 'edit-history',
       text: 'undid the last edit',
@@ -162,7 +166,11 @@ export function useComposerKeybindings({
     if (restored === undefined) return
     writeDraft(restored.text)
     setCursorOffset(restored.cursorOffset)
-    setPastedContents(restored.pastedContents)
+    if (setPastedContents !== undefined) {
+      setPastedContents(restored.pastedContents)
+    } else {
+      pendingInput.setPastedContents(restored.pastedContents)
+    }
     addNotification({
       key: 'edit-history',
       text: 'redid the last edit',
@@ -227,16 +235,26 @@ export function useComposerKeybindings({
 
   const handleStash = useCallback(() => {
     if (pressSendNow(focusedSendNowLive())) {
-      void sendFocusedWordsNow().then(receipt => {
-        if (receipt.outcome === 'refused') {
-          const detail = receipt.detail ?? 'no reason given'
+      void sendFocusedWordsNow().then(
+        receipt => {
+          if (receipt.outcome === 'refused') {
+            const detail = receipt.detail ?? 'no reason given'
+            addNotification({
+              key: 'send-now',
+              ...splitWayOut(detail),
+              priority: 'immediate',
+            })
+          }
+        },
+        error => {
+          const detail = error instanceof Error ? error.message : String(error)
           addNotification({
             key: 'send-now',
-            ...splitWayOut(detail),
+            ...splitWayOut(detail || 'no reason given'),
             priority: 'immediate',
           })
-        }
-      })
+        },
+      )
       return
     }
     if (pendingInput.text().trim() !== '') {
@@ -292,8 +310,7 @@ export function useComposerKeybindings({
         setOverlay(prev => (prev === 'thinking-toggle' ? null : 'thinking-toggle'))
       },
       'chat:cycleMode': () => {
-        const current = toolPermissionContext ?? appStateStore.getState().toolPermissionContext
-        const { context } = cyclePermissionMode(current)
+        const { context } = cyclePermissionMode(toolPermissionContext)
         setToolPermissionContext(context)
         setHelpOpen(false)
       },
