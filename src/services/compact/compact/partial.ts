@@ -132,13 +132,13 @@ export async function partialCompactConversation(
 
     const owner = ownerFromToolUseContext(context)
     const epoch = getContextEpoch(owner).epoch + 1
-    const ledger = withKeptLedgerRows(buildFoldLedger(allMessages, owner, epoch), kept)
-    boundaryMarker.compactMetadata.ledger = ledger
+    const ledger = buildFoldLedger(allMessages, owner, epoch)
+    boundaryMarker.compactMetadata.ledger = withKeptLedgerRows(ledger, kept)
 
     const workText = renderFoldedWork(foldedWorkOf(allMessages, kept, boundaryMarker.uuid))
     const summaryBody = workText !== null ? `${rawSummary}\n\n${workText}` : rawSummary
     const formattedSummary =
-      getCompactUserSummaryMessage(summaryBody, false, getTranscriptPath(), kept.length > 0) +
+      getCompactUserSummaryMessage(summaryBody, false, getTranscriptPath(), false) +
       `\n\n${renderFoldLedger(ledger)}`
 
     const summaryMessage: UserMessage = createUserMessage({
@@ -148,7 +148,7 @@ export async function partialCompactConversation(
         ? {
             summarizeMetadata: {
               messagesSummarized: summarize.length,
-              ...(feedbackOrUndefined !== undefined ? { userContext: feedbackOrUndefined } : {}),
+              userContext: userFeedback,
               direction,
             },
           }
