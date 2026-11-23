@@ -1,5 +1,8 @@
-import { notBuilt } from '../../pi/holes.js'
+import { toJSONSchema } from 'zod/v4'
+
+import { jsonStringify } from '../slowOperations.js'
+import { SettingsSchema } from './types.js'
 
 export function generateSettingsJSONSchema(): string {
-  return notBuilt('src/utils/settings/schemaOutput.ts:5')
+  return jsonStringify(toJSONSchema(SettingsSchema(), { unrepresentable: 'any' }), null, 2)
 }
