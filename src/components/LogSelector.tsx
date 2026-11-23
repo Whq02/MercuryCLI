@@ -137,8 +137,8 @@ function matchesQuery(log: SessionListing, needle: string): boolean {
   if (needle === '') return true
   return (
     displayTitle(log).toLowerCase().includes(needle) ||
-    (log.gitBranch?.includes(needle) ?? false) ||
-    (log.tag?.includes(needle) ?? false) ||
+    (log.gitBranch?.toLowerCase().includes(needle) ?? false) ||
+    (log.tag?.toLowerCase().includes(needle) ?? false) ||
     prDescriptor(log).toLowerCase().includes(needle)
   )
 }
