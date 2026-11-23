@@ -1,7 +1,7 @@
 import { randomUUID, type UUID } from 'node:crypto'
 import type { CanUseToolFn, SetToolJSXFn, ToolUseContext } from '../../Tool.js'
 import type { QuerySource } from '../../constants/querySource.js'
-import type { ContentBlockParam, ImageBlockParam } from '../../types/wire.js'
+import type { Base64ImageSource, ContentBlockParam, ImageBlockParam } from '../../types/wire.js'
 import type {
   AssistantMessage,
   AttachmentMessage,
@@ -13,7 +13,8 @@ import type {
 } from '../../types/message.js'
 import type { EffortValue } from '../../utils/effort.js'
 import type { PastedContent } from '../../utils/config.js'
-import type { BatchedPrompt } from '../../types/textInputTypes.js'
+import type { BatchedPrompt, PromptInputMode } from '../../types/textInputTypes.js'
+import type { LocalJSXCommandContext } from '../../types/command.js'
 import {
   createAttachmentMessage,
   getAttachmentMessages,
@@ -31,16 +32,53 @@ import { maybeResizeAndDownsampleImageBlock } from '../../utils/imageResizer.js'
 import { isStoredImageRef, readStoredImageRef, storeImages } from '../../utils/imageStore.js'
 import { logError } from '../../utils/log.js'
 import { parseSlashCommand } from '../../utils/slashCommandParsing.js'
+import { LOCAL_COMMAND_STDOUT_TAG } from '../../constants/xml.js'
 import { untoldSettingsFaultLines } from '../settings/faultNotices.js'
 import { untoldHiddenCharacterLines } from '../../utils/text/hiddenCharacterFindings.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
+import { processBashCommand } from './processBashCommand.js'
+import { processSlashCommand } from './processSlashCommand.js'
+import { processTextPrompt } from './processTextPrompt.js'
+import { notBuilt } from '../../pi/holes.js'
 
-export type ProcessUserInputContext = Unbuilt
+export type ProcessUserInputContext = ToolUseContext & LocalJSXCommandContext
 
-export type ProcessUserInputBaseResult = Unbuilt
+export type ProcessUserInputBaseResult = {
+  messages: (UserMessage | AssistantMessage | AttachmentMessage | SystemMessage | ProgressMessage)[]
+  shouldQuery: boolean
+  allowedTools?: string[]
+  model?: string
+  effort?: EffortValue
+  resultText?: string
+  commandError?: string
+  commandRefused?: true
+  hookBlocked?: true
+  nextInput?: string
+  submitNextInput?: boolean
+}
 
 
-type ProcessUserInputOptions = Unbuilt
+type ProcessUserInputOptions = {
+  input: string | ContentBlockParam[]
+  syntaxInput?: string
+  mode: PromptInputMode
+  setToolJSX: SetToolJSXFn
+  context: ProcessUserInputContext
+  pastedContents?: Record<number, PastedContent>
+  messages: Message[]
+  setUserInputOnProcessing?: (prompt?: string) => void
+  uuid?: string
+  batchUuids?: string[]
+  batchTail?: BatchedPrompt[]
+  isMeta?: boolean
+  operatorPrompt?: boolean
+  origin?: MessageOrigin
+  skipSlashCommands?: boolean
+  bridgeOrigin?: boolean
+  skipAttachments?: boolean
+  isAlreadyProcessing?: boolean
+  querySource: QuerySource
+  canUseTool?: CanUseToolFn
+}
 
 
 export async function processUserInput(
@@ -54,8 +92,297 @@ function isImageBlock(block: ContentBlockParam): block is ImageBlockParam {
   return (block as { type?: string }).type === 'image'
 }
 
+async function normalizeInputBlocks(
+  blocks: ContentBlockParam[],
+  imageDimensionNotes: string[],
+): Promise<{
+  normalizedBlocks: ContentBlockParam[]
+  promptText: string | null
+  precedingInputBlocks: ContentBlockParam[]
+}> {
+  const normalizedBlocks: ContentBlockParam[] = []
+  for (const rawBlock of blocks) {
+    let block: ContentBlockParam = rawBlock
+    if (isStoredImageRef(rawBlock)) {
+      const read = await readStoredImageRef(rawBlock)
+      if (read.kind === 'missing') {
+        normalizedBlocks.push({ type: 'text', text: read.words })
+        continue
+      }
+      block = {
+        type: 'image',
+        source: {
+          type: 'base64',
+          media_type: read.block.source.media_type as Base64ImageSource['media_type'],
+          data: read.block.source.data,
+        },
+      }
+    }
+    if (!isImageBlock(block)) {
+      normalizedBlocks.push(block)
+      continue
+    }
+    const source = block.source as { type: string; media_type?: string; mediaType?: string }
+    if (!source.media_type && source.mediaType) {
+      source.media_type = source.mediaType
+    }
+    try {
+      const resized = await maybeResizeAndDownsampleImageBlock(block)
+      normalizedBlocks.push(resized.block)
+      const dims = resized.dimensions
+      if (dims?.displayWidth && dims?.displayHeight) {
+        imageDimensionNotes.push(
+          `[Image dimensions: ${dims.displayWidth}x${dims.displayHeight}]`,
+        )
+      }
+    } catch (error) {
+      logError(error)
+      normalizedBlocks.push(block)
+    }
+  }
+
+  const firstTextIndex = normalizedBlocks.findIndex(block => block.type === 'text')
+  if (firstTextIndex !== -1) {
+    const firstBlock = normalizedBlocks[firstTextIndex]!
+    const promptText = firstBlock.type === 'text' ? firstBlock.text : null
+    const precedingInputBlocks = normalizedBlocks.filter((_, index) => index !== firstTextIndex)
+    return { normalizedBlocks, promptText, precedingInputBlocks }
+  }
+  return { normalizedBlocks, promptText: null, precedingInputBlocks: normalizedBlocks }
+}
+
+async function processPastedImages(
+  pastedContents: Record<number, PastedContent> | undefined,
+  imageDimensionNotes: string[],
+): Promise<{ imageContentBlocks: ContentBlockParam[]; imagePasteIds: number[] }> {
+  const imageContentBlocks: ContentBlockParam[] = []
+  const imagePasteIds: number[] = []
+  if (pastedContents === undefined || Object.keys(pastedContents).length === 0) {
+    return { imageContentBlocks, imagePasteIds }
+  }
+
+  storeImages(pastedContents).catch(error => {
+    logError(error)
+  })
+
+  const imagePastes = Object.entries(pastedContents)
+    .map(([key, paste]) => ({ id: Number(key), paste }))
+    .filter(entry => entry.paste.type === 'image' && entry.paste.content.length > 0)
+    .sort((a, b) => a.id - b.id)
+
+  const fitted = await Promise.all(
+    imagePastes.map(async ({ id, paste }) => {
+      const rawBlock: ImageBlockParam = {
+        type: 'image',
+        source: {
+          type: 'base64',
+          media_type: (paste.mediaType ?? 'image/png') as Base64ImageSource['media_type'],
+          data: paste.content,
+        },
+      }
+      try {
+        const resized = await maybeResizeAndDownsampleImageBlock(rawBlock)
+        return { id, paste, block: resized.block, dimensions: resized.dimensions }
+      } catch (error) {
+        logError(error)
+        return { id, paste, block: rawBlock, dimensions: undefined }
+      }
+    }),
+  )
+
+  for (const { id, paste, block, dimensions } of fitted) {
+    imageContentBlocks.push(block)
+    imagePasteIds.push(id)
+    if (dimensions?.displayWidth && dimensions?.displayHeight) {
+      imageDimensionNotes.push(
+        `[Image #${id} dimensions: ${dimensions.displayWidth}x${dimensions.displayHeight}]`,
+      )
+    } else if (dimensions?.originalWidth && dimensions?.originalHeight) {
+      imageDimensionNotes.push(
+        `[Image #${id} dimensions: ${dimensions.originalWidth}x${dimensions.originalHeight}]`,
+      )
+    } else if (paste.dimensions?.originalWidth && paste.dimensions?.originalHeight) {
+      imageDimensionNotes.push(
+        `[Image #${id} dimensions: ${paste.dimensions.originalWidth}x${paste.dimensions.originalHeight}]`,
+      )
+    } else if (paste.sourcePath) {
+      imageDimensionNotes.push(`[Image #${id} source: ${paste.sourcePath}]`)
+    }
+  }
+
+  return { imageContentBlocks, imagePasteIds }
+}
+
 async function processUserInputBase(
   options: ProcessUserInputOptions,
 ): Promise<ProcessUserInputBaseResult> {
-  return notBuilt('src/services/processUserInput/processUserInput.ts:185')
+  const {
+    input,
+    syntaxInput,
+    mode,
+    setToolJSX,
+    context,
+    pastedContents,
+    messages,
+    uuid,
+    batchUuids,
+    isMeta,
+    operatorPrompt,
+    origin,
+    skipSlashCommands,
+    bridgeOrigin,
+    skipAttachments,
+    isAlreadyProcessing,
+    querySource,
+    canUseTool,
+  } = options
+
+  const imageDimensionNotes: string[] = []
+  let normalizedInput: string | ContentBlockParam[]
+  let promptText: string | null
+  let precedingInputBlocks: ContentBlockParam[]
+
+  if (typeof input === 'string') {
+    normalizedInput = input
+    promptText = input
+    precedingInputBlocks = []
+  } else {
+    const normalized = await normalizeInputBlocks(input, imageDimensionNotes)
+    normalizedInput = normalized.normalizedBlocks
+    promptText = normalized.promptText
+    precedingInputBlocks = normalized.precedingInputBlocks
+  }
+
+  if (mode !== 'prompt' && promptText === null) {
+    throw new Error(`processUserInput: mode ${mode} requires string input`)
+  }
+
+  const { imageContentBlocks, imagePasteIds } = await processPastedImages(
+    pastedContents,
+    imageDimensionNotes,
+  )
+
+  let skipSlash = skipSlashCommands === true
+  const syntaxPrompt = syntaxInput ?? promptText
+
+  if (bridgeOrigin === true && promptText !== null && promptText.startsWith('/')) {
+    const parsedBridge = parseSlashCommand(promptText)
+    if (parsedBridge !== null) {
+      const matched = context.options.commands.find(
+        command =>
+          command.name === parsedBridge.commandName ||
+          command.aliases?.includes(parsedBridge.commandName) === true,
+      )
+      if (matched !== undefined) {
+        if ((matched as { isBridgeSafe?: boolean }).isBridgeSafe === true) {
+          skipSlash = false
+        } else {
+          const refusal = `The /${parsedBridge.commandName} command cannot be used from the remote-control surface.`
+          return {
+            messages: [
+              createUserMessage({ content: promptText }),
+              createUserMessage({
+                content: `<${LOCAL_COMMAND_STDOUT_TAG}>${refusal}</${LOCAL_COMMAND_STDOUT_TAG}>`,
+              }),
+            ],
+            shouldQuery: false,
+            resultText: refusal,
+          }
+        }
+      }
+    }
+  }
+
+  const isSlashLine =
+    mode === 'prompt' &&
+    syntaxPrompt !== null &&
+    syntaxPrompt.startsWith('/') &&
+    parseSlashCommand(syntaxPrompt) !== null
+
+  const attachmentMessages: AttachmentMessage[] = []
+  if (
+    skipAttachments !== true &&
+    typeof syntaxPrompt === 'string' &&
+    (mode !== 'prompt' || skipSlash || !isSlashLine)
+  ) {
+    try {
+      for await (const attachmentMessage of getAttachmentMessages(
+        syntaxPrompt,
+        context,
+        [],
+        messages,
+        querySource,
+        {
+          localSubmission: mode === 'bash',
+          operatorPrompt: operatorPrompt === true,
+        },
+      )) {
+        attachmentMessages.push(attachmentMessage)
+      }
+    } catch (error) {
+      logError(error)
+    }
+  }
+
+  let result: ProcessUserInputBaseResult
+  if (mode === 'bash') {
+    result = await processBashCommand(
+      promptText!,
+      precedingInputBlocks,
+      attachmentMessages,
+      context,
+      setToolJSX,
+      uuid,
+    )
+  } else if (!skipSlash && isSlashLine && syntaxPrompt !== null) {
+    const slashBlocks = [...precedingInputBlocks]
+    if (
+      syntaxInput !== undefined &&
+      promptText !== null &&
+      promptText.startsWith(syntaxInput)
+    ) {
+      slashBlocks.push({
+        type: 'text',
+        text: promptText.slice(syntaxInput.length).trimStart(),
+      })
+    }
+    result = await processSlashCommand(
+      syntaxPrompt,
+      slashBlocks,
+      imageContentBlocks,
+      attachmentMessages,
+      context,
+      setToolJSX,
+      uuid as UUID | undefined,
+      isAlreadyProcessing,
+      canUseTool,
+    )
+  } else {
+    result = processTextPrompt(
+      normalizedInput,
+      imageContentBlocks,
+      imagePasteIds,
+      attachmentMessages,
+      uuid as UUID | undefined,
+      context.getAppState().toolPermissionContext?.mode,
+      isMeta,
+      batchUuids,
+      origin,
+    )
+  }
+
+  if (imageDimensionNotes.length > 0) {
+    return {
+      ...result,
+      messages: [
+        ...result.messages,
+        createUserMessage({
+          content: imageDimensionNotes.join('\n'),
+          isMeta: true,
+        }),
+      ],
+    }
+  }
+
+  return result
 }
