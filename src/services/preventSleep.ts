@@ -4,9 +4,11 @@ import { subprocessEnv } from '../utils/subprocessEnv.js'
 import { registerCleanup } from '../utils/cleanupRegistry.js'
 import { passedOver } from '../utils/passedOver.js'
 import { startInterval, stopInterval } from '../utils/timers.js'
-import { notBuilt, unbuilt } from '../pi/holes.js'
-let helper: ChildProcess | null = unbuilt('src/services/preventSleep.ts:13')
-let restartTimer: NodeJS.Timeout | null = unbuilt('src/services/preventSleep.ts:14')
+
+let referenceCount = 0
+let cleanupRegistered = false
+let helper: ChildProcess | null = null
+let restartTimer: NodeJS.Timeout | null = null
 
 function killHelper(): void {
   if (helper === null) return
@@ -25,10 +27,53 @@ function disarmRestartTimer(): void {
   }
 }
 
+function startHelper(): void {
+  if (process.platform !== 'darwin' || helper !== null) return
+  try {
+    if (!cleanupRegistered) {
+      registerCleanup(async () => {
+        referenceCount = 0
+        disarmRestartTimer()
+        killHelper()
+      })
+      cleanupRegistered = true
+    }
+    const child = spawn('caffeinate', ['-i', '-t', '300'], {
+      windowsHide: true, stdio: 'ignore', detached: false, env: { ...subprocessEnv() },
+    })
+    child.unref()
+    const ended = () => { if (helper === child) helper = null }
+    child.on('error', ended)
+    child.on('exit', ended)
+    helper = child
+  } catch (error) {
+    passedOver(error)
+  }
+}
+
+function armRestartTimer(): void {
+  if (process.platform !== 'darwin' || restartTimer !== null) return
+  restartTimer = startInterval(() => {
+    if (referenceCount > 0) {
+      killHelper()
+      startHelper()
+    }
+  }, 240_000)
+  restartTimer.unref()
+}
+
 export function startPreventSleep(): void {
-  return notBuilt('src/services/preventSleep.ts:75')
+  referenceCount++
+  if (referenceCount === 1) {
+    startHelper()
+    armRestartTimer()
+  }
 }
 
 export function stopPreventSleep(): void {
-  return notBuilt('src/services/preventSleep.ts:83')
+  referenceCount = Math.max(0, referenceCount - 1)
+  if (!referenceCount) {
+    disarmRestartTimer()
+    killHelper()
+  }
 }
