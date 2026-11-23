@@ -6,9 +6,22 @@ import type { KeyboardEvent } from '../events/keyboard-event.js'
 import type { TextGestureHandler } from '../events/text-gesture.js'
 import type { Styles } from '../styles.js'
 import { logForDebugging } from '../../utils/debug.js'
-import type { Unbuilt } from '../../pi/holes.js'
 
-export type Props = Unbuilt
+export type Props = Omit<Styles, 'textWrap'> & {
+  readonly ref?: React.Ref<DOMElement>
+  readonly tabIndex?: number
+  readonly autoFocus?: boolean
+  readonly onClick?: (event: ClickEvent) => void
+  readonly onFocus?: (event: FocusEvent) => void
+  readonly onFocusCapture?: (event: FocusEvent) => void
+  readonly onBlur?: (event: FocusEvent) => void
+  readonly onBlurCapture?: (event: FocusEvent) => void
+  readonly onKeyDown?: (event: KeyboardEvent) => void
+  readonly onKeyDownCapture?: (event: KeyboardEvent) => void
+  readonly onMouseEnter?: () => void
+  readonly onMouseLeave?: () => void
+  readonly onTextGesture?: TextGestureHandler
+}
 
 const SPACING_PROPS = [
   'margin',
@@ -96,5 +109,7 @@ const Box = forwardRef<DOMElement, PropsWithChildren<Props>>(
     )
   },
 )
+
+Box.displayName = 'Box'
 
 export default Box
