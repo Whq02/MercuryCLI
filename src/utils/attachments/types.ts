@@ -10,14 +10,31 @@ import type { TaskType } from '../../Task.js'
 import type { FileReadToolOutput } from '../../types/fileReadOutput.js'
 import type { InstructionSourceEntry } from '../instructions/contracts.js'
 import type { Task } from '../tasks.js'
-import type { Unbuilt } from '../../pi/holes.js'
+import type { CapsuleSectionName } from './capsuleKinds.js'
 
 export type CapsuleWorkingRef = {
   reason: 'read' | 'mentioned' | 'edited' | 'instructions'
   ref: string; path: string
 }
-export type CapsuleSection = Unbuilt
-export type AgentRosterRow = Unbuilt
+export type CapsuleSection = {
+  name: CapsuleSectionName
+  kinds: Array<keyof AttachmentBodies>
+  content: ContentBlockParam[]
+}
+export type AgentRosterRow = {
+  taskId: string
+  taskType: TaskType
+  name: string
+  address: string | null
+  status: string
+  wait: string | null
+  description: string
+  owed: string | null
+  error: string | null
+  outputFilePath?: string
+  phase?: string
+  agents?: Array<{ label: string; state: string }>
+}
 
 type FileLocation = { filename: string; displayPath: string }
 type ReadFileBody = FileLocation & { content: FileReadToolOutput; truncated?: boolean }
