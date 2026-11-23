@@ -5,7 +5,7 @@ argument-hint: "<purpose> [stdio|http] [python]"
 ---
 # MCP smithy
 
-Define each tool's trigger, input schema, output and failure modes. Check the installed MCP SDK version before choosing imports or transports (`src/utils/mcp/sdk.ts` owns Mercury's integration, CODE inspected 2026-11-13).
+Define each tool's trigger, input schema, output and failure modes. Check the installed MCP SDK version before choosing imports or transports (`src/integrations/mcp-shapes/sdk.ts` owns Mercury's integration, CODE inspected 2026-11-13).
 
 Match protocol era to the client. **LIVE page read 2026-11-04:** [versioning](https://modelcontextprotocol.io/specification/2026-07-28/basic/versioning) separates 2026-07-28+ per-request metadata and `server/discover` from <=2025-11-25 `initialize`. Prove the supported era (plus transport fallback when dual-era support is needed; a modern version error alone does not justify fallback) and keep legacy `initialize` where Mercury requires it.
 

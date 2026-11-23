@@ -1,6 +1,6 @@
 # Model families
 
-Source basis: media 0.2.9 (`src/extensions/bundled/mercury-media/server/manifest.json` and catalog.json, CODE inspected 2026-11-13; publisher cards read 2026-10-30 in `references/sources.md`). Read the connected `media_models` row before applying these defaults.
+Source basis: media 0.2.9 (`src/integrations/extensions/bundled/mercury-media/server/manifest.json` and catalog.json, CODE inspected 2026-11-13; publisher cards read 2026-10-30 in `references/sources.md`). Read the connected `media_models` row before applying these defaults.
 
 ## Guidance, strength and brackets
 
@@ -19,7 +19,7 @@ Source basis: media 0.2.9 (`src/extensions/bundled/mercury-media/server/manifest
 | `sdxl-base-1.0` | 20 steps, CFG 5, 1024x1024, multiple 64 (base only, no refiner). Supports `negative_prompt`, denoising references and SDXL adapters. | S, E |
 | `pixel-party-xl` | 25 steps, CFG 5, 1024x1024, multiple 64. Automatically appends “. in pixel art style” and applies 8x nearest-neighbour `downsize` to 128x128 while keeping the full render; publisher negative example: “mixels. amateur. multiple”. | P, E |
 
-**CODE inspected 2026-11-13:** `pixel-party-xl` carries publisher notice “please do not host this model” in `src/extensions/bundled/mercury-media/server/catalog.json` (do not copy weights to a remote host without checking publisher terms); Qwen rows use Qwen Research License (non-commercial). Check memory before raising dimensions above 1024, and read each custom SD checkpoint's own card rather than copying another row's defaults. [P, Q, QT, E]
+**CODE inspected 2026-11-13:** `pixel-party-xl` carries publisher notice “please do not host this model” in `src/integrations/extensions/bundled/mercury-media/server/catalog.json` (do not copy weights to a remote host without checking publisher terms); Qwen rows use Qwen Research License (non-commercial). Check memory before raising dimensions above 1024, and read each custom SD checkpoint's own card rather than copying another row's defaults. [P, Q, QT, E]
 
 ## ControlNet, LoRAs, embeddings and upscalers
 

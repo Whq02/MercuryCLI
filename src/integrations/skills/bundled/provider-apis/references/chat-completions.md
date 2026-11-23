@@ -1,6 +1,6 @@
 # Chat and native runtime index
 
-Open only the target family map (paths relative to `src/services/providers/` unless prefixed with `src/`):
+Open only the target family map (paths relative to `src/models/roads/` unless prefixed with `src/`):
 
 - [Native providers](chat-native.md): Moonshot/Kimi, DeepSeek, xAI, Meta, Z.AI, Gemini, Mistral, Qwen, MiniMax, Cohere.
 - [Hosted providers](chat-hosted.md): OpenRouter, Hugging Face, Nous, OpenCode Zen, Together, Groq, Cerebras, Fireworks, Melious, OrcaRouter.

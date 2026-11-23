@@ -7,8 +7,8 @@
 *.md   text eol=lf
 NOTICE text eol=lf
 integrations/vscode/LICENSE.txt text eol=lf
-src/extensions/bundled/mercury-media/server/LICENSE text eol=lf
-src/extensions/bundled/mercury-media/server/THIRD_PARTY_NOTICES text eol=lf
+src/integrations/extensions/bundled/mercury-media/server/LICENSE text eol=lf
+src/integrations/extensions/bundled/mercury-media/server/THIRD_PARTY_NOTICES text eol=lf
 *.mts  text eol=lf
 *.gd   text eol=lf
 *.cfg  text eol=lf

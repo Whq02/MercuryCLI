@@ -25,7 +25,7 @@ Edit `.pipeline.json`, never completed run records under `media/`. Resuming from
 
 Inspect a single-request workflow via `image_generate` (`dry: true`) or import editable steps via `pipeline_import_workflow`, checking mapped/skipped nodes and overrides before rendering (paths resolve beside the workflow; arbitrary custom nodes do not run).
 
-**CODE inspected 2026-11-13, media 0.2.9:** `src/extensions/bundled/mercury-media/server/server.js` runs resolveSampling once for both writeExport and rendering, refusing unknown sampling defaults or unrepresentable custom sigma schedules; do not force explicit CFG/sampler overrides or drop a saved schedule just to export.
+**CODE inspected 2026-11-13, media 0.2.9:** `src/integrations/extensions/bundled/mercury-media/server/server.js` runs resolveSampling once for both writeExport and rendering, refusing unknown sampling defaults or unrepresentable custom sigma schedules; do not force explicit CFG/sampler overrides or drop a saved schedule just to export.
 
 `export_workflow` exports one request as API JSON (even with `dry: true`); `pipeline_export_workflow` exports mappable steps only (`downsize`, `palette`, `sheet`, `count` > 1 and `pixel-party-xl` downsize refuse; keep the user's pipeline rather than stripping steps, and choose a new destination path since existing files are never overwritten).
 

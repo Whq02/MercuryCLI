@@ -34,4 +34,4 @@ Every URL below was re-checked on 2026-11-22 and moved pages re-pointed; histori
 
 ## Subscription client release clock
 
-**CODE inspected 2026-11-13:** `src/constants/oauth.ts` owns `ANTHROPIC_CLIENT_CONTRACT_VERSION` and `ANTHROPIC_CLIENT_CONTRACT_AS_OF` — read them there rather than copying values here. On release-day updates, read [published CLI metadata](https://registry.npmjs.org/@anthropic-ai/claude-code/latest), update `src/constants/oauth.ts` with that reading's date when justified, and run `scripts/ops/prove-client-contract-clock.ts`.
+**CODE inspected 2026-11-13:** `src/models/sign-in/oauth/oauth.ts` owns `ANTHROPIC_CLIENT_CONTRACT_VERSION` and `ANTHROPIC_CLIENT_CONTRACT_AS_OF` — read them there rather than copying values here. On release-day updates, read [published CLI metadata](https://registry.npmjs.org/@anthropic-ai/claude-code/latest), update `src/models/sign-in/oauth/oauth.ts` with that reading's date when justified, and run `scripts/ops/prove-client-contract-clock.ts`.

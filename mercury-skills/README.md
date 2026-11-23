@@ -15,7 +15,7 @@ The eight skills in this directory compile into the Mercury build. Each director
 
 ## Editing and regenerating
 
-Edit sources here, then regenerate `src/skills/bundled/`:
+Edit sources here, then regenerate `src/integrations/skills/bundled/`:
 
 ```bash
 bun run scripts/skills/gen-bundled.ts            # regenerate all; prune retired output
@@ -24,6 +24,6 @@ bun run scripts/skills/gen-bundled.ts --check    # check drift without writing
 bash scripts/skills/run-all.sh                   # run the bundled-skills suite
 ```
 
-`mercury-skills/` is the source of truth (`[a-z0-9][a-z0-9_-]*` names). Full runs regenerate every skill and prune retired modules marked with `export const GENERATED_BY = 'scripts/skills/gen-bundled.ts'` (leaving hand-written modules untouched); targeted runs touch only the named skills. Register any newly added skill in `src/skills/bundled/index.ts` using the import and call lines `gen-bundled.ts` prints.
+`mercury-skills/` is the source of truth (`[a-z0-9][a-z0-9_-]*` names). Full runs regenerate every skill and prune retired modules marked with `export const GENERATED_BY = 'scripts/skills/gen-bundled.ts'` (leaving hand-written modules untouched); targeted runs touch only the named skills. Register any newly added skill in `src/integrations/skills/bundled/index.ts` using the import and call lines `gen-bundled.ts` prints.
 
 At runtime, skills with `references/` extract them once into a per-process temporary directory (never the user's config home) and prepend that base directory; reference-free skills load their body alone.

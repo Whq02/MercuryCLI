@@ -24,8 +24,8 @@ Publisher card readings below date to 2026-10-30; Mercury schemas and defaults c
 
 ## Shipped product and engine
 
-**CODE inspected 2026-11-13:** `src/extensions/bundled/mercury-media/server/manifest.json` pins media 0.2.9 and runtime master-1015-e41fbcf.
+**CODE inspected 2026-11-13:** `src/integrations/extensions/bundled/mercury-media/server/manifest.json` pins media 0.2.9 and runtime master-1015-e41fbcf.
 
-- **E, schemas & rows:** `src/extensions/bundled/mercury-media/server/server.js`, `src/extensions/bundled/mercury-media/server/catalog.json`, `src/extensions/bundled/mercury-media/server/manifest.json` (engine source: `src/server.ts`, `src/pipeline-schema.ts`, `src/sampling.ts`, `src/storage.ts`, `src/recipes.ts`, `src/upscale.ts`, `src/control.ts`, `src/png.ts`, `src/embeddings.ts`, `src/user-models.ts`).
-- **E, pipelines & remote:** engine `src/pipeline.ts`, `src/pipeline-workflow.ts`, `src/remote-pipeline.ts`; Mercury `src/services/media/pipeline.ts`, `src/services/media/generation.ts`, `src/services/media/host.ts`, `src/services/media/setup.ts`, `docs/MEDIA.md`.
-- **A, sprite editing:** `src/tools/AsepriteTool/AsepriteTool.ts`, `src/tools/AsepriteTool/prompt.ts`, `docs/ASEPRITE-BRIDGE.md`.
+- **E, schemas & rows:** `src/integrations/extensions/bundled/mercury-media/server/server.js`, `src/integrations/extensions/bundled/mercury-media/server/catalog.json`, `src/integrations/extensions/bundled/mercury-media/server/manifest.json` (engine source: `src/server.ts`, `src/pipeline-schema.ts`, `src/sampling.ts`, `src/storage.ts`, `src/recipes.ts`, `src/upscale.ts`, `src/control.ts`, `src/png.ts`, `src/embeddings.ts`, `src/user-models.ts`).
+- **E, pipelines & remote:** engine `src/pipeline.ts`, `src/pipeline-workflow.ts`, `src/remote-pipeline.ts`; Mercury `src/integrations/media/pipeline.ts`, `src/integrations/media/generation.ts`, `src/integrations/media/host.ts`, `src/integrations/media/setup.ts`, `docs/MEDIA.md`.
+- **A, sprite editing:** `src/tools/aseprite/AsepriteTool.ts`, `src/tools/aseprite/prompt.ts`, `docs/ASEPRITE-BRIDGE.md`.

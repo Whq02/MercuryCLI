@@ -33,16 +33,16 @@ When any design reference and the manifest disagree, **the manifest wins**.
 
 ## Sources
 
-- **Palette (single source of truth):** `src/components/mercuryPalette.ts` — every
+- **Palette (single source of truth):** `src/screen/theme/mercuryPalette.ts` — every
   runtime hue is a named token.
-- **Semantic layer:** `src/utils/mercuryTokens.ts` (`resolveMercuryTokens` /
+- **Semantic layer:** `src/screen/theme/mercuryTokens.ts` (`resolveMercuryTokens` /
   `useMercuryTokens`) — contrast-sensitive chrome consumes THESE roles; raw
   brand hues stay for logo/art.
-- **Transcript restyle:** `src/utils/theme.ts` `mercuryWarmInkOverlay()`
+- **Transcript restyle:** `src/screen/theme/theme.ts` `mercuryWarmInkOverlay()`
   re-tints the base semantic theme.
-- **Kit:** `src/components/mercury-ui/` (theme/glyphs/assets/components/
-  sessionAccent) · statusbar `src/components/MercuryFrame.tsx` · cockpit
-  `src/utils/helmGeometry.ts` + `FullscreenLayout.tsx`.
+- **Kit:** `src/screen/widgets/` (theme/glyphs/assets/components/
+  sessionAccent) · statusbar `src/screen/frame-chips/MercuryFrame.tsx` · cockpit
+  `src/screen/fullscreen-layout/helmGeometry.ts` + `FullscreenLayout.tsx`.
 
 ---
 
@@ -136,7 +136,7 @@ allowed** (visual depth sits between restrained bands and a smooth
 gradient). What is permitted is narrow and named: a
 ramp of **five discrete stops** from a family's own ground toward a role hue —
 richer than three token bands, never a browser background wash. The ramps live
-in `src/utils/mercuryTokens.ts` (`spectralRamp` / the `spectral` token group);
+in `src/screen/theme/mercuryTokens.ts` (`spectralRamp` / the `spectral` token group);
 a local literal gradient is still forbidden. Every stop is contrast-floored
 against its own ground (≥3.0, the graphical-object floor) and every ramp
 collapses to a SINGLE stop on families that cannot host depth (16-color,
@@ -217,5 +217,5 @@ region.
 - `.render/` — design-reference goldens (PNG + palette/geometry notes) diffed
   against the Ink render by eye.
 
-The implementable spec is the real Ink kit in `src/components/mercury-ui/` —
+The implementable spec is the real Ink kit in `src/screen/widgets/` —
 and the live baseline above is the proof of what actually renders.

@@ -5,8 +5,8 @@ fn main() {
         "policy.mjs",
         "../../package.json",
         "../../scripts/release/launcherTemplates.mjs",
-        "../../src/main.tsx",
-        "../../src/entrypoints/cli.tsx",
+        "../../src/boot/main.tsx",
+        "../../src/boot/entrypoints/cli.tsx",
     ] {
         println!("cargo:rerun-if-changed={path}");
     }
