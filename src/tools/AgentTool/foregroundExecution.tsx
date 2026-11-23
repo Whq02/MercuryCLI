@@ -192,6 +192,7 @@ export async function runForegroundAgentExecution(
   }
 
   let foregroundTask: ForegroundTaskHandle | undefined
+  let backgroundedSignal: Promise<typeof BACKGROUNDED> | undefined
   let turnAbortedSignal: Promise<typeof TURN_ABORTED> | undefined
   let removeTurnAbortListener: (() => void) | undefined
 
@@ -209,6 +210,9 @@ export async function runForegroundAgentExecution(
     if (name !== undefined) {
       registerAgentName(name, syncAgentId, rootSetAppState)
     }
+    backgroundedSignal = foregroundTask.backgroundSignal.then(
+      (): typeof BACKGROUNDED => BACKGROUNDED,
+    )
     const parentSignal = toolUseContext.abortController.signal
     turnAbortedSignal = new Promise<typeof TURN_ABORTED>(resolve => {
       if (parentSignal.aborted) {
@@ -283,12 +287,16 @@ export async function runForegroundAgentExecution(
       const nextPromise = agentIterator.next()
       let step: IteratorResult<Message, void>
 
-      if (foregroundTask !== undefined && turnAbortedSignal !== undefined) {
-        const winner = await Promise.race([
-          nextPromise,
-          foregroundTask.backgroundSignal.then(() => BACKGROUNDED),
-          turnAbortedSignal,
-        ])
+      if (
+        foregroundTask !== undefined &&
+        (backgroundedSignal !== undefined || turnAbortedSignal !== undefined)
+      ) {
+        const racers: Promise<
+          IteratorResult<Message, void> | typeof BACKGROUNDED | typeof TURN_ABORTED
+        >[] = [nextPromise]
+        if (backgroundedSignal !== undefined) racers.push(backgroundedSignal)
+        if (turnAbortedSignal !== undefined) racers.push(turnAbortedSignal)
+        const winner = await Promise.race(racers)
         if (winner === TURN_ABORTED || winner === BACKGROUNDED) {
           const handedByTurnAbort = winner === TURN_ABORTED
           if (handedByTurnAbort) {
@@ -309,7 +317,6 @@ export async function runForegroundAgentExecution(
                   description,
                   metadata,
                   agentIterator,
-                  backgrounded,
                   foregroundTask,
                   agentStartTime,
                   cleanupWorktreeIfNeeded,
@@ -336,6 +343,11 @@ export async function runForegroundAgentExecution(
               task,
               detached,
             })
+          }
+          if (handedByTurnAbort) {
+            turnAbortedSignal = undefined
+          } else {
+            backgroundedSignal = undefined
           }
           step = await nextPromise
         } else {
@@ -551,8 +563,8 @@ async function runDetachedContinuation(
     stopForegroundSummarization,
     syncAgentId,
   } = needs
-  const taskId = foregroundTask?.taskId ?? String(syncAgentId)
-  const registration = foregroundTask?.abortController
+  const taskId = foregroundTask.taskId
+  const registration = foregroundTask.abortController
 
   const consumeMessage = (message: Message): void => {
     agentMessages.push(message)
@@ -597,7 +609,7 @@ async function runDetachedContinuation(
       failAsyncAgent(taskId, declined.error, rootSetAppState, registration, {
         settleFrame: !notifies,
       })
-      if (overload !== null && registration !== undefined) {
+      if (overload !== null) {
         armOverloadProbe({
           taskId,
           description,
@@ -612,7 +624,7 @@ async function runDetachedContinuation(
     } else {
       closeOverloadEpisode(taskId)
       completeAgentTask(
-        { agentId: taskId, ...finalized },
+        { ...finalized, agentId: taskId },
         rootSetAppState,
         registration,
         {
@@ -701,7 +713,7 @@ async function runDetachedContinuation(
       durationMs: usage.durationMs,
     }
     if (error instanceof AbortError) {
-      const stopReason = agentStopReasonOf(registration?.signal.reason)
+      const stopReason = agentStopReasonOf(registration.signal.reason)
       killAsyncAgent(taskId, rootSetAppState, stopReason, registration)
       closeOverloadEpisode(taskId)
       const worktreeResult = await cleanupWorktreeIfNeeded()
@@ -777,7 +789,7 @@ async function runDetachedContinuation(
         ...(envelopeBlock !== undefined ? { envelopeBlock } : {}),
       })
     }
-    if (overload !== null && registration !== undefined) {
+    if (overload !== null) {
       armOverloadProbe({
         taskId,
         description,
@@ -788,7 +800,7 @@ async function runDetachedContinuation(
         pause: overload.pause,
         afterDeath: true,
       })
-    } else if (budgetCut !== null && registration !== undefined) {
+    } else if (budgetCut !== null) {
       const delayMs = budgetCutResumeDelayMs(budgetCut)
       armBudgetCutResume({
         taskId,
@@ -885,8 +897,8 @@ type ForegroundTaskHandle = { taskId: string; abortController: AbortController; 
 
 type DetachedNeeds = {
   agentMessages: Message[]; toolUseContext: ToolUseContext; tracker: ReturnType<typeof createProgressTracker>; resolveActivity: ReturnType<typeof createActivityDescriptionResolver>
-  rootSetAppState: SetAppState; description: string; metadata: ForegroundAgentMetadata; agentIterator: ReturnType<typeof runAgent>; backgrounded: boolean
-  foregroundTask: ForegroundTaskHandle | undefined; agentStartTime: number; cleanupWorktreeIfNeeded: () => Promise<WorktreeFields>; stopForegroundSummarization: () => void; syncAgentId: AgentId
+  rootSetAppState: SetAppState; description: string; metadata: ForegroundAgentMetadata; agentIterator: ReturnType<typeof runAgent>
+  foregroundTask: ForegroundTaskHandle; agentStartTime: number; cleanupWorktreeIfNeeded: () => Promise<WorktreeFields>; stopForegroundSummarization: () => void; syncAgentId: AgentId
 }
 
 type SeatSettledNeeds = {
