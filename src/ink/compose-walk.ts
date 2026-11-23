@@ -17,7 +17,6 @@ import { widestLine } from './widest-line.js'
 import wrapText, { truncateParts } from './wrap-text.js'
 import { passedOver } from '../utils/passedOver.js'
 import { hostEnv } from '../utils/hostEnv.js'
-import { notBuilt } from '../pi/holes.js'
 
 
 export type ScrollHint = { delta: number; top: number; bottom: number }
@@ -475,7 +474,45 @@ function ownWithin(own: Own | undefined, clipsAcross: boolean, clipsDown: boolea
 type PaintedExtent = { width: number; height: number }
 
 function reachBeyond(node: FrameNode, x: number, y: number, width: number, height: number, leafPainted?: PaintedExtent): Rectangle | undefined {
-  return notBuilt('src/ink/compose-walk.ts:499')
+  if (node.nodeName !== 'ink-box') {
+    if (leafPainted === undefined) return undefined
+    if (leafPainted.width > width || leafPainted.height > height) {
+      return {
+        x,
+        y,
+        width: Math.max(width, leafPainted.width),
+        height: Math.max(height, leafPainted.height),
+      }
+    }
+    return undefined
+  }
+  const clipsAcross = clipping(node.style.overflowX ?? node.style.overflow)
+  const clipsDown = clipping(node.style.overflowY ?? node.style.overflow)
+  if (clipsAcross && clipsDown) return undefined
+  let left = x
+  let top = y
+  let right = x + width
+  let bottom = y + height
+  for (const entry of node.childNodes) {
+    if (entry.nodeName === '#text') continue
+    const child = entry as FrameNode
+    if (child.style.position === 'absolute') continue
+    const cached = nodeCache.get(child)
+    if (cached === undefined) continue
+    const rect = cached.reach ?? cached
+    if (!clipsAcross) {
+      left = Math.min(left, rect.x)
+      right = Math.max(right, rect.x + rect.width)
+    }
+    if (!clipsDown) {
+      top = Math.min(top, rect.y)
+      bottom = Math.max(bottom, rect.y + rect.height)
+    }
+  }
+  if (left < x || top < y || right > x + width || bottom > y + height) {
+    return { x: left, y: top, width: right - left, height: bottom - top }
+  }
+  return undefined
 }
 
 const reachMoves = (child: FrameNode): boolean => child.dirty && child.style.position !== 'absolute' && nodeCache.get(child)?.reach !== undefined
@@ -572,8 +609,434 @@ function fillGround(buffer: ComposeBuffer, x: number, y: number, columns: number
   buffer.fill(x, y, columns, rows, bg ? applyTextStyles(' ', { backgroundColor: bg }) : undefined)
 }
 
+function scrollStepSize(remaining: number, ruleHeight: number): number {
+  const cap = Math.max(1, ruleHeight - 1)
+  if (hostIsXtermJs()) {
+    const snap = Math.max(0, remaining - SCROLL_BACKLOG_CAP)
+    const tail = remaining - snap
+    const step = tail <= SCROLL_SNAP_BELOW ? tail : tail < SCROLL_BACKLOG_HIGH ? SCROLL_STEP_MEDIUM : SCROLL_STEP_FAST
+    return Math.min(cap, snap + step)
+  }
+  const desired = Math.min(cap, Math.max(SCROLL_FLOOR_PER_FRAME, Math.floor((remaining * 3) / 4)))
+  return Math.min(remaining, desired)
+}
+
+function findScrollContent(node: FrameNode): FrameNode | undefined {
+  for (const entry of node.childNodes) {
+    if (entry.nodeName !== '#text' && (entry as FrameNode).layoutNode !== undefined) {
+      return entry as FrameNode
+    }
+  }
+  return undefined
+}
+
+function resolveScrollAnchor(node: FrameNode, el: FrameNode, offset: number): number | undefined {
+  const firstChild = node.childNodes[0]
+  if (firstChild === undefined) return undefined
+  let cur: FrameNode | undefined = el
+  let sum = 0
+  let steps = 0
+  while (cur !== undefined && cur !== firstChild && steps < 100) {
+    if (cur === node || !cur.layoutNode) return undefined
+    sum += cur.layoutNode.getComputedTop()
+    cur = cur.parentNode
+    steps++
+  }
+  if (cur !== firstChild || !Number.isFinite(sum)) return undefined
+  return sum + offset
+}
+
+function resolveScrollPosition(node: FrameNode, walk: Walk, isNested: boolean, content: FrameNode | undefined, clipTop: number, clipBottom: number, paddingTop: number, paddingBottom: number): { viewportHeight: number; contentHeight: number; paintedTop: number } {
+  const viewportHeight = Math.max(0, clipBottom - clipTop - paddingTop - paddingBottom)
+  const contentHeight = content?.layoutNode ? content.layoutNode.getComputedHeight() : 0
+  const scroll = (node.scroll ??= {})
+  const prevContentHeight = scroll.scrollHeight ?? contentHeight
+  const prevViewportHeight = scroll.scrollViewportHeight ?? viewportHeight
+  scroll.scrollHeight = contentHeight
+  scroll.scrollViewportHeight = viewportHeight
+  scroll.scrollViewportTop = clipTop + paddingTop
+  const maxScroll = Math.max(0, contentHeight - viewportHeight)
+  const prevMaxScroll = Math.max(0, prevContentHeight - prevViewportHeight)
+  const contentShrank = contentHeight < prevContentHeight
+  fluxMark('scroll:compose', contentHeight * 100_000 + (scroll.scrollTop ?? 0))
+
+  let anchorApplied = false
+  if (scroll.scrollAnchor !== undefined) {
+    const { el, offset } = scroll.scrollAnchor
+    scroll.scrollAnchor = undefined
+    const anchoredTop = resolveScrollAnchor(node, el, offset)
+    if (anchoredTop !== undefined) {
+      scroll.scrollTop = anchoredTop
+      scroll.pendingScrollDelta = undefined
+      anchorApplied = true
+    }
+  }
+
+  const sticky = scroll.stickyScroll !== undefined ? scroll.stickyScroll : Boolean(node.attributes['stickyScroll'])
+  const atPrevBottom = (scroll.scrollTop ?? 0) >= prevMaxScroll && scroll.lastStableAtBottom !== false
+  const restingAtBottom = !anchorApplied && !contentShrank && atPrevBottom
+  if ((sticky || restingAtBottom) && (scroll.pendingScrollDelta ?? 0) >= 0) {
+    scroll.scrollTop = maxScroll
+    scroll.pendingScrollDelta = undefined
+    if (scroll.stickyScroll === false && atPrevBottom) {
+      scroll.stickyScroll = true
+      fluxMark('scroll:restick', viewportHeight)
+    }
+  }
+
+  if (scroll.pendingScrollDelta !== undefined) {
+    const pending = scroll.pendingScrollDelta
+    if (pending === 0) {
+      scroll.pendingScrollDelta = undefined
+    } else {
+      const pos = scroll.scrollTop ?? 0
+      const pastClamp =
+        scroll.scrollClampMin !== undefined &&
+        scroll.scrollClampMax !== undefined &&
+        ((pending < 0 && pos < scroll.scrollClampMin) || (pending > 0 && pos > scroll.scrollClampMax))
+      const ruleHeight = pastClamp ? Math.min(4, Math.floor(viewportHeight / 8)) : viewportHeight
+      const sign = pending > 0 ? 1 : -1
+      const abs = Math.abs(pending)
+      const step = scrollStepSize(abs, ruleHeight)
+      scroll.scrollTop = pos + sign * step
+      const left = abs - step
+      scroll.pendingScrollDelta = left > 0 ? sign * left : undefined
+    }
+  }
+
+  const wanted = scroll.scrollTop ?? 0
+  const held = Math.max(0, Math.min(wanted, maxScroll))
+  if (held !== wanted) scroll.pendingScrollDelta = undefined
+  scroll.scrollTop = contentShrank && wanted > maxScroll ? Math.max(0, wanted) : held
+  if (!contentShrank && maxScroll > 0) {
+    const atBottom = held === maxScroll
+    if (scroll.lastStableAtBottom !== atBottom) {
+      scroll.lastStableAtBottom = atBottom
+      fluxMark('scroll:bit', atBottom ? 1 : 0)
+    }
+  }
+  let paintedTop = held
+  if (scroll.scrollClampMin !== undefined && scroll.scrollClampMax !== undefined) {
+    paintedTop = Math.max(scroll.scrollClampMin, Math.min(paintedTop, scroll.scrollClampMax))
+  }
+  const clampGap = paintedTop - held
+  const prevClampGap = scroll.scrollClampGapPrev ?? 0
+  if (!isNested && (scroll.pendingScrollDelta !== undefined || (clampGap !== 0 && clampGap !== prevClampGap))) {
+    walk.signals.scrollDrainNode = node
+  }
+  scroll.scrollClampGapPrev = clampGap
+  return { viewportHeight, contentHeight, paintedTop }
+}
+
+function isScrollPlanSafe(content: FrameNode, walk: Walk, anyRemovedChild: boolean, isNested: boolean, leftCol: number, colWidth: number, planTop: number, planBottom: number, delta: number, contentLeft: number, contentTop: number, contentHeight: number, contentCached: CachedLayout): boolean {
+  if (anyRemovedChild) return false
+  if (rectsOverlap(leftCol, planTop, colWidth, planBottom - planTop + 1, walk.invalidRects)) return false
+  if (isNested || hasNestedScroll(content)) return false
+  if (hasReachingChild(content)) return false
+  if (content.dirty) {
+    for (const entry of content.childNodes) {
+      if (entry.nodeName === '#text') continue
+      const child = entry as FrameNode
+      if (child.dirty && child.layoutNode) {
+        setChildReach(content, child, childStillReaches(child, contentLeft + child.layoutNode.getComputedLeft(), contentTop + child.layoutNode.getComputedTop(), walk.buffer.width))
+      }
+    }
+    if (hasReachingChild(content)) return false
+  }
+  const heightOk =
+    contentHeight === contentCached.height ||
+    (delta > 0 && contentHeight - contentCached.height === delta)
+  if (!heightOk) return false
+  let firstChecked = false
+  let lastChild: FrameNode | undefined
+  let lastCached: CachedLayout | undefined
+  for (const entry of content.childNodes) {
+    if (entry.nodeName === '#text') continue
+    const child = entry as FrameNode
+    const layout = child.layoutNode
+    if (!layout || layout.getDisplay() === LayoutDisplay.None) {
+      if (nodeCache.get(child) !== undefined) return false
+      continue
+    }
+    const childCached = nodeCache.get(child)
+    if (childCached === undefined) continue
+    if (!firstChecked) {
+      firstChecked = true
+      if (Math.floor(childCached.y) - delta !== Math.floor(contentTop + layout.getComputedTop())) return false
+    }
+    lastChild = child
+    lastCached = childCached
+  }
+  if (lastChild !== undefined && lastCached !== undefined) {
+    if (Math.floor(lastCached.y) - delta !== Math.floor(contentTop + lastChild.layoutNode!.getComputedTop())) {
+      return false
+    }
+  }
+  return true
+}
+
+function paintScrollFastPath(content: FrameNode, walk: Walk, prevScreen: Screen, rowPlan: ScrollHint | null, blockPlan: RectShift | null, leftCol: number, colWidth: number, contentLeft: number, contentTop: number, bandTop: number, bandBottom: number, uniformBg: Color | undefined): void {
+  const planTop = rowPlan ? rowPlan.top : blockPlan!.top
+  const planBottom = rowPlan ? rowPlan.bottom : blockPlan!.bottom
+  const planDelta = rowPlan ? rowPlan.delta : blockPlan!.delta
+  const planFloor = planBottom + 1
+  const planHeight = planFloor - planTop
+  walk.buffer.blit(prevScreen, leftCol, planTop, colWidth, planHeight)
+  if (rowPlan !== null) {
+    walk.buffer.shift(rowPlan.top, rowPlan.bottom, rowPlan.delta)
+  } else {
+    walk.buffer.shiftRect(blockPlan!.top, blockPlan!.bottom, blockPlan!.x0, blockPlan!.x1, blockPlan!.delta)
+  }
+  shiftScrolledChildrenCache(content, planTop, planFloor, planDelta)
+  const incomingTop = planDelta > 0 ? planBottom - planDelta + 1 : planTop
+  const incomingBottom = planDelta > 0 ? planBottom : planTop - planDelta - 1
+  const incomingFloor = incomingBottom + 1
+  if (content.dirty) {
+    const dirtyChildren = new Set<FrameNode['childNodes'][number]>()
+    for (const entry of content.childNodes) {
+      if (entry.nodeName !== '#text' && (entry as FrameNode).dirty) dirtyChildren.add(entry)
+    }
+    repairStableRows(content, walk, dirtyChildren, contentLeft, contentTop, bandTop, bandBottom, incomingTop, incomingBottom, planTop, planFloor, leftCol, colWidth, uniformBg)
+  }
+  const incomingHeight = incomingFloor - incomingTop
+  walk.buffer.clear({ x: leftCol, y: incomingTop, width: colWidth, height: incomingHeight })
+  if (uniformBg !== undefined) {
+    fillGround(walk.buffer, leftCol, incomingTop, colWidth, incomingHeight, uniformBg)
+  }
+  walk.buffer.clip({ x1: undefined, x2: undefined, y1: incomingTop, y2: incomingFloor })
+  composeScrolledChildren(content, walk, contentLeft, contentTop, false, undefined, incomingTop - contentTop, incomingFloor - contentTop, uniformBg, true)
+  walk.buffer.unclip()
+
+  const repairSpans: RowSpan[] = []
+  const boxRight = leftCol + colWidth
+  for (const prevAbs of walk.prevAbsoluteRects) {
+    const absLeft = Math.floor(prevAbs.x)
+    const absRight = Math.ceil(prevAbs.x + prevAbs.width)
+    const absTop = Math.floor(prevAbs.y)
+    const absBottom = Math.ceil(prevAbs.y + prevAbs.height)
+    if (absLeft >= boxRight || absRight <= leftCol || absTop >= planFloor || absBottom <= planTop) continue
+    const spanTop = Math.max(planTop, absTop - planDelta)
+    const spanBottom = Math.min(planFloor, absBottom - planDelta)
+    if (spanTop >= spanBottom) continue
+    if (spanTop >= incomingTop && spanBottom <= incomingFloor) continue
+    repairSpans.push({ top: spanTop, bottom: spanBottom })
+  }
+  for (const span of joinedRowSpans(repairSpans)) {
+    fillGround(walk.buffer, leftCol, span.top, colWidth, span.bottom - span.top, uniformBg)
+    walk.buffer.clip({ x1: undefined, x2: undefined, y1: span.top, y2: span.bottom })
+    composeScrolledChildren(content, walk, contentLeft, contentTop, false, undefined, span.top - contentTop, span.bottom - contentTop, uniformBg, true)
+    walk.buffer.unclip()
+  }
+}
+
+function composeScrollBox(node: FrameNode, walk: Walk, prevScreen: Screen | undefined, x: number, y: number, width: number, height: number, layoutNode: LayoutNode, hasRemovedChild: boolean, clipTop: number, clipBottom: number, ownBg: Color | undefined, uniformBg: Color | undefined, rowSampler: RowGround | undefined, childOwn: Own, boxSameRect: boolean): void {
+  const isNested = walk.scrollDepth > 0
+  if (isNested) walk.sawInnerScroll = true
+  const effectivePrevScreen = isNested ? undefined : prevScreen
+  const content = findScrollContent(node)
+  const paddingTop = layoutNode.getComputedPadding(LayoutEdge.Top)
+  const paddingBottom = layoutNode.getComputedPadding(LayoutEdge.Bottom)
+  const { viewportHeight, contentHeight, paintedTop } = resolveScrollPosition(node, walk, isNested, content, clipTop, clipBottom, paddingTop, paddingBottom)
+  if (!content || !content.layoutNode) return
+
+  const contentVacated = vacatedRects(content)
+  if (contentVacated !== undefined) {
+    for (const rect of contentVacated) walk.buffer.clear(floorRect(rect))
+  }
+  const contentRemoved = consumeChildRemoved(content)
+  const anyRemovedChild = contentRemoved || hasRemovedChild || contentVacated !== undefined
+  const contentLayout = content.layoutNode
+  const contentLeft = x + contentLayout.getComputedLeft()
+  const contentTop = y + contentLayout.getComputedTop() - paintedTop
+  const bandTop = paintedTop - paddingTop
+  const bandBottom = paintedTop + viewportHeight + paddingBottom
+
+  const contentCached = nodeCache.get(content)
+  const contentMoved = contentCached !== undefined && contentCached.y !== contentTop
+  const leftCol = Math.floor(x)
+  const colWidth = Math.floor(width)
+  let rowPlan: ScrollHint | null = null
+  let blockPlan: RectShift | null = null
+
+  if (!isNested && contentMoved) {
+    const delta = contentCached.y - contentTop
+    const regionTop = Math.floor(y + contentLayout.getComputedTop() - paddingTop)
+    const regionBottom = regionTop + paddingTop + viewportHeight + paddingBottom - 1
+    walk.signals.scrollTranslation = { delta, viewportTop: regionTop, viewportBottom: regionBottom }
+    if (delta > 0) fluxMark('scroll:follow', viewportHeight)
+    fluxMark('scroll:xlate', regionTop * 1000 + delta + 500)
+
+    if (rowSampler === undefined) {
+      const steady = boxSameRect && viewportHeight > 0 && Math.abs(delta) < viewportHeight
+      if (steady) {
+        const fullWidth = leftCol <= 0 && Math.ceil(x + width) >= walk.buffer.width
+        if (fullWidth && walk.regionScrollUsable) {
+          rowPlan = { top: regionTop, bottom: regionBottom, delta }
+          walk.signals.scrollHint = rowPlan
+        } else {
+          blockPlan = { top: regionTop, bottom: regionBottom, delta, x0: leftCol, x1: leftCol + colWidth }
+        }
+      } else {
+        walk.signals.markLayoutShift(() => `scroll-no-hint:${node.nodeName}`)
+      }
+    }
+
+    if (rowPlan !== null || blockPlan !== null) {
+      const planTop = rowPlan ? rowPlan.top : blockPlan!.top
+      const planBottom = rowPlan ? rowPlan.bottom : blockPlan!.bottom
+      const safe = isScrollPlanSafe(content, walk, anyRemovedChild, isNested, leftCol, colWidth, planTop, planBottom, delta, contentLeft, contentTop, contentHeight, contentCached)
+      if (!safe) {
+        if (blockPlan !== null) {
+          walk.signals.markLayoutShift(() => `scroll-rect-unsafe:${node.nodeName}`)
+        }
+        walk.signals.scrollHint = null
+        rowPlan = null
+        blockPlan = null
+      }
+    }
+  }
+
+  const prevSawInnerScroll = walk.sawInnerScroll
+  walk.scrollDepth++
+  if (!isNested) walk.sawInnerScroll = false
+  try {
+    if ((rowPlan !== null || blockPlan !== null) && effectivePrevScreen !== undefined) {
+      paintScrollFastPath(content, walk, effectivePrevScreen, rowPlan, blockPlan, leftCol, colWidth, contentLeft, contentTop, bandTop, bandBottom, uniformBg)
+    } else {
+      const offerScreen =
+        rowSampler === undefined && !contentMoved && boxSameRect && !hasNestedScroll(content)
+          ? effectivePrevScreen
+          : undefined
+      const viewTop = Math.floor(clipTop)
+      const clipRows = Math.floor(clipBottom - clipTop)
+      if (contentMoved) {
+        walk.buffer.clear({ x: leftCol, y: viewTop, width: colWidth, height: clipRows })
+      }
+      if (colWidth > 0 && clipRows > 0) {
+        if (rowSampler !== undefined) {
+          for (let r = 0; r < clipRows; r++) {
+            fillGround(walk.buffer, leftCol, viewTop + r, colWidth, 1, rowSampler(viewTop + r))
+          }
+        } else if (
+          uniformBg !== undefined &&
+          (contentMoved || contentCached === undefined || offerScreen === undefined || ownBg !== undefined)
+        ) {
+          fillGround(walk.buffer, leftCol, viewTop, colWidth, clipRows, uniformBg)
+        }
+      }
+      composeScrolledChildren(content, walk, contentLeft, contentTop, anyRemovedChild, offerScreen, bandTop, bandBottom, uniformBg, false, rowSampler, childOwn)
+    }
+  } finally {
+    walk.scrollDepth--
+    if (!isNested) {
+      setHasNestedScroll(content, walk.sawInnerScroll)
+      walk.sawInnerScroll = prevSawInnerScroll
+    }
+  }
+
+  nodeCache.set(content, {
+    x: contentLeft,
+    y: contentTop,
+    width: contentLayout.getComputedWidth(),
+    height: contentHeight,
+  })
+  settle(content)
+}
+
 function composeBox(node: FrameNode, walk: Walk, placement: Placement, x: number, y: number, width: number, height: number, layoutNode: LayoutNode, hasRemovedChild: boolean): void {
-  return notBuilt('src/ink/compose-walk.ts:624')
+  const ownBg: Color | undefined = node.style.backgroundColor
+  const ownRowBg: RowGround | undefined = node.style.fillRowBg
+  const rowSampler: RowGround | undefined = ownBg !== undefined ? undefined : (ownRowBg ?? placement.inheritedRowBg)
+  const uniformBg: Color | undefined = ownBg ?? (rowSampler !== undefined ? undefined : placement.inheritedBackgroundColor)
+
+  if (node.style.noSelect) {
+    if (node.style.noSelect === 'from-left-edge') {
+      walk.buffer.noSelect({
+        x: 0,
+        y: Math.floor(y),
+        width: Math.floor(x) + Math.floor(width),
+        height: Math.floor(height),
+      })
+    } else {
+      walk.buffer.noSelect({
+        x: Math.floor(x),
+        y: Math.floor(y),
+        width: Math.floor(width),
+        height: Math.floor(height),
+      })
+    }
+  }
+
+  const overflowX = node.style.overflowX ?? node.style.overflow
+  const overflowY = node.style.overflowY ?? node.style.overflow
+  const clipsAcross = clipping(overflowX)
+  const clipsDown = clipping(overflowY)
+  const borderLeft = layoutNode.getComputedBorder(LayoutEdge.Left)
+  const borderRight = layoutNode.getComputedBorder(LayoutEdge.Right)
+  const borderTop = layoutNode.getComputedBorder(LayoutEdge.Top)
+  const borderBottom = layoutNode.getComputedBorder(LayoutEdge.Bottom)
+  const clipTop = y + borderTop
+  const clipBottom = y + height - borderBottom
+  let clipped = false
+  if (clipsAcross || clipsDown) {
+    walk.buffer.clip({
+      x1: clipsAcross ? x + borderLeft : undefined,
+      x2: clipsAcross ? x + width - borderRight : undefined,
+      y1: clipsDown ? clipTop : undefined,
+      y2: clipsDown ? clipBottom : undefined,
+    })
+    clipped = true
+  }
+
+  const prevOwnBg = node.__prevOwnBg
+  const prevUniformBg = node.__prevUniformBg
+  const prevOpaque = node.__prevOpaque
+  const prevOwnRowBg = node.__prevOwnRowBg
+  const prevRowSampler = node.__prevRowSampler
+  const isOpaque = node.style.opaque === true
+  const hasOwnRowBg = ownRowBg !== undefined
+  const hasRowSampler = rowSampler !== undefined
+  node.__prevOwnBg = ownBg
+  node.__prevUniformBg = uniformBg
+  node.__prevOpaque = isOpaque
+  node.__prevOwnRowBg = hasOwnRowBg
+  node.__prevRowSampler = hasRowSampler
+
+  const fillRemoved =
+    (prevOwnBg !== undefined && ownBg === undefined) ||
+    (prevOpaque === true && !isOpaque) ||
+    (prevOwnRowBg === true && !hasOwnRowBg)
+
+  const cached = nodeCache.get(node)
+  const sameRect =
+    cached !== undefined &&
+    cached.x === x &&
+    cached.y === y &&
+    cached.width === width &&
+    cached.height === height
+  const childOwn = ownWithin(placement.own, clipsAcross, clipsDown, x, y, width, height)
+
+  if (overflowY !== 'scroll') {
+    const shouldFill = ownBg !== undefined || isOpaque || hasOwnRowBg || fillRemoved
+    if (shouldFill) {
+      fillInterior(walk, layoutNode, x, y, width, height, ownBg, rowSampler, placement.inheritedBackgroundColor)
+    }
+    const fillUnchanged =
+      cached !== undefined &&
+      !fillRemoved &&
+      uniformBg === prevUniformBg &&
+      isOpaque === prevOpaque &&
+      !hasRowSampler &&
+      !prevRowSampler
+    const childPrevScreen = sameRect && (!shouldFill || fillUnchanged) ? placement.prevScreen : undefined
+    composeChildren(node, walk, x, y, hasRemovedChild, childPrevScreen, uniformBg, rowSampler, childOwn)
+  } else {
+    const scrollPrevScreen = ownBg !== prevOwnBg ? undefined : placement.prevScreen
+    composeScrollBox(node, walk, scrollPrevScreen, x, y, width, height, layoutNode, hasRemovedChild, clipTop, clipBottom, ownBg, uniformBg, rowSampler, childOwn, sameRect)
+  }
+
+  if (clipped) walk.buffer.unclip()
+  renderBorder(x, y, node, walk.buffer, uniformBg)
 }
 
 function fillInterior(walk: Walk, layoutNode: LayoutNode, x: number, y: number, width: number, height: number, ownBackgroundColor: Color | undefined, rowSampler: RowGround | undefined, inheritedBackgroundColor: Color | undefined): void {
