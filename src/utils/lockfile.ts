@@ -1,18 +1,24 @@
 import type { CheckOptions, LockOptions, UnlockOptions } from 'proper-lockfile'
-import { notBuilt } from '../pi/holes.js'
+
+type Lockfile = typeof import('proper-lockfile')
+let cached: Lockfile | null = null
+
+function getLockfile(): Lockfile {
+  return cached ??= require('proper-lockfile') as Lockfile
+}
 
 export function lock(file: string, options?: LockOptions): Promise<() => Promise<void>> {
-  return notBuilt('src/utils/lockfile.ts:14')
+  return getLockfile().lock(file, options)
 }
 
 export function lockSync(file: string, options?: LockOptions): () => void {
-  return notBuilt('src/utils/lockfile.ts:18')
+  return getLockfile().lockSync(file, options)
 }
 
 export function unlock(file: string, options?: UnlockOptions): Promise<void> {
-  return notBuilt('src/utils/lockfile.ts:22')
+  return getLockfile().unlock(file, options)
 }
 
 export function check(file: string, options?: CheckOptions): Promise<boolean> {
-  return notBuilt('src/utils/lockfile.ts:26')
+  return getLockfile().check(file, options)
 }
