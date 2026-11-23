@@ -453,6 +453,8 @@ export interface EngineConnectorV1 extends EmptyDetailControlMethods {
   records(): readonly Message[]
   subscribeRecords(listener: () => void): () => void
   turnActive(): boolean
+  addDisplayRow?(row: Message): void
+  transcriptFile?(): string
 
   asks(): readonly SessionAskV1[]
   subscribeAsks(listener: () => void): () => void

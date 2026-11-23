@@ -40,7 +40,6 @@ import { getCurrentWorktreeSession } from '../../services/worktree.js';
 import type { CrashResumeStaged } from './crashResume.js';
 import type { FocusedInputDialog } from './focusedDialog.js';
 import { RECEIPT_TIMEOUT_MS } from './limits.js';
-import type { PaintsRows } from './sessionShapes.js';
 import { passedOver } from '../../utils/passedOver.js';
 import { startTimeout, stopTimeout } from '../../utils/timers.js';
 
@@ -233,8 +232,7 @@ export function useChatBootNotices({
   useClaim(() => {
     const paintDegradation = (): void => {
       try {
-        const focused = getFocusedSessionConnector() as PaintsRows;
-        const fact = transcriptLoadDegradation(typeof focused.transcriptFile === 'function' ? focused.transcriptFile() : undefined);
+        const fact = transcriptLoadDegradation(getFocusedSessionConnector().transcriptFile?.());
         if (!fact) {
           removeNotification('transcript-degraded');
           return;

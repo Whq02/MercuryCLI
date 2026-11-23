@@ -21,7 +21,7 @@ import { transcriptMessageIndex } from '../../utils/sessionStorage/materialize.j
 import type { FocusedInputDialog } from './focusedDialog.js';
 import { RECEIPT_TIMEOUT_MS } from './limits.js';
 import type { Screen } from './screen.js';
-import type { PaintsRows, ResumableLog } from './sessionShapes.js';
+import type { ResumableLog } from './sessionShapes.js';
 
 const REWIND_SETTLE_WAIT_MS = 5000;
 const MESSAGE_ACTION_UUID_PREFIX = 24;
@@ -181,8 +181,7 @@ export function useChatSelectorView({
         }}
         onRerun={async message => {
           if (isLoadingRef.current) return { ok: false as const, reason: 'a run is in flight — esc to interrupt it first' };
-          const focused = getFocusedSessionConnector() as PaintsRows;
-          const sourceTranscriptPath = typeof focused.transcriptFile === 'function' ? focused.transcriptFile() : null;
+          const sourceTranscriptPath = getFocusedSessionConnector().transcriptFile?.() ?? null;
           if (!sourceTranscriptPath) return { ok: false as const, reason: 'no transcript file to branch from — the chat owns no session yet' };
           const idx = transcriptMessageIndex(sourceTranscriptPath, message.uuid);
           if (idx === -1) return { ok: false as const, reason: 'that message is not in the committed transcript' };

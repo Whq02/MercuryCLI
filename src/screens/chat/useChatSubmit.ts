@@ -28,7 +28,7 @@ import { createCommandInputMessage, createUserMessage, getUserMessageText } from
 import { formatCommandLoadingMetadata } from '../../services/processUserInput/processSlashCommand.js';
 import { submitTrace } from '../../utils/submitTrace.js';
 import { RECEIPT_TIMEOUT_MS, SWITCH_STATUS_TIMEOUT_MS } from './limits.js';
-import type { PaintsRows, ResumableLog } from './sessionShapes.js';
+import type { ResumableLog } from './sessionShapes.js';
 import { openDialogCommand, queueBehindDialog } from './submit/dialogCommand.js';
 import { followRouteAlias, holdCommandForLanding, readCommandArgs, runLocalCommand } from './submit/screenCommand.js';
 import { holdForLanding, sendToSession } from './submit/sessionSend.js';
@@ -37,8 +37,8 @@ import type { ToolJSXState } from './useChatDialogs.js';
 
 export function useChatReceipts({ addNotification }: { addNotification: ReturnType<typeof useNotifications>['addNotification'] }) {
   const paintScreenRow = useCallback((row: Message, fallbackText: string): void => {
-    const focused = getFocusedSessionConnector() as PaintsRows;
-    if (typeof focused.addDisplayRow === 'function') {
+    const focused = getFocusedSessionConnector();
+    if (focused.addDisplayRow !== undefined) {
       focused.addDisplayRow(row);
       return;
     }
@@ -162,8 +162,8 @@ export function useChatSubmitTools({ store, setAppState, addNotification, remove
   resumeRef.current = resume;
 
   const paintScreenCommandReceipt = useCallback((commandName: string, args: string, text: string, timestamp = new Date().toISOString()): void => {
-    const focused = getFocusedSessionConnector() as PaintsRows;
-    if (typeof focused.addDisplayRow === 'function') {
+    const focused = getFocusedSessionConnector();
+    if (focused.addDisplayRow !== undefined) {
       focused.addDisplayRow({ ...createUserMessage({ content: formatCommandLoadingMetadata(commandName, args) }), timestamp });
       focused.addDisplayRow(createCommandInputMessage(`<${LOCAL_COMMAND_STDOUT_TAG}>${text}</${LOCAL_COMMAND_STDOUT_TAG}>`));
       return;

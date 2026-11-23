@@ -5,7 +5,6 @@ import { haltAll, summarizeHalt } from '../../daemon/haltAll.js'
 import { createCommandInputMessage, createUserMessage } from '../../services/messages.js'
 import { formatCommandLoadingMetadata } from '../../services/processUserInput/processSlashCommand.js'
 import type { LocalCommandResult, LocalJSXCommandCall } from '../../types/command.js'
-import type { Message } from '../../types/message.js'
 import type { ToolUseContext } from '../../Tool.js'
 
 async function haltVerb(context: ToolUseContext): Promise<LocalCommandResult> {
@@ -20,8 +19,8 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
   if (verb === 'halt') {
     const receipt = await haltVerb(context as ToolUseContext)
     const words = receipt.type === 'text' ? receipt.value : ''
-    const chat = getFocusedSessionConnector() as { addDisplayRow?: (row: Message) => void }
-    if (typeof chat.addDisplayRow !== 'function') {
+    const chat = getFocusedSessionConnector()
+    if (chat.addDisplayRow === undefined) {
       onDone(words, { display: 'system' })
       return null
     }

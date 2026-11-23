@@ -6,7 +6,7 @@ import { useExitOnCtrlCD } from '../../hooks/useExitOnCtrlCD.js'
 import { Box, Text } from '../../ink.js'
 import { useKeybinding, useKeybindings } from '../../keybindings/useKeybinding.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
-import type { Message } from '../../types/message.js'
+import type { EngineConnectorV1 } from '../../services/engine-connector/types.js'
 import { PopupCompactContext } from '../../context/popupFormContext.js'
 import { SETTINGS_POPUP_COMPACT_HINT, SETTINGS_POPUP_COMPACT_PAGE_HINT, closeSettingsPopup, settingsPopupHintText, wrapSettingsPopupHint, type SettingsPopupRequest } from '../../utils/cockpit/settingsPopup.js'
 import { estateGroundBg } from '../../utils/mercuryTokens.js'
@@ -49,18 +49,17 @@ export function useSettingsPopupFrameIfAny(): SettingsPopupFrame | null {
 
 const RECEIPT_TIMEOUT_MS = 8000
 
-type PaintsRows = { addDisplayRow?: (row: Message) => void }
 
 export function settingsPopupReceipt(
   view: string,
   summary: string,
   addNotification: (notification: Notification) => void,
-  focused: PaintsRows = getFocusedSessionConnector() as PaintsRows,
+  focused: Pick<EngineConnectorV1, 'addDisplayRow'> = getFocusedSessionConnector(),
 ): 'rows' | 'notification' | 'none' {
   const lines = summary.split(/\r?\n/).filter(line => line.trim() !== '')
   if (lines.length === 0) return 'none'
   if (lines.length > 1) {
-    if (typeof focused.addDisplayRow === 'function') {
+    if (focused.addDisplayRow !== undefined) {
       focused.addDisplayRow(createUserMessage({ content: formatCommandLoadingMetadata(view, '') }))
       focused.addDisplayRow(createCommandInputMessage(`<${LOCAL_COMMAND_STDOUT_TAG}>${summary}</${LOCAL_COMMAND_STDOUT_TAG}>`))
       return 'rows'

@@ -9,7 +9,6 @@ import { CRITTERS, getSessionAccent, getSessionAccentOverride, setSessionAccentO
 import { ThemePicker } from '../../components/ThemePicker.js'
 import { Box, Text, useInput } from '../../ink.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
-import type { Message } from '../../types/message.js'
 import { useSettings } from '../../hooks/useSettings.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import { createCommandInputMessage, createUserMessage } from '../../services/messages.js'
@@ -146,8 +145,8 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
   const words = args.trim().split(/\s+/)
   if (words[0] === 'accent') {
     const receipt = accentReceipt(words.slice(1).join(' '))
-    const chat = getFocusedSessionConnector() as { addDisplayRow?: (row: Message) => void }
-    if (typeof chat.addDisplayRow !== 'function') {
+    const chat = getFocusedSessionConnector()
+    if (chat.addDisplayRow === undefined) {
       onDone(receipt, { display: 'system' })
       return null
     }
