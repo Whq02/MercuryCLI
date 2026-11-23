@@ -142,7 +142,7 @@ function FileStats({
       ) : null}
       {file.isTruncated ? (
         <Text dimColor={!isSelected} color={isSelected ? 'background' : undefined} inverse={isSelected}>
-          {' (truncated)'}
+          {' '}(truncated)
         </Text>
       ) : null}
     </Box>

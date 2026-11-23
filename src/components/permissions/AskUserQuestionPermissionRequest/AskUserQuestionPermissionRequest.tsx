@@ -229,7 +229,7 @@ function attachPastedImage(
   cacheImagePath(pasted)
   void storeImage(pasted).catch(logError)
   attachContext(
-    { refId: `image:${id}`, kind: 'image', label: filename ?? `Image #${id}` },
+    { refId: `image:${id}`, kind: 'image', label: filename ?? 'Pasted image' },
     questionId,
   )
 }
@@ -239,7 +239,10 @@ function attachLargePasteNote(questionId: string, text: string): void {
   void storePastedText(hash, text).catch(logError)
   const numLines = getPastedTextRefNumLines(text)
   const marker = `[Pasted context: ${numLines} lines]`
-  attachContext({ refId: `paste:${hash}`, kind: 'large-paste', label: marker }, questionId)
+  attachContext(
+    { refId: `paste:${hash}`, kind: 'large-paste', label: `Pasted text · ${numLines} lines` },
+    questionId,
+  )
   const existing = interviewSnapshot().questions[questionId]?.note ?? ''
   setNote(questionId, existing ? `${existing} ${marker}` : marker)
 }
