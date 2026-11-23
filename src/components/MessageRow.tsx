@@ -184,7 +184,6 @@ type MessageRowProps = {
 function MessageRowInner({
   message,
   tools,
-  commands,
   lookups,
   screen,
   columns,
@@ -280,7 +279,6 @@ function MessageRowInner({
     <Message
       message={message}
       tools={tools}
-      commands={commands}
       verbose={rowVerbose}
       addMargin={addMargin}
       shouldAnimate={shouldAnimate}
@@ -303,7 +301,6 @@ function MessageRowInner({
   const framed =
     isGroupish || singleToolId !== null ? (
       <Box
-        flexDirection="column"
         borderStyle="single"
         borderTop={false}
         borderRight={false}
