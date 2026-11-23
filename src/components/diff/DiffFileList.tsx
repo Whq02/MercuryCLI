@@ -14,8 +14,8 @@ type Props = {
   selectedIndex: number;
   listRows?: number;
   listWidth?: number;
-  onSelect?: (index: number) => void;
-  onActivate?: (index: number) => void;
+  onSelect?: (filePath: string) => void;
+  onActivate?: (filePath: string) => void;
 };
 
 export function DiffFileList({
@@ -52,8 +52,8 @@ export function DiffFileList({
             file={file}
             isSelected={index === selectedIndex}
             maxPathWidth={maxPathWidth}
-            onSelect={() => onSelect?.(index)}
-            onActivate={() => onActivate?.(index)}
+            onSelect={() => onSelect?.(file.path)}
+            onActivate={() => onActivate?.(file.path)}
           />
         );
       })}
@@ -110,38 +110,47 @@ function FileStats({
 }): React.ReactNode {
   if (file.isUntracked) {
     return (
-      <Text bold={isSelected} color={isSelected ? 'background' : undefined} dimColor={!isSelected} inverse={isSelected}>
-        {' untracked'}
+      <Text italic dimColor={!isSelected} color={isSelected ? 'background' : undefined} inverse={isSelected}>
+        untracked
       </Text>
     );
   }
   if (file.isBinary) {
     return (
-      <Text bold={isSelected} color={isSelected ? 'background' : undefined} dimColor={!isSelected} inverse={isSelected}>
-        {' binary'}
+      <Text italic dimColor={!isSelected} color={isSelected ? 'background' : undefined} inverse={isSelected}>
+        Binary file
       </Text>
     );
   }
   if (file.isLargeFile) {
     return (
-      <Text bold={isSelected} color={isSelected ? 'background' : undefined} dimColor={!isSelected} inverse={isSelected}>
-        {' large'}
+      <Text italic dimColor={!isSelected} color={isSelected ? 'background' : undefined} inverse={isSelected}>
+        Large file modified
       </Text>
     );
   }
-  if (file.linesAdded === 0 && file.linesRemoved === 0) {
-    return null;
-  }
+  const hasAdded = file.linesAdded > 0;
+  const hasRemoved = file.linesRemoved > 0;
   return (
-    <Box flexDirection="row" gap={1}>
-      {file.linesAdded > 0 ? (
+    <Box flexDirection="row">
+      {hasAdded ? (
         <Text bold={isSelected} color={isSelected ? 'background' : 'success'} inverse={isSelected}>
           {`+${file.linesAdded}`}
         </Text>
       ) : null}
-      {file.linesRemoved > 0 ? (
+      {hasAdded && hasRemoved ? (
+        <Text color={isSelected ? 'background' : undefined} inverse={isSelected}>
+          {' '}
+        </Text>
+      ) : null}
+      {hasRemoved ? (
         <Text bold={isSelected} color={isSelected ? 'background' : 'error'} inverse={isSelected}>
           {`-${file.linesRemoved}`}
+        </Text>
+      ) : null}
+      {file.isTruncated ? (
+        <Text dimColor={!isSelected} color={isSelected ? 'background' : undefined} inverse={isSelected}>
+          {' (truncated)'}
         </Text>
       ) : null}
     </Box>
