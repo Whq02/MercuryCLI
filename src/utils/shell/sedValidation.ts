@@ -161,17 +161,20 @@ export function sedCommandIsAllowedByAllowlist(command: string, options?: { allo
     if (token === '-e' || token === '--expression') {
       const expr = tokens[i + 1]
       if (expr === undefined) return false
+      flags.push(token)
       expressions.push(expr)
       hasExpressionFlag = true
       i++
       continue
     }
     if (token.startsWith('--expression=')) {
+      flags.push(token)
       expressions.push(token.slice('--expression='.length))
       hasExpressionFlag = true
       continue
     }
     if (token.startsWith('-e=')) {
+      flags.push(token)
       expressions.push(token.slice('-e='.length))
       hasExpressionFlag = true
       continue
