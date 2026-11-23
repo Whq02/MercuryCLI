@@ -17,7 +17,7 @@ import { applySettingsChange } from '../utils/settings/applySettingsChange.js'
 import { settingsChangeDetector } from '../utils/settings/changeDetector.js'
 import { logForDebugging } from '../utils/debug.js'
 import { MailboxProvider } from '../context/mailbox.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
+import { notBuilt } from '../pi/holes.js'
 
 export {
   getDefaultAppState,
@@ -31,9 +31,9 @@ export type {
   SpeculationState,
 } from './AppStateStore.js'
 
-export const AppStoreContext: Unbuilt = unbuilt('src/state/AppState.tsx:33')
+export const AppStoreContext: React.Context<AppStateStore | null> = React.createContext<AppStateStore | null>(null)
 
-const HasAppStateProviderContext: Unbuilt = unbuilt('src/state/AppState.tsx:35')
+const HasAppStateProviderContext: React.Context<boolean> = React.createContext<boolean>(false)
 
 export function AppStateProvider(arg0: {
   children: React.ReactNode
@@ -43,11 +43,17 @@ export function AppStateProvider(arg0: {
 }
 
 function useStoreOrThrow(): AppStateStore {
-  return notBuilt('src/state/AppState.tsx:95')
+  const store = useContext(AppStoreContext)
+  if (!store) {
+    throw new ReferenceError('useAppState/useSetAppState must be used inside an AppStateProvider')
+  }
+  return store
 }
 
 export function useAppState<Selected>(selector: (state: AppState) => Selected): Selected {
-  return notBuilt('src/state/AppState.tsx:105')
+  const store = useStoreOrThrow()
+  const getSnapshot = () => selector(store.getState())
+  return useSyncExternalStore(store.subscribe, getSnapshot, getSnapshot)
 }
 
 export function useSetAppState(): (updater: (prevState: AppState) => AppState) => void {
@@ -56,7 +62,7 @@ export function useSetAppState(): (updater: (prevState: AppState) => AppState) =
 }
 
 export function useAppStateStore(): AppStateStore {
-  return notBuilt('src/state/AppState.tsx:116')
+  return useStoreOrThrow()
 }
 
 const NOOP_SUBSCRIBE = (): (() => void) => () => {}
@@ -68,5 +74,8 @@ export function useSetAppStateMaybe(): ((updater: (prevState: AppState) => AppSt
 export function useAppStateMaybeOutsideOfProvider<Selected>(
   selector: (state: AppState) => Selected,
 ): Selected | undefined {
-  return notBuilt('src/state/AppState.tsx:127')
+  const store = useContext(AppStoreContext)
+  const subscribe = store ? store.subscribe : NOOP_SUBSCRIBE
+  const getSnapshot = () => (store ? selector(store.getState()) : undefined)
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 }
