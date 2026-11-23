@@ -10,7 +10,8 @@ const t = (name: string, ok: boolean, detail = '', hint = ''): void => {
   if (!ok) fail = 1
 }
 
-const SCAN_ROOTS = ['src/components', 'src/screens', 'src/commands', 'src/screen/keys']
+const SCAN_ROOTS = ['src/screen', 'src/commands', 'src/permissions/cards', 'src/models/sign-in', 'src/models/usage', 'src/boot', 'src/engine/user-input', 'src/tools/crewmate', 'src/tools/edit', 'src/tools/kit', 'src/tools/notebook-edit', 'src/tools/write']
+const NOT_SCANNED = ['src/screen/renderer/', 'src/screen/composer/text-input/useSearchInput.ts', 'src/screen/composer/typeahead/useTypeahead.tsx']
 const SIGNALS: Array<[string, RegExp]> = [
   ['click', /onClick/],
   ['hover', /onMouseEnter/],
@@ -34,9 +35,11 @@ function walk(dir: string, out: string[] = []): string[] {
 const found = new Map<string, string[]>()
 for (const root of SCAN_ROOTS) {
   for (const p of walk(path.join(ROOT, root))) {
+    const file = path.relative(ROOT, p)
+    if (NOT_SCANNED.some(skip => file.startsWith(skip))) continue
     const src = readFileSync(p, 'utf8')
     const sigs = SIGNALS.filter(([, re]) => re.test(src)).map(([n]) => n)
-    if (sigs.length > 0) found.set(path.relative(ROOT, p), sigs)
+    if (sigs.length > 0) found.set(file, sigs)
   }
 }
 

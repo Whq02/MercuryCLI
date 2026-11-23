@@ -67,9 +67,11 @@ try {
   console.log('refusals')
   for (const mode of ['default', 'implement', 'sovereign']) {
     for (const tree of [root, mirror]) {
-      for (const [label, text, rule] of [['hex', color, 'no-new-hex-outside-theme'], ['emoji', emoji, 'no-emoji-in-tui-source']] as const) {
-        const answer = await judge(react, join(tree, 'src', 'components', 'Button.tsx'), text, mode)
-        check(`${mode}: Mercury ${label} is refused from another cwd and through a link`, answer.refused && answer.reason.includes(rule), answer, `the ${rule} ward must refuse edits under the Mercury src/ tree from any cwd and through a link; check isMercurySource in src/permissions/guards/wardsGuard.ts and the ward in src/permissions/wards/wards.ts`)
+      for (const home of [['screen', 'widgets'], ['commands', 'model'], ['permissions', 'cards']]) {
+        for (const [label, text, rule] of [['hex', color, 'no-new-hex-outside-theme'], ['emoji', emoji, 'no-emoji-in-tui-source']] as const) {
+          const answer = await judge(react, join(tree, 'src', ...home, 'Button.tsx'), text, mode)
+          check(`${mode}: Mercury ${label} in src/${home.join('/')} is refused from another cwd and through a link`, answer.refused && answer.reason.includes(rule), answer, `the ${rule} ward must refuse edits under the Mercury src/ tree from any cwd and through a link; check isMercurySource in src/permissions/guards/wardsGuard.ts and the pathPattern of the ward in src/permissions/wards/wards.ts`)
+        }
       }
     }
     const away = await judge(root, join(foreign, 'src', 'components', 'Button.tsx'), color, mode)
@@ -78,8 +80,12 @@ try {
     check(`${mode}: Mercury cwd does not impose its UI rule on an untracked project outside the repo`, !awayUntracked.refused, awayUntracked, 'a file in an untracked project was judged as Mercury source; check the root and src/ prefix test in isMercurySource (src/permissions/guards/wardsGuard.ts)')
     const nested = await judge(root, join(root, 'scratch', 'react', 'src', 'components', 'Button.tsx'), color, mode)
     check(`${mode}: a nested subproject path outside root src/ is not treated as Mercury TUI source`, !nested.refused, nested, 'a nested project path was judged as Mercury source; isMercurySource (src/permissions/guards/wardsGuard.ts) must require the path to lie under the root src/ of the resolved project')
-    const palette = await judge(root, join(root, 'src', 'screen', 'theme', 'mercuryPalette.ts'), color, mode)
-    check(`${mode}: the sanctioned palette still accepts colors`, !palette.refused, palette, 'edits to src/screen/theme/mercuryPalette.ts must stay allowed; check the no-new-hex-outside-theme ward in src/permissions/wards/wards.ts')
+    for (const holder of [['screen', 'theme', 'mercuryPalette.ts'], ['screen', 'widgets', 'sessionAccent.ts'], ['screen', 'spinner', 'ShimmerMessage.tsx'], ['screen', 'spinner', 'SpinnerGlyph.tsx'], ['screen', 'spinner', 'glyphsAndColors.ts'], ['screen', 'renderer', 'New.ts']]) {
+      const palette = await judge(root, join(root, 'src', ...holder), color, mode)
+      check(`${mode}: src/${holder.join('/')} still accepts colors`, !palette.refused, palette, `edits to src/${holder.join('/')} must stay allowed; check the allowPathPattern and the pathPattern of the no-new-hex-outside-theme ward in src/permissions/wards/wards.ts`)
+    }
+    const renderer = await judge(root, join(root, 'src', 'screen', 'renderer', 'New.ts'), emoji, mode)
+    check(`${mode}: the renderer is no TUI source to the emoji ward`, !renderer.refused, renderer, 'edits under src/screen/renderer/ were never guarded; check the pathPattern of the no-emoji-in-tui-source ward in src/permissions/wards/wards.ts')
     const omission = await judge(react, join(react, 'src', 'components', 'Button.tsx'), '// rest of code ...', mode)
     check(`${mode}: the non-UI omission ward still refuses`, omission.refused && omission.reason.includes('no-omission-placeholder'), omission, 'the no-omission-placeholder ward in src/permissions/wards/wards.ts must still refuse in every project, not only in the Mercury source tree')
     const customRule = await judge(react, join(react, 'src', 'components', 'Button.tsx'), 'export const x = "LEGACY_BUTTON_TOKEN"\n', mode)
@@ -96,7 +102,7 @@ try {
     const ownTree = project(`own-${mode}`, 'mercury', true)
     const userTree = project(`user-${mode}`, 'button-app', true)
     seedFirstRun(home, [ownTree, userTree])
-    const forbidden = join(ownTree, 'src', 'components', 'New.tsx')
+    const forbidden = join(ownTree, 'src', 'screen', 'widgets', 'New.tsx')
     const permitted = join(userTree, 'src', 'components', 'New.tsx')
     const api = await startFixtureApi([
       { kind: 'tool_use', name: 'Write', input: { file_path: forbidden, content: color } },
