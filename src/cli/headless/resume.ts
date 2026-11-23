@@ -33,23 +33,39 @@ import { sessionFilePath } from '../../utils/sessionStorage/loading.js'
 import { claimSessionWriter } from '../../utils/sessionStorage/sessionWriter.js'
 import { resumeMissMessage } from '../../utils/sessionStorage/resumeMiss.js'
 import type { UUID } from 'node:crypto'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 export function emitLoadError(
   message: string,
   outputFormat: string | undefined,
 ): void {
-  return notBuilt('src/cli/headless/resume.ts:38')
+  if (formatPrintsOutcomeRow(outputFormat)) {
+    process.stdout.write(`${jsonStringify(refusedOutcome([message], 'load'))}\n`)
+  } else {
+    process.stderr.write(`${message}\n`)
+  }
 }
 
 export function removeInterruptedMessage(
   messages: Message[],
   interruptedUserMessage: NormalizedUserMessage,
 ): void {
-  return notBuilt('src/cli/headless/resume.ts:49')
+  const index = messages.findIndex(message => message.uuid === interruptedUserMessage.uuid)
+  if (index === -1) return
+  messages.splice(index, 2)
 }
 
-type LoadInitialMessagesResult = Unbuilt
+type LoadInitialMessagesResult = {
+  messages: Message[]
+  resumedSessionId?: string
+  contentReplacements?: ContentReplacementRecord[]
+  turnInterruptionState?: TurnInterruptionState
+  agentSetting?: string
+  brief?: string
+  briefAdd?: string
+  model?: string
+}
+
+type LoadedConversation = NonNullable<Awaited<ReturnType<typeof loadConversationForResume>>>
 
 export async function loadInitialMessages(
   setAppState: (f: (prev: AppState) => AppState) => void,
@@ -62,6 +78,126 @@ export async function loadInitialMessages(
     sessionStartHooksPromise?: ReturnType<typeof runSessionStartHooks>
   },
 ): Promise<LoadInitialMessagesResult> {
-  return notBuilt('src/cli/headless/resume.ts:72')
+  const persistSession = !isSessionPersistenceDisabled()
+  armProvisionalSessionReconcile()
+
+  const fail = (message: string, code = 1): LoadInitialMessagesResult => {
+    emitLoadError(message, options.outputFormat)
+    gracefulShutdownSync(code)
+    return { messages: [] }
+  }
+
+  const adopt = async (
+    result: LoadedConversation,
+    messages: Message[],
+    fallbackHome: string | null,
+  ): Promise<LoadInitialMessagesResult> => {
+    const isFork = options.forkSession === true
+    if (!isFork && result.sessionId) {
+      const projectDir = result.fullPath ? dirname(result.fullPath) : fallbackHome
+      switchSession(asSessionId(result.sessionId), projectDir)
+      if (persistSession) {
+        await resetSessionFilePointer()
+      }
+    }
+    const adoptedLog = messages === result.messages ? result : { ...result, messages }
+    await restoreSessionStateFromLog(adoptedLog, setAppState)
+    restoreSessionMetadata(isFork ? { ...result, worktreeSession: undefined } : result)
+    if (isFork) {
+      carrySessionBriefs()
+      if (persistSession && result.contentReplacements && result.contentReplacements.length > 0) {
+        await recordContentReplacement(result.contentReplacements)
+      }
+    }
+    return {
+      messages,
+      ...(result.sessionId !== undefined ? { resumedSessionId: String(result.sessionId) } : {}),
+      contentReplacements: result.contentReplacements,
+      turnInterruptionState: result.turnInterruptionState,
+      agentSetting: result.agentSetting,
+      brief: result.brief,
+      briefAdd: result.briefAdd,
+      model: result.model,
+    }
+  }
+
+  if (options.continue) {
+    let loaded: LoadedConversation
+    try {
+      const listings = await listProjectSessions(1)
+      const latest = listings[0]
+      const latestId = latest ? sessionIdOfListing(latest) : undefined
+      if (!latest || !latestId) {
+        return fail('No conversation found to continue')
+      }
+      const sourcePath = latest.fullPath ?? sessionFilePath(latestId)
+      if (persistSession && !options.forkSession) {
+        await claimSessionWriter(sourcePath)
+      }
+      const result = await loadConversationForResume(latestId, sourcePath)
+      if (!result || !hasConversationTurn(result.messages)) {
+        return fail('No conversation found to continue')
+      }
+      loaded = result
+    } catch (error) {
+      logError(error)
+      return fail(error instanceof Error ? error.message : 'Failed to continue session')
+    }
+    return adopt(loaded, loaded.messages, null)
+  }
+
+  if (options.resume !== undefined && options.resume !== false) {
+    const given = typeof options.resume === 'string' ? options.resume : ''
+    const parsed = parseSessionIdentifier(given)
+    if (!parsed) {
+      return fail(
+        `${binaryName()} run --resume needs a session id (a UUID) or a .jsonl transcript path: ${jsonStringify(given)} is neither`,
+        2,
+      )
+    }
+    const homePin = consumeSessionHomePin()
+    let sourceFile = parsed.jsonlFile
+    if (sourceFile === undefined && homePin !== null && parsed.sessionId !== undefined) {
+      const pinnedPath = join(homePin, `${parsed.sessionId}.jsonl`)
+      if (existsSync(pinnedPath)) {
+        sourceFile = pinnedPath
+      }
+    }
+    let loaded: { result: LoadedConversation; messages: Message[] }
+    try {
+      const candidatePath =
+        sourceFile ?? (parsed.sessionId !== undefined ? sessionFilePath(parsed.sessionId as UUID) : undefined)
+      if (persistSession && !options.forkSession && candidatePath !== undefined && existsSync(candidatePath)) {
+        await claimSessionWriter(candidatePath)
+      }
+      const result = await loadConversationForResume(parsed.sessionId ?? parsed.jsonlFile, sourceFile)
+      if (!result || !hasConversationTurn(result.messages)) {
+        if (parsed.jsonlFile !== undefined) {
+          return fail(`No conversation could be loaded from: ${given || parsed.sessionId || ''}`)
+        }
+        return fail(await resumeMissMessage(parsed.sessionId ?? given, sourceFile))
+      }
+      let messages = result.messages
+      if (options.resumeSessionAt) {
+        const atIndex = messages.findIndex(message => message.uuid === options.resumeSessionAt)
+        if (atIndex === -1) {
+          return fail(`No message in this conversation has the uuid ${options.resumeSessionAt}`)
+        }
+        messages = messages.slice(0, atIndex + 1)
+      }
+      loaded = { result, messages }
+    } catch (error) {
+      logError(error)
+      return fail(
+        error instanceof Error
+          ? `Failed to resume session: ${error.message}`
+          : 'Failed to resume session with mercury run',
+      )
+    }
+    return adopt(loaded.result, loaded.messages, homePin)
+  }
+
+  const messages = await (options.sessionStartHooksPromise ?? runSessionStartHooks('new'))
+  return { messages }
 }
 
