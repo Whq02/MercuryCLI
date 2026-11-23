@@ -5,6 +5,7 @@ import { stringWidth } from '../../ink/stringWidth.js'
 import { expandTabs } from '../../ink/tabstops.js'
 import { logError } from '../../utils/log.js'
 import { isRecord } from '../../utils/isRecord.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 function charWidth(char: string): number {
   return stringWidth(char)
@@ -322,7 +323,13 @@ function highlightLine(line: string, language: string | undefined, theme: DiffTh
   const fallback: StyledBlock[] = [{ text: line, fg: theme.foreground, bg: theme.background }]
   if (!language) return fallback
   if (shouldSkipHighlight(line)) return fallback
-  const result = getHighlighter().highlight(`${line}\n`, { language, ignoreIllegals: true })
+  let result: unknown
+  try {
+    result = getHighlighter().highlight(`${line}\n`, { language, ignoreIllegals: true })
+  } catch (error) {
+    passedOver(error)
+    return fallback
+  }
   const emitter = isRecord(result) ? (result._emitter ?? result.emitter) : undefined
   const root = isRecord(emitter) ? (emitter.rootNode ?? emitter.root) : undefined
   const rootChildren = isRecord(root) && Array.isArray(root.children) ? root.children : null
