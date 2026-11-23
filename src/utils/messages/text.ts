@@ -111,7 +111,7 @@ export function getContentText(
 
 export function getAssistantMessageText(message: Message): string | null {
   if (message.type !== 'assistant' || !Array.isArray(message.message.content)) return null
-  return wordsOrNull(extractTextContent(message.message.content, '\n'))
+  return wordsOrNull(textOfBlocks(message.message.content, '\n'))
 }
 
 export function getUserMessageText(
