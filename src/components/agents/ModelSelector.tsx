@@ -58,7 +58,7 @@ export function ModelSelector({
     <Box flexDirection="column">
       <Box marginBottom={1}>
         <Text dimColor>
-          The agent launches on the model you pick here. The full catalogue is listed; a row that needs a sign-in says so.
+          The model this agent runs on when it is launched — the full catalogue; rows without a credential name their sign-in.
         </Text>
       </Box>
       {notice !== null ? (
