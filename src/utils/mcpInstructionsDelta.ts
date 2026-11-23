@@ -1,14 +1,13 @@
 import type { MCPServerConnection } from './mcp/types.js'
 import type { Message } from '../types/message.js'
-import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 
-type McpInstructionsDelta = Unbuilt
+type McpInstructionsDelta = { addedNames: string[]; addedBlocks: string[]; removedNames: string[] }
 
-type ClientSideInstruction = Unbuilt
+type ClientSideInstruction = { serverName: string; block: string }
 
 export function isMcpInstructionsDeltaEnabled(): boolean {
-  return notBuilt('src/utils/mcpInstructionsDelta.ts:13')
+  return true
 }
 
 type DeltaAttachmentMessage = {
@@ -31,5 +30,26 @@ export function getMcpInstructionsDelta(
   messages: Message[],
   clientSideInstructions: ClientSideInstruction[],
 ): McpInstructionsDelta | null {
-  return notBuilt('src/utils/mcpInstructionsDelta.ts:32')
+  const told = new Set<string>()
+  for (const message of messages) {
+    if (!isDeltaAttachment(message)) continue
+    for (const name of message.attachment.addedNames ?? []) told.add(name)
+    for (const name of message.attachment.removedNames ?? []) told.delete(name)
+  }
+  const connected = new Set<string>()
+  const blocks = new Map<string, string>()
+  for (const client of mcpClients) {
+    if (client.type !== 'connected') continue
+    connected.add(client.name)
+    if (client.instructions) blocks.set(client.name, `## ${client.name}\n${client.instructions}`)
+  }
+  for (const { serverName, block } of clientSideInstructions) {
+    if (!connected.has(serverName)) continue
+    const previous = blocks.get(serverName)
+    blocks.set(serverName, previous === undefined ? `## ${serverName}\n${block}` : `${previous}\n\n${block}`)
+  }
+  const addedNames = [...blocks.keys()].filter(name => !told.has(name)).sort((a, b) => a.localeCompare(b))
+  const removedNames = [...told].filter(name => !connected.has(name)).sort()
+  if (!addedNames.length && !removedNames.length) return null
+  return { addedNames, addedBlocks: addedNames.map(name => blocks.get(name)!), removedNames }
 }
