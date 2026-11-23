@@ -1,5 +1,4 @@
 import type { DOMElement } from './dom.js'
-import { notBuilt, unbuilt } from '../pi/holes.js'
 
 export type CachedLayout = {
   x: number
@@ -9,18 +8,30 @@ export type CachedLayout = {
   reach?: { x: number; y: number; width: number; height: number }
 }
 
-export const nodeCache: WeakMap<DOMElement, CachedLayout> = unbuilt('src/ink/node-cache.ts:12')
+export const nodeCache = new WeakMap<DOMElement, CachedLayout>()
 
-export const pendingClears: WeakMap<DOMElement, CachedLayout[]> = unbuilt('src/ink/node-cache.ts:14')
+export const pendingClears = new WeakMap<DOMElement, CachedLayout[]>()
 
-const absoluteRemovedRoots: WeakSet<DOMElement> = unbuilt('src/ink/node-cache.ts:16')
+const absoluteRemovedRoots = new WeakSet<DOMElement>()
 
 export function addPendingClear(
   parent: DOMElement,
   rect: CachedLayout,
   isAbsolute: boolean,
 ): void {
-  return notBuilt('src/ink/node-cache.ts:18')
+  const list = pendingClears.get(parent)
+  if (list) {
+    list.push(rect)
+  } else {
+    pendingClears.set(parent, [rect])
+  }
+  if (isAbsolute) {
+    let root = parent
+    while (root.parentNode) {
+      root = root.parentNode
+    }
+    absoluteRemovedRoots.add(root)
+  }
 }
 
 const parentsThatLostAChild = new WeakSet<DOMElement>()
