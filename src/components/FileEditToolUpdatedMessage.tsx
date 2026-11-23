@@ -12,7 +12,7 @@ import { basename } from 'node:path';
 type Props = {
   filePath: string
   structuredPatch: StructuredPatchHunk[]
-  firstLine?: string | null
+  firstLine: string | null
   fileContent?: string
   style?: 'condensed' | 'default'
   verbose: boolean
@@ -37,41 +37,43 @@ export function FileEditToolUpdatedMessage({
   );
   const hasChanges = numAdditions > 0 || numRemovals > 0;
   const countColor = toolCardCountColor();
-  const notCheckpointed = isSqliteRowTarget(filePath) ? (
-    <Text dimColor> · not checkpointed</Text>
-  ) : null;
-
-  const summary = hasChanges ? (
-    <>
+  const summary = (
+    <Text>
       {numAdditions > 0 ? (
         <>
           Added <Text bold color={countColor}>{numAdditions}</Text>{' '}
-          {numAdditions === 1 ? 'line' : 'lines'}
+          {numAdditions > 1 ? 'lines' : 'line'}
         </>
       ) : null}
       {numAdditions > 0 && numRemovals > 0 ? ', ' : null}
       {numRemovals > 0 ? (
         <>
-          {numAdditions > 0 ? 'removed ' : 'Removed '}
+          {numAdditions === 0 ? 'Removed ' : 'removed '}
           <Text bold color={countColor}>{numRemovals}</Text>{' '}
-          {numRemovals === 1 ? 'line' : 'lines'}
+          {numRemovals > 1 ? 'lines' : 'line'}
         </>
       ) : null}
-      {notCheckpointed}
-    </>
-  ) : (
-    <>
-      <Text dimColor>No changes</Text>
-      {notCheckpointed}
-    </>
+      {hasChanges ? null : <Text dimColor>No changes</Text>}
+      {isSqliteRowTarget(filePath) ? ' · not checkpointed' : null}
+    </Text>
   );
 
   if (style === 'condensed' && !verbose) {
-    return <Text>{summary}</Text>;
+    return summary;
   }
 
   const railed = columns > 80;
-  const innerWidth = railed ? Math.max(1, columns - 14) : Math.max(1, columns - 12);
+  const innerWidth = railed ? Math.max(1, columns - 14) : columns - 12;
+  const diff = (
+    <StructuredDiffList
+      hunks={structuredPatch}
+      dim={false}
+      width={innerWidth}
+      filePath={filePath}
+      firstLine={firstLine}
+      fileContent={fileContent}
+    />
+  );
 
   return (
     <MessageResponse>
@@ -86,7 +88,6 @@ export function FileEditToolUpdatedMessage({
               borderColor="subtle"
               borderStyle="single"
               flexDirection="column"
-              alignSelf="flex-start"
               borderText={{
                 content: ' diff · ' + basename(filePath) + ' ',
                 position: 'top',
@@ -94,24 +95,10 @@ export function FileEditToolUpdatedMessage({
                 offset: 0,
               }}
             >
-              <StructuredDiffList
-                hunks={structuredPatch}
-                dim={false}
-                width={innerWidth}
-                filePath={filePath}
-                firstLine={firstLine ?? null}
-                fileContent={fileContent}
-              />
+              {diff}
             </Box>
           ) : (
-            <StructuredDiffList
-              hunks={structuredPatch}
-              dim={false}
-              width={innerWidth}
-              filePath={filePath}
-              firstLine={firstLine ?? null}
-              fileContent={fileContent}
-            />
+            diff
           )
         ) : null}
       </Box>
