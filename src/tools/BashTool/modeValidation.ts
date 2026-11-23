@@ -45,12 +45,12 @@ export function checkPermissionMode(
   for (const simple of parsed.commands) {
     const commandName = simple.argv[0]
     if (!commandName) {
-      return { behavior: 'passthrough', message: 'No mode handling was required.' }
+      return { behavior: 'passthrough', message: 'No command to evaluate for mode auto-allow.' }
     }
     if (toolPermissionContext.mode === 'implement' && ACCEPT_EDITS_COMMANDS.has(commandName)) {
       return {
         behavior: 'allow',
-        updatedInput: { ...input, command: simple.text },
+        updatedInput: { command: simple.text },
         decisionReason: { type: 'mode', mode: 'implement' },
       }
     }
