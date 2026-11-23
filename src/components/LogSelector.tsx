@@ -68,7 +68,6 @@ type LogSelectorProps = {
   onLoadMore?: (count: number) => void
   hasMore?: boolean
   isLoadingMore?: boolean
-  isLoading?: boolean
   worktreePaths?: string[]
 }
 
@@ -95,9 +94,7 @@ function hasMeaningfulEntry(log: SessionListing): boolean {
   if (log.firstPrompt && log.firstPrompt.trim() !== '') return true
   return log.messages.some(
     message =>
-      (message as { type?: string }).type === 'user' &&
-      typeof (message as { message?: { content?: unknown } }).message
-        ?.content === 'string',
+      message.type === 'user' && typeof message.message.content === 'string',
   )
 }
 
@@ -327,6 +324,7 @@ function useLogSelectorKeys(params: {
         if (
           input.length === 1 &&
           input.charCodeAt(0) > 32 &&
+          input.charCodeAt(0) !== 127 &&
           params.activeFocusedLog !== null
         ) {
           params.setSearchQuery(input)
