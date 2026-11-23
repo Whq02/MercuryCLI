@@ -415,7 +415,6 @@ section('§8 the board with sessions keeps the new-session line as its first row
   const home = seededHome('board-with-sessions')
   const birth: Send[] = [
     { requireAwait: true, awaitText: '+ new session · n', awaitStableTicks: 3, data: 'n' },
-    { requireAwait: true, awaitText: 'contract?', awaitSettleTicks: 2, data: ESC },
     { requireAwait: true, awaitText: '← back', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, data: SHIFT_LEFT },
   ]
   const c = capture('board-with-sessions', home, [], [
@@ -467,8 +466,7 @@ if (CASE === undefined || CASE === 'session-effort') {
     const c = capture(`session-effort-${cols}`, home, [], [
       { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 3, data: SHIFT_RIGHT },
       { requireAwait: true, awaitText: '+ new session · n', awaitSettleTicks: 3, data: 'n' },
-      { requireAwait: true, awaitText: 'contract?', awaitSettleTicks: 2, data: ESC },
-      { requireAwait: true, awaitText: '← back', awaitSettleTicks: 4, data: `${ESC}[1;2D` },
+        { requireAwait: true, awaitText: '← back', awaitSettleTicks: 4, data: `${ESC}[1;2D` },
       { requireAwait: true, awaitText: 'STATUS & TITLE', awaitSettleTicks: 4, data: 'e' },
       { requireAwait: true, awaitText: "sets this session's effort", awaitSettleTicks: 3, mark: 'effort-door', data: '\r' },
       { requireAwait: true, awaitText: 'effort → low', awaitSettleTicks: 4, mark: 'low-receipt', data: 'm' },

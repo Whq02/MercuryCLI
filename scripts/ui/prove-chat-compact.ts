@@ -38,7 +38,6 @@ const restingRowCheck = (tag: string, text: string[]): void => {
 }
 const SHIFT_RIGHT = '\x1b[1;2C'
 const BOARD_NEW_DOOR = 'new session'
-const CONTRACT_OFFER = 'contract?'
 const SESSIONS_LINE = /^(\d+ sessions? on · \d+ monitors? here · \d+ crewmates? here|S:\d+ · M:\d+ · C:\d+|S:\d+ · M:\d+ …|S:\d+ …|…)\s+(⇧← (?:boot face|concourse)|shift\+← (?:boot face|concourse))$/
 const textRows = (grid: Grid): string[] => grid.map(row => row.map(c => c.c).join('').replace(/\s+$/, ''))
 const cellsAt = (grid: Grid, y: number): Cell[] => grid[y] ?? []
@@ -344,7 +343,6 @@ for (const [cols, rows] of [[80, 21], [80, 14], [82, 17]] as const) {
       : [
           { atTick: 40, awaitText: FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: SHIFT_RIGHT, mark: 'boot' },
           { atTick: 100, awaitText: BOARD_NEW_DOOR, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: 'n', mark: 'board' },
-          { atTick: 160, awaitText: CONTRACT_OFFER, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\u001b', mark: 'offer' },
           { atTick: 220, awaitText: ADMITTED, minTick: 3, awaitSettleTicks: 0, requireAwait: true, data: '', mark: 'first' },
           { afterPrevTicks: 3, data: '', mark: 'first-later' },
           settled,

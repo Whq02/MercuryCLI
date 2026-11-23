@@ -224,7 +224,6 @@ try {
   const ledger = join(home, '.model-use.json')
   const birth: Send[] = [
     { requireAwait: true, awaitText: '+ new session · n', awaitStableTicks: 3, data: 'n' },
-    { requireAwait: true, awaitText: 'contract?', awaitSettleTicks: 2, data: ESC },
     { requireAwait: true, awaitText: '← back', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, data: '' },
   ]
   const openPicker: Send[] = [
