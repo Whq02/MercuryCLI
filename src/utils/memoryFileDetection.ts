@@ -5,7 +5,8 @@ import { isAgentMemoryPath } from './agentMemory.js'
 import { CORRECT_TOOL_NAME, RETAIN_TOOL_NAME } from '../constants/tools/memory.js'
 import { getMercuryHome } from './envUtils.js'
 import { foldPathCase, hostPathSpellings, msysDrivePathToNative } from './platform/paths.js'
-import { notBuilt } from '../pi/holes.js'
+
+const PATH_TOKEN_PATTERN = /(?:[A-Za-z]:[/\\]|\/)[^\s"'`]*/g
 
 
 function comparable(path: string): string {
@@ -28,7 +29,8 @@ export function isMnemeFile(filePath: string): boolean {
 }
 
 export function memoryWriteRefusal(filePath: string): string | null {
-  return notBuilt('src/utils/memoryFileDetection.ts:48')
+  if (!isMnemeFile(filePath)) return null
+  return `${filePath} is Mercury's memory: save with ${RETAIN_TOOL_NAME} and change with ${CORRECT_TOOL_NAME} — a direct write is refused.`
 }
 
 export function isAutoManagedMemoryFile(filePath: string): boolean {
@@ -57,7 +59,19 @@ export function isMemoryDirectory(dirPath: string): boolean {
 }
 
 export function isShellCommandTargetingMemory(command: string): boolean {
-  return notBuilt('src/utils/memoryFileDetection.ts:84')
+  const comparableCommand = comparable(command)
+  const roots = [getMercuryHome(), getMemoryBaseDir(), getMnemeHome()]
+  if (!roots.some(root => hostPathSpellings(root).some(spelling => comparableCommand.includes(comparable(spelling))))) {
+    return false
+  }
+  for (const [token] of command.matchAll(PATH_TOKEN_PATTERN)) {
+    const cleaned = token.replace(/[,;|&>]+$/, '')
+    const candidate = msysDrivePathToNative(cleaned, true)
+    if (isAutoManagedMemoryFile(candidate) || isMemoryDirectory(candidate)) {
+      return true
+    }
+  }
+  return false
 }
 
 export function isAutoManagedMemoryPattern(pattern: string): boolean {
