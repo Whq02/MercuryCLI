@@ -67,7 +67,7 @@ export function SearchResultSummary({
       {labelForCount(count, label)}
       {secondaryCount !== undefined && secondaryLabel ? (
         <>
-          {' across '}
+          {' '}across{' '}
           <Text bold color={toolCardCountColor()}>
             {secondaryCount}
           </Text>{' '}

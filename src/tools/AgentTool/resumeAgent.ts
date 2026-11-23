@@ -231,7 +231,7 @@ export async function resumeAgentBackground(args: {
     const rebuilt = rebuildSeenLinesFromTranscript(processOwnerForLane(agentId), transcript.messages)
     if (rebuilt.files > 0) {
       logForDebugging(
-        `read ledger: crewmate ${agentId} read or wrote ${rebuilt.files} file(s) before this resume; they still read the same and count as read`,
+        `read ledger: crewmate ${agentId} read or wrote ${rebuilt.lines} line(s) of ${rebuilt.files} file(s) before this resume; they still read the same and count as read`,
       )
     }
   } catch (error) {
