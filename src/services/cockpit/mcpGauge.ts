@@ -6,7 +6,6 @@ import type { MCPServerConnection } from '../../utils/mcp/types.js'
 import { getCurrentProjectConfig, getGlobalConfig } from '../../utils/config.js'
 import { withState, type Snapshot, type SnapshotState } from '../../utils/cockpit/types.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export type McpServerState =
   | 'ready'
@@ -92,7 +91,49 @@ function rowFor(
   connection: MCPServerConnection | undefined,
   source: McpServerRow['source'],
 ): McpServerRow {
-  return notBuilt('src/services/cockpit/mcpGauge.ts:90')
+  if (connection === undefined) {
+    let disabled = false
+    try {
+      disabled = isMcpServerDisabled(name)
+    } catch {
+      disabled = false
+    }
+    if (disabled) return { name, state: 'disabled', detail: 'disabled in config', source }
+    return {
+      name,
+      state: 'configured',
+      detail: 'configured — no connection in this process (connects at session start or on demand)',
+      source,
+    }
+  }
+  switch (connection.type) {
+    case 'connected':
+      return { name, state: 'ready', detail: 'connected in this process', source, connection }
+    case 'pending': {
+      const attempt =
+        connection.reconnectAttempt !== undefined
+          ? ` (attempt ${connection.reconnectAttempt}${
+              connection.maxReconnectAttempts !== undefined ? `/${connection.maxReconnectAttempts}` : ''
+            })`
+          : ''
+      return { name, state: 'starting', detail: `connect in flight${attempt}`, source, connection }
+    }
+    case 'needs-auth':
+      return { name, state: 'needs-auth', detail: 'server requires authentication', source, connection }
+    case 'failed': {
+      const error = connection.error ? bounded(connection.error, 140) : undefined
+      return {
+        name,
+        state: 'failed',
+        detail: `connection failed${error ? `: ${error}` : ''}`,
+        source,
+        connection,
+        ...(error ? { error } : {}),
+      }
+    }
+    case 'disabled':
+      return { name, state: 'disabled', detail: 'disabled in config', source, connection }
+  }
 }
 
 function countRows(servers: McpServerRow[]): McpCounts {
