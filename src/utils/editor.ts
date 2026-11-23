@@ -10,7 +10,6 @@ import { logForDebugging } from './debug.js'
 import { reclaimTerminalAfterChild } from './terminalHandback.js'
 import { hostLookupWorld, resolveExecutable, whichSync, type LookupWorld } from './which.js'
 import { hostEnv } from './hostEnv.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
 
 const EDITOR_CANDIDATES = ['code', 'nano', 'vi']
@@ -64,7 +63,18 @@ export function editorDisplayName(editor: string | null | undefined): string {
 const PLUS_LINE_EDITORS = /\b(vi|vim|nvim|nano|emacs|pico|micro|helix|hx)\b/
 const TERMINAL_EDITORS = /^(?:vi|vim|nvim|nano|emacs|pico|micro|helix|hx|kak)(?![a-z])/
 
-export const getExternalEditor: Unbuilt = unbuilt('src/utils/editor.ts:78')
+export const getExternalEditor = memoize((): string | undefined => {
+  const env = hostEnv()
+  const visual = env.VISUAL?.trim()
+  if (visual) return visual
+  const editor = env.EDITOR?.trim()
+  if (editor) return editor
+  if (process.platform === 'win32') return WINDOWS_DEFAULT_EDITOR
+  for (const candidate of EDITOR_CANDIDATES) {
+    if (whichSync(candidate) !== null) return candidate
+  }
+  return undefined
+})
 
 export type EditorVariable = 'VISUAL' | 'EDITOR' | 'default'
 
@@ -120,8 +130,32 @@ export function editorRefusalLine(refusal: EditorRefusal): string {
   return `${named} is not on PATH — ${remedy}`
 }
 
+const GUI_EDITOR_ARGS: ReadonlyArray<readonly [name: string, args: (filePath: string, line?: number) => string[]]> = [
+  ['code', (filePath, line) => (line !== undefined ? ['--goto', `${filePath}:${line}`] : [filePath])],
+  ['codium', (filePath, line) => (line !== undefined ? ['--goto', `${filePath}:${line}`] : [filePath])],
+  ['cursor', (filePath, line) => (line !== undefined ? ['--goto', `${filePath}:${line}`] : [filePath])],
+  ['windsurf', (filePath, line) => (line !== undefined ? ['--goto', `${filePath}:${line}`] : [filePath])],
+  ['subl', (filePath, line) => (line !== undefined ? [`${filePath}:${line}`] : [filePath])],
+  ['sublime_text', (filePath, line) => (line !== undefined ? [`${filePath}:${line}`] : [filePath])],
+  ['zed', (filePath, line) => (line !== undefined ? [`${filePath}:${line}`] : [filePath])],
+  ['atom', (filePath, line) => (line !== undefined ? [`${filePath}:${line}`] : [filePath])],
+  ['mate', (filePath, line) => (line !== undefined ? ['-l', String(line), filePath] : [filePath])],
+  ['kate', (filePath, line) => (line !== undefined ? ['-l', String(line), filePath] : [filePath])],
+  ['gedit', (filePath, line) => (line !== undefined ? [`+${line}`, filePath] : [filePath])],
+  ['notepad++', (filePath, line) => (line !== undefined ? [`-n${line}`, filePath] : [filePath])],
+  ['notepad', filePath => [filePath]],
+]
+
 export function classifyGuiEditor(editor: string): string | undefined {
-  return notBuilt('src/utils/editor.ts:144')
+  for (const token of editor.trim().split(/\s+/)) {
+    if (token === '') continue
+    const base = editorBaseName(token)
+    if (TERMINAL_EDITORS.test(base)) return undefined
+    for (const [name] of GUI_EDITOR_ARGS) {
+      if (base.includes(name)) return name
+    }
+  }
+  return undefined
 }
 
 function parseEditorCommand(editor: string, world: LookupWorld): { executable: string; args: string[] } {
@@ -129,5 +163,78 @@ function parseEditorCommand(editor: string, world: LookupWorld): { executable: s
 }
 
 export function openFileInExternalEditor(filePath: string, line?: number): boolean {
-  return notBuilt('src/utils/editor.ts:170')
+  const resolution = resolveExternalEditor()
+  if (!resolution.ok) {
+    if (resolution.reason !== 'none') {
+      logForDebugging(editorRefusalLine(resolution), { level: 'warn' })
+    }
+    return false
+  }
+
+  const guiFamily = classifyGuiEditor(resolution.editor)
+  if (guiFamily !== undefined) {
+    const entry = GUI_EDITOR_ARGS.find(([name]) => name === guiFamily)
+    const targetArgs = entry ? entry[1](filePath, line) : [filePath]
+    const spec = guiEditorSpawnSpec(resolution.editor, resolution.executable, resolution.args, targetArgs)
+    try {
+      const child = spec.shell
+        ? spawn(spec.command, {
+            detached: true,
+            stdio: 'ignore',
+            shell: true,
+            windowsHide: true,
+            env: subprocessEnv(),
+          })
+        : spawn(spec.file, spec.args, {
+            detached: true,
+            stdio: 'ignore',
+            windowsHide: true,
+            env: subprocessEnv(),
+          })
+      child.on('error', err => {
+        logForDebugging(`External editor spawn error: ${String(err)}`, { level: 'warn' })
+      })
+      child.unref()
+      return true
+    } catch (err) {
+      logForDebugging(`Failed to launch external editor: ${String(err)}`, { level: 'warn' })
+      return false
+    }
+  }
+
+  const renderer = instances.get(process.stdout)
+  if (renderer === undefined) return false
+
+  const lineArgs = line !== undefined && PLUS_LINE_EDITORS.test(editorBaseName(resolution.executable)) ? [`+${line}`] : []
+  const spec = terminalEditorSpawnSpec(
+    resolution.editor,
+    resolution.executable,
+    resolution.args,
+    lineArgs,
+    filePath,
+  )
+
+  renderer.enterAlternateScreen()
+  try {
+    const result = spec.shell
+      ? spawnSync(spec.command, {
+          stdio: 'inherit',
+          shell: true,
+          windowsHide: false,
+          env: subprocessEnv(),
+        })
+      : spawnSync(spec.file, spec.args, {
+          stdio: 'inherit',
+          windowsHide: false,
+          env: subprocessEnv(),
+        })
+    if (result.error !== undefined) {
+      logForDebugging(`External editor spawn error: ${String(result.error)}`, { level: 'warn' })
+      return false
+    }
+    return true
+  } finally {
+    reclaimTerminalAfterChild('external editor')
+    renderer.exitAlternateScreen()
+  }
 }
