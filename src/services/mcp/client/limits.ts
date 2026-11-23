@@ -3,7 +3,6 @@ import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { minutesKnobToMs, withDeadline } from '../../../utils/deadline.js'
 import { formatFileSize } from '../../../utils/format.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 const DEFAULT_CONNECT_TIMEOUT_MS = 30_000
 const DEFAULT_TOOL_TIMEOUT_MS = 100_000_000
@@ -77,7 +76,9 @@ export function mcpOversizedMessageWords(tool: string, serverName: string, limit
 }
 
 export function getMcpServerConnectionBatchSize(): number {
-  return notBuilt('src/services/mcp/client/limits.ts:78')
+  const raw = flagEnv('MERCURY_MCP_CONNECTION_BATCH')
+  const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 3
 }
 
 export function getRemoteConnectionBatchSize(): number {
