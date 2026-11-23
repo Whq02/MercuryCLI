@@ -67,7 +67,6 @@ const ASCII_CAPITAL_RE = /^[A-Z]$/
 function projectKey(keypress: ParsedKey, wheelStep: boolean, input: string): Key {
   const key: Key = {
     ctrl: keypress.ctrl,
-    meta: keypress.meta || keypress.name === 'escape' || keypress.option,
     shift: keypress.shift || ASCII_CAPITAL_RE.test(input),
     super: keypress.super,
     fn: keypress.fn,
@@ -86,6 +85,7 @@ function projectKey(keypress: ParsedKey, wheelStep: boolean, input: string): Key
     backspace: false,
     delete: false,
     escape: false,
+    meta: keypress.meta || keypress.name === 'escape' || keypress.option,
     isPasted: keypress.isPasted,
   }
   if (keypress.name !== undefined && Object.hasOwn(NAME_TO_FLAG, keypress.name)) key[NAME_TO_FLAG[keypress.name]!] = true
