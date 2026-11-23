@@ -9,9 +9,12 @@ import {
   normalizeMessagesForAPI,
 } from '../../services/messages.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-type GeneratedAgent = Unbuilt
+type GeneratedAgent = {
+  identifier: string
+  whenToUse: string
+  systemPrompt: string
+}
 
 function draftingSystemPrompt(): string[] {
   const sections = [
@@ -81,11 +84,76 @@ recurring defect patterns, a data analyst records dataset quirks.`)
   return sections
 }
 
+function readStringField(obj: object, key: string): string {
+  const value: unknown = Reflect.get(obj, key)
+  return typeof value === 'string' ? value : ''
+}
+
 export async function generateAgent(
   userPrompt: string,
   model: string,
   existingIdentifiers: string[],
   abortSignal: AbortSignal,
 ): Promise<GeneratedAgent> {
-  return notBuilt('src/components/agents/generateAgent.ts:88')
+  let prompt = `Design an agent configuration for this request:\n\n${userPrompt}`
+  if (existingIdentifiers.length > 0) {
+    prompt += `\n\nThese identifiers are already taken and must not be reused: ${existingIdentifiers.join(', ')}`
+  }
+  prompt += '\n\nReturn the JSON object only.'
+
+  const userContext = await getUserContext()
+  const messages = normalizeMessagesForAPI(
+    prependUserContext([createUserMessage({ content: prompt })], userContext),
+  )
+
+  const response = await routedCallModelSettled({
+    messages,
+    systemPrompt: asSystemPrompt(draftingSystemPrompt()),
+    thinkingConfig: { type: 'disabled' },
+    tools: [],
+    signal: abortSignal,
+    options: {
+      getToolPermissionContext: async () => getEmptyToolPermissionContext(),
+      model,
+      querySource: 'agent_creation',
+      agents: [],
+      isNonInteractiveSession: false,
+      hasAppendSystemPrompt: false,
+      mcpTools: [],
+    },
+  })
+
+  const text = response.message.content
+    .filter((block): block is Extract<typeof block, { type: 'text' }> => block.type === 'text')
+    .map(block => block.text)
+    .join('\n')
+    .trim()
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(text)
+  } catch {
+    const start = text.indexOf('{')
+    const end = text.lastIndexOf('}')
+    if (start === -1 || end === -1 || end < start) {
+      throw new Error('No JSON object found in the model response')
+    }
+    parsed = JSON.parse(text.slice(start, end + 1))
+  }
+
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error('No JSON object found in the model response')
+  }
+
+  const identifier = readStringField(parsed, 'identifier')
+  const whenToUse = readStringField(parsed, 'whenToUse')
+  const systemPrompt = readStringField(parsed, 'systemPrompt')
+
+  if (!identifier || !whenToUse || !systemPrompt) {
+    throw new Error(
+      'The generated agent configuration is missing identifier, whenToUse or systemPrompt',
+    )
+  }
+
+  return { identifier, whenToUse, systemPrompt }
 }
