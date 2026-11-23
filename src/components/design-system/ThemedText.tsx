@@ -29,9 +29,9 @@ export default function ThemedText({ backgroundColor, color, bold = false, dimCo
   useSessionAccent()
   const hover = useContext(TextHoverColorContext)
   const foreground = !color && hover ? resolveThemeColor(theme, hover)
-    : dimColor ? theme.inactive as Color : resolveThemeColor(theme, color as string | undefined)
+    : dimColor ? resolveThemeColor(theme, 'inactive') : resolveThemeColor(theme, color)
   return (
-    <Text color={foreground} backgroundColor={resolveThemeColor(theme, backgroundColor as string | undefined)}
+    <Text color={foreground} backgroundColor={resolveThemeColor(theme, backgroundColor)}
       bold={bold} italic={italic} underline={underline} strikethrough={strikethrough} inverse={inverse} wrap={wrap}>
       {children}
     </Text>

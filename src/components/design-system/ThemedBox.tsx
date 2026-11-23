@@ -40,7 +40,7 @@ export default function ThemedBox({ borderColor, borderTopColor, borderBottomCol
   const [name] = useTheme()
   const theme = getTheme(name)
   useSessionAccent()
-  const resolve = (color: ThemeColor | undefined) => resolveThemeColor(theme, color as string | undefined)
+  const resolve = (color: ThemeColor | undefined) => resolveThemeColor(theme, color)
   return (
     <Box {...props} borderColor={resolve(borderColor)} borderTopColor={resolve(borderTopColor)}
       borderBottomColor={resolve(borderBottomColor)} borderLeftColor={resolve(borderLeftColor)}
