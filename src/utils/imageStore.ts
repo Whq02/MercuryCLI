@@ -10,6 +10,7 @@ import type { PastedContent } from './config/schema.js'
 import { logForDebugging } from './debug.js'
 import { getMercuryHome } from './envUtils.js'
 import { isENOENT } from './errors.js'
+import { isRecord } from './isRecord.js'
 import { passedOver } from './passedOver.js'
 
 
@@ -139,16 +140,12 @@ export function storedImageRefBlock(content: PastedContent): StoredImageRefBlock
 }
 
 export function isStoredImageRef(block: unknown): block is StoredImageRefBlock {
-  if (!block || typeof block !== 'object') return false
-  const candidate = block as { type?: unknown; source?: { type?: unknown; path?: unknown; sha256?: unknown; media_type?: unknown } }
+  if (!isRecord(block) || block.type !== 'image' || !isRecord(block.source)) return false
   return (
-    candidate.type === 'image' &&
-    !!candidate.source &&
-    typeof candidate.source === 'object' &&
-    candidate.source.type === STORED_IMAGE_SOURCE_TYPE &&
-    typeof candidate.source.path === 'string' &&
-    typeof candidate.source.sha256 === 'string' &&
-    typeof candidate.source.media_type === 'string'
+    block.source.type === STORED_IMAGE_SOURCE_TYPE &&
+    typeof block.source.path === 'string' &&
+    typeof block.source.sha256 === 'string' &&
+    typeof block.source.media_type === 'string'
   )
 }
 

@@ -14,6 +14,7 @@ import { recordToEntry } from '../../../fabric/entryCodec.js'
 import type { MercuryRecord } from '../../../fabric/record.js'
 import { logForDebugging } from '../../debug.js'
 import { getErrnoCode } from '../../errors.js'
+import { isRecord } from '../../isRecord.js'
 import { formatFileSize } from '../../format.js'
 import { LITE_READ_BUF_SIZE } from '../../sessionStoragePortable.js'
 import { jsonParse } from '../../slowOperations.js'
@@ -21,10 +22,6 @@ import type { QueuePart } from './queue.js'
 import { passedOver } from '../../passedOver.js'
 
 const MAX_REWRITE_BYTES = 50 * 1024 * 1024
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
 
 function isMercuryRecord(parsed: Record<string, unknown>): parsed is MercuryRecord {
   return (

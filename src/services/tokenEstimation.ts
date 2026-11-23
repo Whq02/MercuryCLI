@@ -2,6 +2,7 @@ import type { Message } from '../types/message.js'
 import type { ApiToolUnion, ContentBlock, ContentBlockParam, MessageParam, TextBlockParam } from '../types/wire.js'
 import { logForDebugging } from '../utils/debug.js'
 import { logError } from '../utils/log.js'
+import { isRecord } from '../utils/isRecord.js'
 import { createAssistantMessage, createUserMessage } from '../utils/messages/factories.js'
 import { normalizeMessagesForAPI } from './messages.js'
 import { getDefaultSonnetModel, getEngineModel, normalizeModelStringForAPI } from './model/model.js'
@@ -40,7 +41,7 @@ function countProbeCall(): { model: string; effort: string | undefined } {
 }
 
 function refusalWords(error: unknown): string {
-  const record = error as { status?: unknown; message?: unknown } | null
+  const record = isRecord(error) ? error : null
   const status = typeof record?.status === 'number' ? `HTTP ${record.status}` : 'no status'
   const message = typeof record?.message === 'string' ? record.message.replace(/\s+/g, ' ').trim().slice(0, 200) : ''
   return message === '' ? status : `${status}: ${message}`
