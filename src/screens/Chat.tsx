@@ -36,6 +36,7 @@ import { setCrashConversationLocator } from '../utils/crashReport.js';
 import { getProjectDir } from '../utils/sessionStoragePortable.js';
 import { isEnvTruthy } from '../utils/envUtils.js';
 import { isFullscreenEnvEnabled, isMouseTrackingEnabled } from '../utils/fullscreen.js';
+import { passedOver } from '../utils/passedOver.js';
 import { chatBottomSlot } from './chat/chatBottomSlot.js';
 import { chatMessagesList, chatTranscriptBody } from './chat/chatMessagesList.js';
 import { chatLegacyTree, chatTree } from './chat/chatTree.js';
@@ -64,7 +65,8 @@ setCrashConversationLocator(() => {
       if (projectRoot) {
         transcriptPath = join(getProjectDir(projectRoot), `${sessionId}.jsonl`);
       }
-    } catch {
+    } catch (error) {
+      passedOver(error);
       transcriptPath = null;
     }
   }
