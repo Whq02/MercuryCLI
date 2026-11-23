@@ -39,7 +39,10 @@ function applyOperator(
 ): void {
   const content = ctx.text.slice(start, end)
   ctx.setRegister(linewise ? linewiseRegisterText(content) : content, linewise)
-  if (op === 'yank') return
+  if (op === 'yank') {
+    ctx.setOffset(start)
+    return
+  }
 
   const newText = ctx.text.slice(0, start) + ctx.text.slice(end)
   ctx.setText(newText)
@@ -63,7 +66,10 @@ function applyLineRange(
 ): void {
   const yanked = `${lines.slice(startLine, endLine + 1).join('\n')}\n`
   ctx.setRegister(yanked, true)
-  if (op === 'yank') return
+  if (op === 'yank') {
+    ctx.setOffset(offsetOfLine(lines, startLine))
+    return
+  }
 
   if (op === 'change') {
     const newLines = [...lines.slice(0, startLine), '', ...lines.slice(endLine + 1)]
@@ -120,6 +126,8 @@ export function executeOperatorMotion(
     start = Math.min(cursor.offset, target.offset)
     end = Math.max(cursor.offset, target.offset)
     if (isLinewiseMotion(motion)) {
+      const prevNl = start > 0 ? ctx.text.lastIndexOf('\n', start - 1) : -1
+      start = prevNl === -1 ? 0 : prevNl + 1
       const nl = ctx.text.indexOf('\n', end)
       if (nl !== -1) {
         end = nl + 1
@@ -151,7 +159,6 @@ export function executeOperatorFind(
   count: number,
   ctx: OperatorContext,
 ): void {
-  ctx.setLastFind(findType, char)
   const target = ctx.cursor.findCharacter(char, findType, count)
   if (target === null) return
 
@@ -169,6 +176,7 @@ export function executeOperatorFind(
   start = ctx.cursor.snapOutOfImageRef(start, 'start')
   end = ctx.cursor.snapOutOfImageRef(end, 'end')
 
+  ctx.setLastFind(findType, char)
   applyOperator(op, start, end, false, ctx)
   ctx.recordChange({ type: 'operatorFind', op, find: findType, char, count })
 }
@@ -395,17 +403,23 @@ export function executeOpenLine(direction: 'above' | 'below', ctx: OperatorConte
 }
 
 export function executeOperatorG(op: Operator, count: number, ctx: OperatorContext): void {
+  const cursor = ctx.cursor
+  const target = count > 0 ? cursor.goToLine(count) : cursor.startOfLastLine()
+  if (target.equals(cursor)) return
   const lines = ctx.text.split('\n')
   const curLine = logicalLineIndex(ctx)
-  const targetLine = count > 0 ? Math.min(count, lines.length) - 1 : lines.length - 1
+  const targetLine = countCharInString(ctx.text.slice(0, target.offset), '\n')
   applyLineRange(op, lines, Math.min(curLine, targetLine), Math.max(curLine, targetLine), ctx)
   ctx.recordChange({ type: 'operator', op, motion: 'G', count })
 }
 
 export function executeOperatorGg(op: Operator, count: number, ctx: OperatorContext): void {
+  const cursor = ctx.cursor
+  const target = count > 0 ? cursor.goToLine(count) : cursor.startOfFirstLine()
+  if (target.equals(cursor)) return
   const lines = ctx.text.split('\n')
   const curLine = logicalLineIndex(ctx)
-  const targetLine = count > 0 ? Math.min(count, lines.length) - 1 : 0
+  const targetLine = countCharInString(ctx.text.slice(0, target.offset), '\n')
   applyLineRange(op, lines, Math.min(curLine, targetLine), Math.max(curLine, targetLine), ctx)
   ctx.recordChange({ type: 'operator', op, motion: 'gg', count })
 }
