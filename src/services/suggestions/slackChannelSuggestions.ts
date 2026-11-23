@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import type { ConnectedMCPServer, MCPServerConnection } from '../../utils/mcp/types.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { createSignal } from '../../utils/signal.js'
@@ -68,45 +69,86 @@ function normalizeChannelName(raw: string): string | null {
   return /^[a-z0-9][a-z0-9_-]{0,79}$/.test(cleaned) ? cleaned : null
 }
 
-function collectNamesFromJson(value: unknown, out: Set<string>): void {
+type ChannelPayload =
+  | string
+  | ChannelPayload[]
+  | {
+      name?: string
+      channels?: ChannelPayload
+      results?: ChannelPayload
+      items?: ChannelPayload
+      data?: ChannelPayload
+    }
+  | null
+
+const ChannelPayloadSchema: z.ZodType<ChannelPayload> = z.lazy(() =>
+  z.union([
+    z.string(),
+    z.array(ChannelPayloadSchema),
+    z.object({
+      name: z.string().optional().catch(undefined),
+      channels: ChannelPayloadSchema.optional(),
+      results: ChannelPayloadSchema.optional(),
+      items: ChannelPayloadSchema.optional(),
+      data: ChannelPayloadSchema.optional(),
+    }),
+    z.unknown().transform(() => null),
+  ]),
+)
+
+const ToolResultSchema = z.object({
+  content: z.array(
+    z.union([
+      z.object({ type: z.literal('text'), text: z.string() }),
+      z.unknown().transform(() => null),
+    ]),
+  ),
+})
+
+function collectNamesFromPayload(value: ChannelPayload, out: Set<string>): void {
+  if (value === null) return
   if (typeof value === 'string') {
     const name = normalizeChannelName(value)
     if (name !== null) out.add(name)
     return
   }
   if (Array.isArray(value)) {
-    for (const item of value) collectNamesFromJson(item, out)
+    for (const item of value) collectNamesFromPayload(item, out)
     return
   }
-  if (value !== null && typeof value === 'object') {
-    if ('name' in value && typeof value.name === 'string') {
-      const name = normalizeChannelName(value.name)
-      if (name !== null) out.add(name)
-    }
-    if ('channels' in value) collectNamesFromJson(value.channels, out)
-    if ('results' in value) collectNamesFromJson(value.results, out)
-    if ('items' in value) collectNamesFromJson(value.items, out)
-    if ('data' in value) collectNamesFromJson(value.data, out)
+  if (value.name !== undefined) {
+    const name = normalizeChannelName(value.name)
+    if (name !== null) out.add(name)
   }
+  if (value.channels !== undefined) collectNamesFromPayload(value.channels, out)
+  if (value.results !== undefined) collectNamesFromPayload(value.results, out)
+  if (value.items !== undefined) collectNamesFromPayload(value.items, out)
+  if (value.data !== undefined) collectNamesFromPayload(value.data, out)
+}
+
+function parseJsonPayload(value: unknown, out: Set<string>): void {
+  const parsed = ChannelPayloadSchema.safeParse(value)
+  if (parsed.success) collectNamesFromPayload(parsed.data, out)
 }
 
 function parseChannelsFromToolResult(result: unknown): string[] {
   const out = new Set<string>()
-  if (result === null || typeof result !== 'object') return []
-  if ('content' in result && Array.isArray(result.content)) {
-    for (const block of result.content) {
-      if (block === null || typeof block !== 'object' || !('text' in block)) continue
-      if (typeof block.text !== 'string') continue
+  const parsedResult = ToolResultSchema.safeParse(result)
+  if (parsedResult.success) {
+    for (const block of parsedResult.data.content) {
+      if (block === null) continue
       const text = block.text
-      let parsedJson = false
+      let parsedJson: unknown
+      let isJson = false
       try {
-        const parsed: unknown = JSON.parse(text)
-        collectNamesFromJson(parsed, out)
-        parsedJson = true
+        parsedJson = JSON.parse(text)
+        isJson = true
       } catch (error) {
         passedOver(error)
       }
-      if (!parsedJson) {
+      if (isJson) {
+        parseJsonPayload(parsedJson, out)
+      } else {
         const hashPattern = /#([a-z0-9][a-z0-9_-]{0,79})/gi
         let match: RegExpExecArray | null
         while ((match = hashPattern.exec(text)) !== null) {
@@ -116,7 +158,7 @@ function parseChannelsFromToolResult(result: unknown): string[] {
       }
     }
   } else {
-    collectNamesFromJson(result, out)
+    parseJsonPayload(result, out)
   }
   return [...out]
 }
