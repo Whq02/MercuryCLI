@@ -1,11 +1,22 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { armImagePack, imagePackPackages, imagePackPlatform, vendoredImagePackDir } from './imagePackArm.js'
 import { javascriptImageProcessor } from './imageProcessorJs.js'
-import type { Unbuilt } from '../../pi/holes.js'
 
 export { IMAGE_PACK_PATH, imagePackPackages, imagePackPlatform } from './imagePackArm.js'
 
-export type SharpInstance = Unbuilt
+export type SharpInstance = {
+  metadata(): Promise<{ width?: number; height?: number; format?: string }>
+  resize(
+    width: number | null,
+    height?: number | null,
+    options?: { fit?: string; withoutEnlargement?: boolean; kernel?: string },
+  ): SharpInstance
+  extract(region: { left: number; top: number; width: number; height: number }): SharpInstance
+  jpeg(options?: { quality?: number }): SharpInstance
+  png(options?: { quality?: number; compressionLevel?: number; palette?: boolean; colors?: number }): SharpInstance
+  webp(options?: { quality?: number }): SharpInstance
+  toBuffer(): Promise<Buffer>
+}
 
 export type SharpFunction = ((input?: Buffer | string) => SharpInstance) & {
   versions?: { sharp?: string; vips?: string }
