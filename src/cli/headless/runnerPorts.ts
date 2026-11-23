@@ -9,6 +9,7 @@ import type { ConnectedMCPServer, MCPServerConnection, ScopedMcpServerConfig } f
 import type { AppState } from '../../state/AppStateStore.js'
 import type { Tool, ToolUseContext } from '../../Tool.js'
 import type { Message } from '../../types/message.js'
+import type { PermissionMode } from '../../types/permissions.js'
 import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE, type FileStateCache } from '../../utils/fileStateCache.js'
 import type { runSessionStartHooks } from '../../services/sessionStart.js'
 import type { ThinkingConfig } from '../../utils/thinking.js'
@@ -174,6 +175,7 @@ export type RunnerPorts = {
   canUseTool: ReturnType<AskHost['createCanUseTool']>
   enqueueRow: (row: RowDraft) => void
   liveScope: () => RowScope
+  noteOperatorMode: (mode: PermissionMode) => void
   tellStandingMode: () => void
   acceptInputRow: (row: InputRow) => Promise<{ accepted: true } | { accepted: false; reason: 'duplicate' }>
   heldNoticeWaits: () => boolean

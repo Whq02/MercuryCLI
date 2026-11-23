@@ -74,6 +74,7 @@ export function runnerArmsOf(ports: RunnerPorts): RunnerArms {
       if (!resolved.ok) throw refused(resolved.error, 'mode')
       const nextContext = resolved.context
       setAppState(previous => ({ ...previous, toolPermissionContext: nextContext }))
+      ports.noteOperatorMode(nextContext.mode)
       void asks.recheckPendingPermissionRequests()
       return { mode: params.mode }
     },
