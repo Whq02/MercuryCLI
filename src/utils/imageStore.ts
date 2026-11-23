@@ -9,8 +9,6 @@ import type { ContentBlockParam } from '../types/wire.js'
 import type { PastedContent } from './config/schema.js'
 import { logForDebugging } from './debug.js'
 import { getMercuryHome } from './envUtils.js'
-import { isENOENT } from './errors.js'
-import { isRecord } from './isRecord.js'
 import { passedOver } from './passedOver.js'
 
 
@@ -140,12 +138,16 @@ export function storedImageRefBlock(content: PastedContent): StoredImageRefBlock
 }
 
 export function isStoredImageRef(block: unknown): block is StoredImageRefBlock {
-  if (!isRecord(block) || block.type !== 'image' || !isRecord(block.source)) return false
+  if (!block || typeof block !== 'object') return false
+  const candidate = block as { type?: unknown; source?: { type?: unknown; path?: unknown; sha256?: unknown; media_type?: unknown } }
   return (
-    block.source.type === STORED_IMAGE_SOURCE_TYPE &&
-    typeof block.source.path === 'string' &&
-    typeof block.source.sha256 === 'string' &&
-    typeof block.source.media_type === 'string'
+    candidate.type === 'image' &&
+    !!candidate.source &&
+    typeof candidate.source === 'object' &&
+    candidate.source.type === STORED_IMAGE_SOURCE_TYPE &&
+    typeof candidate.source.path === 'string' &&
+    typeof candidate.source.sha256 === 'string' &&
+    typeof candidate.source.media_type === 'string'
   )
 }
 
@@ -167,8 +169,7 @@ export async function readStoredImageRef(
       kind: 'image',
       block: { type: 'image', source: { type: 'base64', media_type: block.source.media_type, data: bytes.toString('base64') } },
     }
-  } catch (error) {
-    passedOver(error)
+  } catch {
     return { kind: 'missing', words: missingStoredImageWords(block.source.imageId, path) }
   }
 }
@@ -181,7 +182,7 @@ async function readStoredImageRefBlock(block: StoredImageRefBlock): Promise<Cont
   const known = readBackMemo.get(key)
   if (known !== undefined) return known as ContentBlockParam
   const read = await readStoredImageRef(block)
-  if (read.kind === 'missing') return { type: 'text', text: read.words }
+  if (read.kind === 'missing') return { type: 'text', text: read.words } as ContentBlockParam
   while (readBackMemo.size >= READ_BACK_MEMO_CAP) {
     const oldest = readBackMemo.keys().next()
     if (oldest.done) break
@@ -255,7 +256,7 @@ async function newestMtime(dir: string): Promise<number> {
     try {
       newest = Math.max(newest, (await stat(join(dir, name))).mtimeMs)
     } catch (error) {
-      if (isENOENT(error)) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         passedOver(error)
         continue
       }

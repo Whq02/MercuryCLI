@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { ConnectedMCPServer, MCPServerConnection } from '../../utils/mcp/types.js'
+import type { MCPServerConnection } from '../../utils/mcp/types.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { createSignal } from '../../utils/signal.js'
 import { passedOver } from '../../utils/passedOver.js'
@@ -10,10 +10,21 @@ const CALL_TIMEOUT_MS = 5000
 const CACHE_CAP = 50
 const SUGGESTION_CAP = 10
 
-function findSlackClient(clients: MCPServerConnection[]): ConnectedMCPServer | null {
+type ConnectedSlackClient = MCPServerConnection & {
+  type: 'connected'
+  client: {
+    callTool: (
+      params: { name: string; arguments: Record<string, unknown> },
+      resultSchema?: undefined,
+      options?: { timeout?: number },
+    ) => Promise<unknown>
+  }
+}
+
+function findSlackClient(clients: MCPServerConnection[]): ConnectedSlackClient | null {
   for (const client of clients) {
     if (client.type === 'connected' && client.name.toLowerCase().includes('slack')) {
-      return client
+      return client as ConnectedSlackClient
     }
   }
   return null
@@ -47,16 +58,13 @@ function cachedChannelsFor(query: string, token: string): string[] | null {
   const direct = responseCache.get(query)
   if (direct !== undefined) return direct
   let bestKey: string | null = null
-  let bestChannels: string[] | null = null
-  for (const [key, channels] of responseCache) {
+  for (const key of responseCache.keys()) {
     if (!query.startsWith(key)) continue
+    const channels = responseCache.get(key) as string[]
     if (!channels.some(channel => channel.startsWith(token))) continue
-    if (bestKey === null || key.length > bestKey.length) {
-      bestKey = key
-      bestChannels = channels
-    }
+    if (bestKey === null || key.length > bestKey.length) bestKey = key
   }
-  return bestChannels
+  return bestKey !== null ? (responseCache.get(bestKey) as string[]) : null
 }
 
 function queryPrefixFor(token: string): string {
@@ -163,7 +171,7 @@ function parseChannelsFromToolResult(result: unknown): string[] {
   return [...out]
 }
 
-async function fetchSlackChannels(client: ConnectedMCPServer, query: string): Promise<string[]> {
+async function fetchSlackChannels(client: ConnectedSlackClient, query: string): Promise<string[]> {
   try {
     const raw = await client.client.callTool(
       { name: 'slack_search_channels', arguments: { query, limit: QUERY_LIMIT } },
