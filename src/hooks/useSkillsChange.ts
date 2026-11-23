@@ -92,7 +92,7 @@ export function useSkillsChange(
         } else {
           const ancestor = closestExistingAncestor(resolved)
           if (!ancestor) return
-          const watcher = watch(ancestor, { persistent: false }, () => {
+          const watcher = watch(resolveWatchRoot(ancestor), { persistent: false }, () => {
             if (cancelled) return
             watchers.delete(watcher)
             watcher.close()
