@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useContext, useMemo, useRef, useState } from 'react'
 import { useLoad } from '../hooks/effects.js'
 import { useAppStateStore } from '../state/AppState.js'
 import { LogSelector } from '../components/LogSelector.js'
@@ -162,6 +162,8 @@ export function ResumeConversation({
   const [resuming, setResuming] = useState(false)
   const [resumed, setResumed] = useState(false)
   const [resumeNotice, setResumeNotice] = useState<string | null>(null)
+  const [reloadCount, setReloadCount] = useState(0)
+  const terminalSize = useContext(TerminalSizeContext)
 
   const allStatLogsRef = useRef<SessionListing[]>([])
   const nextIndexRef = useRef(0)
@@ -202,7 +204,7 @@ export function ResumeConversation({
     return () => {
       loadGenRef.current += 1
     }
-  }, [showAllProjects, worktreePaths, filterLogs])
+  }, [showAllProjects, worktreePaths, filterLogs, reloadCount])
 
   const worktreeFailure = useMemo<SessionReadFailures | undefined>(
     () =>
@@ -262,7 +264,6 @@ export function ResumeConversation({
   }, [])
 
   const handleToggleAllProjects = useCallback(() => {
-    setResumeNotice(null)
     setShowAllProjects(prev => !prev)
   }, [])
 
@@ -383,7 +384,7 @@ export function ResumeConversation({
     body = <NoConversations readNotice={readNotice} />
   } else {
     body = (
-      <Box flexDirection="column">
+      <>
         {readNotice !== null ? (
           <Box paddingX={1}>
             <Text color="warning" wrap="wrap">
@@ -393,8 +394,8 @@ export function ResumeConversation({
         ) : null}
         {resumeNotice !== null ? (
           <Box paddingX={1}>
-            <Text color="warning" wrap="wrap">
-              {resumeNotice}
+            <Text color="error" wrap="wrap">
+              {`✕ ${resumeNotice}`}
             </Text>
           </Box>
         ) : null}
@@ -402,13 +403,15 @@ export function ResumeConversation({
           logs={logs}
           onSelect={handleSelect}
           onCancel={handleCancelExit}
-          initialSearchQuery={initialSearchQuery}
+          onLoadMore={nextIndexRef.current < allStatLogsRef.current.length ? handleLoadMore : undefined}
           showAllProjects={showAllProjects}
           onToggleAllProjects={handleToggleAllProjects}
-          onLogRenamed={isCustomTitleEnabled() ? handleLogRenamed : undefined}
-          onLoadMore={handleLoadMore}
+          initialSearchQuery={initialSearchQuery}
+          onLogsChanged={isCustomTitleEnabled() ? () => setReloadCount(count => count + 1) : undefined}
+          onLogRenamed={handleLogRenamed}
+          maxHeight={terminalSize?.rows ?? 24}
         />
-      </Box>
+      </>
     )
   }
 
