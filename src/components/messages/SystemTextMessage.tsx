@@ -103,7 +103,6 @@ function MemorySavedRow({
   addMargin: boolean
   bg: string | undefined
 }): React.ReactNode {
-  const tokens = useMercuryTokens()
   const [openError, setOpenError] = useState<string | null>(null)
   const verb = message.verb ?? 'Saved'
   const count = message.writtenPaths.length
@@ -116,7 +115,7 @@ function MemorySavedRow({
         </Text>
       </Text>
       {message.writtenPaths.map(filePath => {
-        const label = basename(filePath) || filePath
+        const label = basename(filePath)
         return (
           <InteractiveRow
             key={filePath}
@@ -124,22 +123,22 @@ function MemorySavedRow({
             directActivate
             selectionBand={false}
             onActivate={() => {
+              setOpenError(null)
               void openPath(filePath, err => {
                 setOpenError(`${filePath} could not be opened (${err}) — open it yourself`)
               })
             }}
           >
-            <Box paddingLeft={2}>
-              <Text dimColor>
-                <Link url={pathToFileURL(filePath).href} fallback={label}>
-                  {label}
-                </Link>
-              </Text>
-            </Box>
+            <Text dimColor>
+              {'  '}
+              <Link url={pathToFileURL(filePath).href} fallback={label}>
+                {label}
+              </Link>
+            </Text>
           </InteractiveRow>
         )
       })}
-      {openError ? <Text color={tokens.warning}>{openError}</Text> : null}
+      {openError ? <Text color="warning">{openError}</Text> : null}
     </Box>
   )
 }
@@ -204,11 +203,7 @@ export function SystemTextMessage({
 
   switch (message.subtype) {
     case 'turn_duration':
-      return (
-        <Box marginTop={addMargin ? 1 : 0} backgroundColor={bg}>
-          <TurnDurationRow message={message} />
-        </Box>
-      )
+      return <TurnDurationRow message={message} />
 
     case 'memory_saved':
       return <MemorySavedRow message={message} addMargin={addMargin} bg={bg} />
@@ -216,11 +211,9 @@ export function SystemTextMessage({
     case 'model_transition': {
       if (message.resolution === 'cancelled-pending') {
         return (
-          <Box marginTop={addMargin ? 1 : 0} backgroundColor={bg}>
-            <Text dimColor>
-              Queued model switch cancelled — staying on {message.previous ?? 'default'}.
-            </Text>
-          </Box>
+          <Text dimColor>
+            Queued model switch cancelled — staying on {message.previous ?? 'default'}.
+          </Text>
         )
       }
       if (message.resolution === 'applied' && message.boundary === 'turn-boundary') {
@@ -228,12 +221,10 @@ export function SystemTextMessage({
           message.applied === null ? 'default' : renderModelName(message.applied)
         const cross = message.crossProvider ? crossProviderNote(message.applied) : ''
         return (
-          <Box marginTop={addMargin ? 1 : 0} backgroundColor={bg}>
-            <Text dimColor>
-              model switched to {appliedLabel} for
-              this session{cross}
-            </Text>
-          </Box>
+          <Text dimColor>
+            model switched to {appliedLabel} for
+            this session{cross}
+          </Text>
         )
       }
       const prev = message.previous ?? 'default'
@@ -247,37 +238,27 @@ export function SystemTextMessage({
       if (message.crossProvider) notes.push('cross-provider')
       const suffix = notes.length > 0 ? ` (${notes.join(', ')})` : ''
       return (
-        <Box marginTop={addMargin ? 1 : 0} backgroundColor={bg}>
-          <Text dimColor>
-            {head}
-            {suffix}
-          </Text>
-        </Box>
+        <Text dimColor>
+          {head}
+          {suffix}
+        </Text>
       )
     }
 
     case 'away_summary':
       if (message.recapMetadata) {
         return (
-          <ResumeRecapCard
-            metadata={message.recapMetadata}
-            addMargin={addMargin}
-            bg={bg}
-          />
+          <ResumeRecapCard metadata={message.recapMetadata} addMargin={addMargin} />
         )
       }
-      return (
-        <Box marginTop={addMargin ? 1 : 0} backgroundColor={bg}>
-          <Text dimColor>※ {message.content}</Text>
-        </Box>
-      )
+      return <Text dimColor>※ {message.content}</Text>
 
     case 'agents_killed':
       return (
-        <Box marginTop={addMargin ? 1 : 0} backgroundColor={bg}>
+        <Text>
           <Text color="error">● </Text>
           <Text dimColor>All background crewmates stopped.</Text>
-        </Box>
+        </Text>
       )
 
     case 'thinking':
@@ -287,10 +268,12 @@ export function SystemTextMessage({
 
     case 'bridge_status':
       return (
-        <Box flexDirection="column" marginTop={addMargin ? 1 : 0} backgroundColor={bg}>
+        <Box flexDirection="column">
           <Text dimColor>
             Remote control is active — /remote-control ·{' '}
-            <Link url={message.url}>{message.url}</Link>
+            <Link url={message.url} fallback={message.url}>
+              {message.url}
+            </Link>
           </Text>
           {message.upgradeNudge ? (
             <MessageResponse height={1}>
@@ -301,27 +284,17 @@ export function SystemTextMessage({
       )
 
     case 'scheduled_task_fire':
-      return (
-        <Box marginTop={addMargin ? 1 : 0} backgroundColor={bg}>
-          <Text dimColor>* {message.content}</Text>
-        </Box>
-      )
+      return <Text dimColor>* {message.content}</Text>
 
     case 'seat_receipt':
       return (
-        <Box marginTop={addMargin ? 1 : 0} backgroundColor={bg}>
-          <Text color={message.level === 'warning' ? 'warning' : undefined}>
-            {message.content}
-          </Text>
-        </Box>
+        <Text color={message.level === 'warning' ? 'warning' : undefined}>
+          {message.content}
+        </Text>
       )
 
     case 'roster_transition':
-      return (
-        <Box marginTop={addMargin ? 1 : 0} backgroundColor={bg}>
-          <Text dimColor>{message.content}</Text>
-        </Box>
-      )
+      return <Text dimColor>{message.content}</Text>
 
     case 'advisor_quiet':
       return (
@@ -333,7 +306,7 @@ export function SystemTextMessage({
 
     case 'stream_cut':
       return (
-        <Box flexDirection="column" marginTop={addMargin ? 1 : 0} backgroundColor={bg}>
+        <Box flexDirection="column">
           <Text color="subtle">
             Continued after <Text bold>{message.count}</Text>{' '}
             {plural(message.count, 'stream cut')} · context sent again
@@ -351,7 +324,7 @@ export function SystemTextMessage({
     case 'busy_recovery': {
       const seconds = Math.max(1, Math.round(message.elapsedMs / 1000))
       return (
-        <Box flexDirection="column" marginTop={addMargin ? 1 : 0} backgroundColor={bg}>
+        <Box flexDirection="column">
           <Text color="subtle">
             {message.provider} was busy · answered after{' '}
             <Text bold>{message.retries}</Text>{' '}
