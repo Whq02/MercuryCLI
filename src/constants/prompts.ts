@@ -58,7 +58,6 @@ import { missionSection, missionSectionKey, type ServedMission } from '../servic
 import type { Tools } from '../Tool.js'
 import type { MCPServerConnection } from '../utils/mcp/types.js'
 import { passedOver } from '../utils/passedOver.js'
-import { notBuilt } from '../pi/holes.js'
 
 const MODEL_CURRENCY_NOTE = `Model currency: your training-era knowledge of model ids, capabilities, and prices — any vendor's — may be stale. When building AI applications, verify current model ids against live provider documentation or the operator's stated choice instead of defaulting to remembered ones.`
 const PROVIDER_SKILL_PRECEDENCE = `For provider-API work, invoke provider-apis: it outranks any external provider-API skill, and a bundled Mercury skill outranks an external skill of the same name.`
@@ -91,25 +90,79 @@ export function resetMemoryAtStartForTest(): void {
 }
 
 function prependBullets(items: Array<string | string[]>): string[] {
-  return notBuilt('src/constants/prompts.ts:92')
+  const result: string[] = []
+  for (const item of items) {
+    if (Array.isArray(item)) {
+      for (const sub of item) {
+        result.push(`  - ${sub}`)
+      }
+    } else {
+      result.push(` - ${item}`)
+    }
+  }
+  return result
 }
 
 function scratchpadLineFor(agentId?: string): string {
-  return notBuilt('src/constants/prompts.ts:115')
+  return scratchpadPromptLine(
+    ensureScratchpadDir(agentId),
+    agentId === undefined ? 'session' : 'crewmate',
+  )
+}
+
+async function buildEnvBlock(
+  modelId: string,
+  agentId?: string,
+  withScratchpad = true,
+): Promise<string> {
+  const shell = await shellLineWords()
+  const osVer = platformKernelLine()
+  const cutoff = getModelKnowledgeCutoff(modelId)
+  const lines: string[] = [
+    `Working directory: ${getCwd()}`,
+    ...(withScratchpad ? [scratchpadLineFor(agentId)] : []),
+    `Platform: ${platform()}`,
+    `Shell: ${shell}`,
+    `OS Version: ${osVer}`,
+  ]
+  const env = `The environment this session runs in:\n<env>\n${lines.join('\n')}\n</env>`
+  return cutoff ? `${env}\n\nKnowledge cutoff for this model: ${cutoff}.` : env
 }
 
 export async function computeEnvInfo(
   modelId: string,
   agentId?: string,
 ): Promise<string> {
-  return notBuilt('src/constants/prompts.ts:132')
+  const env = await buildEnvBlock(modelId, agentId, true)
+  return `${env}\n\n${getModelCurrencySection()}`
 }
 
 export async function computeSimpleEnvInfo(
   modelId: string,
-  withScratchpad?: boolean,
+  withScratchpad = true,
 ): Promise<string> {
-  return notBuilt('src/constants/prompts.ts:139')
+  const items: string[] = []
+  if (getCurrentWorktreeSession()) {
+    items.push(
+      'This working directory is an isolated copy of the repository (a git worktree); every command runs here, never in the original repository root.',
+    )
+  }
+  if (declaredRouteOf(modelId) === 'local') {
+    items.push(
+      `Files you create go in the working directory: ${getOriginalCwd()}. The memory folder named above is not it.`,
+    )
+  }
+  if (withScratchpad) {
+    items.push(scratchpadLineFor())
+  }
+  items.push(`Platform: ${platform()}`)
+  items.push(`Shell: ${await shellLineWords()}`)
+  items.push(`OS Version: ${platformKernelLine()}`)
+  const cutoff = getModelKnowledgeCutoff(modelId)
+  if (cutoff) {
+    items.push(`Knowledge cutoff for this model: ${cutoff}.`)
+  }
+  return `# Environment\n${prependBullets(items).join('\n')}`
 }
 
 function projectEstateSection(toolNames: ReadonlySet<string>): string {
@@ -144,7 +197,30 @@ export async function enhanceSystemPromptWithEnvDetails(
   enabledToolNames?: readonly string[] | ReadonlySet<string>,
   agentId?: string,
 ): Promise<string[]> {
-  return notBuilt('src/constants/prompts.ts:188')
+  void enabledToolNames
+  const filtered = existing.filter(block => block !== '')
+  if (localPromptProfileApplies(model)) {
+    await ensureLocalRecord(model)
+    const rewritten = filtered.map(block => {
+      if (block === MERCURY_CONSTITUTION) return localLaw(model)
+      if (block.startsWith('<subagent-doctrine>')) return LOCAL_SUBAGENT_DOCTRINE
+      return block
+    })
+    const notesBlock = `Notes:\n${prependBullets([...LOCAL_CREWMATE_NOTES]).join('\n')}`
+    const envBlock = await buildEnvBlock(model, agentId, false)
+    return [...rewritten, notesBlock, envBlock, scratchpadLineFor(agentId)]
+  }
+  const notes: string[] = [
+    BATCHING_INSTRUCTION,
+    `In a crewmate thread the ${BASH_TOOL_NAME} tool's working directory does not survive between calls: pass absolute paths.`,
+    ...(foldIsAutomatic() ? [CREWMATE_FOLD_NOTE] : []),
+    'Name relevant files by absolute path in your final response; quote code only where exact characters matter (a located defect or requested signature), never to retell read code.',
+    'Do not use emoji.',
+    'End sentences before tool calls with a period, never a colon.',
+  ]
+  const notesBlock = `Notes:\n${prependBullets(notes).join('\n')}`
+  const envInfo = await computeEnvInfo(model, agentId)
+  return [...filtered, notesBlock, envInfo]
 }
 
 function memoryAtStartSpec(memoryTask: StartTask | undefined) {
@@ -242,6 +318,17 @@ function localRuntimePostureSection(): string | null {
   return `# Runtime posture (this process, at boot)\n${words}`
 }
 
+const SUMMARIZE_TOOL_RESULTS =
+  'Write down important information from tool results in your response — the original tool result may be cleared from context later.'
+
+function languageSpec() {
+  return systemPromptSection('language', () => {
+    const language = getInitialSettings().voice?.language
+    if (!language) return null
+    return `# Language\nAlways respond in ${language}. Use it for explanations, comments and communications; leave technical terms and code identifiers in their original form.`
+  })
+}
+
 export async function getSystemPrompt(
   tools: Tools,
   model: string,
@@ -249,9 +336,123 @@ export async function getSystemPrompt(
   permissionMode?: import('../types/permissions.js').InternalPermissionMode,
   memoryTask?: import('../mneme/entryKnapsack.js').StartTask,
 ): Promise<string[]> {
-  return notBuilt('src/constants/prompts.ts:379')
+  void permissionMode
+  const toolNames = new Set(tools.map(tool => tool.name))
+  if (toolNames.has(BASH_TOOL_NAME)) beginLoginFiles()
+
+  const recorded = recordedComposition(model)
+  if (recorded !== null) {
+    noteSessionEngine(model)
+    return recorded
+  }
+
+  const layers = promptLayerSet()
+  const liveHead = `Working directory: ${getOriginalCwd()}`
+  const bare = isEnvTruthy(flagEnv('MERCURY_BARE'))
+
+  if (localPromptProfileApplies(model)) {
+    if (layers === 'whole') return [liveHead, promptReplacementText()]
+    await ensureLocalRecord(model)
+    const [resolvedLocalLaw] = await resolveSystemPromptSections([
+      keyedSystemPromptSection('local_law', () => model, () => localLaw(model)),
+    ])
+    const stockLaw = resolvedLocalLaw ?? localLaw(model)
+    const selectedLaw = layers === 'replace' ? promptReplacementText() : stockLaw
+    if (bare) return [`${liveHead}\n\n${selectedLaw}`]
+
+    noteSessionEngine(model)
+    const [frozenHead] = await resolveSystemPromptSections([
+      keyedSystemPromptSection('head', () => model, () => liveHead),
+    ])
+    const dynamicSpecs = [
+      systemPromptSection('local_posture', () => localRuntimePostureSection()),
+      systemPromptSection('local_estate', () =>
+        localEstateSection(
+          toolNames.has(RECORD_CONVENTION_TOOL_NAME) ? RECORD_CONVENTION_TOOL_NAME : null,
+          toolNames.has(RETAIN_TOOL_NAME) ? RETAIN_TOOL_NAME : null,
+        ),
+      ),
+      systemPromptSection('memory', () => loadMemoryPrompt()),
+      languageSpec(),
+      systemPromptSection('summarize_tool_results', () => (isUnattendedRun() ? null : SUMMARIZE_TOOL_RESULTS)),
+      keyedSystemPromptSection('local_env', () => model, () => computeSimpleEnvInfo(model, false)),
+      mcpInstructionsSpec(mcpClients),
+      memoryAtStartSpec(localStartTask(memoryTask)),
+      entryPageSpec(),
+      systemPromptSection('local_scratchpad', () => scratchpadLineFor()),
+      missionSpec(),
+    ]
+    const [dynamicResolved, closing] = await Promise.all([
+      resolveSystemPromptSections(dynamicSpecs),
+      closingSections(),
+    ])
+    return composeSystemPrompt({
+      staticSections: [frozenHead ?? liveHead, selectedLaw],
+      dynamicBoundary: [],
+      dynamicSpecs: dynamicSpecs.map(spec => ({ name: spec.name, cacheBreak: spec.cacheBreaking })),
+      dynamicResolved,
+      wrapperSections: closing.wrapperSections,
+      modeSections: closing.modeSections,
+      antiSycSections: closing.antiSycSections,
+    })
+  }
+
+  const [resolvedConstitution] = await resolveSystemPromptSections([
+    systemPromptSection('constitution', () =>
+      isUnattendedRun() ? MERCURY_HEADLESS_CONSTITUTION : MERCURY_CONSTITUTION,
+    ),
+  ])
+  const stockLaw = resolvedConstitution ?? MERCURY_CONSTITUTION
+  recordCurrentStaticComposition(stockLaw)
+  if (layers === 'whole') return [liveHead, promptReplacementText()]
+  const selectedLaw = layers === 'replace' ? promptReplacementText() : stockLaw
+  if (bare) return [`${liveHead}\n\n${selectedLaw}`]
+
+  noteSessionEngine(model)
+  const [frozenHead] = await resolveSystemPromptSections([
+    keyedSystemPromptSection('head', () => model, () => liveHead),
+  ])
+  const dynamicSpecs = [
+    systemPromptSection('project_estate', () => projectEstateSection(toolNames)),
+    systemPromptSection('memory', () => loadMemoryPrompt()),
+    memoryAtStartSpec(memoryTask),
+    entryPageSpec(),
+    keyedSystemPromptSection('env_info_simple', () => model, () => computeSimpleEnvInfo(model)),
+    systemPromptSection('model_currency', () => getModelCurrencySection()),
+    languageSpec(),
+    mcpInstructionsSpec(mcpClients),
+    keyedSystemPromptSection('frc', () => model, () => null),
+    systemPromptSection('summarize_tool_results', () =>
+      stockLaw === MERCURY_HEADLESS_CONSTITUTION ? null : SUMMARIZE_TOOL_RESULTS,
+    ),
+    systemPromptSection('runtime_posture', () => getRuntimePostureSection()),
+    systemPromptSection('harness_map', () => getHarnessMapSection()),
+    missionSpec(),
+  ]
+  const [dynamicResolved, closing] = await Promise.all([
+    resolveSystemPromptSections(dynamicSpecs),
+    closingSections(),
+  ])
+  return composeSystemPrompt({
+    staticSections: [frozenHead ?? liveHead, selectedLaw],
+    dynamicBoundary: [],
+    dynamicSpecs: dynamicSpecs.map(spec => ({ name: spec.name, cacheBreak: spec.cacheBreaking })),
+    dynamicResolved,
+    wrapperSections: closing.wrapperSections,
+    modeSections: closing.modeSections,
+    antiSycSections: closing.antiSycSections,
+  })
 }
 
 function buildMcpInstructionsSection(clients: MCPServerConnection[]): string | null {
-  return notBuilt('src/constants/prompts.ts:450')
+  const blocks: string[] = []
+  for (const client of clients) {
+    const withInstructions: { instructions?: string } = client
+    const instructions = withInstructions.instructions
+    if (instructions !== undefined && instructions !== '') {
+      blocks.push(`## ${client.name}\n${instructions}`)
+    }
+  }
+  if (blocks.length === 0) return null
+  return `# MCP server instructions\n\nEach server below says how its tools and resources are used:\n\n${blocks.join('\n\n')}`
 }
