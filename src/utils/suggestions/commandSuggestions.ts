@@ -125,14 +125,15 @@ function getCommandIndex(commands: Command[]): Fuse<IndexedCommand> {
   return fuseIndex
 }
 
-function matchTier(entry: IndexedCommand, query: string): number {
-  const nameLower = entry.name.toLowerCase()
-  if (nameLower === query) return 0
-  if (entry.aliases.some(alias => alias.toLowerCase() === query)) return 1
-  if (nameLower.startsWith(query)) return 2
-  if (entry.nameParts.some(part => part.toLowerCase().startsWith(query))) return 3
-  if (entry.aliases.some(alias => alias.toLowerCase().startsWith(query))) return 4
-  return 5
+function rankOf(entry: IndexedCommand, query: string): { tier: number; tieBreak: number } {
+  const name = entry.name.toLowerCase()
+  const aliases = entry.aliases.map(alias => alias.toLowerCase())
+  if (name === query) return { tier: 0, tieBreak: 0 }
+  if (aliases.includes(query)) return { tier: 1, tieBreak: 0 }
+  if (name.startsWith(query)) return { tier: 2, tieBreak: name.length }
+  const matchingAlias = aliases.find(alias => alias.startsWith(query))
+  if (matchingAlias !== undefined) return { tier: 3, tieBreak: matchingAlias.length }
+  return { tier: 4, tieBreak: 0 }
 }
 
 function rankResults(
@@ -140,15 +141,16 @@ function rankResults(
   query: string,
 ): Command[] {
   return results
-    .map(result => ({ entry: result.item, tier: matchTier(result.item, query), score: result.score ?? 1 }))
-    .sort(
-      (a, b) =>
-        a.tier - b.tier ||
-        (a.tier === 5 ? a.score - b.score : 0) ||
-        a.entry.name.length - b.entry.name.length ||
-        a.entry.name.localeCompare(b.entry.name),
-    )
-    .map(ranked => ranked.entry.command)
+    .map(result => ({ command: result.item.command, ...rankOf(result.item, query), score: result.score ?? 1 }))
+    .sort((a, b) => {
+      if (a.tier !== b.tier) return a.tier - b.tier
+      if (a.tieBreak !== b.tieBreak) return a.tieBreak - b.tieBreak
+      if (Math.abs(a.score - b.score) < 0.1) {
+        return getSkillUsageScore(getCommandName(b.command)) - getSkillUsageScore(getCommandName(a.command))
+      }
+      return a.score - b.score
+    })
+    .map(hit => hit.command)
 }
 
 function sortByName(commands: Command[]): Command[] {
