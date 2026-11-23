@@ -18,9 +18,7 @@ function readEarlyChunk(chunk: string): void {
       return
     }
     if (code === 0x08 || code === 0x7f) {
-      if (capturedBuffer !== '') {
-        capturedBuffer = capturedBuffer.slice(0, capturedBuffer.length - lastGrapheme(capturedBuffer).length)
-      }
+      capturedBuffer = capturedBuffer.slice(0, -(lastGrapheme(capturedBuffer).length || 1))
       continue
     }
     if (code === 0x1b) {
@@ -56,8 +54,8 @@ export function startCapturingEarlyInput(): void {
         chunk = process.stdin.read()
       }
     }
-    process.stdin.on('readable', drain)
     readableHandler = drain
+    process.stdin.on('readable', drain)
   } catch (error) {
     passedOver(error)
     capturing = false
