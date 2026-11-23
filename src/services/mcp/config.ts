@@ -106,7 +106,7 @@ function expandServerConfig(
     for (const name of missingVars) missing.add(name)
     return expanded
   }
-  const type = (config as { type?: string }).type
+  const type = config.type
   if (type === undefined || type === 'stdio') {
     const stdio = config as Extract<McpServerConfig, { command: string }>
     const expandedEnv =
@@ -151,7 +151,7 @@ function expandServerConfig(
     const url = expand(remote.url)
     return {
       config: {
-        ...(config as object),
+        ...config,
         url,
         ...(expandedHeaders === undefined ? {} : { headers: expandedHeaders }),
         ...(expandedOauth === undefined ? {} : { oauth: expandedOauth }),
@@ -244,10 +244,7 @@ export function parseMcpConfig({
       }
     }
 
-    const refusal = mcpStdioCommandRefusal(
-      serverName,
-      effectiveConfig as { type?: string; command?: string; args?: string[] },
-    )
+    const refusal = mcpStdioCommandRefusal(serverName, effectiveConfig)
     if (refusal !== null) {
       errors.push({
         filePath: pathText,
@@ -260,20 +257,19 @@ export function parseMcpConfig({
       continue
     }
 
-    const effectiveRecord = effectiveConfig as { type?: string; command?: string }
     if (
       process.platform === 'win32' &&
-      (effectiveRecord.type === undefined || effectiveRecord.type === 'stdio') &&
-      typeof effectiveRecord.command === 'string' &&
-      (effectiveRecord.command === 'npx' ||
-        effectiveRecord.command.endsWith('/npx') ||
-        effectiveRecord.command.endsWith('\\npx'))
+      (effectiveConfig.type === undefined || effectiveConfig.type === 'stdio') &&
+      typeof effectiveConfig.command === 'string' &&
+      (effectiveConfig.command === 'npx' ||
+        effectiveConfig.command.endsWith('/npx') ||
+        effectiveConfig.command.endsWith('\\npx'))
     ) {
       errors.push({
         filePath: pathText,
         path: serverName,
         message: `MCP server "${serverName}" invokes "npx" directly — on some Windows setups this fails to start without a shell wrapper`,
-        suggestion: `If the server fails to start, change the command to "cmd" and prepend ["/c", "${effectiveRecord.command}"] to the arguments`,
+        suggestion: `If the server fails to start, change the command to "cmd" and prepend ["/c", "${effectiveConfig.command}"] to the arguments`,
         scope,
         serverName,
         severity: 'warning',
@@ -512,7 +508,7 @@ function entryMatches(
   if ('serverName' in entry) return entry.serverName === serverName
   if ('serverCommand' in entry) {
     if (config === undefined) return false
-    const type = (config as { type?: string }).type
+    const type = config.type
     if (type !== undefined && type !== 'stdio') return false
     const command = (config as { command?: string }).command
     if (command === undefined) return false
@@ -564,9 +560,9 @@ function isServerAllowed(serverName: string, config?: McpServerConfig): boolean 
   const allowList = getAllowList()
   if (allowList === undefined) return true
   if (allowList.length === 0) return false
-  const type = (config as { type?: string } | undefined)?.type
+  const type = config?.type
   const isStdio =
-    config !== undefined && (type === undefined || type === 'stdio') && 'command' in (config as object)
+    config !== undefined && (type === undefined || type === 'stdio') && 'command' in config
   const isRemote = config !== undefined && typeof (config as { url?: unknown }).url === 'string'
   if (isStdio && allowList.some(entry => 'serverCommand' in entry)) {
     return allowList.some(
@@ -626,10 +622,16 @@ export function areMcpConfigsAllowedWithEnterpriseMcpConfig(
 export function getMcpServerSignature(
   config: McpServerConfig | ScopedMcpServerConfig,
 ): string | undefined {
-  const record = config as { type?: string; command?: string; args?: string[]; url?: string }
-  if (typeof record.url === 'string') return record.url
-  if (typeof record.command === 'string') {
-    return JSON.stringify([record.command, ...(record.args ?? [])])
+  if (
+    config.type === 'sse' ||
+    config.type === 'http' ||
+    config.type === 'ws' ||
+    config.type === 'claudeai-proxy'
+  ) {
+    return typeof config.url === 'string' ? config.url : undefined
+  }
+  if (typeof config.command === 'string') {
+    return JSON.stringify([config.command, ...(config.args ?? [])])
   }
   return undefined
 }

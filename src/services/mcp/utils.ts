@@ -282,7 +282,7 @@ type McpDefinitionRecord = {
 }
 
 export function mcpConfigAsWritten(config: McpServerConfig | ScopedMcpServerConfig): { command?: string; args: string[]; url?: string } {
-  const record = config as McpDefinitionRecord
+  const record: McpDefinitionRecord = config
   const written = record.unexpanded ?? {}
   const command = written.command ?? record.command
   const url = written.url ?? record.url
@@ -317,7 +317,7 @@ export function mcpVariableCarriesCode(name: string): boolean {
 }
 
 export function projectMcpServerDefinitionDigest(config: McpServerConfig | ScopedMcpServerConfig): string {
-  const record = config as McpDefinitionRecord
+  const record: McpDefinitionRecord = config
   const writtenEnv = record.unexpanded?.env ?? {}
   const code = Object.fromEntries(Object.entries(record.env ?? {}).filter(([name]) => mcpVariableCarriesCode(name)).map(([name, value]) => [name, writtenEnv[name] ?? value]))
   const definition = {

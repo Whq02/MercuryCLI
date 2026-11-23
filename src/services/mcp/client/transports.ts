@@ -17,7 +17,7 @@ import { getMcpServerHeaders } from '../headersHelper.js'
 import type { ScopedMcpServerConfig } from '../../../utils/mcp/types.js'
 import { getLoggingSafeMcpBaseUrl } from '../utils.js'
 import { connectTimeoutMs, mcpStdioMaxMessageBytes } from './limits.js'
-import { type FetchLike, wrapFetchWithTimeout, loggedHeadersOf, createAnthropicProxyFetch } from './fetch.js'
+import { wrapFetchWithTimeout, loggedHeadersOf, createAnthropicProxyFetch } from './fetch.js'
 import { OwnedStdioClientTransport } from './protocolClient.js'
 import { createWsTransport } from './wsTransport.js'
 import { endProcessTree, endProcessTreeSurvivors } from '../../../utils/processGroup.js'
@@ -64,7 +64,7 @@ export function buildStdioTransport(name: string, serverRef: ScopedMcpServerConf
 
 export async function sseTransportFor(name: string, config: RemoteConfig, provider: MercuryMcpAuthProvider): Promise<Transport> {
   const serverHeaders = await getMcpServerHeaders(name, config)
-  const apiFetch = getApiFetch() as FetchLike
+  const apiFetch = getApiFetch()
   const wrappedFetch = wrapFetchWithTimeout(wrapFetchWithStepUpDetection(apiFetch, provider))
   const headers: Record<string, string> = { 'User-Agent': getMCPUserAgent(), ...serverHeaders }
   const proxyOptions = getProxyFetchOptions()
@@ -105,7 +105,7 @@ export async function wsTransportFor(name: string, config: RemoteConfig): Promis
 
 export async function httpTransportFor(name: string, config: RemoteConfig, provider: MercuryMcpAuthProvider): Promise<Transport> {
   const serverHeaders = await getMcpServerHeaders(name, config)
-  const apiFetch = getApiFetch() as FetchLike
+  const apiFetch = getApiFetch()
   const wrappedFetch = wrapFetchWithTimeout(wrapFetchWithStepUpDetection(apiFetch, provider))
   const headers: Record<string, string> = { 'User-Agent': getMCPUserAgent(), ...serverHeaders }
   const proxyOptions = getProxyFetchOptions()
@@ -142,7 +142,7 @@ export function proxyTransportFor(name: string, config: RemoteConfig): Transport
   const baseUrl = (oauth.MCP_PROXY_URL ?? oauth.BASE_API_URL ?? '').replace(/\/+$/, '')
   const rawPath = (oauth.MCP_PROXY_PATH ?? '/v1/mcp/{server_id}').replace('{server_id}', serverId)
   const path = rawPath.startsWith('/') ? rawPath : `/${rawPath}`
-  const wrappedFetch = wrapFetchWithTimeout(createAnthropicProxyFetch(getApiFetch() as FetchLike))
+  const wrappedFetch = wrapFetchWithTimeout(createAnthropicProxyFetch(getApiFetch()))
   const headers: Record<string, string> = {
     'User-Agent': getMCPUserAgent(),
     'X-Mcp-Client-Session-Id': getSessionId(),

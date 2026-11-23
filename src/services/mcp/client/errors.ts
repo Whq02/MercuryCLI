@@ -53,7 +53,7 @@ const STALE_SOCKET_MESSAGE_SUBSTRINGS = ['other side closed', 'socket hang up', 
 export function isStaleSocketFetchError(error: unknown): boolean {
   if (isStaleSocketCode(deepestErrorDetail(error).code)) return true
   if (!(error instanceof TypeError)) return false
-  const message = `${errorMessage(error)} ${errorMessage((error as { cause?: unknown }).cause)}`
+  const message = `${errorMessage(error)} ${errorMessage(error.cause)}`
   return STALE_SOCKET_MESSAGE_SUBSTRINGS.some(substring => message.includes(substring))
 }
 

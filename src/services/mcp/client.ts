@@ -389,7 +389,7 @@ export const connectToServer = memoize(
     const type = serverRef.type ?? 'stdio'
     const config = serverRef as RemoteConfig
     if (type === 'stdio') {
-      const refusal = mcpStdioCommandRefusal(name, config as { type?: string; command?: string; args?: string[] })
+      const refusal = mcpStdioCommandRefusal(name, config)
       if (refusal !== null) return { name, type: 'failed', config: serverRef, error: refusal }
       try {
         await attachMediaHostIfConfigured(name, serverRef, AbortSignal.timeout(20_000))
@@ -654,7 +654,7 @@ function buildMcpTool(client: ConnectedMCPServer, sdkTool: McpSdkTool): Tool {
   const wireName = wireSafeMcpToolName(client.name, sdkTool.name)
   const qualifiedName = buildMcpToolName(client.name, sdkTool.name)
   const annotations = sdkTool.annotations as McpToolAnnotations
-  const meta = (sdkTool as { _meta?: Record<string, unknown> })._meta
+  const meta = sdkTool._meta
   const rawSearchHint = meta?.['anthropic/searchHint']
   const searchHint =
     typeof rawSearchHint === 'string'
@@ -683,7 +683,7 @@ function buildMcpTool(client: ConnectedMCPServer, sdkTool: McpSdkTool): Tool {
       ...(effectiveMaxPermission ? { effectiveMaxPermission } : {}),
     },
     isMcp: true,
-    inputJSONSchema: sdkTool.inputSchema as Tool['inputJSONSchema'],
+    inputJSONSchema: sdkTool.inputSchema,
     ...(searchHint !== undefined ? { searchHint } : {}),
     ...(alwaysLoad ? { alwaysLoad: true } : {}),
     description: async () => cardDescription,
@@ -793,7 +793,7 @@ const fetchToolsForClientMemo = memoize(
       const tools = sanitized.map(sdkTool => buildMcpTool(client, sdkTool))
       toolDiscoveryFailures.delete(client.name)
       return tools.filter(tool => {
-        const info = (tool as { mcpInfo?: { toolName: string } }).mcpInfo
+        const info = tool.mcpInfo
         const annotations = sanitized.find(entry => entry.name === info?.toolName)?.annotations as McpToolAnnotations
         return mcpToolAllowed(client.name, info?.toolName ?? tool.name, annotations)
       })
@@ -845,16 +845,10 @@ export const fetchCommandsForClient = memoize(
   async (client: MCPServerConnection): Promise<Command[]> => {
     if (client.type !== 'connected' || !client.capabilities.prompts) return []
     try {
-      const result = (await client.client.request(
+      const result = await client.client.request(
         { method: 'prompts/list', params: {} },
         { timeout: connectTimeoutMs() },
-      )) as {
-        prompts?: Array<{
-          name: string
-          description?: string
-          arguments?: Array<{ name: string }>
-        }>
-      }
+      )
       const prompts = recursivelySanitizeUnicode(result.prompts ?? [])
       return prompts.map((prompt): Command => {
         const argNames = (prompt.arguments ?? []).map(arg => arg.name)
@@ -880,10 +874,10 @@ export const fetchCommandsForClient = memoize(
             }
             try {
               const connected = await ensureConnectedClient(client)
-              const response = (await connected.client.request({
+              const response = await connected.client.request({
                 method: 'prompts/get',
                 params: { name: prompt.name, arguments: namedArgs },
-              })) as { messages?: Array<{ content?: unknown }> }
+              })
               const blocks: ContentBlockParam[] = []
               for (const message of response.messages ?? []) {
                 if (message.content === undefined) continue
@@ -1001,34 +995,27 @@ async function callToolOnce(
     )
     responseReceived = true
 
-    const resultRecord = rawResult as {
-      content?: unknown
-      isError?: boolean
-      error?: unknown
-      _meta?: Record<string, unknown>
-      structuredContent?: unknown
-    }
-    if (resultRecord.isError) {
+    if (rawResult.isError) {
       let detail: string | undefined
-      if (Array.isArray(resultRecord.content)) {
-        const firstText = resultRecord.content.find(
-          (block): block is { type: string; text: string } =>
+      if (Array.isArray(rawResult.content)) {
+        const firstText = rawResult.content.find(
+          block =>
             block !== null &&
             typeof block === 'object' &&
-            (block as { type?: unknown }).type === 'text' &&
-            typeof (block as { text?: unknown }).text === 'string',
+            block.type === 'text' &&
+            typeof block.text === 'string',
         )
-        if (firstText !== undefined) detail = firstText.text
+        if (firstText !== undefined && firstText.type === 'text') detail = firstText.text
       }
-      if (detail === undefined && resultRecord.error !== undefined && resultRecord.error !== null) {
-        detail = typeof resultRecord.error === 'string' ? resultRecord.error : errorMessage(resultRecord.error)
+      if (detail === undefined && rawResult.error !== undefined && rawResult.error !== null) {
+        detail = typeof rawResult.error === 'string' ? rawResult.error : errorMessage(rawResult.error)
       }
       const errorDetail = detail || 'Unknown error'
       logMCPError(connected.name, `tool ${tool} returned an error: ${errorDetail}`)
       throw new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
         `MCP tool "${tool}" on server "${connected.name}" failed: ${errorDetail}`,
         'MCP tool returned error',
-        resultRecord._meta,
+        rawResult._meta,
       )
     }
 
@@ -1036,8 +1023,8 @@ async function callToolOnce(
     logMCPDebug(connected.name, `tool ${tool} completed in ${formatCallDuration(Date.now() - startedAt)}`)
     return {
       content: processedContent,
-      ...(resultRecord._meta ? { _meta: resultRecord._meta } : {}),
-      ...(resultRecord.structuredContent !== undefined ? { structuredContent: resultRecord.structuredContent } : {}),
+      ...(rawResult._meta ? { _meta: rawResult._meta } : {}),
+      ...(rawResult.structuredContent !== undefined ? { structuredContent: rawResult.structuredContent } : {}),
     }
   } catch (err) {
     if (responseReceived) throw err
@@ -1130,9 +1117,8 @@ export async function callMCPToolWithUrlElicitationRetry(params: {
   if (toolUseId === undefined && Array.isArray(parentContent)) {
     const wireName = wireSafeMcpToolName(client.name, tool)
     for (const block of parentContent) {
-      const b = block as { type?: string; id?: string; name?: string }
-      if (b.type === 'tool_use' && (b.name === wireName || b.name === tool)) {
-        toolUseId = b.id
+      if (block.type === 'tool_use' && (block.name === wireName || block.name === tool)) {
+        toolUseId = block.id
         break
       }
     }
