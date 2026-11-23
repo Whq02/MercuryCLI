@@ -74,6 +74,7 @@ const PINS: Array<[string, string]> = [
   ['scripts/critters/prove-small-critter-estate.ts', 'pins that the box switch, the box and the title row are gone'],
   ['scripts/switchboard/prove-surface-truth-drive.ts', 'pins that no frame paints a title row'],
   ['scripts/switchboard/prove-plain-world-command-honesty.ts', 'reads the title rows to prove them absent'],
+  ['scripts/switchboard/prove-board-focus-owns-keys.ts', 'pins that the focused chat paints no title row'],
   ['scripts/visual-contract/prove-paste-safety.ts', 'pins that no row reads the title row'],
   ['scripts/visual-finish/prove-rail-recent-lane.ts', 'reads the box row to prove it absent'],
 ]
