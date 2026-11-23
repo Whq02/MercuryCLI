@@ -237,14 +237,6 @@ function useSelectorLoads({
   return { mutatingShellIds, storeStats }
 }
 
-function transcriptPathOf(connector: object): string | null {
-  if (!('transcriptFile' in connector)) return null
-  const fn = connector.transcriptFile
-  if (typeof fn !== 'function') return null
-  const value: unknown = fn.call(connector)
-  return typeof value === 'string' && value !== '' ? value : null
-}
-
 function useSelectorActions({
   chosen,
   close,
@@ -313,7 +305,13 @@ function useSelectorActions({
     setError(null)
     setBusy(true)
     try {
-      const sourceTranscriptPath = transcriptPathOf(getFocusedSessionConnector())
+      const focused = getFocusedSessionConnector() as {
+        transcriptFile?: () => string | null | undefined
+      }
+      const sourceTranscriptPath =
+        typeof focused.transcriptFile === 'function'
+          ? focused.transcriptFile()
+          : null
       if (!sourceTranscriptPath) {
         if (mountedRef.current) {
           setError('this session has no transcript file to branch from')
