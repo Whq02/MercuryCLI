@@ -1,7 +1,8 @@
 import type { Message } from '../types/message.js'
-import type { ApiToolUnion, ContentBlockParam, MessageParam, TextBlockParam } from '../types/wire.js'
+import type { ApiToolUnion, ContentBlock, ContentBlockParam, MessageParam, TextBlockParam } from '../types/wire.js'
 import { logForDebugging } from '../utils/debug.js'
 import { logError } from '../utils/log.js'
+import { createAssistantMessage, createUserMessage } from '../utils/messages/factories.js'
 import { normalizeMessagesForAPI } from './messages.js'
 import { getDefaultSonnetModel, getEngineModel, normalizeModelStringForAPI } from './model/model.js'
 import { utilityCallFor } from './model/utilityModel.js'
@@ -82,14 +83,11 @@ async function countWithBusyRetry<T>(road: string, run: () => Promise<T>): Promi
   }
 }
 
-function hasThinkingBlocks(messages: ReadonlyArray<{ role?: string; content?: unknown }>): boolean {
+function hasThinkingBlocks(messages: readonly MessageParam[]): boolean {
   for (const message of messages) {
     if (message.role !== 'assistant' || !Array.isArray(message.content)) continue
     for (const block of message.content) {
-      if (block && typeof block === 'object') {
-        const type = (block as { type?: unknown }).type
-        if (type === 'thinking' || type === 'redacted_thinking') return true
-      }
+      if (block.type === 'thinking' || block.type === 'redacted_thinking') return true
     }
   }
   return false
@@ -102,14 +100,29 @@ function apiMessagesFor(messages: Message[]): MessageParam[] {
   }))
 }
 
-type CountableMessage = Message | { role: string; content: unknown }
+type CountableMessage = { role: 'user' | 'assistant'; content: unknown }
+
+function isBlockArray<T>(value: unknown): value is T[] {
+  return Array.isArray(value)
+}
 
 function toProductMessage(message: CountableMessage): Message {
-  if ('type' in message) return message
-  return {
-    type: message.role === 'assistant' ? 'assistant' : 'user',
-    message: { role: message.role, content: message.content },
-  } as unknown as Message
+  if (message.role === 'assistant') {
+    const content =
+      typeof message.content === 'string'
+        ? message.content
+        : isBlockArray<ContentBlock>(message.content)
+          ? message.content
+          : []
+    return createAssistantMessage({ content })
+  }
+  const content =
+    typeof message.content === 'string'
+      ? message.content
+      : isBlockArray<ContentBlockParam>(message.content)
+        ? message.content
+        : []
+  return createUserMessage({ content })
 }
 
 export async function countMessagesTokensWithAPI(
