@@ -8,26 +8,23 @@ import { familyDisplayName } from '../../services/providers/accountSlots.js'
 import { collectLoginsScreenFacts, loginsArmSlots, loginsCatalogue, loginsRowStateOf } from '../BootLoginsScreen.js'
 import { mostRecentSignInFamily } from '../../services/model/computedDefault.js'
 import { type useAnthropicLoginModel, waitingHeadline, type AnthropicFlowState } from '../mercury-ui/screens/anthropicLoginModel.js'
-import { resolveProviderUsability } from '../../services/providers/providerUsability.js'
 import type { LoginFamilyRow } from '../loginFamilyRows.js'
 import { loginFamilyFocusFor, loginFamilyInitialFocus, signInLaterRow, type LoginFamilyValue, type TensorFoldOffer } from '../loginFamilyRows.js'
 import type { localDiscoverySummary } from '../../services/providers/local/localCatalogue.js'
 import type { MercuryThemeTokens } from '../../utils/mercuryTokens.js'
 import { SuccessEnterConfirms, ErrorEnterRetries } from './enterKeys.js'
-import { MORE_BELOW_ROW, READINESS_LABEL_WIDTH, readinessBlockPlan, ProviderReadinessBlock } from './readiness.js'
+import { MORE_BELOW_ROW } from './readiness.js'
 
 export type LoginFamilyFocus = LoginFamilyRow['value']
 
-export type SignInCardFit = { introLines: number; roster: number; readiness: number }
+export type SignInCardFit = { introLines: number; roster: number }
 
-export function signInCardFit(input: { bodyRows: number; textWidth: number; intro: string; rosterRows: number; readinessRows: number }): SignInCardFit {
+export function signInCardFit(input: { bodyRows: number; textWidth: number; intro: string; rosterRows: number }): SignInCardFit {
   const introLines = wrapText(input.intro, Math.max(1, input.textWidth), 'wrap').split('\n').length
   const fixed = 1 + 1 + 1 + introLines + 1 + 1
   const forRoster = input.bodyRows - fixed
-  if (forRoster < input.rosterRows) return { introLines, roster: Math.max(1, forRoster - 2), readiness: 0 }
-  const left = forRoster - input.rosterRows - 1
-  if (left >= input.readinessRows) return { introLines, roster: input.rosterRows, readiness: input.readinessRows }
-  return { introLines, roster: input.rosterRows, readiness: left >= 3 ? left : 0 }
+  if (forRoster < input.rosterRows) return { introLines, roster: Math.max(1, forRoster - 2) }
+  return { introLines, roster: input.rosterRows }
 }
 
 export function idleCard({
@@ -84,12 +81,10 @@ export function idleCard({
   const intro = startingMessage ?? 'Choose a provider to sign in.'
   const refusalLayout = popup && facts !== null && Object.keys(facts.refusals ?? {}).length > 0
   const rosterCompact = compact || refusalLayout
-  const statusWidth = !compact && setupBody !== null ? setupBody.width - 4 - READINESS_LABEL_WIDTH : null
-  const readinessPlan = compact ? null : readinessBlockPlan(resolveProviderUsability(), statusWidth)
   const fit =
-    !compact && setupBody !== null && readinessPlan !== null
-      ? signInCardFit({ bodyRows: setupBody.rows, textWidth: setupBody.width - 4, intro, rosterRows: idleRows.length, readinessRows: readinessPlan.rows })
-      : { introLines: 0, roster: idleRows.length, readiness: readinessPlan?.rows ?? 0 }
+    !compact && setupBody !== null
+      ? signInCardFit({ bodyRows: setupBody.rows, textWidth: setupBody.width - 4, intro, rosterRows: idleRows.length })
+      : { introLines: 0, roster: idleRows.length }
   const rowHeight = !compact && setupBody !== null
     ? Math.max(...idleRows.map(row => wrapText(row.label, Math.max(1, setupBody.width - 6), 'wrap').split('\n').length))
     : 1
@@ -136,7 +131,6 @@ export function idleCard({
       </PopupFormContext.Provider>
       {refusalText ? <Text>{refusalText}</Text> : null}
       {!rosterCompact && rosterWindow < idleRows.length && rosterHidden > 0 ? <Text dimColor>{MORE_BELOW_ROW(rosterHidden)}</Text> : null}
-      {rosterCompact || fit.readiness === 0 ? null : <ProviderReadinessBlock rows={fit.readiness} statusWidth={statusWidth} />}
     </Box>,
   )
 }

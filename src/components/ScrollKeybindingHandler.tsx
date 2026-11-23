@@ -195,10 +195,10 @@ const WHEEL_OWNING_OVERLAYS: ReadonlySet<string> = new Set([
 ])
 
 export function wheelYieldsToTopOverlay(): boolean {
-  if (settingsPopupRequest()?.scrollRef) return false
-  if (isCrewViewOpen()) return true
   const top = topOverlay()
-  return top !== null && WHEEL_OWNING_OVERLAYS.has(top.id)
+  if (top !== null && WHEEL_OWNING_OVERLAYS.has(top.id)) return true
+  if (settingsPopupRequest()?.scrollRef) return false
+  return isCrewViewOpen()
 }
 
 export function shouldClearSelectionOnKey(key: Key): boolean {
@@ -407,13 +407,13 @@ export function ScrollKeybindingHandler({
   useInput(
     (input: string, key: Key, event: InputEvent) => {
       if (key.wheelUp || key.wheelDown) {
+        if (wheelYieldsToTopOverlay()) return
         const popupScroll = settingsPopupRequest()?.scrollRef
         if (popupScroll) {
           event.stopImmediatePropagation()
         } else if (event.wheelStep && (topOverlay() !== null || hasElevatedSurface())) {
           return
         }
-        if (wheelYieldsToTopOverlay()) return
         if (event.wheelStep) {
           event.stopImmediatePropagation()
         }
