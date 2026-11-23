@@ -292,32 +292,31 @@ export function ScrollKeybindingHandler({
 
   const notifyScroll = useCallback(
     (handle: ScrollBoxHandle): void => {
-      if (handle !== scrollRef.current) return
+      if (modalUp || settingsPopupRequest()?.scrollRef) return
       const max = Math.max(0, handle.getScrollHeight() - handle.getViewportHeight())
       const projected = handle.getScrollTop() + handle.getPendingDelta()
       onScrollRef.current?.(projected >= max, handle)
     },
-    [scrollRef],
+    [modalUp],
   )
 
   useClaim(() => {
-    if (!ink || !isActive || isModal) return
+    if (!ink) return
     return ink.registerTranscriptScrollTarget(() => {
-      if (modalUp) return false
-      if (getHelmFocus() !== 'prompt') return false
+      if (!isActive || isModal || modalUp) return false
+      if (topOverlay() !== null) return false
       if (settingsPopupRequest() !== null) return false
       if (isCrewViewOpen()) return false
-      if (topOverlay() !== null || hasElevatedSurface()) return false
+      if (getHelmFocus() !== 'prompt') return false
       const handle = scrollRef.current
-      if (!handle) return false
-      return handle.getScrollHeight() > handle.getViewportHeight()
+      return handle !== null && handle.getScrollHeight() > handle.getViewportHeight()
     })
   }, [ink, isActive, isModal, modalUp, scrollRef])
 
   useClaim(() => {
-    if (!ink || !isActive || isModal) return
-    return ink.registerArrowKeyOwner(() => isMessageCursorActive())
-  }, [ink, isActive, isModal])
+    if (!ink) return
+    return ink.registerArrowKeyOwner(isMessageCursorActive)
+  }, [ink])
 
   useClaim(() => {
     return () => {
@@ -326,50 +325,39 @@ export function ScrollKeybindingHandler({
     }
   }, [])
 
-  const raiseCopyToast = useCallback(
-    (text: string): void => {
-      if (text === '') return
-      receiptUnsubRef.current?.()
-      receiptUnsubRef.current = null
-      const path = getClipboardPath()
-      const receipt = copyReceipt(path)
-      const timeoutMs = path === 'native' ? 2000 : 4000
-      addNotification({
-        key: COPY_TOAST_KEY,
-        text: receipt.text,
-        ...(receipt.detail ? { detail: receipt.detail } : {}),
-        priority: 'immediate',
-        timeoutMs,
-      })
-      if (path !== 'osc52') {
-        const unsub = subscribeClipboardReceipts(settledReceipt => {
-          unsub()
-          if (receiptUnsubRef.current === unsub) {
-            receiptUnsubRef.current = null
-          }
-          if (settledReceipt.settled.length === 0) {
-            const unsettled = copyReceipt('unsettled')
-            addNotification({
-              key: COPY_TOAST_KEY,
-              text: unsettled.text,
-              ...(unsettled.detail ? { detail: unsettled.detail } : {}),
-              priority: 'immediate',
-              timeoutMs: 4000,
-            })
-          }
-        })
-        receiptUnsubRef.current = unsub
+  const raiseCopyToast = useCallback((): void => {
+    const path = getClipboardPath()
+    addNotification({
+      key: COPY_TOAST_KEY,
+      ...copyReceipt(path),
+      priority: 'immediate',
+      timeoutMs: path === 'native' ? 2000 : 4000,
+    })
+    if (path === 'osc52') return
+    receiptUnsubRef.current?.()
+    const unsub = subscribeClipboardReceipts(settledReceipt => {
+      unsub()
+      if (receiptUnsubRef.current === unsub) {
+        receiptUnsubRef.current = null
       }
-    },
-    [addNotification],
-  )
+      if (settledReceipt.settled.length === 0) {
+        addNotification({
+          key: COPY_TOAST_KEY,
+          ...copyReceipt('unsettled'),
+          priority: 'immediate',
+          timeoutMs: 4000,
+        })
+      }
+    })
+    receiptUnsubRef.current = unsub
+  }, [addNotification])
 
   const copyOwnInputSelection = useCallback((): boolean => {
     const own = peekOwnInputSelection()
     if (!own) return false
     selection.copyText(own.text)
     clearOwnInputSelection()
-    if (own.text) raiseCopyToast(own.text)
+    if (own.text) raiseCopyToast()
     return true
   }, [selection, raiseCopyToast])
 
@@ -464,7 +452,7 @@ export function ScrollKeybindingHandler({
       if (key.ctrl && input === 'c' && !key.shift && !key.meta && !key.super) {
         if (selection.hasSelection()) {
           const text = selection.copySelection()
-          if (text) raiseCopyToast(text)
+          if (text) raiseCopyToast()
           event.stopImmediatePropagation()
           return
         }
