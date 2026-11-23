@@ -27,6 +27,7 @@ import type {
 import type { ToolUseBlock } from '../../types/wire.js'
 import { getDisplayPath } from '../../utils/file.js'
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js'
+import { isRecord } from '../../utils/isRecord.js'
 import {
   isAutoManagedMemoryFile,
   isAutoManagedMemoryPattern,
@@ -58,16 +59,15 @@ const NOT_COLLAPSIBLE: SearchOrReadResult = {
 }
 
 function inputPath(toolInput: unknown): string | undefined {
-  if (typeof toolInput !== 'object' || toolInput === null) return undefined
-  const record = toolInput as { file_path?: unknown; path?: unknown }
-  if (typeof record.file_path === 'string') return record.file_path
-  if (typeof record.path === 'string') return record.path
+  if (!isRecord(toolInput)) return undefined
+  if (typeof toolInput.file_path === 'string') return toolInput.file_path
+  if (typeof toolInput.path === 'string') return toolInput.path
   return undefined
 }
 
 function inputField(toolInput: unknown, field: string): string | undefined {
-  if (typeof toolInput !== 'object' || toolInput === null) return undefined
-  const value = (toolInput as Record<string, unknown>)[field]
+  if (!isRecord(toolInput)) return undefined
+  const value = toolInput[field]
   return typeof value === 'string' ? value : undefined
 }
 
@@ -374,10 +374,9 @@ function isSkippable(message: RenderableMessage): boolean {
 
 function scanForGitOperations(group: OpenGroup, message: NormalizedUserMessage): void {
   const rawResult = message.toolUseResult
-  if (typeof rawResult !== 'object' || rawResult === null) return
-  const resultRecord = rawResult as { stdout?: unknown; stderr?: unknown }
-  const stdout = typeof resultRecord.stdout === 'string' ? resultRecord.stdout : ''
-  const stderr = typeof resultRecord.stderr === 'string' ? resultRecord.stderr : ''
+  if (!isRecord(rawResult)) return
+  const stdout = typeof rawResult.stdout === 'string' ? rawResult.stdout : ''
+  const stderr = typeof rawResult.stderr === 'string' ? rawResult.stderr : ''
   if (stdout === '' && stderr === '') return
   const output = `${stdout}\n${stderr}`
   for (const block of toolResultBlocks(message)) {
