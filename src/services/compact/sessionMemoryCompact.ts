@@ -226,15 +226,14 @@ export async function trySessionMemoryCompaction(
     )
     annotateBoundaryWithWork(annotatedBoundary, messages, messagesToKeep, summaryMessage.uuid)
 
-    const model = rosterContext?.options?.engineModel
-    const summaryTokens = estimateMessageTokens(summaryMessages)
+    const summaryTokens = estimateContextTokens(summaryMessages)
     const proposedBeforeHooks: Message[] = [
       annotatedBoundary,
       ...summaryMessages,
       ...messagesToKeep,
       ...attachments,
     ]
-    const preHookEstimate = estimateContextTokens(proposedBeforeHooks, model)
+    const preHookEstimate = estimateContextTokens(proposedBeforeHooks)
     if (autoCompactThreshold !== undefined && preHookEstimate >= autoCompactThreshold) {
       return null
     }
@@ -267,11 +266,11 @@ export async function trySessionMemoryCompaction(
       hookResults,
       preCompactTokenCount,
       postCompactTokenCount: summaryTokens,
-      truePostCompactTokenCount: preHookEstimate,
+      truePostCompactTokenCount: summaryTokens,
       compactionUsage: undefined,
     }
 
-    const finalEstimate = estimateContextTokens(buildPostCompactMessages(result), model)
+    const finalEstimate = estimateContextTokens(buildPostCompactMessages(result))
     if (autoCompactThreshold !== undefined && finalEstimate >= autoCompactThreshold) {
       return null
     }
@@ -279,7 +278,7 @@ export async function trySessionMemoryCompaction(
     result.truePostCompactTokenCount = finalEstimate
 
     if (effectiveTrigger === 'manual') {
-      const sizes = foldSizes(messages, model, preCompactTokenCount, rows => estimateContextTokens(rows, model))
+      const sizes = foldSizes(messages, rosterContext?.options?.engineModel, preCompactTokenCount, estimateContextTokens)
       if (finalEstimate >= sizes.before) {
         return null
       }
