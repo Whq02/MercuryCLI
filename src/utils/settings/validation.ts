@@ -6,16 +6,46 @@ import { generateSettingsJSONSchema } from './schemaOutput.js'
 import type { SettingsJson } from './types.js'
 import { SettingsSchema } from './types.js'
 import { getValidationTip } from './validationTips.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
+import { notBuilt } from '../../pi/holes.js'
 
 
 type FieldPath = string
 
-export type ValidationError = Unbuilt
+export type ValidationError = {
+  file?: string
+  path: FieldPath
+  message: string
+  expected?: string
+  invalidValue?: unknown
+  suggestion?: string
+  docLink?: string
+  severity?: 'error' | 'warning' | 'held'
+  kept?: true
+  unknownKeys?: string[]
+  mcpErrorMetadata?: {
+    scope: ConfigScope
+    serverName?: string
+    severity?: 'fatal' | 'warning'
+  }
+}
 
-export type SettingsWithErrors = Unbuilt
+export type SettingsWithErrors = {
+  settings: SettingsJson
+  errors: ValidationError[]
+}
 
-type IssueLike = Unbuilt
+type IssueLike = {
+  code: string
+  path: PropertyKey[]
+  message: string
+  expected?: string
+  values?: unknown[]
+  keys?: string[]
+  minimum?: number | bigint
+  maximum?: number | bigint
+  received?: unknown
+  errors?: IssueLike[][]
+}
 
 function unionAlternatives(issue: IssueLike): { values: unknown[]; shapes: string[] } | null {
   if (issue.code !== 'invalid_union' || !Array.isArray(issue.errors)) return null
