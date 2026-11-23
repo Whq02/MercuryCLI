@@ -621,7 +621,7 @@ export async function checkResponseForCacheBreak(
   }
 }
 
-export function notifyCacheDeletion(querySource: string, agentId?: string | null): void {
+export function notifyCacheDeletion(querySource: string, agentId?: string): void {
   const key = resolveStateKey(querySource, agentId)
   if (key === null) return
   const state = laneStates.get(key)
@@ -630,7 +630,7 @@ export function notifyCacheDeletion(querySource: string, agentId?: string | null
   }
 }
 
-export function notifyCompaction(querySource: string, agentId?: string | null): void {
+export function notifyCompaction(querySource: string, agentId?: string): void {
   const key = resolveStateKey(querySource, agentId)
   if (key === null) return
   const state = laneStates.get(key)

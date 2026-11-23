@@ -150,7 +150,7 @@ const PDF_PAGES_PATTERN = /maximum of \d+ PDF pages/
 
 
 function messageOf(error: unknown): string {
-  const message = isRecord(error) ? error.message : undefined
+  const message = (error as { message?: unknown } | null)?.message
   return typeof message === 'string' ? message : ''
 }
 
@@ -265,7 +265,7 @@ export function continuableStreamFaultTextOf(msg: AssistantMessage): string | nu
   const content = msg.message.content
   if (!Array.isArray(content)) return null
   for (const block of content) {
-    const text = block.type === 'text' ? block.text : undefined
+    const text = (block as { type?: string; text?: unknown }).type === 'text' ? (block as { text?: unknown }).text : undefined
     if (typeof text === 'string' && text.includes(STREAM_FAULT_AFTER_PARTIAL_MARKER)) return text
   }
   return null
@@ -287,9 +287,9 @@ export function isContinuableStreamFaultMessage(msg: AssistantMessage): boolean 
   if (!Array.isArray(content)) return false
   return content.some(
     block =>
-      block.type === 'text' &&
-      typeof block.text === 'string' &&
-      block.text.includes(STREAM_FAULT_AFTER_PARTIAL_MARKER),
+      (block as { type?: string }).type === 'text' &&
+      typeof (block as { text?: unknown }).text === 'string' &&
+      ((block as { text: string }).text.includes(STREAM_FAULT_AFTER_PARTIAL_MARKER)),
   )
 }
 
@@ -321,21 +321,21 @@ function parsePromptTooLongTokenCounts(raw: string): {
   const match = /prompt is too long[\s\S]*?(\d+)\s*tokens\s*>\s*(\d+)/i.exec(raw)
   if (!match) return { actualTokens: undefined, limitTokens: undefined }
   return {
-    actualTokens: Number.parseInt(match[1]!, 10),
-    limitTokens: Number.parseInt(match[2]!, 10),
+    actualTokens: Number.parseInt(match[1] as string, 10),
+    limitTokens: Number.parseInt(match[2] as string, 10),
   }
 }
 
 export function getPromptTooLongTokenGap(msg: Message): number | undefined {
   if (msg.type !== 'assistant') return undefined
-  const details = msg.errorDetails
-  const content = msg.message.content
+  const details = (msg as AssistantMessage).errorDetails
+  const content = (msg as AssistantMessage).message.content
   const texts: string[] = []
   if (typeof details === 'string') texts.push(details)
   if (Array.isArray(content)) {
     for (const block of content) {
-      if (block.type === 'text' && typeof block.text === 'string') {
-        texts.push(block.text)
+      if ((block as { type?: string }).type === 'text' && typeof (block as { text?: unknown }).text === 'string') {
+        texts.push((block as { text: string }).text)
       }
     }
   }
@@ -403,7 +403,7 @@ function homeFailoverCauseOf(error: unknown, row: AssistantMessage): FailoverCau
   if (row.error === 'authentication_failed') return 'sign-in'
   const status = statusOf(error)
   if (status === 404) return 'unknown-model'
-  if (isTimeoutError(error) || isConnectionError(error) || (isRecord(error) && error.name === 'ReconnectBudgetSpentError')) return 'unreachable'
+  if (isTimeoutError(error) || isConnectionError(error) || (error as { name?: unknown } | null)?.name === 'ReconnectBudgetSpentError') return 'unreachable'
   if (status !== undefined && status >= 500 && status !== 529) return 'unreachable'
   return undefined
 }

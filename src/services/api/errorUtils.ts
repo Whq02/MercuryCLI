@@ -1,5 +1,4 @@
 import { APIError } from '../../utils/api/sdkErrors.js'
-import { isRecord } from '../../utils/isRecord.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 
@@ -62,19 +61,20 @@ function sanitizeAPIError(apiError: string | undefined | null): string {
 
 function statusOf(error: unknown): number | undefined {
   if (error instanceof APIError && typeof error.status === 'number') return error.status
-  const status = isRecord(error) ? error.status : undefined
+  const status = (error as { status?: unknown } | null)?.status
   return typeof status === 'number' ? status : undefined
 }
 
 function recoverNestedMessage(error: unknown): string | undefined {
-  const outer = isRecord(error) ? error.error : undefined
-  if (!isRecord(outer)) return undefined
-  const deep = isRecord(outer.error) ? outer.error.message : undefined
+  const outer = (error as { error?: unknown } | null)?.error as
+    | { error?: { message?: unknown }; message?: unknown }
+    | undefined
+  const deep = outer?.error?.message
   if (typeof deep === 'string') {
     const sanitized = sanitizeAPIError(deep)
     if (sanitized !== '') return sanitized
   }
-  const shallow = outer.message
+  const shallow = outer?.message
   if (typeof shallow === 'string') {
     const sanitized = sanitizeAPIError(shallow)
     if (sanitized !== '') return sanitized
