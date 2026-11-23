@@ -453,15 +453,13 @@ export function DiffDialog({
   const wideSummary = columns >= SUMMARY_SIDE_BY_SIDE_MIN_COLS
   const innerWidth = Math.max(40, columns - 6)
   const summaryWidth = wideSummary
-    ? Math.min(44, Math.max(28, Math.floor(innerWidth * 0.36)))
+    ? Math.min(44, Math.max(32, Math.floor(columns * 0.32)))
     : innerWidth
   const listWidth = wideSummary
-    ? Math.max(28, innerWidth - summaryWidth - 3)
+    ? Math.max(28, innerWidth - summaryWidth - 2)
     : innerWidth
-  const bodyBudget = Math.max(6, rows - 10)
-  const listRows = wideSummary
-    ? Math.max(4, bodyBudget - 2)
-    : Math.max(4, bodyBudget - 8)
+  const bodyBudget = Math.max(4, (rows || 24) - 12 - (wideSummary ? 0 : 7))
+  const listRows = bodyBudget
 
   usePopupListPaging(
     selectedIndex,
@@ -478,9 +476,15 @@ export function DiffDialog({
   )
 
   const stats = diffData.stats
-  const statsLine = stats
-    ? `${stats.filesCount} ${plural(stats.filesCount, 'file')} changed, +${stats.linesAdded}/-${stats.linesRemoved}`
-    : null
+  const statsLine = useMemo(() => {
+    if (files.length === 0) return null
+    const added = files.reduce((sum, f) => sum + f.linesAdded, 0)
+    const removed = files.reduce((sum, f) => sum + f.linesRemoved, 0)
+    const parts = [`${files.length} ${plural(files.length, 'file')} changed`]
+    if (added > 0) parts.push(`+${added}`)
+    if (removed > 0) parts.push(`-${removed}`)
+    return parts.join(' · ')
+  }, [files])
   const { title, subtitle } = sourceTitle(source)
   const strip = sourceStripOf({
     sources,

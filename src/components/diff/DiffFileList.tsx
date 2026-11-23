@@ -33,8 +33,8 @@ function FileItem({
   file: DiffFile;
   isSelected: boolean;
   maxPathWidth: number;
-  onSelect: () => void;
-  onActivate: () => void;
+  onSelect?: (filePath: string) => void;
+  onActivate?: (filePath: string) => void;
 }): React.ReactNode {
   const displayPath = truncateStartToWidth(file.path, maxPathWidth);
   const pointer = isSelected ? figures.pointer + ' ' : '  ';
@@ -43,8 +43,8 @@ function FileItem({
       id={`diff:file:${file.path}`}
       selected={isSelected}
       selectionBand={false}
-      onSelect={onSelect}
-      onActivate={onActivate}
+      onSelect={onSelect ? () => onSelect(file.path) : undefined}
+      onActivate={onActivate ? () => onActivate(file.path) : undefined}
       height={1}
       flexDirection="row"
     >
