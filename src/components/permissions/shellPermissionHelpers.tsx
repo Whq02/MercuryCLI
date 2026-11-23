@@ -122,7 +122,7 @@ export function generateShellSuggestionsLabel(
   for (const update of suggestions) {
     if (update.type !== 'addRules') continue
     for (const rule of update.rules) {
-      if (!rule.ruleContent) continue
+      if (!rule.ruleContent?.trim()) continue
       if (rule.toolName === 'Read') {
         const cleaned = rule.ruleContent.replace('/**', '')
         if (cleaned && !readPaths.includes(cleaned)) {
