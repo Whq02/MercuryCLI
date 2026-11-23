@@ -1,6 +1,12 @@
+import { OAUTH_BETA_HEADER } from '../constants/oauth.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
+import {
+  anthropicApiKeyHeaders,
+  getAnthropicApiKey,
+  getClaudeAIOAuthTokens,
+  isClaudeAISubscriber,
+} from './auth.js'
 import { getWorkload } from './workloadContext.js'
-import { notBuilt } from '../pi/holes.js'
 
 function hostHints(): string[] {
   const hints: string[] = []
@@ -37,5 +43,21 @@ export { webUserAgent as getWebFetchUserAgent } from './webUserAgent.js'
 type AuthHeaders = { headers: Record<string, string>; error?: string }
 
 export function getAuthHeaders(): AuthHeaders {
-  return notBuilt('src/utils/http.ts:40')
+  if (isClaudeAISubscriber()) {
+    const accessToken = getClaudeAIOAuthTokens()?.accessToken
+    if (accessToken) {
+      return {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'anthropic-beta': OAUTH_BETA_HEADER,
+        },
+      }
+    }
+    return { headers: {}, error: 'No OAuth access token available' }
+  }
+  const apiKey = getAnthropicApiKey()
+  if (apiKey) {
+    return { headers: anthropicApiKeyHeaders(apiKey) }
+  }
+  return { headers: {}, error: 'No API key available' }
 }
