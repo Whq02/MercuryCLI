@@ -69,6 +69,113 @@ function wrapOutputStream(
   }
 }
 
+type SettleInput = {
+  taskOutput: TaskOutput
+  code: number | null
+  signal: NodeJS.Signals | null
+  errorMessage?: string
+  timeout: number
+  isFileMode: boolean
+  backgroundTaskId?: string
+  killedByUs: boolean
+  killedByTimeout: boolean
+  killedByHardCap: boolean
+  killedBySize: boolean
+}
+
+function policyNoticeFor(
+  killedBySize: boolean,
+  killedByHardCap: boolean,
+  killedByTimeout: boolean,
+  timeout: number,
+): string | undefined {
+  if (killedBySize) {
+    return `Background command killed: its output file exceeded the ${MAX_TASK_OUTPUT_BYTES_DISPLAY} output limit.`
+  }
+  if (killedByHardCap) {
+    const hardCapMs = timeout * HARD_CAP_MULTIPLIER
+    return `Background command killed: absolute deadline elapsed (${HARD_CAP_MULTIPLIER}x the original ${formatDuration(timeout)} timeout, ${formatDuration(hardCapMs)} total). Auto-backgrounding preserves the task's time bound; background service-style commands explicitly.`
+  }
+  if (killedByTimeout) {
+    return `Command timed out after ${formatDuration(timeout)}.`
+  }
+  return undefined
+}
+
+async function finalizeExecResult(input: SettleInput): Promise<ExecResult> {
+  const {
+    taskOutput,
+    code,
+    signal,
+    errorMessage,
+    timeout,
+    isFileMode,
+    backgroundTaskId,
+    killedByUs,
+    killedByTimeout,
+    killedByHardCap,
+    killedBySize,
+  } = input
+
+  try {
+    await taskOutput.flush()
+  } catch (error) {
+    passedOver(error)
+  }
+
+  const stdout = await taskOutput.getStdout()
+  let stderr = taskOutput.getStderr()
+  if (errorMessage) {
+    stderr = stderr ? `${stderr}\n${errorMessage}` : errorMessage
+  }
+
+  const policyNotice = policyNoticeFor(killedBySize, killedByHardCap, killedByTimeout, timeout)
+  if (policyNotice !== undefined) {
+    stderr = stderr ? `${policyNotice} ${stderr}` : policyNotice
+  }
+
+  const finalCode =
+    errorMessage !== undefined
+      ? 1
+      : code !== null && !isOwnKillExitCode(killedByUs, code)
+        ? code
+        : signal === 'SIGTERM'
+          ? 144
+          : killedByTimeout
+            ? 143
+            : killedByUs
+              ? 137
+              : 1
+
+  const interrupted = killedByUs && !killedByTimeout && !killedByHardCap && !killedBySize
+
+  let outputFilePath: string | undefined
+  let outputFileSize: number | undefined
+  let outputTaskId: string | undefined
+  if (isFileMode && backgroundTaskId === undefined) {
+    if (taskOutput.outputFileRedundant) {
+      try {
+        await taskOutput.deleteOutputFile()
+      } catch (error) {
+        passedOver(error)
+      }
+    } else {
+      outputFilePath = taskOutput.path
+      outputFileSize = taskOutput.outputFileSize
+      outputTaskId = taskOutput.taskId
+    }
+  }
+
+  return {
+    stdout,
+    stderr,
+    code: finalCode,
+    interrupted,
+    ...(backgroundTaskId !== undefined ? { backgroundTaskId } : {}),
+    ...(outputFilePath !== undefined ? { outputFilePath, outputFileSize, outputTaskId } : {}),
+  }
+}
+
 export function wrapSpawn(
   childProcess: ChildProcess,
   abortSignal: AbortSignal,
@@ -158,71 +265,21 @@ export function wrapSpawn(
     await new Promise<void>(resolve => startImmediate(resolve))
     detachStreams()
 
-    try {
-      await taskOutput.flush()
-    } catch (error) {
-      passedOver(error)
-    }
-
-    const stdout = await taskOutput.getStdout()
-    let stderr = taskOutput.getStderr()
-    if (errorMessage) {
-      stderr = stderr ? `${stderr}\n${errorMessage}` : errorMessage
-    }
-
-    let policyNotice: string | undefined
-    if (killedBySize) {
-      policyNotice = `Background command killed: its output file exceeded the ${MAX_TASK_OUTPUT_BYTES_DISPLAY} output limit.`
-    } else if (killedByHardCap) {
-      const hardCapMs = timeout * HARD_CAP_MULTIPLIER
-      policyNotice = `Background command killed: absolute deadline elapsed (${HARD_CAP_MULTIPLIER}x the original ${formatDuration(timeout)} timeout, ${formatDuration(hardCapMs)} total). Auto-backgrounding preserves the task's time bound; background service-style commands explicitly.`
-    } else if (killedByTimeout) {
-      policyNotice = `Command timed out after ${formatDuration(timeout)}.`
-    }
-    if (policyNotice !== undefined) {
-      stderr = stderr ? `${policyNotice} ${stderr}` : policyNotice
-    }
-
-    const finalCode =
-      errorMessage !== undefined
-        ? 1
-        : code !== null && !isOwnKillExitCode(killedByUs, code)
-          ? code
-          : signal === 'SIGTERM'
-            ? 144
-            : killedByTimeout
-              ? 143
-              : killedByUs
-                ? 137
-                : 1
-
-    const interrupted = killedByUs && !killedByTimeout && !killedByHardCap && !killedBySize
-
-    let outputFilePath: string | undefined
-    let outputFileSize: number | undefined
-    let outputTaskId: string | undefined
-    if (isFileMode && backgroundTaskId === undefined) {
-      if (taskOutput.outputFileRedundant) {
-        try {
-          await taskOutput.deleteOutputFile()
-        } catch (error) {
-          passedOver(error)
-        }
-      } else {
-        outputFilePath = taskOutput.path
-        outputFileSize = taskOutput.outputFileSize
-        outputTaskId = taskOutput.taskId
-      }
-    }
-
-    resolveResult({
-      stdout,
-      stderr,
-      code: finalCode,
-      interrupted,
-      ...(backgroundTaskId !== undefined ? { backgroundTaskId } : {}),
-      ...(outputFilePath !== undefined ? { outputFilePath, outputFileSize, outputTaskId } : {}),
-    })
+    resolveResult(
+      await finalizeExecResult({
+        taskOutput,
+        code,
+        signal,
+        errorMessage,
+        timeout,
+        isFileMode,
+        backgroundTaskId,
+        killedByUs,
+        killedByTimeout,
+        killedByHardCap,
+        killedBySize,
+      }),
+    )
   }
 
   const kill = (): void => {
