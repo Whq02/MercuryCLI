@@ -64,7 +64,7 @@ function sequenceItems(commands: readonly SimpleCommand[]): string[] | null {
 
 function commandMayWriteVariables(node: Node): boolean {
   const nameNode = childOfKind(node, 'command_name')
-  const inner = nameNode?.children.length === 1 ? (nameNode.children[0] as Node) : undefined
+  const inner = nameNode?.children.length === 1 ? nameNode.children[0] : undefined
   if (inner === undefined || inner.type !== 'word' || inner.children.length > 0) return true
   return VARIABLE_WRITERS.has(inner.text) || inner.text === 'time' || EVALUATING_BUILTINS.has(inner.text)
 }
@@ -79,7 +79,7 @@ function writtenVariables(argv: string[]): string[] {
   if (name === 'read' || name === 'wait') {
     let i = 0
     while (i < operands.length) {
-      const operand = operands[i] as string
+      const operand = operands[i]
       if (operand === '--' || !operand.startsWith('-') || operand === '-') {
         if (name === 'read') written.push(...operands.slice(i + (operand === '--' ? 1 : 0)))
         break
@@ -97,8 +97,8 @@ function writtenVariables(argv: string[]): string[] {
   }
   if (name === 'printf') {
     for (let i = 0; i < operands.length; i++) {
-      const operand = operands[i] as string
-      if (operand === '-v' && operands[i + 1] !== undefined) written.push(operands[++i] as string)
+      const operand = operands[i]
+      if (operand === '-v' && operands[i + 1] !== undefined) written.push(operands[++i])
       else if (operand.startsWith('-v') && operand.length > 2) written.push(operand.slice(2))
       else break
     }
@@ -213,10 +213,7 @@ abstract class CommandWalk extends WordWalk {
         case 'number':
         case 'raw_string':
         case 'string':
-        case 'concatenation':
-        case 'arithmetic_expansion':
-        case 'expansion':
-        case 'simple_expansion': {
+        case 'concatenation': {
           const value = this.argument(child, scope)
           if (!endOfFlags && (value.startsWith('-') || value.startsWith('+'))) {
             if (value === '--') {
@@ -250,7 +247,7 @@ abstract class CommandWalk extends WordWalk {
       }
     }
 
-    this.commands.push({ argv, envVars: [], redirects: [], text: commandText(node.text, argv) })
+    this.commands.push({ argv, envVars: [], redirects: [], text: node.text })
   }
 
   unset(node: Node, scope: Scope): void {
@@ -298,7 +295,7 @@ abstract class CommandWalk extends WordWalk {
       }
     }
     visit(node)
-    this.commands.push({ argv, envVars: [], redirects: [], text: commandText(node.text, argv) })
+    this.commands.push({ argv, envVars: [], redirects: [], text: node.text })
   }
 
   redirected(node: Node, scope: Scope): void {
@@ -329,7 +326,7 @@ abstract class CommandWalk extends WordWalk {
     const before = this.commands.length
     this.node(inner, scope)
     if (this.commands.length > before && redirects.length > 0) {
-      const last = this.commands[this.commands.length - 1] as SimpleCommand
+      const last = this.commands[this.commands.length - 1]
       last.redirects.push(...redirects)
     }
   }
@@ -373,10 +370,6 @@ abstract class FlowWalk extends CommandWalk {
       refuse(`loop variable ${variable} changes shell lookup, path expansion or startup code; use a different variable, or approve`, node.type)
     }
 
-    const hasUnquotedTilde = (item: Node): boolean =>
-      (item.type === 'word' && item.text.startsWith('~')) ||
-      (item.type === 'concatenation' && item.children.length > 0 && hasUnquotedTilde(item.children[0]!))
-
     let items: string[] | null = !select && seenIn && itemNodes.length > 0 ? [] : null
 
     for (const item of itemNodes) {
@@ -397,7 +390,7 @@ abstract class FlowWalk extends CommandWalk {
 
       const operand: Operand = { glob: false }
       const value = this.argument(item, scope, operand)
-      if (!isKnown(value) || hasUnquotedTilde(item)) {
+      if (!isKnown(value) || value.includes('~')) {
         items = null
       } else if (items !== null) {
         items.push(operand.glob ? `${GLOB_ITEM}${value}` : value)
@@ -416,10 +409,9 @@ abstract class FlowWalk extends CommandWalk {
       }
     } else {
       for (const item of items) {
-        const iteration = new Map(bodyScope)
-        iteration.set(variable, item)
-        this.body(body, iteration)
-        for (const [name, value] of iteration) {
+        bodyScope.set(variable, item)
+        this.body(body, bodyScope)
+        for (const [name, value] of bodyScope) {
           if (name === variable) continue
           if (!scope.has(name) || (!isKnown(value) && value !== scope.get(name))) {
             scope.set(name, value === UNKNOWN_INTEGER ? UNKNOWN_INTEGER : UNKNOWN_VALUE)
@@ -623,16 +615,16 @@ export class Walk extends FlowWalk {
     for (let index = 0; index < items.length; index++) {
       let current: Scope
       if (index === 0) current = new Map(scope)
-      else if (index === 1 || operators[index - 2] === operators[index - 1]) current = new Map(after[index - 1] as Scope)
+      else if (index === 1 || operators[index - 2] === operators[index - 1]) current = new Map(after[index - 1])
       else {
-        current = new Map(after[0] as Scope)
-        for (let earlier = 1; earlier < index; earlier++) this.invalidateAssignments(items[earlier] as Node, current)
+        current = new Map(after[0])
+        for (let earlier = 1; earlier < index; earlier++) this.invalidateAssignments(items[earlier], current)
       }
-      this.node(items[index] as Node, current)
+      this.node(items[index], current)
       after.push(current)
     }
-    const settled = new Map(after[0] as Scope)
-    for (let index = 1; index < items.length; index++) this.invalidateAssignments(items[index] as Node, settled)
+    const settled = new Map(after[0])
+    for (let index = 1; index < items.length; index++) this.invalidateAssignments(items[index], settled)
     scope.clear()
     for (const [name, value] of settled) scope.set(name, value)
   }
