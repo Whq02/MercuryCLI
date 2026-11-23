@@ -1,7 +1,6 @@
 import * as React from 'react'
-import type { UUID } from 'node:crypto'
 import { z } from 'zod/v4'
-import { buildTool, stringInputField, type ToolInputJSONSchema, type ToolUseContext, type ToolResult, type ToolPermissionContext } from '../../Tool.js'
+import { buildTool, stringInputField, type ToolInputJSONSchema, type ToolUseContext, type ToolResult } from '../../Tool.js'
 import { loginFilesLineOnce, settleShellRecord } from '../../utils/shell/shellRecord.js'
 import { bashToolAvailable } from '../../utils/shell/windowsShellRoad.js'
 import { BASH_TOOL_NAME } from '../../constants/tools/bash.js'
@@ -208,7 +207,8 @@ function classifyCommand(command: string): { isSearch: boolean; isRead: boolean;
   let isList = false
   let sawRecognized = false
   for (let i = 0; i < parts.length; i++) {
-    const part = parts[i] as string
+    const part = parts[i]
+    if (part === undefined) continue
     if (REDIRECT_OPERATORS.has(part)) {
       i++
       continue
@@ -237,7 +237,8 @@ function isSilentCommand(command: string): boolean {
   let precededBy = ''
   let sawReal = false
   for (let i = 0; i < parts.length; i++) {
-    const part = parts[i] as string
+    const part = parts[i]
+    if (part === undefined) continue
     if (REDIRECT_OPERATORS.has(part)) {
       i++
       continue
@@ -491,17 +492,19 @@ function getBashInputJSONSchema(): ToolInputJSONSchema {
   if (!BACKGROUND_TASKS_DISABLED) return converted
   const properties = converted.properties
   if (typeof properties !== 'object' || properties === null) return converted
-  const { run_in_background: _omitted, ...rest } = properties as Record<string, unknown>
+  const rest = Object.fromEntries(
+    Object.entries(properties).filter(([key]) => key !== 'run_in_background'),
+  )
   return { ...converted, properties: rest }
 }
 
 async function runSimulatedSedEdit(
-  input: BashToolInput,
+  edit: NonNullable<BashToolInput['_simulatedSedEdit']>,
+  inputCwd: string | undefined,
   context: ToolUseContext,
   parentAssistantMessage: AssistantMessage,
 ): Promise<ToolResult<Out>> {
-  const edit = input._simulatedSedEdit!
-  const cwd = resolveShellCwd(input.cwd)
+  const cwd = resolveShellCwd(inputCwd)
   const resolvedPath = expandPath(edit.filePath, cwd)
   if (!existsSync(resolvedPath)) {
     return {
@@ -518,7 +521,7 @@ async function runSimulatedSedEdit(
     await fileHistoryTrackEdit(
       context.updateFileHistoryState,
       resolvedPath,
-      parentAssistantMessage.uuid as UUID,
+      parentAssistantMessage.uuid,
     )
   }
   const currentBase64 = readFileSync(resolvedPath).toString('base64')
@@ -750,7 +753,7 @@ async function* runShellCommand(
         {
           abortController: context.abortController,
           getAppState: () => {
-            throw new Error('AppState is not accessible during shell spawn')
+            throw new Error('spawn must not read app state')
           },
           setAppState: setTaskState,
         },
@@ -933,7 +936,9 @@ async function* runForegroundCommand(args: ForegroundRunArgs): AsyncGenerator<Ba
     ensureForegroundRegistered()
   }
 
-  let settled: { ok: true; result: ExecResult } | { ok: false; error: unknown } | null = null
+  type SettledResult = { ok: true; result: ExecResult } | { ok: false; error: unknown }
+  let settled: SettledResult | null = null
+  const readSettled = (): SettledResult | null => settled
   void shellCommand.result.then(
     result => {
       settled = { ok: true, result }
@@ -1015,9 +1020,10 @@ async function* runForegroundCommand(args: ForegroundRunArgs): AsyncGenerator<Ba
     TaskOutput.startPolling(shellCommand.taskOutput.taskId)
     try {
       for (;;) {
-        if (settled !== null) {
-          if (!settled.ok) throw settled.error
-          return await settleCompleted(settled.result)
+        const currentSettled = readSettled()
+        if (currentSettled !== null) {
+          if (!currentSettled.ok) throw currentSettled.error
+          return await settleCompleted(currentSettled.result)
         }
         const isInterrupt =
           context.abortController.signal.aborted && context.abortController.signal.reason === 'interrupt'
@@ -1148,14 +1154,7 @@ export const BashTool = buildTool({
   async checkPermissions(input: BashToolInput, context: ToolUseContext) {
     return bashToolHasPermission(input, context.getAppState().toolPermissionContext)
   },
-  async preparePermissionMatcher(input: BashToolInput) {
-    const parsed = await parseForSecurity(input.command)
-    if (parsed.kind === 'simple') {
-      const texts = parsed.commands.map(command => command.argv.join(' '))
-      return (rulePattern: string) => texts.some(text => matchGlob(rulePattern, text))
-    }
-    return () => true
-  },
+  preparePermissionMatcher,
   async description(input?: Partial<BashToolInput>) {
     return input?.description ?? 'Run a shell command'
   },
@@ -1203,7 +1202,7 @@ export const BashTool = buildTool({
   async call(input: BashToolInput, context: ToolUseContext, _canUseTool: CanUseToolFn, parentAssistantMessage: AssistantMessage, onProgress) {
     try {
       if (input._simulatedSedEdit !== undefined) {
-        return await runSimulatedSedEdit(input, context, parentAssistantMessage)
+        return await runSimulatedSedEdit(input._simulatedSedEdit, input.cwd, context, parentAssistantMessage)
       }
       const generator = runShellCommand(input, context)
       const baseId = context.toolUseId ?? 'bash'
