@@ -1,5 +1,5 @@
 import type { Tools } from '../../Tool.js'
-import type { ContentBlockParam } from '../../types/wire.js'
+import type { ContentBlockParam, TextBlockParam } from '../../types/wire.js'
 import type {
   AssistantMessage,
   AttachmentMessage,
@@ -110,7 +110,7 @@ export function errorDrivenStripTargets(messages: Message[]): Map<string, Set<st
   return stripTargetsAmong(modelRelevantRows(messages))
 }
 
-function elidedImage(): ContentBlockParam {
+function elidedImage(): TextBlockParam {
   return { type: 'text', text: IMAGE_ELIDED_TEXT }
 }
 
@@ -156,7 +156,7 @@ function holdsImage(row: Message): boolean {
 function withoutImages(block: ContentBlockParam): ContentBlockParam {
   if (block.type === 'image') return elidedImage()
   if (block.type !== 'tool_result' || !Array.isArray(block.content) || !resultHoldsImage(block)) return block
-  return { ...block, content: block.content.map(item => (item.type === 'image' ? { type: 'text', text: IMAGE_ELIDED_TEXT } : item)) }
+  return { ...block, content: block.content.map(item => (item.type === 'image' ? elidedImage() : item)) }
 }
 
 function withImagesElided<M extends Message>(row: M): M {
@@ -248,12 +248,16 @@ function planFamilyConversation(messages: readonly Message[], tools: Tools): Api
   return { selected: withoutOrphanCaveats(kept), stripTargets: new Map(), availableToolNames: new Set(tools.map(tool => tool.name)) }
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 function wireAssistantOf(row: AssistantMessage, tools: Tools, searchOn: boolean): AssistantMessage {
   const content = storedBlocksOf(row.message.content).map(block => {
     if (block.type !== 'tool_use') return block
     const tool = tools.find(candidate => toolMatchesName(candidate, block.name))
     const name = tool === undefined ? block.name : tool.name
-    const input = tool === undefined ? block.input : normalizeToolInputForAPI(tool, block.input as Record<string, unknown>)
+    const input = tool !== undefined && isRecord(block.input) ? normalizeToolInputForAPI(tool, block.input) : block.input
     return searchOn ? { ...block, name, input } : { type: 'tool_use' as const, id: block.id, name, input }
   })
   return { ...row, message: { ...row.message, content: content as AssistantMessage['message']['content'] } }

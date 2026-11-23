@@ -44,7 +44,8 @@ function decodeAnswerBlock(block: AnswerBlock, tools: Tools): AnswerBlock {
     return { ...block, input: correctToolInput(block, tools) }
   }
   if (block.type === 'server_tool_use' && typeof block.input === 'string') {
-    return { ...block, input: safeParseJSON(block.input) ?? {} }
+    const parsed = safeParseJSON(block.input)
+    return { ...block, input: isRecord(parsed) || typeof parsed === 'string' ? parsed : {} }
   }
   return block
 }
