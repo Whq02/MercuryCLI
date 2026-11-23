@@ -62,7 +62,7 @@ export function SubmitQuestionsView({
   ]
 
   return (
-    <Box flexDirection="column" marginTop={1} minHeight={minContentHeight}>
+    <Box flexDirection="column" minHeight={minContentHeight}>
       <Divider color="permission" />
       <Box flexDirection="column">
         <QuestionNavigationBar

@@ -51,7 +51,6 @@ export function previewQuestionBody({
   return (
     <Box
       flexDirection="column"
-      marginTop={1}
       tabIndex={0}
       autoFocus
       onKeyDown={onKeyDown}

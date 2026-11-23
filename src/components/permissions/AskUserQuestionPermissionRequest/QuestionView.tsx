@@ -251,7 +251,6 @@ export function QuestionView(props: Props): React.ReactNode {
   return (
     <Box
       flexDirection="column"
-      marginTop={1}
       minHeight={minContentHeight}
       tabIndex={0}
       autoFocus
