@@ -1,11 +1,23 @@
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
+export type WorktreeSession = {
+  sessionId: string
+  worktreeName: string
+  worktreePath: string
+  originalCwd: string
+  worktreeBranch?: string
+  originalBranch?: string
+  originalHeadCommit?: string
+  tmuxSessionName?: string
+  prepareFailure?: string
+  creationDurationMs?: number
+  usedSparsePaths?: boolean
+}
 
-export type WorktreeSession = Unbuilt
+let currentWorktreeSession: WorktreeSession | null = null
 
 export function getCurrentWorktreeSession(): WorktreeSession | null {
-  return notBuilt('src/utils/worktree/session.ts:17')
+  return currentWorktreeSession
 }
 
 export function restoreWorktreeSession(session: WorktreeSession | null): void {
-  return notBuilt('src/utils/worktree/session.ts:21')
+  currentWorktreeSession = session
 }
