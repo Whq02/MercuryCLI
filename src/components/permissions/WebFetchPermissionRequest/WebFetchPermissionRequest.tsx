@@ -9,7 +9,6 @@ import { PermissionDialog } from '../PermissionDialog.js'
 import { PermissionRuleExplanation } from '../PermissionRuleExplanation.js'
 import { usePermissionRequestLogging } from '../hooks.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 type FetchOptionValue = 'yes' | 'yes-dont-ask-domain' | 'no'
 
@@ -24,6 +23,101 @@ function domainRuleContent(input: unknown): string {
   }
 }
 
-export function WebFetchPermissionRequest(arg0: PermissionRequestProps): React.ReactNode {
-  return notBuilt('src/components/permissions/WebFetchPermissionRequest/WebFetchPermissionRequest.tsx:26')
+export function WebFetchPermissionRequest({
+  toolUseConfirm,
+  onDone,
+  onReject,
+  verbose,
+  workerBadge,
+}: PermissionRequestProps): React.ReactNode {
+  usePermissionRequestLogging(toolUseConfirm)
+
+  let hostname = ''
+  try {
+    const url = (toolUseConfirm.input as { url?: unknown }).url
+    if (typeof url === 'string' && url !== '') {
+      hostname = new URL(url).hostname
+    }
+  } catch {
+    hostname = ''
+  }
+
+  const options: Array<{ label: React.ReactNode; value: FetchOptionValue }> = [
+    { label: 'Yes', value: 'yes' },
+  ]
+  if (hostname !== '' && shouldShowAlwaysAllowOptions()) {
+    options.push({
+      label: (
+        <Text>
+          Yes, and don&apos;t ask again for <Text bold>{hostname}</Text>
+        </Text>
+      ),
+      value: 'yes-dont-ask-domain',
+    })
+  }
+  options.push({
+    label: 'No, and tell Mercury what to do differently (esc)',
+    value: 'no',
+  })
+
+  const handleSelect = (value: FetchOptionValue): void => {
+    toolUseConfirm.onUserInteraction()
+    switch (value) {
+      case 'yes':
+        toolUseConfirm.onAllow(toolUseConfirm.input, [])
+        onDone()
+        return
+      case 'yes-dont-ask-domain':
+        toolUseConfirm.onAllow(toolUseConfirm.input, [
+          {
+            type: 'addRules',
+            rules: [
+              {
+                toolName: WebFetchTool.name,
+                ruleContent: domainRuleContent(toolUseConfirm.input),
+              },
+            ],
+            behavior: 'allow',
+            destination: 'localSettings',
+          },
+        ])
+        onDone()
+        return
+      case 'no':
+        toolUseConfirm.onReject()
+        onReject()
+        onDone()
+        return
+    }
+  }
+
+  const useMessage = toolUseConfirm.tool.renderToolUseMessage(toolUseConfirm.input, {
+    theme: resolveThemeName(),
+    verbose,
+  })
+
+  return (
+    <PermissionDialog
+      title="Fetch"
+      crewmate={toolUseConfirm.crewmate}
+      workerBadge={workerBadge}
+    >
+      <Box flexDirection="column">
+        {typeof useMessage === 'string' ? (
+          <ConsentBodyText text={useMessage} />
+        ) : (
+          <Text>{useMessage}</Text>
+        )}
+        {toolUseConfirm.description ? <Text dimColor>{toolUseConfirm.description}</Text> : null}
+        <PermissionRuleExplanation permissionResult={toolUseConfirm.permissionResult} />
+        <Text bold>Do you want to allow Mercury to fetch this content?</Text>
+        <Select
+          scrollMovesFocus={false}
+          options={options}
+          onChange={handleSelect}
+          onCancel={() => handleSelect('no')}
+        />
+      </Box>
+    </PermissionDialog>
+  )
 }
