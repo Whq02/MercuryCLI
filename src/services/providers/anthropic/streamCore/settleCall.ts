@@ -14,30 +14,36 @@ import { updateUsage } from '../cacheAndUsage.js'
 import type { CallState, QueryCtx } from './state.js'
 
 export function settleAttemptLedger(ctx: QueryCtx, call: CallState): void {
-  if (!call.ledgerSettled) {
-    if (call.didFallBackToNonStreaming && call.fallbackMessage) {
-      call.ledgerSettled = true
-      const usage: NonNullableUsage = updateUsage(
-        EMPTY_USAGE,
-        call.fallbackMessage.message.usage,
-      )
-      call.usage = usage
-      const model = ctx.pricingModel()
-      addToTotalSessionCost(calculateUSDCost(model, usage), usage, model)
-    } else {
-      ctx.settleUnpricedAttempt()
-    }
-  }
-  if (!call.settledNormally && call.start > 0) {
+  stopSessionActivity('api_call')
+  ctx.releaseStreamResources()
+  ctx.settleUnpricedAttempt()
+  if (!call.settledNormally) {
     logAPIDuration({
       start: call.start,
       startIncludingRetries: ctx.startIncludingRetries,
     })
   }
-  stopSessionActivity('api_call')
 }
 
 export function closeSucceededRequest(ctx: QueryCtx, call: CallState): void {
+  if (call.fallbackMessage) {
+    const fallbackUsage: NonNullableUsage = updateUsage(
+      EMPTY_USAGE,
+      call.fallbackMessage.message.usage,
+    )
+    call.usage = fallbackUsage
+    call.stopReason = call.fallbackMessage.message.stop_reason
+    const model = ctx.pricingModel()
+    addToTotalSessionCost(calculateUSDCost(model, fallbackUsage), fallbackUsage, model)
+  }
+  if (
+    call.streamRequestId &&
+    !getAgentContext() &&
+    (ctx.options.querySource.startsWith('main_thread') ||
+      ctx.options.querySource === 'sdk')
+  ) {
+    setLastMainRequestId(call.streamRequestId)
+  }
   ctx.observeSignInResponse(call.signInRequest, 200)
   const refusalRequest = ctx.modelRefusalRequest.current
   if (refusalRequest) {
@@ -48,13 +54,19 @@ export function closeSucceededRequest(ctx: QueryCtx, call: CallState): void {
       refusalRequest.presented,
     )
   }
-  const requestId = call.fallbackMessage?.requestId ?? call.streamRequestId ?? undefined
-  if (requestId && !getAgentContext() && !ctx.options.agentId) {
-    setLastMainRequestId(requestId)
-  }
-  logAPISuccessAndDuration({
-    start: call.start,
-    startIncludingRetries: ctx.startIncludingRetries,
-  })
+  void ctx.options.getToolPermissionContext().then(
+    () => {
+      logAPISuccessAndDuration({
+        start: call.start,
+        startIncludingRetries: ctx.startIncludingRetries,
+      })
+    },
+    () => {
+      logAPISuccessAndDuration({
+        start: call.start,
+        startIncludingRetries: ctx.startIncludingRetries,
+      })
+    },
+  )
   ctx.releaseStreamResources()
 }
