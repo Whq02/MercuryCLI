@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useMemo, useRef, useState } from 'react'
 import { useLoad } from '../hooks/effects.js'
 import { useAppStateStore } from '../state/AppState.js'
 import { LogSelector } from '../components/LogSelector.js'
@@ -163,7 +163,7 @@ export function ResumeConversation({
   const [resumed, setResumed] = useState(false)
   const [resumeNotice, setResumeNotice] = useState<string | null>(null)
   const [reloadCount, setReloadCount] = useState(0)
-  const terminalSize = useContext(TerminalSizeContext)
+  const terminalSize = React.useContext(TerminalSizeContext)
 
   const allStatLogsRef = useRef<SessionListing[]>([])
   const nextIndexRef = useRef(0)
