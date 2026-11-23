@@ -159,23 +159,31 @@ const sendRecs = recs.filter(r => r.sent !== undefined)
 const at = (i: number): number => Math.round((sendRecs[i]?.sent ?? firstOut) - firstOut)
 check('every send fired (the face, the chat, the board and the composer all painted)', sendRecs.length === sends.length, `${sendRecs.length}/${sends.length}${sendRecs.length < sends.length ? ` · ${unfiredDetail(driverOut)}` : ''}`)
 if (sendRecs.length === sends.length) {
-  const res = spawnSync(driver.python, [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive, '120', '40', String(at(4) + 400), String(at(5) + 800), String(at(TYPED_LAST) + 700), '-1'], { encoding: 'utf8', timeout: vshotBudgetMs(120_000), maxBuffer: 256 * 1024 * 1024 })
+  const res = spawnSync(driver.python, [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive, '120', '40', String(at(4) + 400), String(at(5) + 800), String(at(5) + 2500), String(at(TYPED_LAST) + 700), '-1'], { encoding: 'utf8', timeout: vshotBudgetMs(120_000), maxBuffer: 256 * 1024 * 1024 })
   if (res.status !== 0) {
     console.error(`screengrab failed: ${res.stderr}`)
     process.exit(1)
   }
   const screens = (JSON.parse(res.stdout) as { screens: { atMs: number; rows: string[] }[] }).screens
-  const [armedFrame, newChatFrame, typedFrame, finalFrame] = screens
+  const [armedFrame, newChatFrame, settledChatFrame, typedFrame, finalFrame] = screens
   const t = (g: { rows: string[] }): string => g.rows.join('\n')
   const legendRow = armedFrame.rows.find(r => /enters \(armed\)/.test(r)) ?? ''
   const headerOf = (g: { rows: string[] }): string => g.rows.find(r => /\+ new session/.test(r)) ?? ''
   check('↵ armed the row and the legend still teaches the letter verbs (i interrupt leads) — no typing row', /i interrupt/.test(legendRow) && /esc disarm/.test(legendRow) && !/type to message/.test(t(armedFrame)), legendRow.trim().slice(0, 118))
   check("the pane header advertises n while the rows hold focus (armed)", /\+ new session · n/.test(headerOf(armedFrame)), headerOf(armedFrame).trim().slice(0, 100))
   check('n fired WHILE ARMED: a new session started and its chat took the screen (the declared verb, not a typed letter)', /Type a prompt/.test(t(newChatFrame)) && !/enters \(armed\)/.test(t(newChatFrame)), newChatFrame.rows.find(r => /Type a prompt/.test(r))?.trim().slice(0, 110) ?? '(no new chat)')
+  check('the first chat\'s words stand on the board before n (the poison below is never vacuous)', /stream slowly/.test(t(armedFrame)), armedFrame.rows.find(r => /stream slowly/.test(r))?.trim().slice(0, 100) ?? '(no row)')
+  check('n lands the NEW blank chat (the status row ready, the empty composer, no title row)', !/✶ VIEW/.test(t(settledChatFrame)) && /Type a prompt/.test(t(settledChatFrame)) && /ready · [^\n]*← back/.test(t(settledChatFrame)), settledChatFrame.rows.find(r => /← back|new session/.test(r))?.trim().slice(0, 110) ?? '(no status row)')
+  check("POISON: it is never the OLD chat (the first session's prompt and its streaming answer are absent)", !/stream slowly/.test(t(newChatFrame)) && !/stream slowly/.test(t(settledChatFrame)) && !/tick\d/.test(t(settledChatFrame)), settledChatFrame.rows.find(r => /stream slowly|tick\d/.test(r))?.trim().slice(0, 110) ?? '')
   check('after tab the words landed whole in the live composer', typedFrame.rows.some(r => /❯\s+is it done/.test(r)), typedFrame.rows.find(r => /❯/.test(r) && /done|it/.test(r))?.trim().slice(0, 100) ?? '(no draft row)')
   check("the header stops advertising n while the composer holds focus (n is a letter there)", /\+ new session/.test(headerOf(typedFrame)) && !/\+ new session · n/.test(headerOf(typedFrame)), headerOf(typedFrame).trim().slice(0, 100))
   check('the streaming turn was NOT interrupted (no ⨯ Interrupted, no interrupted state on the row)', !/Interrupted|interrupted/.test(t(typedFrame)) && !/Interrupted|interrupted/.test(t(finalFrame)))
   check('split did not toggle (no width note from the s)', !/split needs/.test(t(typedFrame)))
+  check('the new row joins the board (the final frame after returning to it: two rows, two seats taken)', /SESSIONS/.test(t(finalFrame)) && /2\/5 seats/.test(t(finalFrame)), finalFrame.rows.filter(r => /READY TO REVIEW|WORKING|seats/.test(r)).map(r => r.trim().slice(-60)).join(' | '))
+  const workersFile = join(daemonDir, 'concourse-workers.json')
+  const records = Object.values((existsSync(workersFile) ? (JSON.parse(readFileSync(workersFile, 'utf8')) as { workers?: Record<string, { sessionId?: string }> }) : {}).workers ?? {})
+  const born = new Set(records.map(w => w.sessionId))
+  check('the records agree: TWO sessions were born, the chat from the boot face and the one n started', born.size === 2, `${born.size} session(s) across ${records.length} record(s)`)
 }
 removeScratch(home)
 removeScratch(cwd)

@@ -207,7 +207,7 @@ t.section('§4 — THE REAL MOUNT (staticRender, injected facts) + route silence
 
 }
 
-t.section('§5 — THE FORM (seven facts · the verdict verbatim · honest preview)')
+t.section('§5 — THE FORM (six facts · the verdict verbatim · honest preview)')
 {
   const { FIXED_NOW, FIXTURE_FORM, READY_PREFLIGHT, EXPIRED_PREFLIGHT, composeSaturnForm } = await import('./saturn-screen-stills.js')
   const {
