@@ -6,9 +6,14 @@ import { Select } from './CustomSelect/index.js';
 import { Dialog } from './design-system/Dialog.js';
 import { ValidationErrorsList } from './ValidationErrorsList.js';
 import { startTimeout, stopTimeout } from '../utils/timers.js';
-import type { Unbuilt } from '../pi/holes.js'
 
-type Props = Unbuilt;
+type Props = {
+  settingsErrors: ValidationError[];
+  onContinue: () => void;
+  onExit: () => void;
+  onFix?: () => void;
+  onRemove?: () => void;
+};
 
 function isHardError(error: ValidationError): boolean {
   if (error.severity === 'warning') return false;
