@@ -20,7 +20,7 @@ import type { Message } from '../../types/message.js';
 import type { FocusedInputDialog } from './focusedDialog.js';
 import type { Screen } from './screen.js';
 
-const SUSPEND_NOTICE = '\nMercury suspended — `fg` brings it back.\n';
+const SUSPEND_NOTICE = '\nMercury suspended — `fg` brings it back (ctrl+z suspends, ctrl+_ undoes input)\n';
 
 export function ChatKeys({
   legacyTranscript,
