@@ -3,7 +3,6 @@ import { TASK_ID_ALPHABET, TASK_ID_SUFFIX_LENGTH } from './types/ids.js'
 import { getTaskOutputPath } from './utils/task/diskOutput.js'
 import type { AppState } from './state/AppState.js'
 import type { TaskRow } from './rows/vocabulary.js'
-import { notBuilt, type Unbuilt } from './pi/holes.js'
 
 const taskKinds = [
   ['local_bash', 'b'],
@@ -13,21 +12,33 @@ const taskKinds = [
 ] as const
 const taskPrefixes = Object.fromEntries(taskKinds)
 
-export type TaskType = Unbuilt
-export type TaskStatus = Unbuilt
+export type TaskType = (typeof taskKinds)[number][0]
+export type TaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'killed'
 
 export function generateTaskId(type: TaskType): string {
-  return notBuilt('src/Task.ts:18')
+  const prefix = taskPrefixes[type] ?? 'x'
+  const bytes = randomBytes(TASK_ID_SUFFIX_LENGTH)
+  let suffix = ''
+  for (let i = 0; i < TASK_ID_SUFFIX_LENGTH; i++) {
+    suffix += TASK_ID_ALPHABET[bytes[i]! % TASK_ID_ALPHABET.length]!
+  }
+  return `${prefix}${suffix}`
 }
 
 export function isTerminalTaskStatus(status: TaskStatus): boolean {
-  return notBuilt('src/Task.ts:27')
+  return status === 'completed' || status === 'failed' || status === 'killed'
 }
 
 type TaskStart = Pick<TaskRow, 'task_id' | 'call_id'> & { task_type: TaskType; description: string }
 type TaskProgress = Record<'startTime' | 'outputOffset', number> &
   Partial<Record<'endTime' | 'totalPausedMs', number>> & { outputFile: string; notified: boolean }
-export type TaskStateBase = Unbuilt
+export type TaskStateBase = {
+  id: string
+  type: TaskType
+  status: TaskStatus
+  description: string
+  toolUseId?: string
+} & TaskProgress
 
 function beginTaskProgress(id: string): TaskProgress {
   const startTime = Date.now()
@@ -40,12 +51,32 @@ export function createTaskStateBase({ task_id, task_type, description, call_id }
   return Object.assign(identity, beginTaskProgress(task_id))
 }
 
-export type SetAppState = (...args: Unbuilt[]) => Unbuilt
-export type TaskContext = Unbuilt
-export type TaskHandle = Unbuilt
-export type Task = Unbuilt
+export type SetAppState = (updater: (prev: AppState) => AppState) => void
+export type TaskContext = {
+  abortController: AbortController
+  getAppState: () => AppState
+  setAppState: SetAppState
+}
+export type TaskHandle = {
+  taskId: string
+  cleanup?: () => void
+  accepted?: boolean
+}
+export type Task = {
+  name: string
+  type: TaskType
+  kill: (taskId: string, setAppState: SetAppState) => unknown
+}
 
-export type LocalShellSpawnInput = Unbuilt
+export type LocalShellSpawnInput = {
+  command: string
+  description: string
+  timeout?: number
+  toolUseId?: string
+  agentId?: string
+  kind?: 'bash' | 'monitor'
+  persistent?: boolean
+}
 
 export type TaskKillReceipt = { settled: boolean } & Partial<
   Record<'exitCode' | 'processesEnded' | 'processSurvivors', number> &
