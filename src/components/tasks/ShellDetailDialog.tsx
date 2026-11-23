@@ -3,7 +3,6 @@ import { useTimer } from '../../hooks/effects.js'
 import { closeSync, openSync, readSync } from 'node:fs'
 import { exitChordNoticeText } from '../PromptInput/ExitChordNotice.js'
 import { Box, Text, useInput } from '../../ink.js'
-import { KeyboardEvent } from '../../ink/events/keyboard-event.js'
 import { useElapsedTime } from '../../hooks/useElapsedTime.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useKeybinding, useKeybindings } from '../../keybindings/useKeybinding.js'
@@ -18,7 +17,6 @@ import { CommandCenter, SectionHeader } from '../mercury-ui/components.js'
 import { WorkingGlyph } from '../mercury-ui/LiveGlyphs.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { subscribeTaskOutputPath } from '../../utils/task/diskOutput.js'
-import { notBuilt } from '../../pi/holes.js'
 
 const TAIL_BYTES = 8 * 1024
 const COUNT_CHUNK_BYTES = 64 * 1024
@@ -46,7 +44,18 @@ type ShellCardFacts = {
 }
 
 export function shellCardFactsOfTask(shell: LocalShellTaskState): ShellCardFacts {
-  return notBuilt('src/components/tasks/ShellDetailDialog.tsx:48')
+  return {
+    command: shell.command,
+    ...(shell.description !== undefined ? { description: shell.description } : {}),
+    status: shell.status,
+    startTime: shell.startTime,
+    ...(shell.endTime !== undefined ? { endTime: shell.endTime } : {}),
+    ...(shell.totalPausedMs !== undefined ? { totalPausedMs: shell.totalPausedMs } : {}),
+    ...(shell.outputFile !== undefined ? { outputFile: shell.outputFile } : {}),
+    ...(shell.verifyCwd !== undefined ? { cwd: shell.verifyCwd } : {}),
+    ...(shell.kind !== undefined ? { kind: shell.kind } : {}),
+    ...(shell.result !== undefined ? { exitCode: shell.result.code } : {}),
+  }
 }
 
 export function shellCardFactsOfRow(row: WorkRowV1): ShellCardFacts {
@@ -140,11 +149,202 @@ function stateWord(shell: ShellCardFacts): string {
   }
 }
 
-export function ShellDetailDialog(arg0: {
+export function ShellDetailDialog({
+  shell,
+  onDone,
+  onKillShell,
+  onBack,
+}: {
   shell: ShellCardFacts
   onDone: () => void
   onKillShell?: () => void
   onBack?: () => void
 }): React.ReactNode {
-  return notBuilt('src/components/tasks/ShellDetailDialog.tsx:154')
+  const tokens = useMercuryTokens()
+  const { columns, rows } = useTerminalSize()
+  const running = shell.status === 'running'
+  const isMonitor = shell.kind === 'monitor'
+  const elapsed = useElapsedTime(shell.startTime, running, 1000, shell.totalPausedMs, shell.endTime)
+  const exitState = useExitOnCtrlCD(useKeybindings)
+
+  const lineCountRef = useRef<LineCount>(freshLineCount(shell.outputFile))
+  if (lineCountRef.current.path !== shell.outputFile) {
+    lineCountRef.current = freshLineCount(shell.outputFile)
+  }
+
+  const [tail, setTail] = useState<Tail>(() => readTail(shell.outputFile, lineCountRef.current))
+  const deferredTail = useDeferredValue(tail)
+
+  useTimer(() => {
+    const path = shell.outputFile
+    const refresh = (): void => {
+      const next = readTail(path, lineCountRef.current)
+      setTail(prev =>
+        prev.present === next.present &&
+        prev.totalBytes === next.totalBytes &&
+        prev.totalLines === next.totalLines &&
+        prev.content === next.content
+          ? prev
+          : next,
+      )
+    }
+    refresh()
+    if (!running || path === undefined) return
+    return subscribeTaskOutputPath(path, refresh)
+  }, [shell.outputFile, running])
+
+  useKeybinding('confirm:yes', onDone, { context: 'Confirmation' })
+
+  useInput((input, key) => {
+    if (input === ' ' || key.escape) {
+      onDone()
+      return
+    }
+    if (key.leftArrow) {
+      ;(onBack ?? onDone)()
+      return
+    }
+    if (input === 'x' && running && onKillShell) {
+      onKillShell()
+    }
+  })
+
+  const frameRows = Math.max(FRAME_ROWS_FLOOR, Math.min(FRAME_ROWS, rows - CARD_CHROME_ROWS - HOST_FOOTER_ROWS))
+  const maxOutputLines = Math.max(1, Math.min(OUTPUT_LINES, frameRows - 2))
+  const cwdRows = shell.cwd !== undefined && shell.cwd !== '' ? 1 : 0
+  const commandWidth = Math.max(10, columns - LABEL_WIDTH - 8)
+  const commandMaxRows = Math.max(
+    1,
+    rows - CARD_ROWS_ABOVE_KEYS - HOST_FOOTER_ROWS - cwdRows - (frameRows - FRAME_ROWS_FLOOR),
+  )
+  const fittedCommand = useMemo(
+    () => fitRows(shell.command, commandWidth, commandMaxRows),
+    [shell.command, commandWidth, commandMaxRows],
+  )
+
+  const nonEmptyLines = useMemo(
+    () => deferredTail.content.split('\n').filter(line => line.length > 0),
+    [deferredTail.content],
+  )
+  const visibleLines = nonEmptyLines.slice(-maxOutputLines)
+
+  const statusTone =
+    shell.status === 'completed'
+      ? tokens.success
+      : shell.status === 'failed'
+        ? tokens.failure
+        : shell.status === 'killed'
+          ? tokens.warning
+          : tokens.textPrimary
+
+  const titleLabel = shell.description !== undefined && shell.description !== '' ? shell.description : shell.command
+  const view = `${isMonitor ? 'monitor' : 'shell'} › ${titleLabel}`
+
+  return (
+    <CommandCenter elevated view={view} onClose={onDone} captureInput={false}>
+      <Box flexDirection="column" tabIndex={-1}>
+        <Box>
+          <Box width={LABEL_WIDTH} flexShrink={0}>
+            <Text color={tokens.textMuted}>{isMonitor ? 'script' : 'command'}</Text>
+          </Box>
+          <Box flexGrow={1} minWidth={0}>
+            <Text color={tokens.textPrimary} wrap="wrap">
+              {fittedCommand}
+            </Text>
+          </Box>
+        </Box>
+
+        {shell.cwd !== undefined && shell.cwd !== '' ? (
+          <Box>
+            <Box width={LABEL_WIDTH} flexShrink={0}>
+              <Text color={tokens.textMuted}>cwd</Text>
+            </Box>
+            <Box flexGrow={1} minWidth={0}>
+              <Text color={tokens.textMuted} wrap="truncate-middle">
+                {shell.cwd}
+              </Text>
+            </Box>
+          </Box>
+        ) : null}
+
+        <Box>
+          <Box width={LABEL_WIDTH} flexShrink={0}>
+            <Text color={tokens.textMuted}>status</Text>
+          </Box>
+          <Box flexGrow={1} minWidth={0}>
+            {running ? (
+              <Text>
+                <WorkingGlyph color={tokens.success} active={true} />
+                <Text> running</Text>
+                <Text dimColor> · {elapsed}</Text>
+              </Text>
+            ) : (
+              <Text>
+                <Text color={statusTone}>{stateWord(shell)}</Text>
+                {shell.exitCode !== undefined ? (
+                  <Text dimColor> (exit {shell.exitCode})</Text>
+                ) : null}
+                <Text dimColor> · {elapsed}</Text>
+              </Text>
+            )}
+          </Box>
+        </Box>
+
+        <SectionHeader>Output</SectionHeader>
+        <Box
+          flexDirection="column"
+          borderStyle="round"
+          borderDimColor
+          paddingX={1}
+          minHeight={frameRows}
+        >
+          {shell.outputFile === undefined ? (
+            <Text dimColor>{OUTPUT_UNREPORTED}</Text>
+          ) : !deferredTail.present ? (
+            <Text dimColor>{OUTPUT_ABSENT}</Text>
+          ) : visibleLines.length === 0 ? (
+            <Text dimColor>{running ? 'no output yet' : 'no output'}</Text>
+          ) : (
+            visibleLines.map((line, index) => (
+              <Text key={index} wrap="truncate-end">
+                {line}
+              </Text>
+            ))
+          )}
+        </Box>
+
+        {deferredTail.present && deferredTail.totalLines > 0 ? (
+          <Text dimColor italic>
+            {visibleLines.length} of {deferredTail.totalLines}{' '}
+            {deferredTail.totalLines === 1 ? 'line' : 'lines'} shown
+            {deferredTail.totalBytes > TAIL_BYTES
+              ? ` · ${formatFileSize(deferredTail.totalBytes)} total`
+              : ''}
+          </Text>
+        ) : null}
+
+        <Box marginTop={1}>
+          {exitState.pending ? (
+            <Text dimColor>{exitChordNoticeText(exitState.keyName)}</Text>
+          ) : (
+            <Text dimColor>
+              {running && onKillShell ? (
+                <>
+                  <KeyboardShortcutHint shortcut="x" action="stop" />
+                  {' · '}
+                </>
+              ) : null}
+              {onBack ? (
+                <>
+                  <KeyboardShortcutHint shortcut="←" action="back" />
+                  {' · '}
+                </>
+              ) : null}
+              <KeyboardShortcutHint shortcut="Esc" action="close" />
+            </Text>
+          )}
+        </Box>
+      </Box>
+    </CommandCenter>
+  )
 }
