@@ -8,7 +8,7 @@ import * as pendingInput from '../../input-core/pending-input.js'
 import type { AppState } from '../../state/AppState.js'
 import type { AppStateStore } from '../../state/AppStateStore.js'
 import { composerTargetTaskId } from '../../state/selectors.js'
-import { CREWMATE_BETWEEN_TURNS_DETAIL, LEAD_ROW_NAME, crewmateCommandUnreachableWords, crewmateGlobalCommandWords, crewmateQueuedWords, crewmateRefusedWords, crewmateResumedWords, crewmateUnknownCommandWords } from '../../utils/cockpit/crewmateWords.js'
+import { CREWMATE_BETWEEN_TURNS_DETAIL, LEAD_ROW_NAME, crewmateCommandUnreachableWords, crewmateGlobalCommandWords, crewmateQueuedWords, crewmateRefusedWords, crewmateResumedWords, crewmateUnknownCommandWords, operatorLinePlate } from '../../utils/cockpit/crewmateWords.js'
 import { queueCrewmateLine, refuseCrewmateLine } from '../tasks/crewmateQueue.js'
 import { classifyAgentViewSubmission } from './promptIntent.js'
 import { crewmateCommandReceipt, runCrewmateCommand } from './crewmateCommands.js'
@@ -125,7 +125,7 @@ async function deliverAgentLine({
       { ...createUserMessage({ content: expanded }), queued: true },
       setAppState,
     )
-    notifyCrewmate(crewmateQueuedWords(targetName))
+    notifyCrewmate(`${operatorLinePlate(targetName)} ${crewmateQueuedWords(targetName)}`)
     return true
   }
   queueCrewmateLine(targetTaskId, expanded)
@@ -137,7 +137,8 @@ async function deliverAgentLine({
     return false
   }
   const isQueued = receipt.detail?.includes('"queued":true') === true
-  notifyCrewmate(isQueued ? crewmateQueuedWords(targetName) : crewmateResumedWords(targetName))
+  const taken = isQueued ? crewmateQueuedWords(targetName) : crewmateResumedWords(targetName)
+  notifyCrewmate(`${operatorLinePlate(targetName)} ${taken}`)
   return true
 }
 
