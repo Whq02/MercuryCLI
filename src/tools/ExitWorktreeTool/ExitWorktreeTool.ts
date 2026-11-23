@@ -34,8 +34,6 @@ const inputSchema = z.strictObject({
     ),
 })
 
-type Input = z.infer<typeof inputSchema>
-
 export type Output = {
   action: 'keep' | 'remove'
   originalCwd: string
