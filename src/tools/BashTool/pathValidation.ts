@@ -778,12 +778,11 @@ function runPathChecker(
   if (heldAsk !== null) return heldAsk
 
   if (operationType === 'read') {
-    const follows = FOLLOWS_LINKS[command]?.(args) === true
-    const checkLinks = follows && context.mode !== 'flow'
+    const checkLinks = FOLLOWS_LINKS[command]?.(args) === true && context.mode !== 'flow'
     const recursive = RECURSIVE_READERS[command]?.(args) === true
-    const denied = recursive ? ruleMatcherFor(context, 'read', 'deny') : null
+    const denied = recursive || checkLinks ? ruleMatcherFor(context, 'read', 'deny') : null
     if (checkLinks || denied !== null) {
-      const refusal = treeRefusal(command, allowedPaths, cwd, context, operationType, follows, denied)
+      const refusal = treeRefusal(command, allowedPaths, cwd, context, operationType, checkLinks, denied)
       if (refusal !== null) return refusal
     }
     if (HIDDEN_FILE_READERS[command]?.(args) === true) {
