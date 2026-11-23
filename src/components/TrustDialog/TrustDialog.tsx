@@ -72,7 +72,7 @@ export function TrustDialog({ onDone }: Props): React.ReactNode {
     normalizePathForConfigKey(getCwd()) === normalizePathForConfigKey(homedir());
 
   return (
-    <PermissionDialog title="Trust this folder?" color={tone}>
+    <PermissionDialog title="Trust this folder?" color={tone} titleColor={tone}>
       <Box flexDirection="column" gap={shortFrame ? 0 : 1}>
         <Text bold>{displayCwd}</Text>
         {shortFrame ? (
