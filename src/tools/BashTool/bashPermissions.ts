@@ -6,7 +6,7 @@ import type {
 import { resolveShellCwd } from '../../utils/Shell.js'
 import { hiddenCommandCharacterReason } from '../../utils/sanitization.js'
 import { credentialUploadReason } from '../../utils/permissions/commandContent.js'
-import { refusalWithReason, ruleWords } from '../../utils/permissions/ruleReason.js'
+import { ruleWords } from '../../utils/permissions/ruleReason.js'
 import { uncPathRisk, uncPathMessage } from '../../utils/permissions/uncPath.js'
 import { shellFolderComparisonKey } from '../../utils/platform/commandForms.js'
 import { nativePathToShell } from '../../utils/platform/paths.js'
@@ -67,7 +67,6 @@ import { isCurrentDirectoryBareGitRepo } from '../../utils/git.js'
 import { posix as posixPath } from 'node:path'
 import { stripLeadingSafeEnvVars, stripSafeWrappers } from '../../utils/permissions/safeWrappers.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export { matchWildcardPattern, permissionRuleExtractPrefix, readBashRuleVerdict, stripAllLeadingEnvVars, stripSafeWrappers }
 
@@ -85,15 +84,23 @@ type BashInput = {
 
 
 function suggestedCommandPrefix(command: string): string | null {
-  return notBuilt('src/tools/BashTool/bashPermissions.ts:86')
+  let current = command.trim()
+  for (;;) {
+    const next = stripLeadingSafeEnvVars(current).trim()
+    if (next === current) break
+    current = next
+  }
+  return knownShellCommandPrefix(current)
 }
 
 export function getSimpleCommandPrefix(command: string): string | null {
-  return notBuilt('src/tools/BashTool/bashPermissions.ts:95')
+  const prefix = suggestedCommandPrefix(command)
+  return prefix !== null && prefix.includes(' ') ? prefix : null
 }
 
 export function getFirstWordPrefix(command: string): string | null {
-  return notBuilt('src/tools/BashTool/bashPermissions.ts:100')
+  const prefix = suggestedCommandPrefix(command)
+  return prefix !== null && !prefix.includes(' ') ? prefix : null
 }
 
 function normalizedWords(command: string): string[][] {
@@ -158,11 +165,88 @@ export function bashToolCheckExactMatchPermission(
 export function bashToolCheckPermission(
   input: BashInput,
   context: ToolPermissionContext,
-  compoundHasCd?: boolean,
+  compoundHasCd = false,
   astCommand?: SimpleCommand,
   shown?: string,
 ): PermissionResult {
-  return notBuilt('src/tools/BashTool/bashPermissions.ts:170')
+  const command = input.command.trim()
+  const exact = bashToolCheckExactMatchPermission(input, context)
+  if (exact.behavior === 'deny') return exact
+
+  const parsed = astCommand ? { kind: 'simple' as const, commands: [astCommand] } : preparedSecurityParse(input.command)
+  if (parsed.kind !== 'simple') {
+    return unprovenAsk(
+      parsed.kind === 'too-complex'
+        ? parsed.reason
+        : 'the shell parser could not produce a syntax tree for this command',
+    )
+  }
+  const semantics = pinnedCommandAnalysis.checkSemantics(parsed.commands)
+  if (!semantics.ok) return unprovenAsk(semantics.reason)
+  if (parsed.commands.length !== 1) {
+    return unprovenAsk('this command contains more than one simple command')
+  }
+  const simple = parsed.commands[0]!
+
+  if (exact.behavior === 'ask') return exact
+
+  const prefixDeny = matchRules(command, context, 'deny', 'prefix', true)
+  if (prefixDeny !== null) {
+    return denyByRule(context, command, prefixDeny, () => matchAllRules(command, context, 'deny', 'prefix', true))
+  }
+  const prefixAsk = matchRules(command, context, 'ask', 'prefix', true)
+  if (prefixAsk !== null) {
+    return askByRule(context, command, prefixAsk)
+  }
+
+  const cwd = resolveShellCwd(input.cwd)
+  const pathResult = checkPathConstraints(input, cwd, context, compoundHasCd, simple.redirects, [simple])
+  if (pathResult.behavior !== 'passthrough') return pathResult
+
+  if (exact.behavior === 'allow') return exact
+  const prefixAllow = matchRules(command, context, 'allow', 'prefix', false)
+  if (prefixAllow !== null) {
+    return { behavior: 'allow', updatedInput: input, decisionReason: ruleReason(context, prefixAllow, 'allow') }
+  }
+
+  const sedResult = checkSedConstraints(input, context)
+  if (sedResult.behavior !== 'passthrough') return sedResult
+
+  const modeResult = checkPermissionMode(input, context)
+  if (modeResult.behavior !== 'passthrough') return modeResult
+
+  if (!compoundHasCd && isCurrentDirectoryCommand(simple, cwd)) {
+    return {
+      behavior: 'allow',
+      updatedInput: input,
+      decisionReason: { type: 'other', reason: 'The directory is already current' },
+    }
+  }
+
+  const readOnly = checkPreparedReadOnlyConstraints(input, compoundHasCd, { ...simple, redirects: [] })
+  if (readOnly.behavior === 'allow') {
+    return {
+      behavior: 'allow',
+      updatedInput: input,
+      decisionReason: { type: 'other', reason: 'Read-only command is allowed' },
+    }
+  }
+
+  const label = cutPart((shown ?? command).trim())
+  const clause = readOnly.notReadOnly ? notReadOnlyClause(readOnly.notReadOnly).trim() : ''
+  const sentence =
+    clause === ''
+      ? `\`${label}\` requires approval.`
+      : /[.!?]$/.test(clause)
+        ? `\`${label}\` requires approval: ${clause}`
+        : `\`${label}\` requires approval: ${clause}.`
+
+  return {
+    behavior: 'passthrough',
+    message: sentence,
+    decisionReason: { type: 'other', reason: sentence },
+    suggestions: suggestionForExactCommand(TOOL_NAME, command),
+  }
 }
 
 async function checkCommandAndSuggestRules(
@@ -179,8 +263,44 @@ async function checkCommandAndSuggestRules(
   return { ...check, suggestions } as PermissionResult
 }
 
-export function rewriteReadOnlyGitCommand(command: string, cwd: string, depth?: number): string {
-  return notBuilt('src/tools/BashTool/bashPermissions.ts:241')
+export function rewriteReadOnlyGitCommand(command: string, cwd: string, depth = 0): string {
+  if (depth > SHELL_C_MAX_DEPTH) return command
+  const nodes = preparedCommandSpans(command)
+  if (nodes === null) return command
+  const spans: Array<{ start: number; end: number; text: string }> = []
+  for (const node of nodes) {
+    if (node.declaration) continue
+    const parsed = node.exact()
+    if (parsed.kind !== 'simple' || parsed.commands.length !== 1) continue
+    const simple = parsed.commands[0]!
+    if (simple.envVars.length > 0 || simple.globOperand) continue
+    if (checkPreparedReadOnlyConstraints({ command: node.text, cwd }, false, simple, depth).behavior !== 'allow') continue
+    if (simple.argv[0] === 'git') {
+      const rewrittenArgs = gitArgs(simple.argv.slice(1), cwd)
+      if (
+        rewrittenArgs.length !== simple.argv.length - 1 ||
+        rewrittenArgs.some((arg, index) => arg !== simple.argv[index + 1])
+      ) {
+        spans.push({ start: node.start, end: node.end, text: shellCommandText(['git', ...rewrittenArgs]) })
+      }
+      continue
+    }
+    const script = extractShellCScript(simple)
+    if (script !== null) {
+      const rewrittenScript = rewriteReadOnlyGitCommand(script, cwd, depth + 1)
+      if (rewrittenScript !== script) {
+        const nextArgv = [...simple.argv]
+        nextArgv[2] = rewrittenScript
+        spans.push({ start: node.start, end: node.end, text: shellCommandText(nextArgv) })
+      }
+    }
+  }
+  if (spans.length === 0) return command
+  let rewritten = command
+  for (const span of spans.sort((a, b) => b.start - a.start)) {
+    rewritten = rewritten.slice(0, span.start) + span.text + rewritten.slice(span.end)
+  }
+  return rewritten
 }
 
 
@@ -293,8 +413,72 @@ async function decideWithDenyRuleReach(
 
 type RulesBySource = ToolPermissionContext['alwaysAllowRules']
 
+type RuleSourceKey = keyof RulesBySource
+type MutableRuleReasons = Partial<Record<RuleSourceKey, Record<string, string>>>
+
 function contentRulesReadAsBash(context: ToolPermissionContext, toolName: string): { context: ToolPermissionContext; own: Set<string> } {
-  return notBuilt('src/tools/BashTool/bashPermissions.ts:383')
+  const own = new Set<string>()
+  if (toolName === TOOL_NAME) return { context, own }
+
+  let nextReasons: MutableRuleReasons | undefined
+  const ensureReasons = (): MutableRuleReasons => {
+    if (nextReasons === undefined) {
+      const cloned: MutableRuleReasons = {}
+      if (context.ruleReasons) {
+        for (const [source, map] of Object.entries(context.ruleReasons) as Array<[RuleSourceKey, Record<string, string> | undefined]>) {
+          if (map) cloned[source] = { ...map }
+        }
+      }
+      nextReasons = cloned
+    }
+    return nextReasons
+  }
+
+  const projectMap = (map: RulesBySource): RulesBySource => {
+    let changed = false
+    const out: RulesBySource = {}
+    for (const [source, rules] of Object.entries(map) as Array<[RuleSourceKey, string[] | undefined]>) {
+      if (!rules) continue
+      const projected = [...rules]
+      for (const raw of rules) {
+        const parsed = permissionRuleValueFromString(raw)
+        if (parsed.toolName !== toolName || parsed.ruleContent === undefined) continue
+        own.add(parsed.ruleContent)
+        const bashSpelling = permissionRuleValueToString({ toolName: TOOL_NAME, ruleContent: parsed.ruleContent })
+        if (!projected.includes(bashSpelling)) {
+          projected.push(bashSpelling)
+          changed = true
+        }
+        const sourceReasons = context.ruleReasons?.[source]
+        const ownReason = sourceReasons?.[raw]
+        if (ownReason !== undefined && sourceReasons?.[bashSpelling] === undefined) {
+          const targetReasons = ensureReasons()
+          const targetSource = targetReasons[source] ?? (targetReasons[source] = {})
+          if (targetSource[bashSpelling] === undefined) {
+            targetSource[bashSpelling] = ownReason
+          }
+        }
+      }
+      out[source] = projected
+    }
+    return changed ? out : map
+  }
+
+  const alwaysAllowRules = projectMap(context.alwaysAllowRules)
+  const alwaysDenyRules = projectMap(context.alwaysDenyRules)
+  const alwaysAskRules = projectMap(context.alwaysAskRules)
+
+  if (own.size === 0) return { context, own }
+  return {
+    context: {
+      ...context,
+      alwaysAllowRules,
+      alwaysDenyRules,
+      alwaysAskRules,
+      ...(nextReasons !== undefined ? { ruleReasons: nextReasons } : {}),
+    },
+    own,
+  }
 }
 
 function spelledForTool(result: PermissionResult, context: ToolPermissionContext, toolName: string, own: ReadonlySet<string>): PermissionResult {
@@ -343,13 +527,273 @@ export async function startedCommandVerdict(
   return held ?? own
 }
 
+function spanDenyCheck(astRoot: unknown, command: string, context: ToolPermissionContext): PermissionResult | null {
+  for (const span of commandSpans(astRoot)) {
+    const candidates = new Set<string>([span.text])
+    if (span.name) {
+      const resolved = span.name.ansiC ? decodeAnsiCString(span.name.text) : span.name.word()
+      if (resolved !== undefined && resolved !== null && resolved !== '') {
+        candidates.add(`${resolved}${span.name.rest}`)
+        const base = posixPath.basename(resolved.replace(/\\/g, '/'))
+        if (base !== resolved && base !== '') {
+          candidates.add(`${base}${span.name.rest}`)
+        }
+      }
+    }
+    const exact = span.exact()
+    if (exact.kind === 'simple') {
+      for (const cmd of exact.commands) {
+        for (const candidate of restrictedCommandCandidates(cmd)) candidates.add(candidate)
+      }
+    }
+    for (const candidate of candidates) {
+      const deny = matchRules(candidate, context, 'deny', 'exact', true) ?? matchRules(candidate, context, 'deny', 'prefix', true)
+      if (deny !== null) {
+        return denyByRule(context, span.text, deny, () => [
+          ...matchAllRules(candidate, context, 'deny', 'exact', true),
+          ...matchAllRules(candidate, context, 'deny', 'prefix', true),
+        ])
+      }
+    }
+  }
+  for (const piece of pinnedCommandAnalysis.splitCommand(command)) {
+    const trimmed = piece.trim()
+    if (trimmed === '') continue
+    const deny = matchRules(trimmed, context, 'deny', 'exact', true) ?? matchRules(trimmed, context, 'deny', 'prefix', true)
+    if (deny !== null) {
+      return denyByRule(context, trimmed, deny, () => [
+        ...matchAllRules(trimmed, context, 'deny', 'exact', true),
+        ...matchAllRules(trimmed, context, 'deny', 'prefix', true),
+      ])
+    }
+  }
+  return null
+}
+
+async function evaluateSimpleCommand(
+  input: BashInput,
+  simple: SimpleCommand,
+  context: ToolPermissionContext,
+  depth: number,
+  compoundHasCd: boolean,
+  shown?: string,
+): Promise<PermissionResult> {
+  if (depth < SHELL_C_MAX_DEPTH && simple.envVars.length === 0 && simple.redirects.length === 0) {
+    const script = extractShellCScript(simple)
+    if (script !== null) {
+      const text = simple.text.trim()
+      const outerDeny = matchRules(text, context, 'deny', 'exact', true) ?? matchRules(text, context, 'deny', 'prefix', true)
+      if (outerDeny !== null) {
+        return denyByRule(context, text, outerDeny, () => [
+          ...matchAllRules(text, context, 'deny', 'exact', true),
+          ...matchAllRules(text, context, 'deny', 'prefix', true),
+        ])
+      }
+      const outerAsk = matchRules(text, context, 'ask', 'exact', true) ?? matchRules(text, context, 'ask', 'prefix', true)
+      if (outerAsk !== null) {
+        return askByRule(context, text, outerAsk)
+      }
+      const inner = await decideBashPermission({ ...input, command: script }, context, depth + 1, compoundHasCd)
+      if (inner.behavior === 'deny' || inner.behavior === 'ask') return inner
+      if (inner.behavior === 'allow') return { ...inner, updatedInput: input }
+    }
+  }
+  return checkCommandAndSuggestRules({ ...input, command: simple.text }, context, compoundHasCd, shown, simple)
+}
+
 async function decideBashPermission(
   input: BashInput,
   context: ToolPermissionContext,
-  depth?: number,
-  inheritedHasCd?: boolean,
+  depth = 0,
+  inheritedHasCd = false,
 ): Promise<PermissionResult> {
-  return notBuilt('src/tools/BashTool/bashPermissions.ts:467')
+  const cwd = resolveShellCwd(input.cwd)
+  const command = input.command
+
+  const hidden = hiddenCommandCharacterReason(command.replace(/\r\n/g, '\n'))
+  if (hidden !== null) {
+    return { behavior: 'deny', message: hidden, decisionReason: { type: 'other', reason: hidden } }
+  }
+
+  const selfProtect = await shellSelfProtectionReason(command, false, cwd)
+  if (selfProtect !== null) {
+    return { behavior: 'deny', message: selfProtect, decisionReason: { type: 'other', reason: selfProtect } }
+  }
+
+  const secret = await shellMercurySecretPath(command, false, cwd)
+  if (secret !== null) {
+    const message = `Reading ${secret} is refused: it holds Mercury's own credentials; use the product's sign-in and account surfaces instead.`
+    return { behavior: 'deny', message, decisionReason: { type: 'other', reason: message } }
+  }
+
+  const credWrite = await shellCredentialWritePath(command, false, cwd)
+  if (credWrite !== null) {
+    const refusal = credentialStoreWriteRefusal(credWrite, cwd, context)
+    if (refusal !== null) {
+      return { behavior: 'deny', message: refusal, decisionReason: { type: 'other', reason: refusal } }
+    }
+  }
+
+  const earlyDeny = earlyExitDenyCheck(input, context)
+  if (earlyDeny !== null) return earlyDeny
+
+  const astRoot = await pinnedCommandAnalysis.parseCommandRaw(command)
+  const parsed = await parseForSecurity(command)
+  await prepareShellCScripts(parsed)
+
+  if (parsed.kind === 'simple') {
+    const semDeny = semanticsDenyCheck(input, context, parsed.commands)
+    if (semDeny !== null) return semDeny
+    for (const simple of parsed.commands) {
+      for (const target of optionNamedWrites(simple.argv)) {
+        if (credentialStorePath(target, cwd) !== null) {
+          const refusal = credentialStoreWriteRefusal(target, cwd, context)
+          if (refusal !== null) {
+            return { behavior: 'deny', message: refusal, decisionReason: { type: 'other', reason: refusal } }
+          }
+        }
+      }
+    }
+  } else {
+    const spanDeny = spanDenyCheck(astRoot, command, context)
+    if (spanDeny !== null) return spanDeny
+  }
+
+  const remote = uncPathRisk(command, { command: true })
+  if (remote.risky) {
+    const message = uncPathMessage(command, remote)
+    return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: true } }
+  }
+
+  const upload = credentialUploadReason(command)
+  if (upload !== null) {
+    return { behavior: 'ask', message: upload, decisionReason: { type: 'safetyCheck', reason: upload, operatorOnly: false } }
+  }
+
+  if (parsed.kind !== 'simple') {
+    return unprovenAsk(
+      parsed.kind === 'too-complex'
+        ? parsed.reason
+        : 'the shell parser could not produce a syntax tree for this command',
+    )
+  }
+
+  const semantics = pinnedCommandAnalysis.checkSemantics(parsed.commands)
+  if (!semantics.ok) return unprovenAsk(semantics.reason)
+
+  const trimmed = command.trim()
+  const wholeAsk = matchRules(trimmed, context, 'ask', 'exact', true) ?? matchRules(trimmed, context, 'ask', 'prefix', true)
+  if (wholeAsk !== null) return askByRule(context, trimmed, wholeAsk)
+
+  const nonCurrent = parsed.commands.filter(cmd => !isCurrentDirectoryCommand(cmd, cwd))
+  const effective = nonCurrent.length > 0 ? nonCurrent : parsed.commands.slice(0, 1)
+
+  let cdCount = 0
+  let hasGit = false
+  for (const cmd of effective) {
+    if (!isCurrentDirectoryCommand(cmd, cwd) && isNormalizedCdCommand(cmd.text)) cdCount++
+    if (isNormalizedGitCommand(cmd.text)) hasGit = true
+  }
+  const hasCd = inheritedHasCd || cdCount > 0
+
+  if (effective.some(cmd => cmd.globOperand && !wildcardAnswered(cmd, context, hasCd))) {
+    return unprovenAsk(WILDCARD_REASON)
+  }
+
+  const opResult = await checkCommandOperatorPermissions(
+    input,
+    segmentInput => decideBashPermission(segmentInput, context, depth, hasCd),
+    identityCheckers,
+    astRoot,
+  )
+  const isNotSegmented =
+    opResult.behavior === 'passthrough' &&
+    (opResult.message === 'Not a segmented command.' || opResult.message === 'Command could not be parsed for operator handling.')
+  if (!isNotSegmented) {
+    const allRedirects = parsed.commands.flatMap(cmd => cmd.redirects)
+    const redirResult = checkPathConstraints(input, cwd, context, hasCd, allRedirects, [])
+    if (redirResult.behavior === 'deny') return redirResult
+    if (opResult.behavior === 'deny') return opResult
+    if (redirResult.behavior !== 'passthrough') return redirResult
+    return opResult
+  }
+
+  if (cdCount > 1) {
+    return {
+      behavior: 'ask',
+      message: MULTIPLE_CD_REASON,
+      decisionReason: { type: 'other', reason: MULTIPLE_CD_REASON },
+    }
+  }
+  if (hasCd && hasGit) {
+    return {
+      behavior: 'ask',
+      message: CD_GIT_BARE_REPO_REASON,
+      decisionReason: { type: 'other', reason: CD_GIT_BARE_REPO_REASON },
+    }
+  }
+
+  if (effective.length === 0) {
+    return { behavior: 'allow', updatedInput: input, decisionReason: subcommandResultsReason([], []) }
+  }
+
+  const subcommands = effective.map(cmd => cmd.text)
+  const results: PermissionResult[] = []
+  for (const cmd of effective) {
+    const shown =
+      effective.length === 1
+        ? parsed.commands.length > 1
+          ? asWrittenSingle(command, cmd.text, cwd)
+          : trimmed
+        : cmd.text
+    const result = await evaluateSimpleCommand(input, cmd, context, depth, hasCd, shown)
+    results.push(result)
+  }
+
+  for (const result of results) {
+    if (result.behavior === 'deny') {
+      return {
+        behavior: 'deny',
+        message: result.message,
+        decisionReason: subcommandResultsReason(subcommands, results),
+      }
+    }
+  }
+
+  if (results.every(result => result.behavior === 'allow')) {
+    return {
+      behavior: 'allow',
+      updatedInput: input,
+      decisionReason: subcommandResultsReason(subcommands, results),
+    }
+  }
+
+  if (effective.length === 1) {
+    const single = results[0]!
+    if (single.behavior === 'passthrough') {
+      const exact = bashToolCheckExactMatchPermission(input, context)
+      if (exact.behavior === 'allow') return exact
+    }
+    return single
+  }
+
+  const asks = results.filter(result => result.behavior === 'ask')
+  if (asks.length > 0) {
+    const operatorAsk = asks.find(
+      ask => ask.decisionReason?.type === 'safetyCheck' && ask.decisionReason.operatorOnly,
+    )
+    return operatorAsk ?? asks[0]!
+  }
+
+  const exact = bashToolCheckExactMatchPermission(input, context)
+  if (exact.behavior === 'allow') return exact
+
+  const decisionReason = subcommandResultsReason(subcommands, results)
+  const suggestions = results
+    .flatMap(result => (result.behavior === 'passthrough' ? (result.suggestions ?? []) : []))
+    .slice(0, MAX_SUGGESTED_RULES_FOR_COMPOUND)
+  const message = createPermissionRequestMessage(TOOL_NAME, decisionReason)
+  return { behavior: 'passthrough', message, decisionReason, suggestions }
 }
 
 function subcommandResultsReason(subcommands: string[], results: PermissionResult[]): PermissionDecisionReason {
@@ -443,8 +887,211 @@ function extractEvalScript(command: SimpleCommand): string | null {
   return command.argv.slice(1).join(' ')
 }
 
-function restrictedCommandCandidates(command: SimpleCommand, depth?: number): string[] {
-  return notBuilt('src/tools/BashTool/bashPermissions.ts:827')
+const XARGS_VALUE_SHORTS = 'adEIJLnPs'
+const XARGS_VALUE_LONGS: ReadonlySet<string> = new Set([
+  '--arg-file',
+  '--delimiter',
+  '--eof',
+  '--replace',
+  '--max-lines',
+  '--max-args',
+  '--max-procs',
+  '--max-chars',
+  '--process-slot-var',
+])
+const FIND_EXEC_FLAGS: ReadonlySet<string> = new Set(['-exec', '-execdir', '-ok', '-okdir'])
+
+function unwrapCommandBuiltin(argv: string[]): string[] | null {
+  let i = 1
+  while (i < argv.length) {
+    const word = argv[i] as string
+    if (word === '--') {
+      i++
+      break
+    }
+    if (!word.startsWith('-') || word === '-') break
+    if (word.startsWith('--')) return null
+    if (word.includes('v') || word.includes('V')) return null
+    if (/^-p+$/.test(word)) {
+      i++
+      continue
+    }
+    return null
+  }
+  return i < argv.length ? argv.slice(i) : null
+}
+
+function unwrapExecBuiltin(argv: string[]): string[] | null {
+  let i = 1
+  while (i < argv.length) {
+    const word = argv[i] as string
+    if (word === '--') {
+      i++
+      break
+    }
+    if (!word.startsWith('-') || word === '-') break
+    if (word === '-a') {
+      i += 2
+      continue
+    }
+    if (/^-[cl]+$/.test(word)) {
+      i++
+      continue
+    }
+    if (/^-[cl]*a/.test(word)) {
+      i += word.endsWith('a') ? 2 : 1
+      continue
+    }
+    return null
+  }
+  return i < argv.length ? argv.slice(i) : null
+}
+
+function unwrapXargs(argv: string[]): string[] | null {
+  let i = 1
+  while (i < argv.length) {
+    const word = argv[i] as string
+    if (word === '--') {
+      i++
+      break
+    }
+    if (!word.startsWith('-') || word === '-') break
+    if (word.startsWith('--')) {
+      if (word.includes('=')) {
+        i++
+      } else if (XARGS_VALUE_LONGS.has(word)) {
+        i += 2
+      } else {
+        i++
+      }
+      continue
+    }
+    let tookNext = false
+    for (let k = 1; k < word.length; k++) {
+      const ch = word[k] as string
+      if (XARGS_VALUE_SHORTS.includes(ch)) {
+        if (k === word.length - 1) tookNext = true
+        break
+      }
+    }
+    i += tookNext ? 2 : 1
+  }
+  return i < argv.length ? argv.slice(i) : null
+}
+
+function unwrapFindExecs(argv: string[]): string[][] {
+  const results: string[][] = []
+  for (let i = 1; i < argv.length; i++) {
+    if (!FIND_EXEC_FLAGS.has(argv[i] as string)) continue
+    const inner: string[] = []
+    for (let j = i + 1; j < argv.length; j++) {
+      const token = argv[j] as string
+      if (token === ';' || token === '+') {
+        i = j
+        break
+      }
+      inner.push(token)
+    }
+    if (inner.length > 0) results.push(inner)
+  }
+  return results
+}
+
+function restrictedCommandCandidates(command: SimpleCommand, depth = 0): string[] {
+  const candidates = new Set<string>()
+  const addText = (text: string): void => {
+    const trimmed = text.trim()
+    if (trimmed !== '') candidates.add(trimmed)
+  }
+  addText(command.text)
+
+  const seenArgv = new Set<string>()
+  const queue: string[][] = []
+  const enqueue = (argv: string[]): void => {
+    if (argv.length === 0) return
+    const text = shellCommandText(argv)
+    if (seenArgv.has(text)) return
+    seenArgv.add(text)
+    addText(text)
+    queue.push(argv)
+  }
+
+  enqueue(command.argv)
+
+  while (queue.length > 0) {
+    const argv = queue.shift() as string[]
+    const head = argv[0] as string
+    const normalizedHead = head.replace(/\\/g, '/')
+    const name = posixPath.basename(normalizedHead)
+    if (name !== head && name !== '') {
+      enqueue([name, ...argv.slice(1)])
+    }
+
+    const peeled = peelWrappers(argv)
+    if (Array.isArray(peeled) && peeled.length > 0) {
+      enqueue(peeled)
+    }
+
+    if (name === 'time') {
+      let i = 1
+      while (i < argv.length && (argv[i] === '-p' || argv[i] === '--')) {
+        const stop = argv[i] === '--'
+        i++
+        if (stop) break
+      }
+      if (i < argv.length) enqueue(argv.slice(i))
+    } else if (name === 'sudo' || name === 'doas') {
+      const target = privilegeTarget(argv)
+      if (target.length > 0) enqueue(target)
+    } else if (name === 'busybox') {
+      if (argv.length > 1) enqueue(argv.slice(1))
+    } else if (name === 'builtin') {
+      const rest = argv[1] === '--' ? argv.slice(2) : argv.slice(1)
+      if (rest.length > 0) enqueue(rest)
+    } else if (name === 'command') {
+      const target = unwrapCommandBuiltin(argv)
+      if (target !== null) enqueue(target)
+    } else if (name === 'exec') {
+      const target = unwrapExecBuiltin(argv)
+      if (target !== null) enqueue(target)
+    } else if (name === 'xargs') {
+      const target = unwrapXargs(argv)
+      if (target !== null) enqueue(target)
+    } else if (name === 'git') {
+      const at = gitSubcommandIndex(argv.slice(1))
+      if (at > 0 && at + 1 < argv.length) {
+        enqueue(['git', ...argv.slice(at + 1)])
+      }
+    } else if (name === 'find') {
+      for (const inner of unwrapFindExecs(argv)) {
+        enqueue(inner)
+      }
+    }
+
+    if (depth < SHELL_C_MAX_DEPTH) {
+      const synthetic: SimpleCommand =
+        argv === command.argv ? command : { ...command, argv, text: shellCommandText(argv) }
+      const scripts = [extractShellCScript(synthetic), extractEvalScript(synthetic)].filter(
+        (script): script is string => script !== null,
+      )
+      for (const script of scripts) {
+        addText(script)
+        for (const piece of pinnedCommandAnalysis.splitCommand(script)) {
+          addText(piece)
+        }
+        const inner = preparedSecurityParse(script)
+        if (inner.kind === 'simple') {
+          for (const sub of inner.commands) {
+            for (const subCandidate of restrictedCommandCandidates(sub, depth + 1)) {
+              addText(subCandidate)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return [...candidates]
 }
 
 function optionValues(args: string[], short: string, longs: readonly string[]): string[] {
