@@ -16,11 +16,116 @@ import {
   filePaintWidth,
 } from '../consentBodyBudget.js'
 import type { StructuredPatchHunk } from 'diff'
-import { notBuilt, type Unbuilt } from '../../../pi/holes.js'
-type Props = Unbuilt
+type Props = {
+  file_path: string
+  content: string
+  oldContent: string
+  fileExists: boolean
+}
 
 const FRAME_COLUMNS = 2
 
-export function FileWriteToolDiff(arg0: Props): React.ReactNode {
-  return notBuilt('src/components/permissions/FileWritePermissionRequest/FileWriteToolDiff.tsx:28')
+export function FileWriteToolDiff({
+  file_path,
+  content,
+  oldContent,
+  fileExists,
+}: Props): React.ReactNode {
+  const { columns, rows } = useTerminalSize()
+  const [expanded, setExpanded] = useState(false)
+
+  useKeybinding('confirm:toggleFullPreview', () => setExpanded(prev => !prev), {
+    context: 'Confirmation',
+  })
+
+  const budget = expanded ? null : consentBodyBudget(rows)
+  const previewWidth = Math.max(1, consentContentWidth(columns) - FRAME_COLUMNS)
+
+  const patch: StructuredPatchHunk[] | null = useMemo(
+    () =>
+      fileExists
+        ? getPatchForDisplay({
+            filePath: file_path,
+            fileContents: oldContent,
+            edits: [
+              {
+                old_string: oldContent,
+                new_string: content,
+                replace_all: false,
+              },
+            ],
+          })
+        : null,
+    [fileExists, file_path, oldContent, content],
+  )
+
+  let body: React.ReactNode
+  let hiddenLines = 0
+
+  if (patch !== null) {
+    const paintWidth = diffPaintWidth(previewWidth, patch)
+    const bounded = boundHunks(patch, paintWidth, budget)
+    hiddenLines = bounded.hiddenLines
+    const firstLine = content.split('\n')[0] ?? null
+    body = intersperse<React.ReactNode>(
+      bounded.hunks.map((hunk, index) => (
+        <StructuredDiff
+          key={`${hunk.oldStart}-${hunk.newStart}-${index}`}
+          patch={hunk}
+          dim={false}
+          width={previewWidth}
+          filePath={file_path}
+          firstLine={firstLine}
+          fileContent={oldContent}
+        />
+      )),
+      index => (
+        <NoSelect key={`ellipsis-${index}`} fromLeftEdge>
+          <Text dimColor>...</Text>
+        </NoSelect>
+      ),
+    )
+  } else {
+    const displayText = content || '(No content)'
+    const lines = displayText.split('\n')
+    if (lines.length > 1 && lines[lines.length - 1] === '') {
+      lines.pop()
+    }
+    const paintWidth = filePaintWidth(previewWidth, lines.length)
+    const bounded = boundLines(lines, paintWidth, budget)
+    hiddenLines = bounded.hiddenLines
+    body = (
+      <HighlightedCode
+        code={bounded.lines.join('\n')}
+        filePath={file_path}
+        width={previewWidth}
+      />
+    )
+  }
+
+  return (
+    <Box
+      flexDirection="column"
+      borderStyle="dashed"
+      borderColor="subtle"
+      borderTop
+      borderBottom
+      borderLeft={false}
+      borderRight={false}
+      paddingX={1}
+    >
+      {body}
+      {hiddenLines > 0 ? (
+        <NoSelect fromLeftEdge>
+          <Text dimColor>
+            … +{hiddenLines} more {hiddenLines === 1 ? 'line' : 'lines'} · ctrl+f expands
+          </Text>
+        </NoSelect>
+      ) : expanded ? (
+        <NoSelect fromLeftEdge>
+          <Text dimColor>ctrl+f collapses the preview</Text>
+        </NoSelect>
+      ) : null}
+    </Box>
+  )
 }
