@@ -76,7 +76,7 @@ export function HooksConfigMenu({
   }, [grouped])
 
   const close = (): void => {
-    onExit()
+    onExit(undefined, { display: 'skip' })
   }
 
   if (disabled) {
