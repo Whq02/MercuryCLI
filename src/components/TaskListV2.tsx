@@ -81,19 +81,25 @@ export function TaskListV2({
 
   if (!isTaskToolsEnabled() || tasks.length === 0) return null
 
-  const completedIds = new Set<string>()
+  const taskById = new Map<string, TaskRowV2>()
   for (const task of tasks) {
-    if (task.status === 'completed') completedIds.add(task.id)
+    taskById.set(task.id, task)
   }
 
   const openBlockersOf = (task: TaskRowV2): string[] =>
-    (task.blockedBy ?? []).filter(id => !completedIds.has(id))
+    (task.blockedBy ?? []).filter(id => {
+      const blocker = taskById.get(id)
+      return blocker !== undefined && blocker.status !== 'completed'
+    })
 
   const maxRows = rows <= 10 ? 0 : Math.min(10, Math.max(3, rows - 14))
-  let visibleTasks: TaskRowV2[]
+  let visibleTasks: TaskRowV2[] = []
   let hiddenTasks: TaskRowV2[] = []
 
-  if (tasks.length > maxRows) {
+  if (maxRows === 0) {
+    visibleTasks = []
+    hiddenTasks = []
+  } else if (tasks.length > maxRows) {
     const recentCompleted: TaskRowV2[] = []
     const inProgress: TaskRowV2[] = []
     const unblockedPending: TaskRowV2[] = []
@@ -142,19 +148,19 @@ export function TaskListV2({
   }
 
   let hiddenSummary: string | null = null
-  if (hiddenTasks.length > 0) {
-    let hiddenDone = 0
+  if (maxRows > 0 && hiddenTasks.length > 0) {
     let hiddenInProgress = 0
-    let hiddenOpen = 0
+    let hiddenPending = 0
+    let hiddenCompleted = 0
     for (const task of hiddenTasks) {
-      if (task.status === 'completed') hiddenDone++
-      else if (task.status === 'in_progress') hiddenInProgress++
-      else hiddenOpen++
+      if (task.status === 'in_progress') hiddenInProgress++
+      else if (task.status === 'pending') hiddenPending++
+      else hiddenCompleted++
     }
     const parts: string[] = []
-    if (hiddenDone > 0) parts.push(`${hiddenDone} done`)
     if (hiddenInProgress > 0) parts.push(`${hiddenInProgress} in progress`)
-    if (hiddenOpen > 0) parts.push(`${hiddenOpen} open`)
+    if (hiddenPending > 0) parts.push(`${hiddenPending} pending`)
+    if (hiddenCompleted > 0) parts.push(`${hiddenCompleted} completed`)
     hiddenSummary = `… +${hiddenTasks.length} (${parts.join(', ')})`
   }
 
@@ -166,6 +172,10 @@ export function TaskListV2({
         `${openCount} open`,
       ].join(' · ')
     : null
+
+  if (!isStandalone && visibleTasks.length === 0 && hiddenSummary === null) {
+    return null
+  }
 
   const rowIndent = isStandalone ? 2 : 0
 
@@ -179,6 +189,13 @@ export function TaskListV2({
       {visibleTasks.map(task => {
         const openBlockers = task.status === 'completed' ? [] : openBlockersOf(task)
         const isBlocked = task.status === 'pending' && openBlockers.length > 0
+        const showOwner =
+          columns >= 60 &&
+          task.status === 'in_progress' &&
+          openBlockers.length === 0 &&
+          typeof task.owner === 'string' &&
+          task.owner.length > 0
+        const ownerSuffix = showOwner ? ` (${task.owner})` : ''
         const blockerSuffix =
           openBlockers.length > 0
             ? ` ${figures.pointerSmall} blocked by ${openBlockers.map(id => `#${id}`).join(', ')}`
@@ -190,7 +207,8 @@ export function TaskListV2({
               ? GLYPH.inProgress
               : GLYPH.pending
         const prefixWidth = rowIndent + stringWidth(glyph) + 1
-        const maxSubjectWidth = Math.max(10, columns - prefixWidth - stringWidth(blockerSuffix))
+        const suffixWidth = stringWidth(ownerSuffix) + stringWidth(blockerSuffix)
+        const maxSubjectWidth = Math.max(10, columns - prefixWidth - suffixWidth)
         const subject = truncateToWidth(task.subject, maxSubjectWidth)
 
         return (
@@ -209,6 +227,7 @@ export function TaskListV2({
             >
               {subject}
             </Text>
+            {ownerSuffix.length > 0 && <Text dimColor>{ownerSuffix}</Text>}
             {blockerSuffix.length > 0 && <Text dimColor>{blockerSuffix}</Text>}
           </Box>
         )
