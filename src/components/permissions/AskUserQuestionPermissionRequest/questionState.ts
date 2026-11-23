@@ -2,9 +2,11 @@ import type {
   InterviewAnswerValue,
   InterviewQuestionState,
 } from '../../../services/interview/contracts.js'
-import type { Unbuilt } from '../../../pi/holes.js'
 
-export type QuestionState = Unbuilt
+export type QuestionState = {
+  selectedValue?: string | string[]
+  textInputValue: string
+}
 
 export const OTHER_OPTION_VALUE = '__other__'
 
