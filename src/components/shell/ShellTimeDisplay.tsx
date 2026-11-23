@@ -1,11 +1,30 @@
 import React from 'react'
 import { Text } from '../../ink.js'
 import { formatDuration } from '../../utils/format.js'
-import { notBuilt } from '../../pi/holes.js'
 
-export function ShellTimeDisplay(arg0: {
+export function ShellTimeDisplay({
+  elapsedTimeSeconds,
+  timeoutMs,
+}: {
   elapsedTimeSeconds?: number
   timeoutMs?: number
 }): React.ReactNode {
-  return notBuilt('src/components/shell/ShellTimeDisplay.tsx:6')
+  if (elapsedTimeSeconds === undefined && timeoutMs === undefined) return null
+
+  const elapsedText =
+    elapsedTimeSeconds !== undefined ? formatDuration(elapsedTimeSeconds * 1000) : undefined
+  const timeoutText =
+    timeoutMs !== undefined ? formatDuration(timeoutMs, { hideTrailingZeros: true }) : undefined
+
+  if (elapsedText !== undefined && timeoutText !== undefined) {
+    return (
+      <Text dimColor>
+        ({elapsedText} · timeout {timeoutText})
+      </Text>
+    )
+  }
+  if (timeoutText !== undefined) {
+    return <Text dimColor>(timeout {timeoutText})</Text>
+  }
+  return <Text dimColor>({elapsedText})</Text>
 }
