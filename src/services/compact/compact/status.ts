@@ -3,14 +3,23 @@ import { APIUserAbortError } from '../../../utils/api/sdkErrors.js'
 import { FOLD_STAMP_THROTTLE_MS, type FoldExit, type FoldStatusV1, type FoldTrigger, beginFoldStatus, foldStatusExit, foldStatusOnEvent } from '../foldStatus.js'
 import { ERROR_MESSAGE_USER_ABORT, isNothingToCompactMessage } from './limits.js'
 import { startTimeout, stopTimeout } from '../../../utils/timers.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 export function notifyCompactionError(context: ToolUseContext, err: unknown): void {
-  return notBuilt('src/services/compact/compact/status.ts:7')
+  const message = err instanceof Error ? err.message : String(err)
+  if (message === ERROR_MESSAGE_USER_ABORT || isNothingToCompactMessage(message)) return
+  context.addNotification?.({
+    key: 'compact-error',
+    text: `Compaction error: ${message}`,
+    color: 'error',
+    priority: 'immediate',
+  })
 }
 
-export function restoreAfterCompaction(context: ToolUseContext, word?: unknown): void {
-  return notBuilt('src/services/compact/compact/status.ts:18')
+export function restoreAfterCompaction(context: ToolUseContext, word: unknown = null): void {
+  context.setStreamMode?.('requesting')
+  context.setResponseLength?.(() => 0)
+  context.onCompactProgress?.({ type: 'compact_end' })
+  context.setSDKStatus?.(word)
 }
 
 export async function withFoldStatus<T, C extends ToolUseContext>(
