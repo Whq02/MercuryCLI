@@ -148,7 +148,10 @@ export function sedCommandIsAllowedByAllowlist(command: string, options?: { allo
   let tokens: string[]
   try {
     const parsed = sedWords(command)
-    if (!parsed.success) return false
+    if (!parsed.success) {
+      passedOver(new Error('sed: unparseable'))
+      return false
+    }
     tokens = parsed.tokens
   } catch (error) {
     passedOver(error)

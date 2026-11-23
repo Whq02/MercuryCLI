@@ -421,7 +421,7 @@ export abstract class WordWalk {
   }
 
   argument(node: Node | null | undefined, scope: Scope, operand?: Operand): string {
-    if (!node) refuse('missing argument')
+    if (!node) refuse('missing argument node')
     switch (node.type) {
       case 'word':
         refuseBraceExpansion(node)
