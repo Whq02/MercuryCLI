@@ -34,15 +34,14 @@ function expandField(field: string, range: FieldRange): number[] | null {
   const starEnd = range.wrapMax !== undefined ? range.max - 1 : range.max
   for (const item of field.split(',')) {
     if (item === '') return null
-    const slashParts = item.split('/')
-    if (slashParts.length > 2) return null
+    const slash = item.indexOf('/')
     let step = 1
-    if (slashParts.length === 2) {
-      const parsedStep = parseIntStrict(slashParts[1]!)
+    if (slash !== -1) {
+      const parsedStep = parseIntStrict(item.slice(slash + 1))
       if (parsedStep === null || parsedStep <= 0) return null
       step = parsedStep
     }
-    const base = slashParts[0]!
+    const base = slash === -1 ? item : item.slice(0, slash)
     if (base === '*') {
       for (let v = range.min; v <= starEnd; v += step) addValue(v)
     } else if (base.includes('-')) {
@@ -53,7 +52,7 @@ function expandField(field: string, range: FieldRange): number[] | null {
       if (start === null || end === null || start < range.min || end > range.max || start > end) return null
       for (let v = start; v <= end; v += step) addValue(v)
     } else {
-      if (slashParts.length === 2) return null
+      if (slash !== -1) return null
       const n = parseIntStrict(base)
       if (n === null || n < range.min || n > range.max) return null
       addValue(n)
