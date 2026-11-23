@@ -43,6 +43,7 @@ const RULE_TABS: Record<'allow' | 'ask' | 'deny', PermissionBehavior> = {
   deny: 'deny',
 }
 const ADD_VALUE = '__add-rule__'
+const REST_PASSTHROUGH_KEYS: readonly string[] = ['up', 'down', 'return', 'left', 'right', 'home', 'end', 'pageup', 'pagedown']
 
 type SubDialog =
   | { kind: 'detail'; rule: PermissionRule; nextFocus: string | null }
@@ -270,11 +271,16 @@ export function PermissionRuleList({
   const isTerminalFocused = useTerminalFocus()
   const [activeTab, setActiveTab] = useState<TabId>(initialTab)
   const [subDialog, setSubDialog] = useState<SubDialog | null>(null)
-  const [searchMode, setSearchMode] = useState(false)
+  const [searchMode, setSearchModeState] = useState(false)
+  const searchModeRef = useRef(false)
+  const setSearchMode = useCallback((on: boolean) => {
+    searchModeRef.current = on
+    setSearchModeState(on)
+  }, [])
   const [headerFocused, setHeaderFocused] = useState(true)
   const [changeLog, setChangeLog] = useState<string[]>([])
   const focusHeaderRef = useRef<() => void>(() => {})
-  const queryRef = useRef('')
+  const searchQueryRef = useRef('')
   const exitedRef = useRef(false)
 
   const exitState = useExitOnCtrlCDWithKeybindings(undefined, undefined, subDialog === null)
@@ -296,47 +302,31 @@ export function PermissionRuleList({
     }
   }, [changeLog, onExit])
 
-  const { query, setQuery, cursorOffset } = useSearchInput({
-    isActive: subDialog === null && searchMode,
+  useInput(
+    (input, key) => {
+      if (input.length === 0 || input < ' ' || key.ctrl || key.meta || key.escape || key.tab) return
+      if (!searchModeRef.current) setSearchMode(true)
+    },
+    { isActive: subDialog === null },
+  )
+
+  const search = useSearchInput({
+    isActive: subDialog === null,
+    passthroughKeys: key =>
+      !searchModeRef.current &&
+      (REST_PASSTHROUGH_KEYS.includes(key) || (key === 'escape' && searchQueryRef.current === '')),
     onExit: () => setSearchMode(false),
+    onCancel: () => {
+      search.setQuery('')
+      setSearchMode(false)
+    },
     onExitUp: () => {
       setSearchMode(false)
       focusHeaderRef.current()
     },
-    onCancel: () => {
-      queryRef.current = ''
-      setQuery('')
-      setSearchMode(false)
-    },
   })
-  queryRef.current = query
-
-  useInput(
-    (input, key) => {
-      if (
-        key.ctrl ||
-        key.meta ||
-        key.return ||
-        key.escape ||
-        key.tab ||
-        key.backspace ||
-        key.delete ||
-        key.upArrow ||
-        key.downArrow ||
-        key.leftArrow ||
-        key.rightArrow ||
-        key.pageUp ||
-        key.pageDown
-      ) {
-        return
-      }
-      if (input.length === 0 || input < ' ') return
-      queryRef.current = queryRef.current + input
-      setQuery(queryRef.current)
-      setSearchMode(true)
-    },
-    { isActive: subDialog === null && !searchMode },
-  )
+  const { query, cursorOffset } = search
+  searchQueryRef.current = query
 
   useKeybinding('confirm:no', handleExit, {
     context: 'Settings',
@@ -447,10 +437,10 @@ export function PermissionRuleList({
 
   const footer = exitState.pending
     ? exitChordNoticeText(exitState.keyName)
-    : searchMode
-      ? 'type to filter · ↵/↓ select · ↑ tabs · esc clear'
-      : headerFocused
-        ? '←→ switch tabs · ↓ content · esc cancel'
+    : headerFocused
+      ? '←→ switch tabs · ↓ content · esc cancel'
+      : searchMode
+        ? 'type to filter · ↵/↓ select · ↑ tabs · esc clear'
         : '↑↓ navigate · pgup/pgdn page · ↵ select · type to search · ←→ switch · esc cancel'
 
   const tabs: ReadonlyArray<{ id: TabId; title: string }> = [
@@ -460,50 +450,52 @@ export function PermissionRuleList({
   ]
 
   return (
-    <Box flexDirection="column">
-      <Pane color="permission">
+    <Pane color="permission">
+      <Box flexDirection="column">
         <Tabs
           title="Permissions:"
           color="permission"
+          defaultTab={initialTab}
           selectedTab={activeTab}
           onTabChange={(id: string) => {
             if (id === 'allow' || id === 'ask' || id === 'deny') {
               setActiveTab(id)
             }
           }}
-          disableNavigation={searchMode}
-          banner={
-            <SearchBox
-              query={query}
-              isFocused={searchMode}
-              isTerminalFocused={isTerminalFocused}
-              cursorOffset={cursorOffset}
-            />
-          }
+          initialHeaderFocused
+          navFromContent={!searchMode}
         >
           {tabs.map(({ id, title }) => (
             <Tab key={id} id={id} title={title}>
-              <RulesTabContent
-                behavior={RULE_TABS[id]}
-                context={toolPermissionContext}
-                query={query}
-                searchMode={searchMode}
-                onSelectRule={(rule, nextFocus) =>
-                  setSubDialog({ kind: 'detail', rule, nextFocus })
-                }
-                onAddRule={() =>
-                  setSubDialog({ kind: 'add-input', behavior: RULE_TABS[id] })
-                }
-                onCancel={handleExit}
-                onHeaderFocusChange={handleHeaderFocusChange}
-              />
+              <Box flexDirection="column">
+                {searchMode ? (
+                  <SearchBox
+                    query={query}
+                    isFocused
+                    isTerminalFocused={isTerminalFocused}
+                    cursorOffset={cursorOffset}
+                  />
+                ) : null}
+                <RulesTabContent
+                  behavior={RULE_TABS[id]}
+                  context={toolPermissionContext}
+                  query={query}
+                  searchMode={searchMode}
+                  onHeaderFocusChange={handleHeaderFocusChange}
+                  onSelectRule={(rule, nextFocus) =>
+                    setSubDialog({ kind: 'detail', rule, nextFocus })
+                  }
+                  onAddRule={() =>
+                    setSubDialog({ kind: 'add-input', behavior: RULE_TABS[id] })
+                  }
+                  onCancel={handleExit}
+                />
+              </Box>
             </Tab>
           ))}
         </Tabs>
-      </Pane>
-      <Box marginLeft={2}>
-        <Text dimColor>{footer}</Text>
+        <Text color="subtle">{footer}</Text>
       </Box>
-    </Box>
+    </Pane>
   )
 }
