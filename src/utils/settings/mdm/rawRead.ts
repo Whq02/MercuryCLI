@@ -12,13 +12,25 @@ import {
   WINDOWS_REGISTRY_VALUE_NAME,
 } from './constants.js'
 import { passedOver } from '../../passedOver.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../../pi/holes.js'
 
 
-export type RawReadResult = Unbuilt
+export type RawReadResult = {
+  plistStdouts: Array<{ stdout: string; label: string }> | null
+  hklmStdout: string | null
+  hkcuStdout: string | null
+}
 
 function runSubprocess(command: string, args: string[]): Promise<string | null> {
-  return notBuilt('src/utils/settings/mdm/rawRead.ts:23')
+  return new Promise(resolve => {
+    execFile(
+      command,
+      args,
+      { windowsHide: true, timeout: MDM_SUBPROCESS_TIMEOUT_MS, env: { ...subprocessEnv() } },
+      (error, stdout) => {
+        resolve(error ? null : stdout)
+      },
+    )
+  })
 }
 
 async function readMacOSPlists(): Promise<Array<{ stdout: string; label: string }>> {
@@ -53,17 +65,24 @@ async function readWindowsRegistry(): Promise<{ hklmStdout: string | null; hkcuS
 }
 
 export async function fireRawRead(): Promise<RawReadResult> {
-  return notBuilt('src/utils/settings/mdm/rawRead.ts:66')
+  if (process.platform === 'darwin') {
+    return { plistStdouts: await readMacOSPlists(), hklmStdout: null, hkcuStdout: null }
+  }
+  if (process.platform === 'win32') {
+    const { hklmStdout, hkcuStdout } = await readWindowsRegistry()
+    return { plistStdouts: null, hklmStdout, hkcuStdout }
+  }
+  return { plistStdouts: null, hklmStdout: null, hkcuStdout: null }
 }
 
-let startupRawRead: Promise<RawReadResult> | null = unbuilt('src/utils/settings/mdm/rawRead.ts:77')
+let startupRawRead: Promise<RawReadResult> | null = null
 
 export function startMdmRawRead(): void {
-  return notBuilt('src/utils/settings/mdm/rawRead.ts:79')
+  startupRawRead ??= fireRawRead()
 }
 
 export function getMdmRawReadPromise(): Promise<RawReadResult> | null {
-  return notBuilt('src/utils/settings/mdm/rawRead.ts:85')
+  return startupRawRead
 }
 
 export function _setMdmRawReadForProofs(result: RawReadResult | Promise<RawReadResult>): void {
