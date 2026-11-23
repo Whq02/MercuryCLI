@@ -1,13 +1,27 @@
 import { setMaxListeners } from 'node:events'
-import { notBuilt } from '../pi/holes.js'
 
-export function createAbortController(maxListeners?: number): AbortController {
-  return notBuilt('src/utils/abortController.ts:6')
+export function createAbortController(maxListeners = 50): AbortController {
+  const controller = new AbortController()
+  setMaxListeners(maxListeners, controller.signal)
+  return controller
 }
 
 export function createChildAbortController(
   parent: AbortController,
   maxListeners?: number,
 ): AbortController {
-  return notBuilt('src/utils/abortController.ts:12')
+  const child = createAbortController(maxListeners)
+  const signal = parent.signal
+  if (signal.aborted) {
+    child.abort(signal.reason)
+    return child
+  }
+  const childRef = new WeakRef(child)
+  const parentRef = new WeakRef(signal)
+  function abortChild(this: AbortSignal): void {
+    childRef.deref()?.abort(this.reason)
+  }
+  signal.addEventListener('abort', abortChild, { once: true })
+  child.signal.addEventListener('abort', () => parentRef.deref()?.removeEventListener('abort', abortChild), { once: true })
+  return child
 }
