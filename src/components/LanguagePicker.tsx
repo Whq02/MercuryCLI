@@ -32,7 +32,8 @@ export function LanguagePicker({
       <Box flexDirection="column">
         <Text bold>Preferred language</Text>
         <Text dimColor>
-          Mercury will respond and speak in this language. Leave it empty to use the default.
+          Mercury will respond and speak in this language. Leave it empty to use{' '}
+          the default.
         </Text>
       </Box>
       <Box>

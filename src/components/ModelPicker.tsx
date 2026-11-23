@@ -224,45 +224,49 @@ export function ModelPicker({
   const remainingBelow = Math.max(0, selectOptions.length - visibleTo)
 
   let effortRow: string | null = null
-  if (focusedValue !== '') {
-    if (supportsEffort) {
-      const truth = resolveEffortTruth(focusedValue, effortLevel)
-      const modelDefault = toPersistableEffort(getDefaultEffortForModel(focusedValue))
-      const adjustedPart =
-        truth.adjustedFrom !== undefined && truth.adjustedFrom !== truth.applied
-          ? ` (adjusted from ${truth.adjustedFrom})`
-          : ''
-      const defaultPart =
-        truth.applied !== undefined && truth.applied === modelDefault
-          ? ' (default)'
-          : ''
-      effortRow = `Effort: ${truth.label}${adjustedPart}${defaultPart} · ←→ to change`
-    } else {
-      const displayName = getPublicModelDisplayName(focusedValue) ?? focusedValue
-      effortRow = `${displayName} has no effort control`
-    }
+  if (focusedValue !== '' && supportsEffort) {
+    const truth = resolveEffortTruth(focusedValue, effortLevel)
+    const modelDefault = toPersistableEffort(getDefaultEffortForModel(focusedValue))
+    const adjustedPart =
+      truth.adjustedFrom !== undefined && truth.adjustedFrom !== truth.applied
+        ? ` (adjusted from ${truth.adjustedFrom})`
+        : ''
+    const defaultPart =
+      truth.applied !== undefined && truth.applied === modelDefault
+        ? ' (default)'
+        : ''
+    effortRow = `Effort: ${truth.label}${adjustedPart}${defaultPart} · ←→ to change`
   }
 
   const effectiveSessionModel = sessionModel ?? sessionModelFromState
-  const overrideNotice =
-    sessionOverrideNotice ??
-    (effectiveSessionModel !== null &&
+  const hasSessionModelOverride =
+    effectiveSessionModel !== null &&
     effectiveSessionModel !== undefined &&
     effectiveSessionModel !== ''
-      ? `Session model override active: ${getPublicModelDisplayName(effectiveSessionModel) ?? effectiveSessionModel}`
-      : undefined)
 
   const footerText = exitState.pending
     ? exitChordNoticeText(exitState.keyName)
-    : `↑↓ move · pgup/pgdn page · ↵ select · ${isStandaloneCommand ? 'esc exit' : 'esc close'}`
+    : isStandaloneCommand
+      ? '↑↓ move · pgup/pgdn page · ↵ confirm · esc exit'
+      : '↑↓ move · pgup/pgdn page · ↵ confirm · esc close'
 
   const content = (
     <Box flexDirection="column" gap={1}>
       <Box flexDirection="column">
         <Text bold>Select model</Text>
         <Text dimColor>{headerText ?? DEFAULT_HEADER_TEXT}</Text>
-        {overrideNotice !== undefined ? (
-          <Text color={tokens.warning}>{overrideNotice}</Text>
+        {sessionOverrideNotice !== undefined ? (
+          <Text color={tokens.warning}>{sessionOverrideNotice}</Text>
+        ) : hasSessionModelOverride ? (
+          <Text color={tokens.warning}>
+            This session runs{' '}
+            <Text bold>
+              {getPublicModelDisplayName(effectiveSessionModel) ??
+                effectiveSessionModel}
+            </Text>{' '}
+            (a session override); selecting a{' '}
+            model undoes it.
+          </Text>
         ) : null}
       </Box>
       <Box flexDirection="column">
@@ -280,11 +284,16 @@ export function ModelPicker({
           <Text dimColor>{`…and ${remainingBelow} more below`}</Text>
         ) : null}
       </Box>
-      {effortRow !== null ? (
+      {focusedValue !== '' ? (
         <Box flexDirection="column">
-          <Text color={supportsEffort ? tokens.info : undefined} dimColor={!supportsEffort}>
-            {effortRow}
-          </Text>
+          {supportsEffort && effortRow !== null ? (
+            <Text color={tokens.info}>{effortRow}</Text>
+          ) : (
+            <Text dimColor>
+              {getPublicModelDisplayName(focusedValue) ?? focusedValue} has no{' '}
+              effort control
+            </Text>
+          )}
           {supports1m ? (
             <Text color={tokens.info}>
               {`Context: ${contextToggle ? '1M tokens' : 'standard'} · press c to toggle`}

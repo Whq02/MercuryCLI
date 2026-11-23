@@ -196,7 +196,7 @@ async function generateTitle(
       routedCallModelSettled({
         messages: [
           createUserMessage({
-            content: `Generate a concise title for this ${form.name.toLowerCase()}:\n\n${description}`,
+            content: description,
           }),
         ],
         systemPrompt: asSystemPrompt([titleSystemPrompt(form)]),
@@ -216,7 +216,7 @@ async function generateTitle(
       }),
       TITLE_DEADLINE_MS,
       () => {
-        controller.abort(new Error('title generation timed out'))
+        controller.abort()
         return null
       },
       {
@@ -277,19 +277,25 @@ export async function gatherReport(
     error: redactSensitiveInfo(entry.error),
     timestamp: entry.timestamp,
   }))
-  const recordProbeError = (err: unknown): void => {
+  const recordProbeError = (prefix: string, err: unknown): void => {
     logError(err)
     const msg = err instanceof Error ? err.message : String(err)
-    errors.push({ error: redactSensitiveInfo(msg), timestamp: new Date().toISOString() })
+    errors.push({
+      error: redactSensitiveInfo(`${prefix} ${msg}`),
+      timestamp: new Date().toISOString(),
+    })
   }
 
   const [isGit, diskSubagents] = await Promise.all([
     getIsGit().catch((err): boolean | undefined => {
-      recordProbeError(err)
+      recordProbeError('git repository probe failed:', err)
       return undefined
     }),
     loadAllSubagentTranscriptsFromDisk().catch((err): Record<string, Message[]> => {
-      recordProbeError(err)
+      recordProbeError(
+        'subagent transcripts could not be read from disk; the report carries only those in memory:',
+        err,
+      )
       return {}
     }),
   ])
@@ -300,17 +306,18 @@ export async function gatherReport(
     const transcriptPath = getTranscriptPathForSession(sessionId)
     const head = historyHead(transcriptPath)
     const totalSize = head.before + (head.end - head.start)
-    if (totalSize > 0 && totalSize <= MAX_TRANSCRIPT_READ_BYTES) {
+    if (totalSize > MAX_TRANSCRIPT_READ_BYTES) {
+      logForDebugging(`feedback: transcript over the read cap (${totalSize} bytes)`)
+    } else if (totalSize > 0) {
       rawTranscript = redactSensitiveInfo(historyRange(head, 0, totalSize).toString('utf8'))
     }
   } catch (err) {
     const code = getErrnoCode(err)
     if (code !== 'ENOENT' && code !== 'ENOTDIR') {
       const detail = err instanceof Error ? err.message : String(err)
-      logForDebugging(`Failed to read session transcript for feedback: ${detail}`)
       logError(err)
       errors.push({
-        error: redactSensitiveInfo(`session transcript could not be read: ${detail}`),
+        error: redactSensitiveInfo(`session transcript could not be read from disk: ${detail}`),
         timestamp: new Date().toISOString(),
       })
     }
@@ -529,8 +536,8 @@ export function Feedback({
       const outPaths = draftPaths(activeForm.kind)
       if (outPaths === null) {
         setFailure({
-          note: 'could not create the local feedback draft folder',
-          remedy: 'check permissions on ~/.mercury/feedback and retry',
+          note: 'the draft files could not be written under the config home (see the error log)',
+          remedy: 'free disk space or fix the permissions of the config home, then run the command again',
         })
         setStep('failed')
         return
@@ -563,8 +570,8 @@ export function Feedback({
       if (!wroteBody || !wroteJson) {
         setPaths(outPaths)
         setFailure({
-          note: 'could not write the local feedback draft',
-          remedy: 'check disk space and permissions on ~/.mercury/feedback, then retry',
+          note: 'the draft files could not be written under the config home (see the error log)',
+          remedy: 'free disk space or fix the permissions of the config home, then run the command again',
         })
         setStep('failed')
         return
@@ -664,26 +671,24 @@ export function Feedback({
         return
       }
       if (step === 'failed') {
-        finishOnce(failure ? `Not filed: ${failure.note}` : 'Issue not filed.')
+        finishOnce(failure ? `Not filed: ${failure.note}` : 'Report closed — nothing was filed.')
         return
       }
       if (step === 'unavailable') {
         if (key.return && formUrl !== null) {
           if (openingBrowserRef.current) return
           openingBrowserRef.current = true
-          void openBrowser(formUrl).then(opened => {
+          void openBrowser(formUrl).then(() => {
             finishOnce(
-              opened
-                ? `Opened the prefilled issue form in your browser (not filed yet): ${formUrl}`
-                : `Could not open a browser — open the prefilled form yourself: ${formUrl}`,
+              `The prefilled issue form (copy the link if no browser opened; it is also in the draft): ${formUrl}`,
             )
           })
           return
         }
         finishOnce(
           formUrl !== null
-            ? `Issue not filed — prefilled form: ${formUrl}`
-            : 'Issue not filed — local draft saved.',
+            ? `The prefilled issue form (copy the link if no browser opened; it is also in the draft): ${formUrl}`
+            : 'Report closed — nothing was filed.',
         )
       }
     },

@@ -79,7 +79,7 @@ export function Commands({
   if (commands.length === 0) {
     return (
       <Box flexDirection="column" paddingY={1}>
-        <Text dimColor>{emptyMessage ?? 'No commands available.'}</Text>
+        {emptyMessage !== undefined ? <Text dimColor>{emptyMessage}</Text> : null}
       </Box>
     )
   }
