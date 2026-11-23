@@ -9,6 +9,7 @@ import type { ContentBlockParam } from '../types/wire.js'
 import type { PastedContent } from './config/schema.js'
 import { logForDebugging } from './debug.js'
 import { getMercuryHome } from './envUtils.js'
+import { isENOENT } from './errors.js'
 import { passedOver } from './passedOver.js'
 
 
@@ -169,7 +170,8 @@ export async function readStoredImageRef(
       kind: 'image',
       block: { type: 'image', source: { type: 'base64', media_type: block.source.media_type, data: bytes.toString('base64') } },
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return { kind: 'missing', words: missingStoredImageWords(block.source.imageId, path) }
   }
 }
@@ -182,7 +184,7 @@ async function readStoredImageRefBlock(block: StoredImageRefBlock): Promise<Cont
   const known = readBackMemo.get(key)
   if (known !== undefined) return known as ContentBlockParam
   const read = await readStoredImageRef(block)
-  if (read.kind === 'missing') return { type: 'text', text: read.words } as ContentBlockParam
+  if (read.kind === 'missing') return { type: 'text', text: read.words }
   while (readBackMemo.size >= READ_BACK_MEMO_CAP) {
     const oldest = readBackMemo.keys().next()
     if (oldest.done) break
@@ -256,7 +258,7 @@ async function newestMtime(dir: string): Promise<number> {
     try {
       newest = Math.max(newest, (await stat(join(dir, name))).mtimeMs)
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      if (isENOENT(error)) {
         passedOver(error)
         continue
       }

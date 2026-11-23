@@ -8,7 +8,7 @@ import type { CallModelRoute } from '../types/providerRoute.js'
 import { providerCapabilities } from './model/capabilityRegistry.js'
 import { getImageProcessor, imageProcessorState, type SharpFunction } from './imageProcessor/imageProcessor.js'
 import { imageDimensionsFromHeader } from './imageProcessor/imageProcessorJs.js'
-import type { Base64ImageSource, ImageBlockParam } from '../types/wire.js'
+import type { Base64ImageSource, ImageBlockParam, ToolResultBlockParam } from '../types/wire.js'
 import { logForDebugging } from './debug.js'
 import { formatFileSize } from './format.js'
 import { conversationEditKey, settleWireEdits, type WireEdit } from './messages/wireEdits.js'
@@ -372,23 +372,21 @@ export async function maybeResizeAndDownsampleImageBlock(
 }
 
 export async function clampToolResultImageBlocks(
-  block: { type: string; content?: unknown },
+  block: ToolResultBlockParam,
   options?: Omit<ResizeOptions, 'role'>,
 ): Promise<void> {
-  if (block.type !== 'tool_result' || !Array.isArray(block.content)) return
-  const parts = block.content as unknown[]
-  const isImage = (part: unknown): part is { type: 'image'; source?: { type?: string } } =>
-    typeof part === 'object' && part !== null && (part as { type?: string }).type === 'image'
-  const count = parts.filter(isImage).length
+  if (!Array.isArray(block.content)) return
+  const parts = block.content
+  const count = parts.filter(part => part.type === 'image').length
   const notes: string[] = []
   let ordinal = 0
   for (let index = 0; index < parts.length; index++) {
     const part = parts[index]
-    if (!isImage(part)) continue
+    if (part === undefined || part.type !== 'image') continue
     ordinal++
-    if (part.source?.type !== 'base64') continue
+    if (part.source.type !== 'base64') continue
     try {
-      const resized = await maybeResizeAndDownsampleImageBlock(part as ImageBlockParam, { ...options, role: 'tool-result' })
+      const resized = await maybeResizeAndDownsampleImageBlock(part, { ...options, role: 'tool-result' })
       parts[index] = resized.block
       const note = resized.dimensions === undefined ? null : createImageMetadataText(resized.dimensions, undefined, { index: ordinal, count })
       if (note !== null) notes.push(note)
@@ -768,7 +766,7 @@ export async function compressImageBlock(imageBlock: ImageBlockParam, maxBytes: 
     type: 'image',
     source: {
       type: 'base64',
-      media_type: result.mediaType as Base64ImageSource['media_type'],
+      media_type: result.mediaType,
       data: result.base64,
     },
   }
