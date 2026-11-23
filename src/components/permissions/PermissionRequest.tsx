@@ -52,12 +52,43 @@ import { COMPUTER_TOOL_NAME } from '../../services/desktop/toolName.js'
 import type { WorkerBadgeProps } from './WorkerBadge.js'
 
 import type { ToolUseContext } from '../../Tool.js'
-import type { Unbuilt } from '../../pi/holes.js'
 
+export type ToolUseConfirm<Input = Record<string, unknown>> = {
+  assistantMessage: AssistantMessage
+  tool: Tool
+  description: string
+  input: Input
+  toolUseContext: ToolUseContext
+  toolUseID: string
+  permissionResult: PermissionDecision
+  permissionPromptStartTimeMs: number
+  cwd?: string
+  crewmate?: string
+  workerBadge?: WorkerBadgeProps
+  onUserInteraction: () => void
+  onAbort: () => void
+  onDismissCheckmark?: () => void
+  onAllow: (
+    updatedInput: Input,
+    permissionUpdates: PermissionUpdate[],
+    feedback?: string,
+    contentBlocks?: ContentBlockParam[],
+  ) => void | Promise<void>
+  onReject: (
+    feedback?: string,
+    contentBlocks?: ContentBlockParam[],
+  ) => void | Promise<void>
+  recheckPermission: () => Promise<void>
+}
 
-export type ToolUseConfirm<Input = Record<string, unknown>> = Unbuilt
-
-export type PermissionRequestProps<Input = Record<string, unknown>> = Unbuilt
+export type PermissionRequestProps<Input = Record<string, unknown>> = {
+  toolUseConfirm: ToolUseConfirm<Input>
+  toolUseContext: ToolUseContext
+  onDone: () => void
+  onReject: () => void
+  verbose: boolean
+  workerBadge: WorkerBadgeProps | undefined
+}
 
 
 export function PermissionRequest(props: PermissionRequestProps): React.ReactNode {
