@@ -40,6 +40,7 @@ import { getExternalInstructionIncludes, getInstructionFiles, shouldShowExternal
 import { getSettingsWithAllErrors } from './services/settings/allErrors.js'
 import { nonAnthropicBootNotice } from './services/providers/providerUsability.js'
 import { addBootNote } from './substrate/bootNotes.js'
+import { applySafeConfigEnvironmentVariables } from './utils/managedEnv.js'
 import { applyConfigEnvironmentVariables } from './utils/managedEnv.js'
 import { supportedTerminalHintSuffix } from './utils/platform/words.js'
 import { updateGithubRepoPathMapping } from './utils/githubRepoPathMapping.js'
@@ -57,6 +58,7 @@ import { logForDebugging } from './utils/debug.js'
 import { createStatsStore, type StatsStore } from './context/stats.js'
 import { FpsTracker, type FpsMetrics } from './utils/fpsTracker.js'
 import { recordFrameTrace } from './ink/root/frame-trace.js'
+import { isWarmBackgroundEnabled } from './utils/cockpit/warmBackground.js'
 import type { InternalPermissionMode } from './types/permissions.js'
 import { modeBypassesPermissions } from './utils/permissions/PermissionMode.js'
 import { passedOver } from './utils/passedOver.js'
@@ -289,6 +291,7 @@ export async function showSetupScreens(
   } catch (error) {
     logError(error)
   }
+  void applySafeConfigEnvironmentVariables
 
   const apiKey = hostEnv().ANTHROPIC_API_KEY
   if (apiKey && apiKey.length > 0) {

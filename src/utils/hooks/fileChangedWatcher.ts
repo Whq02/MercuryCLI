@@ -18,7 +18,6 @@ let watcher: chokidar.FSWatcher | null = null
 let watchedPaths = new Set<string>()
 let dynamicWatchPaths: string[] = []
 let dynamicWatchPathsSorted: string[] = []
-let restarting: Promise<void> = Promise.resolve()
 
 function scope(): { sessionId: string } {
   return { sessionId: String(getSessionId()) }
@@ -84,6 +83,9 @@ async function startWatching(): Promise<void> {
       logForDebugging(`file.changed watcher error: ${error instanceof Error ? error.message : String(error)}`, { level: 'error' })
     })
 }
+
+let restarting: Promise<void> = Promise.resolve()
+
 function restartWatching(): Promise<void> {
   const step = async (): Promise<void> => {
     if (watcher) {

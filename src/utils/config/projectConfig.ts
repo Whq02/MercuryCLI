@@ -6,7 +6,8 @@ import { getGlobalMercuryFile } from '../env.js'
 import { findCanonicalGitRoot } from '../git.js'
 import { safeParseJSON } from '../json.js'
 import { logForDebugging } from '../debug.js'
-import { ConfigReadError, getErrnoCode } from '../errors.js'
+import { ConfigReadError } from '../errors.js'
+import { getErrnoCode } from '../errors.js'
 import { normalizePathForConfigKey } from '../path.js'
 
 import {

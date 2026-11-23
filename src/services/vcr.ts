@@ -248,7 +248,7 @@ export async function withVCR<T extends VcrMessage>(
     }
     return hydrated
   } catch (err) {
-    if (!isENOENT(err)) throw err
+    if ((err as { code?: string }).code !== 'ENOENT') throw err
   }
   if (isCiEnvironment()) {
     throw new Error(

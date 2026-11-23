@@ -1,7 +1,7 @@
 import { promises as fsPromises } from 'node:fs'
 import { registerBundledSkill } from '../bundledSkills.js'
 import { enableDebugLogging, getDebugLogPath } from '../../utils/debug.js'
-import { errorMessage, isENOENT } from '../../utils/errors.js'
+import { errorMessage } from '../../utils/errors.js'
 import { formatFileSize } from '../../utils/format.js'
 import { getSettingsFilePathForSource } from '../../utils/settings/settings.js'
 import { MERCURY_DOCS_SKILL_NAME } from './mercuryDocs.js'
@@ -32,7 +32,7 @@ async function readLogTail(logPath: string): Promise<
       await handle.close()
     }
   } catch (error) {
-    if (isENOENT(error)) return { kind: 'missing' }
+    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return { kind: 'missing' }
     return { kind: 'error', message: errorMessage(error) }
   }
 }

@@ -338,7 +338,7 @@ async function findSkillDirs(dir: string): Promise<string[] | null> {
     try {
       entries = await fsPromises.readdir(current, { withFileTypes: true })
     } catch (error) {
-      if (depth === 0 && !isENOENT(error) && !isFsInaccessible(error)) {
+      if (depth === 0 && !isENOENT(error) && !isFsInaccessible(error as Error)) {
         logForDebugging(`skills: could not read directory ${current}: ${errorMessage(error)}`)
       }
       return false
@@ -442,16 +442,12 @@ const pendingConditional = new Map<string, Command>()
 const conditionalBases = new Map<string, string>()
 const activatedSkillNames = new Set<string>()
 
-function pathFiltersOf(command: Command): string[] {
-  return command.type === 'prompt' ? (command.pathFilters ?? []) : []
-}
-
 function splitConditional(commands: Command[]): Command[] {
   const unconditional: Command[] = []
   let withheld = 0
   for (const command of commands) {
-    const filters = pathFiltersOf(command)
-    if (filters.length > 0 && !activatedSkillNames.has(command.name)) {
+    const filters = (command as { pathFilters?: string[] }).pathFilters
+    if (filters && filters.length > 0 && !activatedSkillNames.has(command.name)) {
       pendingConditional.set(command.name, command)
       withheld++
       continue
@@ -635,6 +631,10 @@ async function loadDynamicDir(dir: string): Promise<{ entries: DynamicSkillEntry
   return { entries, seen }
 }
 
+function pathFiltersOf(command: Command): string[] {
+  return (command as { pathFilters?: string[] }).pathFilters ?? []
+}
+
 function seatDynamicEntry(dir: string, entry: DynamicSkillEntry, wasActive: boolean): boolean {
   if (pathFiltersOf(entry.command).length > 0 && !wasActive && !activatedSkillNames.has(entry.name)) {
     pendingConditional.set(entry.name, entry.command)
@@ -684,7 +684,7 @@ async function reloadDynamicDirs(dirs: string[]): Promise<void> {
   const loaded = await Promise.all(dirs.map(async dir => ({ dir, ...(await loadDynamicDir(dir)) })))
   let changed = false
   for (let i = loaded.length - 1; i >= 0; i--) {
-    const { dir, entries, seen } = loaded[i]
+    const { dir, entries, seen } = loaded[i] as (typeof loaded)[number]
     if (applyDynamicDir(dir, entries, seen, now)) changed = true
   }
   if (changed) {

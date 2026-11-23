@@ -36,21 +36,26 @@ function formatCommand(name: string): string {
   return `/${name} `
 }
 
-function isCommandMetadata(value: unknown): value is Command {
-  return isRecord(value) && typeof value.type === 'string'
+type CommandLike = Command & {
+  isHidden?: boolean
+  aliases?: string[]
+  argNames?: string[]
+  kind?: string
+  source?: string
+  type: string
 }
 
-function suggestionIdentifier(command: Command): string {
+function suggestionIdentifier(command: CommandLike): string {
   const name = getCommandName(command)
   if (command.type === 'prompt') {
-    const repository = command.extensionInfo?.id
+    const repository = (command as { extensionInfo?: { id?: string } }).extensionInfo?.id
     return `${name}-${command.source ?? 'unknown'}${repository !== undefined ? `-${repository}` : ''}`
   }
   return `${name}-${command.type}`
 }
 
 function toSuggestionItem(
-  command: Command,
+  command: CommandLike,
   typedQuery: string,
 ): CommandSuggestionItem {
   const name = getCommandName(command)
@@ -157,6 +162,7 @@ function rankResults(
 function sortByName(commands: Command[]): Command[] {
   return [...commands].sort((a, b) => getCommandName(a).localeCompare(getCommandName(b)))
 }
+
 export function generateCommandSuggestions(
   input: string,
   commands: Command[],
@@ -221,10 +227,14 @@ export function findMidInputSlashCommand(input: string, cursorOffset: number): M
   const slashPos = match.index + 1
   if (slashPos === 0) return null
   let end = cursorOffset
-  while (end < input.length && !/\s/.test(input[end])) end++
+  while (end < input.length && !/\s/.test(input[end] as string)) end++
   const token = input.slice(slashPos, end)
   if (cursorOffset > slashPos + token.length) return null
-  return { token, startPos: slashPos, partialCommand: match[1].slice(1) }
+  return { token, startPos: slashPos, partialCommand: (match[1] as string).slice(1) }
+}
+
+function isCommandMetadata(value: unknown): value is Command {
+  return isRecord(value) && typeof value.type === 'string'
 }
 
 export function getBestCommandMatch(
@@ -251,8 +261,8 @@ export function isNameAnchoredSuggestion(input: string, suggestion: CommandSugge
   if (!input.startsWith('/')) return true
   const fragment = input.slice(1).toLowerCase().trim()
   if (fragment === '') return true
-  if (!isCommandMetadata(suggestion.metadata)) return false
-  const cmd = suggestion.metadata
+  const cmd = suggestion.metadata as CommandLike | undefined
+  if (cmd === undefined || typeof cmd !== 'object' || typeof cmd.type !== 'string') return false
   const name = getCommandName(cmd).toLowerCase()
   if (name.startsWith(fragment)) return true
   if (name.split(/[:_-]/).some(part => part.startsWith(fragment))) return true

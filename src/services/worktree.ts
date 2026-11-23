@@ -321,7 +321,7 @@ async function ownSettingsDenyReads(sourceRoot: string): Promise<boolean> {
     try {
       text = await readFile(theirs, 'utf8')
     } catch (error) {
-      const code = getErrnoCode(error)
+      const code = (error as NodeJS.ErrnoException).code
       if (code === 'ENOENT' || code === 'ENOTDIR') continue
       logForDebugging(`worktree clone: ${theirs} could not be read (${code ?? String(error)}), so its Read rules are unknown; every folder is held back`, { level: 'warn' })
       return true
@@ -581,7 +581,7 @@ async function propagateLocalSettings(repoRoot: string, worktreePath: string, pr
     await mkdir(dirname(target), { recursive: true })
     await copyFile(join(repoRoot, relativeSettingsPath), target, preserveExisting ? constants.COPYFILE_EXCL : 0)
   } catch (error) {
-    const code = getErrnoCode(error)
+    const code = (error as NodeJS.ErrnoException).code
     if (code !== 'ENOENT' && !(preserveExisting && code === 'EEXIST')) {
       throw new Error('The worktree local settings could not be copied: ' + String(error))
     }
@@ -954,7 +954,7 @@ async function isDisownedWorktree(worktreePath: string): Promise<boolean> {
     try {
       if ((await lstat(join(worktreePath, '.git'))).isDirectory()) return false
     } catch (error) {
-      const code = getErrnoCode(error)
+      const code = (error as NodeJS.ErrnoException).code
       if (code !== 'ENOENT' && code !== 'ENOTDIR') {
         logForDebugging(`worktree janitor could not stat .git in ${worktreePath}: ${String(error)}`, { level: 'warn' })
         return false
@@ -968,7 +968,7 @@ async function isDisownedWorktree(worktreePath: string): Promise<boolean> {
     const canonicalOwn = await realpath(join(worktreePath, '.git'))
     return canonicalReturn !== canonicalOwn
   } catch (error) {
-    const code = getErrnoCode(error)
+    const code = (error as NodeJS.ErrnoException).code
     if (code === 'ENOENT' || code === 'ENOTDIR') return true
     logForDebugging(`worktree janitor could not verify ownership of ${worktreePath}: ${String(error)}`, { level: 'warn' })
     return false
@@ -1204,9 +1204,9 @@ export async function createBaselineWorktree(
 
 function parsePRReference(input: string): number | null {
   const urlMatch = input.match(/^https?:\/\/[^/]+\/[^/]+\/[^/]+\/pull\/(\d+)\/?(?:[?#].*)?$/)
-  if (urlMatch) return parseInt(urlMatch[1], 10)
+  if (urlMatch) return parseInt(urlMatch[1] as string, 10)
   const shortMatch = input.match(/^#(\d+)$/)
-  if (shortMatch) return parseInt(shortMatch[1], 10)
+  if (shortMatch) return parseInt(shortMatch[1] as string, 10)
   return null
 }
 

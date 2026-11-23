@@ -180,8 +180,8 @@ function partitionUnwritten(
   const unwritten: Transcript = []
   let parent = parentHint
   for (const m of messages) {
-    if (!onDisk.has(m.uuid)) unwritten.push(m)
-    else if (unwritten.length === 0 && isChainParticipant(m)) parent = m.uuid
+    if (!onDisk.has(m.uuid as UUID)) unwritten.push(m)
+    else if (unwritten.length === 0 && isChainParticipant(m)) parent = m.uuid as UUID
   }
   return { unwritten, parent }
 }
