@@ -90,12 +90,9 @@ export function wireParamsFor(call: CallState, wire: WireInputs): (context: Retr
 
     const thinkingEnabled = wire.thinkingConfig.type !== 'disabled' && modelSupportsThinking(wire.options.model)
     const isAdaptiveThinking = wire.thinkingConfig.type === 'adaptive' && modelSupportsAdaptiveThinking(wire.options.model)
+    const suppliedThinkingBudget: number | undefined = wire.thinkingConfig.type === 'enabled' ? wire.thinkingConfig.budgetTokens : undefined
     const plannedThinkingBudget =
-      thinkingEnabled && !isAdaptiveThinking
-        ? wire.thinkingConfig.type === 'enabled'
-          ? wire.thinkingConfig.budgetTokens
-          : getMaxThinkingTokensForModel(wire.options.model)
-        : 0
+      thinkingEnabled && !isAdaptiveThinking ? (suppliedThinkingBudget ?? getMaxThinkingTokensForModel(wire.options.model)) : 0
 
     const askedMaxTokens =
       context.maxTokensOverride ||
@@ -205,7 +202,7 @@ export function wireParamsFor(call: CallState, wire: WireInputs): (context: Retr
       ...(Object.keys(outputConfig).length > 0 ? { output_config: outputConfig } : {}),
     }
 
-    const contextWindow = getContextWindowForModel(wire.options.model, requestBetas)
+    const contextWindow = getContextWindowForModel(wire.options.model)
     const imageLimits =
       contextWindow <= 200_000
         ? { ...ANTHROPIC_IMAGE_LIMITS, maxImagesPerRequest: 100 }
