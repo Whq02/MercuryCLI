@@ -50,6 +50,9 @@ function exported(sf: ts.SourceFile, name: string): ts.Node {
   }
   throw Error(`${sf.fileName}: no feature declaration for ${name}`)
 }
+function nodeEnvIs(test: ts.Expression): string | undefined {
+  return ts.isBinaryExpression(test) && test.operatorToken.kind === ts.SyntaxKind.EqualsEqualsEqualsToken && ts.isPropertyAccessExpression(test.left) && test.left.name.text === 'NODE_ENV' && ts.isPropertyAccessExpression(test.left.expression) && test.left.expression.name.text === 'env' && ts.isIdentifier(test.left.expression.expression) && test.left.expression.expression.text === 'process' && ts.isStringLiteral(test.right) ? test.right.text : undefined
+}
 function featureNames(raw: ts.Node, seen = new Set<ts.Node>()): string[] {
   const n = ts.isExpression(raw) ? unwrap(raw) : raw
   if (seen.has(n)) fail(n, 'cycle resolving feature name')
@@ -68,9 +71,13 @@ function featureNames(raw: ts.Node, seen = new Set<ts.Node>()): string[] {
   if (ts.isSpreadElement(n)) return next(n.expression)
   if (ts.isArrayLiteralExpression(n)) return n.elements.flatMap(next)
   if (ts.isConditionalExpression(n)) {
-    const test = n.condition
-    if (ts.isBinaryExpression(test) && test.operatorToken.kind === ts.SyntaxKind.EqualsEqualsEqualsToken && ts.isPropertyAccessExpression(test.left) && test.left.name.text === 'NODE_ENV' && ts.isPropertyAccessExpression(test.left.expression) && test.left.expression.name.text === 'env' && ts.isIdentifier(test.left.expression.expression) && test.left.expression.expression.text === 'process' && ts.isStringLiteral(test.right)) return next(test.right.text === 'production' ? n.whenTrue : n.whenFalse)
+    const env = nodeEnvIs(n.condition)
+    if (env !== undefined) return next(env === 'production' ? n.whenTrue : n.whenFalse)
     return [...next(n.whenTrue), ...next(n.whenFalse)]
+  }
+  if (ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken) {
+    const env = nodeEnvIs(n.left)
+    return env !== undefined && env !== 'production' ? [] : next(n.right)
   }
   if (ts.isArrowFunction(n) || ts.isFunctionDeclaration(n)) return returnedExpressions(n).flatMap(next)
   if (ts.isObjectLiteralExpression(n)) {
@@ -122,7 +129,7 @@ function catalogue(): Set<string> {
   const keys = new Set<string>()
   const add = (kind: string, names: string[]) => { for (const name of names) keys.add(`${kind}\t${name}`) }
   add('command', featureNames(variable(syntax('src/commands.ts'), 'COMMANDS')))
-  add('tool', featureNames(variable(syntax('src/tools.ts'), 'tools')))
+  add('tool', featureNames(variable(syntax('src/tools.ts'), 'candidates')))
   add('tool', featureNames(variable(syntax('src/tools/SyntheticOutputTool/SyntheticOutputTool.ts'), 'SyntheticOutputTool')))
   const auth = nodes(syntax('src/tools/McpAuthTool/McpAuthTool.ts'), ts.isCallExpression).find(c => calleeName(c) === 'buildMcpToolName')
   if (!auth || !auth.arguments[1] || !ts.isStringLiteral(auth.arguments[1])) throw Error('resolve the server-specific MCP authentication tool in the feature census')
@@ -164,7 +171,7 @@ const sites: [string, string, string, number][] = [
   ['screen', 'src/hooks/useHistorySearch.ts', 'useHistorySearch', 1],
   ['screen', 'src/components/permissions/hooks.ts', 'usePermissionRequestLogging', 1],
   ['tool', 'src/tools/McpAuthTool/McpAuthTool.ts', 'createMcpAuthTool', 1],
-  ['tool', 'src/services/tools/toolExecution.ts', 'runToolCall', 1],
+  ['tool', 'src/services/tools/toolExecution.ts', 'runAdmittedCall', 1],
   ['verb', 'src/main.tsx', 'run', 1],
   ['verb', 'src/entrypoints/cli.tsx', 'main', 5],
 ]
