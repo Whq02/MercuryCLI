@@ -24,14 +24,22 @@ import { readPinnedStatus } from '../../mneme/mnemeFrontPage.js'
 import { mnemeEnabled } from '../../mneme/mnemeGates.js'
 import { formatTextSize } from '../../mneme/mnemeUsage.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
 type StatusNoticeType = 'warning' | 'info'
 
-type StatusNoticeContext = Unbuilt
+type StatusNoticeContext = {
+  memoryFiles: InstructionSourceEntry[]
+  config: GlobalConfig
+  agentDefinitions?: AgentDefinitionsResult
+}
 
-type StatusNoticeDefinition = Unbuilt
+type StatusNoticeDefinition = {
+  id: string
+  type: StatusNoticeType
+  isActive: (context: StatusNoticeContext) => boolean
+  render: (context: StatusNoticeContext) => React.ReactNode
+}
 
 function shortenMemoryPath(filePath: string): string {
   const cwd = getCwd()
@@ -42,9 +50,44 @@ function describeTokenSource(source: string): string {
   return source === 'claude.ai' ? `your ${getSubscriptionName()} login` : source
 }
 
-const largeMemoryFilesNotice: StatusNoticeDefinition = unbuilt('src/components/statusNotices/statusNoticeDefinitions.tsx:53')
+const largeMemoryFilesNotice: StatusNoticeDefinition = {
+  id: 'large-memory-files',
+  type: 'warning',
+  isActive: (context: StatusNoticeContext) => getLargeMemoryFiles(context.memoryFiles).length > 0,
+  render: (context: StatusNoticeContext) => {
+    const largeFiles = getLargeMemoryFiles(context.memoryFiles)
+    if (largeFiles.length === 0) return null
+    return (
+      <Box flexDirection="column">
+        {largeFiles.map(file => (
+          <Text key={file.path} color="warning" wrap="truncate-middle">
+            {GLYPH.warn} Large memory file slows every session:{' '}
+            <Text bold>{shortenMemoryPath(file.path)}</Text> (
+            {formatNumber(file.content.length)} chars &gt; {formatNumber(MAX_MEMORY_CHARACTER_COUNT)}){' '}
+            <Text dimColor>See /memory</Text>
+          </Text>
+        ))}
+      </Box>
+    )
+  },
+}
 
-const largeAgentDescriptionsNotice: StatusNoticeDefinition = unbuilt('src/components/statusNotices/statusNoticeDefinitions.tsx:70')
+const largeAgentDescriptionsNotice: StatusNoticeDefinition = {
+  id: 'large-agent-descriptions',
+  type: 'warning',
+  isActive: (context: StatusNoticeContext) =>
+    getAgentDescriptionsTotalTokens(context.agentDefinitions) > AGENT_DESCRIPTIONS_THRESHOLD,
+  render: (context: StatusNoticeContext) => {
+    const totalTokens = getAgentDescriptionsTotalTokens(context.agentDefinitions)
+    return (
+      <Text color="warning">
+        {GLYPH.warn} Large cumulative agent descriptions slow every session (~
+        {formatNumber(totalTokens)} tokens &gt; {formatNumber(AGENT_DESCRIPTIONS_THRESHOLD)}){' '}
+        <Text dimColor>See /agents</Text>
+      </Text>
+    )
+  },
+}
 
 const claudeAiExternalTokenNotice: StatusNoticeDefinition = {
   id: 'claude-ai-external-token',
@@ -69,9 +112,88 @@ const claudeAiExternalTokenNotice: StatusNoticeDefinition = {
   },
 }
 
-const apiKeyConflictNotice: StatusNoticeDefinition = unbuilt('src/components/statusNotices/statusNoticeDefinitions.tsx:107')
+const apiKeyConflictNotice: StatusNoticeDefinition = {
+  id: 'api-key-conflict',
+  type: 'warning',
+  isActive: (context: StatusNoticeContext) => {
+    void context
+    try {
+      if (!getApiKeyFromConfigOrMacOSKeychain()) return false
+      const { source } = getAnthropicApiKeyWithSource({
+        skipRetrievingKeyFromApiKeyHelper: true,
+      })
+      return source === 'ANTHROPIC_API_KEY' || source === 'credentials.keyCommand'
+    } catch (error) {
+      passedOver(error)
+      return false
+    }
+  },
+  render: (context: StatusNoticeContext) => {
+    void context
+    const { source } = getAnthropicApiKeyWithSource({
+      skipRetrievingKeyFromApiKeyHelper: true,
+    })
+    return (
+      <Box marginTop={1}>
+        <Text color="warning">
+          {GLYPH.warn} {source} is being used instead of your stored API key. Unset it, or run `{binaryName()} /logout` and sign in again.
+        </Text>
+      </Box>
+    )
+  },
+}
 
-const bothAuthMethodsNotice: StatusNoticeDefinition = unbuilt('src/components/statusNotices/statusNoticeDefinitions.tsx:136')
+const bothAuthMethodsNotice: StatusNoticeDefinition = {
+  id: 'both-auth-methods',
+  type: 'warning',
+  isActive: (context: StatusNoticeContext) => {
+    void context
+    try {
+      const tokenSource = getAuthTokenSource().source
+      const { source: apiKeySource } = getAnthropicApiKeyWithSource({
+        skipRetrievingKeyFromApiKeyHelper: true,
+      })
+      if (tokenSource === 'none' || apiKeySource === 'none') return false
+      if (tokenSource === 'credentials.keyCommand' && apiKeySource === 'credentials.keyCommand') {
+        return false
+      }
+      return true
+    } catch (error) {
+      passedOver(error)
+      return false
+    }
+  },
+  render: (context: StatusNoticeContext) => {
+    void context
+    const tokenSource = getAuthTokenSource().source
+    const { source: apiKeySource } = getAnthropicApiKeyWithSource({
+      skipRetrievingKeyFromApiKeyHelper: true,
+    })
+    const bin = binaryName()
+    const describedToken = describeTokenSource(tokenSource)
+    const tokenRemedy =
+      apiKeySource === 'ANTHROPIC_API_KEY'
+        ? 'unset ANTHROPIC_API_KEY'
+        : apiKeySource === 'credentials.keyCommand'
+          ? 'remove credentials.keyCommand from settings'
+          : `run \`${bin} /logout\``
+    const keyRemedy =
+      tokenSource === 'claude.ai'
+        ? `run \`${bin} /logout\``
+        : `unset ${tokenSource}`
+    return (
+      <Box flexDirection="column" marginTop={1}>
+        <Text color="warning">
+          {GLYPH.warn} Auth conflict: Both a token ({describedToken}) and an API key ({apiKeySource}) are set. This may lead to unexpected behavior.
+        </Text>
+        <Box flexDirection="column" paddingLeft={3}>
+          <Text>Trying to use {describedToken}? {tokenRemedy}.</Text>
+          <Text>Trying to use {apiKeySource}? {keyRemedy}.</Text>
+        </Box>
+      </Box>
+    )
+  },
+}
 
 type PinnedOverLimit = { pinned: number; used: number; limit: number } | null
 
@@ -125,5 +247,5 @@ const statusNoticeDefinitions: StatusNoticeDefinition[] = [
 ]
 
 export function getActiveNotices(context: StatusNoticeContext): StatusNoticeDefinition[] {
-  return notBuilt('src/components/statusNotices/statusNoticeDefinitions.tsx:231')
+  return statusNoticeDefinitions.filter(notice => notice.isActive(context))
 }
