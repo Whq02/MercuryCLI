@@ -5,6 +5,7 @@ import { Box, Text } from '../../ink.js'
 import Link from '../../ink/components/Link.js'
 import type {
   SystemMessage,
+  SystemMessageLevel,
 } from '../../types/message.js'
 import { TURN_COMPLETION_VERBS } from '../../constants/turnCompletionVerbs.js'
 import { getGlobalConfig } from '../../utils/config.js'
@@ -152,7 +153,7 @@ function renderFallbackSystemRow({
   warningColor,
   errorColor,
 }: {
-  row: SystemMessage
+  row: { content: string; level: SystemMessageLevel }
   addMargin: boolean
   verbose: boolean
   columns: number
@@ -160,10 +161,8 @@ function renderFallbackSystemRow({
   warningColor: string
   errorColor: string
 }): React.ReactNode {
-  const level = ('level' in row ? row.level : undefined) ?? 'info'
+  const { level, content } = row
   if (level === 'info' && !verbose) return null
-  const content = 'content' in row ? row.content : undefined
-  if (typeof content !== 'string') return null
   const glyph =
     level === 'warning' || level === 'warn'
       ? GLYPH.warn
@@ -371,6 +370,10 @@ export function SystemTextMessage({
     case 'api_error':
       if (isTransportRetryNotice(message)) return null
       return <SystemAPIErrorMessage message={message} verbose={verbose} />
+
+    case 'api_metrics':
+    case 'close_usage':
+      return null
 
     default:
       return renderFallbackSystemRow({
