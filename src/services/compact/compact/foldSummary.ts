@@ -1,6 +1,7 @@
 import type { ToolUseContext } from '../../../Tool.js'
 import type { AssistantMessage, Message } from '../../../types/message.js'
 import { logForDebugging } from '../../../utils/debug.js'
+import { passedOver } from '../../../utils/passedOver.js'
 import type { CacheSafeParams } from '../../agents/forkedAgent.js'
 import type { OverflowSignal } from '../../api/overflowSignal.js'
 import { estimateRequestGauge, type readRequestGauge } from '../../run/requestGauge.js'
@@ -95,8 +96,8 @@ export async function summariseForFold({
               }
             }
             break
-          } catch {
-            continue
+          } catch (error) {
+            passedOver(error)
           }
         }
       }
