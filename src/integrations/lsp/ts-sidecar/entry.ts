@@ -13,8 +13,8 @@ export async function runLspSidecarEntry(): Promise<never> {
 
 const directArg = process.argv[1] ?? ''
 if (
-  directArg.endsWith('tsSidecar/entry.ts') ||
-  directArg.endsWith('tsSidecar/entry.js')
+  directArg.endsWith('ts-sidecar/entry.ts') ||
+  directArg.endsWith('ts-sidecar/entry.js')
 ) {
   void runLspSidecarEntry()
 }

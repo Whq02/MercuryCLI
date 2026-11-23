@@ -135,8 +135,8 @@ export async function runTcpBridgeEntry(argv: string[]): Promise<never> {
 
 const directArg = process.argv[1] ?? ''
 if (
-  directArg.endsWith('tcpBridge/entry.ts') ||
-  directArg.endsWith('tcpBridge/entry.js')
+  directArg.endsWith('tcp-bridge/entry.ts') ||
+  directArg.endsWith('tcp-bridge/entry.js')
 ) {
   void runTcpBridgeEntry(process.argv.slice(2))
 }
