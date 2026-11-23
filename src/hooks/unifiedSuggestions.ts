@@ -3,6 +3,7 @@ import type { AgentDefinition } from '../types/agent.js'
 import { generateFileSuggestions } from './fileSuggestions.js'
 import { truncateToWidth } from '../utils/glyphs.js'
 import { logForDebugging } from '../utils/debug.js'
+import { isRecord } from '../utils/isRecord.js'
 import type { SuggestionItem } from '../components/PromptInput/PromptInputFooterSuggestions.js'
 
 const RESULT_CAP = 15
@@ -86,12 +87,7 @@ function agentItems(
 
 function fileScore(item: SuggestionItem): number {
   const metadata = item.metadata
-  if (
-    typeof metadata === 'object' &&
-    metadata !== null &&
-    'score' in metadata &&
-    typeof metadata.score === 'number'
-  ) {
+  if (isRecord(metadata) && typeof metadata.score === 'number') {
     return metadata.score
   }
   return MID_SCORE

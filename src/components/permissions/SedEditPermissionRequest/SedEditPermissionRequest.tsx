@@ -14,6 +14,7 @@ import {
 import { ConsentFileEditDiff } from '../ConsentFileEditDiff.js'
 import { FilePermissionDialog } from '../FilePermissionDialog/FilePermissionDialog.js'
 import type { ToolInput } from '../FilePermissionDialog/permissionOptions.js'
+import { isRecord } from '../../../utils/isRecord.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
 
 type LoadedFile = { exists: boolean; content: string; beforeBytes?: string }
@@ -60,7 +61,7 @@ export function SedEditPermissionRequest({
 
   const parseInput = useCallback(
     (input: unknown): ToolInput => {
-      const base: ToolInput = typeof input === 'object' && input !== null ? { ...input } : {}
+      const base: ToolInput = isRecord(input) ? { ...input } : {}
       if (newContent === null || loaded?.beforeBytes === undefined) return base
       return {
         ...base,
