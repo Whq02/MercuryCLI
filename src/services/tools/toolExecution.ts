@@ -50,6 +50,7 @@ import { hookProgressMessage, hookRowsOfResult } from '../../utils/hooks/rows.js
 import { hookWaitSeconds, hookWaitWords } from '../../utils/hooks/wait.js'
 import { baseToolsOfTheTable } from '../../tools/toolTable.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { isRecord } from '../../utils/isRecord.js'
 import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../utils/timers.js'
 import { ownerFromToolUseContext } from '../../utils/run/resolveOwner.js'
 import { observeToolStart, observeToolTerminal, type ToolTerminalEvent } from '../../utils/run/effectObserver.js'
@@ -743,11 +744,11 @@ interface ToolCallNeeds {
 }
 
 function isShellOutcome(data: unknown): data is NonNullable<ToolTerminalEvent['shellOutcome']> {
-  return typeof data === 'object' && data !== null && typeof (data as { code?: unknown }).code === 'number'
+  return isRecord(data) && typeof data.code === 'number'
 }
 
 function launchedInBackground(data: unknown): boolean {
-  return typeof data === 'object' && data !== null && typeof (data as { backgroundTaskId?: unknown }).backgroundTaskId === 'string'
+  return isRecord(data) && typeof data.backgroundTaskId === 'string'
 }
 
 async function runAdmittedCall(needs: ToolCallNeeds): Promise<void> {
