@@ -367,7 +367,7 @@ function clearHiddenSubtree(root: FrameNode): void {
     if (elem.parentNode) setChildReach(elem.parentNode, elem, false)
     elem.dirty = false
     for (const child of elem.childNodes) {
-      if (child.nodeName !== '#text') pending.push(child as FrameNode)
+      if (child.nodeName !== '#text') pending.push(child)
     }
   }
 }
@@ -382,9 +382,9 @@ function placeNode(node: FrameNode, layoutNode: LayoutNode, walk: Walk, placemen
   const held = nodeCache.get(node)
   const rectHeld = held !== undefined && held.x === x && held.y === y && held.width === width && held.height === height
   const overlapsInvalid = rectsOverlap(x, y, width, height, walk.invalidRects)
-  const reusable = !node.dirty && !overlapsInvalid && !placement.skipSelfBlit && node.scroll?.pendingScrollDelta === undefined && rectHeld && placement.prevScreen !== undefined && held!.reach === undefined && (floating || insideOwn(placement.own, x, y, width, height))
+  const reusable = !node.dirty && !overlapsInvalid && !placement.skipSelfBlit && node.scroll?.pendingScrollDelta === undefined && rectHeld && placement.prevScreen !== undefined && held.reach === undefined && (floating || insideOwn(placement.own, x, y, width, height))
   if (reusable) {
-    reuseNode(node, held!, walk, placement.prevScreen!, floating, x, y, width, height)
+    reuseNode(node, held, walk, placement.prevScreen!, floating, x, y, width, height)
     return false
   }
   repaintNode(node, layoutNode, walk, placement, held, rectHeld, floating, x, y, width, height)
@@ -495,7 +495,7 @@ function reachBeyond(node: FrameNode, x: number, y: number, width: number, heigh
   let bottom = y + height
   for (const entry of node.childNodes) {
     if (entry.nodeName === '#text') continue
-    const child = entry as FrameNode
+    const child = entry
     if (child.style.position === 'absolute') continue
     const cached = nodeCache.get(child)
     if (cached === undefined) continue
@@ -623,8 +623,8 @@ function scrollStepSize(remaining: number, ruleHeight: number): number {
 
 function findScrollContent(node: FrameNode): FrameNode | undefined {
   for (const entry of node.childNodes) {
-    if (entry.nodeName !== '#text' && (entry as FrameNode).layoutNode !== undefined) {
-      return entry as FrameNode
+    if (entry.nodeName !== '#text' && entry.layoutNode !== undefined) {
+      return entry
     }
   }
   return undefined
@@ -736,7 +736,7 @@ function isScrollPlanSafe(content: FrameNode, walk: Walk, anyRemovedChild: boole
   if (content.dirty) {
     for (const entry of content.childNodes) {
       if (entry.nodeName === '#text') continue
-      const child = entry as FrameNode
+      const child = entry
       if (child.dirty && child.layoutNode) {
         setChildReach(content, child, childStillReaches(child, contentLeft + child.layoutNode.getComputedLeft(), contentTop + child.layoutNode.getComputedTop(), walk.buffer.width))
       }
@@ -752,7 +752,7 @@ function isScrollPlanSafe(content: FrameNode, walk: Walk, anyRemovedChild: boole
   let lastCached: CachedLayout | undefined
   for (const entry of content.childNodes) {
     if (entry.nodeName === '#text') continue
-    const child = entry as FrameNode
+    const child = entry
     const layout = child.layoutNode
     if (!layout || layout.getDisplay() === LayoutDisplay.None) {
       if (nodeCache.get(child) !== undefined) return false
@@ -794,7 +794,7 @@ function paintScrollFastPath(content: FrameNode, walk: Walk, prevScreen: Screen,
   if (content.dirty) {
     const dirtyChildren = new Set<FrameNode['childNodes'][number]>()
     for (const entry of content.childNodes) {
-      if (entry.nodeName !== '#text' && (entry as FrameNode).dirty) dirtyChildren.add(entry)
+      if (entry.nodeName !== '#text' && entry.dirty) dirtyChildren.add(entry)
     }
     repairStableRows(content, walk, dirtyChildren, contentLeft, contentTop, bandTop, bandBottom, incomingTop, incomingBottom, planTop, planFloor, leftCol, colWidth, uniformBg)
   }
@@ -1088,7 +1088,7 @@ function shiftSubtreeCache(root: FrameNode, delta: number): void {
       })
     }
     for (const child of elem.childNodes) {
-      if (child.nodeName !== '#text') pending.push(child as FrameNode)
+      if (child.nodeName !== '#text') pending.push(child)
     }
   }
 }
@@ -1096,7 +1096,7 @@ function shiftSubtreeCache(root: FrameNode, delta: number): void {
 function shiftScrolledChildrenCache(content: FrameNode, viewTop: number, viewBottom: number, delta: number): void {
   for (const entry of content.childNodes) {
     if (entry.nodeName === '#text') continue
-    const child = entry as FrameNode
+    const child = entry
     const cached = nodeCache.get(child)
     if (cached === undefined) continue
     const shiftedY = cached.y - delta
@@ -1170,7 +1170,7 @@ function siblingSharesY(node: FrameNode, layoutNode: LayoutNode): boolean {
 function pushElementChildren(stack: FrameNode[], parent: FrameNode): void {
   for (let i = parent.childNodes.length - 1; i >= 0; i--) {
     const child = parent.childNodes[i]!
-    if (child.nodeName !== '#text') stack.push(child as FrameNode)
+    if (child.nodeName !== '#text') stack.push(child)
   }
 }
 
@@ -1257,7 +1257,7 @@ function nodePaintedBounds(node: FrameNode, x: number, y: number, maxBufWidth: n
   let bottom = y + height
   for (const entry of node.childNodes) {
     if (entry.nodeName === '#text') continue
-    const child = entry as FrameNode
+    const child = entry
     if (child.style.position === 'absolute' || !child.layoutNode) continue
     const cx = x + child.layoutNode.getComputedLeft()
     const cy = y + child.layoutNode.getComputedTop()
@@ -1313,7 +1313,7 @@ function forgetSubtree(root: FrameNode): void {
     const forgotten = pending.pop()!
     nodeCache.delete(forgotten)
     for (const child of forgotten.childNodes) {
-      if (child.nodeName !== '#text') pending.push(child as FrameNode)
+      if (child.nodeName !== '#text') pending.push(child)
     }
   }
 }
