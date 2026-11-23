@@ -270,7 +270,7 @@ export function ModelPicker({
         ) : null}
       </Box>
       <Box flexDirection="column">
-        <Select<string>
+        <Select
           options={selectOptions}
           defaultFocusValue={defaultFocusValue}
           visibleOptionCount={VISIBLE_OPTIONS}
