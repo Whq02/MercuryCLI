@@ -37,7 +37,6 @@ import {
 import type { Publish, SuggestionsState } from './state.js'
 import { armTypeaheadTimer } from './timers.js'
 import { extractCompletionToken, extractSearchToken, shellMetadataOf } from './tokens.js'
-import { notBuilt } from '../../pi/holes.js'
 
 const CHANNEL_FETCH_DEBOUNCE_MS = 150
 const RESUME_TITLE_LIMIT = 10
@@ -328,8 +327,27 @@ export function ladderCommands({
   return true
 }
 
-export function ladderClearStale(arg0: LadderContext): void {
-  return notBuilt('src/hooks/typeahead/ladder.ts:250')
+export function ladderClearStale({ input, cursor, argumentHint, clearSuggestions, cancelFileFetch, setSuggestionsState, suggestionsRef, suggestionTypeRef }: LadderContext): void {
+  if (suggestionTypeRef.current === 'command' && !input.startsWith('/')) {
+    cancelFileFetch()
+    clearSuggestions()
+  }
+  if (hasCommandArgs(input) && argumentHint) {
+    setSuggestionsState(prev => ({
+      suggestions: prev.suggestions,
+      selectedSuggestion: prev.selectedSuggestion,
+    }))
+  }
+  if (suggestionTypeRef.current === 'custom-title') {
+    clearSuggestions()
+  }
+  if (
+    suggestionTypeRef.current === 'agent' &&
+    suggestionsRef.current.some(item => item.id.startsWith('dm-')) &&
+    !/(^|\s)@[\w-]*$/.test(input.slice(0, cursor))
+  ) {
+    clearSuggestions()
+  }
 }
 
 export function ladderPaths({
