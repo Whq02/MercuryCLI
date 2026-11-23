@@ -4,7 +4,10 @@ type Lockfile = typeof import('proper-lockfile')
 let cached: Lockfile | null = null
 
 function getLockfile(): Lockfile {
-  return cached ??= require('proper-lockfile') as Lockfile
+  if (cached) return cached
+  const loaded: Lockfile = require('proper-lockfile')
+  cached = loaded
+  return loaded
 }
 
 export function lock(file: string, options?: LockOptions): Promise<() => Promise<void>> {
