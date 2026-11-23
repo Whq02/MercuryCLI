@@ -6,15 +6,14 @@ import { loginFilesNotCarried, profileShellWords, shellRecordNow } from '../../u
 import { windowsBashAbsent } from '../../utils/shell/windowsShellRoad.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
 import { ideTerminalAvailable } from '../../services/acp/ideToolBridge.js'
-import { notBuilt } from '../../pi/holes.js'
 
 
 export function getDefaultTimeoutMs(): number {
-  return notBuilt('src/tools/BashTool/prompt.ts:11')
+  return getDefaultBashTimeoutMs()
 }
 
 export function getMaxTimeoutMs(): number {
-  return notBuilt('src/tools/BashTool/prompt.ts:15')
+  return getMaxBashTimeoutMs()
 }
 
 export function describeMaxOutputChars(): string {
