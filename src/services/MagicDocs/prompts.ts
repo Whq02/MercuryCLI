@@ -2,7 +2,6 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { getMercuryHome } from '../../utils/envUtils.js'
-import { notBuilt } from '../../pi/holes.js'
 
 
 const DEFAULT_TEMPLATE = `Automated maintenance instruction (not part of the user conversation; never reference it in the document).
@@ -26,11 +25,33 @@ Rules:
 const CUSTOM_INSTRUCTIONS_PREAMBLE =
   'Document author instructions (override general rules above):'
 
+async function loadTemplate(): Promise<string> {
+  const overridePath = join(getMercuryHome(), 'magic-docs', 'prompt.md')
+  try {
+    return await readFile(overridePath, 'utf-8')
+  } catch {
+    return DEFAULT_TEMPLATE
+  }
+}
+
 export async function buildMagicDocsUpdatePrompt(
   docContents: string,
   docPath: string,
   docTitle: string,
   instructions?: string,
 ): Promise<string> {
-  return notBuilt('src/services/MagicDocs/prompts.ts:42')
+  const template = await loadTemplate()
+  const customInstructions =
+    instructions !== undefined && instructions !== ''
+      ? `\n\n${CUSTOM_INSTRUCTIONS_PREAMBLE}\n\n${instructions}`
+      : ''
+  const values: Record<string, string> = {
+    docContents,
+    docPath,
+    docTitle,
+    customInstructions,
+  }
+  return template.replace(/\{\{(\w+)\}\}/g, (match, name: string) =>
+    Object.prototype.hasOwnProperty.call(values, name) ? values[name]! : match,
+  )
 }
