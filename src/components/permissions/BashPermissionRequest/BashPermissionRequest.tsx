@@ -35,6 +35,8 @@ import type { PermissionRequestProps } from '../PermissionRequest.js'
 import { bashToolUseOptions, type BashToolUseOption } from './bashToolUseOptions.js'
 import { passedOver } from '../../../utils/passedOver.js'
 
+type BashCardInput = { command: string; cwd?: string }
+
 function suggestedBashRuleContents(suggestions: PermissionUpdate[]): string[] {
   const contents: string[] = []
   for (const update of suggestions) {
@@ -77,7 +79,7 @@ function seedEditablePrefix(
 
 export function BashPermissionRequest(props: PermissionRequestProps): React.ReactNode {
   const { toolUseConfirm } = props
-  const input = BashTool.inputSchema.parse(toolUseConfirm.input)
+  const input = BashTool.inputSchema.parse(toolUseConfirm.input) as BashCardInput
 
   const sedEditInfo = parseSedEditCommand(input.command)
   if (sedEditInfo !== null) {
@@ -89,7 +91,7 @@ export function BashPermissionRequest(props: PermissionRequestProps): React.Reac
 }
 
 export function MonitorPermissionRequest(props: PermissionRequestProps): React.ReactNode {
-  const { command, description } = props.toolUseConfirm.input
+  const { command, description } = props.toolUseConfirm.input as { command?: unknown; description?: unknown }
   return (
     <BashCommandPermissionRequest
       {...props}

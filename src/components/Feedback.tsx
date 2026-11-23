@@ -165,8 +165,7 @@ function modelFacts(): { family: string; model: string } {
     const model = focusedSessionModelFacts()?.effective ?? getEngineModel()
     const route = providerFamilyOfSetting(model)
     return { family: route === 'unrecognised' ? 'Not sure' : providerDisplayName(route), model }
-  } catch (error) {
-    passedOver(error)
+  } catch {
     return { family: 'Not sure', model: '(unknown)' }
   }
 }
@@ -285,9 +284,9 @@ export async function gatherReport(
   }
 
   const [isGit, diskSubagents] = await Promise.all([
-    getIsGit().catch(err => {
+    getIsGit().catch((err): boolean | undefined => {
       recordProbeError(err)
-      return false
+      return undefined
     }),
     loadAllSubagentTranscriptsFromDisk().catch((err): Record<string, Message[]> => {
       recordProbeError(err)
@@ -307,10 +306,13 @@ export async function gatherReport(
   } catch (err) {
     const code = getErrnoCode(err)
     if (code !== 'ENOENT' && code !== 'ENOTDIR') {
-      logForDebugging(
-        `Failed to read session transcript for feedback: ${err instanceof Error ? err.message : String(err)}`,
-      )
-      recordProbeError(err)
+      const detail = err instanceof Error ? err.message : String(err)
+      logForDebugging(`Failed to read session transcript for feedback: ${detail}`)
+      logError(err)
+      errors.push({
+        error: redactSensitiveInfo(`session transcript could not be read: ${detail}`),
+        timestamp: new Date().toISOString(),
+      })
     }
   }
 

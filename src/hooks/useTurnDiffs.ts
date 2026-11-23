@@ -43,6 +43,13 @@ function isToolResultMessage(message: UserMessage): boolean {
   )
 }
 
+type FileEditLikeResult = {
+  filePath?: unknown
+  structuredPatch?: unknown
+  type?: unknown
+  content?: unknown
+}
+
 type TurnFileEntry = LineChanges & {
   filePath: string
   hunks: Hunk[]
@@ -113,7 +120,7 @@ function extractFileEdit(result: unknown): {
 } | null {
   const parsed = fileEditResultSchema().safeParse(result)
   if (!parsed.success) return null
-  const { filePath, type, structuredPatch, content } = parsed.data
+  const { filePath, type, structuredPatch, content } = parsed.data satisfies FileEditLikeResult
   const isNewFile = type === 'create'
   if (structuredPatch && structuredPatch.length > 0) {
     return { filePath, hunks: structuredPatch, isNewFile }

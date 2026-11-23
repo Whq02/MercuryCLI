@@ -8,9 +8,14 @@ type TagTab = {
   isAll?: boolean
 }
 
+function tabCost(tab: TagTab, cap: number): number {
+  if (tab.isAll) return stringWidth(tab.label) + 2
+  return Math.min(stringWidth(tab.label), cap - 3) + 3
+}
+
 function displayText(tab: TagTab, cap: number): string {
   if (tab.isAll) return tab.label
-  const renderBudget = cap - 5
+  const renderBudget = cap - 2 - 3
   if (renderBudget < 1) return `#${[...tab.label].slice(0, 1).join('')}`
   return `#${truncateToWidth(tab.label, renderBudget)}`
 }
@@ -38,7 +43,7 @@ export function TagTabs({
   const cap = Math.max(20, Math.floor(budget / 2))
 
   const labels = tabs.map(tab => displayText(tab, cap))
-  const costs = labels.map(text => stringWidth(text) + 2)
+  const costs = tabs.map(tab => tabCost(tab, cap))
   const totalCost =
     costs.reduce((sum, cost) => sum + cost, 0) + Math.max(0, tabs.length - 1)
   const clamped = Math.max(0, Math.min(selectedIndex, tabs.length - 1))
