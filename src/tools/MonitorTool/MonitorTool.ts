@@ -173,14 +173,14 @@ export const MonitorTool = buildTool({
       },
     })
 
-    const requestStop = (): void => {
+    const requestStop = (reason: 'timeout' | 'overflow'): void => {
       if (taskId) {
         void stopTask(taskId, {
           getAppState: context.getAppState,
           setAppState,
         }).catch((error: unknown) => {
           logForDebugging(
-            `Monitor stopTask(${taskId}) failed: ${error instanceof Error ? error.message : String(error)}`,
+            `monitor ${taskId}: stopTask failed on ${reason}, killing process directly: ${error instanceof Error ? error.message : String(error)}`,
             { level: 'warn' },
           )
           shellCommand?.kill()
@@ -231,7 +231,7 @@ export const MonitorTool = buildTool({
           stopTimeout(expiryTimer)
           expiryTimer = null
         }
-        requestStop()
+        requestStop('overflow')
       }
     }
 
@@ -276,13 +276,13 @@ export const MonitorTool = buildTool({
       })
     })
 
-    if (!persistent && timeoutMs > 0) {
+    if (!stopped && !persistent && timeoutMs > 0) {
       expiryTimer = startTimeout(() => {
         expiryTimer = null
         if (stopped) return
         stopped = true
         mailbox.push(monitorExpiryNotice(input.description, taskId, timeoutMs, admittedEvents))
-        requestStop()
+        requestStop('timeout')
       }, timeoutMs)
       expiryTimer.unref?.()
     }

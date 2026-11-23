@@ -157,10 +157,9 @@ function isSearchOrRead(command: string): { isSearch: boolean; isRead: boolean }
   return sawReal ? { isSearch, isRead } : { isSearch: false, isRead: false }
 }
 
-function backgroundNoticeFor(output: Out): string {
-  const id = output.backgroundTaskId as string
+function backgroundNoticeFor(id: string, backgroundedByUser?: boolean): string {
   const outputPath = getTaskOutputPath(id)
-  if (output.backgroundedByUser) return `You moved this command to the background (ID: ${id}). Output: ${outputPath}.`
+  if (backgroundedByUser) return `You moved this command to the background (ID: ${id}). Output: ${outputPath}.`
   return `Running in the background (ID: ${id}). Output: ${outputPath}.`
 }
 
@@ -294,7 +293,37 @@ function buildBackgroundOut(
     ...(scrubbed && scrubbed.length > 0 ? { scrubbedSessionEnv: scrubbed } : {}),
   }
 }
-
+function createWakeSignal(): {
+  wake: () => void
+  wait: () => Promise<void>
+  clear: () => void
+} {
+  let woken = false
+  let notify: (() => void) | null = null
+  return {
+    wake() {
+      woken = true
+      const fn = notify
+      notify = null
+      fn?.()
+    },
+    wait() {
+      if (woken) {
+        woken = false
+        return Promise.resolve()
+      }
+      return new Promise<void>(resolve => {
+        notify = () => {
+          woken = false
+          resolve()
+        }
+      })
+    },
+    clear() {
+      notify = null
+    },
+  }
+}
 async function* executePowerShell(
   input: PowerShellToolInput,
   context: ToolUseContext,
@@ -319,21 +348,14 @@ async function* executePowerShell(
       interrupted: false,
       preSpawnError: 'PowerShell is unavailable on this system. Install PowerShell 7 (pwsh) to enable PowerShell commands.',
     }
-    return postProcessPowerShell(unavailable, input, context, undefined)
+    return await postProcessPowerShell(unavailable, input, context, undefined)
   }
 
   let latest = { recent: '', all: '', lines: 0, bytes: 0, incomplete: false }
-  let notifyWake: (() => void) | null = null
-  const wakeProgress = (): void => {
-    const fn = notifyWake
-    notifyWake = null
-    fn?.()
-  }
-  const waitForWake = (): Promise<void> =>
-    new Promise<void>(resolve => {
-      notifyWake = resolve
-    })
-
+  const wakeSignal = createWakeSignal()
+  const wakeProgress = wakeSignal.wake
+  const waitForWake = wakeSignal.wait
+  const clearWakeWaiter = wakeSignal.clear
   let shellCommand: ShellCommand
   try {
     shellCommand = await exec(input.command, context.abortController.signal, 'powershell', {
@@ -357,7 +379,7 @@ async function* executePowerShell(
       interrupted: false,
       preSpawnError: `The PowerShell command failed to execute: ${msg}`,
     }
-    return postProcessPowerShell(failed, input, context, undefined)
+    return await postProcessPowerShell(failed, input, context, undefined)
   }
 
   const scrubbed = shellCommand.scrubbedSessionEnv
@@ -367,73 +389,91 @@ async function* executePowerShell(
   let interruptHandled = false
   let hintShown = false
 
-  const tryBackground = async (onAccepted?: (taskId: string) => void): Promise<string | undefined> => {
-    if (backgroundId !== undefined) return backgroundId
-    const description = input.description || input.command
-    if (foregroundTaskId !== undefined) {
-      const ok = backgroundExistingForegroundTask(
-        foregroundTaskId,
-        shellCommand,
-        description,
-        setTaskState,
-        context.toolUseId,
+  let handoverPromise: Promise<string | undefined> | null = null
+  let resolveBackgroundAssigned: (() => void) | null = null
+  const backgroundAssignedPromise = new Promise<void>(resolve => {
+    resolveBackgroundAssigned = resolve
+  })
+
+  const tryBackground = (onAccepted?: (taskId: string) => void): Promise<string | undefined> => {
+    if (handoverPromise !== null) return handoverPromise
+    handoverPromise = (async () => {
+      if (backgroundId !== undefined) return backgroundId
+      const description = input.description || input.command
+      if (foregroundTaskId !== undefined) {
+        const ok = backgroundExistingForegroundTask(
+          foregroundTaskId,
+          shellCommand,
+          description,
+          setTaskState,
+          context.toolUseId,
+          {
+            command: input.command,
+            description,
+            agentId,
+            cwd: explicitCwd ?? resolveShellCwd(),
+            startTime: launchedAt,
+            toolUseId: context.toolUseId,
+          },
+        )
+        if (ok) {
+          const accepted = foregroundTaskId
+          backgroundId = accepted
+          foregroundTaskId = undefined
+          onAccepted?.(accepted)
+          resolveBackgroundAssigned?.()
+          resolveBackgroundAssigned = null
+          wakeProgress()
+          return accepted
+        }
+        return undefined
+      }
+      const handle = await spawnShellTask(
         {
           command: input.command,
           description,
-          agentId,
-          cwd: explicitCwd ?? resolveShellCwd(),
-          startTime: launchedAt,
+          timeout: effectiveTimeout,
           toolUseId: context.toolUseId,
+          agentId,
+          shellCommand,
+          startTime: launchedAt,
+        },
+        {
+          abortController: context.abortController,
+          getAppState: () => {
+            throw new Error('spawn must not read app state')
+          },
+          setAppState: setTaskState,
         },
       )
-      if (ok) {
-        const accepted = foregroundTaskId
+      if (handle.accepted !== false) {
+        const accepted: string = handle.taskId
         backgroundId = accepted
-        foregroundTaskId = undefined
         onAccepted?.(accepted)
+        resolveBackgroundAssigned?.()
+        resolveBackgroundAssigned = null
         wakeProgress()
         return accepted
       }
-    }
-    const handle = await spawnShellTask(
-      {
-        command: input.command,
-        description,
-        timeout: effectiveTimeout,
-        toolUseId: context.toolUseId,
-        agentId,
-        shellCommand,
-        startTime: launchedAt,
-      },
-      {
-        abortController: context.abortController,
-        getAppState: context.getAppState,
-        setAppState: setTaskState,
-      },
-    )
-    if (handle.accepted !== false) {
-      const accepted: string = handle.taskId
-      backgroundId = accepted
-      onAccepted?.(accepted)
-      wakeProgress()
-      return accepted
-    }
-    return undefined
+      return undefined
+    })()
+    return handoverPromise
   }
 
-  shellCommand.onTimeout?.((bg: (taskId: string) => boolean) => {
-    timeoutAutoBackgroundedAfterMs = effectiveTimeout
-    void tryBackground(taskId => {
-      bg(taskId)
+  if (shouldAutoBackground && !input.run_in_background) {
+    shellCommand.onTimeout?.((bg: (taskId: string) => boolean) => {
+      timeoutAutoBackgroundedAfterMs = effectiveTimeout
+      void tryBackground(taskId => {
+        bg(taskId)
+      })
     })
-  })
-
+  }
   if (!BACKGROUND_TASKS_DISABLED && input.run_in_background) {
     const acceptedId = await tryBackground()
     if (acceptedId !== undefined) return buildBackgroundOut(acceptedId, scrubbed)
     const res = await shellCommand.result
     shellCommand.cleanup()
-    return postProcessPowerShell(res, input, context, shellCommand)
+    return await postProcessPowerShell(res, input, context, shellCommand)
   }
 
   const onAbort = (): void => {
@@ -447,21 +487,23 @@ async function* executePowerShell(
     wakeProgress()
   })
 
-  const quietTag = Symbol('quiet')
-  const quietResult = await withDeadline<ExecResult, typeof quietTag>(
-    shellCommand.result,
+  const quietWinner = await withDeadline(
+    Promise.race([
+      shellCommand.result.then(res => ({ kind: 'done' as const, res })),
+      backgroundAssignedPromise.then(() => ({ kind: 'bg' as const })),
+    ]),
     QUIET_WINDOW_MS,
-    () => quietTag,
+    () => ({ kind: 'timeout' as const }),
     { unref: true },
   )
-  if (quietResult !== quietTag) {
+  if (quietWinner.kind === 'done') {
     context.abortController.signal.removeEventListener('abort', onAbort)
-    if (quietResult.backgroundTaskId) {
-      markTaskNotified(quietResult.backgroundTaskId, setTaskState)
-      quietResult.backgroundTaskId = undefined
+    if (quietWinner.res.backgroundTaskId) {
+      markTaskNotified(quietWinner.res.backgroundTaskId, setTaskState)
+      quietWinner.res.backgroundTaskId = undefined
     }
     shellCommand.cleanup()
-    return postProcessPowerShell(quietResult, input, context, shellCommand)
+    return await postProcessPowerShell(quietWinner.res, input, context, shellCommand)
   }
   if (backgroundId !== undefined) {
     context.abortController.signal.removeEventListener('abort', onAbort)
@@ -483,7 +525,7 @@ async function* executePowerShell(
           foregroundTaskId = undefined
         }
         shellCommand.cleanup()
-        return postProcessPowerShell(finalResult, input, context, shellCommand)
+        return await postProcessPowerShell(finalResult, input, context, shellCommand)
       }
 
       if (context.abortController.signal.aborted && context.abortController.signal.reason === 'interrupt' && !interruptHandled) {
@@ -508,7 +550,14 @@ async function* executePowerShell(
       }
 
       const elapsedMs = Date.now() - pollStart
-      if (!hintShown && !BACKGROUND_TASKS_DISABLED && elapsedMs >= QUIET_WINDOW_MS && setToolJSX) {
+      if (
+        !hintShown &&
+        !BACKGROUND_TASKS_DISABLED &&
+        backgroundId === undefined &&
+        shellCommand.status !== 'backgrounded' &&
+        elapsedMs >= QUIET_WINDOW_MS &&
+        setToolJSX
+      ) {
         hintShown = true
         if (foregroundTaskId === undefined) {
           foregroundTaskId = registerForeground(
@@ -525,7 +574,7 @@ async function* executePowerShell(
           )
         }
         setToolJSX({
-          jsx: <BackgroundHint />,
+          jsx: <BackgroundHint onBackground={wakeProgress} />,
           shouldHidePromptInput: false,
           shouldContinueAnimation: true,
           showSpinner: true,
@@ -551,7 +600,7 @@ async function* executePowerShell(
         budgetMs: effectiveTimeout,
       }
 
-      await waitForWake()
+      await withDeadline(waitForWake(), 1_000, clearWakeWaiter, { unref: true })
     }
   } finally {
     TaskOutput.stopPolling(pollTaskId)
@@ -665,7 +714,7 @@ export const PowerShellTool: Tool<PowerShellToolInput, Out, PowerShellProgress> 
     if (output.interrupted) {
       errorText += '\n<error>The command was cut short before it finished.</error>'
     }
-    const backgroundNotice = output.backgroundTaskId ? backgroundNoticeFor(output) : ''
+    const backgroundNotice = output.backgroundTaskId ? backgroundNoticeFor(output.backgroundTaskId, output.backgroundedByUser) : ''
     const content = [
       stdout,
       errorText,
