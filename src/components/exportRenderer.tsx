@@ -1,14 +1,14 @@
 import * as React from 'react'
 import stripAnsi from 'strip-ansi'
 
-import { Messages } from './Messages.tsx'
-import { KeybindingProvider, type HandlerRegistry } from '../keybindings/KeybindingContext.tsx'
+import { Messages } from './Messages.js'
+import { KeybindingProvider, type HandlerRegistry } from '../keybindings/KeybindingContext.js'
 import type { KeybindingContextName, ParsedKeystroke } from '../keybindings/types.js'
 import { loadKeybindingsSync } from '../keybindings/loadUserBindings.js'
-import { AppStateProvider } from '../state/AppState.tsx'
+import { AppStateProvider } from '../state/AppState.js'
 import type { Tools } from '../Tool.js'
 import type { Message } from '../types/message.js'
-import { renderToAnsiString } from '../utils/staticRender.tsx'
+import { renderToAnsiString } from '../utils/staticRender.js'
 
 const DEFAULT_CHUNK_SIZE = 40
 const SYNC_MARKER_RE = /\x1b\[\?2026[hl]/g
@@ -42,8 +42,12 @@ function MinimalKeybindingProvider({ children }: { children: React.ReactNode }):
 function normalizedUpperBound(messages: Message[]): number {
   let total = 0
   for (const message of messages) {
-    const content = (message as { message?: { content?: unknown } }).message?.content
-    total += Array.isArray(content) ? Math.max(1, content.length) : 1
+    if (message.type === 'assistant' || message.type === 'user') {
+      const content = message.message.content
+      total += Array.isArray(content) ? Math.max(1, content.length) : 1
+    } else {
+      total += 1
+    }
   }
   return total
 }

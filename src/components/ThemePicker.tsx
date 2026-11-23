@@ -36,7 +36,6 @@ type ThemePickerProps = {
   onThemeSelect: (theme: ThemeSetting) => void
   onCancel?: () => void
   showIntroText?: boolean
-  hideBorder?: boolean
   hideTitle?: boolean
   hideEscToCancel?: boolean
   skipExitHandling?: boolean
@@ -104,11 +103,14 @@ export function ThemePicker({
     !skipExitHandling,
   )
 
+  const cancelPreviewRef = useRef(cancelPreview)
+  cancelPreviewRef.current = cancelPreview
+
   useClaim(
     () => () => {
-      cancelPreview()
+      cancelPreviewRef.current()
     },
-    [cancelPreview],
+    [],
   )
 
   const previewRef = useRef<DOMElement>(null)
