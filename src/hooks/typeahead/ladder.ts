@@ -271,29 +271,17 @@ export function ladderCommands({
 
   if (spaceIndex !== -1) {
     const cmdName = input.slice(1, spaceIndex)
-    const rest = input.slice(spaceIndex + 1)
     const matched = commands.find(
       c => !c.isHidden && (c.userFacingName?.() === cmdName || c.name === cmdName),
     )
-    if (matched || rest.trim() !== '') {
-      let hint: string | undefined
-      if (matched) {
-        if (rest === '') {
-          const argNames =
-            matched.type === 'prompt' ? parseArgumentNames(matched.argNames) : []
-          hint =
-            matched.argumentHint ??
-            (argNames.length > 0
-              ? generateProgressiveArgumentHint(argNames, [])
-              : undefined)
-        } else if (/\s$/.test(input) && matched.type === 'prompt') {
-          const argNames = parseArgumentNames(matched.argNames)
-          hint =
-            argNames.length > 0
-              ? generateProgressiveArgumentHint(argNames, parseArguments(rest))
-              : undefined
-        }
-      }
+    if (matched) {
+      const argNames =
+        matched.type === 'prompt' ? parseArgumentNames(matched.argNames) : []
+      const hint =
+        matched.argumentHint ??
+        (argNames.length > 0
+          ? generateProgressiveArgumentHint(argNames, [])
+          : undefined)
       if (hint !== undefined) {
         setSuggestionType('none')
         setSuggestionsState({
