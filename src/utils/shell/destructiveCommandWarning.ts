@@ -271,15 +271,15 @@ function checkWindowsSegmentWarning(
 
 const MATCHERS: Matcher[] = [
   command =>
-    new RegExp(`${SEGMENT_BOUNDARY}git\\s+reset\\b[^;&|\\n]*(?:--hard|"--hard"|'--hard')(?:\\s|$|[;&|])`).test(command)
+    /\bgit\s+reset\b[^;&|\n]*(?:--hard|"--hard"|'--hard')(?:\s|$|[;&|])/.test(command)
       ? 'Note: a hard reset may discard uncommitted changes.'
       : null,
   command =>
-    new RegExp(`${SEGMENT_BOUNDARY}git\\s+push\\b[^;&|\\n]*(?:\\s-f(?:\\s|$)|--force(?:-with-lease)?\\b)`).test(command)
+    new RegExp(`${SEGMENT_BOUNDARY}git\\s+push\\b[^;&|\\n]*\\s(?:-f(?:\\s|$)|--force(?:-with-lease)?\\b)`).test(command)
       ? 'Note: a force push may overwrite remote history.'
       : null,
   command => {
-    const match = new RegExp(`${SEGMENT_BOUNDARY}git\\s+clean\\b([^;&|\\n]*)`).exec(command)
+    const match = /\bgit\s+clean\b([^;&|\n]*)/.exec(command)
     if (!match) return null
     const rest = match[1] ?? ''
     const hasForce = /(?:^|\s)-[a-zA-Z]*f|--force\b/.test(rest)
