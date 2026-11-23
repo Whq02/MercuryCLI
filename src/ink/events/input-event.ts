@@ -5,26 +5,26 @@ import {
 import { Event } from './event.js'
 
 export type Key = {
-  ctrl: boolean
-  meta: boolean
-  shift: boolean
-  super: boolean
-  fn: boolean
   upArrow: boolean
   downArrow: boolean
   leftArrow: boolean
   rightArrow: boolean
-  home: boolean
-  end: boolean
-  pageUp: boolean
   pageDown: boolean
+  pageUp: boolean
   wheelUp: boolean
   wheelDown: boolean
+  home: boolean
+  end: boolean
   return: boolean
+  escape: boolean
+  ctrl: boolean
+  shift: boolean
+  fn: boolean
   tab: boolean
   backspace: boolean
   delete: boolean
-  escape: boolean
+  meta: boolean
+  super: boolean
   isPasted: boolean
 }
 
@@ -66,26 +66,26 @@ const ASCII_CAPITAL_RE = /^[A-Z]$/
 
 function projectKey(keypress: ParsedKey, wheelStep: boolean, input: string): Key {
   const key: Key = {
-    ctrl: keypress.ctrl,
-    shift: keypress.shift || ASCII_CAPITAL_RE.test(input),
-    super: keypress.super,
-    fn: keypress.fn,
     upArrow: false,
     downArrow: false,
     leftArrow: false,
     rightArrow: false,
-    home: false,
-    end: false,
-    pageUp: false,
     pageDown: false,
+    pageUp: false,
     wheelUp: false,
     wheelDown: false,
+    home: false,
+    end: false,
     return: false,
+    escape: false,
+    ctrl: keypress.ctrl,
+    shift: keypress.shift || ASCII_CAPITAL_RE.test(input),
+    fn: keypress.fn,
     tab: false,
     backspace: false,
     delete: false,
-    escape: false,
     meta: keypress.meta || keypress.name === 'escape' || keypress.option,
+    super: keypress.super,
     isPasted: keypress.isPasted,
   }
   if (keypress.name !== undefined && Object.hasOwn(NAME_TO_FLAG, keypress.name)) key[NAME_TO_FLAG[keypress.name]!] = true
