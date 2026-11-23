@@ -1,15 +1,15 @@
 import { readdir } from 'node:fs/promises'
-import { sep } from 'node:path'
+import { join, sep } from 'node:path'
 
 import { LRUCache } from 'lru-cache'
 
-import type { SuggestionItem } from '../../types/suggestions.js'
 import { getCwd } from '../cwd.js'
 import { logForDebugging } from '../debug.js'
 import { expandPath } from '../path.js'
 
 type PathEntry = {
   name: string
+  path: string
   kind: 'file' | 'directory'
 }
 
@@ -20,6 +20,12 @@ type PathCompletionOptions = {
   includeHidden?: boolean
 }
 
+type PathSuggestionItem = {
+  id: string
+  displayText: string
+  description?: string
+  metadata?: unknown
+}
 const SCAN_CAP = 100
 const DEFAULT_MAX_RESULTS = 10
 const CACHE_TTL_MS = 5 * 60 * 1000
@@ -65,6 +71,7 @@ async function listDirectoryEntries(
       if (!includeHidden && dirent.name.startsWith('.')) continue
       entries.push({
         name: dirent.name,
+        path: join(dirPath, dirent.name),
         kind: dirent.isDirectory() ? 'directory' : 'file',
       })
       if (entries.length >= SCAN_CAP) break
@@ -84,7 +91,7 @@ async function listDirectoryEntries(
 export async function getPathCompletions(
   partialPath: string,
   options?: PathCompletionOptions,
-): Promise<SuggestionItem[]> {
+): Promise<PathSuggestionItem[]> {
   const basePath = options?.basePath ?? getCwd()
   const maxResults = options?.maxResults ?? DEFAULT_MAX_RESULTS
   const includeFiles = options?.includeFiles ?? true

@@ -62,7 +62,7 @@ function unescapeControlSequences(text: string): string {
   if (!/\\[ntr]/.test(text)) return text
   let out = ''
   for (let i = 0; i < text.length; i++) {
-    const char = text[i]!
+    const char = text[i] as string
     const next = text[i + 1]
     if (char === '\\' && next !== undefined && next in CONTROL_SEQUENCES) {
       out += CONTROL_SEQUENCES[next]
@@ -264,8 +264,8 @@ function matchRoad(oldString: string, actualOldString: string): ForgivingRoad | 
   if (actualLines.length !== oldLines.length) return null
   const plainActual = actualLines.map(line => plainTypography(line))
   const plainOld = oldLines.map(line => plainTypography(line))
-  if (plainActual.every((line, i) => line.trimEnd() === plainOld[i]!.trimEnd())) return 'whitespace'
-  if (plainActual.every((line, i) => line.trim() === plainOld[i]!.trim())) return 'indentation'
+  if (plainActual.every((line, i) => line.trimEnd() === (plainOld[i] as string).trimEnd())) return 'whitespace'
+  if (plainActual.every((line, i) => line.trim() === (plainOld[i] as string).trim())) return 'indentation'
   return null
 }
 
@@ -319,7 +319,7 @@ function respellWhitespace(oldString: string, actualOldString: string, newString
 
 function isOpeningPosition(text: string, index: number): boolean {
   if (index === 0) return true
-  const previous = text[index - 1]!
+  const previous = text[index - 1] as string
   return (
     previous === ' ' ||
     previous === '\t' ||
@@ -336,8 +336,8 @@ function isOpeningPosition(text: string, index: number): boolean {
 const LETTER = /\p{L}/u
 
 function isContraction(text: string, index: number): boolean {
-  const before = index > 0 ? text[index - 1]! : ''
-  const after = index + 1 < text.length ? text[index + 1]! : ''
+  const before = index > 0 ? (text[index - 1] as string) : ''
+  const after = index + 1 < text.length ? (text[index + 1] as string) : ''
   return LETTER.test(before) && LETTER.test(after)
 }
 
@@ -365,7 +365,7 @@ export function preserveQuoteStyle(
   const end = newString.length - tail
   let result = actualOldString.slice(0, head)
   for (let i = head; i < end; i++) {
-    const char = newString[i]!
+    const char = newString[i] as string
     if (char === '"' && styled) {
       result += isOpeningPosition(newString, i) ? LEFT_DOUBLE_CURLY_QUOTE : RIGHT_DOUBLE_CURLY_QUOTE
       continue
