@@ -1,6 +1,5 @@
 import { APIUserAbortError } from '../../utils/api/sdkErrors.js'
 import { getLastCacheSafeParams } from '../../services/agents/forkedAgent.js'
-import { getUserContext } from '../../context.js'
 import {
   compactConversation,
   buildPostCompactMessages,
@@ -35,7 +34,6 @@ import { fetchSystemPromptParts } from '../../services/agents/queryContext.js'
 import type { CacheSafeParams } from '../../services/agents/forkedAgent.js'
 import { isAbortError, errorMessage, hasExactErrorMessage } from '../../utils/errors.js'
 import { logError } from '../../utils/log.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export { NOTHING_TO_COMPACT_KEY, nothingToCompactLine } from '../../services/compact/compact.js'
 
@@ -67,9 +65,156 @@ function enrichSummaryForLiveDisplay(
   }
 }
 
+async function resolveCacheSafeParams(
+  context: LocalJSXCommandContext,
+  messages: Message[],
+): Promise<CacheSafeParams> {
+  const cached = getLastCacheSafeParams()
+  if (cached !== null) {
+    return {
+      ...cached,
+      toolUseContext: context,
+      forkContextMessages: messages,
+    }
+  }
+  const { defaultSystemPrompt, userContext, systemContext } = await fetchSystemPromptParts({
+    tools: context.options.tools,
+    engineModel: context.options.engineModel,
+    mcpClients: context.options.mcpClients,
+    customSystemPrompt: context.options.customSystemPrompt,
+    permissionMode: context.getAppState().toolPermissionContext.mode,
+  })
+  const systemPrompt = buildEffectiveSystemPrompt({
+    mainThreadAgentDefinition: undefined,
+    toolUseContext: context,
+    customSystemPrompt: context.options.customSystemPrompt,
+    defaultSystemPrompt,
+    appendSystemPrompt: context.options.appendSystemPrompt,
+  })
+  return {
+    systemPrompt,
+    userContext,
+    systemContext,
+    toolUseContext: context,
+    forkContextMessages: messages,
+  }
+}
+
 export async function call(
   args: string,
   context: LocalJSXCommandContext,
 ): Promise<LocalCommandResult> {
-  return notBuilt('src/commands/compact/compact.ts:103')
+  const customInstructions = args.trim()
+  const messages = getMessagesAfterCompactBoundary(context.messages)
+  if (messages.length === 0) {
+    throw new Error(NO_MESSAGES_TO_COMPACT)
+  }
+
+  const model = context.options.engineModel
+  const estTokens = tokenCountWithEstimation(messages, model)
+  await awaitContextWindowSource(model, { estTokens })
+  const threshold = getAutoCompactThreshold(model)
+
+  const cacheSafeParams = await resolveCacheSafeParams(context, messages)
+  const refold = isRefold(messages)
+  const projection = await projectManualFold(messages, context, cacheSafeParams, threshold)
+  if (projection !== null && manualFoldHasNothingToFold(projection)) {
+    throw new Error(nothingToCompactLine(projection.context, nothingToCompactReason(projection, refold)))
+  }
+  const restoreFiles = projection?.restoreFiles ?? true
+
+  const foldChoice = foldModelFor(messages, model, { forced: false })
+  if (foldChoice.source === 'history') {
+    logForDebugging(
+      `compact: the summary is written by ${foldChoice.model} — the seated ${model}'s window does not hold the history (about ${foldChoice.count} tokens by Mercury's count)`,
+    )
+  }
+
+  const useSessionMemory = customInstructions === '' && shouldUseSessionMemoryCompaction()
+
+  let compactionResult: CompactionResult
+  try {
+    compactionResult = await withFoldStatus(
+      context,
+      async scoped => {
+        const scopedParams: CacheSafeParams = {
+          ...cacheSafeParams,
+          toolUseContext: scoped,
+        }
+        if (useSessionMemory) {
+          scoped.onCompactProgress?.({ type: 'stage', stage: 'session-memory' })
+          const smResult = await trySessionMemoryCompaction(
+            messages,
+            scoped.agentId,
+            threshold,
+            scoped,
+            'manual',
+          )
+          if (smResult !== null) return smResult
+        }
+        return await compactConversation(
+          messages,
+          scoped,
+          scopedParams,
+          false,
+          customInstructions || undefined,
+          false,
+          {
+            isRecompaction: refold,
+            turnsSincePreviousCompact: -1,
+            autoCompactThreshold: threshold,
+            restoreFiles,
+            mustShrink: true,
+          },
+          undefined,
+          foldChoice.model,
+        )
+      },
+      {
+        trigger: 'manual',
+        sessionMemory: useSessionMemory,
+        microcompaction: false,
+      },
+    )
+  } catch (err) {
+    if (
+      context.abortController.signal.aborted ||
+      err instanceof APIUserAbortError ||
+      isAbortError(err) ||
+      hasExactErrorMessage(err, ERROR_MESSAGE_USER_ABORT)
+    ) {
+      throw new Error(ERROR_MESSAGE_USER_ABORT)
+    }
+    if (
+      (err instanceof Error && isNothingToCompactMessage(err.message)) ||
+      hasExactErrorMessage(err, ERROR_MESSAGE_NOT_ENOUGH_MESSAGES)
+    ) {
+      throw err
+    }
+    if (
+      !hasExactErrorMessage(err, ERROR_MESSAGE_INCOMPLETE_RESPONSE) &&
+      !hasExactErrorMessage(err, ERROR_MESSAGE_FOLD_TIMEOUT)
+    ) {
+      logError(err)
+    }
+    throw new Error(`Error during compaction: ${errorMessage(err)}`)
+  }
+
+  setLastSummarizedMessageId(undefined)
+  suppressCompactWarning()
+  runPostCompactCleanup(
+    { querySource: context.options.querySource, agentId: context.agentId },
+    buildPostCompactMessages(compactionResult),
+  )
+
+  if (shouldEnrichForLiveDisplay(context)) {
+    enrichSummaryForLiveDisplay(compactionResult, messages.length, customInstructions)
+  }
+
+  const displayText = manualCompactDisplayText(context, compactionResult, messages.length)
+  return {
+    type: 'compact',
+    compactionResult,
+    displayText,
+  }
 }
