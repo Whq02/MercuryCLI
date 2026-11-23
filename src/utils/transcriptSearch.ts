@@ -1,7 +1,6 @@
 import type { RenderableMessage } from '../types/message.js'
 import { isTurnCutText } from './messages/rejectionText.js'
 import { passedOver } from './passedOver.js'
-import { notBuilt } from '../pi/holes.js'
 
 type SearchTextTool = { name: string; extractSearchText?(output: unknown): string }
 type ResolveSearchTool = (toolUseId: string) => SearchTextTool | undefined
@@ -10,7 +9,7 @@ type ResolveSearchTool = (toolUseId: string) => SearchTextTool | undefined
 const searchTextCache = new WeakMap<object, string>()
 
 function stripSystemReminders(text: string): string {
-  return notBuilt('src/utils/transcriptSearch.ts:56')
+  return text.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '')
 }
 
 function isInterruptionSentinel(text: string): boolean {
@@ -37,8 +36,142 @@ function ownSearchText(tool: SearchTextTool | undefined, result: unknown): strin
   }
 }
 
+function extractTextBlocks(blocks: readonly unknown[]): string {
+  const parts: string[] = []
+  for (const rawBlock of blocks) {
+    if (typeof rawBlock !== 'object' || rawBlock === null) continue
+    const block = rawBlock as BlockLike
+    if (block.type === 'text' && typeof block.text === 'string' && block.text !== '') {
+      parts.push(block.text)
+    }
+  }
+  return parts.join('\n')
+}
+
+function extractToolInputSearchText(block: BlockLike): string {
+  const parts: string[] = []
+  if (typeof block.name === 'string' && block.name !== '') parts.push(block.name)
+  if (typeof block.input === 'object' && block.input !== null) {
+    const input = block.input as Record<string, unknown>
+    for (const key of [
+      'command',
+      'description',
+      'file_path',
+      'path',
+      'notebook_path',
+      'filePath',
+      'pattern',
+      'query',
+      'url',
+      'prompt',
+      'old_string',
+      'new_string',
+      'content',
+    ] as const) {
+      const value = input[key]
+      if (typeof value === 'string' && value !== '') parts.push(value)
+    }
+    if (Array.isArray(input.files)) {
+      for (const entry of input.files) {
+        if (typeof entry === 'string' && entry !== '') parts.push(entry)
+      }
+    }
+  }
+  return parts.join(' ')
+}
+
+function extractToolResultSearchText(result: unknown): string {
+  if (typeof result === 'string') return result
+  if (Array.isArray(result)) return extractTextBlocks(result)
+  if (typeof result !== 'object' || result === null) return ''
+  const record = result as Record<string, unknown>
+  const parts: string[] = []
+  for (const key of ['stdout', 'stderr', 'result', 'filePath', 'oldString', 'newString'] as const) {
+    const value = record[key]
+    if (typeof value === 'string' && value !== '') parts.push(value)
+  }
+  if (typeof record.content === 'string' && record.content !== '') {
+    parts.push(record.content)
+  } else if (Array.isArray(record.content)) {
+    const nested = extractTextBlocks(record.content)
+    if (nested !== '') parts.push(nested)
+  }
+  if (typeof record.file === 'object' && record.file !== null) {
+    const file = record.file as Record<string, unknown>
+    if (typeof file.filePath === 'string' && file.filePath !== '') parts.push(file.filePath)
+    if (typeof file.content === 'string' && file.content !== '') parts.push(file.content)
+  }
+  if (Array.isArray(record.filenames)) {
+    for (const name of record.filenames) {
+      if (typeof name === 'string' && name !== '') parts.push(name)
+    }
+  }
+  return parts.join('\n')
+}
+
 function computeSearchText(message: RenderableMessage, resolveTool?: ResolveSearchTool): string {
-  return notBuilt('src/utils/transcriptSearch.ts:93')
+  switch (message.type) {
+    case 'user': {
+      const content = message.message.content
+      if (typeof content === 'string') {
+        return isInterruptionSentinel(content) ? '' : content
+      }
+      if (!Array.isArray(content)) return ''
+      const parts: string[] = []
+      for (const rawBlock of content) {
+        const block = rawBlock as BlockLike & { tool_use_id?: string }
+        if (block.type === 'text' && typeof block.text === 'string') {
+          if (!isInterruptionSentinel(block.text)) parts.push(block.text)
+        } else if (block.type === 'tool_result') {
+          const tool =
+            typeof block.tool_use_id === 'string' && resolveTool !== undefined
+              ? resolveTool(block.tool_use_id)
+              : undefined
+          const own = ownSearchText(tool, message.toolUseResult)
+          const text = own !== undefined ? own : extractToolResultSearchText(message.toolUseResult)
+          if (text !== '') parts.push(text)
+        }
+      }
+      return parts.join('\n')
+    }
+    case 'assistant': {
+      const content = message.message.content
+      if (!Array.isArray(content)) return ''
+      const parts: string[] = []
+      for (const rawBlock of content) {
+        const block = rawBlock as BlockLike
+        if (block.type === 'text' && typeof block.text === 'string') {
+          if (block.text !== '') parts.push(block.text)
+        } else if (block.type === 'tool_use') {
+          const text = extractToolInputSearchText(block)
+          if (text !== '') parts.push(text)
+        }
+      }
+      return parts.join('\n')
+    }
+    case 'attachment': {
+      const attachment = message.attachment
+      if (attachment.type !== 'queued_command') return ''
+      if (attachment.isMeta === true || attachment.commandMode === 'task-notification') return ''
+      if (typeof attachment.prompt === 'string') return attachment.prompt
+      if (!Array.isArray(attachment.prompt)) return ''
+      const parts: string[] = []
+      for (const rawBlock of attachment.prompt) {
+        const block = rawBlock as BlockLike
+        if (block.type === 'text' && typeof block.text === 'string') parts.push(block.text)
+      }
+      return parts.join('\n')
+    }
+    case 'collapsed_read_search': {
+      const memories = message.relevantMemories
+      if (!Array.isArray(memories) || memories.length === 0) return ''
+      return memories
+        .map(memory => (typeof memory?.content === 'string' ? memory.content : ''))
+        .join('\n')
+    }
+    default:
+      return ''
+  }
 }
 
 export function renderableSearchText(msg: RenderableMessage, resolveTool?: ResolveSearchTool): string {
@@ -94,7 +227,19 @@ export type TranscriptFacets = {
 export const EMPTY_FACETS: TranscriptFacets = { tools: [], files: [], failed: false }
 
 export function toolInputFiles(input: unknown): string[] {
-  return notBuilt('src/utils/transcriptSearch.ts:208')
+  if (typeof input !== 'object' || input === null) return []
+  const record = input as Record<string, unknown>
+  const files: string[] = []
+  for (const key of ['file_path', 'path', 'notebook_path', 'filePath'] as const) {
+    const value = record[key]
+    if (typeof value === 'string' && value.length > 0) files.push(value)
+  }
+  if (Array.isArray(record.files)) {
+    for (const entry of record.files) {
+      if (typeof entry === 'string' && entry.length > 0) files.push(entry)
+    }
+  }
+  return files
 }
 
 export type SearchQuery = {
