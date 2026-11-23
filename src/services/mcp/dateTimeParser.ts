@@ -2,9 +2,11 @@ import { queryUtility } from '../providers/anthropic/streamCore.js'
 import { logError } from '../../utils/log.js'
 import { extractTextContent } from '../messages.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
-const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
-const ISO_DATE_TIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/
+const ISO_PREFIX_PATTERN = /^\d{4}-\d{2}-\d{2}(?:T|$)/
+const LEADING_YEAR_PATTERN = /^\d{4}/
 const PARSE_FAILURE_MESSAGE = 'Could not parse a date/time from that input'
+const PARSE_ERROR_MESSAGE = 'Date parsing failed — enter the value in ISO 8601 format'
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const
 
 type DateTimeParseResult = { success: true; value: string } | { success: false; error: string }
 
@@ -17,19 +19,8 @@ function formatTimezoneOffset(date: Date): string {
   return `${sign}${hours}:${minutes}`
 }
 
-function formatLocalTimestamp(date: Date, tzOffset: string): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
-  const seconds = String(date.getSeconds()).padStart(2, '0')
-  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${tzOffset}`
-}
-
 export function looksLikeISO8601(input: string): boolean {
-  const trimmed = input.trim()
-  return ISO_DATE_PATTERN.test(trimmed) || ISO_DATE_TIME_PATTERN.test(trimmed)
+  return ISO_PREFIX_PATTERN.test(input.trim())
 }
 
 export async function parseNaturalLanguageDateTime(
@@ -37,54 +28,37 @@ export async function parseNaturalLanguageDateTime(
   format: 'date' | 'date-time',
   signal: AbortSignal,
 ): Promise<DateTimeParseResult> {
-  const trimmed = input.trim()
-  if (trimmed === '') {
-    return { success: false, error: PARSE_FAILURE_MESSAGE }
-  }
-  if (looksLikeISO8601(trimmed)) {
-    return { success: true, value: trimmed }
-  }
   const now = new Date()
+  const utcNow = now.toISOString()
   const tzOffset = formatTimezoneOffset(now)
-  const localNow = formatLocalTimestamp(now, tzOffset)
-  const targetFormat = format === 'date' ? 'YYYY-MM-DD' : `YYYY-MM-DDTHH:MM:SS${tzOffset}`
+  const weekday = WEEKDAYS[now.getDay()] ?? 'Sunday'
+  const precision = format === 'date' ? 'date (YYYY-MM-DD)' : `date-time (YYYY-MM-DDTHH:MM:SS${tzOffset})`
+
   try {
     const response = await queryUtility({
       systemPrompt: asSystemPrompt([
-        `Convert the user's natural language date/time expression into an ISO-8601 ${format} string (${targetFormat}). ` +
-          `The current local date and time is ${localNow} (UTC offset ${tzOffset}). ` +
-          'Reply with ONLY the formatted ISO-8601 string, or INVALID if the input cannot be parsed as a date or time.',
+        `Convert the user's date/time input into an ISO 8601 ${precision} string. ` +
+          `Current UTC time: ${utcNow}. Local UTC offset: ${tzOffset}. Today is ${weekday}. ` +
+          'Reply with ONLY the ISO 8601 value, or INVALID if the input cannot be parsed.',
       ]),
-      userPrompt: trimmed,
+      userPrompt: input,
       signal,
       options: {
         querySource: 'mcp_datetime_parse',
+        enablePromptCaching: false,
         isNonInteractiveSession: false,
         hasAppendSystemPrompt: false,
         agents: [],
         mcpTools: [],
-        maxOutputTokensOverride: 64,
       },
     })
-    if (response.isApiErrorMessage) {
+    const candidate = extractTextContent(response.message.content, '\n').trim()
+    if (candidate === '' || candidate === 'INVALID' || !LEADING_YEAR_PATTERN.test(candidate)) {
       return { success: false, error: PARSE_FAILURE_MESSAGE }
     }
-    const candidate = extractTextContent(response.message.content).trim()
-    if (format === 'date') {
-      if (ISO_DATE_PATTERN.test(candidate)) {
-        return { success: true, value: candidate }
-      }
-      if (ISO_DATE_TIME_PATTERN.test(candidate)) {
-        return { success: true, value: candidate.slice(0, 10) }
-      }
-    } else if (ISO_DATE_TIME_PATTERN.test(candidate)) {
-      return { success: true, value: candidate }
-    }
-    return { success: false, error: PARSE_FAILURE_MESSAGE }
+    return { success: true, value: candidate }
   } catch (error) {
-    if (!signal.aborted) {
-      logError(error)
-    }
-    return { success: false, error: PARSE_FAILURE_MESSAGE }
+    logError(error)
+    return { success: false, error: PARSE_ERROR_MESSAGE }
   }
 }
