@@ -77,15 +77,88 @@ import { armWatchdogOf, askLivelyOf, callModelOf, cutAtBudgetOf, observeProgress
 import { prepareAgentRun } from './runAgent/prepare.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { startTimeout, stopInterval, stopTimeout } from '../../utils/timers.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
+
 export function filterIncompleteToolCalls(messages: Message[]): Message[] {
-  return notBuilt('src/tools/AgentTool/runAgent.ts:81')
+  const resolvedToolUseIds = new Set<string>()
+  for (const message of messages) {
+    if (message.type !== 'user') continue
+    const content = message.message.content
+    if (!Array.isArray(content)) continue
+    for (const block of content) {
+      if (block.type === 'tool_result' && typeof block.tool_use_id === 'string') {
+        resolvedToolUseIds.add(block.tool_use_id)
+      }
+    }
+  }
+  return messages.filter(message => {
+    if (message.type !== 'assistant') return true
+    const content = message.message.content
+    if (!Array.isArray(content)) return true
+    for (const block of content) {
+      if (block.type === 'tool_use' && !resolvedToolUseIds.has(block.id)) {
+        return false
+      }
+    }
+    return true
+  })
 }
 
 const executorClaims = new Map<string, symbol>()
 
-export type AgentQueryProgressEvent = Unbuilt
-export type RunAgentParams = Unbuilt
+export type AgentQueryProgressEvent =
+  | Message
+  | { type: 'stream_activity'; atMs: number }
+  | { type: 'request_wait'; wait: unknown }
+
+export type RunAgentParams = {
+  agentDefinition: AgentDefinition
+  promptMessages: Message[]
+  toolUseContext: ToolUseContext
+  canUseTool: CanUseToolFn
+  isAsync: boolean
+  querySource: QuerySource
+  availableTools: Tools
+  resumed?: boolean
+  agentKind?: 'crewmate'
+  seat?: MercuryAgentSeat
+  canShowPermissionPrompts?: boolean
+  forkContextMessages?: Message[]
+  override?: {
+    userContext?: { [k: string]: string }
+    systemContext?: { [k: string]: string }
+    systemPrompt?: string[]
+    swarmBrief?: string
+    abortController?: AbortController
+    agentId?: AgentId
+  }
+  model?: string
+  maxTurns?: number
+  preserveToolUseResults?: boolean
+  allowedTools?: string[]
+  onCacheSafeParams?: (params: CacheSafeParams) => void
+  contentReplacementState?: ContentReplacementState
+  useExactTools?: boolean
+  worktreePath?: string
+  cwd?: string
+  reviewReceipt?: string
+  description?: string
+  name?: string
+  team?: string
+  captain?: boolean
+  launchedAt?: number
+  seatHolder?: string
+  effortOverride?: string
+  thinkingConfigOverride?: ThinkingConfig
+  instructionProfileOverride?: string
+  onQueryProgress?: (event: AgentQueryProgressEvent) => void
+  onWait?: (line: string | null) => void
+  onPendingAsks?: (count: number) => void
+  structuredOutputSpec?: {
+    schema: Record<string, unknown>
+    mode: 'permissive' | 'strict'
+    source: 'dispatch' | 'agent-definition'
+  }
+}
 
 function withoutInstructionBlob(context: {
   [k: string]: string
@@ -467,8 +540,484 @@ function recordableRow(anyMessage: Message & { subtype?: string; attachment?: { 
   return recordable
 }
 
+async function preloadSkills(
+  definition: AgentDefinition,
+  toolUseContext: ToolUseContext,
+): Promise<Message[]> {
+  if (!definition.skills || definition.skills.length === 0) return []
+  const commands: Command[] = await getSkillToolCommands(getProjectRoot())
+  const byName = new Map<string, Command & PromptCommand>()
+  for (const cmd of commands) {
+    if (!isPromptCommand(cmd)) continue
+    byName.set(cmd.name, cmd)
+    if (cmd.aliases) {
+      for (const alias of cmd.aliases) {
+        if (!byName.has(alias)) byName.set(alias, cmd)
+      }
+    }
+  }
+  const messages: Message[] = []
+  for (const skillName of definition.skills) {
+    const command = byName.get(skillName)
+    if (!command) {
+      logForDebugging(
+        `runAgent: skill '${skillName}' declared by ${definition.agentType} was not found`,
+      )
+      continue
+    }
+    try {
+      const blocks = await command.getPromptForCommand('', toolUseContext)
+      if (blocks.length > 0) {
+        messages.push(createUserMessage({ content: blocks, isMeta: true }))
+      }
+    } catch (error) {
+      logForDebugging(`runAgent: failed to preload skill '${skillName}': ${errorMessage(error)}`)
+    }
+  }
+  return messages
+}
+
+async function preflightAgentRun(params: RunAgentParams): Promise<{
+  reviewReceipt: string | undefined
+  resolvedAgentModel: string
+  resolvedEffort: EffortValue | undefined
+}> {
+  const { agentDefinition, toolUseContext, model, effortOverride, useExactTools, worktreePath } =
+    params
+  let reviewReceipt: string | undefined
+  if (params.reviewReceipt !== undefined) {
+    if (!worktreePath) {
+      throw new Error(
+        'review_receipt requires a frozen worktree: launch the review with isolation worktree and worktree_at',
+      )
+    }
+    reviewReceipt = canonicalReviewerReceipt(params.reviewReceipt, worktreePath)
+  }
+
+  const resolvedAgentModel = getAgentModel(
+    agentDefinition.model,
+    toolUseContext.options.engineModel,
+    model,
+  )
+  const resolvedEffort = resolveAgentEffort({
+    effortOverride,
+    useExactTools,
+    definitionEffort: agentDefinition.effort,
+    defaultEffort: subagentDefaultEffort(),
+  })
+  const routeVerdict = classifyModelRoute(resolvedAgentModel)
+  if (routeVerdict.kind === 'route') {
+    if (routeVerdict.route === 'openai') {
+      await readCatalogueIfPending('openai')
+    }
+    const dispatchBlocker = delegationDispatchBlocker(
+      routeVerdict.route,
+      undefined,
+      resolvedAgentModel,
+    )
+    if (dispatchBlocker !== null) {
+      throw new Error(`Crewmate dispatch refused: ${dispatchBlocker}`)
+    }
+  }
+  return { reviewReceipt, resolvedAgentModel, resolvedEffort }
+}
+
+function historyFromLatestCompactBoundary(rows: readonly Message[]): Message[] {
+  for (let i = rows.length - 1; i >= 0; i--) {
+    if (isCompactBoundaryMessage(rows[i]!)) {
+      return rows.slice(i)
+    }
+  }
+  return [...rows]
+}
+
 export async function* runAgent(
   params: RunAgentParams,
 ): AsyncGenerator<Message, void> {
-  return notBuilt('src/tools/AgentTool/runAgent.ts:541')
+  const { reviewReceipt, resolvedAgentModel, resolvedEffort } = await preflightAgentRun(params)
+  const {
+    agentDefinition,
+    promptMessages,
+    toolUseContext,
+    canUseTool,
+    isAsync,
+    querySource,
+    resumed,
+    agentKind = 'crewmate',
+    seat = 'a crewmate',
+    forkContextMessages,
+    override,
+    maxTurns,
+    useExactTools,
+    worktreePath,
+    description,
+    name,
+    team,
+    effortOverride,
+    onQueryProgress,
+    onWait,
+    onPendingAsks,
+  } = params
+
+  const agentId: AgentId = override?.agentId ?? (generateTaskId('local_agent') as AgentId)
+  const parentAbort =
+    override?.abortController ?? (isAsync ? new AbortController() : toolUseContext.abortController)
+  const abortController = createChildAbortController(parentAbort)
+  const startedAt = Date.now()
+  const idleLimitMs = agentIdleLimitMs()
+  const run = unarmedAgentRun()
+  const stalledError = stalledErrorOf(run, {
+    agentDefinition,
+    agentId,
+    idleLimitMs,
+    startedAt,
+    agentStalledError,
+  })
+  const armWatchdog = armWatchdogOf(run, {
+    agentDefinition,
+    agentId,
+    idleLimitMs,
+    stalledError,
+    abortController,
+  })
+  run.watchdog = armWatchdog()
+  const recovery = makeRecoveryBudget()
+  const cutAtBudget = cutAtBudgetOf(run, { recovery, abortController })
+  const accountant = makeRecoveryAccountant({
+    budget: recovery,
+    cut: cutAtBudget,
+    words: onWait,
+  })
+  const touchThrough = touchThroughOf(run)
+  const readOnlyScout = agentDefinition.agentType === MERCURY_SCOUT_AGENT.agentType
+  const canUseToolAskLively = askLivelyOf(run, canUseTool, {
+    idleLimitMs,
+    reviewReceipt,
+    worktreePath,
+    readOnlyScout,
+    onPendingAsks,
+  })
+
+  const executorToken = Symbol(agentId)
+  executorClaims.set(agentId, executorToken)
+  const endProjectLeases = beginAgentProjectLeases(agentId, abortController.signal)
+  const ownEffort = agentOwnEffortWord({
+    effortOverride,
+    useExactTools,
+    definitionEffort: agentDefinition.effort,
+  })
+  noteAgentEffortWord(agentId, ownEffort)
+
+  const isFork = forkContextMessages !== undefined && forkContextMessages.length > 0
+  const initialMessages: Message[] = isFork
+    ? [...filterIncompleteToolCalls(forkContextMessages), ...promptMessages]
+    : [...promptMessages]
+  const readFileState = isFork
+    ? cloneFileStateCache(toolUseContext.readFileState)
+    : createFileStateCacheWithSizeLimit(READ_FILE_STATE_CACHE_SIZE)
+
+  const rootSetAppState = toolUseContext.setAppStateForTasks ?? toolUseContext.setAppState
+  const hookScope = { sessionId: String(getSessionId()), crewmateId: agentId }
+  const mcp: { clients: MCPServerConnection[]; tools: Tool[]; cleanup: () => Promise<void> } = {
+    clients: [],
+    tools: [],
+    cleanup: async () => {},
+  }
+  const childContextRef: { current: ToolUseContext | undefined } = { current: undefined }
+  const crewmateRun: {
+    usage: typeof EMPTY_USAGE
+    steps: number
+    answer: string | undefined
+    endedBy: OutcomeStatus
+    reason: string | undefined
+  } = {
+    usage: { ...EMPTY_USAGE },
+    steps: 0,
+    answer: undefined,
+    endedBy: 'completed',
+    reason: undefined,
+  }
+  let deadlineTimer: ReturnType<typeof setTimeout> | null = null
+
+  try {
+    const runDeadline = toolUseContext.options.runDeadline
+    if (runDeadline !== undefined) {
+      const remainingMs = runDeadline.at - Date.now()
+      if (remainingMs <= 0) {
+        abortController.abort(OUTCOME_SENTENCES.time_limit)
+        throw new AbortError()
+      }
+      deadlineTimer = startTimeout(() => {
+        abortController.abort(OUTCOME_SENTENCES.time_limit)
+      }, remainingMs)
+      deadlineTimer.unref?.()
+    }
+
+    const swarm = await latchSwarmAgent(
+      agentId,
+      name ?? description ?? agentDefinition.agentType,
+      Boolean(resumed),
+      team,
+      abortController.signal,
+    )
+
+    const prepared = await prepareAgentRun({
+      ...params,
+      agentId,
+      swarm,
+      abortController,
+      slimAgentGateOn,
+      withoutInstructionBlob,
+      readOnlyScout,
+      resolveAgentEffort,
+      hookScope,
+      resolvedAgentModel,
+      rootSetAppState,
+      preloadSkills,
+      connectAgentMcpServers,
+      mcp,
+      reviewReceipt,
+      buildAgentSystemPrompt,
+      seat,
+      isFork,
+      readFileState,
+      childContextRef,
+      agentKind,
+      run,
+      accountant,
+      touchThrough,
+      initialMessages,
+      landAgentTranscriptRows,
+      resolvedEffort,
+    })
+
+    const { userContext, systemContext, systemPrompt, childContext, messages: preparedMessages } =
+      prepared
+    let currentMessages: Message[] = [...preparedMessages]
+    let lastRecordedUuid: UUID | undefined = writtenChainTail(currentMessages)
+    const effectiveMaxTurns = maxTurns ?? agentDefinition.maxTurns
+    const baseDeps = productionDeps()
+    const wrappedDeps = {
+      ...baseDeps,
+      callModel: callModelOf(run, { deps: baseDeps, agentId }),
+    }
+    const observeProgress = observeProgressOf(run, {
+      recovery,
+      accountant,
+      onQueryProgress,
+      touchThrough,
+      declaredRecoveryWaitMs,
+    })
+    const brandedSystemPrompt = asSystemPrompt(systemPrompt)
+    const retriedRefusals = new Set<string>()
+    let stoppedEarly = false
+
+    for (;;) {
+      const queryParams: QueryParams = {
+        messages: currentMessages,
+        systemPrompt: brandedSystemPrompt,
+        userContext,
+        systemContext,
+        canUseTool: canUseToolAskLively,
+        toolUseContext: childContext,
+        querySource,
+        ...(effectiveMaxTurns !== undefined ? { maxTurns: effectiveMaxTurns } : {}),
+        deps: wrappedDeps,
+      }
+      const turnStream = toolUseContext.startTurn(queryParams)
+      const settled = settledSidechainMessages(turnStream, observeProgress)
+      let lastAssistant: Message | undefined
+      const conversationRows: Message[] = [...currentMessages]
+      try {
+        for await (const raw of settled) {
+          if (raw.type === 'stream_event' || raw.type === 'stream_request_start' || raw.type === 'tombstone') continue
+          const message = raw as Message
+          if (message.type === 'attachment') {
+            lastRecordedUuid = await landAgentTranscriptRows([message], agentId, lastRecordedUuid)
+            conversationRows.push(message)
+            yield message
+            if (message.attachment.type === 'max_turns_reached' || message.attachment.type === 'loop_stopped') {
+              crewmateRun.endedBy = message.attachment.type === 'max_turns_reached' ? 'turn_limit' : 'loop_stopped'
+              stoppedEarly = true
+              break
+            }
+            continue
+          }
+          if (!recordableRow(message)) continue
+          lastRecordedUuid = await landAgentTranscriptRows([message], agentId, lastRecordedUuid)
+          if (message.type !== 'progress') conversationRows.push(message)
+          if (message.type === 'assistant') {
+            lastAssistant = message
+            recordAssistantStats(crewmateRun, message)
+          }
+          yield message
+        }
+      } finally {
+        await settled.return(undefined).catch(passedOver)
+      }
+
+      if (stoppedEarly || run.watchdog.fired || run.throttled !== null || abortController.signal.aborted) break
+
+      const retry = refusalRetryRowOf(lastAssistant, retriedRefusals, resolvedAgentModel)
+      if (retry === null) break
+      retriedRefusals.add(retry.refusalClass)
+      lastRecordedUuid = await landAgentTranscriptRows([retry.row], agentId, lastRecordedUuid)
+      yield retry.row
+      currentMessages = [...historyFromLatestCompactBoundary(conversationRows), retry.row]
+    }
+
+    if (run.watchdog.fired) throw stalledError()
+    if (run.throttled !== null) throw run.throttled
+    if (abortController.signal.aborted) throw new AbortError()
+    if (isBuiltInAgent(agentDefinition) && agentDefinition.callback !== undefined) {
+      void Promise.resolve(agentDefinition.callback()).catch(error => {
+        logForDebugging(`runAgent: callback failed for ${agentDefinition.agentType}: ${errorMessage(error)}`)
+      })
+    }
+  } catch (error) {
+    let normalized: unknown = error
+    if (run.throttled !== null) {
+      normalized = run.throttled
+    } else if (run.watchdog.fired && !(error instanceof DeadlineExceededError)) {
+      normalized = stalledError()
+    }
+    if (!(normalized instanceof AbortError)) {
+      crewmateRun.endedBy = 'failed'
+      crewmateRun.reason = errorMessage(normalized)
+    }
+    throw normalized
+  } finally {
+    if (deadlineTimer !== null) {
+      stopTimeout(deadlineTimer)
+      deadlineTimer = null
+    }
+    await teardownAgentRun({
+      endProjectLeases,
+      abortController,
+      crewmateRun,
+      startedAt,
+      hookScope,
+      toolUseContext,
+      rootSetAppState,
+      agentId,
+      executorToken,
+      childContextRef,
+      agentDefinition,
+      name,
+      worktreePath,
+      run,
+      accountant,
+      mcp,
+      readFileState,
+      initialMessages,
+    })
+  }
+}
+
+function recordAssistantStats(
+  crewmateRun: {
+    usage: typeof EMPTY_USAGE
+    steps: number
+    answer: string | undefined
+  },
+  message: AssistantMessage,
+): void {
+  crewmateRun.steps += 1
+  const msgUsage = message.message.usage
+  if (msgUsage !== undefined) {
+    crewmateRun.usage = accumulateUsage(crewmateRun.usage, updateUsage(EMPTY_USAGE, msgUsage))
+  }
+  const text = extractTextContent(message.message.content, '\n').trim()
+  if (text !== '') {
+    crewmateRun.answer = text
+  }
+}
+
+async function teardownAgentRun(args: {
+  endProjectLeases: () => Promise<void>
+  abortController: AbortController
+  crewmateRun: {
+    usage: typeof EMPTY_USAGE
+    steps: number
+    answer: string | undefined
+    endedBy: OutcomeStatus
+    reason: string | undefined
+  }
+  startedAt: number
+  hookScope: { sessionId: string; crewmateId: AgentId }
+  toolUseContext: ToolUseContext
+  rootSetAppState: ToolUseContext['setAppState']
+  agentId: AgentId
+  executorToken: symbol
+  childContextRef: { current: ToolUseContext | undefined }
+  agentDefinition: AgentDefinition
+  name: string | undefined
+  worktreePath: string | undefined
+  run: ReturnType<typeof unarmedAgentRun>
+  accountant: RecoveryAccountant
+  mcp: { cleanup: () => Promise<void> }
+  readFileState: ReturnType<typeof createFileStateCacheWithSizeLimit>
+  initialMessages: Message[]
+}): Promise<void> {
+  const {
+    endProjectLeases,
+    abortController,
+    crewmateRun,
+    startedAt,
+    hookScope,
+    toolUseContext,
+    rootSetAppState,
+    agentId,
+    executorToken,
+    childContextRef,
+    agentDefinition,
+    name,
+    worktreePath,
+    run,
+    accountant,
+    mcp,
+    readFileState,
+    initialMessages,
+  } = args
+  await endProjectLeases().catch(passedOver)
+  await fireCrewmateEndOf({
+    abortController,
+    crewmateRun,
+    startedAt,
+    hookScope,
+    toolUseContext,
+    agentId,
+    childContextRef,
+    agentDefinition,
+    name,
+    worktreePath,
+  })
+  run.watchdog.cancel()
+  accountant.end()
+  if (run.askHeartbeat !== null) {
+    stopInterval(run.askHeartbeat)
+    run.askHeartbeat = null
+  }
+  if (run.deferredTouch !== null) {
+    stopTimeout(run.deferredTouch)
+    run.deferredTouch = null
+  }
+  await mcp.cleanup().catch(passedOver)
+  readFileState.clear()
+  initialMessages.length = 0
+
+  if (executorClaims.get(agentId) === executorToken) {
+    executorClaims.delete(agentId)
+    settleSwarmAgent(agentId)
+    forgetAgentEffortWord(agentId)
+    closeAgentTranscript(agentId)
+    if (agentDefinition.hooks !== undefined) {
+      removeSessionHooks(rootSetAppState, hookScope)
+    }
+    killShellTasksForAgent(agentId, toolUseContext.getAppState, rootSetAppState)
+    const owner = processOwnerForLane(agentId)
+    await endEngineSessionFor(owner).catch(passedOver)
+    await disposeOwnerProcesses(owner).catch(passedOver)
+    releaseDiagnosticsWriter(owner, worktreePath)
+  }
 }
