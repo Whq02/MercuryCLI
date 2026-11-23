@@ -1,5 +1,4 @@
 import { Event } from './event.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export class ClickEvent extends Event {
   readonly col: number
@@ -9,7 +8,11 @@ export class ClickEvent extends Event {
   localRow: number
 
   constructor(col: number, row: number, cellIsBlank: boolean) {
-    notBuilt('src/ink/events/click-event.ts:11')
-    super(...(notBuilt('src/ink/events/click-event.ts:11') as ConstructorParameters<typeof Event>))
+    super()
+    this.col = col
+    this.row = row
+    this.cellIsBlank = cellIsBlank
+    this.localCol = col
+    this.localRow = row
   }
 }
