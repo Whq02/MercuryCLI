@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { getMercuryHome } from '../../utils/envUtils.js'
+import { passedOverAs } from '../../utils/passedOver.js'
 
 
 const DEFAULT_TEMPLATE = `Automated maintenance instruction (not part of the user conversation; never reference it in the document).
@@ -27,11 +28,7 @@ const CUSTOM_INSTRUCTIONS_PREAMBLE =
 
 async function loadTemplate(): Promise<string> {
   const overridePath = join(getMercuryHome(), 'magic-docs', 'prompt.md')
-  try {
-    return await readFile(overridePath, 'utf-8')
-  } catch {
-    return DEFAULT_TEMPLATE
-  }
+  return readFile(overridePath, 'utf-8').catch(passedOverAs(DEFAULT_TEMPLATE))
 }
 
 export async function buildMagicDocsUpdatePrompt(
@@ -51,7 +48,8 @@ export async function buildMagicDocsUpdatePrompt(
     docTitle,
     customInstructions,
   }
-  return template.replace(/\{\{(\w+)\}\}/g, (match, name: string) =>
-    Object.prototype.hasOwnProperty.call(values, name) ? values[name]! : match,
-  )
+  return template.replace(/\{\{(\w+)\}\}/g, (match, name: string) => {
+    const value = Object.prototype.hasOwnProperty.call(values, name) ? values[name] : undefined
+    return value !== undefined ? value : match
+  })
 }

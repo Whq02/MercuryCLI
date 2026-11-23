@@ -1,4 +1,3 @@
-import type { UUID } from 'node:crypto'
 import type { LocalJSXCommandContext, LocalJSXCommandOnDone } from '../../types/command.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
@@ -18,7 +17,8 @@ export async function call(
     const messages = context.messages ?? []
     let startIdx = 0
     for (let i = messages.length - 1; i >= 0; i--) {
-      if (isCompactBoundaryMessage(messages[i]!)) {
+      const msg = messages[i]
+      if (msg !== undefined && isCompactBoundaryMessage(msg)) {
         startIdx = i + 1
         break
       }
@@ -48,11 +48,11 @@ export async function call(
   if (focusedSessionId !== '') {
     try {
       const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
-      const reply = (await daemonControlRpc(
+      const reply = await daemonControlRpc(
         { op: 'sessionControl', action: 'set-title', sessionId: focusedSessionId, by: 'operator', title: name, titleSource: 'operator' },
         { timeoutMs: 10_000 },
-      )) as { ok?: boolean; outcome?: string; detail?: string; error?: string }
-      if (reply.ok === true && reply.outcome === 'applied') {
+      )
+      if (reply.ok && 'outcome' in reply && reply.outcome === 'applied') {
         if (hasFocusedSession() && getFocusedSessionConnector().sessionId() === focusedSessionId) {
           context.setAppState(prev => ({
             ...prev,
@@ -64,7 +64,12 @@ export async function call(
         }
         onDone(`Renamed this session to ${name}`, { display: 'system' })
       } else {
-        onDone(`Could not rename this session — ${reply.detail ?? reply.error ?? 'the daemon refused it'}`, { display: 'system' })
+        const reason = !reply.ok
+          ? reply.error
+          : 'outcome' in reply && reply.detail
+            ? reply.detail
+            : 'the daemon refused it'
+        onDone(`Could not rename this session — ${reason}`, { display: 'system' })
       }
     } catch {
       onDone('Could not rename this session — the daemon that hosts sessions was unreachable.', { display: 'system' })
@@ -72,7 +77,7 @@ export async function call(
     return null
   }
 
-  const sessionId = getSessionId() as UUID
+  const sessionId = getSessionId()
   const fullPath = getTranscriptPath()
   await saveCustomTitle(sessionId, name, fullPath, 'user')
   await saveAgentName(sessionId, name, fullPath, 'user')
