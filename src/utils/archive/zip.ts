@@ -36,7 +36,7 @@ function entryFailure(run: ZipRun, name: string, size: number): string | undefin
     reason = `Zip uncompressed total is too large (${Math.round(run.sum / MIB)}MB > 1024MB)`
   }
   if (run.archiveBytes > 0 && run.sum / run.archiveBytes > MAX_COMPRESSION_RATIO) {
-    reason = `Zip compression ratio is suspicious (${(run.sum / run.archiveBytes).toFixed(1)}:1 > 50:1); this may be a zip bomb`
+    reason = `Zip compression ratio is suspicious (${(run.sum / run.archiveBytes).toFixed(1)}:1 > ${MAX_COMPRESSION_RATIO}:1); this may be a zip bomb`
   }
   return reason
 }

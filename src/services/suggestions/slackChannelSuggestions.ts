@@ -186,7 +186,7 @@ async function fetchSlackChannels(client: ConnectedSlackClient, query: string): 
     recordKnownChannels(channels)
     return channels
   } catch (error) {
-    logForDebugging(`slack channel suggestions fetch failed for "${query}": ${String(error)}`, { level: 'warn' })
+    logForDebugging(`slack channel search failed: ${String(error)}`, { level: 'warn' })
     passedOver(error)
     return []
   }

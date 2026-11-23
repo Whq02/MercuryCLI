@@ -67,10 +67,10 @@ export async function storeImage(content: PastedContent): Promise<string | null>
       await handle.close()
     }
     remember(content.id, path, dir)
-    logForDebugging(`imageStore: stored image #${content.id} at ${path}`)
+    logForDebugging(`imageStore: stored image ${content.id} at ${path}`)
     return path
   } catch (error) {
-    logForDebugging(`imageStore: failed to store image #${content.id} at ${path}: ${error instanceof Error ? error.message : String(error)}`)
+    logForDebugging(`imageStore: failed to store image ${content.id} at ${path}: ${error instanceof Error ? error.message : String(error)}`)
     return null
   }
 }
