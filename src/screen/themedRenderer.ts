@@ -2,7 +2,7 @@ import { createElement, type ReactNode } from 'react'
 import { ThemeProvider } from './theme/ThemeProvider.js'
 import renderBare, { createRoot as createBareRoot, type Instance, type RenderOptions, type Root } from './renderer/root.js'
 
-function withTheme(node: ReactNode): ReactNode {
+function themed(node: ReactNode): ReactNode {
   return createElement(ThemeProvider, null, node)
 }
 
@@ -10,14 +10,14 @@ export function render(
   node: ReactNode,
   options?: NodeJS.WriteStream | RenderOptions,
 ): Promise<Instance> {
-  return renderBare(withTheme(node), options)
+  return renderBare(themed(node), options)
 }
 
 export async function createRoot(options?: RenderOptions): Promise<Root> {
   const root = await createBareRoot(options)
   return {
     ...root,
-    render: (node: ReactNode) => root.render(withTheme(node)),
+    render: (node: ReactNode) => root.render(themed(node)),
   }
 }
 
