@@ -149,6 +149,8 @@ export function PromptInputHelpMenu(props: Props): React.ReactNode {
 
   return (
     <Box paddingX={paddingX} flexDirection="column" ref={gridRef}>
+      {}
+      {}
       <Box flexDirection="row" gap={gap ?? 2} flexShrink={0}>
         {shownGroups.map((rows, i) => (
           <Box
@@ -172,6 +174,7 @@ export function PromptInputHelpMenu(props: Props): React.ReactNode {
           </Text>
         </Box>
       ) : null}
+      {}
       {isDeckPaneActive() ? (
         <Box flexDirection="column" marginTop={1}>
           <Box>
@@ -179,6 +182,7 @@ export function PromptInputHelpMenu(props: Props): React.ReactNode {
               deck chips
             </Text>
           </Box>
+          {}
           <Box flexDirection="row" flexWrap="wrap" columnGap={3} rowGap={0}>
             {[
               'subs N/M caps on/total',

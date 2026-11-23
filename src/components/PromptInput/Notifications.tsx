@@ -36,6 +36,7 @@ import { TokenWarning } from '../TokenWarning.js'
 import { getFocusedSessionConnector, subscribeThroughFocused } from '../../services/engine-connector/focusedConnector.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { passedOver } from '../../utils/passedOver.js'
 import { startInterval, stopInterval } from '../../utils/timers.js'
 
 export const FOOTER_TEMPORARY_STATUS_TIMEOUT = 5000
@@ -83,8 +84,8 @@ export function NoticeWords({ seam, words, wayOut, muted }: { seam: boolean; wor
 const NOTICE_BLOCK_MAX_ROWS = 3
 
 function noticeBlockChildren(block: React.ReactNode): React.ReactNode[] | null {
-  if (!React.isValidElement<{ children?: React.ReactNode }>(block)) return null
-  const children = block.props.children
+  if (!React.isValidElement(block)) return null
+  const children = (block.props as { children?: React.ReactNode }).children
   return React.Children.toArray(children)
 }
 
@@ -190,7 +191,8 @@ function NotificationsColumn({
         walletEntries(),
         sessionAccountFamily(model),
       )
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return { state: 'not-logged-in' }
     }
   }, [apiKeyStatus, model, signInEpoch, catalogueEpoch])
