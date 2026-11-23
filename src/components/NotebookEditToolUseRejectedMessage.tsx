@@ -5,9 +5,17 @@ import { getCwd } from '../utils/cwd.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { HighlightedCode } from './HighlightedCode.js'
 import { MessageResponse } from './MessageResponse.js'
-import { notBuilt } from '../pi/holes.js'
 
-export function NotebookEditToolUseRejectedMessage(arg0: {
+const BODY_INSET = 12
+
+export function NotebookEditToolUseRejectedMessage({
+  notebook_path,
+  cell_id,
+  new_source,
+  cell_type,
+  edit_mode,
+  verbose,
+}: {
   notebook_path: string
   cell_id?: string
   new_source: string
@@ -15,7 +23,37 @@ export function NotebookEditToolUseRejectedMessage(arg0: {
   edit_mode?: string
   verbose: boolean
 }): React.ReactNode {
-  return notBuilt('src/components/NotebookEditToolUseRejectedMessage.tsx:10')
+  const { columns } = useTerminalSize()
+  const displayPath = verbose ? notebook_path : relative(getCwd(), notebook_path)
+  const operation =
+    edit_mode === 'delete' ? 'delete' : `${edit_mode ?? 'replace'} cell in`
+
+  const headline = (
+    <MessageResponse height={1}>
+      <Text dimColor wrap="wrap">
+        Operator rejected {operation} <Text bold>{displayPath}</Text> (cell{' '}
+        {cell_id ?? '?'})
+      </Text>
+    </MessageResponse>
+  )
+
+  if (edit_mode === 'delete') {
+    return headline
+  }
+
+  return (
+    <Box flexDirection="column">
+      {headline}
+      <MessageResponse>
+        <HighlightedCode
+          code={new_source}
+          filePath={cell_type === 'markdown' ? 'cell.md' : 'cell.py'}
+          width={Math.max(10, columns - BODY_INSET)}
+          dim
+        />
+      </MessageResponse>
+    </Box>
+  )
 }
 
 export default NotebookEditToolUseRejectedMessage
