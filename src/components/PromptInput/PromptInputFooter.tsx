@@ -48,7 +48,6 @@ export function PromptInputFooter({
   exitKeyName,
   isPasting,
   searchField,
-  isSearching = false,
   vimInsert = false,
   apiKeyStatus,
   debug,
@@ -88,7 +87,6 @@ export function PromptInputFooter({
   maxRows?: number
   suggestionRows?: number
 }): React.ReactNode {
-  void isSearching
   useSyncExternalStore(
     subscribeExtendedKeysSupport,
     extendedKeysSupportedNow,

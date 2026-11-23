@@ -24,7 +24,7 @@ export function HighlightedInput({
   baseColor,
 }: Props): React.ReactNode {
   const shimmerHighlights = highlights.filter(
-    highlight => highlight.shimmerColor !== undefined,
+    highlight => Boolean(highlight.shimmerColor),
   )
   const hasShimmer = shimmerHighlights.length > 0
   const minStart = hasShimmer
@@ -42,8 +42,8 @@ export function HighlightedInput({
 
   const segments = segmentTextByHighlights(text, highlights)
   const lines: LineRun[][] = [[]]
-  let offset = 0
   for (const segment of segments) {
+    let offset = segment.start
     const parts = segment.text.split('\n')
     for (let i = 0; i < parts.length; i++) {
       if (i > 0) {
@@ -72,11 +72,7 @@ export function HighlightedInput({
           <Text key={lineIndex}>
             {line.map((run, runIndex) => {
               const highlight = run.highlight
-              if (
-                highlight?.shimmerColor !== undefined &&
-                highlight.color !== undefined &&
-                highlight.color !== null
-              ) {
+              if (highlight?.shimmerColor && highlight.color) {
                 const { color, shimmerColor } = highlight
                 return (
                   <React.Fragment key={runIndex}>

@@ -76,12 +76,11 @@ export function PromptInputFooterLeftSide({
   const viewedCrewmate = useViewedCrewmate()
   const selection = useSelection()
   const hasPaintedSelection = useHasSelection()
-  const ownSelectionVersion = useSyncExternalStore(
+  useSyncExternalStore(
     subscribeOwnInputSelection,
     ownInputSelectionVersion,
     ownInputSelectionVersion,
   )
-  void ownSelectionVersion
   const hasOwnSelection = peekOwnInputSelection() !== null
   const hasSelection = hasPaintedSelection || hasOwnSelection
   const shellRunning = useFocusedShellRunning()
