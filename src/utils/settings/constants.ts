@@ -28,8 +28,9 @@ export function parseSettingSourcesFlag(flag: string): SettingSource[] {
   for (const piece of flag.split(',')) {
     const word = piece.trim()
     if (word === '') continue
-    if (!Object.hasOwn(flagSources, word)) throw new Error(`Unknown setting source "${word}". Valid options are: user, project, local`)
-    sources.push(flagSources[word])
+    const source: SettingSource | undefined = flagSources[word]
+    if (source === undefined) throw new Error(`Unknown setting source "${word}". Valid options are: user, project, local`)
+    sources.push(source)
   }
   return sources
 }
