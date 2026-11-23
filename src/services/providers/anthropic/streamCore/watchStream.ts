@@ -91,7 +91,7 @@ export function watchStream(ctx: QueryCtx, call: CallState, pass: StreamPass): S
         pass.firstByte.wait?.promptTokens ?? 0,
       )
     }
-    return `no stream events within ${patienceSeconds(STREAM_IDLE_TIMEOUT_MS)}`
+    return `no stream events within ${patienceSeconds(STREAM_IDLE_TIMEOUT_MS)} of dispatch — the request was accepted and the wait is provider-side (a switched or uncached prompt can ingest slowly)`
   }
 
   const clearIdleTimers = (): void => {

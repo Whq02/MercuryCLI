@@ -40,7 +40,7 @@ export function preEventReissueRow(call: CallState, streamingError: unknown, pre
 }
 
 export function streamCutReissueRow(call: CallState, options: Options, cut: NonNullable<ReturnType<typeof transportCutOf>>): SystemStreamCutMessage {
-  const words = `${transportCutWords('Anthropic', cut)} — reissuing the stream on a fresh connection (1 of 1)`
+  const words = `${transportCutWords('Anthropic', cut)} — reissuing the stream on a fresh connection (pass 2)`
   logForDebugging(words, { level: 'warn' })
   logForDiagnosticsNoPII('info', 'cli_stream_cut_reissue')
   resetApiConnectionPool()

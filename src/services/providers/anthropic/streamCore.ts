@@ -45,7 +45,7 @@ import { createAssistantAPIErrorMessage, createUserMessage } from '../../message
 import { toolToAPISchema } from '../../messages/api.js'
 import { utilityCallFor } from '../../model/utilityModel.js'
 import type { SystemPrompt } from '../../../utils/systemPromptType.js'
-import { getErrorMessageIfRefusal, malformedStreamFrameText } from '../../api/errors.js'
+import { API_ERROR_MESSAGE_PREFIX, getErrorMessageIfRefusal, malformedStreamFrameText } from '../../api/errors.js'
 import { EMPTY_USAGE } from '../../api/logging.js'
 import { CannotRetryError, FallbackTriggeredError, is529Error, retryEmptyStream } from '../../api/withRetry.js'
 import { withStreamingVCR } from '../../vcr.js'
@@ -415,7 +415,7 @@ function* streamOneEvent(
       }
       if (part.delta.stop_reason === 'max_tokens') {
         const maxTokensError = createAssistantAPIErrorMessage({
-          content: `API Error: Mercury's response exceeded the ${call.maxOutputTokens} output token maximum. To configure this behavior, set the MERCURY_MAX_OUTPUT_TOKENS environment variable.`,
+          content: `${API_ERROR_MESSAGE_PREFIX}: Mercury's response exceeded the ${call.maxOutputTokens} output token maximum. To configure this behavior, set the MERCURY_MAX_OUTPUT_TOKENS environment variable.`,
           apiError: 'max_output_tokens',
           error: 'max_output_tokens',
         })
@@ -423,7 +423,7 @@ function* streamOneEvent(
         yield maxTokensError
       } else if (part.delta.stop_reason === 'model_context_window_exceeded') {
         const contextError = createAssistantAPIErrorMessage({
-          content: `API Error: Mercury's response stopped at the model's context window limit.`,
+          content: `${API_ERROR_MESSAGE_PREFIX}: Mercury's response stopped at the model's context window limit.`,
           apiError: 'max_output_tokens',
           error: 'max_output_tokens',
         })

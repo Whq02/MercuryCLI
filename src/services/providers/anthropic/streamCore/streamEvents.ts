@@ -147,10 +147,10 @@ export function applyBlockDelta(contentBlocks: (BetaContentBlock | ConnectorText
       break
     case 'input_json_delta':
       if (block.type !== 'tool_use' && block.type !== 'server_tool_use') {
-        throw new Error('Content block is not a tool_use block')
+        throw new Error('Content block is not a input_json block')
       }
       if (typeof block.input !== 'string') {
-        throw new Error('Tool use block input is not a string')
+        throw new Error('Content block input is not a string')
       }
       block.input += delta.partial_json
       break
