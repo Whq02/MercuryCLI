@@ -91,6 +91,7 @@ import { boxLockLineForCommand, commandNamesBoxLock, refreshBoxReading } from '.
 import { mapResultToBlock } from './resultBlock.js'
 import { withDeadline } from '../../utils/deadline.js'
 import { zodToJsonSchema } from '../../utils/zodToJsonSchema.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 const QUIET_WINDOW_MS = 2_000
@@ -777,7 +778,8 @@ async function* runShellCommand(
       const cleaned = stripEmptyLines(tailed.content)
       const formatted = formatOutput(cleaned, { maxLength: budget.effective })
       return { stdout: formatted.truncatedContent, isTail: tailed.bytesRead < tailed.bytesTotal }
-    } catch {
+    } catch (error) {
+      passedOver(error)
       const cleaned = stripEmptyLines(latest.all)
       const formatted = formatOutput(cleaned, { maxLength: budget.effective })
       return { stdout: formatted.truncatedContent, isTail: latest.incomplete }
