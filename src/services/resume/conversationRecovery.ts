@@ -594,6 +594,7 @@ export async function loadConversationForResume(
       rawMessages = walked.messages
       sessionId = walked.sessionId
       facts = walked.facts
+      fullPath = sourceJsonlFile
     } else {
       let listing: SessionListing | null
       let suppliedId: UUID | undefined
