@@ -172,9 +172,9 @@ function parseMaxTokensContextOverflowError(
   const match = OVERFLOW_PATTERN.exec(message)
   if (!match) return undefined
   return {
-    inputTokens: Number.parseInt(match[1] as string, 10),
-    maxTokens: Number.parseInt(match[2] as string, 10),
-    contextLimit: Number.parseInt(match[3] as string, 10),
+    inputTokens: Number.parseInt(match[1]!, 10),
+    maxTokens: Number.parseInt(match[2]!, 10),
+    contextLimit: Number.parseInt(match[3]!, 10),
   }
 }
 

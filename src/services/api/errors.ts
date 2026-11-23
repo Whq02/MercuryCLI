@@ -264,7 +264,7 @@ export function continuableStreamFaultTextOf(msg: AssistantMessage): string | nu
   const content = msg.message.content
   if (!Array.isArray(content)) return null
   for (const block of content) {
-    const text = (block as { type?: string; text?: unknown }).type === 'text' ? (block as { text?: unknown }).text : undefined
+    const text = block.type === 'text' ? block.text : undefined
     if (typeof text === 'string' && text.includes(STREAM_FAULT_AFTER_PARTIAL_MARKER)) return text
   }
   return null
@@ -286,9 +286,9 @@ export function isContinuableStreamFaultMessage(msg: AssistantMessage): boolean 
   if (!Array.isArray(content)) return false
   return content.some(
     block =>
-      (block as { type?: string }).type === 'text' &&
-      typeof (block as { text?: unknown }).text === 'string' &&
-      ((block as { text: string }).text.includes(STREAM_FAULT_AFTER_PARTIAL_MARKER)),
+      block.type === 'text' &&
+      typeof block.text === 'string' &&
+      block.text.includes(STREAM_FAULT_AFTER_PARTIAL_MARKER),
   )
 }
 
@@ -320,21 +320,21 @@ function parsePromptTooLongTokenCounts(raw: string): {
   const match = /prompt is too long[\s\S]*?(\d+)\s*tokens\s*>\s*(\d+)/i.exec(raw)
   if (!match) return { actualTokens: undefined, limitTokens: undefined }
   return {
-    actualTokens: Number.parseInt(match[1] as string, 10),
-    limitTokens: Number.parseInt(match[2] as string, 10),
+    actualTokens: Number.parseInt(match[1]!, 10),
+    limitTokens: Number.parseInt(match[2]!, 10),
   }
 }
 
 export function getPromptTooLongTokenGap(msg: Message): number | undefined {
   if (msg.type !== 'assistant') return undefined
-  const details = (msg as AssistantMessage).errorDetails
-  const content = (msg as AssistantMessage).message.content
+  const details = msg.errorDetails
+  const content = msg.message.content
   const texts: string[] = []
   if (typeof details === 'string') texts.push(details)
   if (Array.isArray(content)) {
     for (const block of content) {
-      if ((block as { type?: string }).type === 'text' && typeof (block as { text?: unknown }).text === 'string') {
-        texts.push((block as { text: string }).text)
+      if (block.type === 'text' && typeof block.text === 'string') {
+        texts.push(block.text)
       }
     }
   }

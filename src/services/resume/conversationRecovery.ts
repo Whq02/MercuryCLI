@@ -80,7 +80,7 @@ type LegacyAttachmentRecord = {
 
 function migrateLegacyAttachment(message: Message): Message {
   if (message.type !== 'attachment') return message
-  const raw = message.attachment as LegacyAttachmentRecord
+  const raw: LegacyAttachmentRecord = message.attachment
   if (raw.type === 'new_file' && typeof raw.filename === 'string') {
     return {
       ...message,
@@ -119,7 +119,7 @@ function migrateLegacyAttachment(message: Message): Message {
 const noticedPermissionModes: Set<string> = new Set()
 function scrubPermissionMode(message: Message): Message {
   if (message.type !== 'user') return message
-  const mode = (message as UserMessage).permissionMode
+  const mode = message.permissionMode
   if (mode === undefined) return message
   if (isOneOf(PERMISSION_MODES, mode)) return message
   if (!noticedPermissionModes.has(mode)) {
@@ -136,21 +136,20 @@ function scrubPermissionMode(message: Message): Message {
 const TURN_TERMINATING_TOOL_NAMES: ReadonlyArray<string | null> = [null, null, null]
 
 function isTurnTerminatingToolResult(messages: Message[], index: number): boolean {
-  const message = messages[index] as Message
+  const message = messages[index]!
   if (message.type !== 'user') return false
   const content = message.message.content
   if (!Array.isArray(content)) return false
-  const first = content[0] as { type?: string; tool_use_id?: string } | undefined
+  const first = content[0]
   if (!first || first.type !== 'tool_result' || !first.tool_use_id) return false
   for (let i = index - 1; i >= 0; i--) {
-    const candidate = messages[i] as Message
+    const candidate = messages[i]!
     if (candidate.type !== 'assistant') continue
     const blocks = candidate.message.content
     if (!Array.isArray(blocks)) continue
     for (const block of blocks) {
-      const use = block as { type?: string; id?: string; name?: string }
-      if (use.type === 'tool_use' && use.id === first.tool_use_id) {
-        return typeof use.name === 'string' && TURN_TERMINATING_TOOL_NAMES.includes(use.name)
+      if (block.type === 'tool_use' && block.id === first.tool_use_id) {
+        return typeof block.name === 'string' && TURN_TERMINATING_TOOL_NAMES.includes(block.name)
       }
     }
   }
@@ -158,7 +157,7 @@ function isTurnTerminatingToolResult(messages: Message[], index: number): boolea
 }
 
 function isSyntheticApiErrorAssistant(message: Message): boolean {
-  return message.type === 'assistant' && Boolean((message as { isApiErrorMessage?: boolean }).isApiErrorMessage)
+  return message.type === 'assistant' && Boolean(message.isApiErrorMessage)
 }
 
 function asksNoReply(message: Message): boolean {
@@ -394,8 +393,7 @@ function accumulateTurn(acc: TurnAccumulator, message: Message): void {
     if (Array.isArray(content)) {
       let carriedToolResult = false
       for (const block of content) {
-        const record = block as { type?: string; tool_use_id?: string }
-        if (record.type === 'tool_result' && record.tool_use_id) carriedToolResult = true
+        if (block.type === 'tool_result' && block.tool_use_id) carriedToolResult = true
       }
       if (!carriedToolResult && !message.isMeta && !isLocalShellEcho(content) && !isSyntheticUserRow(content)) {
         acc.lastPromptMs = parseTurnTime(message.timestamp) ?? acc.lastPromptMs
@@ -408,7 +406,7 @@ function accumulateTurn(acc: TurnAccumulator, message: Message): void {
     acc.lastAssistantMs = parseTurnTime(message.timestamp) ?? acc.lastAssistantMs
     const content = message.message.content
     if (Array.isArray(content)) {
-      const last = content[content.length - 1] as { type?: string } | undefined
+      const last = content[content.length - 1]
       if (last?.type === 'thinking' || last?.type === 'redacted_thinking') acc.lastAssistantKind = 'thinking'
       else if (last?.type === 'tool_use') acc.lastAssistantKind = 'tool'
       else acc.lastAssistantKind = 'responding'
@@ -476,7 +474,7 @@ function dedupKeyFor(content: string): string {
 
 function hookKeysOf(message: Message): string[] {
   if (message.type !== 'attachment') return []
-  const attachment = message.attachment as { type?: string; event?: string; outcome?: string; words?: unknown }
+  const attachment = message.attachment
   if (attachment.type !== 'hook' || attachment.event !== 'session.start' || attachment.outcome !== 'context') return []
   return typeof attachment.words === 'string' && attachment.words !== '' ? [dedupKeyFor(attachment.words)] : []
 }
@@ -490,7 +488,7 @@ function filterDuplicateSessionStartHooks(incoming: Message[], transcript: Messa
   if (existing.size === 0) return [...incoming]
   return incoming.filter(message => {
     const keys = hookKeysOf(message)
-    return keys.length === 0 || !existing.has(keys[0] as string)
+    return keys.length === 0 || !existing.has(keys[0]!)
   })
 }
 
@@ -522,7 +520,7 @@ async function walkTranscriptFile(path: string): Promise<WalkedTranscript> {
   }
   if (!best) return { messages: [], sessionId: undefined, facts: {} }
   const chain = buildConversationChain(messages, best)
-  const sessionId = best.sessionId as UUID
+  const sessionId = best.sessionId
   return {
     messages: removeExtraFields(chain),
     sessionId,
