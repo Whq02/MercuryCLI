@@ -236,7 +236,7 @@ function buildBoundaryAndSummary(params: {
     messages.length - (messagesToKeep?.length ?? 0),
   )
   boundaryMarker.compactMetadata.memory = memoryEnvelope
-  if (gauge !== undefined) {
+  if (gauge !== null && gauge !== undefined) {
     boundaryMarker.compactMetadata.requestGauge = {
       key: gauge.key,
       epoch: gauge.epoch,
@@ -281,6 +281,35 @@ function buildBoundaryAndSummary(params: {
   return { boundaryMarker, summaryMessage }
 }
 
+function checkFixedObligations(params: {
+  ceiling: number | undefined
+  boundaryTrigger: CompactMetadata['trigger']
+  preCompactTokenCount: number
+  messages: Message[]
+  ledger: ReturnType<typeof buildFoldLedger>
+  beforeHookRows: Message[]
+  count: (rows: Message[]) => number
+}): void {
+  const { ceiling, boundaryTrigger, preCompactTokenCount, messages, ledger, beforeHookRows, count } = params
+  if (ceiling === undefined) return
+  const probeBoundary = createCompactBoundaryMessage(boundaryTrigger, preCompactTokenCount)
+  const probeOperator = selectOperatorMessages(messages)
+  const probeLedger = createUserMessage({
+    content: renderFoldLedger(ledger),
+    isCompactSummary: true,
+    isVisibleInTranscriptOnly: true,
+  })
+  const fixedTokens = count([
+    probeBoundary,
+    ...(probeOperator !== null ? [createAttachmentMessage(probeOperator)] : []),
+    probeLedger,
+    ...beforeHookRows,
+  ])
+  if (fixedTokens >= ceiling) {
+    throw new Error(obligationsOverThresholdMessage(fixedTokens, ceiling))
+  }
+}
+
 async function persistFoldedReplacements(
   folded: ReadonlyMap<string, string>,
   querySource: string | undefined,
@@ -297,6 +326,82 @@ async function persistFoldedReplacements(
   } catch (error) {
     logError(error)
   }
+}
+
+async function finishCommittedFold(params: {
+  context: ToolUseContext
+  owner: ReturnType<typeof ownerFromToolUseContext>
+  foldTx: ReturnType<typeof prepareFoldContext>
+  clearWrittenMemory: () => void
+  landed: ReturnType<typeof landFold>
+  beforeHookRows: Message[]
+  boundaryTrigger: CompactMetadata['trigger']
+  trigger: 'auto' | 'manual'
+  isAutoCompact: boolean
+  overflow: OverflowSignal | undefined
+  preCompactTokenCount: number
+  prose: string
+  proseSkippedReceipt: string | undefined
+  rawSummary: string
+  capsule: string | null
+  querySource: string | undefined
+}): Promise<CompactionResult> {
+  const {
+    context,
+    owner,
+    foldTx,
+    clearWrittenMemory,
+    landed,
+    beforeHookRows,
+    boundaryTrigger,
+    trigger,
+    isAutoCompact,
+    overflow,
+    preCompactTokenCount,
+    prose,
+    proseSkippedReceipt,
+    rawSummary,
+    capsule,
+    querySource,
+  } = params
+  const afterHookRows = await compactionAfterHooks(context, {
+    method: 'summary',
+    trigger: boundaryTrigger,
+    tokensBefore: preCompactTokenCount,
+    tokensAfter: landed.truePostCompactTokenCount,
+    summary: prose,
+  })
+  const hookResults: Message[] = [...beforeHookRows, ...afterHookRows]
+  if (context.abortController.signal.aborted) {
+    throw new APIUserAbortError()
+  }
+
+  await releaseLspDocumentsForContext('compact_full')
+  foldTx.commit(landed.folded)
+  clearWrittenMemory()
+
+  await persistFoldedReplacements(landed.folded, querySource, context.agentId)
+
+  const finalResult: CompactionResult = {
+    ...landed.partial,
+    hookResults,
+    truePostCompactTokenCount: landed.truePostCompactTokenCount,
+  }
+  restoreBoundPrefixFromMessages(buildPostCompactMessages(finalResult), { fold: true })
+
+  advanceContextEpoch(owner, {
+    kind: isAutoCompact ? 'auto-compact' : 'manual-compact',
+    reason: overflow !== undefined ? `overflow:${overflow.shape}` : trigger,
+    tokensBefore: preCompactTokenCount,
+    tokensAfter: landed.truePostCompactTokenCount,
+    preservedTailCount: landed.messagesToKeep?.length ?? 0,
+    capsule: resolveCapsuleState(proseSkippedReceipt, rawSummary, capsule),
+  })
+
+  if (context.agentId === undefined) {
+    reAppendSessionMetadata()
+  }
+  return finalResult
 }
 
 export async function compactConversation(
@@ -356,26 +461,17 @@ export async function compactConversation(
         ? foldLandingCeiling(ceiling, messages, gauge?.density.ratio, gauge?.density.residuals, turnReserve)
         : undefined
 
-    if (ceiling !== undefined) {
-      const probeBoundary = createCompactBoundaryMessage(boundaryTrigger, preCompactTokenCount)
-      const probeOperator = selectOperatorMessages(messages)
-      const probeLedger = createUserMessage({
-        content: renderFoldLedger(ledger),
-        isCompactSummary: true,
-        isVisibleInTranscriptOnly: true,
-      })
-      const fixedTokens = meter.count([
-        probeBoundary,
-        ...(probeOperator !== null ? [createAttachmentMessage(probeOperator)] : []),
-        probeLedger,
-        ...beforeHookRows,
-      ])
-      if (fixedTokens >= ceiling) {
-        throw new Error(obligationsOverThresholdMessage(fixedTokens, ceiling))
-      }
-    }
+    checkFixedObligations({
+      ceiling,
+      boundaryTrigger,
+      preCompactTokenCount,
+      messages,
+      ledger,
+      beforeHookRows,
+      count: meter.count,
+    })
 
-    const newestMessageFollows = (cacheSafeParams.postFoldCarry ?? []).some(row => operatorTextOf(row) !== null)
+    const newestMessageFollows = (cacheSafeParams.postFoldCarry ?? []).some((row: Message) => operatorTextOf(row) !== null)
     const fitsUnder = makeFitsUnder({
       messages,
       boundaryTrigger,
@@ -558,48 +654,26 @@ export async function compactConversation(
       }
     }
 
-    const afterHookRows = await compactionAfterHooks(context, {
-      method: 'summary',
-      trigger: boundaryTrigger,
-      tokensBefore: preCompactTokenCount,
-      tokensAfter: landed.truePostCompactTokenCount,
-      summary: prose,
+    return await finishCommittedFold({
+      context,
+      owner,
+      foldTx,
+      clearWrittenMemory: () => {
+        writtenMemoryId = undefined
+      },
+      landed,
+      beforeHookRows,
+      boundaryTrigger,
+      trigger,
+      isAutoCompact,
+      overflow,
+      preCompactTokenCount,
+      prose,
+      proseSkippedReceipt,
+      rawSummary,
+      capsule,
+      querySource: recompactionInfo?.querySource ?? context.options.querySource,
     })
-    const hookResults: Message[] = [...beforeHookRows, ...afterHookRows]
-    if (context.abortController.signal.aborted) {
-      throw new APIUserAbortError()
-    }
-
-    await releaseLspDocumentsForContext('compact_full')
-    foldTx.commit(landed.folded)
-    writtenMemoryId = undefined
-
-    await persistFoldedReplacements(
-      landed.folded,
-      recompactionInfo?.querySource ?? context.options.querySource,
-      context.agentId,
-    )
-
-    const finalResult: CompactionResult = {
-      ...landed.partial,
-      hookResults,
-      truePostCompactTokenCount: landed.truePostCompactTokenCount,
-    }
-    restoreBoundPrefixFromMessages(buildPostCompactMessages(finalResult), { fold: true })
-
-    advanceContextEpoch(owner, {
-      kind: isAutoCompact ? 'auto-compact' : 'manual-compact',
-      reason: overflow !== undefined ? `overflow:${overflow.shape}` : trigger,
-      tokensBefore: preCompactTokenCount,
-      tokensAfter: landed.truePostCompactTokenCount,
-      preservedTailCount: landed.messagesToKeep?.length ?? 0,
-      capsule: resolveCapsuleState(proseSkippedReceipt, rawSummary, capsule),
-    })
-
-    if (context.agentId === undefined) {
-      reAppendSessionMetadata()
-    }
-    return finalResult
   } catch (error) {
     if (writtenMemoryId !== undefined) {
       withdrawFoldMemory(writtenMemoryId)
