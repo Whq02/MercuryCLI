@@ -114,8 +114,8 @@ const require = createRequire(import.meta.url)
 
 const clearSkillIndexCache: (() => void) | undefined = (() => {
   try {
-    const mod = require('./services/skillSearch/localSearch.js') as { clearSkillIndexCache?: unknown }
-    return typeof mod.clearSkillIndexCache === 'function' ? (mod.clearSkillIndexCache as () => void) : undefined
+    const mod: { clearSkillIndexCache?: () => void } = require('./services/skillSearch/localSearch.js')
+    return typeof mod.clearSkillIndexCache === 'function' ? mod.clearSkillIndexCache : undefined
   } catch (error) {
     passedOver(error)
     return undefined
