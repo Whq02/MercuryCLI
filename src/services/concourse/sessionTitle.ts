@@ -8,13 +8,28 @@ import { extractTextContent } from '../messages.js'
 import { safeParseJSON } from '../../utils/json.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import { partiallySanitizeUnicode } from '../../utils/sanitization.js'
-import { notBuilt } from '../../pi/holes.js'
 
 
 const DESCRIPTION_BUDGET = 1000
 
 export function extractConversationText(messages: Message[]): string {
-  return notBuilt('src/services/concourse/sessionTitle.ts:15')
+  const parts: string[] = []
+  for (const message of messages) {
+    if (message.type !== 'user' && message.type !== 'assistant') continue
+    if (message.type === 'user') {
+      if (message.isMeta) continue
+      if (message.origin && message.origin.kind !== 'human') continue
+    }
+    const content = message.message.content
+    if (typeof content === 'string') {
+      parts.push(content)
+    } else if (Array.isArray(content)) {
+      const text = extractTextContent(content, '\n')
+      if (text) parts.push(text)
+    }
+  }
+  const joined = parts.join('\n')
+  return joined.length > DESCRIPTION_BUDGET ? joined.slice(-DESCRIPTION_BUDGET) : joined
 }
 
 const TITLE_SYSTEM_PROMPT = [
@@ -25,6 +40,46 @@ const TITLE_SYSTEM_PROMPT = [
   'Bad examples: "Coding session" (too vague), "Fixing the bug where the login page throws a 500 error when the session cookie expires" (too long), "Fix Flaky Auth Integration Tests" (wrongly cased).',
 ]
 
+const TITLE_RESPONSE_SCHEMA = z.strictObject({
+  title: z.string(),
+})
+
+const TITLE_OUTPUT_FORMAT = {
+  type: 'json_schema' as const,
+  schema: {
+    type: 'object' as const,
+    properties: {
+      title: { type: 'string' as const },
+    },
+    required: ['title'],
+    additionalProperties: false,
+  },
+}
+
 export async function generateSessionTitle(description: string, signal: AbortSignal): Promise<string | null> {
-  return notBuilt('src/services/concourse/sessionTitle.ts:53')
+  if (description.trim() === '') return null
+  try {
+    const response = await queryUtility({
+      systemPrompt: asSystemPrompt(TITLE_SYSTEM_PROMPT),
+      userPrompt: description,
+      outputFormat: TITLE_OUTPUT_FORMAT,
+      signal,
+      options: {
+        querySource: 'generate_session_title',
+        isNonInteractiveSession: getIsNonInteractiveSession(),
+        hasAppendSystemPrompt: false,
+        agents: [],
+        mcpTools: [],
+      },
+    })
+    const text = extractTextContent(response.message.content, '\n')
+    const parsed = safeParseJSON(text, false)
+    const validated = TITLE_RESPONSE_SCHEMA.safeParse(parsed)
+    if (!validated.success) return null
+    const sanitized = partiallySanitizeUnicode(validated.data.title).trim()
+    return sanitized === '' ? null : sanitized
+  } catch (error) {
+    logForDebugging(`generateSessionTitle failed: ${String(error)}`)
+    return null
+  }
 }
