@@ -1,6 +1,5 @@
 import { tmpdir } from 'node:os'
 import { posix as posixPath } from 'node:path'
-import { rememberedPlatform } from '../platform/host.js'
 import { childGetsOwnProcessGroup } from '../platform/processes.js'
 import { getSessionEnvVars } from '../sessionEnvVars.js'
 import { getPowerShellEdition } from './powershellDetection.js'
@@ -73,7 +72,7 @@ export function createPowerShellProvider(shellPath: string): ShellProvider {
   return {
     type: 'powershell',
     shellPath,
-    detached: childGetsOwnProcessGroup(rememberedPlatform()),
+    detached: childGetsOwnProcessGroup(),
     async buildExecCommand(command: string, opts: BuildExecCommandOptions) {
       const cwdFilePath = posixPath.join(tmpdir(), cwdFileName(opts.id))
       const clearPrelude = needsLocationHistoryClear(command) ? CLEAR_LOCATION_HISTORY_PRELUDE : ''
@@ -85,7 +84,7 @@ export function createPowerShellProvider(shellPath: string): ShellProvider {
     },
     async getEnvironmentOverrides(): Promise<Record<string, string>> {
       const overrides: Record<string, string> = Object.fromEntries(getSessionEnvVars())
-      if (rememberedPlatform() === 'win32') {
+      if (process.platform === 'win32') {
         overrides.MSYS2_ARG_CONV_EXCL = '*'
         overrides.MSYS_NO_PATHCONV = '1'
         if ((await getPowerShellEdition()) === 'desktop') {
