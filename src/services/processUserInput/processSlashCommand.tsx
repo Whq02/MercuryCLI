@@ -53,6 +53,7 @@ import type {
   ProcessUserInputBaseResult,
   ProcessUserInputContext,
 } from './processUserInput.js'
+import { isRecord } from '../../utils/isRecord.js'
 import { passedOver } from '../../utils/passedOver.js'
 class TaggedMalformedCommandError extends Error {
   readonly isMalformedCommand = true
@@ -606,7 +607,7 @@ export async function processSlashCommand(
     }
     return finalizeCommandResult(result)
   } catch (error) {
-    if (error instanceof TaggedMalformedCommandError) {
+    if (error instanceof Error && isRecord(error) && error.isMalformedCommand === true) {
       return {
         messages: [
           createUserMessage({
