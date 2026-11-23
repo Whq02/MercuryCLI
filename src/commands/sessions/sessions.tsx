@@ -59,12 +59,8 @@ async function performResume(
   log: SessionListing,
   entrypoint: ResumeEntrypoint,
 ): Promise<void> {
-  if (!context.resume) {
-    onDone('Failed to resume: resume is not available in this context.')
-    return
-  }
   try {
-    await context.resume(sessionId, log, entrypoint)
+    if (context.resume) await context.resume(sessionId, log, entrypoint)
     onDone(undefined, { display: 'skip' })
   } catch (thrown) {
     logError(thrown)
@@ -88,12 +84,12 @@ function SessionsErrorCard({
     return () => {
       stopTimeout(timer)
     }
-  }, [onDone])
+  }, [])
 
   return (
     <MessageResponse>
       <Box flexDirection="column">
-        <Text dimColor>{`› /sessions ${argument}`}</Text>
+        <Text dimColor>{argument === '' ? '› /sessions' : `› /sessions ${argument}`}</Text>
         <Text>{message}</Text>
       </Box>
     </MessageResponse>
