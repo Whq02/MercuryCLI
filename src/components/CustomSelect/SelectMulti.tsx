@@ -102,51 +102,43 @@ export function SelectMulti<T = string>({
     onEmptyInputSubmit,
   })
 
-  const digitWidth = String(Math.max(1, options.length)).length
-  const reservedIndexWidth = hideIndexes ? 0 : digitWidth
-  const textRowReserved = hideIndexes ? 0 : digitWidth + 2
-  const submitFocused = !isDisabled && state.isSubmitFocused
+  const digitWidth = String(options.length).length
 
   return (
     <Box flexDirection="column">
       <PopupListViewport
         above={state.visibleFromIndex}
-        below={Math.max(0, options.length - state.visibleToIndex)}
+        below={options.length - state.visibleToIndex}
         rows={state.visibleOptions.length}
       >
         {state.visibleOptions.map((option: OptionWithDescription<T> & { index: number }) => {
           const val = optionValueOf(option)
-          const optionIndex = option.index
           const isFocused = !isDisabled && !state.isSubmitFocused && state.focusedValue === option.value
-          const isChecked = state.selectedValues.includes(val)
-          const checkbox = (
-            <Text color={isChecked ? 'success' : undefined} dimColor={option.disabled}>
-              {isChecked ? figures.checkboxOn : figures.checkboxOff}{' '}
-            </Text>
+          const checkbox = state.selectedValues.includes(val) ? (
+            <Text color="success">{figures.checkboxOn}</Text>
+          ) : (
+            <Text>{figures.checkboxOff}</Text>
           )
 
           if (isInputOption(option)) {
             const inputOption: InputOption<T> = option
-            const inputValue = state.inputValues.get(val) ?? inputOption.initialValue ?? ''
             return (
               <Box
                 key={String(option.value)}
-                flexDirection="column"
-                onClick={
-                  !isDisabled && !option.disabled
-                    ? () => state.activateInputValue(val, 'click')
-                    : undefined
-                }
+                onClick={() => {
+                  if (!isDisabled) state.activateInputValue(val, 'click')
+                }}
               >
                 <SelectInputOption
                   option={inputOption}
                   isFocused={isFocused}
-                  isSelected={false}
-                  value={inputValue}
+                  value={state.inputValues.get(val) ?? ''}
                   onChange={text => state.updateInputValue(val, text)}
                   onSubmit={() => state.activateInputValue(val, 'enter')}
-                  index={optionIndex + 1}
-                  reservedIndexWidth={reservedIndexWidth}
+                  reservedIndexWidth={hideIndexes ? 0 : digitWidth}
+                  index={option.index + 1}
+                  shouldShowDownArrow={false}
+                  shouldShowUpArrow={false}
                   onOpenEditor={onOpenEditor}
                   onImagePaste={onImagePaste}
                   pastedContents={pastedContents}
@@ -158,49 +150,34 @@ export function SelectMulti<T = string>({
             )
           }
 
-          const prefix = hideIndexes ? '' : optionIndexPrefix(option, optionIndex + 1, textRowReserved)
+          const prefix = hideIndexes ? '' : optionIndexPrefix(option, option.index + 1, digitWidth + 1)
           return (
             <Box
               key={String(option.value)}
-              flexDirection="column"
-              onClick={
-                !isDisabled && !option.disabled
-                  ? () => state.toggleValue(val)
-                  : undefined
-              }
+              onClick={() => {
+                if (!isDisabled) state.toggleValue(val)
+              }}
             >
               <SelectOption
                 isFocused={isFocused}
                 isSelected={false}
+                shouldShowDownArrow={false}
+                shouldShowUpArrow={false}
                 description={option.description}
               >
-                <Box flexShrink={1} minWidth={0}>
-                  {prefix !== '' ? <Text dimColor>{prefix}</Text> : null}
-                  {checkbox}
-                  <Text
-                    color={isFocused && !option.disabled ? 'suggestion' : undefined}
-                    dimColor={option.disabled}
-                  >
-                    {option.label}
-                  </Text>
-                </Box>
+                {prefix !== '' ? <Text dimColor>{prefix}</Text> : null}
+                {checkbox}
+                <Text dimColor={option.disabled}>{option.label}</Text>
               </SelectOption>
             </Box>
           )
         })}
       </PopupListViewport>
       {hasSubmitButton ? (
-        <Box
-          marginTop={1}
-          paddingLeft={2}
-          onClick={!isDisabled ? () => state.submit() : undefined}
-        >
-          <Text
-            bold
-            color={submitFocused ? 'suggestion' : undefined}
-            dimColor={isDisabled}
-          >
-            {submitFocused ? `${figures.pointer} ${submitButtonText}` : submitButtonText}
+        <Box paddingLeft={2}>
+          <Text bold color={state.isSubmitFocused ? 'suggestion' : undefined}>
+            {state.isSubmitFocused ? `${figures.pointer} ` : ''}
+            {submitButtonText}
           </Text>
         </Box>
       ) : null}
