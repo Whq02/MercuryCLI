@@ -297,6 +297,8 @@ async function runFoldAttempt(opts: {
   messages: Message[]
   toolUseContext: ToolUseContext
   cacheSafeParams: CacheSafeParams
+  querySource: string | undefined
+  owner: ReturnType<typeof ownerFromToolUseContext>
   asked: boolean
   crewmateAsked: boolean
   customInstructions: string | undefined
@@ -309,6 +311,14 @@ async function runFoldAttempt(opts: {
   return withFoldStatus(
     opts.toolUseContext,
     async scoped => {
+      const finish = (compactionResult: CompactionResult, fromMemory: boolean) => {
+        setLastSummarizedMessageId(undefined)
+        runPostCompactCleanup(
+          { querySource: opts.querySource, owner: opts.owner, agentId: opts.toolUseContext.agentId },
+          buildPostCompactMessages(compactionResult),
+        )
+        return { compactionResult, fromMemory }
+      }
       if (opts.sessionMemoryArmed) {
         scoped.onCompactProgress?.({ type: 'stage', stage: 'session-memory' })
       }
@@ -322,7 +332,7 @@ async function runFoldAttempt(opts: {
           memoryTrigger,
         )
         if (memoryResult !== null) {
-          return { compactionResult: memoryResult, fromMemory: true }
+          return finish(memoryResult, true)
         }
       }
       const compactionResult = await compactConversation(
@@ -336,7 +346,7 @@ async function runFoldAttempt(opts: {
         opts.overflowSignal,
         opts.summaryModel,
       )
-      return { compactionResult, fromMemory: false }
+      return finish(compactionResult, false)
     },
     {
       trigger: opts.asked ? 'manual' : 'auto',
@@ -445,7 +455,7 @@ export async function autoCompactIfNeeded(
 ): Promise<AutoCompactResult> {
   const priorFailures = tracking?.consecutiveFailures
   const forced = overflowSignal !== undefined
-  const nonInteractive = foldRemedyIsHeadless(toolUseContext.options.isNonInteractiveSession)
+  const nonInteractive = () => foldRemedyIsHeadless(toolUseContext.options?.isNonInteractiveSession)
   const notCompacted = (extra?: {
     measuredRawTokenCount?: number | null
     refusal?: string
@@ -461,16 +471,15 @@ export async function autoCompactIfNeeded(
     return notCompacted(forced ? { refusal: 'compaction is disabled (MERCURY_COMPACT=0)' } : undefined)
   }
   if (tracking?.rapidRefillPaused === true) {
-    return notCompacted(forced ? { refusal: rapidRefillPauseText({ nonInteractive }) } : undefined)
+    return notCompacted(forced ? { refusal: rapidRefillPauseText({ nonInteractive: nonInteractive() }) } : undefined)
   }
   if ((priorFailures ?? 0) >= MAX_CONSECUTIVE_FAILURES) {
-    return notCompacted(forced ? { refusal: compactionBreakerText({ nonInteractive }) } : undefined)
+    return notCompacted(forced ? { refusal: compactionBreakerText({ nonInteractive: nonInteractive() }) } : undefined)
   }
   if (suppressBreakerEnabled() && !compactionBreakerAllows(priorFailures)) {
     logForDebugging('autoCompact: Mercury breaker suppressed a doomed retry')
-    return notCompacted(forced ? { refusal: compactionBreakerText({ nonInteractive }) } : undefined)
+    return notCompacted(forced ? { refusal: compactionBreakerText({ nonInteractive: nonInteractive() }) } : undefined)
   }
-
   const model = toolUseContext.options.engineModel
   const owner = ownerFromToolUseContext(toolUseContext)
 
@@ -658,6 +667,8 @@ export async function autoCompactIfNeeded(
       messages,
       toolUseContext,
       cacheSafeParams,
+      querySource,
+      owner,
       asked,
       crewmateAsked,
       customInstructions,
@@ -668,11 +679,6 @@ export async function autoCompactIfNeeded(
       summaryModel: foldChoice.model,
     })
 
-    setLastSummarizedMessageId(undefined)
-    runPostCompactCleanup(
-      { querySource, owner, agentId: toolUseContext.agentId },
-      buildPostCompactMessages(attempt.compactionResult),
-    )
     queuedCompact?.complete()
 
     return {
@@ -689,7 +695,7 @@ export async function autoCompactIfNeeded(
       forced,
       asked,
       crewmateAsked,
-      nonInteractive,
+      nonInteractive: nonInteractive(),
       priorFailures,
       rapidRefillBreakerTripped,
       measuredRawTokenCount,
