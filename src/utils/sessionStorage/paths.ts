@@ -13,6 +13,7 @@ import { getProjectDir as resolveProjectDir } from '../sessionStoragePortable.js
 import { getFsImplementation } from '../fsOperations.js'
 import { getMercuryHome } from '../envUtils.js'
 import { isFsInaccessible } from '../errors.js'
+import { isRecord } from '../isRecord.js'
 import { logForDebugging } from '../debug.js'
 import { passedOver, passedOverAs } from '../passedOver.js'
 import type { ThinkingConfig } from '../thinking.js'
@@ -179,8 +180,7 @@ type PersistedProgressEntry = {
 }
 
 export function isPersistedProgressEntry(entry: unknown): entry is PersistedProgressEntry {
-  if (typeof entry !== 'object' || entry === null) return false
-  return 'type' in entry && entry.type === 'progress' && 'uuid' in entry && typeof entry.uuid === 'string'
+  return isRecord(entry) && entry.type === 'progress' && typeof entry.uuid === 'string'
 }
 
 export function isEphemeralToolProgress(dataType: unknown): boolean {

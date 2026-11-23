@@ -3,6 +3,7 @@ import Fuse from 'fuse.js'
 import type { Command } from '../../commands.js'
 import { formatDescriptionWithSource, getCommandName } from '../../commands.js'
 import { requiresArgument } from '../../skills/argumentHint.js'
+import { isRecord } from '../isRecord.js'
 import { getSkillUsageScore } from './skillUsageTracking.js'
 
 
@@ -36,7 +37,7 @@ function formatCommand(name: string): string {
 }
 
 function isCommandMetadata(value: unknown): value is Command {
-  return typeof value === 'object' && value !== null && 'type' in value && typeof value.type === 'string'
+  return isRecord(value) && typeof value.type === 'string'
 }
 
 function suggestionIdentifier(command: Command): string {

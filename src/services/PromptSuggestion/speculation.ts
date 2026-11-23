@@ -1,5 +1,6 @@
 import { IDLE_SPECULATION_STATE, type AppState, type SpeculationState } from '../../state/AppState.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { isRecord } from '../../utils/isRecord.js'
 import { logError } from '../../utils/log.js'
 import type { CacheSafeParams } from '../agents/forkedAgent.js'
 
@@ -16,12 +17,7 @@ const CLEARED_SUGGESTION: AppState['promptSuggestion'] = {
 function isActiveSpeculation(
   state: unknown,
 ): state is Extract<SpeculationState, { status: 'active' }> {
-  return (
-    state !== null &&
-    typeof state === 'object' &&
-    'status' in state &&
-    state.status === 'active'
-  )
+  return isRecord(state) && state.status === 'active'
 }
 
 export function clearPromptSuggestion(prev: AppState): AppState {
