@@ -160,67 +160,53 @@ export function FileEditToolDiff({
 }): React.ReactNode {
   const { columns } = useTerminalSize()
   const [loaded, setLoaded] = useState<LoadedDiff | null>(null)
-  const editsKey = JSON.stringify(edits)
 
   useLoad(signal => {
-    setLoaded(null)
-    void loadDiff(file_path, edits)
-      .then(result => {
-        if (!signal.aborted) setLoaded(result)
-      })
-      .catch(err => {
-        logError(err)
-        if (!signal.aborted) setLoaded({ hunks: [], firstLine: null })
-      })
-  }, [file_path, editsKey])
+    void loadDiff(file_path, edits).then(result => {
+      if (!signal.aborted) setLoaded(result)
+    })
+  }, [file_path, edits])
 
-  if (loaded === null) {
-    return <Text dimColor>…</Text>
-  }
-
+  const framed = columns > 80
+  const outerWidth = Math.max(1, availableWidth ?? columns - 2)
+  const innerWidth = Math.max(1, framed ? outerWidth - FRAME_COLUMNS : outerWidth)
   const name = basename(file_path)
-  if (loaded.hunks.length === 0) {
+
+  if (loaded !== null && loaded.hunks.length === 0) {
     return <Text dimColor>{name}: no visible change</Text>
   }
 
-  const outerWidth = Math.max(1, availableWidth ?? columns - 2)
-  const wide = columns > 80
-  const diffWidth = wide
-    ? Math.max(1, (availableWidth ?? columns) - FRAME_COLUMNS)
-    : outerWidth
-  const bounded =
-    consentBudget !== undefined
-      ? boundHunks(loaded.hunks, diffPaintWidth(diffWidth, loaded.hunks), consentBudget)
-      : { hunks: loaded.hunks, hiddenLines: 0, cut: false }
+  let body: React.ReactNode = <Text dimColor>…</Text>
+  if (loaded !== null) {
+    const bounded =
+      consentBudget !== undefined
+        ? boundHunks(loaded.hunks, diffPaintWidth(innerWidth, loaded.hunks), consentBudget)
+        : { hunks: loaded.hunks, hiddenLines: 0, cut: false }
+    body = (
+      <>
+        <StructuredDiffList
+          hunks={bounded.hunks}
+          dim={false}
+          width={innerWidth}
+          filePath={file_path}
+          firstLine={loaded.firstLine}
+          fileContent={loaded.fileContent}
+        />
+        {bounded.hiddenLines > 0 ? (
+          <Text dimColor>
+            … +{bounded.hiddenLines} more line{bounded.hiddenLines === 1 ? '' : 's'} · ctrl+f expands · the whole edit applies
+          </Text>
+        ) : null}
+        {consentBudget === null ? (
+          <Text dimColor>ctrl+f collapses the preview</Text>
+        ) : null}
+      </>
+    )
+  }
 
-  const body = (
-    <Box flexDirection="column">
-      <StructuredDiffList
-        hunks={bounded.hunks}
-        dim={false}
-        width={diffWidth}
-        filePath={file_path}
-        firstLine={loaded.firstLine}
-        fileContent={loaded.fileContent}
-      />
-      {bounded.hiddenLines > 0 ? (
-        <Text dimColor>
-          … +{bounded.hiddenLines} more line{bounded.hiddenLines === 1 ? '' : 's'} · ctrl+f expands · the whole edit applies
-        </Text>
-      ) : consentBudget === null ? (
-        <Text dimColor>ctrl+f collapses the preview</Text>
-      ) : null}
-    </Box>
-  )
-
-  if (wide) {
+  if (framed && loaded !== null) {
     return (
-      <Box
-        flexDirection="column"
-        borderStyle="round"
-        borderDimColor
-        width={outerWidth}
-      >
+      <Box flexDirection="column" borderStyle="round" borderDimColor paddingX={1}>
         <Text bold>{name}</Text>
         {body}
       </Box>
@@ -229,9 +215,8 @@ export function FileEditToolDiff({
 
   const rule = '╌'.repeat(outerWidth)
   return (
-    <Box flexDirection="column" width={outerWidth}>
+    <Box flexDirection="column">
       <Text dimColor>{rule}</Text>
-      <Text bold>{name}</Text>
       {body}
       <Text dimColor>{rule}</Text>
     </Box>
