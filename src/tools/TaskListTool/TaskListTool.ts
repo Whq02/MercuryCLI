@@ -4,11 +4,11 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { getTaskListId, isTaskToolsEnabled, listTasks, TASK_STATUSES } from '../../utils/tasks.js'
 import { TASK_LIST_TOOL_NAME } from './constants.js'
 import { DESCRIPTION, getPrompt } from './prompt.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 const inputSchema = lazySchema(() => z.strictObject({}))
 const taskRow = lazySchema(() => z.object({ id: z.string(), subject: z.string(), status: z.enum(TASK_STATUSES), owner: z.string().optional(), blockedBy: z.string().array() }))
 const outputSchema = lazySchema(() => z.object({ tasks: taskRow().array() }))
+type InputSchema = ReturnType<typeof inputSchema>
 type Output = z.infer<ReturnType<typeof outputSchema>>
 
 type Row = Output['tasks'][number]
@@ -39,4 +39,36 @@ async function rowsOfCurrentList(): Promise<Output> {
   return { tasks: shown.map(task => rowOf(task, completed)) }
 }
 
-export const TaskListTool: Unbuilt = unbuilt('src/tools/TaskListTool/TaskListTool.ts:41')
+export const TaskListTool = buildTool({
+  name: TASK_LIST_TOOL_NAME,
+  maxResultSizeChars: 100_000,
+  shouldDefer: true,
+  searchHint: 'list all tasks in the task list',
+  isEnabled: () => isTaskToolsEnabled(),
+  isReadOnly: () => true,
+  isConcurrencySafe: () => true,
+  userFacingName: () => TASK_LIST_TOOL_NAME,
+  get inputSchema(): InputSchema {
+    return inputSchema()
+  },
+  get outputSchema() {
+    return outputSchema()
+  },
+  async description() {
+    return DESCRIPTION
+  },
+  async prompt() {
+    return getPrompt()
+  },
+  async call() {
+    return { data: await rowsOfCurrentList() }
+  },
+  renderToolUseMessage: () => null,
+  mapToolResultToToolResultBlockParam(output, toolUseID) {
+    return {
+      tool_use_id: toolUseID,
+      type: 'tool_result',
+      content: output.tasks.length === 0 ? NO_TASKS : output.tasks.map(lineOf).join('\n'),
+    }
+  },
+} satisfies ToolDef<InputSchema, Output>)
