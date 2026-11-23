@@ -175,7 +175,6 @@
     "scripts/ui/prove-concourse-arrow-focus.ts": 4,
     "scripts/ui/prove-concourse-compact-drive.ts": 23,
     "scripts/ui/prove-config-model-doors-drive.ts": 12,
-    "scripts/ui/prove-contract-card-fits-drive.ts": 2,
     "scripts/ui/prove-count-and-inventory-words.ts": 2,
     "scripts/ui/prove-crew-live-drive.ts": 8,
     "scripts/ui/prove-crew-look-drive.ts": 4,

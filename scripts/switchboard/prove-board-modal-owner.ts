@@ -15,7 +15,6 @@ const none: Facts = {
   groundPickerOpen: false,
   rowPick: false,
   gitOffer: false,
-  contractAsk: false,
 }
 const facts = (over: Partial<Facts>): Facts => ({ ...none, ...over })
 
@@ -30,7 +29,6 @@ console.log('§1 — one owner at a time, in the paint order (topmost first)')
     ['settingsOpen', 'settings'],
     ['helpOpen', 'help'],
     ['gitOffer', 'git-offer'],
-    ['contractAsk', 'contract-ask'],
   ]
   for (const [fact, owner] of order) {
     check(`${String(fact)} alone owns as '${owner}'`, boardModalOwner(facts({ [fact]: true } as Partial<Facts>)) === owner)
@@ -55,7 +53,6 @@ console.log('§1 — one owner at a time, in the paint order (topmost first)')
         rowPick: true,
         helpOpen: true,
         gitOffer: true,
-        contractAsk: true,
       }),
     ) === 'row-pick',
   )
@@ -64,7 +61,7 @@ console.log('§1 — one owner at a time, in the paint order (topmost first)')
 console.log('§2 — nothing armed ⇒ null; boardModalArmed mirrors the owner')
 {
   check('the empty board answers null', boardModalOwner(none) === null)
-  check('boardModalArmed is exactly owner !== null (both directions)', boardModalArmed(none) === false && boardModalArmed(facts({ rowPick: true })) === true && boardModalArmed(facts({ contractAsk: true })) === true)
+  check('boardModalArmed is exactly owner !== null (both directions)', boardModalArmed(none) === false && boardModalArmed(facts({ rowPick: true })) === true)
 }
 
 console.log(failures === 0 ? '\nprove-board-modal-owner: ALL GREEN' : `\nprove-board-modal-owner: ${failures} FAILURE(S)`)

@@ -72,7 +72,6 @@ for (const world of worlds) {
         ? [
             { afterPrevTicks: 2, data: '\x1b[1;2D', mark: 'to-concourse' },
             { requireAwait: true, awaitText: '+ new session · n', minTick: 1, awaitSettleTicks: 6, data: 'n', mark: 'board' },
-            { requireAwait: true, awaitText: 'contract?', minTick: 1, awaitSettleTicks: 2, data: '\x1b', mark: 'contract-ask' },
             { requireAwait: true, awaitText: '← back', minTick: 1, awaitSettleTicks: 6, data: '', mark: 'board-born' },
           ]
         : []),
@@ -156,7 +155,7 @@ for (const world of worlds) {
     const boardText = boardMark ? textOf(boardMark.grid) : ''
     check(`${world.tag}: ⇧← reached the two-pane board with the list focused and the face-born chat on it`, boardText.includes('+ new session · n') && boardText.includes('STATUS & TITLE'), boardText.split('\n').filter(l => /new session|STATUS/.test(l)).map(l => l.trim().slice(0, 100)).join(' | '))
     const boardBorn = all.find(r => r.sessionId !== faceBorn?.sessionId)
-    check(`${world.tag}: a second chat was born through the board's n door (the contract ask skipped with esc)`, boardBorn !== undefined, all.map(brief).join(' | '))
+    check(`${world.tag}: a second chat was born through the board's n door`, boardBorn !== undefined, all.map(brief).join(' | '))
     check(`${world.tag}: the board-born worker's record carries '${world.expected}'`, boardBorn?.effort === world.expected, brief(boardBorn))
     check(`${world.tag}: the daemon admitted the board-born worker at '${world.expected}'`, admitted.length > 1 && admitted[1]!.includes(`@${world.expected},`), admitted.join(' | ').slice(0, 300))
   }

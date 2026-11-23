@@ -13,7 +13,6 @@ prove-tensorfold-model-groups.ts
 prove-model-name-matcher.ts
 prove-clipboard-encoding.ts
 prove-consent-queue-marker.ts
-prove-contract-card-fit.ts
 prove-diff-spine.ts
 prove-draft-per-session.ts
 prove-drive-witness-census.ts

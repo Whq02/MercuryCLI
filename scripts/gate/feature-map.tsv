@@ -14,7 +14,6 @@ command	compact	scripts/compact/prove-fold-refreshes-git-status.ts	bundle
 command	concourse	none	none
 command	config	scripts/ui/prove-media-settings-picker-drive.ts	terminal
 command	context	scripts/command-catalogue/prove-unavailable-honesty.ts	bundle
-command	contract	scripts/crew/prove-swarm-switch-waits-for-the-landing.ts	source
 command	copy	none	none
 command	crew	none	none
 command	crewmates	scripts/crew/prove-swarm-switch-waits-for-the-landing.ts	source
@@ -101,7 +100,6 @@ tool	ChangeSet	scripts/outcome-pack/prove-outcome-pack.ts	bundle
 tool	Checkpoint	scripts/bash/prove-cd-lasts-the-session.ts	source
 tool	Computer	scripts/api/prove-restart-keeps-thinking.ts	source
 tool	ContextLeft	scripts/mcp/prove-failed-server-told.ts	bundle
-tool	Contract	scripts/switchboard/prove-contract-tool-hosted.ts	bundle
 tool	Correct	none	none
 tool	CrewBoard	scripts/crew/prove-run-wake-closing-roads.ts	bundle
 tool	Crewmate	scripts/agents/prove-agent-cwd-drive.ts	bundle

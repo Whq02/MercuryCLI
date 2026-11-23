@@ -72,7 +72,7 @@ try {
     const second = await getAttachments('Read later.ts.', context, [])
     console.log(JSON.stringify({ mode, turn: 1, roster: roster(first) }))
     console.log(JSON.stringify({ mode, turn: 2, roster: roster(second), sections: second.filter((row: any) => row.type === 'context_capsule').flatMap((row: any) => (row.sections ?? []).map((section: any) => ({ kinds: section.kinds, bytes: Buffer.byteLength(section.content.filter((block: any) => block.type === 'text').map((block: any) => block.text).join('')) }))) }))
-    const cut = second.filter((row: any) => ['date_change', 'user_context', 'task_reminder', 'contract_reminder', 'harness_map_delta'].includes(row.type) || (row.type === 'context_capsule' && row.markdown))
+    const cut = second.filter((row: any) => ['date_change', 'user_context', 'task_reminder', 'harness_map_delta'].includes(row.type) || (row.type === 'context_capsule' && row.markdown))
     check(`${mode}: no post-first-turn reminder producers beyond a roster change`, cut.length === 0, JSON.stringify(roster(cut)))
     check(`${mode}: the joined deferred tool alone is announced`, JSON.stringify(deferred(second).map(row => [row.addedNames, row.removedNames])) === JSON.stringify([[['WebFetch'], []]]), JSON.stringify(deferred(second)))
     check(`${mode}: the full first-use manual still arrives (Eval keeps one; Read is one text with no manual)`, second.some((row: any) => row.type === 'critical_system_reminder' && row.content.startsWith('# Tool manual: Eval\n')) && !second.some((row: any) => row.type === 'critical_system_reminder' && row.content.startsWith('# Tool manual: Read\n')))

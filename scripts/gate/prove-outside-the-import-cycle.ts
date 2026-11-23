@@ -10,7 +10,6 @@ const OUTSIDE = [
   'src/components/InlineChangeView.tsx',
   'src/components/NotebookEditToolUseRejectedMessage.tsx',
   'src/daemon/saturn.ts',
-  'src/daemon/sessionContract.ts',
   'src/mneme/handoffAsk.ts',
   'src/query.ts',
   'src/query/stopHooks.ts',

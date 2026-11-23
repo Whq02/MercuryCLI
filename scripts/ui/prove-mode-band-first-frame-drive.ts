@@ -63,7 +63,6 @@ seedFirstRun(TEMPLATE, [WORK])
 const COMPOSER = 'Type a prompt'
 const CONSENT_ACCEPT = 'Yes, I accept'
 const BOARD_EMPTY = 'no sessions running'
-const CONTRACT_OFFER = 'Start with a contract?'
 const REPLY = 'Spare.'
 const WARM_TICKS = 25
 const FRAMES = 24
@@ -237,7 +236,6 @@ const boardDoor = (): Send[] => [
   { afterPrevTicks: WARM_TICKS, data: 'o', mark: 'face-o' },
   { afterPrevTicks: 40, awaitText: BOARD_EMPTY, awaitSettleTicks: 3, data: '', mark: 'board' },
   { afterPrevTicks: 3, data: 'n', mark: 'board-list' },
-  { afterPrevTicks: 30, awaitText: CONTRACT_OFFER, awaitSettleTicks: 2, data: '\x1b', mark: 'contract' },
 ]
 const converse = (): Send[] => [
   { afterPrevTicks: 2, data: 'hi' },

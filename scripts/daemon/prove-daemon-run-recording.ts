@@ -17,7 +17,7 @@ const only = after('--only')?.split(',')
 const atOnce = Math.max(1, Number(after('--par') ?? 3))
 const runs = args.includes('--once') && against !== undefined && write === undefined ? [1] : [1, 2]
 const QUICK = ['boot-hello-stop', 'plane-served', 'signals', 'control-off', 'periodic-cold']
-const VERBS = ['answer-permission', 'park-all', 'park', 'set-title', 'contract', 'set-schedule', 'mcp-action', 'mcp-tools', 'set-kit', 'set-model', 'set-effort', 'set-spawn-switch', 'set-permission-mode', 'session-facts', 'focus', 'blur', 'interrupt', 'stop-agent', 'resume-agent', 'withdraw-send', 'background-shell', 'send-now', 'board-post', 'pause-gate', 'leave', 'stop', 'attach', 'detach', 'grant-workflows', 'revoke-workflows', 'pause', 'resume']
+const VERBS = ['answer-permission', 'park-all', 'park', 'set-title', 'set-schedule', 'mcp-action', 'mcp-tools', 'set-kit', 'set-model', 'set-effort', 'set-spawn-switch', 'set-permission-mode', 'session-facts', 'focus', 'blur', 'interrupt', 'stop-agent', 'resume-agent', 'withdraw-send', 'background-shell', 'send-now', 'board-post', 'pause-gate', 'leave', 'stop', 'attach', 'detach', 'grant-workflows', 'revoke-workflows', 'pause', 'resume']
 const PERIODIC = ['the plane heal', 'the armed-restart beat', 'the sessionless beat', 'the idle-predecessor sweep', 'the handover lock beat', 'the reconcile tick', 'the keep-alive', 'the owner watch', 'the installed-build watch']
 const WAYS_OUT = ['control:shutdown', 'control:restart-when-idle', 'restart-when-idle:armed', 'control:processSweep', 'sessionless', 'parkAllThenShutdown', 'home-gone', 'SIGINT', 'SIGTERM', 'SIGHUP', 'crashShutdown', 'the failed boot', 'refused start', 'stood down', 'the restart after teardown']
 

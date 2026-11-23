@@ -63,7 +63,6 @@ seedFirstRun(TEMPLATE, [WORK])
 const COMPOSER = 'Type a prompt'
 const CONSENT_ACCEPT = 'Yes, I accept'
 const BOARD_EMPTY = 'no sessions running'
-const CONTRACT_OFFER = 'Start with a contract?'
 const WARM_TICKS = 25
 const SHIFT_TAB = '\x1b[Z'
 
@@ -230,7 +229,6 @@ const boardDoor = (): Send[] => [
   { afterPrevTicks: WARM_TICKS, data: 'o', mark: 'face-o' },
   { requireAwait: true, awaitText: BOARD_EMPTY, awaitSettleTicks: 3, data: '', mark: 'board' },
   { afterPrevTicks: 3, data: 'n', mark: 'board-list' },
-  { requireAwait: true, awaitText: CONTRACT_OFFER, awaitSettleTicks: 2, data: '\x1b', mark: 'contract' },
 ]
 const chatAndCycle = (presses: number): Send[] => {
   const out: Send[] = [{ requireAwait: true, awaitText: COMPOSER, awaitSettleTicks: 10, data: '', mark: 'chat' }]
@@ -266,7 +264,7 @@ for (const run of RUNS) {
   ]
   const c = await capture({ id: run.id, home, argv: run.argv, sends })
   printFrame(`${run.id} (the final frame)`, c.lines)
-  for (const label of ['board', 'contract', 'chat']) {
+  for (const label of ['board', 'chat']) {
     const f = markText(c, label)
     if (f !== null) printFrame(`${run.id} @${label}`, f.split('\n'))
   }

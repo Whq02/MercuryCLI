@@ -7,10 +7,6 @@
   "FULL_REMINDER_EVERY_N_ATTACHMENTS": 5,
   "TURNS_BETWEEN_ATTACHMENTS": 5
  },
- "CONTRACT_REMINDER_CONFIG/value": {
-  "TURNS_BETWEEN_REMINDERS": 12,
-  "TURNS_SINCE_TOUCH": 12
- },
  "extractAtMentionedFiles/samples": [
   [
    "src/utils/messages.ts"

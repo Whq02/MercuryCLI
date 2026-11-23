@@ -10,11 +10,9 @@ prove-chat-birth.ts
 prove-chat-forward-first-paint.ts
 prove-chat-mode-polish.ts
 prove-claude-door-capability.ts
-prove-compact-card-floor.ts
 prove-conc-home.ts
 prove-concourse-design.ts
 prove-concourse-flow-laws.ts
-prove-contracts.ts
 prove-crewmates-command.ts
 prove-cross-model-launch-matrix.ts
 prove-effort-chain-custody.ts
@@ -60,7 +58,6 @@ prove-swift-fold-repaint.ts
 prove-switchboard-geometry.ts
 prove-work-chip.ts
 prove-concourse-composer-border.ts
-prove-contract-tool-hosted.ts
 prove-empty-board-lines-whole.ts
 prove-last-used-is-last-use.ts
 prove-one-session-name.ts

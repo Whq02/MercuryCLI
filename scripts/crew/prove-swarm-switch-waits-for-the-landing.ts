@@ -58,7 +58,6 @@ const TYPED: Array<{ line: string; name: string }> = [
   { line: '/whisper alpha hello alpha', name: 'whisper' },
   { line: '/rename Landing name', name: 'rename' },
   { line: '/title Landing title', name: 'title' },
-  { line: '/contract the work agreed', name: 'contract' },
   { line: '/crewmates on', name: 'crewmates' },
 ]
 const NAMES = TYPED.map(typed => typed.name)
@@ -200,7 +199,7 @@ const m = await mountOffscreen(h(App, { initialState: getDefaultAppState(), getF
 await waitFor(() => composerRow(m).includes(PLACEHOLDER), 8000)
 await settle(300)
 
-section(`§0 the nine verbs are commands this screen runs, at ${COLS}x${ROWS}`)
+section(`§0 the eight verbs are commands this screen runs, at ${COLS}x${ROWS}`)
 for (const { name } of TYPED) {
   const command = commands.find(candidate => candidate.name === name)
   check(`/${name} is a command the screen runs, not the session`, command !== undefined && commandSeat(command) === 'screen', `type ${command?.type}`, 'the verb must be a local-jsx command, or a local command with seat screen, so commandSeat in src/commands.ts answers screen')
@@ -239,10 +238,9 @@ check('the owner\'s /general line is posted to the landed session\'s board', pos
 check('…and /team and /whisper with their targets', posted.some(post => post.channel === 'team' && post.target === 'parser' && post.text === 'hello team') && posted.some(post => post.channel === 'whisper' && post.target === 'alpha' && post.text === 'hello alpha'), j(posted), 'a held /team or /whisper line must be posted to the landed session through postBoard with its channel, target and text')
 check('/rename titles the landed session by its id', asked.some(frame => frame.action === 'set-title' && frame.sessionId === SESSION && frame.title === 'Landing name') && said('rename')?.said === 'Renamed this session to Landing name', `${j(asked)} · ${j(said('rename'))}`, 'a held /rename must send a set-title control frame for the landed session id and answer Renamed this session to the name')
 check('/title answers for the landed session, not "No chat is open"', asked.some(frame => frame.action === 'set-title' && frame.sessionId === SESSION && frame.title === 'Landing title') && said('title')?.said === 'Titled this session "Landing title"', `${j(asked)} · ${j(said('title'))}`, 'a held /title must send a set-title control frame for the landed session id and answer Titled this session with the title')
-check('/contract answers for the landed session, not "No chat is open"', said('contract')?.said?.startsWith('This chat is not a daemon-hosted session') === true, j(said('contract')), 'a held /contract must run against the landed session once it lands, not answer that no chat is open')
 check('/crewmates on flips the landed session\'s switch, not "no chat is open"', j(switched) === j([{ kind: 'subagents', on: true }]) && said('crewmates')?.said?.includes('no chat is open') === false, `${j(switched)} · ${j(said('crewmates'))}`, 'a held /crewmates on must call setSpawnSwitch with subagents on the landed session once it lands, not answer that no chat is open')
 check('every verb ran once, after the landing, on the landed session', answers.length === TYPED.length && answers.every(answer => answer.landed) && NAMES.every(name => answers.filter(answer => answer.name === name).length === 1), j(answers.map(answer => `${answer.name}:${answer.landed}`)), 'each held verb must run exactly once, and only after the session landed (hasFocusedSession true); check holdCommandForLanding in src/screens/chat/submit/screenCommand.ts and the replay in armForLanding, src/screens/chat/submit/submitLine.ts')
-check('all nine verbs ran in the exact order typed, local channel verbs included', j(answers.map(answer => answer.name)) === j(NAMES), j(answers.map(answer => answer.name)), 'held verbs must replay in the order typed; armForLanding in src/screens/chat/submit/submitLine.ts appends each line to the queue in order')
+check('all eight verbs ran in the exact order typed, local channel verbs included', j(answers.map(answer => answer.name)) === j(NAMES), j(answers.map(answer => answer.name)), 'held verbs must replay in the order typed; armForLanding in src/screens/chat/submit/submitLine.ts appends each line to the queue in order')
 check('every board post and session line reached the session in the exact order typed', j(sequence) === j(['words:/swarm on', 'words:/swarmchat main', 'board:general:hello crew', 'board:team:hello team', 'board:whisper:hello alpha', `words:${PROMPT}`]), j(sequence), 'board posts and session lines must reach the landed session in typed order; see the replay of armForLanding in src/screens/chat/submit/submitLine.ts')
 check('still no board file and no transcript file of the window\'s own', boardFiles().length === 0 && transcriptFiles().length === 0, strays(), 'the window must not open a board or write a transcript when a held verb replays; look at what the held verbs run (src/commands/swarm/swarm.ts and the other held verbs)')
 
@@ -329,8 +327,8 @@ section('§4 a landing that fails: every held verb settles and a held prompt ret
   failLanding()
   await failed
   await waitFor(() => answers.length === TYPED.length && pending.text() === 'unsent prompt on failed landing', 6000)
-  check('when the landing fails, all nine held verbs settle in typed order with none dropped', j(answers.map(answer => answer.name)) === j(NAMES) && answers.every(answer => !answer.landed), j(answers), 'when the landing fails every held verb must still run, in typed order, with no session focused; see the replay of armForLanding in src/screens/chat/submit/submitLine.ts')
-  check('/swarm, /swarmchat, /title, /contract and /crewmates tell the user no chat is open', ['swarm', 'swarmchat', 'title', 'contract', 'crewmates'].every(name => (answers.find(answer => answer.name === name)?.said ?? '').toLowerCase().includes('no chat is open')), j(answers), 'with no session after a failed landing these verbs must answer that no chat is open; check the commands for swarm, swarmchat, title, contract and crewmates under src/commands')
+  check('when the landing fails, all eight held verbs settle in typed order with none dropped', j(answers.map(answer => answer.name)) === j(NAMES) && answers.every(answer => !answer.landed), j(answers), 'when the landing fails every held verb must still run, in typed order, with no session focused; see the replay of armForLanding in src/screens/chat/submit/submitLine.ts')
+  check('/swarm, /swarmchat, /title and /crewmates tell the user no chat is open', ['swarm', 'swarmchat', 'title', 'crewmates'].every(name => (answers.find(answer => answer.name === name)?.said ?? '').toLowerCase().includes('no chat is open')), j(answers), 'with no session after a failed landing these verbs must answer that no chat is open; check the commands for swarm, swarmchat, title and crewmates under src/commands')
   check('a prompt held for the failed landing is restored to the composer rather than lost', pending.text() === 'unsent prompt on failed landing', j(pending.text()), 'a plain prompt held for a landing that fails must be put back in the composer; see armForLanding in src/screens/chat/submit/submitLine.ts and the initialMessage replay')
 }
 pending.edit('')

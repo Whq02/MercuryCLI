@@ -61,13 +61,12 @@ console.log('\n§1 the words the helper waits for')
     ['the face before its card is up', '>_  ·  ↵', false],
     ["the board's SESSIONS legend", '↑↓ choose · ↵ enter · n new · p pause', false],
     ['a permission card', '↑↓ choose · ↵ confirm · esc cancel · tab amend', false],
-    ['the contract card', '↑↓ choose · ↵ confirm · esc starts it plain', false],
     ['a setup card', '↑↓ choose · ↵ pick · esc keeps your model', false],
   ] as const) check(`${label}: ${expected ? 'fires' : 'does not fire'}`, fires(line) === expected, line)
   const kitText = readFileSync(join(ROOT, 'scripts', 'computer', 'computerDriveKit.ts'), 'utf8')
   const kitFaceReady = kitText.match(/export const FACE_READY = '([^']+)'/)?.[1] ?? ''
   check(
-    'computerDriveKit FACE_READY matches the Boot card (both full and compact) and never matches the pre-card splash, the Concourse, or consent/contract/setup cards',
+    'computerDriveKit FACE_READY matches the Boot card (both full and compact) and never matches the pre-card splash, the Concourse, or consent/setup cards',
     kitFaceReady !== '' &&
       [
         '│▎❯ ✶ New Session                  │',
@@ -78,7 +77,6 @@ console.log('\n§1 the words the helper waits for')
         '│ SESSIONS              + new session · n │',
         '↑↓ choose · ↵ enter · n new · p pause',
         '↑↓ choose · ↵ confirm · esc cancel · tab amend',
-        '↑↓ choose · ↵ confirm · esc starts it plain',
         '↑↓ choose · ↵ pick · esc keeps your model',
       ].every(line => !line.includes(kitFaceReady)),
     `FACE_READY=${JSON.stringify(kitFaceReady)}`,

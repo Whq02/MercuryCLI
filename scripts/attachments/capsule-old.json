@@ -69,10 +69,6 @@
     {
       "type": "text",
       "text": "<system-reminder>\nTask list idle: if tracked progress helps here, use TaskCreate and TaskUpdate (in_progress on start, completed on finish); clean up stale items.\n\n\nCurrent tasks:\n\n#41. [in_progress] Preserve file facts\n</system-reminder>"
-    },
-    {
-      "type": "text",
-      "text": "<system-reminder>\nSession contract (advisory work agreement, status amended (2 superseded texts)): never blocks steps; hold to it, check in via `Contract` when unsure, and propose-amend when a clause fails contact with the code.\n\nAwaits acknowledgment: restate it in your own words via `Contract` ({ action: \"acknowledge\", restatement }).\n\nAgreement:\n\nDeliver the parser with its proofs.\n</system-reminder>"
     }
   ]
 }

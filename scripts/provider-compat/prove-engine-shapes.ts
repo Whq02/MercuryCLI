@@ -53,7 +53,6 @@ const roster = new Map(getAllBaseTools().map(tool => [tool.name, tool]))
 const gatedTools = [
   (await import('../../src/tools/ComputerTool/ComputerTool.ts')).ComputerTool,
   (await import('../../src/tools/VideoTool/VideoTool.tsx')).VideoTool,
-  (await import('../../src/tools/ContractTool/ContractTool.ts')).ContractTool,
   (await import('../../src/tools/DebugTool/DebugTool.ts')).DebugTool,
   (await import('../../src/tools/GodotTool/GodotTool.ts')).GodotTool,
   (await import('../../src/tools/UnityTool/UnityTool.ts')).UnityTool,

@@ -22,7 +22,6 @@ const none: Facts = {
   groundPickerOpen: false,
   rowPick: false,
   gitOffer: false,
-  contractAsk: false,
 }
 
 section('§1 the sighting: a capacity ask pending BEHIND the open repo selector')
@@ -52,7 +51,6 @@ section('§2 the whole paint-order law, pairwise')
     ['settingsOpen', 'settings'],
     ['helpOpen', 'help'],
     ['gitOffer', 'git-offer'],
-    ['contractAsk', 'contract-ask'],
   ]
   let pairwiseHolds = true
   const broke: string[] = []

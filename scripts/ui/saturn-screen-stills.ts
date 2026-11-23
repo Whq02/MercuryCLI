@@ -73,7 +73,6 @@ const JOURNEY_SCHEDULES: SaturnScheduleV1[] = [
         presence: 'screen-present',
         kitPreset: 'review-kit',
         opening: 'sweep the overnight issues and brief me',
-        contract: null,
         title: 'morning sweep',
       },
     },
@@ -214,7 +213,6 @@ export const FIXTURE_FORM: SaturnFormStateV1 = {
   when: 'in 2h',
   kitPreset: 'review-kit',
   opening: 'sweep the overnight issues and brief me',
-  contract: { kind: 'none' },
   title: 'morning sweep',
 }
 

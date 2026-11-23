@@ -111,7 +111,6 @@ where = 'validateSaturnSubmission in src/daemon/saturn.ts (it must refuse the li
     ['birth without workspaceDir', { when: goodAt, action: { kind: 'birth', birth: { modelKey: 'm', presence: 'headless' } } }],
     ['birth with bogus presence', { when: goodAt, action: { kind: 'birth', birth: { workspaceDir: '/w', modelKey: 'm', presence: 'sometimes' } } }],
     ['birth with empty kitPreset', { when: goodAt, action: { kind: 'birth', birth: { workspaceDir: '/w', modelKey: 'm', presence: 'headless', kitPreset: '  ' } } }],
-    ['birth contract without text', { when: goodAt, action: { kind: 'birth', birth: { workspaceDir: '/w', modelKey: 'm', presence: 'headless', contract: {} } } }],
     ['malformed note', { when: goodAt, action: goodFire, note: 'x'.repeat(501) }],
   ]
   for (const [label, raw] of cases) {
@@ -135,11 +134,6 @@ where = 'validateSaturnSubmission in src/daemon/saturn.ts (it must refuse the li
       keys.join(','),
     )
   }
-  const nullContract = validateSaturnSubmission({
-    when: goodAt,
-    action: { kind: 'birth', birth: { workspaceDir: '/w', modelKey: 'm', presence: 'screen-present', contract: null } },
-  })
-  check('birth contract: null (no-contract) is lawful ground', nullContract.ok)
 }
 
 console.log('§A1 the writer')
@@ -717,9 +711,7 @@ where = 'makeSaturnBirthPort in src/daemon/saturnBirth.ts and the birth step of 
   const dispatchCalls: DispatchCall[] = []
   const withdrawn: string[] = []
   const admits: Record<string, unknown>[] = []
-  const contracts: Array<{ sessionId: string; text: string; by: string }> = []
   let dispatchArm: 'lands' | 'held' | 'refused' = 'lands'
-  let contractArm: 'applied' | 'refused' = 'applied'
   const doors = {
     dispatch: async (req: DispatchCall) => {
       dispatchCalls.push(req)
@@ -735,23 +727,18 @@ where = 'makeSaturnBirthPort in src/daemon/saturnBirth.ts and the birth step of 
       admits.push(req)
       return { ok: true, runnerId: 'concourse-w9', sessionId: 'born-b1', workspaceId: '/scratch/repo' } as never
     },
-    contract: (sessionId: string, text: string, by: string) => {
-      contracts.push({ sessionId, text, by })
-      return contractArm === 'applied' ? { outcome: 'applied' as const } : { outcome: 'refused' as const, detail: 'no live worker record (fixture)' }
-    },
   }
   const birth = makeSaturnBirthPort(doors as never)
   const home = getProjectDir('/scratch/repo')
   const bornReceipts = (sessionId: string) => receipts.readSessionReceipts(home, sessionId).filter(r => r.kind === 'schedule-fire')
 
-  const spec1 = { workspaceDir: '/scratch/repo', modelKey: 'claude-opus-5', presence: 'headless' as const, opening: 'audit the nightly build', kitPreset: 'writing', contract: { text: 'nightly audit duty' }, title: 'Nightly audit' }
+  const spec1 = { workspaceDir: '/scratch/repo', modelKey: 'claude-opus-5', presence: 'headless' as const, opening: 'audit the nightly build', kitPreset: 'writing', title: 'Nightly audit' }
   const b1 = await birth(spec1, { scheduleId: 'aaaa0001', dueAt: 1111, by: 'saturn:aaaa0001', owner: 'sess-author-1' })
   check('B1 born-working lands with the session id', b1.ok === true && b1.sessionId === 'born-w1')
   const call1 = dispatchCalls[0]!
   check('B1 the dispatch is the one door: deterministic owner-scoped id · opening · preset · model · title', call1.clientMessageId === 'saturn-birth-sess-author-1-aaaa0001-1111' && call1.prompt === 'audit the nightly build' && call1.kitPreset === 'writing' && call1.modelKey === 'claude-opus-5' && call1.title === 'Nightly audit')
-  check('B1 the contract pre-answer landed through the one writer', contracts.length === 1 && contracts[0]!.sessionId === 'born-w1' && contracts[0]!.text === 'nightly audit duty' && contracts[0]!.by === 'saturn:aaaa0001')
   const born1 = bornReceipts('born-w1')
-  check("B1 the born session's own receipt says born by schedule + working", born1.length === 1 && born1[0]!.summary.includes("born by schedule 'aaaa0001'") && born1[0]!.summary.includes('working') && (born1[0]!.details as Record<string, unknown>).mode === 'born-working' && (born1[0]!.details as Record<string, unknown>).contract === 'set')
+  check("B1 the born session's own receipt says born by schedule + working", born1.length === 1 && born1[0]!.summary.includes("born by schedule 'aaaa0001'") && born1[0]!.summary.includes('working') && (born1[0]!.details as Record<string, unknown>).mode === 'born-working')
 
   dispatchArm = 'held'
   const b2 = await birth(spec1, { scheduleId: 'aaaa0002', dueAt: 2222, by: 'saturn:aaaa0002', owner: 'sess-author-1' })
@@ -762,20 +749,11 @@ where = 'makeSaturnBirthPort in src/daemon/saturnBirth.ts and the birth step of 
   check("B2 a refused dispatch carries the door's own sentence, no withdraw", b2b.ok === false && (b2b.detail ?? '').includes('no-credential:anthropic') && withdrawn.length === 1)
   dispatchArm = 'lands'
 
-  contracts.length = 0
-  const spec3 = { workspaceDir: '/scratch/repo', modelKey: 'claude-opus-5', presence: 'screen-present' as const, contract: null }
+  const spec3 = { workspaceDir: '/scratch/repo', modelKey: 'claude-opus-5', presence: 'screen-present' as const }
   const b3 = await birth(spec3, { scheduleId: 'bbbb0001', dueAt: 4444, by: 'saturn:bbbb0001', owner: 'sess-author-1' })
   check('B3 born-waiting lands through the admission door bornBlank', b3.ok === true && b3.sessionId === 'born-b1' && admits.length === 1 && admits[0]!.bornBlank === true && admits[0]!.workspaceDir === '/scratch/repo')
-  check('B3 the null contract is PRE-ANSWERED no-contract (the writer never called)', contracts.length === 0)
   const born3 = bornReceipts('born-b1')
-  check("B3 the receipt says waiting with contract none", born3.length === 1 && born3[0]!.summary.includes('waiting') && (born3[0]!.details as Record<string, unknown>).contract === 'none' && (born3[0]!.details as Record<string, unknown>).presence === 'screen-present')
-
-  contractArm = 'refused'
-  const b4 = await birth(spec1, { scheduleId: 'cccc0001', dueAt: 5555, by: 'saturn:cccc0001', owner: 'box' })
-  check('B4 the birth stands when the contract refuses', b4.ok === true)
-  const born4 = bornReceipts('born-w1').filter(r => (r.details as Record<string, unknown>).scheduleId === 'cccc0001')
-  check('B4 the refusal rides the receipt in words', born4.length === 1 && born4[0]!.summary.includes('contract pre-answer refused'))
-  contractArm = 'applied'
+  check("B3 the receipt says waiting", born3.length === 1 && born3[0]!.summary.includes('waiting') && (born3[0]!.details as Record<string, unknown>).presence === 'screen-present')
 }
 
 console.log('§T the facts-borne road')

@@ -28,7 +28,6 @@ const FIRST = 'FIRST-REPLY.'
 const SWARM_ON = 'Swarm on for new crewmates'
 const OWNER_LINE = 'hello crew'
 const TITLE = 'Landing name'
-const CONTRACT = 'the work agreed'
 const textRows = (grid: Grid): string[] => grid.map(row => row.map(cell => cell.c || ' ').join('').replace(/\s+$/, ''))
 const then = (data: string, awaitText: string, mark?: string): Record<string, unknown> => ({ data, atTick: 999, awaitText, requireAwait: true, minTick: 2, awaitSettleTicks: 3, ...(mark ? { mark } : {}) })
 const atOnce = (data: string, awaitText: string): Record<string, unknown> => ({ data, atTick: 999, awaitText, requireAwait: true, minTick: 0, awaitSettleTicks: 0 })
@@ -68,7 +67,7 @@ function filesUnder(dir: string, keep: (name: string) => boolean, skip: (name: s
 const boardFiles = (leg: Leg): string[] => filesUnder(leg.home, name => name === 'board.sqlite')
 const chatFiles = (leg: Leg): string[] => filesUnder(join(leg.home, 'projects'), name => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.jsonl$/.test(name), name => name === 'lineage')
 const boardSession = (path: string): string => basename(dirname(dirname(dirname(path))))
-const workersOf = (leg: Leg): Array<{ sessionId?: string; pid?: number; endedAt?: number; title?: string; contract?: { text?: string; status?: string } }> => {
+const workersOf = (leg: Leg): Array<{ sessionId?: string; pid?: number; endedAt?: number; title?: string }> => {
   const dir = join(leg.home, 'daemon')
   return existsSync(dir) ? (Object.values(readSessionWorkers(dir)) as never) : []
 }
@@ -255,7 +254,7 @@ section('§2 /swarm on typed while the session lands, then the first prompt')
   await endLeg(leg)
 }
 
-section('§3 the other verbs typed while the session lands: a title, an owner\'s line to the crew, a contract, then the first prompt')
+section('§3 the other verbs typed while the session lands: a title, an owner\'s line to the crew, then the first prompt')
 {
   const leg = await legOf('landing-wider', [
     { kind: 'text', text: FIRST },
@@ -267,7 +266,6 @@ section('§3 the other verbs typed while the session lands: a title, an owner\'s
     enter,
     ...typed(`/rename ${TITLE}`),
     ...typed(`/general ${OWNER_LINE}`),
-    ...typed(`/contract ${CONTRACT}`),
     ...typed(PLAIN_PROMPT),
     then('', FIRST, 'replied'),
   ], FIRST, 500)
@@ -285,7 +283,6 @@ section('§3 the other verbs typed while the session lands: a title, an owner\'s
   check('the owner\'s /general line is on the conversation\'s board, the one board file under the home (the parent posts it to a board of the window\'s own, where nobody reads it)', boards.length === 1 && boardSession(boards[0]!) === sid && eventsOf(boards[0]!).some(event => event.includes(`"text":"${OWNER_LINE}"`)), `${heldHint} · ${short(boards, leg)} · ${boards.map(path => eventsOf(path).length).join(',')} events`)
   const first = requests[0]
   check('…and the lead reads it in the first turn, in the board\'s packet', first !== undefined && says(first, 'crew-board-event:') && says(first, OWNER_LINE), `${heldHint} · first request: packet ${first !== undefined && says(first, 'crew-board-event:')} · the line ${first !== undefined && says(first, OWNER_LINE)}`)
-  check('/contract answered for the landed session: its record holds the drafted contract (the parent says no chat is open)', worker?.contract?.text === CONTRACT, `${heldHint} · the session's contract: ${JSON.stringify(worker?.contract)}`)
   check('the prompt typed after them is answered', inOrder(replied, [PLAIN_PROMPT, FIRST]), replied.filter(line => line.includes('REPLY') || line.includes(PLAIN_PROMPT)).map(line => line.trim()).join(' | '))
   await endLeg(leg)
 }

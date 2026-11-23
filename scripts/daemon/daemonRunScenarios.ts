@@ -637,10 +637,6 @@ const VERBS: Array<[string, Reply]> = [
   ['answer-permission', {}],
   ['answer-permission', { requestId: 'request-nobody-asked', allow: true }],
   ['set-title', { title: 'the recorded title', titleSource: 'operator' }],
-  ['contract', {}],
-  ['contract', { contract: { op: 'set', text: 'the recorded contract' } }],
-  ['contract', { contract: { op: 'ack' } }],
-  ['contract', { contract: { op: 'close' } }],
   ['set-schedule', {}],
   ['set-schedule', { scheduleEdit: { op: 'remove', scheduleId: 'deadbeef' } }],
   ['mcp-action', { mcpAction: { name: 'nothing', action: 'reconnect' } }],
@@ -711,7 +707,7 @@ export const SCENARIOS: Scenario[] = [
     name: 'session-verbs',
     about: 'a session claimed, every verb of concourseControl against nobody and against the live session, parked, resumed, released, and the stop that reaps it',
     seconds: 60,
-    covers: { verbs: ['answer-permission', 'park-all', 'park', 'set-title', 'contract', 'set-schedule', 'mcp-action', 'mcp-tools', 'set-kit', 'set-model', 'set-effort', 'set-spawn-switch', 'set-permission-mode', 'session-facts', 'focus', 'blur', 'interrupt', 'stop-agent', 'resume-agent', 'withdraw-send', 'background-shell', 'send-now', 'board-post', 'pause-gate', 'leave', 'stop', 'attach', 'detach', 'grant-workflows', 'revoke-workflows', 'pause', 'resume'], doors: ['concourseAdmit', 'concourseControl', 'concourseList', 'concourseRelease', 'hello', 'onShutdown'], waysOut: ['control:shutdown with a worker reaped'] },
+    covers: { verbs: ['answer-permission', 'park-all', 'park', 'set-title', 'set-schedule', 'mcp-action', 'mcp-tools', 'set-kit', 'set-model', 'set-effort', 'set-spawn-switch', 'set-permission-mode', 'session-facts', 'focus', 'blur', 'interrupt', 'stop-agent', 'resume-agent', 'withdraw-send', 'background-shell', 'send-now', 'board-post', 'pause-gate', 'leave', 'stop', 'attach', 'detach', 'grant-workflows', 'revoke-workflows', 'pause', 'resume'], doors: ['concourseAdmit', 'concourseControl', 'concourseList', 'concourseRelease', 'hello', 'onShutdown'], waysOut: ['control:shutdown with a worker reaped'] },
     run: async w => {
       const d = await w.boot('d1', { extra: { MERCURY_MAX_RETRIES: '0' } })
       await verbsOn(w, 'nobody', UNKNOWN_SESSION)

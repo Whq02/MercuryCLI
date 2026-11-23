@@ -5,7 +5,6 @@
 # only by editing this list. A name listed here but missing on disk is a
 # loud red in this runner.
 prove-broadcast-look.ts
-prove-contract-offer-drive.ts
 prove-cross-project-drive.ts
 prove-finish-mark-drive.ts
 prove-folder-project-drive.ts

@@ -22,7 +22,6 @@ const quiet: Facts = {
   groundPickerOpen: false,
   rowPick: false,
   gitOffer: false,
-  contractAsk: false,
   helpOpen: false,
 }
 const armed = (over: Partial<Facts>): Facts => ({ ...quiet, ...over })
@@ -45,7 +44,6 @@ section('§1 mayArmBoardModal — a pointer door arms only while no other owner 
     check('the model picker is open ⇒ its own door still answers', may(armed({ settingsOpen: true }), 'settings') === true)
     check('the ground picker is open ⇒ the MODEL door does not arm a second Select', may(armed({ groundPickerOpen: true }), 'settings') === false)
     check('the model picker is open ⇒ the GROUND door does not arm a second Select', may(armed({ settingsOpen: true }), 'ground-picker') === false)
-    check('the contract ask stands ⇒ no picker arms over it', may(armed({ contractAsk: true }), 'ground-picker') === false && may(armed({ contractAsk: true }), 'settings') === false)
     check('the predicate is the owner table, not a second lattice', may(armed({ rowPick: true, groundPickerOpen: true }), 'ground-picker') === (boardModalOwner(armed({ rowPick: true, groundPickerOpen: true })) === 'ground-picker') && may(armed({ capacityAsk: true, groundPickerOpen: true }), 'ground-picker') === (boardModalOwner(armed({ capacityAsk: true, groundPickerOpen: true })) === 'ground-picker'))
   }
 }

@@ -125,7 +125,6 @@ const ATTACHMENTS: Record<string, Fixture> = {
   edited_text_file: { good: { filename: 'a.ts', snippet: 's' }, bad: [{ label: 'snippet is missing', field: 'snippet', fields: { filename: 'a.ts' } }] },
   edited_image_file: { good: { filename: 'a.png', content: { type: 'image', file: { base64: '', type: 'image/png', originalSize: 1 } } }, bad: [{ label: 'content is text', field: 'content', fields: { filename: 'a.png', content: 'x' } }] },
   directory: { good: { path: 'd', content: '- a.ts', displayPath: 'd' }, bad: [{ label: 'content is a list', field: 'content', fields: { path: 'd', content: ['a.ts'], displayPath: 'd' } }] },
-  contract_reminder: { good: { text: 't', status: 'draft', amendments: 0, ackOwed: true }, bad: [{ label: 'amendments is text', field: 'amendments', fields: { text: 't', status: 'draft', amendments: 'none', ackOwed: true } }] },
   dynamic_skill: { good: { skillDir: 'd', skillNames: ['s'], displayPath: 'd' }, bad: [{ label: 'skillNames is text', field: 'skillNames', fields: { skillDir: 'd', skillNames: 's', displayPath: 'd' } }] },
   skill_listing: {
     good: { content: 'c', skillCount: 1, isInitial: true, removedNames: [], truncation: null },

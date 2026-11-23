@@ -93,7 +93,6 @@ try {
   const N = 'Busy probe'
   const BOARD = 'SESSIONS'
   const PICKER = 'where new sessions launch'
-  const CARD = 'Start with a contract?'
   const COMPOSER = 'Type a prompt'
   const ARMED = 'again enters'
   const OTHER = `${basename(work)} ⌄`
@@ -105,7 +104,6 @@ try {
   const UP = '\x1b[A'
   const DOWN = '\x1b[B'
   const CTRL_G = '\x07'
-  const ESC = '\x1b'
   type Step = { awaitText: string | string[]; awaitAbsent?: string | string[]; arrivedText?: string; afterPrevMs?: number; settleMs?: number; text: string }
   const step = (awaitText: string | string[], text: string, extra: Omit<Partial<Step>, 'awaitText' | 'text'> = {}): Step => ({ awaitText, settleMs: 200, text, ...extra })
   const toBoardSession: Step[] = [
@@ -129,8 +127,7 @@ try {
     step(PICKER, DOWN),
     step(PICKER, '\r', { afterPrevMs: 300 }),
     step([BOARD, OTHER], 'n', { awaitAbsent: PICKER }),
-    step(CARD, ESC),
-    step(COMPOSER, SEAT_SAID, { awaitAbsent: [BOARD, CARD] }),
+    step(COMPOSER, SEAT_SAID, { awaitAbsent: BOARD }),
     step(SEAT_SAID, '\r', { awaitAbsent: BOARD }),
     step('seat-03 body', SHIFT_LEFT, { awaitAbsent: BOARD }),
     ...toBoardSession,

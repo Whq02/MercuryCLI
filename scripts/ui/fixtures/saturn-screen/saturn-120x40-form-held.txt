@@ -18,12 +18,12 @@
    │ born wearing                                                   │  │ account: openai/oauth · op@example.com     │
    │   Kit preset                                        review-kit │  │ preflight: sign-in expired — re-login      │
    │   Opening mission                 sweep the overnight issues … │  │ now (/logins) or it's born held            │
-   │   Contract                          no-contract (pre-answered) │  │                                            │
-   │                                                                │  │ … (the trail continues — taller terminal)  │
-   │ words                                                          │  ╰────────────────────────────────────────────╯
-   │   Title                                          morning sweep │  ╭────────────────────────────────────────────╮
-   │   Note                                                       — │  │ SATURN                                     │
-   ╰────────────────────────────────────────────────────────────────╯  │ Schedules  5                               │
+   │                                                                │  │                                            │
+   │ words                                                          │  │ … (the trail continues — taller terminal)  │
+   │   Title                                          morning sweep │  ╰────────────────────────────────────────────╯
+   │   Note                                                       — │  ╭────────────────────────────────────────────╮
+   ╰────────────────────────────────────────────────────────────────╯  │ SATURN                                     │
+                                                                       │ Schedules  5                               │
                                                                        │ Next fire  in 2h                           │
                                                                        │ Held       2 — /logins releases sign-in h… │
                                                                        │ Sessions   2 live                          │

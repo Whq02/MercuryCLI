@@ -35,7 +35,6 @@ const { JevEvalTool } = await import('../../src/tools/JevEvalTool/JevEvalTool.ts
 const { AskAdvisorTool } = await import('../../src/tools/AskAdvisorTool/AskAdvisorTool.ts')
 const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.ts')
 const { EvalTool } = await import('../../src/tools/EvalTool/EvalTool.ts')
-const { ContractTool } = await import('../../src/tools/ContractTool/ContractTool.ts')
 const { JournalTool } = await import('../../src/tools/JournalTool/JournalTool.ts')
 const { LSP_TOOLS } = await import('../../src/tools/LSPTool/LSPTool.ts')
 const { EnterWorktreeTool } = await import('../../src/tools/EnterWorktreeTool/EnterWorktreeTool.ts')
@@ -51,7 +50,7 @@ const names = (list: readonly { name: string }[]): string[] => list.map(t => t.n
 const same = (a: string[], b: string[]): boolean => a.length === b.length && a.every((n, i) => n === b[i])
 
 const catalogue: Tool[] = [...getAllBaseTools()]
-for (const tool of [ComputerTool, JevEvalTool, AskAdvisorTool, DebugTool, EvalTool, ContractTool, JournalTool, ...LSP_TOOLS, EnterWorktreeTool, ExitWorktreeTool, TaskCreateTool, TaskGetTool, TaskUpdateTool, TaskListTool] as Tool[]) {
+for (const tool of [ComputerTool, JevEvalTool, AskAdvisorTool, DebugTool, EvalTool, JournalTool, ...LSP_TOOLS, EnterWorktreeTool, ExitWorktreeTool, TaskCreateTool, TaskGetTool, TaskUpdateTool, TaskListTool] as Tool[]) {
   if (!catalogue.some(t => t.name === tool.name)) catalogue.push(tool)
 }
 const catalogueNames = names(catalogue)
@@ -87,7 +86,7 @@ const crewPool = resolveWorkerTools(MERCURY_CREW_AGENT, 'default', catalogue)
 const crewNames = names(crewPool)
 const expected = catalogueNames.filter(n => !barred.has(n))
 check('mercury-crew (tools: *) resolves to the catalogue minus the barred set, exactly', same(crewNames, expected), `missing: ${expected.filter(n => !crewNames.includes(n)).join(',')} · extra: ${crewNames.filter(n => !expected.includes(n)).join(',')} | resolveWorkerTools in src/tools/AgentTool/agentToolUtils.ts must return the catalogue minus CREWMATE_BARRED_TOOLS`)
-const NEWLY_REACHABLE = ['Eval', 'Test', 'Debug', 'Launch', 'Service', 'Monitor', 'Browser', 'Journey', 'Git', 'Transaction', 'Structure', 'AstSearch', 'AstEdit', 'ChangeSet', 'LspRead', 'LspRename', 'LspMoveSymbol', 'LspMoveFile', 'LspCodeAction', 'LspFormat', 'LspRequest', 'Inspect', 'Checkpoint', 'Rewind', 'Contract', 'CronList', 'JevEval']
+const NEWLY_REACHABLE = ['Eval', 'Test', 'Debug', 'Launch', 'Service', 'Monitor', 'Browser', 'Journey', 'Git', 'Transaction', 'Structure', 'AstSearch', 'AstEdit', 'ChangeSet', 'LspRead', 'LspRename', 'LspMoveSymbol', 'LspMoveFile', 'LspCodeAction', 'LspFormat', 'LspRequest', 'Inspect', 'Checkpoint', 'Rewind', 'CronList', 'JevEval']
 for (const name of NEWLY_REACHABLE) {
   check(`a crewmate carries ${name}`, crewNames.includes(name), 'resolveWorkerTools in src/tools/AgentTool/agentToolUtils.ts must not drop this tool; check CREWMATE_BARRED_TOOLS in src/constants/tools.ts')
 }

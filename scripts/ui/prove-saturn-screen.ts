@@ -130,7 +130,7 @@ t.section('§2 — THE BOARD COMPOSERS (the parity floor survives; state is word
   delete (noPreflight.schedule as { preflightAtWrite?: unknown }).preflightAtWrite
   t.check("§2 an absent preflight reads 'not computed' — never ready", saturnDetailLines(noPreflight, FIXED_NOW, []).join('\n').includes('preflight at write: not computed'))
   const birthDetail = saturnDetailLines(birth, FIXED_NOW, []).join('\n')
-  t.check('§2 a birth trail names presence, workspace, preset and the pre-answered contract', birthDetail.includes('birth: screen-present in') && birthDetail.includes("wearing: preset 'review-kit'") && birthDetail.includes('contract: no-contract (pre-answered)') && birthDetail.includes('born-working'))
+  t.check('§2 a birth trail names presence, workspace and preset', birthDetail.includes('birth: screen-present in') && birthDetail.includes("wearing: preset 'review-kit'") && birthDetail.includes('born-working'))
   const heldDetail = saturnDetailLines(held, FIXED_NOW, fixtureReceiptsOf(held)).join('\n')
   t.check('§2 held fires paint typed reasons', heldDetail.includes('held fires: 2') && heldDetail.includes('sign-in-expired'))
   t.check('§2 the fired-late/missed receipts stay visible in the trail', heldDetail.includes('recent fire decisions:') && heldDetail.includes('missed — ~430m late') && heldDetail.includes('held: sign-in expired'))
@@ -212,7 +212,6 @@ t.section('§5 — THE FORM (seven facts · the verdict verbatim · honest previ
   const { FIXED_NOW, FIXTURE_FORM, READY_PREFLIGHT, EXPIRED_PREFLIGHT, composeSaturnForm } = await import('./saturn-screen-stills.js')
   const {
     freshSaturnForm,
-    saturnContractWords,
     saturnFormDetailLines,
     saturnFormEntries,
     saturnFormLegendOf,
@@ -223,16 +222,15 @@ t.section('§5 — THE FORM (seven facts · the verdict verbatim · honest previ
   const { noCredentialRefusal } = await import('../../src/daemon/saturnAccount.js')
 
   const fresh = freshSaturnForm({ modelKey: 'claude-opus-5', workspaceDir: '/w' })
-  t.check('§5 fresh defaults: headless · unset contract · born-waiting · no preset', fresh.presence === 'headless' && fresh.contract.kind === 'unset' && fresh.opening === null && fresh.kitPreset === null && fresh.when === '')
+  t.check('§5 fresh defaults: headless · born-waiting · no preset', fresh.presence === 'headless' && fresh.opening === null && fresh.kitPreset === null && fresh.when === '')
 
-  t.check('§5 the row set covers the banked facts', JSON.stringify(SATURN_FORM_ROWS) === JSON.stringify(['when', 'model', 'workspace', 'presence', 'kit', 'opening', 'contract', 'title', 'note']))
+  t.check('§5 the row set covers the banked facts', JSON.stringify(SATURN_FORM_ROWS) === JSON.stringify(['when', 'model', 'workspace', 'presence', 'kit', 'opening', 'title', 'note']))
 
   const freshEntries = saturnFormEntries(fresh)
   const filledEntries = saturnFormEntries(FIXTURE_FORM)
   t.check('§5 an empty when stands out and teaches', freshEntries[0]!.valueIsDefault === false && freshEntries[0]!.valueLabel.includes('say when'))
   t.check('§5 a set when reads quiet with the phrase verbatim', filledEntries[0]!.valueIsDefault === true && filledEntries[0]!.valueLabel === 'in 2h')
   t.check('§5 presence speaks both arms in words', saturnFormEntries({ ...fresh, presence: 'headless' })[3]!.valueLabel === 'headless — unattended' && saturnFormEntries({ ...fresh, presence: 'screen-present' })[3]!.valueLabel === 'screen-present — Mercury open')
-  t.check('§5 the contract words carry all three states', saturnContractWords({ kind: 'unset' }) === 'not pre-answered' && saturnContractWords({ kind: 'none' }) === 'no-contract (pre-answered)' && saturnContractWords({ kind: 'text', text: 'be careful' }).includes('be careful'))
   t.check('§5 an unset opening reads born-waiting', saturnFormEntries(fresh)[5]!.valueLabel === 'born-waiting')
 
   t.check('§5 ready is plain', saturnVerdictSentence({ state: 'ready' }) === 'preflight: ready')

@@ -61,7 +61,7 @@ section('§1 the pure legend law — one resolver, every list state')
 }
 
 
-section('§3 the drive: arm a streaming row, n opens the contract offer; arm, tab, type — the words land whole')
+section('§3 the drive: arm a streaming row, n starts a new session; arm, tab, type — the words land whole')
 if (!existsSync(DIST)) {
   console.error(`✗ ${DIST} missing — run \`bun run build.ts\` first`)
   process.exit(1)
@@ -98,7 +98,6 @@ const sends = [
   after(6500, `${ESC}[1;2D`),
   after(8300, '\r'),
   after(9100, 'n'),
-  after(10600, ESC),
   after(14000, `${ESC}[1;2D`),
   after(15800, '\r'),
   after(16600, '\t'),
@@ -158,7 +157,7 @@ const recs: Rec[] = existsSync(drive) ? readFileSync(drive, 'utf8').split('\n').
 const firstOut = recs.find(r => r.ts !== undefined)?.ts ?? 0
 const sendRecs = recs.filter(r => r.sent !== undefined)
 const at = (i: number): number => Math.round((sendRecs[i]?.sent ?? firstOut) - firstOut)
-check('every send fired (the face, the chat, the board, the card and the composer all painted)', sendRecs.length === sends.length, `${sendRecs.length}/${sends.length}${sendRecs.length < sends.length ? ` · ${unfiredDetail(driverOut)}` : ''}`)
+check('every send fired (the face, the chat, the board and the composer all painted)', sendRecs.length === sends.length, `${sendRecs.length}/${sends.length}${sendRecs.length < sends.length ? ` · ${unfiredDetail(driverOut)}` : ''}`)
 if (sendRecs.length === sends.length) {
   const res = spawnSync(driver.python, [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive, '120', '40', String(at(4) + 400), String(at(5) + 800), String(at(TYPED_LAST) + 700), '-1'], { encoding: 'utf8', timeout: vshotBudgetMs(120_000), maxBuffer: 256 * 1024 * 1024 })
   if (res.status !== 0) {
@@ -166,13 +165,13 @@ if (sendRecs.length === sends.length) {
     process.exit(1)
   }
   const screens = (JSON.parse(res.stdout) as { screens: { atMs: number; rows: string[] }[] }).screens
-  const [armedFrame, cardFrame, typedFrame, finalFrame] = screens
+  const [armedFrame, newChatFrame, typedFrame, finalFrame] = screens
   const t = (g: { rows: string[] }): string => g.rows.join('\n')
   const legendRow = armedFrame.rows.find(r => /enters \(armed\)/.test(r)) ?? ''
   const headerOf = (g: { rows: string[] }): string => g.rows.find(r => /\+ new session/.test(r)) ?? ''
   check('↵ armed the row and the legend still teaches the letter verbs (i interrupt leads) — no typing row', /i interrupt/.test(legendRow) && /esc disarm/.test(legendRow) && !/type to message/.test(t(armedFrame)), legendRow.trim().slice(0, 118))
   check("the pane header advertises n while the rows hold focus (armed)", /\+ new session · n/.test(headerOf(armedFrame)), headerOf(armedFrame).trim().slice(0, 100))
-  check('n fired WHILE ARMED: the contract offer card opened (the declared verb, not a typed letter)', /Start with a contract\?/.test(t(cardFrame)), cardFrame.rows.find(r => /contract/i.test(r))?.trim().slice(0, 110) ?? '(no card)')
+  check('n fired WHILE ARMED: a new session started and its chat took the screen (the declared verb, not a typed letter)', /Type a prompt/.test(t(newChatFrame)) && !/enters \(armed\)/.test(t(newChatFrame)), newChatFrame.rows.find(r => /Type a prompt/.test(r))?.trim().slice(0, 110) ?? '(no new chat)')
   check('after tab the words landed whole in the live composer', typedFrame.rows.some(r => /❯\s+is it done/.test(r)), typedFrame.rows.find(r => /❯/.test(r) && /done|it/.test(r))?.trim().slice(0, 100) ?? '(no draft row)')
   check("the header stops advertising n while the composer holds focus (n is a letter there)", /\+ new session/.test(headerOf(typedFrame)) && !/\+ new session · n/.test(headerOf(typedFrame)), headerOf(typedFrame).trim().slice(0, 100))
   check('the streaming turn was NOT interrupted (no ⨯ Interrupted, no interrupted state on the row)', !/Interrupted|interrupted/.test(t(typedFrame)) && !/Interrupted|interrupted/.test(t(finalFrame)))

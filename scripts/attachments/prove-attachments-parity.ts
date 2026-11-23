@@ -19,7 +19,6 @@ const add = (exportName: string, caseName: string, fn: () => unknown) => {
 for (const c of [
   'TASK_REMINDER_CONFIG',
   'FLOW_ATTACHMENT_CONFIG',
-  'CONTRACT_REMINDER_CONFIG',
 ] as const) {
   add(c, 'value', () => (A as Record<string, unknown>)[c])
 }
