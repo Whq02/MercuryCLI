@@ -52,10 +52,6 @@ export function SedEditPermissionRequest({
     }
   }, [sedEditInfo.filePath])
 
-  if (readError !== null) {
-    throw readError
-  }
-
   const oldContent = loaded?.content ?? ''
   const newContent = useMemo(
     () => (loaded === null ? null : applySedSubstitution(loaded.content, sedEditInfo)),
@@ -64,7 +60,7 @@ export function SedEditPermissionRequest({
 
   const parseInput = useCallback(
     (input: unknown): ToolInput => {
-      const base = (typeof input === 'object' && input !== null ? input : {}) as ToolInput
+      const base: ToolInput = typeof input === 'object' && input !== null ? { ...input } : {}
       if (newContent === null || loaded?.beforeBytes === undefined) return base
       return {
         ...base,
@@ -77,6 +73,10 @@ export function SedEditPermissionRequest({
     },
     [newContent, loaded, sedEditInfo.filePath],
   )
+
+  if (readError !== null) {
+    throw readError
+  }
 
   const content =
     loaded === null ? null : newContent === null ? (
