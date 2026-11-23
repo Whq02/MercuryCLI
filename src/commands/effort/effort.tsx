@@ -33,7 +33,6 @@ import { updateSettingsForSource } from '../../utils/settings/settings.js'
 import { CommandPopupLease } from '../../components/CommandPopupSlot.js'
 import { claimCommandPopup } from '../../utils/cockpit/commandPopup.js'
 import { EffortApplyContext, EffortPopup, effortPopupShape } from './EffortPopup.js'
-import { notBuilt } from '../../pi/holes.js'
 
 const OPTION_LIST = `${EFFORT_LEVELS.join('|')}|auto`
 
@@ -90,7 +89,60 @@ function appliedTruth(
 }
 
 export function executeEffort(args: string, model: string): EffortCommandResult {
-  return notBuilt('src/commands/effort/effort.tsx:91')
+  const trimmed = args.trim()
+  const lower = trimmed.toLowerCase()
+  if (lower === 'auto' || lower === 'unset') {
+    updateSettingsForSource('userSettings', { engine: { effort: undefined } })
+    unpinAllLaunchEffort()
+    const envOverride = getEffortEnvOverride()
+    const message =
+      envOverride !== undefined && envOverride !== null
+        ? `Effort is now automatic. Note: ${EFFORT_ENV_VAR}=${rawOverrideValue()} is set and takes precedence.`
+        : 'Effort is now automatic.'
+    return {
+      message,
+      effortUpdate: { value: undefined },
+    }
+  }
+
+  const level = normalizeEffortLevelString(trimmed)
+  if (level === undefined) {
+    return {
+      message: `Valid options: ${OPTION_LIST} — "${trimmed}" is not a recognised effort level.`,
+    }
+  }
+
+  const persistable = toPersistableEffort(level)
+  let persisted = false
+  if (persistable !== undefined) {
+    const saved = updateSettingsForSource('userSettings', { engine: { effort: persistable } })
+    persisted = saved.error === null
+  }
+  unpinAllLaunchEffort()
+
+  const envOverride = getEffortEnvOverride()
+  if (envOverride !== undefined && envOverride !== level) {
+    const savedNote = persisted ? 'saved as your default for future sessions' : 'saved for this session'
+    return {
+      message: `Effort set to ${level} (${savedNote}), but ${EFFORT_ENV_VAR}=${rawOverrideValue()} is set and takes precedence.`,
+      effortUpdate: { value: level },
+    }
+  }
+
+  const truth = appliedTruth(model, level, persisted)
+  if (truth.headline !== undefined) {
+    return {
+      message: truth.headline,
+      effortUpdate: { value: level },
+    }
+  }
+  const base = persisted
+    ? `Effort set to ${level} — saved as your default for future sessions.`
+    : `Effort set to ${level} — saved for this session.`
+  return {
+    message: `${base}${truth.trailing ?? ''}`,
+    effortUpdate: { value: level },
+  }
 }
 
 export function showSeatEffort(word: string | null | undefined, sent: string | null | undefined, model: string): string {
@@ -248,5 +300,33 @@ export async function call(
   context: LocalJSXCommandContext,
   args: string,
 ): Promise<React.ReactNode> {
-  return notBuilt('src/commands/effort/effort.tsx:298')
+  const trimmed = args.trim()
+  const model = context.options.engineModel
+  if (HELP_TOKENS.has(trimmed.toLowerCase())) {
+    onDone(helpText())
+    return null
+  }
+  if (trimmed === '') {
+    const focused = getFocusedSessionConnector()
+    if (context.options.isNonInteractiveSession) {
+      if (focused.carrier === 'daemon') {
+        const facts = focused.modelFacts()
+        onDone(showSeatEffort(facts.effort, facts.effortSent, facts.effective))
+      } else {
+        onDone(showCurrentEffort(context.getAppState().effortValue, model).message)
+      }
+      return null
+    }
+    const popupModel = focused.carrier === 'daemon' ? focused.modelFacts().effective : model
+    const token = claimCommandPopup(effortPopupShape(popupModel))
+    return (
+      <CommandPopupLease token={token}>
+        <SessionPopup context={context} onDone={onDone} />
+      </CommandPopupLease>
+    )
+  }
+  const result = executeEffort(trimmed, model)
+  const receipt = await settleEffortResult(result, context)
+  deliverEffortReceipt(receipt, onDone, trimmed)
+  return null
 }
