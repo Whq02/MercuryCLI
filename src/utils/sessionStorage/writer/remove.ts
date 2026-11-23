@@ -22,6 +22,10 @@ import { passedOver } from '../../passedOver.js'
 
 const MAX_REWRITE_BYTES = 50 * 1024 * 1024
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 function isMercuryRecord(parsed: Record<string, unknown>): parsed is MercuryRecord {
   return (
     typeof parsed.schemaVersion === 'number' &&
@@ -110,9 +114,9 @@ export class RemovePart {
           const kept = body.split('\n').filter(line => {
             if (line.length === 0) return true
             try {
-              const parsed = jsonParse(line)
-              if (typeof parsed !== 'object' || parsed === null) return true
-              return storedLineUuid(parsed as Record<string, unknown>) !== targetUuid
+              const parsed: unknown = jsonParse(line)
+              if (!isRecord(parsed)) return true
+              return storedLineUuid(parsed) !== targetUuid
             } catch (error) {
               passedOver(error)
               return true
