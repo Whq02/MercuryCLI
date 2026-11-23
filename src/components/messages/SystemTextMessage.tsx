@@ -1,3 +1,4 @@
+import { basename } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import React, { useState } from 'react'
 import { Box, Text } from '../../ink.js'
@@ -27,7 +28,6 @@ import { SystemAPIErrorMessage } from './SystemAPIErrorMessage.js'
 import { UserNoticeMessage } from './UserNoticeMessage.js'
 import { useSelectedMessageBg } from '../messageActions.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { notBuilt } from '../../pi/holes.js'
 
 function TurnDurationRow({
   message,
@@ -93,13 +93,295 @@ function TurnDurationRow({
 }
 
 
-export function SystemTextMessage(arg0: {
+function MemorySavedRow({
+  message,
+  addMargin,
+  bg,
+}: {
+  message: Extract<SystemMessage, { subtype: 'memory_saved' }>
+  addMargin: boolean
+  bg: string | undefined
+}): React.ReactNode {
+  const tokens = useMercuryTokens()
+  const [openError, setOpenError] = useState<string | null>(null)
+  const verb = message.verb ?? 'Saved'
+  const count = message.writtenPaths.length
+  return (
+    <Box flexDirection="column" marginTop={addMargin ? 1 : 0} backgroundColor={bg}>
+      <Text>
+        <Text color="remember">● </Text>
+        <Text dimColor>
+          {verb} {count} {plural(count, 'memory', 'memories')}
+        </Text>
+      </Text>
+      {message.writtenPaths.map((filePath, index) => {
+        const label = basename(filePath) || filePath
+        return (
+          <InteractiveRow
+            key={filePath}
+            id={`memory-saved:${message.uuid}:${index}`}
+            directActivate
+            selectionBand={false}
+            onActivate={() => {
+              void openPath(filePath, err => {
+                setOpenError(`${filePath} could not be opened (${err}) — open it yourself`)
+              })
+            }}
+          >
+            <Box paddingLeft={2}>
+              <Text dimColor>
+                <Link url={pathToFileURL(filePath).href} fallback={label}>
+                  {label}
+                </Link>
+              </Text>
+            </Box>
+          </InteractiveRow>
+        )
+      })}
+      {openError ? <Text color={tokens.warning}>{openError}</Text> : null}
+    </Box>
+  )
+}
+
+function renderFallbackSystemRow({
+  row,
+  addMargin,
+  verbose,
+  columns,
+  bg,
+  warningColor,
+  errorColor,
+}: {
+  row: { content?: unknown; level?: string }
+  addMargin: boolean
+  verbose: boolean
+  columns: number
+  bg: string | undefined
+  warningColor: string
+  errorColor: string
+}): React.ReactNode {
+  const level = row.level ?? 'info'
+  if (level === 'info' && !verbose) return null
+  if (typeof row.content !== 'string') return null
+  const glyph =
+    level === 'warning' || level === 'warn'
+      ? GLYPH.warn
+      : level === 'info'
+        ? GLYPH.idle
+        : GLYPH.done
+  const color =
+    level === 'warning' || level === 'warn'
+      ? warningColor
+      : level === 'error'
+        ? errorColor
+        : undefined
+  return (
+    <Box
+      width={Math.max(20, columns - 4)}
+      marginTop={addMargin ? 1 : 0}
+      backgroundColor={bg}
+    >
+      <Text color={color} dimColor={level === 'info'} wrap="wrap">
+        {glyph} {row.content.trim()}
+      </Text>
+    </Box>
+  )
+}
+
+export function SystemTextMessage({
+  message,
+  addMargin = false,
+  verbose = false,
+}: {
   message: SystemMessage
   addMargin?: boolean
   verbose?: boolean
   isTranscriptMode?: boolean
 }): React.ReactNode {
-  return notBuilt('src/components/messages/SystemTextMessage.tsx:96')
+  const { columns } = useTerminalSize()
+  const tokens = useMercuryTokens()
+  const bg = useSelectedMessageBg()
+
+  switch (message.subtype) {
+    case 'turn_duration':
+      return (
+        <Box marginTop={addMargin ? 1 : 0} backgroundColor={bg}>
+          <TurnDurationRow message={message} />
+        </Box>
+      )
+
+    case 'memory_saved':
+      return <MemorySavedRow message={message} addMargin={addMargin} bg={bg} />
+
+    case 'model_transition': {
+      if (message.resolution === 'cancelled-pending') {
+        return (
+          <Box marginTop={addMargin ? 1 : 0} backgroundColor={bg}>
+            <Text dimColor>
+              Queued model switch cancelled — staying on {message.previous ?? 'default'}.
+            </Text>
+          </Box>
+        )
+      }
+      if (message.resolution === 'applied' && message.boundary === 'turn-boundary') {
+        const appliedLabel =
+          message.applied === null ? 'default' : renderModelName(message.applied)
+        const cross = message.crossProvider ? crossProviderNote(message.applied) : ''
+        return (
+          <Box marginTop={addMargin ? 1 : 0} backgroundColor={bg}>
+            <Text dimColor>
+              model switched to {appliedLabel} for this session{cross}
+            </Text>
+          </Box>
+        )
+      }
+      const prev = message.previous ?? 'default'
+      const applied = message.applied ?? 'default'
+      const head =
+        message.previous === null && message.applied === null
+          ? `Model unchanged (${prev} → ${applied})`
+          : `Model: ${prev} → ${applied}`
+      const notes: string[] = []
+      if (message.boundary === 'turn-boundary') notes.push('at turn boundary')
+      if (message.crossProvider) notes.push('cross-provider')
+      const suffix = notes.length > 0 ? ` (${notes.join(', ')})` : ''
+      return (
+        <Box marginTop={addMargin ? 1 : 0} backgroundColor={bg}>
+          <Text dimColor>
+            {head}
+            {suffix}
+          </Text>
+        </Box>
+      )
+    }
+
+    case 'away_summary':
+      if (message.recapMetadata) {
+        return (
+          <ResumeRecapCard
+            metadata={message.recapMetadata}
+            addMargin={addMargin}
+            bg={bg}
+          />
+        )
+      }
+      return (
+        <Box marginTop={addMargin ? 1 : 0} backgroundColor={bg}>
+          <Text dimColor>※ {message.content}</Text>
+        </Box>
+      )
+
+    case 'agents_killed':
+      return (
+        <Box marginTop={addMargin ? 1 : 0} backgroundColor={bg}>
+          <Text color="error">● </Text>
+          <Text dimColor>All background crewmates stopped.</Text>
+        </Box>
+      )
+
+    case 'thinking':
+    case 'thinking_note':
+    case 'thinking_dead':
+      return null
+
+    case 'bridge_status':
+      return (
+        <Box flexDirection="column" marginTop={addMargin ? 1 : 0} backgroundColor={bg}>
+          <Text dimColor>
+            Remote control is active — /remote-control ·{' '}
+            <Link url={message.url}>{message.url}</Link>
+          </Text>
+          {message.upgradeNudge ? (
+            <MessageResponse height={1}>
+              <Text dimColor>{message.upgradeNudge}</Text>
+            </MessageResponse>
+          ) : null}
+        </Box>
+      )
+
+    case 'scheduled_task_fire':
+      return (
+        <Box marginTop={addMargin ? 1 : 0} backgroundColor={bg}>
+          <Text dimColor>* {message.content}</Text>
+        </Box>
+      )
+
+    case 'seat_receipt':
+      return (
+        <Box marginTop={addMargin ? 1 : 0} backgroundColor={bg}>
+          <Text color={message.level === 'warning' ? 'warning' : undefined}>
+            {message.content}
+          </Text>
+        </Box>
+      )
+
+    case 'roster_transition':
+      return (
+        <Box marginTop={addMargin ? 1 : 0} backgroundColor={bg}>
+          <Text dimColor>{message.content}</Text>
+        </Box>
+      )
+
+    case 'advisor_quiet':
+      return (
+        <UserNoticeMessage
+          addMargin={addMargin}
+          blocks={[advisorBlockOf(message.origin, message.content)]}
+        />
+      )
+
+    case 'stream_cut':
+      return (
+        <Box flexDirection="column" marginTop={addMargin ? 1 : 0} backgroundColor={bg}>
+          <Text color="subtle">
+            Continued after <Text bold>{message.count}</Text>{' '}
+            {plural(message.count, 'stream cut')} · context sent again
+            {!verbose ? (
+              <>
+                {' '}
+                <CtrlOToExpand />
+              </>
+            ) : null}
+          </Text>
+          {verbose && message.content ? <Text dimColor>{message.content}</Text> : null}
+        </Box>
+      )
+
+    case 'busy_recovery': {
+      const seconds = Math.max(1, Math.round(message.elapsedMs / 1000))
+      return (
+        <Box flexDirection="column" marginTop={addMargin ? 1 : 0} backgroundColor={bg}>
+          <Text color="subtle">
+            {message.provider} was busy · answered after{' '}
+            <Text bold>{message.retries}</Text>{' '}
+            {plural(message.retries, 'retry', 'retries')} ({seconds} s)
+            {!verbose ? (
+              <>
+                {' '}
+                <CtrlOToExpand />
+              </>
+            ) : null}
+          </Text>
+          {verbose && message.content ? <Text dimColor>{message.content}</Text> : null}
+        </Box>
+      )
+    }
+
+    case 'api_error':
+      if (isTransportRetryNotice(message)) return null
+      return <SystemAPIErrorMessage message={message} verbose={verbose} />
+
+    default:
+      return renderFallbackSystemRow({
+        row: message,
+        addMargin,
+        verbose,
+        columns,
+        bg,
+        warningColor: tokens.warning,
+        errorColor: tokens.failureText,
+      })
+  }
 }
 
 export default SystemTextMessage
