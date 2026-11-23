@@ -1,14 +1,54 @@
 import { APIError } from '../../utils/api/sdkErrors.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 
-type ConnectionErrorDetails = Unbuilt
+type ConnectionErrorDetails = {
+  code: string
+  message: string
+  isSSLError: boolean
+}
+
+const SSL_ERROR_CODES = new Set([
+  'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+  'UNABLE_TO_GET_ISSUER_CERT',
+  'UNABLE_TO_GET_ISSUER_CERT_LOCALLY',
+  'CERT_SIGNATURE_FAILURE',
+  'CERT_NOT_YET_VALID',
+  'CERT_HAS_EXPIRED',
+  'CERT_REVOKED',
+  'CERT_REJECTED',
+  'CERT_UNTRUSTED',
+  'DEPTH_ZERO_SELF_SIGNED_CERT',
+  'SELF_SIGNED_CERT_IN_CHAIN',
+  'CERT_CHAIN_TOO_LONG',
+  'PATH_LENGTH_EXCEEDED',
+  'ERR_TLS_CERT_ALTNAME_INVALID',
+  'HOSTNAME_MISMATCH',
+  'ERR_TLS_HANDSHAKE_TIMEOUT',
+  'ERR_SSL_WRONG_VERSION_NUMBER',
+  'ERR_SSL_DECRYPTION_FAILED_OR_BAD_RECORD_MAC',
+])
 
 const MAX_CAUSE_LINKS = 5
 
 export function extractConnectionErrorDetails(error: unknown): ConnectionErrorDetails | null {
-  return notBuilt('src/services/api/errorUtils.ts:34')
+  if (typeof error !== 'object' || error === null) return null
+  let current: unknown = error
+  for (let i = 0; i <= MAX_CAUSE_LINKS; i++) {
+    if (!(current instanceof Error)) break
+    const code = (current as { code?: unknown }).code
+    if (typeof code === 'string') {
+      return {
+        code,
+        message: current.message,
+        isSSLError: SSL_ERROR_CODES.has(code),
+      }
+    }
+    const next = current.cause
+    if (!next || next === current) break
+    current = next
+  }
+  return null
 }
 
 function sanitizeAPIError(apiError: string | undefined | null): string {
@@ -60,6 +100,58 @@ export function decodeApiErrorBlobMessage(blob: string): string | undefined {
   return recoverNestedMessage({ error: parsed })
 }
 
+function formatSSLError(code: string): string {
+  switch (code) {
+    case 'UNABLE_TO_VERIFY_LEAF_SIGNATURE':
+    case 'UNABLE_TO_GET_ISSUER_CERT':
+    case 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY':
+      return `Certificate verification failed (${code}). Check your proxy or corporate certificates.`
+    case 'CERT_HAS_EXPIRED':
+      return 'The server presented an expired certificate. Check your system clock, proxy, or corporate certificates.'
+    case 'CERT_REVOKED':
+      return 'The server presented a revoked certificate.'
+    case 'DEPTH_ZERO_SELF_SIGNED_CERT':
+    case 'SELF_SIGNED_CERT_IN_CHAIN':
+      return `Self-signed certificate detected (${code}). Check your proxy or corporate certificates.`
+    case 'ERR_TLS_CERT_ALTNAME_INVALID':
+    case 'HOSTNAME_MISMATCH':
+      return 'Certificate hostname mismatch. The certificate does not match the host being contacted.'
+    case 'CERT_NOT_YET_VALID':
+      return 'The server presented a certificate that is not yet valid. Check your system clock.'
+    default:
+      return `SSL error (${code}).`
+  }
+}
+
 export function formatAPIError(error: unknown): string {
-  return notBuilt('src/services/api/errorUtils.ts:127')
+  const details = extractConnectionErrorDetails(error)
+  if (details !== null) {
+    if (details.code === 'ETIMEDOUT') {
+      return 'The request timed out. Check your internet connection and proxy settings.'
+    }
+    if (details.isSSLError) {
+      return formatSSLError(details.code)
+    }
+  }
+
+  const rawMessage =
+    typeof error === 'object' && error !== null && typeof (error as { message?: unknown }).message === 'string'
+      ? (error as { message: string }).message
+      : undefined
+
+  if (rawMessage === 'Connection error.') {
+    return details !== null
+      ? `Connection failed (${details.code}). Check your internet connection and proxy settings.`
+      : 'Connection failed. Check your internet connection.'
+  }
+
+  if (rawMessage === undefined || rawMessage === '') {
+    const nested = recoverNestedMessage(error)
+    if (nested !== undefined) return nested
+    const status = statusOf(error)
+    return `API error (status ${status ?? 'unknown'})`
+  }
+
+  const sanitized = sanitizeAPIError(rawMessage)
+  return sanitized !== '' ? sanitized : rawMessage
 }
