@@ -11,14 +11,37 @@ import { getFocusedSessionConnector } from '../../services/engine-connector/focu
 import { errorMessage } from '../../utils/errors.js'
 import { transcriptExport, transcriptExportText, truncateExportResults } from './transcript.js'
 import { createSecretRedactor, redactSecretValues, sessionSecretValues } from '../../utils/redactSecrets.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export function extractFirstPrompt(messages: Message[], transform?: (text: string) => string): string {
-  return notBuilt('src/commands/export/export.tsx:15')
+  const first = messages.find((m): m is UserMessage => m.type === 'user')
+  if (!first) return ''
+  const content = first.message.content
+  let text = ''
+  if (typeof content === 'string') {
+    text = content
+  } else {
+    for (const block of content) {
+      if (block.type === 'text') {
+        text = block.text
+        break
+      }
+    }
+  }
+  if (transform) text = transform(text)
+  const firstLine = (text.split(/\r?\n/)[0] ?? '').trim()
+  if (firstLine.length > 50) {
+    return firstLine.slice(0, 49) + '…'
+  }
+  return firstLine
 }
 
 function sanitizeFilename(text: string): string {
-  return notBuilt('src/commands/export/export.tsx:32')
+  return text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s-]/gu, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
 }
 
 function localTimestamp(): string {
