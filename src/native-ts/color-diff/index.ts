@@ -118,98 +118,69 @@ function emitBlocks(
 }
 
 type DiffTheme = {
+  addedLineBg: Color
+  addedWordBg: Color
+  addedDecoration: Color
+  deletedLineBg: Color
+  deletedWordBg: Color
+  deletedDecoration: Color
   foreground: Color
   background: Color
-  addedLineBg: Color
-  deletedLineBg: Color
-  addedWordBg: Color
-  deletedWordBg: Color
-  addedDecoration: Color
-  deletedDecoration: Color
   scopes: Record<string, Color>
-}
-
-const MERCURY_BRAND_DIFF = {
-  addedLineBg: rgb(8, 38, 32),
-  addedWordBg: rgb(14, 64, 54),
-  deletedLineBg: rgb(48, 16, 20),
-  deletedWordBg: rgb(80, 26, 32),
-  addedDecoration: rgb(63, 191, 160),
-  deletedDecoration: rgb(232, 85, 106),
 }
 
 const DARK_SCOPES: Record<string, Color> = {
   keyword: rgb(249, 38, 114),
   storage: rgb(102, 217, 239),
-  built_in: rgb(102, 217, 239),
-  type: rgb(102, 217, 239),
-  literal: rgb(174, 129, 255),
-  number: rgb(174, 129, 255),
-  symbol: rgb(174, 129, 255),
+  built_in: rgb(166, 226, 46),
+  type: rgb(166, 226, 46),
+  literal: rgb(190, 132, 255),
+  number: rgb(190, 132, 255),
   string: rgb(230, 219, 116),
-  regexp: rgb(230, 219, 116),
-  'template-variable': rgb(248, 248, 242),
-  comment: rgb(117, 113, 94),
-  doctag: rgb(117, 113, 94),
-  meta: rgb(117, 113, 94),
   title: rgb(166, 226, 46),
   'title.function': rgb(166, 226, 46),
   'title.class': rgb(166, 226, 46),
-  function: rgb(166, 226, 46),
+  'title.class.inherited': rgb(166, 226, 46),
   params: rgb(253, 151, 31),
+  comment: rgb(117, 113, 94),
+  meta: rgb(117, 113, 94),
   attr: rgb(166, 226, 46),
   attribute: rgb(166, 226, 46),
-  variable: rgb(248, 248, 242),
-  'variable.language': rgb(253, 151, 31),
-  'variable.constant': rgb(174, 129, 255),
-  property: rgb(102, 217, 239),
+  variable: rgb(255, 255, 255),
+  'variable.language': rgb(255, 255, 255),
+  property: rgb(255, 255, 255),
   operator: rgb(249, 38, 114),
   punctuation: rgb(248, 248, 242),
-  tag: rgb(249, 38, 114),
-  name: rgb(249, 38, 114),
-  'selector-tag': rgb(249, 38, 114),
-  'selector-class': rgb(166, 226, 46),
-  'selector-id': rgb(166, 226, 46),
-  section: rgb(166, 226, 46),
-  addition: rgb(166, 226, 46),
-  deletion: rgb(249, 38, 114),
+  symbol: rgb(190, 132, 255),
+  regexp: rgb(230, 219, 116),
+  subst: rgb(248, 248, 242),
 }
 
 const LIGHT_SCOPES: Record<string, Color> = {
-  keyword: rgb(215, 58, 73),
-  storage: rgb(215, 58, 73),
-  built_in: rgb(0, 92, 197),
-  type: rgb(0, 92, 197),
-  literal: rgb(0, 92, 197),
-  number: rgb(0, 92, 197),
-  symbol: rgb(0, 92, 197),
-  string: rgb(3, 47, 98),
-  regexp: rgb(3, 47, 98),
-  'template-variable': rgb(36, 41, 46),
-  comment: rgb(106, 115, 125),
-  doctag: rgb(106, 115, 125),
-  meta: rgb(106, 115, 125),
-  title: rgb(111, 66, 193),
-  'title.function': rgb(111, 66, 193),
-  'title.class': rgb(111, 66, 193),
-  function: rgb(111, 66, 193),
-  params: rgb(36, 41, 46),
-  attr: rgb(0, 92, 197),
-  attribute: rgb(0, 92, 197),
-  variable: rgb(227, 98, 9),
-  'variable.language': rgb(0, 92, 197),
-  'variable.constant': rgb(0, 92, 197),
-  property: rgb(0, 92, 197),
-  operator: rgb(215, 58, 73),
-  punctuation: rgb(36, 41, 46),
-  tag: rgb(34, 134, 58),
-  name: rgb(34, 134, 58),
-  'selector-tag': rgb(34, 134, 58),
-  'selector-class': rgb(111, 66, 193),
-  'selector-id': rgb(0, 92, 197),
-  section: rgb(0, 92, 197),
-  addition: rgb(34, 134, 58),
-  deletion: rgb(179, 29, 40),
+  keyword: rgb(167, 29, 93),
+  storage: rgb(167, 29, 93),
+  built_in: rgb(0, 134, 179),
+  type: rgb(0, 134, 179),
+  literal: rgb(0, 134, 179),
+  number: rgb(0, 134, 179),
+  string: rgb(24, 54, 145),
+  title: rgb(121, 93, 163),
+  'title.function': rgb(121, 93, 163),
+  'title.class': rgb(0, 0, 0),
+  'title.class.inherited': rgb(0, 0, 0),
+  params: rgb(0, 134, 179),
+  comment: rgb(150, 152, 150),
+  meta: rgb(150, 152, 150),
+  attr: rgb(0, 134, 179),
+  attribute: rgb(0, 134, 179),
+  variable: rgb(0, 134, 179),
+  'variable.language': rgb(0, 134, 179),
+  property: rgb(0, 134, 179),
+  operator: rgb(167, 29, 93),
+  punctuation: rgb(51, 51, 51),
+  symbol: rgb(0, 134, 179),
+  regexp: rgb(24, 54, 145),
+  subst: rgb(51, 51, 51),
 }
 
 const STORAGE_KEYWORDS = new Set([
@@ -232,52 +203,54 @@ const STORAGE_KEYWORDS = new Set([
 ])
 
 function buildDiffTheme(themeName: string): DiffTheme {
-  const lower = themeName.toLowerCase()
-  const isLight =
-    lower === 'light' ||
-    lower === 'github' ||
-    lower.includes('light') ||
-    lower.includes('github')
-  if (isLight) {
+  const darkish = themeName === 'dark' || themeName === 'true-black'
+  if (!darkish) {
     return {
-      foreground: rgb(36, 41, 46),
+      addedLineBg: rgb(220, 255, 220),
+      addedWordBg: rgb(178, 255, 178),
+      addedDecoration: rgb(36, 138, 61),
+      deletedLineBg: rgb(255, 220, 220),
+      deletedWordBg: rgb(255, 199, 199),
+      deletedDecoration: rgb(207, 34, 46),
+      foreground: rgb(51, 51, 51),
       background: TERMINAL_DEFAULT,
-      addedLineBg: rgb(230, 255, 237),
-      deletedLineBg: rgb(255, 238, 240),
-      addedWordBg: rgb(172, 242, 189),
-      deletedWordBg: rgb(253, 184, 192),
-      addedDecoration: rgb(34, 134, 58),
-      deletedDecoration: rgb(203, 36, 49),
       scopes: LIGHT_SCOPES,
     }
   }
-  const truecolor = detectColorMode() === 'truecolor'
+  if (detectColorMode() === 'truecolor') {
+    return {
+      addedLineBg: rgb(8, 38, 32),
+      addedWordBg: rgb(14, 64, 54),
+      addedDecoration: rgb(63, 191, 160),
+      deletedLineBg: rgb(48, 16, 20),
+      deletedWordBg: rgb(80, 26, 32),
+      deletedDecoration: rgb(232, 85, 106),
+      foreground: rgb(237, 232, 221),
+      background: TERMINAL_DEFAULT,
+      scopes: DARK_SCOPES,
+    }
+  }
   return {
+    addedLineBg: paletteIndex(22),
+    addedWordBg: paletteIndex(28),
+    addedDecoration: rgb(80, 200, 80),
+    deletedLineBg: rgb(61, 1, 0),
+    deletedWordBg: rgb(92, 2, 0),
+    deletedDecoration: rgb(220, 90, 90),
     foreground: rgb(248, 248, 242),
     background: TERMINAL_DEFAULT,
-    addedLineBg: truecolor ? MERCURY_BRAND_DIFF.addedLineBg : paletteIndex(22),
-    deletedLineBg: truecolor ? MERCURY_BRAND_DIFF.deletedLineBg : rgb(70, 15, 15),
-    addedWordBg: truecolor ? MERCURY_BRAND_DIFF.addedWordBg : paletteIndex(28),
-    deletedWordBg: truecolor ? MERCURY_BRAND_DIFF.deletedWordBg : rgb(120, 25, 25),
-    addedDecoration: MERCURY_BRAND_DIFF.addedDecoration,
-    deletedDecoration: MERCURY_BRAND_DIFF.deletedDecoration,
     scopes: DARK_SCOPES,
   }
 }
 
 function colorForScope(scope: string | undefined, text: string, theme: DiffTheme): Color {
-  if (!scope) return theme.foreground
+  if (scope === undefined) return theme.foreground
   if (scope === 'keyword' && STORAGE_KEYWORDS.has(text.trim())) {
-    return theme.scopes.storage ?? theme.scopes.keyword ?? theme.foreground
+    return theme.scopes.storage ?? theme.foreground
   }
-  const direct = theme.scopes[scope]
-  if (direct) return direct
   const dot = scope.indexOf('.')
-  if (dot > 0) {
-    const head = theme.scopes[scope.slice(0, dot)]
-    if (head) return head
-  }
-  return theme.foreground
+  const head = dot === -1 ? scope : scope.slice(0, dot)
+  return theme.scopes[scope] ?? theme.scopes[head] ?? theme.foreground
 }
 
 type HighlightApi = {
