@@ -46,7 +46,8 @@ async function resolvedVerdict(opts?: { probe?: boolean }): Promise<Verdict> {
   let resolved: ReturnType<typeof getAnthropicApiKeyWithSource>
   try {
     resolved = getAnthropicApiKeyWithSource()
-  } catch {
+  } catch (thrown) {
+    passedOver(thrown)
     return MISSING
   }
   const { key, source } = resolved
