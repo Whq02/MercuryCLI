@@ -1,11 +1,10 @@
 import type { Message } from '../../types/message.js'
-import { asAgentId } from '../../types/ids.js'
 import { updateAgentSummary } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { filterIncompleteToolCalls } from '../../tools/AgentTool/runAgent.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { createUserMessage } from '../messages.js'
 import { runForkedAgent, type ForkedAgentParams } from '../agents/forkedAgent.js'
-import { getAgentTranscript } from '../../utils/sessionStorage.js'
+import { loadSubagentTranscripts } from '../../utils/sessionStorage.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
 const MIN_TRANSCRIPT_MESSAGES = 3
 const SUMMARY_INTERVAL_MS = 30_000
@@ -63,9 +62,9 @@ export function startAgentSummarization(
   const runOnce = async (): Promise<void> => {
     if (stopped) return
     try {
-      const transcript = await getAgentTranscript(asAgentId(agentId))
+      const transcripts = await loadSubagentTranscripts([agentId])
       if (stopped) return
-      const rawMessages = transcript?.messages
+      const rawMessages = transcripts[agentId]
       if (!rawMessages || rawMessages.length < MIN_TRANSCRIPT_MESSAGES) return
       const filtered = filterIncompleteToolCalls(rawMessages)
       const controller = new AbortController()

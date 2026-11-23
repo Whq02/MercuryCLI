@@ -1,3 +1,4 @@
+import type { UUID } from 'node:crypto'
 import type { LocalJSXCommandContext, LocalJSXCommandOnDone } from '../../types/command.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
@@ -77,7 +78,7 @@ export async function call(
     return null
   }
 
-  const sessionId = getSessionId()
+  const sessionId: UUID = getSessionId()
   const fullPath = getTranscriptPath()
   await saveCustomTitle(sessionId, name, fullPath, 'user')
   await saveAgentName(sessionId, name, fullPath, 'user')

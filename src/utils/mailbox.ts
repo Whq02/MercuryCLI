@@ -1,8 +1,10 @@
 import { createSignal } from './signal.js'
 
+type MessageSource = 'user' | 'crewmate' | 'system' | 'tick' | 'task'
+
 type Message = {
   id: string
-  source: string
+  source: MessageSource
   content: string
   from?: string
   color?: string

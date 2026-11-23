@@ -7,6 +7,7 @@ import { FILE_READ_TOOL_NAME, FILE_UNCHANGED_STUB } from '../constants/tools/fil
 import { FILE_WRITE_TOOL_NAME } from '../constants/tools/fileWrite.js'
 import { createFileStateCacheWithSizeLimit, type FileStateCache } from './fileStateCache.js'
 import { getFileModificationTime, stripLineNumberPrefix } from './file.js'
+import { isENOENT } from './errors.js'
 import { getErrnoCode } from './errors.js'
 import { expandPath } from './path.js'
 
@@ -120,8 +121,7 @@ export function extractReadFilesFromMessages(
             limit: undefined,
           })
         } catch (error) {
-          const code = getErrnoCode(error)
-          if (code === 'ENOENT' || code === 'EACCES') continue
+          if (isENOENT(error) || getErrnoCode(error) === 'EACCES') continue
           throw error
         }
       }

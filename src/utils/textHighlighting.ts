@@ -1,4 +1,5 @@
-import { ansiCodesToString, reduceAnsiCodes, tokenize, undoAnsiCodes, type AnsiCode } from '@alcalzone/ansi-tokenize'
+import { reduceAnsiCodes, tokenize, undoAnsiCodes, type AnsiCode } from '@alcalzone/ansi-tokenize'
+import { ansiCodesToString } from '@alcalzone/ansi-tokenize'
 
 import type { Theme } from './theme.js'
 import type { HexColor } from '../ink/styles.js'

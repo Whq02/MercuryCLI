@@ -87,12 +87,12 @@ function renderStatus(result: ProbeResult): string {
   }
 }
 
-const VALID_SCOPES = ['local', 'project', 'user'] as const
+const VALID_SCOPES = ['local', 'user', 'project'] as const
 type CliScope = (typeof VALID_SCOPES)[number]
 
 function normalizeScope(scope: string | undefined, fallback: CliScope): CliScope {
   if (scope === undefined) return fallback
-  if (scope === 'local' || scope === 'project' || scope === 'user') return scope
+  if ((VALID_SCOPES as readonly string[]).includes(scope)) return scope as CliScope
   return cliError(`Invalid scope '${scope}'. Valid scopes: ${VALID_SCOPES.join(', ')}`)
 }
 
@@ -154,7 +154,8 @@ export async function mcpRemoveHandler(
     targetConfig = Object.hasOwn(scopedServers, name) ? scopedServers[name] : undefined
   } else {
     const holders: Array<{ scope: CliScope; config: ScopedMcpServerConfig }> = []
-    for (const scope of VALID_SCOPES) {
+    const scopeOrder: readonly CliScope[] = ['local', 'project', 'user']
+    for (const scope of scopeOrder) {
       const scopedServers = getMcpConfigsByScope(scope).servers
       if (Object.hasOwn(scopedServers, name)) {
         const entry = scopedServers[name]

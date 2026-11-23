@@ -34,7 +34,7 @@ export function cutAroundSpillNotice(content: string, maxLength: number): string
   const tailNewline = tail.indexOf('\n')
   if (tail.length < after.length && tailNewline !== -1 && tailNewline < tailBudget / 2) tail = tail.slice(tailNewline + 1)
   const dropped = Buffer.byteLength(before, 'utf8') - Buffer.byteLength(head, 'utf8') + Buffer.byteLength(after, 'utf8') - Buffer.byteLength(tail, 'utf8')
-  const notice = match[0].replace(match[1]!, String(Number(match[1]) + dropped))
+  const notice = match[0].replace(match[1] as string, String(Number(match[1]) + dropped))
   return head + notice + tail
 }
 
@@ -161,7 +161,7 @@ function formatIssue(issue: IssueLike, inputSchema: unknown, toolName?: string):
         return [`The required parameter \`${name}\` is missing`]
       }
       const receivedMatch = issue.message.match(/received (\w+)/)
-      const received = receivedMatch ? receivedMatch[1]! : 'a different type'
+      const received = receivedMatch ? (receivedMatch[1] as string) : 'a different type'
       return [`Parameter \`${name}\` expects type ${issue.expected ?? 'unknown'}, got ${received}`]
     }
     case 'unrecognized_keys': {

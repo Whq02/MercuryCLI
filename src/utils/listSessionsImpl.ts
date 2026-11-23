@@ -15,7 +15,6 @@ import {
   sanitizePath,
   type LiteSessionFile,
 } from './sessionStoragePortable.js'
-import { getErrnoCode } from './errors.js'
 import { passedOver } from './passedOver.js'
 import { foldPathCase } from './platform/paths.js'
 
@@ -59,7 +58,7 @@ function byMtimeThenIdDesc(a: Candidate, b: Candidate): number {
 }
 
 function isAbsenceError(error: unknown): boolean {
-  const code = getErrnoCode(error)
+  const code = (error as NodeJS.ErrnoException | null)?.code
   return code === 'ENOENT' || code === 'ENOTDIR'
 }
 
