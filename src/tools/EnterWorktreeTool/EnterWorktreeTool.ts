@@ -2,7 +2,7 @@ import { chdir } from 'node:process'
 import { z } from 'zod'
 import { getSessionId, setOriginalCwd } from '../../bootstrap/state.js'
 import { clearInstructionFileCaches } from '../../services/instructions/engine.js'
-import { buildTool } from '../../Tool.js'
+import { buildTool, type Tool } from '../../Tool.js'
 import { errorMessage } from '../../utils/errors.js'
 import { getCwd } from '../../utils/cwd.js'
 import { getPlanSlug } from '../../utils/plans.js'
@@ -18,7 +18,6 @@ import { setCwd } from '../../utils/Shell.js'
 import { ENTER_WORKTREE_TOOL_NAME } from './constants.js'
 import { getEnterWorktreeToolPrompt } from './prompt.js'
 import * as UI from './UI.js'
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 const RESULT_SIZE_CAP = 100_000
 
@@ -52,4 +51,59 @@ export type Output = {
   message: string
 }
 
-export const EnterWorktreeTool: Unbuilt = unbuilt('src/tools/EnterWorktreeTool/EnterWorktreeTool.ts:55')
+export const EnterWorktreeTool: Tool<Input, Output> = buildTool({
+  name: ENTER_WORKTREE_TOOL_NAME,
+  userFacingName: () => 'Creating worktree',
+  shouldDefer: true,
+  isConcurrencySafe: () => false,
+  maxResultSizeChars: RESULT_SIZE_CAP,
+  searchHint: 'switch this session into an isolated git worktree',
+  inputSchema,
+  async description() {
+    return 'Create an isolated worktree and switch the session into it (explicit user request only)'
+  },
+  async prompt() {
+    return getEnterWorktreeToolPrompt()
+  },
+  renderToolUseMessage: UI.renderToolUseMessage,
+  renderToolResultMessage: UI.renderToolResultMessage,
+  async call(input, context) {
+    const existing = getCurrentWorktreeSession()
+    if (existing) {
+      throw new Error(
+        `This session is already working in a worktree it created (${existing.worktreePath}). Leave it with the exit tool first.`,
+      )
+    }
+    const gitRoot = findCanonicalGitRoot(getCwd())
+    const slug = input.name ?? getPlanSlug()
+    const session = await createWorktreeForSession(getSessionId(), slug, undefined, {
+      ...(gitRoot ? { gitRoot } : {}),
+      permission: context.getAppState().toolPermissionContext,
+    })
+    chdir(session.worktreePath)
+    setCwd(session.worktreePath)
+    setOriginalCwd(session.worktreePath)
+    regroundGitWatch()
+    void saveWorktreeState(session)
+    clearInstructionFileCaches()
+    let message = `Created worktree ${session.worktreePath}${session.worktreeBranch ? ` on branch ${session.worktreeBranch}` : ''}.`
+    if (session.prepareFailure !== undefined) {
+      message += ` ${session.prepareFailure}; the worktree is used anyway.`
+    }
+    message +=
+      ' The session is now working in the worktree. Leave it mid-session with the exit tool, or you will be prompted on session exit.'
+    const data: Output = {
+      worktreePath: session.worktreePath,
+      ...(session.worktreeBranch ? { worktreeBranch: session.worktreeBranch } : {}),
+      message,
+    }
+    return { data }
+  },
+  mapToolResultToToolResultBlockParam(output, toolUseID) {
+    return {
+      type: 'tool_result',
+      tool_use_id: toolUseID,
+      content: output.message,
+    }
+  },
+})
