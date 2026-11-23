@@ -49,7 +49,6 @@ import {
 } from './discovery.js'
 import { resolveRequestedInstructionProfile } from './profile.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 export const MIN_MEMORY_CHARACTER_COUNT = 40000
 
@@ -499,33 +498,123 @@ export function clearInstructionFileCaches(): void {
 }
 
 export function resetInstructionFilesCache(
-  reason?: InstructionsLoadReason,
+  reason: InstructionsLoadReason = 'session_start',
 ): void {
-  return notBuilt('src/services/instructions/engine.ts:500')
+  nextEagerLoadReason = reason
+  nextLoadIsEager = true
+  clearInstructionFileCaches()
 }
 
 export function getLargeMemoryFiles(
   files: InstructionSourceEntry[],
 ): InstructionSourceEntry[] {
-  return notBuilt('src/services/instructions/engine.ts:508')
+  const cap = getMaxMemoryCharacterCount()
+  return files.filter(file => file.content.length > cap)
 }
 
 export function filterInjectedInstructionFiles(
   files: InstructionSourceEntry[],
 ): InstructionSourceEntry[] {
-  return notBuilt('src/services/instructions/engine.ts:515')
+  return [...files]
 }
 
 export const composeInstructionPrompt = (
   memoryFiles: InstructionSourceEntry[],
   filter?: (type: MemoryType) => boolean,
-): string => notBuilt('src/services/instructions/engine.ts:521')
+): string => {
+  const sections: string[] = []
+  const offeredPointers: string[] = []
+
+  for (const entry of memoryFiles) {
+    if (filter && !filter(entry.type)) continue
+    if (!entry.content) continue
+    if (entry.offered !== undefined) {
+      offeredPointers.push(entry.content)
+      continue
+    }
+    const suffix =
+      entry.type === 'Project'
+        ? ' (project instructions, checked into the codebase)'
+        : entry.type === 'Local'
+          ? " (user's private project instructions, not checked in)"
+          : " (user's private global instructions for all projects)"
+    sections.push(`Contents of ${entry.path}${suffix}:\n\n${entry.content.trim()}`)
+  }
+
+  if (offeredPointers.length > 0) {
+    sections.push(offeredRulesText(offeredPointers))
+  }
+
+  return sections.join('\n\n')
+}
 
 export async function getManagedAndUserConditionalInstructionRules(
   targetPath: string,
   processedPaths: Set<string>,
 ): Promise<InstructionSourceEntry[]> {
-  return notBuilt('src/services/instructions/engine.ts:554')
+  await getInstructionFiles()
+  const conventions = activeConventions()
+  const results: InstructionSourceEntry[] = []
+
+  for (const convention of conventions) {
+    const managedRulesDir = convention.managedRulesDir()
+    if (managedRulesDir) {
+      results.push(
+        ...(await processConditionedRules(
+          convention,
+          targetPath,
+          managedRulesDir,
+          'Managed',
+          processedPaths,
+          false,
+        )),
+      )
+    }
+  }
+
+  if (isSettingSourceEnabled('userSettings')) {
+    for (const convention of conventions) {
+      const userRulesDir = convention.userRulesDir()
+      if (userRulesDir) {
+        results.push(
+          ...(await processConditionedRules(
+            convention,
+            targetPath,
+            userRulesDir,
+            'User',
+            processedPaths,
+            true,
+          )),
+        )
+      }
+    }
+  }
+
+  for (const { convention, rulesDir, by } of lastComposition.namedRules) {
+    const namedEntries = await processConditionedRules(
+      convention,
+      targetPath,
+      rulesDir,
+      'User',
+      processedPaths,
+      true,
+    )
+    for (const entry of namedEntries) {
+      entry.namedBy = by
+      results.push(entry)
+    }
+  }
+
+  for (const entry of lastComposition.importedScoped) {
+    const normalized = normalizePathForComparison(entry.path)
+    if (processedPaths.has(normalized)) continue
+    if (importedRuleGoverns(entry, targetPath)) {
+      processedPaths.add(normalized)
+      results.push(entry)
+    }
+  }
+
+  return results
 }
 
 export async function getInstructionFilesForNestedDirectory(
@@ -534,7 +623,98 @@ export async function getInstructionFilesForNestedDirectory(
   processedPaths: Set<string>,
   diagnostics?: InstructionDiagnostic[],
 ): Promise<InstructionSourceEntry[]> {
-  return notBuilt('src/services/instructions/engine.ts:610')
+  if (untrustedWorkspaceHeadless()) return []
+  await getInstructionFiles()
+
+  const conventions = activeConventions()
+  const primary = conventions.filter(c => !c.fallback)
+  const fallback = conventions.filter(c => c.fallback)
+  const useFallback =
+    lastComposition.fallbackComposed &&
+    fallback.length > 0 &&
+    !hasPrimaryProjectFile(primary, [dir])
+  const selected = useFallback ? [...fallback, ...primary] : primary
+
+  const own = folderSources(resolve(getOriginalCwd()))
+  const includeExternal = Boolean(getCurrentProjectConfig().hasExternalIncludesApproved)
+  const results: InstructionSourceEntry[] = []
+
+  for (const convention of selected) {
+    if (!own.reads(convention, dir)) continue
+    const convEntries: InstructionSourceEntry[] = []
+
+    if (isSettingSourceEnabled('projectSettings')) {
+      for (const projectPath of own.guides(convention, dir)) {
+        convEntries.push(
+          ...(await processInstructionFile(
+            convention,
+            projectPath,
+            'Project',
+            processedPaths,
+            includeExternal,
+            0,
+            undefined,
+            diagnostics,
+          )),
+        )
+      }
+    }
+
+    if (isSettingSourceEnabled('localSettings')) {
+      const localPaths =
+        convention.localDirFiles?.(dir) ??
+        (convention.localDirFile(dir) !== null ? [convention.localDirFile(dir) as string] : [])
+      for (const localPath of own.within(convention, dir, localPaths)) {
+        convEntries.push(
+          ...(await processInstructionFile(
+            convention,
+            localPath,
+            'Local',
+            processedPaths,
+            includeExternal,
+            0,
+            undefined,
+            diagnostics,
+          )),
+        )
+      }
+    }
+
+    if (isSettingSourceEnabled('projectSettings')) {
+      const unconditionalSeen = new Set(processedPaths)
+      for (const rulesDir of own.rules(convention, dir)) {
+        convEntries.push(
+          ...(await processRulesDir({
+            convention,
+            rulesDir,
+            type: 'Project',
+            processedPaths: unconditionalSeen,
+            includeExternal: false,
+            conditionalRule: false,
+            diagnostics,
+          })),
+        )
+        convEntries.push(
+          ...(await processConditionedRules(
+            convention,
+            targetPath,
+            rulesDir,
+            'Project',
+            processedPaths,
+            false,
+          )),
+        )
+      }
+      for (const seen of unconditionalSeen) processedPaths.add(seen)
+    }
+
+    for (const entry of convEntries) {
+      if (entry.anchor !== undefined && !importedRuleGoverns(entry, targetPath)) continue
+      results.push(entry)
+    }
+  }
+
+  return results
 }
 
 export async function getConditionalInstructionRulesForCwdLevelDirectory(
@@ -542,32 +722,106 @@ export async function getConditionalInstructionRulesForCwdLevelDirectory(
   targetPath: string,
   processedPaths: Set<string>,
 ): Promise<InstructionSourceEntry[]> {
-  return notBuilt('src/services/instructions/engine.ts:700')
+  if (untrustedWorkspaceHeadless()) return []
+  await getInstructionFiles()
+  if (!isSettingSourceEnabled('projectSettings')) return []
+
+  const conventions = activeConventions()
+  const resolvedDir = resolve(dir)
+  const own = folderSources(resolve(getOriginalCwd()))
+  const seenDigests = new Set<string>()
+  const results: InstructionSourceEntry[] = []
+
+  for (const convention of conventions) {
+    if (convention.fallback && !lastComposition.fallbackComposed) continue
+    if (!own.reads(convention, resolvedDir)) continue
+    if (convention.nearestOnly && lastComposition.nearestHolders[convention.id] !== resolvedDir) continue
+    for (const rulesDir of own.rules(convention, resolvedDir)) {
+      const entries = await processConditionedRules(
+        convention,
+        targetPath,
+        rulesDir,
+        'Project',
+        processedPaths,
+        false,
+      )
+      for (const entry of entries) {
+        const digest = sha256(entry.content)
+        if (seenDigests.has(digest)) continue
+        seenDigests.add(digest)
+        results.push(entry)
+      }
+    }
+  }
+
+  return results
 }
 
-export type ExternalInstructionInclude = Unbuilt
+export type ExternalInstructionInclude = { path: string; parent: string }
 
 export function getExternalInstructionIncludes(
   files: InstructionSourceEntry[],
 ): ExternalInstructionInclude[] {
-  return notBuilt('src/services/instructions/engine.ts:738')
+  const includes: ExternalInstructionInclude[] = []
+  for (const file of files) {
+    if (file.type === 'User') continue
+    if (!file.parent) continue
+    if (pathInInstructionRoots(file.path)) continue
+    includes.push({ path: file.path, parent: file.parent })
+  }
+  const held = sharesHeldBeside.get(files)
+  if (held !== undefined) {
+    for (const share of held) {
+      includes.push(share)
+    }
+  }
+  return includes
 }
 
 export function hasExternalInstructionIncludes(
   files: InstructionSourceEntry[],
 ): boolean {
-  return notBuilt('src/services/instructions/engine.ts:750')
+  return getExternalInstructionIncludes(files).length > 0
 }
 
 export async function shouldShowExternalInstructionIncludesWarning(): Promise<boolean> {
-  return notBuilt('src/services/instructions/engine.ts:756')
+  const config = getCurrentProjectConfig()
+  if (config.hasExternalIncludesApproved || config.hasExternalIncludesWarningShown) {
+    return false
+  }
+  const files = await getInstructionFiles(true)
+  return hasExternalInstructionIncludes(files)
 }
 
 export function isInstructionFilePath(
   filePath: string,
   conventions?: InstructionConvention[],
 ): boolean {
-  return notBuilt('src/services/instructions/engine.ts:768')
+  const active = conventions ?? activeConventions()
+  const normalized = normalizePathForComparison(filePath)
+  if (lastComposition.importedScoped.some(entry => normalizePathForComparison(entry.path) === normalized)) {
+    return true
+  }
+
+  const primary = active.filter(c => !c.fallback)
+  const name = basename(filePath)
+
+  for (const convention of active) {
+    const folder = convention.instructionFileNames.includes(name)
+      ? dirname(filePath)
+      : (convention.folderOf?.(filePath) ?? null)
+    if (folder !== null) {
+      if (!convention.fallback) return true
+      if (lastComposition.fallbackComposed && !hasPrimaryProjectFile(primary, [folder])) {
+        return true
+      }
+    }
+    if (name.endsWith('.md') && convention.rulesPathMarkers.some(marker => filePath.includes(marker))) {
+      return true
+    }
+  }
+
+  return false
 }
 
 export async function seedFileKnowledgeFromInjectedInstructions(
