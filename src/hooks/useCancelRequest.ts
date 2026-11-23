@@ -135,15 +135,14 @@ export function CancelRequestHandler({
       ? focusedTurnActive
       : Boolean(abortSignal && !abortSignal.aborted)
 
-  const baseGuard =
+  const sharedGuard =
     screen !== 'transcript' &&
     !isSearchingHistory &&
     !isMessageSelectorVisible &&
     !isLocalJSXCommand &&
     !isHelpOpen &&
-    !isOverlayActive
-
-  const sharedGuard = baseGuard && vimMode !== 'INSERT'
+    !isOverlayActive &&
+    vimMode !== 'INSERT'
 
   const escapeEligible =
     sharedGuard &&
@@ -216,10 +215,7 @@ export function CancelRequestHandler({
   useKeybinding(
     'task:background',
     () => runBackground(false),
-    {
-      context: 'Task',
-      isActive: backgroundActive && hasSeatLive(getFocusedSessionConnector()),
-    },
+    { context: 'Task', isActive: backgroundActive },
   )
 
   useKeybinding(
@@ -285,7 +281,7 @@ export function CancelRequestHandler({
         timeoutMs: KILL_CONFIRM_WINDOW_MS,
       })
     },
-    { context: 'Chat', isActive: baseGuard },
+    { context: 'Chat' },
   )
 
   return null
