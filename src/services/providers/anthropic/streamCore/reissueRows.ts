@@ -4,7 +4,11 @@ import { logForDebugging } from 'src/utils/debug.js'
 import { logForDiagnosticsNoPII } from 'src/utils/diagLogs.js'
 import { resetApiConnectionPool } from 'src/utils/proxy.js'
 import { noteRequestOnWire } from '../prefixLedger.js'
-import type { AssistantMessage } from '../../../../types/message.js'
+import type {
+  AssistantMessage,
+  SystemAPIErrorMessage,
+  SystemStreamCutMessage,
+} from '../../../../types/message.js'
 import { isTurnOwningQuerySource } from '../../../../utils/effort.js'
 import { errorMessage } from '../../../../utils/errors.js'
 import {
@@ -18,16 +22,39 @@ import type { Options } from '../streamCore.js'
 import type { createCallLedger } from './callLedger.js'
 import { getNonstreamingFallbackTimeoutMs } from './nonStreaming.js'
 import type { CallState, StreamPass } from './state.js'
-import { notBuilt, type Unbuilt } from '../../../../pi/holes.js'
-
 type CallLedger = ReturnType<typeof createCallLedger>
 
-export function preEventReissueRow(call: CallState, streamingError: unknown, preEventSilenceWords: () => string, STREAM_IDLE_TIMEOUT_MS: number): Unbuilt {
-  return notBuilt('src/services/providers/anthropic/streamCore/reissueRows.ts:24')
+export function preEventReissueRow(call: CallState, streamingError: unknown, preEventSilenceWords: () => string, STREAM_IDLE_TIMEOUT_MS: number): SystemAPIErrorMessage {
+  const words = `${preEventSilenceWords()}; reissuing the stream`
+  logForDebugging(
+    `Pre-first-event stream silence; reissuing the stream on a fresh connection: ${errorMessage(streamingError)}`,
+    { level: 'warn' },
+  )
+  logForDiagnosticsNoPII('info', 'cli_stream_pre_event_reissue')
+  resetApiConnectionPool()
+  call.preFirstEventStreamRetryUsed = true
+  const noticeError = Object.assign(new Error(words), { cause: streamingError })
+  return createSystemAPIErrorMessage(noticeError, 0, 1, 1, {
+    recoveryTimeoutMs: STREAM_IDLE_TIMEOUT_MS,
+  })
 }
 
-export function streamCutReissueRow(call: CallState, options: Options, cut: NonNullable<ReturnType<typeof transportCutOf>>): Unbuilt {
-  return notBuilt('src/services/providers/anthropic/streamCore/reissueRows.ts:46')
+export function streamCutReissueRow(call: CallState, options: Options, cut: NonNullable<ReturnType<typeof transportCutOf>>): SystemStreamCutMessage {
+  const words = `${transportCutWords('Anthropic', cut)} — reissuing the stream on a fresh connection`
+  logForDebugging(words, { level: 'warn' })
+  logForDiagnosticsNoPII('info', 'cli_stream_cut_reissue')
+  resetApiConnectionPool()
+  call.streamCutRetryUsed = true
+  if (options.onStreamingFallback) {
+    options.onStreamingFallback()
+  }
+  return createStreamCutMessage({
+    count: 1,
+    content: words,
+    road: 'Anthropic',
+    sent: cut.words,
+    code: cut.code,
+  })
 }
 
 export function oneShotNoticeRow(call: CallState, pass: StreamPass, options: Options, streamingError: unknown, cut: ReturnType<typeof transportCutOf>, STREAM_IDLE_TIMEOUT_MS: number, streamIdleWatchdog: ReturnType<typeof createStreamIdleWatchdog>, preEventSilenceWords: () => string) {
@@ -74,6 +101,17 @@ export function oneShotAnswerOf(call: CallState, result: BetaMessage, noteServed
   return m
 }
 
-export function streamCreation404Row(call: CallState, options: Options, originalError: APIError): Unbuilt {
-  return notBuilt('src/services/providers/anthropic/streamCore/reissueRows.ts:110')
+export function streamCreation404Row(call: CallState, options: Options, originalError: APIError): SystemAPIErrorMessage {
+  logForDebugging(
+    `Stream creation failed with 404; retrying as one shot: ${errorMessage(originalError)}`,
+    { level: 'error' },
+  )
+  logForDiagnosticsNoPII('info', 'cli_stream_creation_404_fallback')
+  call.didFallBackToNonStreaming = true
+  if (options.onStreamingFallback) {
+    options.onStreamingFallback()
+  }
+  return createSystemAPIErrorMessage(originalError, 0, 1, 1, {
+    recoveryTimeoutMs: getNonstreamingFallbackTimeoutMs(),
+  })
 }
