@@ -1,4 +1,4 @@
-import React, { memo, useRef, useState } from 'react'
+import React, { Suspense, memo, useRef, useState } from 'react'
 import { useMeasure } from '../hooks/effects.js'
 import { Ansi, Box, NoSelect, Text, measureElement } from '../ink.js'
 import type { DOMElement } from '../ink.js'
@@ -6,7 +6,6 @@ import { useAppState } from '../state/AppState.js'
 import { isFullscreenEnvEnabled } from '../utils/fullscreen.js'
 import { linkifyCodeUrls } from '../utils/hyperlink.js'
 import { HighlightedCodeFallback } from './HighlightedCode/Fallback.js'
-import { Suspense } from 'react'
 
 export type HighlightedCodeProps = {
   code: string
@@ -59,7 +58,7 @@ export const HighlightedCode: React.NamedExoticComponent<HighlightedCodeProps> =
           const lineText = line === '' ? ' ' : line
           const gutter = `${String(index + 1).padStart(gutterDigits)}  `
           return (
-            <Box key={index} flexDirection="row">
+            <Box key={index}>
               <NoSelect fromLeftEdge flexShrink={0}>
                 <Text dimColor>{gutter}</Text>
               </NoSelect>
