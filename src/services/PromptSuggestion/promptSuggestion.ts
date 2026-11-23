@@ -11,10 +11,9 @@ import { currentLimits } from '../anthropicLimits.js'
 import type { AppState } from '../../state/AppState.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
 import { isSpeculationEnabled, startSpeculation } from './speculation.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
-export type PromptVariant = Unbuilt
+export type PromptVariant = 'user_intent' | 'stated_intent'
 
 const ACTIVE_VARIANT: PromptVariant = 'user_intent'
 
@@ -67,7 +66,25 @@ Examples:
 - "run the linter" finished clean -> looks done, ship it`
 
 
-const ALLOWED_SINGLE_WORDS: Unbuilt = unbuilt('src/services/PromptSuggestion/promptSuggestion.ts:145')
+const ALLOWED_SINGLE_WORDS: Set<string> = new Set([
+  'yes',
+  'yeah',
+  'yep',
+  'yea',
+  'yup',
+  'sure',
+  'ok',
+  'okay',
+  'push',
+  'commit',
+  'deploy',
+  'stop',
+  'continue',
+  'check',
+  'exit',
+  'quit',
+  'no',
+])
 
 const EVALUATIVE_TOKENS = [
   'thanks',
@@ -171,10 +188,154 @@ function shouldFilterSuggestion(suggestion: string): boolean {
   return true
 }
 
+let inFlightController: AbortController | null = null
+
+function getStateSuppressReason(appState: AppState): SuppressReason | undefined {
+  if (!appState.promptSuggestionEnabled) return 'disabled'
+  if (appState.pendingWorkerRequest) return 'pending_permission'
+  if (appState.elicitation.queue.length > 0) return 'elicitation_active'
+  if (currentLimits.status !== 'allowed') return 'rate_limit'
+  return undefined
+}
+
+function getPreGenerationSuppressReason(
+  messages: Message[],
+  appState: AppState,
+  aborted: boolean,
+): SuppressReason | undefined {
+  if (aborted) return 'aborted'
+  const assistants: AssistantMessage[] = []
+  for (const message of messages) {
+    if (message.type === 'assistant') assistants.push(message)
+  }
+  if (assistants.length < 2) return 'early_conversation'
+  const lastAssistant = assistants[assistants.length - 1]
+  if (lastAssistant?.isApiErrorMessage === true) return 'last_response_error'
+  const cacheReason = getParentCacheSuppressReason(lastAssistant)
+  if (cacheReason !== undefined) return cacheReason
+  return getStateSuppressReason(appState)
+}
+
+function extractSuggestionText(
+  content: string | readonly { type: string; text?: unknown }[],
+): string {
+  if (typeof content === 'string') return content.trim()
+  let joined = ''
+  for (const block of content) {
+    if (block.type === 'text' && typeof block.text === 'string') {
+      joined += block.text
+    }
+  }
+  return joined.trim()
+}
+
+async function generateSuggestion(
+  cacheSafeParams: CacheSafeParams,
+  abortController: AbortController,
+  _variant: PromptVariant,
+): Promise<{ suggestion: string | undefined; requestId?: string }> {
+  const result = await runForkedAgent({
+    promptMessages: [createUserMessage({ content: SUGGESTION_PROMPT, isMeta: true })],
+    cacheSafeParams,
+    canUseTool: async () => ({
+      behavior: 'deny',
+      message: 'tools are unavailable while generating a suggestion',
+      decisionReason: {
+        type: 'other',
+        reason: 'tools are unavailable while generating a suggestion',
+      },
+    }),
+    querySource: 'prompt_suggestion',
+    forkLabel: 'prompt_suggestion',
+    overrides: { abortController },
+    skipTranscript: true,
+    skipCacheWrite: true,
+  })
+
+  let requestId: string | undefined
+  for (const message of result.messages) {
+    if (message.type !== 'assistant') continue
+    if (requestId === undefined && typeof message.requestId === 'string') {
+      requestId = message.requestId
+    }
+    const text = extractSuggestionText(message.message.content)
+    if (text.length > 0) {
+      return requestId !== undefined ? { suggestion: text, requestId } : { suggestion: text }
+    }
+  }
+  return requestId !== undefined ? { suggestion: undefined, requestId } : { suggestion: undefined }
+}
+
 export async function executePromptSuggestion(context: TurnAnswerContext): Promise<void> {
-  return notBuilt('src/services/PromptSuggestion/promptSuggestion.ts:332')
+  if (!context.querySource?.startsWith('main_thread')) return
+
+  const controller = new AbortController()
+  inFlightController?.abort()
+  inFlightController = controller
+
+  try {
+    const appState = context.toolUseContext.getAppState()
+    const aborted =
+      controller.signal.aborted || context.toolUseContext.abortController.signal.aborted
+    const preSuppress = getPreGenerationSuppressReason(context.messages, appState, aborted)
+    if (preSuppress !== undefined) {
+      logSuggestionSuppressed(preSuppress)
+      return
+    }
+
+    const cacheSafeParams = createCacheSafeParams(context)
+    const generated = await generateSuggestion(cacheSafeParams, controller, ACTIVE_VARIANT)
+
+    if (controller.signal.aborted || context.toolUseContext.abortController.signal.aborted) {
+      logSuggestionSuppressed('aborted')
+      return
+    }
+
+    if (!generated.suggestion) {
+      logSuggestionSuppressed('empty')
+      return
+    }
+
+    if (shouldFilterSuggestion(generated.suggestion)) {
+      return
+    }
+
+    const result = {
+      suggestion: generated.suggestion,
+      promptId: ACTIVE_VARIANT,
+      generationRequestId: generated.requestId ?? null,
+    }
+    const setAppState = context.toolUseContext.setAppState
+    setAppState(prev => ({
+      ...prev,
+      promptSuggestion: {
+        text: result.suggestion,
+        promptId: result.promptId,
+        generationRequestId: result.generationRequestId,
+        shownAt: 0,
+        acceptedAt: 0,
+      },
+    }))
+
+    if (isSpeculationEnabled()) {
+      void startSpeculation(result.suggestion, context, setAppState, false, cacheSafeParams)
+    }
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      (error.name === 'AbortError' || error.name === 'APIUserAbortError')
+    ) {
+      logSuggestionSuppressed('aborted')
+    } else {
+      logError(error)
+    }
+  } finally {
+    if (inFlightController === controller) {
+      inFlightController = null
+    }
+  }
 }
 
 function logSuggestionSuppressed(reason: string): void {
-  return notBuilt('src/services/PromptSuggestion/promptSuggestion.ts:375')
+  logForDebugging(`prompt suggestion suppressed: ${reason}`)
 }
