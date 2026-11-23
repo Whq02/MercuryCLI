@@ -6,7 +6,6 @@ import { readNotebook } from '../../../utils/notebook.js'
 import type { FileReadingLimits } from '../../../utils/fileReadLimits.js'
 import type { Input, LaneResult } from './schema.js'
 import { MaxFileReadTokenExceededError, tokensOverCap } from './window.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 function notebookSliceRemedy(notebookPath: string): string {
   const far = remoteShellPath(notebookPath)
@@ -26,5 +25,37 @@ export async function readNotebookLane(
   declared: FileReadingLimits,
   reserve?: () => FileReadingLimits,
 ): Promise<LaneResult> {
-  return notBuilt('src/tools/FileReadTool/read/notebookLane.ts:20')
+  const cells = await readNotebook(resolvedPath)
+  const content = JSON.stringify(cells)
+  const sizeBytes = Buffer.byteLength(content, 'utf8')
+  if (sizeBytes > declared.maxSizeBytes) {
+    throw new Error(
+      `File content (${formatFileSize(sizeBytes)}) exceeds maximum allowed size (${formatFileSize(declared.maxSizeBytes)}). ${notebookSliceRemedy(keyPath)}`,
+    )
+  }
+  const limits = reserve ? reserve() : declared
+  const tokens = await tokensOverCap(content, 'json', limits.maxTokens, limits.room !== true)
+  if (tokens !== undefined) {
+    throw new MaxFileReadTokenExceededError(
+      tokens,
+      limits.maxTokens,
+      `notebook reads have no line window. ${notebookSliceRemedy(keyPath)}`,
+    )
+  }
+  context.readFileState.set(keyPath, {
+    content,
+    timestamp: getFileModificationTime(resolvedPath),
+    offset: input.offset ?? 0,
+    limit: input.limit,
+  })
+  if (!isRemotePath(keyPath)) context.nestedMemoryAttachmentTriggers?.add(keyPath)
+  return {
+    data: {
+      type: 'notebook',
+      file: {
+        filePath: resolvedPath,
+        cells,
+      },
+    },
+  }
 }
