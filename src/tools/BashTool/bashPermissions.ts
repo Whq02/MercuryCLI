@@ -865,15 +865,15 @@ function unwrapCommandBuiltin(argv: string[]): string[] | null {
       break
     }
     if (!word.startsWith('-') || word === '-') break
-    if (word.startsWith('--')) return null
-    if (word.includes('v') || word.includes('V')) return null
-    if (/^-p+$/.test(word)) {
-      i++
-      continue
-    }
-    return null
+    const letters = shortFlagLetters(word)
+    if (letters === undefined || /[vV]/.test(letters) || !/^p+$/.test(letters)) return null
+    i++
   }
   return i < argv.length ? argv.slice(i) : null
+}
+
+function shortFlagLetters(word: string): string | undefined {
+  return word.length > 1 && word[0] === '-' && word[1] !== '-' ? word.slice(1) : undefined
 }
 
 function unwrapExecBuiltin(argv: string[]): string[] | null {
@@ -989,7 +989,7 @@ function restrictedCommandCandidates(command: SimpleCommand, depth = 0): string[
 
     if (name === 'time') {
       let i = 1
-      while (i < argv.length && (argv[i] === '-p' || argv[i] === '--')) {
+      while (i < argv.length && (shortFlagLetters(argv[i] as string) === 'p' || argv[i] === '--')) {
         const stop = argv[i] === '--'
         i++
         if (stop) break
