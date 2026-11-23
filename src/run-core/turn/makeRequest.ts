@@ -216,7 +216,7 @@ export async function* foldContext(run: RunCtx, state: TurnState, toolUseContext
           querySource,
           opened.tracking,
           planned.prunedTokensFreed,
-          ...(forced !== undefined ? ([forced] as const) : ([] as const)),
+          forced,
         )
   const { compactionResult, consecutiveFailures, consecutiveRapidRefills, rapidRefillBreakerTripped, measuredRawTokenCount, refusal, paused, declined } = asked
 
@@ -297,7 +297,7 @@ export async function* foldContext(run: RunCtx, state: TurnState, toolUseContext
       run.userContext = composed.userContext
       run.systemContext = composed.systemContext
       const recomposed = asSystemPrompt(appendSystemContext(run.systemPrompt, run.systemContext, toolUseContext.options.engineModel))
-      if (recomposed.length !== fullSystemPrompt.length || recomposed.some((part: string, at: number) => part !== fullSystemPrompt[at])) {
+      if (recomposed.join('\u001e') !== fullSystemPrompt.join('\u001e')) {
         logForDebugging('compaction: the system prompt was composed again after the fold, so the request that re-writes the context carries the new composition and the next turn reads it back')
       }
       fullSystemPrompt = recomposed
@@ -329,7 +329,8 @@ export async function* holdBlockingLimit(run: RunCtx, state: TurnState, toolUseC
   const view = folded.messagesForQuery
   const fitted: ToolUseContext = { ...toolUseContext, messages: view }
   const engine = fitted.options.engineModel
-  const goOn = (): FittingRequest => ({ kind: 'go_on', toolUseContext: fitted, appState: fitted.getAppState(), currentModel: engine })
+  const appState = fitted.getAppState()
+  const goOn = (): FittingRequest => ({ kind: 'go_on', toolUseContext: fitted, appState, currentModel: engine })
   const blocked: SettledDecision = { kind: 'end', terminal: { reason: 'blocking_limit' } }
 
   if (querySource === 'compact' || querySource === 'session_memory') return goOn()
