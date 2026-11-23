@@ -13,10 +13,10 @@ import { isDebugToStdErr, logForDebugging } from '../../utils/debug.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { apiTimeoutMsOverride } from '../../utils/envValidation.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { getUserAgent } from '../../utils/http.js'
 import { isFirstPartyAnthropicBaseUrl } from '../../utils/model/providers.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { getApiFetch, getProxyFetchOptions } from '../../utils/proxy.js'
-import { getAnthropicClientUserAgent } from '../../utils/userAgent.js'
 import { checkAndRefreshOAuthTokenIfNeeded } from '../auth/oauthLifecycle.js'
 import {
   AnthropicClient as Anthropic,
@@ -119,7 +119,7 @@ export async function getAnthropicClient(options: GetClientOptions): Promise<Ant
 
   const defaultHeaders: Record<string, string> = {
     'x-app': 'cli',
-    'User-Agent': getAnthropicClientUserAgent(),
+    'User-Agent': getUserAgent(),
     'X-Claude-Code-Session-Id': String(getSessionId()),
     ...providerHeaders,
   }
