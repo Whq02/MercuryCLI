@@ -1,6 +1,14 @@
 import type { Command } from '../../commands.js'
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
-const config: Unbuilt = unbuilt('src/commands/config/index.ts:3')
+const config: Command = {
+  aliases: ['settings'],
+  type: 'local',
+  name: 'config',
+  description: 'Open the config popup',
+  supportsNonInteractive: false,
+  seat: 'screen',
+  userPrivate: true,
+  load: () => import('./config.js'),
+}
 
 export default config
