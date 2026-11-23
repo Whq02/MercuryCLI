@@ -12,16 +12,42 @@ import {
   setOverlayPageKeys,
   subscribeOverlayStack,
 } from './overlayStack.js';
-import { notBuilt } from '../pi/holes.js'
 
 export { isTopOverlayNow } from './overlayStack.js';
 
 export function useRegisterOverlay(
   id: string,
-  t0?: boolean,
+  enabled = true,
   opts?: { onFocusReturn?: () => void; ownsPageKeys?: boolean },
 ): number | null {
-  return notBuilt('src/context/overlayContext.tsx:20')
+  const [token] = useState(reserveOverlayToken);
+  const onFocusReturnRef = useRef(opts?.onFocusReturn);
+  onFocusReturnRef.current = opts?.onFocusReturn;
+  const ownsPageKeys = opts?.ownsPageKeys;
+  const ownsPageKeysRef = useRef(ownsPageKeys);
+  ownsPageKeysRef.current = ownsPageKeys;
+
+  useLayoutClaim(() => {
+    if (!enabled) return;
+    pushOverlay({
+      id,
+      modal: id !== 'autocomplete',
+      token,
+      onFocusReturn: () => onFocusReturnRef.current?.(),
+      ownsPageKeys: ownsPageKeysRef.current,
+    });
+    return () => {
+      popOverlay(token);
+      instances.get(process.stdout)?.invalidatePrevFrame();
+    };
+  }, [id, enabled, token]);
+
+  useLayoutPublish(() => {
+    if (!enabled) return;
+    setOverlayPageKeys(token, ownsPageKeys);
+  }, [enabled, token, ownsPageKeys]);
+
+  return enabled ? token : null;
 }
 
 export function useIsOverlayActive(): boolean {
