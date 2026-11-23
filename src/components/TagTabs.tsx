@@ -43,7 +43,8 @@ export function TagTabs({
   const cap = Math.max(20, Math.floor(budget / 2))
 
   const costs = tabs.map(tab => tabCost(tab, cap))
-  const totalCost = costs.reduce((sum, cost) => sum + cost, 0)
+  const totalCost =
+    costs.reduce((sum, cost) => sum + cost, 0) + Math.max(0, tabs.length - 1)
   const clamped = Math.max(0, Math.min(selectedIndex, tabs.length - 1))
 
   let from = 0
@@ -55,14 +56,14 @@ export function TagTabs({
     let used = costs[clamped] ?? 0
     while (from > 0 || to < tabs.length) {
       let grew = false
-      if (to < tabs.length && used + (costs[to] ?? 0) <= windowBudget) {
-        used += costs[to] ?? 0
-        to++
+      if (from > 0 && used + (costs[from - 1] ?? 0) + 1 <= windowBudget) {
+        from--
+        used += (costs[from] ?? 0) + 1
         grew = true
       }
-      if (from > 0 && used + (costs[from - 1] ?? 0) <= windowBudget) {
-        from--
-        used += costs[from] ?? 0
+      if (to < tabs.length && used + (costs[to] ?? 0) + 1 <= windowBudget) {
+        used += (costs[to] ?? 0) + 1
+        to++
         grew = true
       }
       if (!grew) break
@@ -76,7 +77,7 @@ export function TagTabs({
     <Box flexDirection="row" gap={1}>
       <Text color="suggestion">{label}</Text>
       {hiddenLeft > 0 && <Text dimColor>{`← ${hiddenLeft}`}</Text>}
-      <Box flexDirection="row">
+      <Box flexDirection="row" gap={1}>
         {tabs.slice(from, to).map((tab, offset) => {
           const index = from + offset
           const isSelected = index === clamped
