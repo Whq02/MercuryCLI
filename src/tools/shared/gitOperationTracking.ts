@@ -1,11 +1,15 @@
 import type { UUID } from 'node:crypto'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-export type CommitKind = Unbuilt
-export type BranchAction = Unbuilt
-export type PrAction = Unbuilt
+export type CommitKind = 'committed' | 'amended' | 'cherry-picked'
+export type BranchAction = 'merged' | 'rebased'
+export type PrAction = 'created' | 'edited' | 'merged' | 'commented' | 'closed' | 'ready'
 
-type GitOperationDetection = Unbuilt
+type GitOperationDetection = {
+  commit?: { sha: string; kind: CommitKind }
+  push?: { branch: string }
+  branch?: { ref: string; action: BranchAction }
+  pr?: { number: number; url?: string; action: PrAction }
+}
 
 
 const GIT_GLOBAL_OPTIONS = String.raw`(?:(?:-c\s+\S+|-C\s+\S+|--[\w-]+=\S+)\s+)*`
@@ -73,8 +77,69 @@ function prActionFor(command: string): PrAction | undefined {
   return undefined
 }
 
+const GIT_COMMIT_COMMAND = gitSubcommandPattern('commit')
+const GIT_CHERRY_PICK_COMMAND = gitSubcommandPattern('cherry-pick')
+const GIT_PUSH_COMMAND = gitSubcommandPattern('push')
+const GIT_MERGE_COMMAND = gitSubcommandPattern('merge')
+const GIT_REBASE_COMMAND = gitSubcommandPattern('rebase')
+
 export function detectGitOperation(command: string, output: string): GitOperationDetection {
-  return notBuilt('src/tools/shared/gitOperationTracking.ts:87')
+  const detection: GitOperationDetection = {}
+
+  const isCherryPick = GIT_CHERRY_PICK_COMMAND.test(command)
+  const isCommit = !isCherryPick && GIT_COMMIT_COMMAND.test(command)
+  if (isCherryPick || isCommit) {
+    const sha = parseGitCommitId(output)
+    if (sha !== undefined) {
+      const kind: CommitKind = isCherryPick
+        ? 'cherry-picked'
+        : /(?:^|\s)--amend(?![\w-])/.test(command)
+          ? 'amended'
+          : 'committed'
+      detection.commit = { sha, kind }
+    }
+  }
+
+  if (GIT_PUSH_COMMAND.test(command)) {
+    const pushMatch = PUSH_REF_UPDATE_LINE.exec(output)
+    if (pushMatch && pushMatch[1]) {
+      detection.push = { branch: pushMatch[1] }
+    }
+  }
+
+  if (GIT_MERGE_COMMAND.test(command) && FAST_FORWARD_OR_MERGE_MADE.test(output)) {
+    const ref = refAfterSubcommand(command, 'merge')
+    if (ref !== undefined) {
+      detection.branch = { ref, action: 'merged' }
+    }
+  } else if (GIT_REBASE_COMMAND.test(command) && SUCCESSFUL_REBASE.test(output)) {
+    const ref = refAfterSubcommand(command, 'rebase')
+    if (ref !== undefined) {
+      detection.branch = { ref, action: 'rebased' }
+    }
+  }
+
+  const prAction = prActionFor(command)
+  if (prAction !== undefined) {
+    const urlMatch = GITHUB_PULL_URL.exec(output)
+    if (urlMatch) {
+      detection.pr = {
+        number: Number(urlMatch[2]),
+        url: urlMatch[0],
+        action: prAction,
+      }
+    } else {
+      const phraseMatch = PULL_REQUEST_PHRASE.exec(output)
+      if (phraseMatch) {
+        detection.pr = {
+          number: Number(phraseMatch[1]),
+          action: prAction,
+        }
+      }
+    }
+  }
+
+  return detection
 }
 
 export async function trackGitOperations(command: string, exitCode: number, stdout?: string): Promise<string | undefined> {
