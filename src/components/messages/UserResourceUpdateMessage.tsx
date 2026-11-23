@@ -1,7 +1,6 @@
 import React from 'react'
 import { Box, Text } from '../../ink.js'
 import type { TextBlockParam } from '../../types/wire.js'
-import { notBuilt } from '../../pi/holes.js'
 
 type ResourceUpdate = {
   kind: 'resource'
@@ -54,7 +53,14 @@ function parseUpdates(text: string): Array<ResourceUpdate | PollingUpdate> {
 }
 
 function displayUri(uri: string): string {
-  return notBuilt('src/components/messages/UserResourceUpdateMessage.tsx:56')
+  if (uri.startsWith('file://')) {
+    const last = uri.split('/').pop()
+    return last && last.length > 0 ? last : uri
+  }
+  if (uri.length > 40) {
+    return `${uri.slice(0, 39)}…`
+  }
+  return uri
 }
 
 export function UserResourceUpdateMessage({
