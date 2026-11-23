@@ -1,5 +1,5 @@
 row	donor	donor_path	our_path	change	reason	batch
-fork	pi	https://github.com/earendil-works/pi	src/pi	tag v1.6.0, commit faac585884ae2c013a6b1400f3e9e77f10b34bac, 2026-11-20	the fork point	0
+fork	pi	https://github.com/earendil-works/pi	src/engine/loop	tag v1.6.0, commit faac585884ae2c013a6b1400f3e9e77f10b34bac, 2026-11-20	the fork point	0
 change	pi	packages/agent/src/agent-loop.ts	src/engine/loop/agent-loop.ts	comments removed (42)	the tree holds no code comments	0
 change	pi	packages/agent/src/agent-loop.ts	src/engine/loop/agent-loop.ts	the import of @earendil-works/pi-ai reads ./pi-declarations.ts	no pi package is in the tree	0
 change	pi	packages/agent/src/agent-loop.ts	src/engine/loop/agent-loop.ts	runAgentLoop and runAgentLoopContinue hand streamFn on as given; the fallback to getDefaultStreamFn is gone	the stream function is a required argument and the registry behind the fallback is not carried	1

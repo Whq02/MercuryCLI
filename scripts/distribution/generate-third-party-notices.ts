@@ -277,7 +277,7 @@ lines.push('')
 lines.push('## Source attributions')
 lines.push('')
 lines.push(
-  '- Parts of the agent runtime (the turn loop in `src/pi/loop/`, `src/engine/loop/` and `src/engine/tool-dispatch/`, and the undo history of the typing box in `src/screen/composer/useInputUndo.ts`) derive from **Pi**, © 2025 Mario Zechner, MIT (https://github.com/earendil-works/pi), forked at v1.6.0 (`faac5858`) and changed by Mercury; the changes are listed in `src/engine/loop/DIVERGENCE.tsv`.',
+  '- Parts of the agent runtime (the turn loop in `src/engine/loop/` and `src/engine/tool-dispatch/`, and the undo history of the typing box in `src/screen/composer/useInputUndo.ts`) derive from **Pi**, © 2025 Mario Zechner, MIT (https://github.com/earendil-works/pi), forked at v1.6.0 (`faac5858`) and changed by Mercury; the changes are listed in `src/engine/loop/DIVERGENCE.tsv`.',
 )
 lines.push('')
 lines.push(

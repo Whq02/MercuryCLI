@@ -120,7 +120,7 @@ The preservation sweep walked every installed package root (transitive dependenc
 
 ## Source attributions
 
-- Parts of the agent runtime (the turn loop in `src/pi/loop/`, `src/engine/loop/` and `src/engine/tool-dispatch/`, and the undo history of the typing box in `src/screen/composer/useInputUndo.ts`) derive from **Pi**, © 2025 Mario Zechner, MIT (https://github.com/earendil-works/pi), forked at v1.6.0 (`faac5858`) and changed by Mercury; the changes are listed in `src/engine/loop/DIVERGENCE.tsv`.
+- Parts of the agent runtime (the turn loop in `src/engine/loop/` and `src/engine/tool-dispatch/`, and the undo history of the typing box in `src/screen/composer/useInputUndo.ts`) derive from **Pi**, © 2025 Mario Zechner, MIT (https://github.com/earendil-works/pi), forked at v1.6.0 (`faac5858`) and changed by Mercury; the changes are listed in `src/engine/loop/DIVERGENCE.tsv`.
 
 - Parts of the terminal runtime (`src/screen/renderer/` — reconciler, DOM, styles, component shells) derive from the **Ink** project — © Vadim Demedes and contributors, MIT (https://github.com/vadimdemedes/ink); the parts written again are re-derived from v8.0.0 (`26d2c3f8`). The layout engine, termio tokenizer, input byte layer and frame writer are Mercury-native.
 
