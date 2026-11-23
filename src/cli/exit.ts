@@ -1,13 +1,14 @@
-import { notBuilt } from '../pi/holes.js'
-
 export function cliError(msg?: string): never {
-  return notBuilt('src/cli/exit.ts:2')
+  if (msg !== undefined) console.error(msg)
+  process.exit(1)
 }
 
 export function cliJsonError(msg?: string): never {
-  return notBuilt('src/cli/exit.ts:9')
+  if (msg !== undefined) process.stdout.write(`${msg}\n`)
+  process.exit(1)
 }
 
 export function cliOk(msg?: string): never {
-  return notBuilt('src/cli/exit.ts:16')
+  if (msg !== undefined) process.stdout.write(`${msg}\n`)
+  process.exit(0)
 }
