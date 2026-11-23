@@ -14,7 +14,6 @@ import { getFsImplementation } from './fsOperations.js'
 import { writeToStderr } from './process.js'
 import { passedOver } from './passedOver.js'
 import { hostEnv } from './hostEnv.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
 
 type DebugLogLevel = 'verbose' | 'debug' | 'info' | 'warn' | 'error'
@@ -29,10 +28,23 @@ const getMinDebugLogLevel = memoize((): DebugLogLevel => {
 
 let runtimeToggleEnabled = false
 
-export const isDebugMode: Unbuilt = unbuilt('src/utils/debug.ts:31')
+export const isDebugMode = memoize((): boolean => {
+  return (
+    runtimeToggleEnabled ||
+    isEnvTruthy(hostEnv().DEBUG) ||
+    process.argv.includes('--debug') ||
+    process.argv.includes('-d') ||
+    isDebugToStdErr() ||
+    process.argv.some(arg => arg.startsWith('--debug=')) ||
+    getDebugFilePath() !== null
+  )
+})
 
 export function enableDebugLogging(): boolean {
-  return notBuilt('src/utils/debug.ts:41')
+  const wasActive = isDebugMode()
+  runtimeToggleEnabled = true
+  isDebugMode.cache.clear?.()
+  return wasActive
 }
 
 const getDebugFilter = memoize((): DebugFilter | null => {
@@ -127,12 +139,47 @@ function refreshLatestSymlink(logPath: string, logDir: string): void {
   }
 }
 
+let debugWriter: BufferedWriter | null = null
+let currentLogDirectory: string | null = null
+
+function appendToDebugLog(content: string): void {
+  if (!isDebugMode()) return
+  const path = getDebugLogPath()
+  const directory = dirname(path)
+  const fs = getFsImplementation()
+  try {
+    if (currentLogDirectory !== directory) {
+      currentLogDirectory = directory
+      fs.mkdirSync(directory)
+    }
+    fs.appendFileSync(path, content)
+  } catch (error) {
+    passedOver(error)
+    return
+  }
+  if (getDebugFilePath()) return
+  pendingMaintenance = maybeRotateDebugLog(path, content.length).then(() => refreshLatestSymlink(path, directory))
+}
+
 function getWriter(): BufferedWriter {
-  return notBuilt('src/utils/debug.ts:169')
+  if (debugWriter !== null) return debugWriter
+  const writer = createBufferedWriter({
+    writeFn: appendToDebugLog,
+    flushIntervalMs: 1000,
+    maxBufferSize: 100,
+    immediateMode: isDebugMode(),
+  })
+  debugWriter = writer
+  registerCleanup(async () => {
+    writer.dispose()
+    await pendingMaintenance
+  })
+  return writer
 }
 
 export async function flushDebugLogs(): Promise<void> {
-  return notBuilt('src/utils/debug.ts:184')
+  debugWriter?.flush()
+  await pendingMaintenance
 }
 
 export function logForDebugging(message: string, opts?: { level: DebugLogLevel }): void {
