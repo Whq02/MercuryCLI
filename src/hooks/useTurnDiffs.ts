@@ -1,4 +1,7 @@
 import { useMemo, useRef } from 'react'
+import { z } from 'zod/v4'
+import { hunkSchema } from '../tools/FileEditTool/types.js'
+import { lazySchema } from '../utils/lazySchema.js'
 import type { Message, UserMessage } from '../types/message.js'
 
 type LineChanges = Record<'linesAdded' | 'linesRemoved', number>
@@ -94,38 +97,31 @@ function synthesizeCreateHunks(content: string): Hunk[] {
   ]
 }
 
-function isHunk(value: unknown): value is Hunk {
-  if (typeof value !== 'object' || value === null) return false
-  if (!('oldStart' in value) || typeof value.oldStart !== 'number') return false
-  if (!('oldLines' in value) || typeof value.oldLines !== 'number') return false
-  if (!('newStart' in value) || typeof value.newStart !== 'number') return false
-  if (!('newLines' in value) || typeof value.newLines !== 'number') return false
-  if (!('lines' in value) || !Array.isArray(value.lines)) return false
-  return value.lines.every(line => typeof line === 'string')
-}
+const fileEditResultSchema = lazySchema(() =>
+  z.object({
+    filePath: z.string(),
+    type: z.string().optional(),
+    structuredPatch: z.array(hunkSchema()).optional(),
+    content: z.string().optional(),
+  }),
+)
 
 function extractFileEdit(result: unknown): {
   filePath: string
   hunks: Hunk[]
   isNewFile: boolean
 } | null {
-  if (typeof result !== 'object' || result === null || Array.isArray(result)) {
-    return null
+  const parsed = fileEditResultSchema().safeParse(result)
+  if (!parsed.success) return null
+  const { filePath, type, structuredPatch, content } = parsed.data
+  const isNewFile = type === 'create'
+  if (structuredPatch && structuredPatch.length > 0) {
+    return { filePath, hunks: structuredPatch, isNewFile }
   }
-  if (!('filePath' in result) || typeof result.filePath !== 'string') {
-    return null
-  }
-  const isNewFile = 'type' in result && result.type === 'create'
-  if ('structuredPatch' in result && Array.isArray(result.structuredPatch)) {
-    const patch = result.structuredPatch.filter(isHunk)
-    if (patch.length > 0) {
-      return { filePath: result.filePath, hunks: patch, isNewFile }
-    }
-  }
-  if (isNewFile && 'content' in result && typeof result.content === 'string') {
-    const hunks = synthesizeCreateHunks(result.content)
+  if (isNewFile && content !== undefined) {
+    const hunks = synthesizeCreateHunks(content)
     if (hunks.length > 0) {
-      return { filePath: result.filePath, hunks, isNewFile: true }
+      return { filePath, hunks, isNewFile: true }
     }
   }
   return null
