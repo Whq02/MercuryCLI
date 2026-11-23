@@ -1,5 +1,13 @@
-import { notBuilt } from '../pi/holes.js'
+import { stringWidth } from './stringWidth.js'
+
+const CACHE_LIMIT = 4096
+const cache = new Map<string, number>()
 
 export function lineWidth(line: string): number {
-  return notBuilt('src/ink/line-width-cache.ts:7')
+  const known = cache.get(line)
+  if (known !== undefined) return known
+  const width = stringWidth(line)
+  if (cache.size >= CACHE_LIMIT) cache.clear()
+  cache.set(line, width)
+  return width
 }
