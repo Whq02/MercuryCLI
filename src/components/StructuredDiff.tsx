@@ -92,7 +92,7 @@ function renderNativeDiff(
       filePath,
       fileContent,
     )
-    const rendered = renderer.render(themeName, renderWidth, dim)
+    const rendered: string[] | null = renderer.render(themeName, renderWidth, dim)
     if (!rendered) return null
 
     const entry: CacheEntry =
