@@ -47,8 +47,9 @@ async function listFiles(dir: string): Promise<string[]> {
   return out
 }
 
-console.log('── product-chrome exposure ratchet (src/components + src/screens) ──')
-const files = [...(await listFiles(join(ROOT, 'src', 'components'))), ...(await listFiles(join(ROOT, 'src', 'screens')))]
+const CHROME = ['src/screen', 'src/permissions/cards', 'src/models/sign-in', 'src/models/usage', 'src/commands', 'src/tools', 'src/boot', 'src/engine/user-input']
+console.log(`── product-chrome exposure ratchet (${CHROME.join(' + ')}) ──`)
+const files = (await Promise.all(CHROME.map(root => listFiles(join(ROOT, root))))).flat()
 console.log(`  scanning ${files.length} chrome sources`)
 
 const hits: string[] = []
@@ -63,7 +64,7 @@ for (const f of files) {
     }
   })
 }
-check('zero exposure-class hits in product chrome', hits.length === 0, `\n    ${hits.slice(0, 12).join('\n    ')}\n    to fix: reword the quoted line in that file under src/components or src/screens so the class text no longer reaches the screen, or add the file and class id to ALLOWLIST in scripts/terminal-boundary/prove-product-chrome.ts with a reason`)
+check('zero exposure-class hits in product chrome', hits.length === 0, `\n    ${hits.slice(0, 12).join('\n    ')}\n    to fix: reword the quoted line in that file under ${CHROME.join(', ')} so the class text no longer reaches the screen, or add the file and class id to ALLOWLIST in scripts/terminal-boundary/prove-product-chrome.ts with a reason`)
 
 console.log('\n── preservation fixtures stay wired (content is never rewritten) ──')
 const machineProver = readFileSync(join(ROOT, 'scripts', 'terminal-boundary', 'prove-machine-output-contract.ts'), 'utf8')
