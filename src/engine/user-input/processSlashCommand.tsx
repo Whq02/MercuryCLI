@@ -173,6 +173,7 @@ function findCommand(commands: Command[], name: string): Command | undefined {
 
 function finalizeCommandResult(
   result: ProcessUserInputBaseResult,
+  caveat: UserMessage,
 ): ProcessUserInputBaseResult {
   if (result.messages.length === 0) {
     return {
@@ -204,7 +205,7 @@ function finalizeCommandResult(
   ) {
     return {
       ...result,
-      messages: [createSyntheticUserCaveatMessage(), ...result.messages],
+      messages: [caveat, ...result.messages],
     }
   }
   return result
@@ -460,6 +461,7 @@ export async function processSlashCommand(
   _isAlreadyProcessing?: boolean,
   canUseTool?: CanUseToolFn,
 ): Promise<ProcessUserInputBaseResult> {
+  const caveat = createSyntheticUserCaveatMessage()
   const parsed = parseSlashCommand(inputString)
   if (!parsed) {
     return {
@@ -534,7 +536,7 @@ export async function processSlashCommand(
       const line = unavailableCommandLine(builtin, args)
       return {
         messages: [
-          createSyntheticUserCaveatMessage(),
+          caveat,
           ...attachmentMessages,
           createUserMessage({
             content: line,
@@ -560,7 +562,7 @@ export async function processSlashCommand(
     const line = unavailableCommandLine(command, args)
     return {
       messages: [
-        createSyntheticUserCaveatMessage(),
+        caveat,
         ...attachmentMessages,
         createUserMessage({
           content: line,
@@ -584,7 +586,7 @@ export async function processSlashCommand(
       messages: [echoed, createCommandInputMessage(stdoutWrapped(explanation))],
       shouldQuery: false,
       resultText: explanation,
-    })
+    }, caveat)
   }
 
   try {
@@ -615,7 +617,7 @@ export async function processSlashCommand(
         canUseTool,
       )
     }
-    return finalizeCommandResult(result)
+    return finalizeCommandResult(result, caveat)
   } catch (error) {
     if (error instanceof Error && isRecord(error) && error.isMalformedCommand === true) {
       return {
