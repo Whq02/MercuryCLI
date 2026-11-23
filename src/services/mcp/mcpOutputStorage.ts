@@ -9,11 +9,10 @@ import { ensureToolResultsDir, getToolResultsDir } from '../../utils/toolResultS
 
 export function getFormatDescription(type: MCPResultType, schema?: unknown): string {
   if (type === 'toolResult') return 'plain text'
-  const base = type === 'structuredContent' ? 'JSON' : 'a JSON array'
-  if (schema !== undefined) {
-    return `${base} matching the schema ${JSON.stringify(schema)}`
+  if (type === 'structuredContent') {
+    return schema !== undefined ? `JSON matching the schema ${JSON.stringify(schema)}` : 'JSON'
   }
-  return base
+  return schema !== undefined ? `a JSON array matching the schema ${JSON.stringify(schema)}` : 'a JSON array'
 }
 
 export function getLargeOutputInstructions(
@@ -22,17 +21,19 @@ export function getLargeOutputInstructions(
   formatDescription: string,
   maxReadLength?: number,
 ): string {
-  const sizeLabel = contentLength.toLocaleString()
-  const limitNote =
+  const truncation =
     maxReadLength !== undefined
-      ? `Read it in sequential chunks of at most ${maxReadLength.toLocaleString()} characters per command`
-      : 'Read it in sequential bounded chunks'
+      ? ` When you see a truncation warning of the form "[... output truncated ...]" (the shell output cap is ${maxReadLength.toLocaleString()} characters), reduce the chunk size until you can read everything without truncation — **do not proceed until you have**.`
+      : ' If you encounter truncation warnings, reduce the chunk size until you can read everything without truncation — **do not proceed until you have**.'
   return (
-    `Error: result (${sizeLabel} characters) exceeds maximum allowed tokens. ` +
-    `Output has been saved to ${rawOutputPath}.\n\n` +
-    `Format: ${formatDescription}\n` +
-    `${limitNote} rather than loading the entire file at once. ` +
-    'Report honestly which portion of the file you inspected and do not claim full coverage if you only read part of it.'
+    `Error: the MCP tool result (${contentLength.toLocaleString()} characters) exceeds the maximum allowed tokens. ` +
+    `The output has been saved to ${rawOutputPath}.\n\n` +
+    `The saved content is ${formatDescription}.\n\n` +
+    'Use the offset and limit parameters to read portions of the file, search within the file, and use a structured-query tool for structured data.\n\n' +
+    'Requirements for summarisation, analysis or review:\n' +
+    `1. Read the file at ${rawOutputPath} in sequential chunks until 100% of the content has been read.${truncation}\n` +
+    '2. Before producing any summary or analysis, explicitly describe what portion of the file you read; ' +
+    'if you did not read everything, **state this explicitly**.'
   )
 }
 
