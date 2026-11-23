@@ -36,7 +36,7 @@ check('the door module exists', door !== null, 'src/tools/glob/globPattern.ts mu
 if (door) {
   const n = door.normalizeGlobPattern
   check("win32: 'src\\**\\*.ts' → 'src/**/*.ts'", n('src\\**\\*.ts', 'win32') === 'src/**/*.ts', `${n('src\\**\\*.ts', 'win32')} | ${normHint}`)
-  check("win32: 'src\\utils\\path.ts' → 'src/platform/files/path.ts'", n('src\\utils\\path.ts', 'win32') === 'src/platform/files/path.ts', normHint)
+  check("win32: 'src\\utils\\path.ts' → 'src/utils/path.ts'", n('src\\utils\\path.ts', 'win32') === 'src/utils/path.ts', normHint)
   check("win32: a mixed spelling 'src\\utils/*.ts' → 'src/utils/*.ts'", n('src\\utils/*.ts', 'win32') === 'src/utils/*.ts', normHint)
   check("win32: an already-forward pattern is unchanged", n('src/**/*.ts', 'win32') === 'src/**/*.ts', normHint)
   check("win32: a brace group keeps its braces", n('src\\**\\*.{ts,tsx}', 'win32') === 'src/**/*.{ts,tsx}', normHint)

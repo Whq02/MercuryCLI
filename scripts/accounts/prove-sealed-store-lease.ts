@@ -268,9 +268,9 @@ section('§3c the lock library removes a lock folder only while it is still the 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const SRC = ${JSON.stringify(SRC)}
 const { existsSync } = await import('node:fs')
-const { plainTextStorage } = await import(SRC + '/utils/secureStorage/plainTextStorage.ts')
-const { createKeyCustody } = await import(SRC + '/utils/secureStorage/sealedRecord.ts')
-const { startSealedStore } = await import(SRC + '/utils/secureStorage/sealedStoreStart.ts')
+const { plainTextStorage } = await import(SRC + '/platform/secure-storage/plainTextStorage.ts')
+const { createKeyCustody } = await import(SRC + '/platform/secure-storage/sealedRecord.ts')
+const { startSealedStore } = await import(SRC + '/platform/secure-storage/sealedStoreStart.ts')
 const protector = {
   scheme: 'fake-protector',
   protect: (secret: Buffer) => ({ ok: true, bytes: Buffer.concat([Buffer.from('held:'), secret]) }),
@@ -326,9 +326,9 @@ section('§5 two processes: the step is held past the lease after its last read,
     `
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const SRC = ${JSON.stringify(SRC)}
-const { plainTextStorage } = await import(SRC + '/utils/secureStorage/plainTextStorage.ts')
-const { createKeyCustody } = await import(SRC + '/utils/secureStorage/sealedRecord.ts')
-const { startSealedStore } = await import(SRC + '/utils/secureStorage/sealedStoreStart.ts')
+const { plainTextStorage } = await import(SRC + '/platform/secure-storage/plainTextStorage.ts')
+const { createKeyCustody } = await import(SRC + '/platform/secure-storage/sealedRecord.ts')
+const { startSealedStore } = await import(SRC + '/platform/secure-storage/sealedStoreStart.ts')
 const protector = {
   scheme: 'fake-protector',
   protect: (secret: Buffer) => ({ ok: true, bytes: Buffer.concat([Buffer.from('held:'), secret]) }),
@@ -391,7 +391,7 @@ process.exit(0)
     taker,
     `
 const SRC = ${JSON.stringify(SRC)}
-const { lockSync } = await import(SRC + '/utils/lockfile.ts')
+const { lockSync } = await import(SRC + '/platform/storage/lockfile.ts')
 const site = JSON.parse(process.argv[2] ?? '{}')
 try {
   lockSync(site.dir, site.options)()

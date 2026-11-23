@@ -110,9 +110,9 @@ console.log('\n§1 w10-1 — channelStatus and mercury update --status report un
   const r = runScenario(`
     const { chmodSync, mkdirSync, writeFileSync } = await import('node:fs')
     const { isAbsolute, join, relative, resolve } = await import('node:path')
-    const { listInstalledVersions, resolveLayoutRoots, shimStatus } = await import(SRC + '/services/privateChannel/installLayout.ts')
-    const { channelStatus } = await import(SRC + '/services/privateChannel/updateService.ts')
-    const { update } = await import(SRC + '/cli/update.ts')
+    const { listInstalledVersions, resolveLayoutRoots, shimStatus } = await import(SRC + '/platform/update-channel/installLayout.ts')
+    const { channelStatus } = await import(SRC + '/platform/update-channel/updateService.ts')
+    const { update } = await import(SRC + '/commands/verbs/update.ts')
     const roots = resolveLayoutRoots()
     const base = resolve(SCRATCH)
     for (const p of [roots.versionsDir, roots.binDir, roots.shimPath, ...(roots.shimSetPaths ?? [])]) {
@@ -176,7 +176,7 @@ console.log('\n§2 w10-2 — unparseable MERCURY_GH_CMD runs plain gh and prints
     process.env.PATH = binDir + ':' + (process.env.PATH ?? '')
     process.env.MERCURY_UPDATE_CHANNEL_REPO = 'example/mercury'
     process.env.MERCURY_GH_CMD = '{bad json'
-    const { update } = await import(SRC + '/cli/update.ts')
+    const { update } = await import(SRC + '/commands/verbs/update.ts')
     const errs = []
     const origOut = process.stdout.write.bind(process.stdout)
     const origErr = console.error
@@ -207,8 +207,8 @@ console.log('\n§3 w10-3 — zsh startup probe failure still writes ~/.zshrc and
   const r = runScenario(`
     const { chmodSync, mkdirSync, writeFileSync } = await import('node:fs')
     const { join } = await import('node:path')
-    const { ensureBinDirOnPath, realPathEntryIo } = await import(SRC + '/services/privateChannel/installPath.ts')
-    const { describePathOutcome } = await import(SRC + '/cli/installVerb.ts')
+    const { ensureBinDirOnPath, realPathEntryIo } = await import(SRC + '/platform/update-channel/installPath.ts')
+    const { describePathOutcome } = await import(SRC + '/commands/verbs/installVerb.ts')
     const roots = {
       versionsDir: join(HOME, 'versions'),
       binDir: join(USER_HOME, '.local', 'bin'),
@@ -261,7 +261,7 @@ console.log('\n§4 w10-4 — cockpit heartbeat reports whether it landed and bea
 {
   const r = runScenario(`
     const { existsSync, rmSync } = await import('node:fs')
-    const mod = await import(SRC + '/daemon/processSweepRun.ts')
+    const mod = await import(SRC + '/daemon/process-sweep/processSweepRun.ts')
     const reg1 = await mod.registerCockpit({ terminal: null, home: HOME, daemonDirPath: HOME + '/daemon' })
     out.reg1Ok = reg1 !== null
     out.beatOk = reg1 ? await reg1.heartbeat() : null
@@ -293,8 +293,8 @@ console.log('\n§5 w10-5 — daemon status reports unreadable or damaged daemon 
   const r = runScenario(`
     const { mkdirSync, rmSync, writeFileSync } = await import('node:fs')
     const { dirname } = await import('node:path')
-    const { daemonStatePath } = await import(SRC + '/daemon/controlSocket.ts')
-    const { formatMercuryDaemonStatus, getMercuryDaemonStatus } = await import(SRC + '/daemon/status.ts')
+    const { daemonStatePath } = await import(SRC + '/daemon/control/controlSocket.ts')
+    const { formatMercuryDaemonStatus, getMercuryDaemonStatus } = await import(SRC + '/daemon/control/status.ts')
     const statePath = daemonStatePath()
     out.statePath = statePath
     const absent = await getMercuryDaemonStatus()
@@ -325,13 +325,13 @@ console.log('\n§6 w10-6 — health rows throw strictly on unreadable launch-mil
   const r = runScenario(`
     const { mkdirSync, writeFileSync } = await import('node:fs')
     const { dirname } = await import('node:path')
-    const { launchMilestonesPath, lastBootReachedInputLive } = await import(SRC + '/substrate/launchMilestones.ts')
-    const { launchSpineCheck } = await import(SRC + '/services/health/sections/crew/boot.ts')
-    const { listJournalOperations } = await import(SRC + '/substrate/operationJournal.ts')
-    const { changeSetJournalDir } = await import(SRC + '/services/changeTransaction/changeSetContracts.ts')
-    const { durabilityChecks } = await import(SRC + '/services/health/sections/durability.ts')
-    const { crashReportDir, listCrashReports } = await import(SRC + '/utils/crashReport.ts')
-    const { crashReportsCheck } = await import(SRC + '/services/health/sections/runtime/host.ts')
+    const { launchMilestonesPath, lastBootReachedInputLive } = await import(SRC + '/platform/substrate/launchMilestones.ts')
+    const { launchSpineCheck } = await import(SRC + '/platform/health/sections/crew/boot.ts')
+    const { listJournalOperations } = await import(SRC + '/platform/substrate/operationJournal.ts')
+    const { changeSetJournalDir } = await import(SRC + '/tools/engines/change-transaction/changeSetContracts.ts')
+    const { durabilityChecks } = await import(SRC + '/platform/health/sections/durability.ts')
+    const { crashReportDir, listCrashReports } = await import(SRC + '/platform/logs/crashReport.ts')
+    const { crashReportsCheck } = await import(SRC + '/platform/health/sections/runtime/host.ts')
 
     mkdirSync(launchMilestonesPath(), { recursive: true })
     out.bootSafe = lastBootReachedInputLive()
@@ -375,7 +375,7 @@ console.log('\n§7 w10-7 — resolveGitDir does not cache null on transient/perm
   const r = runScenario(`
     const { chmodSync, mkdirSync, writeFileSync } = await import('node:fs')
     const { join } = await import('node:path')
-    const { clearResolveGitDirCache, resolveGitDir } = await import(SRC + '/utils/git/gitFilesystem.ts')
+    const { clearResolveGitDirCache, resolveGitDir } = await import(SRC + '/platform/git/gitFilesystem.ts')
     const repo = join(PROJECT, 'git-transient')
     const realGit = join(PROJECT, 'real-gitdir')
     mkdirSync(repo, { recursive: true })
@@ -417,11 +417,11 @@ console.log('\n§8 w10-8 — createBaselineWorktree catches scratch lease error,
     sh(['add', '.'])
     sh(['commit', '--quiet', '-m', 'v1'])
     const sha = sh(['rev-parse', 'HEAD']).trim()
-    const { getProjectTempDir } = await import(SRC + '/utils/permissions/filesystem.ts')
+    const { getProjectTempDir } = await import(SRC + '/permissions/rules/filesystem.ts')
     const projTmp = getProjectTempDir()
     mkdirSync(projTmp, { recursive: true })
     writeFileSync(join(projTmp, 'scratch-leases.json'), '{not json')
-    const { createBaselineWorktree } = await import(SRC + '/services/worktree.ts')
+    const { createBaselineWorktree } = await import(SRC + '/platform/git/worktree/worktree.ts')
     const targetPath = join(projTmp, 'baselines', sha.slice(0, 12))
     try {
       out.result = await createBaselineWorktree(sha, repo)
@@ -444,8 +444,8 @@ console.log('\n§9 w10-9 — getSettingsWithAllErrors passes over ConfigAccessBe
     delete process.env.NODE_ENV
     const { mkdirSync } = await import('node:fs')
     const { join } = await import('node:path')
-    const { getSettingsWithAllErrors } = await import(SRC + '/services/settings/allErrors.ts')
-    const { enableConfigs } = await import(SRC + '/utils/config.ts')
+    const { getSettingsWithAllErrors } = await import(SRC + '/platform/settings-faults/allErrors.ts')
+    const { enableConfigs } = await import(SRC + '/platform/settings/config.ts')
     out.beforeAllowedErrors = getSettingsWithAllErrors().errors
     enableConfigs()
     mkdirSync(join(HOME, '.mercury.json'), { recursive: true })
@@ -466,9 +466,9 @@ console.log('\n§10 w10-10 — unreadable hook settings file goes on without ref
   const r = runScenario(`
     const { mkdirSync, writeFileSync } = await import('node:fs')
     const { join } = await import('node:path')
-    const { resetSettingsCache } = await import(SRC + '/utils/settings/settingsCache.ts')
-    const { resetHooksSnapshot } = await import(SRC + '/utils/hooks/hooksConfigSnapshot.ts')
-    const { beforeToolHooks } = await import(SRC + '/services/tools/toolHooks.ts')
+    const { resetSettingsCache } = await import(SRC + '/platform/settings/settingsCache.ts')
+    const { resetHooksSnapshot } = await import(SRC + '/integrations/event-hooks/hooksConfigSnapshot.ts')
+    const { beforeToolHooks } = await import(SRC + '/engine/tool-dispatch/toolHooks.ts')
 
     const notifs = []
     const ctx = {
@@ -513,17 +513,17 @@ console.log('\n§11 w10-11 — rootForSource remembers last good root on throw, 
   const rA = runScenario(`
     const { mock } = await import('bun:test')
     const { join } = await import('node:path')
-    const realEnv = await import(SRC + '/utils/envUtils.ts')
+    const realEnv = await import(SRC + '/platform/environment/envUtils.ts')
     const origGetMercuryHome = realEnv.getMercuryHome
     let failHome = false
-    mock.module(SRC + '/utils/envUtils.js', () => ({
+    mock.module(SRC + '/platform/environment/envUtils.js', () => ({
       ...realEnv,
       getMercuryHome: () => {
         if (failHome) throw new Error('homedir unavailable')
         return origGetMercuryHome()
       },
     }))
-    const { matchingRuleForInput } = await import(SRC + '/utils/permissions/filesystem.ts')
+    const { matchingRuleForInput } = await import(SRC + '/permissions/rules/filesystem.ts')
     const ctx = {
       mode: 'default',
       additionalWorkingDirectories: new Map(),
@@ -547,8 +547,8 @@ console.log('\n§11 w10-11 — rootForSource remembers last good root on throw, 
     const { mock } = await import('bun:test')
     const { mkdirSync } = await import('node:fs')
     const { join } = await import('node:path')
-    const realEnv = await import(SRC + '/utils/envUtils.ts')
-    mock.module(SRC + '/utils/envUtils.js', () => ({
+    const realEnv = await import(SRC + '/platform/environment/envUtils.ts')
+    mock.module(SRC + '/platform/environment/envUtils.js', () => ({
       ...realEnv,
       getMercuryHome: () => {
         throw new Error('homedir unavailable')
@@ -556,11 +556,11 @@ console.log('\n§11 w10-11 — rootForSource remembers last good root on throw, 
     }))
     const sub = join(PROJECT, 'sub')
     mkdirSync(sub, { recursive: true })
-    const state = await import(SRC + '/bootstrap/state.ts')
+    const state = await import(SRC + '/boot/process-state/processState.ts')
     state.setOriginalCwd(PROJECT)
     state.setCwdState(sub)
     process.chdir(sub)
-    const { matchingRuleForInput } = await import(SRC + '/utils/permissions/filesystem.ts')
+    const { matchingRuleForInput } = await import(SRC + '/permissions/rules/filesystem.ts')
     const ctx = {
       mode: 'default',
       additionalWorkingDirectories: new Map(),
@@ -582,7 +582,7 @@ console.log('\n§12 w10-12 — extension hook reports real stat error instead of
   const r = runScenario(`
     const { chmodSync, mkdirSync, writeFileSync } = await import('node:fs')
     const { join } = await import('node:path')
-    const { startCommandHook } = await import(SRC + '/utils/hooks/commandRunner.ts')
+    const { startCommandHook } = await import(SRC + '/integrations/event-hooks/commandRunner.ts')
     const runWithRoot = async (root) => {
       const proc = await startCommandHook({
         command: 'echo hi',
@@ -623,7 +623,7 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
   const r457 = runScenario(`
     const { mock } = await import('bun:test')
     const { join } = await import('node:path')
-    const realPub = await import(SRC + '/substrate/durablePublish.ts')
+    const realPub = await import(SRC + '/platform/substrate/durablePublish.ts')
     const DurablePublishError = realPub.DurablePublishError
     const makeHeldErr = (targetPath) =>
       new DurablePublishError(
@@ -632,13 +632,13 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
         Object.assign(new Error("EPERM: operation not permitted, rename 'tmp' -> '" + targetPath + "'"), { code: 'EPERM' }),
         { fsCode: 'EPERM', attempts: 4, elapsedMs: 455, tempCleanup: 'removed' },
       )
-    mock.module(SRC + '/substrate/durablePublish.js', () => ({
+    mock.module(SRC + '/platform/substrate/durablePublish.js', () => ({
       ...realPub,
       durableAtomicPublish: async (targetPath) => { throw makeHeldErr(targetPath) },
       durableAtomicPublishSync: (targetPath) => { throw makeHeldErr(targetPath) },
     }))
-    const { addMcpConfig } = await import(SRC + '/services/mcp/config.ts')
-    const { setSwitch } = await import(SRC + '/extensions/install.ts')
+    const { addMcpConfig } = await import(SRC + '/integrations/mcp/serverConfigs.ts')
+    const { setSwitch } = await import(SRC + '/integrations/extensions/install.ts')
     try {
       await addMcpConfig('heldsrv', { type: 'stdio', command: 'node', args: ['-v'] }, 'project')
       out.r4 = null
@@ -729,21 +729,21 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
 
   const r10a = runR10Child(`
     const { mock } = await import('bun:test')
-    const realFile = await import(SRC + '/utils/file.ts')
+    const realFile = await import(SRC + '/platform/files/file.ts')
     const origWrite = realFile.writeFileAndFlushAtomically
     const AtomicWriteRefusal = realFile.AtomicWriteRefusal
     let held = true
-    mock.module(SRC + '/utils/file.js', () => ({
+    mock.module(SRC + '/platform/files/file.js', () => ({
       ...realFile,
       writeFileAndFlushAtomically: (targetPath, content, opts) => {
         if (held) throw new AtomicWriteRefusal('rename', targetPath, Object.assign(new Error('EPERM: operation not permitted'), { code: 'EPERM' }))
         return origWrite(targetPath, content, opts)
       },
     }))
-    const { enableConfigs, saveGlobalConfigDeferred } = await import(SRC + '/utils/config.ts')
+    const { enableConfigs, saveGlobalConfigDeferred } = await import(SRC + '/platform/settings/config.ts')
     enableConfigs()
     saveGlobalConfigDeferred(c => ({ ...c, numStartups: 42 }))
-    const { addMcpConfig } = await import(SRC + '/services/mcp/config.ts')
+    const { addMcpConfig } = await import(SRC + '/integrations/mcp/serverConfigs.ts')
     try {
       await addMcpConfig('heldu1', { type: 'stdio', command: 'node', args: ['-v'] }, 'user')
     } catch (e) {
@@ -761,18 +761,18 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
 
   const r10b = runR10Child(`
     const { mock } = await import('bun:test')
-    const realFile = await import(SRC + '/utils/file.ts')
+    const realFile = await import(SRC + '/platform/files/file.ts')
     const AtomicWriteRefusal = realFile.AtomicWriteRefusal
-    mock.module(SRC + '/utils/file.js', () => ({
+    mock.module(SRC + '/platform/files/file.js', () => ({
       ...realFile,
       writeFileAndFlushAtomically: (targetPath) => {
         throw new AtomicWriteRefusal('rename', targetPath, Object.assign(new Error('EPERM: operation not permitted'), { code: 'EPERM' }))
       },
     }))
-    const { enableConfigs, saveGlobalConfigDeferred } = await import(SRC + '/utils/config.ts')
+    const { enableConfigs, saveGlobalConfigDeferred } = await import(SRC + '/platform/settings/config.ts')
     enableConfigs()
     saveGlobalConfigDeferred(c => ({ ...c, numStartups: (c.numStartups ?? 0) + 1 }))
-    const { addMcpConfig } = await import(SRC + '/services/mcp/config.ts')
+    const { addMcpConfig } = await import(SRC + '/integrations/mcp/serverConfigs.ts')
     try {
       await addMcpConfig('heldu1', { type: 'stdio', command: 'node', args: ['-v'] }, 'user')
       process.exit(0)
@@ -792,15 +792,15 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
 
   const r10c = runR10Child(`
     const { mock } = await import('bun:test')
-    const realFile = await import(SRC + '/utils/file.ts')
+    const realFile = await import(SRC + '/platform/files/file.ts')
     const AtomicWriteRefusal = realFile.AtomicWriteRefusal
-    mock.module(SRC + '/utils/file.js', () => ({
+    mock.module(SRC + '/platform/files/file.js', () => ({
       ...realFile,
       writeFileAndFlushAtomically: (targetPath) => {
         throw new AtomicWriteRefusal('rename', targetPath, Object.assign(new Error('EPERM: operation not permitted'), { code: 'EPERM' }))
       },
     }))
-    const { enableConfigs, saveGlobalConfigDeferred } = await import(SRC + '/utils/config.ts')
+    const { enableConfigs, saveGlobalConfigDeferred } = await import(SRC + '/platform/settings/config.ts')
     enableConfigs()
     saveGlobalConfigDeferred(c => ({ ...c, numStartups: 99 }))
     process.exit(0)
@@ -816,15 +816,15 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
 
   const r10d = runR10Child(`
     const { mock } = await import('bun:test')
-    const realFile = await import(SRC + '/utils/file.ts')
+    const realFile = await import(SRC + '/platform/files/file.ts')
     const AtomicWriteRefusal = realFile.AtomicWriteRefusal
-    mock.module(SRC + '/utils/file.js', () => ({
+    mock.module(SRC + '/platform/files/file.js', () => ({
       ...realFile,
       writeFileAndFlushAtomically: (targetPath) => {
         throw new AtomicWriteRefusal('rename', targetPath, Object.assign(new Error('EPERM: operation not permitted'), { code: 'EPERM' }))
       },
     }))
-    const { enableConfigs, saveGlobalConfig, saveGlobalConfigDeferred } = await import(SRC + '/utils/config.ts')
+    const { enableConfigs, saveGlobalConfig, saveGlobalConfigDeferred } = await import(SRC + '/platform/settings/config.ts')
     enableConfigs()
     saveGlobalConfigDeferred(c => ({ ...c, numStartups: 77 }))
     try {
@@ -846,10 +846,10 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
     const cfgPath = path.join(HOME, '.mercury.json')
     fs.writeFileSync(cfgPath, ${JSON.stringify(initialBodyE)}, 'utf8')
     const { mock } = await import('bun:test')
-    const realFsOps = await import(SRC + '/utils/fsOperations.ts')
+    const realFsOps = await import(SRC + '/platform/files/fsOperations.ts')
     const realFs = realFsOps.getFsImplementation()
     let blockRead = false
-    mock.module(SRC + '/utils/fsOperations.js', () => ({
+    mock.module(SRC + '/platform/files/fsOperations.js', () => ({
       ...realFsOps,
       getFsImplementation: () => ({
         ...realFs,
@@ -861,7 +861,7 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
         },
       }),
     }))
-    const { enableConfigs, saveGlobalConfigDeferred } = await import(SRC + '/utils/config.ts')
+    const { enableConfigs, saveGlobalConfigDeferred } = await import(SRC + '/platform/settings/config.ts')
     enableConfigs()
     saveGlobalConfigDeferred(c => ({ ...c, numStartups: 99 }))
     blockRead = true
@@ -889,10 +889,10 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
     const cfgPath = path.join(HOME, '.mercury.json')
     fs.writeFileSync(cfgPath, ${JSON.stringify(initialBodyE)}, 'utf8')
     const { mock } = await import('bun:test')
-    const realFsOps = await import(SRC + '/utils/fsOperations.ts')
+    const realFsOps = await import(SRC + '/platform/files/fsOperations.ts')
     const realFs = realFsOps.getFsImplementation()
     let blockRead = false
-    mock.module(SRC + '/utils/fsOperations.js', () => ({
+    mock.module(SRC + '/platform/files/fsOperations.js', () => ({
       ...realFsOps,
       getFsImplementation: () => ({
         ...realFs,
@@ -904,7 +904,7 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
         },
       }),
     }))
-    const { enableConfigs } = await import(SRC + '/utils/config.ts')
+    const { enableConfigs } = await import(SRC + '/platform/settings/config.ts')
     enableConfigs()
     blockRead = true
     process.exit(0)
@@ -922,14 +922,14 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
     const cfgPath = path.join(HOME, '.mercury.json')
     fs.writeFileSync(cfgPath, ${JSON.stringify(initialBodyE)}, 'utf8')
     const { mock } = await import('bun:test')
-    const realTimers = await import(SRC + '/utils/timers.ts')
-    mock.module(SRC + '/utils/timers.js', () => ({
+    const realTimers = await import(SRC + '/platform/async/timers.ts')
+    mock.module(SRC + '/platform/async/timers.js', () => ({
       ...realTimers,
       sleepSync: () => {},
     }))
-    const realLockfile = await import(SRC + '/utils/lockfile.ts')
+    const realLockfile = await import(SRC + '/platform/storage/lockfile.ts')
     let blockLock = false
-    mock.module(SRC + '/utils/lockfile.js', () => ({
+    mock.module(SRC + '/platform/storage/lockfile.js', () => ({
       ...realLockfile,
       lockSync: (filePath, opts) => {
         if (blockLock && String(filePath).endsWith('.mercury.json')) {
@@ -938,7 +938,7 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
         return realLockfile.lockSync(filePath, opts)
       },
     }))
-    const { enableConfigs, saveGlobalConfigDeferred } = await import(SRC + '/utils/config.ts')
+    const { enableConfigs, saveGlobalConfigDeferred } = await import(SRC + '/platform/settings/config.ts')
     enableConfigs()
     saveGlobalConfigDeferred(c => ({ ...c, numStartups: 99 }))
     blockLock = true
@@ -963,7 +963,7 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
     const path = await import('node:path')
     const cfgPath = path.join(HOME, '.mercury.json')
     fs.writeFileSync(cfgPath, ${JSON.stringify(initialBodyI)}, 'utf8')
-    const { enableConfigs, saveGlobalConfigDeferred } = await import(SRC + '/utils/config.ts')
+    const { enableConfigs, saveGlobalConfigDeferred } = await import(SRC + '/platform/settings/config.ts')
     enableConfigs()
     saveGlobalConfigDeferred(c => ({ ...c, numStartups: 99 }))
     fs.writeFileSync(cfgPath, ${JSON.stringify(wipedBodyI)}, 'utf8')
@@ -986,7 +986,7 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
     const path = await import('node:path')
     const cfgPath = path.join(HOME, '.mercury.json')
     fs.writeFileSync(cfgPath, ${JSON.stringify(initialBodyI)}, 'utf8')
-    const { enableConfigs, getGlobalConfig } = await import(SRC + '/utils/config.ts')
+    const { enableConfigs, getGlobalConfig } = await import(SRC + '/platform/settings/config.ts')
     enableConfigs()
     getGlobalConfig()
     fs.writeFileSync(cfgPath, ${JSON.stringify(wipedBodyI)}, 'utf8')

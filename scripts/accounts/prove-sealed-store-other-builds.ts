@@ -43,17 +43,17 @@ if (process.argv[2] === 'stay') {
   console.log(JSON.stringify({ loaded: 'this-build', pid: process.pid, started }))
   process.stdin.resume()
 } else if (process.argv[2] === 'window') {
-  const { registerCockpit } = await import(SRC + '/daemon/processSweepRun.ts')
+  const { registerCockpit } = await import(SRC + '/daemon/process-sweep/processSweepRun.ts')
   const home = process.env.MERCURY_CONFIG_DIR
   const registration = await registerCockpit({ terminal: null, home, daemonDirPath: home + '/daemon' })
   console.log(JSON.stringify({ loaded: 'this-build', pid: process.pid, started, registration: registration === null ? null : registration.path }))
   process.stdin.resume()
 } else {
-  const { otherBuildAlive } = await import(SRC + '/daemon/otherBuilds.ts')
-  const { plainTextStorage } = await import(SRC + '/utils/secureStorage/plainTextStorage.ts')
-  const { startSealedStore } = await import(SRC + '/utils/secureStorage/sealedStoreStart.ts')
-  const { createKeyCustody } = await import(SRC + '/utils/secureStorage/sealedRecord.ts')
-  const { getProcessStartInstant } = await import(SRC + '/utils/ownerWatch.ts')
+  const { otherBuildAlive } = await import(SRC + '/daemon/control/otherBuilds.ts')
+  const { plainTextStorage } = await import(SRC + '/platform/secure-storage/plainTextStorage.ts')
+  const { startSealedStore } = await import(SRC + '/platform/secure-storage/sealedStoreStart.ts')
+  const { createKeyCustody } = await import(SRC + '/platform/secure-storage/sealedRecord.ts')
+  const { getProcessStartInstant } = await import(SRC + '/daemon/control/ownerWatch.ts')
   const home = process.env.MERCURY_CONFIG_DIR
   const alive = JSON.parse(process.env.FIXTURE_TABLE ?? '[]')
   const observation = (pid, args, startedAtMs, startToken) => ({ process: { pid, ppid: 1, exe: process.execPath, args, startedAtMs, user: 'fixture-user', terminal: null }, startToken, state: 'S', terminalAlive: null })
