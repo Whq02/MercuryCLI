@@ -144,28 +144,28 @@ function renderTwoColumnList<T>({
   visible,
   visibleFromIndex,
   visibleToIndex,
-  ordinalsHidden,
-  textRowReserved,
+  hideIndexes,
+  selectedValue,
   rowFlags,
 }: {
   options: readonly OptionWithDescription<T>[]
   visible: readonly (OptionWithDescription<T> & { index: number })[]
   visibleFromIndex: number
   visibleToIndex: number
-  ordinalsHidden: boolean
-  textRowReserved: number
+  hideIndexes: boolean
+  selectedValue: T | undefined
   rowFlags: (option: OptionWithDescription<T> & { index: number }) => {
     isFocused: boolean
     isSelected: boolean
   }
 }): React.ReactNode {
+  const indexWidth = hideIndexes ? 0 : options.length.toString().length + 2
   let labelColumnWidth = 0
-  for (let i = 0; i < options.length; i++) {
-    const opt = options[i]!
+  for (const opt of options) {
     if (isInputOption(opt)) continue
-    const prefix = ordinalsHidden ? '' : rowPrefix(opt, i + 1, textRowReserved)
     const labelWidth = typeof opt.label === 'string' ? stringWidth(opt.label) : 0
-    const rowWidth = 2 + stringWidth(prefix) + labelWidth + 2
+    const checkWidth = opt.value === selectedValue ? 2 : 0
+    const rowWidth = 2 + indexWidth + labelWidth + checkWidth
     if (rowWidth > labelColumnWidth) labelColumnWidth = rowWidth
   }
 
@@ -178,22 +178,21 @@ function renderTwoColumnList<T>({
       {visible.map(option => {
         const { isFocused, isSelected } = rowFlags(option)
         const disabled = Boolean(option.disabled)
-        const activeFocus = isFocused && !disabled
         const stateColor = stateColorOf(isFocused, isSelected, option.disabled)
-        const prefix = ordinalsHidden
+        const prefix = hideIndexes
           ? ''
-          : rowPrefix(option, option.index + 1, textRowReserved)
+          : rowPrefix(option, option.index + 1, indexWidth)
         const labelText = typeof option.label === 'string' ? option.label : ''
-        const checkSuffix = isSelected && !disabled ? ` ${GLYPH.check}` : ''
+        const checkSuffix = isSelected ? ` ${GLYPH.check}` : ''
         const raw = `${prefix}${labelText}${checkSuffix}`
         const pad = Math.max(0, labelColumnWidth - 2 - stringWidth(raw))
         const labelCell = `${raw}${' '.repeat(pad)}`
         return (
           <TwoColumnRow
             key={String(option.value)}
-            indicator={activeFocus ? figures.pointer : ' '}
+            indicator={isFocused ? figures.pointer : ' '}
             labelCell={labelCell}
-            isFocused={activeFocus}
+            isFocused={isFocused}
             description={option.description}
             dimDescription={option.dimDescription !== false}
             stateColor={stateColor}
@@ -268,39 +267,26 @@ export function Select<T = string>({
     prevInitialValuesRef.current = seed
   }
 
-  usePublish(() => {
-    const prev = prevInitialValuesRef.current!
-    const updates: Array<[T, string]> = []
-    const nextPrev = new Map<T, string | undefined>()
-    for (const option of options) {
-      if (!isInputOption(option)) continue
-      const val = optionValueOf(option)
-      nextPrev.set(val, option.initialValue)
-      const hadPrev = prev.has(val)
-      const former = prev.get(val)
-      if (!hadPrev ? Boolean(option.initialValue) : former !== option.initialValue) {
-        updates.push([val, option.initialValue ?? ''])
+  const prevInitialValues = prevInitialValuesRef.current
+  let nextInputValues: Map<T, string> | null = null
+  for (const option of options) {
+    if (!isInputOption(option)) continue
+    const val = optionValueOf(option)
+    const former = prevInitialValues.get(val)
+    if (option.initialValue !== former) {
+      prevInitialValues.set(val, option.initialValue)
+      const current = inputValues.get(val) ?? ''
+      if (current === (former ?? '')) {
+        if (nextInputValues === null) {
+          nextInputValues = new Map(inputValues)
+        }
+        nextInputValues.set(val, option.initialValue ?? '')
       }
     }
-    prevInitialValuesRef.current = nextPrev
-    if (updates.length === 0) return
-    setInputValues(currentMap => {
-      let nextMap: Map<T, string> | null = null
-      for (const [val, nextInit] of updates) {
-        const former = prev.get(val) ?? ''
-        const current = currentMap.get(val) ?? ''
-        if (current === former || current === '') {
-          if (!nextMap) nextMap = new Map(currentMap)
-          if (nextInit) {
-            nextMap.set(val, nextInit)
-          } else {
-            nextMap.delete(val)
-          }
-        }
-      }
-      return nextMap ?? currentMap
-    })
-  }, [options])
+  }
+  if (nextInputValues !== null) {
+    setInputValues(nextInputValues)
+  }
 
   const imageAttachments = pastedContents
     ? Object.values(pastedContents).filter(item => item.type === 'image')
@@ -331,50 +317,47 @@ export function Select<T = string>({
     option.onChange?.(newValue)
   }
 
-  const submitInputOption = (value: T, providedText?: string): void => {
-    const option = options.find(o => o.value === value)
-    if (!isInputOption(option)) return
-    const text = providedText ?? inputValues.get(value) ?? ''
+  const submitInputOption = (
+    option: InputOption<T>,
+    submittedText?: string,
+  ): void => {
+    const val = optionValueOf(option)
+    const text = submittedText ?? inputValues.get(val) ?? ''
     if (text.trim().length > 0 || hasImages || option.allowEmptySubmitToCancel) {
-      state.selectValue(value)
+      onChange?.(val)
       return
     }
     if (onEmptyInputSubmit) {
-      onEmptyInputSubmit(value)
+      onEmptyInputSubmit(val)
     } else {
       onCancel?.()
     }
   }
 
+  const ordinalsHidden = layout === 'expanded' || hideIndexes
   const effectiveDisableSelection: boolean | 'numeric' =
-    disableSelection === true
-      ? true
-      : layout === 'expanded' || hideIndexes
-        ? 'numeric'
-        : disableSelection
+    disableSelection === false && ordinalsHidden ? 'numeric' : disableSelection
+  const digits = options.length.toString().length
+  const textRowReserved = hideIndexes
+    ? 0
+    : digits + (layout === 'compact-vertical' ? 1 : 2)
+  const inputRowReserved = hideIndexes ? 0 : digits
 
   useSelectInput({
+    state,
     isDisabled,
     disableSelection: effectiveDisableSelection,
     isMultiSelect: false,
-    state,
     onCancel,
-    onUpFromFirstItem,
     onDownFromLastItem,
-    scrollMovesFocus,
+    onUpFromFirstItem,
     onInputModeToggle,
     getInputValue: value => inputValues.get(value) ?? '',
-    submitInputOption: option => submitInputOption(optionValueOf(option)),
-    isImageSelectionModeActive: isImageSelectionMode,
+    submitInputOption: option => submitInputOption(option),
     tryEnterImageSelectionMode: handleEnterImageSelection,
+    isImageSelectionModeActive: isImageSelectionMode,
+    scrollMovesFocus,
   })
-
-  const ordinalsHidden = hideIndexes || layout === 'expanded'
-  const digits = options.length.toString().length
-  const textRowReserved = ordinalsHidden
-    ? 0
-    : digits + (layout === 'compact-vertical' ? 1 : 2)
-  const inputRowReserved = ordinalsHidden ? 0 : digits
 
   const rowFlags = (option: OptionWithDescription<T> & { index: number }) => ({
     isFocused: !isDisabled && state.focusedValue === option.value,
@@ -397,8 +380,8 @@ export function Select<T = string>({
       visible,
       visibleFromIndex: state.visibleFromIndex,
       visibleToIndex: state.visibleToIndex,
-      ordinalsHidden,
-      textRowReserved,
+      hideIndexes,
+      selectedValue: state.value,
       rowFlags,
     })
   }
@@ -414,46 +397,44 @@ export function Select<T = string>({
       !isDisabled &&
       !option.disabled &&
       disableSelection !== true
-    const node = (
-      <SelectInputOption
-        key={clickable ? undefined : String(option.value)}
-        option={option}
-        isFocused={isFocused}
-        isSelected={isSelected}
-        shouldShowUpArrow={showUp}
-        shouldShowDownArrow={showDown}
-        value={currentValue}
-        onChange={(newValue: string) => handleInputChange(option, newValue)}
-        onSubmit={(submitted: string) => submitInputOption(val, submitted)}
-        onExit={onCancel}
-        layout={layout}
-        index={option.index + 1}
-        reservedIndexWidth={inputRowReserved}
-        hideIndexes={ordinalsHidden}
-        inlineDescription={inlineDescriptions}
-        onOpenEditor={onOpenEditor}
-        onImagePaste={onImagePaste}
-        pastedContents={pastedContents}
-        onRemoveImage={onRemoveImage}
-        isImageSelectionMode={isFocused && isImageSelectionMode}
-        selectedImageIndex={selectedImageIndex}
-        onSelectedImageIndexChange={setSelectedImageIndex}
-        onExitImageSelection={handleExitImageSelection}
-      />
-    )
-    if (!clickable) return node
     return (
       <Box
         key={String(option.value)}
-        onClick={() => {
-          state.focusValue(val)
-          const text = inputValues.get(val) ?? ''
-          if (text.trim().length > 0 || hasImages) {
-            state.selectValue(val)
-          }
-        }}
+        flexDirection="column"
+        onClick={
+          clickable
+            ? () => {
+                state.focusValue(val)
+                const text = inputValues.get(val) ?? ''
+                if (text.trim().length > 0 || hasImages) {
+                  submitInputOption(option)
+                }
+              }
+            : undefined
+        }
       >
-        {node}
+        <SelectInputOption
+          option={option}
+          isFocused={isFocused}
+          isSelected={isSelected}
+          value={currentValue}
+          onChange={(newValue: string) => handleInputChange(option, newValue)}
+          onSubmit={(submitted: string) => submitInputOption(option, submitted)}
+          reservedIndexWidth={inputRowReserved}
+          index={option.index + 1}
+          showLabelWithValue={inlineDescriptions}
+          layout={layout}
+          shouldShowDownArrow={showDown}
+          shouldShowUpArrow={showUp}
+          onOpenEditor={onOpenEditor}
+          onImagePaste={onImagePaste}
+          pastedContents={pastedContents}
+          onRemoveImage={onRemoveImage}
+          isImageSelectionMode={isImageSelectionMode}
+          selectedImageIndex={selectedImageIndex}
+          onSelectImage={setSelectedImageIndex}
+          onExitImageSelection={handleExitImageSelection}
+        />
       </Box>
     )
   }
@@ -468,7 +449,7 @@ export function Select<T = string>({
     ordinalsHidden,
     textRowReserved,
     layout,
-    disableSelection: effectiveDisableSelection,
+    disableSelection,
     isDisabled,
     fit,
     singleLine,
