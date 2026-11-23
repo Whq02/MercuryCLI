@@ -139,73 +139,96 @@ const STROKE_GLYPHS: Record<string, StrokeGlyph> = {
 }
 
 const STROKE_RADIUS = 1.5
-const STROKE_SCALE = 3.2
-const STROKE_OFFSET_X = 2.4
-const STROKE_OFFSET_Y = 4.8
+const BOLD_STROKE_RADIUS = 2.2
+const SUBPIXEL_STEP = 0.3
+const FONT_X_OFFSET = 2
+const FONT_X_SCALE = 20 / 6
+const FONT_Y_OFFSET = 6
+const FONT_Y_SCALE = 3
+const DEFAULT_PADDING = 48
+const DEFAULT_RADIUS = 16
 
-function pointToSegmentDistance(
-  px: number,
-  py: number,
+type GlyphMasks = {
+  regular: Uint8Array
+  bold: Uint8Array
+}
+
+function stampSegment(
+  bitmap: Uint8Array,
   x1: number,
   y1: number,
   x2: number,
   y2: number,
-): number {
+  radius: number,
+): void {
   const dx = x2 - x1
   const dy = y2 - y1
-  const lenSq = dx * dx + dy * dy
-  if (lenSq === 0) return Math.hypot(px - x1, py - y1)
-  const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / lenSq))
-  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy))
-}
-
-function rasterizeStrokes(polylines: StrokeGlyph): Uint8Array {
-  const bitmap = new Uint8Array(CELL_BYTES)
-  if (polylines.length === 0) return bitmap
-  const segments: Array<[number, number, number, number]> = []
-  for (const line of polylines) {
-    for (let i = 0; i + 3 < line.length; i += 2) {
-      segments.push([
-        line[i]! * STROKE_SCALE + STROKE_OFFSET_X,
-        line[i + 1]! * STROKE_SCALE + STROKE_OFFSET_Y,
-        line[i + 2]! * STROKE_SCALE + STROKE_OFFSET_X,
-        line[i + 3]! * STROKE_SCALE + STROKE_OFFSET_Y,
-      ])
+  const length = Math.hypot(dx, dy)
+  const steps = Math.max(1, Math.ceil(length / SUBPIXEL_STEP))
+  const inner = radius - 0.5
+  const outer = radius + 0.5
+  const reach = Math.ceil(outer)
+  for (let step = 0; step <= steps; step++) {
+    const t = step / steps
+    const sx = x1 + dx * t
+    const sy = y1 + dy * t
+    const minX = Math.max(0, Math.floor(sx - reach))
+    const maxX = Math.min(CELL_WIDTH - 1, Math.ceil(sx + reach))
+    const minY = Math.max(0, Math.floor(sy - reach))
+    const maxY = Math.min(CELL_HEIGHT - 1, Math.ceil(sy + reach))
+    for (let py = minY; py <= maxY; py++) {
+      const rowOffset = py * CELL_WIDTH
+      const dpy = py + 0.5 - sy
+      for (let px = minX; px <= maxX; px++) {
+        const dpx = px + 0.5 - sx
+        const dist = Math.hypot(dpx, dpy)
+        if (dist >= outer) continue
+        const coverage = dist <= inner ? 255 : Math.round((outer - dist) * 255)
+        const idx = rowOffset + px
+        if (coverage > bitmap[idx]!) bitmap[idx] = coverage
+      }
     }
   }
-  if (segments.length === 0) return bitmap
-  const inner = STROKE_RADIUS - 0.5
-  const outer = STROKE_RADIUS + 0.5
-  for (let py = 0; py < CELL_HEIGHT; py++) {
-    const cy = py + 0.5
-    const rowOffset = py * CELL_WIDTH
-    for (let px = 0; px < CELL_WIDTH; px++) {
-      const cx = px + 0.5
-      let minDist = Infinity
-      for (const [x1, y1, x2, y2] of segments) {
-        const d = pointToSegmentDistance(cx, cy, x1, y1, x2, y2)
-        if (d < minDist) minDist = d
-      }
-      if (minDist <= inner) bitmap[rowOffset + px] = 255
-      else if (minDist < outer) bitmap[rowOffset + px] = Math.round((outer - minDist) * 255)
+}
+
+function rasterizeStrokes(polylines: StrokeGlyph, radius: number): Uint8Array {
+  const bitmap = new Uint8Array(CELL_BYTES)
+  for (const line of polylines) {
+    for (let i = 0; i + 3 < line.length; i += 2) {
+      const x1 = FONT_X_OFFSET + line[i]! * FONT_X_SCALE
+      const y1 = FONT_Y_OFFSET + line[i + 1]! * FONT_Y_SCALE
+      const x2 = FONT_X_OFFSET + line[i + 2]! * FONT_X_SCALE
+      const y2 = FONT_Y_OFFSET + line[i + 3]! * FONT_Y_SCALE
+      stampSegment(bitmap, x1, y1, x2, y2, radius)
     }
   }
   return bitmap
 }
 
-let fontCache: Map<number, Uint8Array> | null = null
+function buildGlyphMasks(strokes: StrokeGlyph): GlyphMasks {
+  return {
+    regular: rasterizeStrokes(strokes, STROKE_RADIUS),
+    bold: rasterizeStrokes(strokes, BOLD_STROKE_RADIUS),
+  }
+}
 
-function getFont(): Map<number, Uint8Array> {
+let fontCache: Map<number, GlyphMasks> | null = null
+
+function getFont(): Map<number, GlyphMasks> {
   if (!fontCache) {
-    const rasterized: Array<[number, Uint8Array]> = Object.entries(STROKE_GLYPHS).map(
-      ([char, strokes]) => [char.codePointAt(0) as number, rasterizeStrokes(strokes)],
-    )
-    fontCache = new Map(rasterized)
+    const map = new Map<number, GlyphMasks>()
+    for (const [char, strokes] of Object.entries(STROKE_GLYPHS)) {
+      const cp = char.codePointAt(0)
+      if (cp !== undefined) {
+        map.set(cp, buildGlyphMasks(strokes))
+      }
+    }
+    fontCache = map
   }
   return fontCache
 }
 
-let fallbackGlyphCache: Uint8Array | null = null
+let fallbackGlyphCache: GlyphMasks | null = null
 
 const SHADE_BLEND: Record<string, number> = {
   '░': 0.25,
@@ -214,10 +237,12 @@ const SHADE_BLEND: Record<string, number> = {
   '█': 1.0,
 }
 
-
 type AnsiToPngOptions = {
   background?: AnsiColor
   padding?: number
+  paddingX?: number
+  paddingY?: number
+  radius?: number
   scale?: number
 }
 
@@ -225,9 +250,9 @@ function isBlankLine(line: ParsedLine): boolean {
   return line.every(span => /^\s*$/.test(span.text))
 }
 
-function getFallbackGlyph(): Uint8Array {
+function getFallbackGlyph(): GlyphMasks {
   if (!fallbackGlyphCache) {
-    fallbackGlyphCache = rasterizeStrokes([[1, 1, 5, 1, 5, 9, 1, 9, 1, 1]])
+    fallbackGlyphCache = buildGlyphMasks([[1, 1, 5, 1, 5, 9, 1, 9, 1, 1]])
   }
   return fallbackGlyphCache
 }
@@ -285,7 +310,19 @@ function encodeRgbaPng(pixels: Buffer, width: number, height: number): Buffer {
   ])
 }
 
-function sampleGlyph(glyph: Uint8Array, gx: number, gy: number, cellW: number, cellH: number, bold: boolean): number {
+function isOutsideRoundedRect(x: number, y: number, width: number, height: number, radius: number): boolean {
+  if (radius <= 0) return false
+  const cx = x + 0.5
+  const cy = y + 0.5
+  const dx = cx < radius ? radius - cx : cx > width - radius ? cx - (width - radius) : 0
+  const dy = cy < radius ? radius - cy : cy > height - radius ? cy - (height - radius) : 0
+  return dx > 0 && dy > 0 && dx * dx + dy * dy > radius * radius
+}
+
+function sampleGlyph(glyph: Uint8Array, gx: number, gy: number, cellW: number, cellH: number): number {
+  if (cellW === CELL_WIDTH && cellH === CELL_HEIGHT) {
+    return glyph[gy * CELL_WIDTH + gx]!
+  }
   const x0 = Math.floor((gx * CELL_WIDTH) / cellW)
   const x1 = Math.max(x0 + 1, Math.ceil(((gx + 1) * CELL_WIDTH) / cellW))
   const y0 = Math.floor((gy * CELL_HEIGHT) / cellH)
@@ -295,12 +332,7 @@ function sampleGlyph(glyph: Uint8Array, gx: number, gy: number, cellW: number, c
   for (let sy = y0; sy < y1 && sy < CELL_HEIGHT; sy++) {
     const row = sy * CELL_WIDTH
     for (let sx = x0; sx < x1 && sx < CELL_WIDTH; sx++) {
-      let a = glyph[row + sx]!
-      if (bold && sx > 0) {
-        const left = glyph[row + sx - 1]!
-        if (left > a) a = left
-      }
-      sum += a
+      sum += glyph[row + sx]!
       count++
     }
   }
@@ -323,6 +355,7 @@ function blendCellShade(
     const py = originY + dy
     for (let dx = 0; dx < cellW; dx++) {
       const idx = (py * imgWidth + originX + dx) * 4
+      if (pixels[idx + 3] === 0) continue
       pixels[idx] = Math.round((color.r * alpha + pixels[idx]! * inv) / 255)
       pixels[idx + 1] = Math.round((color.g * alpha + pixels[idx + 1]! * inv) / 255)
       pixels[idx + 2] = Math.round((color.b * alpha + pixels[idx + 2]! * inv) / 255)
@@ -340,15 +373,15 @@ function blendCellGlyph(
   cellH: number,
   glyph: Uint8Array,
   color: AnsiColor,
-  bold: boolean,
 ): void {
   for (let dy = 0; dy < cellH; dy++) {
     const py = originY + dy
     for (let dx = 0; dx < cellW; dx++) {
-      const alpha = sampleGlyph(glyph, dx, dy, cellW, cellH, bold)
+      const idx = (py * imgWidth + originX + dx) * 4
+      if (pixels[idx + 3] === 0) continue
+      const alpha = sampleGlyph(glyph, dx, dy, cellW, cellH)
       if (alpha === 0) continue
       const inv = 255 - alpha
-      const idx = (py * imgWidth + originX + dx) * 4
       pixels[idx] = Math.round((color.r * alpha + pixels[idx]! * inv) / 255)
       pixels[idx + 1] = Math.round((color.g * alpha + pixels[idx + 1]! * inv) / 255)
       pixels[idx + 2] = Math.round((color.b * alpha + pixels[idx + 2]! * inv) / 255)
@@ -369,18 +402,18 @@ function measureLineColumns(line: ParsedLine): number {
 }
 
 export function ansiToPng(ansiText: string, options?: AnsiToPngOptions): Buffer {
-  const scale = Math.max(1, options?.scale ?? 1)
-  const cellW = Math.max(1, Math.round((CELL_WIDTH / 2) * scale))
-  const cellH = Math.max(1, Math.round((CELL_HEIGHT / 2) * scale))
-  const padding = Math.max(0, Math.round(options?.padding ?? 16 * scale))
+  const scale = options?.scale ?? 1
+  const cellW = Math.max(1, Math.round(CELL_WIDTH * scale))
+  const cellH = Math.max(1, Math.round(CELL_HEIGHT * scale))
+  const padX = Math.max(0, Math.round((options?.paddingX ?? options?.padding ?? DEFAULT_PADDING) * scale))
+  const padY = Math.max(0, Math.round((options?.paddingY ?? options?.padding ?? DEFAULT_PADDING) * scale))
+  const radius = Math.max(0, (options?.radius ?? DEFAULT_RADIUS) * scale)
   const bg = options?.background ?? DEFAULT_BG
 
-  let lines = parseAnsi(ansiText.replace(/\r\n/g, '\n'))
-  let start = 0
-  while (start < lines.length && isBlankLine(lines[start]!)) start++
-  let end = lines.length - 1
-  while (end >= start && isBlankLine(lines[end]!)) end--
-  lines = start <= end ? lines.slice(start, end + 1) : [lines[0] ?? []]
+  const lines = parseAnsi(ansiText.replace(/\r\n/g, '\n'))
+  while (lines.length > 1 && isBlankLine(lines[lines.length - 1]!)) {
+    lines.pop()
+  }
 
   let maxCols = 1
   for (const line of lines) {
@@ -388,35 +421,40 @@ export function ansiToPng(ansiText: string, options?: AnsiToPngOptions): Buffer 
     if (cols > maxCols) maxCols = cols
   }
 
-  const width = Math.max(1, maxCols * cellW + padding * 2)
-  const height = Math.max(1, lines.length * cellH + padding * 2)
+  const width = Math.max(1, maxCols * cellW + padX * 2)
+  const height = Math.max(1, lines.length * cellH + padY * 2)
+  const cornerRadius = Math.min(radius, width / 2, height / 2)
   const pixels = Buffer.alloc(width * height * 4)
-  for (let i = 0; i < pixels.length; i += 4) {
-    pixels[i] = bg.r
-    pixels[i + 1] = bg.g
-    pixels[i + 2] = bg.b
-    pixels[i + 3] = 255
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (isOutsideRoundedRect(x, y, width, height, cornerRadius)) continue
+      const idx = (y * width + x) * 4
+      pixels[idx] = bg.r
+      pixels[idx + 1] = bg.g
+      pixels[idx + 2] = bg.b
+      pixels[idx + 3] = 255
+    }
   }
 
   const font = getFont()
   const fallback = getFallbackGlyph()
 
   for (let row = 0; row < lines.length; row++) {
-    const originY = padding + row * cellH
+    const originY = padY + row * cellH
     let col = 0
     for (const span of lines[row]!) {
       for (const ch of span.text) {
         if (ch === '\r') continue
         const w = stringWidth(ch)
         if (w <= 0) continue
-        const originX = padding + col * cellW
+        const originX = padX + col * cellW
         const shade = SHADE_BLEND[ch]
         if (shade !== undefined) {
           blendCellShade(pixels, width, originX, originY, cellW * w, cellH, span.color, shade)
         } else if (ch !== ' ') {
           const cp = ch.codePointAt(0)
-          const glyph = (cp !== undefined ? font.get(cp) : undefined) ?? fallback
-          blendCellGlyph(pixels, width, originX, originY, cellW, cellH, glyph, span.color, span.bold)
+          const masks = (cp !== undefined ? font.get(cp) : undefined) ?? fallback
+          blendCellGlyph(pixels, width, originX, originY, cellW, cellH, span.bold ? masks.bold : masks.regular, span.color)
         }
         col += w
       }

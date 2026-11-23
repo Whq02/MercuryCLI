@@ -10,7 +10,7 @@ const DEFAULT_PR_ATTRIBUTION = 'Generated with [Mercury CLI](https://mercury-cli
 
 export function getAttributionTexts(): AttributionTexts {
   const credit = getInitialSettings().credit
-  if (credit?.lines !== undefined) {
+  if (credit?.lines != null) {
     return {
       commit: credit.lines.commit ?? DEFAULT_COMMIT_ATTRIBUTION,
       pr: credit.lines.pr ?? DEFAULT_PR_ATTRIBUTION,
