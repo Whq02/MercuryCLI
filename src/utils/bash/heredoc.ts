@@ -122,7 +122,6 @@ type Candidate = {
   dashForm: boolean
   literalBody: boolean
   bodyStartIndex: number
-  bodyEndIndex: number
   contentEndIndex: number
   skipped: boolean
 }
@@ -281,8 +280,8 @@ function parseCandidateAt(command: string, opIndex: number): Candidate | null {
   }
   if (newlineIndex === -1) return null
 
-  const found = findClosingDelimiter(command, newlineIndex + 1, delimiter, dashForm)
-  if (found === null) return null
+  const contentEndIndex = findClosingDelimiter(command, newlineIndex + 1, delimiter, dashForm)
+  if (contentEndIndex === null) return null
 
   return {
     operatorStartIndex: opIndex,
@@ -291,8 +290,7 @@ function parseCandidateAt(command: string, opIndex: number): Candidate | null {
     dashForm,
     literalBody,
     bodyStartIndex: newlineIndex,
-    bodyEndIndex: found.delimiterLineStart,
-    contentEndIndex: found.contentEndIndex,
+    contentEndIndex,
     skipped: false,
   }
 }
@@ -302,17 +300,17 @@ function findClosingDelimiter(
   bodyStart: number,
   delimiter: string,
   dashForm: boolean,
-): { delimiterLineStart: number; contentEndIndex: number } | null {
+): number | null {
   let lineStart = bodyStart
   while (lineStart <= command.length) {
     let lineEnd = command.indexOf('\n', lineStart)
     if (lineEnd === -1) lineEnd = command.length
-    let line = command.slice(lineStart, lineEnd)
+    const line = command.slice(lineStart, lineEnd)
     let stripped = line
     if (dashForm) stripped = stripped.replace(/^\t+/, '')
 
     if (stripped === delimiter) {
-      return { delimiterLineStart: lineStart, contentEndIndex: lineEnd }
+      return lineEnd
     }
     if (stripped.startsWith(delimiter) && stripped.length > delimiter.length) {
       const next = stripped[delimiter.length]

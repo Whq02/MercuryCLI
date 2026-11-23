@@ -102,16 +102,12 @@ const subscriptOperands: SemanticCheck = (name, argv) => {
         if (next !== undefined && next.includes('[')) {
           return `${name} ${flag} with a bracketed name evaluates array subscripts, which can execute code`
         }
-      } else {
-        const letterIdx = arg.indexOf(letter, 1)
-        if (letterIdx !== -1 && arg.slice(letterIdx + 1).includes('[')) {
+      } else if (arg.startsWith(flag) && arg.slice(flag.length).includes('[')) {
+        return `${name} ${flag} with a bracketed name evaluates array subscripts, which can execute code`
+      } else if (/^-[A-Za-z]+$/.test(arg) && arg.includes(letter)) {
+        const next = argv[i + 1]
+        if (next !== undefined && next.includes('[')) {
           return `${name} ${flag} with a bracketed name evaluates array subscripts, which can execute code`
-        }
-        if (/^-[A-Za-z]+$/.test(arg) && arg.includes(letter)) {
-          const next = argv[i + 1]
-          if (next !== undefined && next.includes('[')) {
-            return `${name} ${flag} with a bracketed name evaluates array subscripts, which can execute code`
-          }
         }
       }
     }
