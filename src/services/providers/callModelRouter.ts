@@ -75,7 +75,7 @@ export function settleAssistantTurn(
 export async function routedCallModelSettled(params: CallModelParams): Promise<AssistantMessage> {
   const settled: AssistantMessage[] = []
   for await (const message of routedCallModel(params)) {
-    if (message.type === 'assistant') settled.push(message as AssistantMessage)
+    if (message.type === 'assistant') settled.push(message)
   }
   return settleAssistantTurn(settled, params.signal.aborted)
 }
