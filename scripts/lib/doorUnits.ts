@@ -10,6 +10,7 @@ interface DoorUnits {
 const SOURCE = /\.tsx?$/
 const SKIPPED = new Set(['node_modules', '__snapshots__'])
 const SPECIFIER = /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)(['"])(\.{1,2}\/[^'"\n]+)\1/g
+const TABLE = 'scripts/lib/doorUnits.tsv'
 
 function sourcesUnder(root: string, dir: string, out: string[]): void {
   for (const name of readdirSync(join(root, dir))) {
@@ -41,6 +42,13 @@ export function doorUnits(root: string, importersUnder: string, trees: readonly 
   const all: string[] = []
   sourcesUnder(root, importersUnder, all)
   const known = new Set(all)
+  const tabled = new Map<string, string>()
+  for (const row of readFileSync(join(import.meta.dir, 'doorUnits.tsv'), 'utf8').split('\n')) {
+    if (row === '') continue
+    const [door, part] = row.split('\t')
+    if (door === undefined || part === undefined || !known.has(door) || !known.has(part)) throw new Error(`${TABLE}: the row "${row}" names a file that is not under ${importersUnder}/: write the door and its part at their paths with a tab between them, or delete the row of a file that is gone`)
+    tabled.set(part, door)
+  }
   const outside = new Map<string, Set<string>>()
   for (const file of all) {
     const text = readFileSync(join(root, file), 'utf8')
@@ -62,6 +70,8 @@ export function doorUnits(root: string, importersUnder: string, trees: readonly 
     if (dirname(door!) === dirname(folder)) doorOfFolder.set(folder, door!)
   }
   const doorOf = (file: string): string | null => {
+    const listed = tabled.get(file)
+    if (listed !== undefined) return listed
     for (let folder = dirname(file); folder !== importersUnder && folder !== '.'; folder = dirname(folder)) {
       const door = doorOfFolder.get(folder)
       if (door !== undefined) return door
