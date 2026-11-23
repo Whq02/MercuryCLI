@@ -1,7 +1,6 @@
 import type { PermissionUpdate } from '../../types/permissions.js'
 import { isDestructiveCommandVerb } from '../shell/destructiveCommandWarning.js'
 import { precedingBackslashes } from './permissionRuleParser.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 const COMMAND_PREFIX_ARITY: Readonly<Record<string, number>> = {
   git: 2, npm: 2, pnpm: 2, yarn: 2, bun: 2, docker: 2, gh: 2, cargo: 2,
@@ -35,11 +34,16 @@ export function knownShellCommandPrefix(command: string): string | null {
   return words.slice(0, arity).join(' ')
 }
 
-export type ShellPermissionRule = Unbuilt
+export type ShellPermissionRule =
+  | { type: 'exact'; command: string }
+  | { type: 'wildcard'; pattern: string }
 
 
 export function hasWildcards(pattern: string): boolean {
-  return notBuilt('src/utils/permissions/shellRuleMatching.ts:42')
+  for (let i = 0; i < pattern.length; i++) {
+    if (pattern[i] === '*' && precedingBackslashes(pattern, i) % 2 === 0) return true
+  }
+  return false
 }
 
 function countUnescapedWildcards(pattern: string): number {
@@ -70,16 +74,71 @@ const WILDCARD_MARK = '\x00MERCURY_WILD\x00'
 
 const compiledCache = new Map<string, RegExp>()
 
+function compileWildcardPattern(trimmed: string, caseInsensitive: boolean): RegExp {
+  const key = `${caseInsensitive ? 'i' : 's'}:${trimmed}`
+  const cached = compiledCache.get(key)
+  if (cached !== undefined) return cached
+
+  let marked = ''
+  for (let i = 0; i < trimmed.length; i++) {
+    const ch = trimmed[i]!
+    if (ch === '\\') {
+      const next = trimmed[i + 1]
+      if (next === '\\') {
+        marked += LITERAL_BACKSLASH
+        i++
+      } else if (next === '*') {
+        marked += LITERAL_STAR
+        i++
+      } else {
+        marked += '\\'
+      }
+    } else if (ch === '*') {
+      marked += WILDCARD_MARK
+    } else {
+      marked += ch
+    }
+  }
+
+  const trailingOptional = ` ${WILDCARD_MARK}`
+  const hasTrailingOptionalSpace = marked.endsWith(trailingOptional)
+  let body = hasTrailingOptionalSpace ? marked.slice(0, -trailingOptional.length) : marked
+
+  const doubleWild = `${WILDCARD_MARK}${WILDCARD_MARK}`
+  while (body.includes(doubleWild)) {
+    body = body.replaceAll(doubleWild, WILDCARD_MARK)
+  }
+
+  let regexSource = body
+    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    .replaceAll(WILDCARD_MARK, '.*')
+    .replaceAll(LITERAL_STAR, '\\*')
+    .replaceAll(LITERAL_BACKSLASH, '\\\\')
+
+  if (hasTrailingOptionalSpace) {
+    regexSource += '(?: .*)?'
+  }
+
+  const compiled = new RegExp(`^${regexSource}$`, caseInsensitive ? 'si' : 's')
+  compiledCache.set(key, compiled)
+  return compiled
+}
+
 export function matchWildcardPattern(
   pattern: string,
   command: string,
-  caseInsensitive?: boolean,
+  caseInsensitive = false,
 ): boolean {
-  return notBuilt('src/utils/permissions/shellRuleMatching.ts:115')
+  return compileWildcardPattern(pattern.trim(), caseInsensitive).test(command)
 }
 
 function localAllowUpdate(toolName: string, content: string): PermissionUpdate {
-  return notBuilt('src/utils/permissions/shellRuleMatching.ts:123')
+  return {
+    type: 'addRules',
+    rules: [{ toolName, ruleContent: content }],
+    behavior: 'allow',
+    destination: 'localSettings',
+  }
 }
 
 export function suggestionForExactCommand(toolName: string, command: string): PermissionUpdate[] {
