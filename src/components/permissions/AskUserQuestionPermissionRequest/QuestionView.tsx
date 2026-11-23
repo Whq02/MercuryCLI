@@ -19,6 +19,7 @@ import type { ImageDimensions } from '../../../utils/imageResizer.js'
 import { editPromptInEditor } from '../../../utils/promptEditor.js'
 import { type OptionWithDescription, Select, SelectMulti } from '../../CustomSelect/index.js'
 import { decodeDomNavKey } from '../../mercury-ui/navSemantics.js'
+import { InteractiveRow } from '../../mercury-ui/InteractiveRow.js'
 import { Divider } from '../../design-system/Divider.js'
 import { PermissionRequestTitle } from '../PermissionRequestTitle.js'
 import { PreviewQuestionView } from './PreviewQuestionView.js'
@@ -99,7 +100,7 @@ export function QuestionView(props: Props): React.ReactNode {
     currentQuestionIndex,
     answers,
     questionStates,
-    hideSubmitTab = false,
+    hideSubmitTab = questions.length === 1 && !question.multiSelect,
     minContentHeight,
     onUpdateQuestionState,
     onAnswer,
@@ -408,17 +409,25 @@ function renderDiscussFooter(
   onRespondToModel?: () => void | Promise<void>,
 ): React.ReactNode {
   return (
-    <Box
-      marginTop={1}
-      onClick={() => {
-        void onRespondToModel?.()
-      }}
-    >
-      <Text color={isFooterFocused ? 'suggestion' : undefined} bold={isFooterFocused}>
-        {isFooterFocused ? `${figures.pointer} ` : '  '}
-        <Text dimColor={!isFooterFocused}>{`${footerNumber}. `}</Text>
-        {DISCUSS_OPTION_LABEL}
-      </Text>
+    <Box marginTop={1}>
+      <InteractiveRow
+        id="question:discuss-footer"
+        directActivate
+        selectionBand={false}
+        onActivate={
+          onRespondToModel
+            ? () => {
+                void onRespondToModel()
+              }
+            : undefined
+        }
+      >
+        <Text color={isFooterFocused ? 'suggestion' : undefined} bold={isFooterFocused}>
+          {isFooterFocused ? `${figures.pointer} ` : '  '}
+          <Text dimColor={!isFooterFocused}>{`${footerNumber}. `}</Text>
+          {DISCUSS_OPTION_LABEL}
+        </Text>
+      </InteractiveRow>
     </Box>
   )
 }

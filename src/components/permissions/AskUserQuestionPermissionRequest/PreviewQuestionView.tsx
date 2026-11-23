@@ -55,7 +55,7 @@ export function PreviewQuestionView({
   currentQuestionIndex,
   answers,
   questionStates,
-  hideSubmitTab = false,
+  hideSubmitTab = questions.length === 1,
   minContentHeight,
   minContentWidth,
   onUpdateQuestionState,
