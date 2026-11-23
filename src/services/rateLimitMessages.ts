@@ -4,16 +4,30 @@ import { getMarketingNameForModel } from './model/model.js'
 import type { AnthropicLimits, RateLimitType } from './anthropicLimits.js'
 import { usageWarningTier } from './providers/usageTiers.js'
 import { passedOver } from '../utils/passedOver.js'
-import { notBuilt, type Unbuilt } from '../pi/holes.js'
 
 
 const SEPARATOR = ' · '
 
+const RATE_LIMIT_ERROR_PREFIXES = [
+  "Anthropic says this account's",
+  'Anthropic says this account has used',
+  `Anthropic says this account is now using extra usage${SEPARATOR}`,
+  'Anthropic says this account is close to its extra usage',
+  "You've reached your",
+  "You've used",
+  `You're now using extra usage${SEPARATOR}`,
+  "You're close to your extra usage",
+  "You've run out of extra usage",
+] as const
+
 export function isRateLimitErrorMessage(text: string): boolean {
-  return notBuilt('src/services/rateLimitMessages.ts:23')
+  return RATE_LIMIT_ERROR_PREFIXES.some(prefix => text.startsWith(prefix))
 }
 
-type RateLimitMessage = Unbuilt
+type RateLimitMessage = {
+  message: string
+  severity: 'error' | 'warning'
+}
 
 function sonnetWindowName(): string {
   const subscription = getSubscriptionType()
@@ -21,11 +35,25 @@ function sonnetWindowName(): string {
 }
 
 function limitReachedName(claim: RateLimitType | undefined): string {
-  return notBuilt('src/services/rateLimitMessages.ts:37')
+  switch (claim) {
+    case 'seven_day_opus':
+      return 'Opus limit'
+    case 'seven_day_fable':
+      return 'Fable limit'
+    case 'seven_day_sonnet':
+      return sonnetWindowName()
+    case 'seven_day':
+      return 'weekly limit'
+    case 'five_hour':
+      return 'session limit'
+    default:
+      return 'usage limit'
+  }
 }
 
 function earlyWarningName(claim: RateLimitType): string {
-  return notBuilt('src/services/rateLimitMessages.ts:54')
+  if (claim === 'overage') return 'extra usage'
+  return limitReachedName(claim)
 }
 
 export function rateLimitWindowName(claim: RateLimitType): string {
@@ -52,7 +80,10 @@ function onModelClause(model: string): string {
 }
 
 function inFamilyClause(claim: RateLimitType | undefined): string | null {
-  return notBuilt('src/services/rateLimitMessages.ts:105')
+  if (claim === 'seven_day_opus' || claim === 'seven_day_sonnet' || claim === 'seven_day_fable') {
+    return 'the other Claude model pools are separate — /model switches inside this account'
+  }
+  return null
 }
 
 function limitReachedMessage(limits: AnthropicLimits, model: string): string {
@@ -96,15 +127,54 @@ function earlyWarningMessage(limits: AnthropicLimits): string | null {
 }
 
 export function getUsingOverageText(limits: AnthropicLimits): string {
-  return notBuilt('src/services/rateLimitMessages.ts:152')
+  const base = 'Anthropic says this account is now using extra usage'
+  const claim = limits.rateLimitType
+  if (
+    claim !== 'five_hour' &&
+    claim !== 'seven_day' &&
+    claim !== 'seven_day_opus' &&
+    claim !== 'seven_day_sonnet' &&
+    claim !== 'seven_day_fable'
+  ) {
+    return base
+  }
+  const windowName = limitReachedName(claim)
+  if (limits.resetsAt !== undefined) {
+    return `${base}${SEPARATOR}its ${windowName} resets ${formatResetTime(limits.resetsAt)}`
+  }
+  return `${base}${SEPARATOR}its ${windowName} has been reached`
 }
 
 export function getRateLimitMessage(limits: AnthropicLimits, model: string): RateLimitMessage | null {
-  return notBuilt('src/services/rateLimitMessages.ts:176')
+  if (limits.isUsingOverage) {
+    if (limits.overageStatus === 'allowed_warning') {
+      return {
+        message: 'Anthropic says this account is close to its extra usage spending limit',
+        severity: 'warning',
+      }
+    }
+    return null
+  }
+  if (limits.status === 'rejected') {
+    return {
+      message: limitReachedMessage(limits, model),
+      severity: 'error',
+    }
+  }
+  if (limits.status === 'allowed_warning') {
+    if (limits.utilization !== undefined && usageWarningTier(limits.utilization * 100) === null) {
+      return null
+    }
+    const message = earlyWarningMessage(limits)
+    if (message === null) return null
+    return { message, severity: 'warning' }
+  }
+  return null
 }
 
 export function getRateLimitErrorMessage(limits: AnthropicLimits, model: string): string | null {
-  return notBuilt('src/services/rateLimitMessages.ts:197')
+  const result = getRateLimitMessage(limits, model)
+  return result !== null && result.severity === 'error' ? result.message : null
 }
 
 
@@ -196,5 +266,6 @@ export function crossFamilyLaneRemedy(
 }
 
 export function getRateLimitWarning(limits: AnthropicLimits, model: string): string | null {
-  return notBuilt('src/services/rateLimitMessages.ts:290')
+  const result = getRateLimitMessage(limits, model)
+  return result !== null && result.severity === 'warning' ? result.message : null
 }
