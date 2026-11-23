@@ -1,11 +1,10 @@
 import { z } from 'zod/v4'
 import { SATURN_ID_PATTERN } from '../../daemon/saturn.js'
 import { sessionScheduleRoster, submitSessionScheduleEdit } from '../../services/saturn/sessionScheduleBridge.js'
-import { buildTool, type ToolDef, type ValidationResult } from '../../Tool.js'
+import { buildTool, type Tool, type ToolDef, type ValidationResult } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { buildCronDeletePrompt, CRON_DELETE_DESCRIPTION, CRON_DELETE_TOOL_NAME, CRON_LIST_TOOL_NAME, cronToolsMountable } from './prompt.js'
 import { renderDeleteResultMessage, renderDeleteToolUseMessage } from './UI.js'
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 const ID_HINT = 'The schedule id to cancel (eight hex characters)'
 
@@ -41,4 +40,40 @@ function submitRemoval(id: string): DeleteOutput {
   return { id, note: REMOVAL_NOTE }
 }
 
-export const CronDeleteTool: Unbuilt = unbuilt('src/tools/ScheduleCronTool/CronDeleteTool.ts:43')
+type InputSchema = ReturnType<typeof inputSchema>
+type OutputSchema = ReturnType<typeof outputSchema>
+
+export const CronDeleteTool: Tool<InputSchema, DeleteOutput> = buildTool({
+  name: CRON_DELETE_TOOL_NAME,
+  searchHint: 'cancel a scheduled job by id',
+  shouldDefer: true,
+  maxResultSizeChars: 100_000,
+  isEnabled: () => cronToolsMountable(),
+  get inputSchema(): InputSchema {
+    return inputSchema()
+  },
+  get outputSchema(): OutputSchema {
+    return outputSchema()
+  },
+  async description() {
+    return CRON_DELETE_DESCRIPTION
+  },
+  async prompt() {
+    return buildCronDeletePrompt()
+  },
+  validateInput({ id }: DeleteInput): ValidationResult {
+    return validateId(id)
+  },
+  async call({ id }: DeleteInput) {
+    return { data: submitRemoval(id) }
+  },
+  mapToolResultToToolResultBlockParam(output: DeleteOutput, toolUseID: string) {
+    return {
+      tool_use_id: toolUseID,
+      type: 'tool_result' as const,
+      content: `Cancel submitted for schedule ${output.id}. ${output.note}`,
+    }
+  },
+  renderToolUseMessage: renderDeleteToolUseMessage,
+  renderToolResultMessage: renderDeleteResultMessage,
+} satisfies ToolDef<InputSchema, DeleteOutput>)
