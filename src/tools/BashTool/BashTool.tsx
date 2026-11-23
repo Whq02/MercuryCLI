@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { z } from 'zod/v4'
 import { buildTool, stringInputField, type ToolInputJSONSchema, type ToolUseContext, type ToolResult } from '../../Tool.js'
 import { loginFilesLineOnce, settleShellRecord } from '../../utils/shell/shellRecord.js'
