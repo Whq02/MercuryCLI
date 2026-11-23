@@ -1,19 +1,30 @@
-import { notBuilt, unbuilt, type Unbuilt } from '../../../pi/holes.js'
+import { logError } from '../../../utils/log.js'
 
-export const resultLineAnchors: WeakSet<object> = unbuilt('src/tools/FileReadTool/read/results.ts:3')
+export const resultLineAnchors = new WeakSet<object>()
 
-export const resultOutlineBodies: WeakMap<object, string> = unbuilt('src/tools/FileReadTool/read/results.ts:5')
+export const resultOutlineBodies = new WeakMap<object, string>()
 
-export const resultResolvedNames: WeakMap<object, string> = unbuilt('src/tools/FileReadTool/read/results.ts:7')
-export const resultPreRenderedBody: WeakMap<object, string> = unbuilt('src/tools/FileReadTool/read/results.ts:8')
-export const resultWithoutProfileHint: WeakSet<object> = unbuilt('src/tools/FileReadTool/read/results.ts:9')
+export const resultResolvedNames = new WeakMap<object, string>()
+export const resultPreRenderedBody = new WeakMap<object, string>()
+export const resultWithoutProfileHint = new WeakSet<object>()
 
-type FileReadListener = (...args: Unbuilt[]) => Unbuilt
+type FileReadListener = (filePath: string, content: string) => void
+
+const fileReadListeners = new Set<FileReadListener>()
 
 export function registerFileReadListener(listener: FileReadListener): () => void {
-  return notBuilt('src/tools/FileReadTool/read/results.ts:15')
+  fileReadListeners.add(listener)
+  return () => {
+    fileReadListeners.delete(listener)
+  }
 }
 
 export function notifyFileReadListeners(filePath: string, content: string): void {
-  return notBuilt('src/tools/FileReadTool/read/results.ts:22')
+  for (const listener of [...fileReadListeners]) {
+    try {
+      listener(filePath, content)
+    } catch (error) {
+      logError(error)
+    }
+  }
 }
