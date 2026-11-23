@@ -12,24 +12,67 @@ import { logForDebugging } from '../debug.js'
 import type { Attachment } from './types.js'
 import { capsuleStateFor, resetCapsuleSkillNames, suppressCapsuleSkillListing } from './capsuleState.js'
 import { passedOver } from '../passedOver.js'
-import { notBuilt } from '../../pi/holes.js'
+import type { Command } from '../../types/command.js'
 
 export async function getDynamicSkillAttachments(
   toolUseContext: ToolUseContext,
 ): Promise<Attachment[]> {
-  return notBuilt('src/utils/attachments/skillListing.ts:16')
+  const triggers = toolUseContext.dynamicSkillDirTriggers
+  if (!triggers?.size) return []
+  const folders = [...triggers]
+  const result = await Promise.all(folders.map(async (skillDir): Promise<Attachment[]> => {
+    try {
+      const entries = await readdir(skillDir, { withFileTypes: true })
+      const skillNames: string[] = []
+      for (const entry of entries) {
+        if (!entry.isDirectory() && !entry.isSymbolicLink()) continue
+        try {
+          if ((await stat(resolve(skillDir, entry.name, 'SKILL.md'))).isFile()) skillNames.push(entry.name)
+        } catch (error) {
+          passedOver(error)
+        }
+      }
+      return skillNames.length ? [{ type: 'dynamic_skill', skillDir, skillNames, displayPath: relative(getCwd(), skillDir) }] : []
+    } catch (error) {
+      passedOver(error)
+      return []
+    }
+  }))
+  for (const folder of folders) triggers.delete(folder)
+  return result.flat()
 }
 
 export function resetSentSkillNames(): void {
-  return notBuilt('src/utils/attachments/skillListing.ts:45')
+  resetCapsuleSkillNames()
 }
 
 export function suppressNextSkillListing(): void {
-  return notBuilt('src/utils/attachments/skillListing.ts:49')
+  suppressCapsuleSkillListing()
 }
 
 export async function getSkillListingAttachments(
   toolUseContext: ToolUseContext,
 ): Promise<Attachment[]> {
-  return notBuilt('src/utils/attachments/skillListing.ts:53')
+  if (!toolUseContext.options.tools.some(tool => toolMatchesName(tool, SKILL_TOOL_NAME))) return []
+  const state = capsuleStateFor(toolUseContext, toolUseContext.messages)
+  const local: Command[] = await getSkillToolCommands(getProjectRoot())
+  const mcp = getMcpSkillCommands(toolUseContext.getAppState().mcp.commands)
+  let commands = mcp.length ? uniqBy([...local, ...mcp], command => command.name) : local
+  if (toolUseContext.agentId) commands = commands.filter(command => command.type !== 'prompt' || command.context !== 'fork')
+  if (state.suppressNextSkills) {
+    state.suppressNextSkills = false
+    for (const command of commands) state.sentSkillNames.add(command.name)
+    return []
+  }
+  const added = commands.filter(command => !state.sentSkillNames.has(command.name))
+  const names = new Set(commands.map(command => command.name))
+  const removedNames = [...state.sentSkillNames].filter(name => !names.has(name))
+  for (const name of removedNames) state.sentSkillNames.delete(name)
+  if (!added.length && !removedNames.length) return []
+  const isInitial = state.sentSkillNames.size === 0
+  for (const command of added) state.sentSkillNames.add(command.name)
+  logForDebugging(`Sending ${added.length} skills via attachment (${isInitial ? 'initial' : 'dynamic'}, ${removedNames.length} removed, ${state.sentSkillNames.size} total sent)`)
+  const window = getContextWindowForModel(toolUseContext.options.engineModel, getSdkBetas())
+  const { content, truncation } = added.length ? formatCommandsWithinBudgetDetailed(added, window) : { content: '', truncation: null }
+  return [{ type: 'skill_listing', content, skillCount: added.length, isInitial, removedNames, truncation }]
 }
