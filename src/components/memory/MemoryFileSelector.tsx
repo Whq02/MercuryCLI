@@ -68,6 +68,16 @@ function importDepthOf(
 
 const DEFAULT_HELD = (): boolean => true
 
+const TOGGLE_COUNT = 1
+
+function prefixOf(entry: InstructionSourceEntry): string {
+  const tool = toolPrefixOf(entry)
+  if (tool !== null) return tool
+  if (entry.family === 'native') return 'Mercury-native · '
+  if (entry.family === 'shared') return 'shared guide · '
+  return ''
+}
+
 export function MemoryFileSelector({
   onSelect,
   onCancel,
@@ -89,14 +99,22 @@ export function MemoryFileSelector({
   const [mnemeOn, setMnemeOn] = useState(() => isMnemeEnabled())
   const [firstVisible, setFirstVisible] = useState(0)
   const [openError, setOpenError] = useState<string | null>(null)
-  const [focusedToggle, setFocusedToggle] = useState<0 | null>(null)
+  const [focusedToggle, setFocusedToggle] = useState<number | null>(null)
 
-  useExitOnCtrlCDWithKeybindings(onCancel)
+  useExitOnCtrlCDWithKeybindings()
+
+  useKeybinding(
+    'select:previous',
+    () => {
+      setFocusedToggle(prev => (prev === null ? prev : Math.max(0, prev - 1)))
+    },
+    { context: 'Select', isActive: focusedToggle !== null },
+  )
 
   useKeybinding(
     'select:next',
     () => {
-      setFocusedToggle(null)
+      setFocusedToggle(prev => (prev === null || prev >= TOGGLE_COUNT - 1 ? null : prev + 1))
     },
     { context: 'Select', isActive: focusedToggle !== null },
   )
@@ -115,14 +133,6 @@ export function MemoryFileSelector({
     { context: 'Confirmation', isActive: focusedToggle !== null },
   )
 
-  useKeybinding(
-    'confirm:no',
-    () => {
-      onCancel()
-    },
-    { context: 'Confirmation', isActive: focusedToggle !== null },
-  )
-
   const rows = useMemo((): Row[] => {
     const out: Row[] = []
     const userPath = getMemoryPath('User')
@@ -130,50 +140,44 @@ export function MemoryFileSelector({
     const byPath = new Map(files.map(entry => [entry.path, entry]))
 
     for (const entry of files) {
-      const nativePrefix = toolPrefixOf(entry) ?? ''
+      const depth = importDepthOf(entry, byPath)
+      const prefix = prefixOf(entry)
       const relPath = getRelativeMemoryPath(entry.path)
       if (entry.path === userPath) {
         out.push({
           label: 'User memory',
           value: entry.path,
-          description: `${nativePrefix}${toTildePath(entry.path)}`,
+          description: `${prefix}${toTildePath(entry.path)}`,
         })
       } else if (entry.path === projectPath) {
         out.push({
           label: 'Project memory',
           value: entry.path,
-          description: `${nativePrefix}${relPath} · loads every session`,
+          description: `${prefix}${relPath} · loads every session`,
         })
-      } else if (entry.parent !== undefined && importDepthOf(entry, byPath) > 0) {
-        const depth = importDepthOf(entry, byPath)
+      } else if (depth > 0) {
+        const from = entry.parent ? ` from ${getRelativeMemoryPath(entry.parent)}` : ''
         out.push({
-          label: `${' '.repeat(depth)}↳ ${relPath}`,
+          label: `${'  '.repeat(depth)}↳ ${relPath}`,
           value: entry.path,
-          description: `${nativePrefix}imported via @ from ${getRelativeMemoryPath(entry.parent)}`,
+          description: `${prefix}imported via @${from}`,
         })
       } else {
-        const strippedPrefix = nativePrefix.replace(/ · $/, '')
-        const description = `${strippedPrefix}${loadedStateOf(entry)}`.replace(/^ · /, '')
         out.push({
           label: relPath,
           value: entry.path,
-          ...(description !== '' ? { description } : {}),
+          description: `${prefix.replace(/ · $/, '')}${loadedStateOf(entry)}`,
         })
       }
     }
 
     const listedPaths = [...files.map(entry => entry.path), ...listing.map(row => row.path)]
-    const extraAttached = attachedRows(held, listedPaths, attached)
-    const wasAttached = attached
-      ? (path: string) => attached.some(item => item.path === path)
-      : undefined
-    for (const row of [...listing, ...extraAttached]) {
-      const relPath = getRelativeMemoryPath(row.path)
-      const description = listingRowWords(row, '', held, wasAttached)
+    const wasAttached = attached !== undefined ? held : undefined
+    for (const row of [...listing, ...attachedRows(held, listedPaths, attached)]) {
       out.push({
-        label: relPath,
+        label: getRelativeMemoryPath(row.path),
         value: row.path,
-        ...(description !== '' ? { description } : {}),
+        description: listingRowWords(row, '', held, wasAttached),
       })
     }
 
@@ -181,7 +185,7 @@ export function MemoryFileSelector({
       out.push({
         label: 'User memory (new)',
         value: userPath,
-        description: `will be written at ${getRelativeMemoryPath(userPath)}`,
+        description: toTildePath(userPath),
       })
     }
     if (!byPath.has(projectPath)) {
@@ -211,43 +215,47 @@ export function MemoryFileSelector({
   }, [rows])
 
   const listBudget = Math.max(1, rowBudget - 2 - (openError !== null ? 1 : 0))
-  const { layout, visibleOptionCount } = useMemo(
+  const listLayout = useMemo(
     () => memoryFileListLayout(rows, width, listBudget, firstVisible),
     [rows, width, listBudget, firstVisible],
+  )
+  const options = useMemo(
+    () => (listLayout.layout === 'compact-vertical' ? rows.map(row => ({ ...row, label: ` ${row.label}` })) : rows),
+    [listLayout.layout, rows],
   )
 
   const handleChange = (value: string): void => {
     lastSelectedPath = value
     if (value.startsWith('::open:')) {
-      setOpenError(null)
-      const err = openMemoryFolder(getMnemeHome(), undefined, message => setOpenError(message))
-      if (err !== null) {
-        setOpenError(err)
-      }
+      setOpenError(openMemoryFolder(getMnemeHome(), undefined, setOpenError))
       return
     }
+    setOpenError(null)
     onSelect(value)
   }
 
   return (
     <Box flexDirection="column">
-      <Box marginBottom={1}>
+      <Box flexDirection="column" marginBottom={1}>
         <Text inverse={focusedToggle === 0} bold={focusedToggle === 0}>
-          {`Memory: ${mnemeOn ? 'on' : 'off'}`}
+          Memory: {mnemeOn ? 'on' : 'off'}
         </Text>
       </Box>
       <Select
-        options={rows}
-        defaultFocusValue={defaultFocusValue}
+        {...listLayout}
+        onVisibleWindowChange={from => setFirstVisible(from)}
         isDisabled={focusedToggle !== null}
-        layout={layout}
-        visibleOptionCount={visibleOptionCount}
+        options={options}
+        defaultFocusValue={defaultFocusValue}
         onChange={handleChange}
         onCancel={onCancel}
-        onUpFromFirstItem={() => setFocusedToggle(0)}
-        onVisibleWindowChange={from => setFirstVisible(from)}
+        onUpFromFirstItem={() => setFocusedToggle(TOGGLE_COUNT - 1)}
       />
-      {openError !== null ? <Text color={tokens.failureText}>{openError}</Text> : null}
+      {openError !== null ? (
+        <Text color={tokens.failureText} wrap="wrap">
+          {openError}
+        </Text>
+      ) : null}
     </Box>
   )
 }
