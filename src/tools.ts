@@ -114,7 +114,6 @@ import { isPowerShellToolEnabled } from './utils/shell/shellToolUtils.js'
 import { tellTheToolTable } from './tools/toolTable.js'
 import { passedOver } from './utils/passedOver.js'
 import { logError } from './utils/log.js'
-import { notBuilt } from './pi/holes.js'
 
 
 export { ALL_AGENT_DISALLOWED_TOOLS, CUSTOM_AGENT_DISALLOWED_TOOLS }
@@ -142,14 +141,74 @@ const MONITOR_TOOL = cycleTolerant(() => MonitorTool)
 const RECORD_CONVENTION_TOOL = cycleTolerant(() => RecordConventionTool)
 
 export function getAllBaseTools(agentId?: string): Tools {
-  return notBuilt('src/tools.ts:143')
+  const search = searchToolsAvailability()
+  const searchReady = search.available && search.mode !== 'embedded'
+  const candidates: Array<Tool | false | null | undefined> = [
+    AgentTool,
+    BashTool,
+    ...(searchReady ? [GlobTool, GrepTool] : []),
+    FileReadTool,
+    FileEditTool,
+    FileWriteTool,
+    NotebookEditTool,
+    WebFetchTool,
+    WebSearchTool,
+    ProviderSearchTool,
+    TaskStopTool,
+    AskUserQuestionTool,
+    SkillTool,
+    ApolloReviewTool,
+    ...(isTaskToolsEnabled() ? [TaskCreateTool, TaskGetTool, TaskUpdateTool, TaskListTool] : []),
+    ...(isLspToolCatalogEnabled() ? LSP_TOOLS : []),
+    mercuryRefsEnabled() && InspectTool,
+    servicesEnabled() && ServiceTool,
+    isDapToolCatalogEnabled() && DebugTool,
+    pythonTestsEnabled() && TestTool,
+    evalEnabled() && EvalTool,
+    launchProfilesEnabled() && LaunchTool,
+    ideLoopEnabled() && changeTransactionEnabled() && txAutoCaptureEnabled() && TransactionTool,
+    structureEnabled() && StructureTool,
+    ...(structurePolyglotEnabled() ? [AstSearchTool, AstEditTool] : []),
+    changeSetEnabled() && ChangeSetTool,
+    gitGraphEnabled() && GitTool,
+    journeysEnabled() && JourneyTool,
+    browserToolEnabled() && BrowserTool,
+    computerToolEnabled() && ComputerTool,
+    videoToolEnabled() && VideoTool,
+    vulcanToolCatalogEnabled() && GodotTool,
+    unityBridgeToolCatalogEnabled() && UnityTool,
+    blenderBridgeToolCatalogEnabled() && BlenderTool,
+    asepriteToolCatalogEnabled() && AsepriteTool,
+    jevEvalEnabled() && JevEvalTool,
+    advisorEnabled() && AskAdvisorTool,
+    ...(isWorktreeModeEnabled() ? [EnterWorktreeTool, ExitWorktreeTool] : []),
+    ...(checkpointRewindEnabled() ? [CheckpointTool, RewindTool] : []),
+    cycleTolerant(() => SendMessageTool),
+    ...swarmTools(agentId),
+    cycleTolerant(() => ResumeAgentTool),
+    SLEEP_TOOL,
+    ...(SCHEDULING_ENABLED_AT_LOAD ? [CronCreateTool, CronDeleteTool, CronListTool, ScheduleWakeupTool] : []),
+    MONITOR_TOOL,
+    ContextLeftTool,
+    contractToolHosted() && cycleTolerant(() => ContractTool),
+    RECORD_CONVENTION_TOOL,
+    ...(memoryVerbsEnabled() ? [RetainTool, RecallTool, ReflectTool, CorrectTool] : []),
+    journalEnabled() && JournalTool,
+    isPowerShellToolEnabled() && cycleTolerant(() => PowerShellTool),
+    process.env.NODE_ENV === 'test' && TestingPermissionTool,
+    ListMcpResourcesTool,
+    ReadMcpResourceTool,
+    isToolSearchEnabledOptimistic() && ToolSearchTool,
+    DocumentTool,
+  ]
+  return candidates.filter((tool): tool is Tool => Boolean(tool))
 }
 
 export function filterToolsByDenyRules<T extends Pick<Tool, 'name' | 'mcpInfo'>>(
   tools: readonly T[],
   permissionContext: ToolPermissionContext,
 ): T[] {
-  return notBuilt('src/tools.ts:213')
+  return tools.filter(tool => wholeToolDenyRuleFor(tool, permissionContext) === null)
 }
 
 function wholeToolDenyRuleFor(tool: Pick<Tool, 'name' | 'mcpInfo'>, permissionContext: ToolPermissionContext): PermissionRule | null {
@@ -206,11 +265,25 @@ export function assembleToolPool(
   mcpTools: Tools,
   agentId?: string,
 ): Tools {
-  return notBuilt('src/tools.ts:269')
+  const builtIns = [...getTools(permissionContext, agentId)].sort((a, b) => a.name.localeCompare(b.name))
+  const mcp = mcpToolPartition(mcpTools, permissionContext)
+  const seen = new Set<string>()
+  const pool: Tool[] = []
+  for (const tool of [...builtIns, ...mcp]) {
+    if (seen.has(tool.name)) continue
+    seen.add(tool.name)
+    pool.push(tool)
+  }
+  return pool
 }
 
 export function mcpToolPartition(mcpTools: Tools, permissionContext: ToolPermissionContext): Tool[] {
-  return notBuilt('src/tools.ts:287')
+  const allowed = filterToolsByDenyRules(mcpTools, permissionContext).filter(
+    tool => tool.mcpInfo?.effectiveMaxPermission !== 'blocked',
+  )
+  return allowed
+    .map(tool => withBundledAppInstallConsent(tool))
+    .sort((a, b) => a.name.localeCompare(b.name))
 }
 
 tellTheToolTable({ getAllBaseTools, assembleToolPool })
