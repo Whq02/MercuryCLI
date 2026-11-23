@@ -4,6 +4,7 @@ import chalk from 'chalk'
 
 import { getIsInteractive, getSessionId, isSessionPersistenceDisabled } from '../bootstrap/state.js'
 import instances from '../ink/instances.js'
+import { drainStdin } from '../ink/ink.js'
 import { noteModeSettledEverywhere, shutdownReleaseObligations } from '../ink/root/terminalModeLedger.js'
 import { isExtendedCsiSafe } from '../ink/session/capabilities.js'
 import { resolveTerminalExperience } from '../ink/session/terminalExperience.js'
@@ -17,92 +18,144 @@ import { passedOver } from './passedOver.js'
 import { terminalTitleTransport } from './platform/terminal.js'
 import { quoteResumeTitleForShell } from './platform/words.js'
 
-
-function writeStdoutSync(bytes: string): void {
-  if (!bytes || !process.stdout.isTTY) return
+function writeStdoutSync(bytes: string): boolean {
+  if (!bytes || !process.stdout.isTTY) return false
   try {
     writeSync(1, bytes)
+    return true
   } catch (error) {
     passedOver(error)
+    return false
   }
 }
 
 export function cleanupTerminalModes(): void {
-  const obligations = new Set(shutdownReleaseObligations())
-  let sequence = ''
+  if (!process.stdout.isTTY) return
 
-  if (obligations.has('alt-screen')) {
-    sequence += EXIT_ALT_SCREEN
-    noteModeSettledEverywhere('alt-screen')
-  }
-  if (obligations.has('mouse-tracking')) {
-    sequence += DISABLE_MOUSE_TRACKING
-    noteModeSettledEverywhere('mouse-tracking')
-  }
-  if (obligations.has('alternate-scroll')) {
-    sequence += DISABLE_ALTERNATE_SCROLL
-    noteModeSettledEverywhere('alternate-scroll')
-  }
-  if (obligations.has('kitty-kbd')) {
-    if (isExtendedCsiSafe()) {
-      sequence += DISABLE_MODIFY_OTHER_KEYS + DISABLE_KITTY_KEYBOARD
+  try {
+    const initial = new Set(shutdownReleaseObligations())
+
+    if (initial.has('mouse-tracking')) {
+      writeStdoutSync(DISABLE_MOUSE_TRACKING)
+      noteModeSettledEverywhere('mouse-tracking')
     }
-    noteModeSettledEverywhere('kitty-kbd')
-  }
-  if (obligations.has('focus-events')) {
-    sequence += DFE
-    noteModeSettledEverywhere('focus-events')
-  }
-  if (obligations.has('bracketed-paste')) {
-    sequence += DBP
-    noteModeSettledEverywhere('bracketed-paste')
-  }
-  if (obligations.has('cursor-hidden')) {
-    sequence += SHOW_CURSOR
-    noteModeSettledEverywhere('cursor-hidden')
-  }
-  if (obligations.has('progress-ring')) {
-    sequence += CLEAR_ITERM2_PROGRESS
-    if (supportsTabStatus()) {
-      sequence += wrapForMultiplexer(CLEAR_TAB_STATUS)
-    }
-    noteModeSettledEverywhere('progress-ring')
-  }
-  if (obligations.has('terminal-title')) {
-    if (resolveTerminalExperience().terminalTitle.effective) {
-      if (terminalTitleTransport() === 'process-title') {
-        try {
-          process.title = ''
-        } catch (error) {
-          passedOver(error)
-        }
-      } else {
-        sequence += wrapForMultiplexer(CLEAR_TERMINAL_TITLE)
+
+    const active = instances.get(process.stdout)
+    let altUnmounted = false
+    if (active && !active.isUnmounted && active.isAltScreenActive) {
+      try {
+        active.unmount()
+        altUnmounted = true
+      } catch (error) {
+        passedOver(error)
       }
     }
-    noteModeSettledEverywhere('terminal-title')
-  }
 
-  writeStdoutSync(sequence)
+    if (!altUnmounted) {
+      let altSequence = ''
+      if (initial.has('alternate-scroll')) {
+        altSequence += DISABLE_ALTERNATE_SCROLL
+        noteModeSettledEverywhere('alternate-scroll')
+      }
+      if (initial.has('alt-screen')) {
+        altSequence += EXIT_ALT_SCREEN
+        noteModeSettledEverywhere('alt-screen')
+      }
+      writeStdoutSync(altSequence)
+    }
 
-  if (obligations.has('mouse-tracking') || obligations.has('alt-screen')) {
     drainStdinForExit()
-  }
 
-  if (process.stdin.isTTY && process.stdin.isRaw) {
+    const remainingInstance = instances.get(process.stdout)
+    if (remainingInstance && !remainingInstance.isUnmounted) {
+      try {
+        remainingInstance.detachForShutdown()
+      } catch (error) {
+        passedOver(error)
+      }
+    }
+
+    if (process.stdin.isTTY && process.stdin.isRaw) {
+      try {
+        process.stdin.setRawMode(false)
+      } catch (error) {
+        passedOver(error)
+      }
+    }
+
+    const owed = new Set(shutdownReleaseObligations())
+    let sequence = ''
+
+    if (owed.has('kitty-kbd')) {
+      try {
+        if (isExtendedCsiSafe()) {
+          sequence += DISABLE_KITTY_KEYBOARD + DISABLE_MODIFY_OTHER_KEYS
+        }
+      } catch (error) {
+        passedOver(error)
+      }
+      noteModeSettledEverywhere('kitty-kbd')
+    }
+    if (owed.has('focus-events')) {
+      sequence += DFE
+      noteModeSettledEverywhere('focus-events')
+    }
+    if (owed.has('bracketed-paste')) {
+      sequence += DBP
+      noteModeSettledEverywhere('bracketed-paste')
+    }
+    if (owed.has('mouse-tracking')) {
+      sequence += DISABLE_MOUSE_TRACKING
+      noteModeSettledEverywhere('mouse-tracking')
+    }
+    if (owed.has('cursor-hidden')) {
+      sequence += SHOW_CURSOR
+      noteModeSettledEverywhere('cursor-hidden')
+    }
+
+    writeStdoutSync(sequence)
+
     try {
-      process.stdin.setRawMode(false)
+      restoreOriginalBackground()
     } catch (error) {
       passedOver(error)
     }
-  }
+    if (owed.has('ground-osc')) {
+      noteModeSettledEverywhere('ground-osc')
+    }
 
-  restoreOriginalBackground()
-  if (obligations.has('ground-osc')) {
-    noteModeSettledEverywhere('ground-osc')
+    let tail = ''
+    if (owed.has('progress-ring')) {
+      tail += CLEAR_ITERM2_PROGRESS
+      noteModeSettledEverywhere('progress-ring')
+    }
+    try {
+      if (supportsTabStatus()) {
+        tail += wrapForMultiplexer(CLEAR_TAB_STATUS)
+      }
+    } catch (error) {
+      passedOver(error)
+    }
+    if (owed.has('terminal-title')) {
+      try {
+        if (resolveTerminalExperience().terminalTitle.effective) {
+          if (terminalTitleTransport() === 'process-title') {
+            process.title = ''
+          } else {
+            tail += CLEAR_TERMINAL_TITLE
+          }
+        }
+      } catch (error) {
+        passedOver(error)
+      }
+      noteModeSettledEverywhere('terminal-title')
+    }
+
+    writeStdoutSync(tail)
+  } catch (error) {
+    passedOver(error)
   }
 }
-
 
 let resumeHintPrinted = false
 
@@ -118,19 +171,28 @@ export function resumeHintArgument(
 export function printResumeHint(): void {
   if (resumeHintPrinted) return
   if (!getIsInteractive() || !process.stdout.isTTY || isSessionPersistenceDisabled()) return
-  const sessionId = getSessionId()
-  if (!sessionId || !sessionIdExists(sessionId)) return
-  const title = getCurrentSessionTitle(sessionId)
-  const arg = resumeHintArgument(title, sessionId)
-  const command = `${binaryName()} --resume ${arg}`
-  resumeHintPrinted = true
-  writeStdoutSync(`\n${chalk.dim('Resume this session with:')}\n${command}\n`)
+  try {
+    const sessionId = getSessionId()
+    if (!sessionId || !sessionIdExists(sessionId)) return
+    const title = getCurrentSessionTitle(sessionId)
+    const arg = resumeHintArgument(title, sessionId)
+    const command = `${binaryName()} --resume ${arg}`
+    if (writeStdoutSync(`\nResume this session with:\n${chalk.dim(command)}\n`)) {
+      resumeHintPrinted = true
+    }
+  } catch (error) {
+    passedOver(error)
+  }
 }
-
 
 export function drainStdinForExit(): void {
   try {
-    instances.get(process.stdout)?.drainStdin()
+    const instance = instances.get(process.stdout)
+    if (instance) {
+      instance.drainStdin()
+    } else {
+      drainStdin(process.stdin)
+    }
   } catch (error) {
     passedOver(error)
   }
