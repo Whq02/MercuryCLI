@@ -12,6 +12,7 @@ import { errorMessage, isENOENT } from '../errors.js'
 import { readFileSync } from '../fileRead.js'
 import { addFileGlobRuleToGitignore } from '../git/gitignore.js'
 import { safeParseJSON, stripBOM } from '../json.js'
+import { isRecord } from '../isRecord.js'
 import * as lockfile from '../lockfile.js'
 import { logError } from '../log.js'
 import { foldPathCase } from '../platform/paths.js'
@@ -375,7 +376,7 @@ function validInlineFlagSettings(): SettingsJson | null {
   const inline = getFlagSettingsInline()
   if (inline === null) return null
   const parsed = SettingsSchema().safeParse(inline)
-  return parsed.success ? (parsed.data as SettingsJson) : null
+  return parsed.success ? parsed.data : null
 }
 
 function readSettingsForSourceUncached(source: SettingSource): SettingsJson | null {
@@ -386,7 +387,9 @@ function readSettingsForSourceUncached(source: SettingSource): SettingsJson | nu
   const inline = validInlineFlagSettings()
   if (inline === null) return fromFile
   if (path === undefined) return inline
-  return mergeWith(fromFile ?? {}, inline, settingsMergeCustomizer) as SettingsJson
+  const merged: SettingsJson = fromFile ?? {}
+  mergeWith(merged, inline, settingsMergeCustomizer)
+  return merged
 }
 
 export function getSettingsForSource(source: SettingSource): SettingsJson | null {
@@ -405,14 +408,14 @@ export function getEnabledSettingsForSource(source: SettingSource): SettingsJson
 let mergedLoadInProgress = false
 
 export function getSettingsWithErrors(): SettingsWithErrors {
-  if (mergedLoadInProgress) return { settings: {} as SettingsJson, errors: [] }
+  if (mergedLoadInProgress) return { settings: {}, errors: [] }
   const cached = getSessionSettingsCache()
   if (cached !== null) return cached as SettingsWithErrors
   mergedLoadInProgress = true
   try {
     profileCheckpoint('settings_merge_start')
     const startedAt = Date.now()
-    const settings = {} as SettingsJson
+    const settings: SettingsJson = {}
     const errors: ValidationError[] = []
     const askedPaths = new Set<string>()
     for (const source of getEnabledSettingSources()) {
@@ -471,7 +474,7 @@ function holdsOwnKeyChain(value: unknown, names: readonly string[]): boolean {
   let node = value
   for (const name of names) {
     if (typeof node !== 'object' || node === null || !Object.hasOwn(node, name)) return false
-    node = (node as Record<string, unknown>)[name]
+    node = Reflect.get(node, name)
   }
   return true
 }
@@ -625,18 +628,22 @@ function readSettingsWriteBase(source: EditableSettingSource, writePath: string)
     logForDebugging(`settings write refused: ${writePath} is not parseable JSON (a file mid-edit is never overwritten)`, { level: 'error' })
     return null
   }
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+  if (!isRecord(parsed)) {
     logForDebugging(`settings write refused: ${writePath} does not hold a JSON object (a file mid-edit is never overwritten)`, { level: 'error' })
     return null
   }
-  return parsed as Record<string, unknown>
+  return parsed
+}
+
+function isReadOnlySource(source: SettingSource): boolean {
+  return source === 'policySettings' || source === 'flagSettings'
 }
 
 export function updateSettingsForSource(
   source: EditableSettingSource,
   partial: SettingsPatch | ((rawBase: Record<string, unknown>) => SettingsPatch),
 ): { error: Error | null } {
-  if ((source as SettingSource) === 'policySettings' || (source as SettingSource) === 'flagSettings') return { error: null }
+  if (isReadOnlySource(source)) return { error: null }
   const writePath = getSettingsWriteFilePathForSource(source)
   if (writePath === undefined) return { error: null }
   const release = acquireSettingsWriteLock(writePath)
