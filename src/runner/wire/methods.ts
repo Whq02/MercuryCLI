@@ -18,6 +18,7 @@ import {
   type Sender,
   type SessionVerbRow,
 } from './sessionVerbs.js'
+import { keysOf } from '../../utils/entriesOf.js'
 
 export { CAPABILITIES, METHOD_SCOPES, RUNNER_PROTOCOL, type MethodScope }
 
@@ -127,7 +128,7 @@ type NamesWhere<F extends Sender, K extends MethodKind> = {
 export type HostRequestName = NamesWhere<'host', 'request'>
 export type HostNotificationName = NamesWhere<'host', 'notification'>
 
-export const METHOD_NAMES = Object.keys(METHODS) as MethodName[]
+export const METHOD_NAMES: MethodName[] = keysOf(METHODS)
 
 export function isMethodName(name: string): name is MethodName {
   return Object.prototype.hasOwnProperty.call(METHODS, name)

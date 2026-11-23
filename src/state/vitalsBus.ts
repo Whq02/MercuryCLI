@@ -21,6 +21,7 @@ import { getInvocationTracePath } from '../utils/observability/invocationTrace.j
 import { subscribeStorageFile } from '../utils/sessionStorage/fileWatch.js'
 import { passedOver } from '../utils/passedOver.js'
 import { afterMicrotask, startTimeout, stopTimeout } from '../utils/timers.js'
+import { keysOf } from '../utils/entriesOf.js'
 
 const subscribeFocusedRecords = subscribeThroughFocused((connector, listener) => connector.subscribeRecords(listener))
 
@@ -117,13 +118,13 @@ async function refreshOnce(): Promise<void> {
       .catch(passedOver),
   ])
   const kept: Partial<VitalsSnapshots> = {}
-  for (const key of Object.keys(next) as Array<keyof VitalsSnapshots>) {
+  for (const key of keysOf(next)) {
     const prev = snapshots[key]
     const fresh = next[key]
     if (jsonStringify(prev) === jsonStringify(fresh)) {
       continue
     }
-    ;(kept as Record<string, unknown>)[key as string] = fresh
+    ;(kept as Record<string, unknown>)[key] = fresh
   }
   if (snapshots.version > 0 && Object.keys(kept).length === 0) return
   snapshots = {

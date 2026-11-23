@@ -11,6 +11,7 @@ import { servedModelOfAssistantRow } from '../model/retainedModel.js'
 import { scanTranscriptEntriesForward } from '../../utils/sessionStorage/transcriptReader.js'
 import { isTranscriptFileName } from '../../utils/sessionStoragePortable.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { keysOf } from '../../utils/entriesOf.js'
 
 const HOUR_MS = 3_600_000
 export const USAGE_HISTORY_MAX_ROWS = 32_768
@@ -76,7 +77,7 @@ function readStore(): HistoryStore {
     for (const [name, file] of Object.entries(stored.files)) {
       if (!file || typeof file.signature !== 'string' || typeof file.pricing !== 'string' || !Array.isArray(file.rows) || !Number.isSafeInteger(file.skipped) || file.skipped < 0) continue
       if (!file.rows.every(row => row && typeof row.hour === 'string' && Number.isFinite(Date.parse(row.hour)) && typeof row.model === 'string' && typeof row.project === 'string'
-        && Object.keys(emptyTotals()).every(key => typeof row[key as keyof UsageTotals] === 'number' && Number.isFinite(row[key as keyof UsageTotals]) && row[key as keyof UsageTotals] >= 0))) continue
+        && keysOf(emptyTotals()).every(key => typeof row[key] === 'number' && Number.isFinite(row[key]) && row[key] >= 0))) continue
       files[name] = file
     }
     const observations = stored.observations.filter(row => row && typeof row.hour === 'string' && Number.isFinite(Date.parse(row.hour)) && typeof row.provider === 'string' && typeof row.account === 'string' && typeof row.window === 'string' && Number.isFinite(row.observedAtMs))
@@ -140,7 +141,7 @@ export async function recordUsageObservations(provider: string, account: string,
 }
 
 function add(target: UsageTotals, value: UsageTotals): void {
-  for (const key of Object.keys(emptyTotals()) as Array<keyof UsageTotals>) target[key] += value[key]
+  for (const key of keysOf(emptyTotals())) target[key] += value[key]
 }
 
 function group(rows: UsageHour[], keyOf: (row: UsageHour) => string): Array<UsageTotals & { key: string }> {

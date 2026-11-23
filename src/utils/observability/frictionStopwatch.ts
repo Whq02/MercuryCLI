@@ -1,3 +1,4 @@
+import { keysOf } from '../entriesOf.js'
 
 export type FrictionTransition = 'boot-interactive' | 'screen-switch' | 'picker-open'
 
@@ -67,7 +68,7 @@ interface FrictionRow {
 }
 
 export function frictionSnapshot(): FrictionRow[] {
-  return (Object.keys(slots) as FrictionTransition[]).map(transition => {
+  return keysOf(slots).map(transition => {
     const slot = slots[transition]
     const last = slot.samples.length > 0 ? slot.samples[slot.samples.length - 1]! : null
     const worst = slot.samples.length > 0 ? Math.max(...slot.samples) : null
@@ -84,7 +85,7 @@ export function frictionSnapshot(): FrictionRow[] {
 }
 
 export function __resetFrictionStopwatchForTest(): void {
-  for (const key of Object.keys(slots) as FrictionTransition[]) {
+  for (const key of keysOf(slots)) {
     slots[key] = freshSlot()
   }
   bootRecorded = false

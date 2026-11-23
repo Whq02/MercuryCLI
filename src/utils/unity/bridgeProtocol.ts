@@ -1,3 +1,4 @@
+import { keysOf } from '../entriesOf.js'
 
 export const UNITY_BRIDGE_PROTOCOL_VERSION = 1
 
@@ -124,7 +125,7 @@ export function unityBridgeVerb(op: string): UnityBridgeVerbSpec | undefined {
 }
 
 export function unityBridgeVerbNames(): UnityBridgeVerb[] {
-  return Object.keys(UNITY_BRIDGE_VERBS) as UnityBridgeVerb[]
+  return keysOf(UNITY_BRIDGE_VERBS)
 }
 
 

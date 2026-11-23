@@ -21,6 +21,7 @@ import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { applyNavMotion, decodeNavKey } from './mercury-ui/navSemantics.js'
 import { cockpitBottomSlotReserve, paneWindow, viewportRows } from './mercury-ui/geometry.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
+import { entriesOf } from '../utils/entriesOf.js'
 
 function matchPositions(s: string, q: string): Set<number> {
   const out = new Set<number>()
@@ -157,7 +158,7 @@ export function MercuryCommandPalette({
   const graphItems = useMemo<PaletteItem[]>(() => {
     if (!bindings) return []
     const out: PaletteItem[] = []
-    for (const [action, meta] of Object.entries(ACTION_GRAPH) as [string, { description: string }][]) {
+    for (const [action, meta] of entriesOf(ACTION_GRAPH)) {
       const context = ((): KeybindingContextName => {
         const contexts = (meta as { contexts?: readonly string[] }).contexts
         return contexts?.[0] ?? 'Global'

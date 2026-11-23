@@ -2,6 +2,7 @@ import type { Device, Frame, Page, Viewport } from 'puppeteer-core'
 import { resolveBrowserSecret } from './browserSecrets.js'
 import { driverVersion, originOf, pageKitOf, presentToFrames, type PageIdentity, type PageKit } from './browserSession.js'
 import { passedOverAs } from '../../utils/passedOver.js'
+import { keysOf } from '../../utils/entriesOf.js'
 
 const NETWORK_PRESETS = { slow3g: 'Slow 3G', fast3g: 'Fast 3G', slow4g: 'Slow 4G', fast4g: 'Fast 4G' } as const
 type NetworkPreset = keyof typeof NETWORK_PRESETS
@@ -74,7 +75,7 @@ const FIELD_SHAPES: Record<RequestName | 'reset', string> = {
   credentials: "{username, password} or {username, secret} with a registered secret's name",
   reset: 'true',
 }
-const REQUEST_NAMES = Object.keys(FIELD_SHAPES) as Array<RequestName | 'reset'>
+const REQUEST_NAMES = keysOf(FIELD_SHAPES)
 
 export const EMULATION_FIELD_WORDS = `device (a name from devices), userAgent, mobile, touch, landscape, timezone, locale, cpuSlowdown, network (${Object.keys(NETWORK_PRESETS).join(', ')} or {download, upload, latency} in bytes/s and ms), offline, geolocation {latitude, longitude, accuracy}, colorScheme (dark, light, no-preference), reducedMotion, headers (every request, including other origins), credentials {username, password or secret (a registered name)}, reset`
 
@@ -643,7 +644,7 @@ function merged(before: Fields, request: EmulationRequest, size: EmulationSize, 
     for (const name of GEOMETRY) delete next[name]
     next.device = request.device
   }
-  for (const name of Object.keys(request) as Array<RequestName | 'reset'>) {
+  for (const name of keysOf(request)) {
     if (name === 'reset' || name === 'device') continue
     const value = request[name]
     if (value === null) delete next[name]
@@ -763,7 +764,7 @@ export function heldDevice(page: Page): { device: string | null } | null {
 export function emulationActive(page: Page): boolean {
   const fields = emulations.get(page)?.fields
   if (fields === undefined) return false
-  return (Object.keys(fields) as FieldName[]).some(name => name !== 'width' && name !== 'height' && name !== 'scale')
+  return keysOf(fields).some(name => name !== 'width' && name !== 'height' && name !== 'scale')
 }
 
 export function emulationLines(page: Page): string[] {

@@ -8,6 +8,7 @@ import { macOsKeychainStorage } from './macOsKeychainStorage.js'
 import { credentialStoreUnread as plainTextCredentialStoreUnread, plainTextStorage } from './plainTextStorage.js'
 import { sealsUnder, systemProtectorFor } from './systemProtector.js'
 import type { CredentialStoreUnread, SecureStorage, SecureStorageData } from './types.js'
+import { keysOf } from '../entriesOf.js'
 
 
 export { createFallbackStorage } from './fallbackStorage.js'
@@ -75,7 +76,7 @@ export function removeSecureStorageField<K extends keyof SecureStorageData>(
 ): { removed: boolean; kept: number; success: boolean; code?: string; left?: Array<'keychain' | 'file'> } {
   const storage = getSecureStorage()
   const current = storage.read()
-  const keys = current === null ? [] : (Object.keys(current) as Array<keyof SecureStorageData>)
+  const keys = current === null ? [] : keysOf(current)
   const kept = current === null ? 0 : keys.filter(key => key !== field && current[key] !== undefined).length
   if (current === null || current[field] === undefined) return { removed: false, kept, success: true }
   const next: SecureStorageData = { ...current }

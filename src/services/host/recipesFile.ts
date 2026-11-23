@@ -10,6 +10,7 @@ import { PUBLIC_HOME_SLUG, repoSlugFromUrl } from '../privateChannel/channelCore
 import { HOST_RECIPES, type HostRecipe } from './recipes.js'
 import { hostDirectory } from './store.js'
 import { userHomeDir } from '../../utils/platform/files.js'
+import { keysOf } from '../../utils/entriesOf.js'
 
 const packagedSlug = typeof MACRO !== 'undefined' && typeof MACRO.PACKAGE_URL === 'string' ? repoSlugFromUrl(MACRO.PACKAGE_URL) : null
 
@@ -73,7 +74,7 @@ const hostRecipeObject = z.object({
 
 export const hostRecipeSchema: z.ZodType<HostRecipe> = hostRecipeObject
 
-const HOST_RECIPE_FIELDS = Object.keys(hostRecipeObject.shape) as (keyof HostRecipe)[]
+const HOST_RECIPE_FIELDS = keysOf(hostRecipeObject.shape)
 const FETCHED_FACT_FIELDS: ReadonlySet<keyof HostRecipe> = new Set(['verified', 'verification', 'context', 'contextPerSlot', 'efforts'])
 
 interface HostRecipesFile {

@@ -1,6 +1,7 @@
 import type { UUID } from 'node:crypto'
 import type { PersistedWorktreeSession } from '../../types/logs.js'
 import { passedOver } from '../passedOver.js'
+import { keysOf } from '../entriesOf.js'
 
 export type SessionMetaFields = {
   customTitle?: string
@@ -91,7 +92,7 @@ export class SessionMeta {
   }
 
   oweBriefs(): void {
-    for (const field of Object.keys(briefRows) as BriefField[]) {
+    for (const field of keysOf(briefRows)) {
       if (this.fields[field] !== undefined) this.owedBriefs.add(field)
     }
   }

@@ -4,6 +4,7 @@ import type { TurnCutKind } from '../messages/turnCut.js'
 import { permissionUpdateSchema } from '../permissions/PermissionUpdateSchema.js'
 import { CONCOURSE_SESSION_STATES } from '../concourseLifecycle.js'
 import { ERROR_CLASSES, OUTCOME_STATUSES, STOP_WORDS, UsageSchema } from '../../rows/vocabulary.js'
+import { keysOf } from '../entriesOf.js'
 
 export const HOOK_ROADS = ['runner', 'crewmate', 'daemon', 'cockpit'] as const
 export type HookRoad = (typeof HOOK_ROADS)[number]
@@ -291,7 +292,7 @@ const hookEventTableRows = {
 } as const satisfies Record<string, HookEventRow>
 
 export type HookEvent = keyof typeof hookEventTableRows
-export const HOOK_EVENTS = Object.keys(hookEventTableRows) as readonly HookEvent[]
+export const HOOK_EVENTS: readonly HookEvent[] = keysOf(hookEventTableRows)
 export const hookEventTable: Readonly<Record<HookEvent, HookEventRow>> = hookEventTableRows
 
 export function isHookEvent(name: string): name is HookEvent {

@@ -27,6 +27,7 @@ import {
   KNOWN_AGENT_KEYS,
 } from './contracts.js'
 import { isOneOf } from '../../utils/isOneOf.js'
+import { entriesOf } from '../../utils/entriesOf.js'
 
 const YAML_SPECIAL_CHARS = /[{}[\]*&#!|>%@`'"]|: /
 const TOP_LEVEL_KEY = /^([A-Za-z0-9_-]+)\s*:(.*)$/
@@ -531,10 +532,7 @@ export function patchAgentDocument(
   edit: AgentDocumentEdit,
 ): AgentDocument {
   const cr = doc.newline === '\r\n' ? '\r' : ''
-  const setEntries = Object.entries(edit.set ?? {}) as [
-    keyof AgentSpecFields,
-    unknown,
-  ][]
+  const setEntries = entriesOf(edit.set ?? {})
   const removes = edit.remove ?? []
 
   let lines = [...doc.frontmatterLines]

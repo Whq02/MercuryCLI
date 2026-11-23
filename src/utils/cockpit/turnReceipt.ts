@@ -3,6 +3,7 @@ import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { deriveUUID } from '../messages/identity.js'
 import { NO_RESPONSE_REQUESTED } from '../messages/rejectionText.js'
 import { isNotEmptyMessage } from '../messages/text.js'
+import { keysOf } from '../entriesOf.js'
 
 export function isTurnReceiptEnabled(): boolean {
   return flagEnabled('MERCURY_TURN_RECEIPT')
@@ -289,7 +290,7 @@ function makeReceipt(counts: TurnReceiptCounts, anchorUuid: string, contextDelta
 
 function addCounts(target: TurnReceiptCounts, source: Partial<TurnReceiptCounts> | undefined, sign: 1 | -1): void {
   if (!source) return
-  for (const key of Object.keys(target) as Array<keyof TurnReceiptCounts>) {
+  for (const key of keysOf(target)) {
     if (key === 'tools') continue
     target[key] += sign * (typeof source[key] === 'number' ? source[key] : 0)
   }

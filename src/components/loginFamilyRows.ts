@@ -2,6 +2,7 @@
 import { configuredCompatEndpoints } from '../services/providers/openaicompat/compatAccounts.js'
 import { cachedCompatCatalogue, compatEndpointPodTerminated } from '../services/providers/openaicompat/compatCatalogue.js'
 import { META_SIGN_IN_ROADS } from '../utils/model/loginWords.js'
+import { keysOf } from '../utils/entriesOf.js'
 export type LoginFamilyValue =
   | 'anthropic'
   | 'openai'
@@ -150,7 +151,7 @@ export const KEY_PAGES: Record<KeyFamilyValue, string> = {
   qwen: 'modelstudio.alibabacloud.com',
 }
 
-export const KEY_FAMILIES = Object.keys(KEY_PAGES) as KeyFamilyValue[]
+export const KEY_FAMILIES: KeyFamilyValue[] = keysOf(KEY_PAGES)
 
 export function keyPageMenuWord(family: KeyFamilyValue): string {
   return family === 'huggingface' ? 'Access Tokens' : 'API Keys'

@@ -6,6 +6,7 @@ import { providerDisplayName } from '../../services/providers/routeLaw.js';
 import { mostRecentSignInFamily } from '../../services/model/computedDefault.js';
 import { wrapPlain } from '../BootHealthScreen.js';
 import { loginFamilyFocusFor, loginFamilyNameOf, loginFamilyRows, type LoginFamilyRow } from '../loginFamilyRows.js';
+import { keysOf } from '../../utils/entriesOf.js'
 
 export const DETAIL_W = 38;
 
@@ -41,7 +42,7 @@ export function collectLoginsScreenFacts(): LoginsScreenFactsV1 {
   const defaultFamily = mostRecentSignInFamily();
   const usability = resolveProviderUsability();
   const refusals: Partial<Record<ProviderId, SignInRefusal>> = {};
-  for (const family of Object.keys(usability) as ProviderId[]) {
+  for (const family of keysOf(usability)) {
     const refusal = readSignInRefusal(family);
     if (!refusal) continue;
     refusals[family] = refusal;

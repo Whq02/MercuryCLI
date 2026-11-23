@@ -1,3 +1,5 @@
+import { keysOf } from '../../utils/entriesOf.js'
+
 const C0_MNEMONICS = [
   'NUL', 'SOH', 'STX', 'ETX', 'EOT', 'ENQ', 'ACK', 'BEL',
   'BS', 'HT', 'LF', 'VT', 'FF', 'CR', 'SO', 'SI',
@@ -35,7 +37,7 @@ export function asBytes<Name extends string>(
   characters: Readonly<Record<Name, string>>,
 ): { readonly [K in Name]: number } {
   const bytes: Record<string, number> = {}
-  for (const name of Object.keys(characters) as Name[]) bytes[name] = characters[name].charCodeAt(0)
+  for (const name of keysOf(characters)) bytes[name] = characters[name].charCodeAt(0)
   return bytes as { readonly [K in Name]: number }
 }
 

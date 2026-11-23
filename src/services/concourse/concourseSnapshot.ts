@@ -41,6 +41,7 @@ import type { ObligationV1 } from '../crew/obligations.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
+import { entriesOf } from '../../utils/entriesOf.js'
 
 export const PARKING_NOW_LEAD = 'parking — '
 export const PARK_REFUSED_NOW_LEAD = 'park refused — '
@@ -605,8 +606,8 @@ export async function writeConcourseSeedOverride(
 ): Promise<void> {
   await draftStore(dir).mutate(prev => {
     const next: ConcourseSeedOverridesV1 = { ...(prev.seedOverrides ?? {}) }
-    for (const [k, v] of Object.entries(patch)) {
-      if (v === null || v === undefined) delete next[k as keyof ConcourseSeedOverridesV1]
+    for (const [k, v] of entriesOf(patch)) {
+      if (v === null || v === undefined) delete next[k]
       else (next as Record<string, unknown>)[k] = v
     }
     if ('projectDir' in patch) {

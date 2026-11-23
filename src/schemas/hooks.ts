@@ -12,6 +12,7 @@ import {
 } from '../utils/hooks/contract.js'
 import { matcherArgumentFault, matcherCompiles, matcherShape } from '../utils/hooks/matcherGrammar.js'
 import { isRecord as isPlainObject } from '../utils/isRecord.js'
+import { keysOf } from '../utils/entriesOf.js'
 
 const entryShape = () => ({
   run: z.string().min(1).optional().describe('A shell command; the payload arrives on stdin'),
@@ -98,7 +99,7 @@ export const HookEntrySchema = lazySchema(() =>
 
 const hooksMapSchema = lazySchema(() =>
   z.partialRecord(z.enum(HOOK_EVENTS as [HookEvent, ...HookEvent[]]), z.array(HookEntrySchema())).superRefine((map, ctx) => {
-    for (const event of Object.keys(map) as HookEvent[]) {
+    for (const event of keysOf(map)) {
       const entries = map[event] ?? []
       entries.forEach((entry, index) => {
         for (const fault of hookEntryEventFaults(event, entry)) {

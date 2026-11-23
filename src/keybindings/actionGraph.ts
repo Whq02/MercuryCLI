@@ -1,3 +1,4 @@
+import { keysOf } from '../utils/entriesOf.js'
 
 export type ActionMeta = {
   description: string
@@ -189,4 +190,4 @@ export const ACTION_GRAPH = {
 
 export type ActionGraph = typeof ACTION_GRAPH
 
-export const KEYBINDING_ACTIONS = Object.keys(ACTION_GRAPH) as readonly (keyof ActionGraph)[]
+export const KEYBINDING_ACTIONS: readonly (keyof ActionGraph)[] = keysOf(ACTION_GRAPH)

@@ -16,6 +16,7 @@ import {
 } from './contracts.js'
 import { noteSelfWrite } from './watch.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { keysOf } from '../../utils/entriesOf.js'
 
 type AgentStoreErrorCode =
   | 'validation'
@@ -81,8 +82,8 @@ function fieldChanges(
 ): string[] {
   const changes: string[] = []
   const keys = new Set<keyof AgentSpecFields>([
-    ...(Object.keys(before ?? {}) as (keyof AgentSpecFields)[]),
-    ...(Object.keys(after) as (keyof AgentSpecFields)[]),
+    ...keysOf(before ?? {}),
+    ...keysOf(after),
   ])
   for (const key of keys) {
     const a = before?.[key]

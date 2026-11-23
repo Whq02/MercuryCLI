@@ -1,3 +1,4 @@
+import { keysOf } from '../entriesOf.js'
 
 export const BLENDER_BRIDGE_PROTOCOL_VERSION = 1
 
@@ -133,7 +134,7 @@ export function blenderBridgeVerb(op: string): BlenderBridgeVerbSpec | undefined
 }
 
 export function blenderBridgeVerbNames(): BlenderBridgeVerb[] {
-  return Object.keys(BLENDER_BRIDGE_VERBS) as BlenderBridgeVerb[]
+  return keysOf(BLENDER_BRIDGE_VERBS)
 }
 
 
