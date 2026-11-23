@@ -139,7 +139,7 @@ function extractQuoteContext(rootNode: unknown, command: string): QuoteContext {
   return { withDoubleQuotes, fullyUnquoted, unquotedKeepQuoteChars }
 }
 
-const OPERATOR_TYPES: ReadonlySet<string> = new Set(['&&', '||', ';', '|', '|&', '&'])
+const OPERATOR_TYPES: ReadonlySet<string> = new Set(['&&', '||', ';'])
 
 function extractCompoundStructure(rootNode: unknown, command: string): CompoundStructure {
   const result: CompoundStructure = {
@@ -163,7 +163,6 @@ function extractCompoundStructure(rootNode: unknown, command: string): CompoundS
         result.operators.push(node.type)
         break
       case 'list':
-      case 'redirected_statement':
       case 'negated_command':
       case 'if_statement':
       case 'while_statement':
@@ -179,15 +178,15 @@ function extractCompoundStructure(rootNode: unknown, command: string): CompoundS
         break
       case 'pipeline':
         result.hasPipeline = true
-        for (const child of node.children) visit(child)
+        result.segments.push(node.text)
         break
       case 'subshell':
         result.hasSubshell = true
-        for (const child of node.children) visit(child)
+        result.segments.push(node.text)
         break
       case 'compound_statement':
         result.hasCommandGroup = true
-        for (const child of node.children) visit(child)
+        result.segments.push(node.text)
         break
       case 'command':
       case 'declaration_command':
