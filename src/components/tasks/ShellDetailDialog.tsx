@@ -240,11 +240,16 @@ export function ShellDetailDialog({
           ? tokens.warning
           : tokens.textPrimary
 
-  const titleLabel = shell.description !== undefined && shell.description !== '' ? shell.description : shell.command
-  const view = `${isMonitor ? 'monitor' : 'shell'} › ${titleLabel}`
+  const subtitle = shell.description !== undefined && shell.description !== '' ? shell.description : undefined
 
   return (
-    <CommandCenter elevated view={view} onClose={onDone} captureInput={false}>
+    <CommandCenter
+      elevated
+      view={isMonitor ? 'monitor' : 'shell'}
+      subtitle={subtitle}
+      onClose={onDone}
+      captureInput={false}
+    >
       <Box flexDirection="column" tabIndex={-1}>
         <Box>
           <Box width={LABEL_WIDTH} flexShrink={0}>
