@@ -379,6 +379,8 @@ export async function processInstructionFile(
       continue
     }
 
+    const ext = extname(includePath).toLowerCase()
+    const unsupportedExt = ext !== '' && !TEXT_FILE_EXTENSIONS.has(ext)
     if (diagnostics !== undefined && !processedPaths.has(normalizedInclude)) {
       let skip = false
       try {
@@ -391,17 +393,14 @@ export async function processInstructionFile(
             detail: 'the @import names a directory, not a file — an instruction file inside it must be named',
           })
           skip = true
-        } else {
-          const ext = extname(includePath).toLowerCase()
-          if (ext !== '' && !TEXT_FILE_EXTENSIONS.has(ext)) {
-            diagnostics.push({
-              kind: 'unsupported-import-type',
-              path: includePath,
-              parent: filePath,
-              detail: `the @import target exists but '${ext}' is not a composable text type — nothing was composed`,
-            })
-            skip = true
-          }
+        } else if (unsupportedExt) {
+          diagnostics.push({
+            kind: 'unsupported-import-type',
+            path: includePath,
+            parent: filePath,
+            detail: `the @import target exists but '${ext}' is not a composable text type — nothing was composed`,
+          })
+          skip = true
         }
       } catch (error) {
         if (getErrnoCode(error) === 'ENOENT') {
@@ -416,7 +415,7 @@ export async function processInstructionFile(
       }
       if (skip) continue
     }
-
+    if (unsupportedExt) continue
     const imported = await processInstructionFile(
       convention,
       includePath,
