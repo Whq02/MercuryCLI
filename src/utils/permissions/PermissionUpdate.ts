@@ -13,7 +13,6 @@ import { permissionRuleValueFromString, permissionRuleValueToString } from './pe
 import { holdModeTransition, type ModeTransitionRoad, recordModeTransition } from './modeTransitions.js'
 import { noteAllowRulesGranted } from './lateAllowRules.js'
 import { passedOver } from '../passedOver.js'
-import { notBuilt } from '../../pi/holes.js'
 
 function ruleMapKey(behavior: PermissionBehavior): 'alwaysAllowRules' | 'alwaysDenyRules' | 'alwaysAskRules' {
   if (behavior === 'allow') return 'alwaysAllowRules'
@@ -70,9 +69,67 @@ function dropReasons(next: MutableContext, destination: PermissionUpdateDestinat
 export function applyPermissionUpdate(
   context: ToolPermissionContext,
   update: PermissionUpdate,
-  road?: ModeTransitionRoad,
+  road: ModeTransitionRoad = 'permission-answer',
 ): ToolPermissionContext {
-  return notBuilt('src/utils/permissions/PermissionUpdate.ts:79')
+  switch (update.type) {
+    case 'addRules': {
+      const next = structuredCloneContext(context)
+      const mapKey = ruleMapKey(update.behavior)
+      const existing = next[mapKey][update.destination] ?? []
+      const serialized = update.rules.map(ruleString)
+      next[mapKey][update.destination] = [...existing, ...serialized]
+      stampReasons(next, update.destination, update.rules)
+      logUpdate(update.type, update.destination, update.behavior, serialized)
+      return next
+    }
+    case 'replaceRules': {
+      const next = structuredCloneContext(context)
+      const mapKey = ruleMapKey(update.behavior)
+      const previous = next[mapKey][update.destination] ?? []
+      dropReasons(next, update.destination, previous)
+      const serialized = update.rules.map(ruleString)
+      next[mapKey][update.destination] = serialized
+      stampReasons(next, update.destination, update.rules)
+      logUpdate(update.type, update.destination, update.behavior, serialized)
+      return next
+    }
+    case 'removeRules': {
+      const next = structuredCloneContext(context)
+      const mapKey = ruleMapKey(update.behavior)
+      const existing = next[mapKey][update.destination] ?? []
+      const serialized = update.rules.map(ruleString)
+      const toRemove = new Set(serialized)
+      next[mapKey][update.destination] = existing.filter(entry => !toRemove.has(entry))
+      dropReasons(next, update.destination, toRemove)
+      logUpdate(update.type, update.destination, update.behavior, serialized)
+      return next
+    }
+    case 'setMode': {
+      const next = structuredCloneContext(context)
+      if (context.mode === 'apollo') {
+        holdModeTransition({
+          from: context.mode,
+          to: update.mode,
+          road,
+          detail: `setMode at the ${update.destination} scope — Apollo Mode leaves only through the review card or the operator's own mode change`,
+        })
+        return next
+      }
+      if (context.mode !== update.mode) {
+        recordModeTransition({
+          from: context.mode,
+          to: update.mode,
+          road,
+          detail: `setMode at the ${update.destination} scope`,
+        })
+      }
+      next.mode = update.mode
+      logForDebugging(`permission update setMode → ${update.mode} (${update.destination})`)
+      return next
+    }
+    default:
+      return context
+  }
 }
 
 export function applyPermissionUpdates(
@@ -80,7 +137,11 @@ export function applyPermissionUpdates(
   updates: PermissionUpdate[],
   road?: ModeTransitionRoad,
 ): ToolPermissionContext {
-  return notBuilt('src/utils/permissions/PermissionUpdate.ts:133')
+  let current = context
+  for (const update of updates) {
+    current = applyPermissionUpdate(current, update, road)
+  }
+  return current
 }
 
 export type PersistVerdict = { error: Error | null }
@@ -93,26 +154,121 @@ function rawPermissionArray(base: Record<string, unknown>, key: string): string[
   return Array.isArray(raw) ? raw.filter((entry): entry is string => typeof entry === 'string') : []
 }
 
+function isEditableDestination(
+  destination: PermissionUpdateDestination,
+): destination is EditableSettingSource {
+  return (
+    destination === 'userSettings' ||
+    destination === 'projectSettings' ||
+    destination === 'localSettings'
+  )
+}
+
 export function persistPermissionUpdate(update: PermissionUpdate): PersistVerdict {
-  return notBuilt('src/utils/permissions/PermissionUpdate.ts:151')
+  if (!isEditableDestination(update.destination)) {
+    return LANDED
+  }
+  switch (update.type) {
+    case 'addRules': {
+      const serialized = update.rules.map(ruleString)
+      if (update.behavior === 'allow') {
+        noteAllowRulesGranted(update.destination, serialized)
+      }
+      const key = settingsBehaviorKey(update.behavior)
+      return writePartial(update.destination, rawBase => {
+        const existing = rawPermissionArray(rawBase, key)
+        const merged = [...existing]
+        for (const rule of serialized) {
+          if (!merged.includes(rule)) {
+            merged.push(rule)
+          }
+        }
+        return guardrailsPatch(key, merged)
+      })
+    }
+    case 'replaceRules': {
+      const serialized = update.rules.map(ruleString)
+      if (update.behavior === 'allow') {
+        noteAllowRulesGranted(update.destination, serialized)
+      }
+      const key = settingsBehaviorKey(update.behavior)
+      return writePartial(update.destination, guardrailsPatch(key, serialized))
+    }
+    case 'removeRules': {
+      const key = settingsBehaviorKey(update.behavior)
+      const toRemove = new Set(update.rules.map(ruleString))
+      return writePartial(update.destination, rawBase => {
+        const existing = rawPermissionArray(rawBase, key)
+        const remaining = existing.filter(entry => {
+          try {
+            const normalized = ruleString(permissionRuleValueFromString(entry))
+            return !toRemove.has(normalized)
+          } catch (error) {
+            passedOver(error)
+            return true
+          }
+        })
+        return guardrailsPatch(key, remaining)
+      })
+    }
+    case 'setMode': {
+      return writePartial(update.destination, { guardrails: { mode: update.mode } })
+    }
+    default:
+      return LANDED
+  }
 }
 
 export function persistPermissionUpdates(updates: PermissionUpdate[]): PersistVerdict {
-  return notBuilt('src/utils/permissions/PermissionUpdate.ts:194')
+  let firstError: Error | null = null
+  for (const update of updates) {
+    const verdict = persistPermissionUpdate(update)
+    if (firstError === null && verdict.error !== null) {
+      firstError = verdict.error
+    }
+  }
+  return firstError === null ? LANDED : { error: firstError }
+}
+
+function directoryRulePattern(dirPath: string): string | undefined {
+  const normalized = dirPath.replace(/\\/g, '/')
+  if (normalized === '/') return undefined
+  const driveMatch = /^([a-zA-Z]):\/(.*)$/.exec(normalized)
+  if (driveMatch) {
+    const rest = driveMatch[2]!.replace(/\/+$/, '')
+    if (rest === '') return undefined
+    return `//${driveMatch[1]!.toUpperCase()}/${rest}/**`
+  }
+  const prefixed = normalized.startsWith('/') ? `/${normalized}` : normalized
+  return `${prefixed}/**`
 }
 
 export function createReadRuleSuggestion(
   dirPath: string,
-  destination?: PermissionUpdateDestination,
+  destination: PermissionUpdateDestination = 'session',
 ): PermissionUpdate | undefined {
-  return notBuilt('src/utils/permissions/PermissionUpdate.ts:203')
+  const pattern = directoryRulePattern(dirPath)
+  if (pattern === undefined) return undefined
+  return {
+    type: 'addRules',
+    rules: [{ toolName: 'Read', ruleContent: pattern }],
+    behavior: 'allow',
+    destination,
+  }
 }
 
 export function createEditRuleSuggestion(
   dirPath: string,
-  destination?: PermissionUpdateDestination,
+  destination: PermissionUpdateDestination = 'session',
 ): PermissionUpdate | undefined {
-  return notBuilt('src/utils/permissions/PermissionUpdate.ts:227')
+  const pattern = directoryRulePattern(dirPath)
+  if (pattern === undefined) return undefined
+  return {
+    type: 'addRules',
+    rules: [{ toolName: 'Edit', ruleContent: pattern }],
+    behavior: 'allow',
+    destination,
+  }
 }
 
 
