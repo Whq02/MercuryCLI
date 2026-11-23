@@ -19,7 +19,6 @@ import { providerDisplayName, type CallModelRoute } from '../../services/provide
 import { DEEPSEEK_DISPLAY_PINS } from '../../utils/model/pins/deepseekPins.js'
 import { KIMI_DISPLAY_PINS } from '../../utils/model/pins/kimiPins.js'
 import type { LocalJSXCommandCall, LocalJSXCommandOnDone } from '../../types/command.js'
-import { notBuilt } from '../../pi/holes.js'
 
 
 const TTL_ROW = COMMAND_SETTINGS_ROWS.find(r => r.env === 'MERCURY_CACHE_TTL')!
@@ -117,8 +116,126 @@ function familyRows(): FamilyCachingRow[] {
   ]
 }
 
-function CachingSurface(arg0: { onDone: LocalJSXCommandOnDone }): React.ReactNode {
-  return notBuilt('src/commands/caching/caching.tsx:119')
+function CachingSurface({ onDone }: { onDone: LocalJSXCommandOnDone }): React.ReactNode {
+  const t = useMercuryTokens()
+  const rows = React.useMemo(familyRows, [])
+  const choices: MenuChoice[] = React.useMemo(() => menuRowChoices(TTL_ROW), [])
+  const rowNodes = React.useRef(new Map<number, DOMElement>())
+  const [cursor, setCursor] = React.useState(0)
+  const [dial, setDial] = React.useState(readDialState)
+  const [receipt, setReceipt] = React.useState<string | null>(null)
+  const [note, setNote] = React.useState<string | null>(null)
+
+  usePopupListNavigation(cursor, rows.length, () => popupPageRows(rowNodes.current.values()), setCursor)
+  const close = (): void => onDone(undefined, { display: 'skip' })
+
+  const cycle = (direction: 1 | -1): void => {
+    if (!rows[cursor]?.dial) return
+    if (dial.envPin !== null) {
+      setNote(
+        `pinned by the environment (${dial.envPin.spelling}=${dial.envPin.value}) — explicit env always wins; unset it to dial from here`,
+      )
+      return
+    }
+    const currentIndex = choices.findIndex(c => c.value === dial.saved)
+    const nextIndex =
+      (Math.max(0, currentIndex) + direction + choices.length) % choices.length
+    const next = choices[nextIndex]!
+    const written = writeBootEnvChoice(TTL_ROW.env, next.value)
+    if (!written.ok) {
+      setNote(written.reason)
+      return
+    }
+    setNote(null)
+    setDial(readDialState())
+    const prof = readBootDefaultsProfileStrict()
+    setReceipt(prof.ok ? (prof.profile?.receipt ?? null) : null)
+    if (!prof.ok) setNote(`could not be read (${prof.reason})`)
+  }
+
+  useInput((input, key) => {
+    if (key.escape) return close()
+    if (key.return || input === ' ' || key.rightArrow) return cycle(1)
+    if (key.leftArrow) return cycle(-1)
+  })
+
+  const dialLabel = (c: MenuChoice): string => c.label
+  const currentValue = dial.envPin !== null ? dial.envPin.value : dial.saved
+
+  return (
+    <CommandCenter
+      view="caching"
+      bodyOwnsPageKeys
+      subtitle="every family's prompt-caching truth"
+      footer="↑↓ family · pgup/pgdn page · ↵/space/←→ turn the dial where a row has one · esc close"
+      onClose={close}
+      captureInput={false}
+      closeKeys="esc"
+    >
+      <Box flexDirection="column" gap={0}>
+        {rows.map((row, i) => {
+          const focused = i === cursor
+          const marker = focused ? '▸' : ' '
+          return (
+            <Box key={row.route} ref={node => { if (node) rowNodes.current.set(i, node); else rowNodes.current.delete(i) }} flexDirection="column">
+            <CursorRow selected={focused} flexDirection="column">
+              <Box>
+                <Text color={focused ? t.accent : t.textPrimary} bold={focused}>
+                  {marker} {providerDisplayName(row.route)}
+                </Text>
+                {row.dial ? (
+                  <Text color={t.textInstruction}>
+                    {'  '}
+                    {choices.map((c, ci) => {
+                      const active =
+                        dial.envPin === null
+                          ? c.value === dial.saved
+                          : c.value === dial.envPin.value
+                      return (
+                        <Text
+                          key={ci}
+                          color={active ? t.accent : t.textInstruction}
+                          bold={active}
+                        >
+                          {ci > 0 ? ' · ' : ''}
+                          {dialLabel(c)}
+                        </Text>
+                      )
+                    })}
+                    {dial.envPin !== null ? (
+                      <Text color={t.warning}> (env-pinned)</Text>
+                    ) : null}
+                  </Text>
+                ) : null}
+              </Box>
+              {}
+              {row.lines.map((line, li) => (
+                <Box key={li} paddingLeft={3}>
+                  <Text color={t.textInstruction}>{line}</Text>
+                </Box>
+              ))}
+              {row.dial && receipt !== null ? (
+                <Box paddingLeft={3}>
+                  <Text color={t.success}>{receipt}</Text>
+                </Box>
+              ) : null}
+              {row.dial && (note ?? dial.readError) !== null ? (
+                <Box paddingLeft={3}>
+                  <Text color={t.warning}>{note ?? dial.readError}</Text>
+                </Box>
+              ) : null}
+            </CursorRow>
+            </Box>
+          )
+        })}
+        {currentValue === '1h' ? (
+          <Text color={t.textInstruction}>
+            1h doubles every cache write — the saved choice is the consent
+          </Text>
+        ) : null}
+      </Box>
+    </CommandCenter>
+  )
 }
 
 export const call: LocalJSXCommandCall = async (onDone, _context) => {
