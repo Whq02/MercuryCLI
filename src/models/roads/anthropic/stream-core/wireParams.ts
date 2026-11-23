@@ -89,8 +89,9 @@ export function wireParamsFor(call: CallState, wire: WireInputs): (context: Retr
       }
     }
 
-    const thinkingEnabled = wire.thinkingConfig.type !== 'disabled' && modelSupportsThinking(wire.options.model)
-    const isAdaptiveThinking = wire.thinkingConfig.type === 'adaptive' && modelSupportsAdaptiveThinking(wire.options.model)
+    const thinkingAsked = wire.thinkingConfig.type !== 'disabled'
+    const thinkingEnabled = thinkingAsked && modelSupportsThinking(wire.options.model)
+    const isAdaptiveThinking = modelSupportsAdaptiveThinking(wire.options.model)
     const suppliedThinkingBudget: number | undefined = wire.thinkingConfig.type === 'enabled' ? wire.thinkingConfig.budgetTokens : undefined
     const plannedThinkingBudget =
       thinkingEnabled && !isAdaptiveThinking ? (suppliedThinkingBudget ?? getMaxThinkingTokensForModel(wire.options.model)) : 0
@@ -136,7 +137,7 @@ export function wireParamsFor(call: CallState, wire: WireInputs): (context: Retr
       requestBetas.push(MESSAGE_EFFORT_BETA_HEADER)
     }
 
-    const temperature = thinkingEnabled
+    const temperature = thinkingAsked
       ? undefined
       : modelSupportsTemperature(wire.options.model)
         ? (wire.options.temperatureOverride ?? 1)
