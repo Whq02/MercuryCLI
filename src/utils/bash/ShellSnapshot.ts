@@ -27,7 +27,7 @@ import {
 } from '../platform/loginShell.js'
 import { birthAfter, birthMark, endMsysGroupBeside, endProcessBornAfter, endProcessBornAt, endProcessTree, strikeProcessGroupNow, type BirthMark } from '../processGroup.js'
 import { ripgrepCommand } from '../ripgrep.js'
-import { sleep } from '../sleep.js'
+import { withDeadline } from '../deadline.js'
 import { loginExportsCarried, pathWithLoginEntries, subprocessEnv } from '../subprocessEnv.js'
 import { SNAPSHOT_KEEPS_ALIASES, SNAPSHOT_OPTIONS, SNAPSHOT_READS_BACK, SNAPSHOT_READS_BACK_ALIASES, SNAPSHOT_READS_FUNCTIONS, argv0FunctionBody, noteLoginExports, noteLoginFiles, snapshotProfileOf, zshNamedBeforeBash, type LoginFilesAbsence, type ShellRecord } from '../shell/shellRecord.js'
 import { windowsShellRoadActive, withOwnPrograms, withRoadPrograms, withShippedPrograms } from '../shell/windowsShellRoad.js'
@@ -305,7 +305,7 @@ function runBounded(
           : new Promise<void>(done => {
               closeWaiters.push(done)
             })
-        void Promise.race([waitForClose, sleep(SNAPSHOT_PATH_PROBE_SETTLE_GRACE_MS)]).then(() => {
+        void withDeadline(waitForClose, SNAPSHOT_PATH_PROBE_SETTLE_GRACE_MS, () => undefined).then(() => {
           settle(
             {
               ...(code !== null ? { exitCode: code } : {}),
