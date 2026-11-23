@@ -472,7 +472,7 @@ export function walkFlags(tokens: readonly string[], startIndex: number, rule: R
       if (token.length <= 2 || token.startsWith('--')) return false
       const first = table[token.slice(0, 2)]
       if (rule.attachedNumbers && (first === num || first === str) && /^\d+$/.test(token.slice(2))) continue
-      if (equal < 0 && [...name.slice(1)].every(c => table[`-${c}`] === none)) continue
+      if ([...name.slice(1)].every(c => table[`-${c}`] === none)) continue
       return false
     }
     if (kind === none) {
