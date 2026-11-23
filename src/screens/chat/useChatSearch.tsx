@@ -33,7 +33,49 @@ const SEARCH_WARMUP_QUIET_MS = 20;
 const SEARCH_WARMUP_SHOW_MS = 2000;
 const EDITOR_STATUS_MS = 4000;
 
-type FrozenTranscriptState = { messageCount: number; streamingToolUseCount: number };
+type UseChatSearchProps = {
+  fullscreen: boolean;
+  virtualScrollEnabled: boolean;
+  columns: number;
+  mergedTools: Tools;
+  messages: Message[];
+  focusedInputDialog: FocusedInputDialog | undefined;
+  captureScrollForFlip: () => void;
+  setFlipGeneration: React.Dispatch<React.SetStateAction<number>>;
+  scrollRef: React.RefObject<ScrollBoxHandle | null>;
+  scrollRestoreRef: { current: unknown };
+  onScroll: (sticky: boolean, handle: ScrollBoxHandle) => void;
+};
+
+type UseChatSearchResult = {
+  screen: Screen;
+  setScreen: React.Dispatch<React.SetStateAction<Screen>>;
+  showAllInTranscript: boolean;
+  setShowAllInTranscript: React.Dispatch<React.SetStateAction<boolean>>;
+  dumpMode: boolean;
+  searchBarOpen: boolean;
+  committedSearchQuery: string;
+  searchMatchCount: number | null;
+  searchMatchCurrent: number;
+  editorStatus: string | null;
+  inVirtualTranscriptMode: boolean;
+  inTranscript: boolean;
+  inVirtualTranscript: boolean;
+  legacyTranscript: boolean;
+  handleEnterTranscript: () => void;
+  handleExitTranscript: () => void;
+  previewSearch: (query: string) => void;
+  commitSearch: (query: string) => void;
+  cancelSearch: () => void;
+  warmSearchIndex: () => Promise<number>;
+  onSearchMatchesChange: (count: number, current: number) => void;
+  onTranscriptScroll: (sticky: boolean, handle: ScrollBoxHandle) => void;
+  onTranscriptPillClick: () => void;
+  jumpRef: React.RefObject<JumpHandle | null>;
+  scanElement: (el: DOMElement) => MatchPosition[];
+  setPositions: (state: SearchPositionsState | null) => void;
+  transcriptMessages: Message[];
+};
 
 export function highlightTextOf(query: string): string {
   return parseSearchQuery(query).text ?? '';
@@ -112,13 +154,13 @@ export function TranscriptSearchBar({
 
   let rightNode: React.ReactNode = null;
   if (warming) {
-    rightNode = <Text color={tokens.textMuted}>indexing…</Text>;
+    rightNode = <Text color={tokens.textSecondary}>indexing…</Text>;
   } else if (query.length > 0 && matchCount === 0) {
     rightNode = <Text color={tokens.failure}>no matches</Text>;
   } else if (matchCount !== null && matchCount > 0) {
-    rightNode = <Text color={tokens.textMuted}>{`${matchCurrent}/${matchCount}`}</Text>;
+    rightNode = <Text color={tokens.textSecondary}>{`${matchCurrent}/${matchCount}`}</Text>;
   } else if (warmNotice !== null) {
-    rightNode = <Text color={tokens.textMuted}>{warmNotice}</Text>;
+    rightNode = <Text color={tokens.textSecondary}>{warmNotice}</Text>;
   }
 
   return (
@@ -137,7 +179,7 @@ export function TranscriptSearchBar({
     >
       <Box flexShrink={1}>
         <Text color={tokens.textPrimary} wrap="truncate-end">
-          <Text color={tokens.accent}>/</Text>
+          <Text color={tokens.textSecondary}>/</Text>
           {before}
           <Text inverse>{atCursor}</Text>
           {after}
@@ -220,6 +262,64 @@ export function TranscriptFooter({
   );
 }
 
+function useTranscriptEditorExport(
+  columns: number,
+  mergedTools: Tools,
+  transcriptVisitRef: React.RefObject<number>,
+): {
+  editorStatus: string | null;
+  clearEditorStatus: () => void;
+  exportTranscriptToEditor: () => void;
+} {
+  const [editorStatus, setEditorStatus] = useState<string | null>(null);
+  const editorBusyRef = useRef(false);
+
+  useTimer(() => {
+    if (editorStatus === null || editorStatus === '') return;
+    const timer = startTimeout(() => {
+      setEditorStatus(null);
+    }, EDITOR_STATUS_MS);
+    return () => stopTimeout(timer);
+  }, [editorStatus]);
+
+  const clearEditorStatus = useCallback(() => {
+    setEditorStatus(null);
+  }, []);
+
+  const exportTranscriptToEditor = useCallback(() => {
+    if (editorBusyRef.current) return;
+    editorBusyRef.current = true;
+    const visit = transcriptVisitRef.current;
+    setEditorStatus('rendering transcript…');
+    const records = getFocusedSessionConnector().records();
+    const width = Math.max(80, columns - 6);
+    void (async () => {
+      try {
+        const rendered = await renderMessagesToPlainText([...records], mergedTools, width);
+        const cleaned = rendered
+          .split('\n')
+          .map(line => line.trimEnd())
+          .join('\n');
+        const filePath = join(tmpdir(), `mercury-transcript-${Date.now()}.md`);
+        writeFileSync(filePath, cleaned, 'utf8');
+        if (transcriptVisitRef.current !== visit) return;
+        const opened = openFileInExternalEditor(filePath);
+        if (transcriptVisitRef.current !== visit) return;
+        setEditorStatus(opened ? `opening ${filePath}` : editorNotConfiguredWords(filePath));
+      } catch (err) {
+        if (transcriptVisitRef.current === visit) {
+          const detail = err instanceof Error ? err.message : String(err);
+          setEditorStatus(`render failed: ${detail}`);
+        }
+      } finally {
+        editorBusyRef.current = false;
+      }
+    })();
+  }, [columns, mergedTools, transcriptVisitRef]);
+
+  return { editorStatus, clearEditorStatus, exportTranscriptToEditor };
+}
+
 export function useChatSearch({
   fullscreen,
   virtualScrollEnabled,
@@ -232,47 +332,7 @@ export function useChatSearch({
   scrollRef,
   scrollRestoreRef,
   onScroll,
-}: {
-  fullscreen: boolean;
-  virtualScrollEnabled: boolean;
-  columns: number;
-  mergedTools: Tools;
-  messages: Message[];
-  focusedInputDialog: FocusedInputDialog | undefined;
-  captureScrollForFlip: () => void;
-  setFlipGeneration: React.Dispatch<React.SetStateAction<number>>;
-  scrollRef: React.RefObject<ScrollBoxHandle | null>;
-  scrollRestoreRef: { current: unknown };
-  onScroll: (sticky: boolean, handle: ScrollBoxHandle) => void;
-}): {
-  screen: Screen;
-  setScreen: React.Dispatch<React.SetStateAction<Screen>>;
-  showAllInTranscript: boolean;
-  setShowAllInTranscript: React.Dispatch<React.SetStateAction<boolean>>;
-  dumpMode: boolean;
-  searchBarOpen: boolean;
-  committedSearchQuery: string;
-  searchMatchCount: number | null;
-  searchMatchCurrent: number;
-  editorStatus: string | null;
-  inVirtualTranscriptMode: boolean;
-  inTranscript: boolean;
-  inVirtualTranscript: boolean;
-  legacyTranscript: boolean;
-  handleEnterTranscript: () => void;
-  handleExitTranscript: () => void;
-  previewSearch: (query: string) => void;
-  commitSearch: (query: string) => void;
-  cancelSearch: () => void;
-  warmSearchIndex: () => Promise<number>;
-  onSearchMatchesChange: (count: number, current: number) => void;
-  onTranscriptScroll: (sticky: boolean, handle: ScrollBoxHandle) => void;
-  onTranscriptPillClick: () => void;
-  jumpRef: React.RefObject<JumpHandle | null>;
-  scanElement: (el: DOMElement) => MatchPosition[];
-  setPositions: (state: SearchPositionsState | null) => void;
-  transcriptMessages: Message[];
-} {
+}: UseChatSearchProps): UseChatSearchResult {
   const [screen, setScreen] = useState<Screen>('prompt');
   const [showAllInTranscript, setShowAllInTranscript] = useState(false);
   const [dumpMode, setDumpMode] = useState(false);
@@ -280,13 +340,16 @@ export function useChatSearch({
   const [committedSearchQuery, setCommittedSearchQuery] = useState('');
   const [searchMatchCount, setSearchMatchCount] = useState<number | null>(null);
   const [searchMatchCurrent, setSearchMatchCurrent] = useState(0);
-  const [editorStatus, setEditorStatus] = useState<string | null>(null);
-  const [frozenTranscript, setFrozenTranscript] = useState<FrozenTranscriptState | null>(null);
+  const [frozenMessageCount, setFrozenMessageCount] = useState<number | null>(null);
 
   const jumpRef = useRef<JumpHandle | null>(null);
-  const editorBusyRef = useRef(false);
   const transcriptVisitRef = useRef(0);
   const prevColumnsRef = useRef(columns);
+  const { editorStatus, clearEditorStatus, exportTranscriptToEditor } = useTranscriptEditorExport(
+    columns,
+    mergedTools,
+    transcriptVisitRef,
+  );
   const committedQueryRef = useRef(committedSearchQuery);
   committedQueryRef.current = committedSearchQuery;
   const searchMatchCountRef = useRef(searchMatchCount);
@@ -300,20 +363,20 @@ export function useChatSearch({
   const legacyTranscript = inTranscript && !inVirtualTranscriptMode;
 
   const transcriptMessages = useMemo(
-    () => (frozenTranscript === null ? messages : messages.slice(0, frozenTranscript.messageCount)),
-    [messages, frozenTranscript],
+    () => (frozenMessageCount === null ? messages : messages.slice(0, frozenMessageCount)),
+    [messages, frozenMessageCount],
   );
 
   const handleEnterTranscript = useCallback(() => {
     captureScrollForFlip();
     const messageCount = getFocusedSessionConnector().records().length;
-    setFrozenTranscript({ messageCount, streamingToolUseCount: 0 });
+    setFrozenMessageCount(messageCount);
     setFlipGeneration(g => g + 1);
   }, [captureScrollForFlip, setFlipGeneration]);
 
   const handleExitTranscript = useCallback(() => {
     captureScrollForFlip();
-    setFrozenTranscript(null);
+    setFrozenMessageCount(null);
     setSearchBarOpen(false);
     setCommittedSearchQuery('');
     setSearchMatchCount(null);
@@ -321,10 +384,9 @@ export function useChatSearch({
     jumpRef.current?.disarmSearch();
     transcriptVisitRef.current += 1;
     setDumpMode(false);
-    setEditorStatus(null);
+    clearEditorStatus();
     setFlipGeneration(g => g + 1);
-  }, [captureScrollForFlip, setFlipGeneration]);
-
+  }, [captureScrollForFlip, clearEditorStatus, setFlipGeneration]);
   usePublish(() => {
     if (!inTranscript) {
       setHighlightQuery('');
@@ -344,14 +406,6 @@ export function useChatSearch({
     setHighlightQuery('');
     setPositions(null);
   }, [columns, searchBarOpen, committedSearchQuery, setHighlightQuery, setPositions]);
-
-  useTimer(() => {
-    if (editorStatus === null || editorStatus === '') return;
-    const timer = startTimeout(() => {
-      setEditorStatus(null);
-    }, EDITOR_STATUS_MS);
-    return () => stopTimeout(timer);
-  }, [editorStatus]);
 
   const previewSearch = useCallback(
     (query: string) => {
@@ -419,37 +473,6 @@ export function useChatSearch({
     handle.scrollToBottom();
     onScroll(true, handle);
   }, [scrollRef, onScroll]);
-
-  const exportTranscriptToEditor = useCallback(() => {
-    if (editorBusyRef.current) return;
-    editorBusyRef.current = true;
-    const visit = transcriptVisitRef.current;
-    setEditorStatus('rendering transcript…');
-    const records = getFocusedSessionConnector().records();
-    const width = Math.max(80, columns - 6);
-    void (async () => {
-      try {
-        const rendered = await renderMessagesToPlainText(records, mergedTools, width);
-        const cleaned = rendered
-          .split('\n')
-          .map(line => line.trimEnd())
-          .join('\n');
-        const filePath = join(tmpdir(), `mercury-transcript-${Date.now()}.md`);
-        writeFileSync(filePath, cleaned, 'utf8');
-        if (transcriptVisitRef.current !== visit) return;
-        const opened = openFileInExternalEditor(filePath);
-        if (transcriptVisitRef.current !== visit) return;
-        setEditorStatus(opened ? `opening ${filePath}` : editorNotConfiguredWords(filePath));
-      } catch (err) {
-        if (transcriptVisitRef.current === visit) {
-          const detail = err instanceof Error ? err.message : String(err);
-          setEditorStatus(`render failed: ${detail}`);
-        }
-      } finally {
-        editorBusyRef.current = false;
-      }
-    })();
-  }, [columns, mergedTools]);
 
   useKeybinding('app:interrupt', cancelSearch, {
     context: 'Global',
