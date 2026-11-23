@@ -17,10 +17,48 @@ import {
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { CONTRACT_TOOL_NAME } from '../../constants/tools/contract.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
-function reminderClock(messages: Message[], kind: 'task_reminder' | 'contract_reminder', tools: readonly string[]): Unbuilt {
-  return notBuilt('src/services/attachments/reminders.ts:22')
+type ReminderClock = {
+  touched: boolean
+  reminded: boolean
+  turnsSinceTouch: number
+  turnsSinceReminder: number
+}
+
+function reminderClock(
+  messages: Message[],
+  kind: 'task_reminder' | 'contract_reminder',
+  tools: readonly string[],
+): ReminderClock {
+  let touched = false
+  let reminded = false
+  let turnsSinceTouch = 0
+  let turnsSinceReminder = 0
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (touched && reminded) break
+    const message = messages[i]
+    if (!message) continue
+    if (message.type === 'attachment' && message.attachment.type === kind) {
+      if (!reminded) reminded = true
+      continue
+    }
+    if (message.type !== 'assistant' || isThinkingMessage(message)) continue
+    if (!touched) {
+      const content = message.message.content
+      const hasTouch =
+        Array.isArray(content) &&
+        content.some(block => block.type === 'tool_use' && tools.includes(block.name))
+      if (hasTouch) {
+        touched = true
+      } else {
+        turnsSinceTouch++
+      }
+    }
+    if (!reminded) {
+      turnsSinceReminder++
+    }
+  }
+  return { touched, reminded, turnsSinceTouch, turnsSinceReminder }
 }
 
 function taskReminderDue(messages: Message[]): boolean {
@@ -35,7 +73,14 @@ export async function getTaskReminderAttachments(
   messages: Message[] | undefined,
   context: ToolUseContext,
 ): Promise<Attachment[]> {
-  return notBuilt('src/services/attachments/reminders.ts:51')
+  if (!isTaskToolsEnabled()) return []
+  if (!context.options.tools.some(tool => toolMatchesName(tool, TASK_UPDATE_TOOL_NAME))) {
+    return []
+  }
+  if (!messages || messages.length === 0) return []
+  if (!taskReminderDue(messages)) return []
+  const content = await listTasks(getTaskListId())
+  return [{ type: 'task_reminder', content, itemCount: content.length }]
 }
 
 function getContractReminderTurnCounts(messages: Message[]): {
@@ -89,7 +134,7 @@ export async function getContractReminderAttachments(
 }
 
 export function getContextEfficiencyAttachment(
-  messages: Message[],
+  _messages: Message[],
 ): Attachment[] {
-  return notBuilt('src/services/attachments/reminders.ts:113')
+  return []
 }
