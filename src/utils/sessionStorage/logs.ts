@@ -57,6 +57,7 @@ import type { SessionMetaFields } from './sessionMeta.js'
 import { isBuiltInCommandName } from './builtInCommands.js'
 import { errorMessage, getErrnoCode } from '../errors.js'
 import { passedOver } from '../passedOver.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export type SessionReadFailures = {
   count: number
@@ -109,33 +110,7 @@ function createFailureCollector(): FailureCollector {
 export async function loadTranscriptFromFile(
   filePath: string,
 ): Promise<SessionListing> {
-  const loaded = await loadTranscriptFile(filePath)
-  const leaf =
-    resumeLeafOf(loaded.messages) ??
-    findLatestMessage(loaded.messages.values(), () => true)
-  if (!leaf) {
-    const now = new Date()
-    return {
-      date: now.toISOString(),
-      messages: [],
-      fullPath: filePath,
-      value: 0,
-      created: now,
-      modified: now,
-      firstPrompt: 'No prompt',
-      messageCount: 0,
-      isSidechain: false,
-    }
-  }
-  const chain = buildConversationChain(loaded.messages, leaf)
-  const sessionId = leaf.sessionId
-  const summary = loaded.summaries.get(leaf.uuid)
-  return {
-    ...chainLogOption(chain, leaf, filePath),
-    sessionId,
-    ...(summary !== undefined ? { summary } : {}),
-    ...resumeFactsOf(loaded, sessionId, chain),
-  }
+  return notBuilt('src/utils/sessionStorage/logs.ts:110')
 }
 
 function paintsConversationRow(message: TranscriptMessage): boolean {
@@ -465,52 +440,7 @@ export function resumeFactsOf(
   sessionId: UUID,
   chain: TranscriptMessage[],
 ): ResumeFacts {
-  const fileHistorySnapshots = buildFileHistorySnapshotChain(fold.fileHistorySnapshots, chain)
-  const attributionSnapshots = buildAttributionSnapshotChain(fold.attributionSnapshots, chain)
-  const contentReplacements = fold.contentReplacements.get(sessionId)
-  const contextCollapseCommits = fold.contextCollapseCommits
-  const contextCollapseSnapshot = fold.contextCollapseSnapshot
-  const agentName = fold.agentNames.get(sessionId)
-  const agentColor = fold.agentColors.get(sessionId)
-  const agentSetting = fold.agentSettings.get(sessionId)
-  const brief = fold.sessionBriefs.get(sessionId)
-  const briefAdd = fold.sessionBriefAdds.get(sessionId)
-  const customTitle = fold.customTitles.get(sessionId)
-  const tag = fold.tags.get(sessionId)
-  const mode = fold.modes.get(sessionId)
-  const advisor = fold.advisorSwitches.get(sessionId)
-  const swarm = fold.swarmSwitches.get(sessionId)
-  const model = fold.sessionModels.get(sessionId)
-  const worktreeSession = fold.worktreeStates.get(sessionId)
-  const prNumber = fold.prNumbers.get(sessionId)
-  const prUrl = fold.prUrls.get(sessionId)
-  const prRepository = fold.prRepositories.get(sessionId)
-  const turnEnd = fold.turnEnds.get(sessionId)
-  const turnOpen = fold.turnsOpen.get(sessionId)
-  return {
-    ...(fileHistorySnapshots.length > 0 ? { fileHistorySnapshots } : {}),
-    ...(attributionSnapshots.length > 0 ? { attributionSnapshots } : {}),
-    ...(contentReplacements && contentReplacements.length > 0 ? { contentReplacements } : {}),
-    ...(contextCollapseCommits.length > 0 ? { contextCollapseCommits } : {}),
-    ...(contextCollapseSnapshot !== undefined ? { contextCollapseSnapshot } : {}),
-    ...(agentName !== undefined ? { agentName } : {}),
-    ...(agentColor !== undefined ? { agentColor } : {}),
-    ...(agentSetting !== undefined ? { agentSetting } : {}),
-    ...(brief !== undefined ? { brief } : {}),
-    ...(briefAdd !== undefined ? { briefAdd } : {}),
-    ...(customTitle !== undefined ? { customTitle } : {}),
-    ...(tag !== undefined ? { tag } : {}),
-    ...(mode !== undefined ? { mode } : {}),
-    ...(advisor !== undefined ? { advisor } : {}),
-    ...(swarm !== undefined ? { swarm } : {}),
-    ...(model !== undefined ? { model } : {}),
-    ...(worktreeSession !== undefined ? { worktreeSession } : {}),
-    ...(prNumber !== undefined ? { prNumber } : {}),
-    ...(prUrl !== undefined ? { prUrl } : {}),
-    ...(prRepository !== undefined ? { prRepository } : {}),
-    ...(turnEnd !== undefined ? { turnEnd } : {}),
-    ...(turnOpen !== undefined ? { turnOpen } : {}),
-  }
+  return notBuilt('src/utils/sessionStorage/logs.ts:465')
 }
 
 export async function lastSession(

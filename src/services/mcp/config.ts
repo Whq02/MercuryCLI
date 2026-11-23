@@ -38,6 +38,7 @@ import { expandEnvVarsInString } from './envExpansion.js'
 import { mcpStdioCommandRefusal } from './stdioCommandSafety.js'
 import { fetchAnthropicConnectorsIfEligible } from './anthropicConnectors.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { notBuilt } from '../../pi/holes.js'
 
 
 type McpConfigError = {
@@ -956,81 +957,12 @@ async function writeProjectMcpFile(document: ProjectMcpDocument, action = 'updat
   }
 }
 
-function setOwnEntry<T>(record: Record<string, T>, key: string, value: T): Record<string, T> {
-  const next = { ...record }
-  Object.defineProperty(next, key, {
-    value,
-    enumerable: true,
-    writable: true,
-    configurable: true,
-  })
-  return next
-}
-
 export async function addMcpConfig(
   name: string,
   config: unknown,
   scope: ConfigScope,
 ): Promise<void> {
-  if (name === '__proto__') {
-    throw new Error('Invalid MCP server name "__proto__": choose another name')
-  }
-  const candidate =
-    config !== null && typeof config === 'object' && !Array.isArray(config)
-      ? stripScope(config as McpServerConfig)
-      : config
-  const parsed = McpServerConfigSchema().safeParse(candidate)
-  if (!parsed.success) {
-    throw new Error(describeMcpConfigIssues(parsed.error.issues, candidate))
-  }
-  const refusal = mcpStdioCommandRefusal(
-    name,
-    parsed.data as { type?: string; command?: string; args?: string[] },
-  )
-  if (refusal !== null) {
-    throw new Error(refusal)
-  }
-  switch (scope) {
-    case 'project': {
-      const mcpJsonPath = lockedProjectMcpFile()
-      const { runExclusiveOnFileSync } = await import('../../utils/config/globalConfig.js')
-      await runExclusiveOnFileSync(mcpJsonPath, async () => {
-        const document = readProjectMcpDocument(mcpJsonPath)
-        if (Object.hasOwn(document.mcpServers, name)) {
-          throw new Error(`MCP server "${name}" already exists in ${mcpJsonPath}`)
-        }
-        await writeProjectMcpFile(
-          { ...document, mcpServers: setOwnEntry(document.mcpServers, name, parsed.data) },
-          `add MCP server ${name}`,
-        )
-      })
-      return
-    }
-    case 'user': {
-      const existing = getGlobalConfig().mcpServers ?? {}
-      if (Object.hasOwn(existing, name)) {
-        throw new Error(`MCP server "${name}" already exists in user config`)
-      }
-      saveGlobalConfig(current => ({
-        ...current,
-        mcpServers: setOwnEntry(current.mcpServers ?? {}, name, parsed.data),
-      }))
-      return
-    }
-    case 'local': {
-      const existing = getCurrentProjectConfig().mcpServers ?? {}
-      if (Object.hasOwn(existing, name)) {
-        throw new Error(`MCP server "${name}" already exists in project-local config`)
-      }
-      saveCurrentProjectConfig(current => ({
-        ...current,
-        mcpServers: setOwnEntry(current.mcpServers ?? {}, name, parsed.data),
-      }))
-      return
-    }
-    default:
-      throw new Error(`Cannot add an MCP server to the ${String(scope)} scope`)
-  }
+  return notBuilt('src/services/mcp/config.ts:903')
 }
 
 export async function removeMcpConfig(name: string, scope: ConfigScope, beforeRemoval?: () => void): Promise<void> {

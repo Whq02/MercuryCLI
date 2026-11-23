@@ -1,6 +1,7 @@
 import type { Client, Implementation, Resource, ServerCapabilities, Tool } from './sdk.js'
 import { z } from 'zod'
 import { passedOver } from '../passedOver.js'
+import { type Unbuilt } from '../../pi/holes.js'
 
 export type McpBootstrapManifest = {
   serverInfo: Implementation
@@ -138,10 +139,5 @@ type ConnectionFacts = {
 }
 type Connection<State extends keyof ConnectionFacts> = ServerIdentity & { type: State } & ConnectionFacts[State]
 export type ConnectedMCPServer = Connection<'connected'>
-export type MCPServerConnection =
-  | Connection<'connected'>
-  | Connection<'failed'>
-  | Connection<'pending'>
-  | Connection<'disabled'>
-  | Connection<'needs-auth'>
+export type MCPServerConnection = Unbuilt
 export type ServerResource = Resource & { server: string }

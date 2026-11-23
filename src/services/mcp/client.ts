@@ -65,6 +65,7 @@ import { tellMcpToolsTheClient } from './client/forTools.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { startInterval, stopInterval } from '../../utils/timers.js'
 import { clearKeychainCache } from '../../utils/secureStorage/index.js'
+import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 export function getServerCacheKey(name: string, serverRef: ScopedMcpServerConfig): string {
   return `${name}:${JSON.stringify(serverRef)}`
@@ -769,24 +770,7 @@ export const fetchToolsForClient = Object.assign(
   { cache: fetchToolsForClientMemo.cache },
 )
 
-export const fetchResourcesForClient = memoize(
-  async (client: MCPServerConnection): Promise<ServerResource[]> => {
-    if (client.type !== 'connected' || !client.capabilities.resources) return []
-    try {
-      const result = (await client.client.request(
-        { method: 'resources/list', params: {} },
-        { timeout: connectTimeoutMs() },
-      )) as { resources?: Resource[] }
-      const resources = recursivelySanitizeUnicode(result.resources ?? [])
-      return resources.map(resource => ({ ...resource, server: client.name }))
-    } catch (err) {
-      logMCPError(client.name, err)
-      fetchResourcesForClient.cache.delete(client.name)
-      return []
-    }
-  },
-  client => client.name,
-)
+export const fetchResourcesForClient: Unbuilt = unbuilt('src/services/mcp/client.ts:510')
 fetchResourcesForClient.cache = new LRUCache<string, Promise<ServerResource[]>>({ max: 20 })
 
 export const fetchCommandsForClient = memoize(

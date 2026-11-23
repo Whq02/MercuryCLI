@@ -5,6 +5,7 @@ import { logForDebugging } from '../debug.js'
 import { errorMessage } from '../errors.js'
 import { getCachedPowerShellPath } from '../shell/powershellDetection.js'
 import { commandByteBudget } from '../platform/spawn.js'
+import { notBuilt } from '../../pi/holes.js'
 
 
 type ElementClass =
@@ -589,8 +590,7 @@ export function getFileRedirections(parsed: ParsedPowerShellCommand): ParsedRedi
 }
 
 export function getVariablesByScope(parsed: ParsedPowerShellCommand, scope: string): ParsedVariable[] {
-  const prefix = `${scope.toLowerCase()}:`
-  return parsed.variables.filter(v => v.path.toLowerCase().startsWith(prefix))
+  return notBuilt('src/utils/powershell/parser.ts:536')
 }
 
 export function getPipelineSegments(parsed: ParsedPowerShellCommand): ParsedStatement[] {

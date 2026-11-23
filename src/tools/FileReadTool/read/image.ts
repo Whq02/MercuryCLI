@@ -10,63 +10,15 @@ import { passedOver } from '../../../utils/passedOver.js'
 import { createChildAbortController } from '../../../utils/abortController.js'
 import { withDeadline } from '../../../utils/deadline.js'
 import { getImageProcessor } from '../../../utils/imageProcessor/imageProcessor.js'
+import { notBuilt } from '../../../pi/holes.js'
 
 const IMAGE_TOKEN_BUDGET_DEFAULT = 25000
 const IMAGE_CAPTION_OCR_CEILING_MS = 3_000
 
 type ImageOutput = Extract<Output, { type: 'image' }>
 
-function toImageMime(mediaType: string): ImageOutput['file']['type'] {
-  const normalized = mediaType.startsWith('image/') ? mediaType : `image/${mediaType}`
-  switch (normalized) {
-    case 'image/jpeg':
-    case 'image/jpg':
-      return 'image/jpeg'
-    case 'image/png':
-      return 'image/png'
-    case 'image/gif':
-      return 'image/gif'
-    case 'image/webp':
-      return 'image/webp'
-    default:
-      return 'image/png'
-  }
-}
-
-export async function cropImageBuffer(
-  buffer: Buffer,
-  crop: CropBox,
-  filePath: string,
-  scale?: number,
-): Promise<{ buffer: Buffer; full: { width: number; height: number }; box: CropBox }> {
-  const [x1, y1, x2, y2] = crop
-  if (x2 <= x1 || y2 <= y1) {
-    throw new Error(`crop refused: [${x1}, ${y1}, ${x2}, ${y2}] is inverted or empty`)
-  }
-  const sharp = await getImageProcessor()
-  const meta = await sharp(buffer).metadata()
-  const width = meta.width
-  const height = meta.height
-  if (!width || !height) {
-    throw new Error(`crop refused: could not read dimensions of ${filePath}`)
-  }
-  if (x1 < 0 || y1 < 0 || x1 >= width || y1 >= height) {
-    throw new Error(`crop refused: [${x1}, ${y1}, ${x2}, ${y2}] reaches outside the image, which is ${width}x${height} px`)
-  }
-  const cx2 = Math.min(x2, width)
-  const cy2 = Math.min(y2, height)
-  const cropWidth = cx2 - x1
-  const cropHeight = cy2 - y1
-  let pipeline = sharp(buffer).extract({ left: x1, top: y1, width: cropWidth, height: cropHeight })
-  if (scale !== undefined && scale > 1) {
-    pipeline = pipeline.resize(Math.round(cropWidth * scale), Math.round(cropHeight * scale), {
-      fit: 'fill',
-      withoutEnlargement: false,
-      ...(Number.isInteger(scale) ? { kernel: 'nearest' } : {}),
-    })
-  }
-  const out = await pipeline.toBuffer()
-  return { buffer: out, full: { width, height }, box: [x1, y1, cx2, cy2] }
+export async function cropImageBuffer(buffer: Buffer, crop: CropBox, filePath: string, scale?: number): Promise<{ buffer: Buffer; full: { width: number; height: number }; box: CropBox }> {
+  return notBuilt('src/tools/FileReadTool/read/image.ts:18')
 }
 
 export async function readImageWithTokenBudget(

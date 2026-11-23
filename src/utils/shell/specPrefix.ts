@@ -1,4 +1,5 @@
 import type { Argument, CommandSpec, Option } from '../bash/registry.js'
+import { notBuilt } from '../../pi/holes.js'
 
 export const DEPTH_RULES: Record<string, number> = {
   rg: 2,
@@ -26,13 +27,11 @@ function optionNames(option: Option): string[] {
 }
 
 function findSubcommandSpec(spec: CommandSpec, token: string): CommandSpec | undefined {
-  if (!spec.subcommands) return undefined
-  return spec.subcommands.find(sub => sub.name === token)
+  return notBuilt('src/utils/shell/specPrefix.ts:28')
 }
 
 function findOption(spec: CommandSpec | null, flagName: string): Option | undefined {
-  if (!spec?.options) return undefined
-  return spec.options.find(opt => optionNames(opt).includes(flagName))
+  return notBuilt('src/utils/shell/specPrefix.ts:37')
 }
 
 function optionTakesArgument(spec: CommandSpec | null, flag: string, followedByNonFlagSubcommand: {

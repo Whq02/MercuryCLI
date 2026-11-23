@@ -91,6 +91,7 @@ import { STRUCTURED_TAG } from '../../constants/xml.js'
 import type { AgentDefinition } from '../../types/agent.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
+import { notBuilt } from '../../pi/holes.js'
 
 const MCP_TOOL_PREFIX = 'mcp__'
 
@@ -817,96 +818,7 @@ export function armBudgetCutResume(args: {
     automatic: true
   }) => Promise<{ note?: string } | void>
 }): ReturnType<typeof setTimeout> | null {
-  if (args.automaticResume || cutsAlreadyResumed.has(args.registration)) return null
-  cutsAlreadyResumed.add(args.registration)
-  clearPendingTimer(args.taskId)
-
-  const delayMs = args.delayMs ?? recoveryBudgetMs()
-  if (args.pause !== undefined) {
-    pauseAgentTask(args.taskId, args.pause, args.rootSetAppState, args.registration)
-    if (args.pause.resumesAtMs !== undefined) {
-      savePauseRecord(args.taskId, args.description, {
-        pause: { ...args.pause, resumesAtMs: args.pause.resumesAtMs },
-        description: args.description,
-        armedAt: Date.now(),
-        ...(args.toolUseContext.toolUseId ? { toolUseId: args.toolUseContext.toolUseId } : {}),
-      })
-    }
-  }
-
-  const requirePaused = args.pause !== undefined
-  const defaultPrompt = args.prompt ?? AGENT_BUDGET_RESUME_NOTE
-  const defaultSummary =
-    args.summary ??
-    `Crewmate "${args.description}" resumed by itself — the provider recovery budget reset; its partial work carried forward`
-
-  const fire = (prompt: string, summary: string): void => {
-    void whileFiring(args.taskId, async () => {
-      if (!isStillHeldForResume(args.taskId, args.registration, args.rootSetAppState, requirePaused)) return
-      await executeAutomaticResume({ ...args, prompt, summary, logTag: 'automatic resume' })
-    })
-  }
-
-  let unsubscribeAccount = (): void => {}
-  const timer = startTimeout(() => {
-    if (pendingAutomaticResumes.get(args.taskId) !== timer) return
-    pendingAutomaticResumes.delete(args.taskId)
-    unsubscribeAccount()
-    fire(defaultPrompt, defaultSummary)
-  }, delayMs)
-  timer.unref?.()
-  pendingAutomaticResumes.set(args.taskId, timer)
-
-  unsubscribeAccount = subscribeCrewAccountChange(() => {
-    if (pendingAutomaticResumes.get(args.taskId) !== timer) {
-      unsubscribeAccount()
-      return
-    }
-    stopTimeout(timer)
-    pendingAutomaticResumes.delete(args.taskId)
-    unsubscribeAccount()
-    fire(CREW_ACCOUNT_RESUME_NOTE, crewAccountResumeSummary(`Crewmate "${args.description}"`))
-  })
-  return timer
-}
-
-function clearPendingTimer(taskId: string): void {
-  const existing = pendingAutomaticResumes.get(taskId)
-  if (existing !== undefined) {
-    stopTimeout(existing)
-    pendingAutomaticResumes.delete(taskId)
-  }
-}
-
-function isStillHeldForResume(taskId: string, registration: AbortController, rootSetAppState: SetAppState, requirePaused: boolean): boolean {
-  let held = false
-  rootSetAppState((prev: AppState) => {
-    const task = prev.tasks?.[taskId]
-    held = isLocalAgentTask(task) && task.registration === registration && (!requirePaused || task.paused !== undefined)
-    return prev
-  })
-  return held
-}
-
-async function executeAutomaticResume(opts: {
-  taskId: string; description: string; registration: AbortController; toolUseContext: ToolUseContext; rootSetAppState: SetAppState
-  canUseTool?: CanUseToolFn; invokingRequestId?: string; prompt: string; summary: string; logTag: string
-  resume?: (resumeArgs: { agentId: string; prompt: string; toolUseContext: ToolUseContext; canUseTool?: CanUseToolFn; invokingRequestId?: string; automatic: true }) => Promise<{ note?: string } | void>
-}): Promise<void> {
-  const runResume = opts.resume ?? (async resumeArgs => (await import('./resumeAgent.js')).resumeAgentBackground(resumeArgs))
-  const freshContext: ToolUseContext = { ...opts.toolUseContext, abortController: new AbortController() }
-  try {
-    const resumed = await runWithCwdOverride(getCwdState(), () =>
-      runResume({ agentId: opts.taskId, prompt: opts.prompt, toolUseContext: freshContext, canUseTool: opts.canUseTool, invokingRequestId: opts.invokingRequestId, automatic: true }),
-    )
-    dropPauseRecord(opts.taskId, opts.description)
-    const note = resumed?.note?.trim()
-    enqueueAgentReceiptRow({ taskId: opts.taskId, description: opts.description, status: 'resumed', summary: note ? `${opts.summary} (${note})` : opts.summary })
-  } catch (error) {
-    logForDebugging(`agent lifecycle: ${opts.logTag} of ${opts.taskId} failed: ${errorMessage(error)}`)
-    unpauseAgentTask(opts.taskId, opts.rootSetAppState, opts.registration)
-    dropPauseRecord(opts.taskId, opts.description)
-  }
+  return notBuilt('src/tools/AgentTool/agentToolUtils.ts:808')
 }
 
 const overloadEpisodes = new Map<string, OverloadEpisode>()
@@ -989,59 +901,7 @@ export function armOverloadProbe(args: {
     automatic: true
   }) => Promise<{ note?: string } | void>
 }): ReturnType<typeof setTimeout> | null {
-  const nowMs = Date.now()
-  const episode = args.afterDeath ? overloadEpisodeOf(args.taskId, nowMs) : overloadEpisodeStanding(args.taskId, nowMs)
-  const delayMs = nextOverloadProbeDelayMs(episode, nowMs, args.afterDeath)
-  if (delayMs === null) {
-    unpauseAgentTask(args.taskId, args.rootSetAppState, args.registration)
-    dropPauseRecord(args.taskId, args.description)
-    closeOverloadEpisode(args.taskId)
-    return null
-  }
-
-  pauseAgentTask(args.taskId, args.pause, args.rootSetAppState, args.registration)
-  if (!args.recorded) {
-    savePauseRecord(args.taskId, args.description, {
-      pause: { why: 'provider overloaded', words: args.pause.words },
-      model: args.model,
-      description: args.description,
-      armedAt: nowMs,
-      ...(args.toolUseContext.toolUseId ? { toolUseId: args.toolUseContext.toolUseId } : {}),
-    })
-  }
-  clearPendingTimer(args.taskId)
-
-  const timer = startTimeout(() => {
-    if (pendingAutomaticResumes.get(args.taskId) !== timer) return
-    pendingAutomaticResumes.delete(args.taskId)
-    void whileFiring(args.taskId, async () => {
-      if (!isStillHeldForResume(args.taskId, args.registration, args.rootSetAppState, true)) return
-      episode.probes += 1
-      const probeFn = args.probe ?? (model => probeProviderAnswers(model, overloadProbeRequestMs(episode.scale)))
-      const answered = await probeFn(args.model)
-      if (!isStillHeldForResume(args.taskId, args.registration, args.rootSetAppState, true)) return
-      if (!answered) {
-        armOverloadProbe({ ...args, afterDeath: false, recorded: true })
-        return
-      }
-      await executeAutomaticResume({
-        taskId: args.taskId,
-        description: args.description,
-        registration: args.registration,
-        toolUseContext: args.toolUseContext,
-        rootSetAppState: args.rootSetAppState,
-        canUseTool: args.canUseTool,
-        invokingRequestId: args.invokingRequestId,
-        prompt: AGENT_OVERLOAD_RESUME_NOTE,
-        summary: `Crewmate "${args.description}" resumed by itself — the provider answered again; its partial work carried forward`,
-        resume: args.resume,
-        logTag: 'automatic overload resume',
-      })
-    })
-  }, delayMs)
-  timer.unref?.()
-  pendingAutomaticResumes.set(args.taskId, timer)
-  return timer
+  return notBuilt('src/tools/AgentTool/agentToolUtils.ts:958')
 }
 
 export async function deliverOperatorMessagesAfterStop(
@@ -1051,26 +911,7 @@ export async function deliverOperatorMessagesAfterStop(
   rootSetAppState: SetAppState,
   canUseTool?: CanUseToolFn,
 ): Promise<boolean> {
-  const queued = peekOperatorMessages(toolUseContext.getAppState().tasks?.[taskId])
-  if (queued.length === 0) return false
-  try {
-    const { resumeAgentBackground } = await import('./resumeAgent.js')
-    const resumed = await resumeAgentBackground({
-      agentId: taskId,
-      prompt: queued.join('\n\n'),
-      toolUseContext,
-      canUseTool,
-      replyTarget: 'operator',
-    })
-    takeOperatorMessages(taskId, toolUseContext.getAppState, rootSetAppState, queued.length)
-    if (resumed.note && resumed.note.trim() !== '') {
-      enqueueAgentReceiptRow({ taskId, description, status: 'resumed', summary: resumed.note.replace(/^\s+/, '') })
-    }
-    return true
-  } catch (error) {
-    logForDebugging(`agent lifecycle: post-stop operator message delivery failed: ${errorMessage(error)}`)
-    return false
-  }
+  return notBuilt('src/tools/AgentTool/agentToolUtils.ts:1048')
 }
 
 const noticesOwed = new Set<object>()

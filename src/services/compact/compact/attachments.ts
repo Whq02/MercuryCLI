@@ -32,6 +32,7 @@ import { FOLDED_RESULT_KEY } from '../verbatimTail.js'
 import { POST_COMPACT_MAX_FILES_TO_RESTORE, POST_COMPACT_TOKEN_BUDGET, POST_COMPACT_MAX_TOKENS_PER_FILE, POST_COMPACT_MAX_TOKENS_PER_SKILL, POST_COMPACT_SKILLS_TOKEN_BUDGET, ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD } from './limits.js'
 import { type CompactionResult, buildPostCompactMessages } from './result.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
+import { notBuilt, type Unbuilt } from '../../../pi/holes.js'
 
 export function collectPreservedReadPaths(preserved: Message[], resultIds?: ReadonlySet<string>): Set<string> {
   const stubs = new Set<string>()
@@ -226,40 +227,8 @@ function describeAttachment(message: AttachmentMessage): string {
   return attachment.type
 }
 
-export function fitPostCompactUnderThreshold(
-  result: CompactionResult,
-  threshold: number,
-  count: (rows: Message[]) => number = estimateContextTokens,
-): PostCompactFit {
-  let estimate = count(buildPostCompactMessages(result))
-  if (estimate < threshold) {
-    return { result, estimate, shed: [] }
-  }
-  const attachments = [...result.attachments]
-  let current: CompactionResult = { ...result, attachments }
-  const shed: string[] = []
-  for (const kind of POST_COMPACT_SHEDDABLE_ATTACHMENT_TYPES) {
-    while (estimate >= threshold) {
-      let bestIndex = -1
-      let bestSize = -1
-      for (let index = 0; index < attachments.length; index++) {
-        const candidate = attachments[index]!
-        if (candidate.attachment.type !== kind) continue
-        const size = estimateContextTokens([candidate])
-        if (size > bestSize) {
-          bestSize = size
-          bestIndex = index
-        }
-      }
-      if (bestIndex === -1) break
-      const [removed] = attachments.splice(bestIndex, 1)
-      shed.push(describeAttachment(removed!))
-      current = { ...result, attachments: [...attachments] }
-      estimate = count(buildPostCompactMessages(current))
-    }
-    if (estimate < threshold) break
-  }
-  return { result: shed.length === 0 ? result : current, estimate, shed }
+export function fitPostCompactUnderThreshold(result: CompactionResult, threshold: number, count?: Unbuilt): PostCompactFit {
+  return notBuilt('src/services/compact/compact/attachments.ts:227')
 }
 
 export function obligationsOverThresholdMessage(estimate: number, threshold: number): string {
