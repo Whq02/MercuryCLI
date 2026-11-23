@@ -12,7 +12,6 @@ import type {
 import type { ContentBlockParam, ImageBlockParam, TextBlockParam, ToolResultBlockParam } from '../types/wire.js'
 import { expandPath } from './path.js'
 import { readRegularFile } from './regularFile.js'
-import { notBuilt } from '../pi/holes.js'
 
 
 const LARGE_OUTPUT_THRESHOLD = 10_000
@@ -32,8 +31,66 @@ function processText(text: string | string[] | undefined): string {
 const outputWeight = (output: NotebookCellSourceOutput | undefined): number =>
   output ? (output.text?.length ?? 0) + (output.image?.image_data.length ?? 0) : 0
 
+function extractImage(data: NotebookMimeBundle): NotebookOutputImage | undefined {
+  const png = data['image/png']
+  if (png !== undefined) {
+    return { image_data: joinSource(png).replace(/\s/g, ''), media_type: 'image/png' }
+  }
+  const jpeg = data['image/jpeg']
+  if (jpeg !== undefined) {
+    return { image_data: joinSource(jpeg).replace(/\s/g, ''), media_type: 'image/jpeg' }
+  }
+  return undefined
+}
+
+function processOutput(output: NotebookCellOutput): NotebookCellSourceOutput {
+  switch (output.output_type) {
+    case 'stream':
+      return { output_type: output.output_type, text: processText(output.text) }
+    case 'display_data':
+    case 'execute_result': {
+      const data = output.data
+      const text = data?.['text/plain'] !== undefined ? processText(data['text/plain']) : undefined
+      const image = data !== undefined ? extractImage(data) : undefined
+      return {
+        output_type: output.output_type,
+        ...(text !== undefined ? { text } : {}),
+        ...(image !== undefined ? { image } : {}),
+      }
+    }
+    case 'error': {
+      const text = processText(
+        output.traceback?.length ? output.traceback.join('\n') : `${output.ename}: ${output.evalue}`,
+      )
+      return { output_type: output.output_type, text }
+    }
+  }
+}
+
 function processCell(cell: NotebookCell, index: number, language: string, includeLargeOutputs: boolean): NotebookCellSource {
-  return notBuilt('src/utils/notebook.ts:69')
+  const cellSource: NotebookCellSource = {
+    cellType: cell.cell_type,
+    source: joinSource(cell.source),
+    cell_id: cell.id ?? `cell-${index}`,
+  }
+  if (cell.cell_type !== 'code') return cellSource
+  cellSource.language = language
+  if (cell.execution_count) cellSource.execution_count = cell.execution_count
+  if (cell.outputs && cell.outputs.length > 0) {
+    const processed = cell.outputs.map(processOutput)
+    const totalWeight = processed.reduce((sum, output) => sum + outputWeight(output), 0)
+    if (!includeLargeOutputs && totalWeight > LARGE_OUTPUT_THRESHOLD) {
+      cellSource.outputs = [
+        {
+          output_type: 'stream',
+          text: `Outputs are too large to include. Use ${BASH_TOOL_NAME} with: jq '.cells[${index}].outputs' <notebook_path>`,
+        },
+      ]
+    } else {
+      cellSource.outputs = processed
+    }
+  }
+  return cellSource
 }
 
 export async function readNotebook(notebookPath: string, cellId?: string): Promise<NotebookCellSource[]> {
