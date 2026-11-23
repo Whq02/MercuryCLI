@@ -791,7 +791,7 @@ function runPathChecker(
     }
   }
 
-  return { behavior: 'passthrough', message: 'All paths allowed.' }
+  return { behavior: 'passthrough', message: `All ${command} operands are within the allowed directories.` }
 }
 
 function operatorSafetyAsk(result: PermissionResult): boolean {

@@ -31,11 +31,17 @@ function checkCommandInImplementMode(
   isDirect: boolean,
   originalCommand: string,
 ): PermissionResult | null {
-  if (!cmd.name || (cmd.elementType !== 'CommandAst' && cmd.elementType !== 'command')) {
+  if (
+    !cmd.name &&
+    cmd.elementType !== 'CommandAst' &&
+    cmd.elementType !== 'command' &&
+    cmd.nameType !== 'cmdlet' &&
+    cmd.nameType !== 'application'
+  ) {
     return pass(`A non-command element (${cmd.elementType}) requires approval.`)
   }
   if (cmd.nameType === 'application') {
-    return pass(`${cmd.name} resolves as a file path.`)
+    return pass(`The command ${cmd.name} resolves as a file path.`)
   }
   if (isDirect) {
     for (let i = 0; i < cmd.args.length; i++) {
@@ -56,7 +62,7 @@ function checkCommandInImplementMode(
   if (isAllowlistedPipelineTail(cmd, originalCommand)) return null
   const canonical = resolveToCanonical(cmd.name)
   if (!ACCEPT_EDITS_WRITE.has(canonical)) {
-    return pass(`${cmd.name} is not an auto-allowed writer.`)
+    return pass(`The command ${cmd.name} is not an auto-allowed writer.`)
   }
   if (argLeaksValue(originalCommand, cmd)) {
     return pass('The command arguments cannot be statically validated.')

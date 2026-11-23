@@ -432,7 +432,8 @@ function evaluatePerSubcommand(
   return {
     behavior: 'passthrough',
     message: createPermissionRequestMessage(TOOL_NAME),
-    ...(suggestions.length > 0 ? { suggestions } : {}),
+    decisionReason: other('Requires approval.'),
+    suggestions,
   }
 }
 
