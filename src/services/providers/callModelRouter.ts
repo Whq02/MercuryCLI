@@ -36,7 +36,6 @@ import { readStoredImageRefsForRequest } from '../../utils/imageStore.js'
 import { withBackupVote } from '../api/backupEngines.js'
 import { CHOOSE_A_MODEL_DOOR, isChooseAModel } from '../model/computedDefault.js'
 import { rosterRefusal } from '../model/modelAllowlist.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export {
   classifyModelRoute,
@@ -82,7 +81,19 @@ export async function routedCallModelSettled(params: CallModelParams): Promise<A
 }
 
 async function* homeLaneCall(params: CallModelParams): CallModelStream {
-  return notBuilt('src/services/providers/callModelRouter.ts:83')
+  const refusal =
+    homeLaneAdmissionRefusal(params.options.model) ??
+    (await anthropicCatalogueRefusal(params.options.model, { signal: params.signal }))
+  if (params.signal.aborted) return
+  if (refusal !== null) {
+    yield createAssistantAPIErrorMessage({
+      content: `${API_ERROR_MESSAGE_PREFIX}: ${refusal}`,
+      error: 'invalid_request',
+      failover: 'unknown-model',
+    })
+    return
+  }
+  yield* queryModelWithStreaming(params)
 }
 
 async function classifyAfterLiveLists(model: string): Promise<ModelRouteVerdict> {
