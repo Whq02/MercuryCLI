@@ -4,13 +4,15 @@ import { providerLimitWarningFacts } from '../providers/limitWarning.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
 import type { Attachment } from '../../utils/attachments/types.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { notBuilt } from '../../pi/holes.js'
+import { isRecord } from '../../utils/isRecord.js'
 
 export function getCriticalSystemReminderAttachment(
   toolUseContext: ToolUseContext,
-  messages?: readonly unknown[],
+  messages: readonly unknown[] = [],
 ): Attachment[] {
-  return notBuilt('src/services/attachments/sessionContext.ts:9')
+  const rule = toolUseContext.standingRule
+  if (!rule || awarenessAlreadyEmittedThisTurn(messages, 'critical_system_reminder', rule)) return []
+  return [{ type: 'critical_system_reminder', content: rule }]
 }
 
 function awarenessAlreadyEmittedThisTurn(
@@ -73,9 +75,12 @@ export function getUsageLimitNoticeAttachment(
 }
 
 function usageLimitNoticeAlreadyInTranscript(messages: readonly unknown[], key: string): boolean {
-  return notBuilt('src/services/attachments/sessionContext.ts:88')
+  return messages.some(message => isRecord(message) && message.type === 'attachment' &&
+    isRecord(message.attachment) && message.attachment.type === 'usage_limit_notice' && message.attachment.key === key)
 }
 
 export function getMaxBudgetUsdAttachment(maxBudgetUsd?: number): Attachment[] {
-  return notBuilt('src/services/attachments/sessionContext.ts:102')
+  if (maxBudgetUsd === undefined) return []
+  const used = getTotalCostUSD()
+  return [{ type: 'budget_usd', used, total: maxBudgetUsd, remaining: maxBudgetUsd - used }]
 }
