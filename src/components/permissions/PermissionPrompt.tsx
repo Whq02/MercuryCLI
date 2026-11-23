@@ -21,8 +21,6 @@ type PermissionPromptProps<T extends string> = {
   onCancel?: () => void
   question?: React.ReactNode
   isDisabled?: boolean
-  escapeHint?: string
-  hintGap?: boolean
 }
 
 const DEFAULT_PLACEHOLDER: Record<'accept' | 'reject', string> = {
@@ -36,8 +34,6 @@ export function PermissionPrompt<T extends string>({
   onCancel,
   question = 'Do you want to proceed?',
   isDisabled = false,
-  escapeHint = 'esc cancel',
-  hintGap = true,
 }: PermissionPromptProps<T>): React.ReactNode {
   const [acceptFeedback, setAcceptFeedback] = useState('')
   const [rejectFeedback, setRejectFeedback] = useState('')
@@ -159,9 +155,9 @@ export function PermissionPrompt<T extends string>({
         onFocus={handleFocus}
         onInputModeToggle={handleInputModeToggle}
       />
-      <Box marginTop={hintGap ? 1 : 0}>
+      <Box marginTop={1}>
         <Text color="subtle">
-          {`↑↓ choose · ↵ confirm · ${escapeHint}${canAmend ? ' · tab amend' : ''}`}
+          {`↑↓ choose · ↵ confirm · esc cancel${canAmend ? ' · tab amend' : ''}`}
         </Text>
       </Box>
     </Box>
