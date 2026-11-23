@@ -2,7 +2,6 @@ import bidiFactory from 'bidi-js'
 import presentationData from './arabicPresentationForms.json'
 import { hostEnv } from '../utils/hostEnv.js'
 import { isWindowsTerminalHost } from '../utils/platform/terminal.js'
-import { notBuilt } from '../pi/holes.js'
 
 type BidiChar = {
   value: string
@@ -44,7 +43,23 @@ function getBidi(): BidiApi {
 }
 
 export function reorderBidi<T extends BidiChar>(characters: T[]): T[] {
-  return notBuilt('src/ink/bidi.ts:46')
+  if (!needsSoftwareBidi()) return characters
+  if (characters.length === 0) return characters
+  let text = ''
+  for (const ch of characters) {
+    text += ch.value
+  }
+  if (!containsRtl(text)) return characters
+  const embedding = getBidi().getEmbeddingLevels(text)
+  const out = characters.slice()
+  const levels: number[] = []
+  let offset = 0
+  for (const ch of characters) {
+    levels.push(embedding.levels[offset] ?? 0)
+    offset += ch.value.length
+  }
+  reorderByLevels(out, levels)
+  return out
 }
 
 function reorderByLevels<T>(items: T[], levels: number[]): void {
