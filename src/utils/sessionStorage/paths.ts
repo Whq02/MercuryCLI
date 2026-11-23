@@ -15,30 +15,42 @@ import { getMercuryHome } from '../envUtils.js'
 import { isFsInaccessible } from '../errors.js'
 import { logForDebugging } from '../debug.js'
 import { passedOver, passedOverAs } from '../passedOver.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
+import type { ThinkingConfig } from '../thinking.js'
 
-export const MAX_TRANSCRIPT_READ_BYTES: Unbuilt = unbuilt('src/utils/sessionStorage/paths.ts:19')
+export const MAX_TRANSCRIPT_READ_BYTES: number = 50 * 1024 * 1024
 
-export const getProjectDir = (projectDir: string): string => notBuilt('src/utils/sessionStorage/paths.ts:21')
+export const getProjectDir = (projectDir: string): string => resolveProjectDir(projectDir)
 
 export function getProjectsDir(): string {
-  return notBuilt('src/utils/sessionStorage/paths.ts:25')
+  return join(getMercuryHome(), 'projects')
+}
+
+function activeProjectDir(): string {
+  return getSessionProjectDir() ?? getProjectDir(getOriginalCwd())
 }
 
 function currentSubagents(): string {
-  return notBuilt('src/utils/sessionStorage/paths.ts:38')
+  return join(activeProjectDir(), getSessionId(), 'subagents')
 }
 
 export function getTranscriptPath(): string {
-  return notBuilt('src/utils/sessionStorage/paths.ts:42')
+  return join(activeProjectDir(), `${getSessionId()}.jsonl`)
 }
 
 export function getTranscriptPathForSession(sessionId: string): string {
-  return notBuilt('src/utils/sessionStorage/paths.ts:46')
+  const dir = sessionId === getSessionId() ? activeProjectDir() : getProjectDir(getOriginalCwd())
+  return join(dir, `${sessionId}.jsonl`)
 }
 
 export function sessionIdExists(sessionId: string): boolean {
-  return notBuilt('src/utils/sessionStorage/paths.ts:51')
+  const filePath = join(getProjectDir(getOriginalCwd()), `${sessionId}.jsonl`)
+  try {
+    getFsImplementation().statSync(filePath)
+    return true
+  } catch (error) {
+    passedOver(error)
+    return false
+  }
 }
 
 export function getAgentTranscriptPath(agentId: AgentId): string {
@@ -50,19 +62,58 @@ export function getAgentMetadataPath(agentId: AgentId): string {
   return transcript.replace(/\.jsonl$/, '.meta.json')
 }
 
-export type AgentMetadata = Unbuilt
+export type AgentMetadata = {
+  agentType: string
+  swarm?: boolean
+  worktreePath?: string
+  cwd?: string
+  description?: string
+  model?: string
+  effort?: string
+  effortOverride?: string
+  thinkingConfig?: ThinkingConfig
+  structuredOutputSpec?: {
+    schema: Record<string, unknown>
+    mode: 'permissive' | 'strict'
+    source: 'dispatch' | 'agent-definition'
+  }
+  instructionProfile?: string
+  instructionDigest?: string
+  name?: string
+  launchedAt?: number
+  swarmBrief?: string
+  compactOnResume?: boolean
+}
 export type AgentMetadataRow = { agentId: AgentId; metadata: AgentMetadata }
 
 export async function writeAgentMetadata(agentId: AgentId, metadata: AgentMetadata): Promise<void> {
-  return notBuilt('src/utils/sessionStorage/paths.ts:86')
+  await durableAtomicPublish(getAgentMetadataPath(agentId), JSON.stringify(metadata))
 }
 
 export async function readAgentMetadata(agentId: AgentId): Promise<AgentMetadata | null> {
-  return notBuilt('src/utils/sessionStorage/paths.ts:92')
+  const metaPath = getAgentMetadataPath(agentId)
+  let content: string
+  try {
+    content = await readFile(metaPath, 'utf-8')
+  } catch (error) {
+    if (isFsInaccessible(error)) return null
+    throw error
+  }
+  try {
+    return JSON.parse(content) as AgentMetadata
+  } catch (error) {
+    passedOver(error)
+    logForDebugging(
+      `The launch sidecar at ${metaPath} does not decode; the resume re-resolves the agent instead`,
+      { level: 'warn' },
+    )
+    return null
+  }
 }
 
 function absentDirectory(error: unknown): [] {
-  return notBuilt('src/utils/sessionStorage/paths.ts:109')
+  if (isFsInaccessible(error)) return []
+  throw error
 }
 
 function* sidecarIds(names: string[]): Generator<AgentId> {
@@ -81,39 +132,70 @@ async function currentSidecarNames(): Promise<string[]> {
 }
 
 export async function listAgentMetadata(): Promise<AgentMetadataRow[]> {
-  return notBuilt('src/utils/sessionStorage/paths.ts:129')
+  const rows: AgentMetadataRow[] = []
+  for (const agentId of sidecarIds(await currentSidecarNames())) {
+    const metadata = await readAgentMetadata(agentId).catch(passedOverAs(null))
+    if (metadata !== null) rows.push({ agentId, metadata })
+  }
+  return rows
+}
+
+async function readDirectoryEntries(dir: string): Promise<Dirent[]> {
+  try {
+    return await readdir(dir, { withFileTypes: true })
+  } catch (failure) {
+    return absentDirectory(failure)
+  }
 }
 
 export async function listAgentTranscriptPaths(transcriptPath: string, sessionId: string): Promise<string[]> {
-  return notBuilt('src/utils/sessionStorage/paths.ts:147')
+  const root = join(dirname(transcriptPath), sessionId, 'subagents')
+  const paths: string[] = []
+  const walk = async (dir: string, depth: number): Promise<void> => {
+    for (const entry of await readDirectoryEntries(dir)) {
+      if (entry.isDirectory()) {
+        if (depth < 4) await walk(join(dir, entry.name), depth + 1)
+      } else if (/^agent-.+\.jsonl$/.test(entry.name)) {
+        paths.push(join(dir, entry.name))
+      }
+    }
+  }
+  await walk(root, 0)
+  return paths.sort()
 }
 
 export function isTranscriptMessage(entry: Entry): entry is TranscriptMessage {
-  return notBuilt('src/utils/sessionStorage/paths.ts:169')
+  return storageRowPolicy(entry.type)?.fold === 'message'
 }
 
 export function isChainParticipant(message: Pick<Message, 'type'>): boolean {
-  return notBuilt('src/utils/sessionStorage/paths.ts:173')
+  return message.type !== 'progress'
 }
 
-type PersistedProgressEntry = Unbuilt
+type PersistedProgressEntry = {
+  type: 'progress'
+  uuid: UUID
+  parentUuid: UUID | null
+}
 
 export function isPersistedProgressEntry(entry: unknown): entry is PersistedProgressEntry {
-  return notBuilt('src/utils/sessionStorage/paths.ts:179')
+  if (typeof entry !== 'object' || entry === null) return false
+  const record = entry as Record<string, unknown>
+  return record.type === 'progress' && typeof record.uuid === 'string'
 }
 
 export function isEphemeralToolProgress(dataType: unknown): boolean {
-  return notBuilt('src/utils/sessionStorage/paths.ts:185')
+  return typeof dataType === 'string' && EPHEMERAL_STORAGE_PROGRESS.has(dataType)
 }
 
 export function getNodeEnv(): string {
-  return notBuilt('src/utils/sessionStorage/paths.ts:190')
+  return process.env.NODE_ENV || 'development'
 }
 
 export function getEntrypoint(): string | undefined {
-  return notBuilt('src/utils/sessionStorage/paths.ts:194')
+  return flagEnv('MERCURY_ENTRYPOINT')
 }
 
 export function isCustomTitleEnabled(): boolean {
-  return notBuilt('src/utils/sessionStorage/paths.ts:198')
+  return true
 }
