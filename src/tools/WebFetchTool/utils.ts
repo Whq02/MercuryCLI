@@ -31,6 +31,7 @@ type FetchedContent = {
   notice?: string
   persistedPath?: string
   persistedSize?: number
+  type?: never
 }
 
 const URL_CACHE_TTL_MS = 15 * 60 * 1000
@@ -191,7 +192,7 @@ export async function getURLMarkdownContent(
   }
 
   const response: RawResponse | RedirectResult = await fetchPage(fetchUrl, abortController.signal)
-  if ('statusCode' in response) return response
+  if (response.type === 'redirect') return response
 
   const rawBytes = Buffer.from(response.data)
   const rawContentType = typeof response.headers['content-type'] === 'string'
