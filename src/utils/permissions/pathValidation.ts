@@ -77,7 +77,7 @@ export function isPathAllowed(
   const steering =
     operationType !== 'read' &&
     (context.mode === 'default' || context.mode === 'implement' || context.mode === 'flow') &&
-    isInstructionEstatePath(resolvedPath)
+    isInstructionEstatePath(resolvedPath, context.mode === 'flow')
 
   if (operationType !== 'read') {
     if (!steering && checkEditableInternalPath(resolvedPath).behavior === 'allow') {
