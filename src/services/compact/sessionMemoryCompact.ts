@@ -226,7 +226,7 @@ export async function trySessionMemoryCompaction(
     )
     annotateBoundaryWithWork(annotatedBoundary, messages, messagesToKeep, summaryMessage.uuid)
 
-    const model = rosterContext?.options.engineModel
+    const model = rosterContext?.options?.engineModel
     const summaryTokens = estimateMessageTokens(summaryMessages)
     const proposedBeforeHooks: Message[] = [
       annotatedBoundary,
