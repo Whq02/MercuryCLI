@@ -44,8 +44,7 @@ export function previewQuestionBody({
   onKeyDown,
   onRespondToModel,
 }: PreviewQuestionBodyArgs): React.ReactNode {
-  const showTabHint = questions.length > 1 || !hideSubmitTab
-  const tabHint = showTabHint ? ' · Tab to switch questions' : ''
+  const tabHint = questions.length > 1 ? ' · Tab to switch questions' : ''
   const editorHint =
     editorKey && editorName ? ` · ${editorKey} to edit in ${editorName}` : ''
   const helpLine = `Enter to select · ${figures.arrowUp}/${figures.arrowDown} to navigate · n to add notes${tabHint}${editorHint} · Esc to cancel`
@@ -69,8 +68,8 @@ export function previewQuestionBody({
         <PermissionRequestTitle title={question.question} color="text" />
         <Box flexDirection="column" minHeight={minContentHeight}>
           {layout.mode === 'side-by-side' ? (
-            <Box gap={2} marginTop={1}>
-              <Box width={layout.optionPaneWidth} flexShrink={0} flexDirection="column">
+            <Box marginTop={1} flexDirection="row" gap={2}>
+              <Box flexDirection="column" width={layout.optionPaneWidth}>
                 {optionRows}
               </Box>
               <Box flexDirection="column" flexGrow={1}>
@@ -79,28 +78,24 @@ export function previewQuestionBody({
               </Box>
             </Box>
           ) : (
-            <Box flexDirection="column" marginTop={1}>
-              {optionRows}
-              {layout.mode === 'stacked' ? (
-                <Box marginTop={1}>{previewBox}</Box>
-              ) : null}
+            <Box marginTop={1} flexDirection="column">
+              <Box flexDirection="column">{optionRows}</Box>
+              {layout.mode === 'stacked' ? <Box marginTop={1}>{previewBox}</Box> : null}
               {notesRow}
             </Box>
           )}
-          <Box
-            marginTop={1}
-            onClick={() => {
-              void onRespondToModel?.()
-            }}
-          >
-            <Text color={isFooterFocused ? 'suggestion' : undefined} bold={isFooterFocused}>
-              {isFooterFocused ? `${figures.pointer} ` : '  '}
-              {DISCUSS_OPTION_LABEL}
+          <Box flexDirection="column" marginTop={1}>
+            <Divider color="inactive" />
+            <Box flexDirection="row" gap={1} onClick={onRespondToModel}>
+              {isFooterFocused ? <Text color="suggestion">{figures.pointer}</Text> : <Text> </Text>}
+              <Text color={isFooterFocused ? 'suggestion' : undefined}>{DISCUSS_OPTION_LABEL}</Text>
+            </Box>
+          </Box>
+          <Box marginTop={1}>
+            <Text color="inactive" dimColor>
+              {helpLine}
             </Text>
           </Box>
-        </Box>
-        <Box marginTop={1}>
-          <Text dimColor>{helpLine}</Text>
         </Box>
       </Box>
     </Box>
