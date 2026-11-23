@@ -1,50 +1,72 @@
 import { unzip } from 'fflate'
+import { logForDebugging } from '../debug.js'
+import { containsPathTraversal } from '../path.js'
 
 const MAX_FILE_BYTES = 100 * 1024 * 1024
 const MAX_TOTAL_BYTES = 500 * 1024 * 1024
 const MAX_FILES = 10_000
+const MAX_COMPRESSION_RATIO = 100
 
 const EOCD_SIGNATURE = 0x06054b50
 const CENTRAL_DIR_SIGNATURE = 0x02014b50
 const EOCD_MIN_LEN = 22
 const MAX_ZIP_COMMENT_LEN = 65_535
 
+type ZipValidationCounts = {
+  fileCount: number
+  totalSize: number
+}
+
+type ZipValidationResult = { valid: true } | { valid: false; reason: string }
+
 function hasUnsafeEntryPath(entryName: string): boolean {
   if (entryName.includes('\0')) return true
   if (entryName.startsWith('/') || entryName.startsWith('\\')) return true
   if (/^[A-Za-z]:/.test(entryName)) return true
-  const segments = entryName.split(/[\\/]/)
-  return segments.some(segment => segment === '..')
+  return containsPathTraversal(entryName)
+}
+
+function validateZipEntry(
+  name: string,
+  entrySize: number,
+  counts: ZipValidationCounts,
+  archiveByteLength: number,
+): ZipValidationResult {
+  counts.fileCount += 1
+  if (counts.fileCount > MAX_FILES) {
+    return { valid: false, reason: `ZIP archive exceeds maximum entry count (${MAX_FILES})` }
+  }
+  if (hasUnsafeEntryPath(name)) {
+    return { valid: false, reason: `ZIP archive contains unsafe path: ${name}` }
+  }
+  if (entrySize > MAX_FILE_BYTES) {
+    return { valid: false, reason: `ZIP entry "${name}" exceeds maximum size (${MAX_FILE_BYTES} bytes)` }
+  }
+  counts.totalSize += entrySize
+  if (counts.totalSize > MAX_TOTAL_BYTES) {
+    return { valid: false, reason: `ZIP archive exceeds maximum uncompressed size (${MAX_TOTAL_BYTES} bytes)` }
+  }
+  if (archiveByteLength > 0 && counts.totalSize / archiveByteLength > MAX_COMPRESSION_RATIO) {
+    return { valid: false, reason: `ZIP archive exceeds maximum compression ratio (${MAX_COMPRESSION_RATIO}:1)` }
+  }
+  return { valid: true }
 }
 
 export async function unzipFile(zipData: Buffer): Promise<Record<string, Uint8Array>> {
   const bytes = new Uint8Array(zipData.buffer, zipData.byteOffset, zipData.byteLength)
+  const archiveByteLength = zipData.byteLength
   return new Promise<Record<string, Uint8Array>>((resolve, reject) => {
     let rejection: Error | null = null
-    let declaredTotal = 0
-    let entryCount = 0
+    const declaredCounts: ZipValidationCounts = { fileCount: 0, totalSize: 0 }
 
     unzip(
       bytes,
       {
         filter(file) {
           if (rejection !== null) return false
-          entryCount += 1
-          if (entryCount > MAX_FILES) {
-            rejection = new Error(`ZIP archive exceeds maximum entry count (${MAX_FILES})`)
-            return false
-          }
-          if (hasUnsafeEntryPath(file.name)) {
-            rejection = new Error(`ZIP archive contains unsafe path: ${file.name}`)
-            return false
-          }
-          if (file.originalSize > MAX_FILE_BYTES) {
-            rejection = new Error(`ZIP entry "${file.name}" exceeds maximum size (${MAX_FILE_BYTES} bytes)`)
-            return false
-          }
-          declaredTotal += file.originalSize
-          if (declaredTotal > MAX_TOTAL_BYTES) {
-            rejection = new Error(`ZIP archive exceeds maximum uncompressed size (${MAX_TOTAL_BYTES} bytes)`)
+          const check = validateZipEntry(file.name, file.originalSize, declaredCounts, archiveByteLength)
+          if (!check.valid) {
+            rejection = new Error(check.reason)
             return false
           }
           return true
@@ -59,22 +81,15 @@ export async function unzipFile(zipData: Buffer): Promise<Record<string, Uint8Ar
           reject(err)
           return
         }
-        let actualTotal = 0
+        const actualCounts: ZipValidationCounts = { fileCount: 0, totalSize: 0 }
         for (const [name, content] of Object.entries(unzipped)) {
-          if (hasUnsafeEntryPath(name)) {
-            reject(new Error(`ZIP archive contains unsafe path: ${name}`))
-            return
-          }
-          if (content.byteLength > MAX_FILE_BYTES) {
-            reject(new Error(`ZIP entry "${name}" exceeds maximum size (${MAX_FILE_BYTES} bytes)`))
-            return
-          }
-          actualTotal += content.byteLength
-          if (actualTotal > MAX_TOTAL_BYTES) {
-            reject(new Error(`ZIP archive exceeds maximum uncompressed size (${MAX_TOTAL_BYTES} bytes)`))
+          const check = validateZipEntry(name, content.byteLength, actualCounts, archiveByteLength)
+          if (!check.valid) {
+            reject(new Error(check.reason))
             return
           }
         }
+        logForDebugging(`Unzipped ${actualCounts.fileCount} files (${Math.round(actualCounts.totalSize / 1024)} KiB)`)
         resolve(unzipped)
       },
     )
@@ -95,13 +110,12 @@ export function parseZipModes(data: Uint8Array): Record<string, number> {
   }
   if (eocdOffset === -1) return modes
 
-  const cdSize = view.getUint32(eocdOffset + 12, true)
-  const cdOffset = view.getUint32(eocdOffset + 16, true)
-  const cdEnd = Math.min(data.byteLength, cdOffset + cdSize)
+  const entryCount = view.getUint16(eocdOffset + 10, true)
+  let offset = view.getUint32(eocdOffset + 16, true)
   const decoder = new TextDecoder('utf-8')
-  let offset = cdOffset
 
-  while (offset + 46 <= cdEnd) {
+  for (let i = 0; i < entryCount; i++) {
+    if (offset + 46 > data.byteLength) break
     if (view.getUint32(offset, true) !== CENTRAL_DIR_SIGNATURE) break
     const versionMadeBy = view.getUint16(offset + 4, true)
     const fileNameLen = view.getUint16(offset + 28, true)
@@ -110,15 +124,12 @@ export function parseZipModes(data: Uint8Array): Record<string, number> {
     const externalAttrs = view.getUint32(offset + 38, true)
     const nameStart = offset + 46
     const nameEnd = nameStart + fileNameLen
-    if (nameEnd > cdEnd) break
+    if (nameEnd > data.byteLength) break
 
-    const hostOs = versionMadeBy >>> 8
-    if (hostOs === 3 || hostOs === 19) {
-      const unixMode = (externalAttrs >>> 16) & 0xffff
-      if ((unixMode & 0o777) !== 0) {
-        const name = decoder.decode(data.subarray(nameStart, nameEnd))
-        modes[name] = unixMode
-      }
+    const creator = versionMadeBy >>> 8
+    const mode = externalAttrs >>> 16
+    if (creator === 3 && mode !== 0) {
+      modes[decoder.decode(data.subarray(nameStart, nameEnd))] = mode
     }
     offset = nameEnd + extraFieldLen + commentLen
   }
