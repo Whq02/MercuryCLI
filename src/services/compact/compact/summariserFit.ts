@@ -209,8 +209,14 @@ export async function prefitSummariserInput(
       ),
     )
 
-  if (measure(messages) <= fit.budgetTokens) {
+  const whole = measure(messages)
+  if (whole <= fit.budgetTokens) {
     return { input: messages, shaped: false }
+  }
+  const sayPrefitted = (stage: string, tokens: number): void => {
+    logForDebugging(
+      `compact: the summariser's input is pre-fitted — ${stage}: ≈${tokens} tokens against a budget of ${fit.budgetTokens} (window ${fit.window}, blocking limit ${fit.blockingLimit}, fixed material ≈${fit.fixedTokens}, the whole conversation ≈${whole})`,
+    )
   }
 
   const fitted = fitToolResultImages(messages, rows => measure(rows) <= fit.budgetTokens).messages
@@ -219,24 +225,20 @@ export async function prefitSummariserInput(
   }
 
   let rows: Message[] = split !== null ? split.retiring : messages
-  if (measure(rows) <= fit.budgetTokens) {
-    logForDebugging(
-      `compact: prefit split off ${split?.rounds ?? 0} kept round(s) to fit budget (${measure(rows)} <= ${fit.budgetTokens})`,
-    )
+  const withoutTail = measure(rows)
+  if (withoutTail <= fit.budgetTokens) {
+    sayPrefitted(`the kept tail (${split?.rounds ?? 0} rounds) split off`, withoutTail)
     return { input: rows, shaped: true }
   }
 
   rows = capOlderToolResults(stripImagesFromMessages(stripThinkingFromIndex(rows, 0)))
-  if (measure(rows) <= fit.budgetTokens) {
-    logForDebugging(
-      `compact: prefit stripped thinking/images and capped older tool results (${measure(rows)} <= ${fit.budgetTokens})`,
-    )
+  const capped = measure(rows)
+  if (capped <= fit.budgetTokens) {
+    sayPrefitted('older tool results capped, thinking and media stripped', capped)
     return { input: rows, shaped: true }
   }
 
   rows = await foldOldestIntoParts(rows, fit.budgetTokens, measure, cacheSafeParams, promptText, context, ladder)
-  logForDebugging(
-    `compact: prefit folded oldest rounds into part capsules (${measure(rows)} vs budget ${fit.budgetTokens})`,
-  )
+  sayPrefitted('the oldest rounds folded into part capsules', measure(rows))
   return { input: rows, shaped: true }
 }
