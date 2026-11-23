@@ -127,34 +127,38 @@ export function FilePermissionDialog<T extends ToolInput>({
     : '↑↓ move · pgup/pgdn page · ↵ confirm · esc cancel'
 
   return (
-    <PermissionDialog
-      title={title}
-      subtitle={subtitle}
-      crewmate={toolUseConfirm.crewmate}
-      workerBadge={workerBadge}
-    >
-      {content}
-      {showSqliteNote ? <Text dimColor>{SQLITE_ROW_NOT_CHECKPOINTED}</Text> : null}
-      {symlinkTarget !== undefined ? (
-        <Text color="warning">
-          {symlinkOutside
-            ? `This operation will modify ${symlinkTarget} — outside the working directory via a symlink`
-            : `Symlink target: ${symlinkTarget}`}
-        </Text>
-      ) : null}
-      <PermissionRuleExplanation permissionResult={toolUseConfirm.permissionResult} />
-      {typeof question === 'string' ? <Text bold>{question}</Text> : question}
-      <Select
-        scrollMovesFocus={false}
-        options={options}
-        onChange={handleChange}
-        onCancel={handleCancel}
-        onFocus={setFocusedOption}
-        onInputModeToggle={handleInputModeToggle}
-      />
+    <Box flexDirection="column">
+      <PermissionDialog
+        title={title}
+        subtitle={subtitle}
+        crewmate={toolUseConfirm.crewmate}
+        workerBadge={workerBadge}
+      >
+        <Box flexDirection="column">
+          {content}
+          {showSqliteNote ? <Text>{SQLITE_ROW_NOT_CHECKPOINTED}</Text> : null}
+          {symlinkTarget !== undefined ? (
+            <Text color="warning">
+              {symlinkOutside
+                ? `This operation will modify ${symlinkTarget} — outside the working directory via a symlink`
+                : `Symlink target: ${symlinkTarget}`}
+            </Text>
+          ) : null}
+          <PermissionRuleExplanation permissionResult={toolUseConfirm.permissionResult} />
+          {typeof question === 'string' ? <Text bold>{question}</Text> : question}
+          <Select
+            scrollMovesFocus={false}
+            options={options}
+            onChange={handleChange}
+            onCancel={handleCancel}
+            onFocus={setFocusedOption}
+            onInputModeToggle={handleInputModeToggle}
+          />
+        </Box>
+      </PermissionDialog>
       <Box marginTop={1}>
         <Text color="subtle">{footerText}</Text>
       </Box>
-    </PermissionDialog>
+    </Box>
   )
 }
