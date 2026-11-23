@@ -1,17 +1,28 @@
 import type { HookEvent } from '../../utils/hooks/contract.js'
 import type { ExtensionHookMatcher } from 'src/utils/settings/types.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
-export type RegisteredHookMatcher = Unbuilt
+export type RegisteredHookMatcher = ExtensionHookMatcher
 
 export class HookRegistryOwner {
-  registeredHooks: Partial<Record<HookEvent, RegisteredHookMatcher[]>> | null = unbuilt('src/bootstrap/runtime/hook-registry.ts:7')
+  registeredHooks: Partial<Record<HookEvent, RegisteredHookMatcher[]>> | null = null
 
   registerHookCallbacks(hooks: Partial<Record<HookEvent, RegisteredHookMatcher[]>>): void {
-    return notBuilt('src/bootstrap/runtime/hook-registry.ts:9')
+    if (!this.registeredHooks) {
+      this.registeredHooks = {}
+    }
+    for (const [key, matchers] of Object.entries(hooks)) {
+      if (!matchers) continue
+      const event = key as HookEvent
+      let list = this.registeredHooks[event]
+      if (!list) {
+        list = []
+        this.registeredHooks[event] = list
+      }
+      list.push(...matchers)
+    }
   }
 
   clearRegisteredExtensionHooks(): void {
-    return notBuilt('src/bootstrap/runtime/hook-registry.ts:22')
+    this.registeredHooks = null
   }
 }
