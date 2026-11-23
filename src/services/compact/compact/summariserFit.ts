@@ -15,7 +15,6 @@ import { PTL_RETRY_LIMIT, SUMMARISER_WINDOW_SHARE, SUMMARISER_BUDGET_FLOOR_TOKEN
 import { isPtlMarkerMessage, isCompactCapsuleMessage, stripImagesFromMessages } from './input.js'
 import { validateSummary } from './summaryCheck.js'
 import { type FoldLadder, partCapsule, foldAllAsText, summarizeWithPtlRetry } from './ladder.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 type SummariserFit = {
   budgetTokens: number
@@ -29,7 +28,31 @@ type SummariserFit = {
 }
 
 export async function estimateFixedRequestTokens(context: ToolUseContext, cacheSafeParams: CacheSafeParams): Promise<number> {
-  return notBuilt('src/services/compact/compact/summariserFit.ts:30')
+  const model = context.options.engineModel
+  const system = appendSystemContext(cacheSafeParams.systemPrompt ?? [], cacheSafeParams.systemContext ?? {}, model)
+  const systemLength = JSON.stringify(system).length
+  const tools = context.options.tools
+  let toolsLength: number
+  try {
+    const getToolPermissionContext = async () => context.getAppState().toolPermissionContext
+    const agents = context.options.agentDefinitions?.activeAgents ?? []
+    const allowedAgentTypes = context.options.agentDefinitions?.allowedAgentTypes
+    const schemas = await Promise.all(
+      tools.map(tool =>
+        toolToAPISchema(tool, {
+          getToolPermissionContext,
+          tools,
+          agents,
+          allowedAgentTypes,
+          model,
+        }),
+      ),
+    )
+    toolsLength = JSON.stringify(schemas).length
+  } catch {
+    toolsLength = tools.length * SHAPED_RESULT_PREVIEW_CHARS
+  }
+  return Math.ceil((systemLength + toolsLength) / 4)
 }
 
 export async function summariserFitFor(
@@ -38,7 +61,20 @@ export async function summariserFitFor(
   promptText: string,
   gauge: ReturnType<typeof readRequestGauge>,
 ): Promise<SummariserFit> {
-  return notBuilt('src/services/compact/compact/summariserFit.ts:52')
+  const model = context.options.engineModel
+  const { window } = resolveAutoCompactWindow(model)
+  const reserveTokens = Math.max(0, window - getEffectiveContextWindowSize(model))
+  const blockingLimit = getBlockingLimit(model)
+  const fixedTokens = gauge?.fixed.tokens ?? await estimateFixedRequestTokens(context, cacheSafeParams)
+  const promptTokens = roughTokenCountEstimation(promptText)
+  const driftSafe = Math.floor(window * SUMMARISER_WINDOW_SHARE) - reserveTokens
+  const budgetTokens = Math.max(
+    SUMMARISER_BUDGET_FLOOR_TOKENS,
+    Math.min(blockingLimit, driftSafe) - fixedTokens - promptTokens,
+  )
+  const limitTokens = Math.max(budgetTokens, blockingLimit - fixedTokens - promptTokens)
+  const ratio = gauge?.density.ratio ?? 1
+  return { budgetTokens, limitTokens, fixedTokens, promptTokens, reserveTokens, window, blockingLimit, ratio }
 }
 
 function resultTextOf(content: unknown): string | null {
@@ -101,6 +137,57 @@ async function foldOldestIntoParts(
   return current
 }
 
+function capOlderToolResults(messages: Message[]): Message[] {
+  let keptTokens = 0
+  let overflowing = false
+  const replacements = new Map<number, Map<number, string>>()
+  for (let msgIndex = messages.length - 1; msgIndex >= 0; msgIndex--) {
+    const message = messages[msgIndex]
+    if (message?.type !== 'user') continue
+    const content = message.message.content
+    if (!Array.isArray(content)) continue
+    for (let blockIndex = content.length - 1; blockIndex >= 0; blockIndex--) {
+      const block = content[blockIndex] as { type?: string; content?: unknown }
+      if (block.type !== 'tool_result') continue
+      const text = resultTextOf(block.content)
+      if (text === null) continue
+      if (
+        text.includes(FOLDED_RESULT_KEY) ||
+        text.includes(PERSISTED_OUTPUT_TAG) ||
+        text.includes(TOOL_RESULT_CLEARED_MESSAGE)
+      ) {
+        continue
+      }
+      const estTokens = Math.ceil(text.length / 4)
+      if (!overflowing && keptTokens + estTokens <= SHAPED_RESULTS_KEEP_TOKENS) {
+        keptTokens += estTokens
+        continue
+      }
+      overflowing = true
+      if (text.length <= SHAPED_RESULT_PREVIEW_CHARS) continue
+      let perMessage = replacements.get(msgIndex)
+      if (perMessage === undefined) {
+        perMessage = new Map<number, string>()
+        replacements.set(msgIndex, perMessage)
+      }
+      perMessage.set(blockIndex, shapedResultPreview(text, SHAPED_RESULT_PREVIEW_CHARS))
+    }
+  }
+  if (replacements.size === 0) return messages
+  return messages.map((message, msgIndex) => {
+    const perMessage = replacements.get(msgIndex)
+    if (perMessage === undefined || message.type !== 'user' || !Array.isArray(message.message.content)) {
+      return message
+    }
+    const content = message.message.content.map((block, blockIndex) => {
+      const preview = perMessage.get(blockIndex)
+      if (preview === undefined) return block
+      return { ...block, content: preview }
+    })
+    return { ...message, message: { ...message.message, content } }
+  })
+}
+
 export async function prefitSummariserInput(
   messages: Message[],
   fit: SummariserFit,
@@ -110,5 +197,45 @@ export async function prefitSummariserInput(
   context: ToolUseContext,
   ladder: FoldLadder,
 ): Promise<{ input: Message[]; shaped: boolean }> {
-  return notBuilt('src/services/compact/compact/summariserFit.ts:169')
+  const model = context.options.engineModel
+  const measure = (rows: Message[]): number =>
+    Math.ceil(
+      estimateRequestGauge(
+        rows,
+        { digest: '', tokens: 0 },
+        { ratio: fit.ratio, samples: 0, residuals: [] },
+        model,
+      ),
+    )
+
+  if (measure(messages) <= fit.budgetTokens) {
+    return { input: messages, shaped: false }
+  }
+
+  const fitted = fitToolResultImages(messages, rows => measure(rows) <= fit.budgetTokens).messages
+  if (measure(fitted) <= fit.budgetTokens) {
+    return { input: fitted, shaped: false }
+  }
+
+  let rows: Message[] = split !== null ? split.retiring : messages
+  if (measure(rows) <= fit.budgetTokens) {
+    logForDebugging(
+      `compact: prefit split off ${split?.rounds ?? 0} kept round(s) to fit budget (${measure(rows)} <= ${fit.budgetTokens})`,
+    )
+    return { input: rows, shaped: true }
+  }
+
+  rows = capOlderToolResults(stripImagesFromMessages(stripThinkingFromIndex(rows, 0)))
+  if (measure(rows) <= fit.budgetTokens) {
+    logForDebugging(
+      `compact: prefit stripped thinking/images and capped older tool results (${measure(rows)} <= ${fit.budgetTokens})`,
+    )
+    return { input: rows, shaped: true }
+  }
+
+  rows = await foldOldestIntoParts(rows, fit.budgetTokens, measure, cacheSafeParams, promptText, context, ladder)
+  logForDebugging(
+    `compact: prefit folded oldest rounds into part capsules (${measure(rows)} vs budget ${fit.budgetTokens})`,
+  )
+  return { input: rows, shaped: true }
 }
