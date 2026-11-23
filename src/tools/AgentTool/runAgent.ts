@@ -22,7 +22,8 @@ import { disposeOwnerProcesses } from '../../utils/run/ownerLifecycle.js'
 import { processOwnerForLane } from '../../utils/run/resolveOwner.js'
 import { beginAgentProjectLeases } from '../../services/vulcan/engine/leases.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
-import type { AgentId } from '../../types/ids.js'
+import { asAgentId, type AgentId } from '../../types/ids.js'
+import { isRecord } from '../../utils/isRecord.js'
 import type { Tool, Tools, ToolUseContext } from '../../Tool.js'
 import { McpServerConfigSchema, type MCPServerConnection } from '../../utils/mcp/types.js'
 import { generateTaskId } from '../../Task.js'
@@ -270,9 +271,7 @@ export async function connectAgentMcpServers(
       connected.push(client)
       dynamicCleanups.push(async () => {
         try {
-          const closable = client as { cleanup?: () => Promise<void>; close?: () => Promise<void> }
-          if (typeof closable.cleanup === 'function') await closable.cleanup()
-          else if (typeof closable.close === 'function') await closable.close()
+          if (client.type === 'connected') await client.cleanup()
         } catch (error) {
           logForDebugging(
             `runAgent: MCP cleanup error for ${name}: ${errorMessage(error)}`,
@@ -406,13 +405,12 @@ export function makeRecoveryAccountant(args: {
 
 const DECLARED_RECOVERY_CAP_MS = 10 * 60_000
 export function declaredRecoveryWaitMs(message: unknown): number {
-  const m = message as { type?: string; subtype?: string; retryInMs?: unknown; recoveryTimeoutMs?: unknown } | null
-  if (!m || m.type !== 'system' || m.subtype !== 'api_error') return 0
+  if (!isRecord(message) || message.type !== 'system' || message.subtype !== 'api_error') return 0
   const declared =
-    typeof m.retryInMs === 'number' && m.retryInMs > 0
-      ? m.retryInMs
-      : typeof m.recoveryTimeoutMs === 'number' && m.recoveryTimeoutMs > 0
-        ? m.recoveryTimeoutMs
+    typeof message.retryInMs === 'number' && message.retryInMs > 0
+      ? message.retryInMs
+      : typeof message.recoveryTimeoutMs === 'number' && message.recoveryTimeoutMs > 0
+        ? message.recoveryTimeoutMs
         : 0
   return Math.min(declared, DECLARED_RECOVERY_CAP_MS)
 }
@@ -598,7 +596,7 @@ export async function* runAgent(
     onPendingAsks,
   } = params
 
-  const agentId: AgentId = override?.agentId ?? (generateTaskId('local_agent') as AgentId)
+  const agentId: AgentId = override?.agentId ?? asAgentId(generateTaskId('local_agent'))
   const parentAbort =
     override?.abortController ?? (isAsync ? new AbortController() : toolUseContext.abortController)
   const abortController = createChildAbortController(parentAbort)

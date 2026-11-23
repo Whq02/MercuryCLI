@@ -14,7 +14,7 @@ import { abortSpeculation } from '../../services/PromptSuggestion/speculation.js
 import type { AgentDefinition } from '../../types/agent.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
 import { evalNestedToolIds } from '../../services/eval/bridgeProgress.js'
-import type { ApiUsage } from '../../types/wire.js'
+import { isRecord } from '../../utils/isRecord.js'
 import type { Tools } from '../../Tool.js'
 import { findToolByName, safeSearchOrReadClassification } from '../../Tool.js'
 import { createAbortController } from '../../utils/abortController.js'
@@ -126,14 +126,14 @@ export function foldQueryProgressIntoTracker(tracker: ProgressTracker, event: un
 export function foldResponseIntoLedger(ledger: AgentLedger, assistant: AssistantMessage): void {
   const usage = assistant.message.usage
   if (!usage) return
-  const context = getTokenCountFromUsage(usage as ApiUsage)
+  const context = getTokenCountFromUsage(usage)
   const output = usage.output_tokens ?? 0
-  const input = getSpentTokensFromUsage(usage as ApiUsage) - output
+  const input = getSpentTokensFromUsage(usage) - output
   if (context <= 0) return
-  const rawModel = (assistant.message as { model?: unknown }).model
+  const rawModel = assistant.message.model
   const model = typeof rawModel === 'string' && rawModel.trim() !== '' ? rawModel : undefined
   const priced = model !== undefined && modelPricingBasis(model) !== 'unpriced'
-  const startedAtMs = Number((usage as { request_started_at_ms?: number }).request_started_at_ms) || Date.parse(assistant.timestamp)
+  const startedAtMs = Number(usage.request_started_at_ms) || Date.parse(assistant.timestamp)
   const cost = priced
     ? calculateUSDCost(model, {
         input_tokens: usage.input_tokens ?? 0,
@@ -322,11 +322,7 @@ export type LocalAgentTaskState = TaskStateBase & {
 }
 
 export function isLocalAgentTask(task: unknown): task is LocalAgentTaskState {
-  return (
-    typeof task === 'object' &&
-    task !== null &&
-    (task as { type?: unknown }).type === 'local_agent'
-  )
+  return isRecord(task) && task.type === 'local_agent'
 }
 
 export function isPanelAgentTask(task: unknown): task is LocalAgentTaskState {
@@ -435,7 +431,7 @@ export function overloadPauseOf(messages: readonly Message[], model: string | nu
   if (last === undefined || last.type !== 'assistant' || !isSyntheticApiErrorMessage(last)) return null
   if (typeof last.providerWaitEndsAtMs === 'number' && last.providerWaitEndsAtMs > Date.now()) return null
   const content = last.message.content
-  const text = Array.isArray(content) ? content.map(block => ((block as { type?: string; text?: string }).type === 'text' ? ((block as { text?: string }).text ?? '') : '')).join('\n') : ''
+  const text = Array.isArray(content) ? content.map(block => (block.type === 'text' ? (block.text ?? '') : '')).join('\n') : ''
   if (last.busyRefusal === undefined && !isOverloadAnswerText(text)) return null
   const status = last.busyRefusal !== undefined ? (last.busyRefusal.status ?? null) : 529
   const who = pauseModelWords(model)
@@ -506,9 +502,7 @@ export function speakAgentMessageFrame(taskId: string, notice: string): void {
 export function crewStillRunning(tasks: Record<string, unknown> | undefined): number {
   let n = 0
   for (const task of Object.values(tasks ?? {})) {
-    const t = task as { type?: string; status?: string; agentType?: string }
-    if (t.status !== 'running') continue
-    if (t.type === 'local_agent' && t.agentType !== MAIN_SESSION_AGENT_TYPE) n++
+    if (isPanelAgentTask(task) && task.status === 'running') n++
   }
   return n
 }
@@ -581,7 +575,7 @@ export function registerAsyncAgent(args: {
   compactRequested?: true
 }): LocalAgentTaskState {
   const taskId = args.agentId
-  void initTaskOutputAsSymlink(taskId, getAgentTranscriptPath(taskId as AgentId))
+  void initTaskOutputAsSymlink(taskId, getAgentTranscriptPath(asAgentId(taskId)))
   const abortController = createAbortController()
   const cleanup = registerCleanup(async () => {
     killAsyncAgent(taskId, args.setAppState)
@@ -622,7 +616,7 @@ export function registerAgentForeground(args: {
   backgroundSignal: Promise<void>
 } {
   const taskId = args.agentId
-  void initTaskOutputAsSymlink(taskId, getAgentTranscriptPath(taskId as AgentId))
+  void initTaskOutputAsSymlink(taskId, getAgentTranscriptPath(asAgentId(taskId)))
   const abortController = createAbortController()
   const cleanup = registerCleanup(async () => {
     killAsyncAgent(taskId, args.setAppState)
