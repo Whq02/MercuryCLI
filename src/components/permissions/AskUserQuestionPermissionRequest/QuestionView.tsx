@@ -287,7 +287,7 @@ export function QuestionView(props: Props): React.ReactNode {
                   if (!onOther) setEmptyOtherHint(false)
                   onTextInputFocus(onOther)
                 }}
-                onSubmitFocus={(focused: boolean) => {
+                onSubmitFocusChange={(focused: boolean) => {
                   setIsSubmitFocused(focused)
                   if (focused) {
                     setIsFocusedOnOther(false)
@@ -314,7 +314,7 @@ export function QuestionView(props: Props): React.ReactNode {
                   setEmptyOtherHint(false)
                   onTextInputFocus(false)
                 }}
-                onTabOut={(dir: 'next' | 'prev') => (dir === 'next' ? onTabNext?.() : onTabPrev?.())}
+                onTabOut={(dir: 'next' | 'previous') => (dir === 'next' ? onTabNext?.() : onTabPrev?.())}
                 onOpenEditor={handleOpenEditor}
                 onImagePaste={onImagePaste}
                 pastedContents={pastedContents}

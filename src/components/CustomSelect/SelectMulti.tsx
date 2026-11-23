@@ -24,14 +24,14 @@ type SelectMultiProps<T = string> = {
   onCancel?: () => void
   focusValue?: T
   onFocus?: (value: T) => void
-  onSubmitFocus?: (focused: boolean) => void
+  onSubmitFocusChange?: (focused: boolean) => void
   submitButtonText?: string
   hideIndexes?: boolean
   initialFocusLast?: boolean
   scrollMovesFocus?: boolean
   onUpFromFirstItem?: () => void
   onDownFromLastItem?: () => void
-  onTabOut?: (direction: 'next' | 'prev') => void
+  onTabOut?: (direction: 'next' | 'previous') => void
   onOpenEditor?: (value: string, setValue: (value: string) => void) => void
   onImagePaste?: (
     base64Image: string,
@@ -66,7 +66,7 @@ export function SelectMulti<T = string>({
   onCancel,
   focusValue,
   onFocus,
-  onSubmitFocus,
+  onSubmitFocusChange,
   submitButtonText,
   hideIndexes = false,
   initialFocusLast = false,
@@ -91,7 +91,7 @@ export function SelectMulti<T = string>({
     onCancel,
     focusValue,
     onFocus,
-    onSubmitFocus,
+    onSubmitFocusChange,
     hasSubmitButton,
     hideIndexes,
     initialFocusLast,
@@ -126,7 +126,7 @@ export function SelectMulti<T = string>({
               <Box
                 key={String(option.value)}
                 onClick={() => {
-                  if (!isDisabled) state.activateInputValue(val, 'click')
+                  if (!isDisabled) state.activateInputValue(val, 'pointer')
                 }}
               >
                 <SelectInputOption
@@ -134,7 +134,7 @@ export function SelectMulti<T = string>({
                   isFocused={isFocused}
                   value={state.inputValues.get(val) ?? ''}
                   onChange={text => state.updateInputValue(val, text)}
-                  onSubmit={() => state.activateInputValue(val, 'enter')}
+                  onSubmit={text => state.activateInputValue(val, 'enter', text)}
                   reservedIndexWidth={hideIndexes ? 0 : digitWidth}
                   index={option.index + 1}
                   shouldShowDownArrow={false}

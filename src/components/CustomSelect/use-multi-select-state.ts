@@ -31,14 +31,14 @@ type UseMultiSelectStateProps<T> = {
   onCancel?: () => void
   focusValue?: T
   onFocus?: (value: T) => void
-  onSubmitFocus?: (focused: boolean) => void
+  onSubmitFocusChange?: (focused: boolean) => void
   hasSubmitButton?: boolean
   hideIndexes?: boolean
   initialFocusLast?: boolean
   scrollMovesFocus?: boolean
   onUpFromFirstItem?: () => void
   onDownFromLastItem?: () => void
-  onTabOut?: (direction: 'next' | 'prev') => void
+  onTabOut?: (direction: 'next' | 'previous') => void
   onEmptyInputSubmit?: (value: T) => void
 }
 
@@ -48,8 +48,8 @@ type MultiSelectState<T> = SelectNavigation<T> & {
   inputValues: Map<T, string>
   toggleValue: (value: T) => void
   updateInputValue: (value: T, text: string) => void
-  activateInputValue: (value: T, via?: 'enter' | 'click') => void
-  submit: () => void
+  activateInputValue: (value: T, via: 'enter' | 'pointer' | 'ordinal', submitted?: string) => void
+  onCancel?: () => void
 }
 
 function seedInputValues<T>(options: readonly OptionWithDescription<T>[]): Map<T, string> {
@@ -85,7 +85,7 @@ type MultiKeyContext<T> = {
   onCancel?: () => void
   onUpFromFirstItem?: () => void
   onDownFromLastItem?: () => void
-  onTabOut?: (direction: 'next' | 'prev') => void
+  onTabOut?: (direction: 'next' | 'previous') => void
   setSubmitFocus: (next: boolean) => void
   toggleValue: (value: T) => void
   activateInputFromKey: (value: T) => void
@@ -151,7 +151,7 @@ function handleMultiSelectKey<T>(
   if (key.tab) {
     event.stopImmediatePropagation()
     if (onTabOut) {
-      onTabOut(key.shift ? 'prev' : 'next')
+      onTabOut(key.shift ? 'previous' : 'next')
       return
     }
     if (hasSubmitButton) {
@@ -328,7 +328,7 @@ export function useMultiSelectState<T>({
   onCancel,
   focusValue,
   onFocus,
-  onSubmitFocus,
+  onSubmitFocusChange,
   hasSubmitButton = false,
   hideIndexes = false,
   initialFocusLast = false,
@@ -366,8 +366,8 @@ export function useMultiSelectState<T>({
   inputValuesRef.current = inputValues
   const isSubmitFocusedRef = useRef(isSubmitFocused)
   isSubmitFocusedRef.current = isSubmitFocused
-  const onSubmitFocusRef = useRef(onSubmitFocus)
-  onSubmitFocusRef.current = onSubmitFocus
+  const onSubmitFocusChangeRef = useRef(onSubmitFocusChange)
+  onSubmitFocusChangeRef.current = onSubmitFocusChange
   const pendingSubmitBlurRef = useRef(false)
   const childEnterRef = useRef(false)
   const prevOptionsRef = useRef(options)
@@ -390,7 +390,7 @@ export function useMultiSelectState<T>({
   usePublish(() => {
     if (pendingSubmitBlurRef.current) {
       pendingSubmitBlurRef.current = false
-      onSubmitFocusRef.current?.(false)
+      onSubmitFocusChangeRef.current?.(false)
     }
   }, [isSubmitFocused])
 
@@ -398,7 +398,7 @@ export function useMultiSelectState<T>({
     if (isSubmitFocusedRef.current === next) return
     isSubmitFocusedRef.current = next
     setIsSubmitFocusedState(next)
-    onSubmitFocusRef.current?.(next)
+    onSubmitFocusChangeRef.current?.(next)
   }, [])
 
   const toggleValue = useCallback(
@@ -447,14 +447,12 @@ export function useMultiSelectState<T>({
   )
 
   const runActivateInputValue = useCallback(
-    (value: T, via: 'enter' | 'click'): void => {
+    (value: T, via: 'enter' | 'pointer' | 'ordinal', submitted?: string): void => {
       if (isDisabled) return
       const target = options.find(option => option.value === value)
       if (!target || target.disabled) return
-      const text =
-        inputValuesRef.current.get(value) ??
-        (isInputOption(target) ? target.initialValue ?? '' : '')
-      if (text.trim() === '') {
+      const text = (submitted ?? inputValuesRef.current.get(value) ?? '').trim()
+      if (text === '') {
         setSubmitFocus(false)
         navigation.focusValue(value)
         if (via === 'enter') {
@@ -480,14 +478,14 @@ export function useMultiSelectState<T>({
   )
 
   const activateInputValue = useCallback(
-    (value: T, via: 'enter' | 'click' = 'enter'): void => {
+    (value: T, via: 'enter' | 'pointer' | 'ordinal', submitted?: string): void => {
       if (via === 'enter') {
         childEnterRef.current = true
         startMicrotask(() => {
           childEnterRef.current = false
         })
       }
-      runActivateInputValue(value, via)
+      runActivateInputValue(value, via, submitted)
     },
     [runActivateInputValue],
   )
@@ -505,15 +503,10 @@ export function useMultiSelectState<T>({
 
   const activateInputFromOrdinal = useCallback(
     (value: T): void => {
-      runActivateInputValue(value, 'click')
+      runActivateInputValue(value, 'ordinal')
     },
     [runActivateInputValue],
   )
-
-  const submit = useCallback((): void => {
-    if (isDisabled) return
-    onSubmit?.(selectedValuesRef.current)
-  }, [isDisabled, onSubmit])
 
   useInput(
     (input, key, event) =>
@@ -546,6 +539,6 @@ export function useMultiSelectState<T>({
     toggleValue,
     updateInputValue,
     activateInputValue,
-    submit,
+    onCancel,
   }
 }
