@@ -381,27 +381,26 @@ export function renderToolResultMessage(
         ? data.prompt
         : undefined
     return (
-      <MessageResponse>
-        <Box flexDirection="column">
+      <Box flexDirection="column">
+        <MessageResponse height={1}>
           <Text>Crewmate launched in the background</Text>
-          {options.isTranscriptMode ? (
-            prompt !== undefined ? (
-              <Box marginTop={1}>
-                <AgentPromptDisplay prompt={prompt} />
-              </Box>
-            ) : null
-          ) : (
-            <Box>
-              <Text dimColor>
-                <Byline>
-                  <KeyboardShortcutHint shortcut="↓" action="manage" />
-                  {prompt !== undefined ? <ExpandHint /> : null}
-                </Byline>
-              </Text>
-            </Box>
-          )}
-        </Box>
-      </MessageResponse>
+        </MessageResponse>
+        {!options.isTranscriptMode ? (
+          <Box>
+            <Text dimColor>
+              <Byline>
+                <KeyboardShortcutHint shortcut="↓" action="manage" />
+                {prompt !== undefined ? <ExpandHint /> : null}
+              </Byline>
+            </Text>
+          </Box>
+        ) : null}
+        {options.isTranscriptMode && prompt !== undefined ? (
+          <MessageResponse>
+            <AgentPromptDisplay prompt={prompt} />
+          </MessageResponse>
+        ) : null}
+      </Box>
     )
   }
 
@@ -444,9 +443,6 @@ export function renderToolResultMessage(
           allMessages.map(row => ({ message: row.data.message })),
         ).lookups
       : null
-  const textBlocks = (data.content ?? []).filter(
-    block => block.type === 'text' && block.text.trim() !== '',
-  )
   const showExpandHint =
     data.status === 'completed' &&
     !options.isTranscriptMode &&
@@ -454,16 +450,17 @@ export function renderToolResultMessage(
     isResultTruncated(data)
 
   return (
-    <MessageResponse>
-      <Box flexDirection="column">
-        {options.isTranscriptMode && prompt !== undefined ? (
+    <Box flexDirection="column">
+      {options.isTranscriptMode && prompt !== undefined ? (
+        <MessageResponse>
           <AgentPromptDisplay prompt={prompt} />
-        ) : null}
-        {transcriptLookups !== null ? (
-          <SubAgentProvider>
-            {transcriptRows.map((row, index) => (
+        </MessageResponse>
+      ) : null}
+      {transcriptLookups !== null ? (
+        <SubAgentProvider>
+          {transcriptRows.map((row, index) => (
+            <MessageResponse key={index}>
               <MessageComponent
-                key={row.progress.uuid ?? index}
                 message={row.data.message}
                 tools={options.tools}
                 commands={[]}
@@ -473,34 +470,38 @@ export function renderToolResultMessage(
                 shouldShowDot={false}
                 inProgressToolUseIDs={EMPTY_SET}
                 progressMessagesForMessage={[]}
-                isTranscriptMode={false}
+                isTranscriptMode={true}
                 isStatic={true}
                 lookups={transcriptLookups}
               />
-            ))}
-          </SubAgentProvider>
-        ) : null}
-        {(options.isTranscriptMode || options.verbose) &&
-        textBlocks.length > 0 ? (
-          <AgentResponseDisplay content={textBlocks} />
-        ) : null}
+            </MessageResponse>
+          ))}
+        </SubAgentProvider>
+      ) : null}
+      {(options.isTranscriptMode || options.verbose) &&
+      data.content &&
+      data.content.length > 0 ? (
+        <MessageResponse>
+          <AgentResponseDisplay content={data.content} />
+        </MessageResponse>
+      ) : null}
+      <MessageResponse height={1}>
         {data.status === 'failed' ? (
-          <Text color="error">
-            Failed ({statsText})
-            {data.error ? ` — ${data.error}` : ''}
+          <Text color="red">
+            Failed ({statsText}) — {data.error}
           </Text>
         ) : (
           <Text>Done ({statsText})</Text>
         )}
-        {showExpandHint ? (
-          <Box marginLeft={2}>
-            <Text dimColor>
-              <CtrlOToExpand />
-            </Text>
-          </Box>
-        ) : null}
-      </Box>
-    </MessageResponse>
+      </MessageResponse>
+      {showExpandHint ? (
+        <Box marginLeft={2}>
+          <Text dimColor>
+            <CtrlOToExpand />
+          </Text>
+        </Box>
+      ) : null}
+    </Box>
   )
 }
 
