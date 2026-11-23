@@ -156,7 +156,7 @@ export function AsyncAgentDetailDialog({
               </>
             ) : null}
             {' · '}
-            <KeyboardShortcutHint shortcut="Space" action="close" />
+            <KeyboardShortcutHint shortcut="space" action="close" />
           </Text>
         )}
       </Box>
