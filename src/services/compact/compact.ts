@@ -22,7 +22,7 @@ import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../../ut
 import { buildRunContinuationCapsule } from '../run/runContinuationCapsule.js'
 import { getTurnReserveTokens } from '../../utils/compact/autoCompactWindow.js'
 import { getCompactPrompt, renderFoldedWork } from './prompt.js'
-import { computeVerbatimRecentTail, DEFAULT_KEEP_ROUNDS, foldLandingCeiling, foldableResults, foldedResultPlaceholder, withFoldedResults } from './verbatimTail.js'
+import { computeVerbatimRecentTail, DEFAULT_KEEP_ROUNDS, foldLandingCeiling, foldableResults, foldedResultPlaceholder, isMercuryCompactKeepTailEnabled, withFoldedResults } from './verbatimTail.js'
 import { operatorTextOf, selectOperatorMessages } from '../../utils/compact/operatorMessages.js'
 import { prepareFoldContext } from './foldTransaction.js'
 import { renderFoldMemory, retireFoldToMemory, withdrawFoldMemory } from './foldRetirement.js'
@@ -244,8 +244,11 @@ function buildBoundaryAndSummary(params: {
       density: gauge.density,
     }
   }
-  if (recentRounds !== undefined) {
-    boundaryMarker.compactMetadata.recentRounds = recentRounds
+  boundaryMarker.compactMetadata.recentRounds = recentRounds ?? {
+    requested: DEFAULT_KEEP_ROUNDS,
+    kept: 0,
+    tokens: 0,
+    reason: isMercuryCompactKeepTailEnabled() ? 'no-complete-tail' : 'disabled',
   }
   if (overflow !== undefined) {
     boundaryMarker.compactMetadata.overflow = overflow
