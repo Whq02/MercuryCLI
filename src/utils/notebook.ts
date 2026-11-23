@@ -9,7 +9,7 @@ import type {
   NotebookMimeBundle,
   NotebookOutputImage,
 } from '../types/notebook.js'
-import type { ContentBlockParam, ImageBlockParam, TextBlockParam, ToolResultBlockParam } from '../types/wire.js'
+import type { ImageBlockParam, TextBlockParam, ToolResultBlockParam } from '../types/wire.js'
 import { expandPath } from './path.js'
 import { readRegularFile } from './regularFile.js'
 
@@ -102,7 +102,7 @@ export async function readNotebook(notebookPath: string, cellId?: string): Promi
   if (cellId !== undefined) {
     const index = cells.findIndex((cell, i) => (cell.id ?? `cell-${i}`) === cellId)
     if (index === -1) throw new Error(`Cell with id "${cellId}" not found in the notebook`)
-    return [processCell(cells[index] as NotebookCell, index, language, true)]
+    return [processCell(cells[index]!, index, language, true)]
   }
   return cells.map((cell, index) => processCell(cell, index, language, false))
 }
@@ -129,12 +129,12 @@ export function mapNotebookCellsToToolResult(data: NotebookCellSource[], toolUse
     }
     merged.push(block.type === 'text' ? { ...block } : block)
   }
-  return { type: 'tool_result', tool_use_id: toolUseID, content: merged as ContentBlockParam[] as ToolResultBlockParam['content'] }
+  return { type: 'tool_result', tool_use_id: toolUseID, content: merged }
 }
 
 export function parseCellId(cellId: string): number | undefined {
   const match = /^cell-(\d+)$/.exec(cellId)
   if (!match) return undefined
-  const index = parseInt(match[1] as string, 10)
+  const index = parseInt(match[1]!, 10)
   return Number.isFinite(index) ? index : undefined
 }
