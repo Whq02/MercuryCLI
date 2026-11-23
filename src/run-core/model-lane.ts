@@ -5,7 +5,6 @@ import type {
   StreamEvent,
 } from '../types/message.js'
 import { passedOver } from '../utils/passedOver.js'
-import { notBuilt } from '../pi/holes.js'
 
 type ToolLike = {
   backfillObservableInput?: (input: Record<string, unknown>) => void
@@ -21,13 +20,31 @@ export function backfillCloneForYield(
   message: YieldInput,
   findTool: (name: string) => ToolLike | undefined,
 ): YieldInput {
-  return notBuilt('src/run-core/model-lane.ts:19')
+  if (message.type !== 'assistant') return message
+  let replaced = false
+  const content = message.message.content.map((block): ContentBlock => {
+    if (block.type !== 'tool_use' || typeof block.input !== 'object' || block.input === null) return block
+    const tool = findTool(block.name)
+    if (tool?.backfillObservableInput === undefined) return block
+    const original = block.input as Record<string, unknown>
+    const filled = { ...original }
+    try {
+      tool.backfillObservableInput(filled)
+    } catch (error) {
+      passedOver(error)
+      return block
+    }
+    if (!Object.keys(filled).some(key => !(key in original))) return block
+    replaced = true
+    return { ...block, input: filled }
+  })
+  return replaced ? { ...message, message: { ...message.message, content } } : message
 }
 
 export function isWithheldMaxOutputTokens(
   msg: Message | StreamEvent | undefined,
 ): msg is AssistantMessage {
-  return notBuilt('src/run-core/model-lane.ts:55')
+  return msg?.type === 'assistant' && msg.apiError === 'max_output_tokens'
 }
 
 type TurnBatch = {
