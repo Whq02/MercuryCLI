@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { useRegisterOverlay } from '../../context/overlayContext.js'
+import { usePublish } from '../../hooks/effects.js'
 import type { InputEvent, Key } from '../../ink/events/input-event.js'
 import useInput from '../../ink/hooks/use-input.js'
 import {
@@ -86,7 +87,8 @@ type MultiKeyContext<T> = {
   onTabOut?: (direction: 'next' | 'prev') => void
   setSubmitFocus: (next: boolean) => void
   toggleValue: (value: T) => void
-  activateInputValue: (value: T, via?: 'enter' | 'click') => void
+  activateInputFromKey: (value: T) => void
+  activateInputFromOrdinal: (value: T) => void
 }
 
 function handleMultiSelectKey<T>(
@@ -110,7 +112,8 @@ function handleMultiSelectKey<T>(
     onTabOut,
     setSubmitFocus,
     toggleValue,
-    activateInputValue,
+    activateInputFromKey,
+    activateInputFromOrdinal,
   } = ctx
 
   if (!scrollMovesFocus && (isWheelReport(key, event) || key.pageUp || key.pageDown)) {
@@ -133,8 +136,10 @@ function handleMultiSelectKey<T>(
   }
 
   if (key.escape) {
-    event.stopImmediatePropagation()
-    onCancel?.()
+    if (onCancel) {
+      event.stopImmediatePropagation()
+      onCancel()
+    }
     return
   }
 
@@ -183,11 +188,11 @@ function handleMultiSelectKey<T>(
         const target = options[targetIdx]!
         if (!target.disabled) {
           const val = optionValueOf(target)
-          setSubmitFocus(false)
-          navigation.focusValue(val)
           if (isInputOption(target)) {
-            activateInputValue(val, 'click')
+            activateInputFromOrdinal(val)
           } else {
+            setSubmitFocus(false)
+            navigation.focusValue(val)
             toggleValue(val)
           }
         }
@@ -201,11 +206,11 @@ function handleMultiSelectKey<T>(
         event.stopImmediatePropagation()
         if (!target.disabled) {
           const val = optionValueOf(target)
-          setSubmitFocus(false)
-          navigation.focusValue(val)
           if (isInputOption(target)) {
-            activateInputValue(val, 'click')
+            activateInputFromOrdinal(val)
           } else {
+            setSubmitFocus(false)
+            navigation.focusValue(val)
             toggleValue(val)
           }
         }
@@ -217,7 +222,7 @@ function handleMultiSelectKey<T>(
   const isDown =
     key.downArrow ||
     (key.ctrl && input === 'n') ||
-    (!inInput && input === 'j') ||
+    (!inInput && !key.ctrl && !key.meta && input === 'j') ||
     (scrollMovesFocus && key.wheelDown)
   if (isDown) {
     event.stopImmediatePropagation()
@@ -245,7 +250,7 @@ function handleMultiSelectKey<T>(
   const isUp =
     key.upArrow ||
     (key.ctrl && input === 'p') ||
-    (!inInput && input === 'k') ||
+    (!inInput && !key.ctrl && !key.meta && input === 'k') ||
     (scrollMovesFocus && key.wheelUp)
   if (isUp) {
     event.stopImmediatePropagation()
@@ -286,7 +291,7 @@ function handleMultiSelectKey<T>(
       if (key.ctrl) {
         onSubmit?.(selectedValues)
       } else if (navigation.focusedValue !== undefined) {
-        activateInputValue(navigation.focusedValue, 'enter')
+        activateInputFromKey(navigation.focusedValue)
       }
     } else if (isSubmitFocused) {
       onSubmit?.(selectedValues)
@@ -302,7 +307,7 @@ function handleMultiSelectKey<T>(
     return
   }
 
-  if (!inInput && normalizeFullWidthSpace(input) === ' ') {
+  if (!inInput && !key.ctrl && !key.meta && normalizeFullWidthSpace(input) === ' ') {
     event.stopImmediatePropagation()
     if (isSubmitFocused) {
       onSubmit?.(selectedValues)
@@ -358,6 +363,12 @@ export function useMultiSelectState<T>({
   selectedValuesRef.current = selectedValues
   const inputValuesRef = useRef(inputValues)
   inputValuesRef.current = inputValues
+  const isSubmitFocusedRef = useRef(isSubmitFocused)
+  isSubmitFocusedRef.current = isSubmitFocused
+  const onSubmitFocusRef = useRef(onSubmitFocus)
+  onSubmitFocusRef.current = onSubmitFocus
+  const pendingSubmitBlurRef = useRef(false)
+  const childEnterRef = useRef(false)
   const prevOptionsRef = useRef(options)
 
   if (!optionsEquivalent(prevOptionsRef.current, options)) {
@@ -368,23 +379,26 @@ export function useMultiSelectState<T>({
     inputValuesRef.current = nextInputs
     setSelectedValues(nextSelected)
     setInputValues(nextInputs)
-    if (isSubmitFocused) {
+    if (isSubmitFocusedRef.current) {
+      isSubmitFocusedRef.current = false
       setIsSubmitFocusedState(false)
-      onSubmitFocus?.(false)
+      pendingSubmitBlurRef.current = true
     }
   }
 
-  const setSubmitFocus = useCallback(
-    (next: boolean): void => {
-      setIsSubmitFocusedState(current => {
-        if (current !== next) {
-          onSubmitFocus?.(next)
-        }
-        return next
-      })
-    },
-    [onSubmitFocus],
-  )
+  usePublish(() => {
+    if (pendingSubmitBlurRef.current) {
+      pendingSubmitBlurRef.current = false
+      onSubmitFocusRef.current?.(false)
+    }
+  }, [isSubmitFocused])
+
+  const setSubmitFocus = useCallback((next: boolean): void => {
+    if (isSubmitFocusedRef.current === next) return
+    isSubmitFocusedRef.current = next
+    setIsSubmitFocusedState(next)
+    onSubmitFocusRef.current?.(next)
+  }, [])
 
   const toggleValue = useCallback(
     (value: T): void => {
@@ -431,8 +445,8 @@ export function useMultiSelectState<T>({
     [options, onChange],
   )
 
-  const activateInputValue = useCallback(
-    (value: T, via: 'enter' | 'click' = 'enter'): void => {
+  const runActivateInputValue = useCallback(
+    (value: T, via: 'enter' | 'click'): void => {
       if (isDisabled) return
       const target = options.find(option => option.value === value)
       if (!target || target.disabled) return
@@ -464,6 +478,37 @@ export function useMultiSelectState<T>({
     [isDisabled, options, hasSubmitButton, navigation, onChange, onEmptyInputSubmit, setSubmitFocus],
   )
 
+  const activateInputValue = useCallback(
+    (value: T, via: 'enter' | 'click' = 'enter'): void => {
+      if (via === 'enter') {
+        childEnterRef.current = true
+        queueMicrotask(() => {
+          childEnterRef.current = false
+        })
+      }
+      runActivateInputValue(value, via)
+    },
+    [runActivateInputValue],
+  )
+
+  const activateInputFromKey = useCallback(
+    (value: T): void => {
+      if (childEnterRef.current) {
+        childEnterRef.current = false
+        return
+      }
+      runActivateInputValue(value, 'enter')
+    },
+    [runActivateInputValue],
+  )
+
+  const activateInputFromOrdinal = useCallback(
+    (value: T): void => {
+      runActivateInputValue(value, 'click')
+    },
+    [runActivateInputValue],
+  )
+
   const submit = useCallback((): void => {
     if (isDisabled) return
     onSubmit?.(selectedValuesRef.current)
@@ -486,7 +531,8 @@ export function useMultiSelectState<T>({
         onTabOut,
         setSubmitFocus,
         toggleValue,
-        activateInputValue,
+        activateInputFromKey,
+        activateInputFromOrdinal,
       }),
     { isActive: !isDisabled },
   )

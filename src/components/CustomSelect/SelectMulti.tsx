@@ -180,7 +180,7 @@ export function SelectMulti<T = string>({
                   {prefix !== '' ? <Text dimColor>{prefix}</Text> : null}
                   {checkbox}
                   <Text
-                    color={isFocused ? 'suggestion' : undefined}
+                    color={isFocused && !option.disabled ? 'suggestion' : undefined}
                     dimColor={option.disabled}
                   >
                     {option.label}
