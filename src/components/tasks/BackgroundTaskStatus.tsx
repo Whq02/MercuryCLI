@@ -13,7 +13,6 @@ import { InteractiveRow } from '../mercury-ui/InteractiveRow.js'
 import { WorkingGlyph } from '../mercury-ui/LiveGlyphs.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { isManageableTask } from './taskStatusUtils.js'
-import { notBuilt } from '../../pi/holes.js'
 
 const MAIN_PILL_LABEL = 'main'
 const EXPAND_CHORD = 'shift + ↓'
@@ -71,12 +70,94 @@ function Pill({
   )
 }
 
-export function BackgroundTaskStatus(arg0: {
+export function BackgroundTaskStatus({
+  tasksSelected,
+  isViewingCrewmate = false,
+  crewmateFooterIndex,
+  isLeaderIdle = false,
+  onOpenDialog,
+}: {
   tasksSelected: boolean
   isViewingCrewmate?: boolean
   crewmateFooterIndex?: number
   isLeaderIdle?: boolean
   onOpenDialog?: () => void
 }): React.ReactNode {
-  return notBuilt('src/components/tasks/BackgroundTaskStatus.tsx:74')
+  const tasks = useAppState((state: AppState) => state.tasks)
+  const setAppState = useSetAppState()
+  const { columns } = useTerminalSize()
+  const tokens = useMercuryTokens()
+
+  if (isViewingCrewmate) {
+    const pills = [
+      {
+        id: 'footer:tasks:pill:main',
+        label: MAIN_PILL_LABEL,
+        color: undefined as keyof Theme | undefined,
+        busy: !isLeaderIdle,
+        idle: isLeaderIdle,
+        onActivate: () => exitCrewmateView(setAppState),
+      },
+    ]
+    const activeIndex = tasksSelected ? (crewmateFooterIndex ?? 0) : 0
+    const itemWidths = pills.map(pill => 2 + stringWidth(pill.label))
+    const availableWidth = Math.max(20, columns - 24)
+    const win = calculateHorizontalScrollWindow(
+      itemWidths,
+      availableWidth,
+      ARROW_WIDTH,
+      activeIndex,
+    )
+    return (
+      <Box flexDirection="row">
+        {win.showLeftArrow ? <Text dimColor>‹ </Text> : null}
+        {pills.slice(win.startIndex, win.endIndex).map((pill, offset) => {
+          const index = win.startIndex + offset
+          return (
+            <React.Fragment key={pill.id}>
+              {offset > 0 ? <Text> </Text> : null}
+              <Pill
+                id={pill.id}
+                label={pill.label}
+                color={pill.color}
+                busy={pill.busy}
+                idle={pill.idle}
+                viewed={index === 0}
+                selected={tasksSelected && index === (crewmateFooterIndex ?? 0)}
+                onActivate={pill.onActivate}
+              />
+            </React.Fragment>
+          )
+        })}
+        {win.showRightArrow ? <Text dimColor> ›</Text> : null}
+        <Text color={tokens.textMuted}>
+          {' '}
+          <KeyboardShortcutHint shortcut={EXPAND_CHORD} action="expand" />
+        </Text>
+      </Box>
+    )
+  }
+
+  const manageable = Object.values(tasks ?? {}).filter(isManageableTask)
+  if (manageable.length === 0) return null
+
+  const label = getPillLabel(manageable)
+  if (!onOpenDialog) {
+    return <Text dimColor>{label}</Text>
+  }
+
+  return (
+    <InteractiveRow
+      id="footer:tasks:pill:summary"
+      selected={tasksSelected}
+      directActivate={true}
+      onActivate={onOpenDialog}
+    >
+      {(hover: boolean) => (
+        <Text inverse={tasksSelected || hover} dimColor={!tasksSelected && !hover}>
+          {label}
+        </Text>
+      )}
+    </InteractiveRow>
+  )
 }
