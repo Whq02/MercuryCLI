@@ -5,7 +5,6 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { isOutputLineTruncated } from '../../utils/terminal.js'
 import { DESCRIPTION, PROMPT } from './prompt.js'
 import { renderToolResultMessage, renderToolUseMessage, renderToolUseProgressMessage } from './UI.js'
-import { unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 export const inputSchema = lazySchema(() => z.looseObject({}))
 export const outputSchema = lazySchema(() => z.string().describe('The MCP call\'s pass-through result text'))
@@ -21,4 +20,27 @@ const presentation = {
   mapToolResultToToolResultBlockParam: (content: Output, tool_use_id: string) => ({ type: 'tool_result' as const, tool_use_id, content }),
 }
 
-export const MCPTool: Unbuilt = unbuilt('src/tools/MCPTool/MCPTool.ts:23')
+export const MCPTool = buildTool({
+  name: 'mcp',
+  userFacingName: () => 'mcp',
+  isMcp: true,
+  isOpenWorld: () => false,
+  maxResultSizeChars: 100_000,
+  get inputSchema() {
+    return inputSchema()
+  },
+  get outputSchema() {
+    return outputSchema()
+  },
+  ...presentation,
+  async description() {
+    return DESCRIPTION
+  },
+  async prompt() {
+    return PROMPT
+  },
+  async checkPermissions() {
+    return { behavior: 'passthrough' as const, message: 'MCP tool requires permission' }
+  },
+  call: requireClone,
+} satisfies ToolDef<ReturnType<typeof inputSchema>, Output, MCPProgress>)
