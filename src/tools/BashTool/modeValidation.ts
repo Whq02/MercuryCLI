@@ -4,7 +4,6 @@ import type { ToolPermissionContext } from '../../Tool.js'
 import { preparedSecurityParse } from '../../utils/permissions/decision/commandAnalysis.js'
 import { ownGroundCommand } from '../../utils/permissions/ownGround.js'
 import { resolveShellCwd } from '../../utils/Shell.js'
-import { notBuilt } from '../../pi/holes.js'
 
 const ACCEPT_EDITS_COMMANDS: ReadonlySet<string> = new Set([
   'mkdir',
@@ -20,5 +19,42 @@ export function checkPermissionMode(
   input: { command: string; cwd?: string },
   toolPermissionContext: ToolPermissionContext,
 ): PermissionResult<{ command: string; cwd?: string }> {
-  return notBuilt('src/tools/BashTool/modeValidation.ts:18')
+  const parsed = preparedSecurityParse(input.command)
+  if (parsed.kind === 'simple' && parsed.commands.length > 0) {
+    const cwd = resolveShellCwd(input.cwd)
+    if (parsed.commands.every(simple => ownGroundCommand(simple, cwd))) {
+      return {
+        behavior: 'allow',
+        updatedInput: input,
+        decisionReason: { type: 'other', reason: "the run's own ground" },
+      }
+    }
+  }
+
+  if (modeBypassesPermissions(toolPermissionContext.mode)) {
+    return { behavior: 'passthrough', message: 'Bypass-posture mode handles this command.' }
+  }
+  if (toolPermissionContext.mode === 'dontAsk') {
+    return { behavior: 'passthrough', message: 'Never-ask mode handles this command.' }
+  }
+
+  if (parsed.kind !== 'simple') {
+    return { behavior: 'passthrough', message: 'The command has no proven mode handling.' }
+  }
+
+  for (const simple of parsed.commands) {
+    const commandName = simple.argv[0]
+    if (!commandName) {
+      return { behavior: 'passthrough', message: 'No mode handling was required.' }
+    }
+    if (toolPermissionContext.mode === 'implement' && ACCEPT_EDITS_COMMANDS.has(commandName)) {
+      return {
+        behavior: 'allow',
+        updatedInput: { ...input, command: simple.text },
+        decisionReason: { type: 'mode', mode: 'implement' },
+      }
+    }
+  }
+
+  return { behavior: 'passthrough', message: 'No mode handling was required.' }
 }
