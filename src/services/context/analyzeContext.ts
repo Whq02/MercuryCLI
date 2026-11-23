@@ -847,7 +847,7 @@ export async function analyzeContextUsage(
 
   const usageMessages = originalMessages ?? messages
   const apiUsage = getCurrentUsage(usageMessages)
-  const fill = contextFill(usageMessages, model)
+  const fill = contextFill(usageMessages)
   const totalTokens = fill.source === 'usage' ? fill.tokens : measuredTokens
 
   const unmeasuredTokens = totalTokens - measuredTokens
