@@ -257,7 +257,7 @@ function readSummariserReply(
     return { ok: false, reason: text || 'API error' }
   }
   if (!text) {
-    return { ok: false, reason: 'empty response' }
+    return { ok: false, reason: 'the reply carried no text' }
   }
   return { ok: true, text }
 }
