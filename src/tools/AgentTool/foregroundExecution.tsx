@@ -687,7 +687,6 @@ async function runDetachedContinuation(
             }
           : {}),
         setAppState: rootSetAppState,
-        controller: registration,
         finalMessage: finalText,
         ...(finalized.structured !== undefined
           ? { structuredBlock: structuredResultBlock(finalized.structured) }
@@ -732,7 +731,6 @@ async function runDetachedContinuation(
         description,
         status: 'killed',
         setAppState: rootSetAppState,
-        controller: registration,
         toolUseId: toolUseContext.toolUseId,
         finalMessage: partialResult,
         usage,
@@ -784,7 +782,6 @@ async function runDetachedContinuation(
         landedWrites: landedWritesOf(agentMessages),
         lastCalls: lastToolCallsOf(agentMessages),
         setAppState: rootSetAppState,
-        controller: registration,
         toolUseId: toolUseContext.toolUseId,
         ...worktreeResult,
         ...(envelopeBlock !== undefined ? { envelopeBlock } : {}),
