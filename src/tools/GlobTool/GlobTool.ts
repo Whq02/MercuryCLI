@@ -10,11 +10,11 @@ import { checkReadPermissionForTool, checkUncPathPermission } from '../../utils/
 import { windowsPathNeedsPermission } from '../../utils/permissions/windowsPath.js'
 import { getCwd } from '../../utils/cwd.js'
 import { isENOENT } from '../../utils/errors.js'
-import { FILE_NOT_FOUND_CWD_NOTE } from '../../utils/file.js'
+import { FILE_NOT_FOUND_CWD_NOTE, suggestPathUnderCwd } from '../../utils/file.js'
 import { glob, extractGlobBaseDirectory } from '../../utils/glob.js'
 import { globSearchDepth, normalizeGlobPattern } from '../../utils/globPattern.js'
+import { passedOver } from '../../utils/passedOver.js'
 import { NUL_PATH_MESSAGE, controlCharacterPathRefusal, expandPath, hasNulByte, toRelativePath } from '../../utils/path.js'
-import { suggestPathUnderCwd } from '../../utils/file.js'
 import { DESCRIPTION, GLOB_TOOL_NAME } from './prompt.js'
 import {
   getToolUseSummary,
@@ -177,8 +177,8 @@ export const GlobTool = buildTool({
         let suggestion: string | undefined
         try {
           suggestion = await suggestPathUnderCwd(input.path)
-        } catch {
-          suggestion = undefined
+        } catch (error) {
+          passedOver(error)
         }
         const hint = suggestion ? ` Did you mean ${suggestion}?` : ''
         return {
