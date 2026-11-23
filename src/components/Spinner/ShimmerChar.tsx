@@ -18,6 +18,7 @@ export function ShimmerChar({
   messageColor,
   shimmerColor,
 }: Props): React.ReactNode {
-  const isShimmer = Math.abs(index - glimmerIndex) <= 1
+  const distance = Math.abs(index - glimmerIndex)
+  const isShimmer = distance === 0 || distance === 1
   return <Text color={isShimmer ? shimmerColor : messageColor}>{char}</Text>
 }
