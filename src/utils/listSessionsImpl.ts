@@ -291,46 +291,51 @@ async function collectDirCandidates(
   return lists.flat()
 }
 
-function dedupeCandidates(candidates: Candidate[]): Candidate[] {
-  const byId = new Map<string, Candidate>()
-  for (const candidate of candidates) {
-    const existing = byId.get(candidate.sessionId)
-    if (existing === undefined || candidate.mtime > existing.mtime) {
-      byId.set(candidate.sessionId, candidate)
-    }
-  }
-  return Array.from(byId.values())
-}
-
 export async function listSessionsImpl(options?: ListSessionsOptions): Promise<SessionInfo[]> {
-  const offset = Math.max(0, options?.offset ?? 0)
-  const limit = options?.limit
-  if (limit !== undefined && limit <= 0) return []
+  const offset = options?.offset !== undefined && options.offset > 0 ? options.offset : 0
+  const limit = options?.limit !== undefined && options.limit > 0 ? options.limit : undefined
+  const paged = limit !== undefined
 
-  const hasLimit = limit !== undefined
-  const rawCandidates = options?.dir
-    ? await collectDirCandidates(options.dir, options.includeWorktrees ?? true, hasLimit)
-    : await collectAllProjectCandidates(hasLimit)
+  const candidates = options?.dir
+    ? await collectDirCandidates(options.dir, options.includeWorktrees ?? true, paged)
+    : await collectAllProjectCandidates(paged)
 
-  const candidates = dedupeCandidates(rawCandidates)
-  if (hasLimit) candidates.sort(byMtimeThenIdDesc)
+  if (!paged) {
+    const byId = new Map<string, SessionInfo>()
+    for (let i = 0; i < candidates.length; i += READ_BATCH) {
+      const batch = candidates.slice(i, i + READ_BATCH)
+      const rows = await Promise.all(batch.map(readCandidate))
+      for (const row of rows) {
+        if (row === null) continue
+        const existing = byId.get(row.sessionId)
+        if (existing === undefined || row.lastModified > existing.lastModified) {
+          byId.set(row.sessionId, row)
+        }
+      }
+    }
+    const sessions = Array.from(byId.values())
+    sessions.sort((a, b) => {
+      if (a.lastModified !== b.lastModified) return b.lastModified - a.lastModified
+      return b.sessionId.localeCompare(a.sessionId)
+    })
+    return offset > 0 ? sessions.slice(offset) : sessions
+  }
 
-  const targetCount = hasLimit ? offset + limit : Number.POSITIVE_INFINITY
-  const sessions: SessionInfo[] = []
+  candidates.sort(byMtimeThenIdDesc)
+  const targetCount = offset + limit
+  const seen = new Set<string>()
+  const collected: SessionInfo[] = []
 
-  for (let i = 0; i < candidates.length; i += READ_BATCH) {
+  for (let i = 0; i < candidates.length && collected.length < targetCount; i += READ_BATCH) {
     const batch = candidates.slice(i, i + READ_BATCH)
     const rows = await Promise.all(batch.map(readCandidate))
     for (const row of rows) {
-      if (row !== null) sessions.push(row)
+      if (row === null || seen.has(row.sessionId)) continue
+      seen.add(row.sessionId)
+      collected.push(row)
+      if (collected.length >= targetCount) break
     }
-    if (sessions.length >= targetCount) break
   }
 
-  sessions.sort((a, b) => {
-    if (a.lastModified !== b.lastModified) return b.lastModified - a.lastModified
-    return b.sessionId.localeCompare(a.sessionId)
-  })
-
-  return hasLimit ? sessions.slice(offset, offset + limit) : offset > 0 ? sessions.slice(offset) : sessions
+  return collected.slice(offset, targetCount)
 }
