@@ -1,13 +1,13 @@
-import React, { useCallback, useReducer, useRef } from 'react'
+import { useCallback, useReducer, useRef } from 'react'
 import { usePublish } from '../../hooks/effects.js'
 import OptionMap, {
   isInputOption,
   optionsEquivalent,
+  optionValueOf,
   type OptionMapItem,
   type OptionValue,
   type OptionWithDescription,
 } from './option-map.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 export function focusSeedAfterOptionsChange<T>(input: {
   focusedValue: OptionValue<T> | undefined
@@ -22,9 +22,20 @@ export function focusSeedAfterOptionsChange<T>(input: {
   return focusValue !== undefined ? focusValue : initialFocusValue
 }
 
-export type NavigationState<T> = Unbuilt
+export type NavigationState<T> = {
+  optionMap: OptionMap<T>
+  visibleOptionCount: number
+  focusedValue: OptionValue<T> | undefined
+  visibleFromIndex: number
+  visibleToIndex: number
+}
 
-export type CreateStateInput<T> = Unbuilt
+export type CreateStateInput<T> = {
+  options: readonly OptionWithDescription<T>[]
+  visibleOptionCount?: number
+  initialFocusValue?: OptionValue<T>
+  previousViewport?: readonly [number, number]
+}
 
 function firstEnabled<T>(map: OptionMap<T>): OptionMapItem<T> | undefined {
   let item = map.first
@@ -38,8 +49,58 @@ function lastEnabled<T>(map: OptionMap<T>): OptionMapItem<T> | undefined {
   return item
 }
 
-export function createNavigationState<T>(arg0: CreateStateInput<T>): NavigationState<T> {
-  return notBuilt('src/components/CustomSelect/use-select-navigation.ts:52')
+export function createNavigationState<T>({
+  visibleOptionCount,
+  options,
+  initialFocusValue,
+  previousViewport,
+}: CreateStateInput<T>): NavigationState<T> {
+  const optionMap = new OptionMap(options)
+  const count =
+    typeof visibleOptionCount === 'number'
+      ? Math.min(visibleOptionCount, options.length)
+      : options.length
+  const explicitItem =
+    initialFocusValue !== undefined ? optionMap.get(initialFocusValue) : undefined
+  const initialItem = explicitItem ?? firstEnabled(optionMap) ?? optionMap.first
+  const focusedValue = initialItem?.value
+
+  let visibleFromIndex = 0
+  let visibleToIndex = count
+
+  if (previousViewport !== undefined) {
+    visibleFromIndex = Math.max(
+      0,
+      Math.min(previousViewport[0], options.length - count),
+    )
+    visibleToIndex = visibleFromIndex + count
+    if (explicitItem !== undefined) {
+      if (explicitItem.index < visibleFromIndex) {
+        visibleFromIndex = explicitItem.index
+        visibleToIndex = visibleFromIndex + count
+      } else if (explicitItem.index >= visibleToIndex) {
+        visibleToIndex = explicitItem.index + 1
+        visibleFromIndex = visibleToIndex - count
+      }
+    }
+  } else if (explicitItem !== undefined && explicitItem.index >= visibleToIndex) {
+    visibleToIndex = explicitItem.index + 1
+    visibleFromIndex = visibleToIndex - count
+  }
+
+  visibleFromIndex = Math.max(0, Math.min(visibleFromIndex, options.length))
+  visibleToIndex = Math.max(
+    visibleFromIndex,
+    Math.min(visibleToIndex, options.length),
+  )
+
+  return {
+    optionMap,
+    visibleOptionCount: count,
+    focusedValue,
+    visibleFromIndex,
+    visibleToIndex,
+  }
 }
 
 export type NavigationAction<T> =
@@ -257,10 +318,141 @@ function itemAt<T>(
   return item
 }
 
-type UseSelectNavigationProps<T> = Unbuilt
+type UseSelectNavigationProps<T> = {
+  visibleOptionCount?: number
+  options: OptionWithDescription<T>[]
+  initialFocusValue?: T
+  focusValue?: T
+  onFocus?: (value: T) => void
+}
 
-export type SelectNavigation<T> = Unbuilt
+export type SelectNavigation<T> = {
+  options: OptionWithDescription<T>[]
+  visibleOptions: Array<OptionWithDescription<T> & { index: number }>
+  visibleFromIndex: number
+  visibleToIndex: number
+  focusedValue: T | undefined
+  focusedIndex: number
+  isInInput: boolean
+  focusNextOption: () => void
+  focusPreviousOption: () => void
+  focusNextPage: () => void
+  focusPreviousPage: () => void
+  focusFirstOption: () => void
+  focusLastOption: () => void
+  focusValue: (value: OptionValue<T> | undefined) => void
+}
 
-export function useSelectNavigation<T>(arg0: UseSelectNavigationProps<T>): SelectNavigation<T> {
-  return notBuilt('src/components/CustomSelect/use-select-navigation.ts:339')
+export function useSelectNavigation<T>({
+  visibleOptionCount = 5,
+  options,
+  initialFocusValue,
+  focusValue,
+  onFocus,
+}: UseSelectNavigationProps<T>): SelectNavigation<T> {
+  const [state, dispatch] = useReducer(
+    reduceNavigation<T>,
+    {
+      visibleOptionCount,
+      options,
+      initialFocusValue: focusValue || initialFocusValue,
+    },
+    createNavigationState,
+  )
+
+  const prevOptionsRef = useRef(options)
+  const prevFocusValueRef = useRef(focusValue)
+
+  const effectiveVisibleCount = Math.min(visibleOptionCount, options.length)
+  if (
+    state.visibleOptionCount !== effectiveVisibleCount ||
+    !optionsEquivalent(prevOptionsRef.current, options)
+  ) {
+    prevOptionsRef.current = options
+    const nextFocus = focusSeedAfterOptionsChange({
+      focusedValue: state.focusedValue,
+      options,
+      focusValue,
+      initialFocusValue,
+    })
+    dispatch({
+      type: 'reset',
+      state: createNavigationState({
+        visibleOptionCount,
+        options,
+        initialFocusValue: nextFocus,
+        previousViewport: [state.visibleFromIndex, state.visibleToIndex],
+      }),
+    })
+  }
+
+  if (prevFocusValueRef.current !== focusValue) {
+    prevFocusValueRef.current = focusValue
+    dispatch({ type: 'focus-value', value: focusValue })
+  }
+
+  const focusedItem =
+    state.focusedValue !== undefined
+      ? state.optionMap.get(state.focusedValue)
+      : undefined
+  const validatedFocusedValue: T | undefined =
+    focusedItem !== undefined
+      ? optionValueOf(focusedItem.option)
+      : options[0] !== undefined
+        ? optionValueOf(options[0])
+        : undefined
+  const focusedIndex = focusedItem !== undefined ? focusedItem.index + 1 : 0
+  const isInInput = isInputOption(focusedItem?.option)
+
+  const onFocusRef = useRef(onFocus)
+  onFocusRef.current = onFocus
+  usePublish(() => {
+    if (validatedFocusedValue !== undefined) {
+      onFocusRef.current?.(validatedFocusedValue)
+    }
+  }, [validatedFocusedValue])
+
+  const focusNextOption = useCallback(() => {
+    dispatch({ type: 'focus-next-option' })
+  }, [])
+  const focusPreviousOption = useCallback(() => {
+    dispatch({ type: 'focus-previous-option' })
+  }, [])
+  const focusNextPage = useCallback(() => {
+    dispatch({ type: 'focus-next-page' })
+  }, [])
+  const focusPreviousPage = useCallback(() => {
+    dispatch({ type: 'focus-previous-page' })
+  }, [])
+  const focusFirstOption = useCallback(() => {
+    dispatch({ type: 'focus-first-option' })
+  }, [])
+  const focusLastOption = useCallback(() => {
+    dispatch({ type: 'focus-last-option' })
+  }, [])
+  const focusValueAction = useCallback((value: OptionValue<T> | undefined) => {
+    dispatch({ type: 'focus-value', value })
+  }, [])
+
+  const visibleOptions: Array<OptionWithDescription<T> & { index: number }> =
+    options
+      .slice(state.visibleFromIndex, state.visibleToIndex)
+      .map((option, i) => ({ ...option, index: state.visibleFromIndex + i }))
+
+  return {
+    options,
+    visibleOptions,
+    visibleFromIndex: state.visibleFromIndex,
+    visibleToIndex: state.visibleToIndex,
+    focusedValue: validatedFocusedValue,
+    focusedIndex,
+    isInInput,
+    focusNextOption,
+    focusPreviousOption,
+    focusNextPage,
+    focusPreviousPage,
+    focusFirstOption,
+    focusLastOption,
+    focusValue: focusValueAction,
+  }
 }
