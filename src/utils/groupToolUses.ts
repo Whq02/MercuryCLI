@@ -8,6 +8,7 @@ import type {
 import type { ToolUseBlock } from '../types/wire.js'
 
 import { AGENT_TOOL_NAME } from '../constants/tools/agent.js'
+import { isRecord } from './isRecord.js'
 
 type MessageWithoutProgress = Exclude<NormalizedMessage, { type: 'progress' }>
 
@@ -21,6 +22,10 @@ function firstToolUse(message: MessageWithoutProgress): ToolUseBlock | null {
   if (message.type !== 'assistant') return null
   const block = message.message.content[0] as { type?: string } | undefined
   return block && block.type === 'tool_use' ? (block as ToolUseBlock) : null
+}
+
+function isToolUseMessage(message: MessageWithoutProgress): message is NormalizedAssistantMessage<ToolUseBlock> {
+  return firstToolUse(message) !== null
 }
 
 export function applyGrouping(
@@ -43,16 +48,18 @@ export function applyGrouping(
   }
   const groups = new Map<string, GroupedToolUseMessage['messages']>()
   for (const row of messages) {
-    const call = firstToolUse(row)
-    if (!call || row.type !== 'assistant' || !names.has(call.name)) continue
+    if (!isToolUseMessage(row)) continue
+    const call = row.message.content[0]
+    if (!names.has(call.name)) continue
     if (call.name === AGENT_TOOL_NAME) {
       const result = results.get(call.id)
-      const id = (result?.toolUseResult as { agentId?: unknown } | undefined)?.agentId
-      if (!result || typeof id !== 'string' || !id || result.message.content.some(block => block.type === 'tool_result' && block.is_error)) continue
+      if (!result) continue
+      const id = isRecord(result.toolUseResult) ? result.toolUseResult['agentId'] : undefined
+      if (typeof id !== 'string' || !id || result.message.content.some(block => block.type === 'tool_result' && block.is_error)) continue
     }
     const key = JSON.stringify([row.message.id, call.name])
     const group = groups.get(key) ?? []
-    group.push(row as NormalizedAssistantMessage<ToolUseBlock>)
+    group.push(row)
     groups.set(key, group)
   }
   const replacements = new Map<NormalizedAssistantMessage, GroupedToolUseMessage | null>()
