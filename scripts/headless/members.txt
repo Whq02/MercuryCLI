@@ -47,6 +47,7 @@ prove-mcp-flag-refusal.ts
 prove-message-reaches-past-foreground-crewmate.ts
 prove-method-table-census.ts
 prove-mid-turn-reply.ts
+prove-mode-notice-waits.ts
 prove-no-sign-in-names-local-road.ts
 prove-outcome-failure-sentences.ts
 prove-outcome-wards.ts
