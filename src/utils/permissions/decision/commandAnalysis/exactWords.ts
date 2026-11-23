@@ -1,5 +1,6 @@
 import { misreadWordList, type Node, type WordListFault } from '../../../bash/parser.js'
 import type { Redirect } from './reading.js'
+import { notBuilt } from '../../../../pi/holes.js'
 
 export const WILDCARD_REASON = 'an unquoted wildcard expands to paths at runtime; quote it as text or spell out the paths, or approve'
 
@@ -67,7 +68,7 @@ const SHELL_VARIABLES: ReadonlySet<string> = new Set([
 const SPECIAL_VARIABLES: ReadonlySet<string> = new Set(['?', '$', '!', '#', '0', '-'])
 
 export function childOfKind(node: Node, kind: string): Node | undefined {
-  return node.children.find(child => child.type === kind)
+  return notBuilt('src/utils/permissions/decision/commandAnalysis/exactWords.ts:69')
 }
 
 const BRACE_EXPANSION_RE = /\{[^{}\s]*(?:,|\.\.)[^{}\s]*\}/
@@ -244,7 +245,36 @@ export function heredocBody(node: Node): string {
 }
 
 export function substitutionStatements(node: Node): Node[] {
-  return node.children.filter(child => child.type !== '$(' && child.type !== ')' && child.type !== '`')
+  return notBuilt('src/utils/permissions/decision/commandAnalysis/exactWords.ts:206')
+}
+
+function asRedirectOp(token: string): Redirect['op'] | undefined {
+  if (!REDIRECT_OPERATORS.has(token)) return undefined
+  switch (token) {
+    case '>':
+    case '>>':
+    case '<':
+    case '>&':
+    case '<&':
+    case '>|':
+    case '&>':
+    case '&>>':
+    case '<<<':
+      return token
+    default:
+      return undefined
+  }
+}
+
+function unquotedRedirectExpansion(text: string): boolean {
+  for (let index = 0; index < text.length; index++) {
+    if (text[index] === '\\') {
+      index++
+      continue
+    }
+    if ('*?[]~'.includes(text[index]!)) return true
+  }
+  return false
 }
 
 const REDIRECT_OPERATORS: ReadonlySet<string> = new Set(['>', '>>', '<', '>&', '<&', '>|', '&>', '&>>', '<<<'])

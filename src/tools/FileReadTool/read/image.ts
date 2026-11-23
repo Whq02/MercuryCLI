@@ -10,35 +10,32 @@ import { passedOver } from '../../../utils/passedOver.js'
 import { createChildAbortController } from '../../../utils/abortController.js'
 import { withDeadline } from '../../../utils/deadline.js'
 import { getImageProcessor } from '../../../utils/imageProcessor/imageProcessor.js'
+import { notBuilt } from '../../../pi/holes.js'
 
 const IMAGE_TOKEN_BUDGET_DEFAULT = 25000
 const IMAGE_CAPTION_OCR_CEILING_MS = 3_000
 
 type ImageOutput = Extract<Output, { type: 'image' }>
 
-export async function cropImageBuffer(buffer: Buffer, crop: CropBox, filePath: string, scale = 1): Promise<{ buffer: Buffer; full: { width: number; height: number }; box: CropBox }> {
-  const [x1, y1] = crop
-  const box = `[${crop.join(', ')}]`
-  if (crop.length !== 4 || crop.some(value => !Number.isInteger(value) || value < 0)) throw new Error(`crop refused: ${box} must be four non-negative integers in the image's own pixels (x1, y1, x2, y2)`)
-  if (crop[2] <= x1 || crop[3] <= y1) throw new Error(`crop refused: ${box} is inverted or empty — x2 must exceed x1 and y2 must exceed y1`)
-  const { getImageProcessor } = await import('../../../utils/imageProcessor/imageProcessor.js')
-  const { imageDimensionsFromHeader } = await import('../../../utils/imageProcessor/imageProcessorJs.js')
-  const sharp = await getImageProcessor()
-  const metadata = await sharp(buffer).metadata().catch((error) => { passedOver(error); return ({}) as { width?: number; height?: number } })
-  const header = imageDimensionsFromHeader(buffer)
-  const width = metadata.width ?? header?.width
-  const height = metadata.height ?? header?.height
-  if (width === undefined || height === undefined) throw new Error(`crop refused: the size of ${filePath} could not be read, so ${box} cannot be checked against it`)
-  if (x1 >= width || y1 >= height) throw new Error(`crop refused: ${box} reaches outside the image, which is ${width}x${height} px`)
-  const x2 = Math.min(crop[2], width)
-  const y2 = Math.min(crop[3], height)
-  if (!Number.isFinite(scale) || scale < 1) throw new Error('scale must be a finite number of at least 1.')
-  const cropWidth = x2 - x1
-  const cropHeight = y2 - y1
-  let processor = sharp(buffer).extract({ left: x1, top: y1, width: cropWidth, height: cropHeight })
-  if (scale !== 1) processor = processor.resize(Math.round(cropWidth * scale), Math.round(cropHeight * scale), { fit: 'fill', withoutEnlargement: false, ...(Number.isInteger(scale) ? { kernel: 'nearest' } : {}) })
-  const cropped = await processor.png({ compressionLevel: 6 }).toBuffer()
-  return { buffer: cropped, full: { width, height }, box: [x1, y1, x2, y2] }
+function toImageMime(mediaType: string): ImageOutput['file']['type'] {
+  const normalized = mediaType.startsWith('image/') ? mediaType : `image/${mediaType}`
+  switch (normalized) {
+    case 'image/jpeg':
+    case 'image/jpg':
+      return 'image/jpeg'
+    case 'image/png':
+      return 'image/png'
+    case 'image/gif':
+      return 'image/gif'
+    case 'image/webp':
+      return 'image/webp'
+    default:
+      return 'image/png'
+  }
+}
+
+export async function cropImageBuffer(buffer: Buffer, crop: CropBox, filePath: string, scale?: number): Promise<{ buffer: Buffer; full: { width: number; height: number }; box: CropBox }> {
+  return notBuilt('src/tools/FileReadTool/read/image.ts:18')
 }
 
 export async function readImageWithTokenBudget(

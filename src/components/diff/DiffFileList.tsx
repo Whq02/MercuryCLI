@@ -8,6 +8,7 @@ import { plural } from '../../utils/stringUtils.js';
 import { paneWindow } from '../mercury-ui/paneWindow.js';
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js';
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js';
+import { notBuilt } from '../../pi/holes.js'
 
 type Props = {
   files: DiffFile[];
@@ -18,52 +19,8 @@ type Props = {
   onActivate?: (filePath: string) => void;
 };
 
-export function DiffFileList({
-  files,
-  selectedIndex,
-  listRows,
-  listWidth,
-  onSelect,
-  onActivate,
-}: Props): React.ReactNode {
-  const tokens = useMercuryTokens();
-  const { columns } = useTerminalSize();
-
-  if (files.length === 0) {
-    return <Text dimColor>No changed files</Text>;
-  }
-
-  const span = listRows ?? files.length;
-  const win = paneWindow(files.length, selectedIndex, span);
-  const maxPathWidth = Math.max(20, (listWidth ?? columns) - 23);
-
-  return (
-    <Box flexDirection="column">
-      {win.above > 0 ? (
-        <Text color={tokens.textMuted}>
-          {` ↑ ${win.above} more ${plural(win.above, 'file')}`}
-        </Text>
-      ) : null}
-      {files.slice(win.start, win.end).map((file, offset) => {
-        const index = win.start + offset;
-        return (
-          <FileItem
-            key={file.path}
-            file={file}
-            isSelected={index === selectedIndex}
-            maxPathWidth={maxPathWidth}
-            onSelect={() => onSelect?.(file.path)}
-            onActivate={() => onActivate?.(file.path)}
-          />
-        );
-      })}
-      {win.below > 0 ? (
-        <Text color={tokens.textMuted}>
-          {` ↓ ${win.below} more ${plural(win.below, 'file')}`}
-        </Text>
-      ) : null}
-    </Box>
-  );
+export function DiffFileList(arg0: Props): React.ReactNode {
+  return notBuilt('src/components/diff/DiffFileList.tsx:22')
 }
 
 function FileItem({

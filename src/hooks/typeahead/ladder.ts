@@ -201,41 +201,135 @@ export function ladderMentions({
   return false
 }
 
-export function ladderClearStale(arg0: LadderContext): void {
-  return notBuilt('src/hooks/typeahead/ladder.ts:250')
+export function ladderCommands({
+  input,
+  cursor,
+  mode,
+  commands,
+  publish,
+  clearSuggestions,
+  setSuggestionType,
+  setSuggestionsState,
+  inputRef,
+}: LadderContext): boolean {
+  if (mode !== 'prompt') return false
+
+  const sessionsMatch = input.match(/^\/sessions\s+([\s\S]*)$/)
+  if (sessionsMatch) {
+    const query = sessionsMatch[1]!.trim()
+    const expectedInput = input
+    void searchSessionsByCustomTitle(query, { limit: RESUME_TITLE_LIMIT })
+      .then(sessions => {
+        if (inputRef.current !== expectedInput) return
+        if (sessions.length === 0) {
+          clearSuggestions()
+          return
+        }
+        const items: Suggestion[] = sessions.map(session => {
+          const label = session.customTitle || session.sessionId || ''
+          return {
+            id: label,
+            displayText: label,
+            description: formatLogMetadata(session),
+            metadata: session.sessionId,
+          }
+        })
+        publish(items, 'custom-title', { selected: 0 })
+      })
+      .catch(error => logError(error))
+    return true
+  }
+
+  if (!input.startsWith('/') || cursor <= 0) return false
+
+  const spaceIndex = input.indexOf(' ')
+  if (hasCommandArgs(input)) {
+    if (spaceIndex !== -1 && /\s$/.test(input)) {
+      const cmdName = input.slice(1, spaceIndex)
+      const rest = input.slice(spaceIndex + 1)
+      const matched = commands.find(
+        c => !c.isHidden && (c.userFacingName?.() === cmdName || c.name === cmdName),
+      )
+      if (matched && matched.type === 'prompt') {
+        const argNames = parseArgumentNames(matched.argNames)
+        const hint =
+          argNames.length > 0
+            ? generateProgressiveArgumentHint(argNames, parseArguments(rest))
+            : undefined
+        if (hint !== undefined) {
+          setSuggestionType('none')
+          setSuggestionsState({
+            suggestions: [],
+            selectedSuggestion: -1,
+            commandArgumentHint: hint,
+          })
+          return true
+        }
+      }
+    }
+    return false
+  }
+
+  if (spaceIndex !== -1) {
+    const cmdName = input.slice(1, spaceIndex)
+    const rest = input.slice(spaceIndex + 1)
+    const matched = commands.find(
+      c => !c.isHidden && (c.userFacingName?.() === cmdName || c.name === cmdName),
+    )
+    if (matched || rest.trim() !== '') {
+      let hint: string | undefined
+      if (matched) {
+        if (rest === '') {
+          const argNames =
+            matched.type === 'prompt' ? parseArgumentNames(matched.argNames) : []
+          hint =
+            matched.argumentHint ??
+            (argNames.length > 0
+              ? generateProgressiveArgumentHint(argNames, [])
+              : undefined)
+        } else if (/\s$/.test(input) && matched.type === 'prompt') {
+          const argNames = parseArgumentNames(matched.argNames)
+          hint =
+            argNames.length > 0
+              ? generateProgressiveArgumentHint(argNames, parseArguments(rest))
+              : undefined
+        }
+      }
+      if (hint !== undefined) {
+        setSuggestionType('none')
+        setSuggestionsState({
+          suggestions: [],
+          selectedSuggestion: -1,
+          commandArgumentHint: hint,
+        })
+      } else {
+        clearSuggestions()
+      }
+      return true
+    }
+  }
+
+  const commandSuggestions = generateCommandSuggestions(input, commands)
+  if (commandSuggestions.length === 0) {
+    clearSuggestions()
+    return true
+  }
+
+  let longest = 0
+  for (const command of commands) {
+    if (command.isHidden) continue
+    const name = command.userFacingName?.() ?? command.name
+    if (name.length > longest) longest = name.length
+  }
+  publish(commandSuggestions, 'command', {
+    selected: 0,
+    maxWidth: longest + 6,
+  })
+  return true
 }
 
-export function ladderClearStale({
-  mode,
-  commandArgumentHint,
-  clearSuggestions,
-  setSuggestionsState,
-  setAsyncGhostText,
-  suggestionTypeRef,
-}: LadderContext): void {
-  const currentType = suggestionTypeRef.current
-  if (
-    currentType === 'command' ||
-    currentType === 'custom-title' ||
-    currentType === 'channel-target' ||
-    currentType === 'agent'
-  ) {
-    clearSuggestions()
-    return
-  }
-  if (commandArgumentHint !== undefined) {
-    setSuggestionsState(prev =>
-      prev.commandArgumentHint === undefined
-        ? prev
-        : {
-            suggestions: prev.suggestions,
-            selectedSuggestion: prev.selectedSuggestion,
-          },
-    )
-  }
-  if (mode !== 'bash') {
-    setAsyncGhostText(null)
-  }
+export function ladderClearStale(arg0: LadderContext): void {
+  return notBuilt('src/hooks/typeahead/ladder.ts:250')
 }
 
 export function ladderPaths({
