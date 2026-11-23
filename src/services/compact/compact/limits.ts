@@ -1,11 +1,10 @@
 import { formatTokens } from '../../../utils/format.js'
-import { unbuilt, type Unbuilt } from '../../../pi/holes.js'
 
-export const POST_COMPACT_MAX_FILES_TO_RESTORE: Unbuilt = unbuilt('src/services/compact/compact/limits.ts:3')
-export const POST_COMPACT_TOKEN_BUDGET: Unbuilt = unbuilt('src/services/compact/compact/limits.ts:4')
-export const POST_COMPACT_MAX_TOKENS_PER_FILE: Unbuilt = unbuilt('src/services/compact/compact/limits.ts:5')
-export const POST_COMPACT_MAX_TOKENS_PER_SKILL: Unbuilt = unbuilt('src/services/compact/compact/limits.ts:6')
-export const POST_COMPACT_SKILLS_TOKEN_BUDGET: Unbuilt = unbuilt('src/services/compact/compact/limits.ts:7')
+export const POST_COMPACT_MAX_FILES_TO_RESTORE = 5
+export const POST_COMPACT_TOKEN_BUDGET = 50000
+export const POST_COMPACT_MAX_TOKENS_PER_FILE = 5000
+export const POST_COMPACT_MAX_TOKENS_PER_SKILL = 5000
+export const POST_COMPACT_SKILLS_TOKEN_BUDGET = 25000
 
 export const ERROR_MESSAGE_NOT_ENOUGH_MESSAGES = 'Not enough messages to compact.'
 export const NO_MESSAGES_TO_COMPACT = 'No messages to compact.'
@@ -44,18 +43,18 @@ export function nothingToCompactLine(contextTokens: number, reason: NothingToCom
 }
 
 export const ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD = 'Compaction cannot bring the context under its threshold'
-export const ERROR_MESSAGE_PROMPT_TOO_LONG: Unbuilt =
-  unbuilt('src/services/compact/compact/limits.ts:46')
-export const ERROR_MESSAGE_USER_ABORT: Unbuilt = unbuilt('src/services/compact/compact/limits.ts:48')
-export const ERROR_MESSAGE_INCOMPLETE_RESPONSE: Unbuilt =
-  unbuilt('src/services/compact/compact/limits.ts:49')
+export const ERROR_MESSAGE_PROMPT_TOO_LONG =
+  'This conversation could not be compacted: too much context. Start fresh with /clear, or choose a larger context window and run /compact again.'
+export const ERROR_MESSAGE_USER_ABORT = 'Compaction cancelled.'
+export const ERROR_MESSAGE_INCOMPLETE_RESPONSE =
+  'Compaction interrupted before a summary arrived. Try /compact again.'
 
-export const PTL_RETRY_LIMIT: Unbuilt = unbuilt('src/services/compact/compact/limits.ts:52')
-export const NO_SUMMARY_RETRY_LIMIT: Unbuilt = unbuilt('src/services/compact/compact/limits.ts:53')
-export const SUMMARISER_WINDOW_SHARE: Unbuilt = unbuilt('src/services/compact/compact/limits.ts:54')
-export const SUMMARISER_BUDGET_FLOOR_TOKENS: Unbuilt = unbuilt('src/services/compact/compact/limits.ts:55')
-export const SHAPED_RESULTS_KEEP_TOKENS: Unbuilt = unbuilt('src/services/compact/compact/limits.ts:56')
-export const SHAPED_RESULT_PREVIEW_CHARS: Unbuilt = unbuilt('src/services/compact/compact/limits.ts:57')
+export const PTL_RETRY_LIMIT = 3
+export const NO_SUMMARY_RETRY_LIMIT = 2
+export const SUMMARISER_WINDOW_SHARE = 0.85
+export const SUMMARISER_BUDGET_FLOOR_TOKENS = 2000
+export const SHAPED_RESULTS_KEEP_TOKENS = 50000
+export const SHAPED_RESULT_PREVIEW_CHARS = 2000
 export const SPLIT_STAND_IN_FLOOR_TOKENS = 500
 export const SPLIT_STAND_IN_LANDING_SHARE = 4
 export const PROVIDER_FINISH_FAULT_PREFIX = 'finish:'
