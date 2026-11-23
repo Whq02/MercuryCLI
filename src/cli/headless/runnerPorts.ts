@@ -174,6 +174,7 @@ export type RunnerPorts = {
   canUseTool: ReturnType<AskHost['createCanUseTool']>
   enqueueRow: (row: RowDraft) => void
   liveScope: () => RowScope
+  tellStandingMode: () => void
   acceptInputRow: (row: InputRow) => Promise<{ accepted: true } | { accepted: false; reason: 'duplicate' }>
   heldNoticeWaits: () => boolean
   interruptOutcomes: Map<string, boolean>
