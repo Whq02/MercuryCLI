@@ -83,8 +83,8 @@ export function NoticeWords({ seam, words, wayOut, muted }: { seam: boolean; wor
 const NOTICE_BLOCK_MAX_ROWS = 3
 
 function noticeBlockChildren(block: React.ReactNode): React.ReactNode[] | null {
-  if (!React.isValidElement(block)) return null
-  const children = (block.props as { children?: React.ReactNode }).children
+  if (!React.isValidElement<{ children?: React.ReactNode }>(block)) return null
+  const children = block.props.children
   return React.Children.toArray(children)
 }
 

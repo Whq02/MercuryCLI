@@ -1,3 +1,4 @@
+import { appendFileSync } from 'node:fs'
 import type { DOMElement } from '../dom.js'
 import { ClickEvent } from '../events/click-event.js'
 import type { EventHandlerProps } from '../events/event-handlers.js'
@@ -37,10 +38,10 @@ function recordClickHit(target: DOMElement | null, col: number, row: number, cel
     for (const n of parentChain(target)) {
       const r = rects.get(n)
       chain.push(
-        `${n.nodeName}${n.attributes['tabIndex'] !== undefined ? '[tab]' : ''}${(n._eventHandlers as { onClick?: unknown } | undefined)?.onClick ? '[onClick]' : ''}${r ? `@${r.x},${r.y},${r.width}x${r.height}` : '@norect'}`,
+        `${n.nodeName}${n.attributes['tabIndex'] !== undefined ? '[tab]' : ''}${n._eventHandlers?.onClick ? '[onClick]' : ''}${r ? `@${r.x},${r.y},${r.width}x${r.height}` : '@norect'}`,
       )
     }
-    ;(require('node:fs') as typeof import('node:fs')).appendFileSync(
+    appendFileSync(
       dbg,
       `click ${col},${row} blank=${cellIsBlank} target=${target ? 'hit' : 'MISS'} chain=${chain.join(' > ') || '(none)'}\n`,
     )
