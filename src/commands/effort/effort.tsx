@@ -93,13 +93,13 @@ export function executeEffort(args: string, model: string): EffortCommandResult 
   if (lower === 'auto' || lower === 'unset') {
     const cleared = updateSettingsForSource('userSettings', { engine: { effort: undefined } })
     if (cleared.error !== null) {
-      return { message: `Failed to clear effort setting: ${cleared.error.message}` }
+      return { message: `Could not clear the effort settings: ${cleared.error.message}` }
     }
     unpinAllLaunchEffort()
     const envOverride = getEffortEnvOverride()
     const message =
       envOverride !== undefined && envOverride !== null
-        ? `Effort is now automatic. Note: ${EFFORT_ENV_VAR}=${rawOverrideValue()} is set and takes precedence.`
+        ? `Effort settings cleared — but ${EFFORT_ENV_VAR}=${rawOverrideValue()} still controls this session.`
         : 'Effort is now automatic.'
     return {
       message,
@@ -110,7 +110,7 @@ export function executeEffort(args: string, model: string): EffortCommandResult 
   const level = normalizeEffortLevelString(trimmed)
   if (level === undefined) {
     return {
-      message: `Valid options: ${OPTION_LIST} — "${trimmed}" is not a recognised effort level.`,
+      message: `Valid options: ${OPTION_LIST} — not "${trimmed}".`,
     }
   }
 
@@ -119,7 +119,7 @@ export function executeEffort(args: string, model: string): EffortCommandResult 
   if (persistable !== undefined) {
     const saved = updateSettingsForSource('userSettings', { engine: { effort: persistable } })
     if (saved.error !== null) {
-      return { message: `Failed to save effort setting: ${saved.error.message}` }
+      return { message: `${level} was not applied: ${saved.error.message}` }
     }
     persisted = true
   }
@@ -127,9 +127,14 @@ export function executeEffort(args: string, model: string): EffortCommandResult 
 
   const envOverride = getEffortEnvOverride()
   if (envOverride !== undefined && envOverride !== level) {
-    const savedNote = persisted ? 'saved as your default for future sessions' : 'saved for this session'
+    if (persisted) {
+      return {
+        message: `Saved ${level} as your default, but ${EFFORT_ENV_VAR}=${rawOverrideValue()} still controls this session.`,
+        effortUpdate: { value: level },
+      }
+    }
     return {
-      message: `Effort set to ${level} (${savedNote}), but ${EFFORT_ENV_VAR}=${rawOverrideValue()} is set and takes precedence.`,
+      message: `${EFFORT_ENV_VAR}=${rawOverrideValue()} controls this session, and ${level} is session-only, so nothing was saved.`,
       effortUpdate: { value: level },
     }
   }
@@ -143,7 +148,7 @@ export function executeEffort(args: string, model: string): EffortCommandResult 
   }
   const base = persisted
     ? `Effort set to ${level} — saved as your default for future sessions.`
-    : `Effort set to ${level} — saved for this session.`
+    : `Effort set to ${level} for this session only (this level is not persisted).`
   return {
     message: `${base}${truth.trailing ?? ''}`,
     effortUpdate: { value: level },

@@ -58,10 +58,10 @@ function effortParenthetical(
   const truth = resolveEffortTruth(resolvedModel, effortValue)
   if (truth.requested === undefined) return ''
   if (!truth.supportsEffort) {
-    return ` (effort: ${truth.requested} — model takes no effort)`
+    return ` (effort: ${truth.requested} — ${resolvedModel} takes no effort setting)`
   }
   if (truth.wire === undefined) {
-    return ` (effort: ${truth.requested} — provider default applies)`
+    return ` (effort: ${truth.requested} — not sent; the provider default applies)`
   }
   if (truth.adjustedFrom !== undefined || truth.wire !== String(truth.requested)) {
     return ` (effort: ${truth.requested}, runs at ${truth.label})`
@@ -119,7 +119,8 @@ export function previewDaemonModelSelection(target: ModelSetting): { plan: Trans
   const facts = focused.modelFacts()
   if (facts.effectiveSource === 'ambient') {
     return {
-      reason: "Cannot switch models right now — the session's own model facts could not be resolved.",
+      reason:
+        "The model switch was refused: the session's own model facts could not be resolved (no live facts and no recorded model on its admission record) — the preview will not be built from another session's state. Retry once the session reports its facts.",
     }
   }
   return {
@@ -188,7 +189,7 @@ function ModelDirectSet({
         },
         thrown => {
           choice.restore()
-          onDone(`Failed to switch model: ${errorMessage(thrown)}`)
+          onDone(`The model switch was refused: ${errorMessage(thrown)}`)
           seated?.('refused')
         },
       )
@@ -214,7 +215,7 @@ function ModelDirectSet({
     }
     if (settled.kind === 'cancelled-pending') {
       setAppState(prev => ({ ...prev, ...settled.patch }))
-      onDone(`Already on ${label} — queued switch cancelled${saved}.`)
+      onDone(`Already on ${label} — cancelled the previously queued model switch${saved}.`)
       return
     }
     const effectiveFrom = override ?? base
@@ -225,7 +226,7 @@ function ModelDirectSet({
     if (settled.kind === 'queued') {
       const cross = settled.crossProvider ? crossProviderNote(target) : ''
       onDone(
-        `Model switch queued: ${label}${saved} — takes effect when the current turn settles, the running turn keeps its model${cross}${lossNote}${effortNote}`,
+        `Model switch queued: ${label}${saved} — takes effect when the current turn settles, the running turn keeps its model.${cross}${lossNote}${effortNote}`,
       )
       return
     }
@@ -244,17 +245,17 @@ function ModelDirectSet({
             return
           }
           if (!isModelAllowed(target)) {
-            onDone(`Model "${typed}" is not in the list of available models.`, { display: 'system' })
+            onDone(`Model ${typed} isn't available: your organization restricts model selection.`, { display: 'system' })
             return
           }
           const lowerTarget = target.toLowerCase()
           if (lowerTarget.includes('[1m]')) {
             if (lowerTarget.includes('opus') && !checkOpus1mAccess() && !isOpus1mMergeEnabled()) {
-              onDone('1M context window is not available for Opus on this account.', { display: 'system' })
+              onDone(`${typed} model isn't available for this account. Run /model to pick a different model.`, { display: 'system' })
               return
             }
             if (lowerTarget.includes('sonnet') && !checkSonnet1mAccess()) {
-              onDone('1M context window is not available for Sonnet on this account.', { display: 'system' })
+              onDone(`${typed} model isn't available for this account. Run /model to pick a different model.`, { display: 'system' })
               return
             }
           }
@@ -262,7 +263,7 @@ function ModelDirectSet({
             const verdict = await validateModel(target)
             if (signal.aborted) return
             if (!verdict.valid) {
-              onDone(verdict.error ?? `Model "${typed}" could not be validated.`, { display: 'system' })
+              onDone(verdict.error ?? `Model validation failed: ${typed}`, { display: 'system' })
               return
             }
           }
@@ -313,7 +314,7 @@ function ModelDirectSet({
         applySwitch()
       } catch (thrown) {
         if (signal.aborted) return
-        onDone(`Failed to validate model: ${errorMessage(thrown)}`, { display: 'system' })
+        onDone(`Model validation failed: ${errorMessage(thrown)}`, { display: 'system' })
       }
     })()
   }, [])
@@ -369,11 +370,8 @@ export async function call(
     const families = BARE_FAMILY_WORDS.filter(entry => !isProviderDisabled(entry.route)).map(entry => entry.word)
     onDone(
       [
-        'Usage: /model [model-name | default | info | help]',
-        '  /model             Open the interactive model picker',
-        '  /model <name>      Switch to a model alias or ID (e.g. sonnet, opus, default)',
-        ...(families.length > 0 ? [`  Family aliases:    ${families.join(', ')}`] : []),
-        '  /model info        Show the current model and effort level',
+        'Run /model with no argument to open the model selection menu, or /model <modelName> to set the model directly.',
+        ...(families.length > 0 ? [`Family aliases: ${families.join(', ')}`] : []),
       ].join('\n'),
       { display: 'system' },
     )

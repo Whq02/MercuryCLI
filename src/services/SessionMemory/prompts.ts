@@ -23,24 +23,34 @@ function loadOverrideOr(fileName: string, fallback: string): string {
 
 
 const DEFAULT_SESSION_MEMORY_TEMPLATE = `# Session Title
+_A dense one-line title, roughly 5-10 words, distinctive and free of filler._
 
 # Current State
+_The active work, the tasks still pending, and the immediate next steps._
 
 # Task specification
+_The original request, plus the design decisions and the context that explains them._
 
 # Files and Functions
+_Which files matter, what each one holds, and why it is relevant here._
 
 # Workflow
+_The shell commands habitually run, the order they run in, and how to read their non-obvious output._
 
 # Errors & Corrections
+_Errors and their fixes, corrections the user made, and approaches that failed and should not be retried._
 
 # Codebase and System Documentation
+_The system's components and how they fit together._
 
 # Learnings
+_What worked and what did not — without repeating anything already captured in another section._
 
 # Key results
+_Any specific artefact the user asked for, reproduced here exactly._
 
 # Worklog
+_A terse step-by-step record of what was attempted and what was done._
 `
 
 const MAX_SECTION_CHARS = 8000
