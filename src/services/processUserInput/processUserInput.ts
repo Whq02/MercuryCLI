@@ -161,7 +161,7 @@ export async function processUserInput(
     { turn_id: readToolCallChain(context)?.key ?? '', prompt: promptText },
     { scope: { sessionId: String(getSessionId()), ...(context.agentId !== undefined ? { crewmateId: context.agentId } : {}) }, signal: context.abortController.signal, toolUseContext: context },
   )
-  const hookMessages: Message[] = [...settingsMessages, ...hookRowsOfResult(started).map(row => createAttachmentMessage(row))]
+  const hookMessages: Message[] = [...settingsMessages, ...hookRowsOfResult(started).map(row => createAttachmentMessage(row) as Message)]
   if (started.answer.block !== undefined) {
     return {
       messages: [
@@ -182,7 +182,7 @@ export async function processUserInput(
 
 
 function isImageBlock(block: ContentBlockParam): block is ImageBlockParam {
-  return block.type === 'image'
+  return (block as { type?: string }).type === 'image'
 }
 
 async function normalizeInputBlocks(
