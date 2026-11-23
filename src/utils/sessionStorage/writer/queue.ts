@@ -69,7 +69,7 @@ export class QueuePart {
   }
 
   enqueueWrite(filePath: string, entry: Entry): Promise<void> {
-    const { line, record } = encodeTranscriptLine(filePath, entry as Record<string, unknown>)
+    const { line, record } = encodeTranscriptLine(filePath, entry)
     return this.enqueueRawLine(filePath, line, undefined, record)
   }
 

@@ -104,7 +104,7 @@ export function registerPerTurnHandlers(clients: MCPServerConnection[], ports: R
 
 export function assembleTurnTools(state: AppState, turnSchema: Record<string, unknown> | undefined, ports: RunnerPorts): Tool[] {
   const { answerSchemaOf, baseToolNames, sessionTools } = ports
-  const mcpPartition = mcpToolPartition(state.mcp.tools as Tool[], state.toolPermissionContext)
+  const mcpPartition = mcpToolPartition(state.mcp.tools, state.toolPermissionContext)
   const pool: Tool[] = [
     ...getTools(state.toolPermissionContext),
     ...sessionTools.filter(tool => !baseToolNames.has(tool.name) && !tool.isMcp),

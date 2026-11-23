@@ -69,7 +69,7 @@ export function requestFileCheckpoints(on: boolean): void {
 export function fileCheckpointSource(): FileCheckpointSource {
   const road: FileCheckpointSource = !getIsNonInteractiveSession() ? 'interactive' : isSessionRunnerProcess() ? 'seat' : fileCheckpointsRequested ? 'initialize' : 'headless'
   if (road === 'headless') return road
-  if ((getGlobalConfig() as { fileCheckpointingEnabled?: unknown }).fileCheckpointingEnabled === false) return 'setting'
+  if (getGlobalConfig().fileCheckpointingEnabled === false) return 'setting'
   return road
 }
 

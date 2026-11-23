@@ -29,6 +29,7 @@ import { readWorktreeBaseline, resolveWorktreeAdminDir, writeWorktreeBaseline } 
 import { deltaBlocksSettlement, readWorktreeDelta, worktreeRemovalSafe } from '../utils/worktree/delta.js'
 import { runGit } from '../utils/worktree/git.js'
 import { getCurrentWorktreeSession, restoreWorktreeSession, type WorktreeSession } from '../utils/worktree/session.js'
+import { getErrnoCode } from '../utils/errors.js'
 import { passedOver, passedOverAs } from '../utils/passedOver.js'
 import { hostEnv } from '../utils/hostEnv.js'
 
@@ -211,7 +212,7 @@ async function copyWorktreeIncludeFiles(repoRoot: string, worktreePath: string, 
   try {
     content = await readFile(join(repoRoot, '.worktreeinclude'), 'utf8')
   } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code
+    const code = getErrnoCode(error)
     if (code !== 'ENOENT' && code !== 'ENOTDIR') {
       logForDebugging(`.worktreeinclude could not be read (${String(error)}), so the files it lists were not copied into ${worktreePath}`, { level: 'warn' })
     }
@@ -249,7 +250,7 @@ async function copyWorktreeIncludeFiles(repoRoot: string, worktreePath: string, 
       await copyFile(join(repoRoot, relative), dest, copyMode)
       copied.push(relative)
     } catch (error) {
-      if (preserveExisting && (error as NodeJS.ErrnoException).code === 'EEXIST') continue
+      if (preserveExisting && getErrnoCode(error) === 'EEXIST') continue
       logForDebugging(`worktreeinclude copy failed for ${relative}: ${String(error)}`, { level: 'warn' })
     }
   }
@@ -320,7 +321,7 @@ async function ownSettingsDenyReads(sourceRoot: string): Promise<boolean> {
     try {
       text = await readFile(theirs, 'utf8')
     } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code
+      const code = getErrnoCode(error)
       if (code === 'ENOENT' || code === 'ENOTDIR') continue
       logForDebugging(`worktree clone: ${theirs} could not be read (${code ?? String(error)}), so its Read rules are unknown; every folder is held back`, { level: 'warn' })
       return true
@@ -482,7 +483,7 @@ async function copyDirectoryWithHoldback(sourceRoot: string, source: string, tar
     return true
   } catch (copyError) {
     await rm(target, { recursive: true, force: true }).catch(passedOver)
-    const copyCode = (copyError as NodeJS.ErrnoException).code
+    const copyCode = getErrnoCode(copyError)
     if (copyCode !== 'ENOENT' && copyCode !== 'EEXIST') logForDebugging(`worktree symlink failed for ${relPath}: ${copyCode ?? String(copyError)}`, { level: 'warn' })
     return false
   }
@@ -502,7 +503,7 @@ async function linkCheckoutDirectories(sourceRoot: string, worktreePath: string,
     try {
       await stat(source)
     } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code
+      const code = getErrnoCode(error)
       if (code !== 'ENOENT' && code !== 'ENOTDIR') logForDebugging(`worktree symlink failed for ${relPath}: ${code ?? String(error)}`, { level: 'warn' })
       continue
     }
@@ -511,7 +512,7 @@ async function linkCheckoutDirectories(sourceRoot: string, worktreePath: string,
       await lstat(target)
       targetExists = true
     } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code
+      const code = getErrnoCode(error)
       if (code !== 'ENOENT' && code !== 'ENOTDIR') {
         logForDebugging(`worktree symlink failed for ${relPath}: ${code ?? String(error)}`, { level: 'warn' })
         continue
@@ -523,7 +524,7 @@ async function linkCheckoutDirectories(sourceRoot: string, worktreePath: string,
       await symlink(source, target, 'dir')
       placed.push(relPath)
     } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code
+      const code = getErrnoCode(error)
       if (code === 'ENOENT' || code === 'EEXIST') continue
       if (symlinkDeniedByPrivilege(error)) {
         if (await copyDirectoryWithHoldback(sourceRoot, source, target, relPath, heldUnder)) placed.push(relPath)
@@ -550,7 +551,7 @@ async function hideLinksFromGit(repoRoot: string, worktreePath: string, sourceRo
   try {
     existing = await readFile(excludePath, 'utf8')
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+    if (getErrnoCode(error) !== 'ENOENT') {
       logForDebugging(`worktree exclude read failed: ${String(error)}`, { level: 'warn' })
       return
     }
@@ -580,7 +581,7 @@ async function propagateLocalSettings(repoRoot: string, worktreePath: string, pr
     await mkdir(dirname(target), { recursive: true })
     await copyFile(join(repoRoot, relativeSettingsPath), target, preserveExisting ? constants.COPYFILE_EXCL : 0)
   } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code
+    const code = getErrnoCode(error)
     if (code !== 'ENOENT' && !(preserveExisting && code === 'EEXIST')) {
       throw new Error('The worktree local settings could not be copied: ' + String(error))
     }
@@ -953,7 +954,7 @@ async function isDisownedWorktree(worktreePath: string): Promise<boolean> {
     try {
       if ((await lstat(join(worktreePath, '.git'))).isDirectory()) return false
     } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code
+      const code = getErrnoCode(error)
       if (code !== 'ENOENT' && code !== 'ENOTDIR') {
         logForDebugging(`worktree janitor could not stat .git in ${worktreePath}: ${String(error)}`, { level: 'warn' })
         return false
@@ -967,7 +968,7 @@ async function isDisownedWorktree(worktreePath: string): Promise<boolean> {
     const canonicalOwn = await realpath(join(worktreePath, '.git'))
     return canonicalReturn !== canonicalOwn
   } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code
+    const code = getErrnoCode(error)
     if (code === 'ENOENT' || code === 'ENOTDIR') return true
     logForDebugging(`worktree janitor could not verify ownership of ${worktreePath}: ${String(error)}`, { level: 'warn' })
     return false
@@ -1203,9 +1204,9 @@ export async function createBaselineWorktree(
 
 function parsePRReference(input: string): number | null {
   const urlMatch = input.match(/^https?:\/\/[^/]+\/[^/]+\/[^/]+\/pull\/(\d+)\/?(?:[?#].*)?$/)
-  if (urlMatch) return parseInt(urlMatch[1] as string, 10)
+  if (urlMatch) return parseInt(urlMatch[1], 10)
   const shortMatch = input.match(/^#(\d+)$/)
-  if (shortMatch) return parseInt(shortMatch[1] as string, 10)
+  if (shortMatch) return parseInt(shortMatch[1], 10)
   return null
 }
 

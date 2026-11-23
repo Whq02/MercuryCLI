@@ -129,7 +129,7 @@ export async function loadTranscriptFromFile(
     }
 
     const transcript = buildConversationChain(messages, leafMessage)
-    const sessionId = leafMessage.sessionId as UUID
+    const sessionId = leafMessage.sessionId
     return {
       ...chainLogOption(transcript, transcript.at(-1)!, filePath),
       summary: summaries.get(leafMessage.uuid),
@@ -481,7 +481,7 @@ export function resumeFactsOf(
     briefAdd: fold.sessionBriefAdds.get(sessionId),
     customTitle: fold.customTitles.get(sessionId),
     tag: fold.tags.get(sessionId),
-    mode: fold.modes.get(sessionId) as SessionListing['mode'],
+    mode: fold.modes.get(sessionId),
     advisor: fold.advisorSwitches.get(sessionId),
     swarm: fold.swarmSwitches.get(sessionId),
     model: fold.sessionModels.get(sessionId),

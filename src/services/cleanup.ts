@@ -124,7 +124,7 @@ export async function collectReferencedBlobDirs(transcriptPath: string, cutoff: 
         blobScanCensus.wholeReads++
         const text = (await fs.readFileBytes(file)).toString('latin1')
         for (const match of text.matchAll(pattern)) {
-          referenced.add(match[1] as string)
+          referenced.add(match[1])
         }
         continue
       }
@@ -135,12 +135,12 @@ export async function collectReferencedBlobDirs(transcriptPath: string, cutoff: 
         const text = carry + chunk.toString('latin1')
         for (const match of text.matchAll(pattern)) {
           if ((match.index ?? 0) + match[0].length >= text.length) continue
-          referenced.add(match[1] as string)
+          referenced.add(match[1])
         }
         carry = text.slice(-SCAN_CARRY_BYTES)
       })
       for (const match of carry.matchAll(pattern)) {
-        referenced.add(match[1] as string)
+        referenced.add(match[1])
       }
     }
     return referenced

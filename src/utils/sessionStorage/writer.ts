@@ -180,8 +180,8 @@ function partitionUnwritten(
   const unwritten: Transcript = []
   let parent = parentHint
   for (const m of messages) {
-    if (!onDisk.has(m.uuid as UUID)) unwritten.push(m)
-    else if (unwritten.length === 0 && isChainParticipant(m)) parent = m.uuid as UUID
+    if (!onDisk.has(m.uuid)) unwritten.push(m)
+    else if (unwritten.length === 0 && isChainParticipant(m)) parent = m.uuid
   }
   return { unwritten, parent }
 }
@@ -191,12 +191,12 @@ function findLastRecordedParent(
   unwritten: Transcript,
   onDisk: ReadonlySet<UUID>,
 ): UUID | undefined {
-  const unwrittenIds = new Set<UUID>(unwritten.map(m => m.uuid as UUID))
+  const unwrittenIds = new Set<UUID>(unwritten.map(m => m.uuid))
   let parent: UUID | undefined
   for (const m of allMessages) {
-    if (unwrittenIds.has(m.uuid as UUID)) break
-    if (isChainParticipant(m) && onDisk.has(m.uuid as UUID)) {
-      parent = m.uuid as UUID
+    if (unwrittenIds.has(m.uuid)) break
+    if (isChainParticipant(m) && onDisk.has(m.uuid)) {
+      parent = m.uuid
     }
   }
   return parent
@@ -209,7 +209,7 @@ export async function recordTranscript(
 ): Promise<UUID | null> {
   transcriptMessagesVisited += messages.length
   const cleaned = cleanForTranscript(messages, allMessages)
-  const onDisk = await getSessionMessages(getSessionId() as UUID)
+  const onDisk = await getSessionMessages(getSessionId())
   const { unwritten, parent } = partitionUnwritten(
     cleaned,
     onDisk,
@@ -233,7 +233,7 @@ export async function recordTranscript(
   }
   for (let i = unwritten.length - 1; i >= 0; i--) {
     const m = unwritten[i]!
-    if (isChainParticipant(m)) return m.uuid as UUID
+    if (isChainParticipant(m)) return m.uuid
   }
   if (preferLiveLeaf && currentProject.currentSessionChainLeaf !== undefined) {
     return currentProject.currentSessionChainLeaf
@@ -328,7 +328,7 @@ export function adoptResumedSessionFile(): void {
 }
 
 async function recordSessionRow(row: (sessionId: UUID) => Entry): Promise<void> {
-  const sessionId = getSessionId() as UUID
+  const sessionId = getSessionId()
   if (!sessionId) return
   await getProject().appendEntry(row(sessionId))
 }
@@ -412,7 +412,7 @@ class Project {
   })
 
   readonly metadata: SessionMeta = new SessionMeta({
-    currentId: () => getSessionId() as UUID,
+    currentId: () => getSessionId(),
     currentFile: () => this.sessionFile,
     append: appendEntryToFile,
     tail: path => readTranscriptTailSync(path, LITE_READ_BUF_SIZE),
@@ -513,7 +513,7 @@ class Project {
   ): Promise<void> {
     const entry: ContentReplacementEntry = {
       type: 'content-replacement',
-      sessionId: getSessionId() as UUID,
+      sessionId: getSessionId(),
       agentId,
       replacements,
     }
@@ -522,7 +522,7 @@ class Project {
 
   async appendEntry(entry: Entry, sessionId?: UUID): Promise<void> {
     if (this.shouldSkipPersistence()) return
-    const targetSessionId = sessionId ?? (getSessionId() as UUID)
+    const targetSessionId = sessionId ?? getSessionId()
     const file = await this.filesPart.sessionFileFor(targetSessionId, entry)
     if (file === null) return
 

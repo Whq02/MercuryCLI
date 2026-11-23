@@ -338,7 +338,7 @@ async function findSkillDirs(dir: string): Promise<string[] | null> {
     try {
       entries = await fsPromises.readdir(current, { withFileTypes: true })
     } catch (error) {
-      if (depth === 0 && !isENOENT(error) && !isFsInaccessible(error as Error)) {
+      if (depth === 0 && !isENOENT(error) && !isFsInaccessible(error)) {
         logForDebugging(`skills: could not read directory ${current}: ${errorMessage(error)}`)
       }
       return false
@@ -684,7 +684,7 @@ async function reloadDynamicDirs(dirs: string[]): Promise<void> {
   const loaded = await Promise.all(dirs.map(async dir => ({ dir, ...(await loadDynamicDir(dir)) })))
   let changed = false
   for (let i = loaded.length - 1; i >= 0; i--) {
-    const { dir, entries, seen } = loaded[i] as (typeof loaded)[number]
+    const { dir, entries, seen } = loaded[i]
     if (applyDynamicDir(dir, entries, seen, now)) changed = true
   }
   if (changed) {

@@ -86,7 +86,7 @@ function refusedRewind(mode: SessionRewindOutcomeV1['mode'], refusal: RewindRefu
 
 function isOperatorTurn(message: Message, uuid: string): boolean {
   if (message.type !== 'user' || message.uuid !== uuid) return false
-  if ((message as { isMeta?: boolean }).isMeta === true) return false
+  if (message.isMeta === true) return false
   const content = message.message.content
   if (Array.isArray(content) && content[0]?.type === 'tool_result') return false
   return true

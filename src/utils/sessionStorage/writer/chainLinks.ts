@@ -79,7 +79,7 @@ export class ChainPart {
         } catch {
           gitBranch = undefined
         }
-        const sessionId = getSessionId() as UUID
+        const sessionId = getSessionId()
         const slug = getPlanSlugCache().get(sessionId)
 
         for (const message of messages) {

@@ -217,10 +217,10 @@ export function findMidInputSlashCommand(input: string, cursorOffset: number): M
   const slashPos = match.index + 1
   if (slashPos === 0) return null
   let end = cursorOffset
-  while (end < input.length && !/\s/.test(input[end] as string)) end++
+  while (end < input.length && !/\s/.test(input[end])) end++
   const token = input.slice(slashPos, end)
   if (cursorOffset > slashPos + token.length) return null
-  return { token, startPos: slashPos, partialCommand: (match[1] as string).slice(1) }
+  return { token, startPos: slashPos, partialCommand: match[1].slice(1) }
 }
 
 export function getBestCommandMatch(
