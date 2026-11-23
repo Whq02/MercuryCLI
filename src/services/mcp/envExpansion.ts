@@ -17,7 +17,7 @@ export function expandEnvVarsInString(value: string): {
     const resolved = env[varName]
     if (resolved !== undefined) return resolved
     if (defaultValue !== undefined) return defaultValue
-    if (!missingVars.includes(varName)) missingVars.push(varName)
+    missingVars.push(varName)
     return match
   })
   return { expanded, missingVars }

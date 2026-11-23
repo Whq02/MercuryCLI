@@ -1,7 +1,6 @@
 import type { PrimitiveSchemaDefinition } from '../../utils/mcp/sdk.js'
 
 import { looksLikeISO8601, parseNaturalLanguageDateTime } from './dateTimeParser.js'
-import { passedOver } from '../../utils/passedOver.js'
 
 
 type SchemaLike = {
@@ -101,13 +100,7 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 const DATE_TIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/
 
 function isValidUri(value: string): boolean {
-  try {
-    new URL(value)
-    return true
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
+  return URL.parse(value) !== null
 }
 
 function formatBound(value: number, type: string): string {

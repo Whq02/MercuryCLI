@@ -115,6 +115,7 @@ function isStatus401(error: unknown): boolean {
 type StderrCollector = {
   attach(stdio: StdioClientTransport): void
   detach(): void
+  flush(): void
   firstLine(): string | undefined
   redactedTail(): string
 }
@@ -135,15 +136,20 @@ function createStderrCollector(name: string, redact: (text: string) => string): 
     if (recentLines.length > 64) recentLines.splice(0, recentLines.length - 64)
   }
 
+  const flush = (): void => {
+    if (buffered.length === 0) return
+    logMCPError(name, `stderr: ${buffered}`)
+    buffered = ''
+    bufferedBytes = 0
+  }
+
   const onData = (chunk: Buffer | string): void => {
     try {
       const text = typeof chunk === 'string' ? chunk : chunk.toString('utf8')
       buffered += text
       bufferedBytes += typeof chunk === 'string' ? Buffer.byteLength(chunk, 'utf8') : chunk.byteLength
       if (bufferedBytes >= STDERR_FLUSH_BYTES) {
-        logMCPError(name, buffered)
-        buffered = ''
-        bufferedBytes = 0
+        flush()
       }
       const combined = pendingLine + text
       const parts = combined.split(/\r?\n/)
@@ -180,6 +186,7 @@ function createStderrCollector(name: string, redact: (text: string) => string): 
       stream.on('error', onError)
     },
     detach,
+    flush,
     firstLine(): string | undefined {
       if (firstNonBlank !== undefined) return firstNonBlank
       const trimmed = pendingLine.trim()
@@ -249,12 +256,49 @@ async function prepareTransportFor(
   }
 }
 
+function transportErrorSummary(message: string): string {
+  if (message.includes('ECONNRESET')) return 'connection reset — the server crashed or restarted'
+  if (message.includes('ETIMEDOUT')) return 'timeout — network or unresponsive server'
+  if (message.includes('ECONNREFUSED')) return 'connection refused — the server is down'
+  if (message.includes('EPIPE')) return 'broken pipe'
+  if (message.includes('EHOSTUNREACH')) return 'host unreachable'
+  if (message.includes('ESRCH')) return 'no such process — the stdio server terminated'
+  if (message.includes('spawn')) return 'spawn failure — check the command and permissions'
+  return message
+}
+
+function logConnectFailure(
+  name: string,
+  type: string,
+  serverRef: ScopedMcpServerConfig,
+  err: unknown,
+): void {
+  if (type === 'sse') {
+    const safeUrl = getLoggingSafeMcpBaseUrl(serverRef) ?? '(url withheld)'
+    const stack = err instanceof Error && err.stack ? err.stack : ''
+    logMCPError(name, `SSE connect failed: ${safeUrl} ${errorMessage(err)} ${stack}`)
+    return
+  }
+  if (type === 'http') {
+    const errnoCode = getErrnoCode(err) ?? 'none'
+    logMCPError(name, `HTTP connect failed: ${errorMessage(err)} code=${errnoCode}`)
+    return
+  }
+  if (type === 'claudeai-proxy') {
+    logMCPError(name, `proxy connect failed: ${errorMessage(err)}`)
+    return
+  }
+  logMCPError(name, err)
+}
+
 function attachClientLifecycleHandlers(
   client: Client,
   name: string,
   serverRef: ScopedMcpServerConfig,
   type: string,
+  transportLabel: string,
 ): void {
+  const connectedAt = Date.now()
   const priorOnError = client.onerror
   const priorOnClose = client.onclose
   let errorSeen = false
@@ -270,7 +314,8 @@ function attachClientLifecycleHandlers(
       const bytes = Number.parseInt(oversizedMatch[1]!, 10)
       if (Number.isFinite(bytes)) oversizedMessages.set(client, bytes)
     }
-    logMCPError(name, error)
+    logMCPDebug(name, `transport ${transportLabel} error after ${Date.now() - connectedAt}ms: ${message}`)
+    logMCPDebug(name, transportErrorSummary(message))
     if (remoteManaged && !closeRequested) {
       if (message.includes('Maximum reconnection attempts')) {
         closeRequested = true
@@ -289,7 +334,7 @@ function attachClientLifecycleHandlers(
   }
 
   client.onclose = () => {
-    if (errorSeen) logMCPDebug(name, 'MCP connection closed after error')
+    logMCPDebug(name, `transport ${transportLabel} closed after ${Date.now() - connectedAt}ms (errors: ${errorSeen})`)
     invalidateServerCaches(name, serverRef)
     priorOnClose?.()
   }
@@ -379,6 +424,11 @@ export const connectToServer = memoize(
     installRootsHandler(client)
 
     const prior = negotiate ? await readEraVerdict(serverKey) : undefined
+    if (spawnRefused) {
+      unregisterSpawnGuard?.()
+      unregisterSpawnGuard = null
+      return { name, type: 'disabled', config: serverRef }
+    }
     const timeoutMs = connectTimeoutMs()
     const startedAt = Date.now()
     let timedOut = false
@@ -399,7 +449,7 @@ export const connectToServer = memoize(
           remainingMs > 0 &&
           isProbeExitError(err)
         ) {
-          logMCPDebug(name, 'stdio server exited during server/discover probe; retrying once with legacy handshake')
+          logMCPDebug(name, 'the server exited on the revision probe — remembered as an older server; connecting again with the handshake')
           void recordEraVerdict(serverKey, 'legacy')
           stderr.detach()
           const firstStdio = activeStdio
@@ -453,6 +503,7 @@ export const connectToServer = memoize(
         : undefined
 
       await teardownEndpoints(name, client, transport, activeStdio, inProcessServer, stderr)
+      stderr.flush()
 
       if (timeoutMessage !== undefined) {
         logMCPError(name, timeoutMessage)
@@ -462,13 +513,7 @@ export const connectToServer = memoize(
         )
       }
 
-      const safeUrl = getLoggingSafeMcpBaseUrl(serverRef)
-      const errnoCode = getErrnoCode(err)
-      logMCPError(
-        name,
-        `Failed to connect (${transportLabel}${safeUrl ? ` ${safeUrl}` : ''}${errnoCode ? ` [${errnoCode}]` : ''}): ${errorMessage(err)}`,
-      )
-
+      logConnectFailure(name, type, serverRef, err)
       if (transportLabel === 'stdio' || type === 'sse' || type === 'http') {
         const written = mcpConfigAsWritten(serverRef)
         const described = describeMcpConnectFailure(err, {
@@ -489,8 +534,12 @@ export const connectToServer = memoize(
       return { name, type: 'disabled', config: serverRef }
     }
 
+    stderr.flush()
     const era = client.getProtocolEra()
     if (era !== undefined) void recordEraVerdict(serverKey, era)
+    const negotiatedVersion = client.getNegotiatedProtocolVersion()
+    logMCPDebug(name, `Connected in ${Date.now() - startedAt}ms via ${transportLabel}`)
+    logMCPDebug(name, `protocol ${negotiatedVersion ?? 'unknown'} (${era ?? 'unknown'} era)`)
 
     const capabilities = client.getServerCapabilities() ?? {}
     const rawInfo = client.getServerVersion()
@@ -502,14 +551,14 @@ export const connectToServer = memoize(
         }
       : undefined
     const rawInstructions = client.getInstructions()
-    const instructions =
-      rawInstructions && rawInstructions.length > INSTRUCTIONS_MAX_CHARS
-        ? `${rawInstructions.slice(0, INSTRUCTIONS_MAX_CHARS)}\n\n[instructions truncated]`
-        : rawInstructions
+    let instructions = rawInstructions
+    if (rawInstructions && rawInstructions.length > INSTRUCTIONS_MAX_CHARS) {
+      instructions = `${rawInstructions.slice(0, INSTRUCTIONS_MAX_CHARS)}\n\n[instructions truncated]`
+      logMCPDebug(name, `instructions truncated ${rawInstructions.length} → ${instructions.length}`)
+    }
 
     client.setRequestHandler('elicitation/create', async () => ({ action: 'cancel' as const }))
-    attachClientLifecycleHandlers(client, name, serverRef, type)
-
+    attachClientLifecycleHandlers(client, name, serverRef, type, transportLabel)
     unregisterSpawnGuard?.()
     unregisterSpawnGuard = null
 
@@ -905,7 +954,7 @@ async function callToolOnce(
       : undefined
 
   const runningLogTimer = startInterval(() => {
-    logMCPDebug(connected.name, `Tool "${tool}" still running (${formatCallDuration(Date.now() - startedAt)})`)
+    logMCPDebug(connected.name, `tool ${tool} still running after ${Math.round((Date.now() - startedAt) / 1000)}s`)
   }, LONG_CALL_LOG_INTERVAL_MS)
   runningLogTimer.unref?.()
 
@@ -968,15 +1017,17 @@ async function callToolOnce(
       if (detail === undefined && resultRecord.error !== undefined && resultRecord.error !== null) {
         detail = typeof resultRecord.error === 'string' ? resultRecord.error : errorMessage(resultRecord.error)
       }
+      const errorDetail = detail || 'Unknown error'
+      logMCPError(connected.name, `tool ${tool} returned an error: ${errorDetail}`)
       throw new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
-        `MCP tool "${tool}" on server "${connected.name}" failed: ${detail || 'Unknown error'}`,
+        `MCP tool "${tool}" on server "${connected.name}" failed: ${errorDetail}`,
         'MCP tool returned error',
         resultRecord._meta,
       )
     }
 
     const processedContent = await processMCPResult(rawResult, tool, connected.name)
-    logMCPDebug(connected.name, `Tool "${tool}" completed in ${formatCallDuration(Date.now() - startedAt)}`)
+    logMCPDebug(connected.name, `tool ${tool} completed in ${formatCallDuration(Date.now() - startedAt)}`)
     return {
       content: processedContent,
       ...(resultRecord._meta ? { _meta: resultRecord._meta } : {}),
@@ -986,6 +1037,7 @@ async function callToolOnce(
     if (responseReceived) throw err
     if (watchdog.fired) {
       requestController.abort()
+      logMCPError(connected.name, `tool ${tool} stalled: ${errorMessage(err)}`)
       throw new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
         `MCP tool "${tool}" on server "${connected.name}": unknown outcome; inspect the effect before retrying.`,
         'MCP tool call unknown outcome',
@@ -1010,6 +1062,7 @@ async function callToolOnce(
       const overLimitBytes = oversizedMessages.get(connected.client)
       if (overLimitBytes !== undefined) {
         oversizedMessages.delete(connected.client)
+        logMCPError(connected.name, `tool ${tool}: the server sent one message over ${overLimitBytes} bytes; the connection was dropped`)
         throw new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
           mcpOversizedMessageWords(tool, connected.name, overLimitBytes),
           'MCP stdio message over the limit',
@@ -1017,6 +1070,7 @@ async function callToolOnce(
       }
     }
     if (isResponseStreamEndedError(err)) {
+      logMCPError(connected.name, `tool ${tool}: the server closed the response stream before answering`)
       throw new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
         `MCP tool "${tool}" on server "${connected.name}": the server closed the response stream before answering — unknown outcome; inspect the effect before retrying.`,
         'MCP tool call response stream ended',
@@ -1026,6 +1080,7 @@ async function callToolOnce(
       invalidateServerCaches(connected.name, connected.config)
       if (mayHaveSent) {
         requestController.abort()
+        logMCPError(connected.name, `tool ${tool}: the server closed the response stream before answering`)
         throw new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
           `MCP tool "${tool}" on server "${connected.name}": the server closed the response stream before answering — unknown outcome; inspect the effect before retrying.`,
           'MCP tool call response stream ended',
