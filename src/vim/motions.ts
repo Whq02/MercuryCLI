@@ -1,5 +1,4 @@
 import type { Cursor } from '../utils/Cursor.js'
-import { notBuilt } from '../pi/holes.js'
 
 const STEPS: Record<string, (c: Cursor) => Cursor> = {
   h: c => c.left(),
@@ -21,13 +20,21 @@ const STEPS: Record<string, (c: Cursor) => Cursor> = {
 }
 
 export function resolveMotion(key: string, cursor: Cursor, count: number): Cursor {
-  return notBuilt('src/vim/motions.ts:23')
+  if (!Object.hasOwn(STEPS, key)) return cursor
+  const step = STEPS[key]!
+  let current = cursor
+  for (let i = 0; i < count; i++) {
+    const next = step(current)
+    if (next.equals(current)) break
+    current = next
+  }
+  return current
 }
 
 export function isInclusiveMotion(key: string): boolean {
-  return notBuilt('src/vim/motions.ts:35')
+  return key === 'e' || key === 'E' || key === '$'
 }
 
 export function isLinewiseMotion(key: string): boolean {
-  return notBuilt('src/vim/motions.ts:39')
+  return key === 'j' || key === 'k' || key === 'G' || key === 'gg'
 }
