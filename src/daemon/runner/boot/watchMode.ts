@@ -2,36 +2,29 @@ import { setPermissionModeChangedListener } from '../../../permissions/rules/per
 import { modeRow } from '../../../engine/rows/project.js'
 import type { PermissionMode } from '../../../permissions/rules/permissions.js'
 import { markSessionPermissionMode } from '../../../screen/cockpit/runtimePosture.js'
-import { enqueuePendingNotification } from '../messageQueueManager.js'
 import { wrapInSystemReminder } from '../../../engine/message-shapes/text.js'
-import { startTimeout, stopTimeout, type TimerHandle } from '../../../platform/async/timers.js'
+import type { QueuedCommand } from '../../../screen/composer/input-core/textInput.js'
 import type { BootMade, BootStep, RunnerPorts } from '../runnerPorts.js'
 
-function run(ports: RunnerPorts): BootMade<'noteOperatorMode' | 'tellStandingMode'> {
+function run(ports: RunnerPorts): BootMade<'noteOperatorMode' | 'takeModeNotice'> {
   const { enqueueRow, liveScope } = ports
   const SDK_MODES = new Set(['default', 'implement', 'sovereign', 'flow', 'dontAsk'])
-  const MODE_REMINDER_WAIT_MS = 45_000
-  let waiting: { mode: PermissionMode; timer: TimerHandle } | null = null
-  const tellStandingMode = (): void => {
-    if (waiting === null) return
-    const { mode, timer } = waiting
-    waiting = null
-    stopTimeout(timer)
-    const reminder = markSessionPermissionMode(mode)
-    if (reminder === null) return
-    enqueuePendingNotification({ value: wrapInSystemReminder(reminder), mode: 'task-notification', priority: 'next', ridesNextWords: true })
-  }
+  let standing: PermissionMode | null = null
   const noteOperatorMode = (mode: PermissionMode): void => {
-    stopTimeout(waiting?.timer)
-    const timer = startTimeout(tellStandingMode, MODE_REMINDER_WAIT_MS)
-    timer.unref()
-    waiting = { mode, timer }
+    standing = mode
+  }
+  const takeModeNotice = (): QueuedCommand | null => {
+    if (standing === null) return null
+    const reminder = markSessionPermissionMode(standing)
+    standing = null
+    if (reminder === null) return null
+    return { value: wrapInSystemReminder(reminder), mode: 'task-notification' }
   }
   setPermissionModeChangedListener(mode => {
     if (!SDK_MODES.has(mode)) return
     enqueueRow(modeRow(liveScope(), mode))
   })
-  return { noteOperatorMode, tellStandingMode }
+  return { noteOperatorMode, takeModeNotice }
 }
 
-export const watchMode: BootStep<'noteOperatorMode' | 'tellStandingMode'> = { name: 'watchMode', makes: ['noteOperatorMode', 'tellStandingMode'], run }
+export const watchMode: BootStep<'noteOperatorMode' | 'takeModeNotice'> = { name: 'watchMode', makes: ['noteOperatorMode', 'takeModeNotice'], run }

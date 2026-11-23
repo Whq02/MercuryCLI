@@ -176,7 +176,7 @@ export type RunnerPorts = {
   enqueueRow: (row: RowDraft) => void
   liveScope: () => RowScope
   noteOperatorMode: (mode: PermissionMode) => void
-  tellStandingMode: () => void
+  takeModeNotice: () => QueuedCommand | null
   acceptInputRow: (row: InputRow) => Promise<{ accepted: true } | { accepted: false; reason: 'duplicate' }>
   heldNoticeWaits: () => boolean
   interruptOutcomes: Map<string, boolean>

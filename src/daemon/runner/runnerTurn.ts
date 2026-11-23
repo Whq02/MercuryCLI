@@ -151,6 +151,8 @@ export async function runPrintTurn(command: QueuedCommand, batch: QueuedCommand[
   live.turnReachedModel = true
   const promptUuid = command.uuid ?? randomUUID()
   const localCommand = localCommandInput(command)
+  const modeNotice = localCommand ? null : ports.takeModeNotice()
+  if (modeNotice !== null) initialNotices = [...initialNotices, modeNotice]
   live.turnAnchor = localCommand ? null : promptUuid
   if (localCommand) party.blockOpen()
   const delivery = command.mode === 'task-notification' ? fitCompletionCommands(batch.length > 0 ? batch : [command], { messages, model: live.activeModel ?? getEngineModel() }) : []
