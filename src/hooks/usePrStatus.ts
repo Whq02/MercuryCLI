@@ -3,6 +3,7 @@ import { useTimer } from './effects.js'
 import { fetchPrStatus, type PrReviewState } from '../utils/ghPrStatus.js'
 import { getLastInteractionTime } from '../bootstrap/state.js'
 import { startTimeout, stopTimeout } from '../utils/timers.js'
+import { passedOver } from '../utils/passedOver.js'
 
 const POLL_INTERVAL_MS = 60000
 const IDLE_STOP_MS = 3600000
@@ -32,7 +33,6 @@ export function usePrStatus(
   const disabledRef = useRef(false)
 
   useTimer(() => {
-    void isLoading
     if (!enabled || disabledRef.current) return
 
     let cancelled = false
@@ -54,7 +54,8 @@ export function usePrStatus(
       let result: Awaited<ReturnType<typeof fetchPrStatus>>
       try {
         result = await fetchPrStatus()
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return
       }
       if (cancelled) return
