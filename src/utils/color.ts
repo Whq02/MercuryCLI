@@ -24,7 +24,9 @@ export function color(
 ): (text: string) => string {
   return text => {
     if (colorKeyOrValue === undefined) return text
-    const value = colorKeyOrValue as string
-    return colorize(text, isRawColorValue(value) ? value : getTheme(themeName)[value as keyof Theme], type)
+    const resolved = isRawColorValue(colorKeyOrValue)
+      ? colorKeyOrValue
+      : resolveThemeColor(getTheme(themeName), colorKeyOrValue)
+    return colorize(text, resolved, type)
   }
 }
