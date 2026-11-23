@@ -7,7 +7,7 @@ const SKILL_TOOL_PROMPT =
 
 const promptForRoot = memoize((_cwd: string): Promise<string> => Promise.resolve(SKILL_TOOL_PROMPT))
 
-export async function getPrompt(cwd: string): Promise<string> {
+export function getPrompt(cwd: string): Promise<string> {
   return promptForRoot(cwd)
 }
 
