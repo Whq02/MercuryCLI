@@ -164,31 +164,30 @@ export function getAPIMetadata(): { user_id: string } {
 
 export async function verifyApiKey(apiKey: string, isNonInteractiveSession: boolean): Promise<boolean> {
   if (isNonInteractiveSession) return true
-  const util = utilityCallFor()
-  const chosenModel = declaredRouteOf(util.model) === 'anthropic' ? util.model : getDefaultSonnetModel()
-  const model = normalizeModelStringForAPI(chosenModel)
-  const betas = getModelBetas(model)
-  const messages: MessageParam[] = [{ role: 'user', content: 'test' }]
-  const extraBody = getExtraBodyParams()
-  const rawExtraOutputConfig = extraBody.output_config
-  const outputConfig: BetaOutputConfig =
-    rawExtraOutputConfig && typeof rawExtraOutputConfig === 'object' && !Array.isArray(rawExtraOutputConfig)
-      ? { ...rawExtraOutputConfig }
-      : {}
-  const probeEffort = utilityCallFor(model, { named: true }).effortValue
-  if (
-    !('effort' in outputConfig) &&
-    typeof probeEffort === 'string' &&
-    isFirstPartyWireEffort(probeEffort)
-  ) {
-    outputConfig.effort = probeEffort
-  }
-
   try {
+    const util = utilityCallFor()
+    const model = normalizeModelStringForAPI(declaredRouteOf(util.model) === 'anthropic' ? util.model : getDefaultSonnetModel())
     return await returnValue(
       withRetry(
         () => getAnthropicClient({ apiKey, maxRetries: 3, source: 'verify_api_key' }),
         async client => {
+          const betas = getModelBetas(model)
+          const messages: MessageParam[] = [{ role: 'user', content: 'test' }]
+          const extraBody = getExtraBodyParams()
+          const rawExtraOutputConfig = extraBody.output_config
+          const outputConfig: BetaOutputConfig =
+            rawExtraOutputConfig && typeof rawExtraOutputConfig === 'object' && !Array.isArray(rawExtraOutputConfig)
+              ? { ...rawExtraOutputConfig }
+              : {}
+          const probeEffort = utilityCallFor(model).effortValue
+          if (
+            typeof probeEffort === 'string' &&
+            isFirstPartyWireEffort(probeEffort) &&
+            modelSupportsEffort(model) &&
+            !Object.hasOwn(outputConfig, 'effort')
+          ) {
+            outputConfig.effort = probeEffort
+          }
           await client.beta.messages.create({
             model,
             max_tokens: 1,
