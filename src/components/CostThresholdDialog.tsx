@@ -9,34 +9,35 @@ type Props = {
   onDone: () => void
 }
 
-export function CostThresholdDialog({ onDone }: Props): React.ReactNode {
+function MercuryCostThreshold({ onDone }: Props): React.ReactNode {
   const tokens = useMercuryTokens()
   const cost = getFocusedSessionConnector().usage().totalCostUSD
   return (
     <CommandCenter
-      view="cost"
-      footer="↵ confirm · esc dismisses"
+      view="cost threshold"
+      footer="↵ acknowledge to continue · esc close"
       onClose={onDone}
+      captureInput
     >
       <Box flexDirection="column" marginTop={1}>
-        <Text color={tokens.textPrimary}>
-          {"You've spent "}
+        <Text>
+          <Text color={tokens.textPrimary}>{"You've spent "}</Text>
           <Text bold color={tokens.accent}>
             ${cost.toFixed(2)}
           </Text>
-          {' on the Anthropic API this session.'}
+          <Text color={tokens.textPrimary}>{' on the Anthropic API this session.'}</Text>
         </Text>
-        <Text color={tokens.textSecondary}>
-          Track your spending anytime with /usage.
-        </Text>
-      </Box>
-      <Box marginTop={1}>
-        <Select
-          options={[{ value: 'ok', label: 'Got it' }]}
-          onChange={() => onDone()}
-          onCancel={onDone}
-        />
+        <Box marginTop={1}>
+          <Text color={tokens.textSecondary}>Track your spending anytime with /usage.</Text>
+        </Box>
+        <Box marginTop={1}>
+          <Select options={[{ value: 'ok', label: 'Got it' }]} onChange={onDone} />
+        </Box>
       </Box>
     </CommandCenter>
   )
+}
+
+export function CostThresholdDialog({ onDone }: Props): React.ReactNode {
+  return <MercuryCostThreshold onDone={onDone} />
 }
