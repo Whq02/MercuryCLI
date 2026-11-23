@@ -5,16 +5,39 @@ import { logForDebugging } from '../debug.js'
 import { errorMessage } from '../errors.js'
 import { getCachedPowerShellPath } from '../shell/powershellDetection.js'
 import { commandByteBudget } from '../platform/spawn.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
 
 
-type ElementClass = Unbuilt
+type ElementClass =
+  | 'ExpandableString'
+  | 'MemberInvocation'
+  | 'Other'
+  | 'Parameter'
+  | 'ScriptBlock'
+  | 'StringConstant'
+  | 'SubExpression'
+  | 'Variable'
 
-type ParsedRedirection = Unbuilt
+type ParsedRedirection = {
+  operator: string
+  target: string
+  isMerging: boolean
+}
 
-type CommandElementChild = Unbuilt
+type CommandElementChild = {
+  type: ElementClass
+  text: string
+}
 
-export type ParsedCommandElement = Unbuilt
+export type ParsedCommandElement = {
+  name: string
+  nameType: 'cmdlet' | 'application' | 'unknown'
+  text: string
+  args: string[]
+  elementTypes?: ElementClass[]
+  children?: (CommandElementChild[] | undefined)[]
+  redirections?: ParsedRedirection[]
+  elementType: string
+}
 
 type ParsedVariable = { path: string; splatted: boolean }
 
@@ -34,7 +57,17 @@ type ParsedStatement = {
   }
 }
 
-export type ParsedPowerShellCommand = Unbuilt
+export type ParsedPowerShellCommand = {
+  valid: boolean
+  statements: ParsedStatement[]
+  variables: ParsedVariable[]
+  errors: ParseError[]
+  hasStopParsing: boolean
+  originalCommand: string
+  typeLiterals?: string[]
+  hasUsingStatements?: boolean
+  hasScriptRequirements?: boolean
+}
 
 type RawCommandElement = Record<string, unknown>
 type RawRedirection = Record<string, unknown>
@@ -42,7 +75,96 @@ type RawPipelineElement = Record<string, unknown>
 type RawStatement = Record<string, unknown>
 
 
-export const COMMON_ALIASES: Record<string, string> = unbuilt('src/utils/powershell/parser.ts:75')
+export const COMMON_ALIASES: Record<string, string> = Object.assign(
+  Object.create(null) as Record<string, string>,
+  {
+    ls: 'Get-ChildItem',
+    dir: 'Get-ChildItem',
+    gci: 'Get-ChildItem',
+    cat: 'Get-Content',
+    type: 'Get-Content',
+    gc: 'Get-Content',
+    cd: 'Set-Location',
+    sl: 'Set-Location',
+    chdir: 'Set-Location',
+    pushd: 'Push-Location',
+    popd: 'Pop-Location',
+    pwd: 'Get-Location',
+    gl: 'Get-Location',
+    gi: 'Get-Item',
+    gp: 'Get-ItemProperty',
+    ni: 'New-Item',
+    mkdir: 'New-Item',
+    md: 'New-Item',
+    ri: 'Remove-Item',
+    del: 'Remove-Item',
+    rd: 'Remove-Item',
+    rmdir: 'Remove-Item',
+    rm: 'Remove-Item',
+    erase: 'Remove-Item',
+    mi: 'Move-Item',
+    mv: 'Move-Item',
+    move: 'Move-Item',
+    ci: 'Copy-Item',
+    cp: 'Copy-Item',
+    copy: 'Copy-Item',
+    cpi: 'Copy-Item',
+    si: 'Set-Item',
+    rni: 'Rename-Item',
+    ren: 'Rename-Item',
+    ps: 'Get-Process',
+    gps: 'Get-Process',
+    kill: 'Stop-Process',
+    spps: 'Stop-Process',
+    start: 'Start-Process',
+    saps: 'Start-Process',
+    sajb: 'Start-Job',
+    ipmo: 'Import-Module',
+    echo: 'Write-Output',
+    write: 'Write-Output',
+    sleep: 'Start-Sleep',
+    help: 'Get-Help',
+    man: 'Get-Help',
+    gcm: 'Get-Command',
+    gsv: 'Get-Service',
+    gv: 'Get-Variable',
+    sv: 'Set-Variable',
+    h: 'Get-History',
+    history: 'Get-History',
+    iex: 'Invoke-Expression',
+    iwr: 'Invoke-WebRequest',
+    irm: 'Invoke-RestMethod',
+    icm: 'Invoke-Command',
+    ii: 'Invoke-Item',
+    nsn: 'New-PSSession',
+    etsn: 'Enter-PSSession',
+    exsn: 'Exit-PSSession',
+    gsn: 'Get-PSSession',
+    rsn: 'Remove-PSSession',
+    cls: 'Clear-Host',
+    clear: 'Clear-Host',
+    select: 'Select-Object',
+    where: 'Where-Object',
+    '?': 'Where-Object',
+    foreach: 'ForEach-Object',
+    '%': 'ForEach-Object',
+    measure: 'Measure-Object',
+    ft: 'Format-Table',
+    fl: 'Format-List',
+    fw: 'Format-Wide',
+    oh: 'Out-Host',
+    ogv: 'Out-GridView',
+    ac: 'Add-Content',
+    clc: 'Clear-Content',
+    tee: 'Tee-Object',
+    epcsv: 'Export-Csv',
+    sp: 'Set-ItemProperty',
+    rp: 'Remove-ItemProperty',
+    cli: 'Clear-Item',
+    epal: 'Export-Alias',
+    sls: 'Select-String',
+  },
+)
 
 const PS_TOKENIZER_DASH_CHARS: ReadonlySet<string> = new Set(['-', '–', '—', '―'])
 
@@ -220,7 +342,58 @@ function dedupeRedirections(redirections: ParsedRedirection[]): ParsedRedirectio
 }
 
 function transformStatement(raw: RawStatement): ParsedStatement {
-  return notBuilt('src/utils/powershell/parser.ts:296')
+  const statementType = mapStatementType(typeof raw.type === 'string' ? raw.type : '')
+  const text = (raw.text as string) ?? ''
+  const nestedCommands = asArray<RawCommandElement>(raw.nestedCommands).map(cmd =>
+    transformCommandAst(cmd, (cmd.type as string) ?? 'CommandAst'),
+  )
+  const securityPatterns = raw.securityPatterns as ParsedStatement['securityPatterns']
+
+  if (raw.elements !== undefined && raw.elements !== null) {
+    const commands: ParsedCommandElement[] = []
+    const allRedirections: ParsedRedirection[] = []
+    for (const el of asArray<RawPipelineElement>(raw.elements)) {
+      if (el.type === 'CommandAst') {
+        const cmd = transformCommandAst(el, 'CommandAst')
+        if (cmd.redirections && cmd.redirections.length > 0) {
+          allRedirections.push(...cmd.redirections)
+        }
+        cmd.redirections = []
+        commands.push(cmd)
+      } else {
+        const expr = transformExpressionElement(el)
+        allRedirections.push(...asArray<RawRedirection>(el.redirections).map(transformRedirection))
+        commands.push(expr)
+      }
+    }
+    allRedirections.push(...asArray<RawRedirection>(raw.redirections).map(transformRedirection))
+    return {
+      statementType,
+      text,
+      commands,
+      nestedCommands,
+      redirections: dedupeRedirections(allRedirections),
+      securityPatterns,
+    }
+  }
+
+  return {
+    statementType,
+    text,
+    commands: [
+      {
+        name: text,
+        text,
+        nameType: 'unknown',
+        args: [],
+        redirections: [],
+        elementType: 'CommandExpressionAst',
+      },
+    ],
+    nestedCommands,
+    redirections: asArray<RawRedirection>(raw.redirections).map(transformRedirection),
+    securityPatterns,
+  }
 }
 
 function normaliseResult(raw: Record<string, unknown>): ParsedPowerShellCommand {
@@ -385,19 +558,30 @@ function buildAnalysisProgramBody(): string {
 
 
 export function getAllCommands(parsed: ParsedPowerShellCommand): ParsedCommandElement[] {
-  return notBuilt('src/utils/powershell/parser.ts:507')
+  const out: ParsedCommandElement[] = []
+  for (const statement of parsed.statements) {
+    out.push(...statement.commands, ...statement.nestedCommands)
+  }
+  return out
 }
 
 export function getAllCommandNames(parsed: ParsedPowerShellCommand): string[] {
-  return notBuilt('src/utils/powershell/parser.ts:515')
+  return getAllCommands(parsed).map(cmd => cmd.name.toLowerCase())
 }
 
 function getAllRedirections(parsed: ParsedPowerShellCommand): ParsedRedirection[] {
-  return notBuilt('src/utils/powershell/parser.ts:519')
+  const out: ParsedRedirection[] = []
+  for (const statement of parsed.statements) {
+    out.push(...statement.redirections)
+    for (const nested of statement.nestedCommands) {
+      if (nested.redirections) out.push(...nested.redirections)
+    }
+  }
+  return out
 }
 
 export function isNullRedirectionTarget(target: string): boolean {
-  return notBuilt('src/utils/powershell/parser.ts:528')
+  return NULL_TARGET_RE.test(target.trim())
 }
 
 export function getFileRedirections(parsed: ParsedPowerShellCommand): ParsedRedirection[] {
@@ -405,7 +589,8 @@ export function getFileRedirections(parsed: ParsedPowerShellCommand): ParsedRedi
 }
 
 export function getVariablesByScope(parsed: ParsedPowerShellCommand, scope: string): ParsedVariable[] {
-  return notBuilt('src/utils/powershell/parser.ts:536')
+  const prefix = `${scope.toLowerCase()}:`
+  return parsed.variables.filter(v => v.path.toLowerCase().startsWith(prefix))
 }
 
 export function getPipelineSegments(parsed: ParsedPowerShellCommand): ParsedStatement[] {
@@ -431,5 +616,38 @@ export function deriveSecurityFlags(parsed: ParsedPowerShellCommand): {
   hasSplatting: boolean
   hasStopParsing: boolean
 } {
-  return notBuilt('src/utils/powershell/parser.ts:555')
+  let hasScriptBlocks = false
+  let hasSubExpressions = false
+  let hasExpandableStrings = false
+  let hasMemberInvocations = false
+  let hasAssignments = false
+
+  for (const statement of parsed.statements) {
+    if (statement.statementType === 'AssignmentStatementAst') hasAssignments = true
+    const patterns = statement.securityPatterns
+    if (patterns?.hasScriptBlock) hasScriptBlocks = true
+    if (patterns?.hasSubExpression) hasSubExpressions = true
+    if (patterns?.hasExpandableString) hasExpandableStrings = true
+    if (patterns?.hasMemberAccess) hasMemberInvocations = true
+
+    for (const command of [...statement.commands, ...statement.nestedCommands]) {
+      if (!command.elementTypes) continue
+      for (const kind of command.elementTypes) {
+        if (kind === 'ScriptBlock') hasScriptBlocks = true
+        else if (kind === 'SubExpression') hasSubExpressions = true
+        else if (kind === 'ExpandableString') hasExpandableStrings = true
+        else if (kind === 'MemberInvocation') hasMemberInvocations = true
+      }
+    }
+  }
+
+  return {
+    hasScriptBlocks,
+    hasSubExpressions,
+    hasExpandableStrings,
+    hasMemberInvocations,
+    hasAssignments,
+    hasSplatting: parsed.variables.some(v => v.splatted),
+    hasStopParsing: parsed.hasStopParsing,
+  }
 }
