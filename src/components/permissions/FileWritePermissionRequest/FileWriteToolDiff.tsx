@@ -68,15 +68,15 @@ export function FileWriteToolDiff({
     hiddenLines = bounded.hiddenLines
     const firstLine = content.split('\n')[0] ?? null
     body = intersperse<React.ReactNode>(
-      bounded.hunks.map((hunk, index) => (
+      bounded.hunks.map(hunk => (
         <StructuredDiff
-          key={`${hunk.oldStart}-${hunk.newStart}-${index}`}
+          key={hunk.newStart}
           patch={hunk}
           dim={false}
-          width={previewWidth}
           filePath={file_path}
           firstLine={firstLine}
           fileContent={oldContent}
+          width={previewWidth}
         />
       )),
       index => (
@@ -98,34 +98,34 @@ export function FileWriteToolDiff({
       <HighlightedCode
         code={bounded.lines.join('\n')}
         filePath={file_path}
-        width={previewWidth}
       />
     )
   }
 
   return (
-    <Box
-      flexDirection="column"
-      borderStyle="dashed"
-      borderColor="subtle"
-      borderTop
-      borderBottom
-      borderLeft={false}
-      borderRight={false}
-      paddingX={1}
-    >
-      {body}
-      {hiddenLines > 0 ? (
-        <NoSelect fromLeftEdge>
-          <Text dimColor>
-            … +{hiddenLines} more {hiddenLines === 1 ? 'line' : 'lines'} · ctrl+f expands
-          </Text>
-        </NoSelect>
-      ) : expanded ? (
-        <NoSelect fromLeftEdge>
-          <Text dimColor>ctrl+f collapses the preview</Text>
-        </NoSelect>
-      ) : null}
+    <Box flexDirection="column">
+      <Box
+        borderColor="subtle"
+        borderStyle="dashed"
+        flexDirection="column"
+        borderLeft={false}
+        borderRight={false}
+        paddingX={1}
+      >
+        {body}
+        {hiddenLines > 0 && (
+          <NoSelect fromLeftEdge>
+            <Text dimColor>
+              … +{hiddenLines} more {hiddenLines === 1 ? 'line' : 'lines'} · ctrl+f expands
+            </Text>
+          </NoSelect>
+        )}
+        {expanded && (
+          <NoSelect fromLeftEdge>
+            <Text dimColor>ctrl+f collapses the preview</Text>
+          </NoSelect>
+        )}
+      </Box>
     </Box>
   )
 }
