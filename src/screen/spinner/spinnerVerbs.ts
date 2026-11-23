@@ -231,7 +231,7 @@ const MERCURY_QUICKSILVER: readonly string[] = [
   'Razor-edged',
 ]
 
-export const MERCURY_QUICKSILVER_CODE: readonly string[] = [
+const MERCURY_QUICKSILVER_CODE: readonly string[] = [
   'Shipping heat',
   'Diff on fire',
   'Green across',
@@ -254,7 +254,7 @@ export const MERCURY_QUICKSILVER_CODE: readonly string[] = [
   'Klepping high-grade chrome',
 ]
 
-export const MERCURY_QUICKSILVER_FLOW: readonly string[] = [
+const MERCURY_QUICKSILVER_FLOW: readonly string[] = [
   'Talk less, ship more',
   'Heads down, wheels up',
   'One take, no rehearsal',

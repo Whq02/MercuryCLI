@@ -17,7 +17,7 @@ import { passedOver } from '../../platform/errors/passedOver.js'
 import { hostEnv } from '../../platform/environment/hostEnv.js'
 
 
-export type EditorResult = {
+type EditorResult = {
   content: string | null
   error?: string
 }
