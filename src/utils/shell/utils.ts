@@ -1,7 +1,7 @@
 import { createReadStream, createWriteStream } from 'node:fs'
 import { Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { getMaxOutputLength, OUTPUT_HEAD_SHARE, type OutputBudget } from './outputLimits.js'
 import { filterShellOutput, isShellOutputFilterOn, outputFilterFooter } from './outputFilter.js'
@@ -18,7 +18,6 @@ import type {
   ImageBlockParam,
   ToolResultBlockParam,
 } from '../../types/wire.js'
-import { notBuilt } from '../../pi/holes.js'
 
 
 const TOOL_USE_SUMMARY_LIMIT = 100
@@ -36,16 +35,42 @@ export async function sayWhatTheShellOwes(context: Pick<ToolUseContext, 'appendS
   if (owed.model !== null) throw new Error(owed.model)
 }
 
+const DATA_IMAGE_PREFIX_RE = /^data:image\/[a-z0-9.+_-]+;base64,/i
+const BASE64_DATA_URI_RE = /^data:([^;]+);base64,([^\r\n]+)$/
+const MAX_IMAGE_SPILL_BYTES = 20 * 1024 * 1024
+
 export function stripEmptyLines(content: string): string {
-  return notBuilt('src/utils/shell/utils.ts:38')
+  const lines = content.replace(/\r\n?/g, '\n').split('\n')
+  let start = 0
+  while (start < lines.length && lines[start]!.trim() === '') start++
+  let end = lines.length - 1
+  while (end >= start && lines[end]!.trim() === '') end--
+  if (start > end) return ''
+  return lines.slice(start, end + 1).join('\n')
 }
 
 export function isImageOutput(content: string): boolean {
-  return notBuilt('src/utils/shell/utils.ts:53')
+  return DATA_IMAGE_PREFIX_RE.test(content)
 }
 
 export function buildImageToolResult(stdout: string, toolUseID: string): ToolResultBlockParam | null {
-  return notBuilt('src/utils/shell/utils.ts:63')
+  const match = BASE64_DATA_URI_RE.exec(stdout.trim())
+  if (!match) return null
+  const mediaType = match[1]! as Base64ImageSource['media_type']
+  const data = match[2]!
+  const imageBlock: ImageBlockParam = {
+    type: 'image',
+    source: {
+      type: 'base64',
+      media_type: mediaType,
+      data,
+    },
+  }
+  return {
+    type: 'tool_result',
+    tool_use_id: toolUseID,
+    content: [imageBlock],
+  }
 }
 
 export async function resizeShellImageOutput(
@@ -53,7 +78,22 @@ export async function resizeShellImageOutput(
   outputFilePath: string | undefined,
   outputFileSize: number | undefined,
 ): Promise<string | null> {
-  return notBuilt('src/utils/shell/utils.ts:77')
+  let raw = stdout
+  if (outputFilePath !== undefined) {
+    const size = outputFileSize ?? (await stat(outputFilePath)).size
+    if (size > MAX_IMAGE_SPILL_BYTES) return null
+    raw = await readFile(outputFilePath, 'utf8')
+  }
+  const match = BASE64_DATA_URI_RE.exec(raw.trim())
+  if (!match) return null
+  const mediaType = match[1]!
+  const data = match[2]!
+  const buffer = Buffer.from(data, 'base64')
+  const subtype = mediaSubtype(mediaType)
+  const resized = await maybeResizeAndDownsampleImageBuffer(buffer, buffer.length, subtype, {
+    role: 'tool-result',
+  })
+  return imageDataUrl(mediaSubtype(resized.mediaType), resized.buffer)
 }
 
 const imageDataUrl = (subtype: string, bytes: Buffer): string =>
