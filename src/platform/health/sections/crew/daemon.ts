@@ -1,7 +1,6 @@
 import { binaryName } from '../../../settings/config.js'
 import { formatAge } from '../../healthCertCore.js'
 import { daemonSnapshot } from '../../../../screen/cockpit-gauges/daemonSnapshot.js'
-import type { DaemonSignInViewV1 } from '../../../../daemon/control/protocol.js'
 import type { CheckSpec } from '../../healthReport.js'
 import { passedOver } from '../../../errors/passedOver.js'
 
