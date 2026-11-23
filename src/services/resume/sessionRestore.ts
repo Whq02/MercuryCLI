@@ -12,20 +12,60 @@ import { rearmMissionFromCard } from '../../guards/mission.js'
 import { migrateOrphanedMissionCard } from '../../utils/mission/missionCard.js'
 import { billingSafeRetainedForm, servedModelOfAssistantRow } from '../model/retainedModel.js'
 import type { ContentReplacementRecord } from '../../utils/toolResultStorage.js'
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
 
 
-export type ResumedConversationLog = Unbuilt
+export type ResumedConversationLog = {
+  messages: Message[]
+  sessionId?: string
+  fullPath?: string
+  fileHistorySnapshots?: FileHistorySnapshot[]
+  contentReplacements?: ContentReplacementRecord[]
+  agentName?: string
+  agentColor?: string
+  agentSetting?: string
+  customTitle?: string
+  tag?: string
+  mode?: 'coordinator' | 'normal'
+  advisor?: boolean
+  swarm?: boolean
+  model?: string
+  worktreeSession?: PersistedWorktreeSession | null
+  prNumber?: number
+  prUrl?: string
+  prRepository?: string
+}
 
 export function lastAssistantTimestamp(messages: ReadonlyArray<{ type: string; timestamp?: string }>): number | null {
-  return notBuilt('src/services/resume/sessionRestore.ts:40')
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const message = messages[index]
+    if (message && message.type === 'assistant' && typeof message.timestamp === 'string') {
+      const parsed = Date.parse(message.timestamp)
+      return Number.isNaN(parsed) ? null : parsed
+    }
+  }
+  return null
 }
 
 export async function restoreSessionStateFromLog(
   result: ResumedConversationLog,
   setAppState: (updater: (prev: AppState) => AppState) => void,
 ): Promise<void> {
-  return notBuilt('src/services/resume/sessionRestore.ts:50')
+  if (result.fileHistorySnapshots && result.fileHistorySnapshots.length > 0) {
+    fileHistoryRestoreStateFromLog(result.fileHistorySnapshots, fileHistory => {
+      setAppState(prev => ({ ...prev, fileHistory }))
+    })
+  }
+  if (getLastApiCompletionTimestamp() === null) {
+    const lastTimestamp = lastAssistantTimestamp(result.messages)
+    if (lastTimestamp !== null) {
+      setLastApiCompletionTimestamp(lastTimestamp)
+    }
+  }
+  const adopted = adoptedSessionIdOf(result)
+  if (adopted === getSessionId()) {
+    await restoreCostStateForSession(adopted, result.fullPath)
+  }
+  restoreMissionContinuity(result)
 }
 
 export function restoreMissionContinuity(
@@ -42,7 +82,12 @@ export function restoreMissionContinuity(
 }
 
 function adoptedSessionIdOf(result: Pick<ResumedConversationLog, 'messages' | 'sessionId'>): string {
-  return notBuilt('src/services/resume/sessionRestore.ts:85')
+  if (result.sessionId) return result.sessionId
+  for (const message of result.messages) {
+    const sessionId = (message as { sessionId?: unknown }).sessionId
+    if (typeof sessionId === 'string' && sessionId) return sessionId
+  }
+  return getSessionId()
 }
 
 export function restoreAgentFromSession(
@@ -50,7 +95,24 @@ export function restoreAgentFromSession(
   currentAgentDefinition: AgentDefinition | undefined,
   agentDefinitions: AgentDefinitionsResult,
 ): { agentDefinition: AgentDefinition | undefined; agentType: string | undefined } {
-  return notBuilt('src/services/resume/sessionRestore.ts:92')
+  if (currentAgentDefinition) {
+    return { agentDefinition: currentAgentDefinition, agentType: undefined }
+  }
+  if (!agentSetting) {
+    setMainThreadAgentType(undefined)
+    return { agentDefinition: undefined, agentType: undefined }
+  }
+  const matched = agentDefinitions.activeAgents.find(agent => agent.agentType === agentSetting)
+  if (!matched) {
+    setMainThreadAgentType(undefined)
+    logForDebugging(`resume: agent '${agentSetting}' not found in active agents`)
+    return { agentDefinition: undefined, agentType: undefined }
+  }
+  setMainThreadAgentType(matched.agentType)
+  if (matched.model && matched.model !== 'inherit' && getEngineModelOverride() === undefined) {
+    setEngineModelOverride(matched.model)
+  }
+  return { agentDefinition: matched, agentType: matched.agentType }
 }
 
 export function restoreConversationModelFromMessages(messages?: Message[]): string | null {
