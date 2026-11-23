@@ -38,6 +38,7 @@ type Props = {
   onUpdateQuestionState: (
     questionText: string,
     updates: Partial<QuestionState>,
+    isMultiSelect?: boolean,
   ) => void
   onAnswer: (
     questionText: string,
@@ -106,6 +107,7 @@ export function QuestionView(props: Props): React.ReactNode {
     onAnswer,
     onTextInputFocus,
     onCancel,
+    onSubmit,
     onTabNext,
     onTabPrev,
     onRespondToModel,
@@ -275,7 +277,7 @@ export function QuestionView(props: Props): React.ReactNode {
                 options={optionItems}
                 defaultValue={multiSelected}
                 isDisabled={isFooterFocused}
-                scrollMovesFocus={!cockpitActive}
+                scrollMovesFocus={false}
                 submitButtonText={isLastQuestion ? 'Submit' : 'Next'}
                 onFocus={(value: string) => {
                   const onOther = value === OTHER_OPTION_VALUE
@@ -292,19 +294,16 @@ export function QuestionView(props: Props): React.ReactNode {
                     onTextInputFocus(false)
                   }
                 }}
-                onChange={(values: string[]) =>
-                  onUpdateQuestionState(question.question, { selectedValue: values })
-                }
-                onSubmit={(values: string[]) => {
-                  setEmptyOtherHint(false)
-                  onUpdateQuestionState(question.question, { selectedValue: values })
+                onChange={(values: string[]) => {
+                  onUpdateQuestionState(question.question, { selectedValue: values }, true)
                   onAnswer(
                     question.question,
                     values,
                     values.includes(OTHER_OPTION_VALUE) ? textInputRef.current : undefined,
-                    true,
+                    false,
                   )
                 }}
+                onSubmit={onSubmit}
                 onEmptyInputSubmit={() => setEmptyOtherHint(true)}
                 onCancel={onCancel}
                 onDownFromLastItem={() => {
@@ -328,7 +327,7 @@ export function QuestionView(props: Props): React.ReactNode {
                 defaultFocusValue={singleSelected}
                 layout="compact-vertical"
                 isDisabled={isFooterFocused}
-                scrollMovesFocus={!cockpitActive}
+                scrollMovesFocus={false}
                 onFocus={value => {
                   const onOther = value === OTHER_OPTION_VALUE
                   setIsFocusedOnOther(onOther)
@@ -336,17 +335,12 @@ export function QuestionView(props: Props): React.ReactNode {
                   onTextInputFocus(onOther)
                 }}
                 onChange={value => {
-                  setEmptyOtherHint(false)
-                  if (value === OTHER_OPTION_VALUE) {
-                    onUpdateQuestionState(question.question, {
-                      selectedValue: OTHER_OPTION_VALUE,
-                      textInputValue: textInputRef.current,
-                    })
-                    onAnswer(question.question, OTHER_OPTION_VALUE, textInputRef.current, true)
-                  } else {
-                    onUpdateQuestionState(question.question, { selectedValue: value })
-                    onAnswer(question.question, value, undefined, true)
-                  }
+                  onUpdateQuestionState(question.question, { selectedValue: value }, false)
+                  onAnswer(
+                    question.question,
+                    value,
+                    value === OTHER_OPTION_VALUE ? textInputRef.current : undefined,
+                  )
                 }}
                 onEmptyInputSubmit={() => setEmptyOtherHint(true)}
                 onCancel={onCancel}
