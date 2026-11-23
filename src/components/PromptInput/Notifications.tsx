@@ -37,7 +37,6 @@ import { getFocusedSessionConnector, subscribeThroughFocused } from '../../servi
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { hostEnv } from '../../utils/hostEnv.js'
 import { startInterval, stopInterval } from '../../utils/timers.js'
-import { notBuilt } from '../../pi/holes.js'
 
 export const FOOTER_TEMPORARY_STATUS_TIMEOUT = 5000
 
@@ -118,7 +117,9 @@ function FaultInjector(): React.ReactNode {
   return null
 }
 
-export function Notifications(props: {
+const EXTRA_USAGE_TEXT = 'Anthropic says this account is on extra usage'
+
+type NotificationsProps = {
   apiKeyStatus: VerificationStatus
   debug: boolean
   verbose: boolean
@@ -127,6 +128,163 @@ export function Notifications(props: {
   isInputWrapped?: boolean
   alignStart?: boolean
   compact?: boolean
-}): React.ReactNode {
-  return notBuilt('src/components/PromptInput/Notifications.tsx:262')
+}
+
+function NotificationsColumn({
+  apiKeyStatus,
+  debug,
+  verbose,
+  messages,
+  isInputWrapped = false,
+  alignStart = false,
+  compact = false,
+}: NotificationsProps): React.ReactNode {
+  const tokens = useMercuryTokens()
+  const focusedModel = useSyncExternalStore(
+    subscribeFocusedModel,
+    getFocusedModel,
+    getFocusedModel,
+  )
+  const model = focusedModel !== '' ? focusedModel : getEngineModel()
+  const limits = useAnthropicLimits()
+  const currentNotification = useAppState(
+    (s: AppState) => s.notifications.current,
+  )
+  const { addNotification, removeNotification } = useNotifications()
+
+  const hasKeyHelper = getConfiguredApiKeyHelper() !== undefined
+  const [helperElapsedMs, setHelperElapsedMs] = useState<number>(() =>
+    hasKeyHelper ? getApiKeyHelperElapsedMs() : 0,
+  )
+  useTimer(() => {
+    if (!hasKeyHelper) {
+      setHelperElapsedMs(0)
+      return
+    }
+    setHelperElapsedMs(getApiKeyHelperElapsedMs())
+    const timer = startInterval(() => {
+      setHelperElapsedMs(getApiKeyHelperElapsedMs())
+    }, 1000)
+    return () => {
+      stopInterval(timer)
+    }
+  }, [hasKeyHelper])
+  const showSlowHelper =
+    hasKeyHelper && helperElapsedMs >= SLOW_HELPER_THRESHOLD_MS
+
+  const subscriptionType = getSubscriptionType()
+  const showExtraUsage =
+    limits.isUsingOverage &&
+    subscriptionType !== 'team' &&
+    subscriptionType !== 'enterprise' &&
+    currentNotification?.key !== 'limit-reached'
+
+  const signInEpoch = useSignInEpoch()
+  const catalogueEpoch = useCatalogueEpoch()
+  const accountGate = useMemo<NotLoggedInGate>(() => {
+    if (apiKeyStatus !== 'invalid' && apiKeyStatus !== 'missing') {
+      return { state: 'ok' }
+    }
+    try {
+      return notLoggedInGateDecision(
+        walletEntries(),
+        sessionAccountFamily(model),
+      )
+    } catch {
+      return { state: 'not-logged-in' }
+    }
+  }, [apiKeyStatus, model, signInEpoch, catalogueEpoch])
+  const accountBlocked = accountGate.state !== 'ok'
+
+  const fill = useFocusedContextFill(messages, model)
+  const tokenUsage = fill.usedTokens ?? 0
+  const tokenWarning = calculateTokenWarningState(tokenUsage, model)
+
+  const editorChord = useShortcutDisplay(
+    'chat:externalEditor',
+    'Chat',
+    'ctrl+x ctrl+e',
+  )
+  const rawEditor = hostEnv('VISUAL') || hostEnv('EDITOR') || ''
+  const trimmedEditor = rawEditor.trim()
+  const editorBin = trimmedEditor.split(/\s+/)[0] ?? ''
+  const editorName = editorBin !== '' ? basename(editorBin) || 'editor' : 'editor'
+  const shouldShowEditorHint =
+    isInputWrapped &&
+    tokenWarning.level === 'ok' &&
+    !accountBlocked &&
+    trimmedEditor !== ''
+
+  const noticeOpsRef = useRef({ addNotification, removeNotification })
+  noticeOpsRef.current = { addNotification, removeNotification }
+
+  useClaim(() => {
+    if (shouldShowEditorHint) {
+      noticeOpsRef.current.addNotification({
+        key: 'external-editor-hint',
+        text: `${editorChord} edits in ${editorName}`,
+        priority: 'immediate',
+        timeoutMs: FOOTER_TEMPORARY_STATUS_TIMEOUT,
+      })
+    } else {
+      noticeOpsRef.current.removeNotification('external-editor-hint')
+    }
+    return () => {
+      noticeOpsRef.current.removeNotification('external-editor-hint')
+    }
+  }, [shouldShowEditorHint, editorChord, editorName])
+
+  return (
+    <Box
+      flexDirection="column"
+      flexShrink={0}
+      alignItems={alignStart ? 'flex-start' : 'flex-end'}
+      overflow="hidden"
+    >
+      <FaultInjector />
+      {showExtraUsage ? (
+        <Text dimColor wrap="truncate-end">
+          {EXTRA_USAGE_TEXT}
+        </Text>
+      ) : null}
+      {showSlowHelper ? (
+        <Text color={tokens.warning} wrap="truncate-end">
+          {'waiting on credentials.keyCommand '}
+          <Text dimColor>
+            ({formatDuration(helperElapsedMs, { mostSignificantOnly: true })})
+          </Text>
+        </Text>
+      ) : null}
+      {accountGate.state === 'not-logged-in' ? (
+        <Text color={tokens.failureText} wrap="truncate-end">
+          Not logged in · Run {LOGIN_COMMAND}
+        </Text>
+      ) : accountGate.state === 'provider-missing' ? (
+        accountGate.steering.split(' · ').map((segment, index) => (
+          <Text key={index} color={tokens.warning} wrap="truncate-end">
+            {segment}
+          </Text>
+        ))
+      ) : null}
+      {debug ? (
+        <Text color={tokens.warning} wrap="truncate-end">
+          debug mode
+        </Text>
+      ) : null}
+      {verbose && !accountBlocked && !compact ? (
+        <Text dimColor wrap="truncate-end">
+          {formatNumber(tokenUsage)} tokens
+        </Text>
+      ) : null}
+      <TokenWarning tokenUsage={tokenUsage} model={model} />
+    </Box>
+  )
+}
+
+export function Notifications(props: NotificationsProps): React.ReactNode {
+  return (
+    <RowErrorBoundary>
+      <NotificationsColumn {...props} />
+    </RowErrorBoundary>
+  )
 }
