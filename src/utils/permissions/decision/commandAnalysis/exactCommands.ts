@@ -53,7 +53,7 @@ function sequenceItems(commands: readonly SimpleCommand[]): string[] | null {
   if (numbers.length === 0 || numbers.length > 3 || !numbers.every(text => SEQ_ARGUMENT_RE.test(text))) return null
   const values = numbers.map(Number)
   const [first, increment, last] = values.length === 1 ? [1, 1, values[0]!] : values.length === 2 ? [values[0]!, 1, values[1]!] : [values[0]!, values[1]!, values[2]!]
-  if (increment === 0 || (increment > 0 ? first > last : first < last)) return null
+  if (increment === 0) return null
   const items: string[] = []
   for (let value = first; increment > 0 ? value <= last : value >= last; value += increment) {
     if (items.length >= FOR_LITERAL_ITEMS_CAP) return null
@@ -64,7 +64,7 @@ function sequenceItems(commands: readonly SimpleCommand[]): string[] | null {
 
 function commandMayWriteVariables(node: Node): boolean {
   const nameNode = childOfKind(node, 'command_name')
-  const inner = nameNode?.children.length === 1 ? nameNode.children[0] : undefined
+  const inner = nameNode?.children.length === 1 ? (nameNode.children[0] as Node) : undefined
   if (inner === undefined || inner.type !== 'word' || inner.children.length > 0) return true
   return VARIABLE_WRITERS.has(inner.text) || inner.text === 'time' || EVALUATING_BUILTINS.has(inner.text)
 }
@@ -79,7 +79,7 @@ function writtenVariables(argv: string[]): string[] {
   if (name === 'read' || name === 'wait') {
     let i = 0
     while (i < operands.length) {
-      const operand = operands[i]
+      const operand = operands[i] as string
       if (operand === '--' || !operand.startsWith('-') || operand === '-') {
         if (name === 'read') written.push(...operands.slice(i + (operand === '--' ? 1 : 0)))
         break
@@ -97,8 +97,8 @@ function writtenVariables(argv: string[]): string[] {
   }
   if (name === 'printf') {
     for (let i = 0; i < operands.length; i++) {
-      const operand = operands[i]
-      if (operand === '-v' && operands[i + 1] !== undefined) written.push(operands[++i])
+      const operand = operands[i] as string
+      if (operand === '-v' && operands[i + 1] !== undefined) written.push(operands[++i] as string)
       else if (operand.startsWith('-v') && operand.length > 2) written.push(operand.slice(2))
       else break
     }
@@ -326,7 +326,7 @@ abstract class CommandWalk extends WordWalk {
     const before = this.commands.length
     this.node(inner, scope)
     if (this.commands.length > before && redirects.length > 0) {
-      const last = this.commands[this.commands.length - 1]
+      const last = this.commands[this.commands.length - 1] as SimpleCommand
       last.redirects.push(...redirects)
     }
   }
@@ -379,7 +379,7 @@ abstract class FlowWalk extends CommandWalk {
         const emitted = this.commands.slice(before)
         if (items === null) continue
         const expanded = sequenceItems(emitted)
-        if (expanded === null) {
+        if (expanded === null || expanded.length === 0) {
           items = null
           continue
         }
@@ -615,16 +615,16 @@ export class Walk extends FlowWalk {
     for (let index = 0; index < items.length; index++) {
       let current: Scope
       if (index === 0) current = new Map(scope)
-      else if (index === 1 || operators[index - 2] === operators[index - 1]) current = new Map(after[index - 1])
+      else if (index === 1 || operators[index - 2] === operators[index - 1]) current = new Map(after[index - 1] as Scope)
       else {
-        current = new Map(after[0])
-        for (let earlier = 1; earlier < index; earlier++) this.invalidateAssignments(items[earlier], current)
+        current = new Map(after[0] as Scope)
+        for (let earlier = 1; earlier < index; earlier++) this.invalidateAssignments(items[earlier] as Node, current)
       }
-      this.node(items[index], current)
+      this.node(items[index] as Node, current)
       after.push(current)
     }
-    const settled = new Map(after[0])
-    for (let index = 1; index < items.length; index++) this.invalidateAssignments(items[index], settled)
+    const settled = new Map(after[0] as Scope)
+    for (let index = 1; index < items.length; index++) this.invalidateAssignments(items[index] as Node, settled)
     scope.clear()
     for (const [name, value] of settled) scope.set(name, value)
   }

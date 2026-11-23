@@ -1,4 +1,5 @@
-import { existsSync, realpathSync, statSync } from 'node:fs'
+import { existsSync, statSync } from 'node:fs'
+import { realpathSync } from 'node:fs'
 import { getPlatform } from '../platform.js'
 import { which } from '../which.js'
 import { passedOver } from '../passedOver.js'
@@ -10,8 +11,7 @@ const LINUX_NON_SNAP_CANDIDATES = ['/opt/microsoft/powershell/7/pwsh', '/usr/bin
 function resolveSymlink(path: string): string {
   try {
     return realpathSync(path)
-  } catch (error) {
-    passedOver(error)
+  } catch {
     return path
   }
 }

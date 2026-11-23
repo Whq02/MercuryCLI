@@ -81,7 +81,7 @@ const SLACK_PAYLOAD_MAX_CHARS = 2_000
 function candidateText(output: MCPToolResult): string | undefined {
   if (typeof output === 'string') return output
   if (!Array.isArray(output)) return undefined
-  const firstText = output.find(block => block.type === 'text')
+  const firstText = output.find(block => block.type === 'text') as { text?: unknown } | undefined
   return typeof firstText?.text === 'string' ? firstText.text : undefined
 }
 
@@ -91,19 +91,20 @@ function tryCraftStatusCompact(output: MCPToolResult): string | null {
   if (raw === undefined) return null
   let value: unknown
   try { value = JSON.parse(raw) } catch (error) { passedOver(error); return null }
-  if (!isRecord(value)) return null
-  if (!['FilmCraft', 'PhotoCraft', 'LightCraft'].includes(String(value.app)) ||
-      typeof value.version !== 'string' || typeof value.destination !== 'string' ||
-      typeof value.bytes !== 'number' || !Number.isFinite(value.bytes) ||
-      Object.keys(value).some(key => !['app', 'version', 'state', 'destination', 'bytes', 'attached', 'reason'].includes(key))) return null
-  const name = `${value.app} ${value.version}`
-  if (value.state === 'invalid') return typeof value.reason === 'string' ? `${name} — installation invalid. ${value.reason}` : null
-  if (value.reason !== undefined) return null
-  if (value.state === 'absent' && value.attached === undefined) return `${name} is not installed. Use craft_install.`
-  if (value.state !== 'installed') return null
-  if (value.attached === undefined) return `${name} is installed. Use craft_connect to attach or launch.`
-  if (!isRecord(value.attached)) return null
-  const attached = value.attached
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return null
+  const status = value as Record<string, unknown>
+  if (!['FilmCraft', 'PhotoCraft', 'LightCraft'].includes(String(status.app)) ||
+      typeof status.version !== 'string' || typeof status.destination !== 'string' ||
+      typeof status.bytes !== 'number' || !Number.isFinite(status.bytes) ||
+      Object.keys(status).some(key => !['app', 'version', 'state', 'destination', 'bytes', 'attached', 'reason'].includes(key))) return null
+  const name = `${status.app} ${status.version}`
+  if (status.state === 'invalid') return typeof status.reason === 'string' ? `${name} — installation invalid. ${status.reason}` : null
+  if (status.reason !== undefined) return null
+  if (status.state === 'absent' && status.attached === undefined) return `${name} is not installed. Use craft_install.`
+  if (status.state !== 'installed') return null
+  if (status.attached === undefined) return `${name} is installed. Use craft_connect to attach or launch.`
+  if (status.attached === null || typeof status.attached !== 'object' || Array.isArray(status.attached)) return null
+  const attached = status.attached as Record<string, unknown>
   if (typeof attached.project !== 'string') return null
   return `${name} — ${attached.headless === true ? 'headless session' : 'attached'}: ${attached.project}`
 }

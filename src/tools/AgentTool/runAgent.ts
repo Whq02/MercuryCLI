@@ -6,6 +6,7 @@ import {
 } from '../../constants/prompts.js'
 import type { QueryParams } from '../../run-core/turn-machine.js'
 import { productionDeps } from '../../query/deps.js'
+import type { LegacyQueryYield } from '../../run-core/project-legacy.js'
 import { randomUUID, type UUID } from 'node:crypto'
 import { connectToServer, fetchToolsForClient } from '../../services/mcp/client.js'
 import {
@@ -22,8 +23,8 @@ import { disposeOwnerProcesses } from '../../utils/run/ownerLifecycle.js'
 import { processOwnerForLane } from '../../utils/run/resolveOwner.js'
 import { beginAgentProjectLeases } from '../../services/vulcan/engine/leases.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
-import { asAgentId, type AgentId } from '../../types/ids.js'
-import { isRecord } from '../../utils/isRecord.js'
+import type { AgentId } from '../../types/ids.js'
+import { asAgentId } from '../../types/ids.js'
 import type { Tool, Tools, ToolUseContext } from '../../Tool.js'
 import { McpServerConfigSchema, type MCPServerConnection } from '../../utils/mcp/types.js'
 import { generateTaskId } from '../../Task.js'
@@ -271,7 +272,9 @@ export async function connectAgentMcpServers(
       connected.push(client)
       dynamicCleanups.push(async () => {
         try {
-          if (client.type === 'connected') await client.cleanup()
+          const closable = client as { cleanup?: () => Promise<void>; close?: () => Promise<void> }
+          if (typeof closable.cleanup === 'function') await closable.cleanup()
+          else if (typeof closable.close === 'function') await closable.close()
         } catch (error) {
           logForDebugging(
             `runAgent: MCP cleanup error for ${name}: ${errorMessage(error)}`,
@@ -405,12 +408,13 @@ export function makeRecoveryAccountant(args: {
 
 const DECLARED_RECOVERY_CAP_MS = 10 * 60_000
 export function declaredRecoveryWaitMs(message: unknown): number {
-  if (!isRecord(message) || message.type !== 'system' || message.subtype !== 'api_error') return 0
+  const m = message as { type?: string; subtype?: string; retryInMs?: unknown; recoveryTimeoutMs?: unknown } | null
+  if (!m || m.type !== 'system' || m.subtype !== 'api_error') return 0
   const declared =
-    typeof message.retryInMs === 'number' && message.retryInMs > 0
-      ? message.retryInMs
-      : typeof message.recoveryTimeoutMs === 'number' && message.recoveryTimeoutMs > 0
-        ? message.recoveryTimeoutMs
+    typeof m.retryInMs === 'number' && m.retryInMs > 0
+      ? m.retryInMs
+      : typeof m.recoveryTimeoutMs === 'number' && m.recoveryTimeoutMs > 0
+        ? m.recoveryTimeoutMs
         : 0
   return Math.min(declared, DECLARED_RECOVERY_CAP_MS)
 }
@@ -460,21 +464,15 @@ export async function landAgentTranscriptRows(
   return writtenChainTail(messages, parentUuid)
 }
 
-function recordableRow(anyMessage: Message): boolean {
-  if (anyMessage.type === 'assistant' || anyMessage.type === 'user' || anyMessage.type === 'progress') {
-    return true
-  }
-  if (anyMessage.type === 'system') {
-    const subtype = anyMessage.subtype
-    return (
-      subtype === 'compact_boundary' ||
-      subtype === 'informational' ||
-      subtype === 'api_error' ||
-      subtype === 'stream_cut' ||
-      subtype === 'busy_recovery'
-    )
-  }
-  return false
+function recordableRow(anyMessage: Message & { subtype?: string; attachment?: { type?: string } }): boolean {
+  const subtype = (anyMessage as { subtype?: string }).subtype
+  const recordable =
+    anyMessage.type === 'assistant' ||
+    anyMessage.type === 'user' ||
+    anyMessage.type === 'progress' ||
+    (anyMessage.type === 'system' &&
+      (subtype === 'compact_boundary' || subtype === 'informational' || subtype === 'api_error' || subtype === 'stream_cut' || subtype === 'busy_recovery'))
+  return recordable
 }
 
 async function preloadSkills(

@@ -1,9 +1,9 @@
 import type { AssistantMessage, Message } from '../types/message.js'
 
-export function tagMessagesWithToolUseID(
-  messages: Message[],
+export function tagMessagesWithToolUseID<M extends Message>(
+  messages: M[],
   toolUseID?: string,
-): Message[] {
+): M[] {
   if (!toolUseID) return messages
   return messages.map(message =>
     message.type === 'user' ? { ...message, sourceToolUseID: toolUseID } : message,

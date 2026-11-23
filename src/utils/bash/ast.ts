@@ -72,7 +72,7 @@ const JQ_LONG_FILE_FLAG_RE = /^--(?:from-file|rawfile|slurpfile|library-path)(?:
 
 function readClusterTakesNext(cluster: string): boolean {
   for (let i = 1; i < cluster.length; i++) {
-    if (READ_DATA_FLAGS.has(cluster[i]!)) return i === cluster.length - 1
+    if (READ_DATA_FLAGS.has(cluster[i] as string)) return i === cluster.length - 1
   }
   return false
 }
@@ -93,7 +93,7 @@ const subscriptOperands: SemanticCheck = (name, argv) => {
   const flags = SUBSCRIPT_FLAGS.get(name)
   if (!flags) return null
   for (let i = 1; i < argv.length; i++) {
-    const arg = argv[i]!
+    const arg = argv[i] as string
     if (!arg.startsWith('-') || arg.startsWith('--')) continue
     for (const flag of flags) {
       const letter = flag[1]!
@@ -118,8 +118,8 @@ const subscriptOperands: SemanticCheck = (name, argv) => {
 const arithmeticComparison: SemanticCheck = (name, argv) => {
   if (name !== '[[') return null
   for (let i = 2; i < argv.length; i++) {
-    if (!ARITHMETIC_COMPARISONS.has(argv[i]!)) continue
-    const left = argv[i - 1]!
+    if (!ARITHMETIC_COMPARISONS.has(argv[i] as string)) continue
+    const left = argv[i - 1] as string
     const right = argv[i + 1]
     if (left.includes('[') || (right !== undefined && right.includes('['))) {
       return 'arithmetic comparison inside [[ ]] evaluates bracketed subscripts, which can execute code'

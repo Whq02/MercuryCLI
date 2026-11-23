@@ -21,7 +21,23 @@ export const CD_GIT_BARE_REPO_REASON =
 
 type SegmentPermissionFn<I> = (input: I) => Promise<PermissionResult>
 
-function askCompound(message: string): PermissionResult {
+type CompoundReason = { kind: 'unparseable' } | { kind: 'comment' } | { kind: 'operator'; operator: string; target?: string }
+
+function compoundMessage(reason: CompoundReason): string {
+  switch (reason.kind) {
+    case 'unparseable':
+      return 'This command could not be split into simple commands, so it needs approval.'
+    case 'comment':
+      return 'This command contains a shell comment, so it needs approval.'
+    case 'operator':
+      return reason.target
+        ? `This command uses the shell operator \`${reason.operator}\` with ${reason.target}, which needs approval.`
+        : `This command uses the shell operator \`${reason.operator}\`, which needs approval.`
+  }
+}
+
+function askCompound(reason: CompoundReason): PermissionResult {
+  const message = compoundMessage(reason)
   return { behavior: 'ask', message, decisionReason: { type: 'other', reason: message } }
 }
 
@@ -41,10 +57,10 @@ export async function checkCommandOperatorPermissions<I extends { command: strin
 
   const analysis = parsed.getTreeSitterAnalysis()
   if (!analysis) {
-    return askCompound('This command could not be split into simple commands, so it needs approval.')
+    return askCompound({ kind: 'unparseable' })
   }
   if (analysis.compoundStructure.hasCommandGroup && preparedSecurityParse(input.command).kind !== 'simple') {
-    return askCompound('This command uses the shell operator `{`, which needs approval.')
+    return askCompound({ kind: 'operator', operator: '{' })
   }
 
   const rawSegments = parsed.getPipeSegments()

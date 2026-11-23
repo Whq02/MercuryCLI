@@ -101,7 +101,7 @@ const imageDataUrl = (subtype: string, bytes: Buffer): string =>
 
 function mediaSubtype(mediaType: string): string {
   const parts = mediaType.split('/')
-  return parts.length > 1 ? parts[1]! : 'png'
+  return parts.length > 1 ? (parts[1] as string) : 'png'
 }
 
 

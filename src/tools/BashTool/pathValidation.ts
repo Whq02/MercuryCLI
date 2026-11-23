@@ -142,7 +142,7 @@ const ENV_METADATA_COMMANDS: ReadonlySet<PathCommand> = new Set(['cd', 'ls', 'fi
 function walkOptions(args: readonly string[], grammar: OptionGrammar, onFlag: (name: string, values: string[]) => void, onOperand: (value: string) => void): void {
   let optionsEnded = false
   for (let i = 0; i < args.length; i++) {
-    const arg = args[i]!
+    const arg = args[i] as string
     if (!optionsEnded && arg === '--') {
       optionsEnded = true
       continue
@@ -161,21 +161,21 @@ function walkOptions(args: readonly string[], grammar: OptionGrammar, onFlag: (n
         i += values.length
         onFlag(name, values)
       } else if (grammar.longs.has(name) && args[i + 1] !== undefined) {
-        onFlag(name, [args[++i]!])
+        onFlag(name, [args[++i] as string])
       } else {
         onFlag(name, [])
       }
       continue
     }
     for (let k = 1; k < arg.length; k++) {
-      const letter = arg[k]!
+      const letter = arg[k] as string
       if (!grammar.letters.includes(letter)) {
         onFlag(`-${letter}`, [])
         continue
       }
       const attached = arg.slice(k + 1)
       if (attached.length > 0) onFlag(`-${letter}`, [attached])
-      else if (args[i + 1] !== undefined) onFlag(`-${letter}`, [args[++i]!])
+      else if (args[i + 1] !== undefined) onFlag(`-${letter}`, [args[++i] as string])
       else onFlag(`-${letter}`, [])
       break
     }
@@ -218,7 +218,7 @@ function extractFdOperands(args: string[]): string[] {
 function extractTestOperands(args: string[]): string[] {
   const operands: string[] = []
   for (let i = 0; i < args.length; i++) {
-    const arg = args[i]!
+    const arg = args[i] as string
     if (TEST_FILE_UNARIES.test(arg)) {
       const next = args[i + 1]
       if (next !== undefined) {
@@ -297,7 +297,7 @@ function extractAwkOperands(args: string[]): string[] {
   let programGiven = false
   let i = 0
   for (; i < args.length; i++) {
-    const arg = args[i]!
+    const arg = args[i] as string
     if (arg === '--') {
       i++
       break
@@ -306,7 +306,7 @@ function extractAwkOperands(args: string[]): string[] {
     const fused = arg.match(/^-([fEilvF])(.+)$/)
     const long = arg.match(/^--(file|exec|include|load|assign|field-separator|source)=(.*)$/s)
     const option = fused ? `-${fused[1]}` : long ? `--${long[1]}` : arg
-    const value = fused ? fused[2]! : long ? long[2]! : undefined
+    const value = fused ? (fused[2] as string) : long ? (long[2] as string) : undefined
     if (AWK_PROGRAM_OPTIONS.has(option)) programGiven = true
     if (AWK_READ_OPTIONS.has(option)) {
       const read = value ?? args[i + 1]
@@ -322,7 +322,7 @@ function extractAwkOperands(args: string[]): string[] {
   }
   if (!programGiven && i < args.length) i++
   for (; i < args.length; i++) {
-    const arg = args[i]!
+    const arg = args[i] as string
     if (arg === '-') continue
     if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(arg)) continue
     operands.push(arg)
@@ -334,7 +334,7 @@ function extractFindOperands(args: string[]): string[] {
   const operands: string[] = []
   let i = 0
   while (i < args.length) {
-    const arg = args[i]!
+    const arg = args[i] as string
     if (arg === '--') break
     if (arg.startsWith('-')) {
       if (!FIND_GLOBAL_OPTIONS.has(arg)) break
@@ -347,7 +347,7 @@ function extractFindOperands(args: string[]): string[] {
   for (; i < args.length; i++) {
     const arg = args[i]!
     if (arg === '--') {
-      for (i++; i < args.length; i++) operands.push(args[i]!)
+      for (i++; i < args.length; i++) operands.push(args[i] as string)
       break
     }
     if (FIND_PATH_PREDICATES.has(arg) || /^-newer[acmtB][acmtB]$/.test(arg)) {
@@ -507,7 +507,7 @@ const DURATION = /^\d+(?:\.\d+)?[smhd]?$/
 
 function stripWrappersFromArgv(argv: string[]): string[] {
   let current = argv
-  while (current.length > 0 && ARGV_WRAPPERS.has(current[0]!)) {
+  while (current.length > 0 && ARGV_WRAPPERS.has(current[0] as string)) {
     const stripped = stripOneWrapper(current)
     if (stripped === null) break
     current = stripped
@@ -516,7 +516,7 @@ function stripWrappersFromArgv(argv: string[]): string[] {
 }
 
 function stripOneWrapper(argv: string[]): string[] | null {
-  const wrapper = argv[0]!
+  const wrapper = argv[0] as string
   let rest = argv.slice(1)
   if (wrapper === 'time' || wrapper === 'nohup') {
     if (rest[0] === '--') rest = rest.slice(1)
@@ -532,7 +532,7 @@ function stripOneWrapper(argv: string[]): string[] | null {
 function stripTimeout(rest: string[]): string[] | null {
   let i = 0
   while (i < rest.length) {
-    const token = rest[i]!
+    const token = rest[i] as string
     if (token === '--') {
       i++
       break
@@ -543,7 +543,7 @@ function stripTimeout(rest: string[]): string[] | null {
     }
     const valuedLong = token.match(/^(--kill-after|--signal)=(.*)$/)
     if (valuedLong) {
-      if (!TIMEOUT_VALUE.test(valuedLong[2]!)) return null
+      if (!TIMEOUT_VALUE.test(valuedLong[2] as string)) return null
       i++
       continue
     }
@@ -555,7 +555,7 @@ function stripTimeout(rest: string[]): string[] | null {
     }
     const fusedShort = token.match(/^-([ks])(.+)$/)
     if (fusedShort) {
-      if (!TIMEOUT_VALUE.test(fusedShort[2]!)) return null
+      if (!TIMEOUT_VALUE.test(fusedShort[2] as string)) return null
       i++
       continue
     }
@@ -575,10 +575,10 @@ function stripTimeout(rest: string[]): string[] | null {
 
 function stripNice(rest: string[]): string[] | null {
   const consumeMarker = (args: string[]): string[] => (args[0] === '--' ? args.slice(1) : args)
-  if (rest[0] === '-n' && rest[1] !== undefined && /^-?\d+$/.test(rest[1])) {
+  if (rest[0] === '-n' && rest[1] !== undefined && /^-?\d+$/.test(rest[1] as string)) {
     return consumeMarker(rest.slice(2))
   }
-  if (rest[0] !== undefined && /^-\d+$/.test(rest[0])) {
+  if (rest[0] !== undefined && /^-\d+$/.test(rest[0] as string)) {
     return consumeMarker(rest.slice(1))
   }
   return consumeMarker(rest)
@@ -588,7 +588,7 @@ function stripStdbuf(rest: string[]): string[] | null {
   let i = 0
   let consumed = 0
   while (i < rest.length) {
-    const token = rest[i]!
+    const token = rest[i] as string
     if (token === '-i' || token === '-o' || token === '-e') {
       if (rest[i + 1] === undefined) return null
       i += 2
@@ -610,7 +610,7 @@ function stripStdbuf(rest: string[]): string[] | null {
 function stripEnv(rest: string[]): string[] | null {
   let i = 0
   while (i < rest.length) {
-    const token = rest[i]!
+    const token = rest[i] as string
     if (!token.startsWith('-') && token.includes('=')) {
       i++
       continue
@@ -977,9 +977,7 @@ function treeRefusal(
         const rule = denied?.(full)[0]
         if (rule !== undefined) return ruleDeny(denySubject(command, full), full, 'read', context, rule)
         const check = validatePath(full, cwd, context, operationType)
-        if (!check.allowed && (check.decisionReason?.type === 'rule' || context.mode !== 'flow' || check.decisionReason !== undefined)) {
-          return operandRefusal(command, check, context, operationType, full)
-        }
+        if (!check.allowed) return operandRefusal(command, check, context, operationType, full)
         const target = folderReading(check.resolvedPath)
         if (typeof target === 'object') {
           const ask = unread(root, check.resolvedPath, target.unread)
@@ -1231,7 +1229,7 @@ function validateAstSimpleCommand(
 ): PermissionResult {
   const argv = stripWrappersFromArgv(simple.argv)
   if (argv.length === 0) return { behavior: 'passthrough', message: 'Empty command.' }
-  const base = argv[0]!
+  const base = argv[0] as string
   const sourced = sourcedEnvFile(argv, cwd, context)
   if (sourced) return sourced
   if (!(base in COMMAND_OPERATION_TYPE)) return { behavior: 'passthrough', message: 'Not a path command.' }

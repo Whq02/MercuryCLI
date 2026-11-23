@@ -1,5 +1,6 @@
 import { tmpdir } from 'node:os'
 import { posix as posixPath } from 'node:path'
+import { rememberedPlatform } from '../platform/host.js'
 import { childGetsOwnProcessGroup } from '../platform/processes.js'
 import { getSessionEnvVars } from '../sessionEnvVars.js'
 import { getPowerShellEdition } from './powershellDetection.js'

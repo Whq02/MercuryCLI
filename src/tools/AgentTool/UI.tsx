@@ -15,13 +15,12 @@ import type {
   NormalizedUserMessage,
   ProgressMessage,
 } from '../../types/message.js'
-import type { Progress, Tools } from '../../Tool.js'
+import type { Tools } from '../../Tool.js'
 import { safeSearchOrReadClassification, safeUserFacingName } from '../../Tool.js'
 import { buildSubagentLookups } from '../../services/messages.js'
 import { formatTokens } from '../../utils/format.js'
 import { getTokenCountFromUsage } from '../../services/context/tokens.js'
-import type { ToolResultBlockParam } from '../../types/wire.js'
-import type { AgentToolProgress, SkillToolProgress } from '../../types/tools.js'
+import type { ApiUsage, ToolResultBlockParam } from '../../types/wire.js'
 import { isRecord } from '../../utils/isRecord.js'
 import { renderModelName, getEngineModel } from '../../services/model/model.js'
 import { Markdown } from '../../components/Markdown.js'
@@ -56,7 +55,12 @@ function ExpandHint({ parens }: { parens?: boolean }): React.ReactNode {
 
 const GENERIC_AGENT_LABEL = 'crewmate'
 
-type AgentOrSkillProgress = AgentToolProgress | SkillToolProgress
+type AgentProgressData = {
+  type?: string
+  message?: AssistantMessage | NormalizedUserMessage
+  prompt?: string
+  agentId?: string
+}
 
 type AgentUiInput = {
   description?: string
@@ -82,26 +86,25 @@ function pluralise(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? '' : 's'}`
 }
 
-function agentProgressDataOf(
-  progress: ProgressMessage | undefined,
-): AgentOrSkillProgress | undefined {
-  const data: Progress | undefined = progress?.data
-  if (data === undefined) return undefined
-  if (data.type === 'agent_progress' || data.type === 'skill_progress') {
-    return data
-  }
-  return undefined
+type AgentProgressDataWithMessage = AgentProgressData & {
+  message: AssistantMessage | NormalizedUserMessage
+}
+
+function hasProgressMessage(
+  data: AgentProgressData | undefined,
+): data is AgentProgressDataWithMessage {
+  return Boolean(data && data.message)
 }
 
 function messagesOf(progressMessages: readonly ProgressMessage[]): Array<{
   progress: ProgressMessage
-  data: AgentOrSkillProgress
+  data: AgentProgressDataWithMessage
 }> {
-  const rows: Array<{ progress: ProgressMessage; data: AgentOrSkillProgress }> =
+  const rows: Array<{ progress: ProgressMessage; data: AgentProgressDataWithMessage }> =
     []
   for (const progress of progressMessages) {
-    const data = agentProgressDataOf(progress)
-    if (data === undefined || !data.message) continue
+    const data = (progress as { data?: AgentProgressData }).data
+    if (!hasProgressMessage(data)) continue
     rows.push({ progress, data })
   }
   return rows
@@ -109,7 +112,7 @@ function messagesOf(progressMessages: readonly ProgressMessage[]): Array<{
 
 function displayRows(progressMessages: readonly ProgressMessage[]) {
   return messagesOf(progressMessages).filter(
-    row => row.data.message.type !== 'user',
+    row => row.data.message!.type !== 'user',
   )
 }
 
@@ -117,12 +120,12 @@ function latestTokenTotal(
   progressMessages: readonly ProgressMessage[],
 ): number {
   for (let i = progressMessages.length - 1; i >= 0; i--) {
-    const data = agentProgressDataOf(progressMessages[i])
+    const data = (progressMessages[i] as { data?: AgentProgressData }).data
     const message = data?.message
     if (!message || message.type !== 'assistant') continue
-    const usage = message.message.usage
+    const usage = (message as AssistantMessage).message.usage
     if (!usage) continue
-    return getTokenCountFromUsage(usage)
+    return getTokenCountFromUsage(usage as ApiUsage)
   }
   return 0
 }
@@ -130,12 +133,17 @@ function latestTokenTotal(
 
 function AgentPromptDisplay({
   prompt,
+  dim,
 }: {
   prompt: string
+  theme?: unknown
+  dim?: boolean
 }): React.ReactNode {
   return (
     <Box flexDirection="column">
-      <Text bold>Prompt:</Text>
+      <Text bold dimColor={dim}>
+        Prompt:
+      </Text>
       <Box marginLeft={2} flexDirection="column">
         <Markdown>{prompt}</Markdown>
       </Box>
@@ -147,6 +155,7 @@ function AgentResponseDisplay({
   content,
 }: {
   content: ReadonlyArray<{ type: 'text'; text: string }>
+  theme?: unknown
 }): React.ReactNode {
   const blocks = content.filter(block => block.text.trim() !== '')
   return (
@@ -212,7 +221,7 @@ function hasToolUseBlock(
 }
 
 function countAssistantToolUses(
-  rows: ReadonlyArray<{ data: AgentOrSkillProgress }>,
+  rows: ReadonlyArray<{ data: AgentProgressDataWithMessage }>,
 ): number {
   let count = 0
   for (const row of rows) {
@@ -229,8 +238,11 @@ function countAssistantToolUses(
 function firstProgressPrompt(
   progressMessages: readonly ProgressMessage[],
 ): string | undefined {
-  const data = agentProgressDataOf(progressMessages[0])
-  return typeof data?.prompt === 'string' && data.prompt !== ''
+  const data = progressMessages[0]?.data
+  if (data?.type !== 'agent_progress' && data?.type !== 'skill_progress') {
+    return undefined
+  }
+  return typeof data.prompt === 'string' && data.prompt !== ''
     ? data.prompt
     : undefined
 }
@@ -356,12 +368,16 @@ export function renderToolUseProgressMessage(
 const EMPTY_SET: Set<string> = new Set()
 
 export function isResultTruncated(data: AgentToolOutput): boolean {
-  if (data.status !== 'completed' && data.status !== 'failed') {
+  const record = data as {
+    status?: string
+    content?: Array<{ text?: string }>
+  }
+  if (record.status !== 'completed' && record.status !== 'failed') {
     return false
   }
   return (
-    Array.isArray(data.content) &&
-    data.content.some(block => (block.text ?? '').trim() !== '')
+    Array.isArray(record.content) &&
+    record.content.some(block => (block.text ?? '').trim() !== '')
   )
 }
 
@@ -574,51 +590,23 @@ function groupToolUseId(entry: GroupedToolUse): string | undefined {
   return entry.toolUseID ?? entry.toolUse?.id
 }
 
-type GroupOutputSummary = {
-  status?: string
-  totalToolUseCount?: number
-  totalTokens?: number
-}
-
-function groupOutput(entry: GroupedToolUse): GroupOutputSummary | undefined {
+function groupOutput(entry: GroupedToolUse): { status?: string } | undefined {
   const raw = entry.output ?? entry.rawResult
-  if (!isRecord(raw)) return undefined
-  return {
-    ...(typeof raw.status === 'string' ? { status: raw.status } : {}),
-    ...(typeof raw.totalToolUseCount === 'number'
-      ? { totalToolUseCount: raw.totalToolUseCount }
-      : {}),
-    ...(typeof raw.totalTokens === 'number' ? { totalTokens: raw.totalTokens } : {}),
-  }
-}
-
-function parseAgentUiInput(value: unknown): AgentUiInput {
-  if (!isRecord(value)) return {}
-  return {
-    ...(typeof value.description === 'string' ? { description: value.description } : {}),
-    ...(typeof value.prompt === 'string' ? { prompt: value.prompt } : {}),
-    ...(typeof value.crewmate_type === 'string'
-      ? { crewmate_type: value.crewmate_type }
-      : {}),
-    ...(typeof value.model === 'string' ? { model: value.model } : {}),
-    ...(typeof value.run_in_background === 'boolean'
-      ? { run_in_background: value.run_in_background }
-      : {}),
-    ...(typeof value.name === 'string' ? { name: value.name } : {}),
-  }
+  return typeof raw === 'object' && raw !== null ? (raw as { status?: string }) : undefined
 }
 
 function parseGroupInput(entry: GroupedToolUse): AgentUiInput {
-  const raw: unknown = entry.input ?? entry.toolUse?.input
+  const raw = entry.input ?? (entry.toolUse?.input as AgentUiInput | string | undefined)
+  if (!raw) return {}
   if (typeof raw === 'string') {
     try {
-      return parseAgentUiInput(JSON.parse(raw))
+      return JSON.parse(raw) as AgentUiInput
     } catch (error) {
       passedOver(error)
       return {}
     }
   }
-  return parseAgentUiInput(raw)
+  return raw
 }
 
 type GroupedEntry = {
@@ -627,7 +615,7 @@ type GroupedEntry = {
   toolUseCount: number
   tokens: number
   lastTool: string | null
-  output?: GroupOutputSummary
+  output?: { totalToolUseCount?: number; totalTokens?: number }
   resolved: boolean
   isErrored: boolean
 }
@@ -728,7 +716,7 @@ function isSearchOrReadCall(
 }
 
 function summarizeLastTool(
-  allMessages: ReadonlyArray<{ data: AgentOrSkillProgress }>,
+  allMessages: ReadonlyArray<{ data: AgentProgressDataWithMessage }>,
   tools: Tools,
 ): string | null {
   const toolUsesById = new Map<string, { name: string; input: unknown }>()
@@ -785,7 +773,7 @@ function summarizeLastTool(
 }
 
 function countToolResultRows(
-  allMessages: ReadonlyArray<{ data: AgentOrSkillProgress }>,
+  allMessages: ReadonlyArray<{ data: AgentProgressDataWithMessage }>,
 ): number {
   let count = 0
   for (const row of allMessages) {
@@ -816,13 +804,24 @@ export function renderGroupedAgentToolUse(
     const resolved = Boolean(raw.isResolved || output !== undefined)
     const isErrored = Boolean(raw.isErrored || output?.status === 'failed')
     const isDenied = Boolean(raw.isDenied)
+    const rawOutput: unknown = raw.output ?? raw.rawResult
+    const outputMetrics = isRecord(rawOutput)
+      ? {
+          ...(typeof rawOutput.totalToolUseCount === 'number'
+            ? { totalToolUseCount: rawOutput.totalToolUseCount }
+            : {}),
+          ...(typeof rawOutput.totalTokens === 'number'
+            ? { totalTokens: rawOutput.totalTokens }
+            : {}),
+        }
+      : undefined
     const entry: GroupedEntry = {
       toolUseID: groupToolUseId(raw),
       input,
       toolUseCount: countToolResultRows(allMsgs),
       tokens: latestTokenTotal(progress),
       lastTool: summarizeLastTool(allMsgs, options.tools),
-      output,
+      output: outputMetrics,
       resolved,
       isErrored,
     }

@@ -22,7 +22,7 @@ import {
   matchingRuleForInput,
   pathInAllowedWorkingPath,
 } from '../../utils/permissions/filesystem.js'
-import { expandTilde, formatDirectoryList, isDangerousRemovalPath } from '../../utils/permissions/pathValidation.js'
+import { expandTilde, isDangerousRemovalPath } from '../../utils/permissions/pathValidation.js'
 import { createEditRuleSuggestion, createReadRuleSuggestion } from '../../utils/permissions/PermissionUpdate.js'
 import { getDirectoryForPath } from '../../utils/path.js'
 import { getFsImplementation, safeResolvePath } from '../../utils/fsOperations.js'
@@ -71,7 +71,7 @@ const PATH_CONFIG: Record<string, PathConfig> = {
   'expand-archive': w([...STD, '-destinationpath'], '-force -passthru -whatif -confirm', ''),
   'compress-archive': w([...STD, '-destinationpath'], '-force -update -passthru -whatif -confirm', '-compressionlevel'),
   'invoke-webrequest': { operation: 'write', paths: ['-outfile', '-infile'], switches: IWR_SWITCHES, values: IWR_VALUES, positionalSkip: 1, optionalWrite: true },
-  'invoke-restmethod': { operation: 'write', paths: ['-outfile', '-infile'], switches: [...IWR_SWITCHES, '-followrellink'], values: [...IWR_VALUES, '-maximumfollowrellink', '-responseheadersvariable', '-statuscodevariable'], positionalSkip: 1, optionalWrite: true },
+  'invoke-restmethod': { operation: 'write', paths: ['-outfile', '-infile'], switches: [...IWR_SWITCHES, '-followrellink'], values: [...IWR_VALUES, '-maximumfollowrellink', '-responseheaderstvariable', '-statuscodevariable'], positionalSkip: 1, optionalWrite: true },
   'get-content': r(STD, '-force -usetransaction -wait -raw -asbytestream', '-readcount -totalcount -tail -first -head -last -filter -include -exclude -credential -delimiter -encoding -stream'),
   'get-childitem': r(STD, '-recurse -force -name -usetransaction -followsymlink -directory -file -hidden -readonly -system', '-filter -include -exclude -depth -attributes -credential'),
   'get-item': r(STD, '-force -usetransaction', '-filter -include -exclude -credential -stream'),
@@ -300,7 +300,7 @@ function resolveAndDecide(rawPath: string, cwd: string, context: ToolPermissionC
     if (deny) return notAllowed(resolved, { type: 'rule', rule: deny })
     return notAllowed(resolved, other('A glob cannot be statically validated because symlinks inside the expansion are not examined.'))
   }
-  const resolved = safeResolvePath(getFsImplementation(), resolveOperandPath(path, cwd)).resolvedPath
+  const resolved = canonicalise(resolveOperandPath(path, cwd))
   return decideResolved(resolved, context, operation)
 }
 
@@ -344,6 +344,14 @@ const DRIVE_QUALIFIED = /^[A-Za-z]:\//
 export function resolveOperandPath(path: string, cwd: string): string {
   if (path.startsWith('/') || DRIVE_QUALIFIED.test(path)) return path
   return `${cwd}/${path}`
+}
+
+function canonicalise(path: string): string {
+  try {
+    return safeResolvePath(getFsImplementation(), path).resolvedPath
+  } catch {
+    return path
+  }
 }
 
 
@@ -399,7 +407,7 @@ export function checkPathConstraints(
     }
 
     for (const cmd of statement.commands) {
-      const verdict = checkOneCommand(cmd, cwd, context)
+      const verdict = checkOneCommandNested(cmd, cwd, context)
       if (!verdict) continue
       if (verdict.behavior === 'deny') return verdict
       if (verdict.behavior === 'ask') firstAsk ??= verdict
@@ -467,6 +475,10 @@ function checkOneCommand(command: ParsedCommandElement, cwd: string, context: To
   return null
 }
 
+function checkOneCommandNested(command: ParsedCommandElement, cwd: string, context: ToolPermissionContext): PermissionResult | null {
+  return checkOneCommand(command, cwd, context)
+}
+
 
 function askForPath(canonical: string, decision: ResolveResult, operation: OperationType, context: ToolPermissionContext): PermissionResult {
   const message = pathMessage(canonical, decision, context)
@@ -503,5 +515,6 @@ function redirMessage(decision: ResolveResult, context: ToolPermissionContext): 
   return `Writing the redirection target ${decision.resolvedPath} needs permission. The starting folder is ${formatDirs(context)}.`
 }
 function formatDirs(context: ToolPermissionContext): string {
-  return formatDirectoryList([...allWorkingDirectories(context)])
+  const dirs = [...allWorkingDirectories(context)].map(d => `'${d}'`)
+  return dirs.length <= 5 ? dirs.join(', ') : `${dirs.slice(0, 5).join(', ')} and ${dirs.length - 5} more`
 }

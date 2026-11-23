@@ -89,7 +89,7 @@ function matchRules(
 function canonicaliseRuleFirstToken(ruleContent: string): string {
   const match = ruleContent.match(/^(\S+)(\s+)([\s\S]*)$/)
   if (!match) return resolveToCanonical(stripModule(ruleContent))
-  return `${resolveToCanonical(stripModule(match[1]!))} ${match[3]!.replace(/\s+/g, ' ')}`
+  return `${resolveToCanonical(stripModule(match[1] as string))} ${(match[3] as string).replace(/\s+/g, ' ')}`
 }
 
 function ruleReason(context: ToolPermissionContext, ruleContent: string, behavior: 'deny' | 'ask' | 'allow'): PermissionDecisionReason {

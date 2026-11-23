@@ -92,18 +92,7 @@ function commandWord(stage: string): string {
   while (i < words.length && ASSIGNMENT_WORD.test(words[i] ?? '')) i++
   if (words[i] === 'env') {
     i++
-    while (i < words.length) {
-      const token = words[i] ?? ''
-      if (token === '-u') {
-        i += 2
-        continue
-      }
-      if (ASSIGNMENT_WORD.test(token) || token.startsWith('-')) {
-        i++
-        continue
-      }
-      break
-    }
+    while (i < words.length && (ASSIGNMENT_WORD.test(words[i] ?? '') || (words[i] ?? '').startsWith('-'))) i++
   }
   if (words[i] === 'command' && (words[i + 1] === '-v' || words[i + 1] === '-V')) return 'command -v'
   return words[i] ?? ''

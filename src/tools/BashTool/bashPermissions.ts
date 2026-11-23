@@ -58,7 +58,7 @@ import { checkPermissionMode } from './modeValidation.js'
 import { denyRuleReach, hiddenDenyRuleAsk, hiddenDenyRuleRefusal, type HiddenDenyRule, type ReachBudget } from './denyRuleReach.js'
 import { modeBypassesPermissions, permissionModeTitle } from '../../utils/permissions/PermissionMode.js'
 import { checkPathConstraints, checkShellCwd } from './pathValidation.js'
-import { checkPreparedReadOnlyConstraints, checkReadOnlyConstraints, cutPart, notReadOnlyClause } from './readOnlyValidation.js'
+import { checkPreparedReadOnlyConstraints, checkReadOnlyConstraints, cutPart, notReadOnlyClause, type NotReadOnly } from './readOnlyValidation.js'
 import { checkSedConstraints } from '../../utils/shell/sedValidation.js'
 import { shellCredentialWritePath, shellMercurySecretPath, shellSelfProtectionReason } from '../../utils/permissions/shellProtectedPaths.js'
 import { credentialStoreWriteRefusal, isInstructionEstatePath } from '../../utils/permissions/filesystem.js'
@@ -309,7 +309,7 @@ export function rewriteReadOnlyGitCommand(command: string, cwd: string, depth = 
 function asWrittenSingle(command: string, fallback: string, cwd: string): string {
   const posixCwd = nativePathToShell(cwd)
   const written = splitListSegments(command).filter(segment => segment !== `cd ${cwd}` && segment !== `cd ${posixCwd}`)
-  return written.length === 1 ? written[0]! : fallback
+  return written.length === 1 ? (written[0] as string) : fallback
 }
 
 
@@ -663,8 +663,8 @@ async function decideBashPermission(
   if (originalPath.behavior === 'ask' && !anySubcommandAsked) return originalPath
 
   const nonAllow = decisions.filter(d => d.behavior !== 'allow')
-  if (nonAllow.length === 1 && nonAllow[0]!.behavior === 'ask') {
-    return nonAllow[0]!
+  if (nonAllow.length === 1 && (nonAllow[0] as PermissionResult).behavior === 'ask') {
+    return nonAllow[0] as PermissionResult
   }
 
   if (exact.behavior === 'allow' && !anySubcommandAsked) return exact
@@ -677,7 +677,7 @@ async function decideBashPermission(
     decisions[index]!.behavior === 'allow' && isCurrentDirectoryCommand(parsedSubcommands[index]!, cwd) ? [] : [index])
   if (substantiveIndices.length === 1) {
     const index = substantiveIndices[0]!
-    const subcommand = subcommands[index]!
+    const subcommand = subcommands[index] as string
     const single = await checkCommandAndSuggestRules(
       { ...input, command: subcommand },
       context,
@@ -705,7 +705,7 @@ async function decideBashPermission(
   const collected: ReturnType<typeof suggestionForExactCommand> = []
   const seen = new Set<string>()
   subcommands.forEach((sub, i) => {
-    const result = merged[i]!
+    const result = merged[i] as PermissionResult
     if (result.behavior === 'allow') return
     let rules = ('suggestions' in result && result.suggestions) || []
     if (result.behavior === 'ask' && rules.length === 0 && result.decisionReason?.type !== 'rule') {
@@ -731,7 +731,7 @@ async function decideBashPermission(
 
 function subcommandResultsReason(subcommands: string[], results: PermissionResult[]): PermissionDecisionReason {
   const map = new Map<string, PermissionResult>()
-  subcommands.forEach((sub, i) => map.set(sub, results[i]!))
+  subcommands.forEach((sub, i) => map.set(sub, results[i] as PermissionResult))
   return { type: 'subcommandResults', reasons: map }
 }
 
@@ -785,7 +785,7 @@ const PRIVILEGE_VALUE_LONGS = new Set(['--user', '--group', '--close-from', '--c
 function privilegeTarget(argv: string[]): string[] {
   let i = 1
   while (i < argv.length) {
-    const word = argv[i]!
+    const word = argv[i] as string
     if (word === '--') {
       i++
       break
@@ -809,11 +809,11 @@ function privilegeTarget(argv: string[]): string[] {
 function decodeAnsiCString(text: string): string | null {
   const match = text.match(/^\$'([\s\S]*)'$/)
   if (!match) return null
-  const body = match[1]!
+  const body = match[1] as string
   const simple: Record<string, string> = { a: '\x07', b: '\b', e: '\x1b', E: '\x1b', f: '\f', n: '\n', r: '\r', t: '\t', v: '\v', '\\': '\\', "'": "'", '"': '"', '?': '?' }
   let out = ''
   for (let i = 0; i < body.length; i++) {
-    const char = body[i]!
+    const char = body[i] as string
     if (char !== '\\') {
       out += char
       continue
@@ -1051,7 +1051,7 @@ function restrictedCommandCandidates(command: SimpleCommand, depth = 0): string[
 function optionValues(args: string[], short: string, longs: readonly string[]): string[] {
   const values: string[] = []
   for (let i = 0; i < args.length; i++) {
-    const arg = args[i]!
+    const arg = args[i] as string
     const long = longs.find(name => arg === name || arg.startsWith(`${name}=`))
     if (long !== undefined) {
       const value = arg === long ? args[++i] : arg.slice(long.length + 1)

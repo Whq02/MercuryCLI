@@ -317,6 +317,7 @@ export async function runForegroundAgentExecution(
                   description,
                   metadata,
                   agentIterator,
+                  backgrounded,
                   foregroundTask,
                   agentStartTime,
                   cleanupWorktreeIfNeeded,
@@ -563,8 +564,8 @@ async function runDetachedContinuation(
     stopForegroundSummarization,
     syncAgentId,
   } = needs
-  const taskId = foregroundTask.taskId
-  const registration = foregroundTask.abortController
+  const taskId = foregroundTask?.taskId ?? String(syncAgentId)
+  const registration = foregroundTask?.abortController
 
   const consumeMessage = (message: Message): void => {
     agentMessages.push(message)
@@ -609,7 +610,7 @@ async function runDetachedContinuation(
       failAsyncAgent(taskId, declined.error, rootSetAppState, registration, {
         settleFrame: !notifies,
       })
-      if (overload !== null) {
+      if (overload !== null && registration !== undefined) {
         armOverloadProbe({
           taskId,
           description,
@@ -713,7 +714,7 @@ async function runDetachedContinuation(
       durationMs: usage.durationMs,
     }
     if (error instanceof AbortError) {
-      const stopReason = agentStopReasonOf(registration.signal.reason)
+      const stopReason = agentStopReasonOf(registration?.signal.reason)
       killAsyncAgent(taskId, rootSetAppState, stopReason, registration)
       closeOverloadEpisode(taskId)
       const worktreeResult = await cleanupWorktreeIfNeeded()
@@ -789,7 +790,7 @@ async function runDetachedContinuation(
         ...(envelopeBlock !== undefined ? { envelopeBlock } : {}),
       })
     }
-    if (overload !== null) {
+    if (overload !== null && registration !== undefined) {
       armOverloadProbe({
         taskId,
         description,
@@ -800,7 +801,7 @@ async function runDetachedContinuation(
         pause: overload.pause,
         afterDeath: true,
       })
-    } else if (budgetCut !== null) {
+    } else if (budgetCut !== null && registration !== undefined) {
       const delayMs = budgetCutResumeDelayMs(budgetCut)
       armBudgetCutResume({
         taskId,
@@ -897,8 +898,8 @@ type ForegroundTaskHandle = { taskId: string; abortController: AbortController; 
 
 type DetachedNeeds = {
   agentMessages: Message[]; toolUseContext: ToolUseContext; tracker: ReturnType<typeof createProgressTracker>; resolveActivity: ReturnType<typeof createActivityDescriptionResolver>
-  rootSetAppState: SetAppState; description: string; metadata: ForegroundAgentMetadata; agentIterator: ReturnType<typeof runAgent>
-  foregroundTask: ForegroundTaskHandle; agentStartTime: number; cleanupWorktreeIfNeeded: () => Promise<WorktreeFields>; stopForegroundSummarization: () => void; syncAgentId: AgentId
+  rootSetAppState: SetAppState; description: string; metadata: ForegroundAgentMetadata; agentIterator: ReturnType<typeof runAgent>; backgrounded: boolean
+  foregroundTask: ForegroundTaskHandle | undefined; agentStartTime: number; cleanupWorktreeIfNeeded: () => Promise<WorktreeFields>; stopForegroundSummarization: () => void; syncAgentId: AgentId
 }
 
 type SeatSettledNeeds = {

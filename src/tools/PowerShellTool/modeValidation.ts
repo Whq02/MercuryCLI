@@ -132,7 +132,7 @@ export function isSymlinkCreatingCommand(cmd: { name: string; args: string[] }):
   if (resolveToCanonical(cmd.name) !== 'new-item') return false
   const LINK_TYPES = new Set(['symboliclink', 'junction', 'hardlink'])
   for (let i = 0; i < cmd.args.length; i++) {
-    let arg = cmd.args[i]!.replace(/`/g, '')
+    let arg = (cmd.args[i] as string).replace(/`/g, '')
     if (!PS_DASH.test(arg[0] ?? '')) continue
     arg = '-' + arg.slice(1)
     const colon = arg.indexOf(':', 1)
