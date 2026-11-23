@@ -108,7 +108,7 @@ async function fetchSingle(
 ): Promise<FetchResult> {
   const startTime = Date.now()
   const fetched = await getURLMarkdownContent(input.url, context.abortController)
-  if ('type' in fetched) {
+  if ('type' in fetched && fetched.type === 'redirect') {
     const phrase = REDIRECT_PHRASES[fetched.statusCode] ?? 'Found'
     const clause = input.prompt
       ? `and the same prompt: ${JSON.stringify(input.prompt)}`
