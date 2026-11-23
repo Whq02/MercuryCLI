@@ -1,6 +1,13 @@
 import type { CommandSpec } from '../registry.js'
-import { unbuilt } from '../../../pi/holes.js'
 
-const spec: CommandSpec = unbuilt('src/utils/bash/specs/time.ts:3')
+const spec: CommandSpec = {
+  name: 'time',
+  description: 'Measure how long a command takes',
+  args: {
+    name: 'command',
+    description: 'The command being timed',
+    isCommand: true,
+  },
+}
 
 export default spec
