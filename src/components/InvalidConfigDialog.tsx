@@ -16,7 +16,11 @@ import { passedOver } from '../utils/passedOver.js'
 type Choice = 'exit' | 'reset' | 'restore'
 
 function writeStderrLine(line: string): void {
-  writeSync(2, `${line}\n`)
+  try {
+    writeSync(2, `${line}\n`)
+  } catch (err) {
+    passedOver(err)
+  }
 }
 
 function lookupNewestBackup(filePath: string): string | null {
@@ -104,10 +108,6 @@ export async function showInvalidConfigDialog({
 }): Promise<void> {
   const backupPath = lookupNewestBackup(error.filePath)
   const onChoice = (choice: Choice): void => {
-    if (choice === 'exit') {
-      gracefulShutdownSync(1)
-      return
-    }
     if (choice === 'restore' && backupPath !== null) {
       try {
         const { quarantinePath } = restoreConfigFromBackup(error.filePath, backupPath)
@@ -132,7 +132,7 @@ export async function showInvalidConfigDialog({
         writeFileSync(error.filePath, `${JSON.stringify(error.defaultConfig, null, 2)}\n`, 'utf8')
         const kept = quarantinePath ? ` — the corrupt bytes are kept at ${quarantinePath}` : ''
         writeStderrLine(
-          `mercury: the configuration was reset to defaults${kept}. Start Mercury again.`,
+          `mercury: the configuration was reset to defaults${kept}.`,
         )
         gracefulShutdownSync(0)
       } catch (err) {
@@ -143,7 +143,9 @@ export async function showInvalidConfigDialog({
         )
         gracefulShutdownSync(1)
       }
+      return
     }
+    gracefulShutdownSync(1)
   }
   await render(
     <AppStateProvider>

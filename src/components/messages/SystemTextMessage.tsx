@@ -230,7 +230,8 @@ export function SystemTextMessage({
         return (
           <Box marginTop={addMargin ? 1 : 0} backgroundColor={bg}>
             <Text dimColor>
-              model switched to {appliedLabel} for this session{cross}
+              model switched to {appliedLabel} for
+              this session{cross}
             </Text>
           </Box>
         )
