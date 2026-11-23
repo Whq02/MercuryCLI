@@ -59,7 +59,7 @@ export function onChangeAppState({
     }
   }
 
-  if (newState.mcp?.clients !== oldState.mcp?.clients) {
+  if (newState.mcp.clients !== oldState.mcp.clients) {
     for (const listener of mcpClientsListeners) {
       listener()
     }
