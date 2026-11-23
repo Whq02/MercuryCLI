@@ -8,7 +8,7 @@ export async function* failedRequestRows(ctx: QueryCtx, thrown: unknown): AsyncG
     yield* ctx.yieldAbortedPartialText()
     return
   }
-  if ((error as { status?: number } | null)?.status === 429) {
+  if (typeof error === 'object' && error !== null && 'status' in error && error.status === 429) {
     await (await import('../../catalogueOnDemand.js')).readCataloguesForOtherFamilies('anthropic')
   }
   yield getAssistantMessageFromError(error, errorModel, {
