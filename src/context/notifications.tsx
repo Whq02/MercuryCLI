@@ -18,6 +18,10 @@ type TextNotice = { text: string; wayOut?: string; detail?: string; color?: keyo
 type NodeNotice = { jsx: React.ReactNode }
 export type Notification = NoticeBase & (TextNotice | NodeNotice)
 
+export function isNodeNotice(notice: Notification): notice is NoticeBase & NodeNotice {
+  return 'jsx' in notice
+}
+
 const PRIORITY_RANK: Record<Priority, number> = { immediate: 0, high: 1, medium: 2, low: 3 }
 
 export const NOTICE_SEAM = ' · '
