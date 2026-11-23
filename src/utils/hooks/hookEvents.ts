@@ -1,12 +1,21 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { logForDebugging } from '../debug.js'
-import type { Unbuilt } from '../../pi/holes.js'
 
 type HookStartedEvent = { type: 'started'; hookId: string; hookName: string; hookEvent: string }
 
 type HookProgressEvent = { type: 'progress'; hookId: string; hookName: string; hookEvent: string; stdout: string; stderr: string; output: string }
 
-type HookResponseEvent = Unbuilt
+type HookResponseEvent = {
+  type: 'response'
+  hookId: string
+  hookName: string
+  hookEvent: string
+  output: string
+  stdout: string
+  stderr: string
+  exitCode?: number
+  outcome: 'success' | 'error' | 'cancelled'
+}
 
 export type HookExecutionEvent = HookStartedEvent | HookProgressEvent | HookResponseEvent
 
