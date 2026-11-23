@@ -20,7 +20,7 @@ const TELLS: Array<[string, RegExp]> = [
   [PLATFORM_CHECK, /getPlatform\(\) [!=]== 'windows'|platform [!=]== '(?:win32|windows)'/g],
 ]
 
-const PLATFORM_HOME = /^src\/utils\/platform(?:\.ts$|\/)/
+const PLATFORM_HOME = /^src\/platform\/(?:environment\/platform\.ts$|host-os\/)/
 
 const SINGLE: Array<[file: string, checks: number, reason: string]> = [
   ['src/boot/first-run/TerminalProfileCard.tsx', 3, 'the Windows host inventory card exists on Windows only'],

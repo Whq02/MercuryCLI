@@ -5,9 +5,9 @@ import { DIALECT_CONVERSATION, VIRTUAL_ROW } from './dialectFixture.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const root = resolve(process.argv[2] ?? fileURLToPath(new URL('../..', import.meta.url)))
 const source = (path: string) => import(`${root}/src/${path}.ts`)
-const { enableConfigs } = await source('utils/config')
+const { enableConfigs } = await source('platform/settings/config')
 enableConfigs()
-const helpers = await source('services/messages')
+const helpers = await source('engine/messages/messages')
 const params = await source('models/roads/anthropic/messageParams')
 const responses = await source('models/roads/openai/responsesBridge')
 const chat = await source('models/roads/zai/zaiCodec')
@@ -32,11 +32,11 @@ for (const [name, body] of Object.entries(bodies)) {
   console.log(`${good ? 'PASS' : 'FAIL'}: ${name} request excludes display-only user and assistant rows`)
   if (!good) {
     failures++
-    console.log(`  fix the ${name} request builder so rows with isVirtual: true never reach the wire: anthropic is normalizeMessagesForAPI in src/services/messages, responses is buildOpenaiResponsesRequest in src/models/roads/openai/responsesBridge.ts, compatible is buildZaiChatRequest in src/models/roads/zai/zaiCodec.ts, gemini is buildGeminiRequest in src/models/roads/gemini/geminiCodec.ts, local is ollamaChatBody in src/models/roads/local/ollamaChatTransport.ts`)
+    console.log(`  fix the ${name} request builder so rows with isVirtual: true never reach the wire: anthropic is normalizeMessagesForAPI in src/engine/messages/messages.ts, responses is buildOpenaiResponsesRequest in src/models/roads/openai/responsesBridge.ts, compatible is buildZaiChatRequest in src/models/roads/zai/zaiCodec.ts, gemini is buildGeminiRequest in src/models/roads/gemini/geminiCodec.ts, local is ollamaChatBody in src/models/roads/local/ollamaChatTransport.ts`)
   }
 }
 if (messages[1] !== VIRTUAL_ROW || VIRTUAL_ROW.isVirtual !== true) {
   failures++
-  console.log('FAIL: the fixture row VIRTUAL_ROW was changed or lost its isVirtual flag; healWalkableForWire in src/services/messages must not mutate or replace the rows it is given')
+  console.log('FAIL: the fixture row VIRTUAL_ROW was changed or lost its isVirtual flag; healWalkableForWire in src/engine/messages/messages.ts must not mutate or replace the rows it is given')
 }
 process.exit(failures ? 1 : 0)

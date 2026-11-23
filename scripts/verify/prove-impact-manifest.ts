@@ -309,7 +309,7 @@ section('§4 a planted estate: what a suite\'s proofs touch wakes it, with no he
   const SOURCED = 'scripts/lib/suite-env.sh'
   const want: Record<string, string[]> = {
     blind: ['scripts/blind/prove-blind.ts', SOURCED],
-    built: ['scripts/built/prove-built.ts', 'scripts/lib/builtProduct.ts', SOURCED, 'src/daemon/runner/runHeadless.ts', 'src/boot/main.tsx'],
+    built: ['scripts/built/prove-built.ts', 'scripts/lib/builtProduct.ts', SOURCED, 'src/boot/main.tsx', 'src/daemon/runner/runHeadless.ts'],
     child: ['scripts/child/prove-child.ts', 'scripts/lib/child.ts', SOURCED, 'src/gamma/g.ts'],
     handed: ['scripts/handed/prove-handed.ts', SOURCED, 'src/beta/b.ts'],
     lister: [SOURCED, 'scripts/lister/prove-lister.ts', 'src/keys/one.ts', 'src/keys/two.ts'],

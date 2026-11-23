@@ -40,7 +40,7 @@ async function main(): Promise<void> {
         toolName: 'Edit',
         isMercurySource: () => true,
         input: {
-          file_path: 'src/components/Foo.tsx',
+          file_path: 'src/screen/widgets/Foo.tsx',
           old_string: '',
           new_string: "const c = '#AB12CD'",
         },
@@ -58,7 +58,7 @@ async function main(): Promise<void> {
       const denial = await judgeToolCall('w-model-free', {
         tool: 'Edit',
         input: {
-          file_path: 'src/components/Foo.tsx',
+          file_path: 'src/screen/widgets/Foo.tsx',
           old_string: '',
           new_string: "const c = '#AB12CD'",
         },

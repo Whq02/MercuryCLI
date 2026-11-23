@@ -29,7 +29,7 @@ function section(t: string): void {
 const WIN_ROOT = 'C:\\src\\m37-r7\\7b2-ts'
 const winScanned = [
   ['C:\\src\\m37-r7\\7b2-ts\\src\\util.ts', 'src/util.ts'],
-  ['C:\\src\\m37-r7\\7b2-ts\\src\\main.ts', 'src/boot/main.ts'],
+  ['C:\\src\\m37-r7\\7b2-ts\\src\\main.ts', 'src/main.ts'],
   ['C:\\src\\m37-r7\\7b2-ts\\index.ts', 'index.ts'],
 ] as const
 const admitsTs = (query as { admitsScannedFile?: (rel: string, globs: readonly string[] | undefined) => boolean }).admitsScannedFile
@@ -51,7 +51,7 @@ section('B. the Structure files filter over the box\'s three scanned paths (F37W
 {
   check('B1 files: ["src/util.ts"] admits exactly src/util.ts', JSON.stringify(admitted(admitsTs, ['src/util.ts'])) === JSON.stringify(['src/util.ts']), JSON.stringify(admitted(admitsTs, ['src/util.ts'])))
   check('B2 files: ["**/util.ts"] admits src/util.ts', JSON.stringify(admitted(admitsTs, ['**/util.ts'])) === JSON.stringify(['src/util.ts']), JSON.stringify(admitted(admitsTs, ['**/util.ts'])))
-  check('B3 files: ["**/*.ts"] admits the two files under src/', JSON.stringify(admitted(admitsTs, ['**/*.ts'])) === JSON.stringify(['src/util.ts', 'src/boot/main.ts']), JSON.stringify(admitted(admitsTs, ['**/*.ts'])))
+  check('B3 files: ["**/*.ts"] admits the two files under src/', JSON.stringify(admitted(admitsTs, ['**/*.ts'])) === JSON.stringify(['src/util.ts', 'src/main.ts']), JSON.stringify(admitted(admitsTs, ['**/*.ts'])))
   check('B4 the model\'s backslash spelling files: ["src\\\\util.ts"] admits it on win32', JSON.stringify(admitted(admitsTs, ['src\\util.ts'])) === JSON.stringify(['src/util.ts']), JSON.stringify(admitted(admitsTs, ['src\\util.ts'])))
   check('B5 a filter naming another file admits nothing', admitted(admitsTs, ['src/other.ts']).length === 0, JSON.stringify(admitted(admitsTs, ['src/other.ts'])))
   check('B6 no filter admits everything', admitsTs !== undefined && winScanned.every(([full]) => admitsTs(rel(full)!, undefined)))
@@ -61,9 +61,9 @@ section('B. the Structure files filter over the box\'s three scanned paths (F37W
 section('C. the polyglot walk (Structure patterns, AstSearch globs) reads the same seam')
 {
   check('C1 files: ["src/util.ts"] admits it', JSON.stringify(admitted(admitsPoly, ['src/util.ts'])) === JSON.stringify(['src/util.ts']), JSON.stringify(admitted(admitsPoly, ['src/util.ts'])))
-  check('C2 files: ["**/*.ts"] admits all three (the polyglot glob reaches the root level too)', JSON.stringify(admitted(admitsPoly, ['**/*.ts'])) === JSON.stringify(['src/util.ts', 'src/boot/main.ts', 'index.ts']), JSON.stringify(admitted(admitsPoly, ['**/*.ts'])))
-  check('C3 a folder filter files: ["src"] admits the folder\'s files', JSON.stringify(admitted(admitsPoly, ['src'])) === JSON.stringify(['src/util.ts', 'src/boot/main.ts']), JSON.stringify(admitted(admitsPoly, ['src'])))
-  check('C4 the win32 spelling files: ["src\\\\**\\\\*.ts"] admits the folder\'s files', JSON.stringify(admitted(admitsPoly, ['src\\**\\*.ts'])) === JSON.stringify(['src/util.ts', 'src/boot/main.ts']), JSON.stringify(admitted(admitsPoly, ['src\\**\\*.ts'])))
+  check('C2 files: ["**/*.ts"] admits all three (the polyglot glob reaches the root level too)', JSON.stringify(admitted(admitsPoly, ['**/*.ts'])) === JSON.stringify(['src/util.ts', 'src/main.ts', 'index.ts']), JSON.stringify(admitted(admitsPoly, ['**/*.ts'])))
+  check('C3 a folder filter files: ["src"] admits the folder\'s files', JSON.stringify(admitted(admitsPoly, ['src'])) === JSON.stringify(['src/util.ts', 'src/main.ts']), JSON.stringify(admitted(admitsPoly, ['src'])))
+  check('C4 the win32 spelling files: ["src\\\\**\\\\*.ts"] admits the folder\'s files', JSON.stringify(admitted(admitsPoly, ['src\\**\\*.ts'])) === JSON.stringify(['src/util.ts', 'src/main.ts']), JSON.stringify(admitted(admitsPoly, ['src\\**\\*.ts'])))
 }
 
 section('D. the real walk on this host: a project of three files, the filtered query parses the one file and finds its two functions (the control that holds on every host)')
@@ -83,7 +83,7 @@ section('D. the real walk on this host: a project of three files, the filtered q
   const starred = query.runStructureQuery(root, { select: 'function', files: ['**/util.ts'] })
   check('D3 the glob form finds the same two', !('state' in starred) && starred.matches.length === 2, JSON.stringify('state' in starred ? starred : starred.matches.length))
   const poly = polyglot.discoverPolyglotFiles(root, ['src/**/*.ts'], null)
-  check('D4 the polyglot walk admits the two files under src/', JSON.stringify(poly.files.map(f => f.rel)) === JSON.stringify(['src/boot/main.ts', 'src/util.ts']), JSON.stringify(poly.files.map(f => f.rel)))
+  check('D4 the polyglot walk admits the two files under src/', JSON.stringify(poly.files.map(f => f.rel)) === JSON.stringify(['src/main.ts', 'src/util.ts']), JSON.stringify(poly.files.map(f => f.rel)))
   rmSync(root, { recursive: true, force: true })
 }
 

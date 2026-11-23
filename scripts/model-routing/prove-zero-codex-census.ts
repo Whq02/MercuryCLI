@@ -39,12 +39,12 @@ console.log('============================================================')
 
 check(
   'the runtime directory is gone (src/models/roads/codex)',
-  !existsSync(join(ROOT, 'src', 'services', 'providers', 'codex')),
+  !existsSync(join(ROOT, 'src', 'models', 'roads', 'codex')),
   'delete the directory src/models/roads/codex and everything that imports it',
 )
 
-const importHits = hits(['src', 'scripts'], /providers\/codex/)
-check('no import/path reference to providers/codex anywhere in src or scripts', importHits.length === 0, importHits.join(', ') + ' | remove the providers/codex import or path in each file listed')
+const importHits = hits(['src', 'scripts'], /roads\/codex/)
+check('no import/path reference to roads/codex anywhere in src or scripts', importHits.length === 0, importHits.join(', ') + ' | remove the roads/codex import or path in each file listed')
 
 check(
   'the running-work census has no codex domain',
@@ -53,9 +53,9 @@ check(
 )
 
 const spawnHitsAll = hits(['src'], /(spawn|execFile)[^\n]*codex|['"]codex['"]/)
-const CREW_SEAT_ESTATE = /^src[\/\\](services[\/\\]crew|commands[\/\\]crew)[\/\\]/
-const CAPACITY_OBSERVER = /^src[\/\\]utils[\/\\]switchboard[\/\\]capacityCheck\.ts$/
-const FOREIGN_RECOGNIZER = /^src[\/\\]utils[\/\\]knownAgentClis\.ts$/
+const CREW_SEAT_ESTATE = /^src[\/\\](crew[\/\\]crewmates|commands[\/\\]crew)[\/\\]/
+const CAPACITY_OBSERVER = /^src[\/\\]daemon[\/\\]switchboard-capacity[\/\\]capacityCheck\.ts$/
+const FOREIGN_RECOGNIZER = /^src[\/\\]platform[\/\\]environment[\/\\]knownAgentClis\.ts$/
 const spawnHits = spawnHitsAll.filter(f => !CREW_SEAT_ESTATE.test(f) && !CAPACITY_OBSERVER.test(f) && !FOREIGN_RECOGNIZER.test(f))
 check(
   'no codex executable spawn/lookup survives in src outside the adjudicated estates (crew seat + capacity observer + foreign-harness recognizer)',

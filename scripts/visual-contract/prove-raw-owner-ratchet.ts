@@ -63,7 +63,7 @@ for (const root of ['src', 'assets']) {
     if (/^src\/integrations\/extensions\/bundled\/[^/]+\/server\//.test(file) || file === 'src/integrations/extensions/bundled/content.generated.ts') continue
     const live = src.split('\n').some(l => PATTERN.test(l) && !isCommentLine(l))
     if (!live) continue
-    if (file.startsWith('src/screen/renderer/')) inkHits.push(file)
+    if (file.startsWith('src/screen/renderer/') && !SANCTIONED[file]) inkHits.push(file)
     else hits.push(file)
   }
 }
