@@ -1,23 +1,27 @@
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
+import uniq from 'lodash-es/uniq.js'
 
 export function extractAtMentionedFiles(content: string): string[] {
-  return notBuilt('src/utils/attachments/mentions.ts:1')
+  return [...parseMentions(content).files]
 }
 
 export function extractMcpResourceMentions(content: string): string[] {
-  return notBuilt('src/utils/attachments/mentions.ts:5')
+  return [...parseMentions(content).resources]
 }
 
 export function extractAgentMentions(content: string): string[] {
-  return notBuilt('src/utils/attachments/mentions.ts:9')
+  return [...parseMentions(content).agents]
 }
 
-type AtMentionedFileLines = Unbuilt
+type AtMentionedFileLines = { filename: string; lineStart?: number; lineEnd?: number }
 
 export function parseAtMentionedFileLines(
   mention: string,
 ): AtMentionedFileLines {
-  return notBuilt('src/utils/attachments/mentions.ts:19')
+  const match = /^([^#]+)(?:#L(\d+)(?:-(\d+))?)?(?:#[^#]*)?$/.exec(mention)
+  if (!match) return { filename: mention }
+  const lineStart = match[2] === undefined ? undefined : Number(match[2])
+  const lineEnd = match[3] === undefined ? lineStart : Math.max(lineStart!, Number(match[3]))
+  return { filename: match[1]!, lineStart, lineEnd }
 }
 
 interface ParsedMentions {
@@ -30,5 +34,19 @@ let lastInput: string | undefined
 let lastParsed: ParsedMentions | undefined
 
 export function parseMentions(content: string): ParsedMentions {
-  return notBuilt('src/utils/attachments/mentions.ts:42')
+  if (lastParsed && content === lastInput) return lastParsed
+  const matches = (rule: RegExp) => Array.from(content.matchAll(rule), match => match[1]!)
+  const quotedFiles = matches(/(?:^|\s)@"([^"]+)"/g).filter(value => !value.endsWith(' (agent)'))
+  const words = matches(/(?:^|\s)@(\S+)/g).map(value => value.replace(/\W+$/, '')).filter(Boolean)
+  const plainFiles = words.filter(value => !value.startsWith('"'))
+  const quotedAgents = matches(/(?:^|\s)@"([\w:.@-]+) \(agent\)"/g)
+  const plainAgents = matches(/(?:^|\s)@(agent-[\w:.@-]+)/g)
+  const resources = words.filter(value => /^.+:.+$/s.test(value))
+  lastInput = content
+  lastParsed = Object.freeze({
+    files: Object.freeze(uniq([...quotedFiles, ...plainFiles])),
+    agents: Object.freeze(uniq([...quotedAgents, ...plainAgents])),
+    resources: Object.freeze(uniq(resources)),
+  })
+  return lastParsed
 }
