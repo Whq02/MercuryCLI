@@ -329,9 +329,16 @@ export abstract class WordWalk {
     let sawLiteral = false
     let sawUnknown = false
     let sawContent = false
+    let cursor = node.startIndex
 
     for (let index = 0; index < node.children.length; index++) {
       const child = node.children[index]!
+      if (child.startIndex > cursor) {
+        const literal = unescapeQuoted(node.text.slice(cursor - node.startIndex, child.startIndex - node.startIndex))
+        value += literal
+        if (literal.length > 0) sawLiteral = true
+      }
+      cursor = Math.max(cursor, child.endIndex)
       if (child.type === '"') {
         if (index > 0 && child.text.length > 1) {
           const lead = child.text.slice(0, -1)
@@ -454,7 +461,7 @@ export abstract class WordWalk {
   redirect(node: Node, scope: Scope): Redirect {
     let fd: number | undefined
     let op: Redirect['op'] | undefined
-    let targetNode: Node | undefined
+    let target: string | undefined
 
     for (const child of node.children) {
       if (child.type === 'file_descriptor') {
@@ -468,15 +475,18 @@ export abstract class WordWalk {
           continue
         }
       }
-      if (targetNode === undefined) {
-        targetNode = child
+      if (target === undefined) {
+        target = this.redirectTarget(node, child, scope)
         continue
       }
       refuse('a redirect is followed by additional words whose argument position is ambiguous; move arguments before the redirect, or approve', node.type)
     }
 
-    if (op === undefined || targetNode === undefined) refuse('unrecognised redirect shape', node.type)
+    if (op === undefined || target === undefined) refuse('unrecognised redirect shape', node.type)
+    return fd === undefined ? { op, target } : { op, target, fd }
+  }
 
+  redirectTarget(node: Node, targetNode: Node, scope: Scope): string {
     let target: string
     switch (targetNode.type) {
       case 'word':
@@ -487,6 +497,9 @@ export abstract class WordWalk {
         target = unescapeWord(targetNode.text)
         break
       case 'number':
+        if (targetNode.children.length > 0) refuseNode(targetNode.children[0]!)
+        target = targetNode.text
+        break
       case 'raw_string':
       case 'string':
         target = this.argument(targetNode, scope)
@@ -503,8 +516,7 @@ export abstract class WordWalk {
       default:
         refuseNode(targetNode)
     }
-
-    return fd === undefined ? { op, target } : { op, target, fd }
+    return target
   }
 
   assignment(node: Node, scope: Scope): Assignment {
@@ -531,10 +543,6 @@ export abstract class WordWalk {
     if (!IDENTIFIER_RE.test(name)) {
       refuse(`assignment name ${JSON.stringify(name)} is not a valid shell identifier`, node.type)
     }
-    if (LOOKUP_VARIABLE.test(name)) {
-      refuse(`assignment to ${name} changes shell lookup, path expansion or startup code; run without that assignment, or approve`, node.type)
-    }
-    if (name === 'IFS') refuse('assignment to IFS cannot be analyzed safely', node.type)
 
     let value = ''
     if (valueNode !== undefined) {
@@ -555,6 +563,11 @@ export abstract class WordWalk {
         value = this.argument(valueNode, scope)
       }
     }
+
+    if (LOOKUP_VARIABLE.test(name)) {
+      refuse(`assignment to ${name} changes shell lookup, path expansion or startup code; run without that assignment, or approve`, node.type)
+    }
+    if (name === 'IFS') refuse('assignment to IFS cannot be analyzed safely', node.type)
 
     if (name === 'PS4') {
       if (append) refuse('appending to PS4 cannot be analyzed safely', node.type)
