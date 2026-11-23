@@ -8,12 +8,17 @@ import {
   getSessionId,
   getTotalAPIDuration,
   getTotalAPIDurationWithoutRetries,
+  getTotalCacheCreationInputTokens,
+  getTotalCacheReadInputTokens,
   getTotalCostUSD,
   getTotalDuration,
+  getTotalInputTokens,
   getTotalLinesAdded,
   getTotalLinesRemoved,
+  getTotalOutputTokens,
   getTotalToolDuration,
   getTotalUnpricedTurns,
+  getTotalWebSearchRequests,
   getUnpricedTurns,
   getUsageForModel,
   getWorkloadUnpricedTurns,
@@ -24,6 +29,7 @@ import {
   setCostStateForRestore,
 } from './bootstrap/state.js'
 import type { ModelUsage, WorkloadUnpricedTurns, WorkloadUsage } from './bootstrap/state.js'
+import { passedOver } from './utils/passedOver.js'
 import { getWorkload } from './utils/workloadContext.js'
 import type { NonNullableUsage } from './services/api/logging.js'
 import type { ApiUsage } from './types/wire.js'
@@ -168,8 +174,8 @@ export function saveCurrentSessionCosts(fpsMetrics?: FpsMetrics): void {
   let sessionId: string | undefined
   try {
     sessionId = getSessionId()
-  } catch {
-    sessionId = undefined
+  } catch (error) {
+    passedOver(error)
   }
   saveCurrentProjectConfig(current => ({
     ...current,
@@ -200,11 +206,11 @@ export function saveCurrentSessionCosts(fpsMetrics?: FpsMetrics): void {
     lastModelUsage: mapValues(getModelUsage(), stripUsageFields),
     lastUnpricedTurns: { ...getUnpricedTurns() },
     lastWorkloadUsage: mapValues(
-      getWorkloadUsage() as Record<string, Record<string, ModelUsage>>,
+      getWorkloadUsage(),
       bucket => mapValues(bucket, stripUsageFields),
     ),
     lastWorkloadUnpricedTurns: mapValues(
-      getWorkloadUnpricedTurns() as Record<string, Record<string, number>>,
+      getWorkloadUnpricedTurns(),
       bucket => ({ ...bucket }),
     ),
   }))
@@ -399,12 +405,5 @@ export {
   resetCostState,
   resetStateForTests,
   setHasUnknownModelCost,
-} from './bootstrap/state.js'
-import {
-  getTotalCacheCreationInputTokens,
-  getTotalCacheReadInputTokens,
-  getTotalInputTokens,
-  getTotalOutputTokens,
-  getTotalWebSearchRequests,
 } from './bootstrap/state.js'
 export { readUsageHistory, type UsageHistoryReport, type UsageTotals } from './services/usage/usageHistory.js'

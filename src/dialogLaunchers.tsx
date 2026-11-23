@@ -93,10 +93,10 @@ export async function launchResumeChooser(
     import('./screens/ResumeConversation.js'),
     import('./components/App.js'),
     import('./keybindings/KeybindingProviderSetup.js'),
-    worktreePathsPromise.catch((error: unknown) => {
+    worktreePathsPromise.catch((error: unknown): string[] => {
       passedOver(error)
       worktreeReadError = errorMessage(error)
-      return [] as string[]
+      return []
     }),
   ])
   featureReached('screen', 'ResumeConversation')
