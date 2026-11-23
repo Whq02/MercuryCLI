@@ -80,12 +80,8 @@ export const inputSchema = lazySchema(() =>
         ),
       team: z
         .string()
-        .refine(
-          value =>
-            TEAM_PATTERN.test(value) &&
-            value.toLowerCase() !== 'all' &&
-            value.toLowerCase() !== 'general',
-        )
+        .regex(TEAM_PATTERN)
+        .refine(value => value.toLowerCase() !== 'all' && value.toLowerCase() !== 'general')
         .optional()
         .describe('Crew-board team label (delivery only, not privacy).'),
       captain: z
