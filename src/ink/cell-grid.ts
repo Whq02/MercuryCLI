@@ -146,8 +146,8 @@ export class StylePool implements Interning<AnsiCode[]> {
   private recessBudgetWarned = false
 
   intern(codes: AnsiCode[]): number {
-    let key = ''
-    for (const code of codes) key += '\0' + code.code
+    let key = codes.length === 0 ? '' : codes[0]!.code
+    for (let at = 1; at < codes.length; at++) key += '\0' + codes[at]!.code
     const known = this.idOfKey.get(key)
     if (known !== undefined) return known
     const id = (this.styles.length << 1) | (codes.some(code => VISIBLE_ON_SPACE.has(code.endCode)) ? 1 : 0)
@@ -538,10 +538,8 @@ export function blitRegion(into: Screen, from: Screen, regionX: number, regionY:
     const last = (intoStart + span - 1) << 1
     const sourceFirst = fromStart << 1
     const sourceLast = (fromStart + span - 1) << 1
-    const leftPairKept =
-      sameWidth && leftNeighbour && widthAt(source, sourceFirst) === CellWidth.SpacerTail && widthAt(source, sourceFirst - 2) === CellWidth.Wide && sameCellAt(words, source, first - 2)
-    const rightPairKept =
-      sameWidth && rightNeighbour && widthAt(source, sourceLast) === CellWidth.Wide && widthAt(source, sourceLast + 2) === CellWidth.SpacerTail && sameCellAt(words, source, last + 2)
+    const leftPairKept = sameWidth && leftNeighbour && widthAt(source, sourceFirst) === CellWidth.SpacerTail && sameCellAt(words, source, first - 2)
+    const rightPairKept = sameWidth && rightNeighbour && widthAt(source, sourceLast) === CellWidth.Wide && sameCellAt(words, source, last + 2)
     if (leftNeighbour && !leftPairKept && widthAt(words, first) === CellWidth.SpacerTail && widthAt(words, first - 2) === CellWidth.Wide) {
       blankCell(into, first - 2)
       touchedLeft = left - 1
