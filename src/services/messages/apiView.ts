@@ -6,6 +6,7 @@ import { normalizeToolInput } from './api.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { safeParseJSON } from '../../utils/json.js'
 import { logError } from '../../utils/log.js'
+import { isRecord } from '../../utils/isRecord.js'
 import { contentBlocksOf } from '../../utils/messages/normalize.js'
 import { requestConversationPlan } from './apiPlan.js'
 export { isSystemLocalCommandMessage, reorderAttachmentsForAPI, stripToolReferenceBlocksFromUserMessage, stripUnavailableToolReferencesFromUserMessage, withToolReferenceTurnBoundary } from './apiViewRows.js'
@@ -20,10 +21,6 @@ export function normalizeContentFromAPI(contentBlocks: ApiMessage['content'], to
     present = present.filter(block => block != null)
   }
   return (contentBlocksOf(present) as ApiMessage['content']).map(block => decodeAnswerBlock(block, tools))
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function correctToolInput(block: ToolAnswer, tools: Tools): unknown {

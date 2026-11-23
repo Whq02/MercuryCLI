@@ -35,6 +35,7 @@ import { toolMatchesName } from '../../Tool.js'
 import { validateImagesForAPI } from '../imageValidation.js'
 import { LOCAL_COMMAND_CAVEAT_TAG } from '../../constants/xml.js'
 import { IMAGE_ELIDED_TEXT } from '../../utils/messages/imageRequestFit.js'
+import { isRecord } from '../../utils/isRecord.js'
 
 function leadingTextOf(content: string | ContentBlockParam[]): string {
   if (typeof content === 'string') return content
@@ -248,10 +249,6 @@ function planFamilyConversation(messages: readonly Message[], tools: Tools): Api
   return { selected: withoutOrphanCaveats(kept), stripTargets: new Map(), availableToolNames: new Set(tools.map(tool => tool.name)) }
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
 function wireAssistantOf(row: AssistantMessage, tools: Tools, searchOn: boolean): AssistantMessage {
   const content = storedBlocksOf(row.message.content).map(block => {
     if (block.type !== 'tool_use') return block
@@ -285,7 +282,13 @@ function projectForAnthropic(plan: ApiConversationPlan, tools: Tools): (UserMess
   }
   for (const row of plan.selected) {
     if (row.type === 'attachment') {
-      for (const made of normalizeAttachmentForAPI(row.attachment)) joinUser(made, mergeUserMessagesAndToolResults)
+      const normalized = normalizeAttachmentForAPI(row.attachment)
+      const before = out.at(-1)
+      if (before?.type === 'user') {
+        out[out.length - 1] = normalized.reduce(mergeUserMessagesAndToolResults, before)
+      } else {
+        out.push(...normalized)
+      }
       continue
     }
     if (row.type === 'system') {
