@@ -32,6 +32,7 @@ import { createBranchSession } from '../services/branches/branchManifest.js'
 import { transcriptMessageIndex } from '../utils/sessionStorage/materialize.js'
 import { getCwd } from '../utils/cwd.js'
 import { formatRelativeTimeAgo } from '../utils/format.js'
+import { passedOver } from '../utils/passedOver.js'
 import {
   getFocusedSessionConnector,
   subscribeThroughFocused,
@@ -190,7 +191,8 @@ function useSelectorLoads({
       ids => {
         if (!cancelled) setMutatingShellIds(ids)
       },
-      () => {
+      error => {
+        passedOver(error)
         if (!cancelled) setMutatingShellIds(null)
       },
     )
@@ -222,7 +224,8 @@ function useSelectorLoads({
             setStoreStats(undefined)
           }
         },
-        () => {
+        error => {
+          passedOver(error)
           if (!cancelled) setStoreStats(undefined)
         },
       )
@@ -232,6 +235,14 @@ function useSelectorLoads({
   }, [claimed, phase, canRestoreCode, chosenUuid])
 
   return { mutatingShellIds, storeStats }
+}
+
+function transcriptPathOf(connector: object): string | null {
+  if (!('transcriptFile' in connector)) return null
+  const fn = connector.transcriptFile
+  if (typeof fn !== 'function') return null
+  const value: unknown = fn.call(connector)
+  return typeof value === 'string' && value !== '' ? value : null
 }
 
 function useSelectorActions({
@@ -302,13 +313,7 @@ function useSelectorActions({
     setError(null)
     setBusy(true)
     try {
-      const focused = getFocusedSessionConnector() as {
-        transcriptFile?: () => string | null | undefined
-      }
-      const sourceTranscriptPath =
-        typeof focused.transcriptFile === 'function'
-          ? focused.transcriptFile()
-          : null
+      const sourceTranscriptPath = transcriptPathOf(getFocusedSessionConnector())
       if (!sourceTranscriptPath) {
         if (mountedRef.current) {
           setError('this session has no transcript file to branch from')
