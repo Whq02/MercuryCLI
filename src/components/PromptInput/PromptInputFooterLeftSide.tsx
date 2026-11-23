@@ -269,16 +269,15 @@ export function PromptInputFooterLeftSide({
     primaryBits < 2 &&
     (primaryBits === 0 || columns >= 80)
 
-  const hasNotice = noticeText !== null || noticeBlock !== null
-  const isStandingNotice = currentNotice !== null && standsUntilRemoved(currentNotice)
-  const noticeStands = hasNotice && !(isStandingNotice && !vimInsert && parts.length > 0)
-  const hintsShow = !vimInsert && parts.length > 0 && !noticeStands
+  const noticeYields =
+    currentNotice !== null && standsUntilRemoved(currentNotice) && parts.length > 0
+  const noticeStands = !noticeYields && (noticeText !== null || noticeBlock !== null)
+  const hintsShow = !vimInsert && !noticeStands && parts.length > 0
   const idleHintShows =
-    !vimInsert &&
     parts.length === 0 &&
     !showTasksPill &&
-    !showPrBadge &&
     hintsEnabled &&
+    !showPrBadge &&
     !noticeStands
   const rowHasContent =
     searchField !== undefined || vimInsert || showTasksPill || showPrBadge
