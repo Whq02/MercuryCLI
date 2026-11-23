@@ -15,21 +15,25 @@ import { consumeNotices, queuedNoticeKeys, recordQueuedNotice, retireNotices } f
 import { passedOver } from '../utils/passedOver.js'
 import { MAIN_LANE, parseOwnerKey, type OwnerKey } from '../utils/run/ownerKey.js'
 import { parseSlashCommand } from '../utils/slashCommandParsing.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../pi/holes.js'
 
-export type SetAppState = (...args: Unbuilt[]) => Unbuilt
+export type SetAppState = (updater: (prevState: AppState) => AppState) => void
 
 
-const triedCompact: Unbuilt = unbuilt('src/input-core/command-queue.ts:22')
-const queue: (QueuedCommand & { [triedCompact]?: true })[] = unbuilt('src/input-core/command-queue.ts:23')
+const triedCompact = Symbol('triedCompact')
+const queue: (QueuedCommand & { [triedCompact]?: true })[] = []
+let snapshot: readonly QueuedCommand[] = Object.freeze([])
+const queueChanged = createSignal()
+let queueIdSeq = 0
+
 function mintQueueId(): string {
-  return notBuilt('src/input-core/command-queue.ts:28')
+  queueIdSeq += 1
+  return `q${queueIdSeq}`
 }
 
 function commit(): void {
-  return notBuilt('src/input-core/command-queue.ts:32')
+  snapshot = Object.freeze([...queue])
+  queueChanged.emit()
 }
-
 
 export type QueueConsumptionEvent = {
   kind: 'dequeued' | 'removed' | 'cleared' | 'popped'
@@ -57,35 +61,64 @@ function emitConsumption(kind: QueueConsumptionEvent['kind'], commands: readonly
 }
 
 function logOperation(operation: QueueOperation, content?: string, identity?: Pick<QueuedCommand, 'uuid' | 'mode' | 'isMeta' | 'sentAt' | 'origin' | 'agentCompletion'>): void {
-  return notBuilt('src/input-core/command-queue.ts:63')
+  const entry: QueueOperationMessage = {
+    type: 'queue-operation',
+    operation,
+    timestamp: new Date().toISOString(),
+    sessionId: getSessionId(),
+    ...(content !== undefined ? { content } : {}),
+    ...(identity?.uuid !== undefined ? { commandUuid: String(identity.uuid) } : {}),
+    ...(identity?.mode !== undefined ? { mode: identity.mode } : {}),
+    ...(identity?.isMeta === true ? { isMeta: true } : {}),
+    ...(identity?.sentAt !== undefined ? { sentAt: identity.sentAt } : {}),
+    ...(identity?.origin !== undefined ? { origin: identity.origin } : {}),
+    ...(identity?.agentCompletion !== undefined ? { agentCompletion: identity.agentCompletion } : {}),
+  }
+  void recordQueueOperation(entry)
 }
 
-const PRIORITY_ORDER: Record<QueuePriority, number> = unbuilt('src/input-core/command-queue.ts:80')
+const PRIORITY_ORDER: Record<QueuePriority, number> = {
+  now: 0,
+  next: 1,
+  later: 2,
+}
 
 function bestIndexByPriority(
   filter?: (cmd: QueuedCommand) => boolean,
 ): number {
-  return notBuilt('src/input-core/command-queue.ts:86')
+  let bestIdx = -1
+  let bestPriority = Infinity
+  for (let i = 0; i < queue.length; i++) {
+    const cmd = queue[i]!
+    if (filter && !filter(cmd)) continue
+    const priority = PRIORITY_ORDER[cmd.priority ?? 'next']
+    if (priority < bestPriority) {
+      bestPriority = priority
+      bestIdx = i
+      if (priority === 0) break
+    }
+  }
+  return bestIdx
 }
 
 
-export const subscribeToCommandQueue: Unbuilt = unbuilt('src/input-core/command-queue.ts:104')
+export const subscribeToCommandQueue = queueChanged.subscribe
 
 export function getCommandQueueSnapshot(): readonly QueuedCommand[] {
-  return notBuilt('src/input-core/command-queue.ts:106')
+  return snapshot
 }
 
 
 export function getCommandQueue(): QueuedCommand[] {
-  return notBuilt('src/input-core/command-queue.ts:111')
+  return [...queue]
 }
 
 function getCommandsByMaxPriority(
   maxPriority: QueuePriority,
 ): QueuedCommand[] {
-  return notBuilt('src/input-core/command-queue.ts:115')
+  const threshold = PRIORITY_ORDER[maxPriority]
+  return queue.filter(cmd => PRIORITY_ORDER[cmd.priority ?? 'next'] <= threshold)
 }
-
 export function getDrainableCommands(sleepBoundary: boolean): QueuedCommand[] {
   const waits = (cmd: QueuedCommand): boolean => cmd.localCommand === true || (wordsWaitForTurnEnd && cmd.waitsForTurnEnd === true)
   if (!sleepBoundary) return getCommandsByMaxPriority('next').filter(cmd => !waits(cmd))
@@ -224,15 +257,36 @@ export function enqueue(command: QueuedCommand): void {
 }
 
 export function enqueuePendingNotification(command: QueuedCommand): void {
-  return notBuilt('src/input-core/command-queue.ts:261')
+  const stamped: QueuedCommand = {
+    ...command,
+    priority: command.priority ?? 'later',
+    queueId: mintQueueId(),
+    sentAt: command.sentAt ?? new Date().toISOString(),
+  }
+  queue.push(stamped)
+  commit()
+  recordQueuedNotice(stamped)
+  logOperation(
+    'enqueue',
+    typeof command.value === 'string' ? command.value : undefined,
+    stamped,
+  )
 }
 
 export function dequeue(
   filter?: (cmd: QueuedCommand) => boolean,
 ): QueuedCommand | undefined {
-  return notBuilt('src/input-core/command-queue.ts:278')
+  const idx = bestIndexByPriority(filter)
+  if (idx === -1) return undefined
+  const [cmd] = queue.splice(idx, 1)
+  if (!cmd) return undefined
+  commit()
+  logOperation('dequeue', undefined, cmd)
+  rememberTaken([cmd])
+  consumeNotices(queuedNoticeKeys([cmd]))
+  emitConsumption('dequeued', [cmd])
+  return cmd
 }
-
 export function dequeueAll(): QueuedCommand[] {
   if (queue.length === 0) {
     return []
@@ -252,13 +306,55 @@ export function dequeueAll(): QueuedCommand[] {
 export function dequeueAllMatching(
   predicate: (cmd: QueuedCommand) => boolean,
 ): QueuedCommand[] {
-  return notBuilt('src/input-core/command-queue.ts:308')
+  const matched: QueuedCommand[] = []
+  const remaining: (QueuedCommand & { [triedCompact]?: true })[] = []
+  for (const cmd of queue) {
+    if (predicate(cmd)) matched.push(cmd)
+    else remaining.push(cmd)
+  }
+  if (matched.length === 0) return []
+  queue.length = 0
+  queue.push(...remaining)
+  commit()
+  for (const cmd of matched) {
+    logOperation('dequeue', undefined, cmd)
+  }
+  rememberTaken(matched)
+  retireNotices(queuedNoticeKeys(matched), 'discarded when its crewmate was stopped')
+  emitConsumption('dequeued', matched)
+  return matched
 }
 
 export function remove(commandsToRemove: QueuedCommand[]): void {
-  return notBuilt('src/input-core/command-queue.ts:335')
+  if (commandsToRemove.length === 0) return
+  const toRemove = new Set(commandsToRemove)
+  const removed: QueuedCommand[] = []
+  for (const [key, bank] of parkedQueues) {
+    for (let i = bank.length - 1; i >= 0; i--) {
+      if (toRemove.has(bank[i]!)) {
+        removed.unshift(bank.splice(i, 1)[0]!)
+      }
+    }
+    if (bank.length === 0) parkedQueues.delete(key)
+  }
+  const prevLiveLen = queue.length
+  const liveRemoved: QueuedCommand[] = []
+  for (let i = queue.length - 1; i >= 0; i--) {
+    if (toRemove.has(queue[i]!)) {
+      liveRemoved.unshift(queue.splice(i, 1)[0]!)
+    }
+  }
+  const liveChanged = queue.length !== prevLiveLen
+  if (liveRemoved.length > 0) removed.push(...liveRemoved)
+  if (removed.length === 0) return
+  if (liveChanged) commit()
+  for (const cmd of removed) {
+    logOperation('remove', undefined, cmd)
+  }
+  rememberTaken(removed)
+  consumeNotices(queuedNoticeKeys(removed))
+  emitConsumption('removed', removed)
 }
-
 
 const TAKEN_MEMORY = 256
 const takenUuids: string[] = []
@@ -294,14 +390,19 @@ export function popById(uuid: string): PopReceipt {
 }
 
 export function resetCommandQueue(): void {
-  return notBuilt('src/input-core/command-queue.ts:400')
+  queue.length = 0
+  parkedQueues.clear()
+  snapshot = Object.freeze([])
+  drainingNow = new Set()
+  owningSessionId = null
+  takenUuids.length = 0
+  wordsWaitForTurnEnd = false
 }
 
 
 export function isSlashCommand(cmd: QueuedCommand): boolean {
-  return notBuilt('src/input-core/command-queue.ts:411')
+  return typeof cmd.value === 'string' && !cmd.skipSlashCommands && cmd.value.trim().startsWith('/')
 }
-
 export const RESTART_CARRY_ROW_PREFIX = 'runner restarted '
 const RESTART_CARRY_TEXT = /^\s*(?:<system-reminder>\s*)?runner restarted /
 
