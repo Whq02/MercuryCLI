@@ -9,17 +9,6 @@ function hasSubcommandsOrDepthRule(lowerName: string, spec: CommandSpec | null):
   return Object.hasOwn(DEPTH_RULES, lowerName)
 }
 
-function optionTakesArg(spec: CommandSpec | null, flag: string): boolean {
-  if (!spec?.options || flag.includes('=')) return false
-  for (const option of spec.options) {
-    const names = Array.isArray(option.name) ? option.name : [option.name]
-    if (names.includes(flag)) {
-      return option.args !== undefined
-    }
-  }
-  return false
-}
-
 function verifyWordIntegrity(
   prefix: string,
   args: string[],
@@ -45,7 +34,7 @@ function verifyWordIntegrity(
         break
       }
       if (i === 0 && arg.startsWith('-')) {
-        argIdx += optionTakesArg(spec, arg) ? 2 : 1
+        argIdx += optionTakesArgument(spec, arg) ? 2 : 1
         continue
       }
       return false

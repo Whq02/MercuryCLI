@@ -6,7 +6,6 @@ import {
 } from '../../engine/system-prompt/defaultSystemPrompt.js'
 import type { QueryParams } from '../../engine/loop/turn-machine.js'
 import { productionDeps } from '../../engine/turn-entry/turnLoopDeps.js'
-import type { LegacyQueryYield } from '../../engine/loop/project-legacy.js'
 import { randomUUID, type UUID } from 'node:crypto'
 import { connectToServer, fetchToolsForClient } from '../../integrations/mcp/client.js'
 import {
