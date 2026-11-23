@@ -1,6 +1,7 @@
 import type { TaskStateBase } from '../../Task.js'
 import type { AgentId } from '../../types/ids.js'
 import type { ShellCommand } from '../../utils/ShellCommand.js'
+import { isRecord } from '../../utils/isRecord.js'
 
 export type BashTaskKind = 'bash' | 'monitor'
 
@@ -26,10 +27,5 @@ export type LocalShellTaskState = TaskStateBase & {
 }
 
 export function isLocalShellTask(task: unknown): task is LocalShellTaskState {
-  return (
-    typeof task === 'object' &&
-    task !== null &&
-    'type' in task &&
-    task.type === 'local_bash'
-  )
+  return isRecord(task) && task.type === 'local_bash'
 }
