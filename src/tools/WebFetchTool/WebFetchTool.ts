@@ -73,7 +73,8 @@ const BATCH_TRUNCATION_LINE = '[Batch result truncated; fetch this URL separatel
 function ruleContentFor(input: Input): string {
   try {
     return `domain:${new URL(input.url ?? '').hostname}`
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return `input:${JSON.stringify(input)}`
   }
 }
@@ -90,19 +91,8 @@ function matchingRule(
   return undefined
 }
 
-function ruleReason(
-  rule: PermissionRule | undefined,
-  requestContent: string,
-  behavior: 'allow' | 'deny' | 'ask',
-): Extract<PermissionDecisionReason, { type: 'rule' }> {
-  return {
-    type: 'rule',
-    rule: rule ?? {
-      source: 'localSettings',
-      ruleBehavior: behavior,
-      ruleValue: { toolName: WEB_FETCH_TOOL_NAME, ruleContent: requestContent },
-    },
-  }
+function ruleReason(rule: PermissionRule): Extract<PermissionDecisionReason, { type: 'rule' }> {
+  return { type: 'rule', rule }
 }
 
 const REDIRECT_PHRASES: Record<number, string> = {
@@ -118,7 +108,7 @@ async function fetchSingle(
 ): Promise<FetchResult> {
   const startTime = Date.now()
   const fetched = await getURLMarkdownContent(input.url, context.abortController)
-  if ('type' in fetched && fetched.type === 'redirect') {
+  if ('type' in fetched) {
     const phrase = REDIRECT_PHRASES[fetched.statusCode] ?? 'Found'
     const clause = input.prompt
       ? `and the same prompt: ${JSON.stringify(input.prompt)}`
@@ -263,7 +253,7 @@ export const WebFetchTool = buildTool({
       return {
         behavior: 'deny',
         message: ruleSentence(`Fetching ${url}`, 'deny', denyRule),
-        decisionReason: ruleReason(denyRule, requestContent, 'deny'),
+        decisionReason: ruleReason(denyRule),
       }
     }
     const askRule = matchingRule(permissionContext, requestContent, 'ask')
@@ -271,7 +261,7 @@ export const WebFetchTool = buildTool({
       return {
         behavior: 'ask',
         message: ruleSentence(`Fetching ${url}`, 'ask', askRule),
-        decisionReason: ruleReason(askRule, requestContent, 'ask'),
+        decisionReason: ruleReason(askRule),
         suggestions: suggestionForExactCommand(WEB_FETCH_TOOL_NAME, requestContent),
       }
     }
@@ -280,7 +270,7 @@ export const WebFetchTool = buildTool({
       return {
         behavior: 'allow',
         updatedInput: input,
-        decisionReason: ruleReason(allowRule, requestContent, 'allow'),
+        decisionReason: ruleReason(allowRule),
       }
     }
     return {
