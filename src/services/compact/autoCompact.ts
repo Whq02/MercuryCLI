@@ -346,15 +346,7 @@ async function runFoldAttempt(opts: {
     },
   )
 }
-export async function autoCompactIfNeeded(
-  messages: Message[],
-  toolUseContext: ToolUseContext,
-  cacheSafeParams: CacheSafeParams,
-  querySource?: string,
-  tracking?: AutoCompactTrackingState,
-  snipTokensFreed: number = 0,
-  overflowSignal?: OverflowSignal,
-): Promise<{
+type AutoCompactResult = {
   wasCompacted: boolean
   compactionResult?: CompactionResult
   consecutiveFailures?: number
@@ -364,7 +356,94 @@ export async function autoCompactIfNeeded(
   refusal?: string
   paused?: true
   declined?: true
-}> {
+}
+
+function settleFoldError(opts: {
+  error: unknown
+  forced: boolean
+  asked: boolean
+  crewmateAsked: boolean
+  nonInteractive: boolean
+  priorFailures: number | undefined
+  rapidRefillBreakerTripped: boolean
+  measuredRawTokenCount: number | null
+  toolUseContext: ToolUseContext
+  queuedCompact: ReturnType<typeof beginQueuedCompact> | undefined
+}): AutoCompactResult {
+  const {
+    error,
+    forced,
+    asked,
+    crewmateAsked,
+    nonInteractive,
+    priorFailures,
+    rapidRefillBreakerTripped,
+    measuredRawTokenCount,
+    toolUseContext,
+    queuedCompact,
+  } = opts
+  const priorFailureField = priorFailures !== undefined ? { consecutiveFailures: priorFailures } : {}
+  if (error instanceof APIUserAbortError) {
+    return {
+      wasCompacted: false,
+      ...priorFailureField,
+      measuredRawTokenCount,
+      ...(forced ? { refusal: ERROR_MESSAGE_USER_ABORT } : {}),
+    }
+  }
+  const message = error instanceof Error ? error.message : String(error)
+  if (asked && isNothingToCompactMessage(message)) {
+    const refusal = crewmateAsked
+      ? crewmateCompactNothingWords(askingCrewmateName(toolUseContext), message)
+      : message
+    if (!crewmateAsked) queuedCompact?.complete()
+    return {
+      wasCompacted: false,
+      ...priorFailureField,
+      measuredRawTokenCount,
+      refusal,
+      declined: true,
+    }
+  }
+  logError(error)
+  if (error instanceof CompactionRefusedForHistoryError) {
+    logForDebugging(
+      `autoCompact: the summary request was refused for a malformed history — automatic compaction is paused for the rest of this run: ${error.providerWords.slice(0, 160)}`,
+      { level: 'warn' },
+    )
+    return {
+      wasCompacted: false,
+      consecutiveFailures: MAX_CONSECUTIVE_FAILURES,
+      measuredRawTokenCount,
+      refusal: compactionPausedForHistoryText(error.providerWords, { nonInteractive }),
+      paused: true,
+    }
+  }
+  const nextFailures = (priorFailures ?? 0) + 1
+  if (nextFailures >= MAX_CONSECUTIVE_FAILURES) {
+    logForDebugging(
+      `autoCompact: ${nextFailures} consecutive failures — circuit breaker tripped for the rest of this run`,
+      { level: 'warn' },
+    )
+  }
+  return {
+    wasCompacted: false,
+    consecutiveFailures: nextFailures,
+    ...(rapidRefillBreakerTripped ? { rapidRefillBreakerTripped: true } : {}),
+    measuredRawTokenCount,
+    refusal: message,
+  }
+}
+
+export async function autoCompactIfNeeded(
+  messages: Message[],
+  toolUseContext: ToolUseContext,
+  cacheSafeParams: CacheSafeParams,
+  querySource?: string,
+  tracking?: AutoCompactTrackingState,
+  snipTokensFreed: number = 0,
+  overflowSignal?: OverflowSignal,
+): Promise<AutoCompactResult> {
   const priorFailures = tracking?.consecutiveFailures
   const forced = overflowSignal !== undefined
   const nonInteractive = foldRemedyIsHeadless(toolUseContext.options.isNonInteractiveSession)
@@ -606,47 +685,17 @@ export async function autoCompactIfNeeded(
       measuredRawTokenCount,
     }
   } catch (error) {
-    if (error instanceof APIUserAbortError) {
-      return notCompacted({
-        measuredRawTokenCount,
-        ...(forced ? { refusal: ERROR_MESSAGE_USER_ABORT } : {}),
-      })
-    }
-    const message = error instanceof Error ? error.message : String(error)
-    if (asked && isNothingToCompactMessage(message)) {
-      const refusal = crewmateAsked
-        ? crewmateCompactNothingWords(askingCrewmateName(toolUseContext), message)
-        : message
-      if (!crewmateAsked) queuedCompact?.complete()
-      return notCompacted({ measuredRawTokenCount, refusal, declined: true })
-    }
-    logError(error)
-    if (error instanceof CompactionRefusedForHistoryError) {
-      logForDebugging(
-        `autoCompact: the summary request was refused for a malformed history — automatic compaction is paused for the rest of this run: ${error.providerWords.slice(0, 160)}`,
-        { level: 'warn' },
-      )
-      return {
-        wasCompacted: false,
-        consecutiveFailures: MAX_CONSECUTIVE_FAILURES,
-        measuredRawTokenCount,
-        refusal: compactionPausedForHistoryText(error.providerWords, { nonInteractive }),
-        paused: true,
-      }
-    }
-    const nextFailures = (priorFailures ?? 0) + 1
-    if (nextFailures >= MAX_CONSECUTIVE_FAILURES) {
-      logForDebugging(
-        `autoCompact: ${nextFailures} consecutive failures — circuit breaker tripped for the rest of this run`,
-        { level: 'warn' },
-      )
-    }
-    return {
-      wasCompacted: false,
-      consecutiveFailures: nextFailures,
-      ...(rapidRefillBreakerTripped ? { rapidRefillBreakerTripped: true } : {}),
+    return settleFoldError({
+      error,
+      forced,
+      asked,
+      crewmateAsked,
+      nonInteractive,
+      priorFailures,
+      rapidRefillBreakerTripped,
       measuredRawTokenCount,
-      refusal: message,
-    }
+      toolUseContext,
+      queuedCompact,
+    })
   }
 }
