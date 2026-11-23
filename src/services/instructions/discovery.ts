@@ -196,7 +196,8 @@ async function tryImportRecognizedRule(
   let stats
   try {
     stats = await fs.stat(cleanPath)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 
@@ -294,7 +295,8 @@ export async function processInstructionFile(
     let exists = false
     try {
       exists = fs.existsSync(barePath)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       exists = false
     }
     if (!exists) {
