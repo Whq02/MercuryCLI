@@ -27,7 +27,6 @@ import {
   type reviewMarksForFile,
   sendComments,
 } from '../reviewLayer.js'
-import { notBuilt } from '../../../pi/holes.js'
 
 type Setter<T> = React.Dispatch<React.SetStateAction<T>>
 type Composer = { open: boolean; text: string }
@@ -244,6 +243,241 @@ type DiffDialogViewArgs = {
   discardComment: () => void
 }
 
-export function diffDialogViewOf(arg0: DiffDialogViewArgs): React.ReactNode {
-  return notBuilt('src/components/diff/diffDialog/views.tsx:246')
+export function diffDialogViewOf({ composer, setComposer, viewMode, setViewMode, sources, source, files, editorConfigured, hunksForSelected, marks, hunkIndex, setHunkIndex, counts, selectedFile, selectedIndex, setSelectedPath, wideSummary, summaryWidth, tokens, pendingNote, setNote, diffData, stats, statsLine, closeOneLevel, title, subtitle, strip, sourceIndex, bodyBudget, listRows, listWidth, columns, commitComment, discardComment }: DiffDialogViewArgs): React.ReactNode {
+  const footer = (() => {
+    if (composer.open) return 'enter save · esc discard'
+    const parts: string[] = []
+    if (viewMode === 'list') {
+      if (sources.length > 1) parts.push('←→ source')
+      if (files.length > 1) parts.push('↑↓ file', 'pgup/pgdn page')
+      if (files.length > 0) parts.push('↵ view', 'c copy path')
+      if (files.length > 0 && editorConfigured) parts.push('o open')
+    } else {
+      parts.push('← back')
+      if (hunksForSelected.length > 1) parts.push('n/p hunk')
+      if (files.length > 1) parts.push('[/] file')
+      if (hunksForSelected.length > 0) parts.push('a comment')
+      if (marks.byHunk.size > 0) parts.push('f finding')
+      if ((marks.byHunk.get(hunkIndex) ?? []).some(c => c.state === 'open')) {
+        parts.push('r resolve')
+      }
+      if (counts.open > 0) parts.push('s/x send')
+      if (hunksForSelected.length > 0) parts.push('c copy')
+      if (editorConfigured) parts.push('o open')
+    }
+    return parts.join(' · ')
+  })()
+
+  const summaryCard = selectedFile ? (
+    <Box
+      flexDirection="column"
+      borderStyle="round"
+      borderDimColor
+      paddingX={1}
+      width={wideSummary ? summaryWidth : undefined}
+    >
+      <Text bold wrap="truncate-end">
+        {selectedFile.path}
+      </Text>
+      {!selectedFile.isBinary && !selectedFile.isUntracked ? (
+        <Text>
+          <Text dimColor>lines </Text>
+          <Text color="success">+{selectedFile.linesAdded}</Text>
+          <Text dimColor> / </Text>
+          <Text color="error">-{selectedFile.linesRemoved}</Text>
+        </Text>
+      ) : null}
+      {hunksForSelected.length > 0 ? (
+        <Text>
+          <Text dimColor>hunks </Text>
+          {hunksForSelected.length}
+        </Text>
+      ) : null}
+      {(() => {
+        const posture = [
+          ...(selectedFile.isNewFile ? ['new'] : []),
+          ...(selectedFile.isUntracked ? ['untracked'] : []),
+          ...(selectedFile.isBinary ? ['binary'] : []),
+          ...(selectedFile.isLargeFile ? ['large'] : []),
+          ...(selectedFile.isTruncated ? ['truncated'] : []),
+        ]
+        return posture.length > 0 ? (
+          <Text>
+            <Text dimColor>posture </Text>
+            {posture.join(' · ')}
+          </Text>
+        ) : null
+      })()}
+      {marks.olderVersion > 0 ? (
+        <Text color="warning">
+          older: {marks.olderVersion} open on an older stored version
+        </Text>
+      ) : null}
+      {counts.open + counts.resolved + counts.outdated > 0 ? (
+        <Text color={counts.open > 0 ? 'warning' : undefined}>
+          <Text dimColor>review </Text>
+          {counts.open} open · {counts.resolved} resolved
+          {counts.outdated > 0 ? ` · ${counts.outdated} outdated` : ''}
+        </Text>
+      ) : null}
+      <Text>
+        <Text dimColor>source </Text>
+        {sourceSummaryValue(source)}
+      </Text>
+      {pendingNote && viewMode === 'list' ? (
+        <Text color={tokens.info}>{pendingNote}</Text>
+      ) : null}
+    </Box>
+  ) : null
+
+  const emptyMessage = (() => {
+    if (diffData.loading) return null
+    if (diffData.error !== undefined && diffData.error !== '') {
+      return `Git diff could not be loaded (${diffData.error}) — try again.`
+    }
+    if (source.type === 'turn') return 'This turn changed no files.'
+    if (stats && stats.filesCount > 0) {
+      return 'Stats report changes, but the details were suppressed (too many files).'
+    }
+    if (source.type === 'artifact') return 'This artifact has no stored hunks.'
+    if (source.type === 'staged') return 'Nothing is staged.'
+    if (source.type === 'branch') {
+      return 'This branch is identical to its base.'
+    }
+    return 'The working tree is clean.'
+  })()
+
+  const comments = marks.byHunk.get(hunkIndex) ?? []
+  const openComments = comments.filter(c => c.state === 'open').length
+  const outdatedComments = comments.filter(c => c.state === 'outdated').length
+
+  return (
+    <CommandCenter
+      view="diff"
+      subtitle={statsLine ?? undefined}
+      onClose={closeOneLevel}
+      captureInput={false}
+      closeKeys="esc"
+      footer={footer}
+      bodyOwnsPageKeys={viewMode === 'list'}
+      elevated
+    >
+      <Box flexDirection="column">
+        <Box>
+          <Text bold>{title}</Text>
+          <Text dimColor> {subtitle}</Text>
+        </Box>
+        {strip ? (
+          <Box>
+            {strip.hasLeft ? <Text dimColor>‹ </Text> : null}
+            {strip.visible.map(index => (
+              <Text
+                key={index}
+                inverse={index === sourceIndex}
+                dimColor={index !== sourceIndex}
+              >
+                {' '}
+                {strip.labels[index]}{' '}
+              </Text>
+            ))}
+            {strip.hasRight ? <Text dimColor> ›</Text> : null}
+          </Box>
+        ) : null}
+        {diffData.loading || files.length === 0 ? (
+          <Box minHeight={bodyBudget}>
+            {diffData.loading ? (
+              <>
+                <WorkingGlyph color={tokens.info} />
+                <Text dimColor> Reading the diff…</Text>
+              </>
+            ) : diffData.error !== undefined && diffData.error !== '' ? (
+              <Text color="error">{emptyMessage}</Text>
+            ) : (
+              <Text dimColor>{emptyMessage}</Text>
+            )}
+          </Box>
+        ) : viewMode === 'list' ? (
+          <Box
+            flexDirection={wideSummary ? 'row' : 'column'}
+            gap={wideSummary ? 2 : 0}
+          >
+            <Box flexDirection="column" minHeight={bodyBudget}>
+              <DiffFileList
+                files={files}
+                selectedIndex={selectedIndex}
+                visibleRows={listRows}
+                listWidth={listWidth}
+                onSelect={path => {
+                  setSelectedPath(path)
+                  setHunkIndex(0)
+                  setNote(null)
+                }}
+                onActivate={path => {
+                  setSelectedPath(path)
+                  setHunkIndex(0)
+                  setViewMode('detail')
+                }}
+              />
+            </Box>
+            {summaryCard}
+          </Box>
+        ) : (
+          <Box flexDirection="column">
+            <DiffDetailView
+              filePath={selectedFile?.path ?? ''}
+              hunks={hunksForSelected}
+              hunkIndex={hunkIndex}
+              linesAdded={selectedFile?.linesAdded}
+              linesRemoved={selectedFile?.linesRemoved}
+              isLargeFile={selectedFile?.isLargeFile}
+              isBinary={selectedFile?.isBinary}
+              isTruncated={selectedFile?.isTruncated}
+              isUntracked={selectedFile?.isUntracked}
+            />
+            {comments.length > 0 ? (
+              <Box flexDirection="column">
+                <Text dimColor>
+                  {comments.length} {plural(comments.length, 'comment')} on this
+                  hunk
+                  {openComments > 0 ? ` · ${openComments} open` : ''}
+                  {outdatedComments > 0
+                    ? ` · ${outdatedComments} outdated (the anchor moved)`
+                    : ''}
+                </Text>
+                {comments.slice(0, 3).map(comment => (
+                  <Text key={comment.id} wrap="truncate-end">
+                    <Text dimColor>[{comment.state}] </Text>
+                    <Text bold>{comment.author}</Text>
+                    <Text>: {comment.body}</Text>
+                  </Text>
+                ))}
+              </Box>
+            ) : null}
+            {composer.open ? (
+              <Box>
+                <Text color={tokens.info}>comment: </Text>
+                <TextInput
+                  value={composer.text}
+                  onChange={text =>
+                    setComposer({ open: true, text: text.replace(/\r?\n/g, ' ') })
+                  }
+                  cursorOffset={composer.text.length}
+                  onChangeCursorOffset={() => {}}
+                  columns={Math.max(20, columns - 14)}
+                  onSubmit={value => {
+                    void commitComment(value)
+                  }}
+                  onExit={discardComment}
+                  onEscape={discardComment}
+                />
+              </Box>
+            ) : null}
+            {pendingNote ? (
+              <Text color={tokens.info}>{pendingNote}</Text>
+            ) : null}
+          </Box>
+        )}
+      </Box>
+    </CommandCenter>
+  )
 }
