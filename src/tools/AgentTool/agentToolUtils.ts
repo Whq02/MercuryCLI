@@ -1032,16 +1032,13 @@ export function armOverloadProbe(args: {
   return timer
 }
 
-export async function deliverOperatorMessagesAfterStop(
-  taskId: string,
-  description: string,
+function taskStateReader(
   toolUseContext: ToolUseContext,
   rootSetAppState: SetAppState,
-  canUseTool?: CanUseToolFn,
-): Promise<boolean> {
-  const stateReader =
+): NonNullable<ToolUseContext['getAppState']> {
+  return (
     toolUseContext.getAppState ??
-    ((): ReturnType<NonNullable<ToolUseContext['getAppState']>> => {
+    (() => {
       let captured!: ReturnType<NonNullable<ToolUseContext['getAppState']>>
       rootSetAppState(prev => {
         captured = prev
@@ -1049,6 +1046,17 @@ export async function deliverOperatorMessagesAfterStop(
       })
       return captured
     })
+  )
+}
+
+export async function deliverOperatorMessagesAfterStop(
+  taskId: string,
+  description: string,
+  toolUseContext: ToolUseContext,
+  rootSetAppState: SetAppState,
+  canUseTool?: CanUseToolFn,
+): Promise<boolean> {
+  const stateReader = taskStateReader(toolUseContext, rootSetAppState)
   const queued = peekOperatorMessages(stateReader().tasks[taskId])
   if (queued.length === 0) return false
   try {
@@ -1107,6 +1115,7 @@ export async function runAsyncAgentLifecycle(args: {
   const { taskId, makeStream, metadata, description, toolUseContext, rootSetAppState, agentIdForCleanup, enableSummarization } = args
   const tracker = createProgressTracker()
   const resolveActivity = createActivityDescriptionResolver(toolUseContext.options.tools)
+  const readState = taskStateReader(toolUseContext, rootSetAppState)
   const accumulated: Message[] = []
   const owedKey = {}
   let stopSummarization: (() => void) | undefined
@@ -1141,7 +1150,7 @@ export async function runAsyncAgentLifecycle(args: {
       for await (const message of makeStream(onCacheSafeParams, onQueryProgress)) {
         accumulated.push(message)
         emitBackgroundAgentRows(toolUseContext.toolUseId, message)
-        const currentTask = toolUseContext.getAppState().tasks?.[taskId]
+        const currentTask = readState().tasks?.[taskId]
         if (isLocalAgentTask(currentTask) && currentTask.retain === true) {
           appendMessageToLocalAgent(taskId, message, rootSetAppState)
         }
@@ -1242,7 +1251,8 @@ async function settleErroredRun(args: AsyncAgentLifecycleArgs, streamError: unkn
 async function tryQueuedGuidance(args: AsyncAgentLifecycleArgs): Promise<boolean> {
   const { taskId, description, toolUseContext, rootSetAppState, canUseTool } = args
   try {
-    const currentTask = toolUseContext.getAppState().tasks?.[taskId]
+    const readState = taskStateReader(toolUseContext, rootSetAppState)
+    const currentTask = readState().tasks?.[taskId]
     const pendingParent = isLocalAgentTask(currentTask) ? [...(currentTask.pendingMessages ?? [])] : []
     const pendingOperator = peekOperatorMessages(currentTask)
     const combined = [...pendingParent, ...pendingOperator]
@@ -1253,8 +1263,8 @@ async function tryQueuedGuidance(args: AsyncAgentLifecycleArgs): Promise<boolean
     if (resumed.note) {
       enqueueAgentReceiptRow({ taskId, description, summary: resumed.note.trimStart() })
     }
-    if (pendingParent.length > 0) drainPendingMessages(taskId, toolUseContext.getAppState, rootSetAppState, pendingParent.length)
-    if (pendingOperator.length > 0) takeOperatorMessages(taskId, toolUseContext.getAppState, rootSetAppState, pendingOperator.length)
+    if (pendingParent.length > 0) drainPendingMessages(taskId, readState, rootSetAppState, pendingParent.length)
+    if (pendingOperator.length > 0) takeOperatorMessages(taskId, readState, rootSetAppState, pendingOperator.length)
     return nextReplyTarget === 'parent'
   } catch (error) {
     logForDebugging(`agent lifecycle: queued-guidance drain failed: ${errorMessage(error)}`)
