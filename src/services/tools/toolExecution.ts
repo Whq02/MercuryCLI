@@ -411,7 +411,7 @@ function unknownToolWords(requestedName: string, toolUseContext: ToolUseContext)
   const { tools } = toolUseContext.options
   const appState = toolUseContext.getAppState()
   const permissionContext = appState.toolPermissionContext
-  const named = findToolByName([...baseToolsOfTheTable(), ...appState.mcp.tools], requestedName)
+  const named = findToolByName([...baseToolsOfTheTable(), ...(appState.mcp?.tools ?? [])], requestedName)
   const covering = named === undefined ? [] : wholeToolDenyRulesCovering(permissionContext, named)
   const denyRule = covering[0]
   if (denyRule !== undefined) {
