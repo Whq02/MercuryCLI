@@ -447,10 +447,9 @@ export async function getSystemPrompt(
 function buildMcpInstructionsSection(clients: MCPServerConnection[]): string | null {
   const blocks: string[] = []
   for (const client of clients) {
-    const withInstructions: { instructions?: string } = client
-    const instructions = withInstructions.instructions
-    if (instructions !== undefined && instructions !== '') {
-      blocks.push(`## ${client.name}\n${instructions}`)
+    if (client.type !== 'connected') continue
+    if (client.instructions !== undefined && client.instructions !== '') {
+      blocks.push(`## ${client.name}\n${client.instructions}`)
     }
   }
   if (blocks.length === 0) return null
