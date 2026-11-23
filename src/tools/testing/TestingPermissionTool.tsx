@@ -13,13 +13,13 @@ export const TestingPermissionTool = buildTool({
   isEnabled: () => process.env.NODE_ENV === 'test',
   isReadOnly: () => true,
   isConcurrencySafe: () => true,
+  userFacingName: () => TESTING_PERMISSION_TOOL_NAME,
   description: async () => 'A test tool that always asks for permission.',
   prompt: async () =>
     'A test tool that always asks for permission before executing. It exists for end-to-end testing of the permission flow.',
-  checkPermissions: async input => ({
+  checkPermissions: async () => ({
     behavior: 'ask' as const,
     message: 'Run the testing permission tool?',
-    updatedInput: input,
   }),
   call: async () => ({
     data: `${TESTING_PERMISSION_TOOL_NAME} executed successfully`,
