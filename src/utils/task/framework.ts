@@ -5,24 +5,73 @@ import { isBackgroundTask, type TaskState } from '../../tasks/types.js'
 import { emitTaskStarted } from '../sdkEventQueue.js'
 import { getTaskOutputDelta } from './diskOutput.js'
 import { projectTaskExecution } from './executionProjection.js'
-import { notBuilt, unbuilt, type Unbuilt } from '../../pi/holes.js'
+export const POLL_INTERVAL_MS = 1000
+export const PANEL_GRACE_MS = 30_000
 
-
-export const POLL_INTERVAL_MS: Unbuilt = unbuilt('src/utils/task/framework.ts:10')
-export const PANEL_GRACE_MS: Unbuilt = unbuilt('src/utils/task/framework.ts:11')
-
-type TaskAppStateSetter = (...args: Unbuilt[]) => Unbuilt
+type TaskAppStateSetter = (updater: (prevState: AppState) => AppState) => void
 
 export function updateTaskState<T extends TaskState = TaskState>(
   taskId: string,
   setAppState: TaskAppStateSetter,
   updater: (task: T) => T,
 ): void {
-  return notBuilt('src/utils/task/framework.ts:15')
+  let projected: TaskState | undefined
+  setAppState(prev => {
+    const existing = prev.tasks[taskId]
+    if (!existing) return prev
+    const updated = updater(existing as T)
+    if (updated === existing) return prev
+    if (updated.status !== existing.status) {
+      projected = updated
+    }
+    return {
+      ...prev,
+      tasks: {
+        ...prev.tasks,
+        [taskId]: updated,
+      },
+    }
+  })
+  if (projected !== undefined) {
+    projectTaskExecution(projected)
+  }
 }
 
 export function registerTask(task: TaskState, setAppState: TaskAppStateSetter): void {
-  return notBuilt('src/utils/task/framework.ts:32')
+  let isNew = false
+  setAppState(prev => {
+    const existing = prev.tasks[task.id]
+    isNew = existing === undefined
+    const stored: TaskState =
+      existing !== undefined && 'retain' in existing
+        ? ({
+            ...task,
+            retain: existing.retain,
+            startTime: existing.startTime,
+            messages: existing.messages,
+            diskLoaded: existing.diskLoaded,
+            pendingMessages: existing.pendingMessages,
+          } as TaskState)
+        : task
+    return {
+      ...prev,
+      tasks: {
+        ...prev.tasks,
+        [task.id]: stored,
+      },
+    }
+  })
+  projectTaskExecution(task)
+  if (isNew) {
+    const prompt = 'prompt' in task && typeof task.prompt === 'string' ? task.prompt : undefined
+    emitTaskStarted({
+      taskId: task.id,
+      ...(task.toolUseId !== undefined ? { callId: task.toolUseId } : {}),
+      description: task.description,
+      taskType: task.type,
+      ...(prompt !== undefined ? { prompt } : {}),
+    })
+  }
 }
 
 function retainedEvictionDue(task: TaskState, now: number): boolean {
@@ -99,24 +148,69 @@ export function liveWorkWords(counts: LiveWorkCounts): string {
 
 export function settleOwnerlessTasks(
   setAppState: TaskAppStateSetter,
-  now?: number,
+  now: number = Date.now(),
 ): Array<{ id: string; reason: string }> {
-  return notBuilt('src/utils/task/framework.ts:136')
+  const settled: Array<{ id: string; reason: string }> = []
+  setAppState(prev => {
+    settled.length = 0
+    let nextTasks: Record<string, TaskState> | undefined
+    for (const [id, task] of Object.entries(prev.tasks)) {
+      const reason = taskOwnerGone(task)
+      if (reason === null) continue
+      settled.push({ id, reason })
+      nextTasks ??= { ...prev.tasks }
+      nextTasks[id] =
+        task.type === 'local_agent'
+          ? { ...task, status: 'killed', endTime: now, stopReason: reason }
+          : { ...task, status: 'killed', endTime: now }
+    }
+    if (nextTasks === undefined) return prev
+    return {
+      ...prev,
+      tasks: nextTasks,
+    }
+  })
+  return settled
 }
 
 export function evictTerminalTask(taskId: string, setAppState: TaskAppStateSetter): void {
-  return notBuilt('src/utils/task/framework.ts:160')
+  setAppState(prev => {
+    const task = prev.tasks[taskId]
+    if (!task) return prev
+    if (!isTerminalTaskStatus(task.status as TaskStatus)) return prev
+    if (!task.notified) return prev
+    if (!retainedEvictionDue(task, Date.now())) return prev
+    const { [taskId]: _removed, ...restTasks } = prev.tasks
+    return {
+      ...prev,
+      tasks: restTasks,
+      agentNameRegistry: pruneAgentNameRegistry(prev.agentNameRegistry, taskId),
+    }
+  })
 }
 
 export function getRunningTasks(state: AppState): TaskState[] {
-  return notBuilt('src/utils/task/framework.ts:174')
+  return Object.values(state.tasks).filter(task => task.status === 'running')
 }
 
 export async function generateTaskAttachments(state: AppState): Promise<{
   updatedTaskOffsets: Record<string, number>
   evictedTaskIds: string[]
 }> {
-  return notBuilt('src/utils/task/framework.ts:178')
+  const updatedTaskOffsets: Record<string, number> = {}
+  const evictedTaskIds: string[] = []
+  for (const [taskId, task] of Object.entries(state.tasks)) {
+    if (isTerminalTaskStatus(task.status as TaskStatus) && task.notified) {
+      evictedTaskIds.push(taskId)
+      continue
+    }
+    if (task.status !== 'running') continue
+    const { content, newOffset } = await getTaskOutputDelta(taskId, task.outputOffset)
+    if (content) {
+      updatedTaskOffsets[taskId] = newOffset
+    }
+  }
+  return { updatedTaskOffsets, evictedTaskIds }
 }
 
 export function applyTaskOffsetsAndEvictions(
@@ -124,5 +218,38 @@ export function applyTaskOffsetsAndEvictions(
   updatedTaskOffsets: Record<string, number>,
   evictedTaskIds: string[],
 ): void {
-  return notBuilt('src/utils/task/framework.ts:200')
+  const offsetEntries = Object.entries(updatedTaskOffsets)
+  if (offsetEntries.length === 0 && evictedTaskIds.length === 0) return
+
+  setAppState(prev => {
+    let nextTasks: Record<string, TaskState> | undefined
+    let nextRegistry = prev.agentNameRegistry
+
+    for (const [taskId, newOffset] of offsetEntries) {
+      const task = prev.tasks[taskId]
+      if (!task || task.status !== 'running') continue
+      nextTasks ??= { ...prev.tasks }
+      nextTasks[taskId] = { ...task, outputOffset: newOffset }
+    }
+
+    const now = Date.now()
+    for (const taskId of evictedTaskIds) {
+      const currentTasks = nextTasks ?? prev.tasks
+      const task = currentTasks[taskId]
+      if (!task) continue
+      if (!isTerminalTaskStatus(task.status as TaskStatus)) continue
+      if (!task.notified) continue
+      if (!retainedEvictionDue(task, now)) continue
+      nextTasks ??= { ...prev.tasks }
+      delete nextTasks[taskId]
+      nextRegistry = pruneAgentNameRegistry(nextRegistry, taskId)
+    }
+
+    if (nextTasks === undefined) return prev
+    return {
+      ...prev,
+      tasks: nextTasks,
+      agentNameRegistry: nextRegistry,
+    }
+  })
 }
