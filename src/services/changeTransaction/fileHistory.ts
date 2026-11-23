@@ -626,7 +626,7 @@ export async function copyFileHistoryForResume(log: SessionListing): Promise<voi
   if (!snapshots || snapshots.length === 0) return
   if (!log.messages || log.messages.length === 0) return
   const lastMessage = log.messages[log.messages.length - 1]
-  const previousSessionId = lastMessage?.sessionId
+  const previousSessionId = lastMessage.sessionId
   if (!previousSessionId) {
     logError(new Error('copyFileHistoryForResume: no previous session id on the last message'))
     return

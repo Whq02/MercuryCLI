@@ -103,7 +103,7 @@ function getCommandIndex(commands: Command[]): Fuse<IndexedCommand> {
     const rawParts = name.split(/[:_-]/).filter(Boolean)
     const nameParts = rawParts.length > 1 ? rawParts : []
     const aliases = command.aliases ?? []
-    const descriptionWords = (command.description ?? '')
+    const descriptionWords = command.description
       .split(/\s+/)
       .map(word => word.toLowerCase().replace(/[^a-z0-9]/g, ''))
       .filter(Boolean)

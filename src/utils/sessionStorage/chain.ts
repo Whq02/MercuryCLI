@@ -81,12 +81,7 @@ export function getFirstMeaningfulUserMessageTextContent<T extends Message>(
 export function removeExtraFields(
   transcript: TranscriptMessage[],
 ): SerializedMessage[] {
-  return transcript.map(entry => {
-    const copy = { ...entry }
-    delete (copy as { isSidechain?: boolean }).isSidechain
-    delete (copy as { parentUuid?: UUID | null }).parentUuid
-    return copy
-  })
+  return transcript.map(({ isSidechain, parentUuid, ...row }) => row)
 }
 
 export function applyPreservedSegmentRelinks(

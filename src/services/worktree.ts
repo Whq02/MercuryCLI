@@ -1272,7 +1272,7 @@ export function generateTmuxSessionName(repoPath: string, branch: string): strin
 function filterRelaunchArgs(args: string[]): string[] {
   const kept: string[] = []
   for (let i = 0; i < args.length; i++) {
-    const arg = args[i] as string
+    const arg = args[i]
     if (arg === '--multiplex' || arg.startsWith('--multiplex=')) continue
     if (arg.startsWith('--worktree=')) continue
     if (arg === '-w' || arg === '--worktree') {
@@ -1305,7 +1305,7 @@ export async function execIntoTmuxWorktree(args: string[]): Promise<{ handled: b
   let classicMode = false
   let hasPendingBlockTools = false
   for (let i = 0; i < args.length; i++) {
-    const arg = args[i] as string
+    const arg = args[i]
     if (arg === '--multiplex=classic') {
       classicMode = true
     } else if (arg === '--block-tools' || arg.startsWith('--block-tools=')) {

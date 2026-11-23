@@ -210,7 +210,7 @@ function getPreGenerationSuppressReason(
   }
   if (assistants.length < 2) return 'early_conversation'
   const lastAssistant = assistants[assistants.length - 1]
-  if (lastAssistant?.isApiErrorMessage === true) return 'last_response_error'
+  if (lastAssistant.isApiErrorMessage === true) return 'last_response_error'
   const cacheReason = getParentCacheSuppressReason(lastAssistant)
   if (cacheReason !== undefined) return cacheReason
   return getStateSuppressReason(appState)
