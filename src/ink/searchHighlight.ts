@@ -54,7 +54,11 @@ export function applySearchHighlight(
       const idx = row.text.indexOf(needle, from)
       if (idx === -1) break
       const startCol = row.cellColumns[row.unitToContribution[idx]!]!
-      const endCol = row.cellColumns[row.unitToContribution[idx + needle.length - 1]!]!
+      const lastCol = row.cellColumns[row.unitToContribution[idx + needle.length - 1]!]!
+      const endCol =
+        cellAt(screen, lastCol, y)?.width === CellWidth.Wide
+          ? Math.min(screen.width - 1, lastCol + 1)
+          : lastCol
       for (let col = startCol; col <= endCol; col++) {
         const cell = cellAt(screen, col, y)
         if (!cell) continue
