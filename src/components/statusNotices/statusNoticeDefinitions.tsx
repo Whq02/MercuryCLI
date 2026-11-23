@@ -92,14 +92,12 @@ const largeAgentDescriptionsNotice: StatusNoticeDefinition = {
 const claudeAiExternalTokenNotice: StatusNoticeDefinition = {
   id: 'claude-ai-external-token',
   type: 'warning',
-  isActive: (context: StatusNoticeContext) => {
-    void context
+  isActive: () => {
     if (!isClaudeAISubscriber()) return false
     const tokenSource = getAuthTokenSource().source
     return tokenSource === 'ANTHROPIC_AUTH_TOKEN' || tokenSource === 'credentials.keyCommand'
   },
-  render: (context: StatusNoticeContext) => {
-    void context
+  render: () => {
     const tokenSource = getAuthTokenSource().source
     return (
       <Box marginTop={1}>
@@ -115,8 +113,7 @@ const claudeAiExternalTokenNotice: StatusNoticeDefinition = {
 const apiKeyConflictNotice: StatusNoticeDefinition = {
   id: 'api-key-conflict',
   type: 'warning',
-  isActive: (context: StatusNoticeContext) => {
-    void context
+  isActive: () => {
     try {
       if (!getApiKeyFromConfigOrMacOSKeychain()) return false
       const { source } = getAnthropicApiKeyWithSource({
@@ -128,8 +125,7 @@ const apiKeyConflictNotice: StatusNoticeDefinition = {
       return false
     }
   },
-  render: (context: StatusNoticeContext) => {
-    void context
+  render: () => {
     const { source } = getAnthropicApiKeyWithSource({
       skipRetrievingKeyFromApiKeyHelper: true,
     })
@@ -146,8 +142,7 @@ const apiKeyConflictNotice: StatusNoticeDefinition = {
 const bothAuthMethodsNotice: StatusNoticeDefinition = {
   id: 'both-auth-methods',
   type: 'warning',
-  isActive: (context: StatusNoticeContext) => {
-    void context
+  isActive: () => {
     try {
       const tokenSource = getAuthTokenSource().source
       const { source: apiKeySource } = getAnthropicApiKeyWithSource({
@@ -163,8 +158,7 @@ const bothAuthMethodsNotice: StatusNoticeDefinition = {
       return false
     }
   },
-  render: (context: StatusNoticeContext) => {
-    void context
+  render: () => {
     const tokenSource = getAuthTokenSource().source
     const { source: apiKeySource } = getAnthropicApiKeyWithSource({
       skipRetrievingKeyFromApiKeyHelper: true,
@@ -221,12 +215,8 @@ export function pinnedOverLimitLine(status: { pinned: number; used: number; limi
 const pinnedOverLimitNotice: StatusNoticeDefinition = {
   id: 'pinned-over-limit',
   type: 'info',
-  isActive: (context: StatusNoticeContext) => {
-    void context
-    return pinnedOverLimit() !== null
-  },
-  render: (context: StatusNoticeContext) => {
-    void context
+  isActive: () => pinnedOverLimit() !== null,
+  render: () => {
     const status = pinnedOverLimit()
     if (!status) return null
     return (
