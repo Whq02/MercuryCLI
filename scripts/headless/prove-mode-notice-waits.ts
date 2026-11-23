@@ -21,14 +21,19 @@ setTimeout(() => {
 }, 120_000).unref()
 
 type Row = { type: string; mode: string; session_id: string; turn?: number }
-type Made = { tellStandingMode: () => void }
+type Queued = { value: unknown; mode?: string; priority?: string; ridesNextWords?: boolean }
+type Made = { tellStandingMode: () => void; noteOperatorMode: (mode: string) => void }
 type Step = { name: string; makes: readonly string[]; run: (ports: object) => unknown }
 type Door = { acceptInput: (input: object) => Promise<unknown> }
 
 const order: string[] = []
+let queuedAtDoor = -1
+const queue = (await import(at('src/utils/messageQueueManager.ts'))) as { getCommandQueue: () => Queued[] }
+const queued = (): Queued[] => queue.getCommandQueue()
 mock.module(at('src/cli/headless/inputDoor.ts'), () => ({
   acceptInput: async (input: { kind: string }) => {
     order.push(`door:${input.kind}`)
+    queuedAtDoor = queued().length
     return { accepted: true }
   },
   acceptInputRow: async () => ({ accepted: true }),
@@ -37,10 +42,12 @@ mock.module(at('src/cli/headless/inputDoor.ts'), () => ({
 const { watchMode } = (await import(at('src/cli/headless/boot/watchMode.ts'))) as { watchMode: Step }
 const { bindInputDoor } = (await import(at('src/cli/headless/boot/bindInputDoor.ts'))) as { bindInputDoor: Step }
 const { notifyPermissionModeChanged } = (await import(at('src/utils/sessionState.ts'))) as { notifyPermissionModeChanged: (mode: string) => void }
+const posture = (await import(at('src/utils/cockpit/runtimePosture.ts'))) as { markSessionNonInteractive: (mode?: string) => void; getRuntimePostureSection: () => string | null }
+const { setAskChannel } = (await import(at('src/bootstrap/state.ts'))) as { setAskChannel: (channel: string) => void }
 
 type Wait = { at: number; run: () => void; unrefs: number; live: boolean }
 let clock = 0
-let waits: Wait[] = []
+const waits: Wait[] = []
 const handles = new WeakMap<object, Wait>()
 const handSetTimeout = (callback: (...args: unknown[]) => void, delay = 0, ...args: unknown[]): object => {
   const wait: Wait = { at: clock + delay, run: () => callback(...args), unrefs: 0, live: true }
@@ -78,183 +85,166 @@ const liveWaits = (): number => waits.filter(wait => wait.live).length
 
 const SECOND = 1_000
 const WAIT = 45 * SECOND
+const LINE = 'Permission mode for this run: '
 
-function session(startMode: string) {
-  waits = []
-  const rows: Row[] = []
-  let mode = startMode
-  let turn = 1
-  const ports: Record<string, unknown> = {
-    getAppState: () => ({ toolPermissionContext: { mode } }),
-    enqueueRow: (row: Row) => {
-      rows.push(row)
-      order.push(`row:${row.mode}`)
-    },
-    liveScope: () => ({ session_id: 'proof', turn }),
-  }
-  const made = watchMode.run(ports)
-  const tell = typeof made === 'object' && made !== null && 'tellStandingMode' in made ? (made as Made).tellStandingMode : null
-  return {
-    rows,
-    ports,
-    tell: (): void => tell?.(),
-    made: tell !== null,
-    press: (next: string): void => {
-      mode = next
-      notifyPermissionModeChanged(next)
-    },
-    turnIs: (next: number): void => {
-      turn = next
-    },
-    modes: (): string => rows.map(row => row.mode).join(','),
-  }
+const rows: Row[] = []
+let turn = 1
+const ports: Record<string, unknown> = {
+  enqueueRow: (row: Row) => {
+    rows.push(row)
+  },
+  liveScope: () => ({ session_id: 'proof', turn }),
 }
+const madeOf = (step: unknown): Made | null => (typeof step === 'object' && step !== null && 'tellStandingMode' in step && 'noteOperatorMode' in step ? (step as Made) : null)
+const reminders = (from: number): string[] => queued().slice(from).map(entry => String(entry.value))
+const names = (text: string | undefined, mode: string, before: string): boolean => text !== undefined && text.includes(`${LINE}${mode} (changed by the operator from ${before}`)
 
-section('1. one press, then 45 seconds of rest: one notice, and not before')
+setAskChannel('sdk')
+posture.markSessionNonInteractive('default')
+const first = madeOf(watchMode.run(ports))
+const made: Made = first ?? { tellStandingMode() {}, noteOperatorMode() {} }
+
+section('1. the step and its two doors')
+check('the step is named watchMode and makes the door a prompt ends the wait through and the door an operator\'s change comes in by', watchMode.name === 'watchMode' && first !== null && watchMode.makes.includes('tellStandingMode') && watchMode.makes.includes('noteOperatorMode'), j(watchMode.makes))
+
+section('2. before the session\'s first turn nothing is handed to the agent; the first turn states the mode that stands')
 {
-  const s = session('default')
-  check('the step is named watchMode and makes the door a prompt ends the wait through', watchMode.name === 'watchMode' && j(watchMode.makes) === j(['tellStandingMode']) && s.made, j(watchMode.makes))
-  s.press('implement')
-  check('the press itself writes no notice', s.rows.length === 0, s.modes())
-  check('the press starts one wait, and the wait does not hold the run open', liveWaits() === 1 && waits.every(wait => wait.unrefs > 0), `${liveWaits()} live, unrefs ${j(waits.map(wait => wait.unrefs))}`)
-  advance(WAIT - 1)
-  check('no notice a millisecond before the 45 seconds are up', s.rows.length === 0, s.modes())
-  s.turnIs(7)
-  advance(1)
-  check('at 45 seconds one notice names the mode that stands', s.modes() === 'implement' && s.rows[0]?.type === 'mode', j(s.rows))
-  check('the notice carries the live scope read when it is written', s.rows[0]?.session_id === 'proof' && s.rows[0]?.turn === 7, j(s.rows[0]))
+  const from = queued().length
+  made.noteOperatorMode('implement')
+  advance(WAIT)
   advance(120 * SECOND)
-  check('the notice is not said twice', s.rows.length === 1 && liveWaits() === 0, `${s.modes()} · ${liveWaits()} live`)
+  check('a change of mode before any turn queues no reminder, at 45 seconds or later', reminders(from).length === 0 && liveWaits() === 0, j(reminders(from)))
+  const stated = posture.getRuntimePostureSection() ?? ''
+  check('the first turn\'s own posture words state the mode that stands', stated.includes(`${LINE}implement`), stated.slice(0, 200))
 }
 
-section('2. three quick presses, then rest: one notice, for the last mode')
+section('3. after a turn: one change, then 45 seconds of rest: one reminder, and not before')
 {
-  const s = session('default')
-  s.press('implement')
+  const from = queued().length
+  made.noteOperatorMode('flow')
+  check('the change itself queues nothing', reminders(from).length === 0)
+  check('it starts one wait, and the wait does not hold the run open', liveWaits() === 1 && waits.filter(wait => wait.live).every(wait => wait.unrefs > 0), `${liveWaits()} live`)
+  advance(WAIT - 1)
+  check('nothing a millisecond before the 45 seconds are up', reminders(from).length === 0, j(reminders(from)))
+  advance(1)
+  const told = queued().slice(from)
+  check('at 45 seconds one reminder names the mode that stands and the mode before', told.length === 1 && names(String(told[0]?.value), 'flow', 'implement'), j(told.map(entry => entry.value)))
+  check('it is queued as the released change was: a task notification, next, riding the next words', told[0]?.mode === 'task-notification' && told[0]?.priority === 'next' && told[0]?.ridesNextWords === true, j(told[0]))
+  advance(120 * SECOND)
+  check('it is not said twice', reminders(from).length === 1 && liveWaits() === 0, `${reminders(from).length} · ${liveWaits()} live`)
+}
+
+section('4. three quick changes, then rest: one reminder, for the last mode')
+{
+  const from = queued().length
+  made.noteOperatorMode('sovereign')
   const afterFirst = liveWaits()
   advance(SECOND)
-  s.press('sovereign')
+  made.noteOperatorMode('default')
   const afterSecond = liveWaits()
   advance(SECOND)
-  s.press('flow')
+  made.noteOperatorMode('implement')
   check('there is one wait at a time, never two', afterFirst === 1 && afterSecond === 1 && liveWaits() === 1, `${afterFirst}, ${afterSecond}, ${liveWaits()}`)
   advance(WAIT - 2 * SECOND)
-  check('45 seconds after the FIRST press nothing is said: each press starts the 45 seconds again', s.rows.length === 0, s.modes())
+  check('45 seconds after the FIRST change nothing is said: each change starts the 45 seconds again', reminders(from).length === 0, j(reminders(from)))
   advance(2 * SECOND - 1)
-  check('nothing a millisecond before 45 seconds after the last press', s.rows.length === 0, s.modes())
+  check('nothing a millisecond before 45 seconds after the last change', reminders(from).length === 0)
   advance(1)
-  check('45 seconds after the last press: one notice, naming flow', s.modes() === 'flow', s.modes())
+  check('45 seconds after the last change: one reminder, naming implement, from flow', reminders(from).length === 1 && names(reminders(from)[0], 'implement', 'flow'), j(reminders(from)))
   advance(120 * SECOND)
-  check('and only that one', s.modes() === 'flow', s.modes())
+  check('and only that one', reminders(from).length === 1)
 }
 
-section('3. there and back inside the wait: no notice at all')
+section('5. there and back inside the wait: no reminder at all')
 {
-  const s = session('default')
-  s.press('implement')
+  const from = queued().length
+  made.noteOperatorMode('default')
   advance(5 * SECOND)
-  s.press('default')
-  advance(200 * SECOND)
-  check('from the starting mode to another and back: nothing is said', s.rows.length === 0, s.modes())
-  const t = session('sovereign')
-  t.press('default')
+  made.noteOperatorMode('flow')
   advance(3 * SECOND)
-  t.press('flow')
-  advance(3 * SECOND)
-  t.press('sovereign')
+  made.noteOperatorMode('implement')
   advance(200 * SECOND)
-  check('the starting mode is the session\'s own, read when the step runs', t.rows.length === 0, t.modes())
+  check('away from the mode last told and back to it: nothing is said', reminders(from).length === 0 && liveWaits() === 0, j(reminders(from)))
 }
 
-section('4. a prompt inside the wait carries the notice at once')
+section('6. a prompt inside the wait carries the reminder at once')
 {
-  const s = session('default')
-  s.press('sovereign')
+  const from = queued().length
+  made.noteOperatorMode('sovereign')
   advance(10 * SECOND)
-  s.tell()
-  check('the notice is written at the prompt, 10 seconds in', s.modes() === 'sovereign', s.modes())
+  made.tellStandingMode()
+  check('the reminder is on the queue when the prompt\'s door returns, 10 seconds in', reminders(from).length === 1 && names(reminders(from)[0], 'sovereign', 'implement'), j(reminders(from)))
   check('the wait is over', liveWaits() === 0, `${liveWaits()} live`)
   advance(200 * SECOND)
-  s.tell()
-  check('nothing more is said at 45 seconds or at the next prompt', s.modes() === 'sovereign', s.modes())
+  made.tellStandingMode()
+  check('nothing more is said at 45 seconds or at the next prompt', reminders(from).length === 1)
 }
 
-section('5. a prompt with nothing to tell writes nothing')
+section('7. a prompt with nothing to tell queues nothing')
 {
-  const s = session('default')
-  s.tell()
-  check('no press, a prompt: nothing', s.rows.length === 0, s.modes())
-  s.press('implement')
-  s.press('default')
-  s.tell()
-  check('there and back, then a prompt: nothing', s.rows.length === 0 && liveWaits() === 0, `${s.modes()} · ${liveWaits()} live`)
+  const from = queued().length
+  made.tellStandingMode()
+  made.noteOperatorMode('flow')
+  made.noteOperatorMode('sovereign')
+  made.tellStandingMode()
   advance(200 * SECOND)
-  check('and nothing later', s.rows.length === 0, s.modes())
+  check('no change, or there and back, then a prompt: nothing', reminders(from).length === 0 && liveWaits() === 0, j(reminders(from)))
 }
 
-section('6. after a notice, the mode last told is that notice\'s mode')
+section('8. the mode row is a signal of its own: at once on every change, whoever made it, and it starts no wait')
 {
-  const s = session('default')
-  s.press('flow')
-  advance(WAIT)
-  s.press('default')
-  advance(SECOND)
-  s.press('flow')
-  advance(200 * SECOND)
-  check('away from the told mode and back: no second notice', s.modes() === 'flow', s.modes())
-  s.press('default')
-  advance(WAIT)
-  check('a mode that stands 45 seconds after that is told', s.modes() === 'flow,default', s.modes())
-}
-
-section('7. a mode outside the five is passed over')
-{
-  const s = session('default')
-  s.press('apollo')
-  check('it starts no wait', liveWaits() === 0, `${liveWaits()} live`)
-  advance(200 * SECOND)
-  check('and writes nothing', s.rows.length === 0, s.modes())
-  s.press('implement')
-  advance(10 * SECOND)
+  const from = queued().length
+  const before = rows.length
+  turn = 7
+  notifyPermissionModeChanged('flow')
+  notifyPermissionModeChanged('default')
+  const written = rows.slice(before)
+  check('each change of one of the five modes writes its row at once', written.length === 2 && written[0]?.type === 'mode' && written[0]?.mode === 'flow' && written[1]?.mode === 'default', j(written))
+  check('the row carries the live scope read when it is written', written[0]?.session_id === 'proof' && written[0]?.turn === 7, j(written[0]))
   notifyPermissionModeChanged('apollo')
   notifyPermissionModeChanged('bubble')
-  advance(WAIT - 10 * SECOND - 1)
-  check('inside a wait it neither ends the wait nor starts it again', s.rows.length === 0 && liveWaits() === 1, `${s.modes()} · ${liveWaits()} live`)
-  advance(1)
-  check('and the mode that stands is still the last of the five', s.modes() === 'implement', s.modes())
+  check('a mode outside the five writes no row', rows.length === before + 2, j(rows.slice(before)))
+  advance(200 * SECOND)
+  check('a mode that moved by another road than the operator starts no wait and is not told', liveWaits() === 0 && reminders(from).length === 0, `${liveWaits()} live · ${j(reminders(from))}`)
 }
 
-section('8. the wait belongs to one run of the step')
+section('9. every mode the operator can set counts, the sixth too')
 {
-  const a = session('default')
-  a.press('implement')
-  const keptWaits = waits
-  const b = session('default')
-  waits = keptWaits
-  b.tell()
-  check('a second run ends no wait of the first', b.rows.length === 0 && a.rows.length === 0 && liveWaits() === 1, `${a.modes()} | ${b.modes()} · ${liveWaits()} live`)
-  a.tell()
-  check('the first run tells its own', a.modes() === 'implement' && b.rows.length === 0, `${a.modes()} | ${b.modes()}`)
+  const from = queued().length
+  made.noteOperatorMode('apollo')
+  advance(WAIT)
+  check('a change to apollo is told when it has stood 45 seconds', reminders(from).length === 1 && names(reminders(from)[0], 'apollo', 'sovereign'), j(reminders(from)))
 }
 
-section('9. the input door ends the wait ahead of a prompt, and only of a prompt')
+section('10. the wait belongs to one run of the step')
 {
-  const s = session('default')
-  const bound = bindInputDoor.run({ ...s.ports, tellStandingMode: s.tell })
+  const from = queued().length
+  made.noteOperatorMode('default')
+  const second = madeOf(watchMode.run(ports))
+  second?.tellStandingMode()
+  check('a second run ends no wait of the first', second !== null && reminders(from).length === 0 && liveWaits() === 1, `${j(reminders(from))} · ${liveWaits()} live`)
+  made.tellStandingMode()
+  check('the first run tells its own', reminders(from).length === 1 && names(reminders(from)[0], 'default', 'apollo'), j(reminders(from)))
+}
+
+section('11. the input door ends the wait ahead of a prompt, and only of a prompt')
+{
+  const bound = bindInputDoor.run({ ...ports, tellStandingMode: made.tellStandingMode })
   const door = typeof bound === 'object' && bound !== null && 'acceptInput' in bound ? (bound as Door) : null
   check('the boot step gives the input door', door !== null)
-  s.press('sovereign')
+  const from = queued().length
+  made.noteOperatorMode('flow')
   advance(10 * SECOND)
   order.length = 0
   await door?.acceptInput({ kind: 'shell', command: 'ls' })
   await door?.acceptInput({ kind: 'note', to: 'a seat', content: 'a note' })
-  check('a shell line and a note leave the wait running', j(order) === j(['door:shell', 'door:note']) && liveWaits() === 1, `${j(order)} · ${liveWaits()} live`)
+  check('a shell line and a note leave the wait running and queue nothing', j(order) === j(['door:shell', 'door:note']) && liveWaits() === 1 && reminders(from).length === 0, `${j(order)} · ${liveWaits()} live`)
   order.length = 0
+  queuedAtDoor = -1
   await door?.acceptInput({ kind: 'prompt', content: 'carry on' })
-  check('a prompt: the notice is written first, then the door takes the prompt', j(order) === j(['row:sovereign', 'door:prompt']), j(order))
-  order.length = 0
+  check('a prompt: the reminder is on the queue before the door takes the prompt', j(order) === j(['door:prompt']) && queuedAtDoor === from + 1 && names(reminders(from)[0], 'flow', 'default'), `${j(order)} · queue at the door ${queuedAtDoor - from} · ${j(reminders(from))}`)
   await door?.acceptInput({ kind: 'prompt', content: 'again' })
-  check('the next prompt has nothing to carry', j(order) === j(['door:prompt']), j(order))
+  check('the next prompt has nothing to carry', reminders(from).length === 1 && liveWaits() === 0)
 }
 
 console.log('\n' + (failures === 0 ? 'MODE NOTICE WAITS GREEN' : `MODE NOTICE WAITS RED: ${failures} failed`))

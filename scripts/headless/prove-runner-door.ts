@@ -74,8 +74,7 @@ await guarded(async () => {
   const modeWord = await errorOf(host.request('session/set_mode', { mode: 'frobnicate' }, 10_000))
   check('a mode word off the one list is refused -32010 kind mode in one sentence naming the word and the list', modeWord?.code === RPC_REFUSED && modeWord.data?.kind === 'mode' && modeWord.message.includes("'frobnicate' is not a permission mode") && modeWord.message.includes('default, dontAsk, implement, sovereign, flow, apollo'), j(modeWord) + ' — the sentence is built in src/cli/headless/controlHandlers.ts from PERMISSION_MODES and must name the word and the list')
   const mode = await host.request('session/set_mode', { mode: 'implement' }, 10_000)
-  const toldAtOnce = await host.waitFor('the mode row', row => row.type === 'mode', 3_000).then(() => true, () => false)
-  check('a lawful mode lands and answers the mode; its notice waits for the mode to stand', mode.mode === 'implement' && !toldAtOnce, j(host.rows.map(row => row.type)))
+  check('a lawful mode lands and answers the mode; the mode row follows', mode.mode === 'implement' && (await host.waitFor('the mode row', row => row.type === 'mode' && row.mode === 'implement', 10_000)) !== undefined)
   const code = await host.stop()
   await api.close()
   check('closing stdin ends a runner that ran no turn, exit 0 or 1 and no crash', code === 0 || code === 1, `exit=${code} stderr=${host.stderr().slice(0, 300)}`)
@@ -100,8 +99,6 @@ await guarded(async () => {
   check('queue/add accepts the prompt', added.accepted === true, j(added))
   const turnRow = await host.waitFor('the turn row', row => row.type === 'turn' && row.state === 'started', 60_000)
   check('the turn row carries the prompt id as its message id and the session id of the handshake', j(turnRow.message_ids) === j([id]) && turnRow.session_id === init.session_id, j(turnRow))
-  const modeAt = host.rows.findIndex(row => row.type === 'mode' && row.mode === 'implement')
-  check('a mode set before a prompt is told once, ahead of that prompt\'s turn', stood.mode === 'implement' && modeAt !== -1 && modeAt < host.rows.indexOf(turnRow) && host.rows.filter(row => row.type === 'mode').length === 1, j(host.rows.map(row => row.type)))
   const outcome = await host.waitFor('the first outcome', row => row.type === 'outcome' && row.turn === 1, 60_000)
   check('the outcome completes with the answer', outcome.status === 'completed' && outcome.answer === 'DOOR-ONE.', j(outcome))
   const sessionAt = host.rows.findIndex(row => row.type === 'session')
@@ -110,6 +107,10 @@ await guarded(async () => {
   const dup = await host.prompt('say one', { id })
   check('the same id again is refused as a duplicate', dup.accepted === false && dup.reason === 'duplicate', j(dup) + ' — the duplicate check is in src/cli/headless/inputDoor.ts')
 
+  const sentAtPress = api.requests.length
+  const back = await host.request('session/set_mode', { mode: 'default' }, 10_000)
+  await new Promise(resolve => setTimeout(resolve, 2_500))
+  const sentBefore = api.requests.length
   const second = await host.prompt('go slowly')
   check('a second prompt is accepted', second.accepted === true)
   await host.waitFor('the second turn open', row => row.type === 'turn' && row.state === 'started' && row.turn === 2, 60_000)
@@ -119,6 +120,9 @@ await guarded(async () => {
   check('session/facts answers mid-turn with the facts (model, usage, queue, work)', typeof facts.model === 'object' && 'usage' in facts && Array.isArray(facts.queue), j(Object.keys(facts)))
   const outcome2 = await host.waitFor('the second outcome', row => row.type === 'outcome' && row.turn === 2, 60_000)
   check('the paced turn completes', outcome2.status === 'completed', j(outcome2))
+  const reminder = 'Permission mode for this run: default (changed by the operator from implement'
+  const carried = api.requests.slice(sentBefore).filter(request => request.raw.includes(reminder))
+  check("an operator's change of mode starts no turn of its own: it is told once, with the next prompt's turn", stood.mode === 'implement' && back.mode === 'default' && sentBefore === sentAtPress && carried.length > 0 && carried[0]!.raw.split(reminder).length === 2 && api.requests.slice(0, sentBefore).every(request => !request.raw.includes('changed by the operator')), `${carried.length} of ${api.requests.length - sentBefore} requests after the prompt carry it; ${sentBefore - sentAtPress} sent between the press and the prompt; ${api.requests.slice(0, sentBefore).filter(request => request.raw.includes('changed by the operator')).length} before it`)
   await new Promise(resolve => setTimeout(resolve, 200))
   const applied = host.notifications.find(n => n.method === 'session/applied')
   check('session/applied names the held request by its JSON-RPC id and the verb once the turn ended', applied !== undefined && (applied.params as { verb?: string; model?: string; request_id?: number }).verb === 'set_model' && typeof (applied.params as { request_id?: number }).request_id === 'number', j(applied))
