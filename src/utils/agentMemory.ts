@@ -33,7 +33,7 @@ export function getAgentMemoryDir(
     case 'project':
       return `${projectLocalPath(getCwd(), AGENT_MEMORY_SUBDIR, normalizedType)}${sep}`
     case 'local':
-      return `${join(projectHomeStore(getCwd(), AGENT_MEMORY_LOCAL_SUBDIR), normalizedType)}${sep}`
+      return `${projectHomeStore(getCwd(), AGENT_MEMORY_LOCAL_SUBDIR, normalizedType)}${sep}`
   }
 }
 
@@ -70,7 +70,7 @@ export function loadAgentMemoryPrompt(
 ): string {
   return [
     '# Memory',
-    `You share Mercury's memory store through ${RECALL_TOOL_NAME}, ${RETAIN_TOOL_NAME}, ${REFLECT_TOOL_NAME}, and ${CORRECT_TOOL_NAME}.`,
+    "You share this project's memory. Retain saves a durable fact for future sessions; Recall searches what is remembered or reads a page; Correct fixes a wrong fact and keeps the old one as history.",
     SCOPE_GUIDELINES[scope],
   ].join('\n')
 }

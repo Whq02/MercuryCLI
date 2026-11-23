@@ -172,7 +172,8 @@ function formatTime12(hour: number, minute: number): string {
 export function cronToHuman(cron: string): string {
   const parts = cron.trim().split(/\s+/)
   if (parts.length !== 5) return cron
-  const [minPart, hourPart, domPart, monthPart, dowPart] = parts as [string, string, string, string, string]
+  const [minPart, hourPart, domPart, monthPart, dowPart] = parts
+  if (!minPart || !hourPart || !domPart || !monthPart || !dowPart) return cron
   if (minPart === '*' && hourPart === '*' && domPart === '*' && monthPart === '*' && dowPart === '*') {
     return 'Every minute'
   }
