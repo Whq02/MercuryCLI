@@ -1,15 +1,31 @@
-import { notBuilt, type Unbuilt } from '../../pi/holes.js'
+export type Point = {
+  x: number
+  y: number
+}
 
-export type Point = Unbuilt
+export type Size = {
+  width: number
+  height: number
+}
 
-export type Size = Unbuilt
-
-export type Rectangle = Unbuilt
+export type Rectangle = {
+  x: number
+  y: number
+  width: number
+  height: number
+}
 
 export function unionRect(a: Rectangle, b: Rectangle): Rectangle {
-  return notBuilt('src/ink/layout/geometry.ts:14')
+  const x = Math.min(a.x, b.x)
+  const y = Math.min(a.y, b.y)
+  const right = Math.max(a.x + a.width, b.x + b.width)
+  const bottom = Math.max(a.y + a.height, b.y + b.height)
+  return { x, y, width: right - x, height: bottom - y }
 }
 
 export function clamp(value: number, min?: number, max?: number): number {
-  return notBuilt('src/ink/layout/geometry.ts:22')
+  let result = value
+  if (min !== undefined) result = Math.max(result, min)
+  if (max !== undefined) result = Math.min(result, max)
+  return result
 }
