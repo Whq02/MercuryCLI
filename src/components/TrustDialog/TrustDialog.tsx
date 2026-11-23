@@ -21,101 +21,85 @@ type Props = {
   onDone(): void;
 };
 
-export function TrustDialog({ onDone }: Props): React.ReactNode {
-  const alreadyTrusted = checkHasTrustDialogAccepted();
-  const { rows } = useTerminalSize();
-  const centred = useFirstRunCardsCentred();
-  const onDoneRef = React.useRef(onDone);
-  onDoneRef.current = onDone;
-  const doneFiredRef = React.useRef(false);
-  const exitingRef = React.useRef(false);
+type TrustChoice = 'enable_all' | 'exit';
 
-  const exit = (): void => {
-    if (exitingRef.current) return;
-    exitingRef.current = true;
-    gracefulShutdownSync(1, 'closed', {
-      finalMessage: 'Setup stopped. Run mercury again to finish.',
-    });
-  };
+function exit(): void {
+  gracefulShutdownSync(1, 'closed', {
+    finalMessage: 'Setup stopped. Run mercury again to finish.',
+  });
+}
+
+export function TrustDialog({ onDone }: Props): React.ReactNode {
+  const { rows } = useTerminalSize();
+  const tone = useFirstRunCardsCentred() ? 'cardBrown' : 'warning';
+  const alreadyTrusted = checkHasTrustDialogAccepted();
 
   useTimer(() => {
-    if (!alreadyTrusted || doneFiredRef.current) return;
-    const handle = startTimeout(() => {
-      if (doneFiredRef.current) return;
-      doneFiredRef.current = true;
-      onDoneRef.current();
-    }, 0);
+    if (!alreadyTrusted) return;
+    const handle = startTimeout(onDone, 0);
     return () => {
       stopTimeout(handle);
     };
-  }, [alreadyTrusted]);
+  }, [alreadyTrusted, onDone]);
 
-  const exitState = useExitOnCtrlCDWithKeybindings(exit, undefined, !alreadyTrusted);
+  const exitState = useExitOnCtrlCDWithKeybindings(exit);
 
-  useKeybinding('confirm:no', exit, {
-    context: 'Confirmation',
-    isActive: !alreadyTrusted,
-  });
+  useKeybinding('confirm:no', exit, { context: 'Confirmation' });
 
   if (alreadyTrusted) {
     return null;
   }
 
-  const tone = centred ? 'cardBrown' : 'warning';
+  const choose = (choice: TrustChoice): void => {
+    if (choice === 'exit') {
+      exit();
+      return;
+    }
+    if (homedir() === getCwd()) {
+      setSessionTrustAccepted(true);
+    } else {
+      saveCurrentProjectConfig(current => ({
+        ...current,
+        hasTrustDialogAccepted: true,
+      }));
+    }
+    onDone();
+  };
+
   const shortFrame = rows < 18;
-  const displayCwd = getFsImplementation().cwd();
-  const normalizedDisplayCwd = normalizePathForConfigKey(displayCwd);
+  const folder = getFsImplementation().cwd();
   const grantRoot = getProjectPathForConfig();
-  const showsGrantRoot =
-    !shortFrame && normalizePathForConfigKey(grantRoot) !== normalizedDisplayCwd;
-  const isHomeDir =
-    normalizePathForConfigKey(getCwd()) === normalizePathForConfigKey(homedir());
+  const showsRepositoryNote = !shortFrame && grantRoot !== normalizePathForConfigKey(folder);
 
   return (
     <PermissionDialog title="Trust this folder?" color={tone} titleColor={tone}>
-      <Box flexDirection="column" gap={shortFrame ? 0 : 1}>
-        <Text bold>{displayCwd}</Text>
+      <Box flexDirection="column" gap={1} paddingTop={1}>
+        <Text bold>{folder}</Text>
         {shortFrame ? (
           <Text>Mercury reads, edits and runs files here.</Text>
         ) : (
-          <Box flexDirection="column">
-            <Text>
-              Trust a folder only if you know what is in it: its settings can run hooks and helper commands, and its files can carry instructions for the model.
-            </Text>
-            <Text>Mercury reads, edits and runs files here.</Text>
-          </Box>
-        )}
-        {showsGrantRoot && (
-          <Text dimColor>
-            Trust applies to the whole repository at <Text bold>{grantRoot}</Text>.
+          <Text>
+            Trust a folder only if you know what is in it: its settings can run hooks and helper commands, and its files can carry instructions for the model.
           </Text>
         )}
+        {shortFrame ? null : <Text>Mercury reads, edits and runs files here.</Text>}
+        {showsRepositoryNote ? (
+          <Text>
+            This folder is inside a repository — trusting it covers the whole repository at <Text bold>{grantRoot}</Text>, including its other folders and worktrees.
+          </Text>
+        ) : null}
         <Select
           options={[
-            { label: 'Yes, I trust this folder', value: 'yes' },
-            { label: 'No, exit', value: 'no' },
+            { label: 'Yes, I trust this folder', value: 'enable_all' },
+            { label: 'No, exit', value: 'exit' },
           ]}
+          onChange={choose}
+          onCancel={() => choose('exit')}
           scrollMovesFocus={false}
-          onChange={value => {
-            if (value === 'yes') {
-              if (isHomeDir) {
-                setSessionTrustAccepted(true);
-              } else {
-                saveCurrentProjectConfig(current => ({
-                  ...current,
-                  hasTrustDialogAccepted: true,
-                }));
-              }
-              onDone();
-            } else {
-              exit();
-            }
-          }}
-          onCancel={exit}
         />
-        {exitState.pending && (
+        {exitState.pending ? (
           <Text dimColor>{exitChordNoticeText(exitState.keyName)}</Text>
-        )}
+        ) : null}
       </Box>
     </PermissionDialog>
   );
