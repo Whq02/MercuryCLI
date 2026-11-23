@@ -91,7 +91,7 @@ export function createCompactBoundaryMessage(
     level: 'info',
     content: 'Conversation compacted',
     compactMetadata: { trigger, preTokens, userContext, messagesSummarized },
-    ...(lastPreCompactMessageUuid !== undefined ? { logicalParentUuid: lastPreCompactMessageUuid } : {}),
+    ...(lastPreCompactMessageUuid ? { logicalParentUuid: lastPreCompactMessageUuid } : {}),
   })
 }
 
