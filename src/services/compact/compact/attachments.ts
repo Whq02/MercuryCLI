@@ -281,7 +281,7 @@ export function createSkillAttachmentIfNeeded(
   const allowedNames = catalogue !== undefined ? new Set(catalogue.map(item => item.name)) : null
   const entries = Array.from(invoked.values()).filter(skill => {
     if (allowedNames !== null && !allowedNames.has(skill.skillName)) {
-      logForDebugging(`compact: dropping invoked skill "${skill.skillName}" no longer in catalogue`)
+      logForDebugging(`compact: invoked skill ${skill.skillName} left the catalogue — not re-injected`)
       return false
     }
     return true

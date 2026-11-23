@@ -110,7 +110,7 @@ function resolveCapsuleState(
   if (capsule !== null) {
     return { state: 'installed', reason: 'run continuation capsule installed' }
   }
-  return { state: 'none', reason: 'no substantive run state' }
+  return { state: 'none', reason: 'no substantive run' }
 }
 
 function pruneReadFileState(
