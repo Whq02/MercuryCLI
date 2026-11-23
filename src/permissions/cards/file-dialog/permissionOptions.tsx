@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { homedir } from 'node:os'
 import { isAbsolute, relative, sep as platformSep, win32 } from 'node:path'
 import { Text } from '../../../screen/themedRenderer.js'
