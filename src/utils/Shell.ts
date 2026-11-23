@@ -9,7 +9,7 @@ import { createAndSaveSnapshot, loginExports } from './bash/ShellSnapshot.js'
 import { contextShellCwd, getCwd, getStartingCwd, setContextShellCwd, tellWhereACdLeftTheShell, tellWhereTheShellStands } from './cwd.js'
 import { logForDebugging } from './debug.js'
 import { diagnosticAsksFor, isReadOnlyDiagnostic } from './diagnosticReadOnly.js'
-import { errorMessage, isENOENT } from './errors.js'
+import { errorMessage, getErrnoCode, isENOENT } from './errors.js'
 import { normalizePathForComparison } from './file.js'
 import { getFsImplementation, safeResolvePath } from './fsOperations.js'
 import { getPlatform } from './platform.js'
@@ -22,7 +22,7 @@ import { createEngineCommandProvider, perCommandEngineBinary, resolveShellEngine
 import { getInitialSettings } from './settings/settings.js'
 import { getCachedPowerShellPath } from './shell/powershellDetection.js'
 import { createPowerShellProvider } from './shell/powershellProvider.js'
-import type { ShellProvider, ShellType } from './shell/shellProvider.js'
+import type { FrameHandOver, ShellProvider, ShellType } from './shell/shellProvider.js'
 import { fallbackEngineBinary, systemShellRecord } from './shell/shellRecord.js'
 import { wrapSpawn, createAbortedCommand, createFailedCommand, type ExecResult, type ShellCommand } from './ShellCommand.js'
 import { noteMsysGroupLeftBehind, noteShellOfThisProcess, tellProcessGroupTheShell, tellWhatProcessGroupEnds } from './processGroup.js'
@@ -35,7 +35,6 @@ import { planWindowsBatchInvocation, runWindowsBatchCommand } from './shell/wind
 import { windowsShellRoadActive, withRoadPrograms } from './shell/windowsShellRoad.js'
 import { passedOver } from './passedOver.js'
 import { startImmediate } from './timers.js'
-import { notBuilt } from '../pi/holes.js'
 
 export const getShellConfig = memoize(async (): Promise<{ provider: ShellProvider }> => ({
   provider: await createBashShellProvider(await systemShellRecord()),
@@ -321,6 +320,18 @@ export async function exec(
   return ran
 }
 
+type ShellFrame = Awaited<ReturnType<ShellProvider['buildExecCommand']>>
+
+type ThirdRoad = {
+  road: SpawnRoad
+  frame: ShellFrame
+  handOver: FrameHandOver | undefined
+  runFolder: string
+  asked: string | undefined
+  shellType: ShellType
+  options: ExecOptions
+}
+
 async function execOnARoad(
   command: string,
   abortSignal: AbortSignal,
@@ -328,5 +339,271 @@ async function execOnARoad(
   options: ExecOptions,
   notes: string[],
 ): Promise<ShellCommand> {
-  return notBuilt('src/utils/Shell.ts:338')
+  const timeout = options.timeout || DEFAULT_TIMEOUT_MS
+  const asked = options.cwd === undefined ? undefined : resolveShellCwd(options.cwd)
+  if (asked !== undefined) {
+    const probe = probeDirectory(asked)
+    if (!probe.ok) return askedFolderFails(asked, probe)
+  }
+  if (shellType === 'bash' && options.onStdout === undefined && options.backgroundIntent !== true && options.inheritSessionEnv !== true) {
+    const engine = await engineRoad(command, abortSignal, options, timeout, asked)
+    if (engine !== null) return engine
+  }
+  if (shellType === 'bash') {
+    const batch = await batchRoad(command, abortSignal, options, timeout, asked)
+    if (batch !== null) return batch
+  }
+
+  const road = await spawnRoad(shellType)
+  const frame = await road.provider.buildExecCommand(command, { id: randomBytes(6).toString('hex') })
+  const runFolder = runFolderFor(asked, notes)
+  if (typeof runFolder !== 'string') return runFolder
+  if (frame.handOver === undefined) {
+    const refusal = startRefusal(runFolder, asked === undefined, shellType !== 'bash')
+    if (refusal !== null) return createFailedCommand(refusal)
+  }
+  if (abortSignal.aborted) return createAbortedCommand()
+  const spawnArgs = road.provider.getSpawnArgs(frame.commandString)
+  const taskOutput = new TaskOutput(generateTaskId('local_bash'), options.onProgress ?? null, options.onStdout === undefined)
+  await getFsImplementation().mkdir(getTaskOutputDir())
+  const { env, scrubbed } = await commandEnvironment(road, shellType, command, options.inheritSessionEnv === true)
+  if (road.recordsBash) markFrameUnread(frame.cwdFilePath)
+  const handOver = frame.handOver?.(env, runFolder)
+  if (handOver !== undefined) noteServingShell(road.provider.shellPath)
+  const run: ThirdRoad = { road, frame, handOver, runFolder, asked, shellType, options }
+  return startShell(run, spawnArgs, env, scrubbed, taskOutput, abortSignal, timeout)
+}
+
+function askedFolderFails(folder: string, probe: { missing: boolean; error: unknown }): ShellCommand {
+  return createFailedCommand(probe.missing ? `Path "${folder}" does not exist` : errorMessage(probe.error))
+}
+
+async function engineRoad(
+  command: string,
+  abortSignal: AbortSignal,
+  options: ExecOptions,
+  timeout: number,
+  asked: string | undefined,
+): Promise<ShellCommand | null> {
+  const settings = getInitialSettings()
+  const engine = resolveShellEngine(settings.shell?.engine)
+  const binary = engine.engine === 'brush' ? engine.binaryPath : await fallbackEngineBinary()
+  if (binary === null) return null
+  if (abortSignal.aborted) return createAbortedCommand()
+  return runEngineCommand(binary, command, {
+    timeout,
+    signal: abortSignal,
+    onProgress: options.onProgress,
+    owner: options.owner,
+    sessionCeiling: resolveEngineSessionCeiling(settings.shell?.sessions),
+    cwd: asked ?? getShellCwd(),
+    requireCwd: asked !== undefined,
+    onCwd: reported => followEngineCwd(reported, options.preventCwdChanges, asked),
+  })
+}
+
+function followEngineCwd(reported: string, preventCwdChanges: boolean | undefined, asked: string | undefined): void {
+  if (preventCwdChanges || asked !== undefined) return
+  try {
+    const current = getShellCwd()
+    if (reported.normalize('NFC') === current.normalize('NFC')) return
+    recordShellCwd(reported, current)
+    invalidateSessionEnvCache()
+  } catch (error) {
+    logForDebugging(`engine cwd tracking: the shell directory stays put — ${errorMessage(error)}`)
+  }
+}
+
+async function batchRoad(
+  command: string,
+  abortSignal: AbortSignal,
+  options: ExecOptions,
+  timeout: number,
+  asked: string | undefined,
+): Promise<ShellCommand | null> {
+  if (getPlatform() !== 'windows' || abortSignal.aborted) return null
+  if (resolveShellEngine(getInitialSettings().shell?.engine).engine !== 'system') return null
+  const folder = asked ?? getShellCwd()
+  if (!probeDirectory(folder).ok) return null
+  const plan = await planWindowsBatchInvocation(command, { cwd: folder })
+  if (plan.kind !== 'batch') return null
+  const refusal = startRefusal(folder, asked === undefined, true)
+  if (refusal !== null) return createFailedCommand(refusal)
+  logForDebugging(`batch invocation through cmd.exe: ${plan.batchPath}`)
+  return runWindowsBatchCommand(plan, abortSignal, {
+    timeout,
+    cwd: folder,
+    shouldAutoBackground: options.shouldAutoBackground ?? false,
+    inheritSessionEnv: options.inheritSessionEnv === true,
+    ...(options.onProgress === undefined ? {} : { onProgress: options.onProgress }),
+    ...(options.onStdout === undefined ? {} : { onStdout: options.onStdout }),
+  })
+}
+
+function runFolderFor(asked: string | undefined, notes: string[]): string | ShellCommand {
+  const folder = asked ?? getShellCwd()
+  const probe = probeDirectory(folder)
+  if (probe.ok) return folder
+  if (asked !== undefined) return askedFolderFails(asked, probe)
+  const why = whyTheShellLeft(folder, probe)
+  const original = getOriginalCwd()
+  const back = probeDirectory(original)
+  if (!back.ok) {
+    return createFailedCommand(
+      back.missing
+        ? `The working directory ${why}, and the original startup directory is gone too. Restart Mercury from an existing directory.`
+        : errorMessage(back.error),
+    )
+  }
+  if (contextShellCwd() === undefined) setCwdState(original)
+  writeShellCwd(null)
+  logForDebugging(`working directory: ${why}; recovered to the original directory ${original}`)
+  notes.push(shellDirectoryIsNow(original, why))
+  return original
+}
+
+async function startShell(
+  run: ThirdRoad,
+  spawnArgs: string[],
+  env: NodeJS.ProcessEnv,
+  scrubbed: string[],
+  taskOutput: TaskOutput,
+  abortSignal: AbortSignal,
+  timeout: number,
+): Promise<ShellCommand> {
+  const { road, handOver, options } = run
+  const onStdout = options.onStdout
+  let outputFd: number | undefined
+  try {
+    if (handOver?.file !== undefined) writeFileSync(handOver.file.path, handOver.file.text)
+    if (onStdout === undefined) outputFd = openTaskOutputFile(taskOutput.path)
+    const stdio: Array<'pipe' | number> = outputFd === undefined ? ['pipe', 'pipe', 'pipe'] : ['pipe', outputFd, outputFd]
+    const child = await spawnOwnedShell(road.provider.shellPath, handOver?.args ?? spawnArgs, {
+      cwd: handOver?.startIn ?? run.runFolder,
+      env: road.provider.origin === undefined ? env : withRoadPrograms(env, road.provider.origin, road.provider.shellPath),
+      stdio,
+      detached: road.provider.detached,
+      windowsHide: true,
+    })
+    try {
+      child.stdin?.end()
+    } catch (error) {
+      passedOver(error)
+    }
+    const shellCommand = wrapSpawn(child, abortSignal, timeout, taskOutput, road.engineBinary === null ? (options.shouldAutoBackground ?? false) : false)
+    shellCommand.scrubbedSessionEnv = scrubbed
+    if (outputFd !== undefined) {
+      await new Promise<void>(resolveTick => startImmediate(resolveTick))
+      const opened = outputFd
+      outputFd = undefined
+      try {
+        closeSync(opened)
+      } catch (error) {
+        logForDebugging(`failed to close task output descriptor: ${errorMessage(error)}`)
+      }
+    }
+    if (onStdout !== undefined) {
+      child.stdout?.on('data', (chunk: string | Buffer) => onStdout(typeof chunk === 'string' ? chunk : chunk.toString()))
+    }
+    void shellCommand.result.then(result => afterTheCommand(run, result))
+    return shellCommand
+  } catch (error) {
+    return failedStart(run, error, outputFd, taskOutput)
+  }
+}
+
+async function failedStart(run: ThirdRoad, error: unknown, outputFd: number | undefined, taskOutput: TaskOutput): Promise<ShellCommand> {
+  const { road, frame, handOver } = run
+  if (outputFd !== undefined) {
+    try {
+      closeSync(outputFd)
+    } catch (closeError) {
+      passedOver(closeError)
+    }
+  }
+  taskOutput.clear()
+  if (handOver?.file !== undefined) dropOwnFile(handOver.file.path, "the file that carried the command's frame")
+  if (road.recordsBash) void getFsImplementation().unlink(frame.cwdFilePath).catch(passedOver)
+  logForDebugging(`spawn failed for shell command: ${errorMessage(error)}`)
+  const code = getErrnoCode(error)
+  if (road.recordsBash && code === 'ENOENT' && !existsSync(road.provider.shellPath)) {
+    return createFailedCommand(await shellGoneWords(road.provider.shellPath))
+  }
+  if (code === 'ENAMETOOLONG' || code === 'E2BIG') {
+    return createFailedCommand(
+      `The shell command exceeds the platform's command-line limit (${code}). Put the command in a script file and run that file instead. ${errorMessage(error)}`,
+    )
+  }
+  return createFailedCommand(errorMessage(error))
+}
+
+function afterTheCommand(run: ThirdRoad, result: ExecResult): void {
+  const { road, frame, handOver } = run
+  if (handOver !== undefined && road.provider.origin !== 'engine') ranUnderABashOfWindows.add(result)
+  const cwdFile = shellPathToNative(frame.cwdFilePath)
+  followShellFolder(run, result, cwdFile)
+  if (frame.pipelineStatusPath !== undefined) readPipelineStatus(result, shellPathToNative(frame.pipelineStatusPath))
+  if (frame.jobsPath !== undefined) readJobsGroup(road.provider.shellPath, result, frame.jobsPath)
+  if (handOver?.file !== undefined) dropOwnFile(handOver.file.path, "the file that carried the command's frame")
+  void getFsImplementation().unlink(cwdFile).catch(passedOver)
+}
+
+function followShellFolder(run: ThirdRoad, result: ExecResult, cwdFile: string): void {
+  const tell = (line: string): void => tellInResult(result, run.shellType, line)
+  let moving: string | undefined
+  try {
+    const text = readFileSync(cwdFile, 'utf8')
+    if (run.road.recordsBash && text === FRAME_UNREAD) {
+      if (!result.interrupted && result.backgroundTaskId === undefined) {
+        result.stderr = result.stderr === '' ? SHELL_ENDED_UNREAD : `${result.stderr}\n${SHELL_ENDED_UNREAD}`
+        if (result.code === 0) result.code = 126
+      }
+      return
+    }
+    if (run.options.preventCwdChanges || run.asked !== undefined || result.backgroundTaskId !== undefined) return
+    const recorded = nativeCwdFromRecordedShell(text)
+    const trimmed = text.trim()
+    if (run.road.recordsBash && trimmed === '') {
+      logForDebugging('bash cwd tracking: the shell directory stays put — the command left no directory')
+    } else if ('refused' in recorded) {
+      logForDebugging(`bash cwd tracking: the shell directory stays put — ${recorded.refused}`)
+      if (trimmed !== '') tell(shellDirectoryStays(run.runFolder, `${trimmed.split(/\r?\n/)[0]} is a folder of the bash's own with no Windows path`))
+    } else if (recorded.path.normalize('NFC') !== run.runFolder.normalize('NFC')) {
+      moving = recorded.path
+      const refusal = run.frame.handOver === undefined ? folderNoProgramStartsIn(recorded.path, run.runFolder) : null
+      if (refusal !== null) {
+        tell(refusal)
+      } else {
+        recordShellCwd(recorded.path, run.runFolder)
+        invalidateSessionEnvCache()
+      }
+    }
+  } catch (error) {
+    logForDebugging(`bash cwd tracking: the shell directory stays put — ${errorMessage(error)}`)
+    if (moving !== undefined && getPlatform() === 'windows') {
+      tell(shellDirectoryStays(run.runFolder, `${moving} does not resolve (${errorMessage(error)})`))
+    }
+  }
+}
+
+function readPipelineStatus(result: ExecResult, file: string): void {
+  try {
+    const text = readFileSync(file, 'utf8').trim()
+    if (/^\d+(?:\s+\d+)+$/.test(text)) result.pipelineStatus = text.split(/\s+/).map(Number)
+  } catch (error) {
+    passedOver(error)
+  }
+  void getFsImplementation().unlink(file).catch(passedOver)
+}
+
+function readJobsGroup(shellPath: string, result: ExecResult, jobsPath: string): void {
+  const file = posixPathToWindowsPath(jobsPath)
+  let group = Number.NaN
+  try {
+    group = Number(readFileSync(file, 'utf8').trim())
+  } catch (error) {
+    if (!isENOENT(error)) logForDebugging(`shell jobs: the record of the command's group was not read (${file}): ${errorMessage(error)}`)
+  }
+  dropOwnFile(file, "shell jobs: the record of the command's group")
+  if (Number.isSafeInteger(group) && result.backgroundTaskId === undefined) void noteJobsLeftBehind(shellPath, group)
 }
