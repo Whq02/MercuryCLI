@@ -1,5 +1,6 @@
 import { z } from 'zod/v4'
 import type { LspToolName } from '../../constants/tools/lsp.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 
 export const LSP_READ_OPERATIONS = ['goToDefinition', 'findReferences', 'hover', 'goToImplementation', 'typeDefinition', 'incomingCalls', 'outgoingCalls', 'documentSymbol', 'workspaceSymbol', 'diagnostics', 'serverStatus'] as const
 
@@ -36,7 +37,7 @@ export function lspInputSchema(name: LspToolName): z.ZodObject {
       field = z.string()
     }
     field = field.describe(property.description)
-    shape[key] = (wire.required as readonly string[]).includes(key) ? field : field.optional()
+    shape[key] = isOneOf(wire.required, key) ? field : field.optional()
   }
   return z.strictObject(shape)
 }

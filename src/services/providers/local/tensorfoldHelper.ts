@@ -17,6 +17,7 @@ import { cachedLocalModels, refreshLocalDiscovery, type LocalModelRecord } from 
 import { ADAPTER_ENGINE_WORDS } from '../../tensorfold/adapter/identity.js'
 import { QWEN_2B_GGUF } from '../../tensorfold/adapter/models.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
+import { isOneOf } from '../../../utils/isOneOf.js'
 
 export type HelperModelSetting = 'off' | HelperModelSize
 
@@ -128,7 +129,7 @@ interface HelperConfigShape {
 
 export function readHelperModelSetting(config: HelperConfigShape = getGlobalConfig() as HelperConfigShape): { size: HelperModelSetting; compaction: boolean } {
   const raw = config.helperModel
-  const size = typeof raw?.size === 'string' && (HELPER_MODEL_SETTINGS as readonly string[]).includes(raw.size) ? (raw.size as HelperModelSetting) : 'off'
+  const size = typeof raw?.size === 'string' && isOneOf(HELPER_MODEL_SETTINGS, raw.size) ? raw.size : 'off'
   return { size, compaction: raw?.compaction === true }
 }
 

@@ -2,6 +2,7 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { DesktopDriver, DesktopPermissions } from './driver.js'
 import { fakeDesktopDriverFromEnvironment } from './fakeDesktopDriver.js'
 import { resolveNativeDesktopDriver } from './nativeDriver.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 
 const DESKTOP_DRIVER_CHOICES = ['native', 'fake', 'none'] as const
 type DesktopDriverChoice = (typeof DESKTOP_DRIVER_CHOICES)[number]
@@ -17,7 +18,7 @@ const DESKTOP_DRIVER_OFF_NOTE = 'the desktop driver is switched off for this run
 function desktopDriverChoice(): DesktopDriverChoice | { unknown: string } {
   const raw = (flagEnv('MERCURY_DESKTOP_DRIVER') ?? '').trim().toLowerCase()
   if (raw === '') return 'native'
-  if ((DESKTOP_DRIVER_CHOICES as readonly string[]).includes(raw)) return raw as DesktopDriverChoice
+  if (isOneOf(DESKTOP_DRIVER_CHOICES, raw)) return raw
   return { unknown: raw }
 }
 

@@ -68,7 +68,7 @@ export const ENGINE_DISPATCH_MODELS = ['gpt', 'glm', 'kimi', 'deepseek', 'grok',
 type EngineDispatchModel = (typeof ENGINE_DISPATCH_MODELS)[number]
 
 export function isEngineDispatchModel(v: unknown): v is EngineDispatchModel {
-  if (typeof v !== 'string' || !(ENGINE_DISPATCH_MODELS as readonly string[]).includes(v)) return false
+  if (typeof v !== 'string' || !isOneOf(ENGINE_DISPATCH_MODELS, v)) return false
   const route = v === 'gpt' ? 'openai' : v === 'glm' ? 'zai' : v === 'kimi' ? 'moonshot' : v === 'grok' ? 'xai' : v === 'muse' ? 'meta' : v === 'compat' ? 'openai-compat' : v
   return !isProviderDisabled(route)
 }
@@ -139,6 +139,7 @@ async function readLiveListsForBareId(modelParam: string | undefined): Promise<v
 
 import { MODEL_LOOKUP_LADDER } from '../../utils/model/modelLookup.js'
 import { passedOverAs } from '../../utils/passedOver.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 
 const ENGINE_ID_SHAPES = 'gpt-*, glm-*, kimi-*, deepseek-*, grok-*, muse-spark-*, gemini-*, google/*, mistral-*, minimax-*, command-*, qwen3*, qwen-*, compat/*, huggingface/*, local/*, openrouter/*, nous/*, together/*'
 

@@ -6,6 +6,7 @@ import { refuseProofWriteIntoAccountStore } from '../../../utils/proofHomeGuard.
 import type { HelperModelState, TensorFoldHost, TensorFoldHostOrigin } from '../../tensorfold/contracts.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { isOneOf } from '../../../utils/isOneOf.js'
 
 const FILE_NAME = 'tensorfold-hosts.json'
 const ORIGINS: readonly TensorFoldHostOrigin[] = ['lan-paired', 'typed', 'pod', 'app', 'shared']
@@ -53,11 +54,11 @@ function hostRecordOf(raw: unknown): TensorFoldHostRecord | undefined {
   const name = str(row?.name)
   const baseUrl = str(row?.baseUrl)
   const origin = str(row?.origin)
-  if (!row || !name || !baseUrl || !origin || !(ORIGINS as readonly string[]).includes(origin)) return undefined
+  if (!row || !name || !baseUrl || !origin || !isOneOf(ORIGINS, origin)) return undefined
   return {
     name,
     baseUrl: tensorFoldHostRoot(baseUrl),
-    origin: origin as TensorFoldHostOrigin,
+    origin,
     ...(str(row.key) !== undefined ? { key: str(row.key)!, keyRef: str(row.keyRef) ?? 'stored' } : str(row.keyRef) !== undefined ? { keyRef: str(row.keyRef)! } : {}),
     ...(str(row.serving) !== undefined ? { serving: str(row.serving)! } : {}),
     ...(str(row.version) !== undefined ? { version: str(row.version)! } : {}),

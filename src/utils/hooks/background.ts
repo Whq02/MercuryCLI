@@ -9,6 +9,7 @@ import { HOOK_BACKGROUND_ANSWER_FIELDS, type HookEvent } from './contract.js'
 import type { HookSource } from './hooksConfigSnapshot.js'
 import type { HookScope } from './sessionHooks.js'
 import { passedOverAs } from '../passedOver.js'
+import { isOneOf } from '../isOneOf.js'
 
 type BackgroundHook = {
   id: string
@@ -40,7 +41,7 @@ function readBackgroundAnswer(hook: BackgroundHook, stdout: string, stderr: stri
   const read = readStdoutAnswer(hook.event, stdout)
   if (read.kind === 'fault') return { kind: 'failed', line: hookEndingSentence({ status: 'failed', class: 'answer', exit_code: 0, detail: read.fault }, { name: hook.name, event: hook.event }) }
   if (read.kind === 'text') return { kind: 'text', text: read.text }
-  const strangers = Object.keys(read.answer).filter(field => !(HOOK_BACKGROUND_ANSWER_FIELDS as readonly string[]).includes(field))
+  const strangers = Object.keys(read.answer).filter(field => !isOneOf(HOOK_BACKGROUND_ANSWER_FIELDS, field))
   if (strangers.length > 0) {
     return { kind: 'failed', line: hookEndingSentence({ status: 'failed', class: 'answer', exit_code: 0, detail: `a background hook may answer ${HOOK_BACKGROUND_ANSWER_FIELDS.join(' and ')} only; it answered \`${strangers[0]}\`` }, { name: hook.name, event: hook.event }) }
   }

@@ -4,6 +4,7 @@ import { logForDebugging } from '../utils/debug.js'
 import type { ConcourseWorkerRecordV1 } from './concourseWorkers.js'
 import { isProcessAlive } from '../utils/ownerWatch.js'
 import { concourseRecordState } from './concourseWorkers/recordState.js'
+import { isOneOf } from '../utils/isOneOf.js'
 
 type BoardState = ReturnType<typeof concourseRecordState>
 
@@ -11,11 +12,11 @@ const lastStates = new Map<string, BoardState>()
 const askingSessions = new Set<string>()
 
 function hookStateOf(state: BoardState): (typeof SESSION_STATE_HOOK_STATES)[number] | undefined {
-  return (SESSION_STATE_HOOK_STATES as readonly string[]).includes(state) ? (state as (typeof SESSION_STATE_HOOK_STATES)[number]) : undefined
+  return isOneOf(SESSION_STATE_HOOK_STATES, state) ? state : undefined
 }
 
 function boardStateOf(state: BoardState): (typeof SESSION_BOARD_STATES)[number] | undefined {
-  return (SESSION_BOARD_STATES as readonly string[]).includes(state) ? (state as (typeof SESSION_BOARD_STATES)[number]) : undefined
+  return isOneOf(SESSION_BOARD_STATES, state) ? state : undefined
 }
 
 function detailOf(rec: ConcourseWorkerRecordV1, state: BoardState, alive: boolean): string | undefined {

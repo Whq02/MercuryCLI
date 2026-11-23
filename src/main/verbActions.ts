@@ -2,6 +2,7 @@ import { writeSync } from 'node:fs'
 import { setFlagEnv } from '../substrate/flagRegistry.js'
 import { writeErr } from './cli.js'
 import { passedOver } from '../utils/passedOver.js'
+import { isOneOf } from '../utils/isOneOf.js'
 
 export async function healthAction(options: {
   json: boolean
@@ -66,7 +67,7 @@ export async function showAction(
   const accepted = ['iterm', 'kitty', 'sixel', 'cells'] as const
   try {
     if (options.protocol !== undefined) {
-      if (!(accepted as readonly string[]).includes(options.protocol)) {
+      if (!isOneOf(accepted, options.protocol)) {
         writeErr(
           `Unknown protocol '${options.protocol}'. Accepted: ${accepted.join(', ')}.`,
         )

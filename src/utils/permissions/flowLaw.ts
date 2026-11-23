@@ -23,6 +23,7 @@ import { oldFolderPlaces, placesCertain } from './shellProtectedPaths/folders.js
 import { passedOver } from '../passedOver.js'
 import { hostEnv } from '../hostEnv.js'
 import { readWorldUsesWindowsForms } from '../platform/commandForms.js'
+import { isOneOf } from '../isOneOf.js'
 
 type FlowItem = 1 | 2 | 3 | 4
 export type FlowAsk = { item: FlowItem; subject: string; why: string }
@@ -502,7 +503,7 @@ async function checkCommand(argv: readonly string[], scan: Scan, text = argv.joi
   const found = (ask: FlowAsk): void => {
     if (!preAuthorised(text, scan.rules)) scan.asks.push(ask)
   }
-  if ((PRIVILEGE_COMMANDS as readonly string[]).includes(name)) {
+  if (isOneOf(PRIVILEGE_COMMANDS, name)) {
     found({ item: 1, subject: name, why: 'it runs with elevated rights' })
     return
   }

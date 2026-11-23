@@ -8,13 +8,14 @@ import { getMercuryHome } from './envUtils.js'
 import { isENOENT } from './errors.js'
 import { passedOver } from './passedOver.js'
 import { decodeShellScriptBytes } from './platform/spawn.js'
+import { isOneOf } from './isOneOf.js'
 
 
 const ENV_FILE_EVENTS = ['session.start', 'file.changed'] as const
 type SessionEnvHookEvent = (typeof ENV_FILE_EVENTS)[number]
 
 export function hookEventWritesEnvFile(event: string): event is SessionEnvHookEvent {
-  return (ENV_FILE_EVENTS as readonly string[]).includes(event)
+  return isOneOf(ENV_FILE_EVENTS, event)
 }
 
 function fragmentFamily(event: SessionEnvHookEvent): string {

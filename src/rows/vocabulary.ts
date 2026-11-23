@@ -5,6 +5,7 @@ import type { Continue, Terminal } from '../query/transitions.js'
 import type { TurnCutKind } from '../utils/messages/turnCut.js'
 import type { NonNullableUsage } from '../utils/api/emptyUsage.js'
 import { formatLimit } from '../utils/deadline.js'
+import { isOneOf } from '../utils/isOneOf.js'
 
 export const ROWS_SCHEMA = 1
 
@@ -584,8 +585,8 @@ const ERROR_CLASS_OF_ASSISTANT_ERROR: Record<AssistantMessageError, ErrorClass> 
 }
 
 export function errorClassOf(error: AssistantMessageError | string | undefined): ErrorClass {
-  if (error !== undefined && (ASSISTANT_MESSAGE_ERRORS as readonly string[]).includes(error)) {
-    return ERROR_CLASS_OF_ASSISTANT_ERROR[error as AssistantMessageError]
+  if (error !== undefined && isOneOf(ASSISTANT_MESSAGE_ERRORS, error)) {
+    return ERROR_CLASS_OF_ASSISTANT_ERROR[error]
   }
   return 'model'
 }

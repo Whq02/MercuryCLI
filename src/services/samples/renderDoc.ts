@@ -30,6 +30,7 @@ import {
   type SampleVerdictStatus,
 } from '../../utils/samples/contracts.js'
 import { DOC_BRAND_MARK, DOC_SCRIPT, DOC_STYLE } from './docTheme.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 
 type Raw = Record<string, unknown>
 
@@ -135,7 +136,7 @@ function partOf(raw: unknown, path: string): SamplePartV1 {
 function kindOf(raw: Raw, path: string): SamplePartKind {
   const given = raw.kind ?? raw.type
   const word = typeof given === 'string' ? given.trim().toLowerCase().replace(/_/g, '-') : ''
-  if ((SAMPLE_PART_KINDS as readonly string[]).includes(word)) return word as SamplePartKind
+  if (isOneOf(SAMPLE_PART_KINDS, word)) return word
   const alias = KIND_ALIASES[word]
   if (alias !== undefined) return alias
   if (raw.prose !== undefined || raw.text !== undefined || raw.body !== undefined || raw.content !== undefined) return 'section'
@@ -472,7 +473,7 @@ function splitLines(s: string, keepBlank: boolean, splitter: RegExp = /\n/): str
 function enumOf<T extends string>(v: unknown, path: string, allowed: readonly T[], fallback: T): T {
   if (v === undefined || v === null || v === '') return fallback
   const word = String(v).trim().toLowerCase().replace(/_/g, '-')
-  if ((allowed as readonly string[]).includes(word)) return word as T
+  if (isOneOf(allowed, word)) return word
   throw new Error(`sample(): ${path} "${String(v)}" is not one of ${allowed.join(', ')}`)
 }
 

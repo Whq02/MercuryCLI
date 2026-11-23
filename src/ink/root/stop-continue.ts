@@ -2,6 +2,7 @@ import { runTeardownSuite, type TeardownHost } from './teardown.js'
 import { reassertModesBytes } from './screen-session.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { terminalSupportsJobControl } from '../../utils/platform/terminal.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 
 export const POSIX_STOP_SIGNALS = ['SIGTSTP', 'SIGTTIN', 'SIGTTOU'] as const
 export type StopSignal = (typeof POSIX_STOP_SIGNALS)[number]
@@ -11,7 +12,7 @@ export function stopSignalsSupported(platform: NodeJS.Platform = process.platfor
 }
 
 export function isStopSignal(signal: string): signal is StopSignal {
-  return (POSIX_STOP_SIGNALS as readonly string[]).includes(signal)
+  return isOneOf(POSIX_STOP_SIGNALS, signal)
 }
 
 export function stopIsForeground(signal: StopSignal): boolean {

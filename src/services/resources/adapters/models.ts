@@ -265,12 +265,13 @@ export async function liveModelsReference(ctx: Pick<ResourceContext, 'engineMode
       models: (byRoute.get(route) ?? []).map(option => rowOf(option, ctx.engineModel, familyWordHeads)),
     })
   }
-  const notSignedIn = presences.filter(presence => !presence.credentialed && (SIGN_IN_FAMILIES as readonly string[]).includes(presence.id)).map(presence => providerDisplayName(presence.id))
+  const notSignedIn = presences.filter(presence => !presence.credentialed && isOneOf(SIGN_IN_FAMILIES, presence.id)).map(presence => providerDisplayName(presence.id))
   return { readAt: stampLocal(new Date().toISOString()), providers, notSignedIn }
 }
 
 import { MODEL_LOOKUP_LADDER, PROVIDER_MODEL_PAGES } from '../../../utils/model/modelLookup.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
+import { isOneOf } from '../../../utils/isOneOf.js'
 
 export function liveModelsReferenceText(reference: LiveModelsReference): string {
   const lines: string[] = [

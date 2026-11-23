@@ -5,7 +5,7 @@ import type { Peer } from '../../runner/wire/peer.js'
 import { PeerClosed } from '../../runner/wire/peer.js'
 import type { ElicitResult } from '../../utils/mcp/sdk.js'
 import type { CanUseToolFn, Tool, ToolUseContext } from '../../Tool.js'
-import { PERMISSION_MODES, type PermissionDecision, type PermissionDecisionReason, type PermissionMode, type PermissionUpdate } from '../../types/permissions.js'
+import { PERMISSION_MODES, type PermissionDecision, type PermissionDecisionReason, type PermissionUpdate } from '../../types/permissions.js'
 import { formatLimit, isDeadlineExceeded } from '../../utils/deadline.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { fireHooks, type HookFireResult } from '../../utils/hooks/fire.js'
@@ -20,6 +20,7 @@ import { POWERSHELL_TOOL_NAME } from '../../constants/tools/powershell.js'
 import { resolveShellCwd } from '../../utils/Shell.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 
 export const DOOR_CLOSED_CAUSE = 'the host closed the runner door while the ask was pending'
 
@@ -139,7 +140,7 @@ function createHostCanUseTool(channel: AskChannel): CanUseToolFn {
       if (engineResult.behavior === 'allow' || engineResult.behavior === 'deny') return engineResult
 
       const permissionMode = (toolUseContext.getAppState() as { toolPermissionContext: { mode: string } }).toolPermissionContext.mode
-      const wireMode = (PERMISSION_MODES as readonly string[]).includes(permissionMode) ? (permissionMode as PermissionMode) : undefined
+      const wireMode = isOneOf(PERMISSION_MODES, permissionMode) ? permissionMode : undefined
       askLimit = askLimitMs({ mode: permissionMode, crewmate: toolUseContext.agentId !== undefined })
       const askResult = engineResult as { suggestions?: PermissionUpdate[]; blockedPath?: string; decisionReason?: PermissionDecisionReason }
 

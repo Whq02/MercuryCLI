@@ -7,10 +7,11 @@ import { recognisePdfPage, renderOcr } from '../../services/ocr.js'
 import { readRegularFile } from '../../utils/regularFile.js'
 import { ensureToolResultsDir, getToolResultsDir } from '../../utils/toolResultStorage.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 
 export const SEARCHABLE_DOCUMENT_EXTENSIONS = ['pdf', 'docx', 'pptx', 'xlsx', 'odt', 'ods', 'odp', 'epub', 'rtf'] as const
 export function isSearchableDocument(path: string): boolean {
-  return (SEARCHABLE_DOCUMENT_EXTENSIONS as readonly string[]).includes(extname(path).slice(1).toLowerCase())
+  return isOneOf(SEARCHABLE_DOCUMENT_EXTENSIONS, extname(path).slice(1).toLowerCase())
 }
 export async function extractDocumentText(path: string, signal?: AbortSignal): Promise<string> {
   signal?.throwIfAborted()

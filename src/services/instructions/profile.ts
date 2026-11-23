@@ -5,6 +5,7 @@ import type {
   InstructionProfileOrigin,
 } from '../../utils/instructions/contracts.js'
 import { INSTRUCTION_PROFILES } from '../../utils/instructions/contracts.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 
 let sessionProfile: InstructionProfile | null = null
 let agentProfile: InstructionProfile | null = null
@@ -14,7 +15,7 @@ export function isInstructionProfile(
 ): value is InstructionProfile {
   return (
     typeof value === 'string' &&
-    (INSTRUCTION_PROFILES as readonly string[]).includes(value)
+    isOneOf(INSTRUCTION_PROFILES, value)
   )
 }
 

@@ -14,6 +14,7 @@ import { historyHead } from './sessionStorage/historyParts.js'
 import { getProjectDir, validateUuid } from './sessionStoragePortable.js'
 import { passedOver } from './passedOver.js'
 import { foldPathCase } from './platform/paths.js'
+import { isOneOf } from './isOneOf.js'
 
 export interface BootProjectFact {
   dir: string
@@ -70,7 +71,7 @@ function isTmpPath(p: string): boolean {
 
 export function projectDisplayName(dir: string): string {
   const base = basename(dir)
-  if ((PROJECT_CONFIG_DIR_NAMES as readonly string[]).includes(base)) {
+  if (isOneOf(PROJECT_CONFIG_DIR_NAMES, base)) {
     const parent = basename(dirname(dir))
     if (parent.length > 0 && parent !== base) return parent
   }

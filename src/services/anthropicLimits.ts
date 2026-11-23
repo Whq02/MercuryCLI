@@ -9,6 +9,7 @@ import type { AnthropicObservedUsageV1 } from './engine-connector/types.js'
 import { processRateLimitHeaders, shouldProcessRateLimits } from './rateLimitMocking.js'
 import { providerAskedWaitMs, providerWaitIsWindow } from './api/recoveryBudget.js'
 import { passedOver } from '../utils/passedOver.js'
+import { isOneOf } from '../utils/isOneOf.js'
 
 
 export type RateLimitType = 'five_hour' | 'seven_day' | 'seven_day_opus' | 'seven_day_sonnet' | 'seven_day_fable' | 'overage'
@@ -526,7 +527,7 @@ export type AnthropicLimitVerdict = {
 }
 
 export function windowClaimBindsModel(claim: RateLimitType | undefined, model: string | undefined): boolean {
-  if (claim === undefined || model === undefined || !(WEEKLY_POOL_CLAIMS as readonly string[]).includes(claim)) return true
+  if (claim === undefined || model === undefined || !isOneOf(WEEKLY_POOL_CLAIMS, claim)) return true
   return weeklyPoolClaimForModel(model) === claim
 }
 

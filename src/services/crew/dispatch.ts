@@ -15,6 +15,7 @@ import {
 import { isRecord } from '../../utils/isRecord.js'
 import type { CrewConversationId } from './conversations.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 
 export const DELIVERY_STATES = ['delivered', 'not-delivered', 'delivery-unknown'] as const
 export type DeliveryState = (typeof DELIVERY_STATES)[number]
@@ -88,11 +89,11 @@ function isDeliveryReceipt(v: unknown): v is DeliveryReceiptV1 {
     v.schema === 1 &&
     typeof v.clientMessageId === 'string' &&
     typeof v.state === 'string' &&
-    (DELIVERY_STATES as readonly string[]).includes(v.state) &&
+    isOneOf(DELIVERY_STATES, v.state) &&
     isRecord(v.requestedAddress) &&
     typeof v.requestedAddress.agentId === 'string' &&
     typeof v.requestedDisposition === 'string' &&
-    (DISPATCH_DISPOSITIONS as readonly string[]).includes(v.requestedDisposition) &&
+    isOneOf(DISPATCH_DISPOSITIONS, v.requestedDisposition) &&
     typeof v.instructionOutcome === 'string' &&
     INSTRUCTION_OUTCOMES.has(v.instructionOutcome) &&
     Array.isArray(v.attachmentOutcomes) &&

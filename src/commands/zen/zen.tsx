@@ -1,6 +1,7 @@
 import type * as React from 'react'
 import type { LocalJSXCommandContext, LocalJSXCommandOnDone } from '../../types/command.js'
 import { setZenMode, zenModeOn } from '../../utils/cockpit/zenMode.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 
 export const ZEN_WORDS = ['on', 'off'] as const
 
@@ -13,7 +14,7 @@ export function executeZen(args: string): ZenCommandResult {
   const word = args.trim()
   const token = word.toLowerCase()
   const on = zenModeOn()
-  if (token !== '' && !(ZEN_WORDS as readonly string[]).includes(token)) {
+  if (token !== '' && !isOneOf(ZEN_WORDS, token)) {
     return { message: `Valid options: ${ZEN_WORDS.join('|')} — "${word}" is not a zen option.` }
   }
   const next = token === '' ? !on : token === 'on'

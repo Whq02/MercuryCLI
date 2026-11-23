@@ -37,6 +37,7 @@ import {
 import { bundleWebEngine } from './webEngine.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 
 interface FakeTreeNode {
   role: string
@@ -265,10 +266,10 @@ function fakeSceneProblem(value: unknown): string | null {
   if (value.permissions !== undefined) {
     const permissions = value.permissions
     if (!isRecord(permissions)) return 'permissions must be a record with session, screenCapture, input and reason'
-    if (!isText(permissions.session) || !(SESSION_KINDS as readonly string[]).includes(permissions.session)) return `permissions.session must be one of ${SESSION_KINDS.join(', ')}`
+    if (!isText(permissions.session) || !isOneOf(SESSION_KINDS, permissions.session)) return `permissions.session must be one of ${SESSION_KINDS.join(', ')}`
     for (const field of ['screenCapture', 'input']) {
       const grant = permissions[field]
-      if (!isText(grant) || !(GRANTS as readonly string[]).includes(grant)) return `permissions.${field} must be one of ${GRANTS.join(', ')}`
+      if (!isText(grant) || !isOneOf(GRANTS, grant)) return `permissions.${field} must be one of ${GRANTS.join(', ')}`
     }
     if (!(permissions.reason === null || permissions.reason === undefined || isText(permissions.reason))) return 'permissions.reason must be a string or null'
   }

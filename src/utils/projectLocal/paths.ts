@@ -3,6 +3,7 @@ import { homedir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { MERCURY_PROJECT_DIR, PROJECT_CONFIG_DIR_NAMES, projectConfigDirs } from '../projectConfig.js'
 import { passedOver } from '../passedOver.js'
+import { isOneOf } from '../isOneOf.js'
 
 export { projectLocalPath } from '../projectConfig.js'
 
@@ -15,7 +16,7 @@ export function projectLocalEstateExists(root: string): boolean {
 }
 
 export function initializeProjectLocalEstate(root: string): { dir: string; created: boolean } | null {
-  if ((PROJECT_CONFIG_DIR_NAMES as readonly string[]).includes(basename(root))) return null
+  if (isOneOf(PROJECT_CONFIG_DIR_NAMES, basename(root))) return null
   const absolute = resolve(root)
   if (dirname(absolute) === absolute) return null
   let home = ''

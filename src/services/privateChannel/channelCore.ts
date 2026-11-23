@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { RELEASE_TARGETS, archiveNameFor, releaseTargetFor } from './releaseTarget.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 
 interface PrivateVersion {
   major: number
@@ -254,7 +255,7 @@ export function describePayload(
       return { state: 'refused', note: `unsupported releaseLayout schema ${String(rl.schema)} — this reader decodes schema 1` }
     }
     const primary = typeof rl.primary?.path === 'string' ? rl.primary.path : ''
-    if (!(BUNDLE_MEMBER_NAMES as readonly string[]).includes(primary)) {
+    if (!isOneOf(BUNDLE_MEMBER_NAMES, primary)) {
       return { state: 'refused', note: `releaseLayout declares an unrecognized primary "${primary}"` }
     }
     if (!memberNames.includes(primary)) {
@@ -295,7 +296,7 @@ export function describePayload(
 
   if (m.schema === 2 && typeof m.bundle === 'string') {
     const primary = m.bundle
-    if (!(BUNDLE_MEMBER_NAMES as readonly string[]).includes(primary)) {
+    if (!isOneOf(BUNDLE_MEMBER_NAMES, primary)) {
       return { state: 'refused', note: `manifest declares an unrecognized bundle "${primary}"` }
     }
     if (!memberNames.includes(primary)) {

@@ -106,6 +106,7 @@ export { zaiAccountFacts, zaiQuotaFigures, zaiQuotaWindowViews } from './provide
 import { zenUsageView } from './providerUsage/zen.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 export { zenGoWindowViews } from './providerUsage/zen.js'
 
 export type UsageProvider = 'anthropic' | 'openai'
@@ -768,8 +769,8 @@ export function anthropicLimitedWindow(reads?: ActiveUsageReads, now: number = D
 }
 
 export function limitBindsWords(claim: RateLimitType | undefined, model: string): string {
-  if (claim === undefined || !(WEEKLY_POOL_CLAIMS as readonly string[]).includes(claim)) return `binds every model, ${model} among them`
-  return windowClaimBindsModel(claim, model) ? `binds ${model}` : `binds the ${POOL_LABELS[claim as WeeklyPoolClaim]} models, not ${model}`
+  if (claim === undefined || !isOneOf(WEEKLY_POOL_CLAIMS, claim)) return `binds every model, ${model} among them`
+  return windowClaimBindsModel(claim, model) ? `binds ${model}` : `binds the ${POOL_LABELS[claim]} models, not ${model}`
 }
 
 export function worstLiveWindow(windows: readonly UsageWindowView[]): UsageWindowView | null {

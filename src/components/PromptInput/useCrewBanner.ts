@@ -8,9 +8,9 @@ import { getViewedAgent } from '../../state/selectors.js'
 import {
   AGENT_COLORS,
   AGENT_COLOR_TO_THEME_COLOR,
-  type AgentColorName,
   getAgentColor,
 } from '../../tools/AgentTool/agentColorManager.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 
 const SUBAGENT_FALLBACK: keyof Theme = 'suggestion'
 
@@ -18,8 +18,8 @@ function themeColorOf(
   name: string | undefined,
   fallback: keyof Theme = SUBAGENT_FALLBACK,
 ): keyof Theme {
-  if (name && (AGENT_COLORS as readonly string[]).includes(name)) {
-    return AGENT_COLOR_TO_THEME_COLOR[name as AgentColorName]
+  if (name && isOneOf(AGENT_COLORS, name)) {
+    return AGENT_COLOR_TO_THEME_COLOR[name]
   }
   return fallback
 }

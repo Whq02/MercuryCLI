@@ -10,6 +10,7 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { INSTALLED_NOT_DRIVEN } from './browserWords.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { browserDiscoveryCandidates, chromeForTestingRelativePaths } from '../../utils/platform/vendors.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 
 type BrowserFamily = 'chrome' | 'edge' | 'chromium' | 'brave' | 'chrome-for-testing'
 
@@ -133,7 +134,7 @@ function findChromeExecutable(cacheRoot: string, entryName: string, dir: string)
   const m = /^([a-z0-9_]+)-(.+)$/.exec(entryName)
   if (m) {
     const platform = m[1] as BrowserPlatform
-    if ((Object.values(BrowserPlatform) as string[]).includes(platform)) {
+    if (isOneOf(Object.values(BrowserPlatform), platform)) {
       try {
         const derived = computeExecutablePath({
           browser: CftBrowser.CHROME,

@@ -15,10 +15,7 @@ import {
   parseAgentToolsFromFrontmatter,
   parseSlashCommandToolsFromFrontmatter,
 } from '../../utils/markdownConfigLoader.js'
-import {
-  PERMISSION_MODES,
-  type PermissionMode,
-} from '../../utils/permissions/PermissionMode.js'
+import { PERMISSION_MODES } from '../../utils/permissions/PermissionMode.js'
 import {
   AGENT_SPEC_VERSION,
   AgentCodecPatchError,
@@ -29,6 +26,7 @@ import {
   type FrontmatterEntrySpan,
   KNOWN_AGENT_KEYS,
 } from './contracts.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 
 const YAML_SPECIAL_CHARS = /[{}[\]*&#!|>%@`'"]|: /
 const TOP_LEVEL_KEY = /^([A-Za-z0-9_-]+)\s*:(.*)$/
@@ -38,7 +36,7 @@ function keyForField(field: string): string {
 }
 
 function isKnownKey(key: string): boolean {
-  return (KNOWN_AGENT_KEYS as readonly string[]).includes(key)
+  return isOneOf(KNOWN_AGENT_KEYS, key)
 }
 
 function stripCr(line: string): string {
@@ -248,9 +246,9 @@ function extractFields(
   if (permissionModeRaw !== undefined) {
     if (
       typeof permissionModeRaw === 'string' &&
-      (PERMISSION_MODES as readonly string[]).includes(permissionModeRaw)
+      isOneOf(PERMISSION_MODES, permissionModeRaw)
     ) {
-      fields.permissionMode = permissionModeRaw as PermissionMode
+      fields.permissionMode = permissionModeRaw
     } else {
       diag(
         'error',

@@ -6,6 +6,7 @@ import type { ModelChoice } from '../../MercuryModelPicker.js'
 import type { LOCAL_SERVER_APPLY_MENU } from '../LocalServer.js'
 import type { MediaMenu } from '../Media.js'
 import type { MercuryThemeTokens } from '../../../utils/mercuryTokens.js'
+import { isOneOf } from '../../../utils/isOneOf.js'
 
 export type SubMenu =
   | 'theme'
@@ -54,8 +55,8 @@ export function validated<T extends string>(
   value: unknown,
   fallback: T,
 ): T {
-  return typeof value === 'string' && (list as readonly string[]).includes(value)
-    ? (value as T)
+  return typeof value === 'string' && isOneOf(list, value)
+    ? value
     : fallback
 }
 

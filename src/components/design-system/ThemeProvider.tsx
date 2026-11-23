@@ -17,6 +17,7 @@ import {
   type ThemeName,
   type ThemeSetting,
 } from '../../utils/theme.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 
 type ThemeContextValue = {
   resolvedTheme: ThemeName
@@ -41,11 +42,11 @@ const ThemeContext = createContext<ThemeContextValue>(DEFAULT_CONTEXT)
 function initialThemeSetting(initialState?: ThemeSetting): ThemeSetting {
   if (initialState !== undefined) return initialState
   const pin = flagEnv('MERCURY_THEME_PIN')
-  if (pin !== undefined && (THEME_SETTINGS as readonly string[]).includes(pin)) {
+  if (pin !== undefined && isOneOf(THEME_SETTINGS, pin)) {
     return pin
   }
   const stored = getGlobalConfig().theme
-  return (REACHABLE_THEME_SETTINGS as readonly string[]).includes(stored)
+  return isOneOf(REACHABLE_THEME_SETTINGS, stored)
     ? stored
     : DEFAULT_THEME_SETTING
 }

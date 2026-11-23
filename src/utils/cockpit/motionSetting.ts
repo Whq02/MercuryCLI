@@ -8,12 +8,13 @@ import {
   REDUCED_FLOOR_MS,
   setMotionPosture,
 } from './motionGovernor.js'
+import { isOneOf } from '../isOneOf.js'
 
 export const MOTION_SETTINGS = ['auto', 'full', 'reduced', 'off'] as const
 export type MotionSetting = (typeof MOTION_SETTINGS)[number]
 
 export function isMotionSetting(value: unknown): value is MotionSetting {
-  return typeof value === 'string' && (MOTION_SETTINGS as readonly string[]).includes(value)
+  return typeof value === 'string' && isOneOf(MOTION_SETTINGS, value)
 }
 
 let primed = false

@@ -10,6 +10,7 @@ import { lazySchema } from '../utils/lazySchema.js'
 import { SHELL_TYPES } from '../utils/shell/shellProvider.js'
 import { MANIFEST_FILE } from './paths.js'
 import { treeFileDigests } from './tree.js'
+import { isOneOf } from '../utils/isOneOf.js'
 
 
 export const NAME_PATTERN = /^[a-z0-9][a-z0-9-]{0,39}$/
@@ -329,7 +330,7 @@ export function parseServerRuntimeName(runtimeName: string): { name: string; ser
 }
 
 export function isReservedLabel(label: string): boolean {
-  return (RESERVED_LABELS as readonly string[]).includes(label)
+  return isOneOf(RESERVED_LABELS, label)
 }
 
 export const HOOK_EVENT_NAMES: ReadonlySet<string> = new Set(HOOK_EVENTS)

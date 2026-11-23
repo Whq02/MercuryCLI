@@ -61,6 +61,7 @@ import {
 } from './pack.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 
 type DesktopDriverLoad =
   | { state: 'ok'; driver: DesktopDriver }
@@ -130,15 +131,15 @@ function classifyThrown(error: unknown): DesktopError {
 const granted = (grant: DesktopGrant): boolean => grant === 'granted' || grant === 'not-required'
 
 function decodePermissions(raw: DesktopAddonPermissions): DesktopAnswer<DesktopPermissions> {
-  if (!(SESSION_KINDS as readonly string[]).includes(raw.session)) return fail(contractDefect('session', raw.session))
-  if (!(GRANTS as readonly string[]).includes(raw.screenCapture)) return fail(contractDefect('screenCapture', raw.screenCapture))
-  if (!(GRANTS as readonly string[]).includes(raw.input)) return fail(contractDefect('input', raw.input))
+  if (!isOneOf(SESSION_KINDS, raw.session)) return fail(contractDefect('session', raw.session))
+  if (!isOneOf(GRANTS, raw.screenCapture)) return fail(contractDefect('screenCapture', raw.screenCapture))
+  if (!isOneOf(GRANTS, raw.input)) return fail(contractDefect('input', raw.input))
   return {
     ok: true,
     value: {
-      session: raw.session as DesktopSessionKind,
-      screenCapture: raw.screenCapture as DesktopGrant,
-      input: raw.input as DesktopGrant,
+      session: raw.session,
+      screenCapture: raw.screenCapture,
+      input: raw.input,
       reason: typeof raw.reason === 'string' && raw.reason !== '' ? raw.reason : null,
     },
   }
@@ -568,8 +569,8 @@ class NativeDesktopDriver implements DesktopDriver {
     if (!Array.isArray(raw.buttons) || !Array.isArray(raw.keys)) return fail(contractDefect('held', JSON.stringify(raw)))
     const buttons: DesktopButton[] = []
     for (const button of raw.buttons) {
-      if (!(BUTTONS as readonly string[]).includes(button)) return fail(contractDefect('held button', button))
-      buttons.push(button as DesktopButton)
+      if (!isOneOf(BUTTONS, button)) return fail(contractDefect('held button', button))
+      buttons.push(button)
     }
     return { ok: true, value: { buttons, keys: raw.keys.map(k => String(k)) } }
   }

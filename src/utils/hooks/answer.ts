@@ -1,5 +1,6 @@
 import type { HookSource } from './hooksConfigSnapshot.js'
 import { hookAnswerFieldsOf, hookAnswerSchema, hookEventTable, type HookAnswer, type HookAnswerField, type HookEvent } from './contract.js'
+import { isOneOf } from '../isOneOf.js'
 
 export type ReadAnswer =
   | { kind: 'answer'; answer: HookAnswer }
@@ -11,7 +12,7 @@ export function readAnswerObject(event: HookEvent, value: unknown): ReadAnswer {
     return { kind: 'fault', fault: 'the answer is not a JSON object' }
   }
   const fields = hookAnswerFieldsOf(event)
-  const strangers = Object.keys(value).filter(key => !(fields as readonly string[]).includes(key))
+  const strangers = Object.keys(value).filter(key => !isOneOf(fields, key))
   if (strangers.length > 0) {
     const readable = fields.length === 0 ? 'nothing' : fields.map(field => `\`${field}\``).join(', ')
     return { kind: 'fault', fault: `\`${strangers[0]}\` is not an answer ${event} reads (it reads ${readable})` }

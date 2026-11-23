@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { getGlobalConfig } from '../utils/config.js'
 import { passedOver } from '../utils/passedOver.js'
+import { isOneOf } from '../utils/isOneOf.js'
 
 export interface NamedSection {
   name: string
@@ -120,7 +121,7 @@ const PROMPT_LAYER_SETS: readonly PromptLayerSet[] = ['stock', 'replace', 'whole
 export function promptLayerSet(): PromptLayerSet {
   const raw = flagEnv('MERCURY_PROMPT_LAYERS')
   if (raw === undefined || raw === '') return 'stock'
-  if ((PROMPT_LAYER_SETS as readonly string[]).includes(raw)) return raw as PromptLayerSet
+  if (isOneOf(PROMPT_LAYER_SETS, raw)) return raw
   throw new Error(`MERCURY_PROMPT_LAYERS=${raw} names no layer set (${PROMPT_LAYER_SETS.join(' · ')})`)
 }
 

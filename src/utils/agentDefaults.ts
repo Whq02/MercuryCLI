@@ -1,6 +1,7 @@
 
 import { EFFORT_LEVELS, type EffortLevel } from './effortLadder.js'
 import { getGlobalConfig, type GlobalConfig } from './config.js'
+import { isOneOf } from './isOneOf.js'
 
 export const SUBAGENT_DEFAULT_EFFORT: EffortLevel = 'high'
 export const SUBAGENT_DEFAULT_MAX_CONCURRENT = 8
@@ -16,7 +17,7 @@ type SubagentDefaults = {
 }
 
 function isLadderWord(value: unknown): value is EffortLevel {
-  return typeof value === 'string' && (EFFORT_LEVELS as readonly string[]).includes(value)
+  return typeof value === 'string' && isOneOf(EFFORT_LEVELS, value)
 }
 
 function isPositiveInteger(value: unknown): value is number {

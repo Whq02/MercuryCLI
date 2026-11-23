@@ -5,6 +5,7 @@ import { sleep } from '../utils/sleep.js'
 import type { CallModel } from '../services/providers/callModelContract.js'
 import type { StreamEvent } from '../types/message.js'
 import type { ApiStreamEvent, ApiUsage, ContentBlock } from '../types/wire.js'
+import { isOneOf } from '../utils/isOneOf.js'
 
 const SLOW_TEXT_ACTIVE_MS = 8_000
 const HAMMER_ROUND_MS = 50
@@ -16,8 +17,8 @@ export function scriptedCallModel(
   if (script === ANSWER_TEXT_SCRIPT) return scriptedAnswerText
   if (script === CHATTY_BASH_SCRIPT) return scriptedChattyBash
   if (script === OPENING_TEXT_SCRIPT) return scriptedOpeningText
-  if (script === WRITE_TOOL_SCRIPT || (ONE_TOOL_SCRIPTS as readonly string[]).includes(script)) {
-    return scriptedOneTool(script as OneToolScript)
+  if (script === WRITE_TOOL_SCRIPT || isOneOf(ONE_TOOL_SCRIPTS, script)) {
+    return scriptedOneTool(script)
   }
   if (script !== 'slow-text') return null
   return async function* scriptedSlowText(params) {

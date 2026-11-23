@@ -1,5 +1,6 @@
 
 import { TOOL_CAPABILITY_DECLARATIONS } from './declarations.js'
+import { isOneOf } from '../isOneOf.js'
 
 type ToolClass = 'observation' | 'mutation' | 'execution' | 'coordination'
 
@@ -53,7 +54,7 @@ export function validateToolCapability(cap: unknown): CapabilityValidation {
   if (!Array.isArray(c.units) || c.units.length === 0) {
     problems.push('units must be a non-empty string array')
   }
-  if (!['observation', 'mutation', 'execution', 'coordination'].includes(c.class as string)) {
+  if (!isOneOf(['observation', 'mutation', 'execution', 'coordination'], c.class)) {
     problems.push(`class '${String(c.class)}' is not a ToolClass`)
   }
   if (c.operations !== undefined && (!Array.isArray(c.operations) || c.operations.length === 0)) {
@@ -64,9 +65,7 @@ export function validateToolCapability(cap: unknown): CapabilityValidation {
       problems.push('execution.kind must be a non-empty string')
     }
     if (
-      !['full-execution-owner', 'external-projection', 'child-execution'].includes(
-        c.execution?.representation as string,
-      )
+      !isOneOf(['full-execution-owner', 'external-projection', 'child-execution'], c.execution?.representation)
     ) {
       problems.push('execution.representation must name a census classification')
     }
@@ -86,10 +85,10 @@ export function validateToolCapability(cap: unknown): CapabilityValidation {
   ) {
     problems.push('evidence entries must be change|execution|check|artifact')
   }
-  if (!['cooperative', 'kill', 'not-applicable'].includes(c.cancellation as string)) {
+  if (!isOneOf(['cooperative', 'kill', 'not-applicable'], c.cancellation)) {
     problems.push(`cancellation '${String(c.cancellation)}' is not a cancellation contract`)
   }
-  if (!['fast', 'interactive', 'long-running'].includes(c.latency as string)) {
+  if (!isOneOf(['fast', 'interactive', 'long-running'], c.latency)) {
     problems.push(`latency '${String(c.latency)}' is not a ToolLatency`)
   }
   return { ok: problems.length === 0, problems }

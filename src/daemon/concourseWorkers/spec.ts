@@ -11,6 +11,7 @@ import { SESSION_KIND_ENV, type SessionKind, parseSessionKind } from '../../util
 import { effectiveSeatCeiling } from './admission.js'
 import type { ConcourseWorkerRecordV1 } from './record.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 
 export function concourseWorkerStripEnv(): string[] {
   return [
@@ -25,7 +26,7 @@ export function concourseWorkerStripEnv(): string[] {
 export function seatInitialPermissionMode(override?: PermissionMode): SeatPermissionMode {
   const asHeadless = (mode: string | undefined): HeadlessPermissionMode | undefined => {
     if (mode === undefined || mode.length === 0) return undefined
-    return (HEADLESS_PERMISSION_MODES as readonly string[]).includes(mode) ? (mode as HeadlessPermissionMode) : undefined
+    return isOneOf(HEADLESS_PERMISSION_MODES, mode) ? mode : undefined
   }
   if (override === 'apollo') return 'apollo'
   const carried = asHeadless(override)

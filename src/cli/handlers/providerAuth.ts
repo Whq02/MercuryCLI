@@ -32,6 +32,7 @@ import { saveApiKey } from '../../utils/auth.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import { authLogin, authLogout, authStatus } from './auth.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 
 export const TERMINAL_AUTH_FAMILIES = [
   'anthropic',
@@ -57,7 +58,7 @@ export function normalizeTerminalAuthFamily(raw: string): string | undefined {
     if (name === 'default') return 'openai-compat'
     return configuredCompatEndpoints().some(endpoint => endpoint.name === name) ? `compat/${name}` : undefined
   }
-  if ((TERMINAL_AUTH_FAMILIES as readonly string[]).includes(lowered) || lowered === 'openai-compat') return lowered
+  if (isOneOf(TERMINAL_AUTH_FAMILIES, lowered) || lowered === 'openai-compat') return lowered
   return undefined
 }
 

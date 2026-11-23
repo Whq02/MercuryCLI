@@ -9,6 +9,7 @@ import { isEnvDefinedFalsy, getMercuryHome } from '../../utils/envUtils.js'
 import { getCwd } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'
 import type { ActorRefV1, CrewAgentId } from '../../types/crewIdentity.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 
 export const AGENT_IDENTITY_SCHEMA = 1 as const
 
@@ -242,7 +243,7 @@ export async function resolveAgent(
     const sep = ref.indexOf(':')
     if (sep <= 0) return null
     const kind = ref.slice(0, sep)
-    if (!(AGENT_BINDING_KINDS as readonly string[]).includes(kind)) return null
+    if (!isOneOf(AGENT_BINDING_KINDS, kind)) return null
     key = ref
   } else {
     key = bindingKeyOf(ref.bindingKind, ref.bindingId)

@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { lockPathParts, nodePackPlatform, payloadBinaryPath } from './vendoredRuntime.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 
 export const PYTHON_PACK_PATH = 'vendor/python'
 
@@ -97,7 +98,7 @@ export function readPythonRecord(manifest: unknown): PythonRecord | null {
     }
   }
   if (r.vendored !== true) return null
-  const platform = typeof r.platform === 'string' && (PYTHON_PACK_PLATFORMS as readonly string[]).includes(r.platform) ? (r.platform as PythonPackPlatform) : null
+  const platform = typeof r.platform === 'string' && isOneOf(PYTHON_PACK_PLATFORMS, r.platform) ? r.platform : null
   if (
     platform === null ||
     r.name !== 'python' ||

@@ -5,6 +5,7 @@ import { runAseprite } from '../../utils/aseprite/asepriteApp.js'
 import { writeFileAndFlushAtomically } from '../../utils/file.js'
 import { ensureScratchpadDir } from '../../utils/scratchpad.js'
 import { SPRITE_ART_LUA } from './artLuaScripts.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 
 export const ART_OPS = ['draw', 'render', 'parts', 'describe', 'palette-check'] as const
 const integer = () => z.number().int()
@@ -46,7 +47,7 @@ const artSchema = () => z.discriminatedUnion('op', [
   z.strictObject({ op: z.literal('palette-check'), file: z.string().min(1), palette: palette().optional() }),
 ]).refine(p => !('frame' in p) || p.frame === undefined || p.tag === undefined, 'choose frame or tag, not both')
 export type ArtResult = { result: string; preview?: { path: string; base64: string; width: number; height: number; frames: number[] } }
-export function isArtOp(op: string): boolean { return (ART_OPS as readonly string[]).includes(op) }
+export function isArtOp(op: string): boolean { return isOneOf(ART_OPS, op) }
 export function isArtRead(op: string): boolean { return op === 'render' || op === 'describe' || op === 'palette-check' }
 export function artInputError(input: unknown): string | undefined {
   const parsed = artSchema().safeParse(input)

@@ -21,6 +21,7 @@ import { stampSpawnReceipt } from '../substrate/envStamps.js'
 import { LIVE_ROLE_ENV_VARS, RETIRED_SEAT_ENV_VARS } from '../utils/workerRole.js'
 import { hostEnv } from '../utils/hostEnv.js'
 import { startTimeout, stopTimeout } from '../utils/timers.js'
+import { isOneOf } from '../utils/isOneOf.js'
 
 export { ALL_ROLE_ENV_VARS } from '../utils/workerRole.js'
 function sweptRoleSpellings(): string[] {
@@ -82,8 +83,8 @@ export function getHeadlessPermissionMode(
   const fallback = specDefault ?? HEADLESS_PERMISSION_MODE_DEFAULT
   const raw = (flagEnv('MERCURY_DAEMON_PERMISSION_MODE') ?? '').trim()
   if (!raw) return fallback
-  if ((HEADLESS_PERMISSION_MODES as readonly string[]).includes(raw)) {
-    return raw as HeadlessPermissionMode
+  if (isOneOf(HEADLESS_PERMISSION_MODES, raw)) {
+    return raw
   }
   logForDebugging(
     `[daemon] MERCURY_DAEMON_PERMISSION_MODE=${raw} is not one of ${HEADLESS_PERMISSION_MODES.join('|')} — using ${fallback}`,

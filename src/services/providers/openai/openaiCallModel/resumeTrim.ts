@@ -12,10 +12,11 @@ import type {
   OpenaiFault,
 } from '../openaiWire.js'
 import { stripThinkingFromIndex } from '../../../messages/apiFilters.js'
+import { isOneOf } from '../../../../utils/isOneOf.js'
 
 export const priorConversation4xx = new Map<string, string>()
 
-export const isCompactionSource = (source: unknown): boolean => (COMPACTION_SOURCES as readonly string[]).includes(String(source))
+export const isCompactionSource = (source: unknown): boolean => isOneOf(COMPACTION_SOURCES, String(source))
 export const compactedToolResultsByConversation = new Map<string, Map<string, string>>()
 
 export function applyCompactedToolResults(

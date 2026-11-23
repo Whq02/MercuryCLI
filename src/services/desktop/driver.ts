@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { isOneOf } from '../../utils/isOneOf.js'
 
 export type DesktopButton = 'left' | 'right' | 'middle'
 export type DesktopModifier = 'shift' | 'control' | 'alt' | 'super'
@@ -10,7 +11,7 @@ const DESKTOP_KEY_NAMES = [
 ] as const
 
 export function isDesktopKey(key: string): boolean {
-  if ((DESKTOP_KEY_NAMES as readonly string[]).includes(key)) return true
+  if (isOneOf(DESKTOP_KEY_NAMES, key)) return true
   if (key.length !== 1) return false
   const code = key.charCodeAt(0)
   return code >= 0x20 && code <= 0x7e

@@ -6,10 +6,9 @@ import { engineTreePath } from '../services/vulcan/engine/paths.js'
 import { engineProcessesFor } from '../services/vulcan/engine/spawn.js'
 import { endProcessTree } from '../utils/processGroup.js'
 import { passedOver } from '../utils/passedOver.js'
+import { isOneOf } from '../utils/isOneOf.js'
 
 const GODOT_CLI_VERBS = ['run', 'check', 'jobs', 'cancel', 'result', 'capture', 'frames', 'profile', 'tour'] as const
-
-type GodotCliVerb = (typeof GODOT_CLI_VERBS)[number]
 
 interface GodotCliParse {
   verb: string
@@ -95,7 +94,7 @@ export async function godotEngineCli(argv: readonly string[], io: GodotCliIo = d
     io.out(godotCliUsage(io.cliName))
     return verb.length === 0 || verb === 'help' ? 2 : 0
   }
-  if (!(GODOT_CLI_VERBS as readonly string[]).includes(verb)) {
+  if (!isOneOf(GODOT_CLI_VERBS, verb)) {
     io.err(`${io.cliName} godot: unknown verb "${verb}"`)
     io.err(godotCliUsage(io.cliName))
     return 2
@@ -111,7 +110,7 @@ export async function godotEngineCli(argv: readonly string[], io: GodotCliIo = d
     return 2
   }
   const { runEngineOp } = await import('../services/vulcan/engine/ops.js')
-  switch (verb as GodotCliVerb) {
+  switch (verb) {
     case 'run': {
       const text = await runEngineOp(
         'engine_run',

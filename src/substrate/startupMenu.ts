@@ -8,6 +8,7 @@ import { addBootNote } from './bootNotes.js'
 import { logForDebugging } from '../utils/debug.js'
 import { passedOver } from '../utils/passedOver.js'
 import { hostEnv } from '../utils/hostEnv.js'
+import { isOneOf } from '../utils/isOneOf.js'
 
 export interface MenuRow {
   env: string
@@ -43,7 +44,7 @@ export interface ComputerAccessResolution {
 export function resolveComputerAccess(saved: string | null | undefined, sovereignOn: boolean): ComputerAccessResolution {
   if (sovereignOn) return { value: 'full', source: 'sovereign mode' }
   const pinned = (saved ?? '').trim().toLowerCase()
-  if ((COMPUTER_ACCESS_VALUES as readonly string[]).includes(pinned)) return { value: pinned as ComputerAccess, source: 'saved' }
+  if (isOneOf(COMPUTER_ACCESS_VALUES, pinned)) return { value: pinned, source: 'saved' }
   return { value: 'asks', source: 'default' }
 }
 

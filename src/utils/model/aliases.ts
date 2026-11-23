@@ -1,3 +1,4 @@
+import { isOneOf } from '../isOneOf.js'
 
 export const MODEL_ALIASES = [
   'sonnet',
@@ -17,7 +18,7 @@ export const MODEL_ALIASES = [
 export type ModelAlias = (typeof MODEL_ALIASES)[number]
 
 export function isModelAlias(value: string): value is ModelAlias {
-  return (MODEL_ALIASES as readonly string[]).includes(value)
+  return isOneOf(MODEL_ALIASES, value)
 }
 
 export const AGENT_DISPATCH_MODELS = [

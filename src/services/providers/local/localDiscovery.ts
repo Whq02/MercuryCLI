@@ -12,6 +12,7 @@ import { tensorFoldEngineLabel } from '../../tensorfold/adapter/identity.js'
 import { helperPort, tensorFoldHostRecords, tensorFoldPorts } from './tensorfoldHosts.js'
 import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
+import { isOneOf } from '../../../utils/isOneOf.js'
 
 export type { LocalServerKind }
 
@@ -97,7 +98,7 @@ export interface LocalDiscoveryIo {
 
 const KINDS: readonly LocalServerKind[] = ['ollama', 'lmstudio', 'vllm', 'llamacpp', 'tensorfold', 'openai-compatible']
 function isKind(v: string): v is LocalServerKind {
-  return (KINDS as readonly string[]).includes(v)
+  return isOneOf(KINDS, v)
 }
 
 export function rememberedTensorFoldTargets(): { kind: 'tensorfold'; root: string }[] {
@@ -666,7 +667,7 @@ export function localModelRecord(wireId: string): LocalModelRecord | undefined {
   const slash = lower.indexOf('/')
   if (slash > 0) {
     const kind = lower.slice(0, slash)
-    if ((KINDS as readonly string[]).includes(kind)) {
+    if (isOneOf(KINDS, kind)) {
       const rest = lower.slice(slash + 1)
       const qualified = cachedLocalModels().find(m => m.server === kind && m.id.toLowerCase() === rest)
       if (qualified) return qualified

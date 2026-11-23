@@ -14,6 +14,7 @@ import { runNousDeviceLogin } from '../providers/nous/nousLogin.js'
 import { runOrcarouterDeviceLogin } from '../providers/orcarouter/orcarouterLogin.js'
 import { runXaiDeviceLogin } from '../providers/xai/xaiLogin.js'
 import { passedOverAs } from '../../utils/passedOver.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 
 export const ACP_LOGIN_FLAG = '--login'
 const ACP_TERMINAL_METHOD_ID = 'terminal'
@@ -147,7 +148,7 @@ function deviceRoad(family: AcpDeviceFamily, io: { onCode: (start: DeviceCodeSta
 const ACP_SIGN_IN_ROADS: AcpSignInRoads = { claude: claudeRoad, device: deviceRoad }
 
 function isDeviceFamily(id: string): id is AcpDeviceFamily {
-  return (ACP_DEVICE_FAMILIES as readonly string[]).includes(id)
+  return isOneOf(ACP_DEVICE_FAMILIES, id)
 }
 
 function urlElicitation(client: AgentContext, requestId: string | number | null, elicitationId: string, url: string, message: string): Promise<boolean> {

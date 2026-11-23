@@ -10,6 +10,7 @@ import { hostEnv } from '../../utils/hostEnv.js'
 import { killSignalForChild } from '../../utils/platform/processes.js'
 import { executableSuffixes } from '../../utils/platform/programs.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 
 export const CAPTURE_BOUND_MS = 5 * 60_000
 
@@ -93,10 +94,10 @@ function pathToolResolution(kind: 'sox' | 'arecord' | 'ffmpeg', env: NodeJS.Proc
 export function resolveCaptureBackend(env: NodeJS.ProcessEnv = hostEnv()): CaptureBackendResolution {
   const pin = (flagEnv('MERCURY_VOICE_BACKEND') ?? '').trim().toLowerCase()
   if (pin !== '') {
-    if (!(CAPTURE_BACKEND_KINDS as readonly string[]).includes(pin)) {
+    if (!isOneOf(CAPTURE_BACKEND_KINDS, pin)) {
       return { state: 'none', note: `MERCURY_VOICE_BACKEND=${pin} is not one of ${CAPTURE_BACKEND_KINDS.join(' · ')}`, tried: [pin] }
     }
-    const kind = pin as CaptureBackendKind
+    const kind = pin
     const resolved = kind === 'fixture' ? fixtureResolution() : kind === 'vendored' ? vendoredResolution() : pathToolResolution(kind, env)
     if (resolved.state === 'ok') return { ...resolved, pinned: true }
     return { state: 'none', note: `MERCURY_VOICE_BACKEND=${kind} — ${resolved.note}`, tried: [kind] }

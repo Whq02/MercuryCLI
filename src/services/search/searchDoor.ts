@@ -16,6 +16,7 @@ import { cachedAnswerNote, coolDownRemainingMs, liveSearchClock, nextSearchGroup
 import { failureLine, KEYED_DOOR_COMMANDS, KEYED_DOOR_FREE_TIER, normaliseHits, searchBackendLabel, searchFailure, type SearchBackendId, type SearchFailure, type SearchHit, type SearchOutcome, type SearchRequest, type SearchTier } from './searchContract.js'
 import { resolveTavilyApiKey, tavilySearch } from './tavily.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 
 export type SearchDoor =
   | { kind: 'native'; family: NativeSearchFamily }
@@ -39,7 +40,7 @@ export const NO_METASEARCH_INSTANCE = 'no metasearch instance configured; MERCUR
 export function parseSearchBackendOverride(raw: string | undefined): SearchBackendOverride | { invalid: string } {
   const word = (raw ?? '').trim().toLowerCase()
   if (word === '') return 'auto'
-  return (SEARCH_BACKEND_OVERRIDES as readonly string[]).includes(word) ? word as SearchBackendOverride : { invalid: raw ?? '' }
+  return isOneOf(SEARCH_BACKEND_OVERRIDES, word) ? word : { invalid: raw ?? '' }
 }
 export function nativeSearchFamilyOf(mainModel: string): NativeSearchFamily | undefined {
   const route = declaredRouteOf(mainModel)

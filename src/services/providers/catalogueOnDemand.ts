@@ -2,6 +2,7 @@ import { catalogueTrafficVerdict } from './catalogueGate.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
 import { withDeadline } from '../../utils/deadline.js'
+import { isOneOf } from '../../utils/isOneOf.js'
 
 export const KEYED_CATALOGUE_FAMILIES = ['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'xai', 'meta', 'zai', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'orcarouter', 'melious', 'cerebras', 'fireworks', 'qwen', 'openai-compat'] as const
 export type KeyedCatalogueFamily = (typeof KEYED_CATALOGUE_FAMILIES)[number]
@@ -9,7 +10,7 @@ export type KeyedCatalogueFamily = (typeof KEYED_CATALOGUE_FAMILIES)[number]
 export const CATALOGUE_READ_BOUND_MS = 5_000
 
 export function isKeyedCatalogueFamily(family: string): family is KeyedCatalogueFamily {
-  return (KEYED_CATALOGUE_FAMILIES as readonly string[]).includes(family)
+  return isOneOf(KEYED_CATALOGUE_FAMILIES, family)
 }
 
 async function bounded(refresh: Promise<unknown>, boundMs: number, signal?: AbortSignal): Promise<void> {

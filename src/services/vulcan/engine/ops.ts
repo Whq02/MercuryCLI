@@ -16,6 +16,7 @@ import {
   type EngineRunRecord,
 } from './service.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { isOneOf } from '../../../utils/isOneOf.js'
 
 export const ENGINE_OPS: ReadonlySet<string> = new Set(['engine_run', 'engine_check', 'engine_jobs', 'engine_cancel', 'engine_result', 'engine_capture', 'engine_frames', 'engine_profile', 'engine_scene_tree', 'engine_node_get', 'engine_node_call', 'engine_signal_wait', 'lease_take', 'lease_release', 'lease_list'])
 const ENGINE_DEFAULT_TAIL_CHARS = 2000
@@ -47,7 +48,8 @@ function listArg(v: unknown): string[] {
 
 function priorityArg(v: unknown): EnginePriority | { error: string } {
   if (v === undefined || v === null || v === '') return ENGINE_DEFAULT_PRIORITY
-  if (typeof v === 'string' && (ENGINE_PRIORITIES as readonly string[]).includes(v.trim())) return v.trim() as EnginePriority
+  const word = typeof v === 'string' ? v.trim() : undefined
+  if (isOneOf(ENGINE_PRIORITIES, word)) return word
   return { error: `priority "${String(v)}" is not one of ${ENGINE_PRIORITIES.join(' > ')} (default ${ENGINE_DEFAULT_PRIORITY})` }
 }
 

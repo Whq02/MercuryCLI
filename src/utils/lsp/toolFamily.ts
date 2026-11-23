@@ -1,9 +1,10 @@
 import { LSP_TOOL_NAMES } from '../../constants/tools/lsp.js'
 import { matcherShape } from '../hooks/matcherGrammar.js'
 import { passedOver } from '../passedOver.js'
+import { isOneOf } from '../isOneOf.js'
 
 export function lspFamilyMatches(selector: string, name: string): boolean {
-  return selector === 'LSP' && (LSP_TOOL_NAMES as readonly string[]).includes(name)
+  return selector === 'LSP' && isOneOf(LSP_TOOL_NAMES, name)
 }
 
 export function expandLspFamily(selector: string): readonly string[] {
