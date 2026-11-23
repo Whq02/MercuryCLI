@@ -16,7 +16,6 @@ import type {
   Transport,
 } from '../../utils/mcp/types.js'
 import { getEnterpriseMcpFilePath, projectMcpFilePath } from './configPaths.js'
-import { passedOver } from '../../utils/passedOver.js'
 
 
 type NamedTool = { name: string; mcpInfo?: { serverName?: string } }
@@ -416,13 +415,8 @@ export function getLoggingSafeMcpBaseUrl(
 ): string | undefined {
   const rawUrl = mcpConfigAsWritten(config).url
   if (typeof rawUrl !== 'string') return undefined
-  let parsed: URL
-  try {
-    parsed = new URL(rawUrl)
-  } catch (error) {
-    passedOver(error)
-    return undefined
-  }
+  const parsed = URL.parse(rawUrl)
+  if (parsed === null) return undefined
   parsed.username = ''
   parsed.password = ''
   parsed.search = ''
