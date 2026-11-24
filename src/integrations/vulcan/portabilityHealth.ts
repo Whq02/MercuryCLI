@@ -12,6 +12,7 @@ import {
   type GodotProcess,
 } from './godotProcessCensus.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
+import { isDirectory } from '../../platform/files/syncFileRead.js'
 import { hostEnv } from '../../platform/environment/hostEnv.js'
 import { pathModuleFor } from '../../platform/host-os/paths.js'
 import { executableName, hostPathDelimiter } from '../../platform/host-os/programs.js'
@@ -110,14 +111,7 @@ const realRootWalkFs: RootWalkFs = {
       return []
     }
   },
-  isDir(p) {
-    try {
-      return statSync(p).isDirectory()
-    } catch (error) {
-      passedOver(error)
-      return false
-    }
-  },
+  isDir: isDirectory,
   executable(p) {
     try {
       accessSync(p, constants.X_OK)

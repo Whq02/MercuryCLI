@@ -1,4 +1,4 @@
-import { existsSync, statSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { z } from 'zod/v4'
 import { buildTool, type ToolEffectOutcome, type ToolUseContext } from '../kit/tool.js'
@@ -44,6 +44,7 @@ import {
   userFacingName,
 } from './rows.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
+import { isDirectory } from '../../platform/files/syncFileRead.js'
 
 const OPS = ['discover', 'run', 'rerunFailed', 'debug', 'report'] as const
 
@@ -133,15 +134,6 @@ type Anchor = { from: string; root: string; selection: string | undefined; outsi
 function isUnder(target: string, root: string): boolean {
   const rel = relative(resolve(root), resolve(target))
   return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))
-}
-
-function isDirectory(p: string): boolean {
-  try {
-    return statSync(p).isDirectory()
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
 }
 
 function projectRootOf(dir: string): string {
