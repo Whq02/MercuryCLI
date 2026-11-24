@@ -43,7 +43,7 @@ const WINDOWS_SYSTEM_FOLDERS = new Set(['windows', 'program files', 'program fil
 const SHORT_NAMES: Record<string, string> = { 'progra~1': 'program files', 'progra~2': 'program files (x86)', 'progra~3': 'programdata' }
 const EVERYTHING = /^[*?.]*\*[*?.]*$/
 const RECURSIVE_LONG = /^--r(?:e(?:c(?:u(?:r(?:s(?:i(?:v(?:e)?)?)?)?)?)?)?)?$/
-const RECURSE_PARAMETER = /^-r(?:e(?:c(?:u(?:r(?:s(?:e)?)?)?)?)?)?$/i
+const RECURSE_PARAMETER = /^-r(?:e(?:c(?:u(?:r(?:s(?:e)?)?)?)?)?)?(?::\$true)?$/i
 const POSIX_RM_CLUSTER = /^-[dfiIPRrvWx]+$/
 const DISK_NODE = /^\/dev\/(?:r?disk\d|sd[a-z]|hd[a-z]|nvme\d|mmcblk\d|vd[a-z]|xvd[a-z]|loop\d|dm-\d|md\d|mapper\/)/
 const SAFE_NODE = /^\/dev\/(?:null\b|zero\b|full\b|random\b|urandom\b|stdout\b|stderr\b|stdin\b|tty|fd\/|shm\/)/
@@ -301,8 +301,8 @@ function deleteOf(layer: Layer, command: ReadCommand, commands: readonly ReadCom
       if (/^-whatif(?::\$true)?$/i.test(word)) preview = true
       continue
     }
-    if (slashed && /^\/[a-zA-Z]$/.test(word)) {
-      if (/^\/s$/i.test(word)) recursive = true
+    if (slashed && /^(?:\/[a-zA-Z])+$/.test(word)) {
+      if (/(?:^|\/)s(?:\/|$)/i.test(word)) recursive = true
       continue
     }
     if (word === '{}' && layer.findRoots !== undefined) {
