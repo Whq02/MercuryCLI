@@ -1,4 +1,4 @@
-import { getProcessStartInstant, getProcessStartInstantCachedOrRefresh } from '../control/ownerWatch.js'
+import { getProcessStartInstant, getProcessStartInstantAsync, getProcessStartInstantCachedOrRefresh } from '../control/ownerWatch.js'
 import type { WorkRowV1 } from '../../engine/connector/types.js'
 import { runningBuildTree } from '../../platform/product/artifactIdentity.js'
 import { readSessionWorkers, rememberUnstampedRunnerPid, updateConcourseWorkers } from './store.js'
@@ -76,6 +76,12 @@ export function pidFieldsOf(pid: number | undefined, startToken = pid === undefi
   if (pid === undefined) return {}
   const token = startToken ?? getProcessStartInstantCachedOrRefresh(pid)
   return { pid, ...(token !== null && token !== '' ? { procStart: token } : {}) }
+}
+
+export async function claimedPidFields(claimed: { pid?: number; startInstant?: Promise<string | null> }): Promise<{ pid?: number; procStart?: string }> {
+  if (claimed.pid === undefined) return {}
+  const atSpawn = await claimed.startInstant
+  return pidFieldsOf(claimed.pid, typeof atSpawn === 'string' && atSpawn !== '' ? atSpawn : await getProcessStartInstantAsync(claimed.pid))
 }
 
 export function buildTreeFields(): { buildTree?: string } {

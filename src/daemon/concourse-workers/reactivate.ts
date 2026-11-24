@@ -1,5 +1,4 @@
 import { logForDebugging } from '../../platform/logs/debugLog.js'
-import { getProcessStartInstantAsync } from '../control/ownerWatch.js'
 import type { RunnerChildSpec } from '../runner-link/headlessRun.js'
 import type { PermissionMode } from '../../permissions/rules/permissions.js'
 import { deriveSessionKitForWorkspace, kitDeltasUnreadNote, restampSessionKit, type SessionKitV1, type KitStampSource } from '../session-seat/sessionKit.js'
@@ -11,7 +10,7 @@ import type { ConcourseRefusalCode, ConcourseAdmitResult, ConcourseAdmitDeps } f
 import { type ConcourseMoveV1, evaluateConcourseAdmission, type WorkspaceIsolation } from './admission.js'
 import { runnerRestartReasonOf, reviveConcourseWorker } from './revive.js'
 import { seatInitialPermissionMode, stampSpawnPosture, buildConcourseWorkerSpec } from './spec.js'
-import { pidFieldsOf, buildTreeFields } from './marks.js'
+import { claimedPidFields, buildTreeFields } from './marks.js'
 import { startTimeout } from '../../platform/async/timers.js'
 
 function stampTakenBackAtRest(rec: ConcourseWorkerRecordV1): void {
@@ -150,7 +149,7 @@ export async function reactivateConcourseSession(
     if (claimed.claimed) {
       console.error(`[daemon] warm claim acked in ${Date.now() - claimStartedAt}ms: ${claimed.short} takes back session ${rec.sessionId} (${rec.runnerId} reactivated in place)`)
       const short = claimed.short
-      const fields = pidFieldsOf(claimed.pid, claimed.pid === undefined ? null : await getProcessStartInstantAsync(claimed.pid))
+      const fields = await claimedPidFields(claimed)
       try {
         updateConcourseWorkers(workers => {
           const current = workers[rec.runnerId]

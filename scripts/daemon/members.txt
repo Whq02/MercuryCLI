@@ -105,3 +105,4 @@ prove-worker-recon.ts
 prove-workspace-directory-identity.ts
 prove-saturn-ticker-fire.ts
 prove-focus-second-window.ts
+prove-admission-awaits-no-child.ts

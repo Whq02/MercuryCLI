@@ -20,7 +20,7 @@ import {
   readSessionWorkers,
 } from '../concourse-workers/concourseWorkers.js'
 import type { RunnerChildSpec, SeatPermissionMode } from './headlessRun.js'
-import { isProcessAlive } from '../control/ownerWatch.js'
+import { getProcessStartInstantAsync, isProcessAlive } from '../control/ownerWatch.js'
 import { PeerClosed, PeerDeadline } from '../runner-wire/peer.js'
 import { SESSION_VERBS } from '../runner-wire/sessionVerbs.js'
 import type { RunnerDoor } from './runnerConnection.js'
@@ -53,6 +53,7 @@ interface WarmRunnerEntry {
   snapshotId: string
   kit: SessionKitV1
   bypassConsent: boolean
+  startInstant: Promise<string | null>
 }
 
 const pool = new Map<string, WarmRunnerEntry>()
@@ -320,13 +321,14 @@ async function ensureWarmRunnerFlight(
     snapshotId,
     kit,
     bypassConsent,
+    startInstant: reg.pid === undefined ? Promise.resolve(null) : getProcessStartInstantAsync(reg.pid),
   })
   deps.onWarmSpawned?.(short, workspaceId, reg.pid)
   return { state: 'warmed', detail: short, short }
 }
 
 export type WarmClaimOutcome =
-  | { claimed: true; short: string; pid?: number; spec: RunnerChildSpec }
+  | { claimed: true; short: string; pid?: number; spec: RunnerChildSpec; startInstant?: Promise<string | null> }
   | { claimed: false; reason: string }
 
 export async function claimWarmRunner(
@@ -428,7 +430,7 @@ export async function claimWarmRunner(
     roster.kill(entry.short)
     return { claimed: false, reason: 'the claimed seat vanished before the spec patch' }
   }
-  return { claimed: true, short: entry.short, ...(entry.pid !== undefined ? { pid: entry.pid } : {}), spec }
+  return { claimed: true, short: entry.short, ...(entry.pid !== undefined ? { pid: entry.pid } : {}), spec, startInstant: entry.startInstant }
 }
 
 function claimFailureWords(error: unknown, deadlineMs: number, died: boolean): string {

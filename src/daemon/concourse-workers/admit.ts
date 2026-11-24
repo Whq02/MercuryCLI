@@ -29,7 +29,7 @@ import { getProcessStartInstantAsync } from '../control/ownerWatch.js'
 import { inspectWorkspaceKind, workspaceGitCheckNote, ensureWorkerWorktree } from './concourseWorktrees.js'
 import { describeSeatReading } from '../switchboard-capacity/capacityCheck.js'
 import { effectiveSeatCeiling } from './admission.js'
-import { pidFieldsOf } from './marks.js'
+import { claimedPidFields, pidFieldsOf } from './marks.js'
 import { startTimeout } from '../../platform/async/timers.js'
 
 export interface WorkerRosterPort {
@@ -61,7 +61,7 @@ export interface ConcourseAdmitDeps {
     restartReason?: string
     title?: string
   }) => Promise<
-    { claimed: true; short: string; pid?: number; spec: RunnerChildSpec } | { claimed: false; reason: string }
+    { claimed: true; short: string; pid?: number; spec: RunnerChildSpec; startInstant?: Promise<string | null> } | { claimed: false; reason: string }
   >
   ensureWarm?: (workspaceDir: string, kit?: SessionKitV1, bypassConsent?: boolean) => void
 }
@@ -350,7 +350,7 @@ export function makeConcourseAdmitHandler(
         console.error(`[daemon] warm claim acked in ${Date.now() - claimStartedAt}ms: ${claimed.short} takes session ${claimSessionId}`)
         const runnerId = claimed.short
         const snapshot = resolveEffectiveSettingsSnapshot({ sessionId: claimSessionId })
-        const pidFields = pidFieldsOf(claimed.pid, claimed.pid === undefined ? null : await getProcessStartInstantAsync(claimed.pid))
+        const pidFields = await claimedPidFields(claimed)
         return warmSeatAnswer({ ...seat, runnerId, claimSessionId, claimEffort, claimPosture, snapshot, pidFields, claimed })
       }
       logForDebugging(`[daemon] warm claim declined (${claimed.reason}) — spawning cold`)
