@@ -1,7 +1,9 @@
 import { wordStartAfter, wordStartBefore } from '../../../platform/text/textSegments.js'
 import { useCallback, useRef, useState } from 'react'
+import { useClaim } from '../../effects/effects.js'
 import { useInput } from '../../themedRenderer.js'
 import { KeyboardEvent } from '../../renderer/events/keyboard-event.js'
+import { getLastKill, pushToKillRing, recordYank, resetKillAccumulation, resetYankState, updateYankLength, yankPop } from '../vim/textCursor.js'
 
 type UseSearchInputOptions = {
   isActive: boolean
@@ -21,17 +23,10 @@ type UseSearchInputReturn = {
   handleKeyDown: (e: KeyboardEvent) => void
 }
 
-type KillRingState = {
-  ring: string[]
-  lastWasKill: boolean
-  lastYank: { start: number; length: number; index: number } | null
-}
-
 type SearchDispatchContext = {
   opts: UseSearchInputOptions
   queryRef: { current: string }
   cursorRef: { current: number }
-  kr: KillRingState
   applyEdit: (nextQuery: string, nextCursor: number) => void
 }
 
@@ -71,24 +66,13 @@ function isPassthrough(e: KeyboardEvent, opts: UseSearchInputOptions, query: str
   return opts.passthroughKeys(query).includes(name)
 }
 
-function pushKill(kr: KillRingState, text: string, direction: 'prepend' | 'append'): void {
-  if (text.length === 0) return
-  if (kr.lastWasKill && kr.ring.length > 0) {
-    kr.ring[0] = direction === 'prepend' ? text + kr.ring[0]! : kr.ring[0]! + text
-  } else {
-    kr.ring.unshift(text)
-  }
-  kr.lastWasKill = true
-  kr.lastYank = null
-}
-
-function resetKillAndYank(kr: KillRingState): void {
-  kr.lastWasKill = false
-  kr.lastYank = null
+function resetKillAndYank(): void {
+  resetKillAccumulation()
+  resetYankState()
 }
 
 function handleKillOrYank(e: KeyboardEvent, ctx: SearchDispatchContext): boolean {
-  const { queryRef, cursorRef, kr, applyEdit } = ctx
+  const { queryRef, cursorRef, applyEdit } = ctx
   const k = e.key
   const lower = k.toLowerCase()
 
@@ -98,7 +82,7 @@ function handleKillOrYank(e: KeyboardEvent, ctx: SearchDispatchContext): boolean
     const c = cursorRef.current
     const killed = q.slice(c)
     if (killed.length > 0) {
-      pushKill(kr, killed, 'append')
+      pushToKillRing(killed, 'append')
       applyEdit(q.slice(0, c), c)
     }
     return true
@@ -110,7 +94,7 @@ function handleKillOrYank(e: KeyboardEvent, ctx: SearchDispatchContext): boolean
     const c = cursorRef.current
     const killed = q.slice(0, c)
     if (killed.length > 0) {
-      pushKill(kr, killed, 'prepend')
+      pushToKillRing(killed, 'prepend')
       applyEdit(q.slice(c), 0)
     }
     return true
@@ -123,7 +107,7 @@ function handleKillOrYank(e: KeyboardEvent, ctx: SearchDispatchContext): boolean
     const start = wordStartBefore(q, c)
     const killed = q.slice(start, c)
     if (killed.length > 0) {
-      pushKill(kr, killed, 'prepend')
+      pushToKillRing(killed, 'prepend')
       applyEdit(q.slice(0, start) + q.slice(c), start)
     }
     return true
@@ -131,12 +115,12 @@ function handleKillOrYank(e: KeyboardEvent, ctx: SearchDispatchContext): boolean
 
   if (e.ctrl && !e.meta && lower === 'y') {
     consume(e)
-    kr.lastWasKill = false
-    const top = kr.ring[0]
-    if (top && top.length > 0) {
+    resetKillAccumulation()
+    const top = getLastKill()
+    if (top.length > 0) {
       const q = queryRef.current
       const c = cursorRef.current
-      kr.lastYank = { start: c, length: top.length, index: 0 }
+      recordYank(c, top.length)
       applyEdit(q.slice(0, c) + top + q.slice(c), c + top.length)
     }
     return true
@@ -144,14 +128,12 @@ function handleKillOrYank(e: KeyboardEvent, ctx: SearchDispatchContext): boolean
 
   if (e.meta && !e.ctrl && lower === 'y') {
     consume(e)
-    kr.lastWasKill = false
-    if (kr.lastYank && kr.ring.length > 1) {
-      const nextIndex = (kr.lastYank.index + 1) % kr.ring.length
-      const text = kr.ring[nextIndex]!
-      const { start, length } = kr.lastYank
+    resetKillAccumulation()
+    const popped = yankPop()
+    if (popped !== null) {
       const q = queryRef.current
-      kr.lastYank = { start, length: text.length, index: nextIndex }
-      applyEdit(q.slice(0, start) + text + q.slice(start + length), start + text.length)
+      updateYankLength(popped.text.length)
+      applyEdit(q.slice(0, popped.start) + popped.text + q.slice(popped.start + popped.length), popped.start + popped.text.length)
     }
     return true
   }
@@ -160,47 +142,47 @@ function handleKillOrYank(e: KeyboardEvent, ctx: SearchDispatchContext): boolean
 }
 
 function handleNavigation(e: KeyboardEvent, ctx: SearchDispatchContext): boolean {
-  const { queryRef, cursorRef, kr, applyEdit } = ctx
+  const { queryRef, cursorRef, applyEdit } = ctx
   const k = e.key
   const lower = k.toLowerCase()
 
   if (((e.ctrl || e.meta || e.fn) && k === 'left') || (e.meta && !e.ctrl && lower === 'b')) {
-    resetKillAndYank(kr)
+    resetKillAndYank()
     consume(e)
     applyEdit(queryRef.current, wordStartBefore(queryRef.current, cursorRef.current))
     return true
   }
 
   if (((e.ctrl || e.meta || e.fn) && k === 'right') || (e.meta && !e.ctrl && lower === 'f')) {
-    resetKillAndYank(kr)
+    resetKillAndYank()
     consume(e)
     applyEdit(queryRef.current, wordStartAfter(queryRef.current, cursorRef.current))
     return true
   }
 
   if ((!e.ctrl && !e.meta && !e.fn && k === 'left') || (e.ctrl && !e.meta && lower === 'b')) {
-    resetKillAndYank(kr)
+    resetKillAndYank()
     consume(e)
     applyEdit(queryRef.current, Math.max(0, cursorRef.current - 1))
     return true
   }
 
   if ((!e.ctrl && !e.meta && !e.fn && k === 'right') || (e.ctrl && !e.meta && lower === 'f')) {
-    resetKillAndYank(kr)
+    resetKillAndYank()
     consume(e)
     applyEdit(queryRef.current, Math.min(queryRef.current.length, cursorRef.current + 1))
     return true
   }
 
   if (k === 'home' || (e.ctrl && !e.meta && lower === 'a')) {
-    resetKillAndYank(kr)
+    resetKillAndYank()
     consume(e)
     applyEdit(queryRef.current, 0)
     return true
   }
 
   if (k === 'end' || (e.ctrl && !e.meta && lower === 'e')) {
-    resetKillAndYank(kr)
+    resetKillAndYank()
     consume(e)
     applyEdit(queryRef.current, queryRef.current.length)
     return true
@@ -210,7 +192,7 @@ function handleNavigation(e: KeyboardEvent, ctx: SearchDispatchContext): boolean
 }
 
 function processSearchKey(e: KeyboardEvent, ctx: SearchDispatchContext): void {
-  const { opts, queryRef, cursorRef, kr, applyEdit } = ctx
+  const { opts, queryRef, cursorRef, applyEdit } = ctx
   if (!opts.isActive) return
   if (isPassthrough(e, opts, queryRef.current)) return
 
@@ -219,21 +201,21 @@ function processSearchKey(e: KeyboardEvent, ctx: SearchDispatchContext): void {
   const backspaceExitsOnEmpty = opts.backspaceExitsOnEmpty ?? true
 
   if (k === 'return' || k === 'down') {
-    resetKillAndYank(kr)
+    resetKillAndYank()
     consume(e)
     opts.onExit()
     return
   }
 
   if (k === 'up') {
-    resetKillAndYank(kr)
+    resetKillAndYank()
     consume(e)
     opts.onExitUp?.()
     return
   }
 
   if (k === 'escape') {
-    resetKillAndYank(kr)
+    resetKillAndYank()
     consume(e)
     if (opts.onCancel) {
       opts.onCancel()
@@ -246,14 +228,14 @@ function processSearchKey(e: KeyboardEvent, ctx: SearchDispatchContext): void {
   }
 
   if (e.ctrl && !e.meta && (lower === 'g' || lower === 'c')) {
-    resetKillAndYank(kr)
+    resetKillAndYank()
     consume(e)
     opts.onCancel?.()
     return
   }
 
   if ((!e.ctrl && k === 'backspace') || (e.ctrl && !e.meta && lower === 'h')) {
-    resetKillAndYank(kr)
+    resetKillAndYank()
     consume(e)
     const q = queryRef.current
     const c = cursorRef.current
@@ -270,7 +252,7 @@ function processSearchKey(e: KeyboardEvent, ctx: SearchDispatchContext): void {
   }
 
   if ((!e.ctrl && !e.meta && k === 'delete') || (e.ctrl && !e.meta && lower === 'd')) {
-    resetKillAndYank(kr)
+    resetKillAndYank()
     consume(e)
     const q = queryRef.current
     const c = cursorRef.current
@@ -285,7 +267,7 @@ function processSearchKey(e: KeyboardEvent, ctx: SearchDispatchContext): void {
   }
 
   if (e.meta && !e.ctrl && lower === 'd') {
-    resetKillAndYank(kr)
+    resetKillAndYank()
     consume(e)
     const q = queryRef.current
     const c = cursorRef.current
@@ -300,14 +282,14 @@ function processSearchKey(e: KeyboardEvent, ctx: SearchDispatchContext): void {
   if (handleNavigation(e, ctx)) return
 
   if (k === 'tab' || e.ctrl || e.meta || REJECTED_KEY_NAMES.has(lower)) {
-    resetKillAndYank(kr)
+    resetKillAndYank()
     consume(e)
     return
   }
 
   const text = k === 'space' ? ' ' : k
   if (text.length > 0 && text >= ' ' && text !== '\x7f') {
-    resetKillAndYank(kr)
+    resetKillAndYank()
     consume(e)
     const q = queryRef.current
     const c = cursorRef.current
@@ -325,11 +307,11 @@ export function useSearchInput(options: UseSearchInputOptions): UseSearchInputRe
   const optionsRef = useRef(options)
   optionsRef.current = options
 
-  const killRingRef = useRef<KillRingState>({
-    ring: [],
-    lastWasKill: false,
-    lastYank: null,
-  })
+  useClaim(() => {
+    if (!options.isActive) return undefined
+    resetKillAndYank()
+    return resetKillAndYank
+  }, [options.isActive])
 
   const applyEdit = useCallback((nextQuery: string, nextCursor: number): void => {
     const clamped = Math.max(0, Math.min(nextQuery.length, nextCursor))
@@ -353,7 +335,6 @@ export function useSearchInput(options: UseSearchInputOptions): UseSearchInputRe
         opts: optionsRef.current,
         queryRef,
         cursorRef,
-        kr: killRingRef.current,
         applyEdit,
       })
     },
