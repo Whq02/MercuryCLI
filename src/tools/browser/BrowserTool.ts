@@ -59,6 +59,42 @@ export { browserGoneMidOpWords, driverFailureWords, errorChainText, isDriverTime
 export { localClock } from './ops/page.js'
 export { DOWNLOADS_NOT_FOLLOWED } from './ops/downloads.js'
 
+export function imageResultBlock(output: { result: string; imagePath?: string; inlinePath?: string; inlineMediaType?: string }, toolUseId: string) {
+  if (output.imagePath && modelReceivesImageBlocks(getEngineModel())) {
+    const path = output.inlinePath ?? output.imagePath
+    try {
+      const bytes = readFileSync(path)
+      const mediaType = (output.inlinePath ? (output.inlineMediaType ?? 'image/png') : 'image/png') as 'image/png'
+      return {
+        tool_use_id: toolUseId,
+        type: 'tool_result' as const,
+        content: [
+          { type: 'text' as const, text: output.result },
+          {
+            type: 'image' as const,
+            source: { type: 'base64' as const, media_type: mediaType, data: bytes.toString('base64') },
+          },
+        ],
+      }
+    } catch (error) {
+      return {
+        tool_use_id: toolUseId,
+        type: 'tool_result' as const,
+        content: `${output.result}\n(image not inlined — could not read ${path} (${errorMessage(error)}))`,
+      }
+    }
+  }
+  const text =
+    output.imagePath && !modelReceivesImageBlocks(getEngineModel())
+      ? `${output.result}\n(image not inlined — this model takes no image input; open the file to view it)`
+      : output.result
+  return {
+    tool_use_id: toolUseId,
+    type: 'tool_result' as const,
+    content: text,
+  }
+}
+
 export const BrowserTool = buildTool({
   name: 'Browser',
   searchHint: 'drive an isolated web browser; inspect pages and capture screenshots',
@@ -291,41 +327,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
       },
     }
   },
-  mapToolResultToToolResultBlockParam(output: Output, toolUseId: string) {
-    if (output.imagePath && modelReceivesImageBlocks(getEngineModel())) {
-      const path = output.inlinePath ?? output.imagePath
-      try {
-        const bytes = readFileSync(path)
-        const mediaType = (output.inlinePath ? (output.inlineMediaType ?? 'image/png') : 'image/png') as 'image/png'
-        return {
-          tool_use_id: toolUseId,
-          type: 'tool_result' as const,
-          content: [
-            { type: 'text' as const, text: output.result },
-            {
-              type: 'image' as const,
-              source: { type: 'base64' as const, media_type: mediaType, data: bytes.toString('base64') },
-            },
-          ],
-        }
-      } catch (error) {
-        return {
-          tool_use_id: toolUseId,
-          type: 'tool_result' as const,
-          content: `${output.result}\n(image not inlined — could not read ${path} (${errorMessage(error)}))`,
-        }
-      }
-    }
-    const text =
-      output.imagePath && !modelReceivesImageBlocks(getEngineModel())
-        ? `${output.result}\n(image not inlined — this model takes no image input; open the file to view it)`
-        : output.result
-    return {
-      tool_use_id: toolUseId,
-      type: 'tool_result' as const,
-      content: text,
-    }
-  },
+  mapToolResultToToolResultBlockParam: imageResultBlock,
   renderToolUseMessage,
   renderToolUseErrorMessage,
   renderToolResultMessage,

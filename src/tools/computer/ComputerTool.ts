@@ -1,7 +1,6 @@
 import { type CanUseToolFn, type ToolEffect, type ToolUseContext, buildTool } from '../kit/tool.js'
 import { flagEnabled } from '../../platform/substrate/flagRegistry.js'
 import { zodToJsonSchema } from '../../platform/primitives/zodToJsonSchema.js'
-import { modelReceivesImageBlocks } from '../../models/facts/capabilities.js'
 import { getEngineModel } from '../../models/catalogue/engineModel.js'
 import { ownerFromToolUseContext } from '../../engine/run-owner/resolveOwner.js'
 import { suggestionForExactCommand } from '../../permissions/rules/shellRuleMatching.js'
@@ -22,9 +21,8 @@ import { modeBypassesPermissions } from '../../permissions/rules/permissionMode.
 import { getSessionId } from '../../boot/process-state/processState.js'
 import { COMPUTER_TOOL_NAME } from '../../integrations/desktop/toolName.js'
 import { renderToolResultMessage, renderToolUseErrorMessage, renderToolUseMessage, userFacingName } from './rows.js'
+import { imageResultBlock } from '../browser/BrowserTool.js'
 import { COMPUTER_PROMPT } from './prompt.js'
-import { readFileSync } from 'node:fs'
-import { errorMessage } from '../../platform/errors/errors.js'
 import type { OwnerKey } from '../../engine/run-owner/ownerKey.js'
 import type { PermissionDecision, ToolPermissionContext } from '../../permissions/rules/permissions.js'
 import type { AssistantMessage } from '../../engine/message-shapes/message.js'
@@ -197,41 +195,7 @@ export const ComputerTool = buildTool({
   call(input: Input, context: ToolUseContext, canUseTool?: CanUseToolFn, parentAssistantMessage?: AssistantMessage): Promise<{ data: Output; effect: ToolEffect }> {
     return computerCall(ComputerTool, input, context, canUseTool, parentAssistantMessage)
   },
-  mapToolResultToToolResultBlockParam(output: Output, toolUseId: string) {
-    if (output.imagePath && modelReceivesImageBlocks(getEngineModel())) {
-      const path = output.inlinePath ?? output.imagePath
-      try {
-        const bytes = readFileSync(path)
-        const mediaType = (output.inlinePath ? (output.inlineMediaType ?? 'image/png') : 'image/png') as 'image/png'
-        return {
-          tool_use_id: toolUseId,
-          type: 'tool_result' as const,
-          content: [
-            { type: 'text' as const, text: output.result },
-            {
-              type: 'image' as const,
-              source: { type: 'base64' as const, media_type: mediaType, data: bytes.toString('base64') },
-            },
-          ],
-        }
-      } catch (error) {
-        return {
-          tool_use_id: toolUseId,
-          type: 'tool_result' as const,
-          content: `${output.result}\n(image not inlined — could not read ${path} (${errorMessage(error)}))`,
-        }
-      }
-    }
-    const text =
-      output.imagePath && !modelReceivesImageBlocks(getEngineModel())
-        ? `${output.result}\n(image not inlined — this model takes no image input; open the file to view it)`
-        : output.result
-    return {
-      tool_use_id: toolUseId,
-      type: 'tool_result' as const,
-      content: text,
-    }
-  },
+  mapToolResultToToolResultBlockParam: imageResultBlock,
   renderToolUseMessage,
   renderToolUseErrorMessage,
   renderToolResultMessage,
