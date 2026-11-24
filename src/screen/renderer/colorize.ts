@@ -209,8 +209,3 @@ export function applyTextStyles(text: string, styles: TextStyles): string {
   if (styles.backgroundColor) result = colorize(result, styles.backgroundColor, 'background')
   return result
 }
-
-export function applyColor(text: string, color?: Color | string): string {
-  if (!color) return text
-  return colorize(text, color, 'foreground')
-}

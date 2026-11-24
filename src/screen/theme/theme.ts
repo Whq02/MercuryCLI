@@ -1,4 +1,3 @@
-import { colorize } from '../renderer/colorize.js'
 import { flagEnabled } from '../../platform/substrate/flagRegistry.js'
 import { getSessionAccent } from '../widgets/sessionAccent.js'
 import {
@@ -111,13 +110,6 @@ export function lerpHex(from: string, to: string, t: number): string {
       .padStart(2, '0')
   }
   return `#${channel(1)}${channel(3)}${channel(5)}`
-}
-
-export function themeColorToAnsi(themeColor: string): string {
-  const sentinel = '\x00'
-  const painted = colorize(sentinel, themeColor, 'foreground')
-  const idx = painted.indexOf(sentinel)
-  return idx <= 0 ? '' : painted.slice(0, idx)
 }
 
 

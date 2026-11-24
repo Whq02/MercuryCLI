@@ -56,7 +56,7 @@ import {
   clearMarkdownFileCache,
 } from '../../src/platform/settings/markdownConfigLoader.js'
 import { hashPastedText, storePastedText, retrievePastedText, sweepOldPastes } from '../../src/sessions/pasteStore.js'
-import { getTheme, lerpHex, themeColorToAnsi, THEME_NAMES, type Theme, type ThemeName } from '../../src/screen/theme/theme.js'
+import { getTheme, lerpHex, THEME_NAMES, type Theme, type ThemeName } from '../../src/screen/theme/theme.js'
 import { slowLogging, SLOW_OPERATION_THRESHOLD_MS } from '../../src/platform/logs/slowOperations.js'
 import { isImageFilePath } from '../../src/screen/composer/imagePaste.js'
 import { getMercuryHome } from '../../src/platform/environment/envUtils.js'
@@ -118,7 +118,6 @@ const S32_FAIL_HINTS: Record<string, string> = {
   '53.': 'src/screen/theme/theme.ts, getTheme and the MERCURY_WARM_INK=0 switch',
   '54.': 'src/screen/theme/theme.ts, getTheme role values (shimmer, dimmed diff and spine colours)',
   '55.': 'src/screen/theme/theme.ts, getTheme warm overlay must leave the subagent colour roles unchanged',
-  '56.': 'src/screen/theme/theme.ts, themeColorToAnsi',
   '57.': 'src/screen/theme/theme.ts, lerpHex endpoints and zero padding',
   '61.': 'src/screen/composer/imagePaste.ts, isImageFilePath quoted and shell-escaped path handling',
   '66/79.': 'src/engine/messages/attachmentText.ts, normalizeAttachmentForAPI bound on hook rows (head and tail kept, an omitted-characters note)',
@@ -959,16 +958,6 @@ const git = (cwd: string, cmd: string): string => execSync(`git ${cmd}`, { cwd, 
     'purple_FOR_SUBAGENTS_ONLY', 'orange_FOR_SUBAGENTS_ONLY', 'pink_FOR_SUBAGENTS_ONLY', 'cyan_FOR_SUBAGENTS_ONLY',
   ]
   check('55. subagent colour family rides through the dark overlay untouched', keys.every(k => withOverlay[k] === base[k]))
-}
-
-{
-  const out = themeColorToAnsi(getTheme('dark').info)
-  const noColourRegime = out === ''
-  pin(
-    '56. themeColorToAnsi: shared-colouriser opening escape; empty under a no-colour regime',
-    noColourRegime || out.startsWith('\x1b['),
-    `live regime out=${JSON.stringify(out)} (env-dependent)`,
-  )
 }
 
 {
