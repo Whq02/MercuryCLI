@@ -81,7 +81,7 @@ section('P2 — per road, through the real settings pipeline')
 section('P3 — the fallback ceiling and the retry budget follow the mode')
 {
   check('normal: the fallback ceiling is 15 min', patience.nonstreamingFallbackCeilingMs() === 900_000, String(patience.nonstreamingFallbackCeilingMs()))
-  check('normal: the retry budget is 20 min', budget.recoveryBudgetMs() === 1_200_000 && budget.RECOVERY_BUDGET_DEFAULT_MINUTES === 20, String(budget.recoveryBudgetMs()))
+  check('normal: the retry budget is 20 min', budget.recoveryBudgetMs() === 1_200_000, String(budget.recoveryBudgetMs()))
   check('the budget holds the ceiling whole: a reserved fallback is never cut by the budget alone', budget.recoveryBudgetMs() > patience.nonstreamingFallbackCeilingMs())
   setPatience('patient')
   check('patient: the fallback ceiling is 30 min', patience.nonstreamingFallbackCeilingMs() === 1_800_000, String(patience.nonstreamingFallbackCeilingMs()))

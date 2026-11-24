@@ -1,9 +1,6 @@
 import { flagEnv } from '../../platform/substrate/flagRegistry.js'
-import { PATIENCE_NORMAL, recoveryBudgetMinutesSetting } from '../../models/roads/patience.js'
+import { recoveryBudgetMinutesSetting } from '../../models/roads/patience.js'
 import { errorHeaders, headerValue, retryAfterHeaderMs, retryAfterOf } from './retryAfter.js'
-
-export const RECOVERY_BUDGET_DEFAULT_MINUTES = PATIENCE_NORMAL.recoveryBudgetMinutes
-
 export function recoveryBudgetMs(): number {
   const raw = flagEnv('MERCURY_RECOVERY_BUDGET_MINUTES')
   const pinned = raw === undefined || raw.trim() === '' ? Number.NaN : Number.parseFloat(raw)
