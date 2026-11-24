@@ -14,6 +14,7 @@ import { OwnerScopedStore } from '../run-owner/ownerScopedStore.js'
 import { readRequestGauge } from '../run/requestGauge.js'
 import { ownerFromToolUseContext } from '../run-owner/resolveOwner.js'
 import { updateTaskState } from '../task-framework/taskRegistry.js'
+import type { CrewmateTaskState } from '../tasks/local-agent/crewmateTask.js'
 import { setLastSummarizedMessageId } from '../../sessions/session-memory/extractionState.js'
 import type { OverflowSignal } from '../requests/overflowSignal.js'
 import { notifyFold } from '../requests/promptCacheBreakDetection.js'
@@ -58,25 +59,23 @@ const RAPID_REFILL_LIMIT = 3
 
 export const FOLD_PAUSED_KEY = 'automatic compaction failed'
 
-type FoldableTask = { type?: string; compactRequested?: boolean; description?: string }
-
 export function operatorFoldAsked(toolUseContext: Pick<ToolUseContext, 'agentId' | 'getAppState'>): boolean {
   const agentId = toolUseContext.agentId
   if (agentId === undefined) return false
-  const task = toolUseContext.getAppState().tasks?.[agentId] as FoldableTask | undefined
+  const task = toolUseContext.getAppState().tasks?.[agentId]
   return task?.type === 'local_agent' && task.compactRequested === true
 }
 
 function askingCrewmateName(toolUseContext: Pick<ToolUseContext, 'agentId' | 'getAppState'>): string {
   const agentId = toolUseContext.agentId
-  const task = agentId === undefined ? undefined : (toolUseContext.getAppState().tasks?.[agentId] as FoldableTask | undefined)
+  const task = agentId === undefined ? undefined : toolUseContext.getAppState().tasks?.[agentId]
   return task?.description !== undefined && task.description !== '' ? task.description : String(agentId ?? 'the crewmate')
 }
 
 export function takeOperatorFoldAsk(toolUseContext: Pick<ToolUseContext, 'agentId' | 'setAppState' | 'setAppStateForTasks'>): void {
   const agentId = toolUseContext.agentId
   if (agentId === undefined) return
-  updateTaskState(agentId, toolUseContext.setAppStateForTasks ?? toolUseContext.setAppState, task => {
+  updateTaskState<CrewmateTaskState>(agentId, toolUseContext.setAppStateForTasks ?? toolUseContext.setAppState, task => {
     if (task.type !== 'local_agent' || task.compactRequested !== true) return task
     const { compactRequested: _taken, ...rest } = task
     return rest
