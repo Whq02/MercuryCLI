@@ -229,9 +229,9 @@ export function extractDiscoveredToolNames(messages: Message[]): Set<string> {
   let carriedCount = 0
   for (const message of messages) {
     if (message.type === 'system' && message.subtype === 'compact_boundary') {
-      const preCompact = message.compactMetadata?.preCompactDiscoveredTools
-      if (Array.isArray(preCompact)) {
-        for (const name of preCompact) {
+      const preFold = message.compactMetadata?.preCompactDiscoveredTools
+      if (Array.isArray(preFold)) {
+        for (const name of preFold) {
           discovered.add(name)
           carriedCount++
         }

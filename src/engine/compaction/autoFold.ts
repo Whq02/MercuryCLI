@@ -302,7 +302,7 @@ async function runFoldAttempt(opts: {
   customInstructions: string | undefined
   sessionMemoryArmed: boolean
   fixedThreshold: number
-  recompactionInfo: RefoldInfo
+  refoldInfo: RefoldInfo
   overflowSignal: OverflowSignal | undefined
   summaryModel: string
 }): Promise<{ compactionResult: FoldResult; fromMemory: boolean }> {
@@ -340,7 +340,7 @@ async function runFoldAttempt(opts: {
         true,
         opts.customInstructions,
         !opts.asked,
-        opts.recompactionInfo,
+        opts.refoldInfo,
         opts.overflowSignal,
         opts.summaryModel,
       )
@@ -365,7 +365,7 @@ function settleFoldError(opts: {
   rapidRefillBreakerTripped: boolean
   measuredRawTokenCount: number | null
   toolUseContext: ToolUseContext
-  queuedCompact: ReturnType<typeof beginQueuedFold> | undefined
+  queuedFold: ReturnType<typeof beginQueuedFold> | undefined
 }): AutoFoldResult {
   const {
     error,
@@ -377,7 +377,7 @@ function settleFoldError(opts: {
     rapidRefillBreakerTripped,
     measuredRawTokenCount,
     toolUseContext,
-    queuedCompact,
+    queuedFold,
   } = opts
   const priorFailureField = priorFailures !== undefined ? { consecutiveFailures: priorFailures } : {}
   if (error instanceof APIUserAbortError) {
@@ -393,7 +393,7 @@ function settleFoldError(opts: {
     const refusal = crewmateAsked
       ? crewmateFoldNothingWords(askingCrewmateName(toolUseContext), message)
       : message
-    if (!crewmateAsked) queuedCompact?.complete()
+    if (!crewmateAsked) queuedFold?.complete()
     return {
       wasCompacted: false,
       ...priorFailureField,
@@ -454,7 +454,7 @@ export async function autoFoldIfNeeded(
   const priorFailures = tracking?.consecutiveFailures
   const forced = overflowSignal !== undefined
   const nonInteractive = () => foldRemedyIsHeadless(toolUseContext.options?.isNonInteractiveSession)
-  const notCompacted = (extra?: {
+  const notFolded = (extra?: {
     measuredRawTokenCount?: number | null
     refusal?: string
     paused?: true
@@ -466,17 +466,17 @@ export async function autoFoldIfNeeded(
   })
 
   if (!flagEnabled('MERCURY_COMPACT')) {
-    return notCompacted(forced ? { refusal: 'compaction is disabled (MERCURY_COMPACT=0)' } : undefined)
+    return notFolded(forced ? { refusal: 'compaction is disabled (MERCURY_COMPACT=0)' } : undefined)
   }
   if (tracking?.rapidRefillPaused === true) {
-    return notCompacted(forced ? { refusal: rapidRefillPauseText({ nonInteractive: nonInteractive() }) } : undefined)
+    return notFolded(forced ? { refusal: rapidRefillPauseText({ nonInteractive: nonInteractive() }) } : undefined)
   }
   if ((priorFailures ?? 0) >= MAX_CONSECUTIVE_FAILURES) {
-    return notCompacted(forced ? { refusal: foldBreakerText({ nonInteractive: nonInteractive() }) } : undefined)
+    return notFolded(forced ? { refusal: foldBreakerText({ nonInteractive: nonInteractive() }) } : undefined)
   }
   if (suppressBreakerEnabled() && !foldBreakerAllows(priorFailures)) {
     logForDebugging('autoCompact: Mercury breaker suppressed a doomed retry')
-    return notCompacted(forced ? { refusal: foldBreakerText({ nonInteractive: nonInteractive() }) } : undefined)
+    return notFolded(forced ? { refusal: foldBreakerText({ nonInteractive: nonInteractive() }) } : undefined)
   }
   const model = toolUseContext.options.engineModel
   const owner = ownerFromToolUseContext(toolUseContext)
@@ -492,7 +492,7 @@ export async function autoFoldIfNeeded(
   }
   const crewmateAsked = operatorAsked && !forced
 
-  let shouldCompact = false
+  let shouldFold = false
   let measuredRawTokenCount: number | null = null
   let fixedTokens: number | undefined
   let heldByFixedMaterial = false
@@ -501,18 +501,18 @@ export async function autoFoldIfNeeded(
 
   if (forced) {
     if (querySource === 'session_memory' || querySource === 'compact') {
-      return notCompacted({ refusal: 'the summary forks never fold themselves' })
+      return notFolded({ refusal: 'the summary forks never fold themselves' })
     }
     const parts: string[] = [overflowSignal.source, overflowSignal.family, overflowSignal.shape]
     if (overflowSignal.actualTokens !== undefined && overflowSignal.limitTokens !== undefined) {
       parts.push(`${overflowSignal.actualTokens} > ${overflowSignal.limitTokens}`)
     }
     logForDebugging(`autoCompact: overflow fold forced (${parts.join(' · ')})`)
-    shouldCompact = true
+    shouldFold = true
   } else if (crewmateAsked) {
-    shouldCompact = messages.length > 0
+    shouldFold = messages.length > 0
   } else {
-    shouldCompact = await shouldAutoFold(
+    shouldFold = await shouldAutoFold(
       messagesForMeasure,
       model,
       querySource,
@@ -521,10 +521,10 @@ export async function autoFoldIfNeeded(
         measuredRawTokenCount = raw
       },
     )
-    if (shouldCompact && messages.length === 0) {
-      return notCompacted({ measuredRawTokenCount })
+    if (shouldFold && messages.length === 0) {
+      return notFolded({ measuredRawTokenCount })
     }
-    if (shouldCompact && !thresholdOverridden()) {
+    if (shouldFold && !thresholdOverridden()) {
       fixedTokens =
         readRequestGauge(messages, model)?.fixed.tokens ??
         (await estimateFixedRequestTokens(toolUseContext, cacheSafeParams))
@@ -535,14 +535,14 @@ export async function autoFoldIfNeeded(
       const fixedThreshold = getAutoFoldThresholdWithFixed(model, fixedTokens)
       if (fixedTokens + oneTurnReserve > blockingLimit) {
         heldByFixedMaterial = true
-        shouldCompact = false
+        shouldFold = false
         noteFixedMaterialSkipOnce(
           owner,
           `autoCompact: skipping — fixed material (~${fixedTokens} tokens) plus one turn (${oneTurnReserve} tokens) exceeds the window's room (${blockingLimit} tokens)`,
         )
       } else if (effectiveUsage < fixedThreshold) {
         heldByFixedMaterial = true
-        shouldCompact = false
+        shouldFold = false
         noteFixedMaterialSkipOnce(
           owner,
           `autoCompact: skipping at ${effectiveUsage} tokens — fixed material (~${fixedTokens} tokens) plus one turn (${oneTurnReserve} tokens) raises the fold point to ${fixedThreshold} tokens`,
@@ -552,7 +552,7 @@ export async function autoFoldIfNeeded(
   }
 
   if (
-    !shouldCompact &&
+    !shouldFold &&
     !heldByFixedMaterial &&
     advanceTriggerEnabled() &&
     isAutoFoldEnabled() &&
@@ -562,22 +562,22 @@ export async function autoFoldIfNeeded(
   ) {
     const effectiveTokens =
       (measuredRawTokenCount ?? tokenCountWithEstimation(messagesForMeasure, model)) - snipTokensFreed
-    shouldCompact = tryAdvanceTrigger(owner, effectiveTokens, model, tracking?.turnCounter)
+    shouldFold = tryAdvanceTrigger(owner, effectiveTokens, model, tracking?.turnCounter)
   }
 
-  const queuedCompact =
+  const queuedFold =
     messages.length > 0 &&
     toolUseContext.agentId === undefined &&
     (querySource === 'sdk' || querySource?.startsWith('main_thread') === true)
       ? beginQueuedFold(owner)
       : undefined
   let asked = crewmateAsked
-  if (!shouldCompact && queuedCompact?.fresh === true) {
-    shouldCompact = true
+  if (!shouldFold && queuedFold?.fresh === true) {
+    shouldFold = true
     asked = true
   }
-  if (!shouldCompact) {
-    return notCompacted({ measuredRawTokenCount })
+  if (!shouldFold) {
+    return notFolded({ measuredRawTokenCount })
   }
 
   if (fixedTokens === undefined) {
@@ -589,7 +589,7 @@ export async function autoFoldIfNeeded(
   const fixedOverflow = detectFixedPrefixOverflow(messages, model, snipTokensFreed, fixedTokens)
   if (fixedOverflow !== null) {
     if (!forced && !asked && !thresholdOverridden()) {
-      if (queuedCompact?.fresh === true) {
+      if (queuedFold?.fresh === true) {
         asked = true
         logForDebugging(
           `autoCompact: fixed prefix (~${fixedOverflow.prefixTokens} tokens) exceeds the threshold (${fixedOverflow.thresholdTokens}); compaction cannot help`,
@@ -599,7 +599,7 @@ export async function autoFoldIfNeeded(
           owner,
           `autoCompact: skipping — fixed prefix (~${fixedOverflow.prefixTokens} tokens) exceeds the threshold (${fixedOverflow.thresholdTokens}); compaction cannot help`,
         )
-        return notCompacted({ measuredRawTokenCount })
+        return notFolded({ measuredRawTokenCount })
       }
     } else if (forced || asked) {
       logForDebugging(
@@ -627,8 +627,8 @@ export async function autoFoldIfNeeded(
         const refusal = crewmateAsked
           ? crewmateFoldNothingWords(askingCrewmateName(toolUseContext), line)
           : line
-        if (!crewmateAsked) queuedCompact?.complete()
-        return notCompacted({ measuredRawTokenCount, refusal, declined: true })
+        if (!crewmateAsked) queuedFold?.complete()
+        return notFolded({ measuredRawTokenCount, refusal, declined: true })
       }
       restoreFiles = projection.restoreFiles
     }
@@ -642,7 +642,7 @@ export async function autoFoldIfNeeded(
     )
   }
 
-  const recompactionInfo: RefoldInfo = {
+  const refoldInfo: RefoldInfo = {
     isRecompaction: tracking?.compacted === true,
     turnsSincePreviousCompact: tracking?.compacted === true ? tracking.turnCounter : -1,
     ...(tracking?.turnId !== undefined ? { previousCompactTurnId: tracking.turnId } : {}),
@@ -651,7 +651,7 @@ export async function autoFoldIfNeeded(
     ...(asked ? { restoreFiles, mustShrink: true } : {}),
   }
 
-  const customInstructions = queuedCompact?.instructions
+  const customInstructions = queuedFold?.instructions
   const sessionMemoryArmed = !customInstructions && shouldUseSessionNotesFold()
   const foldChoice = foldModelFor(messages, model, { forced })
   if (foldChoice.source === 'history') {
@@ -672,12 +672,12 @@ export async function autoFoldIfNeeded(
       customInstructions,
       sessionMemoryArmed,
       fixedThreshold,
-      recompactionInfo,
+      refoldInfo,
       overflowSignal,
       summaryModel: foldChoice.model,
     })
 
-    queuedCompact?.complete()
+    queuedFold?.complete()
 
     return {
       wasCompacted: true,
@@ -698,7 +698,7 @@ export async function autoFoldIfNeeded(
       rapidRefillBreakerTripped,
       measuredRawTokenCount,
       toolUseContext,
-      queuedCompact,
+      queuedFold,
     })
   }
 }

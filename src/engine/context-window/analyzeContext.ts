@@ -683,13 +683,13 @@ export async function analyzeContextUsage(
   }
   const contextWindow = getContextWindowForModel(model, getSdkBetas())
 
-  const mcRaw = await pruneMessages(messages)
-  const microcompactedMessages: Message[] = Array.isArray(mcRaw)
-    ? mcRaw
-    : mcRaw !== null &&
-        typeof mcRaw === 'object' &&
-        Array.isArray(mcRaw.messages)
-      ? mcRaw.messages
+  const pruneResult = await pruneMessages(messages)
+  const prunedMessages: Message[] = Array.isArray(pruneResult)
+    ? pruneResult
+    : pruneResult !== null &&
+        typeof pruneResult === 'object' &&
+        Array.isArray(pruneResult.messages)
+      ? pruneResult.messages
       : messages
 
   const {
@@ -770,8 +770,8 @@ export async function analyzeContextUsage(
       : 0
 
   const { breakdown: messageBreakdown, unmeasured: messageBlocksUnmeasured } =
-    computeMessageBreakdown(microcompactedMessages)
-  const normalizedMessages: CountableMessage[] = normalizeMessagesForAPI(microcompactedMessages).map(
+    computeMessageBreakdown(prunedMessages)
+  const normalizedMessages: CountableMessage[] = normalizeMessagesForAPI(prunedMessages).map(
     message => ({
       role: message.message.role,
       content: message.message.content,
@@ -863,12 +863,12 @@ export async function analyzeContextUsage(
   }
 
   const layoutUsedTokens = Math.max(measuredTokens, totalTokens)
-  const autoCompactOn = isAutoFoldEnabled()
-  const autoCompactThreshold = autoCompactOn ? getAutoFoldThreshold(model) : undefined
-  const reserveTokens = autoCompactOn
+  const autoFoldOn = isAutoFoldEnabled()
+  const autoCompactThreshold = autoFoldOn ? getAutoFoldThreshold(model) : undefined
+  const reserveTokens = autoFoldOn
     ? Math.max(0, contextWindow - autoCompactThreshold!)
     : MANUAL_FOLD_BUFFER_TOKENS
-  const reserveName = autoCompactOn ? 'Autocompact buffer' : 'Compact buffer'
+  const reserveName = autoFoldOn ? 'Autocompact buffer' : 'Compact buffer'
   categories.push({
     name: reserveName,
     tokens: reserveTokens,
@@ -898,7 +898,7 @@ export async function analyzeContextUsage(
     systemPromptSections,
     mcpTools: mcpResult.mcpToolDetails,
     agents: agentDetails,
-    isAutoCompactEnabled: autoCompactOn,
+    isAutoCompactEnabled: autoFoldOn,
     countsAvailable,
     messageBreakdown,
     apiUsage,

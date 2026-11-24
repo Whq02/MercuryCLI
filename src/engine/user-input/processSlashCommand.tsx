@@ -190,7 +190,7 @@ function finalizeCommandResult(
   const isAllLocalCommandSystem = result.messages.every(
     (msg: Message) => msg.type === 'system' && msg.subtype === 'local_command',
   )
-  const startsAtCompactBoundary = isFoldBoundaryMessage(result.messages[0]!)
+  const startsAtFoldBoundary = isFoldBoundaryMessage(result.messages[0]!)
   const isTwoRowUnknown =
     result.messages.length === 2 &&
     result.messages.some(
@@ -201,7 +201,7 @@ function finalizeCommandResult(
     )
   if (
     isTwoRowUnknown ||
-    (!result.shouldQuery && !isAllLocalCommandSystem && !startsAtCompactBoundary)
+    (!result.shouldQuery && !isAllLocalCommandSystem && !startsAtFoldBoundary)
   ) {
     return {
       ...result,

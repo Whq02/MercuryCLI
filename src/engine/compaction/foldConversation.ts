@@ -333,7 +333,7 @@ async function finishCommittedFold(params: {
   landed: ReturnType<typeof landFold>
   beforeHookRows: Message[]
   boundaryTrigger: FoldMetadata['trigger']
-  isAutoCompact: boolean
+  isAutoFold: boolean
   preCompactTokenCount: number
   tokensAfter: number
   prose: string
@@ -350,7 +350,7 @@ async function finishCommittedFold(params: {
     landed,
     beforeHookRows,
     boundaryTrigger,
-    isAutoCompact,
+    isAutoFold,
     preCompactTokenCount,
     tokensAfter,
     prose,
@@ -385,8 +385,8 @@ async function finishCommittedFold(params: {
   restoreBoundPrefixFromMessages(buildPostFoldMessages(finalResult), { fold: true })
 
   advanceContextEpoch(owner, {
-    kind: isAutoCompact ? 'auto-compact' : 'manual-compact',
-    reason: isAutoCompact ? 'auto-compact threshold' : 'operator /compact',
+    kind: isAutoFold ? 'auto-compact' : 'manual-compact',
+    reason: isAutoFold ? 'auto-compact threshold' : 'operator /compact',
     tokensBefore: preCompactTokenCount,
     tokensAfter,
     preservedTailCount: landed.messagesToKeep?.length ?? 0,
@@ -405,8 +405,8 @@ export async function foldConversation(
   cacheSafeParams: CacheSafeParams,
   suppressFollowUpQuestions: boolean,
   customInstructions?: string,
-  isAutoCompact = false,
-  recompactionInfo?: RefoldInfo,
+  isAutoFold = false,
+  refoldInfo?: RefoldInfo,
   overflow?: OverflowSignal,
   summaryModel?: string,
 ): Promise<FoldResult> {
@@ -424,7 +424,7 @@ export async function foldConversation(
       throw new Error(ERROR_MESSAGE_NOT_ENOUGH_MESSAGES)
     }
 
-    const trigger: 'auto' | 'manual' = isAutoCompact ? 'auto' : 'manual'
+    const trigger: 'auto' | 'manual' = isAutoFold ? 'auto' : 'manual'
     const boundaryTrigger: FoldMetadata['trigger'] = overflow !== undefined ? 'overflow' : trigger
 
     const meter = createFoldMeter(messages, context.options.engineModel, cacheSafeParams.postFoldCarry)
@@ -450,7 +450,7 @@ export async function foldConversation(
     const ledger = buildFoldLedger(messages, owner, nextEpoch)
 
     const turnReserve = getTurnReserveTokens(context.options.engineModel)
-    let ceiling = recompactionInfo?.autoCompactThreshold
+    let ceiling = refoldInfo?.autoCompactThreshold
     let landing =
       ceiling !== undefined
         ? foldLandingCeiling(ceiling, messages, gauge?.density.ratio, gauge?.density.residuals, turnReserve)
@@ -552,7 +552,7 @@ export async function foldConversation(
       'compact_full',
       ledgerBeforeFold,
       undefined,
-      recompactionInfo?.restoreFiles ?? true,
+      refoldInfo?.restoreFiles ?? true,
     )
 
     const preCompactDiscoveredTools = [...extractDiscoveredToolNames(messages)].sort()
@@ -631,7 +631,7 @@ export async function foldConversation(
     })
     boundaryMarker.compactMetadata.ledger = withKeptLedgerRows(ledger, landed.messagesToKeep)
 
-    if (recompactionInfo?.mustShrink && landed.truePostCompactTokenCount >= meter.before) {
+    if (refoldInfo?.mustShrink && landed.truePostCompactTokenCount >= meter.before) {
       restoreReadState(context, ledgerBeforeFold, nestedMemoryBeforeFold)
       logForDebugging(
         `compact: aborted after summariser — folded context ${landed.truePostCompactTokenCount} >= ${meter.before} (pre ${preCompactTokenCount}); original context kept`,
@@ -645,9 +645,9 @@ export async function foldConversation(
       throw new APIUserAbortError()
     }
     const after = meter.after(landed.truePostCompactTokenCount)
-    const tokensAfter = recompactionInfo?.mustShrink ? after.tokens : landed.truePostCompactTokenCount
+    const tokensAfter = refoldInfo?.mustShrink ? after.tokens : landed.truePostCompactTokenCount
     boundaryMarker.compactMetadata.postTokens = tokensAfter
-    if (recompactionInfo?.mustShrink) {
+    if (refoldInfo?.mustShrink) {
       boundaryMarker.compactMetadata.postEstimate = {
         model: context.options.engineModel,
         tokens: after.estimate,
@@ -664,14 +664,14 @@ export async function foldConversation(
       landed,
       beforeHookRows,
       boundaryTrigger,
-      isAutoCompact,
+      isAutoFold,
       preCompactTokenCount,
       tokensAfter,
       prose,
       proseSkippedReceipt,
       rawSummary,
       capsule,
-      querySource: recompactionInfo?.querySource ?? context.options.querySource,
+      querySource: refoldInfo?.querySource ?? context.options.querySource,
     })
   } catch (error) {
     if (writtenMemoryId !== undefined) {
@@ -680,7 +680,7 @@ export async function foldConversation(
         logForDebugging(`compact: the memory row ${writtenMemoryId} of a fold that did not land stays — ${stays}`, { level: 'warn' })
       }
     }
-    if (!isAutoCompact) {
+    if (!isAutoFold) {
       notifyFoldError(context, error)
     }
     throw error

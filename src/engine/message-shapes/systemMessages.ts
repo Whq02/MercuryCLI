@@ -85,14 +85,14 @@ export function hasSuccessfulToolCall(messages: Rows.Message[], toolName: string
 }
 
 export function createFoldBoundaryMessage(
-  trigger: Rows.FoldMetadata['trigger'], preTokens: number, lastPreCompactMessageUuid?: UUID,
+  trigger: Rows.FoldMetadata['trigger'], preTokens: number, lastPreFoldMessageUuid?: UUID,
   userContext?: string, messagesSummarized?: number,
 ): Rows.SystemFoldBoundaryMessage {
   return systemRow('compact_boundary', {
     level: 'info',
     content: 'Conversation compacted',
     compactMetadata: { trigger, preTokens, userContext, messagesSummarized },
-    ...(lastPreCompactMessageUuid ? { logicalParentUuid: lastPreCompactMessageUuid } : {}),
+    ...(lastPreFoldMessageUuid ? { logicalParentUuid: lastPreFoldMessageUuid } : {}),
   })
 }
 

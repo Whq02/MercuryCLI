@@ -283,9 +283,9 @@ export class LivePart {
 
   private clearLiveStateWord(): void {
     if (this.liveStateWord === null) return
-    const wasCompacting = this.liveStateWord === 'compacting'
+    const wasFolding = this.liveStateWord === 'compacting'
     this.liveStateWord = null
-    if (wasCompacting) {
+    if (wasFolding) {
       this.needs.redressQueuedSends()
     }
   }
@@ -293,10 +293,10 @@ export class LivePart {
   private setLiveStateWord(word: 'compacting' | 'waiting-on-agents' | null, agentsWaiting = 0): void {
     const count = word === 'waiting-on-agents' ? agentsWaiting : 0
     if (this.liveStateWord === word && this.liveAgentsWaiting === count) return
-    const wasCompacting = this.liveStateWord === 'compacting'
+    const wasFolding = this.liveStateWord === 'compacting'
     this.liveStateWord = word
     this.liveAgentsWaiting = count
-    if (wasCompacting && word !== 'compacting') {
+    if (wasFolding && word !== 'compacting') {
       this.needs.redressQueuedSends()
     }
     this.recomputeLive()
