@@ -38,6 +38,7 @@ import { holdQueuedWordsForTurnEnd } from './messageQueueManager.js'
 import { logError } from '../../platform/logs/errorLog.js'
 import { SESSION_VERBS } from '../runner-wire/sessionVerbs.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
+import { registerMcpListChanged } from './boot/watchLiveMcp.js'
 
 const DEFAULT_HEADLESS_IDLE_MINUTES = 20
 
@@ -81,6 +82,7 @@ export async function registerElicitationHandlersForClient(client: ConnectedMCPS
       },
     })
   })
+  registerMcpListChanged(client, ports)
 }
 
 export function registerPerTurnHandlers(clients: MCPServerConnection[], ports: RunnerPorts): void {

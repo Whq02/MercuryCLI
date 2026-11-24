@@ -1,6 +1,6 @@
-import type { ScopedMcpServerConfig, MCPServerConnection } from '../../../integrations/mcp-shapes/mcpServerRecords.js'
+import type { ConnectedMCPServer, ScopedMcpServerConfig, MCPServerConnection } from '../../../integrations/mcp-shapes/mcpServerRecords.js'
 import { getMcpConfigByName, getMercuryMcpConfigs, filterMcpServersByPolicy } from '../../../integrations/mcp/serverConfigs.js'
-import { fetchToolsForClient, fetchCommandsForClient, fetchResourcesForClient, reconnectMcpServerImpl, clearServerCache, supplementaryToolsForMcpClient, pruneStaleMcpResourceTools } from '../../../integrations/mcp/client.js'
+import { fetchToolsForClient, fetchCommandsForClient, fetchResourcesForClient, onMcpListChanged, reconnectMcpServerImpl, clearServerCache, supplementaryToolsForMcpClient, pruneStaleMcpResourceTools } from '../../../integrations/mcp/client.js'
 import { getMcpPrefix } from '../../../integrations/mcp-shapes/mcpToolNames.js'
 import { requestDeliberateToolChange } from '../../../models/roads/lawfulPrefixChange.js'
 import { processMainOwner } from '../../../engine/run-owner/resolveOwner.js'
@@ -13,6 +13,82 @@ import { isMcpCatalogueMember } from '../../../integrations/mcp/membership.js'
 import type { BootMade, BootStep, RunnerPorts } from '../runnerPorts.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
 
+const LIST_CHANGED_KINDS = ['tools', 'prompts', 'resources'] as const
+
+async function applyMcpClientLists(
+  serverName: string,
+  client: MCPServerConnection,
+  setAppState: RunnerPorts['setAppState'],
+  reason = `the MCP server ${serverName} joined or reconnected`,
+): Promise<void> {
+  const [tools, commandsForServer, resources] = await Promise.all([
+    fetchToolsForClient(client),
+    fetchCommandsForClient(client),
+    fetchResourcesForClient(client),
+  ])
+  const allTools = [...tools, ...supplementaryToolsForMcpClient(client)]
+  const prefix = getMcpPrefix(serverName)
+  if (allTools.length > 0 || client.type === 'connected') {
+    requestDeliberateToolChange(String(processMainOwner()), allTools, reason)
+  }
+  setAppState(previous => {
+    const nextClients = previous.mcp.clients.some(existing => existing.name === serverName)
+      ? previous.mcp.clients.map(existing =>
+          existing.name === serverName ? client : existing,
+        )
+      : [...previous.mcp.clients, client]
+    const seenTools = new Set<string>()
+    const nextTools = pruneStaleMcpResourceTools(
+      nextClients,
+      [
+        ...previous.mcp.tools.filter(tool => !tool.name.startsWith(prefix)),
+        ...allTools,
+      ].filter(tool => {
+        if (seenTools.has(tool.name)) return false
+        seenTools.add(tool.name)
+        return true
+      }),
+    )
+    return {
+      ...previous,
+      mcp: {
+        ...previous.mcp,
+        clients: nextClients,
+        tools: nextTools,
+        commands: [
+          ...previous.mcp.commands.filter(existing => !existing.name.startsWith(prefix)),
+          ...commandsForServer,
+        ],
+        resources: {
+          ...Object.fromEntries(
+            Object.entries(previous.mcp.resources ?? {}).filter(([key]) => key !== serverName),
+          ),
+          ...(resources.length > 0 ? { [serverName]: resources } : {}),
+        },
+      },
+    }
+  })
+}
+
+export function registerMcpListChanged(
+  client: ConnectedMCPServer,
+  ports: Pick<RunnerPorts, 'getAppState' | 'setAppState' | 'serializeMcpChange'>,
+): void {
+  const refresh = (): void => {
+    void ports.serializeMcpChange(async () => {
+      const current = ports.getAppState().mcp.clients.find(row => row.name === client.name)
+      if (current?.type !== 'connected' || current.client !== client.client) return
+      fetchToolsForClient.cache.delete(client.name)
+      fetchCommandsForClient.cache.delete(client.name)
+      fetchResourcesForClient.cache.delete(client.name)
+      await applyMcpClientLists(client.name, client, ports.setAppState, `the MCP server ${client.name} changed its tools`)
+    }).catch(passedOver)
+  }
+  for (const kind of LIST_CHANGED_KINDS) {
+    onMcpListChanged(client.client, kind, refresh)
+  }
+}
+
 function run(ports: RunnerPorts): BootMade<'resolveServerConfigFromAllSources' | 'applyReconnectedClient' | 'mcpSignIns' | 'permittedMcpConfig' | 'reconnectLiveMcp' | 'liveMcp'> {
   const { asks, elicitationRegistered, getAppState, isConcourseWorker, live, registerCleanup, registerPerTurnHandlers, serializeMcpChange, setAppState } = ports
   const resolveServerConfigFromAllSources = (
@@ -24,54 +100,8 @@ function run(ports: RunnerPorts): BootMade<'resolveServerConfigFromAllSources' |
     return fromClients?.config ?? null
   }
 
-  const applyReconnectedClient = async (serverName: string, client: MCPServerConnection): Promise<void> => {
-    const [tools, commandsForServer, resources] = await Promise.all([
-      fetchToolsForClient(client),
-      fetchCommandsForClient(client),
-      fetchResourcesForClient(client),
-    ])
-    const allTools = [...tools, ...supplementaryToolsForMcpClient(client)]
-    const prefix = getMcpPrefix(serverName)
-    if (allTools.length > 0) requestDeliberateToolChange(String(processMainOwner()), allTools, `the MCP server ${serverName} joined or reconnected`)
-    setAppState(previous => {
-      const nextClients = previous.mcp.clients.some(existing => existing.name === serverName)
-        ? previous.mcp.clients.map(existing =>
-            existing.name === serverName ? client : existing,
-          )
-        : [...previous.mcp.clients, client]
-      const seenTools = new Set<string>()
-      const nextTools = pruneStaleMcpResourceTools(
-        nextClients,
-        [
-          ...previous.mcp.tools.filter(tool => !tool.name.startsWith(prefix)),
-          ...allTools,
-        ].filter(tool => {
-          if (seenTools.has(tool.name)) return false
-          seenTools.add(tool.name)
-          return true
-        }),
-      )
-      return {
-        ...previous,
-        mcp: {
-          ...previous.mcp,
-          clients: nextClients,
-          tools: nextTools,
-          commands: [
-            ...previous.mcp.commands.filter(existing => !existing.name.startsWith(prefix)),
-            ...commandsForServer,
-          ],
-          resources: {
-            ...Object.fromEntries(
-              Object.entries(previous.mcp.resources ?? {}).filter(([key]) => key !== serverName),
-            ),
-            ...(resources.length > 0 ? { [serverName]: resources } : {}),
-          },
-        },
-      }
-    })
-  }
-
+  const applyReconnectedClient = (serverName: string, client: MCPServerConnection): Promise<void> =>
+    applyMcpClientLists(serverName, client, setAppState)
   const mcpSignIns = new Map<string, { controller: AbortController; authorizationUrl?: string }>()
   const permittedMcpConfig = async (name: string): Promise<ScopedMcpServerConfig | null> => {
     const dynamic = dynamicMcpConfigSnapshot() ?? {}
@@ -81,6 +111,7 @@ function run(ports: RunnerPorts): BootMade<'resolveServerConfigFromAllSources' |
   }
   const reconnectLiveMcp = async (name: string, config: ScopedMcpServerConfig): Promise<MCPServerConnection> => {
     const result = await reconnectMcpServerImpl(name, config)
+    elicitationRegistered.delete(name)
     await applyReconnectedClient(name, result.client)
     registerPerTurnHandlers([result.client])
     return result.client
@@ -118,8 +149,10 @@ function run(ports: RunnerPorts): BootMade<'resolveServerConfigFromAllSources' |
         if (row && JSON.stringify(row.config) === JSON.stringify(config)) continue
         await reconnectLiveMcp(name, config)
       }
+      registerPerTurnHandlers(getAppState().mcp.clients)
     }),
   })
+  registerPerTurnHandlers(getAppState().mcp.clients)
   registerCleanup(async () => {
     liveMcp.stop()
     for (const flow of mcpSignIns.values()) flow.controller.abort()

@@ -74,3 +74,4 @@ prove-list-mcp-resources-tool.ts
 prove-read-mcp-resource-tool.ts
 prove-mcp-auth-tool.ts
 prove-mcp-resource-deny-reach.ts
+prove-tools-list-changed-drive.ts
