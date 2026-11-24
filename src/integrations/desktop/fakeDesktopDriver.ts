@@ -2,6 +2,7 @@ import { appendFileSync, mkdirSync, readFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { deflateSync, inflateSync } from 'node:zlib'
 import { flagEnv } from '../../platform/substrate/flagRegistry.js'
+import { pngChunk } from '../../platform/images/imageProcessorJs.js'
 import { ansiToPng } from './ansiToPng.js'
 import {
   TREE_UNANSWERED_REASON,
@@ -402,31 +403,6 @@ export function fakeDesktopDriverFromEnvironment(): FakeDesktopDriverResolution 
 }
 
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
-
-const CRC_TABLE: Uint32Array = (() => {
-  const table = new Uint32Array(256)
-  for (let n = 0; n < 256; n++) {
-    let c = n
-    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
-    table[n] = c >>> 0
-  }
-  return table
-})()
-
-function crc32(bytes: Uint8Array): number {
-  let crc = 0xffffffff
-  for (let i = 0; i < bytes.length; i++) crc = (CRC_TABLE[(crc ^ (bytes[i] as number)) & 0xff] as number) ^ (crc >>> 8)
-  return (crc ^ 0xffffffff) >>> 0
-}
-
-function pngChunk(type: string, data: Uint8Array): Buffer {
-  const chunk = Buffer.alloc(12 + data.length)
-  chunk.writeUInt32BE(data.length, 0)
-  chunk.write(type, 4, 'ascii')
-  chunk.set(data, 8)
-  chunk.writeUInt32BE(crc32(chunk.subarray(4, 8 + data.length)), 8 + data.length)
-  return chunk
-}
 
 function encodePng(pixels: Buffer, width: number, height: number): Buffer {
   const ihdr = Buffer.alloc(13)

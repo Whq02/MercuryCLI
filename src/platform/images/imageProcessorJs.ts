@@ -328,7 +328,7 @@ function crc32(bytes: Uint8Array): number {
   return (crc ^ 0xffffffff) >>> 0
 }
 
-function pngChunk(type: string, body: Uint8Array): Buffer {
+export function pngChunk(type: string, body: Uint8Array): Buffer {
   const chunk = Buffer.alloc(12 + body.length)
   chunk.writeUInt32BE(body.length, 0)
   chunk.write(type, 4, 'latin1')
