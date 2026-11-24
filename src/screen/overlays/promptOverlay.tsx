@@ -2,6 +2,7 @@ import React, {
   createContext,
   useContext,
   useState,
+  type ReactElement,
   type ReactNode,
 } from 'react'
 import { useClaim } from '../effects/effects.js'
@@ -17,14 +18,14 @@ type PromptOverlayData = {
 
 const DataContext = createContext<PromptOverlayData | null>(null)
 const SetDataContext = createContext<((data: PromptOverlayData | null) => void) | null>(null)
-const DialogContext = createContext<ReactNode>(null)
-const SetDialogContext = createContext<((dialog: ReactNode) => void) | null>(null)
+const DialogContext = createContext<ReactElement | null>(null)
+const SetDialogContext = createContext<((dialog: ReactElement | null) => void) | null>(null)
 
 export function PromptOverlayProvider({ children }: {
   children: ReactNode
 }): React.ReactNode {
   const [data, setData] = useState<PromptOverlayData | null>(null)
-  const [dialog, setDialog] = useState<ReactNode>(null)
+  const [dialog, setDialog] = useState<ReactElement | null>(null)
   return (
     <DataContext.Provider value={data}>
       <SetDataContext.Provider value={setData}>
@@ -40,8 +41,17 @@ export function usePromptOverlay(): PromptOverlayData | null {
   return useContext(DataContext)
 }
 
-export function usePromptOverlayDialog(): ReactNode {
+export function usePromptOverlayDialog(): ReactElement | null {
   return useContext(DialogContext)
+}
+
+export function useSetPromptOverlayDialog(dialog: ReactElement | null): void {
+  const setDialog = useContext(SetDialogContext)
+  useClaim(() => {
+    if (setDialog === null) return undefined
+    setDialog(dialog)
+    return () => setDialog(null)
+  }, [setDialog, dialog])
 }
 
 export function useSetPromptOverlay(data: PromptOverlayData | null): void {

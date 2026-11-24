@@ -4,6 +4,7 @@ export type CommandPopupShape = {
   view: string
   width: (hostColumns: number) => number
   rows: (terminalRows: number) => number
+  door?: 'crew'
 }
 
 type CommandPopupClaim = { token: number; shape: CommandPopupShape; minimumRows?: number }

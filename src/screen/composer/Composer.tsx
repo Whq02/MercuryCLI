@@ -28,7 +28,7 @@ import { useComposerHistory } from './useComposerHistory.js'
 import { useComposerHelm } from './useComposerHelm.js'
 import { useComposerHighlights } from './useComposerHighlights.js'
 import { useComposerEffortNotice } from './useComposerEffortNotice.js'
-import { composerSurface } from './composerSurface.js'
+import { composerSurface, useRunsPopup } from './composerSurface.js'
 import { composerFrame, composerGeometry } from './composerFrame.js'
 import { useComposerState } from './useComposerState.js'
 import { useComposerWiring } from './useComposerWiring.js'
@@ -279,8 +279,9 @@ function ComposerInner(props: ComposerProps): React.ReactNode {
     cursorRef, writeDraft, setCursorOffset,
   })
 
+  useRunsPopup({ fullscreen, overlay, setOverlay, getToolUseContext, messages, engineModel })
   const surface = composerSurface({
-    externalEditorActive, borderStyle, borderColor, overlay, setOverlay,
+    externalEditorActive, borderStyle, borderColor, fullscreen, overlay, setOverlay,
     getToolUseContext, messages, engineModel, showCommandPalette,
     setShowCommandPalette, showFileOpen, setShowFileOpen, showContentSearch,
     setShowContentSearch, commands, historySearch, commandCrewmateRef,

@@ -2,4 +2,5 @@ prove-activity-screen-keys.ts
 prove-composer-persist-roads.ts
 prove-paste-sent-whole.ts
 prove-popup-gutter-frames.ts
+prove-popups-open-in-the-middle.ts
 prove-tensorfold-model-groups.ts

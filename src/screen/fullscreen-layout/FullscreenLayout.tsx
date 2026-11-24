@@ -272,7 +272,8 @@ export function FullscreenLayout({
   const modalMounted = modal !== null && modal !== undefined
   const modalUp = modalMounted && modalActive
   const popupUp = modalMounted && modelPickerClaimed
-  const commandPopupUp = modalMounted && commandPopup !== null
+  const crewDoor = modalMounted && commandPopup !== null && commandPopup.shape.door === 'crew' ? commandPopup.shape : null
+  const commandPopupUp = modalMounted && commandPopup !== null && crewDoor === null
 
   const cockpit = fullscreen && chrome === 'cockpit'
   const centerFrame = cockpit
@@ -418,6 +419,7 @@ export function FullscreenLayout({
     commandPopup,
     commandPopupUp,
     compactBudget,
+    crewDoor,
     dividerYRef,
     elevatedRef,
     fullscreen,

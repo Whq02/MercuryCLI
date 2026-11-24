@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import type { Command } from '../../commands/catalogue/commands.js'
 import type { Notification } from '../notifications/notifications.js'
 import type { useHistorySearch } from './history-search/useHistorySearch.js'
@@ -14,6 +14,7 @@ import { ThinkingToggle } from './ThinkingToggle.js'
 import { BackgroundTasksDialog } from '../tasks/BackgroundTasksDialog.js'
 import type { useComposerCrewmate } from '../tasks/useCrewmateView.js'
 import type { OverlaySurface } from './composerOverlay.js'
+import { useSetPromptOverlayDialog } from '../overlays/promptOverlay.js'
 import { crewmateCommandReceipt, openCrewmateModelPickerFor } from './crewmateCommands.js'
 import type { ComposerProps } from './Composer.js'
 import type { ComposerAttachments } from './useComposerAttachments.js'
@@ -21,10 +22,32 @@ import type { useComposerModelDoors } from './useComposerModelDoors.js'
 
 const EXTERNAL_EDITOR_TEXT = 'editing in your external editor — save and close to continue'
 
+export function useRunsPopup({ fullscreen, overlay, setOverlay, getToolUseContext, messages, engineModel }: {
+  fullscreen: boolean
+  overlay: OverlaySurface
+  setOverlay: React.Dispatch<React.SetStateAction<OverlaySurface>>
+  getToolUseContext: ComposerProps['getToolUseContext']
+  messages: Message[]
+  engineModel: AppState['engineModel']
+}): void {
+  const open = fullscreen && overlay === 'tasks-dialog'
+  const dialog = useMemo(
+    () => open ? (
+      <BackgroundTasksDialog
+        onDone={() => setOverlay(null)}
+        toolUseContext={getToolUseContext(messages, [], new AbortController(), engineModel ?? '')}
+      />
+    ) : null,
+    [open, setOverlay, getToolUseContext, messages, engineModel],
+  )
+  useSetPromptOverlayDialog(dialog)
+}
+
 export function composerSurface({
   externalEditorActive,
   borderStyle,
   borderColor,
+  fullscreen,
   overlay,
   setOverlay,
   getToolUseContext,
@@ -48,6 +71,7 @@ export function composerSurface({
   externalEditorActive: boolean
   borderStyle: 'round' | undefined
   borderColor: keyof Theme
+  fullscreen: boolean
   overlay: OverlaySurface
   setOverlay: React.Dispatch<React.SetStateAction<OverlaySurface>>
   getToolUseContext: ComposerProps['getToolUseContext']
@@ -85,7 +109,7 @@ export function composerSurface({
     )
   }
 
-  if (overlay === 'tasks-dialog') {
+  if (overlay === 'tasks-dialog' && !fullscreen) {
     return (
       <BackgroundTasksDialog
         onDone={() => setOverlay(null)}

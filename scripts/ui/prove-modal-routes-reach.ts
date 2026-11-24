@@ -284,9 +284,9 @@ const width = (line: string): number => Array.from(line.replace(/\s+$/, '')).len
 function region(lines: string[]): string[] {
   const separator = lines.findIndex(line => /^▔+\s*$/.test(line))
   if (separator >= 0) return lines.slice(separator + 1)
-  const titleRow = lines.findIndex(line => line.includes('Mercury · '))
+  const titleRow = lines.findIndex(line => /Mercury [·—] /.test(line))
   if (titleRow >= 0) {
-    const left = lines[titleRow]!.lastIndexOf('│', lines[titleRow]!.indexOf('Mercury · '))
+    const left = lines[titleRow]!.lastIndexOf('│', lines[titleRow]!.search(/Mercury [·—] /))
     if (left >= 0) {
       let top = titleRow
       while (top > 0 && lines[top]![left] !== '╭') top--
