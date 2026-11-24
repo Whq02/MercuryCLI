@@ -41,7 +41,7 @@ export interface ProjectIdentity {
   newestChat: { sessionId: string; transcriptPath: string; ageMs: number } | null
 }
 
-function readHead(file: string, n = 4096): string {
+export function readHead(file: string, n = 4096): string {
   const fd = openSync(file, 'r')
   try {
     const buf = Buffer.allocUnsafe(n)

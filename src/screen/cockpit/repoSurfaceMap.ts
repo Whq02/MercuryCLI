@@ -1,8 +1,9 @@
 
-import { closeSync, lstatSync, openSync, readSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { lstatSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { passedOver } from '../../platform/errors/passedOver.js'
+import { readHead } from '../boot-face/bootCardFacts.js'
 
 const MAX_DEPTH = 5
 const MAX_ENTRIES = 4000
@@ -101,26 +102,10 @@ function walk(dir: string, depth: number, state: ScanState, inTestTree: boolean)
   }
 }
 
-function readHeadBytes(file: string, n: number): string {
-  const fd = openSync(file, 'r')
-  try {
-    const buf = Buffer.allocUnsafe(n)
-    let got = 0
-    while (got < n) {
-      const r = readSync(fd, buf, got, n - got, got)
-      if (r <= 0) break
-      got += r
-    }
-    return buf.subarray(0, got).toString('utf8')
-  } finally {
-    closeSync(fd)
-  }
-}
-
 function readmeHeadline(root: string): string | null {
   for (const f of ['README.md', 'README.rst', 'README.txt', 'README']) {
     try {
-      const text = readHeadBytes(join(root, f), 4000)
+      const text = readHead(join(root, f), 4000)
       for (const raw of text.split('\n')) {
         const line = raw.trim()
         if (!line) continue
