@@ -147,5 +147,29 @@ async function paint(node: React.ReactNode, width = 160): Promise<string> {
     JSON.stringify(screenText),
   )
 }
+
+{
+  const { renderToolResultMessage: renderWriteResult } = await import('../../src/tools/write/rows.tsx')
+  const screenText = (
+    await paint(
+      renderWriteResult(
+        {
+          type: 'not-found',
+          filePath: '/tmp/sample.db:users:id=99',
+          content: '',
+          structuredPatch: [],
+          originalFile: null,
+        } as never,
+        [],
+        { verbose: false },
+      ),
+    )
+  ).replace(/^└\s*/, '')
+  check(
+    'K-36 Write SQLite not-found row starts with Row not found — and drops ; nothing was deleted',
+    screenText.startsWith('Row not found — ') && !screenText.includes('nothing was deleted'),
+    JSON.stringify(screenText),
+  )
+}
 console.log(`\ntool-row-words-cut: ${failures} failure(s)`)
 process.exit(failures ? 1 : 0)

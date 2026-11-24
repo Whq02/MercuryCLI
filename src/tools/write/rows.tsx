@@ -150,7 +150,7 @@ export function renderToolResultMessage(
     const head =
       output.type === 'delete'
         ? 'Deleted one SQLite row'
-        : 'Row not found; nothing was deleted'
+        : 'Row not found'
     return (
       <MessageResponse>
         <Text>
