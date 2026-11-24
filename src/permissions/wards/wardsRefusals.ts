@@ -3,6 +3,7 @@ import { posix } from 'node:path'
 import { REFUSAL_WARDS, countWardWork, evaluateWards, ownHomeNames, shellTextOutsideFileHeredocs, wardHomes, type PendingToolCall, type ResolvedPath, type WardVerdict, type WardWork } from './wards.js'
 import { UNREAD_PART, absolutePath, layersOf, printedBy, programOf, readShellCommands, readShellCommandsFromText, stdinProgram, wordKnown, type Layer, type ReadCommand, type ReadWorld, type ShellRead } from './wardsShellRead.js'
 import { oldFolderReturn } from '../rules/decision/commandAnalysis.js'
+import { sharesEarlierStage } from '../rules/shell-protected-paths/listings.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 import { hostEnv } from '../../platform/environment/hostEnv.js'
 import { withDeadline } from '../../platform/async/deadline.js'
@@ -602,11 +603,6 @@ function mention(text: string): { ward: string; word: string } | undefined {
   return undefined
 }
 
-function sharesEarlier(earlier: ReadCommand, later: ReadCommand): boolean {
-  for (const a of earlier.stages) for (const b of later.stages) if (a.pipeline === b.pipeline && a.stage < b.stage) return true
-  return false
-}
-
 function forkBomb(read: ShellRead): number | undefined {
   const calls = new Map<string, Array<{ to: string; concurrent: boolean; at: number }>>()
   for (const command of read.commands) if (command.body !== undefined && !calls.has(command.body)) calls.set(command.body, [])
@@ -692,7 +688,7 @@ function judgeShellRead(read: ShellRead, world: RefusalWorld, textReading: (text
       if (haltWard(layer)) hit('no-system-halt', at)
       if (formatWard(layer)) hit('no-disk-format', at)
       if (remoteExecWard(layer, command, read, work)) hit('npm-exec-yes', at)
-      if ((program === 'npx' || (program === 'npm' && ['exec', 'x'].includes(operandsOf(argv)[0] ?? ''))) && confirmers.some(earlier => sharesEarlier(read.commands[earlier]!, command))) hit('npm-exec-yes', at)
+      if ((program === 'npx' || (program === 'npm' && ['exec', 'x'].includes(operandsOf(argv)[0] ?? ''))) && confirmers.some(earlier => sharesEarlierStage(read.commands[earlier]!, command))) hit('npm-exec-yes', at)
       if (pinnedInstall(layer)) hit('git-install-sha', at)
       if (program === 'disown' || (program === 'setsid' && argv.slice(1).some(word => word === '-f' || word === '--fork'))) hit('self-daemonize', at)
       if (command.background && (program === 'nohup' || program === 'setsid' || layer.wrappers.includes('nohup') || layer.wrappers.includes('setsid'))) hit('self-daemonize', at)
@@ -729,7 +725,7 @@ function judgeShellRead(read: ShellRead, world: RefusalWorld, textReading: (text
       }
       const removal = deleteOf(layer, command, read.commands)
       if (removal !== null && layer.wrappers.includes('xargs')) {
-        const fed = [command.input, ...read.commands.filter(earlier => sharesEarlier(earlier, command)).map(earlier => printedBy(earlier))]
+        const fed = [command.input, ...read.commands.filter(earlier => sharesEarlierStage(earlier, command)).map(earlier => printedBy(earlier))]
         for (const text of fed) if (text !== undefined) removal.operands.push(...text.split(/\s+/).filter(word => word !== '' && !word.startsWith('-')))
       }
       if (removal !== null && !removal.preview) {
@@ -737,7 +733,7 @@ function judgeShellRead(read: ShellRead, world: RefusalWorld, textReading: (text
         if (removal.recursive && !(found && narrowed) && removal.operands.some(word => rootNamed(word, command, world) !== null)) hit('no-root-recursive-delete', at)
         if (removal.operands.some(word => otherUserNamed(word, command, world))) hit('no-other-user-delete', at)
         for (const [earlier, lister] of read.commands.entries()) {
-          if (!sharesEarlier(lister, command)) continue
+          if (!sharesEarlierStage(lister, command)) continue
           const listing = layered[earlier]!.find(listed => LISTERS.has(listed.program) || listed.program === 'find')
           if (listing === undefined) continue
           const deep = removal.recursive || listing.argv.some(word => RECURSE_PARAMETER.test(word) || (POSIX_RM_CLUSTER.test(word) && word.includes('R')))
@@ -748,7 +744,7 @@ function judgeShellRead(read: ShellRead, world: RefusalWorld, textReading: (text
         }
       }
       const runsInput = stdinProgram(layer) || (command.dialect === 'powershell' && (program === 'invoke-expression' || program === 'iex'))
-      if (runsInput && fetchers.some(earlier => sharesEarlier(read.commands[earlier]!, command))) hit('curl-pipe-shell', at)
+      if (runsInput && fetchers.some(earlier => sharesEarlierStage(read.commands[earlier]!, command))) hit('curl-pipe-shell', at)
       if (SCRIPT_RUNNERS.has(program) && innerCommands(command, read.commands).some(inner => layersOf(inner.argv).some(found => FETCHERS.has(found.program)) || /\.Download(?:String|File)\(/i.test(inner.text))) hit('curl-pipe-shell', at)
     }
     if (command.dialect === 'powershell') {

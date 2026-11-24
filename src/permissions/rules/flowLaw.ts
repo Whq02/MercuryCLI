@@ -17,6 +17,7 @@ import { UNREAD_PART, layersOf, moveOf, printedBy, readCommand, wordsAsWritten, 
 import { getMercuryTempDir, getScratchpadDir, matchingRuleForInput, pathInWorkingPath } from './filesystem.js'
 import { allowRulesThatPreAuthorise } from './lateAllowRules.js'
 import { ownGroundCategory } from './ownGround.js'
+import { sharesEarlierStage } from './shell-protected-paths/listings.js'
 import { serviceInputAsSent, serviceInputKey } from './serviceInputHistory.js'
 import { inlineScriptWriteTargets } from './shellProtectedPaths.js'
 import { oldFolderPlaces, placesCertain } from './shell-protected-paths/folders.js'
@@ -597,11 +598,6 @@ async function scanTokens(text: string, scan: Scan): Promise<void> {
 
 const FLOW_DELETERS = new Set([...DELETE_VERBS, ...MOVE_VERBS])
 const FLOW_SCRIPT_LANGUAGES = /^(?:node|nodejs|bun|deno|python[\d.]*|ruby|perl|php)$/
-
-function sharesEarlierStage(earlier: ReadCommand, later: ReadCommand): boolean {
-  for (const a of earlier.stages) for (const b of later.stages) if (a.pipeline === b.pipeline && a.stage < b.stage) return true
-  return false
-}
 
 function commandOrder(commands: readonly ReadCommand[]): ReadCommand[] {
   const nested = new Set<number>()
