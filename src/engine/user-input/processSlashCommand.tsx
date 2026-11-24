@@ -7,7 +7,7 @@ import { Box, Text } from '../../screen/themedRenderer.js'
 import type { CanUseToolFn, SetToolJSXFn, ToolUseContext } from '../../tools/kit/tool.js'
 import type { Command } from '../../commands/catalogue/commands.js'
 import type { LocalJSXCommandOnDone } from '../../commands/catalogue/command.js'
-import { builtinCommands, commandOffInPlainWorld, commandSeat, getCommandName, isCommandEnabled, meetsAvailabilityRequirement } from '../../commands/catalogue/commands.js'
+import { builtinCommands, commandOffInPlainWorld, commandSeat, findCommand, getCommandName, isCommandEnabled, meetsAvailabilityRequirement } from '../../commands/catalogue/commands.js'
 import samples, { SAMPLES_OFF_SENTENCE } from '../../commands/samples/index.js'
 import { bareUsageLine, requiresArgument } from '../../integrations/skills/argumentHint.js'
 import { generateCommandSuggestions } from '../../screen/suggestions/commandSuggestions.js'
@@ -71,11 +71,11 @@ export function resolveUnknownSlashName(input: string, commands: Command[]): str
   const name = slashPrefixed.slice(1).trim()
   if (name === '' || !looksLikeCommand(name)) return undefined
   if (isExistingPath(slashPrefixed)) return undefined
-  return findCommand(commands, name) === undefined ? name : undefined
+  return findCommand(name, commands) === undefined ? name : undefined
 }
 
 export function unknownCommandLine(name: string, commands: Command[]): string {
-  const registered = findCommand([...builtinCommands()], name)
+  const registered = findCommand(name, [...builtinCommands()])
   if (registered !== undefined) return unavailableCommandLine(registered)
   let near: string | undefined
   try {
@@ -161,15 +161,6 @@ function stderrWrapped(text: string): string {
 }
 
 
-function findCommand(commands: Command[], name: string): Command | undefined {
-  return commands.find(
-    command =>
-      command.name === name ||
-      command.aliases?.includes(name) === true ||
-      getCommandName(command) === name,
-  )
-}
-
 function finalizeCommandResult(
   result: ProcessUserInputBaseResult,
   caveat: UserMessage,
@@ -217,7 +208,7 @@ export async function processPromptSlashCommand(
   context: ToolUseContext,
   imageContentBlocks?: ContentBlockParam[],
 ): Promise<ProcessUserInputBaseResult & { command: Command }> {
-  const command = findCommand(commands, commandName)
+  const command = findCommand(commandName, commands)
   if (command === undefined) {
     throw new TaggedMalformedCommandError(`Unknown command: ${commandName}`)
   }
@@ -474,7 +465,7 @@ export async function processSlashCommand(
   }
   const { commandName, args } = parsed
   const commands = context.options?.commands ?? []
-  const command = findCommand(commands, commandName)
+  const command = findCommand(commandName, commands)
   const availabilityAnswer = (line: string): ProcessUserInputBaseResult => ({
     messages: [caveat, ...attachmentMessages, createUserMessage({ content: line })],
     shouldStartTurn: false,
@@ -483,7 +474,7 @@ export async function processSlashCommand(
   })
 
   if (command === undefined) {
-    const builtin = findCommand([...builtinCommands()], commandName)
+    const builtin = findCommand(commandName, [...builtinCommands()])
     if (builtin !== undefined) {
       if (builtin.type === 'local' && builtin.userPrivate === true && isCommandEnabled(builtin)) {
         if (builtin.seat === 'screen' && getIsNonInteractiveSession()) {
