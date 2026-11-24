@@ -1036,6 +1036,8 @@ src/integrations/browser/browserInstall.ts	clearPersistedInstallPlan	reset-expor
 src/integrations/browser/browserResolver.ts	DRIVER_NODE_FLOOR	process	module	Load-time list with no local writer
 src/integrations/browser/browserResolver.ts	FAMILIES	process	module	Load-time list with no local writer
 src/integrations/browser/metadataProxy.ts	CHROME_NET_ERRORS	process	module	Load-time table with no local writer
+src/integrations/browser/session/attach.ts	ATTACH_HOSTS	process	module	load-time lookup; no local writer
+src/integrations/browser/session/attach.ts	versionAnswer	process	module	module definition evaluated once
 src/integrations/browser/session/births.ts	FIRST_HINTS	process	module	Load-time list with no local writer
 src/integrations/browser/session/owners.ts	clearIdleLease	reset-export
 src/integrations/browser/session/owners.ts	exitHookInstalled	process	module	one-shot guard registering process.on(exit) temp-profile and child-browser cleanup
@@ -5003,6 +5005,7 @@ src/tools/browser/ops/downloads.ts	namedTransfers	call	module	WeakSet marking br
 src/tools/browser/ops/failures.ts	CRASH_OPEN_OPS	process	module	Load-time lookup with no local writer
 src/tools/browser/ops/page.ts	ACTIONABLE_ROLES	process	module	Load-time lookup with no local writer
 src/tools/browser/ops/schema.ts	ACT_OPS	process	module	Load-time lookup with no local writer
+src/tools/browser/ops/schema.ts	ATTACHED_ASK_OPS	process	module	load-time lookup; no local writer
 src/tools/browser/ops/schema.ts	FRONT_OPS	process	module	Load-time lookup with no local writer
 src/tools/browser/ops/schema.ts	OPS	process	module	Load-time list with no local writer
 src/tools/browser/ops/schema.ts	PRESS_KEYS	process	module	Load-time lookup with no local writer
