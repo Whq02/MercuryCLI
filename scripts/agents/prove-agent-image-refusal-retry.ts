@@ -115,7 +115,7 @@ enableConfigs()
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 const { runCrewmate } = await import('../../src/tools/crewmate/runCrewmate.ts')
-const { resumeAgentBackground } = await import('../../src/tools/crewmate/resumeCrewmate.ts')
+const { resumeCrewmateBackground } = await import('../../src/tools/crewmate/resumeCrewmate.ts')
 const { deriveCrewmateTerminalOutcome } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
 const leaf = await import('../../src/tools/crewmate/refusalRetry.ts').catch(() => null)
 const refusalRetryRowOf: (last: Message | undefined, retried: ReadonlySet<string>, model: string) => { refusalClass: string; row: Message & { isMeta?: boolean } } | null = leaf === null ? () => null : leaf.refusalRetryRowOf
@@ -289,7 +289,7 @@ const b = await drive(storeB, idB, 2)
   check('the run ends failed, provider-declined, with the second refusal\'s words', outcome.status === 'failed' && outcome.reason === 'provider-declined' && outcome.error.includes('refused the retried request too'), JSON.stringify(outcome))
 }
 
-section('§4 the run that ended on the error stays resumable by message: the next line continues it from its transcript', 'to fix: ResumeAgentTool (src/tools/resume-crewmate/ResumeAgentTool.ts) and resumeAgentBackground (src/tools/crewmate/resumeCrewmate.ts) must resume the failed agent from its transcript with the message')
+section('§4 the run that ended on the error stays resumable by message: the next line continues it from its transcript', 'to fix: ResumeAgentTool (src/tools/resume-crewmate/ResumeAgentTool.ts) and resumeCrewmateBackground (src/tools/crewmate/resumeCrewmate.ts) must resume the failed agent from its transcript with the message')
 {
   seen.length = 0
   refusals = 0

@@ -170,7 +170,7 @@ function restoreStructuredOutputSpec(
   return spec
 }
 
-export async function resumeAgentBackground(args: {
+export async function resumeCrewmateBackground(args: {
   agentId: string
   prompt: string
   toolUseContext: ToolUseContext

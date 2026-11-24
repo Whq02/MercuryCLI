@@ -27,7 +27,7 @@ if (childAt !== -1) {
   bootstrap.setCwdState(process.cwd())
   bootstrap.switchSession('00000000-0000-4000-8000-000000000043' as never)
   const { runCrewmate } = await import('../../src/tools/crewmate/runCrewmate.ts')
-  const { resumeAgentBackground } = await import('../../src/tools/crewmate/resumeCrewmate.ts')
+  const { resumeCrewmateBackground } = await import('../../src/tools/crewmate/resumeCrewmate.ts')
   const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
   const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
   const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
@@ -46,7 +46,7 @@ if (childAt !== -1) {
   } as never
   const allow = (async (_tool: unknown, input: unknown) => ({ behavior: 'allow', updatedInput: input })) as never
   if (mode === 'resume') {
-    await resumeAgentBackground({ agentId, prompt: 'THINKING-SECOND', toolUseContext: context, canUseTool: allow })
+    await resumeCrewmateBackground({ agentId, prompt: 'THINKING-SECOND', toolUseContext: context, canUseTool: allow })
     const deadline = Date.now() + 30000
     while (Date.now() < deadline && state.tasks[agentId]?.status === 'running') await new Promise(resolve => setTimeout(resolve, 25))
     assert.equal(state.tasks[agentId]?.status, 'completed', JSON.stringify(state.tasks[agentId]))
@@ -93,9 +93,9 @@ if (childAt !== -1) {
     check('an ordinary crewmate keeps enabled thinking without requiring an effort override', bodyAt(0)?.thinking?.type === 'adaptive' || bodyAt(0)?.thinking?.type === 'enabled', bodyAt(0)?.thinking, 'the launched crewmate request must carry a thinking block of type adaptive or enabled; look at how runAgent in src/tools/crewmate/runCrewmate.ts resolves thinkingConfig from the parent options')
     check('launch persists the exact enabled thinking configuration and token budget', isDeepStrictEqual(launched.metadata?.thinkingConfig, thinking), launched.metadata, 'the agent metadata written at launch must record the parent thinkingConfig unchanged (field thinkingConfig in src/sessions/transcripts/paths.ts)')
     const resumed = await child('resume')
-    check('a fresh resumed process retains thinking despite its parent now disabling it', bodyAt(1)?.thinking?.type === bodyAt(0)?.thinking?.type && bodyAt(1)?.thinking?.type !== undefined && bodyAt(1)?.thinking?.type !== 'disabled', bodyAt(1)?.thinking, 'resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts must pass the stored meta.thinkingConfig as thinkingConfigOverride, not the resuming parent option')
-    check('the continuation retains the original thinking budget in its metadata', isDeepStrictEqual(resumed.metadata?.thinkingConfig, thinking), resumed.metadata, 'resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts must keep meta.thinkingConfig in the metadata it writes back')
-    check('the earlier signed thinking block reaches the continuation unchanged', bodyAt(1)?.messages.some((row: any) => Array.isArray(row.content) && row.content.some((block: any) => block.type === 'thinking' && block.thinking === 'kept signed thought' && block.signature === 'fixture-signed-thinking')), bodyAt(1)?.messages, 'the resumed request must replay the first turn thinking block with its text and signature unchanged; the resume path is resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts')
+    check('a fresh resumed process retains thinking despite its parent now disabling it', bodyAt(1)?.thinking?.type === bodyAt(0)?.thinking?.type && bodyAt(1)?.thinking?.type !== undefined && bodyAt(1)?.thinking?.type !== 'disabled', bodyAt(1)?.thinking, 'resumeCrewmateBackground in src/tools/crewmate/resumeCrewmate.ts must pass the stored meta.thinkingConfig as thinkingConfigOverride, not the resuming parent option')
+    check('the continuation retains the original thinking budget in its metadata', isDeepStrictEqual(resumed.metadata?.thinkingConfig, thinking), resumed.metadata, 'resumeCrewmateBackground in src/tools/crewmate/resumeCrewmate.ts must keep meta.thinkingConfig in the metadata it writes back')
+    check('the earlier signed thinking block reaches the continuation unchanged', bodyAt(1)?.messages.some((row: any) => Array.isArray(row.content) && row.content.some((block: any) => block.type === 'thinking' && block.thinking === 'kept signed thought' && block.signature === 'fixture-signed-thinking')), bodyAt(1)?.messages, 'the resumed request must replay the first turn thinking block with its text and signature unchanged; the resume path is resumeCrewmateBackground in src/tools/crewmate/resumeCrewmate.ts')
     await child('default')
     check('an absent parent option follows the established thinking-on default', bodyAt(2)?.thinking?.type === 'adaptive' || bodyAt(2)?.thinking?.type === 'enabled', bodyAt(2)?.thinking, 'when the parent options carry no thinkingConfig, the crewmate request must still send thinking adaptive or enabled')
     await child('disabled')

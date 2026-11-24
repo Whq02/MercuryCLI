@@ -29,7 +29,7 @@ function check(label: string, cond: boolean, detail = '', hint = ''): void {
   await selector.plant({ chatSurfaceCovered: true })
   const covered = selector.part.value().messageSelector !== null
   await selector.close()
-  check('G3 the message selector render requires !chatSurfaceCovered', uncovered && !covered, `drawn uncovered ${uncovered} · drawn covered ${covered}`, 'in src/screen/chat/useChatSelector.tsx, useChatSelectorView must build messageSelector only while chatSurfaceCovered is false')
+  check('G3 the message selector render requires !chatSurfaceCovered', uncovered && !covered, `drawn uncovered ${uncovered} · drawn covered ${covered}`, 'in src/screen/chat/useChatSelector.tsx, useChatRewindPickerView must build messageSelector only while chatSurfaceCovered is false')
 }
 
 {

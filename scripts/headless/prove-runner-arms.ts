@@ -65,7 +65,7 @@ async function spied(rel: string, names: string[]): Promise<Record<string, (...a
 }
 
 await spied('src/crew/agents/operatorStop.ts', ['stopCrewmateByOperator'])
-await spied('src/tools/crewmate/resumeCrewmate.ts', ['resumeAgentBackground'])
+await spied('src/tools/crewmate/resumeCrewmate.ts', ['resumeCrewmateBackground'])
 const sendNowReal = await spied('src/daemon/runner/sendNow.ts', ['sendQueuedWordsNow'])
 await spied('src/commands/catalogue/commands.ts', ['clearCommandMemoizationCaches', 'getCommands'])
 await spied('src/integrations/mcp/kitCompletion.ts', ['completeSessionKitFromRoster'])
@@ -280,17 +280,17 @@ section('§4 agent/resume: a running crewmate is told, a stopped one rides the o
   const arms = runnerArmsOf(ports)
   forget()
   const queued = await arms['agent/resume']({ agent_id: 'a1', note: '  look at the parser  ' }, ref, signalOf())
-  check("the runner's resume_task queues a note for a RUNNING agent into the operator lane and answers queued", j(queued) === j({ queued: true, agent_id: 'a1' }) && j(peekOperatorMessages(store.state.tasks.a1)) === j(['look at the parser']) && said('resumeAgentBackground').length === 0, `${j(queued)} · ${j(peekOperatorMessages(store.state.tasks.a1))}`)
+  check("the runner's resume_task queues a note for a RUNNING agent into the operator lane and answers queued", j(queued) === j({ queued: true, agent_id: 'a1' }) && j(peekOperatorMessages(store.state.tasks.a1)) === j(['look at the parser']) && said('resumeCrewmateBackground').length === 0, `${j(queued)} · ${j(peekOperatorMessages(store.state.tasks.a1))}`)
   const noNote = await refusalOf(arms['agent/resume']({ agent_id: 'a1' }, ref, signalOf()))
   const notAgent = await refusalOf(arms['agent/resume']({ agent_id: 's1', note: 'words' }, ref, signalOf()))
   check('a running agent with no note still answers the old refusal', noNote?.code === RPC_REFUSED && noNote.data?.kind === 'agent' && noNote.message === 'the crewmate is running — nothing to resume' && notAgent?.message === noNote.message, `${j(noNote)} · ${j(notAgent)}`)
   live.awaitingSessionClaim = true
   const early = await refusalOf(arms['agent/resume']({ agent_id: 'gone' }, ref, signalOf()))
   live.awaitingSessionClaim = false
-  check('before the claim there is nothing to resume from, and the owner is not reached', early?.code === RPC_REFUSED && early.data?.kind === 'nothing-to-resume' && said('resumeAgentBackground').length === 0 && order.length === 0, j(early))
-  answers.set('resumeAgentBackground', async () => ({ agentId: 'gone', outputFile: '/out/gone.md', description: 'Lane gone', note: ' (in the session folder)', cwdFallback: '/session', recordedCwd: '/recorded' }))
+  check('before the claim there is nothing to resume from, and the owner is not reached', early?.code === RPC_REFUSED && early.data?.kind === 'nothing-to-resume' && said('resumeCrewmateBackground').length === 0 && order.length === 0, j(early))
+  answers.set('resumeCrewmateBackground', async () => ({ agentId: 'gone', outputFile: '/out/gone.md', description: 'Lane gone', note: ' (in the session folder)', cwdFallback: '/session', recordedCwd: '/recorded' }))
   const resumed = await arms['agent/resume']({ agent_id: 'gone' }, ref, signalOf())
-  const asked = said('resumeAgentBackground')[0]?.args[0] as { agentId?: string; prompt?: string; replyTarget?: string; canUseTool?: unknown; toolUseContext?: Record<string, unknown> } | undefined
+  const asked = said('resumeCrewmateBackground')[0]?.args[0] as { agentId?: string; prompt?: string; replyTarget?: string; canUseTool?: unknown; toolUseContext?: Record<string, unknown> } | undefined
   check(
     "the runner's resume_task rides the one resume owner with the resume note and the runner's own permission road",
     asked?.agentId === 'gone' && asked.prompt === CREWMATE_RESUME_NOTE && asked.replyTarget === 'parent' && asked.canUseTool === canUseTool && asked.toolUseContext?.marker === 'the relaunch context' && !('toolUseId' in (asked.toolUseContext ?? {})) && asked.toolUseContext?.abortController instanceof AbortController && j(order) === j(['initializeMcp', 'relaunchContext']),
@@ -299,14 +299,14 @@ section('§4 agent/resume: a running crewmate is told, a stopped one rides the o
   check('the crew resume answer carries the note and recorded directory', j(resumed) === j({ agent_id: 'gone', output_file: '/out/gone.md', cwd_fallback: '/session', recorded_cwd: '/recorded', note: ' (in the session folder)' }), j(resumed))
   const receipt = dequeue(command => typeof command.value === 'string' && command.value.includes('<task-id>gone</task-id>'))
   await arms['agent/resume']({ agent_id: 'gone', note: 'carry on with the tests' }, ref, signalOf())
-  const withNote = said('resumeAgentBackground')[1]?.args[0] as { prompt?: string; replyTarget?: string } | undefined
+  const withNote = said('resumeCrewmateBackground')[1]?.args[0] as { prompt?: string; replyTarget?: string } | undefined
   const second = dequeue(command => typeof command.value === 'string' && command.value.includes('<task-id>gone</task-id>'))
   check("a resume with the operator's own words sends those words, answers to the operator, and leaves no receipt row of its own", withNote?.prompt === 'carry on with the tests' && withNote.replyTarget === 'operator' && receipt !== undefined && String(receipt.value).includes('(in the session folder)') && second === undefined, `${j(withNote)} · receipt ${receipt !== undefined} · second ${second !== undefined}`)
   const owner = (await import('../../src/tools/crewmate/resumeCrewmate.ts')) as { CrewmateNotRecorded?: new (message: string) => Error }
   const NotRecorded = owner.CrewmateNotRecorded ?? Error
-  answers.set('resumeAgentBackground', async () => Promise.reject(new NotRecorded('No transcript found for crewmate a-none')))
+  answers.set('resumeCrewmateBackground', async () => Promise.reject(new NotRecorded('No transcript found for crewmate a-none')))
   const unrecorded = await refusalOf(arms['agent/resume']({ agent_id: 'a-none' }, ref, signalOf()))
-  answers.set('resumeAgentBackground', async () => Promise.reject(new Error('the resume owner broke')))
+  answers.set('resumeCrewmateBackground', async () => Promise.reject(new Error('the resume owner broke')))
   const broken = await refusalOf(arms['agent/resume']({ agent_id: 'a-none' }, ref, signalOf()))
   check("agent/resume for a crewmate nothing recorded answers the typed refusal of kind agent with the owner's sentence, and a fault of the owner stays a fault", owner.CrewmateNotRecorded !== undefined && unrecorded?.code === RPC_REFUSED && unrecorded.data?.kind === 'agent' && unrecorded.message === 'No transcript found for crewmate a-none' && broken?.code === undefined && broken?.message === 'the resume owner broke', `${j({ code: unrecorded?.code, kind: unrecorded?.data?.kind, message: unrecorded?.message })} · ${j({ code: broken?.code, message: broken?.message })}`)
 }

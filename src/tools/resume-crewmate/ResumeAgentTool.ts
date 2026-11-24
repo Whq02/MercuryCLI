@@ -80,7 +80,7 @@ export const ResumeCrewmateTool = buildTool({
     const ended = await endedWords(address)
     try {
       const notice = messageNoticeFor(address.agentId, input.message, context)
-      const resumed = await (await import('../crewmate/resumeCrewmate.js')).resumeAgentBackground({
+      const resumed = await (await import('../crewmate/resumeCrewmate.js')).resumeCrewmateBackground({
         agentId: address.agentId, prompt: notice, toolUseContext: context, canUseTool, invokingRequestId: parentAssistantMessage.requestId,
         model: input.model, effort: input.effort,
       })

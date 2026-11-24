@@ -91,7 +91,7 @@ try {
   await session.waitFor('the owner chat turn did not complete', () => notificationFrames(beforeOwner, agentId).length > 0, TURN_MS)
   session.submit('OWNER-BARRIER: confirm the lead is ready for the next task.')
   await session.waitFor('the owner barrier never completed', () => session.stdout().includes('OWNER-BARRIER-DONE'), TURN_MS)
-  tally.check('the owner answer remains in the crew chat transcript', recordText().includes(OWNER_ANSWER), "the owner's resumed turn (replyTarget 'operator' in the 'agent/resume' arm of src/daemon/runner/runnerArms.ts, resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts) must write its answer to the crewmate's own transcript")
+  tally.check('the owner answer remains in the crew chat transcript', recordText().includes(OWNER_ANSWER), "the owner's resumed turn (replyTarget 'operator' in the 'agent/resume' arm of src/daemon/runner/runnerArms.ts, resumeCrewmateBackground in src/tools/crewmate/resumeCrewmate.ts) must write its answer to the crewmate's own transcript")
 
   const beforeLead = session.frames.length
   session.submit('LEAD-SEND: ask the scribe for a new lead task.')
@@ -102,11 +102,11 @@ try {
   await session.waitFor('the lead completion never reached the lead model', () => leadPrompts().some(text => text.includes('<task-notification>') && text.includes(LEAD_ANSWER)), TURN_MS)
   const leadDelivered = leadPrompts().filter(text => text.includes('<task-notification>') && text.includes(LEAD_ANSWER))
   record('lead-task-prompts.json', JSON.stringify(leadDelivered, null, 2))
-  tally.check('a lead-sent message keeps its completion notification with the full answer', leadDelivered.length > 0, `lead prompts carrying the lead answer=${leadDelivered.length} — a turn the lead requested through ResumeCrewmate (resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts, replyTarget 'parent') must still deliver a <task-notification> with the full answer to the lead`)
+  tally.check('a lead-sent message keeps its completion notification with the full answer', leadDelivered.length > 0, `lead prompts carrying the lead answer=${leadDelivered.length} — a turn the lead requested through ResumeCrewmate (resumeCrewmateBackground in src/tools/crewmate/resumeCrewmate.ts, replyTarget 'parent') must still deliver a <task-notification> with the full answer to the lead`)
   const ownerLeaked = leadPrompts().filter(text => text.includes('<task-notification>') && text.includes(OWNER_ANSWER))
   record('owner-lead-prompts.json', JSON.stringify(ownerLeaked, null, 2))
   console.log(`  lead prompts carrying answers: owner=${ownerLeaked.length}, lead=${leadDelivered.length}`)
-  tally.check('the owner chat answer never enters a lead task-notification', ownerLeaked.length === 0, `lead prompts carrying the full owner answer=${ownerLeaked.length} — a turn resumed with an owner note must not send a <task-notification> to the lead (replyTarget 'operator' in the 'agent/resume' arm of src/daemon/runner/runnerArms.ts and resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts)`)
+  tally.check('the owner chat answer never enters a lead task-notification', ownerLeaked.length === 0, `lead prompts carrying the full owner answer=${ownerLeaked.length} — a turn resumed with an owner note must not send a <task-notification> to the lead (replyTarget 'operator' in the 'agent/resume' arm of src/daemon/runner/runnerArms.ts and resumeCrewmateBackground in src/tools/crewmate/resumeCrewmate.ts)`)
   tally.check('the owner chat resume creates no lead inbox receipt either', leadPrompts().every(text => !text.includes('resumed from the crew view')), "an owner chat resume with a note must not enqueue the receipt row built from operatorResumeWords; only the note-less branch of the 'agent/resume' arm in src/daemon/runner/runnerArms.ts may")
 } catch (error) {
   tally.check('the fixture reached every checkpoint', false, error instanceof Error ? error.message : String(error))

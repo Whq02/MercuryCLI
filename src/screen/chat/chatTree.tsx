@@ -14,7 +14,7 @@ import type { useChatAsksCard } from './useChatAsks.js';
 import type { useChatDialogPaints, useChatDialogs, useChatDialogsView } from './useChatDialogs.js';
 import type { useChatScroll, useChatScrollPin } from './useChatScroll.js';
 import { TranscriptFooter, type useChatSearch } from './useChatSearch.js';
-import type { useChatSelectorView } from './useChatSelector.js';
+import type { useChatRewindPickerView } from './useChatSelector.js';
 import type { useChatStatusStrip } from './useChatStatus.js';
 import { AnimatedTitle, type useChatTitle } from './useChatTitle.js';
 import type { useChatTools } from './useChatTools.js';
@@ -63,7 +63,7 @@ type TreeArgs = Pick<ReturnType<typeof useChatTitle>, 'title' | 'titleAnimating'
   Pick<ReturnType<typeof useChatSearch>, 'inVirtualTranscript' | 'onTranscriptPillClick' | 'screen' | 'showAllInTranscript'> &
   Pick<ReturnType<typeof useChatTools>, 'mergedTools' | 'commands' | 'agentDefinitions'> &
   Pick<ReturnType<typeof useChatDialogs>, 'showExitFlow' | 'setShowExitFlow' | 'exitCommandJsx'> &
-  Pick<ReturnType<typeof useChatSelectorView>, 'messageSelector'> & {
+  Pick<ReturnType<typeof useChatRewindPickerView>, 'messageSelector'> & {
     terminalTitleEnabled: boolean;
     keys: ChatKeysArgs;
     transcriptBody: React.ReactNode;

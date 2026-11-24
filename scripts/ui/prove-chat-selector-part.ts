@@ -24,7 +24,7 @@ const answered = (text: string): Message => createAssistantMessage({ content: te
 const said = (): string => t.calls.splice(0).join(' · ')
 const told = (): string => t.notices.splice(0).map(notice => `${notice.key}: ${notice.text}`).join(' | ')
 const heard = (): string => t.session.calls.splice(0).join(' · ')
-const SEL_AT = 'change useChatSelectorView in src/screen/chat/useChatSelector.tsx'
+const SEL_AT = 'change useChatRewindPickerView in src/screen/chat/useChatSelector.tsx'
 
 section('§1 the selector: when it is drawn and what it is handed')
 const rows = [asked('the first question'), answered('the first answer')]

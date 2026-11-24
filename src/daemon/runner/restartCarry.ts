@@ -123,8 +123,8 @@ export async function carryRunnerAcrossRestart(ports: RestartCarryPorts): Promis
     if (await crewmateFolderStands(receipt.agentId)) {
       try {
         context ??= await ports.relaunchContext()
-        const { resumeAgentBackground } = await import('../../tools/crewmate/resumeCrewmate.js')
-        await resumeAgentBackground({
+        const { resumeCrewmateBackground } = await import('../../tools/crewmate/resumeCrewmate.js')
+        await resumeCrewmateBackground({
           agentId: receipt.agentId,
           prompt: relaunchNoteFor(notice),
           toolUseContext: { ...context, toolUseId: receipt.toolUseId, abortController: new AbortController() },

@@ -125,7 +125,7 @@ const { resolveCrewmateCwd } = await import('../../src/tools/crewmate/call/cwd.t
       ...realRunAgent,
       runCrewmate: async function* () {},
     }))
-    const { resumeAgentBackground } = await import(path.join(SRC, 'tools/crewmate/resumeCrewmate.ts'))
+    const { resumeCrewmateBackground } = await import(path.join(SRC, 'tools/crewmate/resumeCrewmate.ts'))
     const { getEmptyToolPermissionContext } = await import(path.join(SRC, 'tools/kit/tool.ts'))
     const state = { toolPermissionContext: getEmptyToolPermissionContext(), tasks: {}, mcp: { tools: [], clients: [] } }
     const ctx = {
@@ -137,7 +137,7 @@ const { resolveCrewmateCwd } = await import('../../src/tools/crewmate/call/cwd.t
       messages: [],
       options: { tools: [], mcpClients: [], mcpResources: {}, agentDefinitions: { activeAgents: [], allAgents: [] }, engineModel: 'claude-fable-5-1' },
     }
-    const res = await resumeAgentBackground({ agentId: 'agent-eio-resume', prompt: 'go', toolUseContext: ctx })
+    const res = await resumeCrewmateBackground({ agentId: 'agent-eio-resume', prompt: 'go', toolUseContext: ctx })
     out.readCalls = readCalls
     out.writeCalls = writeCalls
     out.note = res.note ?? ''

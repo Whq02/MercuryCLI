@@ -74,7 +74,7 @@ for (const consumed of [false, true]) {
 
 const resumes: Array<{ replyTarget?: string; prompt: string }> = []
 const resumeModule = await import('../../src/tools/crewmate/resumeCrewmate.ts')
-mock.module('../../src/tools/crewmate/resumeCrewmate.ts', () => ({ ...resumeModule, resumeAgentBackground: async (args: { replyTarget?: string; prompt: string }) => { resumes.push(args); return {} } }))
+mock.module('../../src/tools/crewmate/resumeCrewmate.ts', () => ({ ...resumeModule, resumeCrewmateBackground: async (args: { replyTarget?: string; prompt: string }) => { resumes.push(args); return {} } }))
 for (const kind of ['owner', 'lead', 'mixed', 'stop'] as const) {
   resetCommandQueue()
   const store = makeStore()

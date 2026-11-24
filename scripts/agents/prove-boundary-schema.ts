@@ -27,7 +27,7 @@ if (childAt !== -1) {
   bootstrap.setCwdState(process.cwd())
   bootstrap.switchSession('00000000-0000-4000-8000-000000000044' as never)
   const { runCrewmate } = await import('../../src/tools/crewmate/runCrewmate.ts')
-  const { resumeAgentBackground } = await import('../../src/tools/crewmate/resumeCrewmate.ts')
+  const { resumeCrewmateBackground } = await import('../../src/tools/crewmate/resumeCrewmate.ts')
   const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
   const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
   const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
@@ -49,7 +49,7 @@ if (childAt !== -1) {
     const definition = { agentType: 'mercury-crew', whenToUse: 'schema boundary fixture', source: 'projectSettings', getSystemPrompt: () => 'Return the required structured answer.' } as never
     for await (const _row of runCrewmate({ agentDefinition: definition, promptMessages: [createUserMessage({ content: 'SCHEMA-LAUNCH' })], toolUseContext: context, canUseTool: allow, isAsync: true, canShowPermissionPrompts: false, querySource: 'agent:custom:schema-boundary' as never, availableTools: [] as never, model, override: { agentId }, description: 'schema continuation', cwd: process.cwd(), structuredOutputSpec: spec })) {}
   } else {
-    await resumeAgentBackground({ agentId, prompt: 'SCHEMA-' + mode.toUpperCase(), toolUseContext: context, canUseTool: allow })
+    await resumeCrewmateBackground({ agentId, prompt: 'SCHEMA-' + mode.toUpperCase(), toolUseContext: context, canUseTool: allow })
     const deadline = Date.now() + 30000
     while (Date.now() < deadline && state.tasks[agentId]?.status === 'running') await new Promise(resolve => setTimeout(resolve, 25))
   }
@@ -91,8 +91,8 @@ if (childAt !== -1) {
     const launched = await child('launch')
     check('the exact schema, strict requirement and source are durable launch facts', isDeepStrictEqual(launched.metadata?.structuredOutputSpec, spec), launched.metadata, 'runAgent in src/tools/crewmate/runCrewmate.ts must write the structuredOutputSpec it was given into the agent metadata (type in src/sessions/transcripts/paths.ts)')
     const resumed = await child('resume')
-    check('a prose-only continuation fails the original strict contract', resumed.status === 'failed', resumed, 'resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts must restore the stored structuredOutputSpec so a strict run that ends without a StructuredOutput call fails')
-    check('the resumed metadata still carries the strict contract', isDeepStrictEqual(resumed.metadata?.structuredOutputSpec, spec), resumed.metadata, 'resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts must pass the stored structuredOutputSpec back into runAgent and keep it in the metadata')
+    check('a prose-only continuation fails the original strict contract', resumed.status === 'failed', resumed, 'resumeCrewmateBackground in src/tools/crewmate/resumeCrewmate.ts must restore the stored structuredOutputSpec so a strict run that ends without a StructuredOutput call fails')
+    check('the resumed metadata still carries the strict contract', isDeepStrictEqual(resumed.metadata?.structuredOutputSpec, spec), resumed.metadata, 'resumeCrewmateBackground in src/tools/crewmate/resumeCrewmate.ts must pass the stored structuredOutputSpec back into runAgent and keep it in the metadata')
     const first = fixture.messageRequests()[0]?.body as any
     const second = fixture.messageRequests()[1]?.body as any
     check('the same structured-output schema remains available in the fresh process', isDeepStrictEqual(first?.tools.find((row: any) => row.name === 'StructuredOutput')?.input_schema, second?.tools.find((row: any) => row.name === 'StructuredOutput')?.input_schema), undefined, 'the resumed request must offer the StructuredOutput tool with the stored schema; see structuredOutputSpec in src/tools/crewmate/resumeCrewmate.ts')

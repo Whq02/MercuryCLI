@@ -302,10 +302,7 @@ section('R8c · a named launch: the foreground road registers the name, the hand
 
 section("R8d · a resume reads the live owner right before it registers")
 {
-  const resumeModule = (await import('../../src/tools/crewmate/resumeCrewmate.ts')) as {
-    resumeAgentBackground: Function
-    liveCrewmateOwner?: (agentId: string, tasks: unknown) => { kind: string; words: string } | null
-  }
+  const resumeModule = await import('../../src/tools/crewmate/resumeCrewmate.ts')
   const { completeCrewmateTask, failCrewmateTask, killAsyncCrewmate } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
   const { getCrewmateTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
   const { asAgentId } = await import('../../src/sessions/transcripts/ids.ts')
@@ -336,7 +333,7 @@ section("R8d · a resume reads the live owner right before it registers")
   if (typeof resumeModule.liveCrewmateOwner === 'function') {
     const raced = generateTaskId('local_agent')
     seedTranscript(raced, 'race me', 'racing')
-    const pending = resumeModule.resumeAgentBackground({ agentId: raced, prompt: 'go on', toolUseContext: ctx }) as Promise<unknown>
+    const pending = resumeModule.resumeCrewmateBackground({ agentId: raced, prompt: 'go on', toolUseContext: ctx as never } as never) as Promise<unknown>
     const live = registerAsyncCrewmate({ agentId: raced, description: 'raced', prompt: 'race me', selectedAgent: FAKE_DEF, setAppState: store.set as never })
     let racedRefusal = ''
     try {
@@ -820,7 +817,7 @@ section("R15 · a project-defined agent resumed under another directory's overri
   const { clearAgentDefinitionsCache } = await import('../../src/tools/crewmate/loadAgentsDir.ts')
   const { getCwdState, setCwdState, getSessionId, setSessionTrustAccepted: trustTheProject } = await import('../../src/boot/process-state/processState.ts')
   const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
-  const { resumeAgentBackground } = await import('../../src/tools/crewmate/resumeCrewmate.ts')
+  const { resumeCrewmateBackground } = await import('../../src/tools/crewmate/resumeCrewmate.ts')
   const { killAsyncCrewmate } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
   const { getCrewmateTranscriptPath, readCrewmateMetadata, writeCrewmateMetadata } = await import('../../src/sessions/transcripts/paths.ts')
   const { asAgentId } = await import('../../src/sessions/transcripts/ids.ts')
@@ -853,7 +850,7 @@ section("R15 · a project-defined agent resumed under another directory's overri
   const ctx = makeCtx(store)
   let refusal = ''
   try {
-    await runWithCwdOverride(elsewhere, () => resumeAgentBackground({ agentId: id, prompt: 'go on', toolUseContext: ctx }))
+    await runWithCwdOverride(elsewhere, () => resumeCrewmateBackground({ agentId: id, prompt: 'go on', toolUseContext: ctx }))
   } catch (error) {
     refusal = error instanceof Error ? error.message : String(error)
   }

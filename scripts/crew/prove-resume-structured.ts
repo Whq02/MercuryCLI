@@ -51,7 +51,7 @@ for (const structured of [true, false]) {
     const firstRequests = world.fixture.messageRequests().filter(request => JSON.stringify((request.body as Body).messages).includes(opening))
     const childFirst = firstRequests.find(request => !JSON.stringify((request.body as Body).messages).includes(parent))
     const toolsBefore = (childFirst?.body as Body | undefined)?.tools ?? []
-    check(`${label}: launch roster matches the schema choice`, toolsBefore.some(tool => tool.name === 'StructuredOutput') === structured, 'the Crewmate launch must add StructuredOutput to the child roster exactly when output_schema is given; see resumeAgentBackground and the launch path in src/tools/crewmate')
+    check(`${label}: launch roster matches the schema choice`, toolsBefore.some(tool => tool.name === 'StructuredOutput') === structured, 'the Crewmate launch must add StructuredOutput to the child roster exactly when output_schema is given; see resumeCrewmateBackground and the launch path in src/tools/crewmate')
     check(`${label}: process one exits cleanly, evicting every task row`, await first.end() === 0, 'the first lead process must exit 0 after its crewmate finished; read its stderr and the headless shutdown path under src/daemon/runner')
     first = undefined
     const beforeResume = world.fixture.messageRequests().length
@@ -59,7 +59,7 @@ for (const structured of [true, false]) {
     second.submit(followup)
     await second.waitFor('the parent resume turn settled', () => second!.frames.some(row => row.type === 'outcome'))
     const resume = toolResultOf(world, `p2-${label}-resume`)
-    check(`${label}: the evicted child resumed by its recorded name`, resume !== null && !resume.isError && resume.text.includes('resumed in the background with your message'), `${JSON.stringify(resume)} — ResumeCrewmate in src/tools/resume-crewmate/ResumeAgentTool.ts must resolve the recorded name to the on-disk transcript and call resumeAgentBackground (src/tools/crewmate/resumeCrewmate.ts)`)
+    check(`${label}: the evicted child resumed by its recorded name`, resume !== null && !resume.isError && resume.text.includes('resumed in the background with your message'), `${JSON.stringify(resume)} — ResumeCrewmate in src/tools/resume-crewmate/ResumeAgentTool.ts must resolve the recorded name to the on-disk transcript and call resumeCrewmateBackground (src/tools/crewmate/resumeCrewmate.ts)`)
     if (resume !== null && !resume.isError && resume.text.includes('resumed in the background')) {
       await second.waitFor('the resumed completion reached the main model', () => userTextsOf(world).some(text => text.includes('<status>completed</status>') && text.includes('SECOND-CHILD-DONE')))
     }
@@ -68,10 +68,10 @@ for (const structured of [true, false]) {
       return messages.includes(opening) && !messages.includes(parent)
     })
     const toolsAfter = (childResumed?.body as Body | undefined)?.tools ?? []
-    check(`${label}: the resumed child made a request`, childResumed !== undefined, 'no request carrying the first prompt reached the model after the resume; resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts did not start the child')
+    check(`${label}: the resumed child made a request`, childResumed !== undefined, 'no request carrying the first prompt reached the model after the resume; resumeCrewmateBackground in src/tools/crewmate/resumeCrewmate.ts did not start the child')
     const beforeSchema = toolsBefore.find(tool => tool.name === 'StructuredOutput')?.input_schema
     const afterSchema = toolsAfter.find(tool => tool.name === 'StructuredOutput')?.input_schema
-    check(`${label}: StructuredOutput schema stays byte-identical, absent stays absent`, JSON.stringify(beforeSchema) === JSON.stringify(afterSchema) && (structured ? afterSchema !== undefined : !toolsAfter.some(tool => tool.name === 'StructuredOutput')), `before ${JSON.stringify(beforeSchema)} after ${JSON.stringify(afterSchema)} — resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts must restore the recorded StructuredOutput definition and add none for a schema-less child`)
+    check(`${label}: StructuredOutput schema stays byte-identical, absent stays absent`, JSON.stringify(beforeSchema) === JSON.stringify(afterSchema) && (structured ? afterSchema !== undefined : !toolsAfter.some(tool => tool.name === 'StructuredOutput')), `before ${JSON.stringify(beforeSchema)} after ${JSON.stringify(afterSchema)} — resumeCrewmateBackground in src/tools/crewmate/resumeCrewmate.ts must restore the recorded StructuredOutput definition and add none for a schema-less child`)
     check(`${label}: the whole tool roster stays byte-identical`, JSON.stringify(toolsBefore) === JSON.stringify(toolsAfter), `before ${JSON.stringify(toolsBefore.map(tool => tool.name))} after ${JSON.stringify(toolsAfter.map(tool => tool.name))} — the roster restore from the recorded bound_prefix (restoreBoundPrefixFromMessages in src/models/roads/anthropic/boundPrefixRecord.ts, used by src/tools/crewmate/resumeCrewmate.ts) must reproduce the first request's tools in order`)
     const systemBefore = JSON.stringify((childFirst?.body as Body | undefined)?.system)
     const systemAfter = JSON.stringify((childResumed?.body as Body | undefined)?.system)
@@ -80,7 +80,7 @@ for (const structured of [true, false]) {
     check(`${label}: the system prefix stays byte-identical`, systemBefore === systemAfter, `at ${changedAt}: ${systemBefore?.slice(Math.max(0, changedAt - 100), changedAt + 300)} -> ${systemAfter?.slice(Math.max(0, changedAt - 100), changedAt + 300)} — the resumed child must reuse the recorded system prefix (src/tools/crewmate/resumeCrewmate.ts, src/models/roads/anthropic/boundPrefixRecord.ts)`)
     if (structured) {
       const result = toolResultOf(world, `p2-${label}-second`)
-      check('the restored StructuredOutput is callable, not merely advertised', result?.isError === false && result.text === 'Structured output provided successfully', JSON.stringify(result) + ' \u2014 resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts must rebuild structuredOutputSpec so the restored tool can be called')
+      check('the restored StructuredOutput is callable, not merely advertised', result?.isError === false && result.text === 'Structured output provided successfully', JSON.stringify(result) + ' \u2014 resumeCrewmateBackground in src/tools/crewmate/resumeCrewmate.ts must rebuild structuredOutputSpec so the restored tool can be called')
       check('the resumed completion carries the existing valid structured block', userTextsOf(world).some(text => text.includes('<status>completed</status>') && text.includes('<structured status="valid">\n{"function_name":"compute_201"}\n</structured>') && text.includes('SECOND-CHILD-DONE')), 'the completion notice of the resumed child must carry a valid structured block; see structuredOutputSpec in src/tools/crewmate/resumeCrewmate.ts')
     } else {
       check('a schema-less resumed completion invents no structured block', userTextsOf(world).some(text => text.includes('SECOND-CHILD-DONE') && text.includes('<status>completed</status>') && !text.includes('<structured')), 'a child launched without output_schema must resume without a structuredOutputSpec; see src/tools/crewmate/resumeCrewmate.ts')

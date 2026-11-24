@@ -36,7 +36,7 @@ async function endings(): Promise<void> {
   const { createAssistantMessage } = await import(join(source, 'engine/message-shapes/factories.ts'))
   const { AbortError } = await import(join(source, 'platform/errors/errors.ts'))
   const lifecycle = await import(join(source, 'tools/crewmate/crewmateLifecycle.ts'))
-  const { resumeAgentBackground } = await import(join(source, 'tools/crewmate/resumeCrewmate.ts'))
+  const { resumeCrewmateBackground } = await import(join(source, 'tools/crewmate/resumeCrewmate.ts'))
   type AppState = ReturnType<typeof getDefaultAppState>
   const owed = (): boolean => lifecycle.crewmateNoticeOwed?.() === true
   const notes = (): string[] => getCommandQueue().filter((command: { mode: string }) => command.mode === 'task-notification').map((command: { value: unknown }) => String(command.value))
@@ -86,7 +86,7 @@ async function endings(): Promise<void> {
     release()
     const ended = await done
     tally.check('a throw between the end and the notice ends the lifecycle with no notice and nothing owed', ended === 'threw' && notes().length === 0 && !owed(), `ended=${ended} notes=${notes().length} owed=${owed()}`)
-    const refused = await resumeAgentBackground({ agentId: 'a99999999', prompt: 'RESUME', toolUseContext: seat.context }).then(() => 'resumed', () => 'refused')
+    const refused = await resumeCrewmateBackground({ agentId: 'a99999999', prompt: 'RESUME', toolUseContext: seat.context }).then(() => 'resumed', () => 'refused')
     tally.check('a resume that is refused starts no lifecycle and owes nothing', refused === 'refused' && !owed(), refused)
   }
 }

@@ -27,7 +27,7 @@ import { type ToolJSXState, useChatDialogPaints, useChatDialogs, useChatDialogsV
 import { useChatDraft } from './useChatDraft.js';
 import { useChatScroll, useChatScrollFollow, useChatScrollPin } from './useChatScroll.js';
 import { useChatSearch } from './useChatSearch.js';
-import { useChatRewindPicker, useChatSelectorView } from './useChatSelector.js';
+import { useChatRewindPicker, useChatRewindPickerView } from './useChatSelector.js';
 import { useChatConversation, useChatSession } from './useChatSession.js';
 import { useChatSeatClock, useChatStatusStrip, useChatTurnBoundary, useChatTurnEnd, useChatTurnSignals } from './useChatStatus.js';
 import { useChatReceipts, useChatSubmit, useChatSubmitTools } from './useChatSubmit.js';
@@ -177,7 +177,7 @@ export function Chat({ commands: initialCommands, initialTools, debug = false, d
   const { permissionOverlay } = useChatAsksCard({ focusedInputDialog, repinToBottom, toolUseConfirmQueue, resolvedConsentCount, chatStore, resolveHeadPermission, chatSurfaceCovered, verbose });
   const { centredModalUp, toolJSXRef, centredModal, bottomImmediateJsx, inlineToolJsx, focusedBottomDialog } = useChatDialogsView({ toolJSX, dialogSlotRef, localJsx, compactDetailUp, setShowCostThreshold, messages, fullscreen, compactWork, getToolUseContext, focusedEffectiveModel, chatSurfaceCovered, focusedInputDialog, elicitationQueue, respondToElicitation, dismissElicitationWaiting, crashResumeStaged, setCrashResumeStaged, addNotification, removeNotification, store });
   const { paintedMessages, entryLoadingLine, displayedMessages } = useChatSession({ focusedConnector, messages, compactWork, unseen, repinToBottom, setConversationId, setToolJSX, toolJSXRef, localJsx, landing, armedMessage, chatSurfaceCovered, inVirtualTranscript, transcriptMessages });
-  const { messageActionsDisabled, messageCursorActive, messageNavRef, messageActions, messageSelector } = useChatSelectorView({ addNotification, setInputValue, setInputMode, setShowMessageSelector, messageSelectorPreselect, setMessageSelectorPreselect, focusedInputDialog, chatSurfaceCovered, messages, onCancel, focusedEffectiveModel, handleEnterTranscript, setScreen, setShowAllInTranscript, isLoadingRef, resume });
+  const { messageActionsDisabled, messageCursorActive, messageNavRef, messageActions, messageSelector } = useChatRewindPickerView({ addNotification, setInputValue, setInputMode, setShowMessageSelector, messageSelectorPreselect, setMessageSelectorPreselect, focusedInputDialog, chatSurfaceCovered, messages, onCancel, focusedEffectiveModel, handleEnterTranscript, setScreen, setShowAllInTranscript, isLoadingRef, resume });
 
   useChatBootLines({ focusedConnector, addNotification });
   useChatBootStart({ submitCount, addNotification, removeNotification });

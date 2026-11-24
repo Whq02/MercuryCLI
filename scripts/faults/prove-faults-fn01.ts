@@ -118,7 +118,7 @@ else {
     const paths = await import(${JSON.stringify(join(SRC, 'sessions/transcripts/paths.ts'))})
     const relaunchedIds = []
     mock.module(path.join(SRC, 'tools/crewmate/resumeCrewmate.js'), () => ({
-      resumeAgentBackground: async ({ agentId }) => {
+      resumeCrewmateBackground: async ({ agentId }) => {
         relaunchedIds.push(agentId)
         if (agentId === 'a12345678') throw new Error('cannot open worktree')
       },

@@ -145,7 +145,7 @@ export function watchSwarmBoard(check: () => void): () => void {
   return () => { leadChecks.delete(check) }
 }
 
-export function watchSwarmResumes(context: () => ToolUseContext | null, canUseTool: CanUseToolFn, ready: () => boolean, resume?: typeof import('../../tools/crewmate/resumeCrewmate.js').resumeAgentBackground): { check: () => void; hasPending: () => boolean; waitingSeats: () => number; stop: () => void } {
+export function watchSwarmResumes(context: () => ToolUseContext | null, canUseTool: CanUseToolFn, ready: () => boolean, resume?: typeof import('../../tools/crewmate/resumeCrewmate.js').resumeCrewmateBackground): { check: () => void; hasPending: () => boolean; waitingSeats: () => number; stop: () => void } {
   const leadContext = AsyncLocalStorage.snapshot()
   let running = false, pending = false, stopped = false, dispatching = false, faulted = false
   let resumeRefusal: typeof import('../../tools/crewmate/resumeCrewmate.js').boardResumeRefusal | undefined
@@ -166,7 +166,7 @@ export function watchSwarmResumes(context: () => ToolUseContext | null, canUseTo
         const store = swarmStore(false)
         if (!store || !store.pendingWakes().length) continue
         dispatching = true
-        const { boardResumeRefusal, resumeAgentBackground, BoardResumeDirectoryError } = await import('../../tools/crewmate/resumeCrewmate.js')
+        const { boardResumeRefusal, resumeCrewmateBackground, BoardResumeDirectoryError } = await import('../../tools/crewmate/resumeCrewmate.js')
         resumeRefusal = boardResumeRefusal
         await flushSessionStorage()
         if (stopped || !ready()) continue
@@ -184,7 +184,7 @@ export function watchSwarmResumes(context: () => ToolUseContext | null, canUseTo
             if (!packet?.eventIds.includes(wake.eventId)) throw new Error('The triggering post could not be delivered; the lead can resume this crewmate.')
             const { toolUseId: _stale, ...base } = current
             void _stale
-            await (resume ?? resumeAgentBackground)({ agentId: wake.agent, prompt: packet.text, boardEventIds: packet.eventIds, automatic: true, toolUseContext: { ...base, abortController: new AbortController() }, canUseTool, onAdmitted: () => store.admitWake(principal, claim) })
+            await (resume ?? resumeCrewmateBackground)({ agentId: wake.agent, prompt: packet.text, boardEventIds: packet.eventIds, automatic: true, toolUseContext: { ...base, abortController: new AbortController() }, canUseTool, onAdmitted: () => store.admitWake(principal, claim) })
           } catch (error) {
             const reason = error instanceof Error ? error.message : String(error)
             const held = store.holdWake(principal, claim, reason, error instanceof BoardResumeDirectoryError && error.kind === 'worktree' ? { kind: 'worktree-missing', path: error.directory } : undefined)

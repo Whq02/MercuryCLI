@@ -836,9 +836,9 @@ export function armBudgetCutResume(args: {
     })
     const row = tasksNow?.[args.taskId]
     if (!isCrewmateTask(row) || row.status !== 'failed' || row.registration !== args.registration) return
-    const { liveCrewmateOwner, resumeAgentBackground } = await import('./resumeCrewmate.js')
+    const { liveCrewmateOwner, resumeCrewmateBackground } = await import('./resumeCrewmate.js')
     if (liveCrewmateOwner(args.taskId, tasksNow) !== null) return
-    const resume = args.resume ?? resumeAgentBackground
+    const resume = args.resume ?? resumeCrewmateBackground
     let resumed: { note?: string } | void
     try {
       resumed = await resume({
@@ -997,14 +997,14 @@ export function armOverloadProbe(args: {
       return
     }
     dropPauseRecord(args.taskId, args.description)
-    const { liveCrewmateOwner, resumeAgentBackground } = await import('./resumeCrewmate.js')
+    const { liveCrewmateOwner, resumeCrewmateBackground } = await import('./resumeCrewmate.js')
     let tasksNow: Record<string, unknown> | undefined
     args.rootSetAppState(prev => {
       tasksNow = prev.tasks
       return prev
     })
     if (liveCrewmateOwner(args.taskId, tasksNow) !== null) return
-    const resume = args.resume ?? resumeAgentBackground
+    const resume = args.resume ?? resumeCrewmateBackground
     try {
       const resumed = await resume({
         agentId: args.taskId,
@@ -1071,8 +1071,8 @@ export async function deliverOperatorMessagesAfterStop(
   const queued = peekOperatorMessages(stateReader().tasks[taskId])
   if (queued.length === 0) return false
   try {
-    const { resumeAgentBackground } = await import('./resumeCrewmate.js')
-    const resumed = await resumeAgentBackground({
+    const { resumeCrewmateBackground } = await import('./resumeCrewmate.js')
+    const resumed = await resumeCrewmateBackground({
       agentId: taskId,
       prompt: queued.join('\n\n'),
       replyTarget: 'operator',
@@ -1269,8 +1269,8 @@ async function tryQueuedGuidance(args: AsyncCrewmateLifecycleArgs): Promise<bool
     const combined = [...pendingParent, ...pendingOperator]
     if (combined.length === 0) return false
     const nextReplyTarget: 'parent' | 'operator' = pendingParent.length > 0 ? 'parent' : 'operator'
-    const { resumeAgentBackground } = await import('./resumeCrewmate.js')
-    const resumed = await resumeAgentBackground({ agentId: taskId, prompt: combined.join('\n\n'), toolUseContext, canUseTool, replyTarget: nextReplyTarget })
+    const { resumeCrewmateBackground } = await import('./resumeCrewmate.js')
+    const resumed = await resumeCrewmateBackground({ agentId: taskId, prompt: combined.join('\n\n'), toolUseContext, canUseTool, replyTarget: nextReplyTarget })
     if (resumed.note) {
       enqueueCrewmateReceiptRow({ taskId, description, summary: resumed.note.trimStart() })
     }

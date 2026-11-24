@@ -9,7 +9,7 @@ import type { useChatAsks } from './useChatAsks.js';
 import type { useChatDialogPaints, useChatDialogs } from './useChatDialogs.js';
 import type { useChatDraft } from './useChatDraft.js';
 import { TranscriptFooter, TranscriptSearchBar, type useChatSearch } from './useChatSearch.js';
-import type { useChatRewindPicker, useChatSelectorView } from './useChatSelector.js';
+import type { useChatRewindPicker, useChatRewindPickerView } from './useChatSelector.js';
 import type { useChatSubmit, useChatSubmitTools } from './useChatSubmit.js';
 import type { useChatTools } from './useChatTools.js';
 
@@ -20,7 +20,7 @@ type BottomSlotArgs = Pick<ReturnType<typeof useChatDialogs>, 'isExiting' | 'sho
   Pick<ReturnType<typeof useChatAsks>, 'setToolPermissionContext'> &
   Pick<ReturnType<typeof useChatSubmitTools>, 'submitCount' | 'getToolUseContext'> &
   Pick<ReturnType<typeof useChatRewindPicker>, 'openMessageSelector'> &
-  Pick<ReturnType<typeof useChatSelectorView>, 'messageActionsDisabled' | 'messageActions' | 'messageCursorActive'> &
+  Pick<ReturnType<typeof useChatRewindPickerView>, 'messageActionsDisabled' | 'messageActions' | 'messageCursorActive'> &
   Pick<ReturnType<typeof useChatDraft>, 'vimMode' | 'setVimMode' | 'isSearchingHistory' | 'setIsSearchingHistory' | 'helpOpen' | 'setHelpOpen' | 'insertTextRef'> &
   Pick<ReturnType<typeof useChatSubmit>, 'onSubmit'> &
   Pick<ReturnType<typeof useChatDialogPaints>, 'dialogPaints'> &

@@ -1446,8 +1446,8 @@ export async function sessionRekeys(tag: string): Promise<{ atMount: string; hop
 }
 
 type SelectorModule = typeof import('../../src/screen/chat/useChatSelector.tsx')
-type SelectorArgs = Parameters<SelectorModule['useChatSelectorView']>[0]
-type SelectorValue = ReturnType<SelectorModule['useChatSelectorView']>
+type SelectorArgs = Parameters<SelectorModule['useChatRewindPickerView']>[0]
+type SelectorValue = ReturnType<SelectorModule['useChatRewindPickerView']>
 type RewindAnswer = { outcome: 'applied' | 'noop' | 'refused'; mode: string; refusal?: string; detail?: string; conversation?: { removed: number }; code?: { filesChanged: string[]; insertions: number; deletions: number } }
 type SelectorHandlers = {
   messages: Message[]
@@ -1542,7 +1542,7 @@ export async function openSelectorPart(tag: string, options: { keepHome?: boolea
     isLoadingRef: { current: false },
     resume: async (...call) => void resumes.push(call),
   }
-  const use = (): SelectorValue => module.useChatSelectorView(args)
+  const use = (): SelectorValue => module.useChatRewindPickerView(args)
   const part = await mountPart(use)
   return {
     module,

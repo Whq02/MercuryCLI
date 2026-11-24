@@ -35,7 +35,7 @@ const resumes: Array<{ agentId: string; prompt: string; automatic?: boolean }> =
 const resumeModule = await import('../../src/tools/crewmate/resumeCrewmate.ts')
 mock.module('../../src/tools/crewmate/resumeCrewmate.ts', () => ({
   ...resumeModule,
-  resumeAgentBackground: async (args: { agentId: string; prompt: string; automatic?: boolean }) => {
+  resumeCrewmateBackground: async (args: { agentId: string; prompt: string; automatic?: boolean }) => {
     resumes.push(args)
     return {}
   },

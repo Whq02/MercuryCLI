@@ -100,21 +100,21 @@ try {
   const resumed = await resumeAgent(taskId, `${NOTE}: use your existing conversation.`)
   record('resume-response.json', JSON.stringify(resumed, null, 2))
   const resumedOk = resumed.refused === undefined && typeof resumed.agent_id === 'string'
-  tally.check('r can resume the stopped row after its ephemeral task has been evicted', resumedOk, JSON.stringify(resumed) + ' — agent/resume must accept a stopped crewmate whose task was evicted, resuming from its transcript; see resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts and src/daemon/runner-wire/sessionVerbs.ts')
+  tally.check('r can resume the stopped row after its ephemeral task has been evicted', resumedOk, JSON.stringify(resumed) + ' — agent/resume must accept a stopped crewmate whose task was evicted, resuming from its transcript; see resumeCrewmateBackground in src/tools/crewmate/resumeCrewmate.ts and src/daemon/runner-wire/sessionVerbs.ts')
   if (resumedOk) {
     await session.waitFor('the resumed crewmate did not make a request carrying the note', () => continuationAfter(beforeResume) !== undefined, TURN_MS)
     const continued = continuationAfter(beforeResume) ?? requests()[beforeResume]!
     const history = JSON.stringify(continued.body.messages)
     record('continued-request.json', JSON.stringify(continued.body, null, 2))
-    tally.check('the resumed request retains the prior tool result rather than restarting the prompt', history.includes('"tool_result"') && history.includes('HISTORY-WITNESS'), history.slice(-600) + ' — the resumed request must carry the transcript history (tool_result and HISTORY-WITNESS), as built by resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts')
+    tally.check('the resumed request retains the prior tool result rather than restarting the prompt', history.includes('"tool_result"') && history.includes('HISTORY-WITNESS'), history.slice(-600) + ' — the resumed request must carry the transcript history (tool_result and HISTORY-WITNESS), as built by resumeCrewmateBackground in src/tools/crewmate/resumeCrewmate.ts')
     const last = continued.body.messages?.at(-1)
-    tally.check('the continuation is the next user turn after the retained history', last?.role === 'user' && JSON.stringify(last.content).includes(NOTE), JSON.stringify(last) + ' — the resume note must be the last user turn after the retained history; see resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts')
-    tally.check('the original model remains selected', continued.body.model === peerModel, `${continued.body.model} — a resumed crewmate must keep the model it was launched with; see resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts`)
+    tally.check('the continuation is the next user turn after the retained history', last?.role === 'user' && JSON.stringify(last.content).includes(NOTE), JSON.stringify(last) + ' — the resume note must be the last user turn after the retained history; see resumeCrewmateBackground in src/tools/crewmate/resumeCrewmate.ts')
+    tally.check('the original model remains selected', continued.body.model === peerModel, `${continued.body.model} — a resumed crewmate must keep the model it was launched with; see resumeCrewmateBackground in src/tools/crewmate/resumeCrewmate.ts`)
     const landed = (): boolean => transcripts().some(path => readFileSync(join(projects, path), 'utf8').includes(NOTE))
     const until = Date.now() + TURN_MS / 6
     while (!landed() && Date.now() < until) await sleep(100)
     const after = transcripts()
-    tally.check('the resumed turn lands on the same transcript file: one transcript for the crewmate, the note after the history', landed() && after.length === 1 && after[0] === before[0], JSON.stringify(after) + ' — a resume must append the note to the crewmate\'s existing transcript file, not start a second one; see resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts')
+    tally.check('the resumed turn lands on the same transcript file: one transcript for the crewmate, the note after the history', landed() && after.length === 1 && after[0] === before[0], JSON.stringify(after) + ' — a resume must append the note to the crewmate\'s existing transcript file, not start a second one; see resumeCrewmateBackground in src/tools/crewmate/resumeCrewmate.ts')
   }
 } finally {
   await session.terminate()

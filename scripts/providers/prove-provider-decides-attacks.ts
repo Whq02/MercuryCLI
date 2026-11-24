@@ -153,7 +153,7 @@ enableConfigs()
 const bootstrap = await import('../../src/boot/process-state/processState.js')
 bootstrap.setIsInteractive(false)
 const { runCrewmate } = await import('../../src/tools/crewmate/runCrewmate.js')
-const { resumeAgentBackground } = await import('../../src/tools/crewmate/resumeCrewmate.js')
+const { resumeCrewmateBackground } = await import('../../src/tools/crewmate/resumeCrewmate.js')
 const { runAsyncCrewmateLifecycle, automaticResumePending } = await import('../../src/tools/crewmate/crewmateLifecycle.js')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
 const { createUserMessage } = await import('../../src/engine/messages/messages.js')
@@ -222,7 +222,7 @@ try {
   console.log(`measured: ${JSON.stringify({ episodeOne, episodeTwo, gapsMs: allGaps, perMinute: Math.round(perMinute * 10) / 10, elapsedMs: Date.now() - startedAt, ladderScale: process.env.MERCURY_BUSY_RETRY_SCALE })}`)
   mode = 'serve'
   const before = wire.length
-  await resumeAgentBackground({ agentId: paced, prompt: 'Retry now using the same account.', toolUseContext: ctx, canUseTool: allow })
+  await resumeCrewmateBackground({ agentId: paced, prompt: 'Retry now using the same account.', toolUseContext: ctx, canUseTool: allow })
   const served = Date.now() + 30_000
   while (Date.now() < served && task(paced)?.status === 'running') await sleep(50)
   check('a manual resume while the note still reads limited goes to the provider and completes on its answer', wire.length === before + 1 && wire[before]?.status === 200 && task(paced)?.status === 'completed' && task(paced)?.paused === undefined, { requests: wire.length, status: task(paced)?.status })
@@ -244,7 +244,7 @@ try {
   check('four seconds on, the provider saw no further request', wire.length === bareEpisode, { requests: wire.length, bareEpisode })
   console.log(`measured: ${JSON.stringify({ bareEpisode, bareGapsMs: bareGaps })}`)
   mode = 'serve'
-  await resumeAgentBackground({ agentId: bareAgent, prompt: 'Retry now.', toolUseContext: ctx, canUseTool: allow })
+  await resumeCrewmateBackground({ agentId: bareAgent, prompt: 'Retry now.', toolUseContext: ctx, canUseTool: allow })
   const bareServed = Date.now() + 30_000
   while (Date.now() < bareServed && task(bareAgent)?.status === 'running') await sleep(50)
   check('a manual resume after the bare refusal is served and completes', wire.length === bareEpisode + 1 && wire[bareEpisode]?.status === 200 && task(bareAgent)?.status === 'completed', { requests: wire.length, status: task(bareAgent)?.status })

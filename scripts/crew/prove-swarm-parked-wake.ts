@@ -187,12 +187,12 @@ const leadContext = new AsyncLocalStorage<string>()
 let count = 0
 let finish!: () => void
 const fired = new Promise<void>(resolve => { finish = resolve })
-const resume: typeof import('../../src/tools/crewmate/resumeCrewmate.ts').resumeAgentBackground = async args => {
+const resume: typeof import('../../src/tools/crewmate/resumeCrewmate.ts').resumeCrewmateBackground = async args => {
   count++
   assert.equal(leadContext.getStore(), 'lead')
   assert.equal(args.toolUseContext.toolUseId, undefined)
   assert.equal(args.automatic, true)
-  assert(args.boardEventIds?.length, 'resumeAgentBackground called without boardEventIds in src/crew/board/seam.ts')
+  assert(args.boardEventIds?.length, 'resumeCrewmateBackground called without boardEventIds in src/crew/board/seam.ts')
   assert.equal(args.prompt.split('WAKE-PACKET-WITNESS').length, 2)
   tasks = { woken: { ...task('running'), id: 'woken', agentId: 'woken' } }
   await seam.latchSwarmCrewmate('woken', 'Woken', true)

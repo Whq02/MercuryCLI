@@ -231,7 +231,7 @@ export function runnerArmsOf(ports: RunnerPorts): RunnerArms {
         return { queued: true, agent_id: params.agent_id }
       }
       if (live.awaitingSessionClaim) throw refused('nothing to resume from yet — the session is still starting', 'nothing-to-resume')
-      const { CrewmateNotRecorded, resumeAgentBackground, operatorResumeWords } = await import('../../tools/crewmate/resumeCrewmate.js')
+      const { CrewmateNotRecorded, resumeCrewmateBackground, operatorResumeWords } = await import('../../tools/crewmate/resumeCrewmate.js')
       let standing = getLastCacheSafeParams()?.toolUseContext as ToolUseContext | undefined
       if (standing === undefined) {
         await options.initializeMcp?.()
@@ -240,7 +240,7 @@ export function runnerArmsOf(ports: RunnerPorts): RunnerArms {
       }
       const { toolUseId: _staleToolUseId, ...lastContext } = standing
       void _staleToolUseId
-      const resumed = await resumeAgentBackground({
+      const resumed = await resumeCrewmateBackground({
         agentId: params.agent_id,
         prompt: params.note !== undefined && params.note.trim() !== '' ? params.note : CREWMATE_RESUME_NOTE,
         replyTarget: params.note?.trim() ? 'operator' : 'parent',

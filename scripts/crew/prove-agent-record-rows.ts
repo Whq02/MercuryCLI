@@ -22,7 +22,7 @@ const script: ScriptedTurn[] = [
   peer({ kind: 'text', text: 'RESUMED-RECORD-ONCE' }),
 ]
 const WRITER = 'the sub-agent transcript is written by recordSidechainTranscript in src/sessions/transcripts/sessionStorage.ts; a turn must land as one settled row there'
-const RESUME = 'resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts rebuilds the resumed agent\'s messages from its transcript; read what it replays there'
+const RESUME = 'resumeCrewmateBackground in src/tools/crewmate/resumeCrewmate.ts rebuilds the resumed agent\'s messages from its transcript; read what it replays there'
 const tally = makeTally('prove-agent-record-rows')
 const world = await makeWorld('agent-record-rows', script)
 const session = bootLead(world, ['--mode', 'sovereign'], ['Crewmate', 'Bash', 'SendMessage', 'ResumeCrewmate'])

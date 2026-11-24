@@ -46,7 +46,7 @@ export function useChatRewindPicker() {
   return { showMessageSelector, setShowMessageSelector, openMessageSelector, messageSelectorPreselect, setMessageSelectorPreselect };
 }
 
-export function useChatSelectorView({
+export function useChatRewindPickerView({
   addNotification,
   setInputValue,
   setInputMode,
