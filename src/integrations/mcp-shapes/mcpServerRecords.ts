@@ -91,11 +91,6 @@ export const McpServerConfigSchema = once(() => {
   })
   return z.union([stdio, sse, http, ws, proxy])
 })
-export const McpJsonConfigSchema = once(() =>
-  z.object({
-    mcpServers: z.record(z.string(), McpServerConfigSchema()),
-  }),
-)
 
 export type McpServerConfig = z.infer<ReturnType<typeof McpServerConfigSchema>>
 
