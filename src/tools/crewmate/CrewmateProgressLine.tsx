@@ -1,6 +1,5 @@
 import React from 'react'
 import { Box, Text, type TextProps } from '../../screen/themedRenderer.js'
-import { plural } from '../../platform/text/strings.js'
 
 type CrewmateProgressLineProps = {
   agentType: string
@@ -10,7 +9,7 @@ type CrewmateProgressLineProps = {
   descriptionColor?: TextProps['color']
   hideType?: boolean
   model?: string
-  toolUseCount: number
+  timeWords?: string
   tokensLabel?: string
   statusLine?: string
   lastToolInfo?: string
@@ -29,7 +28,7 @@ export function CrewmateProgressLine({
   descriptionColor,
   hideType = false,
   model,
-  toolUseCount,
+  timeWords,
   tokensLabel,
   statusLine,
   lastToolInfo,
@@ -45,9 +44,14 @@ export function CrewmateProgressLine({
     ? description
       ? `${description} continues in the background`
       : 'continues in the background'
-    : (statusLine ?? (isResolved ? 'done' : (lastToolInfo ?? 'initialising…')))
+    : timeWords !== undefined
+      ? statusLine
+      : (statusLine ?? (isResolved ? 'done' : (lastToolInfo ?? 'initialising…')))
   const modelPart = model ? ` · ${model}` : ''
-  const toolPart = ` · ${toolUseCount} ${plural(toolUseCount, 'tool use')}`
+  const timePart = timeWords ? ` · ${timeWords}` : ''
+  const secondLineParts = [tokensLabel, status].filter(
+    (part): part is string => part !== undefined && part !== '',
+  )
 
   return (
     <Box flexDirection="column">
@@ -72,15 +76,14 @@ export function CrewmateProgressLine({
             )}
           </>
         )}
-        {!backgrounded && (
-          <Text dimColor>{`${modelPart}${toolPart}`}</Text>
+        {!backgrounded && (modelPart !== '' || timePart !== '') && (
+          <Text dimColor>{`${modelPart}${timePart}`}</Text>
         )}
       </Text>
       {!backgrounded && (
         <Text dimColor wrap="truncate-end">
           {trunk}
-          {tokensLabel ? `${tokensLabel} · ` : ''}
-          {status}
+          {secondLineParts.join(' · ')}
         </Text>
       )}
     </Box>

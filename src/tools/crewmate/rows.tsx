@@ -26,16 +26,13 @@ import { renderModelName, getEngineModel } from '../../models/catalogue/engineMo
 import { Markdown } from '../../screen/messages/Markdown.js'
 import { getAgentColor } from './agentColors.js'
 import { useNowTick } from '../../screen/widgets/components.js'
-import { useFocusedWorkRoster } from '../../screen/tasks/useFocusedWork.js'
+import { useSessionCrew } from '../../screen/tasks/useCrewLedger.js'
 import {
   crewmateByToolUse,
-  crewmatesOf,
-  crewElapsedLabel,
   crewModelLabel,
   crewPhaseWords,
-  crewStateLabel,
+  crewTimeWords,
   crewTokensSummary,
-  crewToolUsesLabel,
   type CrewmateFacts,
 } from '../../engine/connector/crewFacts.js'
 import type { CrewmateToolOutput } from './CrewmateTool.js'
@@ -608,10 +605,9 @@ function parseGroupInput(entry: GroupedToolUse): CrewmateUiInput {
 type GroupedEntry = {
   toolUseID?: string
   input: CrewmateUiInput
-  toolUseCount: number
   tokens: number
   lastTool: string | null
-  output?: { totalToolUseCount?: number; totalTokens?: number }
+  output?: { totalTokens?: number }
   resolved: boolean
   isErrored: boolean
 }
@@ -621,14 +617,9 @@ function factsForEntry(agents: readonly CrewmateFacts[], entry: GroupedEntry): C
   return crewmateByToolUse(agents, entry.toolUseID)
 }
 
-function factsStatusLine(facts: CrewmateFacts, nowMs: number): string {
-  const doing = crewPhaseWords(facts, nowMs) ?? crewStateLabel(facts)
-  return `${doing} · ${crewElapsedLabel(facts, nowMs)}`
-}
-
 function CrewmateRows({ entries, animate }: { entries: GroupedEntry[]; animate: boolean }): React.ReactNode {
-  const roster = useFocusedWorkRoster()
-  const agents = React.useMemo(() => crewmatesOf(roster.rows, null), [roster])
+  const crewRows = useSessionCrew()
+  const agents = React.useMemo(() => crewRows.map(row => row.facts), [crewRows])
   const anyRunning = React.useMemo(() => entries.some(entry => factsForEntry(agents, entry)?.running === true), [agents, entries])
   const now = useNowTick(animate || anyRunning ? 1000 : null)
   return (
@@ -639,24 +630,22 @@ function CrewmateRows({ entries, animate }: { entries: GroupedEntry[]; animate: 
         const receiptTokens = (entry.output?.totalTokens ?? 0) > 0 ? entry.output!.totalTokens : undefined
         const tokensLabel =
           facts !== null
-            ? (crewTokensSummary(facts) ?? undefined)
+            ? crewTokensSummary(facts)
             : receiptTokens !== undefined
               ? `${formatTokens(receiptTokens)} spent`
               : entry.tokens > 0
                 ? `${formatTokens(entry.tokens)} context`
                 : undefined
-        const toolUses = facts?.toolUses ?? entry.output?.totalToolUseCount ?? entry.toolUseCount
-        const statusLine = facts !== null ? factsStatusLine(facts, now) : null
+        const statusLine = facts !== null ? crewPhaseWords(facts, now) : null
         return (
           <CrewmateProgressLine
             key={entry.toolUseID ?? index}
             agentType={userFacingName(entry.input)}
             {...(entry.input.description !== undefined ? { description: entry.input.description } : {})}
             {...(entry.input.crewmate_type ? { color: getAgentColor(entry.input.crewmate_type) } : {})}
-            {...(facts !== null ? { model: crewModelLabel(facts) } : {})}
+            {...(facts !== null ? { model: crewModelLabel(facts), timeWords: crewTimeWords(facts, now) } : {})}
             {...(statusLine !== null ? { statusLine } : {})}
-            {...(statusLine === null && entry.lastTool !== null ? { lastToolInfo: entry.lastTool } : {})}
-            toolUseCount={toolUses}
+            {...(facts === null && entry.lastTool !== null ? { lastToolInfo: entry.lastTool } : {})}
             {...(tokensLabel !== undefined ? { tokensLabel } : {})}
             isLast={index === entries.length - 1}
             isResolved={resolved}
@@ -670,10 +659,10 @@ function CrewmateRows({ entries, animate }: { entries: GroupedEntry[]; animate: 
 }
 
 function CrewmateFactsOrInitialising({ toolUseID }: { toolUseID?: string }): React.ReactNode {
-  const roster = useFocusedWorkRoster()
+  const crewRows = useSessionCrew()
   const facts = React.useMemo(
-    () => (toolUseID === undefined ? null : crewmateByToolUse(crewmatesOf(roster.rows, null), toolUseID)),
-    [roster, toolUseID],
+    () => (toolUseID === undefined ? null : crewmateByToolUse(crewRows.map(row => row.facts), toolUseID)),
+    [crewRows, toolUseID],
   )
   const now = useNowTick(facts !== null && facts.running ? 1000 : null)
   if (facts === null) {
@@ -685,10 +674,8 @@ function CrewmateFactsOrInitialising({ toolUseID }: { toolUseID?: string }): Rea
   }
   const parts = [
     crewModelLabel(facts),
-    crewStateLabel(facts),
-    crewToolUsesLabel(facts) ?? undefined,
-    crewTokensSummary(facts) ?? undefined,
-    crewElapsedLabel(facts, now),
+    crewTimeWords(facts, now),
+    crewTokensSummary(facts),
     facts.activity ?? undefined,
   ].filter((part): part is string => part !== undefined)
   return (
@@ -768,23 +755,6 @@ function summarizeLastTool(
   return summary ? `${name}: ${summary}` : name
 }
 
-function countToolResultRows(
-  allMessages: ReadonlyArray<{ data: CrewmateProgressDataWithMessage }>,
-): number {
-  let count = 0
-  for (const row of allMessages) {
-    if (row.data.message.type !== 'user') continue
-    const content = row.data.message.message.content
-    if (
-      Array.isArray(content) &&
-      content.some(block => typeof block !== 'string' && block.type === 'tool_result')
-    ) {
-      count++
-    }
-  }
-  return count
-}
-
 export function renderGroupedCrewmateToolUse(
   toolUses: GroupedToolUse[],
   options: { shouldAnimate: boolean; tools: Tools },
@@ -803,9 +773,6 @@ export function renderGroupedCrewmateToolUse(
     const rawOutput: unknown = raw.output ?? raw.rawResult
     const outputMetrics = isRecord(rawOutput)
       ? {
-          ...(typeof rawOutput.totalToolUseCount === 'number'
-            ? { totalToolUseCount: rawOutput.totalToolUseCount }
-            : {}),
           ...(typeof rawOutput.totalTokens === 'number'
             ? { totalTokens: rawOutput.totalTokens }
             : {}),
@@ -814,7 +781,6 @@ export function renderGroupedCrewmateToolUse(
     const entry: GroupedEntry = {
       toolUseID: groupToolUseId(raw),
       input,
-      toolUseCount: countToolResultRows(allMsgs),
       tokens: latestTokenTotal(progress),
       lastTool: summarizeLastTool(allMsgs, options.tools),
       output: outputMetrics,

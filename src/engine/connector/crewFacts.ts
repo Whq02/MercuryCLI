@@ -344,6 +344,13 @@ export function crewElapsedLabel(facts: CrewmateFacts, nowMs: number): string {
   return formatDuration(Math.max(0, (facts.endedAt ?? nowMs) - facts.startedAt))
 }
 
+export function crewTimeWords(facts: CrewmateFacts, nowMs: number): string {
+  const elapsed = crewElapsedLabel(facts, nowMs)
+  if (facts.state === 'running') return `running for ${elapsed}`
+  if (facts.state === 'landed') return `landed in ${elapsed}`
+  return `${crewStateLabel(facts)} · ${elapsed}`
+}
+
 export function crewCountLabel(agents: readonly CrewmateFacts[]): string {
   if (agents.length === 0) return CREW_EMPTY_LINE
   const running = crewRunning(agents).length

@@ -378,7 +378,8 @@ console.log('— T7 the status vocabulary and the transcript card —')
   )
   const { CrewView } = await import('../../src/screen/widgets/faces/CrewView.tsx')
   const ui = await import('../../src/tools/crewmate/rows.tsx')
-  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { AppStateProvider, getDefaultAppState } = await import('../../src/screen/app-state/AppState.tsx')
+  const { crewFactsStamp } = await import('../../src/screen/app-state/crewLedger.ts')
   const NO_ASKS: never[] = []
   const fake = (work: { rows: WorkRowV1[]; mission: never[] }): never =>
     ({
@@ -391,9 +392,12 @@ console.log('— T7 the status vocabulary and the transcript card —')
       identity: () => ({ firstPartyApi: true, consoleBilling: true, claudeAiBilling: false, accountEmail: null }),
     }) as never
   setFocusedSessionConnector(fake({ rows, mission: [] }))
-  const paint = async (node: React.ReactNode, width: number): Promise<string> => {
+  const paint = async (node: React.ReactNode, width: number, initialState?: ReturnType<typeof getDefaultAppState>): Promise<string> => {
     try {
-      return await renderToString(React.createElement(AppStateProvider as never, {}, node), width)
+      return await renderToString(
+        React.createElement(AppStateProvider as never, initialState === undefined ? {} : { initialState }, node),
+        width,
+      )
     } catch (e) {
       return `RENDER FAILED: ${String(e)}`
     }
@@ -411,21 +415,87 @@ console.log('— T7 the status vocabulary and the transcript card —')
   )
   check('T7 the grouped card paints', !grouped.startsWith('RENDER FAILED'), grouped.slice(0, 200))
   check(
-    "T7 the grouped card's joined rows paint the record — model · tool uses · tokens",
-    grouped.includes(OPENAI_ID) && grouped.includes(ANTHROPIC_ID) && grouped.includes('1 tool use') && grouped.includes(crew.crewTokensLabel(ag1)!),
+    "T7 the grouped card's joined rows paint the record — model · running for <time> · tokens (no tool count)",
+    grouped.includes(OPENAI_ID) &&
+      grouped.includes(ANTHROPIC_ID) &&
+      grouped.includes('running for ') &&
+      !grouped.includes('tool use') &&
+      grouped.includes(crew.crewTokensLabel(ag1)!),
+    grouped.replace(/\s+/g, ' ').slice(0, 240),
   )
   check(
-    "T7 a joined row's status line is its activity + elapsed; an unjoined row keeps the tool's own initialising word",
-    grouped.includes('Read · ') && grouped.includes('initialising'),
+    "T7 a joined row's second line carries its activity without elapsed; an unjoined row keeps the tool's own initialising word",
+    grouped.includes(' · Read') && !grouped.includes('Read · ') && grouped.includes('initialising'),
+    grouped.replace(/\s+/g, ' ').slice(0, 240),
   )
   const single = await paint(ui.renderToolUseProgressMessage([], { tools: [] as never, verbose: false, toolUseID: 'tu-ag1' }), 100)
   check(
-    'T7 the single card before any progress row paints the record',
-    single.includes(OPENAI_ID) && single.includes('running') && single.includes('1 tool use') && single.includes(crew.crewTokensLabel(ag1)!),
+    'T7 the single card before any progress row paints the record — model · running for <time> · tokens (no tool count)',
+    single.includes(OPENAI_ID) &&
+      single.includes('running for ') &&
+      !single.includes('tool use') &&
+      single.includes(crew.crewTokensLabel(ag1)!),
     single.slice(0, 160),
   )
   const unknown = await paint(ui.renderToolUseProgressMessage([], { tools: [] as never, verbose: false, toolUseID: 'tu-none' }), 100)
   check('T7 an unjoined single card keeps the honest initialising line', unknown.includes('Initializing crewmate'))
+  const bgFacts = crew.crewmateFactsOf(
+    {
+      ...byId.get('ag4')!,
+      id: 'bg1',
+      name: 'bg-scout',
+      description: 'bg-scout',
+      toolUseId: 'tu-bg1',
+      toolUses: 7,
+      startTime: t0,
+      endTime: t0 + 12_000,
+    },
+    'fx-session',
+  )!
+  setFocusedSessionConnector(fake({ rows: [], mission: [] }))
+  const bgGrouped = await paint(
+    ui.renderGroupedCrewmateToolUse(
+      [
+        {
+          toolUseID: 'tu-bg1',
+          input: { description: 'bg-scout', prompt: 'p', crewmate_type: 'mercury-crew', run_in_background: true },
+          output: { status: 'async_launched' },
+          isResolved: true,
+          progressMessages: [],
+        },
+      ] as never,
+      { shouldAnimate: false, tools: [] as never },
+    ),
+    110,
+    {
+      ...getDefaultAppState(),
+      crewLedger: {
+        bg1: { facts: bgFacts, hosted: true, listed: false, cleared: false, stamp: crewFactsStamp(bgFacts) },
+      },
+    },
+  )
+  check(
+    'T7 a settled background launch off the roster reads landed in <time> from the crew ledger and never 0 tool uses or done',
+    bgGrouped.includes(ANTHROPIC_ID) &&
+      bgGrouped.includes('landed in 12s') &&
+      !bgGrouped.includes('0 tool uses') &&
+      !bgGrouped.includes('done') &&
+      bgGrouped.includes(crew.crewTokensLabel(bgFacts)!),
+    bgGrouped.replace(/\s+/g, ' ').slice(0, 240),
+  )
+  const failedFacts = crew.crewmateFactsOf({ ...byId.get('ag4')!, status: 'failed' }, 'fx-session')!
+  check(
+    'T7 crewTimeWords spells running for <t>, landed in <t> and failed · <t>',
+    crew.crewTimeWords(ag1, t0 + 61_001) === `running for ${formatDuration(61_000)}` &&
+      crew.crewTimeWords(agents.find(a => a.id === 'ag4')!, t0 + 999_999) === 'landed in 9s' &&
+      crew.crewTimeWords(failedFacts, t0 + 999_999) === 'failed · 9s',
+    [
+      crew.crewTimeWords(ag1, t0 + 61_001),
+      crew.crewTimeWords(agents.find(a => a.id === 'ag4')!, t0 + 999_999),
+      crew.crewTimeWords(failedFacts, t0 + 999_999),
+    ].join(' | '),
+  )
+  setFocusedSessionConnector(fake({ rows, mission: [] }))
   const stoppedRows: WorkRowV1[] = rows.map(r => (r.id === 'ag1' ? { ...r, status: 'killed', endTime: r.startTime + 5000 } : r))
   setFocusedSessionConnector(fake({ rows: stoppedRows, mission: [] }))
   const view = await paint(React.createElement(CrewView, { onClose: () => {} }), 110)
