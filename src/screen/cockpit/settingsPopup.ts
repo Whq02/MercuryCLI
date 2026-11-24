@@ -2,6 +2,7 @@ import type * as React from 'react'
 import type { ScrollBoxHandle } from '../renderer/elements/ScrollBox.js'
 import { stringWidth } from '../renderer/stringWidth.js'
 import wrapText from '../renderer/wrap-text.js'
+import { createSignal } from '../../platform/async/signal.js'
 
 export type SettingsPopupView = 'config' | 'usage' | 'status' | 'jev' | 'localsetup' | 'imagesetup' | 'llmhost' | 'logins' | 'memory' | 'model'
 
@@ -76,11 +77,11 @@ export type SettingsPopupRequest = {
 
 let request: SettingsPopupRequest | null = null
 let version = 0
-const listeners = new Set<() => void>()
+const changed = createSignal()
 
 function notify(): void {
   version += 1
-  for (const listener of listeners) listener()
+  changed.emit()
 }
 
 export function openSettingsPopup(next: SettingsPopupRequest): void {
@@ -106,9 +107,4 @@ export function settingsPopupVersion(): number {
   return version
 }
 
-export function subscribeSettingsPopup(listener: () => void): () => void {
-  listeners.add(listener)
-  return () => {
-    listeners.delete(listener)
-  }
-}
+export const subscribeSettingsPopup = changed.subscribe

@@ -1,6 +1,7 @@
 
 import { useSyncExternalStore } from 'react'
 import { fluxMark } from '../../integrations/media-flux/fluxProbe.js'
+import { createSignal } from '../../platform/async/signal.js'
 
 export type ActivityState =
   | 'calm'
@@ -9,25 +10,20 @@ export type ActivityState =
   | 'review'
 
 let state: ActivityState = 'calm'
-const listeners = new Set<() => void>()
+const changed = createSignal()
 
 export function publishCockpitActivity(next: ActivityState): void {
   if (next === state) return
   state = next
   fluxMark(`activity:${next}`)
-  for (const listener of listeners) listener()
+  changed.emit()
 }
 
 export function getCockpitActivity(): ActivityState {
   return state
 }
 
-export function subscribeCockpitActivity(callback: () => void): () => void {
-  listeners.add(callback)
-  return () => {
-    listeners.delete(callback)
-  }
-}
+export const subscribeCockpitActivity = changed.subscribe
 
 export function useCockpitActivity(): ActivityState {
   return useSyncExternalStore(
@@ -39,5 +35,5 @@ export function useCockpitActivity(): ActivityState {
 
 export function resetCockpitActivityForTests(): void {
   state = 'calm'
-  listeners.clear()
+  changed.clear()
 }

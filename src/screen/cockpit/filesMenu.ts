@@ -1,5 +1,6 @@
 import { closeSync, fstatSync, openSync, readSync } from 'node:fs'
 import { join } from 'node:path'
+import { createSignal } from '../../platform/async/signal.js'
 
 export const FILE_READER_CHUNK_BYTES = 256 * 1024
 export type FileReaderDocument = { path: string; text: string; truncated: boolean; error?: string }
@@ -29,11 +30,11 @@ export function readFilesMenuMarkdown(root: string, path: string): FileReaderDoc
 
 let openState = false
 let version = 0
-const listeners = new Set<() => void>()
+const changed = createSignal()
 
 function notify(): void {
   version += 1
-  for (const listener of listeners) listener()
+  changed.emit()
 }
 
 export function openFilesMenu(): void {
@@ -56,9 +57,4 @@ export function filesMenuVersion(): number {
   return version
 }
 
-export function subscribeFilesMenu(listener: () => void): () => void {
-  listeners.add(listener)
-  return () => {
-    listeners.delete(listener)
-  }
-}
+export const subscribeFilesMenu = changed.subscribe

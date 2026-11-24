@@ -11,6 +11,7 @@ import { parseOscColor } from '../renderer/termio/osc.js'
 import { isEnvTruthy } from '../../platform/environment/envUtils.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 import { hostEnv } from '../../platform/environment/hostEnv.js'
+import { createSignal } from '../../platform/async/signal.js'
 
 function concreteTheme(): ThemeName {
   try {
@@ -56,18 +57,13 @@ export type TerminalGround =
   | { state: 'original'; color: string }
   | { state: 'unknown' }
 
-const groundListeners = new Set<() => void>()
+const groundChange = createSignal()
 
 function groundChanged(): void {
-  for (const listener of groundListeners) listener()
+  groundChange.emit()
 }
 
-export function subscribeTerminalGround(listener: () => void): () => void {
-  groundListeners.add(listener)
-  return () => {
-    groundListeners.delete(listener)
-  }
-}
+export const subscribeTerminalGround = groundChange.subscribe
 
 function groundHex(spec: string): string | null {
   const color = parseOscColor(spec)

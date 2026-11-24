@@ -1,5 +1,6 @@
 
 import type { Message } from '../../engine/message-shapes/message.js'
+import { createSignal } from '../../platform/async/signal.js'
 
 export interface TurnSignals {
   turnLive: boolean
@@ -33,7 +34,7 @@ let signals: TurnSignals = {
 }
 
 let version = 0
-const listeners = new Set<() => void>()
+const changed = createSignal()
 
 export function publishTurnSignals(next: {
   turnLive: boolean
@@ -72,7 +73,7 @@ function publishTurnSignalsAt(
     lastTurnErrorTs: errorArrived ? now : signals.lastTurnErrorTs,
   }
   version += 1
-  for (const cb of listeners) cb()
+  changed.emit()
 }
 
 export function turnSignals(): TurnSignals {
@@ -80,12 +81,7 @@ export function turnSignals(): TurnSignals {
 }
 
 
-export function subscribeTurnSignals(cb: () => void): () => void {
-  listeners.add(cb)
-  return () => {
-    listeners.delete(cb)
-  }
-}
+export const subscribeTurnSignals = changed.subscribe
 
 export function resetTurnSignals(): void {
   signals = {

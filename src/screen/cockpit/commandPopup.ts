@@ -1,3 +1,5 @@
+import { createSignal } from '../../platform/async/signal.js'
+
 export type CommandPopupShape = {
   view: string
   width: (hostColumns: number) => number
@@ -8,10 +10,10 @@ type CommandPopupClaim = { token: number; shape: CommandPopupShape; minimumRows?
 
 let claim: CommandPopupClaim | null = null
 let nextToken = 1
-const listeners = new Set<() => void>()
+const changed = createSignal()
 
 function notify(): void {
-  for (const listener of listeners) listener()
+  changed.emit()
 }
 
 export function claimCommandPopup(shape: CommandPopupShape): number {
@@ -40,9 +42,4 @@ export function commandPopupClaim(): CommandPopupClaim | null {
   return claim
 }
 
-export function subscribeCommandPopup(listener: () => void): () => void {
-  listeners.add(listener)
-  return () => {
-    listeners.delete(listener)
-  }
-}
+export const subscribeCommandPopup = changed.subscribe

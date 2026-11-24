@@ -1,10 +1,12 @@
+import { createSignal } from '../../platform/async/signal.js'
+
 let claimed = false
 let version = 0
-const listeners = new Set<() => void>()
+const changed = createSignal()
 
 function notify(): void {
   version += 1
-  for (const listener of listeners) listener()
+  changed.emit()
 }
 
 export function claimModelPickerPopup(): void {
@@ -24,9 +26,4 @@ export function modelPickerPopupClaimed(): boolean {
 }
 
 
-export function subscribeModelPickerPopup(listener: () => void): () => void {
-  listeners.add(listener)
-  return () => {
-    listeners.delete(listener)
-  }
-}
+export const subscribeModelPickerPopup = changed.subscribe

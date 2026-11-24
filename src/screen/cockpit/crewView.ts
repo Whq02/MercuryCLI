@@ -1,10 +1,12 @@
+import { createSignal } from '../../platform/async/signal.js'
+
 let openState = false
 let version = 0
-const listeners = new Set<() => void>()
+const changed = createSignal()
 
 function notify(): void {
   version += 1
-  for (const listener of listeners) listener()
+  changed.emit()
 }
 
 export function openCrewView(): void {
@@ -27,9 +29,4 @@ export function crewViewVersion(): number {
   return version
 }
 
-export function subscribeCrewView(listener: () => void): () => void {
-  listeners.add(listener)
-  return () => {
-    listeners.delete(listener)
-  }
-}
+export const subscribeCrewView = changed.subscribe
