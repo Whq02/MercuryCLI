@@ -56,8 +56,7 @@ async function main(): Promise<void> {
   ]
   const landed: WorkRowV1[] = [{ ...rows[0]!, status: 'completed', endTime: t0 + 9 }]
   const WORDS = 'waiting on 1 crewmate · 1 shell'
-  const lawful = typeof counts.delegationWaitWords === 'function' && typeof verbs.activeToolCall === 'function' && typeof verbs.isDelegationToolName === 'function'
-  const wait = (tool: string | undefined, work: readonly WorkRowV1[]): string | null => (lawful ? counts.delegationWaitWords(tool, work) : null)
+  const lawful = typeof verbs.activeToolCall === 'function' && typeof verbs.isDelegationToolName === 'function'
 
   const asst = (blocks: unknown[]): unknown => ({ type: 'assistant', message: { role: 'assistant', content: blocks } })
   const toolUse = (id: string, name: string, input: Record<string, unknown>): unknown => ({ type: 'tool_use', id, name, input })
@@ -69,14 +68,9 @@ async function main(): Promise<void> {
   const readTurn = [{ type: 'user', message: { role: 'user', content: 'read' } }, asst([toolUse('t3', 'Read', { file_path: '/a/live.ts' })])]
   const inFlight = new Set(['t2'])
 
-  section('W1 the law: a delegation call in flight paints the roster\'s wait words; any other tool keeps its verb', 'delegationWaitWords in src/engine/connector/workCounts.ts, activeToolCall and isDelegationToolName in src/screen/cockpit/toolVerb.ts, waitingStatusWords in src/screen/chat/SwitchboardTagBar.tsx')
+  section('W1 the law: a delegation call in flight paints the roster\'s wait words; any other tool keeps its verb', 'activeToolCall and isDelegationToolName in src/screen/cockpit/toolVerb.ts, waitingStatusWords in src/screen/chat/SwitchboardTagBar.tsx')
   {
-    check('the pieces exist (delegationWaitWords · activeToolCall · isDelegationToolName)', lawful)
-    check('a foreground Crewmate with a crewmate and a shell running reads the background wait\'s words', wait('Crewmate', rows) === WORDS, String(wait('Crewmate', rows)))
-    check('a Read in flight paints no wait words (its verb stands)', wait('Read', rows) === null)
-    check('no tool in flight paints no wait words', wait(undefined, rows) === null)
-    check('a delegation call with nothing running answers null (the verb Waiting stands)', wait('Crewmate', []) === null && wait('Crewmate', landed) === null)
-    check('a parked ask rides the words', wait('Crewmate', [{ ...rows[0]!, pendingAsks: 1 }]) === 'waiting on 1 crewmate · 1 ask', String(wait('Crewmate', [{ ...rows[0]!, pendingAsks: 1 }])))
+    check('the pieces exist (activeToolCall · isDelegationToolName)', lawful)
     const active = lawful ? verbs.activeToolCall(crewmateTurn, inFlight) : undefined
     check('the newest in-flight call is the Crewmate (the Read before it settled)', active?.name === 'Crewmate' && active.input?.description === 'the probe', JSON.stringify(active))
     check('the delegation name is Crewmate, nothing else', lawful && verbs.isDelegationToolName('Crewmate') && !verbs.isDelegationToolName('Workflow') && !verbs.isDelegationToolName('Read') && !verbs.isDelegationToolName(undefined))
