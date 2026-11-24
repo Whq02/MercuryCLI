@@ -58,6 +58,16 @@ export function countCharInString(haystack: IndexSearchable, char: string, start
   return count
 }
 
+export function precedingBackslashCount(text: string, i: number): number {
+  let count = 0
+  let j = i - 1
+  while (j >= 0 && text[j] === '\\') {
+    count++
+    j--
+  }
+  return count
+}
+
 export function normalizeFullWidthDigits(input: string): string {
   return input.replace(/[０-９]/g, digit => String.fromCharCode(digit.charCodeAt(0) - 0xfee0))
 }

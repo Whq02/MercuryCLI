@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto'
+import { precedingBackslashCount } from '../../text/strings.js'
 
 type HeredocInfo = {
   fullText: string
@@ -101,16 +102,6 @@ function countOccurrences(text: string, token: string): number {
   while (index !== -1) {
     count++
     index = text.indexOf(token, index + token.length)
-  }
-  return count
-}
-
-function precedingBackslashCount(text: string, i: number): number {
-  let count = 0
-  let j = i - 1
-  while (j >= 0 && text[j] === '\\') {
-    count++
-    j--
   }
   return count
 }
