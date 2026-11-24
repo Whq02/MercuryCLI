@@ -2,7 +2,7 @@
 import '../lib/hermetic.ts'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
+import { KEY, mountOffscreen, painted, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
@@ -64,9 +64,9 @@ async function open(facts: Facts, columns: number, rows: number): Promise<Run> {
 async function press(run: Run, keys: readonly string[]): Promise<void> {
   for (const key of keys) {
     run.m.push(key)
-    await settle(120)
+    await painted(120)
   }
-  await settle(140)
+  await painted(140)
 }
 
 const inner = (line: string): string => line.replace(/^\s*│ ?/, '').replace(/\s*│\s*$/, '')

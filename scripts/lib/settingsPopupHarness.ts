@@ -3,6 +3,8 @@ import { EventEmitter } from 'node:events'
 import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { FRAME_INTERVAL_MS } from '../../src/screen/renderer/constants.js'
+import instances from '../../src/screen/renderer/instances.js'
 
 export function pinSourceRef(argv: string[] = process.argv): string | undefined {
   const at = argv.indexOf('--source-ref')
@@ -86,6 +88,7 @@ class FakeStdout extends EventEmitter {
 class FakeStdin extends EventEmitter {
   isTTY = true
   isRaw = false
+  unfinished = false
   private chunks: string[] = []
   setEncoding(): this {
     return this
@@ -113,6 +116,7 @@ class FakeStdin extends EventEmitter {
     return this.chunks.reduce((n, c) => n + c.length, 0)
   }
   push(data: string): void {
+    this.unfinished = data.endsWith('\x1b')
     this.chunks.push(data)
     this.emit('readable')
   }
@@ -190,6 +194,31 @@ export async function mountOffscreen(element: unknown, columns: number, rows: nu
 export const pause = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 
 export const settle = (ms: number): Promise<void> => pause(ms)
+
+const screensAtRest = (): boolean => [...instances.values()].every(ink => !ink.isRendering && ink.resizeSettleTimer === null && ink.overwriteTimer === null && ink.scheduler.state() === 'idle')
+
+const takeUnfinishedInput = (): boolean => {
+  let held = false
+  for (const ink of instances.values()) {
+    const stdin: unknown = ink.options.stdin
+    if (stdin instanceof FakeStdin && stdin.unfinished) {
+      stdin.unfinished = false
+      held = true
+    }
+  }
+  return held
+}
+
+export async function painted(ms: number): Promise<void> {
+  if (instances.size === 0 || takeUnfinishedInput()) return pause(ms)
+  const from = performance.now()
+  const floor = Math.min(ms, FRAME_INTERVAL_MS)
+  for (let rested = 0; performance.now() - from < ms; ) {
+    await pause(1)
+    rested = performance.now() - from >= floor && screensAtRest() ? rested + 1 : 0
+    if (rested >= 2) return
+  }
+}
 
 export async function waitFor(pred: () => boolean, ms: number): Promise<boolean> {
   const deadline = Date.now() + ms
