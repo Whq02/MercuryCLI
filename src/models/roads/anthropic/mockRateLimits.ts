@@ -199,31 +199,6 @@ function nextMonthEpoch(): number {
   return Math.floor(new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime() / 1000)
 }
 
-const SCENARIO_DESCRIPTIONS: Record<MockScenario, string> = {
-  normal: 'Healthy window, no warnings',
-  'session-limit-reached': 'Five-hour session limit exhausted',
-  'approaching-weekly-limit': 'Weekly limit early warning',
-  'weekly-limit-reached': 'Weekly limit exhausted',
-  'overage-active': 'Capped, running on extra usage',
-  'overage-warning': 'Extra usage close to its spending cap',
-  'overage-exhausted': 'Extra usage exhausted too',
-  'out-of-credits': 'Extra usage exhausted: out of credits',
-  'org-zero-credit-limit': 'Org service zero-credit limit',
-  'org-spend-cap-hit': 'Org spend cap hit (disabled until reset)',
-  'member-zero-credit-limit': 'Member zero-credit limit',
-  'seat-tier-zero-credit-limit': 'Seat-tier zero-credit limit',
-  'opus-limit': 'Opus weekly limit exhausted',
-  'opus-warning': 'Opus weekly limit early warning — only an Opus model warns',
-  'sonnet-limit': 'Sonnet weekly limit exhausted',
-  'sonnet-warning': 'Sonnet weekly limit early warning — only a Sonnet model warns',
-  'extra-usage-required': 'Headerless 429: extra usage required',
-  clear: 'Clear mock headers and disable the engine',
-}
-
-export function getScenarioDescription(scenario: MockScenario): string {
-  return SCENARIO_DESCRIPTIONS[scenario] ?? 'Unknown scenario'
-}
-
 function applyOverageBranch(overageStatus: 'allowed' | 'allowed_warning' | 'rejected'): void {
   if (exceededLimits.length === 0) {
     exceededLimits.push({ type: 'five_hour', resetsAt: hoursFromNowEpoch(5) })

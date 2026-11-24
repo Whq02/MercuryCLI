@@ -85,8 +85,6 @@ check('the scenario re-arms after the 7d setter, byte for byte the first tier ag
 mock.setMockRateLimitScenario('clear')
 check('clear disarms', mock.getMockHeaders() === null || mock.shouldProcessMockLimits() === false)
 
-check('the description still says what it shows', mock.getScenarioDescription(SCENARIO) === 'Weekly limit early warning')
-
 rmSync(HOME, { recursive: true, force: true })
 console.log(`\n${failures === 0 ? '✅' : '❌'} the mock scenario speaks: ${checks - failures}/${checks} checks passed`)
 process.exit(failures === 0 ? 0 : 1)

@@ -125,8 +125,6 @@ check("leaving the per-model scenario re-folds the env payload: the Opus pool is
 delete process.env.MERCURY_MOCK_USAGE_PAYLOAD
 mock.setMockRateLimitScenario('clear')
 
-check('the two per-model descriptions say whose seat warns', /only an Opus model warns/.test(mock.getScenarioDescription('opus-warning')) && /only a Sonnet model warns/.test(mock.getScenarioDescription('sonnet-warning')), j([mock.getScenarioDescription('opus-warning'), mock.getScenarioDescription('sonnet-warning')]), 'getScenarioDescription in src/models/roads/anthropic/mockRateLimits.ts must say only an Opus model warns for opus-warning and only a Sonnet model warns for sonnet-warning')
-
 rmSync(HOME, { recursive: true, force: true })
 console.log(`\n${failures === 0 ? '✅' : '❌'} the per-model warning scenarios speak: ${checks - failures}/${checks} checks passed`)
 process.exit(failures === 0 ? 0 : 1)
