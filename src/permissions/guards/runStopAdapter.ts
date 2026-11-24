@@ -48,24 +48,6 @@ export function turnBoundaryUserText(messages: readonly Message[]): string {
     .trim()
 }
 
-export function lastAssistantText(messages: readonly Message[]): string {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const m = messages[i]!
-    if (m.type !== 'assistant') continue
-    const content = m.message?.content
-    if (!Array.isArray(content)) return ''
-    return content
-      .filter(
-        b =>
-          b?.type === 'text' && typeof (b as { text?: unknown }).text === 'string',
-      )
-      .map(b => (b as { text: string }).text)
-      .join('\n')
-      .trim()
-  }
-  return ''
-}
-
 export interface RunStopAdapterOptions {
   maxBlocks: number
   wordingUnfinished: boolean
