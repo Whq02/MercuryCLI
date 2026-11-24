@@ -25,6 +25,7 @@ import {
   onSeatSpawned,
   requestSessionFacts,
 } from '../session-seat/sessionSeat.js'
+import { signInStoreOpened } from '../session-seat/signInView.js'
 import { resetSeatProjections } from '../../engine/connector/seatProjections.js'
 import {
   claimWarmRunner,
@@ -255,6 +256,7 @@ async function daemonRun(args: string[]): Promise<void> {
   if (controlEnabled) {
     const ownStartToken = getProcessStartTokenAsync(process.pid)
     const ownStartInstant = processInstantStartForm() === 'instant' ? getProcessStartInstantAsync(process.pid) : ownStartToken
+    void signInStoreOpened()
     const seatCeiling = seatCeilingFactsAsync()
     const successorOf = parseHandoverFrom(flagEnv('MERCURY_DAEMON_SUCCESSOR_OF'))
     const handoverFrom = parseHandoverFrom(flagEnv('MERCURY_DAEMON_HANDOVER_FROM'))

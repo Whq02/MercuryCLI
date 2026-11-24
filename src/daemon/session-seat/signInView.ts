@@ -4,11 +4,16 @@ import { readModelListFacts } from '../../models/roads/typedModelIds.js'
 import { dropCredentialMemos } from '../../models/sign-in/lifecycle/oauthLifecycle.js'
 import { getAuthConfigHomeDir } from '../../platform/environment/envUtils.js'
 import { computedDefault, resetComputedDefaultMemo } from '../../models/catalogue/computedDefault.js'
-import { getSecureStorage } from '../../platform/secure-storage/index.js'
+import { getSecureStorage, keychainReachable } from '../../platform/secure-storage/index.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
 import type { DaemonSignInViewV1, SignInFamilyViewV1 } from '../control/protocol.js'
 
 const LIVE_READ_TTL_MS = 2_000
 let lastLiveReadAt = 0
+
+export async function signInStoreOpened(): Promise<void> {
+  if (!keychainReachable()) await getSecureStorage().readAsync().catch(passedOver)
+}
 
 export function refreshSignInReads(force = false): boolean {
   const now = Date.now()

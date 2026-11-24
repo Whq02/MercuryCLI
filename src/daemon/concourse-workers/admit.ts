@@ -15,7 +15,7 @@ import { readSessionWorkers, unwrittenSessionRecordsRefusal } from './store.js'
 import { reactivateConcourseSession } from './reactivate.js'
 import type { ConcourseWorkerRecordV1 } from './record.js'
 import { validateWorkerModelChoice, canonicalWorkerModelId } from '../../screen/concourse-model/workerModels.js'
-import { refreshSignInReads, describeSignInRead } from '../session-seat/signInView.js'
+import { refreshSignInReads, describeSignInRead, signInStoreOpened } from '../session-seat/signInView.js'
 import { isLocalModelId } from '../../models/roads/local/localCatalogue.js'
 import { partiallySanitizeUnicode } from '../../platform/text/unicodeSanitization.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
@@ -163,6 +163,7 @@ export function makeConcourseAdmitHandler(
       req.modelKey === undefined && req.resumeSessionId !== undefined
         ? resumeModelKeyOf(req.resumeSessionId, req.workspaceDir, deps.dir)
         : undefined
+    await signInStoreOpened()
     refreshSignInReads(true)
     const validated = await validateWorkerModelChoice(req.modelKey ?? retainedModelKey, 'session')
     let admission = validated
