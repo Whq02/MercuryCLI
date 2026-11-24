@@ -1,6 +1,7 @@
 import { constants as fsConstants, lstatSync, statSync, type Stats } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { sleep } from '../async/sleep.js'
 import { hostEnv } from '../environment/hostEnv.js'
 import { getPlatform, type Platform } from '../environment/platform.js'
 
@@ -124,6 +125,34 @@ export function heldFileRetryDelayMs(
   if (!isTransientHeldFileCode(code, platform)) return null
   if (attempt < 1 || attempt > ladder.length) return null
   return ladder[attempt - 1]!
+}
+
+export async function rideOutHeldFile<T>(
+  attempt: () => T,
+  isHeld: (error: unknown) => boolean,
+  initialFailure?: { error: unknown },
+): Promise<T> {
+  let last: unknown
+  if (initialFailure !== undefined) {
+    last = initialFailure.error
+  } else {
+    try {
+      return attempt()
+    } catch (error) {
+      if (!isHeld(error)) throw error
+      last = error
+    }
+  }
+  for (const wait of HELD_FILE_PATIENT_RETRY_DELAYS_MS.slice(HELD_FILE_RETRY_DELAYS_MS.length)) {
+    await sleep(wait)
+    try {
+      return attempt()
+    } catch (error) {
+      if (!isHeld(error)) throw error
+      last = error
+    }
+  }
+  throw last
 }
 
 export function dirFsyncErrorIsFatal(

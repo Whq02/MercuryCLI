@@ -8,8 +8,7 @@ import { canonicalWorkspaceId } from './admission.js'
 import { withDaemonStoreLock } from './storeLock.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 import { errorMessage } from '../../platform/errors/errors.js'
-import { sleep } from '../../platform/async/sleep.js'
-import { HELD_FILE_PATIENT_RETRY_DELAYS_MS, HELD_FILE_RETRY_DELAYS_MS } from '../../platform/host-os/files.js'
+import { rideOutHeldFile } from '../../platform/host-os/files.js'
 import { DurablePublishError } from '../../platform/substrate/durablePublish.js'
 import { defineStore } from '../../platform/substrate/fileStore.js'
 import { statFingerprint } from '../../platform/substrate/startupMenu.js'
@@ -311,35 +310,13 @@ export function updateConcourseWorkers(
   return workers
 }
 
-async function rideOutRefusedSave(
-  mutate: (workers: Record<string, ConcourseWorkerRecordV1>) => void,
-  dir: string | undefined,
-  refused: DurablePublishError,
-): Promise<void> {
-  let last = refused
-  for (const wait of HELD_FILE_PATIENT_RETRY_DELAYS_MS.slice(HELD_FILE_RETRY_DELAYS_MS.length)) {
-    await sleep(wait)
-    try {
-      updateConcourseWorkers(mutate, dir)
-      return
-    } catch (error) {
-      if (!(error instanceof DurablePublishError)) throw error
-      last = error
-    }
-  }
-  throw last
-}
+const isDurablePublishError = (error: unknown): boolean => error instanceof DurablePublishError
 
 export async function updateConcourseWorkersRidingOut(
   mutate: (workers: Record<string, ConcourseWorkerRecordV1>) => void,
   dir?: string,
 ): Promise<void> {
-  try {
-    updateConcourseWorkers(mutate, dir)
-  } catch (error) {
-    if (!(error instanceof DurablePublishError)) throw error
-    await rideOutRefusedSave(mutate, dir, error)
-  }
+  await rideOutHeldFile(() => updateConcourseWorkers(mutate, dir), isDurablePublishError)
 }
 
 export function updateConcourseWorkersOrHold(
@@ -349,8 +326,8 @@ export function updateConcourseWorkersOrHold(
   try {
     updateConcourseWorkers(mutate, dir)
   } catch (error) {
-    if (!(error instanceof DurablePublishError)) throw error
-    void rideOutRefusedSave(mutate, dir, error).catch(lost => {
+    if (!isDurablePublishError(error)) throw error
+    void rideOutHeldFile(() => updateConcourseWorkers(mutate, dir), isDurablePublishError, { error }).catch(lost => {
       console.error(`[daemon] ${concourseWorkersPath(dir)}: a change to the session records was held in memory and never saved, so the records keep what they said before it: ${errorMessage(lost)}`)
     })
   }
