@@ -6,7 +6,7 @@ import { untrustedWorkspaceHeadless } from '../../platform/config/trust.js'
 import { normalizePathForComparison } from '../../platform/files/file.js'
 import { getFsImplementation } from '../../platform/files/fsOperations.js'
 import { toTildePath } from '../../platform/files/path.js'
-import { decidingGuideOf, folderSources } from './adapters/index.js'
+import { decidingGuideOf, folderSources, isFile } from './adapters/index.js'
 import { attachedInstructions, instructionAttached, type AttachedInstruction } from './attachedText.js'
 import { agentsMdConvention } from './adapters/agentsMd.js'
 import { conventionsForProfile, otherToolFormats, sharedFormatLabel } from './compositionOrder.js'
@@ -14,7 +14,6 @@ import type { InstructionBundleEntry, InstructionConvention, InstructionSourceEn
 import { processRulesDir } from './discovery.js'
 import { getInstructionCompositionState, getInstructionFiles, onInstructionCacheInvalidated } from './instructionFiles.js'
 import { mercuryNativeConvention } from './nativeSource.js'
-import { passedOver } from '../../platform/errors/passedOver.js'
 
 type InstructionListingRow = { path: string; tool: string; state: string; globs?: string[]; named?: string }
 
@@ -75,15 +74,6 @@ function chainOutward(start: string): string[] {
   const dirs: string[] = []
   for (let dir = start; dir !== parse(dir).root; dir = dirname(dir)) dirs.push(dir)
   return dirs.reverse()
-}
-
-const isFile = (path: string): boolean => {
-  try {
-    return getFsImplementation().statSync(path).isFile()
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
 }
 
 function nearerName(convention: InstructionConvention, holder: string, sources: string[]): string {

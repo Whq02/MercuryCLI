@@ -25,7 +25,7 @@ export function conventionsForProfile(profile: 'auto' | 'native'): InstructionCo
   return composeNativeFirst(profile)
 }
 
-function isFile(path: string): boolean {
+export function isFile(path: string): boolean {
   try {
     return getFsImplementation().statSync(path).isFile()
   } catch (error) {
