@@ -64,22 +64,6 @@ export function markSessionCleared(sessionId: string | null | undefined): Cleare
   }
 }
 
-export function unmarkSessionCleared(sessionId: string | null | undefined): ClearedMarkResult {
-  if (!sessionId) return { ok: true }
-  try {
-    const map = readMapStrict()
-    if (!(sessionId in map)) return { ok: true }
-    delete map[sessionId]
-    writeFileSync(cachePath(), JSON.stringify(map, null, 2) + '\n')
-    memo = null
-    return { ok: true }
-  } catch (error) {
-    const detail = errorMessage(error)
-    logError(new Error(`the cleared mark of session ${sessionId} could not be removed from ${cachePath()}, so it stays hidden: ${detail}`))
-    return { ok: false, error: detail }
-  }
-}
-
 function clearedSessionIds(): Set<string> {
   const now = Date.now()
   if (memo && now - memo.at < MEMO_MS) return memo.ids

@@ -181,11 +181,9 @@ console.log('\nw07-3 · clearedSessions + hopIntoSession — failed clear mark r
 
     const file = path.join(HOME, 'cleared-sessions.json')
     out.okMark = cleared.markSessionCleared('sess-ok-1')
-    out.okUnmark = cleared.unmarkSessionCleared('sess-ok-1')
 
     fs.writeFileSync(file, '{corrupt json')
     out.badMark = cleared.markSessionCleared('sess-bad-1')
-    out.badUnmark = cleared.unmarkSessionCleared('sess-bad-1')
 
     const seen = []
     const unsub = receipts.subscribeSeatReceipts(r => seen.push(r))
@@ -212,14 +210,10 @@ console.log('\nw07-3 · clearedSessions + hopIntoSession — failed clear mark r
     }
   `)
   const okMark = r.out.okMark as { ok?: boolean } | undefined
-  const okUnmark = r.out.okUnmark as { ok?: boolean } | undefined
   const badMark = r.out.badMark as { ok?: boolean; error?: string } | undefined
-  const badUnmark = r.out.badUnmark as { ok?: boolean; error?: string } | undefined
   const seen = (r.out.receipts as Array<{ text?: string; level?: string }> | undefined) ?? []
   check('w07-3 markSessionCleared returns { ok: true } on success', okMark?.ok === true, JSON.stringify(okMark))
-  check('w07-3 unmarkSessionCleared returns { ok: true } on success', okUnmark?.ok === true, JSON.stringify(okUnmark))
   check('w07-3 markSessionCleared returns { ok: false, error } on corrupt map', badMark?.ok === false && typeof badMark.error === 'string' && badMark.error.length > 0, JSON.stringify(badMark))
-  check('w07-3 unmarkSessionCleared returns { ok: false, error } on corrupt map', badUnmark?.ok === false && typeof badUnmark.error === 'string' && badUnmark.error.length > 0, JSON.stringify(badUnmark))
   check(
     'w07-3 clearFocusedSession emits warning receipt when cleared mark fails to save',
     seen.some(item => item.level === 'warning' && typeof item.text === 'string' && item.text.includes('the cleared mark could not be saved (') && item.text.includes('), so this session may show in the list again')),

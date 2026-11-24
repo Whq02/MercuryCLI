@@ -321,7 +321,7 @@ async function runSessionEnvironment(): Promise<void> {
 async function runClearedSessions(): Promise<void> {
   console.log('\nclearedSessions — unreadable or corrupt map is never overwritten by markSessionCleared')
   if (!POSIX_MODES) return
-  const { markSessionCleared, unmarkSessionCleared, resetClearedSessionsMemo } = await import(
+  const { markSessionCleared, resetClearedSessionsMemo } = await import(
     '../../src/sessions/transcripts/clearedSessions.ts'
   )
   const filePath = join(HOME, 'cleared-sessions.json')
@@ -331,7 +331,6 @@ async function runClearedSessions(): Promise<void> {
   try {
     resetClearedSessionsMemo()
     markSessionCleared('new-session-2')
-    unmarkSessionCleared('kept-session-1')
   } finally {
     chmodSync(filePath, 0o600)
   }
@@ -354,9 +353,7 @@ async function runClearedSessions(): Promise<void> {
   resetClearedSessionsMemo()
   const { isSessionCleared } = await import('../../src/sessions/transcripts/clearedSessions.ts')
   markSessionCleared('normal-session-1')
-  check('normal markSessionCleared and unmarkSessionCleared still round-trip', isSessionCleared('normal-session-1') === true)
-  unmarkSessionCleared('normal-session-1')
-  check('unmarkSessionCleared removes the mark', isSessionCleared('normal-session-1') === false)
+  check('normal markSessionCleared still round-trip', isSessionCleared('normal-session-1') === true)
   rmSync(filePath, { force: true })
   resetClearedSessionsMemo()
 }

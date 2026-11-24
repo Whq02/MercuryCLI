@@ -35,7 +35,7 @@ console.log('============================================================')
 
 
 {
-  const { markSessionCleared, unmarkSessionCleared, isSessionCleared, resetClearedSessionsMemo } =
+  const { markSessionCleared, isSessionCleared, resetClearedSessionsMemo } =
     await import('../../src/sessions/transcripts/clearedSessions.ts')
   const os = await import('node:os')
   const fs = await import('node:fs')
@@ -45,11 +45,6 @@ console.log('============================================================')
   markSessionCleared('sess-reopen')
   resetClearedSessionsMemo()
   check('marked session reads cleared', isSessionCleared('sess-reopen') === true, 'fix markSessionCleared or isSessionCleared in src/sessions/transcripts/clearedSessions.ts so a marked session persists across a memo reset')
-  unmarkSessionCleared('sess-reopen')
-  resetClearedSessionsMemo()
-  check('unmark (the resume reopen) makes it visible again', isSessionCleared('sess-reopen') === false, 'fix unmarkSessionCleared in src/sessions/transcripts/clearedSessions.ts so it removes the mark that resume reopen relies on')
-  unmarkSessionCleared('never-marked')
-  check('unmark of an unknown id is a safe no-op', true)
   delete process.env.MERCURY_CONFIG_DIR
   fs.rmSync(dir, { recursive: true, force: true })
 
