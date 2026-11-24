@@ -274,7 +274,7 @@ export async function* foldContext(run: RunCtx, state: TurnState, toolUseContext
     const after = foldResult.truePostFoldTokenCount ?? foldResult.postFoldTokenCount
     emitFoldTrace('auto-compact', { tokensFreed: typeof before === 'number' && typeof after === 'number' ? before - after : undefined })
     tracking = {
-      compacted: true,
+      folded: true,
       turnId: run.deps.uuid(),
       turnCounter: 0,
       consecutiveFailures: 0,
@@ -305,7 +305,7 @@ export async function* foldContext(run: RunCtx, state: TurnState, toolUseContext
     }
   } else if (consecutiveFailures !== undefined || pauseHolds) {
     tracking = {
-      ...(opened.tracking ?? { compacted: false, turnId: '', turnCounter: 0 }),
+      ...(opened.tracking ?? { folded: false, turnId: '', turnCounter: 0 }),
       ...(consecutiveFailures !== undefined ? { consecutiveFailures } : {}),
       ...(pauseHolds ? { rapidRefillPaused: true } : {}),
     }

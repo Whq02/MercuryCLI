@@ -93,7 +93,7 @@ function makeCompact(answer: Record<string, unknown>) {
   const calls: CompactCall[] = []
   const autocompact = async (messages: unknown[], _ctx: unknown, _cache: unknown, _source?: string, tracking?: unknown, snip?: number, forced?: unknown) => {
     calls.push({ messages: [...messages], forced, tracking, snip })
-    if (forced !== undefined) return { wasCompacted: false, refusal: 'rig: the breaker' }
+    if (forced !== undefined) return { wasFolded: false, refusal: 'rig: the breaker' }
     return answer
   }
   return { calls, autocompact }
@@ -238,7 +238,7 @@ const settledTransitions = (events: AnyEvent[]): unknown[] => events.filter(e =>
 const noticeTexts = (yields: AnyMsg[]): string[] => yields.filter(y => y.type === 'system').map(y => String(y.content ?? ''))
 const errorYields = (yields: AnyMsg[]): AnyMsg[] => yields.filter(y => y.type === 'assistant' && y.isApiErrorMessage === true)
 const { ERROR_MESSAGE_POST_FOLD_OVER_THRESHOLD } = await import('../../src/engine/compaction/foldConversation.js')
-const SUMMARY_TOO_LARGE = { wasCompacted: false, consecutiveFailures: 1, refusal: ERROR_MESSAGE_POST_FOLD_OVER_THRESHOLD }
+const SUMMARY_TOO_LARGE = { wasFolded: false, consecutiveFailures: 1, refusal: ERROR_MESSAGE_POST_FOLD_OVER_THRESHOLD }
 
 section('P1 the owner\'s shape — the breaker tripped, the view over the limit by a small gap, every prunable result before the anchor: the prune rung clears the old results and the retry GOES OUT')
 {

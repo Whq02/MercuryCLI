@@ -85,7 +85,7 @@ for (const [columns, rows, view] of [[120, 40, 'lead'], [213, 60, 'lead'], [213,
     useHoldsEscape(held)
     return h(Box, { width: columns, flexDirection: 'column' }, h(FocusedSessionStatusRow), h(ComposerFooterLeftSide, { exitPending: false, exitKeyName: null, isPasting: false, mode: 'prompt', isLoading: true }), h(CompactWorkSummary, { columns, focused: false, onFocus: () => {} }), shown ? h(Box, { flexDirection: 'column' }, h(Text, null, 'Confirmation'), h(Select, { options: [{ label: 'Yes', value: 'yes' }, { label: 'No', value: 'no' }], onCancel: () => { declined++; setShown(false) } }), h(Text, null, 'esc declines')) : h(Text, null, 'Conversation'))
   }
-  const scene = await mountOffscreen(h(App, { initialState: { ...getDefaultAppState(), ...(view === 'lead' ? {} : { viewingAgentTaskId: 'helper' }) }, getFpsMetrics: () => undefined, children: h(KeybindingSetup, { children: h(Frame) }) }), columns, rows)
+  const scene = await mountOffscreen(h(App, { initialState: { ...getDefaultAppState(), ...(view === 'lead' ? {} : { viewingCrewmateTaskId: 'helper' }) }, getFpsMetrics: () => undefined, children: h(KeybindingSetup, { children: h(Frame) }) }), columns, rows)
   try {
     await settledFrame(scene, frame => frame.includes('esc ') && frame.includes('sessions on'))
     const before = scene.screen()

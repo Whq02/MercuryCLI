@@ -51,11 +51,11 @@ try {
   for (const name of ['usage', 'config', 'llmhost']) {
     const result = await dispatch(`/${name}`)
     check(`a stray /${name} creates zero conversation rows`, result.messages.length === 0, String(result.messages.length), 'a screen-seat command must return no messages from processSlashCommand in src/engine/user-input/processSlashCommand.tsx')
-    check(`…and starts no query`, result.shouldQuery === false, '', 'the refusal path in src/engine/user-input/processSlashCommand.tsx must return shouldQuery false')
+    check(`…and starts no query`, result.shouldStartTurn === false, '', 'the refusal path in src/engine/user-input/processSlashCommand.tsx must return shouldQuery false')
     check(`…its receipt rides resultText alone and names the command's one seat`, new RegExp(`The /${name} command is an interactive surface`).test(result.resultText ?? '') && (result as { commandRefused?: boolean }).commandRefused === true, result.resultText ?? '(none)', 'the refusal receipt for a screen-seat command is built in src/engine/user-input/processSlashCommand.tsx; it must carry the interactive-surface text and commandRefused true')
   }
   const halt = await dispatch('/halt')
-  check('a stray /halt answers as an unknown command, refused', /^Unknown command: \/halt/.test(halt.resultText ?? '') && halt.shouldQuery === false && (halt as { commandRefused?: boolean }).commandRefused === true, halt.resultText ?? '(none)', 'an unregistered command must be refused as Unknown command in src/engine/user-input/processSlashCommand.tsx with commandRefused true and no query')
+  check('a stray /halt answers as an unknown command, refused', /^Unknown command: \/halt/.test(halt.resultText ?? '') && halt.shouldStartTurn === false && (halt as { commandRefused?: boolean }).commandRefused === true, halt.resultText ?? '(none)', 'an unregistered command must be refused as Unknown command in src/engine/user-input/processSlashCommand.tsx with commandRefused true and no query')
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }

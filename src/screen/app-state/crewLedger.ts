@@ -148,7 +148,7 @@ export function clearCrewmate(id: string, setAppState: SetAppState): boolean {
       ...prev,
       tasks,
       crewLedger: clearCrewLedgerRow(prev.crewLedger, id),
-      ...(prev.viewingAgentTaskId === id ? { viewingAgentTaskId: undefined, viewSelectionMode: 'none' as const } : {}),
+      ...(prev.viewingCrewmateTaskId === id ? { viewingCrewmateTaskId: undefined, viewSelectionMode: 'none' as const } : {}),
       ...(prev.mainChatTaskId === id ? { mainChatTaskId: undefined } : {}),
     }
   })

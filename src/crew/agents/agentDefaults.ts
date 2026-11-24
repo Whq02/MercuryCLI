@@ -44,11 +44,11 @@ export function crewmateDefaults(): CrewmateDefaults {
   return crewmateDefaultsOf(getGlobalConfig().agents)
 }
 
-export function crewmateDefaultEffort(): EffortLevel {
+export function defaultCrewmateEffort(): EffortLevel {
   return crewmateDefaults().effort
 }
 
-export function crewmateDefaultModel(): string | undefined {
+export function defaultCrewmateModel(): string | undefined {
   return crewmateDefaults().model
 }
 

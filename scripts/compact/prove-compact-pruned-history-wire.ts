@@ -541,7 +541,7 @@ section('N1 only a pairing complaint is the malformed-history class — a parame
   for (const negative of negatives) {
     fixture.script([negative.body, { text: 'never reached' }])
     const r = await compactOnce(ctxN, historyN, '16000')
-    check(`${negative.name}: one summary request, one failure counted, no pause`, r.threw === undefined && r.wire.length === 1 && r.result.wasCompacted === false && r.result.consecutiveFailures === 1 && r.result.paused === undefined, `only a pairing complaint may pause (PAIRING_COMPLAINTS in src/engine/compaction/fold/refusals.ts); threw=${r.threw ?? 'no'} requests=${r.wire.length} result=${JSON.stringify({ consecutiveFailures: r.result.consecutiveFailures, paused: r.result.paused, refusal: String(r.result.refusal ?? '').slice(0, 120) })}`)
+    check(`${negative.name}: one summary request, one failure counted, no pause`, r.threw === undefined && r.wire.length === 1 && r.result.wasFolded === false && r.result.consecutiveFailures === 1 && r.result.paused === undefined, `only a pairing complaint may pause (PAIRING_COMPLAINTS in src/engine/compaction/fold/refusals.ts); threw=${r.threw ?? 'no'} requests=${r.wire.length} result=${JSON.stringify({ consecutiveFailures: r.result.consecutiveFailures, paused: r.result.paused, refusal: String(r.result.refusal ?? '').slice(0, 120) })}`)
     check(`${negative.name}: the reason still rides the refusal, unclassified`, typeof r.result.refusal === 'string' && (r.result.refusal as string).includes(negative.body.error.body.error.message) && !/malformed history/i.test(r.result.refusal as string), String(r.result.refusal ?? ''))
   }
   fixture.script([refusal('No tool output found for function call call_tlxFSxc72b7dbbq5yBsOGC7a.'), { text: 'never reached' }])

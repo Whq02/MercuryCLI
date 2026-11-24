@@ -82,7 +82,7 @@ function useCrewmate(taskId: string | undefined): CrewmateInView | null {
 }
 
 export function useViewedCrewmate(): CrewmateInView | null {
-  const viewing = useAppStateMaybeOutsideOfProvider((s: AppState) => s.viewingAgentTaskId)
+  const viewing = useAppStateMaybeOutsideOfProvider((s: AppState) => s.viewingCrewmateTaskId)
   return useCrewmate(viewing)
 }
 

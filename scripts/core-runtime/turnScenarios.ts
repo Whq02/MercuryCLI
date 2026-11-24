@@ -338,7 +338,7 @@ export function openRig(plan: Plan): OpenRig {
   const autocompact = async (messages: unknown[], _context: unknown, cacheSafe: { forkContextMessages?: unknown[]; postFoldCarry?: unknown[] }, source: unknown, tracking: unknown, prunedTokensFreed: unknown, forced: unknown): Promise<Row> => {
     const index = counts.folds++
     log.push(mask({ autocompact: index + 1, source, tracking, prunedTokensFreed, forced, messages, carry: cacheSafe?.postFoldCarry }))
-    return plan.autocompact?.[index] ?? { wasCompacted: false }
+    return plan.autocompact?.[index] ?? { wasFolded: false }
   }
   let seeded = 0
   const params: Row = {
@@ -657,7 +657,7 @@ const pausedUntil = (then: (rig: Rig) => void) => (rig: Rig): (() => void) => {
 const SENTENCE = 'I will now check the configuration file and report back on what it holds. '
 const CHANT = SENTENCE.repeat(14)
 const folded = (tokens = 120): Row => ({
-  wasCompacted: true,
+  wasFolded: true,
   foldResult: {
     boundaryMarker: createFoldBoundaryMessage('auto', 900),
     summaryMessages: [createUserMessage({ content: 'RIG SUMMARY', isCompactSummary: true })],
@@ -857,25 +857,25 @@ export const SCENARIOS: Scenario[] = [
     name: 'provider_overflow_fold_lands',
     transitions: ['overflow_recovery'],
     terminal: 'completed',
-    plan: () => ({ seed: history(), autocompact: [{ wasCompacted: false }, folded()], script: [[y(overflowed(PROVIDER_OVERFLOW))], [y(says('after the fold'))]] }),
+    plan: () => ({ seed: history(), autocompact: [{ wasFolded: false }, folded()], script: [[y(overflowed(PROVIDER_OVERFLOW))], [y(says('after the fold'))]] }),
   },
   {
     name: 'provider_overflow_fold_fails',
     transitions: ['overflow_recovery'],
     terminal: 'prompt_too_long',
-    plan: () => ({ seed: history(), autocompact: [{ wasCompacted: false }, { wasCompacted: false, refusal: 'the summary call failed' }], script: [[y(overflowed(PROVIDER_OVERFLOW))], [y(says('never asked'))]] }),
+    plan: () => ({ seed: history(), autocompact: [{ wasFolded: false }, { wasFolded: false, refusal: 'the summary call failed' }], script: [[y(overflowed(PROVIDER_OVERFLOW))], [y(says('never asked'))]] }),
   },
   {
     name: 'provider_overflow_prune_after_failed_fold',
     transitions: ['overflow_recovery', 'overflow_recovery'],
     terminal: 'completed',
-    plan: () => ({ tools: [{ name: 'Read' }], seed: readTwelveTimes(), autocompact: [{ wasCompacted: false }, { wasCompacted: false, refusal: 'the summary call failed' }], script: [[y(overflowed(NARROW_OVERFLOW))], [y(says('after the prune'))]] }),
+    plan: () => ({ tools: [{ name: 'Read' }], seed: readTwelveTimes(), autocompact: [{ wasFolded: false }, { wasFolded: false, refusal: 'the summary call failed' }], script: [[y(overflowed(NARROW_OVERFLOW))], [y(says('after the prune'))]] }),
   },
   {
     name: 'provider_overflow_breaker',
     transitions: [],
     terminal: 'rapid_refill_breaker',
-    plan: () => ({ seed: history(), autocompact: [{ wasCompacted: false, rapidRefillBreakerTripped: true }], script: [[y(overflowed(PROVIDER_OVERFLOW))], [y(says('never asked'))]] }),
+    plan: () => ({ seed: history(), autocompact: [{ wasFolded: false, rapidRefillBreakerTripped: true }], script: [[y(overflowed(PROVIDER_OVERFLOW))], [y(says('never asked'))]] }),
   },
   {
     name: 'provider_overflow_no_history',
@@ -1174,25 +1174,25 @@ export const SCENARIOS: Scenario[] = [
     name: 'estimate_overflow_fold_lands',
     transitions: ['overflow_recovery'],
     terminal: 'completed',
-    plan: () => ({ env: BLOCKED_NO_AUTO_FOLD, seed: [ask('an old question'), fat('an old fat answer', 5_000), ask('hello there rig')], autocompact: [{ wasCompacted: false }, folded(50)], script: [[y(says('after the fold'))]] }),
+    plan: () => ({ env: BLOCKED_NO_AUTO_FOLD, seed: [ask('an old question'), fat('an old fat answer', 5_000), ask('hello there rig')], autocompact: [{ wasFolded: false }, folded(50)], script: [[y(says('after the fold'))]] }),
   },
   {
     name: 'estimate_overflow_fold_fails',
     transitions: ['overflow_recovery'],
     terminal: 'blocking_limit',
-    plan: () => ({ env: BLOCKED_NO_AUTO_FOLD, seed: [ask('an old question'), fat('an old fat answer', 5_000), ask('hello there rig')], autocompact: [{ wasCompacted: false }, { wasCompacted: false }], script: [[y(says('never asked'))]] }),
+    plan: () => ({ env: BLOCKED_NO_AUTO_FOLD, seed: [ask('an old question'), fat('an old fat answer', 5_000), ask('hello there rig')], autocompact: [{ wasFolded: false }, { wasFolded: false }], script: [[y(says('never asked'))]] }),
   },
   {
     name: 'rapid_refill_notice',
     transitions: [],
     terminal: 'completed',
-    plan: () => ({ autocompact: [{ wasCompacted: false, rapidRefillBreakerTripped: true }], script: [[y(says('the answer beside the notice'))]] }),
+    plan: () => ({ autocompact: [{ wasFolded: false, rapidRefillBreakerTripped: true }], script: [[y(says('the answer beside the notice'))]] }),
   },
   {
     name: 'rapid_refill_breaker_ends',
     transitions: [],
     terminal: 'rapid_refill_breaker',
-    plan: () => ({ env: BLOCKED, seed: [ask('an old question'), fat('an old fat answer', 5_000), ask('hello there rig')], autocompact: [{ wasCompacted: false, rapidRefillBreakerTripped: true }], script: [[y(says('never asked'))]] }),
+    plan: () => ({ env: BLOCKED, seed: [ask('an old question'), fat('an old fat answer', 5_000), ask('hello there rig')], autocompact: [{ wasFolded: false, rapidRefillBreakerTripped: true }], script: [[y(says('never asked'))]] }),
   },
   {
     name: 'compaction_boundary',
@@ -1210,7 +1210,7 @@ export const SCENARIOS: Scenario[] = [
     name: 'compaction_paused_notice',
     transitions: [],
     terminal: 'completed',
-    plan: () => ({ autocompact: [{ wasCompacted: false, paused: true, refusal: 'folding is paused for this run' }], script: [[y(says('the answer beside the notice'))]] }),
+    plan: () => ({ autocompact: [{ wasFolded: false, paused: true, refusal: 'folding is paused for this run' }], script: [[y(says('the answer beside the notice'))]] }),
   },
   {
     name: 'tool_changes_the_context',
@@ -1278,12 +1278,12 @@ export const SCENARIOS: Scenario[] = [
     name: 'paused_reply_then_overflow',
     transitions: ['overflow_recovery'],
     terminal: 'completed',
-    plan: () => ({ tools: [], seed: history(), autocompact: [{ wasCompacted: false }, folded()], script: [[y(pauses('Searching…')), y(overflowed(PROVIDER_OVERFLOW))], [y(says('after the fold'))]] }),
+    plan: () => ({ tools: [], seed: history(), autocompact: [{ wasFolded: false }, folded()], script: [[y(pauses('Searching…')), y(overflowed(PROVIDER_OVERFLOW))], [y(says('after the fold'))]] }),
   },
   {
     name: 'stream_fault_stamped_with_an_overflow',
     transitions: ['overflow_recovery'],
     terminal: 'completed',
-    plan: () => ({ seed: history(), autocompact: [{ wasCompacted: false }, folded()], script: [[y(says('the first half of the answer', 'stop_sequence')), y(faultedPastTheWindow())], [y(says('after the fold'))]] }),
+    plan: () => ({ seed: history(), autocompact: [{ wasFolded: false }, folded()], script: [[y(says('the first half of the answer', 'stop_sequence')), y(faultedPastTheWindow())], [y(says('after the fold'))]] }),
   },
 ]

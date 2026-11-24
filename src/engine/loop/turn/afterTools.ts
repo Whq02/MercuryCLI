@@ -88,7 +88,7 @@ export async function* afterTools(run: RunCtx, iter: IterationState): AsyncGener
     yield emit({ kind: 'attachment', message: rewind })
     iter.toolResults.push(rewind)
   }
-  if (iter.tracking?.compacted === true) iter.tracking.turnCounter++
+  if (iter.tracking?.folded === true) iter.tracking.turnCounter++
   yield* drainQueuedCommands(run, iter, iter.updatedToolUseContext)
 
   const closingNote = pastBudget ? [createUserMessage({ content: MAX_TURNS_CLOSING_TEXT, isMeta: true })] : []

@@ -174,9 +174,9 @@ if (command !== undefined) {
   const slashContext = context([command], true) as never
   const typed = await processSlashCommand(`/${NAME} ${POSITIVE}`, [], [], slashContext, () => {})
   const typedBodies = bodiesOf(typed.messages as Message[])
-  check('a typed /image-generation with an argument starts a turn carrying the same expansion', typed.shouldQuery === true && typedBodies.length === 1 && typedBodies[0] === expanded, `shouldQuery=${typed.shouldQuery} bodies=${typedBodies.length}`)
+  check('a typed /image-generation with an argument starts a turn carrying the same expansion', typed.shouldStartTurn === true && typedBodies.length === 1 && typedBodies[0] === expanded, `shouldQuery=${typed.shouldStartTurn} bodies=${typedBodies.length}`)
   const bare = await processSlashCommand(`/${NAME}`, [], [], slashContext, () => {})
-  check('a bare /image-generation answers its usage row and starts no turn', bare.shouldQuery === false && bare.resultText === bareUsageLine(command), String(bare.resultText))
+  check('a bare /image-generation answers its usage row and starts no turn', bare.shouldStartTurn === false && bare.resultText === bareUsageLine(command), String(bare.resultText))
 } else {
   check('the slash command expands the skill', false, 'no registered skill')
 }

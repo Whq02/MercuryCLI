@@ -84,7 +84,7 @@ export function BackgroundTasksDialog({
 }): React.ReactNode {
   const summaryEntry = entry === 'compact-summary'
   const tasks = useAppState((state: AppState) => state.tasks)
-  const viewingAgentTaskId = useAppState((state: AppState) => state.viewingAgentTaskId)
+  const viewingAgentTaskId = useAppState((state: AppState) => state.viewingCrewmateTaskId)
   const setAppState = useSetAppState()
   const roster = useFocusedWorkRoster()
   const sessionCrew = useSessionCrew()

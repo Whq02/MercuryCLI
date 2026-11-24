@@ -1,4 +1,4 @@
-import { crewmateDefaultModel } from '../../crew/agents/agentDefaults.js'
+import { defaultCrewmateModel } from '../../crew/agents/agentDefaults.js'
 
 import { classifyModelRoute } from '../roads/idSpaces.js'
 import { FIRST_PARTY_FAMILY_WORDS, routeOfFamilyWord } from './modelFamilies.js'
@@ -45,7 +45,7 @@ export function getCrewmateModel(
   if (toolSpecifiedModel) {
     return resolveModelWord(toolSpecifiedModel, parentModel)
   }
-  const declared = agentModel ?? crewmateDefaultModel() ?? INHERIT
+  const declared = agentModel ?? defaultCrewmateModel() ?? INHERIT
   if (declared === INHERIT) {
     return parentModel
   }

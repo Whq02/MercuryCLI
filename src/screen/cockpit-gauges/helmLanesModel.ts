@@ -219,8 +219,8 @@ type LanesModel = {
   runsLive: number
 }
 
-export function soloOf(input: Pick<LanesInput, 'sessionCrew' | 'viewingAgentTaskId' | 'mainChatTaskId' | 'tasks' | 'roster'>): boolean {
-  const keptIds = [input.viewingAgentTaskId, input.mainChatTaskId].filter((id): id is string => id != null)
+export function soloOf(input: Pick<LanesInput, 'sessionCrew' | 'viewingCrewmateTaskId' | 'mainChatTaskId' | 'tasks' | 'roster'>): boolean {
+  const keptIds = [input.viewingCrewmateTaskId, input.mainChatTaskId].filter((id): id is string => id != null)
   return input.sessionCrew.length === 0 && keptIds.length === 0 && runsOf(input.tasks, input.roster).length === 0
 }
 
@@ -252,7 +252,7 @@ export function buildLanesModel(input: LanesInput): LanesModel {
   const boxed = !input.mergedVitals
   const rowW = boxed ? railPanelInnerWidth(input.width) : input.width
 
-  const keptIds = [input.viewingAgentTaskId, input.mainChatTaskId].filter((id): id is string => id != null)
+  const keptIds = [input.viewingCrewmateTaskId, input.mainChatTaskId].filter((id): id is string => id != null)
   const crewAll = orderCrew(crewRowsOf(input.sessionCrew), keptIds)
   const crewEntries: CrewEntry[] = crewAll.map(row => ({ kind: 'task' as const, row }))
   const crewShown = crewEntries.slice(0, CREW_ROWS)
@@ -275,7 +275,7 @@ export function buildLanesModel(input: LanesInput): LanesModel {
   const density = densityPlan(input.activity, input.availRows ?? Infinity)
   const hintCap = hintBudget(density)
 
-  const viewingChild = input.viewingAgentTaskId != null
+  const viewingChild = input.viewingCrewmateTaskId != null
   const mainChatTint = lerpHex(tok.success, tok.surface1, 0.78)
 
   const facts = { input, tok, accent, nowMs, keptIds, crewEntries, crewShown, crewMore, runsShown, runsMore, runsLive, work, workbenchRows, solo, mission, hintCap, viewingChild, mainChatTint }

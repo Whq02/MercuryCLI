@@ -83,7 +83,7 @@ const send = async (commands: Command[], input: string, calls: { n: number; args
         ? String((message as { content?: unknown }).content ?? '')
         : `<${message.type}>`,
   )
-  return { calls: calls.n - before, args: calls.args.slice(before), shouldQuery: result.shouldQuery, resultText: result.resultText, contents }
+  return { calls: calls.n - before, args: calls.args.slice(before), shouldQuery: result.shouldStartTurn, resultText: result.resultText, contents }
 }
 
 section('§1 THE DISPATCHER WITH A FIXTURE ROSTER — a required hint answers bare, an optional or absent one runs (RED on the base: the required hint ran a turn)')
@@ -137,7 +137,7 @@ section('§2 THE REAL SKILLS — /debug bare turns nothing on and answers; /exte
   if (debug !== undefined) {
     const live = { ...debug, isEnabled: () => true } as Command
     const result = await processSlashCommand('/debug', [], [], makeContext([live]) as never, () => {})
-    check('/debug bare answers its usage row and starts no turn', result.shouldQuery === false && result.resultText === bareUsageLine(debug), `shouldQuery=${result.shouldQuery} text=${result.resultText}`)
+    check('/debug bare answers its usage row and starts no turn', result.shouldStartTurn === false && result.resultText === bareUsageLine(debug), `shouldQuery=${result.shouldStartTurn} text=${result.resultText}`)
     check('/debug bare turned debug logging on for nothing (the side effect belongs to the invoked skill)', isDebugMode() === false, 'isDebugMode() is true after a bare /debug')
     console.log(`  the row: ${bareUsageLine(debug)}`)
   }
@@ -150,7 +150,7 @@ section('§2 THE REAL SKILLS — /debug bare turns nothing on and answers; /exte
     let calls = 0
     const spied = { ...extensionMaker, isEnabled: () => true, getPromptForCommand: async () => { calls++; return [{ type: 'text', text: 'the extensionMaker pass' }] } } as Command
     const result = await processSlashCommand('/extension-maker', [], [], makeContext([spied]) as never, () => {})
-    check('/extension-maker bare builds its prompt and starts the turn, as today', calls === 1 && result.shouldQuery === true, `calls=${calls} shouldQuery=${result.shouldQuery}`)
+    check('/extension-maker bare builds its prompt and starts the turn, as today', calls === 1 && result.shouldStartTurn === true, `calls=${calls} shouldQuery=${result.shouldStartTurn}`)
   }
 }
 

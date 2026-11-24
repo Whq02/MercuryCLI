@@ -29,7 +29,7 @@ function releaseTask(task: CrewmateTaskState, evictAfterOverride?: number): Crew
 
 export function enterCrewmateView(taskId: string, setAppState: SetAppState): void {
   setAppState(prev => {
-    const prevId = prev.viewingAgentTaskId
+    const prevId = prev.viewingCrewmateTaskId
     const prevTask = prevId && prevId !== taskId ? prev.tasks[prevId] : undefined
     const shouldReleasePrev = isLocalCrewmate(prevTask) && prevTask.retain === true
 
@@ -40,7 +40,7 @@ export function enterCrewmateView(taskId: string, setAppState: SetAppState): voi
     if (
       !shouldReleasePrev &&
       !shouldRetainNext &&
-      prev.viewingAgentTaskId === taskId &&
+      prev.viewingCrewmateTaskId === taskId &&
       prev.viewSelectionMode === 'viewing-agent'
     ) {
       return prev
@@ -64,7 +64,7 @@ export function enterCrewmateView(taskId: string, setAppState: SetAppState): voi
     return {
       ...prev,
       tasks,
-      viewingAgentTaskId: taskId,
+      viewingCrewmateTaskId: taskId,
       viewSelectionMode: 'viewing-agent',
     }
   })
@@ -72,7 +72,7 @@ export function enterCrewmateView(taskId: string, setAppState: SetAppState): voi
 
 export function exitCrewmateView(setAppState: SetAppState): void {
   setAppState(prev => {
-    const prevId = prev.viewingAgentTaskId
+    const prevId = prev.viewingCrewmateTaskId
     if (!prevId) {
       if (prev.viewSelectionMode === 'none') return prev
       return {
@@ -90,7 +90,7 @@ export function exitCrewmateView(setAppState: SetAppState): void {
     return {
       ...prev,
       tasks,
-      viewingAgentTaskId: undefined,
+      viewingCrewmateTaskId: undefined,
       viewSelectionMode: 'none',
     }
   })
@@ -123,12 +123,12 @@ export function stopOrDismissCrewmate(taskId: string, setAppState: SetAppState, 
       ...prev.tasks,
       [taskId]: releaseTask(task, 0),
     }
-    const clearingView = prev.viewingAgentTaskId === taskId
+    const clearingView = prev.viewingCrewmateTaskId === taskId
     const clearingMainChat = prev.mainChatTaskId === taskId
     return {
       ...prev,
       tasks,
-      ...(clearingView ? { viewingAgentTaskId: undefined, viewSelectionMode: 'none' as const } : {}),
+      ...(clearingView ? { viewingCrewmateTaskId: undefined, viewSelectionMode: 'none' as const } : {}),
       ...(clearingMainChat ? { mainChatTaskId: undefined } : {}),
     }
   })

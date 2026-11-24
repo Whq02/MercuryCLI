@@ -89,7 +89,7 @@ const tok = resolveMercuryTokens('dark', '#88c0d0')
     mergedVitals: false,
     activity: 'active' as const,
     sessionCrew: [],
-    viewingAgentTaskId: undefined,
+    viewingCrewmateTaskId: undefined,
     mainChatTaskId: undefined,
     tasks: { s1: shellRun as never },
     roster: { rows: [] },

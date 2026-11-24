@@ -191,7 +191,7 @@ section('§3 THE DISPATCHER — a bare send of every user-invocable prompt comma
       const stderr = result.messages
         .map(message => (message.type === 'user' && typeof message.message.content === 'string' ? message.message.content : ''))
         .find(text => text.includes('<local-command-stderr>'))
-      return { calls, shouldQuery: result.shouldQuery, resultText: result.resultText, rows: result.messages.length, error: stderr ?? '' }
+      return { calls, shouldQuery: result.shouldStartTurn, resultText: result.resultText, rows: result.messages.length, error: stderr ?? '' }
     } catch (error) {
       return { calls, shouldQuery: false, resultText: undefined, rows: 0, error: error instanceof Error ? error.message : String(error) }
     }

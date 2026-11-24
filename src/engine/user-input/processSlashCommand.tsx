@@ -177,7 +177,7 @@ function finalizeCommandResult(
   if (result.messages.length === 0) {
     return {
       messages: [],
-      shouldQuery: false,
+      shouldStartTurn: false,
       ...(result.model !== undefined ? { model: result.model } : {}),
       ...(result.nextInput !== undefined ? { nextInput: result.nextInput } : {}),
       ...(result.submitNextInput !== undefined
@@ -200,7 +200,7 @@ function finalizeCommandResult(
     )
   if (
     isTwoRowUnknown ||
-    (!result.shouldQuery && !isAllLocalCommandSystem && !startsAtFoldBoundary)
+    (!result.shouldStartTurn && !isAllLocalCommandSystem && !startsAtFoldBoundary)
   ) {
     return {
       ...result,
@@ -331,7 +331,7 @@ async function executePromptCommand(
         ...hookMessages,
         permissionsAttachment,
       ],
-      shouldQuery: true,
+      shouldStartTurn: true,
       allowedTools,
       ...(model !== undefined ? { model } : {}),
       ...(effort !== undefined ? { effort } : {}),
@@ -344,7 +344,7 @@ async function executePromptCommand(
     if ((error as { name?: string } | null)?.name === 'AbortError') {
       return {
         messages: [echoed, createUserMessage({ content: INTERRUPT_MESSAGE })],
-        shouldQuery: false,
+        shouldStartTurn: false,
       }
     }
     logError(error)
@@ -353,7 +353,7 @@ async function executePromptCommand(
         echoed,
         createUserMessage({ content: stderrWrapped(String(error)) }),
       ],
-      shouldQuery: false,
+      shouldStartTurn: false,
     }
   }
 }
@@ -434,7 +434,7 @@ async function runForkedPromptCommand(
       const resultText = extractResultText(result.messages)
       return {
         messages: [echoed, createUserMessage({ content: stdoutWrapped(resultText) })],
-        shouldQuery: false,
+        shouldStartTurn: false,
         resultText,
       }
     } finally {
@@ -444,7 +444,7 @@ async function runForkedPromptCommand(
     logError(error)
     return {
       messages: [echoed, createUserMessage({ content: stderrWrapped(String(error)) })],
-      shouldQuery: false,
+      shouldStartTurn: false,
     }
   }
 }
@@ -469,7 +469,7 @@ export async function processSlashCommand(
         }),
         ...attachmentMessages,
       ],
-      shouldQuery: true,
+      shouldStartTurn: true,
     }
   }
   const { commandName, args } = parsed
@@ -477,7 +477,7 @@ export async function processSlashCommand(
   const command = findCommand(commands, commandName)
   const availabilityAnswer = (line: string): ProcessUserInputBaseResult => ({
     messages: [caveat, ...attachmentMessages, createUserMessage({ content: line })],
-    shouldQuery: false,
+    shouldStartTurn: false,
     resultText: line,
     commandRefused: true,
   })
@@ -489,7 +489,7 @@ export async function processSlashCommand(
         if (builtin.seat === 'screen' && getIsNonInteractiveSession()) {
           return {
             messages: [],
-            shouldQuery: false,
+            shouldStartTurn: false,
             resultText: unavailableCommandLine(builtin),
             commandRefused: true,
           }
@@ -501,14 +501,14 @@ export async function processSlashCommand(
           const text = result.type === 'text' ? result.value : ''
           return {
             messages: [],
-            shouldQuery: false,
+            shouldStartTurn: false,
             ...(text !== '' ? { resultText: text } : {}),
           }
         } catch (error) {
           logError(error)
           return {
             messages: [],
-            shouldQuery: false,
+            shouldStartTurn: false,
             resultText: `/${commandName} failed — ${String(error)}`,
           }
         }
@@ -524,14 +524,14 @@ export async function processSlashCommand(
           }),
           ...attachmentMessages,
         ],
-        shouldQuery: true,
+        shouldStartTurn: true,
       }
     }
     const line = unknownCommandLine(commandName, commands)
     const notice = createSystemMessage(line, 'warning')
     return {
       messages: [uuid ? { ...notice, uuid } : notice],
-      shouldQuery: false,
+      shouldStartTurn: false,
       resultText: line,
       commandRefused: true,
     }
@@ -552,7 +552,7 @@ export async function processSlashCommand(
           content: `The ${command.name} skill can only be invoked by the assistant. Ask for it by name instead.`,
         }),
       ],
-      shouldQuery: false,
+      shouldStartTurn: false,
     }
   }
 
@@ -594,7 +594,7 @@ export async function processSlashCommand(
             ...(uuid ? { uuid } : {}),
           }),
         ],
-        shouldQuery: false,
+        shouldStartTurn: false,
         commandError: error.message,
       }
     }
@@ -628,8 +628,8 @@ async function runLocalJsxCommand(
       const metaMessages = (options?.metaMessages ?? []).map(text =>
         createUserMessage({ content: text, isMeta: true }),
       )
-      const forwarded: Pick<ProcessUserInputBaseResult, 'shouldQuery' | 'nextInput' | 'submitNextInput'> = {
-        shouldQuery: options?.shouldStartTurn ?? false,
+      const forwarded: Pick<ProcessUserInputBaseResult, 'shouldStartTurn' | 'nextInput' | 'submitNextInput'> = {
+        shouldStartTurn: options?.shouldStartTurn ?? false,
         ...(options?.nextInput !== undefined ? { nextInput: options.nextInput } : {}),
         ...(options?.submitNextInput !== undefined
           ? { submitNextInput: options.submitNextInput }
@@ -678,7 +678,7 @@ async function runLocalJsxCommand(
         const element = await module.call(done, context, args, commandName)
         if ((context as { options?: { isNonInteractiveSession?: boolean } }).options
           ?.isNonInteractiveSession === true && element) {
-          finish({ messages: [], shouldQuery: false })
+          finish({ messages: [], shouldStartTurn: false })
           return
         }
         if (element === null || element === undefined) {
@@ -704,7 +704,7 @@ async function runLocalJsxCommand(
         })
         finish({
           messages: [echoed, createCommandInputMessage(stderrWrapped(String(error)))],
-          shouldQuery: false,
+          shouldStartTurn: false,
           commandError: String(error),
         })
       }
@@ -724,7 +724,7 @@ function answerBareUsage(
   const text = bareUsageLine(command)
   return {
     messages: [echoed, createCommandInputMessage(stdoutWrapped(text))],
-    shouldQuery: false,
+    shouldStartTurn: false,
     resultText: text,
   }
 }
@@ -748,10 +748,10 @@ async function runLocalCommand(
     const result = await module.call(args, context)
     if (command.userPrivate === true) {
       const text = result.type === 'text' ? result.value : ''
-      return { messages: [], shouldQuery: false, ...(text !== '' ? { resultText: text } : {}) }
+      return { messages: [], shouldStartTurn: false, ...(text !== '' ? { resultText: text } : {}) }
     }
     if (result.type === 'skip') {
-      return { messages: [], shouldQuery: false }
+      return { messages: [], shouldStartTurn: false }
     }
     if (result.type === 'compact') {
       const compaction = result.foldHandoff
@@ -774,28 +774,28 @@ async function runLocalCommand(
           ...compaction.attachments,
           ...compaction.hookResults,
         ],
-        shouldQuery: false,
+        shouldStartTurn: false,
         ...(display ? { resultText: display } : {}),
       }
     }
     const text = result.value
     return {
       messages: [echoed, createCommandInputMessage(stdoutWrapped(text))],
-      shouldQuery: false,
+      shouldStartTurn: false,
       resultText: text,
     }
   } catch (error) {
     if (error instanceof Error && isNothingToFoldMessage(error.message)) {
       return {
         messages: [echoed, createCommandInputMessage(stderrWrapped(error.message))],
-        shouldQuery: false,
+        shouldStartTurn: false,
         commandError: error.message,
       }
     }
     logError(error)
     return {
       messages: [echoed, createCommandInputMessage(stderrWrapped(String(error)))],
-      shouldQuery: false,
+      shouldStartTurn: false,
       commandError: String(error),
     }
   }

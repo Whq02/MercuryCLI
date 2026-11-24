@@ -226,7 +226,7 @@ async function openScene(cols: number, rows: number): Promise<Scene> {
     push: data => stdin.push(data),
     scrollTop: () => scrollRef.current?.getScrollTop() ?? -1,
     scrollMax: () => scrollRef.current === null ? -1 : Math.max(0, scrollRef.current.getScrollHeight() - scrollRef.current.getViewportHeight()),
-    viewing: () => (store?.getState() as { viewingAgentTaskId?: string } | undefined)?.viewingAgentTaskId,
+    viewing: () => (store?.getState() as { viewingCrewmateTaskId?: string } | undefined)?.viewingCrewmateTaskId,
     close: async () => {
       ink.unmount()
       await ink.waitUntilExit()

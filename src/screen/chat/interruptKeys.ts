@@ -117,8 +117,8 @@ export function InterruptKeys({
   )
   const viewingAgentTaskId = useSyncExternalStore(
     appStateStore.subscribe,
-    () => appStateStore.getState().viewingAgentTaskId,
-    () => appStateStore.getState().viewingAgentTaskId,
+    () => appStateStore.getState().viewingCrewmateTaskId,
+    () => appStateStore.getState().viewingCrewmateTaskId,
   )
   const backgroundKeyEnabled =
     getSettingsSnapshot().settings.view?.backgroundKey !== false
@@ -215,7 +215,7 @@ export function InterruptKeys({
         if (focus === 'summary') compactWork.set('composer')
       }
       const state = appStateStore.getState()
-      const viewedId = state.viewingAgentTaskId
+      const viewedId = state.viewingCrewmateTaskId
       if (viewedId) {
         interruptCrewmate(viewedId, state, setAppState)
         return

@@ -277,7 +277,7 @@ section('§4 a 13,761-token system prompt against a true 4,096 model: the turn r
       canUseTool: (async (_tool: unknown, input: Record<string, unknown>) => ({ behavior: 'allow', updatedInput: input, decisionReason: { type: 'other', reason: 'rig' } })) as never,
       toolUseContext: ctx as never,
       querySource: 'sdk' as never,
-      deps: { callModel: callModel as never, autoFold: (async () => ({ wasCompacted: false })) as never, uuid: () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}` } as never,
+      deps: { callModel: callModel as never, autoFold: (async () => ({ wasFolded: false })) as never, uuid: () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}` } as never,
     })
     const errors: string[] = []
     let r = await gen.next()
@@ -413,8 +413,8 @@ section('§6 a 32k auto-compaction trigger budgets the measured fixed material p
   bindRequestGauge(messages, `local:${CODER_MODEL}:c1`, 0, { digest: 'local-32k-fixed', tokens: 13_900 })
   const systemPrompt = ['the 13.9k fixed local prompt measured by the request gauge']
   const cache = { systemPrompt, userContext: {}, systemContext: {}, toolUseContext: ctx, forkContextMessages: messages, postFoldCarry: [] } as never
-  let tracking = { compacted: false, turnCounter: 0, turnId: 'local-32k', consecutiveFailures: undefined as number | undefined }
-  const outcomes: Array<{ wasCompacted: boolean; consecutiveFailures?: number }> = []
+  let tracking = { folded: false, turnCounter: 0, turnId: 'local-32k', consecutiveFailures: undefined as number | undefined }
+  const outcomes: Array<{ wasFolded: boolean; consecutiveFailures?: number }> = []
   rmSync(debugLog, { force: true })
   for (let turn = 0; turn < 3; turn++) {
     const outcome = await autoCompact.autoFoldIfNeeded(messages, ctx as never, cache, 'sdk', tracking)
@@ -425,7 +425,7 @@ section('§6 a 32k auto-compaction trigger budgets the measured fixed material p
   const debug = readFileSync(debugLog, 'utf8')
   const skips = debug.split('\n').filter(line => line.includes('autoCompact:') && line.includes('skip'))
   record(`three-turn failure counts ${JSON.stringify(outcomes.map(outcome => outcome.consecutiveFailures))}; failed statuses ${statuses.filter(status => status.exit === 'failed').length}; debug skips ${skips.length}`)
-  check('three tool turns produce no failed compaction status and no fold attempt', statuses.filter(status => status.exit === 'failed').length === 0 && outcomes.every(outcome => !outcome.wasCompacted), JSON.stringify({ statuses, outcomes }))
+  check('three tool turns produce no failed compaction status and no fold attempt', statuses.filter(status => status.exit === 'failed').length === 0 && outcomes.every(outcome => !outcome.wasFolded), JSON.stringify({ statuses, outcomes }))
   check('three tool turns stay below the trigger: no [ERROR] stack and no debug skip', !debug.includes('[ERROR]') && skips.length === 0, JSON.stringify({ errors: debug.split('\n').filter(line => line.includes('[ERROR]')), skips }))
 }
 

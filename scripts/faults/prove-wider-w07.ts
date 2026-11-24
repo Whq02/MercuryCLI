@@ -98,7 +98,7 @@ else {
     async function renderFor(agentId) {
       const state = {
         ...getDefaultAppState(),
-        viewingAgentTaskId: agentId,
+        viewingCrewmateTaskId: agentId,
         tasks: { [agentId]: { id: agentId, type: 'local_agent', status: 'running', description: 'probe', agentId, startTime: 1 } },
       }
       const tree = h(AppStateProvider, {

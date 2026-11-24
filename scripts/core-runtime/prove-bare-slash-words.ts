@@ -64,7 +64,7 @@ try {
     const result = await run('/', uuid)
     const rows = users(result.messages)
     check('one user row, the frame uuid, the words typed', rows.length === 1 && rows[0]!.uuid === uuid && textOf(rows[0]!) === '/', JSON.stringify(rows.map(r => [r.uuid === uuid, textOf(r)])))
-    check('the line queries the model (a message, not a command answer)', result.shouldQuery === true && result.commandRefused === undefined && result.resultText === undefined, JSON.stringify({ shouldQuery: result.shouldQuery, refused: result.commandRefused, resultText: result.resultText }))
+    check('the line queries the model (a message, not a command answer)', result.shouldStartTurn === true && result.commandRefused === undefined && result.resultText === undefined, JSON.stringify({ shouldQuery: result.shouldStartTurn, refused: result.commandRefused, resultText: result.resultText }))
     check('no caveat row and no help sentence minted', !carriesWords(result.messages, CAVEAT_TAG) && !carriesWords(result.messages, HELP_SENTENCE))
     check('the row is the operator\'s (not meta, not virtual)', rows[0]!.isMeta !== true && (rows[0] as { isVirtual?: boolean }).isVirtual !== true)
   }
@@ -75,7 +75,7 @@ try {
     const result = await run('/ compact', uuid)
     const rows = users(result.messages)
     check('one user row carrying `/ compact` under the frame uuid', rows.length === 1 && rows[0]!.uuid === uuid && textOf(rows[0]!) === '/ compact', JSON.stringify(rows.map(r => textOf(r))))
-    check('queries the model; nothing minted', result.shouldQuery === true && !carriesWords(result.messages, CAVEAT_TAG) && !carriesWords(result.messages, HELP_SENTENCE))
+    check('queries the model; nothing minted', result.shouldStartTurn === true && !carriesWords(result.messages, CAVEAT_TAG) && !carriesWords(result.messages, HELP_SENTENCE))
   }
 
   section('S3 images sent with a bare slash ride the row')
@@ -88,18 +88,18 @@ try {
     const blocks = prompt !== undefined && Array.isArray(prompt.message.content) ? prompt.message.content : []
     check('the row carries the words and the image block', blocks.some(b => b.type === 'text' && (b as { text: string }).text === '/') && blocks.some(b => b.type === 'image'), JSON.stringify(blocks.map(b => b.type)))
     check('the row carries the composer\'s image number', JSON.stringify((prompt as { imagePasteIds?: number[] } | undefined)?.imagePasteIds) === '[12]', JSON.stringify((prompt as { imagePasteIds?: number[] } | undefined)?.imagePasteIds))
-    check('queries the model; nothing minted', result.shouldQuery === true && !carriesWords(result.messages, HELP_SENTENCE))
+    check('queries the model; nothing minted', result.shouldStartTurn === true && !carriesWords(result.messages, HELP_SENTENCE))
   }
 
   section('S4 a parseable command still takes the command road')
   {
     const uuid = randomUUID()
     const result = await run('/no-such-command-here', uuid)
-    check('an unknown command name answers its one notice, never a model turn', result.shouldQuery === false && result.commandRefused === true && result.messages.length === 1 && result.messages[0]!.type === 'system' && result.messages[0]!.uuid === uuid, JSON.stringify(result.messages.map(m => [m.type, m.uuid === uuid])))
+    check('an unknown command name answers its one notice, never a model turn', result.shouldStartTurn === false && result.commandRefused === true && result.messages.length === 1 && result.messages[0]!.type === 'system' && result.messages[0]!.uuid === uuid, JSON.stringify(result.messages.map(m => [m.type, m.uuid === uuid])))
     const echoUuid = randomUUID()
     const echoed = await run('/compact', echoUuid)
     const first = users(echoed.messages)
-    check('a real command\'s rows open with the caveat and the echo carries the frame uuid', echoed.shouldQuery === false && first.length >= 2 && textOf(first[0]!).startsWith(CAVEAT_TAG) && first[1]!.uuid === echoUuid && textOf(first[1]!).includes('<command-name>/compact</command-name>'), JSON.stringify(first.slice(0, 2).map(r => [r.uuid === echoUuid, textOf(r).slice(0, 60)])))
+    check('a real command\'s rows open with the caveat and the echo carries the frame uuid', echoed.shouldStartTurn === false && first.length >= 2 && textOf(first[0]!).startsWith(CAVEAT_TAG) && first[1]!.uuid === echoUuid && textOf(first[1]!).includes('<command-name>/compact</command-name>'), JSON.stringify(first.slice(0, 2).map(r => [r.uuid === echoUuid, textOf(r).slice(0, 60)])))
   }
 
 } finally {

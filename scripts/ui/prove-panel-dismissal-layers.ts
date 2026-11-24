@@ -17,7 +17,7 @@ const React = await import('react')
 const { render, Text } = await import('../../src/screen/themedRenderer.js')
 const { AppStateProvider, useAppStateStore } = await import('../../src/screen/app-state/AppState.js')
 let storeRef: { getState: () => unknown } | null = null
-const viewing = (): string | undefined => (storeRef?.getState() as { viewingAgentTaskId?: string } | undefined)?.viewingAgentTaskId
+const viewing = (): string | undefined => (storeRef?.getState() as { viewingCrewmateTaskId?: string } | undefined)?.viewingCrewmateTaskId
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
 const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.js')
 const { CrewView } = await import('../../src/screen/widgets/faces/CrewView.js')

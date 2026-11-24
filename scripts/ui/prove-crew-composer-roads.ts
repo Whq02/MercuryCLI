@@ -408,8 +408,8 @@ async function run(cols: number, rows: number): Promise<void> {
 
   section(`§1 ${tag('the hosted send road: the composer is taken when ↵ lands, never when the runner answers')}`)
   {
-    const click = await clickRail(scene, String((ATLAS.tokens / 1000).toFixed(1)), railCols, () => scene.state().viewingAgentTaskId === ATLAS.id)
-    check('one click on the atlas row opens it in the view', click.row >= 0 && click.landed && scene.state().viewingAgentTaskId === ATLAS.id, `row ${click.row} · viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)} · the rail rows read: ${click.rows.map(line => line.trim()).join(' ↵ ')}`)
+    const click = await clickRail(scene, String((ATLAS.tokens / 1000).toFixed(1)), railCols, () => scene.state().viewingCrewmateTaskId === ATLAS.id)
+    check('one click on the atlas row opens it in the view', click.row >= 0 && click.landed && scene.state().viewingCrewmateTaskId === ATLAS.id, `row ${click.row} · viewingAgentTaskId=${String(scene.state().viewingCrewmateTaskId)} · the rail rows read: ${click.rows.map(line => line.trim()).join(' ↵ ')}`)
     await until(() => centreOf(scene.lines(), railCols).some(line => line.includes('ATLAS-ROW')), 6000)
     resumeDelayMs = 700
     const FIRST = 'first line to atlas'
@@ -468,12 +468,12 @@ async function run(cols: number, rows: number): Promise<void> {
   {
     crewmateView.setMainChat(ATLAS.id, scene.setState as never)
     await sleep(300)
-    const click = await clickRail(scene, String((BIRCH.tokens / 1000).toFixed(1)), railCols, () => scene.state().viewingAgentTaskId === BIRCH.id)
+    const click = await clickRail(scene, String((BIRCH.tokens / 1000).toFixed(1)), railCols, () => scene.state().viewingCrewmateTaskId === BIRCH.id)
     await until(() => centreOf(scene.lines(), railCols).some(line => line.includes('BIRCH-ROW')), 6000)
     await sleep(300)
     const frame = scene.lines()
     save('03-pinned-atlas-viewing-birch', cols, rows, frame)
-    check('birch is viewed while atlas stays pinned', click.row >= 0 && click.landed && scene.state().viewingAgentTaskId === BIRCH.id && scene.state().mainChatTaskId === ATLAS.id, `row ${click.row} · viewing=${String(scene.state().viewingAgentTaskId)} pinned=${String(scene.state().mainChatTaskId)} · the rail rows read: ${click.rows.map(line => line.trim()).join(' ↵ ')}`)
+    check('birch is viewed while atlas stays pinned', click.row >= 0 && click.landed && scene.state().viewingCrewmateTaskId === BIRCH.id && scene.state().mainChatTaskId === ATLAS.id, `row ${click.row} · viewing=${String(scene.state().viewingCrewmateTaskId)} pinned=${String(scene.state().mainChatTaskId)} · the rail rows read: ${click.rows.map(line => line.trim()).join(' ↵ ')}`)
     check('the status row says birch is viewed', viewedName(frame, railCols) === 'Lane birch', statusOf(frame, railCols))
     check('the composer placeholder names the pinned target: message Lane atlas', composerText(frame).includes(`message ${ATLAS.name}`), composerText(frame).slice(0, 80))
     const footer = footerOf(frame).replace(/\s+/g, ' ')
@@ -499,11 +499,11 @@ async function run(cols: number, rows: number): Promise<void> {
 
   section(`§4 ${tag('the pin on atlas with Mercury Lead in the view: the footer promises only what esc does; an empty ↵ sends nothing')}`)
   {
-    const click = await clickRail(scene, LEAD_ROW, railCols, () => scene.state().viewingAgentTaskId === undefined)
+    const click = await clickRail(scene, LEAD_ROW, railCols, () => scene.state().viewingCrewmateTaskId === undefined)
     await sleep(300)
     const frame = scene.lines()
     save('04-pinned-atlas-lead-view', cols, rows, frame)
-    check('the lead\'s chat is the view while atlas stays pinned', click.row >= 0 && click.landed && scene.state().viewingAgentTaskId === undefined && scene.state().mainChatTaskId === ATLAS.id, `row ${click.row} · viewing=${String(scene.state().viewingAgentTaskId)} pinned=${String(scene.state().mainChatTaskId)} · the rail rows read: ${click.rows.map(line => line.trim()).join(' ↵ ')}`)
+    check('the lead\'s chat is the view while atlas stays pinned', click.row >= 0 && click.landed && scene.state().viewingCrewmateTaskId === undefined && scene.state().mainChatTaskId === ATLAS.id, `row ${click.row} · viewing=${String(scene.state().viewingCrewmateTaskId)} pinned=${String(scene.state().mainChatTaskId)} · the rail rows read: ${click.rows.map(line => line.trim()).join(' ↵ ')}`)
     const footer = footerOf(frame).replace(/\s+/g, ' ')
     check('the footer says ↵ sends to Lane atlas · m on Mercury Lead returns the main chat', /sends to Lane atlas/.test(footer) && /m on Mercury Lead returns the main chat/.test(footer), footer.slice(0, 260))
     check('the footer does NOT say esc interrupts Lane atlas — esc on the lead\'s screen is the lead\'s own interrupt', !/esc interrupts? Lane atlas/.test(footer), footer.slice(0, 260))
@@ -530,10 +530,10 @@ async function run(cols: number, rows: number): Promise<void> {
   section(`§5 ${tag('esc on a crewmate that is not running: no stop sent, the view goes back to Mercury Lead')}`)
   {
     crewmateView.enterCrewmateView(CEDAR.id, scene.setState as never)
-    await until(() => scene.state().viewingAgentTaskId === CEDAR.id, 4000)
+    await until(() => scene.state().viewingCrewmateTaskId === CEDAR.id, 4000)
     await until(() => centreOf(scene.lines(), railCols).some(line => line.includes('CEDAR-ROW')), 6000)
     await sleep(300)
-    check('cedar (completed on the roster, opened from the crew pop-up\'s road) is viewed', scene.state().viewingAgentTaskId === CEDAR.id && viewedName(scene.lines(), railCols) === CEDAR.name, `viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)} · status row ${statusOf(scene.lines(), railCols)}`)
+    check('cedar (completed on the roster, opened from the crew pop-up\'s road) is viewed', scene.state().viewingCrewmateTaskId === CEDAR.id && viewedName(scene.lines(), railCols) === CEDAR.name, `viewingAgentTaskId=${String(scene.state().viewingCrewmateTaskId)} · status row ${statusOf(scene.lines(), railCols)}`)
     const idleFooter = footerOf(scene.lines()).replace(/\s+/g, ' ')
     check('the footer on the landed crewmate says esc goes back to Mercury Lead, never esc interrupts Lane cedar', /esc[^·]*back[^·]*Mercury Lead/.test(idleFooter) && !/esc interrupts? Lane cedar/.test(idleFooter), idleFooter.slice(0, 260))
     check('the footer says ↵ resumes Lane cedar with your line (the runner resumes a landed hosted crewmate from its transcript), never "↵ sends to Lane cedar"', /↵ resumes Lane cedar with your line/.test(idleFooter) && !/↵ sends to Lane cedar/.test(idleFooter), idleFooter.slice(0, 260))
@@ -543,7 +543,7 @@ async function run(cols: number, rows: number): Promise<void> {
     save('05-idle-crewmate-esc', cols, rows, scene.lines())
     const words = footerOf(scene.lines()).replace(/\s+/g, ' ')
     check('esc on the idle crewmate sends no stop to the runner', stops().length === stopsBefore, JSON.stringify(stops().slice(stopsBefore)))
-    check('esc on the crewmate that is not running goes back to Mercury Lead', scene.state().viewingAgentTaskId === undefined && centreOf(scene.lines(), railCols).some(line => line.includes('LEAD-ROW')), `viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)}`)
+    check('esc on the crewmate that is not running goes back to Mercury Lead', scene.state().viewingCrewmateTaskId === undefined && centreOf(scene.lines(), railCols).some(line => line.includes('LEAD-ROW')), `viewingAgentTaskId=${String(scene.state().viewingCrewmateTaskId)}`)
     check('the composer says cedar is landed and the view is back on Mercury Lead (never "interrupted — its turn is cut")', scene.lines().some(line => line.includes(`${CEDAR.name} is landed`) && line.includes(LEAD_ROW)) && !scene.lines().some(line => line.includes(`${CEDAR.name} interrupted`)), words.slice(0, 260))
   }
 
@@ -563,7 +563,7 @@ async function run(cols: number, rows: number): Promise<void> {
     scene.setState(prev => ({ ...prev, tasks: { ...(prev.tasks as Record<string, unknown>), [LOCAL_ID]: { ...base, status: 'completed' } } }))
     await sleep(200)
     crewmateView.enterCrewmateView(LOCAL_ID, scene.setState as never)
-    await until(() => scene.state().viewingAgentTaskId === LOCAL_ID, 4000)
+    await until(() => scene.state().viewingCrewmateTaskId === LOCAL_ID, 4000)
     await sleep(400)
     const IDLE_LINE = 'to the idle local'
     const idleLocalFooter = footerOf(scene.lines()).replace(/\s+/g, ' ')
@@ -595,7 +595,7 @@ async function run(cols: number, rows: number): Promise<void> {
     console.log(`the crewmate's rows carrying the line: ${plated().map(line => line.trim().slice(0, 80)).join(' | ')}`)
     check('once the delivery lands on disk the line paints exactly once (the landed row, never a second copy from the live tail)', plated().length === 1, `${plated().length} rows carry the line`)
     crewmateView.exitCrewmateView(scene.setState as never)
-    await until(() => scene.state().viewingAgentTaskId === undefined, 4000)
+    await until(() => scene.state().viewingCrewmateTaskId === undefined, 4000)
   }
 
   section(`§7 ${tag('a bang command belongs to the lead shell, never to the composer target')}`)
@@ -609,7 +609,7 @@ async function run(cols: number, rows: number): Promise<void> {
     crewmateView.clearMainChat(scene.setState as never)
     crewmateView.enterCrewmateView(entry.viewed, scene.setState as never)
     if (entry.pinned !== undefined) crewmateView.setMainChat(entry.pinned, scene.setState as never)
-    await until(() => scene.state().viewingAgentTaskId === entry.viewed, 4000)
+    await until(() => scene.state().viewingCrewmateTaskId === entry.viewed, 4000)
     await sleep(400)
     const targetBefore = composerTargetTaskId(scene.state() as never)
     const crewTasks = (): string => JSON.stringify(Object.fromEntries(Object.entries(scene.state().tasks as Record<string, { type: string }>).filter(([, task]) => task.type !== 'local_bash')))
@@ -643,13 +643,13 @@ async function run(cols: number, rows: number): Promise<void> {
     const result = shellResults[resultsBefore]
     const shellRows = result?.messages.flatMap(message => message.type === 'user' && typeof message.message.content === 'string' ? [message.message.content] : []) ?? []
     console.log(`${entry.label}: lead shell rows=${JSON.stringify(shellRows)}`)
-    check(`${entry.label}: the real shell printed hi and exited zero without querying a model`, result?.shouldQuery === false && shellRows.includes('<bash-input>echo hi</bash-input>') && shellRows.some(row => row.startsWith('<bash-stdout>hi</bash-stdout>') && row.includes('<bash-exit-code>0</bash-exit-code>')), JSON.stringify(shellRows))
+    check(`${entry.label}: the real shell printed hi and exited zero without querying a model`, result?.shouldStartTurn === false && shellRows.includes('<bash-input>echo hi</bash-input>') && shellRows.some(row => row.startsWith('<bash-stdout>hi</bash-stdout>') && row.includes('<bash-exit-code>0</bash-exit-code>')), JSON.stringify(shellRows))
     check(`${entry.label}: the crewmates' transcripts and queues are untouched`, crewRows.length === 0 && crewTasks() === tasksBefore && files.every((file, index) => readFileSync(file, 'utf8') === transcriptsBefore[index]), crewRows.join(' | '))
-    check(`${entry.label}: the viewed crewmate and pinned target are unchanged`, scene.state().viewingAgentTaskId === entry.viewed && scene.state().mainChatTaskId === entry.pinned && composerTargetTaskId(scene.state() as never) === targetBefore, `viewed=${String(scene.state().viewingAgentTaskId)} pinned=${String(scene.state().mainChatTaskId)}`)
+    check(`${entry.label}: the viewed crewmate and pinned target are unchanged`, scene.state().viewingCrewmateTaskId === entry.viewed && scene.state().mainChatTaskId === entry.pinned && composerTargetTaskId(scene.state() as never) === targetBefore, `viewed=${String(scene.state().viewingCrewmateTaskId)} pinned=${String(scene.state().mainChatTaskId)}`)
     check(`${entry.label}: the sent shell line has left the composer`, pending.text() === '', JSON.stringify(pending.text()))
     save(`07-${entry.input}-crewmate`, cols, rows, scene.lines())
     crewmateView.exitCrewmateView(scene.setState as never)
-    await until(() => scene.state().viewingAgentTaskId === undefined, 4000)
+    await until(() => scene.state().viewingCrewmateTaskId === undefined, 4000)
     await sleep(400)
     const lead = centreOf(scene.lines(), railCols)
     const bangRows = lead.filter(line => line.includes('! echo hi'))
@@ -691,7 +691,7 @@ async function run(cols: number, rows: number): Promise<void> {
     }
 
     crewmateView.enterCrewmateView(ATLAS.id, scene.setState as never)
-    await until(() => scene.state().viewingAgentTaskId === ATLAS.id, 4000)
+    await until(() => scene.state().viewingCrewmateTaskId === ATLAS.id, 4000)
     await sleep(300)
     await composeAround('hosted')
     const resumesBefore = resumes().length
@@ -707,12 +707,12 @@ async function run(cols: number, rows: number): Promise<void> {
     const queuedRows = crewmateQueuedRows(ATLAS.id, { running: true, endedAt: null }, ATLAS.name, Date.now()).map(row => contentOf(row as never))
     check('the queued echo row carries the words the crewmate received (the main chat\'s echo shape), never the chip', queuedRows.includes(EXPANDED) && !queuedRows.some(row => CHIP.test(row)), JSON.stringify(queuedRows.map(row => row.slice(0, 60))))
     crewmateView.exitCrewmateView(scene.setState as never)
-    await until(() => scene.state().viewingAgentTaskId === undefined, 4000)
+    await until(() => scene.state().viewingCrewmateTaskId === undefined, 4000)
 
     scene.setState(prev => ({ ...prev, tasks: { ...(prev.tasks as Record<string, unknown>), [LOCAL_ID]: { ...(prev.tasks as Record<string, Record<string, unknown>>)[LOCAL_ID], status: 'running', operatorMessages: [], messages: [] } } }))
     await sleep(200)
     crewmateView.enterCrewmateView(LOCAL_ID, scene.setState as never)
-    await until(() => scene.state().viewingAgentTaskId === LOCAL_ID, 4000)
+    await until(() => scene.state().viewingCrewmateTaskId === LOCAL_ID, 4000)
     await sleep(300)
     await composeAround('in-process')
     scene.push(ENTER)
@@ -754,10 +754,10 @@ async function run(cols: number, rows: number): Promise<void> {
     check('an image paste is refused on the in-process road with the words-only sentence and nothing is delivered', JSON.stringify(localLanes()) === lanesBeforeImage && localImageSaid, `lanes ${JSON.stringify(localLanes().operator)} · ${footerOf(scene.lines()).replace(/\s+/g, ' ').slice(0, 240)}`)
     check('the line with the image stays in the composer', pending.text() === WITH_IMAGE, JSON.stringify(pending.text()))
     crewmateView.exitCrewmateView(scene.setState as never)
-    await until(() => scene.state().viewingAgentTaskId === undefined, 4000)
+    await until(() => scene.state().viewingCrewmateTaskId === undefined, 4000)
 
     crewmateView.enterCrewmateView(ATLAS.id, scene.setState as never)
-    await until(() => scene.state().viewingAgentTaskId === ATLAS.id, 4000)
+    await until(() => scene.state().viewingCrewmateTaskId === ATLAS.id, 4000)
     await sleep(300)
     await seedImage()
     const hostedBeforeImage = resumes().length
@@ -770,7 +770,7 @@ async function run(cols: number, rows: number): Promise<void> {
     pending.edit('')
     pending.setPastedContents({})
     crewmateView.exitCrewmateView(scene.setState as never)
-    await until(() => scene.state().viewingAgentTaskId === undefined, 4000)
+    await until(() => scene.state().viewingCrewmateTaskId === undefined, 4000)
   }
 
   await scene.close()

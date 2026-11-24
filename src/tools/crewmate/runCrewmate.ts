@@ -28,7 +28,7 @@ import type { Tool, Tools, ToolUseContext } from '../kit/tool.js'
 import { McpServerConfigSchema, type MCPServerConnection } from '../../integrations/mcp-shapes/mcpServerRecords.js'
 import { generateTaskId } from '../../engine/tasks/taskBase.js'
 import { forgetCrewmateEffortWord, noteCrewmateEffortWord, parseEffortValue, type EffortValue } from '../../models/effort/effort.js'
-import { crewmateDefaultEffort } from '../../crew/agents/agentDefaults.js'
+import { defaultCrewmateEffort } from '../../crew/agents/agentDefaults.js'
 import {
   cloneFileStateCache,
   createFileStateCacheWithSizeLimit,
@@ -543,7 +543,7 @@ async function preflightCrewmateRun(params: RunCrewmateParams): Promise<{
     effortOverride,
     useExactTools,
     definitionEffort: agentDefinition.effort,
-    defaultEffort: crewmateDefaultEffort(),
+    defaultEffort: defaultCrewmateEffort(),
   })
   const routeVerdict = classifyModelRoute(resolvedAgentModel)
   if (routeVerdict.kind === 'route') {

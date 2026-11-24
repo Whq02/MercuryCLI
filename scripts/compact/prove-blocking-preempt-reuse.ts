@@ -115,10 +115,10 @@ section('R3 · the wiring reads the carried count first (source pins on the fold
   const fat = (): unknown[] => [f.ask('hello there rig'), f.fat('previous fat turn', 5_000)]
   const sideQuestion = (seed: unknown[], answer: Row): Parameters<typeof t.plantRun>[0] => ({ env: under(100), querySource: 'side_question', seed, autocompact: [answer], script: [] })
 
-  const carriedOver = await preempt(sideQuestion(small(), { wasCompacted: false, measuredRawTokenCount: 5_000 }))
-  const carriedUnder = await preempt(sideQuestion(fat(), { wasCompacted: false, measuredRawTokenCount: 10 }))
-  const recountedOver = await preempt(sideQuestion(fat(), { wasCompacted: false }))
-  const recountedUnder = await preempt(sideQuestion(small(), { wasCompacted: false }))
+  const carriedOver = await preempt(sideQuestion(small(), { wasFolded: false, measuredRawTokenCount: 5_000 }))
+  const carriedUnder = await preempt(sideQuestion(fat(), { wasFolded: false, measuredRawTokenCount: 10 }))
+  const recountedOver = await preempt(sideQuestion(fat(), { wasFolded: false }))
+  const recountedUnder = await preempt(sideQuestion(small(), { wasFolded: false }))
 
   const FILE_BODY = 'a line of the file that was read over and over\n'.repeat(350)
   const readTwelveTimes = (): unknown[] => [
@@ -139,7 +139,7 @@ section('R3 · the wiring reads the carried count first (source pins on the fold
   const unstampedCount = unstamped.iter === undefined ? 0 : tokens.tokenCountWithEstimation(unstamped.iter.messagesForRequest as never, NO_MODEL)
   const unstampedBetween = await preempt(pruning(unstampedCount - Math.floor(unstamped.saved / 2), NO_MODEL), pruneRung, true)
   const nothingPruned = await preempt(pruning(unstampedCount - Math.floor(unstamped.saved / 2), NO_MODEL), pruneRung)
-  const tracking = { compacted: false, turnId: 'rig-turn', turnCounter: 0, consecutiveFailures: 1 }
+  const tracking = { folded: false, turnId: 'rig-turn', turnCounter: 0, consecutiveFailures: 1 }
   const forced = await preempt({ seed: f.history(), autocompact: [f.folded()], script: [] }, { pendingOverflow: { signal: f.providerOverflow(), rung: 'fold' }, overflowEpisode: { pruned: false, folded: true }, autoFoldTracking: tracking })
 
   check(
@@ -159,8 +159,8 @@ section('R3 · the wiring reads the carried count first (source pins on the fold
   const noTrueFigure = f.folded(50)
   ;(noTrueFigure.foldResult as Row).truePostFoldTokenCount = undefined
   const landedUncounted = await preempt(sideQuestion(fat(), { ...noTrueFigure, measuredRawTokenCount: 5_000 }))
-  const summariser = await preempt({ ...sideQuestion(fat(), { wasCompacted: false }), querySource: 'compact' })
-  const sessionMemory = await preempt({ ...sideQuestion(fat(), { wasCompacted: false }), querySource: 'session_memory' })
+  const summariser = await preempt({ ...sideQuestion(fat(), { wasFolded: false }), querySource: 'compact' })
+  const sessionMemory = await preempt({ ...sideQuestion(fat(), { wasFolded: false }), querySource: 'session_memory' })
   check(
     'the preempt stays gated on the just-compacted exemption (a compaction-changed view never reuses a stale number; the exemption holds only under the limit)',
     landedUnder.said === 'go_on' && landedUnder.events.some(event => event.kind === 'compaction_boundary') && landedOver.said === 'end blocking_limit' && landedUncounted.said === 'go_on' && summariser.said === 'go_on' && sessionMemory.said === 'go_on',

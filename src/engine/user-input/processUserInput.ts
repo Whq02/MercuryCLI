@@ -43,7 +43,7 @@ export type ProcessUserInputContext = ToolUseContext & LocalJSXCommandContext
 
 export type ProcessUserInputBaseResult = {
   messages: (UserMessage | AssistantMessage | AttachmentMessage | SystemMessage | ProgressMessage)[]
-  shouldQuery: boolean
+  shouldStartTurn: boolean
   allowedTools?: string[]
   model?: string
   effort?: EffortValue
@@ -123,23 +123,23 @@ export async function processUserInput(
         continue
       }
       for (const message of result.messages) {
-        if (result.shouldQuery && message.type === 'user' && message.uuid === uuid) {
+        if (result.shouldStartTurn && message.type === 'user' && message.uuid === uuid) {
           rows.push(message)
-        } else if (!result.shouldQuery && message.type === 'user') {
+        } else if (!result.shouldStartTurn && message.type === 'user') {
           remaining.push({ ...message, isVirtual: true })
-        } else if (result.shouldQuery || message.type !== 'attachment') {
+        } else if (result.shouldStartTurn || message.type !== 'attachment') {
           remaining.push(message)
         }
       }
     }
     if (rows.length > 1) rows[0] = { ...rows[0]!, batchUuids: rows.map(row => row.uuid) }
-    const shouldQuery = results.some(result => result.shouldQuery)
+    const shouldStartTurn = results.some(result => result.shouldStartTurn)
     const blocked = results.filter(result => result.hookBlocked)
     return {
       ...results[0]!,
       messages: [...lead, ...rows, ...remaining],
-      shouldQuery,
-      ...(blocked.length > 0 && !shouldQuery ? {
+      shouldStartTurn,
+      ...(blocked.length > 0 && !shouldStartTurn ? {
         hookBlocked: true,
         resultText: blocked.map(result => result.resultText).join('\n'),
       } : {}),
@@ -151,7 +151,7 @@ export async function processUserInput(
   }
 
   const base = await processUserInputBase(options)
-  if (!base.shouldQuery) return base
+  if (!base.shouldStartTurn) return base
 
   const promptText = typeof input === 'string' ? input : extractTextContent(input, '\n')
   const settingsMessages: Message[] = context.agentId === undefined ? [...untoldSettingsFaultLines(), ...untoldHiddenCharacterLines()].map(line => createSystemMessage(line, 'warning')) : []
@@ -167,14 +167,14 @@ export async function processUserInput(
         ...hookMessages,
         createSystemMessage(`${started.answer.block}\n\nThe prompt was: ${promptText}`, 'warning'),
       ],
-      shouldQuery: false,
+      shouldStartTurn: false,
       hookBlocked: true,
       resultText: started.answer.block,
       ...(base.allowedTools !== undefined ? { allowedTools: base.allowedTools } : {}),
     }
   }
   if (started.answer.stop !== undefined) {
-    return { ...base, messages: [...base.messages, ...hookMessages], shouldQuery: false }
+    return { ...base, messages: [...base.messages, ...hookMessages], shouldStartTurn: false }
   }
   return { ...base, messages: [...base.messages, ...hookMessages] }
 }
@@ -376,7 +376,7 @@ async function processUserInputBase(
                 content: `<${LOCAL_COMMAND_STDOUT_TAG}>${refusal}</${LOCAL_COMMAND_STDOUT_TAG}>`,
               }),
             ],
-            shouldQuery: false,
+            shouldStartTurn: false,
             resultText: refusal,
           }
         }

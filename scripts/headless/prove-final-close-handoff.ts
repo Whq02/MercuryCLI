@@ -122,7 +122,7 @@ try {
         reply.message.stop_reason = 'end_turn'
         yield reply
       },
-      autoFold: async () => ({ wasCompacted: false }),
+      autoFold: async () => ({ wasFolded: false }),
       prune: async (messages: unknown[]) => ({ messages }),
       uuid: () => crypto.randomUUID(),
     }

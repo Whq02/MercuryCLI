@@ -71,7 +71,7 @@ export function ComposerFooterLeftSide({
   const tasks = useAppState((s: AppState) => s.tasks)
   const footerSelection = useAppState((s: AppState) => s.footerSelection)
   const toolPermissionContext = useAppState((s: AppState) => s.toolPermissionContext)
-  const viewingAgentTaskId = useAppState((s: AppState) => s.viewingAgentTaskId)
+  const viewingAgentTaskId = useAppState((s: AppState) => s.viewingCrewmateTaskId)
   const currentNotice = useAppState((s: AppState) => s.notifications.current)
   const viewedCrewmate = useViewedCrewmate()
   const selection = useSelection()

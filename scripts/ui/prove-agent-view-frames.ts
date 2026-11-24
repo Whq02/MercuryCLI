@@ -387,7 +387,7 @@ check('the lead\'s row carries no verb (the mock: "✶ Mercury Lead" alone)', le
 check('the lead\'s row wears the view mark › while its chat is the view', /›/.test(leadRow), `the row reads "${leadRow}"`)
 const pickerRow = railRow(frame, '171.7k')
 check('the atlas lane is a CREW row (its context tokens name it)', pickerRow >= 0, `${frame.slice(crewHeader, crewHeader + 9).map(railText).join(' | ')} — the CREW lane in src/screen/fullscreen-layout/HelmLanesRail.tsx must list each roster row with its context tokens`)
-check('no crewmate is viewed at rest', scene.state().viewingAgentTaskId === undefined, `viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)} — nothing should set it before a click; see src/screen/tasks/useCrewmateView.ts`)
+check('no crewmate is viewed at rest', scene.state().viewingCrewmateTaskId === undefined, `viewingAgentTaskId=${String(scene.state().viewingCrewmateTaskId)} — nothing should set it before a click; see src/screen/tasks/useCrewmateView.ts`)
 check('no main chat is pinned at rest', scene.state().mainChatTaskId === undefined, `mainChatTaskId=${String(scene.state().mainChatTaskId)}`)
 
 section('§2 screen 2: a click on a CREW row opens that agent in the view')
@@ -405,7 +405,7 @@ const transcriptLanded = await until(() => scene.lines().some(line => centre(lin
 await sleep(300)
 frame = scene.lines()
 save('screen-2-viewing', frame)
-const viewedAfterClick = scene.state().viewingAgentTaskId
+const viewedAfterClick = scene.state().viewingCrewmateTaskId
 const rowAfterClick = railText(frame[pickerRow] ?? '').trim()
 const banner = railText(frame[0] ?? '').trim()
 console.log(`after one click: viewingAgentTaskId=${String(viewedAfterClick)} · the row reads "${rowAfterClick}" · the rail banner reads "${banner}" · submits=${JSON.stringify(scene.submits)}`)
@@ -433,7 +433,7 @@ check('the click dispatched no command (no /tasks board opened)', scene.submits.
 if (viewedAfterClick === undefined) {
   scene.push(press(8, pickerRow) + release(8, pickerRow))
   await sleep(500)
-  console.log(`after a second click: viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)} · submits=${JSON.stringify(scene.submits)}`)
+  console.log(`after a second click: viewingAgentTaskId=${String(scene.state().viewingCrewmateTaskId)} · submits=${JSON.stringify(scene.submits)}`)
 }
 
 section('§2b esc on the crewmate\'s screen interrupts that crewmate alone')
@@ -443,10 +443,10 @@ await sleep(500)
 frame = scene.lines()
 save('screen-2-interrupt', frame)
 const stops = agentCalls.filter(call => call.verb === 'stop')
-console.log(`after esc: stop calls ${JSON.stringify(stops)} · lead interrupts ${leadInterrupts} · viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)}`)
+console.log(`after esc: stop calls ${JSON.stringify(stops)} · lead interrupts ${leadInterrupts} · viewingAgentTaskId=${String(scene.state().viewingCrewmateTaskId)}`)
 check('esc interrupts the viewed crewmate alone — one stop, its id, the operator-interrupt note', stops.length === stopsBefore + 1 && stops[stops.length - 1]!.agentId === 'a-atlas' && stops[stops.length - 1]!.note === 'operator-interrupt', `${JSON.stringify(stops)} — esc on a viewed crewmate must call stopAgent once with that agent id and the note operator-interrupt`)
 check('the other fourteen crewmates and the lead\'s turn are untouched', stops.every(call => call.agentId === 'a-atlas') && leadInterrupts === 0, `lead interrupts ${leadInterrupts} — esc on a viewed crewmate must stop only that crewmate, never the lead turn`)
-check('the view stays on the crewmate after the interrupt', scene.state().viewingAgentTaskId === 'a-atlas', `viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)}`)
+check('the view stays on the crewmate after the interrupt', scene.state().viewingCrewmateTaskId === 'a-atlas', `viewingAgentTaskId=${String(scene.state().viewingCrewmateTaskId)}`)
 check('the composer says the crewmate was interrupted and Mercury Lead is told', frame.some(line => line.includes('Lane atlas interrupted') && line.includes('Mercury Lead is told')), frame.slice(composerRow(frame)).map(line => line.trim()).filter(Boolean).join(' | ').slice(0, 300))
 
 section('§2c Mercury Lead in the rail goes back, the lead\'s transcript exactly as it was')
@@ -456,7 +456,7 @@ frame = scene.lines()
 save('screen-2-back', frame)
 const scrollAfter = { top: scrollRef.current?.getScrollTop() ?? -1, sticky: scrollRef.current?.isSticky() ?? true }
 console.log(`the lead's transcript after the return: scrollTop ${scrollAfter.top} · sticky ${scrollAfter.sticky}`)
-check('one click on Mercury Lead goes back (no crewmate viewed)', scene.state().viewingAgentTaskId === undefined, `viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)}`)
+check('one click on Mercury Lead goes back (no crewmate viewed)', scene.state().viewingCrewmateTaskId === undefined, `viewingAgentTaskId=${String(scene.state().viewingCrewmateTaskId)}`)
 check('the status row reads the plain view again (no crewmate words)', headerRow(frame) !== '' && !/viewing|main chat/.test(headerRow(frame)), headerRow(frame))
 check('the lead\'s rows are back in the centre and the crewmate\'s are gone', frame.some(line => centre(line).includes(TRANSCRIPT_NEEDLE)) && !frame.some(line => centre(line).includes(ATLAS_NEEDLE)), 'after the click on Mercury Lead the centre must show the lead transcript and no crewmate rows; see src/screen/tasks/useCrewmateView.ts')
 check('the lead\'s scroll state is restored exactly (top and stickiness)', scrollAfter.top === scrollBefore.top && scrollAfter.sticky === scrollBefore.sticky, `${JSON.stringify(scrollBefore)} → ${JSON.stringify(scrollAfter)} — the return from a crewmate view must restore the lead transcript scroll position`)
@@ -501,9 +501,9 @@ await sleep(600)
 frame = scene.lines()
 save('screen-4-main-chat', frame)
 const pinned = scene.state().mainChatTaskId
-console.log(`after m: mainChatTaskId=${String(pinned)} · viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)}`)
+console.log(`after m: mainChatTaskId=${String(pinned)} · viewingAgentTaskId=${String(scene.state().viewingCrewmateTaskId)}`)
 check('m pins the selected crewmate as the main chat (mainChatTaskId)', pinned === 'a-fjord', `mainChatTaskId=${String(pinned)} — m on the selected crew row must pin that crewmate; see src/screen/widgets/faces/CrewView.tsx`)
-check('m opens that crewmate in the view', scene.state().viewingAgentTaskId === 'a-fjord', `viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)}`)
+check('m opens that crewmate in the view', scene.state().viewingCrewmateTaskId === 'a-fjord', `viewingAgentTaskId=${String(scene.state().viewingCrewmateTaskId)}`)
 check('the pop-up closed on m', !frame.some(line => line.includes(CREW_TITLE)), 'the crew window still paints')
 const starRow = railRow(frame, '★')
 const starText = starRow >= 0 ? railText(frame[starRow]!).trim() : ''
@@ -546,7 +546,7 @@ check('no ★ row remains in the rail', railRow(frame, '★') < 0, 'a ★ row st
 scene.push(press(8, crewHeader + 1) + release(8, crewHeader + 1))
 await sleep(400)
 frame = scene.lines()
-check('Mercury Lead in the rail goes back from the handed-back crewmate\'s screen', scene.state().viewingAgentTaskId === undefined && headerRow(frame) !== '' && !/viewing|main chat/.test(headerRow(frame)), headerRow(frame))
+check('Mercury Lead in the rail goes back from the handed-back crewmate\'s screen', scene.state().viewingCrewmateTaskId === undefined && headerRow(frame) !== '' && !/viewing|main chat/.test(headerRow(frame)), headerRow(frame))
 
 section(`§6 the crew pop-up's height at ${COLS}x${ROWS}: a roster past the budget fills the window, the window fills the view's budget and paints whole inside the view`)
 swellRoster(SWOLLEN)

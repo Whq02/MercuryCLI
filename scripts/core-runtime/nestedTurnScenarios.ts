@@ -147,7 +147,7 @@ function scriptedDeps(on: Tape, turn: number): Row {
         else yield step.value
       }
     },
-    autoFold: async () => ({ wasCompacted: false }),
+    autoFold: async () => ({ wasFolded: false }),
     prune: async (messages: unknown[]) => ({ messages }),
   }
 }

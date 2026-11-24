@@ -93,7 +93,7 @@ function makeCompact(answer: Record<string, unknown>) {
   const calls: CompactCall[] = []
   const autocompact = async (messages: unknown[], _ctx: unknown, _cache: unknown, _source?: string, tracking?: unknown, snip?: number, forced?: unknown) => {
     calls.push({ messages: [...messages], forced, tracking, snip })
-    if (forced !== undefined) return { wasCompacted: false, refusal: 'rig: the breaker' }
+    if (forced !== undefined) return { wasFolded: false, refusal: 'rig: the breaker' }
     return answer
   }
   return { calls, autocompact }
@@ -244,7 +244,7 @@ async function pruneAfter(refusal: string, label: string, expectPrune: boolean):
   const estimate = tokenCountWithEstimation(seed as never, MODEL)
   const saving = projectTimeBasedPrune(seed as never, 'sdk', { pressure: true })?.tokensSaved ?? 0
   check(`${label}: the view is over the limit by a small gap the prune covers (${fmt(estimate)} > ${fmt(BLOCKING)}; saving ≈${fmt(saving)})`, estimate > BLOCKING && saving >= (estimate - BLOCKING) * 1.2, `estimate ${estimate}, saving ${saving}; the seed must exceed the blocking limit by a gap the pressure prune from projectTimeBasedMicrocompact (src/engine/compaction/pruneToolResults.ts) covers 1.2 times, so retune the seed (seedLongLane arguments) or that function`)
-  const r = await run({ seed, script: [[ping(), asstText('the retry after the prune')]], compactAnswer: { wasCompacted: false, consecutiveFailures: 1, refusal } })
+  const r = await run({ seed, script: [[ping(), asstText('the retry after the prune')]], compactAnswer: { wasFolded: false, consecutiveFailures: 1, refusal } })
   const refusals = errorYields(r.yields).map(textOf)
   if (expectPrune) {
     check(`${label}: the prune rung fired and the retry went out (one model call, terminal completed) — red on the base, where only the ceiling sentence unlocked the prune`, r.terminal.reason === 'completed' && r.calls.length === 1 && refusals.length === 0, `after a failed fold the loop in queryEvents (src/engine/turnDoor.ts) must prune and retry; terminal ${JSON.stringify(r.terminal)} calls=${r.calls.length} refusals=${JSON.stringify(refusals).slice(0, 300)}`)

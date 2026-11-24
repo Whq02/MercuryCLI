@@ -112,7 +112,7 @@ function makeCompact(opts: { onForced?: CompactAnswer[]; onThreshold?: CompactAn
     const call: CompactCall = { messages: [...messages], forced }
     calls.push(call)
     if (forced !== undefined) return answer(opts.onForced, forcedIdx++, call, rigFoldResult())
-    return answer(opts.onThreshold, thresholdIdx++, call, { wasCompacted: false })
+    return answer(opts.onThreshold, thresholdIdx++, call, { wasFolded: false })
   }
   return { calls, autocompact }
 }
@@ -120,7 +120,7 @@ function rigFoldResult(): Record<string, unknown> {
   const boundaryMarker = createFoldBoundaryMessage('overflow', 900)
   const summary = createUserMessage({ content: 'RIG SUMMARY of the folded history', isCompactSummary: true })
   return {
-    wasCompacted: true,
+    wasFolded: true,
     foldResult: {
       boundaryMarker,
       summaryMessages: [summary],
@@ -336,7 +336,7 @@ section('R2 the retry overflows again → the typed refusal, never the raw sente
 section('R3 the emergency prune follows a summary that could not fit')
 {
   const gapSignal: Sig = { ...OPENAI_SIGNAL, actualTokens: 129_000, limitTokens: 128_000 }
-  const r = await run({ seed: seedWithReads(13, undefined, true), script: [[ping(), overflowError(gapSignal)], [ping(), asstText('pruned reply')]], ledger: true, compact: makeCompact({ onForced: [{ wasCompacted: false, consecutiveFailures: 1, refusal: ERROR_MESSAGE_POST_FOLD_OVER_THRESHOLD }] }) })
+  const r = await run({ seed: seedWithReads(13, undefined, true), script: [[ping(), overflowError(gapSignal)], [ping(), asstText('pruned reply')]], ledger: true, compact: makeCompact({ onForced: [{ wasFolded: false, consecutiveFailures: 1, refusal: ERROR_MESSAGE_POST_FOLD_OVER_THRESHOLD }] }) })
   check('terminal completed', r.terminal.reason === 'completed', JSON.stringify(r.terminal))
   check('two model calls', r.calls.length === 2, String(r.calls.length))
   const attempted = r.compact.filter(c => c.forced !== undefined)
@@ -389,7 +389,7 @@ section('R5 the switches — MERCURY_AUTO_COMPACT · MERCURY_COMPACT · the flag
 
 section('R6 the failure breaker — a tripped compaction breaker refuses typed')
 {
-  const compact = makeCompact({ onThreshold: [{ wasCompacted: false, consecutiveFailures: 3 }] })
+  const compact = makeCompact({ onThreshold: [{ wasFolded: false, consecutiveFailures: 3 }] })
   const r = await run({ seed: seedPlain(), script: [[ping(), overflowError()]], compact })
   const text = textOf(errorYields(r.yields)[0])
   check('terminal prompt_too_long after one call', r.terminal.reason === 'prompt_too_long' && r.calls.length === 1, JSON.stringify(r.terminal))
@@ -426,7 +426,7 @@ section('R8 the estimate side — the blocking preempt prunes or refuses typed')
   const seed = seedWithReads(13, 100_000, true)
   const count = tokenCountWithEstimation(seed as never)
   process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE = String(count - 800)
-  const r = await run({ seed, script: [[ping(), asstText('after the prune')]], ledger: true, compact: makeCompact({ onThreshold: [{ wasCompacted: false, consecutiveFailures: 1, refusal: ERROR_MESSAGE_POST_FOLD_OVER_THRESHOLD }] }) })
+  const r = await run({ seed, script: [[ping(), asstText('after the prune')]], ledger: true, compact: makeCompact({ onThreshold: [{ wasFolded: false, consecutiveFailures: 1, refusal: ERROR_MESSAGE_POST_FOLD_OVER_THRESHOLD }] }) })
   delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
   check('the call proceeded after the prune (one call, terminal completed)', r.terminal.reason === 'completed' && r.calls.length === 1, `${JSON.stringify(r.terminal)} calls=${r.calls.length}`)
   check('the transition names the prune rung from the ESTIMATE', JSON.stringify(settledTransitions(r.events)).includes('"reason":"overflow_recovery","rung":"prune","source":"estimate"'), JSON.stringify(settledTransitions(r.events)))
@@ -489,7 +489,7 @@ section('R11 the episode law — a completed tool round opens a fresh episode; t
 
 section('R12 the forced fold fails at the head → refusal names the reason, no call on a request known not to fit')
 {
-  const compact = makeCompact({ onForced: [{ wasCompacted: false, consecutiveFailures: 1, refusal: 'The summary call stalled and was stopped' }] })
+  const compact = makeCompact({ onForced: [{ wasFolded: false, consecutiveFailures: 1, refusal: 'The summary call stalled and was stopped' }] })
   const r = await run({ seed: seedPlain(), script: [[ping(), overflowError()], [ping(), asstText('never')]], compact })
   const text = textOf(errorYields(r.yields)[0])
   check('terminal prompt_too_long after ONE model call', r.terminal.reason === 'prompt_too_long' && r.calls.length === 1, `${JSON.stringify(r.terminal)} calls=${r.calls.length}`)

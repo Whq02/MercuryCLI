@@ -127,7 +127,7 @@ async function run(steps: Step[], options: { headless?: boolean; oculus?: boolea
       message.message.stop_reason = step ? 'tool_use' : 'end_turn'
       yield message
     },
-    autoFold: async () => ({ wasCompacted: false }),
+    autoFold: async () => ({ wasFolded: false }),
     prune: async (messages: unknown[]) => ({ messages }),
   }
   const prompt = [createUserMessage({ content: 'Run the fixture.' })]

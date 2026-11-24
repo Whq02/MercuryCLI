@@ -210,7 +210,7 @@ function makeCtx(): Record<string, unknown> {
 }
 function foldResult(truePostFoldTokenCount: number): Record<string, unknown> {
   return {
-    wasCompacted: true,
+    wasFolded: true,
     foldResult: {
       boundaryMarker: createFoldBoundaryMessage('auto', 900),
       summaryMessages: [createUserMessage({ content: 'RIG SUMMARY of the folded history', isCompactSummary: true })],
@@ -232,7 +232,7 @@ async function drive(fold: Record<string, unknown>): Promise<{ calls: number; te
   const compactCalls: number[] = []
   const autocompact = async () => {
     compactCalls.push(1)
-    return compactCalls.length === 1 ? fold : { wasCompacted: false }
+    return compactCalls.length === 1 ? fold : { wasFolded: false }
   }
   const gen = turnDoorEvents({
     messages: [createUserMessage({ content: 'earlier ask' }), createAssistantMessage({ content: 'earlier reply' }), createUserMessage({ content: 'operator ask' })] as never,

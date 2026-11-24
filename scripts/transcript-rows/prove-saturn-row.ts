@@ -253,7 +253,7 @@ async function drainedTurn(command: Raw): Promise<{ shouldQuery: boolean; row: R
     } as never)
     const row = (out.messages as Raw[]).find(m => m.type === 'user' && m.uuid === command.uuid)
     const text = (out.messages as Raw[]).filter(m => m.type === 'user').map(m => String((m.message as Raw).content)).join(' | ')
-    return { shouldQuery: out.shouldQuery, row: row === undefined ? undefined : { ...row, timestamp: ROW_AT }, text: out.resultText === undefined ? text : String(out.resultText) }
+    return { shouldQuery: out.shouldStartTurn, row: row === undefined ? undefined : { ...row, timestamp: ROW_AT }, text: out.resultText === undefined ? text : String(out.resultText) }
   } catch (error) {
     return { shouldQuery: false, row: undefined, text: String(error) }
   }

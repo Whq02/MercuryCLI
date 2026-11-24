@@ -56,7 +56,7 @@ async function capture(command: string, structured: boolean, fullscreen: boolean
   ], hosted.sessionId))
   if (fullscreen) delete process.env.MERCURY_FULLSCREEN
   else process.env.MERCURY_FULLSCREEN = '0'
-  const state = { ...getDefaultAppState(), viewingAgentTaskId: agentId, tasks: { [agentId]: { id: agentId, type: 'local_agent', status: 'completed', description: 'shell-output', agentId, startTime: 1, endTime: 100 } } as never }
+  const state = { ...getDefaultAppState(), viewingCrewmateTaskId: agentId, tasks: { [agentId]: { id: agentId, type: 'local_agent', status: 'completed', description: 'shell-output', agentId, startTime: 1, endTime: 100 } } as never }
   const tree = h(AppStateProvider, { initialState: state, children: h(ThemeProvider, null, h(TerminalSizeContext.Provider, { value: { columns: 80, rows: 24 } }, h(Box, { width: 80, height: 24, flexDirection: 'column' }, h(TranscriptSwap, { lead: h(Text, null, 'LEAD-FALLBACK'), tools: [BashTool, SleepTool], commands: [], screen: 'prompt' })))) })
   const view = await mountOffscreen(tree, 80, 24)
   try {

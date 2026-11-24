@@ -147,7 +147,7 @@ type AppStateLiveHalf = {
   tasks: { [taskId: string]: TaskState }
   crewmateNameRegistry: Map<string, string>
   foregroundedTaskId?: string
-  viewingAgentTaskId?: string | undefined
+  viewingCrewmateTaskId?: string | undefined
   mainChatTaskId?: string | undefined
   crewLedger: CrewLedger
   selectedIPAgentIndex: number

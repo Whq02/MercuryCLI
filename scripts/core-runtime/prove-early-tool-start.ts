@@ -194,7 +194,7 @@ async function runScript(rounds: Script[], label: string): Promise<Run> {
     querySource: 'sdk' as never,
     deps: {
       callModel: callModel as never,
-      autoFold: (async () => ({ wasCompacted: false })) as never,
+      autoFold: (async () => ({ wasFolded: false })) as never,
       prune: (async (messages: unknown[]) => ({ messages })) as never,
       uuid: (() => {
         let n = 0
@@ -390,7 +390,7 @@ section('refusals — an abandoned stream (provider throw after a settled tool_u
     querySource: 'sdk' as never,
     deps: {
       callModel: failingModel as never,
-      autoFold: (async () => ({ wasCompacted: false })) as never,
+      autoFold: (async () => ({ wasFolded: false })) as never,
       prune: (async (messages: unknown[]) => ({ messages })) as never,
       uuid: (() => {
         let n = 0
@@ -447,7 +447,7 @@ section('refusals — an abandoned stream (provider throw after a settled tool_u
     querySource: 'sdk' as never,
     deps: {
       callModel: fallbackStreamModel as never,
-      autoFold: (async () => ({ wasCompacted: false })) as never,
+      autoFold: (async () => ({ wasFolded: false })) as never,
       prune: (async (messages: unknown[]) => ({ messages })) as never,
       uuid: (() => {
         let n = 0

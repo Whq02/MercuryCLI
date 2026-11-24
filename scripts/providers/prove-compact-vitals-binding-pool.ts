@@ -73,7 +73,7 @@ function lineOf(source: SourceUsage): string {
     activity: 'calm',
     cursorRow: undefined,
     sessionCrew: [],
-    viewingAgentTaskId: undefined,
+    viewingCrewmateTaskId: undefined,
     mainChatTaskId: undefined,
     tasks: {},
     roster: { rows: [] },

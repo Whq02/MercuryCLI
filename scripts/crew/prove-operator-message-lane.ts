@@ -22,7 +22,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-type State = { tasks: Record<string, unknown>; viewingAgentTaskId?: string; mainChatTaskId?: string; viewSelectionMode: string }
+type State = { tasks: Record<string, unknown>; viewingCrewmateTaskId?: string; mainChatTaskId?: string; viewSelectionMode: string }
 function makeStore(tasks: Record<string, unknown>): { state: State; set: (fn: (prev: never) => never) => void; get: () => never } {
   const store = {
     state: { tasks, viewSelectionMode: 'none' } as State,
@@ -68,9 +68,9 @@ section('§3 the composer\'s target: the pin outlives the view, esc leaves it al
   enterCrewmateView('a2', store.set)
   check('m pins the crewmate: target a2, pinned', composerTargetTaskId(store.state as never) === 'a2' && store.state.mainChatTaskId === 'a2', 'setMainChat in src/crew/crewmates/crewmateView.ts must set mainChatTaskId and composerTargetTaskId in src/screen/app-state/selectors.ts must report it as the pinned target')
   enterCrewmateView('a1', store.set)
-  check('viewing another crewmate does not move a pinned composer', composerTargetTaskId(store.state as never) === 'a2' && store.state.viewingAgentTaskId === 'a1', 'composerTargetTaskId in src/screen/app-state/selectors.ts must prefer mainChatTaskId over viewingAgentTaskId')
+  check('viewing another crewmate does not move a pinned composer', composerTargetTaskId(store.state as never) === 'a2' && store.state.viewingCrewmateTaskId === 'a1', 'composerTargetTaskId in src/screen/app-state/selectors.ts must prefer mainChatTaskId over viewingAgentTaskId')
   exitCrewmateView(store.set)
-  check('leaving the view keeps the pin', composerTargetTaskId(store.state as never) === 'a2' && store.state.viewingAgentTaskId === undefined, 'exitCrewmateView in src/crew/crewmates/crewmateView.ts must clear viewingAgentTaskId and leave mainChatTaskId alone')
+  check('leaving the view keeps the pin', composerTargetTaskId(store.state as never) === 'a2' && store.state.viewingCrewmateTaskId === undefined, 'exitCrewmateView in src/crew/crewmates/crewmateView.ts must clear viewingAgentTaskId and leave mainChatTaskId alone')
   clearMainChat(store.set)
   check('m on Mercury Lead hands the main chat back', composerTargetTaskId(store.state as never) === undefined && store.state.mainChatTaskId === undefined, 'clearMainChat in src/crew/crewmates/crewmateView.ts must clear mainChatTaskId')
   setMainChat('a1', store.set)

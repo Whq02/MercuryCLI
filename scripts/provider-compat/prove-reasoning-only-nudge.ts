@@ -228,7 +228,7 @@ async function run(road: (params: { messages: AnyMsg[] }) => AsyncGenerator<unkn
       querySource: 'sdk',
       deps: {
         callModel,
-        autoFold: async () => ({ wasCompacted: false }),
+        autoFold: async () => ({ wasFolded: false }),
         prune: async (messages: unknown[]) => ({ messages }),
         uuid: (() => {
           let n = 0

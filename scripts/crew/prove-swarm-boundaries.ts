@@ -55,7 +55,7 @@ async function run(withTool: boolean): Promise<any[]> {
     }
     yield text('Finished the assigned check.')
   }
-  const generator = turnDoor({ messages: [createUserMessage({ content: 'Check the row.' })], systemPrompt: ['Complete the check.'] as never, userContext: {}, systemContext: {}, canUseTool: (async (_t: unknown, input: unknown) => ({ behavior: 'allow', updatedInput: input })) as never, toolUseContext: ctx, querySource: 'agent:mercury-crew' as never, deps: { uuid: randomUUID, callModel: callModel as never, autoFold: (async () => ({ wasCompacted: false })) as never, prune: (async (messages: unknown[]) => ({ messages })) as never } })
+  const generator = turnDoor({ messages: [createUserMessage({ content: 'Check the row.' })], systemPrompt: ['Complete the check.'] as never, userContext: {}, systemContext: {}, canUseTool: (async (_t: unknown, input: unknown) => ({ behavior: 'allow', updatedInput: input })) as never, toolUseContext: ctx, querySource: 'agent:mercury-crew' as never, deps: { uuid: randomUUID, callModel: callModel as never, autoFold: (async () => ({ wasFolded: false })) as never, prune: (async (messages: unknown[]) => ({ messages })) as never } })
   for await (const _event of generator) {}
   return requests
 }

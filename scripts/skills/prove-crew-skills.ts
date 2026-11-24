@@ -168,7 +168,7 @@ const makeSlashContext = (commands: Command[]) => ({
 })
 
 const bareDeep = await processSlashCommand('/deep-research', [], [], makeSlashContext(allCommands) as never, () => {})
-check('bare /deep-research answers its usage line without starting a turn', deepCmd !== undefined && bareDeep.shouldQuery === false && bareDeep.resultText === bareUsageLine(deepCmd), bareDeep.resultText)
+check('bare /deep-research answers its usage line without starting a turn', deepCmd !== undefined && bareDeep.shouldStartTurn === false && bareDeep.resultText === bareUsageLine(deepCmd), bareDeep.resultText)
 
 const argDeep = await processSlashCommand('/deep-research compare sqlite wal and rollback modes', [], [], makeSlashContext(allCommands) as never, () => {})
 const bareReview = await processSlashCommand('/code-review', [], [], makeSlashContext(allCommands) as never, () => {})
@@ -193,9 +193,9 @@ const reviewPath = join(ROOT, 'mercury-skills', 'code-review', 'SKILL.md')
 const deepSource = existsSync(deepPath) ? parseFrontmatter(readFileSync(deepPath, 'utf8')).content.trimStart() : ''
 const reviewSource = existsSync(reviewPath) ? parseFrontmatter(readFileSync(reviewPath, 'utf8')).content.trimStart() : ''
 
-check('deep-research expands through processSlashCommand with its full body and appended argument', deepSource !== '' && argDeep.shouldQuery === true && deepExpanded.includes(deepSource) && deepExpanded.endsWith('compare sqlite wal and rollback modes'))
-check('bare /code-review expands through processSlashCommand and starts a turn', reviewSource !== '' && bareReview.shouldQuery === true && reviewBareExpanded.includes(reviewSource))
-check('/code-review with effort and target appends the argument verbatim', reviewSource !== '' && argReview.shouldQuery === true && reviewArgExpanded.includes(reviewSource) && reviewArgExpanded.endsWith('xhigh HEAD~1..HEAD'))
+check('deep-research expands through processSlashCommand with its full body and appended argument', deepSource !== '' && argDeep.shouldStartTurn === true && deepExpanded.includes(deepSource) && deepExpanded.endsWith('compare sqlite wal and rollback modes'))
+check('bare /code-review expands through processSlashCommand and starts a turn', reviewSource !== '' && bareReview.shouldStartTurn === true && reviewBareExpanded.includes(reviewSource))
+check('/code-review with effort and target appends the argument verbatim', reviewSource !== '' && argReview.shouldStartTurn === true && reviewArgExpanded.includes(reviewSource) && reviewArgExpanded.endsWith('xhigh HEAD~1..HEAD'))
 check(
   'neither bundled skill uses disk-only substitution tokens',
   ![deepSource, reviewSource].some(text => /\$ARGUMENTS|\$[0-9]\b|\$\{MERCURY_SKILL_DIR\}|\$\{MERCURY_SESSION_ID\}/.test(text)),

@@ -79,7 +79,7 @@ export function sessionBrowserView({
   hints,
   expandHint,
 }: {
-  grouped: { log: SessionListing; children: SessionListing[] }[]
+  grouped: { listing: SessionListing; children: SessionListing[] }[]
   emptyReasons: string[]
   renaming: boolean
   searchMode: boolean
@@ -120,10 +120,10 @@ export function sessionBrowserView({
     <TreeSelect<SessionListing>
       isDisabled={searchMode}
       nodes={grouped.map(row => ({
-        id: row.log.sessionId ?? `path:${row.log.fullPath ?? row.log.value}`,
-        value: row.log,
-        label: rowLabel(row.log, row.children.length > 0 ? 'header' : 'flat', row.children.length),
-        description: describeLogFitted(row.log, showAllProjects, labelWidth),
+        id: row.listing.sessionId ?? `path:${row.listing.fullPath ?? row.listing.value}`,
+        value: row.listing,
+        label: rowLabel(row.listing, row.children.length > 0 ? 'header' : 'flat', row.children.length),
+        description: describeLogFitted(row.listing, showAllProjects, labelWidth),
         dimDescription: true,
         children: row.children.map(child => ({
           id: `${child.sessionId}:${child.value}`,
@@ -156,18 +156,18 @@ export function sessionBrowserView({
     <Select
       isDisabled={searchMode}
       options={grouped.map((row, index) => ({
-        label: rowLabel(row.log, 'flat', 0),
-        description: describeLogFitted(row.log, showAllProjects, labelWidth),
+        label: rowLabel(row.listing, 'flat', 0),
+        description: describeLogFitted(row.listing, showAllProjects, labelWidth),
         value: String(index),
       }))}
       visibleOptionCount={visibleCount}
       onFocus={value => {
         const row = grouped[Number(value)]
-        if (row) setFocusedLog(row.log)
+        if (row) setFocusedLog(row.listing)
       }}
       onChange={value => {
         const row = grouped[Number(value)]
-        if (row) onSelect(row.log)
+        if (row) onSelect(row.listing)
       }}
       onCancel={onCancel}
       onUpFromFirstItem={() => setSearchMode(true)}

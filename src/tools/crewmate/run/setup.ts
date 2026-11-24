@@ -7,7 +7,7 @@ import { processOwnerForLane } from '../../../engine/run-owner/resolveOwner.js'
 import type { AgentId } from '../../../sessions/transcripts/ids.js'
 import type { Tool, ToolUseContext, Tools } from '../../kit/tool.js'
 import type { MCPServerConnection } from '../../../integrations/mcp-shapes/mcpServerRecords.js'
-import { crewmateDefaultEffort } from '../../../crew/agents/agentDefaults.js'
+import { defaultCrewmateEffort } from '../../../crew/agents/agentDefaults.js'
 import { createFileStateCacheWithSizeLimit } from '../../../platform/files/fileStateCache.js'
 import { logForDebugging } from '../../../platform/logs/debugLog.js'
 import { getSchemaBoundStructuredOutputTool } from '../../structured-output/SyntheticOutputTool.js'
@@ -62,7 +62,7 @@ export function crewmatePostureOf({ toolUseContext, agentDefinition, isAsync, ca
         effortOverride,
         useExactTools,
         definitionEffort: agentDefinition.effort,
-        defaultEffort: crewmateDefaultEffort(),
+        defaultEffort: defaultCrewmateEffort(),
       }),
     })
   }

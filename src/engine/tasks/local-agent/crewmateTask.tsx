@@ -313,7 +313,7 @@ export type CrewmateTaskState = TaskStateBase & {
   handoverReason?: BackgroundHandoverReason
   pendingMessages?: string[]
   operatorMessages?: string[]
-  compactRequested?: true
+  foldRequested?: true
   replyTarget?: 'parent' | 'operator'
   retain?: boolean
   diskLoaded?: boolean
@@ -569,7 +569,7 @@ type AsyncCrewmateRegistration = {
   model?: string
   toolUseId?: string
   replyTarget?: 'parent' | 'operator'
-  compactRequested?: true
+  foldRequested?: true
 }
 
 export function registerAsyncCrewmate(args: AsyncCrewmateRegistration): CrewmateTaskState {
@@ -594,7 +594,7 @@ export function registerAsyncCrewmate(args: AsyncCrewmateRegistration): Crewmate
     isBackgrounded: true,
     replyTarget: args.replyTarget ?? 'parent',
     retain: false,
-    ...(args.compactRequested === true ? { compactRequested: true as const } : {}),
+    ...(args.foldRequested === true ? { foldRequested: true as const } : {}),
   }
   registrationReplyTargets.set(abortController, state.replyTarget!)
   registerTask(state, args.setAppState)
@@ -975,7 +975,7 @@ export function requestCrewmateFold(taskId: string, setAppState: SetAppState): b
   updateTaskState<CrewmateTaskState>(taskId, setAppState, task => {
     if (!isCrewmateTask(task) || task.status !== 'running') return task
     asked = true
-    return task.compactRequested === true ? task : { ...task, compactRequested: true }
+    return task.foldRequested === true ? task : { ...task, foldRequested: true }
   })
   return asked
 }

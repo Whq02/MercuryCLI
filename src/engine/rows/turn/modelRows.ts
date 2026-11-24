@@ -50,7 +50,7 @@ function inputFloorUsd(messages: readonly Message[], model: string): number | nu
 }
 
 export interface ModelNeeds {
-  queryParams: TurnParams
+  turnParams: TurnParams
   config: ConversationConfig
   toolOutcomes: Map<string, 'ok' | 'error' | 'aborted'>
   recoveries: Array<{ kind: RecoveryKind }>
@@ -85,14 +85,14 @@ export interface ModelNeeds {
 }
 
 export async function* modelTurnRows(this: ConversationState, needs: ModelNeeds): AsyncGenerator<RowDraft> {
-  const { queryParams, config, toolOutcomes, recoveries, scope, openCalls, persistenceDisabled, turnMessages, recordDelta, eagerFlush, steps, cutOpenCalls, endTurn, effectiveModel, trackCalls, rowsOfMessage, hookNoticeRows, latestAnswer, ledgerAtStart, turnStartedAt, notices, messages, turnId, maxTimeReached, timeLimitFacts, syntheticCallsBeforeTurn, seedMessages, denialsBefore, errorWatermark, captureStopReason, capturedStopReasonNow, recoveredUnansweredAskNow } = needs
+  const { turnParams, config, toolOutcomes, recoveries, scope, openCalls, persistenceDisabled, turnMessages, recordDelta, eagerFlush, steps, cutOpenCalls, endTurn, effectiveModel, trackCalls, rowsOfMessage, hookNoticeRows, latestAnswer, ledgerAtStart, turnStartedAt, notices, messages, turnId, maxTimeReached, timeLimitFacts, syntheticCallsBeforeTurn, seedMessages, denialsBefore, errorWatermark, captureStopReason, capturedStopReasonNow, recoveredUnansweredAskNow } = needs
   let currentUsage: NonNullableUsage = { ...EMPTY_USAGE }
   let currentStreamMessageId: string | null = null
   let currentStreamModel: string = effectiveModel
   let terminal: Terminal | undefined
   let apiErrorMessage: (AssistantMessage & { error?: string }) | null = null
 
-  for await (const event of turnDoorEvents(queryParams) as AsyncGenerator<RunEvent, unknown, unknown>) {
+  for await (const event of turnDoorEvents(turnParams) as AsyncGenerator<RunEvent, unknown, unknown>) {
     noteRunPhase('first_canonical_event')
     config.onLiveness?.()
     if (event.kind === 'run_terminal') {

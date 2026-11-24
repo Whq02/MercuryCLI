@@ -344,7 +344,7 @@ async function runInlineSkill(
   contextModifier: (ctx: ToolUseContext) => ToolUseContext
 }> {
   const processed = await processPromptSlashCommand(name, args, commands, context)
-  if (!processed.shouldQuery) {
+  if (!processed.shouldStartTurn) {
     throw refusedExpansionError(name, processed)
   }
   const allowedTools: string[] = processed.allowedTools ?? []

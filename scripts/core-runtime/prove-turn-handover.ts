@@ -82,7 +82,7 @@ section('(1) the rows the next request carries, hand-over by hand-over')
   const again = await handed('cut_tool_call_recovery', { model: 'deepseek-v4-pro', tools: [{ name: 'Bash' }], script: [f.yields(...f.cutCall(4_096)), f.yields(f.says('done.'))] })
   check('cut_tool_call_recovery: the same rows again, nothing of the cut reply, and room for twice the output', again.reached && again.rows.length === 0 && again.run.requests[0]?.options.maxOutputTokensOverride === undefined && again.run.requests[1]?.options.maxOutputTokensOverride === 8_192, `${again.said} · room ${j(again.run.requests[1]?.options.maxOutputTokensOverride)}`)
 
-  const folded = await t.runScripted({ seed: f.history(), autocompact: [{ wasCompacted: false }, f.folded()], script: [f.yields(f.overflowed(f.providerOverflow())), f.yields(f.says('after the fold'))] })
+  const folded = await t.runScripted({ seed: f.history(), autocompact: [{ wasFolded: false }, f.folded()], script: [f.yields(f.overflowed(f.providerOverflow())), f.yields(f.says('after the fold'))] })
   const afterFold = rowsOf(folded.requests[1])
   check('overflow_recovery: the next request is the folded conversation with the operator\'s last line carried behind it', folded.transitions[0] === 'overflow_recovery' && afterFold.length === 3 && afterFold[0]?.type === 'system' && afterFold[0]?.subtype === 'compact_boundary' && textOf(afterFold[1]).includes('RIG SUMMARY') && textOf(afterFold[2]).includes('hello there rig'), `${j(folded.transitions)} · ${afterFold.map(textOf).join(' | ').slice(0, 200)}`)
 }

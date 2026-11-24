@@ -7,9 +7,9 @@ import {
 import type { AppState } from './AppStateStore.js'
 
 export function composerTargetTaskId(
-  appState: Pick<AppState, 'viewingAgentTaskId' | 'mainChatTaskId'>,
+  appState: Pick<AppState, 'viewingCrewmateTaskId' | 'mainChatTaskId'>,
 ): string | undefined {
-  return appState.mainChatTaskId ?? appState.viewingAgentTaskId
+  return appState.mainChatTaskId ?? appState.viewingCrewmateTaskId
 }
 
 type ActiveAgentForInput =
@@ -17,7 +17,7 @@ type ActiveAgentForInput =
   | { type: 'named_agent'; task: CrewmateTaskState }
 
 export function getActiveAgentForInput(
-  appState: Pick<AppState, 'viewingAgentTaskId' | 'mainChatTaskId' | 'tasks'>,
+  appState: Pick<AppState, 'viewingCrewmateTaskId' | 'mainChatTaskId' | 'tasks'>,
 ): ActiveAgentForInput {
   const taskId = composerTargetTaskId(appState)
   if (!taskId) return { type: 'leader' }
@@ -90,9 +90,9 @@ export function projectViewedCrewmate(
 }
 
 export function getViewedCrewmate(
-  appState: Pick<AppState, 'viewingAgentTaskId' | 'tasks' | 'crewmateNameRegistry'>,
+  appState: Pick<AppState, 'viewingCrewmateTaskId' | 'tasks' | 'crewmateNameRegistry'>,
 ): ViewedCrewmate | undefined {
-  const taskId = appState.viewingAgentTaskId
+  const taskId = appState.viewingCrewmateTaskId
   if (!taskId) return undefined
   const task = appState.tasks[taskId]
   if (!task) return undefined

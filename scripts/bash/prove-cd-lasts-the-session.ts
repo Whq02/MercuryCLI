@@ -108,7 +108,7 @@ async function turn(steps: Step[]): Promise<{ uuid: string; ran: Ran[] }> {
       reply.message.stop_reason = step === undefined ? 'end_turn' : 'tool_use'
       yield reply
     },
-    autoFold: async () => ({ wasCompacted: false }),
+    autoFold: async () => ({ wasFolded: false }),
     prune: async (rows: unknown[]) => ({ messages: rows }),
     uuid: () => randomUUID(),
   }

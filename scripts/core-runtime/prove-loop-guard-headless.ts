@@ -186,7 +186,7 @@ async function runHeadless(steps: Step[], rounds?: Step[][]): Promise<{ yields: 
   }
   scriptedDeps = {
     callModel,
-    autoFold: async () => ({ wasCompacted: false }),
+    autoFold: async () => ({ wasFolded: false }),
     prune: async (messages: unknown[]) => ({ messages }),
     uuid: (() => {
       let n = 0

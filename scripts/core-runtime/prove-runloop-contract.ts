@@ -199,7 +199,7 @@ function makeModel(script: ModelStep[][]): {
 
 function autocompactScript(results: Array<Record<string, unknown>>) {
   let i = 0
-  return async () => (results[i] ? results[i++]! : { wasCompacted: false })
+  return async () => (results[i] ? results[i++]! : { wasFolded: false })
 }
 const passthroughMicrocompact = async (messages: unknown[]) => ({ messages }) as never
 
@@ -994,7 +994,7 @@ section('L12 RAPID-REFILL BREAKER — the notice rides beside the answer, the tu
 {
   const r = record(
     await run({
-      autocompact: [{ wasCompacted: false, rapidRefillBreakerTripped: true }],
+      autocompact: [{ wasFolded: false, rapidRefillBreakerTripped: true }],
       script: [[y(asstText('the answer beside the notice'))]],
     }),
   )
@@ -1037,7 +1037,7 @@ section('L13 COMPACTION BOUNDARY — boundary yields, post-compact input')
   const r = record(
     await run({
       seed: [seedUser('hello there rig'), preCompactAssistant],
-      autocompact: [{ wasCompacted: true, foldResult }],
+      autocompact: [{ wasFolded: true, foldResult }],
       script: [[y(asstText('post-compact turn'))]],
     }),
   )

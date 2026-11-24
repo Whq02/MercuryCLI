@@ -199,7 +199,7 @@ export async function* turnRows(this: ConversationState, prompt: string | Conten
   headlessProfilerCheckpoint('turn_row_yielded')
   noteRunPhase('assembly')
 
-  if (!inputResult.shouldQuery) {
+  if (!inputResult.shouldStartTurn) {
     yield* commandTurnRows.call(this, { inputResult, priorUuids, options, scope, prompt, persistenceDisabled, turnMessages, eagerFlush, endTurn })
     return
   }
@@ -236,7 +236,7 @@ export async function* turnRows(this: ConversationState, prompt: string | Conten
     timeLimitTimer.unref?.()
   }
 
-  const queryParams: TurnParams = {
+  const turnParams: TurnParams = {
     messages: turnMessages,
     systemPrompt,
     userContext: promptParts.userContext,
@@ -254,6 +254,6 @@ export async function* turnRows(this: ConversationState, prompt: string | Conten
   }
   const capturedStopReasonNow = (): string | null => capturedStopReason
   const recoveredUnansweredAskNow = (): boolean => recoveredUnansweredAsk
-  const needs: ModelNeeds = { queryParams, config, toolOutcomes, recoveries, scope, openCalls, persistenceDisabled, turnMessages, recordDelta, eagerFlush, steps, cutOpenCalls, endTurn, effectiveModel, trackCalls, rowsOfMessage, hookNoticeRows, latestAnswer, ledgerAtStart, turnStartedAt, notices, messages, turnId, maxTimeReached, timeLimitFacts, syntheticCallsBeforeTurn, seedMessages, denialsBefore, errorWatermark, captureStopReason, capturedStopReasonNow, recoveredUnansweredAskNow }
+  const needs: ModelNeeds = { turnParams, config, toolOutcomes, recoveries, scope, openCalls, persistenceDisabled, turnMessages, recordDelta, eagerFlush, steps, cutOpenCalls, endTurn, effectiveModel, trackCalls, rowsOfMessage, hookNoticeRows, latestAnswer, ledgerAtStart, turnStartedAt, notices, messages, turnId, maxTimeReached, timeLimitFacts, syntheticCallsBeforeTurn, seedMessages, denialsBefore, errorWatermark, captureStopReason, capturedStopReasonNow, recoveredUnansweredAskNow }
   yield* modelTurnRows.call(this, needs)
 }

@@ -31,7 +31,7 @@ export function useCrewBanner(): { text: string; bgColor: keyof Theme } | null {
     (state: AppState) => state.standaloneAgentContext,
   )
   const viewingAgentTaskId = useAppState(
-    (state: AppState) => state.viewingAgentTaskId,
+    (state: AppState) => state.viewingCrewmateTaskId,
   )
   void viewingAgentTaskId
 

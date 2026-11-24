@@ -1453,7 +1453,7 @@ let recordedYields: unknown[] = []
     querySource: 'sdk' as never,
     deps: {
       callModel: callModel as never,
-      autoFold: async () => ({ wasCompacted: false }),
+      autoFold: async () => ({ wasFolded: false }),
       prune: (async (messages: unknown[]) => ({ messages })) as never,
       uuid: seededUuid(),
     } as never,

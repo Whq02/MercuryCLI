@@ -178,7 +178,7 @@ section('§C C08 — the SHIPPED typed ladder composes with selection')
   const folds: Array<{ head: AnyMessage[]; fork: AnyMessage[]; carry: AnyMessage[] }> = []
   ;(planted.run.deps as AnyMessage).autoFold = async (head: AnyMessage[], _context: unknown, cacheSafe: { forkContextMessages: AnyMessage[]; postFoldCarry: AnyMessage[] }) => {
     folds.push({ head, fork: cacheSafe.forkContextMessages, carry: cacheSafe.postFoldCarry })
-    return { wasCompacted: false }
+    return { wasFolded: false }
   }
   const opened = await t.drain(makeRequest(planted.run as never, planted.state as never, 1))
   planted.close()

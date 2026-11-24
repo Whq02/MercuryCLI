@@ -376,7 +376,7 @@ function HelmLanesRailImpl({ width, mergedVitals = false, availRows }: { width: 
   const workRunSnap = useSyncExternalStore(subscribeRuns, () => getRunSnapshot(processMainOwner()), () => null)
   const workLaneOff = isEnvDefinedFalsy(flagEnv('MERCURY_WORK_LANE'))
   const tasks = useAppState(s => s.tasks)
-  const viewingCrewmateTaskId = useAppState(s => s.viewingAgentTaskId)
+  const viewingCrewmateTaskId = useAppState(s => s.viewingCrewmateTaskId)
   const mainChatTaskId = useAppState(s => s.mainChatTaskId)
   const roster = useFocusedWorkRoster()
   const sessionCrew = useSessionCrew()
@@ -386,7 +386,7 @@ function HelmLanesRailImpl({ width, mergedVitals = false, availRows }: { width: 
   const missionCard = roster.missionCard ?? null
   const mission = missionCard !== null && (missionCard.state === 'armed' || missionCard.state === 'paused') ? missionCard : null
   const wakeGlance = useWakeGlance()
-  const solo = soloOf({ sessionCrew, viewingAgentTaskId: viewingCrewmateTaskId, mainChatTaskId, tasks, roster })
+  const solo = soloOf({ sessionCrew, viewingCrewmateTaskId: viewingCrewmateTaskId, mainChatTaskId, tasks, roster })
   const recent = useRecentSessions(solo)
   const railWhyRef = React.useRef<Record<string, unknown> | null>(null)
   fluxWhy('rail-lanes', railWhyRef, () => ({
@@ -416,7 +416,7 @@ function HelmLanesRailImpl({ width, mergedVitals = false, availRows }: { width: 
     activity,
     cursorRow: published[getHelmCursor('lanes')],
     sessionCrew,
-    viewingAgentTaskId: viewingCrewmateTaskId,
+    viewingCrewmateTaskId: viewingCrewmateTaskId,
     mainChatTaskId,
     tasks,
     roster,

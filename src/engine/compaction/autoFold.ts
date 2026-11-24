@@ -63,7 +63,7 @@ export function operatorFoldAsked(toolUseContext: Pick<ToolUseContext, 'agentId'
   const agentId = toolUseContext.agentId
   if (agentId === undefined) return false
   const task = toolUseContext.getAppState().tasks?.[agentId]
-  return task?.type === 'local_agent' && task.compactRequested === true
+  return task?.type === 'local_agent' && task.foldRequested === true
 }
 
 function askingCrewmateName(toolUseContext: Pick<ToolUseContext, 'agentId' | 'getAppState'>): string {
@@ -76,8 +76,8 @@ export function takeOperatorFoldAsk(toolUseContext: Pick<ToolUseContext, 'agentI
   const agentId = toolUseContext.agentId
   if (agentId === undefined) return
   updateTaskState<CrewmateTaskState>(agentId, toolUseContext.setAppStateForTasks ?? toolUseContext.setAppState, task => {
-    if (task.type !== 'local_agent' || task.compactRequested !== true) return task
-    const { compactRequested: _taken, ...rest } = task
+    if (task.type !== 'local_agent' || task.foldRequested !== true) return task
+    const { foldRequested: _taken, ...rest } = task
     return rest
   })
 }
@@ -101,7 +101,7 @@ export function rapidRefillPauseText(opts: { nonInteractive: boolean }): string 
 }
 
 export type AutoFoldTrackingState = {
-  compacted: boolean
+  folded: boolean
   turnCounter: number
   turnId: string
   consecutiveFailures?: number
@@ -158,7 +158,7 @@ export function foldModelFor(messages: readonly Message[], seated: string, opts:
 
 export function rapidRefillCount(tracking?: AutoFoldTrackingState): number {
   if (!tracking) return 0
-  if (tracking.compacted && tracking.turnCounter < RAPID_REFILL_TURN_WINDOW) {
+  if (tracking.folded && tracking.turnCounter < RAPID_REFILL_TURN_WINDOW) {
     return (tracking.consecutiveRapidRefills ?? 0) + 1
   }
   return 0
@@ -381,7 +381,7 @@ function settleFoldError(opts: {
   const priorFailureField = priorFailures !== undefined ? { consecutiveFailures: priorFailures } : {}
   if (error instanceof APIUserAbortError) {
     return {
-      wasCompacted: false,
+      wasFolded: false,
       ...priorFailureField,
       measuredRawTokenCount,
       ...(forced ? { refusal: ERROR_MESSAGE_USER_ABORT } : {}),
@@ -394,7 +394,7 @@ function settleFoldError(opts: {
       : message
     if (!crewmateAsked) queuedFold?.complete()
     return {
-      wasCompacted: false,
+      wasFolded: false,
       ...priorFailureField,
       measuredRawTokenCount,
       refusal,
@@ -408,7 +408,7 @@ function settleFoldError(opts: {
       { level: 'warn' },
     )
     return {
-      wasCompacted: false,
+      wasFolded: false,
       consecutiveFailures: MAX_CONSECUTIVE_FAILURES,
       measuredRawTokenCount,
       refusal: foldPausedForHistoryText(error.providerWords, { nonInteractive }),
@@ -423,7 +423,7 @@ function settleFoldError(opts: {
     )
   }
   return {
-    wasCompacted: false,
+    wasFolded: false,
     consecutiveFailures: nextFailures,
     ...(rapidRefillBreakerTripped ? { rapidRefillBreakerTripped: true } : {}),
     measuredRawTokenCount,
@@ -440,7 +440,7 @@ export async function autoFoldIfNeeded(
   snipTokensFreed: number = 0,
   overflowSignal?: OverflowSignal,
 ): Promise<{
-  wasCompacted: boolean
+  wasFolded: boolean
   foldResult?: FoldResult
   consecutiveFailures?: number
   consecutiveRapidRefills?: number
@@ -459,7 +459,7 @@ export async function autoFoldIfNeeded(
     paused?: true
     declined?: true
   }): AutoFoldResult => ({
-    wasCompacted: false,
+    wasFolded: false,
     ...(priorFailures !== undefined ? { consecutiveFailures: priorFailures } : {}),
     ...extra,
   })
@@ -642,8 +642,8 @@ export async function autoFoldIfNeeded(
   }
 
   const refoldInfo: RefoldInfo = {
-    isRefold: tracking?.compacted === true,
-    turnsSincePreviousFold: tracking?.compacted === true ? tracking.turnCounter : -1,
+    isRefold: tracking?.folded === true,
+    turnsSincePreviousFold: tracking?.folded === true ? tracking.turnCounter : -1,
     ...(tracking?.turnId !== undefined ? { previousFoldTurnId: tracking.turnId } : {}),
     autoFoldThreshold: fixedThreshold,
     ...(querySource !== undefined ? { querySource } : {}),
@@ -679,7 +679,7 @@ export async function autoFoldIfNeeded(
     queuedFold?.complete()
 
     return {
-      wasCompacted: true,
+      wasFolded: true,
       foldResult: attempt.compactionResult,
       ...(attempt.fromMemory ? {} : { consecutiveFailures: 0 }),
       consecutiveRapidRefills,

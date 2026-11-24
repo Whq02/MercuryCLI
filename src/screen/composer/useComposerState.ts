@@ -53,11 +53,11 @@ export function useComposerState({
   )
   const effortValue = useAppState((s: AppState) => s.effortValue)
   const viewedTask = useAppState((s: AppState) =>
-    s.viewingAgentTaskId !== undefined ? s.tasks[s.viewingAgentTaskId] : undefined,
+    s.viewingCrewmateTaskId !== undefined ? s.tasks[s.viewingCrewmateTaskId] : undefined,
   )
   const footerSelection = useAppState((s: AppState) => s.footerSelection)
   const viewSelectionMode = useAppState((s: AppState) => s.viewSelectionMode)
-  const viewingAgentTaskId = useAppState((s: AppState) => s.viewingAgentTaskId)
+  const viewingAgentTaskId = useAppState((s: AppState) => s.viewingCrewmateTaskId)
   const promptSuggestionEnabled = useAppState(
     (s: AppState) => s.promptSuggestionEnabled,
   )

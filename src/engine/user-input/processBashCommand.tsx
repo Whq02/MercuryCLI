@@ -62,7 +62,7 @@ export async function processBashCommand(
   context: ProcessUserInputContext,
   setToolJSX: SetToolJSXFn,
   uuid?: string,
-): Promise<{ messages: Message[]; shouldQuery: boolean }> {
+): Promise<{ messages: Message[]; shouldStartTurn: boolean }> {
   const caveat = createSyntheticUserCaveatMessage()
   const commandMessage = echoedCommandMessage(inputString, precedingInputBlocks, uuid)
 
@@ -81,7 +81,7 @@ export async function processBashCommand(
           content: `<${BASH_STDERR_TAG}>${escapeXml(`Command refused: ${WINDOWS_BASH_NOTICE}`)}</${BASH_STDERR_TAG}>`,
         }),
       ],
-      shouldQuery: false,
+      shouldStartTurn: false,
     }
   }
 
@@ -130,7 +130,7 @@ export async function processBashCommand(
         ...attachmentMessages,
         outputMessage(data.stdout, data.stderr, settledShell(data.code, startedAt), data.backgroundTaskId),
       ],
-      shouldQuery: false,
+      shouldStartTurn: false,
     }
   } catch (error) {
     const shellError = error as Partial<Out> & { message?: string }
@@ -142,7 +142,7 @@ export async function processBashCommand(
           createUserMessage({ content: INTERRUPT_MESSAGE }),
           ...attachmentMessages,
         ],
-        shouldQuery: false,
+        shouldStartTurn: false,
       }
     }
     if (typeof shellError.stdout === 'string' || typeof shellError.stderr === 'string') {
@@ -153,7 +153,7 @@ export async function processBashCommand(
           ...attachmentMessages,
           outputMessage(shellError.stdout ?? '', shellError.stderr ?? '', settledShell(shellError.code, startedAt)),
         ],
-        shouldQuery: false,
+        shouldStartTurn: false,
       }
     }
     return {
@@ -165,7 +165,7 @@ export async function processBashCommand(
           content: `<${BASH_STDERR_TAG}>${escapeXml(`Command failed: ${String(shellError.message ?? error)}`)}</${BASH_STDERR_TAG}>`,
         }),
       ],
-      shouldQuery: false,
+      shouldStartTurn: false,
     }
   } finally {
     setToolJSX({ jsx: null, shouldHidePromptInput: false, clearUnlessLocalJSX: true })

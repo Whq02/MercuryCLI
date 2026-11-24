@@ -106,7 +106,7 @@ function describeListingFitted(log: SessionListing, withProjectPath: boolean, wi
   return truncateToWidth(describeListing(log, withProjectPath), Math.max(MIN_LABEL_WIDTH, width))
 }
 
-type ListingGroup = { log: SessionListing; children: SessionListing[] }
+type ListingGroup = { listing: SessionListing; children: SessionListing[] }
 
 function keptByFilters(
   log: SessionListing,
@@ -144,23 +144,23 @@ function matchesQuery(log: SessionListing, needle: string): boolean {
 }
 
 function groupListings(logs: SessionListing[], renaming: boolean): ListingGroup[] {
-  if (!renaming) return logs.map((log): ListingGroup => ({ log, children: [] }))
+  if (!renaming) return logs.map((listing): ListingGroup => ({ listing, children: [] }))
   const groups: ListingGroup[] = []
   const bySession = new Map<string, SessionListing[]>()
-  for (const log of logs) {
-    if (log.sessionId === undefined) {
-      groups.push({ log, children: [] })
+  for (const listing of logs) {
+    if (listing.sessionId === undefined) {
+      groups.push({ listing, children: [] })
       continue
     }
-    const bucket = bySession.get(log.sessionId)
-    if (bucket) bucket.push(log)
-    else bySession.set(log.sessionId, [log])
+    const bucket = bySession.get(listing.sessionId)
+    if (bucket) bucket.push(listing)
+    else bySession.set(listing.sessionId, [listing])
   }
   for (const bucket of bySession.values()) {
     const [newest, ...rest] = [...bucket].sort((x, y) => y.modified.getTime() - x.modified.getTime())
-    if (newest !== undefined) groups.push({ log: newest, children: rest })
+    if (newest !== undefined) groups.push({ listing: newest, children: rest })
   }
-  return groups.sort((x, y) => y.log.modified.getTime() - x.log.modified.getTime())
+  return groups.sort((x, y) => y.listing.modified.getTime() - x.listing.modified.getTime())
 }
 
 function tagTabsOf(logs: SessionListing[]): string[] {
@@ -274,7 +274,7 @@ export function SessionBrowser({
   )
   const labelWidth = Math.max(30, columns - 8)
 
-  const focusedIndex = grouped.findIndex(row => row.log === focusedLog)
+  const focusedIndex = grouped.findIndex(row => row.listing === focusedLog)
 
   usePublish(() => {
     if (onLoadMore && focusedIndex >= 0 && focusedIndex + 2 * visibleCount >= grouped.length) {
@@ -371,7 +371,7 @@ export function SessionBrowser({
   const focusedRow = focusedIndex >= 0 ? grouped[focusedIndex] : undefined
   const expandHint =
     renaming && focusedRow !== undefined && focusedRow.children.length > 0 && !forceExpanded
-      ? expanded.has(String(focusedRow.log.sessionId))
+      ? expanded.has(String(focusedRow.listing.sessionId))
         ? '← collapse'
         : '→ expand'
       : null

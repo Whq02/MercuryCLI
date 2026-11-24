@@ -102,7 +102,7 @@ async function turn(history: unknown[]): Promise<{ said: string[]; kept: unknown
     canUseTool: (async () => ({ behavior: 'deny', message: 'no tool in this fixture', decisionReason: { type: 'other', reason: 'fixture' } })) as never,
     toolUseContext: context() as never,
     querySource: 'sdk' as never,
-    deps: { callModel: deps.callModel, autoFold: (async () => ({ wasCompacted: false })) as never, prune: (async (messages: unknown[]) => ({ messages })) as never, uuid: deps.uuid },
+    deps: { callModel: deps.callModel, autoFold: (async () => ({ wasFolded: false })) as never, prune: (async (messages: unknown[]) => ({ messages })) as never, uuid: deps.uuid },
   }) as AsyncGenerator<Row>) {
     if (raw.type === 'assistant' && raw.isApiErrorMessage !== true) {
       said.push(`reply "${textOf(raw)}"`)

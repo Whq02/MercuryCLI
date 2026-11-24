@@ -157,7 +157,7 @@ async function run(): Promise<Run> {
       querySource: 'sdk',
       deps: {
         callModel,
-        autoFold: async () => ({ wasCompacted: false }),
+        autoFold: async () => ({ wasFolded: false }),
         prune: async (messages: unknown[]) => ({ messages }),
         uuid: (() => {
           let n = 0

@@ -315,11 +315,11 @@ export async function resumeCrewmateBackground(args: {
     RESUMED_CREWMATE_DESCRIPTION
   const replyTarget =
     args.replyTarget ?? (args.automatic === true ? previousTask?.replyTarget : undefined) ?? 'parent'
-  const compactRequested: true | undefined =
-    meta?.compactOnResume === true || previousTask?.compactRequested === true
+  const foldRequested: true | undefined =
+    meta?.compactOnResume === true || previousTask?.foldRequested === true
       ? true
       : undefined
-  if (compactRequested === true) {
+  if (foldRequested === true) {
     logForDebugging(
       `resumeAgent: crewmate ${agentId} compacts first — the operator asked for it from the crew view`,
     )
@@ -334,7 +334,7 @@ export async function resumeCrewmateBackground(args: {
     model: lifecycleModel,
     toolUseId: toolUseContext.toolUseId,
     replyTarget,
-    ...(compactRequested === true ? { compactRequested } : {}),
+    ...(foldRequested === true ? { foldRequested } : {}),
   })
 
   const workerPermissionMode = selectedAgent.permissionMode ?? 'implement'

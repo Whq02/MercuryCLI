@@ -71,7 +71,7 @@ export function handleTypeaheadKey(
   },
 ): void {
   const state = appStateStore.getState()
-  const viewingCrewmate = Boolean(state.viewingAgentTaskId)
+  const viewingCrewmate = Boolean(state.viewingCrewmateTaskId)
   const promptSuggestion = state.promptSuggestion
 
   if (

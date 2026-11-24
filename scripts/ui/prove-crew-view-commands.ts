@@ -353,13 +353,13 @@ async function command(scene: Scene, line: string, landed: () => boolean, ms = 6
 }
 async function view(scene: Scene, taskId: string, marker: string): Promise<void> {
   crewmateView.enterCrewmateView(taskId, scene.setState as never)
-  await until(() => scene.state().viewingAgentTaskId === taskId, 4000)
+  await until(() => scene.state().viewingCrewmateTaskId === taskId, 4000)
   await until(() => screenWords(scene).includes(marker), 6000)
   await sleep(300)
 }
 async function leave(scene: Scene): Promise<void> {
   crewmateView.exitCrewmateView(scene.setState as never)
-  await until(() => scene.state().viewingAgentTaskId === undefined, 4000)
+  await until(() => scene.state().viewingCrewmateTaskId === undefined, 4000)
   await sleep(300)
 }
 const mainSeatUntouched = (scene: Scene, label: string, submitsBefore: number): void => {
@@ -578,9 +578,9 @@ section('§3 a running in-process crewmate: /compact flags its task for the next
   await view(scene, LOCAL_ID, 'LOCAL-ROW')
   const submitsBefore = submits.length
   const taskOf = (): Record<string, unknown> | undefined => (scene.state().tasks as Record<string, Record<string, unknown>>)[LOCAL_ID]
-  const flagged = await command(scene, '/compact', () => taskOf()?.compactRequested === true)
+  const flagged = await command(scene, '/compact', () => taskOf()?.foldRequested === true)
   save('03-compact-at-local', scene.lines())
-  check('(c) /compact at a running in-process crewmate flags its task — its own query compacts at the next turn boundary', flagged && taskOf()?.compactRequested === true, JSON.stringify(taskOf()?.compactRequested))
+  check('(c) /compact at a running in-process crewmate flags its task — its own query compacts at the next turn boundary', flagged && taskOf()?.foldRequested === true, JSON.stringify(taskOf()?.foldRequested))
   check('(c) the receipt says the crewmate compacts at its next turn', screenWords(scene).includes('Lane local compacts at its next turn'), screenWords(scene).slice(-300))
   check('(c) the flag is the task\'s alone — its record on disk carries no compaction and the queued lanes are empty', readRecord(localRecord)?.compactOnResume === undefined && ((taskOf()?.operatorMessages as string[] | undefined) ?? []).length === 0, `${JSON.stringify(readRecord(localRecord))} · ${JSON.stringify(taskOf()?.operatorMessages)}`)
   const landed = await command(scene, `/model ${OPUS}`, () => readRecord(localRecord)?.model === OPUS)
@@ -592,7 +592,7 @@ section('§3 a running in-process crewmate: /compact flags its task for the next
 
 section("§4 back to Mercury Lead (the view's exit, as the rail's Lead row takes it): the commands return to the main seat")
 {
-  check('the view is back on the lead', scene.state().viewingAgentTaskId === undefined && !/viewing Lane/.test(statusRowOf(scene)), statusRowOf(scene))
+  check('the view is back on the lead', scene.state().viewingCrewmateTaskId === undefined && !/viewing Lane/.test(statusRowOf(scene)), statusRowOf(scene))
   const atlasBefore = JSON.stringify(readRecord(hostedRecord(ATLAS.id)))
   const cedarBefore = JSON.stringify(readRecord(hostedRecord(CEDAR.id)))
   const localBefore = JSON.stringify(readRecord(localRecord))
@@ -627,7 +627,7 @@ section("§5 the crewmate's own compaction: the flag on its task makes its query
   const { autoFoldIfNeeded } = await import('../../src/engine/compaction/autoFold.ts')
   const { createUserMessage, createAssistantMessage } = await import('../../src/engine/message-shapes/factories.ts')
   const tasks: Record<string, Record<string, unknown>> = {
-    [LOCAL_ID]: { id: LOCAL_ID, type: 'local_agent', agentId: LOCAL_ID, description: LOCAL_NAME, status: 'running', compactRequested: true },
+    [LOCAL_ID]: { id: LOCAL_ID, type: 'local_agent', agentId: LOCAL_ID, description: LOCAL_NAME, status: 'running', foldRequested: true },
   }
   let appState: Record<string, unknown> = { tasks, toolPermissionContext: getDefaultAppState().toolPermissionContext }
   const setAppState = (updater: (prev: Record<string, unknown>) => Record<string, unknown>): void => {
@@ -644,39 +644,39 @@ section("§5 the crewmate's own compaction: the flag on its task makes its query
     messages: [],
   }
   const askAgain = (): void => {
-    appState = { ...appState, tasks: { ...(appState.tasks as Record<string, Record<string, unknown>>), [LOCAL_ID]: { ...(appState.tasks as Record<string, Record<string, unknown>>)[LOCAL_ID]!, compactRequested: true } } }
+    appState = { ...appState, tasks: { ...(appState.tasks as Record<string, Record<string, unknown>>), [LOCAL_ID]: { ...(appState.tasks as Record<string, Record<string, unknown>>)[LOCAL_ID]!, foldRequested: true } } }
   }
   const messages = [createUserMessage({ content: 'count to three' }), createAssistantMessage({ content: 'one' }), createUserMessage({ content: 'and then?' }), createAssistantMessage({ content: 'two' })]
   const cacheSafe = { systemPrompt: ['a crewmate'], userContext: {}, systemContext: {}, toolUseContext: context as never, forkContextMessages: messages }
   const folded = await autoFoldIfNeeded(messages as never, context as never, cacheSafe as never, 'agent:builtin:mercury-crew')
   const foldCalls = callsOf('foldConversation')
-  check('the flagged crewmate\'s query folds at its next request boundary — the compaction ran on its own messages with its agent id, under the threshold', folded.wasCompacted === true && foldCalls.length === 1 && foldCalls[0]!.args[0] === messages.length && foldCalls[0]!.args[1] === LOCAL_ID, `${JSON.stringify({ wasCompacted: folded.wasCompacted, refusal: folded.refusal })} · ${JSON.stringify(foldCalls)}`)
+  check('the flagged crewmate\'s query folds at its next request boundary — the compaction ran on its own messages with its agent id, under the threshold', folded.wasFolded === true && foldCalls.length === 1 && foldCalls[0]!.args[0] === messages.length && foldCalls[0]!.args[1] === LOCAL_ID, `${JSON.stringify({ wasFolded: folded.wasFolded, refusal: folded.refusal })} · ${JSON.stringify(foldCalls)}`)
   check('the fold is asked as a manual one — foldConversation gets isAutoCompact false (the stub builds its boundary from it, as compact.ts:1794 does)', folded.foldResult?.boundaryMarker.compactMetadata.trigger === 'manual', String(folded.foldResult?.boundaryMarker.compactMetadata.trigger))
-  check('the flag is taken as the fold begins — the task no longer asks', (appState.tasks as Record<string, Record<string, unknown>>)[LOCAL_ID]!.compactRequested === undefined, JSON.stringify((appState.tasks as Record<string, unknown>)[LOCAL_ID]))
+  check('the flag is taken as the fold begins — the task no longer asks', (appState.tasks as Record<string, Record<string, unknown>>)[LOCAL_ID]!.foldRequested === undefined, JSON.stringify((appState.tasks as Record<string, unknown>)[LOCAL_ID]))
   const again = await autoFoldIfNeeded(messages as never, context as never, cacheSafe as never, 'agent:builtin:mercury-crew')
-  check('the next boundary folds nothing — one ask, one fold', again.wasCompacted === false && callsOf('foldConversation').length === 1, JSON.stringify({ wasCompacted: again.wasCompacted, refusal: again.refusal, calls: callsOf('foldConversation').length }))
-  check("a crewmate whose task does not ask is left to the threshold", (await autoFoldIfNeeded(messages as never, { ...context, agentId: 'a-other' } as never, cacheSafe as never, 'agent:builtin:mercury-crew')).wasCompacted === false, 'what to change: autoFoldIfNeeded in src/engine/compaction/autoFold.ts must fold only a task whose compactRequested flag is set')
+  check('the next boundary folds nothing — one ask, one fold', again.wasFolded === false && callsOf('foldConversation').length === 1, JSON.stringify({ wasFolded: again.wasFolded, refusal: again.refusal, calls: callsOf('foldConversation').length }))
+  check("a crewmate whose task does not ask is left to the threshold", (await autoFoldIfNeeded(messages as never, { ...context, agentId: 'a-other' } as never, cacheSafe as never, 'agent:builtin:mercury-crew')).wasFolded === false, 'what to change: autoFoldIfNeeded in src/engine/compaction/autoFold.ts must fold only a task whose compactRequested flag is set')
   askAgain()
   const overflow = { source: 'provider', family: 'anthropic', shape: 'prompt_too_long', actualTokens: 250_000, limitTokens: 200_000 }
   const forcedFold = await autoFoldIfNeeded(messages as never, context as never, cacheSafe as never, 'agent:builtin:mercury-crew', undefined, 0, overflow as never)
-  check('an overflow fold at the same boundary takes the ask with it — one fold, the flag gone', forcedFold.wasCompacted === true && callsOf('foldConversation').length === 2 && (appState.tasks as Record<string, Record<string, unknown>>)[LOCAL_ID]!.compactRequested === undefined, JSON.stringify({ wasCompacted: forcedFold.wasCompacted, calls: callsOf('foldConversation').length, task: (appState.tasks as Record<string, unknown>)[LOCAL_ID] }))
-  check('…and the boundary after the overflow folds nothing more', (await autoFoldIfNeeded(messages as never, context as never, cacheSafe as never, 'agent:builtin:mercury-crew')).wasCompacted === false && callsOf('foldConversation').length === 2, String(callsOf('foldConversation').length))
+  check('an overflow fold at the same boundary takes the ask with it — one fold, the flag gone', forcedFold.wasFolded === true && callsOf('foldConversation').length === 2 && (appState.tasks as Record<string, Record<string, unknown>>)[LOCAL_ID]!.foldRequested === undefined, JSON.stringify({ wasFolded: forcedFold.wasFolded, calls: callsOf('foldConversation').length, task: (appState.tasks as Record<string, unknown>)[LOCAL_ID] }))
+  check('…and the boundary after the overflow folds nothing more', (await autoFoldIfNeeded(messages as never, context as never, cacheSafe as never, 'agent:builtin:mercury-crew')).wasFolded === false && callsOf('foldConversation').length === 2, String(callsOf('foldConversation').length))
   nothingToFold = true
   askAgain()
   const declined = await autoFoldIfNeeded(messages as never, context as never, cacheSafe as never, 'agent:builtin:mercury-crew')
-  check('an asked fold that would save nothing is refused with the main /compact\'s words, the crewmate named, and no summariser call', declined.wasCompacted === false && declined.declined === true && declined.refusal === "Lane local — the crew view's /compact folded nothing: Nothing to compact yet: too few messages to fold (960 tokens)." && callsOf('foldConversation').length === 2 && (appState.tasks as Record<string, Record<string, unknown>>)[LOCAL_ID]!.compactRequested === undefined, JSON.stringify({ wasCompacted: declined.wasCompacted, declined: declined.declined, refusal: declined.refusal, calls: callsOf('foldConversation').length }))
+  check('an asked fold that would save nothing is refused with the main /compact\'s words, the crewmate named, and no summariser call', declined.wasFolded === false && declined.declined === true && declined.refusal === "Lane local — the crew view's /compact folded nothing: Nothing to compact yet: too few messages to fold (960 tokens)." && callsOf('foldConversation').length === 2 && (appState.tasks as Record<string, Record<string, unknown>>)[LOCAL_ID]!.foldRequested === undefined, JSON.stringify({ wasFolded: declined.wasFolded, declined: declined.declined, refusal: declined.refusal, calls: callsOf('foldConversation').length }))
   nothingToFold = false
 }
 
 section("§6 the resume: a finished crewmate's recorded compaction reaches the task that runs its next turn")
 {
   const { registerAsyncCrewmate } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
-  const compactionRequestedOf = (task: unknown): boolean => (task as { compactRequested?: unknown } | undefined)?.compactRequested === true
+  const compactionRequestedOf = (task: unknown): boolean => (task as { foldRequested?: unknown } | undefined)?.foldRequested === true
   let appState: Record<string, unknown> = { tasks: {} }
   const setAppState = (updater: (prev: Record<string, unknown>) => Record<string, unknown>): void => {
     appState = updater(appState)
   }
-  const registered = registerAsyncCrewmate({ agentId: 'a-resumed', description: 'Lane resumed', prompt: 'carry on', setAppState: setAppState as never, model: CREW_MODEL, compactRequested: true } as never)
+  const registered = registerAsyncCrewmate({ agentId: 'a-resumed', description: 'Lane resumed', prompt: 'carry on', setAppState: setAppState as never, model: CREW_MODEL, foldRequested: true } as never)
   check('a task registered for a resume with the flag asks for the fold', compactionRequestedOf(registered) && compactionRequestedOf((appState.tasks as Record<string, unknown>)['a-resumed']), 'what to change: registerAsyncAgent in src/engine/tasks/local-agent/crewmateTask.tsx must carry compactRequested onto the registered task')
   const plain = registerAsyncCrewmate({ agentId: 'a-plain', description: 'Lane plain', prompt: 'carry on', setAppState: setAppState as never, model: CREW_MODEL })
   check('a task registered without it does not', !compactionRequestedOf(plain), 'what to change: registerAsyncAgent in src/engine/tasks/local-agent/crewmateTask.tsx must set compactRequested only when asked')

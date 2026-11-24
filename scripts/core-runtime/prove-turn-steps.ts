@@ -70,17 +70,17 @@ section('(1) making the request: src/engine/loop/turn/makeRequest.ts')
   check('a turn past the turn budget is marked as the closing turn', closing.decision.kind === 'go_on' && closing.decision.iter?.closingTurn === true, j(closing.decision.iter?.closingTurn))
   closing.planted.close()
 
-  const failed = await request({ script: [], seed: f.history(), autocompact: [{ wasCompacted: false, refusal: 'the summary call failed' }] }, { pendingOverflow: { signal: f.providerOverflow(), rung: 'fold' }, overflowEpisode: { pruned: false, folded: true } })
+  const failed = await request({ script: [], seed: f.history(), autocompact: [{ wasFolded: false, refusal: 'the summary call failed' }] }, { pendingOverflow: { signal: f.providerOverflow(), rung: 'fold' }, overflowEpisode: { pruned: false, folded: true } })
   check("a fold forced by the provider's overflow that does not land ends the run prompt_too_long and says why", said(failed.decision) === 'end prompt_too_long' && t.noticesOf(failed.events).some(text => text.includes('the fold failed (the summary call failed)')), `${said(failed.decision)} · ${j(t.noticesOf(failed.events))}`)
   failed.planted.close()
 
-  const estimated = await request({ script: [], seed: f.history(), autocompact: [{ wasCompacted: false }] }, { pendingOverflow: { signal: ESTIMATE, rung: 'fold' }, overflowEpisode: { pruned: false, folded: true } })
+  const estimated = await request({ script: [], seed: f.history(), autocompact: [{ wasFolded: false }] }, { pendingOverflow: { signal: ESTIMATE, rung: 'fold' }, overflowEpisode: { pruned: false, folded: true } })
   check("a fold forced by Mercury's own estimate that does not land ends the run blocking_limit", said(estimated.decision) === 'end blocking_limit', said(estimated.decision))
   estimated.planted.close()
 
   const landed = await request({ script: [], seed: f.history(), autocompact: [f.folded()] }, { pendingOverflow: { signal: f.providerOverflow(), rung: 'fold' }, overflowEpisode: { pruned: false, folded: true } })
   const boundary = landed.events.find(event => event.kind === 'compaction_boundary')
-  check('a forced fold that lands goes on with the folded rows and a boundary marked overflow', landed.decision.kind === 'go_on' && boundary?.trigger === 'overflow' && (landed.decision.iter?.tracking as Row | undefined)?.compacted === true && (landed.decision.iter?.overflowEpisode as Row | undefined)?.folded === true, `${said(landed.decision)} · ${kinds(landed.events)}`)
+  check('a forced fold that lands goes on with the folded rows and a boundary marked overflow', landed.decision.kind === 'go_on' && boundary?.trigger === 'overflow' && (landed.decision.iter?.tracking as Row | undefined)?.folded === true && (landed.decision.iter?.overflowEpisode as Row | undefined)?.folded === true, `${said(landed.decision)} · ${kinds(landed.events)}`)
   landed.planted.close()
 
   const pruned = await request({ script: [], seed: f.history(), autocompact: [f.folded()] }, { pendingOverflow: { signal: f.providerOverflow(), rung: 'prune' }, overflowEpisode: { pruned: true, folded: true } })

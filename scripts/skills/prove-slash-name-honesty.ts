@@ -66,7 +66,7 @@ section('§1 A KNOWN NAME GATED OFF — /samples off answers its own sentence on
     check('unavailableCommandLine answers the same sentence for the registered command', unavailableCommandLine(samplesCommand) === SAMPLES_OFF_SENTENCE, unavailableCommandLine(samplesCommand))
   }
   const sent = await processSlashCommand('/samples', [], [], makeContext(roster) as never, () => {})
-  check('the dispatcher answers the off sentence as a refusal with no turn', sent.shouldQuery === false && sent.resultText === SAMPLES_OFF_SENTENCE && (sent as { commandRefused?: boolean }).commandRefused === true, `shouldQuery=${sent.shouldQuery} text=${sent.resultText}`)
+  check('the dispatcher answers the off sentence as a refusal with no turn', sent.shouldStartTurn === false && sent.resultText === SAMPLES_OFF_SENTENCE && (sent as { commandRefused?: boolean }).commandRefused === true, `shouldQuery=${sent.shouldStartTurn} text=${sent.resultText}`)
   console.log(`  the row: ${line}`)
 
   if (samplesCommand !== undefined) {
@@ -85,7 +85,7 @@ section('§1 A KNOWN NAME GATED OFF — /samples off answers its own sentence on
     const withSamples = [enabled, ...roster]
     check('with samples enabled the screen never resolves the name as unknown', resolveUnknownSlashName('/samples', withSamples) === undefined)
     const ran = await processSlashCommand('/samples', [], [], makeContext(withSamples) as never, () => {})
-    check('…and the dispatcher runs the command itself', opened === 1 && ran.shouldQuery === false && ran.resultText === 'the samples panel' && (ran as { commandRefused?: boolean }).commandRefused !== true, `opened=${opened} text=${ran.resultText}`)
+    check('…and the dispatcher runs the command itself', opened === 1 && ran.shouldStartTurn === false && ran.resultText === 'the samples panel' && (ran as { commandRefused?: boolean }).commandRefused !== true, `opened=${opened} text=${ran.resultText}`)
   }
 }
 

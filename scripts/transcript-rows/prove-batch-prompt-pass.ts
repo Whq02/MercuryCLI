@@ -94,7 +94,7 @@ try {
   check('the planner still folds the prompts into the old newline-joined text', planned.length === 1 && planned[0]?.message.content === `${first}\n${second}`)
 
   const slashBatch = await run([first, '/help'], ids.slice(0, 2))
-  check('a later slash line remains prompt text rather than invoking a command', slashBatch.shouldQuery && users(slashBatch.messages).length === 2 && users(slashBatch.messages)[1]?.message.content === '/help' && users(planApiConversation(slashBatch.messages).selected)[0]?.message.content === `${first}\n/help`)
+  check('a later slash line remains prompt text rather than invoking a command', slashBatch.shouldStartTurn && users(slashBatch.messages).length === 2 && users(slashBatch.messages)[1]?.message.content === '/help' && users(planApiConversation(slashBatch.messages).selected)[0]?.message.content === `${first}\n/help`)
   check('a later slash line still passes its prompt hook', JSON.stringify(hookSaw.splice(0)) === JSON.stringify([first, '/help']))
 
   const plain = [first, 'the line after the return', 'the third line']
@@ -109,7 +109,7 @@ try {
     check(`${label}: every line still passes the hook in order`, JSON.stringify(hookSaw.splice(0)) === JSON.stringify(plain))
     check(`${label}: only accepted lines keep their own prompt rows`, JSON.stringify(accepted.map(row => row.uuid)) === JSON.stringify(acceptedIds))
     check(`${label}: each blocked line keeps the ordinary warning`, result.messages.filter(row => row.type === 'system' && row.content.startsWith('this line is blocked')).length === denied.length)
-    check(`${label}: the surviving prompts alone determine whether the model runs`, result.shouldQuery === (allowed.length > 0) && (allowed.length > 0 || (result.hookBlocked === true && result.resultText?.includes('this line is blocked') === true)))
+    check(`${label}: the surviving prompts alone determine whether the model runs`, result.shouldStartTurn === (allowed.length > 0) && (allowed.length > 0 || (result.hookBlocked === true && result.resultText?.includes('this line is blocked') === true)))
     const projected = users(planApiConversation(result.messages).selected)
     check(`${label}: blocked text never reaches the model; the accepted lines still fold`, allowed.length === 0 ? projected.length === 0 : projected.length === 1 && projected[0]?.message.content === allowed.join('\n'))
   }

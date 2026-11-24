@@ -109,7 +109,7 @@ t.section('§1 the projection is exhaustive and honest')
 
   const stateOf = (task: { id: string } | undefined): never =>
     ({
-      viewingAgentTaskId: task?.id,
+      viewingCrewmateTaskId: task?.id,
       tasks: task ? { [task.id]: task } : {},
       crewmateNameRegistry: registry,
     }) as never

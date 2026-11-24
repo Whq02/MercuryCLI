@@ -75,7 +75,7 @@ section('B1 the words — the paused breaker names /compact by hand and the next
   check('…and never calls the pause the session\'s', !/session/.test(interactive), interactive)
   const headless = overflowRefusalText(signal, 'breaker', { nonInteractive: true })
   check('the headless refusal names the next prompt and the fresh-run remedy', headless === `${PROMPT_TOO_LONG_ERROR_MESSAGE} — the request is over the window (estimated 777,170 tokens > 777,000): ${HEADLESS_LINE} Start a fresh run, or pass --model with a larger window.`, headless)
-  check('the availability law still answers breaker at three failures', foldAvailability({ tracking: { compacted: false, turnCounter: 0, turnId: '', consecutiveFailures: 3 }, hasHistory: true }).available === false && (foldAvailability({ tracking: { compacted: false, turnCounter: 0, turnId: '', consecutiveFailures: 3 }, hasHistory: true }) as { why?: string }).why === 'breaker')
+  check('the availability law still answers breaker at three failures', foldAvailability({ tracking: { folded: false, turnCounter: 0, turnId: '', consecutiveFailures: 3 }, hasHistory: true }).available === false && (foldAvailability({ tracking: { folded: false, turnCounter: 0, turnId: '', consecutiveFailures: 3 }, hasHistory: true }) as { why?: string }).why === 'breaker')
 }
 
 section('B2 the forced road — a fold forced past the tripped breaker refuses with the same sentence, undressed')
@@ -89,9 +89,9 @@ section('B2 the forced road — a fold forced past the tripped breaker refuses w
     messages: [],
     agentId: undefined,
   }
-  const tracking = { compacted: false, turnCounter: 0, turnId: '', consecutiveFailures: 3 }
+  const tracking = { folded: false, turnCounter: 0, turnId: '', consecutiveFailures: 3 }
   const forced = await autoCompact.autoFoldIfNeeded([] as never, ctx as never, { systemPrompt: [] } as never, 'sdk', tracking, 0, signal)
-  check('the forced fold at the breaker does not fold and names the sentence as its refusal', forced.wasCompacted === false && forced.refusal === INTERACTIVE_LINE, JSON.stringify(forced))
+  check('the forced fold at the breaker does not fold and names the sentence as its refusal', forced.wasFolded === false && forced.refusal === INTERACTIVE_LINE, JSON.stringify(forced))
   const dressed = overflowRefusalText(signal, 'fold-failed', { nonInteractive: false, detail: forced.refusal })
   check('the ladder prints that refusal as the sentence itself — never "the fold failed (…)" around it, never the by-hand clause twice', dressed.includes(`: ${INTERACTIVE_LINE} /clear starts fresh`) && !dressed.includes('the fold failed') && dressed.split('/compact').length === 2, dressed)
   const headlessCtx = { ...ctx, options: { ...ctx.options, isNonInteractiveSession: true } }
@@ -126,7 +126,7 @@ function rigFoldResult(): Record<string, unknown> {
   const boundaryMarker = createFoldBoundaryMessage('auto', 900)
   const summary = createUserMessage({ content: 'RIG SUMMARY of the folded history', isCompactSummary: true })
   return {
-    wasCompacted: true,
+    wasFolded: true,
     foldResult: { boundaryMarker, summaryMessages: [summary], attachments: [], hookResults: [], preFoldTokenCount: 900, postFoldTokenCount: 120, truePostFoldTokenCount: 120, foldUsage: undefined },
   }
 }
@@ -192,7 +192,7 @@ async function run(ctx: Record<string, unknown>, seed: unknown[], script: unknow
   let n = 0
   const autocompact = async (_m: unknown[], _c: unknown, _cache: unknown, _s?: string, tracking?: unknown, _snip?: number, forced?: unknown) => {
     compact.push({ forced, tracking })
-    if (forced !== undefined) return { wasCompacted: false, refusal: 'rig: the breaker' }
+    if (forced !== undefined) return { wasFolded: false, refusal: 'rig: the breaker' }
     return answers[Math.min(n++, answers.length - 1)]!
   }
   const gen = turnDoorEvents({
@@ -227,7 +227,7 @@ section('B3 the road is true — the run after a paused refusal makes a fresh au
 {
   saveGlobalConfig(c => ({ ...c, autoCompactWindow: 800_000 }))
   const ctx = makeCtx()
-  const first = await run(ctx, seedOverLimit(778_000), [[ping(), asstText('never reached')]], [{ wasCompacted: false, consecutiveFailures: 3 }])
+  const first = await run(ctx, seedOverLimit(778_000), [[ping(), asstText('never reached')]], [{ wasFolded: false, consecutiveFailures: 3 }])
   const refusal = errorTexts(first.yields)[0] ?? ''
   check('run 1: the breaker refuses typed with zero model calls', first.terminal.reason === 'blocking_limit' && first.calls.length === 0, JSON.stringify(first.terminal))
   check('run 1: the refusal carries the sentence', refusal.includes(INTERACTIVE_LINE), refusal)
@@ -242,8 +242,8 @@ section('B4 the hand road — /compact reads no failure count: the command calls
 {
   const ctx = makeCtx()
   const readCall = createAssistantMessage({ content: [{ type: 'tool_use', id: 'toolu_carry', name: 'Read', input: {} }] as never })
-  const counting = await run(ctx, [createUserMessage({ content: 'the lane ask' })], [[ping(), readCall], [ping(), asstText('the reply after two failed folds')]], [{ wasCompacted: false, consecutiveFailures: 2 }, { wasCompacted: false }])
-  const entering = await run(ctx, [createUserMessage({ content: 'the next ask' })], [[ping(), asstText('the reply of a fresh run')]], [{ wasCompacted: false }])
+  const counting = await run(ctx, [createUserMessage({ content: 'the lane ask' })], [[ping(), readCall], [ping(), asstText('the reply after two failed folds')]], [{ wasFolded: false, consecutiveFailures: 2 }, { wasFolded: false }])
+  const entering = await run(ctx, [createUserMessage({ content: 'the next ask' })], [[ping(), asstText('the reply of a fresh run')]], [{ wasFolded: false }])
   const carriedWithin = (counting.compact[1]?.tracking as { consecutiveFailures?: number } | undefined)?.consecutiveFailures
   check(
     'the failure count is seeded empty at every run entry — the pause is the run\'s',

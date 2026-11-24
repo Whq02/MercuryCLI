@@ -99,7 +99,7 @@ export function useUnseenDivider(
   jumpToNew: (handle: ScrollBoxHandle | null) => void
   shiftDivider: (indexDelta: number, heightDelta: number) => void
 } {
-  const viewKey = useAppStateMaybeOutsideOfProvider(s => s.viewingAgentTaskId) ?? ''
+  const viewKey = useAppStateMaybeOutsideOfProvider(s => s.viewingCrewmateTaskId) ?? ''
   const [dividerIndex, setDividerIndex] = useState<number | null>(null)
   const [repinEpoch, setRepinEpoch] = useState(0)
   const dividerYRef = useRef<number | null>(null)

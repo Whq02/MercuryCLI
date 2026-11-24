@@ -14,7 +14,7 @@ export function processTextPrompt(
   isMeta?: boolean,
   batchUuids?: string[],
   origin?: MessageOrigin,
-): { messages: Message[]; shouldQuery: boolean } {
+): { messages: Message[]; shouldStartTurn: boolean } {
   let content: string | ContentBlockParam[]
   if (imageContentBlocks.length === 0) {
     content = input
@@ -38,6 +38,6 @@ export function processTextPrompt(
 
   return {
     messages: [userMessage, ...attachmentMessages],
-    shouldQuery: true,
+    shouldStartTurn: true,
   }
 }

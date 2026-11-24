@@ -115,7 +115,7 @@ export function crewSection({ input, tok, accent, keptIds, crewEntries, crewShow
   })
   for (const entry of crewShown) {
     const c = entry.row
-    const isViewing = input.viewingAgentTaskId != null && c.id === input.viewingAgentTaskId
+    const isViewing = input.viewingCrewmateTaskId != null && c.id === input.viewingCrewmateTaskId
     const isMainChat = input.mainChatTaskId != null && c.id === input.mainChatTaskId
     const base = statusTone(c.status, tok)
     const finished = c.facts !== undefined ? crewSettled(c.facts) : c.status !== 'running' && c.status !== 'pending'

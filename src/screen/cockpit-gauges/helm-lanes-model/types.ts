@@ -71,7 +71,7 @@ export type LanesInput = {
   activity: ActivityState
   cursorRow: HelmRow | undefined
   sessionCrew: readonly CrewLedgerRow[]
-  viewingAgentTaskId: string | undefined
+  viewingCrewmateTaskId: string | undefined
   mainChatTaskId: string | undefined
   tasks: Record<string, TaskState>
   roster: Pick<WorkRosterV1, 'rows'>

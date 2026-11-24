@@ -263,7 +263,7 @@ async function pressTimes(scene: Scene, data: string, times: number): Promise<vo
 
 
 
-const viewing = (): string | undefined => (storeRef?.getState() as { viewingAgentTaskId?: string } | undefined)?.viewingAgentTaskId
+const viewing = (): string | undefined => (storeRef?.getState() as { viewingCrewmateTaskId?: string } | undefined)?.viewingCrewmateTaskId
 const mainChat = (): string | undefined => (storeRef?.getState() as { mainChatTaskId?: string } | undefined)?.mainChatTaskId
 const bandTop = (lines: string[]): string => lines.find(line => /✶ Mercury|◉ |★ /.test(line)) ?? ''
 const cardShown = (lines: string[]): boolean => lines.some(line => line.includes('◉ builder two')) && lines.some(line => line.includes('esc back to Mercury Lead'))

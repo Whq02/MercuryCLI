@@ -533,7 +533,7 @@ for (const [nominal, rows] of sizes) {
   const landedCard = cardOf(frame, cockpit)
   console.log(`${size}: harbour's card after it landed: "${landedCard.slice(0, 160)}"`)
   const landedWay = /esc back to Mercury Lead · m main chat in \/crewmates · Mercury Lead in the rail goes back · (?:⇧|shift\+)← back$/.test(headerRow(frame))
-  check(`${size}: the view stays on harbour and the card reads landed`, scene.state().viewingAgentTaskId === 'a-harbour' && landedCard.includes('landed') && landedWay && headerRow(frame).startsWith('Opus 5.5'), `${headerRow(frame)} · ${landedCard.slice(0, 120)}`)
+  check(`${size}: the view stays on harbour and the card reads landed`, scene.state().viewingCrewmateTaskId === 'a-harbour' && landedCard.includes('landed') && landedWay && headerRow(frame).startsWith('Opus 5.5'), `${headerRow(frame)} · ${landedCard.slice(0, 120)}`)
   check(`${size}: the status row names harbour beside the model where the row has room; at 120 columns the landed crewmate's way back leaves no room and the words leave (the rail's marked row and the composer name it)`, nominal >= 178 ? /viewing harbour ·/.test(headerRow(frame)) : !/viewing harbour/.test(headerRow(frame)), headerRow(frame))
   check(`${size}: the card carries no stale running activity for the landed crewmate`, !landedCard.includes('Sleeping'), landedCard.slice(0, 160))
   const landedRailRow = railRow(frame, cockpit, '◉ harbo')
@@ -547,11 +547,11 @@ for (const [nominal, rows] of sizes) {
   check(`${size}: the view paints whole with every crewmate landed`, integrity(frame).length === 0, integrity(frame).slice(0, 3).join(' · '))
   if (leadRowAll >= 0) {
     await click(scene, 8, leadRowAll)
-    await until(() => scene.state().viewingAgentTaskId === undefined, 4000)
+    await until(() => scene.state().viewingCrewmateTaskId === undefined, 4000)
     await sleep(300)
     frame = scene.lines()
     save('12-back-to-lead', frame)
-    check(`${size}: Mercury Lead in the rail goes back (the lead's rows return)`, scene.state().viewingAgentTaskId === undefined && frame.some(line => centre(line, cockpit).includes(TRANSCRIPT_NEEDLE)), headerRow(frame))
+    check(`${size}: Mercury Lead in the rail goes back (the lead's rows return)`, scene.state().viewingCrewmateTaskId === undefined && frame.some(line => centre(line, cockpit).includes(TRANSCRIPT_NEEDLE)), headerRow(frame))
   }
 
   section(`§5 ${size}: the main chat pinned on a landed crewmate keeps its ★ row and the crew pop-up hands the view back`)

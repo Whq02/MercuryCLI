@@ -65,7 +65,7 @@ section('§1 the runner\'s unknown branch: one notice carrying the frame identit
   const context = { options: { commands: roster, isNonInteractiveSession: true }, abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: { mode: 'default' } }) } as never
   const result = await processSlashCommand(`/nosuch ${PARAGRAPH}`, [], [], context, () => {}, uuid)
   const line = unknownCommandLine('nosuch', roster)
-  check('the turn is refused and does not query the model', result.shouldQuery === false && result.commandRefused === true)
+  check('the turn is refused and does not query the model', result.shouldStartTurn === false && result.commandRefused === true)
   check('the result text is the unknown-command sentence', result.resultText === line, String(result.resultText))
   check('exactly ONE row comes back', result.messages.length === 1, `${result.messages.length} rows: ${result.messages.map(m => m.type).join(',')}`)
   const only = result.messages[0] as { type?: string; subtype?: string; level?: string; content?: unknown; uuid?: string } | undefined
