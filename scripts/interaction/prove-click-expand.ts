@@ -88,7 +88,7 @@ if (base) {
     '',
     'a collapsed agent row must carry the ⌄ cue on its Done row or the row below it; see hiddenAgentToolUses in src/tools/crewmate/rows.tsx',
   )
-  check('baseline: glob group collapsed', globY >= 0 && rowOf('GlobTool/prompt.ts') === -1, '', 'the Searched for 1 pattern group must paint collapsed with its file list hidden until clicked')
+  check('baseline: glob group collapsed', globY >= 0 && rowOf('glob/prompt.ts') === -1, '', 'the Searched for 1 pattern group must paint collapsed with its file list hidden until clicked')
   check(
     'baseline: Edit says its first error clause with stack frames hidden',
     errY >= 0 && rowOf('+3 stack frames') === -1 && rowOf('at Object.openSync') === -1 && rowOf('The target file could not be read') === -1,
@@ -128,14 +128,14 @@ if (base && globY >= 0 && errY >= 0) {
     'grow',
     [
       clickOn('Searched for 1 pattern', 110),
-      { ...clickOn('Error: ENOENT: no such file or directory', 150), awaitText: 'GlobTool/prompt.ts' },
+      { ...clickOn('Error: ENOENT: no such file or directory', 150), awaitText: 'glob/prompt.ts' },
     ],
     170,
     { stableTicks: 4 },
   )
   if (e) {
     const rowOf = (needle: string): number => e.lines.findIndex(l => l.includes(needle))
-    const fileRow = rowOf('GlobTool/prompt.ts')
+    const fileRow = rowOf('glob/prompt.ts')
     check('glob click: file list revealed', fileRow >= 0 && rowOf('GlobTool.ts') >= 0, '', 'a click on the Searched for 1 pattern row must expand its file list; see isItemClickable and toggleExpandedRow wiring in src/screen/messages-list/useRowExpansion.ts')
     check(
       'glob click: expanded block wears the DUNE_FAINT bg',
