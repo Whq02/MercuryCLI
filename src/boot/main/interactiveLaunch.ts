@@ -92,7 +92,6 @@ export async function interactiveLaunch(args: InteractiveLaunchArgs): Promise<vo
   const root = await createRoot(renderOptions)
   profileCheckpoint('action_after_create_root')
 
-  const startupMeasuredAt = Date.now()
   const onboardingShown = await showSetupScreens(
     root,
     args.permissionMode,
@@ -145,7 +144,7 @@ export async function interactiveLaunch(args: InteractiveLaunchArgs): Promise<vo
     ...(effortLevel !== undefined ? { effortValue: effortLevel } : {}),
     agent: args.mainThreadAgentDefinition?.agentType,
     agentDefinitions: { activeAgents: args.activeAgents, allAgents: args.allAgents },
-    remoteControlEnabled: getRemoteControlAtStartup() || assistantBridgeSeed(),
+    remoteControlEnabled: getRemoteControlAtStartup(),
     promptSuggestionEnabled: false,
     ...(inputPrompt
       ? {
@@ -219,12 +218,6 @@ export async function interactiveLaunch(args: InteractiveLaunchArgs): Promise<vo
     await crashShutdown(1)
     process.exit(1)
   }
-
-  void startupMeasuredAt
-}
-
-function assistantBridgeSeed(): boolean {
-  return false
 }
 
 function registerBootBackgroundNodes(args: { sessionTitle: string | undefined }): void {
