@@ -115,6 +115,7 @@ console.log(`§1 a fresh home with no credential: the terminal station is opt-in
 {
   const frames = run('bare', {})
   const terminal = frames.terminal ?? frames.error ?? ''
+  check('the theme tagline writes Status colours consistently', flat(frames.theme ?? '').includes('Your theme applies throughout Mercury. Status colours stay the same in the two colour themes; Black and white paints none.'), flat(frames.theme ?? '').slice(0, 400))
   check('the walk carried a sign-in station (no credential anywhere)', (frames.catalogue ?? '').includes(`sign in · 2/${stations}`), (frames.catalogue ?? frames.error ?? '').split('\n').slice(0, 3).join(' / '))
   if (terminalStation) {
     check('the terminal station paints under Apple Terminal (terminal · 4/5)', terminal.includes('Terminal keys') && terminal.includes('terminal · 4/5') && terminal.includes("silence Terminal's bell"), terminal.split('\n').slice(0, 3).join(' / '))
