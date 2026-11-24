@@ -321,10 +321,10 @@ const WIN32_BATCH_TOKEN: Record<StartForm, string> = {
   instant: "$(if ($_.CreationDate) { $_.CreationDate.ToUniversalTime().ToString('o') } else { '' })",
 }
 
-async function probeStartTokens(pids: readonly number[], form: StartForm): Promise<Map<number, string | null>> {
+async function probeStartTokens(pids: readonly number[], form: StartForm, patienceMs: number): Promise<Map<number, string | null>> {
   const probe = processStartProbeKind()
   if (probe === 'linux-proc') return new Map(pids.map(pid => [pid, linuxProcessStartToken(pid)]))
-  const deadline = performance.now() + PROCESS_START_PROBE_TIMEOUT_MS
+  const deadline = performance.now() + patienceMs
   const cim = probe === 'win32-cim'
   const file = cim ? win32PsExe() : 'ps'
   const args = cim ? [
@@ -346,11 +346,11 @@ async function probeStartTokens(pids: readonly number[], form: StartForm): Promi
   return tokens
 }
 
-export async function getProcessStartTokensAsync(holders: readonly { pid: number; procStart?: string }[], maxAgeMs = PROCESS_START_CACHE_MS): Promise<Map<number, string | null>> {
-  return startTokensOf(holders, maxAgeMs, null)
+export async function getProcessStartTokensAsync(holders: readonly { pid: number; procStart?: string }[], maxAgeMs = PROCESS_START_CACHE_MS, patienceMs = PROCESS_START_PROBE_TIMEOUT_MS): Promise<Map<number, string | null>> {
+  return startTokensOf(holders, maxAgeMs, null, patienceMs)
 }
 
-async function startTokensOf(holders: readonly { pid: number; procStart?: string }[], maxAgeMs: number, asked: StartForm | null): Promise<Map<number, string | null>> {
+async function startTokensOf(holders: readonly { pid: number; procStart?: string }[], maxAgeMs: number, asked: StartForm | null, patienceMs = PROCESS_START_PROBE_TIMEOUT_MS): Promise<Map<number, string | null>> {
   const expected = new Map<number, Set<string>>()
   for (const holder of holders) {
     if (!Number.isSafeInteger(holder.pid) || holder.pid <= 1) continue
@@ -380,7 +380,7 @@ async function startTokensOf(holders: readonly { pid: number; procStart?: string
   }
   for (const form of START_FORMS) {
     if (missing[form].length === 0) continue
-    const batch = probeStartTokens(missing[form], form)
+    const batch = probeStartTokens(missing[form], form, patienceMs)
     for (const pid of missing[form]) {
       const probe = batch.then(tokens => tokens.get(pid) ?? null, passedOverAs(null)).then(token => {
         if (startTokenInflight.get(startKey(form, pid)) === probe) {

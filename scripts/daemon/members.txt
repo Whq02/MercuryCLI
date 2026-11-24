@@ -104,3 +104,4 @@ prove-runner-spawn-never-blocks-on-a-read.ts
 prove-own-start-token-asked-once.ts
 prove-claim-waits-for-no-start-read.ts
 prove-revive-never-blocks-on-a-read.ts
+prove-left-runner-strangers-cost-one-read.ts

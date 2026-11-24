@@ -1,6 +1,6 @@
 import { randomUUID } from '../../platform/primitives/crypto.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
-import { isProcessAlive, getProcessStartTokenAsync } from '../control/ownerWatch.js'
+import { isProcessAlive, getProcessStartTokenAsync, getProcessStartTokensAsync, isProcessStartInstant } from '../control/ownerWatch.js'
 import { RetirementFence } from '../runner-link/runnerQuiescence.js'
 import type { RunnerDoor } from '../runner-link/runnerConnection.js'
 import { workerPidAlive } from './workerIdentity.js'
@@ -316,6 +316,26 @@ export function withdrawParkRequestsBy(by: string, runnerIds: readonly string[],
 }
 
 export const HOSTLESS_RUNNER_GRACE_MS = 3_000
+const HOSTLESS_FIRST_LOOK_MS = 3_000
+
+type LeftRunnerRecord = ConcourseWorkerRecordV1 & { pid: number; procStart: string }
+
+function mayBeLeftWithoutHost(rec: ConcourseWorkerRecordV1, hosted: (runnerId: string) => boolean): rec is LeftRunnerRecord {
+  if (rec.endedAt !== undefined || rec.attachedAt !== undefined || rec.pid === undefined || rec.procStart === undefined) return false
+  if (rec.pid <= 1 || rec.pid === process.pid) return false
+  return !hosted(rec.runnerId) && isProcessAlive(rec.pid)
+}
+
+async function pidsGoneToOthers(left: readonly LeftRunnerRecord[]): Promise<Set<ConcourseWorkerRecordV1>> {
+  const strangers = new Set<ConcourseWorkerRecordV1>()
+  for (const instant of [true, false]) {
+    const alike = left.filter(rec => isProcessStartInstant(rec.procStart) === instant)
+    if (alike.length === 0) continue
+    const births = await getProcessStartTokensAsync(alike, undefined, HOSTLESS_FIRST_LOOK_MS)
+    for (const rec of alike) if (tokenBinding(rec.procStart, births.get(rec.pid)) === 'stranger') strangers.add(rec)
+  }
+  return strangers
+}
 
 export async function endRunnersLeftWithoutHost(
   hosted: (runnerId: string) => boolean,
@@ -323,11 +343,11 @@ export async function endRunnersLeftWithoutHost(
   opts?: { graceMs?: number },
 ): Promise<Array<{ runnerId: string; pid: number }>> {
   const ended: Array<{ runnerId: string; pid: number }> = []
-  for (const rec of Object.values(readSessionWorkers(dir))) {
+  const records = Object.values(readSessionWorkers(dir))
+  const strangers = await pidsGoneToOthers(records.filter((rec): rec is LeftRunnerRecord => mayBeLeftWithoutHost(rec, hosted)))
+  for (const rec of records) {
+    if (!mayBeLeftWithoutHost(rec, hosted) || strangers.has(rec)) continue
     const pid = rec.pid
-    if (rec.endedAt !== undefined || rec.attachedAt !== undefined || pid === undefined || rec.procStart === undefined) continue
-    if (pid <= 1 || pid === process.pid) continue
-    if (hosted(rec.runnerId) || !isProcessAlive(pid)) continue
     const under = await readProcessTreeUnder(pid)
     if (under === null) {
       logForDebugging(`[daemon] ${rec.runnerId} (pid ${pid}) has no host and is passed over: this daemon stands in its tree or its group, or the process table does not say where this daemon stands`)
