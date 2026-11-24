@@ -75,6 +75,7 @@ prove-openai-400-capture-and-resume.ts
 prove-provider-wait-words.ts
 prove-quiet-wire.ts
 prove-headless-wire.ts
+prove-turn-cost-table.ts
 prove-overload-no-retry.ts
 prove-retry-door.ts
 prove-retry-timeline-anthropic.ts

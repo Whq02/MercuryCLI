@@ -51,6 +51,7 @@ import { planToolPayload, renderAdmissionRecordsAsText, type ToolPayloadPlan } f
 import { retireOlderScreenshots } from '../../../../integrations/desktop/screenshotRetention.js'
 import { fitImagesToRequestCap, type RequestImageFit } from '../../../../platform/images/imageResizer.js'
 import { stripThinkingFromIndex } from '../../../../engine/messages/apiFilters.js'
+import { withToolReferenceTurnBoundary } from '../../../../engine/messages/apiView.js'
 import { fitToolResultImages } from '../../../../engine/message-shapes/imageRequestFit.js'
 import { imagesSupportedForCompatModel, laneExtrasWithOperatorEffort, type CompatCallModelParams, type CompatCredential, type CompatLaneProfile } from './lane.js'
 import { apiErrorMessage } from './faults.js'
@@ -217,7 +218,7 @@ export async function prepareCompatTurn(
         imagesSupported,
       }
     : undefined
-  const wireMessages = renderAdmissionRecordsAsText(messages, plan.wireForm)
+  const wireMessages = renderAdmissionRecordsAsText(messages.map(message => (message.type === 'user' ? withToolReferenceTurnBoundary(message) : message)), plan.wireForm)
   const effortView = effortVocabularyFor(modelId)
   const servedEfforts = effortView.kind === 'ladder' || effortView.kind === 'provider' ? effortView.vocabulary : []
   const floorWanted = options.effortPinned === true && options.effortValue === undefined && servedEfforts.length > 0
