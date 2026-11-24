@@ -45,7 +45,7 @@ import { shellRowNow } from '../shell/shellRecord.js'
 import { describeWindowsShellRoad } from '../shell/windowsShellRoad.js'
 import { extensionReadinessRows } from '../../integrations/extensions/boot.js'
 import { searchToolsAvailability } from '../shell/ripgrep.js'
-import { mcpGauge } from '../../screen/cockpit-gauges/mcpGauge.js'
+import { bounded, mcpGauge } from '../../screen/cockpit-gauges/mcpGauge.js'
 import { whichSync } from '../processes/which.js'
 import { withheldTools } from '../../engine/tool-dispatch/withheldTools.js'
 
@@ -84,11 +84,6 @@ interface ReadinessReport {
   collectedAt: number
 }
 
-
-function bounded(text: string, max: number): string {
-  const oneLine = text.replace(/\s+/g, ' ').trim()
-  return oneLine.length <= max ? oneLine : `${oneLine.slice(0, max - 1)}…`
-}
 
 function messageOf(e: unknown): string {
   return e instanceof Error && e.message ? e.message : String(e)

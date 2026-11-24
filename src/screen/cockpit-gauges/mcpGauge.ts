@@ -81,7 +81,7 @@ export function getMcpGaugeVersion(): number {
 }
 
 
-function bounded(text: string, max: number): string {
+export function bounded(text: string, max: number): string {
   const oneLine = text.replace(/\s+/g, ' ').trim()
   return oneLine.length <= max ? oneLine : `${oneLine.slice(0, max - 1)}…`
 }
