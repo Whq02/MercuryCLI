@@ -8,7 +8,6 @@ import type { BatchedPrompt, QueuedCommand } from '../../screen/composer/input-c
 import type { FileStateCache } from '../../platform/files/fileStateCache.js'
 import { cloneFileStateCache } from '../../platform/files/fileStateCache.js'
 import type { ContentReplacementState } from '../tool-dispatch/toolResultStorage.js'
-import { headlessProfilerCheckpoint } from '../../platform/logs/headlessProfiler.js'
 import { getSlashCommandToolSkills } from '../../commands/catalogue/commands.js'
 import { ensureExtensionsLoaded } from '../../integrations/extensions/boot.js'
 import type { ThinkingConfig } from '../../models/effort/thinking.js'
@@ -72,9 +71,7 @@ export type TurnOptions = {
 }
 
 export async function sessionFactsOf(config: Pick<ConversationConfig, 'cwd' | 'tools' | 'mcpClients' | 'commands' | 'agents'>, model: string, mode: string, resumeOf?: string, toolsWithheld?: SessionFacts['toolsWithheld']): Promise<SessionFacts> {
-  headlessProfilerCheckpoint('before_skills_extensions')
   const [skills, loaded] = await Promise.all([getSlashCommandToolSkills(config.cwd), ensureExtensionsLoaded({ cwd: config.cwd })])
-  headlessProfilerCheckpoint('after_skills_extensions')
   const invocable = (entry: { userInvocable?: boolean }): boolean => entry.userInvocable !== false
   const build = describeArtifactIdentity(MACRO.VERSION).buildTree
   return {

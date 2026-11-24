@@ -9,7 +9,6 @@ import { getQueuedCommandAttachments } from '../../attachments/queuedCommands.js
 import { createGetAppStateWithAllowedTools } from '../../../crew/agents/forkedAgent.js'
 import { isBareMode, isEnvTruthy } from '../../../platform/environment/envUtils.js'
 import { fileHistoryMakeSnapshot } from '../../../tools/engines/change-transaction/fileHistory.js'
-import { headlessProfilerCheckpoint } from '../../../platform/logs/headlessProfiler.js'
 import { forgetWardFirings } from '../../../permissions/guards/wardsGuard.js'
 import { getInMemoryErrors, logError } from '../../../platform/logs/errorLog.js'
 import type { DroppedImageAttachment, HookAttachment } from '../../attachment-shapes/attachmentTypes.js'
@@ -86,9 +85,7 @@ export async function* turnRows(this: ConversationState, prompt: string | Conten
     config.thinkingConfig ?? (shouldEnableThinkingByDefault() ? ({ type: 'adaptive' } as ThinkingConfig) : ({ type: 'disabled' } as ThinkingConfig))
 
   const compose = systemPromptComposer(config, resolvedModel, appStateSnapshot, prompt)
-  headlessProfilerCheckpoint('before_getSystemPrompt')
   const promptParts = await compose()
-  headlessProfilerCheckpoint('after_getSystemPrompt')
   const systemPrompt = promptParts.systemPrompt
 
   const sessionId = getSessionId()
@@ -196,7 +193,6 @@ export async function* turnRows(this: ConversationState, prompt: string | Conten
   }
   const endTurn = turnEnder.call(this, { clearTimeLimit, closeTurn, turnId, cutCalls, openCalls, sessionId, toolUseContext, persistenceDisabled, turnMessages, scope, inputResult, seedMessages })
 
-  headlessProfilerCheckpoint('turn_row_yielded')
   noteRunPhase('assembly')
 
   if (!inputResult.shouldStartTurn) {

@@ -45,7 +45,6 @@ const stamped = (): string[] => phases.runPhaseReport(0).phases.map(entry => ent
 await spied('src/platform/processes/gracefulShutdown.ts', ['gracefulShutdownSync'])
 await spied('src/sessions/transcripts/writer.ts', ['peekProject'])
 await spied('src/platform/logs/debugLog.ts', ['logForDebugging'])
-await spied('src/platform/logs/headlessProfiler.ts', ['logHeadlessProfilerTurn'])
 await spied('src/boot/process-state/processState.ts', ['getTotalAPIDuration'])
 
 const { finishRun, pumpOutbound } = await import('../../src/daemon/runner/runnerRunEnd.ts')
@@ -199,7 +198,7 @@ section('§4 the run-phase report ships at the flush boundary, before the exit')
   const shipped = report === undefined ? null : (JSON.parse(report.slice('[run-phases] '.length)) as { phases: Array<{ phase: string }>; providerApiMs: number })
   check('the print run\'s end stamps flush_exit', stamped().includes('flush_exit') && shipped !== null && shipped.phases.some(entry => entry.phase === 'flush_exit'), `finishPrintRun in src/daemon/runner/runnerRunEnd.ts must stamp the flush_exit phase: ${j(stamped())}`)
   check('F02 wiring: the report ships at the print run\'s flush boundary with the api-duration ledger figure', shipped !== null && shipped.providerApiMs === API_MS && ended.debug.filter(line => line.startsWith('[run-phases] ')).length === 1, `finishPrintRun in src/daemon/runner/runnerRunEnd.ts must log one [run-phases] report with the API duration: ${String(report)}`)
-  check('F10: exit durability unchanged — the flush stamp precedes gracefulShutdownSync, and the profiler\'s turn is logged before the stamp', ended.shutdownPhases.includes('flush_exit') && said('logHeadlessProfilerTurn').length === 1 && !(said('logHeadlessProfilerTurn')[0]!.phases ?? []).includes('flush_exit') && seen.at(-1)?.name === 'gracefulShutdownSync', `finishPrintRun in src/daemon/runner/runnerRunEnd.ts must stamp flush_exit before gracefulShutdownSync and log the profiler turn before the stamp: ${j(ended.shutdownPhases)} · ${j(seen.map(call => call.name))}`)
+  check('F10: exit durability unchanged — the flush stamp precedes gracefulShutdownSync', ended.shutdownPhases.includes('flush_exit') && seen.at(-1)?.name === 'gracefulShutdownSync', `finishPrintRun in src/daemon/runner/runnerRunEnd.ts must stamp flush_exit before gracefulShutdownSync: ${j(ended.shutdownPhases)} · ${j(seen.map(call => call.name))}`)
 }
 
 console.log(failures === 0 ? '\nprove-print-run-end: green' : `\nprove-print-run-end: ${failures} failed`)

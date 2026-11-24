@@ -1,7 +1,6 @@
 import { noteHeadlessActivity } from '../../../platform/logs/activityLedger.js'
 import { settingsChangeDetector } from '../../../platform/settings/changeDetector.js'
 import { applySettingsChange } from '../../../platform/settings/applySettingsChange.js'
-import { headlessProfilerStartTurn } from '../../../platform/logs/headlessProfiler.js'
 import { noteRunPhase } from '../../../platform/logs/runPhases.js'
 import { getPerformance } from '../../../platform/logs/profiling.js'
 import type { BootMade, BootStep, RunnerPorts } from '../runnerPorts.js'
@@ -20,7 +19,6 @@ function run(ports: RunnerPorts): BootMade<'streamingInput'> {
     const bunGc = (globalThis as { Bun?: { gc?: (full: boolean) => void } }).Bun
     startInterval(() => bunGc?.gc?.(true), 1000).unref?.()
   }
-  headlessProfilerStartTurn()
   noteRunPhase('graph_load', getPerformance().getEntriesByName('cli_entry')[0]?.startTime)
   noteRunPhase('cli_parse')
   return { streamingInput }

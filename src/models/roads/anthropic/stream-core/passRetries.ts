@@ -2,7 +2,6 @@ import { APIConnectionTimeoutError } from '../../../../engine/request-parts/sdkE
 import type { AnthropicMessageParams as BetaMessageStreamParams } from '../anthropicWire.js'
 import { randomUUID } from 'crypto'
 import { logForDebugging } from 'src/platform/logs/debugLog.js'
-import { headlessProfilerCheckpoint } from 'src/platform/logs/headlessProfiler.js'
 import { isFirstPartyAnthropicBaseUrl } from 'src/models/facts/providers.js'
 import { noteRunPhase } from 'src/platform/logs/runPhases.js'
 import type { ThinkingConfig } from 'src/models/effort/thinking.js'
@@ -122,7 +121,6 @@ export function streamPassRetries(
       options.onWait?.(wait)
 
       if (!options.agentId) {
-        headlessProfilerCheckpoint('api_request_sent')
         noteRunPhase('dispatch')
       }
 

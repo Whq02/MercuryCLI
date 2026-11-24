@@ -48,7 +48,6 @@ async function spied(rel: string, wanted: string[], more: (real: Record<string, 
 await spied('src/models/advisor/index.ts', ['advisorMainTurnSettled', 'createAdvisorQuietMessage'])
 await spied('src/sessions/transcripts/writer.ts', ['recordTranscript'])
 await spied('src/daemon/runner/messageQueueManager.ts', ['enqueue', 'getCommandQueue'])
-await spied('src/platform/logs/headlessProfiler.ts', ['logHeadlessProfilerTurn', 'headlessProfilerStartTurn'])
 await spied('src/sessions/mneme/exitHandoff.ts', ['leaveNoteBeforeExit', 'exitNoteDue'])
 await spied('src/integrations/event-hooks/background.ts', ['endBackgroundHooks'])
 await spied('src/integrations/skill-watch/skillChangeDetector.ts', [], real => ({ skillChangeDetector: { ...(real.skillChangeDetector as object), dispose: spy('skillChangeDetector.dispose') } }))
@@ -133,8 +132,8 @@ section('§1 the advisor at the turn\'s end and inside a turn')
   const told = said('advisorMainTurnSettled')[0]?.args
   s.live.turnReachedModel = false
   built.onTurnSettled?.(command as never)
-  check("the main chat's turn end: the driver's onTurnSettled takes the advisor's main road with the session's own message list — no queued prompt, no kick of the driver (red on the base: enqueue + driver.kick)", told?.[0] === String(getSessionId()) && told[1] === command && told[2] === s.messages && told[3] === s.advisorRoad && said('advisorMainTurnSettled').length === 1 && said('enqueue').length === 0 && !names().some(name => name.startsWith('port:driver')) && order('logHeadlessProfilerTurn', 'headlessProfilerStartTurn', 'advisorMainTurnSettled'), j(names()))
-  check('a turn that never reached the model tells the advisor nothing', said('advisorMainTurnSettled').length === 1 && said('logHeadlessProfilerTurn').length === 2)
+  check("the main chat's turn end: the driver's onTurnSettled takes the advisor's main road with the session's own message list — no queued prompt, no kick of the driver (red on the base: enqueue + driver.kick)", told?.[0] === String(getSessionId()) && told[1] === command && told[2] === s.messages && told[3] === s.advisorRoad && said('advisorMainTurnSettled').length === 1 && said('enqueue').length === 0 && !names().some(name => name.startsWith('port:driver')), j(names()))
+  check('a turn that never reached the model tells the advisor nothing', said('advisorMainTurnSettled').length === 1)
 
   const r = scene()
   const road = driver.advisorRoadOf(r.ports)

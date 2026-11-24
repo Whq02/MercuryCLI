@@ -35,7 +35,6 @@ import type { AttachmentMessage, Message } from '../../message-shapes/message.js
 import { appendSystemContext, firstTurnUserContext } from '../../messages/apiSystemAndToolSchema.js'
 import { latestUserContextBody } from '../../attachment-shapes/userContext.js'
 import { createAttachmentMessage } from '../../attachments/attachments.js'
-import { headlessProfilerCheckpoint } from '../../../platform/logs/headlessProfiler.js'
 import { tokenCountWithEstimation } from '../../context-window/contextTokenCount.js'
 import { EarlyStarts } from '../../tool-dispatch/earlyStarts.js'
 import { emitFoldTrace } from '../../../platform/observability/invocationTrace.js'
@@ -412,7 +411,6 @@ export async function* holdBlockingLimit(run: RunCtx, state: TurnState, toolUseC
 export async function* makeRequest(run: RunCtx, state: TurnState, ordinal: number): AsyncGenerator<RunEvent, RequestDecision> {
   const turnId = `t${ordinal}`
   yield run.emit({ kind: 'turn_started', turnId, n: ordinal })
-  if (state.toolUseContext.agentId === undefined) headlessProfilerCheckpoint('query_started')
 
   const callChain = advanceToolCallChain(state.toolUseContext, run.deps.uuid)
   const toolUseContext: ToolUseContext = { ...state.toolUseContext, callChain }

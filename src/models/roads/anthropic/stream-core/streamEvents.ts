@@ -9,7 +9,6 @@ import type {
 import { cacheClockObserve } from 'src/platform/cache-clock/cacheClock.js'
 import { logForDebugging } from 'src/platform/logs/debugLog.js'
 import { logForDiagnosticsNoPII } from 'src/platform/logs/diagnosticsLog.js'
-import { headlessProfilerCheckpoint } from 'src/platform/logs/headlessProfiler.js'
 import { noteRunPhase } from 'src/platform/logs/runPhases.js'
 import { noteCacheDiagnostics } from '../cacheDiagnostics.js'
 import { addToTotalSessionCost } from 'src/models/usage/sessionCost.js'
@@ -89,7 +88,6 @@ export function noteStreamEvent(pass: StreamPass, streamIdleWatchdog: ReturnType
   if (pass.isFirstChunk) {
     logForDebugging('stream live — first chunk received')
     if (!options.agentId) {
-      headlessProfilerCheckpoint('first_chunk')
       noteRunPhase('first_byte')
     }
     pass.isFirstChunk = false

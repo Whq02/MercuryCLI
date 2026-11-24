@@ -17,7 +17,6 @@ import { drainRows } from './sdkEventQueue.js'
 import { randomUUID } from 'node:crypto'
 import { getSessionId, getTotalAPIDuration } from '../../boot/process-state/processState.js'
 import { getEngineModel } from '../../models/catalogue/engineModel.js'
-import { logHeadlessProfilerTurn, headlessProfilerStartTurn } from '../../platform/logs/headlessProfiler.js'
 import { getRunningTasks, POLL_INTERVAL_MS } from '../../engine/task-framework/taskRegistry.js'
 import { sleep } from '../../platform/async/sleep.js'
 import { crewmateNoticeOwed } from '../../tools/crewmate/crewmateLifecycle.js'
@@ -92,8 +91,6 @@ export function runnerDriverPorts(ports: RunnerPorts): TurnDriverPorts {
         onMessage(message)
       }, initialNotices),
     onTurnSettled: command => {
-      logHeadlessProfilerTurn()
-      headlessProfilerStartTurn()
       if (live.turnReachedModel) void advisorMainTurnSettled(String(getSessionId()), command, messages, advisorRoad)
     },
     hasWaitableBackgroundTasks: () =>

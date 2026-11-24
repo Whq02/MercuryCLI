@@ -10,7 +10,6 @@ import { randomUUID } from 'node:crypto'
 import { EMPTY_USAGE } from '../../engine/request-parts/emptyUsage.js'
 import { ndjsonSafeStringify } from './ndjsonSafeStringify.js'
 import { caretEscape } from './caretEscape.js'
-import { logHeadlessProfilerTurn } from '../../platform/logs/headlessProfiler.js'
 import { noteRunPhase, runPhaseReport } from '../../platform/logs/runPhases.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { jsonStringify } from '../../platform/logs/slowOperations.js'
@@ -92,7 +91,6 @@ export async function finishRun(unwritten: string | null, ports: RunnerPorts): P
   if (unwrittenRecord !== null) unwrittenRecord = await recordFlushFailure()
   if (unwrittenRecord !== null) await flushWrite(process.stderr, `Error: ${unwrittenRecord}\n`)
 
-  logHeadlessProfilerTurn()
   noteRunPhase('flush_exit')
   logForDebugging(`[run-phases] ${jsonStringify(runPhaseReport(getTotalAPIDuration()))}`)
   gracefulShutdownSync(io.stdoutPipeBroken ? 1 : (live.signalCode ?? (unwrittenRecord !== null ? 1 : exitCodeOf(last.status))))
