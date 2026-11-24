@@ -104,3 +104,4 @@ prove-question-card-footer-key.ts
 prove-untrusted-project-extension-words.ts
 prove-stream-settle-near-tail.ts
 prove-enter-draws-the-spinner.ts
+prove-window-wakes-on-the-records-stamp.ts

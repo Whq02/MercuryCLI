@@ -13,7 +13,7 @@ import { useFocusedWorkRoster } from '../tasks/useFocusedWork.js'
 import type { SessionListing } from '../../sessions/transcripts/transcriptEntries.js'
 import { saturnWakeGlanceOf, type SaturnWakeGlanceV1 } from '../../daemon/saturn/saturn.js'
 import { boardHomedSessionIds, readSessionWorkers } from '../../daemon/concourse-workers/concourseWorkers.js'
-import { subscribeConcourseWorkers } from '../../daemon/concourse-workers/store.js'
+import { subscribeConcourseDelta } from '../../daemon/concourse-workers/store.js'
 import { isProjectSession } from '../session-chooser/sessionFilter.js'
 import { isSessionCleared } from '../../sessions/transcripts/clearedSessions.js'
 import { sessionIdOfListing, listSessionsAcrossProjects } from '../../sessions/transcripts/sessionStorage.js'
@@ -343,7 +343,7 @@ function useWakeGlance(): SaturnWakeGlanceV1 | null {
       }
     }
     probe()
-    const unsubscribe = subscribeConcourseWorkers(probe)
+    const unsubscribe = subscribeConcourseDelta(probe)
     const stopFloor = subscribeUiClock(15_000, probe)
     return () => {
       unsubscribe()

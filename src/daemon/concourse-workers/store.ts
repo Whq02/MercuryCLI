@@ -109,22 +109,6 @@ export interface ConcourseDeltaStampV1 {
   at: number
 }
 
-const concourseWorkersStore = defineStore<ConcourseWorkerFileV1, [dir?: string]>({
-  name: 'concourse-workers',
-  path: (dir?: string) => concourseWorkersPath(dir),
-  schemaVersion: 1,
-  decode: raw => {
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
-    const file = raw as Partial<ConcourseWorkerFileV1>
-    if (file.version !== 1 || typeof file.workers !== 'object' || file.workers === null || Array.isArray(file.workers)) {
-      return null
-    }
-    return file as ConcourseWorkerFileV1
-  },
-  empty: () => ({ version: 1, workers: {} }),
-  onReadFailure: 'empty',
-})
-
 const concourseDeltaStore = defineStore<ConcourseDeltaStampV1, [dir?: string]>({
   name: 'concourse-delta',
   path: (dir?: string) => concourseDeltaPath(dir),
@@ -138,10 +122,6 @@ const concourseDeltaStore = defineStore<ConcourseDeltaStampV1, [dir?: string]>({
   empty: () => ({ version: 1, revision: 0, pid: 0, at: 0 }),
   onReadFailure: 'empty',
 })
-
-export function subscribeConcourseWorkers(cb: () => void, dir?: string): () => void {
-  return concourseWorkersStore(dir).subscribe(() => cb(), { immediate: false })
-}
 
 export function subscribeConcourseDelta(cb: () => void, dir?: string): () => void {
   return concourseDeltaStore(dir).subscribe(() => cb(), { immediate: false })

@@ -14,7 +14,7 @@ import {
 import { subscribeThroughFocused, getFocusedSessionConnector, hasFocusedSession } from '../../engine/connector/focusedConnector.js'
 import { subscribeExecutionEvents } from '../../engine/execution-plane/executionPlane.js'
 import { readSessionWorkersSnapshot, workerPidAlive } from '../../daemon/concourse-workers/concourseWorkers.js'
-import { subscribeConcourseWorkers } from '../../daemon/concourse-workers/store.js'
+import { subscribeConcourseDelta } from '../../daemon/concourse-workers/store.js'
 import { runnerRecordAlive } from '../../engine/connector/workCounts.js'
 import { subscribeUiClock } from '../cockpit/uiClock.js'
 import { getInvocationTracePath } from '../../platform/observability/invocationTrace.js'
@@ -165,7 +165,7 @@ function startEngine(): void {
   unsubLive = subscribeFocusedLive(() => scheduleDebounced())
   unsubExecutions = subscribeExecutionEvents(() => scheduleDebounced())
   unsubGitFacts = subscribeGitFacts(() => pokeVitals())
-  unsubWorkers = subscribeConcourseWorkers(() => pokeVitals())
+  unsubWorkers = subscribeConcourseDelta(() => pokeVitals())
   unsubTrace = subscribeStorageFile(getInvocationTracePath(), () => scheduleDebounced())
   pokeVitals()
 }
