@@ -1644,7 +1644,6 @@ src/models/catalogue/computedDefault.ts	memo	process	module	2s TTL account-wide 
 src/models/catalogue/computedDefault.ts	resetComputedDefaultMemo	reset-export
 src/models/catalogue/computedDefault.ts	walkingPicker	process	module	synchronous recursion guard (try/finally, no await) preventing picker circularity
 src/models/catalogue/crewmateModel.ts	FIRST_PARTY_TIER_WORDS	process	module	Load-time lookup with no local writer
-src/models/catalogue/engineModel.ts	CAPITALIZED_ALIASES	process	module	Load-time lookup with no local writer
 src/models/catalogue/engineModel.ts	DISPLAY_NAMES	process	module	Load-time table with no local writer
 src/models/catalogue/engineModel.ts	MARKETING_NAMES	process	module	Load-time table with no local writer
 src/models/catalogue/engineModel.ts	ONE_M_TWIN_KEYS	process	module	Load-time lookup with no local writer
