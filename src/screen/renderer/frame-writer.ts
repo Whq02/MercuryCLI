@@ -458,7 +458,7 @@ export class FrameWriter {
     frame = terminalBidiFrame(frame)
     const { width, height, cells, charPool, hyperlinkPool } = frame.screen
     if (width === 0 || height === 0 || cols <= 0 || rows <= 0) return []
-    const out: Diff = [{ type: 'cursorHide' }]
+    const out: Diff = [{ type: 'cursorHide' }, { type: 'styleStr', str: cursorPosition(1, 1) }]
     const clipH = Math.min(height, rows)
     const clipW = Math.min(width, cols)
     const cursor = new CursorModel({ x: 0, y: 0 }, cols, true)

@@ -56,5 +56,20 @@ console.log('H3 an empty frame paints nothing')
   check('no ops at all (a zero-height screen)', ops.length === 0, `holdingClipPaint in src/screen/renderer/frame-writer.ts must return [] for a zero-height screen; got ${ops.length} ops`)
 }
 
+console.log('H4 the holding paint starts on the first row wherever the cursor rests')
+{
+  const { writeDiffToTerminal } = await import(join(SRC, 'screen/renderer/terminal-session/frameDelivery.ts'))
+  const { AnsiEmulator } = await import('../ink-runtime/ansiEmulator.js')
+  let bytes = ''
+  const terminal = { stdout: { write(data: string, done?: () => void) { bytes += data; done?.(); return true } }, stderr: { write() { return true } } }
+  writeDiffToTerminal(terminal, writer.holdingClipPaint(frame, 30, 4), true)
+  const screen = new AnsiEmulator(30, 4, true)
+  screen.feed('\x1b[4;1H')
+  screen.feed(bytes)
+  const rows = screen.lines()
+  check("the frame's first row stands on the screen's first row", rows[0] === 'a line that survives the resiz', `holdingClipPaint in src/screen/renderer/frame-writer.ts must place its first row itself: a frame ends with the cursor parked on another row; the screen reads ${JSON.stringify(rows)}`)
+  check('the second row stands under it and no other row holds the first', rows[1] === 'and another' && rows.slice(1).every(row => !row.includes('a line that')), `holdingClipPaint in src/screen/renderer/frame-writer.ts painted its first row on the cursor's row; the screen reads ${JSON.stringify(rows)}`)
+}
+
 console.log(failures === 0 ? '\nprove-resize-hold-cursor: ALL PASS' : `\nprove-resize-hold-cursor: ${failures} FAIL`)
 process.exit(failures === 0 ? 0 : 1)
