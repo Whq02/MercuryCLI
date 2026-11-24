@@ -132,7 +132,6 @@ export type PDFReferenceAttachment = AttachmentRow<'pdf_reference'>
 export type DroppedImageAttachment = AttachmentRow<'dropped_image_file'>
 export type AgentRosterAttachment = AttachmentRow<'agent_roster'>
 export type HookAttachment = AttachmentRow<'hook'>
-export type BypassedAskAttachment = AttachmentRow<'bypassed_ask'>
 
 export const HOOK_ROW_OUTCOMES = ['context', 'block', 'stop', 'notice', 'failed', 'text'] as const
 export type HookRowOutcome = (typeof HOOK_ROW_OUTCOMES)[number]
