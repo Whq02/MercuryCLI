@@ -4,9 +4,7 @@ import { locateBridgeVsix, MERCURY_IDE_EXTENSION_ID } from './editorExtensionPac
 import { subprocessEnv } from '../../platform/processes/subprocessEnv.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 import { shimShellOption } from '../../platform/host-os/spawn.js'
-import { editorCliCandidates } from '../../platform/host-os/vendors.js'
-
-const EDITOR_CLIS = ['code', 'code-insiders', 'cursor', 'codium', 'windsurf'] as const
+import { EDITOR_CLIS, editorCliCandidates } from '../../platform/host-os/vendors.js'
 
 function findEditorCli(): string | null {
   const { candidates, execShell } = editorCliCandidates()

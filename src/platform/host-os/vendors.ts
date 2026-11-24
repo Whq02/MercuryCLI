@@ -3,7 +3,7 @@ import * as path from 'node:path'
 import { hostEnv } from '../environment/hostEnv.js'
 import { pathModuleFor } from './paths.js'
 
-const EDITOR_CLIS = ['code', 'code-insiders', 'cursor', 'codium', 'windsurf'] as const
+export const EDITOR_CLIS = ['code', 'code-insiders', 'cursor', 'codium', 'windsurf'] as const
 
 const DARWIN_BUNDLE_CLIS: Record<(typeof EDITOR_CLIS)[number], string> = {
   code: '/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code',
