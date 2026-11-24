@@ -616,7 +616,6 @@ src/daemon/switchboard/spawnSwitches.ts	SPAWN_SWITCH_LABEL	process	module	Load-t
 src/daemon/switchboard/spawnSwitches.ts	SPAWN_SWITCH_TOOL	process	module	Load-time table with no local writer
 src/daemon/switchboard/spawnSwitches.ts	WIRE_WORKFLOWS	process	module	Derived collection initialized at load
 src/daemon/switchboard/spawnSwitches.ts	latched	owner	module	Session launch choices retained in the module
-src/engine/attachment-shapes/attachmentTypes.ts	FLOW_ATTACHMENT_CONFIG	process	module	Load-time table with no local writer
 src/engine/attachment-shapes/attachmentTypes.ts	HOOK_ROW_OUTCOMES	process	module	Load-time list with no local writer
 src/engine/attachment-shapes/attachmentTypes.ts	TASK_REMINDER_CONFIG	process	module	Load-time table with no local writer
 src/engine/attachment-shapes/capsuleKinds.ts	capsuleKinds	process	module	Load-time table with no local writer
