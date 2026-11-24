@@ -7,32 +7,6 @@ export const UNITY_BRIDGE_DEFAULT_PORT = 6011
 export const UNITY_BRIDGE_MAX_LINE_BYTES = 8 * 1024 * 1024
 
 export const UNITY_BRIDGE_HIERARCHY_NODE_CAP = 2_000
-export const UNITY_BRIDGE_CONSOLE_RING_CAP = 1_000
-
-
-export const UNITY_BRIDGE_SERVER_ERROR_CODES = [
-  'AUTH_FAILED',
-  'VERSION_SKEW',
-  'UNKNOWN_OP',
-  'BAD_ARGS',
-  'PLAY_MODE_ACTIVE',
-  'SCENE_NOT_FOUND',
-  'SCENE_DIRTY',
-  'RUN_IN_FLIGHT',
-  'INTERNAL',
-] as const
-
-export const UNITY_BRIDGE_CLIENT_ERROR_CODES = [
-  'AUTH_FAILED',
-  'HANDSHAKE_CLOSED',
-  'CONNECTION_LOST',
-  'EDITOR_UNREACHABLE',
-  'REQUEST_TIMEOUT',
-  'CLIENT_CLOSED',
-  'BAD_FRAME',
-  'BRIDGE_VERSION_SKEW',
-] as const
-
 export interface UnityBridgeError {
   code: string
   message: string
@@ -170,10 +144,6 @@ export interface UnityConsoleEntry {
   stackTrace: string
   at: number
 }
-
-
-export const UNITY_BRIDGE_EVENTS = ['play_state_changed', 'test_run_finished'] as const
-
 
 export function buildUnityBridgeHelloFrame(token: string): string {
   return (
