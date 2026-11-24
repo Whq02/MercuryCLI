@@ -76,7 +76,7 @@ export async function call(
 
   const sessionId: UUID = getSessionId()
   const fullPath = getTranscriptPath()
-  await saveCustomTitle(sessionId, name, fullPath, 'user')
+  await saveCustomTitle(sessionId, name, fullPath)
   await saveAgentName(sessionId, name, fullPath, 'user')
   context.setAppState(prev => ({
     ...prev,

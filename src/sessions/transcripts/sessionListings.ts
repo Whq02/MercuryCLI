@@ -207,7 +207,6 @@ export async function saveCustomTitle(
   sessionId: UUID,
   customTitle: string,
   fullPath?: string,
-  _source?: 'user' | 'auto',
 ): Promise<void> {
   getProject().metadata.write(
     { type: 'custom-title', customTitle: partiallySanitizeUnicode(customTitle), sessionId },
