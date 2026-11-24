@@ -240,7 +240,7 @@ for (const [cols, rows, screenCols, screenRows] of SIZES) {
 
   {
     setSwarmMaster(true)
-    const g = text(panel(capture('L1-board', screenCols, screenRows, { transcript: POPULATED, sends: OPEN_PANEL, readyText: 'SAVED PROMPTS' })))
+    const g = text(panel(capture('L1-board', screenCols, screenRows, { transcript: POPULATED, sends: OPEN_PANEL, readyText: ['SAVED PROMPTS', 'Crew chat'] })))
     setSwarmMaster(false)
     check(`[${size}] L1b with the board on, the middle tab is the crew chat (Crew chat · PROMPTS · SAVED PROMPTS)`, /PROMPTS/.test(g) && /Crew chat/.test(g) && /SAVED PROMPTS/.test(g) && !/CREW TRAFFIC/.test(g))
   }
