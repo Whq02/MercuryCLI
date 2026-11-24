@@ -11,7 +11,3 @@ export function isFirstPartyAnthropicBaseUrl(): boolean {
     return false
   }
 }
-
-export function hasAnthropicControlPlane(): boolean {
-  return isFirstPartyAnthropicBaseUrl()
-}

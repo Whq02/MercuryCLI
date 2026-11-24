@@ -30,7 +30,7 @@ const SRC = join(import.meta.dir, '..', '..', 'src')
 let failures = 0
 let checks = 0
 const PROVIDER_CONTRACT_SOURCES: Array<[string, string]> = [
-  ['provider:', 'src/models/facts/providers.ts (isFirstPartyAnthropicBaseUrl, hasAnthropicControlPlane)'],
+  ['provider:', 'src/models/facts/providers.ts (isFirstPartyAnthropicBaseUrl)'],
   ['canonical:', 'src/models/facts/modelNames.ts (getCanonicalName)'],
   ['counting:', 'src/engine/context-window/contextTokenCount.ts and src/models/facts/tokenEstimation.ts'],
   ['assembly:', 'src/models/roads/anthropic/requestParams.ts'],
@@ -102,11 +102,6 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
   check(
     'provider: an unparseable base URL is NOT first-party',
     !withEnv({ ANTHROPIC_BASE_URL: 'not a url' }, () => prov.isFirstPartyAnthropicBaseUrl()),
-  )
-  check(
-    'provider: the control-plane gate rides the base-URL predicate',
-    prov.hasAnthropicControlPlane() === true &&
-      withEnv({ ANTHROPIC_BASE_URL: 'https://proxy.example.com' }, () => prov.hasAnthropicControlPlane()) === false,
   )
 }
 
