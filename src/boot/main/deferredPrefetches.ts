@@ -32,10 +32,7 @@ export function startDeferredPrefetches(): void {
         logForDiagnosticsNoPII('info', 'prefetch_system_context_skipped_no_trust')
       }
       void getTipToShowOnSpinner().catch(passedOver)
-      const { prefetchThirdPartyCredentials } = (await import('../../engine/messages/apiSystemAndToolSchema.js')) as {
-        prefetchThirdPartyCredentials?: () => void
-      }
-      prefetchThirdPartyCredentials?.()
+      await import('../../engine/messages/apiSystemAndToolSchema.js')
       if (getIsInteractive()) void countFilesRoundedRg(process.cwd(), AbortSignal.timeout(3000)).catch(passedOver)
       const { getModelCapability } = (await import('../../models/facts/capabilities.js')) as {
         getModelCapability?: (model: string) => unknown
