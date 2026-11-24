@@ -494,7 +494,7 @@ function compile(rule: WardRule): RegExp[] {
 
 let windowsRootPatterns: { home: string; patterns: RegExp[] } | undefined
 
-const WINDOWS_MSYS_DRIVE_ROOT = '/[a-z]/?'
+const WINDOWS_MSYS_DRIVE_ROOT = '/(?:mnt/)?[a-z]/?'
 
 const WINDOWS_DRIVE = '(?:[a-z]:|%SystemDrive%|%HOMEDRIVE%|\\$\\{?env:(?:SystemDrive|HOMEDRIVE)\\}?)'
 const WINDOWS_SYSTEM_FOLDER = '(?:Windows|Program Files(?: \\(x86\\))?|ProgramData)'
@@ -517,15 +517,15 @@ const WINDOWS_REMOVAL_TARGETS_FIXED = [
 
 const WINDOWS_MSYS_TARGETS = [
   WINDOWS_MSYS_DRIVE_ROOT,
-  '/[a-z]/Users(?:/[^/\\s"\']+)?',
-  '/[a-z]/' + WINDOWS_SYSTEM_FOLDER + '(?:/[^\\s"\']*)?',
+  '/(?:mnt/)?[a-z]/Users(?:/[^/\\s"\']+)?',
+  '/(?:mnt/)?[a-z]/' + WINDOWS_SYSTEM_FOLDER + '(?:/[^\\s"\']*)?',
 ]
 
 export function windowsRemovalPatterns(): RegExp[] {
   const home = (hostEnv().USERPROFILE || hostEnv().HOME || '').replace(/\\/g, '/').replace(/\/+$/, '')
   if (windowsRootPatterns?.home === home) return windowsRootPatterns.patterns
   const escape = (path: string): string => path.split(/[\\/]/).map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[/\\\\]')
-  const homes = /^[a-z]:\//i.test(home) ? [escape(home), escape(`/${home[0]}${home.slice(2)}`)] : []
+  const homes = /^[a-z]:\//i.test(home) ? [escape(home), escape(`/${home[0]}${home.slice(2)}`), escape(`/mnt/${home[0]}${home.slice(2)}`)] : []
   const targetOf = (alternatives: readonly string[]): string => '\\s["\\\']?(?:' + alternatives.join('|') + ')[/\\\\]*\\*?(?=["\\\']?(?:\\s|$|[;|&]))'
   const dashTarget = targetOf([...WINDOWS_REMOVAL_TARGETS_FIXED, ...WINDOWS_MSYS_TARGETS, ...homes])
   const slashTarget = targetOf([...WINDOWS_REMOVAL_TARGETS_FIXED, ...homes])
@@ -571,7 +571,7 @@ function homeSpellings(): string[] {
 
 type HomePatterns = { key: string; itself: RegExp[]; within: RegExp[]; operand: RegExp }
 
-const OPERAND_PREFIXES = ['\\/(?:Users|home|private|var|Volumes|root|etc|opt|tmp)\\/', '~[\\/\\\\]', '[a-zA-Z]:[\\/\\\\]+[Uu]sers[\\/\\\\]+', '\\/[a-zA-Z]\\/[Uu]sers\\/']
+const OPERAND_PREFIXES = ['\\/(?:Users|home|private|var|Volumes|root|etc|opt|tmp)\\/', '~[\\/\\\\]', '[a-zA-Z]:[\\/\\\\]+[Uu]sers[\\/\\\\]+', '\\/(?:mnt\\/)?[a-zA-Z]\\/[Uu]sers\\/']
 const OPERAND_TAIL = '[^\\s"\'`;&|)]*'
 
 let homePatternCache: HomePatterns | undefined
@@ -594,6 +594,7 @@ function homePatterns(): HomePatterns {
     if (DRIVE_HOME.test(spelling)) {
       driveSpellings.push(escapeHomePattern(spelling))
       driveSpellings.push(escapeRegex(`/${spelling[0]}${spelling.slice(2)}`))
+      driveSpellings.push(escapeRegex(`/mnt/${spelling[0]}${spelling.slice(2)}`))
     } else posixSpellings.push(escapeRegex(spelling))
   }
   const posixHome = posixSpellings.length === 0 ? undefined : `(?:${posixSpellings.join('|')})`

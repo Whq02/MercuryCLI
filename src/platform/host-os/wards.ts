@@ -27,11 +27,11 @@ export function wardUsesWindowsDeletePatterns(platform: NodeJS.Platform = proces
 export function wardWordIsWindowsShaped(word: string, anywhere: boolean, platform: NodeJS.Platform = process.platform): boolean {
   if (/^(?:[A-Za-z]:|%[A-Za-z_()0-9]+%|\$\{?env:|\\\\)/.test(word)) return anywhere || platform === 'win32'
   if (platform !== 'win32') return false
-  return /^(?:\/[A-Za-z](?:\/|$)|\/\/[^/]|~(?:$|[/\\])|\$\{?[A-Za-z_])/.test(word)
+  return /^(?:\/(?:mnt\/)?[A-Za-z](?:\/|$)|\/\/[^/]|~(?:$|[/\\])|\$\{?[A-Za-z_])/i.test(word)
 }
 
 export function wardExpandMsysDrivePrefix(text: string, platform: NodeJS.Platform = process.platform): string {
-  const msys = platform === 'win32' ? /^\/([A-Za-z])(\/[\s\S]*)?$/.exec(text) : null
+  const msys = platform === 'win32' ? /^\/(?:mnt\/)?([A-Za-z])(\/[\s\S]*)?$/i.exec(text) : null
   return msys === null ? text : `${msys[1]}:${msys[2] ?? '/'}`
 }
 

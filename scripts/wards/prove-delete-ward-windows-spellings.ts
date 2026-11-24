@@ -57,6 +57,8 @@ const ROOT_DELETES = [
   'rd /s /q C:\\',
   'rd /s /q Z:\\',
   'rm -rf /c',
+  'rm -rf /mnt/c',
+  'rm -rf /mnt/c/',
 ]
 const PARITY_WITH_THE_MAC_WARD = [
   'Remove-Item -Recurse -Force C:\\Users\\Other',
@@ -113,7 +115,25 @@ async function main(): Promise<void> {
     check('refused through the Bash tool: rm -rf $USERPROFILE', !wards.evaluateWards(wards.REFUSAL_WARDS, pending('rm -rf $USERPROFILE', 'Bash')).allow)
     check('refused through the Bash tool: rm -rf /c/Users/Alice', !wards.evaluateWards(wards.REFUSAL_WARDS, pending('rm -rf /c/Users/Alice', 'Bash')).allow)
     check('allowed through the Bash tool: rm -rf /c/Users/Alice/proj/dist', wards.evaluateWards(wards.REFUSAL_WARDS, pending('rm -rf /c/Users/Alice/proj/dist', 'Bash')).allow)
-
+    const mntRootVerdict = wards.evaluateWards(wards.REFUSAL_WARDS, pending('rm -rf /mnt/c', 'Bash'))
+    check('refused through the Bash tool by no-root-recursive-delete: rm -rf /mnt/c', !mntRootVerdict.allow && mntRootVerdict.rule.name === 'no-root-recursive-delete', mntRootVerdict.allow ? '(allowed)' : mntRootVerdict.rule.name)
+    check('refused through the Bash tool: rm -rf /mnt/c/Users/Alice', !wards.evaluateWards(wards.REFUSAL_WARDS, pending('rm -rf /mnt/c/Users/Alice', 'Bash')).allow)
+    check('allowed through the Bash tool: rm -rf /mnt/c/Users/Alice/proj/dist', wards.evaluateWards(wards.REFUSAL_WARDS, pending('rm -rf /mnt/c/Users/Alice/proj/dist', 'Bash')).allow)
+    check('allowed through the Bash tool: rm -rf /mnt/cache', wards.evaluateWards(wards.REFUSAL_WARDS, pending('rm -rf /mnt/cache', 'Bash')).allow)
+    check('allowed through the Bash tool: rm -rf /mnt/c2/x', wards.evaluateWards(wards.REFUSAL_WARDS, pending('rm -rf /mnt/c2/x', 'Bash')).allow)
+    const { refusalOfShellCommand } = await import('../../src/permissions/wards/wardsRefusals.js')
+    const astMntRoot = await refusalOfShellCommand(pending('rm -rf /mnt/c', 'Bash'), 'C:\\Users\\Alice\\proj')
+    check('AST ward refuses rm -rf /mnt/c by no-root-recursive-delete', !astMntRoot.allow && astMntRoot.rule.name === 'no-root-recursive-delete', astMntRoot.allow ? '(allowed)' : astMntRoot.rule.name)
+    const astMntSlash = await refusalOfShellCommand(pending('rm -rf /mnt/c/', 'Bash'), 'C:\\Users\\Alice\\proj')
+    check('AST ward refuses rm -rf /mnt/c/ by no-root-recursive-delete', !astMntSlash.allow && astMntSlash.rule.name === 'no-root-recursive-delete', astMntSlash.allow ? '(allowed)' : astMntSlash.rule.name)
+    const astMntHome = await refusalOfShellCommand(pending('rm -rf /mnt/c/Users/Alice', 'Bash'), 'C:\\Users\\Alice\\proj')
+    check('AST ward refuses rm -rf /mnt/c/Users/Alice', !astMntHome.allow)
+    const astMntDist = await refusalOfShellCommand(pending('rm -rf /mnt/c/Users/Alice/proj/dist', 'Bash'), 'C:\\Users\\Alice\\proj')
+    check('AST ward allows rm -rf /mnt/c/Users/Alice/proj/dist', astMntDist.allow)
+    const astMntCache = await refusalOfShellCommand(pending('rm -rf /mnt/cache', 'Bash'), 'C:\\Users\\Alice\\proj')
+    check('AST ward allows rm -rf /mnt/cache', astMntCache.allow)
+    const astMntC2 = await refusalOfShellCommand(pending('rm -rf /mnt/c2/x', 'Bash'), 'C:\\Users\\Alice\\proj')
+    check('AST ward allows rm -rf /mnt/c2/x', astMntC2.allow)
     section('§5 win32 — the PowerShell tool\'s own hard deny (the parsed operand) reads the home from USERPROFILE first')
     const deny = (path: string): boolean => psPaths.isDangerousRemovalRawPath(path)
     for (const path of ['~', 'C:\\Users\\Alice', 'c:/users/alice', 'C:\\Users\\Alice\\*', 'C:\\Users', 'C:\\Windows', 'C:\\', 'Z:/', '\\\\?\\C:\\Users\\Alice']) check(`hard deny (the permission check\'s own refusal): ${path}`, deny(path))
