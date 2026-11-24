@@ -662,8 +662,6 @@ src/engine/compaction/overflowRecovery.ts	UNCLASSIFIED_RATE_LIMIT_FRAME	process	
 src/engine/compaction/pruneDigest.ts	PRED	process	module	Load-time table with no local writer
 src/engine/compaction/pruneProtections.ts	PROTECTED_TOOL_NAMES	process	module	Load-time lookup with no local writer
 src/engine/compaction/pruneProtections.ts	SKILL_PATH_MARKS	process	module	Load-time list with no local writer
-src/engine/compaction/pruneToolResults.ts	cacheEditStore	owner	store	Session and agent compact-edit state released on full owner disposal or shutdown
-src/engine/compaction/pruneToolResults.ts	resetPruneState	reset-export
 src/engine/compaction/sessionNotesFold.ts	DEFAULT_SESSION_NOTES_FOLD_CONFIG	process	module	Load-time table with no local writer
 src/engine/compaction/sessionNotesFold.ts	config	process	module	never-mutated module default config object (declared let with zero writes)
 src/engine/compaction/summariserPrompt.ts	SUMMARY_SECTION_TITLES	process	module	Load-time list with no local writer
@@ -1759,7 +1757,6 @@ src/models/facts/pins/qwenTemplate.ts	QWEN_TEMPLATE_EFFORT_STEPS	process	module	
 src/models/facts/pins/togetherPins.ts	TOGETHER_DISPLAY_PINS	process	module	Load-time list with no local writer
 src/models/facts/pins/togetherPins.ts	TOGETHER_HYBRID_THINKING_MODELS	process	module	Load-time lookup with no local writer
 src/models/facts/pins/xaiPins.ts	XAI_DISPLAY_PINS	process	module	Load-time list with no local writer
-src/models/facts/pins/xaiPins.ts	XAI_EFFORTS	process	module	Load-time lookup with no local writer
 src/models/facts/pins/xaiPins.ts	XAI_RETIRED_ALIASES	process	module	Load-time lookup with no local writer
 src/models/facts/pins/xaiPins.ts	facts	process	module	Load-time table with no local writer
 src/models/facts/pins/xaiPins.ts	read	process	module	Load-time table with no local writer
@@ -2022,7 +2019,6 @@ src/models/roads/anthropic/prefixLedger.ts	writeTimer	owner	module	session level
 src/models/roads/anthropic/rateLimitMessages.ts	RATE_LIMIT_ERROR_PREFIXES	process	module	Load-time list with no local writer
 src/models/roads/anthropic/requestParams.ts	FIRST_PARTY_WIRE_EFFORTS	process	module	Load-time list with no local writer
 src/models/roads/anthropic/stream-core/streamEvents.ts	resetStreamAttempt	reset-export
-src/models/roads/anthropic/streamCore.ts	ANTHROPIC_STREAM_ADVERTISEMENT	process	module	Load-time table with no local writer
 src/models/roads/anthropic/thinkingBinding.ts	DROP_KINDS	process	module	Load-time lookup with no local writer
 src/models/roads/anthropic/thinkingBinding.ts	SETTING_LABELS	process	module	Load-time table with no local writer
 src/models/roads/anthropic/thinkingBinding.ts	THINKING_READ_BY	process	module	Load-time table with no local writer
@@ -3996,9 +3992,6 @@ src/screen/composer/input-core/pending-input.ts	typedIn	process	module	single-TU
 src/screen/composer/input-core/promptDraft.ts	draftStore	process	module	defineStore disk-backed JSON descriptor for prompt-drafts (path computed dynamically per call)
 src/screen/composer/input-core/promptDraft.ts	pending	process	module	debounced interactive prompt draft write slot
 src/screen/composer/input-core/promptDraft.ts	pendingDeletes	process	module	retry set of sessionIds whose draft deletion failed on disk, cleared on next successful delete
-src/screen/composer/input-core/promptDraft.ts	scopedPending	process	module	debounced interactive scoped composer docs write slot
-src/screen/composer/input-core/promptDraft.ts	scopedStore	process	module	defineStore disk-backed JSON descriptor for scoped-composer-docs
-src/screen/composer/input-core/promptDraft.ts	scopedTimer	process	module	debounce timeout handle for scopedPending write
 src/screen/composer/input-core/promptDraft.ts	timer	process	module	debounce timeout handle for pending draft write
 src/screen/composer/input-core/promptDraft.ts	written	process	module	promise chain serializing disk writes and deletes to prompt-drafts file
 src/screen/composer/input-core/sendNowChord.ts	armedAtMs	process	module	single-TUI double-chord send-now gesture timestamp (2s window)
@@ -4109,7 +4102,6 @@ src/screen/concourse/splitView.ts	ratio	process	module	single-TUI split-pane wid
 src/screen/concourse/splitView.ts	version	process	module	single-TUI split-pane external-store revision counter
 src/screen/deck-pane/DeckPane.tsx	DeckPane	process	module	Load-time definition shared by all callers
 src/screen/diff/reviewLayer.ts	sourceArtifacts	owner	module	session; diff sourceKey-to-reviewArtifactId map keyed by cwd+sourceKey without sessionId; missing end
-src/screen/diff/useTurnDiffs.ts	fileEditResultSchema	process	module	module definition evaluated once
 src/screen/extensions/ApprovalCardView.tsx	SECTION_TITLES	process	module	Load-time lookup with no local writer
 src/screen/extensions/ExtensionView.tsx	KIND_LETTER	process	module	Load-time table with no local writer
 src/screen/extensions/bindings.ts	DEFAULT_CHARS	process	module	Load-time list with no local writer
@@ -4820,7 +4812,6 @@ src/sessions/instructions/listing.ts	getInstructionListing	owner	module	Session 
 src/sessions/instructions/listing.ts	listingInvalidationArmed	process	module	one-time latch subscribing listing memo to instruction cache invalidation
 src/sessions/instructions/nativeSource.ts	NATIVE_INSTRUCTION_FILE_NAMES	process	module	Load-time list with no local writer
 src/sessions/instructions/nativeSource.ts	mercuryNativeConvention	process	module	Load-time table with no local writer
-src/sessions/instructions/profile.ts	agentProfile	owner	module	agent level (module): dead/never-assigned agent instruction profile slot read in resolveRequestedInstructionProfile
 src/sessions/instructions/profile.ts	sessionProfile	owner	module	Session state retained in this module
 src/sessions/instructions/sourceText.ts	COMPOSABLE_EXTENSIONS	process	module	Load-time table with no local writer
 src/sessions/instructions/sourceText.ts	TEXT_FILE_EXTENSIONS	process	module	Load-time lookup with no local writer
@@ -5568,6 +5559,8 @@ src/tools/shell/pathValidation.ts	TREE_FILES	process	module	Load-time lookup wit
 src/tools/shell/pathValidation.ts	TREE_GRAMMAR	process	module	Load-time table with no local writer
 src/tools/shell/pathValidation.ts	XARGS_FILES	process	module	Load-time lookup with no local writer
 src/tools/shell/pathValidation.ts	XARGS_GRAMMAR	process	module	Load-time table with no local writer
+src/tools/shell/quotedScripts.ts	NOT_WORDS	process	module	load-time lookup; no local writer
+src/tools/shell/quotedScripts.ts	QUOTED_WORDS	process	module	load-time lookup; no local writer
 src/tools/shell/readOnlyValidation.ts	GIT_INTERNAL_CREATORS	process	module	Load-time lookup with no local writer
 src/tools/shell/readOnlyValidation.ts	OUTPUT_OPERATORS	process	module	Load-time lookup with no local writer
 src/tools/shell/readOnlyValidation.ts	inputReads	call	module	WeakMap keyed by tool_use input object retaining PreparedRead for call lifetime
