@@ -6,8 +6,6 @@ export type InvocationKind = 'spawn' | 'resume'
 export type CrewmateContext = {
   agentType: 'subagent'
   agentId: string
-  subagentName?: string
-  isBuiltIn?: boolean
   invokingRequestId?: string
   invocationKind?: InvocationKind
   invocationEmitted?: boolean

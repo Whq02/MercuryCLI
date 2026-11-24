@@ -331,7 +331,7 @@ export async function crewmateToolCall(
 
   const runAgentParams = runCrewmateParamsOf({ agentDef, promptMessages, context, canUseTool, plan, querySource, structuredOutputSpec, effectiveSystemPromptOverride, modelForRunLoop, input, workerTools: crewmateTools, worktreeInfo, launchDirectory, startTime, earlyAgentId, rootSetAppState })
 
-  const agentContext = crewmateContextOf(earlyAgentId, agentDef, parentAssistantMessage)
+  const agentContext = crewmateContextOf(earlyAgentId, parentAssistantMessage)
 
   const launchModelNote = [plan.modelNote, memoryLoadNote].filter(Boolean).join('\n') || undefined
 
@@ -456,12 +456,10 @@ function runCrewmateParamsOf({ agentDef, promptMessages, context, canUseTool, pl
   }
 }
 
-function crewmateContextOf(earlyAgentId: AgentId, agentDef: AgentDefinition, parentAssistantMessage: AssistantMessage): CrewmateContext {
+function crewmateContextOf(earlyAgentId: AgentId, parentAssistantMessage: AssistantMessage): CrewmateContext {
   return {
     agentType: 'subagent',
     agentId: earlyAgentId,
-    subagentName: agentDef.agentType,
-    isBuiltIn: isBuiltInAgent(agentDef),
     invocationKind: 'spawn',
     invokingRequestId: parentAssistantMessage.requestId,
     invocationEmitted: false,

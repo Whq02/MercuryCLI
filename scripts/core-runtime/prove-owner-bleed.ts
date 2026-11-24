@@ -58,7 +58,6 @@ const homeB = makeDir('home-b')
 const mkAgent = (id: string, req: string, kind: 'spawn' | 'resume'): CrewmateContext => ({
   agentType: 'subagent',
   agentId: id,
-  subagentName: id,
   invokingRequestId: req,
   invocationKind: kind,
 })

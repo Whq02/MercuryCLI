@@ -494,8 +494,6 @@ function startResumedLifecycle(input: {
   const agentContext: CrewmateContext = {
     agentType: 'subagent',
     agentId: typedAgentId,
-    subagentName: selectedAgent.agentType,
-    isBuiltIn: isBuiltInAgent(selectedAgent),
     invocationKind: 'resume',
     invokingRequestId,
     invocationEmitted: false,
