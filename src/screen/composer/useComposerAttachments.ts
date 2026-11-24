@@ -324,7 +324,7 @@ export function useComposerAttachments({
       }
 
       const maxLines = Math.min(2, Math.max(1, rows - 10))
-      if (display.length > PASTE_THRESHOLD || lineCount > maxLines) {
+      if (display.length > PASTE_THRESHOLD || lineCount + 1 > maxLines) {
         const id = allocatePasteId()
         const contentHash = hashPastedText(stored)
         const record: PastedContent = {
