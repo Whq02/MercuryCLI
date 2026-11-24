@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/screen/fullscreen-layout/CrewViewSlot.tsx src/screen/fullscreen-layout/frame.tsx src/screen/fullscreen-layout/FullscreenLayout.tsx src/screen/overlays/promptOverlay.tsx src/screen/composer/composerSurface.tsx src/screen/cockpit/commandPopup.ts src/commands/runs/tasks.tsx src/commands/workbench/workbench.tsx
+// gate-watch: src/screen/fullscreen-layout/CrewViewSlot.tsx src/screen/fullscreen-layout/frame.tsx src/screen/fullscreen-layout/FullscreenLayout.tsx src/screen/overlays/promptOverlay.tsx src/screen/composer/composerSurface.tsx src/screen/cockpit/commandPopup.ts src/commands/runs/tasks.tsx src/commands/workbench/workbench.tsx src/commands/diff/diff.tsx
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, type Mounted } from '../lib/settingsPopupHarness.ts'
@@ -43,6 +43,7 @@ const crew = await import('../../src/screen/cockpit/crewView.ts')
 const commandPopup = await import('../../src/screen/cockpit/commandPopup.ts')
 const runsCommand = await import('../../src/commands/runs/tasks.tsx')
 const workbenchCommand = await import('../../src/commands/workbench/workbench.tsx')
+const diffCommand = await import('../../src/commands/diff/diff.tsx')
 const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
 enableConfigs()
 saveCurrentProjectConfig(c => ({ ...c, hasCompletedProjectOnboarding: true }))
@@ -175,6 +176,7 @@ for (const size of SIZES) {
   }
   for (const popup of [
     { name: 'prompts', route: '/workbench', title: 'Mercury — prompts', open: () => workbenchCommand.call(() => setModal(null), context, '') },
+    { name: 'diff', route: '/diff', title: 'Mercury — diff', open: () => diffCommand.call(() => setModal(null), context, '') },
   ]) {
     if (only !== undefined && only !== popup.name) continue
     const opened = await mount(size)
@@ -233,6 +235,16 @@ if (only === undefined || only === 'keys') {
   await settledFrame(prompts.scene)
   check(`prompts keys ${size}: a letter typed while it is open does not reach the typing box behind it`, typingBox(prompts.scene.lines()) === typingBox(prompts.before), `the typing box reads ${JSON.stringify(typingBox(prompts.scene.lines()).trim())}`)
   await unmount(prompts.scene)
+  const diff = await mount(size, null, true)
+  setModal(await diffCommand.call(() => setModal(null), context, ''))
+  await settledFrame(diff.scene, frame => frame.includes('Mercury — diff') && !frame.includes('Reading the diff'))
+  const current = diff.scene.lines().find(line => line.includes('(git diff')) ?? ''
+  diff.scene.push('\x1b[C')
+  check(`diff keys ${size}: → moves to the next source`, await settledFrame(diff.scene, frame => frame.includes('Mercury — diff') && !frame.includes('Reading the diff') && !frame.includes(current.trim().replace(/^│\s*/, '').replace(/\s*│$/, ''))).catch(() => false), `the source line still reads ${JSON.stringify(current.trim())}`)
+  diff.scene.push('z')
+  await settledFrame(diff.scene)
+  check(`diff keys ${size}: a letter typed while it is open does not reach the typing box behind it`, typingBox(diff.scene.lines()) === typingBox(diff.before), `the typing box reads ${JSON.stringify(typingBox(diff.scene.lines()).trim())}`)
+  await unmount(diff.scene)
 }
 if (only === undefined || only === 'quiet') {
   process.env.MERCURY_RECESS = '1'
@@ -248,6 +260,7 @@ if (only === undefined || only === 'quiet') {
   for (const popup of [
     { route: '/runs', title: 'Mercury — runs', open: () => runsCommand.call(() => setModal(null), context, '') },
     { route: '/workbench', title: 'Mercury — prompts', open: () => workbenchCommand.call(() => setModal(null), context, '') },
+    { route: '/diff', title: 'Mercury — diff', open: () => diffCommand.call(() => setModal(null), context, '') },
   ]) {
     const behind = await mount(size)
     setModal(await popup.open())

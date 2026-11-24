@@ -231,7 +231,7 @@ console.log('============================================================')
 buildFixture()
 try {
   console.log('\n── list · window · summary · postures ───────────────────────')
-  const list = capture('list', OPEN, 56)
+  const list = capture('list', OPEN, 56, {}, 120, 46)
   if (list) {
     check('workspace opened (Uncommitted changes header)', list.some(l => l.includes('Uncommitted changes')))
     check('the 3-hunk file is the selected first row', list.some(l => l.includes('❯') === false || true) && list.some(l => l.includes('a-multi.ts')))
