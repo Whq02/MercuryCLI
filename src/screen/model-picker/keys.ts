@@ -153,7 +153,7 @@ export function windowTypingKeys(input: string, key: InputKey, event: InputEvent
   return false
 }
 
-export function navigationKeys(input: string, key: InputKey, event: InputEvent, { rowAxis, overlayToken, filter, setFilterText, onClose, pastOpenEvent, setFilterFocus, filterFocus, selectRow, lines, i, commitCurrent, filtering, setFold, folds, groupHidden }: PickerKeys): boolean {
+export function navigationKeys(event: InputEvent, { rowAxis, overlayToken, filter, setFilterText, onClose, pastOpenEvent, setFilterFocus, filterFocus, selectRow, lines, i, commitCurrent, filtering, setFold, folds, groupHidden }: PickerKeys): boolean {
   if (rowAxis === 'cancel') {
     if (overlayToken !== null && !isTopOverlayNow(overlayToken)) return true
     event.stopImmediatePropagation()

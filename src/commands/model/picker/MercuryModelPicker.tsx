@@ -327,7 +327,7 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
     const keys: PickerKeys = { rowAxis, tfTyping, setTfTyping, listed, onTensorFold, tfConfirm, setTfConfirm, focusedTf, filtering, stepWindow, filterFocus, pastOpenEvent, windowTyping, setWindowTyping, focusedLocal, setWindowStamp, overlayToken, filter, setFilterText, onClose, setFilterFocus, selectRow, lines, i, commitCurrent, setFold, folds, groupHidden, focusedSupports1m, setContext1m, focusedGptWindow, context1m, setCtxNotice, focusedNative1m, focusedLocalCycles, focusedModel, focusedHeading, hasEffort, onEffort, efforts, ei }
     if (tensorFoldKeys(input, key, event, keys)) return
     if (windowTypingKeys(input, key, event, keys)) return
-    if (navigationKeys(input, key, event, keys)) return
+    if (navigationKeys(event, keys)) return
     if (chordKeys(input, key, event, keys)) return
     filterKeys(input, key, event, keys)
   })
