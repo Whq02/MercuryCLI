@@ -1,6 +1,5 @@
 import { getSessionId } from '../../boot/process-state/processState.js'
-import { readSessionWorkers, stampedTerminalPid } from '../concourse-workers/concourseWorkers.js'
-import { isProcessAlive } from '../control/ownerWatch.js'
+import { readSessionWorkers, terminalsFocusing } from '../concourse-workers/concourseWorkers.js'
 import { flagEnv } from '../../platform/substrate/flagRegistry.js'
 import { BACKGROUND_LAUNCH_LABEL, backgroundSessionsLaunchCrewmates } from './backgroundLaunch.js'
 import { spawnSwitch, spawnSwitchOffReceipt, type SpawnSwitchKind, type SpawnSwitchState } from './spawnSwitches.js'
@@ -27,10 +26,7 @@ export function evaluateLaunchAuthority(
     const rec = Object.values(readSessionWorkers(probe?.dir)).find(
       r => r.sessionId === sessionId && r.endedAt === undefined,
     )
-    if (rec?.focusedAt !== undefined) {
-      const seatPid = stampedTerminalPid(rec.focusedBy)
-      if (seatPid !== undefined && isProcessAlive(seatPid)) return { allowed: true, posture: 'focused' }
-    }
+    if (rec !== undefined && terminalsFocusing(rec).length > 0) return { allowed: true, posture: 'focused' }
     if (rec?.workflowsAllowed === true) return { allowed: true, posture: 'tagged-background' }
   } catch (error) {
     passedOver(error)

@@ -72,6 +72,7 @@ export interface ConcourseWorkerRecordV1 {
   workflowsGrantedAt?: number
   focusedAt?: number
   focusedBy?: string
+  focusedAlso?: Array<{ by: string; at: number; terminalApplication?: ConcourseWorkerRecordV1['terminalApplication'] }>
   terminalApplication?: { identity: string; name: string; windowId?: string | null; tty?: string | null } | null
   parkedAt?: number
   parkedBy?: string
@@ -153,6 +154,7 @@ export function stampParked(rec: ConcourseWorkerRecordV1, by: string, reason?: s
   delete rec.crash
   delete rec.focusedAt
   delete rec.focusedBy
+  delete rec.focusedAlso
   try {
     writeSessionCloseReceipts(getProjectDir(rec.workspaceId), rec.sessionId, 'park', rec.agentName)
   } catch (err) {

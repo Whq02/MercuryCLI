@@ -9,7 +9,8 @@ import { readProcessTreeUnder, readProcessBirth } from '../process-sweep/process
 import { endProcessTree } from '../../platform/processes/processGroup.js'
 import { pollUntil, withDeadline } from '../../platform/async/deadline.js'
 import { updateConcourseWorkers, readSessionWorkers } from './store.js'
-import { isNewbornRecord, turnInFlightOf, stampParked, type ConcourseWorkerRecordV1, withdrawTerminalParkRequest, stampedTerminalPid } from './record.js'
+import { isNewbornRecord, turnInFlightOf, stampParked, type ConcourseWorkerRecordV1, withdrawTerminalParkRequest } from './record.js'
+import { terminalsFocusing } from './focus.js'
 import { settleConcourseWorker } from './settle.js'
 
 export const PARK_DRAIN_CUT_REASON = 'parked — turn cut at the drain ceiling'
@@ -386,12 +387,9 @@ export function parkAllConcourseSessions(
       receipt.skipped.push(rec.runnerId)
       continue
     }
-    if (opts?.exceptFocusedByLiveTerminal === true && rec.focusedAt !== undefined && rec.focusedBy !== by) {
-      const seatPid = stampedTerminalPid(rec.focusedBy)
-      if (seatPid !== undefined && isProcessAlive(seatPid)) {
-        receipt.skipped.push(rec.runnerId)
-        continue
-      }
+    if (opts?.exceptFocusedByLiveTerminal === true && terminalsFocusing(rec).some(terminal => terminal !== by)) {
+      receipt.skipped.push(rec.runnerId)
+      continue
     }
     const out = parkConcourseSession(rec.sessionId, by, roster, dir, {
       ...(opts?.reason !== undefined ? { reason: opts.reason } : {}),

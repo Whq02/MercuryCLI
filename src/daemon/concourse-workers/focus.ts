@@ -1,7 +1,7 @@
 import { partiallySanitizeUnicode } from '../../platform/text/unicodeSanitization.js'
 import { isProcessAlive } from '../control/ownerWatch.js'
 import { updateConcourseWorkers, readSessionWorkers } from './store.js'
-import { stampedTerminalPid, withdrawTerminalParkRequest } from './record.js'
+import { stampedTerminalPid, withdrawTerminalParkRequest, type ConcourseWorkerRecordV1 } from './record.js'
 
 export type ConcourseTagOutcome =
   | { outcome: 'applied' }
@@ -78,6 +78,7 @@ export function nextLiveCockpitOwner(exceptPid: number | null, dir?: string, sin
     for (const [by, at] of [
       [rec.focusedBy, rec.focusedAt] as const,
       [rec.attachedBy, rec.attachedAt] as const,
+      ...(rec.focusedAlso ?? []).map(stamp => [stamp.by, stamp.at] as const),
     ]) {
       const pid = stampedTerminalPid(by)
       if (pid === undefined || pid === exceptPid || !isProcessAlive(pid)) continue
@@ -89,6 +90,40 @@ export function nextLiveCockpitOwner(exceptPid: number | null, dir?: string, sin
   return best?.pid
 }
 
+function forgetVisitor(rec: ConcourseWorkerRecordV1, by: string): boolean {
+  const earlier = rec.focusedAlso ?? []
+  const rest = earlier.filter(stamp => stamp.by !== by)
+  if (rest.length > 0) rec.focusedAlso = rest
+  else delete rec.focusedAlso
+  return rest.length < earlier.length
+}
+
+function terminalLives(by: string): boolean {
+  const pid = stampedTerminalPid(by)
+  return pid !== undefined && isProcessAlive(pid)
+}
+
+export function terminalsFocusing(rec: ConcourseWorkerRecordV1): string[] {
+  const holder = rec.focusedAt !== undefined && rec.focusedBy !== undefined ? [rec.focusedBy] : []
+  return [...(rec.focusedAlso ?? []).map(stamp => stamp.by), ...holder].filter(terminalLives)
+}
+
+export function handFocusBack(rec: ConcourseWorkerRecordV1): void {
+  const earlier = (rec.focusedAlso ?? []).filter(stamp => terminalLives(stamp.by))
+  const next = earlier.pop()
+  if (earlier.length > 0) rec.focusedAlso = earlier
+  else delete rec.focusedAlso
+  if (next === undefined) {
+    delete rec.focusedAt
+    delete rec.focusedBy
+    delete rec.terminalApplication
+    return
+  }
+  rec.focusedAt = next.at
+  rec.focusedBy = next.by
+  rec.terminalApplication = next.terminalApplication ?? null
+}
+
 export function focusConcourseSession(sessionId: string, by: string, dir?: string, terminalApplication?: { identity: string; name: string; windowId?: string | null; tty?: string | null } | null): ConcourseFocusOutcome {
   let out: ConcourseFocusOutcome = { outcome: 'refused', reason: 'unknown-session' }
   updateConcourseWorkers(workers => {
@@ -96,10 +131,10 @@ export function focusConcourseSession(sessionId: string, by: string, dir?: strin
     if (!rec) return
     const cleared: string[] = []
     for (const other of Object.values(workers)) {
-      if (other === rec || other.endedAt !== undefined || other.focusedBy !== by) continue
-      delete other.focusedAt
-      delete other.focusedBy
-      delete other.terminalApplication
+      if (other === rec || other.endedAt !== undefined) continue
+      forgetVisitor(other, by)
+      if (other.focusedBy !== by) continue
+      handFocusBack(other)
       cleared.push(other.runnerId)
     }
     const terminalChanged = terminalApplication !== undefined && (rec.terminalApplication?.identity !== terminalApplication?.identity || rec.terminalApplication?.name !== terminalApplication?.name || rec.terminalApplication?.windowId !== terminalApplication?.windowId || rec.terminalApplication?.tty !== terminalApplication?.tty)
@@ -107,6 +142,11 @@ export function focusConcourseSession(sessionId: string, by: string, dir?: strin
       out = { outcome: 'noop', reason: 'already-focused' }
       return
     }
+    if (rec.focusedBy !== undefined && rec.focusedBy !== by && rec.focusedAt !== undefined) {
+      const stepped = { by: rec.focusedBy, at: rec.focusedAt, ...(rec.terminalApplication !== undefined ? { terminalApplication: rec.terminalApplication } : {}) }
+      rec.focusedAlso = [...(rec.focusedAlso ?? []).filter(stamp => stamp.by !== stepped.by), stepped]
+    }
+    forgetVisitor(rec, by)
     if (rec.focusedBy !== by || terminalApplication !== undefined) rec.terminalApplication = terminalApplication ?? null
     rec.focusedAt = Date.now()
     rec.focusedBy = by
@@ -122,12 +162,10 @@ export function blurConcourseSession(sessionId: string, by: string, dir?: string
     const rec = Object.values(workers).find(r => r.sessionId === sessionId && r.endedAt === undefined)
     if (!rec) return
     if (rec.focusedAt === undefined || rec.focusedBy !== by) {
-      out = { outcome: 'noop', reason: 'not-focused' }
+      out = forgetVisitor(rec, by) ? { outcome: 'applied', runnerId: rec.runnerId, cleared: [] } : { outcome: 'noop', reason: 'not-focused' }
       return
     }
-    delete rec.focusedAt
-    delete rec.focusedBy
-    delete rec.terminalApplication
+    handFocusBack(rec)
     out = { outcome: 'applied', runnerId: rec.runnerId, cleared: [rec.runnerId] }
   }, dir)
   return out

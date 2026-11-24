@@ -10,6 +10,7 @@ import { runningBuildTree } from '../../platform/product/artifactIdentity.js'
 import { workerPidAlive } from './workerIdentity.js'
 import { updateConcourseWorkers, readSessionWorkers } from './store.js'
 import { recordCollisionEvidence } from './collisions.js'
+import { handFocusBack } from './focus.js'
 import { type ConcourseWorkerRecordV1, isNewbornRecord, stampedTerminalPid, stampParked, stampStopped, turnCutStanding } from './record.js'
 import { errorMessage } from '../../platform/errors/errors.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
@@ -128,6 +129,7 @@ export function settleConcourseWorker(runnerId: string, dir?: string): boolean {
       rec.endedAt = Date.now()
       delete rec.focusedAt
       delete rec.focusedBy
+      delete rec.focusedAlso
       settled = true
       endedSessionId = rec.sessionId
       settledRec = rec
@@ -177,8 +179,7 @@ export function reconcileConcourseWorkers(
         const seatPid = stampedTerminalPid(rec.focusedBy)
         if (seatPid === undefined || !isProcessAlive(seatPid)) {
           logForDebugging(`[concourse] focus stamp healed off ${rec.runnerId} (terminal ${rec.focusedBy ?? 'unnamed'} is gone)`)
-          delete rec.focusedAt
-          delete rec.focusedBy
+          handFocusBack(rec)
         }
       }
       if (rec.parkedAt !== undefined) {
