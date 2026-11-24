@@ -359,7 +359,6 @@ src/daemon/concourse-workers/concourseDispatch.ts	concourseDispatchesStore	proce
 src/daemon/concourse-workers/concourseDispatch.ts	deferredPublish	process	module	daemon-wide in-flight deferred disk publish queue keyed by ledger path, deleted on flush
 src/daemon/concourse-workers/concourseDispatch.ts	ledgerMemo	process	module	file stat-stamped memo of concourse-dispatches.json keyed by full file path
 src/daemon/concourse-workers/concourseDispatch.ts	namedControlOpLedgers	process	module	daemon-wide warn-once set keyed by corrupt control-ops ledger file path
-src/daemon/concourse-workers/concourseLifecycle.ts	BOARD_ORDER	process	module	Load-time list with no local writer
 src/daemon/concourse-workers/concourseLifecycle.ts	CONCOURSE_SESSION_STATES	process	module	Load-time list with no local writer
 src/daemon/concourse-workers/concourseLifecycle.ts	ENTRY_PROOF_OF	process	module	Load-time table with no local writer
 src/daemon/concourse-workers/concourseLifecycle.ts	TERMINAL_STATES	process	module	Load-time lookup with no local writer
@@ -3173,7 +3172,6 @@ src/platform/housekeeping/backgroundHousekeeping.ts	cycle	process	module	process
 src/platform/housekeeping/backgroundHousekeeping.ts	seams	test	module	test-only clock/scheduler seam override via _setHousekeepingSeamsForTesting (default Date.now/startTimeout)
 src/platform/images/imagePackArm.ts	armedDir	process	module	process-wide NODE_PATH and Module._initPaths arming latch for vendored sharp pack
 src/platform/images/imageProcessor.ts	loadedPromise	process	module	one-time dynamic loader promise for native sharp vs JS image processor
-src/platform/images/imageProcessorJs.ts	CRC_TABLE	process	module	immutable Uint32Array(256) PNG CRC32 lookup table computed once at load
 src/platform/images/imageResizer.ts	fittedImagesByOwner	owner	module	agent; module (keyed by owner|firstMsgUuid, no bound and no owner end); remembered image fit caps outlive ended crewmates
 src/platform/images/imageResizer.ts	leftOutImages	process	module	bounded (cap 2048) content-addressed negative memo of unresizable images
 src/platform/images/imageResizer.ts	leftOutReceipts	owner	module	agent; module (keyed by owner string, deleted on takeImagesLeftOutReceipt, no owner-end sweep); untaken receipts outlive ended owners
