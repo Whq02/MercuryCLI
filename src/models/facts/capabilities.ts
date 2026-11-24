@@ -1264,6 +1264,11 @@ export function toolDeferralEnabled(): boolean {
   return flagEnabled('MERCURY_TOOL_DEFER')
 }
 
+export function haikuTakesToolReferences(model: string): boolean {
+  const canonical = getCanonicalName(familyDefaultsModel(model))
+  return canonical === 'claude-haiku-5-5' || canonical.includes('claude-haiku-4-5')
+}
+
 
 type ModelCapabilityRecord = Readonly<{
   model: string

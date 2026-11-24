@@ -11,7 +11,7 @@ import { getMergedBetas } from '../../models/roads/betas.js'
 import { getContextWindowForModel } from '../compaction-window/contextFill.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { isEnvDefinedFalsy } from '../../platform/environment/envUtils.js'
-import { toolDeferralEnabled } from '../../models/facts/capabilities.js'
+import { haikuTakesToolReferences, toolDeferralEnabled } from '../../models/facts/capabilities.js'
 import { deferralWireFormFor, type DeferralWireForm } from '../../models/roads/deferralWire.js'
 import { zodToJsonSchema } from '../../platform/primitives/zodToJsonSchema.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
@@ -65,7 +65,7 @@ function getAutoPercent(): number {
 }
 
 export function modelSupportsToolReference(model: string): boolean {
-  return !model.toLowerCase().includes('haiku')
+  return !model.toLowerCase().includes('haiku') || haikuTakesToolReferences(model)
 }
 
 let optimisticDebugEmitted = false
