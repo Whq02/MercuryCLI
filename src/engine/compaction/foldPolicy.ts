@@ -1,4 +1,3 @@
-
 const FOLD_DEFAULTS = Object.freeze({
   thresholdPct: 85,
   cooldownTurns: 8,
@@ -100,15 +99,6 @@ export function foldBreakerAllows(
       : MAX_CONSECUTIVE_AUTO_FOLD_FAILURES
   if (!isFiniteNumber(consecutiveFailures)) return true
   return consecutiveFailures < cap
-}
-
-export function nextFoldFailureCount(
-  prev: number | undefined,
-  succeeded: boolean,
-): number {
-  const p =
-    isFiniteNumber(prev) && prev > 0 ? Math.floor(prev) : 0
-  return succeeded ? 0 : p + 1
 }
 
 export function percentUsedFromPercentLeft(percentLeft: number): number {

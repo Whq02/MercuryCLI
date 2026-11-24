@@ -31,15 +31,11 @@ guard.unref?.()
 
 section('policy — decideCompaction table + the breaker')
 {
-  const { decideFold, foldBreakerAllows, nextFoldFailureCount } =
+  const { decideFold, foldBreakerAllows } =
     await import('../../src/engine/compaction/foldPolicy.ts')
   const d = decideFold as (a: Record<string, unknown>) => { kind: string }
   check('decideCompaction is a pure function', typeof decideFold === 'function')
   check('compactionBreakerAllows exists', typeof foldBreakerAllows === 'function')
-  const n0 = (nextFoldFailureCount as (n: number, ok: boolean) => number)(0, false)
-  const nOk = (nextFoldFailureCount as (n: number, ok: boolean) => number)(3, true)
-  check('failure count increments on failure', n0 === 1, String(n0))
-  check('failure count resets on success', nOk === 0, String(nOk))
   void d
 }
 
