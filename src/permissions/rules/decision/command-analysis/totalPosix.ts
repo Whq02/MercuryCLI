@@ -110,7 +110,7 @@ function hasBraceListCandidate(node: Node): boolean {
   return open && comma && close
 }
 
-function cross(left: string[], right: string[]): string[] {
+export function cross(left: string[], right: string[]): string[] {
   const out: string[] = []
   for (const a of left) for (const b of right) if (out.length < READING_CAP) out.push(a + b)
   return out

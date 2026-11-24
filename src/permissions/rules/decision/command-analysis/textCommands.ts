@@ -3,7 +3,7 @@ import { UNREAD_PART, type ReadRedirect, type Stage } from './reading.js'
 import { POSIX_SHELLS, ansiC, printedBy, readsStdin } from './scripts.js'
 import { commentStart, dropHeredocBodies, foldContinuations, lexShellUnit } from './textReader.js'
 import type { Frame, Reading } from './total.js'
-import { READING_CAP } from './totalPosix.js'
+import { READING_CAP, cross } from './totalPosix.js'
 import { keepWordsAsWritten } from './written.js'
 
 const PASSTHROUGH = new Set(['cat', 'tee'])
@@ -93,12 +93,6 @@ function unquotedDroppedHeredocBodies(text: string): Array<{ body: string; line:
   }
   return dropped
 }
-function cross(left: string[], right: string[]): string[] {
-  const out: string[] = []
-  for (const a of left) for (const b of right) if (out.length < READING_CAP) out.push(a + b)
-  return out
-}
-
 function isSpace(ch: string | undefined): boolean {
   return ch === ' ' || ch === '\t' || ch === '\r' || ch === '\n'
 }
