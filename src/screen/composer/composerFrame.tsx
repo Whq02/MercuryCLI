@@ -10,7 +10,6 @@ import { composerBorderRole, composerBorderStyle } from '../widgets/composerFloo
 import type { CompactFrameBudget } from '../widgets/geometry.js'
 import { truncateToWidth } from '../theme/glyphs.js'
 import { AMBER } from '../theme/mercuryPalette.js'
-import { IssueFlagBanner } from './IssueFlagBanner.js'
 import type { useComposerModelDoors } from './useComposerModelDoors.js'
 import type { useCrewBanner } from './useCrewBanner.js'
 
@@ -114,7 +113,6 @@ export function composerNotices({
 }): React.ReactNode {
   return (
     <Box flexDirection="column" maxHeight={isCompact ? Math.ceil(compactTransientRows / 2) : undefined} overflow="hidden">
-    <IssueFlagBanner />
     {capLaneLine !== null ? (
       capLaneCut !== null ? (
         <Box paddingLeft={1}>
