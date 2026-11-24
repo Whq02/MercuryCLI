@@ -5,6 +5,7 @@ import { resolveZaiDispatch } from './zaiAccounts.js'
 import { credentialFingerprint } from '../../sign-in/account-ledger/credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { usagePollTtlMs } from '../usageFreshness.js'
+import { wireInstant } from '../moonshot/moonshotUsageState.js'
 import { zaiApiBase } from './zaiClient.js'
 import { hostEnv } from '../../../platform/environment/hostEnv.js'
 import { nextMicrotask } from '../../../platform/async/timers.js'
@@ -72,17 +73,6 @@ function wireNumber(value: unknown): number | undefined {
   if (typeof value === 'string' && value.trim() !== '') {
     const n = Number(value)
     return Number.isFinite(n) ? n : undefined
-  }
-  return undefined
-}
-
-function wireInstant(value: unknown): number | undefined {
-  if (typeof value === 'string' && value.trim() !== '') {
-    const parsed = Date.parse(value)
-    return Number.isFinite(parsed) ? parsed : undefined
-  }
-  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
-    return value > 1e11 ? value : value * 1000
   }
   return undefined
 }

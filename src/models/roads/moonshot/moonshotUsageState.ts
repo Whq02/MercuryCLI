@@ -200,7 +200,7 @@ function wireInt(value: unknown): number | undefined {
   return undefined
 }
 
-function wireInstant(value: unknown): number | undefined {
+export function wireInstant(value: unknown): number | undefined {
   if (typeof value === 'string' && value.trim() !== '') {
     const parsed = Date.parse(value)
     return Number.isFinite(parsed) ? parsed : undefined
