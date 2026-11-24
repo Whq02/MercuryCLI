@@ -939,21 +939,6 @@ export function __resetBootAdmissionSnapshotForTests(): void {
 }
 
 
-export interface ConfigMenuRow {
-  id: string
-  label: string
-  group: string
-  options: readonly string[]
-  defaultLabel: string
-  summary: string
-  detail?: {
-    controls: string
-    on: readonly string[]
-    off: readonly string[]
-  }
-}
-
-
 export type ExplicitApplyOutcome = 'applied' | 'queued' | 'refused' | 'no-change'
 
 export interface ExplicitApplyReceipt {

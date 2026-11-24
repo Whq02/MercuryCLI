@@ -79,11 +79,6 @@ export const getIsGit = memoizeWithLRU(
   IS_GIT_CACHE_ENTRIES,
 )
 
-export async function dirIsInGitRepo(cwd: string): Promise<boolean> {
-  return findGitRoot(cwd) !== null
-}
-
-
 async function getHead(): Promise<string> {
   return getCachedHead()
 }
