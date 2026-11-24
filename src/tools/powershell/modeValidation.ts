@@ -113,8 +113,8 @@ export function checkPermissionMode(
 
   if (allCommands.length > 1) {
     const hasCwdChange = allCommands.some(cmd => isCwdChangingCmdlet(cmd.name))
-    const hasAcceptEditsWrite = allCommands.some(cmd => IMPLEMENT_MODE_WRITE.has(resolveToCanonical(cmd.name)))
-    if (hasCwdChange && hasAcceptEditsWrite) {
+    const hasImplementModeWrite = allCommands.some(cmd => IMPLEMENT_MODE_WRITE.has(resolveToCanonical(cmd.name)))
+    if (hasCwdChange && hasImplementModeWrite) {
       return pass('A compound changing the working directory and writing cannot use a stale working directory.')
     }
     if (allCommands.some(cmd => isSymlinkCreatingCommand(cmd))) {

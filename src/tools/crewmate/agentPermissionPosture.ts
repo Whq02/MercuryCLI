@@ -73,8 +73,8 @@ export function definitionModeWithinConsent(
   return definitionMode
 }
 
-export function offeredDefinitionModes(bypassConsent: boolean): PermissionMode[] {
-  return PERMISSION_MODES.filter(mode => bypassConsent || !modeBypassesPermissions(mode))
+export function offeredDefinitionModes(sovereignConsent: boolean): PermissionMode[] {
+  return PERMISSION_MODES.filter(mode => sovereignConsent || !modeBypassesPermissions(mode))
 }
 
 export function composeAgentAppState(
