@@ -368,7 +368,6 @@ section('pull: the HF-hub layout under the mapped GGUF repo, Range resume, the p
   const wrongPaths = hfCache.ggufPaths(world.cache, wrong)
   const refused = await adapterPull.pullGguf(world.cache, wrong, { env }).then(() => undefined, error => error as Error)
   check('a download whose sha256 is not the pinned one is discarded with the refusal, the .incomplete removed', refused instanceof adapterPull.GgufPullError && refused.message.includes('did not match its pinned sha256') && !existsSync(wrongPaths.incomplete) && !existsSync(wrongPaths.blob), String(refused))
-  check('the road polls the mapped GGUF repo dir for progress bytes', hfCache.cacheBlobBytes(world.cache, gguf.repo) === bytes.length && hfCache.cacheBlobBytes(world.cache, 'nobody/Nothing') === 0)
   const out: string[] = []
   const err: string[] = []
   const cli = await adapterMain.runTensorFoldAdapter(['pull', `${QWEN_2B.repo}@93760be4f1f69842a46bc13dbdc0f19e291392a3`], { env, home: world.home, stdout: text => out.push(text), stderr: text => err.push(text) })

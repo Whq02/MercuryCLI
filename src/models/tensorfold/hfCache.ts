@@ -1,4 +1,4 @@
-import { readdirSync, statSync } from 'node:fs'
+import { statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { passedOver } from '../../platform/errors/passedOver.js'
@@ -43,16 +43,4 @@ export function ggufOnDisk(root: string, gguf: GgufSource): { bytes: number; com
   const whole = sizeOf(paths.blob)
   if (whole !== undefined && whole === gguf.bytes) return { bytes: whole, complete: true }
   return { bytes: whole ?? sizeOf(paths.incomplete) ?? 0, complete: false }
-}
-
-export function cacheBlobBytes(root: string, repo: string): number {
-  const blobs = join(root, cacheDirOfRepo(repo), 'blobs')
-  let total = 0
-  try {
-    for (const name of readdirSync(blobs)) total += sizeOf(join(blobs, name)) ?? 0
-  } catch (error) {
-    passedOver(error)
-    return 0
-  }
-  return total
 }
