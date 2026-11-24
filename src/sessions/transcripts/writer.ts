@@ -326,39 +326,6 @@ async function recordSessionRow(row: (sessionId: UUID) => Entry): Promise<void> 
   await getProject().appendEntry(row(sessionId))
 }
 
-export async function recordContextCollapseCommit(commit: {
-  collapseId: string
-  summaryUuid: string
-  summaryContent: string
-  summary: string
-  firstArchivedUuid: string
-  lastArchivedUuid: string
-}): Promise<void> {
-  await recordSessionRow(sessionId => ({
-    type: 'context-collapse-commit',
-    sessionId,
-    ...commit,
-  }))
-}
-
-export async function recordContextCollapseSnapshot(snapshot: {
-  staged: Array<{
-    startUuid: string
-    endUuid: string
-    summary: string
-    risk: number
-    stagedAt: number
-  }>
-  armed: boolean
-  lastSpawnTokens: number
-}): Promise<void> {
-  await recordSessionRow(sessionId => ({
-    type: 'context-collapse-snapshot',
-    sessionId,
-    ...snapshot,
-  }))
-}
-
 export async function flushSessionStorage(): Promise<void> {
   await getProject().flush()
 }

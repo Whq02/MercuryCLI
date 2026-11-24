@@ -21,8 +21,6 @@ export {
   advisorSwitchOfSession,
   flushSessionStorage,
   recordContentReplacement,
-  recordContextCollapseCommit,
-  recordContextCollapseSnapshot,
   recordFileHistorySnapshot,
   recordQueueOperation,
   recordSidechainTranscript,
