@@ -7,7 +7,7 @@ import type { SESSION_VERBS } from 'src/daemon/runner-wire/sessionVerbs.js'
 import { type RewindRefusalKind, type SessionRewindOutcomeV1 } from 'src/daemon/control/protocol.js'
 import { createOperatorRewindRecordMessage } from 'src/engine/compaction/checkpointRewind.js'
 import { type Message } from 'src/engine/message-shapes/message.js'
-import { findLastCompactBoundaryIndex } from 'src/engine/message-shapes/systemMessages.js'
+import { findLastFoldBoundaryIndex } from 'src/engine/message-shapes/systemMessages.js'
 import { flushSessionStorage, recordTranscript } from 'src/sessions/transcripts/sessionStorage.js'
 import { type AppState } from 'src/screen/app-state/AppStateStore.js'
 import { PERMISSION_MODES, type PermissionMode as InternalPermissionMode } from 'src/permissions/rules/permissions.js'
@@ -112,7 +112,7 @@ export async function handleRewindSession(
   const wantsCode = mode === 'code' || mode === 'both'
   const wantsConversation = mode === 'conversation' || mode === 'both'
   if (wantsConversation) {
-    const boundary = findLastCompactBoundaryIndex(ctx.messages)
+    const boundary = findLastFoldBoundaryIndex(ctx.messages)
     if (boundary !== -1 && turnIndex <= boundary) {
       return refusedRewind(mode, 'before-compaction', 'that point lies before the last compaction fold — its summary cannot be unpicked; pick a later point or /clear')
     }

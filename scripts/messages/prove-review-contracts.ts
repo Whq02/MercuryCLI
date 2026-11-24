@@ -183,9 +183,9 @@ test('createAwaySummaryMessage', () => {
   assert.equal(row.recapMetadata, recap)
 })
 
-test('createMicrocompactBoundaryMessage', () => {
+test('createPruneBoundaryMessage', () => {
   const calls = ['a', 'b'], attachments = ['u']
-  const row = S.createMicrocompactBoundaryMessage('auto', 100, 20, calls, attachments)
+  const row = S.createPruneBoundaryMessage('auto', 100, 20, calls, attachments)
   systemShape(row, 'microcompact_boundary', { level: 'info', content: 'Context microcompacted', microcompactMetadata: { trigger: 'auto', preTokens: 100, tokensSaved: 20, compactedToolIds: calls, clearedAttachmentUUIDs: attachments } })
   assert.equal(row.microcompactMetadata.compactedToolIds, calls)
   assert.equal(row.microcompactMetadata.clearedAttachmentUUIDs, attachments)
@@ -234,16 +234,16 @@ test('createSystemAPIErrorMessage', () => {
   assert.equal(S.createSystemAPIErrorMessage(new Error('plain'), 0, 1, 1).cause, undefined)
 })
 
-test('isCompactBoundaryMessage', () => {
-  const boundary = S.createCompactBoundaryMessage('auto', 42)
-  for (const value of [undefined, null, { type: 'user' }, { type: 'system', subtype: 'informational' }]) assert.equal(S.isCompactBoundaryMessage(value), false)
-  assert(S.isCompactBoundaryMessage(boundary), 'isCompactBoundaryMessage in src/engine/message-shapes/systemMessages.ts must accept createCompactBoundaryMessage output')
+test('isFoldBoundaryMessage', () => {
+  const boundary = S.createFoldBoundaryMessage('auto', 42)
+  for (const value of [undefined, null, { type: 'user' }, { type: 'system', subtype: 'informational' }]) assert.equal(S.isFoldBoundaryMessage(value), false)
+  assert(S.isFoldBoundaryMessage(boundary), 'isFoldBoundaryMessage in src/engine/message-shapes/systemMessages.ts must accept createFoldBoundaryMessage output')
   const plain = [user('x'), answer('y')]
-  assert.equal(S.getMessagesAfterCompactBoundary(plain), plain)
+  assert.equal(S.getMessagesAfterFoldBoundary(plain), plain)
   const rows = [undefined, ...plain, boundary, user('tail')]
-  assert.equal(S.findLastCompactBoundaryIndex(rows), 3)
-  assert.deepEqual(S.getMessagesAfterCompactBoundary(rows, { includeSnipped: true }), rows.slice(3))
-  assert.equal(S.getMessagesAfterCompactBoundary(rows)[0], boundary)
+  assert.equal(S.findLastFoldBoundaryIndex(rows), 3)
+  assert.deepEqual(S.getMessagesAfterFoldBoundary(rows, { includeSnipped: true }), rows.slice(3))
+  assert.equal(S.getMessagesAfterFoldBoundary(rows)[0], boundary)
 })
 
 test('mode_pack', () => {

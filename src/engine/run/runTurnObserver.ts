@@ -53,7 +53,7 @@ function objectiveFromRequest(text: string): string {
   return flat.length > 240 ? `${flat.slice(0, 237)}…` : flat
 }
 
-export function noteQueryTurnStart(params: {
+export function observeTurnStart(params: {
   messages: Message[]
   querySource: QuerySource
   toolUseContext: ToolUseContext
@@ -73,7 +73,7 @@ export function noteQueryTurnStart(params: {
   }
 }
 
-export async function noteQueryTurnEnd(params: {
+export async function observeTurnEnd(params: {
   querySource: QuerySource
   toolUseContext: ToolUseContext
   reason: string

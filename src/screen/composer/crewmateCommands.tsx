@@ -7,11 +7,11 @@ import type { Notification } from '../notifications/notifications.js'
 import { getFocusedSessionConnector } from '../../engine/connector/focusedConnector.js'
 import type { AppState } from '../app-state/AppState.js'
 import { publishAtomic } from '../../platform/substrate/fileStore.js'
-import { isLocalAgentTask, requestAgentCompaction } from '../../engine/tasks/local-agent/crewmateTask.js'
+import { isLocalAgentTask, requestCrewmateFold } from '../../engine/tasks/local-agent/crewmateTask.js'
 import { MERCURY_CREW_AGENT_TYPE } from '../../tools/kit/names/agent.js'
 import {
   crewmateCommandUnreachableWords,
-  crewmateCompactWords,
+  crewmateFoldWords,
   crewmateContextWords,
   crewmateEffortClearedWords,
   crewmateEffortCurrentWords,
@@ -42,7 +42,7 @@ import { crewmateLive, type CrewmateInView } from '../tasks/useCrewmateView.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
 const CREWMATE_COMMAND_RECEIPT_KEY = 'crewmate-command'
-const CREWMATE_COMPACT_INSTRUCTIONS_NOTE = 'the instructions are not carried; a crewmate compacts with the standard summary'
+const CREWMATE_FOLD_INSTRUCTIONS_NOTE = 'the instructions are not carried; a crewmate compacts with the standard summary'
 const EFFORT_OPTIONS = `${EFFORT_LEVELS.join('|')}|auto`
 const MODEL_PICKER_ROWS = 29
 
@@ -226,15 +226,15 @@ async function runEffort(seat: CrewmateSeat, args: string): Promise<void> {
   seat.io.receipt(crewmateEffortSwitchWords(seat.name, level, seat.running))
 }
 
-async function runCompact(seat: CrewmateSeat, args: string): Promise<void> {
-  const note = args === '' ? '' : ` — ${CREWMATE_COMPACT_INSTRUCTIONS_NOTE}`
+async function runFold(seat: CrewmateSeat, args: string): Promise<void> {
+  const note = args === '' ? '' : ` — ${CREWMATE_FOLD_INSTRUCTIONS_NOTE}`
   const local = seat.crewmate.local
-  if (local !== undefined && isLocalAgentTask(local) && local.status === 'running' && requestAgentCompaction(local.id, seat.io.setAppState)) {
-    seat.io.receipt(`${crewmateCompactWords(seat.name, true)}${note}`)
+  if (local !== undefined && isLocalAgentTask(local) && local.status === 'running' && requestCrewmateFold(local.id, seat.io.setAppState)) {
+    seat.io.receipt(`${crewmateFoldWords(seat.name, true)}${note}`)
     return
   }
   await writeRecord(seat.file, { ...(await latestRecord(seat)), compactOnResume: true })
-  seat.io.receipt(`${crewmateCompactWords(seat.name, false)}${note}`)
+  seat.io.receipt(`${crewmateFoldWords(seat.name, false)}${note}`)
 }
 
 function runContext(seat: CrewmateSeat): void {
@@ -311,7 +311,7 @@ export async function runCrewmateCommand(command: Command, line: string, crewmat
       case 'effort':
         return await runEffort(seat, args)
       case 'compact':
-        return await runCompact(seat, args)
+        return await runFold(seat, args)
       case 'context':
         return runContext(seat)
       case 'usage':

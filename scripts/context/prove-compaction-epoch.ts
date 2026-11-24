@@ -24,14 +24,14 @@ async function main(): Promise<void> {
       sessionId: 'sess',
       lane: 'agent:sub1',
     })
-    cleanup.runPostCompactCleanup({ querySource: 'agent:general' as never, owner: agentOwner })
-    cleanup.runPostCompactCleanup('agent:general' as never)
-    cleanup.runPostCompactCleanup()
+    cleanup.runPostFoldCleanup({ querySource: 'agent:general' as never, owner: agentOwner })
+    cleanup.runPostFoldCleanup('agent:general' as never)
+    cleanup.runPostFoldCleanup()
     check('cleanup accepts {querySource, owner} + legacy shapes', true)
     check(
       'resetMicrocompactState is owner-parameterized',
-      mc.resetMicrocompactState.length >= 1,
-      `arity ${mc.resetMicrocompactState.length}`,
+      mc.resetPruneState.length >= 1,
+      `arity ${mc.resetPruneState.length}`,
       'resetMicrocompactState in src/engine/compaction/pruneToolResults.ts must declare an owner parameter',
     )
   }

@@ -5,7 +5,7 @@ import { passedOver } from '../../../platform/errors/passedOver.js'
 import type { CacheSafeParams } from '../../../crew/agents/forkedAgent.js'
 import type { OverflowSignal } from '../../requests/overflowSignal.js'
 import { estimateRequestGauge, type readRequestGauge } from '../../run/requestGauge.js'
-import { computeVerbatimRecentTail, isMercuryCompactKeepTailEnabled } from '../verbatimTail.js'
+import { computeVerbatimRecentTail, isMercuryFoldKeepTailEnabled } from '../verbatimTail.js'
 import { SPLIT_STAND_IN_FLOOR_TOKENS, SPLIT_STAND_IN_LANDING_SHARE } from './foldLimits.js'
 import { validateSummary } from './summaryCheck.js'
 import { newFoldLadder, foldLadderExhausted, proseSkippedNote, proseSkippedLine, summarizeWithPtlRetry } from './ladder.js'
@@ -69,7 +69,7 @@ export async function summariseForFold({
       requestTokens > fit.limitTokens
     ) {
       let split: { retiring: Message[]; rounds: number } | null = null
-      if (isMercuryCompactKeepTailEnabled()) {
+      if (isMercuryFoldKeepTailEnabled()) {
         const standInTokens = Math.min(
           fit.reserveTokens,
           Math.max(

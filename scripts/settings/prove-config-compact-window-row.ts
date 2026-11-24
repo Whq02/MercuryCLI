@@ -117,12 +117,12 @@ console.log('§2 ←/→ walk the ladder auto → 100K → 200K → 500K → 1M,
 console.log('§3 the row writes what the auto-compact resolver reads')
 {
   saveGlobalConfig(prev => ({ ...prev, autoCompactWindow: 200_000 }))
-  const { resolveAutoCompactWindow } = await import('../../src/engine/compaction/autoFold.js')
+  const { resolveAutoFoldWindow } = await import('../../src/engine/compaction/autoFold.js')
   const { getGlobalConfig } = await import('../../src/platform/config/globalConfig.js')
-  const resolved = resolveAutoCompactWindow('claude-sonnet-4-5', (getGlobalConfig() as { autoCompactWindow?: number }).autoCompactWindow)
+  const resolved = resolveAutoFoldWindow('claude-sonnet-4-5', (getGlobalConfig() as { autoCompactWindow?: number }).autoCompactWindow)
   check('the resolver reads the row-written 200k as a settings-source window', resolved.source === 'settings' && resolved.configured === 200_000, JSON.stringify(resolved))
   saveGlobalConfig(prev => ({ ...prev, autoCompactWindow: undefined }))
-  const auto = resolveAutoCompactWindow('claude-sonnet-4-5')
+  const auto = resolveAutoFoldWindow('claude-sonnet-4-5')
   check('the absent setting resolves as auto', auto.source === 'auto', JSON.stringify(auto))
 }
 

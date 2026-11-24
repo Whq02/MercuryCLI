@@ -6,7 +6,7 @@ import type { Entry, SerializedMessage, TranscriptMessage } from './transcriptEn
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { logError } from '../../platform/logs/errorLog.js'
 import {
-  SKIP_PRECOMPACT_THRESHOLD,
+  SKIP_BEFORE_FOLD_BOUNDARY_THRESHOLD,
 } from './sessionStoragePortable.js'
 import {
   buildScreenConversation,
@@ -244,7 +244,7 @@ async function growthRead(state: ReaderState): Promise<TranscriptRead | null> {
   if (st.size < state.offset) return reset(state, 'the file was truncated')
   if (st.size === state.offset) return none(state, st.size)
   const W = state.window.length
-  if (st.size - state.offset > SKIP_PRECOMPACT_THRESHOLD) {
+  if (st.size - state.offset > SKIP_BEFORE_FOLD_BOUNDARY_THRESHOLD) {
     const covered = io.readRangeSync(state.path, state.offset - W, state.offset)
     transcriptReaderCensus.bytesRead += covered.length
     if (!covered.equals(state.window)) return reset(state, 'the covered prefix was rewritten')
@@ -380,7 +380,7 @@ async function coldRead(path: string, policy: TranscriptReadPolicy): Promise<{ s
     }
   }
   if (!snapshotCovered) {
-    const result = await streamFold(path, state.fold, 0, st.size, st.ino, st.size > SKIP_PRECOMPACT_THRESHOLD, policy === 'resume')
+    const result = await streamFold(path, state.fold, 0, st.size, st.ino, st.size > SKIP_BEFORE_FOLD_BOUNDARY_THRESHOLD, policy === 'resume')
     accounting = result.accounting
     offset = result.offset
     state.pruned = result.pruned

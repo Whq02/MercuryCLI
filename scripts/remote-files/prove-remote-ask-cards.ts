@@ -44,9 +44,9 @@ const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/f
 const { FileWritePermissionRequest } = await import('../../src/permissions/cards/file-write/FileWritePermissionRequest.tsx')
 const { FileEditPermissionRequest } = await import('../../src/permissions/cards/file-edit/FileEditPermissionRequest.tsx')
 const { FilesystemPermissionRequest } = await import('../../src/permissions/cards/filesystem/FilesystemPermissionRequest.tsx')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { WriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
 const { closeRemoteConnections } = await import('../../src/platform/remote-files/connection.ts')
 
 const watchdog = setTimeout(() => {
@@ -138,9 +138,9 @@ function card(component: unknown, tool: unknown, input: Record<string, unknown>,
 const refused = (tool: { renderToolUseRejectedMessage?: (input: never, options: never) => unknown }, input: Record<string, unknown>, verbose = false, awaited = 'Operator rejected'): Promise<string[]> =>
   drawn(tool.renderToolUseRejectedMessage!(input as never, { verbose } as never), 100, rows => rows.some(row => row.includes(awaited) || /^\d+ [-+ ]/.test(row)))
 const says = (rows: string[], words: string): boolean => rows.some(row => row.replace(/^└ /, '') === words)
-const writeCard = (path: string, content: string, reason = ELSEWHERE, context?: unknown, columns?: number): Promise<string[]> => card(FileWritePermissionRequest, FileWriteTool, { file_path: path, content }, reason, context, columns)
-const editCard = (input: Record<string, unknown>, reason = ELSEWHERE, context?: unknown): Promise<string[]> => card(FileEditPermissionRequest, FileEditTool, input, reason, context)
-const readCard = (path: string): Promise<string[]> => card(FilesystemPermissionRequest, FileReadTool, { file_path: path }, ELSEWHERE)
+const writeCard = (path: string, content: string, reason = ELSEWHERE, context?: unknown, columns?: number): Promise<string[]> => card(FileWritePermissionRequest, WriteTool, { file_path: path, content }, reason, context, columns)
+const editCard = (input: Record<string, unknown>, reason = ELSEWHERE, context?: unknown): Promise<string[]> => card(FileEditPermissionRequest, EditTool, input, reason, context)
+const readCard = (path: string): Promise<string[]> => card(FilesystemPermissionRequest, ReadTool, { file_path: path }, ELSEWHERE)
 const subtitle = (rows: string[]): string => rows[rows.findIndex(row => row.startsWith('⦿ ')) + 1] ?? ''
 const body = (rows: string[], reason: string): string[] => {
   const start = rows.findIndex(row => row.startsWith('⦿ ')) + 1
@@ -183,16 +183,16 @@ async function ownWords(): Promise<void> {
   check('a section and its new text: the heading and the text that takes its place, not the local file\'s section', same(body(sectionNew, ELSEWHERE), ['config.yml', '1  ## Checks', '2 +', '3 +- typecheck', '4 +- build']) && local(sectionNew).length === 0, JSON.stringify(body(sectionNew, ELSEWHERE)))
   const editLink = await editCard({ file_path: REMOTE_LINK, old_string: 'a', new_string: 'b' })
   check('a local link at the collapsed spelling is not followed', local(editLink).length === 0 && subtitle(editLink) === REMOTE_LINK, local(editLink).join(' | '))
-  const longEdit = await card(FileEditPermissionRequest, FileEditTool, { file_path: far, old_string: 'a', new_string: 'b' }, ELSEWHERE, {}, 80)
+  const longEdit = await card(FileEditPermissionRequest, EditTool, { file_path: far, old_string: 'a', new_string: 'b' }, ELSEWHERE, {}, 80)
   check('the edit card names a long path the same way', subtitle(longEdit) === 'ssh://deploy@web1.internal.example.com:2222…/environments/production.yml', subtitle(longEdit))
   check('each edit card offers all edits on that host for the session', [swap, hunks, appended, sectionNew].every(rows => rows.includes('2. Yes, allow all edits on web1 for this session (shift+tab)')))
 
   section('The row left in the conversation when the user says no')
-  const noWrite = await refused(FileWriteTool, { file_path: REMOTE, content: 'name: app\nport: 8080\n' })
+  const noWrite = await refused(WriteTool, { file_path: REMOTE, content: 'name: app\nport: 8080\n' })
   check('a refused write names the path as it was written and shows what was to be written', says(noWrite, `Operator rejected write to ${REMOTE}`) && noWrite.some(row => row.includes('name: app')) && local(noWrite).length === 0, noWrite.join(' | '))
-  const noWriteVerbose = await refused(FileWriteTool, { file_path: REMOTE, content: 'name: app\nport: 8080\n' }, true)
+  const noWriteVerbose = await refused(WriteTool, { file_path: REMOTE, content: 'name: app\nport: 8080\n' }, true)
   check('in the long view too, with no line of the local file at the collapsed spelling', says(noWriteVerbose, `Operator rejected write to ${REMOTE}`) && noWriteVerbose.some(row => row.includes('port: 8080')) && local(noWriteVerbose).length === 0, noWriteVerbose.join(' | '))
-  const noEdit = await refused(FileEditTool, { file_path: REMOTE, old_string: 'port: 1', new_string: 'port: 2' })
+  const noEdit = await refused(EditTool, { file_path: REMOTE, old_string: 'port: 1', new_string: 'port: 2' })
   check('a refused edit shows the edit\'s own lines', noEdit.some(row => row.endsWith('-port: 1')) && noEdit.some(row => row.endsWith('+port: 2')) && local(noEdit).length === 0, noEdit.join(' | '))
 
   section('Read on another machine')
@@ -208,7 +208,7 @@ async function lastRead(world: RemoteWorld): Promise<void> {
   mkdirSync(join(project, 'ssh:', 'box', dirname(file).slice(1)), { recursive: true })
   writeFileSync(join(project, 'ssh:', 'box', file.slice(1)), 'LOCAL FILE CONTENT\nport: 1\n## Checks\nlocal body\n')
   const read = async (input: Record<string, unknown>, context: Context): Promise<void> => {
-    await FileReadTool.call({ file_path: path, ...input } as never, context as never, undefined, parent() as never)
+    await ReadTool.call({ file_path: path, ...input } as never, context as never, undefined, parent() as never)
   }
   const shapes: Array<[string, Record<string, unknown>, string[], string[]]> = [
     ['old_string and new_string', { old_string: 'port: 1', new_string: 'port: 2' }, ['notes.md', '1  # service', '2', '3  name: app', '4 -port: 1', '4 +port: 2', '5  host: a', '6', '7  ## Checks'], ['notes.md', '1 -port: 1', '1 +port: 2']],
@@ -242,7 +242,7 @@ async function lastRead(world: RemoteWorld): Promise<void> {
   const windows = join(world.data, 'windows.txt')
   writeFileSync(windows, '\uFEFFone\r\ntwo\r\nthree\r\n')
   const marked = contextOf()
-  await FileReadTool.call({ file_path: `ssh://box${windows}` } as never, marked as never, undefined, parent() as never)
+  await ReadTool.call({ file_path: `ssh://box${windows}` } as never, marked as never, undefined, parent() as never)
   const crlf = await editCard({ file_path: `ssh://box${windows}`, old_string: 'two', new_string: 'TWO' }, ELSEWHERE, marked)
   check('a file with a byte-order mark and CRLF endings, read whole, is drawn the same way', same(body(crlf, ELSEWHERE), ['windows.txt', '1  one', '2 -two', '2 +TWO', '3  three']), JSON.stringify(body(crlf, ELSEWHERE)))
 
@@ -259,7 +259,7 @@ async function lastRead(world: RemoteWorld): Promise<void> {
   const longPath = `ssh://box${long}`
   writeFileSync(long, Array.from({ length: 2600 }, (_, index) => `row ${index + 1}`).join('\n') + '\n')
   const cut = contextOf()
-  await FileReadTool.call({ file_path: longPath } as never, cut as never, undefined, parent() as never)
+  await ReadTool.call({ file_path: longPath } as never, cut as never, undefined, parent() as never)
   const entry = cut.readFileState.get(longPath)
   check('a read with no offset and no limit of a file longer than one read returns leaves an entry that looks whole and is not', entry !== undefined && (entry.offset === undefined || entry.offset === 0) && entry.limit === undefined && entry.content.split('\n').length < 2600, JSON.stringify({ offset: entry?.offset, limit: entry?.limit, lines: entry?.content.split('\n').length }))
   const cutAppend = await editCard({ file_path: longPath, append: 'row at the end' }, ELSEWHERE, cut)
@@ -274,7 +274,7 @@ async function lastRead(world: RemoteWorld): Promise<void> {
   check('an entry that was copied into another ledger and not read there', same(body(copied, ELSEWHERE), ['notes.md', '1 -port: 1', '1 +port: 2']), JSON.stringify(body(copied, ELSEWHERE)))
   const written = contextOf()
   await read({}, written)
-  await FileWriteTool.call({ file_path: path, content: NOTES.replace('port: 1', 'port: 7') } as never, written as never, undefined as never, parent() as never)
+  await WriteTool.call({ file_path: path, content: NOTES.replace('port: 1', 'port: 7') } as never, written as never, undefined as never, parent() as never)
   const afterWrite = await editCard({ file_path: path, old_string: 'port: 7', new_string: 'port: 8' }, ELSEWHERE, written)
   check('after a write through the tool the change is drawn against what was written', same(body(afterWrite, ELSEWHERE), ['notes.md', '1  # service', '2', '3  name: app', '4 -port: 7', '4 +port: 8', '5  host: a', '6', '7  ## Checks']), JSON.stringify(body(afterWrite, ELSEWHERE)))
 }
@@ -291,8 +291,8 @@ async function here(): Promise<void> {
   check('an edit by hunks, planned against the file', same(body(planned, OUTSIDE), ['a.txt', '1  alpha', '2 -beta', '2 +BETA', '3  gamma']), JSON.stringify(body(planned, OUTSIDE)))
   const linked = await writeCard(join(project, 'link.txt'), 'x\n', OUTSIDE)
   check('a local link is still named with where it leads', linked.join(' ').includes(`This operation will modify ${join(outside, 'target.txt')}`) && linked.join(' ').includes('via a symlink'), linked.join(' | '))
-  const noLocal = await refused(FileWriteTool, { file_path: join(project, 'a.txt'), content: 'alpha\n' }, false, 'Operator rejected update')
-  const noNew = await refused(FileWriteTool, { file_path: join(project, 'brand-new.txt'), content: 'one\ntwo\n' })
+  const noLocal = await refused(WriteTool, { file_path: join(project, 'a.txt'), content: 'alpha\n' }, false, 'Operator rejected update')
+  const noNew = await refused(WriteTool, { file_path: join(project, 'brand-new.txt'), content: 'one\ntwo\n' })
   check('a refused write of a local file is named from the working folder, as an update of a file that is there and a write of one that is not', says(noLocal, 'Operator rejected update to a.txt') && says(noNew, 'Operator rejected write to brand-new.txt') && noNew.some(row => row.includes('one')), `${noLocal.join(' | ')} || ${noNew.join(' | ')}`)
   const oneSlash = await writeCard('ssh:/web1/srv/config.yml', 'mine\n', OUTSIDE)
   check('a relative path under a folder named ssh: with one slash is a file here, drawn against what it holds', oneSlash.includes('⦿ Overwrite file') && oneSlash.includes('ssh:/web1/srv/config.yml') && oneSlash.includes('1 -LOCAL FILE CONTENT') && oneSlash.includes('Do you want to overwrite config.yml?'), oneSlash.join(' | '))

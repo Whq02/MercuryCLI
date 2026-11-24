@@ -8,7 +8,7 @@ import React, {
 import { useLoad, usePublish } from '../effects/effects.js'
 import { Box, Text, useInput } from '../themedRenderer.js'
 import type { SessionListing } from '../../sessions/transcripts/transcriptEntries.js'
-import { getLogDisplayTitle } from '../../platform/logs/errorLog.js'
+import { getListingDisplayTitle } from '../../platform/logs/errorLog.js'
 import { SessionPreview } from './SessionPreview.js'
 import { useKeybinding } from '../keys/useKeybinding.js'
 import { useExitChordKeys } from '../keys/useExitChordKeys.js'
@@ -20,7 +20,7 @@ import { getBranch } from '../../platform/git/git.js'
 import { getCwd } from '../../platform/files/cwd.js'
 import { getOriginalCwd } from '../../boot/process-state/processState.js'
 import { getWorktreePaths } from '../../platform/git/worktree/worktreePaths.js'
-import { formatLogMetadata } from '../../platform/text/format.js'
+import { formatListingMetadata } from '../../platform/text/format.js'
 import { collapseWhitespace } from '../../platform/text/strings.js'
 import {
   isCustomTitleEnabled,
@@ -31,7 +31,7 @@ import type { UUID } from 'crypto'
 import { sessionBrowserView } from './views.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
-export function commitLogRename(
+export function commitListingRename(
   target: Pick<SessionListing, 'sessionId' | 'fullPath'>,
   trimmed: string,
   io: {
@@ -71,7 +71,7 @@ type SessionBrowserProps = {
 const MIN_LABEL_WIDTH = 8
 
 function displayTitle(log: SessionListing): string {
-  return collapseWhitespace(getLogDisplayTitle(log, '(no prompt)'))
+  return collapseWhitespace(getListingDisplayTitle(log, '(no prompt)'))
 }
 
 function prDescriptor(log: SessionListing): string {
@@ -97,16 +97,16 @@ function hasMeaningfulEntry(log: SessionListing): boolean {
   )
 }
 
-function describeLog(log: SessionListing, withProjectPath: boolean): string {
-  const base = formatLogMetadata(log)
+function describeListing(log: SessionListing, withProjectPath: boolean): string {
+  const base = formatListingMetadata(log)
   return withProjectPath && log.projectPath ? `${base} · ${log.projectPath}` : base
 }
 
-function describeLogFitted(log: SessionListing, withProjectPath: boolean, width: number): string {
-  return truncateToWidth(describeLog(log, withProjectPath), Math.max(MIN_LABEL_WIDTH, width))
+function describeListingFitted(log: SessionListing, withProjectPath: boolean, width: number): string {
+  return truncateToWidth(describeListing(log, withProjectPath), Math.max(MIN_LABEL_WIDTH, width))
 }
 
-type LogGroup = { log: SessionListing; children: SessionListing[] }
+type ListingGroup = { log: SessionListing; children: SessionListing[] }
 
 function keptByFilters(
   log: SessionListing,
@@ -143,9 +143,9 @@ function matchesQuery(log: SessionListing, needle: string): boolean {
   )
 }
 
-function groupLogs(logs: SessionListing[], renaming: boolean): LogGroup[] {
+function groupListings(logs: SessionListing[], renaming: boolean): ListingGroup[] {
   if (!renaming) return logs.map(log => ({ log, children: [] }))
-  const groups: LogGroup[] = []
+  const groups: ListingGroup[] = []
   const bySession = new Map<string, SessionListing[]>()
   for (const log of logs) {
     if (log.sessionId === undefined) {
@@ -258,7 +258,7 @@ export function SessionBrowser({
     const facts = { renaming, selectedTag, branchFilter, currentBranch, multipleWorktrees, allWorktrees }
     const needle = trimmedQuery.toLowerCase()
     const searched = logs.filter(log => keptByFilters(log, facts) && matchesQuery(log, needle))
-    return groupLogs(searched, renaming)
+    return groupListings(searched, renaming)
   }, [logs, renaming, selectedTag, branchFilter, currentBranch, multipleWorktrees, allWorktrees, trimmedQuery])
 
   const tagTabs = useMemo(() => tagTabsOf(logs), [logs])
@@ -326,7 +326,7 @@ export function SessionBrowser({
       const trimmed = title.trim()
       if (target === null || trimmed === '' || target.sessionId === undefined) return
       const sessionId = target.sessionId
-      void commitLogRename(target, trimmed, {
+      void commitListingRename(target, trimmed, {
         onRenamed: () => {
           if (onLogRenamed) onLogRenamed(String(sessionId), trimmed)
           else onLogsChanged?.()
@@ -387,7 +387,7 @@ export function SessionBrowser({
     renaming,
     searchMode,
     rowLabel,
-    describeLogFitted,
+    describeLogFitted: describeListingFitted,
     showAllProjects,
     labelWidth,
     MIN_LABEL_WIDTH,

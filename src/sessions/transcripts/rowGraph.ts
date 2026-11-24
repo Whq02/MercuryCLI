@@ -1,12 +1,12 @@
 import type { UUID } from 'node:crypto'
 import type { TranscriptMessage } from './transcriptEntries.js'
-import type { SystemCompactBoundaryMessage } from '../../engine/message-shapes/message.js'
+import type { SystemFoldBoundaryMessage } from '../../engine/message-shapes/message.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { logError } from '../../platform/logs/errorLog.js'
 
-type Segment = NonNullable<SystemCompactBoundaryMessage['compactMetadata']['preservedSegment']>
-type BoundaryRow = TranscriptMessage & SystemCompactBoundaryMessage
-const compactRow = (row: TranscriptMessage): row is BoundaryRow => row.type === 'system' && row.subtype === 'compact_boundary'
+type Segment = NonNullable<SystemFoldBoundaryMessage['compactMetadata']['preservedSegment']>
+type BoundaryRow = TranscriptMessage & SystemFoldBoundaryMessage
+const foldBoundaryRow = (row: TranscriptMessage): row is BoundaryRow => row.type === 'system' && row.subtype === 'compact_boundary'
 const snipped = (row: TranscriptMessage): UUID[] | undefined => (row as { snipMetadata?: { removedUuids?: UUID[] } }).snipMetadata?.removedUuids
 const stampOf = (row: TranscriptMessage): number => {
   const at = Date.parse(row.timestamp)
@@ -56,7 +56,7 @@ class TranscriptRows {
     }
     if (row.type === 'assistant' && row.message.id) this.ungroup(this.assistants, row.message.id, id)
     this.boundaries.delete(id)
-    if (compactRow(row) && row.compactMetadata?.preservedSegment !== undefined) this.ungroup(this.anchors, row.compactMetadata.preservedSegment.anchorUuid, id)
+    if (foldBoundaryRow(row) && row.compactMetadata?.preservedSegment !== undefined) this.ungroup(this.anchors, row.compactMetadata.preservedSegment.anchorUuid, id)
     this.removals.delete(id)
   }
 
@@ -82,7 +82,7 @@ class TranscriptRows {
     else this.terminals.add(id)
     if (row.type === 'assistant' && row.message.id) this.group(this.assistants, row.message.id, id)
     if (row.type === 'system') this.structural = true
-    if (compactRow(row)) {
+    if (foldBoundaryRow(row)) {
       this.boundaries.add(id)
       if (row.compactMetadata?.preservedSegment !== undefined) this.group(this.anchors, row.compactMetadata.preservedSegment.anchorUuid, id)
     }
@@ -138,7 +138,7 @@ class TranscriptRows {
   }
 
   private boundariesOldestFirst(): BoundaryRow[] {
-    return this.ordered(this.boundaries).filter(compactRow)
+    return this.ordered(this.boundaries).filter(foldBoundaryRow)
   }
 
   newestBoundary(): BoundaryRow | undefined {

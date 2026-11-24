@@ -10,7 +10,7 @@ import { displayAddressedTarget } from '../../../platform/files/file.js'
 import { FilePermissionDialog } from '../file-dialog/FilePermissionDialog.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
 import { RemotePathSubtitle } from '../RemotePathSubtitle.js'
-import { FileWriteToolDiff } from './FileWriteToolDiff.js'
+import { WriteDiff } from './FileWriteToolDiff.js'
 import { parseStructuredWriteTarget } from '../../../tools/write/structuredTargets.js'
 import { SqliteDeletePermissionRequest } from '../../../tools/write/SqliteDeletePermissionRequest.js'
 
@@ -73,7 +73,7 @@ function PlainFileWritePermissionRequest({
         )
       }
       content={
-        <FileWriteToolDiff
+        <WriteDiff
           file_path={parsed.file_path}
           content={parsed.content}
           fileExists={existing.exists}

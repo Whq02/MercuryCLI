@@ -21,8 +21,8 @@ const bootstrap = await import(`${SRC}/boot/process-state/processState.ts`)
 bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import(`${SRC}/platform/config/globalConfig.ts`)
 enableConfigs()
-const { FileReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
-const { FileEditTool } = await import(`${SRC}/tools/edit/EditTool.ts`)
+const { ReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
+const { EditTool } = await import(`${SRC}/tools/edit/EditTool.ts`)
 const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import(`${SRC}/tools/kit/names/fileEdit.ts`)
 const { FILE_UNCHANGED_STUB } = await import(`${SRC}/tools/kit/names/fileRead.ts`)
 const { getChangedFiles } = await import(`${SRC}/engine/attachments/fileAttachments.ts`)
@@ -60,11 +60,11 @@ const context = {
 let serial = 0
 async function ownRead(input: Record<string, unknown>): Promise<{ type: string; text: string }> {
   serial++
-  const result = await (FileReadTool as { call: Function }).call(input, context, null, {
+  const result = await (ReadTool as { call: Function }).call(input, context, null, {
     uuid: `00000000-0000-0000-0000-${String(serial).padStart(12, '0')}`,
     message: { id: `msg_stub_truth_${serial}` },
   })
-  const block = (FileReadTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(result.data, `toolu_${serial}`)
+  const block = (ReadTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(result.data, `toolu_${serial}`)
   return { type: result.data.type, text: typeof block.content === 'string' ? block.content : JSON.stringify(block.content) }
 }
 
@@ -91,7 +91,7 @@ tally.section('E — the unchanged stub is sent only when its words are true')
   tally.check('1. the next Read with the same input returns the file with the changed line, not the stub', again.type === 'text' && again.text.includes('6\tline 6 was CHANGED outside the session') && !again.text.startsWith(FILE_UNCHANGED_STUB), again.text.slice(0, 160))
   const repeat = await ownRead({ file_path: file })
   tally.check('2. a repeat of that Read gets the stub (its words are true now) with the file anchor after it', repeat.type === 'file_unchanged' && repeat.text.startsWith(FILE_UNCHANGED_STUB) && /\n\(anchor: fa:[0-9a-f]{12}\)$/.test(repeat.text), repeat.text.slice(0, 160))
-  const validated = await (FileEditTool as { validateInput: Function }).validateInput({ file_path: file, old_string: 'line 6 was CHANGED outside the session', new_string: 'line 6 edited after the notice' }, context)
+  const validated = await (EditTool as { validateInput: Function }).validateInput({ file_path: file, old_string: 'line 6 was CHANGED outside the session', new_string: 'line 6 edited after the notice' }, context)
   tally.check('4. the border: Edit of a line from the new text is not refused as unexpectedly modified', validated.result === true || validated.message !== FILE_UNEXPECTEDLY_MODIFIED_ERROR, JSON.stringify(validated).slice(0, 200))
   const anchored = await ownRead({ file_path: file, line_anchors: true })
   const anchoredRows = anchored.text.split('\n').filter(row => /^\d+#[0-9a-f]+\t/.test(row))
@@ -120,7 +120,7 @@ tally.section('W — a windowed Read is refreshed too: the notice carries the wi
   tally.check('W2. the window entry is dropped after the notice — the model saw a notice, not a Read', readFileState.get(windowFile) === undefined, JSON.stringify(readFileState.get(windowFile) ?? null)?.slice(0, 120))
   const again = await ownRead(window)
   tally.check('W3. the next Read of the same window returns the changed line, never the unchanged stub', again.type === 'text' && again.text.includes('13\trow 13 was FORMATTED outside the session') && !again.text.startsWith(FILE_UNCHANGED_STUB), again.text.slice(0, 160))
-  const edit = await (FileEditTool as { validateInput: Function }).validateInput({ file_path: windowFile, old_string: 'row 13 was FORMATTED outside the session', new_string: 'row 13 edited after the notice' }, context)
+  const edit = await (EditTool as { validateInput: Function }).validateInput({ file_path: windowFile, old_string: 'row 13 was FORMATTED outside the session', new_string: 'row 13 edited after the notice' }, context)
   tally.check('W4. an Edit of the formatted line inside the window is admitted', edit.result === true, JSON.stringify(edit).slice(0, 240))
   const cleanRows = Array.from({ length: 30 }, (_, i) => `clean ${i + 1}`).join('\n') + '\n'
   const cleanFile = join(fixtures, 'ranges.txt')

@@ -9,9 +9,9 @@ type AgentSource =
   | 'agent:builtin'
   | `agent:builtin:${string}`
 
-export const COMPACTION_SOURCES = ['compact', 'session_memory', 'away_summary', 'concourse_coordinator_compact'] as const
+export const FOLD_SOURCES = ['compact', 'session_memory', 'away_summary', 'concourse_coordinator_compact'] as const
 
-type CompactionSource = (typeof COMPACTION_SOURCES)[number]
+type FoldSource = (typeof FOLD_SOURCES)[number]
 
 type HookSource = 'hook_agent' | 'hook_prompt'
 
@@ -40,7 +40,7 @@ export type QuerySource =
   | MainThreadSource
   | SdkSource
   | AgentSource
-  | CompactionSource
+  | FoldSource
   | HookSource
   | ClassifierSource
   | UtilitySource

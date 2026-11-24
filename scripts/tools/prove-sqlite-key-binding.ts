@@ -14,7 +14,7 @@ CREATE TABLE cells(id INTEGER PRIMARY KEY, t TEXT, n, r REAL);`)
 seed.close()
 const client = await readViewMcp(home)
 const bunRead = async (path: string): Promise<string> => {
-  try { return (await kit.FileReadTool.call({ file_path: path }, kit.context)).data.file.content }
+  try { return (await kit.ReadTool.call({ file_path: path }, kit.context)).data.file.content }
   catch (error) { return String(error) }
 }
 const stored = (sql: string): string => {

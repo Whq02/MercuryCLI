@@ -5,8 +5,8 @@ import { recordToEntry } from '../../sessions/fabric/entryCodec.js'
 import type { MercuryRecord } from '../../sessions/fabric/record.js'
 import { MAX_TRANSCRIPT_READ_BYTES } from '../../sessions/transcripts/paths.js'
 import { SHELL_TOOL_NAMES } from '../../tools/kit/shellTools.js'
-import { FILE_EDIT_TOOL_NAME } from '../../tools/kit/names/fileEdit.js'
-import { FILE_WRITE_TOOL_NAME } from '../../tools/kit/names/fileWrite.js'
+import { EDIT_TOOL_NAME } from '../../tools/kit/names/fileEdit.js'
+import { WRITE_TOOL_NAME } from '../../tools/kit/names/fileWrite.js'
 import { NOTEBOOK_EDIT_TOOL_NAME } from '../../tools/notebook-edit/constants.js'
 import { AST_EDIT_TOOL_NAME } from '../../tools/ast-edit/prompt.js'
 import type { SystemSeatReceiptMessage } from '../../engine/message-shapes/message.js'
@@ -108,8 +108,8 @@ export function machineFloorDetailsOf(entry: SessionReceiptEntry): MachineFloorD
   return d as MachineFloorDetails
 }
 
-const EDIT_TOOL_NAMES: ReadonlySet<string> = new Set([FILE_EDIT_TOOL_NAME, NOTEBOOK_EDIT_TOOL_NAME, AST_EDIT_TOOL_NAME])
-const WRITE_TOOL_NAMES: ReadonlySet<string> = new Set([FILE_WRITE_TOOL_NAME])
+const EDIT_TOOL_NAMES: ReadonlySet<string> = new Set([EDIT_TOOL_NAME, NOTEBOOK_EDIT_TOOL_NAME, AST_EDIT_TOOL_NAME])
+const WRITE_TOOL_NAMES: ReadonlySet<string> = new Set([WRITE_TOOL_NAME])
 const SHELL_TOOL_NAME_SET: ReadonlySet<string> = new Set(SHELL_TOOL_NAMES)
 
 const CHECK_COMMAND_PATTERN =

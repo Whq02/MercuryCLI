@@ -22,7 +22,7 @@ import { useMediaConfig } from './Media.js'
 import { type SubMenu, type SettingsItem, validated, type ConfigRowKit } from './config/configItems.js'
 import { configRowApplicability } from './config/configRowFacts.js'
 import { useConfigWrites } from './config/useConfigWrites.js'
-import { configCompactRows, configViewRows, configSessionRows } from './config/configRowsView.js'
+import { configFoldRows, configViewRows, configSessionRows } from './config/configRowsView.js'
 import { configEngineRows } from './config/configRowsEngine.js'
 import { configMemoryRows } from './config/configRowsMemory.js'
 import { configModelRows, configApiKeyRows } from './config/configRowsModel.js'
@@ -107,7 +107,7 @@ export function Config({
   const media = useMediaConfig()
   const items: SettingsItem[] = []
 
-  items.push(...configCompactRows(rowKit))
+  items.push(...configFoldRows(rowKit))
   const [seatFacts, setSeatFacts] = useState<SeatCeilingFacts | null>(null)
   const configStamp = useSyncExternalStore(subscribeGlobalConfigCache, getGlobalConfigCacheStamp, getGlobalConfigCacheStamp)
   useLoad(signal => {

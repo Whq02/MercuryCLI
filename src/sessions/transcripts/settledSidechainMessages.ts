@@ -1,11 +1,11 @@
-import type { LegacyQueryYield } from '../../engine/loop/project-legacy.js'
+import type { LegacyTurnYield } from '../../engine/loop/project-legacy.js'
 
 export async function* settledSidechainMessages(
-  stream: AsyncIterable<LegacyQueryYield>,
-  onProgress?: (item: LegacyQueryYield) => void,
-): AsyncGenerator<LegacyQueryYield, void> {
+  stream: AsyncIterable<LegacyTurnYield>,
+  onProgress?: (item: LegacyTurnYield) => void,
+): AsyncGenerator<LegacyTurnYield, void> {
   let responseOpen = false
-  let pending: LegacyQueryYield[] = []
+  let pending: LegacyTurnYield[] = []
   try {
     for await (const item of stream) {
       onProgress?.(item)

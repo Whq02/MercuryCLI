@@ -28,7 +28,7 @@ export type SignInRefusal = typeof import('../../signInRefusal.js')
 
 type BetaStopReason = NonNullable<BetaMessage['stop_reason']>
 
-export type QueryYield = StreamEvent | AssistantMessage | SystemAPIErrorMessage | SystemStreamCutMessage
+export type CallYield = StreamEvent | AssistantMessage | SystemAPIErrorMessage | SystemStreamCutMessage
 
 export type PlannedRequest = ReturnType<typeof wireRequestOf>
 
@@ -57,7 +57,7 @@ export type CallState = {
   settledNormally: boolean
 }
 
-export type QueryCtx = ReturnType<typeof createCallLedger> & {
+export type CallCtx = ReturnType<typeof createCallLedger> & {
   messages: Message[]
   thinkingConfig: ThinkingConfig
   signal: AbortSignal

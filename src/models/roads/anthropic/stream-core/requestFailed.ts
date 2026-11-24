@@ -1,8 +1,8 @@
 import { APIError, APIUserAbortError } from '../../../../engine/request-parts/sdkErrors.js'
 import { getAssistantMessageFromError } from '../../../../engine/requests/apiErrorRows.js'
-import type { QueryCtx, QueryYield } from './callState.js'
+import type { CallCtx, CallYield } from './callState.js'
 
-export async function* failedRequestRows(ctx: QueryCtx, thrown: unknown): AsyncGenerator<QueryYield, void> {
+export async function* failedRequestRows(ctx: CallCtx, thrown: unknown): AsyncGenerator<CallYield, void> {
   const { error, errorModel } = ctx.logRequestFailure(thrown)
   if (error instanceof APIUserAbortError) {
     yield* ctx.yieldAbortedPartialText()

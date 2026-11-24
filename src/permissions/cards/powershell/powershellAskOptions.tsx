@@ -4,11 +4,11 @@ import type { PermissionUpdate } from '../../rules/permissions.js'
 import type { OptionWithDescription } from '../../../screen/select/Select.js'
 import { generateShellSuggestionsLabel } from '../shellAskParts.js'
 
-export type PowerShellToolUseOption = 'yes' | 'yes-apply-suggestions' | 'yes-edited-prefix' | 'no'
+export type PowerShellAskOption = 'yes' | 'yes-apply-suggestions' | 'yes-edited-prefix' | 'no'
 
-type Row = OptionWithDescription<PowerShellToolUseOption>
+type Row = OptionWithDescription<PowerShellAskOption>
 
-type AmendableRole = Extract<PowerShellToolUseOption, 'yes' | 'no'>
+type AmendableRole = Extract<PowerShellAskOption, 'yes' | 'no'>
 
 const AMENDABLE_WORDS: Record<AmendableRole, { label: string; placeholder: string }> = {
   yes: { label: 'Yes', placeholder: 'tell Mercury what to do next' },
@@ -58,7 +58,7 @@ function alwaysAllowRow(
   return editable ? editedPrefixRow(editablePrefix, onEditablePrefixChange) : applySuggestionsRow(suggestions)
 }
 
-export function powershellToolUseOptions({
+export function powershellAskOptions({
   suggestions,
   onRejectFeedbackChange,
   onAcceptFeedbackChange,

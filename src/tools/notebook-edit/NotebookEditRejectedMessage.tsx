@@ -8,7 +8,7 @@ import { MessageResponse } from '../kit/MessageResponse.js'
 
 const BODY_INSET = 12
 
-export function NotebookEditToolUseRejectedMessage({
+export function NotebookEditRejectedMessage({
   notebook_path,
   cell_id,
   new_source,
@@ -49,4 +49,4 @@ export function NotebookEditToolUseRejectedMessage({
   )
 }
 
-export default NotebookEditToolUseRejectedMessage
+export default NotebookEditRejectedMessage

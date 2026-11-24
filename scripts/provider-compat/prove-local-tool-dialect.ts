@@ -121,10 +121,10 @@ const { localLaneProfileFor } = await import('../../src/models/roads/local/local
 const { compatChatCallModel } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 type LocalModelRecord = import('../../src/models/roads/local/localDiscovery.ts').LocalModelRecord
 type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
-const READ = FileReadTool.name
+const READ = ReadTool.name
 const noToolsOllama: LocalModelRecord = { id: 'gemma3:4b', server: 'ollama', baseUrl: `${root}/v1`, toolsDeclared: false, thinkingDeclared: false, family: 'gemma3', parameterSize: '4B' }
 const toolsOllama: LocalModelRecord = { id: 'qwen3.5:9b', server: 'ollama', baseUrl: `${root}/v1`, toolsDeclared: true, thinkingDeclared: false, family: 'qwen3', parameterSize: '9B' }
 const noToolsLmStudio: LocalModelRecord = { id: 'phi-4-mini', server: 'lmstudio', baseUrl: `${root}/v1`, toolsDeclared: false, thinkingDeclared: false, family: 'phi', parameterSize: '4B' }
@@ -139,7 +139,7 @@ async function drive(record: LocalModelRecord, messages: unknown[]): Promise<Set
     messages: messages as never,
     systemPrompt: ['fixture system prompt'] as never,
     thinkingConfig: { type: 'disabled' } as never,
-    tools: [FileReadTool] as never,
+    tools: [ReadTool] as never,
     signal: new AbortController().signal,
     options: { getToolPermissionContext: async () => getEmptyToolPermissionContext(), model: `local/${record.id}`, isNonInteractiveSession: true, querySource: 'agent:builtin:test', agents: [], hasAppendSystemPrompt: false, mcpTools: [], effortValue: 'high' } as never,
   })) {
@@ -254,7 +254,7 @@ section('refusals — a call the catalogue does not carry, arguments the schema 
   const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
   const { WebFetchTool } = await import('../../src/tools/web-fetch/WebFetchTool.ts')
   const FETCH = WebFetchTool.name
-  const pool = [ToolSearchTool, FileReadTool, WebFetchTool]
+  const pool = [ToolSearchTool, ReadTool, WebFetchTool]
   const fetchCall = `<tool_call>\n{"name": "${FETCH}", "arguments": {"url": "https://example.com/", "prompt": "the title"}}\n</tool_call>`
   const before = captured.length
   script.ollama = [{ model: 'gemma3:4b', message: { role: 'assistant', content: fetchCall }, done: false }, doneRow('gemma3:4b')]

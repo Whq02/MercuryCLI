@@ -14,7 +14,7 @@ delete process.env.MERCURY_EDIT_STALE_RECOVERY
 const { fileGeneration, recordSeenLines, seenLinesOf, _resetSeenLinesForTesting } = await import('../../src/tools/engines/change-transaction/seenLines.ts')
 const { mintFileAnchor } = await import('../../src/tools/engines/change-transaction/snapshotAnchor.ts')
 const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import('../../src/tools/kit/names/fileEdit.ts')
 
@@ -60,14 +60,14 @@ function primeRead(ctx: Ctx, path: string, window?: { offset: number; limit: num
   })
 }
 async function validate(input: Record<string, unknown>, ctx: Ctx): Promise<{ ok: true } | { ok: false; message: string }> {
-  const verdict = await (FileEditTool as { validateInput: Function }).validateInput(input, ctx)
+  const verdict = await (EditTool as { validateInput: Function }).validateInput(input, ctx)
   return verdict.result === false ? { ok: false, message: String(verdict.message) } : { ok: true }
 }
 async function edit(input: Record<string, unknown>, ctx: Ctx): Promise<{ ok: true } | { ok: false; message: string }> {
   const verdict = await validate(input, ctx)
   if (!verdict.ok) return verdict
   try {
-    await (FileEditTool as { call: Function }).call(input, ctx, null, { uuid: '00000000-0000-0000-0000-000000000003', message: { id: 'msg_fixture' } })
+    await (EditTool as { call: Function }).call(input, ctx, null, { uuid: '00000000-0000-0000-0000-000000000003', message: { id: 'msg_fixture' } })
     return { ok: true }
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : String(err) }
@@ -77,8 +77,8 @@ async function editResult(input: Record<string, unknown>, ctx: Ctx): Promise<{ o
   const verdict = await validate(input, ctx)
   if (!verdict.ok) return verdict
   try {
-    const out = await (FileEditTool as { call: Function }).call(input, ctx, null, { uuid: '00000000-0000-0000-0000-000000000003', message: { id: 'msg_fixture' } })
-    const block = (FileEditTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(out.data, 'toolu_fixture')
+    const out = await (EditTool as { call: Function }).call(input, ctx, null, { uuid: '00000000-0000-0000-0000-000000000003', message: { id: 'msg_fixture' } })
+    const block = (EditTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(out.data, 'toolu_fixture')
     return { ok: true, text: typeof block.content === 'string' ? block.content : '' }
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : String(err) }
@@ -221,7 +221,7 @@ section('L. the law itself is unchanged')
 
 section('the diagnostic reads the same current knowledge as the gate')
 {
-  const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+  const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
   const { mintRangeAnchor } = await import('../../src/tools/engines/change-transaction/snapshotAnchor.ts')
   _resetSeenLinesForTesting()
   const file = join(fixtures, 'generation.ts')
@@ -229,7 +229,7 @@ section('the diagnostic reads the same current knowledge as the gate')
   writeFileSync(file, original)
   const ctx = makeContext()
   const parent = { uuid: '00000000-0000-0000-0000-000000000003', message: { id: 'msg_fixture' } }
-  await (FileReadTool as { call: Function }).call({ file_path: file, offset: 1, limit: 5, line_anchors: true }, ctx, null, parent)
+  await (ReadTool as { call: Function }).call({ file_path: file, offset: 1, limit: 5, line_anchors: true }, ctx, null, parent)
   const changed = original.replace('const v1 = 1', 'const v1 = 1000')
   writeFileSync(file, changed)
   const later = new Date(Date.now() + 120_000)
@@ -252,14 +252,14 @@ section('the diagnostic reads the same current knowledge as the gate')
   const bomFile = join(fixtures, 'bom.ts')
   writeFileSync(bomFile, '\uFEFF' + original)
   const bomContext = makeContext()
-  await (FileReadTool as { call: Function }).call({ file_path: bomFile, offset: 1, limit: 5 }, bomContext, null, parent)
+  await (ReadTool as { call: Function }).call({ file_path: bomFile, offset: 1, limit: 5 }, bomContext, null, parent)
   _resetSeenLinesForTesting()
   const bomEdit = await editResult({ file_path: bomFile, old_string: 'const v12 = 12', new_string: 'replacement' }, bomContext)
   check('an unchanged BOM is not misreported as a generation change: the edit beside the window lands in one call', bomEdit.ok && bomEdit.text.includes('Line 12 did not count as read before this edit') && !bomEdit.text.includes('File generation check failed:'), textOf(bomEdit))
   const separateFile = join(fixtures, 'separate.ts')
   writeFileSync(separateFile, original)
   const separateContext = makeContext()
-  await (FileReadTool as { call: Function }).call({ file_path: separateFile, offset: 1, limit: 5 }, separateContext, null, parent)
+  await (ReadTool as { call: Function }).call({ file_path: separateFile, offset: 1, limit: 5 }, separateContext, null, parent)
   writeFileSync(separateFile, original.replace('const v18 = 18', 'const v18 = 1800'))
   utimesSync(separateFile, later, later)
   recordSeenLines(owner, separateFile, fileGeneration(separateFile)!, 6, 5)

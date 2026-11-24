@@ -20,8 +20,8 @@ for (const key of ['MERCURY_HOME', 'MERCURY_SKIP_PERMISSIONS', 'MERCURY_WARDS'])
 process.chdir(project)
 
 const { parseRemotePath } = await import('../../src/platform/remote-file-target/target.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
 const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
@@ -116,8 +116,8 @@ const decide = async (tool: unknown, input: Record<string, unknown>, rules: Rule
     return `thrown: ${error instanceof Error ? error.message : String(error)}`
   }
 }
-const read = (path: string, rules: Rules = example): Promise<string> => decide(FileReadTool, { file_path: path }, rules)
-const edit = (path: string, rules: Rules = example): Promise<string> => decide(FileEditTool, { file_path: path, old_string: 'a', new_string: 'b' }, rules)
+const read = (path: string, rules: Rules = example): Promise<string> => decide(ReadTool, { file_path: path }, rules)
+const edit = (path: string, rules: Rules = example): Promise<string> => decide(EditTool, { file_path: path, old_string: 'a', new_string: 'b' }, rules)
 
 try {
   if (localTransportUnavailable() !== null) console.log(`  [SKIP] the rules of the page: ${localTransportUnavailable()}, and the ssh configuration is asked through the kit's stand-in`)

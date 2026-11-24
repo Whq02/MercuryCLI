@@ -12,7 +12,7 @@ import { quote } from '../../platform/shell/bash/shellQuote.js'
 import { rewriteReadOnlyGitCommand } from '../shell/bashPermissions.js'
 import { BASH_TOOL_NAME } from '../kit/names/bash.js'
 import type { Tool, Tools } from '../kit/tool.js'
-import { FILE_EDIT_TOOL_NAME } from '../kit/names/fileEdit.js'
+import { EDIT_TOOL_NAME } from '../kit/names/fileEdit.js'
 import { sectionHeadings } from '../edit/sectionEdit.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 import { hostEnv } from '../../platform/environment/hostEnv.js'
@@ -188,7 +188,7 @@ export async function hardenedGitRead(tool: Tool, input: Record<string, unknown>
 
 export async function reviewerRefusal(tool: Tool, input: Record<string, unknown>, receipt: string, worktree: string, atCall = false): Promise<string | null> {
   if (tool.name === BASH_TOOL_NAME) await tool.prepare?.(input)
-  if (tool.name !== FILE_EDIT_TOOL_NAME) {
+  if (tool.name !== EDIT_TOOL_NAME) {
     if (tool.name === BASH_TOOL_NAME) {
       if (input._simulatedSedEdit !== undefined) return 'Reviewer commands cannot bypass their write protection.'
       if (typeof input.command === 'string' && await verificationCommand(input.command, realpathSync(worktree), receipt) !== null) return null
@@ -216,7 +216,7 @@ export async function reviewerRefusal(tool: Tool, input: Record<string, unknown>
 }
 
 function reviewerOffersTool(tool: Tool): boolean {
-  if (tool.name === FILE_EDIT_TOOL_NAME || tool.name === BASH_TOOL_NAME) return true
+  if (tool.name === EDIT_TOOL_NAME || tool.name === BASH_TOOL_NAME) return true
   try {
     return tool.isReadOnly({}) === true
   } catch (error) {
@@ -233,7 +233,7 @@ export function restrictReviewerTools(tools: Tools, receiptPath: string, worktre
     async call(...args: Parameters<Tool['call']>) {
       const refusal = await reviewerRefusal(tool, args[0], receipt, worktree, true)
       if (refusal !== null) throw new Error(refusal)
-      if (tool.name === FILE_EDIT_TOOL_NAME) args[0] = { ...args[0], file_path: receipt }
+      if (tool.name === EDIT_TOOL_NAME) args[0] = { ...args[0], file_path: receipt }
       const verification = tool.name === BASH_TOOL_NAME && typeof args[0].command === 'string'
         ? await verificationCommand(args[0].command, worktree, receipt) : null
       if (verification === null) {

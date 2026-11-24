@@ -88,7 +88,7 @@ const { gitArgs } = (await import(`${SRC}/platform/git/spawnArgs.ts`)) as { gitA
 const { gitDiff } = (await import(`${SRC}/platform/git-graph/observe.ts`)) as { gitDiff: (root: string, options: { scope: string; ref?: string; paths?: string[] }) => unknown }
 const { GitTool } = await import(`${SRC}/tools/git/GitTool.ts`)
 const { InspectTool } = await import(`${SRC}/tools/inspect/InspectTool.ts`)
-const { FileReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
+const { ReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
 const { getEmptyToolPermissionContext } = await import(`${SRC}/tools/kit/tool.ts`)
 const { decideToolPermission } = await import(`${SRC}/permissions/rules/decision/engine.ts`)
 
@@ -165,7 +165,7 @@ console.log('through the doors: a path or a reference named as the setting runs 
     ['Git diff, paths [a.txt, the setting]', GitTool, { op: 'diff', paths: ['a.txt', SETTING] }],
     ['Git diff staged, paths [the setting]', GitTool, { op: 'diff', scope: 'staged', paths: [SETTING] }],
     ['Inspect mercury://git/file/<the setting>', InspectTool, { ref: `mercury://git/file/${SETTING}` }],
-    ['Read mercury://git/file/<the setting>', FileReadTool, { file_path: `mercury://git/file/${SETTING}` }],
+    ['Read mercury://git/file/<the setting>', ReadTool, { file_path: `mercury://git/file/${SETTING}` }],
     ['Git diff in the carried repository, paths [the setting]', GitTool, { op: 'diff', cwd: inner, paths: [SETTING] }],
     ['Git diff in the carried repository by a relative folder, paths [data.txt, the setting]', GitTool, { op: 'diff', cwd: 'vendor/inner', paths: ['data.txt', SETTING] }],
   ]

@@ -16,7 +16,7 @@ delete process.env.ANTHROPIC_BASE_URL
 const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const { compactConversation, ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD } = await import('../../src/engine/compaction/foldConversation.ts')
+const { foldConversation, ERROR_MESSAGE_POST_FOLD_OVER_THRESHOLD } = await import('../../src/engine/compaction/foldConversation.ts')
 const { beginFoldStatus, foldStatusExit, foldRowWords, decodeFoldStatus, foldStatusToWire } = await import('../../src/engine/compaction/foldStatus.ts')
 const { compactionRow } = await import('../../src/engine/rows/project.ts')
 const { CompactionRowSchema } = await import('../../src/engine/rows/vocabulary.ts')
@@ -127,7 +127,7 @@ const context = () => ({
   onCompactProgress: () => {},
 }) as never
 const fold = (messages: Message[], ceiling: number) =>
-  compactConversation(messages, context(), { systemPrompt: ['fixture'], userContext: {}, systemContext: {}, toolUseContext: context(), forkContextMessages: [] }, true, undefined, true, { autoCompactThreshold: ceiling } as never)
+  foldConversation(messages, context(), { systemPrompt: ['fixture'], userContext: {}, systemContext: {}, toolUseContext: context(), forkContextMessages: [] }, true, undefined, true, { autoCompactThreshold: ceiling } as never)
 const WINDOW_32K_THRESHOLD = 26_000
 const bind = (messages: Message[], fixedTokens: number) =>
   bindRequestGauge(messages, calibrationKeyFor(declaredRouteOf(MODEL) ?? 'unrecognised', MODEL), 1, { digest: `fixture-${fixedTokens}`, tokens: fixedTokens })
@@ -138,7 +138,7 @@ try {
   bind(session, 42_506)
   const paid = api.messageRequests().length
   try { await fold(session, WINDOW_32K_THRESHOLD) } catch (error) { refusal = error instanceof Error ? error.message : String(error) }
-  check('the whole-catalogue view (42,506 fixed tokens, the drive\'s count) refuses before any summary request', refusal.startsWith(ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD) && api.messageRequests().length === paid, `${refusal.slice(0, 160)}; compactConversation in src/engine/compaction/foldConversation.ts must refuse with ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD before any summary request when the fixed material alone exceeds the ceiling`)
+  check('the whole-catalogue view (42,506 fixed tokens, the drive\'s count) refuses before any summary request', refusal.startsWith(ERROR_MESSAGE_POST_FOLD_OVER_THRESHOLD) && api.messageRequests().length === paid, `${refusal.slice(0, 160)}; compactConversation in src/engine/compaction/foldConversation.ts must refuse with ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD before any summary request when the fixed material alone exceeds the ceiling`)
   check('the refusal says WHY in words: the fixed material, its tokens, the window\'s ceiling, and what to do', refusal.includes("the fixed material (") && /\(\d{5,} tokens:/.test(refusal) && refusal.includes(`exceeds the window's ceiling (${WINDOW_32K_THRESHOLD} tokens`) && refusal.includes('no summary was requested') && refusal.includes('/clear'), `${refusal}; the refusal text is built in src/engine/compaction/fold/foldAttachments.ts and must name the fixed material, its tokens, the ceiling, that no summary was requested, and /clear`)
 
   const same = stretch(9, 'tools')

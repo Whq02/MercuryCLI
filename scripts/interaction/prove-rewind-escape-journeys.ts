@@ -29,7 +29,7 @@ if (process.env.REWESC_CHILD) {
   }
   const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
   const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
-  const { MessageSelector } = await import('../../src/screen/rewind-picker/RewindPicker.js')
+  const { RewindPicker } = await import('../../src/screen/rewind-picker/RewindPicker.js')
 
   const mode = process.env.REWESC_MODE === 'error' ? 'error' : 'restoring'
   const userMessage = (n: number, text: string) => ({
@@ -44,7 +44,7 @@ if (process.env.REWESC_CHILD) {
     const [closed, setClosed] = React.useState(false)
     ink.useInput(() => {})
     if (closed) return h(ink.Text, {}, 'SELECTOR-CLOSED')
-    return h(MessageSelector as React.ComponentType<Record<string, unknown>>, {
+    return h(RewindPicker as React.ComponentType<Record<string, unknown>>, {
       messages,
       onPreRestore: () => {},
       onRestore:

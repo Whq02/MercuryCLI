@@ -633,7 +633,7 @@ export function notifyCacheDeletion(querySource: string, agentId?: string): void
   }
 }
 
-export function notifyCompaction(querySource: string, agentId?: string): void {
+export function notifyFold(querySource: string, agentId?: string): void {
   const key = resolveStateKey(querySource, agentId)
   if (key === null) return
   const state = laneStates.get(key)

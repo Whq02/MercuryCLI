@@ -25,9 +25,9 @@ const j = (v: unknown): string => JSON.stringify(v)
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { WriteTool } = await import('../../src/tools/write/WriteTool.ts')
 const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
 const { GlobTool } = await import('../../src/tools/glob/GlobTool.ts')
 const { NotebookEditTool } = await import('../../src/tools/notebook-edit/NotebookEditTool.ts')
@@ -78,9 +78,9 @@ console.log('[1] the shared check')
 
 console.log('[2] every path-taking tool refuses the planted path as a verdict with the shared sentence, before any filesystem access (its folder does not exist)')
 const cases: Array<[string, ToolLike, Record<string, unknown>]> = [
-  ['Read', FileReadTool as never, { file_path: planted }],
-  ['Edit', FileEditTool as never, { file_path: planted, old_string: 'a', new_string: 'b', replace_all: false }],
-  ['Write', FileWriteTool as never, { file_path: planted, content: 'x' }],
+  ['Read', ReadTool as never, { file_path: planted }],
+  ['Edit', EditTool as never, { file_path: planted, old_string: 'a', new_string: 'b', replace_all: false }],
+  ['Write', WriteTool as never, { file_path: planted, content: 'x' }],
   ['Grep', GrepTool as never, { pattern: 'plain', path: planted }],
   ['Glob', GlobTool as never, { pattern: '*.txt', path: planted }],
   ['NotebookEdit', NotebookEditTool as never, { notebook_path: `${planted}.ipynb`, cell_id: 'c1', new_source: 'x', edit_mode: 'replace' }],
@@ -126,7 +126,7 @@ for (const [name, tool, input] of cases) {
 console.log('[4] a clean path still passes the same check in each tool')
 {
   const clean = join(PROJ, 'xy.txt')
-  const read = await validate(FileReadTool as never, { file_path: clean })
+  const read = await validate(ReadTool as never, { file_path: clean })
   check('Read accepts the clean path', read.verdict?.result === true, j(read))
   const grep = await validate(GrepTool as never, { pattern: 'plain', path: PROJ })
   check('Grep accepts the clean folder', grep.verdict?.result === true, j(grep))

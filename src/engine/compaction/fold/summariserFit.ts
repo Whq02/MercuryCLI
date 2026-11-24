@@ -5,14 +5,14 @@ import type { CacheSafeParams } from '../../../crew/agents/forkedAgent.js'
 import { appendSystemContext, toolToAPISchema } from '../../messages/apiSystemAndToolSchema.js'
 import { roughTokenCountEstimation } from '../../../models/facts/tokenEstimation.js'
 import { estimateRequestGauge, readRequestGauge } from '../../run/requestGauge.js'
-import { getBlockingLimit, getEffectiveContextWindowSize, resolveAutoCompactWindow } from '../../compaction-window/autoFoldWindow.js'
+import { getBlockingLimit, getEffectiveContextWindowSize, resolveAutoFoldWindow } from '../../compaction-window/autoFoldWindow.js'
 import { PERSISTED_OUTPUT_TAG, TOOL_RESULT_CLEARED_MESSAGE } from '../../tool-dispatch/toolResultStorage.js'
 import { groupMessagesByApiRound } from '../groupByApiRound.js'
 import { FOLDED_RESULT_KEY } from '../verbatimTail.js'
 import { stripThinkingFromIndex } from '../../messages/apiFilters.js'
 import { fitToolResultImages } from '../../message-shapes/imageRequestFit.js'
 import { PTL_RETRY_LIMIT, SUMMARISER_WINDOW_SHARE, SUMMARISER_BUDGET_FLOOR_TOKENS, SHAPED_RESULTS_KEEP_TOKENS, SHAPED_RESULT_PREVIEW_CHARS } from './foldLimits.js'
-import { isPtlMarkerMessage, isCompactCapsuleMessage, stripImagesFromMessages } from './summariserInput.js'
+import { isPtlMarkerMessage, isFoldCapsuleMessage, stripImagesFromMessages } from './summariserInput.js'
 import { validateSummary } from './summaryCheck.js'
 import { type FoldLadder, partCapsule, foldAllAsText, summarizeWithPtlRetry } from './ladder.js'
 
@@ -62,7 +62,7 @@ export async function summariserFitFor(
   gauge: ReturnType<typeof readRequestGauge>,
 ): Promise<SummariserFit> {
   const model = context.options.engineModel
-  const { window } = resolveAutoCompactWindow(model)
+  const { window } = resolveAutoFoldWindow(model)
   const reserveTokens = Math.max(0, window - getEffectiveContextWindowSize(model))
   const blockingLimit = getBlockingLimit(model)
   const fixedTokens = gauge?.fixed.tokens ?? await estimateFixedRequestTokens(context, cacheSafeParams)
@@ -113,7 +113,7 @@ async function foldOldestIntoParts(
     if (measure(current) <= budgetTokens) return current
     const input = current.filter(message => !isPtlMarkerMessage(message))
     const groups = groupMessagesByApiRound(input)
-    const workingOf = (group: Message[]): Message[] => group.filter(message => !isCompactCapsuleMessage(message))
+    const workingOf = (group: Message[]): Message[] => group.filter(message => !isFoldCapsuleMessage(message))
     if (groups.length < 2) {
       const text = await foldAllAsText(input, cacheSafeParams, promptText, context, ladder)
       return text ?? current
@@ -132,7 +132,7 @@ async function foldOldestIntoParts(
     if (working.length === 0) return current
     const partResponse = await summarizeWithPtlRetry(working, cacheSafeParams, promptText, context, ladder)
     const capsule = partCapsule(validateSummary(partResponse, false))
-    current = [...head.filter(isCompactCapsuleMessage), capsule, ...groups.slice(take).flat()]
+    current = [...head.filter(isFoldCapsuleMessage), capsule, ...groups.slice(take).flat()]
   }
   return current
 }

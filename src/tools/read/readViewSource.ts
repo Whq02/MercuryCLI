@@ -5,15 +5,15 @@ import { openRegularFileSync } from './regularFile.js'
 import type { ReadQueryRequest } from './readQuery.js'
 
 export async function withReadViewSource<T>(request: ReadQueryRequest, source: string, read: (file: string) => Promise<T>, additional = false): Promise<T> {
-  const { FileReadTool } = await import('./ReadTool.js')
+  const { ReadTool } = await import('./ReadTool.js')
   const input = { file_path: source }
-  const valid = await FileReadTool.validateInput!(input, request.context)
+  const valid = await ReadTool.validateInput!(input, request.context)
   if (!valid.result) throw new Error(valid.message)
-  const decision = await FileReadTool.checkPermissions!(input, request.context)
+  const decision = await ReadTool.checkPermissions!(input, request.context)
   if (decision.behavior === 'deny') throw new Error(decision.message)
   const { canUseTool, parentMessage } = request
   const ask = typeof canUseTool === 'function' && parentMessage !== undefined
-    ? (path: string) => canUseTool(FileReadTool, { file_path: path }, request.context, parentMessage, `${request.context.toolUseId ?? 'read'}-view-source`)
+    ? (path: string) => canUseTool(ReadTool, { file_path: path }, request.context, parentMessage, `${request.context.toolUseId ?? 'read'}-view-source`)
     : null
   if (additional && decision.behavior === 'ask') {
     const answer = ask === null ? decision : await ask(source)

@@ -7,14 +7,14 @@ import type { PersistedWorktreeSession } from '../transcripts/transcriptEntries.
 import type { AssistantMessage, Message } from '../../engine/message-shapes/message.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import type { FileHistorySnapshot } from '../transcripts/fileHistory.js'
-import { fileHistoryRestoreStateFromLog } from '../../tools/engines/change-transaction/fileHistory.js'
+import { fileHistoryRestoreStateFromSnapshots } from '../../tools/engines/change-transaction/fileHistory.js'
 import { rearmMissionFromCard } from '../../permissions/guards/mission.js'
 import { migrateOrphanedMissionCard } from '../mission-card/missionCard.js'
 import { billingSafeRetainedForm, servedModelOfAssistantRow } from '../../models/catalogue/retainedModel.js'
 import type { ContentReplacementRecord } from '../../engine/tool-dispatch/toolResultStorage.js'
 
 
-export type ResumedConversationLog = {
+export type ResumedConversationListing = {
   messages: Message[]
   sessionId?: string
   fullPath?: string
@@ -46,12 +46,12 @@ export function lastAssistantTimestamp(messages: ReadonlyArray<{ type: string; t
   return null
 }
 
-export async function restoreSessionStateFromLog(
-  result: ResumedConversationLog,
+export async function restoreSessionStateFromListing(
+  result: ResumedConversationListing,
   setAppState: (updater: (prev: AppState) => AppState) => void,
 ): Promise<void> {
   if (result.fileHistorySnapshots && result.fileHistorySnapshots.length > 0) {
-    fileHistoryRestoreStateFromLog(result.fileHistorySnapshots, fileHistory => {
+    fileHistoryRestoreStateFromSnapshots(result.fileHistorySnapshots, fileHistory => {
       setAppState(prev => ({ ...prev, fileHistory }))
     })
   }
@@ -69,7 +69,7 @@ export async function restoreSessionStateFromLog(
 }
 
 export function restoreMissionContinuity(
-  result: Pick<ResumedConversationLog, 'messages' | 'sessionId'>,
+  result: Pick<ResumedConversationListing, 'messages' | 'sessionId'>,
 ): boolean {
   try {
     const adopted = adoptedSessionIdOf(result)
@@ -81,7 +81,7 @@ export function restoreMissionContinuity(
   }
 }
 
-function adoptedSessionIdOf(result: Pick<ResumedConversationLog, 'messages' | 'sessionId'>): string {
+function adoptedSessionIdOf(result: Pick<ResumedConversationListing, 'messages' | 'sessionId'>): string {
   const fromMessages = result.messages.find(
     (m): m is Message & { sessionId: string } => typeof (m as { sessionId?: unknown }).sessionId === 'string',
   ) as { sessionId?: string } | undefined
@@ -132,7 +132,7 @@ export function restoreConversationModelFromMessages(messages?: Message[]): stri
   return billingSafeRetainedForm(servedModel)
 }
 
-export function restoreConversationModel(result: Pick<ResumedConversationLog, 'messages' | 'model'>): string | null {
+export function restoreConversationModel(result: Pick<ResumedConversationListing, 'messages' | 'model'>): string | null {
   if (getEngineModelOverride() !== undefined) return null
   if (result.model) return result.model
   return restoreConversationModelFromMessages(result.messages)

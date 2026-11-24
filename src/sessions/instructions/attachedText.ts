@@ -1,6 +1,6 @@
 import type { Message } from '../../engine/message-shapes/message.js'
 import { normalizePathForComparison } from '../../platform/files/file.js'
-import { getMessagesAfterCompactBoundary } from '../../engine/message-shapes/systemMessages.js'
+import { getMessagesAfterFoldBoundary } from '../../engine/message-shapes/systemMessages.js'
 import { sharedRuleFormatOf } from './compositionOrder.js'
 import type { InstructionSourceEntry } from '../instruction-contracts/contracts.js'
 
@@ -16,7 +16,7 @@ export function attachedInstructions(): AttachedInstruction[] {
 
 export function instructionsInMessages(messages: readonly Message[]): AttachedInstruction[] {
   const entries = new Map<string, AttachedInstruction>()
-  for (const message of getMessagesAfterCompactBoundary([...messages])) {
+  for (const message of getMessagesAfterFoldBoundary([...messages])) {
     if (message.type !== 'attachment' || message.attachment.type !== 'nested_memory') continue
     const entry = message.attachment.content
     if (entry.offered !== undefined) continue

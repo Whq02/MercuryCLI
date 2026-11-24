@@ -96,7 +96,7 @@ function SessionsErrorCard({
   )
 }
 
-function SessionsLogPicker({
+function SessionsListingPicker({
   onDone,
   context,
 }: {
@@ -270,7 +270,7 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
         />
       )
     }
-    return <SessionsLogPicker onDone={onDone} context={context} />
+    return <SessionsListingPicker onDone={onDone} context={context} />
   }
   return <SessionsByArgument argument={trimmed} onDone={onDone} context={context} />
 }

@@ -43,12 +43,12 @@ const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
 const { PowerShellTool } = await import('../../src/tools/powershell/PowerShellTool.tsx')
 const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
 const { GlobTool } = await import('../../src/tools/glob/GlobTool.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const { safeSearchOrReadClassification, stringInputField, buildTool } = await import('../../src/tools/kit/tool.ts')
 const { z } = await import('zod/v4')
 
 console.log('── 1. classifier matrix ──')
-for (const tool of [BashTool, PowerShellTool, GrepTool, GlobTool, FileReadTool]) {
+for (const tool of [BashTool, PowerShellTool, GrepTool, GlobTool, ReadTool]) {
   for (const [label, input] of PLACEHOLDERS) {
     const out = never(`${tool.name}.isSearchOrReadCommand(${label})`, () => tool.isSearchOrReadCommand!(input))
     if (out === THREW) continue
@@ -77,7 +77,7 @@ for (const tool of [BashTool, PowerShellTool, GrepTool, GlobTool, FileReadTool])
 console.log('── 2. collapse walk ──')
 {
   const { collapseReadSearchGroups, getToolSearchOrReadInfo } = await import('../../src/screen/messages/collapseReadSearch.ts')
-  const tools = [BashTool, GrepTool, FileReadTool] as never
+  const tools = [BashTool, GrepTool, ReadTool] as never
   let n = 0
   const uuid = () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`
   const use = (id: string, name: string, input: unknown, extra: Record<string, unknown> = {}) => ({

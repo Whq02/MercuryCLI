@@ -20,7 +20,7 @@ type Props = {
   transcript?: boolean
 }
 
-export function MercuryCompactSummary({
+export function MercuryFoldSummary({
   summary,
   pct,
   messagesSummarized,

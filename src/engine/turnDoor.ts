@@ -1,22 +1,22 @@
 import { notifyCommandLifecycle } from '../daemon/runner/commandLifecycle.js'
 import {
-  noteQueryTurnEnd,
-  noteQueryTurnStart,
+  observeTurnEnd,
+  observeTurnStart,
 } from './run/runTurnObserver.js'
 import type { Terminal } from './turn-entry/transitions.js'
-import { runEventCore, type QueryParams } from './loop/turn-machine.js'
+import { runEventCore, type TurnParams } from './loop/turn-machine.js'
 import type { RunEvent } from './loop/events.js'
 import {
   projectLegacyYields,
-  type LegacyQueryYield,
+  type LegacyTurnYield,
 } from './loop/project-legacy.js'
 
-export type { QueryParams } from './loop/turn-machine.js'
+export type { TurnParams } from './loop/turn-machine.js'
 
-export async function* queryEvents(
-  params: QueryParams,
+export async function* turnDoorEvents(
+  params: TurnParams,
 ): AsyncGenerator<RunEvent, Terminal> {
-  noteQueryTurnStart(params)
+  observeTurnStart(params)
   const consumedCommandUuids: string[] = []
   let terminal: Terminal | undefined
   try {
@@ -26,7 +26,7 @@ export async function* queryEvents(
     }
     return terminal
   } finally {
-    await noteQueryTurnEnd({
+    await observeTurnEnd({
       querySource: params.querySource,
       toolUseContext: params.toolUseContext,
       reason: terminal?.reason ?? 'threw',
@@ -34,8 +34,8 @@ export async function* queryEvents(
   }
 }
 
-export async function* query(
-  params: QueryParams,
-): AsyncGenerator<LegacyQueryYield, Terminal> {
-  return yield* projectLegacyYields(queryEvents(params))
+export async function* turnDoor(
+  params: TurnParams,
+): AsyncGenerator<LegacyTurnYield, Terminal> {
+  return yield* projectLegacyYields(turnDoorEvents(params))
 }

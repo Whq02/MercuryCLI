@@ -16,7 +16,7 @@ import { isOneOf } from '../../platform/primitives/isOneOf.js'
 
 export const LITE_READ_BUF_SIZE = 65_536
 export const MAX_SANITIZED_LENGTH = 200
-export const SKIP_PRECOMPACT_THRESHOLD = 5 * 1024 * 1024
+export const SKIP_BEFORE_FOLD_BOUNDARY_THRESHOLD = 5 * 1024 * 1024
 
 export function validateUuid(maybeUuid: unknown): UUID | null {
   if (typeof maybeUuid !== 'string') return null

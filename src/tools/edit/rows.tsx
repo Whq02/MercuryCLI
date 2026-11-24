@@ -4,9 +4,9 @@ import { truncatePathMiddle } from '../../platform/text/truncate.js'
 import { FallbackToolUseErrorMessage } from '../kit/FallbackToolUseErrorMessage.js'
 import { isDenialResultText } from '../../engine/message-shapes/rejectionText.js'
 import { FallbackToolUseRejectedMessage } from '../kit/FallbackToolUseRejectedMessage.js'
-import { FileEditToolDiff } from './EditDiff.js'
+import { EditDiff } from './EditDiff.js'
 import { consentContentWidth } from '../../permissions/cards/consentBodyBudget.js'
-import { FileEditToolUpdatedMessage } from './EditUpdatedMessage.js'
+import { EditUpdatedMessage } from './EditUpdatedMessage.js'
 import { FilePathLink } from '../kit/FilePathLink.js'
 import { HighlightedCode } from '../../screen/highlighted-code/HighlightedCode.js'
 import { MessageResponse } from '../kit/MessageResponse.js'
@@ -62,7 +62,7 @@ export function renderToolResultMessage(
     return <NoChangeMessage filePath={output.filePath} />
   }
   return (
-    <FileEditToolUpdatedMessage
+    <EditUpdatedMessage
       filePath={output.filePath}
       structuredPatch={output.structuredPatch}
       firstLine={firstLineOf(output.originalFile)}
@@ -94,7 +94,7 @@ export function renderToolUseRejectedMessage(
     )
   }
   return (
-    <FileEditToolDiff
+    <EditDiff
       file_path={input.file_path}
       edits={[
         {

@@ -17,7 +17,7 @@ delete process.env.MERCURY_WHISPER_MODEL
 const { whisperDefaultModel, whisperModelsDir, checkWhisperModel } = await import('../../src/integrations/voice/whisperModels.ts')
 const { prepareLocalTranscriber } = await import('../../src/integrations/voice/transcribe.ts')
 const { voiceInputEnabled } = await import('../../src/integrations/voice/voiceSession.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 const context = { options: { engineModel: 'glm-5.3' }, readFileState: createFileStateCacheWithSizeLimit(100), abortController: new AbortController(), messages: [], getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) }
@@ -39,7 +39,7 @@ const source = fileURLToPath(new URL('../voice/fixtures/on-device-take.wav', imp
 const path = join(root, 'speech.wav')
 writeFileSync(path, readFileSync(source))
 async function read() {
-  const result = await FileReadTool.call({ file_path: path }, context as never)
+  const result = await ReadTool.call({ file_path: path }, context as never)
   assert.equal(result.data.type, 'text', 'reading an audio file must return a text transcript; check the audio path of FileReadTool in src/tools/read/ReadTool.ts')
   return (result.data as Extract<typeof result.data, { type: 'text' }>).file.content
 }

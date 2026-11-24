@@ -27,9 +27,9 @@ const { enableConfigs } = await import('../../src/platform/config/globalConfig.t
 enableConfigs()
 const ledger = await import('../../src/tools/engines/change-transaction/seenLines.ts')
 const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { WriteTool } = await import('../../src/tools/write/WriteTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
 const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
@@ -65,7 +65,7 @@ function makeContext(agentId?: string): Ctx {
 const PARENT = { uuid: '00000000-0000-0000-0000-000000000006', message: { id: 'msg_fixture' } }
 type Caller = { call: Function; validateInput: Function; mapToolResultToToolResultBlockParam: Function }
 async function edit(input: Record<string, unknown>, ctx: Ctx): Promise<{ ok: boolean; words: string }> {
-  const tool = FileEditTool as unknown as Caller
+  const tool = EditTool as unknown as Caller
   const verdict = await tool.validateInput(input, ctx)
   if (verdict.result === false) return { ok: false, words: String(verdict.message) }
   try {
@@ -77,7 +77,7 @@ async function edit(input: Record<string, unknown>, ctx: Ctx): Promise<{ ok: boo
   }
 }
 async function write(input: Record<string, unknown>, ctx: Ctx): Promise<{ ok: boolean; words: string }> {
-  const tool = FileWriteTool as unknown as Caller
+  const tool = WriteTool as unknown as Caller
   try {
     const out = await tool.call(input, ctx, null, PARENT)
     const block = tool.mapToolResultToToolResultBlockParam(out.data, 'toolu_write')
@@ -87,7 +87,7 @@ async function write(input: Record<string, unknown>, ctx: Ctx): Promise<{ ok: bo
   }
 }
 async function readResult(input: Record<string, unknown>, ctx: Ctx): Promise<string> {
-  const tool = FileReadTool as unknown as Caller
+  const tool = ReadTool as unknown as Caller
   const out = await tool.call(input, ctx, null, PARENT)
   const block = tool.mapToolResultToToolResultBlockParam(out.data, 'toolu_read')
   return typeof block.content === 'string' ? block.content : ''

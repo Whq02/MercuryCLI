@@ -261,13 +261,13 @@ const { enableConfigs } = await import('../../src/platform/config/globalConfig.t
 enableConfigs()
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 const { createContentReplacementState } = await import('../../src/engine/tool-dispatch/toolResultStorage.ts')
-const { compactConversation, buildPostCompactMessages } = await import('../../src/engine/compaction/foldConversation.ts')
+const { foldConversation, buildPostFoldMessages } = await import('../../src/engine/compaction/foldConversation.ts')
 const { buildTool } = await import('../../src/tools/kit/tool.ts')
 const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
 const { TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/tool-search/prompt.ts')
@@ -353,7 +353,7 @@ async function drive(ctx: Record<string, unknown>, messages: Message[]): Promise
   const yields: AnyMsg[] = []
   let threw: string | undefined
   try {
-    const gen = query({
+    const gen = turnDoor({
       messages: messages as never,
       systemPrompt: ['fixture system prompt'] as never,
       userContext: {},
@@ -530,8 +530,8 @@ for (const road of roads) {
   compacting = true
   process.env.MERCURY_COMPACT_KEEP_TAIL = '0'
   try {
-    const result = await compactConversation(history as never, ctx as never, { systemPrompt: ['fixture system prompt'], userContext: {}, systemContext: {}, toolUseContext: ctx, forkContextMessages: history } as never, true)
-    compacted = buildPostCompactMessages(result)
+    const result = await foldConversation(history as never, ctx as never, { systemPrompt: ['fixture system prompt'], userContext: {}, systemContext: {}, toolUseContext: ctx, forkContextMessages: history } as never, true)
+    compacted = buildPostFoldMessages(result)
   } catch (error) {
     compactThrew = error instanceof Error ? error.message : String(error)
   } finally {

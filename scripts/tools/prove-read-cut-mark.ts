@@ -17,7 +17,7 @@ const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const api = await startFixtureApi([])
 process.env.ANTHROPIC_BASE_URL = api.url
 
-const { FileReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
+const { ReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
 const { checkAnchor } = await import(`${SRC}/tools/engines/change-transaction/snapshotAnchor.ts`)
 const { getEmptyToolPermissionContext } = await import(`${SRC}/tools/kit/tool.ts`)
 const { createFileStateCacheWithSizeLimit } = await import(`${SRC}/platform/files/fileStateCache.ts`)
@@ -74,11 +74,11 @@ type Own = { text: string; body: string; data: ReadData }
 let serial = 0
 async function ownRead(input: Record<string, unknown>, context: unknown = makeContext()): Promise<Own> {
   serial++
-  const result = await (FileReadTool as { call: Function }).call(input, context, null, {
+  const result = await (ReadTool as { call: Function }).call(input, context, null, {
     uuid: `00000000-0000-0000-0000-${String(serial).padStart(12, '0')}`,
     message: { id: `msg_cut_mark_${serial}` },
   })
-  const block = (FileReadTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(result.data, `toolu_${serial}`)
+  const block = (ReadTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(result.data, `toolu_${serial}`)
   const text = typeof block.content === 'string' ? block.content : JSON.stringify(block.content)
   const body = withoutTrailingReminders(text)
   return { text, body, data: result.data as ReadData }

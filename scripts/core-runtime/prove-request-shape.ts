@@ -17,7 +17,7 @@ enableConfigs()
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 
-const { queryModelWithStreaming } = await import(
+const { anthropicCallModel } = await import(
   '../../src/models/roads/anthropic/streamCore.ts'
 )
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
@@ -84,7 +84,7 @@ async function captureRequest(model: string): Promise<Captured> {
     failures++
     controller.abort()
   }, CAPTURE_DEADLINE_MS)
-  const gen = queryModelWithStreaming({
+  const gen = anthropicCallModel({
     messages: [createUserMessage({ content: 'shape fixture prompt' })],
     systemPrompt: asSystemPrompt(['You are the shape fixture.']),
     thinkingConfig: { type: 'disabled' } as never,

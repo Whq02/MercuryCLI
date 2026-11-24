@@ -10,13 +10,13 @@ const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 const { render, Box, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
 const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
-const { CompactBoundaryMessage } = await import('../../src/screen/messages/CompactBoundaryMessage.js')
+const { FoldBoundaryMessage } = await import('../../src/screen/messages/CompactBoundaryMessage.js')
 const { SystemTextMessage } = await import('../../src/screen/messages/SystemTextMessage.js')
 const { createSystemMessage } = await import('../../src/engine/message-shapes/systemMessages.js')
 const { overflowRecoveryNotice } = await import('../../src/engine/compaction/overflowRecovery.js')
 const { stringWidth } = await import('../../src/screen/renderer/stringWidth.js')
 const { formatTokens } = await import('../../src/platform/text/format.js')
-import type { CompactMetadata } from '../../src/engine/message-shapes/message.js'
+import type { FoldMetadata } from '../../src/engine/message-shapes/message.js'
 
 let failures = 0
 function check(label: string, pass: boolean, detail = ''): void {
@@ -29,13 +29,13 @@ const arg = (name: string): string | undefined => {
 }
 
 const pointerId = 'pending:2026-10-16T01:02:03.004Z'
-const ledger = { version: 1, epoch: 2, sourceRecordIds: ['a', 'b'], sourceDigest: 'd', operator: [{ sourceId: 'a', bytes: 120, sha256: 'x' }, { sourceId: 'b', bytes: 80, sha256: 'y' }], tools: [], files: [], run: null, openAsks: [] } as unknown as NonNullable<CompactMetadata['ledger']>
-const committed = { version: 1, epoch: 2, sessionOrdinal: 3, sourceRange: { firstRecordId: 'a', lastRecordId: 'b', firstTurn: 1, lastTurn: 15 }, contentWitness: { algorithm: 'sha256', digest: 'f'.repeat(64) }, item: { content: 'c', context: 'x', topic: 'project' }, state: 'committed', pointer: { id: pointerId, title: 'pending · project', kind: 'fact', footnotes: {} } } as unknown as NonNullable<CompactMetadata['memory']>
-const off = { ...committed, state: 'failed', reason: 'memory is off — nothing was stored' } as unknown as NonNullable<CompactMetadata['memory']>
+const ledger = { version: 1, epoch: 2, sourceRecordIds: ['a', 'b'], sourceDigest: 'd', operator: [{ sourceId: 'a', bytes: 120, sha256: 'x' }, { sourceId: 'b', bytes: 80, sha256: 'y' }], tools: [], files: [], run: null, openAsks: [] } as unknown as NonNullable<FoldMetadata['ledger']>
+const committed = { version: 1, epoch: 2, sessionOrdinal: 3, sourceRange: { firstRecordId: 'a', lastRecordId: 'b', firstTurn: 1, lastTurn: 15 }, contentWitness: { algorithm: 'sha256', digest: 'f'.repeat(64) }, item: { content: 'c', context: 'x', topic: 'project' }, state: 'committed', pointer: { id: pointerId, title: 'pending · project', kind: 'fact', footnotes: {} } } as unknown as NonNullable<FoldMetadata['memory']>
+const off = { ...committed, state: 'failed', reason: 'memory is off — nothing was stored' } as unknown as NonNullable<FoldMetadata['memory']>
 delete (off as unknown as Record<string, unknown>).pointer
 const landing = { input: 57_900 }
 
-type Row = { label: string; meta: CompactMetadata; landing?: { input: number } | null; expect: string[]; absent?: string[] }
+type Row = { label: string; meta: FoldMetadata; landing?: { input: number } | null; expect: string[]; absent?: string[] }
 const rows: Row[] = [
   { label: 'success', meta: { trigger: 'auto', preTokens: 180_000, postTokens: 58_200, ledger, memory: committed, recentRounds: { requested: 10, kept: 10, tokens: 200_000, reason: 'requested-rounds-fit' } }, expect: ['Context compacted automatically', 'last 10 rounds kept whole', '2 operator messages kept whole', `1 fact moved to memory [${pointerId}]`, 'nothing pruned', `${formatTokens(180_000)} → ${formatTokens(58_200)} tokens (estimate)`] },
   { label: 'landed', meta: { trigger: 'auto', preTokens: 180_000, postTokens: 58_200, ledger, memory: committed, recentRounds: { requested: 10, kept: 10, tokens: 200_000, reason: 'requested-rounds-fit' } }, landing, expect: [`${formatTokens(180_000)} → ${formatTokens(57_900)} tokens (provider)`], absent: ['(estimate)'] },
@@ -54,7 +54,7 @@ async function mount(columns: number, terminalRows: number): Promise<string[]> {
   let painted = (): void => {}
   const first = new Promise<void>(resolve => { painted = resolve })
   const children = [
-    ...rows.map(row => React.createElement(CompactBoundaryMessage, { key: row.label, message: { compactMetadata: row.meta }, landing: row.landing ?? null })),
+    ...rows.map(row => React.createElement(FoldBoundaryMessage, { key: row.label, message: { compactMetadata: row.meta }, landing: row.landing ?? null })),
     React.createElement(SystemTextMessage, { key: 'prune', message: createSystemMessage(pruneNotice, 'warning') as never, addMargin: true }),
   ]
   const node = React.createElement(TerminalSizeContext.Provider, { value: { columns, rows: terminalRows } },

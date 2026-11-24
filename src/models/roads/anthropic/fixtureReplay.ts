@@ -18,7 +18,7 @@ import { passedOver } from '../../../platform/errors/passedOver.js'
 import { hostEnv } from '../../../platform/environment/hostEnv.js'
 
 
-type VcrMessage = AssistantMessage | BetaRawMessageStreamEvent | Message | StreamEvent
+type FixtureReplayMessage = AssistantMessage | BetaRawMessageStreamEvent | Message | StreamEvent
 
 function isTestEnvironment(): boolean {
   return hostEnv().NODE_ENV === 'test'
@@ -189,7 +189,7 @@ function fixtureNameFor(messages: Message[]): string {
 
 const REQUEST_ID_PLACEHOLDER = '[REQUEST_ID]'
 
-function mapOutputMessage<T extends VcrMessage>(message: T, map: (text: string) => string, uuid: string): T {
+function mapOutputMessage<T extends FixtureReplayMessage>(message: T, map: (text: string) => string, uuid: string): T {
   const record = message as LooseBlock
   if (record.type !== 'assistant') return message
   const inner = record.message as LooseBlock | undefined
@@ -218,7 +218,7 @@ function mapOutputMessage<T extends VcrMessage>(message: T, map: (text: string) 
   } as T
 }
 
-function addReplayedCost(message: VcrMessage): void {
+function addReplayedCost(message: FixtureReplayMessage): void {
   if (message.type !== 'assistant') return
   const inner = message.message
   if (!inner?.usage || !inner.model) return
@@ -230,7 +230,7 @@ function addReplayedCost(message: VcrMessage): void {
   }
 }
 
-export async function withVCR<T extends VcrMessage>(
+export async function withFixtureReplay<T extends FixtureReplayMessage>(
   messages: Message[],
   produce: () => Promise<T[]>,
 ): Promise<T[]> {
@@ -265,7 +265,7 @@ export async function withVCR<T extends VcrMessage>(
   return live
 }
 
-export async function* withStreamingVCR<T extends VcrMessage>(
+export async function* withStreamingFixtureReplay<T extends FixtureReplayMessage>(
   messages: Message[],
   produce: () => AsyncGenerator<T>,
 ): AsyncGenerator<T> {
@@ -274,7 +274,7 @@ export async function* withStreamingVCR<T extends VcrMessage>(
     return
   }
   const collected: T[] = []
-  const cached = await withVCR(messages, async () => {
+  const cached = await withFixtureReplay(messages, async () => {
     for await (const event of produce()) {
       collected.push(event)
     }
@@ -303,7 +303,7 @@ function normalizeTokenCountInput(text: string): string {
   return out
 }
 
-export async function withTokenCountVCR(
+export async function withTokenCountFixtureReplay(
   messages: Message[],
   tools: unknown[],
   system: readonly unknown[] | undefined,

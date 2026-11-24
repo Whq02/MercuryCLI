@@ -77,7 +77,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${ollama.root}`
 const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const compactModule = await import('../../src/engine/compaction/foldConversation.ts')
-const { compactConversation } = compactModule
+const { foldConversation } = compactModule
 const FOLD_WINDOW_REFUSAL_KEY: string = compactModule.FOLD_WINDOW_REFUSAL_KEY ?? "compaction cannot run on this model's window"
 const overflowModule = await import('../../src/engine/compaction/overflowRecovery.ts')
 const { overflowRefusalText } = overflowModule
@@ -133,7 +133,7 @@ function makeContext(isNonInteractiveSession: boolean): Record<string, unknown> 
 async function runFold(isNonInteractiveSession: boolean): Promise<{ error?: string; result?: unknown }> {
   const ctx = makeContext(isNonInteractiveSession)
   try {
-    const result = await compactConversation(makeMessages() as never, ctx as never, { systemPrompt: asSystemPrompt(['You are a fixture session.']) } as never, true)
+    const result = await foldConversation(makeMessages() as never, ctx as never, { systemPrompt: asSystemPrompt(['You are a fixture session.']) } as never, true)
     return { result }
   } catch (err) {
     return { error: err instanceof Error ? err.message : String(err) }

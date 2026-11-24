@@ -61,7 +61,7 @@ section('R1 · the surfaced count IS the canonical count (level parity incl. blo
   ] as const) {
     const messages = transcriptAt(n)
     let surfaced: number | null = null
-    await compact.shouldAutoCompact(messages as never, MODEL, undefined, 0, raw => {
+    await compact.shouldAutoFold(messages as never, MODEL, undefined, 0, raw => {
       surfaced = raw
     })
     const direct = tokens.tokenCountWithEstimation(messages as never)
@@ -77,15 +77,15 @@ section('R1 · the surfaced count IS the canonical count (level parity incl. blo
 section('R2 · the early returns surface nothing')
 {
   let called = 0
-  await compact.shouldAutoCompact(transcriptAt(1000) as never, MODEL, 'compact', 0, () => {
+  await compact.shouldAutoFold(transcriptAt(1000) as never, MODEL, 'compact', 0, () => {
     called++
   })
-  await compact.shouldAutoCompact(transcriptAt(1000) as never, MODEL, 'session_memory', 0, () => {
+  await compact.shouldAutoFold(transcriptAt(1000) as never, MODEL, 'session_memory', 0, () => {
     called++
   })
   check('forked sources (compact / session_memory) never call onMeasured', called === 0, `called=${called} — shouldAutoCompact in src/engine/compaction/autoFold.ts must return before onMeasured for the compact and session_memory sources`)
   process.env.MERCURY_AUTO_COMPACT = '0'
-  await compact.shouldAutoCompact(transcriptAt(1000) as never, MODEL, undefined, 0, () => {
+  await compact.shouldAutoFold(transcriptAt(1000) as never, MODEL, undefined, 0, () => {
     called++
   })
   delete process.env.MERCURY_AUTO_COMPACT

@@ -24,7 +24,7 @@ const section = (t: string): void => {
 
 const { getGitStatus, getSystemContext, getUserContext } = await import('../../src/engine/requestContext.ts')
 const { getSystemPromptSectionCache, setSystemPromptSectionCacheEntry } = await import('../../src/boot/process-state/processState.ts')
-const { runPostCompactCleanup } = await import('../../src/engine/compaction/postFoldCleanup.ts')
+const { runPostFoldCleanup } = await import('../../src/engine/compaction/postFoldCleanup.ts')
 
 const held = (): string =>
   [getGitStatus.cache.has(undefined) ? 'git' : '', getSystemContext.cache.has(undefined) ? 'system' : '', getUserContext.cache.has(undefined) ? 'user' : ''].filter(Boolean).join('+') || 'none'
@@ -41,25 +41,25 @@ section("§1 a crewmate's fold tagged with its parent's query source touches onl
 {
   await prime()
   check('the main conversation memoises the git status, the system context, the user context and a prompt section', held() === 'git+system+user' && sectionHeld(), `${held()} · section ${sectionHeld()}` + ' | the priming helpers prime() in this file or the memo caches in src/engine/requestContext.ts did not hold')
-  runPostCompactCleanup({ querySource: 'main_thread', agentId: 'aprobe01' })
+  runPostFoldCleanup({ querySource: 'main_thread', agentId: 'aprobe01' })
   check("a crewmate launched by the main thread (its query source is main_thread) folds without clearing the main conversation's memos", held() === 'git+system+user', held() + scopeHint)
   check("…and without clearing the main conversation's system-prompt section cache", sectionHeld(), 'section cache was cleared' + scopeHint)
-  runPostCompactCleanup({ querySource: 'sdk', agentId: 'aprobe02' })
+  runPostFoldCleanup({ querySource: 'sdk', agentId: 'aprobe02' })
   check("a crewmate launched by a headless session (its query source is sdk) folds the same way", held() === 'git+system+user' && sectionHeld(), `${held()} · section ${sectionHeld()}` + scopeHint)
-  runPostCompactCleanup({ querySource: 'agent:builtin:mercury-crew', agentId: 'aprobe03' })
+  runPostFoldCleanup({ querySource: 'agent:builtin:mercury-crew', agentId: 'aprobe03' })
   check('a crewmate tagged with its own agent source folds the same way', held() === 'git+system+user' && sectionHeld(), `${held()} · section ${sectionHeld()}` + scopeHint)
 }
 
 section('§2 the main conversation\'s own fold still clears what a fold invalidates')
 {
-  runPostCompactCleanup({ querySource: 'main_thread' })
+  runPostFoldCleanup({ querySource: 'main_thread' })
   check('the main fold (no agent id) clears the three memos', held() === 'none', held() + ' | fix runPostCompactCleanup in src/engine/compaction/postFoldCleanup.ts (a main-thread fold must clear getGitStatus, getSystemContext and getUserContext)')
   check('…and the section cache', !sectionHeld(), 'section cache still held | fix runPostCompactCleanup in src/engine/compaction/postFoldCleanup.ts (clearSystemPromptSections on a main-thread fold)')
   await prime()
-  runPostCompactCleanup()
+  runPostFoldCleanup()
   check('/compact and /clear (no scope at all) clear them the same way', held() === 'none' && !sectionHeld(), `${held()} · section ${sectionHeld()}` + ' | fix runPostCompactCleanup in src/engine/compaction/postFoldCleanup.ts (a call with no scope is a main-thread fold)')
   await prime()
-  runPostCompactCleanup('sdk')
+  runPostFoldCleanup('sdk')
   check('the headless main fold (a bare sdk source) clears them too', held() === 'none' && !sectionHeld(), `${held()} · section ${sectionHeld()}` + ' | fix isMainThreadCompaction in src/engine/compaction/postFoldCleanup.ts (a bare sdk source is a main-thread fold)')
 }
 

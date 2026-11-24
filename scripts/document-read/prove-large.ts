@@ -58,14 +58,14 @@ try {
     const start = performance.now()
     if (kind === 'pdf') {
       assert.match(await read(path, { offset: 1, limit: 2 }), /Large PDF text survives/)
-      const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+      const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
       const lines = join(root, 'window.docx')
       writeFileSync(lines, zip({ 'word/document.xml': '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' + '<w:p><w:r><w:t>x</w:t></w:r></w:p>'.repeat(2100) + '</w:body></w:document>' }))
-      const result = await FileReadTool.call({ file_path: lines }, context, undefined as any, { uuid: crypto.randomUUID() } as any)
+      const result = await ReadTool.call({ file_path: lines }, context, undefined as any, { uuid: crypto.randomUUID() } as any)
       assert.equal(result.data.type, 'text')
       const numLines = (result.data as any).file.numLines
       assert.ok(numLines <= 2000, `FileReadTool returned ${numLines} lines (> 2000 default window) for window.docx in src/tools/read/ReadTool.ts`)
-      assert.match(JSON.stringify(FileReadTool.mapToolResultToToolResultBlockParam(result.data, 'window')), /Read\(offset:|Read.*limit|read.*offset/i)
+      assert.match(JSON.stringify(ReadTool.mapToolResultToToolResultBlockParam(result.data, 'window')), /Read\(offset:|Read.*limit|read.*offset/i)
       const { parsePdfText } = await import('../../src/tools/kit/pdfText.ts')
       const { pdfFixture, textPage } = await import('./fixtures.ts')
       const abort = new AbortController()

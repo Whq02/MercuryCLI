@@ -45,7 +45,7 @@ enableConfigs()
 const { analyzeContextUsage } = await import('../../src/engine/context-window/analyzeContext.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const openrouter = await import('../../src/models/roads/openrouter/openrouterCatalogue.ts')
 
 const CARRIER = 'openrouter/stealth/ox-alpha'
@@ -58,7 +58,7 @@ async function view(model: string, midway?: () => Promise<unknown>): Promise<{ d
   let ran = 0
   const reached = (): number => ran
   const held = {
-    ...FileReadTool,
+    ...ReadTool,
     name: `HeldRead${++heldTools}`,
     prompt: async (): Promise<string> => {
       if (midway && ran++ === 0) await midway()

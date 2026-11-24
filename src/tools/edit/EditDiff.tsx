@@ -147,7 +147,7 @@ export async function loadDiff(
   }
 }
 
-export function FileEditToolDiff({
+export function EditDiff({
   file_path,
   edits,
   availableWidth,
@@ -223,4 +223,4 @@ export function FileEditToolDiff({
   )
 }
 
-export default FileEditToolDiff
+export default EditDiff

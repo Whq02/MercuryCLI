@@ -151,7 +151,7 @@ section('§5 persistence — the facts survive the snapshot round trip')
 {
   const persisted = JSON.parse(JSON.stringify(state.snapshots)) as FileHistoryState['snapshots']
   const restored: { state: FileHistoryState | null } = { state: null }
-  fh.fileHistoryRestoreStateFromLog(persisted, s => {
+  fh.fileHistoryRestoreStateFromSnapshots(persisted, s => {
     restored.state = s
   })
   check('the restore rebuilt the state from the persisted rows', restored.state !== null && restored.state.snapshots.length === state.snapshots.length)

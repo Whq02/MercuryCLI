@@ -19,8 +19,8 @@ const load = (file: string) => import(pathToFileURL(join(root, file)).href)
 const { getEmptyToolPermissionContext } = await load('src/tools/kit/tool.ts')
 const { decideToolPermission } = await load('src/permissions/rules/decision/engine.ts')
 const { checkPathSafetyForAutoEdit, isMercuryConfigSegment } = await load('src/permissions/rules/filesystem.ts')
-const { FileWriteTool } = await load('src/tools/write/WriteTool.ts')
-const { FileEditTool } = await load('src/tools/edit/EditTool.ts')
+const { WriteTool } = await load('src/tools/write/WriteTool.ts')
+const { EditTool } = await load('src/tools/edit/EditTool.ts')
 let checks = 0
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -65,28 +65,28 @@ try {
   for (const segment of ['SESSION_STATE.md', 'notes', 'plan.md', 'apollo', 'worktrees', 'health', 'settings.md', 'guardian-notes.md'.replace('guardian', 'keeper'), 'local.md', 'mcp.md']) check(`plain segment: ${segment}`, !isMercuryConfigSegment(segment))
 
   console.log('the write ladder under the bypass posture: a note records no would-be ask, a config file still does')
-  for (const [tool, input] of [[FileWriteTool, { file_path: '.mercury/SESSION_STATE.md', content: 'x' }], [FileEditTool, { file_path: '.mercury/SESSION_STATE.md', append: 'x' }]] as const) {
+  for (const [tool, input] of [[WriteTool, { file_path: '.mercury/SESSION_STATE.md', content: 'x' }], [EditTool, { file_path: '.mercury/SESSION_STATE.md', append: 'x' }]] as const) {
     const verdict = await decide(tool, input as never, 'sovereign')
     check(`sovereign ${tool.name} .mercury/SESSION_STATE.md: allowed with no bypassed ask`, verdict.behavior === 'allow' && verdict.decisionReason?.type !== 'bypassedAsk', JSON.stringify(verdict.decisionReason))
   }
   for (const path of ['.mercury/hooks/guard.mjs', '.mercury/mcp.json', '.mercury/MERCURY.local.md']) {
-    const verdict = await decide(FileWriteTool, { file_path: path, content: 'x' }, 'sovereign')
+    const verdict = await decide(WriteTool, { file_path: path, content: 'x' }, 'sovereign')
     check(`sovereign Write ${path}: allowed, the would-be ask recorded as the path-safety road`, verdict.behavior === 'allow' && verdict.decisionReason?.type === 'bypassedAsk' && verdict.decisionReason.road === 'safetyCheckAsk' && String(verdict.decisionReason.reason?.reason ?? '').endsWith(SENSITIVE), JSON.stringify(verdict.decisionReason))
   }
-  const settings = await decide(FileWriteTool, { file_path: '.mercury/settings.local.json', content: '{}' }, 'sovereign')
+  const settings = await decide(WriteTool, { file_path: '.mercury/settings.local.json', content: '{}' }, 'sovereign')
   check('sovereign Write .mercury/settings.local.json: allowed, the would-be ask recorded', settings.behavior === 'allow' && settings.decisionReason?.type === 'bypassedAsk', JSON.stringify(settings.decisionReason))
 
   console.log('the modes that ask still ask for the config files; a note still asks there through the instruction-estate rung')
   for (const mode of ['default', 'implement']) {
     for (const path of ['.mercury/hooks/guard.mjs', '.mercury/settings.local.json', '.mercury/mcp.json']) {
-      const verdict = await decide(FileWriteTool, { file_path: path, content: 'x' }, mode)
+      const verdict = await decide(WriteTool, { file_path: path, content: 'x' }, mode)
       check(`${mode} Write ${path}: asks`, verdict.behavior === 'ask', `${verdict.behavior}: ${verdict.message ?? ''}`)
     }
-    const note = await decide(FileWriteTool, { file_path: '.mercury/SESSION_STATE.md', content: 'x' }, mode)
+    const note = await decide(WriteTool, { file_path: '.mercury/SESSION_STATE.md', content: 'x' }, mode)
     check(`${mode} Write .mercury/SESSION_STATE.md: asks as a file that steers later sessions, not as a sensitive file`, note.behavior === 'ask' && String(note.message ?? '').includes('steers every later session') && !String(note.message ?? '').includes(SENSITIVE), `${note.behavior}: ${note.message ?? ''}`)
   }
   writeFileSync(join(project, 'plain.md'), 'x\n')
-  const plain = await decide(FileWriteTool, { file_path: 'plain.md', content: 'y' }, 'default')
+  const plain = await decide(WriteTool, { file_path: 'plain.md', content: 'y' }, 'default')
   check('default Write plain.md: allowed by the Write rule (control)', plain.behavior === 'allow', `${plain.behavior}: ${plain.message ?? ''}`)
 } finally {
   process.chdir(previous)

@@ -175,7 +175,7 @@ section("§1 the tester's row: an 8,192-token model, a 6.3k prompt (a 4k system 
 {
   w.__resetLocalWindowsForTest()
   const window = resolveContextWindow(MODEL)
-  record(`the window resolves to ${fmt(window.effectiveWindow)} (${window.fallbackReason ?? window.source}); blocking limit ${fmt(autoCompact.getBlockingLimit(MODEL))}, fold point ${fmt(autoCompact.getAutoCompactThreshold(MODEL))}`)
+  record(`the window resolves to ${fmt(window.effectiveWindow)} (${window.fallbackReason ?? window.source}); blocking limit ${fmt(autoCompact.getBlockingLimit(MODEL))}, fold point ${fmt(autoCompact.getAutoFoldThreshold(MODEL))}`)
   const ran = await followUp(4_000, 2_000)
   const error = ran.outcome?.error as { message?: string; class?: string } | undefined
   record(`prompt ≈${fmt(ran.promptTokens)} tokens · outcome ${JSON.stringify(ran.outcome?.status)} ${JSON.stringify(error?.class ?? '')} · request ${ran.chat === undefined ? 'none' : `num_ctx ${String(ran.chat.numCtx)} · ${ran.chat.messages} messages · ${fmt(ran.chat.chars)} chars`}`)

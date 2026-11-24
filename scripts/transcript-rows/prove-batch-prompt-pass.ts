@@ -134,7 +134,7 @@ try {
   const metaBatch = await run(plain, ids, true)
   check('the batch preserves the meta flag and permission mode on every prompt', users(metaBatch.messages).length === 3 && users(metaBatch.messages).every(row => row.isMeta === true && row.permissionMode === 'default'))
 
-  const { createUserMessage, createCompactBoundaryMessage, getMessagesAfterCompactBoundary } = await import('../../src/engine/messages/messages.ts')
+  const { createUserMessage, createFoldBoundaryMessage, getMessagesAfterFoldBoundary } = await import('../../src/engine/messages/messages.ts')
   const { createAttachmentMessage } = await import('../../src/engine/attachments/attachments.ts')
   const { cleanForTranscript } = await import('../../src/sessions/transcripts/chain.ts')
   const foldAttachment = createAttachmentMessage({ type: 'hook', outcome: 'context', event: 'compaction.after', name: 'fold-probe', words: 'FOLD-ATTACHMENT-SENTINEL' })
@@ -142,7 +142,7 @@ try {
     type: 'local', name: 'fold-probe', description: 'compact fixture', isEnabled: () => true, supportsNonInteractive: true,
     load: async () => ({ call: async () => ({
       type: 'compact', compactionResult: {
-        boundaryMarker: createCompactBoundaryMessage('manual', 0),
+        boundaryMarker: createFoldBoundaryMessage('manual', 0),
         summaryMessages: [createUserMessage({ content: 'SUMMARY-SENTINEL', isCompactSummary: true })],
         attachments: [foldAttachment], hookResults: [],
       },
@@ -154,7 +154,7 @@ try {
   } as never)
   const foldSingle = await run(['/fold-probe'], [ids[0]!])
   const foldBatch = await run(['/fold-probe', 'FOLLOW-UP-SENTINEL'], ids.slice(0, 2))
-  const compactView = (messages: Message[]) => JSON.stringify(planApiConversation(getMessagesAfterCompactBoundary(messages)).selected)
+  const compactView = (messages: Message[]) => JSON.stringify(planApiConversation(getMessagesAfterFoldBoundary(messages)).selected)
   const singleView = compactView(foldSingle.messages)
   check('a standalone compact keeps its summary visible to the model', singleView.includes('SUMMARY-SENTINEL'))
   for (const [label, messages] of [['live', foldBatch.messages], ['recorded', cleanForTranscript(foldBatch.messages)]] as const) {

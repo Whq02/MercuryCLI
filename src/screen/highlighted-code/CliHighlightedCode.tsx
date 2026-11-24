@@ -82,7 +82,7 @@ function HighlightedInner({
   return <Ansi dimColor={dim}>{linkifyCodeUrls(text)}</Ansi>
 }
 
-export function HighlightedCodeFallback({
+export function CliHighlightedCode({
   code,
   filePath,
   dim = false,
@@ -104,4 +104,4 @@ export function HighlightedCodeFallback({
   )
 }
 
-export default HighlightedCodeFallback
+export default CliHighlightedCode

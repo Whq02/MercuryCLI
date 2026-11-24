@@ -58,7 +58,7 @@ export function windowWords(view: ContextFillView): string {
   return `${windowFigure(view)} tokens, ${source}${reason}`
 }
 
-export function leftUntilCompactTokens(view: ContextFillView): number | null {
+export function leftUntilFoldTokens(view: ContextFillView): number | null {
   if (view.usedTokens === null || view.compactAtPct === null || view.leftUntilCompactPct === null) return null
   return Math.max(0, Math.round((view.compactAtPct / 100) * view.window) - view.usedTokens)
 }
@@ -73,7 +73,7 @@ export function contextLeftText(view: ContextFillView): string {
     `Context: ${count(view.usedTokens)} of ${windowFigure(view)} tokens used${pct}, ${source}.`,
     `Window: ${windowWords(view)}.`,
   ]
-  const left = leftUntilCompactTokens(view)
+  const left = leftUntilFoldTokens(view)
   if (left === null || view.leftUntilCompactPct === null) {
     lines.push(CONTEXT_LEFT_NO_FOLD_LINE)
   } else {
@@ -93,7 +93,7 @@ export function contextLeftOutput(view: ContextFillView): ContextLeftOutput {
     ...(view.windowReason !== undefined ? { windowReason: view.windowReason } : {}),
     compactAtPct: view.compactAtPct,
     leftUntilCompactPct: view.leftUntilCompactPct,
-    leftUntilCompactTokens: leftUntilCompactTokens(view),
+    leftUntilCompactTokens: leftUntilFoldTokens(view),
     text: contextLeftText(view),
   }
 }

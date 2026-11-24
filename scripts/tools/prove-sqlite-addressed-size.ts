@@ -28,7 +28,7 @@ try {
   const nodeLargeRss = resident(client.pid)
   kit.check('Node: a small addressed row keeps its previous bytes', smallNode === expected, `${smallNode} | an addressed row (path:table/key) must render through renderSqliteTarget in src/tools/read/readRichFormats.ts exactly as before`)
   kit.check('Node: the same row in a 48 MiB database is readable', largeNode === expected, `${largeNode} | an addressed row must not hit the whole-container size gate; see renderSqliteTarget in src/tools/read/readRichFormats.ts`)
-  const dataRead = async (path: string) => { try { return (await kit.FileReadTool.call({ file_path: path }, kit.context)).data.file.content } catch (error) { return String(error) } }
+  const dataRead = async (path: string) => { try { return (await kit.ReadTool.call({ file_path: path }, kit.context)).data.file.content } catch (error) { return String(error) } }
   const smallBun = await dataRead(`${small}:work/1`)
   const bunSmallRss = process.memoryUsage().rss
   const largeBun = await dataRead(`${large}:work/1`)

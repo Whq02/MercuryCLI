@@ -51,7 +51,7 @@ const toolStateMoved = messageRow.toolStateMoved ?? ((): boolean => { throw new 
 const { deriveTranscriptRows } = await import(src('screen/concourse/workerTranscriptFold.ts'))
 const { getTools } = await import(src('tools/kit/toolList.ts'))
 const { EvalTool } = await import(src('tools/eval/EvalTool.ts'))
-const { FileEditTool } = await import(src('tools/edit/EditTool.ts'))
+const { EditTool } = await import(src('tools/edit/EditTool.ts'))
 const { createLiveTurnFold, liveTurnStateOf } = await import(src('sessions/resume/conversationRecovery.ts'))
 const { readTranscriptChainSince } = await import(src('sessions/transcripts/transcriptReader.ts'))
 const { buildMessageLookups, buildSubagentLookups } = await import(src('engine/messages/lookups.ts'))
@@ -294,7 +294,7 @@ section('§B the screen road — the rows over identity-kept records settle when
     for (const l of liveListeners) l()
   }
   slot.setFocusedSessionConnector(seat)
-  const tools = [...getTools(getDefaultAppState().toolPermissionContext).filter(t => t.name !== 'Eval' && t.name !== 'Edit'), EvalTool, FileEditTool]
+  const tools = [...getTools(getDefaultAppState().toolPermissionContext).filter(t => t.name !== 'Eval' && t.name !== 'Edit'), EvalTool, EditTool]
   function Harness(): React.ReactNode {
     const liveNow = React.useSyncExternalStore(seat.subscribeLive as never, seat.live as never, seat.live as never) as typeof IDLE_LIVE
     const recs = React.useSyncExternalStore(seat.subscribeRecords as never, seat.records as never, seat.records as never) as Rec[]

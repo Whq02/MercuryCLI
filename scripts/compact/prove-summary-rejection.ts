@@ -18,7 +18,7 @@ const { setIsInteractive } = await import('../../src/boot/process-state/processS
 setIsInteractive(false)
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
-const { compactConversation, partialCompactConversation, PROSE_SKIPPED_KEY, ERROR_MESSAGE_NO_SUMMARY } = await import('../../src/engine/compaction/foldConversation.ts')
+const { foldConversation, partialFoldConversation, PROSE_SKIPPED_KEY, ERROR_MESSAGE_NO_SUMMARY } = await import('../../src/engine/compaction/foldConversation.ts')
 const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, agentNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'max' }
 let failures = 0
 let checks = 0
@@ -54,8 +54,8 @@ try {
       const before = fixture.captured.length
       try {
         result = direction === 'full'
-          ? await compactConversation(messages, context, cache, false)
-          : await partialCompactConversation(messages, direction === 'from' ? 0 : messages.length, context, cache, undefined, direction)
+          ? await foldConversation(messages, context, cache, false)
+          : await partialFoldConversation(messages, direction === 'from' ? 0 : messages.length, context, cache, undefined, direction)
       } catch (caught) { error = String(caught) }
       if (direction === 'full') {
         const summary = result?.summaryMessages?.[0]?.message.content
@@ -73,8 +73,8 @@ try {
   for (const text of [good, `<summary>${good}</summary>`, `\`\`\`markdown\n${good}\n\`\`\``, 'The provider said "I cannot summarize this conversation" on the previous attempt. The parser still passes 14 checks.']) {
     fixture.script(() => ({ text }))
     const context: any = { abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages, readFileState: new Map(), options: { tools: [], commands: [], mcpClients: [], engineModel: 'claude-sonnet-5-5', maxThinkingTokens: 0, thinkingConfig: { type: 'adaptive' }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
-    let result: Awaited<ReturnType<typeof compactConversation>> | undefined
-    try { result = await compactConversation(messages, context, { systemPrompt: ['Synthetic summary validation proof.'] } as never, false) } catch {}
+    let result: Awaited<ReturnType<typeof foldConversation>> | undefined
+    try { result = await foldConversation(messages, context, { systemPrompt: ['Synthetic summary validation proof.'] } as never, false) } catch {}
     check('a fresh attempt accepts a substantive summary without imposing a format', result?.summaryMessages.length === 1, text, 'the summary validation in src/engine/compaction/fold/summaryCheck.ts rejected a substantive summary; it must accept any non-refusal, non-empty text')
   }
 } finally {

@@ -18,10 +18,10 @@ delete process.env.NODE_ENV
 
 const { fileGeneration, seenLinesOf, _resetSeenLinesForTesting } = await import('../../src/tools/engines/change-transaction/seenLines.ts')
 const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
 const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import('../../src/tools/kit/names/fileEdit.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { WriteTool } = await import('../../src/tools/write/WriteTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
@@ -58,25 +58,25 @@ function makeContext(): Ctx {
 const PARENT = { uuid: '00000000-0000-0000-0000-000000000006', message: { id: 'msg_fixture' } }
 type Verdict = { ok: true; text: string } | { ok: false; message: string }
 async function edit(input: Record<string, unknown>, ctx: Ctx): Promise<Verdict> {
-  const verdict = await (FileEditTool as { validateInput: Function }).validateInput(input, ctx)
+  const verdict = await (EditTool as { validateInput: Function }).validateInput(input, ctx)
   if (verdict.result === false) return { ok: false, message: String(verdict.message) }
   try {
-    const out = await (FileEditTool as { call: Function }).call(input, ctx, null, PARENT)
-    const block = (FileEditTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(out.data, 'toolu_fixture')
+    const out = await (EditTool as { call: Function }).call(input, ctx, null, PARENT)
+    const block = (EditTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(out.data, 'toolu_fixture')
     return { ok: true, text: typeof block.content === 'string' ? block.content : '' }
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : String(err) }
   }
 }
 async function write(path: string, content: string, ctx: Ctx): Promise<void> {
-  const verdict = await (FileWriteTool as { validateInput: Function }).validateInput({ file_path: path, content }, ctx)
+  const verdict = await (WriteTool as { validateInput: Function }).validateInput({ file_path: path, content }, ctx)
   if (verdict.result === false) throw new Error(`fixture write refused: ${String(verdict.message)}`)
-  await (FileWriteTool as { call: Function }).call({ file_path: path, content }, ctx, null, PARENT)
+  await (WriteTool as { call: Function }).call({ file_path: path, content }, ctx, null, PARENT)
 }
 async function read(path: string, ctx: Ctx, lineAnchors: boolean): Promise<string> {
   const input = { file_path: path, offset: 0, limit: 2000, ...(lineAnchors ? { line_anchors: true } : {}) }
-  const out = await (FileReadTool as { call: Function }).call(input, ctx, null, PARENT)
-  const block = (FileReadTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(out.data, 'toolu_read')
+  const out = await (ReadTool as { call: Function }).call(input, ctx, null, PARENT)
+  const block = (ReadTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(out.data, 'toolu_read')
   return typeof block.content === 'string' ? block.content : ''
 }
 const messageOf = (v: Verdict): string => (v.ok ? '(edited)' : v.message)

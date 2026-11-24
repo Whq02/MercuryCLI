@@ -101,8 +101,8 @@ section("§3 the row: the sonnet family's newest generation, its class, its pick
   const caps = await import('../../src/models/facts/capabilities.ts')
   const { foldLegacyWorkerModelKey } = await import('../../src/screen/concourse-model/workerModels.ts')
   const { getGlobalConfig, saveGlobalConfig } = await import('../../src/platform/settings/config.ts')
-  const { getModelStrings } = await import('../../src/models/facts/pinnedModelIds.ts')
-  const OLDEST = getModelStrings().sonnet46
+  const { getPinnedModelIds } = await import('../../src/models/facts/pinnedModelIds.ts')
+  const OLDEST = getPinnedModelIds().sonnet46
 
   check('the generation table lists sonnet55 first, Sonnet 5 second, Sonnet 4.6 third (newest first)', FAMILY_GENERATIONS.sonnet.join(',') === 'sonnet55,sonnet5,sonnet46', FAMILY_GENERATIONS.sonnet.join(','))
   check("newestGenerationKey('sonnet') is sonnet55", newestGenerationKey('sonnet') === 'sonnet55')
@@ -157,14 +157,14 @@ section("§3 the row: the sonnet family's newest generation, its class, its pick
 section('§4 the wire laws as the real model answered: thinking always on, no forced tool choice, the disabled roads omit the parameter, foreign thinking leaves the wire both ways')
 {
   const caps = await import('../../src/models/facts/capabilities.ts')
-  const { sideQueryThinkingParam } = await import('../../src/engine/requests/sideRequest.ts')
+  const { sideRequestThinkingParam } = await import('../../src/engine/requests/sideRequest.ts')
   const { isSameModel, modelSwitchReceipt } = await import('../../src/models/roads/anthropic/thinkingBinding.ts')
   const { stripThinkingFromOtherModels, thinkingFromOtherModels } = await import('../../src/engine/messages/apiFilters.ts')
   const show = (v: unknown): string => JSON.stringify(v)
 
   check('thinking is always on for the row (the [1m] twin too); Sonnet 5 keeps its switch; a carrier row never joins', caps.modelThinkingAlwaysOn(ID) && caps.modelThinkingAlwaysOn(`${ID}[1m]`) && !caps.modelThinkingAlwaysOn(PREVIOUS) && !caps.modelThinkingAlwaysOn('openrouter/anthropic/claude-sonnet-5-5'))
-  check('a side query with thinking off sends NO thinking parameter to the row (never the disabled shape the wire refuses)', sideQueryThinkingParam(ID, false, 4096) === undefined && show(sideQueryThinkingParam(PREVIOUS, false, 4096)) === show({ type: 'disabled' }))
-  check('a side query with a budget rides adaptive on the row (no budget on the wire)', show(sideQueryThinkingParam(ID, 2048, 4096)) === show({ type: 'adaptive' }) && sideQueryThinkingParam(ID, undefined, 4096) === undefined)
+  check('a side query with thinking off sends NO thinking parameter to the row (never the disabled shape the wire refuses)', sideRequestThinkingParam(ID, false, 4096) === undefined && show(sideRequestThinkingParam(PREVIOUS, false, 4096)) === show({ type: 'disabled' }))
+  check('a side query with a budget rides adaptive on the row (no budget on the wire)', show(sideRequestThinkingParam(ID, 2048, 4096)) === show({ type: 'adaptive' }) && sideRequestThinkingParam(ID, undefined, 4096) === undefined)
   check('forced tool choice is refused on the row; Sonnet 5 and a carrier row keep it', !caps.modelSupportsForcedToolChoice(ID) && !caps.modelSupportsForcedToolChoice(`${ID}[1m]`) && caps.modelSupportsForcedToolChoice(PREVIOUS) && caps.modelSupportsForcedToolChoice('openrouter/anthropic/claude-sonnet-5-5'))
   const forcedTool = { type: 'tool', name: 'classify_result' }
   const forcedAny = { type: 'any' }

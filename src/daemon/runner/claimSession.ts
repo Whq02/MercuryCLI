@@ -26,7 +26,7 @@ import { gracefulShutdownSync } from '../../platform/processes/gracefulShutdown.
 import { clearSystemPromptSections } from '../../engine/system-prompt/systemPromptSections.js'
 import { loadConversationForResume } from '../../sessions/resume/conversationRecovery.js'
 import { logError } from '../../platform/logs/errorLog.js'
-import { restoreConversationModel, restoreSessionStateFromLog } from '../../sessions/resume/sessionRestore.js'
+import { restoreConversationModel, restoreSessionStateFromListing } from '../../sessions/resume/sessionRestore.js'
 import { parseUserSpecifiedModel, getEngineModel } from '../../models/catalogue/engineModel.js'
 import { noticeRow } from '../../engine/rows/project.js'
 import type { SessionId } from '../../sessions/transcripts/ids.js'
@@ -119,7 +119,7 @@ export async function claimSession(params: ParamsOf<typeof SESSION_VERBS.claim.r
         switchSession(sid as SessionId, resumed.fullPath ? dirname(resumed.fullPath) : claimedHome)
         live.resumeOf = String(resumed.sessionId ?? sid)
         if (!isSessionPersistenceDisabled()) await resetSessionFilePointer()
-        await restoreSessionStateFromLog(resumed, setAppState)
+        await restoreSessionStateFromListing(resumed, setAppState)
         restoreSessionMetadata(resumed)
         settleSessionBriefs(resumed, true)
         messages.splice(0, messages.length, ...resumed.messages)

@@ -200,8 +200,8 @@ const { localPromptProfileApplies } = await import('../../src/models/roads/local
 const { toolToAPISchema } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
 const { getToolSchemaCache, clearToolSchemaCache } = await import('../../src/models/roads/toolSchemaCache.ts')
 const { FLAG_REGISTRY } = await import('../../src/platform/substrate/flagRegistry.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 await refreshLocalDiscovery({ force: true })
@@ -251,7 +251,7 @@ const ROADS: Road[] = [
 const roadNamed = (name: string): Road => ROADS.find(road => road.road === name)!
 const formSent = (road: Road, arm: Arm): Form => arm ?? (road.local ? 'plain' : 'full')
 
-const POOL = [FileEditTool, FileReadTool] as never
+const POOL = [EditTool, ReadTool] as never
 const permissionContext = getEmptyToolPermissionContext()
 
 function setArm(arm: Arm): void {
@@ -401,7 +401,7 @@ const FAMILIES: Array<{ route: string; model: string; twin: string }> = [
 check('the families are the 24 the router knows, each fixture id on its own route', FAMILIES.length === 24 && new Set(FAMILIES.map(family => family.route)).size === 24 && FAMILIES.every(family => declaredRouteOf(family.model) === family.route && declaredRouteOf(family.twin) === family.route), j(FAMILIES.map(family => `${family.route}=${declaredRouteOf(family.model)}`)))
 
 type Built = { description: string; input_schema: Json }
-const build = async (model: string): Promise<Built> => (await toolToAPISchema(FileEditTool, { getToolPermissionContext: async () => permissionContext, tools: POOL, agents: [], model })) as unknown as Built
+const build = async (model: string): Promise<Built> => (await toolToAPISchema(EditTool, { getToolPermissionContext: async () => permissionContext, tools: POOL, agents: [], model })) as unknown as Built
 const isForm = (built: Built, form: Form): boolean => built.description === FORMS[form].description && j(built.input_schema) === j(FORMS[form].schema)
 const formOf = (built: Built): string => (isForm(built, 'full') ? 'full' : isForm(built, 'plain') ? 'plain' : `neither (${built.description.slice(0, 60)}… ${j(keysOf(built.input_schema))})`)
 const keyBefore = (model: string): string => {
@@ -515,10 +515,10 @@ const SHAPES: Array<[string, Json]> = [
   ['append to a file that is not there', { file_path: absent, append: 'tail' }],
   ['append beside old_string', { file_path: target, append: 'tail', old_string: 'alpha' }],
 ]
-const parses = (input: Json): boolean => (FileEditTool.inputSchema as unknown as { safeParse: (value: unknown) => { success: boolean } }).safeParse(input).success
+const parses = (input: Json): boolean => (EditTool.inputSchema as unknown as { safeParse: (value: unknown) => { success: boolean } }).safeParse(input).success
 const verdictOf = async (input: Json): Promise<string> => {
   try {
-    return j(await FileEditTool.validateInput(structuredClone(input) as never, context))
+    return j(await EditTool.validateInput(structuredClone(input) as never, context))
   } catch (error) {
     return `threw: ${error instanceof Error ? error.message : String(error)}`
   }

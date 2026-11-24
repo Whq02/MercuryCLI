@@ -100,12 +100,12 @@ try {
 
   const folded = advisor.renderAdvisorFoldTranscript([{ kind: 'digest', at: 'earlier', text: advisor.renderAgentDigest([result(fetched), tool('Crewmate', launches[0]!)], undefined).text }])
   check('compaction does not silently reclip a digest at 1200 characters', folded.includes(fetched) && inputsIn(folded)[0]?.effort === 'max')
-  check('the summary prompt preserves the same incomplete-evidence rule', advisor.advisorCompactSummaryPrompt().includes(ADVISOR_INCOMPLETE_EVIDENCE_RULE))
+  check('the summary prompt preserves the same incomplete-evidence rule', advisor.advisorFoldSummaryPrompt().includes(ADVISOR_INCOMPLETE_EVIDENCE_RULE))
   const foldTail = advisor.renderAdvisorFoldTranscript([{ kind: 'digest', at: 'a', text: 'x'.repeat(60_000) }, { kind: 'note', at: 'b', text: 'visible note' }])
   check('a bounded summary transcript marks dropped rows', /^\[1 earlier rows; \d+ characters not shown\]\n\[your note to the agent\] visible note$/.test(foldTail))
   const summaryContext = context('summary')
   summaryContext.rows.push({ kind: 'digest', at: 'a', text: 'older' }, { kind: 'note', at: 'b', text: 'newer' })
-  await advisor.compactAdvisorContext(summaryContext, { model: 'fixture', keep: 1, summarize: async () => 's'.repeat(advisor.ADVISOR_SUMMARY_MAX_CHARS + 10) })
+  await advisor.foldAdvisorContext(summaryContext, { model: 'fixture', keep: 1, summarize: async () => 's'.repeat(advisor.ADVISOR_SUMMARY_MAX_CHARS + 10) })
   check('an overlong summary carries its own omission marker', summaryContext.rows[0]?.text.endsWith('… [10 more characters not shown]'))
 
   const missing = context('partial', oldClaim)

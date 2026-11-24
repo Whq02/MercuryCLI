@@ -1,5 +1,5 @@
 import type { ToolUseContext } from '../../tools/kit/tool.js'
-import { beginQueuedCompact } from '../../screen/composer/input-core/command-queue.js'
+import { beginQueuedFold } from '../../screen/composer/input-core/command-queue.js'
 import type { AssistantMessage, Message } from '../message-shapes/message.js'
 import { isMercurySubstrateProfileOn } from '../../platform/config/derived.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
@@ -16,64 +16,64 @@ import { ownerFromToolUseContext } from '../run-owner/resolveOwner.js'
 import { updateTaskState } from '../task-framework/taskRegistry.js'
 import { setLastSummarizedMessageId } from '../../sessions/session-memory/extractionState.js'
 import type { OverflowSignal } from '../requests/overflowSignal.js'
-import { notifyCompaction } from '../requests/promptCacheBreakDetection.js'
+import { notifyFold } from '../requests/promptCacheBreakDetection.js'
 import { usabilityForRoute } from '../../models/roads/providerUsability.js'
 import { declaredRouteOf } from '../../models/roads/routeLaw.js'
-import { compactionBreakerAllows, decideCompaction, percentUsedFromPercentLeft, type CompactionState } from './foldPolicy.js'
+import { foldBreakerAllows, decideFold, percentUsedFromPercentLeft, type FoldPolicyState } from './foldPolicy.js'
 import {
-  buildPostCompactMessages,
-  compactConversation,
-  compactionPausedForHistoryText,
-  CompactionRefusedForHistoryError,
+  buildPostFoldMessages,
+  foldConversation,
+  foldPausedForHistoryText,
+  FoldRefusedForHistoryError,
   ERROR_MESSAGE_USER_ABORT,
   estimateFixedRequestTokens,
   foldRemedyIsHeadless,
-  isNothingToCompactMessage,
+  isNothingToFoldMessage,
   isRefold,
   manualFoldHasNothingToFold,
-  nothingToCompactLine,
-  nothingToCompactReason,
+  nothingToFoldLine,
+  nothingToFoldReason,
   projectManualFold,
   withFoldStatus,
-  type CompactionResult,
-  type RecompactionInfo,
+  type FoldResult,
+  type RefoldInfo,
 } from './foldConversation.js'
-import { crewmateCompactNothingWords } from '../../screen/cockpit/crewmateWords.js'
+import { crewmateFoldNothingWords } from '../../screen/cockpit/crewmateWords.js'
 import { estimateMessageTokens } from './pruneToolResults.js'
-import { runPostCompactCleanup } from './postFoldCleanup.js'
-import { trySessionMemoryCompaction, shouldUseSessionMemoryCompaction } from './sessionNotesFold.js'
+import { runPostFoldCleanup } from './postFoldCleanup.js'
+import { trySessionNotesFold, shouldUseSessionNotesFold } from './sessionNotesFold.js'
 import { APIUserAbortError } from '../request-parts/sdkErrors.js'
-import { calculateTokenWarningState, getAutoCompactThreshold, getAutoCompactThresholdWithFixed, getBlockingLimit, getEffectiveContextWindowSize, isAutoCompactEnabled, SUMMARY_RESERVE_MAX_WINDOW_DIVISOR, thresholdOverridden } from '../compaction-window/autoFoldWindow.js'
+import { calculateTokenWarningState, getAutoFoldThreshold, getAutoFoldThresholdWithFixed, getBlockingLimit, getEffectiveContextWindowSize, isAutoFoldEnabled, SUMMARY_RESERVE_MAX_WINDOW_DIVISOR, thresholdOverridden } from '../compaction-window/autoFoldWindow.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
-export { MIN_AUTOCOMPACT_WINDOW, MAX_AUTOCOMPACT_WINDOW, WARNING_THRESHOLD_BUFFER_TOKENS, MANUAL_COMPACT_BUFFER_TOKENS, AUTOCOMPACT_BUFFER_TOKENS, autoCompactWindowIsInputLimit, resolveAutoCompactWindow, getEffectiveContextWindowSize, getTurnReserveTokens, getAutoCompactThreshold, getAutoCompactThresholdWithFixed, autoCompactDisabledReason, isAutoCompactEnabled, compactionSettingsText, getBlockingLimit, calculateTokenWarningState } from '../compaction-window/autoFoldWindow.js'
-export type { AutoCompactWindowSource, TokenWarningLevel } from '../compaction-window/autoFoldWindow.js'
+export { MIN_AUTO_FOLD_WINDOW, MAX_AUTO_FOLD_WINDOW, WARNING_THRESHOLD_BUFFER_TOKENS, MANUAL_FOLD_BUFFER_TOKENS, AUTO_FOLD_BUFFER_TOKENS, autoFoldWindowIsInputLimit, resolveAutoFoldWindow, getEffectiveContextWindowSize, getTurnReserveTokens, getAutoFoldThreshold, getAutoFoldThresholdWithFixed, autoFoldDisabledReason, isAutoFoldEnabled, foldSettingsText, getBlockingLimit, calculateTokenWarningState } from '../compaction-window/autoFoldWindow.js'
+export type { AutoFoldWindowSource, TokenWarningLevel } from '../compaction-window/autoFoldWindow.js'
 
 
-void notifyCompaction
+void notifyFold
 
 
 const MAX_CONSECUTIVE_FAILURES = 3
 const RAPID_REFILL_TURN_WINDOW = 2
 const RAPID_REFILL_LIMIT = 3
 
-export const COMPACTION_PAUSED_KEY = 'automatic compaction failed'
+export const FOLD_PAUSED_KEY = 'automatic compaction failed'
 
-type CompactableTask = { type?: string; compactRequested?: boolean; description?: string }
+type FoldableTask = { type?: string; compactRequested?: boolean; description?: string }
 
-export function operatorCompactionAsked(toolUseContext: Pick<ToolUseContext, 'agentId' | 'getAppState'>): boolean {
+export function operatorFoldAsked(toolUseContext: Pick<ToolUseContext, 'agentId' | 'getAppState'>): boolean {
   const agentId = toolUseContext.agentId
   if (agentId === undefined) return false
-  const task = toolUseContext.getAppState().tasks?.[agentId] as CompactableTask | undefined
+  const task = toolUseContext.getAppState().tasks?.[agentId] as FoldableTask | undefined
   return task?.type === 'local_agent' && task.compactRequested === true
 }
 
 function askingCrewmateName(toolUseContext: Pick<ToolUseContext, 'agentId' | 'getAppState'>): string {
   const agentId = toolUseContext.agentId
-  const task = agentId === undefined ? undefined : (toolUseContext.getAppState().tasks?.[agentId] as CompactableTask | undefined)
+  const task = agentId === undefined ? undefined : (toolUseContext.getAppState().tasks?.[agentId] as FoldableTask | undefined)
   return task?.description !== undefined && task.description !== '' ? task.description : String(agentId ?? 'the crewmate')
 }
 
-export function takeOperatorCompactionAsk(toolUseContext: Pick<ToolUseContext, 'agentId' | 'setAppState' | 'setAppStateForTasks'>): void {
+export function takeOperatorFoldAsk(toolUseContext: Pick<ToolUseContext, 'agentId' | 'setAppState' | 'setAppStateForTasks'>): void {
   const agentId = toolUseContext.agentId
   if (agentId === undefined) return
   updateTaskState(agentId, toolUseContext.setAppStateForTasks ?? toolUseContext.setAppState, task => {
@@ -83,13 +83,13 @@ export function takeOperatorCompactionAsk(toolUseContext: Pick<ToolUseContext, '
   })
 }
 
-export function compactionBreakerText(opts: { nonInteractive: boolean }): string {
+export function foldBreakerText(opts: { nonInteractive: boolean }): string {
   const byHand = opts.nonInteractive ? 'The' : '/compact folds the conversation by hand; the'
   const next = opts.nonInteractive ? 'prompt' : 'message'
-  return `${COMPACTION_PAUSED_KEY} ${MAX_CONSECUTIVE_FAILURES} times in a row and is paused for the rest of this run. ${byHand} next ${next} makes a fresh automatic attempt.`
+  return `${FOLD_PAUSED_KEY} ${MAX_CONSECUTIVE_FAILURES} times in a row and is paused for the rest of this run. ${byHand} next ${next} makes a fresh automatic attempt.`
 }
 
-export const AUTOCOMPACT_THRASH_MESSAGE =
+export const AUTO_FOLD_THRASH_MESSAGE =
   `Auto-compaction is looping: the context refilled within ${RAPID_REFILL_TURN_WINDOW - 1} turn of each fold ` +
   `${RAPID_REFILL_LIMIT} times in a row — each turn brings in more than a fold can free, ` +
   `a file read or a tool output larger than the room a fold leaves.`
@@ -101,7 +101,7 @@ export function rapidRefillPauseText(opts: { nonInteractive: boolean }): string 
   return `Automatic compaction is paused for the rest of this run; ${remedy}.`
 }
 
-export type AutoCompactTrackingState = {
+export type AutoFoldTrackingState = {
   compacted: boolean
   turnCounter: number
   turnId: string
@@ -115,8 +115,8 @@ export type FoldModelChoice = { model: string; source: 'seated' | 'history' | 'h
 
 function helperFoldModel(): string | undefined {
   try {
-    const { helperCompactionModelId } = require('../../models/roads/local/tensorfoldHelper.js') as typeof import('../../models/roads/local/tensorfoldHelper.js')
-    return helperCompactionModelId()
+    const { helperFoldModelId } = require('../../models/roads/local/tensorfoldHelper.js') as typeof import('../../models/roads/local/tensorfoldHelper.js')
+    return helperFoldModelId()
   } catch (error) {
     passedOver(error)
     return undefined
@@ -157,7 +157,7 @@ export function foldModelFor(messages: readonly Message[], seated: string, opts:
   return { model: stamped, source: 'history', count }
 }
 
-export function rapidRefillCount(tracking?: AutoCompactTrackingState): number {
+export function rapidRefillCount(tracking?: AutoFoldTrackingState): number {
   if (!tracking) return 0
   if (tracking.compacted && tracking.turnCounter < RAPID_REFILL_TURN_WINDOW) {
     return (tracking.consecutiveRapidRefills ?? 0) + 1
@@ -186,7 +186,7 @@ export function detectFixedPrefixOverflow(
     Math.max(0, totalInput - snipTokensFreed - estimate),
     getEffectiveContextWindowSize(model),
   )
-  const thresholdTokens = getAutoCompactThresholdWithFixed(model, fixedTokens)
+  const thresholdTokens = getAutoFoldThresholdWithFixed(model, fixedTokens)
   if (prefixTokens <= thresholdTokens) return null
 
   let documentBlockCount = 0
@@ -207,7 +207,7 @@ export function detectFixedPrefixOverflow(
   return { prefixTokens, thresholdTokens, documentBlockCount, imageBlockCount }
 }
 
-export async function shouldAutoCompact(
+export async function shouldAutoFold(
   messages: Message[],
   model: string,
   querySource?: string,
@@ -215,7 +215,7 @@ export async function shouldAutoCompact(
   onMeasured?: (rawTokenCount: number) => void,
 ): Promise<boolean> {
   if (querySource === 'session_memory' || querySource === 'compact') return false
-  if (!isAutoCompactEnabled()) return false
+  if (!isAutoFoldEnabled()) return false
   const tokenCount = tokenCountWithEstimation(messages, model) - snipTokensFreed
   const known = await awaitContextWindowSource(model, { estTokens: tokenCount + snipTokensFreed })
   onMeasured?.(tokenCount + snipTokensFreed)
@@ -223,7 +223,7 @@ export async function shouldAutoCompact(
     logForDebugging(`autoCompact: the window of ${model} is not known yet — no decision against the default`)
     return false
   }
-  const threshold = getAutoCompactThreshold(model)
+  const threshold = getAutoFoldThreshold(model)
   const effective = getEffectiveContextWindowSize(model)
   logForDebugging(
     `autoCompact: tokens=${tokenCount} threshold=${threshold} effectiveWindow=${effective}${
@@ -235,19 +235,19 @@ export async function shouldAutoCompact(
 }
 
 
-function ctxCompactionFlagOn(): boolean {
+function ctxFoldFlagOn(): boolean {
   return isEnvTruthy(flagEnv('MERCURY_CTX_COMPACTION'))
 }
 
 function suppressBreakerEnabled(): boolean {
-  return ctxCompactionFlagOn() || isMercurySubstrateProfileOn()
+  return ctxFoldFlagOn() || isMercurySubstrateProfileOn()
 }
 
 function advanceTriggerEnabled(): boolean {
-  return ctxCompactionFlagOn()
+  return ctxFoldFlagOn()
 }
 
-const advanceState = new OwnerScopedStore<CompactionState>({
+const advanceState = new OwnerScopedStore<FoldPolicyState>({
   name: 'autocompact-advance',
   create: () => ({ lastFiredTurn: null, rearmed: true }),
 })
@@ -277,7 +277,7 @@ function tryAdvanceTrigger(
     const { pctLeft } = calculateTokenWarningState(effectiveTokens, model)
     const pctUsed = pctLeft !== undefined ? percentUsedFromPercentLeft(pctLeft) : undefined
     const currentAdvance = advanceState.get(owner)
-    const decision = decideCompaction({
+    const decision = decideFold({
       usage: pctUsed !== undefined ? { percentage: pctUsed } : null,
       state: currentAdvance,
       turn: turnCounter,
@@ -302,18 +302,18 @@ async function runFoldAttempt(opts: {
   customInstructions: string | undefined
   sessionMemoryArmed: boolean
   fixedThreshold: number
-  recompactionInfo: RecompactionInfo
+  recompactionInfo: RefoldInfo
   overflowSignal: OverflowSignal | undefined
   summaryModel: string
-}): Promise<{ compactionResult: CompactionResult; fromMemory: boolean }> {
+}): Promise<{ compactionResult: FoldResult; fromMemory: boolean }> {
   return withFoldStatus(
     opts.toolUseContext,
     async scoped => {
-      const finish = (compactionResult: CompactionResult, fromMemory: boolean) => {
+      const finish = (compactionResult: FoldResult, fromMemory: boolean) => {
         setLastSummarizedMessageId(undefined)
-        runPostCompactCleanup(
+        runPostFoldCleanup(
           { querySource: opts.querySource, owner: opts.owner, agentId: opts.toolUseContext.agentId },
-          buildPostCompactMessages(compactionResult),
+          buildPostFoldMessages(compactionResult),
         )
         return { compactionResult, fromMemory }
       }
@@ -322,7 +322,7 @@ async function runFoldAttempt(opts: {
       }
       if (!opts.customInstructions) {
         const memoryTrigger = opts.asked && !opts.crewmateAsked ? 'manual' : 'auto'
-        const memoryResult = await trySessionMemoryCompaction(
+        const memoryResult = await trySessionNotesFold(
           opts.messages,
           opts.toolUseContext.agentId,
           opts.fixedThreshold,
@@ -333,7 +333,7 @@ async function runFoldAttempt(opts: {
           return finish(memoryResult, true)
         }
       }
-      const compactionResult = await compactConversation(
+      const compactionResult = await foldConversation(
         opts.messages,
         scoped,
         opts.cacheSafeParams,
@@ -353,7 +353,7 @@ async function runFoldAttempt(opts: {
     },
   )
 }
-type AutoCompactResult = Awaited<ReturnType<typeof autoCompactIfNeeded>>
+type AutoFoldResult = Awaited<ReturnType<typeof autoFoldIfNeeded>>
 
 function settleFoldError(opts: {
   error: unknown
@@ -365,8 +365,8 @@ function settleFoldError(opts: {
   rapidRefillBreakerTripped: boolean
   measuredRawTokenCount: number | null
   toolUseContext: ToolUseContext
-  queuedCompact: ReturnType<typeof beginQueuedCompact> | undefined
-}): AutoCompactResult {
+  queuedCompact: ReturnType<typeof beginQueuedFold> | undefined
+}): AutoFoldResult {
   const {
     error,
     forced,
@@ -389,9 +389,9 @@ function settleFoldError(opts: {
     }
   }
   const message = error instanceof Error ? error.message : String(error)
-  if (asked && isNothingToCompactMessage(message)) {
+  if (asked && isNothingToFoldMessage(message)) {
     const refusal = crewmateAsked
-      ? crewmateCompactNothingWords(askingCrewmateName(toolUseContext), message)
+      ? crewmateFoldNothingWords(askingCrewmateName(toolUseContext), message)
       : message
     if (!crewmateAsked) queuedCompact?.complete()
     return {
@@ -403,7 +403,7 @@ function settleFoldError(opts: {
     }
   }
   logError(error)
-  if (error instanceof CompactionRefusedForHistoryError) {
+  if (error instanceof FoldRefusedForHistoryError) {
     logForDebugging(
       `autoCompact: the summary request was refused for a malformed history — automatic compaction is paused for the rest of this run: ${error.providerWords.slice(0, 160)}`,
       { level: 'warn' },
@@ -412,7 +412,7 @@ function settleFoldError(opts: {
       wasCompacted: false,
       consecutiveFailures: MAX_CONSECUTIVE_FAILURES,
       measuredRawTokenCount,
-      refusal: compactionPausedForHistoryText(error.providerWords, { nonInteractive }),
+      refusal: foldPausedForHistoryText(error.providerWords, { nonInteractive }),
       paused: true,
     }
   }
@@ -432,17 +432,17 @@ function settleFoldError(opts: {
   }
 }
 
-export async function autoCompactIfNeeded(
+export async function autoFoldIfNeeded(
   messages: Message[],
   toolUseContext: ToolUseContext,
   cacheSafeParams: CacheSafeParams,
   querySource?: string,
-  tracking?: AutoCompactTrackingState,
+  tracking?: AutoFoldTrackingState,
   snipTokensFreed: number = 0,
   overflowSignal?: OverflowSignal,
 ): Promise<{
   wasCompacted: boolean
-  compactionResult?: CompactionResult
+  compactionResult?: FoldResult
   consecutiveFailures?: number
   consecutiveRapidRefills?: number
   rapidRefillBreakerTripped?: boolean
@@ -472,18 +472,18 @@ export async function autoCompactIfNeeded(
     return notCompacted(forced ? { refusal: rapidRefillPauseText({ nonInteractive: nonInteractive() }) } : undefined)
   }
   if ((priorFailures ?? 0) >= MAX_CONSECUTIVE_FAILURES) {
-    return notCompacted(forced ? { refusal: compactionBreakerText({ nonInteractive: nonInteractive() }) } : undefined)
+    return notCompacted(forced ? { refusal: foldBreakerText({ nonInteractive: nonInteractive() }) } : undefined)
   }
-  if (suppressBreakerEnabled() && !compactionBreakerAllows(priorFailures)) {
+  if (suppressBreakerEnabled() && !foldBreakerAllows(priorFailures)) {
     logForDebugging('autoCompact: Mercury breaker suppressed a doomed retry')
-    return notCompacted(forced ? { refusal: compactionBreakerText({ nonInteractive: nonInteractive() }) } : undefined)
+    return notCompacted(forced ? { refusal: foldBreakerText({ nonInteractive: nonInteractive() }) } : undefined)
   }
   const model = toolUseContext.options.engineModel
   const owner = ownerFromToolUseContext(toolUseContext)
 
-  const operatorAsked = operatorCompactionAsked(toolUseContext)
+  const operatorAsked = operatorFoldAsked(toolUseContext)
   if (operatorAsked) {
-    takeOperatorCompactionAsk(toolUseContext)
+    takeOperatorFoldAsk(toolUseContext)
     logForDebugging(
       `autoCompact: crewmate ${toolUseContext.agentId} folds now — the operator asked for it from the crew view${
         forced ? ' (the overflow fold at this boundary is the one fold)' : ''
@@ -512,7 +512,7 @@ export async function autoCompactIfNeeded(
   } else if (crewmateAsked) {
     shouldCompact = messages.length > 0
   } else {
-    shouldCompact = await shouldAutoCompact(
+    shouldCompact = await shouldAutoFold(
       messagesForMeasure,
       model,
       querySource,
@@ -532,7 +532,7 @@ export async function autoCompactIfNeeded(
         (measuredRawTokenCount ?? tokenCountWithEstimation(messagesForMeasure, model)) - snipTokensFreed
       const blockingLimit = getBlockingLimit(model)
       const oneTurnReserve = Math.ceil(blockingLimit / SUMMARY_RESERVE_MAX_WINDOW_DIVISOR)
-      const fixedThreshold = getAutoCompactThresholdWithFixed(model, fixedTokens)
+      const fixedThreshold = getAutoFoldThresholdWithFixed(model, fixedTokens)
       if (fixedTokens + oneTurnReserve > blockingLimit) {
         heldByFixedMaterial = true
         shouldCompact = false
@@ -555,7 +555,7 @@ export async function autoCompactIfNeeded(
     !shouldCompact &&
     !heldByFixedMaterial &&
     advanceTriggerEnabled() &&
-    isAutoCompactEnabled() &&
+    isAutoFoldEnabled() &&
     querySource !== 'session_memory' &&
     querySource !== 'compact' &&
     querySource !== 'context_agent'
@@ -569,7 +569,7 @@ export async function autoCompactIfNeeded(
     messages.length > 0 &&
     toolUseContext.agentId === undefined &&
     (querySource === 'sdk' || querySource?.startsWith('main_thread') === true)
-      ? beginQueuedCompact(owner)
+      ? beginQueuedFold(owner)
       : undefined
   let asked = crewmateAsked
   if (!shouldCompact && queuedCompact?.fresh === true) {
@@ -608,14 +608,14 @@ export async function autoCompactIfNeeded(
     }
   }
 
-  const fixedThreshold = getAutoCompactThresholdWithFixed(model, fixedTokens)
+  const fixedThreshold = getAutoFoldThresholdWithFixed(model, fixedTokens)
   let restoreFiles = true
   if (asked) {
     const projection = await projectManualFold(
       messages,
       toolUseContext,
       cacheSafeParams,
-      getAutoCompactThreshold(model),
+      getAutoFoldThreshold(model),
     )
     if (projection !== null) {
       const refold = isRefold(messages)
@@ -623,9 +623,9 @@ export async function autoCompactIfNeeded(
         ? manualFoldHasNothingToFold(projection)
         : projection.after >= projection.before
       if (shouldDecline) {
-        const line = nothingToCompactLine(projection.context, nothingToCompactReason(projection, refold))
+        const line = nothingToFoldLine(projection.context, nothingToFoldReason(projection, refold))
         const refusal = crewmateAsked
-          ? crewmateCompactNothingWords(askingCrewmateName(toolUseContext), line)
+          ? crewmateFoldNothingWords(askingCrewmateName(toolUseContext), line)
           : line
         if (!crewmateAsked) queuedCompact?.complete()
         return notCompacted({ measuredRawTokenCount, refusal, declined: true })
@@ -642,7 +642,7 @@ export async function autoCompactIfNeeded(
     )
   }
 
-  const recompactionInfo: RecompactionInfo = {
+  const recompactionInfo: RefoldInfo = {
     isRecompaction: tracking?.compacted === true,
     turnsSincePreviousCompact: tracking?.compacted === true ? tracking.turnCounter : -1,
     ...(tracking?.turnId !== undefined ? { previousCompactTurnId: tracking.turnId } : {}),
@@ -652,7 +652,7 @@ export async function autoCompactIfNeeded(
   }
 
   const customInstructions = queuedCompact?.instructions
-  const sessionMemoryArmed = !customInstructions && shouldUseSessionMemoryCompaction()
+  const sessionMemoryArmed = !customInstructions && shouldUseSessionNotesFold()
   const foldChoice = foldModelFor(messages, model, { forced })
   if (foldChoice.source === 'history') {
     logForDebugging(

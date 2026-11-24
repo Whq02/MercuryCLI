@@ -2,7 +2,7 @@
 import { join } from 'node:path'
 
 import { scanTailForEndedOnError } from '../../src/sessions/transcripts/sessionStoragePortable.js'
-import { formatLogMetadata } from '../../src/platform/text/format.js'
+import { formatListingMetadata } from '../../src/platform/text/format.js'
 import { entryToRecord } from '../../src/sessions/fabric/entryCodec.js'
 import { ordinalOf } from '../../src/sessions/fabric/ordinal.js'
 
@@ -128,9 +128,9 @@ section('(c) honest absence — truncated / unparseable / empty tails ⇒ undefi
 section('(d) formatLogMetadata — the ✕ marker is the LAST part, only when true')
 {
   const base = { modified: new Date(Date.now() - 3600_000), messageCount: 12, gitBranch: 'main', tag: 'work', prNumber: 7, prRepository: 'o/r' }
-  const marked = formatLogMetadata({ ...base, endedOnError: true })
-  const unmarkedFalse = formatLogMetadata({ ...base, endedOnError: false })
-  const unmarkedAbsent = formatLogMetadata(base)
+  const marked = formatListingMetadata({ ...base, endedOnError: true })
+  const unmarkedFalse = formatListingMetadata({ ...base, endedOnError: false })
+  const unmarkedAbsent = formatListingMetadata(base)
   console.log(`       → "${marked}"`)
   check('endedOnError: true ⇒ ends with the ✕ marker', marked.endsWith(' · ✕ ended on error'))
   check('marker is the LAST part (after tag + PR)', marked.indexOf('#work') !== -1 && marked.indexOf('✕ ended on error') > marked.indexOf('#work') && marked.indexOf('o/r#7') !== -1 && marked.indexOf('✕ ended on error') > marked.indexOf('o/r#7'))

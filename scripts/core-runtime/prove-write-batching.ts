@@ -23,9 +23,9 @@ const { createAssistantMessage } = await import('../../src/engine/message-shapes
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 const { runTools } = await import('../../src/engine/tool-dispatch/toolOrchestration.ts')
 const { batchClaimOf, canonicalPath, claimsCompatible, pathsOverlap } = await import('../../src/engine/tool-dispatch/toolBatching.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { WriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
 const { GlobTool } = await import('../../src/tools/glob/GlobTool.ts')
 const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
@@ -112,7 +112,7 @@ function makeCtx(tools: unknown[]): Record<string, unknown> {
 
 section('1 — the claims of the real tools: an edit or a write claims its file for writing, a read or a search claims its path for reading, a shell command claims nothing it can name')
 {
-  const tools = [FileEditTool, FileWriteTool, FileReadTool, GrepTool, GlobTool, BashTool, NotebookEditTool]
+  const tools = [EditTool, WriteTool, ReadTool, GrepTool, GlobTool, BashTool, NotebookEditTool]
   const ctx = makeCtx(tools) as never
   const claim = (name: string, input: Record<string, unknown>) => batchClaimOf({ type: 'tool_use', id: `tu_${name}`, name, input } as never, ctx)
   const edit = await claim('Edit', { file_path: fileA, old_string: 'a = 1', new_string: 'a = 2' })
@@ -234,7 +234,7 @@ const TOOLS = [
   fixtureTool({ name: 'Shell', readOnly: false, safe: false, pathOf: () => undefined }),
 ]
 hint = ''
-check('the fixture tools carry the members the batching law reads, as the real tools do', ['getPath', 'isReadOnly', 'isConcurrencySafe'].every(member => typeof (FileEditTool as unknown as Record<string, unknown>)[member] === 'function' && typeof (FileReadTool as unknown as Record<string, unknown>)[member] === 'function'), 'FileEditTool or FileReadTool (src/tools/FileEditTool, src/tools/read) lost getPath, isReadOnly or isConcurrencySafe, which batchClaimOf in src/engine/tool-dispatch/toolBatching.ts reads; restore it, or update the fixture tools in this file')
+check('the fixture tools carry the members the batching law reads, as the real tools do', ['getPath', 'isReadOnly', 'isConcurrencySafe'].every(member => typeof (EditTool as unknown as Record<string, unknown>)[member] === 'function' && typeof (ReadTool as unknown as Record<string, unknown>)[member] === 'function'), 'FileEditTool or FileReadTool (src/tools/FileEditTool, src/tools/read) lost getPath, isReadOnly or isConcurrencySafe, which batchClaimOf in src/engine/tool-dispatch/toolBatching.ts reads; restore it, or update the fixture tools in this file')
 
 const allowAll = async (_tool: unknown, input: Record<string, unknown>) =>
   ({ behavior: 'allow', updatedInput: input, decisionReason: { type: 'other', reason: 'rig' } }) as never
@@ -391,7 +391,7 @@ section('refusals — traversal and symlink-escape spellings resolve to their ca
 {
   const escapeLink = join(src, 'escape-to-docs')
   const escapeLinked = linked && linkFolder(docs, escapeLink)
-  const tools = [FileEditTool, FileWriteTool, FileReadTool, GrepTool, GlobTool, BashTool, NotebookEditTool]
+  const tools = [EditTool, WriteTool, ReadTool, GrepTool, GlobTool, BashTool, NotebookEditTool]
   const ctx = makeCtx(tools) as never
   const claim = (name: string, input: Record<string, unknown>) => batchClaimOf({ type: 'tool_use', id: `tu_ref_${name}`, name, input } as never, ctx)
   const viaTraversal = await claim('Edit', { file_path: join(src, 'sub', '..', '..', 'docs', 'c.md'), old_string: '# c', new_string: '# c2' })
@@ -405,7 +405,7 @@ section('refusals — traversal and symlink-escape spellings resolve to their ca
   }
   const nulClaim = await claim('Edit', { file_path: `${fileA}\0evil`, old_string: 'a', new_string: 'b' })
   check('a path carrying a NUL byte degrades to an exclusive claim, never batched', nulClaim.kind === 'exclusive', JSON.stringify(nulClaim))
-  const realCtx = makeCtx([FileEditTool, FileWriteTool, FileReadTool])
+  const realCtx = makeCtx([EditTool, WriteTool, ReadTool])
   const unreadBlocks = [
     { type: 'tool_use', id: 'tu_unread_a', name: 'Edit', input: { file_path: fileA, old_string: 'a = 1', new_string: 'a = 9' } },
     { type: 'tool_use', id: 'tu_unread_b', name: 'Edit', input: { file_path: fileB, old_string: 'b = 2', new_string: 'b = 9' } },

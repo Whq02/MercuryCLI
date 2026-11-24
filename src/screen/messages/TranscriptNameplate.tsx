@@ -96,7 +96,7 @@ export function userHandle(): string {
 
 export const QUEUED_PLATE = 'queued'.padEnd(8)
 export const HELD_PLATE = 'held'.padEnd(8)
-export const HELD_FOR_COMPACTION_LINE = 'held until the compaction lands — it delivers once, on its own (↑ takes it back)'
+export const HELD_FOR_FOLD_LINE = 'held until the compaction lands — it delivers once, on its own (↑ takes it back)'
 const plateOf = (meta: { queued?: boolean; heldFor?: 'compaction' }): string => (meta.heldFor === 'compaction' ? HELD_PLATE : QUEUED_PLATE)
 
 type ClockColumnMeta = { timestamp?: string; queued?: boolean; heldFor?: 'compaction' }

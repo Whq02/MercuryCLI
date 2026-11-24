@@ -7,7 +7,7 @@ import { logError } from '../../../platform/logs/errorLog.js'
 import { NotebookEditTool } from '../../../tools/notebook-edit/NotebookEditTool.js'
 import { FilePermissionDialog } from '../file-dialog/FilePermissionDialog.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
-import { NotebookEditToolDiff } from './NotebookEditDiff.js'
+import { NotebookEditDiff } from './NotebookEditDiff.js'
 
 type NotebookEditInput = {
   notebook_path: string
@@ -58,7 +58,7 @@ export function NotebookEditPermissionRequest({
         </Text>
       }
       content={
-        <NotebookEditToolDiff
+        <NotebookEditDiff
           notebook_path={parsed.notebook_path}
           cell_id={parsed.cell_id}
           new_source={parsed.new_source}

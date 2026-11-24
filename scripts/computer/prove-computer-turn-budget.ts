@@ -18,7 +18,7 @@ const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts'
 const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
 const { forgetDesktopOwner } = await import('../../src/integrations/desktop/desktopSession.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 const { flushSessionStorage } = await import('../../src/sessions/transcripts/sessionStorage.ts')
@@ -137,7 +137,7 @@ async function run(replay: boolean) {
   const deadline = setTimeout(() => context.abortController.abort(), 180_000)
   let final = false
   try {
-    const iterator = query({
+    const iterator = turnDoor({
       messages: [createUserMessage({ content: 'Read both labelled webhook values from the automation configuration in the fixture browser. Use only Computer.' })],
       systemPrompt: asSystemPrompt([await ComputerTool.prompt()]),
       userContext: {}, systemContext: {},

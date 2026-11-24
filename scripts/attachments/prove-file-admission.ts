@@ -25,13 +25,13 @@ const spies = [
   spyOn(helpers, 'getFileModificationTimeAsync').mockImplementation(async () => { if (ioFailure) throw Object.assign(new Error(ioFailure), { code: ioFailure }); return stamp }),
   spyOn(pdf, 'getPDFPageCount').mockImplementation(async () => count),
   spyOn(fsops.getFsImplementation(), 'stat').mockImplementation(async () => ({ size, isFile: () => true }) as never),
-  spyOn(read.FileReadTool, 'validateInput').mockResolvedValue({ result: true } as never),
+  spyOn(read.ReadTool, 'validateInput').mockResolvedValue({ result: true } as never),
 ]
 const result = { type: 'text', file: { filePath: path, content: 'new\n', numLines: 2, totalLines: 2, startLine: 1 } }
 const calls: any[] = []
 let overflow = false
 let fitting: Record<string, { offset: number; limit: number }> | null = null
-spies.push(spyOn(read.FileReadTool, 'call').mockImplementation(async input => {
+spies.push(spyOn(read.ReadTool, 'call').mockImplementation(async input => {
   calls.push(input)
   const window = fitting?.[String(input.limit)]
   if (window) throw new read.MaxFileReadTokenExceededError(2, 1, 'fixture overflow', window)

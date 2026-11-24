@@ -17,8 +17,8 @@ delete process.env.MERCURY_EDIT_LEDGER
 delete process.env.NODE_ENV
 
 const { mintFileAnchor, mintRangeAnchor } = await import('../../src/tools/engines/change-transaction/snapshotAnchor.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
@@ -67,8 +67,8 @@ async function run(tool: unknown, input: Record<string, unknown>, ctx: Ctx, id: 
     return { ok: false, message: err instanceof Error ? err.message : String(err) }
   }
 }
-const edit = (input: Record<string, unknown>, ctx: Ctx): Promise<Verdict> => run(FileEditTool, input, ctx, 'toolu_edit')
-const read = (input: Record<string, unknown>, ctx: Ctx): Promise<Verdict> => run(FileReadTool, input, ctx, 'toolu_read')
+const edit = (input: Record<string, unknown>, ctx: Ctx): Promise<Verdict> => run(EditTool, input, ctx, 'toolu_edit')
+const read = (input: Record<string, unknown>, ctx: Ctx): Promise<Verdict> => run(ReadTool, input, ctx, 'toolu_read')
 const textOf = (v: Verdict): string => (v.ok ? v.text : v.message)
 
 const CANARY = 'canary-7f3a9-medic'

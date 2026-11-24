@@ -122,7 +122,7 @@ const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/f
 const { contextFill, tokenCountWithEstimation } = await import('../../src/engine/context-window/contextTokenCount.ts')
 const { contextFillView } = await import('../../src/engine/context-window/contextFill.ts')
 const { requestGaugeDigest } = await import('../../src/engine/run/requestGauge.ts')
-const { buildPostCompactMessages } = await import('../../src/engine/compaction/foldConversation.ts')
+const { buildPostFoldMessages } = await import('../../src/engine/compaction/foldConversation.ts')
 const { estimateContextTokens } = await import('../../src/engine/compaction/pruneToolResults.ts')
 const { call } = await import('../../src/commands/compact/compact.ts')
 
@@ -162,8 +162,8 @@ section('3 the measure: the conversation as stored after a manual fold, read for
     agentId: undefined,
   }
   fixture.script([{ text: 'SUMMARY BY OPUS: the design notes were written one by one and the operator asked to carry on from them.' }, { text: 'never reached' }])
-  const folded = (await call('', context as never)) as { type: string; compactionResult: Parameters<typeof buildPostCompactMessages>[0] }
-  const post = buildPostCompactMessages(folded.compactionResult) as AnyMsg[]
+  const folded = (await call('', context as never)) as { type: string; compactionResult: Parameters<typeof buildPostFoldMessages>[0] }
+  const post = buildPostFoldMessages(folded.compactionResult) as AnyMsg[]
   const stored = [...rows, ...post]
   const recorded = folded.compactionResult.boundaryMarker.compactMetadata.postTokens
   const estimate = FIXED + estimateContextTokens(post as never, SOURCE)

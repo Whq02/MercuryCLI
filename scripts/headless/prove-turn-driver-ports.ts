@@ -70,7 +70,7 @@ const { MAIN_THREAD_AGENT, nudgeWords } = await import('../../src/sessions/notic
 const { statusListeners } = await import('../../src/models/roads/anthropic/anthropicLimits.ts')
 const { EMPTY_USAGE } = await import('../../src/engine/request-parts/emptyUsage.ts')
 
-type Ports = Parameters<typeof driver.printDriverPorts>[0]
+type Ports = Parameters<typeof driver.runnerDriverPorts>[0]
 type Scene = { ports: Ports; live: Ports['live']; messages: unknown[]; rows: Array<Record<string, unknown>>; out: Array<Record<string, unknown>>; advisorRoad: unknown; rateLimitListener: () => void }
 
 function scene(given: Record<string, unknown> = {}): Scene {
@@ -126,7 +126,7 @@ setIsInteractive(false)
 section('§1 the advisor at the turn\'s end and inside a turn')
 {
   const s = scene()
-  const built = driver.printDriverPorts(s.ports)
+  const built = driver.runnerDriverPorts(s.ports)
   const command = { value: 'the words', mode: 'prompt' }
   s.live.turnReachedModel = true
   built.onTurnSettled?.(command as never)
@@ -163,7 +163,7 @@ section('§1 the advisor at the turn\'s end and inside a turn')
 section('§2 the rows the driver asks the runner for')
 {
   const s = scene()
-  const built = driver.printDriverPorts(s.ports)
+  const built = driver.runnerDriverPorts(s.ports)
   s.live.turnsRun = 4
   s.live.activeModel = 'the-seat-model'
   const opened = built.openTurnRow?.(['m-1', 'm-2']) as Record<string, unknown>
@@ -184,21 +184,21 @@ section('§2 the rows the driver asks the runner for')
   check('the real print error callback keeps the failed turn ordinal and identity: the turn in flight, else the count, turn 1 at least', failed.type === 'outcome' && failed.status === 'failed' && failed.turn === 5 && failed.turn_id === 'the-failed-turn' && failed.error?.message === 'the second turn failed' && failed.error.class === 'internal' && first.turn === 1, j([failed.turn, first.turn]))
 
   const limited = scene({ maxTime: { limitMs: 60_000, at: Date.now() - 1 } })
-  const late = driver.printDriverPorts(limited.ports)
+  const late = driver.runnerDriverPorts(limited.ports)
   late.enqueueOutput({ type: 'outcome', status: 'completed', answer: 'done' } as never)
   late.enqueueOutput({ type: 'outcome', status: 'failed' } as never)
   late.enqueueOutput({ type: 'text', text: 'words' } as never)
   const early = scene({ maxTime: { limitMs: 60_000, at: Date.now() + 60_000 } })
-  driver.printDriverPorts(early.ports).enqueueOutput({ type: 'outcome', status: 'completed' } as never)
+  driver.runnerDriverPorts(early.ports).enqueueOutput({ type: 'outcome', status: 'completed' } as never)
   check('a turn that completes after the run\'s time is up ends as time_limit with the limit\'s sentence; any other row passes as it is', limited.out[0]!.status === 'time_limit' && j(limited.out[0]!.error) === j({ class: 'time_limit', message: OUTCOME_SENTENCES.time_limit({ maxTimeMs: 60_000 }) }) && limited.out[0]!.answer === 'done' && limited.out[1]!.status === 'failed' && limited.out[2]!.type === 'text' && early.out[0]!.status === 'completed', j(limited.out))
 
   const p = scene({ executeTurn: async (_command: unknown, _batch: unknown, onMessage: (row: unknown) => void) => void [{ type: 'block_start' }, { type: 'text' }, { type: 'reasoning' }, { type: 'tool_call' }, { type: 'outcome' }].forEach(onMessage) })
   const got: unknown[] = []
-  await driver.printDriverPorts(p.ports).executeTurn({} as never, [], row => void got.push(row), undefined)
+  await driver.runnerDriverPorts(p.ports).executeTurn({} as never, [], row => void got.push(row), undefined)
   check('the party feed is told of each block that opens and each row that lands, and every row still reaches the driver', said('port:party.blockOpen').length === 1 && said('port:party.landed').length === 3 && got.length === 5, j(names()))
 
   const w = scene({ swarmResumes: { hasPending: () => false, waitingSeats: () => 0 } })
-  const waits = driver.printDriverPorts(w.ports)
+  const waits = driver.runnerDriverPorts(w.ports)
   answers.set('getRunningTasks', () => [{ type: 'local_bash' }, { type: 'local_agent' }])
   const open = [waits.hasWaitableBackgroundTasks?.(), waits.waitableBackgroundTaskCount?.(), waits.hasHoldableBackgroundAgents?.()]
   w.live.inputClosed = true
@@ -211,7 +211,7 @@ section('§2 the rows the driver asks the runner for')
 section('§3 the close of the output')
 {
   const s = scene()
-  const built = driver.printDriverPorts(s.ports)
+  const built = driver.runnerDriverPorts(s.ports)
   statusListeners.add(s.rateLimitListener as never)
   phases._resetRunPhasesForTesting()
   await within(built.closeOutput())
@@ -228,15 +228,15 @@ section('§3 the close of the output')
     given.onUsage(EMPTY_USAGE)
     return 'stored'
   })
-  await within(driver.printDriverPorts(c.ports).beforeCloseOutput?.())
+  await within(driver.runnerDriverPorts(c.ports).beforeCloseOutput?.())
   const ask = said('leaveNoteBeforeExit')[0]?.args[0] as { budgetMs?: number } | undefined
   check('run wires the ask to the shared final-close port', said('leaveNoteBeforeExit').length === 1 && ask?.budgetMs === HANDOFF_ASK_BUDGET_MS && c.out.length === 2 && c.out[0]!.type === 'notice' && c.out[0]!.level === 'warning' && c.out[0]!.text === 'the note could not be stored' && c.out[1]!.type === 'close' && c.out[1]!.state === 'stored' && 'usage' in c.out[1]!, j(c.out))
   const nothingDue = scene()
   answers.set('exitNoteDue', () => false)
   answers.set('leaveNoteBeforeExit', async () => 'none')
-  await within(driver.printDriverPorts(nothingDue.ports).beforeCloseOutput?.())
+  await within(driver.runnerDriverPorts(nothingDue.ports).beforeCloseOutput?.())
   const hosted = scene({ isConcourseWorker: true })
-  await within(driver.printDriverPorts(hosted.ports).beforeCloseOutput?.())
+  await within(driver.runnerDriverPorts(hosted.ports).beforeCloseOutput?.())
   check('a run with no note due writes no close row, and a seat the daemon hosts leaves no note at the close of its output', nothingDue.out.length === 0 && said('leaveNoteBeforeExit').length === 0 && hosted.out.length === 0)
 }
 

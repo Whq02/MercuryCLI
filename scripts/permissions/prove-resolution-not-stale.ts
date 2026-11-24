@@ -26,7 +26,7 @@ const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool
 const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
 const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.ts')
 const { checkReadPermissionForTool, getResolvedWorkingDirPaths } = await import('../../src/permissions/rules/filesystem.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 
 let failures = 0
 let checks = 0
@@ -45,7 +45,7 @@ const read = (path: string, mode = 'default'): Decision => checkReadPermissionFo
 const readThroughTool = async (path: string, mode = 'default'): Promise<Decision> => {
   const state = { toolPermissionContext: permissionContext(mode) }
   const context = { abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: [], options: {} } as never
-  return (await decideToolPermissionWithModes(FileReadTool as never, { file_path: path }, context, { message: { id: 'stale' } } as never, 'stale')).decision as Decision
+  return (await decideToolPermissionWithModes(ReadTool as never, { file_path: path }, context, { message: { id: 'stale' } } as never, 'stale')).decision as Decision
 }
 const bash = { name: 'Bash', inputSchema: z.object({ command: z.string() }), checkPermissions: (input: { command: string }, context: { getAppState: () => { toolPermissionContext: unknown } }) => bashToolHasPermission(input, context.getAppState().toolPermissionContext as never) } as never
 const decide = async (command: string, mode = 'default'): Promise<Decision> => {

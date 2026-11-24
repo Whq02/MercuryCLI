@@ -55,7 +55,7 @@ const guard = setTimeout(() => {
 }, 120_000)
 guard.unref?.()
 
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
@@ -264,7 +264,7 @@ function startLoop(extras: Record<string, unknown> = {}): Loop {
     onSeatWait: (words: string | null) => { waitWords = words },
     ...extras,
   }
-  const gen = query({
+  const gen = turnDoor({
     messages: [createUserMessage({ content: 'hello from scout' })] as never,
     systemPrompt: ['rig system prompt'] as never,
     userContext: {},

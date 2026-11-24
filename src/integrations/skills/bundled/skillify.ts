@@ -1,6 +1,6 @@
 import { registerBundledSkill } from '../bundledSkills.js'
 import { getSessionMemoryContent } from '../../../sessions/session-memory/extractionState.js'
-import { isCompactBoundaryMessage } from '../../../engine/message-shapes/systemMessages.js'
+import { isFoldBoundaryMessage } from '../../../engine/message-shapes/systemMessages.js'
 import { ASK_USER_QUESTION_TOOL_NAME } from '../../../tools/ask-question/prompt.js'
 import type { Message } from '../../../engine/message-shapes/message.js'
 import { passedOverAs } from '../../../platform/errors/passedOver.js'
@@ -10,7 +10,7 @@ const MESSAGE_SEPARATOR = '\n---\n'
 function collectUserMessages(messages: Message[]): string {
   let start = 0
   for (let i = messages.length - 1; i >= 0; i--) {
-    if (isCompactBoundaryMessage(messages[i]!)) {
+    if (isFoldBoundaryMessage(messages[i]!)) {
       start = i + 1
       break
     }

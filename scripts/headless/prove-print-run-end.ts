@@ -48,7 +48,7 @@ await spied('src/platform/logs/debugLog.ts', ['logForDebugging'])
 await spied('src/platform/logs/headlessProfiler.ts', ['logHeadlessProfilerTurn'])
 await spied('src/boot/process-state/processState.ts', ['getTotalAPIDuration'])
 
-const { finishPrintRun, pumpOutbound } = await import('../../src/daemon/runner/runnerRunEnd.ts')
+const { finishRun, pumpOutbound } = await import('../../src/daemon/runner/runnerRunEnd.ts')
 const { createRunnerState } = await import('../../src/daemon/runner/runnerPorts.ts')
 const { exitCodeOf, OUTCOME_SENTENCES } = await import('../../src/engine/rows/vocabulary.ts')
 const { ndjsonSafeStringify } = await import('../../src/daemon/runner/ndjsonSafeStringify.ts')
@@ -56,7 +56,7 @@ const { getSessionId, setIsInteractive } = await import('../../src/boot/process-
 const API_MS = 4_321
 answers.set('getTotalAPIDuration', () => API_MS)
 
-type Ports = Parameters<typeof finishPrintRun>[1]
+type Ports = Parameters<typeof finishRun>[1]
 type Fault = { stream: 'stdout' | 'stderr'; code: string }
 type Ended = { out: string; err: string; exit: unknown; shutdowns: number; broken: boolean; marked: number; threw: string | null; settled: boolean; exitCode: unknown; debug: string[]; shutdownPhases: string[] }
 
@@ -92,7 +92,7 @@ async function end(given: { last?: Record<string, unknown> | null; format?: stri
   process.stderr.write = taking('stderr')
   let settled: unknown
   try {
-    settled = await within(finishPrintRun(given.unwritten ?? null, ports).catch((error: unknown) => void (threw = error instanceof Error ? error.message : String(error))))
+    settled = await within(finishRun(given.unwritten ?? null, ports).catch((error: unknown) => void (threw = error instanceof Error ? error.message : String(error))))
   } finally {
     process.stdout.write = real.out
     process.stderr.write = real.err

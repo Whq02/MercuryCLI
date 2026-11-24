@@ -3,7 +3,7 @@ import { useCallback, useRef, useState } from 'react';
 import type { ResumeEntrypoint } from '../../commands/catalogue/commands.js';
 import { useMessageActions, type MessageActionsNav } from '../messages/messageActions.js';
 import { useMessageCursorActive } from '../messages/messageCursorStore.js';
-import { MessageSelector } from '../rewind-picker/RewindPicker.js';
+import { RewindPicker } from '../rewind-picker/RewindPicker.js';
 import type { useNotifications } from '../notifications/notifications.js';
 import { setClipboardWithReceipt } from '../renderer/termio/osc.js';
 import * as pendingInput from '../composer/input-core/pending-input.js';
@@ -21,7 +21,7 @@ import { transcriptMessageIndex } from '../../sessions/transcripts/materialize.j
 import type { FocusedInputDialog } from './focusedDialog.js';
 import { RECEIPT_TIMEOUT_MS } from './limits.js';
 import type { Screen } from './screen.js';
-import type { ResumableLog } from './sessionShapes.js';
+import type { ResumableListing } from './sessionShapes.js';
 
 const REWIND_SETTLE_WAIT_MS = 5000;
 const MESSAGE_ACTION_UUID_PREFIX = 24;
@@ -39,7 +39,7 @@ function rewindReceiptLine(receipt: RewindReceiptV1): string {
   return `rewound: ${parts.join(' · ')}`;
 }
 
-export function useChatSelector() {
+export function useChatRewindPicker() {
   const [showMessageSelector, setShowMessageSelector] = useState(false);
   const openMessageSelector = useCallback(() => setShowMessageSelector(true), []);
   const [messageSelectorPreselect, setMessageSelectorPreselect] = useState<UserMessage | undefined>(undefined);
@@ -79,7 +79,7 @@ export function useChatSelectorView({
   setScreen: (screen: Screen) => void;
   setShowAllInTranscript: (showAll: boolean) => void;
   isLoadingRef: { current: boolean };
-  resume: (sessionId: UUID, log: ResumableLog, entrypoint: ResumeEntrypoint) => Promise<void>;
+  resume: (sessionId: UUID, log: ResumableListing, entrypoint: ResumeEntrypoint) => Promise<void>;
 }) {
   const refuseSessionRewrite = useCallback((what: string): void => {
     addNotification({
@@ -151,7 +151,7 @@ export function useChatSelectorView({
 
   const messageSelector =
     focusedInputDialog === 'message-selector' && !chatSurfaceCovered ? (
-      <MessageSelector
+      <RewindPicker
         messages={messages}
         onPreRestore={onCancel}
         onRestore={onRestore}
@@ -197,7 +197,7 @@ export function useChatSelectorView({
           const { loadConversationForResume } = await import('../../sessions/resume/conversationRecovery.js');
           const loaded = await loadConversationForResume(branchId, branch.branchTranscriptPath);
           if (!loaded) return { ok: false as const, reason: `branch created but not loadable — mercury --resume ${branchId}` };
-          const branchLog: ResumableLog = { ...loaded, fullPath: branch.branchTranscriptPath };
+          const branchLog: ResumableListing = { ...loaded, fullPath: branch.branchTranscriptPath };
           setShowMessageSelector(false);
           setMessageSelectorPreselect(undefined);
           await resume(branchId, branchLog, 'fork');

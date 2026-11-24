@@ -36,8 +36,8 @@ console.log('\n=== harness-known files need no redundant Read (AVS MEMORY.md) ==
 
   const { getDefaultAppState } = await import('../../src/screen/app-state/AppState.js')
   const appState = getDefaultAppState()
-  const { FileWriteTool } = await import('../../src/tools/write/WriteTool.js')
-  const verdict = await FileWriteTool.validateInput(
+  const { WriteTool } = await import('../../src/tools/write/WriteTool.js')
+  const verdict = await WriteTool.validateInput(
     { file_path: guide, content: 'x' },
     { readFileState: cache, getAppState: () => appState } as never,
   )
@@ -54,11 +54,11 @@ console.log('\n=== harness-known files need no redundant Read (AVS MEMORY.md) ==
     abortController: new AbortController(),
     getAppState: () => appState,
   } as never
-  const blind = await FileWriteTool.validateInput({ file_path: blindPath, content: 'changed\n' }, blindCtx)
+  const blind = await WriteTool.validateInput({ file_path: blindPath, content: 'changed\n' }, blindCtx)
   check('validateInput is content-free — the gate moved to call', blind.result === true, 'FileWriteTool.validateInput in src/tools/write/WriteTool.ts must not read file content or refuse an unread existing file; the prior-read gate belongs in call')
   let refusal = ''
   try {
-    await (FileWriteTool as { call: Function }).call({ file_path: blindPath, content: 'changed\n' }, blindCtx, null, {
+    await (WriteTool as { call: Function }).call({ file_path: blindPath, content: 'changed\n' }, blindCtx, null, {
       uuid: '00000000-0000-0000-0000-0000000000b1',
       message: { id: 'msg_vigil_blind' },
     })

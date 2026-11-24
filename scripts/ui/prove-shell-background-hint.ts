@@ -64,7 +64,7 @@ const { FullscreenLayout } = await import(src('screen/fullscreen-layout/Fullscre
 const { default: Composer } = await import(src('screen/composer/Composer.tsx'))
 const { SpinnerWithVerb } = await import(src('screen/spinner/Spinner.tsx'))
 const { FocusedSessionStatusRow } = await import(src('screen/chat/SwitchboardTagBar.tsx'))
-const { CancelRequestHandler, backgroundShellNotice } = await import(src('screen/chat/interruptKeys.ts'))
+const { InterruptKeys, backgroundShellNotice } = await import(src('screen/chat/interruptKeys.ts'))
 const { resetChromeModeLatchForTests } = await import(src('screen/fullscreen-layout/useLayoutTier.ts'))
 const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import(src('screen/routes/surfaceRoute.ts'))
 const { enableConfigs, saveCurrentProjectConfig, saveGlobalConfig } = await import(src('platform/settings/config.ts'))
@@ -83,7 +83,7 @@ const { RowErrorBoundary } = await import(src('screen/messages/RowErrorBoundary.
 const { deriveTranscriptRows } = await import(src('screen/concourse/workerTranscriptFold.ts'))
 const { getTools } = await import(src('tools/kit/toolList.ts'))
 const { BashTool } = await import(src('tools/shell/BashTool.tsx'))
-const { FileReadTool } = await import(src('tools/read/ReadTool.ts'))
+const { ReadTool } = await import(src('tools/read/ReadTool.ts'))
 const { useTerminalSize } = await import(src('screen/fullscreen-layout/useTerminalSize.ts'))
 const { activeToolVerb } = await import(src('screen/cockpit/toolVerb.ts'))
 const { getBindingDisplayText } = await import(src('screen/keys/resolver.ts'))
@@ -460,7 +460,7 @@ section('§2 the standalone tool row (the plain chrome) — the hint under a run
   check('a row about to cross the threshold paints no hint on its first frame', hintLines(crossing).length === 0, around(crossing, marker('crossing')))
   await until('the hint appears by itself once the row crosses the threshold (the tick, no outside repaint)', () => hintLines(world.lines()).length === 1, 6000)
 
-  const other = await show({ id: 'toolu_e', name: 'Read', input: { file_path: join(PROJECT, 'notes.md') }, tool: FileReadTool, running: true, painted: 'notes.md' }, AFTER_MS + 5_000)
+  const other = await show({ id: 'toolu_e', name: 'Read', input: { file_path: join(PROJECT, 'notes.md') }, tool: ReadTool, running: true, painted: 'notes.md' }, AFTER_MS + 5_000)
   check('a 105 s-old running Read row paints no hint', hintLines(other).length === 0 && !other.some(line => line.includes(WORDS)), around(other, 'notes.md'))
 
   const done = await show(scene('toolu_f', 'done', { running: false }), AFTER_MS + 5_000)
@@ -613,7 +613,7 @@ async function chromeWorld(name: string, helmHome: '0' | '1'): Promise<void> {
     const [bashes, setBashes] = React.useState<string | boolean>(false)
     const running = live.inProgressToolUseIDs.size > 0
     return h(KeybindingSetup, null,
-      h(CancelRequestHandler, { screen: 'prompt' as never, focusedTurnActive: live.inFlight }),
+      h(InterruptKeys, { screen: 'prompt' as never, focusedTurnActive: live.inFlight }),
       h(FullscreenLayout, {
         scrollRef,
         scrollable: h(Transcript),

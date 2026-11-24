@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { Message, SystemCompactBoundaryMessage } from '../../src/engine/message-shapes/message.ts'
+import type { Message, SystemFoldBoundaryMessage } from '../../src/engine/message-shapes/message.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const resumed = process.argv[2] === '--resume'
@@ -22,7 +22,7 @@ const { getTranscriptPath } = await import('../../src/sessions/transcripts/paths
 const { getProject, recordTranscript } = await import('../../src/sessions/transcripts/writer.ts')
 const { decodeTranscriptBuffer } = await import('../../src/sessions/fabric/transcriptDecode.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const { compactConversation, partialCompactConversation, buildPostCompactMessages } = await import('../../src/engine/compaction/foldConversation.ts')
+const { foldConversation, partialFoldConversation, buildPostFoldMessages } = await import('../../src/engine/compaction/foldConversation.ts')
 const { buildFoldLedger, renderFoldLedger, withKeptLedgerRows } = await import('../../src/engine/compaction/foldLedger.ts')
 const { foldReceipt } = await import('../../src/engine/compaction/foldReceipt.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
@@ -36,8 +36,8 @@ const context = () => ({
   options: { tools: [], mcpClients: [], commands: [], agentDefinitions: { activeAgents: [] }, engineModel: 'claude-opus-4-8', thinkingConfig: { type: 'disabled' }, isNonInteractiveSession: true },
 }) as never
 const { historyLines } = await import('../../src/sessions/transcripts/historyParts.ts')
-const boundaries = (): SystemCompactBoundaryMessage[] => {
-  const out: SystemCompactBoundaryMessage[] = []
+const boundaries = (): SystemFoldBoundaryMessage[] => {
+  const out: SystemFoldBoundaryMessage[] = []
   for (const line of historyLines(getTranscriptPath())) {
     for (const row of decodeTranscriptBuffer<Message>(line).entries) if (row.type === 'system' && row.subtype === 'compact_boundary') out.push(row)
   }
@@ -62,7 +62,7 @@ function check(label: string, fn: () => void) {
 try {
   if (!resumed) {
     const fixture = JSON.parse(readFileSync(new URL('./fixtures/fold-ledger-v1.json', import.meta.url), 'utf8'))
-    const marker = (uuid: string, ledger: NonNullable<SystemCompactBoundaryMessage['compactMetadata']['ledger']>): Message => ({ type: 'system', subtype: 'compact_boundary', uuid, compactMetadata: { ledger } } as Message)
+    const marker = (uuid: string, ledger: NonNullable<SystemFoldBoundaryMessage['compactMetadata']['ledger']>): Message => ({ type: 'system', subtype: 'compact_boundary', uuid, compactMetadata: { ledger } } as Message)
     const legacy = fixture.ledger
     const input = (ledger: typeof legacy) => [marker('boundary-1', ledger), fixture.first[0], ...fixture.tail]
     const snapshot = JSON.stringify(legacy)
@@ -112,8 +112,8 @@ try {
     counts.push(seen.size)
     await recordTranscript(history)
     const ctx = context()
-    const result = await compactConversation(history, ctx, { systemPrompt: ['fixture'] as never, userContext: {}, systemContext: {}, toolUseContext: ctx, forkContextMessages: [] }, true)
-    history = buildPostCompactMessages(result)
+    const result = await foldConversation(history, ctx, { systemPrompt: ['fixture'] as never, userContext: {}, systemContext: {}, toolUseContext: ctx, forkContextMessages: [] }, true)
+    history = buildPostFoldMessages(result)
     await recordTranscript(history)
     await getProject().flush()
   }
@@ -152,7 +152,7 @@ try {
     for (const direction of ['from', 'up_to'] as const) {
       const input = stretch(8)
       const ctx = context()
-      const partial = await partialCompactConversation(input, 12, ctx, { systemPrompt: ['fixture'] as never, userContext: {}, systemContext: {}, toolUseContext: ctx, forkContextMessages: [] }, undefined, direction)
+      const partial = await partialFoldConversation(input, 12, ctx, { systemPrompt: ['fixture'] as never, userContext: {}, systemContext: {}, toolUseContext: ctx, forkContextMessages: [] }, undefined, direction)
       check(`the partial ${direction} boundary carries only the actual kept row identities`, () => {
         const ledger = partial.boundaryMarker.compactMetadata.ledger!
         assert.equal(ledger.version, 2)

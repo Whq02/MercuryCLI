@@ -16,7 +16,7 @@ process.env.MERCURY_COMPACT_KEEP_TAIL = '1'
 process.env.MERCURY_TURN_RECEIPT = '1'
 const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { compactConversation, partialCompactConversation, buildPostCompactMessages } = await import('../../src/engine/compaction/foldConversation.ts')
+const { foldConversation, partialFoldConversation, buildPostFoldMessages } = await import('../../src/engine/compaction/foldConversation.ts')
 const { injectTurnReceipts } = await import('../../src/screen/cockpit/turnReceipt.ts')
 const { normalizeMessages } = await import('../../src/engine/message-shapes/normalize.ts')
 const { buildAwayRecap } = await import('../../src/screen/cockpit/awaySummary.ts')
@@ -73,7 +73,7 @@ const makeContext = () => {
 }
 const api = await startFixtureApi(Array.from({ length: 16 }, () => ({ kind: 'text' as const, text: 'The inventory reader was repaired and its tests passed. Preserve the completed work and continue with the next operator request.' })))
 process.env.ANTHROPIC_BASE_URL = api.url
-const fold = (messages: Message[]) => compactConversation(messages, makeContext(), { systemPrompt: ['fixture posture'] } as never, true)
+const fold = (messages: Message[]) => foldConversation(messages, makeContext(), { systemPrompt: ['fixture posture'] } as never, true)
 let diskIndex = 0
 async function resumed(original: Message[], result: Awaited<ReturnType<typeof fold>>, oldShape = false): Promise<readonly Message[]> {
   const copy = structuredClone(result)
@@ -88,7 +88,7 @@ async function resumed(original: Message[], result: Awaited<ReturnType<typeof fo
     rows.push(entry)
   }
   for (const message of original) append(message)
-  for (const message of buildPostCompactMessages(copy).filter(m => !(copy.messagesToKeep ?? []).some(kept => kept.uuid === m.uuid))) append(message, message === copy.boundaryMarker)
+  for (const message of buildPostFoldMessages(copy).filter(m => !(copy.messagesToKeep ?? []).some(kept => kept.uuid === m.uuid))) append(message, message === copy.boundaryMarker)
   const path = join(home, `session-${diskIndex++}.jsonl`)
   writeFileSync(path, encodeSeedTranscript(rows, sessionId, new Date(clock).toISOString()))
   const read = await readTranscriptChainSince(path, null)
@@ -99,7 +99,7 @@ try {
   const before = counts(history)
   check('fixture is the full reported turn', before[0]?.fileEdits === 3 && before[0]?.adds === 14 && before[0]?.dels === 2 && before[0]?.reads === 3 && before[0]?.searches === 1 && before[0]?.commands === 7, JSON.stringify(before))
   const result = await fold(history)
-  const after = buildPostCompactMessages(result)
+  const after = buildPostFoldMessages(result)
   check('fold prunes part of the turn', (result.messagesToKeep?.length ?? 0) > 0 && result.messagesToKeep!.length < history.length)
   check('work line retains the full turn after the fold', equal(counts(after), before), JSON.stringify(counts(after)))
   check('resume card retains the full work after the fold', equal(recap(after), recap(history)), JSON.stringify(recap(after)))
@@ -113,7 +113,7 @@ try {
   check('old-shape sessions keep their existing recap fallback', equal(recap(legacyCold), recap(legacy)))
   check('old-shape fallback remains the kept-tail counts', counts(legacy)[0]?.fileEdits === 2 && counts(legacy)[0]?.reads === 1 && counts(legacy)[0]?.commands === 6, JSON.stringify(counts(legacy)))
   check('the original receipt identity survives folding and resume', receipts(after)[0]?.uuid === receipts(history)[0]?.uuid && receipts(cold)[0]?.uuid === receipts(history)[0]?.uuid)
-  const grouped = buildPostCompactMessages({ ...result, messagesToKeep: [] }) as RenderableMessage[]
+  const grouped = buildPostFoldMessages({ ...result, messagesToKeep: [] }) as RenderableMessage[]
   grouped.push({ type: 'grouped_tool_use', uuid: randomUUID(), messages: result.messagesToKeep!.filter(m => m.type === 'assistant'), results: result.messagesToKeep!.filter(m => m.type === 'user') } as RenderableMessage)
   check('a grouped retained tail receives its folded counts once', equal(injectTurnReceipts(grouped, tmpdir()).filter(m => m.type === 'turn_receipt').map(m => m.counts), before))
 
@@ -126,34 +126,34 @@ try {
   const extra = [...round('Bash'), assistant([{ type: 'text', text: 'One more check passed.' }])]
   const continued = [...after, ...extra]
   const repeated = await fold(continued)
-  check('a repeated fold carries earlier counts and new work exactly once', equal(counts(buildPostCompactMessages(repeated)), counts([...history, ...extra])))
-  check('a repeated fold retains the cumulative recap', equal(recap(buildPostCompactMessages(repeated)), recap([...history, ...extra])))
+  check('a repeated fold carries earlier counts and new work exactly once', equal(counts(buildPostFoldMessages(repeated)), counts([...history, ...extra])))
+  check('a repeated fold retains the cumulative recap', equal(recap(buildPostFoldMessages(repeated)), recap([...history, ...extra])))
   const repeatedCold = await resumed(continued, repeated)
   check('a repeated fold remains exact after disk replay', equal(counts(repeatedCold), counts([...history, ...extra])) && equal(recap(repeatedCold), recap([...history, ...extra])))
 
   const secondTurn = [user('Read the tests once more.'), ...round('Read', { file_path: '/repo/test_inventory.py' }), assistant([{ type: 'text', text: 'The tests still cover the fix.' }])]
   const multiple = [...history, ...secondTurn]
   const multipleFold = await fold(multiple)
-  check('retained prompts keep adjacent turn counts separate', equal(counts(buildPostCompactMessages(multipleFold)), counts(multiple)), JSON.stringify(counts(buildPostCompactMessages(multipleFold))))
-  check('retained prompts do not double-count recap turns or files', equal(recap(buildPostCompactMessages(multipleFold)), recap(multiple)))
+  check('retained prompts keep adjacent turn counts separate', equal(counts(buildPostFoldMessages(multipleFold)), counts(multiple)), JSON.stringify(counts(buildPostFoldMessages(multipleFold))))
+  check('retained prompts do not double-count recap turns or files', equal(recap(buildPostFoldMessages(multipleFold)), recap(multiple)))
   const multipleCold = await resumed(multiple, multipleFold)
   check('multiple kept turns remain separate on cold resume', equal(counts(multipleCold), counts(multiple)))
 
   for (const direction of ['up_to', 'from'] as const) {
-    const partial = await partialCompactConversation(history, 11, makeContext(), { systemPrompt: ['fixture posture'] } as never, undefined, direction)
-    const partialMessages = buildPostCompactMessages(partial)
+    const partial = await partialFoldConversation(history, 11, makeContext(), { systemPrompt: ['fixture posture'] } as never, undefined, direction)
+    const partialMessages = buildPostFoldMessages(partial)
     check(`${direction} partial fold retains the straddling turn's receipt`, equal(counts(partialMessages), before), JSON.stringify(counts(partialMessages)))
     check(`${direction} partial fold retains the complete recap`, equal(recap(partialMessages), recap(history)))
     const partialCold = await resumed(history, partial)
     check(`${direction} partial fold retains both counters on disk`, equal(counts(partialCold), before) && equal(recap(partialCold), recap(history)), JSON.stringify({ counts: counts(partialCold), recap: recap(partialCold) }))
     const foldedAgain = await fold(partialMessages)
-    check(`${direction} followed by a full fold does not duplicate counts`, equal(counts(buildPostCompactMessages(foldedAgain)), before) && equal(recap(buildPostCompactMessages(foldedAgain)), recap(history)))
+    check(`${direction} followed by a full fold does not duplicate counts`, equal(counts(buildPostFoldMessages(foldedAgain)), before) && equal(recap(buildPostFoldMessages(foldedAgain)), recap(history)))
   }
 
   const failed = [user('Try a denied write.'), ...round('Edit', { file_path: '/repo/denied.py' }, undefined, true), ...round('Read', { file_path: '/repo/allowed.py' }), assistant([{ type: 'text', text: 'The write was denied.' }])]
   for (const direction of ['up_to', 'from'] as const) {
-    const cut = await partialCompactConversation(failed, 2, makeContext(), { systemPrompt: ['fixture posture'] } as never, undefined, direction)
-    check(`${direction} split failure keeps its count and excludes the denied file`, equal(recap(buildPostCompactMessages(cut)), recap(failed)))
+    const cut = await partialFoldConversation(failed, 2, makeContext(), { systemPrompt: ['fixture posture'] } as never, undefined, direction)
+    check(`${direction} split failure keeps its count and excludes the denied file`, equal(recap(buildPostFoldMessages(cut)), recap(failed)))
   }
 
   process.env.MERCURY_COMPACT_KEEP_TAIL = '0'
@@ -161,7 +161,7 @@ try {
   const noTail = await fold(history)
   process.env.MERCURY_TURN_RECEIPT = '1'
   process.env.MERCURY_COMPACT_KEEP_TAIL = '1'
-  check('a tail-free fold still records work while receipt display is disabled', equal(counts(buildPostCompactMessages(noTail)), before) && equal(recap(buildPostCompactMessages(noTail)), recap(history)))
+  check('a tail-free fold still records work while receipt display is disabled', equal(counts(buildPostFoldMessages(noTail)), before) && equal(recap(buildPostFoldMessages(noTail)), recap(history)))
   const noTailCold = await resumed(history, noTail)
   check('a tail-free fold restores its counts on resume', equal(counts(noTailCold), before) && equal(recap(noTailCold), recap(history)))
 } finally {

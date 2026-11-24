@@ -24,8 +24,8 @@ mock.module('../../src/integrations/event-hooks/fire.js', () => ({
     return (realFireHooks as (...args: unknown[]) => Promise<unknown>)(event, payload, ...rest)
   },
 }))
-const { trySessionMemoryCompaction } = await import('../../src/engine/compaction/sessionNotesFold.ts')
-const { buildPostCompactMessages } = await import('../../src/engine/compaction/foldConversation.ts')
+const { trySessionNotesFold } = await import('../../src/engine/compaction/sessionNotesFold.ts')
+const { buildPostFoldMessages } = await import('../../src/engine/compaction/foldConversation.ts')
 const { injectTurnReceipts } = await import('../../src/screen/cockpit/turnReceipt.ts')
 const { buildAwayRecap } = await import('../../src/screen/cockpit/awaySummary.ts')
 const timestamp = new Date().toISOString()
@@ -44,22 +44,22 @@ try {
   const path = getSessionMemoryPath()
   mkdirSync(dirname(path), { recursive: true })
   writeFileSync(path, '# Current State\nTwelve commands completed.\n')
-  const result = await trySessionMemoryCompaction(messages)
+  const result = await trySessionNotesFold(messages)
   check('session-memory fold resolves with a shortened tail', !!result && result.messagesToKeep!.length > 0 && result.messagesToKeep!.length < messages.length)
   if (result) {
-    const after = buildPostCompactMessages(result)
+    const after = buildPostFoldMessages(result)
     check('session-memory boundary stamps work', result.boundaryMarker.compactMetadata.work !== undefined)
     check('session-memory fold retains the full work line', JSON.stringify(counts(after)) === JSON.stringify(counts(messages)))
     check('session-memory fold retains the full resume card', JSON.stringify(recap(after)) === JSON.stringify(recap(messages)))
-    const again = await trySessionMemoryCompaction(after)
-    check('repeated session-memory fold carries the counts once', !!again && JSON.stringify(counts(buildPostCompactMessages(again))) === JSON.stringify(counts(messages)) && JSON.stringify(recap(buildPostCompactMessages(again))) === JSON.stringify(recap(messages)))
+    const again = await trySessionNotesFold(after)
+    check('repeated session-memory fold carries the counts once', !!again && JSON.stringify(counts(buildPostFoldMessages(again))) === JSON.stringify(counts(messages)) && JSON.stringify(recap(buildPostFoldMessages(again))) === JSON.stringify(recap(messages)))
     hookCalls.length = 0
-    const manual = await trySessionMemoryCompaction(messages, undefined, undefined, undefined, 'manual')
+    const manual = await trySessionNotesFold(messages, undefined, undefined, undefined, 'manual')
     const afterHook = hookCalls.find(call => call.event === 'compaction.after')
     const { estimateContextTokens } = await import('../../src/engine/compaction/pruneToolResults.js')
-    check('a manual notes fold records the trigger and the full landing estimate (F43A-C4-05/19)', manual?.boundaryMarker.compactMetadata.trigger === 'manual' && afterHook?.payload.trigger === 'manual' && afterHook.payload.tokens_after === estimateContextTokens(buildPostCompactMessages(manual!)))
+    check('a manual notes fold records the trigger and the full landing estimate (F43A-C4-05/19)', manual?.boundaryMarker.compactMetadata.trigger === 'manual' && afterHook?.payload.trigger === 'manual' && afterHook.payload.tokens_after === estimateContextTokens(buildPostFoldMessages(manual!)))
     hookCalls.length = 0
-    const refused = await trySessionMemoryCompaction(messages, undefined, 1)
+    const refused = await trySessionNotesFold(messages, undefined, 1)
     check('an oversized notes fold fires no after hook (F43A-C4-05)', refused === null && !hookCalls.some(call => call.event === 'compaction.after'))
   }
 } finally {

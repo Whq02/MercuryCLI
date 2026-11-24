@@ -5,7 +5,7 @@ import { truncatePathMiddle } from '../../platform/text/truncate.js'
 import { CtrlOToExpand } from '../../screen/messages/CtrlOToExpand.js'
 import { FallbackToolUseErrorMessage } from '../kit/FallbackToolUseErrorMessage.js'
 import { isDenialResultText } from '../../engine/message-shapes/rejectionText.js'
-import { FileEditToolUpdatedMessage } from '../edit/EditUpdatedMessage.js'
+import { EditUpdatedMessage } from '../edit/EditUpdatedMessage.js'
 import { FileEditToolUseRejectedMessage } from './FileEditToolUseRejectedMessage.js'
 import { FilePathLink } from '../kit/FilePathLink.js'
 import { HighlightedCode } from '../../screen/highlighted-code/HighlightedCode.js'
@@ -22,10 +22,10 @@ import { getDisplayPath } from '../../platform/files/file.js'
 import { toolErrorReason } from '../kit/toolErrorReason.js'
 import { readFileInRange, FileTooLargeError } from '../../platform/files/readFileInRange.js'
 import { countCharInString, firstLineOf, plural } from '../../platform/text/strings.js'
-import { FILE_WRITE_TOOL_NAME } from '../kit/names/fileWrite.js'
+import { WRITE_TOOL_NAME } from '../kit/names/fileWrite.js'
 import { isENOENT } from '../../platform/errors/errors.js'
 import { isSqliteRowTarget } from './structuredTargets.js'
-import type { FileWriteToolInput, Output } from './WriteTool.js'
+import type { FileWriteInput, Output } from './WriteTool.js'
 
 const MAX_LINES_TO_RENDER = 10
 const MAX_REJECTED_DIFF_BYTES = 1024 * 1024
@@ -36,17 +36,17 @@ function countActualLines(content: string): number {
   return content.endsWith('\n') ? newlines : newlines + 1
 }
 
-export function userFacingName(_input?: Partial<FileWriteToolInput>): string {
-  return FILE_WRITE_TOOL_NAME
+export function userFacingName(_input?: Partial<FileWriteInput>): string {
+  return WRITE_TOOL_NAME
 }
 
-export function getToolUseSummary(input: Partial<FileWriteToolInput> | undefined): string | null {
+export function getToolUseSummary(input: Partial<FileWriteInput> | undefined): string | null {
   if (!input?.file_path) return null
   return truncatePathMiddle(getDisplayPath(input.file_path), TOOL_SUMMARY_MAX_LENGTH)
 }
 
 export function renderToolUseMessage(
-  input: Partial<FileWriteToolInput>,
+  input: Partial<FileWriteInput>,
   _options: { verbose: boolean },
 ): React.ReactNode {
   if (!input.file_path) return null
@@ -171,7 +171,7 @@ export function renderToolResultMessage(
   }
   if (output.type === 'update') {
     return (
-      <FileEditToolUpdatedMessage
+      <EditUpdatedMessage
         filePath={output.filePath}
         structuredPatch={output.structuredPatch}
         firstLine={firstLineOf(output.content)}
@@ -272,7 +272,7 @@ function RejectedWritePreview({
 }
 
 export function renderToolUseRejectedMessage(
-  input?: Partial<FileWriteToolInput>,
+  input?: Partial<FileWriteInput>,
   options?: { verbose?: boolean },
 ): React.ReactNode {
   if (!input?.file_path || input.content === undefined) return null

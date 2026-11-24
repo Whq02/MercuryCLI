@@ -2,7 +2,7 @@ import type { ContentBlockParam, TextBlockParam } from '../message-shapes/wire.j
 import type { AnyObject, Tool } from '../../tools/kit/tool.js'
 import type { MessageOrigin, UserMessage } from '../message-shapes/message.js'
 import type { FileReadToolOutput } from '../attachment-shapes/fileReadOutput.js'
-import { FILE_READ_TOOL_NAME } from '../../tools/kit/names/fileRead.js'
+import { READ_TOOL_NAME } from '../../tools/kit/names/fileRead.js'
 import { SEND_MESSAGE_TOOL_NAME } from '../../tools/kit/names/sendMessage.js'
 import { RESUME_AGENT_TOOL_NAME } from '../../tools/kit/names/resumeAgent.js'
 import { TASK_CREATE_TOOL_NAME } from '../../tools/kit/names/taskCreate.js'
@@ -39,7 +39,7 @@ const text = (body: string): TextBlockParam => ({ type: 'text', text: body })
 type ToolWording<Output> = Pick<Tool<AnyObject, Output>, 'name' | 'mapToolResultToToolResultBlockParam'>
 
 const bashWording = { name: BASH_TOOL_NAME, mapToolResultToToolResultBlockParam: mapResultToBlock }
-const fileReadWording = { name: FILE_READ_TOOL_NAME, mapToolResultToToolResultBlockParam }
+const fileReadWording = { name: READ_TOOL_NAME, mapToolResultToToolResultBlockParam }
 
 function toolResult<Output>(tool: ToolWording<Output>, output: Output): UserMessage {
   try {
@@ -63,7 +63,7 @@ function fileRows(file: Of<'file'>): UserMessage[] {
   if (payload.type === 'text' && file.truncated) {
     const { startLine, numLines } = payload.file
     const shown = startLine > 1 ? `lines ${startLine}-${startLine + numLines - 1}` : `its first ${numLines} lines`
-    rows.push(meta(`${file.filename} was too large — only ${shown} are shown above. Read further with ${FILE_READ_TOOL_NAME} when you need more; do not mention the truncation to the user.`))
+    rows.push(meta(`${file.filename} was too large — only ${shown} are shown above. Read further with ${READ_TOOL_NAME} when you need more; do not mention the truncation to the user.`))
   }
   return wrapMessagesInSystemReminder(rows)
 }
@@ -191,7 +191,7 @@ function rosterRows(roster: Of<'agent_roster'>): UserMessage[] {
     'Agents in flight at the context turnover — every agent this session is running or owes a result from, one line each (kind "name" [id]: status · what it was asked · what is owed · how to reach it · output file):',
     `${roster.rows.length} agent${roster.rows.length === 1 ? '' : 's'}: ${Array.from(totals, ([state, count]) => `${count} ${state}`).join(' · ')}`,
     ...lines,
-    `A running agent is never re-spawned — its completion reaches you as a task notification on its own. A result that is owed is collected from that notification or from the output file, never re-derived. ${SEND_MESSAGE_TOOL_NAME} reaches a running crewmate and ${RESUME_AGENT_TOOL_NAME} gives any one a new turn, by the id or name shown; a task's output is read from the output file shown with ${FILE_READ_TOOL_NAME}; ${TASK_STOP_TOOL_NAME} stops one.`,
+    `A running agent is never re-spawned — its completion reaches you as a task notification on its own. A result that is owed is collected from that notification or from the output file, never re-derived. ${SEND_MESSAGE_TOOL_NAME} reaches a running crewmate and ${RESUME_AGENT_TOOL_NAME} gives any one a new turn, by the id or name shown; a task's output is read from the output file shown with ${READ_TOOL_NAME}; ${TASK_STOP_TOOL_NAME} stops one.`,
   ].join('\n'))
 }
 
@@ -211,13 +211,13 @@ const renderers: Renderers = {
   file: fileRows,
   mcp_resource: resourceRows,
   edited_text_file: item => reminders(`${item.filename} changed outside this conversation — the user or a linter edited it. The change is intentional: work with it, and never revert it unless the user asks. Do not mention it to the user; they already know. The relevant changes (with line numbers):\n${item.snippet}`),
-  compact_file_reference: item => reminders(`${item.filename} was read before the conversation was summarized, and its contents are too large to carry across. Re-read it with ${FILE_READ_TOOL_NAME} when you need it.`),
-  pdf_reference: item => reminders(`PDF: ${item.filename} (${item.pageCount} pages, ${formatFileSize(item.fileSize)}) — too large to read in one pass. Read it through ${FILE_READ_TOOL_NAME} with the pages parameter, in ranges (e.g. pages: "1-5"); a call WITHOUT pages will fail on this file. Start with the first few pages to learn the structure, then pull more as needed — at most 20 pages per request.`),
+  compact_file_reference: item => reminders(`${item.filename} was read before the conversation was summarized, and its contents are too large to carry across. Re-read it with ${READ_TOOL_NAME} when you need it.`),
+  pdf_reference: item => reminders(`PDF: ${item.filename} (${item.pageCount} pages, ${formatFileSize(item.fileSize)}) — too large to read in one pass. Read it through ${READ_TOOL_NAME} with the pages parameter, in ranges (e.g. pages: "1-5"); a call WITHOUT pages will fail on this file. Start with the first few pages to learn the structure, then pull more as needed — at most 20 pages per request.`),
   dropped_image_file: item =>
     reminders(
       item.unread === undefined
         ? `${item.filename} was mentioned, but its image could not be attached and was dropped from this turn: ${item.reason} Attach a smaller copy, or Read it with a crop.`
-        : `${item.filename} was mentioned, but it could not be read and was dropped from this turn: ${item.reason}${item.unread === 'retry' ? ` Read it with ${FILE_READ_TOOL_NAME} when you need it.` : ''}`,
+        : `${item.filename} was mentioned, but it could not be read and was dropped from this turn: ${item.reason}${item.unread === 'retry' ? ` Read it with ${READ_TOOL_NAME} when you need it.` : ''}`,
     ),
   diagnostics: item => item.files.length ? reminders(`<new-diagnostics>New diagnostics from the language server:\n\n${DiagnosticTrackingService.formatDiagnosticsSummary(item.files)}</new-diagnostics>`) : [],
   queued_command: queuedRows,

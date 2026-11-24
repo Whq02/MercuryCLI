@@ -22,8 +22,8 @@ for (const key of ['MERCURY_HOME', 'MERCURY_SKIP_PERMISSIONS', 'MERCURY_WARDS', 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.chdir(project)
 
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { WriteTool } = await import('../../src/tools/write/WriteTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { createFileStateCacheWithSizeLimit, cacheKeys } = await import('../../src/platform/files/fileStateCache.ts')
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
@@ -75,22 +75,22 @@ let turns = 0
 const parent = (): unknown => ({ uuid: `00000000-0000-4000-8000-${String(turns).padStart(12, '0')}`, message: { id: `remote-write-${turns++}` } })
 const read = async (path: string, context: unknown): Promise<string> => {
   try {
-    const result = await FileReadTool.call({ file_path: path } as never, context as never, undefined, parent())
-    return String(FileReadTool.mapToolResultToToolResultBlockParam(result.data as never, 'proof').content)
+    const result = await ReadTool.call({ file_path: path } as never, context as never, undefined, parent())
+    return String(ReadTool.mapToolResultToToolResultBlockParam(result.data as never, 'proof').content)
   } catch (error) {
     return `THROWN ${error instanceof Error ? error.message : String(error)}`
   }
 }
 const write = async (path: string, content: string, context: unknown = contextOf()): Promise<{ said: string; data: Record<string, unknown> | null }> => {
   try {
-    const result = await FileWriteTool.call({ file_path: path, content } as never, context as never, undefined as never, parent() as never)
-    return { said: String(FileWriteTool.mapToolResultToToolResultBlockParam(result.data as never, 'proof').content), data: result.data as unknown as Record<string, unknown> }
+    const result = await WriteTool.call({ file_path: path, content } as never, context as never, undefined as never, parent() as never)
+    return { said: String(WriteTool.mapToolResultToToolResultBlockParam(result.data as never, 'proof').content), data: result.data as unknown as Record<string, unknown> }
   } catch (error) {
     return { said: `THROWN ${error instanceof Error ? error.message : String(error)}`, data: null }
   }
 }
-const validated = async (path: string, rules: Rules = {}): Promise<{ result: boolean; message?: string }> => (await FileWriteTool.validateInput!({ file_path: path, content: 'x' } as never, contextOf(rules))) as { result: boolean; message?: string }
-const decided = async (path: string, rules: Rules = {}): Promise<Decision> => (await FileWriteTool.checkPermissions({ file_path: path, content: 'x' } as never, contextOf(rules))) as unknown as Decision
+const validated = async (path: string, rules: Rules = {}): Promise<{ result: boolean; message?: string }> => (await WriteTool.validateInput!({ file_path: path, content: 'x' } as never, contextOf(rules))) as { result: boolean; message?: string }
+const decided = async (path: string, rules: Rules = {}): Promise<Decision> => (await WriteTool.checkPermissions({ file_path: path, content: 'x' } as never, contextOf(rules))) as unknown as Decision
 const remote = (path: string): string => `ssh://box${path}`
 const bytesAt = (path: string): Buffer => (existsSync(path) && statSync(path).isFile() ? readFileSync(path) : Buffer.from('<no file there>'))
 const textAt = (path: string): string => bytesAt(path).toString('utf8')

@@ -150,8 +150,8 @@ await t.close()
 
 section('§6 the states the arbitration reads')
 {
-  const { useChatSelector } = t.module
-  const states = await mountPart(() => useChatSelector())
+  const { useChatRewindPicker } = t.module
+  const states = await mountPart(() => useChatRewindPicker())
   const first = states.value()
   check('the selector starts down, with no preselected message', first.showMessageSelector === false && first.messageSelectorPreselect === undefined, 'change useChatSelector in src/screen/chat/useChatSelector.tsx so the selector starts down with no preselect')
   first.openMessageSelector()

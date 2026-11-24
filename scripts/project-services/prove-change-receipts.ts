@@ -145,7 +145,7 @@ section('T. end-to-end: runToolUse mints exactly one receipt per executed edit')
 {
   _resetChangeReceiptsForTesting()
   const { runToolUse } = await import('../../src/engine/tool-dispatch/toolExecution.ts')
-  const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+  const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
   const dir = mkdtempSync(join(tmpdir(), 'vanguard-receipts-e2e-'))
@@ -178,7 +178,7 @@ section('T. end-to-end: runToolUse mints exactly one receipt per executed edit')
     updateFileHistoryState: () => {},
     dynamicSkillDirTriggers: new Set<string>(),
     nestedMemoryAttachmentTriggers: new Set<string>(),
-    options: { tools: [FileEditTool], mcpClients: [], isNonInteractiveSession: true },
+    options: { tools: [EditTool], mcpClients: [], isNonInteractiveSession: true },
   }
 
   const assistantMessage = {
@@ -195,7 +195,7 @@ section('T. end-to-end: runToolUse mints exactly one receipt per executed edit')
     {
       type: 'tool_use',
       id: 'toolu_e2e_1',
-      name: FileEditTool.name,
+      name: EditTool.name,
       input: { file_path: file, old_string: 'const x = 1', new_string: 'const x = 2' },
     } as never,
     assistantMessage as never,
@@ -225,7 +225,7 @@ section('T. end-to-end: runToolUse mints exactly one receipt per executed edit')
     {
       type: 'tool_use',
       id: 'toolu_e2e_2',
-      name: FileEditTool.name,
+      name: EditTool.name,
       input: { file_path: file2, old_string: 'const y = 1', new_string: 'const y = 2' },
     } as never,
     assistantMessage as never,

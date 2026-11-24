@@ -131,7 +131,7 @@ export function getEmptyToolPermissionContext(): ToolPermissionContext {
   }
 }
 
-export type CompactProgressEvent =
+export type FoldProgressEvent =
   | { type: 'hooks_start'; hookType: 'pre_compact' | 'post_compact' | 'session_start' }
   | { type: 'compact_start' }
   | { type: 'compact_end' }
@@ -251,7 +251,7 @@ export type ToolTerminalOptions = {
   onSeatWait?: (wait: string | null) => void
   setToolJSX?: SetToolJSXFn
   setIsInterruptibleToolRunning?: (v: boolean) => void
-  onCompactProgress?: (event: CompactProgressEvent) => void
+  onCompactProgress?: (event: FoldProgressEvent) => void
   setSDKStatus?: (status: any) => void
   takeModeNotice?: () => QueuedCommand | null
   openMessageSelector?: () => void

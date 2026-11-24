@@ -62,7 +62,7 @@ const turn = await import('../../src/daemon/runner/runnerTurn.ts')
 const { createRunnerState } = await import('../../src/daemon/runner/runnerPorts.ts')
 const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
 
-type Ports = Parameters<typeof turn.runPrintTurn>[4]
+type Ports = Parameters<typeof turn.runTurn>[4]
 type Asked = Record<string, unknown> & { during: { inFlight: unknown; currentTurn: unknown; inside: boolean; anchor: unknown } }
 type Scene = { ports: Ports; live: Ports['live']; messages: unknown[]; state: { now: Record<string, unknown> }; rows: unknown[]; asked: Asked[]; out: Array<Record<string, unknown>>; advisorRoad: unknown; assembled: unknown[] }
 
@@ -138,7 +138,7 @@ function scene(given: Record<string, unknown> = {}, script: Array<Record<string,
   return { ports, live, messages, state, rows, asked, out, advisorRoad, assembled }
 }
 const prompt = (value: string, more: Record<string, unknown> = {}): never => ({ value, mode: 'prompt', uuid: `uuid-of-${value}`, ...more }) as never
-const run = (s: Scene, command: never, batch: never[] = [], given?: never[]): Promise<unknown> => within(turn.runPrintTurn(command, batch, (row => void s.out.push(row as never)) as never, given, s.ports).then(() => 'ended', error => `threw: ${error instanceof Error ? error.message : String(error)}`))
+const run = (s: Scene, command: never, batch: never[] = [], given?: never[]): Promise<unknown> => within(turn.runTurn(command, batch, (row => void s.out.push(row as never)) as never, given, s.ports).then(() => 'ended', error => `threw: ${error instanceof Error ? error.message : String(error)}`))
 
 section('§1 what the turn hands the engine')
 {

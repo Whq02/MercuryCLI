@@ -1,12 +1,12 @@
 import { LOCAL_COMMAND_STDOUT_TAG } from '../../message-shapes/messageTags.js'
-import { resetSessionEnvNoticeOnCompaction } from '../../../tools/kit/sessionEnvNotice.js'
+import { resetSessionEnvNoticeOnFold } from '../../../tools/kit/sessionEnvNotice.js'
 import {
-  AUTOCOMPACT_THRASH_MESSAGE,
+  AUTO_FOLD_THRASH_MESSAGE,
   calculateTokenWarningState,
   getBlockingLimit,
-  isAutoCompactEnabled,
+  isAutoFoldEnabled,
   rapidRefillPauseText,
-  type AutoCompactTrackingState,
+  type AutoFoldTrackingState,
 } from '../../compaction/autoFold.js'
 import {
   decideOverflowRecovery,
@@ -19,7 +19,7 @@ import {
   splitCarriedOperatorTail,
   type OverflowEpisode,
 } from '../../compaction/overflowRecovery.js'
-import { estimateContextTokens, projectTimeBasedMicrocompact } from '../../compaction/pruneToolResults.js'
+import { estimateContextTokens, projectTimeBasedPrune } from '../../compaction/pruneToolResults.js'
 import { estimateOverflowSignal } from '../../requests/overflowSignal.js'
 import { API_ERROR_MESSAGE_PREFIX, PROMPT_TOO_LONG_ERROR_MESSAGE } from '../../requests/apiErrorRows.js'
 import { createAssistantAPIErrorMessage, createCommandInputMessage, createSystemMessage, createUserMessage } from '../../messages/messages.js'
@@ -38,13 +38,13 @@ import { createAttachmentMessage } from '../../attachments/attachments.js'
 import { headlessProfilerCheckpoint } from '../../../platform/logs/headlessProfiler.js'
 import { tokenCountWithEstimation } from '../../context-window/contextTokenCount.js'
 import { EarlyStarts } from '../../tool-dispatch/earlyStarts.js'
-import { emitCompactionTrace } from '../../../platform/observability/invocationTrace.js'
+import { emitFoldTrace } from '../../../platform/observability/invocationTrace.js'
 import { flushSessionStorage, recordContentReplacement } from '../../../sessions/transcripts/sessionStorage.js'
 import { buildRequestContextPlan, type RequestContextPlan } from '../../run/requestContextPlan.js'
 import { calibrationKeyFor } from '../../run/contextCalibration.js'
 import { randomUUID } from 'node:crypto'
 import { requestGaugeFixed } from '../../run/requestGauge.js'
-import { buildPostCompactMessages, ERROR_MESSAGE_USER_ABORT } from '../../compaction/foldConversation.js'
+import { buildPostFoldMessages, ERROR_MESSAGE_USER_ABORT } from '../../compaction/foldConversation.js'
 import { toolToAPISchema } from '../../messages/apiSystemAndToolSchema.js'
 import { declaredRouteOf } from '../../../models/roads/callModelRouter.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../../run-owner/resolveOwner.js'
@@ -52,14 +52,14 @@ import { planToolPayloadUnseeded, toolsOnTheWire } from '../../../models/roads/t
 import { localPromptFitRefusal, localPromptFits } from '../../../models/roads/local/localCallModel.js'
 import { countToolDefinitionTokens, TOOL_TOKEN_COUNT_OVERHEAD } from '../../context-window/analyzeContext.js'
 import { tellHowToolDefinitionsAreCounted } from '../../messages/toolSearch.js'
-import type { QueryDeps } from '../../turn-entry/turnLoopDeps.js'
+import type { TurnLoopDeps } from '../../turn-entry/turnLoopDeps.js'
 import type { Terminal } from '../../turn-entry/transitions.js'
 import type { RunEvent } from '../events.js'
 import type { IterationState, NextTurn, RequestDecision, RunCtx, SettledDecision, TurnState } from './turnState.js'
 
 tellHowToolDefinitionsAreCounted(countToolDefinitionTokens, TOOL_TOKEN_COUNT_OVERHEAD)
 
-type Autocompacted = Awaited<ReturnType<QueryDeps['autocompact']>>
+type AutoFolded = Awaited<ReturnType<TurnLoopDeps['autocompact']>>
 
 type PlannedContext = {
   requestPlan: RequestContextPlan
@@ -72,13 +72,13 @@ type PlannedContext = {
 type FoldedContext = {
   kind: 'go_on'
   messagesForQuery: Message[]
-  tracking: AutoCompactTrackingState | undefined
+  tracking: AutoFoldTrackingState | undefined
   overflowEpisode: OverflowEpisode
   fullSystemPrompt: SystemPrompt
-  compactionResult: Autocompacted['compactionResult']
-  consecutiveFailures: Autocompacted['consecutiveFailures']
-  measuredRawTokenCount: Autocompacted['measuredRawTokenCount']
-  compactionRefusal: Autocompacted['refusal']
+  compactionResult: AutoFolded['compactionResult']
+  consecutiveFailures: AutoFolded['consecutiveFailures']
+  measuredRawTokenCount: AutoFolded['measuredRawTokenCount']
+  compactionRefusal: AutoFolded['refusal']
   foldSplit: ReturnType<typeof splitCarriedOperatorTail>
 }
 
@@ -186,7 +186,7 @@ export async function* planContext(run: RunCtx, state: TurnState, toolUseContext
     })
   }
   if (messagesForQuery.length < requestPlan.afterBoundaryCount) {
-    emitCompactionTrace('microcompact', { messagesBefore: requestPlan.afterBoundaryCount, messagesAfter: messagesForQuery.length })
+    emitFoldTrace('microcompact', { messagesBefore: requestPlan.afterBoundaryCount, messagesAfter: messagesForQuery.length })
   }
   const fullSystemPrompt = asSystemPrompt(appendSystemContext(run.systemPrompt, run.systemContext, engine))
   return { requestPlan, messagesForQuery, prunedTokensFreed, thinkingRecords, fullSystemPrompt }
@@ -200,7 +200,7 @@ export async function* foldContext(run: RunCtx, state: TurnState, toolUseContext
   let view = planned.messagesForQuery
   const foldSplit = splitCarriedOperatorTail(view)
 
-  const asked: Partial<Autocompacted> =
+  const asked: Partial<AutoFolded> =
     pendingOverflow?.rung === 'prune'
       ? {}
       : await run.deps.autocompact(
@@ -222,7 +222,7 @@ export async function* foldContext(run: RunCtx, state: TurnState, toolUseContext
   const { compactionResult, consecutiveFailures, consecutiveRapidRefills, rapidRefillBreakerTripped, measuredRawTokenCount, refusal, paused, declined } = asked
 
   if (rapidRefillBreakerTripped) {
-    yield emit({ kind: 'notice', message: createSystemMessage(`${AUTOCOMPACT_THRASH_MESSAGE} ${rapidRefillPauseText({ nonInteractive })}`, 'warning') })
+    yield emit({ kind: 'notice', message: createSystemMessage(`${AUTO_FOLD_THRASH_MESSAGE} ${rapidRefillPauseText({ nonInteractive })}`, 'warning') })
   }
   const pauseHolds = opened.tracking?.rapidRefillPaused === true || rapidRefillBreakerTripped === true
 
@@ -232,7 +232,7 @@ export async function* foldContext(run: RunCtx, state: TurnState, toolUseContext
       const decision = decideOverflowRecovery({
         episode: opened.overflowEpisode,
         gapTokens: overflowGapFor(forced),
-        pruneSavingTokens: projectTimeBasedMicrocompact(view, querySource, PRUNE_PROJECTION)?.tokensSaved ?? 0,
+        pruneSavingTokens: projectTimeBasedPrune(view, querySource, PRUNE_PROJECTION)?.tokensSaved ?? 0,
         pruneAllowed: true,
         fold: { available: false, why: 'fold-failed' },
       })
@@ -272,7 +272,7 @@ export async function* foldContext(run: RunCtx, state: TurnState, toolUseContext
   if (compactionResult !== undefined) {
     const before = compactionResult.preCompactTokenCount
     const after = compactionResult.truePostCompactTokenCount ?? compactionResult.postCompactTokenCount
-    emitCompactionTrace('auto-compact', { tokensFreed: typeof before === 'number' && typeof after === 'number' ? before - after : undefined })
+    emitFoldTrace('auto-compact', { tokensFreed: typeof before === 'number' && typeof after === 'number' ? before - after : undefined })
     tracking = {
       compacted: true,
       turnId: run.deps.uuid(),
@@ -281,15 +281,15 @@ export async function* foldContext(run: RunCtx, state: TurnState, toolUseContext
       consecutiveRapidRefills,
       ...(pauseHolds ? { rapidRefillPaused: true } : {}),
     }
-    const postFold = buildPostCompactMessages(compactionResult)
+    const postFold = buildPostFoldMessages(compactionResult)
     const carried = foldSplit.carry.map(row => ({ ...row, uuid: randomUUID() }))
     yield emit({ kind: 'compaction_boundary', trigger: forced !== undefined ? 'overflow' : 'auto', messages: [...postFold, ...carried] })
     if (toolUseContext.agentId === undefined && compactionResult.boundaryMarker.compactMetadata.trigger === 'manual') {
-      const { manualCompactDisplayText } = await import('../../compaction/manualReceipt.js')
-      const display = manualCompactDisplayText(toolUseContext, compactionResult, foldSplit.head.length)
+      const { manualFoldDisplayText } = await import('../../compaction/manualReceipt.js')
+      const display = manualFoldDisplayText(toolUseContext, compactionResult, foldSplit.head.length)
       yield emit({ kind: 'notice', message: createCommandInputMessage(`<${LOCAL_COMMAND_STDOUT_TAG}>${display}</${LOCAL_COMMAND_STDOUT_TAG}>`) })
     }
-    resetSessionEnvNoticeOnCompaction()
+    resetSessionEnvNoticeOnFold()
     view = [...postFold, ...carried]
     overflowEpisode = { pruned: opened.overflowEpisode.pruned, folded: true }
     if (run.params.recompose !== undefined) {
@@ -361,11 +361,11 @@ export async function* holdBlockingLimit(run: RunCtx, state: TurnState, toolUseC
   const refusal = folded.compactionRefusal
   const { hasHistory } = folded.foldSplit
   const headFoldFailed = (folded.consecutiveFailures ?? 0) > (state.autoCompactTracking?.consecutiveFailures ?? 0)
-  const headFold = !hasHistory ? undefined : headFoldFailed ? ('failed' as const) : isAutoCompactEnabled() ? ('did-not-land' as const) : undefined
+  const headFold = !hasHistory ? undefined : headFoldFailed ? ('failed' as const) : isAutoFoldEnabled() ? ('did-not-land' as const) : undefined
   const decision = decideOverflowRecovery({
     episode: folded.overflowEpisode,
     gapTokens: Math.max(1, count - limit),
-    pruneSavingTokens: projectTimeBasedMicrocompact(view, querySource, PRUNE_PROJECTION)?.tokensSaved ?? 0,
+    pruneSavingTokens: projectTimeBasedPrune(view, querySource, PRUNE_PROJECTION)?.tokensSaved ?? 0,
     pruneAllowed: refusal !== undefined && refusal !== ERROR_MESSAGE_USER_ABORT,
     fold: foldAvailability({
       tracking: folded.tracking,

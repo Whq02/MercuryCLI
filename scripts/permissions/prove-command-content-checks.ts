@@ -91,7 +91,7 @@ try {
   check('a minted title lands sanitized', daemon.setConcourseSessionTitle('title-probe', dirty, 'fixture', 'minted', dir).outcome === 'applied' && daemon.readSessionWorkers(dir).probe?.title === 'Fix auth flow', undefined, 'setConcourseSessionTitle (src/daemon/concourse-workers/focus.ts) must apply a minted title with hidden controls removed')
   check('an all-hidden title refuses without changing the record', daemon.setConcourseSessionTitle('title-probe', '\u202e\u200b', 'fixture', 'operator', dir).outcome === 'refused' && daemon.readSessionWorkers(dir).probe?.title === 'Fix auth flow', undefined, 'setConcourseSessionTitle (src/daemon/concourse-workers/focus.ts) must refuse a title that is empty once hidden controls are removed and leave the stored title as it was')
   const streamCore = await import('../../src/models/roads/anthropic/streamCore.ts')
-  mock.module('../../src/models/roads/anthropic/streamCore.ts', () => ({ ...streamCore, queryUtility: async () => ({ message: { content: [{ type: 'text', text: JSON.stringify({ title: dirty }) }] } }) }))
+  mock.module('../../src/models/roads/anthropic/streamCore.ts', () => ({ ...streamCore, callUtilityModel: async () => ({ message: { content: [{ type: 'text', text: JSON.stringify({ title: dirty }) }] } }) }))
   const { generateSessionTitle } = await import('../../src/screen/concourse-model/sessionTitle.ts')
   check('the generated title is sanitized before callers see it', await generateSessionTitle('fixture conversation', new AbortController().signal) === 'Fix auth flow', undefined, 'generateSessionTitle in src/screen/concourse-model/sessionTitle.ts must sanitize the model title before returning it')
 } finally {

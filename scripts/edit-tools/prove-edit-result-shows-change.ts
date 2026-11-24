@@ -18,8 +18,8 @@ delete process.env.MERCURY_EDIT_STALE_RECOVERY
 delete process.env.NODE_ENV
 
 const { _resetSeenLinesForTesting } = await import('../../src/tools/engines/change-transaction/seenLines.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const editResult = (await import('../../src/tools/edit/editResult.ts').catch(() => null)) as null | {
   buildEditedLines: (input: Record<string, unknown>) => Promise<{ editedLines: Record<string, unknown>; windows: unknown[] }>
@@ -73,8 +73,8 @@ async function run(tool: unknown, input: Record<string, unknown>, ctx: Ctx, id: 
     return { ok: false, message: err instanceof Error ? err.message : String(err) }
   }
 }
-const edit = (input: Record<string, unknown>, ctx: Ctx): Promise<Verdict> => run(FileEditTool, input, ctx, 'toolu_edit')
-const read = (input: Record<string, unknown>, ctx: Ctx): Promise<Verdict> => run(FileReadTool, input, ctx, 'toolu_read')
+const edit = (input: Record<string, unknown>, ctx: Ctx): Promise<Verdict> => run(EditTool, input, ctx, 'toolu_edit')
+const read = (input: Record<string, unknown>, ctx: Ctx): Promise<Verdict> => run(ReadTool, input, ctx, 'toolu_read')
 const textOf = (v: Verdict): string => (v.ok ? v.text : v.message)
 const rowsOf = (text: string): string[] => text.split('\n').filter(line => /^\d+\t/.test(line))
 const CLOSE = 'Checking this edit needs no Read; Read only lines this result does not show.'
@@ -305,7 +305,7 @@ section('R11. the builder over a window reader: same, differs, failed; a CRLF fi
     if (rows instanceof Error) throw rows
     return rows
   }
-  const map = (FileEditTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam
+  const map = (EditTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam
   const base = { filePath: '/x/five.txt', oldString: 'TWO', newString: 'two', originalFile: written.replace('two', 'TWO'), structuredPatch: patch, userModified: false, replaceAll: false }
   if (editResult === null) {
     check('R11 the builder module exists (RED on .28: no src/tools/edit/editResult.ts)', false)

@@ -1,5 +1,5 @@
 import { getCommandName } from '../../../commands/catalogue/commands.js';
-import { HELD_FOR_COMPACTION_LINE } from '../../messages/TranscriptNameplate.js';
+import { HELD_FOR_FOLD_LINE } from '../../messages/TranscriptNameplate.js';
 import * as pendingInput from '../../composer/input-core/pending-input.js';
 import { hasFocusedSession, landingInFlight } from '../../../engine/connector/focusedConnector.js';
 import type { SendReceiptV1 } from '../../../engine/connector/types.js';
@@ -35,7 +35,7 @@ export function sendToSession(deps: SubmitDeps, line: SubmitLine): Promise<void>
   if (getFocusedSeatLive().phase === 'compacting') {
     addNotification({
       key: 'held-for-compaction',
-      text: HELD_FOR_COMPACTION_LINE,
+      text: HELD_FOR_FOLD_LINE,
       priority: 'immediate',
       timeoutMs: RECEIPT_TIMEOUT_MS,
     });

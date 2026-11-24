@@ -5,7 +5,7 @@ import { hasControlCharacter } from '../../platform/files/path.js'
 import { checkWritePermissionForTool } from '../../permissions/rules/filesystem.js'
 import { windowsPathNeedsPermission } from '../../permissions/rules/windowsPath.js'
 import { expandStructuredTargetPath, hostPathOfWriteTarget, isSqliteRowTarget, sqliteRowRewindNote } from '../write/structuredTargets.js'
-import { FILE_EDIT_TOOL_NAME } from '../kit/names/fileEdit.js'
+import { EDIT_TOOL_NAME } from '../kit/names/fileEdit.js'
 import { getEditToolDescription } from './prompt.js'
 import { inputSchema, outputSchema, type FileEditInput } from './schema.js'
 import { areFileEditsInputsEquivalent, locateActualString } from './call/editMatching.js'
@@ -31,11 +31,11 @@ export const APPLIED_NO_REREAD_NOTE =
   'The change is applied and its lines count as read (a failed call would have errored); no Read is needed before the next edit.'
 
 function editToolItself(): EditToolSelf {
-  return FileEditTool
+  return EditTool
 }
 
-export const FileEditTool = buildTool({
-  name: FILE_EDIT_TOOL_NAME,
+export const EditTool = buildTool({
+  name: EDIT_TOOL_NAME,
   strict: true,
   keepEmptyInputs: ['old_string', 'new_string'],
   straightQuoteInputs: ['file_path'],
@@ -72,7 +72,7 @@ export const FileEditTool = buildTool({
   async checkPermissions(input: FileEditInput, context: ToolUseContext) {
     if (isRemotePath(input.file_path)) {
       const { remotePermission } = await import('../../platform/remote-files/bridge.js')
-      return remotePermission(FILE_EDIT_TOOL_NAME, input.file_path, null, input, context, 'edit')
+      return remotePermission(EDIT_TOOL_NAME, input.file_path, null, input, context, 'edit')
     }
     return checkWritePermissionForTool(editToolItself(), input, context.getAppState().toolPermissionContext)
   },

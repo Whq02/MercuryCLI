@@ -422,7 +422,7 @@ console.log('\nrename — failed name generation reports the failure instead of 
     const realStream = await import(streamPath)
     mock.module(streamPath, () => ({
       ...realStream,
-      queryUtility: async () => { throw new Error('rate limited') },
+      callUtilityModel: async () => { throw new Error('rate limited') },
     }))
     const { generateSessionName } = await import(${JSON.stringify(join(SRC, 'commands/rename/generateSessionName.ts'))})
     const { call } = await import(${JSON.stringify(join(SRC, 'commands/rename/rename.ts'))})
@@ -513,12 +513,12 @@ console.log('\nLogSelector — failed session rename reports the failure sentenc
 {
   const r = runCase(`
     const mod = await import(${JSON.stringify(join(SRC, 'screen/session-chooser/SessionBrowser.tsx'))})
-    if (typeof mod.commitLogRename !== 'function') {
+    if (typeof mod.commitListingRename !== 'function') {
       out.missing = true
     } else {
       const errors = []
       let renamed = 0
-      await mod.commitLogRename(
+      await mod.commitListingRename(
         { sessionId: '11111111-1111-4111-8111-111111111111', fullPath: '/tmp/session.jsonl' },
         'my-name',
         {

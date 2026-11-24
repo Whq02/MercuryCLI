@@ -272,11 +272,11 @@ console.log('── A5 concurrency: overlapping serializes, disjoint independent
 
 console.log('── A6 the read evidence Edit accepts, through the real Read tool ──')
 {
-  const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+  const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
   const parent = { uuid: '00000000-0000-0000-0000-00000000ap06', message: { id: 'msg_fixture' } }
   const rows = Array.from({ length: 30 }, (_, i) => `row ${i + 1}`).join('\n') + '\n'
   const readAnchor = async (ctx: Ctx, input: Record<string, unknown>): Promise<string | undefined> => {
-    const r = await (FileReadTool as { call: Function }).call(input, ctx, null, parent)
+    const r = await (ReadTool as { call: Function }).call(input, ctx, null, parent)
     return (r.data as { file?: { anchor?: string } }).file?.anchor
   }
   const windowed = writeFixture('window.txt', rows)
@@ -325,10 +325,10 @@ console.log('── A6 the read evidence Edit accepts, through the real Read too
 
 console.log('── A7 a stale anchor relocates end to end, exactly as Edit does ──')
 {
-  const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+  const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
   const parent = { uuid: '00000000-0000-0000-0000-00000000ap07', message: { id: 'msg_fixture' } }
   const readAnchor = async (ctx: Ctx, path: string): Promise<string | undefined> => {
-    const r = await (FileReadTool as { call: Function }).call({ file_path: path }, ctx, null, parent)
+    const r = await (ReadTool as { call: Function }).call({ file_path: path }, ctx, null, parent)
     return (r.data as { file?: { anchor?: string } }).file?.anchor
   }
   const block = ['function target() {', "  return 'before'", '}'].join('\n')
@@ -354,10 +354,10 @@ console.log('── A7 a stale anchor relocates end to end, exactly as Edit does
 
 console.log('── A8 delete and move members through changes[] ──')
 {
-  const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+  const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
   const parent = { uuid: '00000000-0000-0000-0000-00000000ap08', message: { id: 'msg_fixture' } }
   const readAnchor = async (ctx: Ctx, path: string): Promise<string | undefined> => {
-    const r = await (FileReadTool as { call: Function }).call({ file_path: path }, ctx, null, parent)
+    const r = await (ReadTool as { call: Function }).call({ file_path: path }, ctx, null, parent)
     return (r.data as { file?: { anchor?: string } }).file?.anchor
   }
   const doomed = writeFixture('to-delete.txt', 'bye\n')
@@ -390,13 +390,13 @@ console.log('── A8 delete and move members through changes[] ──')
 }
 
 {
-  const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+  const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
   const empty = writeFixture('empty-notes.txt', '')
   const other = writeFixture('registered.txt', 'before\n')
   const ctx = makeContext()
-  const read = await FileReadTool.call({ file_path: empty } as never, ctx as never)
+  const read = await ReadTool.call({ file_path: empty } as never, ctx as never)
   const anchor = (read.data as { file?: { anchor?: string } }).file?.anchor
-  const words = JSON.stringify(FileReadTool.mapToolResultToToolResultBlockParam(read.data as never, 'empty-read'))
+  const words = JSON.stringify(ReadTool.mapToolResultToToolResultBlockParam(read.data as never, 'empty-read'))
   check('Read returns and displays the empty file full-file anchor', anchor === mintFileAnchor('') && words.includes(`anchor: ${anchor}`), words)
   primeRead(ctx, other)
   const result = await callTool({ op: 'apply', changes: [

@@ -5,7 +5,7 @@ import { logForDebugging } from '../../platform/logs/debugLog.js'
 import type { Message } from '../../engine/message-shapes/message.js'
 import type { RiskLevel } from '../rules/permissions.js'
 import { getEngineModel } from '../../models/catalogue/engineModel.js'
-import { sideQuery } from '../../engine/requests/sideRequest.js'
+import { sideRequest } from '../../engine/requests/sideRequest.js'
 
 export type { RiskLevel }
 
@@ -115,7 +115,7 @@ export async function generatePermissionExplanation(args: {
   }
   sections.push('Explain this command in context.')
   try {
-    const response = await sideQuery({
+    const response = await sideRequest({
       model: getEngineModel(),
       system: EXPLAINER_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: sections.join('\n\n') }],

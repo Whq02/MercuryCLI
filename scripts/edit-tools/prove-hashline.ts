@@ -14,7 +14,7 @@ delete process.env.MERCURY_CHANGE_RECEIPTS
 if (process.argv.includes('--print-read-line-anchors-field')) {
   const gateArg = process.argv.find(a => a.startsWith('--gate='))
   if (gateArg) process.env.MERCURY_LINE_ANCHORS = gateArg.slice('--gate='.length)
-  const { FileReadTool: tool } = await import('../../src/tools/read/ReadTool.ts')
+  const { ReadTool: tool } = await import('../../src/tools/read/ReadTool.ts')
   const { z } = await import('zod/v4')
   const properties = (z.toJSONSchema((tool as { inputSchema: never }).inputSchema) as { properties?: Record<string, { description?: string }> }).properties ?? {}
   console.log(JSON.stringify(properties.line_anchors?.description ?? null))
@@ -24,7 +24,7 @@ if (process.argv.includes('--print-read-line-anchors-field')) {
 if (process.argv.includes('--print-read-schema-keys')) {
   const gateArg = process.argv.find(a => a.startsWith('--gate='))
   if (gateArg) process.env.MERCURY_LINE_ANCHORS = gateArg.slice('--gate='.length)
-  const { FileReadTool: tool } = await import('../../src/tools/read/ReadTool.ts')
+  const { ReadTool: tool } = await import('../../src/tools/read/ReadTool.ts')
   const shape = (tool as { inputSchema: { shape?: Record<string, unknown> } }).inputSchema.shape ?? {}
   console.log(JSON.stringify(Object.keys(shape)))
   process.exit(0)
@@ -44,8 +44,8 @@ const {
 } = await import('../../src/tools/engines/change-transaction/lineAnchors.ts')
 const { addLineNumbers, stripLineNumberPrefix } = await import('../../src/platform/files/file.ts')
 const { mintFileAnchor } = await import('../../src/tools/engines/change-transaction/snapshotAnchor.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
-const { FileEditTool, APPLIED_NO_REREAD_NOTE } = await import('../../src/tools/edit/EditTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { EditTool, APPLIED_NO_REREAD_NOTE } = await import('../../src/tools/edit/EditTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
@@ -207,14 +207,14 @@ section('R. the anchored read mode (real FileReadTool)')
   ): Promise<{ ok: true; text: string } | { ok: false; error: string }> => {
     try {
       readSerial++
-      const result = await (FileReadTool as unknown as { call: Function }).call(
+      const result = await (ReadTool as unknown as { call: Function }).call(
         { file_path: path, ...extra },
         ctx,
         null,
         { uuid: `00000000-0000-0000-0000-${String(readSerial).padStart(12, '0')}`, message: { id: `msg_fixture_${readSerial}` } },
       )
       const block = (
-        FileReadTool as unknown as { mapToolResultToToolResultBlockParam: Function }
+        ReadTool as unknown as { mapToolResultToToolResultBlockParam: Function }
       ).mapToolResultToToolResultBlockParam(result.data, 'toolu_read')
       return { ok: true, text: typeof block.content === 'string' ? block.content : JSON.stringify(block.content) }
     } catch (err) {
@@ -343,9 +343,9 @@ section('R. the anchored read mode (real FileReadTool)')
     'R7 gate =0 ⇒ the opt-in never leaks (plain rows even when the param is passed)',
     gatedOff.ok && gatedOff.ok === true && !/\d#[0-9a-f]{4}\t/.test(gatedOff.text) && stripHashes(gatedOff.text) === gatedOff.text,
   )
-  const promptOff = await (FileReadTool as unknown as { prompt: Function }).prompt()
+  const promptOff = await (ReadTool as unknown as { prompt: Function }).prompt()
   delete process.env.MERCURY_LINE_ANCHORS
-  const promptOn = await (FileReadTool as unknown as { prompt: Function }).prompt()
+  const promptOn = await (ReadTool as unknown as { prompt: Function }).prompt()
   const probe = (gate: string | null): string[] => {
     const args = [process.argv[1]!, '--print-read-schema-keys']
     if (gate !== null) args.push(`--gate=${gate}`)
@@ -417,17 +417,17 @@ const editViaTool = async (
 ): Promise<
   { ok: true; effect: Record<string, unknown>; text: string } | { ok: false; error: string }
 > => {
-  const validation = await (FileEditTool as unknown as { validateInput: Function }).validateInput(input, ctx)
+  const validation = await (EditTool as unknown as { validateInput: Function }).validateInput(input, ctx)
   if (validation.result === false) {
     return { ok: false, error: String(validation.message) }
   }
   try {
-    const result = await (FileEditTool as unknown as { call: Function }).call(input, ctx, null, {
+    const result = await (EditTool as unknown as { call: Function }).call(input, ctx, null, {
       uuid: '00000000-0000-0000-0000-000000000002',
       message: { id: 'msg_fixture' },
     })
     const block = (
-      FileEditTool as unknown as { mapToolResultToToolResultBlockParam: Function }
+      EditTool as unknown as { mapToolResultToToolResultBlockParam: Function }
     ).mapToolResultToToolResultBlockParam(result.data, 'toolu_edit')
     return {
       ok: true,

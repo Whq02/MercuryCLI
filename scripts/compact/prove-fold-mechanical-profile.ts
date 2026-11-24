@@ -59,7 +59,7 @@ await new Promise<void>(resolve => stallServer.listen(STALL_PORT, '127.0.0.1', r
 const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const compactModule = await import('../../src/engine/compaction/foldConversation.ts')
-const { compactConversation } = compactModule
+const { foldConversation } = compactModule
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
@@ -145,7 +145,7 @@ async function runFold(model: string, opts?: { thinking?: { type: string; budget
   let result: Record<string, unknown> | undefined
   let error: Error | undefined
   try {
-    result = (await compactConversation(
+    result = (await foldConversation(
       messages as never,
       ctx as never,
       { systemPrompt: asSystemPrompt(['You are a fixture-driven session posture.']) } as never,

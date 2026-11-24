@@ -3,7 +3,7 @@ import type React from 'react'
 import { Box, Text } from '../themedRenderer.js'
 import type { BranchManifest } from '../../sessions/branches/branchManifest.js'
 import type { CheckpointFactsV1 } from '../../engine/connector/types.js'
-import type { Message, PartialCompactDirection, UserMessage } from '../../engine/message-shapes/message.js'
+import type { Message, PartialFoldDirection, UserMessage } from '../../engine/message-shapes/message.js'
 import { Select } from '../select/index.js'
 import type { useMercuryTokens } from '../widgets/useMercuryTokens.js'
 import TextInput from '../composer/text-input/TextInput.js'
@@ -152,7 +152,7 @@ export function summarizeView({
   onSummarize: (
     message: UserMessage,
     feedback?: string,
-    direction?: PartialCompactDirection,
+    direction?: PartialFoldDirection,
   ) => void | Promise<void>
   chosen: UserMessage
   close: () => void

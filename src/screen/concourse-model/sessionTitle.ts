@@ -1,7 +1,7 @@
 import { z } from 'zod/v4'
 
 import { getIsNonInteractiveSession } from '../../boot/process-state/processState.js'
-import { queryUtility } from '../../models/roads/anthropic/streamCore.js'
+import { callUtilityModel } from '../../models/roads/anthropic/streamCore.js'
 import type { Message } from '../../engine/message-shapes/message.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { extractTextContent } from '../../engine/messages/messages.js'
@@ -57,7 +57,7 @@ const TITLE_OUTPUT_FORMAT = {
 export async function generateSessionTitle(description: string, signal: AbortSignal): Promise<string | null> {
   if (description.trim() === '') return null
   try {
-    const response = await queryUtility({
+    const response = await callUtilityModel({
       systemPrompt: asSystemPrompt(TITLE_SYSTEM_PROMPT),
       userPrompt: description,
       outputFormat: TITLE_OUTPUT_FORMAT,

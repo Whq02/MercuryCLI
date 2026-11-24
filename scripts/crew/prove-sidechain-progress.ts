@@ -1,21 +1,21 @@
 #!/usr/bin/env bun
-import type { LegacyQueryYield } from '../../src/engine/loop/project-legacy.ts'
+import type { LegacyTurnYield } from '../../src/engine/loop/project-legacy.ts'
 import { settledSidechainMessages } from '../../src/sessions/transcripts/settledSidechainMessages.ts'
 import { makeTally } from './crew-world.ts'
 
 const tally = makeTally('prove-sidechain-progress')
 const assistant = { type: 'assistant', uuid: 'response', message: { content: [], usage: { output_tokens: 0 } } }
 const notice = { type: 'system', subtype: 'api_error', uuid: 'retry', retryInMs: 1000 }
-const observed: LegacyQueryYield[] = []
-const handedOn: LegacyQueryYield[] = []
+const observed: LegacyTurnYield[] = []
+const handedOn: LegacyTurnYield[] = []
 let noticeWasImmediate = false
 let pendingWasPrivate = false
 let publishedUsage = -1
-async function* source(): AsyncGenerator<LegacyQueryYield> {
-  yield { type: 'stream_event', event: { type: 'message_start' } } as LegacyQueryYield
-  yield assistant as LegacyQueryYield
-  yield notice as LegacyQueryYield
-  noticeWasImmediate = observed.includes(notice as LegacyQueryYield)
+async function* source(): AsyncGenerator<LegacyTurnYield> {
+  yield { type: 'stream_event', event: { type: 'message_start' } } as LegacyTurnYield
+  yield assistant as LegacyTurnYield
+  yield notice as LegacyTurnYield
+  noticeWasImmediate = observed.includes(notice as LegacyTurnYield)
   pendingWasPrivate = handedOn.every(item => item.type === 'stream_event')
   assistant.message.usage.output_tokens = 19
   yield { type: 'stream_event', event: { type: 'message_stop' } }

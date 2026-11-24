@@ -11,7 +11,7 @@ delete process.env.MERCURY_EDIT_HUNKS
 delete process.env.MERCURY_CHANGE_RECEIPTS
 
 const { findSection, planSectionEdit } = await import('../../src/tools/edit/sectionEdit.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
 const grepModule = (await import('../../src/tools/grep/GrepTool.ts')) as unknown as {
   GrepTool: { call: Function }
   quoteTolerantPattern?: (pattern: string) => string
@@ -62,10 +62,10 @@ function primeRead(ctx: Ctx, path: string): void {
   ctx.readFileState.set(path, { content: readFileSync(path, 'utf8').replaceAll('\r\n', '\n'), timestamp: Date.now() + 60_000 })
 }
 async function edit(input: Record<string, unknown>, ctx: Ctx): Promise<{ ok: true; data: Record<string, unknown> } | { ok: false; error: string }> {
-  const validation = await (FileEditTool as { validateInput: Function }).validateInput(input, ctx)
+  const validation = await (EditTool as { validateInput: Function }).validateInput(input, ctx)
   if (validation.result === false) return { ok: false, error: String(validation.message) }
   try {
-    const result = await (FileEditTool as { call: Function }).call(input, ctx, null, { uuid: '00000000-0000-0000-0000-000000000007', message: { id: 'msg_fixture' } })
+    const result = await (EditTool as { call: Function }).call(input, ctx, null, { uuid: '00000000-0000-0000-0000-000000000007', message: { id: 'msg_fixture' } })
     return { ok: true, data: result.data }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) }

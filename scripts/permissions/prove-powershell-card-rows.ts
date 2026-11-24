@@ -18,16 +18,16 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const j = (v: unknown): string => JSON.stringify(v)
 
-const { powershellToolUseOptions } = await import('../../src/permissions/cards/powershell/powershellAskOptions.js')
+const { powershellAskOptions } = await import('../../src/permissions/cards/powershell/powershellAskOptions.js')
 const { POWERSHELL_TOOL_NAME } = await import('../../src/tools/kit/names/powershell.js')
-type Row = ReturnType<typeof powershellToolUseOptions>[number] & { type?: string; placeholder?: string; initialValue?: string; onChange?: unknown; allowEmptySubmitToCancel?: boolean; showLabelWithValue?: boolean; labelValueSeparator?: string; resetCursorOnUpdate?: boolean }
+type Row = ReturnType<typeof powershellAskOptions>[number] & { type?: string; placeholder?: string; initialValue?: string; onChange?: unknown; allowEmptySubmitToCancel?: boolean; showLabelWithValue?: boolean; labelValueSeparator?: string; resetCursorOnUpdate?: boolean }
 
 const accept = (): void => {}
 const reject = (): void => {}
 const prefixChange = (): void => {}
 const rule = (toolName: string, ruleContent?: string) => ({ type: 'addRules' as const, rules: [{ toolName, ruleContent }], behavior: 'allow' as const, destination: 'localSettings' as const })
-const rows = (args: Partial<Parameters<typeof powershellToolUseOptions>[0]>): Row[] =>
-  powershellToolUseOptions({ onAcceptFeedbackChange: accept, onRejectFeedbackChange: reject, ...args }) as Row[]
+const rows = (args: Partial<Parameters<typeof powershellAskOptions>[0]>): Row[] =>
+  powershellAskOptions({ onAcceptFeedbackChange: accept, onRejectFeedbackChange: reject, ...args }) as Row[]
 const values = (list: Row[]): string => j(list.map(row => row.value))
 
 section('§1 THE TWO FIXED ROWS — plain until an amendment opens, then an input row with its own words')

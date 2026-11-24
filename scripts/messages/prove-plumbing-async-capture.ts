@@ -21,9 +21,9 @@ let recorded: any[] = []
 let routed: any
 let duringRecording = () => {}
 mock.module(`${root}/src/models/roads/anthropic/fixtureReplay.ts`, () => ({
-  withVCR: async (rows: any[], callback: () => Promise<any>) => { recorded = rows; duringRecording(); return callback() },
-  withStreamingVCR: (_rows: any, callback: any) => callback(),
-  withTokenCountVCR: async () => { throw new Error('unexpected token count') },
+  withFixtureReplay: async (rows: any[], callback: () => Promise<any>) => { recorded = rows; duringRecording(); return callback() },
+  withStreamingFixtureReplay: (_rows: any, callback: any) => callback(),
+  withTokenCountFixtureReplay: async () => { throw new Error('unexpected token count') },
 }))
 const routes = await import(`${root}/src/models/roads/routeLaw.ts`)
 mock.module(`${root}/src/models/roads/callModelRouter.ts`, () => ({
@@ -61,21 +61,21 @@ assert.deepEqual(fallback.systemPrompt, ['original', 'append'], 'buildSideQuesti
 assert.equal(fallback.forkContextMessages, rows, 'buildSideQuestionFallbackParams in src/engine/system-prompt/systemPromptParts.ts must capture input.messages before it awaits the prompt parts')
 assert.equal(fallback.toolUseContext.options.tools, originalTools, 'buildSideQuestionFallbackParams in src/engine/system-prompt/systemPromptParts.ts must capture input.tools before it awaits the prompt parts')
 console.log('PASS fallback parameters capture the caller fields before awaiting prompt parts')
-const { queryWithModel } = await import(`${root}/src/models/roads/anthropic/streamCore.ts`)
+const { callWithModel } = await import(`${root}/src/models/roads/anthropic/streamCore.ts`)
 const originalSignal = new AbortController().signal
 const question: any = { systemPrompt: ['system'], userPrompt: 'original user', outputFormat: { type: 'json_schema', schema: {} }, signal: originalSignal, options: { model: 'fixture', querySource: 'fixture' } }
 const oldFormat = question.outputFormat
 const oldOptions = question.options
 duringRecording = () => { question.userPrompt = 'mutated'; question.outputFormat = undefined; question.signal = new AbortController().signal; question.options = { model: 'wrong' } }
-const reply = await queryWithModel(question)
-assert.equal(recorded[1].message.content, 'original user', 'queryWithModel in src/models/roads/anthropic/streamCore.ts must copy question.userPrompt before the recording callback runs')
-assert.equal(routed.messages[0].message.content, 'original user', 'queryWithModel in src/models/roads/anthropic/streamCore.ts must route the user prompt captured before recording')
-assert.equal(routed.signal, originalSignal, 'queryWithModel in src/models/roads/anthropic/streamCore.ts must route the signal captured before recording')
-assert.equal(routed.options.model, oldOptions.model, 'queryWithModel in src/models/roads/anthropic/streamCore.ts must route the model from the options captured before recording')
-assert.equal(routed.options.outputFormat, oldFormat, 'queryWithModel in src/models/roads/anthropic/streamCore.ts must route the outputFormat captured before recording')
-assert.equal(routed.options.enablePromptCaching, false, 'queryWithModel in src/models/roads/anthropic/streamCore.ts must route enablePromptCaching as false')
-assert.deepEqual(routed.tools, [], 'queryWithModel in src/models/roads/anthropic/streamCore.ts must route an empty tools list')
-assert.deepEqual(routed.thinkingConfig, { type: 'disabled' }, 'queryWithModel in src/models/roads/anthropic/streamCore.ts must route thinkingConfig as disabled')
-assert.deepEqual(reply.rows.map((r: any) => r.marker), ['one', 'two'], 'queryWithModel in src/models/roads/anthropic/streamCore.ts must drain every assistant row from the routed stream and settle them once')
-assert.equal(reply.aborted, false, 'queryWithModel in src/models/roads/anthropic/streamCore.ts must settle with aborted false when the stream ends normally')
+const reply = await callWithModel(question)
+assert.equal(recorded[1].message.content, 'original user', 'callWithModel in src/models/roads/anthropic/streamCore.ts must copy question.userPrompt before the recording callback runs')
+assert.equal(routed.messages[0].message.content, 'original user', 'callWithModel in src/models/roads/anthropic/streamCore.ts must route the user prompt captured before recording')
+assert.equal(routed.signal, originalSignal, 'callWithModel in src/models/roads/anthropic/streamCore.ts must route the signal captured before recording')
+assert.equal(routed.options.model, oldOptions.model, 'callWithModel in src/models/roads/anthropic/streamCore.ts must route the model from the options captured before recording')
+assert.equal(routed.options.outputFormat, oldFormat, 'callWithModel in src/models/roads/anthropic/streamCore.ts must route the outputFormat captured before recording')
+assert.equal(routed.options.enablePromptCaching, false, 'callWithModel in src/models/roads/anthropic/streamCore.ts must route enablePromptCaching as false')
+assert.deepEqual(routed.tools, [], 'callWithModel in src/models/roads/anthropic/streamCore.ts must route an empty tools list')
+assert.deepEqual(routed.thinkingConfig, { type: 'disabled' }, 'callWithModel in src/models/roads/anthropic/streamCore.ts must route thinkingConfig as disabled')
+assert.deepEqual(reply.rows.map((r: any) => r.marker), ['one', 'two'], 'callWithModel in src/models/roads/anthropic/streamCore.ts must drain every assistant row from the routed stream and settle them once')
+assert.equal(reply.aborted, false, 'callWithModel in src/models/roads/anthropic/streamCore.ts must settle with aborted false when the stream ends normally')
 console.log('PASS one-shot call captures fields before recording, drains assistants, preserves routing options and settles once')

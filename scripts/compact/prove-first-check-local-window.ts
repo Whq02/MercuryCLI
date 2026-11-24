@@ -211,15 +211,15 @@ section('§2 a window the process cannot know makes no check against a default: 
   const big = [...history, ...history, ...history, ...history, ...history]
   const ghostTokens = tokenCountWithEstimation(big as never)
   rmSync(debugLog, { force: true })
-  const ghostDecision = await autoCompact.shouldAutoCompact(big, ghost, 'sdk')
+  const ghostDecision = await autoCompact.shouldAutoFold(big, ghost, 'sdk')
   await flushDebugLogs()
   const ghostLines = autoCompactLines()
   record(`an unlisted local id with ≈${fmt(ghostTokens)} tokens: shouldAutoCompact ${ghostDecision}; lines ${JSON.stringify(ghostLines)}`)
   check('an unlisted local model is not compacted against the 200k default (the window is unknown, so no check is made)', ghostDecision === false && !ghostLines.some(line => /tokens=/.test(line)), `shouldAutoCompact in src/engine/compaction/autoFold.ts must make no check when the local window is unknown · ${JSON.stringify(ghostLines)}`)
   const wide = 'compat/my-model'
-  const small = await autoCompact.shouldAutoCompact(history, wide, 'sdk')
-  const large = await autoCompact.shouldAutoCompact(big, wide, 'sdk')
-  const threshold = autoCompact.getAutoCompactThreshold(wide)
+  const small = await autoCompact.shouldAutoFold(history, wide, 'sdk')
+  const large = await autoCompact.shouldAutoFold(big, wide, 'sdk')
+  const threshold = autoCompact.getAutoFoldThreshold(wide)
   record(`the 200k model: threshold ${fmt(threshold)}; 35k history → ${small}; ${fmt(ghostTokens)} tokens → ${large}`)
   check('a 200k model is unchanged: the 35k history is under its 157,000 threshold and a 175k history is over it', threshold === 157_000 && small === false && large === true, `threshold ${threshold}, small ${small}, large ${large}: the 200k path in src/engine/compaction/autoFold.ts must stay unchanged`)
 }

@@ -4,9 +4,9 @@ import { flagEnabled } from '../../platform/substrate/flagRegistry.js'
 import { Text } from '../themedRenderer.js'
 import {
   calculateTokenWarningState,
-  isAutoCompactEnabled,
+  isAutoFoldEnabled,
 } from '../../engine/compaction/autoFold.js'
-import { useCompactWarningSuppression } from './useFoldWarningSuppression.js'
+import { useFoldWarningSuppression } from './useFoldWarningSuppression.js'
 import { getUpgradeMessage } from '../../models/facts/contextWindowUpgradeCheck.js'
 
 export function TokenWarning({
@@ -16,14 +16,14 @@ export function TokenWarning({
   tokenUsage: number
   model: string
 }): React.ReactNode {
-  const suppressed = useCompactWarningSuppression()
+  const suppressed = useFoldWarningSuppression()
   const { level, pctLeft } = calculateTokenWarningState(tokenUsage, model)
   if (level === 'ok' || suppressed) return null
 
   const upgrade = getUpgradeMessage(model)
   const percent = pctLeft ?? 0
 
-  if (isAutoCompactEnabled()) {
+  if (isAutoFoldEnabled()) {
     return (
       <Text dimColor wrap="truncate">
         Context left until auto-compact: {percent}%

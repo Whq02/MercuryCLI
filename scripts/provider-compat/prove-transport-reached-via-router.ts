@@ -68,7 +68,7 @@ mock.module('../../src/models/roads/catalogueOnDemand.ts', () => ({
   readCatalogueIfPending: async () => undefined,
 }))
 
-const { queryUtility } = await import('../../src/models/roads/anthropic/streamCore.ts')
+const { callUtilityModel } = await import('../../src/models/roads/anthropic/streamCore.ts')
 const { nativeSearch } = await import('../../src/tools/engines/web-search/nativeSearch.ts')
 const { nativeSearchFamilyOf, resolveSearchDoorPlan } = await import('../../src/tools/engines/web-search/searchDoor.ts')
 const { runQuestionHook } = await import('../../src/integrations/event-hook-runners/questionRunner.ts')
@@ -94,7 +94,7 @@ section('§2 the routed helpers stay routed — queryWithModel / queryUtility')
   settledCalls.length = 0
   nextReplyText = 'utility-answer'
   const expected = utilityCallFor()
-  const reply = await queryUtility({
+  const reply = await callUtilityModel({
     systemPrompt: asSystemPrompt(['Be brief.']),
     userPrompt: 'ping',
     signal: new AbortController().signal,

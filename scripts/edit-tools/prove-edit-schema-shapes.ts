@@ -11,7 +11,7 @@ delete process.env.MERCURY_EDIT_HUNKS
 delete process.env.MERCURY_CHANGE_RECEIPTS
 delete process.env.MERCURY_LINE_ANCHORS
 
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
 const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.ts')
 const { compileJsonSchema } = await import('../../src/platform/json-schema/jsonSchemaEngine.ts')
 const { mapToolsToZai } = await import('../../src/models/roads/zai/zaiCodec.ts')
@@ -40,7 +40,7 @@ function section(t: string): void {
 
 type Wire = { type?: string; description?: string; properties?: Record<string, unknown>; required?: string[]; additionalProperties?: unknown; anyOf?: unknown; oneOf?: unknown; allOf?: unknown }
 
-const wire = zodToJsonSchema(FileEditTool.inputSchema as never) as Wire
+const wire = zodToJsonSchema(EditTool.inputSchema as never) as Wire
 const rootRequired = wire.required ?? []
 const rootKeys = Object.keys(wire.properties ?? {})
 const rootWords = wire.description ?? ''
@@ -89,22 +89,22 @@ const refused: Array<[string, Record<string, unknown>]> = [
 for (const [label, value] of refused.filter(([, value]) => 'edits' in value)) check(`refused by the wire schema itself — ${label}`, !valid(value), issuesOf(value))
 
 section('§3 the runtime agrees with the schema')
-const parse = (value: unknown): boolean => (FileEditTool.inputSchema as unknown as { safeParse: (v: unknown) => { success: boolean } }).safeParse(value).success
+const parse = (value: unknown): boolean => (EditTool.inputSchema as unknown as { safeParse: (v: unknown) => { success: boolean } }).safeParse(value).success
 check('the zod schema the executor re-parses accepts each of the nine accepted shapes', accepted.every(([, value]) => parse(value)))
-const refusedByRuntime = async (value: Record<string, unknown>): Promise<boolean> => !parse(value) || (await FileEditTool.validateInput(value as never, context)).result === false
+const refusedByRuntime = async (value: Record<string, unknown>): Promise<boolean> => !parse(value) || (await EditTool.validateInput(value as never, context)).result === false
 const context = {
   readFileState: new Map<string, unknown>(),
   abortController: new AbortController(),
   getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }),
 } as never
 for (const [label, value] of refused) check(`refused by the runtime — ${label}`, await refusedByRuntime(value))
-const k3 = await FileEditTool.validateInput({ file_path, old_string: 'a' } as never, context)
+const k3 = await EditTool.validateInput({ file_path, old_string: 'a' } as never, context)
 check('validateInput refuses the Kimi-K3 shape with the existing words', k3.result === false && k3.message === 'old_string and new_string are required unless hunks, append or section are provided.', JSON.stringify(k3))
-const bare = await FileEditTool.validateInput({ file_path } as never, context)
+const bare = await EditTool.validateInput({ file_path } as never, context)
 check('validateInput refuses file_path alone with the same words', bare.result === false && bare.message === 'old_string and new_string are required unless hunks, append or section are provided.', JSON.stringify(bare))
-const lone = await FileEditTool.validateInput({ file_path, section: '## Checks' } as never, context)
+const lone = await EditTool.validateInput({ file_path, section: '## Checks' } as never, context)
 check('validateInput refuses section alone with the existing section words', lone.result === false && (lone.message ?? '').startsWith('section takes exactly one of new_string'), JSON.stringify(lone))
-const both = await FileEditTool.validateInput({ file_path, old_string: 'a', new_string: 'b', hunks: [{ lines: '3', replace: 'x' }], expected_anchor: 'fa:0123456789ab' } as never, context)
+const both = await EditTool.validateInput({ file_path, old_string: 'a', new_string: 'b', hunks: [{ lines: '3', replace: 'x' }], expected_anchor: 'fa:0123456789ab' } as never, context)
 check('validateInput refuses old_string beside hunks with the existing exclusivity words', both.result === false && (both.message ?? '').startsWith('hunks and old_string/new_string/replace_all are mutually exclusive'), JSON.stringify(both))
 
 section('§4 every road sends the same plain-root schema')
@@ -118,7 +118,7 @@ const strictRoot = responses.parameters as { required?: string[]; properties?: R
 check('the strict root names every Edit key as required and spells old_string as "string or null" (optional on the plain root)', JSON.stringify(strictRoot.required) === JSON.stringify(Object.keys(strictRoot.properties ?? {})) && JSON.stringify(strictRoot.properties?.old_string?.type) === '["string","null"]', JSON.stringify(strictRoot.properties?.old_string))
 const gemini = buildGeminiRequest({ model: 'gemini-2.5-pro', messages: [], tools: mapToolsToZai(shaped) as never } as never, []) as { tools?: Array<{ functionDeclarations: Array<{ parametersJsonSchema: unknown }> }> }
 check('the Gemini road carries the same schema as parametersJsonSchema', JSON.stringify(gemini.tools?.[0]?.functionDeclarations[0]?.parametersJsonSchema) === JSON.stringify(wire))
-const again = zodToJsonSchema(FileEditTool.inputSchema as never)
+const again = zodToJsonSchema(EditTool.inputSchema as never)
 check('the conversion is one object per schema identity (the request-hot path memo)', again === wire)
 
 

@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import type { AssistantMessage, Message } from '../message-shapes/message.js'
 import { roughTokenCountEstimationForMessages } from '../context-window/roughTokenEstimation.js'
 import { messageContextFill } from '../context-window/messageContextFill.js'
-import { getMessagesAfterCompactBoundary } from '../message-shapes/systemMessages.js'
+import { getMessagesAfterFoldBoundary } from '../message-shapes/systemMessages.js'
 
 export type RequestGaugeFixed = { digest: string; tokens: number }
 type RequestGaugeDensity = { ratio: number; samples: number; residuals: number[] }
@@ -91,7 +91,7 @@ export function bindRequestGauge(messages: readonly Message[], key: string, epoc
 }
 
 function requestGaugeView(messages: readonly Message[], key: string, epoch: number, fixed: RequestGaugeFixed, rebase = false): RequestGaugeView {
-  messages = getMessagesAfterCompactBoundary(messages as Message[])
+  messages = getMessagesAfterFoldBoundary(messages as Message[])
   const previous = lastAnchor(messages, key)
   const seed = foldSeed(messages)
   const density = previous?.anchor.density ?? (seed?.key === key ? seed.density : freshDensity())
@@ -130,7 +130,7 @@ function requestGaugeView(messages: readonly Message[], key: string, epoch: numb
 
 export function readRequestGauge(messages: readonly Message[], model?: string): RequestGaugeView | null {
   const bound = bindings.get(messages)
-  messages = getMessagesAfterCompactBoundary(messages as Message[])
+  messages = getMessagesAfterFoldBoundary(messages as Message[])
   const previous = lastAnchor(messages)
   const seed = foldSeed(messages)
   const key = bound?.key ?? previous?.anchor.key ?? seed?.key

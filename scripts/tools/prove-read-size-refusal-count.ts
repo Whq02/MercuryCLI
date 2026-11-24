@@ -12,7 +12,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 delete process.env.NODE_ENV
 
-const { FileReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
+const { ReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
 const { FileTooLargeError } = await import(`${SRC}/platform/files/readFileInRange.ts`)
 const { getEmptyToolPermissionContext } = await import(`${SRC}/tools/kit/tool.ts`)
 const { createFileStateCacheWithSizeLimit } = await import(`${SRC}/platform/files/fileStateCache.ts`)
@@ -47,8 +47,8 @@ async function attempt(input: Record<string, unknown>, own: boolean): Promise<Re
   const parent = own ? { uuid: `00000000-0000-0000-0000-${String(serial).padStart(12, '0')}`, message: { id: `msg_size_${serial}` } } : undefined
   const started = Date.now()
   try {
-    const result = await (FileReadTool as { call: Function }).call(input, makeContext(), null, parent)
-    const block = (FileReadTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(result.data, `toolu_${serial}`)
+    const result = await (ReadTool as { call: Function }).call(input, makeContext(), null, parent)
+    const block = (ReadTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(result.data, `toolu_${serial}`)
     return { error: undefined, message: typeof block.content === 'string' ? block.content : JSON.stringify(block.content), ms: Date.now() - started }
   } catch (err) {
     return { error: err, message: err instanceof Error ? err.message : String(err), ms: Date.now() - started }

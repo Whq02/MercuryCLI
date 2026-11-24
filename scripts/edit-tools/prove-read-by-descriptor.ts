@@ -53,8 +53,8 @@ async function runChild(args: ChildArgs): Promise<void> {
   const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
   const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
-  const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
-  const read = FileReadTool as unknown as { validateInput: Function; call: Function; mapToolResultToToolResultBlockParam: Function }
+  const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
+  const read = ReadTool as unknown as { validateInput: Function; call: Function; mapToolResultToToolResultBlockParam: Function }
   const makeContext = (): Record<string, unknown> => ({ readFileState: new Map(), userModified: false, updateFileHistoryState: () => {}, dynamicSkillDirTriggers: new Set<string>(), nestedMemoryAttachmentTriggers: new Set<string>(), abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }), options: { tools: [], engineModel: 'claude-sonnet-5' } })
   const refusal = /not a file or a folder|[Nn]ot a regular file|cannot read binary files/
   const viaRead = async (file_path: string): Promise<string> => {

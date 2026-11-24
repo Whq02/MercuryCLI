@@ -55,7 +55,7 @@ async function main(): Promise<void> {
   const ok = await import('../../src/engine/run-owner/ownerKey.js')
   const planMod = await import('../../src/engine/run/requestContextPlan.js')
   const { PROTECT_NEWEST_TOOL_OUTPUT_TOKENS } = await import('../../src/engine/compaction/pruneProtections.js')
-  const { getTimeBasedMCConfig } = await import('../../src/engine/compaction/timeBasedPruneConfig.js')
+  const { getTimeBasedPruneConfig } = await import('../../src/engine/compaction/timeBasedPruneConfig.js')
   const { MAX_TOOL_RESULTS_PER_MESSAGE_CHARS } = await import('../../src/tools/kit/toolLimits.js')
   const { roughTokenCountEstimation } = await import('../../src/models/facts/tokenEstimation.js')
 
@@ -65,7 +65,7 @@ async function main(): Promise<void> {
   section('0. the thirteen-turn fixture is sized so the ten-result window decides')
   {
     const resultTokens = roughTokenCountEstimation(resultText(0))
-    const keepRecent = getTimeBasedMCConfig().keepRecent
+    const keepRecent = getTimeBasedPruneConfig().keepRecent
     check(
       'eleven results outweigh the newest-output protection, so the ten-result window decides and exactly three of thirteen are eligible',
       keepRecent === 10 && resultTokens * (keepRecent + 1) > PROTECT_NEWEST_TOOL_OUTPUT_TOKENS,

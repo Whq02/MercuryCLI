@@ -151,14 +151,14 @@ section("§2 the row: the opus family's newest generation, its class, its picker
 section('§3 the wire laws: thinking always on, no forced tool choice, the four disabled roads omit the parameter, the binding rides, foreign thinking leaves the wire both ways', 'fix modelThinkingAlwaysOn, modelSupportsForcedToolChoice and foldToolChoiceForModel in src/models/facts/capabilities.ts, sideQueryThinkingParam in src/engine/requests/sideRequest.ts, or applyThinkingBinding and modelSwitchReceipt in src/models/roads/anthropic/thinkingBinding.ts')
 {
   const caps = await import('../../src/models/facts/capabilities.ts')
-  const { sideQueryThinkingParam } = await import('../../src/engine/requests/sideRequest.ts')
+  const { sideRequestThinkingParam } = await import('../../src/engine/requests/sideRequest.ts')
   const { applyThinkingBinding, isSameModel, modelSwitchReceipt } = await import('../../src/models/roads/anthropic/thinkingBinding.ts')
   const { stripThinkingFromOtherModels, thinkingFromOtherModels } = await import('../../src/engine/messages/apiFilters.ts')
   const show = (v: unknown): string => JSON.stringify(v)
 
   check('thinking is always on for the row (the [1m] twin too); Opus 5 keeps its switch; a carrier row never joins', caps.modelThinkingAlwaysOn(ID) && caps.modelThinkingAlwaysOn(`${ID}[1m]`) && !caps.modelThinkingAlwaysOn(PREVIOUS) && !caps.modelThinkingAlwaysOn('openrouter/anthropic/claude-opus-5-5'))
-  check('a side query with thinking off sends NO thinking parameter to the row (never the disabled shape)', sideQueryThinkingParam(ID, false, 4096) === undefined && show(sideQueryThinkingParam(PREVIOUS, false, 4096)) === show({ type: 'disabled' }))
-  check('a side query with a budget rides adaptive on the row (no budget on the wire)', show(sideQueryThinkingParam(ID, 2048, 4096)) === show({ type: 'adaptive' }) && sideQueryThinkingParam(ID, undefined, 4096) === undefined)
+  check('a side query with thinking off sends NO thinking parameter to the row (never the disabled shape)', sideRequestThinkingParam(ID, false, 4096) === undefined && show(sideRequestThinkingParam(PREVIOUS, false, 4096)) === show({ type: 'disabled' }))
+  check('a side query with a budget rides adaptive on the row (no budget on the wire)', show(sideRequestThinkingParam(ID, 2048, 4096)) === show({ type: 'adaptive' }) && sideRequestThinkingParam(ID, undefined, 4096) === undefined)
   check('forced tool choice is refused on the row; Opus 5 and a carrier row keep it', !caps.modelSupportsForcedToolChoice(ID) && !caps.modelSupportsForcedToolChoice(`${ID}[1m]`) && caps.modelSupportsForcedToolChoice(PREVIOUS) && caps.modelSupportsForcedToolChoice('openrouter/anthropic/claude-opus-5-5'))
   const forcedTool = { type: 'tool', name: 'classify_result' }
   const forcedAny = { type: 'any' }

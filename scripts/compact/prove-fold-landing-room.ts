@@ -14,7 +14,7 @@ process.env.MERCURY_COMPACT_KEEP_TAIL = '1'
 const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const { compactConversation, buildPostCompactMessages, ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD } = await import('../../src/engine/compaction/foldConversation.ts')
+const { foldConversation, buildPostFoldMessages, ERROR_MESSAGE_POST_FOLD_OVER_THRESHOLD } = await import('../../src/engine/compaction/foldConversation.ts')
 const tailModule = await import('../../src/engine/compaction/verbatimTail.ts') as Record<string, unknown>
 const { foldReceipt, foldReceiptWords } = await import('../../src/engine/compaction/foldReceipt.ts')
 const { estimateContextTokens } = await import('../../src/engine/compaction/pruneToolResults.ts')
@@ -65,7 +65,7 @@ const context = () => ({
   options: { tools: [], mcpClients: [], commands: [], agentDefinitions: { activeAgents: [] }, engineModel: 'claude-opus-4-8', thinkingConfig: { type: 'disabled' }, isNonInteractiveSession: true },
 }) as never
 const fold = (messages: Message[], ctx: unknown, threshold: number) =>
-  compactConversation(messages, ctx as never, { systemPrompt: ['fixture'], userContext: {}, systemContext: {}, toolUseContext: ctx as never, forkContextMessages: [] }, true, undefined, true, { autoCompactThreshold: threshold, isRecompaction: false, turnsSincePreviousCompact: -1, querySource: 'sdk' })
+  foldConversation(messages, ctx as never, { systemPrompt: ['fixture'], userContext: {}, systemContext: {}, toolUseContext: ctx as never, forkContextMessages: [] }, true, undefined, true, { autoCompactThreshold: threshold, isRecompaction: false, turnsSincePreviousCompact: -1, querySource: 'sdk' })
 const roundsOf = (result: Awaited<ReturnType<typeof fold>>) => result.boundaryMarker.compactMetadata.recentRounds!
 const wordsOf = (result: Awaited<ReturnType<typeof fold>>) => foldReceiptWords(foldReceipt(result.boundaryMarker.compactMetadata))
 const keptResults = (result: Awaited<ReturnType<typeof fold>>): string[] => (result.messagesToKeep ?? []).flatMap(row => row.type === 'user' && Array.isArray(row.message.content) ? row.message.content.filter(block => block.type === 'tool_result').map(block => typeof block.content === 'string' ? block.content : JSON.stringify(block.content)) : [])
@@ -85,8 +85,8 @@ try {
     check(`the next turn has at least a turn of room: ${threshold - post} ≥ ${Math.max(largest, LANDING_ROOM_FLOOR_TOKENS)}`, threshold - post >= Math.max(largest, LANDING_ROOM_FLOOR_TOKENS), String(threshold - post))
     check('every kept result rides whole — no placeholder when whole rounds fit', keptResults(result).every(text => !text.startsWith(FOLDED_RESULT_KEY)) && keptResults(result).length === rounds.kept)
     check('the receipt names the kept count and the request budget', wordsOf(result)[0] === `last ${rounds.kept} of 10 rounds kept whole (the request budget)`, wordsOf(result)[0])
-    const again = await fold([...buildPostCompactMessages(result), ...stretch(3, 24_000, 'next')], context(), threshold)
-    check('a second fold over the post-fold context lands under its own landing line too (the refill law holds fold after fold)', (again.truePostCompactTokenCount ?? Infinity) < foldLandingCeiling(threshold, [...buildPostCompactMessages(result), ...stretch(3, 24_000, 'next')]), String(again.truePostCompactTokenCount))
+    const again = await fold([...buildPostFoldMessages(result), ...stretch(3, 24_000, 'next')], context(), threshold)
+    check('a second fold over the post-fold context lands under its own landing line too (the refill law holds fold after fold)', (again.truePostCompactTokenCount ?? Infinity) < foldLandingCeiling(threshold, [...buildPostFoldMessages(result), ...stretch(3, 24_000, 'next')]), String(again.truePostCompactTokenCount))
   }
 
   console.log('L2 one round larger than the room: its large result is folded into the summary, the round stays complete, the fold lands under the landing line')
@@ -169,7 +169,7 @@ try {
     let refusal = ''
     const paid = api.messageRequests().length
     try { await fold([...stretch(2, 400, 'over', 76_000), ...stretch(10, 400, 'tail')], context(), 10_000) } catch (error) { refusal = error instanceof Error ? error.message : String(error) }
-    check('the obligations over the threshold refuse with the threshold key and no summary request', refusal.startsWith(ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD) && api.messageRequests().length === paid, refusal.slice(0, 120))
+    check('the obligations over the threshold refuse with the threshold key and no summary request', refusal.startsWith(ERROR_MESSAGE_POST_FOLD_OVER_THRESHOLD) && api.messageRequests().length === paid, refusal.slice(0, 120))
   }
 } finally {
   await api.close()

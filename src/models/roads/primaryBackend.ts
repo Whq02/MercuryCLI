@@ -1,4 +1,4 @@
-import { queryModelWithStreaming } from './anthropic/index.js'
+import { anthropicCallModel } from './anthropic/index.js'
 import type { CallModel } from './callModelContract.js'
 import { normalizeModelStringForAPI } from '../catalogue/engineModel.js'
 import { resolveZaiApiKey } from './providerDiscovery.js'
@@ -163,7 +163,7 @@ const anthropicBackend: PrimaryAgentBackend = {
   id: 'anthropic-messages',
   provider: 'anthropic',
   label: 'Anthropic Messages (main loop)',
-  callModel: queryModelWithStreaming,
+  callModel: anthropicCallModel,
   readiness: anthropicReadiness,
 }
 

@@ -17,8 +17,8 @@ const { ResumeRecapCard } = await import('../../src/screen/messages/ResumeRecapC
 const { composeTranscript } = await import('../../src/screen/messages/Messages.tsx')
 const { normalizeMessages } = await import('../../src/engine/message-shapes/normalize.ts')
 const { isNotEmptyMessage } = await import('../../src/engine/message-shapes/text.ts')
-const { createCompactBoundaryMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
-const { annotateBoundaryWithWork, buildPostCompactMessages } = await import('../../src/engine/compaction/foldConversation.ts')
+const { createFoldBoundaryMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { annotateBoundaryWithWork, buildPostFoldMessages } = await import('../../src/engine/compaction/foldConversation.ts')
 const { buildAwayRecap } = await import('../../src/screen/cockpit/awaySummary.ts')
 
 const timestamp = new Date().toISOString()
@@ -30,10 +30,10 @@ for (const name of ['Edit', 'Read', 'Bash', 'Edit', 'Read', 'Bash', 'Edit', 'Rea
 }
 messages.push({ type: 'assistant', uuid: randomUUID(), timestamp, message: { id: randomUUID(), role: 'assistant', content: [{ type: 'text', text: 'The file is repaired.' }] } } as Message)
 const keep = messages.slice(13)
-const boundary = createCompactBoundaryMessage('manual', 80_000)
+const boundary = createFoldBoundaryMessage('manual', 80_000)
 const summary = createUserMessage({ content: 'The repair and checks are complete.', isCompactSummary: true, isVisibleInTranscriptOnly: true })
 annotateBoundaryWithWork(boundary, messages, keep, summary.uuid)
-const folded = buildPostCompactMessages({ boundaryMarker: boundary, summaryMessages: [summary], messagesToKeep: keep, attachments: [], hookResults: [], preCompactTokenCount: 80_000, postCompactTokenCount: 200 })
+const folded = buildPostFoldMessages({ boundaryMarker: boundary, summaryMessages: [summary], messagesToKeep: keep, attachments: [], hookResults: [], preCompactTokenCount: 80_000, postCompactTokenCount: 200 })
 let failures = 0
 const check = (label: string, ok: boolean, detail = '') => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? `: ${detail} (to fix: the work counts a fold carries are written by annotateBoundaryWithWork in src/engine/compaction/foldConversation.ts and painted by src/screen/messages/TurnReceiptRow.tsx and ResumeRecapCard.tsx, with the recap numbers from buildAwayRecap in src/screen/cockpit/awaySummary.ts; compare the printed frame with the unfolded one)` : ''}`) }
 async function frame(rows: Message[], width: number): Promise<string> {
@@ -50,9 +50,9 @@ try {
   const sparseFirst = sparseKeep[0]!
   if (sparseFirst.type === 'assistant' && sparseFirst.message.content[0]?.type === 'text') sparseFirst.message.content[0].text = ''
   const emptyHead = { type: 'assistant', uuid: randomUUID(), timestamp, message: { id: randomUUID(), role: 'assistant', content: [] } } as unknown as Message
-  const sparseBoundary = createCompactBoundaryMessage('manual', 80_000)
+  const sparseBoundary = createFoldBoundaryMessage('manual', 80_000)
   annotateBoundaryWithWork(sparseBoundary, [emptyHead, ...messages], [emptyHead, ...sparseKeep], summary.uuid)
-  const sparseFold = buildPostCompactMessages({ boundaryMarker: sparseBoundary, summaryMessages: [summary], messagesToKeep: [emptyHead, ...sparseKeep], attachments: [], hookResults: [], preCompactTokenCount: 80_000, postCompactTokenCount: 200 })
+  const sparseFold = buildPostFoldMessages({ boundaryMarker: sparseBoundary, summaryMessages: [summary], messagesToKeep: [emptyHead, ...sparseKeep], attachments: [], hookResults: [], preCompactTokenCount: 80_000, postCompactTokenCount: 200 })
   check('hidden empty rows and blocks cannot swallow the receipt carry', await frame(messages, 120) === await frame(sparseFold, 120), await frame(sparseFold, 120))
   for (const width of [80, 120]) {
     const before = await frame(messages, width)

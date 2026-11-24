@@ -51,7 +51,7 @@ Object.assign(process.env, fixture.env)
 
 const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { compactConversation, buildPostCompactMessages } = await import('../../src/engine/compaction/foldConversation.ts')
+const { foldConversation, buildPostFoldMessages } = await import('../../src/engine/compaction/foldConversation.ts')
 const { tokenCountWithEstimation, contextFill } = await import('../../src/engine/context-window/contextTokenCount.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
@@ -141,7 +141,7 @@ for (const target of TARGETS) {
   let result: Record<string, unknown> | undefined
   let error: Error | undefined
   try {
-    result = (await compactConversation(
+    result = (await foldConversation(
       messages as never,
       makeContext(target.model) as never,
       { systemPrompt: asSystemPrompt(['mixed-history session posture']) } as never,
@@ -170,7 +170,7 @@ for (const target of TARGETS) {
   const kept = (result.messagesToKeep as unknown[] | undefined)?.length ?? 0
   check('M3 the verbatim tail survived the fold', kept > 0, `kept=${kept}; compactConversation in src/engine/compaction/foldConversation.ts must keep a verbatim tail in messagesToKeep (this prover sets MERCURY_COMPACT_KEEP_TAIL=1)`)
 
-  const post = buildPostCompactMessages(result as never)
+  const post = buildPostFoldMessages(result as never)
   const postFill = contextFill(post as never)
   check(
     'M4 the gauge over the post-fold projection reads the folded truth (estimate, not the dead anchor)',

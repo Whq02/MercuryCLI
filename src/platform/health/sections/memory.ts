@@ -1,6 +1,6 @@
 import { getMnemeHome } from '../../../sessions/mneme/paths.js'
 import { isAwaySummaryEnabled } from '../../../screen/cockpit/awaySummary.js'
-import { isMercuryCompactKeepTailEnabled } from '../../../engine/compaction/verbatimTail.js'
+import { isMercuryFoldKeepTailEnabled } from '../../../engine/compaction/verbatimTail.js'
 import { getEngineModel } from '../../../models/catalogue/engineModel.js'
 import { contextWindowLabel } from '../../../engine/context-window/contextFill.js'
 import { isLocalModelId } from '../../../models/roads/local/localCatalogue.js'
@@ -94,11 +94,11 @@ export function memoryChecks(): CheckSpec[] {
       id: 'context',
       label: 'Context & resume',
       run: async () => {
-        const { compactionSettingsText } = await import('../../../engine/compaction/autoFold.js')
+        const { foldSettingsText } = await import('../../../engine/compaction/autoFold.js')
         const usage = getLiveContextUsage()
         const arms = [
-          compactionSettingsText(),
-          `keep-tail ${isMercuryCompactKeepTailEnabled() ? 'on' : 'off'}`,
+          foldSettingsText(),
+          `keep-tail ${isMercuryFoldKeepTailEnabled() ? 'on' : 'off'}`,
           `away-summary ${isAwaySummaryEnabled() ? 'on' : 'off'}`,
           `forecast ${ctxForecastEnabled() ? 'on' : 'off'}`,
         ].join(' · ')

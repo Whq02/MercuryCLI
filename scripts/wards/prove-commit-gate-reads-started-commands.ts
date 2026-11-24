@@ -28,7 +28,7 @@ const { BashTool } = await import(join(SRC, 'tools/shell/BashTool.tsx'))
 const { MonitorTool } = await import(join(SRC, 'tools/monitor/MonitorTool.ts'))
 const { ServiceTool } = await import(join(SRC, 'tools/service/ServiceTool.ts'))
 const { JourneyTool } = await import(join(SRC, 'tools/journey/JourneyTool.ts'))
-const { FileReadTool } = await import(join(SRC, 'tools/read/ReadTool.ts'))
+const { ReadTool } = await import(join(SRC, 'tools/read/ReadTool.ts'))
 enableConfigs()
 
 const SESSION = 'commit-gate-started-commands'
@@ -80,7 +80,7 @@ section('§3 what is no commit passes the gate')
   check('Service start: a test run passes', (await judged(ServiceTool, { op: 'start', name: 'tests', command: 'bun', args: ['test'] })) === null)
   check('Service logs: an operation that starts nothing passes', (await judged(ServiceTool, { op: 'logs', name: 'tests' })) === null)
   check('Journey run with no commit passes', (await judged(JourneyTool, { op: 'run', name: 'plain', steps: [{ kind: 'command.run', id: 'status', command: 'git', args: ['status'] }] })) === null)
-  check('a tool that starts no command passes', (await judged(FileReadTool, { file_path: join(ROOT, 'a-file-that-is-read') })) === null)
+  check('a tool that starts no command passes', (await judged(ReadTool, { file_path: join(ROOT, 'a-file-that-is-read') })) === null)
   check('Service start: an echo passes', (await judged(ServiceTool, { op: 'start', name: 'echo', command: 'echo', args: ['hello there'] })) === null)
 }
 

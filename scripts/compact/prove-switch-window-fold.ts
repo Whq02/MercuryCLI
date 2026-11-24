@@ -48,7 +48,7 @@ const { enableConfigs } = await import('../../src/platform/config/globalConfig.t
 enableConfigs()
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
@@ -56,7 +56,7 @@ const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/f
 const { contextFill } = await import('../../src/engine/context-window/contextTokenCount.ts')
 const { primeOpenaiCatalogue } = await import('../../src/models/roads/openai/openaiCatalogue.ts')
 const autoCompactModule = await import('../../src/engine/compaction/autoFold.ts')
-const { getBlockingLimit, resolveAutoCompactWindow } = autoCompactModule
+const { getBlockingLimit, resolveAutoFoldWindow } = autoCompactModule
 const foldModelFor = (autoCompactModule as Partial<typeof autoCompactModule>).foldModelFor
 const previewModule = await import('../../src/models/roads/transitionPreview.ts')
 const { buildTransitionPlan, transitionPlanSummary, transitionCapabilityEpoch } = previewModule
@@ -190,7 +190,7 @@ async function drive(model: string, messages: unknown[]): Promise<Drive> {
   let terminal: Record<string, unknown> = {}
   let threw: string | undefined
   try {
-    const gen = query({
+    const gen = turnDoor({
       messages: messages as never,
       systemPrompt: ['fixture system prompt'] as never,
       userContext: {},
@@ -222,9 +222,9 @@ const fmt = (n: number): string => n.toLocaleString('en-US')
 section('W0 the primed window is the window Mercury resolves for the seated model')
 {
   primeWindow(WINDOW)
-  check('the flat prime budgets the seated model at the declared window', resolveAutoCompactWindow(SEATED).window === WINDOW, String(resolveAutoCompactWindow(SEATED).window))
+  check('the flat prime budgets the seated model at the declared window', resolveAutoFoldWindow(SEATED).window === WINDOW, String(resolveAutoFoldWindow(SEATED).window))
   primeWindow(WINDOW, CEILING)
-  check('the ceiling prime budgets the seated model at the declared ceiling', resolveAutoCompactWindow(SEATED).window === CEILING, String(resolveAutoCompactWindow(SEATED).window))
+  check('the ceiling prime budgets the seated model at the declared ceiling', resolveAutoFoldWindow(SEATED).window === CEILING, String(resolveAutoFoldWindow(SEATED).window))
   check("the source model's limit holds the note", getBlockingLimit(SOURCE) > contextFill(seed(SOURCE) as never).tokens, `${getBlockingLimit(SOURCE)} vs ${contextFill(seed(SOURCE) as never).tokens}`)
 }
 
@@ -361,7 +361,7 @@ section('W5 the notice and the refusal without a measured count keep their shape
   check('an unmeasured signal names the family alone', overflowRecoveryNotice(bare, 'fold') === 'context overflowed (OpenAI) — folding the conversation and retrying')
   guarded('W5 the measured signal', () => {
     const measured = measure(bare, seed(SOURCE) as never, SEATED)
-    check('measuring stamps the count and the resolved window', measured.measuredTokens === contextFill(seed(SOURCE) as never, SEATED).tokens && measured.measuredWindow === resolveAutoCompactWindow(SEATED).window, JSON.stringify(measured))
+    check('measuring stamps the count and the resolved window', measured.measuredTokens === contextFill(seed(SOURCE) as never, SEATED).tokens && measured.measuredWindow === resolveAutoFoldWindow(SEATED).window, JSON.stringify(measured))
     check('a signal the provider numbered keeps the provider\'s numbers', overflowRecoveryNotice({ ...measured, actualTokens: 135_000, limitTokens: 128_000 }, 'fold') === 'context overflowed (OpenAI: 135,000 tokens > 128,000) — folding the conversation and retrying')
     const refusal = overflowRefusalText(measured, 'retry-overflowed', { nonInteractive: true })
     check('the refusal carries the measured clause', refusal.includes(`about ${fmt(measured.measuredTokens!)} tokens by Mercury's count against the ${fmt(measured.measuredWindow!)}-token window`), refusal)

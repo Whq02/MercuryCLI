@@ -89,7 +89,7 @@ const { getDefaultAppState } = await import('../../src/screen/app-state/AppState
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 const auto = await import('../../src/engine/compaction/autoFold.ts')
-const { buildPostCompactMessages } = await import('../../src/engine/compaction/foldConversation.ts')
+const { buildPostFoldMessages } = await import('../../src/engine/compaction/foldConversation.ts')
 const { estimateContextTokens } = await import('../../src/engine/compaction/pruneToolResults.ts')
 const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
 const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
@@ -160,7 +160,7 @@ async function foldSeatedOn(seat: string): Promise<Folded> {
   try {
     const result = (await compactCall('', makeCtx(seat, seed()) as never)) as { type: string; compactionResult?: unknown }
     outcome = result.type
-    if (result.compactionResult !== undefined) post = buildPostCompactMessages(result.compactionResult as never) as unknown[]
+    if (result.compactionResult !== undefined) post = buildPostFoldMessages(result.compactionResult as never) as unknown[]
   } catch (error) {
     outcome = `threw: ${error instanceof Error ? error.message : String(error)}`
   }
@@ -172,12 +172,12 @@ section('1 the runner has not read the local server when the fold starts: the se
 {
   await refreshLocalDiscovery({ force: true })
   serving = 'up'
-  check("the runner's snapshot holds no record of the tag, so the seat's window reads as the 200,000 fallback", localRecordFor(TARGET) === undefined && auto.resolveAutoCompactWindow(TARGET).window === 200_000, JSON.stringify(auto.resolveAutoCompactWindow(TARGET)))
+  check("the runner's snapshot holds no record of the tag, so the seat's window reads as the 200,000 fallback", localRecordFor(TARGET) === undefined && auto.resolveAutoFoldWindow(TARGET).window === 200_000, JSON.stringify(auto.resolveAutoFoldWindow(TARGET)))
   const folded = await foldSeatedOn(TARGET)
   say(`seated on ${TARGET}`, folded)
   const record = localRecordFor(TARGET)
-  const window = auto.resolveAutoCompactWindow(TARGET).window
-  const foldLine = auto.getAutoCompactThreshold(TARGET)
+  const window = auto.resolveAutoFoldWindow(TARGET).window
+  const foldLine = auto.getAutoFoldThreshold(TARGET)
   check('the fold read the server before it sized itself: the tag is known at its Modelfile window of 32,768', record !== undefined && window === 32_768, `record ${String(record !== undefined)} window ${window}`)
   check("the fold landed under the tag's own fold line (red on the parent: sized on the 200,000 fallback, the local model was picked to write the summary and its request was refused)", folded.outcome === 'compact' && folded.landed > 0 && folded.landed < foldLine, `${folded.outcome.slice(0, 200)} · landed ${fmt(folded.landed)} against ${fmt(foldLine)}`)
   check("the summary was written on the outgoing model's wire and nothing was asked of the local server", folded.wire === 'anthropic' && folded.localChats === 0, `wire ${folded.wire} · local ${folded.localChats}`)
@@ -197,7 +197,7 @@ section('2 the outgoing model cannot write the summary: the seated local model w
   const asked = chats.slice(chatsBefore)
   console.log(`  [record] the local requests: ${asked.map(chat => `${fmt(Math.round(chat.bytes / 4))} tokens at num_ctx ${String(chat.numCtx)}`).join(' · ')}`)
   check('the outgoing model is signed out, so no model whose window holds the whole history can write the summary', signedOut, JSON.stringify(usabilityForRoute('anthropic')))
-  check("the fold still lands under the tag's fold line: the local model wrote the summary in requests that each fit its 32,768 window, and nothing left for the cloud wire", folded.outcome === 'compact' && folded.landed > 0 && folded.landed < auto.getAutoCompactThreshold(TARGET) && folded.wire === '' && asked.length >= 1 && asked.every(chat => chat.numCtx === 32_768 && chat.bytes / 4 < 32_768), `${folded.outcome.slice(0, 300)} · landed ${fmt(folded.landed)} · wire ${folded.wire} · ${JSON.stringify(asked)}`)
+  check("the fold still lands under the tag's fold line: the local model wrote the summary in requests that each fit its 32,768 window, and nothing left for the cloud wire", folded.outcome === 'compact' && folded.landed > 0 && folded.landed < auto.getAutoFoldThreshold(TARGET) && folded.wire === '' && asked.length >= 1 && asked.every(chat => chat.numCtx === 32_768 && chat.bytes / 4 < 32_768), `${folded.outcome.slice(0, 300)} · landed ${fmt(folded.landed)} · wire ${folded.wire} · ${JSON.stringify(asked)}`)
   if (kept !== undefined) process.env.ANTHROPIC_AUTH_TOKEN = kept
   clearOAuthTokenCache()
 }

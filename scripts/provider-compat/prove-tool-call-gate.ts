@@ -276,9 +276,9 @@ const { routedCallModel } = await import('../../src/models/roads/callModelRouter
 const { getEmptyToolPermissionContext, findToolByName } = await import('../../src/tools/kit/tool.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { WriteTool } = await import('../../src/tools/write/WriteTool.ts')
 const { GlobTool } = await import('../../src/tools/glob/GlobTool.ts')
 const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
 const { ContextLeftTool } = await import('../../src/tools/context-left/ContextLeftTool.ts')
@@ -307,9 +307,9 @@ const RequiredFixtureTool = {
 }
 const CATALOG = [
   BashTool,
-  FileReadTool,
-  FileEditTool,
-  FileWriteTool,
+  ReadTool,
+  EditTool,
+  WriteTool,
   GlobTool,
   GrepTool,
   ContextLeftTool,
@@ -317,8 +317,8 @@ const CATALOG = [
   RequiredFixtureTool,
 ] as never
 const BASH = BashTool.name
-const READ = FileReadTool.name
-const EDIT = FileEditTool.name
+const READ = ReadTool.name
+const EDIT = EditTool.name
 const GREP = GrepTool.name
 const EMPTY = ContextLeftTool.name
 const PERMISSIVE = PermissiveFixtureTool.name
@@ -641,7 +641,7 @@ section('the straight-quote law: the gpt lane straightens a command, a pattern a
   const LD = '“'
   const RD = '”'
   const GLOB = GlobTool.name
-  const WRITE = FileWriteTool.name
+  const WRITE = WriteTool.name
   const curled: Record<string, Script> = {
     bash: { calls: [{ id: 'call_curl_bash', name: BASH, args: JSON.stringify({ command: `echo ${LS}hi${RS} ${LD}there${RD}`, description: `say ${LS}hi${RS} ${LD}there${RD}` }) }] },
     grep: { calls: [{ id: 'call_curl_grep', name: GREP, args: JSON.stringify({ pattern: `don${RS}t`, path: `/tmp/${LS}x${RS}`, glob: `${LD}*.md${RD}`, output_mode: 'content' }) }] },
@@ -820,7 +820,7 @@ section('the gate as a pure function (the exact contract the adapters call)')
     return JSON.stringify(dropEmptyOptionalArgs({ a: { x: '' }, b: [''] }, tool)) === JSON.stringify({ a: { x: '' }, b: [''] })
   })(), HINT_EMPTY)
   check('the real Edit declares old_string and new_string as meaningful when empty; the real Grep keeps its required pattern', (() => {
-    const edit = dropEmptyOptionalArgs({ file_path: '/tmp/x', old_string: '', new_string: '', expected_anchor: '', hunks: [] }, FileEditTool as never)
+    const edit = dropEmptyOptionalArgs({ file_path: '/tmp/x', old_string: '', new_string: '', expected_anchor: '', hunks: [] }, EditTool as never)
     const grep = dropEmptyOptionalArgs({ pattern: '', glob: '' }, GrepTool as never)
     return JSON.stringify(edit) === JSON.stringify({ file_path: '/tmp/x', old_string: '', new_string: '' }) && JSON.stringify(grep) === JSON.stringify({ pattern: '' })
   })(), HINT_EMPTY + '; the real tools are under src/tools/FileEditTool/ and src/tools/grep/')
@@ -864,11 +864,11 @@ section('the gate as a pure function (the exact contract the adapters call)')
       declared(BashTool) === JSON.stringify(['command']) &&
       declared(GrepTool) === JSON.stringify(['pattern', 'path', 'glob']) &&
       declared(GlobTool) === JSON.stringify(['pattern', 'path']) &&
-      declared(FileReadTool) === JSON.stringify(['file_path']) &&
-      declared(FileWriteTool) === JSON.stringify(['file_path']) &&
-      declared(FileEditTool) === JSON.stringify(['file_path'])
+      declared(ReadTool) === JSON.stringify(['file_path']) &&
+      declared(WriteTool) === JSON.stringify(['file_path']) &&
+      declared(EditTool) === JSON.stringify(['file_path'])
     )
-  })(), [BashTool, GrepTool, GlobTool, FileReadTool, FileWriteTool, FileEditTool].map(declared).join(' ') + ' — ' + HINT_DECLARED)
+  })(), [BashTool, GrepTool, GlobTool, ReadTool, WriteTool, EditTool].map(declared).join(' ') + ' — ' + HINT_DECLARED)
   {
     const { LSP_TOOLS } = await import('../../src/tools/lsp/lspTools.ts')
     const { DebugTool } = await import('../../src/tools/debug/DebugTool.ts')

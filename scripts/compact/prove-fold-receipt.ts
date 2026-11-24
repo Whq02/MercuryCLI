@@ -15,7 +15,7 @@ process.env.MERCURY_COMPACT_KEEP_TAIL = '1'
 const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const { compactConversation } = await import('../../src/engine/compaction/foldConversation.ts')
+const { foldConversation } = await import('../../src/engine/compaction/foldConversation.ts')
 const receipts = await import('../../src/engine/compaction/foldReceipt.ts').catch(() => null)
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
@@ -63,7 +63,7 @@ const context = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 }) as never
 const fold = (messages: Message[], ctx = context()) =>
-  compactConversation(messages, ctx, { systemPrompt: ['fixture'], userContext: {}, systemContext: {}, toolUseContext: ctx, forkContextMessages: [] }, true, undefined, true)
+  foldConversation(messages, ctx, { systemPrompt: ['fixture'], userContext: {}, systemContext: {}, toolUseContext: ctx, forkContextMessages: [] }, true, undefined, true)
 
 try {
   assert.ok(receipts, 'the fold receipt module exists')

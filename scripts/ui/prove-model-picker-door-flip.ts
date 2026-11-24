@@ -57,7 +57,7 @@ const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProvid
 const { createStore } = await import('../../src/platform/primitives/store.js')
 const { call } = await import('../../src/commands/model/mercuryModel.js')
 const { FAMILY_GENERATIONS } = await import('../../src/models/facts/builtInModelTable.js')
-const { getModelStrings } = await import('../../src/models/facts/pinnedModelIds.js')
+const { getPinnedModelIds } = await import('../../src/models/facts/pinnedModelIds.js')
 const { renderModelName } = await import('../../src/models/catalogue/engineModel.js')
 const anthropic = await import('../../src/models/roads/anthropic/anthropicCatalogue.js')
 const { slotSeatView } = await import('../../src/models/roads/slotSwitch.js')
@@ -66,7 +66,7 @@ const { NoSessionConnector } = await import('../../src/engine/connector/noSessio
 const { readModelUseLedger } = await import('../../src/models/facts/modelUseLedger.js')
 type Message = import('../../src/engine/message-shapes/message.js').Message
 
-const strings = getModelStrings()
+const strings = getPinnedModelIds()
 const OPUS = strings[FAMILY_GENERATIONS.opus[0]!]!
 const SONNET = strings[FAMILY_GENERATIONS.sonnet[0]!]!
 const listOf = (ids: string[]): Response => new Response(JSON.stringify({ data: ids.map(id => ({ id, display_name: renderModelName(id), type: 'model' })), has_more: false }), { status: 200, headers: { 'content-type': 'application/json' } })

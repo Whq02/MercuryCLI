@@ -1,5 +1,5 @@
 import type { ToolUseBlock } from '../../message-shapes/wire.js'
-import type { AutoCompactTrackingState } from '../../compaction/autoFold.js'
+import type { AutoFoldTrackingState } from '../../compaction/autoFold.js'
 import type {
   OverflowEpisode,
   OverflowRung,
@@ -19,11 +19,11 @@ import { trimChantedReplyMessages, type ChantDetection } from '../../tool-dispat
 import type { QuerySource } from '../../requests/querySource.js'
 import type { EarlyStarts } from '../../tool-dispatch/earlyStarts.js'
 import type { RequestContextPlan } from '../../run/requestContextPlan.js'
-import type { QueryDeps } from '../../turn-entry/turnLoopDeps.js'
+import type { TurnLoopDeps } from '../../turn-entry/turnLoopDeps.js'
 import type { Terminal, Continue } from '../../turn-entry/transitions.js'
 import type { BudgetGuard } from '../budget-guard.js'
 import type { createEventMint, RunEvent } from '../events.js'
-import type { QueryParams } from '../turn-machine.js'
+import type { TurnParams } from '../turn-machine.js'
 
 export type EventMint = ReturnType<typeof createEventMint>
 
@@ -33,7 +33,7 @@ export type TurnState = {
   turnCount: number
   transition: Continue | undefined
   stopHookActive: boolean | undefined
-  autoCompactTracking: AutoCompactTrackingState | undefined
+  autoCompactTracking: AutoFoldTrackingState | undefined
   overflowEpisode: OverflowEpisode
   pendingOverflow: { signal: OverflowSignal; rung: OverflowRung } | undefined
   maxOutputTokensOverride: number | undefined
@@ -49,7 +49,7 @@ export type TurnState = {
 }
 
 export type RunCtx = {
-  params: QueryParams
+  params: TurnParams
   querySource: QuerySource
   fallbackModel: string | undefined
   skipCacheWrite: boolean | undefined
@@ -57,7 +57,7 @@ export type RunCtx = {
   systemPrompt: SystemPrompt
   systemContext: { [k: string]: string }
   userContext: { [k: string]: string }
-  deps: QueryDeps
+  deps: TurnLoopDeps
   emit: EventMint
   budgetGuard: BudgetGuard
   awaitingReply: ReplyMark[]
@@ -75,7 +75,7 @@ export type IterationState = {
   messagesForQuery: Message[]
   toolUseContext: ToolUseContext
   callChain: ToolCallChain
-  tracking: AutoCompactTrackingState | undefined
+  tracking: AutoFoldTrackingState | undefined
   fullSystemPrompt: SystemPrompt
   appState: ReturnType<ToolUseContext['getAppState']>
   currentModel: string

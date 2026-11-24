@@ -19,7 +19,7 @@ for (const k of [
   delete process.env[k]
 }
 
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
@@ -152,7 +152,7 @@ function makeGen(turnFor: (index: number) => unknown[] | undefined): {
 } {
   const rig = makeCtx([makeTool('EchoTool')])
   const { calls, callModel } = makeModel(turnFor)
-  const gen = query({
+  const gen = turnDoor({
     messages: [createUserMessage({ content: 'please do the thing' })] as never,
     systemPrompt: ['rig system prompt'] as never,
     userContext: {},

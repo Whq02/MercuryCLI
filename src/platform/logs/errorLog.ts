@@ -100,7 +100,7 @@ function isAutonomousPrompt(firstPrompt: string | undefined): boolean {
   return typeof firstPrompt === 'string' && firstPrompt.trimStart().startsWith(`<${TICK_TAG}`)
 }
 
-export function getLogDisplayTitle(log: SessionListing, defaultTitle?: string): string {
+export function getListingDisplayTitle(log: SessionListing, defaultTitle?: string): string {
   const autonomous = isAutonomousPrompt(log.firstPrompt)
   const stripped = log.firstPrompt ? stripDisplayTagsAllowEmpty(log.firstPrompt) : ''
   const prompt = !autonomous && stripped.trim() !== '' ? stripped : ''

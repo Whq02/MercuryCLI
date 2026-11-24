@@ -14,7 +14,7 @@ process.env.BROWSER = '/usr/bin/true'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
 
-const { projectTimeBasedMicrocompact, microcompactMessages } = await import('../../src/engine/compaction/pruneToolResults.ts')
+const { projectTimeBasedPrune, pruneMessages } = await import('../../src/engine/compaction/pruneToolResults.ts')
 const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { isClearedOrDigested } = await import('../../src/engine/compaction/pruneDigest.ts')
 type Message = import('../../src/engine/message-shapes/message.ts').Message
@@ -45,8 +45,8 @@ pair('dedup_later', 'Read', { file_path: '/work/unchanged.txt' }, 'The earlier r
 ;(history[history.length - 1] as { toolUseResult?: unknown }).toolUseResult = { type: 'file_unchanged' }
 for (let index = 0; index < 5; index++) pair(`recent_${index}`, 'Read', { file_path: '/work/recent.txt' })
 
-const size = projectTimeBasedMicrocompact(history, 'sdk', { pressure: true, supersededOnly: true })
-const overflow = projectTimeBasedMicrocompact(history, 'sdk', { pressure: true })
+const size = projectTimeBasedPrune(history, 'sdk', { pressure: true, supersededOnly: true })
+const overflow = projectTimeBasedPrune(history, 'sdk', { pressure: true })
 const contentOf = (messages: Message[], id: string): string => {
   for (const message of messages) {
     if (message.type !== 'user' || !Array.isArray(message.message.content)) continue
@@ -71,15 +71,15 @@ for (let index = 0; index < 5; index++) {
 check('the size receipt counts only the two eligible superseded results', size?.cleared === 2 && JSON.stringify(size.clearedIds) === JSON.stringify(['read_old', 'write_old']))
 check('the existing overflow walk remains broader and unchanged', overflow !== null && isClearedOrDigested(contentOf(overflow.messages, 'read_unique')) && isClearedOrDigested(contentOf(overflow.messages, 'bash_old')))
 check('the projection never changes its input', contentOf(history, 'read_old') === big && contentOf(history, 'write_old') === big)
-check('a second projection makes no repeated prune', size !== null && projectTimeBasedMicrocompact(size.messages, 'sdk', { pressure: true, supersededOnly: true }) === null)
+check('a second projection makes no repeated prune', size !== null && projectTimeBasedPrune(size.messages, 'sdk', { pressure: true, supersededOnly: true }) === null)
 const invalidated: string[] = []
-const applied = await microcompactMessages(history, undefined, 'sdk', { readFileState: { delete: path => { invalidated.push(path); return true } } }, { pressure: true, supersededOnly: true })
+const applied = await pruneMessages(history, undefined, 'sdk', { readFileState: { delete: path => { invalidated.push(path); return true } } }, { pressure: true, supersededOnly: true })
 check('the live path returns the same cleared ids as the pure projection', JSON.stringify(applied.pruned?.clearedIds) === JSON.stringify(size?.clearedIds))
 check('only a cleared Read invalidates read-dedup delivery truth', invalidated.includes('/work/current.txt') && !invalidated.includes('/work/unique.txt') && !invalidated.includes('/work/rewritten.txt'))
 check('the target is a net saving after replacement cost', size !== null && size.tokensSaved < Math.ceil(big.length / 4) * 2)
-check('a prune that cannot reach the target does not land', size !== null && projectTimeBasedMicrocompact(history, 'sdk', { pressure: true, supersededOnly: true, minimumTokensSaved: size.tokensSaved + 1 }) === null)
+check('a prune that cannot reach the target does not land', size !== null && projectTimeBasedPrune(history, 'sdk', { pressure: true, supersededOnly: true, minimumTokensSaved: size.tokensSaved + 1 }) === null)
 const noInvalidations: string[] = []
-const insufficient = await microcompactMessages(history, undefined, 'sdk', { readFileState: { delete: path => { noInvalidations.push(path); return true } } }, { pressure: true, supersededOnly: true, minimumTokensSaved: Number.MAX_SAFE_INTEGER })
+const insufficient = await pruneMessages(history, undefined, 'sdk', { readFileState: { delete: path => { noInvalidations.push(path); return true } } }, { pressure: true, supersededOnly: true, minimumTokensSaved: Number.MAX_SAFE_INTEGER })
 check('an insufficient prune has no live side effects or replacement receipt', insufficient.messages === history && insufficient.pruned === undefined && noInvalidations.length === 0)
 const { buildRequestContextPlan } = await import('../../src/engine/run/requestContextPlan.ts')
 const { createContentReplacementState } = await import('../../src/engine/tool-dispatch/toolResultStorage.ts')
@@ -98,7 +98,7 @@ check('a reconstructed replacement ledger keeps the same request bytes', resumed
 const lateThinking = createAssistantMessage({ content: [{ type: 'thinking', thinking: 'bound to the old results', signature: 'fixture-signature' }] as never })
 const earlyThinking = createAssistantMessage({ content: [{ type: 'thinking', thinking: 'before the edited prefix', signature: 'fixture-prefix-signature' }] as never })
 const thinkingHistory = [earlyThinking, ...history.slice(0, 5), lateThinking, ...history.slice(5)]
-const thoughtPrune = projectTimeBasedMicrocompact(thinkingHistory, 'sdk', { pressure: true, supersededOnly: true })
+const thoughtPrune = projectTimeBasedPrune(thinkingHistory, 'sdk', { pressure: true, supersededOnly: true })
 check('the size prune emits dead marks only for thinking after the edited prefix', thoughtPrune !== null && thoughtPrune.deadMarks.some(mark => mark.messageId === lateThinking.message.id) && !thoughtPrune.deadMarks.some(mark => mark.messageId === earlyThinking.message.id))
 process.env.MERCURY_TIME_BASED_MC = '1'
 const oldTimestamp = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()

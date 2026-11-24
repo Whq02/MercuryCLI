@@ -9,7 +9,7 @@ import type { Tool, ToolUseContext } from '../../src/tools/kit/tool.ts'
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'review-write-')))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
 const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const frozen = join(scratch, 'frozen')
@@ -20,7 +20,7 @@ const original = '# Report\n\n## Scope\nuntouched\n\n## Review\npending\n\n## Ch
 writeFileSync(report, original)
 writeFileSync(other, 'protected\n')
 const canonical = canonicalReviewerReceipt(report, frozen)
-const tools = restrictReviewerTools([FileEditTool, BashTool] as Tool[], canonical, frozen)
+const tools = restrictReviewerTools([EditTool, BashTool] as Tool[], canonical, frozen)
 const edit = tools.find(tool => tool.name === 'Edit')!
 const shell = tools.find(tool => tool.name === 'Bash')!
 let checks = 0
@@ -36,7 +36,7 @@ const context = (): ToolUseContext => ({
 try {
   check('the declared report is canonical', canonical === report)
   const fake = (name: string, isReadOnly: (input: Record<string, unknown>) => boolean): Tool => ({ name, isReadOnly, call: async () => ({ data: 'ran' }) } as unknown as Tool)
-  const roster = restrictReviewerTools([FileEditTool, BashTool, fake('Write', () => false), fake('Retain', () => false), fake('Skill', () => false), fake('Read', () => true), fake('AstEdit', input => input.apply !== true), fake('Throws', () => { throw new Error('no input') })] as Tool[], canonical, frozen).map(tool => tool.name)
+  const roster = restrictReviewerTools([EditTool, BashTool, fake('Write', () => false), fake('Retain', () => false), fake('Skill', () => false), fake('Read', () => true), fake('AstEdit', input => input.apply !== true), fake('Throws', () => { throw new Error('no input') })] as Tool[], canonical, frozen).map(tool => tool.name)
   check('the review roster is what its gate can pass: the receipt editor, the shell, the readers and the input-dependent tools — never a tool whose every call would be refused', roster.join(',') === 'Edit,Bash,Read,AstEdit')
   mkdirSync(join(frozen, 'scripts', 'checks'), { recursive: true })
   writeFileSync(join(frozen, 'scripts', 'checks', 'prove-read.ts'), 'console.log("review proof ran")\n')

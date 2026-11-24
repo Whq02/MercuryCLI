@@ -43,7 +43,7 @@ Object.assign(process.env, fixture.env)
 const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const { call } = await import('../../src/commands/compact/compact.ts')
-const { compactConversation, buildPostCompactMessages, projectManualFold } = await import('../../src/engine/compaction/foldConversation.ts')
+const { foldConversation, buildPostFoldMessages, projectManualFold } = await import('../../src/engine/compaction/foldConversation.ts')
 const { estimateContextTokens } = await import('../../src/engine/compaction/pruneToolResults.ts')
 const { requestGaugeDigest } = await import('../../src/engine/run/requestGauge.ts')
 const { stripThinkingFromIndex } = await import('../../src/engine/messages/apiFilters.ts')
@@ -53,7 +53,7 @@ const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/p
 
 const MODEL = 'claude-opus-4-8'
 type AnyMsg = Record<string, unknown> & { type?: string }
-type CompactCallResult = { type: string; displayText?: string; compactionResult: Parameters<typeof buildPostCompactMessages>[0] }
+type CompactCallResult = { type: string; displayText?: string; compactionResult: Parameters<typeof buildPostFoldMessages>[0] }
 
 let seq = 0
 const uid = (): string => `00000000-0000-4000-a000-${String(++seq).padStart(12, '0')}`
@@ -164,7 +164,7 @@ section('1 restored files would make the fold grow: projection counts disk size,
   )
   const reqsBefore = summaryRequests()
   const result = (await call('', ctx as never)) as CompactCallResult
-  const post = buildPostCompactMessages(result.compactionResult)
+  const post = buildPostFoldMessages(result.compactionResult)
   const afterTokens = estimateContextTokens(post as never, MODEL)
   const restoredFileCount = result.compactionResult.attachments.filter(a => a.attachment.type === 'file' || a.attachment.type === 'compact_file_reference').length
   check(
@@ -284,7 +284,7 @@ section('2 Windows SUBMIT 352 shape (RequestGauge + high-effort thinking + large
   const landed = (await call('', makeContext(short.messages, short.reads) as never)) as CompactCallResult
   const restoredFileCount = landed.compactionResult.attachments.filter(a => a.attachment.type === 'file' || a.attachment.type === 'compact_file_reference').length
   const standingBefore = estimateContextTokens(stripThinkingFromIndex(short.messages as never, 0), MODEL)
-  const standingAfter = estimateContextTokens(buildPostCompactMessages(landed.compactionResult) as never, MODEL)
+  const standingAfter = estimateContextTokens(buildPostFoldMessages(landed.compactionResult) as never, MODEL)
   check(
     'a short summary: the summariser is asked exactly once',
     summaryRequests() === reqsBefore + 1,
@@ -389,7 +389,7 @@ section('4 automatic fold drops restored files when they would push the landed c
   const { messages, reads } = buildPartialReadSession()
   const beforeTokens = estimateContextTokens(messages as never, MODEL)
   const ctx = makeContext(messages, reads)
-  const result = await compactConversation(
+  const result = await foldConversation(
     messages as never,
     ctx as never,
     { systemPrompt: [], userContext: {}, systemContext: {}, toolUseContext: ctx, forkContextMessages: messages } as never,
@@ -398,7 +398,7 @@ section('4 automatic fold drops restored files when they would push the landed c
     true,
     { isRecompaction: false, turnsSincePreviousCompact: -1, autoCompactThreshold: 900_000 },
   )
-  const afterTokens = result.truePostCompactTokenCount ?? estimateContextTokens(buildPostCompactMessages(result), MODEL)
+  const afterTokens = result.truePostCompactTokenCount ?? estimateContextTokens(buildPostFoldMessages(result), MODEL)
   const restoredFileCount = result.attachments.filter(a => a.attachment.type === 'file' || a.attachment.type === 'compact_file_reference').length
   check(
     'automatic fold drops restored files so it does not land larger than before',

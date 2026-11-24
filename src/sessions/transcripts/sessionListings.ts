@@ -131,7 +131,7 @@ export async function loadTranscriptFromFile(
     const transcript = buildConversationChain(messages, leafMessage)
     const sessionId = leafMessage.sessionId as UUID
     return {
-      ...chainLogOption(transcript, transcript.at(-1)!, filePath),
+      ...chainListing(transcript, transcript.at(-1)!, filePath),
       summary: summaries.get(leafMessage.uuid),
       ...resumeFactsOf(fold, sessionId, transcript),
     }
@@ -158,7 +158,7 @@ function visibleTurnCount(chain: TranscriptMessage[]): number {
   return chain.filter(paintsConversationRow).length
 }
 
-function chainLogOption(chain: TranscriptMessage[], anchor: TranscriptMessage, fullPath?: string): SessionListing {
+function chainListing(chain: TranscriptMessage[], anchor: TranscriptMessage, fullPath?: string): SessionListing {
   const first = chain[0]!
   return {
     date: anchor.timestamp,
@@ -411,7 +411,7 @@ export async function searchSessionsByCustomTitle(
   options?: { limit?: number; exact?: boolean },
 ): Promise<SessionListing[]> {
   const worktreePaths = await getWorktreePaths(getOriginalCwd())
-  const statLogs = await getStatOnlyLogsForWorktrees(worktreePaths)
+  const statLogs = await getStatOnlyListingsForWorktrees(worktreePaths)
   const { logs } = await enrichSessionListings(statLogs, 0, statLogs.length)
   const normalizedQuery = query.trim().toLowerCase()
   const exact = options?.exact === true
@@ -505,7 +505,7 @@ export async function lastSession(
   const anchor = chain.at(-1) ?? leaf
   const summary = fold.summaries.get(leaf.uuid)
   return {
-    ...chainLogOption(chain, anchor, getTranscriptPathForSession(sessionId)),
+    ...chainListing(chain, anchor, getTranscriptPathForSession(sessionId)),
     sessionId,
     ...(summary !== undefined ? { summary } : {}),
     ...resumeFactsOf(fold, sessionId, chain),
@@ -715,7 +715,7 @@ export async function listRepoSessionsProgressive(
     `/sessions: loading sessions for cwd=${getOriginalCwd()}, worktrees=[${worktreePaths.join(', ')}]`,
   )
   const collector = createFailureCollector()
-  const allStatLogs = await getStatOnlyLogsForWorktrees(worktreePaths, limit, collector.add)
+  const allStatLogs = await getStatOnlyListingsForWorktrees(worktreePaths, limit, collector.add)
   logForDebugging(`/sessions: found ${allStatLogs.length} session files on disk`)
   return progressivePage(allStatLogs, initialEnrichCount, collector.summary())
 }
@@ -738,7 +738,7 @@ function worktreeStores(projectDirs: string[], worktreePaths: string[]): Array<{
   return stores
 }
 
-async function getStatOnlyLogsForWorktrees(
+async function getStatOnlyListingsForWorktrees(
   worktreePaths: string[],
   limit?: number,
   onReadError?: (path: string, error: unknown) => void,
@@ -938,7 +938,7 @@ export async function listingsOfSessionFile(
     const first = fullChain[0]!
     const summary = loaded.summaries.get(leaf.uuid)
     listings.push({
-      ...chainLogOption(fullChain, leaf, sessionFile),
+      ...chainListing(fullChain, leaf, sessionFile),
       sessionId: leaf.sessionId,
       ...(summary !== undefined ? { summary } : {}),
       isSidechain: first.isSidechain || false,
@@ -996,7 +996,7 @@ type LiteLabelFacts = {
   lastTimestamp?: string
 }
 
-async function enrichLog(
+async function enrichListing(
   log: SessionListing,
   readBuf: Buffer,
   onReadError?: (path: string, error: unknown) => void,
@@ -1053,7 +1053,7 @@ export async function enrichSessionListings(
   const logs: SessionListing[] = []
   let nextIndex = startIndex
   while (nextIndex < allLogs.length && logs.length < count) {
-    const enriched = await enrichLog(allLogs[nextIndex++]!, readBuf, collector.add)
+    const enriched = await enrichListing(allLogs[nextIndex++]!, readBuf, collector.add)
     if (enriched) logs.push(enriched)
   }
   const scanned = nextIndex - startIndex

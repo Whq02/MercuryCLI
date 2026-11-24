@@ -61,7 +61,7 @@ const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
@@ -94,7 +94,7 @@ async function turn(history: unknown[]): Promise<{ said: string[]; kept: unknown
   const deps = productionDeps()
   const said: string[] = []
   const kept: Row[] = []
-  for await (const raw of query({
+  for await (const raw of turnDoor({
     messages: history as never,
     systemPrompt: ['Only answer the request.'] as never,
     userContext: {},

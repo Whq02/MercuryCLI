@@ -126,7 +126,7 @@ function foldedRow(run: readonly ShellNotice[]): RenderableMessage {
   }
 }
 
-export function collapseBackgroundBashNotifications(
+export function foldShellNotices(
   messages: RenderableMessage[],
   verbose: boolean,
 ): RenderableMessage[] {

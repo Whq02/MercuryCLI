@@ -62,7 +62,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 
-const { FileReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
+const { ReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
 const { InspectTool } = await import(`${SRC}/tools/inspect/InspectTool.ts`)
 const { GitTool } = await import(`${SRC}/tools/git/GitTool.ts`)
 const { getEmptyToolPermissionContext } = await import(`${SRC}/tools/kit/tool.ts`)
@@ -87,7 +87,7 @@ const answer = async (tool: unknown, input: Record<string, unknown>, permission:
   return { behavior: 'allow', message: '', text }
 }
 const inside = (path: string): string | null => (path.startsWith(`${project}/`) ? path.slice(project.length + 1) : null)
-const read = (file_path: string) => ({ tool: FileReadTool, input: { file_path } })
+const read = (file_path: string) => ({ tool: ReadTool, input: { file_path } })
 const inspect = (ref: string) => ({ tool: InspectTool, input: { ref } })
 const DOORS: Door[] = [
   ['Read, the absolute reference', path => read(`mercury://file/${path}`)],
@@ -127,7 +127,7 @@ for (const [label, path, rules] of TARGETS) {
   const rows: string[] = []
   const plain: string[] = []
   for (const mode of MODES) {
-    const byPath = await answer(FileReadTool, { file_path: path }, rules(mode))
+    const byPath = await answer(ReadTool, { file_path: path }, rules(mode))
     plain.push(`${mode} ${byPath.behavior}`)
     for (const [door, through] of DOORS) {
       const call = through(path)
@@ -147,8 +147,8 @@ console.log(`  (${red.length} of ${cells} cells red)`)
 console.log('the refusal names the rule, and the doors still open what may be read')
 {
   const denied = withRules('alwaysDenyRules', ['Read(src/secret/**)'], 'default')
-  const byPath = await answer(FileReadTool, { file_path: KEYS }, denied)
-  const byRef = await answer(FileReadTool, { file_path: `mercury://file/${KEYS}` }, denied)
+  const byPath = await answer(ReadTool, { file_path: KEYS }, denied)
+  const byRef = await answer(ReadTool, { file_path: `mercury://file/${KEYS}` }, denied)
   const byGit = await answer(InspectTool, { ref: 'mercury://git/at/HEAD/src/secret/keys.ts' }, denied)
   check('by its path, by its reference and by its git reference the refusal is the rule\'s own sentence', [byPath, byRef, byGit].every(one => one.behavior === 'deny' && one.message === `Reading ${KEYS} is denied by the rule Read(src/secret/**) from this session.`), `${[byPath, byRef, byGit].map(one => one.message).join(' | ')} | hint: every door must return the denial of the rule from the shared judge, referenceReadDecision in src/integrations/resources/referencePaths.ts, with the sentence Reading <path> is denied by the rule <rule> from this session.`)
   const open = withRules('alwaysDenyRules', ['Read(src/secret/**)'], 'default')
@@ -190,7 +190,7 @@ console.log('the Git tool: a path it prints, lists or resolves is judged as that
     if (!(bare.text.includes('secret') && !bare.text.includes('withheld') && ruled.behavior === 'allow' && !ruled.text.includes('secret') && ruled.text.includes('open.ts') && ruled.text.includes(line))) wrong.push(`${label}: ${ruled.text.slice(0, 200)}`)
   }
   check('status, diff, show, compare and the tree of the folder above name the open file, leave the denied one out, and say in one line that one is withheld', wrong.length === 0, `${wrong.join(' | ')} | hint: the Git tool output for the op named must leave out the denied file and end with the withheld line; see GitTool in src/tools/git/GitTool.ts and repositoryReadDecision in src/integrations/resources/referencePaths.ts`)
-  const treeRef = [await answer(InspectTool, { ref: 'mercury://git/tree/HEAD/src' }, denied), await answer(FileReadTool, { file_path: 'mercury://git/tree/HEAD/src' }, denied)]
+  const treeRef = [await answer(InspectTool, { ref: 'mercury://git/tree/HEAD/src' }, denied), await answer(ReadTool, { file_path: 'mercury://git/tree/HEAD/src' }, denied)]
   check('the tree reference of the folder above, through Inspect and through Read: the same', treeRef.every(one => one.behavior === 'allow' && !one.text.includes('secret') && one.text.includes('open.ts') && one.text.includes('1 entry withheld')), `${treeRef.map(one => one.text.slice(0, 160)).join(' | ')} | hint: the git tree reference must withhold the denied entry and say 1 entry withheld, through both Inspect and Read; see src/integrations/resources/referencePaths.ts`)
 }
 
@@ -203,7 +203,7 @@ console.log('one judge: Read and Inspect answer alike on every reference')
     for (const mode of MODES) {
       for (const ref of refs(path)) {
         asked++
-        const [byRead, byInspect] = [await answer(FileReadTool, { file_path: ref }, rules(mode)), await answer(InspectTool, { ref }, rules(mode))]
+        const [byRead, byInspect] = [await answer(ReadTool, { file_path: ref }, rules(mode)), await answer(InspectTool, { ref }, rules(mode))]
         if (byRead.behavior !== byInspect.behavior) apart.push(`${label} · ${mode} · ${ref.replace(world, '')}: Read ${byRead.behavior}, Inspect ${byInspect.behavior}`)
       }
     }
@@ -231,9 +231,9 @@ console.log('with folder and reference targets switched off, Read is what it was
   process.env.MERCURY_READ_TARGETS = '0'
   const denied = withRules('alwaysDenyRules', ['Read(src/secret/**)'], 'default')
   const input = { file_path: `mercury://file/${KEYS}` }
-  const verdict = (await (FileReadTool as { checkPermissions: Function }).checkPermissions(input, context(denied))) as { behavior: string }
-  const old = permissions.checkReadPermissionForTool(FileReadTool, input, denied) as { behavior: string }
-  const ran = await answer(FileReadTool, input, denied)
+  const verdict = (await (ReadTool as { checkPermissions: Function }).checkPermissions(input, context(denied))) as { behavior: string }
+  const old = permissions.checkReadPermissionForTool(ReadTool, input, denied) as { behavior: string }
+  const ran = await answer(ReadTool, input, denied)
   delete process.env.MERCURY_READ_TARGETS
   check('the reference is taken for a file name, judged as one, and no file of that name is found', JSON.stringify(verdict) === JSON.stringify(old) && !CONTENTS.test(ran.text) && (ran.behavior !== 'allow' || ran.text.includes('There is no file at that path')), `${verdict.behavior} ${ran.behavior} ${ran.text.slice(0, 100)} | hint: with MERCURY_READ_TARGETS=0 checkPermissions in src/tools/read/ReadTool.ts must skip referenceReadDecision (readTargetsEnabled) and judge the reference as a file name`)
 }

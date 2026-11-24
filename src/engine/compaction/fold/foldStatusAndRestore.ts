@@ -1,12 +1,12 @@
-import type { ToolUseContext, CompactProgressEvent } from '../../../tools/kit/tool.js'
+import type { ToolUseContext, FoldProgressEvent } from '../../../tools/kit/tool.js'
 import { APIUserAbortError } from '../../request-parts/sdkErrors.js'
 import { FOLD_STAMP_THROTTLE_MS, type FoldExit, type FoldStatusV1, type FoldTrigger, beginFoldStatus, foldStatusExit, foldStatusOnEvent } from '../foldStatus.js'
-import { ERROR_MESSAGE_USER_ABORT, isNothingToCompactMessage } from './foldLimits.js'
+import { ERROR_MESSAGE_USER_ABORT, isNothingToFoldMessage } from './foldLimits.js'
 import { startTimeout, stopTimeout } from '../../../platform/async/timers.js'
 
-export function notifyCompactionError(context: ToolUseContext, err: unknown): void {
+export function notifyFoldError(context: ToolUseContext, err: unknown): void {
   const message = err instanceof Error ? err.message : String(err)
-  if (message === ERROR_MESSAGE_USER_ABORT || isNothingToCompactMessage(message)) return
+  if (message === ERROR_MESSAGE_USER_ABORT || isNothingToFoldMessage(message)) return
   context.addNotification?.({
     key: 'compact-error',
     text: `Compaction error: ${message}`,
@@ -15,7 +15,7 @@ export function notifyCompactionError(context: ToolUseContext, err: unknown): vo
   })
 }
 
-export function restoreAfterCompaction(context: ToolUseContext, word: unknown = null): void {
+export function restoreAfterFold(context: ToolUseContext, word: unknown = null): void {
   context.setStreamMode?.('requesting')
   context.setResponseLength?.(() => 0)
   context.onCompactProgress?.({ type: 'compact_end' })
@@ -47,7 +47,7 @@ export async function withFoldStatus<T, C extends ToolUseContext>(
     pending = startTimeout(send, FOLD_STAMP_THROTTLE_MS)
     pending.unref?.()
   }
-  const onEvent = (event: CompactProgressEvent): void => {
+  const onEvent = (event: FoldProgressEvent): void => {
     status = foldStatusOnEvent(status, event)
     stamp(event.type !== 'summary_progress')
   }
@@ -57,7 +57,7 @@ export async function withFoldStatus<T, C extends ToolUseContext>(
       if (word === 'compacting') stamp(true)
       else if (word !== null) context.setSDKStatus?.(word)
     },
-    onCompactProgress: (event: CompactProgressEvent) => {
+    onCompactProgress: (event: FoldProgressEvent) => {
       onEvent(event)
       context.onCompactProgress?.(event)
     },
@@ -80,7 +80,7 @@ export async function withFoldStatus<T, C extends ToolUseContext>(
   } finally {
     if (pending !== null) stopTimeout(pending)
     status = foldStatusExit(status, exit, Date.now(), reason)
-    restoreAfterCompaction(context, isNothingToCompactMessage(reason ?? '') ? null : { compacting: status })
+    restoreAfterFold(context, isNothingToFoldMessage(reason ?? '') ? null : { compacting: status })
     if (facts.trigger !== 'manual') context.setSDKStatus?.(null)
   }
 }

@@ -5,7 +5,7 @@ import type { Screen } from '../chat/Chat.js';
 import type { NormalizedUserMessage } from '../../engine/message-shapes/message.js';
 import { getUserMessageText } from '../../engine/messages/messages.js';
 import { ConfigurableShortcutHint } from '../keys/ConfigurableShortcutHint.js';
-import { MercuryCompactSummary } from './MercuryCompactSummary.js';
+import { MercuryFoldSummary } from './MercuryCompactSummary.js';
 import { MessageResponse } from '../../tools/kit/MessageResponse.js';
 type Props = {
   message: NormalizedUserMessage;
@@ -17,14 +17,14 @@ function reclaimPct(message: NormalizedUserMessage): number | undefined {
   return typeof v === 'number' && Number.isFinite(v) ? v : undefined;
 }
 
-export function CompactSummary({ message, screen }: Props): React.ReactNode {
+export function FoldSummary({ message, screen }: Props): React.ReactNode {
   const summary = getUserMessageText(message) ?? '';
   const isTranscript = screen === 'transcript';
 
   if (message.summarizeMetadata) {
     const meta = message.summarizeMetadata;
     return (
-      <MercuryCompactSummary
+      <MercuryFoldSummary
         summary={summary}
         pct={reclaimPct(message)}
         messagesSummarized={meta.messagesSummarized}

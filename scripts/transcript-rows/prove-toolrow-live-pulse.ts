@@ -16,7 +16,7 @@ const { AssistantToolUseMessage } = await import(
   '../../src/screen/messages/AssistantToolUseMessage.js'
 )
 const { BashTool } = await import('../../src/tools/shell/BashTool.js')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.js')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.js')
 const { liveTurnStateOf } = await import('../../src/sessions/resume/conversationRecovery.js')
 const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
 const { WORK_FRAMES } = await import('../../src/screen/cockpit/liveGlyphs.js')
@@ -202,7 +202,7 @@ const deniedRow = await renderRow({
 check('a DENIED row leads with ✕ in the mark\'s place', leadsWith(deniedRow, GLYPH.fail, 'Bash') && !deniedRow.includes(SHELL) && !workFamily(deniedRow), JSON.stringify(deniedRow))
 
 const readRow = await renderRow({
-  tool: FileReadTool,
+  tool: ReadTool,
   name: 'Read',
   input: { file_path: '/scratch/notes.md' },
   inProgress: new Set<string>(),

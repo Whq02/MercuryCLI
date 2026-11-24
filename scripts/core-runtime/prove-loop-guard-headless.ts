@@ -26,7 +26,7 @@ for (const k of [
 }
 
 const realQueryModule = await import('../../src/engine/turnDoor.ts')
-const realQueryEvents = realQueryModule.queryEvents
+const realQueryEvents = realQueryModule.turnDoorEvents
 
 type ScriptedDeps = Record<string, unknown> | null
 let scriptedDeps: ScriptedDeps = null
@@ -38,7 +38,7 @@ async function* forwardingQueryEvents(params: Record<string, unknown>): AsyncGen
 
 mock.module('../../src/engine/turnDoor.ts', () => ({
   ...realQueryModule,
-  queryEvents: forwardingQueryEvents,
+  turnDoorEvents: forwardingQueryEvents,
 }))
 
 const bootstrap = await import('../../src/boot/process-state/processState.ts')

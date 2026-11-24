@@ -64,7 +64,7 @@ const { applyPermissionRulesToPermissionContext } = await import('../../src/perm
 const { loadAllPermissionRulesFromDisk } = await import('../../src/permissions/rules/permissionsLoader.ts')
 const { checkReadPermissionForTool } = await import('../../src/permissions/rules/filesystem.ts')
 const worktree = await import('../../src/platform/git/worktree/worktree.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 type Made = { worktreePath: string; prepareFailure?: string; ready?: Promise<void> }
 const make = (slug: string, options: Record<string, unknown> = {}): Promise<Made> => (worktree.createAgentWorktree as (slug: string, options: unknown) => Promise<Made>)(slug, options)
 const prepare = worktree.prepareWorktreeFiles as (repo: string, path: string, from?: string, preserve?: boolean, permission?: unknown, carry?: boolean) => Promise<boolean>
@@ -110,7 +110,7 @@ const readContext = (permission: unknown): never =>
 let reads = 0
 const readAnswers = async (path: string, permission: unknown): Promise<string> => {
   reads++
-  const tool = FileReadTool as unknown as { validateInput: (input: unknown, context: unknown) => Promise<{ result: boolean; message?: string }>; call: (input: unknown, context: unknown, canUseTool: unknown, parent: unknown) => Promise<{ data: { file?: { content?: unknown } } }> }
+  const tool = ReadTool as unknown as { validateInput: (input: unknown, context: unknown) => Promise<{ result: boolean; message?: string }>; call: (input: unknown, context: unknown, canUseTool: unknown, parent: unknown) => Promise<{ data: { file?: { content?: unknown } } }> }
   try {
     const valid = await tool.validateInput({ file_path: path }, readContext(permission))
     if (!valid.result) return `refused: ${valid.message ?? ''}`

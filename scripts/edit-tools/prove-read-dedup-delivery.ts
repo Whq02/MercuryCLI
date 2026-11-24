@@ -16,7 +16,7 @@ const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const api = await startFixtureApi([])
 process.env.ANTHROPIC_BASE_URL = api.url
 
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const { FILE_UNCHANGED_STUB } = await import('../../src/tools/kit/names/fileRead.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { buildRequestContextPlan } = await import('../../src/engine/run/requestContextPlan.ts')
@@ -56,13 +56,13 @@ const context = {
 } as never
 
 async function readViaTool(path: string, extra: Record<string, unknown> = {}): Promise<string> {
-  const result = await (FileReadTool as { call: Function }).call(
+  const result = await (ReadTool as { call: Function }).call(
     { file_path: path, ...extra },
     context,
     null,
     { uuid: '00000000-0000-0000-0000-000000000001', message: { id: 'msg_fixture' } },
   )
-  const block = (FileReadTool as { mapToolResultToToolResultBlockParam: Function })
+  const block = (ReadTool as { mapToolResultToToolResultBlockParam: Function })
     .mapToolResultToToolResultBlockParam(result.data, 'toolu_read')
   return typeof block.content === 'string' ? block.content : JSON.stringify(block.content)
 }
@@ -158,8 +158,8 @@ process.env.MERCURY_TIME_BASED_MC = '0'
 const { createRewindRecordMessage } = await import('../../src/engine/compaction/checkpointRewind.ts')
 const { createContentReplacementState } = await import('../../src/engine/tool-dispatch/toolResultStorage.ts')
 const { wholeFileSeen, checkSeenLines, fileGeneration } = await import('../../src/tools/engines/change-transaction/seenLines.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { WriteTool } = await import('../../src/tools/write/WriteTool.ts')
 const rounds = (id: string, path: string, body: string, extra: Record<string, unknown> = {}) => [
   createAssistantMessage({ content: [{ type: 'tool_use', id, name: 'Read', input: { file_path: path, ...extra } }] as never }),
   createUserMessage({ content: [{ type: 'tool_result', tool_use_id: id, content: body }] as never }),
@@ -194,10 +194,10 @@ for (const mode of ['rewind', 'budget']) {
   const seen = (line: number) => checkSeenLines(owner, file, fileGeneration(file)!, [{ index: 0, start: line, end: line, replace: '' }]).ok
   check(`${mode}: rebuild keeps the displayed line, not the hidden middle`, seen(1) && !seen(250), 'only the lines still displayed may stay seen; see invalidateRemovedReads in src/engine/run/requestContextPlan.ts and checkSeenLines in src/tools/engines/change-transaction/seenLines.ts')
   check(`${mode}: an unrelated surviving Read still dedups`, (await readViaTool(survivor)).startsWith(FILE_UNCHANGED_STUB), 'invalidation must be limited to Reads whose body was removed; see invalidateRemovedReads in src/engine/run/requestContextPlan.ts')
-  const edit = await FileEditTool.validateInput({ file_path: abandoned, old_string: body.split('\n')[249]!, new_string: 'changed' }, context)
+  const edit = await EditTool.validateInput({ file_path: abandoned, old_string: body.split('\n')[249]!, new_string: 'changed' }, context)
   check(`${mode}: Edit cannot use a wholly discarded read`, edit.result === false, JSON.stringify(edit) + ' — Edit must refuse when the read was discarded from the view; see invalidateRemovedReads in src/engine/run/requestContextPlan.ts and FileEditTool validateInput (src/tools/edit/EditTool.ts)')
   let refused = false
-  try { await FileWriteTool.call({ file_path: file, content: 'changed\n' }, context, null as never, { uuid: '00000000-0000-0000-0000-000000000002' } as never) } catch { refused = true }
+  try { await WriteTool.call({ file_path: file, content: 'changed\n' }, context, null as never, { uuid: '00000000-0000-0000-0000-000000000002' } as never) } catch { refused = true }
   check(`${mode}: Write cannot use the discarded read`, refused, 'Write must throw when the read was discarded from the view; see invalidateRemovedReads in src/engine/run/requestContextPlan.ts and src/tools/write/WriteTool.ts')
   const reread = await readViaTool(file)
   check(`${mode}: the next Read returns its content, never the unchanged stub`, !reread.startsWith(FILE_UNCHANGED_STUB) && reread.includes('250: body'), 'after the removal a Read must return content, not the stub; see invalidateRemovedReads in src/engine/run/requestContextPlan.ts')

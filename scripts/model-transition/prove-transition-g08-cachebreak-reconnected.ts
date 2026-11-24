@@ -124,7 +124,7 @@ section('§B switch classes mint typed receipts')
   n = await drive(baseSnap({ model: 'gpt-5.2', lane: 'openai', toolSchemas: TOOLS('Alpha', 'Beta', 'Gamma') as never }), 8_500)
   check('sub-threshold drop → no receipt', n === 3, `receipts=${n}`)
 
-  det.notifyCompaction('main_thread')
+  det.notifyFold('main_thread')
   n = await drive(baseSnap({ model: 'gpt-5.2', lane: 'openai', toolSchemas: TOOLS('Alpha', 'Beta', 'Gamma') as never }), 1_000)
   check('post-compaction drop → suppressed (baseline reset)', n === 3, `receipts=${n}`)
 

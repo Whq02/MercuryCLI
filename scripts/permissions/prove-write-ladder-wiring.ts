@@ -29,7 +29,7 @@ function section(t: string): void {
 
 
 section('§2 behaviour — the REAL Write tool under the ladder, by real targets')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { WriteTool } = await import('../../src/tools/write/WriteTool.ts')
 const ctxFor = (mode: string) =>
   ({
     getAppState: () => ({
@@ -44,7 +44,7 @@ const ctxFor = (mode: string) =>
     }),
   }) as never
 const decide = async (mode: string, file_path: string) =>
-  (await FileWriteTool.checkPermissions({ file_path, content: 'x\n' } as never, ctxFor(mode))) as {
+  (await WriteTool.checkPermissions({ file_path, content: 'x\n' } as never, ctxFor(mode))) as {
     behavior: string
     decisionReason?: { type?: string; mode?: string }
   }

@@ -52,7 +52,7 @@ try {
   const { Help } = await import('../../src/screen/help/HelpV2.tsx')
   const { SelectInputOption } = await import('../../src/screen/select/SelectInputOption.tsx')
   const { Select } = await import('../../src/screen/select/Select.tsx')
-  const { MessageSelector } = await import('../../src/screen/rewind-picker/RewindPicker.tsx')
+  const { RewindPicker } = await import('../../src/screen/rewind-picker/RewindPicker.tsx')
   const { MessageActionsBar } = await import('../../src/screen/messages/messageActions.tsx')
   const { DiffDialog } = await import('../../src/screen/diff/DiffDialog.tsx')
   const { MercuryInputAtlas } = await import('../../src/screen/input-atlas/MercuryInputAtlas.tsx')
@@ -303,7 +303,7 @@ try {
       prove: async () => {
         let closed = false
         const view = await mountScreen(
-          h(MessageSelector, {
+          h(RewindPicker, {
             messages: [],
             onPreRestore: () => {},
             onRestore: async () => ({ outcome: 'applied' } as never),

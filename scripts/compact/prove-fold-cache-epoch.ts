@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { setSystemPromptSectionCacheEntry, getSystemPromptSectionCache } = await import('../../src/boot/process-state/processState.js')
-const { runPostCompactCleanup } = await import('../../src/engine/compaction/postFoldCleanup.js')
+const { runPostFoldCleanup } = await import('../../src/engine/compaction/postFoldCleanup.js')
 const messages = [{ type: 'attachment', attachment: { type: 'bound_prefix', boundKey: 'fixture|summary|claude-fixture', rosterEnabled: true, roster: [], sections: [{ name: 'cache-epoch-fixture', key: 'stable-key', value: 'stable prefix bytes' }], systemContext: {} } }] as never
 setSystemPromptSectionCacheEntry('cache-epoch-fixture', 'stable prefix bytes', 'stable-key')
-;(runPostCompactCleanup as (...args: unknown[]) => void)('sdk', messages)
+;(runPostFoldCleanup as (...args: unknown[]) => void)('sdk', messages)
 assert.equal(getSystemPromptSectionCache().get('cache-epoch-fixture')?.value, 'stable prefix bytes', 'a fold restores the byte-identical stable prefix after clearing transient caches')
 console.log('PASS stable cached sections survive the fold epoch')
 

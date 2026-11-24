@@ -11,7 +11,7 @@ delete process.env.MERCURY_EDIT_HUNKS
 delete process.env.MERCURY_CHANGE_RECEIPTS
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 
-const { FileEditTool } = await import(join(SRC, 'tools/edit/EditTool.ts'))
+const { EditTool } = await import(join(SRC, 'tools/edit/EditTool.ts'))
 const { getEmptyToolPermissionContext } = await import(join(SRC, 'tools/kit/tool.ts'))
 
 let failures = 0
@@ -42,10 +42,10 @@ function primeRead(ctx: Ctx, path: string): void {
   ctx.readFileState.set(path, { content: readFileSync(path, 'utf8'), timestamp: Date.now() + 60_000, offset: undefined, limit: undefined })
 }
 async function edit(input: Record<string, unknown>, ctx: Ctx): Promise<{ ok: true; evidence: string; data: Record<string, unknown> } | { ok: false; error: string }> {
-  const validation = await (FileEditTool as { validateInput: Function }).validateInput(input, ctx)
+  const validation = await (EditTool as { validateInput: Function }).validateInput(input, ctx)
   if (validation.result === false) return { ok: false, error: String(validation.message) }
   try {
-    const result = await (FileEditTool as { call: Function }).call(input, ctx, null, { uuid: '00000000-0000-0000-0000-000000000003', message: { id: 'msg_fixture' } })
+    const result = await (EditTool as { call: Function }).call(input, ctx, null, { uuid: '00000000-0000-0000-0000-000000000003', message: { id: 'msg_fixture' } })
     return { ok: true, evidence: String(result.effect.evidence), data: result.data }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) }

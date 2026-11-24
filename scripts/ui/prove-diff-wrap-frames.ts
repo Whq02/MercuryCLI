@@ -21,7 +21,7 @@ mock.module('../../src/screen/settings/useSettings.js', () => ({
 
 const { render, Box, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
 const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
-const { FileEditToolUpdatedMessage } = await import('../../src/tools/edit/EditUpdatedMessage.js')
+const { EditUpdatedMessage } = await import('../../src/tools/edit/EditUpdatedMessage.js')
 const { stringWidth } = await import('../../src/screen/renderer/stringWidth.js')
 const { expandTabs } = await import('../../src/screen/renderer/tabstops.js')
 const { railPlanAt, HELM_BOTH_RAILS_MIN } = await import('../../src/screen/fullscreen-layout/helmGeometry.js')
@@ -106,7 +106,7 @@ async function mount(columns: number, rows: number): Promise<{ raw: string[]; pl
   const first = new Promise<void>(resolve => { painted = resolve })
   const node = React.createElement(TerminalSizeContext.Provider, { value: { columns: transcript, rows } },
     React.createElement(Box, { flexDirection: 'column', width: columns },
-      React.createElement(FileEditToolUpdatedMessage, { filePath: '/srv/work/jobs.tsv', structuredPatch: [hunk], firstLine: header, verbose: false })))
+      React.createElement(EditUpdatedMessage, { filePath: '/srv/work/jobs.tsv', structuredPatch: [hunk], firstLine: header, verbose: false })))
   const instance = await render(node, { stdin, stdout, patchConsole: false, exitOnCtrlC: false, onFrame: () => painted() })
   await first
   for (let index = 0; index < 6; index++) {

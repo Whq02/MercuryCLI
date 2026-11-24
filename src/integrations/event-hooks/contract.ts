@@ -37,8 +37,8 @@ export const CUT_REASONS = ['operator', 'idle-timeout', 'parent-stop', 'cut'] as
 export const SESSION_STATE_HOOK_STATES = ['needs-you', 'stalled', 'ready-to-review', 'paused', 'completed', 'failed', 'cancelled'] as const
 export const SESSION_BOARD_STATES = [...CONCOURSE_SESSION_STATES, 'attached', 'stopped', 'parked'] as const
 export const CREWMATE_END_STATUSES = ['finished', 'failed', 'stopped'] as const
-export const COMPACTION_METHODS = ['summary', 'notes', 'digest'] as const
-export const COMPACTION_TRIGGERS = ['manual', 'auto', 'overflow'] as const
+export const FOLD_METHODS = ['summary', 'notes', 'digest'] as const
+export const FOLD_TRIGGERS = ['manual', 'auto', 'overflow'] as const
 export const SESSION_START_REASONS = ['new', 'resumed'] as const
 export const SESSION_END_REASONS = ['quit', 'logout', 'closed'] as const
 export const PERMISSION_DECIDERS = ['rule', 'mode', 'hook', 'operator', 'safety', 'other'] as const
@@ -215,7 +215,7 @@ const hookEventTableRows = {
     roads: ['runner'],
     payload: lazySchema(() =>
       z.object({
-        trigger: z.enum(COMPACTION_TRIGGERS),
+        trigger: z.enum(FOLD_TRIGGERS),
         instructions: z.string().optional().describe("The operator's /compact words"),
         tokens: z.number().int().min(0),
       }),
@@ -228,8 +228,8 @@ const hookEventTableRows = {
     roads: ['runner'],
     payload: lazySchema(() =>
       z.object({
-        method: z.enum(COMPACTION_METHODS),
-        trigger: z.enum(COMPACTION_TRIGGERS),
+        method: z.enum(FOLD_METHODS),
+        trigger: z.enum(FOLD_TRIGGERS),
         tokens_before: z.number().int().min(0),
         tokens_after: z.number().int().min(0),
         summary: z.string().optional(),

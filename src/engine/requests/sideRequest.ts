@@ -21,7 +21,7 @@ import {
 import { normalizeModelStringForAPI } from '../../models/catalogue/engineModel.js'
 
 
-type SideQueryOptions = {
+type SideRequestOptions = {
   model: string
   messages: MessageParam[]
   querySource: QuerySource | (string & {})
@@ -43,17 +43,17 @@ function harnessVersion(): string {
   return typeof MACRO !== 'undefined' && MACRO.VERSION ? MACRO.VERSION : '0.0.0'
 }
 
-type SideQueryThinkingParam =
+type SideRequestThinkingParam =
   | { type: 'disabled' }
   | { type: 'adaptive' }
   | { type: 'enabled'; budget_tokens: number }
   | undefined
 
-export function sideQueryThinkingParam(
+export function sideRequestThinkingParam(
   model: string,
-  thinking: SideQueryOptions['thinking'],
+  thinking: SideRequestOptions['thinking'],
   maxTokens: number,
-): SideQueryThinkingParam {
+): SideRequestThinkingParam {
   if (thinking === false) {
     return modelThinkingAlwaysOn(model) ? undefined : { type: 'disabled' }
   }
@@ -77,7 +77,7 @@ function firstUserMessageText(messages: MessageParam[]): string {
   return ''
 }
 
-export async function sideQuery(opts: SideQueryOptions): Promise<ApiMessage> {
+export async function sideRequest(opts: SideRequestOptions): Promise<ApiMessage> {
   const maxTokens = opts.max_tokens ?? 1024
   const client = await getAnthropicClient({
     maxRetries: opts.maxRetries ?? 2,
@@ -108,7 +108,7 @@ export async function sideQuery(opts: SideQueryOptions): Promise<ApiMessage> {
     }
   }
 
-  const thinking = sideQueryThinkingParam(opts.model, opts.thinking, maxTokens)
+  const thinking = sideRequestThinkingParam(opts.model, opts.thinking, maxTokens)
   const toolChoice = opts.tool_choice !== undefined
     ? foldToolChoiceForModel(opts.model, opts.tool_choice)
     : undefined

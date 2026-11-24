@@ -31,7 +31,7 @@ if (childAt !== -1) {
   const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
   const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
   const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
-  const { query: startTurn } = await import('../../src/engine/turnDoor.ts')
+  const { turnDoor: startTurn } = await import('../../src/engine/turnDoor.ts')
   const { readAgentMetadata, flushSessionStorage } = await import('../../src/sessions/transcripts/sessionStorage.ts')
   await import('../../src/engine/tasks/tasks.ts')
   type AppState = import('../../src/screen/app-state/AppStateStore.ts').AppState

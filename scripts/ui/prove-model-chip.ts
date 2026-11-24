@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { getModelStrings } from '../../src/models/facts/pinnedModelIds.js'
+import { getPinnedModelIds } from '../../src/models/facts/pinnedModelIds.js'
 import { renderModelChip } from '../../src/models/catalogue/engineModel.js'
 
 let fail = 0
@@ -10,7 +10,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 
 console.log('prove-model-chip — friendly chip form on the standing chrome')
 
-const ms = getModelStrings()
+const ms = getPinnedModelIds()
 const cases: Array<[string, string]> = [
   [ms.opus48 + '[1m]', 'Opus 4.8 [1m]'],
   [ms.opus48, 'Opus 4.8'],

@@ -55,13 +55,13 @@ function draftIfChanged(questionId: string, live: InterviewQuestionState | undef
   draftAnswer(questionId, value)
 }
 
-export function AskUserQuestionPermissionRequest(props: PermissionRequestProps): React.ReactNode {
+export function QuestionPermissionRequest(props: PermissionRequestProps): React.ReactNode {
   const settings = useSettings()
   if (settings.view?.syntaxOff) {
-    return <AskUserQuestionPermissionRequestBody {...props} highlight={null} />
+    return <QuestionPermissionRequestBody {...props} highlight={null} />
   }
   return (
-    <Suspense fallback={<AskUserQuestionPermissionRequestBody {...props} highlight={null} />}>
+    <Suspense fallback={<QuestionPermissionRequestBody {...props} highlight={null} />}>
       <AskUserQuestionWithHighlight {...props} />
     </Suspense>
   )
@@ -69,7 +69,7 @@ export function AskUserQuestionPermissionRequest(props: PermissionRequestProps):
 
 function AskUserQuestionWithHighlight(props: PermissionRequestProps) {
   const highlight = use(getCliHighlightPromise()) as CliHighlight | null
-  return <AskUserQuestionPermissionRequestBody {...props} highlight={highlight} />
+  return <QuestionPermissionRequestBody {...props} highlight={highlight} />
 }
 
 const presented = new WeakSet<object>()
@@ -247,7 +247,7 @@ function attachLargePasteNote(questionId: string, text: string): void {
   setNote(questionId, existing ? `${existing} ${marker}` : marker)
 }
 
-function AskUserQuestionPermissionRequestBody(
+function QuestionPermissionRequestBody(
   props: PermissionRequestProps & { highlight: CliHighlight | null },
 ): React.ReactNode {
   const { toolUseConfirm, onDone, onReject, highlight } = props

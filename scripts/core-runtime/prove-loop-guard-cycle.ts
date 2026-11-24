@@ -24,7 +24,7 @@ for (const k of [
   delete process.env[k]
 }
 
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
@@ -301,7 +301,7 @@ async function runScript(steps: Step[], results: ResultScript = identicalResults
     return turn
   })
   const rig = makeCtx(agentId)
-  const gen = query({
+  const gen = turnDoor({
     messages: [createUserMessage({ content: 'please do the thing' })] as never,
     systemPrompt: ['rig system prompt'] as never,
     userContext: {},

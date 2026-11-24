@@ -1,31 +1,31 @@
 
-const COMPACTION_DEFAULTS = Object.freeze({
+const FOLD_DEFAULTS = Object.freeze({
   thresholdPct: 85,
   cooldownTurns: 8,
   rearmBelowPct: 55,
 })
 
-const MAX_CONSECUTIVE_AUTOCOMPACT_FAILURES = 3
+const MAX_CONSECUTIVE_AUTO_FOLD_FAILURES = 3
 
-interface CompactionPolicy {
+interface FoldPolicy {
   thresholdPct?: number
   cooldownTurns?: number
   rearmBelowPct?: number
 }
 
-export interface CompactionState {
+export interface FoldPolicyState {
   lastFiredTurn?: number | null
   rearmed?: boolean
 }
 
-interface DecideCompactionInput {
+interface DecideFoldInput {
   usage?: { percentage?: number } | null
-  state?: CompactionState | null
+  state?: FoldPolicyState | null
   turn?: number
-  policy?: CompactionPolicy
+  policy?: FoldPolicy
 }
 
-interface DecideCompactionResult {
+interface DecideFoldResult {
   action: 'none' | 'compact'
   reason: string
   state: { lastFiredTurn: number | null; rearmed: boolean }
@@ -35,12 +35,12 @@ function isFiniteNumber(v: unknown): v is number {
   return typeof v === 'number' && Number.isFinite(v)
 }
 
-export function decideCompaction(
-  input: DecideCompactionInput,
-): DecideCompactionResult {
+export function decideFold(
+  input: DecideFoldInput,
+): DecideFoldResult {
   const i = input && typeof input === 'object' ? input : {}
   const pol = {
-    ...COMPACTION_DEFAULTS,
+    ...FOLD_DEFAULTS,
     ...(i.policy && typeof i.policy === 'object' ? i.policy : {}),
   }
   const st = i.state && typeof i.state === 'object' ? i.state : {}
@@ -55,7 +55,7 @@ export function decideCompaction(
   const keep = (
     reason: string,
     nextRearmed: boolean = rearmed,
-  ): DecideCompactionResult => ({
+  ): DecideFoldResult => ({
     action: 'none',
     reason,
     state: { lastFiredTurn, rearmed: nextRearmed },
@@ -90,19 +90,19 @@ export function decideCompaction(
   }
 }
 
-export function compactionBreakerAllows(
+export function foldBreakerAllows(
   consecutiveFailures: number | undefined,
-  limit: number = MAX_CONSECUTIVE_AUTOCOMPACT_FAILURES,
+  limit: number = MAX_CONSECUTIVE_AUTO_FOLD_FAILURES,
 ): boolean {
   const cap =
     isFiniteNumber(limit) && limit > 0
       ? Math.floor(limit)
-      : MAX_CONSECUTIVE_AUTOCOMPACT_FAILURES
+      : MAX_CONSECUTIVE_AUTO_FOLD_FAILURES
   if (!isFiniteNumber(consecutiveFailures)) return true
   return consecutiveFailures < cap
 }
 
-export function nextCompactionFailureCount(
+export function nextFoldFailureCount(
   prev: number | undefined,
   succeeded: boolean,
 ): number {

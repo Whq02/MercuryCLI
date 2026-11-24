@@ -26,16 +26,16 @@ const section = (t: string): void => {
 section("§1 pure: the main fold clears the git-status, system-context and user-context memos; a helper lane's fold leaves them")
 {
   const { getGitStatus, getSystemContext, getUserContext } = await import('../../src/engine/requestContext.ts')
-  const { runPostCompactCleanup } = await import('../../src/engine/compaction/postFoldCleanup.ts')
+  const { runPostFoldCleanup } = await import('../../src/engine/compaction/postFoldCleanup.ts')
   await getGitStatus()
   await getSystemContext()
   await getUserContext()
   const held = (): string =>
     [getGitStatus.cache.has(undefined) ? 'git' : '', getSystemContext.cache.has(undefined) ? 'system' : '', getUserContext.cache.has(undefined) ? 'user' : ''].filter(Boolean).join('+') || 'none'
   check('a composition memoizes the git status, the system context and the user context', held() === 'git+system+user', held())
-  runPostCompactCleanup({ querySource: 'agent:probe', agentId: 'probe' })
+  runPostFoldCleanup({ querySource: 'agent:probe', agentId: 'probe' })
   check("a helper lane's fold leaves the main conversation's memos in place", held() === 'git+system+user', held())
-  runPostCompactCleanup()
+  runPostFoldCleanup()
   check('the main fold clears all three, so the next request composes the current git status', held() === 'none', held())
 }
 

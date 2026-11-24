@@ -8,7 +8,7 @@ import {
 import { getContextWindowForModel, is1mContextDisabled } from '../facts/capabilities.js'
 import { declaredMirrorsNewestFirst, previousGenerationKeys } from '../facts/builtInModelTable.js'
 import { isModelAllowed } from './modelAllowlist.js'
-import { getModelStrings } from '../facts/pinnedModelIds.js'
+import { getPinnedModelIds } from '../facts/pinnedModelIds.js'
 import { getInitialSettings } from '../../platform/settings/settings.js'
 
 import {
@@ -144,7 +144,7 @@ function allowedUnderAllowlist(id: string): boolean {
 
 export function newestPermittedGeneration(family: Parameters<typeof previousGenerationKeys>[0], head: string): string | null {
   if (allowedUnderAllowlist(head)) return head
-  const strings = getModelStrings()
+  const strings = getPinnedModelIds()
   for (const key of previousGenerationKeys(family)) {
     if (allowedUnderAllowlist(strings[key])) return strings[key]
   }

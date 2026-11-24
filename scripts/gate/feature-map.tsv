@@ -80,7 +80,7 @@ screen	ChangeSetPermissionRequest	scripts/changesets/prove-changeset-permission-
 screen	HistorySearchInput	scripts/ui/prove-chat-recording.ts	source
 screen	MediaConfigPicker	scripts/ui/prove-media-settings-picker-drive.ts	terminal
 screen	MediaPermissionRequest	scripts/media/prove-media-permission-card-answers.ts	source
-screen	ResumeConversation	scripts/ui/prove-resume-conversation-drive.ts	terminal
+screen	ResumeSession	scripts/ui/prove-resume-conversation-drive.ts	terminal
 screen	boot-settings	scripts/command-catalogue/prove-feedback-issue-road.ts	terminal
 screen	concourse	scripts/formal-models/prove-major-flows.ts	source
 screen	logins	scripts/formal-models/prove-screen-properties-boot-settings.ts	source

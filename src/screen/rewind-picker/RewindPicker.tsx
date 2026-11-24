@@ -9,7 +9,7 @@ import { useClaim, useLoad } from '../effects/effects.js'
 import { Box, Text } from '../themedRenderer.js'
 import type {
   Message,
-  PartialCompactDirection,
+  PartialFoldDirection,
   UserMessage,
 } from '../../engine/message-shapes/message.js'
 import type { BranchManifest } from '../../sessions/branches/branchManifest.js'
@@ -141,7 +141,7 @@ export function messagesAfterAreOnlySynthetic(
 
 let mountClaimed = false
 
-type MessageSelectorProps = {
+type RewindPickerProps = {
   messages: Message[]
   onPreRestore: () => void
   onRestore: (
@@ -152,7 +152,7 @@ type MessageSelectorProps = {
   onSummarize: (
     message: UserMessage,
     feedback?: string,
-    direction?: PartialCompactDirection,
+    direction?: PartialFoldDirection,
   ) => void | Promise<void>
   onClose: () => void
   onBranchCreated?: (manifest: BranchManifest) => void
@@ -164,7 +164,7 @@ type MessageSelectorProps = {
   preselectedMessage?: UserMessage
 }
 
-function useSelectorLoads({
+function usePickerLoads({
   claimed,
   messages,
   phase,
@@ -220,7 +220,7 @@ function useSelectorLoads({
   return { mutatingShellIds, storeStats }
 }
 
-function useSelectorActions({
+function usePickerActions({
   chosen,
   close,
   mountedRef,
@@ -236,10 +236,10 @@ function useSelectorActions({
   close: () => void
   mountedRef: React.MutableRefObject<boolean>
   onPreRestore: () => void
-  onRestore: MessageSelectorProps['onRestore']
-  onBranchCreated: MessageSelectorProps['onBranchCreated']
+  onRestore: RewindPickerProps['onRestore']
+  onBranchCreated: RewindPickerProps['onBranchCreated']
   providerOrigin: string | undefined
-  onRerun: MessageSelectorProps['onRerun']
+  onRerun: RewindPickerProps['onRerun']
   setBusy: React.Dispatch<React.SetStateAction<boolean>>
   setError: React.Dispatch<React.SetStateAction<string | null>>
 }) {
@@ -346,7 +346,7 @@ function useSelectorActions({
   return { runRestore, runBranch, runRerun }
 }
 
-export function MessageSelector({
+export function RewindPicker({
   messages,
   onPreRestore,
   onRestore,
@@ -357,7 +357,7 @@ export function MessageSelector({
   onViewOnly,
   onRerun,
   preselectedMessage,
-}: MessageSelectorProps): React.ReactNode {
+}: RewindPickerProps): React.ReactNode {
   const [claimed] = useState(() => {
     if (mountClaimed) return false
     mountClaimed = true
@@ -426,7 +426,7 @@ export function MessageSelector({
   const canRestoreCode =
     chosen !== null && historyOn && hasSavedPoint(chosen.uuid)
 
-  const { mutatingShellIds, storeStats } = useSelectorLoads({
+  const { mutatingShellIds, storeStats } = usePickerLoads({
     claimed,
     messages,
     phase,
@@ -445,7 +445,7 @@ export function MessageSelector({
     }
   }, [claimed, phase, chosen, close])
 
-  const { runRestore, runBranch, runRerun } = useSelectorActions({
+  const { runRestore, runBranch, runRerun } = usePickerActions({
     chosen,
     close,
     mountedRef,
@@ -621,4 +621,4 @@ export function MessageSelector({
   })
 }
 
-export default MessageSelector
+export default RewindPicker

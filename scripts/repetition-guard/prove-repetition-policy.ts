@@ -38,7 +38,7 @@ const { observeToolTerminal } = await import('../../src/engine/run-owner/effectO
 const { verificationSummary, _resetVerificationStateForTesting } = await import(
   '../../src/platform/verification/verificationState.ts'
 )
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { mintFileAnchor } = await import(
   '../../src/tools/engines/change-transaction/snapshotAnchor.ts'
@@ -144,7 +144,7 @@ function primeRead(ctx: Ctx, path: string): void {
 }
 
 async function editViaTool(input: Record<string, unknown>, ctx: Ctx) {
-  const result = await (FileEditTool as { call: Function }).call(input, ctx, null, {
+  const result = await (EditTool as { call: Function }).call(input, ctx, null, {
     uuid: '00000000-0000-0000-0000-0000000000a7',
     message: { id: 'msg_fixture' },
   })
@@ -155,7 +155,7 @@ async function editViaTool(input: Record<string, unknown>, ctx: Ctx) {
 }
 
 function mapResult(data: Record<string, unknown>) {
-  return (FileEditTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(
+  return (EditTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(
     data,
     'toolu_fixture',
   ) as { content: string; is_error?: boolean }

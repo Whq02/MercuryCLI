@@ -41,12 +41,12 @@ export function scratch(name: string): string {
 }
 
 export async function reader(root: string) {
-  const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+  const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
   const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
   const context: any = { options: { engineModel: 'glm-5.3' }, readFileState: createFileStateCacheWithSizeLimit(100), abortController: new AbortController(), messages: [], getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) }
   async function read(file: string, options: object = {}) {
-    const result = await FileReadTool.call({ file_path: file, ...options }, context, undefined as any, { uuid: crypto.randomUUID() } as any)
+    const result = await ReadTool.call({ file_path: file, ...options }, context, undefined as any, { uuid: crypto.randomUUID() } as any)
     assert.equal(result.data.type, 'text')
     return (result.data as any).file.content as string
   }

@@ -106,11 +106,11 @@ const { createUserMessage } = await import('../../src/engine/messages/messages.t
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 const auto = await import('../../src/engine/compaction/autoFold.ts')
 const preview = await import('../../src/models/roads/transitionPreview.ts')
-const { buildPostCompactMessages } = await import('../../src/engine/compaction/foldConversation.ts')
+const { buildPostFoldMessages } = await import('../../src/engine/compaction/foldConversation.ts')
 const { estimateContextTokens } = await import('../../src/engine/compaction/pruneToolResults.ts')
 const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
 const { call: compactCall } = await import('../../src/commands/compact/compact.ts')
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
 await refreshLocalDiscovery({ force: true })
 const fmt = (n: number): string => n.toLocaleString('en-US')
@@ -367,7 +367,7 @@ async function foldSeatedOn(seat: string): Promise<{ landed: number; post: unkno
   try {
     const result = (await compactCall('', makeCtx(seat, messages) as never)) as { type: string; compactionResult?: unknown }
     outcome = result.type
-    if (result.compactionResult !== undefined) post = buildPostCompactMessages(result.compactionResult as never) as unknown[]
+    if (result.compactionResult !== undefined) post = buildPostFoldMessages(result.compactionResult as never) as unknown[]
   } catch (error) {
     outcome = `threw: ${error instanceof Error ? error.message : String(error)}`
   }
@@ -378,9 +378,9 @@ section('3 why the order matters for a local target: the same /compact on the sa
 {
   const history = seed()
   const plan = preview.buildTransitionPlan({ messages: history as never, from: SOURCE, to: TARGET })
-  const threshold = auto.getAutoCompactThreshold(TARGET)
+  const threshold = auto.getAutoFoldThreshold(TARGET)
   const limit = auto.getBlockingLimit(TARGET)
-  check('the incoming model is the tag at its Modelfile window (32,768), a local target, and the history does not fit it, so the switch asks at the preview', auto.resolveAutoCompactWindow(TARGET).window === 32_768 && plan.targetRoute === 'local' && plan.window?.fits === false && plan.needsChoice === true && auto.getAutoCompactThreshold(SOURCE) > 100_000, JSON.stringify(plan.window))
+  check('the incoming model is the tag at its Modelfile window (32,768), a local target, and the history does not fit it, so the switch asks at the preview', auto.resolveAutoFoldWindow(TARGET).window === 32_768 && plan.targetRoute === 'local' && plan.window?.fits === false && plan.needsChoice === true && auto.getAutoFoldThreshold(SOURCE) > 100_000, JSON.stringify(plan.window))
   const incoming = await foldSeatedOn(TARGET)
   console.log(`  [record] seated on ${TARGET}: ${incoming.outcome} · landed ${fmt(incoming.landed)} · fold line ${fmt(threshold)} · limit ${fmt(limit)} · summary wire ${incoming.wire}`)
   check("seated on the incoming model the fold lands under that model's fold line", incoming.outcome === 'compact' && incoming.landed < threshold, `${incoming.outcome} · landed ${fmt(incoming.landed)} against ${fmt(threshold)}`)
@@ -391,7 +391,7 @@ section('3 why the order matters for a local target: the same /compact on the sa
   const chatsBefore = chats.length
   const errors: string[] = []
   let terminal: Record<string, unknown> = {}
-  const gen = query({ messages: [...incoming.post, createUserMessage({ content: 'go on' })] as never, systemPrompt: ['fixture system prompt'] as never, userContext: {}, systemContext: {}, canUseTool: (async () => ({ behavior: 'deny', message: 'no tools in this rig' })) as never, toolUseContext: makeCtx(TARGET, incoming.post) as never, querySource: 'sdk' as never, deps: productionDeps() })
+  const gen = turnDoor({ messages: [...incoming.post, createUserMessage({ content: 'go on' })] as never, systemPrompt: ['fixture system prompt'] as never, userContext: {}, systemContext: {}, canUseTool: (async () => ({ behavior: 'deny', message: 'no tools in this rig' })) as never, toolUseContext: makeCtx(TARGET, incoming.post) as never, querySource: 'sdk' as never, deps: productionDeps() })
   let step = await gen.next()
   while (!step.done) {
     const row = step.value as { type?: string; isApiErrorMessage?: boolean }

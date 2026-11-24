@@ -2,13 +2,13 @@ import * as React from 'react'
 import { useMemo } from 'react'
 import { Box, Text } from '../../screen/themedRenderer.js'
 import { FilePermissionDialog } from '../../permissions/cards/file-dialog/FilePermissionDialog.js'
-import { FileWriteToolDiff } from '../../permissions/cards/file-write/FileWriteToolDiff.js'
+import { WriteDiff } from '../../permissions/cards/file-write/FileWriteToolDiff.js'
 import type { PermissionRequestProps } from '../../permissions/cards/PermissionRequest.js'
 import { getDisplayPath } from '../../platform/files/file.js'
-import type { FileWriteToolInput } from './WriteTool.js'
+import type { FileWriteInput } from './WriteTool.js'
 import { hostPathOfWriteTarget, previewSqliteDeletion, SQLITE_ROW_NOT_CHECKPOINTED } from './structuredTargets.js'
 
-const parseInput = (input: unknown): FileWriteToolInput => input as FileWriteToolInput
+const parseInput = (input: unknown): FileWriteInput => input as FileWriteInput
 
 export function SqliteDeletePermissionRequest({ toolUseConfirm, onDone, onReject, workerBadge }: PermissionRequestProps): React.ReactNode {
   const input = parseInput(toolUseConfirm.input)
@@ -17,7 +17,7 @@ export function SqliteDeletePermissionRequest({ toolUseConfirm, onDone, onReject
     catch (error) { return { preview: null, error: error instanceof Error ? error.message : String(error) } }
   }, [input.file_path])
   return (
-    <FilePermissionDialog<FileWriteToolInput>
+    <FilePermissionDialog<FileWriteInput>
       toolUseConfirm={toolUseConfirm}
       onDone={onDone}
       onReject={onReject}
@@ -26,7 +26,7 @@ export function SqliteDeletePermissionRequest({ toolUseConfirm, onDone, onReject
       question="Delete this row?"
       content={state.error !== null ? <Text>{state.error}</Text> : state.preview?.exists ? (
         <Box flexDirection="column">
-          <FileWriteToolDiff file_path={state.preview.path} content="" fileExists={true} oldContent={state.preview.content} />
+          <WriteDiff file_path={state.preview.path} content="" fileExists={true} oldContent={state.preview.content} />
           {state.preview.reach === '' ? null : <Text>{state.preview.reach}</Text>}
           <Text>{SQLITE_ROW_NOT_CHECKPOINTED}</Text>
         </Box>

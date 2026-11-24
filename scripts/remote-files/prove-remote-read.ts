@@ -20,7 +20,7 @@ for (const key of ['MERCURY_HOME', 'MERCURY_SKIP_PERMISSIONS', 'MERCURY_WARDS', 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.chdir(project)
 
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const { getToolUseSummary } = await import('../../src/tools/read/rows.tsx')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { createFileStateCacheWithSizeLimit, cacheKeys } = await import('../../src/platform/files/fileStateCache.ts')
@@ -73,15 +73,15 @@ const own = (): { message: { id: string } } => ({ message: { id: `remote-read-pr
 const thrown = (error: unknown): Data => ({ type: 'thrown', file: { filePath: '', content: `THROWN ${error instanceof Error ? error.message : String(error)}`, numLines: 0, totalLines: 0 } })
 const call = async (input: Input, context: unknown = contextOf(), canUseTool?: unknown, parent?: unknown): Promise<Data> => {
   try {
-    return (await FileReadTool.call(input as never, context as never, canUseTool, parent)).data as unknown as Data
+    return (await ReadTool.call(input as never, context as never, canUseTool, parent)).data as unknown as Data
   } catch (error) {
     return thrown(error)
   }
 }
-const text = (data: Data): string => (data.type === 'thrown' ? data.file.content : String(FileReadTool.mapToolResultToToolResultBlockParam(data as never, 'proof').content))
+const text = (data: Data): string => (data.type === 'thrown' ? data.file.content : String(ReadTool.mapToolResultToToolResultBlockParam(data as never, 'proof').content))
 const said = async (input: Input, context: unknown = contextOf(), canUseTool?: unknown, parent?: unknown): Promise<string> => text(await call(input, context, canUseTool, parent))
-const validated = async (input: Input, rules: Rules = {}): Promise<{ result: boolean; message?: string }> => (await FileReadTool.validateInput!(input as never, contextOf(rules))) as { result: boolean; message?: string }
-const decided = async (input: Input, rules: Rules = {}): Promise<Decision> => (await FileReadTool.checkPermissions(input as never, contextOf(rules))) as unknown as Decision
+const validated = async (input: Input, rules: Rules = {}): Promise<{ result: boolean; message?: string }> => (await ReadTool.validateInput!(input as never, contextOf(rules))) as { result: boolean; message?: string }
+const decided = async (input: Input, rules: Rules = {}): Promise<Decision> => (await ReadTool.checkPermissions(input as never, contextOf(rules))) as unknown as Decision
 const remote = (path: string, host = 'box'): string => `ssh://${host}${path.replaceAll('%', '%25')}`
 
 const FILES: Array<[string, Buffer]> = [

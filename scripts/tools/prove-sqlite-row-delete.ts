@@ -114,7 +114,7 @@ try {
   const denied = await del(`${file}:items/4`)
   check('delete suffix cannot evade a Write deny', /den|PermissionRefused/i.test(denied) && !denied.includes('items') && count('SELECT count(*) AS n FROM items WHERE id=4').n === 1, denied)
 } finally { await client.close() }
-const { FileWriteTool } = await import(`${kit.src}/tools/write/WriteTool.ts`)
+const { WriteTool } = await import(`${kit.src}/tools/write/WriteTool.ts`)
 const readBack = await kit.read(`${file}:items/4`)
 const remembered = kit.context.readFileState.get(`${file}:items/4`)?.sqliteRowIdentity
 check('row identity is retained without being printed', typeof remembered === 'string' && /^[a-f0-9]{64}$/.test(remembered) && !readBack.includes(remembered), readBack)
@@ -123,18 +123,18 @@ kit.context.readFileState.clear()
 kit.context.readFileState.load(snapshot)
 check('row identity survives read-state serialization', kit.context.readFileState.get(`${file}:items/4`)?.sqliteRowIdentity === remembered && remembered !== undefined)
 const input = { file_path: `${file}:items/4#delete`, content: 'DELETE' }
-const valid = await FileWriteTool.validateInput(input, kit.context)
+const valid = await WriteTool.validateInput(input, kit.context)
 const schemaChange = new Database(file); schemaChange.run('CREATE INDEX changed_schema ON items(value)'); schemaChange.close()
 let schemaResult = ''
-try { const result = await FileWriteTool.call(input, kit.context); schemaResult = String(FileWriteTool.mapToolResultToToolResultBlockParam(result.data, 'delete').content) } catch (error) { schemaResult = String(error) }
+try { const result = await WriteTool.call(input, kit.context); schemaResult = String(WriteTool.mapToolResultToToolResultBlockParam(result.data, 'delete').content) } catch (error) { schemaResult = String(error) }
 check('schema is revalidated after validation before application', valid.result && /changed|modified/i.test(schemaResult) && count('SELECT count(*) AS n FROM items WHERE id=4').n === 1, schemaResult)
 const legacyRead = kit.context.readFileState.get(`${file}:items/4`)
 if (legacyRead) delete legacyRead.sqliteRowIdentity
 let legacyResult = ''
-try { await FileWriteTool.call(input, kit.context) } catch (error) { legacyResult = String(error) }
+try { await WriteTool.call(input, kit.context) } catch (error) { legacyResult = String(error) }
 check('an old read without identity uses the existing unread answer', /read.*before|not.*read/i.test(legacyResult) && count('SELECT count(*) AS n FROM items WHERE id=4').n === 1, legacyResult)
 kit.context.abortController.abort(new Error('delete cancelled'))
 let cancelled = ''
-try { await FileWriteTool.call(input, kit.context) } catch (error) { cancelled = String(error) }
+try { await WriteTool.call(input, kit.context) } catch (error) { cancelled = String(error) }
 check('cancelled deletion makes no change and closes its connection', cancelled.includes('delete cancelled') && count('SELECT count(*) AS n FROM items WHERE id=4').n === 1, cancelled)
 kit.finish()

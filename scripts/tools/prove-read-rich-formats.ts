@@ -12,14 +12,14 @@ delete process.env.NODE_ENV
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 const FIXTURES = join(import.meta.dir, 'fixtures', 'read-formats')
-const { FileReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
+const { ReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
 const { getEmptyToolPermissionContext } = await import(`${SRC}/tools/kit/tool.ts`)
 const { createFileStateCacheWithSizeLimit } = await import(`${SRC}/platform/files/fileStateCache.ts`)
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — fix the rich-format read lane (archive, SQLite, document, bounds) behind FileReadTool in src/tools/read/ReadTool.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — fix the rich-format read lane (archive, SQLite, document, bounds) behind ReadTool in src/tools/read/ReadTool.ts` : ''}`)
 }
 
 function makeContext() {
@@ -38,18 +38,18 @@ function makeContext() {
 let serial = 0
 async function runRead(input: Record<string, unknown>, ctx = makeContext()): Promise<{ ok: true; text: string; data: Record<string, unknown> } | { ok: false; error: string }> {
   try {
-    const valid = await (FileReadTool as { validateInput?: Function }).validateInput?.(input, ctx)
+    const valid = await (ReadTool as { validateInput?: Function }).validateInput?.(input, ctx)
     if (valid && !valid.result) {
       return { ok: false, error: valid.message }
     }
     serial++
-    const res = await (FileReadTool as { call: Function }).call(
+    const res = await (ReadTool as { call: Function }).call(
       input,
       ctx,
       null,
       { uuid: `00000000-0000-0000-0000-${String(serial).padStart(12, '0')}`, message: { id: `msg_rf_${serial}` } },
     )
-    const block = (FileReadTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(res.data, `toolu_${serial}`)
+    const block = (ReadTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(res.data, `toolu_${serial}`)
     const text = typeof block.content === 'string' ? block.content : JSON.stringify(block.content)
     return { ok: true, text, data: res.data }
   } catch (err) {

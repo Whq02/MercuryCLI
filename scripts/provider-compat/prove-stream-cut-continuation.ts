@@ -108,7 +108,7 @@ const vllm = await serve((req, body, res) => {
 })
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `vllm=${vllm.root}`
 
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
@@ -166,7 +166,7 @@ async function run(answers: ChatAnswer[]): Promise<{ yields: AnyMsg[]; calls: Ca
     yield* localCallModel(params as never)
   }
   const rig = makeCtx()
-  const gen = query({
+  const gen = turnDoor({
     messages: [createUserMessage({ content: 'can you make a html for a rpg game' })] as never,
     systemPrompt: ['rig system prompt'] as never,
     userContext: {},

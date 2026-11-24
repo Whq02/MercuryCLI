@@ -58,7 +58,7 @@ export function noteCtxTurnBoundary(owner?: OwnerKey): void {
   s.turnAnchorPct = s.lastPct
 }
 
-export function estimateTurnsToCompact(
+export function estimateTurnsToFold(
   currentPct: number | null,
   compactAtPct: number | null,
   owner?: OwnerKey,

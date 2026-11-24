@@ -5,7 +5,7 @@ import type { DOMElement } from '../themedRenderer.js'
 import { useAppState } from '../app-state/AppState.js'
 import { isFullscreenEnvEnabled } from '../fullscreen-layout/fullscreen.js'
 import { linkifyCodeUrls } from '../../platform/text/hyperlink.js'
-import { HighlightedCodeFallback } from './CliHighlightedCode.js'
+import { CliHighlightedCode } from './CliHighlightedCode.js'
 import { Suspense } from 'react'
 
 type HighlightedCodeProps = {
@@ -38,7 +38,7 @@ export const HighlightedCode: React.NamedExoticComponent<HighlightedCodeProps> =
     if (!isFullscreenEnvEnabled()) {
       return (
         <Box ref={boxRef} width={width} flexDirection="column">
-          <HighlightedCodeFallback
+          <CliHighlightedCode
             code={code}
             filePath={filePath}
             dim={dim}
@@ -64,7 +64,7 @@ export const HighlightedCode: React.NamedExoticComponent<HighlightedCodeProps> =
               <Suspense
                 fallback={<Ansi dimColor={dim}>{linkifyCodeUrls(lineText)}</Ansi>}
               >
-                <HighlightedCodeFallback
+                <CliHighlightedCode
                   code={lineText}
                   filePath={filePath}
                   dim={dim}

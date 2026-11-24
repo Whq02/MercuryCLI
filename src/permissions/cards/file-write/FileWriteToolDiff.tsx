@@ -25,7 +25,7 @@ type Props = {
 
 const FRAME_COLUMNS = 2
 
-export function FileWriteToolDiff({
+export function WriteDiff({
   file_path,
   content,
   oldContent,

@@ -2,7 +2,7 @@ import { flagEnv } from '../../platform/substrate/flagRegistry.js'
 import { APIError, AuthenticationError, APIConnectionError, NotFoundError } from '../../engine/request-parts/sdkErrors.js'
 
 import { getEmptyToolPermissionContext } from '../../tools/kit/tool.js'
-import { queryModelWithoutStreaming } from './anthropic/index.js'
+import { anthropicCallModelSettled } from './anthropic/index.js'
 import { asSystemPrompt } from '../../engine/system-prompt/systemPromptType.js'
 import { createUserMessage } from '../../engine/messages/messages.js'
 import { isModelAlias } from '../facts/aliases.js'
@@ -117,7 +117,7 @@ export async function validateModel(model: string): Promise<ValidateModelResult>
   const recognition = recognizeModelId(trimmed)
 
   try {
-    const answer = await queryModelWithoutStreaming({
+    const answer = await anthropicCallModelSettled({
       messages: [createUserMessage({ content: 'hi' })],
       systemPrompt: asSystemPrompt([]),
       thinkingConfig: { type: 'disabled' },

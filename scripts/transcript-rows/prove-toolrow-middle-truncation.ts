@@ -15,7 +15,7 @@ const { renderToString } = await import('../../src/screen/renderer/staticRender.
 const { AssistantToolUseMessage } = await import(
   '../../src/screen/messages/AssistantToolUseMessage.js'
 )
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.js')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.js')
 
 let failures = 0
 function check(cond: boolean, label: string, detail = ''): void {
@@ -44,7 +44,7 @@ function lookupsFor(): unknown {
 async function renderRow(filePath: string, columns: number): Promise<string[]> {
   const node = React.createElement(AssistantToolUseMessage as never, {
     param: { type: 'tool_use', id: TOOL_USE_ID, name: 'Read', input: { file_path: filePath } },
-    tools: [FileReadTool],
+    tools: [ReadTool],
     verbose: true,
     inProgressToolUseIDs: new Set<string>(),
     lookups: lookupsFor() as never,

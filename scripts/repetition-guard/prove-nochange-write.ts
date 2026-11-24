@@ -22,7 +22,7 @@ const guard = setTimeout(() => {
 }, 90_000)
 guard.unref?.()
 
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { WriteTool } = await import('../../src/tools/write/WriteTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { _resetRepetitionPolicyForTesting } = await import(
   '../../src/tools/engines/change-transaction/repetitionPolicy.ts'
@@ -56,12 +56,12 @@ function primeRead(ctx: Ctx, path: string): void {
 }
 
 async function writeViaTool(input: Record<string, unknown>, ctx: Ctx) {
-  const validation = await (FileWriteTool as { validateInput: Function }).validateInput(input, ctx)
+  const validation = await (WriteTool as { validateInput: Function }).validateInput(input, ctx)
   if (validation.result === false) {
     return { ok: false as const, error: String(validation.message), errorCode: validation.errorCode as number }
   }
   try {
-    const result = await (FileWriteTool as { call: Function }).call(input, ctx, null, {
+    const result = await (WriteTool as { call: Function }).call(input, ctx, null, {
       uuid: '00000000-0000-0000-0000-0000000000f1',
       message: { id: 'msg_fixture' },
     })
@@ -76,7 +76,7 @@ async function writeViaTool(input: Record<string, unknown>, ctx: Ctx) {
 }
 
 function mapResult(data: Record<string, unknown>) {
-  return (FileWriteTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(
+  return (WriteTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(
     data,
     'toolu_fixture',
   ) as { content: string; is_error?: boolean }

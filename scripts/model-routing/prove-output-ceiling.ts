@@ -60,7 +60,7 @@ const gptPins = await import('../../src/models/facts/pins/gptPins.ts')
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 const streamCore = await import('../../src/models/roads/anthropic/streamCore.ts')
-const { queryModelWithStreaming, getMaxOutputTokensForModel, adjustParamsForNonStreaming, MAX_NON_STREAMING_TOKENS } = streamCore
+const { anthropicCallModel, getMaxOutputTokensForModel, adjustParamsForNonStreaming, MAX_NON_STREAMING_TOKENS } = streamCore
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 const context = await import('../../src/engine/compaction-window/contextFill.ts')
@@ -193,7 +193,7 @@ async function captureRequest(model: string, thinkingConfig: { type: string; bud
     savedEnv[k] = process.env[k]
     process.env[k] = v
   }
-  const gen = queryModelWithStreaming({
+  const gen = anthropicCallModel({
     messages: [createUserMessage({ content: 'output ceiling fixture prompt' })],
     systemPrompt: asSystemPrompt(['You are the output ceiling fixture.']),
     thinkingConfig: thinkingConfig as never,
@@ -249,7 +249,7 @@ async function captureRequest(model: string, thinkingConfig: { type: string; bud
 
 section('§4 the compaction request follows: neither fold lane sends an override, so its max_tokens is the session request\'s own (the default, or the operator\'s MERCURY_MAX_OUTPUT_TOKENS)')
 {
-  const { compactConversation, shouldRideCacheSharingFork } = await import('../../src/engine/compaction/foldConversation.ts')
+  const { foldConversation, shouldRideCacheSharingFork } = await import('../../src/engine/compaction/foldConversation.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
   const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
   let uuidSeq = 0
@@ -273,7 +273,7 @@ section('§4 the compaction request follows: neither fold lane sends an override
     const before = fixture.captured.length
     let error: Error | undefined
     try {
-      await compactConversation(rows as never, ctx as never, cacheSafe as never, true)
+      await foldConversation(rows as never, ctx as never, cacheSafe as never, true)
     } catch (err) {
       error = err as Error
     }

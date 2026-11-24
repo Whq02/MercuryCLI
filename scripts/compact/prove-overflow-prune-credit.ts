@@ -17,7 +17,7 @@ for (const k of [
 }
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const { queryEvents } = await import('../../src/engine/turnDoor.ts')
+const { turnDoorEvents } = await import('../../src/engine/turnDoor.ts')
 const { legacyYieldsOf } = await import('../../src/engine/loop/project-legacy.ts')
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
@@ -26,12 +26,12 @@ const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/con
 enableConfigs()
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
-const { MC_DIGEST_PREFIX, MC_CLEARED_PLACEHOLDER } = await import('../../src/engine/compaction/pruneDigest.ts')
+const { PRUNE_DIGEST_PREFIX, PRUNE_CLEARED_PLACEHOLDER } = await import('../../src/engine/compaction/pruneDigest.ts')
 const { createContentReplacementState } = await import('../../src/engine/tool-dispatch/toolResultStorage.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 const { tokenCountWithEstimation } = await import('../../src/engine/context-window/contextTokenCount.ts')
-const { projectTimeBasedMicrocompact } = await import('../../src/engine/compaction/pruneToolResults.ts')
-const { getBlockingLimit, getAutoCompactThreshold } = await import('../../src/engine/compaction/autoFold.ts')
+const { projectTimeBasedPrune } = await import('../../src/engine/compaction/pruneToolResults.ts')
+const { getBlockingLimit, getAutoFoldThreshold } = await import('../../src/engine/compaction/autoFold.ts')
 const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/engine/requests/apiErrorRows.ts')
 
 type AnyMsg = Record<string, unknown> & { type?: string }
@@ -61,7 +61,7 @@ console.log('============================================================')
 
 saveGlobalConfig(c => ({ ...c, autoCompactWindow: 800_000 }))
 const BLOCKING = getBlockingLimit(MODEL)
-const THRESHOLD = getAutoCompactThreshold(MODEL)
+const THRESHOLD = getAutoFoldThreshold(MODEL)
 check(`the owner's window: an 800,000 auto-compact window gives the 777,000 blocking limit and the 757,000 fold threshold`, BLOCKING === 777_000 && THRESHOLD === 757_000, `${BLOCKING} ${THRESHOLD}; fix getBlockingLimit or getAutoCompactThreshold in src/engine/compaction-window/autoFoldWindow.ts so autoCompactWindow 800000 gives 777000 and 757000`)
 
 const textOf = (m: unknown): string => {
@@ -160,7 +160,7 @@ async function run(opts: { seed: unknown[]; script: unknown[][]; compactAnswer: 
   const ctx = makeCtx()
   const { calls, callModel } = makeModel(opts.script)
   const compact = makeCompact(opts.compactAnswer)
-  const gen = queryEvents({
+  const gen = turnDoorEvents({
     messages: opts.seed as never,
     systemPrompt: ['rig system prompt'] as never,
     userContext: {},
@@ -233,18 +233,18 @@ const toolResultsOf = (msgs: unknown[]): Array<{ id: string; content: unknown }>
   return out
 }
 const isPlaceholder = (content: unknown): boolean =>
-  typeof content === 'string' && (content === MC_CLEARED_PLACEHOLDER || content.startsWith(MC_DIGEST_PREFIX))
+  typeof content === 'string' && (content === PRUNE_CLEARED_PLACEHOLDER || content.startsWith(PRUNE_DIGEST_PREFIX))
 const settledTransitions = (events: AnyEvent[]): unknown[] => events.filter(e => e.kind === 'turn_settled').map(e => e.transition)
 const noticeTexts = (yields: AnyMsg[]): string[] => yields.filter(y => y.type === 'system').map(y => String(y.content ?? ''))
 const errorYields = (yields: AnyMsg[]): AnyMsg[] => yields.filter(y => y.type === 'assistant' && y.isApiErrorMessage === true)
-const { ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD } = await import('../../src/engine/compaction/foldConversation.js')
-const SUMMARY_TOO_LARGE = { wasCompacted: false, consecutiveFailures: 1, refusal: ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD }
+const { ERROR_MESSAGE_POST_FOLD_OVER_THRESHOLD } = await import('../../src/engine/compaction/foldConversation.js')
+const SUMMARY_TOO_LARGE = { wasCompacted: false, consecutiveFailures: 1, refusal: ERROR_MESSAGE_POST_FOLD_OVER_THRESHOLD }
 
 section('P1 the owner\'s shape — the breaker tripped, the view over the limit by a small gap, every prunable result before the anchor: the prune rung clears the old results and the retry GOES OUT')
 {
   const seed = seedLongLane(20, 776_000, 16_000)
   const estimate = tokenCountWithEstimation(seed as never, MODEL)
-  const saving = projectTimeBasedMicrocompact(seed as never, 'sdk', { pressure: true })?.tokensSaved ?? 0
+  const saving = projectTimeBasedPrune(seed as never, 'sdk', { pressure: true })?.tokensSaved ?? 0
   check(`the view is anchored on the last reply's usage and over the limit by a small gap (${fmt(estimate)} > ${fmt(BLOCKING)}; gap ${fmt(estimate - BLOCKING)})`, estimate > BLOCKING && estimate - BLOCKING < 10_000, `${estimate}; the seed from seedLongLane no longer lands just over the limit, so check tokenCountWithEstimation in src/engine/context-window/contextTokenCount.ts or change the anchor tokens in this file`)
   check(`the prune rung's projected saving covers the gap and brings the view under the limit (~${fmt(saving)} tokens)`, saving >= (estimate - BLOCKING) * 1.2 && estimate - saving < BLOCKING, `${saving}; projectTimeBasedMicrocompact in src/engine/compaction/pruneToolResults.ts must clear enough old tool results under pressure to cover the gap`)
   const r = await run({ seed, script: [[ping(), asstText('the retry after the prune')]], compactAnswer: SUMMARY_TOO_LARGE })

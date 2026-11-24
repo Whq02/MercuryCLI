@@ -10,11 +10,11 @@ import {
   roughTokenCountEstimation,
 } from '../../models/facts/tokenEstimation.js'
 import {
-  getAutoCompactThreshold,
-  isAutoCompactEnabled,
-  MANUAL_COMPACT_BUFFER_TOKENS,
+  getAutoFoldThreshold,
+  isAutoFoldEnabled,
+  MANUAL_FOLD_BUFFER_TOKENS,
 } from '../compaction/autoFold.js'
-import { microcompactMessages } from '../compaction/pruneToolResults.js'
+import { pruneMessages } from '../compaction/pruneToolResults.js'
 import { getSdkBetas } from '../../boot/process-state/processState.js'
 import {
   filterInjectedInstructionFiles,
@@ -683,7 +683,7 @@ export async function analyzeContextUsage(
   }
   const contextWindow = getContextWindowForModel(model, getSdkBetas())
 
-  const mcRaw = await microcompactMessages(messages)
+  const mcRaw = await pruneMessages(messages)
   const microcompactedMessages: Message[] = Array.isArray(mcRaw)
     ? mcRaw
     : mcRaw !== null &&
@@ -863,11 +863,11 @@ export async function analyzeContextUsage(
   }
 
   const layoutUsedTokens = Math.max(measuredTokens, totalTokens)
-  const autoCompactOn = isAutoCompactEnabled()
-  const autoCompactThreshold = autoCompactOn ? getAutoCompactThreshold(model) : undefined
+  const autoCompactOn = isAutoFoldEnabled()
+  const autoCompactThreshold = autoCompactOn ? getAutoFoldThreshold(model) : undefined
   const reserveTokens = autoCompactOn
     ? Math.max(0, contextWindow - autoCompactThreshold!)
-    : MANUAL_COMPACT_BUFFER_TOKENS
+    : MANUAL_FOLD_BUFFER_TOKENS
   const reserveName = autoCompactOn ? 'Autocompact buffer' : 'Compact buffer'
   categories.push({
     name: reserveName,

@@ -13,8 +13,8 @@ process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9'
 process.env.BROWSER = '/usr/bin/true'
 delete process.env.NODE_ENV
 
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 
@@ -51,12 +51,12 @@ async function runRead(
   input: Record<string, unknown>,
   ctx = makeContext(),
 ): Promise<{ ok: true; text: string; data: Record<string, unknown> } | { ok: false; error: string }> {
-  const schema = (FileReadTool as { inputSchema: { safeParse: (v: unknown) => { success: boolean; data?: unknown; error?: unknown } } }).inputSchema
+  const schema = (ReadTool as { inputSchema: { safeParse: (v: unknown) => { success: boolean; data?: unknown; error?: unknown } } }).inputSchema
   const parsed = schema.safeParse(input)
   if (!parsed.success) {
     return { ok: false, error: `schema rejected: ${JSON.stringify(parsed.error)}` }
   }
-  const t = FileReadTool as { validateInput?: Function; call: Function; mapToolResultToToolResultBlockParam: Function }
+  const t = ReadTool as { validateInput?: Function; call: Function; mapToolResultToToolResultBlockParam: Function }
   if (t.validateInput) {
     const valid = await t.validateInput(parsed.data, ctx)
     if (valid && !valid.result) return { ok: false, error: String(valid.message) }
@@ -80,7 +80,7 @@ async function runEdit(
   input: Record<string, unknown>,
   ctx = makeContext(),
 ): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
-  const t = FileEditTool as { validateInput?: Function; call: Function; mapToolResultToToolResultBlockParam: Function }
+  const t = EditTool as { validateInput?: Function; call: Function; mapToolResultToToolResultBlockParam: Function }
   if (t.validateInput) {
     const valid = await t.validateInput(input, ctx)
     if (valid && !valid.result) return { ok: false, error: String(valid.message) }

@@ -38,7 +38,7 @@ export async function pumpOutbound(ports: RunnerPorts): Promise<string | null> {
   return unwrittenRecord
 }
 
-export async function finishPrintRun(unwritten: string | null, ports: RunnerPorts): Promise<void> {
+export async function finishRun(unwritten: string | null, ports: RunnerPorts): Promise<void> {
   let unwrittenRecord = unwritten
   const { io, live, options } = ports
   const flushWrite = (stream: NodeJS.WriteStream, text: string): Promise<void> =>

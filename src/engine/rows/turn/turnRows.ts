@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { getSessionId, isSessionPersistenceDisabled } from '../../../boot/process-state/processState.js'
-import type { QueryParams } from '../../loop/turn-machine.js'
+import type { TurnParams } from '../../loop/turn-machine.js'
 import type { Message } from '../../message-shapes/message.js'
 import type { ContentBlockParam } from '../../message-shapes/wire.js'
 import { createAttachmentMessage } from '../../attachments/turnAttachments.js'
@@ -236,7 +236,7 @@ export async function* turnRows(this: ConversationState, prompt: string | Conten
     timeLimitTimer.unref?.()
   }
 
-  const queryParams: QueryParams = {
+  const queryParams: TurnParams = {
     messages: turnMessages,
     systemPrompt,
     userContext: promptParts.userContext,
@@ -245,7 +245,7 @@ export async function* turnRows(this: ConversationState, prompt: string | Conten
     canUseTool: wrappedCanUseTool,
     toolUseContext,
     fallbackModel: config.fallbackModel,
-    querySource: 'sdk' as QueryParams['querySource'],
+    querySource: 'sdk' as TurnParams['querySource'],
     maxTurns: config.maxTurns,
   }
 

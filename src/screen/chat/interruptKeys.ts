@@ -76,7 +76,7 @@ function killRunningAgents(
   return true
 }
 
-export function CancelRequestHandler({
+export function InterruptKeys({
   focusedTurnActive,
   compactWork,
   isElicitationFocused = false,

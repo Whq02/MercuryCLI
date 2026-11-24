@@ -21,7 +21,7 @@ const { enableConfigs } = await import('../../src/platform/config/globalConfig.t
 enableConfigs()
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
 const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
@@ -66,7 +66,7 @@ async function declinedOnTheRunnersRoad(words: string | undefined): Promise<{ co
     ask.message.stop_reason = 'tool_use'
     yield ask as never
   }
-  const turn = query({
+  const turn = turnDoor({
     messages: [createUserMessage({ content: 'go on' })] as never,
     systemPrompt: ['rig system prompt'] as never,
     userContext: {},

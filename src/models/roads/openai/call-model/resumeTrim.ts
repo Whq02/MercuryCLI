@@ -4,8 +4,8 @@ import type {
 import type { ContentBlockParam } from '../../../../engine/message-shapes/wire.js'
 import type { Options } from '../../anthropic/streamCore.js'
 import { isSyntheticApiErrorMessage } from '../../../../engine/message-shapes/factories.js'
-import { COMPACTION_SOURCES } from '../../../../engine/requests/querySource.js'
-import { projectTimeBasedMicrocompact } from '../../../../engine/compaction/pruneToolResults.js'
+import { FOLD_SOURCES } from '../../../../engine/requests/querySource.js'
+import { projectTimeBasedPrune } from '../../../../engine/compaction/pruneToolResults.js'
 import { digestClearedToolResult, isClearedOrDigested } from '../../../../engine/compaction/pruneDigest.js'
 import { estimateContentTokens } from '../../../facts/tokenEstimation.js'
 import type {
@@ -16,10 +16,10 @@ import { isOneOf } from '../../../../platform/primitives/isOneOf.js'
 
 export const priorConversation4xx = new Map<string, string>()
 
-export const isCompactionSource = (source: unknown): boolean => isOneOf(COMPACTION_SOURCES, String(source))
-export const compactedToolResultsByConversation = new Map<string, Map<string, string>>()
+export const isFoldSource = (source: unknown): boolean => isOneOf(FOLD_SOURCES, String(source))
+export const prunedToolResultsByConversation = new Map<string, Map<string, string>>()
 
-export function applyCompactedToolResults(
+export function applyPrunedToolResults(
   messages: Message[],
   replacements: ReadonlyMap<string, string> | undefined,
 ): Message[] {
@@ -102,23 +102,23 @@ export function priorTurn4xxCodeOf(messages: readonly Message[], conversation4xx
   return sawTrailingUser ? priorConversation4xx.get(conversation4xxKey) : undefined
 }
 
-export function compactTranscriptFor4xxResume(
+export function pruneTranscriptFor4xxResume(
   messages: Message[],
   querySource: Options['querySource'],
   fault: OpenaiFault,
   conversation4xxKey: string,
 ): { messages: Message[]; note: string } | null {
-  const micro = projectTimeBasedMicrocompact(messages, querySource, { pressure: true })
+  const micro = projectTimeBasedPrune(messages, querySource, { pressure: true })
   const base = micro ? micro.messages : messages
   const clearedIds = new Set<string>(micro?.clearedIds ?? [])
   let tokensSaved = micro?.tokensSaved ?? 0
   let charsSaved = 0
   let surrogatesFixed = 0
   const faultText = fault.wireMessage ?? fault.message
-  let storedMap = compactedToolResultsByConversation.get(conversation4xxKey)
+  let storedMap = prunedToolResultsByConversation.get(conversation4xxKey)
   if (!storedMap) {
     storedMap = new Map<string, string>()
-    compactedToolResultsByConversation.set(conversation4xxKey, storedMap)
+    prunedToolResultsByConversation.set(conversation4xxKey, storedMap)
   }
   if (micro) {
     for (const m of base) {

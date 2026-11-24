@@ -6,7 +6,7 @@ import { getModelDeprecationWarning } from '../../models/facts/deprecation.js'
 
 const NOTIFICATION_KEY = 'model-deprecation-warning'
 
-export function useDeprecationWarningNotification(model: string): void {
+export function useModelDeprecationNotice(model: string): void {
   const { addNotification } = useNotifications()
   const lastWarningRef = useRef<string | null>(null)
 

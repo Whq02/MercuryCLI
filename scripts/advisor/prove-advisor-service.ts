@@ -429,12 +429,12 @@ section('§4 TWO CLOCKS: the advisor context compacts on ITS gauge (the advisor 
     summaries.push(args)
     return 'the summary of the older memory'
   }
-  const keptAt64k = await advisor.maybeCompactAdvisorContext(context, { model: 'fixture-advisor', window: 64_000, summarize })
+  const keptAt64k = await advisor.maybeFoldAdvisorContext(context, { model: 'fixture-advisor', window: 64_000, summarize })
   check('on the 64k advisor gauge the advisor keeps every row — no summarizer call', keptAt64k.compacted === 0 && context.rows.length === 8 && summaries.length === 0 && keptAt64k.window === 64_000, j(keptAt64k))
-  const foldedAt8k = await advisor.maybeCompactAdvisorContext(context, { model: 'fixture-advisor', window: 8_000, summarize })
+  const foldedAt8k = await advisor.maybeFoldAdvisorContext(context, { model: 'fixture-advisor', window: 8_000, summarize })
   check('on an 8k gauge the fold fires: the two oldest rows fold into one summary, the newest six stay verbatim', foldedAt8k.compacted === 2 && context.rows.length === 7 && context.rows[0]!.kind === 'summary' && context.rows[0]!.text === 'the summary of the older memory' && context.rows[0]!.folded === 2 && context.rows[6]!.text === 'note 3', j({ ...foldedAt8k, kinds: context.rows.map(r => r.kind) }))
-  check("the summarizer was handed the advisor's own fold prompt, the model, and the folded rows only", summaries.length === 1 && summaries[0]!.systemPrompt === advisor.advisorCompactSummaryPrompt() && summaries[0]!.modelId === 'fixture-advisor' && summaries[0]!.transcript.includes('[your note to the agent] note 0') && !summaries[0]!.transcript.includes('note 1'), summaries[0]?.transcript.slice(-200))
-  check('the fold prompt is about an advisor\'s memory, three sections, no invention', advisor.advisorCompactSummaryPrompt().includes("advisor's own memory") && advisor.advisorCompactSummaryPrompt().includes('Advice given'))
+  check("the summarizer was handed the advisor's own fold prompt, the model, and the folded rows only", summaries.length === 1 && summaries[0]!.systemPrompt === advisor.advisorFoldSummaryPrompt() && summaries[0]!.modelId === 'fixture-advisor' && summaries[0]!.transcript.includes('[your note to the agent] note 0') && !summaries[0]!.transcript.includes('note 1'), summaries[0]?.transcript.slice(-200))
+  check('the fold prompt is about an advisor\'s memory, three sections, no invention', advisor.advisorFoldSummaryPrompt().includes("advisor's own memory") && advisor.advisorFoldSummaryPrompt().includes('Advice given'))
   const lines = readFileSync(advisor.advisorContextPath('agent-fold', DIR), 'utf8').split('\n').filter(l => l.trim() !== '')
   check('the fold APPENDS its summary row — the file stays append-only like the transcript (no whole-file rewrite route): head + the eight rows + the summary last', lines.length === 10 && (JSON.parse(lines[9]!) as Raw).kind === 'summary' && (JSON.parse(lines[9]!) as Raw).folded === 2, j(lines.map(l => (JSON.parse(l) as Raw).kind)))
   const readBack = advisor.parseAdvisorContextLines('agent-fold', readFileSync(advisor.advisorContextPath('agent-fold', DIR), 'utf8'))
@@ -448,7 +448,7 @@ section('§4 TWO CLOCKS: the advisor context compacts on ITS gauge (the advisor 
     throw new Error('the summary road is down')
   }
   const before = context.rows.length
-  const refused = await advisor.maybeCompactAdvisorContext(context, { model: 'fixture-advisor', window: 2_000, summarize: refusing })
+  const refused = await advisor.maybeFoldAdvisorContext(context, { model: 'fixture-advisor', window: 2_000, summarize: refusing })
   check('a refused fold leaves the rows untouched and says why', refused.compacted === 0 && typeof refused.refused === 'string' && refused.refused.includes('the summary road is down') && context.rows.length === before, j(refused))
 }
 

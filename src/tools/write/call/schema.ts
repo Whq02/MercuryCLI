@@ -7,7 +7,7 @@ export const inputSchema = z.strictObject({
   content: z.string().describe('The content to write to the file'),
 })
 
-export type FileWriteToolInput = z.input<typeof inputSchema>
+export type FileWriteInput = z.input<typeof inputSchema>
 
 export type Input = z.infer<typeof inputSchema>
 

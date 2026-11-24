@@ -5,7 +5,7 @@ import { preparedSecurityParse } from '../../permissions/rules/decision/commandA
 import { ownGroundCommand } from '../../permissions/rules/ownGround.js'
 import { resolveShellCwd } from '../../platform/shell/shellExec.js'
 
-const ACCEPT_EDITS_COMMANDS: ReadonlySet<string> = new Set([
+const IMPLEMENT_MODE_COMMANDS: ReadonlySet<string> = new Set([
   'mkdir',
   'touch',
   'rm',
@@ -47,7 +47,7 @@ export function checkPermissionMode(
     if (!commandName) {
       return { behavior: 'passthrough', message: 'No command to evaluate for mode auto-allow.' }
     }
-    if (toolPermissionContext.mode === 'implement' && ACCEPT_EDITS_COMMANDS.has(commandName)) {
+    if (toolPermissionContext.mode === 'implement' && IMPLEMENT_MODE_COMMANDS.has(commandName)) {
       return {
         behavior: 'allow',
         updatedInput: { command: simple.text },

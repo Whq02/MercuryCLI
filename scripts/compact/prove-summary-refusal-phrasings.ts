@@ -18,8 +18,8 @@ const { setIsInteractive } = await import('../../src/boot/process-state/processS
 setIsInteractive(false)
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
-const { compactConversation, partialCompactConversation, PROSE_SKIPPED_KEY, ERROR_MESSAGE_NO_SUMMARY } = await import('../../src/engine/compaction/foldConversation.ts')
-const { getCompactPrompt, getPartialCompactPrompt, SUMMARY_SECTION_TITLES } = await import('../../src/engine/compaction/summariserPrompt.ts')
+const { foldConversation, partialFoldConversation, PROSE_SKIPPED_KEY, ERROR_MESSAGE_NO_SUMMARY } = await import('../../src/engine/compaction/foldConversation.ts')
+const { getFoldPrompt, getPartialFoldPrompt, SUMMARY_SECTION_TITLES } = await import('../../src/engine/compaction/summariserPrompt.ts')
 const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, agentNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'max' }
 let failures = 0
 let checks = 0
@@ -110,8 +110,8 @@ const fold = async (text: string, direction: 'full' | 'from' | 'up_to'): Promise
   let error = ''
   try {
     result = direction === 'full'
-      ? await compactConversation(messages, context, cache, false)
-      : await partialCompactConversation(messages, direction === 'from' ? 0 : messages.length, context, cache, undefined, direction)
+      ? await foldConversation(messages, context, cache, false)
+      : await partialFoldConversation(messages, direction === 'from' ? 0 : messages.length, context, cache, undefined, direction)
   } catch (caught) { error = String(caught) }
   const summaryRow = result?.summaryMessages?.[0]?.message.content
   return { installed: result !== undefined, error, requests: fixture.captured.length - before, kept: JSON.stringify(messages) === original, reads: JSON.stringify([...ledger]) === reads && loaded.has('nested-memory'), notices, summary: typeof summaryRow === 'string' ? summaryRow : '', notes: result?.notes ?? [] }
@@ -151,17 +151,17 @@ try {
     fixture.script(() => ({ refusal: true, text: good }))
     let result: unknown
     let error = ''
-    try { result = await compactConversation(messages, context, { systemPrompt: ['Synthetic refusal phrasing proof.'] } as never, false) } catch (caught) { error = String(caught) }
+    try { result = await foldConversation(messages, context, { systemPrompt: ['Synthetic refusal phrasing proof.'] } as never, false) } catch (caught) { error = String(caught) }
     check('a refusal stop with a plausible summary text is rejected', result === undefined && error.includes('stop_reason: refusal'), { error, installed: result !== undefined })
     check('the conversation survives it', JSON.stringify(messages) === original)
   }
   console.log('6. the section titles the validator strips are the prompt\'s own')
-  const prompts = [getCompactPrompt(), getPartialCompactPrompt(undefined, 'from'), getPartialCompactPrompt(undefined, 'up_to')]
+  const prompts = [getFoldPrompt(), getPartialFoldPrompt(undefined, 'from'), getPartialFoldPrompt(undefined, 'up_to')]
   for (const title of SUMMARY_SECTION_TITLES) {
     check(`"${title}" is a section title of a fold prompt`, prompts.some(prompt => prompt.includes(`${title}:`)), title)
   }
-  check('every section title of the full prompt is in the list', [...getCompactPrompt().matchAll(/^\d{1,2}\. ([^:\n]+):/gm)].every(match => SUMMARY_SECTION_TITLES.includes(match[1] as string)), getCompactPrompt().match(/^\d{1,2}\. ([^:\n]+):/gm))
-  check('every section title of the up_to prompt is in the list', [...getPartialCompactPrompt(undefined, 'up_to').matchAll(/^\d{1,2}\. ([^:\n]+):/gm)].every(match => SUMMARY_SECTION_TITLES.includes(match[1] as string)))
+  check('every section title of the full prompt is in the list', [...getFoldPrompt().matchAll(/^\d{1,2}\. ([^:\n]+):/gm)].every(match => SUMMARY_SECTION_TITLES.includes(match[1] as string)), getFoldPrompt().match(/^\d{1,2}\. ([^:\n]+):/gm))
+  check('every section title of the up_to prompt is in the list', [...getPartialFoldPrompt(undefined, 'up_to').matchAll(/^\d{1,2}\. ([^:\n]+):/gm)].every(match => SUMMARY_SECTION_TITLES.includes(match[1] as string)))
 } finally {
   await fixture.close()
   rmSync(home, { recursive: true, force: true })

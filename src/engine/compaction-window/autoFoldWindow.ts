@@ -3,11 +3,11 @@ import { getGlobalConfig } from '../../platform/settings/config.js'
 import { getContextWindowForModel, getModelInputCeiling, getModelMaxOutputTokens } from '../../models/facts/capabilities.js'
 import { flagEnabled, flagEnv } from '../../platform/substrate/flagRegistry.js'
 
-export const MIN_AUTOCOMPACT_WINDOW = 100_000
-export const MAX_AUTOCOMPACT_WINDOW = 1_000_000
+export const MIN_AUTO_FOLD_WINDOW = 100_000
+export const MAX_AUTO_FOLD_WINDOW = 1_000_000
 export const WARNING_THRESHOLD_BUFFER_TOKENS = 20_000
-export const MANUAL_COMPACT_BUFFER_TOKENS = 3_000
-export const AUTOCOMPACT_BUFFER_TOKENS = 20_000
+export const MANUAL_FOLD_BUFFER_TOKENS = 3_000
+export const AUTO_FOLD_BUFFER_TOKENS = 20_000
 
 const SUMMARY_OUTPUT_RESERVE_TOKENS = 20_000
 
@@ -15,7 +15,7 @@ export const SUMMARY_RESERVE_MAX_WINDOW_DIVISOR = 4
 const WARNING_MIN_CEILING_NUMERATOR = 4
 const WARNING_MIN_CEILING_DENOMINATOR = 5
 
-export type AutoCompactWindowSource = 'settings' | 'auto' | 'experiment' | 'model-default'
+export type AutoFoldWindowSource = 'settings' | 'auto' | 'experiment' | 'model-default'
 
 export type TokenWarningLevel = 'ok' | 'warn' | 'compact' | 'blocked'
 
@@ -23,25 +23,25 @@ function modelMaxWindow(model: string): number {
   return getModelInputCeiling(model, getSdkBetas())
 }
 
-export function autoCompactWindowIsInputLimit(model: string, window: number): boolean {
+export function autoFoldWindowIsInputLimit(model: string, window: number): boolean {
   return window === modelMaxWindow(model) && window < getContextWindowForModel(model, getSdkBetas())
 }
 
-export function resolveAutoCompactWindow(
+export function resolveAutoFoldWindow(
   model: string,
   settingsWindow?: number,
-): { window: number; configured: number; source: AutoCompactWindowSource } {
+): { window: number; configured: number; source: AutoFoldWindowSource } {
   const modelMax = modelMaxWindow(model)
   const fromSettings = settingsWindow ?? getGlobalConfig().autoCompactWindow
   if (typeof fromSettings === 'number' && fromSettings > 0) {
-    const configured = Math.min(Math.max(fromSettings, MIN_AUTOCOMPACT_WINDOW), MAX_AUTOCOMPACT_WINDOW)
+    const configured = Math.min(Math.max(fromSettings, MIN_AUTO_FOLD_WINDOW), MAX_AUTO_FOLD_WINDOW)
     return { window: Math.min(configured, modelMax), configured, source: 'settings' }
   }
   return { window: modelMax, configured: modelMax, source: 'auto' }
 }
 
 export function getEffectiveContextWindowSize(model: string, settingsWindow?: number): number {
-  const { window } = resolveAutoCompactWindow(model, settingsWindow)
+  const { window } = resolveAutoFoldWindow(model, settingsWindow)
   const reserve = Math.min(
     getModelMaxOutputTokens(model).upperLimit,
     SUMMARY_OUTPUT_RESERVE_TOKENS,
@@ -51,11 +51,11 @@ export function getEffectiveContextWindowSize(model: string, settingsWindow?: nu
 }
 
 export function getTurnReserveTokens(model: string): number {
-  return Math.min(getModelMaxOutputTokens(model).upperLimit, AUTOCOMPACT_BUFFER_TOKENS, Math.floor(resolveAutoCompactWindow(model).window / 8))
+  return Math.min(getModelMaxOutputTokens(model).upperLimit, AUTO_FOLD_BUFFER_TOKENS, Math.floor(resolveAutoFoldWindow(model).window / 8))
 }
 
-export function getAutoCompactThreshold(model: string): number {
-  return autoCompactThreshold(model, 0)
+export function getAutoFoldThreshold(model: string): number {
+  return autoFoldThreshold(model, 0)
 }
 
 function pctOverride(): number | undefined {
@@ -71,7 +71,7 @@ export function thresholdOverridden(): boolean {
   return pctOverride() !== undefined
 }
 
-function autoCompactThreshold(model: string, fixedTokens: number): number {
+function autoFoldThreshold(model: string, fixedTokens: number): number {
   const blockingLimit = getBlockingLimit(model)
   const pct = pctOverride()
   if (pct !== undefined) {
@@ -82,29 +82,29 @@ function autoCompactThreshold(model: string, fixedTokens: number): number {
   return Math.max(1, blockingLimit - getTurnReserveTokens(model), fixedFloor)
 }
 
-export function getAutoCompactThresholdWithFixed(model: string, fixedTokens: number): number {
-  return autoCompactThreshold(model, fixedTokens)
+export function getAutoFoldThresholdWithFixed(model: string, fixedTokens: number): number {
+  return autoFoldThreshold(model, fixedTokens)
 }
 
-export function autoCompactDisabledReason(): 'MERCURY_COMPACT=0' | 'MERCURY_AUTO_COMPACT=0' | 'turned off in /config' | null {
+export function autoFoldDisabledReason(): 'MERCURY_COMPACT=0' | 'MERCURY_AUTO_COMPACT=0' | 'turned off in /config' | null {
   if (!flagEnabled('MERCURY_COMPACT')) return 'MERCURY_COMPACT=0'
   if (!flagEnabled('MERCURY_AUTO_COMPACT')) return 'MERCURY_AUTO_COMPACT=0'
   return getGlobalConfig().autoCompactEnabled ? null : 'turned off in /config'
 }
 
-export function isAutoCompactEnabled(): boolean {
-  return autoCompactDisabledReason() === null
+export function isAutoFoldEnabled(): boolean {
+  return autoFoldDisabledReason() === null
 }
 
-export function compactionSettingsText(): string {
-  const reason = autoCompactDisabledReason()
+export function foldSettingsText(): string {
+  const reason = autoFoldDisabledReason()
   if (reason === null) return 'auto-compact on'
   if (reason === 'MERCURY_COMPACT=0') return 'compaction disabled (MERCURY_COMPACT=0); emergency folding is disabled too'
   return `auto-compact ${reason === 'turned off in /config' ? reason : `off (${reason})`}; emergency folding remains enabled`
 }
 
 export function getBlockingLimit(model: string, settingsWindow?: number): number {
-  let blockingLimit = getEffectiveContextWindowSize(model, settingsWindow) - MANUAL_COMPACT_BUFFER_TOKENS
+  let blockingLimit = getEffectiveContextWindowSize(model, settingsWindow) - MANUAL_FOLD_BUFFER_TOKENS
   const overrideRaw = flagEnv('MERCURY_BLOCKING_LIMIT_OVERRIDE')
   if (overrideRaw !== undefined && overrideRaw !== '') {
     const override = Number.parseInt(overrideRaw, 10)
@@ -118,8 +118,8 @@ export function calculateTokenWarningState(
   model: string,
   settingsWindow?: number,
 ): { level: TokenWarningLevel; pctLeft?: number } {
-  const autoEnabled = isAutoCompactEnabled()
-  const ceiling = autoEnabled ? getAutoCompactThreshold(model) : getEffectiveContextWindowSize(model, settingsWindow)
+  const autoEnabled = isAutoFoldEnabled()
+  const ceiling = autoEnabled ? getAutoFoldThreshold(model) : getEffectiveContextWindowSize(model, settingsWindow)
   const warningThreshold = Math.max(
     ceiling - WARNING_THRESHOLD_BUFFER_TOKENS,
     Math.ceil((ceiling * WARNING_MIN_CEILING_NUMERATOR) / WARNING_MIN_CEILING_DENOMINATOR),

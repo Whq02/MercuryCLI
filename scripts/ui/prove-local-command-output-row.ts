@@ -23,7 +23,7 @@ const j = (v: unknown): string => JSON.stringify(v)
 
 const { UserLocalCommandOutputMessage } = await import('../../src/screen/messages/UserLocalCommandOutputMessage.js')
 const { earlierReleasesLine } = await import('../../src/boot/releaseNotes.js')
-const { ctrlOToExpand } = await import('../../src/screen/messages/ctrlOToExpandHint.js')
+const { ctrlOToExpandHint } = await import('../../src/screen/messages/ctrlOToExpandHint.js')
 const { AppStoreContext } = await import('../../src/screen/app-state/AppState.js')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
 const { createStore } = await import('../../src/platform/primitives/store.js')
@@ -105,7 +105,7 @@ section('§3 THE EARLIER-RELEASES FOLD — hidden behind the transcript key unle
   const foldLine = earlierReleasesLine(3)
   const text = `## 1.0.0-beta.31\n\n- a fix\n\n${foldLine}\n\n## 1.0.0-beta.30\n\n- older`
   const folded = await paint(out(text))
-  check('the fold line paints with the key hint and nothing after it', has(folded, `${foldLine} ${ctrlOToExpand()}`) && !has(folded, 'older'), j(folded))
+  check('the fold line paints with the key hint and nothing after it', has(folded, `${foldLine} ${ctrlOToExpandHint()}`) && !has(folded, 'older'), j(folded))
   check('the lines before the fold paint', has(folded, 'a fix'), j(folded))
   const expanded = await paint(out(text), true)
   check('verbose drops the fold line and shows the earlier release', !has(expanded, foldLine) && has(expanded, 'older'), j(expanded))

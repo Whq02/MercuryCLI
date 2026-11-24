@@ -59,7 +59,7 @@ assert.deepEqual(decideOverflowRecovery({ episode: { pruned: false, folded: true
 console.log('PASS all 154 bodies / 740942 rough tokens exposed; no prune or replacement before summary; cancelled transaction keeps read state; emergency prune requires explicit evidence')
 
 const { startFixtureApi } = await import('../lib/fixtureApi.js')
-const { compactConversation } = await import('../../src/engine/compaction/foldConversation.js')
+const { foldConversation } = await import('../../src/engine/compaction/foldConversation.js')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
 const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.js')
 const { enableConfigs } = await import('../../src/platform/settings/config.js')
@@ -77,7 +77,7 @@ const ctx = {
   onCompactProgress: (event: { type: string; stage?: string }) => { if (event.type === 'stage' && event.stage === 'restoring') cancel.abort() },
 } as never
 try {
-  await assert.rejects(compactConversation([createUserMessage({ content: 'Keep these source bytes.' }), createAssistantMessage({ content: 'Source observed.' })], ctx, { systemPrompt: ['fixture'], userContext: {}, systemContext: {}, toolUseContext: ctx, forkContextMessages: [] }, true), APIUserAbortError)
+  await assert.rejects(foldConversation([createUserMessage({ content: 'Keep these source bytes.' }), createAssistantMessage({ content: 'Source observed.' })], ctx, { systemPrompt: ['fixture'], userContext: {}, systemContext: {}, toolUseContext: ctx, forkContextMessages: [] }, true), APIUserAbortError)
   assert.equal(reads.get('unwritten-fixture.ts')?.content, 'original')
   assert.deepEqual([...nested], ['original'])
   assert.ok(api.messageRequests().length > 0, 'cancelled compactConversation sent 0 summary requests before aborting at restoring stage; check compact.ts stage order')

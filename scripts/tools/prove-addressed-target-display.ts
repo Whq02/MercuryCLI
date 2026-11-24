@@ -46,7 +46,7 @@ check('a statement is shown as typed', shown('C:\\src\\s143\\sql\\rows.sqlite#re
 check('the container keeps the spelling of its platform', shown('C:\\src\\s143\\sql\\sub\\rows.sqlite:items/1') === 'sub\\rows.sqlite:items/1', shown('C:\\src\\s143\\sql\\sub\\rows.sqlite:items/1'))
 check('a line range and a plain path are shown as before', shown('C:\\src\\s143\\sql\\notes.txt:1-5') === 'notes.txt:1-5' && shown('C:\\src\\s143\\sql\\sub\\notes.txt') === 'sub\\notes.txt')
 
-hintFor = 'getDisplayPath in src/platform/files/file.ts and getToolUseSummary in the UI.tsx of src/tools/read, FileWriteTool and FileEditTool (and backfillObservableInput of FileReadTool) must keep the address whole when showing a path'
+hintFor = 'getDisplayPath in src/platform/files/file.ts and getToolUseSummary in the UI.tsx of src/tools/read, WriteTool and EditTool (and backfillObservableInput of ReadTool) must keep the address whole when showing a path'
 const row = `${join(home, 'rows.sqlite')}:items/x/../1#delete`
 const member = join(home, 'bundle.zip') + ':docs/./intro.md'
 const query = `${join(home, 'rows.jsonl')}#read?q=.a/../b`
@@ -58,6 +58,6 @@ check('the Write row names the address as typed', writeUi.getToolUseSummary({ fi
 check('the Edit row names the address as typed', editUi.getToolUseSummary({ file_path: `${join(home, 'rows.sqlite')}:items/x/../1` }) === 'rows.sqlite:items/x/../1', String(editUi.getToolUseSummary({ file_path: `${join(home, 'rows.sqlite')}:items/x/../1` })))
 check('the Read row names the query as typed', readUi.getToolUseSummary({ file_path: query }) === 'rows.jsonl#read?q=.a/../b', String(readUi.getToolUseSummary({ file_path: query })))
 const observed = { file_path: `${join(home, 'rows.sqlite')}:items/x/../1` }
-kit.FileReadTool.backfillObservableInput(observed)
+kit.ReadTool.backfillObservableInput(observed)
 check('what a hook and a card are shown of a Read keeps the address', observed.file_path === join(home, 'rows.sqlite') + ':items/x/../1', observed.file_path)
 kit.finish()

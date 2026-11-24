@@ -66,7 +66,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = `vllm=${vllm.root}`
 
 const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
 const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 await refreshLocalDiscovery({ force: true })
 
@@ -92,14 +92,14 @@ function primeRead(ctx: Ctx, path: string): void {
   ctx.readFileState.set(path, { content: readFileSync(path, 'utf8').replaceAll('\r\n', '\n'), timestamp: Date.now() + 60_000, offset: undefined, limit: undefined })
 }
 async function validate(input: Record<string, unknown>, ctx: Ctx): Promise<{ ok: true } | { ok: false; message: string }> {
-  const verdict = await (FileEditTool as { validateInput: Function }).validateInput(input, ctx)
+  const verdict = await (EditTool as { validateInput: Function }).validateInput(input, ctx)
   return verdict.result === false ? { ok: false, message: String(verdict.message) } : { ok: true }
 }
 async function edit(input: Record<string, unknown>, ctx: Ctx): Promise<{ ok: true } | { ok: false; message: string }> {
   const verdict = await validate(input, ctx)
   if (!verdict.ok) return verdict
   try {
-    await (FileEditTool as { call: Function }).call(input, ctx, null, { uuid: '00000000-0000-0000-0000-000000000003', message: { id: 'msg_fixture' } })
+    await (EditTool as { call: Function }).call(input, ctx, null, { uuid: '00000000-0000-0000-0000-000000000003', message: { id: 'msg_fixture' } })
     return { ok: true }
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : String(err) }
@@ -134,7 +134,7 @@ for (const model of [LOCAL_MODEL, CLOUD_MODEL]) {
   }
 }
 const promptFor = async (model: string): Promise<string> =>
-  (FileEditTool as { prompt: Function }).prompt({ tools: [], model, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [] })
+  (EditTool as { prompt: Function }).prompt({ tools: [], model, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [] })
 check('local and hosted descriptions are identical', await promptFor(LOCAL_MODEL) === await promptFor(CLOUD_MODEL))
 vllm.server.close()
 clearTimeout(guard)

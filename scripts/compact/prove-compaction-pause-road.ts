@@ -18,7 +18,7 @@ for (const k of [
 }
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const { queryEvents } = await import('../../src/engine/turnDoor.ts')
+const { turnDoorEvents } = await import('../../src/engine/turnDoor.ts')
 const { legacyYieldsOf } = await import('../../src/engine/loop/project-legacy.ts')
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
@@ -27,13 +27,13 @@ const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/con
 enableConfigs()
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
-const { createCompactBoundaryMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
+const { createFoldBoundaryMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/engine/requests/apiErrorRows.ts')
 const { estimateOverflowSignal } = await import('../../src/engine/requests/overflowSignal.ts')
 const autoCompact = await import('../../src/engine/compaction/autoFold.ts')
 const { overflowRefusalText, foldAvailability } = await import('../../src/engine/compaction/overflowRecovery.ts')
-const compactionBreakerText: ((opts: { nonInteractive: boolean }) => string) | undefined = (autoCompact as { compactionBreakerText?: (opts: { nonInteractive: boolean }) => string }).compactionBreakerText
+const foldBreakerText: ((opts: { nonInteractive: boolean }) => string) | undefined = (autoCompact as { foldBreakerText?: (opts: { nonInteractive: boolean }) => string }).foldBreakerText
 
 type AnyMsg = Record<string, unknown> & { type?: string }
 type AnyEvent = Record<string, unknown> & { kind: string }
@@ -44,7 +44,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}the breaker sentence is compactionBreakerText and autoCompactIfNeeded in src/engine/compaction/autoFold.ts, the refusal text and foldAvailability are in src/engine/compaction/overflowRecovery.ts, and the run loop that asks the gate is queryEvents in src/engine/turnDoor.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}the breaker sentence is foldBreakerText and autoCompactIfNeeded in src/engine/compaction/autoFold.ts, the refusal text and foldAvailability are in src/engine/compaction/overflowRecovery.ts, and the run loop that asks the gate is queryEvents in src/engine/turnDoor.ts` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -65,10 +65,10 @@ const signal = estimateOverflowSignal({ family: 'anthropic', actualTokens: 777_1
 
 section('B1 the words — the paused breaker names /compact by hand and the next message, says the pause is the run\'s, and keeps the /clear and /model remedies')
 {
-  check('the sentence has one builder (compactionBreakerText)', typeof compactionBreakerText === 'function')
-  if (typeof compactionBreakerText === 'function') {
-    check('the interactive sentence', compactionBreakerText({ nonInteractive: false }) === INTERACTIVE_LINE, compactionBreakerText({ nonInteractive: false }))
-    check('the headless sentence', compactionBreakerText({ nonInteractive: true }) === HEADLESS_LINE, compactionBreakerText({ nonInteractive: true }))
+  check('the sentence has one builder (foldBreakerText)', typeof foldBreakerText === 'function')
+  if (typeof foldBreakerText === 'function') {
+    check('the interactive sentence', foldBreakerText({ nonInteractive: false }) === INTERACTIVE_LINE, foldBreakerText({ nonInteractive: false }))
+    check('the headless sentence', foldBreakerText({ nonInteractive: true }) === HEADLESS_LINE, foldBreakerText({ nonInteractive: true }))
   }
   const interactive = overflowRefusalText(signal, 'breaker', { nonInteractive: false })
   check('the estimate-side refusal, interactive, is the stable key, the numbers, the sentence and the slash remedies', interactive === `${PROMPT_TOO_LONG_ERROR_MESSAGE} — the request is over the window (estimated 777,170 tokens > 777,000): ${INTERACTIVE_LINE} /clear starts fresh, or /model picks a model with a larger window.`, interactive)
@@ -90,12 +90,12 @@ section('B2 the forced road — a fold forced past the tripped breaker refuses w
     agentId: undefined,
   }
   const tracking = { compacted: false, turnCounter: 0, turnId: '', consecutiveFailures: 3 }
-  const forced = await autoCompact.autoCompactIfNeeded([] as never, ctx as never, { systemPrompt: [] } as never, 'sdk', tracking, 0, signal)
+  const forced = await autoCompact.autoFoldIfNeeded([] as never, ctx as never, { systemPrompt: [] } as never, 'sdk', tracking, 0, signal)
   check('the forced fold at the breaker does not fold and names the sentence as its refusal', forced.wasCompacted === false && forced.refusal === INTERACTIVE_LINE, JSON.stringify(forced))
   const dressed = overflowRefusalText(signal, 'fold-failed', { nonInteractive: false, detail: forced.refusal })
   check('the ladder prints that refusal as the sentence itself — never "the fold failed (…)" around it, never the by-hand clause twice', dressed.includes(`: ${INTERACTIVE_LINE} /clear starts fresh`) && !dressed.includes('the fold failed') && dressed.split('/compact').length === 2, dressed)
   const headlessCtx = { ...ctx, options: { ...ctx.options, isNonInteractiveSession: true } }
-  const forcedHeadless = await autoCompact.autoCompactIfNeeded([] as never, headlessCtx as never, { systemPrompt: [] } as never, 'sdk', tracking, 0, signal)
+  const forcedHeadless = await autoCompact.autoFoldIfNeeded([] as never, headlessCtx as never, { systemPrompt: [] } as never, 'sdk', tracking, 0, signal)
   check('the headless forced refusal is the headless sentence', forcedHeadless.refusal === HEADLESS_LINE, JSON.stringify(forcedHeadless))
 }
 
@@ -123,7 +123,7 @@ function makeModel(script: unknown[][]): { calls: CallRecord[]; callModel: (req:
 }
 type CompactCall = { forced: unknown; tracking: unknown }
 function rigFoldResult(): Record<string, unknown> {
-  const boundaryMarker = createCompactBoundaryMessage('auto', 900)
+  const boundaryMarker = createFoldBoundaryMessage('auto', 900)
   const summary = createUserMessage({ content: 'RIG SUMMARY of the folded history', isCompactSummary: true })
   return {
     wasCompacted: true,
@@ -195,7 +195,7 @@ async function run(ctx: Record<string, unknown>, seed: unknown[], script: unknow
     if (forced !== undefined) return { wasCompacted: false, refusal: 'rig: the breaker' }
     return answers[Math.min(n++, answers.length - 1)]!
   }
-  const gen = queryEvents({
+  const gen = turnDoorEvents({
     messages: seed as never,
     systemPrompt: ['rig system prompt'] as never,
     userContext: {},

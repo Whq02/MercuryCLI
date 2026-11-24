@@ -27,9 +27,9 @@ export {
   executeNonStreamingRequest,
   getMaxOutputTokensForModel,
   MAX_NON_STREAMING_TOKENS,
-  queryUtility,
-  queryModelWithoutStreaming,
-  queryModelWithStreaming,
-  queryWithModel,
+  callUtilityModel,
+  anthropicCallModelSettled,
+  anthropicCallModel,
+  callWithModel,
   type Options,
 } from './streamCore.js'

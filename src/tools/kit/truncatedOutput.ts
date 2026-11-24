@@ -1,6 +1,6 @@
 import sliceAnsi from '../../platform/text/sliceAnsi.js'
 import { stringWidth } from '../../screen/renderer/stringWidth.js'
-import { ctrlOToExpand } from '../../screen/messages/ctrlOToExpandHint.js'
+import { ctrlOToExpandHint } from '../../screen/messages/ctrlOToExpandHint.js'
 
 const VISIBLE_LINES = 3
 
@@ -55,7 +55,7 @@ export function renderTruncatedContent(
       )
     : wrappedLines.length - VISIBLE_LINES
   const countPrefix = isPreLimited ? '~' : ''
-  const expandHint = suppressExpandHint ? '' : ` ${ctrlOToExpand()}`
+  const expandHint = suppressExpandHint ? '' : ` ${ctrlOToExpandHint()}`
   return [...shown, `… +${countPrefix}${omitted} lines${expandHint}`].join('\n')
 }
 

@@ -16,11 +16,11 @@ const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const auto = await import('../../src/engine/compaction/autoFold.ts') as Record<string, unknown>
-const { autoCompactIfNeeded, rapidRefillCount, AUTOCOMPACT_THRASH_MESSAGE, getAutoCompactThreshold } = auto as {
-  autoCompactIfNeeded: (...args: unknown[]) => Promise<Record<string, unknown>>
+const { autoFoldIfNeeded, rapidRefillCount, AUTO_FOLD_THRASH_MESSAGE, getAutoFoldThreshold } = auto as {
+  autoFoldIfNeeded: (...args: unknown[]) => Promise<Record<string, unknown>>
   rapidRefillCount: (tracking?: Record<string, unknown>) => number
-  AUTOCOMPACT_THRASH_MESSAGE: string
-  getAutoCompactThreshold: (model: string) => number
+  AUTO_FOLD_THRASH_MESSAGE: string
+  getAutoFoldThreshold: (model: string) => number
 }
 const rapidRefillPauseText = (auto.rapidRefillPauseText as ((opts: { nonInteractive: boolean }) => string) | undefined) ?? (() => '')
 const { foldAvailability, overflowRefusalText } = await import('../../src/engine/compaction/overflowRecovery.ts')
@@ -69,35 +69,35 @@ const cacheSafe = (ctx: unknown) => ({ systemPrompt: ['fixture'], userContext: {
 
 try {
   process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE = '60000'
-  const threshold = getAutoCompactThreshold(MODEL)
+  const threshold = getAutoFoldThreshold(MODEL)
   const history = stretch(12, 20_000, 'tidy')
   console.log(`B1 the breaker's window counts a refill within ONE round of the fold (threshold ${threshold})`)
   {
     check('a fold followed by one round that refills counts as a rapid refill', rapidRefillCount({ compacted: true, turnCounter: 1, turnId: 't', consecutiveRapidRefills: 0 }) === 1, 'rapidRefillCount in src/engine/compaction/autoFold.ts must count a refill within one turn of the fold')
     check('a refill after two rounds is the healthy cadence of a small window, not a rapid refill (red on the base: it counted)', rapidRefillCount({ compacted: true, turnCounter: 2, turnId: 't', consecutiveRapidRefills: 2 }) === 0, 'rapidRefillCount in src/engine/compaction/autoFold.ts must not count a refill that comes two or more turns after the fold')
-    check('the thrash words say so: within 1 turn of each fold, 3 times in a row', AUTOCOMPACT_THRASH_MESSAGE.startsWith('Auto-compaction is looping: the context refilled within 1 turn of each fold 3 times in a row'), `change AUTOCOMPACT_THRASH_MESSAGE in src/engine/compaction/autoFold.ts · ${AUTOCOMPACT_THRASH_MESSAGE}`)
+    check('the thrash words say so: within 1 turn of each fold, 3 times in a row', AUTO_FOLD_THRASH_MESSAGE.startsWith('Auto-compaction is looping: the context refilled within 1 turn of each fold 3 times in a row'), `change AUTO_FOLD_THRASH_MESSAGE in src/engine/compaction/autoFold.ts · ${AUTO_FOLD_THRASH_MESSAGE}`)
   }
 
   console.log('B2 the trip: the fold that trips the breaker still lands, and the result says the breaker tripped')
   {
     const paid = api.messageRequests().length
-    const tripped = await autoCompactIfNeeded(history, context(), cacheSafe(context()), 'sdk', { compacted: true, turnCounter: 1, turnId: 't3', consecutiveRapidRefills: 2 }, 0, undefined)
-    check('the fold landed (one summary request) and carries the trip (red on the base: no fold, the trip alone)', tripped.wasCompacted === true && tripped.rapidRefillBreakerTripped === true && api.messageRequests().length === paid + 1, `autoCompactIfNeeded in src/engine/compaction/autoFold.ts must still fold when the third rapid refill trips the breaker and report rapidRefillBreakerTripped · ${JSON.stringify({ wasCompacted: tripped.wasCompacted, tripped: tripped.rapidRefillBreakerTripped, requests: api.messageRequests().length - paid, refusal: tripped.refusal })}`)
-    check('the post-fold estimate sits under the threshold: the answer can be made on it', typeof (tripped.compactionResult as { truePostCompactTokenCount?: number } | undefined)?.truePostCompactTokenCount === 'number' && ((tripped.compactionResult as { truePostCompactTokenCount: number }).truePostCompactTokenCount < threshold), `the fold result of autoCompactIfNeeded in src/engine/compaction/autoFold.ts must carry a truePostCompactTokenCount under the threshold ${threshold} · ${String((tripped.compactionResult as { truePostCompactTokenCount?: number } | undefined)?.truePostCompactTokenCount)}`)
+    const tripped = await autoFoldIfNeeded(history, context(), cacheSafe(context()), 'sdk', { compacted: true, turnCounter: 1, turnId: 't3', consecutiveRapidRefills: 2 }, 0, undefined)
+    check('the fold landed (one summary request) and carries the trip (red on the base: no fold, the trip alone)', tripped.wasCompacted === true && tripped.rapidRefillBreakerTripped === true && api.messageRequests().length === paid + 1, `autoFoldIfNeeded in src/engine/compaction/autoFold.ts must still fold when the third rapid refill trips the breaker and report rapidRefillBreakerTripped · ${JSON.stringify({ wasCompacted: tripped.wasCompacted, tripped: tripped.rapidRefillBreakerTripped, requests: api.messageRequests().length - paid, refusal: tripped.refusal })}`)
+    check('the post-fold estimate sits under the threshold: the answer can be made on it', typeof (tripped.compactionResult as { truePostCompactTokenCount?: number } | undefined)?.truePostCompactTokenCount === 'number' && ((tripped.compactionResult as { truePostCompactTokenCount: number }).truePostCompactTokenCount < threshold), `the fold result of autoFoldIfNeeded in src/engine/compaction/autoFold.ts must carry a truePostCompactTokenCount under the threshold ${threshold} · ${String((tripped.compactionResult as { truePostCompactTokenCount?: number } | undefined)?.truePostCompactTokenCount)}`)
   }
 
   console.log('B3 the pause: once paused, no further automatic fold for the run; a forced fold names the pause in its refusal')
   {
     const paid = api.messageRequests().length
     const paused = { compacted: true, turnCounter: 1, turnId: 't4', consecutiveRapidRefills: 3, rapidRefillPaused: true as const }
-    const quiet = await autoCompactIfNeeded(history, context(), cacheSafe(context()), 'sdk', paused, 0, undefined)
-    check('the threshold road makes no summary request while paused', quiet.wasCompacted === false && quiet.rapidRefillBreakerTripped === undefined && api.messageRequests().length === paid, `autoCompactIfNeeded in src/engine/compaction/autoFold.ts must make no fold on the threshold road while rapidRefillPaused is set · ${JSON.stringify(quiet)}`)
+    const quiet = await autoFoldIfNeeded(history, context(), cacheSafe(context()), 'sdk', paused, 0, undefined)
+    check('the threshold road makes no summary request while paused', quiet.wasCompacted === false && quiet.rapidRefillBreakerTripped === undefined && api.messageRequests().length === paid, `autoFoldIfNeeded in src/engine/compaction/autoFold.ts must make no fold on the threshold road while rapidRefillPaused is set · ${JSON.stringify(quiet)}`)
     const signal = estimateOverflowSignal({ family: 'anthropic', actualTokens: 70_000, limitTokens: 60_000 })
-    const forced = await autoCompactIfNeeded(history, context(), cacheSafe(context()), 'sdk', paused, 0, signal)
+    const forced = await autoFoldIfNeeded(history, context(), cacheSafe(context()), 'sdk', paused, 0, signal)
     check('the overflow road refuses with the pause named, in the interactive spelling', forced.wasCompacted === false && forced.refusal === rapidRefillPauseText({ nonInteractive: false }) && String(forced.refusal).includes('/compact folds the conversation by hand') && String(forced.refusal).includes('the next message makes a fresh automatic attempt'), `rapidRefillPauseText in src/engine/compaction/autoFold.ts must be the refusal on the overflow road while paused · ${String(forced.refusal)}`)
     const channel = getAskChannel()
     setAskChannel('none')
-    const headless = await autoCompactIfNeeded(history, context(true), cacheSafe(context(true)), 'sdk', paused, 0, signal)
+    const headless = await autoFoldIfNeeded(history, context(true), cacheSafe(context(true)), 'sdk', paused, 0, signal)
     setAskChannel(channel)
     check('…and the headless spelling names a fresh run, never a slash command', headless.refusal === rapidRefillPauseText({ nonInteractive: true }) && !String(headless.refusal).includes('/compact') && String(headless.refusal).includes('start a fresh run'), `rapidRefillPauseText with nonInteractive true in src/engine/compaction/autoFold.ts must name a fresh run and no slash command · ${String(headless.refusal)}`)
     const availability = foldAvailability({ tracking: paused, hasHistory: true })

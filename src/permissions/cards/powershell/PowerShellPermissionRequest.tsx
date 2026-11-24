@@ -23,8 +23,8 @@ import { usePermissionRequestLogging } from '../cardArrival.js'
 import { useShellPermissionFeedback } from '../useShellPermissionFeedback.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
 import {
-  powershellToolUseOptions,
-  type PowerShellToolUseOption,
+  powershellAskOptions,
+  type PowerShellAskOption,
 } from './powershellAskOptions.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
 
@@ -92,7 +92,7 @@ export function PowerShellPermissionRequest({
 
   const options = useMemo(
     () =>
-      powershellToolUseOptions({
+      powershellAskOptions({
         suggestions,
         onRejectFeedbackChange: feedback.setRejectFeedback,
         onAcceptFeedbackChange: feedback.setAcceptFeedback,
@@ -112,7 +112,7 @@ export function PowerShellPermissionRequest({
     ],
   )
 
-  const handleSelect = (value: PowerShellToolUseOption): void => {
+  const handleSelect = (value: PowerShellAskOption): void => {
     toolUseConfirm.onUserInteraction()
     switch (value) {
       case 'yes': {

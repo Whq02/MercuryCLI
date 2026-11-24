@@ -13,7 +13,7 @@ delete process.env.MERCURY_CHANGE_RECEIPTS
 if (process.argv.includes('--print-schema-keys')) {
   const gateArg = process.argv.find(a => a.startsWith('--gate='))
   if (gateArg) process.env.MERCURY_EDIT_HUNKS = gateArg.slice('--gate='.length)
-  const { FileEditTool: tool } = await import('../../src/tools/edit/EditTool.ts')
+  const { EditTool: tool } = await import('../../src/tools/edit/EditTool.ts')
   const shape = (tool as { inputSchema: { shape?: Record<string, unknown> } }).inputSchema.shape ?? {}
   console.log(JSON.stringify(Object.keys(shape)))
   process.exit(0)
@@ -25,7 +25,7 @@ const { planHunks, applyHunks, countLines } = await import(
 const { mintFileAnchor, mintRangeAnchor } = await import(
   '../../src/tools/engines/change-transaction/snapshotAnchor.ts'
 )
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
@@ -76,7 +76,7 @@ async function editViaTool(
   | { ok: true; data: Record<string, unknown>; effect: Record<string, unknown> }
   | { ok: false; error: string }
 > {
-  const validation = await (FileEditTool as { validateInput: Function }).validateInput(
+  const validation = await (EditTool as { validateInput: Function }).validateInput(
     input,
     ctx,
   )
@@ -84,7 +84,7 @@ async function editViaTool(
     return { ok: false, error: String(validation.message) }
   }
   try {
-    const result = await (FileEditTool as { call: Function }).call(input, ctx, null, {
+    const result = await (EditTool as { call: Function }).call(input, ctx, null, {
       uuid: '00000000-0000-0000-0000-000000000002',
       message: { id: 'msg_fixture' },
     })
@@ -177,7 +177,7 @@ section('S. gating — OFF is the exact pre-S2 surface')
   }
   const offKeys = probe('0')
   check('S1 OFF drops hunks from the schema (fresh process)', !offKeys.includes('hunks') && offKeys.includes('expected_anchor'), offKeys.join(','))
-  const onKeys = Object.keys(((FileEditTool as { inputSchema: { shape?: Record<string, unknown> } }).inputSchema.shape) ?? {})
+  const onKeys = Object.keys(((EditTool as { inputSchema: { shape?: Record<string, unknown> } }).inputSchema.shape) ?? {})
   check('S2 ON carries hunks', onKeys.includes('hunks'))
   process.env.MERCURY_EDIT_HUNKS = '1'
 

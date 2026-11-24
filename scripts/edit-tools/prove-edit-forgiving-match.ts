@@ -16,7 +16,7 @@ const utils = (await import('../../src/tools/edit/call/editMatching.ts')) as unk
   preserveQuoteStyleForFile: (path: string, content: string, oldString: string, actual: string, newString: string) => Promise<string>
   FORGIVENESS_CONTENT_DRIFT_LIMIT?: number
 }
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 type Outcome =
@@ -82,13 +82,13 @@ async function edit(name: string, content: string, input: Record<string, unknown
   primeRead(ctx, path)
   const full = { file_path: path, ...input }
   let result: EditResult
-  const validation = await (FileEditTool as { validateInput: Function }).validateInput(full, ctx)
+  const validation = await (EditTool as { validateInput: Function }).validateInput(full, ctx)
   if (validation.result === false) {
     result = { ok: false, error: String(validation.message) }
   } else {
     try {
-      const out = await (FileEditTool as { call: Function }).call(full, ctx, null, { uuid: '00000000-0000-0000-0000-000000000021', message: { id: 'msg_fixture' } })
-      const block = (FileEditTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(out.data, 'toolu_fixture')
+      const out = await (EditTool as { call: Function }).call(full, ctx, null, { uuid: '00000000-0000-0000-0000-000000000021', message: { id: 'msg_fixture' } })
+      const block = (EditTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(out.data, 'toolu_fixture')
       result = { ok: true, text: String(block.content) }
     } catch (err) {
       result = { ok: false, error: err instanceof Error ? err.message : String(err) }
@@ -252,7 +252,7 @@ section('G. the replacement builder keeps the file\'s spelling on untouched line
   check('G2 a new deeper level unknown to the block extends the deepest known indentation by the typed remainder', novel === '    for (const item of items) {\n      if (item) {\n        deep()\n      }\n    }', JSON.stringify(novel))
   const untouched = await utils.preserveQuoteStyleForFile(join(fixtures, 'x.ts'), 'abc', 'abc', 'ab', 'a"c')
   check('G3 a non-forgiving length mismatch still leaves the replacement untouched (the 1:1 helper\'s law)', untouched === 'a"c', JSON.stringify(untouched))
-  const map = (FileEditTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam
+  const map = (EditTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam
   const base = { filePath: '/x/four.ts', newString: TWO_NEW, originalFile: FOUR, structuredPatch: [], userModified: false, replaceAll: false }
   const exactText = String(map({ ...base, oldString: TWO_OLD }, 'toolu_g').content)
   check('G4 the result mapper mints the sentence from the original file and the typed old_string', exactText.includes("Matched with the file's indentation at lines 3-7:"), exactText.slice(0, 200))

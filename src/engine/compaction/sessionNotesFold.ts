@@ -4,10 +4,10 @@ import { isEnvTruthy } from '../../platform/environment/envUtils.js'
 import { flagEnv } from '../../platform/substrate/flagRegistry.js'
 import { createAttachmentMessage } from '../attachment-shapes/attachmentMessage.js'
 import {
-  createCompactBoundaryMessage,
+  createFoldBoundaryMessage,
   createUserMessage,
-  findLastCompactBoundaryIndex,
-  isCompactBoundaryMessage,
+  findLastFoldBoundaryIndex,
+  isFoldBoundaryMessage,
 } from '../messages/messages.js'
 import { getSessionMemoryPath } from '../../permissions/rules/filesystem.js'
 import { fireHooks } from '../../integrations/event-hooks/fire.js'
@@ -16,7 +16,7 @@ import { getSessionId } from '../../boot/process-state/processState.js'
 import { getTranscriptPath } from '../../sessions/transcripts/paths.js'
 import { tokenCountFromLastAPIResponse } from '../context-window/contextTokenCount.js'
 import { extractDiscoveredToolNames } from '../messages/toolSearch.js'
-import { isSessionMemoryEmpty, truncateSessionMemoryForCompact } from '../../sessions/session-memory/template.js'
+import { isSessionMemoryEmpty, truncateSessionMemoryForFold } from '../../sessions/session-memory/template.js'
 import {
   getLastSummarizedMessageId,
   getSessionMemoryContent,
@@ -25,30 +25,30 @@ import {
 import {
   annotateBoundaryWithPreservedSegment,
   annotateBoundaryWithWork,
-  buildPostCompactMessages,
-  type CompactionResult,
+  buildPostFoldMessages,
+  type FoldResult,
   createAsyncAgentAttachmentsIfNeeded,
   foldSizes,
 } from './foldConversation.js'
 import type { ToolUseContext } from '../../tools/kit/tool.js'
 import { estimateContextTokens, estimateMessageTokens } from './pruneToolResults.js'
-import { getCompactUserSummaryMessage } from './summariserPrompt.js'
+import { getFoldUserSummaryMessage } from './summariserPrompt.js'
 
 
-type SessionMemoryCompactConfig = {
+type SessionNotesFoldConfig = {
   minTokensToPreserve: number
   minTextBlockMessages: number
   maxTokensToPreserve: number
 }
 
-const DEFAULT_SM_COMPACT_CONFIG: SessionMemoryCompactConfig = {
+const DEFAULT_SESSION_NOTES_FOLD_CONFIG: SessionNotesFoldConfig = {
   minTokensToPreserve: 10_000,
   minTextBlockMessages: 5,
   maxTokensToPreserve: 40_000,
 }
 
-let config: SessionMemoryCompactConfig = { ...DEFAULT_SM_COMPACT_CONFIG }
-export function shouldUseSessionMemoryCompaction(): boolean {
+let config: SessionNotesFoldConfig = { ...DEFAULT_SESSION_NOTES_FOLD_CONFIG }
+export function shouldUseSessionNotesFold(): boolean {
   return isEnvTruthy(flagEnv('MERCURY_SM_COMPACT'))
 }
 
@@ -139,7 +139,7 @@ function calculateMessagesToKeepIndex(messages: Message[], lastSummarizedIndex: 
     if (hasTextBlocks(message)) textMessages++
   }
 
-  const lastBoundary = findLastCompactBoundaryIndex(messages)
+  const lastBoundary = findLastFoldBoundaryIndex(messages)
   const minIndex = lastBoundary >= 0 ? lastBoundary + 1 : 0
 
   while (
@@ -156,15 +156,15 @@ function calculateMessagesToKeepIndex(messages: Message[], lastSummarizedIndex: 
   return adjustIndexToPreserveAPIInvariants(messages, startIndex)
 }
 
-export async function trySessionMemoryCompaction(
+export async function trySessionNotesFold(
   messages: Message[],
   agentId?: string,
   autoCompactThreshold?: number,
   rosterContext?: Pick<ToolUseContext, 'getAppState' | 'agentId' | 'options'>,
   trigger?: 'auto' | 'manual',
-): Promise<CompactionResult | null> {
+): Promise<FoldResult | null> {
   void agentId
-  if (!shouldUseSessionMemoryCompaction()) return null
+  if (!shouldUseSessionNotesFold()) return null
 
   try {
     await waitForSessionMemoryExtraction()
@@ -183,12 +183,12 @@ export async function trySessionMemoryCompaction(
     }
 
     const keepIndex = calculateMessagesToKeepIndex(messages, lastSummarizedIndex)
-    const messagesToKeep = messages.slice(keepIndex).filter(message => !isCompactBoundaryMessage(message))
+    const messagesToKeep = messages.slice(keepIndex).filter(message => !isFoldBoundaryMessage(message))
 
     const effectiveTrigger: 'auto' | 'manual' = trigger ?? 'auto'
     const preCompactTokenCount = tokenCountFromLastAPIResponse(messages)
     const lastMessageUuid = messages.at(-1)?.uuid
-    const boundaryMarker = createCompactBoundaryMessage(
+    const boundaryMarker = createFoldBoundaryMessage(
       effectiveTrigger,
       preCompactTokenCount,
       lastMessageUuid,
@@ -199,8 +199,8 @@ export async function trySessionMemoryCompaction(
       boundaryMarker.compactMetadata.preCompactDiscoveredTools = discoveredTools
     }
 
-    const { truncatedContent, wasTruncated } = truncateSessionMemoryForCompact(sessionMemory)
-    let summaryText = getCompactUserSummaryMessage(
+    const { truncatedContent, wasTruncated } = truncateSessionMemoryForFold(sessionMemory)
+    let summaryText = getFoldUserSummaryMessage(
       truncatedContent,
       true,
       getTranscriptPath(),
@@ -260,7 +260,7 @@ export async function trySessionMemoryCompaction(
       ...afterHook.answer.contexts.map(text => createUserMessage({ content: text, isMeta: true })),
     ]
 
-    const result: CompactionResult = {
+    const result: FoldResult = {
       boundaryMarker: annotatedBoundary,
       summaryMessages,
       messagesToKeep,
@@ -272,7 +272,7 @@ export async function trySessionMemoryCompaction(
       compactionUsage: undefined,
     }
 
-    const finalEstimate = estimateContextTokens(buildPostCompactMessages(result))
+    const finalEstimate = estimateContextTokens(buildPostFoldMessages(result))
     if (autoCompactThreshold !== undefined && finalEstimate >= autoCompactThreshold) {
       return null
     }

@@ -84,7 +84,7 @@ const { enableConfigs } = await import('../../src/platform/config/globalConfig.t
 enableConfigs()
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { queryEvents } = await import('../../src/engine/turnDoor.ts')
+const { turnDoorEvents } = await import('../../src/engine/turnDoor.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { createUserMessage, createAssistantMessage, createUserInterruptionMessage } = await import(
@@ -180,7 +180,7 @@ async function drive(history: Message[]): Promise<Drive> {
   let dispatchedAt: number | undefined
   let threw: unknown
   try {
-    const gen = queryEvents({
+    const gen = turnDoorEvents({
       messages: history as never,
       systemPrompt: ['rig system prompt'] as never,
       userContext: {},

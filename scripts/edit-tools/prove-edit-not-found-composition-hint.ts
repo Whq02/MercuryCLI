@@ -7,7 +7,7 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'edit-composition-home-'))
 process.env.MERCURY_BARE = '1'
 
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
@@ -31,7 +31,7 @@ function makeContext(path: string, content: string) {
   } as never
 }
 async function validate(input: Record<string, unknown>, ctx: unknown): Promise<string> {
-  const verdict = await (FileEditTool as { validateInput: Function }).validateInput(input, ctx)
+  const verdict = await (EditTool as { validateInput: Function }).validateInput(input, ctx)
   return verdict.result === false ? String(verdict.message) : '(accepted)'
 }
 

@@ -22,7 +22,7 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(72) + '\n' + t)
 }
 
-const { scrubbedSessionEnvNotice, shortScrubbedSessionEnvNotice, sessionEnvNoticeForResult, resetSessionEnvNoticeOnCompaction } = await import('../../src/tools/kit/sessionEnvNotice.ts')
+const { scrubbedSessionEnvNotice, shortScrubbedSessionEnvNotice, sessionEnvNoticeForResult, resetSessionEnvNoticeOnFold } = await import('../../src/tools/kit/sessionEnvNotice.ts')
 const { getOriginalCwd, setOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
 const { runWithAgentContext } = await import('../../src/crew/agents/agentContext.ts')
 const { disposeOwner, disposeOwnerProcesses, ownerLifecycleCounts } = await import('../../src/engine/run-owner/ownerLifecycle.ts')
@@ -65,7 +65,7 @@ const aFirst = runWithAgentContext(agentA, () => sessionEnvNoticeForResult({ scr
 const bFirst = runWithAgentContext(agentB, () => sessionEnvNoticeForResult({ scrubbed: SYNTH, commandText: 'ls' }))
 const mFirst = sessionEnvNoticeForResult({ scrubbed: SYNTH, commandText: 'ls' })
 check('agent A, agent B and main each receive the full notice once without cross-owner bleed', aFirst === SYNTH_FULL && bFirst === SYNTH_FULL && mFirst === SYNTH_FULL)
-runWithAgentContext(agentA, () => resetSessionEnvNoticeOnCompaction())
+runWithAgentContext(agentA, () => resetSessionEnvNoticeOnFold())
 const bAfterCompactA = runWithAgentContext(agentB, () => sessionEnvNoticeForResult({ scrubbed: SYNTH, commandText: 'ls' }))
 const mAfterCompactA = sessionEnvNoticeForResult({ scrubbed: SYNTH, commandText: 'ls' })
 const aAfterCompactA = runWithAgentContext(agentA, () => sessionEnvNoticeForResult({ scrubbed: SYNTH, commandText: 'ls' }))
@@ -101,7 +101,7 @@ try {
   check('entering and leaving a worktree does not emit a duplicate first notice and keeps short stamps', beforeWt === SYNTH_FULL && insideWtRepeat === '' && insideWtShort === '[session env scrubbed: SYNTH_STAMP_A]' && afterExitRepeat === '')
 
   setOriginalCwd(worktreeCwd)
-  resetSessionEnvNoticeOnCompaction()
+  resetSessionEnvNoticeOnFold()
   setOriginalCwd(savedOriginalCwd)
   const afterCompactAcrossExit = sessionEnvNoticeForResult({ scrubbed: SYNTH, commandText: 'ls' })
   check('compacting inside a worktree and exiting does not silently lose the post-compaction full notice', afterCompactAcrossExit === SYNTH_FULL)

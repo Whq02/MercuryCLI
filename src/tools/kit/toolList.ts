@@ -49,9 +49,9 @@ import { EvalTool } from '../eval/EvalTool.js'
 import { evalEnabled } from '../engines/eval-kernels/contracts.js'
 import { EnterWorktreeTool } from '../enter-worktree/EnterWorktreeTool.js'
 import { ExitWorktreeTool } from '../exit-worktree/ExitWorktreeTool.js'
-import { FileEditTool } from '../edit/EditTool.js'
-import { FileReadTool } from '../read/ReadTool.js'
-import { FileWriteTool } from '../write/WriteTool.js'
+import { EditTool } from '../edit/EditTool.js'
+import { ReadTool } from '../read/ReadTool.js'
+import { WriteTool } from '../write/WriteTool.js'
 import { GitTool } from '../git/GitTool.js'
 import { GlobTool } from '../glob/GlobTool.js'
 import { GodotTool } from '../godot/GodotTool.js'
@@ -146,9 +146,9 @@ export function getAllBaseTools(agentId?: string): Tools {
     AgentTool,
     BashTool,
     ...(searchReady ? [GlobTool, GrepTool] : []),
-    FileReadTool,
-    FileEditTool,
-    FileWriteTool,
+    ReadTool,
+    EditTool,
+    WriteTool,
     NotebookEditTool,
     WebFetchTool,
     WebSearchTool,
@@ -242,7 +242,7 @@ export function getTools(permissionContext: ToolPermissionContext, agentId?: str
 function settledTools(permissionContext: ToolPermissionContext, agentId?: string): Tools {
   const selected = permissionContext.baseTools
   if (selected === undefined && isEnvTruthy(flagEnv('MERCURY_BARE'))) {
-    return filterToolsByDenyRules([BashTool, FileReadTool, FileEditTool, FileWriteTool] as Tool[], permissionContext)
+    return filterToolsByDenyRules([BashTool, ReadTool, EditTool, WriteTool] as Tool[], permissionContext)
   }
   const base = getAllBaseTools(agentId).filter(tool => !SPECIAL_TOOL_NAMES.has(tool.name) && (selected === undefined || selected.includes(tool.name)))
   const filtered = filterToolsByDenyRules(base, permissionContext)

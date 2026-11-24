@@ -28,13 +28,13 @@ const j = (v: unknown): string => JSON.stringify(v) ?? ''
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
-const { createCompactBoundaryMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
+const { createFoldBoundaryMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
 const { createAttachmentMessage } = await import('../../src/engine/attachments/turnAttachments.ts')
 const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
 const { normalizeMessagesForAPI } = await import('../../src/engine/messages/apiView.ts')
-const { buildPostCompactMessages } = await import('../../src/engine/compaction/foldConversation.ts')
+const { buildPostFoldMessages } = await import('../../src/engine/compaction/foldConversation.ts')
 const { selectOperatorMessages, operatorMessagesBlockText, OPERATOR_MESSAGES_ATTACHMENT_TYPE } = await import('../../src/engine/compaction-window/operatorMessages.ts')
-const { getCompactUserSummaryMessage } = await import('../../src/engine/compaction/summariserPrompt.ts')
+const { getFoldUserSummaryMessage } = await import('../../src/engine/compaction/summariserPrompt.ts')
 const { computeVerbatimRecentTail } = await import('../../src/engine/compaction/verbatimTail.ts')
 
 const BLOCK_HEADER = "The operator's own messages from this stretch and the earlier folds"
@@ -105,9 +105,9 @@ function foldOf(messages: AnyMsg[], keepTail: boolean): Fold {
   const kept = (tail?.keep ?? []) as AnyMsg[]
   const block = selectOperatorMessages(messages as never, { keptUuids: new Set(kept.map(row => row.uuid!)) }) as Block | null
   const blockRow = block === null ? undefined : (createAttachmentMessage(block as never) as unknown as AnyMsg)
-  const summary = createUserMessage({ content: getCompactUserSummaryMessage(SUMMARY_TEXT, undefined, undefined, kept.length > 0), isCompactSummary: true, isVisibleInTranscriptOnly: true })
+  const summary = createUserMessage({ content: getFoldUserSummaryMessage(SUMMARY_TEXT, undefined, undefined, kept.length > 0), isCompactSummary: true, isVisibleInTranscriptOnly: true })
   const result = {
-    boundaryMarker: createCompactBoundaryMessage('auto', 120_000),
+    boundaryMarker: createFoldBoundaryMessage('auto', 120_000),
     operatorMessages: blockRow,
     summaryMessages: [summary],
     messagesToKeep: kept.length > 0 ? kept : undefined,
@@ -128,13 +128,13 @@ section('A the recogniser: a context block is known by its header and its isMeta
   check('the block projects to ONE meta user row', rows.length === 1 && rows[0]!.isMeta === true, j(rows).slice(0, 160))
   check("…headed by the header the wire scans know it by (the product's own words)", isBlockText(text) && operatorMessagesBlockText(one as never).startsWith(BLOCK_HEADER) && operatorMessagesBlockText(other as never).startsWith(BLOCK_HEADER), text.slice(0, 120))
   check('the header stands whatever the entries say; an operator row carrying the same words is no block', isBlockText(operatorMessagesBlockText(other as never)) && text.includes(PROMPTS[0]!) && !isBlockText(PROMPTS[0]!))
-  check('the summary row opens with the words the scans know it by, and is no block', isSummaryText(getCompactUserSummaryMessage(SUMMARY_TEXT)) && !isBlockText(getCompactUserSummaryMessage(SUMMARY_TEXT)))
+  check('the summary row opens with the words the scans know it by, and is no block', isSummaryText(getFoldUserSummaryMessage(SUMMARY_TEXT)) && !isBlockText(getFoldUserSummaryMessage(SUMMARY_TEXT)))
 }
 
 section('B the assembly: boundary, block, summary, then the kept tail whole')
 {
   const { result, block, kept } = foldOf(history(), true)
-  const post = buildPostCompactMessages(result as never) as unknown as AnyMsg[]
+  const post = buildPostFoldMessages(result as never) as unknown as AnyMsg[]
   const blockAt = post.findIndex(row => row.type === 'attachment' && (row.attachment as { type?: string } | undefined)?.type === KIND)
   const summaryAt = post.findIndex(row => (row as { isCompactSummary?: boolean }).isCompactSummary === true)
   check('the tail kept the last rounds and a block was built', kept.length > 0 && block !== null, `kept=${kept.length} block=${j(block)}`)
@@ -145,7 +145,7 @@ section('B the assembly: boundary, block, summary, then the kept tail whole')
 section('C the next request, an ask following: the block once, ahead of the summary, never last; no line twice outside it')
 {
   const { result, kept } = foldOf(history(), true)
-  const post = buildPostCompactMessages(result as never) as unknown as AnyMsg[]
+  const post = buildPostFoldMessages(result as never) as unknown as AnyMsg[]
   const wire = wireOf([...post, user(NINTH)])
   const texts = userTextsOf(wire)
   console.log(`  │ user text parts on the wire: ${j(texts.map(markOf))}`)
@@ -165,9 +165,9 @@ section('C the next request, an ask following: the block once, ahead of the summ
 section('D a second fold: the first block folds into the second, one block on the wire, still nothing twice outside it')
 {
   const first = foldOf(history(), true)
-  const afterFirst = [...(buildPostCompactMessages(first.result as never) as unknown as AnyMsg[]), user(NINTH), assistant('done with number nine'), user(TENTH), assistant('done with number ten')]
+  const afterFirst = [...(buildPostFoldMessages(first.result as never) as unknown as AnyMsg[]), user(NINTH), assistant('done with number nine'), user(TENTH), assistant('done with number ten')]
   const second = foldOf(afterFirst, true)
-  const post = buildPostCompactMessages(second.result as never) as unknown as AnyMsg[]
+  const post = buildPostFoldMessages(second.result as never) as unknown as AnyMsg[]
   const wire = wireOf([...post, user(ELEVENTH)])
   const texts = userTextsOf(wire)
   console.log(`  │ user text parts on the wire: ${j(texts.map(markOf))}`)
@@ -186,12 +186,12 @@ section('D a second fold: the first block folds into the second, one block on th
 section('E no ask following (a fold inside a running turn): the block is never the last user text')
 {
   const bare = foldOf(history(), false)
-  const bareWire = wireOf(buildPostCompactMessages(bare.result as never) as unknown as AnyMsg[])
+  const bareWire = wireOf(buildPostFoldMessages(bare.result as never) as unknown as AnyMsg[])
   const bareTexts = userTextsOf(bareWire)
   console.log(`  │ keep-tail off: ${j(bareTexts.map(markOf))}`)
   check('keep-tail off: one user turn, the block then the summary — the summary is the last text', bareWire.length === 1 && bareWire[0]?.role === 'user' && bareTexts.length === 2 && isBlockText(bareTexts[0]!) && isSummaryText(bareTexts[1]!), j(bareTexts.map(markOf)))
   const kept = foldOf(history(), true)
-  const keptWire = wireOf(buildPostCompactMessages(kept.result as never) as unknown as AnyMsg[])
+  const keptWire = wireOf(buildPostFoldMessages(kept.result as never) as unknown as AnyMsg[])
   const keptTexts = userTextsOf(keptWire)
   console.log(`  │ keep-tail on:  ${j(keptTexts.map(markOf))}`)
   check('keep-tail on: the block leads, the summary follows it, and the last user text is a kept operator row', keptTexts.findIndex(isBlockText) === 0 && keptTexts.findIndex(isSummaryText) === 1 && keptTexts.length > 2 && !isBlockText(keptTexts.at(-1)!) && PROMPTS.includes((keptTexts.at(-1) ?? '').trim()), j(keptTexts.map(markOf)))

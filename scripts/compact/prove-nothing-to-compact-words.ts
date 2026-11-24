@@ -43,7 +43,7 @@ const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const compactCommand = (await import('../../src/commands/compact/index.ts')).default
 const { processSlashCommand } = await import('../../src/engine/user-input/processSlashCommand.tsx')
-const { buildPostCompactMessages, nothingToCompactLine } = await import('../../src/engine/compaction/foldConversation.ts')
+const { buildPostFoldMessages, nothingToFoldLine } = await import('../../src/engine/compaction/foldConversation.ts')
 const { call } = await import('../../src/commands/compact/compact.ts')
 const { createUserMessage, extractTag } = await import('../../src/engine/messages/messages.ts')
 const { LOCAL_COMMAND_STDERR_TAG, LOCAL_COMMAND_STDOUT_TAG } = await import('../../src/engine/message-shapes/messageTags.ts')
@@ -179,7 +179,7 @@ section('4 refold right after a fold: names the last fold, no Error:')
 {
   const long = makeMessages(40, index => `Adjusted module ${index}. ${'details '.repeat(180)}`, 22_000)
   const first = await call('', makeContext(long) as never)
-  const post = first.type === 'compact' ? (buildPostCompactMessages(first.compactionResult as Parameters<typeof buildPostCompactMessages>[0]) as AnyMsg[]) : []
+  const post = first.type === 'compact' ? (buildPostFoldMessages(first.compactionResult as Parameters<typeof buildPostFoldMessages>[0]) as AnyMsg[]) : []
   const { rendered, commandError } = await runSlashCompact(post)
   check(
     'refold names the last fold with no Error: prefix and one line',
@@ -209,10 +209,10 @@ section('5 enough turns with keep-tail off, but too small to shrink: names that 
 
 section('6 every reason formats in one plain line without Error:')
 {
-  const recent = nothingToCompactLine(55_900, 'recent-turns-kept')
-  const few = nothingToCompactLine(1_200, 'too-few-messages')
-  const shrink = nothingToCompactLine(1_600, 'would-not-shrink')
-  const folded = nothingToCompactLine(169_900, 'already-folded')
+  const recent = nothingToFoldLine(55_900, 'recent-turns-kept')
+  const few = nothingToFoldLine(1_200, 'too-few-messages')
+  const shrink = nothingToFoldLine(1_600, 'would-not-shrink')
+  const folded = nothingToFoldLine(169_900, 'already-folded')
   const lines = [recent, few, shrink, folded]
   check(
     'all four reasons produce exact single-line plain messages',

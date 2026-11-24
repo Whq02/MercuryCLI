@@ -144,7 +144,7 @@ function catalogue(): Set<string> {
   if (!surface) throw Error('find the surface kinds for the feature census')
   add('screen', nodes(surface.type, ts.isStringLiteral).map(l => l.text))
   const directScreens = [
-    ['src/boot/dialogLaunchers.tsx', 'ResumeConversation'],
+    ['src/boot/dialogLaunchers.tsx', 'ResumeSession'],
     ['src/screen/settings/config/ConfigViews.tsx', 'MediaConfigPicker'],
     ['src/screen/composer/composerView.tsx', 'HistorySearchInput'],
     ['src/permissions/cards/PermissionRequest.tsx', 'ChangeSetPermissionRequest', 'MediaPermissionRequest'],

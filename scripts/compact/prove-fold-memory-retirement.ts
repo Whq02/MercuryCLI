@@ -15,7 +15,7 @@ process.env.MERCURY_COMPACT_KEEP_TAIL = '1'
 const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const { compactConversation, buildPostCompactMessages } = await import('../../src/engine/compaction/foldConversation.ts')
+const { foldConversation, buildPostFoldMessages } = await import('../../src/engine/compaction/foldConversation.ts')
 const retirement = await import('../../src/engine/compaction/foldRetirement.ts').catch(() => null)
 const foldMemoryStoredText = retirement?.foldMemoryStoredText ?? (() => '')
 const foldMemoryWitness = retirement?.foldMemoryWitness ?? (() => '')
@@ -69,8 +69,8 @@ const context = (overrides: Record<string, unknown> = {}) => ({
   options: { tools: [], mcpClients: [], commands: [], agentDefinitions: { activeAgents: [] }, engineModel: 'claude-opus-4-8', thinkingConfig: { type: 'disabled' }, isNonInteractiveSession: true },
   ...overrides,
 }) as never
-const fold = (messages: Message[], ctx = context(), recompaction?: Parameters<typeof compactConversation>[6]) =>
-  compactConversation(messages, ctx, { systemPrompt: ['fixture'], userContext: {}, systemContext: {}, toolUseContext: ctx, forkContextMessages: [] }, true, undefined, false, recompaction)
+const fold = (messages: Message[], ctx = context(), recompaction?: Parameters<typeof foldConversation>[6]) =>
+  foldConversation(messages, ctx, { systemPrompt: ['fixture'], userContext: {}, systemContext: {}, toolUseContext: ctx, forkContextMessages: [] }, true, undefined, false, recompaction)
 const MUST_SHRINK = { isRecompaction: false, turnsSincePreviousCompact: -1, mustShrink: true }
 const WITHDRAWN = 'compactConversation in src/engine/compaction/foldConversation.ts must take back the memory row its own retireFoldToMemory call wrote (src/engine/compaction/foldRetirement.ts) when the fold does not land, and leave a fact an earlier fold wrote where it is'
 const envelopeOf = (result: Awaited<ReturnType<typeof fold>>) => result.boundaryMarker.compactMetadata.memory
@@ -112,7 +112,7 @@ try {
   check('the summary points the rest at the transcript by record range', summary.includes(`source records ${envelope.sourceRange.firstRecordId.slice(0, 8)}…${envelope.sourceRange.lastRecordId.slice(0, 8)} (rounds 1–${firstRounds})`))
   check('exactly one row was written', pendingRows(dir).length === 1)
 
-  const secondInput = [...buildPostCompactMessages(first), ...rounds(3)]
+  const secondInput = [...buildPostFoldMessages(first), ...rounds(3)]
   const again = await fold(secondInput)
   const second = envelopeOf(again)
   check('a repeated fold with the same run state advertises the same pointer without a second copy', second?.state === 'committed' && 'pointer' in second && second.pointer.id === id && pendingRows(dir).length === 1, `${second?.state} rows=${pendingRows(dir).length}`)
@@ -120,15 +120,15 @@ try {
   check('the repeated fold continues the source-turn range and epoch', second?.epoch === 2 && second.sourceRange.firstTurn === firstRounds + 1 && second.sourceRange.lastTurn === firstRounds + groupMessagesByApiRound(secondInput).length, JSON.stringify(second?.sourceRange))
 
   acceptUserRequest(owner, { objective: always.replace('always runs', 'never runs'), rootMessageId: null })
-  const conflicted = await fold([...buildPostCompactMessages(again), ...rounds(3)])
+  const conflicted = await fold([...buildPostFoldMessages(again), ...rounds(3)])
   const conflict = envelopeOf(conflicted)
   check('a contradicting run state is refused by the retention guard and advertises no pointer', conflict?.state === 'failed' && 'reason' in conflict && conflict.reason.includes('conflicts with a pending fact') && !('pointer' in conflict), conflict?.state === 'failed' ? conflict.reason : conflict?.state)
   check('nothing was written for the conflict and the fold still landed', pendingRows(dir).length === 1 && conflicted.summaryMessages.length === 1)
   check('the summary says nothing moved and keeps the unsaved item visible in the boundary', summaryOf(conflicted).includes('Nothing moved to memory: ') && summaryOf(conflicted).includes('conflicts with a pending fact') && conflict?.item !== null)
-  const onceMore = await fold([...buildPostCompactMessages(conflicted), ...rounds(3)])
+  const onceMore = await fold([...buildPostFoldMessages(conflicted), ...rounds(3)])
   const notAgain = envelopeOf(onceMore)
   check('the same refused item is not offered again at the next fold: the envelope says so and carries the refusal, the fold lands, nothing is written (red on the base: offered and refused again, word for word)', notAgain?.state === 'failed' && 'reason' in notAgain && notAgain.reason.startsWith('refused at the previous fold and not offered again: conflicts with a pending fact') && notAgain.item?.content === conflict?.item?.content && pendingRows(dir).length === 1 && onceMore.summaryMessages.length === 1, notAgain?.state === 'failed' ? notAgain.reason : notAgain?.state)
-  const thirdTime = envelopeOf(await fold([...buildPostCompactMessages(onceMore), ...rounds(3)]))
+  const thirdTime = envelopeOf(await fold([...buildPostFoldMessages(onceMore), ...rounds(3)]))
   check('…and the third fold says it once, never nesting the words', thirdTime?.state === 'failed' && 'reason' in thirdTime && thirdTime.reason.startsWith('refused at the previous fold and not offered again: conflicts with a pending fact') && thirdTime.reason.split('not offered again').length === 2, thirdTime?.state === 'failed' ? thirdTime.reason : thirdTime?.state)
   check('the boundary row names the refusal, not a move', foldReceiptWords(foldReceipt(onceMore.boundaryMarker.compactMetadata)).some(word => word.startsWith('nothing moved to memory (refused at the previous fold and not offered again: ')), JSON.stringify(foldReceiptWords(foldReceipt(onceMore.boundaryMarker.compactMetadata))))
 

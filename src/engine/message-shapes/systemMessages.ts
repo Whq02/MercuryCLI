@@ -26,16 +26,16 @@ function optional<T, K extends keyof T>(input: T, keys: readonly K[]): Partial<P
   return Object.fromEntries(keys.filter(key => input[key] !== undefined).map(key => [key, input[key]])) as Partial<Pick<T, K>>
 }
 
-export function isCompactBoundaryMessage(row: StoredRow): row is Rows.SystemCompactBoundaryMessage {
+export function isFoldBoundaryMessage(row: StoredRow): row is Rows.SystemFoldBoundaryMessage {
   return row?.type === 'system' ? row.subtype === 'compact_boundary' : false
 }
 
-export function findLastCompactBoundaryIndex<T extends StoredRow>(messages: T[]): number {
-  return messages.findLastIndex(row => !!row && isCompactBoundaryMessage(row))
+export function findLastFoldBoundaryIndex<T extends StoredRow>(messages: T[]): number {
+  return messages.findLastIndex(row => !!row && isFoldBoundaryMessage(row))
 }
 
-export function getMessagesAfterCompactBoundary<T extends StoredRow>(messages: T[], _options?: { includeSnipped?: boolean }): T[] {
-  const start = findLastCompactBoundaryIndex(messages)
+export function getMessagesAfterFoldBoundary<T extends StoredRow>(messages: T[], _options?: { includeSnipped?: boolean }): T[] {
+  const start = findLastFoldBoundaryIndex(messages)
   return start < 0 ? messages : messages.slice(start)
 }
 
@@ -84,10 +84,10 @@ export function hasSuccessfulToolCall(messages: Rows.Message[], toolName: string
   return result !== undefined && result.is_error !== true
 }
 
-export function createCompactBoundaryMessage(
-  trigger: Rows.CompactMetadata['trigger'], preTokens: number, lastPreCompactMessageUuid?: UUID,
+export function createFoldBoundaryMessage(
+  trigger: Rows.FoldMetadata['trigger'], preTokens: number, lastPreCompactMessageUuid?: UUID,
   userContext?: string, messagesSummarized?: number,
-): Rows.SystemCompactBoundaryMessage {
+): Rows.SystemFoldBoundaryMessage {
   return systemRow('compact_boundary', {
     level: 'info',
     content: 'Conversation compacted',
@@ -96,9 +96,9 @@ export function createCompactBoundaryMessage(
   })
 }
 
-export function createMicrocompactBoundaryMessage(
+export function createPruneBoundaryMessage(
   trigger: 'auto', preTokens: number, tokensSaved: number, compactedToolIds: string[], clearedAttachmentUUIDs: string[],
-): Rows.SystemMicrocompactBoundaryMessage {
+): Rows.SystemPruneBoundaryMessage {
   const microcompactMetadata = { trigger, preTokens, tokensSaved, compactedToolIds, clearedAttachmentUUIDs }
   logForDebugging(`microcompact: about ${formatTokens(tokensSaved)} tokens freed by clearing ${compactedToolIds.length} tool results`)
   return systemRow('microcompact_boundary', { microcompactMetadata, level: 'info', content: 'Context microcompacted' })

@@ -14,7 +14,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 for (const key of ['MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOKENS', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'MERCURY_SCRIPTED_STREAM', 'NODE_ENV']) delete process.env[key]
 
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
@@ -166,7 +166,7 @@ async function run(scene: Scene, label: string): Promise<Run> {
     yield tail as never
     replyEnded = true
   }
-  const turn = query({
+  const turn = turnDoor({
     messages: [createUserMessage({ content: 'please do the thing' })] as never,
     systemPrompt: ['rig system prompt'] as never,
     userContext: {},

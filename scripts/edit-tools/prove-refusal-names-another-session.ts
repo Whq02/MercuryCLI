@@ -13,8 +13,8 @@ process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9'
 delete process.env.MERCURY_EDIT_HUNKS
 delete process.env.NODE_ENV
 
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { WriteTool } = await import('../../src/tools/write/WriteTool.ts')
 const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import('../../src/tools/kit/names/fileEdit.ts')
 const other = (await import('../../src/tools/edit/otherSession.ts').catch(() => null)) as typeof import('../../src/tools/edit/otherSession.ts') | null
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
@@ -65,10 +65,10 @@ function makeContext(): Ctx {
 const PARENT = { uuid: '00000000-0000-0000-0000-000000000007', message: { id: 'msg_fixture' } }
 type Verdict = { ok: true; text: string } | { ok: false; message: string }
 async function edit(input: Record<string, unknown>, ctx: Ctx): Promise<Verdict> {
-  const verdict = await (FileEditTool as { validateInput: Function }).validateInput(input, ctx)
+  const verdict = await (EditTool as { validateInput: Function }).validateInput(input, ctx)
   if (verdict.result === false) return { ok: false, message: String(verdict.message) }
   try {
-    await (FileEditTool as { call: Function }).call(input, ctx, null, PARENT)
+    await (EditTool as { call: Function }).call(input, ctx, null, PARENT)
     return { ok: true, text: '' }
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : String(err) }
@@ -76,10 +76,10 @@ async function edit(input: Record<string, unknown>, ctx: Ctx): Promise<Verdict> 
 }
 async function write(path: string, content: string, ctx: Ctx): Promise<Verdict> {
   const input = { file_path: path, content }
-  const verdict = await (FileWriteTool as { validateInput: Function }).validateInput(input, ctx)
+  const verdict = await (WriteTool as { validateInput: Function }).validateInput(input, ctx)
   if (verdict.result === false) return { ok: false, message: String(verdict.message) }
   try {
-    await (FileWriteTool as { call: Function }).call(input, ctx, null, PARENT)
+    await (WriteTool as { call: Function }).call(input, ctx, null, PARENT)
     return { ok: true, text: '' }
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : String(err) }

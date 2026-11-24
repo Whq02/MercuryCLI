@@ -67,7 +67,7 @@ try {
     for (let i = 0; i < 8; i++) await advisor.appendAdvisorRow(context, { kind: i % 2 === 0 ? 'digest' : 'note', at: `t${i}`, text: `row ${i} of the memory` })
     const before = fixture.captured.length
     fixture.script(() => ({ text: SUMMARY }))
-    const folded = await advisor.compactAdvisorContext(context, { model: OVERFLOW_LANES[0]!.model })
+    const folded = await advisor.foldAdvisorContext(context, { model: OVERFLOW_LANES[0]!.model })
     const requests = fixture.captured.slice(before)
     const wire = JSON.stringify(requests[0]?.body ?? {})
     check('one request went out, carrying the advisor\'s own fold prompt and the two oldest rows', requests.length === 1 && wire.includes("advisor's own memory") && wire.includes('row 0 of the memory') && wire.includes('row 1 of the memory') && !wire.includes('row 2 of the memory'), j({ n: requests.length, wire: wire.slice(0, 200) }))
@@ -75,10 +75,10 @@ try {
     const refusedBefore = context.rows.length
     fixture.script(() => ({ error: { status: 400, body: { type: 'error', error: { type: 'invalid_request_error', message: 'the fixture refuses this fold' } } } }))
     for (let i = 0; i < 4; i++) await advisor.appendAdvisorRow(context, { kind: 'note', at: `u${i}`, text: `later row ${i}` })
-    const refused = await advisor.compactAdvisorContext(context, { model: OVERFLOW_LANES[0]!.model })
+    const refused = await advisor.foldAdvisorContext(context, { model: OVERFLOW_LANES[0]!.model })
     check('a call the provider refuses folds nothing and says why in the fold\'s own sentence', refused.compacted === 0 && typeof refused.refused === 'string' && refused.refused.startsWith('the summary call failed — ') && refused.refused.endsWith('; nothing was folded') && context.rows.length === refusedBefore + 4, j(refused))
     fixture.script(() => ({ text: '' }))
-    const empty = await advisor.compactAdvisorContext(context, { model: OVERFLOW_LANES[0]!.model })
+    const empty = await advisor.foldAdvisorContext(context, { model: OVERFLOW_LANES[0]!.model })
     check('an empty answer folds nothing and is named', empty.compacted === 0 && String(empty.refused).includes('the summarizer returned no text') && context.rows.length === refusedBefore + 4, j(empty))
   }
 
@@ -118,7 +118,7 @@ try {
     check('the call throws the provider\'s own words and returns no summary', answer === '' && error.includes('529 overloaded_error') && !error.includes('partial summary'), j({ answer, error }))
     const context = await advisor.loadAdvisorContext('agent-error-after-text', { dir: join(home, 'advisor-rows') })
     for (let i = 0; i < 8; i++) await advisor.appendAdvisorRow(context, { kind: 'note', at: `e${i}`, text: `kept row ${i}` })
-    const refused = await advisor.compactAdvisorContext(context, { model: OVERFLOW_LANES[0]!.model })
+    const refused = await advisor.foldAdvisorContext(context, { model: OVERFLOW_LANES[0]!.model })
     check('the fold refuses with those words and keeps every row', refused.compacted === 0 && String(refused.refused).includes('529 overloaded_error') && context.rows.length === 8 && context.rows.every(r => r.kind === 'note'), j({ refused, rows: context.rows.length }))
   }
 } finally {

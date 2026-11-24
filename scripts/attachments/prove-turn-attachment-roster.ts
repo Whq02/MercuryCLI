@@ -39,7 +39,7 @@ try {
   const { getUserContextAttachment } = await import(`${root}/src/engine/attachment-shapes/userContext.ts`)
   const posture = await import(`${root}/src/screen/cockpit/runtimePosture.ts`)
   const { replyMarkOf } = await import(`${root}/src/engine/loop/attachment-drain.ts`)
-  const { FileReadTool } = await import(`${root}/src/tools/read/ReadTool.ts`)
+  const { ReadTool } = await import(`${root}/src/tools/read/ReadTool.ts`)
   const { EvalTool } = await import(`${root}/src/tools/eval/EvalTool.ts`)
   const { ToolSearchTool } = await import(`${root}/src/tools/tool-search/ToolSearchTool.ts`)
   const { WebFetchTool } = await import(`${root}/src/tools/web-fetch/WebFetchTool.ts`)
@@ -59,7 +59,7 @@ try {
     getUserContext.cache.clear()
     let state = getDefaultAppState()
     const context: any = {
-      options: { commands: [], tools: [FileReadTool, EvalTool, ToolSearchTool], engineModel: 'claude-fable-5-1', mcpClients: [], mcpResources: {}, isNonInteractiveSession: mode === 'unattended', agentDefinitions: { activeAgents: [], allAgents: [] } },
+      options: { commands: [], tools: [ReadTool, EvalTool, ToolSearchTool], engineModel: 'claude-fable-5-1', mcpClients: [], mcpResources: {}, isNonInteractiveSession: mode === 'unattended', agentDefinitions: { activeAgents: [], allAgents: [] } },
       getAppState: () => state, setAppState: (fn: any) => { state = fn(state) }, abortController: new AbortController(),
       messages: [], readFileState: createFileStateCacheWithSizeLimit(100), loadedNestedMemoryPaths: new Set(), nestedMemoryAttachmentTriggers: new Set(),
     }
@@ -82,7 +82,7 @@ try {
     console.log(JSON.stringify({ mode, turn: 3, roster: roster(third) }))
     check(`${mode}: no repeat of a delivered manual`, !third.some((row: any) => row.type === 'critical_system_reminder' && row.content.startsWith('# Tool manual: Eval\n')))
     check(`${mode}: an unchanged roster produces no later deferred notice`, deferred(third).length === 0, JSON.stringify(deferred(third)))
-    context.options.tools = [FileReadTool, EvalTool, ToolSearchTool]
+    context.options.tools = [ReadTool, EvalTool, ToolSearchTool]
     const removed = await getAttachments(null, context, [])
     check(`${mode}: the departed tool alone is announced`, JSON.stringify(deferred(removed).map(row => [row.addedNames, row.removedNames])) === JSON.stringify([[[], ['WebFetch']]]), JSON.stringify(deferred(removed)))
     context.options.tools.push(WebFetchTool)

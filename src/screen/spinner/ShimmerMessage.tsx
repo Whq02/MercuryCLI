@@ -17,7 +17,7 @@ type Props = {
   attentionIntensity?: number
 }
 
-export function GlimmerMessage({ flashOpacity, glimmerIndex, message, messageColor, mode, shimmerColor, attentionIntensity = 0 }: Props): React.ReactNode {
+export function ShimmerMessage({ flashOpacity, glimmerIndex, message, messageColor, mode, shimmerColor, attentionIntensity = 0 }: Props): React.ReactNode {
   const [themeName] = useTheme()
   const theme = getTheme(themeName)
   if (message === '') return null

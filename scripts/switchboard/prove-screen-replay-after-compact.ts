@@ -220,7 +220,7 @@ section('§A the reader law — a record re-emitted after a compaction never mov
   const a1 = assistant('the first reply, folded', u1.uuid)
   const u2 = user('the kept words', a1.uuid)
   const a2 = assistant('the kept reply', u2.uuid)
-  const B = { ...(compactMod.createCompactBoundaryMessage('manual', 1000) as Row), parentUuid: null, isSidechain: false, timestamp: tick() }
+  const B = { ...(compactMod.createFoldBoundaryMessage('manual', 1000) as Row), parentUuid: null, isSidechain: false, timestamp: tick() }
   const S = { ...(factories.createUserMessage({ content: 'the summary of the folded stretch', isCompactSummary: true }) as Row), parentUuid: B.uuid, isSidechain: false, timestamp: tick() }
   ;(B as { compactMetadata: Record<string, unknown> }).compactMetadata.preservedSegment = { headUuid: u2.uuid, anchorUuid: S.uuid, tailUuid: a2.uuid }
   const u3 = user('words after the fold', S.uuid)
@@ -263,7 +263,7 @@ function stampedWorld(label: string) {
   const user = (name: string, text: string, parentUuid: string | null, at: string, extra: Record<string, unknown> = {}): Stamped => keep(name, { ...(factories.createUserMessage({ content: text, ...extra }) as Stamped), parentUuid, isSidechain: false, timestamp: stamp(at) })
   const assistant = (name: string, text: string, parentUuid: string | null, at: string): Stamped => keep(name, { ...(factories.createAssistantMessage({ content: [{ type: 'text', text }] }) as Stamped), parentUuid, isSidechain: false, timestamp: stamp(at) })
   const note = (name: string, content: string, parentUuid: string, at: string, subtype = 'crew_chat'): Stamped => keep(name, { type: 'system', subtype, uuid: randomUUID(), timestamp: stamp(at), parentUuid, isSidechain: false, level: 'info', content, name: 'Poster', authorRole: 'peer', kind: 'result', seq: names.size + 1, mentions: [], addresses: [] })
-  const boundary = (name: string, at: string): Stamped => keep(name, { ...(compactMod.createCompactBoundaryMessage('manual', 1000) as Stamped), parentUuid: null, isSidechain: false, timestamp: stamp(at) })
+  const boundary = (name: string, at: string): Stamped => keep(name, { ...(compactMod.createFoldBoundaryMessage('manual', 1000) as Stamped), parentUuid: null, isSidechain: false, timestamp: stamp(at) })
   const summary = (name: string, of: Stamped, at: string): Stamped => user(name, `the summary under ${names.get(of.uuid)}`, of.uuid, at, { isCompactSummary: true })
   const keepTail = (b: Stamped, segment: Seg): void => {
     ;(b as { compactMetadata: { preservedSegment?: Seg } }).compactMetadata.preservedSegment = segment
@@ -582,7 +582,7 @@ const releaseTool = Promise.withResolvers<void>()
 const releaseReply = Promise.withResolvers<void>()
 ;(await import(join(SRC, 'platform/config/globalConfig.ts'))).enableConfigs()
 const autoCompactMod = await import(join(SRC, 'engine/compaction/autoFold.ts'))
-const HEAVY_INPUT_TOKENS = Math.floor((autoCompactMod.getAutoCompactThreshold('claude-sonnet-5') + autoCompactMod.getBlockingLimit('claude-sonnet-5')) / 2)
+const HEAVY_INPUT_TOKENS = Math.floor((autoCompactMod.getAutoFoldThreshold('claude-sonnet-5') + autoCompactMod.getBlockingLimit('claude-sonnet-5')) / 2)
 const sse = (event: string, obj: unknown): string => `event: ${event}\ndata: ${JSON.stringify(obj)}\n\n`
 const usage = { input_tokens: 30, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 10 }
 type Item = { role?: string; content?: unknown }

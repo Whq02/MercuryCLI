@@ -103,7 +103,7 @@ rowCountsHint = 'the list row text and the confirm card text are built in src/sc
   const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
   const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
-  const { MessageSelector } = await import('../../src/screen/rewind-picker/RewindPicker.tsx')
+  const { RewindPicker } = await import('../../src/screen/rewind-picker/RewindPicker.tsx')
   const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.ts')
   const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
   const { mountOffscreen, waitFor } = await import('../lib/settingsPopupHarness.ts')
@@ -187,7 +187,7 @@ rowCountsHint = 'the list row text and the confirm card text are built in src/sc
         React.createElement(
           ThemeProvider,
           { initialState: 'dark' },
-          React.createElement(MessageSelector, {
+          React.createElement(RewindPicker, {
             messages: msgs,
             ...(preselect !== undefined ? { preselectedMessage: preselect } : {}),
             onPreRestore: () => {},
@@ -422,7 +422,7 @@ rowCountsHint = 'the list row text and the confirm card text are built in src/sc
         React.createElement(
           ThemeProvider,
           { initialState: 'dark' },
-          React.createElement(MessageSelector, {
+          React.createElement(RewindPicker, {
             messages: mixedMsgs,
             onPreRestore: () => {},
             onRestore: async () => ({ outcome: 'applied' as const, mode: 'both' as const, code: { filesChanged: [], insertions: 0, deletions: 0 } }),

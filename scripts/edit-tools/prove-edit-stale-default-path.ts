@@ -12,7 +12,7 @@ delete process.env.MERCURY_CHANGE_RECEIPTS
 delete process.env.MERCURY_EDIT_STALE_RECOVERY
 delete process.env.MERCURY_ANCHOR_PATCH
 
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { mintFileAnchor } = await import('../../src/tools/engines/change-transaction/snapshotAnchor.ts')
 const { rememberAnchoredSnapshot, _resetSnapshotRingForTesting } = await import(
@@ -69,12 +69,12 @@ async function editViaTool(
   | { ok: true; data: Record<string, unknown>; effect: Record<string, unknown> }
   | { ok: false; error: string; errorCode?: number }
 > {
-  const validation = await (FileEditTool as { validateInput: Function }).validateInput(input, ctx)
+  const validation = await (EditTool as { validateInput: Function }).validateInput(input, ctx)
   if (validation.result === false) {
     return { ok: false, error: String(validation.message), errorCode: validation.errorCode }
   }
   try {
-    const result = await (FileEditTool as { call: Function }).call(input, ctx, null, {
+    const result = await (EditTool as { call: Function }).call(input, ctx, null, {
       uuid: '00000000-0000-0000-0000-000000000003',
       message: { id: 'msg_fixture' },
     })
@@ -110,7 +110,7 @@ section('§1 a pure line shift recovers through the real tool, offset named')
     const note = String((outcome.data as { staleRecovery?: string }).staleRecovery ?? '')
     check('the result carries the relocation notice with the line offset', /lines 7 → 12/.test(note), note + ' — the note must name the old and new line of each hunk; fix recoverStaleHunks in src/tools/engines/change-transaction/stalePatchRecovery.ts')
     check('the effect evidence names the recovery', /stale anchor recovered/.test(String((outcome.effect as { evidence?: string }).evidence ?? '')), 'the effect evidence must say "stale anchor recovered"; fix editedAnswer in src/tools/edit/call/callParts.ts')
-    const wire = (FileEditTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(outcome.data, 'tu-1')
+    const wire = (EditTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(outcome.data, 'tu-1')
     check('the model-facing text states the relocation and the re-read guidance', /relocated/.test(String(wire.content)) && /re-read/.test(String(wire.content)), String(wire.content).slice(0, 160) + ' — the model-facing text must say the hunks were relocated and to re-read; fix mapToolResultToToolResultBlockParam in src/tools/edit/EditTool.ts')
   }
 }

@@ -47,7 +47,7 @@ const { createUserMessage } = await import('../../src/engine/messages/messages.t
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
-const { query: startTurn } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor: startTurn } = await import('../../src/engine/turnDoor.ts')
 
 const MODEL = 'claude-opus-4-8'
 const PARENT_SOURCE = 'main_thread'

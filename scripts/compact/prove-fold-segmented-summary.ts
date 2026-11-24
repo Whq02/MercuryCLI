@@ -33,7 +33,7 @@ const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 bootstrap.setOriginalCwd(f.home)
 bootstrap.setCwdState(f.home)
-const { compactConversation } = await import('../../src/engine/compaction/foldConversation.ts')
+const { foldConversation } = await import('../../src/engine/compaction/foldConversation.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
@@ -49,7 +49,7 @@ try {
   for (const mode of ['split-text', 'trailing-thought'] as const) {
     plan = mode
     const before = f.captures.length
-    const result = await compactConversation(messages, context, cache as never, true)
+    const result = await foldConversation(messages, context, cache as never, true)
     const summary = JSON.stringify(result.summaryMessages)
     check(`${mode}: every summary text block survives instead of only the last assistant block`, summary.includes(first) && (mode !== 'split-text' || summary.includes(last)), `compactConversation in src/engine/compaction/foldConversation.ts must keep every text block of the summary reply · ${summary.slice(0, 300)}`)
     check(`${mode}: the complete summary needs one request, not a no-text retry`, f.captures.length === before + 1, `compactConversation in src/engine/compaction/foldConversation.ts sent ${f.captures.length - before} requests, expected 1: it must not retry for text when the summary already has text`)
@@ -57,7 +57,7 @@ try {
     check(`${mode}: the summariser keeps max effort`, f.captures.slice(before).every(row => row.body.reasoning_effort === 'max'), 'the summary request built by compactConversation in src/engine/compaction/foldConversation.ts must carry the session effort (max) as reasoning_effort')
   }
   plan = 'cut'
-  const cut = await compactConversation(messages, context, cache as never, true).then(value => ({ result: value }), error => ({ error: String(error) }))
+  const cut = await foldConversation(messages, context, cache as never, true).then(value => ({ result: value }), error => ({ error: String(error) }))
   check('a fault after partial text still refuses the fold instead of accepting that text', 'error' in cut && !('result' in cut), { hint: 'compactConversation in src/engine/compaction/foldConversation.ts must throw when the summary stream is cut after partial text, not accept the partial text', cut })
 } finally {
   globalThis.fetch = originalFetch

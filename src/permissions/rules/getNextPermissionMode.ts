@@ -4,7 +4,7 @@ import type { PermissionMode } from './permissions.js'
 import { isFlowGateEnabled, transitionPermissionMode } from './permissionSetup.js'
 
 
-function bypassAvailable(context: ToolPermissionContext): boolean {
+function sovereignAvailable(context: ToolPermissionContext): boolean {
   return (context as { isBypassPermissionsModeAvailable?: boolean }).isBypassPermissionsModeAvailable === true
 }
 
@@ -23,10 +23,10 @@ export function getNextPermissionMode(
       return 'apollo'
     case 'apollo':
       if (canCycleToFlow(toolPermissionContext)) return 'flow'
-      if (bypassAvailable(toolPermissionContext)) return 'sovereign'
+      if (sovereignAvailable(toolPermissionContext)) return 'sovereign'
       return 'default'
     case 'flow':
-      if (bypassAvailable(toolPermissionContext)) return 'sovereign'
+      if (sovereignAvailable(toolPermissionContext)) return 'sovereign'
       return 'default'
     case 'sovereign':
     case 'dontAsk':

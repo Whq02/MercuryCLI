@@ -11,7 +11,7 @@ import { interruptFocusedTurn } from './interruptKeys.js';
 import type { useMergedTools } from '../../tools/kit/useMergedTools.js';
 import { useSeatReceipts } from '../focused-session/useSeatReceipts.js';
 import type { useTheme } from '../themedRenderer.js';
-import { query } from '../../engine/turnDoor.js';
+import { turnDoor } from '../../engine/turnDoor.js';
 import { getFocusedSessionConnector, landingInFlight, subscribeFocusedSessionConnector } from '../../engine/connector/focusedConnector.js';
 import type { SessionLiveV1 } from '../../engine/connector/seatLive.js';
 import { useAppState, type useAppStateStore, type useSetAppState } from '../app-state/AppState.js';
@@ -28,7 +28,7 @@ import { createCommandInputMessage, createUserMessage, getUserMessageText } from
 import { formatCommandLoadingMetadata } from '../../engine/user-input/processSlashCommand.js';
 import { submitTrace } from './submitTrace.js';
 import { RECEIPT_TIMEOUT_MS, SWITCH_STATUS_TIMEOUT_MS } from './limits.js';
-import type { ResumableLog } from './sessionShapes.js';
+import type { ResumableListing } from './sessionShapes.js';
 import { openDialogCommand, queueBehindDialog } from './submit/dialogCommand.js';
 import { followRouteAlias, holdCommandForLanding, readCommandArgs, runLocalCommand } from './submit/screenCommand.js';
 import { holdForLanding, sendToSession } from './submit/sessionSend.js';
@@ -98,7 +98,7 @@ export function useChatSubmitTools({ store, setAppState, addNotification, remove
           refreshTools: () => mergedTools,
           theme: themeName,
         },
-        startTurn: query,
+        startTurn: turnDoor,
         abortController: controller,
         readFileState: getReadFileState(),
         discoveredSkillNames: new Set<string>(),
@@ -132,7 +132,7 @@ export function useChatSubmitTools({ store, setAppState, addNotification, remove
     [store, debug, mergedTools, themeName, getReadFileState, setAppState, setToolJSX, addNotification, paintScreenRow, apiKeyVerification],
   );
 
-  const resume = useCallback(async (sessionId: UUID, log: ResumableLog, entrypoint: ResumeEntrypoint): Promise<void> => {
+  const resume = useCallback(async (sessionId: UUID, log: ResumableListing, entrypoint: ResumeEntrypoint): Promise<void> => {
     void entrypoint;
     const label = log.customTitle ?? log.agentName ?? String(sessionId).slice(0, 8);
     addNotification({

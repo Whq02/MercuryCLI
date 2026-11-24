@@ -6,7 +6,7 @@ import { MAX_LINES_TO_READ } from 'src/tools/kit/names/fileRead.js'
 import { PDF_AT_MENTION_INLINE_THRESHOLD } from '../../models/roads/mediaLimits.js'
 import { isRemotePath } from '../../platform/remote-file-target/target.js'
 import type { ToolUseContext } from '../../tools/kit/tool.js'
-import { FileReadTool, MaxFileReadTokenExceededError, readImageWithTokenBudget, type Output as ReadOutput } from '../../tools/read/ReadTool.js'
+import { ReadTool, MaxFileReadTokenExceededError, readImageWithTokenBudget, type Output as ReadOutput } from '../../tools/read/ReadTool.js'
 import { isDirectoryTarget } from '../../tools/read/readTarget.js'
 import { isENOENT } from '../../platform/errors/errors.js'
 import { getFileModificationTimeAsync, isFileWithinReadSizeLimit } from '../../platform/files/file.js'
@@ -24,13 +24,13 @@ import { countCharInString } from '../../platform/text/strings.js'
 import { ruleSentence } from '../../permissions/rules/ruleReason.js'
 import { matchingRuleForInput } from '../../permissions/rules/filesystem.js'
 import { isFileReadDenied } from '../attachment-shapes/fileReadDenied.js'
-import type { AlreadyReadFileAttachment, Attachment, CompactFileReferenceAttachment, DroppedImageAttachment, FileAttachment, PDFReferenceAttachment } from '../attachment-shapes/attachmentTypes.js'
+import type { AlreadyReadFileAttachment, Attachment, FoldFileReferenceAttachment, DroppedImageAttachment, FileAttachment, PDFReferenceAttachment } from '../attachment-shapes/attachmentTypes.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
 type FileRow =
   | FileAttachment
   | AlreadyReadFileAttachment
-  | CompactFileReferenceAttachment
+  | FoldFileReferenceAttachment
   | PDFReferenceAttachment
   | DroppedImageAttachment
 type ReadWindow = { offset?: number; limit?: number }
@@ -45,7 +45,7 @@ const displayOf = (filename: string): string => relative(getCwd(), filename)
 const pdfPath = (filename: string): boolean => isPDFExtension(parse(filename).ext.toLowerCase())
 
 async function fileRow(input: ReadRequest, context: ToolUseContext, clipped = false): Promise<FileAttachment> {
-  const answer = await FileReadTool.call(input, context)
+  const answer = await ReadTool.call(input, context)
   return { type: 'file', filename: input.file_path, content: answer.data, displayPath: displayOf(input.file_path), ...(clipped ? { truncated: true } : {}) }
 }
 
@@ -66,7 +66,7 @@ async function oversizedFallback(input: ReadRequest, context: ToolUseContext, mo
 
 async function validatedRead(input: ReadRequest, context: ToolUseContext, mode: ReadMode): Promise<FileRow | null> {
   try {
-    if (!(await FileReadTool.validateInput(input, context)).result) return null
+    if (!(await ReadTool.validateInput(input, context)).result) return null
     try {
       return await fileRow(input, context)
     } catch (failure) {
@@ -230,8 +230,8 @@ async function changedFile(key: string, context: ToolUseContext, state: ReturnTy
       return []
     }
     const input = { file_path: path, ...(windowed && previous.offset ? { offset: previous.offset } : {}), ...(windowed && previous.limit !== undefined ? { limit: previous.limit } : {}) }
-    if (!(await FileReadTool.validateInput(input, context)).result) return []
-    const read = await FileReadTool.call(input, context)
+    if (!(await ReadTool.validateInput(input, context)).result) return []
+    const read = await ReadTool.call(input, context)
     if (windowed) context.readFileState.delete(path)
     else {
       const now = context.readFileState.get(path)

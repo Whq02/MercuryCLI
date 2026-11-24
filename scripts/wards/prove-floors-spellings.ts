@@ -112,9 +112,9 @@ const { decideToolPermissionWithModes } = await import(join(SRC, 'permissions/ru
 const { bashToolHasPermission } = await import(join(SRC, 'tools/shell/bashPermissions.ts'))
 const { enableConfigs } = await import(join(SRC, 'platform/settings/config.ts'))
 const { daemonStatePath } = await import(join(SRC, 'daemon/control/controlSocket.ts'))
-const { FileReadTool } = await import(join(SRC, 'tools/read/ReadTool.ts'))
-const { FileWriteTool } = await import(join(SRC, 'tools/write/WriteTool.ts'))
-const { FileEditTool } = await import(join(SRC, 'tools/edit/EditTool.ts'))
+const { ReadTool } = await import(join(SRC, 'tools/read/ReadTool.ts'))
+const { WriteTool } = await import(join(SRC, 'tools/write/WriteTool.ts'))
+const { EditTool } = await import(join(SRC, 'tools/edit/EditTool.ts'))
 const { EvalTool } = await import(join(SRC, 'tools/eval/EvalTool.ts'))
 const { powershellToolHasPermission } = await import(join(SRC, 'tools/powershell/powershellPermissions.ts'))
 const keychain = await import(join(SRC, 'platform/secure-storage/macOsKeychainHelpers.ts'))
@@ -140,7 +140,7 @@ const powershellTool = {
   inputSchema: z.object({ command: z.string() }),
   checkPermissions: (input: { command: string }, context: unknown) => powershellToolHasPermission(input, context as never),
 } as never
-const TOOLS: Record<string, unknown> = { Bash: bashTool, PowerShell: powershellTool, Read: FileReadTool, Write: FileWriteTool, Edit: FileEditTool, Eval: EvalTool }
+const TOOLS: Record<string, unknown> = { Bash: bashTool, PowerShell: powershellTool, Read: ReadTool, Write: WriteTool, Edit: EditTool, Eval: EvalTool }
 
 async function decide(tool: string, input: Record<string, unknown>, mode: string, rules: Rules = {}): Promise<Decision> {
   const state = {

@@ -17,7 +17,7 @@ const key = 'AIzaFixtureMalformedCall00000000000000'
 process.env.GEMINI_API_KEY = key
 writeFileSync(join(proofHome, '.gemini-auth.json'), JSON.stringify({ version: 1, preferredSource: 'api-key' }))
 
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import('../../src/platform/settings/config.ts')
@@ -153,7 +153,7 @@ async function run(script: unknown[][], tools: unknown[]): Promise<{ yields: Any
     if (!steps) throw new Error(`model script exhausted at call ${idx}`)
     for (const s of steps) yield s as never
   }
-  const gen = query({
+  const gen = turnDoor({
     messages: [createUserMessage({ content: 'judge the rows' })] as never,
     systemPrompt: ['rig system prompt'] as never,
     userContext: {},

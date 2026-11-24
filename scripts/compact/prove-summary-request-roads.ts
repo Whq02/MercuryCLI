@@ -27,8 +27,8 @@ const { rosterOwnerFromToolUseContext } = await import('../../src/engine/run-own
 const { noteAgentEffortWord, forgetAgentEffortWord } = await import('../../src/models/effort/effort.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
-const { compactConversation, partialCompactConversation } = await import('../../src/engine/compaction/foldConversation.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { foldConversation, partialFoldConversation } = await import('../../src/engine/compaction/foldConversation.ts')
 const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, agentNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'max' }
 let failures = 0
 let checks = 0
@@ -44,18 +44,18 @@ try {
   const roads = [...OVERFLOW_LANES, { lane: 'anthropic-adaptive', model: 'claude-fable-5-1', dialect: 'anthropic' }, { lane: 'anthropic-budget', model: 'claude-sonnet-4-5', dialect: 'anthropic' }, { lane: 'openrouter-responses', model: OVERFLOW_LANES.find(road => road.lane === 'openrouter')!.model, dialect: 'responses' }]
   for (const road of roads) {
     for (const direction of ['full', 'from', 'up_to'] as const) {
-      const tools = road.lane === 'openrouter-responses' ? [ToolSearchTool, FileReadTool, { ...FileReadTool, name: 'mcp__fold_fixture__read', isMcp: true }] : []
+      const tools = road.lane === 'openrouter-responses' ? [ToolSearchTool, ReadTool, { ...ReadTool, name: 'mcp__fold_fixture__read', isMcp: true }] : []
       const context: any = { agentId: `summary-${road.lane}-${direction}`, abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: [], readFileState: new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024), options: { tools, commands: [], mcpClients: [], engineModel: road.model, maxThinkingTokens: 0, thinkingConfig: { type: 'adaptive' }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
       const messages = [createUserMessage({ content: 'The synthetic parser accepts quoted commas and all 14 checks passed.' })]
       const cache = { systemPrompt: ['Synthetic fold request proof.'] } as never
       const before = fixture.captured.length
       fixture.script(request => forbidden.test(JSON.stringify(request.body)) ? { refusal: true } : { text: summary })
-      let result: Awaited<ReturnType<typeof compactConversation>> | undefined
+      let result: Awaited<ReturnType<typeof foldConversation>> | undefined
       let error: unknown
       try {
         result = direction === 'full'
-          ? await compactConversation(messages, context, cache, false, custom)
-          : await partialCompactConversation(messages, direction === 'from' ? 0 : messages.length, context, cache, custom, direction)
+          ? await foldConversation(messages, context, cache, false, custom)
+          : await partialFoldConversation(messages, direction === 'from' ? 0 : messages.length, context, cache, custom, direction)
       } catch (caught) { error = String(caught) }
       const requests = fixture.captured.slice(before)
       const wire = JSON.stringify(requests.map(request => request.body))
@@ -66,12 +66,12 @@ try {
     }
     for (const thinkingConfig of [{ type: 'adaptive' }, { type: 'enabled', budgetTokens: 8192 }] as const) {
       for (const continued of [false, true]) {
-        const tools = [FileReadTool]
+        const tools = [ReadTool]
         const owner = `posture-${road.lane}-${thinkingConfig.type}-${continued}`
         noteAgentEffortWord(owner, 'max')
         process.env.MERCURY_EFFORT_LEVEL = 'low'
         const context: any = { agentId: owner, abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: [], readFileState: new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024), options: { tools, commands: [], mcpClients: [], engineModel: road.model, maxThinkingTokens: 8192, thinkingConfig, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
-        if (road.lane === 'openrouter-responses') tools.push(ToolSearchTool as never, { ...FileReadTool, name: 'mcp__fold_fixture__read', isMcp: true } as never)
+        if (road.lane === 'openrouter-responses') tools.push(ToolSearchTool as never, { ...ReadTool, name: 'mcp__fold_fixture__read', isMcp: true } as never)
         const signed = { type: 'thinking', thinking: 'Preserved fixture reasoning.', signature: 'fixture-signature-byte-exact' }
         const assistant: any = createAssistantMessage({ content: [signed, { type: 'text', text: 'The parser checks passed.' }] as never })
         assistant.message.model = road.model
@@ -90,7 +90,7 @@ try {
         const before = fixture.captured.length
         let error: unknown
         try {
-          await compactConversation(messages, context, { systemPrompt, userContext: {}, systemContext: {}, toolUseContext: { ...context, options: { ...context.options, thinkingConfig: { type: 'disabled' } } }, forkContextMessages: messages } as never, false, custom)
+          await foldConversation(messages, context, { systemPrompt, userContext: {}, systemContext: {}, toolUseContext: { ...context, options: { ...context.options, thinkingConfig: { type: 'disabled' } } }, forkContextMessages: messages } as never, false, custom)
         } catch (caught) { error = String(caught) }
         const requests = fixture.captured.slice(before)
         const body = requests.at(-1)?.body as any
@@ -114,15 +114,15 @@ try {
   }
   {
     const { conversationAtThreshold } = await import('./thresholdFixture.ts')
-    const { getAutoCompactThreshold } = await import('../../src/engine/compaction/autoFold.ts')
+    const { getAutoFoldThreshold } = await import('../../src/engine/compaction/autoFold.ts')
     const { getContextWindowForModel } = await import('../../src/models/facts/capabilities.ts')
     const posture = (row: any): unknown => row && ({ effort: row.reasoning_effort, reasoning: row.reasoning, thinking: row.thinking, output: row.output_config, generation: row.generationConfig && { ...row.generationConfig, maxOutputTokens: undefined } })
     const preserved = (row: any): unknown[] => (row?.messages ?? row?.contents ?? []).filter((item: any) => item.role === 'assistant' || item.role === 'model').map((item: any) => ({ content: Array.isArray(item.content) ? item.content.filter((block: any) => block.type === 'thinking' || block.type === 'redacted_thinking') : undefined, parts: Array.isArray(item.parts) ? item.parts.filter((part: any) => part.thought === true || part.thoughtSignature !== undefined) : undefined }))
     for (const leg of [{ lane: 'anthropic', fixed: 20_000, ratio: 1 }, { lane: 'gemini', fixed: 42_723, ratio: 1.3 }]) {
       const road = roads.find(r => r.lane === leg.lane)!
-      const threshold = getAutoCompactThreshold(road.model)
+      const threshold = getAutoFoldThreshold(road.model)
       const built = conversationAtThreshold({ model: road.model, family: leg.lane, resultChars: 24_000, fixed: leg.fixed, ratio: leg.ratio, target: threshold })
-      const tools = [FileReadTool]
+      const tools = [ReadTool]
       const thinkingConfig = { type: 'adaptive' } as const
       const owner = `threshold-${road.lane}`
       const context: any = { agentId: owner, abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: built.messages, readFileState: new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024), options: { tools, commands: [], mcpClients: [], engineModel: road.model, maxThinkingTokens: 8192, thinkingConfig, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
@@ -136,7 +136,7 @@ try {
       const before = fixture.captured.length
       let error: unknown
       try {
-        await compactConversation(built.messages, context, { systemPrompt, userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: built.messages } as never, true, undefined, true, { isRecompaction: false, turnsSincePreviousCompact: 3, autoCompactThreshold: threshold })
+        await foldConversation(built.messages, context, { systemPrompt, userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: built.messages } as never, true, undefined, true, { isRecompaction: false, turnsSincePreviousCompact: 3, autoCompactThreshold: threshold })
       } catch (caught) { error = String(caught) }
       const requests = fixture.captured.slice(before)
       const body = requests.at(-1)?.body as any

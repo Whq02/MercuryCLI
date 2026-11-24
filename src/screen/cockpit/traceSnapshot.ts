@@ -2,14 +2,14 @@ import { readFile } from 'node:fs/promises'
 import {
   getInvocationTracePath,
   isInvocationTraceEnabled,
-  type CompactionTrace,
+  type FoldTrace,
   type InvocationTrace,
 } from '../../platform/observability/invocationTrace.js'
 import { withState, type Snapshot } from './types.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 import { isENOENT } from '../../platform/errors/errors.js'
 
-export type CompactionAgg = {
+export type FoldAgg = {
   total: number
   totalTokensFreed: number
   byEvent: { event: string; count: number; tokensFreed: number }[]
@@ -22,15 +22,15 @@ export type TraceData = {
   highRisk: number
   killed: number
   errors: number
-  compaction: CompactionAgg
+  compaction: FoldAgg
 }
 
 export function parseTraceLines(text: string): {
   records: InvocationTrace[]
-  compaction: CompactionTrace[]
+  compaction: FoldTrace[]
 } {
   const records: InvocationTrace[] = []
-  const compaction: CompactionTrace[] = []
+  const compaction: FoldTrace[] = []
   for (const raw of text.split('\n')) {
     const line = raw.trim()
     if (!line) continue
@@ -39,7 +39,7 @@ export function parseTraceLines(text: string): {
       if (!rec || typeof rec !== 'object') continue
       if (typeof rec.tool === 'string') records.push(rec as InvocationTrace)
       if (rec.kind === 'compaction' && typeof rec.event === 'string') {
-        compaction.push(rec as CompactionTrace)
+        compaction.push(rec as FoldTrace)
       }
     } catch (error) {
       passedOver(error)
@@ -48,10 +48,10 @@ export function parseTraceLines(text: string): {
   return { records, compaction }
 }
 
-const emptyCompaction: CompactionAgg = { total: 0, totalTokensFreed: 0, byEvent: [] }
-const empty: TraceData = { records: [], total: 0, highRisk: 0, killed: 0, errors: 0, compaction: emptyCompaction }
+const emptyFold: FoldAgg = { total: 0, totalTokensFreed: 0, byEvent: [] }
+const empty: TraceData = { records: [], total: 0, highRisk: 0, killed: 0, errors: 0, compaction: emptyFold }
 
-export function aggregateCompaction(records: CompactionTrace[]): CompactionAgg {
+export function aggregateFold(records: FoldTrace[]): FoldAgg {
   const map = new Map<string, { event: string; count: number; tokensFreed: number }>()
   let totalTokensFreed = 0
   for (const r of records) {
@@ -188,7 +188,7 @@ export async function traceSnapshot(): Promise<Snapshot<{ data: TraceData }>> {
   try {
     const text = await readFile(getInvocationTracePath(), 'utf8')
     const { records, compaction: compactionRecs } = parseTraceLines(text)
-    const compaction = aggregateCompaction(compactionRecs)
+    const compaction = aggregateFold(compactionRecs)
     if (records.length === 0 && compaction.total === 0) {
       return withState(
         enabled ? 'unavailable' : 'off',

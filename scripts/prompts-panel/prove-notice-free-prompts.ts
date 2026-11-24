@@ -29,7 +29,7 @@ const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProvid
 const { renderToString } = await import('../../src/screen/renderer/staticRender.js')
 const { promptRows } = await import('../../src/screen/prompts-panel/rows.js')
 const { PromptsPanel } = await import('../../src/screen/prompts-panel/PromptsPanel.js')
-const { MessageSelector, selectableUserMessagesFilter } = await import('../../src/screen/rewind-picker/RewindPicker.js')
+const { RewindPicker, selectableUserMessagesFilter } = await import('../../src/screen/rewind-picker/RewindPicker.js')
 const { UserTextMessage } = await import('../../src/screen/messages/UserTextMessage.js')
 const { MessageRow } = await import('../../src/screen/messages/MessageRow.js')
 const { deriveTranscriptRows } = await import('../../src/screen/concourse/workerTranscriptFold.js')
@@ -146,7 +146,7 @@ try {
   check('80-column workbench notice conversation paints the operator-only frame byte for byte', mixedPanel === purePanel, 'PromptsPanel (src/screen/prompts-panel/PromptsPanel.tsx) must paint only operator prompts from the focused session records')
   check('80-column workbench has both operator prompts and no placeholder', mixedPanel.includes(first.message.content as string) && mixedPanel.includes(last.message.content as string) && !mixedPanel.includes('(no prompt text)'), 'PromptsPanel must show both operator prompts and no placeholder row for a notice')
   selectRecords(conversation)
-  const rewind = await frame('rewind-80', h(MessageSelector, { messages: conversation, onPreRestore: () => {}, onRestore: async () => ({ outcome: 'refused', refusal: 'restore-failed' } as never), onSummarize: () => {}, onClose: () => {} }))
+  const rewind = await frame('rewind-80', h(RewindPicker, { messages: conversation, onPreRestore: () => {}, onRestore: async () => ({ outcome: 'refused', refusal: 'restore-failed' } as never), onSummarize: () => {}, onClose: () => {} }))
   check('rewind paints both operator prompts without notice placeholders', rewind.includes(first.message.content as string) && rewind.includes(last.message.content as string) && !rewind.includes('(no prompt text)'), 'MessageSelector in src/screen/rewind-picker/RewindPicker.tsx must list both operator prompts and no placeholder for a notice')
 
   const normal = normalizeMessages(conversation)

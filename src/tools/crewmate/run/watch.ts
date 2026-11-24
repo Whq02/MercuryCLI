@@ -1,5 +1,5 @@
 import { productionDeps } from '../../../engine/turn-entry/turnLoopDeps.js'
-import type { LegacyQueryYield } from '../../../engine/loop/project-legacy.js'
+import type { LegacyTurnYield } from '../../../engine/loop/project-legacy.js'
 import type { Message } from '../../../engine/message-shapes/message.js'
 import type { AgentId } from '../../../sessions/transcripts/ids.js'
 import { logForDebugging } from '../../../platform/logs/debugLog.js'
@@ -159,7 +159,7 @@ export function callModelOf(run: AgentRun, { deps, agentId }: { deps: ReturnType
 type ObserveNeeds = { recovery: RecoveryBudget; accountant: RecoveryAccountant; onQueryProgress: RunAgentParams['onQueryProgress']; touchThrough: (declaredMs: number) => void; declaredRecoveryWaitMs: typeof declaredRecoveryWaitMs }
 
 export function observeProgressOf(run: AgentRun, { recovery, accountant, onQueryProgress, touchThrough, declaredRecoveryWaitMs }: ObserveNeeds) {
-  const observeProgress = (message: LegacyQueryYield): void => {
+  const observeProgress = (message: LegacyTurnYield): void => {
     run.eventsSeen++
     touchThrough(declaredRecoveryWaitMs(message))
     const notice = recoveryNoticeFacts(message)

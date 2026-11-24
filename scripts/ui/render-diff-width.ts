@@ -40,10 +40,10 @@ if (process.env.DIFF_WIDTH_CHILD) {
     Text: React.ComponentType<Record<string, unknown>>
   }
   const { PermissionDialog } = await import('../../src/permissions/cards/PermissionDialog.js')
-  const { FileWriteToolDiff } = await import(
+  const { WriteDiff } = await import(
     '../../src/permissions/cards/file-write/FileWriteToolDiff.js'
   )
-  const { FileEditToolDiff } = await import('../../src/tools/edit/EditDiff.js')
+  const { EditDiff } = await import('../../src/tools/edit/EditDiff.js')
 
   const target = '/tmp/hb0200-edit-target.txt'
   const oldContent = 'alpha\nbeta\ngamma\ndelta'
@@ -52,10 +52,10 @@ if (process.env.DIFF_WIDTH_CHILD) {
   const which = process.env.DIFF_WIDTH_WHICH ?? 'write'
   const content =
     which === 'write'
-      ? React.createElement(FileWriteToolDiff, {
+      ? React.createElement(WriteDiff, {
           file_path: '/tmp/hb0200-test.txt', content: newContent, fileExists: true, oldContent,
         })
-      : React.createElement(FileEditToolDiff, {
+      : React.createElement(EditDiff, {
           file_path: target,
           edits: [{ old_string: 'beta', new_string: 'beta CHANGED', replace_all: false }],
         })

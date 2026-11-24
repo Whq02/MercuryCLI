@@ -5,13 +5,13 @@ import { isMercurySubstrateProfileOn } from '../../platform/config/derived.js'
 const DEFAULT_THRESHOLD_MINUTES = 60
 const DEFAULT_KEEP_RECENT = 10
 
-type TimeBasedMCConfig = {
+type TimeBasedPruneConfig = {
   enabled: boolean
   thresholdMinutes: number
   keepRecent: number
 }
 
-export function getTimeBasedMCConfig(): TimeBasedMCConfig {
+export function getTimeBasedPruneConfig(): TimeBasedPruneConfig {
   return {
     enabled: isEnvTruthy(flagEnv('MERCURY_TIME_BASED_MC')) || isMercurySubstrateProfileOn(),
     thresholdMinutes: DEFAULT_THRESHOLD_MINUTES,

@@ -26,7 +26,7 @@ const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool
 const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
 const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.ts')
 const { checkWritePermissionForTool, checkReadPermissionForTool, checkPathSafetyForAutoEdit } = await import('../../src/permissions/rules/filesystem.ts')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { WriteTool } = await import('../../src/tools/write/WriteTool.ts')
 
 let failures = 0
 let checks = 0
@@ -47,7 +47,7 @@ const bash = { name: 'Bash', inputSchema: z.object({ command: z.string() }), che
 const decide = async (command: string, mode: string): Promise<Decision> =>
   (await decideToolPermissionWithModes(bash, { command }, useContext(mode), { message: { id: 'hook' } } as never, 'hook')).decision as Decision
 const writeThroughTool = async (path: string, mode: string): Promise<Decision> =>
-  (await decideToolPermissionWithModes(FileWriteTool as never, { file_path: path, content: 'x\n' }, useContext(mode), { message: { id: 'hook' } } as never, 'hook')).decision as Decision
+  (await decideToolPermissionWithModes(WriteTool as never, { file_path: path, content: 'x\n' }, useContext(mode), { message: { id: 'hook' } } as never, 'hook')).decision as Decision
 const writeTool = { name: 'Write', getPath: (input: { file_path: string }) => input.file_path }
 const readTool = { name: 'Read', getPath: (input: { file_path: string }) => input.file_path }
 const shown = (decision: Decision): string => `${decision.behavior}: ${decision.message ?? ''}`

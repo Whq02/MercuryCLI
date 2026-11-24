@@ -13,7 +13,7 @@ const queue = await import(T + 'daemon/runner/messageQueueManager.ts')
 const { wrapInSystemReminder } = await import(T + 'engine/message-shapes/text.ts')
 const { setAskChannel } = await import(T + 'boot/process-state/processState.ts')
 const { runnerArmsOf } = await import(T + 'daemon/runner/runnerArms.ts')
-const { runPrintTurn } = await import(T + 'daemon/runner/runnerTurn.ts')
+const { runTurn } = await import(T + 'daemon/runner/runnerTurn.ts')
 const { afterTools } = await import(T + 'engine/loop/turn/afterTools.ts')
 
 let failures = 0
@@ -108,7 +108,7 @@ console.log('D. the set-mode arm hands the mode to the step and tells nothing it
   check('it starts no timer and queues nothing', timersStarted === 0 && queued().length === 0, `${timersStarted} timers · ${JSON.stringify(queued())}`)
   check('the next turn takes one notice of the last mode', same(s.take(), noticeOf('flow', 'default')))
 }
-console.log('E. runPrintTurn joins the notice to the turn that begins')
+console.log('E. runTurn joins the notice to the turn that begins')
 {
   const STOP = new Error('probe stop')
   const begin = async (s: ReturnType<typeof scene>, command: Record<string, unknown>, opts: { local?: boolean; given?: unknown[] } = {}): Promise<unknown[] | null> => {
@@ -121,7 +121,7 @@ console.log('E. runPrintTurn joins the notice to the turn that begins')
       messages: [],
       emitCommandNotifications: (list: unknown[]) => { heard = list; throw STOP },
     } as Record<string, unknown>, { get: (target, key) => (key in target ? target[key as string] : () => undefined) })
-    const ended = await runPrintTurn(command as never, [], () => {}, opts.given as never, ports as never).then(() => 'returned', (error: unknown) => (error === STOP ? 'stopped' : `threw ${String(error)}`))
+    const ended = await runTurn(command as never, [], () => {}, opts.given as never, ports as never).then(() => 'returned', (error: unknown) => (error === STOP ? 'stopped' : `threw ${String(error)}`))
     if (ended !== 'stopped') console.log(`    (the turn ${ended})`)
     return heard
   }

@@ -69,8 +69,8 @@ import { createUserMessage } from '../../engine/messages/messages.js'
 import { asSystemPrompt } from '../../engine/system-prompt/systemPromptType.js'
 import { getEmptyToolPermissionContext } from '../kit/tool.js'
 import type { CacheSafeParams } from '../../crew/agents/forkedAgent.js'
-import { FILE_EDIT_TOOL_NAME } from '../kit/names/fileEdit.js'
-import { FILE_WRITE_TOOL_NAME } from '../kit/names/fileWrite.js'
+import { EDIT_TOOL_NAME } from '../kit/names/fileEdit.js'
+import { WRITE_TOOL_NAME } from '../kit/names/fileWrite.js'
 import { NOTEBOOK_EDIT_TOOL_NAME } from '../notebook-edit/constants.js'
 import { JEV_TOOL_NAME } from '../../models/jev/jevContract.js'
 import { readJevSettings } from '../../models/jev/jevSetting.js'
@@ -612,7 +612,7 @@ export function emitTaskProgress(
   })
 }
 
-const WRITE_TOOL_NAMES = new Set([FILE_WRITE_TOOL_NAME, FILE_EDIT_TOOL_NAME, NOTEBOOK_EDIT_TOOL_NAME])
+const WRITE_TOOL_NAMES = new Set([WRITE_TOOL_NAME, EDIT_TOOL_NAME, NOTEBOOK_EDIT_TOOL_NAME])
 
 export function landedWritesOf(messages: readonly Message[]): string[] {
   const pending = new Map<string, string>()

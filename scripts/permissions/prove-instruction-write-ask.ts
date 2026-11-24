@@ -21,13 +21,13 @@ process.chdir(project)
 const load = (file: string) => import(pathToFileURL(join(root, file)).href)
 const { getEmptyToolPermissionContext } = await load('src/tools/kit/tool.ts')
 const { decideToolPermission } = await load('src/permissions/rules/decision/engine.ts')
-const { FileWriteTool } = await load('src/tools/write/WriteTool.ts')
-const { FileEditTool } = await load('src/tools/edit/EditTool.ts')
+const { WriteTool } = await load('src/tools/write/WriteTool.ts')
+const { EditTool } = await load('src/tools/edit/EditTool.ts')
 const { NotebookEditTool } = await load('src/tools/notebook-edit/NotebookEditTool.ts')
 const { ChangeSetTool } = await load('src/tools/change-set/ChangeSetTool.ts')
 const { AstEditTool } = await load('src/tools/ast-edit/AstEditTool.ts')
 const { AstSearchTool } = await load('src/tools/ast-search/AstSearchTool.ts')
-const { FileReadTool } = await load('src/tools/read/ReadTool.ts')
+const { ReadTool } = await load('src/tools/read/ReadTool.ts')
 const { RecordConventionTool } = await load('src/tools/record-convention/RecordConventionTool.ts')
 const { runWithCwdOverride } = await load('src/platform/files/cwd.ts')
 let checks = 0
@@ -51,8 +51,8 @@ async function decide(tool: any, input: Record<string, unknown>, mode: string, r
 }
 const modes = ['default', 'implement', 'sovereign']
 const bodies = (path: string): Array<[any, Record<string, unknown>]> => [
-  [FileWriteTool, { file_path: path, content: 'replacement' }],
-  [FileEditTool, { file_path: path, append: 'replacement' }],
+  [WriteTool, { file_path: path, content: 'replacement' }],
+  [EditTool, { file_path: path, append: 'replacement' }],
   [NotebookEditTool, { notebook_path: path, new_source: 'replacement' }],
   [ChangeSetTool, { op: 'apply', changes: [{ file_path: path, expected_anchor: 'fa:0123456789ab', hunks: [{ lines: '1', replace: 'replacement' }] }] }],
 ]
@@ -99,23 +99,23 @@ try {
       check(`${mode} ${tool.name} explicit ask still wins unless sovereign`, asked.behavior === (mode === 'sovereign' ? 'allow' : 'ask'), asked.message)
     }
     for (const file of ['settings.json', 'launch.json', 'agents/helper.md', 'custom/file', 'apollo/spec.md']) {
-      const verdict = await decide(FileWriteTool, { file_path: '.mercury/' + file, content: 'x' }, mode, { allow: ['Edit(/' + join(project, '.mercury', file) + ')'] })
+      const verdict = await decide(WriteTool, { file_path: '.mercury/' + file, content: 'x' }, mode, { allow: ['Edit(/' + join(project, '.mercury', file) + ')'] })
       check(mode + ' project config path grant honoured', verdict.behavior === 'allow', verdict.message)
     }
-    const relative = await runWithCwdOverride(outside, () => decide(FileWriteTool, { file_path: 'MERCURY.md', content: 'x' }, mode))
+    const relative = await runWithCwdOverride(outside, () => decide(WriteTool, { file_path: 'MERCURY.md', content: 'x' }, mode))
     check(mode + ' cwd-relative instruction stays gated', relative.behavior === (mode === 'sovereign' ? 'allow' : 'ask') && (mode === 'sovereign' || relative.message?.includes('steers every later session')), relative.message)
     const hostRule = 'Edit(/' + join(outside, 'AGENTS.md') + ')'
-    const denied = await decide(FileWriteTool, { file_path: 'innocent.txt', content: 'x' }, mode, { deny: [hostRule] })
+    const denied = await decide(WriteTool, { file_path: 'innocent.txt', content: 'x' }, mode, { deny: [hostRule] })
     check(mode + ' real host deny survives linked filename', denied.behavior === 'deny', denied.message)
   }
   for (const mode of [...modes, 'apollo']) for (const path of ['.mercury/apollo/spec.md', '.mercury/apollo/design/architecture.md', '.mercury/apollo/linked-plan.md']) {
-    const verdict = await decide(FileWriteTool, { file_path: path, content: 'x' }, mode)
+    const verdict = await decide(WriteTool, { file_path: path, content: 'x' }, mode)
     check(mode + ' designated planning document keeps prior consent', verdict.behavior === (mode === 'default' ? 'ask' : 'allow') && !verdict.message?.includes('steers every later session'), verdict.message)
-    const denied = await decide(FileWriteTool, { file_path: path, content: 'x' }, mode, { deny: ['Edit(/' + join(project, path) + ')'] })
+    const denied = await decide(WriteTool, { file_path: path, content: 'x' }, mode, { deny: ['Edit(/' + join(project, path) + ')'] })
     check(mode + ' planning consent never beats an explicit deny', denied.behavior === 'deny', denied.message)
   }
   for (const path of ['.mercury/apollo/MERCURY.md', '.mercury/apollo/AGENTS.md', '.mercury/apollo/settings.json', '.mercury/apollo/SKILL.md', '.mercury/apollo/wards.json', '.mercury/apollo/.mercury/agents/x.md', '.mercury/apollo/linked-instruction.md']) {
-    const verdict = await decide(FileWriteTool, { file_path: path, content: 'x' }, 'apollo')
+    const verdict = await decide(WriteTool, { file_path: path, content: 'x' }, 'apollo')
     check('Apollo refuses instruction and control files inside planning tree: ' + path, verdict.behavior === 'deny', `${verdict.behavior}: ${verdict.message ?? ''}`)
   }
   writeFileSync(join(project, '.mercury/agents/helper.ts'), 'const x = 1\n')
@@ -132,24 +132,24 @@ try {
   const astSearch = await AstSearchTool.call({ path: process.env.MERCURY_CONFIG_DIR!, pattern: 'const $NAME = $VAL' }, context('sovereign', { allow: ['AstSearch'] }))
   const astOut = JSON.stringify(astSearch.data)
   check('AstSearch directory walk excludes Mercury secret files', !astOut.includes('do-not-parse-secret-fixture') && astOut.includes('visible-json'), astOut)
-  const apolloOutside = await decide(FileWriteTool, { file_path: join(outside, 'spec.md'), content: 'x' }, 'apollo')
+  const apolloOutside = await decide(WriteTool, { file_path: join(outside, 'spec.md'), content: 'x' }, 'apollo')
   check('Apollo keeps the spec-only boundary', apolloOutside.behavior === 'deny', apolloOutside.message)
   const changingLink = join(project, 'changed-link')
   symlinkSync(join(outside, 'note.txt'), changingLink)
-  const beforeLink = await decide(FileWriteTool, { file_path: changingLink, content: 'x' }, 'implement', { allow: ['Write'] })
+  const beforeLink = await decide(WriteTool, { file_path: changingLink, content: 'x' }, 'implement', { allow: ['Write'] })
   check('ordinary alias starts outside instruction gate', beforeLink.behavior === 'allow', beforeLink.message)
   unlinkSync(changingLink)
   symlinkSync(join(outside, 'AGENTS.md'), changingLink)
-  const afterLink = await decide(FileWriteTool, { file_path: changingLink, content: 'x' }, 'implement')
+  const afterLink = await decide(WriteTool, { file_path: changingLink, content: 'x' }, 'implement')
   check('retargeted link is resolved afresh', afterLink.behavior === 'ask' && afterLink.message?.includes('steers every later session'), afterLink.message)
   check('unapproved instruction bytes were never changed', readFileSync(join(outside, 'AGENTS.md'), 'utf8') === 'fixture-original\n')
   console.log('controls')
   for (const mode of modes) {
     for (const path of ['MERCURY.md.bak', 'AGENTS.markdown', 'notes.md', '.mercury-notes/config.json']) {
-      const verdict = await decide(FileWriteTool, { file_path: path, content: 'x' }, mode, { allow: ['Write'] })
+      const verdict = await decide(WriteTool, { file_path: path, content: 'x' }, mode, { allow: ['Write'] })
       check(mode + ' near-miss ordinary write unchanged', verdict.behavior === 'allow', verdict.message)
     }
-    const read = await decide(FileReadTool, { file_path: join(outside, 'AGENTS.md') }, mode, { allow: ['Read'] })
+    const read = await decide(ReadTool, { file_path: join(outside, 'AGENTS.md') }, mode, { allow: ['Read'] })
     check(mode + ' instruction reading unchanged', read.behavior === 'allow', read.message)
     const capture = await decide(RecordConventionTool, { rule: 'Run the fixture checks before committing.' }, mode)
     check(mode + ' RecordConvention permission road unchanged', capture.behavior === (mode === 'default' ? 'ask' : 'allow') && !capture.message?.includes('steers every later session'), capture.message)

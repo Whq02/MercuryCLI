@@ -21,7 +21,7 @@ import { modifiedSinceReadMessage, otherLiveSessionsClause, unreadExistingWriteM
 import { buildEditedLines } from '../edit/editResult.js'
 import { findActualString, getPatchForEdit, locateActualString, type ActualMatchOutcome } from '../edit/call/editMatching.js'
 import type { FileEditInput, FileEditOutput } from '../edit/schema.js'
-import { FILE_READ_TOOL_NAME } from '../kit/names/fileRead.js'
+import { READ_TOOL_NAME } from '../kit/names/fileRead.js'
 import {
   extractZipEntryBuffer,
   findEocdOffset,
@@ -183,7 +183,7 @@ export function sqliteRowRewindNote(previous: string | null): string {
 
 export function sqliteRowReadRefusal(target: StructuredWriteTarget, input: Record<string, unknown> | undefined, context: ToolUseContext): Refusal | null {
   if (target.kind !== 'sqlite-row') return null
-  const decision = checkReadPermissionForTool({ name: FILE_READ_TOOL_NAME, getPath: () => target.hostPath }, input, context.getAppState().toolPermissionContext)
+  const decision = checkReadPermissionForTool({ name: READ_TOOL_NAME, getPath: () => target.hostPath }, input, context.getAppState().toolPermissionContext)
   return decision.behavior === 'deny' ? { result: false, behavior: 'ask', message: decision.message, errorCode: 1 } : null
 }
 

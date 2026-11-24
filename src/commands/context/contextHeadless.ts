@@ -22,7 +22,7 @@ import { formatTokens } from '../../platform/text/format.js'
 const DEFAULT_QUERY_SOURCE: QuerySource = 'main_thread'
 
 const FREE_SPACE_CATEGORY = 'Free space'
-const AUTOCOMPACT_BUFFER_CATEGORY = 'Autocompact buffer'
+const AUTO_FOLD_BUFFER_CATEGORY = 'Autocompact buffer'
 
 function skipToolNamesFor(tools: Tools): ReadonlySet<string> {
   return new Set(
@@ -143,11 +143,11 @@ export function renderContextUsageMarkdown(data: ContextData): string {
     data.rawMaxTokens > 0 ? `${((tokens / data.rawMaxTokens) * 100).toFixed(1)}%` : '0.0%'
 
   const ordinaryCategories = data.categories.filter(
-    cat => cat.name !== FREE_SPACE_CATEGORY && cat.name !== AUTOCOMPACT_BUFFER_CATEGORY && cat.tokens > 0,
+    cat => cat.name !== FREE_SPACE_CATEGORY && cat.name !== AUTO_FOLD_BUFFER_CATEGORY && cat.tokens > 0,
   )
   const freeSpace = data.categories.find(cat => cat.name === FREE_SPACE_CATEGORY && cat.tokens > 0)
   const autocompactBuffer = data.categories.find(
-    cat => cat.name === AUTOCOMPACT_BUFFER_CATEGORY && cat.tokens > 0,
+    cat => cat.name === AUTO_FOLD_BUFFER_CATEGORY && cat.tokens > 0,
   )
 
   if (ordinaryCategories.length > 0) {

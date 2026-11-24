@@ -49,7 +49,7 @@ const { decodeOpenaiTurnRecord, loadedToolNamesOf } = await import('../../src/mo
 const { planToolPayload, clearToolRosterLatches } = await import('../../src/models/roads/toolEconomy.js')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
 const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.js')
-const { createUserMessage, createCompactBoundaryMessage } = await import('../../src/engine/messages/messages.js')
+const { createUserMessage, createFoldBoundaryMessage } = await import('../../src/engine/messages/messages.js')
 const { extractDiscoveredToolNames } = await import('../../src/engine/messages/toolSearch.js')
 const makeTool = (name: string, shouldDefer = false): Tool => ({ name, shouldDefer, prompt: async () => 'Fetch a fixture.', description: async () => 'Fetch a fixture.', inputSchema: z.object({ value: z.string() }), isEnabled: () => true, isReadOnly: () => true, isConcurrencySafe: () => true } as unknown as Tool)
 const tools = [makeTool('Read'), ToolSearchTool, makeTool('WebFetch', true), makeTool('Browser', true)] as Tool[]
@@ -81,7 +81,7 @@ try {
   assert.deepEqual(next.input.slice(0, initial.input.length), initial.input)
   assert.deepEqual(next.input.slice(initial.input.length, -1), record.items)
   assert.deepEqual([...extractDiscoveredToolNames(history)], ['WebFetch'])
-  const boundary = createCompactBoundaryMessage('manual', 2400, history.at(-1)!.uuid)
+  const boundary = createFoldBoundaryMessage('manual', 2400, history.at(-1)!.uuid)
   boundary.compactMetadata.preCompactDiscoveredTools = [...extractDiscoveredToolNames(history)].sort()
   const compacted: Message[] = JSON.parse(JSON.stringify([boundary, createUserMessage({ content: 'Synthetic compaction summary.' })]))
   assert.deepEqual([...extractDiscoveredToolNames(compacted)], ['WebFetch'])

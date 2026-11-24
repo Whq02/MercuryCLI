@@ -8,7 +8,7 @@ import {
 } from './builtInModelTable.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
-export type ModelStrings = Record<ModelKey, string>
+export type PinnedModelIds = Record<ModelKey, string>
 
 
 function readOverrides(): Record<string, string> {
@@ -28,11 +28,11 @@ function readOverrides(): Record<string, string> {
   }
 }
 
-function applyOverrides(base: ModelStrings): ModelStrings {
+function applyOverrides(base: PinnedModelIds): PinnedModelIds {
   const overrides = readOverrides()
   const entries = Object.entries(overrides)
   if (entries.length === 0) return base
-  const result: ModelStrings = { ...base }
+  const result: PinnedModelIds = { ...base }
   for (const [canonicalId, overrideId] of entries) {
     const key = CANONICAL_ID_TO_KEY[canonicalId]
     if (key !== undefined) {
@@ -51,15 +51,15 @@ export function resolveOverriddenModel(id: string): string {
 }
 
 
-function builtInStrings(): ModelStrings {
-  const strings = {} as ModelStrings
+function builtInStrings(): PinnedModelIds {
+  const strings = {} as PinnedModelIds
   for (const [key, config] of Object.entries(ALL_MODEL_CONFIGS) as Array<[ModelKey, ModelConfig]>) {
     strings[key] = config.firstParty
   }
   return strings
 }
 
-export function getModelStrings(): ModelStrings {
+export function getPinnedModelIds(): PinnedModelIds {
   let base = getModelStringsSlot()
   if (base === null) {
     base = builtInStrings()

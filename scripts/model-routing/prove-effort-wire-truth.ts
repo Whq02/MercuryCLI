@@ -82,7 +82,7 @@ const localCallModel = await import('../../src/models/roads/local/localCallModel
 const routerAnthropic = await import('../../src/models/roads/anthropic/anthropicAdapter.ts')
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.ts')
+const { anthropicCallModel } = await import('../../src/models/roads/anthropic/streamCore.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 const B = await import('../../src/models/roads/betaHeaders.ts')
@@ -225,7 +225,7 @@ section('§1b the request as sent: the effort rides output_config in the body, a
     const deadline = setTimeout(() => controller.abort(), 90_000)
     const savedNodeEnv = process.env.NODE_ENV
     delete process.env.NODE_ENV
-    const gen = queryModelWithStreaming({
+    const gen = anthropicCallModel({
       messages: [createUserMessage({ content: 'effort wire fixture prompt' })],
       systemPrompt: asSystemPrompt(['You are the effort wire fixture.']),
       thinkingConfig: { type: 'disabled' } as never,

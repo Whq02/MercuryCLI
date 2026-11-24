@@ -5,7 +5,7 @@ import { extractOutputRedirections } from '../../../platform/shell/bash/commands
 import { generateShellSuggestionsLabel } from '../shellAskParts.js'
 import type { PermissionDecisionReason, PermissionUpdate } from '../../rules/permissions.js'
 
-export type BashToolUseOption = 'yes' | 'yes-apply-suggestions' | 'yes-edited-prefix' | 'no'
+export type ShellAskOption = 'yes' | 'yes-apply-suggestions' | 'yes-edited-prefix' | 'no'
 
 function stripRedirections(command: string): string {
   const extracted = extractOutputRedirections(command)
@@ -37,7 +37,7 @@ function bashRuleCount(suggestions: PermissionUpdate[]): number {
   return count
 }
 
-export function bashToolUseOptions({
+export function shellAskOptions({
   suggestions,
   decisionReason,
   onRejectFeedbackChange,
@@ -55,8 +55,8 @@ export function bashToolUseOptions({
   noInputMode?: boolean
   editablePrefix?: string
   onEditablePrefixChange?: (prefix: string) => void
-}): OptionWithDescription<BashToolUseOption>[] {
-  const options: OptionWithDescription<BashToolUseOption>[] = [
+}): OptionWithDescription<ShellAskOption>[] {
+  const options: OptionWithDescription<ShellAskOption>[] = [
     yesInputMode
       ? {
           type: 'input',

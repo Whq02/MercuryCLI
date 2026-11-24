@@ -50,14 +50,14 @@ const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/con
 enableConfigs()
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 const { createContentReplacementState } = await import('../../src/engine/tool-dispatch/toolResultStorage.ts')
 const { contextFill, tokenCountWithEstimation } = await import('../../src/engine/context-window/contextTokenCount.ts')
-const { getBlockingLimit, getAutoCompactThreshold } = await import('../../src/engine/compaction/autoFold.ts')
+const { getBlockingLimit, getAutoFoldThreshold } = await import('../../src/engine/compaction/autoFold.ts')
 const { getContextWindowForModel } = await import('../../src/models/facts/capabilities.ts')
 const { getSdkBetas } = await import('../../src/boot/process-state/processState.ts')
 
@@ -148,7 +148,7 @@ async function drive(ctx: Record<string, unknown>, messages: unknown[]): Promise
   let terminal: Record<string, unknown> = {}
   let threw: string | undefined
   try {
-    const gen = query({
+    const gen = turnDoor({
       messages: messages as never,
       systemPrompt: ['fixture system prompt'] as never,
       userContext: {},
@@ -178,7 +178,7 @@ const bodyTokens = (body: Record<string, unknown>): number => Math.ceil(JSON.str
 
 saveGlobalConfig(c => ({ ...c, autoCompactWindow: 800_000 }))
 const BLOCKING = getBlockingLimit(MODEL)
-const THRESHOLD = getAutoCompactThreshold(MODEL)
+const THRESHOLD = getAutoFoldThreshold(MODEL)
 const WIRE_WINDOW = getContextWindowForModel(MODEL, getSdkBetas())
 const wirePromptTooLong = (actual: number): Turn => ({
   error: { status: 400, body: { type: 'error', error: { type: 'invalid_request_error', message: `prompt is too long: ${actual} tokens > ${WIRE_WINDOW} maximum` } } },

@@ -30,7 +30,7 @@ const model = `compat/parent/${f.model}`
 bootstrap.setEngineModelOverride('compat/first/Wrong/First')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
-const { query: startTurn } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor: startTurn } = await import('../../src/engine/turnDoor.ts')
 const { runAgent } = await import('../../src/tools/crewmate/runCrewmate.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { getAgentModel } = await import('../../src/models/catalogue/agentModel.ts')

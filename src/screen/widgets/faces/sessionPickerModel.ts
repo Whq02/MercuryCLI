@@ -4,7 +4,7 @@ import { conversationIdHere } from '../../../engine/connector/focusedConnector.j
 import { currentProject, subscribeCurrentProject } from '../../boot-face/bootCardFacts.js'
 import { filterResumableSessions } from '../../session-chooser/sessionResumeFilter.js'
 import type { SessionListing } from '../../../sessions/transcripts/transcriptEntries.js'
-import { getLogDisplayTitle } from '../../../platform/logs/errorLog.js'
+import { getListingDisplayTitle } from '../../../platform/logs/errorLog.js'
 import { formatRelativeTimeAgo } from '../../../platform/text/format.js'
 import { boardHomedSessionIds, readSessionWorkers } from '../../../daemon/concourse-workers/concourseWorkers.js'
 import { sanitizeLabel } from '../../concourse-model/concourseSnapshot.js'
@@ -57,9 +57,9 @@ export function rowLabel(log: SessionListing, workerTitle?: string): string {
   const workspaceId = log.projectPath || currentProject().dir
   return sanitizeLabel(
     sessionTitleOf({ title: renamed, workspaceId }, () => {
-      const prompt = getLogDisplayTitle({ ...log, agentName: undefined, customTitle: undefined, summary: undefined }, '')
+      const prompt = getListingDisplayTitle({ ...log, agentName: undefined, customTitle: undefined, summary: undefined }, '')
       if (prompt.length > 0 && prompt !== log.sessionId?.slice(0, 8)) return prompt
-      const fallback = getLogDisplayTitle({ ...log, agentName: undefined, customTitle: undefined }, '')
+      const fallback = getListingDisplayTitle({ ...log, agentName: undefined, customTitle: undefined }, '')
       return fallback.length > 0 ? fallback : null
     }),
   )
@@ -123,7 +123,7 @@ export function projectSessionPickerRows(
 
 const ENRICH_BATCH = 50
 
-function useResumableSessionLogs(opts: { enabled?: boolean } = {}): {
+function useResumableSessionListings(opts: { enabled?: boolean } = {}): {
   logs: SessionListing[] | null
   pendingMore: number
   readNotice: string | null
@@ -188,7 +188,7 @@ export function useSessionPickerModel(
   elsewhereCount: number
   dropSessions: (sessionIds: ReadonlySet<string>) => void
 } {
-  const { logs, pendingMore, readNotice, dropSessions } = useResumableSessionLogs(opts)
+  const { logs, pendingMore, readNotice, dropSessions } = useResumableSessionListings(opts)
   const projectKey = useSyncExternalStore(subscribeCurrentProject, () => currentProject().key, () => currentProject().key)
   const nowTick = useNowTick(30_000)
   const { flat, elsewhereCount } = useMemo(

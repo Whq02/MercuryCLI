@@ -14,7 +14,7 @@ delete process.env.MERCURY_CHANGE_RECEIPTS
 const { preserveUntouchedLineEndings } = await import('../../src/platform/files/file.ts')
 const { detectLineEndingsForString } = await import('../../src/platform/files/syncFileRead.ts')
 const { mintFileAnchor } = await import('../../src/tools/engines/change-transaction/snapshotAnchor.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
@@ -52,10 +52,10 @@ function primeRead(ctx: Ctx, path: string): void {
   })
 }
 async function edit(input: Record<string, unknown>, ctx: Ctx): Promise<{ ok: true } | { ok: false; error: string }> {
-  const validation = await (FileEditTool as { validateInput: Function }).validateInput(input, ctx)
+  const validation = await (EditTool as { validateInput: Function }).validateInput(input, ctx)
   if (validation.result === false) return { ok: false, error: String(validation.message) }
   try {
-    await (FileEditTool as { call: Function }).call(input, ctx, null, { uuid: '00000000-0000-0000-0000-000000000014', message: { id: 'msg_fixture' } })
+    await (EditTool as { call: Function }).call(input, ctx, null, { uuid: '00000000-0000-0000-0000-000000000014', message: { id: 'msg_fixture' } })
     return { ok: true }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) }

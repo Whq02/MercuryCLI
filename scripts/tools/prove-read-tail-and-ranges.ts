@@ -10,7 +10,7 @@ process.env.MERCURY_BARE = '1'
 delete process.env.NODE_ENV
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const { FileReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
+const { ReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
 const { getEmptyToolPermissionContext } = await import(`${SRC}/tools/kit/tool.ts`)
 const { createFileStateCacheWithSizeLimit } = await import(`${SRC}/platform/files/fileStateCache.ts`)
 
@@ -39,22 +39,22 @@ function makeContext() {
 let serial = 0
 async function runRead(input: Record<string, unknown>, ctx = makeContext()): Promise<{ ok: true; body: string; data: Record<string, unknown> } | { ok: false; error: string }> {
   try {
-    const parsed = (FileReadTool as { inputSchema: { safeParse: (v: unknown) => { success: boolean; data?: unknown; error?: unknown } } }).inputSchema.safeParse(input)
+    const parsed = (ReadTool as { inputSchema: { safeParse: (v: unknown) => { success: boolean; data?: unknown; error?: unknown } } }).inputSchema.safeParse(input)
     if (!parsed.success) {
       return { ok: false, error: `schema rejected: ${JSON.stringify(parsed.error)}` }
     }
-    const valid = await (FileReadTool as { validateInput?: Function }).validateInput?.(parsed.data, ctx)
+    const valid = await (ReadTool as { validateInput?: Function }).validateInput?.(parsed.data, ctx)
     if (valid && !valid.result) {
       return { ok: false, error: valid.message }
     }
     serial++
-    const res = await (FileReadTool as { call: Function }).call(
+    const res = await (ReadTool as { call: Function }).call(
       parsed.data,
       ctx,
       null,
       { uuid: `00000000-0000-0000-0000-${String(serial).padStart(12, '0')}`, message: { id: `msg_tr_${serial}` } },
     )
-    const block = (FileReadTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(res.data, `toolu_${serial}`)
+    const block = (ReadTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(res.data, `toolu_${serial}`)
     const text = typeof block.content === 'string' ? block.content : JSON.stringify(block.content)
     const body = text.endsWith(BLOCK) ? text.slice(0, -BLOCK.length) : text
     return { ok: true, body, data: res.data }

@@ -15,7 +15,7 @@ for (const k of [
   delete process.env[k]
 }
 
-const { queryEvents } = await import('../../src/engine/turnDoor.ts')
+const { turnDoorEvents } = await import('../../src/engine/turnDoor.ts')
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
@@ -108,7 +108,7 @@ async function runOnce(
     updateAttributionState: () => {},
     agentId: undefined,
   }
-  const gen = queryEvents({
+  const gen = turnDoorEvents({
     messages: [createUserMessage({ content: `${name}-prompt` })] as never,
     systemPrompt: ['permit rig'] as never,
     userContext: {},

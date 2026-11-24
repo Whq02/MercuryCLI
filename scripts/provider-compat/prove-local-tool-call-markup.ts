@@ -220,12 +220,12 @@ const { localLaneProfileFor } = await import('../../src/models/roads/local/local
 const { compatChatCallModel } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 type LocalModelRecord = import('../../src/models/roads/local/localDiscovery.ts').LocalModelRecord
 type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
 const ollamaRecord: LocalModelRecord = { id: 'qwen3.5:9b', server: 'ollama', baseUrl: `${root}/v1`, toolsDeclared: true, thinkingDeclared: true, family: 'qwen3', parameterSize: '9B' }
 const llamaRecord: LocalModelRecord = { id: 'glm-4.7-flash', server: 'llamacpp', baseUrl: `${root}/v1`, toolsDeclared: true, thinkingDeclared: false, family: 'glm4', parameterSize: '30B' }
-const READ = FileReadTool.name
+const READ = ReadTool.name
 
 type Settled = { toolUses: Array<{ name: string; input: unknown }>; texts: string[]; thinking: string[]; stop: string | null | undefined; notes: string[] }
 async function drive(record: LocalModelRecord, conversation: { messages?: unknown[]; tools?: unknown[] } = {}): Promise<Settled> {
@@ -234,7 +234,7 @@ async function drive(record: LocalModelRecord, conversation: { messages?: unknow
     messages: (conversation.messages ?? [createUserMessage({ content: 'read /tmp/a.ts' })]) as never,
     systemPrompt: ['fixture system prompt'] as never,
     thinkingConfig: { type: 'enabled', budget_tokens: 1024 } as never,
-    tools: (conversation.tools ?? [FileReadTool]) as never,
+    tools: (conversation.tools ?? [ReadTool]) as never,
     signal: new AbortController().signal,
     options: { getToolPermissionContext: async () => getEmptyToolPermissionContext(), model: `local/${record.id}`, isNonInteractiveSession: true, querySource: 'agent:builtin:test', agents: [], hasAppendSystemPrompt: false, mcpTools: [], effortValue: 'high' } as never,
   })) {
@@ -344,11 +344,11 @@ const doneRow = (extra: Record<string, unknown> = {}): Record<string, unknown> =
 }
 
 section('7a · the reported shape (qwen2.5-coder 3B on Ollama, tools declared, the call written as bare or fenced JSON in the content): one Write tool_use mints through the gate, exactly like the other shapes')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
-const WRITE = FileWriteTool.name
+const { WriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const WRITE = WriteTool.name
 const coderRecord: LocalModelRecord = { id: 'qwen2.5-coder:3b', server: 'ollama', baseUrl: `${root}/v1`, toolsDeclared: true, thinkingDeclared: false, family: 'qwen2', parameterSize: '3.1B' }
 const writeCall = JSON.stringify({ name: WRITE, arguments: { file_path: '/tmp/hello.py', content: 'print("Hello, world!")\n' } })
-const createAsk = { messages: [createUserMessage({ content: 'Create a file hello.py that prints a greeting.' })], tools: [FileReadTool, FileWriteTool] }
+const createAsk = { messages: [createUserMessage({ content: 'Create a file hello.py that prints a greeting.' })], tools: [ReadTool, WriteTool] }
 {
   script.ollama = [
     { model: 'qwen2.5-coder:3b', message: { role: 'assistant', content: writeCall }, done: false },
@@ -397,7 +397,7 @@ section('7b · the extractor reads the gate\'s own view: a deferred tool ADMITTE
   const { WebFetchTool } = await import('../../src/tools/web-fetch/WebFetchTool.ts')
   const { createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
   const FETCH = WebFetchTool.name
-  const pool = [ToolSearchTool, FileReadTool, WebFetchTool]
+  const pool = [ToolSearchTool, ReadTool, WebFetchTool]
   const markup = `<tool_call>\n<function=${FETCH}>\n<parameter=url>\nhttps://example.com/\n</parameter>\n<parameter=prompt>\nthe title\n</parameter>\n</function>\n</tool_call>`
   const opening = createUserMessage({ content: 'fetch https://example.com/ and tell me the title' })
   const search = createAssistantMessage({ content: [{ type: 'tool_use', id: 'toolu_ts_1', name: ToolSearchTool.name, input: { query: `select:${FETCH}` } }] as never })

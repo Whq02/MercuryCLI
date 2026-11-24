@@ -2,10 +2,10 @@
 import assert from 'node:assert/strict'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { projectTimeBasedMicrocompact } = await import('../../src/engine/compaction/pruneToolResults.ts')
+const { projectTimeBasedPrune } = await import('../../src/engine/compaction/pruneToolResults.ts')
 const { digestClearedToolResult } = await import('../../src/engine/compaction/pruneDigest.ts')
 const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
-const { getTimeBasedMCConfig } = await import('../../src/engine/compaction/timeBasedPruneConfig.ts')
+const { getTimeBasedPruneConfig } = await import('../../src/engine/compaction/timeBasedPruneConfig.ts')
 
 for (const text of [
   'body\n'.repeat(10000),
@@ -16,12 +16,12 @@ for (const text of [
 ]) {
   for (const content of [text, [{ type: 'text' as const, text }]]) {
     const messages = []
-    for (let i = 0; i <= getTimeBasedMCConfig().keepRecent; i++) {
+    for (let i = 0; i <= getTimeBasedPruneConfig().keepRecent; i++) {
       const id = `reference-${i}`
       messages.push(createAssistantMessage({ content: [{ type: 'tool_use', id, name: 'Bash', input: { command: 'synthetic' } }] as never }))
       messages.push(createUserMessage({ content: [{ type: 'tool_result', tool_use_id: id, content: i === 0 ? content : 'recent\n'.repeat(20000) }] as never }))
     }
-    const result = projectTimeBasedMicrocompact(messages, 'sdk', { pressure: true })
+    const result = projectTimeBasedPrune(messages, 'sdk', { pressure: true })
     assert.ok(result, 'projectTimeBasedMicrocompact returned null under pressure; check time-based microcompact projection')
     assert.deepEqual(result.clearedIds, ['reference-0'])
     const row = result.messages[1]!

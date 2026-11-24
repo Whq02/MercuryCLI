@@ -117,7 +117,7 @@ export function createAgentLedger(): AgentLedger {
   return { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, contextTokens: 0, costUSD: 0, unpricedTurns: 0 }
 }
 
-export function foldQueryProgressIntoTracker(tracker: ProgressTracker, event: unknown, nowMs: number = Date.now()): boolean {
+export function foldTurnProgressIntoTracker(tracker: ProgressTracker, event: unknown, nowMs: number = Date.now()): boolean {
   const next = foldAgentWaitEvent(tracker.phase, event, nowMs)
   if (next === tracker.phase) return false
   tracker.phase = next
@@ -285,7 +285,7 @@ export function publishAgentWaitFromEvent(
   event: unknown,
   setAppState: SetAppState,
 ): void {
-  if (foldQueryProgressIntoTracker(tracker, event)) updateAgentProgress(taskId, getProgressUpdate(tracker), setAppState)
+  if (foldTurnProgressIntoTracker(tracker, event)) updateAgentProgress(taskId, getProgressUpdate(tracker), setAppState)
 }
 
 
@@ -1006,7 +1006,7 @@ export function peekOperatorMessages(task: unknown): string[] {
   return isLocalAgentTask(task) ? [...(task.operatorMessages ?? [])] : []
 }
 
-export function requestAgentCompaction(taskId: string, setAppState: SetAppState): boolean {
+export function requestCrewmateFold(taskId: string, setAppState: SetAppState): boolean {
   let asked = false
   updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
     if (!isLocalAgentTask(task) || task.status !== 'running') return task

@@ -7,7 +7,7 @@ function notify(): void {
   }
 }
 
-export const compactWarningStore: {
+export const foldWarningStore: {
   subscribe: (listener: () => void) => () => void
   getSnapshot: () => boolean
 } = {
@@ -22,13 +22,13 @@ export const compactWarningStore: {
   },
 }
 
-export function suppressCompactWarning(): void {
+export function suppressFoldWarning(): void {
   if (suppressed) return
   suppressed = true
   notify()
 }
 
-export function clearCompactWarningSuppression(): void {
+export function clearFoldWarningSuppression(): void {
   if (!suppressed) return
   suppressed = false
   notify()

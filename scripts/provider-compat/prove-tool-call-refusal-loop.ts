@@ -19,7 +19,7 @@ for (const k of [
   delete process.env[k]
 }
 
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
@@ -163,7 +163,7 @@ function toolTurn(id: string, name: string, input: Record<string, unknown>): unk
 async function run(script: Step[][]): Promise<{ yields: AnyMsg[]; calls: CallRecord[]; terminal: Record<string, unknown> }> {
   const rig = makeCtx([makeTool('EchoTool')])
   const { calls, callModel } = makeModel(script)
-  const gen = query({
+  const gen = turnDoor({
     messages: [createUserMessage({ content: 'please run it' })] as never,
     systemPrompt: ['rig system prompt'] as never,
     userContext: {},

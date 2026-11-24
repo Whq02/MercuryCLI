@@ -49,7 +49,7 @@ try {
   const { isClaudeAISubscriber } = await import('../../src/models/sign-in/credentials/auth.ts')
   const { getContextWindowForModel, filterAllowedSdkBetas } = await import('../../src/models/facts/capabilities.ts')
   const { setSdkBetas } = await import('../../src/boot/process-state/processState.ts')
-  const { getAutoCompactThreshold } = await import('../../src/engine/compaction/autoFold.ts')
+  const { getAutoFoldThreshold } = await import('../../src/engine/compaction/autoFold.ts')
   const { contextFillView, contextWindowLabel } = await import('../../src/engine/context-window/contextFill.ts')
   const { getPublicModelDisplayName, getMarketingNameForModel } = await import('../../src/models/catalogue/engineModel.ts')
   subscriber = isClaudeAISubscriber()
@@ -79,7 +79,7 @@ try {
       beta: request?.headers['anthropic-beta'] ?? '',
       bearer: typeof request?.headers.authorization === 'string' && request.headers.authorization.startsWith('Bearer '),
       window: getContextWindowForModel(model),
-      fold: getAutoCompactThreshold(model),
+      fold: getAutoFoldThreshold(model),
       gauge: contextWindowLabel(view.window, view.windowSource, view.windowPinned),
       reason: view.windowReason ?? '',
       name: `${getPublicModelDisplayName(model) ?? ''} · ${getMarketingNameForModel(model) ?? ''}`,

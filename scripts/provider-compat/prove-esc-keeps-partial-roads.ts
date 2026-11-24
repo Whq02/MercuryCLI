@@ -52,7 +52,7 @@ const { localLaneProfileFor } = await import('../../src/models/roads/local/local
 const { compatCallModel } = await import('../../src/models/roads/openaicompat/compatCallModel.ts')
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.ts')
+const { anthropicCallModel } = await import('../../src/models/roads/anthropic/streamCore.ts')
 const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 import type { Message } from '../../src/engine/message-shapes/message.ts'
@@ -137,7 +137,7 @@ function anthropicRoad(signal: AbortSignal): AsyncGenerator<unknown> {
       homeSse('content_block_delta', { type: 'content_block_delta', index: 1, delta: { type: 'text_delta', text: PARTIAL } }),
     ], 'text/event-stream', init?.signal)
   }) as unknown as typeof fetch
-  return queryModelWithStreaming({
+  return anthropicCallModel({
     messages: [user('Write two paragraphs.')],
     systemPrompt: asSystemPrompt(['Only answer the request.']),
     thinkingConfig: { type: 'disabled' } as never,

@@ -44,8 +44,8 @@ async function main(): Promise<void> {
     fc.noteCtxTurnBoundary(A)
     fc.recordCtxSample(43, B)
     fc.noteCtxTurnBoundary(B)
-    const estA = fc.estimateTurnsToCompact(44, 90, A)
-    const estB = fc.estimateTurnsToCompact(43, 90, B)
+    const estA = fc.estimateTurnsToFold(44, 90, A)
+    const estB = fc.estimateTurnsToFold(43, 90, B)
     check('owner A has a real estimate from its own turns', estA !== null, `A=${estA}`, 'estimateTurnsToCompact in src/screen/cockpit-gauges/ctxForecast.ts must estimate from the turns recorded for that owner')
     check(
       'owner B honestly reads null (zero completed turns of its own)',
@@ -57,7 +57,7 @@ async function main(): Promise<void> {
     fc.noteCtxTurnBoundary(B)
     check(
       "B's growth does not change A's estimate",
-      fc.estimateTurnsToCompact(44, 90, A) === estA,
+      fc.estimateTurnsToFold(44, 90, A) === estA,
       '',
       'recordCtxSample and noteCtxTurnBoundary in src/screen/cockpit-gauges/ctxForecast.ts must keep a separate growth history per owner',
     )

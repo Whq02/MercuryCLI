@@ -37,8 +37,8 @@ const { holdWorkerAsk, answerPermissionAsk, listPendingPermissionAsks } = await 
 const { daemonDir } = await import('../../src/daemon/control/controlSocket.ts')
 const { concourseWorkersPath } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 const { AsksPart } = await import('../../src/engine/connector/daemon/asks.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { WriteTool } = await import('../../src/tools/write/WriteTool.ts')
 const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
 
 let failures = 0
@@ -66,7 +66,7 @@ function makeContext(mode: 'default' | 'implement' | 'flow' = 'default') {
     setAppState: (updater: (prev: typeof state) => typeof state) => {
       state = updater(state)
     },
-    options: { tools: [FileEditTool, FileWriteTool, BashTool], isNonInteractiveSession: false },
+    options: { tools: [EditTool, WriteTool, BashTool], isNonInteractiveSession: false },
     messages: [],
     readFileState: new Map(),
   }
@@ -110,10 +110,10 @@ try {
     const bashInput = { command: 'node -e "process.exit(0)"' }
     const outsideInput = { file_path: join(outsideDir, 'out.txt'), content: 'outside' }
 
-    const pEdit1 = canUseTool(FileEditTool as never, edit1Input, state.ctx, ASSISTANT, 'edit-1')
-    const pEdit2 = canUseTool(FileEditTool as never, edit2Input, state.ctx, ASSISTANT, 'edit-2')
+    const pEdit1 = canUseTool(EditTool as never, edit1Input, state.ctx, ASSISTANT, 'edit-1')
+    const pEdit2 = canUseTool(EditTool as never, edit2Input, state.ctx, ASSISTANT, 'edit-2')
     const pBash = canUseTool(BashTool as never, bashInput, state.ctx, ASSISTANT, 'bash-1')
-    const pOutside = canUseTool(FileWriteTool as never, outsideInput, state.ctx, ASSISTANT, 'outside-1')
+    const pOutside = canUseTool(WriteTool as never, outsideInput, state.ctx, ASSISTANT, 'outside-1')
 
     for (let i = 0; i < 100 && hostAsks.length < 4; i++) await settle(10)
     check('in-process: all four asks reached the host', hostAsks.length === 4 && asks.parkedAsks() === 4, `hostAsks=${hostAsks.length} parked=${asks.parkedAsks()}`)
@@ -255,10 +255,10 @@ try {
       },
     })
 
-    const pEdit1 = canUseTool(FileEditTool as never, { file_path: join(projectDir, 'a.txt'), old_string: 'a', new_string: 'a1' }, state.ctx, ASSISTANT, 'd-edit-1')
-    const pEdit2 = canUseTool(FileEditTool as never, { file_path: join(projectDir, 'b.txt'), old_string: 'b', new_string: 'b1' }, state.ctx, ASSISTANT, 'd-edit-2')
+    const pEdit1 = canUseTool(EditTool as never, { file_path: join(projectDir, 'a.txt'), old_string: 'a', new_string: 'a1' }, state.ctx, ASSISTANT, 'd-edit-1')
+    const pEdit2 = canUseTool(EditTool as never, { file_path: join(projectDir, 'b.txt'), old_string: 'b', new_string: 'b1' }, state.ctx, ASSISTANT, 'd-edit-2')
     const pBash = canUseTool(BashTool as never, { command: 'node -e "process.exit(0)"' }, state.ctx, ASSISTANT, 'd-bash-1')
-    const pOutside = canUseTool(FileWriteTool as never, { file_path: join(outsideDir, 'd-out.txt'), content: 'x' }, state.ctx, ASSISTANT, 'd-outside-1')
+    const pOutside = canUseTool(WriteTool as never, { file_path: join(outsideDir, 'd-out.txt'), content: 'x' }, state.ctx, ASSISTANT, 'd-outside-1')
 
     for (let i = 0; i < 100 && listPendingPermissionAsks().filter(a => a.sessionId === sessionId).length < 4; i++) await settle(10)
     asksPart.readAsks()

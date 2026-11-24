@@ -15,7 +15,7 @@ import {
   type StreamEndV1,
 } from '../../streamIdleBudget.js'
 import { patienceSeconds } from '../../patience.js'
-import type { CallState, QueryCtx, StreamPass } from './callState.js'
+import type { CallState, CallCtx, StreamPass } from './callState.js'
 type StreamWatch = {
   STREAM_IDLE_TIMEOUT_MS: number
   streamIdleWatchdog: ReturnType<typeof createStreamIdleWatchdog>
@@ -32,7 +32,7 @@ type StreamWatch = {
   ) => Generator<{ type: 'stream_event'; event: BetaRawMessageStreamEvent }, void>
 }
 
-export function watchStream(ctx: QueryCtx, call: CallState, pass: StreamPass): StreamWatch {
+export function watchStream(ctx: CallCtx, call: CallState, pass: StreamPass): StreamWatch {
   const STREAM_IDLE_TIMEOUT_MS = streamIdleTimeoutMsForRoute('anthropic')
   const STREAM_IDLE_WARNING_MS = streamIdleWarningMsOf(STREAM_IDLE_TIMEOUT_MS)
   const modelDisplayName = getPublicModelDisplayName(ctx.options.model) ?? ctx.options.model

@@ -22,11 +22,11 @@ globalThis.fetch = Object.assign(async () => { throw new Error('network is not p
 const watchdog = setTimeout(() => { console.error('Fixture exceeded 90 seconds; a scripted run never reached its end, look at closeRound in src/engine/tool-dispatch/loopGuard.ts and the turn loop in src/engine/loop/turn/afterTools.ts'); process.exit(1) }, 90_000)
 watchdog.unref?.()
 const queryModule = await import('../../src/engine/turnDoor.ts')
-const realQuery = queryModule.query
+const realQuery = queryModule.turnDoor
 let scriptedDeps: Record<string, unknown> = {}
 mock.module('../../src/engine/turnDoor.ts', () => ({
   ...queryModule,
-  query: (params: Record<string, unknown>) => realQuery({ ...params, deps: { ...(params.deps as object), ...scriptedDeps } } as never),
+  turnDoor: (params: Record<string, unknown>) => realQuery({ ...params, deps: { ...(params.deps as object), ...scriptedDeps } } as never),
 }))
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setOriginalCwd(cwd)
@@ -104,7 +104,7 @@ function context(agentId?: string): never {
     abortController: new AbortController(), agentId,
     options: { commands: [], tools, engineModel: MODEL, thinkingConfig: { type: 'enabled', budgetTokens: 4096 }, mcpClients: [], mcpResources: {}, isNonInteractiveSession: false, debug: false, verbose: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
     getAppState: () => state, setAppState: set, setAppStateForTasks: set, messages: [],
-    startTurn: queryModule.query,
+    startTurn: queryModule.turnDoor,
     readFileState: createFileStateCacheWithSizeLimit(100), setInProgressToolUseIDs() {}, setResponseLength() {}, updateFileHistoryState() {}, updateAttributionState() {},
   } as never
 }

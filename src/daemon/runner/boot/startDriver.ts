@@ -3,7 +3,7 @@ import * as printDriver from '../runnerDriver.js'
 import type { BootMade, BootStep, RunnerPorts } from '../runnerPorts.js'
 
 function run(ports: RunnerPorts): BootMade<'driver'> {
-  const driver: TurnDriver = createTurnDriver(printDriver.printDriverPorts(ports))
+  const driver: TurnDriver = createTurnDriver(printDriver.runnerDriverPorts(ports))
   return { driver }
 }
 

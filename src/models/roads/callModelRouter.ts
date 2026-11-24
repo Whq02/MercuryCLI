@@ -1,4 +1,4 @@
-import { queryModelWithStreaming } from './anthropic/index.js'
+import { anthropicCallModel } from './anthropic/index.js'
 import type { CallModelParams, CallModelStream } from './callModelContract.js'
 import { API_ERROR_MESSAGE_PREFIX } from '../../engine/requests/apiErrorRows.js'
 import { APIUserAbortError } from '../../engine/request-parts/sdkErrors.js'
@@ -93,7 +93,7 @@ async function* homeLaneCall(params: CallModelParams): CallModelStream {
     })
     return
   }
-  yield* queryModelWithStreaming(params)
+  yield* anthropicCallModel(params)
 }
 
 async function classifyAfterLiveLists(model: string): Promise<ModelRouteVerdict> {

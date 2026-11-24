@@ -10,9 +10,9 @@ import {
   NEAR_WINDOW_SHARE,
 } from '../requests/overflowSignal.js'
 import { tokenCountWithEstimation } from '../context-window/contextTokenCount.js'
-import { autoCompactDisabledReason, autoCompactWindowIsInputLimit, COMPACTION_PAUSED_KEY, compactionBreakerText, compactionSettingsText, getAutoCompactThreshold, rapidRefillPauseText, resolveAutoCompactWindow, type AutoCompactTrackingState } from './autoFold.js'
+import { autoFoldDisabledReason, autoFoldWindowIsInputLimit, FOLD_PAUSED_KEY, foldBreakerText, foldSettingsText, getAutoFoldThreshold, rapidRefillPauseText, resolveAutoFoldWindow, type AutoFoldTrackingState } from './autoFold.js'
 import { FOLD_WINDOW_REFUSAL_KEY } from './foldConversation.js'
-import { compactionBreakerAllows } from './foldPolicy.js'
+import { foldBreakerAllows } from './foldPolicy.js'
 
 export function overflowLadderArmed(querySource: string | undefined): boolean {
   return isTurnOwningQuerySource(querySource)
@@ -35,14 +35,14 @@ export type FoldAvailability =
   | { available: false; why: FoldUnavailableWhy; detail?: string }
 
 export function foldAvailability(input: {
-  tracking: AutoCompactTrackingState | undefined
+  tracking: AutoFoldTrackingState | undefined
   headFold?: 'failed' | 'did-not-land'
   headFoldDetail?: string
   hasHistory: boolean
 }): FoldAvailability {
   if (!flagEnabled('MERCURY_COMPACT')) return { available: false, why: 'compaction-off' }
   if (input.tracking?.rapidRefillPaused === true) return { available: false, why: 'breaker', detail: 'rapid-refill' }
-  if (!compactionBreakerAllows(input.tracking?.consecutiveFailures)) return { available: false, why: 'breaker' }
+  if (!foldBreakerAllows(input.tracking?.consecutiveFailures)) return { available: false, why: 'breaker' }
   if (input.headFold === 'failed') {
     return { available: false, why: 'fold-failed', ...(input.headFoldDetail !== undefined ? { detail: input.headFoldDetail } : {}) }
   }
@@ -130,12 +130,12 @@ function plainDetail(detail: string | undefined): string {
 
 export function measureOverflow(signal: OverflowSignal, messages: readonly Message[], model: string): OverflowSignal {
   if (signal.measuredTokens !== undefined && signal.measuredWindow !== undefined) return signal
-  const window = resolveAutoCompactWindow(model).window
+  const window = resolveAutoFoldWindow(model).window
   return {
     ...signal,
     measuredTokens: tokenCountWithEstimation(messages, model),
     measuredWindow: window,
-    ...(autoCompactWindowIsInputLimit(model, window) ? { measuredInputLimit: true as const } : {}),
+    ...(autoFoldWindowIsInputLimit(model, window) ? { measuredInputLimit: true as const } : {}),
   }
 }
 
@@ -143,11 +143,11 @@ const SIZE_WARNING_SHARE = NEAR_WINDOW_SHARE
 
 export function requestSizeWarning(messages: readonly Message[], model: string): string | null {
   const tokens = tokenCountWithEstimation(messages, model)
-  const window = resolveAutoCompactWindow(model).window
+  const window = resolveAutoFoldWindow(model).window
   if (!(window > 0) || tokens < Math.floor(window * SIZE_WARNING_SHARE)) return null
   const fmt = (n: number): string => n.toLocaleString('en-US')
-  const size = `about ${fmt(tokens)} of the model's ${fmt(window)}-token ${autoCompactWindowIsInputLimit(model, window) ? 'input limit' : 'window'} by Mercury's count`
-  const next = autoCompactDisabledReason() === null && tokens >= getAutoCompactThreshold(model)
+  const size = `about ${fmt(tokens)} of the model's ${fmt(window)}-token ${autoFoldWindowIsInputLimit(model, window) ? 'input limit' : 'window'} by Mercury's count`
+  const next = autoFoldDisabledReason() === null && tokens >= getAutoFoldThreshold(model)
     ? 'Mercury folds it before the next request'
     : '/compact folds it by hand'
   return `the request failed and this conversation is near the window (${size}) — a request this size can be refused; ${next}`
@@ -198,10 +198,10 @@ export function overflowRefusalText(
       case 'compaction-off':
         return 'compaction is disabled (MERCURY_COMPACT=0), so nothing could fold.'
       case 'breaker':
-        return opts.detail === 'rapid-refill' ? rapidRefillPauseText({ nonInteractive: opts.nonInteractive }) : compactionBreakerText({ nonInteractive: opts.nonInteractive })
+        return opts.detail === 'rapid-refill' ? rapidRefillPauseText({ nonInteractive: opts.nonInteractive }) : foldBreakerText({ nonInteractive: opts.nonInteractive })
       case 'fold-failed': {
         const detail = plainDetail(opts.detail)
-        if (detail.startsWith(COMPACTION_PAUSED_KEY)) return detail
+        if (detail.startsWith(FOLD_PAUSED_KEY)) return detail
         if (detail.startsWith(FOLD_WINDOW_REFUSAL_KEY)) return `${detail}${byHand}`
         return `the fold failed${detail !== '' ? ` (${detail})` : ''}. The conversation is kept whole; nothing moved.${byHand}`
       }
@@ -211,8 +211,8 @@ export function overflowRefusalText(
         return 'this message alone is larger than the window — shorten or split it.'
     }
   })()
-  const off = autoCompactDisabledReason()
-  const settings = off !== null && why !== 'compaction-off' ? ` ${compactionSettingsText()}.` : ''
+  const off = autoFoldDisabledReason()
+  const settings = off !== null && why !== 'compaction-off' ? ` ${foldSettingsText()}.` : ''
   return `${PROMPT_TOO_LONG_ERROR_MESSAGE} — ${refusedBy}: ${tried}${settings} ${remedy}`
 }
 

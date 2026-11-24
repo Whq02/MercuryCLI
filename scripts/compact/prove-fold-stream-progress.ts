@@ -27,7 +27,7 @@ const fixture = await startOverflowFixture({ stream(request, res) {
 Object.assign(process.env, fixture.env)
 const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { compactConversation, withFoldStatus, setFoldBoundsForTests } = await import('../../src/engine/compaction/foldConversation.ts')
+const { foldConversation, withFoldStatus, setFoldBoundsForTests } = await import('../../src/engine/compaction/foldConversation.ts')
 const { foldRowWords } = await import('../../src/engine/compaction/foldStatus.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
@@ -56,7 +56,7 @@ let result: any
 let failure: unknown
 let pending: Promise<void> | undefined
 try {
-  pending = withFoldStatus(context, scoped => compactConversation(messages, scoped, cache as never, false), { trigger: 'manual', sessionMemory: false, microcompaction: false }).then(value => { result = value }, error => { failure = error })
+  pending = withFoldStatus(context, scoped => foldConversation(messages, scoped, cache as never, false), { trigger: 'manual', sessionMemory: false, microcompaction: false }).then(value => { result = value }, error => { failure = error })
   assert.ok(await waitFor(() => response !== undefined && fold?.stage === 'summarising', 10000), `compaction did not reach summarising stage within 10000ms (hasResponse=${response !== undefined}, stage=${fold?.stage}); check withFoldStatus/compactConversation`)
   assert.ok(await waitFor(() => mounted.screen().includes('compacting context') && !mounted.screen().includes('↓'), 3000), mounted.screen())
   assert.ok(await waitFor(() => /compacting context[^\n]*[1-4]s/.test(mounted.screen()), 3000), 'the compaction row clock must advance before a token arrives')
@@ -86,7 +86,7 @@ try {
   result = undefined
   process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS = '1000'
   process.env.MERCURY_SILENT_AFTER_HEADERS_MS = '1000'
-  pending = withFoldStatus(context, scoped => compactConversation(messages, scoped, cache as never, false), { trigger: 'manual', sessionMemory: false, microcompaction: false }).then(value => { result = value }, error => { failure = error })
+  pending = withFoldStatus(context, scoped => foldConversation(messages, scoped, cache as never, false), { trigger: 'manual', sessionMemory: false, microcompaction: false }).then(value => { result = value }, error => { failure = error })
   await pending
   assert.equal(result, undefined)
   assert.match(String(failure), /stream.*(?:idle|stalled)|idle.*(?:budget|timeout)|summary call stalled and was stopped/i)

@@ -25,7 +25,7 @@ import type { UUID } from 'node:crypto'
 import type { CanUseToolFn } from '../../kit/tool.js'
 import { checkIntroducedParseError } from '../../write/parseCheck.js'
 import { callStructuredEditTarget, parseStructuredWriteTarget } from '../../write/structuredTargets.js'
-import { FILE_EDIT_TOOL_NAME } from '../../kit/names/fileEdit.js'
+import { EDIT_TOOL_NAME } from '../../kit/names/fileEdit.js'
 import { modifiedSinceReadMessage } from '../otherSession.js'
 import type { FileEditInput } from '../schema.js'
 import { findActualString, getPatchForEdit, preserveQuoteStyleForFile } from './editMatching.js'
@@ -61,7 +61,7 @@ export async function editFileCall(input: FileEditInput, context: ToolUseContext
     far === null
       ? null
       : await far.remoteWriteTarget(
-          FILE_EDIT_TOOL_NAME,
+          EDIT_TOOL_NAME,
           input.file_path,
           context,
           typeof canUseTool === 'function' && parentMessage !== undefined

@@ -72,7 +72,7 @@ const textsOf = (m: unknown): string[] => blocksOf(m).filter(b => b.type === 'te
 
 section('§1 the time-based clearing projection strips from the first cleared message')
 {
-  const { projectTimeBasedMicrocompact } = await import('../../src/engine/compaction/pruneToolResults.ts')
+  const { projectTimeBasedPrune } = await import('../../src/engine/compaction/pruneToolResults.ts')
   const OLD = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()
   const big = 'x'.repeat(44_000)
   const ids = Array.from({ length: 12 }, (_, index) => `bash_${index + 1}`)
@@ -82,7 +82,7 @@ section('§1 the time-based clearing projection strips from the first cleared me
     user(ids.map(id => ({ type: 'tool_result', tool_use_id: id, content: big })), OLD),
     assistant([THINK('all seven ran'), TEXT('done')], OLD),
   ]
-  const projected = projectTimeBasedMicrocompact(history as never, 'main_thread_prompt')
+  const projected = projectTimeBasedPrune(history as never, 'main_thread_prompt')
   check('the clearing pass armed for the fixture', projected !== null, 'projection returned null with MERCURY_TIME_BASED_MC=1; projectTimeBasedMicrocompact in src/engine/compaction/pruneToolResults.ts must arm for six-hour-old tool results')
   if (projected !== null) {
     check('two results cleared (seven compactable, keep the recent five)', projected.cleared === 2, `${String(projected.cleared)}; projectTimeBasedMicrocompact in src/engine/compaction/pruneToolResults.ts must clear all but the recent five compactable results`)
@@ -96,7 +96,7 @@ section('§1 the time-based clearing projection strips from the first cleared me
   }
 }
 
-const { compactConversation, partialCompactConversation } = await import('../../src/engine/compaction/foldConversation.ts')
+const { foldConversation, partialFoldConversation } = await import('../../src/engine/compaction/foldConversation.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 function makeContext(): Record<string, unknown> {
@@ -149,7 +149,7 @@ section('§2 full compaction — the verbatim tail carries no thinking behind th
   let result: Record<string, unknown> | undefined
   let error: Error | undefined
   try {
-    result = (await compactConversation(history as never, makeContext() as never, CACHE_SAFE, true)) as never
+    result = (await foldConversation(history as never, makeContext() as never, CACHE_SAFE, true)) as never
   } catch (e) {
     error = e as Error
   } finally {
@@ -179,8 +179,8 @@ section("§3 partial compaction — 'to' strips its re-homed rounds, 'from' keep
   let from: Record<string, unknown> | undefined
   let error: Error | undefined
   try {
-    to = (await partialCompactConversation(history as never, 6, makeContext() as never, CACHE_SAFE, undefined, 'to')) as never
-    from = (await partialCompactConversation(history as never, 12, makeContext() as never, CACHE_SAFE, undefined, 'from')) as never
+    to = (await partialFoldConversation(history as never, 6, makeContext() as never, CACHE_SAFE, undefined, 'to')) as never
+    from = (await partialFoldConversation(history as never, 12, makeContext() as never, CACHE_SAFE, undefined, 'from')) as never
   } catch (e) {
     error = e as Error
   } finally {

@@ -20,7 +20,7 @@ const { loadWhisperAddon } = await import('../../src/integrations/voice/whisperP
 const { extractMediaTranscript, mediaFileFormat } = await import('../../src/integrations/voice/fileTranscript.ts')
 const { transcribeWav, unloadLocalModels } = await import('../../src/integrations/voice/transcribe.ts')
 const { readWav } = await import('../../src/integrations/voice/wav.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 try {
@@ -47,9 +47,9 @@ try {
     assert.equal(await extractMediaTranscript(source, 'wav', signal, cpu), text)
     assert.equal(decodes, 1)
     const context = { options: { engineModel: 'glm-5.3' }, readFileState: createFileStateCacheWithSizeLimit(100), abortController: new AbortController(), messages: [], getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) }
-    const read = await FileReadTool.call({ file_path: source, offset: 2, limit: 1 }, context as never)
+    const read = await ReadTool.call({ file_path: source, offset: 2, limit: 1 }, context as never)
     assert.equal(read.data.type, 'text')
-    assert.match(String(FileReadTool.mapToolResultToToolResultBlockParam(read.data, 'real-media').content), /^2\t\[00:00:0[0-2]\]/)
+    assert.match(String(ReadTool.mapToolResultToToolResultBlockParam(read.data, 'real-media').content), /^2\t\[00:00:0[0-2]\]/)
     console.log(`PASS real CPU Whisper (${Date.now() - started} ms): ${text.replace(/\n/g, ' | ')}`)
     const probe = spawnSync('ffmpeg', ['-version'], { encoding: 'utf8', windowsHide: true })
     if ((probe.error as NodeJS.ErrnoException | undefined)?.code === 'ENOENT') {

@@ -23,7 +23,7 @@ for (const k of [
   delete process.env[k]
 }
 
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 bootstrap.setSessionKind('oculus')
@@ -160,7 +160,7 @@ async function runReplies(replies: string[], agentId?: string, channel?: 'text' 
     const turn = channel === 'thinking' ? [createAssistantMessage({ content: [{ type: 'thinking', thinking: text, signature: 'fixture-signature' }] })] : text.endsWith(CAPPED) ? cappedTurn(text.slice(0, -CAPPED.length)) : text.endsWith(REFUSED) ? refusedTurn(text.slice(0, -REFUSED.length)) : textTurn(text)
     for (const m of turn) yield m as never
   }
-  const gen = query({
+  const gen = turnDoor({
     messages: [createUserMessage({ content: 'please write the thing' })] as never,
     systemPrompt: ['rig system prompt'] as never,
     userContext: {},

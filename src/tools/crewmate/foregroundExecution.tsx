@@ -56,7 +56,7 @@ import { getTaskOutputPath } from '../../engine/task-framework/diskOutput.js'
 import { getAssistantMessageContentLength } from '../../engine/context-window/contextTokenCount.js'
 import { BASH_TOOL_NAME } from '../kit/names/bash.js'
 import { BackgroundHint } from '../shell/rows.js'
-import { FILE_READ_TOOL_NAME } from '../kit/names/fileRead.js'
+import { READ_TOOL_NAME } from '../kit/names/fileRead.js'
 import { noteOverloadDeath, overloadDeathNotifies, overloadNoticeWords } from '../../engine/tasks/local-agent/agentOverload.js'
 import {
   deriveAgentTerminalOutcome,
@@ -329,7 +329,7 @@ export async function runForegroundAgentExecution(
             )
             const canReadOutputFile = toolUseContext.options.tools.some(
               tool =>
-                toolMatchesName(tool, FILE_READ_TOOL_NAME) ||
+                toolMatchesName(tool, READ_TOOL_NAME) ||
                 toolMatchesName(tool, BASH_TOOL_NAME),
             )
             return asyncLaunchedAnswer({

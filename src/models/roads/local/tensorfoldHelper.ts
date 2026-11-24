@@ -285,7 +285,7 @@ export function helperModelId(opts: { start?: boolean } = {}): string | undefine
   return twins > 1 ? `${LOCAL_MODEL_PREFIX}${serving.server}/${serving.id}` : `${LOCAL_MODEL_PREFIX}${serving.id}`
 }
 
-export function helperCompactionModelId(): string | undefined {
+export function helperFoldModelId(): string | undefined {
   return readHelperModelSetting().compaction ? helperModelId({ start: false }) : undefined
 }
 

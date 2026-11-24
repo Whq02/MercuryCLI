@@ -48,7 +48,7 @@ enableConfigs()
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
-const { queryWithModel, queryUtility } = await import('../../src/models/roads/anthropic/streamCore.ts')
+const { callWithModel, callUtilityModel } = await import('../../src/models/roads/anthropic/streamCore.ts')
 const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
@@ -96,7 +96,7 @@ section('§2 a side question (queryWithModel: no tools, no thinking) carries no 
 {
   const from = fixture.captured.length
   fixture.script(() => ({ text: 'the side answer' }))
-  const reply = await queryWithModel({
+  const reply = await callWithModel({
     systemPrompt: asSystemPrompt(['read the page']),
     userPrompt: 'what does the page say?',
     signal: new AbortController().signal,
@@ -115,7 +115,7 @@ section('§3 a utility call rides the same road on the main seat\'s model, pinne
   process.env.MERCURY_MODEL = MODEL
   const from = fixture.captured.length
   fixture.script(() => ({ text: 'the utility answer' }))
-  const reply = await queryUtility({
+  const reply = await callUtilityModel({
     systemPrompt: asSystemPrompt(['read the page']),
     userPrompt: 'what does the page say?',
     signal: new AbortController().signal,

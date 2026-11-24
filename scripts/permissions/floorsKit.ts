@@ -81,9 +81,9 @@ const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermis
 const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 const { daemonStatePath } = await import('../../src/daemon/control/controlSocket.ts')
 const { servicesDir } = await import('../../src/tools/engines/project-services/serviceManager.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { WriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
 const { EvalTool } = await import('../../src/tools/eval/EvalTool.ts')
 const { MonitorTool } = await import('../../src/tools/monitor/MonitorTool.ts')
 const { ServiceTool } = await import('../../src/tools/service/ServiceTool.ts')
@@ -112,7 +112,7 @@ const bash = {
   inputSchema: z.object({ command: z.string(), cwd: z.string().optional() }),
   checkPermissions: (input: { command: string; cwd?: string }, context: { getAppState: () => { toolPermissionContext: unknown } }) => bashToolHasPermission(input, context.getAppState().toolPermissionContext as never),
 } as never
-const TOOLS: Record<string, unknown> = { Bash: bash, Read: FileReadTool, Write: FileWriteTool, Edit: FileEditTool, Eval: EvalTool, Monitor: MonitorTool, Service: ServiceTool, Journey: JourneyTool, Debug: DebugTool }
+const TOOLS: Record<string, unknown> = { Bash: bash, Read: ReadTool, Write: WriteTool, Edit: EditTool, Eval: EvalTool, Monitor: MonitorTool, Service: ServiceTool, Journey: JourneyTool, Debug: DebugTool }
 
 export async function decide(tool: string, input: Record<string, unknown>, mode: string, rules: Rules = {}): Promise<Decision> {
   const state = {

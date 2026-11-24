@@ -6,7 +6,7 @@ pinSourceRef()
 const home = pinScratchHome('task-recency-expiry')
 const tasksModule = await import('../../src/engine/task-framework/tasks.js')
 mock.module('../../src/engine/task-framework/tasks.js', () => ({ ...tasksModule, isTaskToolsEnabled: () => true }))
-const { TaskListV2 } = await import('../../src/screen/tasks/TaskList.js')
+const { TaskList } = await import('../../src/screen/tasks/TaskList.js')
 const { Box } = await import('../../src/screen/themedRenderer.js')
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
@@ -35,7 +35,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
   if (!ok) failures++
 }
-type Task = React.ComponentProps<typeof TaskListV2>['tasks'][number]
+type Task = React.ComponentProps<typeof TaskList>['tasks'][number]
 let rows: Task[] = [
   { id: '1', status: 'pending', subject: 'pending one' },
   { id: '2', status: 'pending', subject: 'pending two' },
@@ -43,7 +43,7 @@ let rows: Task[] = [
   { id: '4', status: 'pending', subject: 'first completion' },
   { id: '5', status: 'pending', subject: 'second completion' },
 ]
-const element = () => <ThemeProvider><TerminalSizeContext.Provider value={{ columns: 80, rows: 17 }}><Box width={80} height={17} flexDirection="column"><TaskListV2 tasks={rows} /></Box></TerminalSizeContext.Provider></ThemeProvider>
+const element = () => <ThemeProvider><TerminalSizeContext.Provider value={{ columns: 80, rows: 17 }}><Box width={80} height={17} flexDirection="column"><TaskList tasks={rows} /></Box></TerminalSizeContext.Provider></ThemeProvider>
 const view = await mountOffscreen(element(), 80, 17)
 const elapse = async (ms: number): Promise<void> => {
   now += ms

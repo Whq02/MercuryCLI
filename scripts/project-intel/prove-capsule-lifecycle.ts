@@ -152,7 +152,7 @@ async function main(): Promise<void> {
   const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.js')
   const { getAttachments } = await import('../../src/engine/attachments/turnAttachments.js')
   const { createUserMessage } = await import('../../src/engine/message-shapes/factories.js')
-  const { FileReadTool } = await import('../../src/tools/read/ReadTool.js')
+  const { ReadTool } = await import('../../src/tools/read/ReadTool.js')
   const state = bootstrap as unknown as { setProjectRoot?: (p: string) => void; setCwdState?: (p: string) => void; setSessionTrustAccepted?: (v: boolean) => void }
   state.setProjectRoot?.(dir)
   state.setCwdState?.(dir)
@@ -160,7 +160,7 @@ async function main(): Promise<void> {
   const orchestratorContext = (): never => {
     let appState = getDefaultAppState()
     return {
-      options: { commands: [], tools: [FileReadTool], engineModel: 'claude-fable-5-1', mcpClients: [], mcpResources: {}, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [], allAgents: [] } },
+      options: { commands: [], tools: [ReadTool], engineModel: 'claude-fable-5-1', mcpClients: [], mcpResources: {}, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [], allAgents: [] } },
       getAppState: () => appState,
       setAppState: (fn: (s: typeof appState) => typeof appState) => { appState = fn(appState) },
       abortController: new AbortController(),

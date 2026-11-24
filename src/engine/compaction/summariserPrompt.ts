@@ -1,4 +1,4 @@
-import type { CompactMetadata } from '../message-shapes/message.js'
+import type { FoldMetadata } from '../message-shapes/message.js'
 import { otherToolsLine, type TurnReceiptCounts } from '../../screen/cockpit/turnReceipt.js'
 import { shellDirectoryLeftByCd } from '../../platform/files/cwd.js'
 import { historyPartDir } from '../../sessions/transcripts/historyParts.js'
@@ -91,7 +91,7 @@ function withCustomInstructions(body: string, customInstructions: string | undef
   return `${body}\n\n## Additional instructions\n${instructions}`
 }
 
-export function getCompactPrompt(
+export function getFoldPrompt(
   customInstructions?: string,
   opts?: { runCapsulePresent?: boolean },
 ): string {
@@ -116,7 +116,7 @@ ${OUTPUT_EXAMPLE}
 
 ${EXTRA_INSTRUCTIONS_NOTE}`
 
-export function getPartialCompactPrompt(
+export function getPartialFoldPrompt(
   customInstructions?: string,
   direction: 'from' | 'up_to' = 'from',
 ): string {
@@ -143,7 +143,7 @@ function cleanedSummary(summary: string): string {
   return framed.replace(/\n{3,}/g, '\n\n').trim()
 }
 
-export function getCompactUserSummaryMessage(
+export function getFoldUserSummaryMessage(
   summary: string,
   suppressFollowUpQuestions?: boolean,
   transcriptPath?: string,
@@ -182,7 +182,7 @@ function receiptWords(c: TurnReceiptCounts): string {
   return parts.join(' · ')
 }
 
-export function renderFoldedWork(work: CompactMetadata['work'] | undefined): string | null {
+export function renderFoldedWork(work: FoldMetadata['work'] | undefined): string | null {
   if (work === undefined) return null
   const { recap, receipts } = work
   const tools = [...recap.toolCounts].filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))

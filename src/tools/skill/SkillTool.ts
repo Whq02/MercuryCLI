@@ -32,7 +32,7 @@ import { recordSkillUsage } from '../../screen/suggestions/skillUsage.js'
 import { createAgentId } from '../../platform/primitives/uuid.js'
 import { runAgent } from '../crewmate/runCrewmate.js'
 import { evaluateLaunchAuthority } from '../../daemon/switchboard/launchAuthority.js'
-import { FILE_READ_TOOL_NAME } from '../kit/names/fileRead.js'
+import { READ_TOOL_NAME } from '../kit/names/fileRead.js'
 import { GLOB_TOOL_NAME } from '../glob/prompt.js'
 import { GREP_TOOL_NAME } from '../grep/prompt.js'
 import { getToolUseIDFromParentMessage, tagMessagesWithToolUseID } from '../kit/toolUseIds.js'
@@ -81,7 +81,7 @@ export type Output = z.infer<OutputSchema>
 
 
 export const READ_ONLY_SKILL_TOOLS: ReadonlySet<string> = new Set([
-  FILE_READ_TOOL_NAME,
+  READ_TOOL_NAME,
   GREP_TOOL_NAME,
   GLOB_TOOL_NAME,
 ])

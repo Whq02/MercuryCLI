@@ -1,11 +1,11 @@
 import type { ToolUseContext } from '../../../tools/kit/tool.js'
 import type { NonNullableUsage } from '../../request-parts/emptyUsage.js'
-import type { Message, PartialCompactDirection, UserMessage } from '../../message-shapes/message.js'
+import type { Message, PartialFoldDirection, UserMessage } from '../../message-shapes/message.js'
 import type { UUID } from 'node:crypto'
 import { createAttachmentMessage } from '../../attachments/turnAttachments.js'
 import type { CacheSafeParams } from '../../../crew/agents/forkedAgent.js'
 import { hookRowsOfResult } from '../../../integrations/event-hooks/rows.js'
-import { createCompactBoundaryMessage, createUserMessage, isCompactBoundaryMessage } from '../../messages/messages.js'
+import { createFoldBoundaryMessage, createUserMessage, isFoldBoundaryMessage } from '../../messages/messages.js'
 import { reAppendSessionMetadata } from '../../../sessions/transcripts/sessionListings.js'
 import { getTranscriptPath } from '../../../sessions/transcripts/paths.js'
 import { tokenCountWithEstimation } from '../../context-window/contextTokenCount.js'
@@ -16,32 +16,32 @@ import { getContextEpoch } from '../../run/contextEpochs.js'
 import { buildFoldLedger, renderFoldLedger, withKeptLedgerRows } from '../foldLedger.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../../run-owner/resolveOwner.js'
 import { estimateContextTokens } from '../pruneToolResults.js'
-import { getCompactUserSummaryMessage, getPartialCompactPrompt, renderFoldedWork } from '../summariserPrompt.js'
+import { getFoldUserSummaryMessage, getPartialFoldPrompt, renderFoldedWork } from '../summariserPrompt.js'
 import { selectOperatorMessages } from '../../compaction-window/operatorMessages.js'
 import { prepareFoldContext } from '../foldTransaction.js'
 import { carryFoldPrefix } from '../cacheEpoch.js'
 import { restoreBoundPrefixFromMessages } from '../../../models/roads/anthropic/boundPrefixRecord.js'
 import { stripThinkingFromIndex } from '../../messages/apiFilters.js'
-import { type CompactionResult, foldDefersNow, buildPostCompactMessages, annotateBoundaryWithPreservedSegment, foldedWorkOf, annotateBoundaryWithWork } from './foldResult.js'
+import { type FoldResult, foldDefersNow, buildPostFoldMessages, annotateBoundaryWithPreservedSegment, foldedWorkOf, annotateBoundaryWithWork } from './foldResult.js'
 import { boundedHookInstructions } from './summariserInput.js'
 import { snapshotAndClearReadState, assembleAttachments } from './foldAttachments.js'
 import { validateSummary } from './summaryCheck.js'
 import { summarizeWithPtlRetry } from './ladder.js'
-import { compactionBeforeHooks, compactionAfterHooks } from './hooks.js'
-import { notifyCompactionError, restoreAfterCompaction } from './foldStatusAndRestore.js'
+import { foldBeforeHooks, foldAfterHooks } from './hooks.js'
+import { notifyFoldError, restoreAfterFold } from './foldStatusAndRestore.js'
 
 function isProgressMessage(message: Message): boolean {
   return message.type === 'progress'
 }
 
-export async function partialCompactConversation(
+export async function partialFoldConversation(
   allMessages: Message[],
   pivotIndex: number,
   context: ToolUseContext,
   cacheSafeParams: CacheSafeParams,
   userFeedback?: string,
-  direction: PartialCompactDirection = 'from',
-): Promise<CompactionResult> {
+  direction: PartialFoldDirection = 'from',
+): Promise<FoldResult> {
   const transaction = prepareFoldContext(context)
   context = transaction.context
   const isFrom = direction === 'from'
@@ -54,7 +54,7 @@ export async function partialCompactConversation(
           .filter(
             message =>
               !isProgressMessage(message) &&
-              !isCompactBoundaryMessage(message) &&
+              !isFoldBoundaryMessage(message) &&
               !(message.type === 'user' && message.isCompactSummary === true),
           ),
         0,
@@ -73,7 +73,7 @@ export async function partialCompactConversation(
 
   try {
     context.setSDKStatus?.('compacting')
-    const beforeHooks = await compactionBeforeHooks(context, {
+    const beforeHooks = await foldBeforeHooks(context, {
       trigger: 'manual',
       ...(feedbackOrUndefined !== undefined ? { instructions: feedbackOrUndefined } : {}),
       tokens: preCompactTokenCount,
@@ -91,7 +91,7 @@ export async function partialCompactConversation(
     context.setResponseLength?.(() => 0)
     context.onCompactProgress?.({ type: 'compact_start' })
 
-    const promptText = getPartialCompactPrompt(combinedInstructions, direction)
+    const promptText = getPartialFoldPrompt(combinedInstructions, direction)
     const response = await summarizeWithPtlRetry(
       isFrom ? allMessages : summarize,
       cacheSafeParams,
@@ -118,7 +118,7 @@ export async function partialCompactConversation(
       anchorUuid = lastNonProgress?.uuid
     }
 
-    const boundaryMarker = createCompactBoundaryMessage(
+    const boundaryMarker = createFoldBoundaryMessage(
       'manual',
       preCompactTokenCount,
       anchorUuid,
@@ -138,7 +138,7 @@ export async function partialCompactConversation(
     const workText = renderFoldedWork(foldedWorkOf(allMessages, kept, boundaryMarker.uuid))
     const summaryBody = workText !== null ? `${rawSummary}\n\n${workText}` : rawSummary
     const formattedSummary =
-      getCompactUserSummaryMessage(summaryBody, false, getTranscriptPath(), false) +
+      getFoldUserSummaryMessage(summaryBody, false, getTranscriptPath(), false) +
       `\n\n${renderFoldLedger(ledger)}`
 
     const summaryMessage: UserMessage = createUserMessage({
@@ -192,7 +192,7 @@ export async function partialCompactConversation(
         compactionUsage.output_tokens
       : 0
 
-    const partialResult: CompactionResult = {
+    const partialResult: FoldResult = {
       boundaryMarker,
       ...(operatorMessages !== undefined ? { operatorMessages } : {}),
       summaryMessages: [summaryMessage],
@@ -206,7 +206,7 @@ export async function partialCompactConversation(
 
     const carried = carryFoldPrefix(
       allMessages,
-      buildPostCompactMessages(partialResult),
+      buildPostFoldMessages(partialResult),
       rosterOwnerFromToolUseContext(context),
       context.options.engineModel,
       rawUsage,
@@ -219,7 +219,7 @@ export async function partialCompactConversation(
     }
 
     const truePostCompactTokenCount = estimateContextTokens(
-      buildPostCompactMessages(partialResult),
+      buildPostFoldMessages(partialResult),
       context.options.engineModel,
     )
     if (context.abortController.signal.aborted) {
@@ -227,7 +227,7 @@ export async function partialCompactConversation(
     }
 
     boundaryMarker.compactMetadata.postTokens = truePostCompactTokenCount
-    const afterHookRows = await compactionAfterHooks(context, {
+    const afterHookRows = await foldAfterHooks(context, {
       method: 'summary',
       trigger: 'manual',
       tokensBefore: preCompactTokenCount,
@@ -241,17 +241,17 @@ export async function partialCompactConversation(
     await releaseLspDocumentsForContext('compact_partial')
     transaction.commit()
 
-    const finalResult: CompactionResult = {
+    const finalResult: FoldResult = {
       ...partialResult,
       hookResults: [...beforeHookRows, ...afterHookRows],
       truePostCompactTokenCount,
     }
-    restoreBoundPrefixFromMessages(buildPostCompactMessages(finalResult), { fold: true })
+    restoreBoundPrefixFromMessages(buildPostFoldMessages(finalResult), { fold: true })
     return finalResult
   } catch (err) {
-    notifyCompactionError(context, err)
+    notifyFoldError(context, err)
     throw err
   } finally {
-    restoreAfterCompaction(context)
+    restoreAfterFold(context)
   }
 }

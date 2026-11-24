@@ -16,7 +16,7 @@ const { Box } = await import('../../src/screen/themedRenderer.js')
 const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
 const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
-const { MessageSelector } = await import('../../src/screen/rewind-picker/RewindPicker.tsx')
+const { RewindPicker } = await import('../../src/screen/rewind-picker/RewindPicker.tsx')
 const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
 const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.ts')
 const { createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
@@ -57,8 +57,8 @@ try {
   let hiddenClosed = 0
   let ownerRestored = 0
   const duplicate = <AppStateProvider><ThemeProvider><KeybindingSetup><Box width={80} height={24} flexDirection="column">
-    <MessageSelector messages={[first, next]} preselectedMessage={first} onPreRestore={() => {}} onClose={() => { ownerClosed++ }} onSummarize={() => {}} onRestore={async () => { ownerRestored++; return { outcome: 'applied', mode: 'conversation' } }} />
-    <MessageSelector messages={[first, next]} preselectedMessage={first} onPreRestore={() => {}} onClose={() => { hiddenClosed++ }} onSummarize={() => {}} onRestore={async () => ({ outcome: 'applied', mode: 'conversation' })} />
+    <RewindPicker messages={[first, next]} preselectedMessage={first} onPreRestore={() => {}} onClose={() => { ownerClosed++ }} onSummarize={() => {}} onRestore={async () => { ownerRestored++; return { outcome: 'applied', mode: 'conversation' } }} />
+    <RewindPicker messages={[first, next]} preselectedMessage={first} onPreRestore={() => {}} onClose={() => { hiddenClosed++ }} onSummarize={() => {}} onRestore={async () => ({ outcome: 'applied', mode: 'conversation' })} />
   </Box></KeybindingSetup></ThemeProvider></AppStateProvider>
   const duplicated = await mountOffscreen(duplicate, 80, 24, { mouseTracking: true })
   try {
@@ -72,7 +72,7 @@ try {
   for (const [cols, rows] of [[80, 24], [120, 40]] as const) {
     let closed = false
     const element = <AppStateProvider><ThemeProvider><KeybindingSetup><Box width={cols} height={rows} flexDirection="column">
-      <MessageSelector messages={[first, next]} onPreRestore={() => {}} onClose={() => { closed = true }} onSummarize={() => {}}
+      <RewindPicker messages={[first, next]} onPreRestore={() => {}} onClose={() => { closed = true }} onSummarize={() => {}}
         onRestore={(message, mode, files) => connector.rewind({ userMessageId: message?.uuid ?? files?.userMessageId ?? '', mode, ...files })} />
     </Box></KeybindingSetup></ThemeProvider></AppStateProvider>
     const mounted = await mountOffscreen(element, cols, rows, { mouseTracking: true })
@@ -87,7 +87,7 @@ try {
 
     closed = false
     const confirm = <AppStateProvider><ThemeProvider><KeybindingSetup><Box width={cols} height={rows} flexDirection="column">
-      <MessageSelector messages={[first, next]} preselectedMessage={first} onPreRestore={() => {}} onClose={() => { closed = true }} onSummarize={() => {}}
+      <RewindPicker messages={[first, next]} preselectedMessage={first} onPreRestore={() => {}} onClose={() => { closed = true }} onSummarize={() => {}}
         onRestore={(message, mode, files) => connector.rewind({ userMessageId: message?.uuid ?? files?.userMessageId ?? '', mode, ...files })} />
     </Box></KeybindingSetup></ThemeProvider></AppStateProvider>
     const picker = await mountOffscreen(confirm, cols, rows, { mouseTracking: true })

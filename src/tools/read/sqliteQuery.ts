@@ -15,8 +15,8 @@ async function remoteWal(request: ReadQueryRequest, source: string, file: string
   const { remoteStat } = await import('../../platform/remote-files/ops.js')
   const target = parseRemotePath(`${source}-wal`)
   if (target === null) return
-  const { FileReadTool } = await import('./ReadTool.js')
-  const valid = await FileReadTool.validateInput!({ file_path: `${source}-wal` }, request.context)
+  const { ReadTool } = await import('./ReadTool.js')
+  const valid = await ReadTool.validateInput!({ file_path: `${source}-wal` }, request.context)
   if (!valid.result) throw new Error(valid.message)
   if (await remoteStat(target, request.context.abortController.signal) === null) return
   await withReadViewSource(request, `${source}-wal`, async wal => { await copyFile(wal, `${file}-wal`) }, true)

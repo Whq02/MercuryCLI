@@ -75,13 +75,13 @@ if (!process.argv.includes('--child')) {
     const throwing = { ...GitTool, name: 'Bash', inputSchema: z.strictObject({ command: z.string() }), checkPermissions: async (input: { command: string }) => { input.command.trim(); throw new Error('unreachable invalid control') } }
     const invalid = await decideToolPermission(throwing as never, { command: null }, context)
     check('invalid input whose verdict also throws retains the existing degraded trace', invalid.decision.behavior === 'ask' && invalid.trace.stages.some(stage => stage.note === 'resolution failed — degraded to passthrough'), JSON.stringify(invalid))
-    const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+    const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
     const edit = { file_path: join(world.root, 'locked/one.txt'), old_string: 'ours', new_string: 'different' }
     const editContext = { ...context as object, getAppState: () => ({ toolPermissionContext: { ...permission, alwaysDenyRules: { session: ['Edit(locked/**)'] } }, sessionHooks: new Map(), tasks: {} }) } as never
     await runWithCwdOverride(world.root, async () => {
-      const parsed = FileEditTool.inputSchema.parse(edit)
-      const old = await FileEditTool.checkPermissions(parsed, editContext)
-      const current = (await decideToolPermission(FileEditTool as never, edit, editContext)).decision
+      const parsed = EditTool.inputSchema.parse(edit)
+      const old = await EditTool.checkPermissions(parsed, editContext)
+      const current = (await decideToolPermission(EditTool as never, edit, editContext)).decision
       check('ordinary FileEdit defaulted input keeps the same deny verdict and sentence', current.behavior === 'deny' && old.behavior === 'deny' && current.message === old.message, JSON.stringify(current))
     })
   } finally { world.dispose() }

@@ -128,14 +128,14 @@ const { localRecordFor } = await import('../../src/models/roads/local/localCatal
 const { localCallModel } = await import('../../src/models/roads/local/localCallModel.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const { setEngineModelOverride } = await import('../../src/boot/process-state/processState.ts')
 const { runCleanupFunctions } = await import('../../src/platform/processes/cleanupRegistry.ts')
 const { lastTensorFoldTurn, __resetTensorFoldUsageForTest } = await import('../../src/models/roads/local/tensorfoldUsage.ts')
 const { __resetNextTurnPrefillForTest } = await import('../../src/models/roads/local/tensorfoldPrefill.ts')
 type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
 type Block = { type: string; id?: string; name?: string; text?: string; input?: Row }
-const READ = FileReadTool.name
+const READ = ReadTool.name
 
 async function ask(messages: unknown[]): Promise<{ minted: AssistantMessage[]; errors: string[] }> {
   const minted: AssistantMessage[] = []
@@ -144,7 +144,7 @@ async function ask(messages: unknown[]): Promise<{ minted: AssistantMessage[]; e
     messages: messages as never,
     systemPrompt: ['You are a careful assistant in a terminal. A file is read before it is described.'] as never,
     thinkingConfig: { type: 'enabled', budget_tokens: 1024 } as never,
-    tools: [FileReadTool] as never,
+    tools: [ReadTool] as never,
     signal: new AbortController().signal,
     options: { getToolPermissionContext: async () => getEmptyToolPermissionContext(), model: `local/${MODEL}`, isNonInteractiveSession: true, querySource: 'sdk', agents: [], hasAppendSystemPrompt: false, mcpTools: [], effortValue: 'high' } as never,
   })) {

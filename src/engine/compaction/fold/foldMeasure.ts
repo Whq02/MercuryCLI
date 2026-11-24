@@ -5,15 +5,15 @@ import { stripThinkingFromIndex } from '../../messages/apiFilters.js'
 import { estimateRequestGauge, readRequestGauge } from '../../run/requestGauge.js'
 import { renderFoldLedger, type FoldLedger } from '../foldLedger.js'
 import { estimateContextTokens } from '../pruneToolResults.js'
-import { getCompactUserSummaryMessage } from '../summariserPrompt.js'
-import { buildPostCompactMessages, type CompactionResult } from './foldResult.js'
+import { getFoldUserSummaryMessage } from '../summariserPrompt.js'
+import { buildPostFoldMessages, type FoldResult } from './foldResult.js'
 
 type FoldMeter = {
   gauge: ReturnType<typeof readRequestGauge>
   context: number
   before: number
   count: (rows: Message[]) => number
-  measureResult: (result: CompactionResult) => number
+  measureResult: (result: FoldResult) => number
   after: (landed: number) => { tokens: number; estimate: number }
 }
 
@@ -31,7 +31,7 @@ export function createFoldMeter(
       ? estimateRequestGauge(request, gauge.fixed, gauge.density, model)
       : estimateContextTokens(request, model)
   }
-  const measureResult = (result: CompactionResult): number => count(buildPostCompactMessages(result))
+  const measureResult = (result: FoldResult): number => count(buildPostFoldMessages(result))
   return { gauge, context, count, measureResult, ...foldSizes(messages, model, context, count) }
 }
 
@@ -77,7 +77,7 @@ export function composeFoldSummaryText(parts: {
     .filter((part): part is string => part !== null)
     .join('\n\n')
   return (
-    getCompactUserSummaryMessage(
+    getFoldUserSummaryMessage(
       body,
       parts.suppressFollowUpQuestions,
       getTranscriptPath(),

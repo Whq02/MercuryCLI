@@ -42,7 +42,7 @@ import {
   parseUserSpecifiedModelRaw,
   renderModelName,
 } from './engineModel.js'
-import { getModelStrings } from '../facts/pinnedModelIds.js'
+import { getPinnedModelIds } from '../facts/pinnedModelIds.js'
 import { CANONICAL_ID_TO_KEY, DECLARED_GENERATION_STEMS, familyDefaultsModel, mirrorTwinOf, parseFirstPartyGeneration, previousGenerationKeys } from '../facts/builtInModelTable.js'
 import { isModelAllowed } from './modelAllowlist.js'
 import { isClaudeAISubscriber, isMaxSubscriber, isCrewPremiumSubscriber } from '../sign-in/credentials/auth.js'
@@ -206,7 +206,7 @@ function getFableOption(): ModelOption {
 }
 
 function previousGenerationFableRows(): ModelOption[] {
-  const strings = getModelStrings()
+  const strings = getPinnedModelIds()
   return previousGenerationKeys('fable').map(key => literalRow(strings[key], ''))
 }
 
@@ -216,7 +216,7 @@ function getOpusFrontierFallbackOption(): ModelOption {
 
 function previousGenerationLargeRows(): ModelOption[] {
   const rows: ModelOption[] = []
-  const strings = getModelStrings()
+  const strings = getPinnedModelIds()
   const currentLarge = normalizeModelStringForAPI(parseUserSpecifiedModelRaw('opus'))
   for (const key of previousGenerationKeys('opus')) {
     const id = strings[key]
@@ -228,7 +228,7 @@ function previousGenerationLargeRows(): ModelOption[] {
 
 function previousGenerationMidRows(): ModelOption[] {
   const rows: ModelOption[] = []
-  const strings = getModelStrings()
+  const strings = getPinnedModelIds()
   const currentMid = normalizeModelStringForAPI(parseUserSpecifiedModelRaw('sonnet'))
   for (const key of previousGenerationKeys('sonnet')) {
     const id = strings[key]
@@ -239,7 +239,7 @@ function previousGenerationMidRows(): ModelOption[] {
 }
 
 function previousGenerationSmallRows(): ModelOption[] {
-  const strings = getModelStrings()
+  const strings = getPinnedModelIds()
   const currentSmall = normalizeModelStringForAPI(parseUserSpecifiedModelRaw('haiku'))
   return previousGenerationKeys('haiku')
     .map(key => strings[key])

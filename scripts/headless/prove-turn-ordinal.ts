@@ -1,6 +1,6 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { printDriverPorts } from '../../src/daemon/runner/runnerDriver.ts'
+import { runnerDriverPorts } from '../../src/daemon/runner/runnerDriver.ts'
 import { createRunnerState } from '../../src/daemon/runner/runnerPorts.ts'
 import { createTurnDriver } from '../../src/daemon/runner/turnDriver.ts'
 import { outcomeRow, turnStartedRow } from '../../src/engine/rows/project.ts'
@@ -22,7 +22,7 @@ const state = {
   },
   turnId: '',
 }
-const onCycleError = printDriverPorts({ live } as never).onCycleError
+const onCycleError = runnerDriverPorts({ live } as never).onCycleError
 const queue = ['first', 'second', 'third'].map((value, index) => ({ value, mode: 'bash', uuid: `prompt-${index + 1}` }))
 const rows: Array<Record<string, any>> = []
 const shutdowns: number[] = []

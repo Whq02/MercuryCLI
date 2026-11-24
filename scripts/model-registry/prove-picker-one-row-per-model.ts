@@ -69,7 +69,7 @@ const {
 type ModelOption = import('../../src/models/catalogue/modelOptions.ts').ModelOption
 const { parseUserSpecifiedModel, renderModelName } = await import('../../src/models/catalogue/engineModel.ts')
 const { getContextWindowForModel } = await import('../../src/models/facts/capabilities.ts')
-const { getModelStrings } = await import('../../src/models/facts/pinnedModelIds.ts')
+const { getPinnedModelIds } = await import('../../src/models/facts/pinnedModelIds.ts')
 const { getAgentModelPickerRows } = await import('../../src/models/catalogue/agentModelPicker.ts')
 const { composeSubModelRegistry } = await import('../../src/models/catalogue/subModelSlots.ts')
 const { isClaudeAISubscriber, isMaxSubscriber } = await import('../../src/models/sign-in/credentials/auth.ts')
@@ -97,7 +97,7 @@ const modelRows = (options: ModelOption[]): ModelOption[] =>
 const anthropicRows = (options: ModelOption[]): ModelOption[] =>
   modelRows(options).filter(o => o.group === undefined || o.group === ANTHROPIC_MODEL_GROUP)
 const resolvedIdOf = (value: string): string => stripContext1m(parseUserSpecifiedModel(stripContext1m(value)))
-const strings = getModelStrings()
+const strings = getPinnedModelIds()
 const PREVIOUS_OPUS_GENERATIONS = ['opus48', 'opus47', 'opus46'] as const
 const SWITCHED_GENERATIONS = ['opus46', 'sonnet46'] as const
 const OWN_1M_GENERATIONS = ['opus48', 'opus47'] as const

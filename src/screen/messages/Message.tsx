@@ -16,9 +16,9 @@ import { AssistantThinkingMessage } from './AssistantThinkingMessage.js'
 import { AssistantToolUseMessage } from './AssistantToolUseMessage.js'
 import { AttachmentMessage } from './AttachmentMessage.js'
 import { CollapsedReadSearchContent } from './CollapsedReadSearchContent.js'
-import { CompactBoundaryMessage } from './CompactBoundaryMessage.js'
+import { FoldBoundaryMessage } from './CompactBoundaryMessage.js'
 import { CrewChatRow } from './CrewChatRow.js'
-import { CompactSummary } from './FoldSummary.js'
+import { FoldSummary } from './FoldSummary.js'
 import { ExpandShellOutputProvider } from '../shell-output/ExpandShellOutputContext.js'
 import { GroupedToolUseContent } from './GroupedToolUseContent.js'
 import { MessageMetaProvider, ReplyAddress, replyAddressLine } from './TranscriptNameplate.js'
@@ -87,7 +87,7 @@ function renderSystemBody(
       landingRow && landingRow.type === 'assistant' && landingRow.foldLanding
         ? landingRow.foldLanding.usage
         : undefined
-    return <CompactBoundaryMessage message={message} landing={landing} />
+    return <FoldBoundaryMessage message={message} landing={landing} />
   }
   if (message.subtype === 'microcompact_boundary') {
     return null
@@ -200,7 +200,7 @@ function renderUserBody(
 ): React.ReactNode {
   if (message.isCompactSummary) {
     return (
-      <CompactSummary
+      <FoldSummary
         message={message}
         screen={props.isTranscriptMode ? 'transcript' : 'prompt'}
       />

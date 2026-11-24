@@ -171,7 +171,7 @@ const config = await import(join(ROOT, 'src/platform/settings/config.ts'))
 const advisor = await import(join(ROOT, 'src/models/advisor/index.ts'))
 const rows = await import(join(ROOT, 'src/engine/message-shapes/noticeRows.ts'))
 const text = await import(join(ROOT, 'src/engine/message-shapes/text.ts'))
-const { query } = await import(join(ROOT, 'src/engine/turnDoor.ts'))
+const { turnDoor } = await import(join(ROOT, 'src/engine/turnDoor.ts'))
 const { productionDeps } = await import(join(ROOT, 'src/engine/turn-entry/turnLoopDeps.ts'))
 const { getDefaultAppState } = await import(join(ROOT, 'src/screen/app-state/AppStateStore.ts'))
 const { createUserMessage } = await import(join(ROOT, 'src/engine/messages/messages.ts'))
@@ -240,7 +240,7 @@ function makeCtx(agentId?: string): Raw {
       appState = f(appState as never) as unknown as Raw
     },
     messages: [],
-    startTurn: query,
+    startTurn: turnDoor,
     readFileState: createFileStateCacheWithSizeLimit(100),
     setInProgressToolUseIDs: () => {},
     setResponseLength: () => {},
@@ -311,7 +311,7 @@ async function mainTurn(prompt: string, messages: AnyMsg[]): Promise<{ yields: A
   const landed = collected.filter(a => a.type === 'queued_command' && rows.isAdvisorOrigin(a.origin)).map(a => createAttachmentMessage(a as never) as unknown as AnyMsg)
   messages.push(...landed)
   const yields: AnyMsg[] = []
-  const gen = query({
+  const gen = turnDoor({
     messages: messages as never,
     systemPrompt: ['fixture system prompt'] as never,
     userContext: {},

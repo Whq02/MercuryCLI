@@ -13,7 +13,7 @@ process.env.MERCURY_BARE = '1'
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 const fixture = localFixture(join(root, 'whisper'), 'The lighthouse guides seven ships.')
 Object.assign(process.env, fixture.env)
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 const { mediaFileFormat, mediaDecoderMissing, extractMediaTranscript } = await import('../../src/integrations/voice/fileTranscript.ts')
@@ -21,11 +21,11 @@ const { getToolResultsDir } = await import('../../src/engine/tool-dispatch/toolR
 const { localDecodesInFlight } = await import('../../src/integrations/voice/transcribe.ts')
 const context = { options: { engineModel: 'glm-5.3' }, readFileState: createFileStateCacheWithSizeLimit(100), abortController: new AbortController(), messages: [], getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) }
 async function read(input: object) {
-  const valid = await FileReadTool.validateInput(input as never, context as never)
+  const valid = await ReadTool.validateInput(input as never, context as never)
   assert.equal(valid.result, true, 'message' in valid ? valid.message : '')
-  const result = await FileReadTool.call(input as never, context as never, undefined, { uuid: crypto.randomUUID() } as never)
+  const result = await ReadTool.call(input as never, context as never, undefined, { uuid: crypto.randomUUID() } as never)
   assert.equal(result.data.type, 'text')
-  const block = FileReadTool.mapToolResultToToolResultBlockParam(result.data, 'read-media')
+  const block = ReadTool.mapToolResultToToolResultBlockParam(result.data, 'read-media')
   return { data: result.data as Extract<typeof result.data, { type: 'text' }>, text: String(block.content) }
 }
 const originalPath = process.env.PATH

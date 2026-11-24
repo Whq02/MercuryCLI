@@ -72,12 +72,12 @@ try {
   const MODEL = 'claude-opus-4-8'
   const STEP_USD = 0.01
   const NOTE_USD = 0.02
-  const realQueryEvents = (await import('../../src/engine/turnDoor.ts')).queryEvents
+  const realQueryEvents = (await import('../../src/engine/turnDoor.ts')).turnDoorEvents
   const realQuery = { ...(await import('../../src/engine/turnDoor.ts')) }
   let scripted: Record<string, unknown> | null = null
   mock.module('../../src/engine/turnDoor.ts', () => ({
     ...realQuery,
-    queryEvents: async function* (given: Record<string, unknown>): AsyncGenerator<unknown, unknown> {
+    turnDoorEvents: async function* (given: Record<string, unknown>): AsyncGenerator<unknown, unknown> {
       return yield* realQueryEvents((scripted === null ? given : { ...given, deps: scripted }) as never)
     },
   }))
@@ -96,7 +96,7 @@ try {
     },
   }))
   const { Conversation } = await import('../../src/engine/rows/turn.ts')
-  const { printDriverPorts } = await import('../../src/daemon/runner/runnerDriver.ts')
+  const { runnerDriverPorts } = await import('../../src/daemon/runner/runnerDriver.ts')
   const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
   const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
   state.setIsInteractive(false)
@@ -157,7 +157,7 @@ try {
   state.setRunInputClosed(true)
   saveCacheSafeParams(params)
   const closing = { io: { outbound: { enqueue: (row: Row) => { after.push(row) } } }, isConcourseWorker: false, liveScope: () => ({ session_id: String(state.getSessionId()), turn: 1 }) }
-  await printDriverPorts(closing as never).beforeCloseOutput?.()
+  await runnerDriverPorts(closing as never).beforeCloseOutput?.()
   const afterSpent = { usd: state.getTotalCostUSD() - afterAt.usd, tokens: state.getTotalInputTokens() - afterAt.tokens }
 
   assert.deepEqual([inside.map(row => row.type), after.map(row => row.type)], [['close', 'outcome'], ['outcome', 'close']], 'the note is written inside the turn the input closed in, before its outcome, and after the last outcome when the input closes after a turn')

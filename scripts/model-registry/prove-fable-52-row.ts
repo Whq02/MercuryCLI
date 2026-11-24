@@ -175,14 +175,14 @@ section("§3 the row: the fable family's newest generation, its class, its picke
 section('§4 the wire laws the vendor states for the row: thinking always on, no forced tool choice, the disabled road omits the parameter, foreign thinking leaves the wire both ways', 'fix the wire laws in src/models/facts/capabilities.ts (modelThinkingAlwaysOn, modelSupportsForcedToolChoice, foldToolChoiceForModel), src/engine/requests/sideRequest.ts (sideQueryThinkingParam), src/models/roads/anthropic/thinkingDisplay.ts or src/models/roads/anthropic/thinkingBinding.ts')
 {
   const caps = await import('../../src/models/facts/capabilities.ts')
-  const { sideQueryThinkingParam } = await import('../../src/engine/requests/sideRequest.ts')
+  const { sideRequestThinkingParam } = await import('../../src/engine/requests/sideRequest.ts')
   const { describeInputTransformations, isSameModel, modelSwitchReceipt } = await import('../../src/models/roads/anthropic/thinkingBinding.ts')
   const { stripThinkingFromOtherModels, thinkingFromOtherModels } = await import('../../src/engine/messages/apiFilters.ts')
   const show = (v: unknown): string => JSON.stringify(v)
 
   check('thinking is always on for the row, its [1m] twin and its mirror; a carrier row never joins', caps.modelThinkingAlwaysOn(ID) && caps.modelThinkingAlwaysOn(`${ID}[1m]`) && caps.modelThinkingAlwaysOn(MIRROR) && !caps.modelThinkingAlwaysOn(CARRIER))
-  check('a side query with thinking off sends NO thinking parameter to the row (never the disabled shape the wire refuses)', sideQueryThinkingParam(ID, false, 4096) === undefined)
-  check('a side query with a budget rides adaptive on the row (no budget on the wire)', show(sideQueryThinkingParam(ID, 2048, 4096)) === show({ type: 'adaptive' }) && sideQueryThinkingParam(ID, undefined, 4096) === undefined)
+  check('a side query with thinking off sends NO thinking parameter to the row (never the disabled shape the wire refuses)', sideRequestThinkingParam(ID, false, 4096) === undefined)
+  check('a side query with a budget rides adaptive on the row (no budget on the wire)', show(sideRequestThinkingParam(ID, 2048, 4096)) === show({ type: 'adaptive' }) && sideRequestThinkingParam(ID, undefined, 4096) === undefined)
   check('forced tool choice is refused on the row, its twin and its mirror; Fable 5 and a carrier row keep it', !caps.modelSupportsForcedToolChoice(ID) && !caps.modelSupportsForcedToolChoice(`${ID}[1m]`) && !caps.modelSupportsForcedToolChoice(MIRROR) && caps.modelSupportsForcedToolChoice(OLDEST) && caps.modelSupportsForcedToolChoice(CARRIER))
   const forcedTool = { type: 'tool', name: 'classify_result' }
   const forcedAny = { type: 'any' }

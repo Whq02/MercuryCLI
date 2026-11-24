@@ -62,7 +62,7 @@ export async function isSessionMemoryEmpty(content: string): Promise<boolean> {
   return content.trim() === template.trim()
 }
 
-export function truncateSessionMemoryForCompact(content: string): {
+export function truncateSessionMemoryForFold(content: string): {
   truncatedContent: string
   wasTruncated: boolean
 } {

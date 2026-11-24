@@ -45,7 +45,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 
-const { FileReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
+const { ReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
 const { InspectTool } = await import(`${SRC}/tools/inspect/InspectTool.ts`)
 const { getEmptyToolPermissionContext } = await import(`${SRC}/tools/kit/tool.ts`)
 const { decideToolPermission } = await import(`${SRC}/permissions/rules/decision/engine.ts`)
@@ -87,8 +87,8 @@ const RULES: Array<[string, string]> = [
   ['absolute', `Read(//${project.replace(/^\/+/, '')}/secret/**)`],
 ]
 const DOORS: Array<[string, (path: string) => { tool: unknown; input: Record<string, unknown> }]> = [
-  ['Read by the path', path => ({ tool: FileReadTool, input: { file_path: path } })],
-  ['Read by the reference', path => ({ tool: FileReadTool, input: { file_path: `mercury://file/${path}` } })],
+  ['Read by the path', path => ({ tool: ReadTool, input: { file_path: path } })],
+  ['Read by the reference', path => ({ tool: ReadTool, input: { file_path: `mercury://file/${path}` } })],
   ['Inspect', path => ({ tool: InspectTool, input: { ref: `mercury://file/${path}` } })],
 ]
 const MODES = ['default', 'implement', 'sovereign']
@@ -102,7 +102,7 @@ for (const [target, path] of TARGETS) {
   for (const [, rule] of RULES) {
     for (const mode of MODES) {
       const permission = rules('alwaysDenyRules', [rule], mode)
-      const plain = await answer(FileReadTool, { file_path: path }, permission)
+      const plain = await answer(ReadTool, { file_path: path }, permission)
       for (const [spelling, spell] of SPELLINGS) {
         for (const [door, through] of DOORS) {
           cells++

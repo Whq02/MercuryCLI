@@ -29,12 +29,12 @@ setCwdState(projectDir)
 
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { getFilePermissionOptions } = await import('../../src/permissions/cards/file-dialog/permissionOptions.tsx')
-const { bashToolUseOptions } = await import('../../src/permissions/cards/bash/shellAskOptions.tsx')
-const { powershellToolUseOptions } = await import('../../src/permissions/cards/powershell/powershellAskOptions.tsx')
+const { shellAskOptions } = await import('../../src/permissions/cards/bash/shellAskOptions.tsx')
+const { powershellAskOptions } = await import('../../src/permissions/cards/powershell/powershellAskOptions.tsx')
 const { FileWritePermissionRequest } = await import('../../src/permissions/cards/file-write/FileWritePermissionRequest.tsx')
 const { ComputerPermissionRequest } = await import('../../src/permissions/cards/computer/ComputerPermissionRequest.tsx')
 const { BashPermissionRequest } = await import('../../src/permissions/cards/bash/ShellPermissionRequest.tsx')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { WriteTool } = await import('../../src/tools/write/WriteTool.ts')
 const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
 const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
 const { AsksPart } = await import('../../src/engine/connector/daemon/asks.ts')
@@ -204,7 +204,7 @@ try {
   const renderedFlowCard = await drawCard(
     React.createElement(FileWritePermissionRequest as never, {
       toolUseConfirm: {
-        tool: FileWriteTool,
+        tool: WriteTool,
         input: { file_path: mercuryMd, content: '# flow probe\n' },
         toolUseID: 'flow-mercury',
         description: 'Write MERCURY.md',
@@ -240,7 +240,7 @@ try {
     JSON.stringify(numbered),
   )
 
-  const emptyBashRules = bashToolUseOptions({
+  const emptyBashRules = shellAskOptions({
     suggestions: [{ type: 'addRules', rules: [], behavior: 'allow', destination: 'localSettings' }],
     onAcceptFeedbackChange() {},
     onRejectFeedbackChange() {},
@@ -253,7 +253,7 @@ try {
     JSON.stringify(emptyBashRules.map(o => o.value)),
   )
 
-  const blankBashRule = bashToolUseOptions({
+  const blankBashRule = shellAskOptions({
     suggestions: [{ type: 'addRules', rules: [{ toolName: 'Bash', ruleContent: '   ' }], behavior: 'allow', destination: 'localSettings' }],
     onAcceptFeedbackChange() {},
     onRejectFeedbackChange() {},
@@ -266,7 +266,7 @@ try {
     JSON.stringify(blankBashRule.map(o => o.value)),
   )
 
-  const emptyPsRules = powershellToolUseOptions({
+  const emptyPsRules = powershellAskOptions({
     suggestions: [{ type: 'addRules', rules: [], behavior: 'allow', destination: 'localSettings' }],
     onAcceptFeedbackChange() {},
     onRejectFeedbackChange() {},
@@ -279,7 +279,7 @@ try {
     JSON.stringify(emptyPsRules.map(o => o.value)),
   )
 
-  const validBashRules = bashToolUseOptions({
+  const validBashRules = shellAskOptions({
     suggestions: [{ type: 'addRules', rules: [{ toolName: 'Bash', ruleContent: 'git push *' }], behavior: 'allow', destination: 'localSettings' }],
     onAcceptFeedbackChange() {},
     onRejectFeedbackChange() {},
@@ -431,7 +431,7 @@ try {
   const fileCrewFrame = await drawCard(
     React.createElement(FileWritePermissionRequest as never, {
       toolUseConfirm: {
-        tool: FileWriteTool,
+        tool: WriteTool,
         input: { file_path: outsideFile, content: 'x\n' },
         toolUseID: 'file-crew',
         description: 'Write file',
@@ -465,7 +465,7 @@ try {
       abortController: new AbortController(),
       getAppState: () => flowState,
       setAppState() {},
-      options: { tools: [BashTool, FileWriteTool] },
+      options: { tools: [BashTool, WriteTool] },
       messages: [],
     } as never
     const flowAssistant = { message: { id: 'flow-item6' } } as never

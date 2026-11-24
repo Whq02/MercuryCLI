@@ -53,7 +53,7 @@ const { checkReadPermissionForTool } = filesystem
 const isProjectEnvFileName: (path: string) => boolean = filesystem.isProjectEnvFileName ?? (() => false)
 const envFileTargetsInGlob: (glob: string) => string[] = filesystem.envFileTargetsInGlob ?? (() => [])
 const { decideToolPermission } = await import('../../src/permissions/rules/decision/engine.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
 const { GlobTool } = await import('../../src/tools/glob/GlobTool.ts')
 const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
@@ -99,7 +99,7 @@ const isEnvAsk = (decision: Decision): boolean =>
   (decision.message ?? '').includes(ENV_WORDS)
 
 const readVerdict = (path: string, mode: Mode = 'default', rules: Rules = {}): Decision =>
-  checkReadPermissionForTool(FileReadTool as never, { file_path: path }, permissionOf(mode, rules) as never) as unknown as Decision
+  checkReadPermissionForTool(ReadTool as never, { file_path: path }, permissionOf(mode, rules) as never) as unknown as Decision
 
 section('§0 the name law: .env and .env.* are the row; the templates, .envrc and look-alikes are not')
 {
@@ -180,14 +180,14 @@ section('§3 the engine: default and implement ask at the safety road; sovereign
     decideToolPermission(tool as never, input, contextOf(mode, rules)) as unknown as Promise<Outcome>
   const input = { file_path: join(PROJ, '.env') }
   for (const mode of ['default', 'implement'] as Mode[]) {
-    const out = await decide(FileReadTool, input, mode)
+    const out = await decide(ReadTool, input, mode)
     check(`${mode}: the engine asks at safetyCheckAsk`, out.decision.behavior === 'ask' && out.trace.decidedBy === 'safetyCheckAsk' && isEnvAsk(out.decision), j(out))
   }
-  const under = await decide(FileReadTool, input, 'sovereign')
+  const under = await decide(ReadTool, input, 'sovereign')
   check('sovereign: allowed at the safety road, the stood-down ask named in the reason (never a card)', under.decision.behavior === 'allow' && under.trace.decidedBy === 'safetyCheckAsk' && under.decision.decisionReason?.type === 'bypassedAsk' && under.decision.decisionReason.road === 'safetyCheckAsk', j(under))
-  const deniedUnder = await decide(FileReadTool, input, 'sovereign', { deny: ['Read(.env)'] })
+  const deniedUnder = await decide(ReadTool, input, 'sovereign', { deny: ['Read(.env)'] })
   check('sovereign + deny rule: refused (a refusal is not a card)', deniedUnder.decision.behavior === 'deny' && deniedUnder.trace.decidedBy === 'toolVerdictDeny', j(deniedUnder))
-  const control = await decide(FileReadTool, { file_path: join(PROJ, 'notes.txt') }, 'default')
+  const control = await decide(ReadTool, { file_path: join(PROJ, 'notes.txt') }, 'default')
   check('control: an ordinary read is allowed by the mode as before', control.decision.behavior === 'allow' && control.trace.decidedBy === 'resolution', j(control))
   const globList = await decide(GlobTool, { pattern: '.env*', path: PROJ }, 'default')
   check('Glob listing .env names is not a read of them (allowed as before)', globList.decision.behavior === 'allow', j(globList))

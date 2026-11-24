@@ -19,9 +19,9 @@ for (const name of ['MERCURY_HOME', 'MERCURY_SKIP_PERMISSIONS', 'MERCURY_WARDS']
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.chdir(project)
 
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { WriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
 const { GlobTool } = await import('../../src/tools/glob/GlobTool.ts')
 const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
@@ -43,7 +43,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   const orderHint = 'change decideToolPermission in src/permissions/rules/decision/engine.ts or the tool validateInput and call under src/tools/ (FileReadTool, FileWriteTool, FileEditTool, GlobTool, GrepTool) so the decision and refusal come before any ssh start; the ssh start itself is in src/platform/remote-files/'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail.slice(0, 700)} | ` : ''}${orderHint}` : ''}`)
 }
-const tools = [FileReadTool, FileWriteTool, FileEditTool, GlobTool, GrepTool]
+const tools = [ReadTool, WriteTool, EditTool, GlobTool, GrepTool]
 const family = (name: string): string => name === 'Write' || name === 'Edit' ? 'Edit' : 'Read'
 const inputOf = (name: string, path: string): Record<string, unknown> => {
   if (name === 'Write') return { file_path: path, content: 'written\n' }

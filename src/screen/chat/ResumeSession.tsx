@@ -139,7 +139,7 @@ function LoadConversationsFailed({ error }: { error: string }): React.ReactNode 
   )
 }
 
-export function ResumeConversation({
+export function ResumeSession({
   commands,
   worktreePaths,
   worktreeReadError,

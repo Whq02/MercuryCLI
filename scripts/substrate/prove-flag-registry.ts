@@ -172,7 +172,7 @@ const OFF_RULE_READERS: Array<[env: string, file: string, reader: string]> = [
   ['MERCURY_CTX_FORECAST', 'screen/cockpit-gauges/ctxForecast.ts', 'ctxForecastEnabled'],
   ['MERCURY_RUNTIME_POSTURE', 'screen/cockpit/runtimePosture.ts', 'runtimePostureEnabled'],
   ['MERCURY_LSP', 'integrations/lsp/mercuryLsp.ts', 'mercuryLspEnabled'],
-  ['MERCURY_MC_DIGEST', 'engine/compaction/pruneDigest.ts', 'isMicroCompactDigestEnabled'],
+  ['MERCURY_MC_DIGEST', 'engine/compaction/pruneDigest.ts', 'isPruneDigestEnabled'],
   ['MERCURY_RESUME_SNAPSHOT', 'sessions/transcripts/resumeSnapshot.ts', 'resumeSnapshotEnabled'],
   ['MERCURY_SPAWN_LEDGER', 'daemon/roster/spawnLedger.ts', 'isSpawnLedgerEnabled'],
   ['MERCURY_SPAWN_AUDIT', 'daemon/roster/spawnLedger.ts', 'isSpawnAuditEnabled'],

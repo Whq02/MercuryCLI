@@ -2,13 +2,13 @@ import { Box, Text } from '../themedRenderer.js';
 import { useShortcutDisplay } from '../keys/useShortcutDisplay.js';
 import { overflowWhoClause } from '../../engine/requests/overflowSignal.js';
 import { foldReceipt, foldReceiptWords } from '../../engine/compaction/foldReceipt.js';
-import type { CompactMetadata } from '../../engine/message-shapes/message.js';
+import type { FoldMetadata } from '../../engine/message-shapes/message.js';
 
-export function CompactBoundaryMessage({
+export function FoldBoundaryMessage({
   message,
   landing,
 }: {
-  message?: { compactMetadata?: Partial<CompactMetadata> };
+  message?: { compactMetadata?: Partial<FoldMetadata> };
   landing?: { input: number } | null;
 }) {
   const historyShortcut = useShortcutDisplay("app:toggleTranscript", "Global", "ctrl+o");

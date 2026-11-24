@@ -51,8 +51,8 @@ async function runScene(args: SceneArgs): Promise<void> {
     const out = await inspect.call({ ref: args.path! }, context)
     return say({ state: out.data.state, shown: String(out.data.result ?? '') })
   }
-  const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
-  const tool = FileReadTool as unknown as { validateInput: Function; call: Function; mapToolResultToToolResultBlockParam: Function }
+  const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
+  const tool = ReadTool as unknown as { validateInput: Function; call: Function; mapToolResultToToolResultBlockParam: Function }
   const input = { file_path: args.path!, ...(args.offset !== undefined ? { offset: args.offset } : {}), ...(args.limit !== undefined ? { limit: args.limit } : {}) }
   if (args.direct !== true) {
     const verdict = await tool.validateInput(input, context)

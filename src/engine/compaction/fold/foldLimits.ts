@@ -1,48 +1,48 @@
 import { formatTokens } from '../../../platform/text/format.js'
 
-export const POST_COMPACT_MAX_FILES_TO_RESTORE = 5
-export const POST_COMPACT_TOKEN_BUDGET = 50000
-export const POST_COMPACT_MAX_TOKENS_PER_FILE = 5000
-export const POST_COMPACT_MAX_TOKENS_PER_SKILL = 5000
-export const POST_COMPACT_SKILLS_TOKEN_BUDGET = 25000
+export const POST_FOLD_MAX_FILES_TO_RESTORE = 5
+export const POST_FOLD_TOKEN_BUDGET = 50000
+export const POST_FOLD_MAX_TOKENS_PER_FILE = 5000
+export const POST_FOLD_MAX_TOKENS_PER_SKILL = 5000
+export const POST_FOLD_SKILLS_TOKEN_BUDGET = 25000
 
 export const ERROR_MESSAGE_NOT_ENOUGH_MESSAGES = 'Not enough messages to compact.'
-export const NO_MESSAGES_TO_COMPACT = 'No messages to compact.'
-export const NOTHING_TO_COMPACT_KEY = 'Nothing to compact: '
-const NOTHING_TO_COMPACT_YET_KEY = 'Nothing to compact yet: '
+export const NO_MESSAGES_TO_FOLD = 'No messages to compact.'
+export const NOTHING_TO_FOLD_KEY = 'Nothing to compact: '
+const NOTHING_TO_FOLD_YET_KEY = 'Nothing to compact yet: '
 
-export type NothingToCompactReason =
+export type NothingToFoldReason =
   | 'already-folded'
   | 'too-few-messages'
   | 'recent-turns-kept'
   | 'would-not-shrink'
 
-export function isNothingToCompactMessage(message: string): boolean {
+export function isNothingToFoldMessage(message: string): boolean {
   return (
-    message.startsWith(NOTHING_TO_COMPACT_KEY) ||
-    message.startsWith(NOTHING_TO_COMPACT_YET_KEY) ||
-    message === NO_MESSAGES_TO_COMPACT ||
+    message.startsWith(NOTHING_TO_FOLD_KEY) ||
+    message.startsWith(NOTHING_TO_FOLD_YET_KEY) ||
+    message === NO_MESSAGES_TO_FOLD ||
     message === ERROR_MESSAGE_NOT_ENOUGH_MESSAGES
   )
 }
 
-export function nothingToCompactLine(contextTokens: number, reason: NothingToCompactReason | boolean = 'already-folded'): string {
-  const resolved: NothingToCompactReason =
+export function nothingToFoldLine(contextTokens: number, reason: NothingToFoldReason | boolean = 'already-folded'): string {
+  const resolved: NothingToFoldReason =
     reason === true ? 'already-folded' : reason === false ? 'too-few-messages' : reason
   const tokens = formatTokens(contextTokens)
   switch (resolved) {
     case 'already-folded':
-      return `${NOTHING_TO_COMPACT_KEY}the last fold already holds this conversation (${tokens} tokens)`
+      return `${NOTHING_TO_FOLD_KEY}the last fold already holds this conversation (${tokens} tokens)`
     case 'too-few-messages':
-      return `${NOTHING_TO_COMPACT_YET_KEY}too few messages to fold (${tokens} tokens).`
+      return `${NOTHING_TO_FOLD_YET_KEY}too few messages to fold (${tokens} tokens).`
     case 'recent-turns-kept':
-      return `${NOTHING_TO_COMPACT_YET_KEY}the recent turns are kept whole and hold most of the ${tokens} tokens.`
+      return `${NOTHING_TO_FOLD_YET_KEY}the recent turns are kept whole and hold most of the ${tokens} tokens.`
     case 'would-not-shrink':
-      return `${NOTHING_TO_COMPACT_YET_KEY}a summary would not shrink the ${tokens} tokens.`
+      return `${NOTHING_TO_FOLD_YET_KEY}a summary would not shrink the ${tokens} tokens.`
   }
 }
 
-export const ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD = 'Compaction cannot bring the context under its threshold'
+export const ERROR_MESSAGE_POST_FOLD_OVER_THRESHOLD = 'Compaction cannot bring the context under its threshold'
 export const ERROR_MESSAGE_PROMPT_TOO_LONG =
   'This conversation could not be compacted: too much context. Start fresh with /clear, or choose a larger context window and run /compact again.'
 export const ERROR_MESSAGE_USER_ABORT = 'Compaction cancelled.'

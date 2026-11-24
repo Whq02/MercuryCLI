@@ -5,16 +5,16 @@ import { getUpgradeMessage } from '../../models/facts/contextWindowUpgradeCheck.
 import { formatTokens } from '../../platform/text/format.js'
 import { flagEnv } from '../../platform/substrate/flagRegistry.js'
 import type { ToolUseContext } from '../../tools/kit/tool.js'
-import type { CompactionResult } from './fold/foldResult.js'
+import type { FoldResult } from './fold/foldResult.js'
 
 export function shouldEnrichForLiveDisplay(context: ToolUseContext): boolean {
   if (!context.options.isNonInteractiveSession) return true
   return flagEnv('MERCURY_CONCOURSE_WORKER') === '1'
 }
 
-export function manualCompactDisplayText(
+export function manualFoldDisplayText(
   context: ToolUseContext,
-  result: CompactionResult,
+  result: FoldResult,
   messagesHandedIn: number,
 ): string {
   const kept = result.messagesToKeep?.length ?? 0

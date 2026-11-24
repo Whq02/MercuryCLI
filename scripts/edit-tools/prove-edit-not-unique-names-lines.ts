@@ -21,8 +21,8 @@ const { _resetSeenLinesForTesting } = await import('../../src/tools/engines/chan
 const { editOutcomeRows } = await import('../../src/tools/engines/change-transaction/editOutcomeLedger.ts')
 const { ownerFromToolUseContext } = await import('../../src/engine/run-owner/resolveOwner.ts')
 const { runToolUse } = await import('../../src/engine/tool-dispatch/toolExecution.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
@@ -73,8 +73,8 @@ async function run(tool: unknown, input: Record<string, unknown>, ctx: Ctx, id: 
     return { ok: false, message: err instanceof Error ? err.message : String(err) }
   }
 }
-const edit = (input: Record<string, unknown>, ctx: Ctx): Promise<Verdict> => run(FileEditTool, input, ctx, 'toolu_edit')
-const read = (input: Record<string, unknown>, ctx: Ctx): Promise<Verdict> => run(FileReadTool, input, ctx, 'toolu_read')
+const edit = (input: Record<string, unknown>, ctx: Ctx): Promise<Verdict> => run(EditTool, input, ctx, 'toolu_edit')
+const read = (input: Record<string, unknown>, ctx: Ctx): Promise<Verdict> => run(ReadTool, input, ctx, 'toolu_read')
 const textOf = (v: Verdict): string => (v.ok ? v.text : v.message)
 const codeOf = (v: Verdict): number | undefined => (v.ok ? undefined : v.code)
 const rowsOf = (text: string): string[] => text.split('\n').filter(line => /^\d+\t/.test(line))
@@ -218,7 +218,7 @@ section('N8. the bench\'s own error class matches every text, and the chokepoint
     updateFileHistoryState: () => {},
     dynamicSkillDirTriggers: new Set<string>(),
     nestedMemoryAttachmentTriggers: new Set<string>(),
-    options: { tools: [FileEditTool], mcpClients: [], isNonInteractiveSession: true, engineModel: 'proof-model-not-unique' },
+    options: { tools: [EditTool], mcpClients: [], isNonInteractiveSession: true, engineModel: 'proof-model-not-unique' },
   }
   const allow = async (_t: unknown, input: unknown) => ({ behavior: 'allow', updatedInput: input })
   const updates: unknown[] = []

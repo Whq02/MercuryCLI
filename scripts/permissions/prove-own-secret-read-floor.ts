@@ -20,7 +20,7 @@ process.chdir(project)
 const load = (file: string) => import(pathToFileURL(join(root, file)).href)
 const { getEmptyToolPermissionContext } = await load('src/tools/kit/tool.ts')
 const { decideToolPermission } = await load('src/permissions/rules/decision/engine.ts')
-const { FileReadTool } = await load('src/tools/read/ReadTool.ts')
+const { ReadTool } = await load('src/tools/read/ReadTool.ts')
 const { InspectTool } = await load('src/tools/inspect/InspectTool.ts')
 const { fileAdapter } = await load('src/integrations/resources/adapters/file.ts')
 const { GrepTool } = await load('src/tools/grep/GrepTool.ts')
@@ -57,7 +57,7 @@ const secretPaths = [String.raw`C:\Users\Fixture\.mercury\.credentials.json`, '/
 try {
   console.log('refusals')
   for (const mode of modes) for (const path of secretPaths) {
-    for (const [tool, input] of [[FileReadTool, { file_path: path }], [GrepTool, { path, pattern: 'value', output_mode: 'content' }]] as Array<[any, Record<string, unknown>]>) {
+    for (const [tool, input] of [[ReadTool, { file_path: path }], [GrepTool, { path, pattern: 'value', output_mode: 'content' }]] as Array<[any, Record<string, unknown>]>) {
       const ctx = context(mode, [tool.name])
       const result = (await decideToolPermission(tool, input, ctx)).decision
       check(`${mode} ${tool.name} ${path}`, result.behavior === 'deny' && /credential|secret/i.test(result.message ?? ''), `${result.behavior}: ${result.message ?? ''}`, READ_HINT)
@@ -70,9 +70,9 @@ try {
   const adapterSecret = await fileAdapter.resolve({ raw: 'mercury://file/' + join(config, '.credentials.json'), canonical: 'mercury://file/' + join(config, '.credentials.json'), kind: 'file', id: join(config, '.credentials.json'), selectors: {} }, { owner: { kind: 'session', id: 's' }, cwd: project })
   check('fileAdapter.resolve refuses direct secret read', adapterSecret.state === 'unavailable' && !JSON.stringify(adapterSecret).includes(needle), JSON.stringify(adapterSecret), 'fix resolve in src/integrations/resources/adapters/file.ts so a credential path returns state unavailable without its content')
   for (const mode of modes) {
-    const result = await runWithCwdOverride(config, () => decideToolPermission(FileReadTool, { file_path: '.credentials.json' }, context(mode, ['Read'])))
+    const result = await runWithCwdOverride(config, () => decideToolPermission(ReadTool, { file_path: '.credentials.json' }, context(mode, ['Read'])))
     check(`${mode} relative credential path refuses`, result.decision.behavior === 'deny', result.decision.message, READ_HINT)
-    const asked = await decideToolPermission(FileReadTool, { file_path: join(config, '.credentials.json') }, context(mode, [], ['Read']))
+    const asked = await decideToolPermission(ReadTool, { file_path: join(config, '.credentials.json') }, context(mode, [], ['Read']))
     check(`${mode} a floor never becomes a whole-tool ask`, asked.decision.behavior === 'deny', asked.decision.message, READ_HINT + ', so the denial holds even when an ask rule covers Read')
     const grep = await decideToolPermission(GrepTool, { path: config, glob: '.credentials.json', pattern: 'value' }, context(mode, ['Grep']))
     check(`${mode} explicit credential search refuses`, grep.decision.behavior === 'deny', grep.decision.message, READ_HINT)
@@ -126,7 +126,7 @@ try {
     const listed = await GlobTool.call({ path: config, pattern: '*' }, ctx)
     check(`${mode} Glob lists ordinary files, not credential stores`, listed.data.filenames.some((path: string) => path.endsWith('notes.json')) && !listed.data.filenames.some((path: string) => names.some(name => path.endsWith(name))), JSON.stringify(listed.data), LISTING_HINT)
     for (const path of [join(project, '.credentials.json'), join(config, '.credentials.json.notes'), join(config, '.sign-ins.json')]) {
-      const decision = (await decideToolPermission(FileReadTool, { file_path: path }, context(mode, ['Read']))).decision
+      const decision = (await decideToolPermission(ReadTool, { file_path: path }, context(mode, ['Read']))).decision
       check(`${mode} ordinary or near-miss file remains readable`, decision.behavior === 'allow', decision.message, 'an ordinary or near-miss file name must stay readable; narrow mercurySecretPath in src/permissions/rules/protectedPaths.ts')
     }
   }
@@ -134,7 +134,7 @@ try {
   mkdirSync(alternateHome)
   setAuthScope(alternateHome)
   for (const mode of modes) {
-    const scoped = await decideToolPermission(FileReadTool, { file_path: join(alternateHome, '.credentials.json') }, context(mode, ['Read']))
+    const scoped = await decideToolPermission(ReadTool, { file_path: join(alternateHome, '.credentials.json') }, context(mode, ['Read']))
     check(`${mode} auth-scope credential home is protected`, scoped.decision.behavior === 'deny', scoped.decision.message, READ_HINT + ', including for the credential home of an auth scope')
   }
   clearAuthScope()
@@ -174,7 +174,7 @@ try {
   const { evalKernelManager } = await load('src/tools/engines/eval-kernels/kernelManager.ts')
   try {
     for (const mode of modes) for (const language of ['js', 'py']) {
-      const ctx = await makeContext({ mode, tools: [FileReadTool] })
+      const ctx = await makeContext({ mode, tools: [ReadTool] })
       const cellAbort = new AbortController()
       const serveBridge = makeEvalBridgeServer({ context: ctx, cellAbort, canUseTool: async (tool: any, input: any, context: any) => (await decideToolPermission(tool, input, context)).decision })
       const path = JSON.stringify(join(config, '.credentials.json'))

@@ -98,7 +98,7 @@ const { compileJsonSchema } = await import('../../src/platform/json-schema/jsonS
 await import('../../src/engine/tasks/tasks.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
-const { query: startTurn } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor: startTurn } = await import('../../src/engine/turnDoor.ts')
 
 type Command = import('../../src/commands/catalogue/command.ts').Command
 type AppState = ReturnType<typeof getDefaultAppState>

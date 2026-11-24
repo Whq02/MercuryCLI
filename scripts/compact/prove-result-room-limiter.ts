@@ -11,7 +11,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 
-const { queryEvents } = await import('../../src/engine/turnDoor.ts')
+const { turnDoorEvents } = await import('../../src/engine/turnDoor.ts')
 const { legacyYieldsOf } = await import('../../src/engine/loop/project-legacy.ts')
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
@@ -23,7 +23,7 @@ const { createUserMessage } = await import('../../src/engine/messages/messages.t
 const { createContentReplacementState } = await import('../../src/engine/tool-dispatch/toolResultStorage.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 const { tokenCountWithEstimation } = await import('../../src/engine/context-window/contextTokenCount.ts')
-const { getBlockingLimit, getAutoCompactThreshold, resolveAutoCompactWindow } = await import('../../src/engine/compaction/autoFold.ts')
+const { getBlockingLimit, getAutoFoldThreshold, resolveAutoFoldWindow } = await import('../../src/engine/compaction/autoFold.ts')
 const roomModule = await import('../../src/engine/run/resultRoom.ts').catch(() => null)
 const RESULT_ROOM_WORDS: string = roomModule?.RESULT_ROOM_WORDS ?? 'the context is near its fold'
 const RESULT_ROOM_TURN_CEILING_TOKENS: number = roomModule?.RESULT_ROOM_TURN_CEILING_TOKENS ?? 60_000
@@ -31,7 +31,7 @@ const absent = { awake: false as const, line: -1, gauge: -1 }
 const resultRoomBudget: NonNullable<typeof roomModule>['resultRoomBudget'] = roomModule?.resultRoomBudget ?? (() => absent)
 const createResultRoom: NonNullable<typeof roomModule>['createResultRoom'] = roomModule?.createResultRoom ?? (budget => ({ budget, remaining: () => -1, reserve: () => -1, allowance: () => -1, settle: () => {}, takes: () => [] }))
 if (roomModule === null) console.log('  [record] the result-room module is absent on this tree: every limiter check below reads red by construction')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
 const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
 type AnyMsg = Record<string, unknown> & { type?: string }
@@ -53,9 +53,9 @@ const guard = setTimeout(() => {
 guard.unref?.()
 const fmt = (n: number): string => n.toLocaleString('en-US')
 
-const WINDOW = resolveAutoCompactWindow(MODEL).window
+const WINDOW = resolveAutoFoldWindow(MODEL).window
 const BLOCKING = getBlockingLimit(MODEL)
-const THRESHOLD = getAutoCompactThreshold(MODEL)
+const THRESHOLD = getAutoFoldThreshold(MODEL)
 
 section('L1 the arithmetic: the line is the fold threshold or 80% of the window, whichever is lower; under it the limiter is inert; past it a round shares a ceiling that shrinks with the room')
 {
@@ -142,7 +142,7 @@ function makeCtx(): Record<string, unknown> {
     abortController: new AbortController(),
     options: {
       commands: [],
-      tools: [FileReadTool, BashTool, GrepTool],
+      tools: [ReadTool, BashTool, GrepTool],
       engineModel: MODEL,
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],
@@ -170,7 +170,7 @@ type Run = { events: AnyEvent[]; yields: AnyMsg[]; terminal: Record<string, unkn
 async function run(script: unknown[][]): Promise<Run> {
   const ctx = makeCtx()
   const { calls, callModel } = makeModel(script)
-  const gen = queryEvents({
+  const gen = turnDoorEvents({
     messages: [createUserMessage({ content: 'read the modules and report' })] as never,
     systemPrompt: ['rig system prompt'] as never,
     userContext: {},

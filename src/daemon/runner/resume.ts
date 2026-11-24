@@ -16,7 +16,7 @@ import {
 } from 'src/sessions/resume/conversationRecovery.js'
 import { gracefulShutdownSync } from 'src/platform/processes/gracefulShutdown.js'
 import { logError } from 'src/platform/logs/errorLog.js'
-import { restoreSessionStateFromLog } from 'src/sessions/resume/sessionRestore.js'
+import { restoreSessionStateFromListing } from 'src/sessions/resume/sessionRestore.js'
 import { runSessionStartHooks } from 'src/daemon/runner/sessionStart.js'
 import { consumeSessionHomePin } from 'src/sessions/transcripts/sessionHomePin.js'
 import {
@@ -100,7 +100,7 @@ export async function loadInitialMessages(
       }
     }
     const adoptedLog = messages === result.messages ? result : { ...result, messages }
-    await restoreSessionStateFromLog(adoptedLog, setAppState)
+    await restoreSessionStateFromListing(adoptedLog, setAppState)
     restoreSessionMetadata(isFork ? { ...result, worktreeSession: undefined } : result)
     if (isFork) {
       carrySessionBriefs()

@@ -595,7 +595,7 @@ export async function fileHistoryRestore(
 }
 
 
-export function fileHistoryRestoreStateFromLog(
+export function fileHistoryRestoreStateFromSnapshots(
   snapshots: FileHistorySnapshot[],
   onUpdateState: (state: FileHistoryState) => void,
 ): void {

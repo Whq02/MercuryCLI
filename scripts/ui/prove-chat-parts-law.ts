@@ -47,7 +47,7 @@ const HOOK_CALLS_IN_CHAT: Record<string, number> = {
   useEngineModel: 1,
   useFocusedTranscript: 1,
   useFocusedTailAnchor: 1,
-  useMcpConnectivityStatus: 1,
+  useMcpConnectionNotices: 1,
   useMergedCommands: 1,
   useMergedTools: 1,
   useApiKeyVerification: 1,

@@ -36,11 +36,11 @@ process.chdir(project)
 const load = (file: string) => import(pathToFileURL(join(root, file)).href)
 const { getEmptyToolPermissionContext } = await load('src/tools/kit/tool.ts')
 const { decideToolPermission } = await load('src/permissions/rules/decision/engine.ts')
-const { FileWriteTool } = await load('src/tools/write/WriteTool.ts')
-const { FileEditTool } = await load('src/tools/edit/EditTool.ts')
+const { WriteTool } = await load('src/tools/write/WriteTool.ts')
+const { EditTool } = await load('src/tools/edit/EditTool.ts')
 const { NotebookEditTool } = await load('src/tools/notebook-edit/NotebookEditTool.ts')
 const { ChangeSetTool } = await load('src/tools/change-set/ChangeSetTool.ts')
-const { FileReadTool } = await load('src/tools/read/ReadTool.ts')
+const { ReadTool } = await load('src/tools/read/ReadTool.ts')
 const { BashTool } = await load('src/tools/shell/BashTool.tsx')
 const { PowerShellTool } = await load('src/tools/powershell/PowerShellTool.tsx')
 const { runWithCwdOverride } = await load('src/platform/files/cwd.ts')
@@ -95,8 +95,8 @@ try {
 Object.defineProperty(process, 'execPath', { value: exe, configurable: true })
 process.argv[1] = join(dist, 'mercury.mjs')
 const bodies = (path: string): Array<[any, Record<string, unknown>]> => [
-  [FileWriteTool, { file_path: path, content: 'replacement' }],
-  [FileEditTool, { file_path: path, append: 'replacement' }],
+  [WriteTool, { file_path: path, content: 'replacement' }],
+  [EditTool, { file_path: path, append: 'replacement' }],
   [NotebookEditTool, { notebook_path: path, new_source: 'replacement' }],
   [ChangeSetTool, { op: 'apply', changes: [{ file_path: path, expected_anchor: 'fa:0123456789ab', hunks: [{ lines: '1', replace: 'replacement' }] }] }],
 ]
@@ -117,9 +117,9 @@ try {
     check(`${mode} ${tool.name} runtime write`, verdict.behavior === 'deny' && /runtime/.test(verdict.message ?? ''), `${path}: ${verdict.behavior}: ${verdict.message ?? ''}`)
   }
   for (const mode of modes) {
-    const result = await runWithCwdOverride(dist, () => decide(FileWriteTool, { file_path: 'next.mjs', content: 'x' }, mode))
+    const result = await runWithCwdOverride(dist, () => decide(WriteTool, { file_path: 'next.mjs', content: 'x' }, mode))
     check(mode + ' relative write inside deployed dist', result.behavior === 'deny', result.message)
-    const ask = await decide(FileWriteTool, { file_path: exe, content: 'x' }, mode, { ask: ['Write'] })
+    const ask = await decide(WriteTool, { file_path: exe, content: 'x' }, mode, { ask: ['Write'] })
     check(mode + ' whole-tool ask cannot replace runtime floor', ask.behavior === 'deny', ask.message)
   }
   const shellRows: Array<[any, string]> = [
@@ -207,10 +207,10 @@ try {
     const denied = await decide(BashTool, { command: 'kill 2147480000' }, mode, { deny: ['Bash'] })
     check(mode + ' unrelated pid still obeys deny rule', denied.behavior === 'deny', denied.message)
     for (const path of [join(project, 'dist/file'), join(project, 'runtime/file'), join(home, '.mercury/runtime-notes/file')]) {
-      const verdict = await decide(FileWriteTool, { file_path: path, content: 'x' }, mode, { allow: ['Write'] })
+      const verdict = await decide(WriteTool, { file_path: path, content: 'x' }, mode, { allow: ['Write'] })
       check(mode + ' near-miss is not the running runtime', verdict.behavior === (path.replaceAll('\\', '/').includes('.mercury/runtime-notes') && mode !== 'sovereign' ? 'ask' : 'allow'), verdict.message)
     }
-    const read = await decide(FileReadTool, { file_path: exe }, mode, { allow: ['Read'] })
+    const read = await decide(ReadTool, { file_path: exe }, mode, { allow: ['Read'] })
     check(mode + ' runtime remains readable', read.behavior === 'allow', read.message)
   }
   writeFileSync(join(config, 'daemon/daemon.json'), JSON.stringify({ ...daemonState, startToken: 'fixture-not-the-live-process' }))
@@ -218,7 +218,7 @@ try {
   check('reused daemon pid is not Mercury', reused.behavior === 'allow', reused.message)
   Object.defineProperty(process, 'execPath', { value: String.raw`C:\Program Files\Mercury\node.exe`, configurable: true })
   for (const path of [String.raw`C:\Program Files\Mercury\node.exe`, '/mnt/c/Program Files/Mercury/node.exe', '/c/Program Files/Mercury/other']) {
-    const verdict = await decide(FileWriteTool, { file_path: path, content: 'x' }, 'sovereign')
+    const verdict = await decide(WriteTool, { file_path: path, content: 'x' }, 'sovereign')
     check('Windows running interpreter folder', verdict.behavior === 'deny', verdict.message)
   }
   check('fixture runtime bytes survived every refused command', readFileSync(exe, 'utf8') === 'fixture-interpreter\n' && readFileSync(join(dist, 'mercury.mjs'), 'utf8') === 'fixture-original\n')

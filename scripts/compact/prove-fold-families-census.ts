@@ -47,7 +47,7 @@ guard.unref?.()
 
 const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { compactConversation } = await import('../../src/engine/compaction/foldConversation.ts')
+const { foldConversation } = await import('../../src/engine/compaction/foldConversation.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
@@ -107,7 +107,7 @@ async function runFold(model: string): Promise<Run> {
   let result: Record<string, unknown> | undefined
   let error: Error | undefined
   try {
-    result = (await compactConversation(
+    result = (await foldConversation(
       makeMessages() as never,
       ctx as never,
       { systemPrompt: asSystemPrompt(['census session posture']) } as never,

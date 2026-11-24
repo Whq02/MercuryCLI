@@ -40,9 +40,9 @@ try {
     fixture.script([{ refusal: true }, { text: summary }])
     const before = fixture.captured.length
     let refused: string | undefined
-    let result: Awaited<ReturnType<typeof compact.compactConversation>> | undefined
+    let result: Awaited<ReturnType<typeof compact.foldConversation>> | undefined
     try {
-      result = await compact.compactConversation(rows, context as never, cache, automatic)
+      result = await compact.foldConversation(rows, context as never, cache, automatic)
     } catch (error) { refused = error instanceof Error ? error.message : String(error) }
     check(`${label}: a refused first fold ends after one request`, fixture.captured.length - before === 1, `${fixture.captured.length - before} requests \u2014 a refusal on the first fold must end compactConversation (src/engine/compaction/foldConversation.ts) after one request, with no retry`)
     check(`${label}: the provider refusal is the one-line answer`, refused !== undefined && refused.includes('The model ended the response early (stop_reason: refusal)') && !refused.includes('\n'), `${refused} \u2014 the refusal must surface as the single line built in src/engine/requests/apiErrorRows.ts, not wrapped or multi-line`)
@@ -52,7 +52,7 @@ try {
     rows.push(createUserMessage({ content: 'Continue with the CLI verification on this next message.' }))
     fixture.script([{ text: summary }])
     const nextBefore = fixture.captured.length
-    const next = await compact.compactConversation(rows, context as never, cache, automatic)
+    const next = await compact.foldConversation(rows, context as never, cache, automatic)
     check(`${label}: the next message makes a fresh request that lands`, fixture.captured.length - nextBefore === 1 && next.summaryMessages.length > 0, 'the message after a refusal must make one fresh request that lands; no refusal state may carry over in compactConversation (src/engine/compaction/foldConversation.ts)')
     check(`${label}: the fresh request carries the next message and original history`, JSON.stringify(fixture.captured.at(-1)?.body.messages).includes('Continue with the CLI verification on this next message.') && JSON.stringify(fixture.captured.at(-1)?.body.messages).includes('We edited tags.ts'), 'the fresh fold request must carry both the new user message and the original history; see compactConversation in src/engine/compaction/foldConversation.ts')
     check(`${label}: the accepted summary has no outcome note`, next.notes === undefined, `${next.notes} \u2014 an accepted summary after a refusal must carry no outcome note (src/engine/compaction/foldConversation.ts)`)

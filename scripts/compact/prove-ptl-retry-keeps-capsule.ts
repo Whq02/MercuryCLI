@@ -15,7 +15,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 const { truncateHeadForPTLRetry } = await import(join(SRC, 'engine/compaction/foldConversation.ts'))
-const { createUserMessage, createAssistantMessage, createAssistantAPIErrorMessage, createCompactBoundaryMessage, isCompactBoundaryMessage } =
+const { createUserMessage, createAssistantMessage, createAssistantAPIErrorMessage, createFoldBoundaryMessage, isFoldBoundaryMessage } =
   await import(join(SRC, 'engine/messages/messages.ts'))
 const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import(join(SRC, 'engine/requests/apiErrorRows.ts'))
 
@@ -30,7 +30,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 type Msg = { type: string; uuid: string; isCompactSummary?: boolean; isMeta?: boolean; message?: { content?: unknown } }
 
-const isCapsule = (m: Msg): boolean => isCompactBoundaryMessage(m as never) || (m.type === 'user' && m.isCompactSummary === true)
+const isCapsule = (m: Msg): boolean => isFoldBoundaryMessage(m as never) || (m.type === 'user' && m.isCompactSummary === true)
 const isMarker = (m: Msg): boolean => m.type === 'user' && m.isMeta === true && typeof m.message?.content === 'string' && m.message.content.includes('folded for the compaction retry')
 const uuids = (list: Msg[]): string[] => list.map(m => m.uuid)
 const working = (list: Msg[]): number => list.filter(m => !isCapsule(m) && !isMarker(m)).length
@@ -45,7 +45,7 @@ function round(n: number): Msg[] {
 }
 
 function capsule(label: string): { boundary: Msg; summary: Msg } {
-  const boundary = createCompactBoundaryMessage('auto', 120_000) as unknown as Msg
+  const boundary = createFoldBoundaryMessage('auto', 120_000) as unknown as Msg
   const summary = createUserMessage({
     content: `${label}: the summary of everything folded before this point — decisions, file state, the task.`,
     isCompactSummary: true,

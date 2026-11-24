@@ -2,7 +2,7 @@ import { closeSync, fstatSync, openSync } from 'node:fs'
 import { sleep } from '../../platform/async/sleep.js'
 import { decodeTranscriptBuffer } from '../fabric/transcriptDecode.js'
 import type { Entry } from './transcriptEntries.js'
-import { classifyLoadLine, SKIP_PRECOMPACT_THRESHOLD } from './sessionStoragePortable.js'
+import { classifyLoadLine, SKIP_BEFORE_FOLD_BOUNDARY_THRESHOLD } from './sessionStoragePortable.js'
 import { applyTranscriptEntry, type TranscriptFoldState } from './fold.js'
 import { indexLine, selectBranchIds, type IndexedLine } from './branchSelection.js'
 import { rangeFromFd, transcriptLineBytes, transcriptReaderCensus } from './transcriptBytes.js'
@@ -86,7 +86,7 @@ export async function streamFold(path: string, fold: TranscriptFoldState, start:
         if (row.from >= boundary) break
         for (const entry of decodeTranscriptBuffer<Entry>(read(row)).entries) if (previousPartMetadata.has(entry.type)) applyTranscriptEntry(fold, entry)
       }
-      const selected = prune && !preserved && rows.reduce((n, r) => n + r.to - r.from, 0) > SKIP_PRECOMPACT_THRESHOLD ? selectBranchIds(rows, read) : null
+      const selected = prune && !preserved && rows.reduce((n, r) => n + r.to - r.from, 0) > SKIP_BEFORE_FOLD_BOUNDARY_THRESHOLD ? selectBranchIds(rows, read) : null
       pruned = selected !== null
       for (const row of rows) {
         if (selected && row.id !== null && !selected.has(row.id)) continue

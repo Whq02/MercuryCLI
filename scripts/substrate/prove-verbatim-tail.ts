@@ -4,7 +4,7 @@
 
 const {
   computeVerbatimRecentTail,
-  isMercuryCompactKeepTailEnabled,
+  isMercuryFoldKeepTailEnabled,
   DEFAULT_KEEP_ROUNDS,
   DEFAULT_TAIL_TOKEN_BUDGET,
   MIN_HEAD_ROUNDS,
@@ -73,26 +73,26 @@ section('(a) gate — default-ON (substrate), MERCURY_COMPACT_KEEP_TAIL=0 opt-ou
   delete process.env.MERCURY_COMPACT_KEEP_TAIL
   delete process.env.MERCURY_CTX_COMPACTION
   delete process.env.MERCURY_SUBSTRATE
-  check('default (substrate on) ⇒ enabled', isMercuryCompactKeepTailEnabled() === true)
+  check('default (substrate on) ⇒ enabled', isMercuryFoldKeepTailEnabled() === true)
 
   process.env.MERCURY_COMPACT_KEEP_TAIL = '0'
-  check('MERCURY_COMPACT_KEEP_TAIL=0 ⇒ disabled (opt-out wins)', isMercuryCompactKeepTailEnabled() === false)
+  check('MERCURY_COMPACT_KEEP_TAIL=0 ⇒ disabled (opt-out wins)', isMercuryFoldKeepTailEnabled() === false)
   process.env.MERCURY_COMPACT_KEEP_TAIL = 'false'
-  check('MERCURY_COMPACT_KEEP_TAIL=false ⇒ disabled', isMercuryCompactKeepTailEnabled() === false)
+  check('MERCURY_COMPACT_KEEP_TAIL=false ⇒ disabled', isMercuryFoldKeepTailEnabled() === false)
   delete process.env.MERCURY_COMPACT_KEEP_TAIL
 
   process.env.MERCURY_SUBSTRATE = '0'
-  check('MERCURY_SUBSTRATE=0 (no opt-in) ⇒ disabled (byte-identical)', isMercuryCompactKeepTailEnabled() === false)
+  check('MERCURY_SUBSTRATE=0 (no opt-in) ⇒ disabled (byte-identical)', isMercuryFoldKeepTailEnabled() === false)
   process.env.MERCURY_COMPACT_KEEP_TAIL = '1'
-  check('explicit MERCURY_COMPACT_KEEP_TAIL=1 overrides substrate-off', isMercuryCompactKeepTailEnabled() === true)
+  check('explicit MERCURY_COMPACT_KEEP_TAIL=1 overrides substrate-off', isMercuryFoldKeepTailEnabled() === true)
   delete process.env.MERCURY_COMPACT_KEEP_TAIL
   process.env.MERCURY_CTX_COMPACTION = '1'
-  check('explicit MERCURY_CTX_COMPACTION=1 also enables', isMercuryCompactKeepTailEnabled() === true)
+  check('explicit MERCURY_CTX_COMPACTION=1 also enables', isMercuryFoldKeepTailEnabled() === true)
   delete process.env.MERCURY_CTX_COMPACTION
   delete process.env.MERCURY_SUBSTRATE
 
   ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '0.0.0-src' }
-  check('bare stamp ⇒ STILL enabled (stamp-independence)', isMercuryCompactKeepTailEnabled() === true)
+  check('bare stamp ⇒ STILL enabled (stamp-independence)', isMercuryFoldKeepTailEnabled() === true)
   ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 }
 

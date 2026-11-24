@@ -14,7 +14,7 @@ import {
 } from '../../engine/messages/messages.js'
 import { applyGrouping } from '../messages/groupToolUses.js'
 import { collapseReadSearchGroups } from '../messages/collapseReadSearch.js'
-import { collapseBackgroundBashNotifications } from '../messages-list/foldShellNotices.js'
+import { foldShellNotices } from '../messages-list/foldShellNotices.js'
 import { injectTurnReceipts } from '../cockpit/turnReceipt.js'
 import { getMercuryTempDir } from '../../permissions/rules/filesystem.js'
 import {
@@ -243,7 +243,7 @@ export function deriveTranscriptRows(
   messages: MessageType[],
   tools: Tools,
 ): {
-  collapsed: ReturnType<typeof collapseBackgroundBashNotifications>
+  collapsed: ReturnType<typeof foldShellNotices>
   lookups: ReturnType<typeof buildMessageLookups>
   inProgress: Set<string>
 } {
@@ -262,7 +262,7 @@ export function deriveTranscriptRows(
     if (!lookups.resolvedToolUseIDs.has(id)) inProgress.add(id)
   }
   const { messages: grouped } = applyGrouping(prepared, tools, false)
-  const collapsed = collapseBackgroundBashNotifications(
+  const collapsed = foldShellNotices(
     collapseReadSearchGroups(injectTurnReceipts(grouped, getMercuryTempDir()), tools, inProgress),
     false,
   )

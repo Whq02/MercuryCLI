@@ -44,12 +44,12 @@ const { localLaneProfileFor } = await import('../../src/models/roads/local/local
 const { compatChatCallModel } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const usageLedger = await import('../../src/models/roads/local/tensorfoldUsage.ts')
 type LocalModelRecord = import('../../src/models/roads/local/localDiscovery.ts').LocalModelRecord
 type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
 
-const READ = FileReadTool.name
+const READ = ReadTool.name
 const FILE = Array.from({ length: 40 }, (_, n) => `${n + 1}\tledger line ${n + 1}: a delivery of ${(n * 37) % 91} crates to bay ${(n * 13) % 17}`).join('\n')
 
 async function ask(record: LocalModelRecord, messages: unknown[]): Promise<AssistantMessage[]> {
@@ -58,7 +58,7 @@ async function ask(record: LocalModelRecord, messages: unknown[]): Promise<Assis
     messages: messages as never,
     systemPrompt: ['You are a careful assistant in a terminal. A file is read before it is described.'] as never,
     thinkingConfig: { type: 'enabled', budget_tokens: 1024 } as never,
-    tools: [FileReadTool] as never,
+    tools: [ReadTool] as never,
     signal: new AbortController().signal,
     options: { getToolPermissionContext: async () => getEmptyToolPermissionContext(), model: `local/${record.id}`, isNonInteractiveSession: true, querySource: 'agent:builtin:test', agents: [], hasAppendSystemPrompt: false, mcpTools: [], effortValue: 'high' } as never,
   })) {

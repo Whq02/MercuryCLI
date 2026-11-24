@@ -20,7 +20,7 @@ import { isPathInside } from './pathPrefix.js'
 import { plural } from '../../platform/text/strings.js'
 import type { Input, Output } from './ReadTool.js'
 import { resultResolvedNames } from './call/results.js'
-import { FILE_READ_TOOL_NAME } from '../kit/names/fileRead.js'
+import { READ_TOOL_NAME } from '../kit/names/fileRead.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
 
@@ -41,7 +41,7 @@ function agentOutputTaskId(filePath: string | undefined): string | null {
 }
 
 export function userFacingName(input?: Partial<Input>): string {
-  return agentOutputTaskId(input?.file_path) !== null ? 'Read crewmate output' : FILE_READ_TOOL_NAME
+  return agentOutputTaskId(input?.file_path) !== null ? 'Read crewmate output' : READ_TOOL_NAME
 }
 
 export function getToolUseSummary(input: Partial<Input> | undefined): string | null {

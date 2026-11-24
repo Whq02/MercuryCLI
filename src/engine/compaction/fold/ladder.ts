@@ -8,7 +8,7 @@ import { overflowGapTokens, overflowSignalOf } from '../../requests/overflowSign
 import { groupMessagesByApiRound } from '../groupByApiRound.js'
 import { estimateContextTokens } from '../pruneToolResults.js'
 import { ERROR_MESSAGE_PROMPT_TOO_LONG, PTL_RETRY_LIMIT, NO_SUMMARY_RETRY_LIMIT, ERROR_MESSAGE_NO_SUMMARY, PROSE_SKIPPED_KEY, PART_SUMMARY_MARKER, PART_TEXT_CHUNK_CHARS, PART_TEXT_CHUNK_FLOOR_CHARS } from './foldLimits.js'
-import { isPtlMarkerMessage, isCompactCapsuleMessage } from './summariserInput.js'
+import { isPtlMarkerMessage, isFoldCapsuleMessage } from './summariserInput.js'
 import { runSummarization } from './summarise.js'
 import { summaryAnswerFault, validateSummary } from './summaryCheck.js'
 
@@ -121,14 +121,14 @@ export async function foldAllAsText(
   context: ToolUseContext,
   ladder: FoldLadder,
 ): Promise<Message[] | null> {
-  const working = input.filter(message => !isCompactCapsuleMessage(message))
+  const working = input.filter(message => !isFoldCapsuleMessage(message))
   if (working.length === 0) return null
   const text = working.map(messageAsText).filter(line => line !== '').join('\n\n')
   const summary = await summarizeTextInParts(text, partChunkChars(ladder), cacheSafeParams, promptText, context, ladder)
   if (summary === null) return null
   const capsule = partCapsule(summary)
   if (estimateContextTokens([capsule]) >= estimateContextTokens(working)) return null
-  return [...input.filter(isCompactCapsuleMessage), capsule]
+  return [...input.filter(isFoldCapsuleMessage), capsule]
 }
 
 async function foldHeadIntoCapsule(
@@ -141,7 +141,7 @@ async function foldHeadIntoCapsule(
 ): Promise<Message[] | null> {
   const input = messages.filter(message => !isPtlMarkerMessage(message))
   const groups = groupMessagesByApiRound(input)
-  const workingOf = (rows: Message[]): Message[] => rows.filter(message => !isCompactCapsuleMessage(message))
+  const workingOf = (rows: Message[]): Message[] => rows.filter(message => !isFoldCapsuleMessage(message))
   const sizeOf = (rows: Message[]): number => estimateContextTokens(workingOf(rows))
   if (groups.length >= 2) {
     const ahead = groups.slice(0, groups.length - 1).flat()
@@ -165,7 +165,7 @@ async function foldHeadIntoCapsule(
       if (working.length > 0) {
         const partResponse = await summarizeWithPtlRetry(working, cacheSafeParams, promptText, context, ladder)
         const capsule = partCapsule(validateSummary(partResponse, false))
-        return [...head.filter(isCompactCapsuleMessage), capsule, ...groups.slice(dropCount).flat()]
+        return [...head.filter(isFoldCapsuleMessage), capsule, ...groups.slice(dropCount).flat()]
       }
     }
   }

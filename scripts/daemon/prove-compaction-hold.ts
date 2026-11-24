@@ -101,13 +101,13 @@ section("F5 a context block is known by its header and its isMeta mark, never by
 {
   const { operatorMessagesBlockText } = await import(join(SRC, 'engine/compaction-window/operatorMessages.ts'))
   const { normalizeAttachmentForAPI } = await import(join(SRC, 'engine/messages/attachmentText.ts'))
-  const { getCompactUserSummaryMessage } = await import(join(SRC, 'engine/compaction/summariserPrompt.ts'))
+  const { getFoldUserSummaryMessage } = await import(join(SRC, 'engine/compaction/summariserPrompt.ts'))
   const block = { type: 'compact_operator_messages', messages: [{ ordinal: 2, text: 'second held words' }, { ordinal: 1, text: 'first held words' }], omitted: 0 }
   const projected = normalizeAttachmentForAPI(block as never) as Array<{ isMeta?: boolean; message: { content: unknown } }>
   const projectedText = projected.length === 1 && typeof projected[0]!.message.content === 'string' ? projected[0]!.message.content : ''
   check("the operator block projects to ONE meta user row headed by the fixture's block header", projected.length === 1 && projected[0]!.isMeta === true && projectedText.startsWith(BLOCK_HEADER) && operatorMessagesBlockText(block as never).startsWith(BLOCK_HEADER), projectedText.slice(0, 120) + ' — normalizeAttachmentForAPI (src/engine/messages/attachmentText.ts) and operatorMessagesBlockText (src/engine/compaction-window/operatorMessages.ts) must produce one isMeta user row starting with BLOCK_HEADER; if the header was changed on purpose, update compaction-hold-fixture-words.ts to match')
   check('…the header stands whatever the entries say (a different block, the same head)', operatorMessagesBlockText({ ...block, messages: [{ ordinal: 1, text: 'other words entirely' }] } as never).startsWith(BLOCK_HEADER), 'operatorMessagesBlockText in src/engine/compaction-window/operatorMessages.ts must start with BLOCK_HEADER whatever the entries say')
-  check("the summary row opens with the fixture's summary header", getCompactUserSummaryMessage('the stretch').startsWith(SUMMARY_HEADER) && !getCompactUserSummaryMessage('the stretch').startsWith(BLOCK_HEADER), 'getCompactUserSummaryMessage in src/engine/compaction/summariserPrompt.ts must open with SUMMARY_HEADER and never with BLOCK_HEADER; if the header was changed on purpose, update compaction-hold-fixture-words.ts to match')
+  check("the summary row opens with the fixture's summary header", getFoldUserSummaryMessage('the stretch').startsWith(SUMMARY_HEADER) && !getFoldUserSummaryMessage('the stretch').startsWith(BLOCK_HEADER), 'getFoldUserSummaryMessage in src/engine/compaction/summariserPrompt.ts must open with SUMMARY_HEADER and never with BLOCK_HEADER; if the header was changed on purpose, update compaction-hold-fixture-words.ts to match')
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

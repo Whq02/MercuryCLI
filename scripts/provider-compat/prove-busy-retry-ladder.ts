@@ -54,7 +54,7 @@ const { localLaneProfileFor } = await import('../../src/models/roads/local/local
 const { compatCallModel } = await import('../../src/models/roads/openaicompat/compatCallModel.ts')
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.ts')
+const { anthropicCallModel } = await import('../../src/models/roads/anthropic/streamCore.ts')
 const retrySeam = await import('../../src/engine/requests/withRetry.ts')
 const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
@@ -349,7 +349,7 @@ try {
   }
   function homeCall(script: HomeScript, opts: { querySource?: string; signal?: AbortSignal; door?: { agentId?: string; onWait: (wait: unknown) => void }; model?: string; fallbackModel?: string } = {}): { generator: AsyncGenerator<unknown>; homeHits: HomeHit[] } {
     const homeHits: HomeHit[] = []
-    const generator = queryModelWithStreaming({
+    const generator = anthropicCallModel({
       messages: [user('Say hello.')],
       systemPrompt: asSystemPrompt(['Only answer the request.']),
       thinkingConfig: { type: 'disabled' } as never,

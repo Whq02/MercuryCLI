@@ -108,7 +108,7 @@ export function formatRelativeTimeAgo(
 }
 
 
-export function formatLogMetadata(log: {
+export function formatListingMetadata(log: {
   modified: Date
   messageCount?: number
   fileSize?: number

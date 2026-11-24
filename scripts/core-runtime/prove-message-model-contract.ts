@@ -1097,19 +1097,19 @@ section('SYSMSG — boundary slice reference law + scan predicates')
   const a = mkUser('one')
   const b = mkAssistant('two')
   const noBoundary = [a, b]
-  const sliced = M.getMessagesAfterCompactBoundary(noBoundary as never)
+  const sliced = M.getMessagesAfterFoldBoundary(noBoundary as never)
   check('no boundary → the SAME array reference (render-bail identity)', (sliced as unknown) === (noBoundary as unknown))
 
-  const boundary = M.createCompactBoundaryMessage('auto', 1000) as AnyMsg
-  const boundary2 = M.createCompactBoundaryMessage('manual', 2000) as AnyMsg
+  const boundary = M.createFoldBoundaryMessage('auto', 1000) as AnyMsg
+  const boundary2 = M.createFoldBoundaryMessage('manual', 2000) as AnyMsg
   const withBoundary = [a, boundary, b, boundary2, mkUser('tail')]
-  check('findLastCompactBoundaryIndex: last boundary wins', M.findLastCompactBoundaryIndex(withBoundary as never) === 3)
-  const sliced2 = M.getMessagesAfterCompactBoundary(withBoundary as never) as AnyMsg[]
+  check('findLastCompactBoundaryIndex: last boundary wins', M.findLastFoldBoundaryIndex(withBoundary as never) === 3)
+  const sliced2 = M.getMessagesAfterFoldBoundary(withBoundary as never) as AnyMsg[]
   check(
     'boundary slice: boundary INCLUDED, elements by reference',
     sliced2.length === 2 && sliced2[0] === boundary2 && sliced2[1] === withBoundary[4],
   )
-  check('isCompactBoundaryMessage discriminates subtype', M.isCompactBoundaryMessage(boundary as never) && !M.isCompactBoundaryMessage(M.createSystemMessage('x', 'info') as never))
+  check('isCompactBoundaryMessage discriminates subtype', M.isFoldBoundaryMessage(boundary as never) && !M.isFoldBoundaryMessage(M.createSystemMessage('x', 'info') as never))
 
   const callMsgs = [
     mkAssistant([tu('toolu_c1'), tu('toolu_c2')]),

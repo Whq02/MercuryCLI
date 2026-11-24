@@ -22,9 +22,9 @@ for (const key of ['MERCURY_HOME', 'MERCURY_SKIP_PERMISSIONS', 'MERCURY_WARDS', 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.chdir(project)
 
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { WriteTool } = await import('../../src/tools/write/WriteTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
@@ -86,23 +86,23 @@ let turns = 0
 const parent = (): unknown => ({ uuid: `00000000-0000-4000-8000-${String(turns).padStart(12, '0')}`, message: { id: `remote-edit-${turns++}` } })
 const read = async (path: string, context: Context, more: Record<string, unknown> = {}): Promise<string> => {
   try {
-    const result = await FileReadTool.call({ file_path: path, ...more } as never, context as never, undefined, parent())
-    return String(FileReadTool.mapToolResultToToolResultBlockParam(result.data as never, 'proof').content)
+    const result = await ReadTool.call({ file_path: path, ...more } as never, context as never, undefined, parent())
+    return String(ReadTool.mapToolResultToToolResultBlockParam(result.data as never, 'proof').content)
   } catch (error) {
     return thrown(error)
   }
 }
 const edit = async (input: Input, context: Context = contextOf()): Promise<Said> => {
   try {
-    const verdict = (await FileEditTool.validateInput!(input as never, context as never)) as { result: boolean; message?: string }
+    const verdict = (await EditTool.validateInput!(input as never, context as never)) as { result: boolean; message?: string }
     if (verdict.result === false) return { said: `THROWN ${verdict.message}`, data: null }
-    const result = await FileEditTool.call(input as never, context as never, undefined as never, parent() as never)
-    return { said: String(FileEditTool.mapToolResultToToolResultBlockParam(result.data as never, 'proof').content), data: result.data as unknown as Record<string, unknown> }
+    const result = await EditTool.call(input as never, context as never, undefined as never, parent() as never)
+    return { said: String(EditTool.mapToolResultToToolResultBlockParam(result.data as never, 'proof').content), data: result.data as unknown as Record<string, unknown> }
   } catch (error) {
     return { said: thrown(error), data: null }
   }
 }
-const validated = async (input: Input, rules: Rules = {}, tool: { validateInput?: (input: never, context: never) => Promise<unknown> } = FileEditTool): Promise<{ result: boolean; message?: string }> => {
+const validated = async (input: Input, rules: Rules = {}, tool: { validateInput?: (input: never, context: never) => Promise<unknown> } = EditTool): Promise<{ result: boolean; message?: string }> => {
   try {
     return (await tool.validateInput!(input as never, contextOf(rules) as never)) as { result: boolean; message?: string }
   } catch (error) {
@@ -111,7 +111,7 @@ const validated = async (input: Input, rules: Rules = {}, tool: { validateInput?
 }
 const decided = async (path: string, rules: Rules = {}): Promise<Decision> => {
   try {
-    return (await FileEditTool.checkPermissions({ file_path: path, old_string: 'a', new_string: 'b' } as never, contextOf(rules) as never)) as unknown as Decision
+    return (await EditTool.checkPermissions({ file_path: path, old_string: 'a', new_string: 'b' } as never, contextOf(rules) as never)) as unknown as Decision
   } catch (error) {
     return { behavior: 'thrown', message: thrown(error) }
   }
@@ -310,7 +310,7 @@ async function edits(world: RemoteWorld): Promise<void> {
   const entry = await validated({ file_path: `${remote(join(dir, 'bundle.zip'))}:README.txt`, old_string: 'a', new_string: 'b' })
   check(`${name}: an entry inside an archive on another machine`, entry.result === false && entry.message === `${remote(join(dir, 'bundle.zip'))}:README.txt names an entry inside an archive or a database on another machine, which Write and Edit do not change.`, String(entry.message))
   const bare = await validated({ file_path: 'ssh://', old_string: 'a', new_string: 'b' })
-  const bareWrite = await validated({ file_path: 'ssh://', content: 'x' }, {}, FileWriteTool)
+  const bareWrite = await validated({ file_path: 'ssh://', content: 'x' }, {}, WriteTool)
   check(`${name}: ssh:// alone names no file, for Edit and for Write`, bare.result === false && bare.message === 'ssh:// alone is the list of hosts, which Read shows; Write and Edit need a file: ssh://<host>/<path>.' && bareWrite.result === false && bareWrite.message === bare.message, `${bare.message} | ${bareWrite.message}`)
 
   section(`${name} · the rules`)

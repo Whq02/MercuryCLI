@@ -28,7 +28,7 @@ export interface AdvisorContext {
 
 export const ADVISOR_CONTEXT_SCHEMA = 1
 export const ADVISOR_CONTEXT_DIR = 'advisor'
-export const ADVISOR_COMPACT_KEEP = 6
+export const ADVISOR_FOLD_KEEP = 6
 export const ADVISOR_FOLD_RESERVE_TOKENS = 20_000
 export const ADVISOR_SUMMARY_MAX_CHARS = 4000
 export const ADVISOR_BYTES_PER_TOKEN = 4
@@ -220,7 +220,7 @@ export function renderAdvisorFoldTranscript(rows: readonly AdvisorRow[]): string
   )
 }
 
-export function advisorCompactSummaryPrompt(): string {
+export function advisorFoldSummaryPrompt(): string {
   return [
     "You are summarizing the older portion of an advisor's own memory. The advisor is a second model that reads a working agent's conversation on a cadence and writes the agent short notes. The newest rows are kept verbatim; your summary REPLACES the older rows and is the advisor's only memory of them.",
     '',
@@ -237,16 +237,16 @@ export function advisorCompactSummaryPrompt(): string {
 
 export type AdvisorSummarizer = (args: { systemPrompt: string; transcript: string; modelId: string }) => Promise<string>
 
-export interface AdvisorCompactResult {
+export interface AdvisorFoldResult {
   compacted: number
   refused?: string
 }
 
-export async function compactAdvisorContext(
+export async function foldAdvisorContext(
   context: AdvisorContext,
   opts: { model: string; keep?: number; summarize?: AdvisorSummarizer },
-): Promise<AdvisorCompactResult> {
-  const keep = opts.keep ?? ADVISOR_COMPACT_KEEP
+): Promise<AdvisorFoldResult> {
+  const keep = opts.keep ?? ADVISOR_FOLD_KEEP
   if (context.rows.length <= keep) return { compacted: 0 }
   const fold = context.rows.slice(0, context.rows.length - keep)
   const tail = context.rows.slice(context.rows.length - keep)
@@ -255,7 +255,7 @@ export async function compactAdvisorContext(
   let summary: string
   try {
     summary = clipAdvisorText(
-      (await summarize({ systemPrompt: advisorCompactSummaryPrompt(), transcript: renderAdvisorFoldTranscript(fold), modelId: opts.model })).trim(),
+      (await summarize({ systemPrompt: advisorFoldSummaryPrompt(), transcript: renderAdvisorFoldTranscript(fold), modelId: opts.model })).trim(),
       ADVISOR_SUMMARY_MAX_CHARS,
     )
     if (summary.length === 0) return { compacted: 0, refused: 'the summarizer returned no text — nothing was folded' }
@@ -274,14 +274,14 @@ export async function compactAdvisorContext(
   return { compacted: fold.length }
 }
 
-export async function maybeCompactAdvisorContext(
+export async function maybeFoldAdvisorContext(
   context: AdvisorContext,
   opts: { model: string; window?: number; keep?: number; summarize?: AdvisorSummarizer },
-): Promise<AdvisorCompactResult & { tokens: number; window: number }> {
+): Promise<AdvisorFoldResult & { tokens: number; window: number }> {
   const window = opts.window ?? (await advisorWindowOf(opts.model))
   const tokens = advisorGaugeTokens(context)
   if (!advisorShouldFold(tokens, window)) return { compacted: 0, tokens, window }
-  const result = await compactAdvisorContext(context, opts)
+  const result = await foldAdvisorContext(context, opts)
   if (result.refused !== undefined) logForDebugging(`advisor: ${context.agentId} memory fold refused — ${result.refused}`)
   return { ...result, tokens, window }
 }

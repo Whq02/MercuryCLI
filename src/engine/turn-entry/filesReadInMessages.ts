@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs'
 
 import type { Message } from '../message-shapes/message.js'
-import { FILE_EDIT_TOOL_NAME } from '../../tools/kit/names/fileEdit.js'
+import { EDIT_TOOL_NAME } from '../../tools/kit/names/fileEdit.js'
 import { REPEATED_RESULT_TAG } from '../../tools/kit/toolLimits.js'
-import { FILE_READ_TOOL_NAME, FILE_UNCHANGED_STUB } from '../../tools/kit/names/fileRead.js'
-import { FILE_WRITE_TOOL_NAME } from '../../tools/kit/names/fileWrite.js'
+import { READ_TOOL_NAME, FILE_UNCHANGED_STUB } from '../../tools/kit/names/fileRead.js'
+import { WRITE_TOOL_NAME } from '../../tools/kit/names/fileWrite.js'
 import { createFileStateCacheWithSizeLimit, type FileStateCache } from '../../platform/files/fileStateCache.js'
 import { getFileModificationTime, stripLineNumberPrefix } from '../../platform/files/file.js'
 import { isENOENT } from '../../platform/errors/errors.js'
@@ -53,16 +53,16 @@ export function extractReadFilesFromMessages(
       if (typeof rawPath !== 'string' || rawPath.length === 0) continue
       const resolvedPath = expandPath(rawPath, cwd)
 
-      if (block.name === FILE_READ_TOOL_NAME) {
+      if (block.name === READ_TOOL_NAME) {
         if (block.input['offset'] == null && block.input['limit'] == null) {
           readUses.set(block.id, resolvedPath)
         }
-      } else if (block.name === FILE_WRITE_TOOL_NAME) {
+      } else if (block.name === WRITE_TOOL_NAME) {
         const fileContent = block.input['content']
         if (typeof fileContent === 'string' && fileContent.length > 0) {
           writeUses.set(block.id, { path: resolvedPath, content: fileContent })
         }
-      } else if (block.name === FILE_EDIT_TOOL_NAME) {
+      } else if (block.name === EDIT_TOOL_NAME) {
         editUses.set(block.id, resolvedPath)
       }
     }

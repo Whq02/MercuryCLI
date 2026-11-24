@@ -32,7 +32,7 @@ import { SedEditPermissionRequest } from '../sed-edit/SedEditPermissionRequest.j
 import { usePermissionRequestLogging } from '../cardArrival.js'
 import { useShellPermissionFeedback } from '../useShellPermissionFeedback.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
-import { bashToolUseOptions, type BashToolUseOption } from './shellAskOptions.js'
+import { shellAskOptions, type ShellAskOption } from './shellAskOptions.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
 
 type BashCardInput = { command: string; cwd?: string }
@@ -87,13 +87,13 @@ export function BashPermissionRequest(props: PermissionRequestProps): React.Reac
     const resolved = { ...sedEditInfo, filePath: expandPath(sedEditInfo.filePath, shellCwd) }
     return <SedEditPermissionRequest {...props} sedEditInfo={resolved} />
   }
-  return <BashCommandPermissionRequest {...props} command={input.command} cwd={input.cwd} />
+  return <ShellPermissionRequest {...props} command={input.command} cwd={input.cwd} />
 }
 
 export function MonitorPermissionRequest(props: PermissionRequestProps): React.ReactNode {
   const { command, description } = props.toolUseConfirm.input as { command?: unknown; description?: unknown }
   return (
-    <BashCommandPermissionRequest
+    <ShellPermissionRequest
       {...props}
       command={typeof command === 'string' ? command : ''}
       title="Monitor command"
@@ -102,7 +102,7 @@ export function MonitorPermissionRequest(props: PermissionRequestProps): React.R
   )
 }
 
-function BashCommandPermissionRequest(
+function ShellPermissionRequest(
   props: PermissionRequestProps & { command: string; cwd?: string; title?: string; summary?: string },
 ): React.ReactNode {
   const { toolUseConfirm, toolUseContext, onDone, onReject, workerBadge, command, cwd, title, summary } = props
@@ -172,7 +172,7 @@ function BashCommandPermissionRequest(
 
   const options = useMemo(
     () =>
-      bashToolUseOptions({
+      shellAskOptions({
         suggestions,
         decisionReason,
         onRejectFeedbackChange: feedback.setRejectFeedback,
@@ -194,7 +194,7 @@ function BashCommandPermissionRequest(
     ],
   )
 
-  function handleSelect(value: BashToolUseOption): void {
+  function handleSelect(value: ShellAskOption): void {
     switch (value) {
       case 'yes': {
         const trimmedFeedback = feedback.acceptFeedback.trim() || undefined

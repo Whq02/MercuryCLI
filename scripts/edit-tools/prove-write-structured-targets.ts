@@ -20,9 +20,9 @@ delete process.env.NODE_ENV
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 const { _resetSeenLinesForTesting } = await import(`${SRC}/tools/engines/change-transaction/seenLines.ts`)
-const { FileEditTool } = await import(`${SRC}/tools/edit/EditTool.ts`)
-const { FileReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
-const { FileWriteTool } = await import(`${SRC}/tools/write/WriteTool.ts`)
+const { EditTool } = await import(`${SRC}/tools/edit/EditTool.ts`)
+const { ReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
+const { WriteTool } = await import(`${SRC}/tools/write/WriteTool.ts`)
 const { getEmptyToolPermissionContext } = await import(`${SRC}/tools/kit/tool.ts`)
 const { createFileStateCacheWithSizeLimit } = await import(`${SRC}/platform/files/fileStateCache.ts`)
 const structured = (await import(`${SRC}/tools/write/structuredTargets.ts`).catch(() => null)) as null | {
@@ -32,7 +32,7 @@ const structured = (await import(`${SRC}/tools/write/structuredTargets.ts`).catc
 
 let failures = 0
 let checks = 0
-const structuredTargetHint = 'a zip entry or SQLite row target (path:entry or path:table/row) no longer behaves as the label says; compare it with parseStructuredWriteTarget in src/tools/write/structuredTargets.ts and with the Write, Edit and Read tools in src/tools/write, src/tools/FileEditTool and src/tools/read. '
+const structuredTargetHint = 'a zip entry or SQLite row target (path:entry or path:table/row) no longer behaves as the label says; compare it with parseStructuredWriteTarget in src/tools/write/structuredTargets.ts and with the Write, Edit and Read tools in src/tools/write, src/tools/EditTool and src/tools/read. '
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -189,9 +189,9 @@ async function run(tool: unknown, input: Record<string, unknown>, ctx: Ctx): Pro
     return { ok: false, message: err instanceof Error ? err.message : String(err) }
   }
 }
-const read = (input: Record<string, unknown>, ctx: Ctx) => run(FileReadTool, input, ctx)
-const write = (input: Record<string, unknown>, ctx: Ctx) => run(FileWriteTool, input, ctx)
-const edit = (input: Record<string, unknown>, ctx: Ctx) => run(FileEditTool, input, ctx)
+const read = (input: Record<string, unknown>, ctx: Ctx) => run(ReadTool, input, ctx)
+const write = (input: Record<string, unknown>, ctx: Ctx) => run(WriteTool, input, ctx)
+const edit = (input: Record<string, unknown>, ctx: Ctx) => run(EditTool, input, ctx)
 const words = (v: Verdict): string => (v.ok ? v.text : v.message)
 const bytesOf = (p: string): Buffer => readFileSync(p)
 
@@ -553,7 +553,7 @@ section('refusals. Every way to abuse or break the row, driven and refused')
     const view = await write({ file_path: `${dbPath}:admins/1`, content: '{"name": "x"}' }, ctx)
     let viewEditNoThrow = false
     try {
-      const v = await (FileEditTool as { validateInput: Function }).validateInput({ file_path: `${dbPath}:admins/1`, old_string: 'a', new_string: 'b' }, ctx)
+      const v = await (EditTool as { validateInput: Function }).validateInput({ file_path: `${dbPath}:admins/1`, old_string: 'a', new_string: 'b' }, ctx)
       viewEditNoThrow = v.result === false && /view/.test(String(v.message))
     } catch {}
     const viewEdit = await edit({ file_path: `${dbPath}:admins/1`, old_string: 'a', new_string: 'b' }, ctx)
@@ -588,7 +588,7 @@ section('refusals. Every way to abuse or break the row, driven and refused')
     const fd = openSync(huge, 'w')
     ftruncateSync(fd, 17 * 1024 * 1024)
     closeSync(fd)
-    const overVal = await (FileWriteTool as { validateInput: Function }).validateInput({ file_path: `${huge}:a.txt`, content: 'x\n' }, ctx)
+    const overVal = await (WriteTool as { validateInput: Function }).validateInput({ file_path: `${huge}:a.txt`, content: 'x\n' }, ctx)
     const over = await write({ file_path: `${huge}:a.txt`, content: 'x\n' }, ctx)
     check('R4.1 an archive over the 16 MiB container ceiling is refused by stat in validateInput before it is read', overVal.result === false && !over.ok && /exceeds the maximum allowed container size/.test(over.message) && statSync(huge).size === 17 * 1024 * 1024, `${JSON.stringify(overVal)} / ${words(over)}`)
 
@@ -898,10 +898,10 @@ section('refusals. Every way to abuse or break the row, driven and refused')
       ['sovereign', [`Edit(/${fixtures}/**)`], 'deny'],
     ] as Array<['default' | 'implement' | 'sovereign', string[], string]>) {
       const ctx = makeContext(rules, mode)
-      const entry = await ladder(FileWriteTool, `${outside}:notes/x.txt`, ctx)
-      const row = await ladder(FileEditTool, `${dbPath}:users/1`, ctx)
-      const host = await ladder(FileWriteTool, outside, ctx)
-      const dbHost = await ladder(FileEditTool, dbPath, ctx)
+      const entry = await ladder(WriteTool, `${outside}:notes/x.txt`, ctx)
+      const row = await ladder(EditTool, `${dbPath}:users/1`, ctx)
+      const host = await ladder(WriteTool, outside, ctx)
+      const dbHost = await ladder(EditTool, dbPath, ctx)
       check(
         `R13 the permission ladder judges a ${expected === 'deny' ? 'denied' : 'new, out-of-project'} entry or row by its HOST path in ${mode} mode: the same ${expected} the host archive or database itself gets, naming the host`,
         entry.behavior === expected && row.behavior === expected && entry.message === host.message && row.message === dbHost.message && entry.message.includes(outside) && !entry.message.includes('notes/x.txt'),

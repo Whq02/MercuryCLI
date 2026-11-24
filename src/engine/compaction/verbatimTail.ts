@@ -13,7 +13,7 @@ export const LANDING_ROOM_FLOOR_TOKENS = 20_000
 export const LANDING_ROOM_MAX_SHARE = 2
 export const FOLDED_RESULT_KEY = '[result folded into the summary above'
 
-export function isMercuryCompactKeepTailEnabled(): boolean {
+export function isMercuryFoldKeepTailEnabled(): boolean {
   const flag = flagEnv('MERCURY_COMPACT_KEEP_TAIL')
   if (flag === '0' || flag?.toLowerCase() === 'false') return false
   return isEnvTruthy(flag) || isEnvTruthy(flagEnv('MERCURY_CTX_COMPACTION')) || isMercurySubstrateProfileOn()

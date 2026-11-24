@@ -104,7 +104,7 @@ const { TerminalSizeContext } = await import('../../src/screen/renderer/elements
 const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
 const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
-const { ResumeConversation } = await import('../../src/screen/chat/ResumeSession.tsx')
+const { ResumeSession } = await import('../../src/screen/chat/ResumeSession.tsx')
 
 class FakeStdout extends EventEmitter {
   isTTY = true
@@ -326,7 +326,7 @@ async function mountScenario(rows: number, listings: SessionListing[]): Promise<
             h(
               Box,
               { width: COLS, height: rows, flexDirection: 'column' },
-              h(ResumeConversation, {
+              h(ResumeSession, {
                 key: `resume-run-${runSeq}`,
                 commands: [],
                 worktreePaths: [fixtureRoot],

@@ -13,7 +13,7 @@ import {
   parseArgumentNames,
   parseArguments,
 } from '../../../integrations/extensions/load/argumentSubstitution.js'
-import { formatLogMetadata } from '../../../platform/text/format.js'
+import { formatListingMetadata } from '../../../platform/text/format.js'
 import { logError } from '../../../platform/logs/errorLog.js'
 import { searchSessionsByCustomTitle } from '../../../sessions/transcripts/sessionStorage.js'
 import {
@@ -240,7 +240,7 @@ export function ladderCommands({
           return {
             id: label,
             displayText: label,
-            description: formatLogMetadata(session),
+            description: formatListingMetadata(session),
             metadata: session.sessionId,
           }
         })

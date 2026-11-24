@@ -24,8 +24,8 @@ console.log(' a refused tool call keeps its raw arguments for diagnosis')
 console.log('============================================================')
 
 const gate = await import('../../src/models/roads/toolCallGate.ts')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
-const tools = [FileWriteTool] as never
+const { WriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const tools = [WriteTool] as never
 
 const RAW = '{"file_path":"/Users/someone/Desktop/rpg-game.html"}'
 const NOTE = "[local] the provider emitted a malformed tool call (Write): the arguments do not match the tool's input schema (The required parameter `content` is missing) — it was not executed."

@@ -24,7 +24,7 @@ const writeTargetFixHint = ' | fix: the directory refusal is in validateInput in
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { WriteTool } = await import('../../src/tools/write/WriteTool.ts')
 const { findActualString } = await import('../../src/tools/edit/call/editMatching.ts')
 
 const appState = getDefaultAppState()
@@ -32,7 +32,7 @@ const context = { getAppState: () => appState, abortController: new AbortControl
 type Verdict = { result: boolean; message?: string } | undefined
 const validate = async (input: Record<string, unknown>): Promise<{ verdict: Verdict; threw: string | null }> => {
   try {
-    return { verdict: await (FileWriteTool as { validateInput: (input: never, context: never) => Promise<Verdict> }).validateInput(input as never, context), threw: null }
+    return { verdict: await (WriteTool as { validateInput: (input: never, context: never) => Promise<Verdict> }).validateInput(input as never, context), threw: null }
   } catch (err) {
     return { verdict: undefined, threw: err instanceof Error ? err.message : String(err) }
   }

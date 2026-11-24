@@ -1,4 +1,4 @@
-import type { CompactMetadata, Message, RenderableMessage, SystemCrewChatMessage, TurnReceiptMessage } from '../../engine/message-shapes/message.js'
+import type { FoldMetadata, Message, RenderableMessage, SystemCrewChatMessage, TurnReceiptMessage } from '../../engine/message-shapes/message.js'
 import { flagEnabled } from '../../platform/substrate/flagRegistry.js'
 import { deriveUUID } from '../../engine/message-shapes/identity.js'
 import { NO_RESPONSE_REQUESTED } from '../../engine/message-shapes/rejectionText.js'
@@ -113,7 +113,7 @@ export function isScratchpadPath(p: string, tempRoot: string): boolean {
 type LooseMessage = {
   type?: string
   subtype?: string
-  compactMetadata?: CompactMetadata
+  compactMetadata?: FoldMetadata
   isMeta?: boolean
   isVirtual?: boolean
   isApiErrorMessage?: boolean
@@ -312,7 +312,7 @@ export function injectTurnReceipts(messages: RenderableMessage[], tempRoot: stri
   return out
 }
 
-export function compactWorkOf(messages: readonly LooseMessage[]): CompactMetadata['work'] {
+export function foldWorkOf(messages: readonly LooseMessage[]): FoldMetadata['work'] {
   return messages.find(m => m.type === 'system' && m.subtype === 'compact_boundary')?.compactMetadata?.work
 }
 
@@ -330,8 +330,8 @@ function walkTurnReceipts(
   tempRoot: string,
   visit: (counts: TurnReceiptCounts, anchorUuid: string, end: number, replied: boolean, contextDelta: number | undefined, fold: Fold) => void,
 ): void {
-  const pending = new Map<string, NonNullable<CompactMetadata['work']>['receipts'][number]>()
-  for (const receipt of compactWorkOf(messages)?.receipts ?? []) {
+  const pending = new Map<string, NonNullable<FoldMetadata['work']>['receipts'][number]>()
+  for (const receipt of foldWorkOf(messages)?.receipts ?? []) {
     pending.set(receipt.beforeUuid, receipt)
     pending.set(deriveUUID(receipt.beforeUuid as Message['uuid'], receipt.blockIndex ?? 0), receipt)
   }
@@ -400,8 +400,8 @@ export function foldedTurnReceipts(
   kept: Message[],
   summaryUuid: string,
   tempRoot: string,
-): NonNullable<CompactMetadata['work']>['receipts'] {
-  type Receipt = NonNullable<CompactMetadata['work']>['receipts'][number]
+): NonNullable<FoldMetadata['work']>['receipts'] {
+  type Receipt = NonNullable<FoldMetadata['work']>['receipts'][number]
   const keptByUuid = new Map(kept.map(m => [m.uuid, m]))
   const receipts = new Map<string, Receipt>()
   const retain = (receipt: Receipt): void => {

@@ -1,4 +1,4 @@
-export const FILE_WRITE_TOOL_NAME = 'Write'
+export const WRITE_TOOL_NAME = 'Write'
 
 export const DESCRIPTION = 'Put content on disk at a path, replacing what was there.'
 

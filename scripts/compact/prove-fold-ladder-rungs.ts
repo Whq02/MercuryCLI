@@ -96,14 +96,14 @@ const { setIsInteractive } = await import('../../src/boot/process-state/processS
 setIsInteractive(false)
 const { refreshGeminiCatalogue } = await import('../../src/models/roads/gemini/geminiCatalogue.ts')
 const { getContextWindowForModel } = await import('../../src/models/facts/capabilities.ts')
-const { getAutoCompactThreshold, getBlockingLimit } = await import('../../src/engine/compaction/autoFold.ts')
+const { getAutoFoldThreshold, getBlockingLimit } = await import('../../src/engine/compaction/autoFold.ts')
 const { tokenCountWithEstimation } = await import('../../src/engine/context-window/contextTokenCount.ts')
 const { requestGaugeDigest } = await import('../../src/engine/run/requestGauge.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
 const compactModule = await import('../../src/engine/compaction/foldConversation.ts')
-const { compactConversation, partialCompactConversation, buildPostCompactMessages, PROSE_SKIPPED_KEY, ERROR_MESSAGE_NO_SUMMARY, summaryAnswerFault, FOLD_WINDOW_REFUSAL_KEY } = compactModule
+const { foldConversation, partialFoldConversation, buildPostFoldMessages, PROSE_SKIPPED_KEY, ERROR_MESSAGE_NO_SUMMARY, summaryAnswerFault, FOLD_WINDOW_REFUSAL_KEY } = compactModule
 const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
 const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
 const windowModule = await import('../../src/models/roads/local/localWindow.ts')
@@ -165,13 +165,13 @@ function makeContext(model: string, messages: Message[]): Record<string, unknown
     options: { tools: [], commands: [], mcpClients: [], engineModel: model, maxThinkingTokens: 0, thinkingConfig: { type: 'enabled', budget_tokens: 8_000 }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } },
   }
 }
-type Drive = { landed: boolean; error?: string; pre?: number; post?: number; kept?: number; notes?: string[]; summaryText?: string; result?: Awaited<ReturnType<typeof compactConversation>>; ms: number }
+type Drive = { landed: boolean; error?: string; pre?: number; post?: number; kept?: number; notes?: string[]; summaryText?: string; result?: Awaited<ReturnType<typeof foldConversation>>; ms: number }
 async function fold(model: string, messages: Message[], road: 'auto' | 'manual' = 'manual'): Promise<Drive> {
   const context = makeContext(model, messages)
   const cache = { systemPrompt: ['fixture system prompt'], userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: messages } as never
   const started = Date.now()
   try {
-    const result = await compactConversation(messages, context as never, cache, road === 'auto', undefined, road === 'auto', { isRecompaction: false, turnsSincePreviousCompact: -1, autoCompactThreshold: getAutoCompactThreshold(model) }, undefined, model)
+    const result = await foldConversation(messages, context as never, cache, road === 'auto', undefined, road === 'auto', { isRecompaction: false, turnsSincePreviousCompact: -1, autoCompactThreshold: getAutoFoldThreshold(model) }, undefined, model)
     const summary = result.summaryMessages[0]
     return { landed: true, pre: result.preCompactTokenCount, post: result.truePostCompactTokenCount, kept: result.messagesToKeep?.length ?? 0, notes: result.notes, summaryText: summary !== undefined && typeof summary.message.content === 'string' ? summary.message.content : '', result, ms: Date.now() - started }
   } catch (error) {
@@ -186,7 +186,7 @@ section('R1 (c) already over the window with the automatic fold failed: a 1,048,
 {
   const messages = conversation({ rounds: 40, resultChars: 100_000, model: GEMINI, lastUsage: { input: 24_000, output: 1_200, cacheRead: 985_000 }, gauge: { ratio: 1.36, fixed: 40_000 } })
   const gauge = tokenCountWithEstimation(messages, GEMINI)
-  record(`the gauge reads ${gauge.toLocaleString('en-US')} on window ${getContextWindowForModel(GEMINI).toLocaleString('en-US')} (threshold ${getAutoCompactThreshold(GEMINI).toLocaleString('en-US')}, blocking ${getBlockingLimit(GEMINI).toLocaleString('en-US')})`)
+  record(`the gauge reads ${gauge.toLocaleString('en-US')} on window ${getContextWindowForModel(GEMINI).toLocaleString('en-US')} (threshold ${getAutoFoldThreshold(GEMINI).toLocaleString('en-US')}, blocking ${getBlockingLimit(GEMINI).toLocaleString('en-US')})`)
   check('the conversation is over the blocking limit (the automatic fold has failed, the turn was stopped)', gauge > getBlockingLimit(GEMINI), `${String(gauge)} — the rig must read over getBlockingLimit; fix the conversation rig above or tokenCountWithEstimation in src/engine/context-window/contextTokenCount.ts`)
   const sent: number[] = []
   fixture.script((request: Captured) => {
@@ -199,7 +199,7 @@ section('R1 (c) already over the window with the automatic fold failed: a 1,048,
   check('the manual fold landed (red on the base: Failed to generate a conversation summary.)', run.landed, `${run.error ?? ''} — the manual fold must land on rung 1; read prefitSummariserInput in src/engine/compaction/fold/summariserFit.ts and summariseForFold in src/engine/compaction/fold/foldSummary.ts`)
   check('rung 1: one request, under the window by the provider\'s count', sent.length === 1 && sent[0]! <= Math.floor(GEMINI_WINDOW * 0.95), `${sent.join(',')} — over the blocking limit the input must be pre-fitted to one request within 95% of the window; fix prefitSummariserInput in src/engine/compaction/fold/summariserFit.ts`)
   check('the prose summary is the model\'s (no skipped-prose line, no receipt note)', (run.summaryText ?? '').includes('Where Work Stands') && !(run.summaryText ?? '').includes(PROSE_SKIPPED_KEY) && (run.notes ?? []).length === 0, `${JSON.stringify(run.notes)} — a model summary must carry no skipped-prose note; check proseSkippedNote in src/engine/compaction/fold/ladder.ts`)
-  check('the post-fold context is under the threshold with a verbatim tail', (run.post ?? Infinity) < getAutoCompactThreshold(GEMINI) && (run.kept ?? 0) > 0, `${run.post} / ${run.kept}`)
+  check('the post-fold context is under the threshold with a verbatim tail', (run.post ?? Infinity) < getAutoFoldThreshold(GEMINI) && (run.kept ?? 0) > 0, `${run.post} / ${run.kept}`)
 }
 
 section('R2 (c, the provider answers nothing whatever it is sent): rung 2 halves the input without reducing thinking or effort, twice; rung 3 lands the fold on Mercury\'s own records and says so in one line')
@@ -216,10 +216,10 @@ section('R2 (c, the provider answers nothing whatever it is sent): rung 2 halves
   const line = `${PROSE_SKIPPED_KEY}: the answer had no text (stop reason end_turn; 0 thinking blocks, 0 tool calls).`
   check('the summary card opens on the one-line notice naming the cause', (run.summaryText ?? '').includes(line), `${(run.summaryText ?? '').slice(0, 400)} — the card must open on the one-line cause; see proseSkippedLine in src/engine/compaction/fold/ladder.ts`)
   check('the receipt carries the same line as its note', (run.notes ?? []).some(note => note.startsWith(line)), `${JSON.stringify(run.notes)} — the receipt note must equal the card line; see proseSkippedNote in src/engine/compaction/fold/ladder.ts`)
-  const post = run.result === undefined ? [] : buildPostCompactMessages(run.result)
+  const post = run.result === undefined ? [] : buildPostFoldMessages(run.result)
   const kinds = post.map(row => (row.type === 'system' ? `system:${(row as { subtype?: string }).subtype ?? ''}` : row.type === 'attachment' ? `attachment:${(row as { attachment: { type: string } }).attachment.type}` : row.type))
   check('the records carry the fold: the boundary, the operator messages, the summary row with the fold ledger, the kept tail', kinds[0] === 'system:compact_boundary' && kinds.includes('attachment:compact_operator_messages') && (run.summaryText ?? '').includes('Folded work') && (run.kept ?? 0) > 0, `${kinds.slice(0, 6).join(' · ')} — buildPostCompactMessages in src/engine/compaction/fold/foldResult.ts must emit the boundary, operator messages and summary row with the fold ledger, then the kept tail`)
-  check('the post-fold context is under the threshold', (run.post ?? Infinity) < getAutoCompactThreshold(GEMINI), String(run.post))
+  check('the post-fold context is under the threshold', (run.post ?? Infinity) < getAutoFoldThreshold(GEMINI), String(run.post))
 }
 
 section('R3 a Gemini-shaped empty candidate on an ordinary fold is rung 2, not a throw: the halved retry answers and the fold lands with the model\'s prose')
@@ -252,7 +252,7 @@ section('R5 (d) a 32,768-token local model: the fold lands with the summariser\'
   const model = `local/${LOCAL_MODEL}`
   check('discovery states the served window (32,768 · served)', localRecordFor(model)?.contextWindow?.tokens === LOCAL_SERVED, JSON.stringify(localRecordFor(model)?.contextWindow))
   const messages = conversation({ rounds: 30, resultChars: 8_000, model, lastUsage: { input: 60_000, output: 300 } })
-  record(`the gauge reads ${tokenCountWithEstimation(messages, model).toLocaleString('en-US')} on window ${getContextWindowForModel(model).toLocaleString('en-US')} (threshold ${getAutoCompactThreshold(model).toLocaleString('en-US')}, blocking ${getBlockingLimit(model).toLocaleString('en-US')})`)
+  record(`the gauge reads ${tokenCountWithEstimation(messages, model).toLocaleString('en-US')} on window ${getContextWindowForModel(model).toLocaleString('en-US')} (threshold ${getAutoFoldThreshold(model).toLocaleString('en-US')}, blocking ${getBlockingLimit(model).toLocaleString('en-US')})`)
   localHits.length = 0
   localAnswer = () => '<summary>1. Operator Intent: read the sources and write the memo.\n8. Where Work Stands: the sources are read.\n10. Agents in flight: none.</summary>'
   const run = await fold(model, messages, 'auto')
@@ -262,7 +262,7 @@ section('R5 (d) a 32,768-token local model: the fold lands with the summariser\'
   check('every summariser request fitted the served window, so the silent-truncation guard never fired and nothing was sent over the window', localHits.length >= 1 && localHits.every(hit => hit.chars / 3.9 <= LOCAL_SERVED), `${localHits.length} requests, largest ${largest}`)
   check('the fold ran in parts: the oldest rounds folded into part capsules ahead of the final request', localHits.length >= 2 && localHits.some(hit => JSON.stringify(hit.body).includes('earlier turns folded into this summary for the compaction')), String(localHits.length))
   check('the kept tail was split off before the send: the newest round\'s call never reached the summariser, and the fold kept it verbatim (red on 41304f7c53: the stand-in for the summary was the whole 8,192-token reserve, larger than the landing, so no split ever fitted and the newest round rode every part)', localHits.length >= 1 && localHits.every(hit => !JSON.stringify(hit.body).includes('call_0029')) && (run.kept ?? 0) > 0, `${localHits.filter(hit => JSON.stringify(hit.body).includes('call_0029')).length} of ${localHits.length} requests carried call_0029; kept ${run.kept}`)
-  check('the post-fold context is under the threshold', (run.post ?? Infinity) < getAutoCompactThreshold(model), `${run.post} vs ${getAutoCompactThreshold(model)}`)
+  check('the post-fold context is under the threshold', (run.post ?? Infinity) < getAutoFoldThreshold(model), `${run.post} vs ${getAutoFoldThreshold(model)}`)
   localHits.length = 0
   localAnswer = () => ''
   const silent = await fold(model, messages, 'auto')
@@ -279,7 +279,7 @@ section('R6 the floor names its cause: the partial fold (no rung 3) and the answ
   const cache = { systemPrompt: ['fixture system prompt'], userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: messages } as never
   let error = ''
   try {
-    await partialCompactConversation(messages, 0, context as never, cache, undefined, 'from')
+    await partialFoldConversation(messages, 0, context as never, cache, undefined, 'from')
   } catch (caught) {
     error = caught instanceof Error ? caught.message : String(caught)
   }
@@ -354,7 +354,7 @@ section('R9 the text road is bounded by the same ladder: one round larger than a
   let summaryText = ''
   let notes: string[] = []
   try {
-    const result = await compactConversation(messages, context as never, cache, true, undefined, true, { isRecompaction: false, turnsSincePreviousCompact: -1, autoCompactThreshold: getAutoCompactThreshold(model) }, undefined, model)
+    const result = await foldConversation(messages, context as never, cache, true, undefined, true, { isRecompaction: false, turnsSincePreviousCompact: -1, autoCompactThreshold: getAutoFoldThreshold(model) }, undefined, model)
     landed = true
     const summary = result.summaryMessages[0]
     summaryText = summary !== undefined && typeof summary.message.content === 'string' ? summary.message.content : ''

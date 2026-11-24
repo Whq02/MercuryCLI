@@ -86,17 +86,17 @@ const { deepseekLaneProfile } = await import('../../src/models/roads/deepseek/de
 const { compatChatCallModel } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
 const { RetainTool, RecallTool } = await import('../../src/tools/memory/MemoryTools.ts')
 type LocalModelRecord = import('../../src/models/roads/local/localDiscovery.ts').LocalModelRecord
 type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
 type CompatLaneProfile = import('../../src/models/roads/openaicompat/compatChatCallModel.ts').CompatLaneProfile
 const ollamaRecord: LocalModelRecord = { id: 'qwen3.5:9b', server: 'ollama', baseUrl: `${root}/v1`, toolsDeclared: true, thinkingDeclared: true, family: 'qwen3', parameterSize: '9B' }
-const READ = FileReadTool.name
+const READ = ReadTool.name
 const RETAIN = RetainTool.name
 const RECALL = RecallTool.name
-const pool = [ToolSearchTool, FileReadTool, RetainTool, RecallTool]
+const pool = [ToolSearchTool, ReadTool, RetainTool, RecallTool]
 
 type Settled = { toolUses: Array<{ name: string; input: unknown }>; texts: string[]; stop: string | null | undefined; notes: string[] }
 async function drive(profile: CompatLaneProfile, model: string, conversation: { messages?: unknown[]; tools?: unknown[] } = {}): Promise<Settled> {
@@ -175,16 +175,16 @@ const ITEMS = [{ content: 'Deploy target for this project: the blue rack in room
 
 section('2b · the stored call is the model\'s own: a schema default is applied at execution, never written into the tool_use row (a replayed row must re-ingest byte-identical on a local server)')
 {
-  const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
-  const EDIT = FileEditTool.name
+  const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
+  const EDIT = EditTool.name
   const sent = { file_path: '/tmp/add.js', old_string: 'return a + b', new_string: 'return Number(a) + Number(b)' }
   script.ollama = ollamaCall(EDIT, sent)
-  const settled = await local({ tools: [FileEditTool], messages: [createUserMessage({ content: 'coerce the numbers in add.js' })] })
+  const settled = await local({ tools: [EditTool], messages: [createUserMessage({ content: 'coerce the numbers in add.js' })] })
   check(`${EDIT} called without replace_all: the stored tool_use input is byte-identical to what the model sent (no default written in)`, settled.toolUses.length === 1 && JSON.stringify(settled.toolUses[0]!.input) === JSON.stringify(sent), JSON.stringify(settled.toolUses[0]?.input))
   script.ollama = ollamaCall(EDIT, { ...sent, replace_all: true })
-  const explicit = await local({ tools: [FileEditTool], messages: [createUserMessage({ content: 'coerce the numbers in add.js' })] })
+  const explicit = await local({ tools: [EditTool], messages: [createUserMessage({ content: 'coerce the numbers in add.js' })] })
   check(`${EDIT} called with replace_all: the stored input keeps it as sent`, explicit.toolUses.length === 1 && JSON.stringify(explicit.toolUses[0]!.input) === JSON.stringify({ ...sent, replace_all: true }), JSON.stringify(explicit.toolUses[0]?.input))
-  check(`the executor still reads the default at execution (${EDIT}'s schema parses the stored input to replace_all false)`, (FileEditTool.inputSchema.safeParse(settled.toolUses[0]!.input) as { success: boolean; data?: { replace_all?: boolean } }).data?.replace_all === false)
+  check(`the executor still reads the default at execution (${EDIT}'s schema parses the stored input to replace_all false)`, (EditTool.inputSchema.safeParse(settled.toolUses[0]!.input) as { success: boolean; data?: { replace_all?: boolean } }).data?.replace_all === false)
 }
 
 section('3 · on a hosted lane too: the same stringified number through the DeepSeek lane is typed by the declared schema and the call mints')

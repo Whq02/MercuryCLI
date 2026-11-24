@@ -20,7 +20,7 @@ for (const k of [
   delete process.env[k]
 }
 
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
@@ -30,7 +30,7 @@ const { createAssistantMessage, createAssistantAPIErrorMessage, createUserMessag
   await import('../../src/engine/messages/messages.ts')
 const { FallbackTriggeredError } = await import('../../src/engine/requests/withRetry.ts')
 const { ImageSizeError } = await import('../../src/engine/requests/imageValidation.ts')
-const { AUTOCOMPACT_THRASH_MESSAGE } = await import('../../src/engine/compaction/autoFold.ts')
+const { AUTO_FOLD_THRASH_MESSAGE } = await import('../../src/engine/compaction/autoFold.ts')
 const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/engine/requests/apiErrorRows.ts')
 const { INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE, turnCutResultText } = await import(
   '../../src/engine/message-shapes/rejectionText.ts'
@@ -349,7 +349,7 @@ function buildRun(opts: RunOpts): {
   const rig = makeCtx(tools)
   const { calls, callModel } = makeModel(opts.script)
   opts.beforeRun?.(rig)
-  const gen = query({
+  const gen = turnDoor({
     messages: (opts.seed ?? [seedUser('hello there rig')]) as never,
     systemPrompt: ['rig system prompt'] as never,
     userContext: {},
@@ -557,7 +557,7 @@ section('L3b BACKFILL — a per-block backfill that THROWS leaves that block its
     JSON.stringify(results.map(b => ({ id: b.tool_use_id, e: b.is_error, c: JSON.stringify(b.content).slice(0, 80) }))),
   )
   check('the API-bound assistant is still the original object (prompt-cache byte identity)', r !== null && r.calls.length > 1 && r.calls[1]!.messages.find(m => (m as AnyMsg).type === 'assistant') === original)
-  const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+  const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
   const { backfillCloneForYield } = await import('../../src/engine/loop/model-lane.ts')
   const readMessage = createAssistantMessage({
     content: [
@@ -569,7 +569,7 @@ section('L3b BACKFILL — a per-block backfill that THROWS leaves that block its
   let readThrew: unknown = null
   let readYield: unknown = null
   try {
-    readYield = backfillCloneForYield(readMessage, name => (name === 'Read' ? (FileReadTool as never) : undefined))
+    readYield = backfillCloneForYield(readMessage, name => (name === 'Read' ? (ReadTool as never) : undefined))
   } catch (e) {
     readThrew = e
   }
@@ -1003,7 +1003,7 @@ section('L12 RAPID-REFILL BREAKER — the notice rides beside the answer, the tu
   const thrash = r.yields.find(
     m =>
       (m as AnyMsg).type === 'system' &&
-      String((m as AnyMsg).content ?? '').includes(AUTOCOMPACT_THRASH_MESSAGE.slice(0, 40)) &&
+      String((m as AnyMsg).content ?? '').includes(AUTO_FOLD_THRASH_MESSAGE.slice(0, 40)) &&
       String((m as AnyMsg).content ?? '').includes('paused for the rest of this run'),
   )
   check('the AUTOCOMPACT_THRASH_MESSAGE rides as a warning row with the pause, not as an error reply', thrash !== undefined && !r.yields.some(m => (m as AnyMsg).isApiErrorMessage === true))

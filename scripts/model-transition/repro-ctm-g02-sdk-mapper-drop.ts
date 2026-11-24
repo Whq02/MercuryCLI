@@ -12,7 +12,7 @@ process.env.ANTHROPIC_API_KEY = 'fixture-key'
 const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
-const { createModelTransitionMessage, createCompactBoundaryMessage } = await import(
+const { createModelTransitionMessage, createFoldBoundaryMessage } = await import(
   '../../src/engine/message-shapes/systemMessages.ts'
 )
 const { toSDKMessages } = await import('../../src/utils/messages/mappers.ts')
@@ -23,7 +23,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
 }
 
-const boundary = createCompactBoundaryMessage('auto', 1000)
+const boundary = createFoldBoundaryMessage('auto', 1000)
 const sdkBoundary = toSDKMessages([boundary as never])
 check(
   '§A control: compact_boundary crosses the SDK mapper',

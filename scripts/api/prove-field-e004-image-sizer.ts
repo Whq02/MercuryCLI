@@ -54,7 +54,7 @@ const { getEmptyToolPermissionContext } = await import(join(ROOT, 'src/tools/kit
 const { getDefaultAppState } = await import(join(ROOT, 'src/screen/app-state/AppStateStore.ts'))
 const { createFileStateCacheWithSizeLimit } = await import(join(ROOT, 'src/platform/files/fileStateCache.ts'))
 const { createContentReplacementState } = await import(join(ROOT, 'src/engine/tool-dispatch/toolResultStorage.ts'))
-const { FileReadTool } = await import(join(ROOT, 'src/tools/read/ReadTool.ts'))
+const { ReadTool } = await import(join(ROOT, 'src/tools/read/ReadTool.ts'))
 const { call: compactCommand } = await import(join(ROOT, 'src/commands/compact/compact.ts'))
 const { recordSentRequest, resetSentRequestsForTests } = await import(join(ROOT, 'src/crew/agents/forkedAgent.ts'))
 const { processOwnerForLane, rosterOwnerFromToolUseContext } = await import(join(ROOT, 'src/engine/run-owner/resolveOwner.ts'))
@@ -393,7 +393,7 @@ for (const armName of ['jsjpeg', 'jspng', 'jsmany'] as const) {
     const ctx: Record<string, unknown> = {
       abortController: new AbortController(),
       options: {
-        commands: [], tools: [FileReadTool], engineModel: MODEL_A, thinkingConfig: { type: 'disabled' }, mcpClients: [], mcpResources: {},
+        commands: [], tools: [ReadTool], engineModel: MODEL_A, thinkingConfig: { type: 'disabled' }, mcpClients: [], mcpResources: {},
         isNonInteractiveSession: false, debug: false, verbose: false, agentDefinitions: { activeAgents: [], allAgents: [] },
       },
       getAppState: () => appState,

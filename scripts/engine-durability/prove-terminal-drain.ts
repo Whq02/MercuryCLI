@@ -27,7 +27,7 @@ mock.module('../../src/engine/loop/turn-machine.ts', () => ({
 const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
 const sidecar = await import('../../src/engine/run/runSidecar.ts')
 const coord = await import('../../src/engine/run/runCoordinator.ts')
-const { queryEvents } = await import('../../src/engine/turnDoor.ts')
+const { turnDoorEvents } = await import('../../src/engine/turnDoor.ts')
 
 function paramsFor(owner: string): unknown {
   return {
@@ -52,7 +52,7 @@ async function runTurn(
   const path = guardWrite(ROOT, sidecar.runSidecarPath(owner))
   machineExit = close === 'throw' ? 'throw' : 'return'
 
-  const it = queryEvents(paramsFor(owner) as never)
+  const it = turnDoorEvents(paramsFor(owner) as never)
   await it.next()
   coord.noteRunEvent(owner, { type: 'substantive', at: 2, reason: 'edits landed' })
 

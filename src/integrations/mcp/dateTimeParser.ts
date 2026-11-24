@@ -1,4 +1,4 @@
-import { queryUtility } from '../../models/roads/anthropic/streamCore.js'
+import { callUtilityModel } from '../../models/roads/anthropic/streamCore.js'
 import { logError } from '../../platform/logs/errorLog.js'
 import { extractTextContent } from '../../engine/messages/messages.js'
 import { asSystemPrompt } from '../../engine/system-prompt/systemPromptType.js'
@@ -33,7 +33,7 @@ export async function parseNaturalLanguageDateTime(
   const expected = format === 'date' ? 'a day-precision date in YYYY-MM-DD form' : `a full date-time with the timezone offset ${offset}`
 
   try {
-    const response = await queryUtility({
+    const response = await callUtilityModel({
       systemPrompt: asSystemPrompt([
         'You are a date/time parser. Convert natural-language date/time input into ISO 8601. ' +
           'Respond with ONLY the formatted string — no explanation. ' +

@@ -22,7 +22,7 @@ if (process.argv.includes('--write')) {
   state.switchSession(session as never)
   const storage = await import('../../src/sessions/transcripts/sessionStorage.ts')
   const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
-  const { createCompactBoundaryMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
+  const { createFoldBoundaryMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
   const { annotateBoundaryWithPreservedSegment } = await import('../../src/engine/compaction/foldConversation.ts')
   type Row = Parameters<typeof storage.recordTranscript>[0][number]
   const answer = shape === 'small' ? 'A short answer.' : 'A line of an old answer that the fold has since summarised. '.repeat(31_000)
@@ -38,7 +38,7 @@ if (process.argv.includes('--write')) {
   await storage.saveTag(session as never, TAG)
   await turn('the second prompt', answer)
   await turn('the third prompt', answer)
-  const boundary = createCompactBoundaryMessage('auto', 100_000, conversation.at(-1)!.uuid as never)
+  const boundary = createFoldBoundaryMessage('auto', 100_000, conversation.at(-1)!.uuid as never)
   const summary = createUserMessage({ content: 'The summary of the folded conversation.', isCompactSummary: true, isVisibleInTranscriptOnly: true })
   const kept = shape === 'memory-fold-keeps-a-tail' ? conversation.slice(-2) : []
   if (shape.startsWith('memory-fold')) annotateBoundaryWithPreservedSegment(boundary, summary.uuid as never, kept as never)

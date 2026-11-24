@@ -38,7 +38,7 @@ function releaseDialogSlot({ dialogInFlightRef, drainQueuedDialogCommand }: Subm
   if (!slot.mounted) drainQueuedDialogCommand();
 }
 
-function queryAfterDialog({ addNotification }: SubmitDeps, { input, focusedNow }: SubmitLine, seatCommand: DialogCommand, dialogName: string, doneOptions: DialogDoneOptions): void {
+function sendAfterDialog({ addNotification }: SubmitDeps, { input, focusedNow }: SubmitLine, seatCommand: DialogCommand, dialogName: string, doneOptions: DialogDoneOptions): void {
   const metaRows = (doneOptions.metaMessages ?? []).filter(words => words.trim() !== '');
   submitTrace('repl-dialog-query', input, { name: dialogName, metaRows: metaRows.length });
   void (async () => {
@@ -78,7 +78,7 @@ export function openDialogCommand(deps: SubmitDeps, line: SubmitLine, seatComman
       else addNotification({ key: `command-${seatCommand.name}`, text: result, priority: 'immediate' });
     }
     if (doneOptions?.shouldQuery === true) {
-      queryAfterDialog(deps, line, seatCommand, dialogName, doneOptions);
+      sendAfterDialog(deps, line, seatCommand, dialogName, doneOptions);
     }
     if (doneOptions?.nextInput) {
       if (doneOptions.submitNextInput) void onSubmitRef.current(doneOptions.nextInput, INERT_PROMPT_HELPERS);

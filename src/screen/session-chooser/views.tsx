@@ -14,7 +14,7 @@ import type { useSearchInput } from '../composer/text-input/useSearchInput.js'
 import { packFooter } from '../widgets/footerHint.js'
 import type { MercuryThemeTokens } from '../theme/mercuryTokens.js'
 
-function EmptyLogList({
+function EmptyListings({
   emptyReasons,
   isDisabled,
   onCancel,
@@ -115,7 +115,7 @@ export function sessionBrowserView({
   expandHint: string | null
 }): React.ReactNode {
   const listBody = grouped.length === 0 ? (
-    <EmptyLogList emptyReasons={emptyReasons} isDisabled={searchMode} onCancel={onCancel} />
+    <EmptyListings emptyReasons={emptyReasons} isDisabled={searchMode} onCancel={onCancel} />
   ) : renaming ? (
     <TreeSelect<SessionListing>
       isDisabled={searchMode}

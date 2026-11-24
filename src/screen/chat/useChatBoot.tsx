@@ -5,9 +5,9 @@ import { splitWayOut, type useNotifications } from '../notifications/notificatio
 import { useFpsMetrics } from '../frame-rate/fpsMetrics.js';
 import { useCostSummary } from '../../models/usage/useCostSummary.js';
 import { useClaim, useLoad, useMount, usePublish, useTimer } from '../effects/effects.js';
-import { useDeprecationWarningNotification } from '../notifications/useModelDeprecationNotice.js';
-import { useLspInitializationNotification } from '../notifications/useLspFailureNotice.js';
-import { useRateLimitWarningNotification } from '../notifications/useRateLimitWarningNotification.js';
+import { useModelDeprecationNotice } from '../notifications/useModelDeprecationNotice.js';
+import { useLspFailureNotice } from '../notifications/useLspFailureNotice.js';
+import { useRateLimitWarningNotice } from '../notifications/useRateLimitWarningNotification.js';
 import { useSettingsErrors } from '../notifications/useSettingsErrors.js';
 import { useAgentsChange } from '../agents/useAgentsChange.js';
 import type { useApiKeyVerification } from '../../models/sign-in/credentials/useApiKeyVerification.js';
@@ -383,9 +383,9 @@ export function useChatBootNotices({
   }, []);
 
   useSettingsErrors();
-  useRateLimitWarningNotification(engineModel);
-  useDeprecationWarningNotification(engineModel);
-  useLspInitializationNotification();
+  useRateLimitWarningNotice(engineModel);
+  useModelDeprecationNotice(engineModel);
+  useLspFailureNotice();
 }
 
 export function useChatBootTips({

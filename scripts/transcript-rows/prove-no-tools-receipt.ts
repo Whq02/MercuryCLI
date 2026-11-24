@@ -106,14 +106,14 @@ try {
   check('a zero-tool turn paints the no-tools words AND the delta: "∙ no tools ran this turn · ctx +1.2k"', secondPainted === `∙ ${NO_TOOLS_RAN_WORDS} · ctx +1.2k`, secondPainted)
   const thirdPainted = deltaReceipts[2] ? await paint(deltaReceipts[2]) : ''
   check('no usage → the no-tools words alone', thirdPainted === `∙ ${NO_TOOLS_RAN_WORDS}`, thirdPainted)
-  const { createCompactBoundaryMessage } = await import('../../src/engine/messages/messages.ts')
-  const { annotateBoundaryWithPreservedSegment, buildPostCompactMessages } = await import('../../src/engine/compaction/foldConversation.ts')
+  const { createFoldBoundaryMessage } = await import('../../src/engine/messages/messages.ts')
+  const { annotateBoundaryWithPreservedSegment, buildPostFoldMessages } = await import('../../src/engine/compaction/foldConversation.ts')
   const keptPrompt = createUserMessage({ content: 'the kept prompt' })
   const keptReply = reply('the kept reply', 60000)
-  const boundary = createCompactBoundaryMessage('auto', 80_000)
+  const boundary = createFoldBoundaryMessage('auto', 80_000)
   annotateBoundaryWithPreservedSegment(boundary, boundary.uuid, [keptPrompt, keptReply])
   const summary = createUserMessage({ content: 'What was folded.', isCompactSummary: true, isVisibleInTranscriptOnly: true })
-  const afterFold = [...buildPostCompactMessages({ boundaryMarker: boundary, summaryMessages: [summary], messagesToKeep: [keptPrompt, keptReply], attachments: [], hookResults: [], preCompactTokenCount: 80_000, postCompactTokenCount: 200 }), createUserMessage({ content: 'the first new prompt' }), reply('the first new reply', 15000)]
+  const afterFold = [...buildPostFoldMessages({ boundaryMarker: boundary, summaryMessages: [summary], messagesToKeep: [keptPrompt, keptReply], attachments: [], hookResults: [], preCompactTokenCount: 80_000, postCompactTokenCount: 200 }), createUserMessage({ content: 'the first new prompt' }), reply('the first new reply', 15000)]
   const afterFoldReceipts = receiptsOf(afterFold)
   const keptReceipt = afterFoldReceipts.find(r => r.uuid === `${keptPrompt.uuid}-turn-receipt`)
   const newReceipt = afterFoldReceipts.at(-1)

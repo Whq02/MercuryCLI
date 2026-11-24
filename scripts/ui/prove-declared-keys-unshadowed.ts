@@ -20,7 +20,7 @@ const { getDefaultAppState } = await import('../../src/screen/app-state/AppState
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
 const { Select } = await import('../../src/screen/select/Select.tsx')
 const { Dialog } = await import('../../src/screen/theme/Dialog.tsx')
-const { CancelRequestHandler } = await import('../../src/screen/chat/interruptKeys.ts')
+const { InterruptKeys } = await import('../../src/screen/chat/interruptKeys.ts')
 const { registerShellRun } = await import('../../src/tools/shell/backgroundRequest.ts')
 const pendingInput = await import('../../src/screen/composer/input-core/pending-input.ts')
 const { ExtensionsBoard } = await import('../../src/screen/extensions/ExtensionsBoard.tsx')
@@ -81,7 +81,7 @@ const CAPTURE_RULES: Record<string, Rule> = {
       let bgCalls = 0
       const stopRun = registerShellRun({ agentId: undefined, request: () => { bgCalls++ } })
       const view = await mountWithKeys(
-        h(CancelRequestHandler, {
+        h(InterruptKeys, {
           screen: 'prompt',
           focusedTurnActive: true,
           isInputDialogFocused: false,

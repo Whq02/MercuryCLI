@@ -1,8 +1,8 @@
 import type { UUID } from 'node:crypto'
-import type { CompactMetadata, Message } from '../../message-shapes/message.js'
+import type { FoldMetadata, Message } from '../../message-shapes/message.js'
 import { logForDebugging } from '../../../platform/logs/debugLog.js'
 import { stripThinkingFromIndex } from '../../messages/apiFilters.js'
-import { computeVerbatimRecentTail, isMercuryCompactKeepTailEnabled } from '../verbatimTail.js'
+import { computeVerbatimRecentTail, isMercuryFoldKeepTailEnabled } from '../verbatimTail.js'
 import type { FitsUnder } from './foldSummary.js'
 
 export type TailSelector = (opts: Parameters<typeof computeVerbatimRecentTail>[1]) => ReturnType<typeof computeVerbatimRecentTail>
@@ -16,12 +16,12 @@ interface TailNeeds {
   ceiling: number | undefined
 }
 
-export function chooseFoldTail({ selectTail, fitsUnder, prose, memoryText, landing, ceiling }: TailNeeds): { messagesToKeep: Message[] | undefined; tailPrecedingUuid: UUID | undefined; recentRounds: CompactMetadata['recentRounds']; foldTarget: number | undefined } {
+export function chooseFoldTail({ selectTail, fitsUnder, prose, memoryText, landing, ceiling }: TailNeeds): { messagesToKeep: Message[] | undefined; tailPrecedingUuid: UUID | undefined; recentRounds: FoldMetadata['recentRounds']; foldTarget: number | undefined } {
   let messagesToKeep: Message[] | undefined
   let tailPrecedingUuid: UUID | undefined
-  let recentRounds: CompactMetadata['recentRounds']
+  let recentRounds: FoldMetadata['recentRounds']
   let foldTarget: number | undefined
-  if (isMercuryCompactKeepTailEnabled()) {
+  if (isMercuryFoldKeepTailEnabled()) {
     const fits = (limit: number | undefined, resultsFolded = false) => fitsUnder(limit, resultsFolded, prose, memoryText)
     let tail: ReturnType<typeof computeVerbatimRecentTail>
     try {

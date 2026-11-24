@@ -5,7 +5,7 @@ import { isDenialResultText } from '../../engine/message-shapes/rejectionText.js
 import { FilePathLink } from '../kit/FilePathLink.js'
 import { MessageResponse } from '../kit/MessageResponse.js'
 import { HighlightedCode } from '../../screen/highlighted-code/HighlightedCode.js'
-import { NotebookEditToolUseRejectedMessage } from './NotebookEditRejectedMessage.js'
+import { NotebookEditRejectedMessage } from './NotebookEditRejectedMessage.js'
 import { Box, Text } from '../../screen/themedRenderer.js'
 import type { ToolResultBlockParam } from '../../engine/message-shapes/wire.js'
 import { getDisplayPath } from '../../platform/files/file.js'
@@ -57,7 +57,7 @@ export function renderToolUseRejectedMessage(
   options?: { verbose?: boolean },
 ): React.ReactNode {
   return (
-    <NotebookEditToolUseRejectedMessage
+    <NotebookEditRejectedMessage
       notebook_path={input?.notebook_path ?? ''}
       cell_id={input?.cell_id}
       new_source={input?.new_source ?? ''}

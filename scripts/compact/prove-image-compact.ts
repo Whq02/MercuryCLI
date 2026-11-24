@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { imageWindowFixture } from '../provider-compat/imageWindowFixture.ts'
 
 const fixture = await imageWindowFixture()
-const { compactConversation, ERROR_MESSAGE_NOT_ENOUGH_MESSAGES } = await import('../../src/engine/compaction/foldConversation.ts')
+const { foldConversation, ERROR_MESSAGE_NOT_ENOUGH_MESSAGES } = await import('../../src/engine/compaction/foldConversation.ts')
 const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
 const { estimateRequestTokens } = await import('../../src/models/facts/tokenEstimation.ts')
 const before = JSON.stringify(fixture.messages)
@@ -18,7 +18,7 @@ const context = {
 try {
   fixture.state.window = 20000
   await fixture.refresh()
-  const result = await compactConversation(fixture.messages, context as never, { systemPrompt: fixture.params.systemPrompt } as never, true)
+  const result = await foldConversation(fixture.messages, context as never, { systemPrompt: fixture.params.systemPrompt } as never, true)
   assert.ok(result.summaryMessages.some(row => JSON.stringify(row.message.content).includes('The page has nine screenshot artifacts.')), 'manual compact receives its summary')
   assert.equal(fixture.requests.length, 1, 'one summary request, no failed fold-and-retry')
   const request = fixture.requests[0]!
@@ -32,11 +32,11 @@ try {
   fixture.state.vision = false
   fixture.state.window = 262144
   await fixture.refresh()
-  const textOnly = await compactConversation(fixture.messages, context as never, { systemPrompt: fixture.params.systemPrompt } as never, true)
+  const textOnly = await foldConversation(fixture.messages, context as never, { systemPrompt: fixture.params.systemPrompt } as never, true)
   assert.ok(textOnly.summaryMessages.length > 0, 'the original text-only shape can compact')
   const textOnlyTokens = estimateRequestTokens(fixture.requests.at(-1), fixture.model)
   assert.ok(textOnlyTokens < 10000, `text-only compact request tokens=${textOnlyTokens}, expected <10000 after image placeholders; check image compaction`)
-  await assert.rejects(compactConversation([], context as never, { systemPrompt: fixture.params.systemPrompt } as never, true), { message: ERROR_MESSAGE_NOT_ENOUGH_MESSAGES })
+  await assert.rejects(foldConversation([], context as never, { systemPrompt: fixture.params.systemPrompt } as never, true), { message: ERROR_MESSAGE_NOT_ENOUGH_MESSAGES })
   console.log(`Manual compact succeeded with ${kept.length} newest images on the small window and with placeholders on the text-only window; empty-history words unchanged`)
 } finally {
   await fixture.close()

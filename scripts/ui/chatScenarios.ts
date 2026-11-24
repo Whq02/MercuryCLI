@@ -1135,7 +1135,7 @@ export async function openKeysPart(tag: string, options: { keepHome?: boolean } 
   const realActions = { ...(await import('../../src/screen/messages/messageActions.tsx')) }
   mock.module('../../src/screen/messages/messageActions.tsx', () => ({ ...realActions, MessageActionsKeybindings: spy('actions') }))
   const realCancel = { ...(await import('../../src/screen/chat/interruptKeys.ts')) }
-  mock.module('../../src/screen/chat/interruptKeys.ts', () => ({ ...realCancel, CancelRequestHandler: spy('cancel') }))
+  mock.module('../../src/screen/chat/interruptKeys.ts', () => ({ ...realCancel, InterruptKeys: spy('cancel') }))
   const { ChatKeys } = await import('../../src/screen/chat/ChatKeys.tsx')
   const { useEscapeOwned } = await import('../../src/screen/keys/useEscapeOwned.ts')
   const { useStdin } = await import('../../src/screen/themedRenderer.ts')

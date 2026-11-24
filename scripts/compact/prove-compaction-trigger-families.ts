@@ -111,7 +111,7 @@ const thresholds = new Map<string, number>()
 for (const f of FAMILIES) {
   const r = resolveContextWindow(f.model)
   const effective = compact.getEffectiveContextWindowSize(f.model)
-  const threshold = compact.getAutoCompactThreshold(f.model)
+  const threshold = compact.getAutoFoldThreshold(f.model)
   thresholds.set(f.model, threshold)
   const reserve = Math.min(getModelMaxOutputTokens(f.model).upperLimit, 20_000, Math.floor(f.window / 4))
   const turnReserve = Math.min(getModelMaxOutputTokens(f.model).upperLimit, 20_000, Math.floor(f.window / 8))
@@ -121,7 +121,7 @@ for (const f of FAMILIES) {
 check('a 1M carrier never compacts at ~160k: its threshold exceeds 950,000', thresholds.get('openrouter/stealth/ox-alpha')! > 950_000, 'the OpenRouter live context_length is not reaching getAutoCompactThreshold; check resolveContextWindow in src/models/facts/capabilities.ts and getAutoCompactThreshold in src/engine/compaction-window/autoFoldWindow.ts')
 check('a 131k carrier reserves 16,384 for the turn and folds at 91,688', compact.getTurnReserveTokens('openrouter/meta/llama-small') === 16_384 && thresholds.get('openrouter/meta/llama-small') === 91_688, JSON.stringify({ turnReserve: compact.getTurnReserveTokens('openrouter/meta/llama-small'), threshold: thresholds.get('openrouter/meta/llama-small') }) + ' | fix getTurnReserveTokens and getAutoCompactThreshold in src/engine/compaction-window/autoFoldWindow.ts')
 {
-  const tiny = compact.getAutoCompactThreshold('openrouter/tiny/edge-32k')
+  const tiny = compact.getAutoFoldThreshold('openrouter/tiny/edge-32k')
   const tinyEff = compact.getEffectiveContextWindowSize('openrouter/tiny/edge-32k')
   check('a 32,768 row keeps proportional summary and turn reserves: effective 24,576; turn reserve 4,096; threshold 17,480', tinyEff === 24_576 && compact.getTurnReserveTokens('openrouter/tiny/edge-32k') === 4_096 && tiny === 17_480, JSON.stringify({ tinyEff, tiny }) + ' | fix the proportional reserves in getEffectiveContextWindowSize, getTurnReserveTokens and getAutoCompactThreshold (src/engine/compaction-window/autoFoldWindow.ts)')
 }
@@ -132,27 +132,27 @@ for (const f of FAMILIES) {
   const below = transcriptAt(threshold - 1)
   const at = transcriptAt(threshold)
   check(`  ${f.model}: the canonical count reads the settled usage exactly (${threshold - 1} / ${threshold})`, tokens.tokenCountWithEstimation(below as never) === threshold - 1 && tokens.tokenCountWithEstimation(at as never) === threshold, 'tokenCountWithEstimation in src/engine/context-window/contextTokenCount.ts no longer sums the settled usage of the last assistant message exactly; fix it there')
-  const fireBelow = await compact.shouldAutoCompact(below as never, f.model)
-  const fireAt = await compact.shouldAutoCompact(at as never, f.model)
+  const fireBelow = await compact.shouldAutoFold(below as never, f.model)
+  const fireAt = await compact.shouldAutoFold(at as never, f.model)
   check(`${f.label}: false at threshold − 1, true at threshold`, fireBelow === false && fireAt === true, JSON.stringify({ fireBelow, fireAt }) + ' | shouldAutoCompact in src/engine/compaction/autoFold.ts must compare the token count to getAutoCompactThreshold with >= (src/engine/compaction-window/autoFoldWindow.ts)')
 }
 {
   const oldFallbackThreshold = 200_000 - 20_000 - 13_000
-  const fired = await compact.shouldAutoCompact(transcriptAt(oldFallbackThreshold) as never, 'openrouter/stealth/ox-alpha')
+  const fired = await compact.shouldAutoFold(transcriptAt(oldFallbackThreshold) as never, 'openrouter/stealth/ox-alpha')
   check('the 1M carrier at 167,000 tokens (the fallback-window threshold) does NOT compact', fired === false, 'shouldAutoCompact (src/engine/compaction/autoFold.ts) is using the 200,000 fallback window for an OpenRouter 1M model; the live context_length must reach resolveContextWindow (src/models/facts/capabilities.ts)')
-  const fired131 = await compact.shouldAutoCompact(transcriptAt(120_000) as never, 'openrouter/meta/llama-small')
+  const fired131 = await compact.shouldAutoFold(transcriptAt(120_000) as never, 'openrouter/meta/llama-small')
   check('the 131k carrier at 120,000 tokens DOES compact (the fallback window would have let it overflow)', fired131 === true, 'shouldAutoCompact (src/engine/compaction/autoFold.ts) is not compacting a 131k model at 120,000 tokens; check getAutoCompactThreshold in src/engine/compaction-window/autoFoldWindow.ts')
 }
 
 section('T3 · settings override clamps; the warning ladder, blocking limit, overflow diagnostic and the fold read the same numbers')
 {
-  const low = compact.resolveAutoCompactWindow('openrouter/stealth/ox-alpha', 50_000)
+  const low = compact.resolveAutoFoldWindow('openrouter/stealth/ox-alpha', 50_000)
   check('autoCompactWindow 50,000 rises to the 100,000 floor (configured 100,000; window 100,000)', low.configured === 100_000 && low.window === 100_000 && low.source === 'settings', JSON.stringify(low) + ' | fix the 100,000 floor in resolveAutoCompactWindow (src/engine/compaction-window/autoFoldWindow.ts)')
-  const high = compact.resolveAutoCompactWindow('openrouter/stealth/ox-alpha', 2_000_000)
+  const high = compact.resolveAutoFoldWindow('openrouter/stealth/ox-alpha', 2_000_000)
   check('autoCompactWindow 2,000,000 falls to the 1,000,000 cap (a 1,048,576 model budgets 1,000,000 under the override)', high.configured === 1_000_000 && high.window === 1_000_000, JSON.stringify(high) + ' | fix the 1,000,000 cap in resolveAutoCompactWindow (src/engine/compaction-window/autoFoldWindow.ts)')
-  const clamped = compact.resolveAutoCompactWindow('openrouter/meta/llama-small', 500_000)
+  const clamped = compact.resolveAutoFoldWindow('openrouter/meta/llama-small', 500_000)
   check('autoCompactWindow 500,000 never exceeds the model\'s own 131,072', clamped.configured === 500_000 && clamped.window === 131_072, JSON.stringify(clamped) + ' | resolveAutoCompactWindow (src/engine/compaction-window/autoFoldWindow.ts) must clamp the window to the model window')
-  const auto = compact.resolveAutoCompactWindow('openrouter/stealth/ox-alpha')
+  const auto = compact.resolveAutoFoldWindow('openrouter/stealth/ox-alpha')
   check('no override ⇒ the model window verbatim (1,048,576 · source auto)', auto.window === 1_048_576 && auto.source === 'auto', JSON.stringify(auto) + ' | resolveAutoCompactWindow (src/engine/compaction-window/autoFoldWindow.ts) must return the model window with source auto when no override is set')
   const effOverride = compact.getEffectiveContextWindowSize('openrouter/meta/llama-small', 500_000)
   check('getEffectiveContextWindowSize honours the clamped override (131,072 − 20,000)', effOverride === 111_072, JSON.stringify({ effOverride }) + ' | getEffectiveContextWindowSize in src/engine/compaction-window/autoFoldWindow.ts must use the clamped window from resolveAutoCompactWindow')

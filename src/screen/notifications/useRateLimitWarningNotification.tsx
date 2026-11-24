@@ -20,7 +20,7 @@ const WARNING_KEY = 'rate-limit-warning'
 
 const ENGINE_FEEDER_REREAD_MS = 15_000
 
-export function useRateLimitWarningNotification(model: string): void {
+export function useRateLimitWarningNotice(model: string): void {
   const { addNotification } = useNotifications()
   const limits = useAnthropicLimits()
   const tick = useNowTick(ENGINE_FEEDER_REREAD_MS)

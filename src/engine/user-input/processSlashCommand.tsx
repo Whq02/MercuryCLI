@@ -38,12 +38,12 @@ import {
   createSystemMessage,
   createUserMessage,
   INTERRUPT_MESSAGE,
-  isCompactBoundaryMessage,
+  isFoldBoundaryMessage,
 } from '../messages/messages.js'
 import { parseSlashCommand } from '../../commands/catalogue/slashCommandParsing.js'
 import { logError } from '../../platform/logs/errorLog.js'
-import { isNothingToCompactMessage } from '../compaction/fold/foldLimits.js'
-import { resetMicrocompactState } from '../compaction/pruneToolResults.js'
+import { isNothingToFoldMessage } from '../compaction/fold/foldLimits.js'
+import { resetPruneState } from '../compaction/pruneToolResults.js'
 import { recordSkillUsage } from '../../screen/suggestions/skillUsage.js'
 import { getAgentContext } from '../../crew/agents/agentContext.js'
 import { addInvokedSkill, getIsNonInteractiveSession } from '../../boot/process-state/processState.js'
@@ -190,7 +190,7 @@ function finalizeCommandResult(
   const isAllLocalCommandSystem = result.messages.every(
     (msg: Message) => msg.type === 'system' && msg.subtype === 'local_command',
   )
-  const startsAtCompactBoundary = isCompactBoundaryMessage(result.messages[0]!)
+  const startsAtCompactBoundary = isFoldBoundaryMessage(result.messages[0]!)
   const isTwoRowUnknown =
     result.messages.length === 2 &&
     result.messages.some(
@@ -757,7 +757,7 @@ async function runLocalCommand(
       return { messages: [], shouldQuery: false }
     }
     if (result.type === 'compact') {
-      resetMicrocompactState(undefined)
+      resetPruneState(undefined)
       const compaction = result.compactionResult
       const display = result.displayText
       const displayMessage = display
@@ -789,7 +789,7 @@ async function runLocalCommand(
       resultText: text,
     }
   } catch (error) {
-    if (error instanceof Error && isNothingToCompactMessage(error.message)) {
+    if (error instanceof Error && isNothingToFoldMessage(error.message)) {
       return {
         messages: [echoed, createCommandInputMessage(stderrWrapped(error.message))],
         shouldQuery: false,

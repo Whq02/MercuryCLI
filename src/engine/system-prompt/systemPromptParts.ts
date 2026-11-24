@@ -1,6 +1,6 @@
 import { getSystemContext, getUserContext } from '../requestContext.js'
 import { getSystemPrompt } from './defaultSystemPrompt.js'
-import { query } from '../turnDoor.js'
+import { turnDoor } from '../turnDoor.js'
 import type { Command } from '../../commands/catalogue/commands.js'
 import type { MCPServerConnection } from '../../integrations/mcp-shapes/mcpServerRecords.js'
 import type { AppState } from '../../screen/app-state/AppStateStore.js'
@@ -111,7 +111,7 @@ export async function buildSideQuestionFallbackParams(input: ForkInputs): Promis
       ...(customSystemPrompt !== undefined ? { customSystemPrompt } : {}),
       ...(appendSystemPrompt !== undefined ? { appendSystemPrompt } : {}),
     },
-    startTurn: query,
+    startTurn: turnDoor,
     abortController: createAbortController(),
     readFileState,
     getAppState,

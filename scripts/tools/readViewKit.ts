@@ -25,7 +25,7 @@ export async function readViewKit(home: string) {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
   process.env.MERCURY_BARE = '1'
   const src = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-  const { FileReadTool } = await import(`${src}/tools/read/ReadTool.ts`)
+  const { ReadTool } = await import(`${src}/tools/read/ReadTool.ts`)
   const { getEmptyToolPermissionContext } = await import(`${src}/tools/kit/tool.ts`)
   const { createFileStateCacheWithSizeLimit } = await import(`${src}/platform/files/fileStateCache.ts`)
   const { setCwdState, setOriginalCwd } = await import(`${src}/boot/process-state/processState.ts`)
@@ -39,17 +39,17 @@ export async function readViewKit(home: string) {
   }
   let passed = 0, failed = 0
   return {
-    src, context, FileReadTool,
+    src, context, ReadTool,
     deny(pattern: string) { rules = { ...rules, alwaysDenyRules: { session: [pattern] } } },
     async read(file_path: string, options: Record<string, unknown> = {}) {
       try {
         const input = { file_path, ...options }
-        const valid = await FileReadTool.validateInput(input, context)
+        const valid = await ReadTool.validateInput(input, context)
         if (!valid.result) return String(valid.message)
-        const permission = await FileReadTool.checkPermissions(input, context)
+        const permission = await ReadTool.checkPermissions(input, context)
         if (permission.behavior === 'deny') return String(permission.message)
-        const reply = await FileReadTool.call(input, context)
-        return String(FileReadTool.mapToolResultToToolResultBlockParam(reply.data, 'view').content)
+        const reply = await ReadTool.call(input, context)
+        return String(ReadTool.mapToolResultToToolResultBlockParam(reply.data, 'view').content)
       } catch (error) { return String(error) }
     },
     check(name: string, ok: boolean, detail = '') { ok ? passed++ : failed++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` ${detail}`}`) },

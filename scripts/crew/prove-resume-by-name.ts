@@ -48,9 +48,9 @@ const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.ts')
 const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
 const { MERCURY_CREW_AGENT } = await import('../../src/tools/crewmate/built-in/mercuryCrewAgent.ts')
 const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
-const { buildPostCompactMessages, createAsyncAgentAttachmentsIfNeeded } = await import('../../src/engine/compaction/foldConversation.ts')
-const { getCompactUserSummaryMessage } = await import('../../src/engine/compaction/summariserPrompt.ts')
-const { createCompactBoundaryMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
+const { buildPostFoldMessages, createAsyncAgentAttachmentsIfNeeded } = await import('../../src/engine/compaction/foldConversation.ts')
+const { getFoldUserSummaryMessage } = await import('../../src/engine/compaction/summariserPrompt.ts')
+const { createFoldBoundaryMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
 const { createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
 type Message = import('../../src/engine/message-shapes/message.ts').Message
 type AppState = import('../../src/screen/app-state/AppStateStore.ts').AppState
@@ -204,10 +204,10 @@ const evictKilled = async (store: Store, id: string, description: string): Promi
 }
 const foldOf = async (store: Store, messages: Message[], summary: string): Promise<Message[]> => {
   const last = messages[messages.length - 1] as unknown as { uuid: string }
-  const boundary = createCompactBoundaryMessage('auto', 120_000, last.uuid as never)
-  const summaryRow = createUserMessage({ content: getCompactUserSummaryMessage(summary, false, join(home, 'session.jsonl'), false), isCompactSummary: true, isVisibleInTranscriptOnly: true })
+  const boundary = createFoldBoundaryMessage('auto', 120_000, last.uuid as never)
+  const summaryRow = createUserMessage({ content: getFoldUserSummaryMessage(summary, false, join(home, 'session.jsonl'), false), isCompactSummary: true, isVisibleInTranscriptOnly: true })
   const attachments = await createAsyncAgentAttachmentsIfNeeded(makeCtx(store, messages))
-  return buildPostCompactMessages({ boundaryMarker: boundary, summaryMessages: [summaryRow], attachments, hookResults: [], preCompactTokenCount: 120_000, postCompactTokenCount: 0 })
+  return buildPostFoldMessages({ boundaryMarker: boundary, summaryMessages: [summaryRow], attachments, hookResults: [], preCompactTokenCount: 120_000, postCompactTokenCount: 0 })
 }
 
 console.log('============================================================')

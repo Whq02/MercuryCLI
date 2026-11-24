@@ -106,10 +106,10 @@ const { enableConfigs } = await import('../../src/platform/config/globalConfig.t
 enableConfigs()
 const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 setIsInteractive(false)
-const { compactConversation, setFoldBoundsForTests, ERROR_MESSAGE_FOLD_TIMEOUT } = await import('../../src/engine/compaction/foldConversation.ts')
+const { foldConversation, setFoldBoundsForTests, ERROR_MESSAGE_FOLD_TIMEOUT } = await import('../../src/engine/compaction/foldConversation.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
-const { query: startTurn } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor: startTurn } = await import('../../src/engine/turnDoor.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 let failures = 0
@@ -133,9 +133,9 @@ async function fold(model: string, next: Shape): Promise<{ ms: number; requests:
   const guard = setTimeout(() => context.abortController.abort(), 60_000)
   const start = Date.now()
   let error: string | undefined
-  let result: Awaited<ReturnType<typeof compactConversation>> | undefined
+  let result: Awaited<ReturnType<typeof foldConversation>> | undefined
   try {
-    result = await compactConversation(messages, context, cache, false)
+    result = await foldConversation(messages, context, cache, false)
   } catch (caught) {
     error = caught instanceof Error ? caught.message : String(caught)
   } finally {

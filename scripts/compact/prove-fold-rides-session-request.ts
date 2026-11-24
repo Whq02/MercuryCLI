@@ -30,12 +30,12 @@ const { createUserMessage, createAssistantMessage } = await import('../../src/en
 const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
 const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
-const { query: startTurn } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor: startTurn } = await import('../../src/engine/turnDoor.ts')
 const { recordSentRequest } = await import('../../src/crew/agents/forkedAgent.ts')
 const { rosterOwnerFromToolUseContext } = await import('../../src/engine/run-owner/resolveOwner.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
-const { compactConversation, shouldRideCacheSharingFork } = await import('../../src/engine/compaction/foldConversation.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { foldConversation, shouldRideCacheSharingFork } = await import('../../src/engine/compaction/foldConversation.ts')
 
 let failures = 0
 let checks = 0
@@ -91,10 +91,10 @@ function historyFor(road: { lane: string; model: string }, withRedacted: boolean
   return [createUserMessage({ content: 'Check the parser.' }), first, createUserMessage({ content: 'Run the CLI next.' }), second, createUserMessage({ content: 'Preserve the result.' })]
 }
 
-type Drive = { reference: Body | undefined; fold: Body[]; error: unknown; result: Awaited<ReturnType<typeof compactConversation>> | undefined }
+type Drive = { reference: Body | undefined; fold: Body[]; error: unknown; result: Awaited<ReturnType<typeof foldConversation>> | undefined }
 async function drive(road: { lane: string; model: string; dialect: string }, effort: string, thinkingConfig: any, opts: { continued: boolean; redacted: boolean; auto?: boolean; overflow?: boolean; script?: unknown[]; messages?: any[]; threshold?: number }): Promise<Drive> {
   const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, agentNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: effort }
-  const tools = [FileReadTool]
+  const tools = [ReadTool]
   const messages = opts.messages ?? historyFor(road, opts.redacted)
   const context: any = { abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: opts.messages ?? [], startTurn, readFileState: new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024), options: { tools, commands: [], mcpClients: [], engineModel: road.model, maxThinkingTokens: thinkingConfig.budgetTokens ?? 0, thinkingConfig, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
   const systemPrompt = asSystemPrompt(['Synthetic fold request proof.'])
@@ -109,11 +109,11 @@ async function drive(road: { lane: string; model: string; dialect: string }, eff
   fixture.script((opts.script ?? [{ text: summary }]) as never)
   const before = fixture.captured.length
   let error: unknown = referenceError
-  let result: Awaited<ReturnType<typeof compactConversation>> | undefined
+  let result: Awaited<ReturnType<typeof foldConversation>> | undefined
   lanesAsked.push(shouldRideCacheSharingFork(road.model, thinkingConfig) ? 'fork' : 'direct')
   try {
     const overflow = opts.overflow ? { source: 'provider', family: road.lane, shape: 'context-length-exceeded' } : undefined
-    result = await compactConversation(messages, context, { systemPrompt, userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: messages } as never, opts.auto === true, undefined, opts.auto === true, opts.auto === true ? { isRecompaction: false, turnsSincePreviousCompact: 3, autoCompactThreshold: opts.threshold ?? 150_000 } : undefined, overflow as never)
+    result = await foldConversation(messages, context, { systemPrompt, userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: messages } as never, opts.auto === true, undefined, opts.auto === true, opts.auto === true ? { isRecompaction: false, turnsSincePreviousCompact: 3, autoCompactThreshold: opts.threshold ?? 150_000 } : undefined, overflow as never)
   } catch (caught) { error = String(caught) }
   const fold = fixture.captured.slice(before).map(request => request.body as Body)
   return { reference, fold, error, result }
@@ -197,11 +197,11 @@ try {
   }
   {
     const { conversationAtThreshold } = await import('./thresholdFixture.ts')
-    const { getAutoCompactThreshold, getBlockingLimit } = await import('../../src/engine/compaction/autoFold.ts')
+    const { getAutoFoldThreshold, getBlockingLimit } = await import('../../src/engine/compaction/autoFold.ts')
     const { getContextWindowForModel } = await import('../../src/models/facts/capabilities.ts')
     for (const leg of [{ lane: 'anthropic', fixed: 20_000, ratio: 1 }, { lane: 'gemini', fixed: 42_723, ratio: 1.3 }]) {
       const road = roads.find(r => r.lane === leg.lane)!
-      const threshold = getAutoCompactThreshold(road.model)
+      const threshold = getAutoFoldThreshold(road.model)
       const built = conversationAtThreshold({ model: road.model, family: leg.lane, resultChars: 24_000, fixed: leg.fixed, ratio: leg.ratio, target: threshold })
       const label = `${road.lane} · real-sized Read results (${built.ids.length} rounds, ${(JSON.stringify(built.messages).length / 1_048_576).toFixed(1)} MB) with a calibrated gauge AT the fold threshold (${built.gauge.toLocaleString('en-US')} of ${getContextWindowForModel(road.model).toLocaleString('en-US')}; blocking limit ${getBlockingLimit(road.model).toLocaleString('en-US')}) · continued history · the threshold fold`
       const driven = await drive(road, 'max', { type: 'adaptive' }, { continued: true, redacted: false, auto: true, messages: built.messages, threshold })

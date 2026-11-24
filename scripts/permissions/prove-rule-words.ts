@@ -55,7 +55,7 @@ const { checkParsedCommand: bashToolCheckPermission } = await import('../bash/fl
 const { powershellToolCheckPermission } = await import('../../src/tools/powershell/powershellPermissions.js')
 const { PermissionRuleDescription } = await import('../../src/permissions/cards/rule-manager/PermissionRuleDescription.js')
 const { PermissionRuleInput } = await import('../../src/permissions/cards/rule-manager/PermissionRuleInput.js')
-const { bashToolUseOptions } = await import('../../src/permissions/cards/bash/shellAskOptions.js')
+const { shellAskOptions } = await import('../../src/permissions/cards/bash/shellAskOptions.js')
 const { AppStoreContext } = await import('../../src/screen/app-state/AppState.js')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
 const { createStore } = await import('../../src/platform/primitives/store.js')
@@ -196,7 +196,7 @@ section('§4 THE SCREENS — the gloss, the free-text example and the card place
   input.close()
   check('the free-text entry teaches `Bash(ls *)`', inputFrame.includes('Bash(ls *)'), inputFrame)
   check('…and no colon-star example', !inputFrame.includes(':*'), inputFrame)
-  const options = bashToolUseOptions({ suggestions: shell.suggestionForPrefix('Bash', 'npm run') as never, onRejectFeedbackChange: () => {}, onAcceptFeedbackChange: () => {}, editablePrefix: 'npm run *', onEditablePrefixChange: () => {} }) as Array<{ value: string; placeholder?: string; initialValue?: string }>
+  const options = shellAskOptions({ suggestions: shell.suggestionForPrefix('Bash', 'npm run') as never, onRejectFeedbackChange: () => {}, onAcceptFeedbackChange: () => {}, editablePrefix: 'npm run *', onEditablePrefixChange: () => {} }) as Array<{ value: string; placeholder?: string; initialValue?: string }>
   const editable = options.find(option => option.value === 'yes-edited-prefix')
   check('the Bash card\'s "starts with" box is seeded and placeholdered in the star form', editable?.initialValue === 'npm run *' && editable?.placeholder === 'npm run *', j(editable))
 }

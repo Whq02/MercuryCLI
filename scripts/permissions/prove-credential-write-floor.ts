@@ -31,11 +31,11 @@ process.chdir(project)
 const load = (file: string) => import(pathToFileURL(join(root, file)).href)
 const { getEmptyToolPermissionContext } = await load('src/tools/kit/tool.ts')
 const { decideToolPermission } = await load('src/permissions/rules/decision/engine.ts')
-const { FileWriteTool } = await load('src/tools/write/WriteTool.ts')
-const { FileEditTool } = await load('src/tools/edit/EditTool.ts')
+const { WriteTool } = await load('src/tools/write/WriteTool.ts')
+const { EditTool } = await load('src/tools/edit/EditTool.ts')
 const { NotebookEditTool } = await load('src/tools/notebook-edit/NotebookEditTool.ts')
 const { ChangeSetTool } = await load('src/tools/change-set/ChangeSetTool.ts')
-const { FileReadTool } = await load('src/tools/read/ReadTool.ts')
+const { ReadTool } = await load('src/tools/read/ReadTool.ts')
 const { BashTool } = await load('src/tools/shell/BashTool.tsx')
 const { PowerShellTool } = await load('src/tools/powershell/PowerShellTool.tsx')
 const { runWithCwdOverride } = await load('src/platform/files/cwd.ts')
@@ -87,8 +87,8 @@ paths.push(
   '~/.mercury/browser-secrets.json',
 )
 const bodies = (path: string): Array<[any, Record<string, unknown>]> => [
-  [FileWriteTool, { file_path: path, content: 'new' }],
-  [FileEditTool, { file_path: path, append: 'new' }],
+  [WriteTool, { file_path: path, content: 'new' }],
+  [EditTool, { file_path: path, append: 'new' }],
   [NotebookEditTool, { notebook_path: path, new_source: 'new' }],
   [ChangeSetTool, { op: 'apply', changes: [{ file_path: path, expected_anchor: 'fa:0123456789ab', hunks: [{ lines: '1', replace: 'new' }] }] }],
 ]
@@ -99,16 +99,16 @@ try {
     check(`${mode} ${tool.name} ${path}`, verdict.behavior === 'deny' && /protected.*credential|credential.*protected/i.test(verdict.message ?? ''), `${verdict.behavior}: ${verdict.message ?? ''}`)
   }
   for (const mode of modes) {
-    const result = await runWithCwdOverride(join(home, '.ssh'), () => decide(FileWriteTool, { file_path: 'new-key', content: 'x' }, mode))
+    const result = await runWithCwdOverride(join(home, '.ssh'), () => decide(WriteTool, { file_path: 'new-key', content: 'x' }, mode))
     check(`${mode} relative path inside store`, result.behavior === 'deny', result.message)
     for (const rules of [{ allow: ['Write'] }, { allow: ['Edit(//**)'] }, { ask: ['Write'] }]) {
-      const verdict = await decide(FileWriteTool, { file_path: join(home, '.ssh/key'), content: 'x' }, mode, rules)
+      const verdict = await decide(WriteTool, { file_path: join(home, '.ssh/key'), content: 'x' }, mode, rules)
       check(`${mode} broad grant or whole-tool ask cannot replace refusal`, verdict.behavior === 'deny', `${verdict.behavior}: ${verdict.message ?? ''}`)
     }
     const rule = 'Edit(~/.ssh/config)'
-    const explicit = await decide(FileEditTool, { file_path: '~/.ssh/config', append: 'x' }, mode, { allow: [rule] })
+    const explicit = await decide(EditTool, { file_path: '~/.ssh/config', append: 'x' }, mode, { allow: [rule] })
     check(`${mode} named allow exception`, explicit.behavior === 'allow', `${explicit.behavior}: ${explicit.message ?? ''}`)
-    const denied = await decide(FileEditTool, { file_path: '~/.ssh/config', append: 'x' }, mode, { allow: [rule], deny: [rule] })
+    const denied = await decide(EditTool, { file_path: '~/.ssh/config', append: 'x' }, mode, { allow: [rule], deny: [rule] })
     check(`${mode} deny wins named allow`, denied.behavior === 'deny', denied.message)
   }
   console.log('shell permission road')
@@ -168,11 +168,11 @@ try {
   }
   console.log('controls')
   for (const path of [join(home, '.sshd-notes'), join(home, '.awsome/note'), join(project, 'etc/passwd.bak'), join(project, '.aws/config')]) {
-    const verdict = await decide(FileWriteTool, { file_path: path, content: 'x' }, 'sovereign')
+    const verdict = await decide(WriteTool, { file_path: path, content: 'x' }, 'sovereign')
     check(`near miss is not a store: ${path}`, verdict.behavior === 'allow', verdict.message)
   }
   for (const path of ['~/.ssh/config', '~/.aws/config']) for (const mode of modes) {
-    const verdict = await decide(FileReadTool, { file_path: path }, mode, { allow: ['Read'] })
+    const verdict = await decide(ReadTool, { file_path: path }, mode, { allow: ['Read'] })
     check(`${mode} configuration stays readable`, verdict.behavior === 'allow', verdict.message)
   }
   const sentinel = join(home, '.ssh/config')

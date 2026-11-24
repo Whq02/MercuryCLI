@@ -19,7 +19,7 @@ if (!given) {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
   process.env.MERCURY_BARE = '1'
   const src = process.env.PROVE_SRC ?? resolve(dirname(script), '../../src')
-  const { FileReadTool } = await import(`${src}/tools/read/ReadTool.ts`)
+  const { ReadTool } = await import(`${src}/tools/read/ReadTool.ts`)
   const { setCwdState, setOriginalCwd } = await import(`${src}/boot/process-state/processState.ts`)
   const { getEmptyToolPermissionContext } = await import(`${src}/tools/kit/tool.ts`)
   const { createFileStateCacheWithSizeLimit } = await import(`${src}/platform/files/fileStateCache.ts`)
@@ -33,12 +33,12 @@ if (!given) {
     const input = { file_path }
     const context = { messages: [], readFileState: createFileStateCacheWithSizeLimit(100), abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: rules }) }
     try {
-      const valid = await FileReadTool.validateInput(input, context)
+      const valid = await ReadTool.validateInput(input, context)
       if (!valid.result) return `REFUSED ${valid.message}`
-      const permission = await FileReadTool.checkPermissions(input, context)
+      const permission = await ReadTool.checkPermissions(input, context)
       if (permission.behavior === 'deny') return `REFUSED ${permission.message}`
-      const result = await FileReadTool.call(input, context)
-      return String(FileReadTool.mapToolResultToToolResultBlockParam(result.data, 'owner').content)
+      const result = await ReadTool.call(input, context)
+      return String(ReadTool.mapToolResultToToolResultBlockParam(result.data, 'owner').content)
     } catch (error) { return String(error) }
   }
   check('the exact absolute rule denies the ordinary source', (await read(source)).startsWith('REFUSED'))
@@ -58,7 +58,7 @@ if (!given) {
     const urlBefore = await read(url), urlAfter = await read(`${url}#read?${selector}`)
     check(`${selector}: URL delegation stays with WebFetch`, urlBefore === urlAfter && urlAfter.includes('owner: WebFetch'), urlAfter)
     const visible = { file_path: `${url}#read?${selector}` }
-    FileReadTool.backfillObservableInput(visible)
+    ReadTool.backfillObservableInput(visible)
     check(`${selector}: observable input keeps the URL owner`, visible.file_path === `${url}#read?${selector}`, visible.file_path)
     if (process.platform !== 'win32') {
       mkdirSync(join(given, 'mercury:'), { recursive: true })

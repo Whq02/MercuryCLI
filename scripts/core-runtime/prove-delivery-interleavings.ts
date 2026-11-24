@@ -19,7 +19,7 @@ for (const k of [
   delete process.env[k]
 }
 
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
@@ -158,7 +158,7 @@ function makeGen(turnFor: (index: number) => unknown[] | undefined): {
 } {
   const rig = makeCtx([makeTool('EchoTool')])
   const { calls, callModel } = makeModel(turnFor)
-  const gen = query({
+  const gen = turnDoor({
     messages: [createUserMessage({ content: 'please do the thing' })] as never,
     systemPrompt: ['rig system prompt'] as never,
     userContext: {},
@@ -344,7 +344,7 @@ section('A7 — silence stays detail-only; every other turn-machine notice is re
   const { modelReply } = await import('../../src/engine/loop/turn/modelReply.ts')
   const { NO_TOOL_RULES, readReply } = await import('../../src/engine/loop/turn/noToolReply.ts')
   const { createAssistantAPIErrorMessage } = await import('../../src/engine/messages/messages.ts')
-  const { resolveAutoCompactWindow } = await import('../../src/engine/compaction/autoFold.ts')
+  const { resolveAutoFoldWindow } = await import('../../src/engine/compaction/autoFold.ts')
   const { fitImagesToRequestCap } = await import('../../src/platform/images/imageResizer.ts')
   const { rosterOwnerFromToolUseContext } = await import('../../src/engine/run-owner/resolveOwner.ts')
   const f = t.fixtures
@@ -358,7 +358,7 @@ section('A7 — silence stays detail-only; every other turn-machine notice is re
   const spoken: Spoken[] = []
   for (const scenario of t.SCENARIOS) spoken.push(...systemNotices(scenario.name, (await t.runScripted(scenario.plan())).events))
   const NEAR_THE_WINDOW = 'a request that failed near the window'
-  const nearTheWindow = Math.floor(resolveAutoCompactWindow(t.MODEL).window * 0.9)
+  const nearTheWindow = Math.floor(resolveAutoFoldWindow(t.MODEL).window * 0.9)
   const failed = await t.runScripted({ seed: [f.ask('an old question'), f.fat('a long history', nearTheWindow), f.ask('hello there rig')], script: [f.yields(createAssistantAPIErrorMessage({ content: 'API Error: 500 upstream' }))] })
   spoken.push(...systemNotices(NEAR_THE_WINDOW, failed.events))
   const IMAGE_LEFT_OUT = 'a request that left an image out'

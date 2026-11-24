@@ -3,7 +3,7 @@ import type { LocalJSXCommandContext, LocalJSXCommandOnDone } from '../catalogue
 import { getSessionId } from '../../boot/process-state/processState.js'
 import { getFocusedSessionConnector, hasFocusedSession } from '../../engine/connector/focusedConnector.js'
 import { getTranscriptPath, saveAgentName, saveCustomTitle } from '../../sessions/transcripts/sessionStorage.js'
-import { isCompactBoundaryMessage } from '../../engine/messages/messages.js'
+import { isFoldBoundaryMessage } from '../../engine/messages/messages.js'
 import { generateSessionName } from './generateSessionName.js'
 import { partiallySanitizeUnicode } from '../../platform/text/unicodeSanitization.js'
 
@@ -19,7 +19,7 @@ export async function call(
     let startIdx = 0
     for (let i = messages.length - 1; i >= 0; i--) {
       const msg = messages[i]
-      if (msg !== undefined && isCompactBoundaryMessage(msg)) {
+      if (msg !== undefined && isFoldBoundaryMessage(msg)) {
         startIdx = i + 1
         break
       }

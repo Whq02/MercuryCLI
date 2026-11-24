@@ -11,7 +11,7 @@ import { createSystemMessage } from '../message-shapes/systemMessages.js'
 import { unwrapToolUseError } from '../message-shapes/rejectionText.js'
 import { getInitialSettings } from '../../platform/settings/settings.js'
 import { PERSISTED_OUTPUT_TAG, persistToolResult } from './toolResultStorage.js'
-import { MC_CLEARED_PLACEHOLDER, MC_DIGEST_PREFIX } from '../compaction/pruneDigest.js'
+import { PRUNE_CLEARED_PLACEHOLDER, PRUNE_DIGEST_PREFIX } from '../compaction/pruneDigest.js'
 import { MAIN_LANE, parseOwnerKey, type OwnerKey } from '../run-owner/ownerKey.js'
 import { registerOwnerScopedStore } from '../run-owner/ownerLifecycle.js'
 import { OwnerScopedStore } from '../run-owner/ownerScopedStore.js'
@@ -482,8 +482,8 @@ function isReferenceResult(text: string): boolean {
     text.startsWith(REPEATED_RESULT_TAG) ||
     text.startsWith(PERSISTED_OUTPUT_TAG) ||
     text.startsWith(FILE_UNCHANGED_STUB) ||
-    text.startsWith(MC_CLEARED_PLACEHOLDER) ||
-    text.startsWith(MC_DIGEST_PREFIX)
+    text.startsWith(PRUNE_CLEARED_PLACEHOLDER) ||
+    text.startsWith(PRUNE_DIGEST_PREFIX)
   )
 }
 

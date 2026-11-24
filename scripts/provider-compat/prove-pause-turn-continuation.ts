@@ -42,7 +42,7 @@ const { startOverflowFixture } = await import('../compact/overflowFixture.ts')
 const fixture = await startOverflowFixture()
 Object.assign(process.env, fixture.env)
 
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
@@ -177,7 +177,7 @@ function textTurn(model: string, text: string): unknown[] {
 }
 async function run(model: string, script: unknown[][], maxTurns?: number): Promise<{ yields: AnyMsg[]; calls: CallRecord[]; terminal: Record<string, unknown> }> {
   const { calls, callModel } = makeModel(script)
-  const gen = query({
+  const gen = turnDoor({
     messages: [createUserMessage({ content: 'what is the figure?' })] as never,
     systemPrompt: ['rig system prompt'] as never,
     userContext: {},

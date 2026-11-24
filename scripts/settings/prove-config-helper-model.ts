@@ -137,9 +137,9 @@ section('§2 the setting: off by default; on, the helper\'s own process answers 
   check('2B: on a local seat the default selection is the slot and a named local model is itself', utility.utilityCallFor().model === 'local/qwen3.5-2b' && utility.utilityCallFor('local/qwen3.8-27b', { named: true }).model === 'local/qwen3.8-27b' && utility.utilityCallFor('local/qwen3.5-2b', { named: true }).model === 'local/qwen3.5-2b')
   delete process.env.MERCURY_MODEL
   check('2B: the heading suffix', helper.helperHeadingWords() === '· helper 2B')
-  check('2B: compaction stays on the session model until opted in', helper.helperCompactionModelId() === undefined)
+  check('2B: compaction stays on the session model until opted in', helper.helperFoldModelId() === undefined)
   helper.writeHelperModelSetting({ compaction: true })
-  check('compaction opt-in routes compaction to the helper', helper.helperCompactionModelId() === 'local/qwen3.5-2b')
+  check('compaction opt-in routes compaction to the helper', helper.helperFoldModelId() === 'local/qwen3.5-2b')
   const { foldModelFor } = await import('../../src/engine/compaction/autoFold.js')
   const { createUserMessage } = await import('../../src/engine/message-shapes/factories.js')
   const short = [createUserMessage({ content: 'a short history' })]

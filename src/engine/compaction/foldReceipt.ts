@@ -1,8 +1,8 @@
-import type { CompactMetadata } from '../message-shapes/message.js'
+import type { FoldMetadata } from '../message-shapes/message.js'
 import { formatTokens } from '../../platform/text/format.js'
 
 export type FoldReceipt = {
-  trigger: CompactMetadata['trigger']
+  trigger: FoldMetadata['trigger']
   before: number | null
   after: { tokens: number; source: 'estimate' } | null
   landing: { tokens: number; source: 'provider' } | null
@@ -21,7 +21,7 @@ const ROUND_REASONS: Readonly<Record<string, string>> = {
   disabled: 'tail disabled',
 }
 
-export function foldReceipt(meta: CompactMetadata, landing?: { input: number } | null): FoldReceipt {
+export function foldReceipt(meta: FoldMetadata, landing?: { input: number } | null): FoldReceipt {
   const typed = meta.ledger !== undefined || meta.recentRounds !== undefined || meta.memory !== undefined
   return {
     trigger: meta.trigger,

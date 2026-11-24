@@ -254,40 +254,40 @@ export function emitInvocationTrace(
 }
 
 
-const COMPACTION_TRACE_OPT_OUT = 'MERCURY_COMPACTION_TRACE'
+const FOLD_TRACE_OPT_OUT = 'MERCURY_COMPACTION_TRACE'
 
-type CompactionEvent =
+type FoldEvent =
   | 'snip'
   | 'microcompact'
   | 'context-collapse'
   | 'auto-compact'
   | 'reactive-compact'
 
-export interface CompactionTrace {
+export interface FoldTrace {
   ts: string
   kind: 'compaction'
-  event: CompactionEvent
+  event: FoldEvent
   tokensFreed?: number
   messagesBefore?: number
   messagesAfter?: number
   agentId?: string
 }
 
-export function isCompactionTraceEnabled(): boolean {
-  if (flagEnv(COMPACTION_TRACE_OPT_OUT) === '0') return false
+export function isFoldTraceEnabled(): boolean {
+  if (flagEnv(FOLD_TRACE_OPT_OUT) === '0') return false
   return isInvocationTraceEnabled()
 }
 
-export function buildCompactionTrace(
-  event: CompactionEvent,
+export function buildFoldTrace(
+  event: FoldEvent,
   opts: {
     nowISO?: string
     tokensFreed?: number
     messagesBefore?: number
     messagesAfter?: number
   } = {},
-): CompactionTrace {
-  const rec: CompactionTrace = {
+): FoldTrace {
+  const rec: FoldTrace = {
     ts: typeof opts.nowISO === 'string' ? opts.nowISO : new Date().toISOString(),
     kind: 'compaction',
     event,
@@ -310,8 +310,8 @@ export function buildCompactionTrace(
   return rec
 }
 
-export function emitCompactionTrace(
-  event: CompactionEvent,
+export function emitFoldTrace(
+  event: FoldEvent,
   opts: {
     nowISO?: string
     tokensFreed?: number
@@ -319,9 +319,9 @@ export function emitCompactionTrace(
     messagesAfter?: number
   } = {},
 ): void {
-  if (!isCompactionTraceEnabled()) return
+  if (!isFoldTraceEnabled()) return
   try {
-    enqueueTraceLine(JSON.stringify(buildCompactionTrace(event, opts)) + '\n')
+    enqueueTraceLine(JSON.stringify(buildFoldTrace(event, opts)) + '\n')
   } catch (error) {
     passedOver(error)
   }

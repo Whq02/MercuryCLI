@@ -28,7 +28,7 @@ await seam.latchSwarmAgent('reader', 'Reader')
 await seam.latchSwarmAgent('writer', 'Writer')
 const board = seam.swarmStore()!
 const writer = seam.swarmPrincipal('writer')!
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
@@ -55,7 +55,7 @@ async function run(withTool: boolean): Promise<any[]> {
     }
     yield text('Finished the assigned check.')
   }
-  const generator = query({ messages: [createUserMessage({ content: 'Check the row.' })], systemPrompt: ['Complete the check.'] as never, userContext: {}, systemContext: {}, canUseTool: (async (_t: unknown, input: unknown) => ({ behavior: 'allow', updatedInput: input })) as never, toolUseContext: ctx, querySource: 'agent:mercury-crew' as never, deps: { uuid: randomUUID, callModel: callModel as never, autocompact: (async () => ({ wasCompacted: false })) as never, microcompact: (async (messages: unknown[]) => ({ messages })) as never } })
+  const generator = turnDoor({ messages: [createUserMessage({ content: 'Check the row.' })], systemPrompt: ['Complete the check.'] as never, userContext: {}, systemContext: {}, canUseTool: (async (_t: unknown, input: unknown) => ({ behavior: 'allow', updatedInput: input })) as never, toolUseContext: ctx, querySource: 'agent:mercury-crew' as never, deps: { uuid: randomUUID, callModel: callModel as never, autocompact: (async () => ({ wasCompacted: false })) as never, microcompact: (async (messages: unknown[]) => ({ messages })) as never } })
   for await (const _event of generator) {}
   return requests
 }

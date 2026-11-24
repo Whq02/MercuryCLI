@@ -185,11 +185,11 @@ const { routedCallModel } = await import('../../src/models/roads/callModelRouter
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { ChangeSetTool } = await import('../../src/tools/change-set/ChangeSetTool.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const { parseAnchorPatch } = await import('../../src/tools/engines/change-transaction/anchorPatch.ts')
 type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
 
-const CATALOG = [ChangeSetTool, FileReadTool] as never
+const CATALOG = [ChangeSetTool, ReadTool] as never
 
 const PATCH = [
   'file /tmp/wire/alpha.ts fa:0123456789ab',

@@ -21,7 +21,7 @@ writeFileSync(`${empty}-wal`, '')
 const digest = (file: string): string => existsSync(file) ? createHash('sha256').update(readFileSync(file)).digest('hex') : 'absent'
 const state = (file: string): string => JSON.stringify([readdirSync(join(file, '..')).sort(), digest(file), digest(`${file}-wal`), existsSync(`${file}-shm`) ? statSync(`${file}-shm`).size : 'absent'])
 const bunRead = async (path: string): Promise<string> => {
-  try { return (await kit.FileReadTool.call({ file_path: path }, kit.context)).data.file.content }
+  try { return (await kit.ReadTool.call({ file_path: path }, kit.context)).data.file.content }
   catch (error) { return String(error) }
 }
 const heldCopies = (): string[] => {

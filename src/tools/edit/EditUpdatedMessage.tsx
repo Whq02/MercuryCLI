@@ -18,7 +18,7 @@ type Props = {
   verbose: boolean
 }
 
-export function FileEditToolUpdatedMessage({
+export function EditUpdatedMessage({
   filePath,
   structuredPatch,
   firstLine,

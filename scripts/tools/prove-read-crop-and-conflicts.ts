@@ -13,7 +13,7 @@ process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9'
 delete process.env.MERCURY_HOME
 delete process.env.NODE_ENV
 
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const { unresolvedConflictBlocks } = await import('../../src/tools/read/ReadTool.ts')
 const { imageDimensionsFromHeader } = await import('../../src/platform/images/imageProcessorJs.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
@@ -93,10 +93,10 @@ let serial = 0
 async function read(input: Record<string, unknown>): Promise<Outcome> {
   serial++
   const context = makeContext()
-  const verdict = await (FileReadTool as { validateInput: Function }).validateInput(input, context)
+  const verdict = await (ReadTool as { validateInput: Function }).validateInput(input, context)
   if (verdict.result === false) return { ok: false, message: String(verdict.message) }
   try {
-    const result = await (FileReadTool as { call: Function }).call(input, context, null, { uuid: `00000000-0000-0000-0000-${String(serial).padStart(12, '0')}`, message: { id: `msg_crop_${serial}` } })
+    const result = await (ReadTool as { call: Function }).call(input, context, null, { uuid: `00000000-0000-0000-0000-${String(serial).padStart(12, '0')}`, message: { id: `msg_crop_${serial}` } })
     const data = result.data as ImageData
     const caption = typeof data.file?.caption === 'string' ? [data.file.caption] : []
     const notes = [...caption, ...((result.newMessages ?? []) as Array<{ message?: { content?: unknown } }>).map(m => (typeof m.message?.content === 'string' ? m.message.content : JSON.stringify(m.message?.content ?? '')))]
@@ -217,7 +217,7 @@ section('E. a whole-number scale enlarges a crop pixel for pixel; a fractional o
   const jsColours = new Set<string>()
   for (let i = 0; i < jsImage.data.length; i += 4) jsColours.add(`${jsImage.data[i]},${jsImage.data[i + 1]},${jsImage.data[i + 2]}`)
   check('E7 the JavaScript road (no native processor) enlarges a whole-number scale the same way: 48x48, two colours', jsImage.width === 48 && jsImage.height === 48 && jsColours.size === 2, `${jsImage.width}x${jsImage.height}, ${jsColours.size} colours`)
-  const schema = zodToJsonSchema((FileReadTool as { inputSchema: never }).inputSchema) as { properties: { scale: { description: string } } }
+  const schema = zodToJsonSchema((ReadTool as { inputSchema: never }).inputSchema) as { properties: { scale: { description: string } } }
   check('E8 the parameter says it in its own words', schema.properties.scale.description.includes('whole numbers repeat pixels') && schema.properties.scale.description.includes('requires crop'), schema.properties.scale.description)
 }
 
@@ -241,21 +241,21 @@ section('C. unresolved merge-conflict blocks in the lines returned are counted i
   const body = ['const a = 1', '<<<<<<< HEAD', 'const b = 2', '=======', 'const b = 3', '>>>>>>> feature', 'const c = 4', '<<<<<<< HEAD', 'x', '=======', 'y', '>>>>>>> other', 'tail'].join('\n') + '\n'
   writeFileSync(conflicted, body)
   const whole = await read({ file_path: conflicted })
-  const text = whole.ok ? (FileReadTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(whole.data, 'toolu_c').content as string : ''
+  const text = whole.ok ? (ReadTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(whole.data, 'toolu_c').content as string : ''
   check('C1 two blocks are counted in one line after the numbered lines', text.includes('\n[2 unresolved merge-conflict blocks (<<<<<<< ======= >>>>>>>) in the lines returned — resolve them before relying on this content]'), text)
   const numbered = text.split('\n').filter(line => /^\d+\t/.test(line)).map(line => line.replace(/^\d+\t/, ''))
   check('C2 the returned lines are the file\'s bytes, markers included, nothing altered', numbered.join('\n') + '\n' === body, JSON.stringify(numbered))
   const window = await read({ file_path: conflicted, offset: 7, limit: 1 })
-  const windowText = window.ok ? (FileReadTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(window.data, 'toolu_w').content as string : ''
+  const windowText = window.ok ? (ReadTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(window.data, 'toolu_w').content as string : ''
   check('C3 a window that carries no block carries no count line', !windowText.includes('unresolved merge-conflict'), windowText)
   const one = await read({ file_path: conflicted, offset: 1, limit: 7 })
-  const oneText = one.ok ? (FileReadTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(one.data, 'toolu_o').content as string : ''
+  const oneText = one.ok ? (ReadTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(one.data, 'toolu_o').content as string : ''
   check('C4 a window with one whole block says one block, singular', oneText.includes('[1 unresolved merge-conflict block (<<<<<<< ======= >>>>>>>) in the lines returned'), oneText)
   check('C5 the counter needs the closing marker: an opener alone is not a block, and seven characters inside a line are not a marker', unresolvedConflictBlocks('<<<<<<< HEAD\nbody\n') === 0 && unresolvedConflictBlocks('a <<<<<<< b\n=======\n>>>>>>> c\n') === 0 && unresolvedConflictBlocks('<<<<<<<\n=\n>>>>>>>\n') === 1)
   const clean = join(fixtures, 'clean.ts')
   writeFileSync(clean, 'const ok = true\n')
   const cleanRead = await read({ file_path: clean })
-  const cleanText = cleanRead.ok ? (FileReadTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(cleanRead.data, 'toolu_k').content as string : ''
+  const cleanText = cleanRead.ok ? (ReadTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(cleanRead.data, 'toolu_k').content as string : ''
   check('C6 a clean file reads as before (the control)', cleanText.startsWith('1\tconst ok = true') && !cleanText.includes('merge-conflict'), cleanText)
 }
 

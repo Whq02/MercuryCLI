@@ -50,11 +50,11 @@ if (!RUNNER) {
 }
 
 const realQuery = await import('../../src/engine/turnDoor.ts')
-const realQueryEvents = realQuery.queryEvents
+const realQueryEvents = realQuery.turnDoorEvents
 let scripted: Record<string, unknown> | null = null
 mock.module('../../src/engine/turnDoor.ts', () => ({
   ...realQuery,
-  queryEvents: async function* (params: Record<string, unknown>): AsyncGenerator<unknown, unknown> {
+  turnDoorEvents: async function* (params: Record<string, unknown>): AsyncGenerator<unknown, unknown> {
     return yield* realQueryEvents((scripted === null ? params : { ...params, deps: scripted }) as never)
   },
 }))
@@ -177,11 +177,11 @@ const watchdog = setTimeout(() => {
 }, 240_000)
 watchdog.unref?.()
 
-const { getCompactUserSummaryMessage } = await import('../../src/engine/compaction/summariserPrompt.ts')
+const { getFoldUserSummaryMessage } = await import('../../src/engine/compaction/summariserPrompt.ts')
 const { createOperatorRewindRecordMessage, createRewindRecordMessage, projectRewoundWindows } = await import('../../src/engine/compaction/checkpointRewind.ts')
 const { handleRewindSession } = await import('../../src/daemon/runner/controlHandlers.ts')
 const sentence = (directory: string): string => `The shell's working directory is still where an earlier cd left it: ${directory}`
-const frame = (): string => getCompactUserSummaryMessage('<summary>the earlier stretch</summary>', false, join(scratch, 'session.jsonl'), true)
+const frame = (): string => getFoldUserSummaryMessage('<summary>the earlier stretch</summary>', false, join(scratch, 'session.jsonl'), true)
 const textOf = (row: Record<string, unknown> | undefined): string => String((row?.message as { content?: unknown } | undefined)?.content ?? '')
 const lastRewindRecord = (): string => textOf(messages.findLast(row => textOf(row).startsWith('<mercury-rewind-record')))
 const modelRecordToday = (id: string, removed: number, report: string): string =>
@@ -292,16 +292,16 @@ section('§5 a fold names the folder the shell stands in')
   await step(`cd "${broken}"`)
   check('a folder whose name holds a line break stays one paragraph, as a JSON string', getShellCwd() === broken && frame().split('\n\n').includes(sentence(JSON.stringify(broken))), fix('shellDirectoryLeftByCd in src/platform/files/cwd.ts must JSON-quote a folder name with a line break', { shell: getShellCwd(), frame: frame() }))
   await step(`cd "${sub}"`)
-  const { compactConversation, buildPostCompactMessages } = await import('../../src/engine/compaction/foldConversation.ts')
+  const { foldConversation, buildPostFoldMessages } = await import('../../src/engine/compaction/foldConversation.ts')
   const { startFixtureApi } = await import('../lib/fixtureApi.ts')
   const api = await startFixtureApi(Array.from({ length: 8 }, () => ({ kind: 'text' as const, text: 'The earlier stretch moved the shell and looked around. Carry on from the newest request of the operator.' })))
   process.env.ANTHROPIC_BASE_URL = api.url
   const foldContext = { abortController: new AbortController(), getAppState: () => appState, setAppState: () => {}, messages: [], readFileState: new Map(), options: { tools: [], mcpClients: [], engineModel: MODEL, thinkingConfig: { type: 'adaptive' }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
-  const folded = await compactConversation(messages as never, foldContext as never, { systemPrompt: ['the posture of the proof'] } as never, true)
+  const folded = await foldConversation(messages as never, foldContext as never, { systemPrompt: ['the posture of the proof'] } as never, true)
   await api.close()
   const summary = textOf(folded.summaryMessages[0] as never)
   check('a fold of this conversation writes the sentence into the summary the model reads', summary.split('\n\n').includes(sentence(sub)), fix('compactConversation in src/engine/compaction/foldConversation.ts must build its summary message with getCompactUserSummaryMessage (src/engine/compaction/summariserPrompt.ts)', summary.slice(0, 900)))
-  messages.splice(0, messages.length, ...(buildPostCompactMessages(folded) as never[]))
+  messages.splice(0, messages.length, ...(buildPostFoldMessages(folded) as never[]))
   const after = await turn([bash('pwd')])
   check('the command after the fold runs where the summary says', firstLine(after.ran[0]) === sub, fix('after a fold the shell must stay in the folder the summary names; check that compaction does not reset shellCwd in src/platform/shell/shellExec.ts', after.ran))
 }

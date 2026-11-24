@@ -11,7 +11,7 @@ import {
   subscribeHelmFocus,
 } from '../cockpit/helmFocus.js'
 import { getLiveContextUsage, getLiveContextUsageVersion, subscribeLiveContextUsage } from '../cockpit-gauges/index.js'
-import { ctxForecastEnabled, ctxGrowthHistory, estimateTurnsToCompact } from '../cockpit-gauges/ctxForecast.js'
+import { ctxForecastEnabled, ctxGrowthHistory, estimateTurnsToFold } from '../cockpit-gauges/ctxForecast.js'
 import { windowSourceUsages } from '../../models/roads/providerUsage.js'
 import { usagePollTtlMs } from '../../models/roads/usageFreshness.js'
 import { useProviderUsageOnShow } from '../model-picker/useProviderUsageOnShow.js'
@@ -124,7 +124,7 @@ function HelmVitalsRailImpl({ width, availRows }: { width: number; availRows?: n
     workRoster,
     focusedSessionId: focusedSessionIdOrNull(),
     ctx,
-    ctxTurns: ctx.window > 0 && ctxForecastEnabled() ? estimateTurnsToCompact(ctx.usedPct, ctx.compactAtPct) : null,
+    ctxTurns: ctx.window > 0 && ctxForecastEnabled() ? estimateTurnsToFold(ctx.usedPct, ctx.compactAtPct) : null,
     ctxGrowth: ctx.window > 0 ? ctxGrowthHistory() : [],
     activity: usageActivityBins(now),
     cert: healthCertSnapshot(),

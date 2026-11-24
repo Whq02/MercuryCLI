@@ -16,7 +16,7 @@ const { loadConversationForResume } = await import(join(ROOT, 'src/sessions/resu
 const { loadTranscriptFile, pruneRecordBranchesBeforeParse } = await import(join(ROOT, 'src/sessions/transcripts/loading.ts'))
 const { buildConversationChain } = await import(join(ROOT, 'src/sessions/transcripts/chain.ts'))
 const { _resetTranscriptReaderForTesting } = await import(join(ROOT, 'src/sessions/transcripts/transcriptReader.ts'))
-const { SKIP_PRECOMPACT_THRESHOLD } = await import(join(ROOT, 'src/sessions/transcripts/sessionStoragePortable.ts'))
+const { SKIP_BEFORE_FOLD_BOUNDARY_THRESHOLD } = await import(join(ROOT, 'src/sessions/transcripts/sessionStoragePortable.ts'))
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -92,7 +92,7 @@ const rawHash = sha(raw)
 
 section('§A the on-disk shape a parallel batch has (the writer\'s own parent law)')
 {
-  check(`the file crosses the big-file gate (${raw.length} > ${SKIP_PRECOMPACT_THRESHOLD})`, raw.length > SKIP_PRECOMPACT_THRESHOLD, String(raw.length))
+  check(`the file crosses the big-file gate (${raw.length} > ${SKIP_BEFORE_FOLD_BOUNDARY_THRESHOLD})`, raw.length > SKIP_BEFORE_FOLD_BOUNDARY_THRESHOLD, String(raw.length))
   const full = await loadTranscriptFile(path, { keepAllLeaves: true })
   const leaf = full.messages.get(a3 as never)!
   const chain = buildConversationChain(full.messages, leaf)
@@ -162,7 +162,7 @@ section('§E a compacted session loads the same chain on both roads — the comp
   const small = await chainOf(join(scratch, 'compacted-small.jsonl'), 10)
   const bigFile = join(scratch, 'compacted-big.jsonl')
   const big = await chainOf(bigFile, 3 * FAT)
-  check(`the big file crosses the big-file gate (${readFileSync(bigFile).length} > ${SKIP_PRECOMPACT_THRESHOLD})`, readFileSync(bigFile).length > SKIP_PRECOMPACT_THRESHOLD, 'the fixture is below SKIP_PRECOMPACT_THRESHOLD; raise the bytes passed to chainOf for the big file')
+  check(`the big file crosses the big-file gate (${readFileSync(bigFile).length} > ${SKIP_BEFORE_FOLD_BOUNDARY_THRESHOLD})`, readFileSync(bigFile).length > SKIP_BEFORE_FOLD_BOUNDARY_THRESHOLD, 'the fixture is below SKIP_BEFORE_FOLD_BOUNDARY_THRESHOLD; raise the bytes passed to chainOf for the big file')
   const boundaryAt = small.indexOf(`compact_boundary:${ids.boundary}`)
   check('the full read carries the compact boundary row in the chain', boundaryAt > 0, `loadTranscriptFile in src/sessions/transcripts/loading.ts must keep the compact_boundary row in the chain; ${small.join(' ')}`)
   check('the big-file road hands back that chain from the boundary row on — the row itself first (base: the boundary line was reset away and never appended)', JSON.stringify(big) === JSON.stringify(small.slice(boundaryAt)), `the big-file road of loadTranscriptFile in src/sessions/transcripts/loading.ts must start the chain at the compact boundary row; big=${big.join(' ')}`)

@@ -140,7 +140,7 @@ async function sweep(model: string): Promise<Record<string, Sent>> {
 }
 const SEGMENT = 65_536
 const cutAfterThinking: Step = request => [{ candidates: [{ content: { role: 'model', parts: [{ text: '', thoughtSignature: 'sig-cut' }] }, finishReason: Number(request.generationConfig?.maxOutputTokens ?? SEGMENT) > SEGMENT ? 'CONTINUATION' : 'MAX_TOKENS' }], usageMetadata: { promptTokenCount: 60, candidatesTokenCount: 0, thoughtsTokenCount: SEGMENT } }]
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
@@ -165,7 +165,7 @@ async function runTurn(model: string, prompt: string, steps: Step[]): Promise<Tu
   hits.length = 0
   script = [...steps]
   const yields: Array<Record<string, any>> = []
-  const gen = query({ messages: [createUserMessage({ content: prompt })] as never, systemPrompt: ['be brief'] as never, userContext: {}, systemContext: {}, canUseTool: (async () => ({ behavior: 'deny', message: 'no tools in this rig' })) as never, toolUseContext: ctx as never, querySource: 'sdk' as never, deps: productionDeps() })
+  const gen = turnDoor({ messages: [createUserMessage({ content: prompt })] as never, systemPrompt: ['be brief'] as never, userContext: {}, systemContext: {}, canUseTool: (async () => ({ behavior: 'deny', message: 'no tools in this rig' })) as never, toolUseContext: ctx as never, querySource: 'sdk' as never, deps: productionDeps() })
   let step = await gen.next()
   while (!step.done) {
     yields.push(step.value as Record<string, any>)

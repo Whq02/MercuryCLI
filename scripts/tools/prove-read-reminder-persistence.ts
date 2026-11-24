@@ -11,7 +11,7 @@ process.env.MERCURY_BARE = '1'
 delete process.env.MERCURY_HOME
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
 try {
-  const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+  const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
   const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
   const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
@@ -20,8 +20,8 @@ try {
   const context: any = { messages: [], readFileState: createFileStateCacheWithSizeLimit(100), abortController: new AbortController(), updateFileHistoryState: () => {}, getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) }
   const files = ['a', 'b', 'c', 'd'].map(name => join(scratch, name + '.txt'))
   for (const file of files) writeFileSync(file, 'alpha\nbeta\n')
-  const text = (data: any) => String(FileReadTool.mapToolResultToToolResultBlockParam(data, 'proof').content)
-  const read = (file: string, parent?: any) => FileReadTool.call({ file_path: file }, context, undefined, parent)
+  const text = (data: any) => String(ReadTool.mapToolResultToToolResultBlockParam(data, 'proof').content)
+  const read = (file: string, parent?: any) => ReadTool.call({ file_path: file }, context, undefined, parent)
   const first = await read(files[0]!)
   const firstText = text(first.data)
   assert.ok(firstText.includes('Assess harm in context'), `first Read in src/tools/read/ReadTool.ts omitted the safety reminder (${firstText.slice(0, 160)})`)
@@ -29,13 +29,13 @@ try {
   const second = await read(files[1]!)
   console.log(JSON.stringify({ firstBytes: Buffer.byteLength(text(first.data)), laterBytes: Buffer.byteLength(text(second.data)) }))
   assert.ok(!text(second.data).includes('Assess harm in context'), 'a harness Read after an attached Read must not repeat the instruction')
-  const restored = FileReadTool.outputSchema!.parse(JSON.parse(JSON.stringify(second.data)))
+  const restored = ReadTool.outputSchema!.parse(JSON.parse(JSON.stringify(second.data)))
   assert.equal(text(restored), text(second.data), 'the reminder decision survives persistence')
   const own = await read(files[2]!, { message: { id: 'read-persistence-parent' } })
   assert.ok(!text(own.data).includes('Assess harm in context'), 'a tool Read sees the already attached instruction')
-  assert.equal(text(FileReadTool.outputSchema!.parse(JSON.parse(JSON.stringify(own.data)))), text(own.data))
+  assert.equal(text(ReadTool.outputSchema!.parse(JSON.parse(JSON.stringify(own.data)))), text(own.data))
   setEngineModelOverride('claude-opus-4-6' as never)
-  assert.equal(text(first.data), text(FileReadTool.outputSchema!.parse(JSON.parse(JSON.stringify(first.data)))) , 'reconstruction remains identical after a model switch')
+  assert.equal(text(first.data), text(ReadTool.outputSchema!.parse(JSON.parse(JSON.stringify(first.data)))) , 'reconstruction remains identical after a model switch')
   assert.ok(text(first.data).includes('Assess harm in context'), 'an already emitted reminder never disappears on a model switch')
   setEngineModelOverride(undefined)
   context.messages = []

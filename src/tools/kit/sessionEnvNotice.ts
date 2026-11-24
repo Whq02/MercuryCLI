@@ -58,6 +58,6 @@ export function sessionEnvNoticeForResult(args: {
   return shortScrubbedSessionEnvNotice(named)
 }
 
-export function resetSessionEnvNoticeOnCompaction(): void {
+export function resetSessionEnvNoticeOnFold(): void {
   sessionEnvNoticeShown.dispose(noticeKey(currentOwner()))
 }

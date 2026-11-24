@@ -1,6 +1,6 @@
 import { LRUCache } from 'lru-cache'
 
-import { queryUtility, queryWithModel } from '../../models/roads/anthropic/index.js'
+import { callUtilityModel, callWithModel } from '../../models/roads/anthropic/index.js'
 import { getEngineModel } from '../../models/catalogue/engineModel.js'
 import { utilityCallFor } from '../../models/catalogue/utilityModel.js'
 import { AbortError } from '../../platform/errors/errors.js'
@@ -243,8 +243,8 @@ export async function getURLMarkdownContent(
 }
 
 interface FetchSummariseReads {
-  utility?: typeof queryUtility
-  withModel?: typeof queryWithModel
+  utility?: typeof callUtilityModel
+  withModel?: typeof callWithModel
   utilityModelId?: () => string
   mainModelId?: () => string
 }
@@ -273,8 +273,8 @@ export async function applyPromptToMarkdown(
   if (signal.aborted) throw new AbortError()
 
   const userPrompt = makeSecondaryModelPrompt(markdown, prompt, isPreapprovedDomain)
-  const utility = reads?.utility ?? queryUtility
-  const withModel = reads?.withModel ?? queryWithModel
+  const utility = reads?.utility ?? callUtilityModel
+  const withModel = reads?.withModel ?? callWithModel
   const primaryModel = reads?.utilityModelId ? reads.utilityModelId() : utilityCallFor().model
   const mainModel = reads?.mainModelId ? reads.mainModelId() : getEngineModel()
 

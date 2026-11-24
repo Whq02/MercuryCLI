@@ -184,9 +184,9 @@ function threwOf(fn: () => unknown): Error | null {
   }))
   const { mountPart } = await import('../ui/chatScenarios.ts')
   const { waitFor } = await import('../lib/settingsPopupHarness.ts')
-  const { ResumeConversation } = await import('../../src/screen/chat/ResumeSession.tsx')
+  const { ResumeSession } = await import('../../src/screen/chat/ResumeSession.tsx')
   const mounted = await mountPart(() => null, {
-    draw: () => React.createElement(ResumeConversation, { commands: [], worktreePaths: [], initialTools: [] }),
+    draw: () => React.createElement(ResumeSession, { commands: [], worktreePaths: [], initialTools: [] }),
   })
   try {
     await waitFor(() => {
@@ -204,7 +204,7 @@ function threwOf(fn: () => unknown): Error | null {
   }
   loadMode = 'empty'
   const emptyMounted = await mountPart(() => null, {
-    draw: () => React.createElement(ResumeConversation, { commands: [], worktreePaths: [], initialTools: [] }),
+    draw: () => React.createElement(ResumeSession, { commands: [], worktreePaths: [], initialTools: [] }),
   })
   try {
     await waitFor(() => emptyMounted.view.screen().includes('No conversations to resume'), 3000)

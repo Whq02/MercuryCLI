@@ -5,9 +5,9 @@ import { GLYPH } from '../theme/glyphs.js'
 import { ValueGlow } from '../widgets/LiveGlyphs.js'
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js'
 import { CockpitActiveContext } from '../cockpit/cockpitActiveContext.js'
-import { FILE_EDIT_TOOL_NAME } from '../../tools/kit/names/fileEdit.js'
-import { FILE_WRITE_TOOL_NAME } from '../../tools/kit/names/fileWrite.js'
-import { FILE_READ_TOOL_NAME } from '../../tools/kit/names/fileRead.js'
+import { EDIT_TOOL_NAME } from '../../tools/kit/names/fileEdit.js'
+import { WRITE_TOOL_NAME } from '../../tools/kit/names/fileWrite.js'
+import { READ_TOOL_NAME } from '../../tools/kit/names/fileRead.js'
 import { BASH_TOOL_NAME } from '../../tools/kit/names/bash.js'
 import { GREP_TOOL_NAME } from '../../tools/grep/prompt.js'
 import { GLOB_TOOL_NAME } from '../../tools/glob/prompt.js'
@@ -62,11 +62,11 @@ export function rollupSpineOf(messages: readonly Message[]): Spine {
       if (block?.type !== 'tool_use') continue
       toolCount++
       switch (block.name) {
-        case FILE_READ_TOOL_NAME:
+        case READ_TOOL_NAME:
           readCount++
           break
-        case FILE_EDIT_TOOL_NAME:
-        case FILE_WRITE_TOOL_NAME: {
+        case EDIT_TOOL_NAME:
+        case WRITE_TOOL_NAME: {
           editCount++
           const fp = (block.input as { file_path?: unknown } | undefined)?.file_path
           const blockId = (block as { id?: string }).id ?? ''

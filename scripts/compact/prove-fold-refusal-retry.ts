@@ -40,8 +40,8 @@ try {
     const ctx = context(events)
     const rows = structuredClone(direction === 'full' ? DIALECT_CONVERSATION : TWO_MODEL_COMPACTION)
     const fold = () => direction === 'full'
-      ? compact.compactConversation(rows, ctx as never, cache, false)
-      : compact.partialCompactConversation(rows, 2, ctx as never, cache, undefined, direction)
+      ? compact.foldConversation(rows, ctx as never, cache, false)
+      : compact.partialFoldConversation(rows, 2, ctx as never, cache, undefined, direction)
     fixture.script([{ refusal: true }, { text: summary }])
     const before = fixture.captured.length
     let error: string | undefined

@@ -49,7 +49,7 @@ import {
   callStructuredWriteTarget,
   parseStructuredWriteTarget,
 } from '../structuredTargets.js'
-import { FILE_WRITE_TOOL_NAME } from '../../kit/names/fileWrite.js'
+import { WRITE_TOOL_NAME } from '../../kit/names/fileWrite.js'
 import type { AssistantMessage } from '../../../engine/message-shapes/message.js'
 import type { Input, Output } from './schema.js'
 import { passedOverAs } from '../../../platform/errors/passedOver.js'
@@ -92,7 +92,7 @@ export async function writeFileCall(input: Input, context: ToolUseContext, canUs
     far === null
       ? null
       : await far.remoteWriteTarget(
-          FILE_WRITE_TOOL_NAME,
+          WRITE_TOOL_NAME,
           input.file_path,
           context,
           typeof canUseTool === 'function' && parentMessage !== undefined

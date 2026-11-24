@@ -19,8 +19,8 @@ import { parseSlashCommand } from '../../../commands/catalogue/slashCommandParsi
 export type SetAppState = (updater: (prevState: AppState) => AppState) => void
 
 
-const triedCompact = Symbol('triedCompact')
-const queue: (QueuedCommand & { [triedCompact]?: true })[] = []
+const triedFold = Symbol('triedCompact')
+const queue: (QueuedCommand & { [triedFold]?: true })[] = []
 let snapshot: readonly QueuedCommand[] = Object.freeze([])
 const queueChanged = createSignal()
 let queueIdSeq = 0
@@ -166,14 +166,14 @@ export function markDraining(commands: readonly QueuedCommand[]): void {
 let owningSessionId: string | null = null
 const parkedQueues = new Map<string, QueuedCommand[]>()
 
-function compactArgs(cmd: QueuedCommand): string | undefined {
+function foldArgs(cmd: QueuedCommand): string | undefined {
   if (cmd.localCommand !== true || cmd.agentId !== undefined || cmd.mode !== 'prompt' || cmd.skipSlashCommands || cmd.isMeta) return undefined
   const line = typeof cmd.value === 'string' ? cmd.value : cmd.value.find(block => block.type === 'text')?.text
   const parsed = line?.startsWith('/') ? parseSlashCommand(line) : null
   return parsed?.commandName === 'compact' ? parsed.args.trim() : undefined
 }
 
-export function beginQueuedCompact(owner: OwnerKey): { fresh: boolean; instructions?: string; complete: () => void } | undefined {
+export function beginQueuedFold(owner: OwnerKey): { fresh: boolean; instructions?: string; complete: () => void } | undefined {
   const { sessionId, lane } = parseOwnerKey(owner)
   const sameSession = (): boolean => sessionId === (owningSessionId ?? getSessionId())
   if (lane !== MAIN_LANE || !sameSession()) return undefined
@@ -181,15 +181,15 @@ export function beginQueuedCompact(owner: OwnerKey): { fresh: boolean; instructi
   let instructions: string | undefined
   let fresh = false
   for (const cmd of queue) {
-    const args = compactArgs(cmd)
+    const args = foldArgs(cmd)
     if (args === undefined || cmd.queueId === undefined) continue
     ids.add(cmd.queueId)
-    if (!cmd[triedCompact]) fresh = true
-    cmd[triedCompact] = true
+    if (!cmd[triedFold]) fresh = true
+    cmd[triedFold] = true
     if (args !== '') instructions = args
   }
   return { fresh, instructions, complete: () => {
-    if (sameSession()) dequeueAllMatching(cmd => cmd.queueId !== undefined && (ids.has(cmd.queueId) || compactArgs(cmd) === ''))
+    if (sameSession()) dequeueAllMatching(cmd => cmd.queueId !== undefined && (ids.has(cmd.queueId) || foldArgs(cmd) === ''))
   } }
 }
 
@@ -307,7 +307,7 @@ export function dequeueAllMatching(
   predicate: (cmd: QueuedCommand) => boolean,
 ): QueuedCommand[] {
   const matched: QueuedCommand[] = []
-  const remaining: (QueuedCommand & { [triedCompact]?: true })[] = []
+  const remaining: (QueuedCommand & { [triedFold]?: true })[] = []
   for (const cmd of queue) {
     if (predicate(cmd)) matched.push(cmd)
     else remaining.push(cmd)

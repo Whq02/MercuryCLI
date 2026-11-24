@@ -32,9 +32,9 @@ for (const grammar of GRAMMAR_REGISTRY) {
 process.env.MERCURY_TREESITTER_VENDOR_DIR = engineDir
 const { _resetGrammarEngineForTesting } = await import('../../src/platform/grammars/grammarFacility.ts')
 const { _resetSeenLinesForTesting } = await import('../../src/tools/engines/change-transaction/seenLines.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { WriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const parseCheckModule = await import('../../src/tools/write/parseCheck.ts')
 
@@ -90,7 +90,7 @@ section('P1. JSON/YAML/TOML writes and edits surface introduced parse errors whe
   const ctx = makeContext()
 
   const jsonPath = join(fixtures, 'broken.json')
-  const wJson = await run(FileWriteTool, { file_path: jsonPath, content: '{\n  "name": "app",\n}\n' }, ctx, 'tu_wjson')
+  const wJson = await run(WriteTool, { file_path: jsonPath, content: '{\n  "name": "app",\n}\n' }, ctx, 'tu_wjson')
   check(
     'P1a creating an invalid JSON file surfaces a JSON parse error in the Write result',
     wJson.ok && /JSON parse error/i.test(wJson.text),
@@ -98,14 +98,14 @@ section('P1. JSON/YAML/TOML writes and edits surface introduced parse errors whe
   )
 
   const yamlPath = join(fixtures, 'config.yaml')
-  const wYamlGood = await run(FileWriteTool, { file_path: yamlPath, content: 'name: app\nitems:\n  - one\n' }, ctx, 'tu_wyaml1')
+  const wYamlGood = await run(WriteTool, { file_path: yamlPath, content: 'name: app\nitems:\n  - one\n' }, ctx, 'tu_wyaml1')
   check(
     'P1b creating a valid YAML file carries no parse error',
     wYamlGood.ok && !/parse error/i.test(wYamlGood.text),
     wYamlGood.ok ? wYamlGood.text : wYamlGood.message,
   )
   const eYamlBad = await run(
-    FileEditTool,
+    EditTool,
     { file_path: yamlPath, old_string: '  - one', new_string: '  - [unclosed' },
     ctx,
     'tu_eyaml',
@@ -117,14 +117,14 @@ section('P1. JSON/YAML/TOML writes and edits surface introduced parse errors whe
   )
 
   const tomlPath = join(fixtures, 'settings.toml')
-  const wTomlGood = await run(FileWriteTool, { file_path: tomlPath, content: 'port = 8080\nhost = "localhost"\n' }, ctx, 'tu_wtoml1')
+  const wTomlGood = await run(WriteTool, { file_path: tomlPath, content: 'port = 8080\nhost = "localhost"\n' }, ctx, 'tu_wtoml1')
   check(
     'P1d creating a valid TOML file carries no parse error',
     wTomlGood.ok && !/parse error/i.test(wTomlGood.text),
     wTomlGood.ok ? wTomlGood.text : wTomlGood.message,
   )
   const eTomlBad = await run(
-    FileEditTool,
+    EditTool,
     { file_path: tomlPath, old_string: 'port = 8080', new_string: 'port = ' },
     ctx,
     'tu_etoml',
@@ -142,9 +142,9 @@ section('P2. Pre-existing identical parse errors and LSP-covered files stay sile
   const ctx = makeContext()
   const preBrokenPath = join(fixtures, 'already-broken.json')
   writeFileSync(preBrokenPath, '{\n  "a": 1,\n  "b": 2,\n}\n')
-  await run(FileReadTool, { file_path: preBrokenPath }, ctx, 'tu_rpre')
+  await run(ReadTool, { file_path: preBrokenPath }, ctx, 'tu_rpre')
   const eSameErr = await run(
-    FileEditTool,
+    EditTool,
     { file_path: preBrokenPath, old_string: '"a": 1', new_string: '"a": 10' },
     ctx,
     'tu_esame',
@@ -166,9 +166,9 @@ section('P2. Pre-existing identical parse errors and LSP-covered files stay sile
   const tomlLines = Array.from({ length: 19 }, (_, i) => `key_${i + 1} = ${i + 1}`)
   tomlLines.push('broken_line = ')
   writeFileSync(shiftedTomlPath, `${tomlLines.join('\n')}\n`)
-  await run(FileReadTool, { file_path: shiftedTomlPath }, ctx, 'tu_rshift')
+  await run(ReadTool, { file_path: shiftedTomlPath }, ctx, 'tu_rshift')
   const eShifted = await run(
-    FileEditTool,
+    EditTool,
     {
       file_path: shiftedTomlPath,
       old_string: 'key_3 = 3',
@@ -190,9 +190,9 @@ section('P3. Plain-path control: Write and Edit treat paths carrying !, ::, or :
   const ctx = makeContext()
   for (const [idx, suffix] of ['notes!entry.txt', 'draft::entry.txt', 'todo:users'].entries()) {
     const plainTarget = join(fixtures, suffix)
-    const w = await run(FileWriteTool, { file_path: plainTarget, content: `alpha-${idx}\n` }, ctx, `tu_wplain_${idx}`)
+    const w = await run(WriteTool, { file_path: plainTarget, content: `alpha-${idx}\n` }, ctx, `tu_wplain_${idx}`)
     const e = await run(
-      FileEditTool,
+      EditTool,
       { file_path: plainTarget, old_string: `alpha-${idx}`, new_string: `beta-${idx}` },
       ctx,
       `tu_eplain_${idx}`,
@@ -218,19 +218,19 @@ for (const row of sourceCases) {
   const ctx = makeContext()
   const file = join(fixtures, row.file)
   const broken = row.good.replace(row.old, row.replacement)
-  const good = await run(FileWriteTool, { file_path: file, content: row.good }, ctx, `good-${row.file}`)
+  const good = await run(WriteTool, { file_path: file, content: row.good }, ctx, `good-${row.file}`)
   check(`${row.language}: valid Write has no parse error`, good.ok && !good.isError && good.data.parseError === undefined, JSON.stringify(good))
-  const edited = await run(FileEditTool, { file_path: file, old_string: row.old, new_string: row.replacement }, ctx, `edit-${row.file}`)
+  const edited = await run(EditTool, { file_path: file, old_string: row.old, new_string: row.replacement }, ctx, `edit-${row.file}`)
   const expected = `${row.language} parse error at line ${row.line}: ${row.node}`
   check(`${row.language}: Edit names the language, exact line and error node`,
     edited.ok && edited.text.includes(expected) && typeof edited.data.parseError === 'string' && edited.data.parseError.includes('(the edit introduced it)'), JSON.stringify(edited))
   check(`${row.language}: invalid Edit still lands`, edited.ok && !edited.isError && readFileSync(file, 'utf8') === broken)
-  const same = await run(FileEditTool, { file_path: file, old_string: 'greet', new_string: 'greet_again' }, ctx, `same-${row.file}`)
+  const same = await run(EditTool, { file_path: file, old_string: 'greet', new_string: 'greet_again' }, ctx, `same-${row.file}`)
   check(`${row.language}: an unrelated edit with the same existing error stays silent`, same.ok && !same.isError && same.data.parseError === undefined, JSON.stringify(same))
-  const moved = await run(FileWriteTool, { file_path: file, content: `\n\n${broken}` }, ctx, `shift-${row.file}`)
+  const moved = await run(WriteTool, { file_path: file, content: `\n\n${broken}` }, ctx, `shift-${row.file}`)
   check(`${row.language}: shifting an existing error changes no diagnostic`, moved.ok && !moved.isError && moved.data.parseError === undefined, JSON.stringify(moved))
   const newFile = join(fixtures, `new-${row.file}`)
-  const written = await run(FileWriteTool, { file_path: newFile, content: broken }, ctx, `new-${row.file}`)
+  const written = await run(WriteTool, { file_path: newFile, content: broken }, ctx, `new-${row.file}`)
   check(`${row.language}: a new invalid Write names the same language, line and node`, written.ok && !written.isError && written.text.includes(expected) && readFileSync(newFile, 'utf8') === broken, JSON.stringify(written))
   check(`${row.language}: LSP coverage remains authoritative`, await parseCheckModule.checkIntroducedParseError(file, row.good, broken, true) === undefined)
 }
@@ -258,12 +258,12 @@ section('P6. An unavailable grammar is silence, never a refused edit or write')
   _resetSeenLinesForTesting()
   const ctx = makeContext()
   const file = join(fixtures, 'unavailable.ts')
-  const written = await run(FileWriteTool, { file_path: file, content: 'function greet() { return 1; }\n' }, ctx, 'unavailable-good')
-  const edited = await run(FileEditTool, { file_path: file, old_string: '{ return 1; }', new_string: '{ return 1;' }, ctx, 'unavailable-bad')
+  const written = await run(WriteTool, { file_path: file, content: 'function greet() { return 1; }\n' }, ctx, 'unavailable-good')
+  const edited = await run(EditTool, { file_path: file, old_string: '{ return 1; }', new_string: '{ return 1;' }, ctx, 'unavailable-bad')
   check('the Edit lands without parse feedback when the engine is unavailable',
     written.ok && edited.ok && !edited.isError && edited.data.parseError === undefined && readFileSync(file, 'utf8') === 'function greet() { return 1;\n', JSON.stringify(edited))
   const newFile = join(fixtures, 'unavailable-new.rs')
-  const invalidWrite = await run(FileWriteTool, { file_path: newFile, content: 'fn broken( {\n' }, ctx, 'unavailable-new')
+  const invalidWrite = await run(WriteTool, { file_path: newFile, content: 'fn broken( {\n' }, ctx, 'unavailable-new')
   check('the invalid Write also lands without parse feedback', invalidWrite.ok && !invalidWrite.isError && invalidWrite.data.parseError === undefined && readFileSync(newFile, 'utf8') === 'fn broken( {\n', JSON.stringify(invalidWrite))
   const json = await parseCheckModule.checkIntroducedParseError(join(fixtures, 'unavailable.json'), '{}', '{', false)
   check('JSON feedback is independent of grammar availability', typeof json === 'string' && json.startsWith('JSON parse error:'), String(json))
@@ -275,10 +275,10 @@ section('P7. SKILL.md writes keep their content and report frontmatter and descr
 {
   const ctx = makeContext()
   const file = join(fixtures, 'SKILL.md')
-  const missing = await run(FileWriteTool, { file_path: file, content: '# Run the checks\n' }, ctx, 'skill-missing')
+  const missing = await run(WriteTool, { file_path: file, content: '# Run the checks\n' }, ctx, 'skill-missing')
   check('missing frontmatter is advisory after Write', missing.ok && !missing.isError && /SKILL.md.*frontmatter/i.test(missing.text))
   const long = `---\ndescription: ${'word '.repeat(60)}\n---\nRun the checks.\n`
-  const written = await run(FileWriteTool, { file_path: file, content: long }, ctx, 'skill-long')
+  const written = await run(WriteTool, { file_path: file, content: long }, ctx, 'skill-long')
   check('long description names the listing budget without refusing the Write', written.ok && !written.isError && /description.*250/.test(written.text) && readFileSync(file, 'utf8') === long)
   const valid = '---\ndescription: Run the checks when asked to verify a change.\n---\nRun the checks.\n'
   check('a valid skill stays silent', await parseCheckModule.checkIntroducedParseError(file, null, valid, false) === undefined)

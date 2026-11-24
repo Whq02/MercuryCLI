@@ -60,7 +60,7 @@ function cellSourceText(cell: NotebookCell | undefined): string {
   return typeof cell.source === 'string' ? cell.source : cell.source.join('')
 }
 
-export function NotebookEditToolDiff({
+export function NotebookEditDiff({
   notebook_path,
   cell_id,
   new_source,

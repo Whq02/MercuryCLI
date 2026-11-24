@@ -18,7 +18,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 
 const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const { formatZodValidationError, parameterStandIn } = await import('../../src/tools/kit/toolErrors.ts')
 import type { z } from 'zod/v4'
 
@@ -47,7 +47,7 @@ console.log('a name with no counterpart keeps the plain sentence; another tool g
 {
   const bogus = refusal(GrepTool, { pattern: 'main', bogus: 1 })
   check('`bogus` is refused with the plain sentence and no stand-in', /^The parameter `bogus` was not expected$/m.test(bogus), bogus)
-  const read = refusal(FileReadTool, { file_path: '/tmp/x', '-o': true })
+  const read = refusal(ReadTool, { file_path: '/tmp/x', '-o': true })
   check('`-o` on Read carries no grep stand-in', /^The parameter `-o` was not expected$/m.test(read) && !read.includes('output_mode'), read)
   check('the stand-in table answers by tool and key', parameterStandIn('Grep', '-o') !== undefined && parameterStandIn('Read', '-o') === undefined && parameterStandIn('Grep', 'bogus') === undefined)
   check('the Grep tool still accepts its own parameters', refusal(GrepTool, { pattern: 'main', output_mode: 'content', '-n': true, '-i': true, glob: '*.ts' }) === 'ACCEPTED')

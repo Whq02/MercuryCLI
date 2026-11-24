@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { usePublish } from '../effects/effects.js';
 import type { Command } from '../../commands/catalogue/commands.js';
-import { useMcpConnectivityStatus } from '../notifications/useMcpConnectionNotices.js';
+import { useMcpConnectionNotices } from '../notifications/useMcpConnectionNotices.js';
 import { useApiKeyVerification } from '../../models/sign-in/credentials/useApiKeyVerification.js';
 import { useMergedCommands } from '../../commands/catalogue/useMergedCommands.js';
 import { useMergedTools } from '../../tools/kit/useMergedTools.js';
@@ -14,7 +14,7 @@ export function useChatTools({ initialCommands, initialTools }: { initialCommand
   usePublish(() => {
     publishMcpConnections(mcpState.clients);
   }, [mcpState.clients]);
-  useMcpConnectivityStatus({ mcpClients: mcpState.clients });
+  useMcpConnectionNotices({ mcpClients: mcpState.clients });
   const toolPermissionContext = useAppState(state => state.toolPermissionContext);
   const agentDefinitions = useAppState(state => state.agentDefinitions);
   const verbose = useAppState(state => state.verbose);

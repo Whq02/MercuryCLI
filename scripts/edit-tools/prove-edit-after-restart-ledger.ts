@@ -16,8 +16,8 @@ delete process.env.NODE_ENV
 
 const ledger = (await import('../../src/tools/engines/change-transaction/seenLines.ts')) as typeof import('../../src/tools/engines/change-transaction/seenLines.ts') & { rebuildSeenLinesFromTranscript?: (owner: unknown, messages: readonly unknown[]) => { files: number; lines: number } }
 const { processMainOwner, processOwnerForLane } = await import('../../src/engine/run-owner/resolveOwner.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
@@ -39,19 +39,19 @@ function makeContext(): Ctx {
 }
 const PARENT = { uuid: '00000000-0000-0000-0000-000000000006', message: { id: 'msg_fixture' } }
 async function edit(input: Record<string, unknown>, ctx: Ctx): Promise<{ ok: boolean; words: string }> {
-  const verdict = await (FileEditTool as { validateInput: Function }).validateInput(input, ctx)
+  const verdict = await (EditTool as { validateInput: Function }).validateInput(input, ctx)
   if (verdict.result === false) return { ok: false, words: String(verdict.message) }
   try {
-    const out = await (FileEditTool as { call: Function }).call(input, ctx, null, PARENT)
-    const block = (FileEditTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(out.data, 'toolu_fixture')
+    const out = await (EditTool as { call: Function }).call(input, ctx, null, PARENT)
+    const block = (EditTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(out.data, 'toolu_fixture')
     return { ok: true, words: typeof block.content === 'string' ? block.content : '' }
   } catch (err) {
     return { ok: false, words: err instanceof Error ? err.message : String(err) }
   }
 }
 async function readResult(path: string, ctx: Ctx): Promise<string> {
-  const out = await (FileReadTool as { call: Function }).call({ file_path: path, offset: 0, limit: 2000 }, ctx, null, PARENT)
-  const block = (FileReadTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(out.data, 'toolu_read')
+  const out = await (ReadTool as { call: Function }).call({ file_path: path, offset: 0, limit: 2000 }, ctx, null, PARENT)
+  const block = (ReadTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(out.data, 'toolu_read')
   return typeof block.content === 'string' ? block.content : ''
 }
 const lines = (n: number): string => Array.from({ length: n }, (_, i) => `line ${i + 1} of the report`).join('\n') + '\n'

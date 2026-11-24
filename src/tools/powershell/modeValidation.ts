@@ -22,7 +22,7 @@ import {
 
 const PS_DASH = /[-–—―]/
 
-const ACCEPT_EDITS_WRITE = new Set(['set-content', 'add-content', 'remove-item', 'clear-content'])
+const IMPLEMENT_MODE_WRITE = new Set(['set-content', 'add-content', 'remove-item', 'clear-content'])
 
 const COMPLEX_COLON = /[$(@{[]/
 
@@ -61,7 +61,7 @@ function checkCommandInImplementMode(
   if (isSafeOutputCommand(cmd.name)) return null
   if (isAllowlistedPipelineTail(cmd, originalCommand)) return null
   const canonical = resolveToCanonical(cmd.name)
-  if (!ACCEPT_EDITS_WRITE.has(canonical)) {
+  if (!IMPLEMENT_MODE_WRITE.has(canonical)) {
     return pass(`The command ${cmd.name} is not an auto-allowed writer.`)
   }
   if (argLeaksValue(originalCommand, cmd)) {
@@ -113,7 +113,7 @@ export function checkPermissionMode(
 
   if (allCommands.length > 1) {
     const hasCwdChange = allCommands.some(cmd => isCwdChangingCmdlet(cmd.name))
-    const hasAcceptEditsWrite = allCommands.some(cmd => ACCEPT_EDITS_WRITE.has(resolveToCanonical(cmd.name)))
+    const hasAcceptEditsWrite = allCommands.some(cmd => IMPLEMENT_MODE_WRITE.has(resolveToCanonical(cmd.name)))
     if (hasCwdChange && hasAcceptEditsWrite) {
       return pass('A compound changing the working directory and writing cannot use a stale working directory.')
     }

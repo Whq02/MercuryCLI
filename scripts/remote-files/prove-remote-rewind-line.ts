@@ -117,7 +117,7 @@ async function page(messages: unknown[], keys: string[] = []): Promise<string[]>
   stream.resume()
   Object.assign(stream, { columns: COLUMNS, rows: 40 })
   const stdin = new Keys()
-  const screen = React.createElement(selector.MessageSelector as never, { messages, onPreRestore() {}, onRestore: () => new Promise(() => {}), onSummarize() {}, onClose() {}, preselectedMessage: p1 } as never)
+  const screen = React.createElement(selector.RewindPicker as never, { messages, onPreRestore() {}, onRestore: () => new Promise(() => {}), onSummarize() {}, onClose() {}, preselectedMessage: p1 } as never)
   const instance = await render(React.createElement(AppStateProvider as never, null, React.createElement(KeybindingSetup as never, null, screen)), { stdout: stream as never, stdin: stdin as never, patchConsole: false })
   const rows = (): string[] => stripAnsi(instance.lastFrame()).split('\n').map(line => line.trimEnd())
   const settle = async (ready: () => boolean): Promise<void> => {

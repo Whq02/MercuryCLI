@@ -4,12 +4,12 @@ import { clearSessionMessagesCache } from '../../sessions/transcripts/sessionLis
 import { resetInstructionFilesCache } from '../../sessions/instructions/instructionFiles.js'
 import type { OwnerKey } from '../run-owner/ownerKey.js'
 import { processMainOwner, processOwnerForLane } from '../run-owner/resolveOwner.js'
-import { resetMicrocompactState } from './pruneToolResults.js'
+import { resetPruneState } from './pruneToolResults.js'
 import type { Message } from '../message-shapes/message.js'
 import { restoreBoundPrefixFromMessages } from '../../models/roads/anthropic/boundPrefixRecord.js'
 
 
-type PostCompactScope = {
+type PostFoldScope = {
   querySource?: string
   owner?: OwnerKey
   agentId?: string
@@ -19,8 +19,8 @@ type QuerySource = string
 
 const MAIN_THREAD_PREFIX = 'main_thread'
 
-export function runPostCompactCleanup(scope?: QuerySource | PostCompactScope, preservedMessages?: readonly Message[]): void {
-  const normalized: PostCompactScope =
+export function runPostFoldCleanup(scope?: QuerySource | PostFoldScope, preservedMessages?: readonly Message[]): void {
+  const normalized: PostFoldScope =
     typeof scope === 'string' ? { querySource: scope } : (scope ?? {})
   const { querySource, agentId } = normalized
   const isMainThread =
@@ -34,7 +34,7 @@ export function runPostCompactCleanup(scope?: QuerySource | PostCompactScope, pr
       ? processMainOwner()
       : processOwnerForLane(agentId ?? querySource ?? null))
 
-  resetMicrocompactState(owner)
+  resetPruneState(owner)
 
   if (!isMainThread) {
     if (preservedMessages !== undefined) {

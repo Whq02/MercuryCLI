@@ -14,7 +14,7 @@ const section = (t: string): void => {
 
 process.env.MERCURY_TIME_BASED_MC = '1'
 const law = await import('../../src/engine/compaction/pruneProtections.ts')
-const { projectTimeBasedMicrocompact } = await import('../../src/engine/compaction/pruneToolResults.ts')
+const { projectTimeBasedPrune } = await import('../../src/engine/compaction/pruneToolResults.ts')
 const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
 type Message = import('../../src/engine/message-shapes/message.ts').Message
 
@@ -75,7 +75,7 @@ section('§C the clearing path honours both laws')
     }) as Message),
     stamp(createAssistantMessage({ content: [{ type: 'text', text: 'done', citations: null }] as never }) as Message),
   ]
-  const projected = projectTimeBasedMicrocompact(history, 'main_thread_prompt')
+  const projected = projectTimeBasedPrune(history, 'main_thread_prompt')
   if (projected === null) {
     check('the clearing pass armed for the fixture', false, 'projection returned null with MERCURY_TIME_BASED_MC=1')
   } else {

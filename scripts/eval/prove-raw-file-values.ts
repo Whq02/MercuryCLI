@@ -10,14 +10,14 @@ const { enableConfigs } = await import('../../src/platform/config/globalConfig.t
 enableConfigs()
 const { evalKernelManager } = await loadEval()
 const { EvalTool } = await import('../../src/tools/eval/EvalTool.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
 const { setCwd } = await import('../../src/platform/shell/shellExec.ts')
 setCwd(work)
 const path = join(work, 'large.json')
 const json = JSON.stringify({ text: 'x'.repeat(200_000), end: 42 }) + '\n'
 writeFileSync(path, json)
-const context = await makeContext({ tools: [FileReadTool, BashTool, EvalTool] })
+const context = await makeContext({ tools: [ReadTool, BashTool, EvalTool] })
 const allow = async (_tool: unknown, input: unknown) => ({ behavior: 'allow', updatedInput: input })
 const file = JSON.stringify(path)
 try {

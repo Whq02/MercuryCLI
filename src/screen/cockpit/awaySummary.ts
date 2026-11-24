@@ -1,5 +1,5 @@
-import type { CompactMetadata, Message } from '../../engine/message-shapes/message.js'
-import { compactWorkOf } from './turnReceipt.js'
+import type { FoldMetadata, Message } from '../../engine/message-shapes/message.js'
+import { foldWorkOf } from './turnReceipt.js'
 import { isMercurySubstrateProfileOn } from '../../platform/settings/config.js'
 import { isEnvTruthy } from '../../platform/environment/envUtils.js'
 import { flagEnv } from '../../platform/substrate/flagRegistry.js'
@@ -150,8 +150,8 @@ export function buildAwaySummary(
 export function collectAwayWork(
   messages: Message[],
   excludedUuids: ReadonlySet<string> = new Set(),
-): NonNullable<CompactMetadata['work']>['recap'] {
-  const prior = compactWorkOf(messages)?.recap
+): NonNullable<FoldMetadata['work']>['recap'] {
+  const prior = foldWorkOf(messages)?.recap
   let turns = prior?.turns ?? 0
   let toolFailures = prior?.toolFailures ?? 0
   const toolCounts = new Map(prior?.toolCounts ?? [])

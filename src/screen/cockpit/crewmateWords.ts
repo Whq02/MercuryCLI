@@ -73,7 +73,7 @@ export function crewmateThinkingKeyWords(name: string, key: string): string {
   return `thinking stays as ${name} was spawned; /effort at ${name} sets its effort; ${key} is ${LEAD_ROW_NAME}'s — press it from the Lead`
 }
 
-export function crewmateCompactNothingWords(name: string, line: string): string {
+export function crewmateFoldNothingWords(name: string, line: string): string {
   return `${name} — the crew view's /compact folded nothing: ${line}`
 }
 
@@ -110,7 +110,7 @@ export function crewmateEffortRefusedWords(name: string, level: string, model: s
   return `${name}'s ${model} does not serve ${level} — ${levels.length > 0 ? `it takes ${levels.join(' | ')}` : 'it takes no effort setting'}; nothing was recorded`
 }
 
-export function crewmateCompactWords(name: string, running: boolean): string {
+export function crewmateFoldWords(name: string, running: boolean): string {
   return running ? `${name} compacts at its next turn` : `${name} compacts when it resumes`
 }
 

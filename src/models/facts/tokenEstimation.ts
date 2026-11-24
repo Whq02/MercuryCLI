@@ -7,7 +7,7 @@ import { normalizeMessagesForAPI } from '../../engine/messages/messages.js'
 import { getDefaultSonnetModel, getEngineModel, normalizeModelStringForAPI } from '../catalogue/engineModel.js'
 import { utilityCallFor } from '../catalogue/utilityModel.js'
 import { getModelBetas } from '../roads/betas.js'
-import { sideQuery } from '../../engine/requests/sideRequest.js'
+import { sideRequest } from '../../engine/requests/sideRequest.js'
 import { sleep } from '../../platform/async/sleep.js'
 import { modelSupportsAdaptiveThinking } from '../effort/thinking.js'
 import { modelSupportsEffort } from '../effort/effort.js'
@@ -19,7 +19,7 @@ import { APIConnectionError, APIConnectionTimeoutError } from '../../engine/requ
 import { is529Error, isRetryableError, isStaleConnectionError } from '../../engine/requests/withRetry.js'
 import { busyRetryScale, nextBusyRetryWithinBudget, openBusyRetryLadder } from '../roads/busyRetry.js'
 import { declaredRouteOf } from '../roads/routeLaw.js'
-import { withTokenCountVCR } from '../roads/anthropic/fixtureReplay.js'
+import { withTokenCountFixtureReplay } from '../roads/anthropic/fixtureReplay.js'
 export { roughTokenCountEstimation, bytesPerTokenForFileType, roughTokenCountEstimationForFileType, estimateContentTokens, roughTokenCountEstimationForMessages, estimateRequestTokens } from '../../engine/context-window/roughTokenEstimation.js'
 
 
@@ -118,7 +118,7 @@ export async function countMessagesTokensWithAPI(
   if (!firstPartyCountApplies()) return null
   const messages = rawMessages.map(toProductMessage)
   const systemBlocks = system && system.length > 0 ? system : undefined
-  return withTokenCountVCR(messages, tools, systemBlocks, async () => {
+  return withTokenCountFixtureReplay(messages, tools, systemBlocks, async () => {
     try {
       const apiMessages = apiMessagesFor(messages)
       const body = apiMessages.length === 0 ? PLACEHOLDER_MESSAGES : apiMessages
@@ -197,7 +197,7 @@ export async function countTokensViaHaikuFallback(
   const thinking = hasThinkingBlocks(body)
   const { model, effort } = countProbeCall()
   const response = await countWithBusyRetry(`${COUNT_SOURCE} (create probe)`, () =>
-    sideQuery({
+    sideRequest({
       model,
       messages: body,
       max_tokens: thinking ? 2048 : 1,

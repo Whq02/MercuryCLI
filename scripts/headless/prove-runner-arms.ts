@@ -91,7 +91,7 @@ await spied('src/sessions/transcripts/sessionHomePin.ts', ['consumeSessionHomePi
 await spied('src/sessions/transcripts/sessionWriter.ts', ['claimSessionWriter'])
 await spied('src/engine/system-prompt/systemPromptSections.ts', ['clearSystemPromptSections'])
 await spied('src/sessions/resume/conversationRecovery.ts', ['loadConversationForResume'])
-await spied('src/sessions/resume/sessionRestore.ts', ['restoreConversationModel', 'restoreSessionStateFromLog'])
+await spied('src/sessions/resume/sessionRestore.ts', ['restoreConversationModel', 'restoreSessionStateFromListing'])
 await spied('src/boot/process-state/processState.ts', ['switchSession', 'setEngineModelOverride'])
 await spied('src/sessions/transcripts/sessionStorage.ts', ['resetSessionFilePointer', 'restoreSessionMetadata', 'saveSessionModel'])
 await spied('src/screen/cockpit/runtimePosture.ts', ['markSessionPermissionModeAtClaim'])
@@ -691,7 +691,7 @@ section('§9 session/claim: the claim binds and answers, the load runs behind th
   let restored!: () => void
   const restoring = new Promise<void>(done => (restored = done))
   answers.set('loadConversationForResume', async () => (await gate, resumed))
-  answers.set('restoreSessionStateFromLog', async () => await restoring)
+  answers.set('restoreSessionStateFromListing', async () => await restoring)
   clearModeTransitions()
   const warm = scene()
   const claiming = claimSession({ session_id: SID, resume: true, mode: 'implement', effort: 'high', model: 'the-claimed-model', restart_reason: 'crash', title: '  the claimed title  ', openai_catalogue: catalogue }, warm.ports)
@@ -716,7 +716,7 @@ section('§9 session/claim: the claim binds and answers, the load runs behind th
   open()
   await pause(40)
   const midRestore = { names: names(), messages: warm.messages.length }
-  check('every road that restores a session awaits the restore, so the ledger is rebuilt before the first turn', midRestore.names.includes('restoreSessionStateFromLog') && !midRestore.names.includes('restoreSessionMetadata') && midRestore.messages === 1 && !facts.done, j(midRestore.names))
+  check('every road that restores a session awaits the restore, so the ledger is rebuilt before the first turn', midRestore.names.includes('restoreSessionStateFromListing') && !midRestore.names.includes('restoreSessionMetadata') && midRestore.messages === 1 && !facts.done, j(midRestore.names))
   restored()
   await within(claiming)
   await within(settling ?? warm.live.claimSettling)
@@ -731,7 +731,7 @@ section('§9 session/claim: the claim binds and answers, the load runs behind th
   )
   check(
     'R6 the same restore steps as a cold --resume boot (identity switch, file pointer, state, metadata) and the run hydration',
-    order('switchSession', 'resetSessionFilePointer', 'restoreSessionStateFromLog', 'restoreSessionMetadata', 'port:settleSessionBriefs', 'port:armSessionRunnerWiring', 'port:hydrateResumedRun', 'port:settleClearBirth') && j(said('switchSession')[0]?.args) === j([SID, dirname(resumed.fullPath)]) && said('restoreSessionStateFromLog')[0]?.args[0] === resumed && j(said('port:settleSessionBriefs')[0]?.args[1]) === 'true',
+    order('switchSession', 'resetSessionFilePointer', 'restoreSessionStateFromListing', 'restoreSessionMetadata', 'port:settleSessionBriefs', 'port:armSessionRunnerWiring', 'port:hydrateResumedRun', 'port:settleClearBirth') && j(said('switchSession')[0]?.args) === j([SID, dirname(resumed.fullPath)]) && said('restoreSessionStateFromListing')[0]?.args[0] === resumed && j(said('port:settleSessionBriefs')[0]?.args[1]) === 'true',
     j(names()),
   )
   check('every headless resume road hands the loaded facts to restoreSessionMetadata: the warm claim', said('restoreSessionMetadata').length === 1 && said('restoreSessionMetadata')[0]?.args[0] === resumed)

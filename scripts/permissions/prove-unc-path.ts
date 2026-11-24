@@ -2,9 +2,9 @@ import { getPlatform } from '../../src/platform/environment/platform.js'
 import { getFsImplementation, setFsImplementation } from '../../src/platform/files/fsOperations.js'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.js')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.js')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.js')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.js')
+const { WriteTool } = await import('../../src/tools/write/WriteTool.js')
+const { EditTool } = await import('../../src/tools/edit/EditTool.js')
 const { GlobTool } = await import('../../src/tools/glob/GlobTool.js')
 const { GrepTool } = await import('../../src/tools/grep/GrepTool.js')
 const { ChangeSetTool } = await import('../../src/tools/change-set/ChangeSetTool.js')
@@ -29,9 +29,9 @@ function check(name: string, ok: boolean) { console.log(`${ok ? 'PASS' : 'FAIL'}
 const remote = String.raw`/\127.0.0.1/share/file.txt`
 getPlatform.cache.set(undefined, 'windows')
 const roads = [
-  ['Read', FileReadTool, { file_path: remote }],
-  ['Write', FileWriteTool, { file_path: remote, content: 'new' }],
-  ['Edit', FileEditTool, { file_path: remote, old_string: 'old', new_string: 'new' }],
+  ['Read', ReadTool, { file_path: remote }],
+  ['Write', WriteTool, { file_path: remote, content: 'new' }],
+  ['Edit', EditTool, { file_path: remote, old_string: 'old', new_string: 'new' }],
   ['Glob path', GlobTool, { path: remote, pattern: '*' }],
   ['Glob pattern', GlobTool, { pattern: remote + '/*' }],
   ['Grep path', GrepTool, { path: remote, pattern: 'text' }],

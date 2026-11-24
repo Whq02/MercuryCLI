@@ -26,11 +26,11 @@ import { isInstructionFilePath } from '../../../sessions/instructions/instructio
 import { roughTokenCountEstimation } from '../../../models/facts/tokenEstimation.js'
 import { PERSISTED_OUTPUT_TAG, TOOL_RESULT_CLEARED_MESSAGE } from '../../tool-dispatch/toolResultStorage.js'
 import { REPEATED_RESULT_TAG } from '../../../tools/kit/toolLimits.js'
-import { FILE_READ_TOOL_NAME, FILE_UNCHANGED_STUB, MAX_LINES_TO_READ } from '../../../tools/kit/names/fileRead.js'
+import { READ_TOOL_NAME, FILE_UNCHANGED_STUB, MAX_LINES_TO_READ } from '../../../tools/kit/names/fileRead.js'
 import { estimateContextTokens } from '../pruneToolResults.js'
 import { FOLDED_RESULT_KEY } from '../verbatimTail.js'
-import { POST_COMPACT_MAX_FILES_TO_RESTORE, POST_COMPACT_TOKEN_BUDGET, POST_COMPACT_MAX_TOKENS_PER_FILE, POST_COMPACT_MAX_TOKENS_PER_SKILL, POST_COMPACT_SKILLS_TOKEN_BUDGET, ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD } from './foldLimits.js'
-import { type CompactionResult, buildPostCompactMessages } from './foldResult.js'
+import { POST_FOLD_MAX_FILES_TO_RESTORE, POST_FOLD_TOKEN_BUDGET, POST_FOLD_MAX_TOKENS_PER_FILE, POST_FOLD_MAX_TOKENS_PER_SKILL, POST_FOLD_SKILLS_TOKEN_BUDGET, ERROR_MESSAGE_POST_FOLD_OVER_THRESHOLD } from './foldLimits.js'
+import { type FoldResult, buildPostFoldMessages } from './foldResult.js'
 import { passedOver, passedOverAs } from '../../../platform/errors/passedOver.js'
 import { isRecord } from '../../../platform/primitives/isRecord.js'
 
@@ -76,7 +76,7 @@ export function collectPreservedReadPaths(preserved: Message[], resultIds?: Read
     const content = message.message.content
     if (!Array.isArray(content)) continue
     for (const block of content) {
-      if (block.type !== 'tool_use' || block.name !== FILE_READ_TOOL_NAME) continue
+      if (block.type !== 'tool_use' || block.name !== READ_TOOL_NAME) continue
       if (stubs.has(block.id)) continue
       if (resultIds !== undefined && !shown.has(block.id)) continue
       if (isRecord(block.input) && typeof block.input.file_path === 'string') {
@@ -159,7 +159,7 @@ function projectedFileAttachment(
   }
 }
 
-export async function createPostCompactFileAttachments(
+export async function createPostFoldFileAttachments(
   readFileState: Record<string, { content: string; timestamp: number }>,
   toolUseContext: ToolUseContext,
   maxFiles: number,
@@ -199,10 +199,10 @@ export async function createPostCompactFileAttachments(
   let totalTokens = 0
   for (const raw of rawAttachments) {
     if (raw === null) continue
-    const fitted = fitFileAttachmentToTokenCeiling(raw, POST_COMPACT_MAX_TOKENS_PER_FILE)
+    const fitted = fitFileAttachmentToTokenCeiling(raw, POST_FOLD_MAX_TOKENS_PER_FILE)
     const message = createAttachmentMessage(fitted)
     const tokens = roughTokenCountEstimation(JSON.stringify(message))
-    if (totalTokens + tokens <= POST_COMPACT_TOKEN_BUDGET) {
+    if (totalTokens + tokens <= POST_FOLD_TOKEN_BUDGET) {
       kept.push(message)
       totalTokens += tokens
     }
@@ -211,10 +211,10 @@ export async function createPostCompactFileAttachments(
 }
 
 
-const POST_COMPACT_SHEDDABLE_ATTACHMENT_TYPES = ['file', 'compact_file_reference', 'invoked_skills'] as const
+const POST_FOLD_SHEDDABLE_ATTACHMENT_TYPES = ['file', 'compact_file_reference', 'invoked_skills'] as const
 
-export type PostCompactFit = {
-  result: CompactionResult
+export type PostFoldFit = {
+  result: FoldResult
   estimate: number
   shed: string[]
 }
@@ -226,11 +226,11 @@ function describeAttachment(message: AttachmentMessage): string {
   return attachment.type
 }
 
-export function fitPostCompactUnderThreshold(result: CompactionResult, threshold: number, count = estimateContextTokens): PostCompactFit {
+export function fitPostFoldUnderThreshold(result: FoldResult, threshold: number, count = estimateContextTokens): PostFoldFit {
   let current = result
-  let estimate = count(buildPostCompactMessages(current))
+  let estimate = count(buildPostFoldMessages(current))
   const shed: string[] = []
-  for (const kind of POST_COMPACT_SHEDDABLE_ATTACHMENT_TYPES) {
+  for (const kind of POST_FOLD_SHEDDABLE_ATTACHMENT_TYPES) {
     while (estimate >= threshold) {
       let victim = -1
       let victimSize = -1
@@ -245,7 +245,7 @@ export function fitPostCompactUnderThreshold(result: CompactionResult, threshold
       if (victim < 0) break
       shed.push(describeAttachment(current.attachments[victim] as AttachmentMessage))
       current = { ...current, attachments: current.attachments.filter((_, index) => index !== victim) }
-      estimate = count(buildPostCompactMessages(current))
+      estimate = count(buildPostFoldMessages(current))
     }
     if (estimate < threshold) break
   }
@@ -254,16 +254,16 @@ export function fitPostCompactUnderThreshold(result: CompactionResult, threshold
 
 export function obligationsOverThresholdMessage(estimate: number, threshold: number): string {
   return (
-    `${ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD}: the fixed material (${estimate} tokens: the system prompt, the tool definitions ` +
+    `${ERROR_MESSAGE_POST_FOLD_OVER_THRESHOLD}: the fixed material (${estimate} tokens: the system prompt, the tool definitions ` +
     `and this stretch's messages) exceeds the window's ceiling (${threshold} tokens) — ` +
     `compaction cannot run here, so no summary was requested and the original context is kept whole; nothing moved. Start a fresh conversation with /clear, ` +
     `or switch to a model with a larger window.`
   )
 }
 
-export function postCompactOverThresholdMessage(estimate: number, threshold: number): string {
+export function postFoldOverThresholdMessage(estimate: number, threshold: number): string {
   return (
-    `${ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD}: with every restorable attachment dropped, the summary, ` +
+    `${ERROR_MESSAGE_POST_FOLD_OVER_THRESHOLD}: with every restorable attachment dropped, the summary, ` +
     `the kept tail and the session-start hook output still estimate ${estimate} tokens against a ` +
     `${threshold}-token threshold. The original context is kept whole; nothing moved. Start a fresh conversation with /clear, or trim the hook output.`
   )
@@ -289,7 +289,7 @@ export function createSkillAttachmentIfNeeded(
   if (entries.length === 0) return null
   entries.sort((a, b) => b.invokedAt - a.invokedAt)
 
-  const maxChars = POST_COMPACT_MAX_TOKENS_PER_SKILL * 4
+  const maxChars = POST_FOLD_MAX_TOKENS_PER_SKILL * 4
   const skills: Array<{ name: string; path: string; content: string }> = []
   let totalTokens = 0
   for (const skill of entries) {
@@ -298,7 +298,7 @@ export function createSkillAttachmentIfNeeded(
         ? skill.content.slice(0, Math.max(0, maxChars - SKILL_TRUNCATION_MARKER.length)) + SKILL_TRUNCATION_MARKER
         : skill.content
     const tokens = roughTokenCountEstimation(content)
-    if (totalTokens + tokens > POST_COMPACT_SKILLS_TOKEN_BUDGET) continue
+    if (totalTokens + tokens > POST_FOLD_SKILLS_TOKEN_BUDGET) continue
     totalTokens += tokens
     skills.push({ name: skill.skillName, path: skill.skillPath, content })
   }
@@ -366,10 +366,10 @@ export async function assembleAttachments(
 ): Promise<AttachmentMessage[]> {
   const [fileAttachments, agentAttachments] = await Promise.all([
     restoreFiles
-      ? createPostCompactFileAttachments(
+      ? createPostFoldFileAttachments(
           snapshot,
           context,
-          POST_COMPACT_MAX_FILES_TO_RESTORE,
+          POST_FOLD_MAX_FILES_TO_RESTORE,
           preserved,
           projection !== undefined,
         )

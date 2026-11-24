@@ -58,13 +58,13 @@ Object.assign(process.env, shared.env, census.env)
 const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const compactModule = await import('../../src/engine/compaction/foldConversation.ts')
-const { compactConversation, shouldRideCacheSharingFork, foldFamilyOf, setFoldBoundsForTests, buildPostCompactMessages } = compactModule
+const { foldConversation, shouldRideCacheSharingFork, foldFamilyOf, setFoldBoundsForTests, buildPostFoldMessages } = compactModule
 const { classifyModelRoute, laneLabelForVerdict } = await import('../../src/models/roads/routeLaw.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
-const { query: startTurn } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor: startTurn } = await import('../../src/engine/turnDoor.ts')
 const { getModelMaxOutputTokens, resolveContextWindow } = await import('../../src/models/facts/capabilities.ts')
 const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
 await refreshLocalDiscovery({ force: true })
@@ -145,9 +145,9 @@ type Run = { result?: Record<string, unknown>; error?: Error; readFileState: { s
 async function runFold(model: string, road: 'direct' | 'fork', messages: unknown[] = makeMessages(), opts?: { thinking?: { type: string } }, parts?: { systemPrompt: unknown; systemContext: Record<string, string> }): Promise<Run> {
   const { ctx, readFileState } = makeContext(model, opts)
   if (parts !== undefined) {
-    const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+    const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
     const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
-    ;(ctx.options as Record<string, unknown>).tools = [FileReadTool, ToolSearchTool]
+    ;(ctx.options as Record<string, unknown>).tools = [ReadTool, ToolSearchTool]
   }
   const cacheSafe =
     road === 'direct'
@@ -159,7 +159,7 @@ async function runFold(model: string, road: 'direct' | 'fork', messages: unknown
   let result: Record<string, unknown> | undefined
   let error: Error | undefined
   try {
-    result = (await compactConversation(messages as never, ctx as never, cacheSafe as never, true)) as never as Record<string, unknown>
+    result = (await foldConversation(messages as never, ctx as never, cacheSafe as never, true)) as never as Record<string, unknown>
   } catch (err) {
     error = err as Error
   }
@@ -373,11 +373,11 @@ section("§2d Claude Opus 5 — measured: the row costs it the whole prefix (0 r
 section("§8 the OpenAI road: the fold's request IS the session's last request plus the summariser prompt")
 {
   const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
-  const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+  const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
   const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
   const { appendSystemContext } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
   const model = 'gpt-5.5'
-  const pool = [FileReadTool, ToolSearchTool]
+  const pool = [ReadTool, ToolSearchTool]
   const { ctx } = makeContext(model)
   ;(ctx.options as Record<string, unknown>).tools = pool
   const posture = asSystemPrompt([`You are a ${POSTURE_MARK}.`])
@@ -421,25 +421,25 @@ section("§8 the OpenAI road: the fold's request IS the session's last request p
   const sessionItems = sessionBody.input ?? []
   const foldItems = foldBody.input ?? []
   const sameHead = j(foldItems.slice(0, sessionItems.length)) === j(sessionItems)
-  const { getCompactPrompt } = await import('../../src/engine/compaction/summariserPrompt.ts')
+  const { getFoldPrompt } = await import('../../src/engine/compaction/summariserPrompt.ts')
   const prompt = foldItems.at(-1) as { role?: string; content?: Array<{ text?: string }> } | undefined
-  check("§8: every session item is byte-identical, followed by the complete summariser prompt as its own user item", foldItems.length === sessionItems.length + 1 && sameHead && prompt?.role === 'user' && prompt.content?.some(block => block.text === getCompactPrompt()) === true, `fold ${foldItems.length} items vs session ${sessionItems.length}; head ${sameHead}`)
+  check("§8: every session item is byte-identical, followed by the complete summariser prompt as its own user item", foldItems.length === sessionItems.length + 1 && sameHead && prompt?.role === 'user' && prompt.content?.some(block => block.text === getFoldPrompt()) === true, `fold ${foldItems.length} items vs session ${sessionItems.length}; head ${sameHead}`)
 }
 
 section("§8b the OpenAI road: the fold re-sends the session's LAST REQUEST's rows — each reminder its own item, the reply's replay items behind them, then the prompt as its own item")
 {
-  const { query } = await import('../../src/engine/turnDoor.ts')
+  const { turnDoor } = await import('../../src/engine/turnDoor.ts')
   const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
   const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
   const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
   const { continuationOfSentRequest, lastSentRequestFor, resetSentRequestsForTests } = await import('../../src/crew/agents/forkedAgent.ts')
   const { rosterOwnerFromToolUseContext } = await import('../../src/engine/run-owner/resolveOwner.ts')
-  const { getCompactPrompt } = await import('../../src/engine/compaction/summariserPrompt.ts')
+  const { getFoldPrompt } = await import('../../src/engine/compaction/summariserPrompt.ts')
   const bootstrap = await import('../../src/boot/process-state/processState.ts')
-  const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+  const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
   const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
   const model = 'gpt-5.5'
-  const pool = [FileReadTool, ToolSearchTool]
+  const pool = [ReadTool, ToolSearchTool]
   const posture = asSystemPrompt([`You are a ${POSTURE_MARK}.`])
   const systemContext = { gitStatus: 'clean' }
   resetSentRequestsForTests()
@@ -497,7 +497,7 @@ section("§8b the OpenAI road: the fold re-sends the session's LAST REQUEST's ro
   const yields: unknown[] = []
   let threw: string | undefined
   try {
-    const gen = query({
+    const gen = turnDoor({
       messages: seed as never,
       systemPrompt: posture,
       userContext: {},
@@ -556,7 +556,7 @@ section("§8b the OpenAI road: the fold re-sends the session's LAST REQUEST's ro
   const between = foldItems.slice(sessionItems.length, -1)
   check("§8b: behind the head ride the reply's own items (assistant-side only) — nothing merged, nothing re-derived", between.length >= 1 && between.every(it => it.type === 'reasoning' || it.type === 'function_call' || (it.type === 'message' && it.role === 'assistant')), shapeOfItems(between))
   const last = foldItems.at(-1)
-  const promptHead = getCompactPrompt().slice(0, 120)
+  const promptHead = getFoldPrompt().slice(0, 120)
   check("§8b: the last item is the summariser prompt as its own user item — never merged into the session's last reminder", last !== undefined && last.type === 'message' && last.role === 'user' && itemText(last).startsWith(promptHead) && userItemsOf(foldItems).length === userItemsOf(sessionItems).length + 1, `${last?.type}:${last?.role} · ${itemText(last).slice(0, 80)}`)
   check("§8b: the fold's prompt_cache_key is the session's (the same roster, the same key)", typeof foldBody.prompt_cache_key === 'string' && foldBody.prompt_cache_key === sessionBody.prompt_cache_key, `${foldBody.prompt_cache_key} vs ${sessionBody.prompt_cache_key}`)
   resetSentRequestsForTests()
@@ -666,8 +666,8 @@ section('§4 the threshold is the SERVED window — the GPT ceiling and the [ser
   const served = resolveContextWindow('gpt-6-astra[served]')
   check('the bare id budgets the served CEILING (872,000; source live-current; default 272,000 recorded beside it)', bare.effectiveWindow === 872_000 && bare.source === 'live-current' && bare.catalogueCurrent === 272_000 && bare.catalogueMaximum === 872_000, j(bare))
   check('the [served] opt-down budgets the served DEFAULT (272,000)', served.effectiveWindow === 272_000 && served.source === 'live-current', j(served))
-  const bareThreshold = autoCompact.getAutoCompactThreshold('gpt-6-astra')
-  const servedThreshold = autoCompact.getAutoCompactThreshold('gpt-6-astra[served]')
+  const bareThreshold = autoCompact.getAutoFoldThreshold('gpt-6-astra')
+  const servedThreshold = autoCompact.getAutoFoldThreshold('gpt-6-astra[served]')
   check('the bare id folds at the ceiling\'s usable edge: 872,000 − 20,000 (summary reserve) − 3,000 (manual headroom) − 20,000 (early fold) = 829,000', bareThreshold === 829_000, String(bareThreshold))
   check('the [served] id folds at the default\'s usable edge: 272,000 − 23,000 − 20,000 = 229,000', servedThreshold === 229_000, String(servedThreshold))
   check('the gauge reads the same window the threshold reads (872,000 bare · 272,000 served)', contextFillView([] as never, 'gpt-6-astra').window === 872_000 && contextFillView([] as never, 'gpt-6-astra[served]').window === 272_000)
@@ -685,10 +685,10 @@ section('§4 the threshold is the SERVED window — the GPT ceiling and the [ser
     ]
   }
   check('the count reads the settled usage exactly', tokens.tokenCountWithEstimation(transcriptAt(829_000) as never) === 829_000)
-  const fireAt = await autoCompact.shouldAutoCompact(transcriptAt(829_000) as never, 'gpt-6-astra')
-  const fireBelow = await autoCompact.shouldAutoCompact(transcriptAt(828_999) as never, 'gpt-6-astra')
-  const fireAtCliff = await autoCompact.shouldAutoCompact(transcriptAt(272_001) as never, 'gpt-6-astra')
-  const fireServed = await autoCompact.shouldAutoCompact(transcriptAt(229_000) as never, 'gpt-6-astra[served]')
+  const fireAt = await autoCompact.shouldAutoFold(transcriptAt(829_000) as never, 'gpt-6-astra')
+  const fireBelow = await autoCompact.shouldAutoFold(transcriptAt(828_999) as never, 'gpt-6-astra')
+  const fireAtCliff = await autoCompact.shouldAutoFold(transcriptAt(272_001) as never, 'gpt-6-astra')
+  const fireServed = await autoCompact.shouldAutoFold(transcriptAt(229_000) as never, 'gpt-6-astra[served]')
   check('the bare id: false one token under 829,000, true at 829,000', fireBelow === false && fireAt === true, j({ fireBelow, fireAt }))
   check('the bare id crosses the 272,000 price cliff WITHOUT a fold (the threshold is the ceiling\'s, by the current law)', fireAtCliff === false)
   check('the [served] id folds at 229,000 — under the cliff', fireServed === true)
@@ -754,7 +754,7 @@ section('§5 the OpenAI road across a fold — the kept tail replays its reasoni
   const keptIds = keptAssistants.map(m => ((m.apexProviderTurn as { responseId?: string })?.responseId ?? '').replace('resp_', ''))
 
   if (run.result !== undefined) {
-    const post = [...buildPostCompactMessages(run.result as never), createUserMessage({ content: 'continue with the next step' })]
+    const post = [...buildPostFoldMessages(run.result as never), createUserMessage({ content: 'continue with the next step' })]
     const api = normalizeMessagesForAPI(post as never, [])
     const toolPermissionContext = { ...getEmptyToolPermissionContext(), mode: 'default' as const }
     const settled: Array<{ message: { content: unknown[] } }> = []

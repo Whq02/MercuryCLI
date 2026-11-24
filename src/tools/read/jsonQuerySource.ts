@@ -42,8 +42,8 @@ export async function withJsonQuerySource<T>(request: ReadQueryRequest, director
     const remote = await bridge.remoteReadTarget(named, null, request.context,
       typeof canUseTool === 'function' && parentMessage !== undefined
         ? async path => {
-            const { FileReadTool } = await import('./ReadTool.js')
-            return canUseTool(FileReadTool, { ...request.input, file_path: path }, request.context, parentMessage, `${request.context.toolUseId ?? 'read'}-resolved`)
+            const { ReadTool } = await import('./ReadTool.js')
+            return canUseTool(ReadTool, { ...request.input, file_path: path }, request.context, parentMessage, `${request.context.toolUseId ?? 'read'}-resolved`)
           }
         : null, false)
     if (remote.kind !== 'file') throw new Error(`${source} is not a JSON file.`)

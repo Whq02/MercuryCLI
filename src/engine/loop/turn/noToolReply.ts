@@ -1,4 +1,4 @@
-import { projectTimeBasedMicrocompact } from '../../compaction/pruneToolResults.js'
+import { projectTimeBasedPrune } from '../../compaction/pruneToolResults.js'
 import { getIsNonInteractiveSession, getSessionKind } from '../../../boot/process-state/processState.js'
 import {
   FRESH_OVERFLOW_EPISODE,
@@ -272,7 +272,7 @@ async function* overflowRecovery(run: RunCtx, iter: IterationState, reply: NoToo
   const decision = decideOverflowRecovery({
     episode: overflowEpisode,
     gapTokens: overflowGapFor(signal),
-    pruneSavingTokens: projectTimeBasedMicrocompact(candidate, querySource, { pressure: true, supersededOnly: true })?.tokensSaved ?? 0,
+    pruneSavingTokens: projectTimeBasedPrune(candidate, querySource, { pressure: true, supersededOnly: true })?.tokensSaved ?? 0,
     pruneAllowed: true,
     fold: foldAvailability({ tracking, hasHistory: splitCarriedOperatorTail(candidate).hasHistory }),
   })

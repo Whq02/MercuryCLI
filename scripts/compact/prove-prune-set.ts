@@ -22,8 +22,8 @@ const section = (t: string): void => {
 }
 
 const law = await import('../../src/engine/compaction/pruneProtections.ts')
-const { projectTimeBasedMicrocompact, microcompactMessages, TIME_BASED_MC_CLEARED_MESSAGE } = await import('../../src/engine/compaction/pruneToolResults.ts')
-const { MC_DIGEST_PREFIX, isClearedOrDigested } = await import('../../src/engine/compaction/pruneDigest.ts')
+const { projectTimeBasedPrune, pruneMessages, TIME_BASED_PRUNE_CLEARED_MESSAGE } = await import('../../src/engine/compaction/pruneToolResults.ts')
+const { PRUNE_DIGEST_PREFIX, isClearedOrDigested } = await import('../../src/engine/compaction/pruneDigest.ts')
 const { buildLargeToolResultMessage } = await import('../../src/engine/tool-dispatch/toolResultStorage.ts')
 const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
 type Message = import('../../src/engine/message-shapes/message.ts').Message
@@ -65,7 +65,7 @@ const named = (): Use[] => [
 const history = (): Message[] => transcript([...named(), ...fillers(9_000)])
 
 section('§A the class rule: every result is a candidate unless its class is never pruned')
-const projected = projectTimeBasedMicrocompact(history(), 'main_thread')
+const projected = projectTimeBasedPrune(history(), 'main_thread')
 if (projected === null) {
   check('the clearing pass armed for the fixture', false, 'projection returned null')
 } else {
@@ -81,61 +81,61 @@ section('§B the budget arithmetic: the newest 40k tokens of tool output stay, a
 {
   check('the three defaults', law.PROTECT_NEWEST_TOOL_OUTPUT_TOKENS === 40_000 && law.PRUNE_MINIMUM_SAVING_TOKENS === 20_000 && law.PLACEHOLDER_COST_FLOOR_TOKENS === 50, 'a pruning default changed; restore PROTECT_NEWEST_TOOL_OUTPUT_TOKENS (40000), PRUNE_MINIMUM_SAVING_TOKENS (20000) and PLACEHOLDER_COST_FLOOR_TOKENS (50) in src/engine/compaction/pruneProtections.ts')
   const sixteen = transcript(Array.from({ length: 16 }, (_, i) => ({ id: `r${i + 1}`, name: 'Bash', content: chars(4_000) })))
-  const p16 = projectTimeBasedMicrocompact(sixteen, 'main_thread')
+  const p16 = projectTimeBasedPrune(sixteen, 'main_thread')
   check('sixteen results of 4k tokens: r7 through r16 (the newest 40k) stay, r1 through r6 are cleared — the budget reaches past the recent five', p16 !== null && JSON.stringify([...p16.clearedIds].sort()) === JSON.stringify(['r1', 'r2', 'r3', 'r4', 'r5', 'r6'].sort()) && resultOf(p16.messages, 'r7') === chars(4_000), (p16 === null ? 'null' : p16.clearedIds.join(',')) + ' — fix the newest-40k budget walk in projectTimeBasedMicrocompact in src/engine/compaction/pruneToolResults.ts')
   const ten = transcript(Array.from({ length: 10 }, (_, i) => ({ id: `r${i + 1}`, name: 'Bash', content: chars(3_000) })))
-  check('ten results of 3k tokens (30k in all): nothing is cleared — every one sits inside the newest 40k', projectTimeBasedMicrocompact(ten, 'main_thread') === null, 'results inside the newest 40k were cleared; fix the budget walk in projectTimeBasedMicrocompact in src/engine/compaction/pruneToolResults.ts')
+  check('ten results of 3k tokens (30k in all): nothing is cleared — every one sits inside the newest 40k', projectTimeBasedPrune(ten, 'main_thread') === null, 'results inside the newest 40k were cleared; fix the budget walk in projectTimeBasedMicrocompact in src/engine/compaction/pruneToolResults.ts')
   const eleven = transcript(Array.from({ length: 13 }, (_, i) => ({ id: `r${i + 1}`, name: 'Bash', content: chars(5_000) })))
-  check('eleven results of 5k tokens: r1 through r3 sit outside the budget but would save 15k — under the 20k minimum the pass clears nothing', projectTimeBasedMicrocompact(eleven, 'main_thread') === null, 'a pass saving under 20k cleared results; fix the minimumSaving gate (PRUNE_MINIMUM_SAVING_TOKENS) in projectTimeBasedMicrocompact in src/engine/compaction/pruneToolResults.ts')
+  check('eleven results of 5k tokens: r1 through r3 sit outside the budget but would save 15k — under the 20k minimum the pass clears nothing', projectTimeBasedPrune(eleven, 'main_thread') === null, 'a pass saving under 20k cleared results; fix the minimumSaving gate (PRUNE_MINIMUM_SAVING_TOKENS) in projectTimeBasedMicrocompact in src/engine/compaction/pruneToolResults.ts')
   const twelve = transcript(Array.from({ length: 14 }, (_, i) => ({ id: `r${i + 1}`, name: 'Bash', content: chars(5_000) })))
-  const p12 = projectTimeBasedMicrocompact(twelve, 'main_thread')
+  const p12 = projectTimeBasedPrune(twelve, 'main_thread')
   check('twelve results of 5k tokens: r1 through r4 save 20k — cleared', p12 !== null && JSON.stringify([...p12.clearedIds].sort()) === JSON.stringify(['r1', 'r2', 'r3', 'r4'].sort()) && p12.tokensSaved === 20_000, (p12 === null ? 'null' : `${p12.clearedIds.join(',')} ${p12.tokensSaved}`) + ' — fix the budget walk and minimumSaving gate in projectTimeBasedMicrocompact in src/engine/compaction/pruneToolResults.ts')
-  const p11pressure = projectTimeBasedMicrocompact(eleven, 'main_thread', { pressure: true })
+  const p11pressure = projectTimeBasedPrune(eleven, 'main_thread', { pressure: true })
   check('under context pressure the pass keeps its own law: the same eleven clear r1 through r3 (15k) with no 20k minimum', p11pressure !== null && p11pressure.clearedIds.length === 3 && p11pressure.tokensSaved === 15_000, (p11pressure === null ? 'null' : `${p11pressure.clearedIds.join(',')} ${p11pressure.tokensSaved}`) + ' — fix the pressure branch of minimumSaving in projectTimeBasedMicrocompact in src/engine/compaction/pruneToolResults.ts')
   const floor = transcript([
     { id: 'tiny49', name: 'Bash', content: 'y'.repeat(49 * 4) },
     { id: 'small52', name: 'Bash', content: 'y'.repeat(52 * 4) },
     ...Array.from({ length: 16 }, (_, i) => ({ id: `r${i + 1}`, name: 'Bash', content: chars(4_000) })),
   ])
-  const pf = projectTimeBasedMicrocompact(floor, 'main_thread')
+  const pf = projectTimeBasedPrune(floor, 'main_thread')
   check('a 49-token result outside the budget stays (never under 50), a 52-token one is cleared', pf !== null && resultOf(pf.messages, 'tiny49') === 'y'.repeat(49 * 4) && !resultOf(pf.messages, 'small52').includes('yyyy'), (pf === null ? 'null' : pf.clearedIds.join(',')) + ' — fix the isBelowPlaceholderFloor test in projectTimeBasedMicrocompact (src/engine/compaction/pruneToolResults.ts) and isBelowPlaceholderFloor in src/engine/compaction/pruneProtections.ts')
 }
 
 section("§C a pruned Agent result reads the same line every pruned result reads")
 {
-  const digested = projectTimeBasedMicrocompact(history(), 'main_thread')
+  const digested = projectTimeBasedPrune(history(), 'main_thread')
   const agent = digested === null ? '' : resultOf(digested.messages, 'use_Crewmate')
-  check('with the digest on, the Agent result wears the digest label', agent.startsWith(MC_DIGEST_PREFIX), agent.slice(0, 80) + ' — fix digestClearedToolResult in src/engine/compaction/pruneDigest.ts or its use in projectTimeBasedMicrocompact')
+  check('with the digest on, the Agent result wears the digest label', agent.startsWith(PRUNE_DIGEST_PREFIX), agent.slice(0, 80) + ' — fix digestClearedToolResult in src/engine/compaction/pruneDigest.ts or its use in projectTimeBasedMicrocompact')
   process.env.MERCURY_MC_DIGEST = '0'
-  const bare = projectTimeBasedMicrocompact(history(), 'main_thread')
+  const bare = projectTimeBasedPrune(history(), 'main_thread')
   const agentBare = bare === null ? '' : resultOf(bare.messages, 'use_Crewmate')
   const bashBare = bare === null ? '' : resultOf(bare.messages, 'use_Bash')
-  check(`with the digest off, the Agent result is the placeholder line '${TIME_BASED_MC_CLEARED_MESSAGE}', the same as a Bash result's`, agentBare === TIME_BASED_MC_CLEARED_MESSAGE && bashBare === TIME_BASED_MC_CLEARED_MESSAGE, `${agentBare.slice(0, 60)} | ${bashBare.slice(0, 60)} — with MERCURY_MC_DIGEST=0 every pruned result must be TIME_BASED_MC_CLEARED_MESSAGE; fix projectTimeBasedMicrocompact in src/engine/compaction/pruneToolResults.ts`)
+  check(`with the digest off, the Agent result is the placeholder line '${TIME_BASED_PRUNE_CLEARED_MESSAGE}', the same as a Bash result's`, agentBare === TIME_BASED_PRUNE_CLEARED_MESSAGE && bashBare === TIME_BASED_PRUNE_CLEARED_MESSAGE, `${agentBare.slice(0, 60)} | ${bashBare.slice(0, 60)} — with MERCURY_MC_DIGEST=0 every pruned result must be TIME_BASED_MC_CLEARED_MESSAGE; fix projectTimeBasedMicrocompact in src/engine/compaction/pruneToolResults.ts`)
   delete process.env.MERCURY_MC_DIGEST
 }
 
 section('§D a result whose full output was saved to a file keeps the line that names the file')
 {
-  const cleared = projectTimeBasedMicrocompact(history(), 'main_thread')
+  const cleared = projectTimeBasedPrune(history(), 'main_thread')
   const persisted = cleared === null ? '' : resultOf(cleared.messages, 'use_agent_persisted')
   check('the preview bytes are gone', !persisted.includes('ppppp'), persisted.slice(0, 120) + ' — a persisted result kept its preview; fix the persisted-output branch of projectTimeBasedMicrocompact in src/engine/compaction/pruneToolResults.ts')
-  check('the digest label leads', persisted.startsWith(MC_DIGEST_PREFIX), persisted.slice(0, 80) + ' — fix the persisted-output branch of projectTimeBasedMicrocompact in src/engine/compaction/pruneToolResults.ts')
+  check('the digest label leads', persisted.startsWith(PRUNE_DIGEST_PREFIX), persisted.slice(0, 80) + ' — fix the persisted-output branch of projectTimeBasedMicrocompact in src/engine/compaction/pruneToolResults.ts')
   check("the line naming the saved file rides below it, in the storage module's own words", persisted.includes(`Full output saved to: ${PERSISTED_PATH}`), persisted + ' — the saved-file line must survive pruning; fix the persisted-output branch of projectTimeBasedMicrocompact in src/engine/compaction/pruneToolResults.ts')
   check('the kept content reads as already cleared (no second clearing)', isClearedOrDigested(persisted), 'isClearedOrDigested did not recognise the kept content; fix it in src/engine/compaction/pruneDigest.ts')
-  const again = cleared === null ? null : projectTimeBasedMicrocompact(cleared.messages, 'main_thread')
+  const again = cleared === null ? null : projectTimeBasedPrune(cleared.messages, 'main_thread')
   check('a second pass over the cleared history clears nothing more', again === null, again === null ? '' : `${again.cleared} cleared again — a cleared result was cleared twice; fix the isClearedOrDigested skips in projectTimeBasedMicrocompact in src/engine/compaction/pruneToolResults.ts`)
   process.env.MERCURY_MC_DIGEST = '0'
-  const bare = projectTimeBasedMicrocompact(history(), 'main_thread')
+  const bare = projectTimeBasedPrune(history(), 'main_thread')
   const persistedBare = bare === null ? '' : resultOf(bare.messages, 'use_agent_persisted')
-  check('with the digest off, the placeholder leads and the file line follows', persistedBare.startsWith(TIME_BASED_MC_CLEARED_MESSAGE) && persistedBare.includes(`Full output saved to: ${PERSISTED_PATH}`) && isClearedOrDigested(persistedBare), persistedBare.slice(0, 160) + ' — fix the digest-off persisted-output branch of projectTimeBasedMicrocompact in src/engine/compaction/pruneToolResults.ts')
+  check('with the digest off, the placeholder leads and the file line follows', persistedBare.startsWith(TIME_BASED_PRUNE_CLEARED_MESSAGE) && persistedBare.includes(`Full output saved to: ${PERSISTED_PATH}`) && isClearedOrDigested(persistedBare), persistedBare.slice(0, 160) + ' — fix the digest-off persisted-output branch of projectTimeBasedMicrocompact in src/engine/compaction/pruneToolResults.ts')
   delete process.env.MERCURY_MC_DIGEST
 }
 
 section('§E the live apply and the pure projection agree')
 {
   const base = history()
-  const pure = projectTimeBasedMicrocompact(base, 'main_thread')
-  const applied = await microcompactMessages(base, undefined, 'main_thread')
+  const pure = projectTimeBasedPrune(base, 'main_thread')
+  const applied = await pruneMessages(base, undefined, 'main_thread')
   check('the applied messages are the projected messages, byte for byte', pure !== null && JSON.stringify(applied.messages) === JSON.stringify(pure.messages), 'microcompactMessages and projectTimeBasedMicrocompact diverged; make microcompactMessages apply the projection unchanged in src/engine/compaction/pruneToolResults.ts')
   check('the applied receipt carries the same count and saving', pure !== null && applied.pruned?.cleared === pure.cleared && applied.pruned?.tokensSaved === pure.tokensSaved, JSON.stringify(applied.pruned))
 }

@@ -167,7 +167,7 @@ section('§C C08 — the SHIPPED typed ladder composes with selection')
   const composed = { ladder: auto.calculateTokenWarningState(200_000, model).level, selection: p.selection.overflow }
   check('typed states compose honestly', composed.ladder === 'blocked' && composed.selection === 'closure-exceeds-budget')
   check('detectFixedPrefixOverflow stays live', typeof auto.detectFixedPrefixOverflow === 'function')
-  check('the thrash guard stays live', typeof auto.rapidRefillCount === 'function' && auto.AUTOCOMPACT_THRASH_MESSAGE.length > 0)
+  check('the thrash guard stays live', typeof auto.rapidRefillCount === 'function' && auto.AUTO_FOLD_THRASH_MESSAGE.length > 0)
   const t = await import('../core-runtime/turnScenarios.ts')
   const { makeRequest } = await import('../../src/engine/loop/turn/makeRequest.ts')
   const { splitCarriedOperatorTail } = await import('../../src/engine/compaction/overflowRecovery.js')

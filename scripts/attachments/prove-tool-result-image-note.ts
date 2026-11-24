@@ -135,12 +135,12 @@ section('§5 the roads that already speak are not double-noted')
 {
   const fixtures = join(proofHome, 'fixtures')
   mkdirSync(fixtures, { recursive: true })
-  const { FileReadTool, readImageWithTokenBudget } = await import('../../src/tools/read/ReadTool.ts')
+  const { ReadTool, readImageWithTokenBudget } = await import('../../src/tools/read/ReadTool.ts')
   const shotPath = join(fixtures, 'shot.png')
   writeFileSync(shotPath, big)
   const read = await readImageWithTokenBudget(shotPath)
   const readWords = read.file.dimensions ? (resizer.createImageMetadataText(read.file.dimensions, shotPath) ?? '') : ''
-  const readBlock = FileReadTool.mapToolResultToToolResultBlockParam(read as never, 't5r') as unknown as Result
+  const readBlock = ReadTool.mapToolResultToToolResultBlockParam(read as never, 't5r') as unknown as Result
   check('the Read road maps its image alone and speaks in its own meta message', readBlock.content.length === 1 && readBlock.content[0]?.type === 'image' && readWords.startsWith('[Image: source: '), `${shape(readBlock)} / ${readWords}`)
   await resizer.clampToolResultImageBlocks(readBlock, standardTier)
   check(`the Read result over the long edge is clamped to ${EDGE} px and gains the one note`, atEdge(images(readBlock)[0]) && texts(readBlock).length === 1, shape(readBlock))
@@ -149,7 +149,7 @@ section('§5 the roads that already speak are not double-noted')
   const smallPath = join(fixtures, 'small.png')
   writeFileSync(smallPath, other)
   const readSmall = await readImageWithTokenBudget(smallPath)
-  const smallBlock = FileReadTool.mapToolResultToToolResultBlockParam(readSmall as never, 't5s') as unknown as Result
+  const smallBlock = ReadTool.mapToolResultToToolResultBlockParam(readSmall as never, 't5s') as unknown as Result
   await resizer.clampToolResultImageBlocks(smallBlock, standardTier)
   check('a Read result under the caps gains nothing', smallBlock.content.length === 1 && images(smallBlock)[0]?.source?.data === readSmall.file.base64, shape(smallBlock))
 

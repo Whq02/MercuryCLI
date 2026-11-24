@@ -22,7 +22,7 @@ const { flagEnabled } = await import('../../src/platform/substrate/flagRegistry.
 const { getPrivacyLevel } = await import('../../src/models/roads/privacyLevel.ts')
 const { getPromptCachingEnabled } = await import('../../src/models/roads/anthropic/requestParams.ts')
 const { getDefaultHaikuModel, getDefaultSonnetModel, getDefaultOpusModel } = await import('../../src/models/catalogue/engineModel.ts')
-const { isAutoCompactEnabled } = await import('../../src/engine/compaction/autoFold.ts')
+const { isAutoFoldEnabled } = await import('../../src/engine/compaction/autoFold.ts')
 const feedback = (await import('../../src/commands/feedback/index.ts')).default as { isEnabled?: () => boolean }
 const health = (await import('../../src/commands/health/index.ts')).default as { isEnabled?: () => boolean }
 const login = ((await import('../../src/commands/logins/index.ts')).default as () => { isEnabled?: () => boolean })()
@@ -71,9 +71,9 @@ section('§2 each switch at its owner')
   off('MERCURY_PROMPT_CACHING_OPUS'); check('opus caching: =0 ⇒ off on the opus tier alone', !getPromptCachingEnabled(opus) && getPromptCachingEnabled(sonnet)); unset('MERCURY_PROMPT_CACHING_OPUS')
 
 
-  check('compaction: unset ⇒ the automatic fold is on', isAutoCompactEnabled() === true)
-  off('MERCURY_COMPACT'); check('compaction: =0 ⇒ the automatic fold is off', isAutoCompactEnabled() === false); unset('MERCURY_COMPACT')
-  off('MERCURY_AUTO_COMPACT'); check('the automatic fold: =0 ⇒ off', isAutoCompactEnabled() === false); unset('MERCURY_AUTO_COMPACT')
+  check('compaction: unset ⇒ the automatic fold is on', isAutoFoldEnabled() === true)
+  off('MERCURY_COMPACT'); check('compaction: =0 ⇒ the automatic fold is off', isAutoFoldEnabled() === false); unset('MERCURY_COMPACT')
+  off('MERCURY_AUTO_COMPACT'); check('the automatic fold: =0 ⇒ off', isAutoFoldEnabled() === false); unset('MERCURY_AUTO_COMPACT')
 
 }
 

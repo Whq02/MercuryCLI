@@ -54,7 +54,7 @@ export type RefusedToolCall = {
   offered?: string[]
 }
 
-export type PartialCompactDirection = 'from' | 'up_to'
+export type PartialFoldDirection = 'from' | 'up_to'
 
 export type MessageOrigin =
   | { kind: 'human' }
@@ -67,7 +67,7 @@ export type MessageOrigin =
   | ScreenCommandOrigin
   | OutsideReportOrigin
 
-export type CompactMetadata = {
+export type FoldMetadata = {
   trigger: 'manual' | 'auto' | 'overflow'
   preTokens: number
   postTokens?: number
@@ -183,7 +183,7 @@ export type UserMessage = {
   summarizeMetadata?: {
     messagesSummarized: number
     userContext?: string
-    direction?: PartialCompactDirection
+    direction?: PartialFoldDirection
     contextReclaimedPct?: number
     tokensBefore?: number
     tokensAfter?: number
@@ -507,7 +507,7 @@ export type SystemCrewChatMessage = {
   uuid: UUID
 }
 
-export type SystemCompactBoundaryMessage = {
+export type SystemFoldBoundaryMessage = {
   type: 'system'
   subtype: 'compact_boundary'
   content: string
@@ -515,11 +515,11 @@ export type SystemCompactBoundaryMessage = {
   timestamp: string
   uuid: UUID
   level: SystemMessageLevel
-  compactMetadata: CompactMetadata
+  compactMetadata: FoldMetadata
   logicalParentUuid?: UUID
 }
 
-export type SystemMicrocompactBoundaryMessage = {
+export type SystemPruneBoundaryMessage = {
   type: 'system'
   subtype: 'microcompact_boundary'
   content: string
@@ -608,8 +608,8 @@ export type SystemMessage =
   | SystemCloseUsageMessage
   | SystemLocalCommandMessage
   | SystemCrewChatMessage
-  | SystemCompactBoundaryMessage
-  | SystemMicrocompactBoundaryMessage
+  | SystemFoldBoundaryMessage
+  | SystemPruneBoundaryMessage
   | SystemAPIErrorMessage
   | SystemFileSnapshotMessage
   | SystemThinkingMessage

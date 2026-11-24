@@ -2,9 +2,9 @@ import type { ToolResultBlockParam } from '../message-shapes/wire.js'
 import { flagEnabled } from '../../platform/substrate/flagRegistry.js'
 
 
-export const MC_CLEARED_PLACEHOLDER = '[stale tool result pruned — content cleared]'
+export const PRUNE_CLEARED_PLACEHOLDER = '[stale tool result pruned — content cleared]'
 
-export const MC_DIGEST_PREFIX = '[stale tool result · digest:'
+export const PRUNE_DIGEST_PREFIX = '[stale tool result · digest:'
 
 type ContentClass =
   | 'text'
@@ -18,14 +18,14 @@ type ContentClass =
 
 type DigestableContent = ToolResultBlockParam['content'] | undefined
 
-export function isMicroCompactDigestEnabled(): boolean {
+export function isPruneDigestEnabled(): boolean {
   return flagEnabled('MERCURY_MC_DIGEST')
 }
 
 export function isClearedOrDigested(content: DigestableContent): boolean {
   return (
     typeof content === 'string' &&
-    (content.startsWith(MC_CLEARED_PLACEHOLDER) || content.startsWith(MC_DIGEST_PREFIX))
+    (content.startsWith(PRUNE_CLEARED_PLACEHOLDER) || content.startsWith(PRUNE_DIGEST_PREFIX))
   )
 }
 
@@ -85,15 +85,15 @@ function classify(text: string, lines: readonly string[]): ContentClass {
 }
 
 export function digestClearedToolResult(content: DigestableContent): string {
-  if (!isMicroCompactDigestEnabled()) return MC_CLEARED_PLACEHOLDER
+  if (!isPruneDigestEnabled()) return PRUNE_CLEARED_PLACEHOLDER
   if (isClearedOrDigested(content)) {
-    return typeof content === 'string' ? content : MC_CLEARED_PLACEHOLDER
+    return typeof content === 'string' ? content : PRUNE_CLEARED_PLACEHOLDER
   }
   const text = extractText(content)
-  if (!text.trim()) return MC_CLEARED_PLACEHOLDER
+  if (!text.trim()) return PRUNE_CLEARED_PLACEHOLDER
 
   const lines = text.split('\n')
   const approxTokens = Math.round(text.length / 4 / 10) * 10
   const cls = classify(text, lines)
-  return `${MC_DIGEST_PREFIX} ${lines.length} lines, ~${approxTokens} tok, ${cls}]`
+  return `${PRUNE_DIGEST_PREFIX} ${lines.length} lines, ~${approxTokens} tok, ${cls}]`
 }

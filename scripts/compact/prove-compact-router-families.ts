@@ -81,7 +81,7 @@ if (CAPTURE_DIR) {
 
 const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { compactConversation } = await import('../../src/engine/compaction/foldConversation.ts')
+const { foldConversation } = await import('../../src/engine/compaction/foldConversation.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
@@ -180,7 +180,7 @@ async function runCompaction(family: Family, cacheSafe: (ctx: Record<string, unk
   let result: Record<string, unknown> | undefined
   let error: Error | undefined
   try {
-    result = (await compactConversation(
+    result = (await foldConversation(
       messages as never,
       ctx as never,
       cacheSafe(ctx, messages) as never,

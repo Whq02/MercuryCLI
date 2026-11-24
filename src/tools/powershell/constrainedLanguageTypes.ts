@@ -1,4 +1,4 @@
-const CLM_ALLOWED_TYPES: ReadonlySet<string> = new Set([
+const CONSTRAINED_LANGUAGE_ALLOWED_TYPES: ReadonlySet<string> = new Set([
   'alias',
   'allowemptycollection',
   'allowemptystring',
@@ -147,6 +147,6 @@ function normalizeTypeName(name: string): string {
   return out.trim()
 }
 
-export function isClmAllowedType(typeName: string): boolean {
-  return CLM_ALLOWED_TYPES.has(normalizeTypeName(typeName))
+export function isConstrainedLanguageAllowedType(typeName: string): boolean {
+  return CONSTRAINED_LANGUAGE_ALLOWED_TYPES.has(normalizeTypeName(typeName))
 }

@@ -61,15 +61,15 @@ export function malformedHistoryRefusalOf(row: AssistantMessage): string | null 
   return complaint === undefined ? null : complaint.words
 }
 
-export function compactionRefusedForHistoryText(providerWords: string, opts: { nonInteractive: boolean }): string {
+export function foldRefusedForHistoryText(providerWords: string, opts: { nonInteractive: boolean }): string {
   const remedy = opts.nonInteractive
     ? 'Start a fresh run, or pass --model with a larger window.'
     : '/compact tries again after the history heals, /clear starts fresh, or /model picks a model with a larger window.'
   return `Compaction was refused for a malformed history — ${providerWords} ${remedy}`
 }
 
-export function compactionPausedForHistoryText(providerWords: string, opts: { nonInteractive: boolean }): string {
-  return `${compactionRefusedForHistoryText(providerWords, opts)} Automatic compaction is paused for the rest of this run.`
+export function foldPausedForHistoryText(providerWords: string, opts: { nonInteractive: boolean }): string {
+  return `${foldRefusedForHistoryText(providerWords, opts)} Automatic compaction is paused for the rest of this run.`
 }
 
 export function foldRemedyIsHeadless(isNonInteractiveSession: boolean | undefined): boolean {
@@ -82,11 +82,11 @@ export function foldWindowRefusalText(facts: { window: number; sourceWords: stri
   return `${FOLD_WINDOW_REFUSAL_KEY} (${facts.window.toLocaleString('en-US')} tokens, ${facts.sourceWords}): its own request (≈${Math.round(facts.estTokens / 1000)}k tokens) does not fit and the server would silently truncate it. ${facts.remedy}.`
 }
 
-export class CompactionRefusedForHistoryError extends Error {
+export class FoldRefusedForHistoryError extends Error {
   readonly providerWords: string
   readonly nonInteractive: boolean
   constructor(providerWords: string, opts: { nonInteractive: boolean }) {
-    super(compactionRefusedForHistoryText(providerWords, opts))
+    super(foldRefusedForHistoryText(providerWords, opts))
     this.name = 'CompactionRefusedForHistoryError'
     this.providerWords = providerWords
     this.nonInteractive = opts.nonInteractive

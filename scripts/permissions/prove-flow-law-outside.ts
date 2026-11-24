@@ -5,9 +5,9 @@ import { join, normalize, resolve } from 'node:path'
 import { ROADS, allowedByFlow, asksWith, check, finish, j, openKit, refusedWith, section, sentence } from './flowLawKit.ts'
 
 const kit = await openKit('flow-law-outside')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { WriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const { getProjectTempDir, getScratchpadDir } = await import('../../src/permissions/rules/filesystem.ts')
 const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
 
@@ -84,23 +84,23 @@ try {
 
   section('§3 the file tools: a write outside asks in one sentence; inside, the scratch, the temp roots and reads anywhere run')
   for (const road of ROADS) {
-    const zshrc = await kit.decideTool(FileWriteTool, { file_path: `${HOME}/.zshrc`, content: 'export X=1\n' }, { road })
+    const zshrc = await kit.decideTool(WriteTool, { file_path: `${HOME}/.zshrc`, content: 'export X=1\n' }, { road })
     check(`${road}: Write ~/.zshrc → ${road === 'prompt-less' ? 'refused with' : 'asks'} "${OUTSIDE_FILE}"`, road === 'prompt-less' ? refusedWith(zshrc, OUTSIDE_FILE) : asksWith(zshrc, OUTSIDE_FILE) && zshrc.wrapper.decidedBy === 'flowLaw', j(zshrc.decision))
-    const other = await kit.decideTool(FileEditTool, { file_path: `${HOME}/Developer/other-project/src/index.ts`, old_string: 'a', new_string: 'b' }, { road })
+    const other = await kit.decideTool(EditTool, { file_path: `${HOME}/Developer/other-project/src/index.ts`, old_string: 'a', new_string: 'b' }, { road })
     check(`${road}: Edit in another project asks as item 4`, road === 'prompt-less' ? other.decision.behavior === 'deny' : asksWith(other, `Flow asks before writing ${tilde(normalize(`${HOME}/Developer/other-project/src/index.ts`))}: it is outside the project.`), j(other.decision))
-    const etc = await kit.decideTool(FileWriteTool, { file_path: '/etc/hosts', content: '' }, { road })
+    const etc = await kit.decideTool(WriteTool, { file_path: '/etc/hosts', content: '' }, { road })
     check(`${road}: Write /etc/hosts asks as item 4`, road === 'prompt-less' ? etc.decision.behavior === 'deny' : asksWith(etc, `Flow asks before writing ${normalize('/etc/hosts')}: it is outside the project.`), j(etc.decision))
     for (const [tool, input, label] of [
-      [FileWriteTool, { file_path: join(kit.project, 'src', 'new.ts'), content: 'export {}\n' }, 'Write inside the project'],
-      [FileEditTool, { file_path: join(kit.project, 'src', 'x.ts'), old_string: 'a', new_string: 'b' }, 'Edit inside the project'],
-      [FileWriteTool, { file_path: join(kit.project, '.vscode', 'settings.json'), content: '{}\n' }, 'Write a project .vscode file'],
-      [FileWriteTool, { file_path: join(kit.project, '.git', 'info', 'exclude'), content: 'dist\n' }, 'Write under the project .git'],
-      [FileWriteTool, { file_path: '/tmp/flow-law-note.txt', content: 'x\n' }, 'Write under /tmp'],
-      [FileWriteTool, { file_path: join(scratch, 'report.md'), content: 'x\n' }, 'Write in the scratchpad'],
-      [FileWriteTool, { file_path: '/usr/local/lib/mercury-made-this-run/a.txt', content: 'x\n' }, 'Write under a path this run created'],
-      [FileReadTool, { file_path: `${HOME}/.zshrc` }, 'Read ~/.zshrc'],
-      [FileReadTool, { file_path: '/etc/hosts' }, 'Read /etc/hosts'],
-      [FileReadTool, { file_path: `${HOME}/Developer/other-project/src/index.ts` }, 'Read another project'],
+      [WriteTool, { file_path: join(kit.project, 'src', 'new.ts'), content: 'export {}\n' }, 'Write inside the project'],
+      [EditTool, { file_path: join(kit.project, 'src', 'x.ts'), old_string: 'a', new_string: 'b' }, 'Edit inside the project'],
+      [WriteTool, { file_path: join(kit.project, '.vscode', 'settings.json'), content: '{}\n' }, 'Write a project .vscode file'],
+      [WriteTool, { file_path: join(kit.project, '.git', 'info', 'exclude'), content: 'dist\n' }, 'Write under the project .git'],
+      [WriteTool, { file_path: '/tmp/flow-law-note.txt', content: 'x\n' }, 'Write under /tmp'],
+      [WriteTool, { file_path: join(scratch, 'report.md'), content: 'x\n' }, 'Write in the scratchpad'],
+      [WriteTool, { file_path: '/usr/local/lib/mercury-made-this-run/a.txt', content: 'x\n' }, 'Write under a path this run created'],
+      [ReadTool, { file_path: `${HOME}/.zshrc` }, 'Read ~/.zshrc'],
+      [ReadTool, { file_path: '/etc/hosts' }, 'Read /etc/hosts'],
+      [ReadTool, { file_path: `${HOME}/Developer/other-project/src/index.ts` }, 'Read another project'],
     ] as const) {
       const outcome = await kit.decideTool(tool, input as never, { road })
       check(`${road}: ${label} runs`, allowedByFlow(outcome), j(outcome.decision))
@@ -110,7 +110,7 @@ try {
   section('§4 the operator\'s own rules outrank the item; the item is Flow\'s alone')
   const allowed = await kit.decide('rm -rf ~/other', { rules: { allow: ['Edit(~/other/**)'] } })
   check('an Edit allow rule over the folder runs the outside delete without a question', allowed.decision.behavior === 'allow', j(allowed.decision))
-  const ruleEdit = await kit.decideTool(FileWriteTool, { file_path: `${HOME}/.zshrc`, content: '' }, { rules: { allow: ['Edit(~/.zshrc)'] } })
+  const ruleEdit = await kit.decideTool(WriteTool, { file_path: `${HOME}/.zshrc`, content: '' }, { rules: { allow: ['Edit(~/.zshrc)'] } })
   check('an Edit allow rule runs the outside write without a question', ruleEdit.decision.behavior === 'allow', j(ruleEdit.decision))
   for (const command of ['rm -rf ~', 'rm -rf /']) {
     const refused = await kit.decide(command)

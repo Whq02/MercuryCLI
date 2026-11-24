@@ -1,4 +1,4 @@
-import { queryUtility } from '../../models/roads/anthropic/streamCore.js'
+import { callUtilityModel } from '../../models/roads/anthropic/streamCore.js'
 import type { Message } from '../../engine/message-shapes/message.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { safeParseJSON } from '../../platform/storage/json.js'
@@ -20,7 +20,7 @@ export async function generateSessionName(
   const conversationText = extractConversationText(messages)
   if (!conversationText) return null
   try {
-    const response = await queryUtility({
+    const response = await callUtilityModel({
       systemPrompt: asSystemPrompt(NAME_SYSTEM_PROMPT),
       userPrompt: conversationText,
       outputFormat: {

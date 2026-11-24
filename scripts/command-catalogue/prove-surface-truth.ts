@@ -31,7 +31,7 @@ enableConfigs()
 const { builtinCommands } = await import('../../src/commands/catalogue/commands.js')
 const model = await import('../../src/models/catalogue/engineModel.js')
 const configs = await import('../../src/models/facts/builtInModelTable.js')
-const { getModelStrings } = await import('../../src/models/facts/pinnedModelIds.js')
+const { getPinnedModelIds } = await import('../../src/models/facts/pinnedModelIds.js')
 const frontier = await import('../../src/models/catalogue/frontierPolicy.js')
 const { getModelOptions } = await import('../../src/models/catalogue/modelOptions.js')
 const { MODEL_COSTS } = await import('../../src/models/usage/modelCost.js')
@@ -149,7 +149,7 @@ focusedSlot._resetFocusedSessionConnectorForTesting()
 
 
 section('§5 THE GENERATION TABLE — one table per family, every reader derives')
-const strings = getModelStrings()
+const strings = getPinnedModelIds()
 const families = Object.keys(configs.FAMILY_GENERATIONS) as Array<keyof typeof configs.FAMILY_GENERATIONS>
 check('the table names the four first-party families', families.sort().join(',') === 'fable,haiku,opus,sonnet', families.join(','), 'FAMILY_GENERATIONS in src/models/facts/builtInModelTable.ts must hold exactly the four families fable, haiku, opus, sonnet')
 for (const family of families) {

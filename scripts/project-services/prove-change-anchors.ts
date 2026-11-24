@@ -16,9 +16,9 @@ const {
   parseAnchor,
   sliceRange,
 } = await import('../../src/tools/engines/change-transaction/snapshotAnchor.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { WriteTool } = await import('../../src/tools/write/WriteTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
@@ -61,13 +61,13 @@ async function readViaTool(
   ctx: ReturnType<typeof makeContext>,
   extra: Record<string, unknown> = {},
 ): Promise<string> {
-  const result = await (FileReadTool as { call: Function }).call(
+  const result = await (ReadTool as { call: Function }).call(
     { file_path: path, ...extra },
     ctx,
     null,
     { uuid: '00000000-0000-0000-0000-000000000001', message: { id: 'msg_fixture' } },
   )
-  const block = (FileReadTool as { mapToolResultToToolResultBlockParam: Function })
+  const block = (ReadTool as { mapToolResultToToolResultBlockParam: Function })
     .mapToolResultToToolResultBlockParam(result.data, 'toolu_read')
   return typeof block.content === 'string' ? block.content : JSON.stringify(block.content)
 }
@@ -143,14 +143,14 @@ section('E. FileEdit enforces anchors (the full stale→reread→success journey
     limit: undefined,
   }]])
 
-  const okValidate = await FileEditTool.validateInput!(
+  const okValidate = await EditTool.validateInput!(
     { file_path: target, old_string: 'line 5', new_string: 'line five', expected_anchor: fullAnchor } as never,
     makeContext(freshStamp()),
   )
   check('E1 matching anchor passes', okValidate.result === true, `${JSON.stringify(okValidate)} · FileEditTool validateInput in src/tools/FileEditTool must accept an anchor that matches the file`)
 
   writeFileSync(target, body.replace('line 20', 'line twenty (concurrent)'))
-  const staleValidate = await FileEditTool.validateInput!(
+  const staleValidate = await EditTool.validateInput!(
     { file_path: target, old_string: 'line 5', new_string: 'line five', expected_anchor: fullAnchor } as never,
     makeContext(freshStamp()),
   )
@@ -171,7 +171,7 @@ section('E. FileEdit enforces anchors (the full stale→reread→success journey
   check('E4a reread mints the current anchor',
     freshAnchor !== null && freshAnchor === mintFileAnchor(readFileSync(target, 'utf8')),
     `anchor ${freshAnchor} · FileRead in src/tools/read/call/call.ts must mint the anchor of the current file content`)
-  const okEdit = await (FileEditTool as { call: Function }).call(
+  const okEdit = await (EditTool as { call: Function }).call(
     { file_path: target, old_string: 'line 5', new_string: 'line five', expected_anchor: freshAnchor },
     rereadCtx,
     null,
@@ -184,7 +184,7 @@ section('E. FileEdit enforces anchors (the full stale→reread→success journey
 
   let threw: Error | null = null
   try {
-    await (FileEditTool as { call: Function }).call(
+    await (EditTool as { call: Function }).call(
       { file_path: target, old_string: 'line 6', new_string: 'line six', expected_anchor: fullAnchor },
       makeContext(freshStamp()),
       null,
@@ -198,7 +198,7 @@ section('E. FileEdit enforces anchors (the full stale→reread→success journey
     !readFileSync(target, 'utf8').includes('line six'),
     `threw ${threw?.message ?? 'nothing'} · the anchor recheck in src/tools/edit/call/call.ts must throw a Stale anchor error before it writes`)
 
-  const malformed = await FileEditTool.validateInput!(
+  const malformed = await EditTool.validateInput!(
     { file_path: target, old_string: 'line 7', new_string: 'line seven', expected_anchor: 'not-an-anchor' } as never,
     makeContext(freshStamp()),
   )
@@ -207,7 +207,7 @@ section('E. FileEdit enforces anchors (the full stale→reread→success journey
     `${JSON.stringify(malformed)} · FileEditTool validateInput in src/tools/FileEditTool must refuse a malformed anchor with errorCode 12`)
 
   process.env.MERCURY_CHANGE_RECEIPTS = '0'
-  const offValidate = await FileEditTool.validateInput!(
+  const offValidate = await EditTool.validateInput!(
     { file_path: target, old_string: 'line 7', new_string: 'line seven', expected_anchor: fullAnchor } as never,
     makeContext(freshStamp()),
   )
@@ -221,7 +221,7 @@ section('W. FileWrite typed-effect honesty')
 {
   const wpath = join(dir, 'written.txt')
   const wctx = makeContext(new Map())
-  const create = await (FileWriteTool as { call: Function }).call(
+  const create = await (WriteTool as { call: Function }).call(
     { file_path: wpath, content: 'alpha\n' },
     wctx,
     null,
@@ -237,7 +237,7 @@ section('W. FileWrite typed-effect honesty')
     offset: undefined,
     limit: undefined,
   }]])
-  const identical = await (FileWriteTool as { call: Function }).call(
+  const identical = await (WriteTool as { call: Function }).call(
     { file_path: wpath, content: 'alpha\n' },
     makeContext(stamp),
     null,
@@ -253,7 +253,7 @@ section('W. FileWrite typed-effect honesty')
     offset: undefined,
     limit: undefined,
   }]])
-  const real = await (FileWriteTool as { call: Function }).call(
+  const real = await (WriteTool as { call: Function }).call(
     { file_path: wpath, content: 'beta\n' },
     makeContext(stamp2),
     null,

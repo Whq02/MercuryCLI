@@ -43,13 +43,13 @@ const compact = await import(`${root}/src/engine/compaction/foldConversation.ts`
 
 try {
   console.log('§1 compaction.after: a hook answer re-added to the context after the fold is bounded like every other hook word')
-  const rows = await compact.compactionAfterHooks({ abortController: new AbortController(), agentId: undefined } as never, { method: 'summary', trigger: 'auto', tokensBefore: 180_000, tokensAfter: 20_000 })
+  const rows = await compact.foldAfterHooks({ abortController: new AbortController(), agentId: undefined } as never, { method: 'summary', trigger: 'auto', tokensBefore: 180_000, tokensAfter: 20_000 })
   const texts = rows.map(row => { const content = (row as { message: { content: unknown } }).message.content; return typeof content === 'string' ? content : JSON.stringify(content) })
   const bounded = texts[0] ?? ''
-  check('the after hook fired once and its two contexts became two meta rows', fired.filter(e => e === 'compaction.after').length === 1 && texts.length === 2, `${fired.join(',')} rows=${texts.length}; compactionAfterHooks in src/engine/compaction/fold/hooks.ts must fire compaction.after once and return one meta row per answer context`)
-  check(`a 9 MiB context lands bounded (at most ${cap} characters plus the omission line), not whole`, keepsBound(bounded), `${bounded.length} characters; compactionAfterHooks in src/engine/compaction/fold/hooks.ts must bound each context to HOOK_CONTEXT_CAP_CHARS (src/integrations/event-hooks/contextBound.ts) and save the whole output`)
+  check('the after hook fired once and its two contexts became two meta rows', fired.filter(e => e === 'compaction.after').length === 1 && texts.length === 2, `${fired.join(',')} rows=${texts.length}; foldAfterHooks in src/engine/compaction/fold/hooks.ts must fire compaction.after once and return one meta row per answer context`)
+  check(`a 9 MiB context lands bounded (at most ${cap} characters plus the omission line), not whole`, keepsBound(bounded), `${bounded.length} characters; foldAfterHooks in src/engine/compaction/fold/hooks.ts must bound each context to HOOK_CONTEXT_CAP_CHARS (src/integrations/event-hooks/contextBound.ts) and save the whole output`)
   check('the bounded row says how much was omitted and where the whole output is saved', /characters omitted/.test(bounded) && /is saved at .+ — read it in chunks if it matters|could not be saved/.test(bounded), `${bounded.slice(cap * 0.7 - 20, cap * 0.7 + 260)}; fix the omission line written by the bound in src/integrations/event-hooks/contextBound.ts`)
-  check('a short context is kept whole', texts[1] === 'a short note', `${JSON.stringify(texts[1])}; compactionAfterHooks in src/engine/compaction/fold/hooks.ts must pass a context under the cap through unchanged`)
+  check('a short context is kept whole', texts[1] === 'a short note', `${JSON.stringify(texts[1])}; foldAfterHooks in src/engine/compaction/fold/hooks.ts must pass a context under the cap through unchanged`)
 
   console.log('§2 compaction.before: hook instructions merged into the summariser guidance are bounded the same way')
   const merged: string = compact.mergeHookInstructions('keep the names', big) ?? ''

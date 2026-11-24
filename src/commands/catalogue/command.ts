@@ -102,7 +102,7 @@ type LocalJSXCommand = CommandBase & {
 
 export type Command = PromptCommand | LocalCommand | LocalJSXCommand
 
-type CompactionHandoff = {
+type FoldHandoff = {
   boundaryMarker: Message
   operatorMessages?: Message
   summaryMessages: Message[]
@@ -113,7 +113,7 @@ type CompactionHandoff = {
 
 export type LocalCommandResult =
   | { type: 'text'; value: string }
-  | { type: 'compact'; compactionResult: CompactionHandoff; displayText?: string }
+  | { type: 'compact'; compactionResult: FoldHandoff; displayText?: string }
   | { type: 'skip' }
 
 export type LocalCommandCall = (args: string, context: LocalJSXCommandContext) => Promise<LocalCommandResult>

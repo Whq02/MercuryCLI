@@ -12,7 +12,7 @@ await import('../../src/models/roads/callModelRouter.ts')
 await import('../../src/engine/messages/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { getSimpleCommandPrefix, getFirstWordPrefix, bashToolHasPermission, readBashRuleVerdict } = await import('../../src/tools/shell/bashPermissions.ts')
-const { bashToolUseOptions } = await import('../../src/permissions/cards/bash/shellAskOptions.tsx')
+const { shellAskOptions } = await import('../../src/permissions/cards/bash/shellAskOptions.tsx')
 const { hasWildcards } = await import('../../src/permissions/rules/shellRuleMatching.ts')
 const { createEditRuleSuggestion } = await import('../../src/permissions/rules/permissionUpdate.ts')
 const { resolveShellCwd } = await import('../../src/platform/shell/shellExec.ts')
@@ -64,7 +64,7 @@ try {
     const first = command === 'rm -rf build' || command === 'rmdir empty' ? folderRule : `Bash(${command})`
     const after = first === folderRule ? await bashToolHasPermission({ command }, { ...getEmptyToolPermissionContext(), alwaysAllowRules: { localSettings: [folderRule] } }) : answer
     check(`${command}: the result offers ${first === folderRule ? 'no Bash rule but the Edit rule for the working folder, and with that rule saved only' : 'only'} the Bash rule for the command itself, to local settings`, JSON.stringify(offers(answer)) === JSON.stringify([`addRules allow ${first} to localSettings`]) && JSON.stringify(offers(after)) === JSON.stringify([`addRules allow Bash(${command}) to localSettings`]), { offers: offers(answer), after: offers(after) }, 'bashToolHasPermission in src/tools/shell/bashPermissions.ts must offer only the exact-command Bash rule (plus the Edit folder rule for rm and rmdir)')
-    const options = bashToolUseOptions({ suggestions: (answer as { suggestions?: never }).suggestions, onRejectFeedbackChange: () => {}, onAcceptFeedbackChange: () => {}, editablePrefix: seed(command), onEditablePrefixChange: () => {} })
+    const options = shellAskOptions({ suggestions: (answer as { suggestions?: never }).suggestions, onRejectFeedbackChange: () => {}, onAcceptFeedbackChange: () => {}, editablePrefix: seed(command), onEditablePrefixChange: () => {} })
     check(`${command}: the ask options carry no wildcard`, options.every(opt => !('initialValue' in opt && typeof opt.initialValue === 'string' && hasWildcards(opt.initialValue))), options.map(o => ({ value: o.value, initialValue: 'initialValue' in o ? o.initialValue : undefined })), 'bashToolUseOptions in src/permissions/cards/bash/shellAskOptions.tsx must not seed a wildcard into an option for this command')
   }
   for (const command of ['npm run', 'docker compose', 'gh pr', 'python3', 'python3 -c "import os"', './../run.sh arg', './bash -c "echo x"', 'env npm run test', 'bash -c "npm run test"', 'npm run test; npm run deploy', 'npm run test\nnpm run deploy', 'npm run $SCRIPT', 'npm run test*']) {

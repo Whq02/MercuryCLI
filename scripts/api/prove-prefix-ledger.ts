@@ -330,7 +330,7 @@ section('§1c the observer sees final transport overlays')
 {
   const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
   enableConfigs()
-  const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.js')
+  const { anthropicCallModel } = await import('../../src/models/roads/anthropic/streamCore.js')
   const { createUserMessage } = await import('../../src/engine/messages/messages.js')
   const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
   const savedNodeEnv = process.env.NODE_ENV
@@ -351,7 +351,7 @@ section('§1c the observer sees final transport overlays')
     for (const text of ['Final system A.', 'Final system B.']) {
       process.env.MERCURY_EXTRA_BODY = JSON.stringify({ system: [{ type: 'text', text }] })
       const replies: any[] = []
-      for await (const message of queryModelWithStreaming({
+      for await (const message of anthropicCallModel({
         messages: history as never,
         systemPrompt: ['This part is replaced by the explicit body override.'] as never,
         thinkingConfig: { type: 'adaptive' }, tools: [], signal: controller.signal,
@@ -380,7 +380,7 @@ section('§1d a block the API dropped stays on the wire as returned — the API 
 {
   const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
   enableConfigs()
-  const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.js')
+  const { anthropicCallModel } = await import('../../src/models/roads/anthropic/streamCore.js')
   const { createUserMessage } = await import('../../src/engine/messages/messages.js')
   const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
   const savedNodeEnv = process.env.NODE_ENV
@@ -405,7 +405,7 @@ section('§1d a block the API dropped stays on the wire as returned — the API 
     const verdicts: Array<ReturnType<typeof takePrefixVerdict>> = []
     const ask = async (): Promise<any[]> => {
       const replies: any[] = []
-      for await (const message of queryModelWithStreaming({
+      for await (const message of anthropicCallModel({
         messages: history as never,
         systemPrompt: ['You are Mercury.'] as never,
         thinkingConfig: { type: 'adaptive' }, tools: [], signal: controller.signal,
@@ -446,7 +446,7 @@ section('§1d a block the API dropped stays on the wire as returned — the API 
 
 section('capability mounts append guidance while the real request prefix holds')
 {
-  const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.js')
+  const { anthropicCallModel } = await import('../../src/models/roads/anthropic/streamCore.js')
   const { getSystemPrompt } = await import('../../src/engine/system-prompt/defaultSystemPrompt.js')
   const { clearSystemPromptSections } = await import('../../src/engine/system-prompt/systemPromptSections.js')
   const { createUserMessage } = await import('../../src/engine/messages/messages.js')
@@ -484,7 +484,7 @@ section('capability mounts append guidance while the real request prefix holds')
       if (name !== null) tools.push(fake(name))
       const systemPrompt = await getSystemPrompt(tools, model)
       const replies: any[] = []
-      for await (const message of queryModelWithStreaming({
+      for await (const message of anthropicCallModel({
         messages: history,
         systemPrompt: systemPrompt as never,
         thinkingConfig: { type: 'adaptive' }, tools, signal: controller.signal,

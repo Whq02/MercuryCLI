@@ -20,7 +20,7 @@ import {
   sqliteRowRewindNote,
   structuredTargetRefusal,
 } from './structuredTargets.js'
-import { DESCRIPTION, FILE_WRITE_TOOL_NAME, getWriteToolDescription } from '../kit/names/fileWrite.js'
+import { DESCRIPTION, WRITE_TOOL_NAME, getWriteToolDescription } from '../kit/names/fileWrite.js'
 import {
   getToolUseSummary,
   isResultTruncated,
@@ -33,14 +33,14 @@ import {
 import { writeFileCall } from './call/call.js'
 import { inputSchema, outputSchema, type Input, type Output } from './call/schema.js'
 
-export type { FileWriteToolInput, Output } from './call/schema.js'
+export type { FileWriteInput, Output } from './call/schema.js'
 
 function writeToolItself(): Tool {
-  return FileWriteTool
+  return WriteTool
 }
 
-export const FileWriteTool = buildTool({
-  name: FILE_WRITE_TOOL_NAME,
+export const WriteTool = buildTool({
+  name: WRITE_TOOL_NAME,
   strict: true,
   straightQuoteInputs: ['file_path'],
   maxResultSizeChars: 100_000,
@@ -77,7 +77,7 @@ export const FileWriteTool = buildTool({
   async checkPermissions(input: Input, context: ToolUseContext) {
     if (isRemotePath(input.file_path)) {
       const { remotePermission } = await import('../../platform/remote-files/bridge.js')
-      return remotePermission(FILE_WRITE_TOOL_NAME, input.file_path, null, input, context, 'edit')
+      return remotePermission(WRITE_TOOL_NAME, input.file_path, null, input, context, 'edit')
     }
     return checkWritePermissionForTool(
       writeToolItself(),
@@ -104,7 +104,7 @@ export const FileWriteTool = buildTool({
     const permissionContext = context.getAppState().toolPermissionContext
     if (structuredTarget !== null && structuredTarget.kind === 'sqlite-row' && structuredTarget.deleting) {
       const writeCheck = checkWritePermissionForTool(
-        { name: FILE_WRITE_TOOL_NAME, getPath: () => structuredTarget.hostPath },
+        { name: WRITE_TOOL_NAME, getPath: () => structuredTarget.hostPath },
         input,
         permissionContext,
       )

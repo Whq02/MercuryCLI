@@ -20,10 +20,10 @@ check('non-WAL query leaves listing, database and WAL bytes unchanged', JSON.str
 check('query grants neither database nor row coverage', !kit.context.readFileState.has(file) && !kit.context.readFileState.has(`${file}:work/1`), 'A SQL query recorded read state for the database or a row. A query must grant no read coverage; look at how sqliteQuery in src/tools/read/sqliteQuery.ts is called from the Read tool.')
 const addressedLarge = await read(`${file}:removable/1`)
 check('a large database still has an ordinary addressed row Read', addressedLarge.includes('"value": "remove"'), addressedLarge + ' | An addressed row Read of a large database failed, so look at the size limits ahead of the sqlite row read in src/tools/read.')
-const { FileWriteTool } = await import(`${kit.src}/tools/write/WriteTool.ts`)
+const { WriteTool } = await import(`${kit.src}/tools/write/WriteTool.ts`)
 const removal = { file_path: `${file}:removable/1#delete`, content: 'DELETE' }
-const allowed = await FileWriteTool.validateInput(removal, kit.context)
-const removed = allowed.result ? (await FileWriteTool.call(removal, kit.context)).data.type : allowed.message
+const allowed = await WriteTool.validateInput(removal, kit.context)
+const removed = allowed.result ? (await WriteTool.call(removal, kit.context)).data.type : allowed.message
 check('the large row can be explicitly deleted after that Read', removed === 'delete', String(removed) + ' | The explicit row delete was refused or failed after the row Read; the message above names the cause.')
 const late = await read(`${file}#read?offset=1499&limit=5&sql=WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<1505) SELECT x FROM n`)
 check('late pages have no thousand-row ceiling', late.includes('1500\t[1500]') && late.includes('1504\t[1504]') && late.includes('continues from there'), late + ' | Fix the paging in src/tools/read/readViewPage.ts (readViewWindow, readViewPage) so offset 1499 is honoured and the continuation line is written.')

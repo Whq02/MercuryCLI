@@ -259,7 +259,7 @@ console.log('entering a provider key has one home: /logins')
   const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.ts')
   const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.ts')
   const { loadTranscriptFile, transcriptLoadDegradation, _resetTranscriptLoadDegradationForTesting } = await import('../../src/sessions/transcripts/loading.ts')
-  const { restoreSessionStateFromLog } = await import('../../src/sessions/resume/sessionRestore.ts')
+  const { restoreSessionStateFromListing } = await import('../../src/sessions/resume/sessionRestore.ts')
   const sessionFile = join(proofHome, 'retired-posture-session.jsonl')
   let ord = 0
   const ctx = {
@@ -304,7 +304,7 @@ console.log('entering a provider key has one home: /logins')
   _resetTranscriptLoadDegradationForTesting()
   const loaded = await loadTranscriptFile(sessionFile)
   const deg = transcriptLoadDegradation()
-  await restoreSessionStateFromLog({ messages: [...loaded.messages.values()] as never, sessionId: '00000000-0000-4000-8000-000000000099' }, () => {})
+  await restoreSessionStateFromListing({ messages: [...loaded.messages.values()] as never, sessionId: '00000000-0000-4000-8000-000000000099' }, () => {})
   rmSync(sessionFile, { force: true })
   check(
     'a session file carrying a posture or retired flag in its records loads and restores cleanly without degradation or a refusal sentence',

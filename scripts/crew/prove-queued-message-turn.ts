@@ -12,7 +12,7 @@ process.env.MERCURY_DESKTOP_DRIVER = 'none'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 for (const k of ['MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOKENS', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'NODE_ENV', 'MERCURY_HOME']) delete process.env[k]
 
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
@@ -117,7 +117,7 @@ const textTurn = (text: string): unknown => {
 async function run(store: Store, agentId: string | undefined, script: unknown[][], onCall: (index: number) => void): Promise<{ yields: AnyMsg[]; calls: CallRecord[]; terminal: Record<string, unknown> }> {
   const rig = makeCtx(store, agentId)
   const { calls, callModel } = makeModel(script, onCall)
-  const gen = query({
+  const gen = turnDoor({
     messages: [createUserMessage({ content: 'write the spec' })] as never,
     systemPrompt: ['rig system prompt'] as never,
     userContext: {},

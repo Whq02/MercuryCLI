@@ -1,7 +1,7 @@
 import type { UUID } from 'crypto'
 import type { ApiUsage as Usage, ContentBlock, ContentBlockParam, ToolResultBlockParam } from './wire.js'
 import type { Progress } from '../../tools/kit/tool.js'
-import type { AssistantMessage, AssistantMessageError, Message, MessageOrigin, PartialCompactDirection, ProgressMessage, UserMessage } from './message.js'
+import type { AssistantMessage, AssistantMessageError, Message, MessageOrigin, PartialFoldDirection, ProgressMessage, UserMessage } from './message.js'
 import type { PermissionMode } from '../../permissions/rules/permissions.js'
 import { MESSAGE_STAMPER } from '../rows/project.js'
 import { NO_CONTENT_MESSAGE } from './noContentMessage.js'
@@ -28,7 +28,7 @@ export function createUserMessage(input: {
   imagePasteIds?: number[]
   sourceToolAssistantUUID?: UUID
   permissionMode?: PermissionMode
-  summarizeMetadata?: { messagesSummarized: number; userContext?: string; direction?: PartialCompactDirection }
+  summarizeMetadata?: { messagesSummarized: number; userContext?: string; direction?: PartialFoldDirection }
   origin?: MessageOrigin
   batchUuids?: string[]
   queued?: true

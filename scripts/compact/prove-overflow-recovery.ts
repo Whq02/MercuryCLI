@@ -18,7 +18,7 @@ for (const k of [
 }
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const { queryEvents } = await import('../../src/engine/turnDoor.ts')
+const { turnDoorEvents } = await import('../../src/engine/turnDoor.ts')
 const { legacyYieldsOf } = await import('../../src/engine/loop/project-legacy.ts')
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
@@ -27,11 +27,11 @@ const { enableConfigs } = await import('../../src/platform/config/globalConfig.t
 enableConfigs()
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createAssistantMessage, createAssistantAPIErrorMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
-const { createCompactBoundaryMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
+const { createFoldBoundaryMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
 const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/engine/requests/apiErrorRows.ts')
-const { AUTOCOMPACT_THRASH_MESSAGE } = await import('../../src/engine/compaction/autoFold.ts')
-const { ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD } = await import('../../src/engine/compaction/foldConversation.ts')
-const { MC_DIGEST_PREFIX, MC_CLEARED_PLACEHOLDER } = await import('../../src/engine/compaction/pruneDigest.ts')
+const { AUTO_FOLD_THRASH_MESSAGE } = await import('../../src/engine/compaction/autoFold.ts')
+const { ERROR_MESSAGE_POST_FOLD_OVER_THRESHOLD } = await import('../../src/engine/compaction/foldConversation.ts')
+const { PRUNE_DIGEST_PREFIX, PRUNE_CLEARED_PLACEHOLDER } = await import('../../src/engine/compaction/pruneDigest.ts')
 const { createContentReplacementState } = await import('../../src/engine/tool-dispatch/toolResultStorage.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 const { tokenCountWithEstimation } = await import('../../src/engine/context-window/contextTokenCount.ts')
@@ -117,7 +117,7 @@ function makeCompact(opts: { onForced?: CompactAnswer[]; onThreshold?: CompactAn
   return { calls, autocompact }
 }
 function rigFoldResult(): Record<string, unknown> {
-  const boundaryMarker = createCompactBoundaryMessage('overflow', 900)
+  const boundaryMarker = createFoldBoundaryMessage('overflow', 900)
   const summary = createUserMessage({ content: 'RIG SUMMARY of the folded history', isCompactSummary: true })
   return {
     wasCompacted: true,
@@ -210,7 +210,7 @@ async function run(opts: {
   const ctx = makeCtx({ interactive: opts.interactive, ledger: opts.ledger })
   const { calls, callModel } = makeModel(opts.script)
   const compact = opts.compact ?? makeCompact()
-  const gen = queryEvents({
+  const gen = turnDoorEvents({
     messages: opts.seed as never,
     systemPrompt: ['rig system prompt'] as never,
     userContext: {},
@@ -277,7 +277,7 @@ const toolResultsOf = (msgs: unknown[]): Array<{ id: string; content: unknown }>
   return out
 }
 const isPlaceholder = (content: unknown): boolean =>
-  typeof content === 'string' && (content === MC_CLEARED_PLACEHOLDER || content.startsWith(MC_DIGEST_PREFIX))
+  typeof content === 'string' && (content === PRUNE_CLEARED_PLACEHOLDER || content.startsWith(PRUNE_DIGEST_PREFIX))
 const lastText = (msgs: unknown[]): string => textOf(msgs[msgs.length - 1])
 const settledTransitions = (events: AnyEvent[]): unknown[] => events.filter(e => e.kind === 'turn_settled').map(e => e.transition)
 const noticeTexts = (yields: AnyMsg[]): string[] => yields.filter(y => y.type === 'system').map(y => String(y.content ?? ''))
@@ -336,7 +336,7 @@ section('R2 the retry overflows again → the typed refusal, never the raw sente
 section('R3 the emergency prune follows a summary that could not fit')
 {
   const gapSignal: Sig = { ...OPENAI_SIGNAL, actualTokens: 129_000, limitTokens: 128_000 }
-  const r = await run({ seed: seedWithReads(13, undefined, true), script: [[ping(), overflowError(gapSignal)], [ping(), asstText('pruned reply')]], ledger: true, compact: makeCompact({ onForced: [{ wasCompacted: false, consecutiveFailures: 1, refusal: ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD }] }) })
+  const r = await run({ seed: seedWithReads(13, undefined, true), script: [[ping(), overflowError(gapSignal)], [ping(), asstText('pruned reply')]], ledger: true, compact: makeCompact({ onForced: [{ wasCompacted: false, consecutiveFailures: 1, refusal: ERROR_MESSAGE_POST_FOLD_OVER_THRESHOLD }] }) })
   check('terminal completed', r.terminal.reason === 'completed', JSON.stringify(r.terminal))
   check('two model calls', r.calls.length === 2, String(r.calls.length))
   const attempted = r.compact.filter(c => c.forced !== undefined)
@@ -426,7 +426,7 @@ section('R8 the estimate side — the blocking preempt prunes or refuses typed')
   const seed = seedWithReads(13, 100_000, true)
   const count = tokenCountWithEstimation(seed as never)
   process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE = String(count - 800)
-  const r = await run({ seed, script: [[ping(), asstText('after the prune')]], ledger: true, compact: makeCompact({ onThreshold: [{ wasCompacted: false, consecutiveFailures: 1, refusal: ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD }] }) })
+  const r = await run({ seed, script: [[ping(), asstText('after the prune')]], ledger: true, compact: makeCompact({ onThreshold: [{ wasCompacted: false, consecutiveFailures: 1, refusal: ERROR_MESSAGE_POST_FOLD_OVER_THRESHOLD }] }) })
   delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
   check('the call proceeded after the prune (one call, terminal completed)', r.terminal.reason === 'completed' && r.calls.length === 1, `${JSON.stringify(r.terminal)} calls=${r.calls.length}`)
   check('the transition names the prune rung from the ESTIMATE', JSON.stringify(settledTransitions(r.events)).includes('"reason":"overflow_recovery","rung":"prune","source":"estimate"'), JSON.stringify(settledTransitions(r.events)))
@@ -484,7 +484,7 @@ section('R11 the episode law — a completed tool round opens a fresh episode; t
     compact: thrash,
   })
   check('the rapid-refill breaker never swallows the turn: the tripping fold lands, the retry is made and the reply settles — four calls, terminal completed', t.calls.length === 4 && t.terminal.reason === 'completed' && anyYieldCarries(t.yields, 'the reply beside the breaker notice'), `${t.calls.length} ${JSON.stringify(t.terminal)}`)
-  check('…the thrash words ride as a warning row with the pause, never as the reply', noticeTexts(t.yields).some(text => text.startsWith(AUTOCOMPACT_THRASH_MESSAGE.slice(0, 40)) && text.includes('paused for the rest of this run')) && !t.yields.some(y => y.type === 'assistant' && textOf(y).includes(AUTOCOMPACT_THRASH_MESSAGE.slice(0, 40))), JSON.stringify(noticeTexts(t.yields)))
+  check('…the thrash words ride as a warning row with the pause, never as the reply', noticeTexts(t.yields).some(text => text.startsWith(AUTO_FOLD_THRASH_MESSAGE.slice(0, 40)) && text.includes('paused for the rest of this run')) && !t.yields.some(y => y.type === 'assistant' && textOf(y).includes(AUTO_FOLD_THRASH_MESSAGE.slice(0, 40))), JSON.stringify(noticeTexts(t.yields)))
 }
 
 section('R12 the forced fold fails at the head → refusal names the reason, no call on a request known not to fit')

@@ -43,7 +43,7 @@ try {
   const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
   const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
   const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
-  const { query: startTurn } = await import('../../src/engine/turnDoor.ts')
+  const { turnDoor: startTurn } = await import('../../src/engine/turnDoor.ts')
 
   const MODEL = 'claude-sonnet-4-6'
   const posture = asSystemPrompt(['You are a fixture-driven session posture.'])

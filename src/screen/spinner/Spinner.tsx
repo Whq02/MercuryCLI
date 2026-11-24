@@ -28,7 +28,7 @@ import { SpinnerAnimationRow } from './SpinnerAnimationRow.js'
 import { liveCounterLine, liveCounterPhaseOf, liveCounterWords, turnFactsOfRefs } from './liveCounterWords.js'
 import { useOutputRate } from './useOutputRate.js'
 import type { LiveTurnFactsV1 } from '../../engine/connector/seatLive.js'
-import { TaskListV2 } from '../tasks/TaskList.js'
+import { TaskList } from '../tasks/TaskList.js'
 import type { SpinnerMode } from './spinnerMode.js'
 import { useFocusedMission } from '../tasks/useFocusedWork.js'
 import { startInterval, stopInterval } from '../../platform/async/timers.js'
@@ -271,7 +271,7 @@ export function SpinnerWithVerb({
   const nextTask = nextPendingTask(mission)
   let tail: React.ReactNode = null
   if (expandedView === 'tasks' && mission.length > 0) {
-    tail = <TaskListV2 tasks={mission} />
+    tail = <TaskList tasks={mission} />
   } else if (nextTask) {
     tail = (
       <Text dimColor wrap="truncate-end">

@@ -8,20 +8,20 @@ import type {
 import type { Terminal } from '../turn-entry/transitions.js'
 import type { RunEvent } from './events.js'
 
-export type LegacyQueryYield =
+export type LegacyTurnYield =
   | StreamEvent
   | RequestStartEvent
   | Message
   | TombstoneMessage
 
-export function legacyYieldsOf(event: RunEvent): LegacyQueryYield[] {
+export function legacyYieldsOf(event: RunEvent): LegacyTurnYield[] {
   switch (event.kind) {
     case 'turn_started':
       return [{ type: 'stream_request_start' }]
     case 'stream_delta':
-      return [event.raw as LegacyQueryYield]
+      return [event.raw as LegacyTurnYield]
     case 'assistant_settled':
-      return event.withheld ? [] : [event.message as LegacyQueryYield]
+      return event.withheld ? [] : [event.message as LegacyTurnYield]
     case 'assistant_retracted':
       return [
         {
@@ -30,16 +30,16 @@ export function legacyYieldsOf(event: RunEvent): LegacyQueryYield[] {
         },
       ]
     case 'compaction_boundary':
-      return event.messages as LegacyQueryYield[]
+      return event.messages as LegacyTurnYield[]
     case 'interruption':
-      return event.message === null ? [] : [event.message as LegacyQueryYield]
+      return event.message === null ? [] : [event.message as LegacyTurnYield]
     case 'withheld_surfaced':
     case 'tool_progress':
     case 'tool_settled':
     case 'attachment':
     case 'hook_message':
     case 'notice':
-      return [event.message as LegacyQueryYield]
+      return [event.message as LegacyTurnYield]
     case 'run_terminal':
     case 'run_started':
     case 'model_call_started':
@@ -54,7 +54,7 @@ export function legacyYieldsOf(event: RunEvent): LegacyQueryYield[] {
 
 export async function* projectLegacyYields(
   events: AsyncGenerator<RunEvent, Terminal>,
-): AsyncGenerator<LegacyQueryYield, Terminal> {
+): AsyncGenerator<LegacyTurnYield, Terminal> {
   let terminal: Terminal | undefined
   for await (const event of events) {
     if (event.kind === 'run_terminal') {

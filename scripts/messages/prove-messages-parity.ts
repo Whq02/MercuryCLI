@@ -153,8 +153,8 @@ perFixture('getToolResultIDs', m => M.getToolResultIDs(m));
 perFixture('getToolUseIDs', m => M.getToolUseIDs(M.normalizeMessages(m) as never));
 perFixture('countToolCalls', m => ({ Read: M.countToolCalls(m, 'Read'), Bash: M.countToolCalls(m, 'Bash') }));
 perFixture('hasSuccessfulToolCall', m => ({ Read: M.hasSuccessfulToolCall(m, 'Read'), Bash: M.hasSuccessfulToolCall(m, 'Bash') }));
-perFixture('findLastCompactBoundaryIndex', m => M.findLastCompactBoundaryIndex(m));
-perFixture('getMessagesAfterCompactBoundary', m => M.getMessagesAfterCompactBoundary(m));
+perFixture('findLastFoldBoundaryIndex', m => M.findLastFoldBoundaryIndex(m));
+perFixture('getMessagesAfterFoldBoundary', m => M.getMessagesAfterFoldBoundary(m));
 perFixture('hasUnresolvedHooks', m =>
   M.hasUnresolvedHooks(M.normalizeMessages(m) as never, 'toolu_0004' as never, 'tool.after' as never),
 );
@@ -186,7 +186,7 @@ perMessage('isToolUseRequestMessage', m => M.isToolUseRequestMessage(m));
 perMessage('isToolUseResultMessage', m => M.isToolUseResultMessage(m));
 perMessage('isNotEmptyMessage', m => M.isNotEmptyMessage(m));
 perMessage('isSyntheticMessage', m => M.isSyntheticMessage(m));
-perMessage('isCompactBoundaryMessage', m => M.isCompactBoundaryMessage(m));
+perMessage('isFoldBoundaryMessage', m => M.isFoldBoundaryMessage(m));
 perMessage('isThinkingMessage', m => M.isThinkingMessage(m));
 perMessage('isSystemLocalCommandMessage', m => M.isSystemLocalCommandMessage(m));
 perMessage('shouldShowUserMessage', m => M.shouldShowUserMessage(m));
@@ -423,13 +423,13 @@ add('createApiMetricsMessage', 'basic', () =>
 add('createCommandInputMessage', 'basic', () =>
   snapSafe(() => M.createCommandInputMessage('/foo' as never, 'args' as never)),
 );
-add('createCompactBoundaryMessage', 'basic', () =>
+add('createFoldBoundaryMessage', 'basic', () =>
   snapSafe(() =>
-    M.createCompactBoundaryMessage('manual', 1000, '00000000-0000-4000-8000-000000000021' as never),
+    M.createFoldBoundaryMessage('manual', 1000, '00000000-0000-4000-8000-000000000021' as never),
   ),
 );
-add('createMicrocompactBoundaryMessage', 'basic', () =>
-  M.createMicrocompactBoundaryMessage(
+add('createPruneBoundaryMessage', 'basic', () =>
+  M.createPruneBoundaryMessage(
     'auto',
     50_000,
     12_000,

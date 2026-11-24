@@ -14,8 +14,8 @@ process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${(refusingProvider.address()
 process.env.ANTHROPIC_API_KEY = 'fixture-token-count-key'
 delete process.env.MERCURY_HOME
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
-const { FileReadTool: Read } = await import('../../src/tools/read/ReadTool.ts')
-const { FileEditTool: Edit } = await import('../../src/tools/edit/EditTool.ts')
+const { ReadTool: Read } = await import('../../src/tools/read/ReadTool.ts')
+const { EditTool: Edit } = await import('../../src/tools/edit/EditTool.ts')
 const { GrepTool: Grep } = await import('../../src/tools/grep/GrepTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { toolErrorReason } = await import('../../src/tools/kit/toolErrorReason.ts')
@@ -84,7 +84,7 @@ try {
   try { await read({ file_path: huge, offset: 1, limit: 1, lossless: true }, ctx) } catch (e) { error = String(e) }
   check('one line beyond the existing budget is refused honestly', /exceeds.*budget.*single line cannot be split/i.test(error), error)
   check('over-budget lossless read grants no whole-line knowledge', (await Edit.validateInput({ file_path: huge, old_string: 'x'.repeat(600_000), new_string: 'replacement' }, ctx)).result === false)
-  const { FileWriteTool: Write } = await import('../../src/tools/write/WriteTool.ts')
+  const { WriteTool: Write } = await import('../../src/tools/write/WriteTool.ts')
   const { ChangeSetTool } = await import('../../src/tools/change-set/ChangeSetTool.ts')
   const siblingContext = (): any => { const c = context(); c.userModified = false; c.getAppState = () => ({ toolPermissionContext: { ...getEmptyToolPermissionContext(), additionalWorkingDirectories: new Map([[realHome, { source: 'session' }]]) } }); return c }
   const written = join(realHome, 'written.txt'); writeFileSync(written, line + '\nshort\n')

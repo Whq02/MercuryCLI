@@ -52,7 +52,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 
-const { FileReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
+const { ReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
 const { renderDirectoryTarget } = await import(`${SRC}/tools/read/readTarget.ts`)
 const { getEmptyToolPermissionContext } = await import(`${SRC}/tools/kit/tool.ts`)
 const permissions = await import(`${SRC}/permissions/rules/filesystem.ts`)
@@ -79,12 +79,12 @@ const settle = (): void => permissions.getResolvedWorkingDirPaths.clearCache()
 let serial = 0
 const read = async (folder: string, permission: Permission): Promise<{ text: string; names: string[]; header: string }> => {
   serial++
-  const result = await (FileReadTool as { call: Function }).call({ file_path: folder }, context(permission), null, { uuid: `00000000-0000-0000-0000-${String(serial).padStart(12, '0')}`, message: { id: `msg_listing_${serial}` } })
+  const result = await (ReadTool as { call: Function }).call({ file_path: folder }, context(permission), null, { uuid: `00000000-0000-0000-0000-${String(serial).padStart(12, '0')}`, message: { id: `msg_listing_${serial}` } })
   const text = String(result.data.file.content)
   const lines = text.split('\n')
   return { text, header: lines[0] ?? '', names: lines.slice(1).filter(line => !line.startsWith('… ')).map(line => line.replace(/\/$/, '')) }
 }
-const refusedByRead = async (folder: string, permission: Permission): Promise<boolean> => (await (FileReadTool as { checkPermissions: Function }).checkPermissions({ file_path: folder }, context(permission))).behavior === 'deny'
+const refusedByRead = async (folder: string, permission: Permission): Promise<boolean> => (await (ReadTool as { checkPermissions: Function }).checkPermissions({ file_path: folder }, context(permission))).behavior === 'deny'
 
 const SPELLINGS: Array<[string, string]> = [
   ['relative', 'Read(src/secret/**)'],
@@ -240,7 +240,7 @@ console.log('the same folders by reference: Inspect of mercury://file/<folder>, 
   }
   const byRead = async (folder: string, permission: Permission): Promise<string[]> => {
     serial++
-    const result = await (FileReadTool as { call: Function }).call({ file_path: `mercury://file/${folder}` }, context(permission), null, { uuid: `00000000-0000-0000-0000-${String(serial).padStart(12, '0')}`, message: { id: `msg_listing_${serial}` } })
+    const result = await (ReadTool as { call: Function }).call({ file_path: `mercury://file/${folder}` }, context(permission), null, { uuid: `00000000-0000-0000-0000-${String(serial).padStart(12, '0')}`, message: { id: `msg_listing_${serial}` } })
     return children(String(result.data.file.content))
   }
   const src = join(project, 'src')

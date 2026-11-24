@@ -133,7 +133,7 @@ const { getModelMaxOutputTokens } = await import('../../src/models/facts/capabil
 const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
 const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
 const { localCallModel } = await import('../../src/models/roads/local/localCallModel.ts')
-const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.ts')
+const { anthropicCallModel } = await import('../../src/models/roads/anthropic/streamCore.ts')
 await refreshLocalDiscovery({ force: true })
 const LOCAL_MODEL = `local/${LOCAL_MODEL_ID}`
 const CEILING = getModelMaxOutputTokens(CLOUD_MODEL).default
@@ -351,7 +351,7 @@ const runCloud = async (turns: ScriptedTurn[], effortValue = 'max'): Promise<{ r
   const fixture = await startFixtureApi(turns, { apiChecks: true })
   process.env.ANTHROPIC_BASE_URL = fixture.url
   try {
-    const r = await run(params => queryModelWithStreaming(params as never) as never, makeCtx(CLOUD_MODEL, effortValue, { type: 'adaptive' }))
+    const r = await run(params => anthropicCallModel(params as never) as never, makeCtx(CLOUD_MODEL, effortValue, { type: 'adaptive' }))
     return { r, bodies: fixture.messageRequests().map(q => q.body as Body), refusals: fixture.refusals.map(f => f.message) }
   } finally {
     delete process.env.ANTHROPIC_BASE_URL

@@ -6,8 +6,8 @@ import { check, cleanup, finish, loadEval, makeContext, section, setup, sleep, w
 const { work } = setup()
 const { evalKernelManager } = await loadEval()
 const { makeEvalBridgeServer } = await import('../../src/tools/engines/eval-kernels/evalBridge.js')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.js')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.js')
+const { WriteTool } = await import('../../src/tools/write/WriteTool.js')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.js')
 
 function failHint(ok: boolean, detail: string, fix: string): string {
   return ok ? detail : detail ? `${detail} — ${fix}` : fix
@@ -49,7 +49,7 @@ async function runCellWithBridge(args: {
   tools?: unknown[]
 }) {
   const abort = args.abort ?? new AbortController()
-  const context = await makeContext({ tools: args.tools ?? [FileWriteTool, FileReadTool], abortController: abort })
+  const context = await makeContext({ tools: args.tools ?? [WriteTool, ReadTool], abortController: abort })
   const cellAbort = new AbortController()
   const serveBridge = makeEvalBridgeServer({ context, canUseTool: args.canUseTool, cellAbort })
   try {

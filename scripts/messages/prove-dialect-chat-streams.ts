@@ -10,7 +10,7 @@ const { streamOllamaChat } = await import(`${root}/src/models/roads/local/ollama
 const { assembleZaiTurn } = await import(`${root}/src/models/roads/zai/zaiCodec.ts`)
 
 const CHAT_STREAM_FIX_HINT = 'the stream event shape or the settled turn changed: streamCompatChat in src/models/roads/openaicompat/compatChatClient.ts, streamGeminiContent in src/models/roads/gemini/geminiClient.ts, streamOllamaChat in src/models/roads/local/ollamaChatTransport.ts, assembleZaiTurn in src/models/roads/zai/zaiCodec.ts; compare the printed diff with the fixture and restore the byte-pinned output'
-const CHAT_CALL_FIX_HINT = 'compat tool fragments must emit the same blocks as Anthropic: compatChatCallModel in src/models/roads/openaicompat/compatChatCallModel.ts against queryModelWithStreaming in src/models/roads/anthropic/streamCore.ts'
+const CHAT_CALL_FIX_HINT = 'compat tool fragments must emit the same blocks as Anthropic: compatChatCallModel in src/models/roads/openaicompat/compatChatCallModel.ts against anthropicCallModel in src/models/roads/anthropic/streamCore.ts'
 const request = { model: 'fixture-model', messages: [{ role: 'user', content: 'fixture input' }] }
 const sse = (chunks: unknown[]) => new Response(chunks.map(chunk => `data: ${JSON.stringify(chunk)}\n\n`).join(''), { headers: { 'content-type': 'text/event-stream' } })
 const fetchOf = (response: Response) => (async (url: unknown) => {
@@ -95,7 +95,7 @@ console.log('PASS: local stream events and settled content are byte-pinned')
 
 const { z } = await import('zod/v4')
 const { compatChatCallModel } = await import(root + '/src/models/roads/openaicompat/compatChatCallModel.ts')
-const { queryModelWithStreaming } = await import(root + '/src/models/roads/anthropic/streamCore.ts')
+const { anthropicCallModel } = await import(root + '/src/models/roads/anthropic/streamCore.ts')
 const { getEmptyToolPermissionContext } = await import(root + '/src/tools/kit/tool.ts')
 const { createUserMessage } = await import(root + '/src/engine/messages/messages.ts')
 const { asSystemPrompt } = await import(root + '/src/engine/system-prompt/systemPromptType.ts')
@@ -138,7 +138,7 @@ try {
     requestUrl: () => 'https://fixture.invalid/chat/completions', wireModelId: (id: string) => id, buildExtras: () => ({}),
     streamTransport: (options: any) => ({ events: streamCompatChat({ ...options, fetchImpl: fetchOf(sse(chatChunks.slice(2))) }) }),
   }, params as never))
-  const anthropic = await snapshot(queryModelWithStreaming({ ...params, options: { ...params.options, model: 'claude-sonnet-5', fetchOverride: async () => new Response(nativeFrames.map(frame => 'event: ' + frame.type + '\ndata: ' + JSON.stringify(frame) + '\n\n').join(''), { headers: { 'content-type': 'text/event-stream' } }) } } as never))
+  const anthropic = await snapshot(anthropicCallModel({ ...params, options: { ...params.options, model: 'claude-sonnet-5', fetchOverride: async () => new Response(nativeFrames.map(frame => 'event: ' + frame.type + '\ndata: ' + JSON.stringify(frame) + '\n\n').join(''), { headers: { 'content-type': 'text/event-stream' } }) } } as never))
   assert.deepEqual(compat.frames, toolBlocks, `compat content block frames differ from the Anthropic ones; ${CHAT_CALL_FIX_HINT}`)
   assert.deepEqual(anthropic.frames, toolBlocks, `Anthropic content block frames differ from the fixture; ${CHAT_CALL_FIX_HINT}`)
   assert.deepEqual(compat.tools, expectedTurn.toolUses.map(tool => ({ type: 'tool_use', ...tool })), `compat settled tool call differs from the fixture; ${CHAT_CALL_FIX_HINT}`)

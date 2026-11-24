@@ -3,9 +3,9 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { FILE_READ_TOOL_NAME } from '../../src/tools/kit/names/fileRead.js'
-import { FILE_EDIT_TOOL_NAME } from '../../src/tools/kit/names/fileEdit.js'
-import { FILE_WRITE_TOOL_NAME } from '../../src/tools/kit/names/fileWrite.js'
+import { READ_TOOL_NAME } from '../../src/tools/kit/names/fileRead.js'
+import { EDIT_TOOL_NAME } from '../../src/tools/kit/names/fileEdit.js'
+import { WRITE_TOOL_NAME } from '../../src/tools/kit/names/fileWrite.js'
 import { NOTEBOOK_EDIT_TOOL_NAME } from '../../src/tools/notebook-edit/constants.js'
 
 let failures = 0
@@ -29,9 +29,9 @@ function extractTarget(toolName: string, input: Input): string | undefined {
     } else if (typeof input?.command === 'string') {
       target = clamp(String(input.command))
     } else if (
-      (toolName === FILE_READ_TOOL_NAME ||
-        toolName === FILE_EDIT_TOOL_NAME ||
-        toolName === FILE_WRITE_TOOL_NAME) &&
+      (toolName === READ_TOOL_NAME ||
+        toolName === EDIT_TOOL_NAME ||
+        toolName === WRITE_TOOL_NAME) &&
       typeof input?.file_path === 'string'
     ) {
       target = clamp(String(input.file_path))
@@ -68,12 +68,12 @@ section('regression: WebFetch.url → hostname, *.command → first line ≤60')
 
 section('new: file tools → file_path; notebook → notebook_path')
 {
-  check('Read → file_path', extractTarget(FILE_READ_TOOL_NAME, { file_path: '/etc/passwd' }) === '/etc/passwd')
-  check('Edit → file_path', extractTarget(FILE_EDIT_TOOL_NAME, { file_path: '/a/b.ts', old_string: 'x', new_string: 'y' }) === '/a/b.ts')
-  check('Write → file_path', extractTarget(FILE_WRITE_TOOL_NAME, { file_path: '/a/b.ts', content: 'data' }) === '/a/b.ts')
+  check('Read → file_path', extractTarget(READ_TOOL_NAME, { file_path: '/etc/passwd' }) === '/etc/passwd')
+  check('Edit → file_path', extractTarget(EDIT_TOOL_NAME, { file_path: '/a/b.ts', old_string: 'x', new_string: 'y' }) === '/a/b.ts')
+  check('Write → file_path', extractTarget(WRITE_TOOL_NAME, { file_path: '/a/b.ts', content: 'data' }) === '/a/b.ts')
   check('NotebookEdit → notebook_path', extractTarget(NOTEBOOK_EDIT_TOOL_NAME, { notebook_path: '/n.ipynb', new_source: 's' }) === '/n.ipynb')
   const longPath = '/' + 'd/'.repeat(80) + 'f.ts'
-  check('a very long file_path is capped at 60', extractTarget(FILE_WRITE_TOOL_NAME, { file_path: longPath })?.length === 60)
+  check('a very long file_path is capped at 60', extractTarget(WRITE_TOOL_NAME, { file_path: longPath })?.length === 60)
 }
 
 section('new: any other risky tool → first SAFE scalar arg (capped, never a secret)')
@@ -89,7 +89,7 @@ section('new: any other risky tool → first SAFE scalar arg (capped, never a se
 section('best-effort: a malformed arg never throws (returns no target)')
 {
   check('WebFetch with a non-URL url → caught, no target', extractTarget('WebFetch', { url: 'not a url' }) === undefined)
-  check('empty-string file_path → collapses to undefined (target || undefined)', extractTarget(FILE_READ_TOOL_NAME, { file_path: '' }) === undefined)
+  check('empty-string file_path → collapses to undefined (target || undefined)', extractTarget(READ_TOOL_NAME, { file_path: '' }) === undefined)
 }
 
 section('dist-grep: the kill-target branch anchors are present in dist/mercury.mjs')

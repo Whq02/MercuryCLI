@@ -11,7 +11,7 @@ delete process.env.MERCURY_EDIT_HUNKS
 delete process.env.MERCURY_CHANGE_RECEIPTS
 
 const { preserveQuoteStyle, normalizeQuotes, findActualString, LEFT_DOUBLE_CURLY_QUOTE, RIGHT_DOUBLE_CURLY_QUOTE, LEFT_SINGLE_CURLY_QUOTE, RIGHT_SINGLE_CURLY_QUOTE } = await import('../../src/tools/edit/call/editMatching.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
@@ -102,11 +102,11 @@ section('R. through the real tool: a whole-file edit on a mixed file')
   const typed = normalizeQuotes(MIXED)
   check('R0 the typed whole file matches the file only through quote normalisation', findActualString(MIXED, typed) === MIXED && !MIXED.includes(typed))
   const input = { file_path: file, old_string: typed, new_string: typed.replace('const before = 1', 'const before = 2') }
-  const validation = await (FileEditTool as { validateInput: Function }).validateInput(input, ctx)
+  const validation = await (EditTool as { validateInput: Function }).validateInput(input, ctx)
   check('R1 the edit validates', validation.result !== false, String(validation.message ?? ''))
   let error = ''
   try {
-    await (FileEditTool as { call: Function }).call(input, ctx, null, { uuid: '00000000-0000-0000-0000-000000000004', message: { id: 'msg_fixture' } })
+    await (EditTool as { call: Function }).call(input, ctx, null, { uuid: '00000000-0000-0000-0000-000000000004', message: { id: 'msg_fixture' } })
   } catch (err) {
     error = err instanceof Error ? err.message : String(err)
   }
@@ -134,7 +134,7 @@ section('S. through the real tool: the file\'s language decides — prose keeps 
     ctx.readFileState.set(file, { content, timestamp: Date.now() + 60_000 })
     let error = ''
     try {
-      await (FileEditTool as { call: Function }).call({ file_path: file, old_string: oldString, new_string: newString }, ctx, null, { uuid: '00000000-0000-0000-0000-000000000005', message: { id: 'msg_fixture' } })
+      await (EditTool as { call: Function }).call({ file_path: file, old_string: oldString, new_string: newString }, ctx, null, { uuid: '00000000-0000-0000-0000-000000000005', message: { id: 'msg_fixture' } })
     } catch (err) {
       error = err instanceof Error ? err.message : String(err)
     }

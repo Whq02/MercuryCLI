@@ -27,7 +27,7 @@ import { type ToolJSXState, useChatDialogPaints, useChatDialogs, useChatDialogsV
 import { useChatDraft } from './useChatDraft.js';
 import { useChatScroll, useChatScrollFollow, useChatScrollPin } from './useChatScroll.js';
 import { useChatSearch } from './useChatSearch.js';
-import { useChatSelector, useChatSelectorView } from './useChatSelector.js';
+import { useChatRewindPicker, useChatSelectorView } from './useChatSelector.js';
 import { useChatConversation, useChatSession } from './useChatSession.js';
 import { useChatSeatClock, useChatStatusStrip, useChatTurnBoundary, useChatTurnEnd, useChatTurnSignals } from './useChatStatus.js';
 import { useChatReceipts, useChatSubmit, useChatSubmitTools } from './useChatSubmit.js';
@@ -139,7 +139,7 @@ export function Chat({ commands: initialCommands, initialTools, debug = false, d
   const { crashResumeStaged, setCrashResumeStaged, crashNoticeLatchedRef } = useChatCrashResume();
   const { toolUseConfirmQueue, resolvedConsentCount, resolveHeadPermission, setToolPermissionContext, elicitationQueue, respondToElicitation, dismissElicitationWaiting } = useChatAsks({ setAppState, addNotification, chatStore });
   const { toolJSX, setToolJSX, isExiting, showExitFlow, setShowExitFlow, exitCommandJsx, showCostThreshold, setShowCostThreshold, showBashesDialog, setShowBashesDialog, handleExit } = useChatDialogs({ store, addNotification });
-  const { showMessageSelector, setShowMessageSelector, openMessageSelector, messageSelectorPreselect, setMessageSelectorPreselect } = useChatSelector();
+  const { showMessageSelector, setShowMessageSelector, openMessageSelector, messageSelectorPreselect, setMessageSelectorPreselect } = useChatRewindPicker();
   const { scrollRef, scrollRestoreRef, modalScrollRef, lastUserScrollAtRef, repinToBottom, noteUserScroll } = useChatScrollPin();
   const { isPromptInputActive, setInputValue, setInputMode, setPastedContents, authWallHold, insertTextRef, vimMode, setVimMode, isSearchingHistory, setIsSearchingHistory, helpOpen, setHelpOpen } = useChatDraft({ messages, fullscreen, repinToBottom, lastUserScrollAtRef });
 

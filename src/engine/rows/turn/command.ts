@@ -1,5 +1,5 @@
 import { LOCAL_COMMAND_STDERR_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../../message-shapes/messageTags.js'
-import type { CompactMetadata, Message } from '../../message-shapes/message.js'
+import type { FoldMetadata, Message } from '../../message-shapes/message.js'
 import type { ContentBlockParam } from '../../message-shapes/wire.js'
 import { turnCutOf } from '../../message-shapes/turnCut.js'
 import type { processUserInput } from '../../user-input/processUserInput.js'
@@ -53,7 +53,7 @@ export async function* commandTurnRows(this: ConversationState, needs: CommandNe
         yield commandOutputRow(scope, commandOutputTextOf(content), typeof prompt === 'string' ? prompt.split(/\s+/)[0] : undefined)
       }
     } else if (message.type === 'system' && (message as { subtype?: string }).subtype === 'compact_boundary') {
-      const meta = (message as { compactMetadata?: CompactMetadata }).compactMetadata
+      const meta = (message as { compactMetadata?: FoldMetadata }).compactMetadata
       yield compactionEndedRow(scope, { trigger: meta?.trigger ?? 'manual', tokensBefore: meta?.preTokens })
     }
   }

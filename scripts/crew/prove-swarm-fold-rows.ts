@@ -12,7 +12,7 @@ process.env.MERCURY_TURN_RECEIPT = '1'
 
 const { composeTranscript } = await import('../../src/screen/messages/Messages.tsx')
 const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
-const { createCompactBoundaryMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
+const { createFoldBoundaryMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
 const { normalizeMessages } = await import('../../src/engine/message-shapes/normalize.ts')
 const { foldedWorkOf } = await import('../../src/engine/compaction/foldConversation.ts')
 const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
@@ -41,7 +41,7 @@ const chat = (name: string, who: string, content: string, extra: Record<string, 
 })
 const prompt = (name: string, text: string): Row => keep(name, createUserMessage({ content: text }) as Row)
 const reply = (name: string, text: string): Row => { const row = createAssistantMessage({ content: text }); row.message.stop_reason = 'end_turn'; return keep(name, row as Row) }
-const boundaryOf = (name: string): Row => keep(name, createCompactBoundaryMessage('manual', 1000) as unknown as Row)
+const boundaryOf = (name: string): Row => keep(name, createFoldBoundaryMessage('manual', 1000) as unknown as Row)
 const liveSummary = (name: string): Row => keep(name, createUserMessage({ content: 'The summary.', isCompactSummary: true }) as Row)
 const foldSummary = (name: string): Row => keep(name, createUserMessage({ content: 'The summary.', isCompactSummary: true, isVisibleInTranscriptOnly: true }) as Row)
 const named = (rows: ReadonlyArray<{ uuid: string; type?: string }>): string[] => rows.filter(row => row.type !== 'turn_receipt').map(row => names.get(row.uuid) ?? row.uuid.slice(0, 8))

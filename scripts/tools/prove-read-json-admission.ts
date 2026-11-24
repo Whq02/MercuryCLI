@@ -30,7 +30,7 @@ if (!given) {
   const processes = await import('node:child_process')
   mock.module('node:child_process', () => ({ ...processes, fork: () => { started = true; throw new Error('engine started before admission yielded') } }))
   const src = process.env.PROVE_SRC ?? resolve(dirname(script), '../../src')
-  const { FileReadTool } = await import(`${src}/tools/read/ReadTool.ts`)
+  const { ReadTool } = await import(`${src}/tools/read/ReadTool.ts`)
   const { getEmptyToolPermissionContext } = await import(`${src}/tools/kit/tool.ts`)
   const { createFileStateCacheWithSizeLimit } = await import(`${src}/platform/files/fileStateCache.ts`)
   const { setCwdState, setOriginalCwd } = await import(`${src}/boot/process-state/processState.ts`)
@@ -38,7 +38,7 @@ if (!given) {
   const context = { messages: [], readFileState: createFileStateCacheWithSizeLimit(100), abortController: controller, getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) }
   let result = ''
   armed = true
-  try { await FileReadTool.call({ file_path: `${source}#read?q=.n` }, context) } catch (error) { result = String(error) }
+  try { await ReadTool.call({ file_path: `${source}#read?q=.n` }, context) } catch (error) { result = String(error) }
   let failed = 0
   const check = (name: string, ok: boolean, hint = '') => { if (!ok) failed++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` ${result}${hint ? ` | ${hint}` : ''}`}`) }
   check('the fixture schedules cancellation during source admission', queued, 'the mocked node:fs read never ran during admission; check that admitted() in src/tools/read/readJson.ts still reads the unknown file through fs.read or fs.readSync before any engine starts')

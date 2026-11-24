@@ -25,9 +25,9 @@ delete process.env.NODE_ENV
 const { fileGeneration, seenLinesOf, _resetSeenLinesForTesting } = await import('../../src/tools/engines/change-transaction/seenLines.ts')
 const { checkAnchor, mintRangeAnchor } = await import('../../src/tools/engines/change-transaction/snapshotAnchor.ts')
 const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
 const { READ_THROUGH_MARGIN, planReadThrough } = await import('../../src/tools/edit/readThrough.ts')
-const { FileReadTool, MaxFileReadTokenExceededError } = await import('../../src/tools/read/ReadTool.ts')
+const { ReadTool, MaxFileReadTokenExceededError } = await import('../../src/tools/read/ReadTool.ts')
 const { DEFAULT_MAX_OUTPUT_TOKENS } = await import('../../src/tools/read/call/fileReadLimits.ts')
 const { MAX_LINES_TO_READ } = await import('../../src/tools/kit/names/fileRead.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
@@ -68,7 +68,7 @@ function primeRead(ctx: Ctx, path: string, window: { offset: number; limit: numb
 }
 type Verdict = { ok: true } | { ok: false; message: string }
 async function validate(input: Record<string, unknown>, ctx: Ctx): Promise<Verdict> {
-  const verdict = await (FileEditTool as { validateInput: Function }).validateInput(input, ctx)
+  const verdict = await (EditTool as { validateInput: Function }).validateInput(input, ctx)
   return verdict.result === false ? { ok: false, message: String(verdict.message) } : { ok: true }
 }
 const PARENT = { uuid: '00000000-0000-0000-0000-000000000003', message: { id: 'msg_fixture' } }
@@ -76,7 +76,7 @@ async function edit(input: Record<string, unknown>, ctx: Ctx): Promise<Verdict> 
   const verdict = await validate(input, ctx)
   if (!verdict.ok) return verdict
   try {
-    await (FileEditTool as { call: Function }).call(input, ctx, null, PARENT)
+    await (EditTool as { call: Function }).call(input, ctx, null, PARENT)
     return { ok: true }
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : String(err) }
@@ -86,8 +86,8 @@ async function editResult(input: Record<string, unknown>, ctx: Ctx): Promise<{ o
   const verdict = await validate(input, ctx)
   if (!verdict.ok) return verdict
   try {
-    const out = await (FileEditTool as { call: Function }).call(input, ctx, null, { uuid: '00000000-0000-0000-0000-000000000003', message: { id: 'msg_fixture' } })
-    const block = (FileEditTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(out.data, 'toolu_fixture')
+    const out = await (EditTool as { call: Function }).call(input, ctx, null, { uuid: '00000000-0000-0000-0000-000000000003', message: { id: 'msg_fixture' } })
+    const block = (EditTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(out.data, 'toolu_fixture')
     return { ok: true, text: typeof block.content === 'string' ? block.content : '' }
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : String(err) }
@@ -97,8 +97,8 @@ const textOf = (v: { ok: boolean; text?: string; message?: string }): string => 
 async function readViaTool(input: Record<string, unknown>, ctx: Ctx, own: boolean): Promise<{ data?: unknown; error?: unknown }> {
   try {
     const result = own
-      ? await (FileReadTool as { call: Function }).call(input, ctx, null, PARENT)
-      : await (FileReadTool as { call: Function }).call(input, ctx)
+      ? await (ReadTool as { call: Function }).call(input, ctx, null, PARENT)
+      : await (ReadTool as { call: Function }).call(input, ctx)
     return { data: result.data }
   } catch (err) {
     return { error: err }
@@ -242,7 +242,7 @@ section('R. a Read over the token cap answers its first window and records it')
   const read = await readViaTool({ file_path: wide }, ctx, true)
   const data = read.data as { type?: string; file?: { content?: string; numLines?: number; startLine?: number; overCap?: { tokens: number; maxTokens: number } } } | undefined
   check('R1 the whole-file Read answers a text result carrying the over-cap note, not an error', read.error === undefined && data?.type === 'text' && data.file?.overCap !== undefined && data.file.overCap.tokens > data.file.overCap.maxTokens, String(read.error ?? JSON.stringify(data).slice(0, 200)))
-  const block = (FileReadTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(read.data, 'toolu_wide')
+  const block = (ReadTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(read.data, 'toolu_wide')
   const text = typeof block.content === 'string' ? block.content : ''
   const carried = numberedLines(text)
   check('R2 the result carries the first window from line 1, contiguous', carried.length > 0 && carried[0] === 1 && carried.every((n, i) => n === i + 1) && data?.file?.startLine === 1 && data.file.numLines === carried.length, `carried ${carried.length}`)

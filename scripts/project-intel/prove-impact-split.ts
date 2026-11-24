@@ -107,13 +107,13 @@ async function main(): Promise<void> {
   await lspManager.waitForInitialization()
   check('the LSP tool is mounted for the steering leg', lspManager.isLspToolMounted(), `${JSON.stringify(lspManager.getInitializationStatus())} — initializeLspServerManager in src/integrations/lsp/serverManagerLifecycle.ts did not mount the LSP tool`)
   const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
-  const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+  const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
   const grepOn = await GrepTool.prompt({ tools: [{ name: 'Grep' }, { name: 'LspRead' }, { name: 'AstSearch' }] } as never)
-  const editOn = await FileEditTool.prompt({ tools: [{ name: 'Edit' }, { name: 'LspRename' }, { name: 'AstEdit' }] } as never)
+  const editOn = await EditTool.prompt({ tools: [{ name: 'Edit' }, { name: 'LspRename' }, { name: 'AstEdit' }] } as never)
   check('Grep and Edit name no other tool with the LSP mounted and the shape owners offered', !/\b(Lsp\w+|AstSearch|AstEdit|Structure|ToolSearch)\b/.test(grepOn) && !/\b(Lsp\w+|AstSearch|AstEdit|Structure|ToolSearch)\b/.test(editOn), `${grepOn} — the prompt text in src/tools/grep/prompt.ts or src/tools/edit/prompt.ts must not name another tool`)
   process.env.MERCURY_LSP = '0'
   process.env.MERCURY_STRUCTURE = '0'
-  check('…and their text is byte-identical with every owner off', await GrepTool.prompt({ tools: [{ name: 'Grep' }] } as never) === grepOn && await FileEditTool.prompt({ tools: [{ name: 'Edit' }] } as never) === editOn, 'the Grep or Edit prompt (src/tools/grep/prompt.ts, src/tools/edit/prompt.ts) changes with MERCURY_LSP/MERCURY_STRUCTURE; make its text independent of which owners are on')
+  check('…and their text is byte-identical with every owner off', await GrepTool.prompt({ tools: [{ name: 'Grep' }] } as never) === grepOn && await EditTool.prompt({ tools: [{ name: 'Edit' }] } as never) === editOn, 'the Grep or Edit prompt (src/tools/grep/prompt.ts, src/tools/edit/prompt.ts) changes with MERCURY_LSP/MERCURY_STRUCTURE; make its text independent of which owners are on')
   delete process.env.MERCURY_LSP
   delete process.env.MERCURY_STRUCTURE
   process.env.MERCURY_PROJECT_INTEL = '0'

@@ -16,7 +16,7 @@ for (const k of ['MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOK
   delete process.env[k]
 }
 
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
@@ -161,7 +161,7 @@ async function runScript(rounds: Step[][], results: ResultScript, prompt = 'plea
     for (const m of turn) yield m as never
   }
   const rig = makeCtx()
-  const gen = query({
+  const gen = turnDoor({
     messages: [createUserMessage({ content: prompt })] as never,
     systemPrompt: ['rig system prompt'] as never,
     userContext: {},
@@ -343,7 +343,7 @@ section('J — a tool that is not concurrency-safe takes the same law: two ident
 section('refusals — the three stub readers (compact, microcompact, queryHelpers) and the 128-entry ledger cap')
 {
   const { restorePreservedReads } = await import('../../src/engine/compaction/foldConversation.ts')
-  const { projectTimeBasedMicrocompact } = await import('../../src/engine/compaction/pruneToolResults.ts')
+  const { projectTimeBasedPrune } = await import('../../src/engine/compaction/pruneToolResults.ts')
   const { isClearedOrDigested } = await import('../../src/engine/compaction/pruneDigest.ts')
   const { extractReadFilesFromMessages } = await import('../../src/engine/turn-entry/filesReadInMessages.ts')
   const { repeatedResultPointer } = await import('../../src/engine/tool-dispatch/loopGuard.ts')
@@ -361,7 +361,7 @@ section('refusals — the three stub readers (compact, microcompact, queryHelper
   for (let i = 0; i < 6; i++) {
     mcHistory.push(readUse(`tu_mc_tail_${i}`, `/work/other-${i}.ts`), readRes(`tu_mc_tail_${i}`, big))
   }
-  const pruned = projectTimeBasedMicrocompact(mcHistory as never, 'sdk', { pressure: true, supersededOnly: true })
+  const pruned = projectTimeBasedPrune(mcHistory as never, 'sdk', { pressure: true, supersededOnly: true })
   const firstAfterPrune = pruned?.messages.flatMap(m => (m.type === 'user' && Array.isArray(m.message.content) ? m.message.content : [])).find((b: { type?: string; tool_use_id?: string }) => b.type === 'tool_result' && b.tool_use_id === 'tu_mc_1') as { content?: unknown } | undefined
   check('microCompact: a pointer never supersedes the earlier whole Read, so the reference is not pruned out from under the pointer', pruned === null || !isClearedOrDigested(firstAfterPrune?.content as never), String(firstAfterPrune?.content).slice(0, 120))
   const boundary = createUserMessage({ content: 'cap probe turn' })

@@ -21,7 +21,7 @@ else {
   const scripts: string[] = []
   const remoteRun = connection.remoteRun
   mock.module('../../src/platform/remote-files/connection.js', () => ({ ...connection, remoteRun: async (authority: unknown, request: { script: string }) => { scripts.push(request.script); return remoteRun(authority as never, request) } }))
-  const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+  const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
   const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
   const { setCwdState, setOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
@@ -29,12 +29,12 @@ else {
   const context = (denies: string[] = []) => ({ messages: [], abortController: new AbortController(), readFileState: createFileStateCacheWithSizeLimit(100), getAppState: () => ({ toolPermissionContext: { ...getEmptyToolPermissionContext(), alwaysDenyRules: { session: denies } } }) })
   const read = async (path: string, ctx = context()) => {
     try {
-      const valid = await FileReadTool.validateInput!({ file_path: path }, ctx as never)
+      const valid = await ReadTool.validateInput!({ file_path: path }, ctx as never)
       if (!valid.result) return { text: valid.message, ctx }
-      const permission = await FileReadTool.checkPermissions!({ file_path: path }, ctx as never)
+      const permission = await ReadTool.checkPermissions!({ file_path: path }, ctx as never)
       if (permission.behavior === 'deny') return { text: permission.message, ctx }
-      const result = await FileReadTool.call({ file_path: path }, ctx as never)
-      return { text: String(FileReadTool.mapToolResultToToolResultBlockParam(result.data, 'remote-query').content), ctx }
+      const result = await ReadTool.call({ file_path: path }, ctx as never)
+      return { text: String(ReadTool.mapToolResultToToolResultBlockParam(result.data, 'remote-query').content), ctx }
     } catch (error) { return { text: String(error), ctx } }
   }
   try {

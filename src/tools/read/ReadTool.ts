@@ -10,7 +10,7 @@ import { checkReadPermissionForTool } from '../../permissions/rules/filesystem.j
 import { windowsPathNeedsPermission } from '../../permissions/rules/windowsPath.js'
 import { matchWildcardPattern } from '../../permissions/rules/shellRuleMatching.js'
 import { resolveModelCapabilities } from '../../models/facts/capabilities.js'
-import { DESCRIPTION, FILE_READ_TOOL_NAME, LINE_FORMAT_INSTRUCTION, renderPromptTemplate } from '../kit/names/fileRead.js'
+import { DESCRIPTION, READ_TOOL_NAME, LINE_FORMAT_INSTRUCTION, renderPromptTemplate } from '../kit/names/fileRead.js'
 import { parseRichFormatTarget } from './readRichFormats.js'
 import { parseReadQueryTarget } from './readQueryTarget.js'
 import { classifyReadTarget, readTargetPromptLines, readTargetsEnabled } from './readTarget.js'
@@ -37,8 +37,8 @@ import { mapToolResultToToolResultBlockParam } from './call/resultBlock.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
 
-export const FileReadTool = buildTool({
-  name: FILE_READ_TOOL_NAME,
+export const ReadTool = buildTool({
+  name: READ_TOOL_NAME,
   strict: true,
   isReadOnly: () => true,
   isConcurrencySafe: () => true,
@@ -87,7 +87,7 @@ export const FileReadTool = buildTool({
     if (isRemotePath(input.file_path)) {
       const { remotePermission } = await import('../../platform/remote-files/bridge.js')
       return remotePermission(
-        FILE_READ_TOOL_NAME,
+        READ_TOOL_NAME,
         input.file_path,
         remoteAlso(input.file_path.trim()),
         input,
@@ -98,7 +98,7 @@ export const FileReadTool = buildTool({
     const permissionContext = context.getAppState().toolPermissionContext
     if (readTargetsEnabled() && classifyReadTarget(input.file_path).kind === 'resource') {
       const decision = await referenceReadDecision(
-        FILE_READ_TOOL_NAME,
+        READ_TOOL_NAME,
         input.file_path.trim(),
         input,
         permissionContext,
@@ -164,6 +164,6 @@ export const FileReadTool = buildTool({
 })
 
 function readToolItself(): Tool {
-  return FileReadTool
+  return ReadTool
 }
 

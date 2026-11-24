@@ -48,7 +48,7 @@ saveCurrentProjectConfig(c => ({ ...c, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(c => ({ ...c, prStatusFooterEnabled: false }))
 const caps = await import('../../src/models/facts/capabilities.ts')
 const { focusedOptionSupports1m } = await import('../../src/models/catalogue/modelOptions.ts')
-const { getAutoCompactThreshold } = await import('../../src/engine/compaction/autoFold.ts')
+const { getAutoFoldThreshold } = await import('../../src/engine/compaction/autoFold.ts')
 const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
 const { recordSignIn } = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
 recordSignIn('anthropic', 'api-key')
@@ -91,18 +91,18 @@ section("§1 the vendor's table: which first-party ids read 1M with no suffix (p
 
 section('§2 what a session on one of these rows does with it: the fold point and the request')
 {
-  const plain = getAutoCompactThreshold('claude-fable-5')
-  const suffixed = getAutoCompactThreshold('claude-fable-5[1m]')
-  console.log(`  [record] auto-compact threshold: claude-fable-5 ${plain} · claude-fable-5[1m] ${suffixed} · claude-fable-5-1 ${getAutoCompactThreshold('claude-fable-5-1')} · claude-opus-4-6 ${getAutoCompactThreshold('claude-opus-4-6')}`)
+  const plain = getAutoFoldThreshold('claude-fable-5')
+  const suffixed = getAutoFoldThreshold('claude-fable-5[1m]')
+  console.log(`  [record] auto-compact threshold: claude-fable-5 ${plain} · claude-fable-5[1m] ${suffixed} · claude-fable-5-1 ${getAutoFoldThreshold('claude-fable-5-1')} · claude-opus-4-6 ${getAutoFoldThreshold('claude-opus-4-6')}`)
   check('a session on Fable 5 folds where its [1m] spelling folds, far past 200k', plain === suffixed && plain > 900_000, `${plain} against ${suffixed}`)
-  check('a session on Mythos 5 folds at the same point', getAutoCompactThreshold('claude-mythos-5') === plain, String(getAutoCompactThreshold('claude-mythos-5')))
+  check('a session on Mythos 5 folds at the same point', getAutoFoldThreshold('claude-mythos-5') === plain, String(getAutoFoldThreshold('claude-mythos-5')))
 
   const betas = caps.getAllModelBetas('claude-fable-5')
   check('a request on the id as it stands names no 1M header: the window is the model\'s own', !betas.includes(HEADER), JSON.stringify(betas))
-  const opus = ['claude-opus-4-8', 'claude-opus-4-7'].map(id => `${id} ${getAutoCompactThreshold(id)} ${getAutoCompactThreshold(`${id}[1m]`)} ${caps.getAllModelBetas(id).includes(HEADER)}`)
+  const opus = ['claude-opus-4-8', 'claude-opus-4-7'].map(id => `${id} ${getAutoFoldThreshold(id)} ${getAutoFoldThreshold(`${id}[1m]`)} ${caps.getAllModelBetas(id).includes(HEADER)}`)
   console.log(`  [record] auto-compact threshold, the id as it stands and its [1m] spelling, and whether the plain id's request names the header: ${opus.join(' · ')}`)
   check('a session on Opus 4.8 or Opus 4.7 folds where its [1m] spelling folds, and its request names no 1M header', opus.every(row => /^\S+ (\d+) \1 false$/.test(row) && Number(row.split(' ')[1]) > 900_000), opus.join(' · '))
-  check('Opus 4.6 and Sonnet 4.6 still fold at their 200k position as the id stands', getAutoCompactThreshold('claude-opus-4-6') < 200_000 && getAutoCompactThreshold('claude-sonnet-4-6') < 200_000, `${getAutoCompactThreshold('claude-opus-4-6')} · ${getAutoCompactThreshold('claude-sonnet-4-6')}`)
+  check('Opus 4.6 and Sonnet 4.6 still fold at their 200k position as the id stands', getAutoFoldThreshold('claude-opus-4-6') < 200_000 && getAutoFoldThreshold('claude-sonnet-4-6') < 200_000, `${getAutoFoldThreshold('claude-opus-4-6')} · ${getAutoFoldThreshold('claude-sonnet-4-6')}`)
 }
 
 const React = await import('react')

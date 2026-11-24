@@ -43,7 +43,7 @@ enableConfigs()
 saveGlobalConfig(config => ({ ...config, autoCompactWindow: 100_000 }))
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
@@ -124,7 +124,7 @@ async function drive(model: string, messages: AnyMsg[], querySource = 'sdk'): Pr
   let terminal: Record<string, unknown> = {}
   let threw: string | undefined
   try {
-    const gen = query({
+    const gen = turnDoor({
       messages: messages as never,
       systemPrompt: ['fixture system prompt'] as never,
       userContext: {},

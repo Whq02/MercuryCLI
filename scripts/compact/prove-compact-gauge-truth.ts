@@ -76,7 +76,7 @@ section('G2 · the default threshold leaves 20k below the usable edge')
   ] as const) {
     const window = resolveContextWindow(model).effectiveWindow
     const effective = compact.getEffectiveContextWindowSize(model)
-    const threshold = compact.getAutoCompactThreshold(model)
+    const threshold = compact.getAutoFoldThreshold(model)
     const blocking = compact.getBlockingLimit(model)
     check(`${model}: threshold is 20,000 below the blocking limit (${threshold.toLocaleString()} of ${window.toLocaleString()})`, threshold === blocking - 20_000 && threshold === effective - 23_000, JSON.stringify({ window, effective, threshold, blocking }), 'getAutoCompactThreshold, getBlockingLimit and getEffectiveContextWindowSize in src/engine/compaction-window/autoFoldWindow.ts must keep the 20,000 and 23,000 token reserves')
     const view = contextFillView([user('hi'), asst('resp-B', model === FALLBACK ? 'compat/my-model' : OPUS, usageOf(10_000), 'x')] as never, model)
@@ -88,12 +88,12 @@ section('G3 · a set threshold is honoured')
 {
   process.env.MERCURY_AUTOCOMPACT_PCT_OVERRIDE = '50'
   const effective = compact.getEffectiveContextWindowSize(OPUS)
-  const half = compact.getAutoCompactThreshold(OPUS)
+  const half = compact.getAutoFoldThreshold(OPUS)
   check('a 50 % override folds at half the usable window, to the token', half === Math.floor(effective / 2), JSON.stringify({ effective, half }), 'getAutoCompactThreshold in src/engine/compaction-window/autoFoldWindow.ts must apply MERCURY_AUTOCOMPACT_PCT_OVERRIDE to the usable window')
   const halfView = contextFillView([user('hi'), asst('resp-C', OPUS, usageOf(290_000), 'x')] as never, OPUS)
   check('  the gauge follows it: compactAtPct = the override over the window, and used + left still add up', halfView.compactAtPct !== null && Math.abs(halfView.compactAtPct - (half / 1_000_000) * 100) < 0.01 && halfView.leftUntilCompactPct !== null && Math.abs(halfView.usedPct! + halfView.leftUntilCompactPct - halfView.compactAtPct) <= 1, JSON.stringify(halfView), 'contextFillView in src/engine/context-window/contextFill.ts must read the overridden threshold from autoCompactWindow.ts')
   process.env.MERCURY_AUTOCOMPACT_PCT_OVERRIDE = '100'
-  check('a 100 % override is the full usable window — never above the usable edge', compact.getAutoCompactThreshold(OPUS) === compact.getBlockingLimit(OPUS), '', 'getAutoCompactThreshold in src/engine/compaction-window/autoFoldWindow.ts must cap a percentage override at the blocking limit')
+  check('a 100 % override is the full usable window — never above the usable edge', compact.getAutoFoldThreshold(OPUS) === compact.getBlockingLimit(OPUS), '', 'getAutoCompactThreshold in src/engine/compaction-window/autoFoldWindow.ts must cap a percentage override at the blocking limit')
   delete process.env.MERCURY_AUTOCOMPACT_PCT_OVERRIDE
   const settingsEffective = compact.getEffectiveContextWindowSize(OPUS, 100_000)
   check('a settings window of 100,000 folds into the usable window (100,000 − the 20,000 reserve = 80,000)', settingsEffective === 80_000, String(settingsEffective), 'getEffectiveContextWindowSize in src/engine/compaction-window/autoFoldWindow.ts must subtract the 20,000 reserve from a settings window')

@@ -10,15 +10,15 @@ process.env.MERCURY_CONFIG_DIR = join(root, 'home')
 process.env.MERCURY_BARE = '1'
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 const src = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const { FileReadTool } = await import(`${src}/tools/read/ReadTool.ts`)
+const { ReadTool } = await import(`${src}/tools/read/ReadTool.ts`)
 const { getEmptyToolPermissionContext } = await import(`${src}/tools/kit/tool.ts`)
 const { createFileStateCacheWithSizeLimit } = await import(`${src}/platform/files/fileStateCache.ts`)
 const context = (model: string) => ({ options: { engineModel: model }, readFileState: createFileStateCacheWithSizeLimit(100), abortController: new AbortController(), messages: [], getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) })
 async function read(input: object, model = 'glm-5.3') {
   const ctx = context(model)
-  const valid = await FileReadTool.validateInput(input, ctx)
+  const valid = await ReadTool.validateInput(input, ctx)
   assert.equal(valid.result, true, valid.message)
-  return FileReadTool.call(input, ctx, undefined, { uuid: crypto.randomUUID() })
+  return ReadTool.call(input, ctx, undefined, { uuid: crypto.randomUUID() })
 }
 try {
   const path = join(root, 'paper.pdf')
@@ -29,7 +29,7 @@ try {
     assert.match(r.data.file.content, /--- page 1 ---/)
     assert.match(r.data.file.content, /Mercury\t42/)
     assert.equal(r.data.file.numLines, 4)
-    assert.ok(!r.newMessages?.some((m: any) => JSON.stringify(m).includes('"type":"document"')), `FileReadTool(${model}) with offset/limit unexpectedly attached raw PDF document block in src/tools/read/ReadTool.ts`)
+    assert.ok(!r.newMessages?.some((m: any) => JSON.stringify(m).includes('"type":"document"')), `ReadTool(${model}) with offset/limit unexpectedly attached raw PDF document block in src/tools/read/ReadTool.ts`)
   }
   const selected = await read({ file_path: path, pages: '200' })
   assert.match(selected.data.file.content, /--- page 200 ---\nResearch page 200/)

@@ -144,7 +144,7 @@ check('…and the handle reports nothing scrubbed', inheritRun.scrubbed.length =
 check('…with the pin present too', inheritRun.env.get('MERCURY_MODEL_LANES') === '1')
 
 section('§3 the tools: the inherit input and the result notice')
-const { scrubbedSessionEnvNotice, sessionEnvNoticeForResult, shortScrubbedSessionEnvNotice, resetSessionEnvNoticeOnCompaction } = await import('../../src/tools/kit/sessionEnvNotice.ts')
+const { scrubbedSessionEnvNotice, sessionEnvNoticeForResult, shortScrubbedSessionEnvNotice, resetSessionEnvNoticeOnFold } = await import('../../src/tools/kit/sessionEnvNotice.ts')
 const { disposeOwner } = await import('../../src/engine/run-owner/ownerLifecycle.ts')
 const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
 const notice = scrubbedSessionEnvNotice(['MERCURY_ENTRYPOINT', 'MERCURY_SEATS'])
@@ -166,7 +166,7 @@ await disposeOwner(processMainOwner())
 check('a call that scrubbed nothing carries nothing even as the first of a session', sessionEnvNoticeForResult({ scrubbed: [], commandText: 'echo $MERCURY_MODEL' }) === '' && sessionEnvNoticeForResult({ scrubbed: undefined, commandText: 'x' }) === '')
 await disposeOwner(processMainOwner())
 sessionEnvNoticeForResult({ scrubbed: scrubbedSet, commandText: 'ls' })
-const afterCompaction = (resetSessionEnvNoticeOnCompaction(), sessionEnvNoticeForResult({ scrubbed: scrubbedSet, commandText: 'ls' }))
+const afterCompaction = (resetSessionEnvNoticeOnFold(), sessionEnvNoticeForResult({ scrubbed: scrubbedSet, commandText: 'ls' }))
 check('a compaction resets the latch, so the first result after the fold carries the full note again', afterCompaction === scrubbedSessionEnvNotice(scrubbedSet) && afterCompaction.includes('inherit_session_env'))
 const t = await import('../core-runtime/turnScenarios.ts')
 const noticeAfterARun = async (plan: Parameters<typeof t.runScripted>[0]): Promise<{ folded: boolean; notice: string }> => {

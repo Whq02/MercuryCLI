@@ -55,17 +55,17 @@ const { enableConfigs } = await import('../../src/platform/config/globalConfig.t
 enableConfigs()
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
-const { query: startTurn } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor: startTurn } = await import('../../src/engine/turnDoor.ts')
 const { createContentReplacementState } = await import('../../src/engine/tool-dispatch/toolResultStorage.ts')
 const { tokenCountWithEstimation } = await import('../../src/engine/context-window/contextTokenCount.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
-const { MC_DIGEST_PREFIX, MC_CLEARED_PLACEHOLDER } = await import('../../src/engine/compaction/pruneDigest.ts')
-const { autoCompactIfNeeded } = await import('../../src/engine/compaction/autoFold.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { PRUNE_DIGEST_PREFIX, PRUNE_CLEARED_PLACEHOLDER } = await import('../../src/engine/compaction/pruneDigest.ts')
+const { autoFoldIfNeeded } = await import('../../src/engine/compaction/autoFold.ts')
 const { call: compactCommand } = await import('../../src/commands/compact/compact.ts')
 
 type AnyMsg = Record<string, unknown> & { type?: string }
@@ -79,7 +79,7 @@ const textOf = (m: unknown): string => {
   return ''
 }
 const isPlaceholder = (content: unknown): boolean =>
-  typeof content === 'string' && (content === MC_CLEARED_PLACEHOLDER || content.startsWith(MC_DIGEST_PREFIX))
+  typeof content === 'string' && (content === PRUNE_CLEARED_PLACEHOLDER || content.startsWith(PRUNE_DIGEST_PREFIX))
 
 const MODEL = 'gpt-5.6-sol'
 const ROUNDS = 9
@@ -102,7 +102,7 @@ function makeCtx(model: string = MODEL): Record<string, unknown> {
     abortController: new AbortController(),
     options: {
       commands: [],
-      tools: [FileReadTool],
+      tools: [ReadTool],
       engineModel: model,
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],
@@ -136,7 +136,7 @@ async function drive(ctx: Record<string, unknown>, messages: unknown[]): Promise
   let terminal: Record<string, unknown> = {}
   let threw: string | undefined
   try {
-    const gen = query({
+    const gen = turnDoor({
       messages: messages as never,
       systemPrompt: ['fixture system prompt'] as never,
       userContext: {},
@@ -169,7 +169,7 @@ async function compactOnce(ctx: Record<string, unknown>, messages: unknown[], li
   let result: Record<string, unknown> = {}
   let threw: string | undefined
   try {
-    result = (await autoCompactIfNeeded(messages as never, ctx as never, cacheSafeFor(ctx, messages), 'sdk', undefined, 0, undefined)) as unknown as Record<string, unknown>
+    result = (await autoFoldIfNeeded(messages as never, ctx as never, cacheSafeFor(ctx, messages), 'sdk', undefined, 0, undefined)) as unknown as Record<string, unknown>
   } catch (error) {
     threw = error instanceof Error ? error.message : String(error)
   } finally {
@@ -208,7 +208,7 @@ const transcriptAfter = (seed: unknown[], run: Drive): unknown[] => [
   ...run.yields.filter(y => y.type === 'user' || y.type === 'assistant' || y.type === 'attachment' || y.type === 'system'),
 ]
 
-const readCall = (i: number, id: string) => ({ id, name: FileReadTool.name, args: JSON.stringify({ file_path: files[i] }) })
+const readCall = (i: number, id: string) => ({ id, name: ReadTool.name, args: JSON.stringify({ file_path: files[i] }) })
 const reasoning = (i: number) => ({ summary: `reading notes ${i}`, encrypted: `encrypted-reasoning-${i}` })
 
 type Row = AnyMsg & { message?: { id?: string; content?: unknown }; apexProviderTurn?: { items?: Array<{ type?: string; call_id?: string }> } }
@@ -345,7 +345,7 @@ section('R1 a history persisted with such a record heals on read — the wire re
         items: [
           { type: 'reasoning', id: 'rs_persisted', summary: [{ type: 'summary_text', text: 'reading notes' }], encrypted_content: 'encrypted-persisted' },
           { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: CUT_TEXT }] },
-          { type: 'function_call', call_id: 'call_persisted_unminted', name: FileReadTool.name, arguments: JSON.stringify({ file_path: files[0] }) },
+          { type: 'function_call', call_id: 'call_persisted_unminted', name: ReadTool.name, arguments: JSON.stringify({ file_path: files[0] }) },
         ],
       },
     },
@@ -368,7 +368,7 @@ section('P1 the prune rung, then the automatic compaction — the summariser\'s 
     { text: 'the recovered answer', usage: { input: 700, output: 12 } },
   ])
   const priorReplacements = (ctxA.contentReplacementState as { replacements: Map<string, string> }).replacements
-  for (let i = 0; i < ROUNDS - 5; i++) priorReplacements.set(`a_read_${i}`, MC_CLEARED_PLACEHOLDER)
+  for (let i = 0; i < ROUNDS - 5; i++) priorReplacements.set(`a_read_${i}`, PRUNE_CLEARED_PLACEHOLDER)
   const seed = [...historyA, createUserMessage({ content: SECOND_ASK })]
   const r = await drive(ctxA, seed)
   check('the run completed', r.threw === undefined && r.terminal.reason === 'completed', `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)} errors=${JSON.stringify(errorTexts(r.yields))}`)

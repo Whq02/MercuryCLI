@@ -45,7 +45,7 @@ const { getTaskOutputPath } = await import('../../src/engine/task-framework/disk
 const { seatWaitWords } = await import('../../src/crew/capacity/seatWords.ts')
 const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
 const { NULL_RENDERING_ATTACHMENT_TYPES, isNullRenderingAttachment } = await import('../../src/screen/messages/nullRenderingAttachments.ts')
-const { getCompactPrompt, getPartialCompactPrompt } = await import('../../src/engine/compaction/summariserPrompt.ts')
+const { getFoldPrompt, getPartialFoldPrompt } = await import('../../src/engine/compaction/summariserPrompt.ts')
 const { createAttachmentMessage } = await import('../../src/engine/attachments/turnAttachments.ts')
 
 type AnyTask = Record<string, unknown>
@@ -162,14 +162,14 @@ const NINE = [
   '8. Where Work Stands: precisely what was being worked on most recently, with file names and code snippets.',
   "9. Next Move (optional): the next step directly in line with the operator's most recent explicit request and the task in flight. Do not start tangential or already-completed work without confirming first. Include verbatim quotes from the most recent conversation showing exactly what task was in hand and where it stopped.",
 ]
-const full = getCompactPrompt()
+const full = getFoldPrompt()
 check('the full prompt asks for ten numbered sections', full.includes('these ten numbered sections'), 'the full prompt lacks the ten-section line' + promptHint)
 check('…the nine sections before the tenth are byte-identical', NINE.every(line => full.includes(line)), 'missing: ' + NINE.filter(line => !full.includes(line)).map(line => line.slice(0, 30)).join(' / ') + promptHint)
 check('…the tenth is Agents in flight: the address, what it was asked, what is owed', /10\. Agents in flight: every agent still running or owed a result at the turnover/.test(full) && full.includes('the SendMessage address') && full.includes('what is owed back'), 'the tenth section text is absent or changed' + promptHint)
 check('…with the two laws', full.includes('A running agent is never re-spawned; a pending result is collected, not re-derived.'), 'the two laws line is absent' + promptHint)
 check('…and the output example shows it', full.includes('10. Agents in flight:\n   [...]'), 'the output example lacks the tenth section' + promptHint)
-const fromPrompt = getPartialCompactPrompt(undefined, 'from')
-const upToPrompt = getPartialCompactPrompt(undefined, 'up_to')
+const fromPrompt = getPartialFoldPrompt(undefined, 'from')
+const upToPrompt = getPartialFoldPrompt(undefined, 'up_to')
 check('the partial prompts carry the tenth section too (from, up_to)', /10\. Agents in flight/.test(fromPrompt) && /10\. Agents in flight/.test(upToPrompt) && upToPrompt.includes('these ten numbered sections'), 'the partial prompts lack the tenth section' + promptHint)
 check('the from-prompt keeps its recent-messages scope', fromPrompt.includes('Summarise ONLY the recent portion'))
 
@@ -179,7 +179,7 @@ section('§6 the direct lane — a real fold on an engine family carries the ros
   const { startCrossfamilyFixture } = await import('../lib/crossfamilyConcourseFixture.ts')
   const fixture = await startCrossfamilyFixture({ port: FIXTURE_PORT })
   Object.assign(process.env, fixture.env)
-  const { compactConversation } = await import('../../src/engine/compaction/foldConversation.ts')
+  const { foldConversation } = await import('../../src/engine/compaction/foldConversation.ts')
   const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
   const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
@@ -217,7 +217,7 @@ section('§6 the direct lane — a real fold on an engine family carries the ros
   let result: Record<string, unknown> | undefined
   let error: Error | undefined
   try {
-    result = (await compactConversation(messages as never, ctx as never, { systemPrompt: asSystemPrompt(['You are a fixture-driven session posture.']) } as never, true)) as never
+    result = (await foldConversation(messages as never, ctx as never, { systemPrompt: asSystemPrompt(['You are a fixture-driven session posture.']) } as never, true)) as never
   } catch (err) {
     error = err as Error
   }

@@ -5,7 +5,7 @@ import { readViewMcp } from './readViewMcp.js'
 
 const home = isolatedHome(import.meta.filename)
 const kit = await readViewKit(home)
-const { FileWriteTool } = await import(`${kit.src}/tools/write/WriteTool.ts`)
+const { WriteTool } = await import(`${kit.src}/tools/write/WriteTool.ts`)
 const { previewSqliteDeletion } = await import(`${kit.src}/tools/write/structuredTargets.ts`)
 const file = join(home, 'reach.sqlite')
 const seed = new Database(file)
@@ -39,7 +39,7 @@ const client = await readViewMcp(home)
 const remove = async (target: string): Promise<{ data: string; answer: string }> => {
   await client.call('Read', { file_path: `${file}:${target}` })
   const data = await client.call('Write', { file_path: `${file}:${target}#delete`, content: 'DELETE' })
-  try { return { data, answer: String(FileWriteTool.mapToolResultToToolResultBlockParam(JSON.parse(data), 'row').content) } } catch { return { data, answer: data } }
+  try { return { data, answer: String(WriteTool.mapToolResultToToolResultBlockParam(JSON.parse(data), 'row').content) } } catch { return { data, answer: data } }
 }
 try {
   kit.check('the card names a cascade, a chained cascade and a SET NULL key, and no restricting one', reach('parent/1') === 'Other rows may change with it: foreign keys in child, notes and grandchild.', reach('parent/1') + reachHint)

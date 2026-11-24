@@ -127,7 +127,7 @@ export function assembleTurnTools(state: AppState, turnSchema: Record<string, un
   return deduped.map((tool, index) => (index === at ? synthetic.tool : tool))
 }
 
-export async function runPrintTurn(command: QueuedCommand, batch: QueuedCommand[], onMessage: (message: RowDraft) => void, given: QueuedCommand[] | undefined, ports: RunnerPorts): Promise<void> {
+export async function runTurn(command: QueuedCommand, batch: QueuedCommand[], onMessage: (message: RowDraft) => void, given: QueuedCommand[] | undefined, ports: RunnerPorts): Promise<void> {
   let initialNotices = given ?? []
   const { advisorRoad, answerSchemaOf, applySeatEffort, applySeatModel, asks, assembleTools, canUseTool, checkBuildBehind, emitCommandNotifications, enqueueRow, getAppState, getReadFileCache, injectModelSwitchBreadcrumbs, inputPrompt, io, landAdvisorQuiet, landSpawnSwitch, live, liveScope, localCommandInput, maxTime, messages, options, party, peer, promisedWaitOf, recordHostNoticeRows, recordNoticeRows, registerPerTurnHandlers, setAppState, setReadFileCache, statusIsProgress, statusRowOf, swarmLead, swarmResumes, tellFailedMcpServers, tellSkippedProjectMcpServers } = ports
   const { applyLiveBootMenuEnv } = await import('../../platform/substrate/startupMenu.js')

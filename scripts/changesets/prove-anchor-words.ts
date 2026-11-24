@@ -13,7 +13,7 @@ process.env.MERCURY_CONFIG_DIR = join(world, 'home')
 process.chdir(project)
 const { checkAnchor, formatAnchorFailure, mintFileAnchor } = await import(join(ROOT, 'src/tools/engines/change-transaction/snapshotAnchor.ts'))
 const { planChangeSet } = await import(join(ROOT, 'src/tools/engines/change-transaction/changeSetPlan.ts'))
-const { FileReadTool } = await import(join(ROOT, 'src/tools/read/ReadTool.ts'))
+const { ReadTool } = await import(join(ROOT, 'src/tools/read/ReadTool.ts'))
 const { getDefaultAppState } = await import(join(ROOT, 'src/screen/app-state/AppStateStore.ts'))
 const { FILE_UNCHANGED_STUB } = await import(join(ROOT, 'src/tools/kit/names/fileRead.ts'))
 const { matchExactEdit } = await import(join(ROOT, 'src/tools/edit/EditTool.ts'))
@@ -85,12 +85,12 @@ const toolContext = {
   toolUseId: 'anchor-words',
 } as never
 type Reader = { call: (input: never, context: never) => Promise<{ data: unknown }>; mapToolResultToToolResultBlockParam: (output: never, id: string) => { content: unknown } }
-const first = await (FileReadTool as unknown as Reader).call({ file_path: target } as never, toolContext)
-const firstText = String((FileReadTool as unknown as Reader).mapToolResultToToolResultBlockParam(first.data as never, 'r1').content)
+const first = await (ReadTool as unknown as Reader).call({ file_path: target } as never, toolContext)
+const firstText = String((ReadTool as unknown as Reader).mapToolResultToToolResultBlockParam(first.data as never, 'r1').content)
 const firstAnchor = /\(anchor: ([^)]+)\)/.exec(firstText)?.[1]
 check('the first Read prints the file anchor', firstAnchor === good, firstText.slice(-80))
-const again = await (FileReadTool as unknown as Reader).call({ file_path: target } as never, toolContext)
-const againText = String((FileReadTool as unknown as Reader).mapToolResultToToolResultBlockParam(again.data as never, 'r2').content)
+const again = await (ReadTool as unknown as Reader).call({ file_path: target } as never, toolContext)
+const againText = String((ReadTool as unknown as Reader).mapToolResultToToolResultBlockParam(again.data as never, 'r2').content)
 check('a repeat Read of the unchanged file still answers the short stub', againText.startsWith(FILE_UNCHANGED_STUB), againText.slice(0, 80))
 check('and the stub carries the current anchor, so a re-read asked for the anchor is answered', againText.endsWith(`(anchor: ${good})`), againText.slice(-80))
 

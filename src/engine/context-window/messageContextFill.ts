@@ -59,7 +59,7 @@ export function getTokenUsage(message: Message | undefined): ApiUsage | undefine
 
 export type ContextFill = { tokens: number; source: 'usage' | 'estimate' }
 
-function compactUsageFence(
+function foldUsageFence(
   messages: readonly Message[],
 ): { boundaryIndex: number; rehomedUuids: ReadonlySet<string> } | null {
   let boundaryIndex = -1
@@ -90,7 +90,7 @@ function compactUsageFence(
 }
 
 export function messageContextFill(messages: readonly Message[], model?: string): ContextFill {
-  const fence = compactUsageFence(messages)
+  const fence = foldUsageFence(messages)
   let usageIndex = -1
   let usageTotal = 0
   for (let index = messages.length - 1; index >= 0; index--) {

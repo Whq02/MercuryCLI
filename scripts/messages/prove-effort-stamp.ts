@@ -56,7 +56,7 @@ const record = await import('../../src/sessions/fabric/record.ts')
 const { entryToRecord, recordToEntry } = await import('../../src/sessions/fabric/entryCodec.ts')
 const { validateRecord } = await import('../../src/sessions/fabric/validate.ts')
 const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.ts')
-const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.ts')
+const { anthropicCallModel } = await import('../../src/models/roads/anthropic/streamCore.ts')
 const { openaiCallModel } = await import('../../src/models/roads/openai/openaiCallModel.ts')
 const { __resetOpenaiCatalogueForTest } = await import('../../src/models/roads/openai/openaiCatalogue.ts')
 const { zaiCallModel } = await import('../../src/models/roads/zai/zaiCallModel.ts')
@@ -214,7 +214,7 @@ async function driveAnthropic(model: string, effortValue: string | undefined, th
   let thrown: string | null = null
   const deadline = setTimeout(() => controller.abort(), 30_000)
   try {
-    for await (const ev of queryModelWithStreaming({
+    for await (const ev of anthropicCallModel({
       messages: [createUserMessage({ content: 'effort-stamp fixture prompt' })],
       systemPrompt: asSystemPrompt(['You are the effort-stamp fixture.']),
       thinkingConfig: (thinking === 'adaptive' ? { type: 'adaptive' } : { type: 'disabled' }) as never,

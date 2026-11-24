@@ -1,12 +1,12 @@
-import { queryEvents } from '../../turnDoor.js'
+import { turnDoorEvents } from '../../turnDoor.js'
 import type { Terminal } from '../../turn-entry/transitions.js'
 import type { RunEvent } from '../../loop/events.js'
 import { legacyYieldsOf } from '../../loop/project-legacy.js'
-import type { QueryParams } from '../../loop/turn-machine.js'
+import type { TurnParams } from '../../loop/turn-machine.js'
 import { retryReasonWords } from '../../../models/roads/streamIdleBudget.js'
 import { EMPTY_USAGE, type NonNullableUsage } from '../../request-parts/emptyUsage.js'
 import { accumulateUsage, updateUsage } from '../../../models/roads/anthropic/cacheAndUsage.js'
-import type { AssistantMessage, CompactMetadata, Message, SystemCloseUsageMessage } from '../../message-shapes/message.js'
+import type { AssistantMessage, FoldMetadata, Message, SystemCloseUsageMessage } from '../../message-shapes/message.js'
 import type { ApiStreamEvent } from '../../message-shapes/wire.js'
 import { isBareMode } from '../../../platform/environment/envUtils.js'
 import { type getInMemoryErrors, logError } from '../../../platform/logs/errorLog.js'
@@ -50,7 +50,7 @@ function inputFloorUsd(messages: readonly Message[], model: string): number | nu
 }
 
 interface ModelNeeds {
-  queryParams: QueryParams
+  queryParams: TurnParams
   config: ConversationConfig
   toolOutcomes: Map<string, 'ok' | 'error' | 'aborted'>
   recoveries: Array<{ kind: RecoveryKind }>
@@ -92,7 +92,7 @@ export async function* modelTurnRows(this: ConversationState, needs: ModelNeeds)
   let terminal: Terminal | undefined
   let apiErrorMessage: (AssistantMessage & { error?: string }) | null = null
 
-  for await (const event of queryEvents(queryParams) as AsyncGenerator<RunEvent, unknown, unknown>) {
+  for await (const event of turnDoorEvents(queryParams) as AsyncGenerator<RunEvent, unknown, unknown>) {
     noteRunPhase('first_canonical_event')
     config.onLiveness?.()
     if (event.kind === 'run_terminal') {
@@ -321,7 +321,7 @@ export async function* modelTurnRows(this: ConversationState, needs: ModelNeeds)
         for (const row of trackCalls(rowsOfMessage(message, undefined))) yield row
         config.onToolRoundSettled?.(messages)
       } else if (isBoundary) {
-        const boundaryMeta = 'compactMetadata' in message ? (message.compactMetadata as CompactMetadata | undefined) : undefined
+        const boundaryMeta = 'compactMetadata' in message ? (message.compactMetadata as FoldMetadata | undefined) : undefined
         const boundaryIndexStore = this.mutableMessages.length - 1
         this.mutableMessages.splice(0, boundaryIndexStore)
         const boundaryIndexTurn = turnMessages.length - 1

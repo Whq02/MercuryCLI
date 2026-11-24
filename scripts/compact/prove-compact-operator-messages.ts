@@ -49,7 +49,7 @@ enableConfigs()
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
-const { createCompactBoundaryMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
+const { createFoldBoundaryMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
 const { createAttachmentMessage } = await import('../../src/engine/attachments/turnAttachments.ts')
 const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
 const { normalizeMessagesForAPI } = await import('../../src/engine/messages/apiView.ts')
@@ -61,7 +61,7 @@ const chain = await import('../../src/sessions/transcripts/chain.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
 
 type AnyMsg = Record<string, unknown> & { type?: string; uuid?: string }
@@ -174,7 +174,7 @@ if (selection !== null) {
   check(`the block kind is ${KIND} and the budget is a constant beside the tail's`, selection.OPERATOR_MESSAGES_ATTACHMENT_TYPE === KIND && selection.OPERATOR_MESSAGES_TOKEN_BUDGET === 20_000, `${selection.OPERATOR_MESSAGES_ATTACHMENT_TYPE} ${selection.OPERATOR_MESSAGES_TOKEN_BUDGET}; restore the kind and the 20_000 budget constants in ${SELECTION_MODULE}`)
   const prior = createAttachmentMessage({ type: KIND, messages: [{ ordinal: 2, text: OLDER[1] }, { ordinal: 1, text: OLDER[0] }], omitted: 0 } as never) as unknown as AnyMsg
   const oldSummary = createUserMessage({ content: 'Summary:\nthe earlier stretch, paraphrased', isCompactSummary: true, isVisibleInTranscriptOnly: true }) as unknown as AnyMsg
-  const oldBoundary = createCompactBoundaryMessage('auto', 100) as unknown as AnyMsg
+  const oldBoundary = createFoldBoundaryMessage('auto', 100) as unknown as AnyMsg
   const { rows: noise, noise: noiseTexts } = noiseRows()
   const promptRows = PROMPTS.map(text => createUserMessage({ content: text }) as unknown as AnyMsg)
   const steer = createAttachmentMessage({ type: 'queued_command', prompt: STEER_TEXT, commandMode: 'prompt', source_uuid: uuidOf(9001) } as never) as unknown as AnyMsg
@@ -291,7 +291,7 @@ function foldHistory(): AnyMsg[] {
 async function fold(model: string): Promise<{ result: Record<string, unknown> | undefined; error: Error | undefined }> {
   fixture.script([{ text: SUMMARY }])
   try {
-    const result = (await compactMod.compactConversation(foldHistory() as never, makeContext(model) as never, CACHE_SAFE, true)) as unknown as Record<string, unknown>
+    const result = (await compactMod.foldConversation(foldHistory() as never, makeContext(model) as never, CACHE_SAFE, true)) as unknown as Record<string, unknown>
     return { result, error: undefined }
   } catch (err) {
     return { result: undefined, error: err as Error }
@@ -308,7 +308,7 @@ section('C the real fold, no kept tail — every prompt verbatim between the bou
   const { result, error } = await fold('claude-opus-4-8')
   check('compactConversation resolved on the loopback', result !== undefined && error === undefined, `${(error?.stack ?? '').slice(0, 400)}; compactConversation in src/engine/compaction/foldConversation.ts threw on the loopback fixture, read the stack`)
   if (result !== undefined) {
-    const post = compactMod.buildPostCompactMessages(result as never) as unknown as AnyMsg[]
+    const post = compactMod.buildPostFoldMessages(result as never) as unknown as AnyMsg[]
     const { between, summary } = betweenBoundaryAndSummary(post)
     const summaryText = textOf(summary)
     const betweenText = between.map(rowText).join('\n')
@@ -326,7 +326,7 @@ section('C the real fold, no kept tail — every prompt verbatim between the bou
     check('…and every prompt is on the wire verbatim', PROMPTS.every(prompt => apiText.includes(prompt)), 'a prompt is missing on the wire; check the compact_operator_messages entry in src/engine/messages/attachmentText.ts')
     const without = { ...result, operatorMessages: undefined }
     const withBlock = estimateContextTokens(post as never)
-    const withoutBlock = estimateContextTokens(compactMod.buildPostCompactMessages(without as never) as never)
+    const withoutBlock = estimateContextTokens(compactMod.buildPostFoldMessages(without as never) as never)
     check('the size guard counts the block (the true post figure includes it)', withBlock > withoutBlock && result.truePostCompactTokenCount === withBlock, `${withBlock} vs ${withoutBlock}; true=${String(result.truePostCompactTokenCount)}; estimateContextTokens (src/engine/compaction/pruneToolResults.ts) and truePostCompactTokenCount in src/engine/compaction/foldConversation.ts must both count the block`)
   }
 }
@@ -343,7 +343,7 @@ section('D the real fold with the kept tail — a prompt inside the tail is not 
     const inTail = PROMPTS.filter(prompt => keptText.includes(prompt))
     const folded = PROMPTS.filter(prompt => !keptText.includes(prompt))
     check('the verbatim tail kept the last rounds (some prompts ride in the tail, some were folded)', kept.length > 0 && inTail.length > 0 && folded.length > 0, `tail=${inTail.length} folded=${folded.length}; with MERCURY_COMPACT_KEEP_TAIL=1 some prompts must ride the kept tail and the rest be folded`)
-    const post = compactMod.buildPostCompactMessages(result as never) as unknown as AnyMsg[]
+    const post = compactMod.buildPostFoldMessages(result as never) as unknown as AnyMsg[]
     const { between } = betweenBoundaryAndSummary(post)
     const block = blockOf(between[0])
     check('the block sits between the boundary and the summary', between.length === 1 && block !== null, `between: ${between.map(row => String(row.type)).join(',') || 'nothing'}; buildPostCompactMessages in src/engine/compaction/fold/foldResult.ts must place operatorMessages after the boundary`)
@@ -357,7 +357,7 @@ section('E a second fold carries this stretch\'s prompts whole and the first blo
 if (selection !== null) {
   const firstBlock = createAttachmentMessage({ type: KIND, messages: [{ ordinal: 3, text: 'first fold ask three' }, { ordinal: 2, text: 'first fold ask two' }, { ordinal: 1, text: 'first fold ask one' }], omitted: 0 } as never) as unknown as AnyMsg
   const history = [
-    createCompactBoundaryMessage('auto', 100) as unknown as AnyMsg,
+    createFoldBoundaryMessage('auto', 100) as unknown as AnyMsg,
     firstBlock,
     createUserMessage({ content: 'Summary:\nthe first stretch', isCompactSummary: true, isVisibleInTranscriptOnly: true }) as unknown as AnyMsg,
     createUserMessage({ content: 'second stretch ask four' }) as unknown as AnyMsg,
@@ -381,7 +381,7 @@ section('F the size guard sheds the block LAST, before refusing; a fitting resul
   const skills = createAttachmentMessage({ type: 'invoked_skills', skills: [{ name: 'rig-skill', path: '/rig/SKILL.md', content: 's'.repeat(2_000) }] } as never) as unknown as AnyMsg
   const block = createAttachmentMessage({ type: KIND, messages: [{ ordinal: 2, text: 'b'.repeat(2_000) }, { ordinal: 1, text: 'a'.repeat(2_000) }], omitted: 0 } as never) as unknown as AnyMsg
   const rig = (attachments: AnyMsg[], operatorMessages: AnyMsg | undefined): Record<string, unknown> => ({
-    boundaryMarker: createCompactBoundaryMessage('auto', 150_000),
+    boundaryMarker: createFoldBoundaryMessage('auto', 150_000),
     operatorMessages,
     summaryMessages: [createUserMessage({ content: `RIG SUMMARY ${'of the folded history. '.repeat(20)}`, isCompactSummary: true, isVisibleInTranscriptOnly: true })],
     attachments,
@@ -391,14 +391,14 @@ section('F the size guard sheds the block LAST, before refusing; a fitting resul
     compactionUsage: undefined,
   })
   const full = rig([fileAttachment('A.txt', 4_000), skills], block)
-  const core = estimateContextTokens(compactMod.buildPostCompactMessages(rig([], undefined) as never) as never)
-  const coreWithBlock = estimateContextTokens(compactMod.buildPostCompactMessages(rig([], block) as never) as never)
+  const core = estimateContextTokens(compactMod.buildPostFoldMessages(rig([], undefined) as never) as never)
+  const coreWithBlock = estimateContextTokens(compactMod.buildPostFoldMessages(rig([], block) as never) as never)
   check('the block weighs in the whole-context estimate', coreWithBlock > core, `${coreWithBlock} vs ${core}; buildPostCompactMessages in src/engine/compaction/fold/foldResult.ts must include operatorMessages and estimateContextTokens (src/engine/compaction/pruneToolResults.ts) must count it`)
-  const out = compactMod.fitPostCompactUnderThreshold(full as never, coreWithBlock) as { result: { operatorMessages?: unknown; attachments: unknown[] }; estimate: number; shed: string[] }
+  const out = compactMod.fitPostFoldUnderThreshold(full as never, coreWithBlock) as { result: { operatorMessages?: unknown; attachments: unknown[] }; estimate: number; shed: string[] }
   check('files and skills may go; operator bytes stand even when the fit must refuse', j(out.shed) === j(['file /rig/A.txt', 'invoked_skills']) && out.result.operatorMessages === block && out.estimate >= coreWithBlock, `${j({ shed: out.shed, estimate: out.estimate, threshold: coreWithBlock })}; fitPostCompactUnderThreshold in src/engine/compaction/fold/foldAttachments.ts may shed files and skills but never operatorMessages`)
-  const roomy = compactMod.fitPostCompactUnderThreshold(full as never, coreWithBlock + 100_000) as { result: { operatorMessages?: unknown }; shed: string[] }
+  const roomy = compactMod.fitPostFoldUnderThreshold(full as never, coreWithBlock + 100_000) as { result: { operatorMessages?: unknown }; shed: string[] }
   check('a result under the threshold keeps its block (nothing shed)', roomy.shed.length === 0 && roomy.result.operatorMessages === block, `fitPostCompactUnderThreshold in src/engine/compaction/fold/foldAttachments.ts shed ${j(roomy.shed)} although the result fit the threshold`)
-  const tight = compactMod.fitPostCompactUnderThreshold(rig([fileAttachment('A.txt', 4_000)], block) as never, coreWithBlock + 50) as { result: { operatorMessages?: unknown }; shed: string[]; estimate: number }
+  const tight = compactMod.fitPostFoldUnderThreshold(rig([fileAttachment('A.txt', 4_000)], block) as never, coreWithBlock + 50) as { result: { operatorMessages?: unknown }; shed: string[]; estimate: number }
   check('when shedding the file alone brings the fit under, the block stands', j(tight.shed) === j(['file /rig/A.txt']) && tight.result.operatorMessages === block && tight.estimate < coreWithBlock + 50, `${j(tight.shed)}; fitPostCompactUnderThreshold in src/engine/compaction/fold/foldAttachments.ts must stop shedding once the estimate is under the threshold and keep operatorMessages`)
 }
 
@@ -412,7 +412,7 @@ section('G the resume road — the block survives a reload the way the summary d
   const a2 = assistant('answered two')
   const block = createAttachmentMessage({ type: KIND, messages: [{ ordinal: 1, text: 'before the fold, one' }], omitted: 0 } as never) as unknown as AnyMsg
   const summary = createUserMessage({ content: 'Summary:\nthe folded stretch', isCompactSummary: true, isVisibleInTranscriptOnly: true }) as unknown as AnyMsg
-  const boundary = createCompactBoundaryMessage('auto', 5_000) as unknown as AnyMsg
+  const boundary = createFoldBoundaryMessage('auto', 5_000) as unknown as AnyMsg
   ;(boundary as { compactMetadata: Record<string, unknown> }).compactMetadata.preservedSegment = { headUuid: u2.uuid, anchorUuid: summary.uuid, tailUuid: a2.uuid }
   const u3 = createUserMessage({ content: 'after the fold' }) as unknown as AnyMsg
   const a3 = assistant('answered after the fold')
@@ -464,7 +464,7 @@ section('H the turn machine end to end — the retried request after an overflow
   let terminal: Record<string, unknown> = {}
   const yields: AnyMsg[] = []
   try {
-    const gen = query({
+    const gen = turnDoor({
       messages: seedRows as never,
       systemPrompt: ['fixture system prompt'] as never,
       userContext: {},

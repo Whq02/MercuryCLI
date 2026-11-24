@@ -41,8 +41,8 @@ Object.assign(process.env, fixture.env)
 
 const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { call, nothingToCompactLine, NOTHING_TO_COMPACT_KEY } = await import('../../src/commands/compact/compact.ts')
-const { buildPostCompactMessages, projectManualFold, manualFoldHasNothingToFold } = await import('../../src/engine/compaction/foldConversation.ts')
+const { call, nothingToFoldLine, NOTHING_TO_FOLD_KEY } = await import('../../src/commands/compact/compact.ts')
+const { buildPostFoldMessages, projectManualFold, manualFoldHasNothingToFold } = await import('../../src/engine/compaction/foldConversation.ts')
 const { estimateContextTokens } = await import('../../src/engine/compaction/pruneToolResults.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
@@ -106,14 +106,14 @@ function makeCommandContext(messages: AnyMsg[]): Record<string, unknown> {
   }
 }
 
-type CompactCallResult = { type: string; displayText?: string; compactionResult: Parameters<typeof buildPostCompactMessages>[0] }
+type CompactCallResult = { type: string; displayText?: string; compactionResult: Parameters<typeof buildPostFoldMessages>[0] }
 const plainOf = (result: CompactCallResult): string => (result.displayText ?? '').replace(/\x1b\[[0-9;]*m/g, '').split('\n')[0] ?? ''
 const summaryRequests = (): number => fixture.captured.filter(hit => hit.lane.startsWith('anthropic')).length
 
 section('A an unfolded long history: /compact folds it as today (the summariser is asked once, the context shrinks)')
 const long = makeMessages(40, 1_500, 22_000)
 const first = (await call('', makeCommandContext(long) as never)) as CompactCallResult
-const post = buildPostCompactMessages(first.compactionResult) as AnyMsg[]
+const post = buildPostFoldMessages(first.compactionResult) as AnyMsg[]
 {
   const requests = summaryRequests()
   check('the fold landed with a receipt that shrinks', first.type === 'compact' && /context 22\.1k → \d+(\.\d+)?k tokens/.test(plainOf(first)), plainOf(first), 'the first /compact must fold and print a receipt of the form context Nk → Mk tokens; see call in src/commands/compact/compact.ts')
@@ -137,7 +137,7 @@ section('B /compact straight after that fold: one line, no summariser request, t
   check('no summariser request went out', summaryRequests() === before, `${summaryRequests()} vs ${before}`, hintManualRefusal)
   check('the context is unchanged', JSON.stringify(post) === snapshot && (context.messages as AnyMsg[]) === post, '', hintManualRefusal)
   const projection = typeof projectManualFold === 'function' ? await projectManualFold(post as never, context as never, { systemPrompt: [], userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: post } as never, undefined) : null
-  check('the line carries the context size the gauge shows', projection !== null && threw === nothingToCompactLine(projection.context), `threw=${threw ?? 'no'} projection=${JSON.stringify(projection)}`, 'the refusal line must use projection.context from projectManualFold (src/engine/compaction/fold/projection.ts) through nothingToCompactLine (src/engine/compaction/fold/foldLimits.ts)')
+  check('the line carries the context size the gauge shows', projection !== null && threw === nothingToFoldLine(projection.context), `threw=${threw ?? 'no'} projection=${JSON.stringify(projection)}`, 'the refusal line must use projection.context from projectManualFold (src/engine/compaction/fold/projection.ts) through nothingToCompactLine (src/engine/compaction/fold/foldLimits.ts)')
   check('the projection says why: by one estimate the fold would not land smaller than what stands', projection !== null && manualFoldHasNothingToFold(projection) && projection.after >= projection.before, JSON.stringify(projection), 'manualFoldHasNothingToFold and projectManualFold in src/engine/compaction/fold/projection.ts must report an after estimate not smaller than before')
 }
 
@@ -160,7 +160,7 @@ section('C a first fold that would grow the conversation refuses before the summ
     threw = error instanceof Error ? error.message : String(error)
   }
   const inputTokens = estimateContextTokens(short as never)
-  const outputTokens = result === undefined ? inputTokens : estimateContextTokens(buildPostCompactMessages(result.compactionResult))
+  const outputTokens = result === undefined ? inputTokens : estimateContextTokens(buildPostFoldMessages(result.compactionResult))
   console.log(`  first-fold estimate: ${inputTokens} → ${outputTokens}; ${result ? plainOf(result) : threw}`)
   check('the audit fixture contains 220 estimated tokens (the content-aware estimator of fold 46ao; 307 under the byte count before it)', inputTokens === 220, String(inputTokens), 'the estimate comes from estimateContextTokens in src/engine/compaction/pruneToolResults.ts; update the expected 220 only if that estimator changed on purpose')
   check('a first fold refuses with the true reason, without claiming a previous fold', result === undefined && threw === 'Nothing to compact yet: a summary would not shrink the 960 tokens.', `threw=${threw ?? 'no'} result=${result ? plainOf(result) : 'none'}`, hintManualRefusal)
@@ -171,9 +171,9 @@ section('C a first fold that would grow the conversation refuses before the summ
 
 section('D the line\'s shape: the key the command recognises, and the one sentence')
 {
-  check('the key', NOTHING_TO_COMPACT_KEY === 'Nothing to compact: ', NOTHING_TO_COMPACT_KEY, 'NOTHING_TO_COMPACT_KEY lives in src/engine/compaction/fold/foldLimits.ts')
-  check('after a fold', nothingToCompactLine(169_900) === 'Nothing to compact: the last fold already holds this conversation (169.9k tokens)', nothingToCompactLine(169_900), 'nothingToCompactLine in src/engine/compaction/fold/foldLimits.ts')
-  check('before a fold', nothingToCompactLine(960, false) === 'Nothing to compact yet: too few messages to fold (960 tokens).', nothingToCompactLine(960, false), 'nothingToCompactLine in src/engine/compaction/fold/foldLimits.ts')
+  check('the key', NOTHING_TO_FOLD_KEY === 'Nothing to compact: ', NOTHING_TO_FOLD_KEY, 'NOTHING_TO_COMPACT_KEY lives in src/engine/compaction/fold/foldLimits.ts')
+  check('after a fold', nothingToFoldLine(169_900) === 'Nothing to compact: the last fold already holds this conversation (169.9k tokens)', nothingToFoldLine(169_900), 'nothingToCompactLine in src/engine/compaction/fold/foldLimits.ts')
+  check('before a fold', nothingToFoldLine(960, false) === 'Nothing to compact yet: too few messages to fold (960 tokens).', nothingToFoldLine(960, false), 'nothingToCompactLine in src/engine/compaction/fold/foldLimits.ts')
 }
 
 section('E the projection does not perform reads, authorize unseen content, or populate the user-context memo')

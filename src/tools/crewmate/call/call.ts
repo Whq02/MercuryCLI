@@ -29,7 +29,7 @@ import { holdToolsUntil, releaseToolHold } from '../run/worktreeReadiness.js'
 import { crewWorktreeLeftoverOf, noteCrewWorktreeLeftover } from '../../../crew/crewmates/crewWorktreeReminder.js'
 import { createUserMessage } from '../../../engine/messages/messages.js'
 import { BASH_TOOL_NAME } from '../../kit/names/bash.js'
-import { FILE_READ_TOOL_NAME } from '../../kit/names/fileRead.js'
+import { READ_TOOL_NAME } from '../../kit/names/fileRead.js'
 import { recordCrewStart } from '../../../crew/crew-start/crewStart.js'
 import { runForegroundAgentExecution, type ForegroundAgentMetadata } from '../foregroundExecution.js'
 import { resolveWorkerTools, runAsyncAgentLifecycle } from '../crewmateLifecycle.js'
@@ -517,7 +517,7 @@ function asyncLifecycleOf({ earlyAgentId, input, rootSetAppState, agentDef, plan
 function asyncLaunchAnswerOf(options: ToolUseContext['options'], earlyAgentId: AgentId, input: AgentToolInput, plan: AgentLaunchPlan, agentDef: AgentDefinition, modelNote?: string): { data: AgentToolOutput } {
   const canReadOutputFile = options.tools.some(
     tool =>
-      toolMatchesName(tool, FILE_READ_TOOL_NAME) ||
+      toolMatchesName(tool, READ_TOOL_NAME) ||
       toolMatchesName(tool, BASH_TOOL_NAME),
   )
   return {

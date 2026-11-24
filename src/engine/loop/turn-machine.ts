@@ -12,7 +12,7 @@ import {
 import { createSystemMessage } from '../messages/messages.js'
 import type { QuerySource } from '../requests/querySource.js'
 import { memorySignalScope } from '../../sessions/mneme/mnemeSignal.js'
-import { productionDeps, type QueryDeps } from '../turn-entry/turnLoopDeps.js'
+import { productionDeps, type TurnLoopDeps } from '../turn-entry/turnLoopDeps.js'
 import type { Terminal } from '../turn-entry/transitions.js'
 import { BudgetGuard } from './budget-guard.js'
 import { createEventMint, type RunEvent } from './events.js'
@@ -38,7 +38,7 @@ export { MAX_TURNS_CLOSING_TEXT } from './turn/afterTools.js'
 
 export type ComposedPrompt = { systemPrompt: SystemPrompt; userContext: { [k: string]: string }; systemContext: { [k: string]: string } }
 
-export type QueryParams = {
+export type TurnParams = {
   messages: Message[]
   systemPrompt: SystemPrompt
   userContext: { [k: string]: string }
@@ -51,11 +51,11 @@ export type QueryParams = {
   maxOutputTokensOverride?: number
   maxTurns?: number
   skipCacheWrite?: boolean
-  deps?: QueryDeps
+  deps?: TurnLoopDeps
 }
 
 export async function* runEventCore(
-  params: QueryParams,
+  params: TurnParams,
   consumedCommandUuids: string[],
 ): AsyncGenerator<RunEvent, Terminal> {
   return yield* memorySignalScope(runTurns(params, consumedCommandUuids))
@@ -71,7 +71,7 @@ async function* settleTurn(run: RunCtx, iter: IterationState): AsyncGenerator<Ru
   return yield* afterTools(run, iter)
 }
 
-function createRunCtx(params: QueryParams, consumedCommandUuids: string[]): RunCtx {
+function createRunCtx(params: TurnParams, consumedCommandUuids: string[]): RunCtx {
   const run: RunCtx = {
     params,
     querySource: params.querySource,
@@ -104,7 +104,7 @@ function createRunCtx(params: QueryParams, consumedCommandUuids: string[]): RunC
   return run
 }
 
-function firstTurnOf(params: QueryParams): TurnState {
+function firstTurnOf(params: TurnParams): TurnState {
   return {
     messages: params.messages,
     toolUseContext: params.toolUseContext,
@@ -126,7 +126,7 @@ async function* runTurn(run: RunCtx, state: TurnState, ordinal: number): AsyncGe
   return request.kind === 'go_on' ? yield* settleTurn(run, request.iter) : request
 }
 
-async function* runTurns(params: QueryParams, consumedCommandUuids: string[]): AsyncGenerator<RunEvent, Terminal> {
+async function* runTurns(params: TurnParams, consumedCommandUuids: string[]): AsyncGenerator<RunEvent, Terminal> {
   const run = createRunCtx(params, consumedCommandUuids)
   return yield* runAgentLoop({
     emit: run.emit,

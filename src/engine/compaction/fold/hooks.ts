@@ -7,21 +7,21 @@ import { hookRowsOfResult } from '../../../integrations/event-hooks/rows.js'
 import { getSessionId } from '../../../boot/process-state/processState.js'
 import { createUserMessage } from '../../messages/messages.js'
 
-function compactionHookScope(context: ToolUseContext): { sessionId: string; crewmateId?: string } {
+function foldHookScope(context: ToolUseContext): { sessionId: string; crewmateId?: string } {
   return { sessionId: String(getSessionId()), ...(context.agentId !== undefined ? { crewmateId: context.agentId } : {}) }
 }
 
-export async function compactionBeforeHooks(context: ToolUseContext, facts: { trigger: 'manual' | 'auto' | 'overflow'; instructions?: string; tokens: number }): Promise<HookFireResult> {
+export async function foldBeforeHooks(context: ToolUseContext, facts: { trigger: 'manual' | 'auto' | 'overflow'; instructions?: string; tokens: number }): Promise<HookFireResult> {
   context.onCompactProgress?.({ type: 'hooks_start', hookType: 'pre_compact' })
-  return fireHooks('compaction.before', { trigger: facts.trigger, ...(facts.instructions !== undefined ? { instructions: facts.instructions } : {}), tokens: facts.tokens }, { scope: compactionHookScope(context), signal: context.abortController.signal, toolUseContext: context })
+  return fireHooks('compaction.before', { trigger: facts.trigger, ...(facts.instructions !== undefined ? { instructions: facts.instructions } : {}), tokens: facts.tokens }, { scope: foldHookScope(context), signal: context.abortController.signal, toolUseContext: context })
 }
 
-export async function compactionAfterHooks(context: ToolUseContext, facts: { method: 'summary' | 'notes' | 'digest'; trigger: 'manual' | 'auto' | 'overflow'; tokensBefore: number; tokensAfter: number; summary?: string }): Promise<Message[]> {
+export async function foldAfterHooks(context: ToolUseContext, facts: { method: 'summary' | 'notes' | 'digest'; trigger: 'manual' | 'auto' | 'overflow'; tokensBefore: number; tokensAfter: number; summary?: string }): Promise<Message[]> {
   context.onCompactProgress?.({ type: 'hooks_start', hookType: 'post_compact' })
   const result = await fireHooks(
     'compaction.after',
     { method: facts.method, trigger: facts.trigger, tokens_before: facts.tokensBefore, tokens_after: facts.tokensAfter, ...(facts.summary !== undefined ? { summary: facts.summary } : {}) },
-    { scope: compactionHookScope(context), signal: context.abortController.signal, toolUseContext: context },
+    { scope: foldHookScope(context), signal: context.abortController.signal, toolUseContext: context },
   )
   const rows: Message[] = hookRowsOfResult(result).map(row => createAttachmentMessage(row))
   for (const words of result.answer.contexts) rows.push(createUserMessage({ content: boundHookContext(words, 'compaction-after-context').text, isMeta: true }))

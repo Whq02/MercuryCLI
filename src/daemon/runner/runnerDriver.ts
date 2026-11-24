@@ -57,7 +57,7 @@ export function advisorRoadOf(ports: RunnerPorts): AdvisorRoad {
   return advisorRoad
 }
 
-export function printDriverPorts(ports: RunnerPorts): TurnDriverPorts {
+export function runnerDriverPorts(ports: RunnerPorts): TurnDriverPorts {
   const { advisorRoad, bootReady, disarmAgentFreshness, enqueueRow, executeTurn, getAppState, idleTimeout, io, isConcourseWorker, isLocalShellTask, isMainThreadCommand, live, liveScope, maxTime, messages, rateLimitListener, settleIdle, stopDrainedNotificationFrames, takeMainThread, writeLine } = ports
   return {
     dequeue: takeMainThread,

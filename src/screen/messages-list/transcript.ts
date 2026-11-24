@@ -4,11 +4,11 @@ import type { TranscriptAnchor } from '../messages/transcriptMemory.js'
 import { buildMessageLookups } from '../../engine/messages/lookups.js'
 import { reorderMessagesInUI } from './chatRowOrder.js'
 import { deriveUUID } from '../../engine/message-shapes/identity.js'
-import { findLastCompactBoundaryIndex, shouldShowUserMessage } from '../../engine/messages/messages.js'
+import { findLastFoldBoundaryIndex, shouldShowUserMessage } from '../../engine/messages/messages.js'
 import type { StreamingToolUse } from './streamToScreen.js'
 import { applyGrouping } from '../messages/groupToolUses.js'
 import { collapseReadSearchGroups } from '../messages/collapseReadSearch.js'
-import { collapseBackgroundBashNotifications } from './foldShellNotices.js'
+import { foldShellNotices } from './foldShellNotices.js'
 import { injectTurnReceipts } from '../cockpit/turnReceipt.js'
 import { getMercuryTempDir } from '../../permissions/rules/filesystem.js'
 import { isNullRenderingAttachment, isNullRenderingSystemRow } from '../messages/nullRenderingAttachments.js'
@@ -140,7 +140,7 @@ export function composeTranscript(input: {
   const { normalized, syntheticStreamingRows, verbose, fullscreen, isTranscriptMode, truncateTranscript, tools, inProgressToolUseIDs } = input
   let working: NormalizedMessage[] = normalized
   if (!verbose && !fullscreen) {
-    const boundary = findLastCompactBoundaryIndex(working)
+    const boundary = findLastFoldBoundaryIndex(working)
     if (boundary > 0) {
       working = working.filter(
         (message, index) =>
@@ -227,8 +227,8 @@ export function composeTranscript(input: {
     tools,
     inProgressToolUseIDs,
   ) as RenderableMessage[]
-  collapsed = collapseBackgroundBashNotifications(
-    collapsed as Parameters<typeof collapseBackgroundBashNotifications>[0],
+  collapsed = foldShellNotices(
+    collapsed as Parameters<typeof foldShellNotices>[0],
     verbose,
   ) as RenderableMessage[]
 

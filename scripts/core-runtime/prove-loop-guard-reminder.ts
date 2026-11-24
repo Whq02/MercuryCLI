@@ -24,7 +24,7 @@ for (const k of [
   delete process.env[k]
 }
 
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
@@ -35,7 +35,7 @@ const { createAssistantMessage, createUserMessage } = await import(
 )
 const { normalizeMessagesForAPI } = await import('../../src/engine/messages/apiView.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const queueStore = await import('../../src/screen/composer/input-core/command-queue.ts')
 
 let failures = 0
@@ -232,7 +232,7 @@ async function runScript(
     return turn
   })
   const rig = makeCtx(opts.ctx)
-  const gen = query({
+  const gen = turnDoor({
     messages: (opts.messages ?? [createUserMessage({ content: 'please do the thing' })]) as never,
     systemPrompt: ['rig system prompt'] as never,
     userContext: {},
@@ -469,7 +469,7 @@ section('R11 — the real Read tool: its unchanged-file stub is the answer "iden
   const file = join(dir, 'unchanged.txt')
   writeFileSync(file, 'line one\nline two\n')
   const READ = { file_path: file }
-  const real = { ctx: { tools: [FileReadTool, ...TOOLS] } }
+  const real = { ctx: { tools: [ReadTool, ...TOOLS] } }
   const same = await runScript(Array.from({ length: 3 }, () => ({ name: 'Read', input: READ })), real)
   const second = toolResultText(same, same.ids[1]!)
   check('the second Read answered with the unchanged-file stub (the road the fold is for)', /unchanged since it was last read/.test(second), second.slice(0, 120))

@@ -24,9 +24,9 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { WriteTool } = await import('../../src/tools/write/WriteTool.ts')
 const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
 const { GlobTool } = await import('../../src/tools/glob/GlobTool.ts')
 const { backfillCloneForYield } = await import('../../src/engine/loop/model-lane.ts')
@@ -48,9 +48,9 @@ const validate = async (tool: { validateInput?: (input: never, context: never) =
 
 console.log('[1] each file tool refuses a NUL path as a verdict, never a throw')
 const cases: Array<[string, { validateInput?: never; backfillObservableInput?: (input: never) => void } & Record<string, unknown>, Record<string, unknown>]> = [
-  ['Read', FileReadTool as never, { file_path: nulPath }],
-  ['Edit', FileEditTool as never, { file_path: nulPath, old_string: 'a', new_string: 'b', replace_all: false }],
-  ['Write', FileWriteTool as never, { file_path: nulPath, content: 'x' }],
+  ['Read', ReadTool as never, { file_path: nulPath }],
+  ['Edit', EditTool as never, { file_path: nulPath, old_string: 'a', new_string: 'b', replace_all: false }],
+  ['Write', WriteTool as never, { file_path: nulPath, content: 'x' }],
   ['Grep', GrepTool as never, { pattern: 'plain', path: nulPath }],
   ['Glob', GlobTool as never, { pattern: '*.txt', path: nulPath }],
   ['Glob pattern', GlobTool as never, { pattern: `*${String.fromCharCode(0)}.txt` }],
@@ -82,7 +82,7 @@ for (const [name, tool, input] of cases) {
   const message = { type: 'assistant', message: { content: [{ type: 'tool_use', id: 't1', name: 'Read', input: { file_path: nulPath } }] } }
   let threw: string | null = null
   try {
-    backfillCloneForYield(message, name => (name === 'Read' ? (FileReadTool as never) : undefined))
+    backfillCloneForYield(message, name => (name === 'Read' ? (ReadTool as never) : undefined))
   } catch (err) {
     threw = err instanceof Error ? err.message : String(err)
   }
@@ -91,10 +91,10 @@ for (const [name, tool, input] of cases) {
 
 console.log('[3] an ordinary path still passes the guard')
 {
-  const { verdict, threw } = await validate(FileReadTool as never, { file_path: join(PROJ, 'xy.txt') })
+  const { verdict, threw } = await validate(ReadTool as never, { file_path: join(PROJ, 'xy.txt') })
   check('a plain Read path validates as before', threw === null && verdict !== undefined && verdict.result === true, threw ?? JSON.stringify(verdict))
   const copy = { file_path: 'xy.txt' }
-  ;(FileReadTool as { backfillObservableInput: (input: { file_path: string }) => void }).backfillObservableInput(copy)
+  ;(ReadTool as { backfillObservableInput: (input: { file_path: string }) => void }).backfillObservableInput(copy)
   check('a relative Read path is still expanded by the backfill', copy.file_path === join(PROJ, 'xy.txt'), copy.file_path)
 }
 

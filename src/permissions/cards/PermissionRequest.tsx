@@ -13,9 +13,9 @@ import type { PermissionDecision } from '../rules/permissionResult.js'
 import { BashTool } from '../../tools/shell/BashTool.js'
 import { PowerShellTool } from '../../tools/powershell/PowerShellTool.js'
 import { ChangeSetTool } from '../../tools/change-set/ChangeSetTool.js'
-import { FileEditTool } from '../../tools/edit/EditTool.js'
-import { FileWriteTool } from '../../tools/write/WriteTool.js'
-import { FileReadTool } from '../../tools/read/ReadTool.js'
+import { EditTool } from '../../tools/edit/EditTool.js'
+import { WriteTool } from '../../tools/write/WriteTool.js'
+import { ReadTool } from '../../tools/read/ReadTool.js'
 import { GlobTool } from '../../tools/glob/GlobTool.js'
 import { GrepTool } from '../../tools/grep/GrepTool.js'
 import { NotebookEditTool } from '../../tools/notebook-edit/NotebookEditTool.js'
@@ -30,7 +30,7 @@ import { MonitorTool } from '../../tools/monitor/MonitorTool.js'
 import { CorrectTool, RetainTool } from '../../tools/memory/MemoryTools.js'
 import { ApolloReviewPermissionRequest } from './apollo-review/ApolloReviewPermissionRequest.js'
 import { isMemoryRuleCard, MemoryRulePermissionRequest } from './memory-rule/MemoryRulePermissionRequest.js'
-import { AskUserQuestionPermissionRequest } from './ask-user-question/QuestionPermissionRequest.js'
+import { QuestionPermissionRequest } from './ask-user-question/QuestionPermissionRequest.js'
 import { ChangeSetPermissionRequest } from './change-set/ChangeSetPermissionRequest.js'
 import { BashPermissionRequest, MonitorPermissionRequest } from './bash/ShellPermissionRequest.js'
 import { PowerShellPermissionRequest } from './powershell/PowerShellPermissionRequest.js'
@@ -122,9 +122,9 @@ export function PermissionRequest(props: PermissionRequestProps): React.ReactNod
   const mediaKind = mediaGenerationKind(tool)
   if (mediaKind) return <MediaPermissionRequest key={key} {...props} kind={mediaKind} />
 
-  if (tool === FileEditTool) return <FileEditPermissionRequest key={key} {...props} />
+  if (tool === EditTool) return <FileEditPermissionRequest key={key} {...props} />
   if (tool === ChangeSetTool) return <ChangeSetPermissionRequest key={key} {...props} />
-  if (tool === FileWriteTool) return <FileWritePermissionRequest key={key} {...props} />
+  if (tool === WriteTool) return <FileWritePermissionRequest key={key} {...props} />
   if (tool === BashTool) return <BashPermissionRequest key={key} {...props} />
   if (tool === MonitorTool) return <MonitorPermissionRequest key={key} {...props} />
   if (tool === PowerShellTool) return <PowerShellPermissionRequest key={key} {...props} />
@@ -138,9 +138,9 @@ export function PermissionRequest(props: PermissionRequestProps): React.ReactNod
   if (tool === ApolloReviewTool) return <ApolloReviewPermissionRequest key={key} {...props} />
   if (tool === SkillTool) return <SkillPermissionRequest key={key} {...props} />
   if (tool === AskUserQuestionTool) {
-    return <AskUserQuestionPermissionRequest key={key} {...props} />
+    return <QuestionPermissionRequest key={key} {...props} />
   }
-  if (tool === GlobTool || tool === GrepTool || tool === FileReadTool) {
+  if (tool === GlobTool || tool === GrepTool || tool === ReadTool) {
     return <FilesystemPermissionRequest key={key} {...props} />
   }
   return <FallbackPermissionRequest key={key} {...props} />

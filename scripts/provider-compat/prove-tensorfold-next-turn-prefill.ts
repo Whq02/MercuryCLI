@@ -54,7 +54,7 @@ const { localRecordFor } = await import('../../src/models/roads/local/localCatal
 const { localCallModel } = await import('../../src/models/roads/local/localCallModel.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const { setEngineModelOverride } = await import('../../src/boot/process-state/processState.ts')
 const { runCleanupFunctions } = await import('../../src/platform/processes/cleanupRegistry.ts')
 const usageLedger = await import('../../src/models/roads/local/tensorfoldUsage.ts')
@@ -64,7 +64,7 @@ const prefill = (await import('../../src/models/roads/local/tensorfoldPrefill.ts
 type LocalModelRecord = import('../../src/models/roads/local/localDiscovery.ts').LocalModelRecord
 type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
 
-const READ = FileReadTool.name
+const READ = ReadTool.name
 const SETTLE_MS = 15
 const LOOK_MS = 20
 const fileOf = (lines: number): string => Array.from({ length: lines }, (_, n) => `${n + 1}\tledger line ${n + 1}: a delivery of ${(n * 37) % 91} crates to bay ${(n * 13) % 17}`).join('\n')
@@ -84,7 +84,7 @@ async function ask(record: LocalModelRecord, messages: unknown[], source: Source
     messages: messages as never,
     systemPrompt: ['You are a careful assistant in a terminal. A file is read before it is described.'] as never,
     thinkingConfig: { type: 'enabled', budget_tokens: 1024 } as never,
-    tools: [FileReadTool] as never,
+    tools: [ReadTool] as never,
     signal: source.signal ?? new AbortController().signal,
     options: { getToolPermissionContext: async () => getEmptyToolPermissionContext(), model: `local/${record.id}`, isNonInteractiveSession: true, querySource: source.querySource, ...(source.agentId !== undefined ? { agentId: source.agentId } : {}), agents: [], hasAppendSystemPrompt: false, mcpTools: [], effortValue: source.effort ?? 'high' } as never,
   })) {

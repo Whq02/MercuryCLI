@@ -89,7 +89,7 @@ export async function launchResumeChooser(
   resumeProps: ResumeChooserProps,
 ): Promise<void> {
   let worktreeReadError: string | undefined
-  const [{ ResumeConversation }, { App }, { KeybindingSetup }, worktreePaths] = await Promise.all([
+  const [{ ResumeSession }, { App }, { KeybindingSetup }, worktreePaths] = await Promise.all([
     import('../screen/chat/ResumeSession.js'),
     import('./App.js'),
     import('../screen/keys/KeybindingProviderSetup.js'),
@@ -103,7 +103,7 @@ export async function launchResumeChooser(
   root.render(
     <App {...appProps}>
       <KeybindingSetup>
-        <ResumeConversation
+        <ResumeSession
           {...resumeProps}
           worktreePaths={worktreePaths}
           worktreeReadError={worktreeReadError}

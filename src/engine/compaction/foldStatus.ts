@@ -1,5 +1,5 @@
-import type { CompactProgressEvent } from '../../tools/kit/tool.js'
-import { COMPACT_MAX_OUTPUT_TOKENS } from '../compaction-window/contextFill.js'
+import type { FoldProgressEvent } from '../../tools/kit/tool.js'
+import { FOLD_MAX_OUTPUT_TOKENS } from '../compaction-window/contextFill.js'
 import { formatDuration, formatTokens } from '../../platform/text/format.js'
 
 type FoldStage = 'session-memory' | 'micro-compaction' | 'summarising' | 'restoring'
@@ -56,7 +56,7 @@ export function beginFoldStatus(facts: {
     stage: null,
     fill: null,
     summaryTokens: 0,
-    summaryCapTokens: COMPACT_MAX_OUTPUT_TOKENS,
+    summaryCapTokens: FOLD_MAX_OUTPUT_TOKENS,
     attempt: 1,
   }
 }
@@ -69,7 +69,7 @@ function advanceStage(status: FoldStatusV1, stage: FoldStage): FoldStatusV1 {
   return { ...status, stage, fill: null }
 }
 
-export function foldStatusOnEvent(status: FoldStatusV1, event: CompactProgressEvent): FoldStatusV1 {
+export function foldStatusOnEvent(status: FoldStatusV1, event: FoldProgressEvent): FoldStatusV1 {
   if (status.exit !== undefined) return status
   switch (event.type) {
     case 'stage':

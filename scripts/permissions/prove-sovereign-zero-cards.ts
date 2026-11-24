@@ -44,9 +44,9 @@ const { hasPermissionsToUseTool } = await import('../../src/permissions/rules/pe
 const { resolveHookPermissionDecision } = await import('../../src/engine/tool-dispatch/toolHooks.ts')
 const { resolveComputerAccess, COMPUTER_ACCESS_VALUES } = await import('../../src/platform/substrate/startupMenu.ts')
 const { resolveSessionPermissionMode, validateModeEntry } = await import('../../src/permissions/rules/permissionSetup.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { WriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const { GlobTool } = await import('../../src/tools/glob/GlobTool.ts')
 const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
 const { ChangeSetTool } = await import('../../src/tools/change-set/ChangeSetTool.ts')
@@ -134,7 +134,7 @@ section('§1 the roads that already stand down: every plain ask verdict is ALLOW
   const estate = (await import('../../src/permissions/rules/filesystem.ts')) as { noteComposedInstructionImports?: (paths: string[]) => void }
   const imported = join(ROOT, 'docs', 'zero-cards-imported.md')
   estate.noteComposedInstructionImports?.([imported])
-  const steering = await decide(FileWriteTool, { file_path: imported, content: 'x' }, contextOf('sovereign'))
+  const steering = await decide(WriteTool, { file_path: imported, content: 'x' }, contextOf('sovereign'))
   check('a write of a file the instruction files import asks nothing under sovereign', steering.decision.behavior === 'allow', JSON.stringify(steering.decision).slice(0, 300))
   const steeringShell = await decide(BashTool, { command: `echo x > ${imported}` }, contextOf('sovereign'))
   check('the same write through a shell redirect asks nothing under sovereign', steeringShell.decision.behavior === 'allow', JSON.stringify(steeringShell.decision).slice(0, 300))
@@ -145,9 +145,9 @@ section('§2 the Windows share road (A2): a UNC path asks on Windows and never o
 {
   getPlatform.cache.set(undefined, 'windows')
   const fileRoads: Array<[string, unknown, Record<string, unknown>]> = [
-    ['Edit', FileEditTool, { file_path: SHARE, old_string: 'old', new_string: 'new' }],
-    ['Write', FileWriteTool, { file_path: SHARE, content: 'new' }],
-    ['Read', FileReadTool, { file_path: SHARE }],
+    ['Edit', EditTool, { file_path: SHARE, old_string: 'old', new_string: 'new' }],
+    ['Write', WriteTool, { file_path: SHARE, content: 'new' }],
+    ['Read', ReadTool, { file_path: SHARE }],
     ['Glob', GlobTool, { path: SHARE, pattern: '*' }],
     ['Grep', GrepTool, { path: SHARE, pattern: 'text' }],
     ['ChangeSet', ChangeSetTool, { op: 'preview', changes: [{ file_path: SHARE, expected_anchor: 'fa:0123456789ab', hunks: [{ lines: '1', replace: 'new' }] }] }],
@@ -169,19 +169,19 @@ section('§2 the Windows share road (A2): a UNC path asks on Windows and never o
     ['extended-length UNC', String.raw`\\?\UNC\fileserver\projects\notes.txt`],
   ]
   for (const [label, spelling] of shareSpellings) {
-    const outside = await decide(FileReadTool, { file_path: spelling }, contextOf('default'))
+    const outside = await decide(ReadTool, { file_path: spelling }, contextOf('default'))
     check(`Read ${label} ${spelling}: asks in default mode on Windows with the share sentence`, outside.decision.behavior === 'ask' && (outside.decision.message ?? '').includes('SMB/WebDAV'), JSON.stringify(outside.decision))
-    const under = await decide(FileReadTool, { file_path: spelling }, contextOf('sovereign'))
+    const under = await decide(ReadTool, { file_path: spelling }, contextOf('sovereign'))
     check(`Read ${label}: ALLOWED under sovereign, the share sentence on the allowance`, under.decision.behavior === 'allow' && under.decision.decisionReason?.type === 'bypassedAsk' && under.decision.decisionReason.road === 'safetyCheckAsk', JSON.stringify(under.decision))
     const shell = await decide(PowerShellTool, { command: `Get-Content ${spelling}` }, contextOf('sovereign'))
     check(`PowerShell Get-Content ${label}: no card under sovereign`, shell.decision.behavior === 'allow', JSON.stringify(shell.decision))
   }
   for (const [label, spelling] of [['a mapped drive, forward slashes', 'Z:/proj/notes.txt'], ['a local path with forward slashes', 'C:/Users/Alice/proj/notes.txt']] as const) {
-    const read = await decide(FileReadTool, { file_path: spelling }, contextOf('sovereign'))
+    const read = await decide(ReadTool, { file_path: spelling }, contextOf('sovereign'))
     check(`Read ${label} ${spelling}: a drive letter carries no host, so no share question and no card under sovereign (the backslash spelling Z:\\proj needs a win32 path.resolve — the Windows box's check)`, read.decision.behavior === 'allow' && read.decision.decisionReason?.type !== 'bypassedAsk', JSON.stringify(read.decision))
   }
   getPlatform.cache.set(undefined, 'macos')
-  const mac = await decide(FileEditTool, { file_path: SHARE, old_string: 'old', new_string: 'new' }, contextOf('sovereign'))
+  const mac = await decide(EditTool, { file_path: SHARE, old_string: 'old', new_string: 'new' }, contextOf('sovereign'))
   check('on the Mac the same spelling never raised the share question; under sovereign it is allowed too (whatever does not ask on the Mac must not ask on Windows)', mac.decision.behavior === 'allow', JSON.stringify(mac.decision))
   getPlatform.cache.delete(undefined)
 }
@@ -314,7 +314,7 @@ section('§5 the hosted runner and the daemon-hosted cockpit (E): the runner par
     return new Promise(() => {}) as never
   })
   const context = contextOf('sovereign') as { abortController: AbortController }
-  const decision = runnerAsks.createCanUseTool()(FileEditTool as never, { file_path: SHARE, old_string: 'old', new_string: 'new' }, context as never, assistant, 'toolu_hosted')
+  const decision = runnerAsks.createCanUseTool()(EditTool as never, { file_path: SHARE, old_string: 'old', new_string: 'new' }, context as never, assistant, 'toolu_hosted')
   const result = await Promise.race([decision, sleep(800).then(() => null)])
   check('the share edit under sovereign is allowed by the runner itself — nothing travels to the host, nothing is parked', result !== null && (result as Decision).behavior === 'allow' && runnerAsks.parkedAsks() === 0 && seen === null, JSON.stringify({ result, parked: runnerAsks.parkedAsks(), seen }))
   context.abortController.abort()

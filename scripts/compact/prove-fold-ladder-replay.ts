@@ -36,13 +36,13 @@ const { setIsInteractive } = await import('../../src/boot/process-state/processS
 setIsInteractive(false)
 const { refreshGeminiCatalogue } = await import('../../src/models/roads/gemini/geminiCatalogue.ts')
 const { getContextWindowForModel } = await import('../../src/models/facts/capabilities.ts')
-const { getAutoCompactThreshold, getBlockingLimit } = await import('../../src/engine/compaction/autoFold.ts')
+const { getAutoFoldThreshold, getBlockingLimit } = await import('../../src/engine/compaction/autoFold.ts')
 const { tokenCountWithEstimation } = await import('../../src/engine/context-window/contextTokenCount.ts')
 const { requestGaugeDigest } = await import('../../src/engine/run/requestGauge.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
-const { compactConversation, buildPostCompactMessages, PROSE_SKIPPED_KEY } = await import('../../src/engine/compaction/foldConversation.ts')
+const { foldConversation, buildPostFoldMessages, PROSE_SKIPPED_KEY } = await import('../../src/engine/compaction/foldConversation.ts')
 const { loadTranscriptFromFile } = await import('../../src/sessions/transcripts/sessionListings.ts')
 type Message = import('../../src/engine/message-shapes/message.ts').Message
 
@@ -164,7 +164,7 @@ async function fold(messages: Message[], road: 'auto' | 'manual'): Promise<Drive
   const cache = { systemPrompt: ['fixture system prompt'], userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: messages } as never
   const started = Date.now()
   try {
-    const result = await compactConversation(messages, context as never, cache, road === 'auto', undefined, road === 'auto', { isRecompaction: false, turnsSincePreviousCompact: -1, autoCompactThreshold: getAutoCompactThreshold(MODEL) }, undefined, MODEL)
+    const result = await foldConversation(messages, context as never, cache, road === 'auto', undefined, road === 'auto', { isRecompaction: false, turnsSincePreviousCompact: -1, autoCompactThreshold: getAutoFoldThreshold(MODEL) }, undefined, MODEL)
     const summary = result.summaryMessages[0]
     const summaryText = summary !== undefined && typeof summary.message.content === 'string' ? summary.message.content : ''
     return { landed: true, pre: result.preCompactTokenCount, post: result.truePostCompactTokenCount, kept: result.messagesToKeep?.length ?? 0, notes: result.notes, sent, summaryText, ms: Date.now() - started }
@@ -176,7 +176,7 @@ async function fold(messages: Message[], road: 'auto' | 'manual'): Promise<Drive
 async function replay(label: string, messages: Message[]): Promise<void> {
   const gauge = tokenCountWithEstimation(messages, MODEL)
   const overTheLimit = gauge > getBlockingLimit(MODEL)
-  record(`${label}: ${messages.length} messages; the gauge reads ${gauge.toLocaleString('en-US')} tokens on a ${WINDOW.toLocaleString('en-US')}-token window (fold threshold ${getAutoCompactThreshold(MODEL).toLocaleString('en-US')}, blocking limit ${getBlockingLimit(MODEL).toLocaleString('en-US')}) — ${overTheLimit ? 'over the blocking limit: rung 1 pre-fits the summariser\'s input' : 'under the blocking limit: the whole conversation is sent first, rung 2 halves it when the model answers nothing'}`)
+  record(`${label}: ${messages.length} messages; the gauge reads ${gauge.toLocaleString('en-US')} tokens on a ${WINDOW.toLocaleString('en-US')}-token window (fold threshold ${getAutoFoldThreshold(MODEL).toLocaleString('en-US')}, blocking limit ${getBlockingLimit(MODEL).toLocaleString('en-US')}) — ${overTheLimit ? 'over the blocking limit: rung 1 pre-fits the summariser\'s input' : 'under the blocking limit: the whole conversation is sent first, rung 2 halves it when the model answers nothing'}`)
   check(`${label}: the window resolved from the catalogue`, getContextWindowForModel(MODEL) === WINDOW, `${String(getContextWindowForModel(MODEL))} — make getContextWindowForModel in src/models/facts/capabilities.ts return the catalogue window for this model, or fix the fixture window in fixtures/argon-seat-shape-2026-10-17.json`)
   check(`${label}: the conversation stands between the fold threshold and the window, as the dead seat did`, gauge > 950_000 && gauge < WINDOW, `${String(gauge)} — the gauge must read between 950,000 and the window; check tokenCountWithEstimation in src/engine/context-window/contextTokenCount.ts and the shape rows in fixtures/argon-seat-shape-2026-10-17.json`)
   for (const road of ['auto', 'manual'] as const) {
@@ -197,7 +197,7 @@ async function replay(label: string, messages: Message[]): Promise<void> {
       check(`${label} · ${road}: the model answered nothing to it (over the window by the provider's own count), and rung 2 landed the fold on halved input within three requests`, run.sent.length >= 2 && run.sent.length <= 3 && (run.sent[0] ?? 0) > Math.floor(WINDOW * 0.95) && run.sent.slice(1).every(n => n <= Math.floor(WINDOW * 0.95)), `${run.sent.join(',')} — an empty answer must retry on half the input, at most three requests, each within 95% of the window; fix summarizeWithPtlRetry in src/engine/compaction/fold/ladder.ts`)
     }
     check(`${label} · ${road}: the prose summary was written by the model (no skipped-prose line)`, run.landed && !(run.summaryText ?? '').includes(PROSE_SKIPPED_KEY) && (run.notes ?? []).length === 0, `${JSON.stringify(run.notes)} — the summary must come from the model with no skipped-prose note; check proseSkippedNote in src/engine/compaction/fold/ladder.ts and where compactConversation (src/engine/compaction/foldConversation.ts) sets it`)
-    check(`${label} · ${road}: the post-fold context is under the fold threshold with a verbatim tail kept`, run.landed && (run.post ?? Infinity) < getAutoCompactThreshold(MODEL) && (run.kept ?? 0) > 0, `${run.post} / ${run.kept} — the post-fold tokens must fall under getAutoCompactThreshold with a kept tail; check the landing limit in compactConversation (src/engine/compaction/foldConversation.ts)`)
+    check(`${label} · ${road}: the post-fold context is under the fold threshold with a verbatim tail kept`, run.landed && (run.post ?? Infinity) < getAutoFoldThreshold(MODEL) && (run.kept ?? 0) > 0, `${run.post} / ${run.kept} — the post-fold tokens must fall under getAutoCompactThreshold with a kept tail; check the landing limit in compactConversation (src/engine/compaction/foldConversation.ts)`)
   }
 }
 
@@ -230,13 +230,13 @@ section('F3 the landed fold is a usable context: boundary, operator messages, su
     const context = { abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages, readFileState: new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024), options: { tools: [], commands: [], mcpClients: [], engineModel: MODEL, maxThinkingTokens: 0, thinkingConfig: { type: 'enabled', budget_tokens: 8_000 }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
     const cache = { systemPrompt: ['fixture system prompt'], userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: messages } as never
     try {
-      return await compactConversation(messages, context as never, cache, true, undefined, true, { isRecompaction: false, turnsSincePreviousCompact: -1, autoCompactThreshold: getAutoCompactThreshold(MODEL) }, undefined, MODEL)
+      return await foldConversation(messages, context as never, cache, true, undefined, true, { isRecompaction: false, turnsSincePreviousCompact: -1, autoCompactThreshold: getAutoFoldThreshold(MODEL) }, undefined, MODEL)
     } catch (error) {
       check('the fold landed', false, `${error instanceof Error ? error.message : String(error)} — compactConversation in src/engine/compaction/foldConversation.ts threw on the shape fixture; see the fold-landed checks of F1 above`)
       return null
     }
   })()
-  const post = run === null ? [] : buildPostCompactMessages(run)
+  const post = run === null ? [] : buildPostFoldMessages(run)
   const kinds = post.map(row => (row.type === 'system' ? `system:${(row as { subtype?: string }).subtype ?? ''}` : row.type === 'attachment' ? `attachment:${(row as { attachment: { type: string } }).attachment.type}` : row.type))
   check('the post-fold context opens on the compact boundary', kinds[0] === 'system:compact_boundary', `${kinds.slice(0, 4).join(' · ')} — buildPostCompactMessages in src/engine/compaction/fold/foldResult.ts must put the compact boundary first`)
   check('the operator messages block rides verbatim', kinds.includes('attachment:compact_operator_messages'), `${kinds.join(' · ').slice(0, 300)} — buildPostCompactMessages in src/engine/compaction/fold/foldResult.ts must carry the operator messages attachment`)

@@ -5,7 +5,7 @@ import type { SessionMeta } from '../sessionMeta.js'
 import { promptLabel } from '../sessionIndex.js'
 import { getCwd } from '../../../platform/files/cwd.js'
 import { getBranch } from '../../../platform/git/git.js'
-import { isCompactBoundaryMessage } from '../../../engine/message-shapes/systemMessages.js'
+import { isFoldBoundaryMessage } from '../../../engine/message-shapes/systemMessages.js'
 import { getWorkload } from '../../../models/roads/workloadContext.js'
 import { effortNotOnWire } from '../../../models/effort/effortStamp.js'
 import { getFirstMeaningfulUserMessageTextContent, type Transcript } from '../chain.js'
@@ -88,7 +88,7 @@ export class ChainPart {
             sourceAssistantUuid && !this.leafDescendsQuietly(parentUuid, sourceAssistantUuid)
               ? sourceAssistantUuid
               : parentUuid
-          const isCompactBoundary = isCompactBoundaryMessage(message)
+          const isCompactBoundary = isFoldBoundaryMessage(message)
           const entryParentUuid = isCompactBoundary ? null : effectiveParentUuid
           const logicalParentUuid = isCompactBoundary ? (parentUuid ?? undefined) : undefined
 

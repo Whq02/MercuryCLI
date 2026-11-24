@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
-import type { CompactMetadata, Message } from '../../src/engine/message-shapes/message.ts'
+import type { FoldMetadata, Message } from '../../src/engine/message-shapes/message.ts'
 
 const home = mkdtempSync(join(tmpdir(), 'fold-receipts-'))
 process.env.MERCURY_CONFIG_DIR = home
@@ -15,8 +15,8 @@ process.env.ANTHROPIC_API_KEY ??= 'proof-key-ci-gate-not-a-real-key'
 process.env.MERCURY_COMPACT_KEEP_TAIL = '1'
 const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { compactConversation, partialCompactConversation } = await import('../../src/engine/compaction/foldConversation.ts')
-const prompts = (await import('../../src/engine/compaction/summariserPrompt.ts')) as { renderFoldedWork?: (work: CompactMetadata['work'] | undefined) => string | null }
+const { foldConversation, partialFoldConversation } = await import('../../src/engine/compaction/foldConversation.ts')
+const prompts = (await import('../../src/engine/compaction/summariserPrompt.ts')) as { renderFoldedWork?: (work: FoldMetadata['work'] | undefined) => string | null }
 const renderFoldedWork = prompts.renderFoldedWork ?? (() => null)
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { getEngineModel } = await import('../../src/models/catalogue/engineModel.ts')
@@ -72,7 +72,7 @@ try {
   console.log('\n1. the renderer over the receipts a boundary already carries')
   check('no work renders nothing', renderFoldedWork(undefined) === null)
   check('empty work renders nothing', renderFoldedWork({ receipts: [], recap: { turns: 0, toolCounts: [], files: [], toolFailures: 0, failedToolUseIds: [] } }) === null)
-  const work: NonNullable<CompactMetadata['work']> = {
+  const work: NonNullable<FoldMetadata['work']> = {
     receipts: [
       {
         beforeUuid: 'b',
@@ -97,7 +97,7 @@ try {
   check('nothing else rides the block', lines.length === 4, String(lines.length))
 
   console.log('\n2. the full fold carries the receipts inside the summary message')
-  const folded = await compactConversation(history, makeContext(), { systemPrompt: ['fixture posture'] } as never, true)
+  const folded = await foldConversation(history, makeContext(), { systemPrompt: ['fixture posture'] } as never, true)
   const summary = summaryTextOf(folded)
   check('the model\'s words are there', summary.includes(SUMMARY_WORDS))
   check('the folded-work block follows them', summary.indexOf('## Folded work') > summary.indexOf(SUMMARY_WORDS), summary.slice(0, 200))
@@ -118,7 +118,7 @@ try {
 
   console.log('\n3. the partial fold carries them too')
   for (const direction of ['up_to', 'from'] as const) {
-    const cut = await partialCompactConversation(history, 6, makeContext(), { systemPrompt: ['fixture posture'] } as never, undefined, direction)
+    const cut = await partialFoldConversation(history, 6, makeContext(), { systemPrompt: ['fixture posture'] } as never, undefined, direction)
     const text = summaryTextOf(cut)
     check(`${direction}: the summary carries the folded-work block`, text.includes('## Folded work'), text.slice(0, 160))
     check(`${direction}: the block names a file the summarised part touched`, /\/repo\/(inventory\.py|test_inventory\.py)/.test(text))

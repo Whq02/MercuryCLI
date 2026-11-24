@@ -15,9 +15,9 @@ import {
   type TransitionWindowFact,
 } from '../catalogue/modelTransition.js'
 import { isUnsignedThinkingBlock } from '../../engine/messages/messages.js'
-import { getMessagesAfterCompactBoundary } from '../../engine/message-shapes/systemMessages.js'
+import { getMessagesAfterFoldBoundary } from '../../engine/message-shapes/systemMessages.js'
 import { contextFill, usageAnchorModel } from '../../engine/context-window/contextTokenCount.js'
-import { autoCompactWindowIsInputLimit, getBlockingLimit, resolveAutoCompactWindow } from '../../engine/compaction/autoFold.js'
+import { autoFoldWindowIsInputLimit, getBlockingLimit, resolveAutoFoldWindow } from '../../engine/compaction/autoFold.js'
 import { declaredRouteOf } from './routeLaw.js'
 
 import { toBridgeMessages } from './openai/openaiCallModel.js'
@@ -57,20 +57,20 @@ export function transitionWindowFact(
   if (!isConfigReadingAllowed()) return undefined
   const target = parseUserSpecifiedModel(to ?? 'best')
   if (declaredRouteOf(target) === null) return undefined
-  const live = getMessagesAfterCompactBoundary(messages as Message[])
+  const live = getMessagesAfterFoldBoundary(messages as Message[])
   const fenced = contextFill(live, target)
   const anchored = contextFill(live)
   const usageWins = anchored.source === 'usage' && anchored.tokens >= fenced.tokens
   const count = Math.max(fenced.tokens, anchored.tokens)
   const countModel = usageWins ? usageAnchorModel(live) : undefined
   const limit = getBlockingLimit(target)
-  const window = resolveAutoCompactWindow(target).window
+  const window = resolveAutoFoldWindow(target).window
   return {
     count,
     countSource: usageWins ? 'usage' : 'estimate',
     ...(countModel !== undefined ? { countModel } : {}),
     window,
-    ...(autoCompactWindowIsInputLimit(target, window) ? { inputLimit: true as const } : {}),
+    ...(autoFoldWindowIsInputLimit(target, window) ? { inputLimit: true as const } : {}),
     windowSource: resolveContextWindow(target, getSdkBetas()).source,
     limit,
     fits: count < limit,

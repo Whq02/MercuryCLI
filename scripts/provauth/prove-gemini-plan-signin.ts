@@ -469,7 +469,7 @@ try {
   check('…and its words still carry Google\'s own sentence', errorWordsOf(overflowed).includes('The input token count exceeds the maximum number of tokens allowed 1048576.'), errorWordsOf(overflowed).slice(0, 300))
   assist.overflowRefusals = 0
   {
-    const { query } = await import('../../src/engine/turnDoor.ts')
+    const { turnDoor } = await import('../../src/engine/turnDoor.ts')
     const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
     const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
     const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
@@ -506,7 +506,7 @@ try {
       let terminal: Record<string, unknown> = {}
       let threw: string | undefined
       try {
-        const gen = query({ messages: messages as never, systemPrompt: ['be brief'] as never, userContext: {}, systemContext: {}, canUseTool: (async () => ({ behavior: 'deny', message: 'no tools in this rig' })) as never, toolUseContext: ctx as never, querySource: 'sdk' as never, deps: productionDeps() })
+        const gen = turnDoor({ messages: messages as never, systemPrompt: ['be brief'] as never, userContext: {}, systemContext: {}, canUseTool: (async () => ({ behavior: 'deny', message: 'no tools in this rig' })) as never, toolUseContext: ctx as never, querySource: 'sdk' as never, deps: productionDeps() })
         let step = await gen.next()
         while (!step.done) {
           yields.push(step.value as Record<string, unknown>)

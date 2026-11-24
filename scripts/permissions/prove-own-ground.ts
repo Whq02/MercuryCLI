@@ -29,8 +29,8 @@ const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool
 const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
 const { getScratchpadDir } = await import('../../src/permissions/rules/filesystem.ts')
 const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { WriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const ownGroundModule = await import('../../src/permissions/rules/ownGround.ts').catch(() => null)
 const createdByThisRun = (path: string): boolean => ownGroundModule?.createdByThisRun(path) ?? false
@@ -68,22 +68,22 @@ const toolContext = {
 type Caller = { call: (input: never, context: never, canUseTool?: never, parentMessage?: never) => Promise<{ data: unknown }> }
 try {
   for (const mode of MODES) {
-    const write = await decide(FileWriteTool, { file_path: join(scratch, 'run30.sh'), content: 'echo run\n' }, mode)
+    const write = await decide(WriteTool, { file_path: join(scratch, 'run30.sh'), content: 'echo run\n' }, mode)
     check(`${mode}: a Write into the session's scratchpad never asks`, write.behavior === 'allow', JSON.stringify(write))
-    const deep = await decide(FileWriteTool, { file_path: join(scratch, 'edge', 'site.json'), content: '{}\n' }, mode)
+    const deep = await decide(WriteTool, { file_path: join(scratch, 'edge', 'site.json'), content: '{}\n' }, mode)
     check(`${mode}: a Write into a new folder of the scratchpad never asks`, deep.behavior === 'allow', JSON.stringify(deep))
     const mkdir = await bash(`mkdir -p ${slashed(join(scratch, 'demo'))}`, mode)
     check(`${mode}: mkdir in the scratchpad never asks`, mkdir.behavior === 'allow', JSON.stringify(mkdir))
     const removal = await bash(`rm -rf ${slashed(join(scratch, 'demo'))}`, mode)
     check(`${mode}: rm -rf of a scratchpad folder never asks`, removal.behavior === 'allow', JSON.stringify(removal))
-    const working = await decide(FileWriteTool, { file_path: join(project, '.mercury', 'test-runs', 'r1.json'), content: '{}\n' }, mode)
+    const working = await decide(WriteTool, { file_path: join(project, '.mercury', 'test-runs', 'r1.json'), content: '{}\n' }, mode)
     check(`${mode}: a Write into Mercury's own working files under .mercury never asks`, working.behavior === 'allow', JSON.stringify(working))
   }
   const hosted = await bash(`rm -rf ${slashed(join(scratch, 'demo'))}`, 'flow', true)
   check('hosted Flow: rm -rf of a scratchpad folder never asks either', hosted.behavior === 'allow', JSON.stringify(hosted))
   const chain = await bash(`mkdir -p ${slashed(join(scratch, 'demo'))}; rm -f ${slashed(join(scratch, 'demo', 'todo.json'))}`)
   check('a chain of own-ground mkdir and rm is allowed hostless', chain.behavior === 'allow', JSON.stringify(chain))
-  const edit = await decide(FileEditTool, { file_path: join(scratch, 'run30.sh'), old_string: 'a', new_string: 'b' }, 'default')
+  const edit = await decide(EditTool, { file_path: join(scratch, 'run30.sh'), old_string: 'a', new_string: 'b' }, 'default')
   check('default: an Edit of a scratchpad file never asks', edit.behavior === 'allow', JSON.stringify(edit))
 
   for (const command of ['rm -rf /', 'rm -rf ~', 'rm -rf /Users', 'rm -rf ~/Developer/other', 'rm -rf /usr/local/lib/node_modules']) {
@@ -99,7 +99,7 @@ try {
     check(`${mode}: rm -rf of a pre-existing project folder ${mode === 'implement' ? 'is implement\'s own allowance' : 'still asks'}`, mode === 'implement' ? result.behavior === 'allow' : result.behavior !== 'allow', JSON.stringify(result))
   }
   for (const target of [join(project, '.mercury', 'settings.json'), join(project, '.mercury', 'hooks', 'x.sh'), join(project, '.mercury', 'skills', 's', 'SKILL.md'), join(project, '.mercury', 'wards.json')]) {
-    const result = await decide(FileWriteTool, { file_path: target, content: '{}\n' }, 'default')
+    const result = await decide(WriteTool, { file_path: target, content: '{}\n' }, 'default')
     check(`default: the config estate under .mercury still asks: ${target.slice(project.length)}`, result.behavior === 'ask', JSON.stringify(result))
   }
 
@@ -117,7 +117,7 @@ try {
   const kept = await bash('rm -rf generated', 'default')
   check('default: rm -rf of the pre-existing folder still keeps its ask', kept.behavior !== 'allow', JSON.stringify(kept))
   const parent = { uuid: '00000000-0000-4000-8000-000000000001' }
-  await (FileWriteTool as unknown as Caller).call({ file_path: join(project, 'scratch-blog-check', 'index.html'), content: '<p>x</p>\n' } as never, toolContext, undefined as never, parent as never)
+  await (WriteTool as unknown as Caller).call({ file_path: join(project, 'scratch-blog-check', 'index.html'), content: '<p>x</p>\n' } as never, toolContext, undefined as never, parent as never)
   check('the Write tool created the folder', existsSync(join(project, 'scratch-blog-check', 'index.html')), '')
   check('the folder a Write created is in the ledger', createdByThisRun(join(project, 'scratch-blog-check')), '')
   const blog = await bash('rm -r scratch-blog-check && git status --short')

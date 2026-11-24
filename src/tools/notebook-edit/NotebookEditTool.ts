@@ -14,7 +14,7 @@ import { lazySchema } from '../../platform/primitives/lazySchema.js'
 import { parseCellId } from '../kit/notebook.js'
 import { controlCharacterPathRefusal } from '../../platform/files/path.js'
 import { checkWritePermissionForTool } from '../../permissions/rules/filesystem.js'
-import { FILE_EDIT_TOOL_NAME } from '../kit/names/fileEdit.js'
+import { EDIT_TOOL_NAME } from '../kit/names/fileEdit.js'
 import { NOTEBOOK_EDIT_TOOL_NAME } from './constants.js'
 import { notebookTextAfterEdit, sourceInCellShape } from './notebookText.js'
 import { DESCRIPTION, PROMPT } from './prompt.js'
@@ -202,7 +202,7 @@ export const NotebookEditTool = buildTool({
 
     if (extname(resolvedPath) !== '.ipynb') {
       return refuse(
-        `File must be a Jupyter notebook (.ipynb file). For other file types, use the ${FILE_EDIT_TOOL_NAME} tool.`,
+        `File must be a Jupyter notebook (.ipynb file). For other file types, use the ${EDIT_TOOL_NAME} tool.`,
         2,
       )
     }

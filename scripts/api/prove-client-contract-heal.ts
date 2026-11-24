@@ -124,7 +124,7 @@ enableConfigs()
 const envUtils = await import('../../src/platform/environment/envUtils.js')
 const { setIsInteractive } = await import('../../src/boot/process-state/processState.js')
 const oauth = await import('../../src/models/sign-in/oauth/oauth.js')
-const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.js')
+const { anthropicCallModel } = await import('../../src/models/roads/anthropic/streamCore.js')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
 const { createUserMessage } = await import('../../src/engine/messages/messages.js')
 const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.js')
@@ -134,7 +134,7 @@ const { processOwnerForLane } = await import('../../src/engine/run-owner/resolve
 const health = await import('../../src/platform/health/healthReport.js')
 const ledger = await import('../../src/models/roads/anthropic/prefixLedger.js')
 const { getAttributionHeader } = await import('../../src/models/roads/attributionHeader.js')
-const { sideQuery } = await import('../../src/engine/requests/sideRequest.js')
+const { sideRequest } = await import('../../src/engine/requests/sideRequest.js')
 
 const CONTRACT = oauth.ANTHROPIC_CLIENT_CONTRACT_VERSION
 const NEWER = bump(CONTRACT, 9)
@@ -226,7 +226,7 @@ async function drive(floor: string): Promise<{ requests: DoorRequest[]; answered
   const door = makeDoor(floor)
   let answered = false
   let refusalText = ''
-  for await (const item of queryModelWithStreaming({
+  for await (const item of anthropicCallModel({
     messages: [createUserMessage({ content: 'Reply with one word.' })],
     systemPrompt: asSystemPrompt(['Reply briefly.']),
     thinkingConfig: { type: 'disabled' as const },
@@ -707,7 +707,7 @@ section('§11 the side query heals the same refusal — one read, one retry on t
   let answer = ''
   let thrown = ''
   try {
-    const response = await sideQuery({ model: MODEL, messages: [{ role: 'user', content: 'side question' }], querySource: 'contract-heal-side', max_tokens: 16 })
+    const response = await sideRequest({ model: MODEL, messages: [{ role: 'user', content: 'side question' }], querySource: 'contract-heal-side', max_tokens: 16 })
     answer = ((response as { content?: Array<{ text?: string }> }).content ?? []).map(b => b.text ?? '').join('')
   } catch (error) {
     thrown = String(error)
@@ -728,7 +728,7 @@ section('§11 the side query heals the same refusal — one read, one retry on t
   process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${sidePort}`
   let caught: unknown = null
   try {
-    await sideQuery({ model: MODEL, messages: [{ role: 'user', content: 'side question' }], querySource: 'contract-heal-side', max_tokens: 16 })
+    await sideRequest({ model: MODEL, messages: [{ role: 'user', content: 'side question' }], querySource: 'contract-heal-side', max_tokens: 16 })
   } catch (error) {
     caught = error
   } finally {

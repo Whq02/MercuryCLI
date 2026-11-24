@@ -13,19 +13,19 @@ import {
 
 type SetAppState = (updater: (prev: AppState) => AppState) => void
 
-let bypassCheckRan = false
+let sovereignCheckRan = false
 
 export function resetSovereignCheck(): void {
-  bypassCheckRan = false
+  sovereignCheckRan = false
 }
 
 export async function checkAndDisableSovereignIfNeeded(
   context: ToolPermissionContext,
   setAppState: SetAppState,
 ): Promise<void> {
-  if (bypassCheckRan) return
+  if (sovereignCheckRan) return
   if (!context.isBypassPermissionsModeAvailable) return
-  bypassCheckRan = true
+  sovereignCheckRan = true
   if (isSovereignDisabled()) {
     setAppState(prev => ({
       ...prev,

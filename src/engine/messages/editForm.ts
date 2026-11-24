@@ -1,5 +1,5 @@
 import { flagEnv } from '../../platform/substrate/flagRegistry.js'
-import { FILE_EDIT_TOOL_NAME } from '../../tools/kit/names/fileEdit.js'
+import { EDIT_TOOL_NAME } from '../../tools/kit/names/fileEdit.js'
 
 function forcedEditForm(): 'full' | 'plain' | undefined {
   const value = flagEnv('MERCURY_EDIT_FORM')
@@ -7,7 +7,7 @@ function forcedEditForm(): 'full' | 'plain' | undefined {
 }
 
 export function forcedShortForm(toolName: string): boolean | undefined {
-  const forced = toolName === FILE_EDIT_TOOL_NAME ? forcedEditForm() : undefined
+  const forced = toolName === EDIT_TOOL_NAME ? forcedEditForm() : undefined
   return forced === undefined ? undefined : forced === 'plain'
 }
 

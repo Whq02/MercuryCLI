@@ -27,8 +27,8 @@ for (const k of [
 process.env.ANTHROPIC_API_KEY = 'proof-key-runsurface'
 
 const realQueryModule = await import('../../src/engine/turnDoor.ts')
-const realQuery = realQueryModule.query
-const realQueryEvents = realQueryModule.queryEvents
+const realQuery = realQueryModule.turnDoor
+const realQueryEvents = realQueryModule.turnDoorEvents
 
 type EngineQueryCall = {
   querySource: unknown
@@ -141,8 +141,8 @@ async function* dispatchQueryEvents(
 
 mock.module('../../src/engine/turnDoor.ts', () => ({
   ...realQueryModule,
-  query: dispatchQuery,
-  queryEvents: dispatchQueryEvents,
+  turnDoor: dispatchQuery,
+  turnDoorEvents: dispatchQueryEvents,
 }))
 
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
@@ -157,7 +157,7 @@ const { createAssistantMessage, createUserMessage } = await import(
 const { createAttachmentMessage } = await import(
   '../../src/engine/attachments/turnAttachments.ts'
 )
-const { createCompactBoundaryMessage, createSystemAPIErrorMessage } =
+const { createFoldBoundaryMessage, createSystemAPIErrorMessage } =
   await import('../../src/engine/message-shapes/systemMessages.ts')
 const { createFileStateCacheWithSizeLimit } = await import(
   '../../src/platform/files/fileStateCache.ts'
@@ -584,7 +584,7 @@ section('E7 ATTACHMENTS — structured_output capture; a queued_command is the c
 
 section('E8 COMPACT BOUNDARY — the ended compaction row + the memory release')
 {
-  const boundary = createCompactBoundaryMessage('auto', 900)
+  const boundary = createFoldBoundaryMessage('auto', 900)
   const r = await runEngine({
     steps: [
       ey(asstText('pre-compact')),

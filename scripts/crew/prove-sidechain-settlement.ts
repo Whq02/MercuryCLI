@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
-import type { LegacyQueryYield } from '../../src/engine/loop/project-legacy.ts'
+import type { LegacyTurnYield } from '../../src/engine/loop/project-legacy.ts'
 import { settledSidechainMessages } from '../../src/sessions/transcripts/settledSidechainMessages.ts'
 import { makeTally } from './crew-world.ts'
 
 const tally = makeTally('prove-sidechain-settlement')
-const event = (type: string): LegacyQueryYield => ({ type: 'stream_event', event: { type } }) as LegacyQueryYield
+const event = (type: string): LegacyTurnYield => ({ type: 'stream_event', event: { type } }) as LegacyTurnYield
 const message = (uuid: string, type = 'assistant') => ({ type, uuid, message: { content: uuid, usage: { output_tokens: 0 }, stop_reason: null as string | null }, apexProviderTurn: undefined as unknown })
 const first = message('first')
 const last = message('last')
@@ -13,20 +13,20 @@ const result = message('result', 'user')
 const delivered: typeof first[] = []
 let deltaBeforeRows = false
 let settled = false
-async function* response(): AsyncGenerator<LegacyQueryYield> {
+async function* response(): AsyncGenerator<LegacyTurnYield> {
   yield event('message_start')
-  yield first as unknown as LegacyQueryYield
-  yield attachment as unknown as LegacyQueryYield
+  yield first as unknown as LegacyTurnYield
+  yield attachment as unknown as LegacyTurnYield
   yield event('content_block_delta')
   deltaBeforeRows = delivered.length === 0
-  yield last as unknown as LegacyQueryYield
+  yield last as unknown as LegacyTurnYield
   last.message.usage.output_tokens = 29
   last.message.stop_reason = 'tool_use'
   last.apexProviderTurn = { responseId: 'fixture-receipt' }
   settled = true
   yield event('message_delta')
   yield event('message_stop')
-  yield result as unknown as LegacyQueryYield
+  yield result as unknown as LegacyTurnYield
 }
 for await (const item of settledSidechainMessages(response())) {
   if (item.type === 'stream_event') continue
@@ -39,15 +39,15 @@ tally.check('the settled row carries the final usage, stop reason and replay rec
 
 for (const ending of ['close', 'throw', 'restart', 'retract', 'plain'] as const) {
   const row = message(ending)
-  const seen: LegacyQueryYield[] = []
+  const seen: LegacyTurnYield[] = []
   const failure = new Error('fixture interrupted stream')
   let caught: unknown
-  async function* source(): AsyncGenerator<LegacyQueryYield> {
+  async function* source(): AsyncGenerator<LegacyTurnYield> {
     if (ending !== 'plain') yield event('message_start')
-    yield row as unknown as LegacyQueryYield
+    yield row as unknown as LegacyTurnYield
     if (ending === 'throw') throw failure
     if (ending === 'restart') yield { type: 'stream_request_start' }
-    if (ending === 'retract') yield { type: 'tombstone', message: row } as unknown as LegacyQueryYield
+    if (ending === 'retract') yield { type: 'tombstone', message: row } as unknown as LegacyTurnYield
   }
   try {
     for await (const item of settledSidechainMessages(source())) seen.push(item)

@@ -24,8 +24,8 @@ await lspManager.waitForInitialization()
 const registry = await import(join(REPO, 'src/integrations/lsp/LSPDiagnosticRegistry.ts'))
 const { getLSPDiagnosticAttachments } = await import(join(REPO, 'src/engine/attachments/diagnostics.ts'))
 const { normalizeAttachmentForAPI } = await import(join(REPO, 'src/engine/messages/attachmentText.ts'))
-const { FileReadTool } = await import(join(REPO, 'src/tools/read/ReadTool.ts'))
-const { FileEditTool } = await import(join(REPO, 'src/tools/edit/EditTool.ts'))
+const { ReadTool } = await import(join(REPO, 'src/tools/read/ReadTool.ts'))
+const { EditTool } = await import(join(REPO, 'src/tools/edit/EditTool.ts'))
 const { getEmptyToolPermissionContext } = await import(join(REPO, 'src/tools/kit/tool.ts'))
 const { processOwnerForLane } = await import(join(REPO, 'src/engine/run-owner/resolveOwner.ts'))
 const { BASH_TOOL_NAME } = await import(join(REPO, 'src/tools/kit/names/bash.ts'))
@@ -51,8 +51,8 @@ const parent = (): { uuid: string; message: { id: string } } => {
   return { uuid: `00000000-0000-0000-0000-${String(parentSeq).padStart(12, '0')}`, message: { id: `msg_${parentSeq}` } }
 }
 async function readThenEdit(ctx: Record<string, unknown>, path: string, oldString: string, newString: string): Promise<void> {
-  await (FileReadTool as { call: Function }).call({ file_path: path }, ctx, null, parent())
-  await (FileEditTool as { call: Function }).call({ file_path: path, old_string: oldString, new_string: newString }, ctx, null, parent())
+  await (ReadTool as { call: Function }).call({ file_path: path }, ctx, null, parent())
+  await (EditTool as { call: Function }).call({ file_path: path, old_string: oldString, new_string: newString }, ctx, null, parent())
 }
 const plain = (uri: string): string => (uri.startsWith('file://') ? uri.slice('file://'.length) : uri)
 function awaitReportFor(path: string, timeoutMs: number): Promise<boolean> {

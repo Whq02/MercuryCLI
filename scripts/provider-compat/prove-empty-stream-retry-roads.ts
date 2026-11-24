@@ -61,7 +61,7 @@ const { compatCallModel } = await import('../../src/models/roads/openaicompat/co
 const { streamOpenrouterResponses } = await import('../../src/models/roads/openrouter/openrouterResponsesTransport.ts')
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.ts')
+const { anthropicCallModel } = await import('../../src/models/roads/anthropic/streamCore.ts')
 const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 import type { Message } from '../../src/engine/message-shapes/message.ts'
@@ -263,7 +263,7 @@ try {
       }
       return body.stream === true ? homeStream() : homeJson()
     }) as unknown as typeof fetch
-    const generator = queryModelWithStreaming({
+    const generator = anthropicCallModel({
       messages: [user('Say hello.')],
       systemPrompt: asSystemPrompt(['Only answer the request.']),
       thinkingConfig: { type: 'disabled' } as never,

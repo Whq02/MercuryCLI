@@ -42,17 +42,17 @@ const { setIsInteractive } = await import('../../src/boot/process-state/processS
 setIsInteractive(false)
 const { refreshGeminiCatalogue } = await import('../../src/models/roads/gemini/geminiCatalogue.ts')
 const { getContextWindowForModel } = await import('../../src/models/facts/capabilities.ts')
-const { getAutoCompactThreshold, getBlockingLimit } = await import('../../src/engine/compaction/autoFold.ts')
+const { getAutoFoldThreshold, getBlockingLimit } = await import('../../src/engine/compaction/autoFold.ts')
 const { conversationAtThreshold } = await import('./thresholdFixture.ts')
 const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
 const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 const { recordSentRequest } = await import('../../src/crew/agents/forkedAgent.ts')
 const { rosterOwnerFromToolUseContext } = await import('../../src/engine/run-owner/resolveOwner.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
-const { query: startTurn } = await import('../../src/engine/turnDoor.ts')
-const { compactConversation, shouldRideCacheSharingFork, PROSE_SKIPPED_KEY } = await import('../../src/engine/compaction/foldConversation.ts')
+const { turnDoor: startTurn } = await import('../../src/engine/turnDoor.ts')
+const { foldConversation, shouldRideCacheSharingFork, PROSE_SKIPPED_KEY } = await import('../../src/engine/compaction/foldConversation.ts')
 
 const GEMINI = 'gemini-3-pro'
 const GEMINI_WINDOW = 1_048_576
@@ -93,7 +93,7 @@ function foldRows(): FoldRow[] {
 async function atThreshold(label: string, model: string, family: string, resultChars: number, fixed: number, ratio: number, thinkingConfig: Record<string, unknown>): Promise<void> {
   section(label)
   const window = getContextWindowForModel(model)
-  const threshold = getAutoCompactThreshold(model)
+  const threshold = getAutoFoldThreshold(model)
   const blocking = getBlockingLimit(model)
   const built = conversationAtThreshold({ model, family, resultChars, fixed, ratio, target: threshold })
   const { gauge, byDensity } = built
@@ -101,14 +101,14 @@ async function atThreshold(label: string, model: string, family: string, resultC
   record(`${built.messages.length} messages (${built.ids.length} Read rounds of ${resultChars.toLocaleString('en-US')} chars, ${(bytes / 1_048_576).toFixed(1)} MB of JSON); the calibrated gauge reads ${gauge.toLocaleString('en-US')} on a ${window.toLocaleString('en-US')} window — the fold threshold is ${threshold.toLocaleString('en-US')}, the blocking limit ${blocking.toLocaleString('en-US')}; by density the request reads ${byDensity.toLocaleString('en-US')} (fixed material ${fixed.toLocaleString('en-US')}, ratio ${ratio})`)
   check(`${label}: the gauge sits exactly at the auto-compact threshold`, gauge === threshold, `${gauge} vs ${threshold}`)
   check(`${label}: by density too the conversation is under the blocking limit (a normal day's fold, not the dead seat's)`, byDensity < blocking && byDensity > threshold - 25_000, `${byDensity} vs ${blocking}`)
-  const context: any = { abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: built.messages, startTurn, readFileState: new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024), options: { tools: [FileReadTool], commands: [], mcpClients: [], engineModel: model, maxThinkingTokens: 0, thinkingConfig, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
+  const context: any = { abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: built.messages, startTurn, readFileState: new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024), options: { tools: [ReadTool], commands: [], mcpClients: [], engineModel: model, maxThinkingTokens: 0, thinkingConfig, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
   const systemPrompt = asSystemPrompt(['Synthetic fold request proof.'])
   const owner = String(rosterOwnerFromToolUseContext(context))
   fixture.script([{ text: 'Reading module next.' }])
   const referenceAt = fixture.captured.length
   let referenceError = ''
   try {
-    for await (const _ of routedCallModel({ messages: built.messages, systemPrompt, thinkingConfig: thinkingConfig as never, tools: [FileReadTool], signal: context.abortController.signal, options: { model, getToolPermissionContext: async () => state.toolPermissionContext, isNonInteractiveSession: true, hasAppendSystemPrompt: false, maxOutputTokensOverride: undefined, querySource: 'main_thread' as never, agents: [], mcpTools: [], effortValue: state.effortValue as never, ownerKey: owner, onWait: () => {}, onStreamActivity: () => {} } })) {}
+    for await (const _ of routedCallModel({ messages: built.messages, systemPrompt, thinkingConfig: thinkingConfig as never, tools: [ReadTool], signal: context.abortController.signal, options: { model, getToolPermissionContext: async () => state.toolPermissionContext, isNonInteractiveSession: true, hasAppendSystemPrompt: false, maxOutputTokensOverride: undefined, querySource: 'main_thread' as never, agents: [], mcpTools: [], effortValue: state.effortValue as never, ownerKey: owner, onWait: () => {}, onStreamActivity: () => {} } })) {}
   } catch (caught) {
     referenceError = String(caught)
   }
@@ -121,9 +121,9 @@ async function atThreshold(label: string, model: string, family: string, resultC
   const before = fixture.captured.length
   const started = Date.now()
   let error = ''
-  let result: Awaited<ReturnType<typeof compactConversation>> | undefined
+  let result: Awaited<ReturnType<typeof foldConversation>> | undefined
   try {
-    result = await compactConversation(built.messages, context, { systemPrompt, userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: built.messages } as never, true, undefined, true, { isRecompaction: false, turnsSincePreviousCompact: 3, autoCompactThreshold: threshold })
+    result = await foldConversation(built.messages, context, { systemPrompt, userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: built.messages } as never, true, undefined, true, { isRecompaction: false, turnsSincePreviousCompact: 3, autoCompactThreshold: threshold })
   } catch (caught) {
     error = caught instanceof Error ? caught.message : String(caught)
   }

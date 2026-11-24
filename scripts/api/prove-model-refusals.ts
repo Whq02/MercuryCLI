@@ -163,7 +163,7 @@ check('reads and writes bound the persisted set to its newest dozen records', re
 check('a successful publish leaves no temporary record', readdirSync(storedDirectory).every(name => name.endsWith('.json')))
 for (const refusal of refusals.standingModelRefusals()) refusals.clearModelRefusal(refusal.id, refusal.door)
 
-const { queryModelWithStreaming, queryModelWithoutStreaming } = await import('../../src/models/roads/anthropic/streamCore.js')
+const { anthropicCallModel, anthropicCallModelSettled } = await import('../../src/models/roads/anthropic/streamCore.js')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
 const { createUserMessage } = await import('../../src/engine/messages/messages.js')
 const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.js')
@@ -187,11 +187,11 @@ for (const road of ['streamed', 'collected'] as const) {
   getAssistantMessageFromError(gate, MODEL)
   check(`${road}: the error seam itself records a standing refusal`, refusals.modelRefusalWords(MODEL) !== undefined)
   if (road === 'collected') {
-    const answer = await queryModelWithoutStreaming(input())
+    const answer = await anthropicCallModelSettled(input())
     check('the collected request actually succeeds', !answer.isApiErrorMessage && textOf(answer) === 'answered')
   } else {
     let answered = false
-    for await (const item of queryModelWithStreaming(input())) {
+    for await (const item of anthropicCallModel(input())) {
       if (item.type === 'assistant' && !item.isApiErrorMessage && textOf(item) === 'answered') answered = true
     }
     check('the streamed request actually succeeds', answered)

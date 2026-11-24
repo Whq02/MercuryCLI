@@ -1,6 +1,6 @@
 
 import { getSdkBetas } from '../../boot/process-state/processState.js'
-import { calculateTokenWarningState, getAutoCompactThreshold, isAutoCompactEnabled } from '../compaction-window/autoFoldWindow.js'
+import { calculateTokenWarningState, getAutoFoldThreshold, isAutoFoldEnabled } from '../compaction-window/autoFoldWindow.js'
 import type { Message } from '../message-shapes/message.js'
 import { contextFillPercent } from '../compaction-window/contextFill.js'
 import { type ContextResolution, resolveContextWindow } from '../../models/facts/capabilities.js'
@@ -37,8 +37,8 @@ export function contextFillView(messages: readonly Message[], model: string): Co
   let compactAtPct: number | null = null
   let leftUntilCompactPct: number | null = null
   try {
-    if (isAutoCompactEnabled() && window > 0) {
-      compactAtPct = Math.min(100, (getAutoCompactThreshold(model) / window) * 100)
+    if (isAutoFoldEnabled() && window > 0) {
+      compactAtPct = Math.min(100, (getAutoFoldThreshold(model) / window) * 100)
       if (usedTokens !== null) leftUntilCompactPct = calculateTokenWarningState(usedTokens, model).pctLeft ?? null
     }
   } catch {

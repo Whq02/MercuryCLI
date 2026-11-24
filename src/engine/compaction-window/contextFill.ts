@@ -9,7 +9,7 @@ export {
   getMaxThinkingTokensForModel,
 } from '../../models/facts/capabilities.js'
 
-export const COMPACT_MAX_OUTPUT_TOKENS = 20_000
+export const FOLD_MAX_OUTPUT_TOKENS = 20_000
 
 type ContextUsage = {
   cache_creation_input_tokens: number

@@ -1,6 +1,6 @@
 import { getSessionId } from '../../boot/process-state/processState.js'
 import type { Command } from '../../commands/catalogue/commands.js'
-import type { QueryParams } from '../loop/turn-machine.js'
+import type { TurnParams } from '../loop/turn-machine.js'
 import type { Tools, ToolUseContext } from '../../tools/kit/tool.js'
 import type { Message, MessageOrigin } from '../message-shapes/message.js'
 import type { ContentBlockParam } from '../message-shapes/wire.js'
@@ -20,7 +20,7 @@ import { turnRows } from './turn/turnRows.js'
 
 export { closeRowOf } from './turn/close.js'
 
-type CanUseTool = ToolUseContext extends never ? never : QueryParams['canUseTool']
+type CanUseTool = ToolUseContext extends never ? never : TurnParams['canUseTool']
 type GetAppState = ToolUseContext['getAppState']
 type SetAppState = ToolUseContext['setAppState']
 type McpClients = ToolUseContext['options']['mcpClients']

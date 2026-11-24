@@ -30,7 +30,7 @@ import { ImageResizeError, imagesLeftOutMarked, imagesLeftOutNoticeLine, takeIma
 import { describeInvalidArgTypeError } from '../../../platform/errors/errors.js'
 import { findToolByName } from '../../../tools/kit/tool.js'
 import { effortAdjustedReceiptLine, isTurnOwningQuerySource } from '../../../models/effort/effort.js'
-import type { AssistantMessage, Message, SystemCompactBoundaryMessage } from '../../message-shapes/message.js'
+import type { AssistantMessage, Message, SystemFoldBoundaryMessage } from '../../message-shapes/message.js'
 import type { MCPServerConnection } from '../../../integrations/mcp-shapes/mcpServerRecords.js'
 import type { RequestWaitV1 } from '../../../models/roads/streamIdleBudget.js'
 import { logError } from '../../../platform/logs/errorLog.js'
@@ -348,7 +348,7 @@ function boundGaugeOf(iter: IterationState): RequestGaugeView | undefined {
 }
 
 function unlandedFoldBoundaryOf(view: readonly Message[]): string | undefined {
-  const boundary = view.findLast((row): row is SystemCompactBoundaryMessage => row.type === 'system' && row.subtype === 'compact_boundary' && row.compactMetadata.cacheEpoch !== undefined)
+  const boundary = view.findLast((row): row is SystemFoldBoundaryMessage => row.type === 'system' && row.subtype === 'compact_boundary' && row.compactMetadata.cacheEpoch !== undefined)
   if (boundary === undefined) return undefined
   const landed = view.some(row => row.type === 'assistant' && row.foldLanding?.boundaryId === boundary.uuid)
   return landed ? undefined : boundary.uuid

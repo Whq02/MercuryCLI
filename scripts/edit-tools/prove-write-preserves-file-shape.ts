@@ -10,9 +10,9 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'file-shape-home-'))
 process.env.MERCURY_BARE = '1'
 process.env.MERCURY_CHANGESET_DIR = mkdtempSync(join(tmpdir(), 'file-shape-cs-'))
 
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { WriteTool } = await import('../../src/tools/write/WriteTool.ts')
 const { ChangeSetTool } = await import('../../src/tools/change-set/ChangeSetTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { _resetSeenLinesForTesting } = await import('../../src/tools/engines/change-transaction/seenLines.ts')
@@ -152,11 +152,11 @@ for (const kind of KINDS) {
   {
     restore(kind.file)
     const ctx = makeContext()
-    const read = await run(FileReadTool, { file_path: path }, ctx)
-    if (kind.id === 'big') await run(FileReadTool, { file_path: path, offset: 2001 }, ctx)
+    const read = await run(ReadTool, { file_path: path }, ctx)
+    if (kind.id === 'big') await run(ReadTool, { file_path: path, offset: 2001 }, ctx)
     const body = hasWord ? normalized(kind.bytes).replace(kind.oldWord, kind.newWord) : `${kind.newWord}\n`
     const modelContent = body === '' || body.endsWith('\n') ? body : `${body}\n`
-    const wrote = await run(FileWriteTool, { file_path: path, content: modelContent }, ctx)
+    const wrote = await run(WriteTool, { file_path: path, content: modelContent }, ctx)
     const after = disk(kind.file)
     check(`Write: the read landed and the write landed`, read.ok && wrote.ok, `${textOf(read).slice(0, 120)} | ${textOf(wrote).slice(0, 200)}`)
     check(`Write: the word changed`, after.includes(kind.newWord) && (!hasWord || !after.includes(kind.oldWord)), after.slice(0, 120))
@@ -172,8 +172,8 @@ for (const kind of KINDS) {
   if (hasWord) {
     restore(kind.file)
     const ctx = makeContext()
-    await run(FileReadTool, { file_path: path }, ctx)
-    const edited = await run(FileEditTool, { file_path: path, old_string: kind.oldWord, new_string: kind.newWord }, ctx)
+    await run(ReadTool, { file_path: path }, ctx)
+    const edited = await run(EditTool, { file_path: path, old_string: kind.oldWord, new_string: kind.newWord }, ctx)
     const after = disk(kind.file)
     const stat = numstat(kind.file)
     check(`Edit: the one-word edit landed`, edited.ok && after.includes(kind.newWord), textOf(edited).slice(0, 200))
@@ -184,7 +184,7 @@ for (const kind of KINDS) {
   {
     restore(kind.file)
     const ctx = makeContext()
-    const appended = await run(FileEditTool, { file_path: path, append: 'appended line' }, ctx)
+    const appended = await run(EditTool, { file_path: path, append: 'appended line' }, ctx)
     const after = disk(kind.file)
     const stat = numstat(kind.file)
     const before = shapeOf(kind.bytes)
@@ -206,7 +206,7 @@ for (const kind of KINDS) {
   if (hasWord) {
     restore(kind.file)
     const ctx = makeContext()
-    const read = await run(FileReadTool, { file_path: path }, ctx)
+    const read = await run(ReadTool, { file_path: path }, ctx)
     const anchor = anchorOf(textOf(read))
     const lineText = normalized(kind.bytes).split('\n')[kind.line - 1] ?? ''
     const applied = await run(
@@ -228,19 +228,19 @@ section('the first line of a file with a byte-order mark: the mark survives a hu
   const path = join(repo, kind.file)
   restore(kind.file)
   const ctx = makeContext()
-  const read = await run(FileReadTool, { file_path: path }, ctx)
+  const read = await run(ReadTool, { file_path: path }, ctx)
   const applied = await run(ChangeSetTool, { op: 'apply', changes: [{ file_path: path, expected_anchor: anchorOf(textOf(read)), hunks: [{ lines: '1', replace: 'HELLO BOM' }] }] }, ctx)
   check('ChangeSet: a hunk on line 1 lands and the mark is kept (RED on the base: the mark was glued to line 1 and went with it)', applied.ok && disk(kind.file) === `${BOM}HELLO BOM\nworld line\nthird\n`, `${textOf(applied).slice(0, 200)} | ${JSON.stringify(disk(kind.file).slice(0, 12))}`)
   check('ChangeSet: git counts the one line', numstat(kind.file).added === 1 && numstat(kind.file).removed === 1, JSON.stringify(numstat(kind.file)))
   restore(kind.file)
   const ctx2 = makeContext()
-  await run(FileReadTool, { file_path: path }, ctx2)
-  const edited = await run(FileEditTool, { file_path: path, old_string: 'hello bom', new_string: 'HELLO BOM' }, ctx2)
+  await run(ReadTool, { file_path: path }, ctx2)
+  const edited = await run(EditTool, { file_path: path, old_string: 'hello bom', new_string: 'HELLO BOM' }, ctx2)
   check('Edit: a change on line 1 keeps the mark', edited.ok && disk(kind.file) === `${BOM}HELLO BOM\nworld line\nthird\n`, textOf(edited).slice(0, 200))
   restore(kind.file)
   const ctx3 = makeContext()
-  await run(FileReadTool, { file_path: path }, ctx3)
-  const wrote = await run(FileWriteTool, { file_path: path, content: 'HELLO BOM\nworld line\nthird\n' }, ctx3)
+  await run(ReadTool, { file_path: path }, ctx3)
+  const wrote = await run(WriteTool, { file_path: path, content: 'HELLO BOM\nworld line\nthird\n' }, ctx3)
   check('Write: the whole file again with line 1 changed keeps the mark', wrote.ok && disk(kind.file) === `${BOM}HELLO BOM\nworld line\nthird\n`, textOf(wrote).slice(0, 200))
   check('Write: git counts the one line', numstat(kind.file).added === 1 && numstat(kind.file).removed === 1, JSON.stringify(numstat(kind.file)))
 }
@@ -250,8 +250,8 @@ section('the whole-file Write of the same text over a CRLF file changes nothing:
   const kind = KINDS[0]!
   restore(kind.file)
   const ctx = makeContext()
-  await run(FileReadTool, { file_path: join(repo, kind.file) }, ctx)
-  const same = await run(FileWriteTool, { file_path: join(repo, kind.file), content: normalized(kind.bytes) }, ctx)
+  await run(ReadTool, { file_path: join(repo, kind.file) }, ctx)
+  const same = await run(WriteTool, { file_path: join(repo, kind.file), content: normalized(kind.bytes) }, ctx)
   check('the LF spelling of the same lines settles as no change and the file keeps every CRLF (RED on the base: a 5-line rewrite to LF)', same.ok && /No changes were made/.test(textOf(same)) && disk(kind.file) === kind.bytes, textOf(same).slice(0, 200))
 }
 
@@ -260,13 +260,13 @@ section('a write names its path for the folder\'s MERCURY.md / AGENTS.md and pat
   type Triggers = { nestedMemoryAttachmentTriggers: Set<string> }
   const fresh = join(repo, 'sub', 'brand-new.txt')
   const ctx = makeContext()
-  const wrote = await run(FileWriteTool, { file_path: fresh, content: 'new here\n' }, ctx)
+  const wrote = await run(WriteTool, { file_path: fresh, content: 'new here\n' }, ctx)
   check('Write of a new file with no prior read names the path (RED on the base: only Read did)', wrote.ok && (ctx as unknown as Triggers).nestedMemoryAttachmentTriggers.has(fresh), textOf(wrote).slice(0, 200))
   const kind = KINDS.find(k => k.id === 'bom')!
   restore(kind.file)
   const path = join(repo, kind.file)
   const ctx2 = makeContext()
-  const read = await run(FileReadTool, { file_path: path }, ctx2)
+  const read = await run(ReadTool, { file_path: path }, ctx2)
   ;(ctx2 as unknown as Triggers).nestedMemoryAttachmentTriggers.clear()
   const applied = await run(ChangeSetTool, { op: 'apply', changes: [{ file_path: path, expected_anchor: anchorOf(textOf(read)), hunks: [{ lines: '2', replace: 'WORLD LINE' }] }] }, ctx2)
   check('ChangeSet apply names every committed path (RED on the base: only Read did)', applied.ok && (ctx2 as unknown as Triggers).nestedMemoryAttachmentTriggers.has(path), textOf(applied).slice(0, 200))

@@ -56,9 +56,9 @@ section('the rows: the alias row and the previous generation\'s literal row are 
 {
   const { getModelOptions } = await import('../../src/models/catalogue/modelOptions.ts')
   const { FAMILY_GENERATIONS, previousGenerationKeys } = await import('../../src/models/facts/builtInModelTable.ts')
-  const { getModelStrings } = await import('../../src/models/facts/pinnedModelIds.ts')
+  const { getPinnedModelIds } = await import('../../src/models/facts/pinnedModelIds.ts')
   const { renderModelName } = await import('../../src/models/catalogue/engineModel.ts')
-  const strings = getModelStrings()
+  const strings = getPinnedModelIds()
   const newestId = strings[FAMILY_GENERATIONS.fable[0]]
   const previousId = strings[previousGenerationKeys('fable')[0]!]
   const rows = getModelOptions({ anthropicCredentialed: () => true })

@@ -63,8 +63,8 @@ try {
     () => system.createAgentsKilledMessage(),
     () => system.createApiMetricsMessage({ ttftMs: 1, otps: 1 }),
     () => system.createCommandInputMessage('fixture command'),
-    () => system.createCompactBoundaryMessage('manual', 1),
-    () => system.createMicrocompactBoundaryMessage('auto', 1, 1, [], []),
+    () => system.createFoldBoundaryMessage('manual', 1),
+    () => system.createPruneBoundaryMessage('auto', 1, 1, [], []),
     () => system.createSystemAPIErrorMessage(new Error('fixture error'), 0, 1, 1),
   ]
   const seen = new Set([assistant.uuid, assistant.message.id])

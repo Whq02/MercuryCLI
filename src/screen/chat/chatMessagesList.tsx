@@ -10,7 +10,7 @@ import type { useChatDialogs, useChatDialogsView } from './useChatDialogs.js';
 import type { useChatFocusedSeat } from './useChatFocusedSeat.js';
 import type { useChatScroll, useChatScrollPin } from './useChatScroll.js';
 import type { useChatSearch } from './useChatSearch.js';
-import type { useChatSelector, useChatSelectorView } from './useChatSelector.js';
+import type { useChatRewindPicker, useChatSelectorView } from './useChatSelector.js';
 import type { useChatConversation, useChatSession } from './useChatSession.js';
 import type { useChatStatusStrip } from './useChatStatus.js';
 import type { useChatTools } from './useChatTools.js';
@@ -25,7 +25,7 @@ type MessagesListArgs = Pick<ReturnType<typeof useChatSearch>, 'inVirtualTranscr
   Pick<ReturnType<typeof useChatConversation>, 'conversationId'> &
   Pick<ReturnType<typeof useChatFocusedSeat>, 'isLoading' | 'focusedTail'> &
   Pick<ReturnType<typeof useChatScrollPin>, 'scrollRef'> &
-  Pick<ReturnType<typeof useChatSelector>, 'showMessageSelector'> &
+  Pick<ReturnType<typeof useChatRewindPicker>, 'showMessageSelector'> &
   Pick<ReturnType<typeof useChatDialogs>, 'toolJSX'> &
   Pick<ReturnType<typeof useChatAsks>, 'toolUseConfirmQueue'> &
   Pick<ReturnType<typeof useChatScroll>, 'unseenDivider'> &

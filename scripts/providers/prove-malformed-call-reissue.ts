@@ -12,7 +12,7 @@ process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'malformed-reissue-d
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 for (const k of ['MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOKENS', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'NODE_ENV']) delete process.env[k]
 
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
@@ -150,7 +150,7 @@ function toolTurn(id: string, name: string, input: Record<string, unknown>): unk
 async function run(script: Step[][]): Promise<{ yields: AnyMsg[]; calls: CallRecord[]; terminal: Record<string, unknown> }> {
   const rig = makeCtx(tools)
   const { calls, callModel } = makeModel(script)
-  const gen = query({
+  const gen = turnDoor({
     messages: [createUserMessage({ content: `remember: ${FACT_BELL}` })] as never,
     systemPrompt: ['rig system prompt'] as never,
     userContext: {},

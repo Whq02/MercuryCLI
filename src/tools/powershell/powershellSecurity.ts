@@ -12,7 +12,7 @@ import {
   MODULE_LOADING_CMDLETS,
 } from '../../platform/shell/powershell/dangerousCmdlets.js'
 import { resolveToCanonical } from './readOnlyValidation.js'
-import { isClmAllowedType } from './constrainedLanguageTypes.js'
+import { isConstrainedLanguageAllowedType } from './constrainedLanguageTypes.js'
 
 type Verdict = { behavior: 'ask' | 'passthrough' | 'allow'; message?: string }
 const PASS: Verdict = { behavior: 'passthrough' }
@@ -175,14 +175,14 @@ function checkNewObject(cmd: ParsedCommandElement): Verdict | null {
         checkedType = true
         if (inlineValue !== undefined) {
           const val = stripQuotes(inlineValue)
-          if (!val || !isClmAllowedType(val)) {
+          if (!val || !isConstrainedLanguageAllowedType(val)) {
             return ASK(`The command instantiates a type outside the allowlist: ${val}`)
           }
         } else if (i + 1 < cmd.args.length) {
           i++
           const kind = argumentTypeAt(cmd, i)
           const val = stripQuotes(cmd.args[i]!)
-          if ((kind !== undefined && kind !== 'StringConstant') || !isClmAllowedType(val)) {
+          if ((kind !== undefined && kind !== 'StringConstant') || !isConstrainedLanguageAllowedType(val)) {
             return ASK(`The command instantiates a type outside the allowlist: ${val}`)
           }
         } else {
@@ -199,7 +199,7 @@ function checkNewObject(cmd: ParsedCommandElement): Verdict | null {
       checkedType = true
       const kind = argumentTypeAt(cmd, i)
       const val = stripQuotes(raw)
-      if ((kind !== undefined && kind !== 'StringConstant') || !isClmAllowedType(val)) {
+      if ((kind !== undefined && kind !== 'StringConstant') || !isConstrainedLanguageAllowedType(val)) {
         return ASK(`The command instantiates a type outside the allowlist: ${val}`)
       }
     }
@@ -417,7 +417,7 @@ export function powershellCommandIsSafe(_command: string, parsed: ParsedPowerShe
   }
 
   for (const typeName of parsed.typeLiterals ?? []) {
-    if (!isClmAllowedType(typeName)) {
+    if (!isConstrainedLanguageAllowedType(typeName)) {
       return ASK(`The command uses a type literal outside the allowlist: ${typeName}`)
     }
   }

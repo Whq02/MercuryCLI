@@ -1,7 +1,7 @@
 import type { Message } from '../../engine/message-shapes/message.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { callAdvisorOnceMore, liveAdvisorCall } from './advisorCall.js'
-import { appendAdvisorRow, loadAdvisorContext, maybeCompactAdvisorContext } from './advisorContext.js'
+import { appendAdvisorRow, loadAdvisorContext, maybeFoldAdvisorContext } from './advisorContext.js'
 import {
   ADVISOR_SYSTEM_PROMPT,
   advisorClock,
@@ -74,7 +74,7 @@ export async function askAdvisor(
   await appendAdvisorRow(context, { kind: 'question', at, text: trimmed })
   const text = clampNoteLines(reply.text)
   await appendAdvisorRow(context, { kind: 'reply', at, text, model })
-  await maybeCompactAdvisorContext(context, {
+  await maybeFoldAdvisorContext(context, {
     model,
     ...(road.window !== undefined ? { window: road.window } : {}),
     ...(road.summarize !== undefined ? { summarize: road.summarize } : {}),

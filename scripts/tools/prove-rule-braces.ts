@@ -59,7 +59,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 
-const { FileReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
+const { ReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
 const { InspectTool } = await import(`${SRC}/tools/inspect/InspectTool.ts`)
 const { GitTool } = await import(`${SRC}/tools/git/GitTool.ts`)
 const { GrepTool } = await import(`${SRC}/tools/grep/GrepTool.ts`)
@@ -147,15 +147,15 @@ let cells = 0
     ['Glob', async permission => said(GlobTool, (await GlobTool.call({ pattern: '**/*.ts', path: 'src' } as never, context(permission))).data)],
     ['Read of the folder above', async permission => {
       serial++
-      const listing = String((await (FileReadTool as { call: Function }).call({ file_path: 'src' }, context(permission), null, { uuid: `00000000-0000-0000-0000-${String(serial).padStart(12, '0')}`, message: { id: `msg_braces_${serial}` } })).data.file.content)
+      const listing = String((await (ReadTool as { call: Function }).call({ file_path: 'src' }, context(permission), null, { uuid: `00000000-0000-0000-0000-${String(serial).padStart(12, '0')}`, message: { id: `msg_braces_${serial}` } })).data.file.content)
       return listing.split('\n').map(line => (line.endsWith('/') ? `${line}keys.ts` : line)).join('\n')
     }],
   ]
   const judged: Array<[string, (file: string) => { tool: unknown; input: Record<string, unknown> }]> = [
-    ['Read by its path', file => ({ tool: FileReadTool, input: { file_path: file } })],
-    ['Read by its reference', file => ({ tool: FileReadTool, input: { file_path: `mercury://file/${file}` } })],
+    ['Read by its path', file => ({ tool: ReadTool, input: { file_path: file } })],
+    ['Read by its reference', file => ({ tool: ReadTool, input: { file_path: `mercury://file/${file}` } })],
     ['Inspect', file => ({ tool: InspectTool, input: { ref: `mercury://file/${file}` } })],
-    ['Read by its git reference', file => ({ tool: FileReadTool, input: { file_path: `mercury://git/at/HEAD/${file.slice(project.length + 1)}` } })],
+    ['Read by its git reference', file => ({ tool: ReadTool, input: { file_path: `mercury://git/at/HEAD/${file.slice(project.length + 1)}` } })],
     ['the Git tool', file => ({ tool: GitTool, input: { op: 'fileAtRef', ref: 'HEAD', path: file.slice(project.length + 1) } })],
   ]
   const SPELLINGS: Array<[string, string]> = [

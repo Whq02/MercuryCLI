@@ -1,34 +1,34 @@
 import { APIUserAbortError } from '../../engine/request-parts/sdkErrors.js'
 import { getLastCacheSafeParams } from '../../crew/agents/forkedAgent.js'
 import {
-  compactConversation,
-  buildPostCompactMessages,
+  foldConversation,
+  buildPostFoldMessages,
   ERROR_MESSAGE_FOLD_TIMEOUT,
   ERROR_MESSAGE_INCOMPLETE_RESPONSE,
   ERROR_MESSAGE_NOT_ENOUGH_MESSAGES,
-  type CompactionResult,
-  isNothingToCompactMessage,
+  type FoldResult,
+  isNothingToFoldMessage,
   isRefold,
   manualFoldHasNothingToFold,
-  NO_MESSAGES_TO_COMPACT,
-  nothingToCompactLine,
-  nothingToCompactReason,
+  NO_MESSAGES_TO_FOLD,
+  nothingToFoldLine,
+  nothingToFoldReason,
   projectManualFold,
   withFoldStatus,
   ERROR_MESSAGE_USER_ABORT,
 } from '../../engine/compaction/foldConversation.js'
-import { manualCompactDisplayText, shouldEnrichForLiveDisplay } from '../../engine/compaction/manualReceipt.js'
-import { foldModelFor, getAutoCompactThreshold } from '../../engine/compaction/autoFold.js'
+import { manualFoldDisplayText, shouldEnrichForLiveDisplay } from '../../engine/compaction/manualReceipt.js'
+import { foldModelFor, getAutoFoldThreshold } from '../../engine/compaction/autoFold.js'
 import { awaitContextWindowSource } from '../../engine/context-window/contextWindowWarmup.js'
 import { tokenCountWithEstimation } from '../../engine/context-window/contextTokenCount.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
-import { suppressCompactWarning } from '../../engine/compaction/foldWarningSuppression.js'
-import { runPostCompactCleanup } from '../../engine/compaction/postFoldCleanup.js'
-import { shouldUseSessionMemoryCompaction, trySessionMemoryCompaction } from '../../engine/compaction/sessionNotesFold.js'
+import { suppressFoldWarning } from '../../engine/compaction/foldWarningSuppression.js'
+import { runPostFoldCleanup } from '../../engine/compaction/postFoldCleanup.js'
+import { shouldUseSessionNotesFold, trySessionNotesFold } from '../../engine/compaction/sessionNotesFold.js'
 import { setLastSummarizedMessageId } from '../../sessions/session-memory/extractionState.js'
 import type { LocalCommandResult, LocalJSXCommandContext } from '../catalogue/command.js'
 import type { Message, UserMessage } from '../../engine/message-shapes/message.js'
-import { getMessagesAfterCompactBoundary } from '../../engine/messages/messages.js'
+import { getMessagesAfterFoldBoundary } from '../../engine/messages/messages.js'
 import { buildEffectiveSystemPrompt } from '../../engine/system-prompt/systemPrompt.js'
 import { fetchSystemPromptParts } from '../../engine/system-prompt/systemPromptParts.js'
 import type { CacheSafeParams } from '../../crew/agents/forkedAgent.js'
@@ -36,10 +36,10 @@ import { isAbortError, errorMessage, hasExactErrorMessage } from '../../platform
 import { logError } from '../../platform/logs/errorLog.js'
 import { getUserContext } from '../../engine/requestContext.js'
 
-export { NOTHING_TO_COMPACT_KEY, nothingToCompactLine } from '../../engine/compaction/foldConversation.js'
+export { NOTHING_TO_FOLD_KEY, nothingToFoldLine } from '../../engine/compaction/foldConversation.js'
 
 function enrichSummaryForLiveDisplay(
-  result: CompactionResult,
+  result: FoldResult,
   messagesHandedIn: number,
   customInstructions: string,
 ): void {
@@ -66,7 +66,7 @@ function enrichSummaryForLiveDisplay(
   }
 }
 
-async function buildCompactCacheSafeParams(
+async function buildFoldCacheSafeParams(
   messages: Message[],
   context: LocalJSXCommandContext,
 ): Promise<CacheSafeParams> {
@@ -105,39 +105,39 @@ async function callUnderFoldStatus(
   args: string,
   context: LocalJSXCommandContext,
 ): Promise<LocalCommandResult> {
-  const messages = getMessagesAfterCompactBoundary(context.messages)
+  const messages = getMessagesAfterFoldBoundary(context.messages)
   if (messages.length === 0) {
-    throw new Error(NO_MESSAGES_TO_COMPACT)
+    throw new Error(NO_MESSAGES_TO_FOLD)
   }
   const customInstructions = args.trim()
   try {
     if (customInstructions === '') {
-      if (shouldUseSessionMemoryCompaction()) {
+      if (shouldUseSessionNotesFold()) {
         context.onCompactProgress?.({ type: 'stage', stage: 'session-memory' })
       }
-      const sessionMemoryResult = await trySessionMemoryCompaction(messages, context.agentId, undefined, context, 'manual')
+      const sessionMemoryResult = await trySessionNotesFold(messages, context.agentId, undefined, context, 'manual')
       if (sessionMemoryResult !== null) {
         getUserContext.cache.clear()
-        runPostCompactCleanup(undefined, buildPostCompactMessages(sessionMemoryResult))
-        suppressCompactWarning()
+        runPostFoldCleanup(undefined, buildPostFoldMessages(sessionMemoryResult))
+        suppressFoldWarning()
         return {
           type: 'compact',
           compactionResult: sessionMemoryResult,
-          displayText: manualCompactDisplayText(context, sessionMemoryResult, messages.length),
+          displayText: manualFoldDisplayText(context, sessionMemoryResult, messages.length),
         }
       }
     }
 
     const model = context.options.engineModel
     await awaitContextWindowSource(model, { estTokens: tokenCountWithEstimation(messages, model) })
-    const cacheSafeParams = await buildCompactCacheSafeParams(messages, context)
+    const cacheSafeParams = await buildFoldCacheSafeParams(messages, context)
     const refold = isRefold(messages)
-    const projection = await projectManualFold(messages, context, cacheSafeParams, getAutoCompactThreshold(model))
+    const projection = await projectManualFold(messages, context, cacheSafeParams, getAutoFoldThreshold(model))
     if (projection !== null && (refold ? manualFoldHasNothingToFold(projection) : projection.after >= projection.before)) {
       logForDebugging(
         `compact: refused before the summariser — ${projection.folds} of ${messages.length} messages would fold (${projection.workingRoundsFolded} working rounds), the fold would land at ${projection.after} tokens against ${projection.before} by the same estimate`,
       )
-      throw new Error(nothingToCompactLine(projection.context, nothingToCompactReason(projection, refold)))
+      throw new Error(nothingToFoldLine(projection.context, nothingToFoldReason(projection, refold)))
     }
 
     const foldChoice = foldModelFor(messages, model, { forced: false })
@@ -147,7 +147,7 @@ async function callUnderFoldStatus(
       )
     }
 
-    const compactionResult = await compactConversation(
+    const compactionResult = await foldConversation(
       messages,
       context,
       cacheSafeParams,
@@ -157,7 +157,7 @@ async function callUnderFoldStatus(
       {
         isRecompaction: false,
         turnsSincePreviousCompact: -1,
-        autoCompactThreshold: getAutoCompactThreshold(model),
+        autoCompactThreshold: getAutoFoldThreshold(model),
         restoreFiles: projection?.restoreFiles ?? true,
         mustShrink: true,
       },
@@ -166,16 +166,16 @@ async function callUnderFoldStatus(
     )
 
     setLastSummarizedMessageId(undefined)
-    suppressCompactWarning()
+    suppressFoldWarning()
     getUserContext.cache.clear()
-    runPostCompactCleanup(undefined, buildPostCompactMessages(compactionResult))
+    runPostFoldCleanup(undefined, buildPostFoldMessages(compactionResult))
     if (shouldEnrichForLiveDisplay(context)) {
       enrichSummaryForLiveDisplay(compactionResult, messages.length, customInstructions)
     }
     return {
       type: 'compact',
       compactionResult,
-      displayText: manualCompactDisplayText(context, compactionResult, messages.length),
+      displayText: manualFoldDisplayText(context, compactionResult, messages.length),
     }
   } catch (err) {
     if (context.abortController.signal.aborted || isAbortError(err)) {
@@ -185,7 +185,7 @@ async function callUnderFoldStatus(
       hasExactErrorMessage(err, ERROR_MESSAGE_NOT_ENOUGH_MESSAGES) ||
       hasExactErrorMessage(err, ERROR_MESSAGE_INCOMPLETE_RESPONSE) ||
       hasExactErrorMessage(err, ERROR_MESSAGE_FOLD_TIMEOUT) ||
-      (err instanceof Error && isNothingToCompactMessage(err.message))
+      (err instanceof Error && isNothingToFoldMessage(err.message))
     ) {
       throw err
     }
@@ -200,7 +200,7 @@ export async function call(
 ): Promise<LocalCommandResult> {
   return withFoldStatus(context, scoped => callUnderFoldStatus(args, scoped), {
     trigger: 'manual',
-    sessionMemory: args.trim() === '' && shouldUseSessionMemoryCompaction(),
+    sessionMemory: args.trim() === '' && shouldUseSessionNotesFold(),
     microcompaction: false,
   })
 }

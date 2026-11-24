@@ -42,7 +42,7 @@ process.env.PATH = `${binDir}${delimiter}${prevPath ?? ''}`
 try {
   const { processAtMentionedFiles } = await import(`${root}/src/engine/attachments/mentionResolvers.ts`)
   const { normalizeAttachmentForAPI } = await import(`${root}/src/engine/messages/attachmentText.ts`)
-  const { FileReadTool } = await import(`${root}/src/tools/read/ReadTool.ts`)
+  const { ReadTool } = await import(`${root}/src/tools/read/ReadTool.ts`)
   const { getEmptyToolPermissionContext } = await import(`${root}/src/tools/kit/tool.ts`)
   const { createFileStateCacheWithSizeLimit } = await import(`${root}/src/platform/files/fileStateCache.ts`)
   const { getImageProcessor } = await import(`${root}/src/platform/images/imageProcessor.ts`)
@@ -93,8 +93,8 @@ try {
 
   process.env.MERCURY_TEST_OCR_DELAY_MS = '3600'
   const [explicitOcr, textOnlyModel] = await Promise.all([
-    FileReadTool.call({ file_path: explicitPng, ocr: true }, makeContext('claude-sonnet-5-5') as never),
-    FileReadTool.call({ file_path: textModelPng }, makeContext('glm-5.3') as never),
+    ReadTool.call({ file_path: explicitPng, ocr: true }, makeContext('claude-sonnet-5-5') as never),
+    ReadTool.call({ file_path: textModelPng }, makeContext('glm-5.3') as never),
   ])
   assert.equal(explicitOcr.data.type, 'text', `explicit ocr: true must return text, got ${explicitOcr.data.type}`)
   assert.match(explicitOcr.data.file.content, /MERCURY SLOW OCR SURVIVED/)

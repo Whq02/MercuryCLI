@@ -20,7 +20,7 @@ if (!given) {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
   process.env.MERCURY_BARE = '1'
   const src = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-  const { FileReadTool } = await import(`${src}/tools/read/ReadTool.ts`)
+  const { ReadTool } = await import(`${src}/tools/read/ReadTool.ts`)
   const { getEmptyToolPermissionContext } = await import(`${src}/tools/kit/tool.ts`)
   const { createFileStateCacheWithSizeLimit } = await import(`${src}/platform/files/fileStateCache.ts`)
   const { setCwdState, setOriginalCwd } = await import(`${src}/boot/process-state/processState.ts`)
@@ -39,12 +39,12 @@ if (!given) {
   const invoke = async (file_path: string) => {
     try {
       const input = { file_path }
-      const valid = await FileReadTool.validateInput(input, context)
+      const valid = await ReadTool.validateInput(input, context)
       if (!valid.result) return valid.message
-      const permission = await FileReadTool.checkPermissions(input, context)
+      const permission = await ReadTool.checkPermissions(input, context)
       if (permission.behavior === 'deny') return permission.message
-      const reply = await FileReadTool.call(input, context)
-      return String(FileReadTool.mapToolResultToToolResultBlockParam(reply.data, 'query').content)
+      const reply = await ReadTool.call(input, context)
+      return String(ReadTool.mapToolResultToToolResultBlockParam(reply.data, 'query').content)
     } catch (error) { return String(error) }
   }
   const routeFile = join(src, 'tools/read/readQueryTarget.ts')

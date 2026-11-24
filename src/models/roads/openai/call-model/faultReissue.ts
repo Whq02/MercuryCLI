@@ -14,7 +14,7 @@ import {
 import { openaiGatewayHost } from '../../deferralWire.js'
 import { logForDebugging } from '../../../../platform/logs/debugLog.js'
 import { MODEL_NOT_FOUND_CODE, OPENAI_MAX_ATTEMPTS, effortVocabularyRefusalOf } from './faults.js'
-import { compactTranscriptFor4xxResume, isCompactionSource } from './resumeTrim.js'
+import { pruneTranscriptFor4xxResume, isFoldSource } from './resumeTrim.js'
 import type { AttemptFault, AttemptFaultOutcome, OpenaiTurn } from './turnState.js'
 
 export function reissueTextForm(turn: OpenaiTurn, outcome: AttemptFaultOutcome): string | undefined {
@@ -66,7 +66,7 @@ export function trimResumedTranscript(
   if (
     resumeTrimReissued === undefined &&
     prior4xxCode !== undefined &&
-    !isCompactionSource(options.querySource) &&
+    !isFoldSource(options.querySource) &&
     !reissueAtServedWord &&
     outcome.retryEligible &&
     outcome.fault.status !== undefined &&
@@ -78,7 +78,7 @@ export function trimResumedTranscript(
     !MODEL_NOT_FOUND_CODE.test(outcome.fault.code) &&
     (prior4xxCode === '4xx' || prior4xxCode === outcome.fault.code)
   ) {
-    const trimmed = compactTranscriptFor4xxResume(messages, options.querySource, outcome.fault, conversation4xxKey)
+    const trimmed = pruneTranscriptFor4xxResume(messages, options.querySource, outcome.fault, conversation4xxKey)
     if (trimmed !== null) {
       logForDebugging(trimmed.note, { level: 'warn' })
       return trimmed

@@ -8,13 +8,13 @@ import { isLocalModelId } from '../../../models/roads/local/localCatalogue.js'
 import { formatCountdown, formatCountdownCoarse } from '../quota.js'
 import { saturnWakeGlanceWords } from '../../../daemon/saturn/saturn.js'
 import { GLYPH } from '../../theme/glyphs.js'
-import { getLogDisplayTitle } from '../../../platform/logs/errorLog.js'
+import { getListingDisplayTitle } from '../../../platform/logs/errorLog.js'
 import { LEAD_ROW_NAME } from '../../cockpit/crewmateWords.js'
 import type { MercuryThemeTokens } from '../../theme/mercuryTokens.js'
 import type { CrewEntry, GlanceReads, LanesInput, LanesRowSpec, LanesSectionSpec, RunRow, WorkDigest } from './types.js'
 
 export function recentLaneLabel(log: SessionListing): string {
-  const cleaned = Array.from(getLogDisplayTitle(log, 'untitled'), ch => (ch.charCodeAt(0) < 0x20 ? ' ' : ch))
+  const cleaned = Array.from(getListingDisplayTitle(log, 'untitled'), ch => (ch.charCodeAt(0) < 0x20 ? ' ' : ch))
     .join('')
     .replace(/\s+/g, ' ')
     .trim()

@@ -14,7 +14,7 @@ type Props = {
   mcpClients?: MCPServerConnection[]
 }
 
-export function useMcpConnectivityStatus({
+export function useMcpConnectionNotices({
   mcpClients = EMPTY_CLIENTS,
 }: Props): void {
   const { addNotification } = useNotifications()

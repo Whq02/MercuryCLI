@@ -4,7 +4,7 @@ import type { Command, PromptCommand } from '../../commands/catalogue/command.js
 import {
   enhanceSystemPromptWithEnvDetails,
 } from '../../engine/system-prompt/defaultSystemPrompt.js'
-import type { QueryParams } from '../../engine/loop/turn-machine.js'
+import type { TurnParams } from '../../engine/loop/turn-machine.js'
 import { productionDeps } from '../../engine/turn-entry/turnLoopDeps.js'
 import { randomUUID, type UUID } from 'node:crypto'
 import { connectToServer, fetchToolsForClient } from '../../integrations/mcp/client.js'
@@ -46,7 +46,7 @@ import { flagEnv } from '../../platform/substrate/flagRegistry.js'
 import { createChildAbortController } from '../../platform/async/abortController.js'
 import { AbortError, errorMessage } from '../../platform/errors/errors.js'
 import { createUserMessage, extractTextContent } from '../../engine/messages/messages.js'
-import { isCompactBoundaryMessage } from '../../engine/message-shapes/systemMessages.js'
+import { isFoldBoundaryMessage } from '../../engine/message-shapes/systemMessages.js'
 import { refusalRetryRowOf } from './refusalRetry.js'
 import { getAgentModel } from '../../models/catalogue/agentModel.js'
 import { readCatalogueIfPending } from '../../models/roads/catalogueOnDemand.js'
@@ -106,7 +106,7 @@ export function filterIncompleteToolCalls(messages: Message[]): Message[] {
 
 const executorClaims = new Map<string, symbol>()
 
-export type AgentQueryProgressEvent =
+export type CrewmateTurnProgressEvent =
   | Message
   | { type: 'stream_activity'; atMs: number }
   | { type: 'request_wait'; wait: unknown }
@@ -151,7 +151,7 @@ export type RunAgentParams = {
   effortOverride?: string
   thinkingConfigOverride?: ThinkingConfig
   instructionProfileOverride?: string
-  onQueryProgress?: (event: AgentQueryProgressEvent) => void
+  onQueryProgress?: (event: CrewmateTurnProgressEvent) => void
   onWait?: (line: string | null) => void
   onPendingAsks?: (count: number) => void
   structuredOutputSpec?: {
@@ -562,9 +562,9 @@ async function preflightAgentRun(params: RunAgentParams): Promise<{
   return { reviewReceipt, resolvedAgentModel, resolvedEffort }
 }
 
-function historyFromLatestCompactBoundary(rows: readonly Message[]): Message[] {
+function historyFromLatestFoldBoundary(rows: readonly Message[]): Message[] {
   for (let i = rows.length - 1; i >= 0; i--) {
-    if (isCompactBoundaryMessage(rows[i]!)) {
+    if (isFoldBoundaryMessage(rows[i]!)) {
       return rows.slice(i)
     }
   }
@@ -843,7 +843,7 @@ export async function* runAgent(
     let stoppedEarly = false
 
     for (;;) {
-      const queryParams: QueryParams = {
+      const queryParams: TurnParams = {
         messages: currentMessages,
         systemPrompt: brandedSystemPrompt,
         userContext,
@@ -902,7 +902,7 @@ export async function* runAgent(
       retriedRefusals.add(retry.refusalClass)
       lastRecordedUuid = await landAgentTranscriptRows([retry.row], agentId, lastRecordedUuid)
       yield retry.row
-      currentMessages = [...historyFromLatestCompactBoundary(conversationRows), retry.row]
+      currentMessages = [...historyFromLatestFoldBoundary(conversationRows), retry.row]
     }
 
     if (run.throttled !== null) throw run.throttled

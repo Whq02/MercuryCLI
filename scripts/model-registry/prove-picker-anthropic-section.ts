@@ -83,7 +83,7 @@ const { getAgentModelPickerRows, agentModelPickOutcome } = await import('../../s
 const { ANTHROPIC_CONNECT_OPTION_VALUE, getModelOptions, isProviderActionRow, stripContext1m } = await import('../../src/models/catalogue/modelOptions.ts')
 type ModelOption = import('../../src/models/catalogue/modelOptions.ts').ModelOption
 const { FAMILY_GENERATIONS, parseFirstPartyGeneration } = await import('../../src/models/facts/builtInModelTable.ts')
-const { getModelStrings } = await import('../../src/models/facts/pinnedModelIds.ts')
+const { getPinnedModelIds } = await import('../../src/models/facts/pinnedModelIds.ts')
 const { parseUserSpecifiedModel, renderModelName } = await import('../../src/models/catalogue/engineModel.ts')
 const { isClaudeAISubscriber, isMaxSubscriber } = await import('../../src/models/sign-in/credentials/auth.ts')
 const { clearOAuthTokenCache } = await import('../../src/models/sign-in/lifecycle/oauthLifecycle.ts')
@@ -112,7 +112,7 @@ const arg = (name: string): string | undefined => {
 const frameDir = arg('--frames')
 if (frameDir !== undefined) mkdirSync(frameDir, { recursive: true })
 
-const strings = getModelStrings()
+const strings = getPinnedModelIds()
 const OPUS_BLOCK = FAMILY_GENERATIONS.opus.map(key => strings[key])
 const DEFAULT_OPUS = OPUS_BLOCK[0]!
 const PREVIOUS_OPUS = OPUS_BLOCK[1]!

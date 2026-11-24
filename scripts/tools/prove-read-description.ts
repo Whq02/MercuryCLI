@@ -12,23 +12,23 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 delete process.env.NODE_ENV
 
-const { FileReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
+const { ReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
 const { readTargetsEnabled } = await import(`${SRC}/tools/read/readTarget.ts`)
 const { zodToJsonSchema } = await import(`${SRC}/platform/primitives/zodToJsonSchema.ts`)
 
 if (process.argv.includes('--record')) {
-  const schema = JSON.stringify(zodToJsonSchema((FileReadTool as { inputSchema: never }).inputSchema))
+  const schema = JSON.stringify(zodToJsonSchema((ReadTool as { inputSchema: never }).inputSchema))
   writeFileSync(join(import.meta.dir, 'fixtures', 'read-input-schema-28.json'), `${schema}\n`)
-  console.log(`Read schema: ${Buffer.byteLength(schema)} bytes; prompt: ${Buffer.byteLength(await FileReadTool.prompt({ model: 'claude-sonnet-5-5' }))} bytes`)
+  console.log(`Read schema: ${Buffer.byteLength(schema)} bytes; prompt: ${Buffer.byteLength(await ReadTool.prompt({ model: 'claude-sonnet-5-5' }))} bytes`)
   process.exit(0)
 }
 const tally = makeTally('prove-read-description')
 
 tally.section('4.2 — one text: the description says what comes back, each fact once, and no manual rides behind it')
 {
-  const prompt: string = await FileReadTool.prompt({ model: 'claude-sonnet-5-5' })
+  const prompt: string = await ReadTool.prompt({ model: 'claude-sonnet-5-5' })
   tally.check('read targets are on for this rendering', readTargetsEnabled() === true)
-  tally.check('no wire/manual split: the description is the whole text the model ever reads for Read', (FileReadTool as { wireDescription?: unknown }).wireDescription === undefined)
+  tally.check('no wire/manual split: the description is the whole text the model ever reads for Read', (ReadTool as { wireDescription?: unknown }).wireDescription === undefined)
   tally.check('the opener says the text, the window, the prefix and that the prefix is not content', prompt.startsWith('Reads a local file and returns its text with up to 2000 lines, each prefixed by a line number followed by a tab, then the line content; the prefix is not file content. A result that is not the whole file names the unread range.'), prompt)
   tally.check('the formats are said once: pictures or ocr, PDFs with pages, notebooks, office, archives (<archive>:<entry>), SQLite (<db>:<table>), audio and video', prompt.includes('Images are shown as pictures, or as recognised text with `ocr`.') && prompt.includes('PDFs open as numbered text with page markers, or as page pictures with `pages`') && prompt.includes('<archive>:<entry>') && prompt.includes('<db>:<table>') && prompt.includes('audio and video as timestamped transcripts'), prompt)
   tally.check('the targets are said once: a directory listing and mercury:// records, with mercury://seat named as this seat\'s own', prompt.includes('A directory path returns a bounded listing.') && prompt.includes("mercury://seat is this seat's own: the model, effort and posture this turn runs on."), prompt)
@@ -36,13 +36,13 @@ tally.section('4.2 — one text: the description says what comes back, each fact
   for (const gone of ['Usage:', 'Never edit', 'screenshot', 'ask which model', 'never from an earlier reply', 'WebFetch', 'Glob', 'Inspect', 'Bash', 'Whisper', 'ffmpeg', 'system-reminder', 'Full usage notes', 'continues from there', 'only when the whole file is too large']) {
     tally.check(`gone: "${gone}" (another tool, a rule, a repeat or a pre-empted result)`, !prompt.includes(gone))
   }
-  const noMedia: string = await FileReadTool.prompt({ model: 'glm-5.3' })
+  const noMedia: string = await ReadTool.prompt({ model: 'glm-5.3' })
   tally.check('a model without image input gets the OCR sentence and the text-only PDF sentence in the same places and nothing else changes', noMedia.includes('Images return recognised text through an installed OCR engine, or the installation needed when none is available.') && !noMedia.includes('shown as pictures') && !noMedia.includes('page pictures') && noMedia.replace('Images return recognised text through an installed OCR engine, or the installation needed when none is available.', 'Images are shown as pictures, or as recognised text with `ocr`.').replace('PDFs open as numbered text with page markers (`pages` selects pages as text); a scanned page is read by OCR.', 'PDFs open as numbered text with page markers, or as page pictures with `pages`; a scanned page is read by OCR.') === prompt, noMedia)
 }
 
 tally.section('5 — the input schema: shapes unchanged, prose carries each fact alone, and it matches its recorded copy')
 {
-  const schema = JSON.stringify(zodToJsonSchema((FileReadTool as { inputSchema: never }).inputSchema))
+  const schema = JSON.stringify(zodToJsonSchema((ReadTool as { inputSchema: never }).inputSchema))
   const stored = readFileSync(join(import.meta.dir, 'fixtures', 'read-input-schema-28.json'), 'utf8').replace(/\n$/, '')
   tally.check('the JSON Schema of inputSchema() equals fixtures/read-input-schema-28.json byte for byte', schema === stored, `${schema.length} vs ${stored.length}`)
   tally.check('it is under 1,800 bytes with lossless ranges, outline, negative offset, image crop, scale and OCR', Buffer.byteLength(schema) <= 1800, `${Buffer.byteLength(schema)} bytes`)
@@ -54,7 +54,7 @@ tally.section('5 — the input schema: shapes unchanged, prose carries each fact
   tally.check('the PDF page cap lives in pages alone', field('pages').includes('at most 20 pages per call'))
   tally.check('crop carries its box and no pre-empted refusal', field('crop') === 'For an image, a box [x1, y1, x2, y2] in original pixels, cut before any downscale.')
   tally.check('line_anchors names the anchor and what takes it', field('line_anchors').includes('"N#hhhh"') && field('line_anchors').includes('anchored Edit hunk'))
-  tally.check('the tool keeps its name', FileReadTool.name === 'Read')
+  tally.check('the tool keeps its name', ReadTool.name === 'Read')
 }
 
 tally.finish()

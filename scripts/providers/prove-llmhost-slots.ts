@@ -898,7 +898,7 @@ try {
 
   await import(`${root}/src/engine/tasks/tasks.ts`)
   const { runAgent } = await import(`${root}/src/tools/crewmate/runCrewmate.ts`)
-  const { query: startTurn } = await import(`${root}/src/engine/turnDoor.ts`)
+  const { turnDoor: startTurn } = await import(`${root}/src/engine/turnDoor.ts`)
   const { getDefaultAppState } = await import(`${root}/src/screen/app-state/AppStateStore.ts`)
   const { createFileStateCacheWithSizeLimit } = await import(`${root}/src/platform/files/fileStateCache.ts`)
   const { runWithCwdOverride } = await import(`${root}/src/platform/files/cwd.ts`)

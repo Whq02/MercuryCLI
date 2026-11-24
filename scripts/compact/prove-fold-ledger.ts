@@ -10,8 +10,8 @@ console.log('PASS complete operator byte equality')
 
 const { buildFoldLedger, renderFoldLedger, foldContentWitness } = await import('../../src/engine/compaction/foldLedger.js')
 const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.js')
-const { createCompactBoundaryMessage } = await import('../../src/engine/message-shapes/systemMessages.js')
-const { fitPostCompactUnderThreshold } = await import('../../src/engine/compaction/foldConversation.js')
+const { createFoldBoundaryMessage } = await import('../../src/engine/message-shapes/systemMessages.js')
+const { fitPostFoldUnderThreshold } = await import('../../src/engine/compaction/foldConversation.js')
 const owner = makeOwnerKey({ workspace: process.cwd(), sessionId: 'ledger-proof', lane: 'main' })
 const source = [
   ...messages,
@@ -33,7 +33,7 @@ assert.equal(ledger.tools.find(t => t.id === 'unknown')?.outcome, 'pending')
 assert.equal(ledger.files[0]?.anchor, 'ra:0123456789ab:L2+3')
 assert.equal(ledger.files[0]?.freshness, 'observed-not-rechecked')
 assert.equal(JSON.parse(renderFoldLedger(ledger).split('\n\n')[1]!).tools.length, 3)
-const boundary = createCompactBoundaryMessage('manual', 100)
+const boundary = createFoldBoundaryMessage('manual', 100)
 boundary.compactMetadata.ledger = ledger
 const repeated = buildFoldLedger([boundary], owner, 2)
 const chain: NonNullable<typeof boundary.compactMetadata.ledger>[] = [ledger, repeated]
@@ -51,7 +51,7 @@ assert.ok(!('openAsks' in repeatedIndex), 'no per-message open-ask rows ride in 
 const ids = chain.flatMap(l => l.sourceRecordIds.slice(l.version === 1 ? l.priorRecords : 0))
 assert.ok(ledger.tools.every(tool => tool.epoch === 1) && ids.length === 5 && new Set(ids).size === 5 && repeated.priorRecords === 4, 'buildFoldLedger must preserve five distinct source IDs across both boundaries, four prior records and epoch 1 on first-fold tools; check foldLedger.ts')
 const operatorAttachment = { type: 'attachment', attachment: selected } as never
-const fit = fitPostCompactUnderThreshold({ boundaryMarker: boundary, summaryMessages: [], attachments: [], hookResults: [], operatorMessages: operatorAttachment, preCompactTokenCount: 100, postCompactTokenCount: 0 }, 10)
+const fit = fitPostFoldUnderThreshold({ boundaryMarker: boundary, summaryMessages: [], attachments: [], hookResults: [], operatorMessages: operatorAttachment, preCompactTokenCount: 100, postCompactTokenCount: 0 }, 10)
 assert.equal(fit.result.operatorMessages, operatorAttachment)
 assert.ok(fit.estimate >= 10, `fitPostCompactUnderThreshold returned estimate=${fit.estimate}, expected >=10 when unsheddable operator block remains; check compact fit estimator`)
 assert.throws(() => selectOperatorMessages(messages, { tokenBudget: 1 }), /original context is kept/)

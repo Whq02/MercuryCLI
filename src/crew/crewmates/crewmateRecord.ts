@@ -7,7 +7,7 @@ function withField(record: AgentMetadata, key: 'model' | 'effort' | 'effortOverr
   return value === undefined ? (rest as AgentMetadata) : ({ ...rest, [key]: value } as AgentMetadata)
 }
 
-function withCompactOnResume(record: AgentMetadata, keep: boolean): AgentMetadata {
+function withFoldOnResume(record: AgentMetadata, keep: boolean): AgentMetadata {
   const { compactOnResume: _dropped, ...rest } = record
   return keep ? { ...rest, compactOnResume: true } : (rest as AgentMetadata)
 }
@@ -21,7 +21,7 @@ export function recordAfterResume(
   let record: AgentMetadata = { ...(latest ?? {}), ...run.fresh }
   record = withField(record, 'model', inWindow('model') ? latest?.model : run.model)
   record = withField(record, 'effortOverride', inWindow('effortOverride') ? latest?.effortOverride : run.effortOverride)
-  return withCompactOnResume(record, latest?.compactOnResume === true && first?.compactOnResume !== true)
+  return withFoldOnResume(record, latest?.compactOnResume === true && first?.compactOnResume !== true)
 }
 
 export function recordAtRunStart(
@@ -35,5 +35,5 @@ export function recordAtRunStart(
   record = withField(record, 'model', modelInWindow ? latest?.model : run.model)
   record = withField(record, 'effortOverride', effortInWindow ? latest?.effortOverride : run.effortOverride)
   record = withField(record, 'effort', run.effort)
-  return withCompactOnResume(record, latest?.compactOnResume === true)
+  return withFoldOnResume(record, latest?.compactOnResume === true)
 }

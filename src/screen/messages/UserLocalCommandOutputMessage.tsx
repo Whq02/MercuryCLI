@@ -3,7 +3,7 @@ import { LOCAL_COMMAND_STDERR_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../../engine
 import { Box, Text } from '../themedRenderer.js'
 import { extractTag } from '../../engine/messages/messages.js'
 import { earlierReleasesCount } from '../../boot/releaseNotes.js'
-import { ctrlOToExpand } from './ctrlOToExpandHint.js'
+import { ctrlOToExpandHint } from './ctrlOToExpandHint.js'
 import { Markdown } from './Markdown.js'
 import { MessageResponse } from '../../tools/kit/MessageResponse.js'
 
@@ -51,7 +51,7 @@ function foldedEarlierReleases(text: string, verbose: boolean): Folded {
   const at = lines.findIndex(line => earlierReleasesCount(line) !== null)
   if (at < 0) return { shown: text, fold: null }
   if (verbose) return { shown: withoutEarlierReleases(lines, at), fold: null }
-  return { shown: lines.slice(0, at).join('\n').trimEnd(), fold: `${lines[at]!.trim()} ${ctrlOToExpand()}` }
+  return { shown: lines.slice(0, at).join('\n').trimEnd(), fold: `${lines[at]!.trim()} ${ctrlOToExpandHint()}` }
 }
 
 function FoldedMarkdown({ shown, fold }: Folded): React.ReactNode {

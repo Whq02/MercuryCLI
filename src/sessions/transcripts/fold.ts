@@ -11,7 +11,7 @@ import type {
   TurnEnded,
 } from './transcriptEntries.js'
 import type { StorageRowKind, StorageRowOf } from '../../engine/rows/storage.js'
-import { isCompactBoundaryMessage } from '../../engine/message-shapes/systemMessages.js'
+import { isFoldBoundaryMessage } from '../../engine/message-shapes/systemMessages.js'
 import type { ContentReplacementRecord } from '../../engine/tool-dispatch/toolResultStorage.js'
 import { isPersistedProgressEntry } from './paths.js'
 import { createTranscriptRows, transcriptRows } from './rowGraph.js'
@@ -99,7 +99,7 @@ function applyMessage(st: TranscriptFoldState, entry: TranscriptMessage): void {
       : entry
   noteRowBehindTurnEnd(st, row)
   transcriptRows(st.messages).set(row.uuid, row)
-  if (isCompactBoundaryMessage(row)) {
+  if (isFoldBoundaryMessage(row)) {
     st.contextCollapseCommits.length = 0
     st.contextCollapseSnapshot = undefined
   }

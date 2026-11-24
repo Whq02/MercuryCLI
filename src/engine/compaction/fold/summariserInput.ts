@@ -1,7 +1,7 @@
 import type { CanUseToolFn } from '../../../tools/kit/tool.js'
 import type { Message, UserMessage } from '../../message-shapes/message.js'
 import { boundHookContext } from '../../../integrations/event-hooks/contextBound.js'
-import { createUserMessage, isCompactBoundaryMessage } from '../../messages/messages.js'
+import { createUserMessage, isFoldBoundaryMessage } from '../../messages/messages.js'
 import { getPromptTooLongTokenGap } from '../../requests/apiErrorRows.js'
 import { overflowGapTokens, overflowSignalOf } from '../../requests/overflowSignal.js'
 import { groupMessagesByApiRound } from '../groupByApiRound.js'
@@ -33,9 +33,9 @@ export function isPtlMarkerMessage(message: Message): boolean {
   )
 }
 
-export function isCompactCapsuleMessage(message: Message): boolean {
+export function isFoldCapsuleMessage(message: Message): boolean {
   return (
-    isCompactBoundaryMessage(message) ||
+    isFoldBoundaryMessage(message) ||
     (message.type === 'user' && message.isCompactSummary === true)
   )
 }
@@ -53,7 +53,7 @@ export function truncateHeadForPTLRetry(messages: Message[], ptlResponse: Messag
     dropCount = 0
     let freed = 0
     while (dropCount < groups.length - 1 && freed < gap) {
-      const nonCapsule = groups[dropCount]!.filter(message => !isCompactCapsuleMessage(message))
+      const nonCapsule = groups[dropCount]!.filter(message => !isFoldCapsuleMessage(message))
       freed += estimateMessageTokens(nonCapsule)
       dropCount++
     }
@@ -64,17 +64,17 @@ export function truncateHeadForPTLRetry(messages: Message[], ptlResponse: Messag
   dropCount = Math.min(dropCount, groups.length - 1)
   while (
     dropCount < groups.length - 1 &&
-    groups.slice(0, dropCount).flat().every(isCompactCapsuleMessage)
+    groups.slice(0, dropCount).flat().every(isFoldCapsuleMessage)
   ) {
     dropCount++
   }
 
   const dropped = groups.slice(0, dropCount).flat()
-  if (dropCount === 0 || dropped.every(isCompactCapsuleMessage)) {
+  if (dropCount === 0 || dropped.every(isFoldCapsuleMessage)) {
     return null
   }
 
-  const retained = dropped.filter(isCompactCapsuleMessage)
+  const retained = dropped.filter(isFoldCapsuleMessage)
   const surviving = groups.slice(dropCount).flat()
   if (surviving[0]?.type === 'assistant') {
     const marker = createUserMessage({ content: PTL_TRUNCATION_MARKER, isMeta: true })
@@ -115,7 +115,7 @@ export function stripReinjectedAttachments(messages: Message[]): Message[] {
   return messages
 }
 
-export function createCompactCanUseTool(): CanUseToolFn {
+export function createFoldCanUseTool(): CanUseToolFn {
   return async () => ({
     behavior: 'deny',
     message: 'Tool use is not allowed during compaction.',

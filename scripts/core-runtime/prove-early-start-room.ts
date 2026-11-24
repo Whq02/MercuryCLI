@@ -23,7 +23,7 @@ const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/f
 const { EarlyStarts } = await import('../../src/engine/tool-dispatch/earlyStarts.ts')
 const { runTools } = await import('../../src/engine/tool-dispatch/toolOrchestration.ts')
 const { resultRoomFor, resultRoomForRound } = await import('../../src/engine/run/resultRoom.ts')
-const { getAutoCompactThreshold } = await import('../../src/engine/compaction/autoFold.ts')
+const { getAutoFoldThreshold } = await import('../../src/engine/compaction/autoFold.ts')
 
 let failures = 0
 let checks = 0
@@ -123,7 +123,7 @@ const block = (id: string) => ({ type: 'tool_use', id, name: 'Grep', input: { pa
 
 console.log('\n── past the fold line: the early road opens the round\'s room and the settled road shares it')
 {
-  const threshold = getAutoCompactThreshold(MODEL)
+  const threshold = getAutoFoldThreshold(MODEL)
   const ctx = makeCtx(conversationOf(threshold + 2_000))
   const parent = createAssistantMessage({ content: [block('tu_room_1')] as never }) as unknown as Record<string, unknown>
   const early = new EarlyStarts(ctx as never, allowAll as never)

@@ -1,4 +1,4 @@
-export const FILE_READ_TOOL_NAME = 'Read'
+export const READ_TOOL_NAME = 'Read'
 export const MAX_LINES_TO_READ = 2000
 export const MAX_PDF_PAGES_PER_REQUEST = 20
 export const DESCRIPTION = 'Read the contents of a local file.'

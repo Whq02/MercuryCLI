@@ -8,7 +8,7 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'vanguard-contracts-'))
 process.env.MERCURY_BARE = '1'
 
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
 const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
 const {
   observeToolTerminal,
@@ -59,14 +59,14 @@ section('A. FileEdit staleness + refusal laws (validateInput/call)')
 {
   writeFileSync(filePath, 'const alpha = 1\nconst beta = 2\nconst alpha2 = 1\n')
 
-  const unread = await FileEditTool.validateInput!(
+  const unread = await EditTool.validateInput!(
     { file_path: filePath, old_string: 'const beta = 2', new_string: 'const beta = 3' } as never,
     makeContext(new Map()),
   )
   check('A1 read-first law: unread file refuses with errorCode 6',
     unread.result === false && (unread as { errorCode?: number }).errorCode === 6,
     `got ${JSON.stringify(unread).slice(0, 160)} · the read-first refusal (errorCode 6) lives in src/tools/edit/call/validate.ts`)
-  const carried = await FileEditTool.validateInput!(
+  const carried = await EditTool.validateInput!(
     { file_path: filePath, old_string: 'const alpha = 1', new_string: 'const gamma = 1' } as never,
     makeContext(new Map()),
   )
@@ -82,7 +82,7 @@ section('A. FileEdit staleness + refusal laws (validateInput/call)')
     offset: undefined,
     limit: undefined,
   }]])
-  const stale = await FileEditTool.validateInput!(
+  const stale = await EditTool.validateInput!(
     { file_path: stalePath, old_string: 'const alpha = 1', new_string: 'const gamma = 1' } as never,
     makeContext(staleMap),
   )
@@ -97,7 +97,7 @@ section('A. FileEdit staleness + refusal laws (validateInput/call)')
     offset: undefined,
     limit: undefined,
   }]])
-  const flap = await FileEditTool.validateInput!(
+  const flap = await EditTool.validateInput!(
     { file_path: filePath, old_string: 'const beta = 2', new_string: 'const beta = 3' } as never,
     makeContext(flapMap),
   )
@@ -112,7 +112,7 @@ section('A. FileEdit staleness + refusal laws (validateInput/call)')
     offset: 2,
     limit: 2,
   }]])
-  const partialIntact = await FileEditTool.validateInput!(
+  const partialIntact = await EditTool.validateInput!(
     { file_path: filePath, old_string: 'const beta = 2', new_string: 'const beta = 4' } as never,
     makeContext(partialMap),
   )
@@ -127,7 +127,7 @@ section('A. FileEdit staleness + refusal laws (validateInput/call)')
     offset: 2,
     limit: 2,
   }]])
-  const partialStale = await FileEditTool.validateInput!(
+  const partialStale = await EditTool.validateInput!(
     { file_path: partialPath, old_string: 'const beta = 2', new_string: 'const beta = 4' } as never,
     makeContext(partialDrift),
   )
@@ -143,7 +143,7 @@ section('A. FileEdit staleness + refusal laws (validateInput/call)')
     offset: undefined,
     limit: undefined,
   }]])
-  const eolDrift = await FileEditTool.validateInput!(
+  const eolDrift = await EditTool.validateInput!(
     { file_path: filePath, old_string: 'const beta = 2', new_string: 'const beta = 5' } as never,
     makeContext(eolMap),
   )
@@ -157,7 +157,7 @@ section('A. FileEdit staleness + refusal laws (validateInput/call)')
     offset: undefined,
     limit: undefined,
   }]])
-  const notFound = await FileEditTool.validateInput!(
+  const notFound = await EditTool.validateInput!(
     { file_path: filePath, old_string: 'no such string', new_string: 'x' } as never,
     makeContext(freshStamp()),
   )
@@ -165,7 +165,7 @@ section('A. FileEdit staleness + refusal laws (validateInput/call)')
     notFound.result === false && (notFound as { errorCode?: number }).errorCode === 8,
     `got ${JSON.stringify(notFound).slice(0, 160)} · the not-found refusal (errorCode 8) lives in src/tools/edit/call/validate.ts`)
 
-  const multi = await FileEditTool.validateInput!(
+  const multi = await EditTool.validateInput!(
     { file_path: filePath, old_string: '= 1', new_string: '= 9' } as never,
     makeContext(freshStamp()),
   )
@@ -174,7 +174,7 @@ section('A. FileEdit staleness + refusal laws (validateInput/call)')
     `got ${JSON.stringify(multi).slice(0, 160)} · the ambiguous-match refusal (errorCode 9) lives in src/tools/edit/call/exactMatch.ts`)
 
   const happyMap = freshStamp()
-  const result = await (FileEditTool as { call: Function }).call(
+  const result = await (EditTool as { call: Function }).call(
     { file_path: filePath, old_string: 'const beta = 2', new_string: 'const beta = 42' },
     makeContext(happyMap),
     null,

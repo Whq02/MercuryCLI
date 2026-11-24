@@ -20,7 +20,7 @@ import {
   requestCarriesInputImage,
 } from './responsesBridge.js'
 import { MODEL_NOT_FOUND_CODE, apiErrorMessage, openaiFaultToTypedError, overflowOf } from './call-model/faults.js'
-import { applyCompactedToolResults, compactedToolResultsByConversation, isCompactionSource, priorConversation4xx, priorTurn4xxCodeOf } from './call-model/resumeTrim.js'
+import { applyPrunedToolResults, prunedToolResultsByConversation, isFoldSource, priorConversation4xx, priorTurn4xxCodeOf } from './call-model/resumeTrim.js'
 import { openOpenaiTurn, prepareOpenaiTurn, type TurnOpening } from './call-model/prepareTurn.js'
 import { settleOpenaiTurn } from './call-model/turnSettled.js'
 import { streamOneOpenaiAttempt } from './call-model/attempt.js'
@@ -48,7 +48,7 @@ async function* openaiTurn(
   const { systemPrompt, tools, signal, options } = params
   const requestedId = normalizeModelStringForAPI(options.model).trim().toLowerCase()
   const conversation4xxKey = `${getSessionId()}:${options.agentId ?? options.ownerKey ?? ''}:${params.messages[0]?.uuid ?? ''}`
-  const messages = applyCompactedToolResults(params.messages, compactedToolResultsByConversation.get(conversation4xxKey))
+  const messages = applyPrunedToolResults(params.messages, prunedToolResultsByConversation.get(conversation4xxKey))
   const prior4xxCode = priorTurn4xxCodeOf(messages, conversation4xxKey)
 
   const account = resolveOpenaiAccount()
@@ -190,7 +190,7 @@ async function* openaiTurn(
         remedy: 'add credit to the OpenAI account, then retry; /model picks another model meanwhile.',
       })
     }
-    if (typed === 'invalid_request' && refusedMedia === null && overflow === null && !MODEL_NOT_FOUND_CODE.test(outcome.fault.code) && !isCompactionSource(options.querySource)) {
+    if (typed === 'invalid_request' && refusedMedia === null && overflow === null && !MODEL_NOT_FOUND_CODE.test(outcome.fault.code) && !isFoldSource(options.querySource)) {
       priorConversation4xx.set(conversation4xxKey, outcome.fault.code)
     }
     if (resumeTrimReissued !== undefined) {

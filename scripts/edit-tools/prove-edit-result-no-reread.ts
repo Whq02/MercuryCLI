@@ -19,8 +19,8 @@ delete process.env.NODE_ENV
 const { _resetSeenLinesForTesting } = await import('../../src/tools/engines/change-transaction/seenLines.ts')
 const { mintFileAnchor } = await import('../../src/tools/engines/change-transaction/snapshotAnchor.ts')
 const editModule = await import('../../src/tools/edit/EditTool.ts')
-const { FileEditTool } = editModule
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { EditTool } = editModule
+const { WriteTool } = await import('../../src/tools/write/WriteTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
@@ -67,8 +67,8 @@ async function run(tool: unknown, input: Record<string, unknown>, ctx: Ctx, id: 
     return { ok: false, message: err instanceof Error ? err.message : String(err) }
   }
 }
-const edit = (input: Record<string, unknown>, ctx: Ctx): Promise<Verdict> => run(FileEditTool, input, ctx, 'toolu_edit')
-const write = (path: string, content: string, ctx: Ctx): Promise<Verdict> => run(FileWriteTool, { file_path: path, content }, ctx, 'toolu_write')
+const edit = (input: Record<string, unknown>, ctx: Ctx): Promise<Verdict> => run(EditTool, input, ctx, 'toolu_edit')
+const write = (path: string, content: string, ctx: Ctx): Promise<Verdict> => run(WriteTool, { file_path: path, content }, ctx, 'toolu_write')
 const textOf = (v: Verdict): string => (v.ok ? v.text : v.message)
 const contentOf = (p: string): string => readFileSync(p, 'utf8').replaceAll('\r\n', '\n')
 const SENTENCE = 'The change is applied and its lines count as read (a failed call would have errored); no Read is needed before the next edit.'

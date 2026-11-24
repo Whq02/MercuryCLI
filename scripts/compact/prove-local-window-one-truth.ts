@@ -108,7 +108,7 @@ const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 bootstrap.setAskChannel('none')
 const { resolveContextWindow, getModelMaxOutputTokens } = await import('../../src/models/facts/capabilities.ts')
-const { getBlockingLimit, calculateTokenWarningState, MANUAL_COMPACT_BUFFER_TOKENS } = await import('../../src/engine/compaction/autoFold.ts')
+const { getBlockingLimit, calculateTokenWarningState, MANUAL_FOLD_BUFFER_TOKENS } = await import('../../src/engine/compaction/autoFold.ts')
 const { contextFillView } = await import('../../src/engine/context-window/contextFill.ts')
 const { modelGauge } = await import('../../src/screen/cockpit-gauges/modelGauge.ts')
 const { catalogueEpoch } = await import('../../src/models/roads/catalogueEpoch.ts')
@@ -120,7 +120,7 @@ const { tokenCountWithEstimation } = await import('../../src/engine/context-wind
 const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
-const { queryEvents } = await import('../../src/engine/turnDoor.ts')
+const { turnDoorEvents } = await import('../../src/engine/turnDoor.ts')
 const { legacyYieldsOf } = await import('../../src/engine/loop/project-legacy.ts')
 const { estimateOverflowSignal } = await import('../../src/engine/requests/overflowSignal.ts')
 const { overflowRefusalText } = await import('../../src/engine/compaction/overflowRecovery.ts')
@@ -132,7 +132,7 @@ const tiny = localRecordFor(`local/${TINY}`)!
 const CODER_MODEL = `local/${CODER}`
 const TINY_MODEL = `local/${TINY}`
 
-const limitOn = (model: string, window: number): number => window - Math.min(getModelMaxOutputTokens(model).upperLimit, 20_000, Math.floor(window / 4)) - MANUAL_COMPACT_BUFFER_TOKENS
+const limitOn = (model: string, window: number): number => window - Math.min(getModelMaxOutputTokens(model).upperLimit, 20_000, Math.floor(window / 4)) - MANUAL_FOLD_BUFFER_TOKENS
 
 async function sendOne(model: string, text: string): Promise<{ numCtx: number | undefined; errors: string[] }> {
   const before = chats.length
@@ -269,7 +269,7 @@ section('§4 a 13,761-token system prompt against a true 4,096 model: the turn r
       yield createAssistantMessage({ content: 'answered' }) as never
     }
     let n = 0
-    const gen = queryEvents({
+    const gen = turnDoorEvents({
       messages: [ask] as never,
       systemPrompt: systemPrompt as never,
       userContext: {},
@@ -374,10 +374,10 @@ section('§6 a 32k auto-compaction trigger budgets the measured fixed material p
   const { bindRequestGauge } = await import('../../src/engine/run/requestGauge.ts')
   const { flushDebugLogs } = await import('../../src/platform/logs/debugLog.ts')
   w.writeLocalWindowSetting(coder, 32768)
-  const thresholdFor = autoCompact.getAutoCompactThresholdWithFixed
-  const smallBefore = autoCompact.getAutoCompactThreshold(CODER_MODEL)
+  const thresholdFor = autoCompact.getAutoFoldThresholdWithFixed
+  const smallBefore = autoCompact.getAutoFoldThreshold(CODER_MODEL)
   const smallAfter = thresholdFor(CODER_MODEL, 13_900)
-  const largeBefore = autoCompact.getAutoCompactThreshold('compat/my-model')
+  const largeBefore = autoCompact.getAutoFoldThreshold('compat/my-model')
   const largeAfter = thresholdFor('compat/my-model', 13_900)
   record(`32k threshold with 13,900 fixed tokens: ${fmt(smallBefore)} → ${fmt(smallAfter)}; 200k: ${fmt(largeBefore)} → ${fmt(largeAfter)}`)
   check('32k: 17,480 rises to fixed 13,900 + one 5,394-token turn = 19,294', smallBefore === 17_480 && smallAfter === 19_294, `${smallBefore} → ${smallAfter}`)
@@ -417,7 +417,7 @@ section('§6 a 32k auto-compaction trigger budgets the measured fixed material p
   const outcomes: Array<{ wasCompacted: boolean; consecutiveFailures?: number }> = []
   rmSync(debugLog, { force: true })
   for (let turn = 0; turn < 3; turn++) {
-    const outcome = await autoCompact.autoCompactIfNeeded(messages, ctx as never, cache, 'sdk', tracking)
+    const outcome = await autoCompact.autoFoldIfNeeded(messages, ctx as never, cache, 'sdk', tracking)
     outcomes.push(outcome)
     tracking = { ...tracking, turnCounter: tracking.turnCounter + 1, consecutiveFailures: outcome.consecutiveFailures }
   }

@@ -162,7 +162,7 @@ const { enableConfigs } = await import('../../src/platform/config/globalConfig.t
 enableConfigs()
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { queryEvents } = await import('../../src/engine/turnDoor.ts')
+const { turnDoorEvents } = await import('../../src/engine/turnDoor.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
@@ -208,7 +208,7 @@ async function driveTurn(history: Message[], model: string): Promise<{ settled: 
   let terminal: Record<string, unknown> = {}
   let threw: unknown
   try {
-    const gen = queryEvents({
+    const gen = turnDoorEvents({
       messages: history as never,
       systemPrompt: ['hop adversary rig prompt'] as never,
       userContext: {},

@@ -97,8 +97,8 @@ Object.assign(process.env, fixture.env)
 const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const compactModule = await import('../../src/engine/compaction/foldConversation.ts')
-const { query: startTurn } = await import('../../src/engine/turnDoor.ts')
-const { compactConversation, shouldRideCacheSharingFork } = compactModule
+const { turnDoor: startTurn } = await import('../../src/engine/turnDoor.ts')
+const { foldConversation, shouldRideCacheSharingFork } = compactModule
 const foldStallMsFor: ((model: string, floorMs?: number) => number) | undefined = (compactModule as { foldStallMsFor?: (model: string, floorMs?: number) => number }).foldStallMsFor
 const { streamIdleTimeoutMsForRoute, STREAM_IDLE_DEFAULT_MS } = await import('../../src/models/roads/streamIdleBudget.ts')
 const { PATIENCE_NORMAL } = await import('../../src/models/roads/patience.ts')
@@ -162,7 +162,7 @@ async function runFold(model: string, history: unknown[] = makeMessages(model)):
   let result: Record<string, unknown> | undefined
   let error: Error | undefined
   try {
-    result = (await compactConversation(messages as never, ctx as never, cacheSafe as never, true)) as never as Record<string, unknown>
+    result = (await foldConversation(messages as never, ctx as never, cacheSafe as never, true)) as never as Record<string, unknown>
   } catch (err) {
     error = err as Error
   }

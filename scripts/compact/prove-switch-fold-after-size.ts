@@ -51,7 +51,7 @@ const { contextFill } = await import('../../src/engine/context-window/contextTok
 const { contextFillView } = await import('../../src/engine/context-window/contextFill.ts')
 const { primeOpenaiCatalogue } = await import('../../src/models/roads/openai/openaiCatalogue.ts')
 const { requestGaugeDigest } = await import('../../src/engine/run/requestGauge.ts')
-const { buildPostCompactMessages } = await import('../../src/engine/compaction/foldConversation.ts')
+const { buildPostFoldMessages } = await import('../../src/engine/compaction/foldConversation.ts')
 const { estimateContextTokens } = await import('../../src/engine/compaction/pruneToolResults.ts')
 const { call } = await import('../../src/commands/compact/compact.ts')
 
@@ -70,7 +70,7 @@ if (!primeOpenaiCatalogue({
 })) throw new Error('the catalogue prime was refused')
 
 type AnyMsg = Record<string, unknown> & { type?: string }
-type Folded = { type: string; displayText?: string; compactionResult: Parameters<typeof buildPostCompactMessages>[0] }
+type Folded = { type: string; displayText?: string; compactionResult: Parameters<typeof buildPostFoldMessages>[0] }
 
 function makeContext(model: string, messages: AnyMsg[]): Record<string, unknown> {
   let appState: Record<string, unknown> = { ...(getDefaultAppState() as unknown as Record<string, unknown>), effortValue: 'high' }
@@ -134,7 +134,7 @@ section('1 a fold that serves a switch: six notes measured by one model, the ses
   const { messages, folded, threw } = await fold(SEATED)
   const before = contextFill(messages as never).tokens
   const result = folded?.compactionResult
-  const post = result === undefined ? [] : (buildPostCompactMessages(result) as AnyMsg[])
+  const post = result === undefined ? [] : (buildPostFoldMessages(result) as AnyMsg[])
   const seatedCount = contextFill(post as never, SEATED).tokens
   const recorded = result?.boundaryMarker.compactMetadata.postTokens
   check('the fold lands', folded?.type === 'compact', threw, METER)
@@ -150,7 +150,7 @@ section('2 no switch: the same six notes folded on the model that measured them'
 {
   const { messages, folded, threw } = await fold(SOURCE)
   const result = folded?.compactionResult
-  const post = result === undefined ? [] : (buildPostCompactMessages(result) as AnyMsg[])
+  const post = result === undefined ? [] : (buildPostFoldMessages(result) as AnyMsg[])
   const before = contextFill(messages as never).tokens
   const saved = estimateContextTokens(messages as never, SOURCE) - estimateContextTokens(post as never, SOURCE)
   check('the fold lands', folded?.type === 'compact', threw, METER)

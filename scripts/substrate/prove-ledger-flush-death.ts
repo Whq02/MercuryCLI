@@ -60,7 +60,7 @@ section('§1 invocation trace — injection: unwritable sidecar retains + escala
 section('§2 invocation trace — recovery lands everything in order')
 {
   rmSync(tracePath, { recursive: true, force: true })
-  trace.emitCompactionTrace('microcompact', { tokensFreed: 1234 })
+  trace.emitFoldTrace('microcompact', { tokensFreed: 1234 })
   await trace.flushTraceNow()
   const h = trace.getTraceFlushHealth()
   check('recovered flush drains the buffer', h.pending === 0, '', 'flushTraceNow in src/platform/observability/invocationTrace.ts must empty the pending buffer after a successful append')

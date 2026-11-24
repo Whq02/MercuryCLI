@@ -21,7 +21,7 @@ if (!given) {
   const src = process.env.PROVE_SRC ?? resolve(import.meta.dir, '../../src')
   const { setCwdState, setOriginalCwd } = await import(`${src}/boot/process-state/processState.ts`)
   setCwdState(given); setOriginalCwd(given)
-  const { FileReadTool } = await import(`${src}/tools/read/ReadTool.ts`)
+  const { ReadTool } = await import(`${src}/tools/read/ReadTool.ts`)
   const { getEmptyToolPermissionContext } = await import(`${src}/tools/kit/tool.ts`)
   const { createFileStateCacheWithSizeLimit } = await import(`${src}/platform/files/fileStateCache.ts`)
   let passed = 0, failed = 0
@@ -31,12 +31,12 @@ if (!given) {
   const invoke = async (file_path: string, extra: Record<string, unknown> = {}, ctx = context()) => {
     const input = { file_path, ...extra }
     try {
-      const valid = await FileReadTool.validateInput(input, ctx)
+      const valid = await ReadTool.validateInput(input, ctx)
       if (!valid.result) return { body: valid.message, ctx, error: true }
-      const permission = await FileReadTool.checkPermissions(input, ctx)
+      const permission = await ReadTool.checkPermissions(input, ctx)
       if (permission.behavior === 'deny') return { body: permission.message, ctx, error: true }
-      const reply = await FileReadTool.call(input, ctx)
-      const body = String(FileReadTool.mapToolResultToToolResultBlockParam(reply.data, 'json').content)
+      const reply = await ReadTool.call(input, ctx)
+      const body = String(ReadTool.mapToolResultToToolResultBlockParam(reply.data, 'json').content)
       return { body, ctx, data: reply.data, error: false }
     } catch (error) { return { body: String(error), ctx, error: true } }
   }
@@ -56,15 +56,15 @@ if (!given) {
     check('M04 a followed stream page begins at the next value', read.body.includes('{"n":5,"r":0,"big":null}') && read.body.includes('state: complete'), read.body)
   }
   check('M09 query output has neither anchor nor source coverage', !projected.body.includes('(anchor:') && !projected.ctx.readFileState.has(rows))
-  const { FileEditTool } = await import(`${src}/tools/edit/EditTool.ts`)
+  const { EditTool } = await import(`${src}/tools/edit/EditTool.ts`)
   const digestOf = (path: string) => createHash('sha256').update(readFileSync(path)).digest('hex')
   const edited = file('edited.json', '{"a":1}\n')
   const consumed = await ask(edited, '.a')
   const copied = /\b([0-9a-f]{12})[0-9a-f]{52}\b/.exec(consumed.body)
   const change = { file_path: edited, old_string: '"a":1', new_string: '"a":2' }
-  const anchored = await FileEditTool.validateInput({ ...change, expected_anchor: `fa:${digestOf(edited).slice(0, 12)}` }, context())
+  const anchored = await EditTool.validateInput({ ...change, expected_anchor: `fa:${digestOf(edited).slice(0, 12)}` }, context())
   check('M09 the fixture is real: the first twelve hex of a file digest are the anchor an unread Edit passes on', anchored.result === true, JSON.stringify(anchored))
-  const afterQuery = await FileEditTool.validateInput({ ...change, ...(copied ? { expected_anchor: `fa:${copied[1]}` } : {}) }, consumed.ctx)
+  const afterQuery = await EditTool.validateInput({ ...change, ...(copied ? { expected_anchor: `fa:${copied[1]}` } : {}) }, consumed.ctx)
   check('M09 nothing copied from a query answer lets an Edit pass as a read', consumed.body.includes('state: complete') && afterQuery.result === false && String(afterQuery.message).includes('Read the file before editing'), `${JSON.stringify(afterQuery)} ${consumed.body}`)
   const digestRows = file('digest.jsonl', '{"n":1}\n{"n":2}\n{"n":3}\n')
   const digestPage = await ask(digestRows, '.n', 'limit=2')

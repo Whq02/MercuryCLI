@@ -127,7 +127,7 @@ function masker(): (value: unknown) => unknown {
   return value => walk(value, undefined, [])
 }
 
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
 
 let tape: Tape | undefined
@@ -178,7 +178,7 @@ function startTurn(params: Row): AsyncGenerator<unknown, unknown> {
     }),
   )
   const deps = { ...((params.deps as Row | undefined) ?? (productionDeps() as unknown as Row)), ...scriptedDeps(on, turn) }
-  const inner = query({ ...params, deps } as never) as AsyncGenerator<unknown, unknown>
+  const inner = turnDoor({ ...params, deps } as never) as AsyncGenerator<unknown, unknown>
   return (async function* () {
     let settled = false
     try {

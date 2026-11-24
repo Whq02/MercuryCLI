@@ -1,4 +1,4 @@
-import { query } from '../../turnDoor.js'
+import { turnDoor } from '../../turnDoor.js'
 import type { ToolUseContext } from '../../../tools/kit/tool.js'
 import type { Message } from '../../message-shapes/message.js'
 import { getGlobalConfig } from '../../../platform/settings/config.js'
@@ -43,7 +43,7 @@ interface ContextNeeds {
 export function contextBuilder({ config, thinkingConfig, turnId, abortController, readFileState, contentReplacementState, discoveredSkillNames, loadedNestedMemoryPaths }: ContextNeeds) {
   const buildContext = (messages: Message[], model: string): ToolUseContext => ({
     options: conversationOptions(config, model, thinkingConfig),
-    startTurn: query,
+    startTurn: turnDoor,
     abortController,
     readFileState,
     contentReplacementState,

@@ -59,7 +59,7 @@ const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/Fu
 const { default: Composer } = await import('../../src/screen/composer/Composer.js')
 const { useCompactWorkControls } = await import('../../src/screen/tasks/CompactWorkSummary.js')
 const { GlobalKeybindingHandlers } = await import('../../src/screen/chat/useGlobalKeybindings.js')
-const { CancelRequestHandler } = await import('../../src/screen/chat/interruptKeys.js')
+const { InterruptKeys } = await import('../../src/screen/chat/interruptKeys.js')
 const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.js')
 const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.js')
 const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.js')
@@ -151,7 +151,7 @@ function Cockpit(): React.ReactNode {
     KeybindingSetup,
     null,
     h(GlobalKeybindingHandlers, { screen, setScreen, showAllInTranscript: false, setShowAllInTranscript: () => {}, messageCount: 0, compactWork: controls } as never),
-    h(CancelRequestHandler, { screen, focusedTurnActive: true, compactWork: controls } as never),
+    h(InterruptKeys, { screen, focusedTurnActive: true, compactWork: controls } as never),
     h(FullscreenLayout, {
       scrollRef,
       scrollable: h(Transcript),

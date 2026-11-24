@@ -22,7 +22,7 @@ for (const key of ['MERCURY_HOME', 'MERCURY_SKIP_PERMISSIONS', 'MERCURY_WARDS', 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.chdir(project)
 
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { createFileStateCacheWithSizeLimit, cacheKeys } = await import('../../src/platform/files/fileStateCache.ts')
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
@@ -66,8 +66,8 @@ const contextOf = (deny: string[] = []) =>
 let turns = 0
 const answer = async (input: Input, context: unknown = contextOf()): Promise<Answer> => {
   try {
-    const result = (await FileReadTool.call(input as never, context as never, undefined, { message: { id: `formats-${turns++}` } })) as { data: Record<string, unknown>; newMessages?: unknown[] }
-    const block = FileReadTool.mapToolResultToToolResultBlockParam(result.data as never, 'proof')
+    const result = (await ReadTool.call(input as never, context as never, undefined, { message: { id: `formats-${turns++}` } })) as { data: Record<string, unknown>; newMessages?: unknown[] }
+    const block = ReadTool.mapToolResultToToolResultBlockParam(result.data as never, 'proof')
     return { said: typeof block.content === 'string' ? block.content : JSON.stringify(block.content), data: result.data, extra: JSON.stringify(result.newMessages ?? []) }
   } catch (error) {
     return { said: `THROWN ${error instanceof Error ? error.message : String(error)}`, data: null, extra: '' }
@@ -194,7 +194,7 @@ async function formats(world: RemoteWorld): Promise<void> {
     delete process.env.REMOTE_KIT_COUNT
   }
   check(`${name}: an archive past the size an archive is read at is refused by its size in the local words${travelled === -1 ? '' : `, before it is fetched (${travelled} bytes came over the connection)`}`, tooBig.said === tooBigHere.said.replaceAll(heavy, remote(heavy)) && tooBig.said.startsWith('THROWN Container file (17MB) exceeds') && travelled < 4096, `${tooBig.said} | ${travelled}`)
-  const denied = (await FileReadTool.validateInput!({ file_path: `${remote(join(dir, 'sample.zip'))}:README.txt` } as never, contextOf([`Read(ssh://box${join(dir, 'sample.zip')})`]))) as { result: boolean; message?: string }
+  const denied = (await ReadTool.validateInput!({ file_path: `${remote(join(dir, 'sample.zip'))}:README.txt` } as never, contextOf([`Read(ssh://box${join(dir, 'sample.zip')})`]))) as { result: boolean; message?: string }
   check(`${name}: a rule that denies an archive denies an entry of it, before anything connects`, denied.result === false && (denied.message ?? '').includes('is denied by the rule'), String(denied.message))
   const missing = await answer({ file_path: `${remote(join(dir, 'nothing.zip'))}:README.txt` })
   check(`${name}: an entry of an archive that is not there is a missing file on that host`, missing.said === 'THROWN There is no file at that path on box.', missing.said)

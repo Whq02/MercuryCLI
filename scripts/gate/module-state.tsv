@@ -638,13 +638,13 @@ src/engine/attachments/turnAttachments.ts	producerInFlight	owner	module	Agent st
 src/engine/compaction-window/operatorMessages.ts	TERMINAL_OUTPUT_PREFIXES	process	module	Derived collection initialized at load
 src/engine/compaction/autoFold.ts	advanceState	owner	store	Owner compact progress released on full owner disposal or shutdown
 src/engine/compaction/autoFold.ts	fixedMaterialSkipState	owner	store	Owner compact skip state released on full owner disposal or shutdown
-src/engine/compaction/fold/foldAttachments.ts	POST_COMPACT_SHEDDABLE_ATTACHMENT_TYPES	process	module	Load-time list with no local writer
+src/engine/compaction/fold/foldAttachments.ts	POST_FOLD_SHEDDABLE_ATTACHMENT_TYPES	process	module	Load-time list with no local writer
 src/engine/compaction/fold/foldBound.ts	foldBoundsOverride	test	module	test-only fold timeout bounds override (setFoldBoundsForTests)
 src/engine/compaction/fold/refusals.ts	PAIRING_COMPLAINTS	process	module	Load-time list with no local writer
 src/engine/compaction/fold/summaryCheck.ts	OPENING_REFUSAL	process	module	Load-time lookup with no local writer
 src/engine/compaction/fold/summaryCheck.ts	SECTION_TITLE_LINE	process	module	Load-time lookup with no local writer
 src/engine/compaction/fold/summaryCheck.ts	SENTENCE_REFUSAL	process	module	Load-time lookup with no local writer
-src/engine/compaction/foldPolicy.ts	COMPACTION_DEFAULTS	process	module	Derived collection initialized at load
+src/engine/compaction/foldPolicy.ts	FOLD_DEFAULTS	process	module	Derived collection initialized at load
 src/engine/compaction/foldReceipt.ts	ROUND_REASONS	process	module	Load-time table with no local writer
 src/engine/compaction/foldStatus.ts	EXIT_WORDS	process	module	Load-time lookup with no local writer
 src/engine/compaction/foldStatus.ts	FOLD_EXIT_WORDS	process	module	Load-time table with no local writer
@@ -652,8 +652,8 @@ src/engine/compaction/foldStatus.ts	FOLD_STAGE_ORDER	process	module	Load-time li
 src/engine/compaction/foldStatus.ts	FOLD_STAGE_WORDS	process	module	Load-time table with no local writer
 src/engine/compaction/foldStatus.ts	FOLD_WIRE_KEYS	process	module	Load-time table with no local writer
 src/engine/compaction/foldStatus.ts	STAGE_WORDS	process	module	Load-time lookup with no local writer
-src/engine/compaction/foldWarningSuppression.ts	clearCompactWarningSuppression	reset-export
-src/engine/compaction/foldWarningSuppression.ts	compactWarningStore	process	module	Load-time table with no local writer
+src/engine/compaction/foldWarningSuppression.ts	clearFoldWarningSuppression	reset-export
+src/engine/compaction/foldWarningSuppression.ts	foldWarningStore	process	module	Load-time table with no local writer
 src/engine/compaction/foldWarningSuppression.ts	listeners	process	module	foreground TUI compact-warning subscriber Set
 src/engine/compaction/foldWarningSuppression.ts	suppressed	process	module	foreground TUI compact-warning suppression flag
 src/engine/compaction/overflowRecovery.ts	FRESH_OVERFLOW_EPISODE	process	module	Derived collection initialized at load
@@ -663,8 +663,8 @@ src/engine/compaction/pruneDigest.ts	PRED	process	module	Load-time table with no
 src/engine/compaction/pruneProtections.ts	PROTECTED_TOOL_NAMES	process	module	Load-time lookup with no local writer
 src/engine/compaction/pruneProtections.ts	SKILL_PATH_MARKS	process	module	Load-time list with no local writer
 src/engine/compaction/pruneToolResults.ts	cacheEditStore	owner	store	Session and agent compact-edit state released on full owner disposal or shutdown
-src/engine/compaction/pruneToolResults.ts	resetMicrocompactState	reset-export
-src/engine/compaction/sessionNotesFold.ts	DEFAULT_SM_COMPACT_CONFIG	process	module	Load-time table with no local writer
+src/engine/compaction/pruneToolResults.ts	resetPruneState	reset-export
+src/engine/compaction/sessionNotesFold.ts	DEFAULT_SESSION_NOTES_FOLD_CONFIG	process	module	Load-time table with no local writer
 src/engine/compaction/sessionNotesFold.ts	config	process	module	never-mutated module default config object (declared let with zero writes)
 src/engine/compaction/summariserPrompt.ts	SUMMARY_SECTION_TITLES	process	module	Load-time list with no local writer
 src/engine/connector/daemon/facts.ts	BOTH_SWITCHES_ON	process	module	Derived collection initialized at load
@@ -814,7 +814,7 @@ src/engine/requests/promptCacheBreakDetection.ts	TRACKED_SOURCE_PREFIXES	process
 src/engine/requests/promptCacheBreakDetection.ts	laneStates	owner	module	agent/session-level prompt cache break tracking keyed by agentId/querySource in module Map
 src/engine/requests/promptCacheBreakDetection.ts	receipts	owner	module	session-level diagnostic ring of recent cache-break receipts in module Array
 src/engine/requests/promptCacheBreakDetection.ts	resetPromptCacheBreakDetection	reset-export
-src/engine/requests/querySource.ts	COMPACTION_SOURCES	process	module	Load-time list with no local writer
+src/engine/requests/querySource.ts	FOLD_SOURCES	process	module	Load-time list with no local writer
 src/engine/requests/reconnectLadder.ts	CONNECT_TIMEOUT_CODES	process	module	Load-time lookup with no local writer
 src/engine/requests/reconnectLadder.ts	OUTAGE_WORDS	process	module	Load-time lookup with no local writer
 src/engine/requests/sessionActivity.ts	oldestActivityStartMs	process	module	process-wide timestamp of oldest active operation for shutdown diagnostic
@@ -1147,8 +1147,8 @@ src/integrations/event-hooks/answer.ts	SINGLE_SETTER_FIELDS	process	module	Load-
 src/integrations/event-hooks/background.ts	resetBackgroundHooksForTesting	reset-export
 src/integrations/event-hooks/background.ts	running	owner	module	session; module (cleared on endBackgroundHooks, no per-owner end); active background hook processes across owners
 src/integrations/event-hooks/background.ts	settled	owner	module	session; module (unbounded array, no per-owner end); banked/settled hook outcomes drained across owners by takeBackgroundHookOutcomes
-src/integrations/event-hooks/contract.ts	COMPACTION_METHODS	process	module	Load-time list with no local writer
-src/integrations/event-hooks/contract.ts	COMPACTION_TRIGGERS	process	module	Load-time list with no local writer
+src/integrations/event-hooks/contract.ts	FOLD_METHODS	process	module	Load-time list with no local writer
+src/integrations/event-hooks/contract.ts	FOLD_TRIGGERS	process	module	Load-time list with no local writer
 src/integrations/event-hooks/contract.ts	CREWMATE_END_STATUSES	process	module	Load-time list with no local writer
 src/integrations/event-hooks/contract.ts	CUT_REASONS	process	module	Load-time list with no local writer
 src/integrations/event-hooks/contract.ts	HOOK_ANSWER_FIELDS	process	module	Load-time list with no local writer
@@ -2278,7 +2278,7 @@ src/models/roads/openai/call-model/attemptSettle.ts	FINISH_TO_STOP	process	modul
 src/models/roads/openai/call-model/bridgeMessages.ts	foreignRecordNoted	owner	module	agent level (module): Set keyed by sessionId:agentId deduping foreign replay settlement notice
 src/models/roads/openai/call-model/bridgeMessages.ts	reconstructionNoted	owner	module	agent level (module): Set keyed by sessionId:agentId deduping reconstruction debug log
 src/models/roads/openai/call-model/images.ts	OPENAI_SOURCE_KINDS	process	module	Load-time list with no local writer
-src/models/roads/openai/call-model/resumeTrim.ts	compactedToolResultsByConversation	owner	module	agent level (module): Map<conversationKey, Map<toolUseId, replacement>> holding compacted tool results
+src/models/roads/openai/call-model/resumeTrim.ts	prunedToolResultsByConversation	owner	module	agent level (module): Map<conversationKey, Map<toolUseId, replacement>> holding compacted tool results
 src/models/roads/openai/call-model/resumeTrim.ts	priorConversation4xx	owner	module	agent level (module): Map<conversation4xxKey, string> tracking prior 4xx per conversation
 src/models/roads/openai/call-model/turnSettled.ts	openaiLiveProof	process	module	process-wide timestamp/model of most recent live OpenAI turn for diagnostics
 src/models/roads/openai/openaiAccounts.ts	knownDeadRefreshTokens	process	module	process-wide set of permanently rejected OpenAI refresh tokens to prevent retry loops
@@ -2679,7 +2679,7 @@ src/permissions/guards/wardsGuard.ts	homeUnknownLogged	process	module	one-time p
 src/permissions/guards/wardsGuard.ts	resetWardsEngagedSessionsForTest	reset-export
 src/permissions/guards/wardsGuard.ts	wardFirings	owner	module	Session guard events retained in the module
 src/permissions/guards/wardsGuard.ts	wardsEngagedSessions	owner	module	Session engagement retained in the module
-src/permissions/rules/bypassPermissionsKillswitch.ts	bypassCheckRan	owner	module	Session state retained in this module
+src/permissions/rules/bypassPermissionsKillswitch.ts	sovereignCheckRan	owner	module	Session state retained in this module
 src/permissions/rules/bypassPermissionsKillswitch.ts	resetSovereignCheck	reset-export
 src/permissions/rules/capabilityGate.ts	AGENT_CAP_RISK_RANK	process	module	Load-time table with no local writer
 src/permissions/rules/capabilityGate.ts	VALID_CATS	process	module	Load-time lookup with no local writer
@@ -3935,7 +3935,7 @@ src/screen/cockpit/settingsPopup.ts	listeners	process	module	single-terminal UI 
 src/screen/cockpit/settingsPopup.ts	request	process	module	single-terminal active settings popup request
 src/screen/cockpit/settingsPopup.ts	version	process	module	single-terminal settings popup version counter
 src/screen/cockpit/traceSnapshot.ts	empty	process	module	Load-time table with no local writer
-src/screen/cockpit/traceSnapshot.ts	emptyCompaction	process	module	Load-time table with no local writer
+src/screen/cockpit/traceSnapshot.ts	emptyFold	process	module	Load-time table with no local writer
 src/screen/cockpit/turnReceipt.ts	BROWSER_TOOLS	process	module	Load-time lookup with no local writer
 src/screen/cockpit/turnReceipt.ts	COMMAND_TOOLS	process	module	Load-time lookup with no local writer
 src/screen/cockpit/turnReceipt.ts	FETCH_TOOLS	process	module	Load-time lookup with no local writer
@@ -3975,7 +3975,7 @@ src/screen/composer/input-core/command-queue.ts	queueIdSeq	process	module	monoto
 src/screen/composer/input-core/command-queue.ts	resetCommandQueue	reset-export
 src/screen/composer/input-core/command-queue.ts	snapshot	owner	module	session; frozen snapshot of active session's command queue; swapped on session switch
 src/screen/composer/input-core/command-queue.ts	takenUuids	owner	module	session; bounded (cap 256) ring of recently dequeued/removed command uuids; not isolated per session
-src/screen/composer/input-core/command-queue.ts	triedCompact	process	module	module definition evaluated once
+src/screen/composer/input-core/command-queue.ts	triedFold	process	module	module definition evaluated once
 src/screen/composer/input-core/command-queue.ts	wordsWaitForTurnEnd	owner	module	session; session flag holding queued operator words until turn end; missing session end
 src/screen/composer/input-core/composer-document.ts	SHELF_ITEM_KINDS	process	module	Load-time list with no local writer
 src/screen/composer/input-core/interruptArity.ts	armedAt	process	module	single-TUI double-Esc gesture timestamp map keyed by UI scope (deleted on fire/unmount)
@@ -5143,7 +5143,7 @@ src/tools/document/schema.ts	cell	process	module	Load-time definition shared by 
 src/tools/document/schema.ts	documentSchema	process	module	Load-time definition shared by all callers
 src/tools/document/schema.ts	rows	process	module	Load-time definition shared by all callers
 src/tools/document/workbook.ts	Workbook	process	module	Load-time definition shared by all callers
-src/tools/edit/EditTool.ts	FileEditTool	process	module	Load-time definition shared by all callers
+src/tools/edit/EditTool.ts	EditTool	process	module	Load-time definition shared by all callers
 src/tools/edit/call/editMatching.ts	CONTROL_SEQUENCES	process	module	Load-time table with no local writer
 src/tools/edit/call/editMatching.ts	DESANITIZATION_TABLE	process	module	Load-time list with no local writer
 src/tools/edit/schema.ts	editedLinesSchema	process	module	Load-time definition shared by all callers
@@ -5327,7 +5327,7 @@ src/tools/kit/names/lsp.ts	LSP_SEARCH_HINTS	process	module	Load-time table with 
 src/tools/kit/names/lsp.ts	LSP_TOOL_NAMES	process	module	Load-time list with no local writer
 src/tools/kit/pdf.ts	pdftoppmAvailable	process	module	memoized host binary availability probe (pdftoppm -v)
 src/tools/kit/pdfText.ts	pending	process	module	in-flight dedupe map for PDF worker extraction keyed by content-addressed cache path (dir + sha256), deleted in finally
-src/tools/kit/sessionEnvNotice.ts	resetSessionEnvNoticeOnCompaction	reset-export
+src/tools/kit/sessionEnvNotice.ts	resetSessionEnvNoticeOnFold	reset-export
 src/tools/kit/sessionEnvNotice.ts	sessionEnvNoticeShown	owner	store	Conversation notice state preserved across resume, cleared on compaction or full owner disposal
 src/tools/kit/shellTools.ts	SHELL_TOOL_NAMES	process	module	Load-time list with no local writer
 src/tools/kit/tool.ts	loggedClassifierThrows	process	module	dedupes error logging once per tool name when isSearchOrReadCommand throws (bounded by tool catalog)
@@ -5412,8 +5412,8 @@ src/tools/powershell/PowerShellTool.tsx	modelInputSchema	process	module	Load-tim
 src/tools/powershell/commonParameters.ts	COMMON_PARAMETERS	process	module	Load-time lookup with no local writer
 src/tools/powershell/commonParameters.ts	COMMON_SWITCHES	process	module	Load-time list with no local writer
 src/tools/powershell/commonParameters.ts	COMMON_VALUE_PARAMS	process	module	Load-time list with no local writer
-src/tools/powershell/constrainedLanguageTypes.ts	CLM_ALLOWED_TYPES	process	module	Load-time lookup with no local writer
-src/tools/powershell/modeValidation.ts	ACCEPT_EDITS_WRITE	process	module	Load-time lookup with no local writer
+src/tools/powershell/constrainedLanguageTypes.ts	CONSTRAINED_LANGUAGE_ALLOWED_TYPES	process	module	Load-time lookup with no local writer
+src/tools/powershell/modeValidation.ts	IMPLEMENT_MODE_WRITE	process	module	Load-time lookup with no local writer
 src/tools/powershell/pathValidation.ts	ENV_CONTENT_CMDLETS	process	module	Load-time lookup with no local writer
 src/tools/powershell/pathValidation.ts	IWR_SWITCHES	process	module	Load-time definition shared by all callers
 src/tools/powershell/pathValidation.ts	IWR_VALUES	process	module	Load-time definition shared by all callers
@@ -5443,7 +5443,7 @@ src/tools/powershell/readOnlyValidation.ts	allowAll	process	module	Load-time tab
 src/tools/read-mcp-resource/ReadMcpResourceTool.ts	ReadMcpResourceTool	process	module	Load-time definition shared by all callers
 src/tools/read-mcp-resource/ReadMcpResourceTool.ts	inputSchema	process	module	Load-time definition shared by all callers
 src/tools/read-mcp-resource/ReadMcpResourceTool.ts	outputSchema	process	module	Load-time definition shared by all callers
-src/tools/read/ReadTool.ts	FileReadTool	process	module	Load-time definition shared by all callers
+src/tools/read/ReadTool.ts	ReadTool	process	module	Load-time definition shared by all callers
 src/tools/read/binaryExtensions.ts	BINARY_EXTENSIONS	process	module	Load-time lookup with no local writer
 src/tools/read/call/fileReadLimits.ts	getDefaultFileReadingLimits	process	module	memoized constant default file reading limits
 src/tools/read/call/reminder.ts	CYBER_RISK_REMINDER_EXEMPT_MODELS	process	module	Load-time lookup with no local writer
@@ -5522,7 +5522,7 @@ src/tools/shell/gitPrintedNames.ts	NAMES_ONLY	process	module	Load-time list with
 src/tools/shell/gitPrintedNames.ts	STASH_SELECTS	process	module	Load-time lookup with no local writer
 src/tools/shell/gitPrintedNames.ts	VALUED	process	module	Load-time lookup with no local writer
 src/tools/shell/maxOutputChars.ts	maxOutputCharsField	process	module	Load-time definition shared by all callers
-src/tools/shell/modeValidation.ts	ACCEPT_EDITS_COMMANDS	process	module	Load-time lookup with no local writer
+src/tools/shell/modeValidation.ts	IMPLEMENT_MODE_COMMANDS	process	module	Load-time lookup with no local writer
 src/tools/shell/pathValidation.ts	ARGV_WRAPPERS	process	module	Load-time lookup with no local writer
 src/tools/shell/pathValidation.ts	AWK_OPTIONS_END	process	module	Load-time lookup with no local writer
 src/tools/shell/pathValidation.ts	AWK_PROGRAM_OPTIONS	process	module	Load-time lookup with no local writer
@@ -5679,7 +5679,7 @@ src/tools/web-search/WebSearchTool.ts	inputSchema	process	module	Load-time defin
 src/tools/web-search/searchOutput.ts	outputSchema	process	module	Load-time definition shared by all callers
 src/tools/web-search/searchOutput.ts	searchHitSchema	process	module	Load-time definition shared by all callers
 src/tools/web-search/searchOutput.ts	searchResultSchema	process	module	Load-time definition shared by all callers
-src/tools/write/WriteTool.ts	FileWriteTool	process	module	Load-time definition shared by all callers
+src/tools/write/WriteTool.ts	WriteTool	process	module	Load-time definition shared by all callers
 src/tools/write/call/schema.ts	inputSchema	process	module	Load-time definition shared by all callers
 src/tools/write/call/schema.ts	outputSchema	process	module	Load-time definition shared by all callers
 src/tools/write/structuredTargets.ts	deletionPreviews	call	module	lazily-created WeakMap keyed by ToolUseContext stashing SQLite deletion preview between checkPermissions and call

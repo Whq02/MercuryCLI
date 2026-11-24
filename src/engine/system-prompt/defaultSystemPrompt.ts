@@ -43,7 +43,7 @@ import { RETAIN_TOOL_NAME } from '../../tools/kit/names/memory.js'
 import { getRuntimePostureSection, isUnattendedRun } from '../../screen/cockpit/runtimePosture.js'
 import { listCapabilityKills } from '../../permissions/rules/capabilityGate.js'
 import { isMcpPolicyActive } from '../../integrations/mcp-shapes/toolPolicy.js'
-import { isAutoCompactEnabled } from '../compaction/autoFold.js'
+import { isAutoFoldEnabled } from '../compaction/autoFold.js'
 import {
   LOCAL_CREWMATE_NOTES,
   LOCAL_POSTURE_WORDS,
@@ -182,7 +182,7 @@ const CREWMATE_FOLD_NOTE = 'Your context is folded automatically when it nears i
 
 function foldIsAutomatic(): boolean {
   try {
-    return isAutoCompactEnabled()
+    return isAutoFoldEnabled()
   } catch (error) {
     passedOver(error)
     return false

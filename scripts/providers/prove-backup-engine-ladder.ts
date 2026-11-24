@@ -68,7 +68,7 @@ const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool
 const { createUserMessage, createAssistantMessage, createAssistantAPIErrorMessage } = await import('../../src/engine/messages/messages.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 
 type Vote = { originalModel: string; fallbackModel: string; trigger: string }
 
@@ -199,7 +199,7 @@ section('S4 · the turn: two hops down the ladder, each announced with its cause
       agentId: undefined,
     }
     let n = 0
-    const gen = query({
+    const gen = turnDoor({
       messages: [createUserMessage({ content: 'hello there' })] as never,
       systemPrompt: ['rig system prompt'] as never,
       userContext: {},

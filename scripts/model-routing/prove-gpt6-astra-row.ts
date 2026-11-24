@@ -29,7 +29,7 @@ const { providerFrontierFact, providerLightFact } = await import('../../src/mode
 const { getModelOptions, OPENAI_MODEL_GROUP } = await import('../../src/models/catalogue/modelOptions.js')
 const { ResponsesStreamFold } = await import('../../src/models/roads/openai/openaiWire.js')
 const { streamOneOpenaiAttempt } = await import('../../src/models/roads/openai/openaiCallModel.js')
-const { getAutoCompactThreshold } = await import('../../src/engine/compaction/autoFold.js')
+const { getAutoFoldThreshold } = await import('../../src/engine/compaction/autoFold.js')
 const { imageLimitsForModel } = await import('../../src/platform/images/imageResizer.js')
 const { nativeSearchFamilyOf } = await import('../../src/tools/engines/web-search/searchDoor.js')
 const { computedDefault, resetComputedDefaultMemo } = await import('../../src/models/catalogue/computedDefault.js')
@@ -279,7 +279,7 @@ process.env.OPENAI_API_KEY = 'prover-key'
   check('the 1M kill-switch still caps it', getContextWindowForModel(ID) === 200_000, String(getContextWindowForModel(ID)))
   delete process.env.MERCURY_DISABLE_1M_CONTEXT
 
-  check('the autocompact threshold leaves 20,000 below the usable edge (872,000 − 20,000 − 3,000 − 20,000 = 829,000)', getAutoCompactThreshold(ID) === 829_000, String(getAutoCompactThreshold(ID)))
+  check('the autocompact threshold leaves 20,000 below the usable edge (872,000 − 20,000 − 3,000 − 20,000 = 829,000)', getAutoFoldThreshold(ID) === 829_000, String(getAutoFoldThreshold(ID)))
   const limits = imageLimitsForModel(ID)
   check("the image limits are the OpenAI family's (the route decides): 1,500 images, the 2048 detail box", limits.family === 'openai' && limits.maxImagesPerRequest === 1500 && limits.nativeLongEdgePx.standard === 2048, JSON.stringify(limits))
   check('the native web search door admits the row (its route is a search family: openai)', nativeSearchFamilyOf(ID) === 'openai', String(nativeSearchFamilyOf(ID)))

@@ -6,7 +6,7 @@ import type { SessionId } from '../../sessions/transcripts/ids.js'
 import type { ApiRequestParams } from '../../engine/message-shapes/wire.js'
 import type { ModelSetting } from '../../models/catalogue/engineModel.js'
 import type { SessionPermissionModeResolution } from '../../permissions/rules/permissionSetup.js'
-import type { ModelStrings } from '../../models/facts/pinnedModelIds.js'
+import type { PinnedModelIds } from '../../models/facts/pinnedModelIds.js'
 import type { SessionKind } from '../../daemon/concourse-workers/sessionKind.js'
 import type { SettingSource } from '../../platform/settings/settingSources.js'
 import { ApiCaptureOwner } from './runtime/api-capture.js'
@@ -302,11 +302,11 @@ export function setSdkBetas(betas: string[] | undefined): void {
   modelConfig.sdkBetas = betas
 }
 
-export function getModelStrings(): ModelStrings | null {
+export function getModelStrings(): PinnedModelIds | null {
   return modelConfig.modelStrings
 }
 
-export function setModelStrings(strings: ModelStrings): void {
+export function setModelStrings(strings: PinnedModelIds): void {
   modelConfig.modelStrings = strings
 }
 

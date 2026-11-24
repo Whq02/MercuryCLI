@@ -117,14 +117,14 @@ console.log('[4] /health prints the lines (the row, run here)')
   check('…and prints every line as the row’s detail', unlike === -1, printed[unlike] ?? '')
   const reasonless = lines.filter(g => g.reason === CENSUS_NO_REASON).flatMap(g => g.tools)
   check('…and a reasonless row warns the check', reasonless.length > 0 ? row?.status === 'warn' && row.evidence.includes(`NO REASON DECLARED: ${reasonless.join(', ')}`) : row?.status === 'ok' && !row.evidence.includes('NO REASON DECLARED'), row?.evidence)
-  const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
-  const enabled = Object.getOwnPropertyDescriptor(FileReadTool, 'isEnabled')
-  Object.defineProperty(FileReadTool, 'isEnabled', { configurable: true, writable: true, enumerable: true, value: () => false })
+  const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
+  const enabled = Object.getOwnPropertyDescriptor(ReadTool, 'isEnabled')
+  Object.defineProperty(ReadTool, 'isEnabled', { configurable: true, writable: true, enumerable: true, value: () => false })
   const gap = await toolCapabilityFastChecks().find(entry => entry.id === 'capability-census')?.run()
-  if (enabled) Object.defineProperty(FileReadTool, 'isEnabled', enabled)
+  if (enabled) Object.defineProperty(ReadTool, 'isEnabled', enabled)
   check(
     'a tool of the roster that is off and declares no reason (Read, switched off here) turns the row to warn: it is named in the evidence and the detail, with the fix',
-    gap?.status === 'warn' && gap.evidence.endsWith(` · NO REASON DECLARED: ${FileReadTool.name} (off right now)`) && (gap.detail ?? '').split('\n').includes(`conditional · ${FileReadTool.name} (off right now) — ${CENSUS_NO_REASON}`) && gap.fix?.startsWith('Declare the tool’s capability contract') === true,
+    gap?.status === 'warn' && gap.evidence.endsWith(` · NO REASON DECLARED: ${ReadTool.name} (off right now)`) && (gap.detail ?? '').split('\n').includes(`conditional · ${ReadTool.name} (off right now) — ${CENSUS_NO_REASON}`) && gap.fix?.startsWith('Declare the tool’s capability contract') === true,
     `${gap?.status}: ${gap?.evidence} | ${gap?.fix}`,
   )
 }

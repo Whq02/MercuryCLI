@@ -40,8 +40,8 @@ const { isPathAllowed } = await import('../../src/permissions/rules/pathValidati
 const { checkEditableInternalPath, checkReadableInternalPath } = await import('../../src/permissions/rules/filesystem.ts')
 const { getToolSearchOrReadInfo } = await import('../../src/screen/messages/collapseReadSearch.ts')
 const { memoryWriteRefusal } = await import('../../src/sessions/memory-shapes/memoryFileDetection.ts')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { WriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
 const { RETAIN_TOOL_NAME, CORRECT_TOOL_NAME } = await import('../../src/tools/kit/names/memory.ts')
 
 const lib = mnemeLibraryDir()
@@ -65,9 +65,9 @@ const context = {
 } as never
 type Verdict = { result: boolean; message?: string; errorCode?: number }
 const validateWrite = async (file_path: string): Promise<Verdict> =>
-  (await (FileWriteTool as { validateInput: (input: never, context: never) => Promise<Verdict> }).validateInput({ file_path, content: 'x' } as never, context))
+  (await (WriteTool as { validateInput: (input: never, context: never) => Promise<Verdict> }).validateInput({ file_path, content: 'x' } as never, context))
 const validateEdit = async (file_path: string): Promise<Verdict> =>
-  (await (FileEditTool as { validateInput: (input: never, context: never) => Promise<Verdict> }).validateInput({ file_path, old_string: 'mine', new_string: 'ours', replace_all: false } as never, context))
+  (await (EditTool as { validateInput: (input: never, context: never) => Promise<Verdict> }).validateInput({ file_path, old_string: 'mine', new_string: 'ours', replace_all: false } as never, context))
 const sentence = (path: string): string => `${path} is Mercury's memory: save with ${RETAIN_TOOL_NAME} and change with ${CORRECT_TOOL_NAME} — a direct write is refused.`
 
 try {

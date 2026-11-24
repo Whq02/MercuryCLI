@@ -6,9 +6,9 @@ import { join } from 'node:path'
 
 const {
   digestClearedToolResult,
-  isMicroCompactDigestEnabled,
-  MC_CLEARED_PLACEHOLDER,
-  MC_DIGEST_PREFIX,
+  isPruneDigestEnabled,
+  PRUNE_CLEARED_PLACEHOLDER,
+  PRUNE_DIGEST_PREFIX,
 } = await import('../../src/engine/compaction/pruneDigest.js')
 
 const DIGEST_HINT = 'change isMicroCompactDigestEnabled or digestClearedToolResult in src/engine/compaction/pruneDigest.ts so the label is only counts and a content class'
@@ -40,15 +40,15 @@ console.log('============================================================')
 section('(a) default-ON (graduated); =0 ⇒ the byte-exact placeholder')
 {
   delete process.env.MERCURY_MC_DIGEST
-  check('flag ON by default (stamped build, env unset — the graduation)', isMicroCompactDigestEnabled() === true)
+  check('flag ON by default (stamped build, env unset — the graduation)', isPruneDigestEnabled() === true)
   process.env.MERCURY_MC_DIGEST = '0'
-  check('flag =0 ⇒ disabled (opt-out preserved)', isMicroCompactDigestEnabled() === false)
-  check('OFF ⇒ placeholder for clean text', digestClearedToolResult('ls: a.ts b.ts') === MC_CLEARED_PLACEHOLDER)
-  check('OFF ⇒ placeholder even for secret-bearing text', digestClearedToolResult('aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY') === MC_CLEARED_PLACEHOLDER)
+  check('flag =0 ⇒ disabled (opt-out preserved)', isPruneDigestEnabled() === false)
+  check('OFF ⇒ placeholder for clean text', digestClearedToolResult('ls: a.ts b.ts') === PRUNE_CLEARED_PLACEHOLDER)
+  check('OFF ⇒ placeholder even for secret-bearing text', digestClearedToolResult('aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY') === PRUNE_CLEARED_PLACEHOLDER)
   const savedMacro = (globalThis as Record<string, unknown>)['MACRO']
   delete (globalThis as Record<string, unknown>)['MACRO']
   delete process.env.MERCURY_MC_DIGEST
-  check('no MACRO + unset ⇒ STILL enabled (stamp-independence)', isMicroCompactDigestEnabled() === true)
+  check('no MACRO + unset ⇒ STILL enabled (stamp-independence)', isPruneDigestEnabled() === true)
   ;(globalThis as Record<string, unknown>)['MACRO'] = savedMacro
 }
 
@@ -56,7 +56,7 @@ process.env.MERCURY_MC_DIGEST = '1'
 
 section('(b) every emitted label matches the strict structural shape (counts + class only)')
 {
-  check('flag ON for MERCURY_MC_DIGEST=1', isMicroCompactDigestEnabled() === true)
+  check('flag ON for MERCURY_MC_DIGEST=1', isPruneDigestEnabled() === true)
   const inputs = [
     'directory listing\n' + 'src/file.ts\n'.repeat(40),
     '{\n  "a": 1,\n  "b": [2,3]\n}',
@@ -101,12 +101,12 @@ section('(d) content-class is exercised across the closed vocabulary')
 
 section('(e) idempotent · empty/whitespace/image-only ⇒ placeholder')
 {
-  check('the placeholder is not re-digested', digestClearedToolResult(MC_CLEARED_PLACEHOLDER) === MC_CLEARED_PLACEHOLDER)
+  check('the placeholder is not re-digested', digestClearedToolResult(PRUNE_CLEARED_PLACEHOLDER) === PRUNE_CLEARED_PLACEHOLDER)
   const once = digestClearedToolResult('some\nmulti\nline\noutput')
   check('a prior digest label is returned unchanged', digestClearedToolResult(once) === once)
-  check('empty string ⇒ placeholder', digestClearedToolResult('') === MC_CLEARED_PLACEHOLDER)
-  check('whitespace-only ⇒ placeholder', digestClearedToolResult('   \n\t \n ') === MC_CLEARED_PLACEHOLDER)
-  check('image-only (no text items) ⇒ placeholder', digestClearedToolResult([{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'AAAA' } } as never]) === MC_CLEARED_PLACEHOLDER)
+  check('empty string ⇒ placeholder', digestClearedToolResult('') === PRUNE_CLEARED_PLACEHOLDER)
+  check('whitespace-only ⇒ placeholder', digestClearedToolResult('   \n\t \n ') === PRUNE_CLEARED_PLACEHOLDER)
+  check('image-only (no text items) ⇒ placeholder', digestClearedToolResult([{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'AAAA' } } as never]) === PRUNE_CLEARED_PLACEHOLDER)
   check('text-only extraction: text item digested, image dropped', STRUCTURAL.test(digestClearedToolResult([{ type: 'text', text: 'a\nb\nc' }, { type: 'image', source: {} }] as never)))
 }
 

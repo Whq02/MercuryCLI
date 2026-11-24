@@ -15,7 +15,7 @@ const { planHunks, formatHunkOutcomes } = await import('../../src/tools/engines/
 const { mintFileAnchor } = await import('../../src/tools/engines/change-transaction/snapshotAnchor.ts')
 const { fileGeneration, recordSeenLines, _resetSeenLinesForTesting } = await import('../../src/tools/engines/change-transaction/seenLines.ts')
 const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
@@ -66,10 +66,10 @@ function primeRead(ctx: Ctx, path: string, window?: { offset: number; limit: num
   })
 }
 async function edit(input: Record<string, unknown>, ctx: Ctx): Promise<{ ok: true; data: Record<string, unknown>; effect: Record<string, unknown> } | { ok: false; error: string }> {
-  const validation = await (FileEditTool as { validateInput: Function }).validateInput(input, ctx)
+  const validation = await (EditTool as { validateInput: Function }).validateInput(input, ctx)
   if (validation.result === false) return { ok: false, error: String(validation.message) }
   try {
-    const result = await (FileEditTool as { call: Function }).call(input, ctx, null, { uuid: '00000000-0000-0000-0000-000000000003', message: { id: 'msg_fixture' } })
+    const result = await (EditTool as { call: Function }).call(input, ctx, null, { uuid: '00000000-0000-0000-0000-000000000003', message: { id: 'msg_fixture' } })
     return { ok: true, data: result.data, effect: result.effect }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) }
@@ -256,7 +256,7 @@ section('K. read knowledge keyed to content')
   writeFileSync(repeated, repeatedBody)
   _resetSeenLinesForTesting()
   let executionRefused = false
-  try { await (FileEditTool as { call: Function }).call(repeatInput, makeContext()) } catch { executionRefused = true }
+  try { await (EditTool as { call: Function }).call(repeatInput, makeContext()) } catch { executionRefused = true }
   check('K14 execution independently checks every replacement range: a never-read replace-all is refused at the write door too', executionRefused && readFileSync(repeated, 'utf8') === repeatedBody)
   writeFileSync(repeated, repeatedBody)
   _resetSeenLinesForTesting()
@@ -281,13 +281,13 @@ section('K. read knowledge keyed to content')
 section('N. the tool-input normaliser keeps every mode')
 {
   const { normalizeToolInput } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
-  const hunks = normalizeToolInput(FileEditTool as never, { file_path: join(fixtures, 'n.md'), hunks: [{ lines: '1', replace: 'a' }], expected_anchor: 'fa:000000000000' }) as Record<string, unknown>
+  const hunks = normalizeToolInput(EditTool as never, { file_path: join(fixtures, 'n.md'), hunks: [{ lines: '1', replace: 'a' }], expected_anchor: 'fa:000000000000' }) as Record<string, unknown>
   check('N1 hunks and expected_anchor ride through', Array.isArray(hunks.hunks) && hunks.expected_anchor === 'fa:000000000000' && hunks.old_string === undefined, JSON.stringify(hunks))
-  const appended = normalizeToolInput(FileEditTool as never, { file_path: join(fixtures, 'n.md'), section: '## A', append: 'x' }) as Record<string, unknown>
+  const appended = normalizeToolInput(EditTool as never, { file_path: join(fixtures, 'n.md'), section: '## A', append: 'x' }) as Record<string, unknown>
   check('N2 section and append ride through', appended.section === '## A' && appended.append === 'x' && !('old_string' in appended), JSON.stringify(appended))
-  const exact = normalizeToolInput(FileEditTool as never, { file_path: join(fixtures, 'n.md'), old_string: 'a', new_string: 'b' }) as Record<string, unknown>
+  const exact = normalizeToolInput(EditTool as never, { file_path: join(fixtures, 'n.md'), old_string: 'a', new_string: 'b' }) as Record<string, unknown>
   check('N3 the exact mode keeps its shape and writes no default the model did not send (replace_all stays absent)', exact.old_string === 'a' && exact.new_string === 'b' && !('replace_all' in exact), JSON.stringify(exact))
-  const all = normalizeToolInput(FileEditTool as never, { file_path: join(fixtures, 'n.md'), old_string: 'a', new_string: 'b', replace_all: true }) as Record<string, unknown>
+  const all = normalizeToolInput(EditTool as never, { file_path: join(fixtures, 'n.md'), old_string: 'a', new_string: 'b', replace_all: true }) as Record<string, unknown>
   check('N3b a replace_all the model sent rides through', all.replace_all === true, JSON.stringify(all))
 }
 
@@ -324,9 +324,9 @@ section('R. empty optional fields do not select or conflict with an edit mode')
   primeRead(context, file)
   const sectionOne = { file_path: file, ...empty, section: '## Target', new_string: 'one' }
   const sectionTwo = { ...sectionOne, new_string: 'two' }
-  check('R empty mode fields compare like absent fields', FileEditTool.inputsEquivalent!(sectionOne as never, { file_path: file, section: '## Target', new_string: 'one' } as never) === true)
-  check('R empty hunks cannot make different section edits equivalent', FileEditTool.inputsEquivalent!(sectionOne as never, sectionTwo as never) === false)
-  const allEmpty = await FileEditTool.validateInput!({ file_path: file, ...empty } as never, context as never)
+  check('R empty mode fields compare like absent fields', EditTool.inputsEquivalent!(sectionOne as never, { file_path: file, section: '## Target', new_string: 'one' } as never) === true)
+  check('R empty hunks cannot make different section edits equivalent', EditTool.inputsEquivalent!(sectionOne as never, sectionTwo as never) === false)
+  const allEmpty = await EditTool.validateInput!({ file_path: file, ...empty } as never, context as never)
   check('R all empty fields use the existing empty-old-string refusal', allEmpty.result === false && allEmpty.errorCode === 3, JSON.stringify(allEmpty))
   for (const conflict of [
     { section: '## Target', new_string: 'new', old_string: 'old' },

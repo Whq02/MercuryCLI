@@ -42,13 +42,13 @@ const { enableConfigs } = await import('../../src/platform/config/globalConfig.t
 enableConfigs()
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 const caps = await import('../../src/models/facts/capabilities.ts')
-const { getAutoCompactThreshold } = await import('../../src/engine/compaction/autoFold.ts')
+const { getAutoFoldThreshold } = await import('../../src/engine/compaction/autoFold.ts')
 
 type AnyMsg = Record<string, unknown> & { type?: string }
 const textOf = (m: unknown): string => {
@@ -143,7 +143,7 @@ async function drive(model: string, messages: AnyMsg[]): Promise<{ yields: AnyMs
   let terminal: Record<string, unknown> = {}
   let threw: string | undefined
   try {
-    const gen = query({
+    const gen = turnDoor({
       messages: messages as never,
       systemPrompt: ['fixture system prompt'] as never,
       userContext: {},
@@ -179,7 +179,7 @@ for (const model of ['claude-opus-4-8', 'claude-fable-5']) {
   const last = r.seen.at(-1)
   const folds = boundaries(r.yields)
   const meta = (folds[0] as { compactMetadata?: { trigger?: string; overflow?: { limitTokens?: number; actualTokens?: number } } } | undefined)?.compactMetadata
-  console.log(`  [record] ${model}: table ${table} · fold point ${getAutoCompactThreshold(model)} · wire ${show(r.seen)} · folds ${folds.length} ${JSON.stringify({ trigger: meta?.trigger, overflow: meta?.overflow })} · terminal ${JSON.stringify(r.terminal)}${r.threw ? ` · threw ${r.threw}` : ''}`)
+  console.log(`  [record] ${model}: table ${table} · fold point ${getAutoFoldThreshold(model)} · wire ${show(r.seen)} · folds ${folds.length} ${JSON.stringify({ trigger: meta?.trigger, overflow: meta?.overflow })} · terminal ${JSON.stringify(r.terminal)}${r.threw ? ` · threw ${r.threw}` : ''}`)
   check(`${model}: the row reads 1M, so a history of about 260,000 tokens is sent as it stands`, table === 1_000_000 && first !== undefined && !first.summary && first.count > SERVED, `table ${table} · first ${JSON.stringify(first)}`)
   check(`${model}: the vendor refused that request for its size and Mercury read the limit from the refusal`, first?.refused === true && meta?.trigger === 'overflow' && meta.overflow?.limitTokens === SERVED, JSON.stringify(meta ?? null))
   check(`${model}: ONE fold answered it`, folds.length === 1, `${folds.length} boundary rows`)

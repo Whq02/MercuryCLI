@@ -76,7 +76,7 @@ section('§1 the predicate: the exact objects the runtime produces for a cut con
   check('the words name the road, the event and the code', reset !== null && evidence.transportCutWords('Anthropic', reset) === 'Anthropic cut the connection mid-response — Stream closed with error code NGHTTP2_INTERNAL_ERROR (ERR_HTTP2_STREAM_ERROR)', 'transportCutWords in src/engine/request-parts/transportEvidence.ts must read: <road> cut the connection mid-response — <words> (<code>)')
 }
 
-const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.js')
+const { anthropicCallModel } = await import('../../src/models/roads/anthropic/streamCore.js')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
 const { createUserMessage } = await import('../../src/engine/messages/messages.js')
 const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.js')
@@ -128,7 +128,7 @@ async function drive(plan: Step[], cutError: () => Error): Promise<{ seen: Seen[
   proxy._resetApiDispatcherForTesting()
   const before = proxy.getApiDispatcher()
   try {
-    for await (const item of queryModelWithStreaming({
+    for await (const item of anthropicCallModel({
       messages: [createUserMessage({ content: 'go' })],
       systemPrompt: asSystemPrompt(['fixture']),
       thinkingConfig: { type: 'disabled' as const },

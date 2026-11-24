@@ -38,9 +38,9 @@ import { deferralSearchIsServerSide, deferralWireFormFor } from '../../models/ro
 import { repairToolInput, toolCallRefusalResultText } from '../../models/roads/toolCallGate.js'
 import { outputSchemaMismatch } from './toolOutputCheck.js'
 import { getEngineModel } from '../../models/catalogue/engineModel.js'
-import { FILE_EDIT_TOOL_NAME } from '../../tools/kit/names/fileEdit.js'
-import { FILE_READ_TOOL_NAME } from '../../tools/kit/names/fileRead.js'
-import { FILE_WRITE_TOOL_NAME } from '../../tools/kit/names/fileWrite.js'
+import { EDIT_TOOL_NAME } from '../../tools/kit/names/fileEdit.js'
+import { READ_TOOL_NAME } from '../../tools/kit/names/fileRead.js'
+import { WRITE_TOOL_NAME } from '../../tools/kit/names/fileWrite.js'
 import { NOTEBOOK_EDIT_TOOL_NAME } from '../../tools/notebook-edit/constants.js'
 import { refusalWithReason, ruleSentence, wholeToolDenyRulesCovering, withRuleReason } from '../../permissions/rules/ruleReason.js'
 import { displayToolName } from './toolNameDisplay.js'
@@ -153,9 +153,9 @@ function extractKillTarget(toolName: string, input: AnyObject): string | undefin
     } else if (typeof input?.command === 'string') {
       target = clamp(String(input.command))
     } else if (
-      (toolName === FILE_READ_TOOL_NAME ||
-        toolName === FILE_EDIT_TOOL_NAME ||
-        toolName === FILE_WRITE_TOOL_NAME) &&
+      (toolName === READ_TOOL_NAME ||
+        toolName === EDIT_TOOL_NAME ||
+        toolName === WRITE_TOOL_NAME) &&
       typeof input?.file_path === 'string'
     ) {
       target = clamp(String(input.file_path))
@@ -505,7 +505,7 @@ async function runTransactionBody(args: {
   const validation = await tool.validateInput?.(parsedInput, toolUseContext)
   if (validation?.result === false) {
     traceOnce({ ok: false })
-    if (tool.name === FILE_EDIT_TOOL_NAME && validation.errorCode !== undefined) {
+    if (tool.name === EDIT_TOOL_NAME && validation.errorCode !== undefined) {
       await noteEditOutcome(toolUseContext, `error-${validation.errorCode}`)
     }
     logForDebugging(`tool input validation failed for ${tool.name}: ${validation.message.slice(0, 200)}`)
@@ -917,7 +917,7 @@ async function runAdmittedCall(needs: ToolCallNeeds): Promise<void> {
       for (const note of hookNotes) push({ message: note })
       traceOnce({ durationMs, ok: succeeded, ...(outputMismatch ? { outputMismatch: true } : {}) })
       const effect = result?.effect
-      if (tool.name === FILE_EDIT_TOOL_NAME && effect?.operation === 'file.edit') {
+      if (tool.name === EDIT_TOOL_NAME && effect?.operation === 'file.edit') {
         await noteEditOutcome(toolUseContext, effect.outcome === 'succeeded' ? 'applied' : effect.outcome === 'no-change' ? 'no-change' : `error-${effect.outcome}`)
       }
       try {

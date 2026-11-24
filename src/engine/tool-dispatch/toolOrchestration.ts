@@ -10,7 +10,7 @@ import type { EarlyStarts } from './earlyStarts.js'
 import { ownerFromToolUseContext } from '../run-owner/resolveOwner.js'
 import { parkBeforeTool } from '../loop/pauseGate.js'
 import { randomUUID } from 'node:crypto'
-import { getAutoCompactThreshold, getBlockingLimit, getEffectiveContextWindowSize, getTurnReserveTokens, MANUAL_COMPACT_BUFFER_TOKENS, resolveAutoCompactWindow } from '../compaction/autoFold.js'
+import { getAutoFoldThreshold, getBlockingLimit, getEffectiveContextWindowSize, getTurnReserveTokens, MANUAL_FOLD_BUFFER_TOKENS, resolveAutoFoldWindow } from '../compaction/autoFold.js'
 import { getDefaultFileReadingLimits } from '../../tools/read/call/fileReadLimits.js'
 import { readRequestGauge } from '../run/requestGauge.js'
 import { tokenCountWithEstimation } from '../context-window/contextTokenCount.js'
@@ -77,7 +77,7 @@ function resultCapOf(context: ToolUseContext): number {
 export function windowHoldsNoWholeResult(context: ToolUseContext): boolean {
   const model = context.options.engineModel
   if (typeof model !== 'string' || model === '') return false
-  return getEffectiveContextWindowSize(model) - MANUAL_COMPACT_BUFFER_TOKENS - getTurnReserveTokens(model) < resultCapOf(context)
+  return getEffectiveContextWindowSize(model) - MANUAL_FOLD_BUFFER_TOKENS - getTurnReserveTokens(model) < resultCapOf(context)
 }
 
 export function openResultRoomForRound(roundID: string, assistantMessages: readonly AssistantMessage[], context: ToolUseContext): ResultRoom | null {
@@ -93,9 +93,9 @@ export function openResultRoomForRound(roundID: string, assistantMessages: reado
   const gauge = tokenCountWithEstimation(rows, model)
   const small = windowHoldsNoWholeResult(context)
   const budget = resultRoomBudget({
-    window: resolveAutoCompactWindow(model).window,
+    window: resolveAutoFoldWindow(model).window,
     blockingLimit: getBlockingLimit(model),
-    foldLine: getAutoCompactThreshold(model),
+    foldLine: getAutoFoldThreshold(model),
     gauge,
     ...(small ? { small, density: readRequestGauge(rows, model)?.density.ratio } : {}),
   })

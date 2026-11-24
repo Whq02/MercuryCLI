@@ -48,7 +48,7 @@ import type { SystemPrompt } from '../../../engine/system-prompt/systemPromptTyp
 import { API_ERROR_MESSAGE_PREFIX, getErrorMessageIfRefusal, malformedStreamFrameText } from '../../../engine/requests/apiErrorRows.js'
 import { EMPTY_USAGE } from '../../../engine/requests/apiCallLogging.js'
 import { CannotRetryError, FallbackTriggeredError, is529Error, retryEmptyStream } from '../../../engine/requests/withRetry.js'
-import { withStreamingVCR } from './fixtureReplay.js'
+import { withStreamingFixtureReplay } from './fixtureReplay.js'
 import type { HeldBusyRetryWait } from '../busyRetry.js'
 import { emptyStreamSpentWords } from '../emptyStreamRetry.js'
 import { captureSignInRequest, observeSignInResponse } from '../signInRefusal.js'
@@ -62,7 +62,7 @@ import { anthropicEffortWireFact } from './requestParams.js'
 type BetaToolChoiceAuto = Extract<BetaMessageStreamParams['tool_choice'], { type: 'auto' }>
 type BetaToolChoiceTool = Extract<BetaMessageStreamParams['tool_choice'], { type: 'tool' }>
 type BetaToolChoiceNone = Extract<BetaMessageStreamParams['tool_choice'], { type: 'none' }>
-import type { CallState, QueryCtx, StreamPass } from './stream-core/callState.js'
+import type { CallState, CallCtx, StreamPass } from './stream-core/callState.js'
 import { createCallLedger } from './stream-core/callLedger.js'
 import { executeNonStreamingRequest } from './stream-core/nonStreaming.js'
 import { streamPassRetries, retryWaitOf } from './stream-core/passRetries.js'
@@ -74,7 +74,7 @@ import { openStreamPass, resetStreamAttempt, noteStreamEvent, startMessage, open
 import { watchStream } from './stream-core/watchStream.js'
 import { wireParamsFor } from './stream-core/wireParams.js'
 import { asSystemPrompt } from '../../../engine/system-prompt/systemPromptType.js'
-import { withVCR } from './fixtureReplay.js'
+import { withFixtureReplay } from './fixtureReplay.js'
 
 export const ANTHROPIC_STREAM_ADVERTISEMENT: StreamCapabilityAdvertisement = {
   textDelta: true,
@@ -125,13 +125,13 @@ export {
   updateUsage,
 } from './cacheAndUsage.js'
 
-export async function queryModelWithoutStreaming(
+export async function anthropicCallModelSettled(
   request: CallModelParams,
 ): Promise<AssistantMessage> {
   const { messages, systemPrompt, thinkingConfig, tools, signal, options } = request
   const settled: AssistantMessage[] = []
-  const stream = withStreamingVCR(messages, () =>
-    queryModel(messages, systemPrompt, thinkingConfig, tools, signal, options),
+  const stream = withStreamingFixtureReplay(messages, () =>
+    callCore(messages, systemPrompt, thinkingConfig, tools, signal, options),
   )
   for await (const item of stream) {
     if (item.type === 'assistant') settled.push(item)
@@ -141,7 +141,7 @@ export async function queryModelWithoutStreaming(
   throw signal.aborted ? new APIUserAbortError() : new Error('No assistant message found')
 }
 
-export async function* queryModelWithStreaming({
+export async function* anthropicCallModel({
   messages,
   systemPrompt,
   thinkingConfig,
@@ -149,8 +149,8 @@ export async function* queryModelWithStreaming({
   signal,
   options,
 }: CallModelParams): CallModelStream {
-  return yield* withStreamingVCR(messages, () =>
-    queryModel(messages, systemPrompt, thinkingConfig, tools, signal, options),
+  return yield* withStreamingFixtureReplay(messages, () =>
+    callCore(messages, systemPrompt, thinkingConfig, tools, signal, options),
   )
 }
 
@@ -180,14 +180,14 @@ export function cutToolCallOf(block: { type: string; id?: string; name?: string;
   }
 }
 
-async function prepareQuery(
+async function prepareCall(
   messages: Message[],
   systemPrompt: SystemPrompt,
   thinkingConfig: ThinkingConfig,
   tools: Tools,
   signal: AbortSignal,
   options: Options,
-): Promise<{ call: CallState; ctx: QueryCtx; resolvedModel: string }> {
+): Promise<{ call: CallState; ctx: CallCtx; resolvedModel: string }> {
   const effortContext = { agentId: options.agentId, pinned: options.effortPinned === true }
   const effortTruth = resolveEffortTruth(options.model, options.effortValue, effortContext)
   const effortRides = options.effortPinned === true || options.ridesSessionEffort !== false
@@ -328,7 +328,7 @@ async function prepareQuery(
       ? wait => options.onWait?.(wait)
       : undefined
 
-  const ctx: QueryCtx = {
+  const ctx: CallCtx = {
     ...ledger,
     messages,
     thinkingConfig,
@@ -352,7 +352,7 @@ async function prepareQuery(
 }
 
 function* streamOneEvent(
-  ctx: QueryCtx,
+  ctx: CallCtx,
   call: CallState,
   pass: StreamPass,
   part: BetaRawMessageStreamEvent,
@@ -445,7 +445,7 @@ function* streamOneEvent(
 }
 
 async function* runStreamPass(
-  ctx: QueryCtx,
+  ctx: CallCtx,
   call: CallState,
 ): AsyncGenerator<
   StreamEvent | AssistantMessage | SystemAPIErrorMessage | SystemStreamCutMessage,
@@ -667,7 +667,7 @@ async function* runStreamPass(
   }
 }
 
-async function* queryModel(
+async function* callCore(
   messages: Message[],
   systemPrompt: SystemPrompt,
   thinkingConfig: ThinkingConfig,
@@ -678,7 +678,7 @@ async function* queryModel(
   StreamEvent | AssistantMessage | SystemAPIErrorMessage | SystemStreamCutMessage,
   void
 > {
-  const { call, ctx } = await prepareQuery(
+  const { call, ctx } = await prepareCall(
     messages,
     systemPrompt,
     thinkingConfig,
@@ -772,7 +772,7 @@ type UtilityOptions = Omit<
   'model' | 'getToolPermissionContext' | 'effortValue' | 'effortPinned' | 'ridesSessionEffort'
 >
 
-export async function queryUtility({
+export async function callUtilityModel({
   systemPrompt = asSystemPrompt([]),
   userPrompt,
   outputFormat,
@@ -786,7 +786,7 @@ export async function queryUtility({
   options: UtilityOptions
 }): Promise<AssistantMessage> {
   const { thinkingConfig, ...utilityOptions } = utilityCallFor()
-  return queryWithModel({
+  return callWithModel({
     systemPrompt,
     userPrompt,
     outputFormat,
@@ -800,11 +800,11 @@ export async function queryUtility({
   })
 }
 
-type QueryWithModelOptions = Omit<Options, 'getToolPermissionContext'>
+type CallWithModelOptions = Omit<Options, 'getToolPermissionContext'>
 
 type OneShotQuestion = {
   systemPrompt: SystemPrompt; userPrompt: string; outputFormat?: JsonOutputFormat
-  signal: AbortSignal; options: QueryWithModelOptions; thinkingConfig?: ThinkingConfig
+  signal: AbortSignal; options: CallWithModelOptions; thinkingConfig?: ThinkingConfig
 }
 
 function sideQuestionParams(question: OneShotQuestion, systemPrompt: SystemPrompt): CallModelParams {
@@ -818,7 +818,7 @@ function sideQuestionParams(question: OneShotQuestion, systemPrompt: SystemPromp
   }
 }
 
-export async function queryWithModel(question: OneShotQuestion): Promise<AssistantMessage> {
+export async function callWithModel(question: OneShotQuestion): Promise<AssistantMessage> {
   const { systemPrompt = asSystemPrompt([]), userPrompt, outputFormat, signal, options, thinkingConfig } = question
   question = { systemPrompt, userPrompt, outputFormat, signal, options, thinkingConfig }
   const { routedCallModel, settleAssistantTurn } = await import('../callModelRouter.js')
@@ -832,7 +832,7 @@ export async function queryWithModel(question: OneShotQuestion): Promise<Assista
     for await (const row of stream) if (row.type === 'assistant') replies.push(row)
     return [settleAssistantTurn(replies, question.signal.aborted)]
   }
-  const [reply] = await withVCR(recordedInput, answer)
+  const [reply] = await withFixtureReplay(recordedInput, answer)
   return reply! as AssistantMessage
 }
 

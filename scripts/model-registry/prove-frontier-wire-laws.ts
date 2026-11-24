@@ -31,7 +31,7 @@ const {
   modelSupportsForcedToolChoice,
   modelThinkingAlwaysOn,
 } = await import('../../src/models/facts/capabilities.ts')
-const { sideQueryThinkingParam } = await import('../../src/engine/requests/sideRequest.ts')
+const { sideRequestThinkingParam } = await import('../../src/engine/requests/sideRequest.ts')
 const {
   getContextWindowForModel,
   getMaxSupportedEffortLevel,
@@ -118,38 +118,38 @@ section('§2 thinking is always on for the frontier family; the disable is omitt
   for (const m of notAlwaysOn) check(`${m}: thinking not always on`, !modelThinkingAlwaysOn(m))
 
   for (const m of alwaysOn) {
-    check(`${m}: thinking=false ⇒ no thinking parameter`, sideQueryThinkingParam(m, false, 4096) === undefined)
+    check(`${m}: thinking=false ⇒ no thinking parameter`, sideRequestThinkingParam(m, false, 4096) === undefined)
   }
   for (const m of notAlwaysOn) {
     check(
       `${m}: thinking=false ⇒ {type:'disabled'}`,
-      show(sideQueryThinkingParam(m, false, 4096)) === show({ type: 'disabled' }),
-      show(sideQueryThinkingParam(m, false, 4096)),
+      show(sideRequestThinkingParam(m, false, 4096)) === show({ type: 'disabled' }),
+      show(sideRequestThinkingParam(m, false, 4096)),
     )
   }
   for (const m of [...alwaysOn, 'claude-opus-5', 'claude-sonnet-5', 'claude-opus-4-6']) {
     check(`${m}: adaptive-capable per the owner`, modelSupportsAdaptiveThinking(m))
     check(
       `${m}: thinking=2048 ⇒ {type:'adaptive'} (no budget on the wire)`,
-      show(sideQueryThinkingParam(m, 2048, 4096)) === show({ type: 'adaptive' }),
-      show(sideQueryThinkingParam(m, 2048, 4096)),
+      show(sideRequestThinkingParam(m, 2048, 4096)) === show({ type: 'adaptive' }),
+      show(sideRequestThinkingParam(m, 2048, 4096)),
     )
   }
   for (const m of ['claude-haiku-4-5', 'claude-opus-4-5', 'claude-sonnet-4-5']) {
     check(`${m}: a budget model per the owner`, !modelSupportsAdaptiveThinking(m))
     check(
       `${m}: thinking=2048 ⇒ enabled with the budget`,
-      show(sideQueryThinkingParam(m, 2048, 4096)) === show({ type: 'enabled', budget_tokens: 2048 }),
-      show(sideQueryThinkingParam(m, 2048, 4096)),
+      show(sideRequestThinkingParam(m, 2048, 4096)) === show({ type: 'enabled', budget_tokens: 2048 }),
+      show(sideRequestThinkingParam(m, 2048, 4096)),
     )
     check(
       `${m}: the budget stays under max_tokens (9000 vs 4096 ⇒ 4095)`,
-      show(sideQueryThinkingParam(m, 9000, 4096)) === show({ type: 'enabled', budget_tokens: 4095 }),
-      show(sideQueryThinkingParam(m, 9000, 4096)),
+      show(sideRequestThinkingParam(m, 9000, 4096)) === show({ type: 'enabled', budget_tokens: 4095 }),
+      show(sideRequestThinkingParam(m, 9000, 4096)),
     )
   }
   for (const m of [...alwaysOn, ...notAlwaysOn]) {
-    check(`${m}: absent thinking ⇒ no thinking parameter`, sideQueryThinkingParam(m, undefined, 4096) === undefined)
+    check(`${m}: absent thinking ⇒ no thinking parameter`, sideRequestThinkingParam(m, undefined, 4096) === undefined)
   }
 }
 
@@ -199,7 +199,7 @@ section('§5 Claude Sonnet 5.5 answers both laws as recorded on the wire: the di
   const disabled = leg('R2')
   check('the recorded request carried the disabled shape the side query spells for a model its gate does not name', show(disabled.request.thinking) === show({ type: 'disabled' }), show(disabled.request))
   check('the wire refused it: 400 invalid_request_error naming thinking.type.disabled and pointing to between_tools', disabled.response.status === 400 && disabled.response.error_body?.error?.type === 'invalid_request_error' && message(disabled).includes(DISABLED_REFUSED) && message(disabled).includes('between_tools'), `${disabled.response.status} ${message(disabled)}`)
-  check('so thinking is always on for the row and its twin, and a thinking-off side query sends no thinking parameter', modelThinkingAlwaysOn(ID) && modelThinkingAlwaysOn(`${ID}[1m]`) && sideQueryThinkingParam(ID, false, 4096) === undefined, show(sideQueryThinkingParam(ID, false, 4096)))
+  check('so thinking is always on for the row and its twin, and a thinking-off side query sends no thinking parameter', modelThinkingAlwaysOn(ID) && modelThinkingAlwaysOn(`${ID}[1m]`) && sideRequestThinkingParam(ID, false, 4096) === undefined, show(sideRequestThinkingParam(ID, false, 4096)))
   const absent = leg('R1')
   check('the omitted parameter is the served shape: the control without a thinking parameter answered 200', absent.request.thinking === 'absent' && absent.response.status === 200 && absent.response.stop_reason === 'end_turn', `${absent.response.status} ${String(absent.response.stop_reason)}`)
 
@@ -216,7 +216,7 @@ section('§5 Claude Sonnet 5.5 answers both laws as recorded on the wire: the di
   check("auto is the served shape: the same tool under tool_choice auto answered 200 and the model called it (the fold's replacement costs nothing)", show(auto.request.tool_choice) === show({ type: 'auto' }) && auto.response.status === 200 && auto.response.stop_reason === 'tool_use' && (auto.response.content ?? []).some(b => b.type === 'tool_use' && b.name === 'classify_result'), `${auto.response.status} ${String(auto.response.stop_reason)}`)
   const composedControl = leg('R7')
   check("the main stream's composition without a forced choice answered 200 (the refusal is the choice's, not the composition's)", composedControl.response.status === 200, String(composedControl.response.status))
-  check('Sonnet 5 keeps its own answers: the disabled shape and a forced choice ride there', !modelThinkingAlwaysOn('claude-sonnet-5') && modelSupportsForcedToolChoice('claude-sonnet-5') && show(sideQueryThinkingParam('claude-sonnet-5', false, 4096)) === show({ type: 'disabled' }))
+  check('Sonnet 5 keeps its own answers: the disabled shape and a forced choice ride there', !modelThinkingAlwaysOn('claude-sonnet-5') && modelSupportsForcedToolChoice('claude-sonnet-5') && show(sideRequestThinkingParam('claude-sonnet-5', false, 4096)) === show({ type: 'disabled' }))
   check('a carrier-shaped spelling of the row never joins either law', !modelThinkingAlwaysOn('openrouter/anthropic/claude-sonnet-5-5') && modelSupportsForcedToolChoice('openrouter/anthropic/claude-sonnet-5-5'))
 }
 

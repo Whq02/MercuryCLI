@@ -6,7 +6,7 @@ import sharp from 'sharp'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_BARE = '1'
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const { mediaDecoderMissing, mediaFileFormat } = await import('../../src/integrations/voice/fileTranscript.ts')
 const { createImageMetadataText } = await import('../../src/platform/images/imageResizer.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
@@ -25,14 +25,14 @@ try {
       const path = join(dir, `capture-${format}`)
       writeFileSync(path, await sharp({ create: { width: 8, height: 4, channels: 3, background: { r: 10, g: 20, b: 30 } } }).toFormat(format).toBuffer())
       const input = { file_path: path }
-      assert.equal((await FileReadTool.validateInput(input, context() as never)).result, true)
-      const result = await FileReadTool.call(input, context() as never)
+      assert.equal((await ReadTool.validateInput(input, context() as never)).result, true)
+      const result = await ReadTool.call(input, context() as never)
       assert.equal(result.data.type, 'image')
-      const cropped = await FileReadTool.call({ file_path: path, crop: [2, 0, 6, 4] }, context() as never)
+      const cropped = await ReadTool.call({ file_path: path, crop: [2, 0, 6, 4] }, context() as never)
       assert.equal(cropped.data.type, 'image')
       assert.equal(cropped.newMessages?.length ?? 0, 0)
       assert.match(cropped.data.file.caption ?? '', /This image is the crop/)
-      const mapped = FileReadTool.mapToolResultToToolResultBlockParam(cropped.data, 'image-proof')
+      const mapped = ReadTool.mapToolResultToToolResultBlockParam(cropped.data, 'image-proof')
       assert(Array.isArray(mapped.content) && mapped.content.some(block => block.type === 'image'), `FileReadTool.mapToolResultToToolResultBlockParam(${format}) did not emit an image block in src/tools/read/ReadTool.ts`)
     })
   }
@@ -40,14 +40,14 @@ try {
     await check(`extensionless non-image stays text: ${JSON.stringify(text)}`, async () => {
       const path = join(dir, 'text')
       writeFileSync(path, text)
-      assert.equal((await FileReadTool.call({ file_path: path }, context() as never)).data.type, 'text')
+      assert.equal((await ReadTool.call({ file_path: path }, context() as never)).data.type, 'text')
     })
   }
   await check('extensionless RIFF/WAVE is WAV audio, not an image: it reads through the audio lane', async () => {
     const path = join(dir, 'text')
     writeFileSync(path, 'RIFFxxxxWAVE')
     assert.equal(mediaFileFormat(path), 'wav')
-    await assert.rejects(FileReadTool.call({ file_path: path }, context() as never), (error: unknown) => error instanceof Error && ['Cannot decode the audio in this WAV file with ffmpeg; check that it contains a playable audio track.', mediaDecoderMissing('wav')].includes(error.message))
+    await assert.rejects(ReadTool.call({ file_path: path }, context() as never), (error: unknown) => error instanceof Error && ['Cannot decode the audio in this WAV file with ffmpeg; check that it contains a playable audio track.', mediaDecoderMissing('wav')].includes(error.message))
   })
   await check('rounded axes have separate coordinate multipliers', () => {
     const note = createImageMetadataText({ originalWidth: 1000, originalHeight: 17, displayWidth: 333, displayHeight: 6 })!

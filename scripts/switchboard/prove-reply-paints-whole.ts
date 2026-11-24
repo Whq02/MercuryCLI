@@ -344,7 +344,7 @@ try {
     const named = (rows: ReadonlyArray<{ uuid: string }>): string[] => rows.map(r => names.get(r.uuid) ?? r.uuid.slice(0, 4))
     const u1 = user('u1', 'the first words, folded', null)
     const a1 = assistant('a1', 'the first reply, folded', u1.uuid)
-    const B = keep('B', { ...(systemMessages.createCompactBoundaryMessage('manual', 1000) as Row), parentUuid: null, isSidechain: false, timestamp: tick() })
+    const B = keep('B', { ...(systemMessages.createFoldBoundaryMessage('manual', 1000) as Row), parentUuid: null, isSidechain: false, timestamp: tick() })
     const S = keep('S', { ...(factories.createUserMessage({ content: 'the summary of the folded stretch', isCompactSummary: true }) as Row), parentUuid: B.uuid, isSidechain: false, timestamp: tick() })
     const u2 = user('u2', 'words after the fold', S.uuid)
     const a2 = assistant('a2', 'the reply after the fold', u2.uuid)

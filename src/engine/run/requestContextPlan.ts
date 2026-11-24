@@ -3,17 +3,17 @@ import type { DeadThinkingMark } from '../message-shapes/message.js'
 import { createHash } from 'node:crypto'
 import type { QuerySource } from '../requests/querySource.js'
 import {
-  microcompactMessages,
-  projectTimeBasedMicrocompact,
+  pruneMessages,
+  projectTimeBasedPrune,
 } from '../compaction/pruneToolResults.js'
 import type { Message } from '../message-shapes/message.js'
-import { getMessagesAfterCompactBoundary } from '../messages/messages.js'
+import { getMessagesAfterFoldBoundary } from '../messages/messages.js'
 import { expandPath } from '../../platform/files/path.js'
 import { stripThinkingInPreservedTail } from '../messages/apiFilters.js'
 import { projectRewoundWindows } from '../compaction/checkpointRewind.js'
 import { collectPreservedReadPaths } from '../compaction/foldConversation.js'
 import { dropSeenLines, rebuildSeenLinesFromTranscript } from '../../tools/engines/change-transaction/seenLines.js'
-import { FILE_READ_TOOL_NAME } from '../../tools/kit/names/fileRead.js'
+import { READ_TOOL_NAME } from '../../tools/kit/names/fileRead.js'
 import { PROTECTED_TOOL_NAMES } from '../compaction/pruneProtections.js'
 import {
   applyToolResultBudget,
@@ -51,7 +51,7 @@ interface RequestContextPlanInput {
   contentReplacementState: ContentReplacementState | undefined
   persistReplacements?: (records: ToolResultReplacementRecord[]) => void | Promise<void>
   skipToolNames: ReadonlySet<string>
-  microcompact?: typeof microcompactMessages
+  microcompact?: typeof pruneMessages
   readFileState?: Pick<import('../../platform/files/fileStateCache.js').FileStateCache, 'delete'>
   selectionBudget?: SelectionBudget | null
   calibrationKey?: string | null
@@ -158,7 +158,7 @@ function invalidateRemovedReads(input: RequestContextPlanInput, before: Message[
   for (const message of before) {
     if (message.type !== 'assistant' || !Array.isArray(message.message.content)) continue
     for (const block of message.message.content) {
-      if (block.type !== 'tool_use' || block.name !== FILE_READ_TOOL_NAME || !original.has(block.id)) continue
+      if (block.type !== 'tool_use' || block.name !== READ_TOOL_NAME || !original.has(block.id)) continue
       const path = (block.input as { file_path?: unknown })?.file_path
       if (typeof path === 'string') latest.set(expandPath(path), block.id)
     }
@@ -196,7 +196,7 @@ export async function buildRequestContextPlan(
   const unknownFields: string[] = []
   const reasons: string[] = []
   const sourceMessageCount = input.messages.length
-  const afterBoundary = stripThinkingInPreservedTail(getMessagesAfterCompactBoundary(input.messages))
+  const afterBoundary = stripThinkingInPreservedTail(getMessagesAfterFoldBoundary(input.messages))
   const afterRewinds = projectRewoundWindows(afterBoundary)
   if (afterRewinds.length < afterBoundary.length) {
     reasons.push(
@@ -256,7 +256,7 @@ export async function buildRequestContextPlan(
   let pressurePruned: RequestContextPlan['reductions']['pressurePruned']
   let deadThinkingMarks: RequestContextPlan['reductions']['deadThinkingMarks']
   if (!input.preserveBodies) {
-    const projected = projectTimeBasedMicrocompact(view, input.querySource)
+    const projected = projectTimeBasedPrune(view, input.querySource)
     if (projected) {
       timeBasedCleared = projected.cleared
       reasons.push(
@@ -264,7 +264,7 @@ export async function buildRequestContextPlan(
       )
     }
     if (mode === 'apply') {
-      const micro = input.microcompact ?? microcompactMessages
+      const micro = input.microcompact ?? pruneMessages
       const result = await micro(
         view,
         undefined,

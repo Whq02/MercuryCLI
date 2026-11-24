@@ -22,7 +22,7 @@ if (!given) {
   const src = process.env.PROVE_SRC ?? resolve(dirname(script), '../../src')
   const { setCwdState, setOriginalCwd } = await import(`${src}/boot/process-state/processState.ts`)
   setCwdState(given); setOriginalCwd(given)
-  const { FileReadTool } = await import(`${src}/tools/read/ReadTool.ts`)
+  const { ReadTool } = await import(`${src}/tools/read/ReadTool.ts`)
   const { getEmptyToolPermissionContext } = await import(`${src}/tools/kit/tool.ts`)
   const { createFileStateCacheWithSizeLimit } = await import(`${src}/platform/files/fileStateCache.ts`)
   const { runJsonQuery } = await import(`${src}/tools/read/jsonQueryRuntime.ts`)
@@ -34,12 +34,12 @@ if (!given) {
     const ctx = { ...context(), ...(maxTokens === undefined ? {} : { fileReadingLimits: { maxTokens, maxSizeBytes: 4 * 1024 * 1024 * 1024 } }) }
     try {
       const input = { file_path }
-      const valid = await FileReadTool.validateInput(input, ctx)
+      const valid = await ReadTool.validateInput(input, ctx)
       if (!valid.result) return { body: valid.message, ctx }
-      const permission = await FileReadTool.checkPermissions(input, ctx)
+      const permission = await ReadTool.checkPermissions(input, ctx)
       if (permission.behavior === 'deny') return { body: permission.message, ctx }
-      const result = await FileReadTool.call(input, ctx)
-      return { body: String(FileReadTool.mapToolResultToToolResultBlockParam(result.data, 'stream').content), ctx }
+      const result = await ReadTool.call(input, ctx)
+      return { body: String(ReadTool.mapToolResultToToolResultBlockParam(result.data, 'stream').content), ctx }
     } catch (error) { return { body: String(error), ctx } }
   }
   const continuation = (body: string): string | null => {

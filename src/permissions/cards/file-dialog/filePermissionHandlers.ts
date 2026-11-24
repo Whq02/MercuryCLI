@@ -1,4 +1,4 @@
-import { FILE_EDIT_TOOL_NAME } from '../../../tools/kit/names/fileEdit.js'
+import { EDIT_TOOL_NAME } from '../../../tools/kit/names/fileEdit.js'
 import { generateSuggestions } from '../../rules/filesystem.js'
 import type { ToolPermissionContext } from '../../../tools/kit/tool.js'
 import type { PermissionUpdate } from '../../rules/permissions.js'
@@ -40,7 +40,7 @@ export const PERMISSION_HANDLERS: Record<
               type: 'addRules',
               rules: [
                 {
-                  toolName: FILE_EDIT_TOOL_NAME,
+                  toolName: EDIT_TOOL_NAME,
                   ruleContent: options.pattern,
                 },
               ],

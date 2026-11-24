@@ -6,7 +6,7 @@ import { appendSystemContext } from '../../messages/apiSystemAndToolSchema.js'
 import { asSystemPrompt } from '../../system-prompt/systemPromptType.js'
 import { logError } from '../../../platform/logs/errorLog.js'
 import { isRecord } from '../../../platform/primitives/isRecord.js'
-import { findLastCompactBoundaryIndex, getAssistantMessageText } from '../../messages/messages.js'
+import { findLastFoldBoundaryIndex, getAssistantMessageText } from '../../messages/messages.js'
 import { isSessionActivityTrackingActive, sendSessionActivitySignal } from '../../requests/sessionActivity.js'
 import { tokenCountWithEstimation } from '../../context-window/contextTokenCount.js'
 import { isToolSearchEnabled } from '../../messages/toolSearch.js'
@@ -15,13 +15,13 @@ import { routedCallModel, settleAssistantTurn } from '../../../models/roads/call
 import { coldPrefixOf } from '../../../models/roads/streamIdleBudget.js'
 import { APIUserAbortError } from '../../request-parts/sdkErrors.js'
 import { rosterOwnerFromToolUseContext } from '../../run-owner/resolveOwner.js'
-import { FileReadTool } from '../../../tools/read/ReadTool.js'
+import { ReadTool } from '../../../tools/read/ReadTool.js'
 import { ToolSearchTool } from '../../../tools/tool-search/ToolSearchTool.js'
 import { projectRewoundWindows } from '../checkpointRewind.js'
 import { ERROR_MESSAGE_INCOMPLETE_RESPONSE, KEEPALIVE_INTERVAL_MS } from './foldLimits.js'
-import { isOverflowAnswer, malformedHistoryRefusalOf, foldRemedyIsHeadless, foldWindowRefusalText, CompactionRefusedForHistoryError } from './refusals.js'
+import { isOverflowAnswer, malformedHistoryRefusalOf, foldRemedyIsHeadless, foldWindowRefusalText, FoldRefusedForHistoryError } from './refusals.js'
 import { ERROR_MESSAGE_FOLD_TIMEOUT, type FoldBound, armFoldBound, foldCutWords, shouldRideCacheSharingFork, recordFoldRoad } from './foldBound.js'
-import { createCompactCanUseTool } from './summariserInput.js'
+import { createFoldCanUseTool } from './summariserInput.js'
 import { summaryAnswerFault, summaryRefusedByModel } from './summaryCheck.js'
 import { startInterval, stopInterval } from '../../../platform/async/timers.js'
 
@@ -60,7 +60,7 @@ async function summarizeViaCacheSharingFork(
         toolUseContext: context,
         forkContextMessages: messages,
       },
-      canUseTool: createCompactCanUseTool(),
+      canUseTool: createFoldCanUseTool(),
       querySource: 'compact',
       forkLabel: 'compact',
       maxTurns: 1,
@@ -113,7 +113,7 @@ async function summarizeViaCacheSharingFork(
       const malformed = malformedHistoryRefusalOf(lastAssistant)
       if (malformed !== null) {
         recordFoldRoad(model, 'fork', startedAt, 'refused')
-        throw new CompactionRefusedForHistoryError(malformed, {
+        throw new FoldRefusedForHistoryError(malformed, {
           nonInteractive: foldRemedyIsHeadless(context.options.isNonInteractiveSession),
         })
       }
@@ -122,7 +122,7 @@ async function summarizeViaCacheSharingFork(
     recordFoldRoad(model, 'fork', startedAt, 'handover', 'no usable summary')
     return null
   } catch (error) {
-    if (error instanceof CompactionRefusedForHistoryError) throw error
+    if (error instanceof FoldRefusedForHistoryError) throw error
     const elapsed = Date.now() - startedAt
     if (bound.hitDeadline()) {
       logForDebugging(`compact: fork lane hit its fold bound (${foldCutWords(bound)}) after ${elapsed} ms — handing over to the direct call`, { level: 'warn' })
@@ -181,10 +181,10 @@ async function summarizeDirect(
       dedupedTools.length > 0
         ? dedupedTools
         : toolSearchOn
-          ? [FileReadTool, ToolSearchTool]
-          : [FileReadTool]
+          ? [ReadTool, ToolSearchTool]
+          : [ReadTool]
 
-    const boundaryIndex = findLastCompactBoundaryIndex(messages)
+    const boundaryIndex = findLastFoldBoundaryIndex(messages)
     const afterBoundary = boundaryIndex >= 0 ? messages.slice(boundaryIndex + 1) : messages
     const projected = projectRewoundWindows(afterBoundary)
     const ownerKey = String(rosterOwnerFromToolUseContext(context))
@@ -273,7 +273,7 @@ async function summarizeDirect(
     }
     const malformed = malformedHistoryRefusalOf(captured)
     if (malformed !== null) {
-      throw new CompactionRefusedForHistoryError(malformed, {
+      throw new FoldRefusedForHistoryError(malformed, {
         nonInteractive: foldRemedyIsHeadless(context.options.isNonInteractiveSession),
       })
     }

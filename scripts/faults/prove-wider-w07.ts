@@ -502,7 +502,7 @@ console.log('\nw07-5 · promptDraft — autosave refuses unreadable draft/scoped
   }
 }
 
-console.log('\nw07-1 · session listing roads + BootResumeScreen + sessionManager + ResumeConversation — unreadable folders/sessions counted and shown')
+console.log('\nw07-1 · session listing roads + BootResumeScreen + sessionManager + ResumeSession — unreadable folders/sessions counted and shown')
 if (!POSIX_MODES) skip('w07-1 session listing unreadable', 'chmod 0000 needs non-root POSIX')
 else {
   const rRoads = runSubprocess(`
@@ -614,7 +614,7 @@ else {
     const { KeybindingSetup } = await import(path.join(SRC, 'screen/keys/KeybindingProviderSetup.tsx'))
     const { BootResumeScreen } = await import(path.join(SRC, 'screen/boot-face/BootResumeScreen.tsx'))
     const { sessionListView } = await import(path.join(SRC, 'screen/widgets/faces/session-manager/views.tsx'))
-    const { ResumeConversation } = await import(path.join(SRC, 'screen/chat/ResumeSession.tsx'))
+    const { ResumeSession } = await import(path.join(SRC, 'screen/chat/ResumeSession.tsx'))
     const { useMercuryTokens } = await import(path.join(SRC, 'screen/widgets/useMercuryTokens.ts'))
     const portable = await import(path.join(SRC, 'sessions/transcripts/sessionStoragePortable.ts'))
     const h = React.createElement
@@ -679,7 +679,7 @@ else {
 
     const resumeTree = h(AppStateProvider, {
       initialState: getDefaultAppState(),
-      children: h(KeybindingSetup, null, h(ThemeProvider, null, h(TerminalSizeContext.Provider, { value: { columns: 180, rows: 24 } }, h(Box, { width: 180, height: 24, flexDirection: 'column' }, h(ResumeConversation, { commands: [], worktreePaths: [], initialTools: [], worktreeReadError: 'git worktree list failed' }))))),
+      children: h(KeybindingSetup, null, h(ThemeProvider, null, h(TerminalSizeContext.Provider, { value: { columns: 180, rows: 24 } }, h(Box, { width: 180, height: 24, flexDirection: 'column' }, h(ResumeSession, { commands: [], worktreePaths: [], initialTools: [], worktreeReadError: 'git worktree list failed' }))))),
     })
     const resumeView = await harness.mountOffscreen(resumeTree, 180, 24)
     try {
@@ -704,7 +704,7 @@ else {
     smScreen.slice(0, 220),
   )
   check(
-    'w07-1 ResumeConversation displays the unreadable worktrees/sessions notice',
+    'w07-1 ResumeSession displays the unreadable worktrees/sessions notice',
     resumeScreen.includes('1 sessions or folders could not be read and are not listed (first:') && resumeScreen.includes('git worktree list failed'),
     resumeScreen.slice(0, 220),
   )

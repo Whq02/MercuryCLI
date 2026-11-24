@@ -10,7 +10,7 @@ import {
   advisorDefaultClock,
   appendAdvisorRow,
   loadAdvisorContext,
-  maybeCompactAdvisorContext,
+  maybeFoldAdvisorContext,
   type AdvisorContext,
   type AdvisorRow,
   type AdvisorSummarizer,
@@ -238,7 +238,7 @@ export async function composeAdvisorNote(
   await appendAdvisorRow(context, { kind: 'digest', at, text: digest.text, cursor: digest.cursor })
   const text = clampNoteLines(reply.text)
   await appendAdvisorRow(context, { kind: 'note', at, text, model })
-  await maybeCompactAdvisorContext(context, {
+  await maybeFoldAdvisorContext(context, {
     model,
     ...(road.window !== undefined ? { window: road.window } : {}),
     ...(road.summarize !== undefined ? { summarize: road.summarize } : {}),

@@ -1,6 +1,6 @@
 import { getEmptyToolPermissionContext } from '../../src/tools/kit/tool.ts'
 import { decideToolPermission } from '../../src/permissions/rules/decision/engine.ts'
-import { FileReadTool } from '../../src/tools/read/ReadTool.ts'
+import { ReadTool } from '../../src/tools/read/ReadTool.ts'
 import { BashTool } from '../../src/tools/shell/BashTool.tsx'
 
 type Decide = (tool: unknown, input: unknown, context: unknown) => Promise<{ decision: { behavior: string } }>
@@ -14,7 +14,7 @@ function contextOf(mode: string, allow: string[]): unknown {
 export async function floorOf(target: string): Promise<Record<string, { read: string; cat: string }>> {
   const answers: Record<string, { read: string; cat: string }> = {}
   for (const mode of ['default', 'sovereign']) {
-    const read = (await decide(FileReadTool, { file_path: target }, contextOf(mode, ['Read']))).decision
+    const read = (await decide(ReadTool, { file_path: target }, contextOf(mode, ['Read']))).decision
     const cat = (await decide(BashTool, { command: "cat '" + target + "'" }, contextOf(mode, ['Bash']))).decision
     answers[mode] = { read: read.behavior, cat: cat.behavior }
   }

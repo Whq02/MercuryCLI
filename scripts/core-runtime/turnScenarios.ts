@@ -27,7 +27,7 @@ const { runEventCore } = await import('../../src/engine/loop/turn-machine.ts')
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
-const { createAssistantMessage, createAssistantAPIErrorMessage, createCompactBoundaryMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createAssistantMessage, createAssistantAPIErrorMessage, createFoldBoundaryMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { FallbackTriggeredError } = await import('../../src/engine/requests/withRetry.ts')
 const { ImageSizeError } = await import('../../src/engine/requests/imageValidation.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
@@ -659,7 +659,7 @@ const CHANT = SENTENCE.repeat(14)
 const folded = (tokens = 120): Row => ({
   wasCompacted: true,
   compactionResult: {
-    boundaryMarker: createCompactBoundaryMessage('auto', 900),
+    boundaryMarker: createFoldBoundaryMessage('auto', 900),
     summaryMessages: [createUserMessage({ content: 'RIG SUMMARY', isCompactSummary: true })],
     attachments: [],
     hookResults: [],

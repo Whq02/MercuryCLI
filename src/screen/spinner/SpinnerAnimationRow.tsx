@@ -5,7 +5,7 @@ import type { Theme } from '../theme/theme.js'
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js'
 import { FOCAL_TICK_MS, WORK_TICK_MS } from '../cockpit/liveGlyphs.js'
 import { GLYPH } from '../theme/glyphs.js'
-import { GlimmerMessage } from './ShimmerMessage.js'
+import { ShimmerMessage } from './ShimmerMessage.js'
 import { hookWaitLineOf } from '../../integrations/event-hooks/wait.js'
 import { getEphemeralProgressFrame, useEphemeralProgressVersion } from '../app-state/ephemeralProgressStore.js'
 import { SpinnerGlyph } from './SpinnerGlyph.js'
@@ -114,7 +114,7 @@ export function SpinnerAnimationRow(props: SpinnerAnimationRowProps): React.Reac
         )}
         <Box ref={messageRef}>
           {still ? <Text color={color}>{message}</Text> : (
-            <GlimmerMessage attentionIntensity={attention} flashOpacity={flash} glimmerIndex={glimmerIndex} message={message} messageColor={color} mode={mode} shimmerColor={overrideColor ?? shimmerColor} />
+            <ShimmerMessage attentionIntensity={attention} flashOpacity={flash} glimmerIndex={glimmerIndex} message={message} messageColor={color} mode={mode} shimmerColor={overrideColor ?? shimmerColor} />
           )}
         </Box>
         {plan.segBVisible && !plan.secondRow && <Text>{suffix}{figures}</Text>}

@@ -16,7 +16,7 @@ for (const k of ['MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOK
   delete process.env[k]
 }
 
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
@@ -184,7 +184,7 @@ async function runScript(rounds: Script[], label: string): Promise<Run> {
     marks.push('stream:end')
     yield tail as never
   }
-  const gen = query({
+  const gen = turnDoor({
     messages: [createUserMessage({ content: 'please do the thing' })] as never,
     systemPrompt: ['rig system prompt'] as never,
     userContext: {},
@@ -380,7 +380,7 @@ section('refusals — an abandoned stream (provider throw after a settled tool_u
     marks.push('stream:throw')
     throw new Error('simulated mid-stream transport failure')
   }
-  const gen = query({
+  const gen = turnDoor({
     messages: [createUserMessage({ content: 'please do the thing' })] as never,
     systemPrompt: ['rig system prompt'] as never,
     userContext: {},
@@ -437,7 +437,7 @@ section('refusals — an abandoned stream (provider throw after a settled tool_u
     done.message.stop_reason = 'end_turn'
     yield done as never
   }
-  const retryGen = query({
+  const retryGen = turnDoor({
     messages: [createUserMessage({ content: 'please do the thing' })] as never,
     systemPrompt: ['rig system prompt'] as never,
     userContext: {},
@@ -466,7 +466,7 @@ section('refusals — an abandoned stream (provider throw after a settled tool_u
     check('mid-stream fallback: the first attempt\'s early call is retracted and never settled in the user tool_result rows; only the retry\'s call settles once', !retryUserText.includes('tu_retry_1') && retryUserText.includes('tu_retry_2') && marks.filter(m => m === 'tool:start:Grep:tu_retry_1').length === 1 && marks.filter(m => m === 'tool:start:Grep:tu_retry_2').length === 1, marks.join(' ') + ' — on onStreamingFallback the first attempt\'s early call must be retracted with EarlyStarts.reset (src/engine/tool-dispatch/earlyStarts.ts) and only the retry\'s call settled')
 
   const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
-  const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+  const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
   const askInput = { file_path: '/etc/hosts' }
   const askParent = createAssistantMessage({ content: [{ type: 'tool_use', id: 'tu_mode_1', name: 'Read', input: askInput }] as never })
   const modeVerdict = async (mode: 'default' | 'implement' | 'sovereign') => {
@@ -482,7 +482,7 @@ section('refusals — an abandoned stream (provider throw after a settled tool_u
         alwaysAskRules: { userSettings: ['Read(/etc/hosts)'] },
       },
     })
-    return (await decideToolPermissionWithModes(FileReadTool as never, askInput, mCtx.ctx as never, askParent as never, 'tu_mode_1')).decision.behavior
+    return (await decideToolPermissionWithModes(ReadTool as never, askInput, mCtx.ctx as never, askParent as never, 'tu_mode_1')).decision.behavior
   }
   const plainVerdict = await modeVerdict('default')
   const implementVerdict = await modeVerdict('implement')

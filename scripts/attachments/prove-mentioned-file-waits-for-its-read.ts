@@ -180,12 +180,12 @@ try {
   const { getAttachments } = await import(`${root}/src/engine/attachments/turnAttachments.ts`)
   const { processAtMentionedFiles } = await import(`${root}/src/engine/attachments/mentionResolvers.ts`)
   const { normalizeAttachmentForAPI } = await import(`${root}/src/engine/messages/attachmentText.ts`)
-  const { FileReadTool } = await import(`${root}/src/tools/read/ReadTool.ts`)
+  const { ReadTool } = await import(`${root}/src/tools/read/ReadTool.ts`)
 
   type ReadCall = (input: { file_path: string }, context: { abortController: AbortController }, ...rest: unknown[]) => Promise<unknown>
-  const realRead = (FileReadTool.call as ReadCall).bind(FileReadTool)
+  const realRead = (ReadTool.call as ReadCall).bind(ReadTool)
   let cancelled = 0
-  ;(FileReadTool as { call: ReadCall }).call = async (input, context, ...rest) => {
+  ;(ReadTool as { call: ReadCall }).call = async (input, context, ...rest) => {
     const name = basename(input.file_path)
     if (name.startsWith('dead-')) {
       return new Promise((_, refuse) => {

@@ -40,7 +40,7 @@ const ctx = {
 const read = (process.env.DRV_READ ?? '').split(':').filter(Boolean).map(rel => join(cwd, rel))
 const ledger: Record<string, { content: string; timestamp: number }> = {}
 for (const [i, path] of read.entries()) ledger[path] = { content: 'read', timestamp: 1000 + i }
-const restored = (await compact.createPostCompactFileAttachments(ledger, ctx as never, 20, []))
+const restored = (await compact.createPostFoldFileAttachments(ledger, ctx as never, 20, []))
   .map(m => (m as { attachment: { filename?: string } }).attachment.filename ?? '')
 writeFileSync(process.argv[2]!, JSON.stringify({
   composed,
@@ -55,7 +55,7 @@ let passed = 0
 let failed = 0
 function check(label: string, ok: boolean, detail = ''): void {
   ok ? passed++ : failed++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' — fix: which files a fold restores, in createPostCompactFileAttachments (src/engine/compaction/fold/foldAttachments.ts), and what counts as an instruction file, in getInstructionFiles and isInstructionFilePath (src/sessions/instructions/instructionFiles.ts)'}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' — fix: which files a fold restores, in createPostFoldFileAttachments (src/engine/compaction/fold/foldAttachments.ts), and what counts as an instruction file, in getInstructionFiles and isInstructionFilePath (src/sessions/instructions/instructionFiles.ts)'}`)
 }
 
 let projects = 0

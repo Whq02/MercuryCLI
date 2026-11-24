@@ -56,7 +56,7 @@ const assistantRow = (id: string): Row => ({
   timestamp: stamp(),
   message: { id, type: 'message', role: 'assistant', model: 'm', content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
 })
-const run = (rows: Row[], verbose = false): Row[] => fold.collapseBackgroundBashNotifications(rows as never, verbose) as unknown as Row[]
+const run = (rows: Row[], verbose = false): Row[] => fold.foldShellNotices(rows as never, verbose) as unknown as Row[]
 const textOf = (row: Row): string => {
   if (row.type === 'attachment') return String((row.attachment as { prompt?: unknown }).prompt ?? '')
   const content = (row.message as { content?: Array<{ text?: string }> }).content

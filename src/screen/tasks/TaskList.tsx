@@ -12,7 +12,7 @@ import { truncateToWidth } from '../../platform/text/truncate.js'
 import { startTimeout, stopTimeout } from '../../platform/async/timers.js'
 import { useFocusedWorkRoster } from './useFocusedWork.js'
 
-type TaskRowV2 = { id: string; status: 'pending' | 'in_progress' | 'completed'; subject: string; blockedBy?: readonly string[]; owner?: string }
+type TaskListRow = { id: string; status: 'pending' | 'in_progress' | 'completed'; subject: string; blockedBy?: readonly string[]; owner?: string }
 
 const RECENT_COMPLETION_MS = 30_000
 const noopSubscribe = (): (() => void) => () => {}
@@ -84,11 +84,11 @@ function compareIds(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0
 }
 
-export function TaskListV2({
+export function TaskList({
   tasks,
   isStandalone = false,
 }: {
-  tasks: readonly TaskRowV2[]
+  tasks: readonly TaskListRow[]
   isStandalone?: boolean
 }): React.ReactNode {
   const { columns, rows } = useTerminalSize()
@@ -105,13 +105,13 @@ export function TaskListV2({
   )
   const roster = useFocusedWorkRoster()
   const [tick, setTick] = useState(0)
-  const prevStatusRef = useRef<Map<string, TaskRowV2['status']> | null>(null)
+  const prevStatusRef = useRef<Map<string, TaskListRow['status']> | null>(null)
   const completedAtRef = useRef<Map<string, number>>(new Map())
   const now = Date.now()
   if (prevStatusRef.current === null) {
     prevStatusRef.current = new Map(tasks.map(task => [task.id, task.status]))
   } else {
-    const nextPrev = new Map<string, TaskRowV2['status']>()
+    const nextPrev = new Map<string, TaskListRow['status']>()
     for (const task of tasks) {
       const prev = prevStatusRef.current.get(task.id)
       if (task.status === 'completed') {
@@ -156,30 +156,30 @@ export function TaskListV2({
 
   if (!isTaskToolsEnabled() || tasks.length === 0) return null
 
-  const taskById = new Map<string, TaskRowV2>()
+  const taskById = new Map<string, TaskListRow>()
   for (const task of tasks) {
     taskById.set(task.id, task)
   }
 
-  const openBlockersOf = (task: TaskRowV2): string[] =>
+  const openBlockersOf = (task: TaskListRow): string[] =>
     (task.blockedBy ?? []).filter(id => {
       const blocker = taskById.get(id)
       return blocker !== undefined && blocker.status !== 'completed'
     })
 
   const maxRows = rows <= 10 ? 0 : Math.min(10, Math.max(3, rows - 14))
-  let visibleTasks: TaskRowV2[] = []
-  let hiddenTasks: TaskRowV2[] = []
+  let visibleTasks: TaskListRow[] = []
+  let hiddenTasks: TaskListRow[] = []
 
   if (maxRows === 0) {
     visibleTasks = []
     hiddenTasks = []
   } else if (tasks.length > maxRows) {
-    const recentCompleted: TaskRowV2[] = []
-    const inProgress: TaskRowV2[] = []
-    const unblockedPending: TaskRowV2[] = []
-    const blockedPending: TaskRowV2[] = []
-    const olderCompleted: TaskRowV2[] = []
+    const recentCompleted: TaskListRow[] = []
+    const inProgress: TaskListRow[] = []
+    const unblockedPending: TaskListRow[] = []
+    const blockedPending: TaskListRow[] = []
+    const olderCompleted: TaskListRow[] = []
 
     for (const task of tasks) {
       if (task.status === 'completed') {
@@ -197,7 +197,7 @@ export function TaskListV2({
       }
     }
 
-    const sortById = (list: TaskRowV2[]): TaskRowV2[] =>
+    const sortById = (list: TaskListRow[]): TaskListRow[] =>
       list.sort((a, b) => compareIds(a.id, b.id))
 
     const prioritized = [
@@ -335,4 +335,4 @@ export function TaskListV2({
   )
 }
 
-export default TaskListV2
+export default TaskList

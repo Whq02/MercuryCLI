@@ -30,7 +30,7 @@ const { enableConfigs } = await import('../../src/platform/config/globalConfig.t
 enableConfigs()
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.ts')
+const { anthropicCallModel } = await import('../../src/models/roads/anthropic/streamCore.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 const ledger = await import('../../src/models/usage/sessionCost.ts')
@@ -101,7 +101,7 @@ async function drive(script: Script, stop: 'abort' | 'return' | 'drain'): Promis
   const yielded: Yielded[] = []
   let thrown: string | null = null
   const deadline = setTimeout(() => controller.abort(), 30_000)
-  const gen = queryModelWithStreaming({
+  const gen = anthropicCallModel({
     messages: [createUserMessage({ content: 'ledger fixture prompt' })],
     systemPrompt: asSystemPrompt(['You are the ledger fixture.']),
     thinkingConfig: { type: 'disabled' } as never,

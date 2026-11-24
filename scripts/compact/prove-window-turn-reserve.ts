@@ -19,7 +19,7 @@ const auto = await import('../../src/engine/compaction/autoFold.ts')
 const { foldLandingCeiling } = await import('../../src/engine/compaction/verbatimTail.ts')
 const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
 const { getModelMaxOutputTokens } = await import('../../src/models/facts/capabilities.ts')
-const { estimateTurnsToCompact, recordCtxSample, noteCtxTurnBoundary, resetCtxForecastForTest } = await import('../../src/screen/cockpit-gauges/ctxForecast.ts')
+const { estimateTurnsToFold, recordCtxSample, noteCtxTurnBoundary, resetCtxForecastForTest } = await import('../../src/screen/cockpit-gauges/ctxForecast.ts')
 const { ollamaChatBody } = await import('../../src/models/roads/local/ollamaChatTransport.ts')
 const model = 'local/window-proof:9b'
 const fetchImpl: typeof fetch = (async (url: string | URL | Request) => {
@@ -38,7 +38,7 @@ try {
     __resetLocalWindowsForTest()
     const turn = Math.min(20_000, before.upperLimit, Math.floor(window / 8))
     const blocking = auto.getBlockingLimit(model)
-    const threshold = auto.getAutoCompactThreshold(model)
+    const threshold = auto.getAutoFoldThreshold(model)
     const expected = Math.max(1, blocking - turn, Math.ceil(blocking / 4))
     tally.check(`${window}: the advance reserve follows the window and output ceiling`, threshold === expected, JSON.stringify({ threshold, expected, turn }))
     const history = [createUserMessage({ content: 'read the next file' }), createAssistantMessage({ content: 'read it' })]
@@ -47,13 +47,13 @@ try {
     if (window === 32768) {
       resetCtxForecastForTest()
       for (const used of [9338, 11838, 14338]) { recordCtxSample(used / window * 100); noteCtxTurnBoundary() }
-      tally.check('the 14k request is below the fold point and the vitals forecast has a turn left', threshold > 14338 && estimateTurnsToCompact(14338 / window * 100, threshold / window * 100)! > 0, String(threshold))
+      tally.check('the 14k request is below the fold point and the vitals forecast has a turn left', threshold > 14338 && estimateTurnsToFold(14338 / window * 100, threshold / window * 100)! > 0, String(threshold))
       tally.check('a 15.6k folded request can land below the threshold without an artificial no-room gap', foldLandingCeiling(21576, history, 1, [], turn) > 15600)
     }
   }
   const smallOutput = 'claude-3-haiku-20240307'
   const ceiling = getModelMaxOutputTokens(smallOutput).upperLimit
-  tally.check('a real 4096-token output ceiling also bounds the advance reserve', ceiling === 4096 && auto.getAutoCompactThreshold(smallOutput) === auto.getBlockingLimit(smallOutput) - ceiling)
+  tally.check('a real 4096-token output ceiling also bounds the advance reserve', ceiling === 4096 && auto.getAutoFoldThreshold(smallOutput) === auto.getBlockingLimit(smallOutput) - ceiling)
   tally.check('no model output ceiling is reduced', JSON.stringify(getModelMaxOutputTokens(model)) === JSON.stringify(before))
   const body = ollamaChatBody({ model: record.id, messages: [{ role: 'user', content: 'continue' }], extra: { max_tokens: before.default } }, { numCtx: 32768, think: true })
   tally.check('the wire still requests the full output default with thinking on', (body.options as { num_predict: number }).num_predict === before.default && body.think === true)

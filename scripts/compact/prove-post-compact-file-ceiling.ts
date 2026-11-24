@@ -44,7 +44,7 @@ const ctx = {
   agentId: undefined,
 }
 
-const ceiling = compact.POST_COMPACT_MAX_TOKENS_PER_FILE
+const ceiling = compact.POST_FOLD_MAX_TOKENS_PER_FILE
 const shortLine = 'abcdefghi'
 const longLine = 'x'.repeat(39)
 const tall = Array.from({ length: 20_000 }, () => shortLine).join('\n') + '\n'
@@ -54,7 +54,7 @@ const small = 'one\ntwo\nthree\n'
 console.log(`§1 the projected restore (a fold with a projection) keeps each file under ${ceiling} tokens, not ${ceiling} lines`)
 {
   const ledger = { [join(scratch, 'tall.txt')]: { content: tall, timestamp: 3 }, [join(scratch, 'small.txt')]: { content: small, timestamp: 2 } }
-  const restored = (await compact.createPostCompactFileAttachments(ledger, ctx as never, 5, [], true)).map(bodyOf)
+  const restored = (await compact.createPostFoldFileAttachments(ledger, ctx as never, 5, [], true)).map(bodyOf)
   const tallRow = restored.find(row => row.filename?.endsWith('tall.txt'))
   const smallRow = restored.find(row => row.filename?.endsWith('small.txt'))
   check('both files are restored', tallRow !== undefined && smallRow !== undefined, JSON.stringify(restored.map(row => row.filename)))
@@ -71,7 +71,7 @@ console.log(`§2 the read restore (the ordinary fold) reads the file and keeps i
   writeFileSync(densePath, dense)
   writeFileSync(smallPath, small)
   const ledger = { [densePath]: { content: dense, timestamp: 3 }, [smallPath]: { content: small, timestamp: 2 } }
-  const restored = (await compact.createPostCompactFileAttachments(ledger, ctx as never, 5, [])).map(bodyOf)
+  const restored = (await compact.createPostFoldFileAttachments(ledger, ctx as never, 5, [])).map(bodyOf)
   const denseRow = restored.find(row => row.filename?.endsWith('dense.ts'))
   const smallRow = restored.find(row => row.filename?.endsWith('small.ts'))
   check('the dense file comes back as content, not a reference', denseRow?.type === 'file' && denseRow.content?.type === 'text', JSON.stringify(denseRow)?.slice(0, 160))
@@ -80,13 +80,13 @@ console.log(`§2 the read restore (the ordinary fold) reads the file and keeps i
   check('the small file rides whole', smallRow?.content?.file?.content.trimEnd() === small.trimEnd() && smallRow?.truncated === undefined, JSON.stringify(smallRow)?.slice(0, 160))
 }
 
-console.log(`§3 the ${compact.POST_COMPACT_TOKEN_BUDGET}-token total still binds`)
+console.log(`§3 the ${compact.POST_FOLD_TOKEN_BUDGET}-token total still binds`)
 {
   const ledger: Record<string, { content: string; timestamp: number }> = {}
   for (let index = 0; index < 20; index++) ledger[join(scratch, `file-${index}.txt`)] = { content: tall, timestamp: index }
-  const restored = (await compact.createPostCompactFileAttachments(ledger, ctx as never, 20, [], true)).map(bodyOf)
+  const restored = (await compact.createPostFoldFileAttachments(ledger, ctx as never, 20, [], true)).map(bodyOf)
   const total = restored.reduce((sum, row) => sum + tokensOf(row), 0)
-  check('fewer files than offered are restored and their total is under the budget', restored.length < 20 && total <= compact.POST_COMPACT_TOKEN_BUDGET, JSON.stringify({ restored: restored.length, total }))
+  check('fewer files than offered are restored and their total is under the budget', restored.length < 20 && total <= compact.POST_FOLD_TOKEN_BUDGET, JSON.stringify({ restored: restored.length, total }))
 }
 
 console.log('§4 the line count under a ceiling')

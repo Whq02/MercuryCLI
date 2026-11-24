@@ -29,7 +29,7 @@ axios.get = (async (url: string) => {
 }) as typeof axios.get
 const { getURLMarkdownContent } = await import('../../src/tools/web-fetch/fetchContent.ts')
 const { WebFetchTool } = await import('../../src/tools/web-fetch/WebFetchTool.ts')
-const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 const context = { options: { engineModel: 'glm-5.3' }, readFileState: createFileStateCacheWithSizeLimit(100), abortController: new AbortController(), messages: [], getAppState: () => ({}) } as never
 try {
@@ -41,7 +41,7 @@ try {
   const shown = await WebFetchTool.call({ url: 'https://papers.example/paper.pdf' }, context)
   assert.match(shown.data.result, /First page research/)
   assert.match(shown.data.result, /Read/)
-  const next = await FileReadTool.call({ file_path: fetched.persistedPath, pages: '2' }, context)
+  const next = await ReadTool.call({ file_path: fetched.persistedPath, pages: '2' }, context)
   assert.equal(next.data.type, 'text')
   assert.match(next.data.file.content, /Second page evidence/)
   const abstract = await getURLMarkdownContent('https://arxiv.org/abs/2601.12345v2', new AbortController())

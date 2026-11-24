@@ -45,7 +45,7 @@ try {
   const { getModelOptions, focusedOptionSupports1m } = await import('../../src/models/catalogue/modelOptions.ts')
   const { classOfModel } = await import('../../src/models/roads/modelRegistry.ts')
   const { routeEffortsFor } = await import('../../src/models/roads/anthropic/anthropicAdapter.ts')
-  const { sideQueryThinkingParam } = await import('../../src/engine/requests/sideRequest.ts')
+  const { sideRequestThinkingParam } = await import('../../src/engine/requests/sideRequest.ts')
   const { getAgentModel } = await import('../../src/models/catalogue/agentModel.ts')
 
   check('Haiku 5.5 has its own canonical and declared row', model.getCanonicalName(ID) === ID && configs.familyHeadOf(ID) === null)
@@ -80,7 +80,7 @@ try {
   check('both requested output and ceiling are the documented synchronous 128K', caps.getModelMaxOutputTokens(ID).default === 128_000 && caps.getModelMaxOutputTokens(ID).upperLimit === 128_000, caps.getModelMaxOutputTokens(ID))
   check('adaptive thinking, interleaving and no temperature', caps.modelSupportsThinking(ID) && caps.modelSupportsAdaptiveThinking(ID) && caps.modelSupportsISP(ID) && !caps.modelSupportsTemperature(ID))
   check('thinking can be switched off and forced tool choice remains supported', !caps.modelThinkingAlwaysOn(ID) && caps.modelSupportsForcedToolChoice(ID))
-  check('side queries use adaptive without a manual budget, or documented disabled', JSON.stringify(sideQueryThinkingParam(ID, 2048, 4096)) === '{"type":"adaptive"}' && JSON.stringify(sideQueryThinkingParam(ID, false, 4096)) === '{"type":"disabled"}')
+  check('side queries use adaptive without a manual budget, or documented disabled', JSON.stringify(sideRequestThinkingParam(ID, 2048, 4096)) === '{"type":"adaptive"}' && JSON.stringify(sideRequestThinkingParam(ID, false, 4096)) === '{"type":"disabled"}')
   const forced = { type: 'tool', name: 'result' }
   check('forced tool choice is not rewritten to auto', caps.foldToolChoiceForModel(ID, forced) === forced)
   check('the documented effort ladder includes xhigh and max without remapping', effort.selectableEffortLevelsForLadder(ID).join(',') === 'low,medium,high,xhigh,max' && caps.getMaxSupportedEffortLevel(ID) === 'max' && routeEffortsFor(ID).join(',') === 'high,xhigh,max')

@@ -34,24 +34,24 @@ const summary = 'The tags parser and its focused tests are complete. The operato
 
 try {
   fixture.script(request => requiresReasoning(JSON.stringify(request.body.messages)) ? { refusal: true } : { text: summary })
-  let result: Awaited<ReturnType<typeof compact.compactConversation>> | undefined
+  let result: Awaited<ReturnType<typeof compact.foldConversation>> | undefined
   let error: string | undefined
   try {
-    result = await compact.compactConversation([createUserMessage({ content: 'The operator asked for a tags parser. We edited tags.ts and ran 14 passing tests.' })], context(), { systemPrompt: ['Synthetic compaction proof.'] } as never, false)
+    result = await compact.foldConversation([createUserMessage({ content: 'The operator asked for a tags parser. We edited tags.ts and ran 14 passing tests.' })], context(), { systemPrompt: ['Synthetic compaction proof.'] } as never, false)
   } catch (caught) { error = String(caught) }
   check('a provider that refuses reasoning extraction accepts the first fold', result !== undefined && fixture.captured.length === 1, { error, requests: fixture.captured.length })
   check('the accepted factual summary is installed', result?.summaryMessages.some(row => String(row.message.content).includes(summary)) === true)
   check('no refusal-retry note is needed when the instruction is lawful', result !== undefined && result.notes === undefined, result?.notes)
   check('the request retains max effort', fixture.captured[0]?.body.output_config !== undefined && (fixture.captured[0].body.output_config as { effort?: string }).effort === 'max')
 
-  for (const [label, prompt] of [['full', prompts.getCompactPrompt()], ['capsule', prompts.getCompactPrompt(undefined, { runCapsulePresent: true })], ['from', prompts.getPartialCompactPrompt(undefined, 'from')], ['up_to', prompts.getPartialCompactPrompt(undefined, 'up_to')]]) {
+  for (const [label, prompt] of [['full', prompts.getFoldPrompt()], ['capsule', prompts.getFoldPrompt(undefined, { runCapsulePresent: true })], ['from', prompts.getPartialFoldPrompt(undefined, 'from')], ['up_to', prompts.getPartialFoldPrompt(undefined, 'up_to')]]) {
     check(`${label} summary never asks to show thinking in an analysis block`, !requiresReasoning(prompt!))
     check(`${label} summary retains all ten handoff sections`, Array.from({ length: 10 }, (_, i) => `${i + 1}. `).every(section => prompt!.includes(section)))
     check(`${label} summary still forbids tools and asks for the summary now`, prompt!.startsWith('Reply with prose only — no tool calls of any kind.') && prompt!.endsWith('Produce the summary now.'))
   }
   const custom = 'Preserve the exact pending test command and its last observed result.'
-  check('custom compaction instructions still ride intact', prompts.getCompactPrompt(custom).includes(custom) && prompts.getPartialCompactPrompt(custom, 'up_to').includes(custom))
-  const restored = prompts.getCompactUserSummaryMessage('<analysis>old drafting scratchpad</analysis>\n<summary>Recorded facts only.</summary>')
+  check('custom compaction instructions still ride intact', prompts.getFoldPrompt(custom).includes(custom) && prompts.getPartialFoldPrompt(custom, 'up_to').includes(custom))
+  const restored = prompts.getFoldUserSummaryMessage('<analysis>old drafting scratchpad</analysis>\n<summary>Recorded facts only.</summary>')
   check('an older summary still restores without its drafting scratchpad', restored.includes('Summary:\nRecorded facts only.') && !restored.includes('old drafting scratchpad'))
 } finally {
   await fixture.close()

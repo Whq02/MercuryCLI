@@ -15,7 +15,7 @@ process.env.MERCURY_COMPACT_KEEP_TAIL = '1'
 const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const { compactConversation, buildPostCompactMessages, ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD } = await import('../../src/engine/compaction/foldConversation.ts')
+const { foldConversation, buildPostFoldMessages, ERROR_MESSAGE_POST_FOLD_OVER_THRESHOLD } = await import('../../src/engine/compaction/foldConversation.ts')
 const { renderFoldLedger } = await import('../../src/engine/compaction/foldLedger.ts')
 const { operatorMessagesBlockText } = await import('../../src/engine/compaction-window/operatorMessages.ts')
 const { roughTokenCountEstimation } = await import('../../src/models/facts/tokenEstimation.ts')
@@ -62,7 +62,7 @@ const context = (events: Progress[] = [], abort = new AbortController()) => ({
   onCompactProgress: (event: Progress) => { events.push(event) },
 }) as never
 const fold = (messages: Message[], ctx: unknown, ceiling?: number) =>
-  compactConversation(messages, ctx as never, { systemPrompt: ['fixture'], userContext: {}, systemContext: {}, toolUseContext: ctx as never, forkContextMessages: [] }, true, undefined, true, ceiling === undefined ? undefined : { autoCompactThreshold: ceiling } as never)
+  foldConversation(messages, ctx as never, { systemPrompt: ['fixture'], userContext: {}, systemContext: {}, toolUseContext: ctx as never, forkContextMessages: [] }, true, undefined, true, ceiling === undefined ? undefined : { autoCompactThreshold: ceiling } as never)
 const indexOf = (result: Awaited<ReturnType<typeof fold>>) => renderFoldLedger(result.boundaryMarker.compactMetadata.ledger!)
 const indexJson = (result: Awaited<ReturnType<typeof fold>>) => JSON.parse(indexOf(result).split('\n\n')[1]!) as Record<string, any>
 const blockOf = (result: Awaited<ReturnType<typeof fold>>) => (result.operatorMessages?.attachment as { messages: Array<{ ordinal: number; text: string }>; omitted: number } | undefined)
@@ -78,7 +78,7 @@ try {
   check(`fold 1: the operator block carries whole every ask that leaves the context (${14 - keptOne}; the ${keptOne} in the kept rounds ride in the tail)`, firstBlock !== undefined && keptOne > 0 && firstBlock.messages.length === 14 - keptOne && firstBlock.omitted === 0 && firstBlock.messages.every(entry => entry.text.startsWith('one ask ')), JSON.stringify(firstBlock?.messages.map(m => m.ordinal)), operatorBlockWhere)
   check('fold 1: the index carries no per-message open-ask rows', !('openAsks' in firstIndex), '', ledgerWhere)
 
-  const second = await fold([...buildPostCompactMessages(first), ...stretch(14, 1_200, 'two')], context())
+  const second = await fold([...buildPostFoldMessages(first), ...stretch(14, 1_200, 'two')], context())
   const secondIndex = indexJson(second)
   const secondBlock = blockOf(second)
   const secondLedger = second.boundaryMarker.compactMetadata.ledger!
@@ -105,7 +105,7 @@ try {
   const thirdBlock = blockOf(third)
   const thirdBlockTokens = thirdBlock ? thirdBlock.messages.reduce((n, m) => n + roughTokenCountEstimation(m.text), 0) : 0
   check(`a small window: fold 1 of a wide stretch lands under ${smallWindow} tokens with its block whole`, third.truePostCompactTokenCount !== undefined && third.truePostCompactTokenCount < smallWindow && thirdBlock !== undefined && thirdBlock.omitted === 0, String(third.truePostCompactTokenCount), 'change how compactConversation (src/engine/compaction/foldConversation.ts) fits the fold and its operator block under the autoCompactThreshold option')
-  const fourthInput = [...buildPostCompactMessages(third), ...stretch(12, 6_000, 'wider')]
+  const fourthInput = [...buildPostFoldMessages(third), ...stretch(12, 6_000, 'wider')]
   const fourth = await fold(fourthInput, context(), smallWindow)
   const fourthBlock = blockOf(fourth)
   const fourthBlockTokens = fourthBlock ? fourthBlock.messages.reduce((n, m) => n + roughTokenCountEstimation(m.text), 0) : 0
@@ -123,7 +123,7 @@ try {
   ;(ctxHeavy as { readFileState: Map<string, unknown> }).readFileState.set('kept.ts', { content: 'original', timestamp: 1 } as never)
   let refusal = ''
   try { await fold(heavy, ctxHeavy, 10_000) } catch (error) { refusal = error instanceof Error ? error.message : String(error) }
-  check('obligations over the ceiling: the fold refuses BEFORE any summary request, with the threshold key so the prune rung opens', refusal.startsWith(ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD) && refusal.includes('no summary was requested') && api.messageRequests().length === paidBefore, `${refusal.slice(0, 120)} requests=${api.messageRequests().length - paidBefore}`, refuseWhere + ' so it throws before any summary request')
+  check('obligations over the ceiling: the fold refuses BEFORE any summary request, with the threshold key so the prune rung opens', refusal.startsWith(ERROR_MESSAGE_POST_FOLD_OVER_THRESHOLD) && refusal.includes('no summary was requested') && api.messageRequests().length === paidBefore, `${refusal.slice(0, 120)} requests=${api.messageRequests().length - paidBefore}`, refuseWhere + ' so it throws before any summary request')
   check('…the original context is byte-identical, the read state kept, and no compaction.after hook fired', JSON.stringify(heavy) === before && (ctxHeavy as { readFileState: Map<string, { content: string }> }).readFileState.get('kept.ts')?.content === 'original' && postCompactHooks(events) === 0, JSON.stringify(events.map(e => e.hookType ?? e.stage ?? e.type)), 'change compactConversation (src/engine/compaction/foldConversation.ts) so a refused fold leaves the context, the read state and the post_compact hook untouched')
 
   const events2: Progress[] = []

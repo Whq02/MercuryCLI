@@ -22,8 +22,8 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { initializeToolPermissionContext } = await import('../../src/permissions/rules/permissionSetup.js')
 const { checkParsedPaths: checkPathConstraints } = await import('../bash/floor-proof-helpers.ts')
-const { FileWriteTool } = await import('../../src/tools/write/WriteTool.js')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.js')
+const { WriteTool } = await import('../../src/tools/write/WriteTool.js')
+const { EditTool } = await import('../../src/tools/edit/EditTool.js')
 const { BashTool } = await import('../../src/tools/shell/BashTool.js')
 const { createRunnerAsks } = await import('../../src/daemon/runner/runnerAsks.js')
 const { createPeer } = await import('../../src/daemon/runner-wire/peer.js')
@@ -92,8 +92,8 @@ try {
     for (const [place, directory] of [['inside', root], ['outside', sibling]] as const) {
       const file_path = join(directory, 'file.txt')
       for (const [tool, input] of [
-        [FileWriteTool, { file_path, content: 'written\n' }],
-        [FileEditTool, { file_path, old_string: 'before', new_string: 'after' }],
+        [WriteTool, { file_path, content: 'written\n' }],
+        [EditTool, { file_path, old_string: 'before', new_string: 'after' }],
         [BashTool, { command: `mkdir ${slashed(join(directory, 'new-dir'))}` }],
       ] as Array<[Tool, Record<string, unknown>]>) {
         const result = await channel(tool, input, mode)
@@ -103,25 +103,25 @@ try {
       }
     }
   }
-  const oldGrant = await channel(FileWriteTool, { file_path: join(sibling, 'old-grant.txt'), content: 'x' }, 'implement', [sibling])
+  const oldGrant = await channel(WriteTool, { file_path: join(sibling, 'old-grant.txt'), content: 'x' }, 'implement', [sibling])
   check('an obsolete second root never grants an outside write', oldGrant.asks === 1, `asks=${oldGrant.asks}`, 'a directory added with addDirs must not make a write outside the starting folder silent; see initializeToolPermissionContext in src/permissions/rules/permissionSetup.ts')
   bootstrap.setCwdState(sibling)
   check('a shell cd leaves the starting folder unchanged', bootstrap.getOriginalCwd() === root, '', 'setCwdState must not change the original folder; see src/boot/process-state/processState.ts')
   check('an approved shell cd outside is not reset by a folder fence — the shell tools carry no reset road', !('resetCwdIfOutsideProject' in shellUtils) && getCwd() === sibling, getCwd(), 'remove resetCwdIfOutsideProject from src/platform/shell/shellOutput.ts and keep getCwd in src/platform/files/cwd.ts following the shell cd')
   bootstrap.setCwdState(sibling)
-  const moved = await channel(FileWriteTool, { file_path: join(sibling, 'after-cd.txt'), content: 'x' }, 'implement')
+  const moved = await channel(WriteTool, { file_path: join(sibling, 'after-cd.txt'), content: 'x' }, 'implement')
   check('implement still asks outside after cd', moved.asks === 1, `asks=${moved.asks}`, ASK_HINT + ', also after a shell cd')
   bootstrap.setCwdState(root)
   await runWithCwdOverride(sibling, async () => {
-    const child = await channel(FileWriteTool, { file_path: join(sibling, 'child.txt'), content: 'x' }, 'implement')
+    const child = await channel(WriteTool, { file_path: join(sibling, 'child.txt'), content: 'x' }, 'implement')
     check('a child agent starts with its own single root', child.asks === 0, `asks=${child.asks}`, ASK_HINT + ', with the override folder as the only root (runWithCwdOverride in src/platform/files/cwd.ts)')
-    const parent = await channel(FileWriteTool, { file_path: join(root, 'parent.txt'), content: 'x' }, 'implement')
+    const parent = await channel(WriteTool, { file_path: join(root, 'parent.txt'), content: 'x' }, 'implement')
     check('the child does not inherit its parent as a second root', parent.asks === 1, `asks=${parent.asks}`, ASK_HINT + ', with the override folder as the only root (runWithCwdOverride in src/platform/files/cwd.ts)')
   })
   symlinkSync(sibling, join(root, 'escape'))
-  const escaped = await channel(FileWriteTool, { file_path: join(root, 'escape', 'file.txt'), content: 'x' }, 'implement')
+  const escaped = await channel(WriteTool, { file_path: join(root, 'escape', 'file.txt'), content: 'x' }, 'implement')
   check('an outside symlink target raises an ordinary ask', escaped.asks === 1 && escaped.decision.behavior === 'allow', '', ASK_HINT + ', and a symlink out of the folder must ask once')
-  const sensitive = await channel(FileWriteTool, { file_path: join(root, '.mercury.json'), content: '{}' }, 'implement')
+  const sensitive = await channel(WriteTool, { file_path: join(root, '.mercury.json'), content: '{}' }, 'implement')
   check('sensitive-file permission remains independent of folder consent', sensitive.asks === 1, '', 'a write to .mercury.json must ask exactly once; ' + ASK_HINT)
   console.log(`starting-folder: ${passed} passed, ${failed} failed`)
 } finally {

@@ -36,8 +36,8 @@ const t = (name: string, ok: boolean, detail = '', hint = ''): void => {
   const { collapseReadSearchGroups, isStatusUpdateTool } = await import('../../src/screen/messages/collapseReadSearch.ts')
   const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
   const { TaskCreateTool } = await import('../../src/tools/task-create/TaskCreateTool.ts')
-  const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
-  const tools = [BashTool, TaskCreateTool, FileEditTool] as never
+  const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
+  const tools = [BashTool, TaskCreateTool, EditTool] as never
   let n = 0
   const uuid = () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`
   const use = (id: string, name: string, input: Record<string, unknown>) => ({

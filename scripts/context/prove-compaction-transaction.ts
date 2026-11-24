@@ -31,19 +31,19 @@ guard.unref?.()
 
 section('policy — decideCompaction table + the breaker')
 {
-  const { decideCompaction, compactionBreakerAllows, nextCompactionFailureCount } =
+  const { decideFold, foldBreakerAllows, nextFoldFailureCount } =
     await import('../../src/engine/compaction/foldPolicy.ts')
-  const d = decideCompaction as (a: Record<string, unknown>) => { kind: string }
-  check('decideCompaction is a pure function', typeof decideCompaction === 'function')
-  check('compactionBreakerAllows exists', typeof compactionBreakerAllows === 'function')
-  const n0 = (nextCompactionFailureCount as (n: number, ok: boolean) => number)(0, false)
-  const nOk = (nextCompactionFailureCount as (n: number, ok: boolean) => number)(3, true)
+  const d = decideFold as (a: Record<string, unknown>) => { kind: string }
+  check('decideCompaction is a pure function', typeof decideFold === 'function')
+  check('compactionBreakerAllows exists', typeof foldBreakerAllows === 'function')
+  const n0 = (nextFoldFailureCount as (n: number, ok: boolean) => number)(0, false)
+  const nOk = (nextFoldFailureCount as (n: number, ok: boolean) => number)(3, true)
   check('failure count increments on failure', n0 === 1, String(n0))
   check('failure count resets on success', nOk === 0, String(nOk))
   void d
 }
 
-const { compactConversation, ERROR_MESSAGE_NOT_ENOUGH_MESSAGES } = await import(
+const { foldConversation, ERROR_MESSAGE_NOT_ENOUGH_MESSAGES } = await import(
   '../../src/engine/compaction/foldConversation.ts'
 )
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
@@ -113,7 +113,7 @@ async function runCompact(
   const { ctx, readFileState } = makeContext()
   mutate?.(ctx)
   try {
-    const result = (await compactConversation(
+    const result = (await foldConversation(
       makeMessages() as never,
       ctx as never,
       CACHE_SAFE,
@@ -155,7 +155,7 @@ section('the validation band — adversarial summaries REFUSE, state survives')
     const { ctx } = makeContext()
     let err: Error | undefined
     try {
-      await compactConversation([], ctx as never, CACHE_SAFE, true)
+      await foldConversation([], ctx as never, CACHE_SAFE, true)
     } catch (e) {
       err = e as Error
     }

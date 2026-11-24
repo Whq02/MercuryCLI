@@ -13,7 +13,7 @@ import { jevSettingLines, jevValueWords, readJevSettings, setJevEnabled } from '
 import { jevStatusLine } from '../../../models/jev/jevStatus.js'
 import { type SettingsItem, cycleIn, type ConfigRowKit } from './configItems.js'
 
-export function configCompactRows({ config, tokens, boolValue, writeGlobal, recordToggle, recordSet }: ConfigRowKit): SettingsItem[] {
+export function configFoldRows({ config, tokens, boolValue, writeGlobal, recordToggle, recordSet }: ConfigRowKit): SettingsItem[] {
   const items: SettingsItem[] = []
   items.push({
     id: 'autoCompact',

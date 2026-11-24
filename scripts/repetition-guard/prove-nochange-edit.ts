@@ -22,7 +22,7 @@ const guard = setTimeout(() => {
 }, 90_000)
 guard.unref?.()
 
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { mintFileAnchor } = await import(
   '../../src/tools/engines/change-transaction/snapshotAnchor.ts'
@@ -62,12 +62,12 @@ function primeRead(ctx: Ctx, path: string): void {
 }
 
 async function editViaTool(input: Record<string, unknown>, ctx: Ctx) {
-  const validation = await (FileEditTool as { validateInput: Function }).validateInput(input, ctx)
+  const validation = await (EditTool as { validateInput: Function }).validateInput(input, ctx)
   if (validation.result === false) {
     return { ok: false as const, error: String(validation.message), errorCode: validation.errorCode as number }
   }
   try {
-    const result = await (FileEditTool as { call: Function }).call(input, ctx, null, {
+    const result = await (EditTool as { call: Function }).call(input, ctx, null, {
       uuid: '00000000-0000-0000-0000-0000000000e1',
       message: { id: 'msg_fixture' },
     })
@@ -82,7 +82,7 @@ async function editViaTool(input: Record<string, unknown>, ctx: Ctx) {
 }
 
 function mapResult(data: Record<string, unknown>) {
-  return (FileEditTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(
+  return (EditTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(
     data,
     'toolu_fixture',
   ) as { content: string; is_error?: boolean }

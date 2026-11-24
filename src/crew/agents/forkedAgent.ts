@@ -29,7 +29,7 @@ import { closeAgentTranscript } from '../../sessions/transcripts/writer.js'
 import type { SystemPrompt } from '../../engine/system-prompt/systemPromptType.js'
 import { cloneContentReplacementState, type ContentReplacementState } from '../../engine/tool-dispatch/toolResultStorage.js'
 import { createAgentId } from '../../platform/primitives/uuid.js'
-import type { LegacyQueryYield } from '../../engine/loop/project-legacy.js'
+import type { LegacyTurnYield } from '../../engine/loop/project-legacy.js'
 
 
 export type CacheSafeParams = {
@@ -355,7 +355,7 @@ export async function runForkedAgent(params: ForkedAgentParams): Promise<ForkedA
 
     async function* captureTerminal(
       source: ReturnType<ToolUseContext['startTurn']>,
-    ): AsyncGenerator<LegacyQueryYield, void> {
+    ): AsyncGenerator<LegacyTurnYield, void> {
       terminal = yield* source
     }
 

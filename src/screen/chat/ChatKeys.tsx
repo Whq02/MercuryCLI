@@ -6,7 +6,7 @@ import { ScrollKeybindingHandler } from '../scroll-keys/ScrollKeybindingHandler.
 import type { SpinnerMode } from '../spinner/spinnerMode.js';
 import { SwitchboardAttributionProvider } from './SwitchboardTagBar.js';
 import type { CompactWorkControls } from '../tasks/CompactWorkSummary.js';
-import { CancelRequestHandler } from './interruptKeys.js';
+import { InterruptKeys } from './interruptKeys.js';
 import { CommandKeybindingHandlers } from './useCommandKeybindings.js';
 import { useHoldsEscape } from '../keys/useEscapeOwned.js';
 import { GlobalKeybindingHandlers } from './useGlobalKeybindings.js';
@@ -140,7 +140,7 @@ export function ChatKeys({
   );
 
   const cancelHandler = (
-    <CancelRequestHandler
+    <InterruptKeys
       focusedTurnActive={seatLive.inFlight}
       compactWork={compactWork}
       isInterviewFocused={

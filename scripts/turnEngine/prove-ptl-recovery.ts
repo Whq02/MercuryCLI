@@ -34,7 +34,7 @@ const projDir = mkdtempSync(join(tmpdir(), 'ptl-laws-proj-'))
 bootstrap.setOriginalCwd(projDir)
 bootstrap.setProjectRoot(projDir)
 
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
@@ -43,7 +43,7 @@ const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await 
 )
 const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/engine/requests/apiErrorRows.ts')
 const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
-const { query: startTurn } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor: startTurn } = await import('../../src/engine/turnDoor.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -182,7 +182,7 @@ async function runQuery(opts: {
     },
   }
 
-  const gen = query({
+  const gen = turnDoor({
     messages: opts.history as never,
     systemPrompt: asSystemPrompt(['You are a PTL probe. Reply tersely.']),
     userContext: {},

@@ -186,7 +186,7 @@ process.env.OPENAI_API_KEY = 'fixture-openai-key'
 const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const compactModule = await import('../../src/engine/compaction/foldConversation.ts')
-const { compactConversation, setFoldBoundsForTests, ERROR_MESSAGE_FOLD_TIMEOUT, shouldRideCacheSharingFork } = compactModule
+const { foldConversation, setFoldBoundsForTests, ERROR_MESSAGE_FOLD_TIMEOUT, shouldRideCacheSharingFork } = compactModule
 const foldFirstByteAllowanceMs: ((estTokens: number, bounds?: { stallMs: number; ingestMsPer1kTokens: number }) => number) | undefined = (compactModule as { foldFirstByteAllowanceMs?: typeof compactModule.foldFirstByteAllowanceMs }).foldFirstByteAllowanceMs
 const allowanceOf = (estTokens: number): number => (foldFirstByteAllowanceMs === undefined ? Number.NaN : foldFirstByteAllowanceMs(estTokens))
 const { COLD_INGEST_MS_PER_1K_TOKENS } = await import('../../src/models/roads/streamIdleBudget.ts')
@@ -249,7 +249,7 @@ async function runFold(messages: unknown[], abortAfterMs?: number): Promise<Run>
   let result: Record<string, unknown> | undefined
   let error: Error | undefined
   try {
-    result = (await compactConversation(messages as never, ctx as never, cacheSafe as never, true)) as never as Record<string, unknown>
+    result = (await foldConversation(messages as never, ctx as never, cacheSafe as never, true)) as never as Record<string, unknown>
   } catch (err) {
     error = err as Error
   }

@@ -1,4 +1,4 @@
-import { pumpOutbound, finishPrintRun } from '../runnerRunEnd.js'
+import { pumpOutbound, finishRun } from '../runnerRunEnd.js'
 import { logError } from '../../../platform/logs/errorLog.js'
 import type { BootMade, BootStep, RunnerPorts } from '../runnerPorts.js'
 
@@ -9,7 +9,7 @@ async function run(ports: RunnerPorts): Promise<BootMade<never>> {
     logError(error)
   })
 
-  await finishPrintRun(unwrittenRecord, ports)
+  await finishRun(unwrittenRecord, ports)
   return {}
 }
 

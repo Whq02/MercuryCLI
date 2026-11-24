@@ -1,10 +1,10 @@
 import { useSyncExternalStore } from 'react'
-import { compactWarningStore } from '../../engine/compaction/foldWarningSuppression.js'
+import { foldWarningStore } from '../../engine/compaction/foldWarningSuppression.js'
 
-export function useCompactWarningSuppression(): boolean {
+export function useFoldWarningSuppression(): boolean {
   return useSyncExternalStore(
-    compactWarningStore.subscribe,
-    compactWarningStore.getSnapshot,
-    compactWarningStore.getSnapshot,
+    foldWarningStore.subscribe,
+    foldWarningStore.getSnapshot,
+    foldWarningStore.getSnapshot,
   )
 }

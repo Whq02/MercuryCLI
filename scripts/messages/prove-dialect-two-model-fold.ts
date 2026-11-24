@@ -31,7 +31,7 @@ enableConfigs()
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 
-const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.ts')
+const { anthropicCallModel } = await import('../../src/models/roads/anthropic/streamCore.ts')
 const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { TWO_MODEL_COMPACTION, canonicalJson } = await import('./dialectFixture.ts')
@@ -52,7 +52,7 @@ async function captureFoldRows(messages: Message[]): Promise<Array<Record<string
   abortCapture = () => controller.abort()
   const deadline = setTimeout(() => controller.abort(), 30_000)
   try {
-    for await (const _ of queryModelWithStreaming({
+    for await (const _ of anthropicCallModel({
       messages,
       systemPrompt: asSystemPrompt(['You are the compaction fixture.']),
       thinkingConfig: { type: 'disabled' } as never,

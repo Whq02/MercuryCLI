@@ -20,7 +20,7 @@ const projDir = mkdtempSync(join(tmpdir(), 'query-laws-proj-'))
 bootstrap.setOriginalCwd(projDir)
 bootstrap.setProjectRoot(projDir)
 
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { createUserMessage, INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE } = await import('../../src/engine/messages/messages.ts')
 const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
@@ -158,7 +158,7 @@ async function runQuery(opts: {
     void opts.abortWhen(api, opts.toolStartedPromise ?? Promise.resolve()).then(() => abort.abort())
   }
 
-  const gen = query({
+  const gen = turnDoor({
     messages: [createUserMessage({ content: 'Probe the turn.' })],
     systemPrompt: asSystemPrompt(['You are a turn probe. Reply tersely.']),
     userContext: {},

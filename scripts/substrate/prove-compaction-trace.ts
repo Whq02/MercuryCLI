@@ -23,12 +23,12 @@ process.env.MERCURY_TRACE = '1'
 delete process.env.MERCURY_COMPACTION_TRACE
 
 const {
-  buildCompactionTrace,
-  emitCompactionTrace,
-  isCompactionTraceEnabled,
+  buildFoldTrace,
+  emitFoldTrace,
+  isFoldTraceEnabled,
   getInvocationTracePath,
 } = await import('../../src/platform/observability/invocationTrace.js')
-const { traceSnapshot, aggregateCompaction, parseTraceLines } = await import('../../src/screen/cockpit/traceSnapshot.js')
+const { traceSnapshot, aggregateFold, parseTraceLines } = await import('../../src/screen/cockpit/traceSnapshot.js')
 
 console.log('============================================================')
 console.log(' compaction-event trace lane — proof')
@@ -36,20 +36,20 @@ console.log('============================================================')
 
 section('gating: stamped build + invocation-trace on, with MERCURY_COMPACTION_TRACE=0 opt-out')
 {
-  check('MERCURY_TRACE=1 ⇒ enabled', isCompactionTraceEnabled() === true)
+  check('MERCURY_TRACE=1 ⇒ enabled', isFoldTraceEnabled() === true)
   process.env.MERCURY_COMPACTION_TRACE = '0'
-  check('MERCURY_COMPACTION_TRACE=0 ⇒ disabled (opt-out)', isCompactionTraceEnabled() === false)
+  check('MERCURY_COMPACTION_TRACE=0 ⇒ disabled (opt-out)', isFoldTraceEnabled() === false)
   delete process.env.MERCURY_COMPACTION_TRACE
   process.env.MERCURY_TRACE = '0'
   process.env.MERCURY_SUBSTRATE = '0'
-  check('invocation-trace off (MERCURY_TRACE=0 + MERCURY_SUBSTRATE=0) ⇒ compaction off too (piggyback)', isCompactionTraceEnabled() === false)
+  check('invocation-trace off (MERCURY_TRACE=0 + MERCURY_SUBSTRATE=0) ⇒ compaction off too (piggyback)', isFoldTraceEnabled() === false)
   process.env.MERCURY_TRACE = '1'
   delete process.env.MERCURY_SUBSTRATE
 }
 
 section('buildCompactionTrace — numeric-only, no content')
 {
-  const rec = buildCompactionTrace('auto-compact', { tokensFreed: 1234.7, messagesBefore: 40, messagesAfter: 12, nowISO: '2026-06-17T06:00:00.000Z' })
+  const rec = buildFoldTrace('auto-compact', { tokensFreed: 1234.7, messagesBefore: 40, messagesAfter: 12, nowISO: '2026-06-17T06:00:00.000Z' })
   check("kind discriminator is 'compaction'", rec.kind === 'compaction')
   check('event recorded', rec.event === 'auto-compact')
   check('tokensFreed rounded to integer', rec.tokensFreed === 1235)
@@ -60,10 +60,10 @@ section('buildCompactionTrace — numeric-only, no content')
 
 section('emitCompactionTrace → shared sidecar → traceSnapshot compaction lane')
 {
-  emitCompactionTrace('snip', { tokensFreed: 500 })
-  emitCompactionTrace('context-collapse', { messagesBefore: 30, messagesAfter: 18 })
-  emitCompactionTrace('auto-compact', { tokensFreed: 2000 })
-  emitCompactionTrace('auto-compact', { tokensFreed: 1000 })
+  emitFoldTrace('snip', { tokensFreed: 500 })
+  emitFoldTrace('context-collapse', { messagesBefore: 30, messagesAfter: 18 })
+  emitFoldTrace('auto-compact', { tokensFreed: 2000 })
+  emitFoldTrace('auto-compact', { tokensFreed: 1000 })
   await sleep(120)
 
   const path = getInvocationTracePath()
@@ -74,7 +74,7 @@ section('emitCompactionTrace → shared sidecar → traceSnapshot compaction lan
 
   const snap = await traceSnapshot()
   check('snapshot state is live', snap.state === 'live')
-  const c = (snap.data as { compaction: ReturnType<typeof aggregateCompaction> }).compaction
+  const c = (snap.data as { compaction: ReturnType<typeof aggregateFold> }).compaction
   check('compaction total = 4', c.total === 4)
   check('auto-compact rolled up to 2× / 3000 tok', c.byEvent.find(e => e.event === 'auto-compact')?.count === 2 && c.byEvent.find(e => e.event === 'auto-compact')?.tokensFreed === 3000)
   check('total tokens freed = 3500', c.totalTokensFreed === 3500)
@@ -86,7 +86,7 @@ section('OFF (MERCURY_COMPACTION_TRACE=0) ⇒ no emit')
   const offDir = mkdtempSync(join(tmpdir(), 'mercury-compaction-off-'))
   process.env.MERCURY_CONFIG_DIR = offDir
   process.env.MERCURY_COMPACTION_TRACE = '0'
-  emitCompactionTrace('auto-compact', { tokensFreed: 999 })
+  emitFoldTrace('auto-compact', { tokensFreed: 999 })
   await sleep(80)
   check('no sidecar written when opted out', !existsSync(join(offDir, 'mercury-trace.jsonl')))
   delete process.env.MERCURY_COMPACTION_TRACE
@@ -117,7 +117,7 @@ section('parseTraceLines: single pass == old two-pass union (mixed sidecar)')
   check('compaction identical to the old parseCompactionTrace pass', JSON.stringify(onePass.compaction) === JSON.stringify(refCompaction), `${onePass.compaction.length} compaction`)
   check('records picked the two tool lines (Read, Bash)', onePass.records.map((r: { tool: string }) => r.tool).join(',') === 'Read,Bash')
   check('compaction picked the two events (auto-compact, snip)', onePass.compaction.map((r: { event: string }) => r.event).join(',') === 'auto-compact,snip')
-  const agg = aggregateCompaction(onePass.compaction)
+  const agg = aggregateFold(onePass.compaction)
   check('aggregateCompaction over the single-pass output: total=2, tokensFreed=150', agg.total === 2 && agg.totalTokensFreed === 150)
 }
 

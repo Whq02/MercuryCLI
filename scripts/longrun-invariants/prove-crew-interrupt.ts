@@ -241,7 +241,7 @@ section('§K4 the resume road — one owner behind every door')
 section('§K10 the wait tells its truth — the phase fold, the one spelling, every surface')
 {
   const { foldAgentWaitEvent, agentWaitWords, agentWaitElapsed } = await import('../../src/engine/tasks/local-agent/agentWait.js')
-  const { createProgressTracker, foldQueryProgressIntoTracker, getProgressUpdate } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
+  const { createProgressTracker, foldTurnProgressIntoTracker, getProgressUpdate } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
   const t0 = 1_000_000
   let wait = foldAgentWaitEvent(null, { type: 'stream_request_start' }, t0)
   check('K10 the request leaves ⇒ request-sent', wait?.phase === 'request-sent' && agentWaitWords(wait, t0 + 2000) === 'request sent')
@@ -269,7 +269,7 @@ section('§K10 the wait tells its truth — the phase fold, the one spelling, ev
   check('K10 a provider fault with a retry delay is a retry too', backoff?.phase === 'retry' && agentWaitWords(backoff, t0 + 30_000) === 'retrying in 3 s — a provider fault (retry 1)')
   check('K10 the counter\'s spelling', agentWaitElapsed(12_000) === '12s' && agentWaitElapsed(130_000) === '2m 10s' && agentWaitElapsed(3_900_000) === '1h 5m')
   const tracker = createProgressTracker()
-  check('K10 the tracker folds and reports a change once', foldQueryProgressIntoTracker(tracker, { type: 'stream_request_start' }, t0) === true && foldQueryProgressIntoTracker(tracker, { type: 'stream_event', event: { type: 'ping' } }, t0 + 1) === false && getProgressUpdate(tracker).phase?.phase === 'request-sent')
+  check('K10 the tracker folds and reports a change once', foldTurnProgressIntoTracker(tracker, { type: 'stream_request_start' }, t0) === true && foldTurnProgressIntoTracker(tracker, { type: 'stream_event', event: { type: 'ping' } }, t0 + 1) === false && getProgressUpdate(tracker).phase?.phase === 'request-sent')
   const { projectWorkRoster } = await import('../../src/engine/connector/workRoster.js')
   const crew = await import('../../src/engine/connector/crewFacts.js')
   const running = { id: 'ag-w', type: 'local_agent', status: 'running', description: 'crew-fable', agentId: 'ag-w', prompt: 'p', agentType: 'mercury-crew', isBackgrounded: true, outputFile: '/n', outputOffset: 0, notified: false, startTime: t0, progress: { toolUseCount: 0, tokenCount: 0, recentActivities: [], phase: { phase: 'first-byte', sinceMs: t0, budgetMs: 45_000 } } }

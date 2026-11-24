@@ -3,8 +3,8 @@ import type { UUID } from 'crypto'
 import { findToolByName, safeSearchOrReadClassification, type Tools } from '../../tools/kit/tool.js'
 import { BASH_TOOL_NAME } from '../../tools/kit/names/bash.js'
 import { extractBashCommentLabel } from '../../tools/shell/commentLabel.js'
-import { FILE_EDIT_TOOL_NAME } from '../../tools/kit/names/fileEdit.js'
-import { FILE_WRITE_TOOL_NAME } from '../../tools/kit/names/fileWrite.js'
+import { EDIT_TOOL_NAME } from '../../tools/kit/names/fileEdit.js'
+import { WRITE_TOOL_NAME } from '../../tools/kit/names/fileWrite.js'
 import {
   detectGitOperation,
   type BranchAction,
@@ -77,7 +77,7 @@ export function getToolSearchOrReadInfo(
   toolInput: unknown,
   tools: Tools,
 ): SearchOrReadResult {
-  if (toolName === FILE_WRITE_TOOL_NAME || toolName === FILE_EDIT_TOOL_NAME) {
+  if (toolName === WRITE_TOOL_NAME || toolName === EDIT_TOOL_NAME) {
     const targetPath = inputPath(toolInput)
     if (targetPath !== undefined && isAutoManagedMemoryFile(targetPath) && !isMnemeFile(targetPath)) {
       return { ...NOT_COLLAPSIBLE, isCollapsible: true, isMemoryWrite: true }

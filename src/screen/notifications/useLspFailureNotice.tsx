@@ -14,7 +14,7 @@ import { pollUntil } from '../../platform/async/deadline.js'
 const POLL_INTERVAL_MS = 5000
 const NOTIFICATION_TIMEOUT_MS = 8000
 
-export function useLspInitializationNotification(): void {
+export function useLspFailureNotice(): void {
   const { addNotification } = useNotifications()
   const reportedRef = useRef<Set<string>>(new Set())
   const [shouldPoll, setShouldPoll] = useState(true)

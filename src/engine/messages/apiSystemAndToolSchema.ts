@@ -15,10 +15,10 @@ import { normalizeToolSchemaFor, rememberRenamedArgumentKeys, schemaLaneFor } fr
 import { userContextReminderBody } from '../attachments/userContextReminder.js'
 
 import { BASH_TOOL_NAME } from '../../tools/kit/names/bash.js'
-import { FILE_EDIT_TOOL_NAME } from '../../tools/kit/names/fileEdit.js'
+import { EDIT_TOOL_NAME } from '../../tools/kit/names/fileEdit.js'
 import { editFormCacheMark } from './editForm.js'
 import { normalizeFileEditInput } from '../../tools/edit/call/editMatching.js'
-import { FILE_WRITE_TOOL_NAME } from '../../tools/kit/names/fileWrite.js'
+import { WRITE_TOOL_NAME } from '../../tools/kit/names/fileWrite.js'
 import { resolveShellCwd } from '../../platform/shell/shellExec.js'
 import { createUserMessage } from '../message-shapes/factories.js'
 import { rememberedPlatform } from '../../platform/host-os/host.js'
@@ -324,7 +324,7 @@ export function normalizeToolInput(
       }
       return rebuilt
     }
-    case FILE_EDIT_TOOL_NAME: {
+    case EDIT_TOOL_NAME: {
       const parsed = reparse<{
         file_path: string
         old_string?: string
@@ -356,7 +356,7 @@ export function normalizeToolInput(
       if (parsed.section !== undefined) rebuilt.section = parsed.section
       return rebuilt
     }
-    case FILE_WRITE_TOOL_NAME: {
+    case WRITE_TOOL_NAME: {
       const parsed = reparse<{ file_path: string; content: string }>(tool, input)
       const isMarkdown = MARKDOWN_EXTENSIONS.some(ext => parsed.file_path.toLowerCase().endsWith(ext))
       const content = isMarkdown ? parsed.content : parsed.content.replace(/[ \t]+$/gm, '')
@@ -371,7 +371,7 @@ export function normalizeToolInputForAPI(
   tool: Tool,
   input: Record<string, unknown>,
 ): Record<string, unknown> {
-  if (tool.name === FILE_EDIT_TOOL_NAME && Array.isArray(input.edits)) {
+  if (tool.name === EDIT_TOOL_NAME && Array.isArray(input.edits)) {
     const { old_string: _old, new_string: _new, replace_all: _all, ...rest } = input
     return rest
   }

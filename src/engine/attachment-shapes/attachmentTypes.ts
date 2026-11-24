@@ -127,7 +127,7 @@ export type Attachment = {
 
 export type FileAttachment = AttachmentRow<'file'>
 export type AlreadyReadFileAttachment = AttachmentRow<'already_read_file'>
-export type CompactFileReferenceAttachment = AttachmentRow<'compact_file_reference'>
+export type FoldFileReferenceAttachment = AttachmentRow<'compact_file_reference'>
 export type PDFReferenceAttachment = AttachmentRow<'pdf_reference'>
 export type DroppedImageAttachment = AttachmentRow<'dropped_image_file'>
 export type AgentRosterAttachment = AttachmentRow<'agent_roster'>

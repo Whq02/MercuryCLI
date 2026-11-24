@@ -17,7 +17,7 @@ for (const k of ['MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOK
   delete process.env[k]
 }
 
-const { query } = await import('../../src/engine/turnDoor.ts')
+const { turnDoor } = await import('../../src/engine/turnDoor.ts')
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
@@ -242,7 +242,7 @@ function buildRig(specs: LoopSpec[] = DEFAULT_SPECS, tasks: Record<string, TaskL
         waitAts.set(run, Date.now())
       },
     }
-    const gen = query({
+    const gen = turnDoor({
       messages: [createUserMessage({ content: `hello from ${run}` })] as never,
       systemPrompt: ['rig system prompt'] as never,
       userContext: {},

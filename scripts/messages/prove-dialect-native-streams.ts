@@ -39,7 +39,7 @@ async function anthropic(root: string) {
   enableConfigs()
   const state = await import(`${root}/src/boot/process-state/processState.ts`)
   state.setIsInteractive(false)
-  const { queryModelWithStreaming } = await import(`${root}/src/models/roads/anthropic/streamCore.ts`)
+  const { anthropicCallModel } = await import(`${root}/src/models/roads/anthropic/streamCore.ts`)
   const { asSystemPrompt } = await import(`${root}/src/engine/system-prompt/systemPromptType.ts`)
   const { getEmptyToolPermissionContext } = await import(`${root}/src/tools/kit/tool.ts`)
   const usage = { input_tokens: 7, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 5 }
@@ -57,13 +57,13 @@ async function anthropic(root: string) {
   ]
   const fetchOverride = (async () => new Response(wireFrames.map(frame => `event: ${frame.type}\ndata: ${JSON.stringify(frame)}\n\n`).join(''), { headers: { 'content-type': 'text/event-stream' } })) as typeof fetch
   const rows: unknown[] = []
-  for await (const item of queryModelWithStreaming({
+  for await (const item of anthropicCallModel({
     messages: DIALECT_CONVERSATION, systemPrompt: asSystemPrompt(['fixture system']), thinkingConfig: { type: 'disabled' }, tools: [], signal: new AbortController().signal,
     options: { model: 'claude-sonnet-5', querySource: 'sdk', isNonInteractiveSession: true, fetchOverride, maxRetries: 0, getToolPermissionContext: async () => getEmptyToolPermissionContext() } as never,
   })) {
     if (item.type === 'assistant') rows.push(item.message.content)
   }
-  assert.deepEqual(rows, [[{ type: 'thinking', thinking: 'fixture thought', signature: 'fixture-signed-thinking' }], [{ type: 'text', text: 'fixture answer' }]], 'queryModelWithStreaming in src/models/roads/anthropic/streamCore.ts must yield one assistant row for the signed thinking block and one for the text block, as listed here')
+  assert.deepEqual(rows, [[{ type: 'thinking', thinking: 'fixture thought', signature: 'fixture-signed-thinking' }], [{ type: 'text', text: 'fixture answer' }]], 'anthropicCallModel in src/models/roads/anthropic/streamCore.ts must yield one assistant row for the signed thinking block and one for the text block, as listed here')
   return rows
 }
 const old = { anthropic: await anthropic(base), openai: await responses(base) }

@@ -21,6 +21,6 @@ assert.throws(() => computeVerbatimRecentTail(rows.slice(0, -1), { tailTokenBudg
 const fitted = computeVerbatimRecentTail(rows, { fits: keep => keep.length <= 6 })
 assert.equal(fitted?.roundsKept, 3, 'the largest suffix accepted by the fits callback must be kept; check the opts.fits call in computeVerbatimRecentTail in src/engine/compaction/verbatimTail.ts')
 assert.equal(fitted?.roundsRequested, 10, 'roundsRequested must report the default ten rounds; check DEFAULT_KEEP_ROUNDS in src/engine/compaction/verbatimTail.ts')
-const { getTimeBasedMCConfig } = await import('../../src/engine/compaction/timeBasedPruneConfig.js')
-assert.equal(getTimeBasedMCConfig().keepRecent, 10, 'the time-based microcompact must keep ten recent results; check DEFAULT_KEEP_RECENT in src/engine/compaction/timeBasedPruneConfig.ts')
+const { getTimeBasedPruneConfig } = await import('../../src/engine/compaction/timeBasedPruneConfig.js')
+assert.equal(getTimeBasedPruneConfig().keepRecent, 10, 'the time-based microcompact must keep ten recent results; check DEFAULT_KEEP_RECENT in src/engine/compaction/timeBasedPruneConfig.ts')
 console.log('PASS largest fitted closed suffix, explicit fit failure, unresolved round refusal and ten-result fallback protection')

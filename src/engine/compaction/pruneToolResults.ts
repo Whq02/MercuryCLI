@@ -13,21 +13,21 @@ import { estimateContentTokens, roughTokenCountEstimationForMessages } from '../
 import { stripThinkingFromIndex } from '../messages/apiFilters.js'
 import { digestClearedToolResult, isClearedOrDigested } from './pruneDigest.js'
 import { isBelowPlaceholderFloor, isProtectedFromPruning, PROTECT_NEWEST_TOOL_OUTPUT_TOKENS, PRUNE_MINIMUM_SAVING_TOKENS } from './pruneProtections.js'
-import { clearCompactWarningSuppression, suppressCompactWarning } from './foldWarningSuppression.js'
-import { getTimeBasedMCConfig } from './timeBasedPruneConfig.js'
+import { clearFoldWarningSuppression, suppressFoldWarning } from './foldWarningSuppression.js'
+import { getTimeBasedPruneConfig } from './timeBasedPruneConfig.js'
 import { REPEATED_RESULT_TAG } from '../../tools/kit/toolLimits.js'
-import { FILE_READ_TOOL_NAME } from '../../tools/kit/names/fileRead.js'
-import { FILE_EDIT_TOOL_NAME } from '../../tools/kit/names/fileEdit.js'
-import { FILE_WRITE_TOOL_NAME } from '../../tools/kit/names/fileWrite.js'
+import { READ_TOOL_NAME } from '../../tools/kit/names/fileRead.js'
+import { EDIT_TOOL_NAME } from '../../tools/kit/names/fileEdit.js'
+import { WRITE_TOOL_NAME } from '../../tools/kit/names/fileWrite.js'
 
-export const TIME_BASED_MC_CLEARED_MESSAGE = '[stale tool result pruned — content cleared]'
+export const TIME_BASED_PRUNE_CLEARED_MESSAGE = '[stale tool result pruned — content cleared]'
 
 type PendingCacheEdits = {
   userMessageIndex: number
   block: unknown
 }
 
-type MicrocompactResult = {
+type PruneResult = {
   messages: Message[]
   compactionInfo?: {
     trigger: string
@@ -42,7 +42,7 @@ type MicrocompactResult = {
   deadMarks?: DeadThinkingMark[]
 }
 
-type MicrocompactTrigger = {
+type PruneTrigger = {
   pressure: true
   supersededOnly?: true
   minimumTokensSaved?: number
@@ -75,8 +75,8 @@ function isMainThreadSource(querySource: string | undefined): boolean {
 function evaluateTimeBasedTrigger(
   messages: Message[],
   querySource: string | undefined,
-): { gapMinutes: number; config: ReturnType<typeof getTimeBasedMCConfig> } | null {
-  const config = getTimeBasedMCConfig()
+): { gapMinutes: number; config: ReturnType<typeof getTimeBasedPruneConfig> } | null {
+  const config = getTimeBasedPruneConfig()
   if (!config.enabled) return null
   if (querySource === undefined) return null
   if (!isMainThreadSource(querySource)) return null
@@ -124,10 +124,10 @@ function containsRepeatedResultTag(content: unknown): boolean {
   )
 }
 
-export function projectTimeBasedMicrocompact(
+export function projectTimeBasedPrune(
   messages: Message[],
   querySource: string | undefined,
-  trigger?: MicrocompactTrigger,
+  trigger?: PruneTrigger,
 ): {
   messages: Message[]
   cleared: number
@@ -138,9 +138,9 @@ export function projectTimeBasedMicrocompact(
   deadMarks: DeadThinkingMark[]
 } | null {
   let gapMinutes: number
-  let config: ReturnType<typeof getTimeBasedMCConfig>
+  let config: ReturnType<typeof getTimeBasedPruneConfig>
   if (trigger?.pressure === true) {
-    config = getTimeBasedMCConfig()
+    config = getTimeBasedPruneConfig()
     gapMinutes = 0
   } else {
     const evaluated = evaluateTimeBasedTrigger(messages, querySource)
@@ -166,13 +166,13 @@ export function projectTimeBasedMicrocompact(
       if (
         supersededOnly &&
         filePath !== undefined &&
-        (name === FILE_READ_TOOL_NAME || name === FILE_EDIT_TOOL_NAME || name === FILE_WRITE_TOOL_NAME)
+        (name === READ_TOOL_NAME || name === EDIT_TOOL_NAME || name === WRITE_TOOL_NAME)
       ) {
         fileOpPathById.set(id, filePath)
       }
       if (isProtectedFromPruning(name, block.input)) continue
       candidateIds.push(id)
-      if (name === FILE_READ_TOOL_NAME && filePath !== undefined) {
+      if (name === READ_TOOL_NAME && filePath !== undefined) {
         readPathsById.set(id, filePath)
       }
     }
@@ -352,7 +352,7 @@ export const pinCacheEdits: (
   state.pinnedEdits.push({ userMessageIndex, block })
 }
 
-export const resetMicrocompactState: (owner?: OwnerKey) => void = function (owner) {
+export const resetPruneState: (owner?: OwnerKey) => void = function (owner) {
   const key = ownerOrMain(owner)
   const state = cacheEditStore.peek(key)
   if (state === undefined) return
@@ -362,27 +362,27 @@ export const resetMicrocompactState: (owner?: OwnerKey) => void = function (owne
 }
 
 
-export async function microcompactMessages(
+export async function pruneMessages(
   messages: Message[],
   _toolUseContext?: unknown,
   querySource?: string,
   invalidate?: {
     readFileState: Pick<FileStateCache, 'delete'>
   },
-  trigger?: MicrocompactTrigger,
-): Promise<MicrocompactResult> {
-  clearCompactWarningSuppression()
-  const projected = projectTimeBasedMicrocompact(messages, querySource, trigger)
+  trigger?: PruneTrigger,
+): Promise<PruneResult> {
+  clearFoldWarningSuppression()
+  const projected = projectTimeBasedPrune(messages, querySource, trigger)
   if (projected === null) {
     return { messages }
   }
   logForDebugging(
     trigger?.pressure === true
       ? `pressure microcompact (${trigger.minimumTokensSaved !== undefined ? 'context size' : 'context overflow'}): cleared ${projected.cleared} tool results (~${projected.tokensSaved} tokens)`
-      : `time-based microcompact: gap ${Math.round(projected.gapMinutes)}min ≥ ${getTimeBasedMCConfig().thresholdMinutes}min — cleared ${projected.cleared} tool results (~${projected.tokensSaved} tokens)`,
+      : `time-based microcompact: gap ${Math.round(projected.gapMinutes)}min ≥ ${getTimeBasedPruneConfig().thresholdMinutes}min — cleared ${projected.cleared} tool results (~${projected.tokensSaved} tokens)`,
   )
-  suppressCompactWarning()
-  resetMicrocompactState()
+  suppressFoldWarning()
+  resetPruneState()
   if (invalidate !== undefined) {
     for (const rawPath of projected.clearedReadPaths) {
       invalidate.readFileState.delete(expandPath(rawPath))

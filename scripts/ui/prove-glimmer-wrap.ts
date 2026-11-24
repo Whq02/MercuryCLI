@@ -22,7 +22,7 @@ enableConfigs()
 const React = (await import('react')).default
 const { Box, Text } = await import('../../src/screen/themedRenderer.js')
 const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
-const { GlimmerMessage } = await import('../../src/screen/spinner/ShimmerMessage.js')
+const { ShimmerMessage } = await import('../../src/screen/spinner/ShimmerMessage.js')
 const { stringWidth } = await import('../../src/screen/renderer/stringWidth.js')
 
 const WRAP_VERB = 'Reading the complete fixture response and checking every part of it'
@@ -37,7 +37,7 @@ const COLUMNS = 220
 
 const h = React.createElement
 const verb = (width: number, glimmerIndex: number) =>
-  h(Box, { width, flexDirection: 'row' }, h(GlimmerMessage, { message: MESSAGE, mode: 'thinking', messageColor: 'brand', shimmerColor: 'brandShimmer', flashOpacity: 0, glimmerIndex }))
+  h(Box, { width, flexDirection: 'row' }, h(ShimmerMessage, { message: MESSAGE, mode: 'thinking', messageColor: 'brand', shimmerColor: 'brandShimmer', flashOpacity: 0, glimmerIndex }))
 const separator = () => h(Box, { width: 4 }, h(Text, null, SEPARATOR))
 
 const blocksOf = (frame: string): string[][] => {

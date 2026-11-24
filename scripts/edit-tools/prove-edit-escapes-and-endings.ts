@@ -15,7 +15,7 @@ delete process.env.MERCURY_EDIT_HUNKS
 delete process.env.MERCURY_HOME
 delete process.env.NODE_ENV
 
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
 const { locateActualString } = await import('../../src/tools/edit/call/editMatching.ts')
 const { preserveUntouchedLineEndings } = await import('../../src/platform/files/file.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
@@ -54,11 +54,11 @@ type Verdict = { ok: true; text: string } | { ok: false; message: string }
 async function edit(input: Record<string, unknown>): Promise<Verdict> {
   const ctx = makeContext()
   primeRead(ctx, input.file_path as string)
-  const verdict = await (FileEditTool as { validateInput: Function }).validateInput(input, ctx)
+  const verdict = await (EditTool as { validateInput: Function }).validateInput(input, ctx)
   if (verdict.result === false) return { ok: false, message: String(verdict.message) }
   try {
-    const out = await (FileEditTool as { call: Function }).call(input, ctx, null, PARENT)
-    const block = (FileEditTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(out.data, 'toolu_fixture')
+    const out = await (EditTool as { call: Function }).call(input, ctx, null, PARENT)
+    const block = (EditTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(out.data, 'toolu_fixture')
     return { ok: true, text: typeof block.content === 'string' ? block.content : '' }
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : String(err) }

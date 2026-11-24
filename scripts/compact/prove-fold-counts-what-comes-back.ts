@@ -111,7 +111,7 @@ const { createAttachmentMessage } = await import('../../src/engine/attachment-sh
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 const { contextFill } = await import('../../src/engine/context-window/contextTokenCount.ts')
 const { primeOpenaiCatalogue } = await import('../../src/models/roads/openai/openaiCatalogue.ts')
-const { buildPostCompactMessages } = await import('../../src/engine/compaction/foldConversation.ts')
+const { buildPostFoldMessages } = await import('../../src/engine/compaction/foldConversation.ts')
 const { estimateContextTokens } = await import('../../src/engine/compaction/pruneToolResults.ts')
 const { call } = await import('../../src/commands/compact/compact.ts')
 
@@ -124,7 +124,7 @@ if (!primeOpenaiCatalogue({
 })) throw new Error('the catalogue prime was refused')
 
 type AnyMsg = Record<string, unknown> & { type?: string }
-type Folded = { type: string; displayText?: string; compactionResult: Parameters<typeof buildPostCompactMessages>[0] }
+type Folded = { type: string; displayText?: string; compactionResult: Parameters<typeof buildPostFoldMessages>[0] }
 
 function makeContext(model: string, messages: AnyMsg[]): Record<string, unknown> {
   let appState: Record<string, unknown> = { ...(getDefaultAppState() as unknown as Record<string, unknown>), effortValue: 'high' }
@@ -199,7 +199,7 @@ async function fold(seated: string, silent = false): Promise<{ messages: AnyMsg[
     return { messages, folded: undefined, threw: error instanceof Error ? error.message : String(error) }
   }
 }
-const standingAfter = (folded: Folded | undefined, model: string): number => (folded === undefined ? Number.NaN : estimateContextTokens(buildPostCompactMessages(folded.compactionResult) as never, model))
+const standingAfter = (folded: Folded | undefined, model: string): number => (folded === undefined ? Number.NaN : estimateContextTokens(buildPostFoldMessages(folded.compactionResult) as never, model))
 
 section('2 the measure: a conversation that holds a working set with a skills list and an Apollo pack, folded on a model that has no measure of it and on one that has')
 {

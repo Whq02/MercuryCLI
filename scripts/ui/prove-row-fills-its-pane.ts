@@ -22,7 +22,7 @@ const { KeybindingProvider } = await import('../../src/screen/keys/KeybindingCon
 const { loadKeybindingsSync } = await import('../../src/screen/keys/loadUserBindings.ts')
 const { MessageRow, hasContentAfterIndex } = await import('../../src/screen/messages/MessageRow.tsx')
 const { deriveTranscriptRows } = await import('../../src/screen/concourse/workerTranscriptFold.ts')
-const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
 const { EMPTY_STRING_SET } = await import('../../src/engine/messages/messages.ts')
 const { stringWidth } = await import('../../src/screen/renderer/stringWidth.ts')
 
@@ -64,7 +64,7 @@ const messages = [
       type: 'message',
       role: 'assistant',
       model: 'fixture-model',
-      content: [{ type: 'tool_use', id: 'toolu_pane_1', name: FileEditTool.name, input: { file_path: FILE, old_string: 'a + b + 0', new_string: 'a + b' } }],
+      content: [{ type: 'tool_use', id: 'toolu_pane_1', name: EditTool.name, input: { file_path: FILE, old_string: 'a + b + 0', new_string: 'a + b' } }],
       stop_reason: 'tool_use',
       stop_sequence: null,
       usage: { input_tokens: 1, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
@@ -86,7 +86,7 @@ const messages = [
     },
   },
 ]
-const tools = [FileEditTool] as never
+const tools = [EditTool] as never
 
 function MinimalKeybindingProvider({ children }: { children: React.ReactNode }): React.ReactElement {
   const pendingChordRef = React.useRef(null)
@@ -236,8 +236,8 @@ section('§1 the law: a diff row under a 60-column pane on a 120-column render s
 
 section('§1b the rules: the consent card\'s diff under the same pane frames itself inside it')
 {
-  const { FileEditToolDiff } = await import('../../src/tools/edit/EditDiff.tsx')
-  const card = h(FileEditToolDiff as never, { file_path: FILE, edits: [{ old_string: 'a + b + 0', new_string: 'a + b' }] })
+  const { EditDiff } = await import('../../src/tools/edit/EditDiff.tsx')
+  const card = h(EditDiff as never, { file_path: FILE, edits: [{ old_string: 'a + b + 0', new_string: 'a + b' }] })
   const tree = h(
     AppStateProvider as never,
     null,

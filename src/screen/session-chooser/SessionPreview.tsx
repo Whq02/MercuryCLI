@@ -11,8 +11,8 @@ import { useLoad } from '../effects/effects.js'
 import { getTools } from '../../tools/kit/toolList.js'
 import { getEmptyToolPermissionContext } from '../../tools/kit/tool.js'
 import { deserializeMessages } from '../../sessions/resume/conversationRecovery.js'
-import { formatLogMetadata } from '../../platform/text/format.js'
-import { getLogDisplayTitle } from '../../platform/logs/errorLog.js'
+import { formatListingMetadata } from '../../platform/text/format.js'
+import { getListingDisplayTitle } from '../../platform/logs/errorLog.js'
 import { isLiteListing, fillSessionListing } from '../../sessions/transcripts/sessionStorage.js'
 
 export function SessionPreview({
@@ -56,7 +56,7 @@ export function SessionPreview({
     [fullLog],
   )
 
-  const title = getLogDisplayTitle(log, '(no prompt)').replace(/\s+/g, ' ').trim()
+  const title = getListingDisplayTitle(log, '(no prompt)').replace(/\s+/g, ' ').trim()
 
   const body =
     fullLog === null ? (
@@ -89,7 +89,7 @@ export function SessionPreview({
       </Box>
     )
 
-  const meta = fullLog ? formatLogMetadata(fullLog) : 'loading…'
+  const meta = fullLog ? formatListingMetadata(fullLog) : 'loading…'
 
   return (
     <Box

@@ -55,7 +55,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 
 const { GitTool } = await import(`${SRC}/tools/git/GitTool.ts`)
 const { InspectTool } = await import(`${SRC}/tools/inspect/InspectTool.ts`)
-const { FileReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
+const { ReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
 const { getEmptyToolPermissionContext } = await import(`${SRC}/tools/kit/tool.ts`)
 const { decideToolPermission } = await import(`${SRC}/permissions/rules/decision/engine.ts`)
 const observe = (await import(`${SRC}/platform/git-graph/observe.ts`)) as { forgetGitVersion?: () => void }
@@ -117,7 +117,7 @@ const optionReferences = async (): Promise<string[]> => {
     ['compare head', file => `mercury://git/compare/HEAD...--output=${file}`],
   ]
   for (const [form, ref] of forms) {
-    for (const [door, tool, input] of [['Inspect', InspectTool, (text: string) => ({ ref: text })], ['Read', FileReadTool, (text: string) => ({ file_path: text })]] as Array<[string, unknown, (text: string) => Record<string, unknown>]>) {
+    for (const [door, tool, input] of [['Inspect', InspectTool, (text: string) => ({ ref: text })], ['Read', ReadTool, (text: string) => ({ file_path: text })]] as Array<[string, unknown, (text: string) => Record<string, unknown>]>) {
       const file = next()
       await used(tool, input(ref(file)))
       if (existsSync(file)) wrong.push(`${door} git/${form} WROTE a file`)

@@ -11,9 +11,9 @@ import {
   type NonNullableUsage,
 } from '../../../../engine/requests/apiCallLogging.js'
 import { updateUsage } from '../cacheAndUsage.js'
-import type { CallState, QueryCtx } from './callState.js'
+import type { CallState, CallCtx } from './callState.js'
 
-export function settleAttemptLedger(ctx: QueryCtx, call: CallState): void {
+export function settleAttemptLedger(ctx: CallCtx, call: CallState): void {
   stopSessionActivity('api_call')
   ctx.releaseStreamResources()
   ctx.settleUnpricedAttempt()
@@ -25,7 +25,7 @@ export function settleAttemptLedger(ctx: QueryCtx, call: CallState): void {
   }
 }
 
-export function closeSucceededRequest(ctx: QueryCtx, call: CallState): void {
+export function closeSucceededRequest(ctx: CallCtx, call: CallState): void {
   if (call.fallbackMessage) {
     const fallbackUsage: NonNullableUsage = updateUsage(
       EMPTY_USAGE,

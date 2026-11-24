@@ -38,8 +38,8 @@ const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 const { contextFill } = await import('../../src/engine/context-window/contextTokenCount.ts')
-const { compactConversation, buildPostCompactMessages, withFoldStatus } = await import('../../src/engine/compaction/foldConversation.ts')
-const { resolveAutoCompactWindow, getAutoCompactThreshold, calculateTokenWarningState, shouldAutoCompact } = await import('../../src/engine/compaction/autoFold.ts')
+const { foldConversation, buildPostFoldMessages, withFoldStatus } = await import('../../src/engine/compaction/foldConversation.ts')
+const { resolveAutoFoldWindow, getAutoFoldThreshold, calculateTokenWarningState, shouldAutoFold } = await import('../../src/engine/compaction/autoFold.ts')
 const cr = await import('../../src/engine/compaction/checkpointRewind.ts')
 const { CheckpointTool } = await import('../../src/tools/checkpoint/CheckpointTool.tsx')
 const { RewindTool } = await import('../../src/tools/rewind/RewindTool.tsx')
@@ -60,14 +60,14 @@ try {
     f.state.field = name === 'llamacpp' ? '' : 'max_model_len'
     const model = `compat/${name}/${f.model}`
     await refreshCompatCatalogues({ force: true, name })
-    check('the served 32k window owns the fold threshold', resolveAutoCompactWindow(model).window === 32768, resolveAutoCompactWindow(model), 'fix resolveAutoCompactWindow and getAutoCompactThreshold in src/engine/compaction/autoFold.ts so the window the compat catalogue serves (refreshCompatCatalogues, src/models/roads/openaicompat/compatCatalogue.ts) sets the fold threshold')
-    const threshold = getAutoCompactThreshold(model)
+    check('the served 32k window owns the fold threshold', resolveAutoFoldWindow(model).window === 32768, resolveAutoFoldWindow(model), 'fix resolveAutoCompactWindow and getAutoCompactThreshold in src/engine/compaction/autoFold.ts so the window the compat catalogue serves (refreshCompatCatalogues, src/models/roads/openaicompat/compatCatalogue.ts) sets the fold threshold')
+    const threshold = getAutoFoldThreshold(model)
     const weighted = (tokens: number) => {
       const row = assistant(model, 'prior turn')
       row.message.usage = { input_tokens: tokens, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } as never
       return [createUserMessage({ content: 'continue' }), row]
     }
-    check('warning and auto-compact meet at the same served-window threshold', calculateTokenWarningState(threshold - 1, model).level === 'warn' && calculateTokenWarningState(threshold, model).level === 'compact' && !await shouldAutoCompact(weighted(threshold - 1), model) && await shouldAutoCompact(weighted(threshold), model), undefined, 'fix calculateTokenWarningState and shouldAutoCompact in src/engine/compaction/autoFold.ts so warn starts one token below getAutoCompactThreshold and compact starts at it')
+    check('warning and auto-compact meet at the same served-window threshold', calculateTokenWarningState(threshold - 1, model).level === 'warn' && calculateTokenWarningState(threshold, model).level === 'compact' && !await shouldAutoFold(weighted(threshold - 1), model) && await shouldAutoFold(weighted(threshold), model), undefined, 'fix calculateTokenWarningState and shouldAutoCompact in src/engine/compaction/autoFold.ts so warn starts one token below getAutoCompactThreshold and compact starts at it')
 
     const history = [createUserMessage({ content: 'KEEP-BEFORE-CHECKPOINT' })]
     const checkpoint = { type: 'tool_use', id: 'checkpoint-original', name: 'Checkpoint', input: { goal: 'preserve the original boundary' } }
@@ -107,11 +107,11 @@ try {
     const turns = Array.from({ length: 15 }, (_, index) => [createUserMessage({ content: `operator-${index}: keep the completed work` }), assistant(model, `answer-${index}: ` + 'completed parser verification '.repeat(30))]).flat()
     const cache = { systemPrompt: asSystemPrompt(['Fixture session posture']), userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: turns }
     const before = f.captures.length
-    const folded = await withFoldStatus(context, scoped => compactConversation(turns, scoped, cache as never, true), { trigger: 'manual', sessionMemory: false, microcompaction: false })
+    const folded = await withFoldStatus(context, scoped => foldConversation(turns, scoped, cache as never, true), { trigger: 'manual', sessionMemory: false, microcompaction: false })
     const requests = f.captures.slice(before)
     check('the summariser answers on the selected engine with the original effort', requests.length > 0 && requests.every(row => row.body.model === f.model && (name === 'lmstudio' || (row.body.reasoning_effort ?? row.body.chat_template_kwargs?.reasoning_effort) === 'max')), requests.map(row => ({ model: row.body.model, reasoning_effort: row.body.reasoning_effort, kwargs: row.body.chat_template_kwargs })), 'fix compactConversation in src/engine/compaction/foldConversation.ts so the summariser request uses the selected engine model and the effortValue of the session')
     check('fold progress and successful completion reach the session status door', statuses.some(row => row?.compacting?.summaryTokens > 0) && statuses.some(row => row?.compacting?.exit === 'landed'), statuses, 'fix withFoldStatus and compactConversation in src/engine/compaction/foldConversation.ts so progress with summaryTokens and a landed exit reach setSDKStatus')
-    const post = buildPostCompactMessages(folded)
+    const post = buildPostFoldMessages(folded)
     check('the verbatim tail and summary survive with a fresh context estimate', (folded.messagesToKeep?.length ?? 0) > 0 && JSON.stringify(post).includes('answer-14') && JSON.stringify(post).includes('LLMHOST-READY') && contextFill(post).source === 'estimate', undefined, 'fix compactConversation and buildPostCompactMessages in src/engine/compaction/foldConversation.ts so the kept tail and the summary survive, and contextFill in src/engine/context-window/contextTokenCount.ts reports an estimate for them')
     const answer = await f.run(model, [...post, createUserMessage({ content: 'CONTINUE-AFTER-COMPACT' })])
     check('the first post-compact request reaches the same engine and answers', f.captures.at(-1)?.body.model === f.model && JSON.stringify(f.captures.at(-1)?.body.messages).includes('CONTINUE-AFTER-COMPACT') && answer.some(row => row.message.content.some((block: any) => block.type === 'text' && block.text === 'LLMHOST-READY')) && answer.every(row => !row.isApiErrorMessage), undefined, 'the request built from buildPostCompactMessages (src/engine/compaction/foldConversation.ts) did not reach the selected engine and answer; read the fixture in scripts/providers/lib/llmhostFixture.ts')

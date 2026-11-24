@@ -49,7 +49,7 @@ const { RETAIN_TOOL_NAME } = await import('../../src/tools/kit/names/memory.ts')
 const { RECORD_CONVENTION_TOOL_NAME } = await import('../../src/tools/record-convention/prompt.ts')
 const { loadConversationForResume } = await import('../../src/sessions/resume/conversationRecovery.ts')
 const sessionRestore = await import('../../src/sessions/resume/sessionRestore.ts')
-const { restoreSessionStateFromLog } = sessionRestore
+const { restoreSessionStateFromListing } = sessionRestore
 const { restoreSessionMetadata } = await import('../../src/sessions/transcripts/sessionStorage.ts')
 const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
 const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
@@ -124,7 +124,7 @@ const load = async () => {
 }
 const plainRoad = async (loaded: Awaited<ReturnType<typeof load>>): Promise<void> => {
   state.switchSession(asSessionId(loaded.sessionId), dirname(loaded.fullPath!))
-  await restoreSessionStateFromLog(loaded, noop)
+  await restoreSessionStateFromListing(loaded, noop)
   restoreSessionMetadata(loaded)
 }
 const sitInWorktree = (): void => {
@@ -206,7 +206,7 @@ try {
   check('a recorded warm claim: the clear ahead of the load leaves only the record\'s sections plus the live ones — the first request is byte-identical to the first exchange and no extra section survives', recordedClaimResumed === first && !state.getSystemPromptSectionCache().has('stale_extra_section') && state.getSystemPromptSectionCache().get('project_estate')?.value === recordedRunProtocol, firstDifference(first, recordedClaimResumed) + ' | after the clear the record must reseed only its own sections: see restoreBoundPrefixFromMessages in src/models/roads/anthropic/boundPrefixRecord.ts and clearSystemPromptSections in src/engine/system-prompt/systemPromptSections.ts')
 
   section('§5 the retirement — the plain road is the one restore; the recorded-worktree entry and its re-entry helpers are gone')
-  check('the surviving restore steps stay exported: the state and the metadata restores', typeof sessionRestore.restoreSessionStateFromLog === 'function' && typeof restoreSessionMetadata === 'function' && typeof sessionRestore.restoreAgentFromSession === 'function', 'restoreSessionStateFromLog and restoreAgentFromSession must stay exported from src/sessions/resume/sessionRestore.ts and restoreSessionMetadata from src/sessions/transcripts/sessionStorage.ts')
+  check('the surviving restore steps stay exported: the state and the metadata restores', typeof sessionRestore.restoreSessionStateFromListing === 'function' && typeof restoreSessionMetadata === 'function' && typeof sessionRestore.restoreAgentFromSession === 'function', 'restoreSessionStateFromLog and restoreAgentFromSession must stay exported from src/sessions/resume/sessionRestore.ts and restoreSessionMetadata from src/sessions/transcripts/sessionStorage.ts')
 } finally {
   freshProcess()
 }

@@ -15,7 +15,7 @@ import {
 import { context1mNeedsUnsentHeader, has1mContext } from '../facts/capabilities.js'
 import { gptDisplayName } from '../facts/pins/gptPins.js'
 import { isMistralModelId } from '../facts/pins/mistralPins.js'
-import { getModelStrings } from '../facts/pinnedModelIds.js'
+import { getPinnedModelIds } from '../facts/pinnedModelIds.js'
 import { recognizeModelId } from '../roads/idSpaces.js'
 import { deepseekRetiredAliasTarget } from '../facts/pins/deepseekPins.js'
 import { resolveBareFamilyWord } from './bareFamilyWords.js'
@@ -213,7 +213,7 @@ const DISPLAY_NAMES: Record<string, string> = {
 }
 
 function resolvedStringToKey(): Map<string, string> {
-  const strings = getModelStrings()
+  const strings = getPinnedModelIds()
   const map = new Map<string, string>()
   for (const [key, value] of Object.entries(strings)) map.set(value, key)
   return map

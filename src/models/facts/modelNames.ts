@@ -7,7 +7,7 @@ import {
   parseFirstPartyGeneration,
   type ModelConfig,
 } from './builtInModelTable.js'
-import { getModelStrings, resolveOverriddenModel } from './pinnedModelIds.js'
+import { getPinnedModelIds, resolveOverriddenModel } from './pinnedModelIds.js'
 import { providerCapabilities } from './capabilityRegistry.js'
 
 const CONTEXT_SUFFIX_RE = /\[(?:[0-9]+m|served)\]/gi
@@ -17,7 +17,7 @@ export function normalizeModelStringForAPI(model: string): string {
 }
 
 export function firstPartyString(key: keyof typeof ALL_MODEL_CONFIGS): string {
-  return getModelStrings()[key]
+  return getPinnedModelIds()[key]
 }
 
 export function getDefaultOpusModel(): string {

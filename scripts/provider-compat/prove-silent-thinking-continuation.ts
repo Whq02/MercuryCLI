@@ -64,7 +64,7 @@ const { createUserMessage } = await import('../../src/engine/messages/messages.t
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 const errors = (await import('../../src/engine/requests/apiErrorRows.ts')) as Record<string, unknown>
 const { getModelMaxOutputTokens } = await import('../../src/models/facts/capabilities.ts')
-const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.ts')
+const { anthropicCallModel } = await import('../../src/models/roads/anthropic/streamCore.ts')
 const MARKER = typeof errors.REASONING_CUT_MARKER === 'string' ? (errors.REASONING_CUT_MARKER as string) : null
 const CEILING = getModelMaxOutputTokens(MODEL)
 const CEILING_WORDS = CEILING.upperLimit % 1000 === 0 ? `${CEILING.upperLimit / 1000}k` : String(CEILING.upperLimit)
@@ -144,7 +144,7 @@ async function run(): Promise<Run> {
   const calls: Array<{ messages: AnyMsg[] }> = []
   async function* callModel(params: { messages: AnyMsg[] }): AsyncGenerator<unknown, void> {
     calls.push({ messages: [...params.messages] })
-    yield* queryModelWithStreaming(params as never) as never
+    yield* anthropicCallModel(params as never) as never
   }
   const gen = runEventCore(
     {

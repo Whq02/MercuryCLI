@@ -1,5 +1,5 @@
-import type { LegacyQueryYield } from '../loop/project-legacy.js'
-import type { QueryParams } from '../loop/turn-machine.js'
+import type { LegacyTurnYield } from '../loop/project-legacy.js'
+import type { TurnParams } from '../loop/turn-machine.js'
 import type { Terminal } from './transitions.js'
 
-export type StartTurn = (params: QueryParams) => AsyncGenerator<LegacyQueryYield, Terminal>
+export type StartTurn = (params: TurnParams) => AsyncGenerator<LegacyTurnYield, Terminal>

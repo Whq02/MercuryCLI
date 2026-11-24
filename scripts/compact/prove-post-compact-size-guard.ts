@@ -20,7 +20,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 
-const { queryEvents } = await import(join(SRC, 'engine/turnDoor.ts'))
+const { turnDoorEvents } = await import(join(SRC, 'engine/turnDoor.ts'))
 const { legacyYieldsOf } = await import(join(SRC, 'engine/loop/project-legacy.ts'))
 const bootstrap = await import(join(SRC, 'boot/process-state/processState.ts'))
 bootstrap.setIsInteractive(false)
@@ -28,7 +28,7 @@ const { enableConfigs } = await import(join(SRC, 'platform/config/globalConfig.t
 enableConfigs()
 const { getDefaultAppState } = await import(join(SRC, 'screen/app-state/AppStateStore.ts'))
 const { createAssistantMessage, createUserMessage } = await import(join(SRC, 'engine/messages/messages.ts'))
-const { createCompactBoundaryMessage } = await import(join(SRC, 'engine/message-shapes/systemMessages.ts'))
+const { createFoldBoundaryMessage } = await import(join(SRC, 'engine/message-shapes/systemMessages.ts'))
 const { createAttachmentMessage } = await import(join(SRC, 'engine/attachments/turnAttachments.ts'))
 const { createFileStateCacheWithSizeLimit } = await import(join(SRC, 'platform/files/fileStateCache.ts'))
 const { getBlockingLimit } = await import(join(SRC, 'engine/compaction/autoFold.ts'))
@@ -52,14 +52,14 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — post-compact size guard prover exceeded 180s; the G5 drive of queryEvents (src/engine/loop/turn/makeRequest.ts) probably never reached a terminal, so look there for a wait that never ends')
+  console.log('\nTIMEOUT — post-compact size guard prover exceeded 180s; the G5 drive of turnDoorEvents (src/engine/loop/turn/makeRequest.ts) probably never reached a terminal, so look there for a wait that never ends')
   process.exit(1)
 }, 180_000)
 guard.unref?.()
 
 const estimateContext: ((m: unknown[]) => number) | undefined = typeof micro.estimateContextTokens === 'function' ? micro.estimateContextTokens : undefined
-const fit: ((r: unknown, t: number) => Fit) | undefined = typeof compactMod.fitPostCompactUnderThreshold === 'function' ? compactMod.fitPostCompactUnderThreshold : undefined
-const buildPostCompactMessages = compactMod.buildPostCompactMessages as (r: unknown) => unknown[]
+const fit: ((r: unknown, t: number) => Fit) | undefined = typeof compactMod.fitPostFoldUnderThreshold === 'function' ? compactMod.fitPostFoldUnderThreshold : undefined
+const buildPostFoldMessages = compactMod.buildPostFoldMessages as (r: unknown) => unknown[]
 
 const fileAttachment = (name: string, chars: number): AnyMsg =>
   createAttachmentMessage({
@@ -73,7 +73,7 @@ const skillsAttachment = (chars: number): AnyMsg =>
 
 function rigResult(attachments: AnyMsg[]): Record<string, unknown> {
   return {
-    boundaryMarker: createCompactBoundaryMessage('auto', 150_000),
+    boundaryMarker: createFoldBoundaryMessage('auto', 150_000),
     summaryMessages: [createUserMessage({ content: `RIG SUMMARY ${'of the folded history. '.repeat(20)}`, isCompactSummary: true, isVisibleInTranscriptOnly: true })],
     attachments,
     hookResults: [],
@@ -92,7 +92,7 @@ section('G0 the whole-context estimator counts what the round estimator skips')
 {
   const summary = createUserMessage({ content: 'a compact summary '.repeat(200), isCompactSummary: true })
   const attachment = fileAttachment('a.txt', 4_000)
-  const boundary = createCompactBoundaryMessage('auto', 10)
+  const boundary = createFoldBoundaryMessage('auto', 10)
   const roundEstimate = micro.estimateMessageTokens([summary, attachment, boundary] as never)
   check('the round estimator reads the summary + attachment + boundary as zero (why the guard needs its own)', roundEstimate === 0, `${roundEstimate}; estimateMessageTokens in src/engine/compaction/pruneToolResults.ts now counts string, attachment or system rows, so the guard premise changed: confirm that was intended, then update this check, or restore the skip`)
   check('estimateContextTokens exists', estimateContext !== undefined, 'export estimateContextTokens as a function from src/engine/compaction/pruneToolResults.ts')
@@ -107,23 +107,23 @@ section('G0 the whole-context estimator counts what the round estimator skips')
 
 section('G1 the fit sheds restored files largest-first, stops as soon as it fits, keeps order')
 {
-  check('fitPostCompactUnderThreshold exists', fit !== undefined, 'export fitPostCompactUnderThreshold from src/engine/compaction/foldConversation.ts (defined in src/engine/compaction/fold/foldAttachments.ts)')
+  check('fitPostFoldUnderThreshold exists', fit !== undefined, 'export fitPostFoldUnderThreshold from src/engine/compaction/foldConversation.ts (defined in src/engine/compaction/fold/foldAttachments.ts)')
   if (fit !== undefined && estimateContext !== undefined) {
     const A = fileAttachment('A.txt', 4_000)
     const B = fileAttachment('B.txt', 1_200)
     const C = fileAttachment('C.txt', 2_400)
     const S = skillsAttachment(2_000)
     const result = rigResult([A, B, C, S])
-    const afterA = estimateContext(buildPostCompactMessages(rigResult([B, C, S])))
-    const afterAC = estimateContext(buildPostCompactMessages(rigResult([B, S])))
+    const afterA = estimateContext(buildPostFoldMessages(rigResult([B, C, S])))
+    const afterAC = estimateContext(buildPostFoldMessages(rigResult([B, S])))
     const threshold = afterAC + 1
     check('the fixture band is real (A alone is not enough)', afterA >= threshold, `${afterA} vs ${threshold}; the fixture sizes in G1 no longer give a band where shedding A alone is not enough, so resize the files in this script or check how estimateContextTokens weighs attachments`)
     const out = fit(result, threshold)
-    check('two files shed, the largest first', out.shed.length === 2 && out.shed[0] === 'file /rig/A.txt' && out.shed[1] === 'file /rig/C.txt', `${out.shed.join(' | ')}; fitPostCompactUnderThreshold in src/engine/compaction/fold/foldAttachments.ts must shed files largest-first and stop once under the threshold`)
-    check('the estimate is under the threshold', out.estimate < threshold, `${out.estimate} vs ${threshold}; fitPostCompactUnderThreshold in src/engine/compaction/fold/foldAttachments.ts must return an estimate under the threshold once it has shed enough`)
-    check('the estimate is the whole-context estimate of the fitted result', out.estimate === estimateContext(buildPostCompactMessages(out.result)), `estimate=${out.estimate}; fitPostCompactUnderThreshold in src/engine/compaction/fold/foldAttachments.ts must return the estimateContextTokens figure of buildPostCompactMessages (src/engine/compaction/fold/foldResult.ts) over the fitted result`)
-    check('the survivors keep their order: B, skills', attachmentNames(out.result).join(',') === 'file /rig/B.txt,invoked_skills', `${attachmentNames(out.result).join(',')}; fitPostCompactUnderThreshold in src/engine/compaction/fold/foldAttachments.ts must keep the surviving attachments in their original order`)
-    check('the boundary and the summary are untouched', out.result.boundaryMarker === result.boundaryMarker && out.result.summaryMessages === result.summaryMessages, 'fitPostCompactUnderThreshold in src/engine/compaction/fold/foldAttachments.ts must shed attachments only and pass boundaryMarker and summaryMessages through as the same objects')
+    check('two files shed, the largest first', out.shed.length === 2 && out.shed[0] === 'file /rig/A.txt' && out.shed[1] === 'file /rig/C.txt', `${out.shed.join(' | ')}; fitPostFoldUnderThreshold in src/engine/compaction/fold/foldAttachments.ts must shed files largest-first and stop once under the threshold`)
+    check('the estimate is under the threshold', out.estimate < threshold, `${out.estimate} vs ${threshold}; fitPostFoldUnderThreshold in src/engine/compaction/fold/foldAttachments.ts must return an estimate under the threshold once it has shed enough`)
+    check('the estimate is the whole-context estimate of the fitted result', out.estimate === estimateContext(buildPostFoldMessages(out.result)), `estimate=${out.estimate}; fitPostFoldUnderThreshold in src/engine/compaction/fold/foldAttachments.ts must return the estimateContextTokens figure of buildPostFoldMessages (src/engine/compaction/fold/foldResult.ts) over the fitted result`)
+    check('the survivors keep their order: B, skills', attachmentNames(out.result).join(',') === 'file /rig/B.txt,invoked_skills', `${attachmentNames(out.result).join(',')}; fitPostFoldUnderThreshold in src/engine/compaction/fold/foldAttachments.ts must keep the surviving attachments in their original order`)
+    check('the boundary and the summary are untouched', out.result.boundaryMarker === result.boundaryMarker && out.result.summaryMessages === result.summaryMessages, 'fitPostFoldUnderThreshold in src/engine/compaction/fold/foldAttachments.ts must shed attachments only and pass boundaryMarker and summaryMessages through as the same objects')
   }
 }
 
@@ -134,11 +134,11 @@ section('G2 shedding order across classes; an irreducible core reports over')
     const B = fileAttachment('B.txt', 1_200)
     const S = skillsAttachment(2_000)
     const result = rigResult([S, B, A])
-    const core = estimateContext(buildPostCompactMessages(rigResult([])))
+    const core = estimateContext(buildPostFoldMessages(rigResult([])))
     const out = fit(result, core)
-    check('everything sheddable goes: files largest-first, then skills', out.shed.join(',') === 'file /rig/A.txt,file /rig/B.txt,invoked_skills', `${out.shed.join(',')}; fitPostCompactUnderThreshold in src/engine/compaction/fold/foldAttachments.ts must shed files largest-first and then the skills attachment`)
-    check('the fit reports over (the caller refuses)', out.estimate >= core, `${out.estimate} vs ${core}; fitPostCompactUnderThreshold in src/engine/compaction/fold/foldAttachments.ts must report an estimate at or above the core when nothing more can be shed, not an invented smaller one`)
-    check('the core rows stand', out.result.attachments.length === 0 && out.result.summaryMessages.length === 1, `attachments=${out.result.attachments.length} summaries=${out.result.summaryMessages.length}; fitPostCompactUnderThreshold in src/engine/compaction/fold/foldAttachments.ts must never drop the summary or the boundary`)
+    check('everything sheddable goes: files largest-first, then skills', out.shed.join(',') === 'file /rig/A.txt,file /rig/B.txt,invoked_skills', `${out.shed.join(',')}; fitPostFoldUnderThreshold in src/engine/compaction/fold/foldAttachments.ts must shed files largest-first and then the skills attachment`)
+    check('the fit reports over (the caller refuses)', out.estimate >= core, `${out.estimate} vs ${core}; fitPostFoldUnderThreshold in src/engine/compaction/fold/foldAttachments.ts must report an estimate at or above the core when nothing more can be shed, not an invented smaller one`)
+    check('the core rows stand', out.result.attachments.length === 0 && out.result.summaryMessages.length === 1, `attachments=${out.result.attachments.length} summaries=${out.result.summaryMessages.length}; fitPostFoldUnderThreshold in src/engine/compaction/fold/foldAttachments.ts must never drop the summary or the boundary`)
   }
 }
 
@@ -146,11 +146,11 @@ section('G3 already under the threshold: identity')
 {
   if (fit !== undefined && estimateContext !== undefined) {
     const result = rigResult([fileAttachment('A.txt', 4_000), skillsAttachment(500)])
-    const total = estimateContext(buildPostCompactMessages(result))
+    const total = estimateContext(buildPostFoldMessages(result))
     const out = fit(result, total + 1)
-    check('nothing shed', out.shed.length === 0, `shed ${out.shed.join(',')}; fitPostCompactUnderThreshold in src/engine/compaction/fold/foldAttachments.ts must shed nothing when the estimate is already under the threshold`)
-    check('the same result object', out.result === result, 'fitPostCompactUnderThreshold in src/engine/compaction/fold/foldAttachments.ts must return the input result itself when nothing is shed')
-    check('the estimate is the total', out.estimate === total, `estimate=${out.estimate} total=${total}; fitPostCompactUnderThreshold in src/engine/compaction/fold/foldAttachments.ts must return the whole-context estimate when nothing is shed`)
+    check('nothing shed', out.shed.length === 0, `shed ${out.shed.join(',')}; fitPostFoldUnderThreshold in src/engine/compaction/fold/foldAttachments.ts must shed nothing when the estimate is already under the threshold`)
+    check('the same result object', out.result === result, 'fitPostFoldUnderThreshold in src/engine/compaction/fold/foldAttachments.ts must return the input result itself when nothing is shed')
+    check('the estimate is the total', out.estimate === total, `estimate=${out.estimate} total=${total}; fitPostFoldUnderThreshold in src/engine/compaction/fold/foldAttachments.ts must return the whole-context estimate when nothing is shed`)
   }
 }
 
@@ -212,7 +212,7 @@ function foldResult(truePostCompactTokenCount: number): Record<string, unknown> 
   return {
     wasCompacted: true,
     compactionResult: {
-      boundaryMarker: createCompactBoundaryMessage('auto', 900),
+      boundaryMarker: createFoldBoundaryMessage('auto', 900),
       summaryMessages: [createUserMessage({ content: 'RIG SUMMARY of the folded history', isCompactSummary: true })],
       attachments: [],
       hookResults: [],
@@ -234,7 +234,7 @@ async function drive(fold: Record<string, unknown>): Promise<{ calls: number; te
     compactCalls.push(1)
     return compactCalls.length === 1 ? fold : { wasCompacted: false }
   }
-  const gen = queryEvents({
+  const gen = turnDoorEvents({
     messages: [createUserMessage({ content: 'earlier ask' }), createAssistantMessage({ content: 'earlier reply' }), createUserMessage({ content: 'operator ask' })] as never,
     systemPrompt: ['rig system prompt'] as never,
     userContext: {},

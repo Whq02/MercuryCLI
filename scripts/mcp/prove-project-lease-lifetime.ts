@@ -4,7 +4,7 @@ import { removeScratch } from '../lib/removeScratch.ts'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { mock } from 'bun:test'
-import type { QueryParams } from '../../src/engine/turnDoor.ts'
+import type { TurnParams } from '../../src/engine/turnDoor.ts'
 import type { ToolUseContext } from '../../src/tools/kit/tool.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -36,7 +36,7 @@ function check(label: string, ok: boolean, detail: unknown = ''): void {
 }
 mock.module('../../src/engine/turnDoor.ts', () => ({
   ...realQuery,
-  query: async function* (params: QueryParams) {
+  turnDoor: async function* (params: TurnParams) {
     const id = params.toolUseContext.agentId!
     const result = await takeProjectLeases(root, [`${id}.ts`], projectLeaseHolder(id))
     check(`${id}: the running agent takes its lease`, result.ok, result)
@@ -62,7 +62,7 @@ function launch(agentId: string, mode: string) {
     setAppState,
     setAppStateForTasks: setAppState,
     messages: [],
-    startTurn: realQuery.query,
+    startTurn: realQuery.turnDoor,
     readFileState: createFileStateCacheWithSizeLimit(100),
     setInProgressToolUseIDs: () => {},
     setResponseLength: () => {},

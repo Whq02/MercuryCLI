@@ -32,7 +32,7 @@ enableConfigs()
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 
-const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.ts')
+const { anthropicCallModel } = await import('../../src/models/roads/anthropic/streamCore.ts')
 const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { DIALECT_CONVERSATION, TWO_MODEL_COMPACTION, VIRTUAL_ROW, STRUCTURED_OUTPUT_ASK, canonicalJson, eq } = await import('./dialectFixture.ts')
@@ -55,7 +55,7 @@ async function captureBody(messages: import('../../src/engine/message-shapes/mes
   abortCapture = () => controller.abort()
   const deadline = setTimeout(() => controller.abort(), 30_000)
   try {
-    for await (const _ of queryModelWithStreaming({
+    for await (const _ of anthropicCallModel({
       messages,
       systemPrompt: asSystemPrompt(['You are the dialect fixture.']),
       thinkingConfig: { type: 'disabled' } as never,
@@ -194,7 +194,7 @@ section('the stream side — fixture SSE frames fold into the lane\'s own conten
   const rows: AssistantMessage[] = []
   const controller = new AbortController()
   const deadline = setTimeout(() => controller.abort(), 30_000)
-  for await (const ev of queryModelWithStreaming({
+  for await (const ev of anthropicCallModel({
     messages: DIALECT_CONVERSATION,
     systemPrompt: asSystemPrompt(['You are the dialect fixture.']),
     thinkingConfig: { type: 'disabled' } as never,
