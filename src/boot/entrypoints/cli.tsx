@@ -114,7 +114,8 @@ async function main(): Promise<void> {
   const userHome = env.HOME || env.USERPROFILE
   const home = flagEnv('MERCURY_CONFIG_DIR', env) || flagEnv('MERCURY_HOME', env) || (userHome ? join(userHome, '.mercury') : null)
   const consoleWantsUtf8 = consoleNeedsUtf8Codepage() && flagEnv('MERCURY_WIN32_UTF8_PRESET', env) !== '1'
-  if (args.length === 0 && process.stdout.isTTY && !projectGiven) {
+  const bareLaunch = args.length === 0 && process.stdout.isTTY && !projectGiven
+  if (bareLaunch) {
     if (consoleWantsUtf8) {
       const { ensureWin32ConsoleUtf8 } = await import('../../platform/node-runtime/win32Console.js')
       ensureWin32ConsoleUtf8()
@@ -159,6 +160,11 @@ async function main(): Promise<void> {
   registerBootDoors()
   const { setRunPreflightSignalWriter, setupGracefulShutdown } = await import('../../platform/processes/gracefulShutdown.js')
   setupGracefulShutdown()
+  if (bareLaunch) {
+    void import('../../daemon/switchboard/ensureDaemon.js')
+      .then(m => m.ensureOwnedDaemon({ selfWarm: 'held' }))
+      .catch(passedOver)
+  }
   if (answersInRows(invocation)) {
     const { refusedOutcome } = await import('../../daemon/runner/refusalEnvelope.js')
     setRunPreflightSignalWriter(code => {
