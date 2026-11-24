@@ -172,14 +172,22 @@ export function pathTokens(task: string, workspace: string): string[] {
       const matches = scan.files.filter(file => basename(file) === name)
       if (!scan.capped && matches.length === 1) seen.add(matches[0]!)
     }
-    const compiler = symbols.size && !scan.capped ? resolveStructureTypescript(workspace) : null
-    if (compiler !== null && compiler.state === 'ok') {
-      const ts = loadTs(compiler.modulePath)
-      const definitions = new Map<string, string[]>()
+    const heads = new Map<string, string>()
+    if (symbols.size && !scan.capped) {
       for (const file of scan.files) {
         if (!/\.[cm]?[jt]sx?$/.test(file)) continue
         try {
           const text = readFileSync(join(workspace, file), 'utf8').split('\n').slice(0, IMPORT_SCAN_LINES).join('\n')
+          if (text.includes('\\u') || (text.match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? []).some(word => symbols.has(word))) heads.set(file, text)
+        } catch (error) { passedOver(error) }
+      }
+    }
+    const compiler = heads.size > 0 ? resolveStructureTypescript(workspace) : null
+    if (compiler !== null && compiler.state === 'ok') {
+      const ts = loadTs(compiler.modulePath)
+      const definitions = new Map<string, string[]>()
+      for (const [file, text] of heads) {
+        try {
           const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, false)
           for (const statement of source.statements) {
             const declarations = ts.isVariableStatement(statement) ? statement.declarationList.declarations : [statement]
