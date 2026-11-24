@@ -8,9 +8,8 @@ type UseSearchInputOptions = {
   onExit: () => void
   onCancel?: () => void
   onExitUp?: () => void
-  columns?: number
   passthroughCtrlKeys?: readonly string[]
-  passthroughKeys?: readonly string[] | ((query: string) => readonly string[])
+  passthroughKeys?: (query: string) => readonly string[]
   initialQuery?: string
   backspaceExitsOnEmpty?: boolean
 }
@@ -72,8 +71,7 @@ function isPassthrough(e: KeyboardEvent, opts: UseSearchInputOptions, query: str
     return opts.passthroughCtrlKeys?.some(letter => letter.toLowerCase() === name) ?? false
   }
   if (e.meta || opts.passthroughKeys === undefined) return false
-  const names = typeof opts.passthroughKeys === 'function' ? opts.passthroughKeys(query) : opts.passthroughKeys
-  return names.includes(name)
+  return opts.passthroughKeys(query).includes(name)
 }
 
 function pushKill(kr: KillRingState, text: string, direction: 'prepend' | 'append'): void {

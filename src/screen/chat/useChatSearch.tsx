@@ -111,7 +111,6 @@ export function TranscriptSearchBar({
 
   const { query, cursorOffset } = useSearchInput({
     isActive: true,
-    columns: Math.max(1, columns - 4),
     backspaceExitsOnEmpty: false,
     onExit: handleExit,
     onCancel,
