@@ -337,6 +337,13 @@ export function writeSessionCloseReceipts(
 ): number {
   const walked = deriveSessionFloor(home, sessionId, closedBy)
   if (walked === null || !walked.hasConversation) return 0
+  const existing = readSessionReceipts(home, sessionId)
+  for (let i = existing.length - 1; i >= 0; i--) {
+    const prior = machineFloorDetailsOf(existing[i]!)
+    if (prior === null) continue
+    if (JSON.stringify(prior) === JSON.stringify(walked.floor)) return 0
+    break
+  }
   const at = new Date().toISOString()
   appendSessionReceipt(home, sessionId, {
     at,

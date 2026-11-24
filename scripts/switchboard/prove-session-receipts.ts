@@ -225,6 +225,88 @@ console.log('F — the frozen offer names the sidecar; the confirmed delete take
   check('POISON: a receipts file whose transcript was NOT offered SURVIVES (the door never reaches beyond the named set)', existsSync(survivor))
 }
 
+console.log('G — parking writes its two closing receipts ONCE however many roads or retries finish the park')
+{
+  const publish = await import('../../src/platform/substrate/durablePublish.ts')
+  const until = async (cond: () => boolean, withinMs: number): Promise<boolean> => {
+    const deadline = Date.now() + withinMs
+    while (Date.now() < deadline) {
+      if (cond()) return true
+      await new Promise(resolve => setTimeout(resolve, 25))
+    }
+    return cond()
+  }
+
+  const S1 = sid('g01')
+  const R1 = 'concourse-wg1'
+  writeTranscript(S1)
+  workers.updateConcourseWorkers(w => {
+    w[R1] = {
+      schema: 1, runnerId: R1, sessionId: S1, workspaceId: WS, isolation: 'exclusive',
+      modelKey: 'test-model', agentName: 'tester', spawnedAt: Date.now() - 60_000, lastLiveAt: Date.now(),
+      lastDeliveryAt: Date.now() - 30_000, lastTurnSettledAt: Date.now() - 20_000,
+    }
+  }, DAEMON_DIR)
+  process.env.MERCURY_FAULT_INJECT = 'rename@concourse-workers.json:eperm'
+  publish._resetFaultInjectionCountersForTests()
+  const rel1 = setTimeout(() => { delete process.env.MERCURY_FAULT_INJECT }, 900)
+  try {
+    workers.parkConcourseSession(S1, 'operator:test', undefined, DAEMON_DIR)
+    const parked = await until(() => workers.readSessionWorkers(DAEMON_DIR)[R1]?.parkedAt !== undefined, 4_500)
+    const entries = readSessionReceipts(getProjectDir(WS), S1)
+    check(
+      'G1 a park retried across a 900ms held save writes exactly 2 closing receipts (not doubled)',
+      parked && entries.length === 2,
+      `parked=${parked} entries=${entries.length}`,
+    )
+  } finally {
+    clearTimeout(rel1)
+    delete process.env.MERCURY_FAULT_INJECT
+  }
+
+  const S2 = sid('g02')
+  const R2 = 'concourse-wg2'
+  writeTranscript(S2)
+  workers.updateConcourseWorkers(w => {
+    w[R2] = {
+      schema: 1, runnerId: R2, sessionId: S2, workspaceId: WS, isolation: 'exclusive',
+      modelKey: 'test-model', agentName: 'tester', spawnedAt: Date.now() - 60_000, lastLiveAt: Date.now(),
+      lastDeliveryAt: Date.now() - 30_000, lastTurnSettledAt: Date.now() - 20_000,
+      parkIntent: { token: 'tok-g02', by: 'operator:test', pid: 999_999_999, at: Date.now() - 5_000 },
+    }
+  }, DAEMON_DIR)
+  process.env.MERCURY_FAULT_INJECT = 'rename@concourse-workers.json:eperm'
+  publish._resetFaultInjectionCountersForTests()
+  workers.parkConcourseSession(S2, 'operator:test', undefined, DAEMON_DIR)
+  delete process.env.MERCURY_FAULT_INJECT
+  workers.reconcileConcourseWorkers(new Set(), DAEMON_DIR)
+  await new Promise(resolve => setTimeout(resolve, 600))
+  const entries2 = readSessionReceipts(getProjectDir(WS), S2)
+  check(
+    'G2 park + reconcile finishing the same park writes exactly 2 closing receipts',
+    workers.readSessionWorkers(DAEMON_DIR)[R2]?.parkedAt !== undefined && entries2.length === 2,
+    `entries=${entries2.length}`,
+  )
+
+  appendFileSync(
+    join(getProjectDir(WS), `${S1}.jsonl`),
+    `${JSON.stringify({ type: 'user', uuid: 'u-next', timestamp: T(20), sessionId: S1, message: { role: 'user', content: 'one more' } })}\n` +
+      `${JSON.stringify({ type: 'assistant', uuid: 'a-next', timestamp: T(21), sessionId: S1, message: { content: [{ type: 'text', text: 'Done again.' }] } })}\n`,
+  )
+  workers.updateConcourseWorkers(w => {
+    const rec = w[R1]!
+    delete rec.parkedAt
+    delete rec.parkedBy
+    delete rec.parkReason
+  }, DAEMON_DIR)
+  workers.parkConcourseSession(S1, 'operator:test', undefined, DAEMON_DIR)
+  const afterNewTurn = readSessionReceipts(getProjectDir(WS), S1)
+  check(
+    'G3 control: a later park after new conversation writes a fresh pair (4 entries)',
+    afterNewTurn.length === 4,
+    `entries=${afterNewTurn.length}`,
+  )
+}
 
 console.log(failures === 0 ? 'prove-session-receipts: ALL PASS' : `prove-session-receipts: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
