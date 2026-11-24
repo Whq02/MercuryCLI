@@ -31,6 +31,14 @@ function latestRecallableSend(sends: readonly SeatSend[]): RecallableSendV1 | nu
   return latest === null || latest.source === undefined ? null : { clientMessageId: latest.clientMessageId, text: latest.source.text }
 }
 
+function earliestPendingSend(sends: readonly SeatSend[]): number | null {
+  let since: number | null = null
+  for (const s of sends) {
+    if (s.state === 'pending' && (since === null || s.sentAtMs < since)) since = s.sentAtMs
+  }
+  return since
+}
+
 interface SendsNeeds {
   sessionId(): string
   rows(): readonly Message[]
@@ -332,11 +340,7 @@ export class SendsPart {
   }
 
   pendingSinceMs(): number | null {
-    let since: number | null = null
-    for (const s of this.sends) {
-      if (s.state === 'pending' && (since === null || s.sentAtMs < since)) since = s.sentAtMs
-    }
-    return since
+    return earliestPendingSend(this.sends)
   }
 
   redressQueued(): void {
