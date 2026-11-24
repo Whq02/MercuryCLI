@@ -49,7 +49,8 @@ import {
 } from '../attachment-shapes/taskStatus.js'
 import { getMissionStatusAttachment } from '../attachment-shapes/missionStatus.js'
 import type { Attachment } from '../attachment-shapes/attachmentTypes.js'
-import { rosterOwnerFromToolUseContext } from '../run-owner/resolveOwner.js'
+import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../run-owner/resolveOwner.js'
+import type { OwnerKey } from '../run-owner/ownerKey.js'
 import { getUserContextAttachment } from '../attachment-shapes/userContext.js'
 import { firstTurnUserContext } from '../messages/apiSystemAndToolSchema.js'
 import { getSystemContext, getUserContext } from '../requestContext.js'
@@ -94,7 +95,7 @@ export async function getAttachments(
   const softTimer = startTimeout(() => {
     attachmentAbortController.abort()
   }, ATTACHMENT_SOFT_ABORT_MS)
-  const maybe = makeMaybe(deadlineAt)
+  const maybe = makeMaybe(deadlineAt, ownerFromToolUseContext(toolUseContext))
   const clonedContext: ToolUseContext = {
     ...toolUseContext,
     abortController: attachmentAbortController,
@@ -291,7 +292,7 @@ type MaybeFn = <T>(
 
 const producerInFlight = new Map<string, Promise<unknown[]>>()
 
-export function makeMaybe(deadlineAt: number): MaybeFn {
+export function makeMaybe(deadlineAt: number, owner?: OwnerKey): MaybeFn {
   return async <T>(
     label: string,
     fn: () => Promise<T[]> | T[],
@@ -308,8 +309,9 @@ export function makeMaybe(deadlineAt: number): MaybeFn {
       return []
     }
     const reusable = !priority && !opts?.inputScoped
+    const flightKey = owner === undefined ? label : `${owner}|${label}`
     let run: Promise<T[]>
-    const existing = reusable ? producerInFlight.get(label) : undefined
+    const existing = reusable ? producerInFlight.get(flightKey) : undefined
     if (existing !== undefined) {
       run = existing as Promise<T[]>
     } else {
@@ -320,11 +322,11 @@ export function makeMaybe(deadlineAt: number): MaybeFn {
         return []
       }
       if (reusable) {
-        producerInFlight.set(label, run)
+        producerInFlight.set(flightKey, run)
         run
           .finally(() => {
-            if (producerInFlight.get(label) === run) {
-              producerInFlight.delete(label)
+            if (producerInFlight.get(flightKey) === run) {
+              producerInFlight.delete(flightKey)
             }
           })
           .catch(passedOver)
