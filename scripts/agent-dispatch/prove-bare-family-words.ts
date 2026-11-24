@@ -155,6 +155,7 @@ section('§2 a keyless box: the session road answers each family\'s first record
     const head = expected[word]!
     check(`'${word}': /model's confirmation names the row (renderDefaultModelSetting)`, model.renderDefaultModelSetting(word) === model.renderModelName(head), model.renderDefaultModelSetting(word))
     check(`'${word}': the status line reads the word and its row (modelDisplayString)`, model.modelDisplayString(word) === `${word} (${model.renderModelName(head)})`, model.modelDisplayString(word))
+    check(`'${word}': bare family words have no display name of their own, as grok has none`, [word, 'grok'].every(w => model.renderModelName(w) === w && model.getPublicModelDisplayName(w) === null && model.renderModelChip(w) === w), `${model.renderModelName(word)} / ${String(model.getPublicModelDisplayName(word))} / ${model.renderModelChip(word)}`)
     check(`'${word}': the picker door maps the word onto the row's own option`, picker.modelChoiceRow(word) === head, picker.modelChoiceRow(word))
     check(`'${word}': a sub-agent named the word runs the row`, agent.getCrewmateModel(undefined, 'claude-opus-5', word) === head && agent.getCrewmateModel(word, 'claude-opus-5') === head, agent.getCrewmateModel(undefined, 'claude-opus-5', word))
     process.env.MERCURY_MODEL = word
