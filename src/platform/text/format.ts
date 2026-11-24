@@ -38,17 +38,6 @@ export function formatDuration(
   return parts.join(' ')
 }
 
-export function formatBarElapsed(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000))
-  if (total < 60) return `${total}s`
-  const pad = (n: number): string => String(n).padStart(2, '0')
-  if (total < 3600) return `${Math.floor(total / 60)}m${pad(total % 60)}s`
-  if (total < 86_400) {
-    return `${Math.floor(total / 3600)}h${pad(Math.floor((total % 3600) / 60))}m`
-  }
-  return `${Math.floor(total / 86_400)}d${pad(Math.floor((total % 86_400) / 3600))}h`
-}
-
 export function formatQuietAge(quietMs: number): string {
   const secs = Math.floor(quietMs / 1000)
   if (secs < 60) return `${secs}s`
@@ -161,14 +150,4 @@ export function formatResetTime(
   }
   const text = new Intl.DateTimeFormat(undefined, options).format(date).replace(/\s*(AM|PM)/, (_, period: string) => period.toLowerCase())
   return showTimezone ? `${text} (${timeZoneAbbreviation(date)})` : text
-}
-
-export function formatResetText(
-  resetsAt: string,
-  showTimezone: boolean = false,
-  showTime: boolean = true,
-): string {
-  const ms = new Date(resetsAt).getTime()
-  const seconds = Number.isFinite(ms) ? Math.floor(ms / 1000) : undefined
-  return `${formatResetTime(seconds, showTimezone, showTime)}`
 }

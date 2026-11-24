@@ -44,9 +44,7 @@ import { MAX_VIM_COUNT } from '../../src/screen/composer/vim/vimState.js'
 import {
   formatFileSize,
   formatDuration,
-  formatBarElapsed,
   formatRelativeTime,
-  formatResetText,
 } from '../../src/platform/text/format.js'
 import { isOutputLineTruncated } from '../../src/tools/kit/truncatedOutput.js'
 import { applyMarkdown, configureMarked } from '../../src/screen/messages/markdownText.js'
@@ -97,7 +95,6 @@ const S32_FAIL_HINTS: Record<string, string> = {
   '31.': 'src/screen/composer/vim/operators.ts, executeOperatorMotion range expansion over a pasted-text chip',
   '32.': 'src/platform/text/format.ts, formatDuration rounding, carry, day cap and the hideTrailingZeros and mostSignificantOnly options',
   '33.': 'src/platform/text/format.ts, formatFileSize unit boundaries',
-  '34.': 'src/platform/text/format.ts, formatBarElapsed',
   '35.': 'src/platform/text/format.ts, formatRelativeTime with style narrow',
   '38.': 'src/tools/kit/truncatedOutput.ts, isOutputLineTruncated',
   '39.': 'src/screen/messages/markdownText.ts, applyMarkdown table width budget and ellipsis clipping',
@@ -127,7 +124,6 @@ const S32_FAIL_HINTS: Record<string, string> = {
   '77.': 'src/screen/composer/vim/textObjects.ts, findTextObject on an empty document and executeOperatorTextObj in src/screen/composer/vim/operators.ts',
   '78.': 'src/screen/messages/markdownText.ts, applyMarkdown table width budget inside a blockquote',
   '81.': 'src/platform/logs/slowOperations.ts, slowLogging must return one shared no-op value',
-  '84.': 'src/platform/text/format.ts, formatResetText with absent or unparseable input',
 }
 function failSuffix(name: string, ok: boolean, detail: string): string {
   if (ok) return ''
@@ -631,10 +627,6 @@ console.log('\n── formatters, markdown, folding (32–42) ──')
 }
 
 {
-  check('34. bar elapsed: two most-significant units, zero-padded lower, never negative', formatBarElapsed(65000) === '1m05s' && formatBarElapsed(-5000) === '0s' && formatBarElapsed(0) === '0s' && formatBarElapsed(3700000) === '1h01m', `${formatBarElapsed(65000)} ${formatBarElapsed(-5000)} ${formatBarElapsed(3700000)}`)
-}
-
-{
   const now = new Date('2026-08-18T12:00:00Z')
   const past = formatRelativeTime(new Date('2026-08-18T11:59:00Z'), { style: 'narrow', now })
   const future = formatRelativeTime(new Date('2026-08-18T12:01:00Z'), { style: 'narrow', now })
@@ -1028,13 +1020,6 @@ console.log('\n── tier-2 additions (73–84) ──')
 }
 
 
-
-{
-  const none = formatResetText(undefined as never)
-  const zero = formatResetText(0 as never)
-  const bad = formatResetText('not-a-date')
-  check('84. formatResetText: no/zero/unparseable input stringifies the absent value (never empty)', none !== '' && zero !== '' && bad !== '' && [none, zero, bad].every(v => typeof v === 'string'), JSON.stringify({ none, zero, bad }))
-}
 
 console.log()
 if (failures > 0) {
