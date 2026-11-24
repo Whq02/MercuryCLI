@@ -56,7 +56,6 @@ section('§1 the setting table')
     check(`'${spelling}' ⇒ off, explicit`, eq(r(spelling), { behavior: null, explicit: true }))
   }
   check('junk rides drop_block, explicit', eq(r('sometimes'), { behavior: 'drop_block', explicit: true }))
-  check('resolveThinkingBindingBehavior is the behavior half', binding.resolveThinkingBindingBehavior('error') === 'error' && binding.resolveThinkingBindingBehavior('off') === null && binding.resolveThinkingBindingBehavior(undefined) === 'drop_block')
 }
 
 section('§2 applyThinkingBinding — the field and the header ride together')

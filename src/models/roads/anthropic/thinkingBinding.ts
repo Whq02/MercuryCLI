@@ -54,12 +54,6 @@ export function resolveThinkingBindingSetting(raw: string | undefined): Thinking
   return { behavior: 'drop_block', explicit: true }
 }
 
-export function resolveThinkingBindingBehavior(
-  raw: string | undefined = flagEnv('MERCURY_THINKING_BINDING'),
-): PrefixMismatchBehavior | null {
-  return resolveThinkingBindingSetting(raw).behavior
-}
-
 interface ThinkingBindingReads {
   firstParty?: () => boolean
   env?: string | undefined
