@@ -65,11 +65,7 @@ export async function call(
         }
         onDone(`Renamed this session to ${name}`, { display: 'system' })
       } else {
-        const reason = !reply.ok
-          ? reply.error
-          : reply.detail
-            ? reply.detail
-            : 'the daemon refused it'
+        const reason = (reply.ok ? reply.detail : undefined) ?? 'the daemon refused it'
         onDone(`The session was not renamed — ${reason}`, { display: 'system' })
       }
     } catch {
