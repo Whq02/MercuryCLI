@@ -124,7 +124,7 @@ section("§3 the row: the fable family's newest generation, its class, its picke
   check("the family word 'fable' resolves to it: a saved \"model\": \"fable\" runs Fable 5.2", parseUserSpecifiedModel('fable') === ID, parseUserSpecifiedModel('fable'))
   check("'fable[1m]' keeps its rider on the new row", parseUserSpecifiedModel('fable[1m]') === `${ID}[1m]`, parseUserSpecifiedModel('fable[1m]'))
   check("the spoken spellings 'Fable 5.2' and 'fable-5.2' resolve to the row", parseUserSpecifiedModel('Fable 5.2') === ID && parseUserSpecifiedModel('fable-5.2') === ID, `${parseUserSpecifiedModel('Fable 5.2')} / ${parseUserSpecifiedModel('fable-5.2')}`)
-  check("the family word renders capitalised, the default setting renders the row's name", renderDefaultModelSetting('fable') === 'Fable 5.2', renderDefaultModelSetting('fable'))
+  check("the default setting renders the row's name", renderDefaultModelSetting('fable') === 'Fable 5.2', renderDefaultModelSetting('fable'))
   check("the settings alias list and the dispatch vocabulary carry 'fable52' beside 'fable51'", (MODEL_ALIASES as readonly string[]).includes('fable52') && (MODEL_ALIASES as readonly string[]).includes('fable51') && (CREWMATE_DISPATCH_MODELS as readonly string[]).includes('fable52'))
   check("a crew record's 'fable' folds to the newest row while its 'fable51' stays on Fable 5.1", foldLegacyWorkerModelKey('fable') === ID && foldLegacyWorkerModelKey('fable51') === PREVIOUS, `${foldLegacyWorkerModelKey('fable')} / ${foldLegacyWorkerModelKey('fable51')}`)
   check('the cap handoff ranks the row as the newest first-party frontier member', _firstPartyFrontierMemberForTest('fallback') === ID, _firstPartyFrontierMemberForTest('fallback'))

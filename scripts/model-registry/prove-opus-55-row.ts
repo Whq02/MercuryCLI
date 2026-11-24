@@ -91,7 +91,7 @@ section("§2 the row: the opus family's newest generation, its class, its picker
   check("the family word 'opus' resolves to it", parseUserSpecifiedModel('opus') === ID, parseUserSpecifiedModel('opus'))
   check("'opus[1m]' keeps its rider on the new row", parseUserSpecifiedModel('opus[1m]') === `${ID}[1m]`, parseUserSpecifiedModel('opus[1m]'))
   check('a retired large id remaps onto the newest row', parseUserSpecifiedModel('claude-opus-4-1-20250805') === ID, parseUserSpecifiedModel('claude-opus-4-1-20250805'))
-  check("the family word renders capitalised, the default setting renders the row's name", renderDefaultModelSetting('opus') === 'Opus 5.5', renderDefaultModelSetting('opus'))
+  check("the default setting renders the row's name", renderDefaultModelSetting('opus') === 'Opus 5.5', renderDefaultModelSetting('opus'))
   check('the large default is natively 1M', isDefaultOpusNatively1M())
   check("a crew record's 'opus' folds to the newest row", foldLegacyWorkerModelKey('opus') === ID, foldLegacyWorkerModelKey('opus'))
 
