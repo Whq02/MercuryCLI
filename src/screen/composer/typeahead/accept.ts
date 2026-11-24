@@ -110,6 +110,8 @@ export function acceptCustomTitle({ viaEnter, clearSuggestions, onSubmit, setInp
 }
 
 export function acceptDirectory({ viaEnter, currentInput, cursor, clearSuggestions, setInput, setCursorOffset, rerunLadderForInput }: AcceptContext, suggestion: Suggestion): void {
+  const isDirectory = suggestion.id.endsWith('/')
+  const id = isDirectory ? suggestion.id.slice(0, -1) : suggestion.id
   if (currentInput.startsWith('/')) {
     if (viaEnter) {
       clearSuggestions()
@@ -117,10 +119,6 @@ export function acceptDirectory({ viaEnter, currentInput, cursor, clearSuggestio
     }
     const spaceIndex = currentInput.indexOf(' ')
     const prefix = currentInput.slice(0, spaceIndex + 1)
-    const isDirectory = suggestion.id.endsWith('/')
-    const id = isDirectory
-      ? suggestion.id.slice(0, -1)
-      : suggestion.id
     const rebuilt = `${prefix}${id}${isDirectory ? '/' : ' '}`
     setInput(rebuilt)
     setCursorOffset(rebuilt.length)
@@ -133,8 +131,6 @@ export function acceptDirectory({ viaEnter, currentInput, cursor, clearSuggestio
     clearSuggestions()
     return
   }
-  const isDirectory = suggestion.id.endsWith('/')
-  const id = isDirectory ? suggestion.id.slice(0, -1) : suggestion.id
   const { newInput, cursorPos } = applyDirectorySuggestion(
     currentInput,
     id,
@@ -146,7 +142,6 @@ export function acceptDirectory({ viaEnter, currentInput, cursor, clearSuggestio
   setCursorOffset(cursorPos)
   if (isDirectory && !viaEnter) rerunLadderForInput(newInput)
   else clearSuggestions()
-  return
 }
 
 export function acceptShell({ currentInput, cursor, clearSuggestions, setInput, setCursorOffset }: AcceptContext, suggestion: Suggestion): void {
