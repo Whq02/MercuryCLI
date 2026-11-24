@@ -119,14 +119,12 @@ section('§7 a paused agent survives eviction until its probe can resume it')
   store.state.tasks[id]!.evictAfter = Date.now() - 1
   await sweep()
   check('the attachment sweep keeps the notified paused row past its old deadline', store.state.tasks[id]?.paused !== undefined)
-  framework.evictTerminalTask(id, set as never)
-  check('eager eviction also keeps the paused row', store.state.tasks[id]?.paused !== undefined)
   let wait!: ReturnType<typeof setTimeout>
   await Promise.race([resumeReady, new Promise<void>(resolve => { wait = setTimeout(resolve, 2000) })])
   clearTimeout(wait)
   check('the kept row reaches a second probe and resumes exactly once', probes === 2 && resumed === 1, JSON.stringify({ probes, resumed }))
   lane.unpauseCrewmateTask(id, set as never, registered.abortController)
-  framework.evictTerminalTask(id, set as never)
+  await sweep()
   check('unpausing restores ordinary deadline eviction', store.state.tasks[id] === undefined)
   utils.closeOverloadEpisode(id)
   delete process.env.MERCURY_OVERLOAD_PROBE_SCALE

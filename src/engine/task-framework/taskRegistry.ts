@@ -174,22 +174,6 @@ export function settleOwnerlessTasks(
   return settled
 }
 
-export function evictTerminalTask(taskId: string, setAppState: TaskAppStateSetter): void {
-  setAppState(prev => {
-    const task = prev.tasks[taskId]
-    if (!task) return prev
-    if (!isTerminalTaskStatus(task.status)) return prev
-    if (!task.notified) return prev
-    if (!retainedEvictionDue(task, Date.now())) return prev
-    const { [taskId]: _removed, ...restTasks } = prev.tasks
-    return {
-      ...prev,
-      tasks: restTasks,
-      crewmateNameRegistry: pruneCrewmateNameRegistry(prev.crewmateNameRegistry, taskId),
-    }
-  })
-}
-
 export function getRunningTasks(state: AppState): TaskState[] {
   return Object.values(state.tasks).filter(task => task.status === 'running')
 }

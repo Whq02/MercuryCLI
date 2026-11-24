@@ -224,7 +224,7 @@ check('the registry routes the name to the launch while it runs', store.get().cr
 const receiptWords = textOf(transcript[1])
 check('the launch receipt the Crewmate tool minted promises both addresses: the id and the name', receiptWords.startsWith(lr.BACKGROUND_LAUNCH_LINE) && receiptWords.includes(`agentId: ${harbour}`) && receiptWords.includes('or to its name "harbour-count"'), receiptWords.slice(0, 300), 'the launch receipt line in src/tools/crewmate/call/resultBlock.ts must carry the agentId and the or to its name clause when the launch had a name')
 finishAndEvict(store, harbour, 'count the harbour')
-check('once the settled row is evicted the registry no longer holds the name (the mechanism behind the defect)', store.get().tasks[harbour] === undefined && !store.get().crewmateNameRegistry.has('harbour-count'), JSON.stringify([...store.get().crewmateNameRegistry.entries()]), 'evictTerminalTask in src/engine/task-framework/taskRegistry.ts must prune the name from crewmateNameRegistry when it evicts a settled agent row')
+check('once the settled row is evicted the registry no longer holds the name (the mechanism behind the defect)', store.get().tasks[harbour] === undefined && !store.get().crewmateNameRegistry.has('harbour-count'), JSON.stringify([...store.get().crewmateNameRegistry.entries()]), 'applyTaskOffsetsAndEvictions in src/engine/task-framework/taskRegistry.ts must prune the name from crewmateNameRegistry when it evicts a settled agent row')
 check('…while its transcript stays on disk, the record the id road resumes from', existsSync(getCrewmateTranscriptPath(asAgentId(harbour))), '', 'the eviction sweep must leave the agent transcript file on disk (getAgentTranscriptPath in src/sessions/transcripts/paths.ts)')
 
 section('§2 THE ID ROAD (control) — a message to the finished agent\'s id resumes it from its transcript')
@@ -272,7 +272,7 @@ section('§6 TWO FINISHED LAUNCHES WITH ONE NAME — the newest is resumed, and 
   finishAndEvict(twin, older, 'scout the harbour')
   const newer = launchNamed(twin, twinTranscript, 'scout', 'scout the harbour again')
   finishAndEvict(twin, newer, 'scout the harbour again')
-  check('both launches carried the name and both are evicted; the registry holds neither', older !== newer && !twin.get().crewmateNameRegistry.has('scout') && twin.get().tasks[older] === undefined && twin.get().tasks[newer] === undefined, '', 'evictTerminalTask in src/engine/task-framework/taskRegistry.ts must prune both launch rows and the registry name')
+  check('both launches carried the name and both are evicted; the registry holds neither', older !== newer && !twin.get().crewmateNameRegistry.has('scout') && twin.get().tasks[older] === undefined && twin.get().tasks[newer] === undefined, '', 'applyTaskOffsetsAndEvictions in src/engine/task-framework/taskRegistry.ts must prune both launch rows and the registry name')
   const toScout = await send(twinCtx, 'scout', 'which of you', 'req_scout')
   console.log(`  the answer: ${JSON.stringify(toScout.data)}`)
   check('the newest launch is the one resumed', toScout.data.success === true && rowOf(twin, newer)?.status === 'running' && twin.get().tasks[older] === undefined, toScout.data.message, 'the name lookup in src/tools/send-message/crewAddress.ts must resolve to the newest launch (last of launchesNamed in src/engine/tasks/local-agent/launchReceipts.ts)')
