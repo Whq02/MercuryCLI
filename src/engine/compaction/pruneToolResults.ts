@@ -16,8 +16,6 @@ import { READ_TOOL_NAME } from '../../tools/kit/names/read.js'
 import { EDIT_TOOL_NAME } from '../../tools/kit/names/edit.js'
 import { WRITE_TOOL_NAME } from '../../tools/kit/names/write.js'
 
-export const TIME_BASED_PRUNE_CLEARED_MESSAGE = '[stale tool result pruned — content cleared]'
-
 type PruneResult = {
   messages: Message[]
   pruned?: {

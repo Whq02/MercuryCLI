@@ -22,8 +22,8 @@ const section = (t: string): void => {
 }
 
 const law = await import('../../src/engine/compaction/pruneProtections.ts')
-const { projectTimeBasedPrune, pruneMessages, TIME_BASED_PRUNE_CLEARED_MESSAGE } = await import('../../src/engine/compaction/pruneToolResults.ts')
-const { PRUNE_DIGEST_PREFIX, isClearedOrDigested } = await import('../../src/engine/compaction/pruneDigest.ts')
+const { projectTimeBasedPrune, pruneMessages } = await import('../../src/engine/compaction/pruneToolResults.ts')
+const { PRUNE_CLEARED_PLACEHOLDER, PRUNE_DIGEST_PREFIX, isClearedOrDigested } = await import('../../src/engine/compaction/pruneDigest.ts')
 const { buildLargeToolResultMessage } = await import('../../src/engine/tool-dispatch/toolResultStorage.ts')
 const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
 type Message = import('../../src/engine/message-shapes/message.ts').Message
@@ -110,7 +110,7 @@ section("§C a pruned Agent result reads the same line every pruned result reads
   const bare = projectTimeBasedPrune(history(), 'main_thread')
   const agentBare = bare === null ? '' : resultOf(bare.messages, 'use_Crewmate')
   const bashBare = bare === null ? '' : resultOf(bare.messages, 'use_Bash')
-  check(`with the digest off, the Agent result is the placeholder line '${TIME_BASED_PRUNE_CLEARED_MESSAGE}', the same as a Bash result's`, agentBare === TIME_BASED_PRUNE_CLEARED_MESSAGE && bashBare === TIME_BASED_PRUNE_CLEARED_MESSAGE, `${agentBare.slice(0, 60)} | ${bashBare.slice(0, 60)} — with MERCURY_MC_DIGEST=0 every pruned result must be TIME_BASED_MC_CLEARED_MESSAGE; fix projectTimeBasedMicrocompact in src/engine/compaction/pruneToolResults.ts`)
+  check(`with the digest off, the Agent result is the placeholder line '${PRUNE_CLEARED_PLACEHOLDER}', the same as a Bash result's`, agentBare === PRUNE_CLEARED_PLACEHOLDER && bashBare === PRUNE_CLEARED_PLACEHOLDER, `${agentBare.slice(0, 60)} | ${bashBare.slice(0, 60)} — with MERCURY_MC_DIGEST=0 every pruned result must be PRUNE_CLEARED_PLACEHOLDER; fix projectTimeBasedMicrocompact in src/engine/compaction/pruneToolResults.ts`)
   delete process.env.MERCURY_MC_DIGEST
 }
 
@@ -127,7 +127,7 @@ section('§D a result whose full output was saved to a file keeps the line that 
   process.env.MERCURY_MC_DIGEST = '0'
   const bare = projectTimeBasedPrune(history(), 'main_thread')
   const persistedBare = bare === null ? '' : resultOf(bare.messages, 'use_agent_persisted')
-  check('with the digest off, the placeholder leads and the file line follows', persistedBare.startsWith(TIME_BASED_PRUNE_CLEARED_MESSAGE) && persistedBare.includes(`Full output saved to: ${PERSISTED_PATH}`) && isClearedOrDigested(persistedBare), persistedBare.slice(0, 160) + ' — fix the digest-off persisted-output branch of projectTimeBasedMicrocompact in src/engine/compaction/pruneToolResults.ts')
+  check('with the digest off, the placeholder leads and the file line follows', persistedBare.startsWith(PRUNE_CLEARED_PLACEHOLDER) && persistedBare.includes(`Full output saved to: ${PERSISTED_PATH}`) && isClearedOrDigested(persistedBare), persistedBare.slice(0, 160) + ' — fix the digest-off persisted-output branch of projectTimeBasedMicrocompact in src/engine/compaction/pruneToolResults.ts')
   delete process.env.MERCURY_MC_DIGEST
 }
 
