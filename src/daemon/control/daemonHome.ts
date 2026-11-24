@@ -7,8 +7,23 @@ import { publishAtomicSync, renameWithWin32RetrySync } from '../../platform/subs
 const DAEMON_DIR_MODE = 0o700
 const DAEMON_FILE_MODE = 0o600
 
+function ensurePrivateDir(target: string, daemonRoot?: string): void {
+  const resolvedTarget = resolve(target)
+  const resolvedRoot = daemonRoot !== undefined ? resolve(daemonRoot) : undefined
+  const boundary =
+    resolvedRoot !== undefined &&
+    (resolvedTarget === resolvedRoot ||
+      resolvedTarget.startsWith(`${resolvedRoot}/`) ||
+      resolvedTarget.startsWith(`${resolvedRoot}\\`))
+      ? resolvedRoot
+      : resolvedTarget
+  const parent = dirname(boundary)
+  if (parent !== boundary) mkdirSync(parent, { recursive: true })
+  mkdirSync(resolvedTarget, { recursive: true, mode: DAEMON_DIR_MODE })
+}
+
 export function ensureDaemonHomeDir(dir: string): void {
-  mkdirSync(dir, { recursive: true, mode: DAEMON_DIR_MODE })
+  ensurePrivateDir(dir, dir)
   if (!posixFileModesApply()) return
   try {
     chmodSync(dir, DAEMON_DIR_MODE)
@@ -55,7 +70,7 @@ export function publishInDaemonHome(
   const mode = opts?.mode ?? DAEMON_FILE_MODE
   const w = watchOver(opts?.dir)
   if (w === null) {
-    mkdirSync(dirname(path), { recursive: true, mode: DAEMON_DIR_MODE })
+    ensurePrivateDir(dirname(path), opts?.dir)
     publishAtomicSync(path, contents, { mode })
     return 'published'
   }
@@ -78,7 +93,7 @@ export function appendInDaemonHome(
 ): 'appended' | 'home-gone' {
   const w = watchOver(opts?.dir)
   if (w === null) {
-    if (opts?.parent !== 'must-stand') mkdirSync(dirname(path), { recursive: true, mode: DAEMON_DIR_MODE })
+    if (opts?.parent !== 'must-stand') ensurePrivateDir(dirname(path), opts?.dir)
     appendFileSync(path, line, { mode: DAEMON_FILE_MODE })
     return 'appended'
   }
@@ -111,7 +126,7 @@ export function publishTransientInDaemonHome(where: string, path: string, conten
 export function ensureDirInDaemonHome(where: string, path: string, dir?: string): boolean {
   const w = watchOver(dir)
   if (w === null) {
-    mkdirSync(path, { recursive: true, mode: DAEMON_DIR_MODE })
+    ensurePrivateDir(path, dir)
     return true
   }
   if (w.gone) return false

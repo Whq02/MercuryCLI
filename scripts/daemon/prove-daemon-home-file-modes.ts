@@ -100,6 +100,30 @@ try {
   } finally {
     await lock?.release()
   }
+
+  const daemonHomeMod = await import(pathToFileURL(join(ROOT, 'src/daemon/control/daemonHome.ts')).href)
+
+  const parentA = join(scratch, 'missing-parent-a')
+  const daemonA = join(parentA, 'daemon')
+  daemonHomeMod.ensureDaemonHomeDir(daemonA)
+  const parentAMode = modeOf(parentA)
+  const daemonAMode = modeOf(daemonA)
+  check(
+    '(a) ensureDaemonHomeDir with missing parent leaves parent at 0755 and daemon folder at 0700',
+    parentAMode === 0o755 && daemonAMode === 0o700,
+    `parent=${oct(parentAMode)} daemon=${oct(daemonAMode)} — create parent above daemonDir with default mode before 0700 mkdir in src/daemon/control/daemonHome.ts`,
+  )
+
+  const parentB = join(scratch, 'missing-parent-b')
+  const daemonB = join(parentB, 'daemon')
+  daemonHomeMod.publishInDaemonHome('mode-test', join(daemonB, 'state.json'), '{"ok":true}\n', { dir: daemonB })
+  const parentBMode = modeOf(parentB)
+  const daemonBMode = modeOf(daemonB)
+  check(
+    '(b) publishInDaemonHome with no watch and missing parent leaves parent at 0755 and daemon folder at 0700',
+    parentBMode === 0o755 && daemonBMode === 0o700,
+    `parent=${oct(parentBMode)} daemon=${oct(daemonBMode)} — create parent above daemonDir with default mode before 0700 mkdir in src/daemon/control/daemonHome.ts`,
+  )
 } finally {
   process.umask(prevUmask)
   rmSync(scratch, { recursive: true, force: true })
