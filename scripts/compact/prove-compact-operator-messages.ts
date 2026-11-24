@@ -73,7 +73,6 @@ type Selection = {
   priorOperatorMessages: (messages: unknown[]) => number
   operatorMessagesBlockText: (attachment: Block) => string
   OPERATOR_MESSAGES_TOKEN_BUDGET: number
-  OPERATOR_MESSAGE_TRUNCATION_MARKER: string
   OPERATOR_MESSAGES_ATTACHMENT_TYPE: string
 }
 let selection: Selection | null = null
