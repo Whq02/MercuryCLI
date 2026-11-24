@@ -14,7 +14,7 @@ import { Crab, Wordmark } from './assets.js'
 import { rampSegments } from './focalRamp.js'
 import { useGreetingShimmer } from './useGreetingShimmer.js'
 import { useSessionAccent } from './sessionAccent.js'
-import { GLYPH, SPARK, displayWidth, padTo, truncateToWidth } from '../theme/glyphs.js'
+import { GLYPH, SPARK, displayWidth, padTo } from '../theme/glyphs.js'
 import { InteractiveRow } from './InteractiveRow.js'
 import { useTerminalSize } from '../fullscreen-layout/useTerminalSize.js'
 import { useLayoutChrome } from '../fullscreen-layout/layoutChromeContext.js'
@@ -602,42 +602,6 @@ export function WarningBanner({
   )
 }
 
-
-export function CrewmateRow({
-  name,
-  agentType,
-  state = 'idle',
-  tasks = [],
-  maxWidth,
-}: {
-  name: string
-  agentType?: string
-  state?: 'busy' | 'idle' | 'drifting' | 'blocked'
-  tasks?: string[]
-  maxWidth?: number
-}): React.ReactNode {
-  const t = useMercuryTokens()
-  const map: Record<string, { glyph: string; color: string }> = {
-    idle: { glyph: GLYPH.idle, color: t.textMuted },
-    busy: { glyph: GLYPH.busy, color: t.success },
-    drifting: { glyph: GLYPH.drifting, color: t.warning },
-    blocked: { glyph: GLYPH.fail, color: t.failure },
-  }
-  const g = map[state] ?? map.idle!
-  const stateColor = state === 'drifting' ? t.warning : state === 'busy' ? t.success : state === 'blocked' ? t.failure : t.textMuted
-  return (
-    <Text>
-      <Text color={g.color}>{g.glyph} </Text>
-      <Text color={t.textPrimary}>{maxWidth !== undefined ? truncateToWidth(name, maxWidth) : name}</Text>
-      {agentType ? <Text color={t.textMuted}>{` <${agentType}>`}</Text> : null}
-      <Text color={t.textMuted}> · </Text>
-      <Text color={stateColor}>{state}</Text>
-      {tasks.length > 0 ? (
-        <Text color={t.textSecondary}> · {tasks.map(id => `#${id}`).join(', ')}</Text>
-      ) : null}
-    </Text>
-  )
-}
 
 export function TraceRow({
   time,
