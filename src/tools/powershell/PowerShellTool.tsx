@@ -342,14 +342,7 @@ async function* executePowerShell(
 
   const psPath = await getCachedPowerShellPath()
   if (!psPath) {
-    const unavailable: ExecResult = {
-      stdout: '',
-      stderr: 'PowerShell is unavailable on this system.',
-      code: 127,
-      interrupted: false,
-      preSpawnError: 'PowerShell is unavailable on this system. Install PowerShell 7 (pwsh) to enable PowerShell commands.',
-    }
-    return await postProcessPowerShell(unavailable, input, context, undefined)
+    throw new ShellError('', 'PowerShell is unavailable on this system. Install PowerShell 7 (pwsh) to enable PowerShell commands.', 127, false)
   }
 
   let latest = { recent: '', all: '', lines: 0, bytes: 0, incomplete: false }
