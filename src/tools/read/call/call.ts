@@ -305,7 +305,7 @@ export async function readFileCall(input: Input, context: ToolUseContext, canUse
         if (!isENOENT(retryErr)) throw retryErr
       }
     }
-    throw await friendlyNotFoundError(input.file_path, fullFilePath)
+    throw await friendlyNotFoundError(fullFilePath)
   }
   return settle(lane)
 }

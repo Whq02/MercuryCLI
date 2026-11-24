@@ -118,7 +118,7 @@ export function alternateScreenshotPath(path: string): string | null {
   return `${match[1]}${alternate}${match[3]}${match[4]}`
 }
 
-export async function friendlyNotFoundError(requestedPath: string, expandedPath: string): Promise<Error> {
+export async function friendlyNotFoundError(expandedPath: string): Promise<Error> {
   let suggestion: string | undefined
   try {
     suggestion = await suggestPathUnderCwd(expandedPath)
