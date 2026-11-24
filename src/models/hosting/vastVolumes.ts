@@ -105,7 +105,7 @@ export async function vastVolumeDeleteDoor(api: VastClient, id: string, ask: Ask
   try { await deleteVastKeptVolume(api, id, confirming) } catch (error) { return { ok: false, words: error instanceof Error ? error.message : String(error) } }
   return { ok: true, words: 'Vast.ai volume deleted · verified absent from the volume list · the next rental downloads the weights again.' }
 }
-async function prepareVastVolume(api: VastClient, recipe: HostRecipe, volume: KeptVolume, offer: HostOffer, options: VastFastLoadOptions, signal: AbortSignal, fully = false): Promise<HostRecord> {
+async function prepareVastVolume(api: VastClient, volume: KeptVolume, offer: HostOffer, options: VastFastLoadOptions, signal: AbortSignal, fully = false): Promise<HostRecord> {
   if (!options.startJob) await requireHostJobOwner()
   const sshKey = await ensureHostKey(options.runner, signal)
   signal.throwIfAborted()
@@ -137,7 +137,7 @@ export async function mirrorToVastVolume(api: VastClient, recipe: HostRecipe, as
       const offer = (await api.machineOffers(pinned, existing.machineId!, signal))[0]
       if (!offer) { emit({ title: VAST_VOLUME_DOOR, words: 'No instance has stock on ' + vastMachineWords(existing) + ' right now. No instance was created; the volume still bills ' + vastVolumeBilling(existing) + '.' }); return }
       const confirm = await ask({ step: 'vast-volume-verify-confirm', title: 'Verify fully · check every file', found: existing.id + ' · ' + vastMachineWords(existing) + ' · ' + vastVolumeBilling(existing) + ' · full check ' + fullCheckMinutes(recipe.weightsGb), willRun: 'Rent ' + fillWords(offer) + ' for the verification, then terminate it and verify it is gone. A mismatch downloads the weights again on that instance first.', rows: [{ value: 'verify', label: 'Confirm full verification · temporary instance ' + hostShape(offer.recipe) + ' ' + hourly(offer.price) }, { value: 'cancel', label: 'Cancel' }] })
-      if (confirm === 'verify' && !signal.aborted) await prepareVastVolume(api, pinned, existing, offer, options, signal, true)
+      if (confirm === 'verify' && !signal.aborted) await prepareVastVolume(api, existing, offer, options, signal, true)
       return
     }
     if (action === 'delete') { const result = await vastVolumeDeleteDoor(api, existing.id, ask, signal, emit); emit({ title: VAST_VOLUME_DOOR, words: result.words }) }
@@ -166,7 +166,7 @@ export async function mirrorToVastVolume(api: VastClient, recipe: HostRecipe, as
   if (fill && !options.startJob) await requireHostJobOwner()
   const volume = await createVastKeptVolume(api, pinned, chosen.offer, sizeGb, signal)
   if (fill) {
-    try { await prepareVastVolume(api, pinned, volume, fill, options, signal) } catch (error) {
+    try { await prepareVastVolume(api, volume, fill, options, signal) } catch (error) {
       throw new Error('Vast.ai volume ' + volume.id + ' exists and bills ' + billing + '. Machines I’m paying for → Delete. ' + String(error))
     }
   }

@@ -38,9 +38,9 @@ export function fastLoadState(recipe: HostRecipe): string {
   const row = runpodKeptVolumes().find(row => matchesVolume(row, recipe) && row.state !== 'gone') ?? runpodKeptVolumes().find(row => matchesVolume(row, recipe))
   const vast = vastKeptVolumes().some(row => matchesVolume(row, recipe)) ? ' · ' + vastVolumeState(recipe) : ''
   if (!row) return 'not kept' + vast
-  return runpodFastLoadState(recipe, row) + vast
+  return runpodFastLoadState(row) + vast
 }
-function runpodFastLoadState(recipe: HostRecipe, row: KeptVolume): string {
+function runpodFastLoadState(row: KeptVolume): string {
   if (row.state === 'gone') return 'not kept · ' + (row.error ?? 'disk gone')
   if (row.state === 'creating') return 'preparing · create answer unclear; disk may exist and bill'
   if (row.state === 'kept') return 'kept on ' + row.id + ' · ' + row.dataCenter + ' · ' + volumePrice(row)
@@ -78,7 +78,7 @@ function fillOffer(offers: HostOffer[], recipe: HostRecipe, kind: KeptVolume['ki
   return cheapest && { ...cheapest, recipe: { ...recipe, gpu: cheapest.recipe.gpu, count: cheapest.recipe.count, vramGb: cheapest.recipe.vramGb, cuda: cheapest.recipe.cuda, nodes: undefined } }
 }
 const fillPodWords = (offer: HostOffer): string => 'a temporary ' + hostShape(offer.recipe) + ' pod at $' + offer.price.toFixed(2) + '/hr'
-async function prepareVolume(api: RunpodClient, recipe: HostRecipe, volume: KeptVolume, offer: HostOffer, options: FastLoadOptions, signal: AbortSignal, fully = false): Promise<HostRecord> {
+async function prepareVolume(api: RunpodClient, volume: KeptVolume, offer: HostOffer, options: FastLoadOptions, signal: AbortSignal, fully = false): Promise<HostRecord> {
   if (!options.startJob) await requireHostJobOwner()
   const sshKey = await ensureHostKey(options.runner, signal)
   signal.throwIfAborted()
@@ -120,7 +120,7 @@ export async function mirrorToVolume(api: RunpodClient | undefined, recipe: Host
       const offer = fillOffer(await api.offers(signal), pinned, existing.kind, existing.dataCenter)
       if (!offer) { emit({ title: FAST_LOAD_DOOR, words: 'No pod has stock in ' + existing.dataCenter + ' for the verification. No pod was created; the kept disk still bills.' }); return }
       const confirm = await ask({ step: 'fast-load-verify-confirm', title: 'Verify fully · check every file', found: existing.id + ' · ' + volumePrice(existing) + ' · full check ' + fullCheckMinutes(recipe.weightsGb), willRun: 'Rent ' + fillPodWords(offer) + ' for the verification (the cheapest in stock there; checking files needs no particular GPU), then terminate it. A mismatch downloads the weights again on that pod first. The disk keeps billing without a pod.', rows: [{ value: 'verify', label: 'Confirm full verification · temporary pod ' + hostShape(offer.recipe) + ' $' + offer.price.toFixed(2) + '/hr' }, { value: 'cancel', label: 'Cancel' }] })
-      if (confirm === 'verify' && !signal.aborted) await prepareVolume(api, pinned, existing, offer, options, signal, true)
+      if (confirm === 'verify' && !signal.aborted) await prepareVolume(api, existing, offer, options, signal, true)
       return
     }
     if (action === 'delete') { const result = await volumeDeleteDoor(api, existing.id, ask, signal, emit); emit({ title: FAST_LOAD_DOOR, words: result.words }) }
@@ -155,7 +155,7 @@ export async function mirrorToVolume(api: RunpodClient | undefined, recipe: Host
   if (offer && !options.startJob) await requireHostJobOwner()
   const volume = await createKeptVolume(api, pinned, how, dataCenter, signal)
   if (offer) {
-    try { await prepareVolume(api, pinned, volume, offer, options, signal) } catch (error) {
+    try { await prepareVolume(api, volume, offer, options, signal) } catch (error) {
       throw new Error('Weights disk ' + volume.id + ' exists and bills ' + amount + '. Machines I’m paying for → Delete. ' + String(error))
     }
   }

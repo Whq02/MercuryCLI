@@ -207,7 +207,7 @@ async function switchRunning(record: HostRecord, recipe: HostRecipe, ask: Ask, s
   }
 }
 
-async function enterRoad(deps: ModelDoorDeps, ask: Ask, emit: Emit, signal: AbortSignal, route?: string, recipe?: HostRecipe, offer?: HostOffer, offers: readonly HostOffer[] = [], vendor?: DoorVendor): Promise<LlmHostResult> {
+async function enterRoad(deps: ModelDoorDeps, ask: Ask, emit: Emit, signal: AbortSignal, route?: string, recipe?: HostRecipe, offer?: HostOffer, vendor?: DoorVendor): Promise<LlmHostResult> {
   let selecting = Boolean(recipe)
   let chosenOffer = offer
   const bridge: Ask = async plan => {
@@ -242,7 +242,7 @@ async function enterRoad(deps: ModelDoorDeps, ask: Ask, emit: Emit, signal: Abor
 }
 
 export function rentDoorVendor(road: LlmHostRoad, vendor: DoorVendor, offer: HostOffer, ask: Ask, emit: Emit, signal: AbortSignal): Promise<LlmHostResult> {
-  return enterRoad({ road, confirmRental: ask, offers: async () => [offer], pods: async () => [], records: () => [] }, ask, emit, signal, 'rent', offer.recipe, offer, [offer], vendor)
+  return enterRoad({ road, confirmRental: ask, offers: async () => [offer], pods: async () => [], records: () => [] }, ask, emit, signal, 'rent', offer.recipe, offer, vendor)
 }
 
 export async function runModelDoor(ask: Ask, emit: Emit, signal: AbortSignal, deps: ModelDoorDeps): Promise<LlmHostResult> {
@@ -408,7 +408,7 @@ export async function runModelDoor(ask: Ask, emit: Emit, signal: AbortSignal, de
       if (choice.startsWith('rent:')) {
         const row = rentals[Number(choice.slice(5))]
         if (!row) continue
-        if (!row.vendor) return enterRoad(deps, ask, emit, signal, 'rent', row.offer.recipe, row.offer, offers)
+        if (!row.vendor) return enterRoad(deps, ask, emit, signal, 'rent', row.offer.recipe, row.offer)
         if (deps.rentVendor) return deps.rentVendor(row.vendor, row.offer, ask, emit, signal)
         emit({ title: 'Rental unavailable', words: 'This vendor has no connected rental service. Nothing was rented.' })
         continue
