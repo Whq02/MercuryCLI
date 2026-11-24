@@ -10,7 +10,7 @@ import { MERCURY_PROJECT_DIR } from '../settings/projectConfig.js'
 import { projectScopePathspec } from '../files/projectBoundary.js'
 import { logForDebugging } from '../logs/debugLog.js'
 import { logForDiagnosticsNoPII } from '../logs/diagnosticsLog.js'
-import { execFileNoThrow, execFileNoThrowWithCwd } from '../processes/execFileNoThrow.js'
+import { execFileNoThrowWithCwd } from '../processes/execFileNoThrow.js'
 import {
   getCachedBranch,
   getCachedDefaultBranch,
