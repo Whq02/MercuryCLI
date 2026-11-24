@@ -4,8 +4,7 @@ import type { JevRoad, JevStatus, JevWireFailureKind } from '../../models/jev/je
 import { jevKeyPresence, resolveJevApiKey } from '../../models/jev/jevKey.js'
 import { noteJevAttempt, noteJevWireFailure, settleJevCall, takeJevNotice } from '../../models/jev/jevLedger.js'
 import { readJevSettings } from '../../models/jev/jevSetting.js'
-import { type JevAgentIdentity, jevStatus } from '../../models/jev/jevStatus.js'
-import { getCrewmateContext } from '../../crew/agents/crewmateContext.js'
+import { jevAgentIdentity, jevStatus } from '../../models/jev/jevStatus.js'
 import { checkReadPermissionForTool } from '../../permissions/rules/filesystem.js'
 import { JEV_EVAL_MAX_RESULT_CHARS, JEV_EVAL_TOOL_NAME } from './constants.js'
 import { jevEvalFileOf } from './jevEvalEvidence.js'
@@ -28,11 +27,6 @@ import { hostEnv } from '../../platform/environment/hostEnv.js'
 interface JevEvalOutput {
   status: string
   text: string
-}
-
-function jevAgentIdentity(): JevAgentIdentity | undefined {
-  const context = getCrewmateContext()
-  return context === undefined ? undefined : { id: context.agentId, subagent: true }
 }
 
 export function jevEvalEnabled(): boolean {

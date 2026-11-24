@@ -5,10 +5,9 @@ import { JEV_TIMEOUT_MS, type JevChoiceQuestion } from '../../models/jev/jevCont
 import { jevKeyPresence, resolveJevApiKey } from '../../models/jev/jevKey.js'
 import { noteJevAttempt, noteJevWireFailure, settleJevCall } from '../../models/jev/jevLedger.js'
 import { readJevSettings } from '../../models/jev/jevSetting.js'
-import { jevStatus } from '../../models/jev/jevStatus.js'
+import { jevAgentIdentity, jevStatus } from '../../models/jev/jevStatus.js'
 import { routedCallModelSettled } from '../../models/roads/callModelRouter.js'
 import { declaredRouteOf } from '../../models/roads/routeLaw.js'
-import { getCrewmateContext } from '../../crew/agents/crewmateContext.js'
 import { hasFirstPartyCredential } from '../../models/sign-in/credentials/auth.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { createUserMessage } from '../../engine/message-shapes/factories.js'
@@ -68,15 +67,10 @@ const GOAL_QUESTION: JevChoiceQuestion = {
   },
 }
 
-function jevAgent(): { id: string; subagent: boolean } | undefined {
-  const context = getCrewmateContext()
-  return context === undefined ? undefined : { id: context.agentId, subagent: true }
-}
-
 export function goalJudgeOpen(): boolean {
   const settings = readJevSettings()
   if (!settings.enabled || !jevKeyPresence(hostEnv(), settings.road).present) return false
-  const agent = jevAgent()
+  const agent = jevAgentIdentity()
   if (agent !== undefined && !settings.subagents) return false
   return jevStatus(agent, Date.now(), settings).kind === 'ready'
 }
@@ -196,7 +190,7 @@ export const judgeWithJev: GoalJudge = async (goal, evidence, signal) => {
   const road = settings.road
   const key = resolveJevApiKey(hostEnv(), road)
   if (key === undefined) return null
-  const agent = jevAgent()
+  const agent = jevAgentIdentity()
   const at = Date.now()
   if (jevStatus(agent, at, settings).kind !== 'ready') return null
   noteJevAttempt(at, agent?.id, road)

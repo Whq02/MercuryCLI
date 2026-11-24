@@ -3,10 +3,16 @@ import { type JevKeyPresence, jevKeyPresence } from './jevKey.js'
 import { type JevLedgerSnapshot, jevAdmission, jevCreditHold, jevLedgerSnapshot } from './jevLedger.js'
 import { type JevSettings, readJevSettings } from './jevSetting.js'
 import { hostEnv } from '../../platform/environment/hostEnv.js'
+import { getCrewmateContext } from '../../crew/agents/crewmateContext.js'
 
 export interface JevAgentIdentity {
   id: string
   subagent: boolean
+}
+
+export function jevAgentIdentity(): JevAgentIdentity | undefined {
+  const context = getCrewmateContext()
+  return context === undefined ? undefined : { id: context.agentId, subagent: true }
 }
 
 interface JevStatusInputs {
