@@ -5,6 +5,7 @@ import {
   ALL_CREWMATE_DISALLOWED_TOOLS,
   RULE_INHERITS,
 } from '../kit/crewmateBarredTools.js'
+import { STRUCTURED_OUTPUT_TOOL_NAME } from '../kit/names/structuredOutput.js'
 import type { Message } from '../../engine/message-shapes/message.js'
 import type { SetAppState } from '../../engine/tasks/taskBase.js'
 import {
@@ -501,12 +502,8 @@ export function finalizeCrewmateTool(
   }
 }
 
-function structuredOutputToolName(): string {
-  return 'StructuredOutput'
-}
-
-export const NO_STRUCTURED_YIELD = `no structured yield: the crewmate never called ${structuredOutputToolName()} with a conforming payload`
-export const FAILED_STRUCTURED_YIELD = `the last ${structuredOutputToolName()} call failed schema validation`
+export const NO_STRUCTURED_YIELD = `no structured yield: the crewmate never called ${STRUCTURED_OUTPUT_TOOL_NAME} with a conforming payload`
+export const FAILED_STRUCTURED_YIELD = `the last ${STRUCTURED_OUTPUT_TOOL_NAME} call failed schema validation`
 
 const SCHEMA_ISSUE_WORDS_CAP = 300
 
@@ -535,7 +532,7 @@ function findLastStructuredYield(
     const contentBlocks = Array.isArray(m.message.content) ? m.message.content : []
     for (const block of contentBlocks) {
       const use = block as { type?: string; id?: string; name?: string; input?: unknown }
-      if (use.type !== 'tool_use' || use.name !== structuredOutputToolName() || !use.id) continue
+      if (use.type !== 'tool_use' || use.name !== STRUCTURED_OUTPUT_TOOL_NAME || !use.id) continue
       for (let j = i + 1; j < messages.length; j++) {
         const candidate = messages[j]!
         if (candidate.type !== 'user') continue
@@ -557,7 +554,7 @@ function findLastStructuredYield(
 }
 
 function structuredMissWords(status: 'missing' | 'invalid', error: string, mode: 'permissive' | 'strict'): string {
-  const tool = structuredOutputToolName()
+  const tool = STRUCTURED_OUTPUT_TOOL_NAME
   if (status === 'missing') {
     return mode === 'strict'
       ? `The crewmate never called ${tool}, and schema_mode "strict" fails the call without a payload. Launch the crewmate again and require the answer through ${tool}, or omit schema_mode to accept its prose.`
