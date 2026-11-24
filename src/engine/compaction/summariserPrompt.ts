@@ -139,7 +139,7 @@ const DIRECT_RESUMPTION = `Pick the work up exactly where it stopped, with no qu
 function cleanedSummary(summary: string): string {
   const withoutAnalysis = summary.replace(/<analysis>[\s\S]*?<\/analysis>/, '')
   const block = /<summary>([\s\S]*?)<\/summary>/.exec(withoutAnalysis)
-  const framed = block === null ? withoutAnalysis : withoutAnalysis.replace(block[0], `Summary:\n${block[1]!.trim()}`)
+  const framed = block === null ? withoutAnalysis : withoutAnalysis.replace(block[0], () => `Summary:\n${block[1]!.trim()}`)
   return framed.replace(/\n{3,}/g, '\n\n').trim()
 }
 
