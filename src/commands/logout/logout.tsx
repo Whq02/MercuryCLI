@@ -76,8 +76,7 @@ export async function performLogout(options: { clearOnboarding?: boolean } = {})
       oauthAccount: undefined,
       ...(clearOnboarding
         ? {
-            hasCompletedOnboarding: undefined,
-            lastOnboardingVersion: undefined,
+            hasCompletedOnboarding: false,
             customApiKeyResponses: {
               approved: [],
               rejected: current.customApiKeyResponses?.rejected ?? [],
