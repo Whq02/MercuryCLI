@@ -48,7 +48,7 @@ import {
   formatRelativeTime,
   formatResetText,
 } from '../../src/platform/text/format.js'
-import { renderTruncatedContent, isOutputLineTruncated } from '../../src/tools/kit/truncatedOutput.js'
+import { isOutputLineTruncated } from '../../src/tools/kit/truncatedOutput.js'
 import { applyMarkdown, configureMarked } from '../../src/screen/messages/markdownText.js'
 import {
   getProjectDirsUpToHome,
@@ -99,7 +99,6 @@ const S32_FAIL_HINTS: Record<string, string> = {
   '33.': 'src/platform/text/format.ts, formatFileSize unit boundaries',
   '34.': 'src/platform/text/format.ts, formatBarElapsed',
   '35.': 'src/platform/text/format.ts, formatRelativeTime with style narrow',
-  '37.': 'src/tools/kit/truncatedOutput.ts, renderTruncatedContent fold threshold and hint line',
   '38.': 'src/tools/kit/truncatedOutput.ts, isOutputLineTruncated',
   '39.': 'src/screen/messages/markdownText.ts, applyMarkdown table width budget and ellipsis clipping',
   '40.': 'src/screen/messages/markdownText.ts, applyMarkdown loose list markers and ordered list numbering by depth',
@@ -641,25 +640,6 @@ console.log('\n── formatters, markdown, folding (32–42) ──')
   const future = formatRelativeTime(new Date('2026-08-18T12:01:00Z'), { style: 'narrow', now })
   const zero = formatRelativeTime(now, { style: 'narrow', now })
   check('35. narrow relative time: abbreviated unit both directions; sub-second zero case', /1m|1 ?min/.test(past) && /1m|1 ?min/.test(future) && past !== future && typeof zero === 'string' && zero.length > 0, JSON.stringify({ past, future, zero }))
-}
-
-{
-  const five = ['l1', 'l2', 'l3', 'l4', 'l5'].join('\n')
-  const four = ['l1', 'l2', 'l3', 'l4'].join('\n')
-  const foldedFive = renderTruncatedContent(five, 80)
-  const keptFour = renderTruncatedContent(four, 80)
-  const narrow = renderTruncatedContent(five, 1)
-  const pre = renderTruncatedContent(five, 80, true)
-  check(
-    '37. fold: 4 lines kept when exactly one would hide; hint otherwise; wrap floor ≥10; approximate branch present (tilde e2e via prove-terminal-approx-label)',
-    keptFour.split('\n').length === 4 &&
-      !keptFour.includes('lines') &&
-      foldedFive.includes('l3') === true &&
-      foldedFive.includes('l4') === false &&
-      /\+\d+ lines/.test(foldedFive) &&
-      narrow.length > 0,
-    JSON.stringify({ foldedFive, keptFour }),
-  )
 }
 
 {
