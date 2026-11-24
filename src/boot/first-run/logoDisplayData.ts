@@ -1,15 +1,6 @@
-import { flagEnv } from '../../platform/substrate/flagRegistry.js'
-import { getDirectConnectServerUrl, getSessionId } from '../process-state/processState.js'
-import { MERCURY_VERSION } from '../../platform/product/product.js'
+import { getSessionId } from '../process-state/processState.js'
 import type { SessionListing } from '../../sessions/transcripts/transcriptEntries.js'
-import { getSubscriptionName, isClaudeAISubscriber } from '../../models/sign-in/credentials/auth.js'
-import { declaredRouteOf } from '../../models/roads/callModelRouter.js'
-import { resolveOpenaiAccount } from '../../models/roads/openai/openaiAccounts.js'
-import { getEngineModel } from '../../models/catalogue/engineModel.js'
-import { getCwd } from '../../platform/files/cwd.js'
-import { getDisplayPath } from '../../platform/files/file.js'
 import { listProjectSessions } from '../../sessions/transcripts/sessionStorage.js'
-import { getInitialSettings } from '../../platform/settings/settings.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
 const RECENT_ACTIVITY_LOAD_LIMIT = 10
@@ -42,49 +33,4 @@ export function getRecentActivity(): Promise<SessionListing[]> {
     }
   })()
   return recentActivityPromise
-}
-
-
-const DEMO_PLACEHOLDER_PATH = '/code/mercury'
-
-export function getLogoDisplayData(): { version: string; cwd: string; billingType: string; agentName?: string } {
-  const version = flagEnv('MERCURY_DEMO_VERSION') ?? MERCURY_VERSION
-  let cwd = flagEnv('MERCURY_DEMO_VERSION') ? DEMO_PLACEHOLDER_PATH : getDisplayPath(getCwd())
-  const directConnect = getDirectConnectServerUrl()
-  if (directConnect) {
-    cwd = `${cwd} in ${directConnect.replace(/^https?:\/\//, '')}`
-  }
-  const billingType = ((): string => {
-    try {
-      const route = declaredRouteOf(getEngineModel())
-      if (route === 'openai') return resolveOpenaiAccount()?.label ?? 'OpenAI account'
-      if (route === 'zai') return 'Z.AI API usage billing'
-      if (route === 'moonshot') return 'Moonshot API usage billing'
-      if (route === 'deepseek') return 'DeepSeek API usage billing'
-      if (route === 'xai') return 'xAI API usage billing'
-      if (route === 'openai-compat') return 'Custom endpoint billing'
-      if (route === 'openrouter') return 'OpenRouter billing (folds from the auth lane)'
-      if (route === 'gemini') return 'Gemini billing (folds from the auth lane)'
-      if (route === 'huggingface') return 'Hugging Face credits / pay-as-you-go billing'
-      if (route === 'local') return 'local model · no metering'
-      if (route === 'nous') return 'Nous Portal credits / subscription billing'
-      if (route === 'zen') return 'OpenCode Zen pay-as-you-go billing'
-      if (route === 'minimax') return 'MiniMax pay-as-you-go balance / M Plan billing'
-      if (route === 'together') return 'Together AI prepaid balance billing'
-      if (route === 'cohere') return 'Cohere pay-as-you-go billing'
-      if (route === 'groq') return 'Groq API billing'
-      if (route === 'melious') return 'Melious AI API billing'
-      if (route === 'orcarouter') return 'OrcaRouter API billing'
-      if (route === 'cerebras') return 'Cerebras API billing'
-      if (route === 'fireworks') return 'Fireworks API billing'
-      if (route === 'qwen') return 'QwenCloud or Model Studio pay-as-you-go or plan billing'
-      if (route === null) return 'unrecognised model · no billed lane'
-      return isClaudeAISubscriber() ? getSubscriptionName() : 'API usage billing'
-    } catch (error) {
-      const detail = (error instanceof Error && error.message ? error.message : String(error)).slice(0, 120)
-      return `billing could not be read (${detail})`
-    }
-  })()
-  const agentName = getInitialSettings().engine?.agent
-  return { version, cwd, billingType, ...(agentName ? { agentName } : {}) }
 }
