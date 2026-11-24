@@ -197,15 +197,6 @@ export type SearchOrReadClassification = {
 
 type MaybePromise<T> = T | Promise<T>
 
-export type ToolRenderTheme = 'dark' | 'true-black'
-
-export type ToolRenderOptions = {
-  theme: ToolRenderTheme
-  tools?: Tools
-  verbose: boolean
-  [key: string]: any
-}
-
 export type AgentDefinitionsState = {
   activeAgents: AgentDefinition[]
   allowedAgentTypes?: string[]
