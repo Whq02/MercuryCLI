@@ -21,7 +21,7 @@ globalThis.fetch = Object.assign((input: RequestInfo | URL, init?: RequestInit) 
 }, originalFetch)
 const hf = await hfFixture()
 try {
-  const { searchHuggingFace, fetchHuggingFaceRepo, deriveHostRecipe, pickHuggingFaceModel, hfRowLabel, hfModelChat, derivedHfRecipe, derivedRecipeWords, forgetDerivedHfRecipes, chooseGgufQuant, HF_OFFLINE_WORDS, HF_PROOF_WORDS, HF_GATED_WORDS, HF_NOT_CHAT_WORDS } = await import('../../src/models/hosting/hfRecipes.ts')
+  const { searchHuggingFace, fetchHuggingFaceRepo, deriveHostRecipe, pickHuggingFaceModel, hfRowLabel, hfModelChat, derivedHfRecipe, forgetDerivedHfRecipes, chooseGgufQuant, HF_OFFLINE_WORDS, HF_PROOF_WORDS, HF_GATED_WORDS, HF_NOT_CHAT_WORDS } = await import('../../src/models/hosting/hfRecipes.ts')
   const { hostRecipeSchema, currentHostRecipes, sessionHostRecipes, forgetSessionHostRecipes } = await import('../../src/models/hosting/recipesFile.ts')
   const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
   const base = hf.baseUrl
@@ -102,8 +102,6 @@ try {
   const again = await pickHuggingFaceModel(gguf, { base })
   check('a pick is remembered by repo id: the second pick reads nothing and returns the same recipe', again.ok && again.row === picked.row && hf.state.trees === treesAfterPick && derivedHfRecipe(gguf.id) === picked.row)
   check('a picked recipe joins the session list the road reads, after the shipped recipes, never the shipped file', currentHostRecipes().at(-1)?.id === picked.row.recipe.id && sessionHostRecipes().some(row => row.id === picked.row.recipe.id) && !HOST_RECIPES.some(row => row.id === picked.row.recipe.id))
-  const words = derivedRecipeWords(picked.row.recipe)!
-  check('derived summary has only engine, format and size, without dates or guard promises', words === 'llama.cpp · GGUF Q4_K_M · 120 GB' && derivedRecipeWords(picked.row.recipe, Date.now() + 3 * 60_000) === words && derivedRecipeWords(HOST_RECIPES[0]!) === undefined)
 
   forgetDerivedHfRecipes(); forgetSessionHostRecipes()
   check('forgetting the session leaves the shipped list alone', !currentHostRecipes().some(row => row.id.startsWith('hf-')))

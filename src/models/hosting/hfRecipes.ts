@@ -343,15 +343,8 @@ export function deriveHostRecipe(model: HfModel, files: readonly HfFile[], confi
 export function derivedHfRecipe(repo: string): DerivedHfRecipe | undefined {
   return derived.get(repo)
 }
-function derivedHfRecipeOf(recipe: HostRecipe): DerivedHfRecipe | undefined {
-  return derived.get(recipe.model)?.recipe.id === recipe.id ? derived.get(recipe.model) : undefined
-}
 export function forgetDerivedHfRecipes(): void {
   derived.clear()
-}
-export function derivedRecipeWords(recipe: HostRecipe, _now = Date.now()): string | undefined {
-  const row = derivedHfRecipeOf(recipe)
-  return row ? row.engine + ' · ' + row.format + ' · ' + Math.round(row.weightsGb) + ' GB' : undefined
 }
 
 export async function pickHuggingFaceModel(model: HfModel, options: HfHubOptions & { fetchRepo?: (id: string, options: HfHubOptions) => Promise<HfRepoOutcome>; checkEngine?: HfEngineCheck } = {}): Promise<{ ok: true; row: DerivedHfRecipe } | { ok: false; words: string }> {

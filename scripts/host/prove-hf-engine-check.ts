@@ -23,7 +23,7 @@ globalThis.fetch = Object.assign((input: RequestInfo | URL, init?: RequestInit) 
 const hf = await hfFixture({ extra: [fixtureExtraRepos.exl3, fixtureExtraRepos.hqq] })
 try {
   const { parseGgufHeader, tensorFamily, compareGgufWithEngine, readGgufHeader, checkGgufAgainstEngine, LLAMACPP_ENGINE_TABLE, hubFileUrl } = await import('../../src/models/hosting/ggufHeader.ts')
-  const { searchHuggingFace, pickHuggingFaceModel, deriveHostRecipe, derivedRecipeWords, forgetDerivedHfRecipes, unloadableQuantisation, HF_LOOK_FOR_WORDS } = await import('../../src/models/hosting/hfRecipes.ts')
+  const { searchHuggingFace, pickHuggingFaceModel, deriveHostRecipe, forgetDerivedHfRecipes, unloadableQuantisation, HF_LOOK_FOR_WORDS } = await import('../../src/models/hosting/hfRecipes.ts')
   const { LLAMACPP_ENGINE_SHA } = await import('../../src/models/hosting/recipes.ts')
   const { forgetSessionHostRecipes } = await import('../../src/models/hosting/recipesFile.ts')
   const short = LLAMACPP_ENGINE_SHA.slice(0, 7)
@@ -93,7 +93,7 @@ try {
   forgetDerivedHfRecipes(); forgetSessionHostRecipes()
   const picked = await pickHuggingFaceModel(ggufModel, { base, token: hf.token })
   check('picking a known GGUF derives the row with the engine check on it', picked.ok && picked.row.engineCheck?.startsWith('header read · architecture deepseek2') === true && picked.row.recipe.verification.endsWith(' · header checked against the engine'))
-  check('engine check data remains internal rather than a row stamp', picked.ok && picked.row.engineCheck?.includes('header read · architecture deepseek2') === true && !derivedRecipeWords(picked.row.recipe)?.includes('header read'))
+  check('engine check data remains internal', picked.ok && picked.row.engineCheck?.includes('header read · architecture deepseek2') === true)
   forgetDerivedHfRecipes(); forgetSessionHostRecipes()
   hf.state.ggufVariant = 'fork'
   const refused = await pickHuggingFaceModel(ggufModel, { base, token: hf.token })
