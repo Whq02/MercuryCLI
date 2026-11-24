@@ -360,6 +360,7 @@ export interface ActiveSourceUsage {
 export interface ActiveUsageReads {
   route?: (model: string) => ProviderFamilyId
   activeEntry?: (provider: UsageProvider) => WalletEntry | undefined
+  anySignedIn?: () => boolean
   anthropicWindows?: () => { fiveHour: QuotaWindow; sevenDay: QuotaWindow }
   anthropicPoolWindows?: () => UsageWindowView[]
   anthropicExtraUsage?: () => AnthropicExtraUsageRecord | null
@@ -1142,15 +1143,16 @@ function deriveUsageForProvider(
   if (provider === 'deepseek' || provider === 'openai-compat') return deepseekUsageView(provider, spend, reads)
 
   if (provider === 'unrecognised') {
+    const signedIn = (reads?.anySignedIn ?? anyProviderCredentialed)()
     return {
       provider,
       sourceKind: 'none',
-      label: 'Unrecognised model usage',
+      label: signedIn ? 'Unrecognised model usage' : 'Usage',
       shape: 'none',
       windows: [],
       pools: [],
       spend,
-      whyNot: 'no provider family declares the session model — /model picks a listed row',
+      whyNot: signedIn ? 'no provider family declares the session model — /model picks a listed row' : 'not signed in — /logins signs in',
     }
   }
   const entry = (reads?.activeEntry ?? activeWalletEntry)(provider)

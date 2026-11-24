@@ -356,6 +356,38 @@ section('§3 one window decode per family — shared view fns + the anthropic en
   check('fold: …and the extra-usage record with them (C8)', claudeLimits.getEndpointExtraUsage() === null, 'extractQuotaStatusFromHeaders in src/models/roads/anthropic/anthropicLimits.ts must also clear the extra-usage record when the gate closes')
 }
 
+section('§4 unrecognised session model: before any sign-in reads Usage / not signed in; once signed in keeps Unrecognised model usage')
+{
+  const beforeSignIn = providerUsage.activeSourceUsage({ model: 'choose-a-model' })
+  check(
+    'unrecognised before any sign-in: label is Usage and whyNot is not signed in — /logins signs in',
+    beforeSignIn.provider === 'unrecognised' &&
+      beforeSignIn.sourceKind === 'none' &&
+      beforeSignIn.label === 'Usage' &&
+      beforeSignIn.whyNot === 'not signed in — /logins signs in',
+    `${JSON.stringify({ label: beforeSignIn.label, whyNot: beforeSignIn.whyNot })}; fix deriveUsageForProvider in src/models/roads/providerUsage.ts`,
+  )
+
+  process.env.ANTHROPIC_API_KEY = 'sk-ant-fixture000'
+  noteCredentialChange()
+  discovery.__resetProviderDiscoveryForTest()
+  try {
+    const afterSignIn = providerUsage.activeSourceUsage({ model: 'no-such-vendor-model' })
+    check(
+      'unrecognised with one account signed in: keeps Unrecognised model usage and its existing whyNot',
+      afterSignIn.provider === 'unrecognised' &&
+        afterSignIn.sourceKind === 'none' &&
+        afterSignIn.label === 'Unrecognised model usage' &&
+        afterSignIn.whyNot === 'no provider family declares the session model — /model picks a listed row',
+      `${JSON.stringify({ label: afterSignIn.label, whyNot: afterSignIn.whyNot })}; fix deriveUsageForProvider in src/models/roads/providerUsage.ts`,
+    )
+  } finally {
+    delete process.env.ANTHROPIC_API_KEY
+    noteCredentialChange()
+    discovery.__resetProviderDiscoveryForTest()
+  }
+}
+
 
 
 for (const [key, value] of Object.entries(savedEnv)) {
