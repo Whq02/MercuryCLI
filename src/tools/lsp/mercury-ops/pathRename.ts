@@ -6,7 +6,7 @@ import { renameWithWin32Retry } from '../../../platform/substrate/durablePublish
 import { logForDebugging } from '../../../platform/logs/debugLog.js'
 import { errorMessage, getErrnoCode } from '../../../platform/errors/errors.js'
 import { checkWritePermissionForTool, pathInAllowedWorkingPath } from '../../../permissions/rules/filesystem.js'
-import { postureBypassesAsks } from '../../../permissions/rules/decision/engine.js'
+import { modeBypassesPermissions } from '../../../permissions/rules/permissionMode.js'
 import type { MercuryLspOpOutput, OpEnv } from './types.js'
 import { PATH_RENAME_FILE_CAP, displayPathFor, uriToFilePath, syncFileFromDisk } from './shared.js'
 import { awaitDiagnosticStabilization } from './afterWrite.js'
@@ -220,7 +220,7 @@ export async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
         },
       }
     }
-    if (decision.behavior !== 'allow' && !pathInAllowedWorkingPath(endpoint, permissionContext) && endpoint !== env.absolutePath && !postureBypassesAsks(permissionContext) && await env.requestWritePermission?.(endpoint) !== true) {
+    if (decision.behavior !== 'allow' && !pathInAllowedWorkingPath(endpoint, permissionContext) && endpoint !== env.absolutePath && !modeBypassesPermissions(permissionContext.mode) && await env.requestWritePermission?.(endpoint) !== true) {
       return {
         result: `LspMoveFile refused: permission to write ${endpointDisplay} was not granted. Nothing moved.`,
         resultCount: 0,

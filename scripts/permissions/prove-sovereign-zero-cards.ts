@@ -15,7 +15,7 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
 let checks = 0
 const zeroCardsWhereBySection: Record<string, string> = {
-  '§0': 'fix postureBypassesAsks in src/permissions/rules/decision/engine.ts',
+  '§0': 'fix modeBypassesPermissions in src/permissions/rules/permissionMode.ts',
   '§1': 'under sovereign the decideToolPermission stages in src/permissions/rules/decision/engine.ts must allow every ask (the wrapper is src/permissions/rules/decision/wrapper.ts)',
   '§2': 'under sovereign the share-path ask must be allowed by the engine in src/permissions/rules/decision/engine.ts, and in default mode the tool must still ask with the SMB/WebDAV sentence',
   '§3': 'fix resolveComputerAccess in src/platform/substrate/startupMenu.ts, or the ask stages of decideToolPermission in src/permissions/rules/decision/engine.ts',
@@ -38,7 +38,8 @@ const section = (title: string): void => {
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
-const { decideToolPermission, postureBypassesAsks } = await import('../../src/permissions/rules/decision/engine.ts')
+const { decideToolPermission } = await import('../../src/permissions/rules/decision/engine.ts')
+const { modeBypassesPermissions } = await import('../../src/permissions/rules/permissionMode.ts')
 const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
 const { hasPermissionsToUseTool } = await import('../../src/permissions/rules/permissionDoor.ts')
 const { resolveHookPermissionDecision } = await import('../../src/engine/tool-dispatch/toolHooks.ts')
@@ -98,7 +99,7 @@ const assistant = { message: { id: 'zero-cards' } } as never
 
 section('§0 the law in source: one posture predicate, one card road')
 {
-  check('the posture predicate is the shared modeBypassesPermissions read on the permission context', postureBypassesAsks({ mode: 'sovereign' }) === true && postureBypassesAsks({ mode: 'default' }) === false && postureBypassesAsks({ mode: 'flow' }) === false)
+  check('the posture predicate is the shared modeBypassesPermissions read on the permission context', modeBypassesPermissions('sovereign') === true && modeBypassesPermissions('default') === false && modeBypassesPermissions('flow') === false)
 }
 
 section('§1 the roads that already stand down: every plain ask verdict is ALLOWED under the posture, named in the reason')

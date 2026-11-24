@@ -9,7 +9,7 @@ import { fireHooks, prepareHooks, type HookFireResult, type PreparedHooks } from
 import { hooksSettingsUnreadErrors } from '../../integrations/event-hooks/hooksConfigSnapshot.js'
 import { hooksFor } from '../../integrations/event-hooks/matching.js'
 import type { HookScope } from '../../integrations/event-hooks/sessionHooks.js'
-import { postureBypassesAsks } from '../../permissions/rules/decision/engine.js'
+import { modeBypassesPermissions } from '../../permissions/rules/permissionMode.js'
 import { checkRuleBasedPermissions } from '../../permissions/rules/permissionDoor.js'
 import { getRuleBehaviorDescription } from '../../permissions/rules/permissionResult.js'
 
@@ -148,7 +148,7 @@ export async function resolveHookPermissionDecision(
 
   const effective = hookResult.updatedInput ?? input
   if (hookResult.behavior === 'ask') {
-    if (postureBypassesAsks(context.getAppState().toolPermissionContext)) return { decision: await ask(effective), input: effective }
+    if (modeBypassesPermissions(context.getAppState().toolPermissionContext.mode)) return { decision: await ask(effective), input: effective }
     const forced = {
       behavior: 'ask',
       ...(hookResult.message !== undefined ? { message: hookResult.message } : {}),

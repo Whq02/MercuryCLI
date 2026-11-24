@@ -30,7 +30,7 @@ const CONSENT_OFFER_HINT = ' · fix offeredDefinitionModes in src/tools/crewmate
 const CONSENT_ROUTE_HINT = ' · fix the permissionMode check in parseAgentsFromJson or parseAgentFromJson (src/tools/crewmate/loadAgentsDir.ts) or decodeAgentDocument (src/crew/agents/codec.ts) so both routes accept exactly PERMISSION_MODES and refuse other words alike'
 
 const { composeCrewmateAppState, definitionModeWithinConsent, offeredDefinitionModes } = await import('../../src/tools/crewmate/crewmatePermissionPosture.ts')
-const { postureBypassesAsks } = await import('../../src/permissions/rules/decision/engine.ts')
+const { modeBypassesPermissions } = await import('../../src/permissions/rules/permissionMode.ts')
 const { parseAgentFromJson, parseAgentsFromJson } = await import('../../src/tools/crewmate/loadAgentsDir.ts')
 const { decodeAgentDocument } = await import('../../src/crew/agents/codec.ts')
 const { PERMISSION_MODES } = await import('../../src/permissions/rules/permissions.ts')
@@ -47,10 +47,10 @@ section("§1 the posture owner: a definition's bypass word never exceeds the par
 {
   for (const parentMode of ['default', 'flow', 'dontAsk']) {
     const child = childOf(parentMode, false, 'sovereign')
-    check(`parent ${parentMode}, no consent, definition sovereign ⇒ the child keeps '${parentMode}' and its asks still ask`, child.mode === parentMode && !postureBypassesAsks(child as never), `child=${child.mode}` + CONSENT_COMPOSE_HINT)
+    check(`parent ${parentMode}, no consent, definition sovereign ⇒ the child keeps '${parentMode}' and its asks still ask`, child.mode === parentMode && !modeBypassesPermissions(child.mode as never), `child=${child.mode}` + CONSENT_COMPOSE_HINT)
   }
   const consented = childOf('default', true, 'sovereign')
-  check('parent default WITH the launch consent, definition sovereign ⇒ the child is sovereign (the consent honoured)', consented.mode === 'sovereign' && postureBypassesAsks(consented as never), `child=${consented.mode}` + CONSENT_COMPOSE_HINT)
+  check('parent default WITH the launch consent, definition sovereign ⇒ the child is sovereign (the consent honoured)', consented.mode === 'sovereign' && modeBypassesPermissions(consented.mode as never), `child=${consented.mode}` + CONSENT_COMPOSE_HINT)
   const implement = childOf('implement', true, 'sovereign')
   check("parent implement never yields to a definition's word, consent or not", implement.mode === 'implement', `child=${implement.mode}` + CONSENT_COMPOSE_HINT)
   for (const word of ['dontAsk', 'apollo', 'flow']) {

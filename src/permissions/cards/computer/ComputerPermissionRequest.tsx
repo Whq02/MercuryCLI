@@ -10,7 +10,7 @@ import { ownerFromToolUseContext } from '../../../engine/run-owner/resolveOwner.
 import { useAppState } from '../../../screen/app-state/AppState.js'
 import { writeBootEnvChoice } from '../../../platform/substrate/startupMenu.js'
 import type { PermissionUpdate } from '../../rules/permissions.js'
-import { postureBypassesAsks } from '../../rules/decision/engine.js'
+import { modeBypassesPermissions } from '../../rules/permissionMode.js'
 import { isSovereignDisabled } from '../../rules/permissionSetup.js'
 import { resolveThemeName } from '../resolveThemeName.js'
 import { logForDebugging } from '../../../platform/logs/debugLog.js'
@@ -148,8 +148,7 @@ export function ComputerPermissionRequest({
   const clipboard = input.action === 'read' && input.clipboard === true
   const challenge = challengeAsk((toolUseConfirm.permissionResult as { suggestions?: AskSuggestion[] }).suggestions)
   const mode = useAppState(state => state.toolPermissionContext.mode)
-  const sovereignAvailable = useAppState(state => state.toolPermissionContext.isBypassPermissionsModeAvailable)
-  const sovereignOn = postureBypassesAsks({ mode, isBypassPermissionsModeAvailable: sovereignAvailable })
+  const sovereignOn = modeBypassesPermissions(mode)
   const hideSovereign = sovereignOn || isSovereignDisabled()
   const options = (challenge ? COMPUTER_CHALLENGE_CHOICES : clipboard ? computerClipboardChoicesFor(hideSovereign) : computerAskChoicesFor(hideSovereign)).map(choice => ({ label: choice.label, value: choice.value }))
 

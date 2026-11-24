@@ -16,7 +16,7 @@ import type {
 } from '../../../integrations/desktop/driver.js'
 import { type DesktopJudgedApp, screenOf } from '../../../integrations/desktop/desktopSession.js'
 import { challengeGranted, grantChallenge, settleChallenge } from '../../../integrations/desktop/computerGrant.js'
-import { postureBypassesAsks } from '../../../permissions/rules/decision/engine.js'
+import { modeBypassesPermissions } from '../../../permissions/rules/permissionMode.js'
 import { getSessionId } from '../../../boot/process-state/processState.js'
 import { COMPUTER_TOOL_NAME } from '../../../integrations/desktop/toolName.js'
 import type { AssistantMessage, Message } from '../../../engine/message-shapes/message.js'
@@ -289,7 +289,7 @@ export function challengeVerdict(input: Input, front: DesktopApplication, contex
   const permissionContext = context.getAppState?.()?.toolPermissionContext as ToolPermissionContext | undefined
   const rule = ruleFor(permissionContext, 'captcha')
   if (rule?.ruleBehavior === 'deny') return { verdict: 'deny', text: `${ruleSentence('Trying a human-verification challenge', 'deny', rule)} The operator completes it — wait until it is gone, then re-issue` }
-  if (challengeGranted(String(getSessionId()), front) !== null || rule?.ruleBehavior === 'allow' || (permissionContext !== undefined && postureBypassesAsks(permissionContext))) return { verdict: 'allow' }
+  if (challengeGranted(String(getSessionId()), front) !== null || rule?.ruleBehavior === 'allow' || (permissionContext !== undefined && modeBypassesPermissions(permissionContext.mode))) return { verdict: 'allow' }
   return {
     verdict: 'ask',
     decision: {

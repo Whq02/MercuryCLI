@@ -18,7 +18,7 @@ import {
 import { readComputerGrant } from '../../integrations/desktop/computerGrant.js'
 import { computerAccessPinnedToAsk, savedComputerAccess } from '../../integrations/desktop/computerAccess.js'
 import { resolveComputerAccess } from '../../platform/substrate/startupMenu.js'
-import { postureBypassesAsks } from '../../permissions/rules/decision/engine.js'
+import { modeBypassesPermissions } from '../../permissions/rules/permissionMode.js'
 import { getSessionId } from '../../boot/process-state/processState.js'
 import { COMPUTER_TOOL_NAME } from '../../integrations/desktop/toolName.js'
 import { renderToolResultMessage, renderToolUseErrorMessage, renderToolUseMessage, userFacingName } from './rows.js'
@@ -177,7 +177,7 @@ export const ComputerTool = buildTool({
       return verdict.verdict === 'allow' ? { behavior: 'allow' as const, updatedInput: input } : asked(verdict.decision)
     }
     if (ruled === 'allow' || (ruled === null && appApproved(owner, app.identity))) return challenge(false)
-    const access = resolveComputerAccess(savedComputerAccess(), permissionContext !== undefined && postureBypassesAsks(permissionContext))
+    const access = resolveComputerAccess(savedComputerAccess(), permissionContext !== undefined && modeBypassesPermissions(permissionContext.mode))
     const opened = access.value === 'full' || (access.value === 'permissive' && home.identity === app.identity)
     if (ruled === null && (opened || readComputerGrant(String(getSessionId())) !== null)) {
       noteCheckedActApp(owner, input.action, { identity: app.identity, name: app.name }, true)

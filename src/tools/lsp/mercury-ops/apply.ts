@@ -10,7 +10,7 @@ import { getFileModificationTime } from '../../../platform/files/file.js'
 import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../engines/change-transaction/fileHistory.js'
 import { logError } from '../../../platform/logs/errorLog.js'
 import { checkWritePermissionForTool, pathInAllowedWorkingPath } from '../../../permissions/rules/filesystem.js'
-import { postureBypassesAsks } from '../../../permissions/rules/decision/engine.js'
+import { modeBypassesPermissions } from '../../../permissions/rules/permissionMode.js'
 import type { MercuryLspOpOutput, OpEnv } from './types.js'
 import { displayPathFor, uriToFilePath } from './shared.js'
 import { syncServersAfterWrite, awaitDiagnosticStabilization } from './afterWrite.js'
@@ -170,7 +170,7 @@ export async function applyPrepared(
       refusals.push(`${display}: denied by a rule`)
       continue
     }
-    if (decision.behavior !== 'allow' && !pathInAllowedWorkingPath(abs, permissionContext) && abs !== env.absolutePath && !postureBypassesAsks(permissionContext)) {
+    if (decision.behavior !== 'allow' && !pathInAllowedWorkingPath(abs, permissionContext) && abs !== env.absolutePath && !modeBypassesPermissions(permissionContext.mode)) {
       if (await env.requestWritePermission?.(abs) !== true) {
         refusals.push(`${display}: permission to edit this additional file was not granted`)
       }

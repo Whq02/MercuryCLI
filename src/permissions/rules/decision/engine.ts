@@ -15,7 +15,7 @@ import type {
   PermissionDenyDecision,
   PermissionResult,
 } from '../permissionResult.js'
-import type { BypassedAskRoad, DecisionEntry, DecisionStageId, DecisionStageRecord, DecisionTrace, PermissionMode } from '../permissions.js'
+import type { BypassedAskRoad, DecisionEntry, DecisionStageId, DecisionStageRecord, DecisionTrace } from '../permissions.js'
 import { refusalWithReason, ruleSentence, wholeToolDenyRulesCovering, withRuleReason } from '../ruleReason.js'
 import { createPermissionRequestMessage, ORG_ASK_REASON } from './requestMessage.js'
 import {
@@ -73,13 +73,6 @@ function composedInstructionImportsRead(): Promise<void> | undefined {
     })
   composing = reading
   return reading
-}
-
-export function postureBypassesAsks(permissionContext: {
-  mode: PermissionMode
-  isBypassPermissionsModeAvailable?: boolean
-}): boolean {
-  return modeBypassesPermissions(permissionContext.mode)
 }
 
 export async function decideToolPermission(
@@ -228,7 +221,7 @@ async function runDecisionChain(
   const freshAppState = context.getAppState()
   const freshPermissionContext = freshAppState.toolPermissionContext
   const freshMode = freshPermissionContext.mode
-  const postureBypasses = postureBypassesAsks(freshPermissionContext)
+  const postureBypasses = modeBypassesPermissions(freshMode)
 
   if (entry === 'full') {
     if (
