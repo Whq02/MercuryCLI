@@ -1034,6 +1034,17 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
     )
   const dLines = expandDetailRows(dItems)
   const dRows = dLines.flat()
+  let effectiveDetailBudget = detailBudget
+  let keepSummary = true
+  let keepEnv = true
+  if (m.detailOverrideConfirms && dRows.length > effectiveDetailBudget) {
+    keepEnv = false
+    effectiveDetailBudget += envPanel.length
+    if (dRows.length > effectiveDetailBudget) {
+      keepSummary = false
+      effectiveDetailBudget += summaryPanel.length
+    }
+  }
   const wholeLines = room => {
     if (m.detailOverrideConfirms) return dRows.slice(0, room)
     const kept = []
@@ -1045,12 +1056,12 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
   }
   const hintRaw = m.moreHint ?? '… (the trail continues — taller terminal)'
   const hintLines = wrapDetailLine(hintRaw, detailLineW, textW).map(l => ' ' + faint + l + R)
-  const hintShown = hintLines.slice(0, Math.max(1, detailBudget))
+  const hintShown = hintLines.slice(0, Math.max(1, effectiveDetailBudget))
   const dShown =
-    dRows.length > detailBudget
-      ? [...wholeLines(Math.max(0, detailBudget - hintShown.length)), ...hintShown]
+    dRows.length > effectiveDetailBudget
+      ? [...wholeLines(Math.max(0, effectiveDetailBudget - hintShown.length)), ...hintShown]
       : dRows
-  const dPadded = [...dShown, ...Array(Math.max(0, detailBudget - dShown.length)).fill('')]
+  const dPadded = [...dShown, ...Array(Math.max(0, effectiveDetailBudget - dShown.length)).fill('')]
   const detailPanel = panelLines('SETTING DETAIL', dPadded, RIGHT_W)
 
   const lines = []
@@ -1059,7 +1070,11 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
   lines.push(faint + '⌁ ' + (m.title ?? 'boot menu') + R)
   lines.push('')
   const zipStart = lines.length
-  const rightCol = [...detailPanel, ...summaryPanel, ...envPanel]
+  const rightCol = [
+    ...detailPanel,
+    ...(keepSummary ? summaryPanel : []),
+    ...(keepEnv ? envPanel : []),
+  ]
   const totalW = LEFT_W + 2 + RIGHT_W
   lines.push(...zipCols(leftPanel, rightCol, LEFT_W, 2).map(l => padVis(l, totalW)))
   const bc = paint(DUNE)

@@ -220,6 +220,17 @@ t.section('§8 — THE RESUME SKIN (one core, the face grammar; the real journey
   t.check('the 64×12 floor frame WARNS and keeps the way out (never a wall)', floor.includes('wants at least') && floor.includes('esc back'))
   const project = composeResume(120, 40, { scope: 'project', sel: 0 }).join('\n')
   t.check('project scope drops the cleared chat and paints the honest elsewhere line', project.includes('+1 in other project — a shows all history') && !project.includes('· cleared'))
+  const prune120 = STILLS.find(s => s.id === 'resume-120x40-prune-card')!.compose().join('\n')
+  t.check('prune card at 120×40 shows both No and Yes choice rows above the pane border (never cut under the trail line)', prune120.includes('No — keep everything') && prune120.includes('Yes — delete exactly this set') && !prune120.includes('the trail continues'), prune120.split('\n').filter(l => /prune|would delete|No —|Yes —|trail/.test(l)).join(' | '))
+  const agedTwelve = Array.from({ length: 12 }, (_, idx) => {
+    const at = new Date(Date.parse('2026-08-29T12:00:00Z') - (40 + idx) * 86_400_000)
+    const id = `00000000-0000-4000-8000-${String(idx + 100).padStart(12, '0')}`
+    return { ...RESUME_FIXTURE_LOGS[0]!, sessionId: id, firstPrompt: `aged session ${idx + 1}`, modified: at, created: at, date: at.toISOString(), fullPath: `/tmp/aged-${idx}.jsonl` }
+  })
+  const pruneTwelve120 = composeResume(120, 40, { scope: 'all', logs: agedTwelve, prune: { answer: 'no' } }).join('\n')
+  t.check('prune card with 12 candidates at 120×40 keeps No and Yes visible with no trail cut', pruneTwelve120.includes('12 transcripts') && pruneTwelve120.includes('No — keep everything') && pruneTwelve120.includes('Yes — delete exactly this set') && !pruneTwelve120.includes('the trail continues'))
+  const pruneTwelve100 = composeResume(100, 26, { scope: 'all', logs: agedTwelve, prune: { answer: 'no' } }).join(' ').replace(/\s+/g, ' ')
+  t.check('prune card with 12 candidates at 100×26 keeps No and Yes visible', pruneTwelve100.includes('12 transcripts') && pruneTwelve100.includes('No — keep everything') && pruneTwelve100.includes('Yes — delete exactly this set'))
 }
 
 t.section('§9 — THE RESUME MOUNT (staticRender with an injected model; the lawful route door)')
