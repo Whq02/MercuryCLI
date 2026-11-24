@@ -25,6 +25,12 @@ type McpSeed = {
 
 const BOOT_RECOVERY_BUDGET_MS = 3_000;
 
+function askForWarmRunner(): void {
+  void import('../daemon/switchboard/ensureDaemon.js')
+    .then(m => m.warmSessionRunner(getCwd()))
+    .catch(passedOver);
+}
+
 export async function launchChat(
   root: Root,
   appProps: AppWrapperProps,
@@ -33,9 +39,7 @@ export async function launchChat(
   mcpSeed?: McpSeed,
 ): Promise<void> {
   profileCheckpoint('launch_chat_start');
-  void import('../daemon/switchboard/ensureDaemon.js')
-    .then(m => m.warmSessionRunner(getCwd()))
-    .catch(passedOver);
+  askForWarmRunner();
 
   try {
     const { runBootRecovery } = await import('../platform/substrate/recoveryOrchestrator.js');
@@ -67,7 +71,7 @@ export async function launchChat(
 
   profileCheckpoint('launch_chat_after_recovery');
 
-  const [{ resolveInitialSurface, initializeSurfaceRoute }, { App }, { SurfaceRouter }] =
+  const [{ resolveInitialSurface, initializeSurfaceRoute, subscribeSurfaceRoute, currentSurfaceRoute, surfaceRouteId }, { App }, { SurfaceRouter }] =
     await Promise.all([
       import('../screen/routes/surfaceRoute.js'),
       import('./App.js'),
@@ -82,14 +86,26 @@ export async function launchChat(
   ]);
   seedDynamicMcpConfig(mcpSeed?.dynamicMcpConfig, mcpSeed?.isStrictMcpConfig ?? false);
   initializeSurfaceRoute(initialSurface.effective);
+  let shown = surfaceRouteId(currentSurfaceRoute());
+  const stopWarmAsks = subscribeSurfaceRoute(() => {
+    const route = currentSurfaceRoute();
+    const id = surfaceRouteId(route);
+    if (id === shown) return;
+    shown = id;
+    if (route.kind === 'boot-settings' || route.kind === 'concourse') askForWarmRunner();
+  });
   profileCheckpoint('launch_chat_after_paint_imports');
 
-  await renderAndRun(
-    root,
-    <App {...appProps}>
-      <SurfaceRouter>
-        <Chat {...chatProps} />
-      </SurfaceRouter>
-    </App>,
-  );
+  try {
+    await renderAndRun(
+      root,
+      <App {...appProps}>
+        <SurfaceRouter>
+          <Chat {...chatProps} />
+        </SurfaceRouter>
+      </App>,
+    );
+  } finally {
+    stopWarmAsks();
+  }
 }
