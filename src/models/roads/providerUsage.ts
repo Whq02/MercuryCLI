@@ -57,7 +57,6 @@ import {
 import { openaiSubscriptionUsage, openaiUsageReaderState } from './openai/openaiUsageState.js'
 import type { OpenrouterKeySource } from './openrouter/openrouterAccounts.js'
 import {
-  openrouterObservedKeyUsage,
   refreshOpenrouterKeyUsage,
   type OpenrouterKeyUsage,
   type OpenrouterLimitWindow,
