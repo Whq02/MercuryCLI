@@ -1,7 +1,6 @@
 import isEqual from 'lodash-es/isEqual.js'
 import type { ContentBlockParam } from '../../../engine/message-shapes/wire.js'
 import { flagEnabled } from '../../../platform/substrate/flagRegistry.js'
-import { TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../../platform/errors/errors.js'
 import { imageDimensionsFromHeader } from '../../../platform/images/imageProcessorJs.js'
 import { createImageMetadataText, type ImageDimensions, ImageResizeError, maybeResizeAndDownsampleImageBuffer } from '../../../platform/images/imageResizer.js'
 import { logMCPError } from '../../../platform/logs/errorLog.js'
@@ -275,10 +274,7 @@ export async function transformMCPResult(result: unknown, tool: string, name: st
   }
 
   logMCPError(name, `unexpected response format from tool ${tool}`)
-  throw new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
-    `Unexpected response format from MCP server "${name}" tool "${tool}"`,
-    'MCP unexpected response format',
-  )
+  throw new Error(`Unexpected response format from MCP server "${name}" tool "${tool}"`)
 }
 
 export async function processMCPResult(result: unknown, tool: string, name: string): Promise<MCPToolResult> {

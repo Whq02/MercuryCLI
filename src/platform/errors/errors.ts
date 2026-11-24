@@ -71,16 +71,6 @@ export function shellCallValue(fact: ShellRunFact, text: string): ShellCallValue
   return { code: fact.code, stdout: fact.output ?? text, stderr: '' }
 }
 
-export class TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS extends Error {
-  readonly telemetryMessage: string
-
-  constructor(message: string, telemetryMessage?: string) {
-    super(message)
-    this.name = 'TelemetrySafeError'
-    this.telemetryMessage = telemetryMessage ?? message
-  }
-}
-
 
 export function isAbortError(error: unknown): boolean {
   return error instanceof AbortError || error instanceof APIUserAbortError || (error instanceof Error && error.name === 'AbortError')

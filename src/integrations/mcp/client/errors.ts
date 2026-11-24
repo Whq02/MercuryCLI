@@ -1,6 +1,6 @@
 import { ProtocolError, SdkError, SdkErrorCode } from '../../mcp-shapes/sdk.js'
 import { deepestErrorDetail, isStaleSocketCode } from '../../../engine/request-parts/transportEvidence.js'
-import { errorMessage, TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../../platform/errors/errors.js'
+import { errorMessage } from '../../../platform/errors/errors.js'
 
 export class McpAuthError extends Error {
   constructor(
@@ -12,13 +12,12 @@ export class McpAuthError extends Error {
   }
 }
 
-export class McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS extends TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS {
+export class McpToolCallError extends Error {
   constructor(
     message: string,
-    telemetryMessage: string,
     public readonly mcpMeta?: Record<string, unknown>,
   ) {
-    super(message, telemetryMessage)
+    super(message)
     this.name = 'McpToolCallError'
   }
 }

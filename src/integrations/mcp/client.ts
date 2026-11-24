@@ -18,7 +18,7 @@ import { registerCleanup } from '../../platform/processes/cleanupRegistry.js'
 import { getCwd } from '../../platform/files/cwd.js'
 import { restoreRenamedArgumentKeys } from './normalizeToolSchema.js'
 import { armInactivityDeadline, formatLimit, withDeadline } from '../../platform/async/deadline.js'
-import { errorMessage, getErrnoCode, isAbortError, TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../platform/errors/errors.js'
+import { errorMessage, getErrnoCode, isAbortError } from '../../platform/errors/errors.js'
 import { isShuttingDown } from '../../platform/processes/gracefulShutdown.js'
 import { logError, logMCPDebug, logMCPError } from '../../platform/logs/errorLog.js'
 import type { MCPToolResult } from './mcpOutputTruncation.js'
@@ -38,8 +38,8 @@ import { isMercuryServerEnabled, isMercuryServer, withMercuryLeaseHolder } from 
 import { withMcpToolCardHeader } from '../mcp-shapes/toolCard.js'
 import { mcpPolicyDenyReason, mcpToolAllowed, type McpToolAnnotations } from '../mcp-shapes/toolPolicy.js'
 import type { ConnectedMCPServer, MCPServerConnection, ScopedMcpServerConfig, ServerResource } from '../mcp-shapes/mcpServerRecords.js'
-import { describeMcpConnectFailure, getLoggingSafeMcpBaseUrl, mcpConfigAsWritten, MCP_CONNECT_TIMEOUT_TELEMETRY } from './utils.js'
-import { McpAuthError, McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, McpSessionExpiredError, isMcpSessionExpiredError, isConnectionClosedError, isProbeExitError, isStaleSocketFetchError, isResponseStreamEndedError } from './client/errors.js'
+import { describeMcpConnectFailure, getLoggingSafeMcpBaseUrl, mcpConfigAsWritten, McpConnectTimeoutError } from './utils.js'
+import { McpAuthError, McpToolCallError, McpSessionExpiredError, isMcpSessionExpiredError, isConnectionClosedError, isProbeExitError, isStaleSocketFetchError, isResponseStreamEndedError } from './client/errors.js'
 import { LONG_CALL_LOG_INTERVAL_MS, MCP_TOOL_USE_ID_META_KEY, STDERR_FLUSH_BYTES, INSTRUCTIONS_MAX_CHARS, TERMINAL_ERROR_LIMIT, URL_ELICITATION_RETRIES, TERMINAL_ERROR_SUBSTRINGS, connectTimeoutMs, toolTimeoutMs, mcpCallIdleLimitMs, OVERSIZED_MESSAGE, oversizedMessages, mcpOversizedMessageWords, getMcpServerConnectionBatchSize, getRemoteConnectionBatchSize } from './client/limits.js'
 import { routeProgress } from './client/progress.js'
 import { isNeedsAuthWarm, handleRemoteAuthFailure } from './client/needsAuth.js'
@@ -51,7 +51,7 @@ import { withoutNullOptionals } from './client/nullOptionals.js'
 import { type UrlElicitation, parseUrlElicitations, queueUrlElicitation } from './client/urlElicitation.js'
 import { runWithLimit, fenceMcpPrefixCollisions } from './client/bulkParts.js'
 
-export { McpAuthError, McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, isMcpSessionExpiredError } from './client/errors.js'
+export { McpAuthError, McpToolCallError, isMcpSessionExpiredError } from './client/errors.js'
 export { MCP_TOOL_USE_ID_META_KEY, MCP_LAUNCH_SPAWN_GRACE_MS, mcpLaunchBudgetMs, withMcpLaunchBudget, DEFAULT_MCP_CALL_IDLE_MINUTES, mcpCallIdleLimitMs, DEFAULT_MCP_STDIO_MESSAGE_MB, mcpStdioMaxMessageBytes, getMcpServerConnectionBatchSize } from './client/limits.js'
 export { mcpRequestBudgetMs, wrapFetchWithTimeout, loggedHeadersOf } from './client/fetch.js'
 export { forgetMcpNeedsAuth } from './client/needsAuth.js'
@@ -514,10 +514,7 @@ export const connectToServer = memoize(
 
       if (timeoutMessage !== undefined) {
         logMCPError(name, timeoutMessage)
-        throw new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
-          timeoutMessage,
-          MCP_CONNECT_TIMEOUT_TELEMETRY,
-        )
+        throw new McpConnectTimeoutError(timeoutMessage)
       }
 
       logConnectFailure(name, type, serverRef, err)
@@ -640,10 +637,7 @@ export async function clearServerCache(name: string, serverRef: ScopedMcpServerC
 export async function ensureConnectedClient(client: MCPServerConnection): Promise<ConnectedMCPServer> {
   const current = await connectToServer(client.name, client.config)
   if (current.type !== 'connected') {
-    throw new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
-      `MCP server "${client.name}" is not connected`,
-      'MCP server not connected',
-    )
+    throw new Error(`MCP server "${client.name}" is not connected`)
   }
   return current
 }
@@ -986,9 +980,8 @@ async function callToolOnce(
         timeoutMs,
         () => {
           requestController.abort()
-          throw new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
+          throw new McpToolCallError(
             `MCP tool "${tool}" on server "${connected.name}" timed out after ${Math.round(timeoutMs / 1000)}s`,
-            'MCP tool call timeout',
           )
         },
         { signal: requestController.signal },
@@ -1013,9 +1006,8 @@ async function callToolOnce(
       }
       const errorDetail = detail || 'Unknown error'
       logMCPError(connected.name, `tool ${tool} returned an error: ${errorDetail}`)
-      throw new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
+      throw new McpToolCallError(
         `MCP tool "${tool}" on server "${connected.name}" failed: ${errorDetail}`,
-        'MCP tool returned error',
         rawResult._meta,
       )
     }
@@ -1032,16 +1024,14 @@ async function callToolOnce(
     if (watchdog.fired) {
       requestController.abort()
       logMCPError(connected.name, `tool ${tool} stalled: ${errorMessage(err)}`)
-      throw new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
+      throw new McpToolCallError(
         `MCP tool "${tool}" on server "${connected.name}": unknown outcome; inspect the effect before retrying.`,
-        'MCP tool call unknown outcome',
       )
     }
     if (signal.aborted || isAbortError(err)) {
       if (!mayHaveSent) return { content: undefined }
-      throw new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
+      throw new McpToolCallError(
         `MCP tool "${tool}" on server "${connected.name}": interrupted before it answered; if it has side effects, check them before calling again.`,
-        'MCP tool call interrupted',
       )
     }
     if (err instanceof UnauthorizedError || isStatus401(err)) {
@@ -1057,17 +1047,13 @@ async function callToolOnce(
       if (overLimitBytes !== undefined) {
         oversizedMessages.delete(connected.client)
         logMCPError(connected.name, `tool ${tool}: the server sent one message over ${overLimitBytes} bytes; the connection was dropped`)
-        throw new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
-          mcpOversizedMessageWords(tool, connected.name, overLimitBytes),
-          'MCP stdio message over the limit',
-        )
+        throw new McpToolCallError(mcpOversizedMessageWords(tool, connected.name, overLimitBytes))
       }
     }
     if (isResponseStreamEndedError(err)) {
       logMCPError(connected.name, `tool ${tool}: the server closed the response stream before answering`)
-      throw new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
+      throw new McpToolCallError(
         `MCP tool "${tool}" on server "${connected.name}": the server closed the response stream before answering — unknown outcome; inspect the effect before retrying.`,
-        'MCP tool call response stream ended',
       )
     }
     if (isStaleSocketFetchError(err)) {
@@ -1075,17 +1061,15 @@ async function callToolOnce(
       if (mayHaveSent) {
         requestController.abort()
         logMCPError(connected.name, `tool ${tool}: the server closed the response stream before answering`)
-        throw new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
+        throw new McpToolCallError(
           `MCP tool "${tool}" on server "${connected.name}": the server closed the response stream before answering — unknown outcome; inspect the effect before retrying.`,
-          'MCP tool call response stream ended',
         )
       }
     }
     if (mayHaveSent && !(err instanceof ProtocolError)) {
       requestController.abort()
-      throw new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
+      throw new McpToolCallError(
         `MCP tool "${tool}" on server "${connected.name}": unknown outcome; inspect the effect before retrying.`,
-        'MCP tool call unknown outcome',
       )
     }
     throw err
@@ -1183,17 +1167,6 @@ export async function callMCPToolWithUrlElicitationRetry(params: {
     }
   } catch (err) {
     progressSink?.({ status: 'failed', elapsedTimeMs: Date.now() - startedAt })
-    if (!(err instanceof TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS)) {
-      if (err instanceof ProtocolError) {
-        throw new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(err.message, `MCP protocol error ${err.code}`)
-      }
-      if (err instanceof SdkError) {
-        throw new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(err.message, `MCP client error ${err.code}`)
-      }
-      if (err instanceof Error && err.constructor === Error) {
-        throw new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(err.message, err.message.slice(0, 200))
-      }
-    }
     throw err
   }
 }

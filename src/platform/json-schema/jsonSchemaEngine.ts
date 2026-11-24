@@ -51,10 +51,6 @@ export function formatSchemaIssues(issues: SchemaIssue[]): string {
   return issues.map(i => `${i.path}: ${i.message}`).join(', ')
 }
 
-export function issueKeywords(issues: SchemaIssue[]): string {
-  return [...new Set(issues.map(i => i.keyword))].join(',') || 'unknown'
-}
-
 function teach(raw: string): string {
   if (/unknown keyword/i.test(raw)) {
     return `${raw} — remove the unknown keyword or express the constraint with standard JSON Schema draft-07 keywords (type, properties, required, items, enum, const, anyOf, oneOf, not, minimum/maximum, minLength/maxLength, pattern)`

@@ -32,7 +32,6 @@ enableConfigs()
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 const utils = await import('../../src/integrations/mcp/utils.ts')
-const { TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS: TelemetrySafeError } = await import('../../src/platform/errors/errors.ts')
 const { McpServerConfigSchema } = await import('../../src/integrations/mcp-shapes/mcpServerRecords.ts')
 
 console.log('============================================================')
@@ -42,7 +41,7 @@ console.log('============================================================')
 section('§1 the composer, shape by shape')
 {
   fixHintNow = 'describeMcpConnectFailure in src/integrations/mcp/utils.ts composes the reason for each error shape; fix the branch for the shape this check names'
-  const deadline = new TelemetrySafeError('MCP server "x" (stdio) did not answer in 1.5s — retry from /mcp', utils.MCP_CONNECT_TIMEOUT_TELEMETRY)
+  const deadline = new utils.McpConnectTimeoutError('MCP server "x" (stdio) did not answer in 1.5s — retry from /mcp')
   const deadlineReason = utils.describeMcpConnectFailure(deadline, { transport: 'stdio', command: 'node', stderrTail: '' })
   t('§1 the deadline keeps its own sentence, untouched', deadlineReason === deadline.message, deadlineReason)
   t('§1 …never the close-class tail', !deadlineReason.includes('before closing') && !deadlineReason.includes('server stderr'))

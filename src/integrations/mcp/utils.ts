@@ -111,7 +111,12 @@ export function ensureConfigScope(scope?: string): ConfigScope {
 }
 
 
-export const MCP_CONNECT_TIMEOUT_TELEMETRY = 'MCP connection timeout'
+export class McpConnectTimeoutError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'McpConnectTimeoutError'
+  }
+}
 
 interface McpConnectFailureContext {
   transport: string
@@ -147,7 +152,7 @@ function stripErrorClassPrefixes(text: string): string {
 
 export function describeMcpConnectFailure(error: unknown, context: McpConnectFailureContext): string {
   const message = errorMessage(error)
-  if ((error as { telemetryMessage?: unknown } | null)?.telemetryMessage === MCP_CONNECT_TIMEOUT_TELEMETRY) return message
+  if (error instanceof McpConnectTimeoutError) return message
   const code = errnoCodeInChain(error)
   if (context.transport === 'stdio') {
     const command = context.command ?? 'the command'

@@ -1,9 +1,8 @@
 import * as React from 'react'
 import { z } from 'zod/v4'
 import { Text } from '../../screen/themedRenderer.js'
-import { compileJsonSchema, formatSchemaIssues, issueKeywords } from '../../platform/json-schema/jsonSchemaEngine.js'
+import { compileJsonSchema, formatSchemaIssues } from '../../platform/json-schema/jsonSchemaEngine.js'
 import { buildTool, type Tool, type ToolDef, type ToolInputJSONSchema } from '../kit/tool.js'
-import { TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../platform/errors/errors.js'
 import { lazySchema } from '../../platform/primitives/lazySchema.js'
 import { STRUCTURED_OUTPUT_TOOL_NAME } from '../kit/names/structuredOutput.js'
 
@@ -85,13 +84,10 @@ export const StructuredOutputTool = buildTool({
   },
 } satisfies ToolDef<InputSchema, Output>)
 
-export class SchemaMismatchError extends TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS {
-  readonly telemetrySafeMessage: string
-
-  constructor(message: string, telemetrySafeMessage: string) {
-    super(message, telemetrySafeMessage)
+export class SchemaMismatchError extends Error {
+  constructor(message: string) {
+    super(message)
     this.name = 'SchemaMismatchError'
-    this.telemetrySafeMessage = telemetrySafeMessage
   }
 }
 
@@ -116,7 +112,6 @@ export function getSchemaBoundStructuredOutputTool(jsonSchema: object): SchemaBo
       if (issues.length > 0) {
         throw new SchemaMismatchError(
           `Output does not match the required schema: ${formatSchemaIssues(issues)}`,
-          `${STRUCTURED_OUTPUT_TOOL_NAME} schema mismatch: ${issueKeywords(issues)}`,
         )
       }
       return delivered(input)
