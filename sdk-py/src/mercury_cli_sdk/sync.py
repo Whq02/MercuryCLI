@@ -123,8 +123,8 @@ class SyncSession(TypedSyncRequests):
     def background_shell(self) -> ShellBackgroundResult: return self._wait(self.session.background_shell())
     def send_now(self) -> SessionSendNowResult: return self._wait(self.session.send_now())
     def notify_credentials_changed(self, params: dict[str, Any] | None = None) -> None: self._wait(self.session.notify_credentials_changed(params))
-    def claim(self, *, session_id: str, model: str | None = None, mode: str | None = None, effort: str | None = None, resume: bool | None = None, restart_reason: str | None = None, openai_catalogue: Any = None) -> SessionClaimResult:
-        return self._wait(self.session.claim(session_id=session_id, model=model, mode=mode, effort=effort, resume=resume, restart_reason=restart_reason, openai_catalogue=openai_catalogue))
+    def claim(self, *, session_id: str, model: str | None = None, mode: str | None = None, effort: str | None = None, resume: bool | None = None, restart_reason: str | None = None, title: str | None = None, openai_catalogue: Any = None) -> SessionClaimResult:
+        return self._wait(self.session.claim(session_id=session_id, model=model, mode=mode, effort=effort, resume=resume, restart_reason=restart_reason, title=title, openai_catalogue=openai_catalogue))
     def _request(self, method: str, params: Any = None, *, timeout: float | None | DefaultTimeout = DEFAULT_TIMEOUT) -> Any: return self._wait(self.session.request(method, params, timeout=timeout))
     def _notify(self, method: str, params: Any = None) -> None: self._wait(self.session.notify(method, params))
 

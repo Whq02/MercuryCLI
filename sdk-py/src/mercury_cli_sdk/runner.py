@@ -457,13 +457,14 @@ class MercurySession(Settles, TypedRequests):
     async def background_shell(self) -> ShellBackgroundResult: return await self.request('shell/background')
     async def send_now(self) -> SessionSendNowResult: return await self.request('session/send_now')
     async def notify_credentials_changed(self, params: dict[str, Any] | None = None) -> None: await self.notify('credentials/changed', params)
-    async def claim(self, *, session_id: str, model: str | None = None, mode: str | None = None, effort: str | None = None, resume: bool | None = None, restart_reason: str | None = None, openai_catalogue: Any = None) -> SessionClaimResult:
+    async def claim(self, *, session_id: str, model: str | None = None, mode: str | None = None, effort: str | None = None, resume: bool | None = None, restart_reason: str | None = None, title: str | None = None, openai_catalogue: Any = None) -> SessionClaimResult:
         params: SessionClaimParams = {'session_id': session_id}
         if model is not None: params['model'] = model
         if mode is not None: params['mode'] = mode
         if effort is not None: params['effort'] = effort
         if resume is not None: params['resume'] = resume
         if restart_reason is not None: params['restart_reason'] = restart_reason
+        if title is not None: params['title'] = title
         if openai_catalogue is not None: params['openai_catalogue'] = openai_catalogue
         receipt = await self.request('session/claim', params)
         if resume is True:

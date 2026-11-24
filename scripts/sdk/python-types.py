@@ -25,6 +25,7 @@ async def consumer() -> None:
     assert_type(await session.stop_agent('a'), AgentStopResult)
     assert_type(await session.resume_agent('a'), AgentResumeResult)
     assert_type(await session.claim(session_id='id'), SessionClaimResult)
+    assert_type(await session.claim(session_id='id', title='named'), SessionClaimResult)
     assert_type(await session.request('session/facts'), SessionFactsResult)
     assert_type(await session.request('session/pause_gate', {'paused': False}), SessionPauseGateResult)
     assert_type(await session.request('session/set_model', {'model': 'x'}, timeout=None), SessionSetModelResult)

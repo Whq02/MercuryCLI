@@ -338,7 +338,8 @@ async def warm_identity():
                 except sdk.MercuryError as error: assert str(error) == 'claim rejected'
                 else: raise AssertionError('a rejected claim resolved')
                 assert session.session_id is None
-                receipt = await session.claim(session_id='requested-session', model='fixture', mode='default', effort='high', resume=False)
+                receipt = await session.claim(session_id='requested-session', model='fixture', mode='default', effort='high', resume=False, title='named session')
+                assert any(row['method'] == 'session/claim' and row['params'].get('title') == 'named session' for row in received())
                 assert session.session_id == receipt['session_id'] == session.initialized['session_id'] == 'claimed-session'
                 assert (await asyncio.wait_for(session.prompt('resolve'), 0.5))['answer'] == 'resolved'
     with prompt_fixture(True, True) as (mercury, received):
@@ -350,7 +351,8 @@ async def warm_identity():
                 except sdk.MercuryError as error: assert str(error) == message, str(error)
                 else: raise AssertionError('unclaimed sync prompt was accepted')
                 assert time.perf_counter() - start < 0.05
-                receipt = session.claim(session_id='requested-session', model='fixture', mode='default', effort='high', resume=False)
+                receipt = session.claim(session_id='requested-session', model='fixture', mode='default', effort='high', resume=False, title='named sync session')
+                assert any(row['method'] == 'session/claim' and row['params'].get('title') == 'named sync session' for row in received())
                 assert session.session_id == receipt['session_id'] == session.initialized['session_id'] == 'claimed-session'
                 assert session.prompt('resolve')['answer'] == 'resolved'
         await asyncio.to_thread(consume)
