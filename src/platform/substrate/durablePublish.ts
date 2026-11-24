@@ -17,6 +17,7 @@ import { basename, dirname, join } from 'node:path'
 import { passedOver } from '../errors/passedOver.js'
 import {
   dirFsyncErrorIsFatal,
+  HELD_FILE_PATIENT_RETRY_DELAYS_MS,
   HELD_FILE_RETRY_DELAYS_MS,
   heldFileRetryDelayMs,
   isHeldFileErrnoCode,
@@ -84,6 +85,7 @@ function errnoOf(e: unknown): string | undefined {
 export interface DurablePublishOptions {
   mode?: number
   parent?: 'create' | 'must-stand'
+  platform?: NodeJS.Platform
 }
 
 const TEMP_PATTERN = /^\..+\.\d+\.[0-9a-f]{8}\.tmp$/
@@ -311,7 +313,7 @@ export async function durableAtomicPublish(
         await rename(tmp, path)
         break
       } catch (e) {
-        const delay = renameRetryDelayMs(errnoOf(e), renameAttempts)
+        const delay = heldFileRetryDelayMs(errnoOf(e), renameAttempts, opts?.platform, HELD_FILE_PATIENT_RETRY_DELAYS_MS)
         if (delay === null) throw e
         await sleep(delay)
       }
@@ -393,7 +395,7 @@ export function durableAtomicPublishSync(
         renameSync(tmp, path)
         break
       } catch (e) {
-        const delay = renameRetryDelayMs(errnoOf(e), renameAttempts)
+        const delay = renameRetryDelayMs(errnoOf(e), renameAttempts, opts?.platform)
         if (delay === null) throw e
         sleepSyncMs(delay)
       }

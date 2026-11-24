@@ -87,6 +87,8 @@ export function symlinkDeniedByPrivilege(
 
 export const HELD_FILE_RETRY_DELAYS_MS: readonly number[] = [50, 100, 200]
 
+export const HELD_FILE_PATIENT_RETRY_DELAYS_MS: readonly number[] = [50, 100, 200, 400, 800, 1600]
+
 export function isHeldFileErrnoCode(code: string | undefined): boolean {
   return code === 'EPERM' || code === 'EBUSY' || code === 'EACCES'
 }
@@ -117,10 +119,11 @@ export function heldFileRetryDelayMs(
   code: string | undefined,
   attempt: number,
   platform: NodeJS.Platform = process.platform,
+  ladder: readonly number[] = HELD_FILE_RETRY_DELAYS_MS,
 ): number | null {
   if (!isTransientHeldFileCode(code, platform)) return null
-  if (attempt < 1 || attempt > HELD_FILE_RETRY_DELAYS_MS.length) return null
-  return HELD_FILE_RETRY_DELAYS_MS[attempt - 1]!
+  if (attempt < 1 || attempt > ladder.length) return null
+  return ladder[attempt - 1]!
 }
 
 export function dirFsyncErrorIsFatal(

@@ -9,6 +9,7 @@ import {
   isDurableTempName,
   type DurablePublishReport,
 } from '../../src/platform/substrate/durablePublish.ts'
+import { HELD_FILE_PATIENT_RETRY_DELAYS_MS } from '../../src/platform/host-os/files.ts'
 
 if (process.platform !== 'win32') {
   console.log('── mo6 win32 open-handle lifecycle — SKIP (POSIX host: an open handle never blocks rename here).')
@@ -21,7 +22,7 @@ let failures = 0
 const ok = (cond: boolean, label: string, detail = ''): void => {
   console.log(`  ${cond ? '✅' : '❌'} ${label}${detail ? ` — ${detail}` : ''}`)
   if (!cond) {
-    console.log('     fix: this section exercises the rename retry loop and typed DurablePublishError of durableAtomicPublish in src/platform/substrate/durablePublish.ts (retry delays come from HELD_FILE_RETRY_DELAYS_MS, imported there); change that file so the labelled behaviour holds again')
+    console.log('     fix: this section exercises the rename retry loop and typed DurablePublishError of durableAtomicPublish in src/platform/substrate/durablePublish.ts (retry delays come from HELD_FILE_PATIENT_RETRY_DELAYS_MS, imported there); change that file so the labelled behaviour holds again')
     failures++
   }
 }
@@ -130,7 +131,7 @@ await section('§1', async () => {
       describe(res.failed),
     )
     ok(
-      err?.attempts === 4 && err?.tempCleanup === 'removed',
+      err?.attempts === HELD_FILE_PATIENT_RETRY_DELAYS_MS.length + 1 && err?.tempCleanup === 'removed',
       `§1 lost race: full budget spent, temp cleaned (attempts=${err?.attempts}, ${err?.tempCleanup})`,
     )
     ok(readFileSync(p, 'utf8') === 'previous-good', '§1 lost race: the committed file stayed intact through exhaustion')
@@ -169,7 +170,7 @@ await section('§2', async () => {
     '§2 beyond-budget: typed failure with the real fs code',
     err ? `fsCode=${err.fsCode}` : caught === null ? 'the publish unexpectedly LANDED through the held handle' : describe(caught),
   )
-  ok(err?.attempts === 4 && (err?.elapsedMs ?? 0) >= 350, `§2 full budget spent (attempts=${err?.attempts}, ${err?.elapsedMs}ms)`)
+  ok(err?.attempts === HELD_FILE_PATIENT_RETRY_DELAYS_MS.length + 1 && (err?.elapsedMs ?? 0) >= 3150, `§2 full budget spent (attempts=${err?.attempts}, ${err?.elapsedMs}ms)`)
   ok(err?.tempCleanup === 'removed', `§2 prepared temp cleaned (${err?.tempCleanup})`)
   ok(readFileSync(p, 'utf8') === 'previous-good', '§2 the committed file stayed READABLE + intact through the whole hold')
   ok(tempsIn(dir).length === 0, '§2 no orphan replacement left behind')

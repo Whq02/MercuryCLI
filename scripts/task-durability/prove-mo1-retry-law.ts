@@ -6,13 +6,17 @@ import {
   _resetFaultInjectionCountersForTests,
   cleanupOrphanDurableTemps,
   durableAtomicPublish,
+  durableAtomicPublishSync,
   DurablePublishError,
   isDurableTempName,
   isTransientWin32FsCode,
   renameRetryDelayMs,
   WIN32_RENAME_RETRY_DELAYS_MS,
 } from '../../src/platform/substrate/durablePublish.ts'
+import * as hostFiles from '../../src/platform/host-os/files.ts'
 
+const PATIENT_LADDER: readonly number[] = hostFiles.HELD_FILE_PATIENT_RETRY_DELAYS_MS ?? []
+const PATIENT_WAIT_MS = PATIENT_LADDER.reduce((sum, ms) => sum + ms, 0)
 const IS_WIN = process.platform === 'win32'
 let failures = 0
 const sectionHints: Record<string, string> = {
@@ -22,6 +26,7 @@ const sectionHints: Record<string, string> = {
   '§4': 'change the final-failure path of durableAtomicPublish in src/platform/substrate/durablePublish.ts so the DurablePublishError reports phase, fsCode, attempts, elapsedMs and tempCleanup, and the old file and temps are left clean',
   '§5': 'change durableAtomicPublish in src/platform/substrate/durablePublish.ts so a structural code such as EROFS fails on the first attempt with no retry sleep',
   '§6': 'change faultPoint (the MERCURY_FAULT_INJECT grammar) or durableAtomicPublish in src/platform/substrate/durablePublish.ts',
+  '§7': 'change HELD_FILE_PATIENT_RETRY_DELAYS_MS in src/platform/host-os/files.ts or the rename loop of durableAtomicPublish in src/platform/substrate/durablePublish.ts so the async publish rides out a hold of a second or two, and leave the sync twin on the short ladder',
 }
 const ok = (cond: boolean, label: string, detail = ''): void => {
   const shown = cond ? detail : [detail, sectionHints[label.slice(0, 2)] ?? ''].filter(Boolean).join(' — ')
@@ -72,6 +77,17 @@ console.log(`── mo1 retry law (async owner) — live platform: ${process.pla
     '§1 structural/unknown codes never retry even on win32',
   )
   ok(t('EPERM', 0, 'win32', null), '§1 attempt numbers are 1-based (0 is out of range)')
+  ok(
+    JSON.stringify(PATIENT_LADDER) === '[50,100,200,400,800,1600]',
+    '§7 the async publish backs off on 50/100/200/400/800/1600ms (seven tries, 3150ms of waiting)',
+    JSON.stringify(PATIENT_LADDER),
+  )
+  ok(
+    hostFiles.heldFileRetryDelayMs('EPERM', 6, 'win32', PATIENT_LADDER) === 1600 &&
+      hostFiles.heldFileRetryDelayMs('EPERM', 7, 'win32', PATIENT_LADDER) === null &&
+      hostFiles.heldFileRetryDelayMs('EPERM', 1, 'darwin', PATIENT_LADDER) === null,
+    '§7 the patient ladder stops after its last rung, and never applies off win32',
+  )
 }
 
 {
@@ -139,8 +155,8 @@ console.log(`── mo1 retry law (async owner) — live platform: ${process.pla
   const err = caught instanceof DurablePublishError ? caught : null
   ok(err !== null && err.phase === 'rename' && err.fsCode === 'EPERM', '§4 typed failure names the phase + fs code')
   if (IS_WIN) {
-    ok(err?.attempts === 4, `§4 win32: budget is 1 + 3 retries (attempts=${err?.attempts})`)
-    ok(wall >= 350 && (err?.elapsedMs ?? 0) >= 350, `§4 win32: elapsed covers the full backoff (${wall}ms wall, ${err?.elapsedMs}ms reported)`)
+    ok(err?.attempts === PATIENT_LADDER.length + 1, `§4 win32: budget is 1 + ${PATIENT_LADDER.length} retries (attempts=${err?.attempts})`)
+    ok(wall >= PATIENT_WAIT_MS && (err?.elapsedMs ?? 0) >= PATIENT_WAIT_MS, `§4 win32: elapsed covers the full backoff (${wall}ms wall, ${err?.elapsedMs}ms reported)`)
   } else {
     ok(err?.attempts === 1, `§4 POSIX: single attempt (attempts=${err?.attempts})`)
   }
@@ -217,6 +233,48 @@ console.log(`── mo1 retry law (async owner) — live platform: ${process.pla
   inject(null)
   ok(r2.attempts === 1 && readFileSync(p, 'utf8') === 'z', '§6 path filter: unrelated spec never fires')
   ok((await cleanupOrphanDurableTemps(dir, { olderThanMs: 0 })).length === 0, '§6 nothing left for the sweeper')
+}
+
+{
+  const dir = join(tmp, 's7')
+  const p = join(dir, 'held.json')
+  await durableAtomicPublish(p, 'the old bytes')
+  inject('rename@held.json:eperm')
+  const letGo = setTimeout(() => inject(null), 1_500)
+  const started = Date.now()
+  let landed: Awaited<ReturnType<typeof durableAtomicPublish>> | null = null
+  let caught: unknown = null
+  try {
+    landed = await durableAtomicPublish(p, "the writer's own bytes", { platform: 'win32' })
+  } catch (e) {
+    caught = e
+  }
+  const wall = Date.now() - started
+  clearTimeout(letGo)
+  inject(null)
+  ok(
+    landed !== null && landed.retriedTransient && wall >= 1_500,
+    '§7 a rename refused for 1.5 s, then free, is ridden out: the publish lands',
+    landed !== null ? JSON.stringify(landed) : `threw after ${wall}ms: ${caught instanceof DurablePublishError ? `attempts=${caught.attempts} fsCode=${caught.fsCode}` : String(caught)}`,
+  )
+  ok(readFileSync(p, 'utf8') === "the writer's own bytes", "§7 the bytes are the writer's own", readFileSync(p, 'utf8'))
+  ok(tempsIn(dir).length === 0, '§7 the temp is gone')
+  inject('rename@held.json:eperm')
+  const syncStarted = Date.now()
+  let syncCaught: unknown = null
+  try {
+    durableAtomicPublishSync(p, 'never-lands', { platform: 'win32' })
+  } catch (e) {
+    syncCaught = e
+  }
+  const syncWall = Date.now() - syncStarted
+  inject(null)
+  ok(
+    syncCaught instanceof DurablePublishError && syncCaught.attempts === 4 && syncWall >= 350 && syncWall < 1_000,
+    '§7 the sync twin, which sleeps its whole process, still gives up inside a second',
+    syncCaught instanceof DurablePublishError ? `attempts=${syncCaught.attempts} in ${syncWall}ms` : String(syncCaught),
+  )
+  ok(readFileSync(p, 'utf8') === "the writer's own bytes" && tempsIn(dir).length === 0, '§7 the sync give-up leaves the last bytes and no temp')
 }
 
 rmSync(tmp, { recursive: true, force: true })

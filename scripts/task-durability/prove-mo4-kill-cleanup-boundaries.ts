@@ -18,6 +18,7 @@ import {
   DurablePublishError,
   isDurableTempName,
 } from '../../src/platform/substrate/durablePublish.ts'
+import { HELD_FILE_PATIENT_RETRY_DELAYS_MS } from '../../src/platform/host-os/files.ts'
 
 const IS_WIN = process.platform === 'win32'
 let failures = 0
@@ -144,7 +145,7 @@ if (!IS_WIN) {
     '§4 win32 read-only file: the REAL persistent transient shape, typed',
     err ? `fsCode=${err.fsCode}` : String(caught),
   )
-  ok(err?.attempts === 4 && wall >= 350, `§4 win32: full retry budget spent (attempts=${err?.attempts}, ${wall}ms)`)
+  ok(err?.attempts === HELD_FILE_PATIENT_RETRY_DELAYS_MS.length + 1 && wall >= 3150, `§4 win32: full retry budget spent (attempts=${err?.attempts}, ${wall}ms)`)
   ok(err?.tempCleanup === 'removed' && tempsIn(dir).length === 0, '§4 win32: prepared temp cleaned after final failure')
   ok(readFileSync(p, 'utf8') === 'committed', '§4 win32: committed file READABLE throughout')
   chmodSync(p, 0o666)
