@@ -31,7 +31,7 @@ try {
     try {
       const view = await mountOffscreen(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(Box, { flexDirection: 'column' }, h(SystemTextMessage, { message, verbose } as never))), 100, 6)
       await settle(120)
-      drawn = view.lines().map((line: string) => line.replace(/\s+$/, '')).filter((line: string) => line !== '').join(' ⏎ ')
+      drawn = view.lines().map((line: string) => line.replace(/\s+$/, '')).filter((line: string) => line !== '').join(' / ')
       view.unmount()
     } catch (error) {
       drawn = `THREW ${error instanceof Error ? error.message : String(error)}`
