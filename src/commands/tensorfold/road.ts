@@ -112,10 +112,6 @@ export function setOtherCheckpoint(other: FactsState['other'] | undefined): void
   bump()
 }
 
-export function stoppable(): boolean {
-  return Object.values(state.acts).some(act => act.kind === 'pulling' || act.kind === 'starting')
-}
-
 export function discoveryEnvFor(root: string, env: NodeJS.ProcessEnv = hostEnv()): NodeJS.ProcessEnv {
   if (cachedLocalModels().some(record => record.baseUrl === `${root}/v1`)) return env
   const pinned = flagEnv('MERCURY_LOCAL_PROBE_TARGETS', env)?.trim()
