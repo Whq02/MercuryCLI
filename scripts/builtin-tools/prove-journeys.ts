@@ -8,11 +8,11 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  const fixHint = 'fix: step execution, cleanup and settling are in runJourney and cancelJourney in src/tools/engines/journeys/runner.ts; the description and step schema are in src/tools/journey/JourneyTool.ts'
+  const fixHint = 'fix: step execution, cleanup and settling are in runJourney in src/tools/engines/journeys/runner.ts; the description and step schema are in src/tools/journey/JourneyTool.ts'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${fixHint}` : ''}`)
 }
 
-const { runJourney, cancelJourney, _resetJourneysForTesting } = await import(
+const { runJourney, _resetJourneysForTesting } = await import(
   '../../src/tools/engines/journeys/runner.ts'
 )
 const { getExecution } = await import('../../src/engine/execution-plane/executionPlane.ts')
@@ -208,7 +208,6 @@ try {
   check('cancellation settles cancelled (never failed-as-success)', cancelled.state === 'cancelled', cancelled.state)
   check('cancelled journey cleaned up its service', cancelled.cleanup.some(c => c.service === 'arsenal-fixture') && !fixtureAlive())
   check('execution settled cancelled', getExecution(owner, cancelled.id)?.state === 'cancelled')
-  check('cancelJourney on a settled journey answers false', cancelJourney(owner, cancelled.id) === false)
 } finally {
   try {
     execFileSync('bash', ['-c', `lsof -i :${PORT} -t | xargs kill -9 2>/dev/null || true`], { timeout: 5000 })

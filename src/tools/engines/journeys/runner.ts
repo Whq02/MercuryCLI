@@ -11,7 +11,6 @@ import { recordCanonicalEvidence } from '../../../engine/runtime-kernel/evidence
 import {
   registerExecution,
   registerExecutionDomain,
-  requestStopExecution,
   settleExecution,
   transitionExecution,
 } from '../../../engine/execution-plane/executionPlane.js'
@@ -503,12 +502,6 @@ export async function runJourney(spec: JourneySpec, opts: RunJourneyOptions): Pr
 
   remember(opts.owner, record)
   return record
-}
-
-export function cancelJourney(owner: OwnerKey, id: string): boolean {
-  if (!liveAborts.has(id)) return false
-  const stopped = requestStopExecution(owner, id)
-  return stopped !== undefined && stopped.stopHookError === undefined
 }
 
 export function _resetJourneysForTesting(): void {

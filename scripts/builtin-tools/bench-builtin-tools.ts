@@ -46,7 +46,7 @@ const { gitStatus, gitDiff, gitConflicts } = await import('../../src/platform/gi
 const { preparePlan, applyPlan, resolveConflict, _resetGitPlanStoreForTesting } = await import(
   '../../src/platform/git-graph/plan.ts'
 )
-const { runJourney, cancelJourney, _resetJourneysForTesting } = await import(
+const { runJourney, _resetJourneysForTesting } = await import(
   '../../src/tools/engines/journeys/runner.ts'
 )
 const { getExecution } = await import('../../src/engine/execution-plane/executionPlane.ts')
@@ -689,7 +689,6 @@ export async function runCorpus(): Promise<TaskResult[]> {
     const cancelledClean =
       j.state === 'cancelled' &&
       getExecution(owner, j.id)?.state === 'cancelled' &&
-      cancelJourney(owner, j.id) === false &&
       reaped
     const resourcesResolved = await refsResolve([journeyRef], root)
     const ok = cancelledClean
