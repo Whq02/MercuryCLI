@@ -6,6 +6,7 @@ import { folderBytes } from '../../models/hosting/bank.js'
 import { receiptsPathBesideTranscript } from './sessionReceipts.js'
 import { snapshotPathFor } from '../../sessions/transcripts/resumeSnapshot.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
+import { readSessionWorkers, settleConcourseWorker } from '../concourse-workers/concourseWorkers.js'
 
 type PruneCandidate = {
   sessionId: string
@@ -105,6 +106,12 @@ function safeSubagentsPaths(transcriptPath: string, sessionId: string): { sessio
   return { sessionDir, subagentsDir: join(sessionDir, 'subagents') }
 }
 
+function settleParkedRecordsOf(sessionId: string): void {
+  for (const rec of Object.values(readSessionWorkers())) {
+    if (rec.sessionId === sessionId && rec.parkedAt !== undefined && rec.endedAt === undefined) settleConcourseWorker(rec.runnerId)
+  }
+}
+
 export async function operatorPruneTranscripts(offer: PruneOffer): Promise<PruneReceipt> {
   const fs = getFsImplementation()
   const receipt: PruneReceipt = {
@@ -128,6 +135,11 @@ export async function operatorPruneTranscripts(offer: PruneOffer): Promise<Prune
       receipt.bytesFreed += candidate.bytes
       receipt.deletedSessionIds.push(candidate.sessionId)
       removePrefixRecord(candidate.sessionId)
+      try {
+        settleParkedRecordsOf(candidate.sessionId)
+      } catch (error) {
+        passedOver(error)
+      }
       try {
         await fs.unlink(candidate.receiptsPath)
         receipt.receiptsDeleted++
