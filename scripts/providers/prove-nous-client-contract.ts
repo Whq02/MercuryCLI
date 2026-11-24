@@ -79,7 +79,6 @@ try {
   clock += DAY
   const down = await contract.peekNousClient({ now })
   check('a failed read keeps the stored facts and records the failure words', down.kind === 'read' && !down.answer.ok && down.answer.words.includes('HTTP 503') && contract.presentedNousClient().clientId === 'hermes-cli-next' && contract.readNousClientRecord().lastFailure?.words.includes('HTTP 503') === true, JSON.stringify(down))
-  check('the words name the failure beside the presented facts', contract.nousClientContractWords().includes('hermes-cli-next') && contract.nousClientContractWords().includes('HTTP 503'))
   fixture.source.releaseStatus = 200
   fixture.source.contentsStatus = 404
   clock += DAY

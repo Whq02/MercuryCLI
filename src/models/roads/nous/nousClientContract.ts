@@ -300,10 +300,3 @@ export function peekNousClient(io?: NousClientIo & { force?: boolean }): Promise
   peekInFlight = work
   return work
 }
-
-export function nousClientContractWords(presented: NousClientPresented = presentedNousClient()): string {
-  const record = readNousClientRecord()
-  const parts = [`the sign-in presents the Portal client ${presented.clientId} (scope ${presented.scope}) as of release ${presented.release} (${presented.source}, ${presented.asOf})`]
-  if (record.lastFailure !== undefined) parts.push(`the last release read failed ${isoDay(record.lastFailure.atMs)}: ${record.lastFailure.words}`)
-  return parts.join(' · ')
-}
