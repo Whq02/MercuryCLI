@@ -30,7 +30,7 @@ export async function statusOp({ input, owner }: OpRun): Promise<OpDone> {
   return { result, outcome }
 }
 
-export async function extractOp(s: LiveSession, { input, signalFor }: OpRun, scope: string, where: string): Promise<OpDone> {
+export async function extractOp(s: LiveSession, { input, owner, signalFor }: OpRun, scope: string, where: string): Promise<OpDone> {
   let result: string
   let outcome: ToolEffectOutcome = 'no-change'
   const root = input.selector ? await resolveReadTarget(s, input.selector, actDeadline(input), signalFor(s), input.frame) : null
@@ -38,11 +38,11 @@ export async function extractOp(s: LiveSession, { input, signalFor }: OpRun, sco
     const text = root
       ? await root.evaluate(deepTextOf)
       : await targetSurface(s, input.frame).$eval('body', deepTextOf)
-    result = capExtract(`extract text (${scope}) at ${where}`, `${frameListing(s)}\n${text}`, input.offset ?? 0)
+    result = capExtract(`extract text (${scope}) at ${where}`, `${frameListing(owner, s)}\n${text}`, input.offset ?? 0)
   } else {
     const surface = targetSurface(s, input.frame) as Page | (Frame & Pick<Page, 'accessibility'>)
     const snapshot = await surface.accessibility.snapshot({ includeIframes: !sessionAttached(s), ...(root ? { root } : {}) })
-    result = capExtract(`extract tree (${scope}) at ${where}`, `${frameListing(s)}\n${serializeAxTree(snapshot)}`, input.offset ?? 0)
+    result = capExtract(`extract tree (${scope}) at ${where}`, `${frameListing(owner, s)}\n${serializeAxTree(snapshot)}`, input.offset ?? 0)
   }
   return { result, outcome }
 }

@@ -16,6 +16,7 @@ import {
   driverVersion,
   isBrowserErrorPage,
   liveBrowserSessionCensus,
+  originApproved,
   originOf,
   refreshAttachedTabs,
   sessionAttached,
@@ -203,9 +204,10 @@ export function sendOrigin(s: LiveSession): string {
   return here.startsWith('http') || s.navFailure.last === null ? here : originOf(s.navFailure.last.url)
 }
 
-export function frameListing(s: LiveSession): string {
+export function frameListing(owner: OwnerKey, s: LiveSession): string {
   const frames = s.page.frames().filter(f => f.parentFrame() !== null)
-  return frames.length ? `\nFrames: ${frames.map((f, i) => `${i + 1} = ${f.url()}`).join('; ')}` : ''
+  const address = (url: string): string => (sessionAttached(s) && !originApproved(owner, originOf(url)) ? (url.split(/[?#]/)[0] ?? url) : url)
+  return frames.length ? `\nFrames: ${frames.map((f, i) => `${i + 1} = ${address(f.url())}`).join('; ')}` : ''
 }
 
 export function errorPageWords(s: LiveSession): string {
