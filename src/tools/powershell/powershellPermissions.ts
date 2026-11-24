@@ -19,7 +19,8 @@ import {
   type ParsedCommandElement,
 } from '../../permissions/rules/decision/commandAnalysis.js'
 import { pinnedCommandAnalysis } from '../../permissions/rules/decision/commandAnalysis.js'
-import { uncPathRisk, uncPathMessage } from '../../permissions/rules/uncPath.js'
+import { uncPathRisk, uncPathMessage, type QuotedScript } from '../../permissions/rules/uncPath.js'
+import { scriptArgumentIndexes } from '../shell/pathValidation.js'
 import { containsWindowsDevicePath, WINDOWS_DEVICE_PATH_MESSAGE } from '../../permissions/rules/windowsPath.js'
 import { powershellCommandIsSafe } from './powershellSecurity.js'
 import {
@@ -216,7 +217,7 @@ async function decidePowerShellPermission(
   if (prefixAsk) slot = ruledVerdict(context, trimmed, prefixAsk, 'ask')
 
   const exactAllowRule = matchRules(trimmed, context, 'allow', 'exact') !== null
-  const remoteUnc = uncPathRisk(trimmed)
+  const remoteUnc = uncPathRisk(trimmed, { quotedScripts: quotedScriptsIn(parsed, trimmed) })
   if (remoteUnc.risky && slot === null && !exactAllowRule) {
     const message = uncPathMessage(trimmed, remoteUnc)
     slot = { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: true } }
@@ -446,16 +447,44 @@ function subcommandRuleVerdict(command: ParsedCommandElement, context: ToolPermi
   return null
 }
 
+function quotedScriptArguments(command: ParsedCommandElement): Array<{ index: number; spelling: string }> {
+  return scriptArgumentIndexes(command.name.toLowerCase(), command.args).flatMap(index => {
+    const value = command.args[index]
+    if (value === undefined) return []
+    const spelling = [`'${value.replaceAll("'", "''")}'`, `"${value}"`].find(candidate => command.text.includes(candidate))
+    return spelling === undefined ? [] : [{ index, spelling }]
+  })
+}
+
+function quotedScriptsIn(parsed: ParsedPowerShellCommand, text: string): QuotedScript[] {
+  if (!parsed.valid) return []
+  const found: QuotedScript[] = []
+  for (const command of getAllCommands(parsed)) {
+    const scripts = quotedScriptArguments(command)
+    for (let at = text.indexOf(command.text); scripts.length > 0 && at !== -1; at = text.indexOf(command.text, at + 1)) {
+      let cursor = 0
+      for (const { spelling } of scripts) {
+        const inside = command.text.indexOf(spelling, cursor)
+        if (inside === -1) continue
+        found.push({ start: at + inside + 1, end: at + inside + spelling.length - 1 })
+        cursor = inside + spelling.length
+      }
+    }
+  }
+  return found
+}
+
 const PROVIDER_PREFIX = /^(?:[\w.]+\\)?(?:env|hklm|hkcu|function|alias|variable|cert|wsman|registry)(?:::|:)/i
 function providerUncScan(parsed: ParsedPowerShellCommand, uncGranted: boolean): PermissionResult | null {
   for (const statement of getPipelineSegments(parsed)) {
     for (const command of [...statement.commands, ...statement.nestedCommands]) {
-      for (const arg of command.args) {
+      const scripts = new Set(quotedScriptArguments(command).map(script => script.index))
+      for (const [index, arg] of command.args.entries()) {
         let a = arg
         if (/[-–—―]/.test(a[0] ?? '')) { const colon = a.indexOf(':', 1); if (colon !== -1) a = a.slice(colon + 1) }
         a = a.replace(/`/g, '')
         if (PROVIDER_PREFIX.test(a)) return { behavior: 'ask', message: `The argument "${arg}" uses a non-filesystem provider path requiring approval.` }
-        const remote = uncPathRisk(a)
+        const remote = uncPathRisk(a, scripts.has(index) ? { quotedScripts: [{ start: 0, end: a.length }] } : {})
         if (remote.risky && !uncGranted) {
           const message = uncPathMessage(arg, remote)
           return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: true } }

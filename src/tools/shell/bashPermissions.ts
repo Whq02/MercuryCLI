@@ -9,6 +9,7 @@ import { hiddenCommandCharacterReason } from '../../platform/text/unicodeSanitiz
 import { credentialUploadReason } from '../../permissions/rules/commandContent.js'
 import { ruleWords } from '../../permissions/rules/ruleReason.js'
 import { uncPathRisk, uncPathMessage } from '../../permissions/rules/uncPath.js'
+import { quotedScripts } from './quotedScripts.js'
 import { shellFolderComparisonKey } from '../../platform/host-os/commandForms.js'
 import { nativePathToShell } from '../../platform/host-os/paths.js'
 import { createPermissionRequestMessage } from '../../permissions/rules/decision/requestMessage.js'
@@ -557,7 +558,7 @@ async function decideBashPermission(
     const refusal = credentialStoreWriteRefusal(protectedWrite, cwd, context)
     if (refusal !== null) return { behavior: 'deny', message: refusal, decisionReason: { type: 'other', reason: refusal } }
   }
-  const remote = uncPathRisk(command, { command: true })
+  const remote = uncPathRisk(command, { command: true, quotedScripts: quotedScripts(command) })
   if (remote.risky) {
     const denied = earlyExitDenyCheck(input, context)
     if (denied) return denied

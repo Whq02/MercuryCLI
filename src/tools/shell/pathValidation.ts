@@ -139,7 +139,7 @@ const TEST_FILE_UNARIES = /^-[bcdefgGhkLNOprsSuwx]$/
 const TEST_FILE_BINARIES = new Set(['-nt', '-ot', '-ef'])
 const ENV_METADATA_COMMANDS: ReadonlySet<PathCommand> = new Set(['cd', 'ls', 'find', 'file', 'stat', 'wc', 'sha256sum', 'sha1sum', 'md5sum', 'tree', 'fd', 'fdfind', 'du', 'realpath', 'readlink', 'date', 'test'])
 
-function walkOptions(args: readonly string[], grammar: OptionGrammar, onFlag: (name: string, values: string[]) => void, onOperand: (value: string) => void): void {
+function walkOptions(args: readonly string[], grammar: OptionGrammar, onFlag: (name: string, values: string[], at: number) => void, onOperand: (value: string, at: number) => void): void {
   let optionsEnded = false
   for (let i = 0; i < args.length; i++) {
     const arg = args[i] as string
@@ -148,35 +148,35 @@ function walkOptions(args: readonly string[], grammar: OptionGrammar, onFlag: (n
       continue
     }
     if (optionsEnded || !arg.startsWith('-') || arg === '-') {
-      onOperand(arg)
+      onOperand(arg, i)
       continue
     }
     if (arg.startsWith('--')) {
       const equals = arg.indexOf('=')
       const name = equals === -1 ? arg : arg.slice(0, equals)
       if (equals !== -1) {
-        onFlag(name, [arg.slice(equals + 1)])
+        onFlag(name, [arg.slice(equals + 1)], -1)
       } else if (grammar.pairs?.has(name)) {
         const values = args.slice(i + 1, i + 3)
         i += values.length
-        onFlag(name, values)
+        onFlag(name, values, -1)
       } else if (grammar.longs.has(name) && args[i + 1] !== undefined) {
-        onFlag(name, [args[++i] as string])
+        onFlag(name, [args[++i] as string], i)
       } else {
-        onFlag(name, [])
+        onFlag(name, [], -1)
       }
       continue
     }
     for (let k = 1; k < arg.length; k++) {
       const letter = arg[k] as string
       if (!grammar.letters.includes(letter)) {
-        onFlag(`-${letter}`, [])
+        onFlag(`-${letter}`, [], -1)
         continue
       }
       const attached = arg.slice(k + 1)
-      if (attached.length > 0) onFlag(`-${letter}`, [attached])
-      else if (args[i + 1] !== undefined) onFlag(`-${letter}`, [args[++i] as string])
-      else onFlag(`-${letter}`, [])
+      if (attached.length > 0) onFlag(`-${letter}`, [attached], -1)
+      else if (args[i + 1] !== undefined) onFlag(`-${letter}`, [args[++i] as string], i)
+      else onFlag(`-${letter}`, [], -1)
       break
     }
   }
@@ -256,14 +256,14 @@ export const PATH_EXTRACTORS: Record<PathCommand, (args: string[]) => string[]> 
     const deleteStyle = args.some(a => a === '-d' || a === '--delete' || (a.startsWith('-') && a.includes('d')))
     return operands.slice(deleteStyle ? 1 : 2)
   },
-  grep: args => extractPatternCommand(args, GREP_GRAMMAR, GREP_FILES, ['-r', '-R', '--recursive', '--dereference-recursive']),
-  rg: args => extractPatternCommand(args, RG_GRAMMAR, RG_FILES, undefined),
-  sed: extractSedOperands,
+  grep: args => readGrepArguments(args).operands,
+  rg: args => readRgArguments(args).operands,
+  sed: args => readSedArguments(args).operands,
   jq: extractJqOperands,
   git: extractGitOperands,
   tee: args => extractBaseline(args).filter(a => a !== '/dev/null'),
   dd: args => args.filter(a => a.startsWith('of=') && !/^of=\/dev\/(?:null|stdout|stderr|fd\/[12])$/.test(a)).map(a => a.slice(3)),
-  awk: extractAwkOperands,
+  awk: args => readAwkArguments(args).operands,
   xargs: extractFlagged(XARGS_GRAMMAR, XARGS_FILES, 'none'),
   tree: extractFlagged(TREE_GRAMMAR, TREE_FILES, 'all', ['.']),
   fd: extractFdOperands,
@@ -292,8 +292,9 @@ const AWK_PROGRAM_OPTIONS = new Set(['-f', '--file', '-E', '--exec', '-e', '--so
 const AWK_OPTIONS_END = new Set(['-E', '--exec'])
 const AWK_SKIPPED_VALUE_OPTIONS = new Set(['-v', '--assign', '-F', '--field-separator', '-e', '--source'])
 
-function extractAwkOperands(args: string[]): string[] {
+function readAwkArguments(args: string[]): { operands: string[]; scripts: number[] } {
   const operands: string[] = []
+  const scripts: number[] = []
   let programGiven = false
   let i = 0
   for (; i < args.length; i++) {
@@ -313,21 +314,24 @@ function extractAwkOperands(args: string[]): string[] {
       if (value === undefined && args[i + 1] !== undefined) i++
       if (read !== undefined) operands.push(read)
     } else if (AWK_SKIPPED_VALUE_OPTIONS.has(option)) {
-      if (value === undefined && args[i + 1] !== undefined) i++
+      if (value === undefined && args[i + 1] !== undefined) {
+        i++
+        if (option === '-e' || option === '--source') scripts.push(i)
+      }
     }
     if (AWK_OPTIONS_END.has(option)) {
       i++
       break
     }
   }
-  if (!programGiven && i < args.length) i++
+  if (!programGiven && i < args.length) scripts.push(i++)
   for (; i < args.length; i++) {
     const arg = args[i] as string
     if (arg === '-') continue
     if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(arg)) continue
     operands.push(arg)
   }
-  return operands
+  return { operands, scripts }
 }
 
 function extractFindOperands(args: string[]): string[] {
@@ -365,22 +369,49 @@ function envFileNameFilter(value: string | undefined, operands: string[]): void 
   if (value !== undefined) operands.push(...envFileTargetsInGlob(value))
 }
 
-function extractPatternCommand(args: string[], grammar: OptionGrammar, files: ReadonlySet<string>, recursiveFlags: string[] | undefined): string[] {
+function readPatternCommand(args: string[], grammar: OptionGrammar, files: ReadonlySet<string>, recursiveFlags: string[] | undefined): { operands: string[]; scripts: number[] } {
   const operands: string[] = []
   const paths: string[] = []
+  const scripts: number[] = []
   let patternSeen = false
   let recursive = recursiveFlags === undefined
-  walkOptions(args, grammar, (name, values) => {
+  walkOptions(args, grammar, (name, values, at) => {
     if (PATTERN_FLAGS.has(name) || name === '--files') patternSeen = true
+    if ((name === '-e' || name === '--regexp') && at !== -1) scripts.push(at)
     if (recursiveFlags?.includes(name)) recursive = true
     if (FILE_NAME_FILTERS.has(name)) envFileNameFilter(values[0], operands)
     flaggedFile(name, values, files, operands)
-  }, value => {
-    if (!patternSeen) patternSeen = true
-    else paths.push(value)
+  }, (value, at) => {
+    if (!patternSeen) {
+      patternSeen = true
+      scripts.push(at)
+    } else paths.push(value)
   })
   if (paths.length === 0 && recursive) paths.push('.')
-  return [...operands, ...paths]
+  return { operands: [...operands, ...paths], scripts }
+}
+
+function readGrepArguments(args: string[]): { operands: string[]; scripts: number[] } {
+  return readPatternCommand(args, GREP_GRAMMAR, GREP_FILES, ['-r', '-R', '--recursive', '--dereference-recursive'])
+}
+
+function readRgArguments(args: string[]): { operands: string[]; scripts: number[] } {
+  return readPatternCommand(args, RG_GRAMMAR, RG_FILES, undefined)
+}
+
+export function scriptArgumentIndexes(name: string, args: string[]): number[] {
+  switch (name) {
+    case 'sed':
+      return readSedArguments(args).scripts
+    case 'grep':
+      return readGrepArguments(args).scripts
+    case 'rg':
+      return readRgArguments(args).scripts
+    case 'awk':
+      return readAwkArguments(args).scripts
+    default:
+      return []
+  }
 }
 
 function extractJqOperands(args: string[]): string[] {
@@ -410,8 +441,9 @@ const SED_LONG_OPTIONS_BEFORE_THE_SCRIPT: ReadonlySet<string> = new Set([
   '--zero-terminated',
 ])
 
-function extractSedOperands(args: string[]): string[] {
+function readSedArguments(args: string[]): { operands: string[]; scripts: number[] } {
   const operands: string[] = []
+  const scripts: number[] = []
   let scriptSeen = false
   let optionsEnded = false
   for (let i = 0; i < args.length; i++) {
@@ -432,7 +464,7 @@ function extractSedOperands(args: string[]): string[] {
       }
       if (arg === '-e' || arg === '--expression') {
         scriptSeen = true
-        if (args[i + 1] !== undefined) i++
+        if (args[i + 1] !== undefined) scripts.push(++i)
         continue
       }
       if (SED_LONG_OPTIONS_BEFORE_THE_SCRIPT.has(arg) || arg.startsWith('--in-place=')) continue
@@ -441,11 +473,12 @@ function extractSedOperands(args: string[]): string[] {
     }
     if (!scriptSeen) {
       scriptSeen = true
+      scripts.push(i)
       continue
     }
     if (arg !== '-') operands.push(arg)
   }
-  return operands
+  return { operands, scripts }
 }
 
 const GIT_PATCH_FLAGS: ReadonlySet<string> = new Set(['-p', '-u', '--patch', '--patch-with-stat', '--patch-with-raw', '--cc', '-c', '-m'])

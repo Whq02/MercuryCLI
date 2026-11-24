@@ -21,6 +21,7 @@ import { resolveShellCwd } from '../../platform/shell/shellExec.js'
 import { getOriginalCwd } from '../../boot/process-state/processState.js'
 import { getPlatform } from '../../platform/environment/platform.js'
 import { uncPathRisk, uncPathMessage } from '../../permissions/rules/uncPath.js'
+import { quotedScripts } from './quotedScripts.js'
 import { containsWindowsDevicePath, WINDOWS_DEVICE_PATH_MESSAGE } from '../../permissions/rules/windowsPath.js'
 
 const GIT_INTERNAL_CREATORS = new Set<PathCommand>(['mkdir', 'touch', 'mv', 'cp', 'tee', 'dd'])
@@ -146,7 +147,7 @@ function readOnlyFromParse(input: { command: string; cwd?: string }, compoundHas
   if (parsed.commands.some(command => command.globOperand === true && !readsOnly(command))) return refuse({ kind: 'screen', part, detail: WILDCARD_REASON })
   const semantic = checkSemantics(parsed.commands)
   if (!semantic.ok) return refuse({ kind: 'screen', part, detail: semantic.reason })
-  const remote = uncPathRisk(input.command, { command: true })
+  const remote = uncPathRisk(input.command, { command: true, quotedScripts: quotedScripts(input.command) })
   if (remote.risky) return { behavior: 'ask', message: uncPathMessage(input.command, remote), notReadOnly: { kind: 'screen', part, detail: uncPathMessage(input.command, remote) } }
   if (containsWindowsDevicePath(input.command)) return { behavior: 'ask', message: WINDOWS_DEVICE_PATH_MESSAGE, notReadOnly: { kind: 'screen', part, detail: WINDOWS_DEVICE_PATH_MESSAGE } }
   const commands = shellCCommands(parsed.commands, depth)
