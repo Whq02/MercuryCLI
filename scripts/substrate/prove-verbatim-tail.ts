@@ -8,7 +8,6 @@ const {
   DEFAULT_KEEP_ROUNDS,
   DEFAULT_TAIL_TOKEN_BUDGET,
   MIN_HEAD_ROUNDS,
-  MAX_FLOOR_ROUND_TOKENS,
 } = await import('../../src/engine/compaction/verbatimTail.js')
 const { roughTokenCountEstimationForMessages } = await import('../../src/models/facts/tokenEstimation.js')
 
@@ -198,7 +197,6 @@ section('(f) non-preservable messages (progress / boundary / summary) are filter
 
 section('(f2) no floor-round ceiling — a byte-huge round is kept when the request fits, refused with the old context when it does not')
 {
-  check('MAX_FLOOR_ROUND_TOKENS no longer bounds a round apart from the request fit', MAX_FLOOR_ROUND_TOKENS === Infinity)
   const hugeChars = 200_000 * 4
   {
     const msgs: M[] = []

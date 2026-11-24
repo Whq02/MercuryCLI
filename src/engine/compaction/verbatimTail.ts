@@ -7,7 +7,6 @@ import { roughTokenCountEstimationForMessages } from '../../models/facts/tokenEs
 
 export const DEFAULT_KEEP_ROUNDS = 10
 export const DEFAULT_TAIL_TOKEN_BUDGET = Infinity
-export const MAX_FLOOR_ROUND_TOKENS = Infinity
 export const MIN_HEAD_ROUNDS = 2
 export const LANDING_ROOM_FLOOR_TOKENS = 20_000
 export const LANDING_ROOM_MAX_SHARE = 2
