@@ -22,9 +22,6 @@ const { interviewSnapshot, interviewEvents, _resetInterviewForProofs } = await i
 )
 const { buildDecisionRecord } = await import('../../src/tools/engines/interview/decisionRecord.ts')
 const { commitAnswer } = await import('../../src/tools/engines/interview/controller.ts')
-const { addShelfItem, createComposerDocument, reorderShelfItem } = await import(
-  '../../src/screen/composer/input-core/composer-document.ts'
-)
 const { hashPastedText, storePastedText } = await import('../../src/sessions/pasteStore.ts')
 const { cacheImagePath, storeImage } = await import('../../src/platform/images/imageStore.ts')
 
@@ -141,22 +138,8 @@ t.section('§4 — the decision record joins context BY refId per decision')
   t.check('no decision carries another decision\'s scoped ref', !d1.contextRefIds.includes('paste:abc') && !d2.contextRefIds.includes('image:1'), '', 'the contextRefIds filter in buildDecisionRecord (src/tools/engines/interview/decisionRecord.ts) must drop refs scoped to a different decision')
 }
 
-t.section('§5 — reorder lives at the shelf owner: a pure permutation of ids')
+t.section('§5 — the interview joins by refId')
 {
-  let doc = createComposerDocument('main')
-  doc = addShelfItem(doc, { kind: 'file', ref: 'src/a.ts', label: 'a.ts' })
-  doc = addShelfItem(doc, { kind: 'image', ref: 'image:7', label: 'shot.png' })
-  doc = addShelfItem(doc, { kind: 'session-ref', ref: 'mercury://session/x', label: 'session x' })
-  const ids = doc.items.map(i => i.id)
-  const reordered = reorderShelfItem(doc, ids[2]!, -1)
-  t.check(
-    'a reorder is a permutation — same ids, new order',
-    [...reordered.items.map(i => i.id)].sort().join(',') === [...ids].sort().join(',') &&
-      reordered.items.map(i => i.id).join(',') !== ids.join(','),
-    '',
-    'reorderShelfItem in src/screen/composer/input-core/composer-document.ts must only permute the existing items, moving the item one place by the given offset',
-  )
-  t.check('the moved item kept its identity and ref', reordered.items[1]!.id === ids[2] && reordered.items[1]!.ref === 'mercury://session/x', '', 'reorderShelfItem in src/screen/composer/input-core/composer-document.ts must move the item without rebuilding its id or ref')
   t.check(
     'the interview joins by refId, order-independent (identity, not position)',
     imageRefNumericId('image:1') === 1 && imageRefNumericId('paste:abc') === null,

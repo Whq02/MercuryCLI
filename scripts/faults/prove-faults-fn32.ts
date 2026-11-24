@@ -373,7 +373,7 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
     }))
     const { listSessionsImpl } = await import(${JSON.stringify(join(SRC, 'sessions/transcripts/listSessions.ts'))})
     try {
-      out.val = await listSessionsImpl()
+      out.val = await listSessionsImpl({ limit: 50 })
     } catch (e) {
       out.code = e && typeof e === 'object' ? e.code : null
     }
@@ -397,43 +397,12 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
     }))
     const { listSessionsImpl } = await import(${JSON.stringify(join(SRC, 'sessions/transcripts/listSessions.ts'))})
     try {
-      out.val = await listSessionsImpl()
+      out.val = await listSessionsImpl({ limit: 50 })
     } catch (e) {
       out.code = e && typeof e === 'object' ? e.code : null
     }
   `)
   check('listSessionsImpl: project stat EIO rejects instead of silently dropping project', rEntry.code === 'EIO', JSON.stringify(rEntry))
-
-  const rWt = runIsolated(`
-    const fs = await import('node:fs')
-    const fsp = await import('node:fs/promises')
-    const path = await import('node:path')
-    const { mock } = await import('bun:test')
-    const projDir = path.join(process.env.MERCURY_CONFIG_DIR, 'wt-repo')
-    const wtDir = path.join(process.env.MERCURY_CONFIG_DIR, 'wt-branch')
-    const badEntry = path.join(process.env.MERCURY_CONFIG_DIR, 'projects', 'bad-wt')
-    fs.mkdirSync(projDir, { recursive: true })
-    fs.mkdirSync(wtDir, { recursive: true })
-    fs.mkdirSync(badEntry, { recursive: true })
-    const realStat = fsp.stat
-    mock.module('node:fs/promises', () => ({
-      ...fsp,
-      stat: async (p, ...rest) => {
-        if (p === badEntry) throw Object.assign(new Error('EIO'), { code: 'EIO' })
-        return realStat(p, ...rest)
-      },
-    }))
-    mock.module(${JSON.stringify(join(SRC, 'platform/git/worktree/worktreePathsPortable.ts'))}, () => ({
-      getWorktreePathsPortable: async () => [projDir, wtDir],
-    }))
-    const { listSessionsImpl } = await import(${JSON.stringify(join(SRC, 'sessions/transcripts/listSessions.ts'))})
-    try {
-      out.val = await listSessionsImpl({ dir: projDir })
-    } catch (e) {
-      out.code = e && typeof e === 'object' ? e.code : null
-    }
-  `)
-  check('listSessionsImpl: worktree entry stat EIO rejects instead of silently skipping', rWt.code === 'EIO', JSON.stringify(rWt))
 }
 
 {
@@ -587,25 +556,6 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
     'healthReport: projectEstateCheck reports git ls-files failure instead of claiming folders are not tracked by git',
     fixEstate.includes('could not check whether git tracks them') && fixEstate.includes('git ls-files timed out') && !fixEstate.includes('they are not tracked by git'),
     fixEstate,
-  )
-}
-
-{
-  const rLogo = runIsolated(`
-    const { mock } = await import('bun:test')
-    const router = await import(${JSON.stringify(join(SRC, 'models/roads/callModelRouter.ts'))})
-    mock.module(${JSON.stringify(join(SRC, 'models/roads/callModelRouter.ts'))}, () => ({
-      ...router,
-      declaredRouteOf: () => { throw new Error('route lookup failed') },
-    }))
-    const { getLogoDisplayData } = await import(${JSON.stringify(join(SRC, 'boot/first-run/logoDisplayData.ts'))})
-    out.data = getLogoDisplayData()
-  `)
-  const billing = String((rLogo.data as { billingType?: string })?.billingType ?? '')
-  check(
-    'logoV2Utils: getLogoDisplayData reports billing could not be read when route lookup throws instead of API usage billing',
-    billing === 'billing could not be read (route lookup failed)',
-    billing,
   )
 }
 

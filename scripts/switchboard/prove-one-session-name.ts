@@ -319,7 +319,7 @@ check(
   MISSION_HINT,
 )
 
-const editorById = new Map((await listSessionsImpl({ dir: PROJECT })).map(row => [row.sessionId, row.summary] as const))
+const editorById = new Map((await listSessionsImpl({ limit: 50 })).map(row => [row.sessionId, row.summary] as const))
 check(
   'the editor\'s session list (session/list) names each session by the same rule: the first prompt, the mission\'s goal, the rename, and no row for the notice',
   editorById.get(S_THREE_UNHOSTED) === FIRST_A &&

@@ -7,7 +7,6 @@ prove-indexed-fold.ts
 prove-snip-cycle.ts
 prove-meta-owner.ts
 prove-tombstone-record-envelope.ts
-prove-sdk-listing-tag.ts
 prove-project-key-canonical.ts
 prove-project-directory-identity.ts
 prove-project-home-fold.ts

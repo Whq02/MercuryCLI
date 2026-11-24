@@ -10,7 +10,7 @@
     },
     {
       "type": "text",
-      "text": "<system-reminder>\n/proof/work.ts changed outside this conversation — the user or a linter edited it. The change is intentional: work with it, and never revert it unless the user asks. Do not mention it to the user; they already know. The relevant changes (with line numbers):\n1  export const answer = 43\n</system-reminder>"
+      "text": "<system-reminder>\n/proof/work.ts changed on disk since your last read or edit. Use it as it is now; don't revert the change unless asked. The relevant changes (with line numbers):\n1  export const answer = 43\n</system-reminder>"
     },
     {
       "type": "text",

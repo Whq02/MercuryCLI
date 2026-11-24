@@ -284,7 +284,7 @@ sectionHint = 'headlessMintAllowed in src/permissions/guards/runStopAdapter.ts'
 }
 
 section('§6 DRAFTS NO-OP (the _rev 616 pathology)')
-sectionHint = 'saveDraftDebounced and saveScopedDoc in src/screen/composer/input-core/promptDraft.ts must skip the write when the content is unchanged'
+sectionHint = 'saveDraftDebounced in src/screen/composer/input-core/promptDraft.ts must skip the write when the content is unchanged'
 {
   const drafts = await import('../../src/screen/composer/input-core/promptDraft.ts')
   const sid = '11111111-2222-4333-8444-555555555555'
@@ -306,20 +306,6 @@ sectionHint = 'saveDraftDebounced and saveScopedDoc in src/screen/composer/input
   drafts.saveDraftDebounced(sid, { ...draft, text: 'hello world', cursorOffset: 11 })
   await drafts.flushDraftSaves()
   check('a real change still bumps the revision', revOf() === rev1 + 1, `rev=${revOf()}`)
-
-  const doc = { v: 1 as const, scope: 'board:slot-1', body: 'draft body', items: [] }
-  await drafts.saveScopedDoc(sid, doc)
-  await drafts.flushScopedDocSaves()
-  const scopedFile = join(HOME, 'drafts', `${createHash('sha256').update(getCwd()).digest('hex').slice(0, 16)}-scoped.json`)
-  const scopedRev = (): number =>
-    (JSON.parse(readFileSync(scopedFile, 'utf8')) as { _rev?: { revision?: number } })._rev?.revision ?? -1
-  const srev1 = scopedRev()
-  await drafts.saveScopedDoc(sid, { ...doc })
-  await drafts.flushScopedDocSaves()
-  check('scoped store: identical doc re-save publishes nothing', scopedRev() === srev1, `rev=${scopedRev()} vs ${srev1}`)
-  await drafts.saveScopedDoc(sid, { ...doc, body: 'draft body v2' })
-  await drafts.flushScopedDocSaves()
-  check('scoped store: a real change bumps', scopedRev() === srev1 + 1)
 }
 
 

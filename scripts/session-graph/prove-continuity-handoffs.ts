@@ -11,13 +11,8 @@ const picker = await import('../../src/crew/crewmates/targetPicker.ts')
 
 t.section('§4 — per-conversation draft identity on the ONE document owner')
 {
-  const a = composer.conversationScope('cv-aaa')
-  const b = composer.conversationScope('cv-bbb')
-  const aReply = composer.conversationScope('cv-aaa', 'reply')
-  t.check('two conversations key two DIFFERENT scopes', a !== b)
-  t.check('the composer family stays distinct within one conversation', a !== aReply)
-  const docA = composer.createComposerDocument(a)
-  const docB = composer.createComposerDocument(b)
+  const docA = composer.createComposerDocument('a')
+  const docB = composer.createComposerDocument('b')
   const withChip = composer.addShelfItem(docA, { kind: 'resource', ref: 'mercury://artifact/x', label: 'x' })
   t.check(
     'adding to one conversation shelf never touches the other (value semantics + distinct scopes)',

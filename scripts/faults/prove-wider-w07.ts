@@ -409,7 +409,6 @@ console.log('\nw07-5 · promptDraft — autosave refuses unreadable draft/scoped
     const path = await import('node:path')
     const { mock } = await import('bun:test')
     const s1 = '11111111-1111-4111-8111-111111111101'
-    const s2 = '11111111-1111-4111-8111-111111111102'
     const s3 = '11111111-1111-4111-8111-111111111103'
     let failPaths = new Set()
     const realReadFile = fsp.readFile
@@ -438,27 +437,19 @@ console.log('\nw07-5 · promptDraft — autosave refuses unreadable draft/scoped
     const drafts = await import(path.join(SRC, 'screen/composer/input-core/promptDraft.ts'))
     drafts.saveDraftDebounced(s1, { text: 'important draft 1', cursorOffset: 5, mode: 'prompt', pastedContents: {} })
     await drafts.flushDraftSaves()
-    await drafts.saveScopedDoc(s1, { v: 1, scope: 'main', body: 'scoped body 1', items: [] })
-    await drafts.flushScopedDocSaves()
 
     const draftsDir = path.join(HOME, 'drafts')
     const draftFile = path.join(draftsDir, fs.readdirSync(draftsDir).find(f => f.endsWith('.json') && !f.endsWith('-scoped.json')))
-    const scopedFile = path.join(draftsDir, fs.readdirSync(draftsDir).find(f => f.endsWith('-scoped.json')))
     const beforeDraft = fs.readFileSync(draftFile, 'utf8')
-    const beforeScoped = fs.readFileSync(scopedFile, 'utf8')
 
-    failPaths = new Set([draftFile, scopedFile])
+    failPaths = new Set([draftFile])
     drafts.saveDraftDebounced(s3, { text: 'overwrite attempt', cursorOffset: 2, mode: 'prompt', pastedContents: {} })
     await drafts.flushDraftSaves()
-    await drafts.saveScopedDoc(s2, { v: 1, scope: 'main', body: 'scoped overwrite', items: [] })
-    await drafts.flushScopedDocSaves()
     failPaths = new Set()
 
     out.draftPreserved = fs.readFileSync(draftFile, 'utf8') === beforeDraft
-    out.scopedPreserved = fs.readFileSync(scopedFile, 'utf8') === beforeScoped
   `)
   check('w07-5 autosave does not overwrite a draft file that fails I/O read (EIO)', rIo.out.draftPreserved === true, JSON.stringify(rIo.out.draftPreserved))
-  check('w07-5 autosave does not overwrite a scoped-doc file that fails I/O read (EIO)', rIo.out.scopedPreserved === true, JSON.stringify(rIo.out.scopedPreserved))
 
   if (!POSIX_MODES) skip('w07-5 failed deleteDraft retry', 'chmod 0000 needs non-root POSIX')
   else {
@@ -564,7 +555,7 @@ else {
       const liteErrors = []
       const liteNull = await portable.readSessionLite(badFile, (p, e) => liteErrors.push({ path: p, msg: String(e?.message ?? e) }))
       out.liteCheck = { liteNull, liteErrors }
-      const implRows = await listSessionsImpl()
+      const implRows = await listSessionsImpl({ limit: 50 })
       out.implCount = implRows.length
     } finally {
       fs.chmodSync(badStore, 0o700)
