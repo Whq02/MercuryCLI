@@ -139,7 +139,6 @@ section('§4 the mode word: --mode strategy is an unknown value, the lists and s
     return true
   }), 'getNextPermissionMode in src/permissions/rules/getNextPermissionMode.ts must never return a strategy mode from any mode')
   check('an unknown stored mode word resolves to the default mode', pm.permissionModeFromString('strategy') === 'default' && pm.permissionModeFromString('frobnicate') === 'default', 'permissionModeFromString in src/permissions/rules/permissionMode.ts must return default for an unknown word such as strategy')
-  check('the external permission-mode schema refuses the word as it refuses any unknown word', !pm.externalPermissionModeSchema().safeParse('strategy').success && !pm.externalPermissionModeSchema().safeParse('frobnicate').success && pm.externalPermissionModeSchema().safeParse('implement').success, 'externalPermissionModeSchema in src/permissions/rules/permissionMode.ts must refuse strategy and frobnicate and accept implement')
   const headless = await import('../../src/daemon/runner-link/headlessRun.ts')
   check('the daemon child postures carry no planning station', !(headless.HEADLESS_PERMISSION_MODES as readonly string[]).some(m => /strateg/.test(m)), 'remove the strategy word from HEADLESS_PERMISSION_MODES in src/daemon/runner-link/headlessRun.ts')
 }

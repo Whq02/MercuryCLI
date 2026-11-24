@@ -18,7 +18,7 @@ const closeFlow = (closed: boolean): void => {
   resetSettingsCache()
 }
 const { GLYPH, displayWidth } = await import('../../src/screen/theme/glyphs.ts')
-const { permissionModeSymbol, permissionModeTitle, permissionModeFromString, externalPermissionModeSchema, getModeColor } = await import('../../src/permissions/rules/permissionMode.ts')
+const { permissionModeSymbol, permissionModeTitle, permissionModeFromString, getModeColor } = await import('../../src/permissions/rules/permissionMode.ts')
 
 let failures = 0
 const FIX_HINT = 'the Shift+Tab order is getNextPermissionMode and cyclePermissionMode in src/permissions/rules/getNextPermissionMode.ts, the flow gate is isFlowGateEnabled in src/permissions/rules/permissionSetup.ts, the apollo title, symbol and colour are in src/permissions/rules/permissionMode.ts and src/screen/theme/glyphs.ts'
@@ -67,6 +67,6 @@ try {
 check('Apollo uses the hollow diamond', GLYPH.modeApollo === '◇' && permissionModeSymbol('apollo') === '◇')
 check('the Apollo seal is one canonical cell', displayWidth(GLYPH.modeApollo) === 1)
 check('Apollo wears its title and colour role', permissionModeTitle('apollo') === 'Apollo Mode' && getModeColor('apollo') === 'permission')
-check('an unknown mode word reads as default', permissionModeFromString('strategy') === 'default' && !externalPermissionModeSchema().safeParse('strategy').success)
+check('an unknown mode word reads as default', permissionModeFromString('strategy') === 'default')
 console.log(`apollo carousel: ${failures === 0 ? 'GREEN' : `RED — ${failures} failures`}`)
 process.exit(failures === 0 ? 0 : 1)

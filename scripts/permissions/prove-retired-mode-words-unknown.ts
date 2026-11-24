@@ -49,7 +49,6 @@ console.log(`— the readers answer '${CONTROL}' and each old word alike —`)
 for (const word of WORDS) {
   t(`fromString('${word}') is fromString('${CONTROL}')`, modes.permissionModeFromString(word) === modes.permissionModeFromString(CONTROL) && modes.permissionModeFromString(CONTROL) === 'default', modes.permissionModeFromString(word))
   t(`the mode schema refuses '${word}' with the words it has for '${CONTROL}'`, swap(issues(modes.permissionModeSchema().safeParse(word)), word) === issues(modes.permissionModeSchema().safeParse(CONTROL)) && !modes.permissionModeSchema().safeParse(word).success, issues(modes.permissionModeSchema().safeParse(word)))
-  t(`the external mode schema refuses '${word}' the same way`, swap(issues(modes.externalPermissionModeSchema().safeParse(word)), word) === issues(modes.externalPermissionModeSchema().safeParse(CONTROL)) && !modes.externalPermissionModeSchema().safeParse(word).success)
   const update = (mode: string) => updates.permissionUpdateSchema().safeParse({ type: 'setMode', mode, destination: 'session' })
   t(`a setMode update carrying '${word}' is refused as one carrying '${CONTROL}'`, swap(issues(update(word)), word) === issues(update(CONTROL)) && !update(word).success, issues(update(word)))
   const file = (mode: string) => settings.SettingsSchema().safeParse({ guardrails: { mode } })

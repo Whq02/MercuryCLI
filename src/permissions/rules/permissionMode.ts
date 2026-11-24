@@ -1,7 +1,7 @@
 import { z } from 'zod/v4'
 import { GLYPH } from '../../screen/theme/glyphs.js'
 import { isOneOf } from '../../platform/primitives/isOneOf.js'
-import { EXTERNAL_PERMISSION_MODES, PERMISSION_MODES, type PermissionMode } from './permissions.js'
+import { PERMISSION_MODES, type PermissionMode } from './permissions.js'
 
 export {
   EXTERNAL_PERMISSION_MODES,
@@ -29,10 +29,6 @@ const wordsOf = (modes: readonly string[]) => z.enum(modes)
 
 export function permissionModeSchema() {
   return wordsOf(PERMISSION_MODES)
-}
-
-export function externalPermissionModeSchema() {
-  return wordsOf(EXTERNAL_PERMISSION_MODES)
 }
 
 export function modeBypassesPermissions(mode: PermissionMode): boolean {
