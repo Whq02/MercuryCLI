@@ -145,6 +145,50 @@ try {
         !flat.includes('0 tool uses'),
       flat.slice(0, 350),
     )
+    const { mountOffscreen, settle, waitFor } = await import('../lib/settingsPopupHarness.ts')
+    const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+    const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+    const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+    const mounted = await mountOffscreen(
+      React.createElement(
+        AppStateProvider,
+        { initialState: ledgerState },
+        React.createElement(
+          ThemeProvider,
+          null,
+          React.createElement(
+            KeybindingSetup,
+            null,
+            React.createElement(
+              TerminalSizeContext.Provider,
+              { value: { columns: 120, rows: 32 } },
+              React.createElement(CrewView, { onClose: () => {} }),
+            ),
+          ),
+        ),
+      ),
+      120,
+      32,
+    )
+    await waitFor(() => mounted.screen().includes('bg-scout'), 2000)
+    await settle(250)
+    mounted.push('\r')
+    const opened = await waitFor(
+      () =>
+        mounted.screen().includes('crew › bg-scout') &&
+        mounted.screen().includes('landed') &&
+        mounted.screen().includes('12s') &&
+        mounted.screen().includes(tokensLabel) &&
+        mounted.screen().includes('esc back'),
+      1500,
+    )
+    check(
+      'CrewView (non-popup): Enter on a settled crewmate off the roster opens its card with landed, 12s and tokens from crewLedger',
+      opened,
+      mounted.screen().replace(/\s+/g, ' ').slice(0, 350),
+    )
+    mounted.unmount()
+    await settle(50)
   }
 
   section('§2 CrewmateCard (src/screen/fullscreen-layout/CrewmateCard.tsx)')

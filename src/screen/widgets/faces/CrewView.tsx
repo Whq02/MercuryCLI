@@ -23,6 +23,7 @@ import {
   crewUnreadLabel,
   type CrewmateFacts,
   crewWaitHolders,
+  workRowOfCrewFacts,
 } from '../../../engine/connector/crewFacts.js'
 import { operatorPauseGate } from '../../../engine/loop/pauseGate.js'
 import type { SessionAskV1 } from '../../../engine/connector/types.js'
@@ -91,7 +92,11 @@ export function CrewView({
   const presence = useMemo(() => focusedRunnerPresence(), [roster])
   const sessionCrew = useSessionCrew()
   const agents = useMemo(() => sessionCrew.map(row => row.facts), [sessionCrew])
-  const workById = useMemo(() => new Map(roster.rows.map(r => [r.id, r] as const)), [roster])
+  const workById = useMemo(() => {
+    const byId = new Map(roster.rows.map(r => [r.id, r] as const))
+    for (const facts of agents) if (!byId.has(facts.id)) byId.set(facts.id, workRowOfCrewFacts(facts))
+    return byId
+  }, [roster, agents])
   const billed = hasFocusedSession() && getFocusedSessionConnector().identity().consoleBilling
   const rows = useMemo<Row[]>(
     () => agents.map((facts): Row => ({ kind: 'agent', id: `a:${facts.id}`, facts })),
