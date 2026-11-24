@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path'
 import { daemonDir } from '../../daemon/control/controlSocket.js'
 import { getProcessStartToken, isProcessAlive } from '../../daemon/control/ownerWatch.js'
 import { parseProcessStartToken } from '../../daemon/process-sweep/processSweep.js'
-import { workerPidAlive } from '../../daemon/concourse-workers/workerIdentity.js'
+import { askWorkerPidStarts, workerPidAlive } from '../../daemon/concourse-workers/workerIdentity.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { isENOENT } from '../../platform/errors/errors.js'
 import { lineagePath, mnemeProjectKeyFor } from './paths.js'
@@ -290,14 +290,19 @@ function readLiveSessions(projectKey: string, onError?: (error: unknown) => void
     logForDebugging(`lineage liveSessions parse failed: ${error instanceof Error ? error.message : String(error)}`)
     return null
   }
-  const out: LiveSession[] = []
+  const here: Array<{ sessionId: string; startedAt: string; pid: number; procStart?: string }> = []
   for (const row of Object.values(workers)) {
     if (typeof row.sessionId !== 'string' || typeof row.workspaceId !== 'string') continue
     if (row.endedAt !== undefined || row.attachedAt !== undefined) continue
-    if (typeof row.pid !== 'number' || !workerPidAlive({ pid: row.pid, procStart: typeof row.procStart === 'string' ? row.procStart : undefined })) continue
+    if (typeof row.pid !== 'number' || !isProcessAlive(row.pid)) continue
     if (mnemeProjectKeyFor(row.workspaceId) !== projectKey) continue
-    const spawnedAt = typeof row.spawnedAt === 'number' ? new Date(row.spawnedAt).toISOString() : ''
-    out.push({ sessionId: row.sessionId, startedAt: spawnedAt })
+    const startedAt = typeof row.spawnedAt === 'number' ? new Date(row.spawnedAt).toISOString() : ''
+    here.push({ sessionId: row.sessionId, startedAt, pid: row.pid, ...(typeof row.procStart === 'string' ? { procStart: row.procStart } : {}) })
+  }
+  askWorkerPidStarts(here)
+  const out: LiveSession[] = []
+  for (const row of here) {
+    if (workerPidAlive(row)) out.push({ sessionId: row.sessionId, startedAt: row.startedAt })
   }
   out.sort((a, b) => a.startedAt.localeCompare(b.startedAt))
   return out

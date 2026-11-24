@@ -1,4 +1,4 @@
-import { workerPidAlive } from './workerIdentity.js'
+import { askWorkerPidStarts, workerPidAlive } from './workerIdentity.js'
 import { readSessionWorkers } from './store.js'
 
 export { concourseRecordState } from './recordState.js'
@@ -22,9 +22,11 @@ export function boardHomedSessionIds(dir?: string): Set<string> {
 }
 
 export function countLiveConcourseWorkers(dir?: string): number {
+  const unended = Object.values(readSessionWorkers(dir)).filter(rec => rec.endedAt === undefined)
+  askWorkerPidStarts(unended)
   let n = 0
-  for (const rec of Object.values(readSessionWorkers(dir))) {
-    if (rec.endedAt === undefined && workerPidAlive(rec)) n++
+  for (const rec of unended) {
+    if (workerPidAlive(rec)) n++
   }
   return n
 }

@@ -105,3 +105,4 @@ prove-own-start-token-asked-once.ts
 prove-claim-waits-for-no-start-read.ts
 prove-revive-never-blocks-on-a-read.ts
 prove-left-runner-strangers-cost-one-read.ts
+prove-record-loops-ask-births-in-one-read.ts

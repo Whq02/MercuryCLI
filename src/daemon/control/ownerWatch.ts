@@ -398,6 +398,13 @@ async function startTokensOf(holders: readonly { pid: number; procStart?: string
   return result
 }
 
+export function refreshProcessStartTokens(holders: readonly { pid: number; procStart?: string }[], maxAgeMs = 10_000): void {
+  for (const form of START_FORMS) {
+    const asked = holders.filter(holder => startFormLike(holder.procStart) === form).map(holder => ({ pid: holder.pid }))
+    if (asked.length > 0) void startTokensOf(asked, maxAgeMs, form)
+  }
+}
+
 export function getProcessStartTokenCachedOrRefresh(pid: number, maxAgeMs = 10_000, like?: string | null): string | null {
   return startTokenCachedOrRefresh(pid, maxAgeMs, startFormLike(like))
 }
