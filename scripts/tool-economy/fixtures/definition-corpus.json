@@ -1,5 +1,5 @@
 {
-  "base": "570b20e10f278e5dd3591f359086f638517def0c",
+  "base": "2992ae9a76630efe4bc4e64512b0bc5a5ab24eaa",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -2954,7 +2954,7 @@
     },
     {
       "name": "Browser",
-      "description": "Drive one isolated browser session per agent through the bundled driver. Returns page observations, action results and screenshots. Opening a new origin or first acting on a crossed-to origin asks; reads never ask. Grants belong to this agent and end with its session.",
+      "description": "Drive one isolated browser session per agent through the bundled driver. Returns page observations, action results and screenshots. Opening a new origin or first acting on a crossed-to origin asks; reads never ask. attach joins the user's own Chromium, where an origin's first read asks too. Grants belong to this agent and end with its session.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -2963,6 +2963,7 @@
             "enum": [
               "status",
               "open",
+              "attach",
               "click",
               "type",
               "scroll",
@@ -2991,6 +2992,10 @@
           },
           "url": {
             "description": "open: http/https URL",
+            "type": "string"
+          },
+          "endpoint": {
+            "description": "attach: http://127.0.0.1:<port> or http://localhost:<port> (or the ws:// address under it) of a Chromium the user started with remote debugging on",
             "type": "string"
           },
           "persist": {
