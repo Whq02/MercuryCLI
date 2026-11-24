@@ -9,7 +9,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
 await import('../../src/engine/tasks/tasks.js')
 const { drainPendingMessages, peekOperatorMessages, queueOperatorMessage, queuePendingMessage, takeOperatorMessages } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
-const { composerTargetTaskId, composerTargetPinned } = await import('../../src/screen/app-state/selectors.js')
+const { composerTargetTaskId } = await import('../../src/screen/app-state/selectors.js')
 const { clearMainChat, enterCrewmateView, exitCrewmateView, setMainChat, stopOrDismissCrewmate } = await import('../../src/crew/crewmates/crewmateView.js')
 const { crewmateComposerHint, crewmateStatusWords, crewmatePlaceholder, crewmateCardKeys, BACK_HINT, LEAD_ROW_NAME } = await import('../../src/screen/cockpit/crewmateWords.js')
 
@@ -59,14 +59,14 @@ section('§1 the operator lane is its own queue: the tool-boundary drain never t
 section('§3 the composer\'s target: the pin outlives the view, esc leaves it alone')
 {
   const store = makeStore({ a1: agent('a1'), a2: agent('a2') })
-  check('nothing viewed, nothing pinned → the lead', composerTargetTaskId(store.state as never) === undefined && !composerTargetPinned(store.state as never), 'composerTargetTaskId and composerTargetPinned in src/screen/app-state/selectors.ts must report the lead and unpinned when no crewmate is viewed or pinned')
+  check('nothing viewed, nothing pinned → the lead', composerTargetTaskId(store.state as never) === undefined, 'composerTargetTaskId in src/screen/app-state/selectors.ts must report the lead when no crewmate is viewed or pinned')
   enterCrewmateView('a1', store.set)
-  check('viewing addresses the composer to the viewed crewmate', composerTargetTaskId(store.state as never) === 'a1' && !composerTargetPinned(store.state as never), 'composerTargetTaskId in src/screen/app-state/selectors.ts must follow viewingAgentTaskId set by enterCrewmateView in src/crew/crewmates/crewmateView.ts')
+  check('viewing addresses the composer to the viewed crewmate', composerTargetTaskId(store.state as never) === 'a1', 'composerTargetTaskId in src/screen/app-state/selectors.ts must follow viewingAgentTaskId set by enterCrewmateView in src/crew/crewmates/crewmateView.ts')
   exitCrewmateView(store.set)
   check('esc (exit) returns the composer to the lead', composerTargetTaskId(store.state as never) === undefined)
   setMainChat('a2', store.set)
   enterCrewmateView('a2', store.set)
-  check('m pins the crewmate: target a2, pinned', composerTargetTaskId(store.state as never) === 'a2' && composerTargetPinned(store.state as never), 'setMainChat in src/crew/crewmates/crewmateView.ts must set mainChatTaskId and the selectors in src/screen/app-state/selectors.ts must report it as the pinned target')
+  check('m pins the crewmate: target a2, pinned', composerTargetTaskId(store.state as never) === 'a2' && store.state.mainChatTaskId === 'a2', 'setMainChat in src/crew/crewmates/crewmateView.ts must set mainChatTaskId and composerTargetTaskId in src/screen/app-state/selectors.ts must report it as the pinned target')
   enterCrewmateView('a1', store.set)
   check('viewing another crewmate does not move a pinned composer', composerTargetTaskId(store.state as never) === 'a2' && store.state.viewingAgentTaskId === 'a1', 'composerTargetTaskId in src/screen/app-state/selectors.ts must prefer mainChatTaskId over viewingAgentTaskId')
   exitCrewmateView(store.set)

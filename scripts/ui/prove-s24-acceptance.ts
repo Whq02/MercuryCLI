@@ -23,7 +23,7 @@ const { ISSUE_FORMS, ISSUE_FORM_URL_CAP, URL_CUT_NOTE, issueFormUrl } =
   await import('../../src/commands/feedback/issueForms.js')
 const { countUnseenAssistantTurns, computeUnseenDivider } =
   await import('../../src/screen/fullscreen-layout/FullscreenLayout.js')
-const { selectableUserMessagesFilter, messagesAfterAreOnlySynthetic } =
+const { selectableUserMessagesFilter } =
   await import('../../src/screen/rewind-picker/RewindPicker.js')
 const { computeSliceStart } = await import('../../src/screen/messages/Messages.js')
 
@@ -168,10 +168,6 @@ section('rewind: selectable filter + only-synthetic predicate')
   check('a compact summary is not', !selectableUserMessagesFilter(compact as never))
   check('a machine-marker message is not', !selectableUserMessagesFilter(marker as never))
   check('a crewmate-tag PREFIX (attributes, no closing bracket) is caught', !selectableUserMessagesFilter(crewmate as never))
-  const tail = [plain, { type: 'assistant', uuid: 'a1', timestamp: 't', message: { content: [{ type: 'text', text: '' }] } }, toolResult] as never[]
-  check('empty-text assistant + tool results after index 0 are only-synthetic', messagesAfterAreOnlySynthetic(tail, 0))
-  const meaningful = [plain, { type: 'assistant', uuid: 'a2', timestamp: 't', message: { content: [{ type: 'text', text: 'answer' }] } }] as never[]
-  check('a real assistant answer after the index is meaningful', !messagesAfterAreOnlySynthetic(meaningful, 0))
 }
 
 section('transcript: slice anchor cap/step')

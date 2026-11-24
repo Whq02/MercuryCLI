@@ -36,12 +36,12 @@ for (const type of ['disabled', 'adaptive', 'enabled']) {
     return Array.isArray(content) && content.some(b => (b as { cache_control?: unknown }).cache_control !== undefined) ? [i] : []
   })
   const forkMessages = [createUserMessage({ content: 'first' }), assistant('a'), toolResult(), assistant('b'), createUserMessage({ content: 'summarise' })]
-  const fork = addCacheBreakpoints(forkMessages as never, true, false, null, [], true)
+  const fork = addCacheBreakpoints(forkMessages as never, true, true)
   check('a fork marks the last parent user row, not the assistant before its prompt', j(markedIndexes(fork as never)) === j([2]), j(markedIndexes(fork as never)))
   const forkAfterUser = [createUserMessage({ content: 'first' }), assistant('a'), createUserMessage({ content: 'second' }), createUserMessage({ content: 'summarise' })]
-  const fork2 = addCacheBreakpoints(forkAfterUser as never, true, false, null, [], true)
+  const fork2 = addCacheBreakpoints(forkAfterUser as never, true, true)
   check('a parent ending in a user row keeps its marker position', j(markedIndexes(fork2 as never)) === j([2]), j(markedIndexes(fork2 as never)))
-  const plain = addCacheBreakpoints(forkMessages.slice(0, 4) as never, true, false, null, [], false)
+  const plain = addCacheBreakpoints(forkMessages.slice(0, 4) as never, true, false)
   check('a plain request still marks its own last row', j(markedIndexes(plain as never)) === j([3]), j(markedIndexes(plain as never)))
   check('exactly one marker per request in every shape', markedIndexes(fork as never).length === 1 && markedIndexes(fork2 as never).length === 1 && markedIndexes(plain as never).length === 1)
 }

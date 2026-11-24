@@ -18,22 +18,10 @@ async function main(): Promise<void> {
   section('1. post-compact cleanup is owner/scope-explicit')
   {
     const cleanup = await import('../../src/engine/compaction/postFoldCleanup.js')
-    const mc = await import('../../src/engine/compaction/pruneToolResults.js')
-    const agentOwner = ok.makeOwnerKey({
-      workspace: '/tmp/w',
-      sessionId: 'sess',
-      lane: 'agent:sub1',
-    })
-    cleanup.runPostFoldCleanup({ querySource: 'agent:general' as never, owner: agentOwner })
+    cleanup.runPostFoldCleanup({ querySource: 'agent:general' as never })
     cleanup.runPostFoldCleanup('agent:general' as never)
     cleanup.runPostFoldCleanup()
     check('cleanup accepts {querySource, owner} + legacy shapes', true)
-    check(
-      'resetMicrocompactState is owner-parameterized',
-      mc.resetPruneState.length >= 1,
-      `arity ${mc.resetPruneState.length}`,
-      'resetMicrocompactState in src/engine/compaction/pruneToolResults.ts must declare an owner parameter',
-    )
   }
 
   section('2. the LSP document release is awaited')

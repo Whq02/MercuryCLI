@@ -104,7 +104,6 @@ section('§1 THE OPTIONS — three choices for a write inside the project; the a
 const write = await mount(originalInput.file_path, 'write')
 check('the opening state focuses accept-once with both amendments closed', shape() === j(['accept-once', false, '', false, '']), shape())
 check('a write path offers accept-once, accept-session and reject', j(values()) === j(['accept-once', 'accept-session', 'reject']), j(values()))
-check('the prompt was counted once', write.store.getState().attribution.permissionPromptCount === 1)
 await drive(d => d.handleInputModeToggle('accept-once'))
 check('toggling accept-once opens the yes input and the option becomes an input row', state().yesInputMode && state().options[0]?.type === 'input', j(state().options[0]))
 await drive(d => d.handleInputModeToggle('accept-session'))

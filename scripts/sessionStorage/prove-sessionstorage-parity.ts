@@ -155,7 +155,7 @@ const SKIPPED: Record<string, string> = Object.fromEntries(
     'recordSidechainTranscript', 'recordQueueOperation', 'removeTranscriptMessage',
     'registerCrewmateTranscriptDestination',
     'transcriptCensus',
-    'recordFileHistorySnapshot', 'recordAttributionSnapshot', 'recordContentReplacement',
+    'recordFileHistorySnapshot', 'recordContentReplacement',
     'resetSessionFilePointer', 'adoptResumedSessionFile', 'recordContextCollapseCommit',
     'recordContextCollapseSnapshot', 'flushSessionStorage', 'hydrateRemoteSession',
     'hydrateFromCCRv2InternalEvents', 'loadTranscriptFromFile', 'listSessions', 'saveCustomTitle',

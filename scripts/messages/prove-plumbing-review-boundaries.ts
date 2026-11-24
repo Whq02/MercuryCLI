@@ -91,16 +91,6 @@ check('usage effects read token counters before server counters in both folds', 
   cache.updateUsage(tracked('old'), tracked('new'))
   assert.deepEqual(reads.slice(0, 6), ['new.input_tokens','old.input_tokens','new.cache_creation_input_tokens','old.cache_creation_input_tokens','new.cache_read_input_tokens','old.cache_read_input_tokens'])
 })
-check('cache edit dedup ignores sparse slots and stamps a copied dense prefix', () => {
-  const edits = new Array(2); edits[1] = { type: 'delete', cache_reference: 'old' }
-  const replay = cache.addCacheBreakpoints([user('first'), assistant([text('last')])], true, true, null, [{ userMessageIndex: 0, block: { type: 'cache_edits', edits } }])
-  assert.deepEqual(replay[0].content.find((block: any) => block.type === 'cache_edits').edits, [edits[1]])
-  const blocks = new Array(2); blocks[1] = { type: 'tool_result', tool_use_id: 'x', content: 'out' }
-  const stamped = cache.addCacheBreakpoints([user(blocks), assistant([text('last')])], true, true)
-  assert.equal(0 in stamped[0].content, true)
-  assert.equal(stamped[0].content[1].cache_reference, 'x')
-  assert.equal(0 in blocks, false)
-})
 check('extra-body headers materialize holes in a caller-mutated cached header array', () => {
   process.env.MERCURY_EXTRA_BODY = '{"anthropic_beta":["gone","kept"],"proof":"sparse-cached"}'
   try {

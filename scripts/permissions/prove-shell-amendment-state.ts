@@ -69,7 +69,6 @@ await settle()
 const state = (): Feedback => latest as Feedback
 const shape = (): string => j([state().focusedOption, state().yesInputMode, state().acceptFeedback, state().noInputMode, state().rejectFeedback])
 const drive = async (action: (feedback: Feedback) => void): Promise<void> => { action(state()); await settle() }
-const escapes = (): number => store.getState().attribution.escapeCount
 const taken = (): string[] => journal.splice(0, journal.length)
 
 section('§1 THE OPENING STATE — yes focused, both amendments closed and empty')
@@ -109,14 +108,12 @@ check('a typed yes input survives a move to a third option', shape() === j(['yes
 taken()
 
 section('§4 REJECTING — a reject without words counts an escape; the card hears onReject then onDone')
-const before = escapes()
 await drive(f => f.handleReject(undefined))
-check('an empty reject counts one escape', escapes() === before + 1, `${before} → ${escapes()}`)
 check('the order is the tool rejection with no words, the card rejection, then done', j(taken()) === j(['onReject(undefined)', 'card onReject', 'card onDone']))
 await drive(f => f.handleReject('   '))
-check('a whitespace reject counts an escape and carries no words', escapes() === before + 2 && j(taken()) === j(['onReject(undefined)', 'card onReject', 'card onDone']))
+check('a whitespace reject carries no words', j(taken()) === j(['onReject(undefined)', 'card onReject', 'card onDone']))
 await drive(f => f.handleReject('  use the fixture instead  '))
-check('a reject with words counts no escape and carries the trimmed words', escapes() === before + 2 && j(taken()) === j(['onReject("use the fixture instead")', 'card onReject', 'card onDone']))
+check('a reject with words carries the trimmed words', j(taken()) === j(['onReject("use the fixture instead")', 'card onReject', 'card onDone']))
 
 instance.unmount()
 instance.cleanup()

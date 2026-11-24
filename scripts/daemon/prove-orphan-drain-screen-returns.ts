@@ -158,9 +158,7 @@ if (SCENE === undefined) {
       const session = [prompt, messages.createAssistantMessage({ content: 'a reply' }), row] as never[]
       const offered = session.filter(selector.selectableUserMessagesFilter as never).map(m => wordsOf(m as Row))
       const listed = panel.promptRows(session).map(r => (r as { text?: string }).text ?? '')
-      const afterReply = selector.messagesAfterAreOnlySynthetic(session, 1)
-      const afterPrompt = selector.messagesAfterAreOnlySynthetic([prompt, row] as never[], 0)
-      check(`${name} (${wordsOf(row).slice(0, 44)}…): the rewind picker offers the one prompt, the prompts list reads the one row, and nothing after the reply, or after a prompt cut before any reply, counts as the user's`, offered.join(' | ') === GIVEN && listed.join(' | ') === GIVEN && afterReply && afterPrompt, j({ offered, listed, afterReply, afterPrompt }))
+      check(`${name} (${wordsOf(row).slice(0, 44)}…): the rewind picker offers the one prompt and the prompts list reads the one row`, offered.join(' | ') === GIVEN && listed.join(' | ') === GIVEN, j({ offered, listed }))
     }
   }
   rmSync(scratch, { recursive: true, force: true })

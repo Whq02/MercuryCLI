@@ -2,6 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
+import { tellSessionStorageTheBuiltInCommands } from '../../src/sessions/transcripts/builtInCommands.js'
 import { extractFirstPromptFromChunk } from '../../src/sessions/transcripts/sessionListings.js'
 
 let failures = 0
@@ -34,11 +35,20 @@ check(
     ].join('\n') + '\n',
   ) === 'refactor the wallet enumeration',
 )
+tellSessionStorageTheBuiltInCommands(() => new Set(['model']))
 check(
-  'a command-only session falls back to the CLEAN command name (never raw markup)',
+  'a session whose only act is a built-in command has no name from it',
   extractFirstPromptFromChunk(
     record(2, { kind: 'input', content: '<command-name>/model</command-name><command-args></command-args>' }) + '\n',
-  ) === '/model',
+  ) === '',
+  'change extractFirstPromptFromHead in src/sessions/transcripts/sessionStoragePortable.ts so a built-in command alone returns the empty string',
+)
+check(
+  'a command that is no built-in still falls back to its CLEAN name (never raw markup)',
+  extractFirstPromptFromChunk(
+    record(2, { kind: 'input', content: '<command-name>/deploy</command-name><command-args></command-args>' }) + '\n',
+  ) === '/deploy',
+  'change extractFirstPromptFromHead in src/sessions/transcripts/sessionStoragePortable.ts so a non-built-in command still falls back to its clean name',
 )
 check(
   'hidden/virtual inputs never title a session',

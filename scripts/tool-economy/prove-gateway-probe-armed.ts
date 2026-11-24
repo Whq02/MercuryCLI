@@ -30,6 +30,7 @@ const j = (value: unknown): string => JSON.stringify(value) ?? ''
 
 const SONNET = 'claude-sonnet-5'
 const HAIKU = 'claude-haiku-4-5'
+const HAIKU_BEFORE_TOOL_REFERENCES = 'claude-3-5-haiku-20241022'
 const PROBE_TOOL = 'deferral_probe'
 const PROBE_MARK = `"name":"${PROBE_TOOL}"`
 const BLOCK_HEADER = 'advanced-tool-use-2025-11-20'
@@ -203,8 +204,8 @@ section('§5 ARMED where a probe could decide nothing — no request is spent')
   await quiet.api.close()
   check('the non-essential-traffic posture keeps the probe off', posture.code === 0 && posture.probes.length === 0 && posture.store === null, j({ code: posture.code, probes: posture.probes.length, store: posture.store }))
 
-  const small = await gateway('no-references', 1, honoured, HAIKU)
-  const haiku = await mercuryRun(small, ARMED, [], HAIKU)
+  const small = await gateway('no-references', 1, honoured, HAIKU_BEFORE_TOOL_REFERENCES)
+  const haiku = await mercuryRun(small, ARMED, [], HAIKU_BEFORE_TOOL_REFERENCES)
   await small.api.close()
   check('a model that takes no tool references never carries the probe', haiku.code === 0 && haiku.turns.length === 3 && haiku.probes.length === 0 && haiku.store === null, j({ code: haiku.code, turns: haiku.turns.length, probes: haiku.probes.length, store: haiku.store }))
 

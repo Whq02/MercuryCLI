@@ -393,6 +393,9 @@ console.log('\nchatLauncher.tsx — rejecting boot recovery or resume fold relea
     mock.module(path.join(SRC, 'screen/routes/surfaceRoute.js'), () => ({
       resolveInitialSurface: async () => ({ effective: 'chat' }),
       initializeSurfaceRoute: () => {},
+      subscribeSurfaceRoute: () => () => {},
+      currentSurfaceRoute: () => ({ kind: 'repl' }),
+      surfaceRouteId: () => 'repl',
     }))
     mock.module(path.join(SRC, 'boot/App.js'), () => ({ App: () => null }))
     mock.module(path.join(SRC, 'screen/routes/SurfaceRouter.js'), () => ({ SurfaceRouter: () => null }))

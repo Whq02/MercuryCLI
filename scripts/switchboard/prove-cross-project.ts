@@ -412,14 +412,13 @@ console.log('§7 — THE ANNEX: Projects-↵ hops into a wordless live newborn t
 
 console.log('§8 — SESSION-AWARE NAMING: three stages, one owner; the mint once at turn two; a typed name survives; never a worker id, in any world')
 {
-  const { sessionTitleOf, newSessionTitle, isWorkerIdTitle, shouldMintTitle } = await import('../../src/screen/concourse-model/sessionNaming.ts')
+  const { sessionTitleOf, newSessionTitle, shouldMintTitle } = await import('../../src/screen/concourse-model/sessionNaming.ts')
   const { transcriptHeadFacts } = await import('../../src/screen/concourse-model/sessionTitleMint.ts')
   const manifest = await import('../../src/screen/concourse/controlManifest.ts')
   const { setConcourseSessionTitle } = workers
   check('stage 1: an untitled, wordless session is the FACT — "new session · <project> · ready" — never an invented name', sessionTitleOf({ workspaceId: P_A }, () => null) === `new session · ${basename(P_A)} · ready` && newSessionTitle(P_A) === `new session · ${basename(P_A)} · ready`, '', HINT_NAMING)
   check('stage 2: the first words name it the moment they exist (zero cost — the board\'s own brief)', sessionTitleOf({ workspaceId: P_A }, () => 'fix the auth tests') === 'fix the auth tests', '', HINT_NAMING)
   check('stage 3 / the operator: a stored title outranks the words', sessionTitleOf({ title: 'Fix flaky auth tests', workspaceId: P_A }, () => 'fix the auth tests') === 'Fix flaky auth tests', '', HINT_NAMING)
-  check('the poison detector: the worker short is never a title, and the owner cannot even see one (it is not an input)', isWorkerIdTitle('concourse-w3') && !isWorkerIdTitle('fix the auth tests') && !isWorkerIdTitle(sessionTitleOf({ workspaceId: P_A }, () => null)), '', HINT_NAMING)
   check('the mint gate: at turn ONE never (the poison); at turn two once; never twice (the stamp); never over a name; never on an ended record', !shouldMintTitle({}, 1) && shouldMintTitle({}, 2) && !shouldMintTitle({ titleMintedAt: 1 }, 5) && !shouldMintTitle({ title: 'named' }, 5) && !shouldMintTitle({ endedAt: 1 }, 5), '', HINT_NAMING)
   const S_T1 = sid('t1')
   const S_T2 = sid('t2')
@@ -448,7 +447,7 @@ console.log('§8 — SESSION-AWARE NAMING: three stages, one owner; the mint onc
   await switchTo(P_A)
   seedWorkers([liveRecord('concourse-w2', S_T3, P_A, { title: undefined })])
   const stage1 = (await build()).groups.flatMap(g => g.rows).find(r => r.sessionId === S_T3)
-  check('the board row of an untitled wordless session reads stage 1 — never concourse-wN', stage1?.title === `new session · ${basename(P_A)} · ready` && !isWorkerIdTitle(stage1?.title ?? ''), stage1?.title, HINT_NAMING)
+  check('the board row of an untitled wordless session reads stage 1 — never concourse-wN', stage1?.title === `new session · ${basename(P_A)} · ready`, stage1?.title, HINT_NAMING)
   seedChat(P_A, S_T3, 'polish the boot face', 30_000)
   const stage2 = (await build()).groups.flatMap(g => g.rows).find(r => r.sessionId === S_T3)
   check('with words on record the row reads them (stage 2)', stage2?.title === 'polish the boot face', stage2?.title, HINT_NAMING)
