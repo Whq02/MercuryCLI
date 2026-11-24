@@ -70,8 +70,6 @@ t.section('§5 — the ONE crewmate target picker')
     'an unattached external agent is NOT dispatchable (no guaranteed-refusal advertising)',
     external?.dispatchable === false && external.endpoint === 'none',
   )
-  const targets = picker.dispatchableTargets(snapshot as never)
-  t.check('dispatchableTargets is exactly the sendable subset', targets.length === 1 && targets[0]!.agentId === main!.agentId)
   t.check('a null snapshot yields an empty picker (honest absence)', picker.targetPickerRows(null).length === 0)
 }
 

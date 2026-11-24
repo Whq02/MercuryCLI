@@ -35,8 +35,3 @@ export function targetPickerRows(snapshot: CrewSnapshotV1 | null): TargetPickerR
     }
   })
 }
-
-export function dispatchableTargets(snapshot: CrewSnapshotV1 | null): TargetPickerRow[] {
-  return targetPickerRows(snapshot).filter(r => r.dispatchable)
-}
-
