@@ -2686,6 +2686,8 @@ src/permissions/rules/dangerousPatterns.ts	DANGEROUS_BASH_PATTERNS	process	modul
 src/permissions/rules/dangerousPatterns.ts	PROGRAM_WRAPPERS	process	module	Load-time list with no local writer
 src/permissions/rules/decision/command-analysis/analysis.ts	OPERATOR_TYPES	process	module	Load-time lookup with no local writer
 src/permissions/rules/decision/command-analysis/analysis.ts	STATEMENT_CONTAINERS	process	module	load-time lookup; no local writer
+src/permissions/rules/decision/command-analysis/commandSpans.ts	NOT_WORDS	process	module	load-time lookup; no local writer
+src/permissions/rules/decision/command-analysis/commandSpans.ts	QUOTED_WORDS	process	module	load-time lookup; no local writer
 src/permissions/rules/decision/command-analysis/commandViews.ts	DYNAMIC_KINDS	process	module	Load-time lookup with no local writer
 src/permissions/rules/decision/command-analysis/exactCommands.ts	DECLARATION_WORDS	process	module	Load-time lookup with no local writer
 src/permissions/rules/decision/command-analysis/exactCommands.ts	EVALUATING_BUILTINS	process	module	Load-time lookup with no local writer
@@ -5556,8 +5558,6 @@ src/tools/shell/pathValidation.ts	TREE_FILES	process	module	Load-time lookup wit
 src/tools/shell/pathValidation.ts	TREE_GRAMMAR	process	module	Load-time table with no local writer
 src/tools/shell/pathValidation.ts	XARGS_FILES	process	module	Load-time lookup with no local writer
 src/tools/shell/pathValidation.ts	XARGS_GRAMMAR	process	module	Load-time table with no local writer
-src/tools/shell/quotedScripts.ts	NOT_WORDS	process	module	load-time lookup; no local writer
-src/tools/shell/quotedScripts.ts	QUOTED_WORDS	process	module	load-time lookup; no local writer
 src/tools/shell/readOnlyValidation.ts	GIT_INTERNAL_CREATORS	process	module	Load-time lookup with no local writer
 src/tools/shell/readOnlyValidation.ts	OUTPUT_OPERATORS	process	module	Load-time lookup with no local writer
 src/tools/shell/readOnlyValidation.ts	inputReads	call	module	WeakMap keyed by tool_use input object retaining PreparedRead for call lifetime
