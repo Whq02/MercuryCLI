@@ -44,17 +44,6 @@ export function getCurrentUsage(messages: Message[]): {
   return null
 }
 
-export function doesMostRecentAssistantMessageExceed200k(messages: Message[]): boolean {
-  for (let index = messages.length - 1; index >= 0; index--) {
-    const message = messages[index]
-    if (message?.type !== 'assistant') continue
-    const usage = getTokenUsage(message)
-    if (!usage) return false
-    return getTokenCountFromUsage(usage) > 200_000
-  }
-  return false
-}
-
 export function getAssistantMessageContentLength(message: AssistantMessage): number {
   const content = message.message.content
   if (!Array.isArray(content)) return 0

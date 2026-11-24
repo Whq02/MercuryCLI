@@ -383,13 +383,6 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
   )
   check('counting: usage sum includes both cache families', tokens.getTokenCountFromUsage(usage(100, 10, 5, 7) as never) === 122)
 
-  check(
-    'counting: the 200k pivot is strictly-greater (200,000 exactly is NOT over)',
-    tokens.doesMostRecentAssistantMessageExceed200k([asst('m4', usage(199_990, 10))] as never) === false &&
-      tokens.doesMostRecentAssistantMessageExceed200k([asst('m5', usage(199_991, 10))] as never) === true,
-  )
-  check('counting: no assistant ⇒ not over', tokens.doesMostRecentAssistantMessageExceed200k([user('x')] as never) === false)
-
   const a1 = asst('resp-A', usage(1000, 50), 'first split block')
   const t1 = user('tool result one')
   const a2 = asst('resp-A', usage(1000, 50), 'second split block')
