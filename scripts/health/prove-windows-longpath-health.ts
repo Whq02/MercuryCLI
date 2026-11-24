@@ -224,6 +224,63 @@ try {
     JSON.stringify(cmdFound),
   )
 
+  if (platformDesc.value !== 'win32') {
+    const { chmodSync } = await import('node:fs')
+    const { spawnSync } = await import('node:child_process')
+    writeFileSync(join(managedBin, 'mercury.ps1'), '# stub\r\n')
+    const psStub = join(managedBin, 'powershell.exe')
+    writeFileSync(
+      psStub,
+      '#!/bin/sh\nprintf \'{"effective":"Restricted","scopes":[{"scope":"LocalMachine","policy":"Restricted"}]}\\n\'\n',
+    )
+    chmodSync(psStub, 0o755)
+    const runManagedPolicy = (extraEnv: Record<string, string | undefined>): { status: string; evidence: string; fix?: string } => {
+      const childEnv: Record<string, string> = {
+        HOME: home,
+        USERPROFILE: home,
+        LOCALAPPDATA: localAppData,
+        MERCURY_CONFIG_DIR: configDir,
+        MERCURY_VERSIONS_DIR: join(configDir, 'versions'),
+        MERCURY_DAEMON_DIR: daemonDir,
+        MERCURY_CREDENTIAL_STORE: 'file',
+        MERCURY_LOCAL_PROBE_TARGETS: 'none',
+        PATH: managedBin,
+        PATHEXT: '.COM;.EXE;.BAT;.CMD',
+      }
+      for (const [key, value] of Object.entries(extraEnv)) {
+        if (value !== undefined) childEnv[key] = value
+      }
+      const script = [
+        'globalThis.MACRO = { VERSION: "1.0.10" }',
+        'Object.defineProperty(process, "platform", { value: "win32", configurable: true })',
+        `process.argv[1] = ${JSON.stringify(join(managedVer, 'mercury.mjs'))}`,
+        `const { identityChecks } = await import(${JSON.stringify(`${root}/src/platform/health/sections/identity.ts`)})`,
+        'const row = await identityChecks({ version: "1.0.10" }).find(entry => entry.id === "command-on-path").run()',
+        'process.stdout.write(JSON.stringify(row))',
+      ].join('\n')
+      const res = spawnSync(String(execPathDesc.value), ['-e', script], { env: childEnv, encoding: 'utf8', timeout: 30_000 })
+      if (res.status !== 0) throw new Error(`command-on-path subprocess failed (${res.status}): ${res.stderr}`)
+      return JSON.parse(res.stdout) as { status: string; evidence: string; fix?: string }
+    }
+    const fromCmd = runManagedPolicy({ ComSpec: String.raw`C:\Windows\System32\cmd.exe` })
+    check(
+      'command-on-path suppresses the PowerShell script-policy warning when started from cmd',
+      fromCmd.status === 'ok' &&
+        !fromCmd.evidence.includes('PowerShell blocks mercury.ps1') &&
+        fromCmd.evidence.includes('stable command'),
+      JSON.stringify(fromCmd),
+    )
+    const fromPs = runManagedPolicy({
+      ComSpec: String.raw`C:\Windows\System32\cmd.exe`,
+      PSModulePath: String.raw`C:\Users\op\Documents\PowerShell\Modules`,
+    })
+    check(
+      'command-on-path shows the PowerShell script-policy warning when started from PowerShell',
+      fromPs.status === 'warn' && fromPs.evidence.includes('PowerShell blocks mercury.ps1'),
+      JSON.stringify(fromPs),
+    )
+  }
+
   Object.defineProperty(process, 'platform', platformDesc)
   const posixFacts = gatherInstallProbeFacts({
     invokedPath: bundleMjs,

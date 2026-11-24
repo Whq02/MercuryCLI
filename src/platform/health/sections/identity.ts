@@ -5,8 +5,10 @@ import { existsSync, statSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import { stripExtendedLengthPrefixForPlatform } from '../../host-os/paths.js'
+import { hostShellHint } from '../../host-os/spawn.js'
 import { artifactIdentityLine, describeArtifactIdentity } from '../../product/artifactIdentity.js'
 import { getMercuryHome } from '../../environment/envUtils.js'
+import { hostEnv } from '../../environment/hostEnv.js'
 import { isMercurySubstrateProfileOn } from '../../settings/config.js'
 import { formatAge } from '../healthCertCore.js'
 import { daemonSnapshot } from '../../../screen/cockpit-gauges/daemonSnapshot.js'
@@ -99,7 +101,7 @@ export function identityChecks(context: HealthContext): CheckSpec[] {
         const roots = resolveLayoutRoots()
         const found = commandOnPath(roots)
         if (p.kind === 'managed') {
-          if (roots.isWindows && existsSync(join(roots.binDir, WIN32_POWERSHELL_ENTRY))) {
+          if (roots.isWindows && hostShellHint(hostEnv()) === 'powershell' && existsSync(join(roots.binDir, WIN32_POWERSHELL_ENTRY))) {
             const notice = windowsScriptPolicyNotice(readWindowsScriptPolicies())
             if (notice.length > 0) return { status: 'warn', evidence: notice[0]!, fix: notice.slice(1).join('\n') }
           }
