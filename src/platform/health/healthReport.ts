@@ -1,5 +1,6 @@
 
 import { isReadOnlyDiagnostic } from '../logs/diagnosticReadOnly.js'
+import { isPathAbsentError } from '../errors/errors.js'
 import { projectHomeLeftovers, projectHomeStore } from '../storage/projectHomeStores.js'
 import { MERCURY_PROJECT_DIR } from '../settings/projectConfig.js'
 import { homeDirectory, isHomeDirectory, projectScopePathspec, USER_ROOT_NAMES } from '../files/projectBoundary.js'
@@ -165,11 +166,6 @@ function errorBrief(error: unknown): string {
   return (error instanceof Error && error.message ? error.message : String(error)).slice(0, 120)
 }
 
-function isAbsenceCode(error: unknown): boolean {
-  const code = (error as NodeJS.ErrnoException | null)?.code
-  return code === 'ENOENT' || code === 'ENOTDIR'
-}
-
 async function mercuryHoldersOf(repo: string): Promise<{ runners: string[]; indexLockAgeS: number | null; objectsInFlight: number; unread: string[] }> {
   const runners: string[] = []
   const unread: string[] = []
@@ -184,7 +180,7 @@ async function mercuryHoldersOf(repo: string): Promise<{ runners: string[]; inde
       try {
         ws = realpathSync(rec.workspaceId)
       } catch (error) {
-        if (isAbsenceCode(error)) passedOver(error)
+        if (isPathAbsentError(error)) passedOver(error)
         else noteUnread(`live sessions: ${errorBrief(error)}`)
         continue
       }
@@ -201,14 +197,14 @@ async function mercuryHoldersOf(repo: string): Promise<{ runners: string[]; inde
     indexLockAgeS = Math.max(0, Math.round((Date.now() - statSync(join(repo, '.git', 'index.lock')).mtimeMs) / 1000))
   } catch (error) {
     indexLockAgeS = null
-    if (!isAbsenceCode(error)) noteUnread(`.git/index.lock: ${errorBrief(error)}`)
+    if (!isPathAbsentError(error)) noteUnread(`.git/index.lock: ${errorBrief(error)}`)
   }
   let objectsInFlight = 0
   try {
     objectsInFlight = readdirSync(join(repo, '.git', 'objects')).filter(n => /^tmp_obj_|^tmpobj/i.test(n)).length
   } catch (error) {
     objectsInFlight = 0
-    if (!isAbsenceCode(error)) noteUnread(`.git/objects: ${errorBrief(error)}`)
+    if (!isPathAbsentError(error)) noteUnread(`.git/objects: ${errorBrief(error)}`)
   }
   return { runners, indexLockAgeS, objectsInFlight, unread }
 }

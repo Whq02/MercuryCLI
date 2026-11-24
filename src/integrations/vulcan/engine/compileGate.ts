@@ -21,6 +21,7 @@ import { engineWorkerCount, newEngineJobId } from './service.js'
 import { spawnEngine } from './spawn.js'
 import { startEngineHeartbeat } from './liveness.js'
 import { engineLogDrift, latestMatchingEvidenceRun, proofTreeFingerprint, runEvidenceDrift, sourceProofDrift, type ProofDriftRow } from './proofDrift.js'
+import { isPathAbsentError } from '../../../platform/errors/errors.js'
 
 const ENGINE_CHECK_TIMEOUT_MS = 60_000
 const SHADER_MARKER_PREFIX = 'MERCURY SHADER '
@@ -87,7 +88,7 @@ export function projectAutoloads(projectRoot: string): string[] {
   try {
     text = readFileSync(path.join(projectRoot, 'project.godot'), 'utf8')
   } catch (error) {
-    if (notThere(error)) return []
+    if (isPathAbsentError(error)) return []
     throw error
   }
   const out: string[] = []
@@ -234,11 +235,6 @@ interface PreloadFinding {
 
 class PreloadUnread extends Error {}
 
-function notThere(error: unknown): boolean {
-  const code = (error as NodeJS.ErrnoException | null)?.code
-  return code === 'ENOENT' || code === 'ENOTDIR'
-}
-
 function unreadWords(error: unknown): string {
   return (error as NodeJS.ErrnoException | null)?.code ?? (error instanceof Error ? error.message : String(error))
 }
@@ -248,7 +244,7 @@ export function preloadFindings(enginePath: string, suiteRes: string, autoloads:
     try {
       return readFileSync(path.join(enginePath, res.replace(/^res:\/\//, '')), 'utf8')
     } catch (error) {
-      if (notThere(error)) return null
+      if (isPathAbsentError(error)) return null
       throw new PreloadUnread(`${res} could not be read (${unreadWords(error)}), so the preload chain of ${suiteRes} was not followed past it`)
     }
   }
@@ -293,7 +289,7 @@ function walkFiles(root: string, suffixes: readonly string[], failures: EngineCh
     try {
       entries = readdirSync(dir).sort()
     } catch (error) {
-      if (!notThere(error)) unread(dir, error)
+      if (!isPathAbsentError(error)) unread(dir, error)
       return
     }
     for (const name of entries) {
@@ -304,7 +300,7 @@ function walkFiles(root: string, suffixes: readonly string[], failures: EngineCh
       try {
         st = statSync(full)
       } catch (error) {
-        if (!notThere(error)) unread(full, error)
+        if (!isPathAbsentError(error)) unread(full, error)
         continue
       }
       if (st.isDirectory()) walk(full)
@@ -487,7 +483,7 @@ export async function runEngineCheck(projectRoot: string, args: EngineCheckArgs,
       try {
         if (isScriptModeHead(readFileSync(path.join(enginePath, rel), 'utf8'))) roots.add(`res://${rel}`)
       } catch (error) {
-        if (!notThere(error)) {
+        if (!isPathAbsentError(error)) {
           const res = `res://${rel}`
           result.failures.push({ file: res, exitCode: null, signal: null, spawnError: `${res} could not be read (${unreadWords(error)})`, timedOut: false })
         }

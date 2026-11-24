@@ -4,6 +4,7 @@ import { dirname, isAbsolute, join, parse } from 'node:path'
 import picomatch from 'picomatch'
 import { authorityText, parseRemotePath } from '../remote-file-target/target.js'
 import { passedOver } from '../errors/passedOver.js'
+import { isPathAbsentError } from '../errors/errors.js'
 import { hostEnv } from '../environment/hostEnv.js'
 
 const INCLUDE_DEPTH = 16
@@ -48,11 +49,6 @@ function isHostName(name: string): boolean {
   }
 }
 
-function isAbsentPathError(error: unknown): boolean {
-  const code = (error as NodeJS.ErrnoException | null)?.code
-  return code === 'ENOENT' || code === 'ENOTDIR'
-}
-
 function unreadWords(path: string, error: unknown): string {
   return `${path} (${error instanceof Error ? error.message : String(error)})`
 }
@@ -76,7 +72,7 @@ function includedFiles(pattern: string, base: string, unread: string[]): string[
         names = readdirSync(folder)
       } catch (error) {
         passedOver(error)
-        if (!isAbsentPathError(error)) unread.push(unreadWords(folder, error))
+        if (!isPathAbsentError(error)) unread.push(unreadWords(folder, error))
         continue
       }
       for (const name of names.sort()) if (matches(name)) next.push(join(folder, name))
@@ -99,7 +95,7 @@ export function remoteHostNames(mayRead: (file: string) => boolean, unread: stri
       text = readFileSync(file, 'utf8')
     } catch (error) {
       passedOver(error)
-      if (!isAbsentPathError(error)) unread.push(unreadWords(file, error))
+      if (!isPathAbsentError(error)) unread.push(unreadWords(file, error))
       return
     }
     for (const line of text.split(/\r?\n/)) {

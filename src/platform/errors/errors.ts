@@ -121,6 +121,11 @@ export function isENOENT(error: unknown): boolean {
   return getErrnoCode(error) === 'ENOENT'
 }
 
+export function isPathAbsentError(error: unknown): boolean {
+  const code = getErrnoCode(error)
+  return code === 'ENOENT' || code === 'ENOTDIR'
+}
+
 export function getErrnoPath(error: unknown): string | undefined {
   if (!isRecord(error)) return undefined
   return typeof error.path === 'string' ? error.path : undefined
