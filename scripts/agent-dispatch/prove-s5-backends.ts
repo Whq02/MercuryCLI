@@ -14,7 +14,7 @@ const backendsWhere: Record<string, string> = {
   '2': 'change zaiCallModel in src/models/roads/zai/zaiCallModel.ts',
   '3': 'change zaiCallModel in src/models/roads/zai/zaiCallModel.ts',
   '4': 'change buildAgentLaunchPlan in src/crew/crewmates/crewmateLaunchPlan.ts',
-  '5': 'change SPECIALIST_ROLES and SPECIALIST_ROLE_ACCESS in src/models/roads/providerAdapter.ts',
+  '5': 'change SPECIALIST_ROLES in src/models/roads/providerAdapter.ts',
 }
 let backendsHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -42,7 +42,7 @@ const { zaiCallModel } = await import('../../src/models/roads/zai/zaiCallModel.j
 const { buildCrewmateLaunchPlan } = await import(
   '../../src/crew/crewmates/crewmateLaunchPlan.js'
 )
-const { SPECIALIST_ROLES, SPECIALIST_ROLE_ACCESS } = await import(
+const { SPECIALIST_ROLES } = await import(
   '../../src/models/roads/providerAdapter.js'
 )
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
@@ -499,18 +499,6 @@ section('4 · the launch-plan engine law (role→sandbox · denials · no floor)
 section('5 · the role registry access map is total')
 {
   check('six specialist roles', SPECIALIST_ROLES.length === 6)
-  const total = SPECIALIST_ROLES.every(
-    role => SPECIALIST_ROLE_ACCESS[role] === 'advisory' || SPECIALIST_ROLE_ACCESS[role] === 'authoring',
-  )
-  check('access map total over SPECIALIST_ROLES', total)
-  check(
-    'advisory = advisor/planner/reviewer',
-    (['advisor', 'planner', 'reviewer'] as const).every(r => SPECIALIST_ROLE_ACCESS[r] === 'advisory'),
-  )
-  check(
-    'authoring = debugger/implementer/test-author',
-    (['debugger', 'implementer', 'test-author'] as const).every(r => SPECIALIST_ROLE_ACCESS[r] === 'authoring'),
-  )
 }
 
 if (savedZaiKey === undefined) delete process.env.ZAI_API_KEY

@@ -70,15 +70,6 @@ export const SPECIALIST_ROLES = [
 ] as const
 export type SpecialistRole = (typeof SPECIALIST_ROLES)[number]
 
-export const SPECIALIST_ROLE_ACCESS: Record<SpecialistRole, 'advisory' | 'authoring'> = {
-  advisor: 'advisory',
-  planner: 'advisory',
-  reviewer: 'advisory',
-  debugger: 'authoring',
-  implementer: 'authoring',
-  'test-author': 'authoring',
-}
-
 type ProviderCapabilityKey =
   | 'streaming'
   | 'tool-calls'
