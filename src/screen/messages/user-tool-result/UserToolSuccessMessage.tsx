@@ -102,7 +102,7 @@ export function UserToolSuccessMessage({
   if (
     !verbose &&
     !isTranscriptMode &&
-    summarizeToolResult(toolUse?.name ?? tool.name, message.toolUseResult) !== null
+    summarizeToolResult(toolUse?.name ?? tool.name, message.toolUseResult, toolInput) !== null
   ) {
     return null
   }

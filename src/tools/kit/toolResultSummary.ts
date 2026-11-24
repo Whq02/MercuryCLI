@@ -75,7 +75,19 @@ function globSummary(out: Record<string, unknown>): string | null {
   return `Found ${n} file${n === 1 ? '' : 's'}`
 }
 
-export function summarizeToolResult(toolName: string, toolUseResult: unknown): string | null {
+function crewBoardSummary(out: Record<string, unknown>, input: unknown): string | null {
+  if (out['ok'] !== false) return null
+  const op = asRecord(input)?.['op']
+  if (op === 'read') return '· not read'
+  if (op === 'swarm_team' || op === 'swarm_captain') return '· not assigned'
+  return '· not posted'
+}
+
+export function summarizeToolResult(
+  toolName: string,
+  toolUseResult: unknown,
+  input?: unknown,
+): string | null {
   const out = asRecord(toolUseResult)
   if (!out) return null
   try {
@@ -88,6 +100,8 @@ export function summarizeToolResult(toolName: string, toolUseResult: unknown): s
         return grepSummary(out)
       case 'Glob':
         return globSummary(out)
+      case 'CrewBoard':
+        return crewBoardSummary(out, input)
       default:
         return null
     }

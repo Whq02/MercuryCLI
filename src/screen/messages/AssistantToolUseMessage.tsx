@@ -299,7 +299,7 @@ export function AssistantToolUseMessage({
     HEAD_RESERVATION_CELLS + stringWidth(editMetaText) <= columns
 
   const resultSummary = showCompactMeta
-    ? summarizeToolResult(tool.name, rawResult)
+    ? summarizeToolResult(tool.name, rawResult, parsedInput)
     : null
   const summaryWidth = resultSummary !== null ? stringWidth(resultSummary) : 0
   const showInlineSummary =
