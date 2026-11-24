@@ -16,6 +16,7 @@ prove-crew-row-at-launch.ts
 prove-crew-stop-verb.ts
 prove-crewmate-shell-starts-in-its-own-folder.ts
 prove-crewmate-transcript-resume.ts
+prove-diagnostics-note-reaches-its-writer-only.ts
 prove-dispatch-receipts-decode.ts
 prove-drained-notice-frames.ts
 prove-esc-turn-end.ts

@@ -155,6 +155,23 @@ try {
     check('…and its unread publish with it: the main thread reads the error left in its tree', uris(afterHandBack).includes(projectOther) && messagesOf(afterHandBack).some(message => /not assignable to type 'number'/.test(message)), `${j(uris(afterHandBack))} ${j(messagesOf(afterHandBack))}`)
   }
 
+  section('§4 a file outside the project folder: the claim and the unread publish stay the crewmate\'s own')
+  {
+    const elsewhere = writeProject(scratch, 'elsewhere', FILES)
+    const elsewhereOther = join(elsewhere, 'other.ts')
+    const awayCtx = makeContext('agent-away')
+    const awayOwner = processOwnerForLane('agent-away')
+    const reported = awaitReportFor(elsewhereOther, REPORT_WAIT_MS)
+    await readThenEdit(awayCtx, elsewhereOther, 'export const count: number = 1', "export const count: number = 'one'")
+    check('the server published for the file outside the project folder', await reported)
+    registry.releaseDiagnosticsWriter(awayOwner)
+    check('the claim stays the crewmate\'s own when its run ends', registry._writerForTesting(elsewhereOther) === awayOwner, `${String(registry._writerForTesting(elsewhereOther))}; releaseDiagnosticsWriter in src/integrations/lsp/LSPDiagnosticRegistry.ts must keep the claim on a file that stands outside the project folder of the owner key`)
+    const mainRows = await drain(mainCtx)
+    check('the main thread reads nothing of a file it never touched', !uris(mainRows).includes(elsewhereOther), `${j(uris(mainRows))}; releaseDiagnosticsWriter must not hand the main lane a publish for a file outside the project folder`)
+    const awayRows = await drain(awayCtx)
+    check('…and the crewmate, running again, reads its own unread publish', uris(awayRows).includes(elsewhereOther) && messagesOf(awayRows).some(message => /not assignable to type 'number'/.test(message)), `${j(uris(awayRows))} ${j(messagesOf(awayRows))}; the unread publish must stay parked under the crewmate's own owner key`)
+  }
+
 } finally {
   registry.resetAllLSPDiagnosticState()
   await lspManager.shutdownLspServerManager()

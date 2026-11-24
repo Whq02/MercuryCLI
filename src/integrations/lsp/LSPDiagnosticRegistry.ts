@@ -6,7 +6,7 @@ import { LRUCache } from 'lru-cache'
 
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import type { Diagnostic, DiagnosticFile } from './diagnosticTracking.js'
-import { MAIN_LANE, parseOwnerKey, type OwnerKey } from '../../engine/run-owner/ownerKey.js'
+import { MAIN_LANE, isOwnerKey, parseOwnerKey, type OwnerKey } from '../../engine/run-owner/ownerKey.js'
 
 
 type Lane = OwnerKey | null
@@ -118,7 +118,7 @@ function underRoot(fileKey: string, root: string): boolean {
 
 function laneForFile(fileKey: string): Lane | 'sunk' {
   const writer = writers.peek(fileKey)
-  if (writer !== undefined) return ended.has(writer) ? 'sunk' : writer
+  if (writer !== undefined) return writer
   for (const [owner, root] of roots) {
     if (underRoot(fileKey, root)) return ended.has(owner) ? 'sunk' : owner
   }
@@ -157,21 +157,33 @@ export function releaseDiagnosticsWriter(owner: OwnerKey, worktree?: string): vo
   const lane = laneOf(owner)
   if (lane === null) return
   const root = worktree !== undefined ? normaliseRoot(worktree) : roots.get(lane)
+  const project = isOwnerKey(lane) ? normaliseRoot(parseOwnerKey(lane).workspace) : null
+  const sinks = (fileKey: string): boolean => root !== undefined && underRoot(fileKey, root)
+  const returns = (fileKey: string): boolean => project === null || underRoot(fileKey, project)
   let dropped = 0
   let handed = 0
+  let held = 0
   for (const [pendingId, entry] of pending) {
     if (entry.owner !== lane) continue
-    const kept = root === undefined ? entry.files : entry.files.filter(file => !underRoot(plainPathKey(file.uri), root))
-    dropped += entry.files.length - kept.length
-    if (kept.length === 0) {
+    const standing = entry.files.filter(file => !sinks(plainPathKey(file.uri)))
+    const home = standing.filter(file => returns(plainPathKey(file.uri)))
+    const own = standing.filter(file => !returns(plainPathKey(file.uri)))
+    dropped += entry.files.length - standing.length
+    handed += home.length
+    held += own.length
+    if (own.length > 0) {
+      entry.files = own
+      if (home.length > 0) pending.set(randomUUID(), { ...entry, files: home, owner: null })
+      continue
+    }
+    if (home.length === 0) {
       pending.delete(pendingId)
       continue
     }
-    entry.files = kept
+    entry.files = home
     entry.owner = null
-    handed += kept.length
   }
-  for (const [fileKey, writer] of writers.entries()) if (writer === lane) writers.delete(fileKey)
+  for (const [fileKey, writer] of writers.entries()) if (writer === lane && (sinks(fileKey) || returns(fileKey))) writers.delete(fileKey)
   for (const [fileKey, entry] of awaitingWrites) if (entry.owner === lane) awaitingWrites.delete(fileKey)
   if (root !== undefined) {
     roots.delete(lane)
@@ -182,7 +194,7 @@ export function releaseDiagnosticsWriter(owner: OwnerKey, worktree?: string): vo
     roots.delete(lane)
     ended.delete(lane)
   }
-  logForDebugging(`LSP diagnostics: lane ${lane} handed back — ${dropped} worktree file publish${dropped === 1 ? '' : 'es'} dropped, ${handed} shared-tree file publish${handed === 1 ? '' : 'es'} returned to the main lane${root !== undefined ? ` (root ${root} sunk)` : ''}`)
+  logForDebugging(`LSP diagnostics: lane ${lane} handed back — ${dropped} worktree file publish${dropped === 1 ? '' : 'es'} dropped, ${handed} shared-tree file publish${handed === 1 ? '' : 'es'} returned to the main lane, ${held} outside the project folder kept for the lane${root !== undefined ? ` (root ${root} sunk)` : ''}`)
 }
 
 function armAwaitingWrite(lane: Lane, fileKey: string, docVersion: number | undefined): void {
