@@ -247,7 +247,6 @@ export function ExtensionView({
               </Fact>
             ) : null}
 
-            {}
             <SectionRule label="adds" width={cols - 4} />
             {addLines.length === 0 ? (
               <Text color={tokens.textMuted}>  nothing — the manifest declares no contributions</Text>

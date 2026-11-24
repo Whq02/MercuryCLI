@@ -325,7 +325,6 @@ export function panelViewOf({
           {editor.kind === 'edit' ? `edit saved prompt #${editor.n}` : 'new saved prompt'}
           <Text color={tokens.textMuted}>{'   ↵ save · esc cancel'}</Text>
         </Text>
-        {}
         <Box
           height={promptsComposerRows(editor.buffer.length) - 1}
           overflow="hidden"

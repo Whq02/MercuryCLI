@@ -82,7 +82,6 @@ export function ShortcutsTab(): React.ReactNode {
       {ADVANCED.map(s => (
         <ShortcutSection key={s.head} section={s} />
       ))}
-      {}
       <Text color={t.textMuted}>cockpit: tab focuses the rails (empty prompt)</Text>
       <Text color={t.textMuted}>/keys — every binding, live · rebind in {toTildePath(getKeybindingsPath())}</Text>
     </Box>

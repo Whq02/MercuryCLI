@@ -117,7 +117,6 @@ export function MercuryFileOpen({
     <CommandCenter view="open file" elevated onClose={onClose} captureInput={false} footer={footer}>
       <Box marginTop={1}>
         <Text color={accent}>{GLYPH.prompt} </Text>
-        {}
         <TextInput
           value={query}
           onChange={q => {

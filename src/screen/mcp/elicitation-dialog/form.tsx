@@ -456,7 +456,6 @@ export function formDialogView({
                   </PopupListViewport>
                 </Box>
               ) : null}
-              {}
               <Box paddingLeft={4} height={1}>
                 <Text color="error">{field.error ?? ' '}</Text>
               </Box>

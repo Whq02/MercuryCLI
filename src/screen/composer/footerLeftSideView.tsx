@@ -92,7 +92,6 @@ export function footerClusterOf({
           />
         </Box>
       ) : null}
-      {}
       {hintsShow ? (
         <Text dimColor wrap="truncate-end">
           {parts.map((part, index) => (

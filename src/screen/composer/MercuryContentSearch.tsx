@@ -193,7 +193,6 @@ export function MercuryContentSearch({
     <CommandCenter view="search" elevated onClose={onClose} captureInput={false} footer={footer}>
       <Box marginTop={1}>
         <Text color={accent}>{GLYPH.prompt} </Text>
-        {}
         <TextInput
           value={query}
           onChange={q => {

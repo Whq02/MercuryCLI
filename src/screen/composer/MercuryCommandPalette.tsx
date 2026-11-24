@@ -270,7 +270,6 @@ export function MercuryCommandPalette({
     <CommandCenter view="command palette" elevated onClose={onClose} captureInput={false} footer={footer}>
       <Box marginTop={1}>
         <Text color={accent}>{GLYPH.prompt} </Text>
-        {}
         <TextInput
           value={query}
           onChange={q => {
@@ -318,7 +317,6 @@ export function MercuryCommandPalette({
                 onSelect={() => setSel(abs)}
                 onActivate={() => activateSelected(abs)}
               >
-              {}
               <Text wrap="truncate-end">
                 <Text color={here ? accent : tokens.textMuted}>{here ? `${GLYPH.prompt} ` : '  '}</Text>
                 {it.run
