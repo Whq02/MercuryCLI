@@ -27,6 +27,7 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_FAULT_INJECT
 delete process.env.MERCURY_CONCOURSE_WORKER
 
+const PLAIN = 'the cleared session is still running — park it from the Session Concourse'
 const HINT =
   'change: the park road in src/daemon/concourse-workers/park.ts (retireConcourseSession, parkConcourseSession) and its own retry of a refused save in src/daemon/concourse-workers/store.ts, the fence in src/daemon/runner-link/runnerQuiescence.ts, or the receipt of clearFocusedSession in src/daemon/switchboard/hopIntoSession.ts'
 let failures = 0
@@ -202,7 +203,8 @@ try {
     const scene = stage('3')
     refuseTheSave(null)
     const out = await clear(scene)
-    check('one warning receipt is minted', out.warnings.length === 1, JSON.stringify(out.all))
+    check('one plain sentence is minted', out.warnings.length === 1 && out.warnings[0]?.text === PLAIN, JSON.stringify(out.all))
+    check('no path, no error code and no count of tries is in it', out.warnings.every(receipt => !receipt.text.includes(DAEMON_DIR) && !/EPERM|EBUSY|EACCES|rename|attempt|daemon error|\d/.test(receipt.text)), JSON.stringify(out.warnings))
     check("the session's true state is told: its runner is alive, its record is not parked, the retirement was called off", isProcessAlive(scene.pid) && rec(scene.runnerId)?.parkedAt === undefined && scene.asked.join(',') === 'prepare,cancel', `asked ${scene.asked.join(',')}; alive ${isProcessAlive(scene.pid)}; ${JSON.stringify(rec(scene.runnerId))}`)
     letTheSaveThrough()
     const again = await sock.daemonControlRpc({ op: 'sessionControl', action: 'park', sessionId: scene.sessionId, by: `operator:${process.pid}` }, { timeoutMs: 15_000 })

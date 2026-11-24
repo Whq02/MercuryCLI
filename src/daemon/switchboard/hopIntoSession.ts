@@ -10,6 +10,7 @@ import { validateUuid } from '../../sessions/transcripts/sessionStoragePortable.
 import { pollUntil, withDeadline } from '../../platform/async/deadline.js'
 import { passedOver, passedOverAs } from '../../platform/errors/passedOver.js'
 import { errorMessage, getErrnoCode } from '../../platform/errors/errors.js'
+import { logForDebugging } from '../../platform/logs/debugLog.js'
 
 export function liveTitleDeriverFor(
   workers: {
@@ -324,7 +325,10 @@ export async function clearFocusedSession(): Promise<{ ok: true; cleared: boolea
   const unparked = await parkSessionById(oldSessionId)
   const { markSessionCleared } = await import('../../sessions/transcripts/clearedSessions.js')
   const marked = markSessionCleared(oldSessionId)
-  if (unparked !== null) mintImmediateReceipt(`the cleared session could not be parked and is still running (${unparked}) — park it from the Session Concourse`, 'warning')
+  if (unparked !== null) {
+    logForDebugging(`[clear] session ${oldSessionId} is still running after its park was asked: ${unparked}`, { level: 'warn' })
+    mintImmediateReceipt('the cleared session is still running — park it from the Session Concourse', 'warning')
+  }
   if (!marked.ok) mintImmediateReceipt(`the cleared mark could not be saved (${marked.error}), so this session may show in the list again`, 'warning')
   return { ok: true, cleared: true }
 }
