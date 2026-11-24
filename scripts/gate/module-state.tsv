@@ -36,7 +36,6 @@ src/boot/plans.ts	slugBySession	owner	module	Session plan slug map, retained unt
 src/boot/process-state/processState.ts	apiCapture	owner	module	session; last request and request id of the main lane for the feedback form, their writers refuse a crewmate
 src/boot/process-state/processState.ts	bootConfig	process	module	boot facts from argv set once in main.tsx (flag settings path and inline, allowed setting sources, session extensions)
 src/boot/process-state/processState.ts	cacheLatches	owner	module	session; systemPromptSectionCache is the prompt composition memory of the main lane
-src/boot/process-state/processState.ts	clearBetaHeaderLatches	reset-export
 src/boot/process-state/processState.ts	clearInvokedSkillsForAgent	reset-export
 src/boot/process-state/processState.ts	clearRegisteredExtensionHooks	reset-export
 src/boot/process-state/processState.ts	clearRegisteredHooks	reset-export
@@ -3209,7 +3208,6 @@ src/platform/logs/errorLog.ts	sink	process	module	one-time process error-log sin
 src/platform/logs/errorLogSink.ts	closedPaths	process	module	process-wide set of error log paths closed after reaching 8 MiB ceiling or write failure
 src/platform/logs/errorLogSink.ts	logWriters	process	module	process-wide buffered JSONL log writers keyed by file path, disposed via registerCleanup (has resetErrorLogSinkForTest)
 src/platform/logs/errorLogSink.ts	resetErrorLogSinkForTest	reset-export
-src/platform/logs/headlessProfiler.ts	turnNumber	process	module	process-wide 5% sampled headless performance.mark turn counter
 src/platform/logs/profiling.ts	perf	process	module	cached reference to globalThis.performance
 src/platform/logs/runPhases.ts	RUN_PHASES	process	module	Load-time list with no local writer
 src/platform/logs/runPhases.ts	stamps	process	module	single headless OS process boot-to-exit 12-phase latency instrument (process_start=0, graph_load/cli_parse stamped before --resume switches sessionId in loadSession.ts
