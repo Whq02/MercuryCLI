@@ -2,8 +2,7 @@ import { normalize, join, relative, sep } from 'node:path'
 import { getMemoryBaseDir, isMnemeEnabled } from '../../sessions/mneme/paths.js'
 import { getCwd } from '../../platform/files/cwd.js'
 import { projectConfigDirs } from '../../platform/settings/projectConfig.js'
-import { projectLocalPath } from '../../platform/project-local/paths.js'
-import { projectHomePath, projectHomeStore } from '../../platform/storage/projectHomeStores.js'
+import { projectHomePath } from '../../platform/storage/projectHomeStores.js'
 import { CORRECT_TOOL_NAME, RECALL_TOOL_NAME, REFLECT_TOOL_NAME, RETAIN_TOOL_NAME } from '../../tools/kit/names/memory.js'
 
 export type AgentMemoryScope = 'user' | 'project' | 'local'
@@ -21,21 +20,6 @@ export function withMemoryVerbs(tools: string[] | undefined, memory: AgentMemory
 
 const AGENT_MEMORY_SUBDIR = 'agent-memory'
 const AGENT_MEMORY_LOCAL_SUBDIR = 'agent-memory-local'
-
-export function getAgentMemoryDir(
-  agentType: string,
-  scope: AgentMemoryScope,
-): string {
-  const normalizedType = agentType.replace(/:/g, '-')
-  switch (scope) {
-    case 'user':
-      return `${join(getMemoryBaseDir(), AGENT_MEMORY_SUBDIR, normalizedType)}${sep}`
-    case 'project':
-      return `${projectLocalPath(getCwd(), AGENT_MEMORY_SUBDIR, normalizedType)}${sep}`
-    case 'local':
-      return `${projectHomeStore(getCwd(), AGENT_MEMORY_LOCAL_SUBDIR, normalizedType)}${sep}`
-  }
-}
 
 function isUnder(candidate: string, dir: string): boolean {
   const rel = relative(dir, candidate)
