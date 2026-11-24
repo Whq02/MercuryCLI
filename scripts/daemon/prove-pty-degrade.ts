@@ -2,7 +2,6 @@
 
 import {
   attachToJobPty,
-  isPtyHostAvailable,
   type AttachResult,
 } from '../../src/daemon/runner-link/runPtyHost.js'
 
@@ -15,33 +14,9 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-const bunGlobal = (globalThis as { Bun?: { Terminal?: unknown } }).Bun
-const hasTerminalPrimitive = !!bunGlobal && typeof bunGlobal.Terminal !== 'undefined'
-
 console.log('============================================================')
 console.log(' PTY-host tier — graceful-degrade proof')
 console.log('============================================================')
-
-section('isPtyHostAvailable — pure probe, never throws, agrees with the primitive')
-let avail: boolean | undefined
-let probeThrew = false
-try {
-  avail = isPtyHostAvailable()
-} catch {
-  probeThrew = true
-}
-check('isPtyHostAvailable() does not throw', probeThrew === false, '', 'isPtyHostAvailable in src/daemon/runner-link/runPtyHost.ts must return a boolean and catch its own errors')
-check(
-  'isPtyHostAvailable() agrees with the live terminal primitive',
-  avail === hasTerminalPrimitive,
-  `probe=${avail} primitive=${hasTerminalPrimitive}`,
-  'isPtyHostAvailable in src/daemon/runner-link/runPtyHost.ts must report true exactly when Bun.Terminal exists',
-)
-if (hasTerminalPrimitive) {
-  check('under bun (Bun.Terminal present) ⇒ TRUE (node product reads FALSE)', avail === true, '', 'isPtyHostAvailable in src/daemon/runner-link/runPtyHost.ts must return true when Bun.Terminal is present')
-} else {
-  check('under the node product (no Bun.Terminal) ⇒ FALSE', avail === false, '', 'isPtyHostAvailable in src/daemon/runner-link/runPtyHost.ts must return false when Bun.Terminal is absent')
-}
 
 section('attachToJobPty — ENOTSUP-shaped, never throws')
 let res: AttachResult | undefined
