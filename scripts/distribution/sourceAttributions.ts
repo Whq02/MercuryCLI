@@ -1,6 +1,6 @@
-export type SourceLicence = { project: string; version: string; file: string; copyright: ReadonlyArray<string>; text: string }
+type SourceLicence = { project: string; version: string; file: string; copyright: ReadonlyArray<string>; text: string }
 
-export const PI_LICENCE: SourceLicence = {
+const PI_LICENCE: SourceLicence = {
   project: 'Pi',
   version: 'v1.6.0',
   file: 'LICENSE',
@@ -28,7 +28,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.`,
 }
 
-export const INK_LICENCE: SourceLicence = {
+const INK_LICENCE: SourceLicence = {
   project: 'Ink',
   version: 'v8.0.0',
   file: 'license',
