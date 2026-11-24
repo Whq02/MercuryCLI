@@ -118,11 +118,12 @@ async function hostilePayload(world: RemoteWorld, shell: string): Promise<void> 
   })
   check(`${shell}: a payload cut off by the end of the connection ends the shell with 97`, cut.code === 97, `exit ${cut.code}`)
   check(`${shell}: and the file it was landing in is removed`, !existsSync(`${landed}-cut`))
-  const refused = await rawSession(world, async (token, write, seen) => {
+  const refused = await rawSession(world, async (token, write, seen, end) => {
     write(`${token} m_put 5 ${remoteQuote(join(world.data, 'no-such-folder', 'x'))} ACKWORD; m_end endmark\n`)
     for (const until = Date.now() + 5_000; Date.now() < until && !seen().includes('endmark 73\n'); ) await pause(20)
     write(`${token} { printf still-in-step; } </dev/null; m_end second\n`)
     for (const until = Date.now() + 5_000; Date.now() < until && !seen().includes('second 0\n'); ) await pause(20)
+    end()
   })
   check(`${shell}: a destination that cannot be opened answers 73 before any acknowledgement, and the loop goes on`, !refused.out.includes('ACKWORD') && refused.out.includes('\nendmark 73\n') && refused.out.includes('still-in-step\nsecond 0\n'), JSON.stringify(refused.out.slice(-160)))
 }
