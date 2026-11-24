@@ -212,7 +212,7 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
       const current = flowRef.current;
       if (current === null) return;
       if (current.kind === 'receipt') {
-        receiptFlowKeys(ctx, current, input, key);
+        receiptFlowKeys(ctx, current, key);
         return;
       }
       if (current.kind === 'device') {

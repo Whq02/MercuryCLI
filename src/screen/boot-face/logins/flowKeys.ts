@@ -6,7 +6,7 @@ import type { LoginsFlowContext } from './context.js';
 import type { Key } from '../../themedRenderer.js';
 import { startTimeout } from '../../../platform/async/timers.js';
 
-export function receiptFlowKeys(ctx: LoginsFlowContext, current: Extract<OpenFlowState, { kind: 'receipt' }>, input: string, key: Key): void {
+export function receiptFlowKeys(ctx: LoginsFlowContext, current: Extract<OpenFlowState, { kind: 'receipt' }>, key: Key): void {
   const { refreshFacts, closeFlow, settleSignedIn } = ctx;
   if (key.return || key.escape) {
     if (current.ok) settleSignedIn();

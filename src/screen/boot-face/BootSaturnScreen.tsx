@@ -311,7 +311,6 @@ export function saturnOpeningRowIsCurrent(row: string, opening: string | null): 
 
 export function saturnFormEntries(form: SaturnFormStateV1): SaturnEntry[] {
   const row = (
-    id: SaturnFormRowId,
     label: string,
     groupTitle: string,
     valueLabel: string,
@@ -319,21 +318,20 @@ export function saturnFormEntries(form: SaturnFormStateV1): SaturnEntry[] {
     summary: string,
   ): SaturnEntry => ({ label, group: groupTitle, groupTitle, summary, valueLabel, valueIsDefault, pinnedVal: null, detail: null });
   return [
-    row('when', 'When', 'the birth', form.when === '' ? '— say when (↵)' : clampText(form.when, 28), form.when !== '', `e.g. ${WHEN_SPELLING_EXAMPLES.slice(0, 4).join(' · ')}`),
-    row('model', 'Model', 'the birth', clampText(form.modelKey, 28), true, 'the model the session is born on (↵ picks)'),
-    row('workspace', 'Workspace', 'the birth', clampText(form.workspaceDir, 28), true, 'the project it is born in (↵ picks; custom path too)'),
+    row('When', 'the birth', form.when === '' ? '— say when (↵)' : clampText(form.when, 28), form.when !== '', `e.g. ${WHEN_SPELLING_EXAMPLES.slice(0, 4).join(' · ')}`),
+    row('Model', 'the birth', clampText(form.modelKey, 28), true, 'the model the session is born on (↵ picks)'),
+    row('Workspace', 'the birth', clampText(form.workspaceDir, 28), true, 'the project it is born in (↵ picks; custom path too)'),
     row(
-      'presence',
       'Presence',
       'the birth',
       form.presence === 'headless' ? 'headless — unattended' : 'screen-present — Mercury open',
       true,
       '↵ flips the arm',
     ),
-    row('kit', 'Kit preset', 'born wearing', form.kitPreset ?? 'none', true, 'the extensions it is born wearing (↵ picks)'),
-    row('opening', 'Opening mission', 'born wearing', form.opening !== null ? clampText(form.opening, 28) : 'born-waiting', true, '↵ picks: audit · review · custom — born-waiting when none'),
-    row('title', 'Title', 'words', form.title ?? '(the door names it)', true, 'the born session’s name (↵ edits)'),
-    row('note', 'Note', 'words', form.note ?? '—', true, 'a word for the board (↵ edits)'),
+    row('Kit preset', 'born wearing', form.kitPreset ?? 'none', true, 'the extensions it is born wearing (↵ picks)'),
+    row('Opening mission', 'born wearing', form.opening !== null ? clampText(form.opening, 28) : 'born-waiting', true, '↵ picks: audit · review · custom — born-waiting when none'),
+    row('Title', 'words', form.title ?? '(the door names it)', true, 'the born session’s name (↵ edits)'),
+    row('Note', 'words', form.note ?? '—', true, 'a word for the board (↵ edits)'),
   ];
 }
 
