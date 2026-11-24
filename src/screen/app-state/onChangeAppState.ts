@@ -7,15 +7,11 @@ import { clearApiKeyHelperCache } from '../../models/sign-in/credentials/auth.js
 import { applyConfigEnvironmentVariables } from '../../platform/environment/settingsEnv.js'
 import { logError } from '../../platform/logs/errorLog.js'
 import type { AppState } from './AppStateStore.js'
+import { createSignal } from '../../platform/async/signal.js'
 
-const mcpClientsListeners = new Set<() => void>()
+const mcpClientsChange = createSignal()
 
-export function subscribeMcpClientsChange(listener: () => void): () => void {
-  mcpClientsListeners.add(listener)
-  return () => {
-    mcpClientsListeners.delete(listener)
-  }
-}
+export const subscribeMcpClientsChange = mcpClientsChange.subscribe
 
 export function onChangeAppState({
   newState,
@@ -60,8 +56,6 @@ export function onChangeAppState({
   }
 
   if (newState.mcp.clients !== oldState.mcp.clients) {
-    for (const listener of mcpClientsListeners) {
-      listener()
-    }
+    mcpClientsChange.emit()
   }
 }
