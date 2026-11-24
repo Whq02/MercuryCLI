@@ -4,6 +4,9 @@ import { useMemo, useRef, useState } from 'react'
 import { useLoad } from '../../../screen/effects/effects.js'
 import { Box, Text } from '../../../screen/themedRenderer.js'
 import { ConsentBodyText } from '../ConsentBodyText.js'
+import { boundLines, consentBodyBudget, consentContentWidth } from '../consentBodyBudget.js'
+import { useTerminalSize } from '../../../screen/fullscreen-layout/useTerminalSize.js'
+import { wrapText } from '../../../platform/text/truncate.js'
 import { Select } from '../../../screen/select/Select.js'
 import { useKeybinding } from '../../../screen/keys/useKeybinding.js'
 import { resolveThemeName } from '../resolveThemeName.js'
@@ -20,7 +23,7 @@ import { shouldShowAlwaysAllowOptions } from '../../rules/permissionsLoader.js'
 import { expandPath, toTildePath } from '../../../platform/files/path.js'
 import { getFocusedWorkspaceCwd, getFocusedWorkspaceOriginalCwd, useFocusedWorkspaceCwd, useFocusedWorkspaceOriginalCwd } from '../../../screen/focused-session/useFocusedWorkspaceCwd.js'
 import type { Message } from '../../../engine/message-shapes/message.js'
-import type { PermissionUpdate } from '../../rules/permissions.js'
+import type { PermissionDecisionReason, PermissionUpdate } from '../../rules/permissions.js'
 import { PermissionDialog } from '../PermissionDialog.js'
 import { PermissionDecisionDebugInfo } from '../PermissionDecisionDebugInfo.js'
 import {
@@ -36,6 +39,28 @@ import { shellAskOptions, type ShellAskOption } from './shellAskOptions.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
 
 type BashCardInput = { command: string; cwd?: string }
+
+type WrappedReason = Extract<PermissionDecisionReason, { type: 'safetyCheck' }>
+
+const ROWS_ROUND_THE_CARD_TEXT = 8
+
+function drawnRows(text: string, width: number): number {
+  return wrapText(text, width, 'wrap').split('\n').length
+}
+
+function reasonCutToFit(
+  reason: PermissionDecisionReason | undefined,
+  width: number,
+  budget: number,
+): WrappedReason | null {
+  if (reason?.type !== 'safetyCheck' || !reason.operatorOnly) return null
+  const drawn = wrapText(reason.reason, width, 'wrap').split('\n')
+  if (drawn.length <= Math.max(budget, 3)) return null
+  const kept = Math.max(2, budget - 1)
+  const tail = Math.floor(kept / 2)
+  const hidden = drawn.length - kept
+  return { ...reason, reason: [...drawn.slice(0, kept - tail), `… +${hidden} more lines`, ...drawn.slice(drawn.length - tail)].join('\n') }
+}
 
 function suggestedBashRuleContents(suggestions: PermissionUpdate[]): string[] {
   const contents: string[] = []
@@ -241,6 +266,17 @@ function ShellPermissionRequest(
   const showTabAmend =
     (feedback.focusedOption === 'yes' && !feedback.yesInputMode) ||
     (feedback.focusedOption === 'no' && !feedback.noInputMode)
+  const { columns, rows } = useTerminalSize()
+  const width = consentContentWidth(columns)
+  const preview = typeof inputCommand === 'string' ? boundLines(inputCommand.split('\n'), width, consentBodyBudget(rows)) : null
+  const rowsBesideTheReason =
+    (preview === null ? 1 : drawnRows(preview.lines.join('\n'), width) + (preview.hiddenLines > 0 ? 1 : 0)) +
+    (explainer.visible || summary === '' ? 0 : drawnRows(descriptionText, width)) +
+    drawnRows(`in ${toTildePath(runFolder)}`, width) +
+    (toolUseConfirm.crewmate ? 1 : 0) +
+    (destructiveWarning ? drawnRows(destructiveWarning, width) : 0) +
+    options.length
+  const cutReason = reasonCutToFit(decisionReason, width, rows - ROWS_ROUND_THE_CARD_TEXT - rowsBesideTheReason)
 
   return (
     <Box flexDirection="column">
@@ -282,7 +318,9 @@ function ShellPermissionRequest(
           ) : (
             <>
               {destructiveWarning ? <Text color="warning">{destructiveWarning}</Text> : null}
-              <PermissionRuleExplanation permissionResult={toolUseConfirm.permissionResult} />
+              <PermissionRuleExplanation
+                permissionResult={cutReason === null ? toolUseConfirm.permissionResult : { ...toolUseConfirm.permissionResult, decisionReason: cutReason }}
+              />
               <Text bold>Do you want to proceed?</Text>
               <Select
                 scrollMovesFocus={false}
