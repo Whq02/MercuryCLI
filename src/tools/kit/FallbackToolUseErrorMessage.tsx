@@ -35,7 +35,6 @@ function contentText(result: ToolResultBlockParam['content']): string | null {
 
 function deriveDisplayedError(
   result: ToolResultBlockParam['content'],
-  verbose: boolean,
 ): string {
   const text = contentText(result)
   if (text === null) {
@@ -55,7 +54,7 @@ export function FallbackToolUseErrorMessage({
   verbose,
 }: Props): React.ReactNode {
   const tokens = useMercuryTokens()
-  const error = deriveDisplayedError(result, verbose)
+  const error = deriveDisplayedError(result)
   const rawText = contentText(result)
   const isDenied = rawText !== null && isDenialResultText(rawText)
   const headGlyph = isDenied ? GLYPH.fail : GLYPH.warn
