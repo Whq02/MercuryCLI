@@ -3,7 +3,6 @@ import { evalNestedToolIds } from '../engines/eval-kernels/bridgeProgress.js'
 import { expandLspFamily, lspFamilyMatches } from '../../integrations/lsp-family/toolFamily.js'
 import {
   ALL_CREWMATE_DISALLOWED_TOOLS,
-  CUSTOM_CREWMATE_DISALLOWED_TOOLS,
   RULE_INHERITS,
 } from '../kit/crewmateBarredTools.js'
 import type { Message } from '../../engine/message-shapes/message.js'
@@ -95,15 +94,13 @@ const MCP_TOOL_PREFIX = 'mcp__'
 
 export function filterToolsForCrewmate(args: {
   tools: Tools
-  isBuiltIn: boolean
 }): Tools {
-  const { tools, isBuiltIn } = args
+  const { tools } = args
   const jevAllowed = readJevSettings().subagents
   return tools.filter(tool => {
     if (tool.name.startsWith(MCP_TOOL_PREFIX)) return true
     if (ALL_CREWMATE_DISALLOWED_TOOLS.has(tool.name)) return false
     if (tool.name === JEV_TOOL_NAME && !jevAllowed) return false
-    if (!isBuiltIn && CUSTOM_CREWMATE_DISALLOWED_TOOLS.has(tool.name)) return false
     return true
   })
 }
@@ -135,7 +132,7 @@ export function resolveAgentTools(
 ): ResolvedAgentTools {
   const basePool = isMainThread
     ? availableTools
-    : filterToolsForCrewmate({ tools: availableTools, isBuiltIn: definition.source === 'built-in' })
+    : filterToolsForCrewmate({ tools: availableTools })
 
   const deniedNames = new Set<string>()
   for (const entry of definition.disallowedTools ?? []) {

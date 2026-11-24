@@ -22,7 +22,7 @@ const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { d
 try {
   const shell = wrapSpawn(child, new AbortController().signal, 60_000, new TaskOutput(generateTaskId('local_bash'), null))
   const own = await spawnShellTask({ command: 'fixture wait', description: 'fixture command', shellCommand: shell, agentId: 'child-a' }, context)
-  for (const builtIn of [true, false]) check(`TaskStop is available to ${builtIn ? 'built-in' : 'custom'} crewmates`, filterToolsForCrewmate({ tools: [TaskStopTool] as any, isBuiltIn: builtIn }).length === 1)
+  for (const builtIn of [true, false]) check(`TaskStop is available to ${builtIn ? 'built-in' : 'custom'} crewmates`, filterToolsForCrewmate({ tools: [TaskStopTool] as any }).length === 1)
   for (const [id, row] of Object.entries({ sibling: { type: 'local_bash', agentId: 'child-b' }, agent: { type: 'local_agent', agentId: 'child-a' }, ownerless: { type: 'local_bash' }, monitor: { type: 'local_bash', kind: 'monitor', agentId: 'child-b' } })) {
     state.tasks[id] = { ...row, id, status: 'running', description: 'fixture target', command: 'fixture', shellCommand: null }
     const v = await TaskStopTool.validateInput({ task_id: id }, context)

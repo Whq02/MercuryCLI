@@ -67,7 +67,7 @@ section('§4 no agent ever carries the tool')
   const pool = getAllBaseTools()
   check('the pool under test carries Computer', pool.some(t => t.name === 'Computer'))
   for (const isBuiltIn of [true, false]) {
-    const kept = agents.filterToolsForCrewmate({ tools: pool, isBuiltIn }).map(t => t.name)
+    const kept = agents.filterToolsForCrewmate({ tools: pool }).map(t => t.name)
     check(`filterToolsForAgent drops Computer (isBuiltIn ${isBuiltIn})`, !kept.includes('Computer'), kept.join(','))
   }
   check('the all-agents denial set names Computer', ALL_CREWMATE_DISALLOWED_TOOLS.has('Computer'))

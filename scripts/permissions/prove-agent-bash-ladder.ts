@@ -285,7 +285,7 @@ section('§3 the roster — the shell rides every definition that carries it, fo
     check(`${definition.agentType} keeps Bash (one derivation, foreground and background)`, names.includes('Bash'), names.join(','))
     check(`${definition.agentType} never carries the Crewmate tool itself`, !names.includes('Crewmate'))
   }
-  const kept = filterToolsForCrewmate({ tools: pool, isBuiltIn: true }).map(t => (t as { name: string }).name)
+  const kept = filterToolsForCrewmate({ tools: pool }).map(t => (t as { name: string }).name)
   check('the one filter keeps Bash', kept.includes('Bash'), kept.join(','))
   const readOnly = resolveAgentTools(MERCURY_SCOUT_AGENT as never, pool).resolvedTools.map(t => (t as { name: string }).name)
   check('the read-only scout keeps the shell and loses the editors (its shell is read-only by prompt, the read-only lane by verdict)', readOnly.includes('Bash') && !readOnly.includes('Edit') && !readOnly.includes('Write'))

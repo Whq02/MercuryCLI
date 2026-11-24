@@ -35,10 +35,6 @@ import { isToolSearchEnabledOptimistic } from '../../engine/messages/toolSearch.
 import { CrewmateTool } from '../crewmate/CrewmateTool.js'
 import { AstEditTool } from '../ast-edit/AstEditTool.js'
 import { AstSearchTool } from '../ast-search/AstSearchTool.js'
-import {
-  ALL_CREWMATE_DISALLOWED_TOOLS,
-  CUSTOM_CREWMATE_DISALLOWED_TOOLS,
-} from './crewmateBarredTools.js'
 import { ApolloReviewTool } from '../apollo-review/ApolloReviewTool.js'
 import { AskUserQuestionTool } from '../ask-question/AskUserQuestionTool.js'
 import { BashTool } from '../shell/BashTool.js'
@@ -113,9 +109,6 @@ import { isPowerShellToolEnabled } from './shellTools.js'
 import { tellTheToolTable } from './toolTable.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 import { logError } from '../../platform/logs/errorLog.js'
-
-
-export { ALL_CREWMATE_DISALLOWED_TOOLS, CUSTOM_CREWMATE_DISALLOWED_TOOLS }
 
 
 function cycleTolerant<T>(get: () => T): T | undefined {

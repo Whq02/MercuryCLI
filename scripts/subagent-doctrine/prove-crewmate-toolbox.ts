@@ -75,7 +75,6 @@ for (const [name, reason] of Object.entries(BARRED)) {
   check(`${name} is barred — ${reason}`, barred.has(name) && table[name] === reason, `table says ${JSON.stringify(table[name])} | add or fix the row in CREWMATE_BARRED_TOOLS in src/tools/kit/crewmateBarredTools.ts`)
 }
 check('the barred set is exactly these ten', same([...barred].sort(), Object.keys(BARRED).sort()), [...barred].sort().join(',') + ' | CREWMATE_BARRED_TOOLS in src/tools/kit/crewmateBarredTools.ts must hold exactly the BARRED rows of this file')
-check('custom definitions bar the same set (one deny set)', toolsConstants.CUSTOM_CREWMATE_DISALLOWED_TOOLS === barred, 'CUSTOM_CREWMATE_DISALLOWED_TOOLS in src/tools/kit/crewmateBarredTools.ts must be the same set object as ALL_CREWMATE_DISALLOWED_TOOLS')
 for (const name of Object.keys(BARRED)) {
   check(`${name} exists in the catalogue (a barred row names a real tool)`, catalogueNames.includes(name), 'remove this row from CREWMATE_BARRED_TOOLS in src/tools/kit/crewmateBarredTools.ts, or register the tool in src/tools/kit/toolList.ts (getAllBaseTools)')
 }
@@ -92,15 +91,15 @@ for (const name of NEWLY_REACHABLE) {
 }
 const KEPT = ['Bash', 'Read', 'Edit', 'Write', 'NotebookEdit', 'Glob', 'Grep', 'WebFetch', 'WebSearch', 'ProviderSearch', 'Skill', 'ToolSearch', 'Sleep', 'ContextLeft', 'SendMessage', 'ResumeCrewmate', 'EnterWorktree', 'ExitWorktree', 'TaskCreate', 'TaskGet', 'TaskUpdate', 'TaskList', 'Retain', 'Recall', 'Reflect', 'Correct']
 check('every tool a crewmate had before stays', KEPT.every(n => crewNames.includes(n)), KEPT.filter(n => !crewNames.includes(n)).join(',') + ' | missing tools above; resolveWorkerTools in src/tools/crewmate/crewmateLifecycle.ts or CREWMATE_BARRED_TOOLS in src/tools/kit/crewmateBarredTools.ts removed them')
-const filtered = names(filterToolsForCrewmate({ tools: catalogue, isBuiltIn: true }))
+const filtered = names(filterToolsForCrewmate({ tools: catalogue }))
 check('the filter alone gives the same set (the definition adds no narrowing for tools: *)', same(filtered, expected), 'filterToolsForAgent in src/tools/crewmate/crewmateLifecycle.ts must remove only the CREWMATE_BARRED_TOOLS names for a built-in agent')
-const custom = names(filterToolsForCrewmate({ tools: catalogue, isBuiltIn: false }))
+const custom = names(filterToolsForCrewmate({ tools: catalogue }))
 check('a custom definition sees the same pool before its own tools: list narrows it', same(custom, expected), 'filterToolsForAgent in src/tools/crewmate/crewmateLifecycle.ts must apply the same deny set to a custom definition')
 
 section('§4 MCP TOOLS PASS')
 {
   const mcp = [{ name: 'mcp__fixture__lookup' }, { name: 'mcp__fixture__store' }] as unknown as Tool[]
-  const kept = names(filterToolsForCrewmate({ tools: [...catalogue, ...mcp], isBuiltIn: true }))
+  const kept = names(filterToolsForCrewmate({ tools: [...catalogue, ...mcp] }))
   check('both fixture MCP tools ride to a crewmate', kept.includes('mcp__fixture__lookup') && kept.includes('mcp__fixture__store'), 'filterToolsForAgent in src/tools/crewmate/crewmateLifecycle.ts must let mcp__ tools through')
 }
 

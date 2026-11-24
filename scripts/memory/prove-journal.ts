@@ -187,7 +187,7 @@ check('a refused result is an error with its reason', journalResultWords(long).s
 const block = JournalTool.mapToolResultToToolResultBlockParam(long, 'tu-1') as { is_error?: boolean }
 check('the refused block is marked is_error', block.is_error === true)
 check('no agent may hold the Journal tool', ALL_CREWMATE_DISALLOWED_TOOLS.has(JOURNAL_TOOL_NAME))
-const forAgent = filterToolsForCrewmate({ tools: getAllBaseTools(), isBuiltIn: true })
+const forAgent = filterToolsForCrewmate({ tools: getAllBaseTools() })
 check('a crewmate\'s tool pool has no Journal', !forAgent.some(t => t.name === JOURNAL_TOOL_NAME))
 check('the tool carries its capability and its proof', (JournalTool as { capability?: { proof?: string; units?: string[] } }).capability?.proof === 'scripts/memory/prove-journal.ts' && (JournalTool as { capability?: { units?: string[] } }).capability?.units?.includes('memory') === true)
 const description = await JournalTool.description()

@@ -42,7 +42,7 @@ const narrow = names(resolveAgentTools({ ...definition as object, disallowedTool
 check('a definition can deny only the resume', narrow.includes('SendMessage') && !narrow.includes('ResumeCrewmate'))
 const scoped = names(resolveAgentTools({ source: 'projectSettings', tools: ['SendMessage(foo)'] } as never, pool).resolvedTools)
 check('a content-scoped declared entry does not inherit', !scoped.includes('ResumeCrewmate'))
-const background = names(filterToolsForCrewmate({ tools: pool, isBuiltIn: true }))
+const background = names(filterToolsForCrewmate({ tools: pool }))
 check('a crewmate (foreground or background, one filter) can hold both verbs', background.includes('SendMessage') && background.includes('ResumeCrewmate'))
 const scout = names(restrictScoutTools(pool))
 check('the scout holds neither verb', !scout.includes('SendMessage') && !scout.includes('ResumeCrewmate'))

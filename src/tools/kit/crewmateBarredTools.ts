@@ -26,7 +26,6 @@ export const CREWMATE_BARRED_TOOLS: Readonly<Record<string, BarReason>> = {
 }
 
 export const ALL_CREWMATE_DISALLOWED_TOOLS: Set<string> = new Set(Object.keys(CREWMATE_BARRED_TOOLS))
-export const CUSTOM_CREWMATE_DISALLOWED_TOOLS: Set<string> = ALL_CREWMATE_DISALLOWED_TOOLS
 
 export const RULE_INHERITS: Readonly<Partial<Record<string, readonly string[]>>> = Object.freeze(
   Object.assign(Object.create(null) as Partial<Record<string, readonly string[]>>, {

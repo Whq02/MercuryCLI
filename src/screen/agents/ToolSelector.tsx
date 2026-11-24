@@ -125,7 +125,7 @@ export function ToolSelector({
 }): React.ReactNode {
   const candidateTools = useMemo(
     () =>
-      filterToolsForCrewmate({ tools, isBuiltIn: false }).filter(
+      filterToolsForCrewmate({ tools }).filter(
         tool => tool.name !== CREWMATE_TOOL_NAME,
       ),
     [tools],
