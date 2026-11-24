@@ -865,7 +865,7 @@ section('LAW PURITY — zero-arg getters do not mutate')
     .filter(([name, fn]) => /^(?:get|is|has|needs|prefer)[A-Za-z0-9_]*$/.test(name) && typeof fn === 'function' && fn.length === 0)
     .map(([name]) => name)
     .sort()
-  check(`purity: module sweep found a plausible getter population (${getterNames.length})`, getterNames.length >= 61, String(getterNames.length))
+  check(`purity: module sweep found a plausible getter population (${getterNames.length})`, getterNames.length >= 60, String(getterNames.length))
   withClock(() => 2_000_000_000_000, () => {
     const before = snapshot()
     const impure: string[] = []

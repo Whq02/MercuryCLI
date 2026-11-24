@@ -35,7 +35,7 @@ const { projectIdentity } = await import('../../src/screen/boot-face/bootCardFac
 const { concourseWorkersPath, setConcourseSessionTitle, boardHomedSessionIds } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 const { listSessionsAcrossProjectsProgressive, enrichSessionListings } = await import('../../src/sessions/transcripts/sessionStorage.ts')
 const { projectSessionPickerRows } = await import('../../src/screen/widgets/faces/sessionPickerModel.ts')
-const { listSessionsImpl } = await import('../../src/sessions/transcripts/listSessions.ts')
+const { listedSessionName, readListedSessions } = await import('../../src/sessions/transcripts/listedSessions.ts')
 const { writeMissionCard } = await import('../../src/sessions/mission-card/missionCard.ts')
 const { buildMissionDirective, MISSION_HOLD_HEAD } = await import('../../src/permissions/guards/mission.ts')
 const { createSeatReceiptMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
@@ -319,7 +319,8 @@ check(
   MISSION_HINT,
 )
 
-const editorById = new Map((await listSessionsImpl({ limit: 50 })).map(row => [row.sessionId, row.summary] as const))
+const editorLite = (await listSessionsAcrossProjectsProgressive(undefined, 0)).allStatLogs
+const editorById = new Map((await readListedSessions(editorLite, 50)).map(row => [row.sessionId, listedSessionName(row) ?? ''] as const))
 check(
   'the editor\'s session list (session/list) names each session by the same rule: the first prompt, the mission\'s goal, the rename, and no row for the notice',
   editorById.get(S_THREE_UNHOSTED) === FIRST_A &&

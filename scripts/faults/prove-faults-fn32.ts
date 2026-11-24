@@ -356,56 +356,6 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
 }
 
 {
-  const rRoot = runIsolated(`
-    const fs = await import('node:fs')
-    const fsp = await import('node:fs/promises')
-    const path = await import('node:path')
-    const { mock } = await import('bun:test')
-    const projectsRoot = path.join(process.env.MERCURY_CONFIG_DIR, 'projects')
-    fs.mkdirSync(projectsRoot, { recursive: true })
-    const realReaddir = fsp.readdir
-    mock.module('node:fs/promises', () => ({
-      ...fsp,
-      readdir: async (p, ...rest) => {
-        if (p === projectsRoot) throw Object.assign(new Error('EACCES'), { code: 'EACCES' })
-        return realReaddir(p, ...rest)
-      },
-    }))
-    const { listSessionsImpl } = await import(${JSON.stringify(join(SRC, 'sessions/transcripts/listSessions.ts'))})
-    try {
-      out.val = await listSessionsImpl({ limit: 50 })
-    } catch (e) {
-      out.code = e && typeof e === 'object' ? e.code : null
-    }
-  `)
-  check('listSessionsImpl: unreadable projects root rejects instead of returning empty list', rRoot.code === 'EACCES', JSON.stringify(rRoot))
-
-  const rEntry = runIsolated(`
-    const fs = await import('node:fs')
-    const fsp = await import('node:fs/promises')
-    const path = await import('node:path')
-    const { mock } = await import('bun:test')
-    const proj = path.join(process.env.MERCURY_CONFIG_DIR, 'projects', 'proj-a')
-    fs.mkdirSync(proj, { recursive: true })
-    const realStat = fsp.stat
-    mock.module('node:fs/promises', () => ({
-      ...fsp,
-      stat: async (p, ...rest) => {
-        if (p === proj) throw Object.assign(new Error('EIO'), { code: 'EIO' })
-        return realStat(p, ...rest)
-      },
-    }))
-    const { listSessionsImpl } = await import(${JSON.stringify(join(SRC, 'sessions/transcripts/listSessions.ts'))})
-    try {
-      out.val = await listSessionsImpl({ limit: 50 })
-    } catch (e) {
-      out.code = e && typeof e === 'object' ? e.code : null
-    }
-  `)
-  check('listSessionsImpl: project stat EIO rejects instead of silently dropping project', rEntry.code === 'EIO', JSON.stringify(rEntry))
-}
-
-{
   const rMcp = runIsolated(`
     const { mock } = await import('bun:test')
     const te = await import(${JSON.stringify(join(SRC, 'models/facts/tokenEstimation.ts'))})

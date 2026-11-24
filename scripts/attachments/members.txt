@@ -24,3 +24,4 @@ prove-stored-image-assembly.ts
 prove-session-context-once.ts
 prove-turn-attachment-roster.ts
 prove-image-survives-slow-ocr.ts
+prove-attachment-producers-per-seat.ts

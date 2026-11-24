@@ -502,7 +502,6 @@ else {
     const { encodeSeedTranscript } = await import(path.join(LIB, 'seedTranscript.ts'))
     const portable = await import(path.join(SRC, 'sessions/transcripts/sessionStoragePortable.ts'))
     const logs = await import(path.join(SRC, 'sessions/transcripts/sessionListings.ts'))
-    const { listSessionsImpl } = await import(path.join(SRC, 'sessions/transcripts/listSessions.ts'))
 
     const projectsDir = portable.getProjectsDir()
     const absentPage = await logs.listSessionsAcrossProjectsProgressive()
@@ -555,8 +554,6 @@ else {
       const liteErrors = []
       const liteNull = await portable.readSessionLite(badFile, (p, e) => liteErrors.push({ path: p, msg: String(e?.message ?? e) }))
       out.liteCheck = { liteNull, liteErrors }
-      const implRows = await listSessionsImpl({ limit: 50 })
-      out.implCount = implRows.length
     } finally {
       fs.chmodSync(badStore, 0o700)
       fs.chmodSync(badFile, 0o600)
@@ -584,7 +581,6 @@ else {
     liteCheck.liteNull === null && liteCheck.liteErrors.length === 1 && liteCheck.liteErrors[0]!.path === partialPage.badFile,
     JSON.stringify(liteCheck),
   )
-  check('w07-1 listSessionsImpl does not throw on unreadable transcript', rRoads.out.implCount === 1, JSON.stringify(rRoads.out.implCount))
 
   const rUi = runSubprocess(`
     const React = await import('react')
