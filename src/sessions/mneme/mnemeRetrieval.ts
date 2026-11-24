@@ -106,19 +106,6 @@ export function grepAll(pattern: string, opts: { maxHits?: number; dir?: string 
   return [...docHits, ...pending].slice(0, maxHits)
 }
 
-interface MnemePendingSummary {
-  count: number
-  topics: string[]
-  newest: string
-}
-
-export function pendingSummary(dir: string = mnemeLibraryDir()): MnemePendingSummary | null {
-  const rows = pendingRows(dir)
-  if (rows.length === 0) return null
-  const topics = [...new Set(rows.map(r => r.topicHint ?? 'general'))].slice(0, 6)
-  return { count: rows.length, topics, newest: rows[rows.length - 1]!.ts }
-}
-
 export function grepDoc(slug: string, pattern: string, opts: { maxHits?: number; dir?: string } = {}): MnemeGrepHit[] {
   const dir = opts.dir ?? mnemeLibraryDir()
   const p = join(dir, pageFileForSlug(slug))

@@ -7,7 +7,7 @@ import { join } from 'node:path'
 
 const { appendObservation, pendingRows, recentObservations } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
 const { maybeConsolidate } = await import('../../src/sessions/mneme/mnemeConsolidate.ts')
-const { catalogDocs, grepAll, grepLibrary, grepPending, pendingSummary, PENDING_SLUG, readDocLines } = await import(
+const { catalogDocs, grepAll, grepLibrary, grepPending, PENDING_SLUG, readDocLines } = await import(
   '../../src/sessions/mneme/mnemeRetrieval.ts'
 )
 
@@ -23,8 +23,6 @@ section('§1 empty library: observe → immediately findable, honestly labeled')
   const dir = mkdtempSync(join(tmpdir(), 'mneme-disc1-'))
   appendObservation({ text: 'the API rate limit is 600 requests per minute', source: 'ops decision', topicHint: 'rate-limits' }, dir)
   check('catalog has zero DOCS (nothing consolidated)', catalogDocs(dir).length === 0, '', 'an observation must not create a doc until consolidated; check catalogDocs in src/sessions/mneme/mnemeRetrieval.ts and appendObservation in src/sessions/mneme/mnemeBuffer.ts')
-  const summary = pendingSummary(dir)
-  check('pendingSummary reports the recorded row', summary?.count === 1 && summary.topics.includes('rate-limits'), JSON.stringify(summary), 'pendingSummary in src/sessions/mneme/mnemeRetrieval.ts must count the recorded row and list its topicHint')
   const hits = grepAll('rate.?limit', { dir })
   check('grepAll finds it pre-consolidation', hits.length === 1, JSON.stringify(hits), 'grepAll in src/sessions/mneme/mnemeRetrieval.ts must search pending rows as well as docs')
   check("hit carries the '(recent)' slug + unconsolidated label", hits[0]?.slug === PENDING_SLUG && / \[unconsolidated, .+, ops decision\]$/.test(hits[0]?.text ?? ''), hits[0]?.text, 'the pending hit must use the PENDING_SLUG and the unconsolidated label; check grepPending in src/sessions/mneme/mnemeRetrieval.ts')
@@ -59,8 +57,6 @@ section('§3 crash-stranded consuming-* rows stay visible')
   check('pendingRows sees consuming + current (older first)', pendingRows(dir).length === 2 && pendingRows(dir)[0]!.source === 'crashed-run', '', 'pendingRows in src/sessions/mneme/mnemeBuffer.ts must read consuming-*.jsonl files first, then the current file')
   check('recentObservations folds stranded rows', recentObservations(5, dir).some(r => r.text.includes('stranded')), '', 'recentObservations in src/sessions/mneme/mnemeBuffer.ts must include rows stranded in consuming-* files')
   check('grepPending finds the stranded row', grepPending('stranded', { dir }).length === 1, '', 'grepPending in src/sessions/mneme/mnemeRetrieval.ts must search stranded consuming-* rows')
-  const s = pendingSummary(dir)
-  check('pendingSummary counts both', s?.count === 2, JSON.stringify(s), 'pendingSummary in src/sessions/mneme/mnemeRetrieval.ts must count consuming-* rows plus the current file')
 }
 
 section('§4 read fold + OFF contract')
