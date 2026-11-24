@@ -3146,6 +3146,7 @@ src/platform/health/sections.ts	sections	process	module	Load-time list with no l
 src/platform/health/sections/auth.ts	ENGINE_UNAVAILABLE_CODES	process	module	Derived collection initialized at load
 src/platform/health/sections/auth.ts	PROVIDER_AUTH_PRESENTATION	process	module	Load-time table with no local writer
 src/platform/host-os/files.ts	DIR_FSYNC_UNSUPPORTED_CODES	process	module	Load-time lookup with no local writer
+src/platform/host-os/files.ts	HELD_FILE_PATIENT_RETRY_DELAYS_MS	process	module	load-time data; no local writer
 src/platform/host-os/files.ts	HELD_FILE_RETRY_DELAYS_MS	process	module	Load-time list with no local writer
 src/platform/host-os/preventSleep.ts	cleanupRegistered	process	module	one-time latch registering caffeinate shutdown via registerCleanup
 src/platform/host-os/preventSleep.ts	helper	process	module	process-wide caffeinate ChildProcess handle killed on refcount 0 or cleanup
