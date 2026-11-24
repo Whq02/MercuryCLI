@@ -50,7 +50,7 @@ async function summarizeViaCacheSharingFork(
       }
     }
     const setSDKStatus = (status: unknown): void => {
-      if (isRecord(status) && status.streamActivity !== undefined) bound.touch()
+      if (isRecord(status) && Object.hasOwn(status, 'streamActivity')) bound.touch()
       context.setSDKStatus?.(status)
     }
     const result = await runForkedAgent({
