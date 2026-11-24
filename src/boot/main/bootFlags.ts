@@ -1,5 +1,6 @@
 import { sessionIdExists } from '../../sessions/transcripts/sessionStorage.js'
-import { failCli, typedString, UUID_SHAPE, writeErr, type RootOptions } from './cli.js'
+import { UUID_REGEX } from '../../platform/primitives/uuid.js'
+import { failCli, typedString, writeErr, type RootOptions } from './cli.js'
 
 export function refuseTerminalMismatch(inputPromptArg: string | undefined, { cliName, isNonInteractiveSession, runMode, runnerDoor }: {
   cliName: string
@@ -46,7 +47,7 @@ export async function refuseSessionIdClash(opts: RootOptions, sessionIdOpt: stri
   if ((opts.continue || opts.resume) && !opts.fork) {
     failCli('--session-id cannot be combined with --continue/--resume unless --fork is given')
   }
-  if (!UUID_SHAPE.test(sessionIdOpt)) failCli(`--session-id must be a valid UUID: ${sessionIdOpt}`)
+  if (!UUID_REGEX.test(sessionIdOpt)) failCli(`--session-id must be a valid UUID: ${sessionIdOpt}`)
   if (await sessionIdExists(sessionIdOpt)) failCli(`Session id already exists: ${sessionIdOpt}`, 1)
 }
 

@@ -9,6 +9,7 @@ import { daemonHomeStands, publishInDaemonHome } from '../control/daemonHome.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { errorMessage, getErrnoCode, isENOENT } from '../../platform/errors/errors.js'
 import { gitInitRefusal } from '../../platform/files/projectBoundary.js'
+import { UUID_REGEX } from '../../platform/primitives/uuid.js'
 import { daemonDir } from '../control/controlSocket.js'
 import { isProcessAlive } from '../control/ownerWatch.js'
 import { decideTransition, type ConcourseSessionState } from './concourseLifecycle.js'
@@ -487,7 +488,7 @@ export function envelopeDigestOf(req: ConcourseDispatchRequest, version: 1 | 2 =
 
 export async function buildConcoursePromptRow(prompt: string, extras?: ConcoursePromptExtras, groundNote?: string): Promise<InputRow> {
   const note = groundNote !== undefined && groundNote.length > 0 && extras?.mode !== 'bash' ? groundNote : undefined
-  const id = extras?.identity !== undefined && UUID_SHAPE.test(extras.identity) ? extras.identity : randomUUID()
+  const id = extras?.identity !== undefined && UUID_REGEX.test(extras.identity) ? extras.identity : randomUUID()
   if (isOutsideReportOrigin(extras?.origin)) return { type: 'outside-report', sender: extras.origin.sender, content: prompt, id }
   if (extras?.mode === 'task-notification' && extras.agentId !== undefined) {
     return { type: 'note', to: extras.agentId, content: prompt, id }
@@ -518,8 +519,6 @@ async function inputBlocksOf(raw: unknown): Promise<InputBlock[]> {
   if (source !== undefined && typeof source.media_type === 'string' && typeof source.data === 'string') return [{ type: 'image', media_type: source.media_type, data: source.data }]
   return []
 }
-
-const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export interface ConcoursePromptExtras {
   mode?: 'prompt' | 'bash' | 'task-notification'

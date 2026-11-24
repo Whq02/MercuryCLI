@@ -44,7 +44,8 @@ import type { UUID } from 'node:crypto'
 import type { ScopedMcpServerConfig } from '../../integrations/mcp-shapes/mcpServerRecords.js'
 import { reconcileManagedShims, resolveLayoutRoots } from '../../platform/update-channel/installLayout.js'
 import type { Root } from '../../screen/themedRenderer.js'
-import { typedString, writeErr, UUID_SHAPE, type RootOptions } from './cli.js'
+import { UUID_REGEX } from '../../platform/primitives/uuid.js'
+import { typedString, writeErr, type RootOptions } from './cli.js'
 import { startDeferredPrefetches } from './deferredPrefetches.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 import { startInterval, stopInterval } from '../../platform/async/timers.js'
@@ -335,7 +336,7 @@ async function routeBootJourney({ args, opts, root, appProps, chatProps, inputPr
     let searchTerm: string | undefined
     let resumeLog: ResumeLog | null = null
     let resumeSessionId: string | undefined
-    if (typeof resumeValue === 'string' && !UUID_SHAPE.test(resumeValue)) {
+    if (typeof resumeValue === 'string' && !UUID_REGEX.test(resumeValue)) {
       const matches = await searchSessionsByCustomTitle(resumeValue)
       if (Array.isArray(matches) && matches.length === 1) {
         resumeLog = matches[0] as ResumeLog

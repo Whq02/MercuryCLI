@@ -7,8 +7,7 @@ import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { getMercuryHome } from '../../platform/environment/envUtils.js'
 import { getTranscriptPathForSession } from '../../sessions/transcripts/sessionStorage.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
-
-const SESSION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+import { UUID_REGEX } from '../../platform/primitives/uuid.js'
 
 function containedInConfigHome(p: string): boolean {
   const root = resolve(getMercuryHome())
@@ -22,7 +21,7 @@ export async function reconcileProvisionalSession(
 ): Promise<void> {
   try {
     if (previousId === nextId) return
-    if (!SESSION_ID_RE.test(previousId)) return
+    if (!UUID_REGEX.test(previousId)) return
     let transcriptPath: string
     try {
       transcriptPath = getTranscriptPathForSession(previousId)

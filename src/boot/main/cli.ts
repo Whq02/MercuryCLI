@@ -17,8 +17,6 @@ export function applyMergedConfigEnv(): void {
   }
 }
 
-export const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
 export function typedString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined
 }

@@ -2,7 +2,7 @@ import { randomBytes, type UUID } from 'node:crypto'
 
 import { asAgentId, type AgentId } from '../../sessions/transcripts/ids.js'
 
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+export const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export function validateUuid(maybeUuid: unknown): UUID | null {
   if (typeof maybeUuid !== 'string') return null
