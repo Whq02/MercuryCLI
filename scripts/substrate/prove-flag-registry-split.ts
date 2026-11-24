@@ -33,7 +33,6 @@ const AREAS: Record<string, string> = {
   'src/engine/turn-entry/': 'api.ts',
   'src/models/roads/anthropic/anthropicClientFactory.ts': 'api.ts',
   'src/models/roads/anthropic/anthropicLimits.ts': 'api.ts',
-  'src/models/roads/anthropic/fixtureReplay.ts': 'api.ts',
   'src/models/roads/anthropic/mockRateLimits.ts': 'api.ts',
   'src/models/roads/capFailover.ts': 'api.ts',
   'src/models/roads/requestHeaders.ts': 'api.ts',

@@ -42,7 +42,6 @@ const SINGLE: Array<[file: string, checks: number, reason: string]> = [
   ['src/integrations/vulcan/engine/leases.ts', 2, 'a lease path is probed on disk and may not name a drive off Windows'],
   ['src/models/hosting/ssh.ts', 1, 'the OS of a box decides its inspection script'],
   ['src/models/local-server/localServerTruth.ts', 2, 'how a local server is launched and what memory it may use is told for each platform'],
-  ['src/models/roads/anthropic/fixtureReplay.ts', 1, 'a recording is dehydrated of both spellings of a path on Windows only'],
   ['src/models/tensorfold/adapter/llama.ts', 2, 'the adapter installs the Windows x64 build of llama.cpp only, and names the missing-DLL exit of Windows'],
   ['src/models/tensorfold/fit.ts', 1, 'the chip of the machine is named in the words of Windows'],
   ['src/permissions/cards/shellAskParts.tsx', 1, 'the label of a folder rule follows the platform'],

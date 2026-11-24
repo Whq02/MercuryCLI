@@ -46,7 +46,6 @@
  "src/models/hosting/vendors/huggingface.ts :: split-slash": 1,
  "src/models/hosting/vendors/vast.ts :: split-slash": 1,
  "src/models/local-server/localServerTruth.ts :: platform-check": 2,
- "src/models/roads/anthropic/fixtureReplay.ts :: platform-check": 1,
  "src/models/roads/openaicompat/compatToolSchemas.ts :: split-slash": 1,
  "src/models/roads/openrouter/openrouterCallModel.ts :: split-slash": 1,
  "src/models/roads/routeLaw.ts :: split-slash": 1,

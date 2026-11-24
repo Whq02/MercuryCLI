@@ -4,7 +4,7 @@
 # gate-watch: src/engine/requests/apiErrorDetails.ts src/engine/requests/apiErrorRows.ts
 # gate-watch: src/engine/requests/withRetry.ts src/engine/rows/*
 # gate-watch: src/engine/tool-dispatch/* src/models/facts/tokenEstimation.ts
-# gate-watch: src/models/roads/anthropic/anthropicClientFactory.ts src/models/roads/anthropic/cacheAndUsage.ts src/models/roads/anthropic/fixtureReplay.ts src/models/roads/anthropic/rateLimitMocking.ts src/models/roads/anthropic/requestParams.ts
+# gate-watch: src/models/roads/anthropic/anthropicClientFactory.ts src/models/roads/anthropic/cacheAndUsage.ts src/models/roads/anthropic/rateLimitMocking.ts src/models/roads/anthropic/requestParams.ts
 # gate-watch: src/models/roads/anthropic/streamCore.ts src/models/roads/validateModel.ts src/platform/environment/* src/platform/storage/*
 # gate-watch: src/sessions/transcripts/**
 set -u

@@ -47,7 +47,6 @@ import type { SystemPrompt } from '../../../engine/system-prompt/systemPromptTyp
 import { API_ERROR_MESSAGE_PREFIX, getErrorMessageIfRefusal, malformedStreamFrameText } from '../../../engine/requests/apiErrorRows.js'
 import { EMPTY_USAGE } from '../../../engine/requests/apiCallLogging.js'
 import { CannotRetryError, FallbackTriggeredError, is529Error, retryEmptyStream } from '../../../engine/requests/withRetry.js'
-import { withStreamingFixtureReplay } from './fixtureReplay.js'
 import type { HeldBusyRetryWait } from '../busyRetry.js'
 import { emptyStreamSpentWords } from '../emptyStreamRetry.js'
 import { captureSignInRequest, observeSignInResponse } from '../signInRefusal.js'
@@ -73,7 +72,6 @@ import { openStreamPass, resetStreamAttempt, noteStreamEvent, startMessage, open
 import { watchStream } from './stream-core/watchStream.js'
 import { wireParamsFor } from './stream-core/wireParams.js'
 import { asSystemPrompt } from '../../../engine/system-prompt/systemPromptType.js'
-import { withFixtureReplay } from './fixtureReplay.js'
 
 export type Options = {
   querySource: QuerySource
@@ -121,9 +119,7 @@ export async function anthropicCallModelSettled(
 ): Promise<AssistantMessage> {
   const { messages, systemPrompt, thinkingConfig, tools, signal, options } = request
   const settled: AssistantMessage[] = []
-  const stream = withStreamingFixtureReplay(messages, () =>
-    callCore(messages, systemPrompt, thinkingConfig, tools, signal, options),
-  )
+  const stream = callCore(messages, systemPrompt, thinkingConfig, tools, signal, options)
   for await (const item of stream) {
     if (item.type === 'assistant') settled.push(item)
   }
@@ -140,9 +136,7 @@ export async function* anthropicCallModel({
   signal,
   options,
 }: CallModelParams): CallModelStream {
-  return yield* withStreamingFixtureReplay(messages, () =>
-    callCore(messages, systemPrompt, thinkingConfig, tools, signal, options),
-  )
+  return yield* callCore(messages, systemPrompt, thinkingConfig, tools, signal, options)
 }
 
 const NO_EVENTS_MESSAGE = 'Stream ended without receiving any events'
@@ -808,18 +802,10 @@ export async function callWithModel(question: OneShotQuestion): Promise<Assistan
   const { systemPrompt = asSystemPrompt([]), userPrompt, outputFormat, signal, options, thinkingConfig } = question
   question = { systemPrompt, userPrompt, outputFormat, signal, options, thinkingConfig }
   const { routedCallModel, settleAssistantTurn } = await import('../callModelRouter.js')
-  const recordedInput = [
-    createUserMessage({ content: systemPrompt.map(text => ({ type: 'text', text })) }),
-    createUserMessage({ content: question.userPrompt }),
-  ]
-  const answer = async (): Promise<AssistantMessage[]> => {
-    const stream = routedCallModel(sideQuestionParams(question, systemPrompt))
-    const replies: AssistantMessage[] = []
-    for await (const row of stream) if (row.type === 'assistant') replies.push(row)
-    return [settleAssistantTurn(replies, question.signal.aborted)]
-  }
-  const [reply] = await withFixtureReplay(recordedInput, answer)
-  return reply! as AssistantMessage
+  const stream = routedCallModel(sideQuestionParams(question, systemPrompt))
+  const replies: AssistantMessage[] = []
+  for await (const row of stream) if (row.type === 'assistant') replies.push(row)
+  return settleAssistantTurn(replies, question.signal.aborted) as AssistantMessage
 }
 
 export { MAX_NON_STREAMING_TOKENS, adjustParamsForNonStreaming } from './stream-core/nonStreaming.js'

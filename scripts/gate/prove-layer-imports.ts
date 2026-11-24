@@ -910,7 +910,6 @@ const LAYERS: Rule = {
     'src/models/roads/anthropic/boundPrefixRecord.ts',
     'src/models/roads/anthropic/cacheAndUsage.ts',
     'src/models/roads/anthropic/cacheDiagnostics.ts',
-    'src/models/roads/anthropic/fixtureReplay.ts',
     'src/models/roads/anthropic/index.ts',
     'src/models/roads/anthropic/media.ts',
     'src/models/roads/anthropic/messageEffort.ts',

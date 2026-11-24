@@ -19,7 +19,6 @@ import { APIConnectionError, APIConnectionTimeoutError } from '../../engine/requ
 import { is529Error, isRetryableError, isStaleConnectionError } from '../../engine/requests/withRetry.js'
 import { busyRetryScale, nextBusyRetryWithinBudget, openBusyRetryLadder } from '../roads/busyRetry.js'
 import { declaredRouteOf } from '../roads/routeLaw.js'
-import { withTokenCountFixtureReplay } from '../roads/anthropic/fixtureReplay.js'
 export { roughTokenCountEstimation, bytesPerTokenForFileType, roughTokenCountEstimationForFileType, estimateContentTokens, roughTokenCountEstimationForMessages, estimateRequestTokens } from '../../engine/context-window/roughTokenEstimation.js'
 
 
@@ -118,38 +117,36 @@ export async function countMessagesTokensWithAPI(
   if (!firstPartyCountApplies()) return null
   const messages = rawMessages.map(toProductMessage)
   const systemBlocks = system && system.length > 0 ? system : undefined
-  return withTokenCountFixtureReplay(messages, tools, systemBlocks, async () => {
-    try {
-      const apiMessages = apiMessagesFor(messages)
-      const body = apiMessages.length === 0 ? PLACEHOLDER_MESSAGES : apiMessages
-      const model = normalizeModelStringForAPI(getEngineModel())
-      const betas = getModelBetas(model)
-      const thinking = hasThinkingBlocks(body)
-      const thinkingOption = thinking
-        ? modelSupportsAdaptiveThinking(model)
-          ? { type: 'adaptive' as const }
-          : { type: 'enabled' as const, budget_tokens: THINKING_BUDGET_TOKENS }
-        : undefined
-      const client = await getAnthropicClient({ maxRetries: 0, source: COUNT_SOURCE })
-      const response = await countWithBusyRetry(COUNT_SOURCE, () =>
-        client.beta.messages.countTokens(
-          {
-            model,
-            messages: body,
-            tools,
-            ...(systemBlocks ? { system: systemBlocks } : {}),
-            ...(betas.length > 0 ? { betas } : {}),
-            ...(thinkingOption ? { thinking: thinkingOption } : {}),
-          },
-          { timeout: COUNT_RETRY_BUDGET_MS },
-        ),
-      )
-      return typeof response?.input_tokens === 'number' ? response.input_tokens : null
-    } catch (error) {
-      logError(error)
-      return null
-    }
-  })
+  try {
+    const apiMessages = apiMessagesFor(messages)
+    const body = apiMessages.length === 0 ? PLACEHOLDER_MESSAGES : apiMessages
+    const model = normalizeModelStringForAPI(getEngineModel())
+    const betas = getModelBetas(model)
+    const thinking = hasThinkingBlocks(body)
+    const thinkingOption = thinking
+      ? modelSupportsAdaptiveThinking(model)
+        ? { type: 'adaptive' as const }
+        : { type: 'enabled' as const, budget_tokens: THINKING_BUDGET_TOKENS }
+      : undefined
+    const client = await getAnthropicClient({ maxRetries: 0, source: COUNT_SOURCE })
+    const response = await countWithBusyRetry(COUNT_SOURCE, () =>
+      client.beta.messages.countTokens(
+        {
+          model,
+          messages: body,
+          tools,
+          ...(systemBlocks ? { system: systemBlocks } : {}),
+          ...(betas.length > 0 ? { betas } : {}),
+          ...(thinkingOption ? { thinking: thinkingOption } : {}),
+        },
+        { timeout: COUNT_RETRY_BUDGET_MS },
+      ),
+    )
+    return typeof response?.input_tokens === 'number' ? response.input_tokens : null
+  } catch (error) {
+    logError(error)
+    return null
+  }
 }
 
 export async function countTokensWithAPI(content: string): Promise<number | null> {
