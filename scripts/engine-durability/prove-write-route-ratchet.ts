@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
+import ts from 'typescript'
 
 const REPO = resolve(import.meta.dir, '..', '..')
 const SRC = join(REPO, 'src')
@@ -25,6 +26,31 @@ const importsModule = (text: string, base: string): boolean =>
   new RegExp(`from\\s+'[^']*(?<![\\w-])${base}(\\.js|\\.ts)?'`).test(text) ||
   new RegExp(`require\\('[^']*(?<![\\w-])${base}'\\)`).test(text)
 
+const PUBLISH_SPEC = /(?<![\w-])durablePublish(?:\.js|\.ts)?$/
+
+function importsPublishRoute(file: string, text: string): boolean {
+  if (!importsModule(text, 'durablePublish')) return false
+  if (/require\('[^']*(?<![\w-])durablePublish'\)/.test(text)) return true
+  const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, false)
+  let found = false
+  for (const stmt of sf.statements) {
+    if (ts.isImportDeclaration(stmt) && ts.isStringLiteral(stmt.moduleSpecifier) && PUBLISH_SPEC.test(stmt.moduleSpecifier.text)) {
+      const clause = stmt.importClause
+      if (!clause || clause.name) return true
+      const bindings = clause.namedBindings
+      if (!bindings || !ts.isNamedImports(bindings)) return true
+      if (bindings.elements.some(el => (el.propertyName ?? el.name).text !== 'DurablePublishError')) return true
+      found = true
+    } else if (ts.isExportDeclaration(stmt) && stmt.moduleSpecifier && ts.isStringLiteral(stmt.moduleSpecifier) && PUBLISH_SPEC.test(stmt.moduleSpecifier.text)) {
+      const clause = stmt.exportClause
+      if (!clause || !ts.isNamedExports(clause)) return true
+      if (clause.elements.some(el => (el.propertyName ?? el.name).text !== 'DurablePublishError')) return true
+      found = true
+    }
+  }
+  return !found
+}
+
 const files = sources(SRC)
 const publish: string[] = []
 const lock: string[] = []
@@ -33,7 +59,7 @@ const LOCK_OWNER = 'src/platform/storage/lockfile.ts'
 
 for (const f of files) {
   const text = readFileSync(join(REPO, f), 'utf8')
-  if (importsModule(text, 'durablePublish')) publish.push(f)
+  if (importsPublishRoute(f, text)) publish.push(f)
   if (importsModule(text, 'lockfile') && f !== LOCK_OWNER) lock.push(f)
   if (/from\s+'proper-lockfile'|require\('proper-lockfile'\)/.test(text) && f !== LOCK_OWNER) {
     if (!/declare module 'proper-lockfile'/.test(text)) rawProperLockfile.push(f)
