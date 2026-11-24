@@ -7,7 +7,6 @@ import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { mergeDiskPrefix } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
 const { runPulseArena } = await import('./lib/pulseArena.ts')
 const { checker } = await import('../engine-durability/harness.ts')
 type ScriptedTurn = import('../lib/fixtureApi.ts').ScriptedTurn
@@ -69,32 +68,6 @@ const sendsDue = (run: { sendLog: unknown[]; driverOut: string }, authored: numb
     run.sendLog.length === authored && !run.driverOut.includes('UNFIRED-SENDS'),
     `${run.sendLog.length}/${authored} · ${run.driverOut.split('\n').filter(l => l.includes('UNFIRED')).join(' ').slice(0, 300)}`,
   )
-
-t.section('§1 disk↔live convergence: mergeDiskPrefix laws')
-{
-  const m = (...uuids: string[]): { uuid: string }[] => uuids.map(uuid => ({ uuid }))
-  const ids = (arr: { uuid: string }[]): string => arr.map(x => x.uuid).join(',')
-
-  t.check('disjoint: disk prefix precedes live', ids(mergeDiskPrefix(m('c', 'd'), m('a', 'b'))) === 'a,b,c,d', 'mergeDiskPrefix in src/engine/tasks/local-agent/crewmateTask.tsx must put the disk-only rows before the live rows')
-  t.check('full overlap: live == disk ⇒ live once', ids(mergeDiskPrefix(m('a', 'b'), m('a', 'b'))) === 'a,b', 'mergeDiskPrefix in src/engine/tasks/local-agent/crewmateTask.tsx must keep a row present on both sides once')
-  t.check(
-    'suffix overlap: disk ⊇ live ⇒ each uuid once, disk order for the prefix',
-    ids(mergeDiskPrefix(m('b', 'c'), m('a', 'b', 'c'))) === 'a,b,c',
-    'mergeDiskPrefix in src/engine/tasks/local-agent/crewmateTask.tsx must keep each uuid once and disk order for the prefix',
-  )
-  t.check(
-    'interleaved overlap: disk-only rows fill the prefix, live keeps its tail',
-    ids(mergeDiskPrefix(m('b', 'd'), m('a', 'b', 'c'))) === 'a,c,b,d',
-    'mergeDiskPrefix in src/engine/tasks/local-agent/crewmateTask.tsx must fill the prefix with disk-only rows and leave the live tail in place',
-  )
-  t.check('empty live: disk wholesale', ids(mergeDiskPrefix([], m('a', 'b'))) === 'a,b', 'mergeDiskPrefix in src/engine/tasks/local-agent/crewmateTask.tsx must return the disk rows when live is empty')
-  t.check('empty disk: live untouched', ids(mergeDiskPrefix(m('a'), [])) === 'a', 'mergeDiskPrefix in src/engine/tasks/local-agent/crewmateTask.tsx must return the live rows untouched when disk is empty')
-  {
-    const merged = mergeDiskPrefix(m('x', 'y'), m('a', 'x', 'y'))
-    const seen = new Set(merged.map(r => r.uuid))
-    t.check('once-only: no uuid ever duplicates', seen.size === merged.length, `${ids(merged)}; mergeDiskPrefix in src/engine/tasks/local-agent/crewmateTask.tsx must drop a disk row whose uuid the live rows already carry`)
-  }
-}
 
 t.section("§2 words typed at main while a crewmate runs are the session's own turn, never dropped")
 {

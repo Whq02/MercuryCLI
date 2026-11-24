@@ -326,15 +326,6 @@ export function isPanelCrewmateTask(task: unknown): task is CrewmateTaskState {
   return isCrewmateTask(task) && task.agentType !== MAIN_SESSION_AGENT_TYPE
 }
 
-export function mergeDiskPrefix<M extends { uuid: unknown }>(live: M[], disk: M[]): M[] {
-  if (disk.length === 0) return live
-  const liveIds = new Set(live.map(message => message.uuid))
-  const diskOnly = disk.filter(message => !liveIds.has(message.uuid))
-  if (diskOnly.length === 0) return live
-  return [...diskOnly, ...live]
-}
-
-
 export const CREWMATE_STOP_BY_OPERATOR = 'crew-stop'
 export const CREWMATE_INTERRUPT_BY_OPERATOR = 'operator-interrupt'
 export const CREWMATE_INTERRUPTED_STATUS_WORD = 'interrupted'
