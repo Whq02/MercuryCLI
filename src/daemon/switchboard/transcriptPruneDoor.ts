@@ -1,3 +1,4 @@
+import { dirname, join } from 'node:path'
 import { ownedHistoryParts } from '../../sessions/transcripts/historyParts.js'
 import { getFsImplementation } from '../../platform/files/fsOperations.js'
 import { removePrefixRecord } from '../../models/roads/anthropic/prefixRecordStore.js'
@@ -95,6 +96,37 @@ export function buildSessionDeleteOffer(
   }
 }
 
+function safeSubagentsPaths(transcriptPath: string, sessionId: string): { sessionDir: string; subagentsDir: string } | null {
+  if (sessionId === '' || sessionId === '.' || sessionId === '..' || sessionId.includes('/') || sessionId.includes('\\')) {
+    return null
+  }
+  const sessionDir = join(dirname(transcriptPath), sessionId)
+  return { sessionDir, subagentsDir: join(sessionDir, 'subagents') }
+}
+
+async function directoryBytes(fs: ReturnType<typeof getFsImplementation>, dir: string): Promise<number> {
+  let total = 0
+  let entries: Awaited<ReturnType<typeof fs.readdir>>
+  try {
+    entries = await fs.readdir(dir)
+  } catch (error) {
+    passedOver(error)
+    return 0
+  }
+  for (const entry of entries) {
+    const path = join(dir, entry.name)
+    if (entry.isDirectory()) {
+      total += await directoryBytes(fs, path)
+    } else if (entry.isFile()) {
+      try {
+        total += (await fs.stat(path)).size
+      } catch (error) {
+        passedOver(error)
+      }
+    }
+  }
+  return total
+}
 export async function operatorPruneTranscripts(offer: PruneOffer): Promise<PruneReceipt> {
   const fs = getFsImplementation()
   const receipt: PruneReceipt = {
@@ -131,6 +163,19 @@ export async function operatorPruneTranscripts(offer: PruneOffer): Promise<Prune
         receipt.bytesFreed += snapBytes
       } catch (error) {
         passedOver(error)
+      }
+      const subagents = safeSubagentsPaths(candidate.transcriptPath, candidate.sessionId)
+      if (subagents !== null) {
+        try {
+          if (fs.lstatSync(subagents.subagentsDir).isDirectory()) {
+            const subagentsBytes = await directoryBytes(fs, subagents.subagentsDir)
+            await fs.rm(subagents.subagentsDir, { recursive: true, force: true })
+            receipt.bytesFreed += subagentsBytes
+            await fs.rmdir(subagents.sessionDir).catch(passedOver)
+          }
+        } catch (error) {
+          passedOver(error)
+        }
       }
     } catch {
       receipt.failed++

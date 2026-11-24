@@ -50,8 +50,9 @@ const seed = (store: string, sessionId: string, sidecars = true): string => {
   if (sidecars) {
     writeFileSync(join(store, `${sessionId}.receipts.jsonl`), '{"kind":"receipt"}\n')
     writeFileSync(`${path}.resume-snapshot.json`, JSON.stringify({ snapshot: true }).repeat(200))
-    mkdirSync(join(store, sessionId, 'subagents'), { recursive: true })
+    mkdirSync(join(store, sessionId, 'subagents', 'nested'), { recursive: true })
     writeFileSync(join(store, sessionId, 'subagents', 'agent-1.jsonl'), '{"type":"user"}\n')
+    writeFileSync(join(store, sessionId, 'subagents', 'nested', 'agent-2.jsonl'), '{"type":"assistant"}\n')
     writeFileSync(join(store, `${sessionId}.cast`), 'recording\n')
   }
   return path
@@ -130,10 +131,20 @@ section('§2 the delete: the transcript and its two sidecars go, nothing else; t
   check('the receipts sidecar is gone', !existsSync(join(STORE, `${ids.named}.receipts.jsonl`)), 'operatorPruneTranscripts in src/daemon/switchboard/transcriptPruneDoor.ts must also remove the .receipts.jsonl sidecar')
   check('the resume snapshot is gone', !existsSync(`${namedPath}.resume-snapshot.json`), 'operatorPruneTranscripts in src/daemon/switchboard/transcriptPruneDoor.ts must also remove the .resume-snapshot.json sidecar')
   check('the recording (.cast) stays — recordings are the sweep\'s business', existsSync(join(STORE, `${ids.named}.cast`)), 'the delete door in src/daemon/switchboard/transcriptPruneDoor.ts removed the .cast recording; only the transcript and its two sidecars may go')
-  check('the session\'s own folder stays (no directory is ever removed by the door)', existsSync(join(STORE, ids.named, 'subagents', 'agent-1.jsonl')), 'the delete door in src/daemon/switchboard/transcriptPruneDoor.ts removed the session folder; it must never remove a directory')
-  check('the sibling session and its sidecars stay', existsSync(siblingPath) && existsSync(join(STORE, `${ids.sibling}.receipts.jsonl`)), 'the delete door in src/daemon/switchboard/transcriptPruneDoor.ts removed another session files; it may touch only the named id')
+  check('the session\'s subagents folder (including nested files) and its then-empty session folder are gone', !existsSync(join(STORE, ids.named, 'subagents')) && !existsSync(join(STORE, ids.named)), 'operatorPruneTranscripts in src/daemon/switchboard/transcriptPruneDoor.ts must remove <session>/subagents and the empty <session> folder')
+  check('the sibling session, its sidecars and its subagents folder stay untouched', existsSync(siblingPath) && existsSync(join(STORE, `${ids.sibling}.receipts.jsonl`)) && existsSync(join(STORE, ids.sibling, 'subagents', 'agent-1.jsonl')), 'the delete door in src/daemon/switchboard/transcriptPruneDoor.ts removed another session files; it may touch only the named id')
   const removed = before.filter(entry => !listing(STORE).includes(entry))
-  check('exactly three entries left the store', JSON.stringify(removed) === JSON.stringify([`${ids.named}.jsonl`, `${ids.named}.jsonl.resume-snapshot.json`, `${ids.named}.receipts.jsonl`]), `the delete door in src/daemon/switchboard/transcriptPruneDoor.ts must remove exactly the transcript, its receipts and its resume snapshot; removed: ${JSON.stringify(removed)}`)
+  const expectedRemoved = [
+    ids.named,
+    join(ids.named, 'subagents'),
+    join(ids.named, 'subagents', 'agent-1.jsonl'),
+    join(ids.named, 'subagents', 'nested'),
+    join(ids.named, 'subagents', 'nested', 'agent-2.jsonl'),
+    `${ids.named}.jsonl`,
+    `${ids.named}.jsonl.resume-snapshot.json`,
+    `${ids.named}.receipts.jsonl`,
+  ].sort()
+  check('exactly the transcript, its sidecars and its subagents tree left the store', JSON.stringify(removed) === JSON.stringify(expectedRemoved), `removed: ${JSON.stringify(removed)}`)
   check('the receipt names the transcript, the receipts and the snapshot with the bytes freed', /Deleted session 11111111-1111-4111-8111-111111111111: the transcript and its receipts and its resume snapshot — \d+ KB freed\./.test(text(yes)), `fix the final io.out line of sessionsDeleteCli in src/commands/verbs/sessionsVerb.ts; got: ${text(yes)}`)
   check('the line before the question names the file, its size and its date', /Session 11111111-1111-4111-8111-111111111111 — .*11111111-1111-4111-8111-111111111111\.jsonl \(\d+ KB, modified 20\d\d-/.test(text(yes)), `fix the io.out line printed before the question in sessionsDeleteCli (src/commands/verbs/sessionsVerb.ts); got: ${text(yes)}`)
   const again = await run(ids.named, { yes: true })
@@ -144,7 +155,7 @@ section('§3 --yes for scripts, and a session saved under another project store'
 {
   const scripted = await run(ids.elsewhere, { yes: true })
   check('--yes deletes without a question, naming the other project store', scripted.rc === 0 && scripted.asked.length === 0 && /another project's sessions/.test(text(scripted)) && !existsSync(elsewherePath), `sessionsDeleteCli in src/commands/verbs/sessionsVerb.ts must delete without asking under --yes and say it is in another project's sessions; got: ${text(scripted)}`)
-  check('the other store keeps everything else', existsSync(join(OTHER_STORE, `${ids.elsewhere}.cast`)) && existsSync(join(OTHER_STORE, ids.elsewhere, 'subagents', 'agent-1.jsonl')), 'the delete door in src/daemon/switchboard/transcriptPruneDoor.ts removed more than the transcript and its two sidecars in the other store')
+  check('the other store keeps the recording and removes the deleted session subagents folder', existsSync(join(OTHER_STORE, `${ids.elsewhere}.cast`)) && !existsSync(join(OTHER_STORE, ids.elsewhere)), 'the delete door in src/daemon/switchboard/transcriptPruneDoor.ts must keep the .cast recording and remove the deleted session subagents folder')
 }
 
 section('§4 the prune is untouched: the age window still rules the card\'s offer, a live session is never offered, the door\'s sweep law holds')
@@ -162,6 +173,22 @@ section('§4 the prune is untouched: the age window still rules the card\'s offe
   const young = namedOffer(rows[2]!, { scopeLabel: 'session', liveSessionIds: new Set() })
   check('the named offer takes a session of any age once it is not live', young != null && young.candidates.length === 1 && young.candidates[0]!.sessionId === ids.parked, 'buildSessionDeleteOffer in src/daemon/switchboard/transcriptPruneDoor.ts must offer one candidate for a non-live session of any age')
 }
+  const plainId = '66666666-6666-4666-8666-666666666666'
+  const plainPath = seed(STORE, plainId, false)
+  const plainBytes = readFileSync(plainPath).byteLength
+  const plainReceipt = await door.operatorPruneTranscripts(door.buildSessionDeleteOffer({ sessionId: plainId, fullPath: plainPath, fileSize: plainBytes, modified: new Date() }, { scopeLabel: 'session', liveSessionIds: new Set() })!)
+  check('a session without a subagents folder prunes cleanly as before', plainReceipt.deleted === 1 && plainReceipt.failed === 0 && plainReceipt.bytesFreed === plainBytes && !existsSync(plainPath), JSON.stringify(plainReceipt))
+  const keepParentId = '77777777-7777-4777-8777-777777777777'
+  const keepParentPath = seed(STORE, keepParentId, false)
+  const keepParentBytes = readFileSync(keepParentPath).byteLength
+  mkdirSync(join(STORE, keepParentId, 'subagents', 'deep'), { recursive: true })
+  const agentPayload = 'a'.repeat(4096)
+  const deepPayload = 'b'.repeat(2048)
+  writeFileSync(join(STORE, keepParentId, 'subagents', 'agent-x.jsonl'), agentPayload)
+  writeFileSync(join(STORE, keepParentId, 'subagents', 'deep', 'agent-y.jsonl'), deepPayload)
+  writeFileSync(join(STORE, keepParentId, 'other.txt'), 'keep')
+  const keepReceipt = await door.operatorPruneTranscripts(door.buildSessionDeleteOffer({ sessionId: keepParentId, fullPath: keepParentPath, fileSize: keepParentBytes, modified: new Date() }, { scopeLabel: 'session', liveSessionIds: new Set() })!)
+  check('bytesFreed counts the removed subagents files, and a non-empty session folder keeps its non-subagents file', keepReceipt.deleted === 1 && keepReceipt.bytesFreed === keepParentBytes + agentPayload.length + deepPayload.length && !existsSync(join(STORE, keepParentId, 'subagents')) && existsSync(join(STORE, keepParentId, 'other.txt')), JSON.stringify(keepReceipt))
 
 for (const dir of [HOME, PROJ]) removeScratch(dir)
 console.log(`\n${checks - failures}/${checks} checks passed`)
