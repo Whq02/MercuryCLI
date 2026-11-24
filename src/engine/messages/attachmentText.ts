@@ -210,7 +210,7 @@ const renderers: Renderers = {
   directory: item => wrapMessagesInSystemReminder(toolRead(bashWording, { command: `ls ${quote([item.path])}`, description: `Lists files in ${item.path}` }, { stdout: item.content, stderr: '', interrupted: false })),
   file: fileRows,
   mcp_resource: resourceRows,
-  edited_text_file: item => reminders(`${item.filename} changed outside this conversation — the user or a linter edited it. The change is intentional: work with it, and never revert it unless the user asks. Do not mention it to the user; they already know. The relevant changes (with line numbers):\n${item.snippet}`),
+  edited_text_file: item => reminders(`${item.filename} changed on disk since your last read or edit. Use it as it is now; don't revert the change unless asked. The relevant changes (with line numbers):\n${item.snippet}`),
   compact_file_reference: item => reminders(`${item.filename} was read before the conversation was summarized, and its contents are too large to carry across. Re-read it with ${READ_TOOL_NAME} when you need it.`),
   pdf_reference: item => reminders(`PDF: ${item.filename} (${item.pageCount} pages, ${formatFileSize(item.fileSize)}) — too large to read in one pass. Read it through ${READ_TOOL_NAME} with the pages parameter, in ranges (e.g. pages: "1-5"); a call WITHOUT pages will fail on this file. Start with the first few pages to learn the structure, then pull more as needed — at most 20 pages per request.`),
   dropped_image_file: item =>
