@@ -14,7 +14,6 @@ import { isOneOf } from '../../platform/primitives/isOneOf.js'
 import { getCanonicalName } from './modelNames.js'
 import { isChooseAModel } from './chooseAModel.js'
 import { familyDefaultsModel, familyHeadOf } from './builtInModelTable.js'
-import { getModelCapability } from './inactiveCapabilityLookup.js'
 import type { CallModelRoute } from './providerRoute.js'
 import { providerCapabilities, type OperatorModelFacts } from './capabilityRegistry.js'
 import {
@@ -890,26 +889,6 @@ function baseResolveContextWindow(
     })
   }
 
-  const cap = getModelCapability(model)
-  if (cap?.max_input_tokens && cap.max_input_tokens >= 100_000) {
-    if (
-      cap.max_input_tokens > MODEL_CONTEXT_WINDOW_DEFAULT &&
-      is1mContextDisabled()
-    ) {
-      return finish({
-        effectiveWindow: MODEL_CONTEXT_WINDOW_DEFAULT,
-        source: 'capability',
-        staticDefault: cap.max_input_tokens,
-        fallbackReason: 'clamped by the 1M kill-switch',
-      })
-    }
-    return finish({
-      effectiveWindow: cap.max_input_tokens,
-      source: 'capability',
-      staticDefault: cap.max_input_tokens,
-    })
-  }
-
   if (betas?.includes(CONTEXT_1M_BETA_HEADER) && modelSupports1M(model)) {
     return finish({ effectiveWindow: 1_000_000, source: 'beta-header' })
   }
@@ -1015,11 +994,6 @@ function baseGetModelMaxOutputTokens(model: string): {
     upperLimit = 8_192
   } else if (m.includes('3-7-sonnet')) {
     upperLimit = 64_000
-  }
-
-  const cap = getModelCapability(model)
-  if (cap?.max_tokens && cap.max_tokens >= 4_096) {
-    upperLimit = cap.max_tokens
   }
 
   if (upperLimit !== undefined) {

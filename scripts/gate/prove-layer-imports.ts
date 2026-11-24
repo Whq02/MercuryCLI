@@ -167,7 +167,6 @@ const LAYERS: Rule = {
     'src/models/facts/deadThinkingPlaceholder.ts',
     'src/models/facts/defaultProviderRung.ts',
     'src/models/facts/deprecation.ts',
-    'src/models/facts/inactiveCapabilityLookup.ts',
     'src/models/facts/internalModels.ts',
     'src/models/facts/loginWords.ts',
     'src/models/facts/modelLookup.ts',

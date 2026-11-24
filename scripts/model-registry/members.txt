@@ -25,4 +25,3 @@ prove-table-window-above-served.ts
 prove-context-1m-header.ts
 prove-mirror-launch-effort.ts
 prove-progress-updates-gate.ts
-prove-model-capabilities-behaviour.ts
