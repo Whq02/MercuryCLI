@@ -33,7 +33,6 @@ prove-store-failure-surfaces.ts
 prove-transcript-degradation-stated.ts
 prove-transcript-tail-reader.ts
 prove-old-transcript-kinds-parse.ts
-prove-unresolved-tool-use.ts
 prove-latest-row-rule.ts
 prove-drain-fault-isolation.ts
 prove-resume-snapshot-honesty.ts

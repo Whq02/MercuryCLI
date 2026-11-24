@@ -14,7 +14,7 @@ const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool
 const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.ts')
 const { powershellToolHasPermission } = await import('../../src/tools/powershell/powershellPermissions.ts')
 const { decideToolPermission } = await import('../../src/permissions/rules/decision/engine.ts')
-const { cacheSessionTitle, getCurrentSessionTitle, saveCustomTitle } = await import('../../src/sessions/transcripts/sessionListings.ts')
+const { getCurrentSessionTitle, saveCustomTitle } = await import('../../src/sessions/transcripts/sessionListings.ts')
 const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
 let checks = 0
 let failures = 0
@@ -76,10 +76,6 @@ try {
   check('ordinary Windows line endings are not hidden controls', crlf.behavior === 'allow', crlf, 'a carriage return before a line feed must not count as a hidden control in the PowerShell command permission check')
   console.log('titles')
   const dirty = 'Fix\u202e auth\u200b flow\u2066'
-  cacheSessionTitle(dirty)
-  check('cached startup titles contain no hidden controls', getCurrentSessionTitle(getSessionId()) === 'Fix auth flow', getCurrentSessionTitle(getSessionId()), 'cacheSessionTitle in src/sessions/transcripts/sessionListings.ts must strip hidden controls through partiallySanitizeUnicode (src/platform/text/unicodeSanitization.ts)')
-  cacheSessionTitle('Fix \u{1F469}\u200D\u{1F4BB} auth')
-  check('emoji ZWJ sequence in a title strips U+200D while keeping base glyphs', getCurrentSessionTitle(getSessionId()) === 'Fix \u{1F469}\u{1F4BB} auth', getCurrentSessionTitle(getSessionId()), 'partiallySanitizeUnicode in src/platform/text/unicodeSanitization.ts must remove U+200D from the title and keep the emoji glyphs')
   mkdirSync(join(home, 'transcripts'), { recursive: true })
   const transcript = join(home, 'transcripts', 'title.jsonl')
   await saveCustomTitle(getSessionId() as never, dirty, transcript)

@@ -19,12 +19,11 @@ import type {
   TranscriptMessage,
 } from './transcriptEntries.js'
 import { sortSessionListings } from './transcriptEntries.js'
-import type { AssistantMessage, Message } from '../../engine/message-shapes/message.js'
+import type { Message } from '../../engine/message-shapes/message.js'
 import {
   decodeTranscriptBuffer,
   TRANSCRIPT_FORMAT_REFUSAL,
 } from '../fabric/transcriptDecode.js'
-import { uniq } from '../../platform/primitives/array.js'
 import { discoveryPoolWidth, mapWithConcurrency } from '../../platform/async/concurrency.js'
 import { updateSessionName } from './concurrentSessions.js'
 import { foldPathCase } from '../../platform/host-os/paths.js'
@@ -46,10 +45,9 @@ import {
   getCrewmateTranscriptPath,
   getProjectDir,
   getProjectsDir,
-  getTranscriptPath,
   getTranscriptPathForSession,
 } from './paths.js'
-import { appendEntryToFile, getProject, getSessionMessages } from './writer.js'
+import { getProject, getSessionMessages } from './writer.js'
 import { promptLabel, readSessionLabelFacts, sessionFiles, sessionPromptFromWindow, type IndexedSession } from './sessionIndex.js'
 import { missionGoalBeside } from '../mission-card/missionCard.js'
 import { transcriptRows } from './rowGraph.js'
@@ -215,23 +213,6 @@ export async function saveCustomTitle(
   invalidateSessionListingMemo()
 }
 
-export function saveAiGeneratedTitle(sessionId: UUID, aiTitle: string): void {
-  appendEntryToFile(getTranscriptPathForSession(sessionId), {
-    type: 'ai-title',
-    sessionId,
-    aiTitle: partiallySanitizeUnicode(aiTitle),
-  })
-}
-
-export function saveTaskSummary(sessionId: UUID, summary: string): void {
-  appendEntryToFile(getTranscriptPathForSession(sessionId), {
-    type: 'task-summary',
-    summary,
-    sessionId,
-    timestamp: new Date().toISOString(),
-  })
-}
-
 export async function saveTag(sessionId: UUID, tag: string, fullPath?: string): Promise<void> {
   getProject().metadata.write(
     { type: 'tag', tag, sessionId },
@@ -262,18 +243,10 @@ function liveSessionFacts(sessionId: string): SessionMetaFields | undefined {
   return sessionId === getSessionId() ? getProject().metadata.fields : undefined
 }
 
-export function getCurrentSessionTag(sessionId: UUID): string | undefined {
-  return liveSessionFacts(sessionId)?.tag
-}
-
 export function getCurrentSessionTitle(
   sessionId: SessionId,
 ): string | undefined {
   return liveSessionFacts(sessionId)?.customTitle
-}
-
-export function getCurrentSessionAgentColor(): string | undefined {
-  return getProject().metadata.fields.agentColor
 }
 
 export function restoreSessionMetadata(meta: Omit<SessionMetaFields, 'lastPrompt'>): void {
@@ -305,17 +278,6 @@ export async function saveAgentName(
   }
 }
 
-export async function saveAgentColor(
-  sessionId: UUID,
-  agentColor: string,
-  fullPath?: string,
-): Promise<void> {
-  getProject().metadata.write(
-    { type: 'agent-color', agentColor, sessionId },
-    fullPath ?? getTranscriptPathForSession(sessionId),
-  )
-}
-
 export function saveAgentSetting(agentSetting: string): void {
   getProject().currentSessionAgentSetting = agentSetting
 }
@@ -326,10 +288,6 @@ export function saveSessionBrief(field: 'brief' | 'briefAdd', text: string | nul
 
 export function carrySessionBriefs(): void {
   getProject().metadata.oweBriefs()
-}
-
-export function cacheSessionTitle(customTitle: string): void {
-  getProject().currentSessionTitle = partiallySanitizeUnicode(customTitle)
 }
 
 export function saveMode(mode: 'coordinator' | 'normal'): void {
@@ -780,19 +738,6 @@ export async function getCrewmateTranscript(agentId: AgentId): Promise<{
   }
 }
 
-function progressAgentId(message: Message): string | undefined {
-  if (message.type !== 'progress' || !message.data || typeof message.data !== 'object' || !('type' in message.data)) return undefined
-  const { type, agentId } = message.data as { type?: unknown; agentId?: unknown }
-  return (type === 'agent_progress' || type === 'skill_progress') && typeof agentId === 'string' ? agentId : undefined
-}
-
-export function extractAgentIdsFromMessages(messages: Message[]): string[] {
-  return uniq(messages.flatMap(message => {
-    const agentId = progressAgentId(message)
-    return agentId === undefined ? [] : [agentId]
-  }))
-}
-
 async function crewmateMessages(agentId: string): Promise<Message[] | null> {
   try {
     const transcript = await getCrewmateTranscript(asAgentId(agentId))
@@ -835,28 +780,6 @@ export async function loadAllCrewmateTranscriptsFromDisk(): Promise<{
 export async function sessionAtIndex(index: number): Promise<SessionListing | null> {
   const logs = await listProjectSessions()
   return logs[index] || null
-}
-
-export async function findUnresolvedToolUse(
-  toolUseId: string,
-): Promise<AssistantMessage | null> {
-  const callsIt = (message: TranscriptMessage): boolean =>
-    message.type === 'assistant' &&
-    Array.isArray(message.message.content) &&
-    message.message.content.some(block => block.type === 'tool_use' && block.id === toolUseId)
-  const answersIt = (message: TranscriptMessage): boolean =>
-    message.type === 'user' &&
-    Array.isArray(message.message.content) &&
-    message.message.content.some(block => block.type === 'tool_result' && block.tool_use_id === toolUseId)
-  try {
-    const { messages } = await loadTranscriptFile(getTranscriptPath())
-    const rows = [...messages.values()]
-    if (rows.some(answersIt)) return null
-    return (rows.findLast(callsIt) as AssistantMessage | undefined) ?? null
-  } catch (error) {
-    passedOver(error)
-    return null
-  }
 }
 
 function statSessionFiles(

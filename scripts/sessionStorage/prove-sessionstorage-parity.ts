@@ -129,9 +129,6 @@ add('writtenChainTail', 'kinds', () =>
     S.writtenChainTail([{ type: 'progress', data: { type: 'hook_progress' } } as never], U2),
   ],
 )
-add('extractAgentIdsFromMessages', 'none', () =>
-  S.extractAgentIdsFromMessages(clone(CHAIN) as never),
-)
 add('sessionIdOfListing', 'from-path', () =>
   S.sessionIdOfListing({
     fullPath: '/x/00000000-0000-4000-8000-00000000cafe.jsonl',
@@ -159,16 +156,16 @@ const SKIPPED: Record<string, string> = Object.fromEntries(
     'resetSessionFilePointer', 'adoptResumedSessionFile',
     'flushSessionStorage', 'hydrateRemoteSession',
     'hydrateFromCCRv2InternalEvents', 'loadTranscriptFromFile', 'listSessions', 'saveCustomTitle',
-    'saveAiGeneratedTitle', 'saveTaskSummary', 'saveTag', 'linkSessionToPR', 'getCurrentSessionTag',
-    'getCurrentSessionTitle', 'getCurrentSessionAgentColor', 'restoreSessionMetadata',
-    'clearSessionMetadata', 'reAppendSessionMetadata', 'saveAgentName', 'saveAgentColor',
-    'saveAgentSetting', 'saveSessionBrief', 'carrySessionBriefs', 'cacheSessionTitle', 'saveMode', 'saveWorktreeState', 'fillSessionListing',
+    'saveTag', 'linkSessionToPR',
+    'getCurrentSessionTitle', 'restoreSessionMetadata',
+    'clearSessionMetadata', 'reAppendSessionMetadata', 'saveAgentName',
+    'saveAgentSetting', 'saveSessionBrief', 'carrySessionBriefs', 'saveMode', 'saveWorktreeState', 'fillSessionListing',
     'saveAdvisorSwitch', 'advisorSwitchOfSession', 'saveSessionModel',
     'searchSessionsByCustomTitle', 'loadTranscriptFile', 'clearSessionMessagesCache',
     'doesMessageExistInSession', 'lastSession', 'listProjectSessions', 'listSessionsAcrossProjects',
     'listSessionsAcrossProjectsProgressive', 'listRepoSessions',
     'listRepoSessionsProgressive', 'getCrewmateTranscript', 'loadCrewmateTranscripts',
-    'loadAllCrewmateTranscriptsFromDisk', 'sessionAtIndex', 'findUnresolvedToolUse',
+    'loadAllCrewmateTranscriptsFromDisk', 'sessionAtIndex',
     'sessionFilesWithMtime', 'listingsOfSessionFile', 'sessionFilesLite', 'enrichSessionListings',
   ].map(k => [k, IO]),
 )
