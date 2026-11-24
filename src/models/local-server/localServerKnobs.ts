@@ -54,11 +54,6 @@ export function writeLocalServerSetting(id: LocalServerKnobId, value: number | s
   return updateSettingsForSource('userSettings', { local: { server: { [id]: value } } } as Partial<SettingsJson>)
 }
 
-export function localServerRevertPartial(snapshot: LocalServerSettings | undefined): Partial<SettingsJson> {
-  if (snapshot === undefined || Object.keys(snapshot).length === 0) return { local: { server: undefined } } as Partial<SettingsJson>
-  return { local: { server: { maxLoadedModels: snapshot.maxLoadedModels, parallelSlots: snapshot.parallelSlots, keepAlive: snapshot.keepAlive, contextLength: snapshot.contextLength } } } as Partial<SettingsJson>
-}
-
 export function knobEnvValue(id: LocalServerKnobId, value: number | string): string {
   return String(value)
 }
