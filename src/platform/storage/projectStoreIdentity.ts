@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { directoryIdentity, directoryIdentityKey } from '../../daemon/control/directoryIdentity.js'
 import { getErrnoCode } from '../errors/errors.js'
 import { passedOver } from '../errors/passedOver.js'
+import { isDirectory } from '../files/syncFileRead.js'
 
 type StoreDirectoryIdentity = ReturnType<typeof directoryIdentity>
 
@@ -40,15 +41,6 @@ export function projectDirectoryIdentity(dir: string, fold: (dir: string) => str
   const first = resolveDirectoryIdentity(fold(dir))
   const canonical = fold(first.canonical)
   return canonical === first.canonical ? first : resolveDirectoryIdentity(canonical)
-}
-
-function isDirectory(path: string): boolean {
-  try {
-    return statSync(path).isDirectory()
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
 }
 
 function readHead(file: string, bytes: number, onFailure?: ReadFailureSink): string | null {

@@ -1,5 +1,5 @@
 import type { Stats } from 'fs'
-import { readFileSync as readNodeFileSync } from 'node:fs'
+import { readFileSync as readNodeFileSync, statSync } from 'node:fs'
 import { logForDebugging } from '../logs/debugLog.js'
 import { getFsImplementation, safeResolvePath, type FsOperations } from './fsOperations.js'
 import { passedOver } from '../errors/passedOver.js'
@@ -82,5 +82,14 @@ export function readFileOrNull(path: string): string | null {
   } catch (error) {
     passedOver(error)
     return null
+  }
+}
+
+export function isDirectory(path: string): boolean {
+  try {
+    return statSync(path).isDirectory()
+  } catch (error) {
+    passedOver(error)
+    return false
   }
 }

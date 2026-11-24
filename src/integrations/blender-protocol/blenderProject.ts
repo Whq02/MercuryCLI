@@ -6,6 +6,7 @@ import { homedir } from 'node:os'
 import * as path from 'node:path'
 import { flagEnabled, flagEnv } from '../../platform/substrate/flagRegistry.js'
 import { getCwd } from '../../platform/files/cwd.js'
+import { isDirectory } from '../../platform/files/syncFileRead.js'
 import { whichSync } from '../../platform/processes/which.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 import { blenderProgramFilesRoot } from '../../platform/host-os/vendors.js'
@@ -21,15 +22,6 @@ export function mercuryBlenderEnabled(): boolean {
 function isFile(p: string): boolean {
   try {
     return statSync(p).isFile()
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
-}
-
-function isDir(p: string): boolean {
-  try {
-    return statSync(p).isDirectory()
   } catch (error) {
     passedOver(error)
     return false
@@ -139,7 +131,7 @@ export function locateBlender(testOpts?: {
   if (root !== null) {
     let dirs: string[] = []
     try {
-      dirs = readdirSync(root).filter(name => isDir(path.join(root, name)))
+      dirs = readdirSync(root).filter(name => isDirectory(path.join(root, name)))
     } catch (error) {
       passedOver(error)
     }

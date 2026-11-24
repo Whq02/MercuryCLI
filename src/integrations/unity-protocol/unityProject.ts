@@ -3,6 +3,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import * as path from 'node:path'
 import { flagEnabled, flagEnv } from '../../platform/substrate/flagRegistry.js'
 import { getCwd } from '../../platform/files/cwd.js'
+import { isDirectory } from '../../platform/files/syncFileRead.js'
 import { projectFolderPath } from '../../platform/storage/projectHomeStores.js'
 import { whichSync } from '../../platform/processes/which.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
@@ -21,15 +22,6 @@ export function unityTestResultsPath(root: string, mode: 'EditMode' | 'PlayMode'
   return path.join(projectFolderPath(root, 'unity-test-results'), `${mode.toLowerCase()}.xml`)
 }
 
-function isDir(p: string): boolean {
-  try {
-    return statSync(p).isDirectory()
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
-}
-
 function isFile(p: string): boolean {
   try {
     return statSync(p).isFile()
@@ -42,7 +34,7 @@ function isFile(p: string): boolean {
 export function findUnityProjectRoot(from: string = getCwd()): string | undefined {
   let dir = path.resolve(from)
   for (let depth = 0; depth < ROOT_WALK_LIMIT; depth++) {
-    if (isDir(path.join(dir, 'Assets')) && isDir(path.join(dir, 'ProjectSettings'))) {
+    if (isDirectory(path.join(dir, 'Assets')) && isDirectory(path.join(dir, 'ProjectSettings'))) {
       return dir
     }
     const parent = path.dirname(dir)
@@ -124,7 +116,7 @@ export function locateUnityEditors(testOpts?: {
   for (const root of testOpts?.hubRoots ?? unityHubEditorRoots(platform)) {
     let versionDirs: string[]
     try {
-      versionDirs = readdirSync(root).filter(name => isDir(path.join(root, name)))
+      versionDirs = readdirSync(root).filter(name => isDirectory(path.join(root, name)))
     } catch (error) {
       passedOver(error)
       continue

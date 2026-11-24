@@ -1,23 +1,13 @@
 
-import { statSync } from 'node:fs'
+import { isDirectory } from '../../platform/files/syncFileRead.js'
 import { homedir } from 'node:os'
 import * as path from 'node:path'
 import { blenderBridgeAddonDirOverride } from '../blender-protocol/bridgeGates.js'
 import { locateBlender, probeBlenderVersion } from '../blender-protocol/blenderProject.js'
-import { passedOver } from '../../platform/errors/passedOver.js'
 import { hostEnv } from '../../platform/environment/hostEnv.js'
 import { blenderUserConfigBase } from '../../platform/host-os/vendors.js'
 
 export const BLENDER_ADDON_MODULE = 'mercury_blender_bridge'
-
-function isDir(p: string): boolean {
-  try {
-    return statSync(p).isDirectory()
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
-}
 
 interface BlenderAddonHomeCensus {
   home?: {
@@ -41,7 +31,7 @@ export function resolveBlenderAddonHome(testOpts?: {
 }): BlenderAddonHomeCensus {
   const pin = blenderBridgeAddonDirOverride()
   if (pin) {
-    if (isDir(pin)) return { home: { path: pin, source: 'pin' } }
+    if (isDirectory(pin)) return { home: { path: pin, source: 'pin' } }
     return {
       pinError: `MERCURY_BLENDER_BRIDGE_ADDON_DIR is set to ${pin}, which is not an existing directory`,
       reason: `MERCURY_BLENDER_BRIDGE_ADDON_DIR is set but ${pin} is not an existing directory`,
