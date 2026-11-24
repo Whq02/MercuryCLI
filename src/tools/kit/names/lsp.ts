@@ -1,5 +1,3 @@
-export const LSP_TOOL_NAME = 'LspRead'
-
 export const LSP_TOOL_NAMES = ['LspRead', 'LspRename', 'LspMoveSymbol', 'LspMoveFile', 'LspCodeAction', 'LspFormat', 'LspRequest'] as const
 
 export type LspToolName = typeof LSP_TOOL_NAMES[number]
