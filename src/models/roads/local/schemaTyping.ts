@@ -9,7 +9,7 @@ function rec(v: unknown): Record<string, unknown> | undefined {
   return typeof v === 'object' && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined
 }
 
-function parseJson(text: string): unknown | undefined {
+export function parseJson(text: string): unknown | undefined {
   try {
     return JSON.parse(text) as unknown
   } catch (error) {
