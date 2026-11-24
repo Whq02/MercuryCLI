@@ -1,6 +1,6 @@
 import * as fs from 'node:fs'
 import { homedir } from 'node:os'
-import { dirname, isAbsolute, join, resolve } from 'node:path'
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
 
 import { getErrnoCode } from '../errors/errors.js'
 import { slowLogging } from '../logs/slowOperations.js'
@@ -201,7 +201,7 @@ function resolveDeepestExistingAncestorSync(fsImpl: FsOperations, absolutePath: 
     if (stats === null) {
       const parent = dirname(current)
       if (parent === current) return undefined
-      tail.unshift(current.slice(parent.length + 1))
+      tail.unshift(basename(current))
       current = parent
       continue
     }

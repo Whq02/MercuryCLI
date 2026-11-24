@@ -137,3 +137,4 @@ prove-dangerous-patterns-behaviour.ts
 prove-powershell-permission-order.ts
 prove-commit-message-no-false-note.ts
 prove-bare-drive-root-form.ts
+prove-name-under-root-keeps-its-letters.ts
