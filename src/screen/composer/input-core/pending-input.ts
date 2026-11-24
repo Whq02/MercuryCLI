@@ -344,19 +344,3 @@ export function restoreStaged(expectedText?: string): { text: string } | null {
   edit(record.text)
   return { text: record.text }
 }
-
-
-export function shouldAutoRestore(ctx: {
-  reason: unknown
-  queryActive: boolean
-  queueLength: number
-  viewingAgent: boolean
-}): boolean {
-  return (
-    ctx.reason === 'user-cancel' &&
-    !ctx.queryActive &&
-    draft.text === '' &&
-    ctx.queueLength === 0 &&
-    !ctx.viewingAgent
-  )
-}
