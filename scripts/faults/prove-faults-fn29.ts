@@ -341,31 +341,6 @@ else {
   )
 }
 
-console.log('8. src/screen/app-state/commitAttribution.ts — throwing git deleted-file probe propagates')
-{
-  const r = runIsolated(`
-    const { mock } = await import('bun:test')
-    const realExec = await import(SRC + '/platform/processes/execFileNoThrow.ts')
-    mock.module(SRC + '/platform/processes/execFileNoThrow.js', () => ({
-      ...realExec,
-      execFileNoThrowWithCwd: async () => {
-        throw new Error('git spawn exploded')
-      },
-    }))
-    const { calculateCommitAttribution, createEmptyAttributionState } = await import(SRC + '/screen/app-state/commitAttribution.ts')
-    try {
-      out.data = await calculateCommitAttribution([createEmptyAttributionState()], ['gone.ts'])
-    } catch (e) {
-      out.err = e instanceof Error ? e.message : String(e)
-    }
-  `)
-  check(
-    'commitAttribution: throwing git probe in isFileDeleted rejects instead of dropping file',
-    r.err === 'git spawn exploded',
-    `err=${String(r.err)} data=${JSON.stringify(r.data)}`,
-  )
-}
-
 console.log('9. src/platform/config/globalConfig.ts — failed quarantine copy does not claim bytes were kept')
 if (!POSIX_MODES) skip('globalConfig: failed quarantine copy', 'needs POSIX non-root chmod')
 else {

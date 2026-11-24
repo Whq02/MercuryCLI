@@ -316,7 +316,6 @@ const LAYERS: Rule = {
     'src/platform/text/',
     'src/platform/verification/',
     'src/screen/app-state/commitAttribution.ts',
-    'src/screen/app-state/generatedFiles.ts',
     'src/screen/attention/needsYouCount.ts',
     'src/screen/boot-face/bootCardFacts.ts',
     'src/screen/chat/messagePredicates.ts',

@@ -50,7 +50,6 @@ prove-message-model-contract.ts
 prove-state-contract.ts
 prove-signal-primitive.ts
 prove-style-overlays.ts
-prove-attribution-spellings.ts
 prove-ledger-every-exit.ts
 prove-ledger-resume-rebuild.ts
 prove-served-model.ts

@@ -3706,10 +3706,6 @@ src/screen/app-state/ephemeralProgressStore.ts	epoch	process	module	single-termi
 src/screen/app-state/ephemeralProgressStore.ts	frames	process	module	single-terminal UI ephemeral tool-progress frames keyed by parentToolUseID, cleared at turn end
 src/screen/app-state/ephemeralProgressStore.ts	subscribers	process	module	single-terminal UI ephemeral tool-progress listeners keyed by parentToolUseID
 src/screen/app-state/ephemeralProgressStore.ts	versions	process	module	single-terminal UI ephemeral tool-progress version counters keyed by parentToolUseID
-src/screen/app-state/generatedFiles.ts	GENERATED_DIRECTORIES	process	module	Load-time list with no local writer
-src/screen/app-state/generatedFiles.ts	GENERATED_EXTENSIONS	process	module	Load-time lookup with no local writer
-src/screen/app-state/generatedFiles.ts	GENERATED_FILE_NAMES	process	module	Load-time lookup with no local writer
-src/screen/app-state/generatedFiles.ts	GENERATED_NAME_PATTERNS	process	module	Load-time list with no local writer
 src/screen/app-state/mailbox.tsx	MailboxContext	process	module	Load-time definition shared by all callers
 src/screen/app-state/onChangeAppState.ts	mcpClientsListeners	process	module	single-terminal AppState MCP clients change subscriber registry
 src/screen/app-state/selectors.ts	NON_VIEWABLE_TASK_TYPES	process	module	Load-time list with no local writer
