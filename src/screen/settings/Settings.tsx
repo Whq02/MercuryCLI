@@ -19,8 +19,6 @@ import { useMercuryTokens } from '../widgets/useMercuryTokens.js'
 import { SETTINGS_POPUP_COMPACT_CHROME_ROWS } from '../overlays/settingsPopupChrome.js'
 import type { SettingsPopupPlacement } from '../overlays/SettingsPopupSlot.js'
 
-export type SettingsTabName = 'Status' | 'Config' | 'Usage'
-
 let settingsOpens = 0
 export function nextSettingsOpen(): number {
   settingsOpens += 1
