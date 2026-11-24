@@ -1,6 +1,5 @@
 import { hostRentalUsage } from '../hosting/costs.js'
 import {
-  getAnthropicApiKey,
   getAuthTokenSource,
   getClaudeAIOAuthTokens,
   getSubscriptionType,
@@ -104,6 +103,7 @@ import { zaiUsageView } from './provider-usage/zai.js'
 export { zaiAccountFacts, zaiQuotaFigures, zaiQuotaWindowViews } from './provider-usage/zai.js'
 import { zenUsageView } from './provider-usage/zen.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
+import { hasResolvableApiKey } from '../usage/billing.js'
 import { hostEnv } from '../../platform/environment/hostEnv.js'
 import { isOneOf } from '../../platform/primitives/isOneOf.js'
 export { zenGoWindowViews } from './provider-usage/zen.js'
@@ -192,14 +192,7 @@ export function anthropicCredentialPresence(
   const plan = reads?.subscriptionType?.() ?? getSubscriptionType()
   const keyPresent =
     reads?.anthropicApiKeyPresent?.() ??
-    ((): boolean => {
-      try {
-        return getAnthropicApiKey() !== null
-      } catch (error) {
-        passedOver(error)
-        return false
-      }
-    })()
+    hasResolvableApiKey()
   const bearer = reads?.bearerTokenSource?.() ?? readBearerTokenSource()
   const envBearer =
     bearer.hasToken && bearer.source !== 'claude.ai' && bearer.source !== 'credentials.keyCommand' && bearer.source !== 'none'

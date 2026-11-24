@@ -9,7 +9,7 @@ import {
 import { getGlobalConfig } from '../../platform/config/globalConfig.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
-function hasResolvableApiKey(): boolean {
+export function hasResolvableApiKey(): boolean {
   try {
     return getAnthropicApiKey() !== null
   } catch (error) {
