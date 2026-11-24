@@ -19,9 +19,9 @@ Within a session, trust only ever transitions from absent to granted.
 A granted verdict latches; an absent verdict is recomputed on every
 check so a mid-session acceptance is picked up immediately.
 
-The home directory is the one exception: accepting there keeps the grant in
-session memory only, because persisting a grant on `$HOME` would trust
-everything, forever.
+The home directory is the one exception: accepting there is remembered for
+the home directory alone, because a grant on `$HOME` that covered its
+descendants would trust everything, forever.
 
 ## When Mercury asks
 
@@ -37,8 +37,8 @@ When the directory sits inside a repository, it also states that the grant will
 cover the whole repository (the persisted grant root is the project-config
 path, the git root when one exists, and that sentence is derived live from the
 same owner the write uses so the wording and the grant always match).
-Accepting records the grant (session-only in the home directory, persisted
-everywhere else); declining exits Mercury.
+Accepting records the grant (for the home directory alone when given there,
+with its descendants everywhere else); declining exits Mercury.
 
 ## What the gate holds closed
 
