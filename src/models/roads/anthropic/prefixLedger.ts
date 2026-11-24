@@ -319,12 +319,6 @@ function productBuildWord(): string {
   return typeof MACRO !== 'undefined' && typeof MACRO.VERSION === 'string' && MACRO.VERSION !== '' ? MACRO.VERSION : 'unknown'
 }
 
-export function recordedBuildFor(owner: string): { recorded: boolean; build: string | undefined; tree: string | undefined } {
-  readSessionRecord(owner)
-  const recorded = recordedBuilds.get(owner)
-  return recorded !== undefined ? { recorded: true, ...recorded } : { recorded: false, build: undefined, tree: undefined }
-}
-
 function ownsSessionRecord(owner: string): boolean {
   try {
     return owner === String(processMainOwner())
