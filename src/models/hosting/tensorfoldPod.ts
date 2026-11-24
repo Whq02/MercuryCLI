@@ -23,7 +23,6 @@ export const isTensorFoldPodBox = (box: Pick<HostBox, 'name' | 'engines'>): bool
 
 export const TENSORFOLD_HOST_WORDS = {
   rentRow: 'rent a GPU pod — Runpod or Vast.ai, through /llmhost',
-  through: '/llmhost rents it, installs TensorFold, pulls, serves, then this session switches · s stops the pod and its billing',
   billingStarts: 'billing starts when it boots',
   stopped: (machine: string, spend: number): string => machine + ' stopped · compute billing ended · ~$' + spend.toFixed(2) + ' so far · the disk bills until you terminate it · t terminates',
   alreadyStopped: (machine: string): string => machine + ' is already stopped · the disk bills until you terminate it · t terminates',
@@ -34,7 +33,6 @@ export const TENSORFOLD_HOST_WORDS = {
   terminateFailed: (machine: string, detail: string): string => machine + ' · ' + detail + ' · it may still bill · /llmhost → Machines I’m paying for → Terminate',
   gone: 'this pod is no longer recorded · /llmhost → Machines I’m paying for lists what still bills',
   gated: 'Mercury sends no token to a TensorFold pod · a gated or private model is not served on a pod yet',
-  refused: (gpu: string, evidence: string): string => gpu + ' is not offered · ' + evidence,
   serves: (title: string, window: number): string => title + ' at ' + tensorFoldWindowWords(window) + ' with TensorFold ' + TENSORFOLD_HOST_VERSION + ' for CUDA',
 } as const
 
@@ -116,15 +114,6 @@ export function tensorFoldRentFacts(row: TensorFoldRentRow): { pod: string; serv
     serves: TENSORFOLD_HOST_WORDS.serves(row.title, row.window),
     title: tensorFoldTitle(row),
   }
-}
-export function tensorFoldRentCardLines(row: TensorFoldRentRow): string[] {
-  const facts = tensorFoldRentFacts(row)
-  return ['pod       ' + facts.pod, 'serves    ' + facts.serves, 'through   ' + TENSORFOLD_HOST_WORDS.through]
-}
-export const tensorFoldCardWords = (gpu: string): string | undefined => {
-  const card = tensorFoldCardFor(gpu)
-  if (!card) return
-  return card.class === 'refused' ? TENSORFOLD_HOST_WORDS.refused(card.gpu, card.evidence) : card.gpu + ' · ' + tensorFoldClassWords(card) + ' · ' + card.evidence
 }
 
 export async function stopTensorFoldPod(id: string, options: { client?: HostVendor; signal?: AbortSignal; pauseMs?: number; timeoutMs?: number; forget?: (name: string) => Promise<void> } = {}): Promise<{ ok: boolean; words: string }> {

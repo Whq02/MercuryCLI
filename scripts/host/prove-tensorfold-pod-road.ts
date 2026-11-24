@@ -8,7 +8,7 @@ import { runpodFixture } from './runpodFixture.mjs'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(process.env.TMPDIR ?? '/private/tmp', 'tensorfold-pod-road-'))
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
-const { TENSORFOLD_HOST_VERSION, tensorFoldKeyWriteCommand, tensorFoldReadyCommand } = await import('../../src/models/hosting/tensorfoldRelease.ts')
+const { TENSORFOLD_HOST_VERSION, tensorFoldCardFor, tensorFoldClassWords, tensorFoldKeyWriteCommand, tensorFoldReadyCommand } = await import('../../src/models/hosting/tensorfoldRelease.ts')
 const pod = await import('../../src/models/hosting/tensorfoldPod.ts')
 const { hostDirectory, hostRecords, readHostRecord, removeHostRecord, writeHostRecord } = await import('../../src/models/hosting/store.ts')
 const { listBoxes, readBox } = await import('../../src/models/hosting/boxes.ts')
@@ -79,12 +79,15 @@ try {
   check('tensorFoldPods lists the pod and skips non-TensorFold records', pod.tensorFoldPods(HOST_RECIPES).length === 1 && pod.tensorFoldPodFacts({ ...readHostRecord('fixture-pod-1')!, recipe: 'qwen38-27b-h200', recipeRow: undefined }, HOST_RECIPES.find(row => row.id === 'qwen38-27b-h200')) === undefined)
 
   const row = pod.tensorFoldRentRow([{ recipe, price: 1.19 }], HOST_RECIPES)!
-  const lines = pod.tensorFoldRentCardLines(row)
-  check('t23’s card words, with the supported RTX 5090 where the frame modelled an H100: pod · serves · through', lines[0] === 'pod       RTX 5090 32 GB · $1.19/h on Runpod or Vast.ai · billing starts when it boots' && lines[1] === 'serves    Qwen3.8 27B at 128k with TensorFold 1.3.3 for CUDA' && lines[2] === 'through   /llmhost rents it, installs TensorFold, pulls, serves, then this session switches · s stops the pod and its billing' && lines.slice(0, 2).every(line => line.length <= 92) && pod.TENSORFOLD_HOST_WORDS.rentRow === 'rent a GPU pod — Runpod or Vast.ai, through /llmhost')
+  const rentFacts = pod.tensorFoldRentFacts(row)
+  check('t23’s rent facts, with the supported RTX 5090 where the frame modelled an H100: pod · serves', rentFacts.pod === 'RTX 5090 32 GB · $1.19/h on Runpod or Vast.ai · billing starts when it boots' && rentFacts.serves === 'Qwen3.8 27B at 128k with TensorFold 1.3.3 for CUDA' && rentFacts.pod.length <= 82 && rentFacts.serves.length <= 82 && pod.TENSORFOLD_HOST_WORDS.rentRow === 'rent a GPU pod — Runpod or Vast.ai, through /llmhost')
   const noStock = pod.tensorFoldRentRow([], HOST_RECIPES)!
-  check('without stock the rent row names the RTX 5090 class and sends the price question to /llmhost', noStock.gpu === 'RTX 5090' && noStock.price === undefined && pod.tensorFoldRentCardLines(noStock)[0] === 'pod       RTX 5090 32 GB on Runpod or Vast.ai · the price shows in /llmhost · billing starts when it boots')
+  check('without stock the rent row names the RTX 5090 class and sends the price question to /llmhost', noStock.gpu === 'RTX 5090' && noStock.price === undefined && pod.tensorFoldRentFacts(noStock).pod === 'RTX 5090 32 GB on Runpod or Vast.ai · the price shows in /llmhost · billing starts when it boots')
   check('an unqualified card never leads the rent row even when it is the cheapest in stock', pod.tensorFoldRentRow([{ recipe: HOST_RECIPES.find(own => own.id === 'tensorfold-qwen38-27b-rtx-4090')!, price: 0.5 }, { recipe, price: 1.19 }], HOST_RECIPES)!.gpu === 'RTX 5090')
-  check('the card words name why a class is refused or unqualified', pod.tensorFoldCardWords('NVIDIA H100 80GB HBM3') === 'H100 is not offered · the 1.3.3 archive holds no sm_90 machine code and no PTX' && pod.tensorFoldCardWords('NVIDIA GeForce RTX 4090') === 'RTX 4090 · ships · unqualified by TensorFold · sm_89 kernels ship; unqualified by TensorFold' && pod.tensorFoldCardWords('NVIDIA GeForce RTX 5090')!.startsWith('RTX 5090 · supported · ') && pod.tensorFoldCardWords('AMD Instinct MI300X OAM') === undefined)
+  const h100 = tensorFoldCardFor('NVIDIA H100 80GB HBM3')
+  const rtx4090 = tensorFoldCardFor('NVIDIA GeForce RTX 4090')
+  const rtx5090 = tensorFoldCardFor('NVIDIA GeForce RTX 5090')
+  check('the card facts name why a class is refused or unqualified', h100?.gpu === 'H100' && h100.class === 'refused' && tensorFoldClassWords(h100) === 'not offered' && h100.evidence === 'the 1.3.3 archive holds no sm_90 machine code and no PTX' && rtx4090?.gpu === 'RTX 4090' && rtx4090.class === 'unqualified' && tensorFoldClassWords(rtx4090) === 'ships · unqualified by TensorFold' && rtx4090.evidence === 'sm_89 kernels ship; unqualified by TensorFold' && rtx5090?.gpu === 'RTX 5090' && rtx5090.class === 'supported' && tensorFoldClassWords(rtx5090) === 'supported' && rtx5090.evidence.length > 0 && tensorFoldCardFor('AMD Instinct MI300X OAM') === undefined)
 
   writeStoredRunpodApiKey(rp.key)
   const created = await (await fetch(rp.baseUrl + '/pods', { method: 'POST', headers: { Authorization: 'Bearer ' + rp.key, 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'mercury-fixture', image: recipe.image, args: 'bash -lc "sleep infinity"', disk: 30, cloud: 'SECURE', gpu: { id: 'NVIDIA GeForce RTX 5090', count: 1, minCudaVersion: '13.0' }, mounts: { persistent: { size: 80, path: '/workspace' } }, ports: ['22/tcp', '8080/http'], env: { PUBLIC_KEY: 'ssh-ed25519 AAAAfixture', HF_HOME: '/workspace/huggingface' } }) })).json() as { id: string }
