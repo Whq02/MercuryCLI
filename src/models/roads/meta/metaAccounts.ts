@@ -178,10 +178,6 @@ export function disconnectMetaMuseCode(): void {
   writeMetaMuseCodeGrant(null)
 }
 
-export function metaMuseCodeConnected(): boolean {
-  return readMetaMuseCodeGrant() !== undefined
-}
-
 export type MetaMuseCodeFacts = Omit<MetaMuseCodeGrant, 'accessToken' | 'apiKey'>
 
 export function metaMuseCodeFacts(): MetaMuseCodeFacts | undefined {
