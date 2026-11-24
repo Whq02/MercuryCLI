@@ -62,7 +62,6 @@ console.log('\n§2 the scope describes itself by that file')
 {
   check('projectMcpFilePath rides the project-config seam', config.projectMcpFilePath(PROJ) === projectFile, config.projectMcpFilePath(PROJ))
   check("describeMcpConfigFilePath('project') names the file", utils.describeMcpConfigFilePath('project') === projectFile, utils.describeMcpConfigFilePath('project'))
-  check("getScopeLabel('project') names the file", utils.getScopeLabel('project').includes('.mercury/mcp.json'), utils.getScopeLabel('project'))
 }
 
 console.log('\n§3 mcp add/remove --scope project write that file')

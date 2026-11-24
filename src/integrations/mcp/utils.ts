@@ -102,25 +102,6 @@ function getGlobalMercuryConfigPath(): string {
   return getGlobalMercuryFile()
 }
 
-export function getScopeLabel(scope: ConfigScope | string): string {
-  switch (scope) {
-    case 'user':
-      return 'User (available in all your projects)'
-    case 'project':
-      return 'Project (shared with collaborators via .mercury/mcp.json)'
-    case 'local':
-      return 'Local (visible only to you in this project)'
-    case 'enterprise':
-      return 'Enterprise (administered by your organization)'
-    case 'dynamic':
-      return 'Dynamic (provided on the command line)'
-    case 'claudeai':
-      return 'claude.ai (connected through your web account)'
-    default:
-      return String(scope)
-  }
-}
-
 const OPERATOR_CONFIG_SCOPES: readonly ConfigScope[] = ['local', 'user', 'project']
 
 export function ensureConfigScope(scope?: string): ConfigScope {
