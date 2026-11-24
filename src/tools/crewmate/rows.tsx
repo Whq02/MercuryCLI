@@ -402,14 +402,10 @@ export function renderToolResultMessage(
           <Text>Crewmate launched in the background</Text>
         </MessageResponse>
         {!options.isTranscriptMode ? (
-          <Box>
-            <Text dimColor>
-              <Byline>
-                <KeyboardShortcutHint shortcut="↓" action="manage" />
-                {prompt !== undefined ? <ExpandHint /> : null}
-              </Byline>
-            </Text>
-          </Box>
+          <Byline>
+            <KeyboardShortcutHint shortcut="↓" action="manage" />
+            {prompt !== undefined ? <ExpandHint /> : null}
+          </Byline>
         ) : null}
         {options.isTranscriptMode && prompt !== undefined ? (
           <MessageResponse>
