@@ -7,6 +7,7 @@ import type { ToolResultBlockParam } from '../../../engine/message-shapes/wire.j
 import { INTERRUPT_MESSAGE_FOR_TOOL_USE, REJECT_MESSAGE_WITH_REASON_PREFIX } from '../../../engine/messages/messages.js'
 import type { HermesKillInfo } from '../../../permissions/rules/capabilityGate.js'
 import { FallbackToolUseErrorMessage } from '../../../tools/kit/FallbackToolUseErrorMessage.js'
+import { isSchemaValidationRefusal } from '../../../tools/kit/toolErrors.js'
 import { InterruptedByUser } from '../InterruptedByUser.js'
 import { GLYPH } from '../../theme/glyphs.js'
 import { CRIMSON, FAINT, IVORY, SECOND } from '../../theme/mercuryPalette.js'
@@ -62,7 +63,7 @@ function ToolsOwnErrorRow({ progressMessagesForMessage, tool, tools, param, verb
 }
 
 export function UserToolErrorMessage(props: Props): React.ReactNode {
-  const { hermesKill, param } = props
+  const { hermesKill, param, tool, toolUseResult, verbose, isTranscriptMode } = props
   if (hermesKill) return <KilledToolRow kill={hermesKill} />
   if (interrupted(param)) {
     return (
@@ -72,5 +73,13 @@ export function UserToolErrorMessage(props: Props): React.ReactNode {
     )
   }
   if (rejectedWithReason(param)) return <RejectedToolUseMessage />
+  if (
+    !verbose &&
+    !isTranscriptMode &&
+    tool !== undefined &&
+    isSchemaValidationRefusal(tool.name, toolUseResult ?? param.content)
+  ) {
+    return null
+  }
   return <ToolsOwnErrorRow {...props} />
 }

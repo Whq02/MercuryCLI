@@ -156,6 +156,179 @@ t('CrewBoard read result → null',
     transcript.some(line => line.includes('An answer names')),
     JSON.stringify(transcript),
   )
+
+  const { z } = await import('zod/v4')
+  const { runToolUse } = await import('../../src/engine/tool-dispatch/toolExecution.js')
+  const { getEmptyToolPermissionContext, buildTool } = await import('../../src/tools/kit/tool.js')
+  const { formatZodValidationError } = await import('../../src/tools/kit/toolErrors.js')
+  const { UserToolErrorMessage } = await import('../../src/screen/messages/user-tool-result/UserToolErrorMessage.js')
+  const schema = z.object({ count: z.number() })
+  const probeTool = buildTool({
+    name: 'SchemaProbe',
+    inputSchema: schema,
+    maxResultSizeChars: 1000,
+    description: async () => 'probe',
+    prompt: async () => 'probe',
+    call: async () => ({ data: 'unexpected' }),
+    mapToolResultToToolResultBlockParam: (data, toolUseId) => ({
+      type: 'tool_result',
+      tool_use_id: toolUseId,
+      content: String(data),
+    }),
+    renderToolUseMessage: (v: { count: number }) => String(v.count),
+  })
+  const badInput = { count: 'two' }
+  const parsedBad = schema.safeParse(badInput)
+  const expectedBuilt = parsedBad.success ? '' : formatZodValidationError(probeTool.name, parsedBad.error)
+  const appState = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map() }
+  const updates = []
+  for await (const update of runToolUse(
+    { type: 'tool_use', id: 'toolu_schema_1', name: probeTool.name, input: badInput },
+    { uuid: 'a-schema-1', message: { id: 'm-schema-1' } } as never,
+    (async () => ({ behavior: 'allow' })) as never,
+    {
+      abortController: new AbortController(),
+      getAppState: () => appState,
+      setAppState: () => {},
+      messages: [],
+      toolDecisions: new Map(),
+      options: { tools: [probeTool], mcpClients: [], isNonInteractiveSession: true },
+    } as never,
+  )) {
+    updates.push(update)
+  }
+  const errMsg = updates.find(u => u.message.type === 'user')!.message
+  const errBlock =
+    errMsg.type === 'user' && Array.isArray(errMsg.message.content)
+      ? errMsg.message.content.find(b => b.type === 'tool_result')
+      : undefined
+  const modelContent = typeof errBlock?.content === 'string' ? errBlock.content : ''
+  t(
+    'schema refusal tool_result content for the model is byte-equal to formatZodValidationError output',
+    modelContent === `<tool_use_error>${expectedBuilt}</tool_use_error>` &&
+      errMsg.type === 'user' &&
+      errMsg.toolUseResult === expectedBuilt,
+    JSON.stringify({ modelContent, expectedBuilt }),
+  )
+  const schemaToolUseBlock = { type: 'tool_use' as const, id: 'toolu_schema_1', name: probeTool.name, input: badInput }
+  const schemaLookups = {
+    siblingToolUseIDs: new Map(),
+    progressMessagesByToolUseID: new Map(),
+    inProgressHookCounts: new Map(),
+    resolvedHookCounts: new Map(),
+    toolResultByToolUseID: new Map([['toolu_schema_1', errMsg]]),
+    toolUseByToolUseID: new Map([['toolu_schema_1', schemaToolUseBlock]]),
+    normalizedMessageCount: 2,
+    resolvedToolUseIDs: new Set(['toolu_schema_1']),
+    erroredToolUseIDs: new Set(['toolu_schema_1']),
+    deniedToolUseIDs: new Set<string>(),
+  }
+  const renderSchemaPair = async (opts: { verbose: boolean; isTranscriptMode?: boolean }): Promise<string[]> => {
+    const node = React.createElement(
+      Box,
+      { flexDirection: 'column' },
+      React.createElement(AssistantToolUseMessage as never, {
+        param: schemaToolUseBlock,
+        tools: [probeTool],
+        verbose: opts.verbose,
+        isTranscriptMode: opts.isTranscriptMode,
+        inProgressToolUseIDs: new Set<string>(),
+        lookups: schemaLookups as never,
+      } as never),
+      React.createElement(UserToolErrorMessage as never, {
+        param: errBlock,
+        toolUseResult: errMsg.type === 'user' ? errMsg.toolUseResult : undefined,
+        progressMessagesForMessage: [],
+        tool: probeTool,
+        tools: [probeTool],
+        verbose: opts.verbose,
+        isTranscriptMode: opts.isTranscriptMode,
+        input: badInput,
+      } as never),
+    )
+    const out = await renderToString(node as never, 100)
+    return out.split('\n').filter(line => line.trim() !== '')
+  }
+  const schemaCompact = await renderSchemaPair({ verbose: false })
+  t(
+    'schema refusal paints ONE row with tool name and · invalid input, and no failed (issue line',
+    schemaCompact.length === 1 &&
+      schemaCompact[0]!.includes(probeTool.name) &&
+      schemaCompact[0]!.includes(' · invalid input') &&
+      !schemaCompact.some(line => line.includes('failed (issue')),
+    JSON.stringify(schemaCompact),
+  )
+  const schemaTranscript = await renderSchemaPair({ verbose: false, isTranscriptMode: true })
+  t(
+    'schema refusal in transcript mode keeps the full refusal',
+    schemaTranscript.some(line => line.includes('failed (issue')),
+    JSON.stringify(schemaTranscript),
+  )
+  const schemaVerbose = await renderSchemaPair({ verbose: true })
+  t(
+    'schema refusal in verbose mode keeps the full refusal',
+    schemaVerbose.some(line => line.includes('failed (issue')),
+    JSON.stringify(schemaVerbose),
+  )
+  const ordinaryErrBlock = {
+    type: 'tool_result' as const,
+    tool_use_id: 'toolu_ordinary_1',
+    content: '<tool_use_error>File does not exist.</tool_use_error>',
+    is_error: true,
+  }
+  const ordinaryErrMsg = {
+    type: 'user' as const,
+    uuid: 'u-ordinary-1',
+    timestamp: new Date(0).toISOString(),
+    message: { role: 'user' as const, content: [ordinaryErrBlock] },
+    toolUseResult: 'File does not exist.',
+  }
+  const ordinaryToolUse = { type: 'tool_use' as const, id: 'toolu_ordinary_1', name: probeTool.name, input: { count: 3 } }
+  const ordinaryLookups = {
+    siblingToolUseIDs: new Map(),
+    progressMessagesByToolUseID: new Map(),
+    inProgressHookCounts: new Map(),
+    resolvedHookCounts: new Map(),
+    toolResultByToolUseID: new Map([['toolu_ordinary_1', ordinaryErrMsg]]),
+    toolUseByToolUseID: new Map([['toolu_ordinary_1', ordinaryToolUse]]),
+    normalizedMessageCount: 2,
+    resolvedToolUseIDs: new Set(['toolu_ordinary_1']),
+    erroredToolUseIDs: new Set(['toolu_ordinary_1']),
+    deniedToolUseIDs: new Set<string>(),
+  }
+  const ordinaryOut = (
+    await renderToString(
+      React.createElement(
+        Box,
+        { flexDirection: 'column' },
+        React.createElement(AssistantToolUseMessage as never, {
+          param: ordinaryToolUse,
+          tools: [probeTool],
+          verbose: false,
+          inProgressToolUseIDs: new Set<string>(),
+          lookups: ordinaryLookups as never,
+        } as never),
+        React.createElement(UserToolErrorMessage as never, {
+          param: ordinaryErrBlock,
+          toolUseResult: ordinaryErrMsg.toolUseResult,
+          progressMessagesForMessage: [],
+          tool: probeTool,
+          tools: [probeTool],
+          verbose: false,
+          input: { count: 3 },
+        } as never),
+      ) as never,
+      100,
+    )
+  )
+    .split('\n')
+    .filter(line => line.trim() !== '')
+  t(
+    'ordinary tool error keeps its error row and never appends · invalid input',
+    ordinaryOut.some(line => line.includes('File does not exist.')) &&
+      !ordinaryOut.some(line => line.includes('invalid input')),
+    JSON.stringify(ordinaryOut),
+  )
   rmSync(scratch, { recursive: true, force: true })
 }
 

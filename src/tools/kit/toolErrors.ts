@@ -228,3 +228,18 @@ export function formatZodValidationError(
   const label = lines.length === 1 ? 'issue' : 'issues'
   return `${toolName} failed (${label}):\n${lines.join('\n')}`
 }
+
+export function isSchemaValidationRefusal(
+  toolName: string,
+  value: unknown,
+): boolean {
+  if (typeof value !== 'string') return false
+  const text =
+    value.startsWith('<tool_use_error>') && value.endsWith('</tool_use_error>')
+      ? value.slice('<tool_use_error>'.length, -'</tool_use_error>'.length)
+      : value
+  return (
+    text.startsWith(`${toolName} failed (issue):\n`) ||
+    text.startsWith(`${toolName} failed (issues):\n`)
+  )
+}

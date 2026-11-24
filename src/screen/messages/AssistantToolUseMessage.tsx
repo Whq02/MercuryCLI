@@ -10,6 +10,7 @@ import { BASH_TOOL_NAME } from '../../tools/kit/names/bash.js'
 import { useAppStateMaybeOutsideOfProvider } from '../app-state/AppState.js'
 import { logError } from '../../platform/logs/errorLog.js'
 import type { MessageLookups } from '../../engine/messages/lookups.js'
+import { isSchemaValidationRefusal } from '../../tools/kit/toolErrors.js'
 import { summarizeToolResult } from '../../tools/kit/toolResultSummary.js'
 import { settingsChangeDetector } from '../../platform/settings/changeDetector.js'
 import { getSettingsSnapshot, settingsRevision } from '../../platform/settings/snapshot.js'
@@ -129,6 +130,19 @@ function editMetaCounts(
   return { added, removed }
 }
 
+function toolResultContentOf(
+  resultRow: ReturnType<MessageLookups['toolResultByToolUseID']['get']>,
+  toolUseId: string,
+): unknown {
+  if (!resultRow || resultRow.type !== 'user') return undefined
+  if (resultRow.toolUseResult !== undefined) return resultRow.toolUseResult
+  const content = resultRow.message.content
+  if (!Array.isArray(content)) return undefined
+  const block = content.find(
+    item => item.type === 'tool_result' && item.tool_use_id === toolUseId,
+  )
+  return block && block.type === 'tool_result' ? block.content : undefined
+}
 
 const HEAD_RESERVATION_CELLS = 38
 
@@ -235,34 +249,53 @@ export function AssistantToolUseMessage({
     )
   }
 
+  const resultRow = lookups.toolResultByToolUseID.get(param.id)
+  const rawResult =
+    resultRow && resultRow.type === 'user' ? resultRow.toolUseResult : undefined
+  const showInvalidInput =
+    resolved &&
+    errored &&
+    !verbose &&
+    !isTranscriptMode &&
+    isSchemaValidationRefusal(tool.name, toolResultContentOf(resultRow, param.id))
+
   let parsedInput: unknown = param.input
+  let inputValid = true
   if (tool.inputSchema?.safeParse) {
     const parsed = tool.inputSchema.safeParse(param.input)
     if (!parsed.success) {
-      return null
+      if (!showInvalidInput) {
+        return null
+      }
+      inputValid = false
+    } else {
+      parsedInput = parsed.data
     }
-    parsedInput = parsed.data
   }
 
-  if (typeof tool.renderToolUseMessage !== 'function') {
-    return null
-  }
-  let toolUseMessage: React.ReactNode | string | null = null
-  try {
-    toolUseMessage = tool.renderToolUseMessage(parsedInput, {
-      verbose,
-      theme: undefined,
-    })
-  } catch (error) {
-    logError(error)
-    toolUseMessage = ''
-  }
-  if (toolUseMessage === null || toolUseMessage === undefined) {
-    return null
+  let toolUseMessage: React.ReactNode | string | null = ''
+  if (inputValid) {
+    if (typeof tool.renderToolUseMessage !== 'function') {
+      if (!showInvalidInput) return null
+    } else {
+      try {
+        toolUseMessage = tool.renderToolUseMessage(parsedInput, {
+          verbose,
+          theme: undefined,
+        })
+      } catch (error) {
+        logError(error)
+        toolUseMessage = ''
+      }
+      if (toolUseMessage === null || toolUseMessage === undefined) {
+        if (!showInvalidInput) return null
+        toolUseMessage = ''
+      }
+    }
   }
 
   let toolUseTag: React.ReactNode | string | null = null
-  if (tool.renderToolUseTag) {
+  if (inputValid && tool.renderToolUseTag) {
     try {
       toolUseTag = tool.renderToolUseTag(parsedInput, { verbose })
     } catch (error) {
@@ -272,7 +305,7 @@ export function AssistantToolUseMessage({
   }
 
   let nameBgColor: string | undefined
-  if (tool.userFacingNameBackgroundColor) {
+  if (inputValid && tool.userFacingNameBackgroundColor) {
     try {
       nameBgColor = tool.userFacingNameBackgroundColor(parsedInput)
     } catch (error) {
@@ -282,9 +315,6 @@ export function AssistantToolUseMessage({
   }
 
   const rowState = toolRowStateOf({ resolved, errored, denied })
-  const resultRow = lookups.toolResultByToolUseID.get(param.id)
-  const rawResult =
-    resultRow && resultRow.type === 'user' ? resultRow.toolUseResult : undefined
   const showCompactMeta =
     resolved && !errored && !verbose && !isTranscriptMode && rawResult !== undefined
 
@@ -298,9 +328,11 @@ export function AssistantToolUseMessage({
     editMetaText !== null &&
     HEAD_RESERVATION_CELLS + stringWidth(editMetaText) <= columns
 
-  const resultSummary = showCompactMeta
-    ? summarizeToolResult(tool.name, rawResult, parsedInput)
-    : null
+  const resultSummary = showInvalidInput
+    ? '· invalid input'
+    : showCompactMeta
+      ? summarizeToolResult(tool.name, rawResult, parsedInput)
+      : null
   const summaryWidth = resultSummary !== null ? stringWidth(resultSummary) : 0
   const showInlineSummary =
     resultSummary !== null &&
@@ -309,7 +341,7 @@ export function AssistantToolUseMessage({
   const showBlockSummary = resultSummary !== null && !showInlineSummary
 
   let queuedNode: React.ReactNode = null
-  if (isQueued && tool.renderToolUseQueuedMessage) {
+  if (inputValid && isQueued && tool.renderToolUseQueuedMessage) {
     try {
       queuedNode = tool.renderToolUseQueuedMessage(parsedInput, { verbose })
     } catch (error) {
