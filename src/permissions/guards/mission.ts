@@ -32,7 +32,7 @@ import {
   type MissionCardState,
   type MissionOutcome,
 } from '../../sessions/mission-card/missionCard.js'
-import { MISSION_HOLD_HEAD, missionStatusLine, type ServedMission } from '../../sessions/mission/served.js'
+import { MISSION_HOLD_HEAD, type ServedMission } from '../../sessions/mission/served.js'
 import { getCwd } from '../../platform/files/cwd.js'
 import { formatDuration } from '../../platform/text/format.js'
 import { plural } from '../../platform/text/strings.js'
@@ -547,11 +547,6 @@ export function clearActiveMission(
   logForDebugging(`[mission] cleared standing mission for session ${sessionId}`)
   notifyMissionChange()
   return saveWarning === null ? mission.condition : `${mission.condition} — ${saveWarning}`
-}
-
-export function activeMissionStatusLine(sessionId: string = conversationIdHere()): string | null {
-  const mission = missionsBySession.get(sessionId)
-  return mission === undefined || mission.met ? null : missionStatusLine(mission)
 }
 
 export function syncMissionFromCard(sessionId: string): void {
