@@ -67,7 +67,3 @@ export function railPlanAt(columns: number, bothEngaged: boolean): RailPlan {
     centerCols: Math.max(20, columns - 2 - railW),
   }
 }
-
-export function helmCenterCols(columns: number): number {
-  return railPlan(columns).centerCols
-}
