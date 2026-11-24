@@ -68,7 +68,7 @@ such client.
 | session/set_config_option (`permission-mode` selector, category `mode`) | yes |
 | _mercury/editor_context (client → agent notification: active file, selection, open files, diagnostics, workspace roots — rides the next prompt as an attached resource) | yes (extension notification) |
 | _mercury/workbench (incl. the versioned attention + relationship wire) · _mercury/artifacts · _mercury/artifact · _mercury/crew · _mercury/run | yes (extension methods — the VS Code bridge's read surface) |
-| fs/terminal client capabilities | not used (Mercury executes locally) |
+| fs/terminal client capabilities (`fs.readTextFile` · `fs.writeTextFile` · `terminal`) | read at `initialize` and passed to the runner; forwards `fs/read_text_file`, `fs/write_text_file`, and `terminal/create` · `output` · `wait_for_exit` · `kill` · `release` to editors that advertise them (otherwise Mercury executes locally) |
 | available_commands_update (slash commands) | not implemented |
 
 Conformance: `scripts/editor-bridge/prove-acp-server.ts` (deterministic fixture
