@@ -828,13 +828,16 @@ const SPAWN: Row[] = [
   {
     name: 'spawn.hostShellHint',
     answers: () => [
-      hostShellHint({ PSModulePath: 'C:\\Mods', ComSpec: 'C:\\cmd.exe', SHELL: '/bin/zsh' }),
+      hostShellHint({ PSModulePath: 'C:\\Users\\op\\Documents\\PowerShell\\Modules;C:\\Program Files\\PowerShell\\Modules;c:\\program files\\powershell\\7\\Modules;C:\\Program Files\\WindowsPowerShell\\Modules;C:\\Windows\\system32\\WindowsPowerShell\\v1.0\\Modules', ComSpec: 'C:\\cmd.exe', SHELL: '/bin/zsh' }),
+      hostShellHint({ PSModulePath: 'C:\\Program Files\\WindowsPowerShell\\Modules;C:\\Windows\\system32\\WindowsPowerShell\\v1.0\\Modules', ComSpec: 'C:\\cmd.exe' }),
+      hostShellHint({ PSModulePath: 'C:\\Users\\op\\Documents\\WindowsPowerShell\\Modules;C:\\Program Files\\WindowsPowerShell\\Modules;C:\\Windows\\system32\\WindowsPowerShell\\v1.0\\Modules', ComSpec: 'C:\\cmd.exe' }),
+      hostShellHint({ PSModulePath: 'C:\\Users\\op\\OneDrive\\Documents\\PowerShell\\Modules;C:\\Program Files\\WindowsPowerShell\\Modules;C:\\Windows\\system32\\WindowsPowerShell\\v1.0\\Modules', ComSpec: 'C:\\cmd.exe' }),
       hostShellHint({ ComSpec: 'C:\\cmd.exe' }),
       hostShellHint({ SHELL: '/bin/bash' }),
       hostShellHint({}),
       hostShellHint({ PSModulePath: '', ComSpec: 'C:\\cmd.exe', SHELL: '' }),
     ],
-    recorded: {"win32":["powershell","cmd","unknown","unknown","cmd"],"darwin":["posix-sh","unknown","posix-sh","unknown","unknown"],"linux":["posix-sh","unknown","posix-sh","unknown","unknown"],"win32 by process.platform alone":["powershell","cmd","unknown","unknown","cmd"],"win32 by getPlatform() alone":["posix-sh","unknown","posix-sh","unknown","unknown"]},
+    recorded: {"win32":["powershell","cmd","powershell","powershell","cmd","unknown","unknown","cmd"],"darwin":["posix-sh","unknown","unknown","unknown","unknown","posix-sh","unknown","unknown"],"linux":["posix-sh","unknown","unknown","unknown","unknown","posix-sh","unknown","unknown"],"win32 by process.platform alone":["powershell","cmd","powershell","powershell","cmd","unknown","unknown","cmd"],"win32 by getPlatform() alone":["posix-sh","unknown","unknown","unknown","unknown","posix-sh","unknown","unknown"]},
   },
   {
     name: 'spawn.isBatchShim',

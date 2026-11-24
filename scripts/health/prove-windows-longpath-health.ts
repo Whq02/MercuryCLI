@@ -262,7 +262,11 @@ try {
       if (res.status !== 0) throw new Error(`command-on-path subprocess failed (${res.status}): ${res.stderr}`)
       return JSON.parse(res.stdout) as { status: string; evidence: string; fix?: string }
     }
-    const fromCmd = runManagedPolicy({ ComSpec: String.raw`C:\Windows\System32\cmd.exe` })
+    const machinePsModulePath = String.raw`C:\Program Files\WindowsPowerShell\Modules;C:\Windows\system32\WindowsPowerShell\v1.0\Modules`
+    const fromCmd = runManagedPolicy({
+      ComSpec: String.raw`C:\Windows\System32\cmd.exe`,
+      PSModulePath: machinePsModulePath,
+    })
     check(
       'command-on-path suppresses the PowerShell script-policy warning when started from cmd',
       fromCmd.status === 'ok' &&
@@ -272,7 +276,7 @@ try {
     )
     const fromPs = runManagedPolicy({
       ComSpec: String.raw`C:\Windows\System32\cmd.exe`,
-      PSModulePath: String.raw`C:\Users\op\Documents\PowerShell\Modules`,
+      PSModulePath: `${String.raw`C:\Users\op\Documents\PowerShell\Modules;C:\Program Files\PowerShell\Modules;c:\program files\powershell\7\Modules;`}${machinePsModulePath}`,
     })
     check(
       'command-on-path shows the PowerShell script-policy warning when started from PowerShell',

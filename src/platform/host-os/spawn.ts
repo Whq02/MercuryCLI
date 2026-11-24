@@ -47,13 +47,54 @@ export function shellBinarySpec(
   return { file: command, args: [...args], windowsVerbatimArguments: false }
 }
 
+function winEnvValue(env: NodeJS.ProcessEnv, name: string): string | undefined {
+  if (env[name] !== undefined) return env[name]
+  const lower = name.toLowerCase()
+  for (const [key, value] of Object.entries(env)) {
+    if (key.toLowerCase() === lower) return value
+  }
+  return undefined
+}
+
+function normalizeWinModuleEntry(raw: string): string {
+  return raw.trim().replaceAll('\\', '/').replace(/\/+$/, '').toLowerCase()
+}
+
+function isWindowsSystemModuleRoot(entry: string, env: NodeJS.ProcessEnv): boolean {
+  const programRoots = ['ProgramFiles', 'ProgramW6432', 'ProgramFiles(x86)']
+    .map(name => winEnvValue(env, name))
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    .map(normalizeWinModuleEntry)
+  const windowsRoots = ['SystemRoot', 'windir']
+    .map(name => winEnvValue(env, name))
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    .map(normalizeWinModuleEntry)
+  const roots = [
+    ...(programRoots.length > 0 ? programRoots : ['c:/program files', 'c:/program files (x86)']),
+    ...(windowsRoots.length > 0 ? windowsRoots : ['c:/windows']),
+  ]
+  return roots.some(root => entry === root || entry.startsWith(`${root}/`))
+}
+
+function hasPowerShellStartModulePath(env: NodeJS.ProcessEnv): boolean {
+  const raw = winEnvValue(env, 'PSModulePath')
+  if (typeof raw !== 'string' || raw.length === 0) return false
+  for (const part of raw.split(';')) {
+    const entry = normalizeWinModuleEntry(part)
+    if (entry.length === 0) continue
+    if (entry.endsWith('/powershell/modules')) return true
+    if (entry.endsWith('/windowspowershell/modules') && !isWindowsSystemModuleRoot(entry, env)) return true
+  }
+  return false
+}
+
 export function hostShellHint(
   env: NodeJS.ProcessEnv,
   platform: NodeJS.Platform = process.platform,
 ): HostShellHint {
   if (platform === 'win32') {
-    if (typeof env.PSModulePath === 'string' && env.PSModulePath.length > 0) return 'powershell'
-    if (typeof env.ComSpec === 'string') return 'cmd'
+    if (hasPowerShellStartModulePath(env)) return 'powershell'
+    if (typeof winEnvValue(env, 'ComSpec') === 'string') return 'cmd'
     return 'unknown'
   }
   if (typeof env.SHELL === 'string' && env.SHELL.length > 0) return 'posix-sh'
