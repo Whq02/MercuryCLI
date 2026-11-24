@@ -40,6 +40,7 @@ const ids = {
   elsewhere: '33333333-3333-4333-8333-333333333333',
   live: '44444444-4444-4444-8444-444444444444',
   parked: '55555555-5555-4555-8555-555555555555',
+  running: '77777777-7777-4777-8777-777777777777',
   absent: '99999999-9999-4999-8999-999999999999',
 }
 const transcriptLine = (sessionId: string): string =>
@@ -62,12 +63,14 @@ const siblingPath = seed(STORE, ids.sibling)
 const elsewherePath = seed(OTHER_STORE, ids.elsewhere)
 const livePath = seed(STORE, ids.live, false)
 const parkedPath = seed(STORE, ids.parked, false)
+const runningPath = seed(STORE, ids.running, false)
 writeFileSync(join(DAEMON, 'concourse-workers.json'), JSON.stringify({
   version: 1,
   workers: {
     'concourse-w1': { schema: 1, runnerId: 'concourse-w1', sessionId: ids.live, workspaceId: PROJ, isolation: 'shared', modelKey: 'fixture-model', startedAt: Date.now() },
     'concourse-w2': { schema: 1, runnerId: 'concourse-w2', sessionId: ids.parked, workspaceId: PROJ, isolation: 'shared', modelKey: 'fixture-model', startedAt: Date.now(), parkedAt: Date.now() },
     'concourse-w3': { schema: 1, runnerId: 'concourse-w3', sessionId: ids.sibling, workspaceId: PROJ, isolation: 'shared', modelKey: 'fixture-model', startedAt: Date.now() - 5000, endedAt: Date.now() - 1000 },
+    'concourse-w4': { schema: 1, runnerId: 'concourse-w4', sessionId: ids.running, workspaceId: PROJ, isolation: 'shared', modelKey: 'fixture-model', startedAt: Date.now(), pid: process.pid },
   },
 }))
 const listing = (dir: string): string[] => readdirSync(dir, { recursive: true }).map(String).sort()
@@ -100,14 +103,14 @@ section('§0 the verb exists and rides the one delete door')
   }
 }
 
-section('§1 refusals: a live session, a parked session, an unknown id, a non-id, no terminal without --yes')
+section('§1 refusals: a live session, a session with a live runner, an unknown id, a non-id, no terminal without --yes; a parked session is deleted')
 {
   const before = listing(STORE)
   const live = await run(ids.live, { yes: true })
   check('a session the daemon hosts now is refused with the reason', live.rc === 1 && /is live/.test(text(live)) && /the daemon/.test(text(live)), `sessionsDeleteCli in src/commands/verbs/sessionsVerb.ts must refuse a session the daemon hosts (exit 1, message with is live and the daemon); got: ${text(live)}`)
   check('…and its transcript stays', existsSync(livePath))
-  const parked = await run(ids.parked, { yes: true })
-  check('a parked session (hosted, not ended) is refused too', parked.rc === 1 && /is live/.test(text(parked)) && existsSync(parkedPath), `liveSessionIds in src/commands/verbs/sessionsVerb.ts must count a parked worker (no endedAt) as live; got: ${text(parked)}`)
+  const running = await run(ids.running, { yes: true })
+  check('a session with a live runner (its record neither parked nor ended, its pid alive) is refused too', running.rc === 1 && /is live/.test(text(running)) && /Stop it first/.test(text(running)) && existsSync(runningPath), `sessionsDeleteCli in src/commands/verbs/sessionsVerb.ts must refuse a session whose record is neither parked nor ended (boardHomedSessionIds in src/daemon/concourse-workers/queries.ts holds it); got: ${text(running)}`)
   const unknown = await run(ids.absent, { yes: true })
   check('an unknown id is refused with the roster hint', unknown.rc === 1 && /No saved session 99999999-9999-4999-8999-999999999999/.test(text(unknown)) && /roster/.test(text(unknown)) && /\/sessions/.test(text(unknown)), `the no-saved-session refusal in sessionsDeleteCli (src/commands/verbs/sessionsVerb.ts) must exit 1 and name the id and the /sessions roster; got: ${text(unknown)}`)
   for (const given of ['', 'latest', '../x.jsonl', `${STORE}/${ids.named}.jsonl`, '11111111-1111-4111-8111-11111111111', "'; rm -rf /", 'C:\\Users\\x\\.mercury\\projects\\p\\11111111-1111-4111-8111-111111111111.jsonl']) {
@@ -120,6 +123,13 @@ section('§1 refusals: a live session, a parked session, an unknown id, a non-id
   check('on a terminal, answering No deletes nothing and says so', declined.rc === 0 && declined.asked.length === 1 && /Nothing deleted/.test(text(declined)) && existsSync(namedPath), `sessionsDeleteCli in src/commands/verbs/sessionsVerb.ts must ask once and on No print Nothing deleted, exit 0 and keep the file; got: ${text(declined)}`)
   check('the question names the records kept beside the transcript', /receipts, resume snapshot/.test(declined.asked[0] ?? ''), `the question passed to io.ask in sessionsDeleteCli (src/commands/verbs/sessionsVerb.ts) must name receipts, resume snapshot; got: ${declined.asked[0]}`)
   check('the store is untouched after every refusal', JSON.stringify(listing(STORE)) === JSON.stringify(before), 'a refusal path in sessionsDeleteCli (src/commands/verbs/sessionsVerb.ts) removed a file; return before operatorPruneTranscripts runs')
+  const parked = await run(ids.parked, { yes: true })
+  check('a parked session (its record at rest, no live runner) is deleted when its user asks', parked.rc === 0 && parked.asked.length === 0 && !existsSync(parkedPath), `sessionsDeleteCli in src/commands/verbs/sessionsVerb.ts must delete a session whose record is parked (boardHomedSessionIds in src/daemon/concourse-workers/queries.ts leaves a parked record out of the live set); got rc ${parked.rc}: ${text(parked)}`)
+  check('…and the answer names the session and its transcript', /Deleted session 55555555-5555-4555-8555-555555555555: the transcript — \d+ KB freed\./.test(text(parked)) && /Session 55555555-5555-4555-8555-555555555555 — .*55555555-5555-4555-8555-555555555555\.jsonl/.test(text(parked)), `fix the io.out lines of sessionsDeleteCli in src/commands/verbs/sessionsVerb.ts; got: ${text(parked)}`)
+  check('nothing but the parked session\'s transcript left the store', JSON.stringify(before.filter(entry => !listing(STORE).includes(entry))) === JSON.stringify([`${ids.parked}.jsonl`]), `removed: ${JSON.stringify(before.filter(entry => !listing(STORE).includes(entry)))}`)
+  const listed: string[] = []
+  const listRc = verb === null ? -1 : await verb.sessionsListCli({ all: true }, { out: line => listed.push(line), err: line => listed.push(line), interactive: false, ask: async () => false })
+  check('mercury sessions list no longer lists the deleted session, and still lists the others', listRc === 0 && !listed.join('\n').includes(ids.parked) && [ids.live, ids.running, ids.named, ids.sibling].every(id => listed.join('\n').includes(id)), `sessionsListCli in src/commands/verbs/sessionsVerb.ts lists the saved transcripts; got rc ${listRc}: ${listed.join(' | ')}`)
 }
 
 section('§2 the delete: the transcript and its two sidecars go, nothing else; the verb says what went')
