@@ -54,7 +54,7 @@ const EXECUTIONS_MAX = 100
 
 let appStateProvider: (() => unknown) | null = null
 
-function withLiveAttention(snap: WorkbenchSnapshot): WorkbenchSnapshot {
+export function withLiveAttention<T extends object>(snap: T): T {
   Object.defineProperty(snap, 'attention', {
     enumerable: true,
     configurable: true,

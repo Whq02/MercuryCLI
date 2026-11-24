@@ -1,7 +1,6 @@
 
 import { subscribeRoomStatusFeed } from '../../screen/attention/statusFeed.js'
-import { cachedAttentionView, subscribeAttentionView } from '../../screen/attention/viewModel.js'
-import { isAttentionStoreArmed } from '../../screen/attention/store.js'
+import { subscribeAttentionView } from '../../screen/attention/viewModel.js'
 import type { AttentionViewV1 } from '../../screen/attention/viewModel.js'
 import {
   healthOf,
@@ -16,6 +15,7 @@ import { serialCoalescer, type SerialCoalescer } from '../../screen/workbench/se
 import {
   resolveWorkbenchSnapshot,
   subscribeWorkbench,
+  withLiveAttention,
 } from '../../screen/workbench/projection.js'
 import type { WorkbenchSnapshot, WorkbenchThreadRow } from '../../screen/workbench/contracts.js'
 import {
@@ -97,15 +97,6 @@ let snapshot: CrewSnapshotV1 | null = null
 const listeners = new Set<() => void>()
 let coalescer: SerialCoalescer | null = null
 let unsubs: Array<() => void> = []
-
-function attachLiveAttention(snap: CrewSnapshotV1): CrewSnapshotV1 {
-  Object.defineProperty(snap, 'attention', {
-    enumerable: true,
-    configurable: true,
-    get: () => (isAttentionStoreArmed() ? cachedAttentionView() : undefined),
-  })
-  return snap
-}
 
 type SourceName = 'identity' | 'workbench'
 
@@ -250,7 +241,7 @@ async function composeCrewSnapshot(version: number): Promise<CrewSnapshotV1> {
       workbench: healthOf(sources.workbench),
     },
   }
-  return attachLiveAttention(snap)
+  return withLiveAttention(snap)
 }
 
 function crewSig(s: CrewSnapshotV1): string {
