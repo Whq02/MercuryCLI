@@ -3,7 +3,7 @@ import type { RowDraft } from '../../../engine/rows/project.js'
 import { subscribeToCommandQueue, getCommandQueue } from '../messageQueueManager.js'
 import type { NoticeRecord } from '../../../sessions/notices/unreadLedger.js'
 import type { QueuedCommand } from '../../../screen/composer/input-core/textInput.js'
-import * as printDriver from '../runnerDriver.js'
+import * as runnerDriver from '../runnerDriver.js'
 import type { BootMade, BootStep, RunnerPorts } from '../runnerPorts.js'
 
 function run(ports: RunnerPorts): BootMade<'stopSdkDrain' | 'carriersOf'> {
@@ -22,7 +22,7 @@ function run(ports: RunnerPorts): BootMade<'stopSdkDrain' | 'carriersOf'> {
     }
   })
 
-  const carriersOf = (notices: readonly NoticeRecord[]): QueuedCommand[] => printDriver.carriersOf(notices)
+  const carriersOf = (notices: readonly NoticeRecord[]): QueuedCommand[] => runnerDriver.carriersOf(notices)
   return { stopSdkDrain, carriersOf }
 }
 

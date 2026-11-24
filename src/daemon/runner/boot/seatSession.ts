@@ -8,7 +8,7 @@ import { recordTranscript } from '../../../sessions/transcripts/writer.js'
 import { logError } from '../../../platform/logs/errorLog.js'
 import { toError } from '../../../platform/errors/errors.js'
 import type { AdvisorQuiet } from '../../../models/advisor/index.js'
-import * as printDriver from '../runnerDriver.js'
+import * as runnerDriver from '../runnerDriver.js'
 import type { BootMade, BootStep, RunnerPorts } from '../runnerPorts.js'
 
 const RECEIVED_UUID_CAP = 10_000
@@ -54,7 +54,7 @@ function run(ports: RunnerPorts): BootMade<'settleClearBirth' | 'receivedUuids' 
   const interruptOutcomes = new Map<string, boolean>()
   asks.setOnControlRequestSent(() => live.hostAsks?.noteParked())
   asks.setOnControlRequestResolved(() => live.hostAsks?.noteSettled())
-  const landAdvisorQuiet = (quiet: AdvisorQuiet): void => printDriver.landAdvisorQuiet(quiet, ports)
+  const landAdvisorQuiet = (quiet: AdvisorQuiet): void => runnerDriver.landAdvisorQuiet(quiet, ports)
   return { settleClearBirth, receivedUuids, interruptOutcomes, landAdvisorQuiet }
 }
 

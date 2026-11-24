@@ -7,7 +7,7 @@ import { parseSlashCommand } from '../../../commands/catalogue/slashCommandParsi
 import { findCommand, isCommandEnabled } from '../../../commands/catalogue/commands.js'
 import { existsSync } from 'node:fs'
 import type { RowDraft } from '../../../engine/rows/project.js'
-import * as printTurn from '../runnerTurn.js'
+import * as runnerTurn from '../runnerTurn.js'
 import type { BootMade, BootStep, RunnerPorts } from '../runnerPorts.js'
 
 function run(ports: RunnerPorts): BootMade<'isMainThreadCommand' | 'takeMainThread' | 'recordNoticeRows' | 'recordHostNoticeRows' | 'missionLineOf' | 'localCommandInput' | 'executeTurn'> {
@@ -45,7 +45,7 @@ function run(ports: RunnerPorts): BootMade<'isMainThreadCommand' | 'takeMainThre
     if (found !== undefined) return found.type !== 'prompt' || !isCommandEnabled(found) || found.userInvocable === false
     return /^[a-zA-Z0-9:_-]+$/.test(parsed.commandName) && !existsSync(`/${parsed.commandName}`)
   }
-  const executeTurn = (command: QueuedCommand, batch: QueuedCommand[], onMessage: (message: RowDraft) => void, initialNotices?: QueuedCommand[]): Promise<void> => printTurn.runTurn(command, batch, onMessage, initialNotices, ports)
+  const executeTurn = (command: QueuedCommand, batch: QueuedCommand[], onMessage: (message: RowDraft) => void, initialNotices?: QueuedCommand[]): Promise<void> => runnerTurn.runTurn(command, batch, onMessage, initialNotices, ports)
   return { isMainThreadCommand, takeMainThread, recordNoticeRows, recordHostNoticeRows, missionLineOf, localCommandInput, executeTurn }
 }
 

@@ -1,9 +1,9 @@
-import * as printDriver from '../runnerDriver.js'
+import * as runnerDriver from '../runnerDriver.js'
 import { landSpawnSwitch as landSwitch } from '../spawnSwitchLanding.js'
 import type { BootMade, BootStep, RunnerPorts } from '../runnerPorts.js'
 
 function run(ports: RunnerPorts): BootMade<'advisorRoad' | 'landSpawnSwitch'> {
-  const advisorRoad = printDriver.advisorRoadOf(ports)
+  const advisorRoad = runnerDriver.advisorRoadOf(ports)
   const landSpawnSwitch = (kind: 'subagents', on: boolean): void => landSwitch(kind, on, ports)
   return { advisorRoad, landSpawnSwitch }
 }
