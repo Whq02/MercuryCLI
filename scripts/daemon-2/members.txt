@@ -20,8 +20,6 @@ prove-think-pulse-reading.ts
 prove-quit-reaps-the-tree.ts
 prove-daemon-owner-watch-budget.ts
 prove-stop-inside-hosted-session.ts
-prove-compaction-hold.ts
 prove-credential-change-reaches-runner.ts
 prove-dupline-arms.ts
-prove-monitor-window-drive.ts
 prove-process-sweep-tables.ts

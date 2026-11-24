@@ -4,12 +4,10 @@
 # lands there automatically; a name listed here but missing on disk is a
 # loud red in this runner.
 prove-agent-end-from-idle.ts
-prove-agent-message-notice.ts
 prove-agent-structured-row.ts
 prove-ask-clock-owner.ts
 prove-background-lifetime-words.ts
 prove-bash-line-in-flight.ts
-prove-busy-retry-bounded.ts
 prove-close-row-usage.ts
 prove-compact-failure-outcome.ts
 prove-compact-rows-own-output.ts

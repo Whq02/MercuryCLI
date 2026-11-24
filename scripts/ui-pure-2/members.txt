@@ -29,7 +29,6 @@ prove-lanes-shed.ts
 prove-live-counter.ts
 prove-live-glyphs.ts
 prove-logins-key-lines.ts
-prove-logins-popup.ts
 prove-markdown-marker-gate.ts
 prove-model-picker-layout.ts
 prove-model-picker-search.ts
@@ -73,7 +72,6 @@ prove-code-gutter-holds.ts
 prove-popup-panel-fills-frame.ts
 prove-stale-dist-guard.ts
 prove-paint-whole-frame.ts
-prove-list-covers-viewport.tsx
 prove-picker-narrow-columns.ts
 prove-scroll-clip-paints.ts
 prove-list-click-on-space.tsx
@@ -83,12 +81,8 @@ prove-rails-whole-or-absent.ts
 prove-exit-notice-owns-its-row.ts
 prove-composer-draft-survives-dispatch.ts
 prove-paste-keeps-tabs.ts
-prove-paste-sent-whole.ts
 prove-command-argument-pasted.ts
-prove-landing-lines-sent-in-order.ts
 prove-paste-type-interleaving.ts
-prove-chat-recording.ts
-prove-recording-draws.ts
 prove-store-snapshots.ts
 prove-chat-parts-law.ts
 prove-chat-title-part.ts

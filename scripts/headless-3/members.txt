@@ -1,0 +1,12 @@
+# scripts/headless-3/members.txt — this sub-suite's provers, one
+# basename per line (the files live in scripts/headless/). The parent
+# suite runs every prover NOT named by a sibling list, so a NEW prover
+# lands there automatically; a name listed here but missing on disk is a
+# loud red in this runner.
+prove-child-rows.ts
+prove-compact-refusal-resume.ts
+prove-max-time-cuts-crewmates.ts
+prove-mid-turn-reply.ts
+prove-run-reads-other-tools-files.ts
+prove-run-stdin-literal.ts
+prove-turn-waits-for-a-working-engine.ts

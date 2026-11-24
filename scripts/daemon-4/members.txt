@@ -13,10 +13,8 @@ prove-agent-notice-clock.ts
 prove-stop-acknowledged.ts
 prove-interrupt-keeps-runner.ts
 prove-answer-wait-follows-the-box.ts
-prove-daemon-home-gone.ts
 prove-field-findings-daemon-older.ts
 prove-liveness-stamp.ts
-prove-owner-handover.ts
 prove-daemon-handover.ts
 prove-helper-lifecycle.ts
 prove-helper-doors.ts

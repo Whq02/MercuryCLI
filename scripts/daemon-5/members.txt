@@ -1,0 +1,10 @@
+# scripts/daemon-5/members.txt — this sub-suite's provers, one
+# basename per line (the files live in scripts/daemon/). The parent
+# suite runs every prover NOT named by a sibling list, so a NEW prover
+# lands there automatically; a name listed here but missing on disk is a
+# loud red in this runner.
+prove-daemon-home-gone.ts
+prove-helper-restart.ts
+prove-lead-window-hold.ts
+prove-openai-lane-after-relogin.ts
+prove-wake-hold-drive.ts

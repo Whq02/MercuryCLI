@@ -1,7 +1,6 @@
 prove-alt-lifetime.ts
 prove-branch-chip.ts
 prove-model-picker-groups.ts
-prove-model-picker-hardening.ts
 prove-model-picker-door-flip.ts
 prove-model-picker-reader-census.ts
 prove-model-picker-edges.ts
@@ -9,8 +8,6 @@ prove-model-picker-popup-edges.ts
 prove-model-picker-typed-letters.ts
 prove-model-list-keeps-connect-rows.ts
 prove-session-search-ignores-case.ts
-prove-tensorfold-model-groups.ts
-prove-model-name-matcher.ts
 prove-clipboard-encoding.ts
 prove-consent-queue-marker.ts
 prove-diff-spine.ts
@@ -32,7 +29,6 @@ prove-model-chip.ts
 prove-viewed-model-chip.ts
 prove-never-stranded-input.ts
 prove-no-color-honored.ts
-prove-notice-row-paint.ts
 prove-one-shot-render-settles.ts
 prove-pane-window.ts
 prove-panel-dismissal-layers.ts
@@ -85,14 +81,9 @@ prove-vim-word-line-end.ts
 prove-local-command-order.ts
 prove-midturn-local-commands.ts
 prove-wheel-surfaces.ts
-prove-crew-composer-roads.ts
 prove-crew-composer-click-after-focus.ts
-prove-crew-look-frames.ts
-prove-crew-ledger.ts
-prove-crew-view-commands.ts
 prove-crew-view-enter-compact.ts
 prove-crew-view-mouse.ts
-prove-activity-screen-keys.ts
 prove-hip-vocab.ts
 prove-desert-verbs-cadence.ts
 prove-wrap-plain.ts

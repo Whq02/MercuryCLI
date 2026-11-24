@@ -24,4 +24,3 @@ prove-idle-daemon-launches-nothing.ts
 prove-seat-protocol-refusal.ts
 prove-runner-slow-initialize.ts
 prove-watch-park-drive.ts
-prove-lead-window-hold.ts

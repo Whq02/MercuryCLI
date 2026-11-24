@@ -39,7 +39,6 @@ prove-explicit-default-mode-reaches-runner.ts
 prove-facts-stamp-order.ts
 prove-field-e004-daemon-skew.ts
 prove-headless-permission-mode.ts
-prove-helper-restart.ts
 prove-hostless-escalation-rebinds.ts
 prove-install-fresh-folder.ts
 prove-interrupt-agent-wait.ts
@@ -48,10 +47,7 @@ prove-loop-cadence.ts
 prove-midturn-line.ts
 prove-model-landing-facts.ts
 prove-no-memory-guard.ts
-prove-old-build-runner-retirement.ts
-prove-openai-lane-after-relogin.ts
 prove-orphan-drain-ends-with-turn.ts
-prove-orphan-drain-screen-returns.ts
 prove-owned-daemon-entry.ts
 prove-park-request-lifetime.ts
 prove-parked-state.ts
@@ -95,8 +91,6 @@ prove-status-row-runner-state.ts
 prove-successor-ends-orphan-runner.ts
 prove-sweep-spares-own-tree.ts
 prove-transient-publish-held-file.ts
-prove-update-restart-told.ts
-prove-wake-hold-drive.ts
 prove-warm-claim-binds-first.ts
 prove-warm-row-word.ts
 prove-warm-runner.ts
