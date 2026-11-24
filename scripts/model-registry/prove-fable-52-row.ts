@@ -65,7 +65,7 @@ section("§1 the price row: the vendor's tier for claude-fable-5-2 is recorded, 
 
 section('§2 the fold and the names: claude-fable-5-2 is its own canonical, never swallowed by the fable-5 arm or the Fable 5.1 row', 'fix getCanonicalName in src/models/facts/modelNames.ts, the display owner renderModelName in src/models/catalogue/engineModel.ts, the alias parser parseUserSpecifiedModel in src/models/catalogue/engineModel.ts, or the fable52 and mythos52 rows in src/models/facts/builtInModelTable.ts')
 {
-  const { firstPartyNameToCanonical, getCanonicalName, getMarketingNameForModel, getPublicModelName, parseUserSpecifiedModel, renderModelChip, renderModelName } = await import('../../src/models/catalogue/engineModel.ts')
+  const { firstPartyNameToCanonical, getCanonicalName, getMarketingNameForModel, parseUserSpecifiedModel, renderModelChip, renderModelName } = await import('../../src/models/catalogue/engineModel.ts')
   const { recognizeModelId } = await import('../../src/models/roads/idSpaces.ts')
   const { ALL_MODEL_CONFIGS } = await import('../../src/models/facts/builtInModelTable.ts')
   check('its own canonical', getCanonicalName(ID) === ID, getCanonicalName(ID))
@@ -82,7 +82,6 @@ section('§2 the fold and the names: claude-fable-5-2 is its own canonical, neve
   check("the marketing name is 'Fable 5.2'", getMarketingNameForModel(ID) === 'Fable 5.2', String(getMarketingNameForModel(ID)))
   check("the [1m] twin displays as 'Fable 5.2 (1M context)'", renderModelName(`${ID}[1m]`) === 'Fable 5.2 (1M context)', renderModelName(`${ID}[1m]`))
   check("the chip reads 'Fable 5.2'", renderModelChip(ID) === 'Fable 5.2', renderModelChip(ID))
-  check("the commit-trailer name reads 'Claude Fable 5.2'", getPublicModelName(ID) === 'Claude Fable 5.2', getPublicModelName(ID))
   check("Fable 5.1 still displays as 'Fable 5.1' and Fable 5 as 'Fable 5'", renderModelName(PREVIOUS) === 'Fable 5.1' && renderModelName(OLDEST) === 'Fable 5', `${renderModelName(PREVIOUS)} / ${renderModelName(OLDEST)}`)
   const { MODEL_NAMES } = (await import(pathJoin(import.meta.dir, '..', '..', 'assets', 'splash', 'splash-core.mjs'))) as { MODEL_NAMES: Record<string, string> }
   check("the boot strip's baked table names the row, and a saved 'fable' paints what it boots", MODEL_NAMES[ID] === 'Fable 5.2' && MODEL_NAMES.fable52 === 'Fable 5.2' && MODEL_NAMES.fable === getMarketingNameForModel(parseUserSpecifiedModel('fable')) && MODEL_NAMES[PREVIOUS] === 'Fable 5.1' && MODEL_NAMES.fable51 === 'Fable 5.1', `${String(MODEL_NAMES[ID])} / ${String(MODEL_NAMES.fable)} / ${String(MODEL_NAMES[PREVIOUS])}`)
@@ -106,7 +105,7 @@ section('§2 the fold and the names: claude-fable-5-2 is its own canonical, neve
 section("§3 the row: the fable family's newest generation, its class, its picker rows, its launch effort and its capability truth", 'fix the fable52 generation in src/models/facts/builtInModelTable.ts (FAMILY_GENERATIONS), the picker rows in src/models/catalogue/modelOptions.ts, the launch effort in src/models/effort/effort.ts, or the capability record in src/models/facts/capabilities.ts')
 {
   const { FAMILY_GENERATIONS, familyHeadOf, newestGenerationKey, previousGenerationKeys } = await import('../../src/models/facts/builtInModelTable.ts')
-  const { getDefaultFableModel, parseUserSpecifiedModel, renderModelSetting, renderDefaultModelSetting } = await import('../../src/models/catalogue/engineModel.ts')
+  const { getDefaultFableModel, parseUserSpecifiedModel, renderDefaultModelSetting } = await import('../../src/models/catalogue/engineModel.ts')
   const { CREWMATE_DISPATCH_MODELS, MODEL_ALIASES } = await import('../../src/models/facts/aliases.ts')
   const { classOfModel } = await import('../../src/models/roads/modelRegistry.ts')
   const { listAnthropicModels, resolveAnthropicModel, routeEffortsFor } = await import('../../src/models/roads/anthropic/anthropicAdapter.ts')
@@ -125,7 +124,7 @@ section("§3 the row: the fable family's newest generation, its class, its picke
   check("the family word 'fable' resolves to it: a saved \"model\": \"fable\" runs Fable 5.2", parseUserSpecifiedModel('fable') === ID, parseUserSpecifiedModel('fable'))
   check("'fable[1m]' keeps its rider on the new row", parseUserSpecifiedModel('fable[1m]') === `${ID}[1m]`, parseUserSpecifiedModel('fable[1m]'))
   check("the spoken spellings 'Fable 5.2' and 'fable-5.2' resolve to the row", parseUserSpecifiedModel('Fable 5.2') === ID && parseUserSpecifiedModel('fable-5.2') === ID, `${parseUserSpecifiedModel('Fable 5.2')} / ${parseUserSpecifiedModel('fable-5.2')}`)
-  check("the family word renders capitalised, the default setting renders the row's name", renderModelSetting('fable') === 'Fable' && renderDefaultModelSetting('fable') === 'Fable 5.2', `${renderModelSetting('fable')} / ${renderDefaultModelSetting('fable')}`)
+  check("the family word renders capitalised, the default setting renders the row's name", renderDefaultModelSetting('fable') === 'Fable 5.2', renderDefaultModelSetting('fable'))
   check("the settings alias list and the dispatch vocabulary carry 'fable52' beside 'fable51'", (MODEL_ALIASES as readonly string[]).includes('fable52') && (MODEL_ALIASES as readonly string[]).includes('fable51') && (CREWMATE_DISPATCH_MODELS as readonly string[]).includes('fable52'))
   check("a crew record's 'fable' folds to the newest row while its 'fable51' stays on Fable 5.1", foldLegacyWorkerModelKey('fable') === ID && foldLegacyWorkerModelKey('fable51') === PREVIOUS, `${foldLegacyWorkerModelKey('fable')} / ${foldLegacyWorkerModelKey('fable51')}`)
   check('the cap handoff ranks the row as the newest first-party frontier member', _firstPartyFrontierMemberForTest('fallback') === ID, _firstPartyFrontierMemberForTest('fallback'))

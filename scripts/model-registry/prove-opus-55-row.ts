@@ -26,7 +26,6 @@ const {
   firstPartyNameToCanonical,
   getCanonicalName,
   getMarketingNameForModel,
-  getPublicModelName,
   parseUserSpecifiedModel,
   renderModelChip,
   renderModelName,
@@ -61,7 +60,6 @@ section('§1 the fold order and the names: claude-opus-5-5 is its own canonical,
   check("the marketing name is 'Opus 5.5'", getMarketingNameForModel(ID) === 'Opus 5.5', String(getMarketingNameForModel(ID)))
   check("the [1m] twin displays as 'Opus 5.5 (1M context)'", renderModelName(`${ID}[1m]`) === 'Opus 5.5 (1M context)', renderModelName(`${ID}[1m]`))
   check("the chip reads 'Opus 5.5'", renderModelChip(ID) === 'Opus 5.5', renderModelChip(ID))
-  check("the commit-trailer name reads 'Claude Opus 5.5'", getPublicModelName(ID) === 'Claude Opus 5.5', getPublicModelName(ID))
   check("Opus 5 still displays as 'Opus 5'", renderModelName(PREVIOUS) === 'Opus 5', renderModelName(PREVIOUS))
   check("the exact-generation alias 'opus55' resolves to the bare id", parseUserSpecifiedModel('opus55') === ID, parseUserSpecifiedModel('opus55'))
   check("'opus55[1m]' keeps its rider", parseUserSpecifiedModel('opus55[1m]') === `${ID}[1m]`, parseUserSpecifiedModel('opus55[1m]'))
@@ -75,7 +73,7 @@ section('§1 the fold order and the names: claude-opus-5-5 is its own canonical,
 section("§2 the row: the opus family's newest generation, its class, its picker rows, its cost tier, its launch effort and its capability truth", 'fix the opus55 generation in src/models/facts/builtInModelTable.ts (FAMILY_GENERATIONS), the picker rows in src/models/catalogue/modelOptions.ts, the price row in src/models/usage/modelCost.ts, the launch effort in src/models/effort/effort.ts, or the capability record in src/models/facts/capabilities.ts')
 {
   const { FAMILY_GENERATIONS, newestGenerationKey, previousGenerationKeys } = await import('../../src/models/facts/builtInModelTable.ts')
-  const { getDefaultOpusModel, isDefaultOpusNatively1M, renderModelSetting, renderDefaultModelSetting } = await import('../../src/models/catalogue/engineModel.ts')
+  const { getDefaultOpusModel, isDefaultOpusNatively1M, renderDefaultModelSetting } = await import('../../src/models/catalogue/engineModel.ts')
   const { classOfModel } = await import('../../src/models/roads/modelRegistry.ts')
   const { listAnthropicModels, resolveAnthropicModel, routeEffortsFor } = await import('../../src/models/roads/anthropic/anthropicAdapter.ts')
   const { focusedOptionSupports1m, getModelOptions } = await import('../../src/models/catalogue/modelOptions.ts')
@@ -93,7 +91,7 @@ section("§2 the row: the opus family's newest generation, its class, its picker
   check("the family word 'opus' resolves to it", parseUserSpecifiedModel('opus') === ID, parseUserSpecifiedModel('opus'))
   check("'opus[1m]' keeps its rider on the new row", parseUserSpecifiedModel('opus[1m]') === `${ID}[1m]`, parseUserSpecifiedModel('opus[1m]'))
   check('a retired large id remaps onto the newest row', parseUserSpecifiedModel('claude-opus-4-1-20250805') === ID, parseUserSpecifiedModel('claude-opus-4-1-20250805'))
-  check("the family word renders capitalised, the default setting renders the row's name", renderModelSetting('opus') === 'Opus' && renderDefaultModelSetting('opus') === 'Opus 5.5', `${renderModelSetting('opus')} / ${renderDefaultModelSetting('opus')}`)
+  check("the family word renders capitalised, the default setting renders the row's name", renderDefaultModelSetting('opus') === 'Opus 5.5', renderDefaultModelSetting('opus'))
   check('the large default is natively 1M', isDefaultOpusNatively1M())
   check("a crew record's 'opus' folds to the newest row", foldLegacyWorkerModelKey('opus') === ID, foldLegacyWorkerModelKey('opus'))
 

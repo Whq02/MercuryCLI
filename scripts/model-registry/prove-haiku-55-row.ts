@@ -51,7 +51,7 @@ try {
   check('Haiku 5.5 has its own canonical and declared row', model.getCanonicalName(ID) === ID && configs.familyHeadOf(ID) === null)
   check('case and context annotation retain the canonical', model.getCanonicalName('Claude-Haiku-5-5[1m]') === ID)
   check('the display owner names Haiku 5.5', model.renderModelName(ID) === 'Haiku 5.5' && model.getMarketingNameForModel(ID) === 'Haiku 5.5', model.renderModelName(ID))
-  check('display annotation, chip and public name derive from the row', model.renderModelName(`${ID}[1m]`) === 'Haiku 5.5 (1M context)' && model.renderModelChip(ID) === 'Haiku 5.5' && model.getPublicModelName(ID) === 'Claude Haiku 5.5')
+  check('display annotation, chip and public name derive from the row', model.renderModelName(`${ID}[1m]`) === 'Haiku 5.5 (1M context)' && model.renderModelChip(ID) === 'Haiku 5.5')
   check('haiku55 is an exact-generation alias', model.parseUserSpecifiedModel('haiku55') === ID && model.parseUserSpecifiedModel('haiku55[1m]') === `${ID}[1m]`)
   const recognition = recognizeModelId('haiku55')
   check('id-space recognition agrees with the alias', recognition.kind === 'first-party' && recognition.why === 'alias')

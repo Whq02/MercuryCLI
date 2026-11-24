@@ -12,7 +12,6 @@ import {
   getDefaultEngineModelSetting,
   getEngineModel,
   getUserSpecifiedModelSetting,
-  isFableAvailable,
   parseUserSpecifiedModel,
 } from '../../src/models/catalogue/engineModel.js'
 import { setEngineModelOverride } from '../../src/boot/process-state/processState.js'
@@ -238,10 +237,6 @@ console.log('\nprojection identities (ambient-safe on any profile)')
     'the first-party lane and the keyless placeholder ride the decision',
     computed.source === 'keyless' || computed.provider !== 'anthropic' || computed.setting === d.setting,
     `${computed.source}/${String(computed.provider)}/${computed.setting} vs ${d.setting}`,
-  )
-  check(
-    'isFableAvailable ≡ the fable candidate verdict',
-    isFableAvailable() === d.candidates.some(c => c.family === 'fable' && c.eligible),
   )
 }
 

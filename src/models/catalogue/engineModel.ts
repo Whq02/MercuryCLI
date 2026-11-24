@@ -44,11 +44,6 @@ function rosterFamilyModel(family: Parameters<typeof newestPermittedGeneration>[
 }
 
 
-export function isFableAvailable(): boolean {
-  return frontierOperatorDecision().source === 'frontier'
-}
-
-
 export function getBestModel(): string {
   return parseUserSpecifiedModel(frontierOperatorDecision().setting)
 }
@@ -291,31 +286,11 @@ export function renderModelChip(model: string): string {
   return hasContext1mSuffix(model) ? `${base} [1m]` : base
 }
 
-const CAPITALIZED_ALIASES = new Set(['sonnet', 'opus', 'haiku', 'fable', 'mythos', 'best'])
-
-function capitalizeFirst(value: string): string {
-  return value.length === 0 ? value : value[0].toUpperCase() + value.slice(1)
-}
-
-export function renderModelSetting(setting: string): string {
-  const trimmed = setting.trim()
-  const bare = trimmed.replace(TRAILING_1M_RE, '').toLowerCase()
-  if (CAPITALIZED_ALIASES.has(bare)) {
-    return capitalizeFirst(trimmed)
-  }
-  return renderModelName(setting)
-}
-
 export function renderDefaultModelSetting(setting: ModelSetting): string {
   if (setting === null) {
     return computedDefault().row
   }
   return renderModelName(parseUserSpecifiedModel(setting))
-}
-
-export function getPublicModelName(model: string): string {
-  const display = getPublicModelDisplayName(model)
-  return display !== null ? `Claude ${display}` : `Claude (${model})`
 }
 
 export function renderDefaultModelLabel(): string {

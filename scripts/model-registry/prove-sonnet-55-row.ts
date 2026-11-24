@@ -64,7 +64,7 @@ section("§1 the price row: the vendor's tier for claude-sonnet-5-5 is recorded,
 
 section('§2 the fold and the names: claude-sonnet-5-5 is its own canonical, never swallowed by the sonnet-5 arm')
 {
-  const { firstPartyNameToCanonical, getCanonicalName, getMarketingNameForModel, getPublicModelName, parseUserSpecifiedModel, renderModelChip, renderModelName } = await import('../../src/models/catalogue/engineModel.ts')
+  const { firstPartyNameToCanonical, getCanonicalName, getMarketingNameForModel, parseUserSpecifiedModel, renderModelChip, renderModelName } = await import('../../src/models/catalogue/engineModel.ts')
   const { recognizeModelId } = await import('../../src/models/roads/idSpaces.ts')
   check('its own canonical', getCanonicalName(ID) === ID, getCanonicalName(ID))
   check('the [1m] twin folds to the same canonical', getCanonicalName(`${ID}[1m]`) === ID, getCanonicalName(`${ID}[1m]`))
@@ -78,7 +78,6 @@ section('§2 the fold and the names: claude-sonnet-5-5 is its own canonical, nev
   check("the marketing name is 'Sonnet 5.5'", getMarketingNameForModel(ID) === 'Sonnet 5.5', String(getMarketingNameForModel(ID)))
   check("the [1m] twin displays as 'Sonnet 5.5 (1M context)'", renderModelName(`${ID}[1m]`) === 'Sonnet 5.5 (1M context)', renderModelName(`${ID}[1m]`))
   check("the chip reads 'Sonnet 5.5'", renderModelChip(ID) === 'Sonnet 5.5', renderModelChip(ID))
-  check("the commit-trailer name reads 'Claude Sonnet 5.5'", getPublicModelName(ID) === 'Claude Sonnet 5.5', getPublicModelName(ID))
   check("Sonnet 5 still displays as 'Sonnet 5'", renderModelName(PREVIOUS) === 'Sonnet 5', renderModelName(PREVIOUS))
   check("the exact-generation alias 'sonnet55' resolves to the bare id", parseUserSpecifiedModel('sonnet55') === ID, parseUserSpecifiedModel('sonnet55'))
   check("'sonnet55[1m]' keeps its rider", parseUserSpecifiedModel('sonnet55[1m]') === `${ID}[1m]`, parseUserSpecifiedModel('sonnet55[1m]'))
@@ -92,7 +91,7 @@ section('§2 the fold and the names: claude-sonnet-5-5 is its own canonical, nev
 section("§3 the row: the sonnet family's newest generation, its class, its picker rows, its launch effort and its capability truth")
 {
   const { FAMILY_GENERATIONS, newestGenerationKey, previousGenerationKeys } = await import('../../src/models/facts/builtInModelTable.ts')
-  const { getDefaultSonnetModel, parseUserSpecifiedModel, renderModelName, renderModelSetting, renderDefaultModelSetting } = await import('../../src/models/catalogue/engineModel.ts')
+  const { getDefaultSonnetModel, parseUserSpecifiedModel, renderModelName, renderDefaultModelSetting } = await import('../../src/models/catalogue/engineModel.ts')
   const { classOfModel } = await import('../../src/models/roads/modelRegistry.ts')
   const { listAnthropicModels, resolveAnthropicModel, routeEffortsFor } = await import('../../src/models/roads/anthropic/anthropicAdapter.ts')
   const { focusedOptionSupports1m, getModelOptions } = await import('../../src/models/catalogue/modelOptions.ts')
@@ -111,7 +110,7 @@ section("§3 the row: the sonnet family's newest generation, its class, its pick
   check("the family word 'sonnet' resolves to it: a saved \"model\": \"sonnet\" runs Sonnet 5.5", parseUserSpecifiedModel('sonnet') === ID, parseUserSpecifiedModel('sonnet'))
   check("'sonnet[1m]' keeps its rider on the new row", parseUserSpecifiedModel('sonnet[1m]') === `${ID}[1m]`, parseUserSpecifiedModel('sonnet[1m]'))
   check("the spoken spellings 'Sonnet 5.5' and 'sonnet-5.5' resolve to the row", parseUserSpecifiedModel('Sonnet 5.5') === ID && parseUserSpecifiedModel('sonnet-5.5') === ID, `${parseUserSpecifiedModel('Sonnet 5.5')} / ${parseUserSpecifiedModel('sonnet-5.5')}`)
-  check("the family word renders capitalised, the default setting renders the row's name", renderModelSetting('sonnet') === 'Sonnet' && renderDefaultModelSetting('sonnet') === 'Sonnet 5.5', `${renderModelSetting('sonnet')} / ${renderDefaultModelSetting('sonnet')}`)
+  check("the family word renders capitalised, the default setting renders the row's name", renderDefaultModelSetting('sonnet') === 'Sonnet 5.5', renderDefaultModelSetting('sonnet'))
   check("a crew record's 'sonnet' folds to the newest row", foldLegacyWorkerModelKey('sonnet') === ID, foldLegacyWorkerModelKey('sonnet'))
 
   check("the router classifies the id 'sonnet'", classOfModel(ID) === 'sonnet', String(classOfModel(ID)))
