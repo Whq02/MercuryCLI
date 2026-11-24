@@ -127,8 +127,8 @@ async function run(steps: Step[], options: { headless?: boolean; oculus?: boolea
       message.message.stop_reason = step ? 'tool_use' : 'end_turn'
       yield message
     },
-    autocompact: async () => ({ wasCompacted: false }),
-    microcompact: async (messages: unknown[]) => ({ messages }),
+    autoFold: async () => ({ wasCompacted: false }),
+    prune: async (messages: unknown[]) => ({ messages }),
   }
   const prompt = [createUserMessage({ content: 'Run the fixture.' })]
   const agentId = `failure-agent-${++sequence}`

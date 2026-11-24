@@ -46,8 +46,8 @@ function enrichSummaryForLiveDisplay(
   const kept = result.messagesToKeep?.length ?? 0
   const computedCount = Math.max(0, messagesHandedIn - kept)
 
-  const pre = result.preCompactTokenCount
-  const post = result.truePostCompactTokenCount ?? result.postCompactTokenCount
+  const pre = result.preFoldTokenCount
+  const post = result.truePostFoldTokenCount ?? result.postFoldTokenCount
   const pctValid = typeof pre === 'number' && pre > 0 && typeof post === 'number' && post >= 0
   const pct = pctValid ? Math.round(Math.min(100, Math.max(0, ((pre - post) / pre) * 100))) : undefined
 
@@ -113,7 +113,7 @@ async function callUnderFoldStatus(
   try {
     if (customInstructions === '') {
       if (shouldUseSessionNotesFold()) {
-        context.onCompactProgress?.({ type: 'stage', stage: 'session-memory' })
+        context.onFoldProgress?.({ type: 'stage', stage: 'session-memory' })
       }
       const sessionMemoryResult = await trySessionNotesFold(messages, context.agentId, undefined, context, 'manual')
       if (sessionMemoryResult !== null) {
@@ -122,7 +122,7 @@ async function callUnderFoldStatus(
         suppressFoldWarning()
         return {
           type: 'compact',
-          compactionResult: sessionMemoryResult,
+          foldHandoff: sessionMemoryResult,
           displayText: manualFoldDisplayText(context, sessionMemoryResult, messages.length),
         }
       }
@@ -147,7 +147,7 @@ async function callUnderFoldStatus(
       )
     }
 
-    const compactionResult = await foldConversation(
+    const foldHandoff = await foldConversation(
       messages,
       context,
       cacheSafeParams,
@@ -155,9 +155,9 @@ async function callUnderFoldStatus(
       customInstructions || undefined,
       false,
       {
-        isRecompaction: false,
-        turnsSincePreviousCompact: -1,
-        autoCompactThreshold: getAutoFoldThreshold(model),
+        isRefold: false,
+        turnsSincePreviousFold: -1,
+        autoFoldThreshold: getAutoFoldThreshold(model),
         restoreFiles: projection?.restoreFiles ?? true,
         mustShrink: true,
       },
@@ -168,14 +168,14 @@ async function callUnderFoldStatus(
     setLastSummarizedMessageId(undefined)
     suppressFoldWarning()
     getUserContext.cache.clear()
-    runPostFoldCleanup(undefined, buildPostFoldMessages(compactionResult))
+    runPostFoldCleanup(undefined, buildPostFoldMessages(foldHandoff))
     if (shouldEnrichForLiveDisplay(context)) {
-      enrichSummaryForLiveDisplay(compactionResult, messages.length, customInstructions)
+      enrichSummaryForLiveDisplay(foldHandoff, messages.length, customInstructions)
     }
     return {
       type: 'compact',
-      compactionResult,
-      displayText: manualFoldDisplayText(context, compactionResult, messages.length),
+      foldHandoff,
+      displayText: manualFoldDisplayText(context, foldHandoff, messages.length),
     }
   } catch (err) {
     if (context.abortController.signal.aborted || isAbortError(err)) {

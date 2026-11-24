@@ -6,8 +6,8 @@ import { clearGuards } from '../../permissions/guards/guards.js'
 import { registerStructuredOutputGuard } from '../../permissions/guards/structuredOutput.js'
 import { readCatalogueIfPending } from '../../models/roads/catalogueOnDemand.js'
 import { declaredRouteOf } from '../../models/roads/routeLaw.js'
-import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../../tools/kit/names/syntheticOutput.js'
-import { createSyntheticOutputTool } from '../../tools/structured-output/SyntheticOutputTool.js'
+import { STRUCTURED_OUTPUT_TOOL_NAME } from '../../tools/kit/names/syntheticOutput.js'
+import { getSchemaBoundStructuredOutputTool } from '../../tools/structured-output/SyntheticOutputTool.js'
 import { createAbortController } from '../../platform/async/abortController.js'
 import { createCombinedAbortSignal } from '../../platform/async/combinedAbortSignal.js'
 import { errorMessage } from '../../platform/errors/errors.js'
@@ -25,7 +25,7 @@ const CREWMATE_HOOK_TURN_CAP = 50
 
 function readToolsOf(context: ToolUseContext): ToolUseContext['options']['tools'] {
   return (context.options.tools ?? []).filter(tool => {
-    if (toolMatchesName(tool, SYNTHETIC_OUTPUT_TOOL_NAME) || ALL_CREWMATE_DISALLOWED_TOOLS.has(tool.name)) return false
+    if (toolMatchesName(tool, STRUCTURED_OUTPUT_TOOL_NAME) || ALL_CREWMATE_DISALLOWED_TOOLS.has(tool.name)) return false
     try {
       return tool.isReadOnly({})
     } catch (error) {
@@ -51,13 +51,13 @@ export async function runCrewmateHook(run: ModelHookRun): Promise<ModelHookEnd> 
   }
   const cutEnd = (): ModelHookEnd => (run.signal?.aborted ? { kind: 'cancelled', durationMs: Date.now() - startedAt } : { kind: 'timed_out', durationMs: Date.now() - startedAt })
   try {
-    const verdictTool = createSyntheticOutputTool(hookAnswerJsonSchema(run.answerSchema))
+    const verdictTool = getSchemaBoundStructuredOutputTool(hookAnswerJsonSchema(run.answerSchema))
     if ('error' in verdictTool) return settle({ kind: 'failed', detail: `the answer shape of ${run.event} cannot bind the verdict tool: ${verdictTool.error}`, durationMs: Date.now() - startedAt })
     const tools = [...readToolsOf(run.toolUseContext), verdictTool.tool]
     const systemPrompt = asSystemPrompt([
       `You are a crewmate checking a hook in Mercury at the moment ${run.event}. The brief follows, with the moment's facts as JSON.`,
       'Use the read tools you have to check what the brief asks, in as few steps as possible.',
-      `When done, answer through the ${SYNTHETIC_OUTPUT_TOOL_NAME} tool with one object of the hook answer shape; an empty object means you have nothing to say.`,
+      `When done, answer through the ${STRUCTURED_OUTPUT_TOOL_NAME} tool with one object of the hook answer shape; an empty object means you have nothing to say.`,
     ])
     await readCatalogueIfPending(declaredRouteOf(run.model ?? getEngineModel()) ?? '')
     const call = run.model === undefined ? utilityCallFor() : utilityCallFor(run.model, { named: true })

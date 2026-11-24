@@ -132,7 +132,7 @@ section("§4 the line paints in the person's chat and never in a crewmate's chat
       toolJSX: null,
       toolUseConfirmQueue: [],
       inProgressToolUseIDs: new Set<string>(),
-      isMessageSelectorVisible: false,
+      isRewindPickerVisible: false,
       conversationId: 'crewmate:proof',
       screen: 'prompt' as const,
       streamingToolUses: [],

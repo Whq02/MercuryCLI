@@ -25,7 +25,7 @@ type MessagesListArgs = Pick<ReturnType<typeof useChatSearch>, 'inVirtualTranscr
   Pick<ReturnType<typeof useChatConversation>, 'conversationId'> &
   Pick<ReturnType<typeof useChatFocusedSeat>, 'isLoading' | 'focusedTail'> &
   Pick<ReturnType<typeof useChatScrollPin>, 'scrollRef'> &
-  Pick<ReturnType<typeof useChatRewindPicker>, 'showMessageSelector'> &
+  Pick<ReturnType<typeof useChatRewindPicker>, 'showRewindPicker'> &
   Pick<ReturnType<typeof useChatDialogs>, 'toolJSX'> &
   Pick<ReturnType<typeof useChatAsks>, 'toolUseConfirmQueue'> &
   Pick<ReturnType<typeof useChatScroll>, 'unseenDivider'> &
@@ -35,7 +35,7 @@ type MessagesListArgs = Pick<ReturnType<typeof useChatSearch>, 'inVirtualTranscr
     tailAnchor: ReturnType<typeof useFocusedTailAnchor>;
   };
 
-export function chatMessagesList({ inVirtualTranscript, inTranscript, screen, showAllInTranscript, jumpRef, onSearchMatchesChange, scanElement, setPositions, dumpMode, displayedMessages, paintedMessages, mergedTools, commands, agentDefinitions, verbose, viewInProgressToolUseIDs, conversationId, isLoading, focusedTail, scrollRef, showMessageSelector, toolJSX, toolUseConfirmQueue, unseenDivider, messageNavRef, streamingSuppressed, messages, tailAnchor }: MessagesListArgs): React.ReactNode {
+export function chatMessagesList({ inVirtualTranscript, inTranscript, screen, showAllInTranscript, jumpRef, onSearchMatchesChange, scanElement, setPositions, dumpMode, displayedMessages, paintedMessages, mergedTools, commands, agentDefinitions, verbose, viewInProgressToolUseIDs, conversationId, isLoading, focusedTail, scrollRef, showRewindPicker, toolJSX, toolUseConfirmQueue, unseenDivider, messageNavRef, streamingSuppressed, messages, tailAnchor }: MessagesListArgs): React.ReactNode {
   const messagesList = inVirtualTranscript ? (
     <Messages
       messages={displayedMessages}
@@ -45,7 +45,7 @@ export function chatMessagesList({ inVirtualTranscript, inTranscript, screen, sh
       toolJSX={null}
       toolUseConfirmQueue={EMPTY_CONFIRM_QUEUE}
       inProgressToolUseIDs={viewInProgressToolUseIDs}
-      isMessageSelectorVisible={false}
+      isRewindPickerVisible={false}
       conversationId={conversationId}
       screen={screen}
       streamingToolUses={NO_STREAMING_TOOL_USES}
@@ -72,7 +72,7 @@ export function chatMessagesList({ inVirtualTranscript, inTranscript, screen, sh
       toolJSX={null}
       toolUseConfirmQueue={EMPTY_CONFIRM_QUEUE}
       inProgressToolUseIDs={viewInProgressToolUseIDs}
-      isMessageSelectorVisible={showMessageSelector}
+      isRewindPickerVisible={showRewindPicker}
       conversationId={conversationId}
       screen={screen}
       streamingToolUses={NO_STREAMING_TOOL_USES}
@@ -93,7 +93,7 @@ export function chatMessagesList({ inVirtualTranscript, inTranscript, screen, sh
       toolJSX={toolJSX}
       toolUseConfirmQueue={toolUseConfirmQueue}
       inProgressToolUseIDs={viewInProgressToolUseIDs}
-      isMessageSelectorVisible={showMessageSelector}
+      isRewindPickerVisible={showRewindPicker}
       conversationId={conversationId}
       screen={screen}
       streamingToolUses={NO_STREAMING_TOOL_USES}

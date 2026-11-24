@@ -74,7 +74,7 @@ export interface WorkbenchSourceInputs {
   executions: ExecutionFact[]
   mainRun: RunFacts | null
   richTasks: Map<string, RichTaskFact>
-  agentMeta: Map<string, CrewmateMetaFact>
+  crewmateMeta: Map<string, CrewmateMetaFact>
   laneRuns: Map<string, RunFacts>
   artifacts: ArtifactHeadFact[]
   gitWorktreeLanes: Array<{ path: string; branch?: string; head?: string }>
@@ -105,7 +105,7 @@ function deriveThreadRows(inputs: WorkbenchSourceInputs): WorkbenchThreadRow[] {
     if (!EXECUTION_THREAD_KINDS.has(exec.kind)) continue
     const rich = inputs.richTasks.get(exec.id)
     const kind = threadKindOf(exec, rich)
-    const meta = rich?.agentId ? inputs.agentMeta.get(rich.agentId) : undefined
+    const meta = rich?.agentId ? inputs.crewmateMeta.get(rich.agentId) : undefined
     const run = inputs.laneRuns.get(exec.id)
     const phase = run?.phase ?? exec.state
     const refs: string[] = []
@@ -187,7 +187,7 @@ export function deriveLaneRows(inputs: WorkbenchSourceInputs): WorkbenchLaneRow[
   const threadLike: Array<{ id: string; worktreePath?: string; state: string }> = []
   for (const exec of inputs.executions) {
     const rich = inputs.richTasks.get(exec.id)
-    const meta = rich?.agentId ? inputs.agentMeta.get(rich.agentId) : undefined
+    const meta = rich?.agentId ? inputs.crewmateMeta.get(rich.agentId) : undefined
     if (meta?.worktreePath) {
       threadLike.push({ id: exec.id, worktreePath: meta.worktreePath, state: exec.state })
     }

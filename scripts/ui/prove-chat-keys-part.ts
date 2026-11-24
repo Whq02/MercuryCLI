@@ -65,22 +65,22 @@ check('nor without a message cursor', t.handed.actions === null, said('actions')
 
 const ask = { tool: { name: ASK_USER_QUESTION_TOOL_NAME } } as never
 const other = { tool: { name: 'Bash' } } as never
-await t.plant({ focusedInputDialog: 'tool-permission', toolUseConfirmQueue: [ask], showMessageSelector: false, showBashesDialog: false, screen: 'prompt', vimMode: 'NORMAL', dialogOwnsKeys: true, isSearchingHistory: true, helpOpen: true, viewStreamMode: 'tool-use', seatLive: { ...IDLE_LIVE, inFlight: true } })
+await t.plant({ focusedInputDialog: 'tool-permission', toolUseConfirmQueue: [ask], showRewindPicker: false, showBashesDialog: false, screen: 'prompt', vimMode: 'NORMAL', dialogOwnsKeys: true, isSearchingHistory: true, helpOpen: true, viewStreamMode: 'tool-use', seatLive: { ...IDLE_LIVE, inFlight: true } })
 check(
   'the cancel handler is handed the dialog-focus truth, the interview, the turn in flight, the stream mode and the composer modes',
-  t.handed.cancel?.isInputDialogFocused === true && t.handed.cancel.isInterviewFocused === true && t.handed.cancel.focusedTurnActive === true && t.handed.cancel.streamMode === 'tool-use' && t.handed.cancel.isLocalJSXCommand === true && t.handed.cancel.isSearchingHistory === true && t.handed.cancel.isHelpOpen === true && t.handed.cancel.isMessageSelectorVisible === false && t.handed.cancel.screen === 'prompt' && t.handed.cancel.vimMode === (isVimModeEnabled() ? 'NORMAL' : undefined) && t.handed.cancel.compactWork === t.props().compactWork,
+  t.handed.cancel?.isInputDialogFocused === true && t.handed.cancel.isInterviewFocused === true && t.handed.cancel.focusedTurnActive === true && t.handed.cancel.streamMode === 'tool-use' && t.handed.cancel.isLocalJSXCommand === true && t.handed.cancel.isSearchingHistory === true && t.handed.cancel.isHelpOpen === true && t.handed.cancel.isRewindPickerVisible === false && t.handed.cancel.screen === 'prompt' && t.handed.cancel.vimMode === (isVimModeEnabled() ? 'NORMAL' : undefined) && t.handed.cancel.compactWork === t.props().compactWork,
   said('cancel'),
 )
 await t.plant({ toolUseConfirmQueue: [other] })
 check('a card of another tool is no interview', t.handed.cancel?.isInterviewFocused === false && t.handed.cancel.isInputDialogFocused === true, said('cancel'))
 await t.plant({ focusedInputDialog: undefined, toolUseConfirmQueue: [ask], seatLive: IDLE_LIVE, dialogOwnsKeys: false, isSearchingHistory: false, helpOpen: false })
 check('with no dialog in focus the handler is told so, and that no turn is in flight', t.handed.cancel?.isInputDialogFocused === false && t.handed.cancel.isInterviewFocused === false && t.handed.cancel.focusedTurnActive === false, said('cancel'))
-await t.plant({ showMessageSelector: true })
-const withSelector = t.handed.cancel?.isMessageSelectorVisible
-await t.plant({ showMessageSelector: false, showBashesDialog: 'shell-1' })
-const withShells = t.handed.cancel?.isMessageSelectorVisible
+await t.plant({ showRewindPicker: true })
+const withSelector = t.handed.cancel?.isRewindPickerVisible
+await t.plant({ showRewindPicker: false, showBashesDialog: 'shell-1' })
+const withShells = t.handed.cancel?.isRewindPickerVisible
 await t.plant({ showBashesDialog: true })
-check('the message selector and the shells dialog both read as a selector to the cancel handler', withSelector === true && withShells === true && t.handed.cancel?.isMessageSelectorVisible === true, `${String(withSelector)} · ${String(withShells)} · ${said('cancel')}`)
+check('the message selector and the shells dialog both read as a selector to the cancel handler', withSelector === true && withShells === true && t.handed.cancel?.isRewindPickerVisible === true, `${String(withSelector)} · ${String(withShells)} · ${said('cancel')}`)
 await t.plant({ showBashesDialog: false })
 
 section('§2 Escape is held for the three that take the key and register no overlay')

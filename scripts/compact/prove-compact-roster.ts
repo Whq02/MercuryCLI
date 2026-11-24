@@ -99,7 +99,7 @@ const queue = [
 
 section('§1 the builder — every kind rides ONE attachment, in the product\'s words')
 const queuedIds = queuedNoticeTaskIds(queue as never)
-const out = getAgentRosterAttachment({ tasks: store as never, agentNameRegistry: registry, excludeAgentId: OWN_ID, queuedNoticeIds: queuedIds })
+const out = getAgentRosterAttachment({ tasks: store as never, crewmateNameRegistry: registry, excludeAgentId: OWN_ID, queuedNoticeIds: queuedIds })
 check('one attachment for the whole store', out.length === 1 && out[0]!.type === 'agent_roster', j(out.map(a => a.type)) + rosterHint)
 const rows = out[0]?.rows ?? []
 const byId = new Map(rows.map(r => [r.taskId, r]))
@@ -188,7 +188,7 @@ section('§6 the direct lane — a real fold on an engine family carries the ros
     toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default' as const },
     sessionHooks: new Map(),
     tasks: { aplain001: store.aplain001, bshell001: store.bshell001 },
-    agentNameRegistry: new Map(),
+    crewmateNameRegistry: new Map(),
     mcp: { clients: [], tools: [], commands: [], resources: {} },
   }
   const ctx = {

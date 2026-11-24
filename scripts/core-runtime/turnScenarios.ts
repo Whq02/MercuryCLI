@@ -361,8 +361,8 @@ export function openRig(plan: Plan): OpenRig {
       : {}),
     deps: {
       callModel,
-      autocompact,
-      microcompact: async (messages: unknown[]) => ({ messages }),
+      autoFold: autocompact,
+      prune: async (messages: unknown[]) => ({ messages }),
       uuid: () => `00000000-0000-4000-8000-${String(++seeded).padStart(12, '0')}`,
     },
   }
@@ -485,7 +485,7 @@ export async function plantRun(plan: Plan): Promise<Planted> {
     messages: params.messages,
     toolUseContext: params.toolUseContext,
     maxOutputTokensOverride: undefined,
-    autoCompactTracking: undefined,
+    autoFoldTracking: undefined,
     stopHookActive: undefined,
     maxOutputTokensRecoveryCount: 0,
     streamFaultRecoveryCount: 0,
@@ -658,15 +658,15 @@ const SENTENCE = 'I will now check the configuration file and report back on wha
 const CHANT = SENTENCE.repeat(14)
 const folded = (tokens = 120): Row => ({
   wasCompacted: true,
-  compactionResult: {
+  foldResult: {
     boundaryMarker: createFoldBoundaryMessage('auto', 900),
     summaryMessages: [createUserMessage({ content: 'RIG SUMMARY', isCompactSummary: true })],
     attachments: [],
     hookResults: [],
-    preCompactTokenCount: 900,
-    postCompactTokenCount: tokens,
-    truePostCompactTokenCount: tokens,
-    compactionUsage: undefined,
+    preFoldTokenCount: 900,
+    postFoldTokenCount: tokens,
+    truePostFoldTokenCount: tokens,
+    foldUsage: undefined,
   },
 })
 const history = (): unknown[] => [ask('an old question'), says('an old answer'), ask('hello there rig')]
@@ -701,7 +701,7 @@ const crewTask = (pending: string[]): Row => ({
   tasks: {
     [AGENT]: { id: AGENT, type: 'local_agent', status: 'running', description: `Lane ${AGENT}`, agentId: AGENT, agentType: 'mercury-crew', prompt: '', startTime: 0, isBackgrounded: true, outputFile: '', outputOffset: 0, notified: false, pendingMessages: pending },
   },
-  agentNameRegistry: new Map<string, string>(),
+  crewmateNameRegistry: new Map<string, string>(),
 })
 const BLOCKED = { MERCURY_BLOCKING_LIMIT_OVERRIDE: '100' }
 const BLOCKED_NO_AUTO_FOLD = { ...BLOCKED, MERCURY_AUTO_COMPACT: '0' }

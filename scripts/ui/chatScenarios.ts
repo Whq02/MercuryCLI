@@ -1176,7 +1176,7 @@ export async function openKeysPart(tag: string, options: { keepHome?: boolean } 
     messageActionsDisabled: false,
     focusedInputDialog: undefined,
     toolUseConfirmQueue: [],
-    showMessageSelector: false,
+    showRewindPicker: false,
     showBashesDialog: false,
     vimMode: 'INSERT',
     dialogOwnsKeys: false,
@@ -1528,9 +1528,9 @@ export async function openSelectorPart(tag: string, options: { keepHome?: boolea
     addNotification: ((notice: { key: string; text?: string }) => void notices.push({ key: String(notice.key), text: String(notice.text ?? '') })) as never,
     setInputValue: value => void calls.push(`setInputValue ${JSON.stringify(value)}`),
     setInputMode: mode => void calls.push(`setInputMode ${mode}`),
-    setShowMessageSelector: show => void calls.push(`setShowMessageSelector ${show}`),
-    messageSelectorPreselect: undefined,
-    setMessageSelectorPreselect: message => void calls.push(`setMessageSelectorPreselect ${message === undefined ? 'undefined' : 'a message'}`),
+    setShowRewindPicker: show => void calls.push(`setShowMessageSelector ${show}`),
+    rewindPickerPreselect: undefined,
+    setRewindPickerPreselect: message => void calls.push(`setMessageSelectorPreselect ${message === undefined ? 'undefined' : 'a message'}`),
     focusedInputDialog: 'message-selector',
     chatSurfaceCovered: false,
     messages: [],
@@ -1553,7 +1553,7 @@ export async function openSelectorPart(tag: string, options: { keepHome?: boolea
       await part.set(use)
     },
     selector: () => {
-      const element = part.value().messageSelector as { props: SelectorHandlers } | null
+      const element = part.value().rewindPicker as { props: SelectorHandlers } | null
       if (element === null) throw new Error('the message selector is not drawn')
       return element.props
     },
@@ -2385,12 +2385,12 @@ export const SCENARIOS: Scenario[] = [
       await stage.mark('a result of two lines is painted as rows, and a second done is ignored', has('with two lines'))
       await stage.type('/proof-dialog three')
       await stage.key(KEY.enter, 'a third dialog mounts', has('a scripted dialog (three)'))
-      last().done(undefined, { display: 'skip', shouldQuery: true, metaMessages: ['meta words for the turn', ' '] })
+      last().done(undefined, { display: 'skip', shouldStartTurn: true, metaMessages: ['meta words for the turn', ' '] })
       await stage.mark('a dialog that asks for a turn sends its meta words', () => stage.session.calls.some(call => call.includes('meta words for the turn')))
       stage.session.refuseSends('the session refused the meta words')
       await stage.type('/proof-dialog four')
       await stage.key(KEY.enter, 'a fourth dialog mounts', has('a scripted dialog (four)'))
-      last().done(undefined, { shouldQuery: true, metaMessages: ['meta words the session refuses'] })
+      last().done(undefined, { shouldStartTurn: true, metaMessages: ['meta words the session refuses'] })
       await stage.mark('meta words the session refuses are told', has('could not start the turn'))
       stage.session.refuseSends(null)
       await stage.type('/proof-nothing')

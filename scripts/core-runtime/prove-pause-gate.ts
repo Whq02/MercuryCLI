@@ -252,8 +252,8 @@ function buildRig(specs: LoopSpec[] = DEFAULT_SPECS, tasks: Record<string, TaskL
       querySource: (spec.seat === null ? 'sdk' : `agent:builtin:${run}`) as never,
       deps: {
         callModel: callModel as never,
-        autocompact: (async () => ({ wasCompacted: false })) as never,
-        microcompact: (async (messages: unknown[]) => ({ messages })) as never,
+        autoFold: (async () => ({ wasCompacted: false })) as never,
+        prune: (async (messages: unknown[]) => ({ messages })) as never,
         uuid: ((): (() => string) => { let n = 0; return () => `00000000-0000-4000-8000-${run.length}${String(++n).padStart(11, '0')}` })(),
       },
     })

@@ -75,7 +75,7 @@ setCrashConversationLocator(() => {
 
 function selectFocusedInputDialog({
   exiting,
-  showMessageSelector,
+  showRewindPicker,
   isPromptInputActive,
   toolJSX,
   toolUseConfirmCount,
@@ -84,7 +84,7 @@ function selectFocusedInputDialog({
   hasCrashResume,
 }: {
   exiting: boolean;
-  showMessageSelector: boolean;
+  showRewindPicker: boolean;
   isPromptInputActive: boolean;
   toolJSX: ToolJSXState;
   toolUseConfirmCount: number;
@@ -93,7 +93,7 @@ function selectFocusedInputDialog({
   hasCrashResume: boolean;
 }): FocusedInputDialog | undefined {
   if (exiting) return undefined;
-  if (showMessageSelector) return 'message-selector';
+  if (showRewindPicker) return 'message-selector';
   if (isPromptInputActive) return undefined;
   if (toolJSX !== null && !toolJSX.shouldContinueAnimation) return undefined;
   if (toolUseConfirmCount > 0) return 'tool-permission';
@@ -139,13 +139,13 @@ export function Chat({ commands: initialCommands, initialTools, debug = false, d
   const { crashResumeStaged, setCrashResumeStaged, crashNoticeLatchedRef } = useChatCrashResume();
   const { toolUseConfirmQueue, resolvedConsentCount, resolveHeadPermission, setToolPermissionContext, elicitationQueue, respondToElicitation, dismissElicitationWaiting } = useChatAsks({ setAppState, addNotification, chatStore });
   const { toolJSX, setToolJSX, isExiting, showExitFlow, setShowExitFlow, exitCommandJsx, showCostThreshold, setShowCostThreshold, showBashesDialog, setShowBashesDialog, handleExit } = useChatDialogs({ store, addNotification });
-  const { showMessageSelector, setShowMessageSelector, openMessageSelector, messageSelectorPreselect, setMessageSelectorPreselect } = useChatRewindPicker();
+  const { showRewindPicker, setShowRewindPicker, openRewindPicker, rewindPickerPreselect, setRewindPickerPreselect } = useChatRewindPicker();
   const { scrollRef, scrollRestoreRef, modalScrollRef, lastUserScrollAtRef, repinToBottom, noteUserScroll } = useChatScrollPin();
   const { isPromptInputActive, setInputValue, setInputMode, setPastedContents, authWallHold, insertTextRef, vimMode, setVimMode, isSearchingHistory, setIsSearchingHistory, helpOpen, setHelpOpen } = useChatDraft({ messages, fullscreen, repinToBottom, lastUserScrollAtRef });
 
   const focusedInputDialog = selectFocusedInputDialog({
     exiting: isExiting || showExitFlow,
-    showMessageSelector,
+    showRewindPicker,
     isPromptInputActive,
     toolJSX,
     toolUseConfirmCount: toolUseConfirmQueue.length,
@@ -153,7 +153,7 @@ export function Chat({ commands: initialCommands, initialTools, debug = false, d
     showCostThreshold,
     hasCrashResume: crashResumeStaged !== null,
   });
-  const dialogsHiddenWhileTyping = isPromptInputActive && !isExiting && !showMessageSelector && (toolUseConfirmQueue.length > 0 || showCostThreshold);
+  const dialogsHiddenWhileTyping = isPromptInputActive && !isExiting && !showRewindPicker && (toolUseConfirmQueue.length > 0 || showCostThreshold);
 
   const { dialogSlotRef, dialogPaints, localJsx, compactDetailUp, dialogOwnsKeys } = useChatDialogPaints({ toolJSX, compactFocus, compactWork, fullscreen, chatSurfaceCovered, focusedInputDialog });
   const { unseen, captureScrollForFlip, setFlipGeneration, unseenDivider, newMessageCount, onScroll, onPillClick } = useChatScroll({ messages, fullscreen, scrollRef, scrollRestoreRef, noteUserScroll });
@@ -161,7 +161,7 @@ export function Chat({ commands: initialCommands, initialTools, debug = false, d
   const { screen, setScreen, showAllInTranscript, setShowAllInTranscript, dumpMode, searchBarOpen, committedSearchQuery, searchMatchCount, searchMatchCurrent, editorStatus, inVirtualTranscriptMode, inTranscript, inVirtualTranscript, legacyTranscript, handleEnterTranscript, handleExitTranscript, previewSearch, commitSearch, cancelSearch, warmSearchIndex, onSearchMatchesChange, onTranscriptScroll, onTranscriptPillClick, jumpRef, scanElement, setPositions, transcriptMessages } = useChatSearch({ fullscreen, virtualScrollEnabled, columns, mergedTools, messages, focusedInputDialog, captureScrollForFlip, setFlipGeneration, scrollRef, scrollRestoreRef, onScroll });
 
   const { paintScreenRow } = useChatReceipts({ addNotification });
-  const { submitCount, setSubmitCount, getReadFileState, getToolUseContext, resume, paintScreenCommandReceipt, dialogInFlightRef, armedHandedBackRef, queuedDialogCommandsRef } = useChatSubmitTools({ store, setAppState, addNotification, removeNotification, debug, mergedTools, themeName, commandsRef, apiKeyVerification, paintScreenRow, setToolJSX, setShowMessageSelector, setConversationId });
+  const { submitCount, setSubmitCount, getReadFileState, getToolUseContext, resume, paintScreenCommandReceipt, dialogInFlightRef, armedHandedBackRef, queuedDialogCommandsRef } = useChatSubmitTools({ store, setAppState, addNotification, removeNotification, debug, mergedTools, themeName, commandsRef, apiKeyVerification, paintScreenRow, setToolJSX, setShowRewindPicker, setConversationId });
 
   useChatTurnBoundary({ isLoading, setAppState, addNotification });
   const { seatStartTimeRef, seatPausedMsRef, seatPauseStartRef } = useChatSeatClock({ seatLive, focusedInputDialog, isLoading });
@@ -177,7 +177,7 @@ export function Chat({ commands: initialCommands, initialTools, debug = false, d
   const { permissionOverlay } = useChatAsksCard({ focusedInputDialog, repinToBottom, toolUseConfirmQueue, resolvedConsentCount, chatStore, resolveHeadPermission, chatSurfaceCovered, verbose });
   const { centredModalUp, toolJSXRef, centredModal, bottomImmediateJsx, inlineToolJsx, focusedBottomDialog } = useChatDialogsView({ toolJSX, dialogSlotRef, localJsx, compactDetailUp, setShowCostThreshold, messages, fullscreen, compactWork, getToolUseContext, focusedEffectiveModel, chatSurfaceCovered, focusedInputDialog, elicitationQueue, respondToElicitation, dismissElicitationWaiting, crashResumeStaged, setCrashResumeStaged, addNotification, removeNotification, store });
   const { paintedMessages, entryLoadingLine, displayedMessages } = useChatSession({ focusedConnector, messages, compactWork, unseen, repinToBottom, setConversationId, setToolJSX, toolJSXRef, localJsx, landing, armedMessage, chatSurfaceCovered, inVirtualTranscript, transcriptMessages });
-  const { messageActionsDisabled, messageCursorActive, messageNavRef, messageActions, messageSelector } = useChatRewindPickerView({ addNotification, setInputValue, setInputMode, setShowMessageSelector, messageSelectorPreselect, setMessageSelectorPreselect, focusedInputDialog, chatSurfaceCovered, messages, onCancel, focusedEffectiveModel, handleEnterTranscript, setScreen, setShowAllInTranscript, isLoadingRef, resume });
+  const { messageActionsDisabled, messageCursorActive, messageNavRef, messageActions, rewindPicker } = useChatRewindPickerView({ addNotification, setInputValue, setInputMode, setShowRewindPicker, rewindPickerPreselect, setRewindPickerPreselect, focusedInputDialog, chatSurfaceCovered, messages, onCancel, focusedEffectiveModel, handleEnterTranscript, setScreen, setShowAllInTranscript, isLoadingRef, resume });
 
   useChatBootLines({ focusedConnector, addNotification });
   useChatBootStart({ submitCount, addNotification, removeNotification });
@@ -194,7 +194,7 @@ export function Chat({ commands: initialCommands, initialTools, debug = false, d
   const bottomSlot = chatBottomSlot({
     isExiting, showExitFlow, toolJSX, showBashesDialog, setShowBashesDialog, handleExit,
     toolPermissionContext, apiKeyVerification, commands, agentDefinitions, verbose,
-    setToolPermissionContext, submitCount, getToolUseContext, openMessageSelector,
+    setToolPermissionContext, submitCount, getToolUseContext, openRewindPicker,
     messageActionsDisabled, messageActions, messageCursorActive,
     vimMode, setVimMode, isSearchingHistory, setIsSearchingHistory, helpOpen, setHelpOpen, insertTextRef,
     onSubmit, dialogPaints, inTranscript, searchBarOpen, previewSearch, commitSearch, cancelSearch,
@@ -208,7 +208,7 @@ export function Chat({ commands: initialCommands, initialTools, debug = false, d
     inVirtualTranscript, inTranscript, screen, showAllInTranscript, jumpRef, onSearchMatchesChange,
     scanElement, setPositions, dumpMode, displayedMessages, paintedMessages, mergedTools, commands,
     agentDefinitions, verbose, viewInProgressToolUseIDs, conversationId, isLoading, focusedTail,
-    scrollRef, showMessageSelector, toolJSX, toolUseConfirmQueue, unseenDivider, messageNavRef,
+    scrollRef, showRewindPicker, toolJSX, toolUseConfirmQueue, unseenDivider, messageNavRef,
     streamingSuppressed, messages, tailAnchor,
   });
 
@@ -218,7 +218,7 @@ export function Chat({ commands: initialCommands, initialTools, debug = false, d
     legacyTranscript, fullscreen, compactWork, screen, setScreen, showAllInTranscript, setShowAllInTranscript,
     messages, handleEnterTranscript, handleExitTranscript, inVirtualTranscriptMode, inVirtualTranscript,
     searchBarOpen, helpOpen, isSearchingHistory, messageCursorActive, messageActions, messageActionsDisabled,
-    focusedInputDialog, toolUseConfirmQueue, showMessageSelector, showBashesDialog, vimMode,
+    focusedInputDialog, toolUseConfirmQueue, showRewindPicker, showBashesDialog, vimMode,
     dialogOwnsKeys, centredModalUp, permissionOverlay, viewStreamMode, seatLive,
     onSubmit, commands, scrollRef, modalScrollRef, onScroll, onTranscriptScroll,
   };
@@ -232,7 +232,7 @@ export function Chat({ commands: initialCommands, initialTools, debug = false, d
     permissionOverlay, centredModalUp, centredModal, bottomImmediateJsx, focusedBottomDialog,
     dialogOwnsKeys, unseen, newMessageCount, onPillClick, inVirtualTranscript, onTranscriptPillClick,
     screen, showAllInTranscript, mergedTools, commands, agentDefinitions, showExitFlow, setShowExitFlow,
-    exitCommandJsx, messageSelector, terminalTitleEnabled, keys, transcriptBody, isCompact,
+    exitCommandJsx, rewindPicker, terminalTitleEnabled, keys, transcriptBody, isCompact,
     focusedEffectiveModel, bottomSlot,
   });
 

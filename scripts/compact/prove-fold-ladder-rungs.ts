@@ -154,7 +154,7 @@ function conversation(rig: Rig): Message[] {
   return out
 }
 
-const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, agentNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'high' }
+const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, crewmateNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'high' }
 function makeContext(model: string, messages: Message[]): Record<string, unknown> {
   return {
     abortController: new AbortController(),
@@ -171,9 +171,9 @@ async function fold(model: string, messages: Message[], road: 'auto' | 'manual' 
   const cache = { systemPrompt: ['fixture system prompt'], userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: messages } as never
   const started = Date.now()
   try {
-    const result = await foldConversation(messages, context as never, cache, road === 'auto', undefined, road === 'auto', { isRecompaction: false, turnsSincePreviousCompact: -1, autoCompactThreshold: getAutoFoldThreshold(model) }, undefined, model)
+    const result = await foldConversation(messages, context as never, cache, road === 'auto', undefined, road === 'auto', { isRefold: false, turnsSincePreviousFold: -1, autoFoldThreshold: getAutoFoldThreshold(model) }, undefined, model)
     const summary = result.summaryMessages[0]
-    return { landed: true, pre: result.preCompactTokenCount, post: result.truePostCompactTokenCount, kept: result.messagesToKeep?.length ?? 0, notes: result.notes, summaryText: summary !== undefined && typeof summary.message.content === 'string' ? summary.message.content : '', result, ms: Date.now() - started }
+    return { landed: true, pre: result.preFoldTokenCount, post: result.truePostFoldTokenCount, kept: result.messagesToKeep?.length ?? 0, notes: result.notes, summaryText: summary !== undefined && typeof summary.message.content === 'string' ? summary.message.content : '', result, ms: Date.now() - started }
   } catch (error) {
     return { landed: false, error: error instanceof Error ? error.message : String(error), ms: Date.now() - started }
   }
@@ -354,7 +354,7 @@ section('R9 the text road is bounded by the same ladder: one round larger than a
   let summaryText = ''
   let notes: string[] = []
   try {
-    const result = await foldConversation(messages, context as never, cache, true, undefined, true, { isRecompaction: false, turnsSincePreviousCompact: -1, autoCompactThreshold: getAutoFoldThreshold(model) }, undefined, model)
+    const result = await foldConversation(messages, context as never, cache, true, undefined, true, { isRefold: false, turnsSincePreviousFold: -1, autoFoldThreshold: getAutoFoldThreshold(model) }, undefined, model)
     landed = true
     const summary = result.summaryMessages[0]
     summaryText = summary !== undefined && typeof summary.message.content === 'string' ? summary.message.content : ''

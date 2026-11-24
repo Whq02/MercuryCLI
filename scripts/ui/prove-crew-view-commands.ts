@@ -277,7 +277,7 @@ function Harness(): React.ReactNode {
           compactWork: controls, compactFocus: focus,
           debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
           setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands, agents: [],
-          isLoading: false, verbose: false, submitCount: 1, onShowMessageSelector: () => {},
+          isLoading: false, verbose: false, submitCount: 1, onShowRewindPicker: () => {},
           mcpClients: [], vimMode, setVimMode, showBashesDialog: bashes, setShowBashesDialog: setBashes,
           onExit: () => {}, getToolUseContext: () => ({} as never),
           onSubmit: async (text: string) => {
@@ -616,7 +616,7 @@ section("§5 the crewmate's own compaction: the flag on its task makes its query
     foldConversation: async (messages: unknown[], context: { agentId?: string }, _cacheSafe: unknown, _suppress: boolean, _instructions: string | undefined, isAutoCompact: boolean) => {
       seatCalls.push({ verb: 'foldConversation', args: [messages.length, context.agentId] })
       const { createFoldBoundaryMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
-      return { boundaryMarker: createFoldBoundaryMessage(isAutoCompact ? 'auto' : 'manual', 1234), summaryMessages: [], attachments: [], hookResults: [], preCompactTokenCount: 1234, postCompactTokenCount: 10 }
+      return { boundaryMarker: createFoldBoundaryMessage(isAutoCompact ? 'auto' : 'manual', 1234), summaryMessages: [], attachments: [], hookResults: [], preFoldTokenCount: 1234, postFoldTokenCount: 10 }
     },
     projectManualFold: async () => (nothingToFold ? { before: 960, after: 960, folds: 0, kept: 0, keptTokens: 0, totalRounds: 2, workingRoundsFolded: 0, context: 960 } : { before: 1234, after: 300, folds: 3, workingRoundsFolded: 2, context: 1234 }),
   }))
@@ -651,7 +651,7 @@ section("§5 the crewmate's own compaction: the flag on its task makes its query
   const folded = await autoFoldIfNeeded(messages as never, context as never, cacheSafe as never, 'agent:builtin:mercury-crew')
   const foldCalls = callsOf('foldConversation')
   check('the flagged crewmate\'s query folds at its next request boundary — the compaction ran on its own messages with its agent id, under the threshold', folded.wasCompacted === true && foldCalls.length === 1 && foldCalls[0]!.args[0] === messages.length && foldCalls[0]!.args[1] === LOCAL_ID, `${JSON.stringify({ wasCompacted: folded.wasCompacted, refusal: folded.refusal })} · ${JSON.stringify(foldCalls)}`)
-  check('the fold is asked as a manual one — foldConversation gets isAutoCompact false (the stub builds its boundary from it, as compact.ts:1794 does)', folded.compactionResult?.boundaryMarker.compactMetadata.trigger === 'manual', String(folded.compactionResult?.boundaryMarker.compactMetadata.trigger))
+  check('the fold is asked as a manual one — foldConversation gets isAutoCompact false (the stub builds its boundary from it, as compact.ts:1794 does)', folded.foldResult?.boundaryMarker.compactMetadata.trigger === 'manual', String(folded.foldResult?.boundaryMarker.compactMetadata.trigger))
   check('the flag is taken as the fold begins — the task no longer asks', (appState.tasks as Record<string, Record<string, unknown>>)[LOCAL_ID]!.compactRequested === undefined, JSON.stringify((appState.tasks as Record<string, unknown>)[LOCAL_ID]))
   const again = await autoFoldIfNeeded(messages as never, context as never, cacheSafe as never, 'agent:builtin:mercury-crew')
   check('the next boundary folds nothing — one ask, one fold', again.wasCompacted === false && callsOf('foldConversation').length === 1, JSON.stringify({ wasCompacted: again.wasCompacted, refusal: again.refusal, calls: callsOf('foldConversation').length }))

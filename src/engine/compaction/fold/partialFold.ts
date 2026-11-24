@@ -67,7 +67,7 @@ export async function partialFoldConversation(
     )
   }
 
-  const preCompactTokenCount = tokenCountWithEstimation(allMessages)
+  const preFoldTokenCount = tokenCountWithEstimation(allMessages)
   const trimmedFeedback = userFeedback?.trim()
   const feedbackOrUndefined = trimmedFeedback ? trimmedFeedback : undefined
 
@@ -76,7 +76,7 @@ export async function partialFoldConversation(
     const beforeHooks = await foldBeforeHooks(context, {
       trigger: 'manual',
       ...(feedbackOrUndefined !== undefined ? { instructions: feedbackOrUndefined } : {}),
-      tokens: preCompactTokenCount,
+      tokens: preFoldTokenCount,
     })
     const beforeHookRows: Message[] = hookRowsOfResult(beforeHooks).map(row => createAttachmentMessage(row))
     const boundedHook = boundedHookInstructions(beforeHooks.answer.instructions)
@@ -89,7 +89,7 @@ export async function partialFoldConversation(
 
     context.setStreamMode?.('requesting')
     context.setResponseLength?.(() => 0)
-    context.onCompactProgress?.({ type: 'compact_start' })
+    context.onFoldProgress?.({ type: 'compact_start' })
 
     const promptText = getPartialFoldPrompt(combinedInstructions, direction)
     const response = await summarizeWithPtlRetry(
@@ -120,7 +120,7 @@ export async function partialFoldConversation(
 
     const boundaryMarker = createFoldBoundaryMessage(
       'manual',
-      preCompactTokenCount,
+      preFoldTokenCount,
       anchorUuid,
       feedbackOrUndefined,
       summarize.length,
@@ -170,7 +170,7 @@ export async function partialFoldConversation(
     const operatorMessages = operatorAttachment !== null ? createAttachmentMessage(operatorAttachment) : undefined
 
     const rawUsage = response.message.usage
-    const compactionUsage: NonNullableUsage | undefined = rawUsage
+    const foldUsage: NonNullableUsage | undefined = rawUsage
       ? {
           input_tokens: rawUsage.input_tokens ?? 0,
           cache_creation_input_tokens: rawUsage.cache_creation_input_tokens ?? 0,
@@ -185,11 +185,11 @@ export async function partialFoldConversation(
           output_tokens_details: rawUsage.output_tokens_details ?? null,
         }
       : undefined
-    const callUsageTotal = compactionUsage
-      ? compactionUsage.input_tokens +
-        compactionUsage.cache_read_input_tokens +
-        compactionUsage.cache_creation_input_tokens +
-        compactionUsage.output_tokens
+    const callUsageTotal = foldUsage
+      ? foldUsage.input_tokens +
+        foldUsage.cache_read_input_tokens +
+        foldUsage.cache_creation_input_tokens +
+        foldUsage.output_tokens
       : 0
 
     const partialResult: FoldResult = {
@@ -199,9 +199,9 @@ export async function partialFoldConversation(
       ...(kept.length > 0 ? { messagesToKeep: kept } : {}),
       attachments,
       hookResults: beforeHookRows,
-      preCompactTokenCount,
-      postCompactTokenCount: callUsageTotal,
-      ...(compactionUsage !== undefined ? { compactionUsage } : {}),
+      preFoldTokenCount,
+      postFoldTokenCount: callUsageTotal,
+      ...(foldUsage !== undefined ? { foldUsage } : {}),
     }
 
     const carried = carryFoldPrefix(
@@ -218,7 +218,7 @@ export async function partialFoldConversation(
       attachments.push(carried.attachment)
     }
 
-    const truePostCompactTokenCount = estimateContextTokens(
+    const truePostFoldTokenCount = estimateContextTokens(
       buildPostFoldMessages(partialResult),
       context.options.engineModel,
     )
@@ -226,12 +226,12 @@ export async function partialFoldConversation(
       throw new APIUserAbortError()
     }
 
-    boundaryMarker.compactMetadata.postTokens = truePostCompactTokenCount
+    boundaryMarker.compactMetadata.postTokens = truePostFoldTokenCount
     const afterHookRows = await foldAfterHooks(context, {
       method: 'summary',
       trigger: 'manual',
-      tokensBefore: preCompactTokenCount,
-      tokensAfter: truePostCompactTokenCount,
+      tokensBefore: preFoldTokenCount,
+      tokensAfter: truePostFoldTokenCount,
       summary: rawSummary,
     })
     if (context.abortController.signal.aborted) {
@@ -244,7 +244,7 @@ export async function partialFoldConversation(
     const finalResult: FoldResult = {
       ...partialResult,
       hookResults: [...beforeHookRows, ...afterHookRows],
-      truePostCompactTokenCount,
+      truePostFoldTokenCount,
     }
     restoreBoundPrefixFromMessages(buildPostFoldMessages(finalResult), { fold: true })
     return finalResult

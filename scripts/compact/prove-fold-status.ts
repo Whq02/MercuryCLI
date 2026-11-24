@@ -168,7 +168,7 @@ console.log('\nS6 the one-row visibility law')
 console.log('\nS7 withFoldStatus owns the stamps')
 {
   type Stamp = unknown
-  const drive = async (trigger: 'manual' | 'auto', work: (scoped: { onCompactProgress?: (e: unknown) => void; setResponseLength?: (u: (p: number) => number) => void; setSDKStatus?: (w: unknown) => void }) => Promise<string>): Promise<{ stamps: Stamp[]; out: string | null; error: unknown }> => {
+  const drive = async (trigger: 'manual' | 'auto', work: (scoped: { onFoldProgress?: (e: unknown) => void; setResponseLength?: (u: (p: number) => number) => void; setSDKStatus?: (w: unknown) => void }) => Promise<string>): Promise<{ stamps: Stamp[]; out: string | null; error: unknown }> => {
     const stamps: Stamp[] = []
     const context = { setSDKStatus: (word: unknown) => stamps.push(word), abortController: new AbortController() } as never
     let out: string | null = null
@@ -184,14 +184,14 @@ console.log('\nS7 withFoldStatus owns the stamps')
     stamp !== null && typeof stamp === 'object' && 'compacting' in (stamp as object) ? ((stamp as { compacting: Record<string, unknown> }).compacting ?? null) : null
 
   const landed = await drive('manual', async scoped => {
-    scoped.onCompactProgress?.({ type: 'stage', stage: 'micro-compaction' })
+    scoped.onFoldProgress?.({ type: 'stage', stage: 'micro-compaction' })
     scoped.setSDKStatus?.('compacting')
-    scoped.onCompactProgress?.({ type: 'compact_start' })
+    scoped.onFoldProgress?.({ type: 'compact_start' })
     scoped.setResponseLength?.(() => 0)
     for (let i = 0; i < 20; i++) scoped.setResponseLength?.(prev => prev + 200)
     scoped.setSDKStatus?.(null)
     await sleep(FOLD_STAMP_THROTTLE_MS + 60)
-    scoped.onCompactProgress?.({ type: 'stage', stage: 'restoring' })
+    scoped.onFoldProgress?.({ type: 'stage', stage: 'restoring' })
     return 'folded'
   })
   check('the work\'s answer rides through', landed.out === 'folded' && landed.error === null)
@@ -220,7 +220,7 @@ console.log('\nS7 withFoldStatus owns the stamps')
   const failLast = compacting(failed.stamps[failed.stamps.length - 1])
   check('any other throw stamps the failed exit and rethrows', failed.error instanceof Error && failLast?.exit === 'failed')
   const auto = await drive('auto', async scoped => {
-    scoped.onCompactProgress?.({ type: 'compact_start' })
+    scoped.onFoldProgress?.({ type: 'compact_start' })
     return 'auto-folded'
   })
   check('the automatic fold\'s finally stamps null (the turn goes on)', auto.out === 'auto-folded' && auto.stamps[auto.stamps.length - 1] === null && compacting(auto.stamps[0])?.trigger === 'auto')

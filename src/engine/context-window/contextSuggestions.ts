@@ -24,11 +24,11 @@ export function generateContextSuggestions(data: ContextData): ContextSuggestion
     suggestions.push({
       severity: 'warning',
       title: `Context is ${data.percentage}% full`,
-      detail: data.isAutoCompactEnabled
+      detail: data.isAutoFoldEnabled
         ? 'Auto-compaction will trigger soon and discard older messages. Run /compact now to control what is kept.'
         : 'Auto-compaction is disabled, so the conversation will hit the limit. Run /compact, or enable auto-compaction in /config.',
     })
-  } else if (!data.isAutoCompactEnabled && data.percentage >= 50) {
+  } else if (!data.isAutoFoldEnabled && data.percentage >= 50) {
     suggestions.push({
       severity: 'info',
       title: 'Auto-compaction is disabled',

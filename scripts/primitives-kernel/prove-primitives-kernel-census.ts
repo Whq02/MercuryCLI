@@ -55,7 +55,7 @@ console.log('task chokepoint projection')
   const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
 
 
-  let state = { tasks: {} as Record<string, unknown>, agentNameRegistry: new Map() }
+  let state = { tasks: {} as Record<string, unknown>, crewmateNameRegistry: new Map() }
   const setAppState = (updater: (prev: typeof state) => typeof state): void => {
     state = updater(state)
   }

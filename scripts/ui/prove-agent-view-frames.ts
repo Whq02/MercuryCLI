@@ -265,7 +265,7 @@ function Harness(): React.ReactNode {
         compactWork: controls, compactFocus: focus,
         debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
         setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [],
-        isLoading: false, verbose: false, submitCount: 1, onShowMessageSelector: () => {},
+        isLoading: false, verbose: false, submitCount: 1, onShowRewindPicker: () => {},
         mcpClients: [], vimMode, setVimMode, showBashesDialog: bashes, setShowBashesDialog: setBashes,
         onExit: () => {}, getToolUseContext: () => ({} as never),
         onSubmit: async (text: string) => { submits.push(text) },

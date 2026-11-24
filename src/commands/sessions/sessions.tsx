@@ -172,7 +172,7 @@ function SessionsListingPicker({
       maxHeight={maxHeight}
       showAllProjects={showAllProjects}
       onToggleAllProjects={() => setShowAllProjects(current => !current)}
-      onLogsChanged={() => setReloadNonce(nonce => nonce + 1)}
+      onListingsChanged={() => setReloadNonce(nonce => nonce + 1)}
       onCancel={() => onDone('Resume cancelled.', { display: 'system' })}
     />
   )

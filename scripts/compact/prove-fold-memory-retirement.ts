@@ -71,7 +71,7 @@ const context = (overrides: Record<string, unknown> = {}) => ({
 }) as never
 const fold = (messages: Message[], ctx = context(), recompaction?: Parameters<typeof foldConversation>[6]) =>
   foldConversation(messages, ctx, { systemPrompt: ['fixture'], userContext: {}, systemContext: {}, toolUseContext: ctx, forkContextMessages: [] }, true, undefined, false, recompaction)
-const MUST_SHRINK = { isRecompaction: false, turnsSincePreviousCompact: -1, mustShrink: true }
+const MUST_SHRINK = { isRefold: false, turnsSincePreviousFold: -1, mustShrink: true }
 const WITHDRAWN = 'compactConversation in src/engine/compaction/foldConversation.ts must take back the memory row its own retireFoldToMemory call wrote (src/engine/compaction/foldRetirement.ts) when the fold does not land, and leave a fact an earlier fold wrote where it is'
 const envelopeOf = (result: Awaited<ReturnType<typeof fold>>) => result.boundaryMarker.compactMetadata.memory
 const summaryOf = (result: Awaited<ReturnType<typeof fold>>) => String(result.summaryMessages[0]?.message.content)
@@ -151,7 +151,7 @@ try {
 
   acceptUserRequest(owner, { objective: 'Prove the cancelled road.', rootMessageId: null })
   const cancel = new AbortController()
-  const cancelled = context({ abortController: cancel, onCompactProgress: (event: { type: string; stage?: string }) => { if (event.type === 'stage' && event.stage === 'restoring') cancel.abort() } })
+  const cancelled = context({ abortController: cancel, onFoldProgress: (event: { type: string; stage?: string }) => { if (event.type === 'stage' && event.stage === 'restoring') cancel.abort() } })
   await assert.rejects(fold([user('Prove the cancelled road.'), ...rounds(14)], cancelled), APIUserAbortError)
   check('a fold cancelled before the write leaves memory untouched', pendingRows(dir).length === 1)
 

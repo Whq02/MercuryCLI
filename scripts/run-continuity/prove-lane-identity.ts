@@ -30,7 +30,7 @@ console.log('lane identity legibility ──')
     generation: { treeDigest: 'd', headSha: 'h', branch: 'main', clean: true },
     executions: [],
     richTasks: new Map(),
-    agentMeta: new Map(),
+    crewmateMeta: new Map(),
     partySeats: [],
     collab: { zoneLanes: [{ sliceId: 'sl1', worktreePath: '/w/zones/zone-a', title: 'zone work', phase: 'ready' }] },
     gitWorktreeLanes: [{ path: '/w/.mercury/worktrees/parcel-decafbad', branch: 'wt-b', head: 'abc' }],

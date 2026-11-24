@@ -114,7 +114,7 @@ export function SpinnerAnimationRow(props: SpinnerAnimationRowProps): React.Reac
         )}
         <Box ref={messageRef}>
           {still ? <Text color={color}>{message}</Text> : (
-            <ShimmerMessage attentionIntensity={attention} flashOpacity={flash} glimmerIndex={shimmerIndex} message={message} messageColor={color} mode={mode} shimmerColor={overrideColor ?? shimmerColor} />
+            <ShimmerMessage attentionIntensity={attention} flashOpacity={flash} shimmerIndex={shimmerIndex} message={message} messageColor={color} mode={mode} shimmerColor={overrideColor ?? shimmerColor} />
           )}
         </Box>
         {plan.segBVisible && !plan.secondRow && <Text>{suffix}{figures}</Text>}

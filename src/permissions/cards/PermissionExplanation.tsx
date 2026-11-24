@@ -86,7 +86,7 @@ function ShimmerLine({ message }: { message: string }): React.ReactNode {
           key={index}
           char={character}
           index={index}
-          glimmerIndex={sweep}
+          shimmerIndex={sweep}
           messageColor="permission"
           shimmerColor="permissionShimmer"
         />

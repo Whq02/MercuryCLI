@@ -147,7 +147,7 @@ export function ladderMentions({
     const state = appStateStore.getState()
     const seen = new Set<string>()
     const agentSuggestions: Suggestion[] = []
-    for (const name of state.agentNameRegistry.keys()) {
+    for (const name of state.crewmateNameRegistry.keys()) {
       if (seen.has(name)) continue
       seen.add(name)
       if (name.toLowerCase().startsWith(query)) {
@@ -369,7 +369,7 @@ function describeCrewmate(
   state: ReturnType<AppStateStore['getState']>,
   name: string,
 ): string {
-  const taskId = state.agentNameRegistry.get(name)
+  const taskId = state.crewmateNameRegistry.get(name)
   if (taskId) {
     const task = state.tasks[taskId]
     if (task?.status) return `send a message · ${task.status}`

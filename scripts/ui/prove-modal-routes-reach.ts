@@ -242,7 +242,7 @@ async function openRoute(command: (typeof routes)[number], cols: number, rows: n
           compactWork: controls, compactFocus: focus,
           debug: false, toolPermissionContext: state.toolPermissionContext,
           setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [],
-          isLoading: false, verbose: false, submitCount: 0, onShowMessageSelector: () => {},
+          isLoading: false, verbose: false, submitCount: 0, onShowRewindPicker: () => {},
           mcpClients: [], vimMode, setVimMode, showBashesDialog: bashes, setShowBashesDialog: setBashes,
           onExit: () => {}, getToolUseContext: () => ({} as never),
           onSubmit: async () => {},

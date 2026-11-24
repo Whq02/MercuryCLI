@@ -93,7 +93,7 @@ function historyFor(road: { lane: string; model: string }, withRedacted: boolean
 
 type Drive = { reference: Body | undefined; fold: Body[]; error: unknown; result: Awaited<ReturnType<typeof foldConversation>> | undefined }
 async function drive(road: { lane: string; model: string; dialect: string }, effort: string, thinkingConfig: any, opts: { continued: boolean; redacted: boolean; auto?: boolean; overflow?: boolean; script?: unknown[]; messages?: any[]; threshold?: number }): Promise<Drive> {
-  const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, agentNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: effort }
+  const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, crewmateNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: effort }
   const tools = [ReadTool]
   const messages = opts.messages ?? historyFor(road, opts.redacted)
   const context: any = { abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: opts.messages ?? [], startTurn, readFileState: new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024), options: { tools, commands: [], mcpClients: [], engineModel: road.model, maxThinkingTokens: thinkingConfig.budgetTokens ?? 0, thinkingConfig, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
@@ -113,7 +113,7 @@ async function drive(road: { lane: string; model: string; dialect: string }, eff
   lanesAsked.push(shouldRideCacheSharingFork(road.model, thinkingConfig) ? 'fork' : 'direct')
   try {
     const overflow = opts.overflow ? { source: 'provider', family: road.lane, shape: 'context-length-exceeded' } : undefined
-    result = await foldConversation(messages, context, { systemPrompt, userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: messages } as never, opts.auto === true, undefined, opts.auto === true, opts.auto === true ? { isRecompaction: false, turnsSincePreviousCompact: 3, autoCompactThreshold: opts.threshold ?? 150_000 } : undefined, overflow as never)
+    result = await foldConversation(messages, context, { systemPrompt, userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: messages } as never, opts.auto === true, undefined, opts.auto === true, opts.auto === true ? { isRefold: false, turnsSincePreviousFold: 3, autoFoldThreshold: opts.threshold ?? 150_000 } : undefined, overflow as never)
   } catch (caught) { error = String(caught) }
   const fold = fixture.captured.slice(before).map(request => request.body as Body)
   return { reference, fold, error, result }

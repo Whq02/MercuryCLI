@@ -135,11 +135,11 @@ export function Config({
   }
   items.push(...configApiKeyRows({ ...rowKit, providerScoped }))
 
-  const agentDefaults = crewmateDefaultsOf(config.agents)
+  const crewmateDefaults = crewmateDefaultsOf(config.agents)
   const writeAgents = (patch: Partial<NonNullable<GlobalConfig['agents']>>): void => {
     writeGlobal(c => ({ ...c, agents: { ...c.agents, ...patch } }))
   }
-  items.push(...configCrewRows({ ...rowKit, agentDefaults, writeAgents }))
+  items.push(...configCrewRows({ ...rowKit, crewmateDefaults, writeAgents }))
 
   items.push(...media.items)
   const { searchMode, setSearchMode, query, setQuery, selected, filtered, searchRowUp, windowFor, win, moveTo } = useConfigList({ items, version, appState, themeSetting, seatFacts, configStamp, servedModel, jevStamp, localServer, media, onLine, compact, contentHeight, width, subMenu, setThinkingWarning })
@@ -148,7 +148,7 @@ export function Config({
 
   useConfigKeys({ subMenu, escape, searchMode, setSearchMode, moveTo, setQuery, pastOpenEvent, filtered, selected, saveAndClose, activate })
 
-  const subMenuView = configSubMenuView({ subMenu, media, contentHeight, width, compact, themeSetting, setThemeSetting, setSubMenu, agentDefaults, writeAgents, recordSet, signInFromDoor, merged, writeSource, externalIncludes, localServer })
+  const subMenuView = configSubMenuView({ subMenu, media, contentHeight, width, compact, themeSetting, setThemeSetting, setSubMenu, crewmateDefaults, writeAgents, recordSet, signInFromDoor, merged, writeSource, externalIncludes, localServer })
   if (subMenuView !== null) return subMenuView
 
   return configListView({ filtered, win, windowFor, width, searchRowUp, query, searchMode, compact, tokens, setSearchMode, moveTo, activate })

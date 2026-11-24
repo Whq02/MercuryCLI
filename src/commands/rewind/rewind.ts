@@ -5,6 +5,6 @@ export async function call(
   _args: string,
   context: ToolUseContext,
 ): Promise<LocalCommandResult> {
-  context.openMessageSelector?.()
+  context.openRewindPicker?.()
   return { type: 'skip' }
 }

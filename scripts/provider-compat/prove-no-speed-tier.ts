@@ -251,8 +251,8 @@ async function drive(model: string): Promise<{ wire: Captured[]; threw: string |
           handed.push(request.options)
           return deps.callModel(request as never)
         }) as never,
-        autocompact: (async () => ({ wasCompacted: false })) as never,
-        microcompact: (async (messages: unknown[]) => ({ messages })) as never,
+        autoFold: (async () => ({ wasCompacted: false })) as never,
+        prune: (async (messages: unknown[]) => ({ messages })) as never,
         uuid: deps.uuid,
       },
     })

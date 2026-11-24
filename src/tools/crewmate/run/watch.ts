@@ -156,7 +156,7 @@ export function callModelOf(run: CrewmateRun, { deps, agentId }: { deps: ReturnT
   return callModel
 }
 
-type ObserveNeeds = { recovery: RecoveryBudget; accountant: RecoveryAccountant; onQueryProgress: RunCrewmateParams['onQueryProgress']; touchThrough: (declaredMs: number) => void; declaredRecoveryWaitMs: typeof declaredRecoveryWaitMs }
+type ObserveNeeds = { recovery: RecoveryBudget; accountant: RecoveryAccountant; onQueryProgress: RunCrewmateParams['onTurnProgress']; touchThrough: (declaredMs: number) => void; declaredRecoveryWaitMs: typeof declaredRecoveryWaitMs }
 
 export function observeProgressOf(run: CrewmateRun, { recovery, accountant, onQueryProgress, touchThrough, declaredRecoveryWaitMs }: ObserveNeeds) {
   const observeProgress = (message: LegacyTurnYield): void => {
@@ -180,7 +180,7 @@ export function observeProgressOf(run: CrewmateRun, { recovery, accountant, onQu
   return observeProgress
 }
 
-export function sdkStatusOf(run: CrewmateRun, { onQueryProgress, accountant, touchThrough }: { onQueryProgress: RunCrewmateParams['onQueryProgress']; accountant: RecoveryAccountant; touchThrough: (declaredMs: number) => void }) {
+export function sdkStatusOf(run: CrewmateRun, { onQueryProgress, accountant, touchThrough }: { onQueryProgress: RunCrewmateParams['onTurnProgress']; accountant: RecoveryAccountant; touchThrough: (declaredMs: number) => void }) {
   return (status: unknown) => {
   if (status === null || typeof status !== 'object') return
   if ('streamActivity' in status) {

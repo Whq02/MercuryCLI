@@ -59,10 +59,10 @@ const context = (events: Progress[] = [], abort = new AbortController()) => ({
   loadedNestedMemoryPaths: new Set<string>(),
   getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, mcp: { tools: [], clients: [], commands: [], resources: {} } }),
   options: { tools: [], mcpClients: [], commands: [], agentDefinitions: { activeAgents: [] }, engineModel: 'claude-opus-4-8', thinkingConfig: { type: 'disabled' }, isNonInteractiveSession: true },
-  onCompactProgress: (event: Progress) => { events.push(event) },
+  onFoldProgress: (event: Progress) => { events.push(event) },
 }) as never
 const fold = (messages: Message[], ctx: unknown, ceiling?: number) =>
-  foldConversation(messages, ctx as never, { systemPrompt: ['fixture'], userContext: {}, systemContext: {}, toolUseContext: ctx as never, forkContextMessages: [] }, true, undefined, true, ceiling === undefined ? undefined : { autoCompactThreshold: ceiling } as never)
+  foldConversation(messages, ctx as never, { systemPrompt: ['fixture'], userContext: {}, systemContext: {}, toolUseContext: ctx as never, forkContextMessages: [] }, true, undefined, true, ceiling === undefined ? undefined : { autoFoldThreshold: ceiling } as never)
 const indexOf = (result: Awaited<ReturnType<typeof fold>>) => renderFoldLedger(result.boundaryMarker.compactMetadata.ledger!)
 const indexJson = (result: Awaited<ReturnType<typeof fold>>) => JSON.parse(indexOf(result).split('\n\n')[1]!) as Record<string, any>
 const blockOf = (result: Awaited<ReturnType<typeof fold>>) => (result.operatorMessages?.attachment as { messages: Array<{ ordinal: number; text: string }>; omitted: number } | undefined)
@@ -104,7 +104,7 @@ try {
   const third = await fold(bigAsks, context(), smallWindow)
   const thirdBlock = blockOf(third)
   const thirdBlockTokens = thirdBlock ? thirdBlock.messages.reduce((n, m) => n + roughTokenCountEstimation(m.text), 0) : 0
-  check(`a small window: fold 1 of a wide stretch lands under ${smallWindow} tokens with its block whole`, third.truePostCompactTokenCount !== undefined && third.truePostCompactTokenCount < smallWindow && thirdBlock !== undefined && thirdBlock.omitted === 0, String(third.truePostCompactTokenCount), 'change how compactConversation (src/engine/compaction/foldConversation.ts) fits the fold and its operator block under the autoCompactThreshold option')
+  check(`a small window: fold 1 of a wide stretch lands under ${smallWindow} tokens with its block whole`, third.truePostFoldTokenCount !== undefined && third.truePostFoldTokenCount < smallWindow && thirdBlock !== undefined && thirdBlock.omitted === 0, String(third.truePostFoldTokenCount), 'change how compactConversation (src/engine/compaction/foldConversation.ts) fits the fold and its operator block under the autoFoldThreshold option')
   const fourthInput = [...buildPostFoldMessages(third), ...stretch(12, 6_000, 'wider')]
   const fourth = await fold(fourthInput, context(), smallWindow)
   const fourthBlock = blockOf(fourth)
@@ -113,7 +113,7 @@ try {
   const keptWider = keptAsks(fourth, 'wider')
   const currentAsks = fourthBlock?.messages.filter(entry => entry.text.startsWith('wider ask ')) ?? []
   const earlierAsks = fourthBlock?.messages.filter(entry => entry.text.startsWith('wide ask ')) ?? []
-  check(`fold 46ao: fold 2 lands under ${smallWindow}, keeps every retiring ask whole and carries earlier asks within the 20k budget`, fourth.truePostCompactTokenCount !== undefined && fourth.truePostCompactTokenCount < smallWindow && fourthBlock !== undefined && fourthBlock.omitted === 24 - keptWider - fourthBlock.messages.length && currentAsks.length === 12 - keptWider && earlierAsks.length >= keptWide && fourthBlockTokens <= 20_000 && fourthBlock.messages.every(entry => fourthInput.some(row => row.type === 'user' && row.message.content === entry.text) || thirdBlock?.messages.some(prior => prior.text === entry.text)) && (fourth.boundaryMarker.compactMetadata.recentRounds?.kept ?? 0) >= 1 && thirdBlockTokens > 0, JSON.stringify({ rounds: fourth.boundaryMarker.compactMetadata.recentRounds, omitted: fourthBlock?.omitted, current: currentAsks.length, earlier: earlierAsks.length }), operatorBlockWhere + ' (earlier asks within the 20k budget)')
+  check(`fold 46ao: fold 2 lands under ${smallWindow}, keeps every retiring ask whole and carries earlier asks within the 20k budget`, fourth.truePostFoldTokenCount !== undefined && fourth.truePostFoldTokenCount < smallWindow && fourthBlock !== undefined && fourthBlock.omitted === 24 - keptWider - fourthBlock.messages.length && currentAsks.length === 12 - keptWider && earlierAsks.length >= keptWide && fourthBlockTokens <= 20_000 && fourthBlock.messages.every(entry => fourthInput.some(row => row.type === 'user' && row.message.content === entry.text) || thirdBlock?.messages.some(prior => prior.text === entry.text)) && (fourth.boundaryMarker.compactMetadata.recentRounds?.kept ?? 0) >= 1 && thirdBlockTokens > 0, JSON.stringify({ rounds: fourth.boundaryMarker.compactMetadata.recentRounds, omitted: fourthBlock?.omitted, current: currentAsks.length, earlier: earlierAsks.length }), operatorBlockWhere + ' (earlier asks within the 20k budget)')
 
   const paidBefore = api.messageRequests().length
   const events: Progress[] = []
@@ -135,7 +135,7 @@ try {
   try { giant = await fold(oneGiantRound, context(events2), 20_000) } catch (error) { tailRefusal = error instanceof Error ? error.message : String(error) }
   const giantRounds = giant?.boundaryMarker.compactMetadata.recentRounds
   const giantResults = (giant?.messagesToKeep ?? []).flatMap(row => row.type === 'user' && Array.isArray(row.message.content) ? row.message.content.filter(block => block.type === 'tool_result').map(block => String(block.content)) : [])
-  check('a stretch whose latest complete round cannot fit whole: the round is kept with its giant result folded into the summary (one summary paid) and the fold lands under the threshold — no refusal, no prune rung', tailRefusal === '' && giant !== undefined && (giantRounds?.kept ?? 0) >= 1 && giantRounds?.folded === 1 && giantResults.filter(text => text.startsWith('[result folded into the summary above')).length === 1 && (giant.truePostCompactTokenCount ?? Infinity) < 20_000 && api.messageRequests().length === paid2 + 1, `${tailRefusal.slice(0, 140)} rounds=${JSON.stringify(giantRounds)} requests=${api.messageRequests().length - paid2}`, 'change compactConversation (src/engine/compaction/foldConversation.ts) so the latest round is kept with its giant tool result folded into the summary, one summary request, and no refusal')
+  check('a stretch whose latest complete round cannot fit whole: the round is kept with its giant result folded into the summary (one summary paid) and the fold lands under the threshold — no refusal, no prune rung', tailRefusal === '' && giant !== undefined && (giantRounds?.kept ?? 0) >= 1 && giantRounds?.folded === 1 && giantResults.filter(text => text.startsWith('[result folded into the summary above')).length === 1 && (giant.truePostFoldTokenCount ?? Infinity) < 20_000 && api.messageRequests().length === paid2 + 1, `${tailRefusal.slice(0, 140)} rounds=${JSON.stringify(giantRounds)} requests=${api.messageRequests().length - paid2}`, 'change compactConversation (src/engine/compaction/foldConversation.ts) so the latest round is kept with its giant tool result folded into the summary, one summary request, and no refusal')
   check('…and compaction.after fired once for the landed fold', postCompactHooks(events2) === 1, JSON.stringify(events2.map(e => e.hookType ?? e.stage ?? e.type)), 'change compactConversation (src/engine/compaction/foldConversation.ts) so the post_compact hook fires once for a landed fold')
 
   const events3: Progress[] = []

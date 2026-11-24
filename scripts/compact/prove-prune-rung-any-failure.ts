@@ -170,7 +170,7 @@ async function run(opts: { seed: unknown[]; script: unknown[][]; compactAnswer: 
     querySource: 'sdk' as never,
     deps: {
       callModel: callModel as never,
-      autocompact: compact.autocompact as never,
+      autoFold: compact.autocompact as never,
       uuid: (() => {
         let n = 0
         return () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`

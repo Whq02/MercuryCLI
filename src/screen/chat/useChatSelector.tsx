@@ -40,19 +40,19 @@ function rewindReceiptLine(receipt: RewindReceiptV1): string {
 }
 
 export function useChatRewindPicker() {
-  const [showMessageSelector, setShowMessageSelector] = useState(false);
-  const openMessageSelector = useCallback(() => setShowMessageSelector(true), []);
-  const [messageSelectorPreselect, setMessageSelectorPreselect] = useState<UserMessage | undefined>(undefined);
-  return { showMessageSelector, setShowMessageSelector, openMessageSelector, messageSelectorPreselect, setMessageSelectorPreselect };
+  const [showRewindPicker, setShowRewindPicker] = useState(false);
+  const openRewindPicker = useCallback(() => setShowRewindPicker(true), []);
+  const [rewindPickerPreselect, setRewindPickerPreselect] = useState<UserMessage | undefined>(undefined);
+  return { showRewindPicker, setShowRewindPicker, openRewindPicker, rewindPickerPreselect, setRewindPickerPreselect };
 }
 
 export function useChatRewindPickerView({
   addNotification,
   setInputValue,
   setInputMode,
-  setShowMessageSelector,
-  messageSelectorPreselect,
-  setMessageSelectorPreselect,
+  setShowRewindPicker: setShowMessageSelector,
+  rewindPickerPreselect: messageSelectorPreselect,
+  setRewindPickerPreselect: setMessageSelectorPreselect,
   focusedInputDialog,
   chatSurfaceCovered,
   messages,
@@ -67,9 +67,9 @@ export function useChatRewindPickerView({
   addNotification: ReturnType<typeof useNotifications>['addNotification'];
   setInputValue: (value: string) => void;
   setInputMode: (mode: InputMode) => void;
-  setShowMessageSelector: (show: boolean) => void;
-  messageSelectorPreselect: UserMessage | undefined;
-  setMessageSelectorPreselect: (message: UserMessage | undefined) => void;
+  setShowRewindPicker: (show: boolean) => void;
+  rewindPickerPreselect: UserMessage | undefined;
+  setRewindPickerPreselect: (message: UserMessage | undefined) => void;
   focusedInputDialog: FocusedInputDialog | undefined;
   chatSurfaceCovered: boolean;
   messages: Message[];
@@ -149,7 +149,7 @@ export function useChatRewindPickerView({
     refuseSessionRewrite('summarising a stretch of the conversation');
   }, [refuseSessionRewrite]);
 
-  const messageSelector =
+  const rewindPicker =
     focusedInputDialog === 'message-selector' && !chatSurfaceCovered ? (
       <RewindPicker
         messages={messages}
@@ -220,5 +220,5 @@ export function useChatRewindPickerView({
         }}
       />
     ) : null;
-  return { messageActionsDisabled, messageCursorActive, messageNavRef, messageActions, messageSelector };
+  return { messageActionsDisabled, messageCursorActive, messageNavRef, messageActions, rewindPicker };
 }

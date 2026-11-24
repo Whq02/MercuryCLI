@@ -8,7 +8,7 @@ import { hasNoticeFold } from '../../engine/message-shapes/noticeRows.js'
 import { findToolByName } from '../../tools/kit/tool.js'
 import type { MessagesProps, VisibleRowsState, TranscriptRowsState } from './shapes.js'
 
-export function useRowExpansion({ conversationId, isMessageSelectorVisible, lookups, toolJSX, toolUseConfirmQueue, tools, verbose, withheldDisclosure }: { conversationId: MessagesProps['conversationId']; isMessageSelectorVisible: MessagesProps['isMessageSelectorVisible']; lookups: TranscriptRowsState['lookups']; toolJSX: MessagesProps['toolJSX']; toolUseConfirmQueue: MessagesProps['toolUseConfirmQueue']; tools: MessagesProps['tools']; verbose: MessagesProps['verbose']; withheldDisclosure: VisibleRowsState['withheldDisclosure'] }) {
+export function useRowExpansion({ conversationId, isRewindPickerVisible, lookups, toolJSX, toolUseConfirmQueue, tools, verbose, withheldDisclosure }: { conversationId: MessagesProps['conversationId']; isRewindPickerVisible: MessagesProps['isRewindPickerVisible']; lookups: TranscriptRowsState['lookups']; toolJSX: MessagesProps['toolJSX']; toolUseConfirmQueue: MessagesProps['toolUseConfirmQueue']; tools: MessagesProps['tools']; verbose: MessagesProps['verbose']; withheldDisclosure: VisibleRowsState['withheldDisclosure'] }) {
   const subscribeExpansion = useCallback(
     (listener: () => void) => subscribeExpandedRows(conversationId, listener),
     [conversationId],
@@ -117,7 +117,7 @@ export function useRowExpansion({ conversationId, isMessageSelectorVisible, look
       !(toolJSX as { continueAnimation?: boolean }).continueAnimation
     ) &&
     toolUseConfirmQueue.length === 0 &&
-    !isMessageSelectorVisible
+    !isRewindPickerVisible
 
   const onItemClick = useCallback(
     (message: RenderableMessage) => toggleExpandedRow(conversationId, expansionKeyOf(message)),

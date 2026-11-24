@@ -178,13 +178,13 @@ async function runTurn(n: number, shape: TurnShape): Promise<TurnEvidence> {
     querySource: 'sdk' as never,
     deps: {
       callModel: callModel as never,
-      autocompact: (async (msgs: unknown[]) => ({
-        compactionResult: undefined,
+      autoFold: (async (msgs: unknown[]) => ({
+        foldResult: undefined,
         consecutiveFailures: undefined,
         consecutiveRapidRefills: undefined,
         rapidRefillBreakerTripped: false,
       })) as never,
-      microcompact: (async (msgs: unknown[]) => ({ messages: msgs })) as never,
+      prune: (async (msgs: unknown[]) => ({ messages: msgs })) as never,
       uuid: nextUuid,
     } as never,
   })

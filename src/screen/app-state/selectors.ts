@@ -90,11 +90,11 @@ export function projectViewedCrewmate(
 }
 
 export function getViewedCrewmate(
-  appState: Pick<AppState, 'viewingAgentTaskId' | 'tasks' | 'agentNameRegistry'>,
+  appState: Pick<AppState, 'viewingAgentTaskId' | 'tasks' | 'crewmateNameRegistry'>,
 ): ViewedCrewmate | undefined {
   const taskId = appState.viewingAgentTaskId
   if (!taskId) return undefined
   const task = appState.tasks[taskId]
   if (!task) return undefined
-  return projectViewedCrewmate(task, appState.agentNameRegistry)
+  return projectViewedCrewmate(task, appState.crewmateNameRegistry)
 }

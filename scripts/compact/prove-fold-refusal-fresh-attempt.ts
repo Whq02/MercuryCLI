@@ -19,7 +19,7 @@ setIsInteractive(false)
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const compact = await import('../../src/engine/compaction/foldConversation.ts')
-const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, agentNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'max' }
+const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, crewmateNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'max' }
 let failures = 0
 let checks = 0
 const check = (name: string, ok: boolean, details: unknown = ''): void => {
@@ -35,7 +35,7 @@ try {
     const rows = [createUserMessage({ content: 'The operator asked for a tags parser. We edited tags.ts and ran 14 passing tests.' })]
     const original = JSON.stringify(rows)
     const readState = new Map([['tags.ts', { content: 'parser source', timestamp: 1 }]])
-    const context = { abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: rows, readFileState: readState, onCompactProgress: (event: { type: string }) => events.push(event), options: { tools: [], commands: [], mcpClients: [], engineModel: 'claude-sonnet-5-5', maxThinkingTokens: 0, thinkingConfig: { type: 'adaptive' as const }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
+    const context = { abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: rows, readFileState: readState, onFoldProgress: (event: { type: string }) => events.push(event), options: { tools: [], commands: [], mcpClients: [], engineModel: 'claude-sonnet-5-5', maxThinkingTokens: 0, thinkingConfig: { type: 'adaptive' as const }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
     const label = automatic ? 'automatic' : 'manual'
     fixture.script([{ refusal: true }, { text: summary }])
     const before = fixture.captured.length

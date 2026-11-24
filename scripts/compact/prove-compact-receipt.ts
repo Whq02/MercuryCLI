@@ -117,7 +117,7 @@ function makeCommandContext(model: string): Record<string, unknown> {
 type CompactCallResult = {
   type: string
   displayText?: string
-  compactionResult?: {
+  foldHandoff?: {
     summaryMessages?: Array<{
       isVisibleInTranscriptOnly?: true
       summarizeMetadata?: { messagesSummarized?: number; contextReclaimedPct?: number; tokensBefore?: number; tokensAfter?: number; keptMessages?: number }
@@ -139,9 +139,9 @@ process.env.MERCURY_CONCOURSE_WORKER = '1'
   check('R1 the receipt names where the retained summary is readable', /reads the full summary — what the agent retains/.test(plain), plain + receiptHint + ' (the transcript hint prints when shouldEnrichForLiveDisplay is true and verbose is off)')
   check('R1 the bare word alone is gone', plain.trim() !== 'Compacted', plain + receiptHint)
 
-  const summaries = result.compactionResult?.summaryMessages ?? []
+  const summaries = result.foldHandoff?.summaryMessages ?? []
   const summary = summaries[0]
-  check('R2 the summary row exists', summary !== undefined, 'no summary message in compactionResult.summaryMessages | check the result built by call in src/commands/compact/compact.ts')
+  check('R2 the summary row exists', summary !== undefined, 'no summary message in foldHandoff.summaryMessages | check the result built by call in src/commands/compact/compact.ts')
   check(
     'R2 hosted seat: the summary row is UN-hidden (the cockpit paints the card)',
     summary !== undefined && summary.isVisibleInTranscriptOnly !== true,
@@ -155,7 +155,7 @@ process.env.MERCURY_CONCOURSE_WORKER = '1'
     typeof meta?.tokensBefore === 'number' && typeof meta?.tokensAfter === 'number',
     JSON.stringify(meta) + cardHint,
   )
-  const kept = result.compactionResult?.messagesToKeep?.length ?? 0
+  const kept = result.foldHandoff?.messagesToKeep?.length ?? 0
   check('R2 the verbatim tail rode the fold (kept > 0 — the fixture has ten rounds)', kept > 0, `kept=${kept}` + cardHint)
   check('R2 the card metadata names the kept count', meta?.keptMessages === kept, JSON.stringify({ meta, kept }) + cardHint)
 }
@@ -164,7 +164,7 @@ section('R3 the plain run world — the transcript-only summary stands (SDK cont
 delete process.env.MERCURY_CONCOURSE_WORKER
 {
   const result = (await call('', makeCommandContext('claude-opus-4-8') as never)) as CompactCallResult
-  const summary = (result.compactionResult?.summaryMessages ?? [])[0]
+  const summary = (result.foldHandoff?.summaryMessages ?? [])[0]
   check('the command answered a compact result', result.type === 'compact', 'type=' + result.type + ' | the call in src/commands/compact/compact.ts must return type compact')
   check(
     'R3 plain headless: the summary row STAYS transcript-only',

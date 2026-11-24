@@ -310,7 +310,7 @@ export async function createAsyncAgentAttachmentsIfNeeded(context: ToolUseContex
   const appState = context.getAppState()
   const attachments = getAgentRosterAttachment({
     tasks: appState.tasks,
-    agentNameRegistry: appState.agentNameRegistry,
+    crewmateNameRegistry: appState.crewmateNameRegistry,
     excludeAgentId: context.agentId,
     queuedNoticeIds: queuedNoticeTaskIds(getCommandQueue()),
   })

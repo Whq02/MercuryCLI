@@ -113,7 +113,7 @@ type FoldHandoff = {
 
 export type LocalCommandResult =
   | { type: 'text'; value: string }
-  | { type: 'compact'; compactionResult: FoldHandoff; displayText?: string }
+  | { type: 'compact'; foldHandoff: FoldHandoff; displayText?: string }
   | { type: 'skip' }
 
 export type LocalCommandCall = (args: string, context: LocalJSXCommandContext) => Promise<LocalCommandResult>
@@ -121,7 +121,7 @@ export type LocalCommandCall = (args: string, context: LocalJSXCommandContext) =
 type CommandDoneOptions = {
   display?: CommandResultDisplay
   metaMessages?: string[]
-  shouldQuery?: boolean
+  shouldStartTurn?: boolean
   nextInput?: string
   submitNextInput?: boolean
 }

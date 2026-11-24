@@ -12,7 +12,7 @@ import type { AgentRosterAttachment, AgentRosterRow } from '../attachment-shapes
 
 type AgentRosterInput = {
   tasks: AppState['tasks'] | undefined
-  agentNameRegistry?: ReadonlyMap<string, string>
+  crewmateNameRegistry?: ReadonlyMap<string, string>
   excludeAgentId?: string
   queuedNoticeIds?: ReadonlySet<string>
 }
@@ -105,7 +105,7 @@ function rowFor(
 export function getAgentRosterAttachment(input: AgentRosterInput): AgentRosterAttachment[] {
   const tasks = input.tasks ?? {}
   const nameOfId = new Map<string, string>()
-  for (const [name, id] of input.agentNameRegistry ?? []) nameOfId.set(String(id), name)
+  for (const [name, id] of input.crewmateNameRegistry ?? []) nameOfId.set(String(id), name)
   const rows: AgentRosterRow[] = []
   for (const row of projectWorkRoster(tasks)) {
     const task = tasks[row.id]

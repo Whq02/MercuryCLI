@@ -61,7 +61,7 @@ const leadRows = [prompt, thought, reply]
 const crewRows = [{ ...prompt, uuid: 'bbbbbbbb-0000-4000-8000-000000000001' }, { ...reply, uuid: 'bbbbbbbb-0000-4000-8000-000000000003', message: { ...reply.message, content: [{ type: 'text', text: 'the crewmate answers' }] } }]
 
 const scrollRef = React.createRef<unknown>()
-const common = { tools: [], commands: [], toolJSX: null, toolUseConfirmQueue: [], inProgressToolUseIDs: new Set<string>(), isMessageSelectorVisible: false, screen: 'prompt', streamingToolUses: [], showAllInTranscript: false, isLoading: false, streamingThinking: null, streamingTail: null, scrollRef }
+const common = { tools: [], commands: [], toolJSX: null, toolUseConfirmQueue: [], inProgressToolUseIDs: new Set<string>(), isRewindPickerVisible: false, screen: 'prompt', streamingToolUses: [], showAllInTranscript: false, isLoading: false, streamingThinking: null, streamingTail: null, scrollRef }
 let setViewOuter: ((view: 'lead' | 'crewmate') => void) | null = null
 function Swap(): React.ReactNode {
   const [view, setView] = React.useState<'lead' | 'crewmate'>('lead')

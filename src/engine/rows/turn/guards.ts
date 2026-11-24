@@ -6,12 +6,12 @@ import { registerRunStopGuard } from '../../../permissions/guards/runStop.js'
 import { registerStructuredOutputGuard, releaseStructuredOutputGuard } from '../../../permissions/guards/structuredOutput.js'
 import { registerWardsGuard } from '../../../permissions/guards/wardsGuard.js'
 import { flagEnv } from '../../../platform/substrate/flagRegistry.js'
-import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../../../tools/kit/names/syntheticOutput.js'
+import { STRUCTURED_OUTPUT_TOOL_NAME } from '../../../tools/kit/names/syntheticOutput.js'
 import { assertSingleRole } from '../../../daemon/concourse-workers/workerRole.js'
 import type { ConversationConfig } from '../turn.js'
 
 export function armTurnGuards(config: ConversationConfig, sessionId: ReturnType<typeof getSessionId>): void {
-  const hasSyntheticOutputTool = config.tools.some(tool => tool.name === SYNTHETIC_OUTPUT_TOOL_NAME)
+  const hasSyntheticOutputTool = config.tools.some(tool => tool.name === STRUCTURED_OUTPUT_TOOL_NAME)
   if (config.jsonSchema && hasSyntheticOutputTool) registerStructuredOutputGuard(sessionId)
   else releaseStructuredOutputGuard(sessionId)
   const forcedReadList = (flagEnv('MERCURY_FORCE_READ_FILES') ?? '')

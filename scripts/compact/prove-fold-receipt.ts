@@ -75,7 +75,7 @@ try {
   const result = await fold([user('Rebuild the compaction road on the measurement.'), user('Keep the receipt exact.'), ...rounds(14)])
   const meta = result.boundaryMarker.compactMetadata
   const receipt = foldReceipt(meta)
-  check('the boundary records the post-fold estimate the result reports', meta.postTokens === result.truePostCompactTokenCount && typeof meta.postTokens === 'number', `${String(meta.postTokens)}; ${hintBoundary}`)
+  check('the boundary records the post-fold estimate the result reports', meta.postTokens === result.truePostFoldTokenCount && typeof meta.postTokens === 'number', `${String(meta.postTokens)}; ${hintBoundary}`)
   check('the receipt reads the trigger and the before/after counts from the committed boundary', receipt.trigger === 'auto' && receipt.before === meta.preTokens && receipt.after?.tokens === meta.postTokens && receipt.after.source === 'estimate', hintBoundary)
   check('the receipt\'s kept rounds equal the committed tail', receipt.rounds !== null && meta.recentRounds !== undefined && receipt.rounds.kept === meta.recentRounds.kept && receipt.rounds.requested === meta.recentRounds.requested && receipt.rounds.reason === meta.recentRounds.reason && receipt.rounds.kept === 10, `${JSON.stringify(receipt.rounds)}; ${hintBoundary}`)
   check('the kept tail the result carries is exactly those rounds', (result.messagesToKeep?.length ?? 0) === receipt.rounds!.kept * 2, hintBoundary)

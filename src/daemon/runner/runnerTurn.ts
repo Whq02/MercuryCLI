@@ -8,7 +8,7 @@ import { flagEnv } from '../../platform/substrate/flagRegistry.js'
 import { withElicitationEntered } from '../../integrations/mcp/elicitationHandler.js'
 import { mcpToolPartition, getTools, toolsWithheldByDeny, getAllBaseTools } from '../../tools/kit/toolList.js'
 import type { Tool } from '../../tools/kit/tool.js'
-import { isSyntheticOutputToolEnabled, createSyntheticOutputTool, SYNTHETIC_OUTPUT_TOOL_NAME } from '../../tools/structured-output/SyntheticOutputTool.js'
+import { isStructuredOutputToolEnabled, getSchemaBoundStructuredOutputTool, STRUCTURED_OUTPUT_TOOL_NAME } from '../../tools/structured-output/SyntheticOutputTool.js'
 import { isHostNotice } from '../../screen/composer/input-core/command-queue.js'
 import { spokenNotifications, foldNotifications, foldNotificationValues } from './turnDriver.js'
 import { randomUUID, type UUID } from 'node:crypto'
@@ -118,10 +118,10 @@ export function assembleTurnTools(state: AppState, turnSchema: Record<string, un
     deduped.push(tool)
   }
   const answerSchema = answerSchemaOf(turnSchema)
-  if (answerSchema === undefined || !isSyntheticOutputToolEnabled({ isNonInteractiveSession: true })) return deduped
-  const synthetic = createSyntheticOutputTool(answerSchema)
+  if (answerSchema === undefined || !isStructuredOutputToolEnabled({ isNonInteractiveSession: true })) return deduped
+  const synthetic = getSchemaBoundStructuredOutputTool(answerSchema)
   if (!('tool' in synthetic)) return deduped
-  const at = deduped.findIndex(tool => tool.name === SYNTHETIC_OUTPUT_TOOL_NAME)
+  const at = deduped.findIndex(tool => tool.name === STRUCTURED_OUTPUT_TOOL_NAME)
   if (at === -1) return [...deduped, synthetic.tool]
   if (deduped[at] === synthetic.tool) return deduped
   return deduped.map((tool, index) => (index === at ? synthetic.tool : tool))

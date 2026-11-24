@@ -629,7 +629,7 @@ async function runLocalJsxCommand(
         createUserMessage({ content: text, isMeta: true }),
       )
       const forwarded: Pick<ProcessUserInputBaseResult, 'shouldQuery' | 'nextInput' | 'submitNextInput'> = {
-        shouldQuery: options?.shouldQuery ?? false,
+        shouldQuery: options?.shouldStartTurn ?? false,
         ...(options?.nextInput !== undefined ? { nextInput: options.nextInput } : {}),
         ...(options?.submitNextInput !== undefined
           ? { submitNextInput: options.submitNextInput }
@@ -754,7 +754,7 @@ async function runLocalCommand(
       return { messages: [], shouldQuery: false }
     }
     if (result.type === 'compact') {
-      const compaction = result.compactionResult
+      const compaction = result.foldHandoff
       const display = result.displayText
       const displayMessage = display
         ? {

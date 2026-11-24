@@ -14,18 +14,18 @@ export type FoldResult = {
   messagesToKeep?: Message[]
   attachments: AttachmentMessage[]
   hookResults: Message[]
-  preCompactTokenCount: number
-  postCompactTokenCount: number
-  truePostCompactTokenCount?: number
-  compactionUsage?: NonNullableUsage
+  preFoldTokenCount: number
+  postFoldTokenCount: number
+  truePostFoldTokenCount?: number
+  foldUsage?: NonNullableUsage
   notes?: string[]
 }
 
 export type RefoldInfo = {
-  isRecompaction: boolean
-  turnsSincePreviousCompact: number
-  autoCompactThreshold: number
-  previousCompactTurnId?: string
+  isRefold: boolean
+  turnsSincePreviousFold: number
+  autoFoldThreshold: number
+  previousFoldTurnId?: string
   querySource?: string
   restoreFiles?: boolean
   mustShrink?: boolean

@@ -32,7 +32,7 @@ let prunes = 0
 const plan = await buildRequestContextPlan({
   messages, owner: makeOwnerKey({ workspace: process.cwd(), sessionId: 'summary-first', lane: 'main' }), querySource: 'main_thread',
   contentReplacementState: state, skipToolNames: new Set(), preserveBodies: true, pressurePrune: true,
-  microcompact: async rows => { prunes++; return { messages: rows } },
+  prune: async rows => { prunes++; return { messages: rows } },
 }, 'apply')
 assert.equal(JSON.stringify(plan.messages), before)
 assert.equal(roughTokenCountEstimationForMessages(plan.messages), 740942)
@@ -74,7 +74,7 @@ const ctx = {
   abortController: cancel, readFileState: reads, loadedNestedMemoryPaths: nested,
   getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, mcp: { tools: [], clients: [], commands: [], resources: {} } }),
   options: { tools: [], mcpClients: [], commands: [], agentDefinitions: { activeAgents: [] }, engineModel: 'claude-opus-4-8', thinkingConfig: { type: 'disabled' }, isNonInteractiveSession: true },
-  onCompactProgress: (event: { type: string; stage?: string }) => { if (event.type === 'stage' && event.stage === 'restoring') cancel.abort() },
+  onFoldProgress: (event: { type: string; stage?: string }) => { if (event.type === 'stage' && event.stage === 'restoring') cancel.abort() },
 } as never
 try {
   await assert.rejects(foldConversation([createUserMessage({ content: 'Keep these source bytes.' }), createAssistantMessage({ content: 'Source observed.' })], ctx, { systemPrompt: ['fixture'], userContext: {}, systemContext: {}, toolUseContext: ctx, forkContextMessages: [] }, true), APIUserAbortError)

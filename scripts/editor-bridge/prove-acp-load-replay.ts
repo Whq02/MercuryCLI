@@ -164,7 +164,7 @@ function makeStore(): { getAppState: () => Record<string, unknown>; setAppState:
     sessionHooks: new Map(),
     tasks: {},
     todos: {},
-    agentNameRegistry: new Map(),
+    crewmateNameRegistry: new Map(),
     mcp: { clients: [], tools: [], commands: [], resources: {} },
     fileHistory: { snapshots: new Map(), fileVersions: new Map() },
     attribution: {},

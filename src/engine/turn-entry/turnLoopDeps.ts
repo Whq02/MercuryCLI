@@ -8,8 +8,8 @@ import { scriptedCallModel } from './scriptedStream.js'
 export type TurnLoopDeps = {
   uuid: () => string
   callModel: typeof routedCallModel
-  autocompact: typeof autoFoldIfNeeded
-  microcompact: typeof pruneMessages
+  autoFold: typeof autoFoldIfNeeded
+  prune: typeof pruneMessages
 }
 
 export function productionDeps(): TurnLoopDeps {
@@ -17,7 +17,7 @@ export function productionDeps(): TurnLoopDeps {
   return {
     uuid: randomUUID,
     callModel: (script ? scriptedCallModel(script) : null) ?? routedCallModel,
-    autocompact: autoFoldIfNeeded,
-    microcompact: pruneMessages,
+    autoFold: autoFoldIfNeeded,
+    prune: pruneMessages,
   }
 }

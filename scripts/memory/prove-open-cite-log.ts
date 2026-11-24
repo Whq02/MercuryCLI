@@ -49,7 +49,7 @@ try {
         message.message.stop_reason = input ? 'tool_use' : 'end_turn'
         yield message
       },
-      autocompact: async () => ({ wasCompacted: false }), microcompact: async (messages: unknown[]) => ({ messages }), uuid: () => crypto.randomUUID(),
+      autoFold: async () => ({ wasCompacted: false }), prune: async (messages: unknown[]) => ({ messages }), uuid: () => crypto.randomUUID(),
     },
   } as never, [])
   for await (const _event of machine) {}

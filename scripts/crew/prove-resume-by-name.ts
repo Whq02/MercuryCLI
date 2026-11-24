@@ -207,7 +207,7 @@ const foldOf = async (store: Store, messages: Message[], summary: string): Promi
   const boundary = createFoldBoundaryMessage('auto', 120_000, last.uuid as never)
   const summaryRow = createUserMessage({ content: getFoldUserSummaryMessage(summary, false, join(home, 'session.jsonl'), false), isCompactSummary: true, isVisibleInTranscriptOnly: true })
   const attachments = await createAsyncAgentAttachmentsIfNeeded(makeCtx(store, messages))
-  return buildPostFoldMessages({ boundaryMarker: boundary, summaryMessages: [summaryRow], attachments, hookResults: [], preCompactTokenCount: 120_000, postCompactTokenCount: 0 })
+  return buildPostFoldMessages({ boundaryMarker: boundary, summaryMessages: [summaryRow], attachments, hookResults: [], preFoldTokenCount: 120_000, postFoldTokenCount: 0 })
 }
 
 console.log('============================================================')
@@ -220,11 +220,11 @@ const transcript: Message[] = []
 const ctx = makeCtx(store, transcript)
 const harbour = launchNamed(store, transcript, 'harbour-count', 'count the harbour')
 check('the launch name is not an agent id, so only a name road can reach it', toAgentId('harbour-count') === null)
-check('the registry routes the name to the launch while it runs', store.get().agentNameRegistry.get('harbour-count') === harbour)
+check('the registry routes the name to the launch while it runs', store.get().crewmateNameRegistry.get('harbour-count') === harbour)
 const receiptWords = textOf(transcript[1])
 check('the launch receipt the Crewmate tool minted promises both addresses: the id and the name', receiptWords.startsWith(lr.BACKGROUND_LAUNCH_LINE) && receiptWords.includes(`agentId: ${harbour}`) && receiptWords.includes('or to its name "harbour-count"'), receiptWords.slice(0, 300), 'the launch receipt line in src/tools/crewmate/call/resultBlock.ts must carry the agentId and the or to its name clause when the launch had a name')
 finishAndEvict(store, harbour, 'count the harbour')
-check('once the settled row is evicted the registry no longer holds the name (the mechanism behind the defect)', store.get().tasks[harbour] === undefined && !store.get().agentNameRegistry.has('harbour-count'), JSON.stringify([...store.get().agentNameRegistry.entries()]), 'evictTerminalTask in src/engine/task-framework/taskRegistry.ts must prune the name from agentNameRegistry when it evicts a settled agent row')
+check('once the settled row is evicted the registry no longer holds the name (the mechanism behind the defect)', store.get().tasks[harbour] === undefined && !store.get().crewmateNameRegistry.has('harbour-count'), JSON.stringify([...store.get().crewmateNameRegistry.entries()]), 'evictTerminalTask in src/engine/task-framework/taskRegistry.ts must prune the name from crewmateNameRegistry when it evicts a settled agent row')
 check('…while its transcript stays on disk, the record the id road resumes from', existsSync(getCrewmateTranscriptPath(asAgentId(harbour))), '', 'the eviction sweep must leave the agent transcript file on disk (getAgentTranscriptPath in src/sessions/transcripts/paths.ts)')
 
 section('§2 THE ID ROAD (control) — a message to the finished agent\'s id resumes it from its transcript')
@@ -272,7 +272,7 @@ section('§6 TWO FINISHED LAUNCHES WITH ONE NAME — the newest is resumed, and 
   finishAndEvict(twin, older, 'scout the harbour')
   const newer = launchNamed(twin, twinTranscript, 'scout', 'scout the harbour again')
   finishAndEvict(twin, newer, 'scout the harbour again')
-  check('both launches carried the name and both are evicted; the registry holds neither', older !== newer && !twin.get().agentNameRegistry.has('scout') && twin.get().tasks[older] === undefined && twin.get().tasks[newer] === undefined, '', 'evictTerminalTask in src/engine/task-framework/taskRegistry.ts must prune both launch rows and the registry name')
+  check('both launches carried the name and both are evicted; the registry holds neither', older !== newer && !twin.get().crewmateNameRegistry.has('scout') && twin.get().tasks[older] === undefined && twin.get().tasks[newer] === undefined, '', 'evictTerminalTask in src/engine/task-framework/taskRegistry.ts must prune both launch rows and the registry name')
   const toScout = await send(twinCtx, 'scout', 'which of you', 'req_scout')
   console.log(`  the answer: ${JSON.stringify(toScout.data)}`)
   check('the newest launch is the one resumed', toScout.data.success === true && rowOf(twin, newer)?.status === 'running' && twin.get().tasks[older] === undefined, toScout.data.message, 'the name lookup in src/tools/send-message/crewAddress.ts must resolve to the newest launch (last of launchesNamed in src/engine/tasks/local-agent/launchReceipts.ts)')
@@ -335,7 +335,7 @@ const durableTranscript: Message[] = []
 const before = Date.now()
 const beacon = await launchReal(durable, durableTranscript, 'harbour-count', 'count the harbour')
 check('the launch is a sub-agent launch whose receipt promises the name (the Crewmate tool\'s own words)', beacon.receipt.startsWith(lr.BACKGROUND_LAUNCH_LINE) && beacon.receipt.includes(`agentId: ${beacon.id}`) && beacon.receipt.includes('or to its name "harbour-count"'), beacon.receipt.slice(0, 300))
-check('…and the registry routes the name while the row lives', durable.get().agentNameRegistry.get('harbour-count') === beacon.id)
+check('…and the registry routes the name while the row lives', durable.get().crewmateNameRegistry.get('harbour-count') === beacon.id)
 const launched = await sidecarOf(beacon.id)
 console.log(`  the sidecar: ${JSON.stringify(launched)}`)
 check('the launch writes its sidecar beside the transcript (the run loop\'s own write, before its first model call)', launched !== null && existsSync(getCrewmateMetadataPath(asAgentId(beacon.id))), JSON.stringify(launched))
@@ -345,7 +345,7 @@ check('…beside the launch facts it always carried: the kind, the description, 
 const launchClock = launched?.launchedAt
 const launchWrite = existsSync(getCrewmateMetadataPath(asAgentId(beacon.id))) ? statSync(getCrewmateMetadataPath(asAgentId(beacon.id))).mtimeMs : 0
 await evictKilled(durable, beacon.id, 'count the harbour')
-check('the settled row is evicted and the registry drops the name (the mechanism, as §1)', durable.get().tasks[beacon.id] === undefined && !durable.get().agentNameRegistry.has('harbour-count'))
+check('the settled row is evicted and the registry drops the name (the mechanism, as §1)', durable.get().tasks[beacon.id] === undefined && !durable.get().crewmateNameRegistry.has('harbour-count'))
 
 section('§13 THE FOLD — the messages a compaction leaves, minted with the compaction\'s own builders: the receipts are gone, the roster attachment carries no evicted row, the registry holds no name — and the name still resolves, from the sidecar (RED on the base: today\'s "spawn a crew" words)')
 const folded = await foldOf(durable, durableTranscript, '<summary>\nA background agent named harbour-count was launched to count the harbour and completed.\n</summary>')
@@ -356,7 +356,7 @@ check('the summary names the agent only in prose', typeof summaryText === 'strin
 check('no launch receipt survives the fold: the receipts reader finds nothing', (lr.namedLaunchReceipts as Reader)(folded).length === 0)
 const rosters = folded.filter(m => m.type === 'attachment' && (m as unknown as { attachment?: { type?: string } }).attachment?.type === 'agent_roster')
 check('the fold\'s roster attachment re-tells live rows only: an evicted finished agent has no row in it', rosters.every(row => !JSON.stringify(row).includes(beacon.id)), JSON.stringify(rosters).slice(0, 300))
-check('the registry holds no name either', !durable.get().agentNameRegistry.has('harbour-count'))
+check('the registry holds no name either', !durable.get().crewmateNameRegistry.has('harbour-count'))
 const afterFold = await send(foldCtx, 'harbour-count', 'a word after the fold', 'req_fold')
 console.log(`  the answer: ${JSON.stringify(afterFold.data)}`)
 check('THE PIN: the name resolves after the fold and the finished agent is resumed (RED on the base)', afterFold.data.success === true && /resumed in the background with your message/.test(afterFold.data.message), afterFold.data.message)
@@ -392,7 +392,7 @@ section('§15 TWO LAUNCHES, ONE NAME, THE RECEIPTS GONE — the newest by its la
   const olderSidecar = (await readCrewmateMetadata(asAgentId(older.id))) as Sidecar
   check('both launches wrote their sidecars, the newer with the later clock (RED on the base)', typeof olderSidecar?.launchedAt === 'number' && typeof newerSidecar?.launchedAt === 'number' && newerSidecar.launchedAt > olderSidecar.launchedAt, JSON.stringify({ older: olderSidecar, newer: newerSidecar }))
   const twinFold = makeCtx(twin, await foldOf(twin, twinTranscript, '<summary>\nTwo scouts were launched and both completed.\n</summary>'))
-  check('the fold left no receipt and no registry name', (lr.namedLaunchReceipts as Reader)((twinFold as unknown as { messages: Message[] }).messages).length === 0 && !twin.get().agentNameRegistry.has('scout'))
+  check('the fold left no receipt and no registry name', (lr.namedLaunchReceipts as Reader)((twinFold as unknown as { messages: Message[] }).messages).length === 0 && !twin.get().crewmateNameRegistry.has('scout'))
   const toScout = await send(twinFold, 'scout', 'which of you', 'req_fold_scout')
   console.log(`  the answer: ${JSON.stringify(toScout.data)}`)
   check('the newest launch is the one resumed', toScout.data.success === true && rowOf(twin, newer.id)?.status === 'running' && twin.get().tasks[older.id] === undefined, toScout.data.message)

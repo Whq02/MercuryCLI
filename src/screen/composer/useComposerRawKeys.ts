@@ -66,7 +66,7 @@ type ComposerRawKeysInput = {
   setMode: (mode: InputMode) => void
   setHelpOpen: (open: boolean) => void
   setCursorOffset: (offset: number) => void
-  onShowMessageSelector: () => void
+  onShowRewindPicker: () => void
   addNotification: (notification: Notification) => void
   submitRef: React.MutableRefObject<ComposerSubmit>
   suggestionsMirrorRef: React.MutableRefObject<SuggestionsState>
@@ -120,14 +120,14 @@ export function useComposerRawKeys(params: ComposerRawKeysInput): void {
     setMode,
     setHelpOpen,
     setCursorOffset,
-    onShowMessageSelector,
+    onShowRewindPicker,
     addNotification,
     suggestionsMirrorRef,
     viewedCrewmateRef,
     voicePhase,
   } = params
   const noopSetPending = useCallback(() => {}, [])
-  const handleDoubleEsc = useDoublePress(noopSetPending, onShowMessageSelector, undefined, 800)
+  const handleDoubleEsc = useDoublePress(noopSetPending, onShowRewindPicker, undefined, 800)
 
   const notifyCrew = useCallback(
     (text: string, color?: 'warning') => {

@@ -29,7 +29,7 @@ const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool
 const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
 const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 const { foldConversation, partialFoldConversation } = await import('../../src/engine/compaction/foldConversation.ts')
-const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, agentNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'max' }
+const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, crewmateNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'max' }
 let failures = 0
 let checks = 0
 const check = (name: string, ok: boolean, details: unknown = '', hint = ''): void => {
@@ -136,7 +136,7 @@ try {
       const before = fixture.captured.length
       let error: unknown
       try {
-        await foldConversation(built.messages, context, { systemPrompt, userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: built.messages } as never, true, undefined, true, { isRecompaction: false, turnsSincePreviousCompact: 3, autoCompactThreshold: threshold })
+        await foldConversation(built.messages, context, { systemPrompt, userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: built.messages } as never, true, undefined, true, { isRefold: false, turnsSincePreviousFold: 3, autoFoldThreshold: threshold })
       } catch (caught) { error = String(caught) }
       const requests = fixture.captured.slice(before)
       const body = requests.at(-1)?.body as any

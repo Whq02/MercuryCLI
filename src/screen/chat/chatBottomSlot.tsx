@@ -19,7 +19,7 @@ type BottomSlotArgs = Pick<ReturnType<typeof useChatDialogs>, 'isExiting' | 'sho
   Pick<ReturnType<typeof useChatTools>, 'toolPermissionContext' | 'apiKeyVerification' | 'commands' | 'agentDefinitions' | 'verbose'> &
   Pick<ReturnType<typeof useChatAsks>, 'setToolPermissionContext'> &
   Pick<ReturnType<typeof useChatSubmitTools>, 'submitCount' | 'getToolUseContext'> &
-  Pick<ReturnType<typeof useChatRewindPicker>, 'openMessageSelector'> &
+  Pick<ReturnType<typeof useChatRewindPicker>, 'openRewindPicker'> &
   Pick<ReturnType<typeof useChatRewindPickerView>, 'messageActionsDisabled' | 'messageActions' | 'messageCursorActive'> &
   Pick<ReturnType<typeof useChatDraft>, 'vimMode' | 'setVimMode' | 'isSearchingHistory' | 'setIsSearchingHistory' | 'helpOpen' | 'setHelpOpen' | 'insertTextRef'> &
   Pick<ReturnType<typeof useChatSubmit>, 'onSubmit'> &
@@ -36,7 +36,7 @@ type BottomSlotArgs = Pick<ReturnType<typeof useChatDialogs>, 'isExiting' | 'sho
     columns: number;
   };
 
-export function chatBottomSlot({ isExiting, showExitFlow, toolJSX, showBashesDialog, setShowBashesDialog, handleExit, toolPermissionContext, apiKeyVerification, commands, agentDefinitions, verbose, setToolPermissionContext, submitCount, getToolUseContext, openMessageSelector, messageActionsDisabled, messageActions, messageCursorActive, vimMode, setVimMode, isSearchingHistory, setIsSearchingHistory, helpOpen, setHelpOpen, insertTextRef, onSubmit, dialogPaints, inTranscript, searchBarOpen, previewSearch, commitSearch, cancelSearch, warmSearchIndex, searchMatchCount, searchMatchCurrent, committedSearchQuery, inVirtualTranscript, dumpMode, showAllInTranscript, editorStatus, disabled, debug, disableSlashCommands, focusedInputDialog, compactWork, compactFocus, isLoading, dialogsHiddenWhileTyping, columns }: BottomSlotArgs): React.ReactNode {
+export function chatBottomSlot({ isExiting, showExitFlow, toolJSX, showBashesDialog, setShowBashesDialog, handleExit, toolPermissionContext, apiKeyVerification, commands, agentDefinitions, verbose, setToolPermissionContext, submitCount, getToolUseContext, openRewindPicker, messageActionsDisabled, messageActions, messageCursorActive, vimMode, setVimMode, isSearchingHistory, setIsSearchingHistory, helpOpen, setHelpOpen, insertTextRef, onSubmit, dialogPaints, inTranscript, searchBarOpen, previewSearch, commitSearch, cancelSearch, warmSearchIndex, searchMatchCount, searchMatchCurrent, committedSearchQuery, inVirtualTranscript, dumpMode, showAllInTranscript, editorStatus, disabled, debug, disableSlashCommands, focusedInputDialog, compactWork, compactFocus, isLoading, dialogsHiddenWhileTyping, columns }: BottomSlotArgs): React.ReactNode {
   const composer = !disabled && !isExiting && !showExitFlow && !toolJSX?.shouldHidePromptInput && (focusedInputDialog === undefined || compactFocus === 'detail') ? (
     <Composer
       compactWork={compactWork}
@@ -50,7 +50,7 @@ export function chatBottomSlot({ isExiting, showExitFlow, toolJSX, showBashesDia
       isLoading={isLoading}
       verbose={verbose}
       submitCount={submitCount}
-      onShowMessageSelector={openMessageSelector}
+      onShowRewindPicker={openRewindPicker}
       onMessageActionsEnter={messageActionsDisabled ? undefined : messageActions.enter}
       mcpClients={NO_MCP_CLIENTS}
       vimMode={vimMode}

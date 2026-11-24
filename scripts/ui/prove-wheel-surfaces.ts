@@ -168,7 +168,7 @@ try {
       covered ? h(ScrollBox, { ref: background, height: 5, flexDirection: 'column' }, h(Text, {}, Array.from({ length: 60 }, (_, i) => `BACKGROUND_${i}`).join('\n'))) : null,
       h(Box, { ref: covered ? elevated : undefined, flexDirection: 'column' },
         h(ScrollBox, { ref: scroll, height: 12, flexDirection: 'column' }, chat
-          ? h(Messages, { messages: transcript, tools: [], verbose: false, toolJSX: null, toolUseConfirmQueue: [], inProgressToolUseIDs: new Set<string>(), isMessageSelectorVisible: false, conversationId: 'wheel-fixture', screen: 'prompt', streamingToolUses: [], isLoading: false, suppressLogo: true, suppressNotices: true, scrollRef: scroll })
+          ? h(Messages, { messages: transcript, tools: [], verbose: false, toolJSX: null, toolUseConfirmQueue: [], inProgressToolUseIDs: new Set<string>(), isRewindPickerVisible: false, conversationId: 'wheel-fixture', screen: 'prompt', streamingToolUses: [], isLoading: false, suppressLogo: true, suppressNotices: true, scrollRef: scroll })
           : h(Text, {}, Array.from({ length: 60 }, (_, i) => `BODY_ROW_${i}`).join('\n')))),
       chat ? h(TextInput, { value: 'composer draft', columns: 120, onChange: () => { composerEdits++ }, onSubmit: noop, cursorOffset: 14, onChangeCursorOffset: noop, onHistoryUp: () => { historyMoves++ }, onHistoryDown: () => { historyMoves++ }, focus: true, showCursor: true }) : null,
       chat ? h(ScrollKeybindingHandler, { scrollRef: scroll, isActive: true }) : null,

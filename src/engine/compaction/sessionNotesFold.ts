@@ -186,11 +186,11 @@ export async function trySessionNotesFold(
     const messagesToKeep = messages.slice(keepIndex).filter(message => !isFoldBoundaryMessage(message))
 
     const effectiveTrigger: 'auto' | 'manual' = trigger ?? 'auto'
-    const preCompactTokenCount = tokenCountFromLastAPIResponse(messages)
+    const preFoldTokenCount = tokenCountFromLastAPIResponse(messages)
     const lastMessageUuid = messages.at(-1)?.uuid
     const boundaryMarker = createFoldBoundaryMessage(
       effectiveTrigger,
-      preCompactTokenCount,
+      preFoldTokenCount,
       lastMessageUuid,
     )
 
@@ -245,7 +245,7 @@ export async function trySessionNotesFold(
       {
         method: 'notes',
         trigger: effectiveTrigger,
-        tokens_before: preCompactTokenCount,
+        tokens_before: preFoldTokenCount,
         tokens_after: preHookEstimate,
       },
       {
@@ -266,26 +266,26 @@ export async function trySessionNotesFold(
       messagesToKeep,
       attachments,
       hookResults,
-      preCompactTokenCount,
-      postCompactTokenCount: summaryTokens,
-      truePostCompactTokenCount: summaryTokens,
-      compactionUsage: undefined,
+      preFoldTokenCount,
+      postFoldTokenCount: summaryTokens,
+      truePostFoldTokenCount: summaryTokens,
+      foldUsage: undefined,
     }
 
     const finalEstimate = estimateContextTokens(buildPostFoldMessages(result))
     if (autoCompactThreshold !== undefined && finalEstimate >= autoCompactThreshold) {
       return null
     }
-    result.postCompactTokenCount = finalEstimate
-    result.truePostCompactTokenCount = finalEstimate
+    result.postFoldTokenCount = finalEstimate
+    result.truePostFoldTokenCount = finalEstimate
 
     if (effectiveTrigger === 'manual') {
-      const sizes = foldSizes(messages, rosterContext?.options?.engineModel, preCompactTokenCount, estimateContextTokens)
+      const sizes = foldSizes(messages, rosterContext?.options?.engineModel, preFoldTokenCount, estimateContextTokens)
       if (finalEstimate >= sizes.before) {
         return null
       }
-      if (preCompactTokenCount > 0) {
-        result.truePostCompactTokenCount = sizes.after(finalEstimate).tokens
+      if (preFoldTokenCount > 0) {
+        result.truePostFoldTokenCount = sizes.after(finalEstimate).tokens
       }
     }
 

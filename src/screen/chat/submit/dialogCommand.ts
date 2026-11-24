@@ -11,7 +11,7 @@ import { INERT_PROMPT_HELPERS, takeComposer, type SubmitDeps, type SubmitLine } 
 
 type DialogCommand = Extract<Command, { type: 'local-jsx' }>;
 type DialogSlot = { name: string; mounted: boolean };
-type DialogDoneOptions = { display?: 'skip' | 'system' | 'user'; nextInput?: string; submitNextInput?: boolean; shouldQuery?: boolean; metaMessages?: string[] };
+type DialogDoneOptions = { display?: 'skip' | 'system' | 'user'; nextInput?: string; submitNextInput?: boolean; shouldStartTurn?: boolean; metaMessages?: string[] };
 
 export function queueBehindDialog(deps: SubmitDeps, line: SubmitLine, dialogName: string): boolean {
   const { addNotification, dialogInFlightRef, queuedDialogCommandsRef } = deps;
@@ -69,7 +69,7 @@ export function openDialogCommand(deps: SubmitDeps, line: SubmitLine, seatComman
     doneOptions?: DialogDoneOptions,
   ): void => {
     completed = true;
-    submitTrace('repl-dialog-done', input, { name: dialogName, result: (result ?? '').slice(0, 80), display: doneOptions?.display ?? 'user', shouldQuery: doneOptions?.shouldQuery === true });
+    submitTrace('repl-dialog-done', input, { name: dialogName, result: (result ?? '').slice(0, 80), display: doneOptions?.display ?? 'user', shouldQuery: doneOptions?.shouldStartTurn === true });
     releaseDialogSlot(deps, slot);
     setToolJSX(null);
     if (result && doneOptions?.display !== 'skip') {
@@ -77,7 +77,7 @@ export function openDialogCommand(deps: SubmitDeps, line: SubmitLine, seatComman
       if (resultLines > 1) paintScreenCommandReceipt(dialogName, args, result, submittedAt);
       else addNotification({ key: `command-${seatCommand.name}`, text: result, priority: 'immediate' });
     }
-    if (doneOptions?.shouldQuery === true) {
+    if (doneOptions?.shouldStartTurn === true) {
       sendAfterDialog(deps, line, seatCommand, dialogName, doneOptions);
     }
     if (doneOptions?.nextInput) {

@@ -33,7 +33,7 @@ function MessagesInner({
   toolJSX,
   toolUseConfirmQueue,
   inProgressToolUseIDs,
-  isMessageSelectorVisible,
+  isRewindPickerVisible,
   conversationId,
   screen,
   streamingToolUses,
@@ -130,7 +130,7 @@ function MessagesInner({
     onItemClick,
   } = useRowExpansion({
     conversationId,
-    isMessageSelectorVisible,
+    isRewindPickerVisible,
     lookups,
     toolJSX,
     toolUseConfirmQueue,
@@ -334,7 +334,7 @@ function areMessagesPropsEqual(
   if (prev.isLoading !== next.isLoading) return false
   if (prev.showAllInTranscript !== next.showAllInTranscript) return false
   if (prev.toolJSX !== next.toolJSX) return false
-  if (prev.isMessageSelectorVisible !== next.isMessageSelectorVisible) {
+  if (prev.isRewindPickerVisible !== next.isRewindPickerVisible) {
     return false
   }
   if (prev.conversationId !== next.conversationId) return false

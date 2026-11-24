@@ -114,13 +114,13 @@ export function projectSessionPickerRows(
 const ENRICH_BATCH = 50
 
 function useResumableSessionListings(opts: { enabled?: boolean } = {}): {
-  logs: SessionListing[] | null
+  listings: SessionListing[] | null
   pendingMore: number
   readNotice: string | null
   dropSessions: (sessionIds: ReadonlySet<string>) => void
 } {
   const enabled = opts.enabled !== false
-  const [logs, setLogs] = useState<SessionListing[] | null>(null)
+  const [listings, setLogs] = useState<SessionListing[] | null>(null)
   const [pendingMore, setPendingMore] = useState(0)
   const [readFailures, setReadFailures] = useState<SessionReadFailures | undefined>(undefined)
   useLoad(signal => {
@@ -163,7 +163,7 @@ function useResumableSessionListings(opts: { enabled?: boolean } = {}): {
   const dropSessions = (sessionIds: ReadonlySet<string>): void => {
     setLogs(prev => (prev === null ? prev : prev.filter(l => !sessionIds.has(sessionIdOfListing(l) ?? ''))))
   }
-  return { logs, pendingMore, readNotice: formatSessionReadFailures(readFailures), dropSessions }
+  return { listings, pendingMore, readNotice: formatSessionReadFailures(readFailures), dropSessions }
 }
 
 export function useSessionPickerModel(
@@ -178,21 +178,21 @@ export function useSessionPickerModel(
   elsewhereCount: number
   dropSessions: (sessionIds: ReadonlySet<string>) => void
 } {
-  const { logs, pendingMore, readNotice, dropSessions } = useResumableSessionListings(opts)
+  const { listings, pendingMore, readNotice, dropSessions } = useResumableSessionListings(opts)
   const projectKey = useSyncExternalStore(subscribeCurrentProject, () => currentProject().key, () => currentProject().key)
   const nowTick = useNowTick(30_000)
   const { flat, elsewhereCount } = useMemo(
     () =>
-      logs === null
+      listings === null
         ? { flat: [] as SessionPickerFlatRow[], elsewhereCount: 0 }
-        : projectSessionPickerRows(logs, {
+        : projectSessionPickerRows(listings, {
             scope,
             projectDir: currentProject().dir,
             boardHomed: boardHomedSessionIds(),
             isCleared: id => isSessionCleared(id),
             ...(opts.filterDir !== undefined ? { filterDir: opts.filterDir } : {}),
           }),
-    [logs, nowTick, scope, projectKey, opts.filterDir],
+    [listings, nowTick, scope, projectKey, opts.filterDir],
   )
-  return { logs, pendingMore, readNotice, projectKey, flat, elsewhereCount, dropSessions }
+  return { logs: listings, pendingMore, readNotice, projectKey, flat, elsewhereCount, dropSessions }
 }

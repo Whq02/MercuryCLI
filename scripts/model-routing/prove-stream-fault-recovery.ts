@@ -59,7 +59,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   planted.close()
   const next = ((continued.decision as { next?: Row }).next ?? {}) as Row
   const sent = (next.messages ?? []) as Row[]
-  const before = planted.iter.messagesForQuery as Row[]
+  const before = planted.iter.messagesForRequest as Row[]
   const reply = planted.iter.assistantMessages as Row[]
   const nudge = sent.at(-1)
   check(

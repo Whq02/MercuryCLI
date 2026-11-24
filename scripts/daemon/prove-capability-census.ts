@@ -78,7 +78,7 @@ try {
     const lane = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
     const utils = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
     const { RunnerQuiescence } = await import('../../src/daemon/runner-link/runnerQuiescence.ts')
-    const store = { state: { tasks: {} as Record<string, Record<string, unknown>>, speculation: { status: 'idle' }, agentNameRegistry: new Map() } }
+    const store = { state: { tasks: {} as Record<string, Record<string, unknown>>, speculation: { status: 'idle' }, crewmateNameRegistry: new Map() } }
     const set = ((update: (state: typeof store.state) => typeof store.state) => { store.state = update(store.state) }) as never
     const pausedAtAWall = (id: string): void => {
       const registered = lane.registerAsyncCrewmate({ agentId: id, description: id, prompt: 'work', setAppState: set })

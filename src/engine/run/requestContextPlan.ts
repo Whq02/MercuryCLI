@@ -51,7 +51,7 @@ interface RequestContextPlanInput {
   contentReplacementState: ContentReplacementState | undefined
   persistReplacements?: (records: ToolResultReplacementRecord[]) => void | Promise<void>
   skipToolNames: ReadonlySet<string>
-  microcompact?: typeof pruneMessages
+  prune?: typeof pruneMessages
   readFileState?: Pick<import('../../platform/files/fileStateCache.js').FileStateCache, 'delete'>
   selectionBudget?: SelectionBudget | null
   calibrationKey?: string | null
@@ -264,7 +264,7 @@ export async function buildRequestContextPlan(
       )
     }
     if (mode === 'apply') {
-      const micro = input.microcompact ?? pruneMessages
+      const micro = input.prune ?? pruneMessages
       const result = await micro(
         view,
         undefined,

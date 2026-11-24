@@ -129,7 +129,7 @@ export function BackgroundTasksDialog({
 
   const shellTasks = sortedTasks.filter(task => kindOf(task) === 'shell')
   const monitorTasks = sortedTasks.filter(task => kindOf(task) === 'monitor')
-  const agentTasks = sortedTasks.filter(task => kindOf(task) === 'agent')
+  const crewmateTasks = sortedTasks.filter(task => kindOf(task) === 'agent')
 
   const excludeIds = new Set<string>(sortedTasks.map(task => task.id))
   if (viewingAgentTaskId !== undefined) excludeIds.add(viewingAgentTaskId)
@@ -153,7 +153,7 @@ export function BackgroundTasksDialog({
     ...monitorTasks.map(task => ({ id: task.id, kind: 'monitor' as const, task })),
     ...otherMonitors.map(work => ({ id: work.id, kind: 'monitor' as const, work })),
     ...leadItems,
-    ...agentTasks.map(task => ({ id: task.id, kind: 'agent' as const, task })),
+    ...crewmateTasks.map(task => ({ id: task.id, kind: 'agent' as const, task })),
     ...otherAgents.map(work => ({ id: work.id, kind: 'agent' as const, work })),
     ...sampleItems,
   ]
@@ -331,7 +331,7 @@ export function BackgroundTasksDialog({
 
   return boardListView({
     accent,
-    agentTasks,
+    crewmateTasks,
     armedWork,
     bootRecovery,
     columns,

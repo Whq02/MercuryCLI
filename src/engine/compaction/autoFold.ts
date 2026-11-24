@@ -317,7 +317,7 @@ async function runFoldAttempt(opts: {
         return { compactionResult, fromMemory }
       }
       if (opts.sessionMemoryArmed) {
-        scoped.onCompactProgress?.({ type: 'stage', stage: 'session-memory' })
+        scoped.onFoldProgress?.({ type: 'stage', stage: 'session-memory' })
       }
       if (!opts.customInstructions) {
         const memoryTrigger = opts.asked && !opts.crewmateAsked ? 'manual' : 'auto'
@@ -441,7 +441,7 @@ export async function autoFoldIfNeeded(
   overflowSignal?: OverflowSignal,
 ): Promise<{
   wasCompacted: boolean
-  compactionResult?: FoldResult
+  foldResult?: FoldResult
   consecutiveFailures?: number
   consecutiveRapidRefills?: number
   rapidRefillBreakerTripped?: boolean
@@ -642,10 +642,10 @@ export async function autoFoldIfNeeded(
   }
 
   const refoldInfo: RefoldInfo = {
-    isRecompaction: tracking?.compacted === true,
-    turnsSincePreviousCompact: tracking?.compacted === true ? tracking.turnCounter : -1,
-    ...(tracking?.turnId !== undefined ? { previousCompactTurnId: tracking.turnId } : {}),
-    autoCompactThreshold: fixedThreshold,
+    isRefold: tracking?.compacted === true,
+    turnsSincePreviousFold: tracking?.compacted === true ? tracking.turnCounter : -1,
+    ...(tracking?.turnId !== undefined ? { previousFoldTurnId: tracking.turnId } : {}),
+    autoFoldThreshold: fixedThreshold,
     ...(querySource !== undefined ? { querySource } : {}),
     ...(asked ? { restoreFiles, mustShrink: true } : {}),
   }
@@ -680,7 +680,7 @@ export async function autoFoldIfNeeded(
 
     return {
       wasCompacted: true,
-      compactionResult: attempt.compactionResult,
+      foldResult: attempt.compactionResult,
       ...(attempt.fromMemory ? {} : { consecutiveFailures: 0 }),
       consecutiveRapidRefills,
       ...(rapidRefillBreakerTripped ? { rapidRefillBreakerTripped: true } : {}),

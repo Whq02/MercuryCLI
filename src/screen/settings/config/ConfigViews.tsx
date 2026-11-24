@@ -34,7 +34,7 @@ export function configSubMenuView({
   themeSetting,
   setThemeSetting,
   setSubMenu,
-  agentDefaults,
+  crewmateDefaults,
   writeAgents,
   recordSet,
   signInFromDoor,
@@ -51,7 +51,7 @@ export function configSubMenuView({
   themeSetting: ThemeSetting
   setThemeSetting: (setting: ThemeSetting) => void
   setSubMenu: (menu: SubMenu | null) => void
-  agentDefaults: ReturnType<typeof crewmateDefaultsOf>
+  crewmateDefaults: ReturnType<typeof crewmateDefaultsOf>
   writeAgents: (patch: Partial<NonNullable<GlobalConfig['agents']>>) => void
   recordSet: (key: string, text: string) => void
   signInFromDoor: () => void
@@ -84,7 +84,7 @@ export function configSubMenuView({
       <ModalContext.Provider value={{ rows: contentHeight, columns: width, scrollRef: null }}>
       <MercuryModelChoicePicker
         leading={[CREWMATE_INHERIT_ROW]}
-        current={agentDefaults.model === undefined || agentDefaults.model === CREWMATE_INHERIT_ROW.id ? CREWMATE_INHERIT_ROW.id : modelChoiceRow(agentDefaults.model)}
+        current={crewmateDefaults.model === undefined || crewmateDefaults.model === CREWMATE_INHERIT_ROW.id ? CREWMATE_INHERIT_ROW.id : modelChoiceRow(crewmateDefaults.model)}
         onSelect={id => {
           const next = id === CREWMATE_INHERIT_ROW.id ? undefined : parseUserSpecifiedModel(id)
           writeAgents({ defaultModel: next })

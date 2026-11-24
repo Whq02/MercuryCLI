@@ -315,7 +315,7 @@ try {
       const { resolveCrewAddress, unknownCrewmateRefusal } = await import(SRC + '/tools/send-message/crewAddress.ts')
       const ctx = {
         messages: [],
-        getAppState: () => ({ tasks: {}, agentNameRegistry: new Map() }),
+        getAppState: () => ({ tasks: {}, crewmateNameRegistry: new Map() }),
       }
       failPath = true
       try {

@@ -89,7 +89,7 @@ export function TranscriptSwap({ lead, tools, commands, screen, agentDefinitions
             toolJSX={null}
             toolUseConfirmQueue={NO_CONFIRMS}
             inProgressToolUseIDs={NO_IDS}
-            isMessageSelectorVisible={false}
+            isRewindPickerVisible={false}
             conversationId={`crewmate:${crewmate.taskId}`}
             screen={screen}
             streamingToolUses={NO_STREAMING}

@@ -51,7 +51,7 @@ assert.ok(!('openAsks' in repeatedIndex), 'no per-message open-ask rows ride in 
 const ids = chain.flatMap(l => l.sourceRecordIds.slice(l.version === 1 ? l.priorRecords : 0))
 assert.ok(ledger.tools.every(tool => tool.epoch === 1) && ids.length === 5 && new Set(ids).size === 5 && repeated.priorRecords === 4, 'buildFoldLedger must preserve five distinct source IDs across both boundaries, four prior records and epoch 1 on first-fold tools; check foldLedger.ts')
 const operatorAttachment = { type: 'attachment', attachment: selected } as never
-const fit = fitPostFoldUnderThreshold({ boundaryMarker: boundary, summaryMessages: [], attachments: [], hookResults: [], operatorMessages: operatorAttachment, preCompactTokenCount: 100, postCompactTokenCount: 0 }, 10)
+const fit = fitPostFoldUnderThreshold({ boundaryMarker: boundary, summaryMessages: [], attachments: [], hookResults: [], operatorMessages: operatorAttachment, preFoldTokenCount: 100, postFoldTokenCount: 0 }, 10)
 assert.equal(fit.result.operatorMessages, operatorAttachment)
 assert.ok(fit.estimate >= 10, `fitPostCompactUnderThreshold returned estimate=${fit.estimate}, expected >=10 when unsheddable operator block remains; check compact fit estimator`)
 assert.throws(() => selectOperatorMessages(messages, { tokenBudget: 1 }), /original context is kept/)

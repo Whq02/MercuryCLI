@@ -124,7 +124,7 @@ if (!primeOpenaiCatalogue({
 })) throw new Error('the catalogue prime was refused')
 
 type AnyMsg = Record<string, unknown> & { type?: string }
-type Folded = { type: string; displayText?: string; compactionResult: Parameters<typeof buildPostFoldMessages>[0] }
+type Folded = { type: string; displayText?: string; foldHandoff: Parameters<typeof buildPostFoldMessages>[0] }
 
 function makeContext(model: string, messages: AnyMsg[]): Record<string, unknown> {
   let appState: Record<string, unknown> = { ...(getDefaultAppState() as unknown as Record<string, unknown>), effortValue: 'high' }
@@ -199,7 +199,7 @@ async function fold(seated: string, silent = false): Promise<{ messages: AnyMsg[
     return { messages, folded: undefined, threw: error instanceof Error ? error.message : String(error) }
   }
 }
-const standingAfter = (folded: Folded | undefined, model: string): number => (folded === undefined ? Number.NaN : estimateContextTokens(buildPostFoldMessages(folded.compactionResult) as never, model))
+const standingAfter = (folded: Folded | undefined, model: string): number => (folded === undefined ? Number.NaN : estimateContextTokens(buildPostFoldMessages(folded.foldHandoff) as never, model))
 
 section('2 the measure: a conversation that holds a working set with a skills list and an Apollo pack, folded on a model that has no measure of it and on one that has')
 {
@@ -207,14 +207,14 @@ section('2 the measure: a conversation that holds a working set with a skills li
   check('the fixture holds a skills list of some size', skills > 500, String(skills), 'the fixture of this proof: the capsule row must carry a Skills section')
   const switched = await fold(SEATED)
   check('after a switch: the fold lands', switched.folded?.type === 'compact', switched.threw, COUNT)
-  check("after a switch: the after size is the seated model's count of what stands after the fold plus the skills list that comes back, and nothing else", switched.folded?.compactionResult.truePostCompactTokenCount === standingAfter(switched.folded, SEATED) + skills, JSON.stringify({ after: switched.folded?.compactionResult.truePostCompactTokenCount, standing: standingAfter(switched.folded, SEATED), skills }), COUNT)
+  check("after a switch: the after size is the seated model's count of what stands after the fold plus the skills list that comes back, and nothing else", switched.folded?.foldHandoff.truePostFoldTokenCount === standingAfter(switched.folded, SEATED) + skills, JSON.stringify({ after: switched.folded?.foldHandoff.truePostFoldTokenCount, standing: standingAfter(switched.folded, SEATED), skills }), COUNT)
   const unmeasured = await fold(SOURCE, true)
   check('a provider that reports no usage, the replies holding thinking: the fold lands', unmeasured.folded?.type === 'compact' && contextFill(unmeasured.messages as never, SOURCE).source === 'estimate', unmeasured.threw, COUNT)
-  check('a provider that reports no usage: the after size is what stands after the fold plus the skills list, without the thinking the fold removed', unmeasured.folded?.compactionResult.truePostCompactTokenCount === standingAfter(unmeasured.folded, SOURCE) + skills, JSON.stringify({ after: unmeasured.folded?.compactionResult.truePostCompactTokenCount, standing: standingAfter(unmeasured.folded, SOURCE), skills }), COUNT)
+  check('a provider that reports no usage: the after size is what stands after the fold plus the skills list, without the thinking the fold removed', unmeasured.folded?.foldHandoff.truePostFoldTokenCount === standingAfter(unmeasured.folded, SOURCE) + skills, JSON.stringify({ after: unmeasured.folded?.foldHandoff.truePostFoldTokenCount, standing: standingAfter(unmeasured.folded, SOURCE), skills }), COUNT)
   const measured = await fold(SOURCE)
   const before = contextFill(measured.messages as never).tokens
   const saved = estimateContextTokens(sixNotes(false) as never, SOURCE) - standingAfter(measured.folded, SOURCE)
-  check('a measured conversation, no switch: the after size is the measured before figure less what the fold saved, the skills list not among the savings', measured.folded?.compactionResult.truePostCompactTokenCount === before - saved, JSON.stringify({ after: measured.folded?.compactionResult.truePostCompactTokenCount, before, saved, threw: measured.threw }), COUNT)
+  check('a measured conversation, no switch: the after size is the measured before figure less what the fold saved, the skills list not among the savings', measured.folded?.foldHandoff.truePostFoldTokenCount === before - saved, JSON.stringify({ after: measured.folded?.foldHandoff.truePostFoldTokenCount, before, saved, threw: measured.threw }), COUNT)
 }
 
 await fixture.close()

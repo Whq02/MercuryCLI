@@ -66,11 +66,11 @@ type SubmitToolsArgs = {
   apiKeyVerification: ReturnType<typeof useApiKeyVerification>;
   paintScreenRow: (row: Message, fallbackText: string) => void;
   setToolJSX: SetToolJSXFn;
-  setShowMessageSelector: (show: boolean) => void;
+  setShowRewindPicker: (show: boolean) => void;
   setConversationId: (id: string) => void;
 };
 
-export function useChatSubmitTools({ store, setAppState, addNotification, removeNotification, debug, mergedTools, themeName, commandsRef, apiKeyVerification, paintScreenRow, setToolJSX, setShowMessageSelector, setConversationId }: SubmitToolsArgs) {
+export function useChatSubmitTools({ store, setAppState, addNotification, removeNotification, debug, mergedTools, themeName, commandsRef, apiKeyVerification, paintScreenRow, setToolJSX, setShowRewindPicker, setConversationId }: SubmitToolsArgs) {
   const [submitCount, setSubmitCount] = useState(0);
   const readFileStateRef = useRef<FileStateCache | null>(null);
   const getReadFileState = useCallback((): FileStateCache => {
@@ -112,7 +112,7 @@ export function useChatSubmitTools({ store, setAppState, addNotification, remove
         setInProgressToolUseIDs: () => {},
         setResponseLength: () => {},
         setStreamMode: () => {},
-        openMessageSelector: () => setShowMessageSelector(true),
+        openRewindPicker: () => setShowRewindPicker(true),
         updateFileHistoryState: (updater: (prev: AppState['fileHistory']) => AppState['fileHistory']) =>
           setAppState(prev => ({ ...prev, fileHistory: updater(prev.fileHistory) })),
         setConversationId: (id: UUID) => setConversationId(id),

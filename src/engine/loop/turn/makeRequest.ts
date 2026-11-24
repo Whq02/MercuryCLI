@@ -59,11 +59,11 @@ import type { IterationState, NextTurn, RequestDecision, RunCtx, SettledDecision
 
 tellHowToolDefinitionsAreCounted(countToolDefinitionTokens, TOOL_TOKEN_COUNT_OVERHEAD)
 
-type AutoFolded = Awaited<ReturnType<TurnLoopDeps['autocompact']>>
+type AutoFolded = Awaited<ReturnType<TurnLoopDeps['autoFold']>>
 
 type PlannedContext = {
   requestPlan: RequestContextPlan
-  messagesForQuery: Message[]
+  messagesForRequest: Message[]
   prunedTokensFreed: number
   thinkingRecords: AttachmentMessage[]
   fullSystemPrompt: SystemPrompt
@@ -71,14 +71,14 @@ type PlannedContext = {
 
 type FoldedContext = {
   kind: 'go_on'
-  messagesForQuery: Message[]
+  messagesForRequest: Message[]
   tracking: AutoFoldTrackingState | undefined
   overflowEpisode: OverflowEpisode
   fullSystemPrompt: SystemPrompt
-  compactionResult: AutoFolded['compactionResult']
+  foldResult: AutoFolded['foldResult']
   consecutiveFailures: AutoFolded['consecutiveFailures']
   measuredRawTokenCount: AutoFolded['measuredRawTokenCount']
-  compactionRefusal: AutoFolded['refusal']
+  foldRefusal: AutoFolded['refusal']
   foldSplit: ReturnType<typeof splitCarriedOperatorTail>
 }
 
@@ -136,7 +136,7 @@ export async function* planContext(run: RunCtx, state: TurnState, toolUseContext
           }
         : undefined,
       skipToolNames: new Set(options.tools.filter(tool => !Number.isFinite(tool.maxResultSizeChars)).map(tool => tool.name)),
-      microcompact: run.deps.microcompact,
+      prune: run.deps.prune,
       preserveBodies: pendingOverflow?.rung !== 'prune',
       calibrationKey: engine ? calibrationKeyFor(declaredRouteOf(engine) ?? 'unrecognised', engine) : null,
       fixedRequest: requestGaugeFixed({ system, userContext, tools }),
@@ -146,7 +146,7 @@ export async function* planContext(run: RunCtx, state: TurnState, toolUseContext
     'apply',
   )
 
-  let messagesForQuery = requestPlan.messages
+  let messagesForRequest = requestPlan.messages
   const pruned = requestPlan.reductions.pressurePruned
   const prunedTokensFreed = requestPlan.gauge !== undefined ? 0 : Math.max(0, pruned?.tokensSaved ?? 0)
   if ((pruned?.cleared ?? 0) + requestPlan.reductions.timeBasedCleared > 0) {
@@ -166,7 +166,7 @@ export async function* planContext(run: RunCtx, state: TurnState, toolUseContext
     )
     for (const row of hookRowsOfResult(digested)) yield emit({ kind: 'attachment', message: createAttachmentMessage(row) })
     if (digested.answer.contexts.length > 0) {
-      messagesForQuery = [...requestPlan.messages, ...digested.answer.contexts.map(text => createUserMessage({ content: text, isMeta: true }))]
+      messagesForRequest = [...requestPlan.messages, ...digested.answer.contexts.map(text => createUserMessage({ content: text, isMeta: true }))]
     }
   }
 
@@ -185,11 +185,11 @@ export async function* planContext(run: RunCtx, state: TurnState, toolUseContext
       message: createSystemMessage(overflowRecoveryNotice(pendingOverflow.signal, 'prune', pruned ?? { cleared: 0, tokensSaved: 0 }), 'warning'),
     })
   }
-  if (messagesForQuery.length < requestPlan.afterBoundaryCount) {
-    emitFoldTrace('microcompact', { messagesBefore: requestPlan.afterBoundaryCount, messagesAfter: messagesForQuery.length })
+  if (messagesForRequest.length < requestPlan.afterBoundaryCount) {
+    emitFoldTrace('microcompact', { messagesBefore: requestPlan.afterBoundaryCount, messagesAfter: messagesForRequest.length })
   }
   const fullSystemPrompt = asSystemPrompt(appendSystemContext(run.systemPrompt, run.systemContext, engine))
-  return { requestPlan, messagesForQuery, prunedTokensFreed, thinkingRecords, fullSystemPrompt }
+  return { requestPlan, messagesForRequest, prunedTokensFreed, thinkingRecords, fullSystemPrompt }
 }
 
 export async function* foldContext(run: RunCtx, state: TurnState, toolUseContext: ToolUseContext, opened: Pick<FoldedContext, 'tracking' | 'overflowEpisode'>, planned: PlannedContext): AsyncGenerator<RunEvent, FoldedContext | SettledDecision> {
@@ -197,13 +197,13 @@ export async function* foldContext(run: RunCtx, state: TurnState, toolUseContext
   const { pendingOverflow } = state
   const forced = pendingOverflow?.rung === 'fold' ? pendingOverflow.signal : undefined
   const nonInteractive = foldRemedyIsHeadless(toolUseContext.options.isNonInteractiveSession)
-  let view = planned.messagesForQuery
+  let view = planned.messagesForRequest
   const foldSplit = splitCarriedOperatorTail(view)
 
   const asked: Partial<AutoFolded> =
     pendingOverflow?.rung === 'prune'
       ? {}
-      : await run.deps.autocompact(
+      : await run.deps.autoFold(
           foldSplit.head,
           toolUseContext,
           {
@@ -219,14 +219,14 @@ export async function* foldContext(run: RunCtx, state: TurnState, toolUseContext
           planned.prunedTokensFreed,
           forced,
         )
-  const { compactionResult, consecutiveFailures, consecutiveRapidRefills, rapidRefillBreakerTripped, measuredRawTokenCount, refusal, paused, declined } = asked
+  const { foldResult, consecutiveFailures, consecutiveRapidRefills, rapidRefillBreakerTripped, measuredRawTokenCount, refusal, paused, declined } = asked
 
   if (rapidRefillBreakerTripped) {
     yield emit({ kind: 'notice', message: createSystemMessage(`${AUTO_FOLD_THRASH_MESSAGE} ${rapidRefillPauseText({ nonInteractive })}`, 'warning') })
   }
   const pauseHolds = opened.tracking?.rapidRefillPaused === true || rapidRefillBreakerTripped === true
 
-  if (forced !== undefined && compactionResult === undefined) {
+  if (forced !== undefined && foldResult === undefined) {
     const mayPrune = !toolUseContext.abortController.signal.aborted && (forced.source === 'provider' || (refusal !== undefined && refusal !== ERROR_MESSAGE_USER_ABORT))
     if (mayPrune) {
       const decision = decideOverflowRecovery({
@@ -241,7 +241,7 @@ export async function* foldContext(run: RunCtx, state: TurnState, toolUseContext
           ...state,
           messages: view,
           toolUseContext,
-          autoCompactTracking: opened.tracking,
+          autoFoldTracking: opened.tracking,
           overflowEpisode: { pruned: true, folded: true },
           pendingOverflow: { signal: forced, rung: 'prune' },
           transition: { reason: 'overflow_recovery', rung: 'prune', source: forced.source },
@@ -269,9 +269,9 @@ export async function* foldContext(run: RunCtx, state: TurnState, toolUseContext
   let tracking = opened.tracking
   let overflowEpisode = opened.overflowEpisode
   let fullSystemPrompt = planned.fullSystemPrompt
-  if (compactionResult !== undefined) {
-    const before = compactionResult.preCompactTokenCount
-    const after = compactionResult.truePostCompactTokenCount ?? compactionResult.postCompactTokenCount
+  if (foldResult !== undefined) {
+    const before = foldResult.preFoldTokenCount
+    const after = foldResult.truePostFoldTokenCount ?? foldResult.postFoldTokenCount
     emitFoldTrace('auto-compact', { tokensFreed: typeof before === 'number' && typeof after === 'number' ? before - after : undefined })
     tracking = {
       compacted: true,
@@ -281,12 +281,12 @@ export async function* foldContext(run: RunCtx, state: TurnState, toolUseContext
       consecutiveRapidRefills,
       ...(pauseHolds ? { rapidRefillPaused: true } : {}),
     }
-    const postFold = buildPostFoldMessages(compactionResult)
+    const postFold = buildPostFoldMessages(foldResult)
     const carried = foldSplit.carry.map(row => ({ ...row, uuid: randomUUID() }))
     yield emit({ kind: 'compaction_boundary', trigger: forced !== undefined ? 'overflow' : 'auto', messages: [...postFold, ...carried] })
-    if (toolUseContext.agentId === undefined && compactionResult.boundaryMarker.compactMetadata.trigger === 'manual') {
+    if (toolUseContext.agentId === undefined && foldResult.boundaryMarker.compactMetadata.trigger === 'manual') {
       const { manualFoldDisplayText } = await import('../../compaction/manualReceipt.js')
-      const display = manualFoldDisplayText(toolUseContext, compactionResult, foldSplit.head.length)
+      const display = manualFoldDisplayText(toolUseContext, foldResult, foldSplit.head.length)
       yield emit({ kind: 'notice', message: createCommandInputMessage(`<${LOCAL_COMMAND_STDOUT_TAG}>${display}</${LOCAL_COMMAND_STDOUT_TAG}>`) })
     }
     resetSessionEnvNoticeOnFold()
@@ -313,21 +313,21 @@ export async function* foldContext(run: RunCtx, state: TurnState, toolUseContext
 
   return {
     kind: 'go_on',
-    messagesForQuery: view,
+    messagesForRequest: view,
     tracking,
     overflowEpisode,
     fullSystemPrompt,
-    compactionResult,
+    foldResult,
     consecutiveFailures,
     measuredRawTokenCount,
-    compactionRefusal: refusal,
+    foldRefusal: refusal,
     foldSplit,
   }
 }
 
 export async function* holdBlockingLimit(run: RunCtx, state: TurnState, toolUseContext: ToolUseContext, planned: PlannedContext, folded: FoldedContext): AsyncGenerator<RunEvent, FittingRequest | SettledDecision> {
   const { emit, querySource } = run
-  const view = folded.messagesForQuery
+  const view = folded.messagesForRequest
   const fitted: ToolUseContext = { ...toolUseContext, messages: view }
   const engine = fitted.options.engineModel
   const appState = fitted.getAppState()
@@ -335,8 +335,8 @@ export async function* holdBlockingLimit(run: RunCtx, state: TurnState, toolUseC
   const blocked: SettledDecision = { kind: 'end', terminal: { reason: 'blocking_limit' } }
 
   if (querySource === 'compact' || querySource === 'session_memory') return goOn()
-  const landed = folded.compactionResult
-  const trueCount: number | undefined = landed?.truePostCompactTokenCount
+  const landed = folded.foldResult
+  const trueCount: number | undefined = landed?.truePostFoldTokenCount
   if (landed !== undefined && trueCount === undefined) return goOn()
   const count = trueCount ?? Math.max(0, (folded.measuredRawTokenCount ?? tokenCountWithEstimation(view, engine)) - planned.prunedTokensFreed)
   if (calculateTokenWarningState(count, engine).level !== 'blocked') return goOn()
@@ -358,9 +358,9 @@ export async function* holdBlockingLimit(run: RunCtx, state: TurnState, toolUseC
 
   const limit = getBlockingLimit(engine)
   const signal = estimateOverflowSignal({ family: declaredRouteOf(engine) ?? 'unknown', actualTokens: count, limitTokens: limit })
-  const refusal = folded.compactionRefusal
+  const refusal = folded.foldRefusal
   const { hasHistory } = folded.foldSplit
-  const headFoldFailed = (folded.consecutiveFailures ?? 0) > (state.autoCompactTracking?.consecutiveFailures ?? 0)
+  const headFoldFailed = (folded.consecutiveFailures ?? 0) > (state.autoFoldTracking?.consecutiveFailures ?? 0)
   const headFold = !hasHistory ? undefined : headFoldFailed ? ('failed' as const) : isAutoFoldEnabled() ? ('did-not-land' as const) : undefined
   const decision = decideOverflowRecovery({
     episode: folded.overflowEpisode,
@@ -380,7 +380,7 @@ export async function* holdBlockingLimit(run: RunCtx, state: TurnState, toolUseC
     const next: NextTurn = {
       messages: view,
       toolUseContext: fitted,
-      autoCompactTracking: folded.tracking,
+      autoFoldTracking: folded.tracking,
       maxOutputTokensRecoveryCount: state.maxOutputTokensRecoveryCount,
       lastOutputLimitReply: state.lastOutputLimitReply,
       maxOutputTokensOverride: state.maxOutputTokensOverride,
@@ -417,7 +417,7 @@ export async function* makeRequest(run: RunCtx, state: TurnState, ordinal: numbe
   const callChain = advanceToolCallChain(state.toolUseContext, run.deps.uuid)
   const toolUseContext: ToolUseContext = { ...state.toolUseContext, callChain }
   const planned = yield* planContext(run, state, toolUseContext)
-  const folded = yield* foldContext(run, state, toolUseContext, { tracking: state.autoCompactTracking, overflowEpisode: state.overflowEpisode }, planned)
+  const folded = yield* foldContext(run, state, toolUseContext, { tracking: state.autoFoldTracking, overflowEpisode: state.overflowEpisode }, planned)
   if (folded.kind !== 'go_on') return folded
   const fitting = yield* holdBlockingLimit(run, state, toolUseContext, planned, folded)
   if (fitting.kind !== 'go_on') return fitting
@@ -426,7 +426,7 @@ export async function* makeRequest(run: RunCtx, state: TurnState, ordinal: numbe
     state,
     turnId,
     requestPlan: planned.requestPlan,
-    messagesForQuery: folded.messagesForQuery,
+    messagesForRequest: folded.messagesForRequest,
     toolUseContext: fitting.toolUseContext,
     callChain,
     tracking: folded.tracking,

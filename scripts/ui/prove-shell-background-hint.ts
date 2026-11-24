@@ -629,7 +629,7 @@ async function chromeWorld(name: string, helmHome: '0' | '1'): Promise<void> {
           h(Composer, {
             debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
             setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [],
-            isLoading: live.inFlight, verbose: false, submitCount: 0, onShowMessageSelector: () => {},
+            isLoading: live.inFlight, verbose: false, submitCount: 0, onShowRewindPicker: () => {},
             mcpClients: [], vimMode, setVimMode, showBashesDialog: bashes, setShowBashesDialog: setBashes,
             onExit: () => {}, getToolUseContext: () => ({} as never),
             onSubmit: async () => {},

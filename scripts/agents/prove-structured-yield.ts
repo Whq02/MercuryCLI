@@ -16,7 +16,7 @@ const section = (t: string, hint = ''): void => {
 
 await import('../../src/tools/crewmate/CrewmateTool.tsx')
 const { finalizeCrewmateTool } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
-const { createSyntheticOutputTool: getSchemaBoundStructuredOutputTool, SchemaMismatchError, SYNTHETIC_OUTPUT_TOOL_NAME: STRUCTURED_OUTPUT_TOOL_NAME } = await import(
+const { getSchemaBoundStructuredOutputTool, SchemaMismatchError, STRUCTURED_OUTPUT_TOOL_NAME } = await import(
   '../../src/tools/structured-output/SyntheticOutputTool.ts'
 )
 const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')

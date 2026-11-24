@@ -62,7 +62,7 @@ const fetchImpl: typeof fetch = async () =>
 await refreshGeminiCatalogue('api-key', { force: true, fetchImpl })
 
 
-const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, agentNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'max' }
+const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, crewmateNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'max' }
 type Body = Record<string, any>
 const ENVELOPE = new Set(['messages', 'input', 'system', 'instructions', 'tools', 'metadata', 'stream', 'stream_options', 'tool_choice', 'prompt_cache_key', 'previous_response_id', 'store', 'user', 'safety_identifier', 'model', 'max_tokens', 'max_completion_tokens', 'max_output_tokens', 'include', 'cache_control', 'n', 'contents', 'systemInstruction', 'toolConfig'])
 const posture = (body: Body | undefined): Record<string, unknown> => {
@@ -123,7 +123,7 @@ async function atThreshold(label: string, model: string, family: string, resultC
   let error = ''
   let result: Awaited<ReturnType<typeof foldConversation>> | undefined
   try {
-    result = await foldConversation(built.messages, context, { systemPrompt, userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: built.messages } as never, true, undefined, true, { isRecompaction: false, turnsSincePreviousCompact: 3, autoCompactThreshold: threshold })
+    result = await foldConversation(built.messages, context, { systemPrompt, userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: built.messages } as never, true, undefined, true, { isRefold: false, turnsSincePreviousFold: 3, autoFoldThreshold: threshold })
   } catch (caught) {
     error = caught instanceof Error ? caught.message : String(caught)
   }
@@ -132,7 +132,7 @@ async function atThreshold(label: string, model: string, family: string, resultC
   const refWire = JSON.stringify(reference ?? {})
   const roads = foldRows().slice(foldsBefore)
   const summaryText = result?.summaryMessages[0] !== undefined && typeof result.summaryMessages[0].message.content === 'string' ? result.summaryMessages[0].message.content : ''
-  record(`${label}: ${error === '' ? 'LANDED' : `FAILED (${error})`} after ${requests.length} summariser request(s) on the ${requests.map(r => r.dialect).join(', ')} wire in ${Date.now() - started} ms; fold roads ${roads.map(r => `${r.road}:${r.outcome}`).join(', ') || 'none'}${result ? `; context ${result.preCompactTokenCount.toLocaleString('en-US')} → ${result.truePostCompactTokenCount.toLocaleString('en-US')}, ${result.messagesToKeep?.length ?? 0} messages kept verbatim` : ''}`)
+  record(`${label}: ${error === '' ? 'LANDED' : `FAILED (${error})`} after ${requests.length} summariser request(s) on the ${requests.map(r => r.dialect).join(', ')} wire in ${Date.now() - started} ms; fold roads ${roads.map(r => `${r.road}:${r.outcome}`).join(', ') || 'none'}${result ? `; context ${result.preFoldTokenCount.toLocaleString('en-US')} → ${result.truePostFoldTokenCount.toLocaleString('en-US')}, ${result.messagesToKeep?.length ?? 0} messages kept verbatim` : ''}`)
   check(`${label}: the fold landed in ONE summariser request (red on 41304f7c53 by the second check below: the request was shaped)`, error === '' && requests.length === 1, error || String(requests.length))
   const carriesIds = refWire.includes(`"${built.ids[0]}"`)
   const missingRounds = built.ids.map((id, i) => ({ id, path: built.paths[i] ?? '' })).filter(round => !wire.includes(escaped(round.path)) || (carriesIds && !wire.includes(`"${round.id}"`)))
@@ -161,7 +161,7 @@ async function atThreshold(label: string, model: string, family: string, resultC
   } else {
     check(`${label}: the direct lane carried the summary in its one request`, roads.length === 1 && roads[0]?.road === 'direct' && roads[0]?.outcome === 'summary', roads.map(r => `${r.road}:${r.outcome}`).join(', '))
   }
-  check(`${label}: the post-fold context is under the threshold with a verbatim tail kept`, result !== undefined && result.truePostCompactTokenCount < threshold && (result.messagesToKeep?.length ?? 0) > 0, `${result?.truePostCompactTokenCount} / ${result?.messagesToKeep?.length}`)
+  check(`${label}: the post-fold context is under the threshold with a verbatim tail kept`, result !== undefined && result.truePostFoldTokenCount < threshold && (result.messagesToKeep?.length ?? 0) > 0, `${result?.truePostFoldTokenCount} / ${result?.messagesToKeep?.length}`)
 }
 
 check('claude-opus-4-6 resolves a 200,000-token window', getContextWindowForModel(OPUS) === 200_000, String(getContextWindowForModel(OPUS)))

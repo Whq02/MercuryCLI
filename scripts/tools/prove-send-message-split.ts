@@ -75,7 +75,7 @@ const seed = (id: string) => {
 const evict = (id: string) => {
   const tasks = { ...state.tasks }
   delete tasks[id]
-  state = { ...state, tasks, agentNameRegistry: new Map([...state.agentNameRegistry].filter(([, value]) => String(value) !== id)) }
+  state = { ...state, tasks, crewmateNameRegistry: new Map([...state.crewmateNameRegistry].filter(([, value]) => String(value) !== id)) }
 }
 const stop = (id: string) => killAsyncCrewmate(id, setState as never)
 const guard = setTimeout(() => { console.log('[FAIL] split proof exceeded 120 seconds; a SendMessage or ResumeCrewmate call (src/tools/send-message/SendMessageTool.ts, src/tools/resume-crewmate/ResumeAgentTool.ts) never settled, so look at the last line printed above'); process.exit(1) }, 120_000)

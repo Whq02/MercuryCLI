@@ -52,7 +52,7 @@ type ComposerSubmitInput = {
     },
     options?: { fromKeybinding?: boolean },
   ) => Promise<void>
-  onAgentSubmit?: (input: string) => void | Promise<void>
+  onCrewmateSubmit?: (input: string) => void | Promise<void>
   setCursorOffset: (offset: number) => void
   writeDraft: (text: string) => void
   addNotification: (notification: Notification) => void
@@ -77,7 +77,7 @@ async function deliverCrewmateLine({
   targetTaskId,
   targetName,
   payload,
-  onAgentSubmit,
+  onCrewmateSubmit: onAgentSubmit,
   appStateStore,
   setAppState,
   addNotification,
@@ -86,7 +86,7 @@ async function deliverCrewmateLine({
   targetTaskId: string
   targetName: string
   payload: string
-  onAgentSubmit?: (input: string) => void | Promise<void>
+  onCrewmateSubmit?: (input: string) => void | Promise<void>
   appStateStore: AppStateStore
   setAppState: (f: (prev: AppState) => AppState) => void
   addNotification: (notification: Notification) => void
@@ -152,7 +152,7 @@ export function useComposerSubmit({
   buffer,
   history,
   onSubmit,
-  onAgentSubmit,
+  onCrewmateSubmit,
   setCursorOffset,
   writeDraft,
   addNotification,
@@ -341,7 +341,7 @@ export function useComposerSubmit({
               targetTaskId,
               targetName,
               payload,
-              onAgentSubmit,
+              onCrewmateSubmit,
               appStateStore,
               setAppState,
               addNotification,
@@ -372,7 +372,7 @@ export function useComposerSubmit({
       buffer,
       history,
       onSubmit,
-      onAgentSubmit,
+      onCrewmateSubmit,
       setCursorOffset,
       writeDraft,
       addNotification,

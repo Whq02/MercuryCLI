@@ -400,11 +400,11 @@ export function preferThirdPartyAuthentication(): boolean {
 }
 
 export function setSessionSovereign(value: boolean): void {
-  posture.sessionBypassPermissionsMode = value
+  posture.sessionSovereign = value
 }
 
 export function getSessionSovereign(): boolean {
-  return posture.sessionBypassPermissionsMode
+  return posture.sessionSovereign
 }
 
 export function getSessionPermissionModeResolution(): Readonly<SessionPermissionModeResolution> | null {

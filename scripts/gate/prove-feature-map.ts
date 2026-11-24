@@ -130,7 +130,7 @@ function catalogue(): Set<string> {
   const add = (kind: string, names: string[]) => { for (const name of names) keys.add(`${kind}\t${name}`) }
   add('command', featureNames(variable(syntax('src/commands/catalogue/commands.ts'), 'COMMANDS')))
   add('tool', featureNames(variable(syntax('src/tools/kit/toolList.ts'), 'candidates')))
-  add('tool', featureNames(variable(syntax('src/tools/structured-output/SyntheticOutputTool.ts'), 'SyntheticOutputTool')))
+  add('tool', featureNames(variable(syntax('src/tools/structured-output/SyntheticOutputTool.ts'), 'StructuredOutputTool')))
   const auth = nodes(syntax('src/tools/mcp-auth/McpAuthTool.ts'), ts.isCallExpression).find(c => calleeName(c) === 'buildMcpToolName')
   if (!auth || !auth.arguments[1] || !ts.isStringLiteral(auth.arguments[1])) throw Error('resolve the server-specific MCP authentication tool in the feature census')
   add('tool', [`mcp__<server>__${auth.arguments[1].text}`])

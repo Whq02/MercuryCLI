@@ -93,7 +93,7 @@ const seam = await import('../../src/crew/board/seam.ts')
 const { runSwarmCommand } = await import('../../src/commands/swarm/swarm.ts')
 const { CrewmateTool, inputSchema: getAgentInputSchema } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
 const { getBuiltInAgents } = await import('../../src/tools/crewmate/builtInAgents.ts')
-const { SYNTHETIC_OUTPUT_TOOL_NAME } = await import('../../src/tools/kit/names/syntheticOutput.ts')
+const { STRUCTURED_OUTPUT_TOOL_NAME } = await import('../../src/tools/kit/names/syntheticOutput.ts')
 const { compileJsonSchema } = await import('../../src/platform/json-schema/jsonSchemaEngine.ts')
 await import('../../src/engine/tasks/tasks.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
@@ -204,7 +204,7 @@ check(
 section('2. Schema and registry validation of every code-font tool, parameter, type, op, kind, and JSON Schema')
 
 const allTools = [...getAllBaseTools('main'), seam.swarmCensusTool()]
-const registeredToolNames = new Set<string>([...allTools.map(t => t.name), SYNTHETIC_OUTPUT_TOOL_NAME])
+const registeredToolNames = new Set<string>([...allTools.map(t => t.name), STRUCTURED_OUTPUT_TOOL_NAME])
 const toolByName = new Map(allTools.map(t => [t.name, t]))
 
 const jsonPropsOf = (schema: unknown): { properties: Record<string, Record<string, unknown>>; required: string[] } => {

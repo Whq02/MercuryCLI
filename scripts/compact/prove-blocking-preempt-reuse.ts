@@ -103,7 +103,7 @@ section('R3 · the wiring reads the carried count first (source pins on the fold
   const preempt = async (plan: Parameters<typeof t.plantRun>[0], state: Row = {}, realPrune = false) => {
     const planted = await t.plantRun(plan)
     Object.assign(planted.state, state)
-    if (realPrune) planted.run.deps = { ...(planted.run.deps as Row), microcompact: undefined }
+    if (realPrune) planted.run.deps = { ...(planted.run.deps as Row), prune: undefined }
     const out = await t.drain(makeRequest(planted.run as never, planted.state as never, 1))
     planted.close()
     const iter = (out.decision as { iter?: Row }).iter
@@ -136,11 +136,11 @@ section('R3 · the wiring reads the carried count first (source pins on the fold
   const gaugedBetween = await preempt(pruning(gaugedCount - Math.floor(gauged.saved / 2)), pruneRung, true)
   const gaugedAbove = await preempt(pruning(gaugedCount + 1), pruneRung, true)
   const unstamped = await preempt(pruning(10_000_000, NO_MODEL), pruneRung, true)
-  const unstampedCount = unstamped.iter === undefined ? 0 : tokens.tokenCountWithEstimation(unstamped.iter.messagesForQuery as never, NO_MODEL)
+  const unstampedCount = unstamped.iter === undefined ? 0 : tokens.tokenCountWithEstimation(unstamped.iter.messagesForRequest as never, NO_MODEL)
   const unstampedBetween = await preempt(pruning(unstampedCount - Math.floor(unstamped.saved / 2), NO_MODEL), pruneRung, true)
   const nothingPruned = await preempt(pruning(unstampedCount - Math.floor(unstamped.saved / 2), NO_MODEL), pruneRung)
   const tracking = { compacted: false, turnId: 'rig-turn', turnCounter: 0, consecutiveFailures: 1 }
-  const forced = await preempt({ seed: f.history(), autocompact: [f.folded()], script: [] }, { pendingOverflow: { signal: f.providerOverflow(), rung: 'fold' }, overflowEpisode: { pruned: false, folded: true }, autoCompactTracking: tracking })
+  const forced = await preempt({ seed: f.history(), autocompact: [f.folded()], script: [] }, { pendingOverflow: { signal: f.providerOverflow(), rung: 'fold' }, overflowEpisode: { pruned: false, folded: true }, autoFoldTracking: tracking })
 
   check(
     'the blocking preempt reuses the carried count, recounts only as fallback, and credits the prune receipt of this iteration against either (never below zero)',
@@ -157,7 +157,7 @@ section('R3 · the wiring reads the carried count first (source pins on the fold
   const landedUnder = await preempt(sideQuestion(fat(), { ...f.folded(50), measuredRawTokenCount: 5_000 }))
   const landedOver = await preempt(sideQuestion(fat(), f.folded(5_000)))
   const noTrueFigure = f.folded(50)
-  ;(noTrueFigure.compactionResult as Row).truePostCompactTokenCount = undefined
+  ;(noTrueFigure.foldResult as Row).truePostFoldTokenCount = undefined
   const landedUncounted = await preempt(sideQuestion(fat(), { ...noTrueFigure, measuredRawTokenCount: 5_000 }))
   const summariser = await preempt({ ...sideQuestion(fat(), { wasCompacted: false }), querySource: 'compact' })
   const sessionMemory = await preempt({ ...sideQuestion(fat(), { wasCompacted: false }), querySource: 'session_memory' })

@@ -274,8 +274,8 @@ function startLoop(extras: Record<string, unknown> = {}): Loop {
     querySource: 'agent:builtin:scout' as never,
     deps: {
       callModel: callModel as never,
-      autocompact: (async () => ({ wasCompacted: false })) as never,
-      microcompact: (async (messages: unknown[]) => ({ messages })) as never,
+      autoFold: (async () => ({ wasCompacted: false })) as never,
+      prune: (async (messages: unknown[]) => ({ messages })) as never,
       uuid: ((): (() => string) => { let n = 0; return () => `00000000-0000-4000-8000-5${String(++n).padStart(11, '0')}` })(),
     },
   })

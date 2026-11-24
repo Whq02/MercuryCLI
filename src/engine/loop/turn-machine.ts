@@ -111,7 +111,7 @@ function firstTurnOf(params: TurnParams): TurnState {
     turnCount: 1,
     transition: undefined,
     stopHookActive: undefined,
-    autoCompactTracking: undefined,
+    autoFoldTracking: undefined,
     overflowEpisode: FRESH_OVERFLOW_EPISODE,
     pendingOverflow: undefined,
     maxOutputTokensOverride: params.maxOutputTokensOverride,

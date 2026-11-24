@@ -78,7 +78,7 @@ export function SessionPreview({
           toolJSX={null}
           toolUseConfirmQueue={[]}
           inProgressToolUseIDs={new Set()}
-          isMessageSelectorVisible={false}
+          isRewindPickerVisible={false}
           conversationId={fullLog.sessionId ?? 'preview'}
           screen="transcript"
           streamingToolUses={[]}

@@ -145,7 +145,7 @@ type AppStateImmutableHalf = {
 
 type AppStateLiveHalf = {
   tasks: { [taskId: string]: TaskState }
-  agentNameRegistry: Map<string, string>
+  crewmateNameRegistry: Map<string, string>
   foregroundedTaskId?: string
   viewingAgentTaskId?: string | undefined
   mainChatTaskId?: string | undefined
@@ -241,7 +241,7 @@ export function getDefaultAppState(): AppState {
     bridgeFirstRunCallout: false,
 
     tasks: {},
-    agentNameRegistry: new Map(),
+    crewmateNameRegistry: new Map(),
     crewLedger: {},
     selectedIPAgentIndex: -1,
     viewSelectionMode: 'none',

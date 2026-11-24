@@ -90,7 +90,7 @@ function Harness({ columns }: { columns: number }): React.ReactNode {
     bottom: h(Composer, {
       debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
       setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [], isLoading: false,
-      verbose: false, submitCount: 0, onShowMessageSelector: () => {}, mcpClients: [], vimMode, setVimMode,
+      verbose: false, submitCount: 0, onShowRewindPicker: () => {}, mcpClients: [], vimMode, setVimMode,
       showBashesDialog: bashes, setShowBashesDialog: setBashes, onExit: () => {}, getToolUseContext: () => ({}),
       onSubmit: async () => {}, isSearchingHistory: searching, setIsSearchingHistory: setSearching,
       helpOpen: help, setHelpOpen: setHelp, hasSuppressedDialogs: false, isLocalJSXCommandActive: modal !== null,

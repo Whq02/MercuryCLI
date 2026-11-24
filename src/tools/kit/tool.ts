@@ -251,10 +251,10 @@ export type ToolTerminalOptions = {
   onSeatWait?: (wait: string | null) => void
   setToolJSX?: SetToolJSXFn
   setIsInterruptibleToolRunning?: (v: boolean) => void
-  onCompactProgress?: (event: FoldProgressEvent) => void
+  onFoldProgress?: (event: FoldProgressEvent) => void
   setSDKStatus?: (status: any) => void
   takeModeNotice?: () => QueuedCommand | null
-  openMessageSelector?: () => void
+  openRewindPicker?: () => void
   setConversationId?: (id: any) => void
 }
 

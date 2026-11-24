@@ -75,7 +75,7 @@ section('2 · buildAgentLaunchPlan — decision laws')
 
   const plan = buildCrewmateLaunchPlan(base())
   check('resolves the requested definition (agentType echoes)', plan.agentType === 'orbit-probe')
-  check("workerPermissionMode defaults to 'implement'", plan.workerPermissionMode === 'implement')
+  check("workerPermissionMode defaults to 'implement'", plan.crewmatePermissionMode === 'implement')
   check('no isolation by default', plan.isolation === undefined)
   check('sync by default', plan.shouldRunAsync === false)
 
@@ -134,7 +134,7 @@ section('2 · buildAgentLaunchPlan — decision laws')
   )
 
   const modeDef = buildCrewmateLaunchPlan(base({ activeAgents: [mkDef({ permissionMode: 'dontAsk' })] }))
-  check("definition permissionMode wins ('dontAsk')", modeDef.workerPermissionMode === 'dontAsk')
+  check("definition permissionMode wins ('dontAsk')", modeDef.crewmatePermissionMode === 'dontAsk')
 
   const haikuPlan = buildCrewmateLaunchPlan(base({ activeAgents: [mkDef({ model: 'haiku' })] }))
   check('a haiku definition pin resolves to the haiku row', /haiku/i.test(haikuPlan.model), haikuPlan.model)

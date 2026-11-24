@@ -113,8 +113,8 @@ function foldOf(messages: AnyMsg[], keepTail: boolean): Fold {
     messagesToKeep: kept.length > 0 ? kept : undefined,
     attachments: [],
     hookResults: [],
-    preCompactTokenCount: 120_000,
-    postCompactTokenCount: 0,
+    preFoldTokenCount: 120_000,
+    postFoldTokenCount: 0,
   }
   return { result, block, kept, blockRow }
 }

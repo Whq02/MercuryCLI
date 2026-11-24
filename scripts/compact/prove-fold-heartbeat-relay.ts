@@ -49,7 +49,7 @@ const check = (label: string, ok: boolean, detail: unknown = ''): void => {
   if (!ok) failures++
   console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ` — ${JSON.stringify(detail)}`}`)
 }
-const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, agentNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'max' }
+const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, crewmateNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'max' }
 const activity: number[] = []
 const context: any = { abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, setSDKStatus: (value: any) => { if (typeof value?.streamActivity === 'number') activity.push(value.streamActivity) }, messages: [], readFileState: new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024), options: { tools: [], commands: [], mcpClients: [], engineModel: 'claude-fable-5-1', maxThinkingTokens: 0, thinkingConfig: { type: 'adaptive' }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
 const messages = [createUserMessage({ content: 'Preserve the parser result and continue with CLI verification.' })]

@@ -141,7 +141,7 @@ try {
   table.push({
     type: 'local', name: 'fold-probe', description: 'compact fixture', isEnabled: () => true, supportsNonInteractive: true,
     load: async () => ({ call: async () => ({
-      type: 'compact', compactionResult: {
+      type: 'compact', foldHandoff: {
         boundaryMarker: createFoldBoundaryMessage('manual', 0),
         summaryMessages: [createUserMessage({ content: 'SUMMARY-SENTINEL', isCompactSummary: true })],
         attachments: [foldAttachment], hookResults: [],

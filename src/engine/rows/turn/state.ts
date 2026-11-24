@@ -1,5 +1,5 @@
 import { EMPTY_USAGE, type NonNullableUsage } from '../../request-parts/emptyUsage.js'
-import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../../../tools/kit/names/syntheticOutput.js'
+import { STRUCTURED_OUTPUT_TOOL_NAME } from '../../../tools/kit/names/syntheticOutput.js'
 import type { AssistantMessage, Message } from '../../message-shapes/message.js'
 import type { FileStateCache } from '../../../platform/files/fileStateCache.js'
 import { reconstructContentReplacementState, type ContentReplacementState } from '../../tool-dispatch/toolResultStorage.js'
@@ -61,7 +61,7 @@ export class ConversationState {
       if (!Array.isArray(content)) continue
       for (const block of content) {
         const typed = block as { type?: string; name?: string }
-        if (typed.type === 'tool_use' && typed.name === SYNTHETIC_OUTPUT_TOOL_NAME) count++
+        if (typed.type === 'tool_use' && typed.name === STRUCTURED_OUTPUT_TOOL_NAME) count++
       }
     }
     return count

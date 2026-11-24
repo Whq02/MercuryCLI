@@ -12,13 +12,13 @@ const CREWMATE_NAME_MAX_COLUMNS = 24
 export function useComposerPlaceholder({
   input,
   submitCount,
-  viewingAgentName,
+  viewingCrewmateName,
   cockpitActive,
   compact = false,
 }: {
   input: string
   submitCount: number
-  viewingAgentName?: string
+  viewingCrewmateName?: string
   cockpitActive?: boolean
   compact?: boolean
 }): string | undefined {
@@ -27,11 +27,11 @@ export function useComposerPlaceholder({
   )
   const isInputEmpty = input === ''
   const onboardingHint = useMemo(() => {
-    if (!isInputEmpty || submitCount !== 0 || viewingAgentName) {
+    if (!isInputEmpty || submitCount !== 0 || viewingCrewmateName) {
       return undefined
     }
     return projectOnboardingHint()
-  }, [isInputEmpty, submitCount, viewingAgentName])
+  }, [isInputEmpty, submitCount, viewingCrewmateName])
 
   usePublish(() => {
     if (onboardingHint) {
@@ -40,9 +40,9 @@ export function useComposerPlaceholder({
   }, [onboardingHint])
 
   if (!isInputEmpty) return undefined
-  if (viewingAgentName) {
+  if (viewingCrewmateName) {
     return crewmatePlaceholder(
-      truncateToWidth(viewingAgentName, CREWMATE_NAME_MAX_COLUMNS),
+      truncateToWidth(viewingCrewmateName, CREWMATE_NAME_MAX_COLUMNS),
     )
   }
   if (onboardingHint) return onboardingHint

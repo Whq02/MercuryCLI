@@ -28,7 +28,7 @@ async function* drainQueuedCommands(run: RunCtx, iter: IterationState, toolUseCo
   const selected = selectDrainableCommands(getDrainableCommands(sleepRan), { sleepRan, isMainThread, agentId: toolUseContext.agentId }, isSlashCommand)
   const modeNotice = isMainThread && toolUseContext.agentId === undefined ? (toolUseContext.takeModeNotice?.() ?? null) : null
   const riding = modeNotice === null ? selected : [...selected, modeNotice]
-  const history = [...iter.messagesForQuery, ...iter.assistantMessages, ...iter.toolResults]
+  const history = [...iter.messagesForRequest, ...iter.assistantMessages, ...iter.toolResults]
   const delivered = new Set<string>()
   let drained = false
   markDraining(selected)
@@ -83,7 +83,7 @@ export async function* afterTools(run: RunCtx, iter: IterationState): AsyncGener
     return { kind: 'end', terminal: { reason: 'loop_stopped', cycle: iter.loopStoppedCycle } }
   }
 
-  const rewind = buildRewindRecordIfSettled([...iter.messagesForQuery, ...iter.assistantMessages, ...iter.toolResults], iter.toolUseBlocks, iter.toolResults)
+  const rewind = buildRewindRecordIfSettled([...iter.messagesForRequest, ...iter.assistantMessages, ...iter.toolResults], iter.toolUseBlocks, iter.toolResults)
   if (rewind !== null) {
     yield emit({ kind: 'attachment', message: rewind })
     iter.toolResults.push(rewind)
@@ -93,12 +93,12 @@ export async function* afterTools(run: RunCtx, iter: IterationState): AsyncGener
 
   const closingNote = pastBudget ? [createUserMessage({ content: MAX_TURNS_CLOSING_TEXT, isMeta: true })] : []
   const next: NextTurn = {
-    messages: [...iter.messagesForQuery, ...iter.assistantMessages, ...iter.toolResults, ...closingNote],
+    messages: [...iter.messagesForRequest, ...iter.assistantMessages, ...iter.toolResults, ...closingNote],
     toolUseContext: { ...refreshTurnTools(iter.updatedToolUseContext), callChain: iter.callChain },
     turnCount: nextTurnCount,
     transition: { reason: 'next_turn' },
     stopHookActive: iter.state.stopHookActive,
-    autoCompactTracking: iter.tracking,
+    autoFoldTracking: iter.tracking,
     overflowEpisode: FRESH_OVERFLOW_EPISODE,
     pendingOverflow: undefined,
     maxOutputTokensOverride: undefined,

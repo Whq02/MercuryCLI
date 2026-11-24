@@ -188,7 +188,7 @@ export function* announceModelCall(iter: IterationState, emit: EventMint, callId
     maxOutputTokensOverride: iter.maxOutputTokensOverride,
     reference: callReference,
   })
-  const receipt = modelSwitchReceipt(String(ownerFromToolUseContext(toolUseContext)), iter.messagesForQuery, iter.currentModel)
+  const receipt = modelSwitchReceipt(String(ownerFromToolUseContext(toolUseContext)), iter.messagesForRequest, iter.currentModel)
   if (receipt !== null && !switchReceipts.has(receipt.key)) {
     switchReceipts.add(receipt.key)
     logForDebugging(`preserved thinking: ${receipt.text}`)
@@ -214,15 +214,15 @@ export function* classifyDroppedThinking(run: RunCtx, iter: IterationState, emit
       : takeSidePrefixVerdict(String(rosterOwnerFromToolUseContext(toolUseContext)))
     settling.fixedPrefix = prefixVerdict?.fixedPrefix
     if (allDrops.length > 0) recordDroppedThinking(String(rosterOwnerFromToolUseContext(toolUseContext)), allDrops)
-    const strippedMarks = deadThinkingMarks(iter.messagesForQuery)
-    const drops = freshDrops(allDrops, prefixVerdict?.wireMessageIds ?? [], strippedMarks, droppedThinkingMarks(iter.messagesForQuery))
+    const strippedMarks = deadThinkingMarks(iter.messagesForRequest)
+    const drops = freshDrops(allDrops, prefixVerdict?.wireMessageIds ?? [], strippedMarks, droppedThinkingMarks(iter.messagesForRequest))
     if (drops.length < allDrops.length) logForDebugging(`preserved thinking: the API dropped ${allDrops.length - drops.length} already-dropped block(s) again; they stay on the wire unbilled and the cached prefix stands`)
     const rewrite = prefixVerdict?.mismatch ?? null
     const outcome = classifyThinkingDrops(
       String(ownerFromToolUseContext(toolUseContext)),
       drops,
       prefixMarkOf(
-        iter.messagesForQuery,
+        iter.messagesForRequest,
         iter.currentModel,
         { permissionMode: toolUseContext.getAppState().toolPermissionContext.mode },
         { requestPlan: iter.requestPlan },
@@ -232,7 +232,7 @@ export function* classifyDroppedThinking(run: RunCtx, iter: IterationState, emit
     if (rewrite !== null && outcome.kind !== 'none' && outcome.lawful === null) outcome.part = rewrite.part
     const recordBehind = prefixVerdict?.behind ?? 0
     if (recordBehind > 0 && outcome.kind !== 'none' && outcome.lawful === null) outcome.behind = recordBehind
-    const dropNotice = describeThinkingDrops(drops, outcome, turnOrdinalOfWirePath(outcome.path, prefixVerdict?.wireMessageIds ?? [], iter.messagesForQuery))
+    const dropNotice = describeThinkingDrops(drops, outcome, turnOrdinalOfWirePath(outcome.path, prefixVerdict?.wireMessageIds ?? [], iter.messagesForRequest))
     if (outcome.kind !== 'none') {
       recordThinkingDropLedger(outcome, iter.currentModel, dropNotice)
       logForDebugging(`preserved thinking: ${JSON.stringify(drops)}`, { level: 'warn' })
@@ -290,7 +290,7 @@ export async function* settleReply(run: RunCtx, iter: IterationState, emit: Even
   if (toolUseContext.rosterOwner === undefined) {
     const record = await boundPrefixRecordToEmit(
       String(rosterOwnerFromToolUseContext(toolUseContext)),
-      iter.messagesForQuery,
+      iter.messagesForRequest,
       iter.currentModel,
       toolUseContext.agentId !== undefined
         ? { rosterOnly: true, context: { userContext: run.userContext, systemContext: run.systemContext } }
@@ -331,7 +331,7 @@ export function* streamReceipts(iter: IterationState, emit: EventMint, settleGau
   {
     const owner = String(rosterOwnerFromToolUseContext(toolUseContext))
     const leftOut = takeImagesLeftOutReceipt(owner)
-    if (leftOut !== null && !imagesLeftOutMarked(iter.messagesForQuery)) {
+    if (leftOut !== null && !imagesLeftOutMarked(iter.messagesForRequest)) {
       yield emit({ kind: 'notice', message: createSystemMessage(imagesLeftOutNoticeLine(leftOut), 'warning') })
       yield emit({ kind: 'attachment', message: createAttachmentMessage({ type: 'images_left_out', count: leftOut.count, images: leftOut.images, sidePx: leftOut.sidePx }) })
     }
@@ -343,7 +343,7 @@ function boundGaugeOf(iter: IterationState): RequestGaugeView | undefined {
   if (planned === undefined) return undefined
   const key = calibrationKeyFor(declaredRouteOf(iter.currentModel) ?? 'unrecognised', iter.currentModel)
   const epoch = getContextEpoch(ownerFromToolUseContext(iter.toolUseContext)).epoch
-  const bound = bindRequestGauge(iter.messagesForQuery, key, epoch, planned.fixed, planned.rebase)
+  const bound = bindRequestGauge(iter.messagesForRequest, key, epoch, planned.fixed, planned.rebase)
   return planned.digest === bound.digest && planned.sourceDigest !== undefined ? { ...bound, sourceDigest: planned.sourceDigest } : bound
 }
 
@@ -359,9 +359,9 @@ export async function* streamOneCall(run: RunCtx, iter: IterationState, emit: Ev
   const { options } = toolUseContext
   const { callId, streamController } = call
   const ownerKey = String(rosterOwnerFromToolUseContext(toolUseContext))
-  const sent = latestUserContextBody(iter.messagesForQuery) === null
-    ? prependUserContext(iter.messagesForQuery, await firstTurnUserContext(run.userContext, run.systemContext, options.engineModel, toolUseContext.agentId, iter.messagesForQuery))
-    : iter.messagesForQuery
+  const sent = latestUserContextBody(iter.messagesForRequest) === null
+    ? prependUserContext(iter.messagesForRequest, await firstTurnUserContext(run.userContext, run.systemContext, options.engineModel, toolUseContext.agentId, iter.messagesForRequest))
+    : iter.messagesForRequest
 
   const gauge = boundGaugeOf(iter)
   const settling: ReplySettling = {
@@ -371,7 +371,7 @@ export async function* streamOneCall(run: RunCtx, iter: IterationState, emit: Ev
     settleGauge: message => {
       if (gauge === undefined || message.contextGauge !== undefined) return
       if (settleRequestGauge(gauge, message) === null) return
-      const boundaryId = unlandedFoldBoundaryOf(iter.messagesForQuery)
+      const boundaryId = unlandedFoldBoundaryOf(iter.messagesForRequest)
       const landed = foldCacheUsage(message.message.usage)
       if (boundaryId !== undefined && landed !== null) {
         const fixedPrefix = settling.fixedPrefix ?? pendingPrefixVerdict(ownerKey)?.fixedPrefix

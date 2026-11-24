@@ -43,7 +43,7 @@ export function ChatKeys({
   messageActionsDisabled,
   focusedInputDialog,
   toolUseConfirmQueue,
-  showMessageSelector,
+  showRewindPicker,
   showBashesDialog,
   vimMode,
   dialogOwnsKeys,
@@ -79,7 +79,7 @@ export function ChatKeys({
   messageActionsDisabled: boolean;
   focusedInputDialog: FocusedInputDialog | undefined;
   toolUseConfirmQueue: ToolUseConfirm[];
-  showMessageSelector: boolean;
+  showRewindPicker: boolean;
   showBashesDialog: string | boolean;
   vimMode: VimMode;
   dialogOwnsKeys: boolean;
@@ -147,7 +147,7 @@ export function ChatKeys({
         focusedInputDialog === 'tool-permission' &&
         toolUseConfirmQueue[0]?.tool.name === ASK_USER_QUESTION_TOOL_NAME
       }
-      isMessageSelectorVisible={showMessageSelector || showBashesDialog !== false}
+      isRewindPickerVisible={showRewindPicker || showBashesDialog !== false}
       screen={screen}
       vimMode={isVimModeEnabled() ? vimMode : undefined}
       isLocalJSXCommand={dialogOwnsKeys}

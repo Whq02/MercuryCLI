@@ -127,7 +127,7 @@ function rigFoldResult(): Record<string, unknown> {
   const summary = createUserMessage({ content: 'RIG SUMMARY of the folded history', isCompactSummary: true })
   return {
     wasCompacted: true,
-    compactionResult: { boundaryMarker, summaryMessages: [summary], attachments: [], hookResults: [], preCompactTokenCount: 900, postCompactTokenCount: 120, truePostCompactTokenCount: 120, compactionUsage: undefined },
+    foldResult: { boundaryMarker, summaryMessages: [summary], attachments: [], hookResults: [], preFoldTokenCount: 900, postFoldTokenCount: 120, truePostFoldTokenCount: 120, foldUsage: undefined },
   }
 }
 function makeTool(name: string): never {
@@ -205,7 +205,7 @@ async function run(ctx: Record<string, unknown>, seed: unknown[], script: unknow
     querySource: 'sdk' as never,
     deps: {
       callModel: callModel as never,
-      autocompact: autocompact as never,
+      autoFold: autocompact as never,
       uuid: (() => {
         let k = 0
         return () => `00000000-0000-4000-8000-${String(++k).padStart(12, '0')}`

@@ -155,12 +155,12 @@ export async function runLaunch(args: RunLaunchArgs): Promise<void> {
   const jsonSchemaOpt = typedString(opts.schema)
   let parsedJsonSchema: Record<string, unknown> | undefined
   if (jsonSchemaOpt) {
-    const { isSyntheticOutputToolEnabled, createSyntheticOutputTool } = await import(
+    const { isStructuredOutputToolEnabled, getSchemaBoundStructuredOutputTool } = await import(
       '../../tools/structured-output/SyntheticOutputTool.js'
     )
-    if (isSyntheticOutputToolEnabled({ isNonInteractiveSession: true })) {
+    if (isStructuredOutputToolEnabled({ isNonInteractiveSession: true })) {
       parsedJsonSchema = JSON.parse(jsonSchemaOpt) as Record<string, unknown>
-      const synthetic = createSyntheticOutputTool(parsedJsonSchema)
+      const synthetic = getSchemaBoundStructuredOutputTool(parsedJsonSchema)
       if ('tool' in synthetic) tools = [...tools, synthetic.tool]
     }
   }

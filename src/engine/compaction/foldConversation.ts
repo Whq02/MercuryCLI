@@ -380,7 +380,7 @@ async function finishCommittedFold(params: {
   const finalResult: FoldResult = {
     ...landed.partial,
     hookResults,
-    truePostCompactTokenCount: tokensAfter,
+    truePostFoldTokenCount: tokensAfter,
   }
   restoreBoundPrefixFromMessages(buildPostFoldMessages(finalResult), { fold: true })
 
@@ -428,20 +428,20 @@ export async function foldConversation(
     const boundaryTrigger: FoldMetadata['trigger'] = overflow !== undefined ? 'overflow' : trigger
 
     const meter = createFoldMeter(messages, context.options.engineModel, cacheSafeParams.postFoldCarry)
-    const preCompactTokenCount = meter.context
+    const preFoldTokenCount = meter.context
     const gauge = meter.gauge
 
     context.setSDKStatus?.('compacting')
     const beforeHooks = await foldBeforeHooks(context, {
       trigger: boundaryTrigger,
       ...(customInstructions !== undefined ? { instructions: customInstructions } : {}),
-      tokens: preCompactTokenCount,
+      tokens: preFoldTokenCount,
     })
     const beforeHookRows: Message[] = hookRowsOfResult(beforeHooks).map(row => createAttachmentMessage(row))
     const effectiveInstructions = mergeHookInstructions(customInstructions, beforeHooks.answer.instructions)
     context.setStreamMode?.('requesting')
     context.setResponseLength?.(() => 0)
-    context.onCompactProgress?.({ type: 'compact_start' })
+    context.onFoldProgress?.({ type: 'compact_start' })
 
     const owner = ownerFromToolUseContext(context)
     const rosterOwner = rosterOwnerFromToolUseContext(context)
@@ -450,7 +450,7 @@ export async function foldConversation(
     const ledger = buildFoldLedger(messages, owner, nextEpoch)
 
     const turnReserve = getTurnReserveTokens(context.options.engineModel)
-    let ceiling = refoldInfo?.autoCompactThreshold
+    let ceiling = refoldInfo?.autoFoldThreshold
     let landing =
       ceiling !== undefined
         ? foldLandingCeiling(ceiling, messages, gauge?.density.ratio, gauge?.density.residuals, turnReserve)
@@ -459,7 +459,7 @@ export async function foldConversation(
     checkFixedObligations({
       ceiling,
       boundaryTrigger,
-      preCompactTokenCount,
+      preCompactTokenCount: preFoldTokenCount,
       messages,
       ledger,
       beforeHookRows,
@@ -470,7 +470,7 @@ export async function foldConversation(
     const fitsUnder = makeFitsUnder({
       messages,
       boundaryTrigger,
-      preCompactTokenCount,
+      preCompactTokenCount: preFoldTokenCount,
       capsule,
       ledger,
       suppressFollowUpQuestions,
@@ -488,7 +488,7 @@ export async function foldConversation(
       promptText,
       gauge,
       overflow,
-      preCompactTokenCount,
+      preCompactTokenCount: preFoldTokenCount,
       landing,
       ceiling,
       fitsUnder,
@@ -507,7 +507,7 @@ export async function foldConversation(
       landing = landing !== undefined ? Math.min(landing, providerLanding) : providerLanding
     }
 
-    context.onCompactProgress?.({ type: 'stage', stage: 'restoring' })
+    context.onFoldProgress?.({ type: 'stage', stage: 'restoring' })
     const prose = proseSkipped ?? rawSummary
     const memoryEnvelope = retireFoldToMemory({
       messages,
@@ -559,7 +559,7 @@ export async function foldConversation(
     const { boundaryMarker, summaryMessage } = buildBoundaryAndSummary({
       messages,
       boundaryTrigger,
-      preCompactTokenCount,
+      preCompactTokenCount: preFoldTokenCount,
       messagesToKeep,
       tailPrecedingUuid,
       recentRounds,
@@ -582,7 +582,7 @@ export async function foldConversation(
         (responseUsage.cache_creation_input_tokens ?? 0) +
         (responseUsage.output_tokens ?? 0)
       : 0
-    const compactionUsage = toFoldUsage(responseUsage)
+    const foldUsage = toFoldUsage(responseUsage)
     const notes = proseSkippedReceipt !== undefined ? [proseSkippedReceipt] : undefined
 
     const initialPartial: FoldResult = {
@@ -592,9 +592,9 @@ export async function foldConversation(
       ...(messagesToKeep !== undefined ? { messagesToKeep } : {}),
       attachments,
       hookResults: beforeHookRows,
-      preCompactTokenCount,
-      postCompactTokenCount: callUsageTotal,
-      ...(compactionUsage !== undefined ? { compactionUsage } : {}),
+      preFoldTokenCount,
+      postFoldTokenCount: callUsageTotal,
+      ...(foldUsage !== undefined ? { foldUsage } : {}),
       ...(notes !== undefined ? { notes } : {}),
     }
 
@@ -634,9 +634,9 @@ export async function foldConversation(
     if (refoldInfo?.mustShrink && landed.truePostCompactTokenCount >= meter.before) {
       restoreReadState(context, ledgerBeforeFold, nestedMemoryBeforeFold)
       logForDebugging(
-        `compact: aborted after summariser — folded context ${landed.truePostCompactTokenCount} >= ${meter.before} (pre ${preCompactTokenCount}); original context kept`,
+        `compact: aborted after summariser — folded context ${landed.truePostCompactTokenCount} >= ${meter.before} (pre ${preFoldTokenCount}); original context kept`,
       )
-      throw new Error(nothingToFoldLine(preCompactTokenCount, 'would-not-shrink'))
+      throw new Error(nothingToFoldLine(preFoldTokenCount, 'would-not-shrink'))
     }
 
     pruneReadFileState(context, landed.partial, landed.messagesToKeep)
@@ -665,7 +665,7 @@ export async function foldConversation(
       beforeHookRows,
       boundaryTrigger,
       isAutoFold,
-      preCompactTokenCount,
+      preCompactTokenCount: preFoldTokenCount,
       tokensAfter,
       prose,
       proseSkippedReceipt,

@@ -120,7 +120,7 @@ for (const editorMode of ['emacs', 'vim'] as const) {
           compactWork: controls, compactFocus: focus,
           debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
           setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [],
-          isLoading: false, verbose: false, submitCount: sent.length, onShowMessageSelector: () => {},
+          isLoading: false, verbose: false, submitCount: sent.length, onShowRewindPicker: () => {},
           mcpClients: [], vimMode, setVimMode, showBashesDialog: bashes, setShowBashesDialog: setBashes,
           onExit: () => {}, getToolUseContext: () => ({} as never),
           onSubmit: async (value: string) => { sent.push(value); pending.clearForSubmit(value) },

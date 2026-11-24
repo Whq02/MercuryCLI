@@ -210,8 +210,8 @@ section('S4 · the turn: two hops down the ladder, each announced with its cause
       fallbackModel: opts.fallbackModel,
       deps: {
         callModel: callModel as never,
-        autocompact: (async () => ({ wasCompacted: false })) as never,
-        microcompact: (async (messages: unknown[]) => ({ messages })) as never,
+        autoFold: (async () => ({ wasCompacted: false })) as never,
+        prune: (async (messages: unknown[]) => ({ messages })) as never,
         uuid: () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`,
       },
     })

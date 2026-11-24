@@ -179,7 +179,7 @@ section('4 refold right after a fold: names the last fold, no Error:')
 {
   const long = makeMessages(40, index => `Adjusted module ${index}. ${'details '.repeat(180)}`, 22_000)
   const first = await call('', makeContext(long) as never)
-  const post = first.type === 'compact' ? (buildPostFoldMessages(first.compactionResult as Parameters<typeof buildPostFoldMessages>[0]) as AnyMsg[]) : []
+  const post = first.type === 'compact' ? (buildPostFoldMessages(first.foldHandoff as Parameters<typeof buildPostFoldMessages>[0]) as AnyMsg[]) : []
   const { rendered, commandError } = await runSlashCompact(post)
   check(
     'refold names the last fold with no Error: prefix and one line',

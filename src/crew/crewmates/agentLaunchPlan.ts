@@ -40,7 +40,7 @@ export type CrewmateLaunchPlan = {
   modelNote?: string
   isolation?: string
   shouldRunAsync: boolean
-  workerPermissionMode: PermissionMode
+  crewmatePermissionMode: PermissionMode
   engineBackend?: EngineDispatch['backend']
 }
 
@@ -95,7 +95,7 @@ export function buildCrewmateLaunchPlan(i: CrewmateLaunchPlanInput): CrewmateLau
           definition.background === true ||
           i.forceAsync) &&
         !i.backgroundTasksDisabled,
-      workerPermissionMode: definition.permissionMode ?? 'implement',
+      crewmatePermissionMode: definition.permissionMode ?? 'implement',
       engineBackend: backend,
     }
   }
@@ -117,6 +117,6 @@ export function buildCrewmateLaunchPlan(i: CrewmateLaunchPlanInput): CrewmateLau
         definition.background === true ||
         i.forceAsync) &&
       !i.backgroundTasksDisabled,
-    workerPermissionMode: definition.permissionMode ?? 'implement',
+    crewmatePermissionMode: definition.permissionMode ?? 'implement',
   }
 }

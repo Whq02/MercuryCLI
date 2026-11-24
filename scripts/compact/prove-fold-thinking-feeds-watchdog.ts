@@ -126,7 +126,7 @@ async function fold(model: string, next: Shape): Promise<{ ms: number; requests:
   posted.length = 0
   let activity = 0
   const roadsBefore = foldRoads().length
-  const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, agentNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'max' }
+  const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, crewmateNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'max' }
   const context: any = { abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, setSDKStatus: (value: any) => { if (typeof value?.streamActivity === 'number') activity++ }, messages: [], startTurn, readFileState: new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024), options: { tools: [], commands: [], mcpClients: [], engineModel: model, maxThinkingTokens: 0, thinkingConfig: { type: 'adaptive' }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
   const messages = [createUserMessage({ content: 'Preserve the parser result and continue with CLI verification.' })]
   const cache = { systemPrompt: asSystemPrompt(['Synthetic thinking-feed proof.']), userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: messages }

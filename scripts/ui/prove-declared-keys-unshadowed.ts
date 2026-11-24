@@ -88,7 +88,7 @@ const CAPTURE_RULES: Record<string, Rule> = {
           isLocalJSXCommand: false,
           isSearchingHistory: false,
           isHelpOpen: false,
-          isMessageSelectorVisible: false,
+          isRewindPickerVisible: false,
         }),
       )
       try {

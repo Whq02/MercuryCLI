@@ -331,7 +331,7 @@ section('(7) workbench projection surfaces artifacts + review queue')
     executions: [],
     mainRun: null,
     richTasks: new Map(),
-    agentMeta: new Map(),
+    crewmateMeta: new Map(),
     laneRuns: new Map(),
     partySeats: null,
     collab: null,

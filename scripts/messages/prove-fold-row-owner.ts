@@ -66,7 +66,7 @@ const common = {
   toolJSX: null,
   toolUseConfirmQueue: [],
   inProgressToolUseIDs: new Set<string>(),
-  isMessageSelectorVisible: false,
+  isRewindPickerVisible: false,
   screen: 'prompt',
   streamingToolUses: [],
   isLoading: false,

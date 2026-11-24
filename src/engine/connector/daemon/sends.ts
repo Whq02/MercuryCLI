@@ -35,7 +35,7 @@ interface SendsNeeds {
   sessionId(): string
   rows(): readonly Message[]
   paint(): void
-  compacting(): boolean
+  folding(): boolean
   wakeLive(): void
   arrivalSeqFor(seenAtMs?: number): number
   noticeSeqAt(atMs: number): number
@@ -121,7 +121,7 @@ export class SendsPart {
       this.needs.noteSendTaken()
     }
     const enqueuedUnderTheFold = current !== undefined && (current.state !== 'queued' || current.heldFor === 'compaction')
-    const heldFor = state === 'queued' && this.needs.compacting() && enqueuedUnderTheFold ? ('compaction' as const) : undefined
+    const heldFor = state === 'queued' && this.needs.folding() && enqueuedUnderTheFold ? ('compaction' as const) : undefined
     this.sends = this.sends.map(s => {
       if (s.clientMessageId !== clientMessageId) return s
       const next: SeatSend = { ...s, state }

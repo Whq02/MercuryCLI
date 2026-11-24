@@ -64,7 +64,7 @@ section('§1 the writer: no site arms a thinking-clear latch after the idle thre
     resetThinkingDropStates()
     const planted = await t.plantRun({ tools: [{ name: 'Read' }], seed: readTwelveTimes(), script: [f.yields(replyWithADrop())] })
     Object.assign(planted.state, { pendingOverflow: { signal: { source: 'estimate', family: 'anthropic', shape: 'prompt-too-long', actualTokens: 60_000, limitTokens: 100 }, rung: 'prune' }, overflowEpisode: { pruned: true, folded: true } })
-    if (prunes) planted.run.deps = { ...(planted.run.deps as Row), microcompact: undefined }
+    if (prunes) planted.run.deps = { ...(planted.run.deps as Row), prune: undefined }
     const request = await t.drain(makeRequest(planted.run as never, planted.state as never, 1))
     const reply = request.decision.kind === 'go_on' ? await t.drain(modelReply(planted.run as never, request.decision.iter as never)) : { events: [] }
     planted.close()

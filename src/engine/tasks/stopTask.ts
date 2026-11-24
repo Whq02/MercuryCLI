@@ -17,10 +17,10 @@ import { isLocalShellTask, type LocalShellTaskState } from './local-shell/shellT
 import { findTaskOutcome, type TaskOutcomeEnvelope, type TaskOutcomeState } from './taskOutcomeEnvelope.js'
 
 
-export function resolveStopTargetId(raw: string, state: Pick<AppState, 'tasks' | 'agentNameRegistry'>): string {
+export function resolveStopTargetId(raw: string, state: Pick<AppState, 'tasks' | 'crewmateNameRegistry'>): string {
   const tasks = state.tasks ?? {}
   if (tasks[raw] !== undefined) return raw
-  const registered = (state.agentNameRegistry as ReadonlyMap<string, string> | undefined)?.get(raw)
+  const registered = (state.crewmateNameRegistry as ReadonlyMap<string, string> | undefined)?.get(raw)
   if (registered !== undefined && tasks[String(registered)] !== undefined) return String(registered)
   return raw
 }

@@ -689,7 +689,7 @@ export class DaemonSessionConnector extends ConnectorOwnWork implements EngineCo
     sessionId: () => this.record.sessionId,
     rows: () => this.transcriptPart.rows(),
     paint: () => this.paint(),
-    compacting: () => this.liveStateWord === 'compacting',
+    folding: () => this.liveStateWord === 'compacting',
     wakeLive: () => this.livePart.wake(),
     arrivalSeqFor: seenAtMs => this.tailPart.arrivalSeqFor(seenAtMs),
     noticeSeqAt: atMs => this.tailPart.noticeSeqAt(atMs),
@@ -701,7 +701,7 @@ export class DaemonSessionConnector extends ConnectorOwnWork implements EngineCo
   protected readonly deliveryPart = new DeliveryPart({
     sessionId: () => this.record.sessionId,
     factsBusy: () => this.factsPart.busy(),
-    compacting: () => this.liveStateWord === 'compacting',
+    folding: () => this.liveStateWord === 'compacting',
     paint: () => this.paint(),
     wakeLive: () => this.livePart.wake(),
     openQuestion: () => this.openQuestion(),

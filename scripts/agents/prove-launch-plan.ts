@@ -159,8 +159,8 @@ section('§4 — isolation · the async decision law · worker permission mode')
   check('nothing forcing → sync', buildCrewmateLaunchPlan(base({ requestedType: 'mercury-crew' })).shouldRunAsync === false)
   check('backgroundTasksDisabled kills EVERY async route', buildCrewmateLaunchPlan(base({ requestedType: 'bg-role', runInBackground: true, forceAsync: true, backgroundTasksDisabled: true })).shouldRunAsync === false)
 
-  check("the worker mode is the definition's permissionMode", buildCrewmateLaunchPlan(base({ requestedType: 'bg-role' })).workerPermissionMode === 'dontAsk')
-  check("no definition mode → the 'implement' worker default", buildCrewmateLaunchPlan(base({ requestedType: 'mercury-crew' })).workerPermissionMode === 'implement')
+  check("the worker mode is the definition's permissionMode", buildCrewmateLaunchPlan(base({ requestedType: 'bg-role' })).crewmatePermissionMode === 'dontAsk')
+  check("no definition mode → the 'implement' worker default", buildCrewmateLaunchPlan(base({ requestedType: 'mercury-crew' })).crewmatePermissionMode === 'implement')
 }
 
 

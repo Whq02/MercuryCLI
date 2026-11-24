@@ -77,9 +77,9 @@ function rigResult(attachments: AnyMsg[]): Record<string, unknown> {
     summaryMessages: [createUserMessage({ content: `RIG SUMMARY ${'of the folded history. '.repeat(20)}`, isCompactSummary: true, isVisibleInTranscriptOnly: true })],
     attachments,
     hookResults: [],
-    preCompactTokenCount: 150_000,
-    postCompactTokenCount: 0,
-    compactionUsage: undefined,
+    preFoldTokenCount: 150_000,
+    postFoldTokenCount: 0,
+    foldUsage: undefined,
   }
 }
 const attachmentNames = (r: { attachments: AnyMsg[] }): string[] =>
@@ -208,18 +208,18 @@ function makeCtx(): Record<string, unknown> {
     agentId: undefined,
   }
 }
-function foldResult(truePostCompactTokenCount: number): Record<string, unknown> {
+function foldResult(truePostFoldTokenCount: number): Record<string, unknown> {
   return {
     wasCompacted: true,
-    compactionResult: {
+    foldResult: {
       boundaryMarker: createFoldBoundaryMessage('auto', 900),
       summaryMessages: [createUserMessage({ content: 'RIG SUMMARY of the folded history', isCompactSummary: true })],
       attachments: [],
       hookResults: [],
-      preCompactTokenCount: 900,
-      postCompactTokenCount: 120,
-      truePostCompactTokenCount,
-      compactionUsage: undefined,
+      preFoldTokenCount: 900,
+      postFoldTokenCount: 120,
+      truePostFoldTokenCount,
+      foldUsage: undefined,
     },
   }
 }
@@ -244,7 +244,7 @@ async function drive(fold: Record<string, unknown>): Promise<{ calls: number; te
     querySource: 'sdk' as never,
     deps: {
       callModel: callModel as never,
-      autocompact: autocompact as never,
+      autoFold: autocompact as never,
       uuid: (() => {
         let n = 0
         return () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`
@@ -262,7 +262,7 @@ async function drive(fold: Record<string, unknown>): Promise<{ calls: number; te
 {
   const limit = getBlockingLimit(MODEL) as number
   const over = await drive(foldResult(limit + 5_000))
-  check('over the limit: the model is never called', over.calls === 0, `calls=${over.calls}; the blocking preempt in src/engine/loop/turn/makeRequest.ts must stop the turn before the model call when truePostCompactTokenCount is over getBlockingLimit`)
+  check('over the limit: the model is never called', over.calls === 0, `calls=${over.calls}; the blocking preempt in src/engine/loop/turn/makeRequest.ts must stop the turn before the model call when truePostFoldTokenCount is over getBlockingLimit`)
   check('over the limit: the run ends at the blocking preempt', over.terminal.reason === 'blocking_limit', `${JSON.stringify(over.terminal)}; the blocking preempt in src/engine/loop/turn/makeRequest.ts must end the run with reason blocking_limit when the fold lands over the limit`)
   const under = await drive(foldResult(120))
   check('under the limit: the exemption stands and the model runs once', under.calls === 1 && under.terminal.reason !== 'blocking_limit', `calls=${under.calls} terminal=${JSON.stringify(under.terminal)}; justCompactedUnderLimit in src/engine/loop/turn/makeRequest.ts must let a fold under the blocking limit through to one model call`)

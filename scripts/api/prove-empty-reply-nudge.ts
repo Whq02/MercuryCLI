@@ -173,8 +173,8 @@ async function run(script: unknown[][], seed?: unknown[]): Promise<Run> {
       querySource: 'sdk',
       deps: {
         callModel: callModel as never,
-        autocompact: (async () => ({ wasCompacted: false })) as never,
-        microcompact: (async (messages: unknown[]) => ({ messages })) as never,
+        autoFold: (async () => ({ wasCompacted: false })) as never,
+        prune: (async (messages: unknown[]) => ({ messages })) as never,
         uuid: (() => {
           let n = 0
           return () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`
@@ -238,7 +238,7 @@ section('N0 — the nudge line is owned beside the fault marker: one bracketed s
   const retried = await t.drain(NO_TOOL_RULES.find(entry => entry.name === 'empty_reply_retry')!.decide(planted.run as never, planted.iter as never, readReply(planted.iter as never)))
   planted.close()
   const handedRows = (retried.decision as { next?: { messages?: AnyMsg[] } } | undefined)?.next?.messages ?? []
-  const added = handedRows.slice((planted.iter.messagesForQuery as unknown[]).length)
+  const added = handedRows.slice((planted.iter.messagesForRequest as unknown[]).length)
   check('the turn machine composes the nudge as an isMeta user message through the constant', t.reasonOf(retried.decision) === 'hand_over empty_reply_retry' && added[0]?.type === 'user' && added[0]?.isMeta === true && (added[0]?.message as { content?: unknown } | undefined)?.content === EMPTY_NUDGE, `${t.reasonOf(retried.decision)} · ${JSON.stringify(added[0])} — after an empty reply the rule hands over with one user row, isMeta true, whose content is the constant`)
   check('the pure decision is unchanged: one retry, then surface', decideEmptyReplyRecovery({ recoveryCount: 0 }).kind === 'continue' && decideEmptyReplyRecovery({ recoveryCount: 1 }).kind === 'surface', 'decideEmptyReplyRecovery (src/engine/loop/turn-machine.ts) must continue at recoveryCount 0 and surface at 1')
 }

@@ -5,11 +5,11 @@ import { compileJsonSchema, formatSchemaIssues, issueKeywords } from '../../plat
 import { buildTool, type Tool, type ToolDef, type ToolInputJSONSchema } from '../kit/tool.js'
 import { TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../platform/errors/errors.js'
 import { lazySchema } from '../../platform/primitives/lazySchema.js'
-import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../kit/names/syntheticOutput.js'
+import { STRUCTURED_OUTPUT_TOOL_NAME } from '../kit/names/syntheticOutput.js'
 
-export { SYNTHETIC_OUTPUT_TOOL_NAME }
+export { STRUCTURED_OUTPUT_TOOL_NAME }
 
-export function isSyntheticOutputToolEnabled({ isNonInteractiveSession }: { isNonInteractiveSession: boolean }): boolean {
+export function isStructuredOutputToolEnabled({ isNonInteractiveSession }: { isNonInteractiveSession: boolean }): boolean {
   return isNonInteractiveSession
 }
 
@@ -34,8 +34,8 @@ function headerOf(input: Record<string, unknown> | undefined): string {
   return fields.map(([key, value]) => `${key}: ${JSON.stringify(value)}`).join(', ')
 }
 
-export const SyntheticOutputTool = buildTool({
-  name: SYNTHETIC_OUTPUT_TOOL_NAME,
+export const StructuredOutputTool = buildTool({
+  name: STRUCTURED_OUTPUT_TOOL_NAME,
   searchHint: 'return the final response as structured JSON output',
   maxResultSizeChars: 100_000,
   isMcp: false,
@@ -99,7 +99,7 @@ type SchemaBoundResult = { ok: true; tool: Tool } | { ok: false; error: string }
 
 const schemaBoundCache = new WeakMap<object, SchemaBoundResult>()
 
-export function createSyntheticOutputTool(jsonSchema: object): SchemaBoundResult {
+export function getSchemaBoundStructuredOutputTool(jsonSchema: object): SchemaBoundResult {
   const cached = schemaBoundCache.get(jsonSchema)
   if (cached !== undefined) return cached
   const compiled = compileJsonSchema(jsonSchema)
@@ -109,14 +109,14 @@ export function createSyntheticOutputTool(jsonSchema: object): SchemaBoundResult
     return failed
   }
   const tool: Tool = {
-    ...SyntheticOutputTool,
+    ...StructuredOutputTool,
     inputJSONSchema: jsonSchema as ToolInputJSONSchema,
     async call(input) {
       const issues = compiled.check(input)
       if (issues.length > 0) {
         throw new SchemaMismatchError(
           `Output does not match the required schema: ${formatSchemaIssues(issues)}`,
-          `${SYNTHETIC_OUTPUT_TOOL_NAME} schema mismatch: ${issueKeywords(issues)}`,
+          `${STRUCTURED_OUTPUT_TOOL_NAME} schema mismatch: ${issueKeywords(issues)}`,
         )
       }
       return delivered(input)

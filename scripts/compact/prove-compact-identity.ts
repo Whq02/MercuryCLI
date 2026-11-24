@@ -110,11 +110,11 @@ console.log('\nI1 the session id and the transcript file survive the fold byte-i
       agentDefinitions: { activeAgents: [] },
     },
   }
-  const result = (await call('', context as never)) as { type?: string; compactionResult?: { summaryMessages?: Array<{ isCompactSummary?: boolean }> } }
+  const result = (await call('', context as never)) as { type?: string; foldHandoff?: { summaryMessages?: Array<{ isCompactSummary?: boolean }> } }
   check('the fold landed', result.type === 'compact', String(result.type), 'call() in src/commands/compact/compact.ts must return type compact for this history; read its refusal and error branches')
   check('the session id is byte-identical across the fold', getSessionId() === idBefore, `${idBefore} → ${getSessionId()}`, 'the fold in src/commands/compact/compact.ts must not change the session id')
   check('the transcript path is byte-identical across the fold', getTranscriptPath() === pathBefore, `${pathBefore} → ${getTranscriptPath()}`, 'the fold in src/commands/compact/compact.ts must keep writing to the same transcript file')
-  const summary = result.compactionResult?.summaryMessages?.[0]
+  const summary = result.foldHandoff?.summaryMessages?.[0]
   console.log('\nI4 the summary row keeps its own identity flag')
   check('the summary row stays flagged isCompactSummary', summary?.isCompactSummary === true, '', 'call() in src/commands/compact/compact.ts must return summaryMessages whose first row carries isCompactSummary')
 }

@@ -63,7 +63,7 @@ type TreeArgs = Pick<ReturnType<typeof useChatTitle>, 'title' | 'titleAnimating'
   Pick<ReturnType<typeof useChatSearch>, 'inVirtualTranscript' | 'onTranscriptPillClick' | 'screen' | 'showAllInTranscript'> &
   Pick<ReturnType<typeof useChatTools>, 'mergedTools' | 'commands' | 'agentDefinitions'> &
   Pick<ReturnType<typeof useChatDialogs>, 'showExitFlow' | 'setShowExitFlow' | 'exitCommandJsx'> &
-  Pick<ReturnType<typeof useChatRewindPickerView>, 'messageSelector'> & {
+  Pick<ReturnType<typeof useChatRewindPickerView>, 'rewindPicker'> & {
     terminalTitleEnabled: boolean;
     keys: ChatKeysArgs;
     transcriptBody: React.ReactNode;
@@ -72,7 +72,7 @@ type TreeArgs = Pick<ReturnType<typeof useChatTitle>, 'title' | 'titleAnimating'
     bottomSlot: React.ReactNode;
   };
 
-export function chatTree({ title, titleAnimating, scrollRef, modalScrollRef, workingStatusStrip, spinnerSlotReserved, permissionOverlay, centredModalUp, centredModal, bottomImmediateJsx, focusedBottomDialog, dialogOwnsKeys, unseen, newMessageCount, onPillClick, inVirtualTranscript, onTranscriptPillClick, screen, showAllInTranscript, mergedTools, commands, agentDefinitions, showExitFlow, setShowExitFlow, exitCommandJsx, messageSelector, terminalTitleEnabled, keys, transcriptBody, isCompact, focusedEffectiveModel, bottomSlot }: TreeArgs): React.ReactNode {
+export function chatTree({ title, titleAnimating, scrollRef, modalScrollRef, workingStatusStrip, spinnerSlotReserved, permissionOverlay, centredModalUp, centredModal, bottomImmediateJsx, focusedBottomDialog, dialogOwnsKeys, unseen, newMessageCount, onPillClick, inVirtualTranscript, onTranscriptPillClick, screen, showAllInTranscript, mergedTools, commands, agentDefinitions, showExitFlow, setShowExitFlow, exitCommandJsx, rewindPicker, terminalTitleEnabled, keys, transcriptBody, isCompact, focusedEffectiveModel, bottomSlot }: TreeArgs): React.ReactNode {
   const tree = (
     <KeybindingSetup>
       <AnimatedTitle enabled={terminalTitleEnabled} title={title} wantsPrefix animating={titleAnimating} />
@@ -122,7 +122,7 @@ export function chatTree({ title, titleAnimating, scrollRef, modalScrollRef, wor
               ) : null}
               {exitCommandJsx}
               {bottomSlot}
-              {messageSelector}
+              {rewindPicker}
             </Box>
           }
         />

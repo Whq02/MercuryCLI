@@ -65,7 +65,7 @@ async function renderChunk(
           toolJSX={null}
           toolUseConfirmQueue={[]}
           inProgressToolUseIDs={new Set()}
-          isMessageSelectorVisible={false}
+          isRewindPickerVisible={false}
           conversationId="export"
           screen="prompt"
           streamingToolUses={[]}

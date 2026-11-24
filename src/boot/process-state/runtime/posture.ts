@@ -19,7 +19,7 @@ export class PostureOwner {
   clientType = 'cli'
   questionPreviewFormat: 'markdown' | 'html' | undefined = undefined
   isRemoteMode = false
-  sessionBypassPermissionsMode = false
+  sessionSovereign = false
   permissionModeResolution: Readonly<SessionPermissionModeResolution> | null = null
   sessionTrustAccepted = false
   sessionPersistenceDisabled = false

@@ -60,8 +60,8 @@ type SessionBrowserProps = {
   forceWidth?: number
   onCancel?: () => void
   onSelect: (log: SessionListing) => void
-  onLogsChanged?: () => void
-  onLogRenamed?: (sessionId: string, customTitle: string) => void
+  onListingsChanged?: () => void
+  onListingRenamed?: (sessionId: string, customTitle: string) => void
   onLoadMore?: (count: number) => void
   initialSearchQuery?: string
   showAllProjects?: boolean
@@ -199,8 +199,8 @@ export function SessionBrowser({
   forceWidth,
   onCancel,
   onSelect,
-  onLogsChanged,
-  onLogRenamed,
+  onListingsChanged,
+  onListingRenamed,
   onLoadMore,
   initialSearchQuery,
   showAllProjects = false,
@@ -328,13 +328,13 @@ export function SessionBrowser({
       const sessionId = target.sessionId
       void commitListingRename(target, trimmed, {
         onRenamed: () => {
-          if (onLogRenamed) onLogRenamed(String(sessionId), trimmed)
-          else onLogsChanged?.()
+          if (onListingRenamed) onListingRenamed(String(sessionId), trimmed)
+          else onListingsChanged?.()
         },
         onError: setRenameError,
       })
     },
-    [renameTarget, onLogRenamed, onLogsChanged],
+    [renameTarget, onListingRenamed, onListingsChanged],
   )
 
   useKeybinding('confirm:no', () => setRenameTarget(null), { context: 'Settings', isActive: inRename })

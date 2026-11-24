@@ -19,7 +19,7 @@ const noopSubscribe = (): (() => void) => () => {}
 
 function collectRunningOwners(
   appTasks: AppState['tasks'] | undefined,
-  agentNameRegistry: AppState['agentNameRegistry'] | undefined,
+  agentNameRegistry: AppState['crewmateNameRegistry'] | undefined,
   rosterRows: readonly WorkRowV1[],
 ): { runningOwners: Set<string>; ownerActivity: Map<string, string> } {
   const runningOwners = new Set<string>()
@@ -100,8 +100,8 @@ export function TaskList({
   )
   const agentNameRegistry = React.useSyncExternalStore(
     store ? store.subscribe : noopSubscribe,
-    () => store?.getState().agentNameRegistry,
-    () => store?.getState().agentNameRegistry,
+    () => store?.getState().crewmateNameRegistry,
+    () => store?.getState().crewmateNameRegistry,
   )
   const roster = useFocusedWorkRoster()
   const [tick, setTick] = useState(0)

@@ -143,7 +143,7 @@ function toolUseIds(messages: Message[]): string[] {
 const firstToolUseId = (messages: Message[]): string | null => toolUseIds(messages)[0] ?? null
 const lastToolUseId = (messages: Message[]): string | null => toolUseIds(messages).at(-1) ?? null
 
-const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, agentNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'high' }
+const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, crewmateNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'high' }
 type Drive = { landed: boolean; error?: string; pre?: number; post?: number; kept?: number; notes?: string[]; sent: number[]; summaryText?: string; ms: number }
 async function fold(messages: Message[], road: 'auto' | 'manual'): Promise<Drive> {
   const sent: number[] = []
@@ -164,10 +164,10 @@ async function fold(messages: Message[], road: 'auto' | 'manual'): Promise<Drive
   const cache = { systemPrompt: ['fixture system prompt'], userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: messages } as never
   const started = Date.now()
   try {
-    const result = await foldConversation(messages, context as never, cache, road === 'auto', undefined, road === 'auto', { isRecompaction: false, turnsSincePreviousCompact: -1, autoCompactThreshold: getAutoFoldThreshold(MODEL) }, undefined, MODEL)
+    const result = await foldConversation(messages, context as never, cache, road === 'auto', undefined, road === 'auto', { isRefold: false, turnsSincePreviousFold: -1, autoFoldThreshold: getAutoFoldThreshold(MODEL) }, undefined, MODEL)
     const summary = result.summaryMessages[0]
     const summaryText = summary !== undefined && typeof summary.message.content === 'string' ? summary.message.content : ''
-    return { landed: true, pre: result.preCompactTokenCount, post: result.truePostCompactTokenCount, kept: result.messagesToKeep?.length ?? 0, notes: result.notes, sent, summaryText, ms: Date.now() - started }
+    return { landed: true, pre: result.preFoldTokenCount, post: result.truePostFoldTokenCount, kept: result.messagesToKeep?.length ?? 0, notes: result.notes, sent, summaryText, ms: Date.now() - started }
   } catch (error) {
     return { landed: false, error: error instanceof Error ? error.message : String(error), sent, ms: Date.now() - started }
   }
@@ -230,7 +230,7 @@ section('F3 the landed fold is a usable context: boundary, operator messages, su
     const context = { abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages, readFileState: new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024), options: { tools: [], commands: [], mcpClients: [], engineModel: MODEL, maxThinkingTokens: 0, thinkingConfig: { type: 'enabled', budget_tokens: 8_000 }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
     const cache = { systemPrompt: ['fixture system prompt'], userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: messages } as never
     try {
-      return await foldConversation(messages, context as never, cache, true, undefined, true, { isRecompaction: false, turnsSincePreviousCompact: -1, autoCompactThreshold: getAutoFoldThreshold(MODEL) }, undefined, MODEL)
+      return await foldConversation(messages, context as never, cache, true, undefined, true, { isRefold: false, turnsSincePreviousFold: -1, autoFoldThreshold: getAutoFoldThreshold(MODEL) }, undefined, MODEL)
     } catch (error) {
       check('the fold landed', false, `${error instanceof Error ? error.message : String(error)} — compactConversation in src/engine/compaction/foldConversation.ts threw on the shape fixture; see the fold-landed checks of F1 above`)
       return null

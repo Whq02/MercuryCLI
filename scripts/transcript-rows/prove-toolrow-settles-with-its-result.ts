@@ -309,7 +309,7 @@ section('§B the screen road — the rows over identity-kept records settle when
         toolJSX: null,
         toolUseConfirmQueue: [],
         inProgressToolUseIDs: liveNow.inProgressToolUseIDs,
-        isMessageSelectorVisible: false,
+        isRewindPickerVisible: false,
         conversationId: 'settles',
         screen: 'prompt',
         streamingToolUses: [],

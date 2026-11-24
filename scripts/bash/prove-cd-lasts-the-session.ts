@@ -108,8 +108,8 @@ async function turn(steps: Step[]): Promise<{ uuid: string; ran: Ran[] }> {
       reply.message.stop_reason = step === undefined ? 'end_turn' : 'tool_use'
       yield reply
     },
-    autocompact: async () => ({ wasCompacted: false }),
-    microcompact: async (rows: unknown[]) => ({ messages: rows }),
+    autoFold: async () => ({ wasCompacted: false }),
+    prune: async (rows: unknown[]) => ({ messages: rows }),
     uuid: () => randomUUID(),
   }
   const uuid = randomUUID()

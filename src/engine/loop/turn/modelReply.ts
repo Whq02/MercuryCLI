@@ -28,7 +28,7 @@ export async function* modelReply(run: RunCtx, iter: IterationState): AsyncGener
 
   const outcome = yield* streamModel(run, iter, emit)
   if (outcome.kind === 'terminal') return { kind: 'end', terminal: outcome.terminal }
-  if (iter.thinkingRecords.length > 0) iter.messagesForQuery = [...iter.messagesForQuery, ...iter.thinkingRecords]
+  if (iter.thinkingRecords.length > 0) iter.messagesForRequest = [...iter.messagesForRequest, ...iter.thinkingRecords]
   if (iter.streamChant !== undefined && !signal.aborted) yield* trimChantedIteration(iter, iter.streamChant, emit)
 
   if (signal.aborted) {
@@ -55,7 +55,7 @@ export async function* modelReply(run: RunCtx, iter: IterationState): AsyncGener
       sentCap: iter.state.maxOutputTokensOverride ?? (route === 'anthropic' ? limits.default : undefined),
       cutAt: cut.cutAt,
       upperLimit: limits.upperLimit,
-      room: outputRoomOf(iter.messagesForQuery, iter.currentModel, [iter.fullSystemPrompt, toolUseContext.options.tools]),
+      room: outputRoomOf(iter.messagesForRequest, iter.currentModel, [iter.fullSystemPrompt, toolUseContext.options.tools]),
       routeTakesCap: route !== 'openai',
     })
     if (decision.kind === 'retry') {
@@ -72,8 +72,8 @@ export async function* modelReply(run: RunCtx, iter: IterationState): AsyncGener
       }
       const next: NextTurn = {
         ...iter.state,
-        messages: iter.messagesForQuery,
-        autoCompactTracking: iter.tracking,
+        messages: iter.messagesForRequest,
+        autoFoldTracking: iter.tracking,
         maxOutputTokensOverride: decision.outputTokens,
         cutToolCallRecoveryCount: decision.attempt,
         stopHookActive: undefined,

@@ -100,8 +100,8 @@ export type ContextData = {
       withheld: number
     } | null
   }
-  isAutoCompactEnabled: boolean
-  autoCompactThreshold?: number
+  isAutoFoldEnabled: boolean
+  autoFoldThreshold?: number
   countsAvailable: boolean
   toolDefinitionsUnmeasured?: boolean
   messageBlocksUnmeasured?: boolean
@@ -864,9 +864,9 @@ export async function analyzeContextUsage(
 
   const layoutUsedTokens = Math.max(measuredTokens, totalTokens)
   const autoFoldOn = isAutoFoldEnabled()
-  const autoCompactThreshold = autoFoldOn ? getAutoFoldThreshold(model) : undefined
+  const autoFoldThreshold = autoFoldOn ? getAutoFoldThreshold(model) : undefined
   const reserveTokens = autoFoldOn
-    ? Math.max(0, contextWindow - autoCompactThreshold!)
+    ? Math.max(0, contextWindow - autoFoldThreshold!)
     : MANUAL_FOLD_BUFFER_TOKENS
   const reserveName = autoFoldOn ? 'Autocompact buffer' : 'Compact buffer'
   categories.push({
@@ -898,7 +898,7 @@ export async function analyzeContextUsage(
     systemPromptSections,
     mcpTools: mcpResult.mcpToolDetails,
     agents: agentDetails,
-    isAutoCompactEnabled: autoFoldOn,
+    isAutoFoldEnabled: autoFoldOn,
     countsAvailable,
     messageBreakdown,
     apiUsage,
@@ -912,7 +912,7 @@ export async function analyzeContextUsage(
         }
       : {}),
     ...(skillsData !== undefined && skillsData.tokens > 0 ? { skills: skillsData } : {}),
-    ...(autoCompactThreshold !== undefined ? { autoCompactThreshold } : {}),
+    ...(autoFoldThreshold !== undefined ? { autoFoldThreshold } : {}),
     ...(mcpResult.unmeasured ? { toolDefinitionsUnmeasured: true } : {}),
     ...(messageBlocksUnmeasured ? { messageBlocksUnmeasured: true } : {}),
   }

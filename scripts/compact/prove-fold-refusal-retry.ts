@@ -23,7 +23,7 @@ const { compactionRow } = await import('../../src/engine/rows/project.ts')
 const { CompactionRowSchema } = await import('../../src/engine/rows/vocabulary.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { DIALECT_CONVERSATION, TWO_MODEL_COMPACTION } = await import('../messages/dialectFixture.ts')
-const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, agentNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'max' }
+const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, crewmateNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'max' }
 let failures = 0
 let checks = 0
 function check(label: string, ok: boolean, detail: unknown = '', hint = ''): void {
@@ -32,7 +32,7 @@ function check(label: string, ok: boolean, detail: unknown = '', hint = ''): voi
   console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ` — ${JSON.stringify(detail)}${hint ? ` — change: ${hint}` : ''}`}`)
 }
 const summary = '<summary>The two-model conversation produced the word-count tool. Continue with UTF-8 handling and the focused tests.</summary>'
-const context = (events: Array<{ type: string }>) => ({ abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: [], readFileState: new Map(), onCompactProgress: (event: { type: string }) => events.push(event), options: { tools: [], commands: [], mcpClients: [], engineModel: 'claude-sonnet-5-5', maxThinkingTokens: 0, thinkingConfig: { type: 'adaptive' as const }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } })
+const context = (events: Array<{ type: string }>) => ({ abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: [], readFileState: new Map(), onFoldProgress: (event: { type: string }) => events.push(event), options: { tools: [], commands: [], mcpClients: [], engineModel: 'claude-sonnet-5-5', maxThinkingTokens: 0, thinkingConfig: { type: 'adaptive' as const }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } })
 const cache = { systemPrompt: ['Synthetic mixed-model compaction proof.'] } as never
 try {
   for (const direction of ['full', 'from', 'up_to'] as const) {

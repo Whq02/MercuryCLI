@@ -25,7 +25,7 @@ export type MessagesProps = {
   toolJSX: { jsx: React.ReactNode | null; shouldHidePromptInput: boolean } | null
   toolUseConfirmQueue: unknown[]
   inProgressToolUseIDs: Set<string>
-  isMessageSelectorVisible: boolean
+  isRewindPickerVisible: boolean
   conversationId: string
   screen: Screen
   streamingToolUses: StreamingToolUse[]

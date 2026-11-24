@@ -162,7 +162,7 @@ const { createFoldBoundaryMessage, createSystemAPIErrorMessage } =
 const { createFileStateCacheWithSizeLimit } = await import(
   '../../src/platform/files/fileStateCache.ts'
 )
-const { SYNTHETIC_OUTPUT_TOOL_NAME } = await import(
+const { STRUCTURED_OUTPUT_TOOL_NAME } = await import(
   '../../src/tools/structured-output/SyntheticOutputTool.ts'
 )
 const { CREWMATE_TOOL_NAME } = await import('../../src/tools/kit/names/agent.ts')
@@ -793,7 +793,7 @@ section('E15 SO RETRY CEILING — 5 synthetic-output calls ⇒ schema_unmet on t
 {
   const steps: EngineStep[] = []
   for (let i = 1; i <= 5; i++) {
-    steps.push(ey(asstToolUse(`tu_so_${i}`, SYNTHETIC_OUTPUT_TOOL_NAME, { v: i })))
+    steps.push(ey(asstToolUse(`tu_so_${i}`, STRUCTURED_OUTPUT_TOOL_NAME, { v: i })))
     steps.push(ey(userToolResult(`tu_so_${i}`, 'retry')))
   }
   steps.push(ey(asstText('NEVER REACHED')))
@@ -819,7 +819,7 @@ section('E15 SO RETRY CEILING — 5 synthetic-output calls ⇒ schema_unmet on t
     await (async () => {
       const okSteps: EngineStep[] = []
       for (let i = 1; i <= 4; i++) {
-        okSteps.push(ey(asstToolUse(`tu_ok_${i}`, SYNTHETIC_OUTPUT_TOOL_NAME, { v: i })))
+        okSteps.push(ey(asstToolUse(`tu_ok_${i}`, STRUCTURED_OUTPUT_TOOL_NAME, { v: i })))
         okSteps.push(ey(userToolResult(`tu_ok_${i}`, 'retry')))
       }
       okSteps.push(ey(asstText('made it')))
@@ -1453,8 +1453,8 @@ let recordedYields: unknown[] = []
     querySource: 'sdk' as never,
     deps: {
       callModel: callModel as never,
-      autocompact: async () => ({ wasCompacted: false }),
-      microcompact: (async (messages: unknown[]) => ({ messages })) as never,
+      autoFold: async () => ({ wasCompacted: false }),
+      prune: (async (messages: unknown[]) => ({ messages })) as never,
       uuid: seededUuid(),
     } as never,
   } as never)

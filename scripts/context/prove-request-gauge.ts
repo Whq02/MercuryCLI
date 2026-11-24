@@ -13,7 +13,7 @@ for (let n = 0; n < 40; n++) {
     messages: [{ type: 'user', uuid: 'request', message: { role: 'user', content: 'x'.repeat(4000) } }] as never,
     owner, querySource: 'main_thread', skipToolNames: new Set(), contentReplacementState: undefined,
     calibrationKey: key,
-    microcompact: async messages => ({ messages }),
+    prune: async messages => ({ messages }),
   }, 'apply')
   reconcileAppliedPlanUsage(owner, 2000)
 }

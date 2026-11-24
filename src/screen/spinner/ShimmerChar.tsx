@@ -6,7 +6,7 @@ import type { HexColor } from '../renderer/styles.js'
 type Props = {
   char: string
   index: number
-  glimmerIndex: number
+  shimmerIndex: number
   messageColor: keyof Theme | HexColor
   shimmerColor: keyof Theme | HexColor
 }
@@ -14,11 +14,11 @@ type Props = {
 export function ShimmerChar({
   char,
   index,
-  glimmerIndex,
+  shimmerIndex,
   messageColor,
   shimmerColor,
 }: Props): React.ReactNode {
-  const distance = Math.abs(index - glimmerIndex)
+  const distance = Math.abs(index - shimmerIndex)
   const isShimmer = distance === 0 || distance === 1
   return <Text color={isShimmer ? shimmerColor : messageColor}>{char}</Text>
 }

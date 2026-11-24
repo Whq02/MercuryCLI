@@ -39,7 +39,7 @@ type Fold = import('../../src/engine/compaction/foldStatus.ts').FoldStatusV1
 let fold: Fold | null = null
 const listeners = new Set<() => void>()
 const stamps: Fold[] = []
-const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, agentNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'max' }
+const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, crewmateNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'max' }
 const controller = new AbortController()
 const context: any = {
   abortController: controller, getAppState: () => state, setAppState: () => {}, messages: [],

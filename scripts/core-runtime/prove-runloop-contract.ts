@@ -361,8 +361,8 @@ function buildRun(opts: RunOpts): {
     fallbackModel: opts.fallbackModel,
     deps: {
       callModel: callModel as never,
-      autocompact: autocompactScript(opts.autocompact ?? []) as never,
-      microcompact: passthroughMicrocompact as never,
+      autoFold: autocompactScript(opts.autocompact ?? []) as never,
+      prune: passthroughMicrocompact as never,
       uuid: seededUuid(),
     },
   })
@@ -1024,20 +1024,20 @@ section('L13 COMPACTION BOUNDARY — boundary yields, post-compact input')
     } as never,
   })
   ;((preCompactAssistant as AnyMsg).message as Record<string, unknown>).model = MODEL
-  const compactionResult = {
+  const foldResult = {
     boundaryMarker,
     summaryMessages: [summary],
     attachments: [],
     hookResults: [],
-    preCompactTokenCount: 900,
-    postCompactTokenCount: 120,
-    truePostCompactTokenCount: 120,
-    compactionUsage: undefined,
+    preFoldTokenCount: 900,
+    postFoldTokenCount: 120,
+    truePostFoldTokenCount: 120,
+    foldUsage: undefined,
   }
   const r = record(
     await run({
       seed: [seedUser('hello there rig'), preCompactAssistant],
-      autocompact: [{ wasCompacted: true, compactionResult }],
+      autocompact: [{ wasCompacted: true, foldResult }],
       script: [[y(asstText('post-compact turn'))]],
     }),
   )

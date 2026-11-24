@@ -185,7 +185,7 @@ export async function summarizeWithPtlRetry(
   let fault: string | null = null
   let lastGap: number | undefined
   for (let attempt = 0; attempt <= bound; attempt++) {
-    if (attempt > 0) context.onCompactProgress?.({ type: 'retry', attempt: attempt + 1 })
+    if (attempt > 0) context.onFoldProgress?.({ type: 'retry', attempt: attempt + 1 })
     const promptMessage = createUserMessage({ content: promptText })
     const response = await runSummarization(messages, cacheSafeParams, promptMessage, context, ladder.noSummaryRetries > 0)
     let folded: Message[] | null

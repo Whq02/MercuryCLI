@@ -65,7 +65,7 @@ export type ComposerProps = {
     },
     options?: { fromKeybinding?: boolean },
   ) => Promise<void>
-  onAgentSubmit?: (input: string) => void | Promise<void>
+  onCrewmateSubmit?: (input: string) => void | Promise<void>
   compactWork?: CompactWorkControls
   compactFocus?: CompactWorkFocus
   isSearchingHistory: boolean
@@ -78,7 +78,7 @@ export type ComposerProps = {
   setShowBashesDialog: React.Dispatch<React.SetStateAction<string | boolean>>
   isLocalJSXCommandActive: boolean
   hasSuppressedDialogs: boolean
-  onShowMessageSelector: () => void
+  onShowRewindPicker: () => void
   onMessageActionsEnter?: () => void
   onExit: () => void
   insertTextRef?: React.MutableRefObject<{
@@ -93,10 +93,10 @@ function ComposerInner(props: ComposerProps): React.ReactNode {
   const {
     toolPermissionContext, setToolPermissionContext, apiKeyStatus, commands, agents,
     mcpClients, getToolUseContext, isLoading, submitCount, verbose, debug,
-    onSubmit, onAgentSubmit, compactWork, compactFocus = 'composer',
+    onSubmit, onCrewmateSubmit, compactWork, compactFocus = 'composer',
     isSearchingHistory, setIsSearchingHistory, helpOpen, setHelpOpen,
     vimMode, setVimMode, showBashesDialog, isLocalJSXCommandActive,
-    hasSuppressedDialogs, onShowMessageSelector, onMessageActionsEnter,
+    hasSuppressedDialogs, onShowRewindPicker, onMessageActionsEnter,
     onExit, insertTextRef,
   } = props
 
@@ -140,7 +140,7 @@ function ComposerInner(props: ComposerProps): React.ReactNode {
 
   const {
     doors, capLaneLine, capLaneCut, composerCrewmateRef, viewedCrewmateRef,
-    commandCrewmateRef, viewedAgentName, suggestionApi,
+    commandCrewmateRef, viewedCrewmateName, suggestionApi,
     insertAtCursor, insertAtomic, handleImagePaste, handleImageError,
     handleTextPaste, cursorRef, suggestionsState, setSuggestionsState,
     suggestionsMirrorRef,
@@ -212,7 +212,7 @@ function ComposerInner(props: ComposerProps): React.ReactNode {
 
   const submit = useComposerSubmit({
     compactWork, appStateStore, setAppState, suggestionApi, commands, helpers,
-    buffer, history, onSubmit, onAgentSubmit, setCursorOffset, writeDraft,
+    buffer, history, onSubmit, onCrewmateSubmit, setCursorOffset, writeDraft,
     addNotification, removeNotification, composerCrewmateRef,
     commandCrewmateRef, suggestionsMirrorRef,
   })
@@ -235,7 +235,7 @@ function ComposerInner(props: ComposerProps): React.ReactNode {
     helpOpen, isSearchingHistory, messages, isLoading, speculationActive,
     appStateStore, setAppState, engineModel, cockpitActive, voicePhase: voice.phase,
     getToolUseContext, insertAtCursor, setMode, setHelpOpen, setCursorOffset,
-    onShowMessageSelector, addNotification, submitRef, suggestionsMirrorRef,
+    onShowRewindPicker, addNotification, submitRef, suggestionsMirrorRef,
     viewedCrewmateRef,
   })
 
@@ -249,7 +249,7 @@ function ComposerInner(props: ComposerProps): React.ReactNode {
   })
 
   const placeholder = useComposerPlaceholder({
-    input, submitCount, viewingAgentName: viewedAgentName,
+    input, submitCount, viewingCrewmateName: viewedCrewmateName,
     cockpitActive, compact: isCompact,
   })
   const banner = useCrewBanner()
@@ -306,13 +306,13 @@ function ComposerInner(props: ComposerProps): React.ReactNode {
     historyNavAllowed, recallQueuedSend, footerSelection, suggestionsMirrorRef,
     canFocusSummary, appStateStore, setAppState, handleTextPaste,
     handleImagePaste, handleImageError, setIsPasting, inputFocused, showCursor,
-    suggestionApi, mode, viewedAgentName, placeholder, highlights,
+    suggestionApi, mode, viewedCrewmateName, placeholder, highlights,
     composerBloom, typeahead, maxVisibleLines, performUndo,
   })
 
   const inputBody = composerInputBody({
     isCompact, maxVisibleLines, compactBudget, mode, isLoading, input,
-    viewedAgentName, inputBoxRef, handleInputBoxClick,
+    viewedCrewmateName, inputBoxRef, handleInputBoxClick,
     handleInputTextGesture, vimEnabled, textInputProps, vimMode, setVimMode,
     inputSelectionRangeRef, ownSelection, clearOwnSelection, selectionApi,
     pushAtomic: buffer.pushAtomic, cursorOffset, pastedContents,

@@ -70,7 +70,7 @@ if (!primeOpenaiCatalogue({
 })) throw new Error('the catalogue prime was refused')
 
 type AnyMsg = Record<string, unknown> & { type?: string }
-type Folded = { type: string; displayText?: string; compactionResult: Parameters<typeof buildPostFoldMessages>[0] }
+type Folded = { type: string; displayText?: string; foldHandoff: Parameters<typeof buildPostFoldMessages>[0] }
 
 function makeContext(model: string, messages: AnyMsg[]): Record<string, unknown> {
   let appState: Record<string, unknown> = { ...(getDefaultAppState() as unknown as Record<string, unknown>), effortValue: 'high' }
@@ -133,13 +133,13 @@ section('1 a fold that serves a switch: six notes measured by one model, the ses
 {
   const { messages, folded, threw } = await fold(SEATED)
   const before = contextFill(messages as never).tokens
-  const result = folded?.compactionResult
+  const result = folded?.foldHandoff
   const post = result === undefined ? [] : (buildPostFoldMessages(result) as AnyMsg[])
   const seatedCount = contextFill(post as never, SEATED).tokens
   const recorded = result?.boundaryMarker.compactMetadata.postTokens
   check('the fold lands', folded?.type === 'compact', threw, METER)
   check('the outgoing model measured more than the incoming model will carry: the before figure holds its own fixed material', before > estimateContextTokens(messages as never, SEATED) + FIXED / 2, `${before} against ${estimateContextTokens(messages as never, SEATED)}`, 'the fixture of this proof: sixNotesMeasuredBy must stamp usage that includes the fixed material')
-  check("the after size on the fold's record is the seated model's own count of what stands after it", recorded !== undefined && recorded === seatedCount && result?.truePostCompactTokenCount === seatedCount, JSON.stringify({ recorded, result: result?.truePostCompactTokenCount, seatedCount, before }), METER)
+  check("the after size on the fold's record is the seated model's own count of what stands after it", recorded !== undefined && recorded === seatedCount && result?.truePostFoldTokenCount === seatedCount, JSON.stringify({ recorded, result: result?.truePostFoldTokenCount, seatedCount, before }), METER)
   check(`it lands under half the seated window of ${WINDOW.toLocaleString('en-US')}`, recorded !== undefined && recorded < WINDOW / 2, String(recorded), METER)
   check('the receipt prints that figure', /^Compacted — folded \d+ messages into the summary · context 92k → 20\.\dk tokens/.test(receiptOf(folded)), receiptOf(folded), METER)
   const stored = [...messages, ...post]
@@ -149,12 +149,12 @@ section('1 a fold that serves a switch: six notes measured by one model, the ses
 section('2 no switch: the same six notes folded on the model that measured them')
 {
   const { messages, folded, threw } = await fold(SOURCE)
-  const result = folded?.compactionResult
+  const result = folded?.foldHandoff
   const post = result === undefined ? [] : (buildPostFoldMessages(result) as AnyMsg[])
   const before = contextFill(messages as never).tokens
   const saved = estimateContextTokens(messages as never, SOURCE) - estimateContextTokens(post as never, SOURCE)
   check('the fold lands', folded?.type === 'compact', threw, METER)
-  check('the after size is the measured before figure less what the fold saved by the one estimate, as it was', saved > 0 && result?.truePostCompactTokenCount === before - saved && result.boundaryMarker.compactMetadata.postTokens === before - saved, JSON.stringify({ before, saved, result: result?.truePostCompactTokenCount, recorded: result?.boundaryMarker.compactMetadata.postTokens }), 'createFoldMeter in src/engine/compaction/fold/foldMeasure.ts must keep contextAfterFold for a conversation the seated model measured')
+  check('the after size is the measured before figure less what the fold saved by the one estimate, as it was', saved > 0 && result?.truePostFoldTokenCount === before - saved && result.boundaryMarker.compactMetadata.postTokens === before - saved, JSON.stringify({ before, saved, result: result?.truePostFoldTokenCount, recorded: result?.boundaryMarker.compactMetadata.postTokens }), 'createFoldMeter in src/engine/compaction/fold/foldMeasure.ts must keep contextAfterFold for a conversation the seated model measured')
 }
 
 await fixture.close()

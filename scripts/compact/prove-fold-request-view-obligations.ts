@@ -124,10 +124,10 @@ const context = () => ({
   loadedNestedMemoryPaths: new Set<string>(),
   getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, mcp: { tools: [], clients: [], commands: [], resources: {} } }),
   options: { tools: [], mcpClients: [], commands: [], agentDefinitions: { activeAgents: [] }, engineModel: MODEL, thinkingConfig: { type: 'disabled' }, isNonInteractiveSession: true },
-  onCompactProgress: () => {},
+  onFoldProgress: () => {},
 }) as never
 const fold = (messages: Message[], ceiling: number) =>
-  foldConversation(messages, context(), { systemPrompt: ['fixture'], userContext: {}, systemContext: {}, toolUseContext: context(), forkContextMessages: [] }, true, undefined, true, { autoCompactThreshold: ceiling } as never)
+  foldConversation(messages, context(), { systemPrompt: ['fixture'], userContext: {}, systemContext: {}, toolUseContext: context(), forkContextMessages: [] }, true, undefined, true, { autoFoldThreshold: ceiling } as never)
 const WINDOW_32K_THRESHOLD = 26_000
 const bind = (messages: Message[], fixedTokens: number) =>
   bindRequestGauge(messages, calibrationKeyFor(declaredRouteOf(MODEL) ?? 'unrecognised', MODEL), 1, { digest: `fixture-${fixedTokens}`, tokens: fixedTokens })
@@ -145,7 +145,7 @@ try {
   bind(same, 11_835)
   const paidBefore = api.messageRequests().length
   const landed = await fold(same, WINDOW_32K_THRESHOLD)
-  check(`the request's own view (11,835 fixed tokens, Ollama's count of the local prefix) lands the fold under the ceiling (${landed.truePostCompactTokenCount} < ${WINDOW_32K_THRESHOLD}), the summary paid once`, landed.truePostCompactTokenCount !== undefined && landed.truePostCompactTokenCount < WINDOW_32K_THRESHOLD && landed.summaryMessages.length === 1 && api.messageRequests().length === paidBefore + 1, `${landed.truePostCompactTokenCount} requests=${api.messageRequests().length - paidBefore}; the fold must use the bound request gauge fixed tokens (bindRequestGauge in src/engine/run/requestGauge.ts) when it measures the post-compact size in compactConversation, src/engine/compaction/foldConversation.ts`)
+  check(`the request's own view (11,835 fixed tokens, Ollama's count of the local prefix) lands the fold under the ceiling (${landed.truePostFoldTokenCount} < ${WINDOW_32K_THRESHOLD}), the summary paid once`, landed.truePostFoldTokenCount !== undefined && landed.truePostFoldTokenCount < WINDOW_32K_THRESHOLD && landed.summaryMessages.length === 1 && api.messageRequests().length === paidBefore + 1, `${landed.truePostFoldTokenCount} requests=${api.messageRequests().length - paidBefore}; the fold must use the bound request gauge fixed tokens (bindRequestGauge in src/engine/run/requestGauge.ts) when it measures the post-compact size in compactConversation, src/engine/compaction/foldConversation.ts`)
 } finally {
   await api.close()
 }

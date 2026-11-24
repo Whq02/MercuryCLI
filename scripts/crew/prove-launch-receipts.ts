@@ -216,7 +216,7 @@ function makeCtx(store: ReturnType<typeof makeStore>): never {
   check("SendMessage to the receipt's id delivers the message to the running agent, read at its next tool boundary", byId.data.success === true && /^Delivered to /.test(byId.data.message) && /next tool boundary/.test(byId.data.message), byId.data.message)
   const pending = (): string[] => ((store.get().tasks[minted] as { pendingMessages?: string[] } | undefined)?.pendingMessages ?? [])
   check("…and the words sit in that task's pending queue, in the notice's shape that names the sender", pending().some(p => p.includes('a word for the harbour') && p.includes('<status>message</status>') && p.includes('The main agent sent a message')), JSON.stringify(pending()))
-  store.set(prev => ({ ...prev, agentNameRegistry: new Map([['harbour', minted]]) }))
+  store.set(prev => ({ ...prev, crewmateNameRegistry: new Map([['harbour', minted]]) }))
   const byName = (await SendMessageTool.call({ to: 'harbour', message: 'a second word' } as never, ctx, undefined as never, { requestId: 'req_2' } as never)) as SendAnswer
   check("SendMessage to the launch's name routes to the same task", byName.data.success === true && /^Delivered to /.test(byName.data.message) && pending().some(p => p.includes('a second word')), byName.data.message)
   const ghost = generateTaskId('local_agent')
@@ -291,12 +291,12 @@ section('R8c · a named launch: the foreground road registers the name, the hand
   registerCrewmateName?.('elder', older, store.set as never)
   registerAsyncCrewmate({ agentId: newer, description: 'scout again', prompt: 'scout the harbour', selectedAgent: FAKE_DEF, setAppState: store.set as never })
   registerCrewmateName?.('scout', newer, store.set as never)
-  check('the registry routes each name to its latest holder', store.get().agentNameRegistry.get('scout') === newer && store.get().agentNameRegistry.get('elder') === older, JSON.stringify([...store.get().agentNameRegistry.entries()]))
+  check('the registry routes each name to its latest holder', store.get().crewmateNameRegistry.get('scout') === newer && store.get().crewmateNameRegistry.get('elder') === older, JSON.stringify([...store.get().crewmateNameRegistry.entries()]))
   completeCrewmateTask({ agentId: older }, store.set as never)
   enqueueCrewmateNotification({ taskId: older, description: 'scout', status: 'completed', setAppState: store.set as never })
   store.set(prev => ({ ...prev, tasks: { ...prev.tasks, [older]: { ...prev.tasks[older], evictAfter: 0 } as never } }))
   applyTaskOffsetsAndEvictions(store.set as never, {}, [older])
-  const registry = store.get().agentNameRegistry
+  const registry = store.get().crewmateNameRegistry
   check('the batch sweep evicts the settled task AND its alias; a name reassigned to a newer launch survives', store.get().tasks[older] === undefined && !registry.has('elder') && registry.get('scout') === newer, JSON.stringify([...registry.entries()]))
 }
 

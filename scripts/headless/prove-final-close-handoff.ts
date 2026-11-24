@@ -122,8 +122,8 @@ try {
         reply.message.stop_reason = 'end_turn'
         yield reply
       },
-      autocompact: async () => ({ wasCompacted: false }),
-      microcompact: async (messages: unknown[]) => ({ messages }),
+      autoFold: async () => ({ wasCompacted: false }),
+      prune: async (messages: unknown[]) => ({ messages }),
       uuid: () => crypto.randomUUID(),
     }
     const rows: Row[] = []

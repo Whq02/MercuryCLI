@@ -356,7 +356,7 @@ export function initialPermissionModeFromCLI({
   const resolution = resolveSessionPermissionMode({
     permissionModeCli,
     dangerouslySkipPermissions,
-    envBypassArmed: flagEnabled('MERCURY_SKIP_PERMISSIONS'),
+    envSovereignArmed: flagEnabled('MERCURY_SKIP_PERMISSIONS'),
   })
   setSessionPermissionModeResolution(resolution)
   return resolution.notification === undefined
@@ -405,18 +405,18 @@ export function describeSessionPermissionMode(resolution: {
 export function resolveSessionPermissionMode({
   permissionModeCli,
   dangerouslySkipPermissions,
-  envBypassArmed,
+  envSovereignArmed,
 }: {
   permissionModeCli?: string
   dangerouslySkipPermissions: boolean
-  envBypassArmed?: boolean
+  envSovereignArmed?: boolean
 }): SessionPermissionModeResolution {
   const requested = permissionModeCli ? permissionModeFromString(permissionModeCli) : undefined
   const typedPosture = requested !== undefined && !modeBypassesPermissions(requested)
   const candidates: Array<{ mode: PermissionMode; source: SessionPermissionModeSource }> = []
 
   if (dangerouslySkipPermissions && !typedPosture) {
-    candidates.push({ mode: 'sovereign', source: envBypassArmed === true ? 'session-birth' : 'launch-flag' })
+    candidates.push({ mode: 'sovereign', source: envSovereignArmed === true ? 'session-birth' : 'launch-flag' })
   }
   if (requested) candidates.push({ mode: requested, source: 'mode-argument' })
   const settingsMode = savedPermissionModeCandidate()

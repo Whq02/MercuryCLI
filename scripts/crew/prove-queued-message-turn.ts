@@ -67,7 +67,7 @@ function makeTool(name: string): never {
 type Store = { state: Record<string, unknown>; set: (f: (prev: AppState) => AppState) => void; get: () => AppState }
 function makeStore(tasks: Record<string, unknown>): Store {
   const store: Store = {
-    state: { ...(getDefaultAppState() as unknown as Record<string, unknown>), effortValue: 'high', tasks, agentNameRegistry: new Map<string, string>() },
+    state: { ...(getDefaultAppState() as unknown as Record<string, unknown>), effortValue: 'high', tasks, crewmateNameRegistry: new Map<string, string>() },
     set(f) { store.state = f(store.state as unknown as AppState) as unknown as Record<string, unknown> },
     get: () => store.state as unknown as AppState,
   }
@@ -127,8 +127,8 @@ async function run(store: Store, agentId: string | undefined, script: unknown[][
     querySource: 'agent:mercury-crew' as never,
     deps: {
       callModel: callModel as never,
-      autocompact: (async () => ({ wasCompacted: false })) as never,
-      microcompact: (async (messages: unknown[]) => ({ messages })) as never,
+      autoFold: (async () => ({ wasCompacted: false })) as never,
+      prune: (async (messages: unknown[]) => ({ messages })) as never,
       uuid: (() => { let n = 0; return () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}` })(),
     },
   })
@@ -249,7 +249,7 @@ section("§4 the lifecycle's end-of-run drain takes exactly what it peeked; late
 section('§5 ResumeCrewmate on a running crewmate joins the queue, even with a model or effort named, and says what is queued')
 {
   const store = makeStore({ addbsftfg: agentTask('addbsftfg') })
-  ;(store.state.agentNameRegistry as Map<string, string>).set('opus-consistency-c2', 'addbsftfg')
+  ;(store.state.crewmateNameRegistry as Map<string, string>).set('opus-consistency-c2', 'addbsftfg')
   const rig = makeCtx(store, undefined)
   const parent = createAssistantMessage({ content: 'resuming' })
   const first = await ResumeCrewmateTool.call({ to: 'opus-consistency-c2', effort: 'medium', message: 'Director rulings on your four decision items.' } as never, rig.ctx as never, allowAll as never, parent as never)

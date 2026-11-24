@@ -955,7 +955,7 @@ try {
           availableTools: [tool],
           model: llamaId,
           effortOverride: 'max',
-          onQueryProgress: (ev: any) => progressEvents.push(ev),
+          onTurnProgress: (ev: any) => progressEvents.push(ev),
           override: {
             agentId: 'slow-tool-crewmate' as never,
             userContext: {},

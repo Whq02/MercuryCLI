@@ -1,4 +1,4 @@
-import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../../tools/kit/names/syntheticOutput.js'
+import { STRUCTURED_OUTPUT_TOOL_NAME } from '../../tools/kit/names/syntheticOutput.js'
 import type { Message } from '../../engine/message-shapes/message.js'
 import { hasSuccessfulToolCall } from '../../engine/messages/messages.js'
 import { isToolResultMessage } from '../../engine/messages/merge.js'
@@ -18,7 +18,7 @@ export function registerStructuredOutputGuard(key: string): void {
   engageTurnGuard(key, {
     id: STRUCTURED_OUTPUT_GUARD_ID,
     timeoutMs: 5000,
-    judge: ({ messages }) => (hasSuccessfulToolCall(currentTurnOf(messages), SYNTHETIC_OUTPUT_TOOL_NAME) ? { hold: false } : { hold: true, words: `The ${SYNTHETIC_OUTPUT_TOOL_NAME} tool must be called to complete this request. Call it now.` }),
+    judge: ({ messages }) => (hasSuccessfulToolCall(currentTurnOf(messages), STRUCTURED_OUTPUT_TOOL_NAME) ? { hold: false } : { hold: true, words: `The ${STRUCTURED_OUTPUT_TOOL_NAME} tool must be called to complete this request. Call it now.` }),
   })
 }
 

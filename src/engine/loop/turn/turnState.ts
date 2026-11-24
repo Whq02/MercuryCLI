@@ -33,7 +33,7 @@ export type TurnState = {
   turnCount: number
   transition: Continue | undefined
   stopHookActive: boolean | undefined
-  autoCompactTracking: AutoFoldTrackingState | undefined
+  autoFoldTracking: AutoFoldTrackingState | undefined
   overflowEpisode: OverflowEpisode
   pendingOverflow: { signal: OverflowSignal; rung: OverflowRung } | undefined
   maxOutputTokensOverride: number | undefined
@@ -72,7 +72,7 @@ export type IterationState = {
   state: TurnState
   turnId: string
   requestPlan: RequestContextPlan
-  messagesForQuery: Message[]
+  messagesForRequest: Message[]
   toolUseContext: ToolUseContext
   callChain: ToolCallChain
   tracking: AutoFoldTrackingState | undefined

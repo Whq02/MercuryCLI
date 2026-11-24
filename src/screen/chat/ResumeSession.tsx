@@ -392,8 +392,8 @@ export function ResumeSession({
           showAllProjects={showAllProjects}
           onToggleAllProjects={handleToggleAllProjects}
           initialSearchQuery={initialSearchQuery}
-          onLogsChanged={isCustomTitleEnabled() ? () => setReloadCount(count => count + 1) : undefined}
-          onLogRenamed={handleLogRenamed}
+          onListingsChanged={isCustomTitleEnabled() ? () => setReloadCount(count => count + 1) : undefined}
+          onListingRenamed={handleLogRenamed}
           maxHeight={terminalSize?.rows ?? 24}
         />
       </>

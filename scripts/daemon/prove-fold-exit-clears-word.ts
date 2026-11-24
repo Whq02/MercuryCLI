@@ -191,7 +191,7 @@ const turnRow = (): Frame => turnStartedRow(scope, { turnId: randomUUID(), messa
 const initFrame = (): Frame => sessionRow(scope, { version: '0', cwd: PROJECT, model: 'claude-opus-5', mode: 'default', tools: [], mcpServers: [], commands: [], agents: [], skills: [], extensions: [] }) as Frame
 const streamEvents = (messageId: string, event: Frame): Frame[] => partialRowsOf(scope, messageId, event as never) as Frame[]
 const assistantRows = (id: string, content: Frame[]): Frame[] => [...(itemRowsOf(scope, id, content) as Frame[]), stepRow(scope, { messageId: id, model: 'claude-opus-5', stopReason: 'end_turn', usage: USAGE }) as Frame]
-const foldContext = () => ({ setSDKStatus: wireStatus, abortController: new AbortController(), setStreamMode: () => {}, setResponseLength: () => {}, onCompactProgress: () => {} })
+const foldContext = () => ({ setSDKStatus: wireStatus, abortController: new AbortController(), setStreamMode: () => {}, setResponseLength: () => {}, onFoldProgress: () => {} })
 
 type Turn = (onMessage: (m: Frame) => void) => Promise<void>
 const turns = new Map<string, Turn>()
@@ -282,17 +282,17 @@ let beginTail: ReturnType<typeof tail> = null
       foldContext() as never,
       async scoped => {
         foldBeganAtMs = Date.now()
-        scoped.onCompactProgress?.({ type: 'stage', stage: 'micro-compaction' })
+        scoped.onFoldProgress?.({ type: 'stage', stage: 'micro-compaction' })
         await until(() => live().phase === 'compacting')
         beginProbe = live()
         beginFold = fold()
         beginTail = tail()
         enqueue('read the landings')
         scoped.setSDKStatus?.('compacting')
-        scoped.onCompactProgress?.({ type: 'compact_start' })
+        scoped.onFoldProgress?.({ type: 'compact_start' })
         scoped.setResponseLength?.(() => 800)
         await sleep(120)
-        scoped.onCompactProgress?.({ type: 'hooks_start', hookType: 'session_start' })
+        scoped.onFoldProgress?.({ type: 'hooks_start', hookType: 'session_start' })
         scoped.setResponseLength?.(() => 0)
         scoped.setSDKStatus?.(null)
         return 'folded'
@@ -373,7 +373,7 @@ section('P6 the automatic road (the seat and the cockpit over the fixture projec
     await withFoldStatus(
       foldContext() as never,
       async scoped => {
-        scoped.onCompactProgress?.({ type: 'compact_start' })
+        scoped.onFoldProgress?.({ type: 'compact_start' })
         check('the automatic fold reaches the cockpit before it is released', await until(() => live().phase === 'compacting' && fold()?.trigger === 'auto' && fold()?.exit === undefined), j({ live: live(), fold: fold() }))
         during = live()
         return 'auto folded'

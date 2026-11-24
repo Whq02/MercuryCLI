@@ -183,7 +183,7 @@ async function openScene(cols: number, rows: number): Promise<Scene> {
           compactWork: controls, compactFocus: focus,
           debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
           setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [],
-          isLoading: false, verbose: false, submitCount: 0, onShowMessageSelector: () => {},
+          isLoading: false, verbose: false, submitCount: 0, onShowRewindPicker: () => {},
           mcpClients: [], vimMode, setVimMode, showBashesDialog: bashes, setShowBashesDialog: setBashes,
           onExit: () => {}, getToolUseContext: () => ({} as never),
           onSubmit: async () => {},

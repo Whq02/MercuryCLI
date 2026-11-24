@@ -65,7 +65,7 @@ const context = () => ({
   options: { tools: [], mcpClients: [], commands: [], agentDefinitions: { activeAgents: [] }, engineModel: 'claude-opus-4-8', thinkingConfig: { type: 'disabled' }, isNonInteractiveSession: true },
 }) as never
 const fold = (messages: Message[], ctx: unknown, threshold: number) =>
-  foldConversation(messages, ctx as never, { systemPrompt: ['fixture'], userContext: {}, systemContext: {}, toolUseContext: ctx as never, forkContextMessages: [] }, true, undefined, true, { autoCompactThreshold: threshold, isRecompaction: false, turnsSincePreviousCompact: -1, querySource: 'sdk' })
+  foldConversation(messages, ctx as never, { systemPrompt: ['fixture'], userContext: {}, systemContext: {}, toolUseContext: ctx as never, forkContextMessages: [] }, true, undefined, true, { autoFoldThreshold: threshold, isRefold: false, turnsSincePreviousFold: -1, querySource: 'sdk' })
 const roundsOf = (result: Awaited<ReturnType<typeof fold>>) => result.boundaryMarker.compactMetadata.recentRounds!
 const wordsOf = (result: Awaited<ReturnType<typeof fold>>) => foldReceiptWords(foldReceipt(result.boundaryMarker.compactMetadata))
 const keptResults = (result: Awaited<ReturnType<typeof fold>>): string[] => (result.messagesToKeep ?? []).flatMap(row => row.type === 'user' && Array.isArray(row.message.content) ? row.message.content.filter(block => block.type === 'tool_result').map(block => typeof block.content === 'string' ? block.content : JSON.stringify(block.content)) : [])
@@ -79,14 +79,14 @@ try {
     const largest = Math.max(...history.filter(row => row.type === 'user').map(row => estimateContextTokens([row])))
     check(`the landing line sits a turn under the threshold: ${landing} = ${threshold} − max(the largest round ≈${largest}, ${LANDING_ROOM_FLOOR_TOKENS}), capped at a ${LANDING_ROOM_MAX_SHARE}th of the threshold`, landing === threshold - Math.min(Math.max(largest, LANDING_ROOM_FLOOR_TOKENS), Math.floor(threshold / LANDING_ROOM_MAX_SHARE)) && landing < threshold - LANDING_ROOM_FLOOR_TOKENS + 1, String(landing))
     const result = await fold(history, context(), threshold)
-    const post = result.truePostCompactTokenCount ?? Infinity
+    const post = result.truePostFoldTokenCount ?? Infinity
     const rounds = roundsOf(result)
     check(`the fold lands under the landing line (${post} < ${landing}), keeping ${rounds.kept} of ${rounds.requested} rounds whole (red on the base: it kept as many as fit under ${threshold})`, post < landing && rounds.kept >= 1 && rounds.kept < 10 && (rounds.folded ?? 0) === 0, JSON.stringify({ post, rounds }))
     check(`the next turn has at least a turn of room: ${threshold - post} ≥ ${Math.max(largest, LANDING_ROOM_FLOOR_TOKENS)}`, threshold - post >= Math.max(largest, LANDING_ROOM_FLOOR_TOKENS), String(threshold - post))
     check('every kept result rides whole — no placeholder when whole rounds fit', keptResults(result).every(text => !text.startsWith(FOLDED_RESULT_KEY)) && keptResults(result).length === rounds.kept)
     check('the receipt names the kept count and the request budget', wordsOf(result)[0] === `last ${rounds.kept} of 10 rounds kept whole (the request budget)`, wordsOf(result)[0])
     const again = await fold([...buildPostFoldMessages(result), ...stretch(3, 24_000, 'next')], context(), threshold)
-    check('a second fold over the post-fold context lands under its own landing line too (the refill law holds fold after fold)', (again.truePostCompactTokenCount ?? Infinity) < foldLandingCeiling(threshold, [...buildPostFoldMessages(result), ...stretch(3, 24_000, 'next')]), String(again.truePostCompactTokenCount))
+    check('a second fold over the post-fold context lands under its own landing line too (the refill law holds fold after fold)', (again.truePostFoldTokenCount ?? Infinity) < foldLandingCeiling(threshold, [...buildPostFoldMessages(result), ...stretch(3, 24_000, 'next')]), String(again.truePostFoldTokenCount))
   }
 
   console.log('L2 one round larger than the room: its large result is folded into the summary, the round stays complete, the fold lands under the landing line')
@@ -96,7 +96,7 @@ try {
     const landing = foldLandingCeiling(threshold, history)
     const ctx = context() as { contentReplacementState: { replacements: Map<string, string>; seenIds: Set<string> } }
     const result = await fold(history, ctx, threshold)
-    const post = result.truePostCompactTokenCount ?? Infinity
+    const post = result.truePostFoldTokenCount ?? Infinity
     const rounds = roundsOf(result)
     const folded = keptResults(result).filter(text => text.startsWith(FOLDED_RESULT_KEY))
     check(`the fold lands under the landing line (${post} < ${landing}) with the latest round kept and its giant result folded (red on the base: the giant round rode whole, ${rounds.kept} kept)`, post < landing && rounds.kept === 1 && rounds.folded === 1 && folded.length === 1, JSON.stringify({ post, landing, rounds, folded: folded.length }))
@@ -114,7 +114,7 @@ try {
     const history = [...stretch(2, 400, 'head', 80_000), ...stretch(10, 400, 'wide')]
     const landing = foldLandingCeiling(threshold, history)
     const result = await fold(history, context(), threshold)
-    const post = result.truePostCompactTokenCount ?? Infinity
+    const post = result.truePostFoldTokenCount ?? Infinity
     const rounds = roundsOf(result)
     check(`the fold lands between the landing line and the threshold (${landing} ≤ ${post} < ${threshold}) with the widest tail that fits under the threshold, nothing narrowed or folded for nothing, and the reason no-room`, post >= landing && post < threshold && rounds.kept === 10 && (rounds.folded ?? 0) === 0 && rounds.reason === 'no-room', JSON.stringify({ post, landing, rounds }))
     check('the receipt says it once', wordsOf(result)[0] === 'last 10 rounds kept whole (no room left for a turn)', wordsOf(result)[0])
@@ -142,7 +142,7 @@ try {
     check('the room includes the largest measured positive underestimate', guarded === threshold - Math.ceil(largestRaw * ratio + 585), String(guarded))
     check('negative or invalid residuals never reduce the existing room', foldLandingCeiling(threshold, gauged, ratio, [-80, Number.NaN]) === landing)
     const result = await fold(gauged, context(), threshold)
-    const post = result.truePostCompactTokenCount ?? Infinity
+    const post = result.truePostFoldTokenCount ?? Infinity
     const rounds = roundsOf(result)
     check(`the fold lands with room for the largest round as the gauge counts it: ${threshold} − ${post} ≥ ${largestGauge} (red before: the fold kept one round more and left ${threshold} − post < ${largestGauge})`, threshold - post >= largestGauge && post < landing, JSON.stringify({ post, landing, rounds }))
     check('the kept rounds ride whole (the gauge changes the count, never the content)', keptResults(result).every(text => !text.startsWith(FOLDED_RESULT_KEY)) && (rounds.folded ?? 0) === 0 && rounds.kept >= 1, JSON.stringify(rounds))
@@ -156,7 +156,7 @@ try {
     let refusal = ''
     let result: Awaited<ReturnType<typeof fold>> | undefined
     try { result = await fold(history, context(), threshold) } catch (error) { refusal = error instanceof Error ? error.message : String(error) }
-    const post = result?.truePostCompactTokenCount ?? Infinity
+    const post = result?.truePostFoldTokenCount ?? Infinity
     const rounds = result === undefined ? undefined : roundsOf(result)
     const folded = result === undefined ? [] : keptResults(result).filter(text => text.startsWith(FOLDED_RESULT_KEY))
     check(`the fold lands between the line and the threshold (${landing} ≤ ${post} < ${threshold}) with the latest rounds kept, the giant result folded and the reason no-room (red before: refused — "the latest complete round does not fit")`, refusal === '' && post >= landing && post < threshold && (rounds?.kept ?? 0) >= 1 && rounds?.folded === 1 && folded.length === 1 && rounds?.reason === 'no-room', `${refusal.slice(0, 120)} ${JSON.stringify({ post, landing, rounds, folded: folded.length })}`)

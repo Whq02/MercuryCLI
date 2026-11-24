@@ -106,14 +106,14 @@ function makeCommandContext(messages: AnyMsg[]): Record<string, unknown> {
   }
 }
 
-type CompactCallResult = { type: string; displayText?: string; compactionResult: Parameters<typeof buildPostFoldMessages>[0] }
+type CompactCallResult = { type: string; displayText?: string; foldHandoff: Parameters<typeof buildPostFoldMessages>[0] }
 const plainOf = (result: CompactCallResult): string => (result.displayText ?? '').replace(/\x1b\[[0-9;]*m/g, '').split('\n')[0] ?? ''
 const summaryRequests = (): number => fixture.captured.filter(hit => hit.lane.startsWith('anthropic')).length
 
 section('A an unfolded long history: /compact folds it as today (the summariser is asked once, the context shrinks)')
 const long = makeMessages(40, 1_500, 22_000)
 const first = (await call('', makeCommandContext(long) as never)) as CompactCallResult
-const post = buildPostFoldMessages(first.compactionResult) as AnyMsg[]
+const post = buildPostFoldMessages(first.foldHandoff) as AnyMsg[]
 {
   const requests = summaryRequests()
   check('the fold landed with a receipt that shrinks', first.type === 'compact' && /context 22\.1k → \d+(\.\d+)?k tokens/.test(plainOf(first)), plainOf(first), 'the first /compact must fold and print a receipt of the form context Nk → Mk tokens; see call in src/commands/compact/compact.ts')
@@ -160,7 +160,7 @@ section('C a first fold that would grow the conversation refuses before the summ
     threw = error instanceof Error ? error.message : String(error)
   }
   const inputTokens = estimateContextTokens(short as never)
-  const outputTokens = result === undefined ? inputTokens : estimateContextTokens(buildPostFoldMessages(result.compactionResult))
+  const outputTokens = result === undefined ? inputTokens : estimateContextTokens(buildPostFoldMessages(result.foldHandoff))
   console.log(`  first-fold estimate: ${inputTokens} → ${outputTokens}; ${result ? plainOf(result) : threw}`)
   check('the audit fixture contains 220 estimated tokens (the content-aware estimator of fold 46ao; 307 under the byte count before it)', inputTokens === 220, String(inputTokens), 'the estimate comes from estimateContextTokens in src/engine/compaction/pruneToolResults.ts; update the expected 220 only if that estimator changed on purpose')
   check('a first fold refuses with the true reason, without claiming a previous fold', result === undefined && threw === 'Nothing to compact yet: a summary would not shrink the 960 tokens.', `threw=${threw ?? 'no'} result=${result ? plainOf(result) : 'none'}`, hintManualRefusal)

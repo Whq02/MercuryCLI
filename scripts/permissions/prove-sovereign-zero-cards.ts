@@ -361,7 +361,7 @@ section('§6 the arming of sovereign is untouched: the launch flag or the Boot M
   check('--mode sovereign without the flag does not arm the posture', typed.mode !== 'sovereign' && typeof typed.notification === 'string', JSON.stringify(typed))
   const flagged = resolveSessionPermissionMode({ permissionModeCli: undefined, dangerouslySkipPermissions: true })
   check('the launch flag arms it, from the flag', flagged.mode === 'sovereign' && flagged.source === 'launch-flag', JSON.stringify(flagged))
-  const row = resolveSessionPermissionMode({ permissionModeCli: undefined, dangerouslySkipPermissions: true, envBypassArmed: true })
+  const row = resolveSessionPermissionMode({ permissionModeCli: undefined, dangerouslySkipPermissions: true, envSovereignArmed: true })
   check('the Boot Menu row arms it, from the session\'s birth', row.mode === 'sovereign' && row.source === 'session-birth', JSON.stringify(row))
   const entry = validateModeEntry('sovereign', { ...getEmptyToolPermissionContext(), mode: 'default' } as never)
   check('a session not launched with the flag cannot enter sovereign by hand', entry.ok === false && /--sovereign/.test(entry.ok ? '' : entry.error), JSON.stringify(entry))

@@ -277,7 +277,7 @@ section('§4 a 13,761-token system prompt against a true 4,096 model: the turn r
       canUseTool: (async (_tool: unknown, input: Record<string, unknown>) => ({ behavior: 'allow', updatedInput: input, decisionReason: { type: 'other', reason: 'rig' } })) as never,
       toolUseContext: ctx as never,
       querySource: 'sdk' as never,
-      deps: { callModel: callModel as never, autocompact: (async () => ({ wasCompacted: false })) as never, uuid: () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}` } as never,
+      deps: { callModel: callModel as never, autoFold: (async () => ({ wasCompacted: false })) as never, uuid: () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}` } as never,
     })
     const errors: string[] = []
     let r = await gen.next()

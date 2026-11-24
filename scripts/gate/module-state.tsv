@@ -5583,7 +5583,7 @@ src/tools/structure/StructureTool.ts	OPS	process	module	Load-time list with no l
 src/tools/structure/StructureTool.ts	SELECT_LANE_EXTS	process	module	Load-time list with no local writer
 src/tools/structure/StructureTool.ts	StructureTool	process	module	Load-time definition shared by all callers
 src/tools/structure/StructureTool.ts	inputSchema	process	module	Load-time definition shared by all callers
-src/tools/structured-output/SyntheticOutputTool.ts	SyntheticOutputTool	process	module	Load-time definition shared by all callers
+src/tools/structured-output/SyntheticOutputTool.ts	StructuredOutputTool	process	module	module definition evaluated once
 src/tools/structured-output/SyntheticOutputTool.ts	inputSchema	process	module	Load-time definition shared by all callers
 src/tools/structured-output/SyntheticOutputTool.ts	outputSchema	process	module	Load-time definition shared by all callers
 src/tools/structured-output/SyntheticOutputTool.ts	schemaBoundCache	process	module	WeakMap memo compiling JSON schema object into validated Tool wrapper

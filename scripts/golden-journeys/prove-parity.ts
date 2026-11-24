@@ -161,7 +161,7 @@ check('identity is the durable run', work.identity.runId === kernel?.runId && wo
     executions: [],
     mainRun: null,
     richTasks: new Map(),
-    agentMeta: new Map(),
+    crewmateMeta: new Map(),
     laneRuns: new Map(),
     partySeats: null,
     collab: null,

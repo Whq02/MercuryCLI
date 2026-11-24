@@ -12,20 +12,20 @@ export function ComposerModeIndicator({
   mode,
   isLoading,
   inputEmpty,
-  viewedAgentName,
+  viewedCrewmateName,
   cells = 2,
 }: {
   mode: InputMode
   isLoading: boolean
   inputEmpty: boolean
-  viewedAgentName?: string
+  viewedCrewmateName?: string
   cells?: number
 }): React.ReactNode {
   const accent = useSessionAccent()
   if (cells === 0) return null
   const space = cells > 1 ? ' ' : ''
 
-  if (viewedAgentName !== undefined && viewedAgentName !== '') {
+  if (viewedCrewmateName !== undefined && viewedCrewmateName !== '') {
     return (
       <Box flexShrink={0}>
         <Text color="suggestion" dimColor={isLoading}>

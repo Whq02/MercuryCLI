@@ -140,8 +140,8 @@ async function runLocal(answers: ChatAnswer[]): Promise<Run> {
       querySource: 'sdk',
       deps: {
         callModel,
-        autocompact: async () => ({ wasCompacted: false }),
-        microcompact: async (messages: unknown[]) => ({ messages }),
+        autoFold: async () => ({ wasCompacted: false }),
+        prune: async (messages: unknown[]) => ({ messages }),
         uuid: (() => {
           let n = 0
           return () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`

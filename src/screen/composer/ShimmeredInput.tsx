@@ -81,7 +81,7 @@ export function HighlightedInput({
                         key={charIndex}
                         char={char}
                         index={run.startOffset + charIndex}
-                        glimmerIndex={shimmerIndex}
+                        shimmerIndex={shimmerIndex}
                         messageColor={color}
                         shimmerColor={shimmerColor}
                       />

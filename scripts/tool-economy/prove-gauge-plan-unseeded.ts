@@ -119,7 +119,7 @@ section('§2 the real turn machine: the request gauge plans before the model is 
         message.message.stop_reason = 'end_turn'
         yield message
       },
-      autocompact: async () => ({ wasCompacted: false }), microcompact: async (messages: unknown[]) => ({ messages }), uuid: () => crypto.randomUUID(),
+      autoFold: async () => ({ wasCompacted: false }), prune: async (messages: unknown[]) => ({ messages }), uuid: () => crypto.randomUUID(),
     },
   } as never, [])
   for await (const _event of machine) {}
@@ -160,7 +160,7 @@ section('§3 the owners: the gauge and the local warm read the one unseeded plan
           replies.push(message as never)
           yield message
         },
-        autocompact: async () => ({ wasCompacted: false }), microcompact: async (messages: unknown[]) => ({ messages }), uuid: () => crypto.randomUUID(),
+        autoFold: async () => ({ wasCompacted: false }), prune: async (messages: unknown[]) => ({ messages }), uuid: () => crypto.randomUUID(),
       },
     } as never, [])
     let step = await machine.next()

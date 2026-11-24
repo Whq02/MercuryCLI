@@ -40,7 +40,7 @@ export function taskDetailView({ backFromDetail, detailTask, onDone, setAppState
           agent={agent}
           onDone={onDone}
           onBack={backFromDetail}
-          onKillAgent={() => killAsyncCrewmate(agent.id, setAppState)}
+          onKillCrewmate={() => killAsyncCrewmate(agent.id, setAppState)}
           onForeground={() => {
             enterCrewmateView(agent.id, setAppState)
             onDone()
@@ -83,7 +83,7 @@ export function workDetailView({ backFromDetail, detailWork, now, onDone }: { ba
   )
 }
 
-export function boardListView({ accent, agentTasks, armedWork, bootRecovery, columns, doneMission, flat, inProgress, indexById, leadItems, ledgerOpenCount, missionTasks, now, onDone, pendingMission, presence, selected, selectedIdRef, selectedIndex, summaryEntry, tokens }: { accent: string; agentTasks: TaskState[]; armedWork: WorkRowV1 | null; bootRecovery: ReturnType<typeof getBootRecovery>; columns: number; doneMission: MissionTask[]; flat: BoardItem[]; inProgress: MissionTask[]; indexById: Map<string, number>; leadItems: BoardItem[]; ledgerOpenCount: number; missionTasks: ReadonlyArray<MissionTask>; now: number; onDone: () => void; pendingMission: MissionTask[]; presence: ReturnType<typeof focusedRunnerPresence>; selected: BoardItem | undefined; selectedIdRef: RefObject<string | null>; selectedIndex: number; summaryEntry: boolean; tokens: ReturnType<typeof useMercuryTokens> }) {
+export function boardListView({ accent, crewmateTasks, armedWork, bootRecovery, columns, doneMission, flat, inProgress, indexById, leadItems, ledgerOpenCount, missionTasks, now, onDone, pendingMission, presence, selected, selectedIdRef, selectedIndex, summaryEntry, tokens }: { accent: string; crewmateTasks: TaskState[]; armedWork: WorkRowV1 | null; bootRecovery: ReturnType<typeof getBootRecovery>; columns: number; doneMission: MissionTask[]; flat: BoardItem[]; inProgress: MissionTask[]; indexById: Map<string, number>; leadItems: BoardItem[]; ledgerOpenCount: number; missionTasks: ReadonlyArray<MissionTask>; now: number; onDone: () => void; pendingMission: MissionTask[]; presence: ReturnType<typeof focusedRunnerPresence>; selected: BoardItem | undefined; selectedIdRef: RefObject<string | null>; selectedIndex: number; summaryEntry: boolean; tokens: ReturnType<typeof useMercuryTokens> }) {
   const runningCount = flat.filter(item => (item.task ?? item.work)?.status === 'running').length
   const pendingCount = flat.filter(item => (item.task ?? item.work)?.status === 'pending').length
   const activeCount = runningCount + pendingCount
@@ -166,7 +166,7 @@ export function boardListView({ accent, agentTasks, armedWork, bootRecovery, col
     (selected?.task !== undefined && selected.task.status === 'running') ||
     (selected?.work !== undefined && workRowRuns(selected.work))
   const selectedResumable = selected?.work !== undefined && selected.kind === 'agent' && !workRowRuns(selected.work)
-  const anyAgentRunning = agentTasks.some(task => task.status === 'running')
+  const anyAgentRunning = crewmateTasks.some(task => task.status === 'running')
 
   return (
     <CommandCenter elevated

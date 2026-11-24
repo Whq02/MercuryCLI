@@ -62,7 +62,7 @@ const gatedTools = [
   (await import('../../src/tools/ask-advisor/AskAdvisorTool.ts')).AskAdvisorTool,
   (await import('../../src/tools/journal/JournalTool.ts')).JournalTool,
   (await import('../../src/tools/powershell/PowerShellTool.tsx')).PowerShellTool,
-  (await import('../../src/tools/structured-output/SyntheticOutputTool.ts')).SyntheticOutputTool,
+  (await import('../../src/tools/structured-output/SyntheticOutputTool.ts')).StructuredOutputTool,
   (await import('../../src/tools/task-create/TaskCreateTool.ts')).TaskCreateTool,
   (await import('../../src/tools/task-get/TaskGetTool.ts')).TaskGetTool,
   (await import('../../src/tools/task-list/TaskListTool.ts')).TaskListTool,

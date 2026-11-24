@@ -158,9 +158,9 @@ async function foldSeatedOn(seat: string): Promise<Folded> {
   let outcome: string
   let post: unknown[] = []
   try {
-    const result = (await compactCall('', makeCtx(seat, seed()) as never)) as { type: string; compactionResult?: unknown }
+    const result = (await compactCall('', makeCtx(seat, seed()) as never)) as { type: string; foldHandoff?: unknown }
     outcome = result.type
-    if (result.compactionResult !== undefined) post = buildPostFoldMessages(result.compactionResult as never) as unknown[]
+    if (result.foldHandoff !== undefined) post = buildPostFoldMessages(result.foldHandoff as never) as unknown[]
   } catch (error) {
     outcome = `threw: ${error instanceof Error ? error.message : String(error)}`
   }

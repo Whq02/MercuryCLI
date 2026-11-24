@@ -195,7 +195,7 @@ async function mount(first: Stage): Promise<Screen> {
         toolJSX: null,
         toolUseConfirmQueue: [],
         inProgressToolUseIDs: now.running,
-        isMessageSelectorVisible: false,
+        isRewindPickerVisible: false,
         conversationId: 'launch-card',
         screen: 'prompt',
         streamingToolUses: [],

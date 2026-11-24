@@ -229,7 +229,7 @@ export async function runForegroundCrewmateExecution(
     },
     ...(foregroundTask !== undefined
       ? {
-          onQueryProgress: event =>
+          onTurnProgress: event =>
             publishCrewmateWaitFromEvent(foregroundTask.taskId, tracker, event, rootSetAppState),
         }
       : {}),

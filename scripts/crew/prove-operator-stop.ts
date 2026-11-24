@@ -23,10 +23,10 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-type State = { tasks: Record<string, unknown>; speculation: { status: string }; agentNameRegistry: Map<string, string>; crewContext?: unknown }
+type State = { tasks: Record<string, unknown>; speculation: { status: string }; crewmateNameRegistry: Map<string, string>; crewContext?: unknown }
 function makeStore(): { state: State; set: (fn: (prev: never) => never) => void; get: () => never } {
   const store = {
-    state: { tasks: {}, speculation: { status: 'idle' }, agentNameRegistry: new Map<string, string>() } as State,
+    state: { tasks: {}, speculation: { status: 'idle' }, crewmateNameRegistry: new Map<string, string>() } as State,
     set(fn: (prev: never) => never) {
       store.state = (fn as (p: unknown) => State)(store.state)
     },
@@ -82,8 +82,8 @@ section('the address: TaskStop resolves a launch name and a task id as given')
   const state = store.get() as unknown as Parameters<typeof resolveStopTargetId>[1]
   check('an unknown address comes back unchanged for the miss words', resolveStopTargetId('nobody@nowhere', state) === 'nobody@nowhere', 'resolveStopTargetId in src/engine/tasks/stopTask.ts must return an unknown address unchanged')
   registerAsyncCrewmate({ agentId: 'ag-named', description: 'named seat', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never })
-  store.state.agentNameRegistry.set('scout', 'ag-named')
-  check('a launch name the registry routes resolves to its agent\'s task id', resolveStopTargetId('scout', store.get() as never) === 'ag-named', 'resolveStopTargetId in src/engine/tasks/stopTask.ts must map a name in agentNameRegistry to its task id')
+  store.state.crewmateNameRegistry.set('scout', 'ag-named')
+  check('a launch name the registry routes resolves to its agent\'s task id', resolveStopTargetId('scout', store.get() as never) === 'ag-named', 'resolveStopTargetId in src/engine/tasks/stopTask.ts must map a name in crewmateNameRegistry to its task id')
   check('the task id resolves to itself', resolveStopTargetId('ag-named', store.get() as never) === 'ag-named', 'resolveStopTargetId in src/engine/tasks/stopTask.ts must return a task id that is in tasks as given')
 }
 

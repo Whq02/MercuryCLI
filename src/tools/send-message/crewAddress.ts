@@ -30,7 +30,7 @@ export async function validateCrewMessage(input: CrewMessageInput): Promise<Vali
 export function selfAddressRefusalText(to: string, context: ToolUseContext, verb: CrewMessageVerb, resolvedId?: string): string | null {
   const own = context.agentId === undefined ? undefined : String(context.agentId)
   if (own === undefined) return null
-  const registered = context.getAppState().agentNameRegistry?.get(to)
+  const registered = context.getAppState().crewmateNameRegistry?.get(to)
   if (to !== own && registered !== own && resolvedId !== own) return null
   return verb === 'resume'
     ? `Cannot resume "${to}": that is this session's own address — you are that agent, and you are running.`
@@ -60,7 +60,7 @@ function crewmateTranscriptPathOf(agentId: string): string | null {
 export async function resolveCrewAddress(to: string, context: ToolUseContext): Promise<CrewAddress> {
   if (to.toLowerCase() === MAIN_THREAD_AGENT) return { kind: 'main' }
   const state = context.getAppState()
-  const registry = state.agentNameRegistry
+  const registry = state.crewmateNameRegistry
   const registered = registry?.get(to)
   const candidate = state.tasks?.[to]
   const liveId = isCrewmateTask(candidate) && !isMainSessionTask(candidate) ? to : undefined
@@ -104,7 +104,7 @@ async function knownLaunchedCrewmates(context: ToolUseContext): Promise<KnownLau
   for (const receipt of namedLaunchReceipts(context.messages ?? [])) {
     byName.set(receipt.name, { name: receipt.name, agentId: receipt.agentId, status: statusOf(receipt.agentId) })
   }
-  for (const [name, agentId] of state.agentNameRegistry ?? []) {
+  for (const [name, agentId] of state.crewmateNameRegistry ?? []) {
     byName.set(name, { name, agentId: String(agentId), status: statusOf(String(agentId)) })
   }
   return [...byName.values()]

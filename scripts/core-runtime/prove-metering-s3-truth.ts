@@ -29,7 +29,7 @@ section('§22 the compaction trace subtracts the true post figure')
   const trace = await import('../../src/platform/observability/invocationTrace.ts')
   const freedByAFold = async (truePost: number | undefined): Promise<Array<number | undefined>> => {
     const landed = t.fixtures.folded()
-    Object.assign(landed.compactionResult as object, { preCompactTokenCount: 900, postCompactTokenCount: 700, truePostCompactTokenCount: truePost })
+    Object.assign(landed.foldResult as object, { preFoldTokenCount: 900, postFoldTokenCount: 700, truePostFoldTokenCount: truePost })
     const planted = await t.plantRun({ env: { MERCURY_TRACE: '1' }, seed: [t.fixtures.ask('hello there rig'), t.fixtures.fat('old fat turn', 700)], autocompact: [landed], script: [] })
     const path = trace.getInvocationTracePath()
     const stood = existsSync(path) ? readFileSync(path, 'utf8').length : 0
@@ -51,7 +51,7 @@ section('§22 the compaction trace subtracts the true post figure')
   }
   const withTrueFigure = await freedByAFold(120)
   const withoutTrueFigure = await freedByAFold(undefined)
-  check('tokensFreed = pre − (truePostCompactTokenCount ?? postCompactTokenCount)', JSON.stringify(withTrueFigure) === '[780]' && JSON.stringify(withoutTrueFigure) === '[200]', `a fold of 900 tokens whose summary call used 700 and whose true post figure is 120 traced ${JSON.stringify(withTrueFigure)} (780 is right); the same fold with no true figure traced ${JSON.stringify(withoutTrueFigure)} (200 is right) — the auto-compact trace of src/engine/loop/turn/makeRequest.ts subtracts the true post figure and falls back to the call's own only when there is none`)
+  check('tokensFreed = pre − (truePostFoldTokenCount ?? postFoldTokenCount)', JSON.stringify(withTrueFigure) === '[780]' && JSON.stringify(withoutTrueFigure) === '[200]', `a fold of 900 tokens whose summary call used 700 and whose true post figure is 120 traced ${JSON.stringify(withTrueFigure)} (780 is right); the same fold with no true figure traced ${JSON.stringify(withoutTrueFigure)} (200 is right) — the auto-compact trace of src/engine/loop/turn/makeRequest.ts subtracts the true post figure and falls back to the call's own only when there is none`)
   check('…never pre − the summarisation call\'s own usage', withTrueFigure.length === 1 && withTrueFigure[0] !== 900 - 700, `with a true post figure of 120 the trace reads ${JSON.stringify(withTrueFigure)}: 200 is pre − the summary call's own 700`)
 }
 

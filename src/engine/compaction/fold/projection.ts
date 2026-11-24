@@ -125,8 +125,8 @@ export async function projectManualFold(
     messagesToKeep: keep.length > 0 ? keep : undefined,
     attachments: rows,
     hookResults: [],
-    preCompactTokenCount: meter.context,
-    postCompactTokenCount: 0,
+    preFoldTokenCount: meter.context,
+    postFoldTokenCount: 0,
   })
   const afterWithFiles = meter.measureResult(projectedResult(attachments))
   let after = afterWithFiles

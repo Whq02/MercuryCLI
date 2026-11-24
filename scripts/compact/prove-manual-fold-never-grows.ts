@@ -53,7 +53,7 @@ const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/p
 
 const MODEL = 'claude-opus-4-8'
 type AnyMsg = Record<string, unknown> & { type?: string }
-type CompactCallResult = { type: string; displayText?: string; compactionResult: Parameters<typeof buildPostFoldMessages>[0] }
+type CompactCallResult = { type: string; displayText?: string; foldHandoff: Parameters<typeof buildPostFoldMessages>[0] }
 
 let seq = 0
 const uid = (): string => `00000000-0000-4000-a000-${String(++seq).padStart(12, '0')}`
@@ -164,12 +164,12 @@ section('1 restored files would make the fold grow: projection counts disk size,
   )
   const reqsBefore = summaryRequests()
   const result = (await call('', ctx as never)) as CompactCallResult
-  const post = buildPostFoldMessages(result.compactionResult)
+  const post = buildPostFoldMessages(result.foldHandoff)
   const afterTokens = estimateContextTokens(post as never, MODEL)
-  const restoredFileCount = result.compactionResult.attachments.filter(a => a.attachment.type === 'file' || a.attachment.type === 'compact_file_reference').length
+  const restoredFileCount = result.foldHandoff.attachments.filter(a => a.attachment.type === 'file' || a.attachment.type === 'compact_file_reference').length
   check(
     'the manual fold runs once and drops restored files so context strictly shrinks',
-    summaryRequests() === reqsBefore + 1 && restoredFileCount === 0 && afterTokens < beforeTokens && (result.compactionResult.truePostCompactTokenCount ?? Infinity) < result.compactionResult.preCompactTokenCount,
+    summaryRequests() === reqsBefore + 1 && restoredFileCount === 0 && afterTokens < beforeTokens && (result.foldHandoff.truePostFoldTokenCount ?? Infinity) < result.foldHandoff.preFoldTokenCount,
     `before=${beforeTokens} after=${afterTokens} receipt=${plainOf(result)} restoredFiles=${restoredFileCount}`,
     'call in src/commands/compact/compact.ts and compactConversation in src/engine/compaction/foldConversation.ts must pass restoreFiles=false from projectManualFold and omit file attachments when they would grow the fold',
   )
@@ -282,9 +282,9 @@ section('2 Windows SUBMIT 352 shape (RequestGauge + high-effort thinking + large
   const short = windowsShapedSession()
   const reqsBefore = summaryRequests()
   const landed = (await call('', makeContext(short.messages, short.reads) as never)) as CompactCallResult
-  const restoredFileCount = landed.compactionResult.attachments.filter(a => a.attachment.type === 'file' || a.attachment.type === 'compact_file_reference').length
+  const restoredFileCount = landed.foldHandoff.attachments.filter(a => a.attachment.type === 'file' || a.attachment.type === 'compact_file_reference').length
   const standingBefore = estimateContextTokens(stripThinkingFromIndex(short.messages as never, 0), MODEL)
-  const standingAfter = estimateContextTokens(buildPostFoldMessages(landed.compactionResult) as never, MODEL)
+  const standingAfter = estimateContextTokens(buildPostFoldMessages(landed.foldHandoff) as never, MODEL)
   check(
     'a short summary: the summariser is asked exactly once',
     summaryRequests() === reqsBefore + 1,
@@ -293,7 +293,7 @@ section('2 Windows SUBMIT 352 shape (RequestGauge + high-effort thinking + large
   )
   check(
     'a short summary: the fold lands without its restored files, smaller than the 57.6k it found by the measure and by the estimate',
-    restoredFileCount === 0 && landed.compactionResult.preCompactTokenCount === 57_600 && (landed.compactionResult.truePostCompactTokenCount ?? Infinity) < 57_600 && standingAfter < standingBefore,
+    restoredFileCount === 0 && landed.foldHandoff.preFoldTokenCount === 57_600 && (landed.foldHandoff.truePostFoldTokenCount ?? Infinity) < 57_600 && standingAfter < standingBefore,
     `receipt=${plainOf(landed)} restoredFiles=${restoredFileCount} estimate ${standingBefore} → ${standingAfter}`,
     hintJudged,
   )
@@ -396,15 +396,15 @@ section('4 automatic fold drops restored files when they would push the landed c
     true,
     undefined,
     true,
-    { isRecompaction: false, turnsSincePreviousCompact: -1, autoCompactThreshold: 900_000 },
+    { isRefold: false, turnsSincePreviousFold: -1, autoFoldThreshold: 900_000 },
   )
-  const afterTokens = result.truePostCompactTokenCount ?? estimateContextTokens(buildPostFoldMessages(result), MODEL)
+  const afterTokens = result.truePostFoldTokenCount ?? estimateContextTokens(buildPostFoldMessages(result), MODEL)
   const restoredFileCount = result.attachments.filter(a => a.attachment.type === 'file' || a.attachment.type === 'compact_file_reference').length
   check(
     'automatic fold drops restored files so it does not land larger than before',
     afterTokens < beforeTokens && restoredFileCount === 0,
     `before=${beforeTokens} after=${afterTokens} restoredFiles=${restoredFileCount}`,
-    'landFold in src/engine/compaction/fold/foldLanding.ts must drop restored file attachments when truePostCompactTokenCount >= before',
+    'landFold in src/engine/compaction/fold/foldLanding.ts must drop restored file attachments when truePostFoldTokenCount >= before',
   )
 }
 

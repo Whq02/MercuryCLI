@@ -19,8 +19,8 @@ export function manualFoldDisplayText(
 ): string {
   const kept = result.messagesToKeep?.length ?? 0
   const folded = Math.max(0, messagesHandedIn - kept)
-  const pre = result.preCompactTokenCount
-  const post = result.truePostCompactTokenCount
+  const pre = result.preFoldTokenCount
+  const post = result.truePostFoldTokenCount
   const facts: string[] = []
   if (folded > 0) facts.push(`folded ${folded} message${folded === 1 ? '' : 's'} into the summary`)
   if (typeof pre === 'number' && pre > 0 && typeof post === 'number' && post >= 0) {

@@ -83,9 +83,9 @@ function retainedEvictionDue(task: TaskState, now: number): boolean {
 }
 
 function pruneCrewmateNameRegistry(
-  registry: AppState['agentNameRegistry'],
+  registry: AppState['crewmateNameRegistry'],
   taskId: string,
-): AppState['agentNameRegistry'] {
+): AppState['crewmateNameRegistry'] {
   const staleNames: string[] = []
   for (const [name, agentId] of registry) {
     if (String(agentId) === taskId) staleNames.push(name)
@@ -185,7 +185,7 @@ export function evictTerminalTask(taskId: string, setAppState: TaskAppStateSette
     return {
       ...prev,
       tasks: restTasks,
-      agentNameRegistry: pruneCrewmateNameRegistry(prev.agentNameRegistry, taskId),
+      crewmateNameRegistry: pruneCrewmateNameRegistry(prev.crewmateNameRegistry, taskId),
     }
   })
 }
@@ -224,7 +224,7 @@ export function applyTaskOffsetsAndEvictions(
 
   setAppState(prev => {
     let nextTasks: Record<string, TaskState> | undefined
-    let nextRegistry = prev.agentNameRegistry
+    let nextRegistry = prev.crewmateNameRegistry
 
     for (const [taskId, newOffset] of offsetEntries) {
       const task = prev.tasks[taskId]
@@ -250,7 +250,7 @@ export function applyTaskOffsetsAndEvictions(
     return {
       ...prev,
       tasks: nextTasks,
-      agentNameRegistry: nextRegistry,
+      crewmateNameRegistry: nextRegistry,
     }
   })
 }

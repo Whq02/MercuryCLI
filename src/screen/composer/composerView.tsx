@@ -119,7 +119,7 @@ export function composerTextInputProps({
   showCursor,
   suggestionApi,
   mode,
-  viewedAgentName,
+  viewedCrewmateName,
   placeholder,
   highlights,
   composerBloom,
@@ -132,7 +132,7 @@ export function composerTextInputProps({
   & Pick<ComposerGeometry, 'textColumns' | 'maxVisibleLines'>
   & Pick<ComposerAttachments, 'handleTextPaste' | 'handleImagePaste' | 'handleImageError'>
   & Pick<ReturnType<typeof useComposerHistory>, 'history' | 'recallQueuedSend'>
-  & Pick<ComposerCrewmateRefs, 'viewedAgentName'>
+  & Pick<ComposerCrewmateRefs, 'viewedCrewmateName'>
   & {
     composerViewportStartRef: React.MutableRefObject<number | undefined>
     voiceInputFilter: ReturnType<typeof useComposerHoldToTalk>
@@ -211,7 +211,7 @@ export function composerTextInputProps({
     showCursor,
     multiline: true,
     placeholder:
-      suggestionApi.suggestion !== null && mode === 'prompt' && !viewedAgentName
+      suggestionApi.suggestion !== null && mode === 'prompt' && !viewedCrewmateName
         ? suggestionApi.suggestion
         : placeholder,
     highlights,
@@ -238,7 +238,7 @@ export function composerInputBody({
   mode,
   isLoading,
   input,
-  viewedAgentName,
+  viewedCrewmateName,
   inputBoxRef,
   handleInputBoxClick,
   handleInputTextGesture,
@@ -257,7 +257,7 @@ export function composerInputBody({
   & Pick<ComposerProps, 'isLoading' | 'vimMode' | 'setVimMode'>
   & Pick<ComposerGeometry, 'maxVisibleLines'>
   & Pick<ComposerGates, 'vimEnabled'>
-  & Pick<ComposerCrewmateRefs, 'viewedAgentName'>
+  & Pick<ComposerCrewmateRefs, 'viewedCrewmateName'>
   & Pick<ReturnType<typeof useComposerSelectionRoad>, 'ownSelection' | 'handleInputBoxClick' | 'handleInputTextGesture'>
   & {
     textInputProps: ReturnType<typeof composerTextInputProps>
@@ -270,7 +270,7 @@ export function composerInputBody({
         mode={mode}
         isLoading={isLoading}
         inputEmpty={input === ''}
-        viewedAgentName={viewedAgentName}
+        viewedCrewmateName={viewedCrewmateName}
       />
       <Box
         flexGrow={1}

@@ -753,7 +753,7 @@ function launchedInBackground(data: unknown): boolean {
 async function runAdmittedCall(needs: ToolCallNeeds): Promise<void> {
   const { args, tool, toolUseID, assistantMessage, canUseTool, toolUseContext, push, signal, sourceUUID, traceOnce, settleHookWait, announceHooks, decision, callInput, observableInput, decidedRows, allowanceRow, hookNotes } = needs
   const owner = ownerFromToolUseContext(toolUseContext)
-  const isSubagent = toolUseContext.agentId !== undefined && toolUseContext.preserveToolResults !== true
+  const isCrewmate = toolUseContext.agentId !== undefined && toolUseContext.preserveToolResults !== true
   const pushHookRows = (fired: Awaited<ReturnType<typeof afterToolHooks>>): void => {
     for (const outcome of fired.outcomes) {
       push({ message: hookProgressMessage('tool.after', outcome.name, 'ran', toolUseID, fired.outcomes.length) })
@@ -855,7 +855,7 @@ async function runAdmittedCall(needs: ToolCallNeeds): Promise<void> {
       toolUseContext,
       acceptFeedback: decision.acceptFeedback,
       allowBlocks: decision.contentBlocks ?? [],
-      isSubagent,
+      isCrewmate,
       result: answered,
       sourceUUID,
     })
@@ -903,7 +903,7 @@ async function runAdmittedCall(needs: ToolCallNeeds): Promise<void> {
         message: createUserMessage({
           content: [{ type: 'tool_result', content: toolUseError(formatError(error)), is_error: true, tool_use_id: toolUseID }],
           toolUseResult: `Error: ${message}`,
-          ...(mcpMeta === undefined || isSubagent ? {} : { mcpMeta }),
+          ...(mcpMeta === undefined || isCrewmate ? {} : { mcpMeta }),
           sourceToolAssistantUUID: sourceUUID,
         }),
         ...(shellRun === null ? {} : { shellRun }),
@@ -953,12 +953,12 @@ interface ResultUpdateNeeds {
   toolUseContext: ToolUseContext
   acceptFeedback: string | undefined
   allowBlocks: ContentBlockParam[]
-  isSubagent: boolean
+  isCrewmate: boolean
   result: ToolResult<unknown> | undefined
   sourceUUID: AssistantMessage['uuid']
 }
 
-async function buildResultUpdate(blockForEmission: ToolResultBlockParam, { assistantMessage, tool, toolUseID, toolUseContext, acceptFeedback, allowBlocks, isSubagent, result, sourceUUID }: ResultUpdateNeeds): Promise<MessageUpdateLazy> {
+async function buildResultUpdate(blockForEmission: ToolResultBlockParam, { assistantMessage, tool, toolUseID, toolUseContext, acceptFeedback, allowBlocks, isCrewmate, result, sourceUUID }: ResultUpdateNeeds): Promise<MessageUpdateLazy> {
   const room = resultRoomFor(assistantMessage)
   const processed = await processPreMappedToolResultBlock(
     blockForEmission,
@@ -980,8 +980,8 @@ async function buildResultUpdate(blockForEmission: ToolResultBlockParam, { assis
   return {
     message: createUserMessage({
       content: blocks,
-      ...(isSubagent ? tool.name === CREWMATE_TOOL_NAME && completionIdentity(result!.data) !== null ? { toolUseResult: completionIdentity(result!.data) } : {} : { toolUseResult: result!.data }),
-      ...(isSubagent || result!.mcpMeta === undefined
+      ...(isCrewmate ? tool.name === CREWMATE_TOOL_NAME && completionIdentity(result!.data) !== null ? { toolUseResult: completionIdentity(result!.data) } : {} : { toolUseResult: result!.data }),
+      ...(isCrewmate || result!.mcpMeta === undefined
         ? {}
         : { mcpMeta: result!.mcpMeta }),
       sourceToolAssistantUUID: sourceUUID,

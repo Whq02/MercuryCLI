@@ -33,7 +33,7 @@ const keep = messages.slice(13)
 const boundary = createFoldBoundaryMessage('manual', 80_000)
 const summary = createUserMessage({ content: 'The repair and checks are complete.', isCompactSummary: true, isVisibleInTranscriptOnly: true })
 annotateBoundaryWithWork(boundary, messages, keep, summary.uuid)
-const folded = buildPostFoldMessages({ boundaryMarker: boundary, summaryMessages: [summary], messagesToKeep: keep, attachments: [], hookResults: [], preCompactTokenCount: 80_000, postCompactTokenCount: 200 })
+const folded = buildPostFoldMessages({ boundaryMarker: boundary, summaryMessages: [summary], messagesToKeep: keep, attachments: [], hookResults: [], preFoldTokenCount: 80_000, postFoldTokenCount: 200 })
 let failures = 0
 const check = (label: string, ok: boolean, detail = '') => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? `: ${detail} (to fix: the work counts a fold carries are written by annotateBoundaryWithWork in src/engine/compaction/foldConversation.ts and painted by src/screen/messages/TurnReceiptRow.tsx and ResumeRecapCard.tsx, with the recap numbers from buildAwayRecap in src/screen/cockpit/awaySummary.ts; compare the printed frame with the unfolded one)` : ''}`) }
 async function frame(rows: Message[], width: number): Promise<string> {
@@ -52,7 +52,7 @@ try {
   const emptyHead = { type: 'assistant', uuid: randomUUID(), timestamp, message: { id: randomUUID(), role: 'assistant', content: [] } } as unknown as Message
   const sparseBoundary = createFoldBoundaryMessage('manual', 80_000)
   annotateBoundaryWithWork(sparseBoundary, [emptyHead, ...messages], [emptyHead, ...sparseKeep], summary.uuid)
-  const sparseFold = buildPostFoldMessages({ boundaryMarker: sparseBoundary, summaryMessages: [summary], messagesToKeep: [emptyHead, ...sparseKeep], attachments: [], hookResults: [], preCompactTokenCount: 80_000, postCompactTokenCount: 200 })
+  const sparseFold = buildPostFoldMessages({ boundaryMarker: sparseBoundary, summaryMessages: [summary], messagesToKeep: [emptyHead, ...sparseKeep], attachments: [], hookResults: [], preFoldTokenCount: 80_000, postFoldTokenCount: 200 })
   check('hidden empty rows and blocks cannot swallow the receipt carry', await frame(messages, 120) === await frame(sparseFold, 120), await frame(sparseFold, 120))
   for (const width of [80, 120]) {
     const before = await frame(messages, width)

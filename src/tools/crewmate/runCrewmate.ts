@@ -151,7 +151,7 @@ export type RunCrewmateParams = {
   effortOverride?: string
   thinkingConfigOverride?: ThinkingConfig
   instructionProfileOverride?: string
-  onQueryProgress?: (event: CrewmateTurnProgressEvent) => void
+  onTurnProgress?: (event: CrewmateTurnProgressEvent) => void
   onWait?: (line: string | null) => void
   onPendingAsks?: (count: number) => void
   structuredOutputSpec?: {
@@ -648,7 +648,7 @@ function prepareRecordOf(params: RunCrewmateParams, made: RunMade): PrepareRecor
     onWait: params.onWait,
     preserveToolUseResults: params.preserveToolUseResults,
     run: made.run,
-    onQueryProgress: params.onQueryProgress,
+    onTurnProgress: params.onTurnProgress,
     accountant: made.accountant,
     touchThrough: made.touchThrough,
     initialMessages: made.initialMessages,
@@ -683,7 +683,7 @@ export async function* runCrewmate(
     name,
     team,
     effortOverride,
-    onQueryProgress,
+    onTurnProgress,
     onWait,
     onPendingAsks,
   } = params
@@ -834,7 +834,7 @@ export async function* runCrewmate(
     const observeProgress = observeProgressOf(run, {
       recovery,
       accountant,
-      onQueryProgress,
+      onQueryProgress: onTurnProgress,
       touchThrough,
       declaredRecoveryWaitMs,
     })

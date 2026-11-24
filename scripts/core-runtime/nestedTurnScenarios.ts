@@ -147,8 +147,8 @@ function scriptedDeps(on: Tape, turn: number): Row {
         else yield step.value
       }
     },
-    autocompact: async () => ({ wasCompacted: false }),
-    microcompact: async (messages: unknown[]) => ({ messages }),
+    autoFold: async () => ({ wasCompacted: false }),
+    prune: async (messages: unknown[]) => ({ messages }),
   }
 }
 
@@ -222,7 +222,7 @@ const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/f
 const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 const { flushSessionStorage } = await import('../../src/sessions/transcripts/sessionStorage.ts')
 const { hookAnswerSchema } = await import('../../src/integrations/event-hooks/contract.ts')
-const { SYNTHETIC_OUTPUT_TOOL_NAME } = await import('../../src/tools/kit/names/syntheticOutput.ts')
+const { STRUCTURED_OUTPUT_TOOL_NAME } = await import('../../src/tools/kit/names/syntheticOutput.ts')
 const { runCrewmate } = await import('../../src/tools/crewmate/runCrewmate.ts')
 const { runForkedAgent } = await import('../../src/crew/agents/forkedAgent.ts')
 const { runCrewmateHook } = await import('../../src/integrations/event-hook-runners/crewmateRunner.ts')
@@ -323,7 +323,7 @@ async function crewmate(on: Tape, maxTurns: number | undefined): Promise<unknown
     description: 'nested rig',
     cwd: CWD,
     ...(maxTurns !== undefined ? { maxTurns } : {}),
-    onQueryProgress: (message: unknown) => {
+    onTurnProgress: (message: unknown) => {
       on.log.push(on.mask({ lane: 'outer', progress: (message as Row).type }))
     },
   } as never)
@@ -432,7 +432,7 @@ export const NESTED: NestedScenario[] = [
     ends: ['left before its terminal'],
     outcome: 'answered',
     run: on => {
-      on.script = [[y(calls('tu_hook_1', ECHO, { text: 'one' }))], [y(calls('tu_hook_2', SYNTHETIC_OUTPUT_TOOL_NAME, {}))]]
+      on.script = [[y(calls('tu_hook_1', ECHO, { text: 'one' }))], [y(calls('tu_hook_2', STRUCTURED_OUTPUT_TOOL_NAME, {}))]]
       return hookCrewmate(on, new AbortController().signal)
     },
   },

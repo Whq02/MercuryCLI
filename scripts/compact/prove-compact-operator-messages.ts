@@ -252,7 +252,7 @@ function makeContext(model: string): Record<string, unknown> {
     toolPermissionContext,
     sessionHooks: new Map(),
     tasks: {},
-    agentNameRegistry: new Map(),
+    crewmateNameRegistry: new Map(),
     mcp: { clients: [], tools: [], commands: [], resources: {} },
     effortValue: 'high',
   }
@@ -327,7 +327,7 @@ section('C the real fold, no kept tail — every prompt verbatim between the bou
     const without = { ...result, operatorMessages: undefined }
     const withBlock = estimateContextTokens(post as never)
     const withoutBlock = estimateContextTokens(compactMod.buildPostFoldMessages(without as never) as never)
-    check('the size guard counts the block (the true post figure includes it)', withBlock > withoutBlock && result.truePostCompactTokenCount === withBlock, `${withBlock} vs ${withoutBlock}; true=${String(result.truePostCompactTokenCount)}; estimateContextTokens (src/engine/compaction/pruneToolResults.ts) and truePostCompactTokenCount in src/engine/compaction/foldConversation.ts must both count the block`)
+    check('the size guard counts the block (the true post figure includes it)', withBlock > withoutBlock && result.truePostFoldTokenCount === withBlock, `${withBlock} vs ${withoutBlock}; true=${String(result.truePostFoldTokenCount)}; estimateContextTokens (src/engine/compaction/pruneToolResults.ts) and truePostFoldTokenCount in src/engine/compaction/foldConversation.ts must both count the block`)
   }
 }
 
@@ -386,9 +386,9 @@ section('F the size guard sheds the block LAST, before refusing; a fitting resul
     summaryMessages: [createUserMessage({ content: `RIG SUMMARY ${'of the folded history. '.repeat(20)}`, isCompactSummary: true, isVisibleInTranscriptOnly: true })],
     attachments,
     hookResults: [],
-    preCompactTokenCount: 150_000,
-    postCompactTokenCount: 0,
-    compactionUsage: undefined,
+    preFoldTokenCount: 150_000,
+    postFoldTokenCount: 0,
+    foldUsage: undefined,
   })
   const full = rig([fileAttachment('A.txt', 4_000), skills], block)
   const core = estimateContextTokens(compactMod.buildPostFoldMessages(rig([], undefined) as never) as never)

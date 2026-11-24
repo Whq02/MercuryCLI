@@ -113,7 +113,7 @@ try {
   const boundary = createFoldBoundaryMessage('auto', 80_000)
   annotateBoundaryWithPreservedSegment(boundary, boundary.uuid, [keptPrompt, keptReply])
   const summary = createUserMessage({ content: 'What was folded.', isCompactSummary: true, isVisibleInTranscriptOnly: true })
-  const afterFold = [...buildPostFoldMessages({ boundaryMarker: boundary, summaryMessages: [summary], messagesToKeep: [keptPrompt, keptReply], attachments: [], hookResults: [], preCompactTokenCount: 80_000, postCompactTokenCount: 200 }), createUserMessage({ content: 'the first new prompt' }), reply('the first new reply', 15000)]
+  const afterFold = [...buildPostFoldMessages({ boundaryMarker: boundary, summaryMessages: [summary], messagesToKeep: [keptPrompt, keptReply], attachments: [], hookResults: [], preFoldTokenCount: 80_000, postFoldTokenCount: 200 }), createUserMessage({ content: 'the first new prompt' }), reply('the first new reply', 15000)]
   const afterFoldReceipts = receiptsOf(afterFold)
   const keptReceipt = afterFoldReceipts.find(r => r.uuid === `${keptPrompt.uuid}-turn-receipt`)
   const newReceipt = afterFoldReceipts.at(-1)

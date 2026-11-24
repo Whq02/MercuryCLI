@@ -33,7 +33,7 @@ import { READ_TOOL_NAME } from '../../kit/names/fileRead.js'
 import { recordCrewStart } from '../../../crew/crew-start/crewStart.js'
 import { runForegroundCrewmateExecution, type ForegroundCrewmateMetadata } from '../foregroundExecution.js'
 import { resolveCrewmateTools, runAsyncCrewmateLifecycle } from '../crewmateLifecycle.js'
-import { createSyntheticOutputTool } from '../../structured-output/SyntheticOutputTool.js'
+import { getSchemaBoundStructuredOutputTool } from '../../structured-output/SyntheticOutputTool.js'
 import { buildFrozenWorktreeNotice } from '../frozenWorktreeNotice.js'
 import { buildWorktreePrepareNotice } from '../worktreePrepareNotice.js'
 import type { AgentDefinition } from '../../../crew/agents/agentDefinition.js'
@@ -191,11 +191,11 @@ export async function crewmateToolCall(
 
   const workerTools = resolveCrewmateTools(
         agentDef,
-        plan.workerPermissionMode,
+        plan.crewmatePermissionMode,
         toolPoolOfTheTable(
           {
             ...context.getAppState().toolPermissionContext,
-            mode: plan.workerPermissionMode,
+            mode: plan.crewmatePermissionMode,
           },
           context.getAppState().mcp.tools ?? [],
         ),
@@ -395,7 +395,7 @@ export async function crewmateToolCall(
 function structuredOutputSpecOf(input: CrewmateToolInput, definitionSchema: Record<string, unknown> | undefined) {
   const schema = input.output_schema ?? definitionSchema
   if (schema === undefined) return undefined
-  const bound = createSyntheticOutputTool(schema)
+  const bound = getSchemaBoundStructuredOutputTool(schema)
   if (!bound.ok) {
     throw new Error(`output_schema is not a valid JSON Schema: ${bound.error}`)
   }
@@ -489,7 +489,7 @@ function asyncLifecycleOf({ earlyAgentId, input, rootSetAppState, agentDef, plan
     runAsyncCrewmateLifecycle({
       taskId: earlyAgentId,
       abortController: task.abortController!,
-      makeStream: onQueryProgress =>
+      makeStream: onTurnProgress =>
         runCrewmate({
           ...runAgentParams,
           override: {
@@ -497,7 +497,7 @@ function asyncLifecycleOf({ earlyAgentId, input, rootSetAppState, agentDef, plan
             agentId: earlyAgentId,
             abortController: task.abortController!,
           },
-          ...(onQueryProgress !== undefined ? { onQueryProgress } : {}),
+          ...(onTurnProgress !== undefined ? { onTurnProgress } : {}),
         }),
       metadata,
       description: input.description,

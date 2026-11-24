@@ -80,8 +80,8 @@ export function InterruptKeys({
   compactWork,
   isElicitationFocused = false,
   isInterviewFocused = false,
-  onAgentsKilled,
-  isMessageSelectorVisible = false,
+  onCrewmatesKilled,
+  isRewindPickerVisible = false,
   screen,
   abortSignal,
   vimMode,
@@ -94,8 +94,8 @@ export function InterruptKeys({
   compactWork?: CompactWorkControls
   isElicitationFocused?: boolean
   isInterviewFocused?: boolean
-  onAgentsKilled?: () => void
-  isMessageSelectorVisible?: boolean
+  onCrewmatesKilled?: () => void
+  isRewindPickerVisible?: boolean
   screen: Screen
   abortSignal?: AbortSignal
   vimMode?: VimMode
@@ -137,7 +137,7 @@ export function InterruptKeys({
   const sharedGuard =
     screen !== 'transcript' &&
     !isSearchingHistory &&
-    !isMessageSelectorVisible &&
+    !isRewindPickerVisible &&
     !isLocalJSXCommand &&
     !isHelpOpen &&
     !isOverlayActive &&
@@ -257,7 +257,7 @@ export function InterruptKeys({
         lastKillPressRef.current = null
         removeNotification('kill-agents-confirm')
         if (killRunningCrewmates(appStateStore.getState, setAppState)) {
-          onAgentsKilled?.()
+          onCrewmatesKilled?.()
         }
         return
       }

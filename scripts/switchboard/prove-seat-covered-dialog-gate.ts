@@ -25,9 +25,9 @@ function check(label: string, cond: boolean, detail = '', hint = ''): void {
 {
   const { openSelectorPart } = await import('../ui/chatScenarios.ts')
   const selector = await openSelectorPart('seat-covered-selector', { keepHome: true })
-  const uncovered = selector.part.value().messageSelector !== null
+  const uncovered = selector.part.value().rewindPicker !== null
   await selector.plant({ chatSurfaceCovered: true })
-  const covered = selector.part.value().messageSelector !== null
+  const covered = selector.part.value().rewindPicker !== null
   await selector.close()
   check('G3 the message selector render requires !chatSurfaceCovered', uncovered && !covered, `drawn uncovered ${uncovered} · drawn covered ${covered}`, 'in src/screen/chat/useChatSelector.tsx, useChatRewindPickerView must build messageSelector only while chatSurfaceCovered is false')
 }

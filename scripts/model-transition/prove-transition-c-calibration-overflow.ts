@@ -176,7 +176,7 @@ section('§C C08 — the SHIPPED typed ladder composes with selection')
   history.push(t.fixtures.ask('the request') as AnyMessage)
   const planted = await t.plantRun({ env: { MERCURY_CONTEXT_SELECTION: 'bounded-optional', MERCURY_SELECTION_BUDGET: '5' }, seed: history, script: [t.fixtures.yields(t.fixtures.says('done.'))] })
   const folds: Array<{ head: AnyMessage[]; fork: AnyMessage[]; carry: AnyMessage[] }> = []
-  ;(planted.run.deps as AnyMessage).autocompact = async (head: AnyMessage[], _context: unknown, cacheSafe: { forkContextMessages: AnyMessage[]; postFoldCarry: AnyMessage[] }) => {
+  ;(planted.run.deps as AnyMessage).autoFold = async (head: AnyMessage[], _context: unknown, cacheSafe: { forkContextMessages: AnyMessage[]; postFoldCarry: AnyMessage[] }) => {
     folds.push({ head, fork: cacheSafe.forkContextMessages, carry: cacheSafe.postFoldCarry })
     return { wasCompacted: false }
   }

@@ -4,10 +4,9 @@ import { check, cleanup, finish, section, setup } from './lib.js'
 
 setup()
 const { applySchemaToReply } = await import('../../src/tools/engines/eval-kernels/evalBridge.js')
-const { createSyntheticOutputTool: getSchemaBoundStructuredOutputTool, SchemaMismatchError } = await import(
+const { getSchemaBoundStructuredOutputTool, SchemaMismatchError } = await import(
   '../../src/tools/structured-output/SyntheticOutputTool.js'
 )
-const { createSyntheticOutputTool } = await import('../../src/tools/structured-output/SyntheticOutputTool.js')
 
 type Verdict = 'accept' | 'reject' | 'schema-refused'
 
@@ -32,7 +31,7 @@ async function workflowVerdict(schema: object, value: unknown): Promise<Verdict>
 }
 
 async function headlessVerdict(schema: object, value: unknown): Promise<Verdict> {
-  const bound = createSyntheticOutputTool(schema)
+  const bound = getSchemaBoundStructuredOutputTool(schema)
   if ('error' in bound) return 'schema-refused'
   try {
     await (bound.tool as unknown as { call: (input: unknown) => Promise<unknown> }).call(value)

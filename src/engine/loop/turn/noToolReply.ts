@@ -262,12 +262,12 @@ export type NoToolRule = (run: RunCtx, iter: IterationState, reply: NoToolReadin
 
 async function* overflowRecovery(run: RunCtx, iter: IterationState, reply: NoToolReading): AsyncGenerator<RunEvent, SettledDecision | undefined> {
   const { emit, querySource } = run
-  const { state, toolUseContext, messagesForQuery, tracking, overflowEpisode, assistantMessages } = iter
+  const { state, toolUseContext, messagesForRequest, tracking, overflowEpisode, assistantMessages } = iter
   const { maxOutputTokensRecoveryCount, maxOutputTokensOverride, streamFaultRecoveryCount, toolCallRefusalRecoveryCount, turnCount } = iter.state
   const overflow = overflowSignalOf(reply.lastMessage)
   if (overflow === null || !overflowLadderArmed(querySource)) return undefined
 
-  const candidate: Message[] = [...messagesForQuery, ...assistantMessages.filter(m => m.isApiErrorMessage !== true)]
+  const candidate: Message[] = [...messagesForRequest, ...assistantMessages.filter(m => m.isApiErrorMessage !== true)]
   const signal = measureOverflow(overflow, candidate, toolUseContext.options.engineModel)
   const decision = decideOverflowRecovery({
     episode: overflowEpisode,
@@ -282,7 +282,7 @@ async function* overflowRecovery(run: RunCtx, iter: IterationState, reply: NoToo
     const next: NextTurn = {
       messages: candidate,
       toolUseContext,
-      autoCompactTracking: tracking,
+      autoFoldTracking: tracking,
       maxOutputTokensRecoveryCount,
       lastOutputLimitReply: state.lastOutputLimitReply,
       maxOutputTokensOverride,
@@ -315,7 +315,7 @@ async function* overflowRecovery(run: RunCtx, iter: IterationState, reply: NoToo
 async function* pauseTurnContinuation(run: RunCtx, iter: IterationState, reply: NoToolReading): AsyncGenerator<RunEvent, SettledDecision | undefined> {
   const { emit } = run
   const { maxTurns } = run.params
-  const { state, messagesForQuery, tracking, assistantMessages } = iter
+  const { state, messagesForRequest, tracking, assistantMessages } = iter
   if (pausedReplyOf(assistantMessages) === null) return undefined
   const continuations = state.pauseTurnContinuations ?? 0
   const decision = decidePauseTurnContinuation({ continuations })
@@ -341,8 +341,8 @@ async function* pauseTurnContinuation(run: RunCtx, iter: IterationState, reply: 
   })
   const next: NextTurn = {
     ...state,
-    messages: [...messagesForQuery, ...assistantMessages.filter(m => m.isApiErrorMessage !== true)],
-    autoCompactTracking: tracking,
+    messages: [...messagesForRequest, ...assistantMessages.filter(m => m.isApiErrorMessage !== true)],
+    autoFoldTracking: tracking,
     turnCount,
     pauseTurnContinuations: continuations + 1,
     stopHookActive: undefined,
@@ -354,7 +354,7 @@ async function* pauseTurnContinuation(run: RunCtx, iter: IterationState, reply: 
 
 async function* reasoningOnlyRecovery(run: RunCtx, iter: IterationState, reply: NoToolReading): AsyncGenerator<RunEvent, SettledDecision | undefined> {
   const { emit } = run
-  const { state, toolUseContext, messagesForQuery, tracking, overflowEpisode, assistantMessages } = iter
+  const { state, toolUseContext, messagesForRequest, tracking, overflowEpisode, assistantMessages } = iter
   const { maxOutputTokensRecoveryCount, maxOutputTokensOverride, streamFaultRecoveryCount, toolCallRefusalRecoveryCount, turnCount } = iter.state
   const { lastMessage, reasoningOnly } = reply
   if (reasoningOnly === null) return undefined
@@ -373,9 +373,9 @@ async function* reasoningOnlyRecovery(run: RunCtx, iter: IterationState, reply: 
       .map(m => (capped && m === reasoningOnly.reply ? withReasoningCutMarker(m) : m))
     const nudge = createUserMessage({ content: reasoningOnlyRecoveryNudge(fewerWords), isMeta: true })
     const next: NextTurn = {
-      messages: [...messagesForQuery, ...replies, nudge],
+      messages: [...messagesForRequest, ...replies, nudge],
       toolUseContext,
-      autoCompactTracking: tracking,
+      autoFoldTracking: tracking,
       maxOutputTokensRecoveryCount,
       lastOutputLimitReply: state.lastOutputLimitReply,
       maxOutputTokensOverride,
@@ -399,7 +399,7 @@ async function* reasoningOnlyRecovery(run: RunCtx, iter: IterationState, reply: 
 
 async function* maxOutputTokensRecovery(run: RunCtx, iter: IterationState, reply: NoToolReading): AsyncGenerator<RunEvent, SettledDecision | undefined> {
   const { emit } = run
-  const { state, toolUseContext, messagesForQuery, tracking, overflowEpisode, assistantMessages } = iter
+  const { state, toolUseContext, messagesForRequest, tracking, overflowEpisode, assistantMessages } = iter
   const { maxOutputTokensRecoveryCount, maxOutputTokensOverride, streamFaultRecoveryCount, toolCallRefusalRecoveryCount, turnCount } = iter.state
   const { lastMessage, chant, reasoningOnly } = reply
   if (!isWithheldMaxOutputTokens(lastMessage) || chant !== null || reasoningOnly !== null || iter.refusedToolCalls.length > 0) return undefined
@@ -413,9 +413,9 @@ async function* maxOutputTokensRecovery(run: RunCtx, iter: IterationState, reply
   if (decision.kind === 'nudge') {
     const nudge = createUserMessage({ content: OUTPUT_LIMIT_RECOVERY_TEXT, isMeta: true })
     const next: NextTurn = {
-      messages: [...messagesForQuery, ...assistantMessages, nudge],
+      messages: [...messagesForRequest, ...assistantMessages, nudge],
       toolUseContext,
-      autoCompactTracking: tracking,
+      autoFoldTracking: tracking,
       maxOutputTokensRecoveryCount: decision.attempt,
       lastOutputLimitReply: replyText,
       maxOutputTokensOverride,
@@ -436,7 +436,7 @@ async function* maxOutputTokensRecovery(run: RunCtx, iter: IterationState, reply
 
 async function* streamFaultRecovery(run: RunCtx, iter: IterationState, reply: NoToolReading): AsyncGenerator<RunEvent, SettledDecision | undefined> {
   const { emit } = run
-  const { state, toolUseContext, messagesForQuery, tracking, overflowEpisode, assistantMessages } = iter
+  const { state, toolUseContext, messagesForRequest, tracking, overflowEpisode, assistantMessages } = iter
   const { maxOutputTokensRecoveryCount, maxOutputTokensOverride, streamFaultRecoveryCount, toolCallRefusalRecoveryCount, turnCount } = iter.state
   const { lastMessage } = reply
   if (lastMessage && isContinuableStreamFaultMessage(lastMessage)) {
@@ -463,9 +463,9 @@ async function* streamFaultRecovery(run: RunCtx, iter: IterationState, reply: No
         isMeta: true,
       })
       const next: NextTurn = {
-        messages: [...messagesForQuery, ...assistantMessages.filter(m => m.isApiErrorMessage !== true), recoveryMessage],
+        messages: [...messagesForRequest, ...assistantMessages.filter(m => m.isApiErrorMessage !== true), recoveryMessage],
         toolUseContext,
-        autoCompactTracking: tracking,
+        autoFoldTracking: tracking,
         maxOutputTokensRecoveryCount,
         lastOutputLimitReply: state.lastOutputLimitReply,
         maxOutputTokensOverride,
@@ -494,7 +494,7 @@ async function* streamFaultRecovery(run: RunCtx, iter: IterationState, reply: No
 
 async function* emptyReplyRetry(run: RunCtx, iter: IterationState, reply: NoToolReading): AsyncGenerator<RunEvent, SettledDecision | undefined> {
   const { emit } = run
-  const { state, toolUseContext, messagesForQuery, tracking, overflowEpisode } = iter
+  const { state, toolUseContext, messagesForRequest, tracking, overflowEpisode } = iter
   const { maxOutputTokensRecoveryCount, maxOutputTokensOverride, streamFaultRecoveryCount, toolCallRefusalRecoveryCount, turnCount } = iter.state
   const { lastMessage, emptyKind, silentAlone } = reply
   if (lastMessage && emptyReplyKindOf(lastMessage) === 'silence' && !silentAlone) {
@@ -518,9 +518,9 @@ async function* emptyReplyRetry(run: RunCtx, iter: IterationState, reply: NoTool
         isMeta: true,
       })
       const next: NextTurn = {
-        messages: endsWithEmptyReplyRecoveryNudge(messagesForQuery) ? messagesForQuery : [...messagesForQuery, nudge],
+        messages: endsWithEmptyReplyRecoveryNudge(messagesForRequest) ? messagesForRequest : [...messagesForRequest, nudge],
         toolUseContext,
-        autoCompactTracking: tracking,
+        autoFoldTracking: tracking,
         maxOutputTokensRecoveryCount,
         lastOutputLimitReply: state.lastOutputLimitReply,
         maxOutputTokensOverride,
@@ -544,7 +544,7 @@ async function* emptyReplyRetry(run: RunCtx, iter: IterationState, reply: NoTool
 
 async function* toolCallRefusalRecovery(run: RunCtx, iter: IterationState, reply: NoToolReading): AsyncGenerator<RunEvent, SettledDecision | undefined> {
   const { emit, memoryWriteLostEvent } = run
-  const { state, toolUseContext, messagesForQuery, tracking, overflowEpisode, assistantMessages, refusedToolCalls } = iter
+  const { state, toolUseContext, messagesForRequest, tracking, overflowEpisode, assistantMessages, refusedToolCalls } = iter
   const { maxOutputTokensRecoveryCount, maxOutputTokensOverride, streamFaultRecoveryCount, toolCallRefusalRecoveryCount, turnCount } = iter.state
   if (refusedToolCalls.length === 0) return undefined
   const tools = [...new Set(refusedToolCalls.map(refusal => refusal.name || 'unnamed'))]
@@ -561,9 +561,9 @@ async function* toolCallRefusalRecovery(run: RunCtx, iter: IterationState, reply
     run.holdMemoryWriteRefusals(iter.allRefusedToolCalls)
     const correction = createUserMessage({ content: toolCallRefusalCorrection(refusedToolCalls), isMeta: true })
     const next: NextTurn = {
-      messages: [...messagesForQuery, ...assistantMessages, correction],
+      messages: [...messagesForRequest, ...assistantMessages, correction],
       toolUseContext,
-      autoCompactTracking: tracking,
+      autoFoldTracking: tracking,
       maxOutputTokensRecoveryCount,
       lastOutputLimitReply: state.lastOutputLimitReply,
       maxOutputTokensOverride,
@@ -593,7 +593,7 @@ async function* toolCallRefusalRecovery(run: RunCtx, iter: IterationState, reply
 
 async function* chantRecovery(run: RunCtx, iter: IterationState, reply: NoToolReading): AsyncGenerator<RunEvent, SettledDecision | undefined> {
   const { emit } = run
-  const { state, toolUseContext, messagesForQuery, tracking, overflowEpisode, assistantMessages } = iter
+  const { state, toolUseContext, messagesForRequest, tracking, overflowEpisode, assistantMessages } = iter
   const { maxOutputTokensRecoveryCount, maxOutputTokensOverride, streamFaultRecoveryCount, toolCallRefusalRecoveryCount, turnCount } = iter.state
   const { lastMessage, chant } = reply
   if (chant !== null) {
@@ -613,9 +613,9 @@ async function* chantRecovery(run: RunCtx, iter: IterationState, reply: NoToolRe
       })
       const nudge = createUserMessage({ content: chantNudgeText(chant), isMeta: true })
       const next: NextTurn = {
-        messages: [...messagesForQuery, ...replyMessages, nudge],
+        messages: [...messagesForRequest, ...replyMessages, nudge],
         toolUseContext,
-        autoCompactTracking: tracking,
+        autoFoldTracking: tracking,
         maxOutputTokensRecoveryCount,
         lastOutputLimitReply: state.lastOutputLimitReply,
         maxOutputTokensOverride,
@@ -684,10 +684,10 @@ async function* turnBudgetSpent(run: RunCtx, iter: IterationState, reply: NoTool
 
 async function* apiErrorReply(run: RunCtx, iter: IterationState, reply: NoToolReading): AsyncGenerator<RunEvent, SettledDecision | undefined> {
   const { emit, memoryWriteLostEvent } = run
-  const { messagesForQuery } = iter
+  const { messagesForRequest } = iter
   const { lastMessage } = reply
   if (lastMessage?.isApiErrorMessage) {
-    const sizeWarning = requestSizeWarningApplies(lastMessage) ? requestSizeWarning(messagesForQuery, iter.currentModel) : null
+    const sizeWarning = requestSizeWarningApplies(lastMessage) ? requestSizeWarning(messagesForRequest, iter.currentModel) : null
     if (sizeWarning !== null) {
       yield emit({ kind: 'notice', message: createSystemMessage(sizeWarning, 'warning') })
     }
@@ -700,7 +700,7 @@ async function* apiErrorReply(run: RunCtx, iter: IterationState, reply: NoToolRe
 
 async function* announcedStepNudge(run: RunCtx, iter: IterationState, reply: NoToolReading): AsyncGenerator<RunEvent, SettledDecision | undefined> {
   const { emit } = run
-  const { state, toolUseContext, messagesForQuery, tracking, overflowEpisode, assistantMessages } = iter
+  const { state, toolUseContext, messagesForRequest, tracking, overflowEpisode, assistantMessages } = iter
   const { lastMessage, chant, reasoningOnly } = reply
   if (
     chant === null &&
@@ -716,12 +716,12 @@ async function* announcedStepNudge(run: RunCtx, iter: IterationState, reply: NoT
       const next: NextTurn = {
         ...state,
         messages: [
-          ...messagesForQuery,
+          ...messagesForRequest,
           ...assistantMessages.filter(m => m.isApiErrorMessage !== true),
           createUserMessage({ content: ANNOUNCED_STEP_NUDGE, isMeta: true }),
         ],
         toolUseContext,
-        autoCompactTracking: tracking,
+        autoFoldTracking: tracking,
         stopHookActive: undefined,
         overflowEpisode,
         pendingOverflow: undefined,
@@ -735,11 +735,11 @@ async function* announcedStepNudge(run: RunCtx, iter: IterationState, reply: NoT
 
 async function* stopHooks(run: RunCtx, iter: IterationState, reply: NoToolReading): AsyncGenerator<RunEvent, SettledDecision | undefined> {
   const { emit, querySource, systemPrompt, userContext, systemContext } = run
-  const { toolUseContext, messagesForQuery, tracking, overflowEpisode, assistantMessages } = iter
+  const { toolUseContext, messagesForRequest, tracking, overflowEpisode, assistantMessages } = iter
   const { streamFaultRecoveryCount, toolCallRefusalRecoveryCount, stopHookActive, turnCount } = iter.state
   const stopHookResult = yield* runStopHookGate(
     handleStopHooks(
-      messagesForQuery,
+      messagesForRequest,
       assistantMessages,
       systemPrompt,
       userContext,
@@ -759,12 +759,12 @@ async function* stopHooks(run: RunCtx, iter: IterationState, reply: NoToolReadin
   if (stopHookResult.blockingErrors.length > 0) {
     const next: NextTurn = {
       messages: [
-        ...messagesForQuery,
+        ...messagesForRequest,
         ...assistantMessages,
         ...stopHookResult.blockingErrors,
       ],
       toolUseContext,
-      autoCompactTracking: tracking,
+      autoFoldTracking: tracking,
       maxOutputTokensRecoveryCount: 0,
       streamFaultRecoveryCount,
       toolCallRefusalRecoveryCount,
@@ -781,11 +781,11 @@ async function* stopHooks(run: RunCtx, iter: IterationState, reply: NoToolReadin
 
 async function* checkpointSettleGuard(run: RunCtx, iter: IterationState, reply: NoToolReading): AsyncGenerator<RunEvent, SettledDecision | undefined> {
   const { emit } = run
-  const { toolUseContext, messagesForQuery, tracking, overflowEpisode, assistantMessages } = iter
+  const { toolUseContext, messagesForRequest, tracking, overflowEpisode, assistantMessages } = iter
   const { streamFaultRecoveryCount, toolCallRefusalRecoveryCount, turnCount } = iter.state
   if (!run.checkpointSettleWarned) {
     const liveCheckpoint = findActiveCheckpoint([
-      ...messagesForQuery,
+      ...messagesForRequest,
       ...assistantMessages,
     ])
     if (liveCheckpoint !== null) {
@@ -793,9 +793,9 @@ async function* checkpointSettleGuard(run: RunCtx, iter: IterationState, reply: 
       const warning = createSettleGuardWarning(liveCheckpoint)
       yield emit({ kind: 'attachment', message: warning })
       const next: NextTurn = {
-        messages: [...messagesForQuery, ...assistantMessages, warning],
+        messages: [...messagesForRequest, ...assistantMessages, warning],
         toolUseContext,
-        autoCompactTracking: tracking,
+        autoFoldTracking: tracking,
         maxOutputTokensRecoveryCount: 0,
         streamFaultRecoveryCount,
         toolCallRefusalRecoveryCount,
@@ -813,15 +813,15 @@ async function* checkpointSettleGuard(run: RunCtx, iter: IterationState, reply: 
 
 async function* queuedMessage(run: RunCtx, iter: IterationState, reply: NoToolReading): AsyncGenerator<RunEvent, SettledDecision | undefined> {
   const { emit } = run
-  const { toolUseContext, messagesForQuery, tracking, assistantMessages } = iter
+  const { toolUseContext, messagesForRequest, tracking, assistantMessages } = iter
   const { turnCount } = iter.state
   const queued = getCrewmatePendingMessageAttachments(toolUseContext).map(attachment => createAttachmentMessage(attachment))
   if (queued.length > 0) {
     for (const row of queued) yield emit({ kind: 'attachment', message: row })
     const next: NextTurn = {
-      messages: [...messagesForQuery, ...assistantMessages, ...queued],
+      messages: [...messagesForRequest, ...assistantMessages, ...queued],
       toolUseContext,
-      autoCompactTracking: tracking,
+      autoFoldTracking: tracking,
       turnCount: turnCount + 1,
       maxOutputTokensRecoveryCount: 0,
       streamFaultRecoveryCount: 0,
@@ -839,14 +839,14 @@ async function* queuedMessage(run: RunCtx, iter: IterationState, reply: NoToolRe
 export async function* replyStands(run: RunCtx, iter: IterationState): AsyncGenerator<RunEvent, SettledDecision> {
   const { emit, querySource, memoryWriteLostEvent, systemPrompt, userContext, systemContext } = run
   const { canUseTool } = run.params
-  const { toolUseContext, messagesForQuery, assistantMessages } = iter
+  const { toolUseContext, messagesForRequest, assistantMessages } = iter
   await finishMemorySignal(assistantText(assistantMessages))
   if (handoffAskDue({ agentId: toolUseContext.agentId, querySource })) {
     let closeUsage: import('../../request-parts/emptyUsage.js').NonNullableUsage | undefined
     const beforeNote = ledgerMark()
     const note = await askForHandoff({
       cacheSafeParams: createCacheSafeParams({
-        messages: [...messagesForQuery, ...assistantMessages],
+        messages: [...messagesForRequest, ...assistantMessages],
         systemPrompt,
         userContext,
         systemContext,

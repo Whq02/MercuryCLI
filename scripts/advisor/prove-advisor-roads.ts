@@ -319,7 +319,7 @@ async function mainTurn(prompt: string, messages: AnyMsg[]): Promise<{ yields: A
     canUseTool: allowAll,
     toolUseContext: ctx as never,
     querySource: 'sdk' as never,
-    deps: { callModel: deps.callModel, autocompact: (async () => ({ wasCompacted: false })) as never, microcompact: (async (m: unknown[]) => ({ messages: m })) as never, uuid: deps.uuid },
+    deps: { callModel: deps.callModel, autoFold: (async () => ({ wasCompacted: false })) as never, prune: (async (m: unknown[]) => ({ messages: m })) as never, uuid: deps.uuid },
   })
   let r = await gen.next()
   while (!r.done) {

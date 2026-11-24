@@ -18,7 +18,7 @@ export function notifyFoldError(context: ToolUseContext, err: unknown): void {
 export function restoreAfterFold(context: ToolUseContext, word: unknown = null): void {
   context.setStreamMode?.('requesting')
   context.setResponseLength?.(() => 0)
-  context.onCompactProgress?.({ type: 'compact_end' })
+  context.onFoldProgress?.({ type: 'compact_end' })
   context.setSDKStatus?.(word)
 }
 
@@ -57,9 +57,9 @@ export async function withFoldStatus<T, C extends ToolUseContext>(
       if (word === 'compacting') stamp(true)
       else if (word !== null) context.setSDKStatus?.(word)
     },
-    onCompactProgress: (event: FoldProgressEvent) => {
+    onFoldProgress: (event: FoldProgressEvent) => {
       onEvent(event)
-      context.onCompactProgress?.(event)
+      context.onFoldProgress?.(event)
     },
     setResponseLength: (updater: (prev: number) => number) => {
       chars = Math.max(0, updater(chars))

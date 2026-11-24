@@ -42,8 +42,8 @@ import {
 import { reconstructForCrewmateResume } from '../../engine/tool-dispatch/toolResultStorage.js'
 import { recordedRequestContexts, restoreBoundPrefixFromMessages } from '../../models/roads/anthropic/boundPrefixRecord.js'
 import { pendingToolRosterRestore } from '../../models/roads/toolEconomy.js'
-import { createSyntheticOutputTool } from '../structured-output/SyntheticOutputTool.js'
-import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../kit/names/syntheticOutput.js'
+import { getSchemaBoundStructuredOutputTool } from '../structured-output/SyntheticOutputTool.js'
+import { STRUCTURED_OUTPUT_TOOL_NAME } from '../kit/names/syntheticOutput.js'
 import { getCwdState } from '../../boot/process-state/processState.js'
 import { automaticResumePending, cancelAutomaticResume, resolveCrewmateTools, runAsyncCrewmateLifecycle } from './crewmateLifecycle.js'
 import { operatorPauseGate } from '../../engine/loop/pauseGate.js'
@@ -145,7 +145,7 @@ function restoreStructuredOutputSpec(
   let spec = stored
   if (spec === undefined) {
     const restore = pendingToolRosterRestore()
-    const mark = restore?.marks.find(entry => entry.name === SYNTHETIC_OUTPUT_TOOL_NAME)
+    const mark = restore?.marks.find(entry => entry.name === STRUCTURED_OUTPUT_TOOL_NAME)
     if (mark?.definition !== undefined) {
       try {
         const parsed: unknown = JSON.parse(mark.definition)
@@ -162,7 +162,7 @@ function restoreStructuredOutputSpec(
     }
   }
   if (spec !== undefined) {
-    const bound = createSyntheticOutputTool(spec.schema)
+    const bound = getSchemaBoundStructuredOutputTool(spec.schema)
     if (!bound.ok) {
       throw new Error(`output_schema is not a valid JSON Schema: ${bound.error}`)
     }
@@ -506,7 +506,7 @@ function startResumedLifecycle(input: {
       runAsyncCrewmateLifecycle({
         taskId: agentId,
         abortController,
-        makeStream: onQueryProgress =>
+        makeStream: onTurnProgress =>
           runCrewmate({
             agentDefinition: selectedAgent,
             promptMessages,
@@ -541,7 +541,7 @@ function startResumedLifecycle(input: {
             ...(meta?.name !== undefined ? { name: meta.name } : {}),
             ...(meta?.launchedAt !== undefined ? { launchedAt: meta.launchedAt } : {}),
             onWait: line => setCrewmateWaitLine(agentId, line, rootSetAppState),
-            ...(onQueryProgress !== undefined ? { onQueryProgress } : {}),
+            ...(onTurnProgress !== undefined ? { onTurnProgress } : {}),
           }),
         metadata: {
           prompt,

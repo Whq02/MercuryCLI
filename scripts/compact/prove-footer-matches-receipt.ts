@@ -162,10 +162,10 @@ section('3 the measure: the conversation as stored after a manual fold, read for
     agentId: undefined,
   }
   fixture.script([{ text: 'SUMMARY BY OPUS: the design notes were written one by one and the operator asked to carry on from them.' }, { text: 'never reached' }])
-  const folded = (await call('', context as never)) as { type: string; compactionResult: Parameters<typeof buildPostFoldMessages>[0] }
-  const post = buildPostFoldMessages(folded.compactionResult) as AnyMsg[]
+  const folded = (await call('', context as never)) as { type: string; foldHandoff: Parameters<typeof buildPostFoldMessages>[0] }
+  const post = buildPostFoldMessages(folded.foldHandoff) as AnyMsg[]
   const stored = [...rows, ...post]
-  const recorded = folded.compactionResult.boundaryMarker.compactMetadata.postTokens
+  const recorded = folded.foldHandoff.boundaryMarker.compactMetadata.postTokens
   const estimate = FIXED + estimateContextTokens(post as never, SOURCE)
   check('the fixture: the provider counted 9,000 tokens fewer than the estimate, so the record and the estimate differ', recorded !== undefined && estimate - recorded === 9_000, JSON.stringify({ recorded, estimate }), 'the fixture of this proof: the stamped usage must stand 9,000 under the gauge estimate')
   check('the fill and the footer view read the record for the model that measured the conversation', contextFill(stored as never, SOURCE).tokens === recorded && contextFillView(stored as never, SOURCE).usedTokens === recorded, JSON.stringify({ fill: contextFill(stored as never, SOURCE), view: contextFillView(stored as never, SOURCE).usedTokens, recorded }), FILL)

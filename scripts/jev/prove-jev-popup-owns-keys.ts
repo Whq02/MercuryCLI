@@ -170,7 +170,7 @@ function Cockpit(): React.ReactNode {
         isLoading: false,
         verbose: false,
         submitCount: sent.length,
-        onShowMessageSelector: () => {},
+        onShowRewindPicker: () => {},
         mcpClients: [],
         vimMode,
         setVimMode,

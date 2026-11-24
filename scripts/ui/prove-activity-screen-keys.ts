@@ -200,7 +200,7 @@ async function openScene(cols: number, rows: number, zen: boolean): Promise<Scen
           compactWork: controls, compactFocus: focus,
           debug: false, toolPermissionContext: state.toolPermissionContext,
           setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [],
-          isLoading: false, verbose: false, submitCount: 0, onShowMessageSelector: () => {},
+          isLoading: false, verbose: false, submitCount: 0, onShowRewindPicker: () => {},
           mcpClients: [], vimMode, setVimMode, showBashesDialog: bashes, setShowBashesDialog: setBashes,
           onExit: () => {}, getToolUseContext: () => ({} as never),
           onSubmit: async () => {},

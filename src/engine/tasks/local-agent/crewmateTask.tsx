@@ -645,9 +645,9 @@ export function registerCrewmateForeground(args: {
 
 export function registerCrewmateName(name: string, agentId: string, setAppState: SetAppState): void {
   setAppState(prev => {
-    const next = new Map(prev.agentNameRegistry)
+    const next = new Map(prev.crewmateNameRegistry)
     next.set(name, asAgentId(agentId))
-    return { ...prev, agentNameRegistry: next }
+    return { ...prev, crewmateNameRegistry: next }
   })
 }
 

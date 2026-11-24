@@ -27,13 +27,13 @@ function statusWord(status: string): string {
 export function CrewmateDetailDialog({
   agent,
   onDone,
-  onKillAgent,
+  onKillCrewmate,
   onBack,
   onForeground,
 }: {
   agent: CrewmateTaskState
   onDone: () => void
-  onKillAgent?: () => void
+  onKillCrewmate?: () => void
   onBack?: () => void
   onForeground?: () => void
 }): React.ReactNode {
@@ -57,8 +57,8 @@ export function CrewmateDetailDialog({
       onBack()
       return
     }
-    if (input === 'x' && isRunning && onKillAgent) {
-      onKillAgent()
+    if (input === 'x' && isRunning && onKillCrewmate) {
+      onKillCrewmate()
       return
     }
     if ((input === 'f' || input === 'm') && onForeground) {
@@ -143,7 +143,7 @@ export function CrewmateDetailDialog({
             <KeyboardShortcutHint shortcut="f" action="foreground" />
             {' · '}
             <KeyboardShortcutHint shortcut="m" action="message" />
-            {isRunning && onKillAgent ? (
+            {isRunning && onKillCrewmate ? (
               <>
                 {' · '}
                 <KeyboardShortcutHint shortcut="x" action="stop" />

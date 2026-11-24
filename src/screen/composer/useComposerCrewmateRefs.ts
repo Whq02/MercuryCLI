@@ -13,12 +13,12 @@ export function useComposerCrewmateRefs(viewedTask: AppState['tasks'][string] | 
   const commandCrewmate = viewedCrewmate ?? composerCrewmate
   const commandCrewmateRef = useRef(commandCrewmate)
   commandCrewmateRef.current = commandCrewmate
-  const viewedAgentName =
+  const viewedCrewmateName =
     composerCrewmate?.name ??
     (viewedTask !== undefined && isCrewmateTask(viewedTask)
       ? viewedTask.description !== ''
         ? viewedTask.description
         : viewedTask.agentType
       : undefined)
-  return { composerCrewmateRef, viewedCrewmateRef, commandCrewmateRef, viewedAgentName }
+  return { composerCrewmateRef, viewedCrewmateRef, commandCrewmateRef, viewedCrewmateName }
 }

@@ -111,7 +111,7 @@ t.section('§1 the projection is exhaustive and honest')
     ({
       viewingAgentTaskId: task?.id,
       tasks: task ? { [task.id]: task } : {},
-      agentNameRegistry: registry,
+      crewmateNameRegistry: registry,
     }) as never
   for (const [label, task, viewable] of [
     ['local agent', localAgent, true],

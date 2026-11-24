@@ -168,7 +168,7 @@ const step = async (s: ReturnType<typeof scene>, opts: { querySource?: string; a
   }
   const iter = {
     toolUseBlocks: [], toolUseContext: context, updatedToolUseContext: context,
-    messagesForQuery: [], assistantMessages: [], toolResults: [] as StepRow[],
+    messagesForRequest: [], assistantMessages: [], toolResults: [] as StepRow[],
     state: { turnCount: 1, stopHookActive: false }, tracking: undefined,
     shouldPreventContinuation: false, loopStoppedCycle: null, loopStoppedRecord: null, callChain: { key: 't', hop: 0 },
   }

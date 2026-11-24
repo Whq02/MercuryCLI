@@ -194,8 +194,8 @@ async function runScript(rounds: Script[], label: string): Promise<Run> {
     querySource: 'sdk' as never,
     deps: {
       callModel: callModel as never,
-      autocompact: (async () => ({ wasCompacted: false })) as never,
-      microcompact: (async (messages: unknown[]) => ({ messages })) as never,
+      autoFold: (async () => ({ wasCompacted: false })) as never,
+      prune: (async (messages: unknown[]) => ({ messages })) as never,
       uuid: (() => {
         let n = 0
         return () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`
@@ -390,8 +390,8 @@ section('refusals — an abandoned stream (provider throw after a settled tool_u
     querySource: 'sdk' as never,
     deps: {
       callModel: failingModel as never,
-      autocompact: (async () => ({ wasCompacted: false })) as never,
-      microcompact: (async (messages: unknown[]) => ({ messages })) as never,
+      autoFold: (async () => ({ wasCompacted: false })) as never,
+      prune: (async (messages: unknown[]) => ({ messages })) as never,
       uuid: (() => {
         let n = 0
         return () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`
@@ -447,8 +447,8 @@ section('refusals — an abandoned stream (provider throw after a settled tool_u
     querySource: 'sdk' as never,
     deps: {
       callModel: fallbackStreamModel as never,
-      autocompact: (async () => ({ wasCompacted: false })) as never,
-      microcompact: (async (messages: unknown[]) => ({ messages })) as never,
+      autoFold: (async () => ({ wasCompacted: false })) as never,
+      prune: (async (messages: unknown[]) => ({ messages })) as never,
       uuid: (() => {
         let n = 0
         return () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`

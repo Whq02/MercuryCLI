@@ -121,15 +121,15 @@ function rigFoldResult(): Record<string, unknown> {
   const summary = createUserMessage({ content: 'RIG SUMMARY of the folded history', isCompactSummary: true })
   return {
     wasCompacted: true,
-    compactionResult: {
+    foldResult: {
       boundaryMarker,
       summaryMessages: [summary],
       attachments: [],
       hookResults: [],
-      preCompactTokenCount: 900,
-      postCompactTokenCount: 120,
-      truePostCompactTokenCount: 120,
-      compactionUsage: undefined,
+      preFoldTokenCount: 900,
+      postFoldTokenCount: 120,
+      truePostFoldTokenCount: 120,
+      foldUsage: undefined,
     },
   }
 }
@@ -220,8 +220,8 @@ async function run(opts: {
     querySource: (opts.querySource ?? 'sdk') as never,
     deps: {
       callModel: callModel as never,
-      autocompact: compact.autocompact as never,
-      ...(passthroughMicrocompact !== undefined ? { microcompact: passthroughMicrocompact } : {}),
+      autoFold: compact.autocompact as never,
+      ...(passthroughMicrocompact !== undefined ? { prune: passthroughMicrocompact } : {}),
       uuid: (() => {
         let n = 0
         return () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`
@@ -328,7 +328,7 @@ section('R2 the retry overflows again → the typed refusal, never the raw sente
   check('the raw provider sentence never reaches a yield', !anyYieldCarries(r.yields, 'maximum context length is 128000'))
   check('the last yield is the refusal (the SDK result reads is_error)', r.yields.filter(y => y.type === 'assistant').at(-1)?.isApiErrorMessage === true)
   const retainedFold = rigFoldResult()
-  retainedFold.compactionResult = { ...(retainedFold.compactionResult as Record<string, unknown>), messagesToKeep: [asstText('The recent assistant fact is preserved verbatim.')] }
+  retainedFold.foldResult = { ...(retainedFold.foldResult as Record<string, unknown>), messagesToKeep: [asstText('The recent assistant fact is preserved verbatim.')] }
   const withTail = await run({ seed: seedPlain(), compact: makeCompact({ onForced: [retainedFold] }), script: [[ping(), overflowError()], [ping(), overflowError()], [ping(), asstText('Unexpected third request.')]] })
   check('a foldable retained tail cannot reopen the same overflow episode', withTail.terminal.reason === 'prompt_too_long' && withTail.calls.length === 2 && withTail.compact.filter(call => call.forced !== undefined).length === 1, JSON.stringify({ terminal: withTail.terminal, calls: withTail.calls.length, folds: withTail.compact.filter(call => call.forced !== undefined).length }))
 }

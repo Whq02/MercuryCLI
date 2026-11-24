@@ -70,7 +70,7 @@ const named: Array<(agent: string) => void> = []
 const set = (update: (before: AppState) => AppState): void => {
   const before = state
   state = update(state)
-  for (const [name, agent] of state.agentNameRegistry) if (before.agentNameRegistry.get(name) !== agent) named.shift()?.(String(agent))
+  for (const [name, agent] of state.crewmateNameRegistry) if (before.crewmateNameRegistry.get(name) !== agent) named.shift()?.(String(agent))
 }
 const reserved: Array<() => void> = []
 const seatType = { agentType: 'in-flight', source: 'userSettings', whenToUse: 'a seat of the launch scenes', getSystemPrompt: () => { reserved.shift()?.(); return 'Answer in one line.' } }

@@ -36,8 +36,8 @@ const PER_RENDER = 3
 const COLUMNS = 220
 
 const h = React.createElement
-const verb = (width: number, glimmerIndex: number) =>
-  h(Box, { width, flexDirection: 'row' }, h(ShimmerMessage, { message: MESSAGE, mode: 'thinking', messageColor: 'brand', shimmerColor: 'brandShimmer', flashOpacity: 0, glimmerIndex }))
+const verb = (width: number, shimmerIndex: number) =>
+  h(Box, { width, flexDirection: 'row' }, h(ShimmerMessage, { message: MESSAGE, mode: 'thinking', messageColor: 'brand', shimmerColor: 'brandShimmer', flashOpacity: 0, shimmerIndex }))
 const separator = () => h(Box, { width: 4 }, h(Text, null, SEPARATOR))
 
 const blocksOf = (frame: string): string[][] => {

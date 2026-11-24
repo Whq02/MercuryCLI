@@ -17,7 +17,7 @@ const UNCONFIRMED_LINE = 'Delivery is not confirmed. Sending the same draft agai
 interface DeliveryNeeds {
   sessionId(): string
   factsBusy(): boolean
-  compacting(): boolean
+  folding(): boolean
   paint(): void
   wakeLive(): void
   openQuestion(): Promise<string | null>
@@ -119,7 +119,7 @@ export class DeliveryPart {
         this.needs.drop(clientMessageId)
         this.needs.paint()
       } else {
-        const queuedNow = this.needs.factsBusy() || this.needs.compacting()
+        const queuedNow = this.needs.factsBusy() || this.needs.folding()
         this.needs.dress(clientMessageId, queuedNow ? 'queued' : 'delivered')
         connectorTrace({ ev: 'send', sid: this.needs.sessionId(), state: queuedNow ? 'queued' : 'delivered' })
       }

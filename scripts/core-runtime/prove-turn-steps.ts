@@ -62,7 +62,7 @@ section('(1) making the request: src/engine/loop/turn/makeRequest.ts')
   const made = await request({ script: [] }, {}, 3)
   const iter = made.decision.iter
   check('a plain turn goes on with the iteration it built, numbered as the loop numbered it', made.decision.kind === 'go_on' && iter?.turnId === 't3' && made.events[0]?.kind === 'turn_started' && made.events[0].turnId === 't3' && made.events[0].n === 3, `${said(made.decision)} · ${kinds(made.events)}`)
-  check('…the iteration holds the turn state it was handed, the request rows, and nothing of a reply yet', iter?.state === made.planted.state && (iter?.messagesForQuery as unknown[]).length === 1 && (iter?.assistantMessages as unknown[]).length === 0 && iter?.needsFollowUp === false && iter?.closingTurn === false, j({ rows: (iter?.messagesForQuery as unknown[] | undefined)?.length, closing: iter?.closingTurn }))
+  check('…the iteration holds the turn state it was handed, the request rows, and nothing of a reply yet', iter?.state === made.planted.state && (iter?.messagesForRequest as unknown[]).length === 1 && (iter?.assistantMessages as unknown[]).length === 0 && iter?.needsFollowUp === false && iter?.closingTurn === false, j({ rows: (iter?.messagesForRequest as unknown[] | undefined)?.length, closing: iter?.closingTurn }))
   check('…and no model call is made by this step', made.planted.requests.length === 0, String(made.planted.requests.length))
   made.planted.close()
 
@@ -102,14 +102,14 @@ section('(1b) the three parts of making the request, each called alone')
   const p = await t.plantRun({ script: [], seed: f.history() })
   const context = p.state.toolUseContext as never
   const planned = await t.drain(planContext(p.run as never, p.state as never, context))
-  check('the context plan is made of the turn\'s rows, with nothing said when nothing was cut', planned.events.length === 0 && planned.decision.messagesForQuery.length === 3 && planned.decision.prunedTokensFreed === 0 && planned.decision.thinkingRecords.length === 0 && planned.decision.requestPlan.messages === planned.decision.messagesForQuery, `${kinds(planned.events)} · ${planned.decision.messagesForQuery.length} rows`)
+  check('the context plan is made of the turn\'s rows, with nothing said when nothing was cut', planned.events.length === 0 && planned.decision.messagesForRequest.length === 3 && planned.decision.prunedTokensFreed === 0 && planned.decision.thinkingRecords.length === 0 && planned.decision.requestPlan.messages === planned.decision.messagesForRequest, `${kinds(planned.events)} · ${planned.decision.messagesForRequest.length} rows`)
   const opened = { tracking: undefined, overflowEpisode: p.state.overflowEpisode as never }
   const folded = await t.drain(foldContext(p.run as never, p.state as never, context, opened, planned.decision))
   const kept = folded.decision as Row & { kind: string }
-  check('with no fold due the summariser is asked once and the rows go on as they were', kept.kind === 'go_on' && p.counts.folds === 1 && kept.messagesForQuery === planned.decision.messagesForQuery && kept.compactionResult === undefined && folded.events.length === 0, `${said(folded.decision)} · folds ${p.counts.folds}`)
+  check('with no fold due the summariser is asked once and the rows go on as they were', kept.kind === 'go_on' && p.counts.folds === 1 && kept.messagesForRequest === planned.decision.messagesForRequest && kept.foldResult === undefined && folded.events.length === 0, `${said(folded.decision)} · folds ${p.counts.folds}`)
   const fitting = await t.drain(holdBlockingLimit(p.run as never, p.state as never, context, planned.decision, folded.decision as never))
   const fits = fitting.decision as Row & { kind: string; toolUseContext?: Row }
-  check('a request under the blocking limit goes on, and the tools are handed the very rows the model will be sent', fits.kind === 'go_on' && fits.toolUseContext?.messages === planned.decision.messagesForQuery && fits.currentModel === t.MODEL && fitting.events.length === 0, `${said(fitting.decision)} · ${kinds(fitting.events)}`)
+  check('a request under the blocking limit goes on, and the tools are handed the very rows the model will be sent', fits.kind === 'go_on' && fits.toolUseContext?.messages === planned.decision.messagesForRequest && fits.currentModel === t.MODEL && fitting.events.length === 0, `${said(fitting.decision)} · ${kinds(fitting.events)}`)
   p.close()
 
   const tight = await t.plantRun({ script: [], env: BLOCKED, querySource: 'side_question', seed: fatHistory() })
@@ -147,7 +147,7 @@ section("(2) the model's reply: src/engine/loop/turn/modelReply.ts")
   steer.planted.close()
 
   const cutCall = await reply({ model: 'deepseek-v4-pro', tools: [{ name: 'Bash' }], script: [f.yields(...f.cutCall(4_096))] })
-  check('a tool call cut by the output limit hands over to ask again with twice the room, the reply taken back', said(cutCall.decision) === 'hand_over cut_tool_call_recovery' && cutCall.decision.next?.maxOutputTokensOverride === 8_192 && cutCall.decision.next.cutToolCallRecoveryCount === 1 && cutCall.decision.next.messages === cutCall.iter.messagesForQuery && cutCall.events.filter(event => event.kind === 'assistant_retracted').length === 2, `${said(cutCall.decision)} · ${j(cutCall.decision.next?.maxOutputTokensOverride)} · ${kinds(cutCall.events)}`)
+  check('a tool call cut by the output limit hands over to ask again with twice the room, the reply taken back', said(cutCall.decision) === 'hand_over cut_tool_call_recovery' && cutCall.decision.next?.maxOutputTokensOverride === 8_192 && cutCall.decision.next.cutToolCallRecoveryCount === 1 && cutCall.decision.next.messages === cutCall.iter.messagesForRequest && cutCall.events.filter(event => event.kind === 'assistant_retracted').length === 2, `${said(cutCall.decision)} · ${j(cutCall.decision.next?.maxOutputTokensOverride)} · ${kinds(cutCall.events)}`)
   cutCall.planted.close()
 
   const spent = await reply({ model: 'deepseek-v4-pro', tools: [{ name: 'Bash' }], script: [f.yields(...f.cutCall(4_096))] }, { cutToolCallRecoveryCount: 2 })

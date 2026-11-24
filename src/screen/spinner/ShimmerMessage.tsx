@@ -9,7 +9,7 @@ import { interpolateColor, parseRGB, toRGBColor } from './glyphsAndColors.js'
 
 type Props = {
   flashOpacity: number
-  glimmerIndex: number
+  shimmerIndex: number
   message: string
   messageColor: keyof Theme & string
   mode: SpinnerMode
@@ -17,7 +17,7 @@ type Props = {
   attentionIntensity?: number
 }
 
-export function ShimmerMessage({ flashOpacity, glimmerIndex, message, messageColor, mode, shimmerColor, attentionIntensity = 0 }: Props): React.ReactNode {
+export function ShimmerMessage({ flashOpacity, shimmerIndex, message, messageColor, mode, shimmerColor, attentionIntensity = 0 }: Props): React.ReactNode {
   const [themeName] = useTheme()
   const theme = getTheme(themeName)
   if (message === '') return null
@@ -34,8 +34,8 @@ export function ShimmerMessage({ flashOpacity, glimmerIndex, message, messageCol
     else if (attention ? attentionIntensity >= STILL_WAITING_MAX_INTENSITY / 2 : flashOpacity > 0.5) color = target
     if (attention) spaceColor = color
   } else {
-    const first = glimmerIndex - 1
-    const last = glimmerIndex + 1
+    const first = shimmerIndex - 1
+    const last = shimmerIndex + 1
     if (first < stringWidth(message) && last >= 0) {
       let before = '', shimmer = '', after = ''
       let column = 0

@@ -94,7 +94,7 @@ import { CheckpointTool } from '../checkpoint/CheckpointTool.js'
 import { RewindTool } from '../rewind/RewindTool.js'
 import { StructureTool } from '../structure/StructureTool.js'
 import { DocumentTool } from '../document/DocumentTool.js'
-import { SyntheticOutputTool } from '../structured-output/SyntheticOutputTool.js'
+import { StructuredOutputTool } from '../structured-output/SyntheticOutputTool.js'
 import { TaskCreateTool } from '../task-create/TaskCreateTool.js'
 import { TaskGetTool } from '../task-get/TaskGetTool.js'
 import { TaskListTool } from '../task-list/TaskListTool.js'
@@ -230,7 +230,7 @@ export function toolsWithheldByDeny(
 const SPECIAL_TOOL_NAMES = new Set([
   'ListMcpResources',
   'ReadMcpResource',
-  SyntheticOutputTool.name,
+  StructuredOutputTool.name,
 ])
 
 export function getTools(permissionContext: ToolPermissionContext, agentId?: string): Tools {

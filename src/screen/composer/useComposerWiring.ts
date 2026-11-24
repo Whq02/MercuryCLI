@@ -52,7 +52,7 @@ export function useComposerWiring({
   composerCrewmateRef: ComposerCrewmateRefs['composerCrewmateRef']
   viewedCrewmateRef: ComposerCrewmateRefs['viewedCrewmateRef']
   commandCrewmateRef: ComposerCrewmateRefs['commandCrewmateRef']
-  viewedAgentName: ComposerCrewmateRefs['viewedAgentName']
+  viewedCrewmateName: ComposerCrewmateRefs['viewedCrewmateName']
   suggestionApi: ReturnType<typeof usePromptSuggestion>
   insertAtCursor: ComposerAttachments['insertAtCursor']
   insertAtomic: ComposerAttachments['insertAtomic']
@@ -84,7 +84,7 @@ export function useComposerWiring({
     composerCrewmateRef,
     viewedCrewmateRef,
     commandCrewmateRef,
-    viewedAgentName,
+    viewedCrewmateName,
   } = useComposerCrewmateRefs(viewedTask)
 
   const suggestionApi = usePromptSuggestion({
@@ -93,10 +93,10 @@ export function useComposerWiring({
   })
   const { suggestion, markShown } = suggestionApi
   usePublish(() => {
-    if (suggestion !== null && mode === 'prompt' && !viewedAgentName) {
+    if (suggestion !== null && mode === 'prompt' && !viewedCrewmateName) {
       markShown()
     }
-  }, [suggestion, mode, viewedAgentName, markShown])
+  }, [suggestion, mode, viewedCrewmateName, markShown])
 
   const {
     insertAtCursor,
@@ -136,7 +136,7 @@ export function useComposerWiring({
     composerCrewmateRef,
     viewedCrewmateRef,
     commandCrewmateRef,
-    viewedAgentName,
+    viewedCrewmateName,
     suggestionApi,
     insertAtCursor,
     insertAtomic,

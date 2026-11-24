@@ -12,12 +12,12 @@ function foldHookScope(context: ToolUseContext): { sessionId: string; crewmateId
 }
 
 export async function foldBeforeHooks(context: ToolUseContext, facts: { trigger: 'manual' | 'auto' | 'overflow'; instructions?: string; tokens: number }): Promise<HookFireResult> {
-  context.onCompactProgress?.({ type: 'hooks_start', hookType: 'pre_compact' })
+  context.onFoldProgress?.({ type: 'hooks_start', hookType: 'pre_compact' })
   return fireHooks('compaction.before', { trigger: facts.trigger, ...(facts.instructions !== undefined ? { instructions: facts.instructions } : {}), tokens: facts.tokens }, { scope: foldHookScope(context), signal: context.abortController.signal, toolUseContext: context })
 }
 
 export async function foldAfterHooks(context: ToolUseContext, facts: { method: 'summary' | 'notes' | 'digest'; trigger: 'manual' | 'auto' | 'overflow'; tokensBefore: number; tokensAfter: number; summary?: string }): Promise<Message[]> {
-  context.onCompactProgress?.({ type: 'hooks_start', hookType: 'post_compact' })
+  context.onFoldProgress?.({ type: 'hooks_start', hookType: 'post_compact' })
   const result = await fireHooks(
     'compaction.after',
     { method: facts.method, trigger: facts.trigger, tokens_before: facts.tokensBefore, tokens_after: facts.tokensAfter, ...(facts.summary !== undefined ? { summary: facts.summary } : {}) },

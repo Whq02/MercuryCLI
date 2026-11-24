@@ -188,7 +188,7 @@ export async function gatherWorkbenchInputs(opts?: {
     }
   }
 
-  const agentMeta = new Map<string, CrewmateMetaFact>()
+  const crewmateMeta = new Map<string, CrewmateMetaFact>()
   const laneRuns = new Map<string, RunFacts>()
   await Promise.all(
     [...richTasks.values()]
@@ -196,7 +196,7 @@ export async function gatherWorkbenchInputs(opts?: {
       .map(async t => {
         watchCrewmateMeta(t.agentId!)
         const meta = await crewmateMetaFor(t.agentId!)
-        if (meta) agentMeta.set(t.agentId!, meta)
+        if (meta) crewmateMeta.set(t.agentId!, meta)
         const run = pickRunFacts(getRunSnapshot(processOwnerForLane(t.agentId!)))
         if (run) laneRuns.set(t.id, run)
       }),
@@ -249,7 +249,7 @@ export async function gatherWorkbenchInputs(opts?: {
     executions,
     mainRun: pickRunFacts(mainRunSnap),
     richTasks,
-    agentMeta,
+    crewmateMeta,
     laneRuns,
     artifacts: valueOr(artifactsSrc, []),
     gitWorktreeLanes: valueOr(gitWorktreesSrc, []),
