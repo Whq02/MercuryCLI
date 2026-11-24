@@ -362,7 +362,6 @@ export function runRemedyCmd(
 }
 
 export type {
-  CertVerdict,
   HealthCertificate,
   HealthCheck,
   HealthSection,

@@ -8,7 +8,7 @@ import { flagEnv } from '../../platform/substrate/flagRegistry.js'
 const __dapFilename = fileURLToPath(import.meta.url)
 const __dapDirname = path.join(__dapFilename, '../')
 
-export interface JsDebugResolution {
+interface JsDebugResolution {
   path: string
   source: 'env-override' | 'vendored' | 'user-dir'
 }

@@ -4,8 +4,6 @@ export {
   findCppProjectRoot,
   parseCMakePresets,
   _resetCppProjectForTesting,
-  type CppCmakePreset,
-  type CppProjectProfile,
 } from './cppProjectProfile.js'
 export {
   configurePreset,

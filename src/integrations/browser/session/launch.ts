@@ -16,7 +16,7 @@ import { watchFrames, watchBirths } from './births.js'
 import { passedOver, passedOverAs } from '../../../platform/errors/passedOver.js'
 import { posixFileModesApply } from '../../../platform/host-os/files.js'
 
-export function browserProfileDirForOrigin(urlOrOrigin: string, owner?: OwnerKey): string | null {
+function browserProfileDirForOrigin(urlOrOrigin: string, owner?: OwnerKey): string | null {
   if (typeof urlOrOrigin !== 'string' || urlOrOrigin.trim() === '' || /[\s;"'\\]/.test(urlOrOrigin)) return null
   const origin = originOf(urlOrOrigin)
   if (!origin.startsWith('http://') && !origin.startsWith('https://')) return null

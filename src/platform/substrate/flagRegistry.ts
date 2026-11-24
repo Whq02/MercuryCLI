@@ -19,7 +19,7 @@ import { SESSION_FLAGS } from './flags/session.js'
 import { TOOLS_FLAGS } from './flags/tools.js'
 import type { FlagSpec } from './flags/spec.js'
 
-export type { FlagKind, FlagSpec, FlagTier } from './flags/spec.js'
+export type { FlagSpec } from './flags/spec.js'
 
 export const FLAG_REGISTRY: readonly FlagSpec[] = [
   ...ACCOUNTS_FLAGS,

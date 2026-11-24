@@ -41,13 +41,11 @@ export type {
   DapDataBreakpointSpec,
   DapFunctionBreakpointSpec,
   DapInstructionBreakpointSpec,
-  DapLaunchOptions,
-  DapListenerDial,
   DapListenerTarget,
   DapWriteMemoryReceipt,
   StoppedInfo,
 } from './client/shared.js'
-export { dialListener, listenerAttachTarget, listenerRefusedLine } from './client/listener.js'
+export { listenerAttachTarget, listenerRefusedLine } from './client/listener.js'
 export { _setDapChildBoundsForTesting } from './client/reverse.js'
 export {
   _resetDarwinDebuggerAuthForTesting,
@@ -55,30 +53,21 @@ export {
   _resetLldbDapForTesting,
   adapterSilenceMessage,
   darwinDebuggerAuthorisationHint,
-  ELIXIR_DEBUG_ADAPTER_BINARIES,
   ELIXIR_DEBUG_ADAPTER_HINT,
   gdbInstallHint,
   gdbProbeFromMemo,
-  gdbProbePending,
   KOTLIN_DEBUG_ADAPTER_HINT,
-  lldbDapFromMemo,
   lldbDapInstallHint,
-  lldbDapProbePending,
   netcoredbgInstallHint,
   probeGdbDap,
-  probeGdbDapAsync,
-  probeLldbDapAsync,
   resolveLldbDap,
-  type GdbProbe,
-  type LldbDapResolution,
 } from './client/probes.js'
-export { jsDebugSourceLabel, resolveJsDebugServer, type JsDebugResolution } from './jsDebugResolver.js'
+export { jsDebugSourceLabel, resolveJsDebugServer } from './jsDebugResolver.js'
 export {
   adapterKeyForExtension,
   dapAdapterProbePending,
   debugToolWithholding,
   dormantBuiltinAdapterHints,
-  envAdapterTableError,
   isDapToolCatalogEnabled,
   knownAdapterKeys,
   mercuryDapEnabled,

@@ -75,7 +75,7 @@ const TEMP_PROFILE_EXIT_BOUND_MS = 2_000
 const TEMP_PROFILE_EXIT_STEP_MS = 50
 export const tempProfiles = new Map<string, DriverBrowser>()
 
-export function removeTempProfile(browser: DriverBrowser): boolean {
+function removeTempProfile(browser: DriverBrowser): boolean {
   const dir = tempProfileDirOf(browser)
   if (dir === null) return false
   if (!fs.existsSync(dir)) {
@@ -143,7 +143,7 @@ async function endChild(browser: DriverBrowser): Promise<void> {
   removeTempProfile(browser)
 }
 
-export function childGone(browser: DriverBrowser): boolean {
+function childGone(browser: DriverBrowser): boolean {
   if (browser.connected === false) return true
   const child = browser.process()
   if (child === null || child === undefined) return false
@@ -443,7 +443,7 @@ export function driverVersion(): string {
   return (puppeteerPkg as { version?: string }).version ?? 'bundled'
 }
 
-export function secretPairingKey(ref: string, origin: string): string {
+function secretPairingKey(ref: string, origin: string): string {
   return `${ref}@${origin}`
 }
 

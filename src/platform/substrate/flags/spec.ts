@@ -1,6 +1,6 @@
-export type FlagKind = 'default-on' | 'opt-in' | 'value' | 'mixed'
+type FlagKind = 'default-on' | 'opt-in' | 'value' | 'mixed'
 
-export type FlagTier = 'display' | 'additive' | 'behavioral' | 'security' | 'infra'
+type FlagTier = 'display' | 'additive' | 'behavioral' | 'security' | 'infra'
 
 export interface FlagSpec {
   env: string

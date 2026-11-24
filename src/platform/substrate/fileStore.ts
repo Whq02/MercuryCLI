@@ -27,13 +27,6 @@ import {
 import { passedOver } from '../errors/passedOver.js'
 import { startInterval, startMicrotask, startTimeout, stopInterval, stopTimeout } from '../async/timers.js'
 
-export type {
-  StoreChange,
-  StoreChangeCause,
-  StoreReadResult,
-  StoreRevision,
-} from './storeRevision.js'
-
 export const STORE_LOCK_OPTIONS = {
   retries: {
     retries: 30,

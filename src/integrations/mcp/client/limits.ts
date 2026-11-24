@@ -36,7 +36,7 @@ export function toolTimeoutMs(): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_TOOL_TIMEOUT_MS
 }
 
-export const MCP_LAUNCH_SPAWN_GRACE_MS = 1_000
+const MCP_LAUNCH_SPAWN_GRACE_MS = 1_000
 
 export function mcpLaunchBudgetMs(): number {
   return connectTimeoutMs() + MCP_LAUNCH_SPAWN_GRACE_MS

@@ -1,32 +1,19 @@
 export {
-  DEFAULT_GLOBAL_CONFIG,
   EDITOR_MODES,
   GLOBAL_CONFIG_KEYS,
-  PROJECT_CONFIG_KEYS,
   isGlobalConfigKey,
-  isProjectConfigKey,
 } from '../config/schema.js'
 export type {
   AccountInfo,
-  EditorMode,
   GlobalConfig,
-  GlobalConfigKey,
   HistoryEntry,
   PastedContent,
   ProjectConfig,
-  ProjectConfigKey,
-  SerializedStructuredHistoryEntry,
 } from '../config/schema.js'
 export {
-  CONFIG_WRITE_DISPLAY_THRESHOLD,
-  _getConfigForTesting,
-  _setGlobalConfigCacheForTesting,
-  _wouldLoseAuthStateForTesting,
   enableConfigs,
   flushDeferredGlobalConfigSaves,
   getGlobalConfig,
-  getGlobalConfigWriteCount,
-  hasPendingDeferredGlobalConfigSaves,
   isConfigReadingAllowed,
   saveGlobalConfig,
   saveGlobalConfigDeferred,
@@ -36,14 +23,12 @@ export {
   getCurrentProjectConfig,
   getProjectConfigForWorkspace,
   getProjectPathForConfig,
-  projectConfigKeyForWorkspace,
   saveCurrentProjectConfig,
   saveProjectConfigForWorkspace,
 } from '../config/projectConfig.js'
 export {
   checkHasTrustDialogAccepted,
   isPathTrusted,
-  isProjectScopeTrustAccepted,
   resetTrustDialogAcceptedCacheForTesting,
   setPathTrusted,
   untrustedWorkspaceHeadless,

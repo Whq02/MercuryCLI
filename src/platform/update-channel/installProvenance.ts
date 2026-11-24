@@ -424,5 +424,3 @@ export function provenanceLine(p: InstallProvenanceV1): string {
   const dis = p.disagreements.length > 0 ? ` · ${p.disagreements.join(' · ')}` : ''
   return `${p.kind} ${p.version}${p.buildSha ? ` (${p.buildSha.slice(0, 9)})` : ''} at ${p.activeRoot}${co}${dis}`
 }
-
-export { PROVENANCE_NOTICE_MARKER_PREFIX, provenanceNoticeIsOnce, provenanceNoticeMarkerPath, provenanceNoticeSaid, recordProvenanceNotice } from './provenanceNotice.js'

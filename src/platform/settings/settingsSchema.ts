@@ -10,7 +10,6 @@ import { PERMISSION_MODES } from '../../permissions/rules/permissionMode.js'
 import { PermissionRuleSchema } from './permissionValidation.js'
 import type { HookEntry } from '../../integrations/event-hook-schemas/hooks.js'
 
-export { HookEntrySchema, HooksSchema } from '../../integrations/event-hook-schemas/hooks.js'
 export type { HookEntry, HooksSettings } from '../../integrations/event-hook-schemas/hooks.js'
 
 export const CUSTOMIZATION_SURFACES = ['skills', 'agents', 'hooks', 'mcp'] as const

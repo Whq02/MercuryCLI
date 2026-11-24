@@ -57,7 +57,7 @@ function withoutNullKeys(value: unknown): unknown {
   return Object.fromEntries(Object.entries(value as Record<string, unknown>).filter(([, inner]) => inner !== null))
 }
 
-export function withoutNullToolMetadata(tool: unknown): unknown {
+function withoutNullToolMetadata(tool: unknown): unknown {
   if (tool === null || typeof tool !== 'object' || Array.isArray(tool)) return tool
   const out: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(tool as Record<string, unknown>)) {

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 
-export const PROVENANCE_NOTICE_MARKER_PREFIX = 'provenance-noted-'
+const PROVENANCE_NOTICE_MARKER_PREFIX = 'provenance-noted-'
 
 function realpathSafe(p: string): string {
   try {

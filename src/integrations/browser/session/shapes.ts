@@ -17,7 +17,7 @@ export const POPUP_SETTLE_MS = 3_000
 export const FIRST_NAVIGATION_SILENCE_MS = 5_000
 export const FIRST_NAVIGATION_STARTS = 4
 
-export interface NavFailure {
+interface NavFailure {
   url: string
   errorText: string
   at: number
@@ -40,7 +40,7 @@ export interface DownloadHome {
   claim: () => void
 }
 
-export interface PopupNote {
+interface PopupNote {
   url: string
   tab: string | null
 }

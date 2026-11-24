@@ -12,7 +12,7 @@ export async function runWithLimit<T>(items: T[], limit: number, work: (item: T)
   await Promise.all(workers)
 }
 
-export type McpPrefixCollision = { name: string; config: ScopedMcpServerConfig; winner: string; error: string }
+type McpPrefixCollision = { name: string; config: ScopedMcpServerConfig; winner: string; error: string }
 
 export function fenceMcpPrefixCollisions(configs: Record<string, ScopedMcpServerConfig>): {
   survivors: Record<string, ScopedMcpServerConfig>

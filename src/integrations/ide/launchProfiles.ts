@@ -26,7 +26,7 @@ import { hasPythonTestFiles } from './projectRunners.js'
 import { resolvePreLaunchTask, type PreLaunchTask } from './launchTasks.js'
 import { expandVsCodeVar, stripJsonc } from './vscodeText.js'
 
-export { expandVsCodeVar, stripJsonc } from './vscodeText.js'
+export { expandVsCodeVar } from './vscodeText.js'
 
 export function launchProfilesEnabled(): boolean {
   return flagEnabled('MERCURY_LAUNCH')

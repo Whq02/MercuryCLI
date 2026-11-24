@@ -17,7 +17,7 @@ type ForwardableMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/we
 
 export type MCPResultType = 'toolResult' | 'structuredContent' | 'contentArray'
 
-export type TransformedMCPResult = {
+type TransformedMCPResult = {
   content: MCPToolResult
   type: MCPResultType
   schema?: string
@@ -202,7 +202,7 @@ export async function transformResultContent(content: unknown[], serverName: str
   return blocks
 }
 
-export function inferCompactSchema(value: unknown, depth: number = 2): string {
+function inferCompactSchema(value: unknown, depth: number = 2): string {
   if (value === null) return 'null'
   if (typeof value !== 'object') return typeof value
   if (Array.isArray(value)) {

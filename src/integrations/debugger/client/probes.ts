@@ -10,7 +10,7 @@ import { gdbInstallHintWords } from '../../../platform/host-os/words.js'
 
 export const GDB_DAP_MIN_MAJOR = 14
 
-export interface GdbProbe {
+interface GdbProbe {
   viable: boolean
   version?: string
   reason?: string
@@ -75,7 +75,7 @@ export function adapterSilenceMessage(base: string, adapterKey: string): string 
   return hint === null ? base : `${base} — ${hint}`
 }
 
-export interface LldbDapResolution {
+interface LldbDapResolution {
   path: string
   source: 'path' | 'xcrun'
 }
