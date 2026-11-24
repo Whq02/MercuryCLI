@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { renderTurn } from '../lib/fixtureApi.ts'
 import { FIXTURE_API_KEY } from '../lib/firstRunSeed.ts'
 
-export type Json = Record<string, unknown>
+type Json = Record<string, unknown>
 export type Step = { name: string; input: Json } | { say: string }
 export type Seen = { n: number; prompt: string; arrivedMs: number; answeredMs: number; wireBytes: number; body: Json }
 export type Road = {
@@ -18,11 +18,11 @@ export type Road = {
   rows: (body: Json) => unknown[]
   toolNames: (body: Json) => string[]
 }
-export type Spent = { input: number; cached: number }
+type Spent = { input: number; cached: number }
 export type Repeat = { headBytes: number; cacheBytes: number; sharedBytes: number; lostBytes: number; brokeAt: string; moved: string; toolsGrew: boolean }
-export type RoadServer = { base: string; seen: Seen[]; sides: () => number; close: () => Promise<void> }
+type RoadServer = { base: string; seen: Seen[]; sides: () => number; close: () => Promise<void> }
 
-export const BYTES_A_TOKEN = 4
+const BYTES_A_TOKEN = 4
 const sse = (value: unknown): string => `data: ${JSON.stringify(value)}\n\n`
 const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : [])
 const bytes = (text: string): number => Buffer.byteLength(text, 'utf8')
