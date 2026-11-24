@@ -212,6 +212,21 @@ export function accumulateUsage(totalUsage: Readonly<NonNullableUsage>, messageU
   return foldUsage(totalUsage, messageUsage, true, server)
 }
 
+export function usageBeyond(usage: Readonly<NonNullableUsage>, charged: Readonly<NonNullableUsage>): NonNullableUsage {
+  const beyond = (now: number, before: number): number => Math.max(0, now - before)
+  return {
+    ...usage,
+    input_tokens: beyond(usage.input_tokens, charged.input_tokens),
+    cache_creation_input_tokens: beyond(usage.cache_creation_input_tokens, charged.cache_creation_input_tokens),
+    cache_read_input_tokens: beyond(usage.cache_read_input_tokens, charged.cache_read_input_tokens),
+    output_tokens: beyond(usage.output_tokens, charged.output_tokens),
+    server_tool_use: {
+      web_search_requests: beyond(usage.server_tool_use.web_search_requests, charged.server_tool_use.web_search_requests),
+      web_fetch_requests: beyond(usage.server_tool_use.web_fetch_requests, charged.server_tool_use.web_fetch_requests),
+    },
+  }
+}
+
 export function cleanupStream(stream: AnthropicStream | undefined): void {
   try {
     const controller = stream?.controller

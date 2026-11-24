@@ -25,7 +25,7 @@ import {
 import { malformedStreamFrameText } from '../../../../engine/requests/apiErrorRows.js'
 import { EMPTY_USAGE } from '../../../../engine/requests/apiCallLogging.js'
 import { checkResponseForCacheBreak } from '../../../../engine/requests/promptCacheBreakDetection.js'
-import { updateUsage } from '../cacheAndUsage.js'
+import { updateUsage, usageBeyond } from '../cacheAndUsage.js'
 import {
   createStreamActivityRelay,
   createStreamIdleWatchdog,
@@ -163,6 +163,7 @@ export function applyBlockDelta(contentBlocks: (BetaContentBlock | ConnectorText
 }
 
 export function settleMessageDelta(call: CallState, part: Extract<BetaRawMessageStreamEvent, { type: 'message_delta' }>, newMessages: AssistantMessage[], pricingModel: () => string, options: Options, messages: Message[]): void {
+  const charged = call.ledgerSettled ? call.usage : null
   call.usage = updateUsage(call.usage, part.usage)
   call.stopReason = part.delta.stop_reason
   const lastMessage = newMessages.at(-1)
@@ -172,7 +173,9 @@ export function settleMessageDelta(call: CallState, part: Extract<BetaRawMessage
     void settleTranscriptMessage(lastMessage)
   }
   const model = pricingModel()
-  addToTotalSessionCost(calculateUSDCost(model, call.usage), call.usage, model)
+  const cost = calculateUSDCost(model, call.usage)
+  if (charged === null) addToTotalSessionCost(cost, call.usage, model)
+  else addToTotalSessionCost(Math.max(0, cost - calculateUSDCost(model, charged)), usageBeyond(call.usage, charged), model, { basis: 'same-attempt' })
   call.ledgerSettled = true
   void checkResponseForCacheBreak(
     options.querySource,

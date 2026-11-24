@@ -69,7 +69,7 @@ type StoredCostState = {
 }
 
 export type LedgerCostBasis = {
-  basis: 'wire-stated'
+  basis: 'wire-stated' | 'same-attempt'
 }
 
 export function addToTotalSessionCost(
@@ -114,7 +114,7 @@ export function addToTotalSessionCost(
   const workload = getWorkload()
   if (
     costInvalid ||
-    (pricing?.basis !== 'wire-stated' && modelPricingBasis(model) === 'unpriced')
+    (pricing === undefined && modelPricingBasis(model) === 'unpriced')
   ) {
     recordUnpricedTurn(model)
     if (workload !== undefined) {
