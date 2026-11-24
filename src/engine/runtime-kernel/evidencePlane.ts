@@ -1,4 +1,3 @@
-
 import { randomBytes } from 'node:crypto'
 import { registerOwnerScopedStore } from '../run-owner/ownerLifecycle.js'
 import type { OwnerKey } from '../run-owner/ownerKey.js'
@@ -85,14 +84,6 @@ export function recordCanonicalEvidence(input: RecordEvidenceInput): EvidenceRec
     if (owned.evicted.length > EVICTED_MEMORY) owned.evicted.shift()
   }
   return record
-}
-
-export function supersedeEvidence(owner: OwnerKey, id: string): boolean {
-  const owned = store.peek(owner)
-  const record = owned?.records.get(id)
-  if (!owned || !record || record.state !== 'present') return false
-  owned.records.set(id, { ...record, state: 'superseded' })
-  return true
 }
 
 export function evidenceFor(owner: OwnerKey): readonly EvidenceRecord[] {
