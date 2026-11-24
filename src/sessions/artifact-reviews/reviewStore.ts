@@ -24,7 +24,6 @@ import {
 import { relocateAnchor, validateAnchor } from '../artifacts/anchors.js'
 import {
   canTransitionStatus,
-  foldScopeDecisions,
   type ReviewActorRef,
   type ReviewAnchor,
   type ReviewArtifactBody,
@@ -37,9 +36,6 @@ import {
   type ReviewArtifactWorkspace,
   type ReviewComment,
   type ReviewJournalEvent,
-  type ReviewScope,
-  type ReviewScopeDecisionKind,
-  type ScopeDecisionFold,
 } from '../artifacts/reviewContracts.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 import { sleepSync } from '../../platform/async/timers.js'
@@ -310,24 +306,6 @@ export function readReviewArtifactState(id: string): ReviewArtifactState | null 
     passedOver(error)
     return null
   }
-}
-
-export function readReviewArtifactJournal(id: string): ReviewJournalEvent[] {
-  if (!isReviewArtifactId(id)) return []
-  let raw: string
-  try {
-    raw = readFileSync(journalPath(id), 'utf8')
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
-    throw error
-  }
-  const out: ReviewJournalEvent[] = []
-  for (const line of raw.split('\n')) {
-    if (!line.trim()) continue
-    const ev = decodeEvent(line)
-    if (ev) out.push(ev)
-  }
-  return out
 }
 
 export function listReviewArtifactHeadsSource(filter?: {
@@ -659,95 +637,6 @@ function addReviewCommentLocked(input: {
     },
   ])
   return { ok: true, value: { commentId } }
-}
-
-export function recordReviewScopeDecision(input: {
-  artifactId: string
-  version: number
-  scope: ReviewScope
-  decision: ReviewScopeDecisionKind
-  by?: string
-  authorRef?: ReviewActorRef
-}): ReviewWriteResult<{ fold: ScopeDecisionFold }> {
-  return fencedWrite(input.artifactId, () => recordReviewScopeDecisionLocked(input))
-}
-
-function recordReviewScopeDecisionLocked(input: {
-  artifactId: string
-  version: number
-  scope: ReviewScope
-  decision: ReviewScopeDecisionKind
-  by?: string
-  authorRef?: ReviewActorRef
-}): ReviewWriteResult<{ fold: ScopeDecisionFold }> {
-  const state = readReviewArtifactStateStrict(input.artifactId)
-  if (!state) return { ok: false, reason: `no review artifact '${input.artifactId}'` }
-  const version = state.versions.find(v => v.version === input.version)
-  if (!version) {
-    return { ok: false, reason: `no version ${input.version} (latest is ${state.latestVersion})` }
-  }
-  const scopeValid = validateScope(version.body, input.scope)
-  if (!scopeValid.ok) {
-    return { ok: false, reason: `scope does not validate against v${input.version}: ${scopeValid.reason}` }
-  }
-  appendEvents(input.artifactId, [
-    {
-      v: 1,
-      at: Date.now(),
-      type: 'scope-decision',
-      version: input.version,
-      scope: input.scope,
-      decision: input.decision,
-      ...(input.by !== undefined ? { by: input.by } : {}),
-      ...(input.authorRef !== undefined ? { authorRef: input.authorRef } : {}),
-    },
-  ])
-  const after = readReviewArtifactStateStrict(input.artifactId)
-  return {
-    ok: true,
-    value: { fold: foldScopeDecisions(after?.scopeDecisions ?? [], input.version) },
-  }
-}
-
-function validateScope(
-  body: ReviewArtifactVersion['body'],
-  scope: ReviewScope,
-): { ok: true } | { ok: false; reason: string } {
-  switch (scope.t) {
-    case 'whole':
-      return { ok: true }
-    case 'file':
-      if (body.kind !== 'diff') return { ok: false, reason: `no files in a '${body.kind}' body` }
-      return body.files.some(f => f.path === scope.path)
-        ? { ok: true }
-        : { ok: false, reason: `no file '${scope.path}' in the diff` }
-    case 'hunk': {
-      if (body.kind !== 'diff') return { ok: false, reason: `no hunks in a '${body.kind}' body` }
-      const file = body.files.find(f => f.path === scope.path)
-      if (!file) return { ok: false, reason: `no file '${scope.path}' in the diff` }
-      return scope.hunkIndex >= 0 && scope.hunkIndex < file.hunks.length
-        ? { ok: true }
-        : { ok: false, reason: `no hunk #${scope.hunkIndex} in '${scope.path}'` }
-    }
-    case 'plan-item':
-      return body.kind === 'plan' || body.kind === 'walkthrough' || body.kind === 'report'
-        ? { ok: true }
-        : { ok: false, reason: `no plan items in a '${body.kind}' body` }
-    case 'vis-region':
-      if (body.kind !== 'visual') return { ok: false, reason: `no captures in a '${body.kind}' body` }
-      return body.captures.some(c => c.ref === scope.captureRef)
-        ? { ok: true }
-        : { ok: false, reason: `no capture '${scope.captureRef}'` }
-    case 'journey-step':
-      if (body.kind !== 'journey') return { ok: false, reason: `no steps in a '${body.kind}' body` }
-      return body.steps.some(s => s.id === scope.stepId)
-        ? { ok: true }
-        : { ok: false, reason: `no step '${scope.stepId}'` }
-    case 'check':
-      return scope.claim.trim() !== ''
-        ? { ok: true }
-        : { ok: false, reason: 'empty check claim' }
-  }
 }
 
 export function setReviewCommentState(input: {
