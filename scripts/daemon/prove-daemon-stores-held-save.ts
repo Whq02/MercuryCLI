@@ -178,6 +178,63 @@ try {
       `${threw2 || `withdrew=${withdrew} landed=${withdrawLanded}`} — use publishDispatchesOrHold via rideOutHeldFile in src/daemon/concourse-workers/concourseDispatch.ts`,
     )
   }
+
+  console.log('§4 box schedules (saturn-box-schedules.json)')
+  {
+    const box = await import('../../src/daemon/saturn/saturnBoxSchedules.ts')
+    const submission = {
+      when: { kind: 'every' as const, cron: '*/10 * * * *' },
+      action: {
+        kind: 'birth' as const,
+        birth: { prompt: 'hello box held save', workspaceDir: SCRATCH, modelKey: 'claude-sonnet-5', presence: 'headless' as const },
+      },
+    }
+    const deps = {
+      deriveAccount: () => ({ ok: true as const, account: { family: 'anthropic', source: 'api-key' as const } }),
+      mintId: () => 'a1b2c3d4',
+    }
+    const timer1 = holdFile('saturn-box-schedules.json', 900)
+    let added: { ok: boolean; id?: string; reason?: string } | null = null
+    let threw1 = ''
+    try {
+      added = box.addBoxSchedule(submission, 'operator:test', deps, DAEMON_DIR)
+    } catch (error) {
+      threw1 = error instanceof Error ? error.message : String(error)
+    }
+    const addLanded = await until(
+      () => box.readBoxSchedules(DAEMON_DIR).schedules.some(s => s.id === 'a1b2c3d4'),
+      4_500,
+    )
+    if (timer1 !== null) clearTimeout(timer1)
+    delete process.env.MERCURY_FAULT_INJECT
+    check(
+      'addBoxSchedule rides out a 900ms held saturn-box-schedules.json without throwing and lands the minted id',
+      threw1 === '' && added?.ok === true && added.id === 'a1b2c3d4' && addLanded,
+      `${threw1 || JSON.stringify({ added, addLanded })} — ride out DurablePublishError via rideOutHeldFile in src/daemon/saturn/saturnBoxSchedules.ts`,
+    )
+
+    if (addLanded) {
+      const timer2 = holdFile('saturn-box-schedules.json', 900)
+      let pausedOutcome = ''
+      let threw2 = ''
+      try {
+        pausedOutcome = box.setBoxSchedulePaused('a1b2c3d4', true, DAEMON_DIR)
+      } catch (error) {
+        threw2 = error instanceof Error ? error.message : String(error)
+      }
+      const pauseLanded = await until(
+        () => box.readBoxSchedules(DAEMON_DIR).schedules.find(s => s.id === 'a1b2c3d4')?.paused === true,
+        4_500,
+      )
+      if (timer2 !== null) clearTimeout(timer2)
+      delete process.env.MERCURY_FAULT_INJECT
+      check(
+        'setBoxSchedulePaused rides out a 900ms held saturn-box-schedules.json without throwing',
+        threw2 === '' && pausedOutcome === 'applied' && pauseLanded,
+        `${threw2 || `outcome=${pausedOutcome} landed=${pauseLanded}`} — ride out DurablePublishError via rideOutHeldFile in src/daemon/saturn/saturnBoxSchedules.ts`,
+      )
+    }
+  }
 } finally {
   delete process.env.MERCURY_FAULT_INJECT
   rmSync(SCRATCH, { recursive: true, force: true })

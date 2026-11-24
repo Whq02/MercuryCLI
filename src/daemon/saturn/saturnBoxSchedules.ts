@@ -17,8 +17,10 @@ import {
   type SaturnScheduleSubmissionV1,
 } from './saturn.js'
 import { sleepSyncMs as sleepSync } from '../../platform/files/file.js'
+import { errorMessage } from '../../platform/errors/errors.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
-import { isDirAbsentOnRmdirError, pathEntryKindSync } from '../../platform/host-os/files.js'
+import { isDirAbsentOnRmdirError, pathEntryKindSync, rideOutHeldFile } from '../../platform/host-os/files.js'
+import { DurablePublishError } from '../../platform/substrate/durablePublish.js'
 
 export interface SaturnBoxFileV1 {
   version: 1
@@ -154,38 +156,59 @@ function publishBox(file: SaturnBoxFileV1, dir?: string): void {
   publishInDaemonHome('the box schedules', saturnBoxSchedulesPath(dir), JSON.stringify(file, null, 2), { dir })
 }
 
+const isDurablePublishError = (error: unknown): boolean => error instanceof DurablePublishError
+
+function updateBoxOrHold<T>(
+  dir: string | undefined,
+  mutate: (file: SaturnBoxFileV1) => { changed: boolean; value: T },
+): T {
+  const pending: { current: { has: true; value: T } | { has: false } } = { current: { has: false } }
+  const attempt = (): T =>
+    withBoxLock(dir, () => {
+      const file = readBoxSchedules(dir, true)
+      const res = mutate(file)
+      pending.current = { has: true, value: res.value }
+      if (res.changed) publishBox(file, dir)
+      return res.value
+    })
+  try {
+    return attempt()
+  } catch (error) {
+    if (!isDurablePublishError(error) || !pending.current.has) throw error
+    const value = pending.current.value
+    void rideOutHeldFile(attempt, isDurablePublishError, { error }).catch(lost => {
+      console.error(`[daemon] ${saturnBoxSchedulesPath(dir)}: a change to the box schedules was held in memory and never saved: ${errorMessage(lost)}`)
+    })
+    return value
+  }
+}
+
 export function markBoxScheduleFired(scheduleId: string, firedAt: number, dir?: string): 'marked' | 'missing' {
-  return withBoxLock(dir, () => {
-    const file = readBoxSchedules(dir, true)
+  return updateBoxOrHold(dir, file => {
     const row = file.schedules.find(s => s.id === scheduleId)
-    if (!row) return 'missing'
+    if (!row) return { changed: false, value: 'missing' }
     row.lastFiredAt = firedAt
-    publishBox(file, dir)
-    return 'marked'
+    return { changed: true, value: 'marked' }
   })
 }
 
 export function spendBoxOneShot(scheduleId: string, dir?: string): 'spent' | 'kept' | 'missing' {
-  return withBoxLock(dir, () => {
-    const file = readBoxSchedules(dir, true)
+  return updateBoxOrHold(dir, file => {
     const row = file.schedules.find(s => s.id === scheduleId)
-    if (!row) return 'missing'
-    if (row.when.kind !== 'at') return 'kept'
+    if (!row) return { changed: false, value: 'missing' }
+    if (row.when.kind !== 'at') return { changed: false, value: 'kept' }
     file.schedules = file.schedules.filter(s => s.id !== scheduleId)
-    publishBox(file, dir)
-    return 'spent'
+    return { changed: true, value: 'spent' }
   })
 }
 
 export function holdBoxFire(held: HeldFireV1, dir?: string, requireSchedule = false): 'held' | 'already-held' | 'cap' | 'missing' {
-  return withBoxLock(dir, () => {
-    const file = readBoxSchedules(dir, true)
-    if (requireSchedule && !file.schedules.some(s => s.id === held.scheduleId)) return 'missing'
-    if (file.heldFires.some(h => h.scheduleId === held.scheduleId && h.dueAt === held.dueAt)) return 'already-held'
-    if (file.heldFires.length >= SATURN_HELD_CAP) return 'cap'
+  return updateBoxOrHold(dir, file => {
+    if (requireSchedule && !file.schedules.some(s => s.id === held.scheduleId)) return { changed: false, value: 'missing' }
+    if (file.heldFires.some(h => h.scheduleId === held.scheduleId && h.dueAt === held.dueAt)) return { changed: false, value: 'already-held' }
+    if (file.heldFires.length >= SATURN_HELD_CAP) return { changed: false, value: 'cap' }
     file.heldFires = [...file.heldFires, held]
-    publishBox(file, dir)
-    return 'held'
+    return { changed: true, value: 'held' }
   })
 }
 
@@ -211,87 +234,101 @@ export function addBoxSchedule(
   const derived = deps.deriveAccount(modelKey)
   if (!derived.ok) return { ok: false, reason: `schedule refused — ${derived.reason}` }
   const preflightAtWrite = deps.preflight ? deps.preflight(derived.account, saturnNextFireMs(sub.when, Date.now())) : undefined
-  return withBoxLock(dir, () => {
-    let file: SaturnBoxFileV1
-    try {
-      file = readBoxSchedules(dir, true)
-    } catch (error) {
-      return { ok: false, reason: `schedule refused — ${error instanceof Error ? error.message : String(error)}` }
-    }
-    if (file.schedules.length >= SATURN_SCHEDULE_CAP) {
-      return { ok: false, reason: `schedule refused — the box already holds ${SATURN_SCHEDULE_CAP} schedules` }
-    }
-    const id = mintUnusedId(deps.mintId ?? (() => randomUUID().slice(0, 8)), file.schedules)
-    if (id === null) return { ok: false, reason: 'schedule refused — could not mint an unused id' }
-    const schedule: SaturnScheduleV1 = {
-      schema: 1,
-      id,
-      when: sub.when,
-      action: sub.action,
-      account: derived.account,
-      modelKey,
-      createdAt: Date.now(),
-      createdBy: by,
-    }
-    if (sub.effort !== undefined) schedule.effort = sub.effort
-    if (sub.note !== undefined) schedule.note = sub.note
-    if (preflightAtWrite !== undefined) schedule.preflightAtWrite = preflightAtWrite
-    const problem = boxScheduleProblem(schedule)
-    if (problem !== null) return { ok: false, reason: `schedule refused — ${problem}` }
-    file.schedules = [...file.schedules, schedule]
-    publishBox(file, dir)
+  const minted: { current: SaturnScheduleV1 | null } = { current: null }
+  const retryInsert = (): void => {
+    const target = minted.current
+    if (target === null) return
+    withBoxLock(dir, () => {
+      const file = readBoxSchedules(dir, true)
+      if (file.schedules.some(s => s.id === target.id)) return
+      file.schedules = [...file.schedules, target]
+      publishBox(file, dir)
+    })
+  }
+  try {
+    return withBoxLock(dir, () => {
+      let file: SaturnBoxFileV1
+      try {
+        file = readBoxSchedules(dir, true)
+      } catch (error) {
+        return { ok: false, reason: `schedule refused — ${error instanceof Error ? error.message : String(error)}` }
+      }
+      if (file.schedules.length >= SATURN_SCHEDULE_CAP) {
+        return { ok: false, reason: `schedule refused — the box already holds ${SATURN_SCHEDULE_CAP} schedules` }
+      }
+      const id = mintUnusedId(deps.mintId ?? (() => randomUUID().slice(0, 8)), file.schedules)
+      if (id === null) return { ok: false, reason: 'schedule refused — could not mint an unused id' }
+      const schedule: SaturnScheduleV1 = {
+        schema: 1,
+        id,
+        when: sub.when,
+        action: sub.action,
+        account: derived.account,
+        modelKey,
+        createdAt: Date.now(),
+        createdBy: by,
+      }
+      if (sub.effort !== undefined) schedule.effort = sub.effort
+      if (sub.note !== undefined) schedule.note = sub.note
+      if (preflightAtWrite !== undefined) schedule.preflightAtWrite = preflightAtWrite
+      const problem = boxScheduleProblem(schedule)
+      if (problem !== null) return { ok: false, reason: `schedule refused — ${problem}` }
+      minted.current = schedule
+      file.schedules = [...file.schedules, schedule]
+      publishBox(file, dir)
+      return { ok: true, id }
+    })
+  } catch (error) {
+    if (!isDurablePublishError(error) || minted.current === null) throw error
+    const id = minted.current.id
+    void rideOutHeldFile(retryInsert, isDurablePublishError, { error }).catch(lost => {
+      console.error(`[daemon] ${saturnBoxSchedulesPath(dir)}: a new box schedule (${id}) was held in memory and never saved: ${errorMessage(lost)}`)
+    })
     return { ok: true, id }
-  })
+  }
 }
 
 export function removeBoxSchedule(scheduleId: string, dir?: string): 'removed' | 'missing' {
-  return withBoxLock(dir, () => {
-    const file = readBoxSchedules(dir, true)
-    if (!file.schedules.some(s => s.id === scheduleId) && !file.heldFires.some(h => h.scheduleId === scheduleId)) return 'missing'
+  return updateBoxOrHold(dir, file => {
+    if (!file.schedules.some(s => s.id === scheduleId) && !file.heldFires.some(h => h.scheduleId === scheduleId)) return { changed: false, value: 'missing' }
     file.schedules = file.schedules.filter(s => s.id !== scheduleId)
     file.heldFires = file.heldFires.filter(h => h.scheduleId !== scheduleId)
-    publishBox(file, dir)
-    return 'removed'
+    return { changed: true, value: 'removed' }
   })
 }
 
 export function setBoxSchedulePaused(scheduleId: string, paused: boolean, dir?: string): 'applied' | 'noop' | 'missing' {
-  return withBoxLock(dir, () => {
-    const file = readBoxSchedules(dir, true)
+  return updateBoxOrHold(dir, file => {
     const row = file.schedules.find(s => s.id === scheduleId)
-    if (row === undefined) return 'missing'
-    if ((row.paused === true) === paused) return 'noop'
+    if (row === undefined) return { changed: false, value: 'missing' }
+    if ((row.paused === true) === paused) return { changed: false, value: 'noop' }
     if (paused) row.paused = true
     else delete row.paused
-    publishBox(file, dir)
-    return 'applied'
+    return { changed: true, value: 'applied' }
   })
 }
 
 export function refreshBoxScheduleAccount(scheduleId: string, account: SaturnScheduleV1['account'], dir?: string): void {
-  withBoxLock(dir, () => {
-    const file = readBoxSchedules(dir, true)
+  updateBoxOrHold(dir, file => {
     const row = file.schedules.find(s => s.id === scheduleId)
-    if (row === undefined) return
+    if (row === undefined) return { changed: false, value: undefined }
     row.account = account
-    publishBox(file, dir)
+    return { changed: true, value: undefined }
   })
 }
 
 export function takeBoxHeldFires(keys: Array<{ scheduleId: string; dueAt: number }>, dir?: string): HeldFireV1[] {
   if (keys.length === 0) return []
   const wanted = new Set(keys.map(k => `${k.scheduleId}@${k.dueAt}`))
-  return withBoxLock(dir, () => {
-    const file = readBoxSchedules(dir, true)
+  return updateBoxOrHold(dir, file => {
     const taken: HeldFireV1[] = []
     const keep: HeldFireV1[] = []
     for (const h of file.heldFires) {
       if (wanted.has(`${h.scheduleId}@${h.dueAt}`)) taken.push(h)
       else keep.push(h)
     }
-    if (taken.length === 0) return []
+    if (taken.length === 0) return { changed: false, value: [] }
     file.heldFires = keep
-    publishBox(file, dir)
-    return taken
+    return { changed: true, value: taken }
   })
 }
