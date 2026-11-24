@@ -1,18 +1,17 @@
 import {
   getOwnerContext,
   withOwnerContext,
-  type AgentContext,
   type InvocationKind,
   type CrewmateContext,
 } from '../../engine/run-owner/ownerContext.js'
 
-export type { CrewmateContext, AgentContext }
+export type { CrewmateContext }
 
-export function getCrewmateContext(): AgentContext | undefined {
+export function getCrewmateContext(): CrewmateContext | undefined {
   return getOwnerContext()?.agent
 }
 
-export function runWithCrewmateContext<T>(context: AgentContext, fn: () => T): T {
+export function runWithCrewmateContext<T>(context: CrewmateContext, fn: () => T): T {
   return withOwnerContext({ agent: context }, fn)
 }
 

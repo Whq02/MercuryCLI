@@ -11,8 +11,6 @@ export type CrewmateContext = {
   invocationEmitted?: boolean
 }
 
-export type AgentContext = CrewmateContext
-
 export interface LeaseHolder {
   sessionId: string
   agentId: string
@@ -26,7 +24,7 @@ type OwnerDirectoryContext = {
 }
 
 type OwnerContext = {
-  agent?: AgentContext
+  agent?: CrewmateContext
   directory?: OwnerDirectoryContext
   workload?: string | undefined
   authHome?: string

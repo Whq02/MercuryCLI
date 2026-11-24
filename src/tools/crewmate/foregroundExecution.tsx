@@ -34,7 +34,7 @@ import type {
 } from '../../engine/message-shapes/message.js'
 import type { CrewmateToolProgress, ShellProgress } from '../kit/toolProgress.js'
 import type { SetAppState } from '../../engine/tasks/taskBase.js'
-import { runWithCrewmateContext, type AgentContext } from '../../crew/agents/crewmateContext.js'
+import { runWithCrewmateContext, type CrewmateContext } from '../../crew/agents/crewmateContext.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { mirrorSwarmNotice, watchSwarmLaunch } from '../../crew/board/seam.js'
 import { AbortError, errorMessage } from '../../platform/errors/errors.js'
@@ -129,7 +129,7 @@ type ForegroundCrewmateExecutionInput = {
   metadata: ForegroundCrewmateMetadata
   startTime: number
   syncAgentId: AgentId
-  syncAgentContext: AgentContext
+  syncAgentContext: CrewmateContext
   selectedAgent: AgentDefinition
   toolUseContext: ToolUseContext
   assistantMessage: AssistantMessage
