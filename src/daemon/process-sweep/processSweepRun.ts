@@ -295,7 +295,7 @@ async function gather(deps: ProcessSweepDeps): Promise<{ table: ProcessSweepTabl
   return { table, records }
 }
 
-function resolvePath(path: string): string | null {
+export function resolvePath(path: string): string | null {
   try {
     return realpathSync.native(path)
   } catch (error) {

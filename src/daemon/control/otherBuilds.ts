@@ -1,8 +1,8 @@
-import { readFileSync, readdirSync, realpathSync, statSync } from 'node:fs'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
 import { bundleArgOf, bundleDirOf, sameBundlePath, tokenBinding, type ProcessSweepCensus, type ProcessSweepEntry } from '../process-sweep/processSweep.js'
-import type { ProcessSweepDeps } from '../process-sweep/processSweepRun.js'
+import { resolvePath, type ProcessSweepDeps } from '../process-sweep/processSweepRun.js'
 import { runningBuildTree } from '../../platform/product/artifactIdentity.js'
 import { getMercuryHome } from '../../platform/environment/envUtils.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
@@ -23,19 +23,10 @@ export interface OtherBuildsDeps extends ProcessSweepDeps {
   realpath?: (path: string) => string | null
 }
 
-function realPathOf(path: string): string | null {
-  try {
-    return realpathSync.native(path)
-  } catch (error) {
-    passedOver(error)
-    return null
-  }
-}
-
 function ownBundleAtLoad(): string | null {
   const bundle = process.argv[1]
   if (typeof bundle !== 'string' || bundleArgOf([bundle]) === null) return null
-  return realPathOf(bundle)
+  return resolvePath(bundle)
 }
 
 const BUNDLE_AT_LOAD = ownBundleAtLoad()
@@ -133,7 +124,7 @@ function recordsOf(home: string, ownDaemonDir: string): OwnRecord[] | null {
 
 export async function otherBuildAlive(deps: OtherBuildsDeps = {}): Promise<string | null> {
   try {
-    const bundle = deps.bundle === undefined ? BUNDLE_AT_LOAD : bundleArgOf([deps.bundle]) === null ? null : realPathOf(deps.bundle)
+    const bundle = deps.bundle === undefined ? BUNDLE_AT_LOAD : bundleArgOf([deps.bundle]) === null ? null : resolvePath(deps.bundle)
     if (bundle === null) return NO_OWN_BUNDLE
     let putInPlaceMs: number
     try {
@@ -152,7 +143,7 @@ export async function otherBuildAlive(deps: OtherBuildsDeps = {}): Promise<strin
       ...deps,
     })
     const own: OwnBuild = { bundle, putInPlaceMs, buildTree: deps.ownBuildTree === undefined ? runningBuildTree() : deps.ownBuildTree }
-    return otherBuildIn(census, process.pid, own, records, deps.realpath ?? realPathOf)
+    return otherBuildIn(census, process.pid, own, records, deps.realpath ?? resolvePath)
   } catch (error) {
     return `the Mercury processes could not be read (${error instanceof Error ? error.message : String(error)})`
   }
