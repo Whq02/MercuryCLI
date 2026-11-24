@@ -11,8 +11,11 @@ import { getTheme } from '../theme/theme.js'
 import { useTheme } from '../theme/ThemeProvider.js'
 import { KeyboardShortcutHint } from '../theme/KeyboardShortcutHint.js'
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js'
+import { crewTimeWords } from '../../engine/connector/crewFacts.js'
+import { useNowTick } from '../widgets/components.js'
 import { renderToolActivity } from './renderToolActivity.js'
 import { crewmateLifecycleOf, getTaskStatusColor, getTaskStatusIcon } from './taskStatus.js'
+import { useCrewLedgerRow } from './useCrewLedger.js'
 import { GLYPH } from '../theme/glyphs.js'
 
 const PROMPT_CAP = 300
@@ -43,8 +46,11 @@ export function CrewmateDetailDialog({
   const tokens = useMercuryTokens()
   const tools = React.useMemo(() => getAllBaseTools(), [])
 
-  const isRunning = agent.status === 'running' || agent.status === 'pending'
-  const elapsed = useElapsedTime(agent.startTime, isRunning, undefined, undefined, agent.endTime)
+  const ledgerRow = useCrewLedgerRow(agent.id)
+  const facts = ledgerRow?.facts ?? null
+  const isRunning = facts !== null ? facts.running : (agent.status === 'running' || agent.status === 'pending')
+  const now = useNowTick(facts !== null && facts.running ? 1000 : null)
+  const elapsed = useElapsedTime(agent.startTime, isRunning && facts === null, undefined, undefined, agent.endTime)
 
   useKeybinding('confirm:yes', onDone, { context: 'Confirmation' })
 
@@ -68,7 +74,7 @@ export function CrewmateDetailDialog({
 
   const lifecycle = !isRunning ? crewmateLifecycleOf(agent) : undefined
   const tokenCount =
-    agent.progress?.tokenCount ?? agent.progress?.totalTokens ?? agent.lastReportedTokenCount
+    agent.progress?.tokenCount ?? agent.progress?.totalTokens ?? agent.lastReportedTokenCount ?? facts?.tokens?.total
   const toolUseCount =
     agent.progress?.toolUseCount ??
     agent.progress?.totalToolUseCount ??
@@ -88,24 +94,35 @@ export function CrewmateDetailDialog({
           <Text dimColor> · {agent.description || 'background task'}</Text>
         </Box>
         <Box>
-          {!isRunning ? (
+          {facts !== null ? (
             <>
-              <Text color={getTaskStatusColor(agent.status)}>
-                {getTaskStatusIcon(agent.status)} {statusWord(agent.status)}
-              </Text>
-              <Text dimColor> · </Text>
+              <Text dimColor>{crewTimeWords(facts, now)}</Text>
+              {tokenCount !== undefined && tokenCount > 0 ? (
+                <Text dimColor> · {tokenCount} tokens</Text>
+              ) : null}
             </>
-          ) : null}
-          <Text dimColor>{elapsed}</Text>
-          {tokenCount !== undefined && tokenCount > 0 ? (
-            <Text dimColor> · {tokenCount} tokens</Text>
-          ) : null}
-          {toolUseCount !== undefined && toolUseCount > 0 ? (
-            <Text dimColor>
-              {' '}
-              · {toolUseCount} {toolUseCount === 1 ? 'tool use' : 'tool uses'}
-            </Text>
-          ) : null}
+          ) : (
+            <>
+              {!isRunning ? (
+                <>
+                  <Text color={getTaskStatusColor(agent.status)}>
+                    {getTaskStatusIcon(agent.status)} {statusWord(agent.status)}
+                  </Text>
+                  <Text dimColor> · </Text>
+                </>
+              ) : null}
+              <Text dimColor>{elapsed}</Text>
+              {tokenCount !== undefined && tokenCount > 0 ? (
+                <Text dimColor> · {tokenCount} tokens</Text>
+              ) : null}
+              {toolUseCount !== undefined && toolUseCount > 0 ? (
+                <Text dimColor>
+                  {' '}
+                  · {toolUseCount} {toolUseCount === 1 ? 'tool use' : 'tool uses'}
+                </Text>
+              ) : null}
+            </>
+          )}
         </Box>
         {lifecycle ? (
           <Text dimColor>

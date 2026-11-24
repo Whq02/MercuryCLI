@@ -85,6 +85,103 @@ try {
   card.unmount()
   await settle(100)
 
+  const crewFacts = await import('../../src/engine/connector/crewFacts.js')
+  const { crewFactsStamp } = await import('../../src/screen/app-state/crewLedger.js')
+  const t0 = Date.now() - 12_000
+  const runningAgent = {
+    id: 'run-agent',
+    type: 'local_agent',
+    status: 'running',
+    startTime: t0,
+    agentId: 'run-agent',
+    agentType: 'mercury-crew',
+    description: 'running detail',
+    prompt: 'running brief',
+    isBackgrounded: true,
+    outputFile: '/n',
+    outputOffset: 0,
+    notified: false,
+    progress: { tokenCount: 1500, totalTokens: 1500, toolUseCount: 5 },
+  } as never
+  const runCard = await mountOffscreen(
+    wrap(<CrewmateDetailDialog agent={runningAgent} onDone={() => {}} />, { ...getDefaultAppState(), tasks: { 'run-agent': runningAgent } }),
+    100,
+    32,
+  )
+  check(
+    'running CrewmateDetailDialog head reads running for <time> with tokens and no tool use count',
+    await waitFor(() => runCard.screen().includes('running for ') && runCard.screen().includes('1500 tokens') && !runCard.screen().includes('tool use'), 2000),
+    `head: ${runCard.screen().split('\n').slice(0, 6).join(' | ')}`,
+  )
+  runCard.unmount()
+  await settle(50)
+
+  const landedFacts = crewFacts.crewmateFactsOf(
+    { id: 'landed-agent', kind: 'agent', name: 'landed-agent', status: 'completed', startTime: t0, endTime: t0 + 9_000, totalTokens: 2400, toolUses: 7 },
+    null,
+  )!
+  const landedAgent = {
+    id: 'landed-agent',
+    type: 'local_agent',
+    status: 'completed',
+    startTime: t0,
+    endTime: t0 + 9_000,
+    agentType: 'mercury-crew',
+    description: 'landed detail',
+    prompt: 'landed brief',
+    progress: { tokenCount: 2400, toolUseCount: 7 },
+  } as never
+  const landedCard = await mountOffscreen(
+    wrap(<CrewmateDetailDialog agent={landedAgent} onDone={() => {}} />, {
+      ...getDefaultAppState(),
+      crewLedger: {
+        'landed-agent': { facts: landedFacts, hosted: false, listed: false, cleared: false, stamp: crewFactsStamp(landedFacts) },
+      },
+    }),
+    100,
+    32,
+  )
+  check(
+    'landed CrewmateDetailDialog head reads landed in <time> from the crew ledger with tokens and no tool use count',
+    await waitFor(() => landedCard.screen().includes('landed in 9s') && landedCard.screen().includes('2400 tokens') && !landedCard.screen().includes('tool use'), 2000),
+    `head: ${landedCard.screen().split('\n').slice(0, 6).join(' | ')}`,
+  )
+  landedCard.unmount()
+  await settle(50)
+
+  const failedFacts = crewFacts.crewmateFactsOf(
+    { id: 'failed-agent', kind: 'agent', name: 'failed-agent', status: 'failed', startTime: t0, endTime: t0 + 9_000, totalTokens: 800, toolUses: 3 },
+    null,
+  )!
+  const failedAgent = {
+    id: 'failed-agent',
+    type: 'local_agent',
+    status: 'failed',
+    startTime: t0,
+    endTime: t0 + 9_000,
+    agentType: 'mercury-crew',
+    description: 'failed detail',
+    prompt: 'failed brief',
+    progress: { tokenCount: 800, toolUseCount: 3 },
+  } as never
+  const failedCard = await mountOffscreen(
+    wrap(<CrewmateDetailDialog agent={failedAgent} onDone={() => {}} />, {
+      ...getDefaultAppState(),
+      crewLedger: {
+        'failed-agent': { facts: failedFacts, hosted: false, listed: false, cleared: false, stamp: crewFactsStamp(failedFacts) },
+      },
+    }),
+    100,
+    32,
+  )
+  check(
+    'failed CrewmateDetailDialog head reads failed · <time> from the crew ledger and no tool use count',
+    await waitFor(() => failedCard.screen().includes('failed · 9s') && failedCard.screen().includes('800 tokens') && !failedCard.screen().includes('tool use'), 2000),
+    `head: ${failedCard.screen().split('\n').slice(0, 6).join(' | ')}`,
+  )
+  failedCard.unmount()
+  await settle(50)
+
   const output = join(home, 'shell-output.txt')
   writeFileSync(output, 'last output\n')
   const shell = { id: 'fixture-shell', type: 'local_bash', status: 'running', startTime: Date.now() - 2000, description: 'fixture shell', command: 'fixture command', outputFile: output, isBackgrounded: true, shellCommand: null } as unknown as import('../../src/engine/tasks/local-shell/shellTaskState.js').LocalShellTaskState
