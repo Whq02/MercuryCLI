@@ -101,3 +101,4 @@ prove-saturn-ticker-fire.ts
 prove-focus-second-window.ts
 prove-admission-awaits-no-child.ts
 prove-runner-spawn-never-blocks-on-a-read.ts
+prove-own-start-token-asked-once.ts

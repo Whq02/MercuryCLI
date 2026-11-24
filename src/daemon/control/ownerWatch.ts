@@ -126,6 +126,10 @@ export function getProcessStartInstant(pid: number): string | null {
 }
 
 function startTokenOf(pid: number, form: StartForm): string | null {
+  return ownStartTokenNoted(pid, form, readStartToken(pid, form))
+}
+
+function readStartToken(pid: number, form: StartForm): string | null {
   try {
     const probe = processStartProbeKind()
     if (probe === 'win32-cim') {
@@ -163,6 +167,21 @@ export function getProcessStartInstantAsync(pid: number): Promise<string | null>
 }
 
 function startTokenOfAsync(pid: number, form: StartForm): Promise<string | null> {
+  if (pid !== process.pid) return probeStartToken(pid, form)
+  const key = startKey(form, pid)
+  const known = startTokenCache.get(key)
+  if (known !== undefined) return Promise.resolve(known.token)
+  const flying = startTokenInflight.get(key)
+  if (flying !== undefined) return flying
+  const asked: Promise<string | null> = probeStartToken(pid, form).then(token => {
+    if (startTokenInflight.get(key) === asked) startTokenInflight.delete(key)
+    return ownStartTokenNoted(pid, form, token)
+  })
+  startTokenInflight.set(key, asked)
+  return asked
+}
+
+function probeStartToken(pid: number, form: StartForm): Promise<string | null> {
   return new Promise<string | null>(resolve => {
     const unknownErr = (err: unknown): boolean => {
       const e = err as NodeJS.ErrnoException & { killed?: boolean }
@@ -227,6 +246,13 @@ function forgetStartTokens(pid: number): void {
 
 function invalidateDeadStartToken(pid: number, token: string | null): string | null {
   if (token === '') forgetStartTokens(pid)
+  return token
+}
+
+function ownStartTokenNoted(pid: number, form: StartForm, token: string | null): string | null {
+  if (pid !== process.pid) return token
+  if (token) startTokenCache.set(startKey(form, pid), { token, at: Date.now() })
+  else forgetStartTokens(pid)
   return token
 }
 
@@ -344,7 +370,7 @@ async function startTokensOf(holders: readonly { pid: number; procStart?: string
     }
     const form = asked ?? ([...tokens].some(token => startFormLike(token) === 'instant') ? 'instant' : 'token')
     const hit = startTokenCache.get(startKey(form, pid))
-    if (hit && Date.now() - hit.at < maxAgeMs && [...tokens].every(token => token === hit.token)) {
+    if (hit && (pid === process.pid || Date.now() - hit.at < maxAgeMs) && [...tokens].every(token => token === hit.token)) {
       result.set(pid, hit.token)
       continue
     }
@@ -386,7 +412,7 @@ function startTokenCachedOrRefresh(pid: number, maxAgeMs: number, form: StartFor
     return ''
   }
   const hit = startTokenCache.get(startKey(form, pid))
-  if (hit && Date.now() - hit.at < maxAgeMs) return hit.token
+  if (hit && (pid === process.pid || Date.now() - hit.at < maxAgeMs)) return hit.token
   void startTokensOf([{ pid }], maxAgeMs, form)
   return hit ? hit.token : null
 }
