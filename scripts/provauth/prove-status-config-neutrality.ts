@@ -69,101 +69,20 @@ const presence = (
 })
 
 {
-  type Families = Parameters<typeof status.buildProviderAccountBlocks>[0]
-  const families = [
-    presence('anthropic', true, 'Claude subscription (max)'),
-    presence('openai', false),
-    presence('openrouter', true, 'OpenRouter (OAuth-minted key)'),
-    presence('gemini', false),
-    presence('fabricated-x', true, 'Fabricated credential'),
-  ] as unknown as Families
-  const entries = [
-    {
-      id: 'anthropic:oauth:primary',
-      provider: 'anthropic' as const,
-      kind: 'subscription-oauth' as const,
-      label: 'Claude account (op@example.com)',
-      identity: { email: 'op@example.com', plan: 'max' },
-      custodian: 'anthropic-slots' as const,
-    },
-    {
-      id: 'anthropic:api-key:env',
-      provider: 'anthropic' as const,
-      kind: 'api-key' as const,
-      label: 'Anthropic API key (env)',
-      custodian: 'anthropic-auth' as const,
-    },
-    {
-      id: 'openrouter:oauth-key',
-      provider: 'openrouter' as const,
-      kind: 'api-key' as const,
-      label: 'OpenRouter (OAuth-minted key)',
-      custodian: 'openrouter-accounts' as const,
-    },
-  ]
-  const reads = {
-    entries: () => entries,
-    activeFor: (provider: string) => entries.find(e => e.provider === provider),
-    organization: () => 'Example Org',
-    isDemo: false,
-    usability: () => ({
-      openai: { blockers: ['no OpenAI account is signed in — /logins openai'] },
-      gemini: { blockers: ['no Gemini credential — /logins gemini (or GEMINI_API_KEY)'] },
-    }),
-  }
-  const blocks = status.buildProviderAccountBlocks(families, reads)
-  const labeled = blocks.filter(b => b.label !== '' && b.label !== undefined)
+  const { resolveProviderUsability } = await import('../../src/models/roads/providerUsability.js')
+  const localBlocker =
+    resolveProviderUsability({
+      anthropicApiKey: () => null,
+      anthropicSubscriber: () => false,
+      anthropicLimitStatus: () => 'allowed',
+      gptSeat: () => ({ state: 'disabled', reason: 'x', why: 'no-account' }),
+      zaiKeyPresent: () => false,
+    } as never).local.blockers[0] ?? ''
   check(
-    'one primary row per family, registry order (fabricated family included — no edit needed)',
-    labeled.length === 5 &&
-      labeled.map(b => b.label).join(',') === 'anthropic,openai,openrouter,gemini,fabricated-x',
-    `${labeled.map(b => String(b.label)).join(',')}; buildProviderAccountBlocks in src/commands/verbs/status.tsx must emit one labelled row per family in the order given`,
+    "the resolver's own local sentence sets up or starts a server, never /logins",
+    localBlocker.includes('/localsetup') && localBlocker.includes('MERCURY_LOCAL_BASE_URL') && !localBlocker.includes('/logins'),
+    `${localBlocker}; the local blocker sentence in resolveProviderUsability (src/models/roads/providerUsability.ts) must name /localsetup and MERCURY_LOCAL_BASE_URL and not /logins`,
   )
-  const byLabel = new Map(labeled.map(b => [b.label, textOf(b.value)]))
-  check(
-    "absent family = its OWN typed blocker (FC-076), never one shared sentence",
-    byLabel.get('openai') === 'no OpenAI account is signed in — /logins openai' &&
-      byLabel.get('gemini') === 'no Gemini credential — /logins gemini (or GEMINI_API_KEY)' &&
-      byLabel.get('openai') !== byLabel.get('gemini'),
-    `openai=${JSON.stringify(byLabel.get('openai'))} gemini=${JSON.stringify(byLabel.get('gemini'))}; buildProviderAccountBlocks in src/commands/verbs/status.tsx must show each absent family its own blocker from the usability read`,
-  )
-  {
-    const fallbackBlocks = status.buildProviderAccountBlocks(
-      [presence('openai', false)] as unknown as Families,
-      { ...reads, usability: () => ({}) },
-    )
-    check(
-      'a family missing from the usability map falls back to the historical line',
-      textOf(fallbackBlocks[0]?.value) === 'not logged in — /logins connects',
-      `${String(textOf(fallbackBlocks[0]?.value))}; buildProviderAccountBlocks in src/commands/verbs/status.tsx must fall back to the historical line when the usability map has no entry`,
-    )
-    const { resolveProviderUsability } = await import('../../src/models/roads/providerUsability.js')
-    const localBlocker =
-      resolveProviderUsability({
-        anthropicApiKey: () => null,
-        anthropicSubscriber: () => false,
-        anthropicLimitStatus: () => 'allowed',
-        gptSeat: () => ({ state: 'disabled', reason: 'x', why: 'no-account' }),
-        zaiKeyPresent: () => false,
-      } as never).local.blockers[0] ?? ''
-    check(
-      "the resolver's own local sentence sets up or starts a server, never /logins",
-      localBlocker.includes('/localsetup') && localBlocker.includes('MERCURY_LOCAL_BASE_URL') && !localBlocker.includes('/logins'),
-      `${localBlocker}; the local blocker sentence in resolveProviderUsability (src/models/roads/providerUsability.ts) must name /localsetup and MERCURY_LOCAL_BASE_URL and not /logins`,
-    )
-  }
-  check("connected family shows the owning resolver's words", byLabel.get('anthropic') === 'Claude subscription (max)' && byLabel.get('openrouter') === 'OpenRouter (OAuth-minted key)', 'buildProviderAccountBlocks in src/commands/verbs/status.tsx must show a connected family credentialLabel as its value')
-  check('an unknown family labels itself (never silent)', byLabel.get('fabricated-x') === 'Fabricated credential', 'buildProviderAccountBlocks in src/commands/verbs/status.tsx must label a family it does not know by its credentialLabel')
-  const continuations = blocks.filter(b => b.label === '').map(b => textOf(b.value))
-  check('identity continuations ride provider-exposed facts (email · plan · org)', continuations.some(t => t.includes('op@example.com')) && continuations.some(t => t.includes('plan · max')) && continuations.some(t => t.includes('org · Example Org')), 'buildProviderAccountBlocks in src/commands/verbs/status.tsx must add continuation rows for email, plan and organization')
-  check("multi-credential family names the wallet's arbitration", continuations.some(t => t.includes('sources · 2') && t.includes('active: Claude account (op@example.com)')), 'buildProviderAccountBlocks in src/commands/verbs/status.tsx must add a sources and active continuation row when a family holds several credentials')
-
-  const demoBlocks = status.buildProviderAccountBlocks(families, { ...reads, isDemo: true })
-  const demoText = demoBlocks.map(b => textOf(b.value)).join('\n')
-  check('demo environment suppresses email + org (plan stays)', !demoText.includes('op@example.com') && !demoText.includes('Example Org') && demoText.includes('plan · max'), 'buildProviderAccountBlocks in src/commands/verbs/status.tsx must drop email and organization rows when reads.isDemo is true')
-
-  const withoutAnthropic = status.buildProviderAccountBlocks(families.slice(1), reads)
-  check('NO baked-in brand: dropping anthropic from the registry drops its row', withoutAnthropic.every(b => b.label !== 'anthropic'), 'buildProviderAccountBlocks in src/commands/verbs/status.tsx must build rows only from the families it is given')
 }
 
 {

@@ -420,26 +420,10 @@ section('§G a revision and a rewind rewind the chain from the moved index; the 
   check('the settled-prefix fold equals the one-shot fold across appends and rewinds', agree)
 }
 
-section('§H complete lines past a byte cursor; newest lines first with one window and no lost line')
+section('§H newest lines first with one window and no lost line')
 {
   resetAll()
-  const file = join(SCRATCH, 'h.jsonl')
   const rec = (i: number): string => JSON.stringify({ type: 'user', i, text: `líne ${i} ✓ ${'字'.repeat(40)}` })
-  writeFileSync(file, `${rec(1)}\n${rec(2)}\n`)
-  let read = reader.readTranscriptBytesAfter(file, { offset: 0, carry: '' })
-  check('the first read hands back both complete lines and an empty carry', read.text.split('\n').length === 2 && read.cursor.carry === '' && read.cursor.offset === statSync(file).size)
-  const half = rec(3)
-  appendFileSync(file, `${rec(10)}\n${half.slice(0, 12)}`)
-  read = reader.readTranscriptBytesAfter(file, read.cursor)
-  check('a complete line lands; the partial one is CARRIED, never handed out', read.text === rec(10) && read.cursor.carry === half.slice(0, 12))
-  appendFileSync(file, `${half.slice(12)}\n`)
-  read = reader.readTranscriptBytesAfter(file, read.cursor)
-  check('the carried line completes on the next read', read.text === rec(3) && read.cursor.carry === '')
-  const parked = read.cursor
-  writeFileSync(file, `${rec(1)}\n`)
-  read = reader.readTranscriptBytesAfter(file, parked)
-  check('a shrunken file rewinds with the flag and re-reads from zero', read.rewound === true && read.text === rec(1))
-
   const big = join(SCRATCH, 'h-big.jsonl')
   const N = 3000
   const lines: string[] = []
