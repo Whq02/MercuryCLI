@@ -7,7 +7,7 @@ import { join } from 'node:path'
 const cfg = mkdtempSync(join(tmpdir(), 'artifacts-cfg-'))
 process.env.MERCURY_CONFIG_DIR = cfg
 
-const { storeArtifact, redactMetadata, scopeSlugForDir } = await import('../../src/sessions/artifacts/store.js')
+const { storeArtifact, redactMetadata } = await import('../../src/sessions/artifacts/store.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = '', failHint = ''): void {
@@ -65,14 +65,6 @@ section('end-to-end: sidecar on disk has no secret value')
   } else {
     check('sidecar written', false, '', 'storeArtifact in src/sessions/artifacts/store.ts returned no path; fix it so a write of small content with metadata succeeds')
   }
-}
-
-section('#11 — distinct project dirs ⇒ distinct artifact scopes')
-{
-  check('non-injective collision pair now maps to DISTINCT scopes', scopeSlugForDir('/a/b') !== scopeSlugForDir('/a_b'), '', 'scopeSlugForDir in src/sessions/artifacts/store.ts must add the hash of the full directory to the slug')
-  check('two distinct project dirs ⇒ distinct scopes', scopeSlugForDir('/home/u/projA') !== scopeSlugForDir('/home/u/projB'), '', 'scopeSlugForDir in src/sessions/artifacts/store.ts must give different directories different slugs')
-  check('same dir ⇒ STABLE scope (writer & reader agree)', scopeSlugForDir('/home/u/proj') === scopeSlugForDir('/home/u/proj'), '', 'scopeSlugForDir in src/sessions/artifacts/store.ts must be deterministic for one directory')
-  check('scope is still filesystem-safe', /^[A-Za-z0-9._-]+$/.test(scopeSlugForDir('/weird path/with spaces')), '', 'scopeSlugForDir in src/sessions/artifacts/store.ts must keep only letters, digits, dot, underscore and dash')
 }
 
 section('#10 — two adjacent azure secrets: the SECOND no longer leaks')

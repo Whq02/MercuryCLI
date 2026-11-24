@@ -39,12 +39,6 @@ function slug(s: string, fallback: string): string {
   return out || fallback
 }
 
-export function scopeSlugForDir(dir: string): string {
-  const d = String(dir ?? '')
-  const hash = createHash('sha256').update(d).digest('hex').slice(0, 8)
-  return slug(d, 'default').slice(0, 80) + '-' + hash
-}
-
 export function getArtifactsRootDir(): string {
   return join(getMercuryHome(), 'artifacts')
 }
