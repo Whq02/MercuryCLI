@@ -74,11 +74,14 @@ const SNAPSHOT_CAPTURE_BOUND_MS = 10_000
 
 const SNAPSHOT_OUTPUT_LIMIT = 1024 * 1024
 
-type BoundedRun = { exitCode?: number; signal?: string; stdout: string; stderr: string; killed: boolean; overflowed: boolean; unstarted?: string; exported?: NodeJS.ProcessEnv | null; began?: BirthMark | null }
+type BoundedRun = { exitCode?: number; signal?: string; stdout: string; stderr: string; killed: boolean; overflowed: boolean; unstarted?: string; exported?: NodeJS.ProcessEnv | null; aliases?: string[]; began?: BirthMark | null }
 
 const LOGIN_EXPORTS_MARK = '__MERCURY_LOGIN_EXPORTS__'
+const LOGIN_ALIASES_MARK = '__MERCURY_LOGIN_ALIASES__'
 const PRINTS_EXPORTS = `printf '\\0%s\\0' ${LOGIN_EXPORTS_MARK}; env -0; printf '%s\\0' ${LOGIN_EXPORTS_MARK}`
 const ZSH_PRINTS_EXPORTS = `'builtin' 'printf' '\\0%s\\0' '${LOGIN_EXPORTS_MARK}'; '/usr/bin/env' '-0'; 'builtin' 'printf' '%s\\0' '${LOGIN_EXPORTS_MARK}'; 'builtin' 'unsetopt' 'rcs'`
+const ZSH_PRINTS_ALIASES = `'builtin' 'printf' '\\0%s\\0' '${LOGIN_ALIASES_MARK}'; 'builtin' 'alias' '-rL'; 'builtin' 'printf' '\\0%s\\0' '${LOGIN_ALIASES_MARK}'`
+const SNAPSHOT_ALIAS_LIMIT = 1000
 
 function exportedBy(said: string, started: NodeJS.ProcessEnv): NodeJS.ProcessEnv | null {
   const parts = said.split('\0')
@@ -91,6 +94,19 @@ function exportedBy(said: string, started: NodeJS.ProcessEnv): NodeJS.ProcessEnv
     if (at > 0 && started[entry.slice(0, at)] !== entry.slice(at + 1)) exported[entry.slice(0, at)] = entry.slice(at + 1)
   }
   return exported
+}
+
+function aliasesSaidBy(said: string): string[] {
+  const parts = said.split('\0')
+  const from = parts.indexOf(LOGIN_ALIASES_MARK)
+  if (from === -1 || parts[from + 2] !== LOGIN_ALIASES_MARK) return []
+  const lines: string[] = []
+  for (const line of (parts[from + 1] ?? '').split('\n')) {
+    if (line === 'alias run-help=man' || line === 'alias which-command=whence') continue
+    const shown = /^alias (?:-- )?([^\s\/$`=|&;()<>'"\\]+)=(.+)$/.exec(line)
+    if (shown !== null) lines.push(`alias -- ${shown[1]}=${shown[2]}`)
+  }
+  return lines.slice(0, SNAPSHOT_ALIAS_LIMIT)
 }
 
 const agentsOfTheSession = new Set<number>()
@@ -242,6 +258,7 @@ function runBounded(
         ...result,
         stdout: cleanStdout,
         exported: exportedBy(stdout, env),
+        aliases: aliasesSaidBy(stdout),
         began,
       }
       if (treeCleanup && waitForWindowsCleanup) {
@@ -494,20 +511,21 @@ export function loginExports(shellPath: string): NodeJS.ProcessEnv | undefined {
   return carriedFromZsh ?? carriedFromBash.get(shellPath)
 }
 
-const exportsReadByZsh = memoize(async (zsh: string, session: boolean): Promise<void> => {
+const zshLoginFilesRead = memoize(async (zsh: string, session: boolean): Promise<string[]> => {
   try {
-    const run = await runBounded(zsh, ['-l', '-i', '-c', ZSH_PRINTS_EXPORTS], { ...subprocessEnv(), GIT_EDITOR: 'true', MERCURY: '1', SHELL_SESSIONS_DISABLE: '1' }, SNAPSHOT_CAPTURE_BOUND_MS, true)
+    const run = await runBounded(zsh, ['-l', '-i', '-c', `${ZSH_PRINTS_ALIASES}; ${ZSH_PRINTS_EXPORTS}`], { ...subprocessEnv(), GIT_EDITOR: 'true', MERCURY: '1', SHELL_SESSIONS_DISABLE: '1' }, SNAPSHOT_CAPTURE_BOUND_MS, true)
     const carried = await carriedBy(run, session)
     if (session) carriedFromZsh = carried
     const absence = run.killed || run.exitCode !== 0 ? loginRunLeftNothing(run, zshReads()) : (run.exported ?? null) === null ? loginRunHandedOver(zshReads()) : null
     noteLoginExports(absence)
-    if (absence === null) return
+    if (absence === null) return run.aliases ?? []
     logForDebugging(`the zsh login files carry nothing: ${absence.why} (${zsh})${run.stderr.length > 0 ? `\n  stderr (${run.stderr.length} chars):\n${run.stderr}` : ''}`)
     logError(`the zsh login files were not read: ${absence.why} (${zsh})`)
   } catch (error) {
     noteLoginExports(loginRunLeftNothing({ stdout: '', stderr: '', killed: false, overflowed: false, unstarted: errorMessage(error) }, zshReads()))
     logError(`the zsh login files were not read: ${errorMessage(error)} (${zsh})`)
   }
+  return []
 }, (zsh: string, session: boolean) => `${session ? 'session' : 'asked'} ${zsh}`)
 
 function randomSnapshotSuffix(): string {
@@ -519,7 +537,7 @@ function randomSnapshotSuffix(): string {
   return suffix
 }
 
-function buildMercuryToolsContent(pathValue: string): string {
+function mercurySearchTools(): string {
   const rgCommand = ripgrepCommand()
   let rgFallback: string
   if (rgCommand.argv0) {
@@ -535,9 +553,11 @@ function buildMercuryToolsContent(pathValue: string): string {
     'if ! (unalias rg 2>/dev/null; command -v rg >/dev/null 2>&1); then',
     rgFallback,
     'fi',
-    '# Mercury PATH',
-    `export PATH=${quote([pathValue])}`,
   ].join('\n')
+}
+
+function buildMercuryToolsContent(pathValue: string): string {
+  return [mercurySearchTools(), '# Mercury PATH', `export PATH=${quote([pathValue])}`].join('\n')
 }
 
 function buildCaptureScript(params: {
@@ -610,7 +630,7 @@ export async function createAndSaveSnapshot(
   const hostBash = isHostPosixBash(shell.origin)
   const isEngine = shell.origin === 'engine'
   let scratchDir: string | null = null
-  let zshWork: Promise<void> | null = null
+  let zshWork: Promise<string[]> | null = null
 
   try {
     const mercuryHome = getMercuryHome()
@@ -668,7 +688,7 @@ export async function createAndSaveSnapshot(
     }
 
     const userZsh = zshOfTheUser()
-    zshWork = userZsh !== null ? exportsReadByZsh(userZsh, session) : Promise.resolve()
+    zshWork = userZsh !== null ? zshLoginFilesRead(userZsh, session) : Promise.resolve([])
 
     const scriptFilePath = loginRunScriptFilePath(snapshotFilePath, shell.origin)
     let commandText = captureScript
@@ -689,7 +709,7 @@ export async function createAndSaveSnapshot(
       }
     }
 
-    await zshWork
+    const zshAliases = await zshWork
     const carried = await carriedBy(run, carriesBashLoginExports(session, userZsh !== null, shell.origin))
     if (carried !== undefined) {
       carriedFromBash.set(shell.path, carried)
@@ -738,6 +758,9 @@ export async function createAndSaveSnapshot(
     const mergedPath = pathWithLoginEntries(pathValue, loginExports(shell.path))
     if (mergedPath !== pathValue) {
       await appendFile(snapshotFilePath, `export PATH=${quote([mergedPath])}\n`, 'utf8')
+    }
+    if (zshAliases.length > 0) {
+      await appendFile(snapshotFilePath, `${zshAliases.join('\n')}\n${mercurySearchTools()}\n`, 'utf8')
     }
 
     registerCleanup(async () => {
