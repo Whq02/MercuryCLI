@@ -21,7 +21,7 @@ const ZSH = '/bin/zsh'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const failureHint = 'to fix, change how the login files are read in createAndSaveSnapshot and loginExports in src/platform/shell/bash/shellSnapshot.ts, the not-carried note and health row in src/platform/shell/shellRecord.ts, or (editor rows) execViaIdeTerminal in src/integrations/acp/ideToolBridge.ts; this proof drives the built bundle, so rebuild with bun run build.ts first'
+  const failureHint = 'to fix, change how the login files are read in createAndSaveSnapshot, loginExports and the appended alias lines of src/platform/shell/bash/shellSnapshot.ts, the not-carried note and health row in src/platform/shell/shellRecord.ts, or (editor rows) execViaIdeTerminal in src/integrations/acp/ideToolBridge.ts; this proof drives the built bundle, so rebuild with bun run build.ts first'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${failureHint}` : ''}`)
 }
 
@@ -117,7 +117,7 @@ function judge(situation: string, w: World, result: string, why: string): void {
   check(`${situation}: an alias from ~/.bashrc is carried`, lines.includes('alias-from-bashrc'), brief)
   check(`${situation}: a function from ~/.bashrc is carried`, lines.includes('fn-from-bashrc'), brief)
   check(`${situation}: a function from ~/.bash_profile is carried (the login files are read)`, lines.includes('fn-from-bash-profile'), brief)
-  check(`${situation}: no alias or function of ~/.zshrc reaches the command, and the variable ~/.zshenv exports does where the launcher's shell is zsh`, value('zsh-alias') === 'absent' && value('zsh-fn') === 'absent' && value('zshenv') === (existsSync(ZSH) ? '1' : 'unset'), brief)
+  check(`${situation}: the user's own alias of ~/.zshrc reaches the command, no function of ~/.zshrc does, and the variable ~/.zshenv exports does where the launcher's shell is zsh`, value('zsh-alias') === (existsSync(ZSH) ? 'carried' : 'absent') && value('zsh-fn') === 'absent' && value('zshenv') === (existsSync(ZSH) ? '1' : 'unset'), brief)
 }
 
 const bounded = async <T,>(promise: Promise<T>, label: string, ms = 120_000): Promise<T> => {

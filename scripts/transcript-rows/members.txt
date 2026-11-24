@@ -24,3 +24,4 @@ prove-toolrow-settles-with-its-result.ts
 prove-turn-opening-text-row.ts
 prove-wait-row-estimate.ts
 prove-writing-indicator.ts
+prove-tally-row-after-notice.ts

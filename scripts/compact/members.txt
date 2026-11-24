@@ -107,3 +107,5 @@ prove-switch-window-fold.ts
 prove-ten-complete-rounds.ts
 prove-window-result-budgets.ts
 prove-window-turn-reserve.ts
+prove-summary-dollar-patterns.ts
+prove-manual-fold-estimate.ts

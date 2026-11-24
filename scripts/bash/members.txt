@@ -108,3 +108,5 @@ prove-bash-spec-nohup-behaviour.ts
 prove-bash-spec-sleep-behaviour.ts
 prove-bash-spec-srun-behaviour.ts
 prove-bash-spec-time-behaviour.ts
+prove-shell-snapshot-missing-file.ts
+prove-zsh-aliases-new-words-only.ts

@@ -11,7 +11,7 @@ mkdirSync(DAEMON, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_DAEMON_DIR = DAEMON
 
-const TITLE_HINT = 'change liveTitleDeriverFor in src/daemon/switchboard/hopIntoSession.ts or headBriefLabel in src/screen/concourse-model/concourseSnapshot.ts so the live title follows the record, the first words, then the stage-1 title'
+const TITLE_HINT = 'change liveTitleDeriverFor in src/daemon/switchboard/hopIntoSession.ts, headBriefLabel in src/screen/concourse-model/concourseSnapshot.ts, or extractFirstPromptFromHead in src/sessions/transcripts/sessionStoragePortable.ts so the live title follows the record, the first words, then the stage-1 title'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -61,22 +61,32 @@ check('§1d a rename on the record follows (the record is the one owner)', deriv
 
 
 const { extractFirstPromptFromHead } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
+const { tellSessionStorageTheBuiltInCommands } = await import('../../src/sessions/transcripts/builtInCommands.ts')
 const { formatCommandInputTags, createSyntheticUserCaveatMessage } = await import('../../src/engine/message-shapes/factories.ts')
-for (const withPrompt of [false, true]) {
-  const id = withPrompt ? 'aaaaaaaa-1111-4222-8333-555555555555' : 'aaaaaaaa-1111-4222-8333-666666666666'
+tellSessionStorageTheBuiltInCommands(() => new Set(['model']))
+for (const entry of [
+  { kind: 'built-in', withPrompt: false, command: 'model', args: 'claude-sonnet-5', id: 'aaaaaaaa-1111-4222-8333-666666666666', runnerId: 'command-false' },
+  { kind: 'with-prompt', withPrompt: true, command: 'model', args: 'claude-sonnet-5', id: 'aaaaaaaa-1111-4222-8333-555555555555', runnerId: 'command-true' },
+  { kind: 'custom', withPrompt: false, command: 'deploy', args: '', id: 'aaaaaaaa-1111-4222-8333-666666666667', runnerId: 'command-custom' },
+] as const) {
   const commandRows = [
     createSyntheticUserCaveatMessage(),
-    { type: 'user', message: { role: 'user', content: formatCommandInputTags('model', 'claude-sonnet-5') } },
-    { type: 'user', message: { role: 'user', content: '<local-command-stdout>Set model to claude-sonnet-5</local-command-stdout>' } },
-    ...(withPrompt ? [{ type: 'user', message: { role: 'user', content: 'hello after a command' } }] : []),
-  ].map((row, index) => ({ ...row, uuid: `command-first-${index}`, sessionId: id, timestamp: new Date().toISOString() }))
-  const bytes = encodeSeedTranscript(commandRows, id)
-  writeFileSync(join(paths.getProjectDir(workspace), `${id}.jsonl`), bytes)
-  const rec = { ...record, sessionId: id, runnerId: `command-${withPrompt}` }
-  const expected = withPrompt ? 'hello after a command' : '/model'
+    { type: 'user', message: { role: 'user', content: formatCommandInputTags(entry.command, entry.args) } },
+    { type: 'user', message: { role: 'user', content: `<local-command-stdout>Ran ${entry.command}</local-command-stdout>` } },
+    ...(entry.withPrompt ? [{ type: 'user', message: { role: 'user', content: 'hello after a command' } }] : []),
+  ].map((row, index) => ({ ...row, uuid: `command-first-${index}`, sessionId: entry.id, timestamp: new Date().toISOString() }))
+  const bytes = encodeSeedTranscript(commandRows, entry.id)
+  writeFileSync(join(paths.getProjectDir(workspace), `${entry.id}.jsonl`), bytes)
+  const rec = { ...record, sessionId: entry.id, runnerId: entry.runnerId }
   const actual = headBriefLabel(rec, 48)
-  check(`command-first ${withPrompt ? 'with prompt' : 'command only'}: the view title uses the session list's clean words`, actual === expected && actual === extractFirstPromptFromHead(bytes) && !actual.includes('<'), String(actual))
-  check('the live view-header title follows the same cleanup', deriver(rec) === expected, String(deriver(rec)))
+  if (entry.kind === 'built-in') {
+    check('command-first command only, a built-in: the session takes no name from it', actual === null && extractFirstPromptFromHead(bytes) === '', JSON.stringify({ actual, extracted: extractFirstPromptFromHead(bytes) }))
+    check('the live view-header title of a session that only ran a built-in command stays the new-session words', deriver(rec) === `new session · ${record.projectLabel} · ready`, String(deriver(rec)))
+  } else {
+    const expected = entry.withPrompt ? 'hello after a command' : `/${entry.command}`
+    check(`command-first ${entry.withPrompt ? 'with prompt' : 'command only'}: the view title uses the session list's clean words`, actual === expected && actual === extractFirstPromptFromHead(bytes) && !actual.includes('<'), String(actual))
+    check('the live view-header title follows the same cleanup', deriver(rec) === expected, String(deriver(rec)))
+  }
 }
 
 {

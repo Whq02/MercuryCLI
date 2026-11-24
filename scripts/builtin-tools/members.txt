@@ -53,3 +53,4 @@ prove-webfetch-reader.ts
 prove-webfetch-structured-hosts.ts
 prove-webfetch-summariser-fallback.ts
 prove-webfetch-table-shapes.ts
+prove-webfetch-summariser-six-places.ts

@@ -134,3 +134,5 @@ prove-windows-removal-roots.ts
 prove-write-ladder-wiring.ts
 prove-write-refusal-scope.ts
 prove-dangerous-patterns-behaviour.ts
+prove-powershell-permission-order.ts
+prove-commit-message-no-false-note.ts

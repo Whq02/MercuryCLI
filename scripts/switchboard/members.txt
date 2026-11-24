@@ -61,3 +61,5 @@ prove-concourse-composer-border.ts
 prove-empty-board-lines-whole.ts
 prove-last-used-is-last-use.ts
 prove-one-session-name.ts
+prove-early-daemon-bare-launch.ts
+prove-sessions-list-reads-as-chooser.ts

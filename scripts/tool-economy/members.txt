@@ -26,3 +26,4 @@ prove-terra-prefix.ts
 prove-text-append-deferral.ts
 prove-text-route-deferral.ts
 prove-toolsearch-description.ts
+prove-haiku-tool-references.ts

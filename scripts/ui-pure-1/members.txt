@@ -102,3 +102,6 @@ prove-continue-row-elsewhere.ts
 prove-continue-row-open-elsewhere.ts
 prove-logins-state-words.ts
 prove-small-words-rows.ts
+prove-system-row-fallback.ts
+prove-rename-refusal-words.ts
+prove-turn-diffs-results.ts
