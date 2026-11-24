@@ -544,7 +544,7 @@ export async function processSlashCommand(
         uuid,
       )
     } else if (command.type === 'local') {
-      result = await runLocalCommand(command, commandName, args, context, uuid)
+      result = await runLocalCommand(command, args, context, uuid)
     } else if (requiresArgument(command) && args.trim() === '') {
       result = answerBareUsage(command, args, uuid)
     } else {
@@ -707,7 +707,6 @@ function answerBareUsage(
 
 async function runLocalCommand(
   command: Command & { type: 'local' },
-  commandName: string,
   args: string,
   context: ProcessUserInputContext,
   uuid?: UUID,
