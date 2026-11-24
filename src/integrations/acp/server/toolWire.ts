@@ -1,8 +1,7 @@
 import type { TaskStatus } from '../../../engine/task-framework/tasks.js'
-import { readFileSync } from 'node:fs'
 import { getContextWindowForModel } from '../../../models/facts/capabilities.js'
 import type { TurnEndDetail } from '../childSession.js'
-import { passedOver } from '../../../platform/errors/passedOver.js'
+import { readFileOrNull } from '../../../platform/files/syncFileRead.js'
 
 type AcpToolKind =
   | 'read'
@@ -98,15 +97,6 @@ export function toolDiffsOf(
     return [{ path: i.file_path, oldText: before, newText: i.content }]
   }
   return []
-}
-
-function readFileOrNull(path: string): string | null {
-  try {
-    return readFileSync(path, 'utf8')
-  } catch (error) {
-    passedOver(error)
-    return null
-  }
 }
 
 export const TOOL_OUTPUT_WIRE_LIMIT = 16_000

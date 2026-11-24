@@ -1,6 +1,5 @@
-import { readFileSync } from 'node:fs'
 import { availableParallelism, cpus, platform } from 'node:os'
-import { passedOver } from '../errors/passedOver.js'
+import { readFileOrNull } from '../files/syncFileRead.js'
 
 const CGROUP_V2_CPU_MAX = '/sys/fs/cgroup/cpu.max'
 const CGROUP_V1_QUOTA = '/sys/fs/cgroup/cpu/cpu.cfs_quota_us'
@@ -40,15 +39,6 @@ export function resolveAvailableCores(facts: { hostCores: number; affinityCores?
   return Math.max(1, cores)
 }
 
-function readOrNull(path: string): string | null {
-  try {
-    return readFileSync(path, 'utf8')
-  } catch (error) {
-    passedOver(error)
-    return null
-  }
-}
-
 let memo: number | null = null
 
 export function availableCores(): number {
@@ -63,9 +53,9 @@ export function availableCores(): number {
   const quotaCores =
     platform() === 'linux'
       ? coresFromCgroupQuota({
-          cpuMaxText: readOrNull(CGROUP_V2_CPU_MAX),
-          cfsQuotaUs: readOrNull(CGROUP_V1_QUOTA),
-          cfsPeriodUs: readOrNull(CGROUP_V1_PERIOD),
+          cpuMaxText: readFileOrNull(CGROUP_V2_CPU_MAX),
+          cfsQuotaUs: readFileOrNull(CGROUP_V1_QUOTA),
+          cfsPeriodUs: readFileOrNull(CGROUP_V1_PERIOD),
         })
       : null
   memo = resolveAvailableCores({ hostCores, affinityCores, quotaCores })

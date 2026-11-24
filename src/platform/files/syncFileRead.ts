@@ -1,4 +1,5 @@
 import type { Stats } from 'fs'
+import { readFileSync as readNodeFileSync } from 'node:fs'
 import { logForDebugging } from '../logs/debugLog.js'
 import { getFsImplementation, safeResolvePath, type FsOperations } from './fsOperations.js'
 import { passedOver } from '../errors/passedOver.js'
@@ -73,4 +74,13 @@ export function readFileSyncWithMetadata(filePath: string): {
 
 export function readFileSync(filePath: string): string {
   return readFileSyncWithMetadata(filePath).content
+}
+
+export function readFileOrNull(path: string): string | null {
+  try {
+    return readNodeFileSync(path, 'utf8')
+  } catch (error) {
+    passedOver(error)
+    return null
+  }
 }
