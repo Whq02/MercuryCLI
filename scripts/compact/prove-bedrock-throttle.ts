@@ -4,7 +4,7 @@ process.env.NODE_ENV = 'test'
 const { classifyOverflowFault } = await import('../../src/engine/requests/overflowSignal.js')
 const { mapCompatHttpFailure } = await import('../../src/models/roads/openaicompat/compatChatClient.js')
 const { compatFaultToTypedError } = await import('../../src/models/roads/openaicompat/compatChatCallModel.js')
-const { classifyAPIError, getAssistantMessageFromError } = await import('../../src/engine/requests/apiErrorRows.js')
+const { getAssistantMessageFromError } = await import('../../src/engine/requests/apiErrorRows.js')
 const { isRetryableError } = await import('../../src/engine/requests/withRetry.js')
 const { APIError } = await import('../../src/engine/request-parts/sdkErrors.js')
 const failures: string[] = []
@@ -21,7 +21,6 @@ for (const row of [
   if (fault.retryAfterMs !== 2000) failures.push('Retry-After was lost')
   if (classifyOverflowFault({ family: 'openai-compat', ...fault }) !== null) failures.push(`overflow: ${JSON.stringify(row)}`)
   const error = new APIError(400, row.body as never, row.body.message, headers)
-  if (classifyAPIError(error) !== 'rate_limit') failures.push(`home classification: ${JSON.stringify(row)}`)
   if (!isRetryableError(error)) failures.push(`home retry: ${JSON.stringify(row)}`)
   if (getAssistantMessageFromError(error, 'stranger/gateway').error !== 'rate_limit') failures.push(`home result: ${JSON.stringify(row)}`)
 }

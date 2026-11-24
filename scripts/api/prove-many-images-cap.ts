@@ -273,8 +273,6 @@ section('§5 the refusal words name the limit the provider stated; that conversa
   check('a conversation that was never refused still carries its 2880x1800 image untouched after another conversation\'s refusal (no process-wide clamp)', other.errors.length === 0 && seen.some(image => image.width === 2880 && image.data === retina.toString('base64')), seen.map(i => `${i.width}x${i.height}`).join(' '))
   const single = rowFor(singleImageSentence)
   check('the single-image refusal still names the 8000 px per-side limit', single.includes('8000px on any side'), single)
-  check('both sentences read as media-size errors', errorsMod.isMediaSizeError(manyImageSentence) && errorsMod.isMediaSizeError(singleImageSentence))
-  check('the many-image sentence classifies as image_too_large', errorsMod.classifyAPIError(new APIError(400, { type: 'error', error: { type: 'invalid_request_error', message: manyImageSentence } } as never, undefined, undefined as never)) === 'image_too_large')
 }
 
 await fixture.close()

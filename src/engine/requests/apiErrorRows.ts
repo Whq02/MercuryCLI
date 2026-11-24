@@ -16,14 +16,13 @@ import { createAssistantAPIErrorMessage } from '../message-shapes/factories.js'
 import { jsonStringify } from '../../platform/logs/slowOperations.js'
 import { anthropicCarryWords, anthropicRefusalFactsOf, classifyAnthropicRefusal } from '../../models/roads/anthropicRefusal.js'
 import { clientContractGateText, modelRefusalFromError, noteModelRefusal, type ModelRefusalRequest } from '../../models/roads/anthropic/modelRefusal.js'
-import { classifyCredentialWall, credentialWallLine, isRevokedSignInText, type WireCredentialKind } from '../../models/roads/credentialWall.js'
+import { classifyCredentialWall, credentialWallLine, type WireCredentialKind } from '../../models/roads/credentialWall.js'
 import { classifyOverflowFault, type OverflowFamily } from './overflowSignal.js'
 import type { AnthropicLimits, OverageDisabledReason, QuotaStatus } from '../../models/roads/anthropic/anthropicLimits.js'
 import { getRateLimitErrorMessage, rateLimitTypeOfClaim } from '../../models/roads/anthropic/anthropicLimits.js'
 import { composeAnthropicWallRemedies } from '../../models/roads/anthropic/rateLimitMessages.js'
 import { shouldProcessRateLimits } from '../../models/roads/anthropic/rateLimitMocking.js'
 import {
-  extractConnectionErrorDetails as connectionDetailsFor,
   formatAPIError as formatConnectionFallback,
 } from './apiErrorDetails.js'
 import { retryAfterHeaderMs, errorHeaders } from './retryAfter.js'
@@ -135,12 +134,7 @@ export const CUSTOM_OFF_SWITCH_MESSAGE =
 
 export const API_TIMEOUT_ERROR_MESSAGE =
   'Request timed out. Check your internet connection and proxy settings.'
-
-const SDK_REQUEST_ABORTED_MESSAGE = 'Request was aborted.'
-
-const OVERLOADED_TYPE_MARKER = '"type":"overloaded_error"'
 const ADJACENCY_PHRASE = '`tool_use` ids were found without `tool_result` blocks immediately after'
-const UNEXPECTED_TOOL_RESULT_PHRASE = 'unexpected `tool_use_id` found in `tool_result`'
 const DUPLICATE_TOOL_USE_PHRASE = '`tool_use` ids must be unique'
 const PDF_PASSWORD_PHRASE = 'The PDF specified is password protected'
 const PDF_INVALID_PHRASE = 'The PDF specified was not valid'
@@ -352,13 +346,6 @@ export function getPromptTooLongTokenGap(msg: Message): number | undefined {
 
 function isManyImageRefusal(raw: string): boolean {
   return /many[- ]images?\b/i.test(raw)
-}
-
-export function isMediaSizeError(raw: string): boolean {
-  if (raw.includes('image exceeds') && raw.includes('maximum')) return true
-  if (raw.includes('image dimensions exceed') && isManyImageRefusal(raw)) return true
-  if (raw.includes('image dimensions exceed') && raw.includes('max allowed size')) return true
-  return PDF_PAGES_PATTERN.test(raw)
 }
 
 
@@ -786,49 +773,6 @@ function overflowFamilyOfModel(model: string): OverflowFamily {
     logError(new Error(`overflowFamilyOfModel: ${error instanceof Error ? error.message : String(error)}`))
     return 'unknown'
   }
-}
-
-
-export function classifyAPIError(error: unknown): string {
-  const message = messageOf(error)
-  const status = statusOf(error)
-  const lower = message.toLowerCase()
-
-  if (message === SDK_REQUEST_ABORTED_MESSAGE) return 'aborted'
-  if (isTimeoutError(error)) return 'api_timeout'
-  if (message.includes(REPEATED_529_ERROR_MESSAGE)) return 'repeated_529'
-  if (message.includes(CUSTOM_OFF_SWITCH_MESSAGE)) return 'capacity_off_switch'
-  if (status === 429 || isBedrockThrottle(error)) return 'rate_limit'
-  if (status === 529 || message.includes(OVERLOADED_TYPE_MARKER)) return 'server_overload'
-  if (lower.includes(PROMPT_TOO_LONG_ERROR_MESSAGE.toLowerCase())) return 'prompt_too_long'
-  if (PDF_PAGES_PATTERN.test(message)) return 'pdf_too_large'
-  if (message.includes(PDF_PASSWORD_PHRASE)) return 'pdf_password_protected'
-  if (
-    (message.includes('image exceeds') && message.includes('maximum')) ||
-    (message.includes('image dimensions exceed') && isManyImageRefusal(message))
-  ) {
-    return 'image_too_large'
-  }
-  if (message.includes(ADJACENCY_PHRASE)) return 'tool_use_mismatch'
-  if (status === 400 && message.includes(UNEXPECTED_TOOL_RESULT_PHRASE)) {
-    return 'unexpected_tool_result'
-  }
-  if (message.includes(DUPLICATE_TOOL_USE_PHRASE)) return 'duplicate_tool_use_id'
-  if (lower.includes('invalid model name')) return 'invalid_model'
-  if (lower.includes(CREDIT_BALANCE_TOO_LOW_ERROR_MESSAGE.toLowerCase())) {
-    return 'credit_balance_low'
-  }
-  if (lower.includes('x-api-key')) return 'invalid_api_key'
-  if (isRevokedSignInText(message)) return 'token_revoked'
-  if (status === 401 || status === 403) return 'auth_error'
-  if (error instanceof APIError && typeof status === 'number') {
-    if (status >= 500) return 'server_error'
-    if (status >= 400) return 'client_error'
-  }
-  const details = connectionDetailsFor(error)
-  if (details?.isSSLError) return 'ssl_cert_error'
-  if (isConnectionError(error) || details !== null) return 'connection_error'
-  return 'unknown'
 }
 
 

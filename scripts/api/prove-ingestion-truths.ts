@@ -84,32 +84,6 @@ section('§1 N-04 · NATIVE TOOL-RESULT IMAGES CLAMPED AT THE ONE BOUNDARY')
 
 }
 
-section('§2 N-04 · THE SINGLE-IMAGE DIMENSION 400 MATCHER')
-{
-  const { isMediaSizeError } = await import('../../src/engine/requests/apiErrorRows.ts')
-  check(
-    'the field phrasing now matches (single-image "max allowed size")',
-    isMediaSizeError(
-      'messages.5.content.237.image.source.base64.data: image dimensions exceed max allowed size: 8412 pixels > 8000 pixels',
-    ),
-    '',
-    'isMediaSizeError in src/engine/requests/apiErrorRows.ts must match the single-image phrase max allowed size',
-  )
-  check(
-    'the byte-size phrasing still matches',
-    isMediaSizeError('image exceeds 5 MB maximum: 5316852 bytes > 5242880 bytes'),
-    '',
-    'isMediaSizeError in src/engine/requests/apiErrorRows.ts must still match the byte-size phrase',
-  )
-  check(
-    'the many-image phrasing still matches',
-    isMediaSizeError('image dimensions exceed the limit for many-image requests'),
-    '',
-    'isMediaSizeError in src/engine/requests/apiErrorRows.ts must still match the many-image phrase',
-  )
-  check('unrelated 400s still do NOT match', !isMediaSizeError('invalid_request: model not found'), '', 'isMediaSizeError in src/engine/requests/apiErrorRows.ts must not match a 400 that is not about media size')
-}
-
 section('§4 H-19 · ONE FILESYSTEM PERMISSION ENGINE ACROSS THE THREE TOOLS')
 {
 
