@@ -29,7 +29,7 @@ const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'shell-record-')))
 const userHome = join(scratch, 'user-home')
 mkdirSync(userHome)
 writeFileSync(join(userHome, '.bashrc'), "alias from_bashrc_alias='echo alias-from-bashrc'\nfrom_bashrc_fn() { echo fn-from-bashrc; }\nshopt -s nullglob\n")
-writeFileSync(join(userHome, '.zshrc'), "alias from_zshrc_alias='echo alias-from-zshrc'\n")
+writeFileSync(join(userHome, '.zshrc'), "alias from_zshrc_alias='echo alias-from-zshrc'\nalias ls='echo ls-from-zshrc'\n")
 process.env.HOME = userHome
 process.env.SHELL = '/bin/zsh'
 delete process.env.MERCURY_SHELL_ENGINE
@@ -122,9 +122,15 @@ if (road.origin !== 'engine') {
   const text = taken.text
   if (snapshot !== undefined) writeFileSync(join(scratch, 'snapshot.sh'), text)
   check('the snapshot is taken with the shell the record names and reads the user\'s bash files', snapshot !== undefined && basename(snapshot).startsWith('snapshot-bash-') && text.includes('alias -- from_bashrc_alias=') && text.includes('shopt -s nullglob') && text.includes('shopt -s expand_aliases'), text.slice(0, 300))
-  check('…and nothing the user wrote for zsh: no alias of ~/.zshrc, no option of zsh', !text.includes('from_zshrc_alias') && !text.includes('setopt'), text.split('\n').filter(line => line.includes('zsh')).join(' | '))
+  const zshRuns = spawnSync('zsh', ['-c', 'exit 0'], { encoding: 'utf8' }).status === 0
+  const zshWord = text.split('\n').find(line => line.includes('from_zshrc_alias')) ?? ''
+  check("…and of ~/.zshrc only the user's own word, behind the guard that asks the shell first, and no option of zsh", (zshRuns ? zshWord === "type -- 'from_zshrc_alias' >/dev/null 2>&1 || alias -- from_zshrc_alias='echo alias-from-zshrc'" : zshWord === '') && !text.includes('setopt'), `zsh runs here: ${zshRuns} · ${zshWord} · fix the appended alias lines of src/platform/shell/bash/shellSnapshot.ts`)
   const ran = spawnSync(road.path, ['-c', `source '${join(scratch, 'snapshot.sh')}' && eval 'from_bashrc_alias; from_bashrc_fn'`], { encoding: 'utf8', env: { PATH: '/usr/bin:/bin', HOME: userHome } })
   check('a command that sources it runs the alias and the function of ~/.bashrc', ran.stdout === 'alias-from-bashrc\nfn-from-bashrc\n', `${JSON.stringify(ran.stdout)} ${ran.stderr.slice(0, 200)}`)
+  if (zshRuns) {
+    const own = spawnSync(road.path, ['-c', `source '${join(scratch, 'snapshot.sh')}' && eval 'from_zshrc_alias; ls -d /'`], { encoding: 'utf8', env: { PATH: '/usr/bin:/bin', HOME: userHome } })
+    check("…and the user's own word of ~/.zshrc, while ls stays ls though ~/.zshrc gives it another meaning", own.stdout === 'alias-from-zshrc\n/\n', `${JSON.stringify(own.stdout)} ${own.stderr.slice(0, 200)} · a word the tool shell already knows is never redefined: src/platform/shell/bash/shellSnapshot.ts`)
+  }
 }
 
 section('(4) the sentence a bash before 4.0 is given, held to what that bash does')
