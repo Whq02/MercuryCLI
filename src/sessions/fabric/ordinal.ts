@@ -19,25 +19,8 @@ export const ordinalOf = (n: number): Ordinal => {
   return s as Ordinal
 }
 
-export function compareOrdinals(a: Ordinal, b: Ordinal): -1 | 0 | 1 {
-  const na = Number(a)
-  const nb = Number(b)
-  return na < nb ? -1 : na > nb ? 1 : 0
-}
-
 export function nextOrdinal(maxPublished: Ordinal | null): Ordinal {
   if (maxPublished === null) return '1' as Ordinal
   return String(Math.floor(Number(maxPublished)) + 1) as Ordinal
 }
 
-export function betweenOrdinals(a: Ordinal, b: Ordinal): Ordinal {
-  const na = Number(a)
-  const nb = Number(b)
-  if (!(na < nb)) throw new Error(`no room between ordinals ${a} and ${b}`)
-  const mid = (na + nb) / 2
-  const s = String(mid)
-  if (!ORDINAL_RE.test(s) || !(na < mid && mid < nb)) {
-    throw new Error(`ordinal bisection exhausted between ${a} and ${b}`)
-  }
-  return s as Ordinal
-}

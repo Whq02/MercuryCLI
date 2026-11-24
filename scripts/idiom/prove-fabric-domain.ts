@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
 
-const { asOrdinal, betweenOrdinals, compareOrdinals, nextOrdinal, ordinalOf } = await import(
+const { asOrdinal, nextOrdinal, ordinalOf } = await import(
   '../../src/sessions/fabric/ordinal.js'
 )
 const { entryToRecord, recordToEntry } = await import('../../src/sessions/fabric/entryCodec.js')
@@ -67,8 +67,6 @@ section('§A ordinal codec laws')
   check('canonical forms accepted', (() => { asOrdinal('0'); asOrdinal('7'); asOrdinal('7.5'); return true })())
   check('non-canonical rejected', (() => { try { asOrdinal('07'); return false } catch {  } try { asOrdinal('7.50'); return false } catch {  } try { asOrdinal('-1'); return false } catch { return true } })())
   check('restart-safe next: floor(tail)+1', nextOrdinal(asOrdinal('7.5')) === '8' && nextOrdinal(null) === '1')
-  const mid = betweenOrdinals(asOrdinal('7'), asOrdinal('8'))
-  check('insertion bisects between neighbors', compareOrdinals(asOrdinal('7'), mid) === -1 && compareOrdinals(mid, asOrdinal('8')) === -1)
 }
 
 section('§B codec exhaustiveness — every entry variant round-trips')
