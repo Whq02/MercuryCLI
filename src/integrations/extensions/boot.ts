@@ -10,8 +10,6 @@ import { setExtensionKeybindingLayer } from '../../screen/keys/loadUserBindings.
 import { getExtensionKeybindingBlocks } from './load/keybindings.js'
 import { logAct } from './records.js'
 import { bootExtensions, reloadExtensions, type ReloadResult } from './reload.js'
-import { activeEntries } from './roster.js'
-
 
 let bootPromise: Promise<ReloadResult> | null = null
 
@@ -95,8 +93,10 @@ type ExtensionsHealthRow = HealthSummary & { problems: string[]; brokenReasons: 
 export function extensionsHealthRow(): ExtensionsHealthRow {
   const set = hasActiveSet() ? getActiveSet() : computeActiveSet()
   if (!hasActiveSet()) publishActiveSet(null)
-  const active = new Set(activeEntries(set.roster.entries).map(e => e.id))
-  const rows = set.roster.entries.map(entry => ({ id: entry.id, active: active.has(entry.id), health: set.healthById.get(entry.id) ?? null }))
+  const rows = set.roster.entries.map(entry => {
+    const health = set.healthById.get(entry.id) ?? null
+    return { id: entry.id, active: health !== null, health }
+  })
   const summary = summariseHealth(rows)
   const brokenReasons = rows.filter(r => r.health?.outcome === 'broken').map(r => ({ id: r.id, reason: r.health!.reasons[0] ?? 'broken' }))
   return { ...summary, problems: set.roster.problems, brokenReasons }

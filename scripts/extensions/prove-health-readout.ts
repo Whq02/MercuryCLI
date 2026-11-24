@@ -27,7 +27,7 @@ const boot = await import('../../src/integrations/extensions/boot.ts')
 const activeMod = await import('../../src/integrations/extensions/active.ts')
 const cli = await import('../../src/integrations/extensions/cli.ts')
 const manifestMod = await import('../../src/integrations/extensions/manifest.ts')
-
+const { extensionsCheck } = await import('../../src/platform/health/sections/runtime/services.ts')
 let failures = 0
 const WHERE_TO_FIX = 'change computeHealth in src/integrations/extensions/health.ts or resolveContributions in src/integrations/extensions/load/contributions.ts (the probes that write each reason); the /health row and the readiness rows come from extensionsHealthRow and extensionReadinessRows in src/integrations/extensions/boot.ts, the CLI row from listRows in src/integrations/extensions/cli.ts'
 function check(label: string, cond: boolean, detail = ''): void {
@@ -193,13 +193,35 @@ console.log('[4] one owner: the row, /health and readiness derive from the same 
   const partial = rows.find(r => r.id === 'partial-one@fixture-source')
   check('the CLI row carries the word and the first reason', partial !== undefined && partial.state.includes('partial') && partial.state.includes('·'), partial?.state)
   check('the CLI --json carries the FULL reason list', partial !== undefined && (partial.health?.reasons.length ?? 0) >= 3, String(partial?.health?.reasons.length))
+  {
+    const ksRec = records.installedOrEmpty()['kitchen-sink@fixture-source']!
+    writeFileSync(join(ksRec.path, 'mercury-extension.json'), JSON.stringify({ name: 'kitchen-sink' }))
+    activeMod.publishActiveSet(null)
+    const listed = cli.listRows().rows.find(r => r.id === 'kitchen-sink@fixture-source')
+    check(
+      'manifest-invalid installed extension shows broken in listRows',
+      listed !== undefined &&
+        listed.trust === 'on' &&
+        listed.health?.outcome === 'broken' &&
+        listed.state.includes('broken') &&
+        listed.state.includes('manifest invalid'),
+      JSON.stringify(listed),
+    )
+    const healthRes = await extensionsCheck().run()
+    check(
+      'extensionsCheck fails naming the manifest-invalid installed extension and its reason',
+      healthRes.status === 'fail' &&
+        healthRes.evidence.includes('kitchen-sink@fixture-source') &&
+        healthRes.evidence.includes('manifest invalid'),
+      JSON.stringify(healthRes),
+    )
+  }
   writeFileSync(paths.getInstalledFile(), '{ not json')
   const degraded = rosterMod.computeRoster({ cwd })
   check('a corrupt installed.json ⇒ empty roster + a problem line', degraded.entries.filter(e => e.home === 'installed').length === 0 && degraded.problems.length === 1, degraded.problems.join(' | '))
   const failRow = boot.extensionsHealthRow()
   check('/health fails naming the file', failRow.problems.length === 1 && failRow.problems[0]!.includes('installed.json'))
 }
-
 removeScratch(scratch)
 console.log(failures === 0 ? '\n ✅ HEALTH READOUT — GREEN' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)
