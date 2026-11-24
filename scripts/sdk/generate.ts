@@ -17,6 +17,7 @@ const ROOT = resolve(argValue('--root') ?? resolve(import.meta.dir, '..', '..'))
 const OUT_DIR = resolve(argValue('--out') ?? join(ROOT, 'sdk', 'src'))
 const PY_OUT = resolve(argValue('--python-out') ?? (argValue('--out') ? join(OUT_DIR, 'python') : join(ROOT, 'sdk-py', 'src', 'mercury_cli_sdk')))
 const WIRE = 'src/daemon/runner-wire/methods.ts'
+const SESSION_VERBS = 'src/daemon/runner-wire/sessionVerbs.ts'
 const ERRORS = 'src/daemon/runner-wire/errors.ts'
 const RESULT_SOURCES = [RESULT_SCHEMA_SOURCES.projections, 'src/engine/connector/types.ts', RESULT_SCHEMA_SOURCES.encoders, RESULT_SCHEMA_SOURCES.protocol, RESULT_SCHEMA_SOURCES.arms, 'scripts/sdk/result-schemas.ts']
 const VOCABULARY = 'src/engine/rows/vocabulary.ts'
@@ -29,7 +30,7 @@ const ROW = {
   assets: 'sdk/src/rows.ts sdk/src/door.ts sdk/src/wire.ts sdk-py/src/mercury_cli_sdk/generated.py sdk/README.md sdk-py/README.md',
   generator: `bun ${GENERATOR}`,
   check: 'bun scripts/sdk/prove-rows-drift.ts',
-  sources: `${RESULT_SOURCES.join(' ')} ${VOCABULARY} ${PERMISSIONS} ${EFFORT} ${MAIN_SOURCES.join(' ')} ${WIRE} ${ERRORS} src/permissions/rules/permissionMode.ts src/permissions/rules/PermissionUpdateSchema.ts src/engine/message-shapes/message.ts src/platform/async/deadline.ts src/platform/primitives/lazySchema.ts src/screen/theme/glyphs.ts src/screen/renderer/stringWidth.ts src/screen/renderer/wrap-text.ts src/screen/renderer/wrapAnsi.ts src/platform/text/textSegments.ts src/platform/text/sliceAnsi.ts src/platform/text/truncate.ts`,
+  sources: `${RESULT_SOURCES.join(' ')} ${VOCABULARY} ${PERMISSIONS} ${EFFORT} ${MAIN_SOURCES.join(' ')} ${WIRE} ${SESSION_VERBS} ${ERRORS} src/permissions/rules/permissionMode.ts src/permissions/rules/PermissionUpdateSchema.ts src/engine/message-shapes/message.ts src/platform/async/deadline.ts src/platform/primitives/lazySchema.ts src/screen/theme/glyphs.ts src/screen/renderer/stringWidth.ts src/screen/renderer/wrap-text.ts src/screen/renderer/wrapAnsi.ts src/platform/text/textSegments.ts src/platform/text/sliceAnsi.ts src/platform/text/truncate.ts`,
 }
 if (argv.includes('--register')) {
   const { registerGeneratedAsset } = (await import(join(ROOT, 'scripts/lib/generated-assets-map.mjs'))) as { registerGeneratedAsset: (row: typeof ROW) => { action: string; line: string } }
@@ -371,7 +372,7 @@ const methodSchemas = Object.fromEntries(Object.entries(wireSource.METHODS).map(
 }]))
 const resultShapes = await resultSchemas(ROOT)
 for (const [method, schema] of Object.entries(resultShapes)) audit(schema, method)
-const wire = [`export const WIRE_GENERATED = '${MARK}'`, `export const WIRE_GENERATED_FROM = [${[WIRE, ERRORS, VOCABULARY, ...RESULT_SOURCES].map(literal).join(', ')}] as const`, "import type * as Rows from './rows.js'", "import type { JsonSchema } from './rows.js'", `export const RUNNER_PROTOCOL = ${wireSource.RUNNER_PROTOCOL} as const`]
+const wire = [`export const WIRE_GENERATED = '${MARK}'`, `export const WIRE_GENERATED_FROM = [${[WIRE, SESSION_VERBS, ERRORS, VOCABULARY, ...RESULT_SOURCES].map(literal).join(', ')}] as const`, "import type * as Rows from './rows.js'", "import type { JsonSchema } from './rows.js'", `export const RUNNER_PROTOCOL = ${wireSource.RUNNER_PROTOCOL} as const`]
 for (const [name, value] of Object.entries(wireErrors)) if (/^(RPC_\w+|BAD_LINE_LIMIT|MAX_LINE_BYTES|REFUSAL_KINDS)$/.test(name) && typeof value !== 'function') wire.push(`export const ${name} = ${JSON.stringify(value)} as const`)
 const rowRefs = new Set([...named.values()].map(e => e.typeName))
 const wireType = (schema: Schema): string => typeOf(schema, '', true).replace(/\b[A-Za-z]\w*\b/g, word => rowRefs.has(word) ? `Rows.${word}` : word)
@@ -385,7 +386,7 @@ for (const [alias, side, kind] of [['HostRequestName', 'host', 'request'], ['Hos
 wire.push('export type MethodSchema = { from: string; kind: string; scope: string; deadlineMs: number | null; capability?: string; params: JsonSchema; result: JsonSchema }')
 wire.push(`export const METHODS: Record<MethodName, MethodSchema> = ${JSON.stringify(methodSchemas, null, 2)}`, '')
 const py = ['from __future__ import annotations', 'import json', 'from typing import Any, Callable, Generic, Literal, NotRequired, TypeAlias, TypeVar, TypedDict, overload', '']
-py.push(`GENERATED = ${JSON.stringify(MARK)}`, `GENERATED_BY = ${JSON.stringify(GENERATOR)}`, `GENERATED_FROM = ${JSON.stringify([VOCABULARY, WIRE, ERRORS, PERMISSIONS, EFFORT, MAIN, ...RESULT_SOURCES])}`, '')
+py.push(`GENERATED = ${JSON.stringify(MARK)}`, `GENERATED_BY = ${JSON.stringify(GENERATOR)}`, `GENERATED_FROM = ${JSON.stringify([VOCABULARY, WIRE, SESSION_VERBS, ERRORS, PERMISSIONS, EFFORT, MAIN, ...RESULT_SOURCES])}`, '')
 const pyNames: string[] = ['GENERATED', 'GENERATED_BY', 'GENERATED_FROM']
 const pyLit = (value: unknown): string => value === null ? 'None' : value === true ? 'True' : value === false ? 'False' : JSON.stringify(value)
 function pyType(schema: Schema, name: string, top = false): string {
