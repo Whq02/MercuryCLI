@@ -6,6 +6,8 @@ import { isDeepStrictEqual } from 'node:util'
 import { z } from 'zod/v4'
 import { buildTool, type Tool, type ToolEffect, type ToolUseContext } from '../kit/tool.js'
 import { getInitializationStatus, getLspServerManager, isLspToolMounted, waitForInitialization } from '../../integrations/lsp/serverManagerLifecycle.js'
+import { claimDiagnosticsLook } from '../../integrations/lsp/LSPDiagnosticRegistry.js'
+import { ownerFromToolUseContext } from '../../engine/run-owner/resolveOwner.js'
 import { clearLspCall, LSP_TRIES_BEFORE_REFUSAL, lspCallKey, lspCallRefusal, lspCallSituation, lspLedgerNow, lspRefusalWindowMs, recordLspServerFault } from '../../integrations/lsp/failureLedger.js'
 import { lspStartFailureWords, remedyForLanguageServer, retryTimeWords, serverTitle, unclaimedCause } from '../../integrations/lsp/failureWords.js'
 import { LSP_FIRST_CALL_START_WAIT_MS, startedWithin, workspaceSymbolServer } from '../../integrations/lsp/firstCallServer.js'
@@ -500,6 +502,7 @@ async function runLspOperation(
       ...(input.targetPath !== undefined ? { targetPath: input.targetPath } : {}),
     }
     try {
+      if (absolutePath !== '' && !manager.isFileOpen(absolutePath)) claimDiagnosticsLook(absolutePath, ownerFromToolUseContext(context))
       const opOutput = await runMercuryLspOp({
         input: opInput,
         absolutePath,
@@ -569,6 +572,7 @@ async function runLspOperation(
       } finally {
         await handle.close()
       }
+      claimDiagnosticsLook(absolutePath, ownerFromToolUseContext(context))
       await manager.openFile(absolutePath, content)
     }
 

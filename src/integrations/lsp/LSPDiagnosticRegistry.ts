@@ -103,7 +103,9 @@ function laneOf(owner: OwnerKey | undefined): Lane {
 
 const laneKey = (lane: Lane): string => lane ?? ''
 
-const writers = new LRUCache<string, OwnerKey>({ max: MAX_TRACKED_FILES })
+type Claim = { owner: OwnerKey; kind: 'write' | 'look' }
+
+const writers = new LRUCache<string, Claim>({ max: MAX_TRACKED_FILES })
 const roots = new Map<OwnerKey, string>()
 const ended = new Set<OwnerKey>()
 
@@ -117,8 +119,8 @@ function underRoot(fileKey: string, root: string): boolean {
 }
 
 function laneForFile(fileKey: string): Lane | 'sunk' {
-  const writer = writers.peek(fileKey)
-  if (writer !== undefined) return writer
+  const claim = writers.peek(fileKey)
+  if (claim !== undefined) return claim.owner
   for (const [owner, root] of roots) {
     if (underRoot(fileKey, root)) return ended.has(owner) ? 'sunk' : owner
   }
@@ -130,8 +132,15 @@ function claimWriter(lane: Lane, fileKey: string): void {
     writers.delete(fileKey)
     return
   }
-  writers.set(fileKey, lane)
+  writers.set(fileKey, { owner: lane, kind: 'write' })
   ended.delete(lane)
+}
+
+export function claimDiagnosticsLook(path: string, owner?: OwnerKey): void {
+  const lane = laneOf(owner)
+  const fileKey = plainPathKey(path)
+  if (lane === null || writers.peek(fileKey) !== undefined) return
+  writers.set(fileKey, { owner: lane, kind: 'look' })
 }
 
 export function claimDiagnosticsRoot(owner: OwnerKey, root: string): void {
@@ -160,14 +169,19 @@ export function releaseDiagnosticsWriter(owner: OwnerKey, worktree?: string): vo
   const project = isOwnerKey(lane) ? normaliseRoot(parseOwnerKey(lane).workspace) : null
   const sinks = (fileKey: string): boolean => root !== undefined && underRoot(fileKey, root)
   const returns = (fileKey: string): boolean => project === null || underRoot(fileKey, project)
+  const looked = (fileKey: string): boolean => {
+    const claim = writers.peek(fileKey)
+    return claim !== undefined && claim.owner === lane && claim.kind === 'look'
+  }
+  const stays = (fileKey: string): boolean => looked(fileKey) || !returns(fileKey)
   let dropped = 0
   let handed = 0
   let held = 0
   for (const [pendingId, entry] of pending) {
     if (entry.owner !== lane) continue
     const standing = entry.files.filter(file => !sinks(plainPathKey(file.uri)))
-    const home = standing.filter(file => returns(plainPathKey(file.uri)))
-    const own = standing.filter(file => !returns(plainPathKey(file.uri)))
+    const home = standing.filter(file => !stays(plainPathKey(file.uri)))
+    const own = standing.filter(file => stays(plainPathKey(file.uri)))
     dropped += entry.files.length - standing.length
     handed += home.length
     held += own.length
@@ -183,7 +197,7 @@ export function releaseDiagnosticsWriter(owner: OwnerKey, worktree?: string): vo
     entry.files = home
     entry.owner = null
   }
-  for (const [fileKey, writer] of writers.entries()) if (writer === lane && (sinks(fileKey) || returns(fileKey))) writers.delete(fileKey)
+  for (const [fileKey, claim] of writers.entries()) if (claim.owner === lane && (sinks(fileKey) || returns(fileKey))) writers.delete(fileKey)
   for (const [fileKey, entry] of awaitingWrites) if (entry.owner === lane) awaitingWrites.delete(fileKey)
   if (root !== undefined) {
     roots.delete(lane)
@@ -458,7 +472,7 @@ export function _pendingForTesting(): Array<{ serverName: string; uris: string[]
 }
 
 export function _writerForTesting(path: string): OwnerKey | null {
-  return writers.peek(plainPathKey(path)) ?? null
+  return writers.peek(plainPathKey(path))?.owner ?? null
 }
 
 export function _publishListenerCountForTesting(): number {

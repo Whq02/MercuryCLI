@@ -172,6 +172,30 @@ try {
     check('…and the crewmate, running again, reads its own unread publish', uris(awayRows).includes(elsewhereOther) && messagesOf(awayRows).some(message => /not assignable to type 'number'/.test(message)), `${j(uris(awayRows))} ${j(messagesOf(awayRows))}; the unread publish must stay parked under the crewmate's own owner key`)
   }
 
+  section('§5 a crewmate that only looks at a file: the publish the look draws is its own, and its end hands the main thread nothing')
+  {
+    const looked = join(project, 'looked.ts')
+    const lookedText = "export const size: number = 'wide'\n"
+    writeFileSync(looked, lookedText)
+    const lookCtx = makeContext('agent-look')
+    const lookOwner = processOwnerForLane('agent-look')
+    const reported = awaitReportFor(looked, REPORT_WAIT_MS)
+    registry.claimDiagnosticsLook(looked, lookOwner)
+    await lspManager.getLspServerManager().openFile(looked, lookedText)
+    check('the server published for the file that was only opened', await reported)
+    check('the publish parks on the lane of the crewmate that looked', registry._pendingForTesting().some((entry: { uris: string[]; owner: string | null }) => entry.owner === lookOwner && entry.uris.some(uri => plain(uri) === looked)), `${j(registry._pendingForTesting())}; laneForFile in src/integrations/lsp/LSPDiagnosticRegistry.ts must route a publish to the seat whose look claimed the file`)
+    check('the main thread reads nothing of it while the looker lives', !uris(await drain(mainCtx)).includes(looked))
+    registry.releaseDiagnosticsWriter(lookOwner)
+    check('the look\'s claim ends with the run', registry._writerForTesting(looked) === null, String(registry._writerForTesting(looked)))
+    check('the end of a look hands the main thread nothing', !uris(await drain(mainCtx)).includes(looked), 'releaseDiagnosticsWriter must keep the unread publish of a file its seat only looked at under that seat\'s own owner key')
+    const lookRows = await drain(lookCtx)
+    check('…and the looker, running again, reads the publish its look drew', uris(lookRows).includes(looked) && messagesOf(lookRows).some(message => /not assignable to type 'number'/.test(message)), `${j(uris(lookRows))} ${j(messagesOf(lookRows))}`)
+    registry.claimDiagnosticsLook(wtMain)
+    registry.claimDiagnosticsLook(projectMain, lookOwner)
+    registry.claimDiagnosticsLook(projectMain, processOwnerForLane('agent-later'))
+    check('a look by the main thread claims nothing, and a later look leaves the standing claim alone', registry._writerForTesting(wtMain) === null && registry._writerForTesting(projectMain) === lookOwner, `${String(registry._writerForTesting(wtMain))} ${String(registry._writerForTesting(projectMain))}; claimDiagnosticsLook in src/integrations/lsp/LSPDiagnosticRegistry.ts must claim only for a crewmate's lane and only a file no seat has claimed`)
+  }
+
 } finally {
   registry.resetAllLSPDiagnosticState()
   await lspManager.shutdownLspServerManager()

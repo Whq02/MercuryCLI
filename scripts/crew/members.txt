@@ -25,6 +25,7 @@ prove-helper-rows-words.ts
 prove-launch-receipts.ts
 prove-launch-record-text.ts
 prove-lead-wake-after-dead-turn.ts
+prove-looked-at-file-diagnostics-reach-the-looker.ts
 prove-meta-notice-paints-no-row.ts
 prove-ndjson-child-settlement.ts
 prove-notices-sharing-a-turn-land.ts
