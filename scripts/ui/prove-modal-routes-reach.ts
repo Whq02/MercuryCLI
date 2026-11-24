@@ -48,6 +48,7 @@ saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: 
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false }))
 const pending = await import('../../src/screen/composer/input-core/pending-input.ts')
 const { default: instances } = await import('../../src/screen/renderer/instances.ts')
+const { painted } = await import('../lib/settingsPopupHarness.ts')
 const { getCommands } = await import('../../src/commands/catalogue/commands.ts')
 const { getEngineModel } = await import('../../src/models/catalogue/engineModel.ts')
 const settingsPopup = await import('../../src/screen/cockpit/settingsPopup.ts')
@@ -376,7 +377,7 @@ for (const command of routes) {
     const opening = frameLaws(`${label} open`, scene, cols, rows)
     save(`${command.name}-${cols}x${rows}-open`, opening)
     check(`${label}: the selection marker on open reads as the table says (${markerExpected(command.name, cols, 'open', opening) ? 'painted' : 'none'})`, markerPainted(opening, command.name) === markerExpected(command.name, cols, 'open', opening), describe(opening))
-    for (let index = 0; index < DOWNS; index++) { scene.push(DOWN); await sleep(60) }
+    for (let index = 0; index < DOWNS; index++) { scene.push(DOWN); await painted(60) }
     await settled(scene.lines)
     const moved = frameLaws(`${label} after ↓ ×${DOWNS}`, scene, cols, rows)
     save(`${command.name}-${cols}x${rows}-down`, moved)
@@ -389,7 +390,7 @@ for (const command of routes) {
   }
   const scene = await openRoute(command, 177, 49)
   if (scene === null) continue
-  for (let index = 0; index < 3; index++) { scene.push(DOWN); await sleep(60) }
+  for (let index = 0; index < 3; index++) { scene.push(DOWN); await painted(60) }
   await settled(scene.lines)
   for (const [cols, rows] of RESIZE_STOPS) {
     await scene.resize(cols, rows)
@@ -408,7 +409,7 @@ const critter = routes.find(command => command.name === 'critter')
 if (critter !== undefined) {
   const scene = await openRoute(critter, 64, 20)
   if (scene !== null) {
-    for (let index = 0; index < 2; index++) { scene.push(DOWN); await sleep(120) }
+    for (let index = 0; index < 2; index++) { scene.push(DOWN); await painted(120) }
     await settled(scene.lines)
     const frame = scene.lines()
     save('critter-64x20-down-2', frame)
@@ -418,7 +419,7 @@ if (critter !== undefined) {
   }
   const wide = await openRoute(critter, 177, 49)
   if (wide !== null) {
-    for (let index = 0; index < 2; index++) { wide.push(RIGHT); await sleep(120) }
+    for (let index = 0; index < 2; index++) { wide.push(RIGHT); await painted(120) }
     await settled(wide.lines)
     check('/critter 177x49: → ×2 selects the third card (the grid is one row there)', wide.lines().some(line => line.includes('[3] jellyfish')), describe(wide.lines()))
     for (const [cols, rows] of [[64, 20], [177, 49], [64, 20]] as Array<[number, number]>) {
@@ -435,7 +436,7 @@ const caching = routes.find(command => command.name === 'caching')
 if (caching !== undefined) {
   const scene = await openRoute(caching, 64, 20)
   if (scene !== null) {
-    for (let index = 0; index < 4; index++) { scene.push(DOWN); await sleep(120) }
+    for (let index = 0; index < 4; index++) { scene.push(DOWN); await painted(120) }
     await settled(scene.lines)
     const frame = scene.lines()
     save('caching-64x20-down-4', frame)
@@ -444,7 +445,7 @@ if (caching !== undefined) {
   }
   const wide = await openRoute(caching, 177, 49)
   if (wide !== null) {
-    for (let index = 0; index < 2; index++) { wide.push(DOWN); await sleep(120) }
+    for (let index = 0; index < 2; index++) { wide.push(DOWN); await painted(120) }
     await settled(wide.lines)
     check('/caching 177x49: ↓ ×2 selects the Gemini family', wide.lines().some(line => /▸ Gemini/.test(line)), describe(wide.lines()))
     const wrapped = (cols: number): number => cols >= 100 ? 3 : 6
