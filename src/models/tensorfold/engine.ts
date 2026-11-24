@@ -27,7 +27,7 @@ export type EngineIo = MachineIo & {
   adapter?: boolean | string
 }
 
-function executable(path: string): boolean {
+export function executable(path: string): boolean {
   try {
     accessSync(path, constants.X_OK)
     return true

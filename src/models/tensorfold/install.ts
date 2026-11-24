@@ -1,14 +1,13 @@
 import { spawn } from 'node:child_process'
-import { accessSync, constants, mkdirSync } from 'node:fs'
+import { mkdirSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { delimiter, join } from 'node:path'
 import { subprocessEnv } from '../../platform/processes/subprocessEnv.js'
 import { LLAMACPP_RELEASE, LLAMACPP_RUNTIME_BIN, LLAMACPP_WINDOWS_CPU_ASSET } from './adapter/identity.js'
 import type { TensorFoldEngine } from './contracts.js'
-import { TENSORFOLD_RUNTIME_FOLDER, engineServedByAdapter, tensorFoldCommand, tensorFoldCommandWords, type TensorFoldEngineFound } from './engine.js'
+import { TENSORFOLD_RUNTIME_FOLDER, engineServedByAdapter, executable, tensorFoldCommand, tensorFoldCommandWords, type TensorFoldEngineFound } from './engine.js'
 import type { TensorFoldMachineTruth } from './fit.js'
 import { TENSORFOLD_BREW_FORMULA, TENSORFOLD_RELEASE, TENSORFOLD_RELEASE_BASE } from './starting.js'
-import { passedOver } from '../../platform/errors/passedOver.js'
 import { hostEnv } from '../../platform/environment/hostEnv.js'
 import { tensorFoldMachineSupportKind, tensorFoldRuntimeDisplayPath } from '../../platform/host-os/tensorfold.js'
 
@@ -27,16 +26,6 @@ export type InstallIo = {
   env?: NodeJS.ProcessEnv
   home?: string
   exists?: (path: string) => boolean
-}
-
-function executable(path: string): boolean {
-  try {
-    accessSync(path, constants.X_OK)
-    return true
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
 }
 
 function findBrew(io: InstallIo = {}): string | undefined {

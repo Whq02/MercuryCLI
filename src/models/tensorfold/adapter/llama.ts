@@ -1,10 +1,10 @@
 import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { accessSync, constants, mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, join } from 'node:path'
 import { ADAPTER_VERSION, LLAMACPP_RELEASE, LLAMACPP_RUNTIME_BIN, LLAMACPP_WINDOWS_CPU_ASSET } from './identity.js'
-import { passedOver } from '../../../platform/errors/passedOver.js'
+import { executable } from '../engine.js'
 import { hostEnv } from '../../../platform/environment/hostEnv.js'
 import { envPathDirs, executableName } from '../../../platform/host-os/programs.js'
 
@@ -19,16 +19,6 @@ type LlamaIo = {
 export type LlamaServerVersion = { version?: string; build?: string; commit?: string }
 
 type LlamaServerFound = { binary: string } & LlamaServerVersion
-
-function executable(path: string): boolean {
-  try {
-    accessSync(path, constants.X_OK)
-    return true
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
-}
 
 export function llamaRuntimeBin(home: string = homedir()): string {
   return join(home, ...LLAMACPP_RUNTIME_BIN)

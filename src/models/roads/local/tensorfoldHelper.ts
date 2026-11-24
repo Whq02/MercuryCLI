@@ -1,4 +1,3 @@
-import { accessSync, constants } from 'node:fs'
 import { createServer } from 'node:net'
 import { totalmem } from 'node:os'
 import { getGlobalConfig, saveGlobalConfig } from '../../../platform/config/globalConfig.js'
@@ -55,16 +54,8 @@ export function __pinHelperReadsForTest(reads: { engineFound?: boolean; twoBOnDi
 
 export function tensorFoldEngineFound(reads: { candidates?: () => string[]; executable?: (path: string) => boolean; platform?: NodeJS.Platform } = {}): boolean {
   if (reads.candidates === undefined && reads.executable === undefined && reads.platform === undefined && engineFound !== undefined) return engineFound
-  const { tensorFoldBinaryCandidates } = require('../../tensorfold/engine.js') as typeof import('../../tensorfold/engine.js')
-  const executable = reads.executable ?? ((path: string): boolean => {
-    try {
-      accessSync(path, constants.X_OK)
-      return true
-    } catch (error) {
-      passedOver(error)
-      return false
-    }
-  })
+  const { tensorFoldBinaryCandidates, executable: engineExecutable } = require('../../tensorfold/engine.js') as typeof import('../../tensorfold/engine.js')
+  const executable = reads.executable ?? engineExecutable
   const found = (reads.candidates ?? (() => tensorFoldBinaryCandidates()))().some(executable) || (reads.platform ?? process.platform) === 'win32'
   if (reads.candidates === undefined && reads.executable === undefined && reads.platform === undefined) engineFound = found
   return found
@@ -72,16 +63,8 @@ export function tensorFoldEngineFound(reads: { candidates?: () => string[]; exec
 
 export function helperEngineIsAdapter(reads: { candidates?: () => string[]; executable?: (path: string) => boolean; platform?: NodeJS.Platform } = {}): boolean {
   if ((reads.platform ?? process.platform) !== 'win32') return false
-  const { tensorFoldBinaryCandidates } = require('../../tensorfold/engine.js') as typeof import('../../tensorfold/engine.js')
-  const executable = reads.executable ?? ((path: string): boolean => {
-    try {
-      accessSync(path, constants.X_OK)
-      return true
-    } catch (error) {
-      passedOver(error)
-      return false
-    }
-  })
+  const { tensorFoldBinaryCandidates, executable: engineExecutable } = require('../../tensorfold/engine.js') as typeof import('../../tensorfold/engine.js')
+  const executable = reads.executable ?? engineExecutable
   return !(reads.candidates ?? (() => tensorFoldBinaryCandidates()))().some(executable)
 }
 

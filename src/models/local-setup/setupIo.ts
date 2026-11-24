@@ -1,5 +1,5 @@
 import { execFile, spawn } from 'node:child_process'
-import { accessSync, closeSync, constants, existsSync, mkdirSync, openSync, realpathSync } from 'node:fs'
+import { closeSync, existsSync, mkdirSync, openSync, realpathSync } from 'node:fs'
 import { homedir, totalmem } from 'node:os'
 import { dirname, join } from 'node:path'
 import { getApiFetch } from '../../platform/network/proxy.js'
@@ -8,6 +8,7 @@ import { sleep } from '../../platform/async/sleep.js'
 import { writeLocalWindowSetting } from '../roads/local/localWindow.js'
 import { readLocalServerSettings } from '../local-server/localServerKnobs.js'
 import { readLocalMachineTruth, type LocalServerTruth } from '../local-server/localServerTruth.js'
+import { executable } from '../tensorfold/engine.js'
 import { persistModelChoice } from '../../commands/model/persistModelChoice.js'
 import { getEngineModel } from '../catalogue/engineModel.js'
 import { focusedSessionModelFacts, getFocusedSessionConnector } from '../../engine/connector/focusedConnector.js'
@@ -76,16 +77,6 @@ function lastLineOf(text: string): string {
 
 export function shellArgv(platform: NodeJS.Platform, command: string): string[] {
   return commandShellArgv(command, platform)
-}
-
-function executable(path: string): boolean {
-  try {
-    accessSync(path, constants.X_OK)
-    return true
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
 }
 
 function whichOnPath(name: string, env: NodeJS.ProcessEnv, platform: NodeJS.Platform, exists: (path: string) => boolean = executable): string | undefined {
