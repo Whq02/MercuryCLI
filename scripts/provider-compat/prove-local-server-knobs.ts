@@ -57,7 +57,7 @@ const modules = await (async () => {
 if (!modules) finish()
 check('the four files import', true)
 const { readLocalServerTruth, parseRunnerCommand, parseOllamaEnvLine, parseProcessTable, findServerProcess, parsePlist, parseSystemdOverride, parseEnvironBlock, HOMEBREW_OLLAMA_PLIST, SYSTEMD_OLLAMA_OVERRIDE, refreshLocalServerTruth, cachedLocalServerTruth, __resetLocalServerTruthForTest } = modules.truth
-const { kvGeometryOf, kvBytesPerToken, kvCacheBytes, loadEstimateBytes, projectLoad, gibWords, gbWords, fitWords, tokensWords } = modules.memory
+const { kvGeometryOf, kvBytesPerToken, kvCacheBytes, loadEstimateBytes, projectLoad, gibWords, gbWords, tokensWords } = modules.memory
 const { LOCAL_SERVER_KNOBS, localServerSettingsOf, parseKeepAlive, keepAliveWords, nextOnLadder, settingsAsEnv, knobReadings, knobValueWords, memoryFactsOf, knobDetailWords, MAX_LOADED_MODELS_LADDER, KEEP_ALIVE_LADDER, CONTEXT_LENGTH_LADDER, readLocalServerSettings, writeLocalServerSetting } = modules.knobs
 const { planLocalServerApply, applyLocalServerPlan, rewritePlistEnvironment, rewriteSystemdOverride, byHandLines, planWords } = modules.apply
 type Truth = import('../../src/models/local-server/localServerTruth.ts').LocalServerTruth
@@ -278,10 +278,10 @@ section('4 · the memory arithmetic: the three examples')
   check('the 27B at a 256k window loads as 24.7 GiB (16.2 GiB of weights + 8.5 GiB of cache)', gibWords(load27) === '24.7 GiB' && gibWords(WEIGHTS_27B) === '16.2 GiB', gibWords(load27))
   const load9 = loadEstimateBytes(WEIGHTS_9B, g9, 262144, 1, 'q8_0')
   check('the 9B at 256k projects 10.4 GiB before the runner buffers; /api/ps reports 11.4 GiB and that figure is the truth shown', gibWords(load9) === '10.4 GiB' && gibWords(LOADED_9B) === '11.4 GiB', `${gibWords(load9)} · ${gibWords(LOADED_9B)}`)
-  check('two loaded models on 48 GiB: 24.7 + 11.4 = 36.1 GiB fits', gibWords(LOADED_27B + LOADED_9B) === '36.1 GiB' && fitWords(LOADED_27B + LOADED_9B, 48 * GIB) === 'fits in 48.0 GiB')
+  check('two loaded models on 48 GiB: 24.7 + 11.4 = 36.1 GiB', gibWords(LOADED_27B + LOADED_9B) === '36.1 GiB')
   const crew32 = projectLoad({ name: 'qwen3.5:27b', weightsBytes: WEIGHTS_27B, geometry: g27 }, 32768, 7, 'q8_0')
   const crew256 = projectLoad({ name: 'qwen3.5:27b', weightsBytes: WEIGHTS_27B, geometry: g27 }, 262144, 7, 'q8_0')
-  check('seven slots at 32k on the 27B: one copy, 23.7 GiB, fits; seven 256k slots: 75.7 GiB, does not', gibWords(crew32.totalBytes) === '23.7 GiB' && fitWords(crew32.totalBytes, 48 * GIB).startsWith('fits') && gibWords(crew256.totalBytes) === '75.7 GiB' && fitWords(crew256.totalBytes, 48 * GIB) === 'does not fit in 48.0 GiB', `${gibWords(crew32.totalBytes)} · ${gibWords(crew256.totalBytes)}`)
+  check('seven slots at 32k on the 27B: one copy, 23.7 GiB; seven 256k slots: 75.7 GiB', gibWords(crew32.totalBytes) === '23.7 GiB' && gibWords(crew256.totalBytes) === '75.7 GiB', `${gibWords(crew32.totalBytes)} · ${gibWords(crew256.totalBytes)}`)
   check('a per-layer number (no array) multiplies by the block count; a missing architecture is undefined', kvGeometryOf({ 'general.architecture': 'llama', 'llama.block_count': 32, 'llama.attention.head_count': 32, 'llama.attention.head_count_kv': 8, 'llama.embedding_length': 4096 })?.kvHeads === 256 && kvGeometryOf({})?.kvHeads === undefined)
   check('tokensWords: 262144 → 256k, 32768 → 32k, 4096 → 4k, 5000 → 5000', tokensWords(262144) === '256k' && tokensWords(32768) === '32k' && tokensWords(4096) === '4k' && tokensWords(5000) === '5000')
 }

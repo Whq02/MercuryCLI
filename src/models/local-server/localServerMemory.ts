@@ -142,9 +142,3 @@ export function projectLoad(model: { name: string; weightsBytes: number; geometr
   const cacheBytes = kvCacheBytes(model.geometry, window, slots, cacheType)
   return { name: model.name, weightsBytes: model.weightsBytes, cacheBytes, totalBytes: model.weightsBytes + cacheBytes, window, slots }
 }
-
-export function fitWords(totalBytes: number, machineBytes: number): string {
-  if (totalBytes <= machineBytes * 0.9) return `fits in ${gibWords(machineBytes)}`
-  if (totalBytes <= machineBytes) return `fills ${gibWords(machineBytes)} (nothing left for the system)`
-  return `does not fit in ${gibWords(machineBytes)}`
-}
