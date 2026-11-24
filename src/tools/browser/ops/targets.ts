@@ -3,7 +3,7 @@ import { type CheckedTarget, approveWebOrigin, consumeCheckedActOrigin, originAp
 import type { OwnerKey } from '../../../engine/run-owner/ownerKey.js'
 import { type Input, WAIT_CAP_MS, WAIT_DEFAULT_MS } from './schema.js'
 import { isDriverTimeout } from './failures.js'
-import { type LiveSession, targetOrigin, targetSurface } from './page.js'
+import { type LiveSession, actOrigin, targetSurface } from './page.js'
 import { passedOver, passedOverAs } from '../../../platform/errors/passedOver.js'
 
 function framesDiagnosis(s: LiveSession): string {
@@ -43,7 +43,7 @@ export function replacedSinceCheck(op: string, s: LiveSession, bound: CheckedTar
 export async function actOriginGate(owner: OwnerKey, s: LiveSession, input: Input): Promise<string | null> {
   const op = input.op
   const checked = consumeCheckedActOrigin(owner, op)
-  const live = (await targetOrigin(s, input.frame))
+  const live = await actOrigin(s, input)
   const bound = checked?.bound ?? null
   const replaced = replacedSinceCheck(op, s, bound, targetSurface(s, input.frame))
   if (replaced !== null) return replaced

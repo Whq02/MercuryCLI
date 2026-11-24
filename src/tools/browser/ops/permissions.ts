@@ -21,7 +21,7 @@ import { ATTACH_OP, ATTACH_SCOPE_WORDS, ATTACH_SEES } from '../../../integration
 import type { PermissionRule, ToolPermissionContext } from '../../../permissions/rules/permissions.js'
 import { ACT_OPS, ATTACHED_ASK_OPS, type Input } from './schema.js'
 import { CRASH_OPEN_OPS } from './failures.js'
-import { sendOrigin, targetOrigin, targetSurface } from './page.js'
+import { actOrigin, sendOrigin, targetSurface } from './page.js'
 import { downloadAct, downloadVia } from './downloads.js'
 import { checkedTarget } from './targets.js'
 import { fileCount, judgeUploadSources } from './upload.js'
@@ -152,7 +152,7 @@ export async function checkBrowserPermissions(asked: Input, context: ToolUseCont
   let origin: string
   let bound: CheckedTarget
   try {
-    origin = sent === null ? (await targetOrigin(s, input.frame)) : sendOrigin(s)
+    origin = sent === null ? (await actOrigin(s, input)) : sendOrigin(s)
     bound = checkedTarget(s, sent === null ? targetSurface(s, input.frame) : s.page)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

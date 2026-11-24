@@ -191,12 +191,55 @@ export function targetSurface(s: LiveSession, frame: Input['frame']): Page | Fra
   return matches[0]!
 }
 
-export async function targetOrigin(s: LiveSession, frame: Input['frame']): Promise<string> {
-  const surface = targetSurface(s, frame)
+async function surfaceOrigin(s: LiveSession, surface: Page | Frame): Promise<string> {
   if (surface === s.page) return originOf(surface.url())
   const realm = (surface as Frame & { isolatedRealm(): Pick<Frame, 'evaluate'> }).isolatedRealm()
   const origin = await realm.evaluate(() => window.origin)
   return origin === 'null' ? 'opaque:' : originOf(origin)
+}
+
+export async function targetOrigin(s: LiveSession, frame: Input['frame']): Promise<string> {
+  return surfaceOrigin(s, targetSurface(s, frame))
+}
+
+type FramePoint = { x: number; y: number }
+
+async function innerFrameAt(frame: Frame, point: FramePoint | null): Promise<{ frame: Frame; point: FramePoint | null } | null> {
+  for (const child of frame.childFrames()) {
+    const holder = await child.frameElement()
+    if (holder === null) continue
+    const inside = await holder.evaluate((el, at) => {
+      if (at === null) {
+        let active: Element | null = document.activeElement
+        while (active?.shadowRoot?.activeElement) active = active.shadowRoot.activeElement
+        return active === el ? { x: 0, y: 0 } : null
+      }
+      let hit = document.elementFromPoint(at.x, at.y)
+      while (hit?.shadowRoot) {
+        const inner = hit.shadowRoot.elementFromPoint(at.x, at.y)
+        if (!inner || inner === hit) break
+        hit = inner
+      }
+      if (hit !== el) return null
+      const box = el.getBoundingClientRect()
+      return { x: at.x - box.x - el.clientLeft, y: at.y - box.y - el.clientTop }
+    }, point)
+    if (inside !== null) return { frame: child, point: point === null ? null : inside }
+  }
+  return null
+}
+
+export async function actOrigin(s: LiveSession, input: Input): Promise<string> {
+  const pointed = input.op === 'click' && !input.selector
+  if (!sessionAttached(s) || input.frame !== undefined || !(pointed || input.op === 'press')) return targetOrigin(s, input.frame)
+  const top = s.page.mainFrame()
+  let landing = { frame: top, point: pointed ? { x: input.x ?? 0, y: input.y ?? 0 } : null }
+  for (;;) {
+    const inner = await innerFrameAt(landing.frame, landing.point)
+    if (inner === null) break
+    landing = inner
+  }
+  return surfaceOrigin(s, landing.frame === top ? s.page : landing.frame)
 }
 
 export function sendOrigin(s: LiveSession): string {
