@@ -1,6 +1,6 @@
 import type { AttachmentMessage, Message } from '../../message-shapes/message.js'
 import { getTranscriptPath } from '../../../sessions/transcripts/paths.js'
-import { contextFill } from '../../context-window/contextTokenCount.js'
+import { contextFill, getTokenUsage } from '../../context-window/contextTokenCount.js'
 import { stripThinkingFromIndex } from '../../messages/apiFilters.js'
 import { estimateRequestGauge, readRequestGauge } from '../../run/requestGauge.js'
 import { renderFoldLedger, type FoldLedger } from '../foldLedger.js'
@@ -44,8 +44,58 @@ export function foldSizes(
   const standing = stripThinkingFromIndex(messages, 0)
   const whole = count(standing)
   const before = count(withoutSkillsList(standing))
-  const reading = contextFill(messages, model).source === 'usage' ? context : Math.min(context, whole)
+  const reading = contextFill(messages, model).source === 'usage'
+    ? Math.max(0, context - uncarriedThinkingInUsage(messages, model))
+    : Math.min(context, whole)
   return { before, after: landed => ({ tokens: contextAfterFold(reading, before, landed), estimate: landed + whole - before }) }
+}
+
+function uncarriedThinkingInUsage(messages: readonly Message[], model: string | undefined): number {
+  let boundaryIndex = -1
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const row = messages[index]
+    if (row?.type === 'system' && row.subtype === 'compact_boundary') {
+      boundaryIndex = index
+      break
+    }
+  }
+  let usageIndex = -1
+  let outputTokens = 0
+  for (let index = messages.length - 1; index > boundaryIndex; index--) {
+    const row = messages[index]
+    const usage = getTokenUsage(row)
+    if (usage !== undefined && row?.type === 'assistant') {
+      usageIndex = index
+      outputTokens = usage.output_tokens ?? 0
+      break
+    }
+  }
+  if (usageIndex === -1) return 0
+  const anchorRow = messages[usageIndex]
+  if (anchorRow?.type !== 'assistant') return 0
+  const responseId = anchorRow.message.id
+  const responseRows: Message[] = []
+  const tailRows: Message[] = []
+  for (let index = boundaryIndex + 1; index < messages.length; index++) {
+    const row = messages[index]
+    if (row === undefined) continue
+    if (row.type === 'assistant' && responseId !== '' && row.message.id === responseId) {
+      responseRows.push(row)
+    } else if (index > usageIndex) {
+      tailRows.push(row)
+    }
+  }
+  if (responseRows.length === 0) responseRows.push(anchorRow)
+  const rawResponse = estimateContextTokens(responseRows, model)
+  const rawVisible = estimateContextTokens(stripThinkingFromIndex(responseRows, 0), model)
+  const rawThinking = Math.max(0, rawResponse - rawVisible)
+  const anchorThinking = rawThinking > 0 && rawResponse > 0 && outputTokens > 0
+    ? Math.round(outputTokens * (rawThinking / rawResponse))
+    : 0
+  const tailThinking = tailRows.length > 0
+    ? Math.max(0, estimateContextTokens(tailRows, model) - estimateContextTokens(stripThinkingFromIndex(tailRows, 0), model))
+    : 0
+  return anchorThinking + tailThinking
 }
 
 function withoutSkillsList(rows: Message[]): Message[] {

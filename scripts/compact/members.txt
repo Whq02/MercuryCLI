@@ -109,3 +109,4 @@ prove-window-result-budgets.ts
 prove-window-turn-reserve.ts
 prove-summary-dollar-patterns.ts
 prove-manual-fold-estimate.ts
+prove-fold-receipt-matches-next-count.ts
