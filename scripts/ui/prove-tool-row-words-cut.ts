@@ -91,5 +91,17 @@ async function paint(node: React.ReactNode, width = 160): Promise<string> {
     JSON.stringify(block.content),
   )
 }
+
+{
+  const { GLYPH } = await import('../../src/screen/theme/glyphs.js')
+  const { renderToolResultMessage: renderMcpResult } = await import('../../src/tools/mcp/rows.tsx')
+  const screenText = await paint(renderMcpResult('x'.repeat(50_000), [], { verbose: false }))
+  const firstLine = (screenText.split('\n')[0] ?? '').trim().replace(/^└\s*/, '')
+  check(
+    'K-32 large MCP response flag reads only <warn> Large MCP response (~<n> tokens)',
+    firstLine.startsWith(`${GLYPH.warn} Large MCP response (~`) && firstLine.endsWith(' tokens)') && !firstLine.includes('eat context fast'),
+    JSON.stringify(firstLine),
+  )
+}
 console.log(`\ntool-row-words-cut: ${failures} failure(s)`)
 process.exit(failures ? 1 : 0)

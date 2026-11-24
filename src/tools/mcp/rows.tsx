@@ -172,7 +172,7 @@ export function renderToolResultMessage(
   const warning = estimatedTokens > LARGE_RESPONSE_TOKEN_THRESHOLD ? (
     <MessageResponse>
       <Text color="warning">
-        {`${GLYPH.warn} Large MCP response (~${formatNumber(estimatedTokens)} tokens) — responses this size eat context fast`}
+        {`${GLYPH.warn} Large MCP response (~${formatNumber(estimatedTokens)} tokens)`}
       </Text>
     </MessageResponse>
   ) : null
