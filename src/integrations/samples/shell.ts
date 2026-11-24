@@ -1,4 +1,5 @@
 import { SAMPLE_VERSIONS_POLL_MS, sampleStateWord, type SampleShellInput, type SampleState } from '../sample-contracts/contracts.js'
+import { escapeHtml } from './renderDoc.js'
 
 export function renderSampleShell(input: SampleShellInput): string {
   const { record, token } = input
@@ -91,15 +92,6 @@ function chipTone(state: SampleState): string {
 
 function jsonForScript(value: unknown): string {
   return JSON.stringify(value).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029')
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
 }
 
 const STYLE = String.raw`
