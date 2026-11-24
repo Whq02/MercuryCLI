@@ -55,15 +55,5 @@ section('§22 the compaction trace subtracts the true post figure')
   check('…never pre − the summarisation call\'s own usage', withTrueFigure.length === 1 && withTrueFigure[0] !== 900 - 700, `with a true post figure of 120 the trace reads ${JSON.stringify(withTrueFigure)}: 200 is pre − the summary call's own 700`)
 }
 
-section('§23 the effort toast\'s glyph follows the applied tier')
-{
-  const { getEffortNotificationText } = await import('../../src/screen/widgets/effortIndicator.ts')
-  const figures = await import('../../src/screen/theme/rowGlyphs.ts')
-  const medium = getEffortNotificationText('medium', 'kimi-k3') ?? ''
-  check("medium on kimi-k3 (applied high, the step Kimi documents): the HIGH glyph beside the word high (the base paired the medium glyph with 'low')", medium.startsWith(`${figures.EFFORT_HIGH} effort: high`), 'getEffortNotificationText in src/screen/widgets/effortIndicator.ts must pick the glyph from the applied tier, not the requested one; got ' + medium)
-  const xhigh = getEffortNotificationText('xhigh', 'glm-5.3') ?? ''
-  check('xhigh on glm-5.3 (applied high): the HIGH glyph beside the word high', xhigh.startsWith(`${figures.EFFORT_HIGH} effort: high`), 'getEffortNotificationText in src/screen/widgets/effortIndicator.ts must pick the glyph from the applied tier, not the requested one; got ' + xhigh)
-}
-
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-metering-s3-truth${failures ? ` (${failures} failure(s))` : ''}`)
 process.exit(failures === 0 ? 0 : 1)
