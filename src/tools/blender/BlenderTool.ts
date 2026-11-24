@@ -6,10 +6,10 @@ import { lazySchema } from '../../platform/primitives/lazySchema.js'
 import { getCwd } from '../../platform/files/cwd.js'
 import { getErrnoCode } from '../../platform/errors/errors.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
+import { probeLoopbackPortReachable } from '../../platform/network/loopbackReachable.js'
 import { checkReadPermissionForTool } from '../../permissions/rules/filesystem.js'
 import {
   getBlenderBridgeClient,
-  probeBlenderBridgeReachable,
   blenderBridgeHint,
 } from '../../integrations/blender/bridgeClient.js'
 import {
@@ -277,7 +277,7 @@ async function runOp(input: Input, abortSignal?: AbortSignal, trace?: RoadTrace)
   const client = getBlenderBridgeClient()
   const bridgeReachable =
     client !== null &&
-    (client.status() === 'ready' || (await probeBlenderBridgeReachable(port)))
+    (client.status() === 'ready' || (await probeLoopbackPortReachable(port)))
   if (!bridgeReachable) {
     const census = locateBlender()
     if (census.blender) {

@@ -6,7 +6,6 @@ import { BLENDER_BRIDGE_DEFAULT_PORT } from '../blender-protocol/bridgeProtocol.
 import { BLENDER_BRIDGE_DIGEST, BLENDER_BRIDGE_FILES } from './bridgeFiles.generated.js'
 import {
   getBlenderBridgeClient,
-  probeBlenderBridgeReachable,
   blenderBridgeHint,
 } from './bridgeClient.js'
 import { ensureBlenderBridgeToken, readBlenderBridgeToken } from './bridgeToken.js'
@@ -14,6 +13,7 @@ import { BLENDER_ADDON_MODULE, blenderVersionDir, resolveBlenderAddonHome } from
 import { probeBlenderHeadlessRuntime } from './headlessRunner.js'
 import { locateBlender } from '../blender-protocol/blenderProject.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
+import { probeLoopbackPortReachable } from '../../platform/network/loopbackReachable.js'
 
 export interface BlenderBridgeInstallStatus {
   installed: boolean
@@ -190,7 +190,7 @@ export async function describeBlenderBridgeStatus(): Promise<string> {
   )
   lines.push(`token file: ${readBlenderBridgeToken(home) ? 'present' : 'absent (blender_bridge_install writes it)'}`)
   const client = getBlenderBridgeClient()
-  const reachable = client?.status() === 'ready' ? true : await probeBlenderBridgeReachable(port)
+  const reachable = client?.status() === 'ready' ? true : await probeLoopbackPortReachable(port)
   lines.push(
     `bridge: ${reachable ? `answering on 127.0.0.1:${port}` : `not answering on 127.0.0.1:${port} — ${blenderBridgeHint(port)}`}`,
   )

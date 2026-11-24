@@ -1,10 +1,10 @@
 
 import * as path from 'node:path'
 import { getCwd } from '../../platform/files/cwd.js'
+import { probeLoopbackPortReachable } from '../../platform/network/loopbackReachable.js'
 import { unityBridgeEnabled, unityBridgePort } from '../unity-protocol/bridgeGates.js'
 import {
   getUnityBridgeClient,
-  probeUnityBridgeReachable,
   unityBridgeHint,
   type UnityBridgeResult,
 } from '../unity/bridgeClient.js'
@@ -96,7 +96,7 @@ async function probeBridgeState(root: string | undefined): Promise<UnityBridgeSt
       ? `the bridge token at ${tokenOutcome.path} could not be read (${tokenOutcome.error})`
       : undefined
   const client = getUnityBridgeClient()
-  const reachable = client?.status() === 'ready' ? true : await probeUnityBridgeReachable(port)
+  const reachable = client?.status() === 'ready' ? true : await probeLoopbackPortReachable(port)
   if (!reachable) {
     return {
       state: 'unreachable',

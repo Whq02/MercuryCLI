@@ -1,10 +1,10 @@
 
 import * as path from 'node:path'
 import { getCwd } from '../../platform/files/cwd.js'
+import { probeLoopbackPortReachable } from '../../platform/network/loopbackReachable.js'
 import { blenderBridgeEnabled, blenderBridgePort } from '../blender-protocol/bridgeGates.js'
 import {
   getBlenderBridgeClient,
-  probeBlenderBridgeReachable,
   blenderBridgeHint,
   type BlenderBridgeResult,
 } from '../blender/bridgeClient.js'
@@ -92,7 +92,7 @@ async function probeBridgeState(): Promise<BlenderBridgeState> {
       ? `the bridge token at ${tokenOutcome.path} could not be read (${tokenOutcome.error})`
       : undefined
   const client = getBlenderBridgeClient()
-  const reachable = client?.status() === 'ready' ? true : await probeBlenderBridgeReachable(port)
+  const reachable = client?.status() === 'ready' ? true : await probeLoopbackPortReachable(port)
   if (!reachable) {
     return {
       state: 'unreachable',

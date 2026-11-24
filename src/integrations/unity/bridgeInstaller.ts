@@ -4,7 +4,8 @@ import * as path from 'node:path'
 import { unityBridgeEnabled, unityBridgePort } from '../unity-protocol/bridgeGates.js'
 import { UNITY_BRIDGE_DEFAULT_PORT } from '../unity-protocol/bridgeProtocol.js'
 import { UNITY_BRIDGE_DIGEST, UNITY_BRIDGE_FILES } from './bridgeFiles.generated.js'
-import { getUnityBridgeClient, probeUnityBridgeReachable, unityBridgeHint } from './bridgeClient.js'
+import { probeLoopbackPortReachable } from '../../platform/network/loopbackReachable.js'
+import { getUnityBridgeClient, unityBridgeHint } from './bridgeClient.js'
 import { ensureUnityBridgeToken, readUnityBridgeToken, unityBridgeTokenPath } from './bridgeToken.js'
 
 const PACKAGE_DIR = path.join('Packages', 'com.mercury.unity-bridge')
@@ -98,7 +99,7 @@ export async function describeUnityBridgeStatus(projectRoot: string): Promise<st
   const s = unityBridgeInstallStatus(projectRoot)
   const port = unityBridgePort()
   const client = getUnityBridgeClient()
-  const reachable = client?.status() === 'ready' ? true : await probeUnityBridgeReachable(port)
+  const reachable = client?.status() === 'ready' ? true : await probeLoopbackPortReachable(port)
   const lines = [
     `flag: ${unityBridgeEnabled() ? 'armed (MERCURY_UNITY)' : 'OFF'} · project: ${projectRoot}`,
     `package: ${
