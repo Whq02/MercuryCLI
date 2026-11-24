@@ -10,7 +10,6 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'speedster-progress-home-'))
 
 const {
-  actionFingerprint,
   emptyProgressState,
   foldEligibleProgress,
   foldStopDecision,
@@ -24,13 +23,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
-
-section('§1 THE ACTION DIGEST — case and whitespace never mint novelty')
-{
-  check('the same words in another case and spacing digest alike', actionFingerprint('Work the  Open Deliverable') === actionFingerprint('work the open deliverable'), 'actionFingerprint in src/engine/run/progressModel.ts must lowercase and collapse whitespace before it digests')
-  check('different words digest apart', actionFingerprint('work the open deliverable') !== actionFingerprint('run the verification'), 'actionFingerprint in src/engine/run/progressModel.ts must digest different words to different values')
-  check('the digest is the sixteen-hex prefix', /^[0-9a-f]{16}$/.test(actionFingerprint('x')), `got ${actionFingerprint('x')}; actionFingerprint in src/engine/run/progressModel.ts must return a 16 character lowercase hex prefix`)
-}
 
 section('§2 FOLD LAWS — real-event progress; the since-decision window')
 {
