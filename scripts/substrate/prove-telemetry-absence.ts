@@ -132,6 +132,57 @@ try {
       ? `name=${schemaErr.name} keys=${Object.keys(schemaErr).join(',')} — make SchemaMismatchError extend Error without telemetrySafeMessage in src/tools/structured-output/StructuredOutputTool.ts`
       : 'did not throw SchemaMismatchError — check getSchemaBoundStructuredOutputTool in src/tools/structured-output/StructuredOutputTool.ts',
   )
+
+  console.log('\n§4 /health flux row, flag registry and lifecycle manifest call local records by what they are')
+  const prevProbe = process.env.MERCURY_FLUX_PROBE
+  delete process.env.MERCURY_FLUX_PROBE
+  try {
+    const { fluxChecks } = await import('../../src/platform/health/sections/flux.ts')
+    const fluxRes = await fluxChecks()[0]!.run()
+    const wantFlux = 'probe off (opt-in) — MERCURY_FLUX_PROBE=1 arms the local frame/latency probe; laws gate-enforced (scripts/streaming/)'
+    check(
+      'flux /health off-state evidence names the local frame/latency probe',
+      fluxRes.evidence === wantFlux,
+      `got ${JSON.stringify(fluxRes.evidence)} — update evidence in src/platform/health/sections/flux.ts`,
+    )
+  } finally {
+    if (prevProbe === undefined) delete process.env.MERCURY_FLUX_PROBE
+    else process.env.MERCURY_FLUX_PROBE = prevProbe
+  }
+
+  const { FLAG_REGISTRY } = await import('../../src/platform/substrate/flagRegistry.ts')
+  const nonessential = FLAG_REGISTRY.find(f => f.env === 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC')
+  check(
+    'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC summary drops surveys, analytics',
+    nonessential !== undefined && !nonessential.summary.includes('surveys, analytics') && nonessential.summary.includes('capability refreshes AND all model-catalogue traffic'),
+    `got ${JSON.stringify(nonessential?.summary)} — update MERCURY_DISABLE_NONESSENTIAL_TRAFFIC in src/platform/substrate/flags/permissions.ts`,
+  )
+  const accountUuid = FLAG_REGISTRY.find(f => f.env === 'MERCURY_ACCOUNT_UUID')
+  check(
+    'MERCURY_ACCOUNT_UUID summary says early account-info race',
+    accountUuid !== undefined && accountUuid.summary.includes('removes the early account-info race in env-token boots') && !accountUuid.summary.includes('early-telemetry'),
+    `got ${JSON.stringify(accountUuid?.summary)} — update MERCURY_ACCOUNT_UUID in src/platform/substrate/flags/accounts.ts`,
+  )
+  const maxOut = FLAG_REGISTRY.find(f => f.env === 'MERCURY_MAX_OUTPUT_TOKENS')
+  check(
+    'MERCURY_MAX_OUTPUT_TOKENS summary drops envPinned turn telemetry clause',
+    maxOut !== undefined && !maxOut.summary.includes('envPinned') && !maxOut.summary.includes('telemetry'),
+    `got ${JSON.stringify(maxOut?.summary)} — update MERCURY_MAX_OUTPUT_TOKENS in src/platform/substrate/flags/providers.ts`,
+  )
+
+  const { LIFECYCLE_MANIFEST } = await import('../../src/platform/substrate/stateLifecycle.ts')
+  const milestones = LIFECYCLE_MANIFEST.find(c => c.id === 'launch-milestones')
+  const invocation = LIFECYCLE_MANIFEST.find(c => c.id === 'invocation-capability-record')
+  check(
+    'launch-milestones retention says a local record only, never a boot dependency',
+    milestones !== undefined && milestones.retention.includes('a local record only, never a boot dependency') && !milestones.retention.includes('telemetry'),
+    `got ${JSON.stringify(milestones?.retention)} — update launch-milestones in src/platform/substrate/stateLifecycle.ts`,
+  )
+  check(
+    'invocation-capability-record retention says a local record only',
+    invocation !== undefined && invocation.retention.includes('a local record only') && !invocation.retention.includes('telemetry'),
+    `got ${JSON.stringify(invocation?.retention)} — update invocation-capability-record in src/platform/substrate/stateLifecycle.ts`,
+  )
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }

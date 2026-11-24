@@ -11,7 +11,7 @@ export function fluxChecks(): CheckSpec[] {
         if (!sum.enabled) {
           return {
             status: 'info' as const,
-            evidence: 'probe off (opt-in) — MERCURY_FLUX_PROBE=1 arms frame/latency telemetry; laws gate-enforced (scripts/streaming/)',
+            evidence: 'probe off (opt-in) — MERCURY_FLUX_PROBE=1 arms the local frame/latency probe; laws gate-enforced (scripts/streaming/)',
           }
         }
         const risk = sum.counters['stale-frame-risk'] ?? 0
