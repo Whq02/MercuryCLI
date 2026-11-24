@@ -63,24 +63,35 @@ function latestUserTaskText(messages: readonly Message[] | undefined): string | 
   return null
 }
 
-export function priorCapsuleFromTranscript(messages: readonly Message[] | undefined): PriorCapsule | null {
-  if (!messages) return null
+type CapsuleAttachment = Extract<Attachment, { type: 'context_capsule' }>
+
+function visibleCapsule(messages: readonly Message[] | undefined): CapsuleAttachment | undefined {
+  if (!messages) return undefined
   for (let i = messages.length - 1; i >= 0; i--) {
-    const m = messages[i] as {
-      type?: string
-      subtype?: string
-      attachment?: { type?: string; digest?: string; baseDigest?: string; refs?: string[]; semDigest?: string }
-    }
-    if (m?.type === 'system' && m.subtype === 'compact_boundary') return null
-    if (m?.type === 'attachment' && m.attachment?.type === 'context_capsule') {
-      return {
-        digest: m.attachment.baseDigest ?? m.attachment.digest ?? '',
-        refs: m.attachment.refs ?? [],
-        ...(m.attachment.semDigest !== undefined ? { semDigest: m.attachment.semDigest } : {}),
-      }
-    }
+    const message = messages[i]
+    if (!message) continue
+    if (message.type === 'system' && message.subtype === 'compact_boundary') return undefined
+    if (message.type === 'attachment' && message.attachment.type === 'context_capsule') return message.attachment
   }
-  return null
+  return undefined
+}
+
+function rememberAttached(ownerKey: string, digest: string, refs: string[]): void {
+  if (lastAttached.size > 64) {
+    const oldest = lastAttached.keys().next().value
+    if (oldest !== undefined) lastAttached.delete(oldest)
+  }
+  lastAttached.set(ownerKey, { digest, refs })
+}
+
+export function priorCapsuleFromTranscript(messages: readonly Message[] | undefined): PriorCapsule | null {
+  const capsule = visibleCapsule(messages)
+  if (!capsule) return null
+  return {
+    digest: capsule.baseDigest ?? capsule.digest,
+    refs: capsule.refs,
+    ...(capsule.semDigest !== undefined ? { semDigest: capsule.semDigest } : {}),
+  }
 }
 
 export function capsuleShouldEmit(
@@ -192,11 +203,7 @@ export async function getContextCapsuleAttachment(
     const unseen = capsule.items.filter(i => i.reason !== RECENTLY_OBSERVED_REASON).map(i => i.ref)
     if (!capsuleShouldEmit(prior, { digest: capsule.digest, semDigest, refs: unseen })) return []
     const delta = prior ? deltaLine(prior, refs) : null
-    if (lastAttached.size > 64) {
-      const oldest = lastAttached.keys().next().value
-      if (oldest !== undefined) lastAttached.delete(oldest)
-    }
-    lastAttached.set(String(laneOwner), { digest: capsule.digest, refs })
+    rememberAttached(String(laneOwner), capsule.digest, refs)
 
     return [
       {
@@ -212,17 +219,6 @@ export async function getContextCapsuleAttachment(
     passedOver(error)
     return []
   }
-}
-
-type CapsuleAttachment = Extract<Attachment, { type: 'context_capsule' }>
-
-function visibleCapsule(messages: readonly Message[] | undefined): CapsuleAttachment | undefined {
-  for (let i = (messages?.length ?? 0) - 1; i >= 0; i--) {
-    const message = messages![i]!
-    if (message.type === 'system' && message.subtype === 'compact_boundary') return undefined
-    if (message.type === 'attachment' && message.attachment.type === 'context_capsule') return message.attachment
-  }
-  return undefined
 }
 
 function capsuleBody(text: string): string {
@@ -304,11 +300,7 @@ export function foldAttachmentsIntoCapsule(
   }
   if (context) {
     const { ownerFromToolUseContext } = require('../run-owner/resolveOwner.js') as typeof import('../run-owner/resolveOwner.js')
-    if (lastAttached.size > 64) {
-      const oldest = lastAttached.keys().next().value
-      if (oldest !== undefined) lastAttached.delete(oldest)
-    }
-    lastAttached.set(String(ownerFromToolUseContext(context)), { digest, refs: capsule.refs })
+    rememberAttached(String(ownerFromToolUseContext(context)), digest, capsule.refs)
   }
   const index = attachments.findIndex(a => a === base || members.has(a))
   receipts.splice(Math.max(0, index), 0, capsule)
