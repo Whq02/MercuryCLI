@@ -1,5 +1,4 @@
 export const JEV_BASE_URL = 'https://api.typesafe.ai'
-export const JEV_BASE_URL_ENV = 'MERCURY_JEV_BASE'
 export const JEV_SYSTEMONE_PATH = '/v1/systemone'
 export const JEV_MODEL_PIN = 'jev-1.13.0'
 export const JEV_USD_PER_INPUT_TOKEN = 0.042 / 1_000_000
