@@ -80,7 +80,6 @@ check('the Opus pool binds only an Opus model: a Sonnet, a Fable and a Haiku sea
 check('the header latch keeps its shape — allowed, the Opus claim, no utilization (a header never states a pool on the real wire)', limits.currentLimits.status === 'allowed' && limits.currentLimits.rateLimitType === 'seven_day_opus' && limits.currentLimits.utilization === undefined, j(limits.currentLimits), 'the header latch built from the scenario in src/models/roads/anthropic/mockRateLimits.ts must carry status allowed and the seven_day_opus claim with no utilization')
 const payloadOpus = mock.mockUtilizationPayload()
 check("the mock's usage payload states the armed pool and nothing else in a home with no env payload", payloadOpus !== null && j(Object.keys(payloadOpus)) === j(['seven_day_opus']) && payloadOpus.seven_day_opus?.utilization === FIRST && Date.parse(payloadOpus.seven_day_opus?.resets_at ?? '') / 1000 > nowS, j(payloadOpus), 'mockUtilizationPayload in src/models/roads/anthropic/mockRateLimits.ts must state only the armed pool, at the first tier, with a reset in the future')
-check('the status names the pool beside the headers', mock.getMockStatus().includes('seven_day_opus') && mock.getMockStatus().includes(`${FIRST}%`), mock.getMockStatus(), 'getMockStatus in src/models/roads/anthropic/mockRateLimits.ts must name the armed pool and its percentage')
 
 section('§2 the Sonnet scenario: sonnet-warning speaks the Sonnet pool, and the Opus pool leaves with its scenario')
 armScenario('sonnet-warning')

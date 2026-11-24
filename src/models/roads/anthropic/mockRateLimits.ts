@@ -57,7 +57,6 @@ let enabled = false
 let mockHeaders: MockHeaders = {}
 let exceededLimits: ExceededLimit[] = []
 let scenarioPools: ScenarioPools = {}
-const subscriptionOverride: string | null = null
 
 const HEADER_PREFIX = 'anthropic-ratelimit-unified-'
 
@@ -359,58 +358,6 @@ export function getCurrentMockScenario(): MockScenario | null {
   if (status === 'allowed_warning' && claim === 'seven_day') return 'approaching-weekly-limit'
   if (status === 'allowed') return 'normal'
   return null
-}
-
-function titleCaseHeader(key: string): string {
-  const stripped = key.replace(HEADER_PREFIX, '')
-  return stripped
-    .split('-')
-    .map(word => (word.length > 0 ? word[0]?.toUpperCase() + word.slice(1) : word))
-    .join(' ')
-}
-
-export function getMockStatus(): string {
-  const definedHeaders = Object.entries(mockHeaders).filter(
-    (entry): entry is [string, string] => entry[1] !== undefined,
-  )
-  if (!enabled || (definedHeaders.length === 0 && subscriptionOverride === null)) {
-    return 'No mock rate limits active — real limits are in use'
-  }
-
-  const lines: string[] = ['Mock rate limits:']
-  lines.push(
-    subscriptionOverride !== null
-      ? `  Subscription: ${subscriptionOverride} (explicitly set)`
-      : '  Subscription: max (default)',
-  )
-
-  for (const [key, value] of definedHeaders) {
-    const title = titleCaseHeader(key)
-    if (key.endsWith('-reset')) {
-      const numeric = Number(value)
-      if (!Number.isNaN(numeric)) {
-        lines.push(`  ${title}: ${value} (${new Date(numeric * 1000).toLocaleString()})`)
-        continue
-      }
-    }
-    lines.push(`  ${title}: ${value}`)
-  }
-
-  for (const [claim, pool] of Object.entries(scenarioPools)) {
-    if (pool === undefined) continue
-    lines.push(
-      `  Weekly pool ${claim}: ${pool.utilization}% — resets ${new Date(pool.resets_at).toLocaleString()}`,
-    )
-  }
-
-  if (exceededLimits.length > 0) {
-    lines.push('  Exceeded limits:')
-    for (const entry of exceededLimits) {
-      lines.push(`    ${entry.type} — resets ${new Date(entry.resetsAt * 1000).toLocaleString()}`)
-    }
-  }
-
-  return lines.join('\n')
 }
 
 export function getMockHeaders(): MockHeaders | null {
