@@ -6,7 +6,6 @@ import { logForDebugging } from '../../../platform/logs/debugLog.js'
 
 export const ZEN_API_BASE_URL = 'https://opencode.ai/zen/v1'
 export const ZEN_GO_API_BASE_URL = 'https://opencode.ai/zen/go/v1'
-export const ZEN_CONSOLE_URL = 'https://opencode.ai/console'
 export const ZEN_ENV_KEY = 'OPENCODE_API_KEY'
 
 const goneBases = new Set<string>()
@@ -54,14 +53,6 @@ export function __resetZenBaseFallbackForTest(): void {
 
 export function zenChatCompletionsUrl(env: NodeJS.ProcessEnv = hostEnv()): string {
   return `${zenApiBase(env)}/chat/completions`
-}
-
-export function zenResponsesUrl(env: NodeJS.ProcessEnv = hostEnv()): string {
-  return `${zenApiBase(env)}/responses`
-}
-
-export function zenModelsUrl(env: NodeJS.ProcessEnv = hostEnv()): string {
-  return `${zenApiBase(env)}/models`
 }
 
 export function zenGoUsageUrl(env: NodeJS.ProcessEnv = hostEnv()): string {
