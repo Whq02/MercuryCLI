@@ -27,7 +27,6 @@ export const vastVolumeFor = (recipe: HostRecipe): KeptVolume | undefined => vas
 const vastMachineWords = (volume: Pick<KeptVolume, 'machineId'>): string => 'Vast.ai machine ' + (volume.machineId ?? 'unknown')
 const vastVolumeSizeGb = (bytes: number): number => Math.ceil(bytes / 1e9 * 1.05) + 20
 export const vastBootMinutes = (recipe: HostRecipe, volume: KeptVolume): string => /~(\d+) min total/.exec(hostSetupEstimate(recipe, { check: volume.verifiedSums?.sampleManifestSha256 ? 'sampled check' : 'full check ' + fullCheckMinutes(recipe.weightsGb) }))?.[1] ?? '?'
-export const vastBootsFromVolume = (recipe: HostRecipe, machineId?: number): boolean => { const volume = vastVolumeFor(recipe); return recipe.engine !== 'tensorfold' && volume?.state === 'kept' && machineId !== undefined && volume.machineId === machineId }
 export function vastVolumeState(recipe: HostRecipe, volume = vastVolumeFor(recipe) ?? vastKeptVolumes().find(row => matchesVolume(row, recipe))): string {
   if (!volume) return 'not kept on Vast.ai'
   if (volume.state === 'gone') return 'not kept on Vast.ai · ' + (volume.error ?? 'volume gone')
