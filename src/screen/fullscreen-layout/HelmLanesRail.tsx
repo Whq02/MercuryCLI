@@ -403,7 +403,7 @@ function HelmLanesRailImpl({ width, mergedVitals = false, availRows }: { width: 
     workRunSnap,
     tasks,
     roster,
-    viewingAgentTaskId,
+    viewingAgentTaskId: viewingCrewmateTaskId,
     mainChatTaskId,
     vitals: ledger,
   }))
