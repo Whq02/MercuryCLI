@@ -355,11 +355,40 @@ export function isDestructiveCommandVerb(command: string): boolean {
   return getDestructiveCommandWarning(command) !== null
 }
 
+const COMMIT = /(?:(?:^|[;&|])\s*|\n[ \t]*)git\s+(?:-[Cc]\s+[^\s'"`;&|]+\s+)*commit(?![A-Za-z0-9_])/g
+const MESSAGE_OPTION = /\s(?:-[A-Za-z]*m[ \t]*|--message(?:=|[ \t]+))$/
+const KEPT_IN_A_MESSAGE = /[`;&|\n\r]|\$\(/
+
+function withoutCommitMessages(command: string): string {
+  let copy = ''
+  let kept = 0
+  for (const commit of command.matchAll(COMMIT)) {
+    let at = commit.index + commit[0].length
+    while (at < command.length) {
+      const here = command.charAt(at)
+      if (here === ';' || here === '&' || here === '|' || here === '\n') break
+      if (here !== "'" && here !== '"') {
+        at++
+        continue
+      }
+      const close = command.indexOf(here, at + 1)
+      if (close === -1) break
+      if (at >= kept && MESSAGE_OPTION.test(command.slice(0, at)) && !KEPT_IN_A_MESSAGE.test(command.slice(at + 1, close))) {
+        copy += command.slice(kept, at + 1)
+        kept = close
+      }
+      at = close + 1
+    }
+  }
+  return copy + command.slice(kept)
+}
+
 export function getDestructiveCommandWarning(command: string): string | null {
   const windowsWarning = checkWindowsSegmentWarning(shellCommandSegments(command))
   if (windowsWarning !== null) return windowsWarning
+  const read = withoutCommitMessages(command)
   for (const matcher of MATCHERS) {
-    const warning = matcher(command)
+    const warning = matcher(read)
     if (warning !== null) return warning
   }
   return null
