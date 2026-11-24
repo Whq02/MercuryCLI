@@ -2,7 +2,7 @@ import { pollUntil } from '../../platform/async/deadline.js'
 import { hostMachineName } from '../../commands/llmhost/words.js'
 import { forgetTensorFoldHost, rememberTensorFoldHost } from '../roads/local/tensorfoldHosts.js'
 import { TENSORFOLD_NOT_BUILT, type TensorFoldHost } from '../tensorfold/contracts.js'
-import { listBoxes, writeBox, type HostBox } from './boxes.js'
+import { writeBox, type HostBox } from './boxes.js'
 import { hostPodBills, hostSpendSoFar } from './costs.js'
 import { stopHostSetup } from './jobs.js'
 import type { HostRecipe } from './recipes.js'
@@ -101,7 +101,6 @@ export function tensorFoldPodRowFacts(pod: TensorFoldPodFacts): TensorFoldPodRow
   }
 }
 export const tensorFoldPodRows = (recipes: readonly HostRecipe[], now = Date.now()): TensorFoldPodRowFacts[] => tensorFoldPods(recipes, now).map(tensorFoldPodRowFacts)
-export const tensorFoldPodByHost = (hostName: string, recipes: readonly HostRecipe[], now = Date.now()): TensorFoldPodFacts | undefined => tensorFoldPods(recipes, now).find(pod => pod.hostName === hostName)
 
 export interface TensorFoldRentRow { gpu: string; vramGb: number; vendor: string; title: string; window: number; price?: number; classWords: string }
 export function tensorFoldRentRow(offers: readonly { recipe: HostRecipe; price: number }[], recipes: readonly HostRecipe[], vendor = 'Runpod or Vast.ai'): TensorFoldRentRow | undefined {
@@ -238,5 +237,3 @@ export async function settleStoppingTensorFoldPods(options: { client?: (record: 
   }
   return settled
 }
-
-export const tensorFoldPodBoxes = (): HostBox[] => listBoxes().filter(isTensorFoldPodBox)
