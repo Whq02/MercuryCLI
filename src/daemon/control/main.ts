@@ -10,7 +10,6 @@ import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { localIpcDoorKind } from '../../platform/host-os/files.js'
 import { processInstantStartForm } from '../../platform/host-os/processes.js'
 import { sendPassedOverToDebugLog } from '../../platform/errors/passedOverSink.js'
-import { isEnvTruthy } from '../../platform/environment/envUtils.js'
 import { flagEnv } from '../../platform/substrate/flagRegistry.js'
 import { installStampedDaemonLog, stampDaemonLogLine } from './daemonLogStamp.js'
 import { getRunTimeoutMs, scrubDaemonRoleEnv } from '../runner-link/headlessRun.js'
@@ -45,7 +44,7 @@ import {
   getProcessStartTokenAsync,
 } from './ownerWatch.js'
 import { startControlServer } from './controlServer.js'
-import { DAEMON_USAGE, parseDaemonVerb, daemonRecordIdentity } from './verbs.js'
+import { DAEMON_USAGE, daemonControlEnabled, parseDaemonVerb, daemonRecordIdentity } from './verbs.js'
 import { hostedCallerOf, hostedCallerRefusalLine, restartEndsHostedCaller } from './hostedCaller.js'
 import {
   acquireDaemonLock,
@@ -242,9 +241,7 @@ async function daemonRun(args: string[]): Promise<void> {
     return Number.isFinite(n) && n > 0 ? n : 4
   })()
 
-  const controlEnabled =
-    !isEnvTruthy(flagEnv('MERCURY_DAEMON_CONTROL_DISABLED')) &&
-    flagEnv('MERCURY_DAEMON_CONTROL') !== '0'
+  const controlEnabled = daemonControlEnabled()
 
   let handoverPredecessor: number | null = null
   let handover: HandoverStateV1 | null = null

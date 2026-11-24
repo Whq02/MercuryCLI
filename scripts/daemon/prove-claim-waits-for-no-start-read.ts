@@ -146,6 +146,12 @@ try {
   const late = reads.filter(launch => launch.t >= askedAt)
   check('the runner asked for its own start token as it started, before any claim', early.length >= 1, `${early.length} read(s) before the claim, ${late.length} after it`)
   check('the claim launched no read of the runner’s own start', late.length === 0, `${late.length} read(s) launched after the claim was sent: ${late.map(launch => `${launch.kind} ${launch.cmd} ${launch.args.join(' ')} at +${launch.t - askedAt} ms`).join(' · ')}`)
+  const daemonPid = daemon.pid ?? 0
+  await until(() => flushedTo(daemonPid) > admittedAt, 20_000)
+  const engagedAt = stampOf(read(log), '[mercury-daemon] engaged')
+  const daemonReads = ownStartReads(daemonPid)
+  check('the daemon asked for its own start token before it loaded the code that serves, so the lock and the socket do not wait for the whole read', engagedAt > 0 && daemonReads.length >= 1 && daemonReads[0]!.t <= engagedAt, `first read at ${daemonReads[0]?.t ?? 'never'}, the engaged line at ${engagedAt} | change: the daemon route of src/boot/entrypoints/cli.tsx asks before it imports src/daemon/control/main.ts`)
+  check('the daemon read its own start once', daemonReads.length === 1, `${daemonReads.length} read(s): ${daemonReads.map(launch => `${launch.kind} at ${launch.t - engagedAt} ms from the engaged line`).join(' · ')}`)
 } finally {
   try {
     owner.kill('SIGKILL')

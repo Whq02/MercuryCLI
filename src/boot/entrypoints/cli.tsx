@@ -201,6 +201,12 @@ async function main(): Promise<void> {
   }
   if (args[0] === 'daemon') {
     profileCheckpoint('route_daemon')
+    const { daemonControlEnabled, parseDaemonVerb } = await import('../../daemon/control/verbs.js')
+    if (parseDaemonVerb(args.slice(1)).kind === 'run' && daemonControlEnabled()) {
+      const { getProcessStartInstantAsync, getProcessStartTokenAsync } = await import('../../daemon/control/ownerWatch.js')
+      void getProcessStartTokenAsync(process.pid)
+      void getProcessStartInstantAsync(process.pid)
+    }
     await configsOn()
     await tellTheBuiltInCommands()
     featureReached('verb', 'daemon')

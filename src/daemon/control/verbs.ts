@@ -1,6 +1,8 @@
 import { isAbsolute } from 'node:path'
 import { statSync } from 'node:fs'
 import { passedOver } from '../../platform/errors/passedOver.js'
+import { isEnvTruthy } from '../../platform/environment/envUtils.js'
+import { flagEnv } from '../../platform/substrate/flagRegistry.js'
 
 type DaemonVerb =
   | { kind: 'run'; args: string[] }
@@ -36,6 +38,10 @@ const defaultIsDir = (p: string): boolean => {
     passedOver(error)
     return false
   }
+}
+
+export function daemonControlEnabled(): boolean {
+  return !isEnvTruthy(flagEnv('MERCURY_DAEMON_CONTROL_DISABLED')) && flagEnv('MERCURY_DAEMON_CONTROL') !== '0'
 }
 
 const SCREEN_HEAL_ASK = /^screen \d+$/
