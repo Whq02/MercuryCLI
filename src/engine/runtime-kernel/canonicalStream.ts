@@ -21,13 +21,6 @@ type CanonicalModelEvent =
   | { type: 'response.failed'; error: string }
   | { type: 'response.cancelled' }
 
-export interface ModelRuntimeCapabilities {
-  reasoning: boolean
-  toolUse: boolean
-  usageAccounting: boolean
-  extensions: string[]
-}
-
 
 interface SseLikeEvent {
   type?: string

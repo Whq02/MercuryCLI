@@ -101,17 +101,5 @@ console.log('model turn = execution (the turn-observer seam)')
     events.includes('indeterminate') && P.getExecution(owner, 'model-turn')?.generation === 5)
 }
 
-console.log('capability contract shape')
-{
-  const caps: P.ModelRuntimeCapabilities = {
-    reasoning: true,
-    toolUse: true,
-    usageAccounting: true,
-    extensions: ['anthropic.citations'],
-  }
-  check('typed capability extensions carry model-family extras',
-    caps.extensions.includes('anthropic.citations'))
-}
-
 console.log(`\n${pass} passed, ${fail} failed`)
 process.exit(fail > 0 ? 1 : 0)
