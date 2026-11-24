@@ -192,7 +192,6 @@ function foldJournal(id: string, raw: string): ReviewArtifactState | null {
     versions: [],
     statuses: {},
     comments: [],
-    scopeDecisions: [],
     latestVersion: 0,
     createdAt: 0,
     updatedAt: 0,
@@ -242,19 +241,6 @@ function foldJournal(id: string, raw: string): ReviewArtifactState | null {
           state: 'open',
           createdAt: ev.at,
           updatedAt: ev.at,
-        })
-        break
-      }
-      case 'scope-decision': {
-        if (typeof ev.version !== 'number' || ev.version < 1 || ev.version > state.latestVersion) continue
-        if (ev.decision !== 'accept' && ev.decision !== 'request-revision') continue
-        state.scopeDecisions.push({
-          version: ev.version,
-          scope: ev.scope,
-          decision: ev.decision,
-          ...(ev.by !== undefined ? { by: ev.by } : {}),
-          ...(ev.authorRef !== undefined ? { authorRef: ev.authorRef } : {}),
-          at: ev.at,
         })
         break
       }

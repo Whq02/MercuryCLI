@@ -137,76 +137,6 @@ export interface ReviewComment {
 }
 
 
-type ReviewScope =
-  | { t: 'file'; path: string }
-  | { t: 'hunk'; path: string; hunkIndex: number }
-  | { t: 'plan-item'; headingPath: string[] }
-  | { t: 'vis-region'; captureRef: string; rect: ReviewRect }
-  | { t: 'journey-step'; stepId: string }
-  | { t: 'check'; claim: string }
-  | { t: 'whole' }
-
-type ReviewScopeDecisionKind = 'accept' | 'request-revision'
-
-interface ReviewScopeDecision {
-  version: number
-  scope: ReviewScope
-  decision: ReviewScopeDecisionKind
-  by?: string
-  authorRef?: ReviewActorRef
-  at: number
-}
-
-function reviewScopeKey(scope: ReviewScope): string {
-  switch (scope.t) {
-    case 'file':
-      return `file:${scope.path}`
-    case 'hunk':
-      return `hunk:${scope.path}#${scope.hunkIndex}`
-    case 'plan-item':
-      return `plan:${scope.headingPath.join('/')}`
-    case 'vis-region':
-      return `vis:${scope.captureRef}@${scope.rect.x},${scope.rect.y},${scope.rect.w},${scope.rect.h}`
-    case 'journey-step':
-      return `step:${scope.stepId}`
-    case 'check':
-      return `check:${scope.claim}`
-    case 'whole':
-      return 'whole'
-  }
-}
-
-interface ScopeDecisionFold {
-  latest: Map<string, ReviewScopeDecision>
-  accepted: number
-  revisionRequested: number
-  suggestion: Extract<ReviewArtifactStatus, 'accepted' | 'revision-requested'> | null
-}
-
-export function foldScopeDecisions(
-  decisions: readonly ReviewScopeDecision[],
-  version: number,
-): ScopeDecisionFold {
-  const latest = new Map<string, ReviewScopeDecision>()
-  for (const d of decisions) {
-    if (d.version !== version) continue
-    latest.set(reviewScopeKey(d.scope), d)
-  }
-  let accepted = 0
-  let revisionRequested = 0
-  for (const d of latest.values()) {
-    if (d.decision === 'accept') accepted++
-    else revisionRequested++
-  }
-  return {
-    latest,
-    accepted,
-    revisionRequested,
-    suggestion:
-      revisionRequested > 0 ? 'revision-requested' : accepted > 0 ? 'accepted' : null,
-  }
-}
-
 
 export type ReviewJournalEvent =
   | { v: 1; at: number; type: 'version'; record: ReviewArtifactVersion }
@@ -238,16 +168,6 @@ export type ReviewJournalEvent =
   | {
       v: 1
       at: number
-      type: 'scope-decision'
-      version: number
-      scope: ReviewScope
-      decision: ReviewScopeDecisionKind
-      by?: string
-      authorRef?: ReviewActorRef
-    }
-  | {
-      v: 1
-      at: number
       type: 'comment-relocated'
       commentId: string
       version: number
@@ -262,7 +182,6 @@ export interface ReviewArtifactState {
   versions: ReviewArtifactVersion[]
   statuses: Record<number, ReviewArtifactStatus>
   comments: ReviewComment[]
-  scopeDecisions: ReviewScopeDecision[]
   latestVersion: number
   createdAt: number
   updatedAt: number

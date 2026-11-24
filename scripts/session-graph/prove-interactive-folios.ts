@@ -13,7 +13,6 @@ const scratch = realpathSync(mkdtempSync(join(realpathSync(tmpdir()), 'crew-foli
 process.env.MERCURY_REVIEW_ARTIFACTS_DIR = join(scratch, 'artifacts')
 
 const store = await import('../../src/sessions/artifact-reviews/reviewStore.ts')
-const contracts = await import('../../src/sessions/artifacts/reviewContracts.ts')
 
 const created = store.createReviewArtifact({
   kind: 'diff',
@@ -86,30 +85,6 @@ t.section('§2 — typed authorship beside the legacy string')
   t.check(
     'the ActorRef folds back beside the string author',
     row !== undefined && row.author === 'Mercury' && row.authorRef?.kind === 'agent',
-  )
-}
-
-t.section('§4 — the fold SUGGESTS, never auto-applies')
-{
-  const decisions: Parameters<typeof contracts.foldScopeDecisions>[0] = [
-    { version: 1, scope: { t: 'file', path: 'src/a.ts' }, decision: 'accept', by: 'operator', at: 1 },
-    { version: 1, scope: { t: 'file', path: 'src/b.ts' }, decision: 'request-revision', at: 2 },
-    { version: 1, scope: { t: 'file', path: 'src/b.ts' }, decision: 'accept', at: 3 },
-    { version: 1, scope: { t: 'hunk', path: 'src/a.ts', hunkIndex: 0 }, decision: 'accept', at: 4 },
-  ]
-  const before = store.readReviewArtifactState(artifactId)!
-  const fold = contracts.foldScopeDecisions(decisions, 1)
-  t.check('the fold has decided scopes', fold.latest.size >= 3)
-  t.check('the fold suggests accepted (every latest decision is an accept)', fold.suggestion === 'accepted', String(fold.suggestion))
-  t.check('the artifact-level status is still draft — the suggestion applied nothing', (before.statuses[1] ?? 'draft') === 'draft', String(before.statuses[1]))
-  const ready = store.setReviewArtifactStatus({ id: artifactId, version: 1, status: 'ready-for-review' })
-  t.check('draft → ready-for-review is the one legal step out of draft', ready.ok === true)
-  const revise = store.setReviewArtifactStatus({ id: artifactId, version: 1, status: 'revision-requested' })
-  t.check('the EXPLICIT decision lands against the fold suggestion', revise.ok === true)
-  const after = store.readReviewArtifactState(artifactId)!
-  t.check(
-    'the artifact-level status is the EXPLICIT decision (revision-requested), not the fold suggestion (accepted)',
-    after.statuses[1] === 'revision-requested' && contracts.foldScopeDecisions(decisions, 1).suggestion === 'accepted',
   )
 }
 

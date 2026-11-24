@@ -107,29 +107,15 @@ export function mercuryRequests(app: AgentApp): AgentApp {
       ])
       const inbox = deriveInbox(conversations, id => (cursors as Map<string, number>).get(id) ?? 0)
       const labels = new Map((snap?.members ?? []).map(m => [m.agentId as string, m.label]))
-      const { foldScopeDecisions } = await import('../../../sessions/artifacts/reviewContracts.js')
       const folioSrc = listReviewArtifactHeadsSource({ root: getCwd() })
-      const folioHeads = valueOr(folioSrc, []).slice(0, 40).map(h => {
-        const state = readReviewArtifactState(h.id)
-        const fold = state ? foldScopeDecisions(state.scopeDecisions, state.latestVersion) : null
-        return {
-          id: h.id,
-          kind: h.kind,
-          title: h.title,
-          latestVersion: h.latestVersion,
-          status: h.status,
-          openComments: h.openComments,
-          ...(fold
-            ? {
-                scopeFold: {
-                  accepted: fold.accepted,
-                  revisionRequested: fold.revisionRequested,
-                  suggestion: fold.suggestion,
-                },
-              }
-            : {}),
-        }
-      })
+      const folioHeads = valueOr(folioSrc, []).slice(0, 40).map(h => ({
+        id: h.id,
+        kind: h.kind,
+        title: h.title,
+        latestVersion: h.latestVersion,
+        status: h.status,
+        openComments: h.openComments,
+      }))
       return {
         members: (snap?.members ?? []).map(m => ({
           agentId: m.agentId,
