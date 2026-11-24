@@ -18,7 +18,7 @@ export function classifyCrewmateViewSubmission(
     return { kind: 'agent-literal', text: trimmed.slice(1) }
   }
   if (fromKeybinding || trimmed.startsWith('/')) {
-    const spaceIdx = trimmed.indexOf(' ')
+    const spaceIdx = trimmed.search(/\s/)
     const bareName = (spaceIdx === -1 ? trimmed : trimmed.slice(0, spaceIdx)).replace(/^\//, '')
     const matching = findCommand(bareName, commands)
     if (matching && isCommandEnabled(matching)) {

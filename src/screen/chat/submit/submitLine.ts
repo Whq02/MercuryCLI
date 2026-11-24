@@ -35,7 +35,7 @@ export type SubmitLine = {
 function resolveSlashCommand(input: string, commands: Command[]): Command | undefined {
   const trimmed = input.trimStart();
   if (!trimmed.startsWith('/')) return undefined;
-  const spaceIndex = trimmed.indexOf(' ');
+  const spaceIndex = trimmed.search(/\s/);
   const name = (spaceIndex === -1 ? trimmed.slice(1) : trimmed.slice(1, spaceIndex)).trim();
   if (!name) return undefined;
   return commands.find(
@@ -48,7 +48,7 @@ function resolveSlashCommand(input: string, commands: Command[]): Command | unde
 function resolveGatedPlainWorldCommand(input: string, commands: Command[]): Command | undefined {
   const trimmed = input.trimStart();
   if (!trimmed.startsWith('/')) return undefined;
-  const spaceIndex = trimmed.indexOf(' ');
+  const spaceIndex = trimmed.search(/\s/);
   const name = (spaceIndex === -1 ? trimmed.slice(1) : trimmed.slice(1, spaceIndex)).trim();
   if (!name) return undefined;
   const real = commands.find(
@@ -97,13 +97,14 @@ export function refuseUnknownSlash(deps: SubmitDeps, line: SubmitLine): boolean 
   const { text, seatPastes, seatCommand, seatMode } = line;
   const words = expandPastedTextRefs(text, seatPastes).trim();
   if (seatCommand === undefined && words.startsWith('/') && seatMode !== 'bash') {
-    const gated = resolveGatedPlainWorldCommand(words, commandsRef.current);
+    const normalized = words.replace(/^(\/\S+)\s+/, '$1 ');
+    const gated = resolveGatedPlainWorldCommand(normalized, commandsRef.current);
     if (gated !== undefined) {
       takeComposer(deps, line);
       paintScreenCommandReceipt(getCommandName(gated), '', unavailableCommandLine(gated));
       return true;
     }
-    const unknownName = resolveUnknownSlashName(words, commandsRef.current);
+    const unknownName = resolveUnknownSlashName(normalized, commandsRef.current);
     if (unknownName !== undefined) {
       takeComposer(deps, line);
       paintScreenCommandReceipt(unknownName, '', unknownCommandLine(unknownName, commandsRef.current));

@@ -290,7 +290,7 @@ export function useComposerSubmit({
         }
 
         const intent = classifyCrewmateViewSubmission(
-          text,
+          expandPastedTextRefs(text, pastedContents),
           options.fromKeybinding === true,
           commands,
         )

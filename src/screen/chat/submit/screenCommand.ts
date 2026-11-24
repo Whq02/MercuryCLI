@@ -14,7 +14,7 @@ const HELD_FOR_LANDING: ReadonlySet<string> = new Set(['swarm', 'swarmchat', 'ge
 export type CommandArgs = { spaceAt: number; args: string; argsWithPastes: () => Promise<string> };
 
 export function readCommandArgs({ text, seatPastes }: SubmitLine): CommandArgs {
-  const spaceAt = text.indexOf(' ');
+  const spaceAt = text.search(/\s/);
   const args = spaceAt === -1 ? '' : text.slice(spaceAt + 1).trim();
   const argsWithPastes = async (): Promise<string> => expandPastedTextRefs(args, (await resolvePastedContents(args, seatPastes)).pastedContents).trim();
   return { spaceAt, args, argsWithPastes };
