@@ -102,7 +102,6 @@ const HOOK_ENDING_WORDS: Record<HookEndingClass, (ending: Extract<HookEnding, { 
 }
 
 export const HOOK_NOTICE_CODES = { failed: 'hook_failed', block: 'hook_blocked', stop: 'hook_stopped', notice: 'hook_notice' } as const
-export const HOOK_FAILED_CODE = HOOK_NOTICE_CODES.failed
 export const TOOL_WITHHELD_CODE = 'tool_withheld'
 export const MCP_SERVER_FAILED_CODE = 'mcp_server_failed'
 export const MCP_SERVER_SKIPPED_CODE = 'mcp_server_skipped'
@@ -514,9 +513,7 @@ export type PromptRow = z.infer<ReturnType<typeof PromptRowSchema>>
 export const ShellRowSchema = lazySchema(() => z.object({ type: z.literal('shell'), command: z.string(), ...inputStamp }))
 export type ShellRow = z.infer<ReturnType<typeof ShellRowSchema>>
 export const NoteRowSchema = lazySchema(() => z.object({ type: z.literal('note'), to: z.string(), content: z.string(), id: z.string().optional() }))
-export type NoteRow = z.infer<ReturnType<typeof NoteRowSchema>>
 export const OutsideReportRowSchema = lazySchema(() => z.object({ type: z.literal('outside-report'), content: z.string().min(1), sender: z.string().min(1).max(200), id: z.string().optional() }))
-export type OutsideReportRow = z.infer<ReturnType<typeof OutsideReportRowSchema>>
 export const InputRowSchema = lazySchema(() => z.discriminatedUnion('type', [PromptRowSchema(), ShellRowSchema(), NoteRowSchema(), OutsideReportRowSchema()]))
 export type InputRow = z.infer<ReturnType<typeof InputRowSchema>>
 
