@@ -3,6 +3,7 @@ import { getIsNonInteractiveSession, getSessionKind } from '../../boot/process-s
 import { REPEATED_RESULT_MIN_CHARS, REPEATED_RESULT_TAG } from '../../tools/kit/toolLimits.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { errorMessage } from '../../platform/errors/errors.js'
+import { sortKeysDeep } from '../../platform/primitives/hash.js'
 import { FILE_UNCHANGED_STUB } from '../../tools/kit/names/read.js'
 import type { Message } from '../message-shapes/message.js'
 import type { TextBlockParam, ToolResultBlockParam } from '../message-shapes/wire.js'
@@ -130,19 +131,6 @@ export function isLoopGuardStopEnabled(): boolean {
 function isBookkeepingTool(name: string): boolean {
   if (BOOKKEEPING_NAMES.has(name)) return true
   return BOOKKEEPING_PREFIXES.some(prefix => name.startsWith(prefix))
-}
-
-function sortKeysDeep(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(sortKeysDeep)
-  if (value !== null && typeof value === 'object') {
-    const source = value as Record<string, unknown>
-    const out: Record<string, unknown> = {}
-    for (const key of Object.keys(source).sort()) {
-      if (source[key] !== undefined) out[key] = sortKeysDeep(source[key])
-    }
-    return out
-  }
-  return value
 }
 
 function canonicalArguments(value: unknown): string {

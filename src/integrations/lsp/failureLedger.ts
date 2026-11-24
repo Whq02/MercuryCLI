@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { stat } from 'node:fs/promises'
 import type { LSPServerManager } from './LSPServerManager.js'
+import { sortKeysDeep } from '../../platform/primitives/hash.js'
 
 export const LSP_TRIES_BEFORE_REFUSAL = 3
 
@@ -15,19 +16,6 @@ export function lspLedgerNow(): number {
 
 export function _setLspLedgerClockForTesting(now?: () => number): void {
   clock = now ?? Date.now
-}
-
-function sortKeysDeep(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(sortKeysDeep)
-  if (value !== null && typeof value === 'object') {
-    const source = value as Record<string, unknown>
-    const out: Record<string, unknown> = {}
-    for (const key of Object.keys(source).sort()) {
-      if (source[key] !== undefined) out[key] = sortKeysDeep(source[key])
-    }
-    return out
-  }
-  return value
 }
 
 export function lspCallKey(name: string, args: unknown): string {

@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { isRecord } from './isRecord.js'
 
 type BunHash = {
   hash(input: string, seed?: number): number | bigint
@@ -38,4 +39,16 @@ export function hashPair(a: string, b: string): string {
   if (!bun) return sha256Parts(a, b)
   const seed = Number(BigInt.asUintN(32, BigInt(bun.hash(a))))
   return String(bun.hash(b, seed))
+}
+
+export function sortKeysDeep(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortKeysDeep)
+  if (isRecord(value)) {
+    const out: Record<string, unknown> = {}
+    for (const key of Object.keys(value).sort()) {
+      if (value[key] !== undefined) out[key] = sortKeysDeep(value[key])
+    }
+    return out
+  }
+  return value
 }
