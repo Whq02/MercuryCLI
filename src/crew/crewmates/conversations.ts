@@ -319,34 +319,6 @@ export async function resolveEventByRef(
   })
 }
 
-export async function resolveConversationEvent(
-  conversationId: CrewConversationId,
-  seq: number,
-  opts?: { dir?: string },
-): Promise<boolean> {
-  const store = conversationStore(opts?.dir)
-  return store.update<boolean>(current => {
-    const c = current.conversations[conversationId]
-    if (!c) return { next: current, result: false }
-    const ix = c.events.findIndex(e => e.seq === seq)
-    if (ix < 0 || c.events[ix]!.resolvedAtMs !== undefined) {
-      return { next: current, result: false }
-    }
-    const events = [...c.events]
-    events[ix] = { ...events[ix]!, resolvedAtMs: Date.now() }
-    return {
-      next: {
-        ...current,
-        conversations: {
-          ...current.conversations,
-          [conversationId]: { ...c, events, updatedAt: Date.now() },
-        },
-      },
-      result: true,
-    }
-  })
-}
-
 export async function setConversationPriority(
   conversationId: CrewConversationId,
   priority: number | undefined,
@@ -407,8 +379,4 @@ export async function commitReadCursor(
       cursors: { ...current.cursors, [key]: { seq, committedAt: Date.now() } },
     }
   })
-}
-
-export function subscribeConversations(cb: () => void, opts?: { dir?: string }): () => void {
-  return conversationStore(opts?.dir).subscribe(() => cb(), { immediate: false })
 }

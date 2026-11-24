@@ -1,5 +1,4 @@
 
-import { useSyncExternalStore } from 'react'
 import { subscribeRoomStatusFeed } from '../../screen/attention/statusFeed.js'
 import { cachedAttentionView, subscribeAttentionView } from '../../screen/attention/viewModel.js'
 import { isAttentionStoreArmed } from '../../screen/attention/store.js'
@@ -337,14 +336,6 @@ export function cachedCrewSnapshot(): CrewSnapshotV1 | null {
   return snapshot
 }
 
-export function isCrewProjectionArmed(): boolean {
-  return coalescer !== null
-}
-
-export function useCrew(): CrewSnapshotV1 | null {
-  return useSyncExternalStore(subscribeCrew, cachedCrewSnapshot, cachedCrewSnapshot)
-}
-
 export async function resolveCrewSnapshot(): Promise<CrewSnapshotV1 | null> {
   if (!crewDirectoryEnabled()) return null
   if (coalescer) {
@@ -353,13 +344,6 @@ export async function resolveCrewSnapshot(): Promise<CrewSnapshotV1 | null> {
   }
   return composeCrewSnapshot(0)
 }
-
-export function _resetCrewProjectionForTesting(): void {
-  teardownEngine()
-  listeners.clear()
-  snapshot = null
-}
-
 
 export async function __continuityLawsForProof(): Promise<{
   sameAgentIdEverySurface: boolean

@@ -616,11 +616,6 @@ export function subscribeCrewIdentity(cb: () => void, opts?: { dir?: string }): 
   return crewIdentityStore(opts?.dir).subscribe(() => cb(), { immediate: false })
 }
 
-export function _resetCrewIdentityBootForTesting(): void {
-  bootPromise = null
-}
-
-
 export async function __identityLawsForProof(): Promise<{
   renamePreservesId: boolean
   sameNameDistinct: boolean

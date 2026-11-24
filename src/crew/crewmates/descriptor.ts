@@ -138,10 +138,6 @@ export async function listSessionDescriptors(opts?: {
   return Object.values(file.descriptors)
 }
 
-export function subscribeSessionDescriptors(cb: () => void, opts?: { dir?: string }): () => void {
-  return descriptorStore(opts?.dir).subscribe(() => cb(), { immediate: false })
-}
-
 export function renderSessionTitle(labels: {
   agentLabel: string
   missionLabel?: string
