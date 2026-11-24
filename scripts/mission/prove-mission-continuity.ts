@@ -39,7 +39,6 @@ const {
   setActiveMission,
   clearActiveMission,
   getActiveMission,
-  getActiveMissionVersion,
   rearmMissionFromCard,
   subscribeActiveMission,
   syncMissionFromCard,
@@ -231,12 +230,10 @@ section('§8 the store speaks: a mission\'s birth and death wake their subscribe
   const unsubscribe = subscribeActiveMission(() => {
     woken += 1
   })
-  const before = getActiveMissionVersion()
   setActiveMission('the rail hears the birth', { sessionId: S4 })
-  check('arming wakes the subscriber once and moves the version', woken === 1 && getActiveMissionVersion() === before + 1, `woken=${woken} version ${before}→${getActiveMissionVersion()}`)
-  check('the snapshot is a number the rail can hold (never a fresh object)', typeof getActiveMissionVersion() === 'number')
+  check('arming wakes the subscriber once', woken === 1, `woken=${woken}`)
   clearActiveMission(S4)
-  check('clearing wakes the subscriber again', woken === 2 && getActiveMissionVersion() === before + 2, `woken=${woken}`)
+  check('clearing wakes the subscriber again', woken === 2, `woken=${woken}`)
   setActiveMission('released by the card', { sessionId: S4 })
   writeMissionCard({ schema: 1, sessionId: S4, goal: 'released by the card', state: 'met', nextStep: null, iterations: 1, setAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
   const wokenBeforeSync = woken

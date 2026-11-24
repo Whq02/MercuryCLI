@@ -87,10 +87,8 @@ const CLEAR_WORDS = new Set([
 const missionsBySession = new Map<string, ActiveMission>()
 
 const missionListeners = new Set<() => void>()
-let missionVersion = 0
 
 function notifyMissionChange(): void {
-  missionVersion += 1
   for (const listener of missionListeners) {
     try {
       listener()
@@ -105,10 +103,6 @@ export function subscribeActiveMission(listener: () => void): () => void {
   return () => {
     missionListeners.delete(listener)
   }
-}
-
-export function getActiveMissionVersion(): number {
-  return missionVersion
 }
 
 function cardStateOf(mission: ActiveMission): MissionCardState {
