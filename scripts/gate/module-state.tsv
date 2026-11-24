@@ -3821,11 +3821,11 @@ src/screen/cockpit-gauges/mcpGauge.ts	resetMcpGaugeForTests	reset-export
 src/screen/cockpit-gauges/mcpGauge.ts	version	process	module	foreground TUI version counter for MCP gauge
 src/screen/cockpit-gauges/modelGauge.ts	EMPTY	process	module	Load-time table with no local writer
 src/screen/cockpit/cockpitActiveContext.tsx	CockpitActiveContext	process	module	Load-time definition shared by all callers
-src/screen/cockpit/cockpitActivity.ts	listeners	process	module	single-terminal UI subscriber set for cockpit activity changes
+src/screen/cockpit/cockpitActivity.ts	changed	process	module	single-terminal UI subscriber set for cockpit activity changes
 src/screen/cockpit/cockpitActivity.ts	resetCockpitActivityForTests	reset-export
 src/screen/cockpit/cockpitActivity.ts	state	process	module	single-terminal cockpit activity indicator state (has resetCockpitActivityForTests)
+src/screen/cockpit/commandPopup.ts	changed	process	module	single-terminal UI subscriber set for command popup changes
 src/screen/cockpit/commandPopup.ts	claim	process	module	single-terminal active command popup layout claim
-src/screen/cockpit/commandPopup.ts	listeners	process	module	single-terminal UI subscriber set for command popup changes
 src/screen/cockpit/commandPopup.ts	nextToken	process	module	monotonic token generator for command popup claims
 src/screen/cockpit/composerSeed.ts	armed	process	module	single-terminal composer-seed arm reference count (has __composerSeedResetForTest)
 src/screen/cockpit/composerSeed.ts	consentRowsChanged	process	module	single-terminal UI signal for consent decline-row hint changes
@@ -3833,7 +3833,7 @@ src/screen/cockpit/composerSeed.ts	declineReporter	process	module	token identify
 src/screen/cockpit/composerSeed.ts	declineRow	process	module	single-terminal active consent-card decline row hint
 src/screen/cockpit/composerSeed.ts	seeder	process	module	single-terminal registered composer seed callback
 src/screen/cockpit/composerSeed.ts	trimmer	process	module	single-terminal registered composer backspace trimmer callback
-src/screen/cockpit/crewView.ts	listeners	process	module	single-terminal UI subscriber set for crew view changes
+src/screen/cockpit/crewView.ts	changed	process	module	single-terminal UI subscriber set for crew view changes
 src/screen/cockpit/crewView.ts	openState	process	module	single-terminal crew view modal open flag
 src/screen/cockpit/crewView.ts	version	process	module	single-terminal crew view state version counter
 src/screen/cockpit/critterData.ts	BOUNDS_BY_GRID	process	module	WeakMap pure memo of sprite grid bounds keyed by art array identity, GC-reclaimed
@@ -3865,7 +3865,7 @@ src/screen/cockpit/critterIdle.ts	ZERO_SWAY_ANCHOR	process	module	Load-time tabl
 src/screen/cockpit/critterVariant.ts	assigned	process	module	single-terminal UI critter variant lookup map (FIFO cap 256)
 src/screen/cockpit/critterVariant.ts	nextVariant	process	module	single-terminal UI monotonic critter variant allocator
 src/screen/cockpit/deviceHeadroom.ts	cached	process	module	15s TTL host available-memory probe cache (vm_stat / meminfo / freemem)
-src/screen/cockpit/filesMenu.ts	listeners	process	module	single-terminal UI subscriber set for files menu changes
+src/screen/cockpit/filesMenu.ts	changed	process	module	single-terminal UI subscriber set for files menu changes
 src/screen/cockpit/filesMenu.ts	openState	process	module	single-terminal files menu open flag
 src/screen/cockpit/filesMenu.ts	version	process	module	single-terminal files menu version counter
 src/screen/cockpit/helmFocus.ts	cursor	process	module	single-terminal helm per-pane cursor indices
@@ -3889,8 +3889,8 @@ src/screen/cockpit/inputSelectionBridge.ts	clearOwnInputSelection	reset-export
 src/screen/cockpit/inputSelectionBridge.ts	owner	process	module	single-terminal active text-input selection owner callback bridge (clearOwnInputSelection delegates to mounted input)
 src/screen/cockpit/inputSelectionBridge.ts	settleListeners	process	module	single-terminal UI subscriber set for input selection settle events
 src/screen/cockpit/liveGlyphs.ts	WORK_FRAMES	process	module	Load-time list with no local writer
+src/screen/cockpit/modelPickerPopup.ts	changed	process	module	single-terminal UI subscriber set for model picker popup
 src/screen/cockpit/modelPickerPopup.ts	claimed	process	module	single-terminal model picker popup claim flag
-src/screen/cockpit/modelPickerPopup.ts	listeners	process	module	single-terminal UI subscriber set for model picker popup
 src/screen/cockpit/modelPickerPopup.ts	version	process	module	single-terminal model picker popup version counter
 src/screen/cockpit/motionGovernor.ts	REAL_LOOP_METER	process	module	process event-loop utilization meter for single-terminal frame budget governor
 src/screen/cockpit/motionGovernor.ts	S	process	module	single-terminal render motion governor state anchored on globalThis.__mercuryMotionGovernor (has __motionGovernorResetForTest)
@@ -3901,7 +3901,7 @@ src/screen/cockpit/motionSetting.ts	primed	process	module	one-time boot latch pr
 src/screen/cockpit/oasisBg.ts	channelHealed	process	module	one-time flag for OSC 11 channel heal notification
 src/screen/cockpit/oasisBg.ts	exactOriginal	process	module	single-terminal queried original OSC 11 terminal background spec
 src/screen/cockpit/oasisBg.ts	exitRestored	process	module	one-time exit restore guard for single-terminal OSC 11 background
-src/screen/cockpit/oasisBg.ts	groundListeners	process	module	single-terminal UI subscriber set for terminal ground color changes
+src/screen/cockpit/oasisBg.ts	groundChange	process	module	single-terminal UI subscriber set for terminal ground color changes
 src/screen/cockpit/oasisBg.ts	painted	process	module	single-terminal OSC 11 background painted state
 src/screen/cockpit/oasisBg.ts	paintedAtQuerySend	process	module	single-terminal OSC 11 query race guard matching painted state at query time
 src/screen/cockpit/oasisBg.ts	paintedBy	process	module	single-terminal active background theme painter tag
@@ -3927,7 +3927,7 @@ src/screen/cockpit/runtimePosture.ts	bootRules	owner	module	Session boot setting
 src/screen/cockpit/runtimePosture.ts	memo	owner	module	Session posture description retained in the module
 src/screen/cockpit/runtimePosture.ts	nonInteractive	owner	module	Session interaction mode retained from boot
 src/screen/cockpit/runtimePosture.ts	resetRuntimePostureForTest	reset-export
-src/screen/cockpit/settingsPopup.ts	listeners	process	module	single-terminal UI subscriber set for settings popup
+src/screen/cockpit/settingsPopup.ts	changed	process	module	single-terminal UI subscriber set for settings popup
 src/screen/cockpit/settingsPopup.ts	request	process	module	single-terminal active settings popup request
 src/screen/cockpit/settingsPopup.ts	version	process	module	single-terminal settings popup version counter
 src/screen/cockpit/traceSnapshot.ts	empty	process	module	Load-time table with no local writer
@@ -3937,7 +3937,7 @@ src/screen/cockpit/turnReceipt.ts	COMMAND_TOOLS	process	module	Load-time lookup 
 src/screen/cockpit/turnReceipt.ts	FETCH_TOOLS	process	module	Load-time lookup with no local writer
 src/screen/cockpit/turnReceipt.ts	READ_TOOLS	process	module	Load-time lookup with no local writer
 src/screen/cockpit/turnReceipt.ts	SEARCH_TOOLS	process	module	Load-time lookup with no local writer
-src/screen/cockpit/turnSignals.ts	listeners	process	module	single-terminal UI subscriber set for turn signals
+src/screen/cockpit/turnSignals.ts	changed	process	module	single-terminal UI subscriber set for turn signals
 src/screen/cockpit/turnSignals.ts	resetTurnSignals	reset-export
 src/screen/cockpit/turnSignals.ts	signals	process	module	single-terminal cockpit turn-state UI snapshot published from active screen (resetTurnSignals)
 src/screen/cockpit/turnSignals.ts	version	process	module	single-terminal turn signals version counter
@@ -5562,6 +5562,7 @@ src/tools/shell/pathValidation.ts	PYRIGHT_GRAMMAR	process	module	Load-time table
 src/tools/shell/pathValidation.ts	RECURSIVE_READERS	process	module	Load-time table with no local writer
 src/tools/shell/pathValidation.ts	RG_FILES	process	module	Load-time lookup with no local writer
 src/tools/shell/pathValidation.ts	RG_GRAMMAR	process	module	Load-time table with no local writer
+src/tools/shell/pathValidation.ts	SED_LONG_OPTIONS_BEFORE_THE_SCRIPT	process	module	load-time lookup; no local writer
 src/tools/shell/pathValidation.ts	TEST_FILE_BINARIES	process	module	Load-time lookup with no local writer
 src/tools/shell/pathValidation.ts	TREE_FILES	process	module	Load-time lookup with no local writer
 src/tools/shell/pathValidation.ts	TREE_GRAMMAR	process	module	Load-time table with no local writer
