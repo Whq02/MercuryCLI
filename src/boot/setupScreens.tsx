@@ -7,8 +7,8 @@ import { launcherAltHoldPending, releaseLauncherAltHoldNow } from '../screen/ren
 import { AlternateScreen } from '../screen/renderer/elements/AlternateScreen.js'
 import { TerminalSizeContext } from '../screen/renderer/elements/TerminalSizeContext.js'
 import { isFullscreenEnvEnabled, isMouseTrackingEnabled } from '../screen/fullscreen-layout/fullscreen.js'
-import { estateGroundBg } from '../screen/theme/mercuryTokens.js'
 import { useMercuryTokens } from '../screen/widgets/useMercuryTokens.js'
+import { GroundFill } from '../screen/widgets/GroundFill.js'
 import { syncOutputSupportedNow } from '../screen/renderer/terminal-session/capabilities.js'
 import {
   TerminalProfileCard,
@@ -81,21 +81,6 @@ function keepTerminalCheckContinued(kind: string): void {
 }
 
 
-function SetupGroundFill({ children }: { children: React.ReactNode }): React.ReactNode {
-  const tokens = useMercuryTokens()
-  const size = React.useContext(TerminalSizeContext)
-  return (
-    <Box
-      flexDirection="column"
-      height={size?.rows ?? 24}
-      width="100%"
-      backgroundColor={estateGroundBg(tokens)}
-    >
-      {children}
-    </Box>
-  )
-}
-
 export function SetupScreenHost({ children }: { children: React.ReactNode }): React.ReactNode {
   const [useAltScreenHost] = React.useState(
     () => launcherAltHoldPending() || isFullscreenEnvEnabled(),
@@ -103,7 +88,7 @@ export function SetupScreenHost({ children }: { children: React.ReactNode }): Re
   if (!useAltScreenHost) return children
   return (
     <AlternateScreen mouseTracking={isMouseTrackingEnabled()}>
-      <SetupGroundFill>{children}</SetupGroundFill>
+      <GroundFill>{children}</GroundFill>
     </AlternateScreen>
   )
 }

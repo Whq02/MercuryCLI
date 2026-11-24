@@ -20,7 +20,6 @@ import type { SessionListing } from '../../sessions/transcripts/transcriptEntrie
 import { checkCrossProjectResume } from '../session-chooser/crossProjectResume.js'
 import { logError } from '../../platform/logs/errorLog.js'
 import { isFullscreenEnvEnabled, isMouseTrackingEnabled } from '../fullscreen-layout/fullscreen.js'
-import { estateGroundBg } from '../theme/mercuryTokens.js'
 import { getOriginalCwd } from '../../boot/process-state/processState.js'
 import {
   enrichSessionListings,
@@ -34,6 +33,7 @@ import {
 } from '../../sessions/transcripts/sessionListings.js'
 import { isCustomTitleEnabled } from '../../sessions/transcripts/paths.js'
 import { Chat, type Props as ChatProps } from './Chat.js'
+import { GroundFill } from '../widgets/GroundFill.js'
 
 const LOAD_MORE_BATCH = 20
 
@@ -92,21 +92,6 @@ function ResumeWait(props: { text: string; hint: string; onCancel: () => void })
     <KeybindingSetup>
       <ResumeWaitInner {...props} />
     </KeybindingSetup>
-  )
-}
-
-function GroundFill({ children }: { children: React.ReactNode }): React.ReactNode {
-  const tokens = useMercuryTokens()
-  const size = React.useContext(TerminalSizeContext)
-  return (
-    <Box
-      flexDirection="column"
-      height={size?.rows ?? 24}
-      width="100%"
-      backgroundColor={estateGroundBg(tokens)}
-    >
-      {children}
-    </Box>
   )
 }
 
