@@ -56,7 +56,7 @@ import {
   type CommandIdentityCheckers,
 } from './compoundCommandPermissions.js'
 import { checkPermissionMode } from './modeValidation.js'
-import { denyRuleReach, hiddenDenyRuleAsk, hiddenDenyRuleRefusal, type HiddenDenyRule, type ReachBudget } from './denyRuleReach.js'
+import { denyRuleReach, hiddenDenyRuleAsk, hiddenDenyRuleRefusal, optionValuesOf, type HiddenDenyRule, type ReachBudget } from './denyRuleReach.js'
 import { modeBypassesPermissions, permissionModeTitle } from '../../permissions/rules/permissionMode.js'
 import { checkPathConstraints, checkShellCwd } from './pathValidation.js'
 import { checkPreparedReadOnlyConstraints, checkReadOnlyConstraints, cutPart, notReadOnlyClause } from './readOnlyValidation.js'
@@ -1049,44 +1049,25 @@ function restrictedCommandCandidates(command: SimpleCommand, depth = 0): string[
   return [...candidates]
 }
 
-function optionValues(args: string[], short: string, longs: readonly string[]): string[] {
-  const values: string[] = []
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i] as string
-    const long = longs.find(name => arg === name || arg.startsWith(`${name}=`))
-    if (long !== undefined) {
-      const value = arg === long ? args[++i] : arg.slice(long.length + 1)
-      if (value !== undefined) values.push(value)
-      continue
-    }
-    if (!arg.startsWith('-') || arg.startsWith('--')) continue
-    const at = [...arg].findIndex((letter, index) => index > 0 && short.includes(letter))
-    if (at === -1) continue
-    const value = at === arg.length - 1 ? args[++i] : arg.slice(at + 1)
-    if (value !== undefined) values.push(value)
-  }
-  return values
-}
-
 function optionNamedWrites(words: string[]): string[] {
   const peeled = peelWrappers(words)
   const argv = Array.isArray(peeled) ? peeled : words
   const name = posixPath.basename(argv[0] ?? '')
   const args = argv.slice(1)
-  if (name === 'curl') return optionValues(args, 'oDc', ['--output', '--output-dir', '--dump-header', '--cookie-jar', '--trace', '--trace-ascii', '--stderr'])
-  if (name === 'wget') return optionValues(args, 'OPo', ['--output-document', '--directory-prefix', '--output-file'])
-  if (name === 'unzip') return optionValues(args, 'd', [])
+  if (name === 'curl') return optionValuesOf(args, 'oDc', ['--output', '--output-dir', '--dump-header', '--cookie-jar', '--trace', '--trace-ascii', '--stderr'])
+  if (name === 'wget') return optionValuesOf(args, 'OPo', ['--output-document', '--directory-prefix', '--output-file'])
+  if (name === 'unzip') return optionValuesOf(args, 'd', [])
   if (name === 'tar' || name === 'bsdtar' || name === 'gtar') {
     const extracts = args.some(arg => arg === '--extract' || arg === '--get' || (/^-?[A-Za-z]+$/.test(arg) && !arg.startsWith('--') && arg.includes('x')))
-    return extracts ? optionValues(args, 'C', ['--directory', '--cd']) : []
+    return extracts ? optionValuesOf(args, 'C', ['--directory', '--cd']) : []
   }
-  if (name === 'ssh-keygen') return args.some(arg => /^-[A-Za-z]*[lLyBFH]/.test(arg)) ? [] : optionValues(args, 'f', [])
+  if (name === 'ssh-keygen') return args.some(arg => /^-[A-Za-z]*[lLyBFH]/.test(arg)) ? [] : optionValuesOf(args, 'f', [])
   if (name === 'git') {
     const at = gitSubcommandIndex(args)
     if (args[at] !== 'config') return []
     const rest = args.slice(at + 1)
     const reads = rest.some(arg => ['--get', '--get-all', '--get-regexp', '--get-urlmatch', '--list', '-l', '--show-origin', '--show-scope'].includes(arg))
-    return reads ? [] : optionValues(rest, 'f', ['--file'])
+    return reads ? [] : optionValuesOf(rest, 'f', ['--file'])
   }
   return []
 }

@@ -249,7 +249,7 @@ function braceExpanded(command: string): string | null {
   return changed ? out : null
 }
 
-function optionValuesOf(args: readonly string[], short: string, longs: readonly string[]): string[] {
+export function optionValuesOf(args: readonly string[], short: string, longs: readonly string[]): string[] {
   const values: string[] = []
   for (let i = 0; i < args.length; i++) {
     const arg = args[i] as string
