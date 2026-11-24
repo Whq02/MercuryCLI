@@ -98,5 +98,3 @@ export function writeTensorFoldKeyFile(opts: { path?: string; key?: string; labe
   }
   return { path, key, line }
 }
-
-export const TENSORFOLD_KEY_PASTE_WORDS = 'paste this one line into the key file on the serving Mac'

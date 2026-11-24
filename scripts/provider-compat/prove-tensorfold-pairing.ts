@@ -34,7 +34,6 @@ check('the file is private (0600) — his server refuses any group or other bit'
 check('the directory is private (0700)', (statSync(join(written.path, '..')).mode & 0o777) === 0o700, 'writeTensorFoldKeyFile in src/models/roads/local/tensorfoldKeyFile.ts must create the key directory with mode 0700')
 check('a second write keeps the same key', keyFile.writeTensorFoldKeyFile({ path: written.path }).key === written.key, 'writeTensorFoldKeyFile in src/models/roads/local/tensorfoldKeyFile.ts must keep the key of an existing file')
 check('the file reads back', keyFile.readTensorFoldKeyFile(written.path)?.key === written.key, 'readTensorFoldKeyFile in src/models/roads/local/tensorfoldKeyFile.ts must parse the line writeTensorFoldKeyFile wrote')
-check('the paste words name no flag', !/--/.test(keyFile.TENSORFOLD_KEY_PASTE_WORDS), keyFile.TENSORFOLD_KEY_PASTE_WORDS)
 const realPlatform = process.platform
 const platformDesc = Object.getOwnPropertyDescriptor(process, 'platform')
 const winPath = join(HOME, 'local-setup', 'tensorfold', 'win32-api-key')
