@@ -38,17 +38,6 @@ async function summarizeViaCacheSharingFork(
   const bound = armFoldBound(context.abortController.signal, 'fork', estTokens, model, cold)
   context.setResponseLength?.(() => 0)
   try {
-    const getAppState = () => {
-      const state = context.getAppState()
-      if (state.toolPermissionContext.shouldAvoidPermissionPrompts === true) return state
-      return {
-        ...state,
-        toolPermissionContext: {
-          ...state.toolPermissionContext,
-          shouldAvoidPermissionPrompts: true,
-        },
-      }
-    }
     const setSDKStatus = (status: unknown): void => {
       if (isRecord(status) && Object.hasOwn(status, 'streamActivity')) bound.touch()
       context.setSDKStatus?.(status)
@@ -76,7 +65,6 @@ async function summarizeViaCacheSharingFork(
         agentId: context.agentId,
         abortController: bound.controller,
         setSDKStatus,
-        getAppState,
       },
     })
     if (bound.hitDeadline()) {
