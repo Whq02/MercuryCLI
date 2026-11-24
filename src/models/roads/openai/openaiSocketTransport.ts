@@ -24,8 +24,6 @@ export const SOCKET_FAULTS_BEFORE_REST = 3
 export const SOCKET_REST_MS = 10 * 60_000
 export const SOCKET_MESSAGE_TOO_LARGE_CLOSE = 1009
 
-export type OpenaiTransportChoice = NonNullable<NonNullable<SettingsJson['routing']>['openai']>['transport']
-
 export function openaiSocketRoadChosen(settings: SettingsJson = getInitialSettings()): boolean {
   return settings.routing?.openai?.transport === 'websocket'
 }
