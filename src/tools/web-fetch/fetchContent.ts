@@ -252,14 +252,32 @@ interface FetchSummariseReads {
 function readSummariserReply(
   reply: { isApiErrorMessage?: boolean; message: { content: readonly { readonly type: string }[] } },
 ): { ok: true; text: string } | { ok: false; reason: string } {
-  const text = extractTextContent(reply.message.content, '\n').trim()
-  if (reply.isApiErrorMessage) {
-    return { ok: false, reason: text || 'API error' }
-  }
-  if (!text) {
+  const text = extractTextContent(reply.message.content, '\n')
+  if (text.trim() === '') {
     return { ok: false, reason: 'the reply carried no text' }
   }
-  return { ok: true, text }
+  return reply.isApiErrorMessage === true ? { ok: false, reason: text } : { ok: true, text }
+}
+
+function reasonOf(thrown: unknown): string {
+  return thrown instanceof Error ? thrown.message : String(thrown)
+}
+
+function modelIdOf(ask: () => string): string {
+  try {
+    return ask()
+  } catch (error) {
+    passedOver(error)
+    return ''
+  }
+}
+
+function modelWord(id: string): string {
+  return id === '' ? 'unknown' : id
+}
+
+function modelReading(text: string): string {
+  return `[Model reading of the extracted page, not the page’s own words.]\n\n${text}`
 }
 
 export async function applyPromptToMarkdown(
@@ -270,73 +288,50 @@ export async function applyPromptToMarkdown(
   isPreapprovedDomain: boolean,
   reads?: FetchSummariseReads,
 ): Promise<string> {
-  if (signal.aborted) throw new AbortError()
-
   const userPrompt = makeSecondaryModelPrompt(markdown, prompt, isPreapprovedDomain)
   const utility = reads?.utility ?? callUtilityModel
   const withModel = reads?.withModel ?? callWithModel
-  const primaryModel = reads?.utilityModelId ? reads.utilityModelId() : utilityCallFor().model
-  const mainModel = reads?.mainModelId ? reads.mainModelId() : getEngineModel()
+  const options = {
+    querySource: 'web_fetch_apply' as const,
+    agents: [],
+    isNonInteractiveSession: isNonInteractive,
+    hasAppendSystemPrompt: false,
+    mcpTools: [],
+  }
+  const primaryModel = modelIdOf(() => (reads?.utilityModelId ? reads.utilityModelId() : utilityCallFor().model))
 
   let primaryReason = ''
   try {
-    const reply = await utility({
-      systemPrompt: asSystemPrompt([]),
-      userPrompt,
-      signal,
-      options: {
-        querySource: 'web_fetch_apply',
-        agents: [],
-        isNonInteractiveSession: isNonInteractive,
-        hasAppendSystemPrompt: false,
-        mcpTools: [],
-      },
-    })
+    const reply = await utility({ systemPrompt: asSystemPrompt([]), userPrompt, signal, options })
     if (signal.aborted) throw new AbortError()
     const outcome = readSummariserReply(reply)
     if (outcome.ok) {
-      return `[Model reading of the extracted page, not the page’s own words.]\n\n${outcome.text}`
+      return modelReading(outcome.text)
     }
     primaryReason = outcome.reason
   } catch (error) {
     if (signal.aborted || error instanceof AbortError) throw new AbortError()
-    primaryReason = error instanceof Error ? error.message : String(error)
+    primaryReason = reasonOf(error)
   }
 
-  let roadDetails: string
-  if (mainModel !== primaryModel) {
+  const mainModel = modelIdOf(() => (reads?.mainModelId ? reads.mainModelId() : getEngineModel()))
+  let roadDetails = `tried the utility model ${modelWord(primaryModel)} (${primaryReason}); the session model is the same, so there was no second road`
+  if (mainModel !== '' && mainModel !== primaryModel) {
     let fallbackReason = ''
     try {
-      const call = utilityCallFor(mainModel, { named: true })
-      const reply = await withModel({
-        systemPrompt: asSystemPrompt([]),
-        userPrompt,
-        signal,
-        thinkingConfig: call.thinkingConfig,
-        options: {
-          model: call.model,
-          ...(call.effortValue !== undefined ? { effortValue: call.effortValue } : {}),
-          effortPinned: call.effortPinned,
-          querySource: 'web_fetch_apply',
-          agents: [],
-          isNonInteractiveSession: isNonInteractive,
-          hasAppendSystemPrompt: false,
-          mcpTools: [],
-        },
-      })
+      const { thinkingConfig, ...call } = utilityCallFor(mainModel, { named: true })
+      const reply = await withModel({ systemPrompt: asSystemPrompt([]), userPrompt, signal, thinkingConfig, options: { ...options, ...call } })
       if (signal.aborted) throw new AbortError()
       const outcome = readSummariserReply(reply)
       if (outcome.ok) {
-        return `[Model reading of the extracted page, not the page’s own words.]\n\n${outcome.text}`
+        return modelReading(outcome.text)
       }
       fallbackReason = outcome.reason
     } catch (error) {
       if (signal.aborted || error instanceof AbortError) throw new AbortError()
-      fallbackReason = error instanceof Error ? error.message : String(error)
+      fallbackReason = reasonOf(error)
     }
-    roadDetails = `tried the utility model ${primaryModel} (${primaryReason}), then the session model ${mainModel} (${fallbackReason})`
-  } else {
-    roadDetails = `tried the utility model ${primaryModel} (${primaryReason}); the session model is the same, so there was no second road`
+    roadDetails = `tried the utility model ${modelWord(primaryModel)} (${primaryReason}), then the session model ${modelWord(mainModel)} (${fallbackReason})`
   }
 
   const quoteGuard = isPreapprovedDomain
