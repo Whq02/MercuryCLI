@@ -91,7 +91,3 @@ export function padStartTo(s: string, w: number): string {
 export function branchChip(name: string): string {
   return `${GLYPH.branch} ${name}`
 }
-
-export function branchChipWidth(name: string): number {
-  return stringWidth(branchChip(name))
-}
