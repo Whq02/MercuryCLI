@@ -119,3 +119,14 @@ export function FallbackToolUseErrorMessage({
     </MessageResponse>
   )
 }
+
+export function ShortErrorLine({ text }: { text: string }): React.ReactNode {
+  const tokens = useMercuryTokens()
+  return (
+    <MessageResponse>
+      <Text color={tokens.warning}>
+        {GLYPH.warn} {text}
+      </Text>
+    </MessageResponse>
+  )
+}

@@ -1,12 +1,11 @@
 import * as React from 'react'
 
 import { truncatePathMiddle } from '../../platform/text/truncate.js'
-import { FallbackToolUseErrorMessage } from '../kit/FallbackToolUseErrorMessage.js'
+import { FallbackToolUseErrorMessage, ShortErrorLine } from '../kit/FallbackToolUseErrorMessage.js'
 import { isDenialResultText } from '../../engine/message-shapes/rejectionText.js'
 import { FilePathLink } from '../kit/FilePathLink.js'
 import { MessageResponse } from '../kit/MessageResponse.js'
 import { ToolCardMeta, toolCardCountColor } from '../../screen/widgets/toolCardMeta.js'
-import { GLYPH } from '../../screen/theme/glyphs.js'
 import { useMercuryTokens } from '../../screen/widgets/useMercuryTokens.js'
 import { TOOL_SUMMARY_MAX_LENGTH } from '../kit/toolLimits.js'
 import { Text } from '../../screen/themedRenderer.js'
@@ -129,17 +128,6 @@ export function renderToolResultMessage(output: Output): React.ReactNode {
   return (
     <MessageResponse height={1}>
       <ReadResultSummary output={output} />
-    </MessageResponse>
-  )
-}
-
-function ShortErrorLine({ text }: { text: string }): React.ReactNode {
-  const tokens = useMercuryTokens()
-  return (
-    <MessageResponse>
-      <Text color={tokens.warning}>
-        {GLYPH.warn} {text}
-      </Text>
     </MessageResponse>
   )
 }

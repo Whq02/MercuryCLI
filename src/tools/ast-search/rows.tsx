@@ -1,10 +1,7 @@
 import * as React from 'react'
 
-import { FallbackToolUseErrorMessage } from '../kit/FallbackToolUseErrorMessage.js'
+import { FallbackToolUseErrorMessage, ShortErrorLine } from '../kit/FallbackToolUseErrorMessage.js'
 import { isDenialResultText } from '../../engine/message-shapes/rejectionText.js'
-import { MessageResponse } from '../kit/MessageResponse.js'
-import { GLYPH } from '../../screen/theme/glyphs.js'
-import { useMercuryTokens } from '../../screen/widgets/useMercuryTokens.js'
 import { TOOL_SUMMARY_MAX_LENGTH } from '../kit/toolLimits.js'
 import { Text } from '../../screen/themedRenderer.js'
 import type { ToolResultBlockParam } from '../../engine/message-shapes/wire.js'
@@ -65,17 +62,6 @@ export function renderToolResultMessage(
 export function isResultTruncated(output: RenderOutput | undefined): boolean {
   if (!output) return false
   return output.matchCount > 0 && Boolean(output.text)
-}
-
-function ShortErrorLine({ text }: { text: string }): React.ReactNode {
-  const tokens = useMercuryTokens()
-  return (
-    <MessageResponse>
-      <Text color={tokens.warning}>
-        {GLYPH.warn} {text}
-      </Text>
-    </MessageResponse>
-  )
 }
 
 export function renderToolUseErrorMessage(

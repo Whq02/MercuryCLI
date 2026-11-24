@@ -1,12 +1,11 @@
 import * as React from 'react'
 
-import { FallbackToolUseErrorMessage } from '../kit/FallbackToolUseErrorMessage.js'
+import { FallbackToolUseErrorMessage, ShortErrorLine } from '../kit/FallbackToolUseErrorMessage.js'
 import { isDenialResultText } from '../../engine/message-shapes/rejectionText.js'
 import { InlineChangeView } from '../kit/InlineChangeView.js'
 import { MessageResponse } from '../kit/MessageResponse.js'
 import { CtrlOToExpand } from '../../screen/messages/CtrlOToExpand.js'
 import { WithCardTone } from '../../screen/widgets/toolCardGrammar.js'
-import { GLYPH } from '../../screen/theme/glyphs.js'
 import { useMercuryTokens } from '../../screen/widgets/useMercuryTokens.js'
 import { Box, Text } from '../../screen/themedRenderer.js'
 import { LSP_ONE_LINE_MAX } from '../../integrations/lsp/failureWords.js'
@@ -258,15 +257,4 @@ export function renderToolUseErrorMessage(
     if (tagged !== null) return <ShortErrorLine text={`${name}: ${collapseAndClip(tagged, 140)}`} />
   }
   return <FallbackToolUseErrorMessage result={result} verbose={verbose} />
-}
-
-function ShortErrorLine({ text }: { text: string }): React.ReactNode {
-  const tokens = useMercuryTokens()
-  return (
-    <MessageResponse>
-      <Text color={tokens.warning}>
-        {GLYPH.warn} {text}
-      </Text>
-    </MessageResponse>
-  )
 }

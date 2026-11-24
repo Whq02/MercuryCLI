@@ -1,7 +1,7 @@
 import * as React from 'react'
 
 import { truncatePathMiddle } from '../../platform/text/truncate.js'
-import { FallbackToolUseErrorMessage } from '../kit/FallbackToolUseErrorMessage.js'
+import { FallbackToolUseErrorMessage, ShortErrorLine } from '../kit/FallbackToolUseErrorMessage.js'
 import { isDenialResultText } from '../../engine/message-shapes/rejectionText.js'
 import { FallbackToolUseRejectedMessage } from '../kit/FallbackToolUseRejectedMessage.js'
 import { EditDiff } from './EditDiff.js'
@@ -10,7 +10,6 @@ import { EditUpdatedMessage } from './EditUpdatedMessage.js'
 import { FilePathLink } from '../kit/FilePathLink.js'
 import { HighlightedCode } from '../../screen/highlighted-code/HighlightedCode.js'
 import { MessageResponse } from '../kit/MessageResponse.js'
-import { GLYPH } from '../../screen/theme/glyphs.js'
 import { useMercuryTokens } from '../../screen/widgets/useMercuryTokens.js'
 import { TOOL_SUMMARY_MAX_LENGTH } from '../kit/toolLimits.js'
 import { Text } from '../../screen/themedRenderer.js'
@@ -105,17 +104,6 @@ export function renderToolUseRejectedMessage(
       ]}
       availableWidth={availableWidth}
     />
-  )
-}
-
-function ShortErrorLine({ text }: { text: string }): React.ReactNode {
-  const tokens = useMercuryTokens()
-  return (
-    <MessageResponse>
-      <Text color={tokens.warning}>
-        {GLYPH.warn} {text}
-      </Text>
-    </MessageResponse>
   )
 }
 
