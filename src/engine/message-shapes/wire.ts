@@ -1,5 +1,3 @@
-
-
 type TextCitation = { type: string }
 
 type CitationLocation = { type: string }
@@ -548,12 +546,4 @@ export type ApiRequestParams = {
   temperature?: number
   top_p?: number
   stop_sequences?: string[]
-}
-
-export type StreamCapabilityAdvertisement = {
-  textDelta: boolean
-  reasoningDelta: boolean
-  toolArgsDelta: boolean
-  usage: boolean
-  timing: boolean
 }

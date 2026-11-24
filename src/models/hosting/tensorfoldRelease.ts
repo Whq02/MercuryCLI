@@ -20,7 +20,7 @@ const TENSORFOLD_HOST_DRIVER_FLOOR = 580
 const TENSORFOLD_HOST_WINDOWS: readonly number[] = [32768, 65536, 131072, 262144]
 
 type TensorFoldCardClass = 'supported' | 'unqualified' | 'refused'
-export interface TensorFoldCard { gpu: string; vramGb: number; capability: string; class: TensorFoldCardClass; evidence: string }
+interface TensorFoldCard { gpu: string; vramGb: number; capability: string; class: TensorFoldCardClass; evidence: string }
 export const TENSORFOLD_CARDS: readonly TensorFoldCard[] = [
   { gpu: 'RTX 5090', vramGb: 32, capability: '12.0', class: 'supported', evidence: '16 RTX 5090 receipts on the public TensorFold board' },
   { gpu: 'RTX PRO 6000', vramGb: 96, capability: '12.0', class: 'supported', evidence: 'checked by TensorFold on RTX PRO 6000 Blackwell' },
@@ -94,7 +94,7 @@ export const tensorFoldCardFor = (gpu: string): TensorFoldCard | undefined => {
 const quote = (value: string): string => "'" + value.replaceAll("'", "'\\''") + "'"
 const pem = (key: string): string => "printf '%s\\n' '-----BEGIN PUBLIC KEY-----' " + quote(key) + " '-----END PUBLIC KEY-----' > release-key.pem"
 const tensorFoldKeyFileLine = (key: string): string => TENSORFOLD_HOST_KEY_LABEL + ': ' + key + '\n'
-export const tensorFoldKeyPath = (dir: string): string => dir + '/api-key'
+const tensorFoldKeyPath = (dir: string): string => dir + '/api-key'
 export const tensorFoldReadyCommand = (dir: string): string => 'curl -fsS --max-time 10 http://127.0.0.1:' + TENSORFOLD_HOST_PORT + '/health >/dev/null && curl -fsS --max-time 10 -H "Authorization: Bearer $(cut -d \' \' -f 2 ' + quote(tensorFoldKeyPath(dir)) + ')" http://127.0.0.1:' + TENSORFOLD_HOST_PORT + '/v1/models'
 export const tensorFoldKeyWriteCommand = (dir: string, key: string): string => 'umask 077; mkdir -p ' + quote(dir) + ' && printf %s ' + quote(tensorFoldKeyFileLine(key)) + ' > ' + quote(tensorFoldKeyPath(dir)) + ' && chmod 600 ' + quote(tensorFoldKeyPath(dir))
 
