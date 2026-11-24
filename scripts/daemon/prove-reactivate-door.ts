@@ -45,6 +45,18 @@ class FakeRoster {
   present = new Map<string, { alive: boolean; ready: boolean }>()
   answer: 'success' | 'error' | 'never' = 'success'
   refuseRegister = false
+  firstLines = new Map<string, () => void>()
+  afterFirstLine(short: string, listener: () => void): () => void {
+    this.firstLines.set(short, listener)
+    return () => {
+      this.firstLines.delete(short)
+    }
+  }
+  deliverFirstLine(short: string): void {
+    const listener = this.firstLines.get(short)
+    this.firstLines.delete(short)
+    listener?.()
+  }
   has(short: string): { alive: boolean; present: boolean; ready: boolean } {
     const p = this.present.get(short)
     return p ? { present: true, alive: p.alive, ready: p.ready } : { present: false, alive: false, ready: false }
@@ -177,6 +189,7 @@ console.log('\n── R1: ↵ on a parked row rides the warm claim ──')
   check('R1 in ONE publication (the delta stamp advanced exactly once for the flip)', revisionOf() === revisionBefore + 1, `${revisionBefore} → ${revisionOf()} — the flip must publish the concourse delta once, not twice or not at all`)
   check("R1 the ladder reads the record live now (never parked, never NEEDS YOU)", ['working', 'ready-to-review'].includes(workers.concourseRecordState(live!, { needsYou: false, alive: true })))
   check('R1 the respawn argv flipped to --resume <id> (a crash later continues the same chat)', roster.patched.some(p => p.short === warmShort && p.patch.respawnExtraArgv.join(' ').startsWith(`--resume ${parkedSid}`)))
+  roster.deliverFirstLine(warmShort)
   await new Promise(r => setTimeout(r, 20))
   check('R1 the pool re-warms the workspace behind the answer', rewarmed.includes(wsId))
   check('R1 the seat hook fired for the claimed short', spawned.some(s => s.runnerId === warmShort))

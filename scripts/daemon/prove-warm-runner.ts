@@ -63,6 +63,18 @@ class FakeRoster {
   answer: 'success' | 'error' | 'never' = 'success'
   dieOnClaim = false
   exitListeners = new Map<string, Set<() => void>>()
+  firstLines = new Map<string, () => void>()
+  afterFirstLine(short: string, listener: () => void): () => void {
+    this.firstLines.set(short, listener)
+    return () => {
+      this.firstLines.delete(short)
+    }
+  }
+  deliverFirstLine(short: string): void {
+    const listener = this.firstLines.get(short)
+    this.firstLines.delete(short)
+    listener?.()
+  }
   onExit(short: string, listener: () => void): () => void {
     let listeners = this.exitListeners.get(short)
     if (!listeners) {
@@ -212,7 +224,9 @@ console.log('\n── W1/W5/W8: claim-over-spawn ──')
   }
   check('W- the roster spec was patched to resume the claimed session', roster.patched.length === 1 && roster.patched[0]!.patch.respawnExtraArgv[0] === '--resume' && (admitted.ok ? roster.patched[0]!.patch.respawnExtraArgv[1] === admitted.sessionId : false))
   await new Promise(resolve => setTimeout(resolve, 25))
-  check('W8 the pool re-warms in the background after the claim', rewarmed.length === 1 && rewarmed[0] === (admitted.ok ? admitted.workspaceId : ''))
+  check('W8 the pool does not re-warm before the claimed session’s first line is delivered', rewarmed.length === 0, `${rewarmed.length} rewarm(s) 25 ms after the claim, with no line delivered`)
+  if (admitted.ok) roster.deliverFirstLine(admitted.runnerId)
+  check('W8 the pool re-warms in the background after the claim, once the session’s first line is delivered', rewarmed.length === 1 && rewarmed[0] === (admitted.ok ? admitted.workspaceId : ''))
 }
 
 console.log('\n── W2: spawn when none matches ──')

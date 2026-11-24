@@ -22,7 +22,7 @@ import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { resolveEffectiveSettingsSnapshot } from '../../platform/substrate/startupMenu.js'
 import { seatInitialPermissionMode } from './spec.js'
 import { resumeModelKeyOf, localModelNotServedNote } from './admitModel.js'
-import { warmSeatAnswer } from './admitWarm.js'
+import { rewarmAfterFirstLine, warmSeatAnswer } from './admitWarm.js'
 import { coldRunnerIdOf, coldSpecOf, coldSeatAnswer } from './admitCold.js'
 import { randomUUID } from '../../platform/primitives/crypto.js'
 import { getProcessStartInstantAsync } from '../control/ownerWatch.js'
@@ -30,7 +30,6 @@ import { inspectWorkspaceKind, workspaceGitCheckNote, ensureWorkerWorktree } fro
 import { describeSeatReading } from '../switchboard-capacity/capacityCheck.js'
 import { effectiveSeatCeiling } from './admission.js'
 import { claimedPidFields, pidFieldsOf } from './marks.js'
-import { startTimeout } from '../../platform/async/timers.js'
 
 export interface WorkerRosterPort {
   has(short: string): { present: boolean; alive?: boolean }
@@ -42,6 +41,7 @@ export interface WorkerRosterPort {
     start?: { cwd: string; worktree?: string },
   ): { ok: boolean; pid?: number; error?: string }
   currentLongLivedModel?(short: string): string | undefined
+  afterFirstLine?(short: string, listener: () => void): () => void
 }
 
 export interface ConcourseAdmitDeps {
@@ -354,10 +354,7 @@ export function makeConcourseAdmitHandler(
         return warmSeatAnswer({ ...seat, runnerId, claimSessionId, claimEffort, claimPosture, snapshot, pidFields, claimed })
       }
       logForDebugging(`[daemon] warm claim declined (${claimed.reason}) — spawning cold`)
-      if (deps.ensureWarm !== undefined) {
-        const rewarm = startTimeout(() => deps.ensureWarm!(workspaceId, kit, req.bypassConsent === true), 0)
-        rewarm.unref?.()
-      }
+      rewarmAfterFirstLine(deps, coldRunnerIdOf(records, roster) ?? undefined, workspaceId, kit, req.bypassConsent === true)
     }
 
     const runnerId = coldRunnerIdOf(records, roster)

@@ -11,7 +11,7 @@ import { type ConcourseMoveV1, evaluateConcourseAdmission, type WorkspaceIsolati
 import { runnerRestartReasonOf, reviveConcourseWorker } from './revive.js'
 import { seatInitialPermissionMode, stampSpawnPosture, buildConcourseWorkerSpec } from './spec.js'
 import { claimedPidFields, buildTreeFields } from './marks.js'
-import { startTimeout } from '../../platform/async/timers.js'
+import { rewarmAfterFirstLine } from './admitWarm.js'
 
 function stampTakenBackAtRest(rec: ConcourseWorkerRecordV1): void {
   rec.resumedAtRestAt = Date.now()
@@ -179,10 +179,7 @@ export async function reactivateConcourseSession(
         return recordsTakeNoWrite(error)
       }
       deps.onSpawned?.(short, claimed.spec, claimed.pid)
-      if (deps.ensureWarm !== undefined) {
-        const rewarm = startTimeout(() => deps.ensureWarm!(rec.workspaceId, kit, args.bypassConsent === true), 0)
-        rewarm.unref?.()
-      }
+      rewarmAfterFirstLine(deps, short, rec.workspaceId, kit, args.bypassConsent === true)
       return {
         ok: true,
         ...(kitNote !== undefined ? { note: kitNote } : {}),
@@ -198,10 +195,7 @@ export async function reactivateConcourseSession(
       }
     }
     logForDebugging(`[daemon] warm claim declined for the reactivate of ${rec.sessionId} (${claimed.reason}) — respawning cold`)
-    if (deps.ensureWarm !== undefined) {
-      const rewarm = startTimeout(() => deps.ensureWarm!(rec.workspaceId, kit, args.bypassConsent === true), 0)
-      rewarm.unref?.()
-    }
+    rewarmAfterFirstLine(deps, rec.runnerId, rec.workspaceId, kit, args.bypassConsent === true)
   }
   const keylessDrift = (args.keyless === true) !== (rec.keyless === true)
   const runnerArgvDrift = args.runnerArgv !== undefined && args.runnerArgv.length > 0 && JSON.stringify(args.runnerArgv) !== JSON.stringify(rec.runnerArgv)

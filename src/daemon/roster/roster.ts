@@ -17,6 +17,18 @@ export { RUNNER_ASK_BOUND_MS, decideRunnerEnd } from './end.js'
 
 const DELIVERED_ID_CAP = 500
 
+function listenFor(listeners: Map<string, Set<() => void>>, short: string, listener: () => void): () => void {
+  const heard = listeners.get(short) ?? new Set<() => void>()
+  listeners.set(short, heard)
+  heard.add(listener)
+  return () => {
+    const current = listeners.get(short)
+    if (!current) return
+    current.delete(listener)
+    if (current.size === 0) listeners.delete(short)
+  }
+}
+
 function wireEntry(h: WorkerHandle, retarget: RetargetPart): WireRosterEntry {
   const e: WireRosterEntry = { ...h.entry }
   if (h.longLived) {
@@ -58,6 +70,7 @@ export class TaskRoster {
   private readonly handles = new Map<string, WorkerHandle>()
   private readonly degradedSeats = new Map<string, string>()
   private readonly exitListeners = new Map<string, Set<() => void>>()
+  private readonly firstLineListeners = new Map<string, Set<() => void>>()
   private readonly endPart: EndPart
   private readonly lifePart: LifePart
   private readonly spawnPart: SpawnPart
@@ -134,18 +147,18 @@ export class TaskRoster {
   }
 
   onExit(short: string, listener: () => void): () => void {
-    let listeners = this.exitListeners.get(short)
-    if (!listeners) {
-      listeners = new Set()
-      this.exitListeners.set(short, listeners)
-    }
-    listeners.add(listener)
-    return () => {
-      const current = this.exitListeners.get(short)
-      if (!current) return
-      current.delete(listener)
-      if (current.size === 0) this.exitListeners.delete(short)
-    }
+    return listenFor(this.exitListeners, short, listener)
+  }
+
+  afterFirstLine(short: string, listener: () => void): () => void {
+    return listenFor(this.firstLineListeners, short, listener)
+  }
+
+  private notifyFirstLine(short: string): void {
+    const listeners = this.firstLineListeners.get(short)
+    if (!listeners) return
+    this.firstLineListeners.delete(short)
+    for (const listener of listeners) listener()
   }
 
   private notifyExit(short: string): void {
@@ -181,6 +194,7 @@ export class TaskRoster {
         .catch(passedOver)
     }
     const finishDelivery = (accepted: boolean | null): void => {
+      if (accepted) this.notifyFirstLine(short)
       if (ll.connection !== door || ll.turnEdges !== edgesBefore) return
       if (accepted && !opensTurn && row.type === 'prompt') ll.lastDeliveredAt = Date.now()
       if (accepted || !opensTurn) return

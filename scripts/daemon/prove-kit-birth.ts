@@ -60,6 +60,18 @@ class FakeRoster {
   patched: Array<{ short: string; patch: { model: string; effort: string; respawnExtraArgv: readonly string[] } }> = []
   present = new Map<string, { alive: boolean; ready: boolean }>()
   answer: 'success' | 'error' | 'never' = 'success'
+  firstLines = new Map<string, () => void>()
+  afterFirstLine(short: string, listener: () => void): () => void {
+    this.firstLines.set(short, listener)
+    return () => {
+      this.firstLines.delete(short)
+    }
+  }
+  deliverFirstLine(short: string): void {
+    const listener = this.firstLines.get(short)
+    this.firstLines.delete(short)
+    listener?.()
+  }
   has(short: string): { alive: boolean; present: boolean; ready: boolean } {
     const p = this.present.get(short)
     return p ? { present: true, alive: p.alive, ready: p.ready } : { present: false, alive: false, ready: false }
@@ -209,6 +221,7 @@ if (ENSURE_SKIP !== '') {
     const rec = admitted.ok ? readSessionWorkers(recordsDir)[admitted.runnerId] : undefined
     check('G6 the derivation-road admit CLAIMS warm (menu untouched between warm and claim)', admitted.ok && roster.claims.length > 0, admitted.ok ? '' : admitted.error)
     check('G6 THE HEADLINE PIN: the claimed record wears EXACTLY the kit the process booted (record ≡ process — the poison this lane closes: a kit-stamped record over a whole-config warm process)', rec !== undefined && bootedKit !== null && deepEq(rec.kit, bootedKit))
+    if (admitted.ok) roster.deliverFirstLine(admitted.runnerId)
     await new Promise(resolve => setTimeout(resolve, 25))
     check('G6 the post-claim rewarm carries the claimed kit (the pool re-arms wearing what births carry)', rewarms.length >= 1 && rewarms[0]!.kit !== undefined && deepEq(rewarms[0]!.kit, rec?.kit))
     rewarms.length = 0
@@ -223,6 +236,7 @@ if (ENSURE_SKIP !== '') {
     check('G6 the carried-kit admit DECLINED warm and spawned COLD on its own short', cold.ok && coldRec !== undefined && coldSpec.short === (cold.ok ? cold.runnerId : ''), cold.ok ? '' : cold.error)
     check('G6 record ≡ process on the cold fallback: the record and the spawn spec wear the SAME carried kit', coldRec !== undefined && deepEq(coldRec.kit, SCREEN) && deepEq(specKitOf(coldSpec.spec), SCREEN))
     check('G6 no claim control reached the mismatched runner (the gate preceded the wire)', !roster.claims.length > 0)
+    if (cold.ok) roster.deliverFirstLine(cold.runnerId)
     await new Promise(resolve => setTimeout(resolve, 25))
     check('G6 the DECLINE-side rewarm carries the declined kit (one cold spawn is the whole price of a menu edit)', rewarms.length >= 1 && deepEq(rewarms[0]!.kit, SCREEN))
     warm.resetWarmRunnersForTesting()
