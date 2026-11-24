@@ -75,7 +75,6 @@ export function chromeForTestingRelativePaths(platform: NodeJS.Platform = os.pla
 }
 
 export function ollamaWindowsExeCandidate(
-  env: NodeJS.ProcessEnv,
   windowsExePath: string,
   platform: string = process.platform,
 ): string | null {

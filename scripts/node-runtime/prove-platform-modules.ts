@@ -1847,10 +1847,10 @@ const VENDORS: Row[] = [
   {
     name: 'vendors.ollamaWindowsExeCandidate',
     answers: () => ({
-      default: ollamaWindowsExeCandidate({}, 'C:\\Users\\u\\AppData\\Local\\Programs\\Ollama\\ollama.exe'),
-      win32: ollamaWindowsExeCandidate({}, 'C:\\Users\\u\\AppData\\Local\\Programs\\Ollama\\ollama.exe', 'win32'),
-      darwin: ollamaWindowsExeCandidate({}, 'C:\\Users\\u\\AppData\\Local\\Programs\\Ollama\\ollama.exe', 'darwin'),
-      linux: ollamaWindowsExeCandidate({}, 'C:\\Users\\u\\AppData\\Local\\Programs\\Ollama\\ollama.exe', 'linux'),
+      default: ollamaWindowsExeCandidate('C:\\Users\\u\\AppData\\Local\\Programs\\Ollama\\ollama.exe'),
+      win32: ollamaWindowsExeCandidate('C:\\Users\\u\\AppData\\Local\\Programs\\Ollama\\ollama.exe', 'win32'),
+      darwin: ollamaWindowsExeCandidate('C:\\Users\\u\\AppData\\Local\\Programs\\Ollama\\ollama.exe', 'darwin'),
+      linux: ollamaWindowsExeCandidate('C:\\Users\\u\\AppData\\Local\\Programs\\Ollama\\ollama.exe', 'linux'),
     }),
     recorded: {"win32":{"default":"C:\\Users\\u\\AppData\\Local\\Programs\\Ollama\\ollama.exe","win32":"C:\\Users\\u\\AppData\\Local\\Programs\\Ollama\\ollama.exe","darwin":null,"linux":null},"darwin":{"default":null,"win32":"C:\\Users\\u\\AppData\\Local\\Programs\\Ollama\\ollama.exe","darwin":null,"linux":null},"linux":{"default":null,"win32":"C:\\Users\\u\\AppData\\Local\\Programs\\Ollama\\ollama.exe","darwin":null,"linux":null},"win32 by process.platform alone":{"default":"C:\\Users\\u\\AppData\\Local\\Programs\\Ollama\\ollama.exe","win32":"C:\\Users\\u\\AppData\\Local\\Programs\\Ollama\\ollama.exe","darwin":null,"linux":null},"win32 by getPlatform() alone":{"default":null,"win32":"C:\\Users\\u\\AppData\\Local\\Programs\\Ollama\\ollama.exe","darwin":null,"linux":null}},
   },

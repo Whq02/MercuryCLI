@@ -100,7 +100,7 @@ export async function findOllamaInstall(seam: SetupIo = {}): Promise<OllamaInsta
     const brewBin = await brewListing(io)
     if (brewBin) return done('brew', brewBin, `found the Homebrew formula (brew list --formula ollama): ${brewBin}`)
   }
-  const exe = ollamaWindowsExeCandidate(io.env, windowsAppExe(io.env), io.platform)
+  const exe = ollamaWindowsExeCandidate(windowsAppExe(io.env), io.platform)
   if (exe !== null) {
     looked.push(exe)
     if (io.exists(exe)) return done('windows', exe, `found ${exe}`)
