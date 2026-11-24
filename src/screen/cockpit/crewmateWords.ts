@@ -27,7 +27,7 @@ export function crewmateCardKeys(pinned: boolean, live = true, back = BACK_HINT)
 }
 
 export function crewClearedWords(name: string): string {
-  return `${name} cleared — its row is gone; its transcript stays on disk`
+  return `${name} cleared — its transcript stays on disk`
 }
 
 export function crewClearRefusedWords(facts: { name: string; running: boolean }): string {
