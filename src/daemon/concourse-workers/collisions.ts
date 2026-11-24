@@ -7,6 +7,8 @@ import { withDaemonStoreLock } from './storeLock.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { errorMessage, isENOENT } from '../../platform/errors/errors.js'
+import { rideOutHeldFile } from '../../platform/host-os/files.js'
+import { DurablePublishError } from '../../platform/substrate/durablePublish.js'
 
 export interface CollisionEvidenceV1 {
   schema: 1
@@ -97,5 +99,13 @@ function updateCollisionEvidence(mutate: (rows: CollisionEvidenceV1[]) => Collis
 }
 
 export function recordCollisionEvidence(row: CollisionEvidenceV1, dir?: string): void {
-  updateCollisionEvidence(rows => [...rows, row].slice(-COLLISION_EVIDENCE_CAP), dir)
+  const apply = (): void => updateCollisionEvidence(rows => [...rows, row].slice(-COLLISION_EVIDENCE_CAP), dir)
+  try {
+    apply()
+  } catch (error) {
+    if (!(error instanceof DurablePublishError)) throw error
+    void rideOutHeldFile(apply, err => err instanceof DurablePublishError, { error }).catch(lost => {
+      console.error(`[daemon] ${concourseCollisionsPath(dir)}: collision evidence was held in memory and never saved: ${errorMessage(lost)}`)
+    })
+  }
 }
