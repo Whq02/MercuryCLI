@@ -428,15 +428,6 @@ add('createFoldBoundaryMessage', 'basic', () =>
     M.createFoldBoundaryMessage('manual', 1000, '00000000-0000-4000-8000-000000000021' as never),
   ),
 );
-add('createPruneBoundaryMessage', 'basic', () =>
-  M.createPruneBoundaryMessage(
-    'auto',
-    50_000,
-    12_000,
-    ['toolu_0001', 'toolu_0002'],
-    ['00000000-0000-4000-8000-000000000010'],
-  ),
-);
 add('createSystemAPIErrorMessage', 'basic', () =>
   snapSafe(() => M.createSystemAPIErrorMessage('api down' as never)),
 );

@@ -20,9 +20,10 @@ enableConfigs()
 const React = (await import('react')).default
 const { renderToString } = await import(join(ROOT, 'src/screen/renderer/staticRender.tsx'))
 const { Message } = await import(join(ROOT, 'src/screen/messages/Message.tsx'))
-const { createFoldBoundaryMessage, createPruneBoundaryMessage } = await import(
+const { createFoldBoundaryMessage } = await import(
   join(ROOT, 'src/engine/message-shapes/systemMessages.ts')
 )
+const { createPruneBoundaryMessage } = await import('./pruneBoundaryRow.ts')
 
 const renderRow = async (msg: unknown): Promise<string> =>
   renderToString(

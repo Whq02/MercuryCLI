@@ -118,7 +118,6 @@ export {
   createCommandInputMessage,
   createFoldBoundaryMessage,
   createMemorySavedMessage,
-  createPruneBoundaryMessage,
   createScheduledTaskFireMessage,
   createSystemAPIErrorMessage,
   createSeatReceiptMessage,

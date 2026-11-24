@@ -23534,27 +23534,6 @@
   "type": "system",
   "uuid": "«u2»"
  },
- "createPruneBoundaryMessage/basic": {
-  "content": "Context microcompacted",
-  "isMeta": false,
-  "level": "info",
-  "microcompactMetadata": {
-   "clearedAttachmentUUIDs": [
-    "«u1»"
-   ],
-   "compactedToolIds": [
-    "toolu_0001",
-    "toolu_0002"
-   ],
-   "preTokens": 50000,
-   "tokensSaved": 12000,
-   "trigger": "auto"
-  },
-  "subtype": "microcompact_boundary",
-  "timestamp": "«ts»",
-  "type": "system",
-  "uuid": "«u2»"
- },
  "createSystemAPIErrorMessage/basic": {
   "error": "api down",
   "errorDetail": {

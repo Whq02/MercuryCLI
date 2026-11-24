@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert'
 import { createRowStamper, MESSAGE_STAMPER, heartbeatRow } from '../../src/engine/rows/project.ts'
 import * as factories from '../../src/engine/message-shapes/factories.ts'
 import * as system from '../../src/engine/message-shapes/systemMessages.ts'
+import { createPruneBoundaryMessage } from './pruneBoundaryRow.ts'
 
 process.on('uncaughtException', error => {
   console.error('FAIL: the row stamper or a message factory broke its contract; check createRowStamper and MESSAGE_STAMPER in src/engine/rows/project.ts, and that each factory in src/engine/message-shapes/factories.ts and systemMessages.ts mints its uuid and timestamp through MESSAGE_STAMPER.mint exactly once')
@@ -64,7 +65,7 @@ try {
     () => system.createApiMetricsMessage({ ttftMs: 1, otps: 1 }),
     () => system.createCommandInputMessage('fixture command'),
     () => system.createFoldBoundaryMessage('manual', 1),
-    () => system.createPruneBoundaryMessage('auto', 1, 1, [], []),
+    () => createPruneBoundaryMessage('auto', 1, 1, [], []),
     () => system.createSystemAPIErrorMessage(new Error('fixture error'), 0, 1, 1),
   ]
   const seen = new Set([assistant.uuid, assistant.message.id])

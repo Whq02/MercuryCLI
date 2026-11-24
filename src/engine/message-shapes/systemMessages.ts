@@ -5,8 +5,6 @@ import type { APIError } from '../request-parts/sdkErrors.js'
 import type { ModelTransitionReceipt } from './message.js'
 import { deepestErrorDetail, recentTransportFailure } from '../request-parts/transportEvidence.js'
 import { MESSAGE_STAMPER } from '../rows/project.js'
-import { logForDebugging } from '../../platform/logs/debugLog.js'
-import { formatTokens } from '../../platform/text/format.js'
 import { isRecord } from '../../platform/primitives/isRecord.js'
 
 type StoredRow = Rows.Message | Rows.NormalizedMessage
@@ -94,14 +92,6 @@ export function createFoldBoundaryMessage(
     compactMetadata: { trigger, preTokens, userContext, messagesSummarized },
     ...(lastPreFoldMessageUuid ? { logicalParentUuid: lastPreFoldMessageUuid } : {}),
   })
-}
-
-export function createPruneBoundaryMessage(
-  trigger: 'auto', preTokens: number, tokensSaved: number, compactedToolIds: string[], clearedAttachmentUUIDs: string[],
-): Rows.SystemPruneBoundaryMessage {
-  const microcompactMetadata = { trigger, preTokens, tokensSaved, compactedToolIds, clearedAttachmentUUIDs }
-  logForDebugging(`microcompact: about ${formatTokens(tokensSaved)} tokens freed by clearing ${compactedToolIds.length} tool results`)
-  return systemRow('microcompact_boundary', { microcompactMetadata, level: 'info', content: 'Context microcompacted' })
 }
 
 type ErrorDetail = NonNullable<Rows.SystemAPIErrorMessage['errorDetail']>

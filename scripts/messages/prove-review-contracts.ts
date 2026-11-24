@@ -5,6 +5,7 @@ const sourceAt = process.argv.indexOf('--source-root')
 const root = sourceAt < 0 ? resolve(import.meta.dir, '../..') : resolve(process.argv[sourceAt + 1]!)
 const F = await import(join(root, 'src/engine/message-shapes/factories.ts'))
 const S = await import(join(root, 'src/engine/message-shapes/systemMessages.ts'))
+const { createPruneBoundaryMessage } = await import('./pruneBoundaryRow.ts')
 const A = await import(join(root, 'src/engine/messages/attachmentText.ts'))
 const P = await import(join(root, 'src/engine/messages/apiPlan.ts'))
 const C = await import(join(root, 'src/engine/message-shapes/rejectionText.ts'))
@@ -185,7 +186,7 @@ test('createAwaySummaryMessage', () => {
 
 test('createPruneBoundaryMessage', () => {
   const calls = ['a', 'b'], attachments = ['u']
-  const row = S.createPruneBoundaryMessage('auto', 100, 20, calls, attachments)
+  const row = createPruneBoundaryMessage('auto', 100, 20, calls, attachments)
   systemShape(row, 'microcompact_boundary', { level: 'info', content: 'Context microcompacted', microcompactMetadata: { trigger: 'auto', preTokens: 100, tokensSaved: 20, compactedToolIds: calls, clearedAttachmentUUIDs: attachments } })
   assert.equal(row.microcompactMetadata.compactedToolIds, calls)
   assert.equal(row.microcompactMetadata.clearedAttachmentUUIDs, attachments)
