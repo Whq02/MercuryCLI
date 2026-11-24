@@ -45,6 +45,7 @@ import { crewmateLive, targetWords, useComposerCrewmate, useViewedCrewmate } fro
 import { crewmateNextTurnWords, crewmateStatusRightHint, crewmateStatusWords } from '../cockpit/crewmateWords.js'
 import { daemonBuildStatusWords, lastDaemonHandshake, subscribeDaemonHandshake } from '../../daemon/control/handshake.js'
 import { startTimeout, stopTimeout } from '../../platform/async/timers.js'
+import { createSignal } from '../../platform/async/signal.js'
 
 const focusedDaemonBuildWords = (): string => daemonBuildStatusWords(lastDaemonHandshake())
 const statusMotionWords = (): string => idleMotionLevel('clock') === 'reduced'
@@ -67,10 +68,10 @@ export const STATUS_ROW_RECEIPT_MS = 8000
 let receiptText: string | null = null
 let receiptTimer: ReturnType<typeof setTimeout> | null = null
 let rowsPainting = 0
-const receiptListeners = new Set<() => void>()
+const receiptChange = createSignal()
 
 function emitReceipt(): void {
-  for (const listener of receiptListeners) listener()
+  receiptChange.emit()
 }
 
 export type StatusRowFit = { columns: number; head: string; samples: readonly SampleRowV1[]; folder: string; branch: string | null; backHint: string }
@@ -97,12 +98,7 @@ export function paintStatusRowReceipt(text: string): boolean {
   return true
 }
 
-export function subscribeStatusRowReceipt(listener: () => void): () => void {
-  receiptListeners.add(listener)
-  return () => {
-    receiptListeners.delete(listener)
-  }
-}
+export const subscribeStatusRowReceipt = receiptChange.subscribe
 
 export function statusRowReceipt(): string {
   return receiptText ?? ''
