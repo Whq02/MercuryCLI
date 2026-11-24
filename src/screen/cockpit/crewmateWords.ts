@@ -183,5 +183,5 @@ export function crewmateRefusedWords(name: string, detail: string): string {
 }
 
 export function crewmateInterruptedWords(name: string): string {
-  return `${name} interrupted — its turn is cut, ${LEAD_ROW_NAME} is told; a queued message lands as it stops`
+  return `${name} interrupted — ${LEAD_ROW_NAME} is told; a queued message lands as it stops`
 }
