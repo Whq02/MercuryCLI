@@ -7,7 +7,7 @@ endpoints, and never changes model weights. On Windows, until a native Windows
 TensorFold binary is installed, Mercury serves the `TENSORFOLD` group on CPU
 through its own `llama.cpp` adapter (`served by Mercury's engine until TensorFold ships for Windows`; see [Windows](#windows)).
 
-Mercury pins the native TensorFold archives to `1.3.4` and offers three starting
+Mercury pins the native TensorFold archives to `1.3.4` and ships three starting
 points, each trained to a `256k` (`262,144`-token) context window:
 
 - **`Nemotron Lightning`** (`TensorFold/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-MLX-4bit`, served as `local/nemotron-lightning`): ordered first on Macs with under 64 GiB of memory (including 48 GB Macs) and on pre-M5 Apple silicon.
