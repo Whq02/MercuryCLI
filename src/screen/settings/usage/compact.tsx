@@ -125,7 +125,7 @@ function liveTensorFoldLine(): string | undefined {
 
 function compactWindowLine(w: UsageWindowView, title: string): string | undefined {
   if (w.usedPct === undefined) return undefined
-  const reset = resetLineOf(w.resetsAtMs !== undefined ? new Date(w.resetsAtMs).toISOString() : null, false)
+  const reset = resetLineOf(w.resetsAtMs !== undefined ? new Date(w.resetsAtMs).toISOString() : null)
   return `  ${title} · ${Math.floor(w.usedPct)}%${reset !== null ? ` · ${reset}` : ''}`
 }
 

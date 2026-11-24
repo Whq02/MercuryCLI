@@ -68,27 +68,22 @@ function fillFor(pct: number, tokens: ReturnType<typeof useMercuryTokens>): stri
   return tokens.success
 }
 
-export function resetLineOf(resetsAt: string | null, hideTime: boolean): string | null {
+export function resetLineOf(resetsAt: string | null): string | null {
   if (resetsAt === null) return null
   const date = new Date(resetsAt)
   if (Number.isNaN(date.getTime())) return null
-  const text = hideTime
-    ? date.toLocaleDateString()
-    : date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-  return `resets ${text}`
+  return `resets ${date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}`
 }
 
 function Meter({
   title,
   limit,
   subtext,
-  hideResetTime = false,
   maxWidth,
 }: {
   title: string
   limit: RateLimit
   subtext?: string
-  hideResetTime?: boolean
   maxWidth?: number
 }): React.ReactNode {
   const tokens = useMercuryTokens()
@@ -97,7 +92,7 @@ function Meter({
   const available = Math.max(1, Math.min(maxWidth ?? 80, 80))
   const barWidth = available >= FULL_BAR_MIN_WIDTH ? FULL_BAR_WIDTH : available
   const fill = fillFor(pct, tokens)
-  const reset = resetLineOf(limit.resets_at, hideResetTime)
+  const reset = resetLineOf(limit.resets_at)
   return (
     <Box flexDirection="column" marginTop={1}>
       <Text bold color={pct >= WARN_PCT ? fill : undefined}>
