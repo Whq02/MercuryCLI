@@ -66,7 +66,7 @@ try {
   check('the cached TTL makes no second request', calls === 1)
   process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
   await cat.refreshMistralCatalogue({ force: true, fetchImpl: page(models) })
-  check('the traffic-off gate vetoes a forced refresh', calls === 1 && !cat.kickMistralCatalogue())
+  check('the traffic-off gate vetoes a forced refresh', calls === 1)
   delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
   process.env.MISTRAL_API_KEY = 'proof-key-mistral-fixture-other'
   check('another credential cannot inherit the account list', cat.getCachedMistralCatalogue() === null && cat.mistralCatalogueRows().rows.length === 0)

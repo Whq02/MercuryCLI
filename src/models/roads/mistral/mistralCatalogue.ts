@@ -7,7 +7,6 @@ import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
 import { mistralApiBase, resolveMistralApiKey } from './mistralAccounts.js'
 import { MISTRAL_DISPLAY_PINS, isMistralChatModelId, mistralDisplayName, mistralDisplayPin } from '../../facts/pins/mistralPins.js'
-import { passedOverAs } from '../../../platform/errors/passedOver.js'
 import { hostEnv } from '../../../platform/environment/hostEnv.js'
 
 export interface MistralLiveModel {
@@ -145,15 +144,6 @@ export function refreshMistralCatalogue(opts?: { force?: boolean; fetchImpl?: ty
   })()
   inFlight.set(identity, work)
   return work
-}
-
-export function kickMistralCatalogue(opts?: { env?: NodeJS.ProcessEnv; fetchImpl?: typeof fetch }): boolean {
-  const env = opts?.env ?? hostEnv()
-  if (!catalogueTrafficVerdict('mistral', env).allowed) return false
-  const snapshot = getCachedMistralCatalogue(env)
-  if (snapshot && !snapshot.lastError) return false
-  void refreshMistralCatalogue(opts).catch(passedOverAs(null))
-  return true
 }
 
 export interface MistralCatalogueRow {
