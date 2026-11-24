@@ -179,24 +179,6 @@ export async function getIsClean(options?: {
   return (await probeClean(mode)).value ?? false
 }
 
-type GitFileStatus = { untracked: string[]; tracked: string[] }
-
-export async function getFileStatus(): Promise<GitFileStatus> {
-  const result = await execFileNoThrow(gitExe(), ['-c', 'core.quotePath=false', 'status', '--porcelain', '-z', ...projectScopePathspec(getCwd())], { preserveOutputOnError: false })
-  const files: GitFileStatus = { untracked: [], tracked: [] }
-  if (result.code !== 0) return files
-  const rows = result.stdout.split('\0').filter(Boolean)
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i]!
-    const status = row.slice(0, 2)
-    const path = row.slice(3)
-    if (status[0] === 'R' || status[0] === 'C') i++
-    if (status === '??') files.untracked.push(path)
-    else if (path) files.tracked.push(path)
-  }
-  return files
-}
-
 async function getWorktreeCount(): Promise<number> {
   return getWorktreeCountFromFs()
 }
