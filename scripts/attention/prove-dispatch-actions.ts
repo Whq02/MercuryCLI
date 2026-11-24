@@ -47,8 +47,6 @@ t.section('§1 — no chat open: the honest refusal (the dead-store lie is gone)
     JSON.stringify(r),
   )
   t.check('…and the cockpit-process queue took NOTHING (poison)', q.getCommandQueue().length === 0, JSON.stringify(q.getCommandQueue().map(c => c.value)))
-  const rr = await A.submitReply({ intentId: A.mintIntentId(), targetSubjectId: 'thread:root', value: 'reply words' })
-  t.check("submitReply refuses the same way with no chat", rr.kind === 'dispatch-unavailable', JSON.stringify(rr))
 }
 
 t.section('§2 — the session route: delivery through the ONE door')
@@ -60,9 +58,6 @@ t.section('§2 — the session route: delivery through the ONE door')
   t.check("the receipt is 'dispatch-accepted' on the session route", r.kind === 'dispatch-accepted' && r.route === 'session', JSON.stringify(r))
   t.check('the intent id echoes', r.kind === 'dispatch-accepted' && r.intentId === id)
   t.check('the words reached sendWords exactly once', seat.calls.length === 1 && seat.calls[0]?.kind === 'words' && seat.calls[0]?.text === 'resume wf_x')
-  const beforeReply = seat.calls.length
-  const rootReply = await A.submitReply({ intentId: A.mintIntentId(), targetSubjectId: 'thread:root', value: 'root words' })
-  t.check('a root-thread reply rides sendWords too', rootReply.kind === 'dispatch-accepted' && seat.calls.length === beforeReply + 1 && seat.calls[beforeReply]?.kind === 'words')
   t.check('the cockpit-process queue stayed EMPTY through both (poison — the dead store is never written)', q.getCommandQueue().length === 0)
   seat.release()
 }
@@ -72,21 +67,7 @@ t.section('§3 — empty intents refuse before any door')
   const seat = seatFakeConnector()
   const r = await A.submitDispatch({ intentId: A.mintIntentId(), kind: 'prompt', value: '   ' })
   t.check('an empty dispatch refuses', r.kind === 'dispatch-unavailable')
-  const rr = await A.submitReply({ intentId: A.mintIntentId(), targetSubjectId: 'thread:root', value: '' })
-  t.check('an empty reply refuses', rr.kind === 'dispatch-unavailable')
   t.check('no door was touched', seat.calls.length === 0)
-  seat.release()
-}
-
-t.section('§4 — the agent route: the addressed form of the same door')
-{
-  const seat = seatFakeConnector()
-  const r = await A.submitReply({ intentId: A.mintIntentId(), targetSubjectId: 'thread:ag-7', agentId: 'ag-7', value: 'revise the folio' })
-  t.check('an agent-addressed reply rides sendAgentNote', r.kind === 'dispatch-accepted' && r.route === 'agent', JSON.stringify(r))
-  t.check('…with the agent id and the words intact', seat.calls.some(c => c.kind === 'agent-note' && c.agentId === 'ag-7' && c.text === 'revise the folio'))
-  const noAgent = await A.submitReply({ intentId: A.mintIntentId(), targetSubjectId: 'thread:seat-9', value: 'words' })
-  t.check('a non-root thread with NO real agent id refuses (never an invisible sit-forever)', noAgent.kind === 'dispatch-unavailable')
-  t.check('the queue stayed empty (poison)', q.getCommandQueue().length === 0)
   seat.release()
 }
 

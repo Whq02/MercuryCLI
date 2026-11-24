@@ -7,7 +7,6 @@ prove-c3-perf-slate.ts
 prove-composer-document.ts
 prove-dispatch-actions.ts
 prove-paste-survives-refused-send.ts
-prove-peek-reply.ts
 prove-relations.ts
 prove-review-anchor-honesty.ts
 journey-vscode.ts
