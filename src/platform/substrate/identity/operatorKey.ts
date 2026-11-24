@@ -4,8 +4,6 @@ import {
   createPrivateKey,
   createPublicKey,
   generateKeyPairSync,
-  sign as cryptoSign,
-  verify as cryptoVerify,
   type KeyObject,
 } from 'node:crypto'
 import {
@@ -24,7 +22,6 @@ import { getMercuryHome } from '../../environment/envUtils.js'
 import { errorMessage, getErrnoCode, isENOENT } from '../../errors/errors.js'
 import { logError } from '../../logs/errorLog.js'
 import { posixFileModesApply } from '../../host-os/files.js'
-import { passedOver } from '../../errors/passedOver.js'
 import { sleepSync } from '../../async/timers.js'
 
 const OPERATOR_KEY_VERSION = 1 as const
@@ -197,37 +194,4 @@ export function ensureOperatorKey(): OperatorKey {
 
 export function operatorKeyId(): string {
   return ensureOperatorKey().id
-}
-
-export function operatorPublicKeyRaw(): Buffer {
-  return Buffer.from(ensureOperatorKey().publicKeyRaw)
-}
-
-export function signAsOperator(data: Buffer | string): Buffer {
-  const key = ensureOperatorKey()
-  return cryptoSign(null, typeof data === 'string' ? Buffer.from(data, 'utf8') : data, key.privateKey)
-}
-
-export function verifyOperatorSignature(
-  data: Buffer | string,
-  signature: Buffer,
-  publicKeyRaw?: Buffer,
-): boolean {
-  try {
-    const pub = publicKeyRaw
-      ? createPublicKey({
-          key: { kty: 'OKP', crv: 'Ed25519', x: Buffer.from(publicKeyRaw).toString('base64url') },
-          format: 'jwk',
-        })
-      : ensureOperatorKey().publicKey
-    return cryptoVerify(
-      null,
-      typeof data === 'string' ? Buffer.from(data, 'utf8') : data,
-      pub,
-      signature,
-    )
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
 }

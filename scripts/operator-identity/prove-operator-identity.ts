@@ -17,7 +17,7 @@ const keys = await import('../../src/platform/substrate/identity/operatorKey.js'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}fix ensureOperatorKey, operatorKeyPath, operatorKeyId, signAsOperator or verifyOperatorSignature in src/platform/substrate/identity/operatorKey.ts, or operatorPrincipal and assistantPrincipal in src/platform/substrate/identity/identity.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}fix ensureOperatorKey, operatorKeyPath or operatorKeyId in src/platform/substrate/identity/operatorKey.ts, or operatorPrincipal and assistantPrincipal in src/platform/substrate/identity/identity.ts` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -131,19 +131,6 @@ section('(6) damage is loud; the mode heals')
     keys.ensureOperatorKey()
     check('group/other bits are cleared on the next resolve (0644 → 0600)', (statSync(path).mode & 0o777) === 0o600)
   }
-}
-
-section('(7) sign / verify — authorship the key can prove')
-{
-  const sig = keys.signAsOperator('hello authorship')
-  check('an operator signature verifies (self)', keys.verifyOperatorSignature('hello authorship', sig))
-  check('…and by the advertised raw public key', keys.verifyOperatorSignature('hello authorship', sig, keys.operatorPublicKeyRaw()))
-  check('tampered bytes refuse', !keys.verifyOperatorSignature('hello authorshiP', sig))
-  const { generateKeyPairSync } = await import('node:crypto')
-  const foreign = generateKeyPairSync('ed25519')
-  const foreignRaw = Buffer.from((foreign.publicKey.export({ format: 'jwk' }) as { x: string }).x, 'base64url')
-  check("a foreign key's public half refuses this signature", !keys.verifyOperatorSignature('hello authorship', sig, foreignRaw))
-  check('malformed key material is a refusal, never a crash', !keys.verifyOperatorSignature('x', sig, Buffer.from('too-short')))
 }
 
 if (posix) {
