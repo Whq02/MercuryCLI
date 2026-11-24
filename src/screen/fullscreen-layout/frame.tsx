@@ -106,7 +106,6 @@ export function fullscreenFrame({ bandFits, bottom, bottomFloat, centerFrame, ce
             scrollRef: modalScrollRef ?? null,
           }}
         >
-          {}
           <ModalPaneBody rows={Math.max(0, terminalRows - modalPeek - modalSeparatorRows)} columns={columns} scrollRef={modalScrollRef ?? null}>{modal}</ModalPaneBody>{blankClaims && <Box flexGrow={1} />}
         </ModalContext.Provider>
       </Box>
@@ -119,7 +118,6 @@ export function fullscreenFrame({ bandFits, bottom, bottomFloat, centerFrame, ce
         <CompactFooterNoticeContext.Provider value={isCompact ? setCompactFooterNotice : null}>
         <CompactFrameBudgetContext.Provider value={compactBudget}>
         <CockpitActiveContext.Provider value={cockpit}>
-          {}
           <MotionParkContext.Provider value={motionParked}>
             <Box
               flexDirection="column"
@@ -132,7 +130,6 @@ export function fullscreenFrame({ bandFits, bottom, bottomFloat, centerFrame, ce
             >
               {fullscreen && !isCompact && chrome === 'deck-strip' ? <DeckPane /> : null}
               <Box flexDirection="row" flexGrow={1} minHeight={0} overflow="hidden">
-                {}
                 <Box ref={lanesBoxRef} flexDirection="column" overflow="hidden" flexShrink={0} width={cockpit && plan.lanes ? plan.lanesW : 0}>
                   {cockpit && plan.lanes ? (
                     <HelmLanesRail
@@ -142,7 +139,6 @@ export function fullscreenFrame({ bandFits, bottom, bottomFloat, centerFrame, ce
                     />
                   ) : null}
                 </Box>
-                {}
                 <Box
                   ref={centreBoxRef}
                   flexDirection="column"
@@ -152,7 +148,6 @@ export function fullscreenFrame({ bandFits, bottom, bottomFloat, centerFrame, ce
                   borderStyle={centerFrame ? 'round' : undefined}
                   borderColor={centerFrame ? t.borderStrong : undefined}
                 >
-                  {}
                   <TerminalSizeContext.Provider value={sizeVal}>
                     {isCompact ? <CompactIdentityBand /> : null}
                     {centerFrame && statusBand ? (
@@ -203,7 +198,6 @@ export function fullscreenFrame({ bandFits, bottom, bottomFloat, centerFrame, ce
                     <CrewViewSlot hostRef={centreBoxRef} bandRef={statusBandRef} framed={centerFrame} modal={crewDoor === null ? null : { shape: crewDoor, scrollRef: modalScrollRef ?? null, surfaceRef: recessOn ? elevatedRef : undefined, node: modal }} />
                   </MotionParkContext.Provider>
                 </Box>
-                {}
                 <Box ref={vitalsBoxRef} flexDirection="column" overflow="hidden" flexShrink={0} width={cockpit && plan.vitals ? plan.vitalsW : 0}>
                   {cockpit && plan.vitals ? (
                     <HelmVitalsRail

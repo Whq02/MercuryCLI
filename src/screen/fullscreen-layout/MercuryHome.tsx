@@ -63,7 +63,6 @@ export function PinnedCritterBerth(): React.ReactNode {
     >
       {hover => (
         <Box flexDirection="column" flexShrink={0} justifyContent="center">
-          {}
           <Box height={SQUARE_DOCK_ART_LINES} flexDirection="column" justifyContent="flex-end">
             <AnimatedCritterArt def={hover ? hoverDockDef : dockDef} square />
           </Box>
@@ -181,9 +180,7 @@ function MercuryHomeBody(): React.ReactNode {
 
   return (
     <Box flexDirection="column" paddingX={1}>
-      {}
 
-      {}
       <Box flexDirection="column" marginTop={1}>
         {bigHero ? (
           <BigWordmark />
@@ -194,7 +191,6 @@ function MercuryHomeBody(): React.ReactNode {
             <Wordmark />
           </Box>
         )}
-        {}
         {signInGate.state === 'ok' ? (
           <InteractiveRow {...rowClick('standing-by', '/palette')}>
             <BreathingDot />
@@ -219,7 +215,6 @@ function MercuryHomeBody(): React.ReactNode {
         )}
       </Box>
 
-      {}
       <Box marginTop={1} flexDirection="column">
         {!deckPresent ? (
           <InteractiveRow {...rowClick('model', '/model')}>
@@ -255,7 +250,6 @@ function MercuryHomeBody(): React.ReactNode {
             </Text>
           </InteractiveRow>
         ) : null}
-        {}
         {!helmHome && !deckPresent ? (
           <InteractiveRow {...rowClick('fleet', '/crewmates')}>
           <Text wrap="truncate-end">
@@ -279,7 +273,6 @@ function MercuryHomeBody(): React.ReactNode {
           </Text>
           </InteractiveRow>
         ) : null}
-        {}
         {projectScopeEmpty && isProjectCwd ? (
           <InteractiveRow {...rowClick('init-signpost', '/orient')}>
             <Text wrap="truncate-end">
@@ -291,14 +284,11 @@ function MercuryHomeBody(): React.ReactNode {
         ) : null}
       </Box>
 
-      {}
-      {}
       <Box marginTop={1}>
         <Text wrap="truncate-end">
           <Text color={accent}>❯ </Text>
           <Text color={tok.textPrimary}>↵</Text>
           <Text color={tok.textSecondary}> sends</Text>
-          {}
           <Text color={tok.textMuted}>{`  ·  ${CREW_VIEW_DOOR} /saturn /health /trace`}</Text>
         </Text>
       </Box>
