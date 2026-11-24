@@ -54,8 +54,3 @@ export function laneWindowFact(family: LaneWindowFamily, reads: LaneWindowReads 
   const window = activeLaneWindow(family, reads)
   return window.state === 'limited' ? { resetsAtMs: window.resetsAtMs, observedAtMs: window.observedAtMs } : undefined
 }
-
-export function laneWindowClosedUntil(fact: { resetsAtMs?: unknown } | undefined, nowMs: number): number | undefined {
-  if (fact === undefined || typeof fact.resetsAtMs !== 'number' || !Number.isFinite(fact.resetsAtMs)) return undefined
-  return fact.resetsAtMs > nowMs ? fact.resetsAtMs : undefined
-}
