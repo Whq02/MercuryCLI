@@ -217,7 +217,7 @@ async function decidePowerShellPermission(
   if (prefixAsk) slot = ruledVerdict(context, trimmed, prefixAsk, 'ask')
 
   const exactAllowRule = matchRules(trimmed, context, 'allow', 'exact') !== null
-  const remoteUnc = uncPathRisk(trimmed, { quotedScripts: quotedScriptsIn(parsed, trimmed) })
+  const remoteUnc = uncPathRisk(trimmed, { powershell: true, quotedScripts: quotedScriptsIn(parsed, trimmed) })
   if (remoteUnc.risky && slot === null && !exactAllowRule) {
     const message = uncPathMessage(trimmed, remoteUnc)
     slot = { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: true } }
@@ -484,7 +484,7 @@ function providerUncScan(parsed: ParsedPowerShellCommand, uncGranted: boolean): 
         if (/[-–—―]/.test(a[0] ?? '')) { const colon = a.indexOf(':', 1); if (colon !== -1) a = a.slice(colon + 1) }
         a = a.replace(/`/g, '')
         if (PROVIDER_PREFIX.test(a)) return { behavior: 'ask', message: `The argument "${arg}" uses a non-filesystem provider path requiring approval.` }
-        const remote = uncPathRisk(a, scripts.has(index) ? { quotedScripts: [{ start: 0, end: a.length }] } : {})
+        const remote = uncPathRisk(a, scripts.has(index) ? { powershell: true, quotedScripts: [{ start: 0, end: a.length }] } : { powershell: true })
         if (remote.risky && !uncGranted) {
           const message = uncPathMessage(arg, remote)
           return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: true } }

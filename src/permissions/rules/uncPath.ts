@@ -40,7 +40,7 @@ function rewritten(from: Marked, pattern: RegExp, replacement: (match: RegExpExe
   return { text: text + from.text.slice(last), escapes: [...escapes, ...from.escapes.slice(last)] }
 }
 
-export function uncPathRisk(input: string, opts: { command?: boolean; quotedScripts?: readonly QuotedScript[] } = {}): UncPathRisk {
+export function uncPathRisk(input: string, opts: { command?: boolean; powershell?: boolean; quotedScripts?: readonly QuotedScript[] } = {}): UncPathRisk {
   if (getPlatform() !== 'windows') return { risky: false }
   const decoded = rewritten({ text: input, escapes: escapesOf(input, opts.quotedScripts ?? []) }, /%(?:2f|5c|3a|40|7c)/gi, code => String.fromCharCode(parseInt(code[0].slice(1), 16)))
   const unquoted = rewritten(decoded, /[`'"]/g, () => '')
@@ -62,11 +62,14 @@ export function uncPathRisk(input: string, opts: { command?: boolean; quotedScri
     if (/^file:/i.test(match[0]) && /^[A-Za-z][:|]$/.test(host)) continue
     const before = text.slice(0, match.index)
     if (before.endsWith(':') && spelling[match.index] === '/' && spelling[match.index + 1] === '/') continue
-    if (opts.command === true) {
+    if (opts.command === true || opts.powershell === true) {
       const named = HOST_SPELLING.exec(host)?.[0] ?? ''
       const trail = host.slice(named.length)
       if (!/[\p{L}\p{N}]/u.test(named) || (trail !== '' && !/^[;|&<>)}\],]/.test(trail))) continue
-      if ((trail !== '' || !text.slice(match.index + match[0].length).startsWith('/')) && !/[.:[\]]/.test(named)) continue
+      const needsDot = opts.powershell === true
+        ? /^[)}\],]/.test(trail)
+        : trail !== '' || !text.slice(match.index + match[0].length).startsWith('/')
+      if (needsDot && !/[.:[\]]/.test(named)) continue
     }
     const run = match.index + (/^(?:file|smb):/i.exec(match[0])?.[0].length ?? 0)
     if (marked.escapes.slice(run, match.index + match[0].length - host.length).filter(escape => !escape).length < 2) continue

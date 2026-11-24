@@ -156,6 +156,23 @@ if (!process.argv.includes('--file-roads')) {
   for (const [name, command] of hostSpellings) check(`what can be a host still asks on the command road: ${name}`, uncPathRisk(command, { command: true }).risky)
   const patterns = await bashToolHasPermission({ command: noHosts[6][1] }, shellContext)
   check('Bash on Windows gives a heredoc of word patterns no share reason', !patterns.message.includes('SMB/WebDAV'))
+  for (const [name, command] of noHosts) {
+    const verdict = await powershellToolHasPermission({ command }, context)
+    check(`PowerShell on Windows gives no share reason for ${name}`, verdict.behavior === 'allow' || !verdict.message.includes('SMB/WebDAV'))
+  }
+  const psHostSpellings = [
+    ['a bare host', String.raw`dir \\server`],
+    ['a bare host before a semicolon', String.raw`dir \\server;echo done`],
+    ['a share path', String.raw`Get-Content \\server\share\f.txt`],
+    ['a host with an underscore', String.raw`type \\file_server\share\f`],
+    ['an admin share on an address', String.raw`dir \\10.0.0.5\c$`],
+    ['a host with ssl', String.raw`Copy-Item a.txt \\server@SSL\share`],
+    ['a quoted dotted host', String.raw`Get-ChildItem "\\files.corp"`],
+  ] as const
+  for (const [name, command] of psHostSpellings) {
+    const verdict = await powershellToolHasPermission({ command }, context)
+    check(`PowerShell on Windows still asks for ${name}`, verdict.behavior === 'ask' && verdict.message.includes('SMB/WebDAV'))
+  }
   for (const input of ['file://C:/src/project/notes.txt', 'file:///C:/src/project/notes.txt', String.raw`file://C:\src\project\notes.txt`, String.raw`file://C:\\src\\project\\notes.txt`, 'file://C|/src/project/notes.txt', 'file:///C|/src/project/notes.txt', 'file://C%3A/src/project/notes.txt', 'file://C%7C/src/project/notes.txt']) check(`local drive file URL is no remote host: ${input}`, !uncPathRisk(input).risky)
   for (const command of ['curl file://C:/src/project/notes.txt', 'curl file:///C:/src/project/notes.txt', 'curl file://C|/src/project/notes.txt']) check(`local drive file URL on command road is no remote host: ${command}`, !uncPathRisk(command, { command: true }).risky)
   for (const input of ['file://evil/share/notes.txt', 'smb://C:/share/notes.txt', 'file://C:80/share/notes.txt', 'file://C:/src/DavWWWRoot/notes.txt']) check(`remote or WebDAV URL still asks: ${input}`, uncPathRisk(input).risky)
