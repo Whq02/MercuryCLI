@@ -144,7 +144,7 @@ function matchesQuery(log: SessionListing, needle: string): boolean {
 }
 
 function groupListings(logs: SessionListing[], renaming: boolean): ListingGroup[] {
-  if (!renaming) return logs.map(log => ({ log, children: [] }))
+  if (!renaming) return logs.map((log): ListingGroup => ({ log, children: [] }))
   const groups: ListingGroup[] = []
   const bySession = new Map<string, SessionListing[]>()
   for (const log of logs) {
