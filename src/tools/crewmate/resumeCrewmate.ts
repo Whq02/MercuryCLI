@@ -283,7 +283,7 @@ export async function resumeCrewmateBackground(args: {
         origin: { kind: 'coordinator' },
         isMeta: true,
       })
-    : createUserMessage({ content: prompt })
+    : createUserMessage({ content: `${prompt}${directoryNote}` })
   const promptMessages: Message[] = [...cleaned, continuationMessage]
 
   const rootSetAppState = toolUseContext.setAppStateForTasks ?? toolUseContext.setAppState
