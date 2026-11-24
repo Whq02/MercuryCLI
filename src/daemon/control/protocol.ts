@@ -1,6 +1,7 @@
 
 import type { ProcessSweepDaemonAnswer, ProcessSweepEntry } from '../process-sweep/processSweep.js'
 import type { SessionKitEditV1, SessionKitV1 } from '../session-seat/sessionKit.js'
+import type { DurablePublishHealth } from '../../platform/substrate/fileStore.js'
 import { DAEMON_VERB_BORN_AT, type DaemonOpFor, type SessionControlAction } from '../runner-wire/sessionVerbs.js'
 
 export const MERCURY_DAEMON_PROTO = 19
@@ -442,6 +443,7 @@ export interface WireStatus {
   degraded?: boolean
   degradedReason?: string
   warmRunners?: number
+  publishHealth?: DurablePublishHealth
 }
 
 

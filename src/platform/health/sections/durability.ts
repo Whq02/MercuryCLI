@@ -1,5 +1,41 @@
 import type { CheckSpec } from '../healthReport.js'
 import { getErrnoCode } from '../../errors/errors.js'
+import { passedOver } from '../../errors/passedOver.js'
+import type { DurablePublishHealth } from '../../substrate/fileStore.js'
+
+function pickLatestPublishEvent<T extends { atMs: number }>(a: T | null, b: T | null): T | null {
+  if (a === null) return b
+  if (b === null) return a
+  return b.atMs >= a.atMs ? b : a
+}
+
+function mergePublishHealth(local: DurablePublishHealth, remote: DurablePublishHealth | undefined): DurablePublishHealth {
+  if (remote === undefined) return local
+  return {
+    budgetExhausted: {
+      count: local.budgetExhausted.count + remote.budgetExhausted.count,
+      last: pickLatestPublishEvent(local.budgetExhausted.last, remote.budgetExhausted.last),
+    },
+    retriedSuccesses: {
+      count: local.retriedSuccesses.count + remote.retriedSuccesses.count,
+      last: pickLatestPublishEvent(local.retriedSuccesses.last, remote.retriedSuccesses.last),
+    },
+  }
+}
+
+async function readDaemonPublishHealth(): Promise<DurablePublishHealth | undefined> {
+  try {
+    const { daemonControlRpc, readDaemonState } = await import('../../../daemon/control/controlSocket.js')
+    const state = readDaemonState()
+    if (state === null) return undefined
+    const reply = await daemonControlRpc({ op: 'status' }, { timeoutMs: 2000 })
+    if (!reply.ok) return undefined
+    return reply.status.publishHealth
+  } catch (error) {
+    passedOver(error)
+    return undefined
+  }
+}
 
 export function durabilityChecks(): CheckSpec[] {
   const scanJournals = async () => {
@@ -116,7 +152,7 @@ export function durabilityChecks(): CheckSpec[] {
       label: 'Publish retry budget',
       run: async () => {
         const { durablePublishHealth } = await import('../../substrate/durablePublish.js')
-        const h = durablePublishHealth()
+        const h = mergePublishHealth(durablePublishHealth(), await readDaemonPublishHealth())
         if (h.budgetExhausted.count > 0 && h.budgetExhausted.last) {
           const l = h.budgetExhausted.last
           return {

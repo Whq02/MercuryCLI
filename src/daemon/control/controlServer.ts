@@ -9,6 +9,7 @@ import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { localIpcDoorKind } from '../../platform/host-os/files.js'
 import { errorMessage, isENOENT } from '../../platform/errors/errors.js'
 import { DurablePublishError } from '../../platform/substrate/durablePublish.js'
+import { durablePublishHealth } from '../../platform/substrate/fileStore.js'
 import type { DaemonBreaker } from './daemonBreaker.js'
 import {
   CONTROL_FRAME_CAP,
@@ -841,6 +842,7 @@ function answerStatus(deps: ControlServerDeps, leases: Map<net.Socket, LeaseClie
       degraded: sup.degraded,
       degradedReason: sup.degraded ? sup.reason : undefined,
       ...(deps.warmRunnerCount !== undefined ? { warmRunners: deps.warmRunnerCount() } : {}),
+      publishHealth: durablePublishHealth(),
     },
   })
 }

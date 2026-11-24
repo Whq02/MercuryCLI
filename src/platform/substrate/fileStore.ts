@@ -11,7 +11,7 @@ import * as lockfile from '../storage/lockfile.js'
 import { groupCommitLane } from './groupCommit.js'
 import { jsonParse, jsonStringify } from '../logs/slowOperations.js'
 import { durableAtomicPublish, durableAtomicPublishSync, durableTempName, type DurablePublishOptions, type DurablePublishReport } from './durablePublish.js'
-export { faultPoint, fsyncEnabled, renameWithWin32RetrySync } from './durablePublish.js'
+export { durablePublishHealth, faultPoint, fsyncEnabled, renameWithWin32RetrySync, type DurablePublishHealth } from './durablePublish.js'
 import { quarantineDamagedStore } from './storeRecovery.js'
 import {
   nextRevision,

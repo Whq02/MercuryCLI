@@ -69,3 +69,4 @@ prove-tree-scratch-killed-git.ts
 prove-warns-clear-and-the-rail-keeps-the-fault.ts
 prove-web-search-routed-default.ts
 prove-windows-longpath-health.ts
+prove-daemon-publish-health.ts
