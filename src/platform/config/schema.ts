@@ -126,6 +126,7 @@ type BootRecord = {
   lastOnboardingVersion?: string
   lastReleaseNotesSeen?: string
   fileCheckpointingEnabled: boolean
+  hasHomeTrustDialogAccepted?: boolean
   projects?: Record<string, ProjectConfig>
   skillUsage?: Record<string, { usageCount: number; lastUsedAt: number }>
   headlessActivity?: {

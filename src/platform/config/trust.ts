@@ -15,12 +15,18 @@ export function resetTrustDialogAcceptedCacheForTesting(): void {
   _trustAccepted = false
 }
 
-function trustDialogAnswer(): boolean {
-  if (getSessionTrustAccepted()) return true
-  const projects = getGlobalConfig().projects
-  return grantedUnder(projects, [getProjectPathForConfig()]) || grantedUnder(projects, ancestorKeys(getCwd()))
+function isHomeDirectory(dir: string): boolean {
+  return normalizePathForConfigKey(resolve(dir)) === normalizePathForConfigKey(homedir())
 }
 
+function trustDialogAnswer(): boolean {
+  if (getSessionTrustAccepted()) return true
+  const config = getGlobalConfig()
+  const cwd = getCwd()
+  if (isHomeDirectory(cwd) && config.hasHomeTrustDialogAccepted) return true
+  const projects = config.projects
+  return grantedUnder(projects, [getProjectPathForConfig()]) || grantedUnder(projects, ancestorKeys(cwd))
+}
 export function checkHasTrustDialogAccepted(): boolean {
   return (_trustAccepted ||= trustDialogAnswer())
 }
@@ -57,13 +63,19 @@ function grantedUnder(projects: GlobalConfig['projects'], keys: Iterable<string>
 }
 
 export function isPathTrusted(dir: string): boolean {
-  return grantedUnder(getGlobalConfig().projects, ancestorKeys(resolve(dir)))
+  const config = getGlobalConfig()
+  const resolved = resolve(dir)
+  if (isHomeDirectory(resolved) && config.hasHomeTrustDialogAccepted) return true
+  return grantedUnder(config.projects, ancestorKeys(resolved))
 }
 
 export function setPathTrusted(dir: string): void {
   const key = normalizePathForConfigKey(resolve(dir))
   if (key === normalizePathForConfigKey(homedir())) {
     setSessionTrustAccepted(true)
+    saveGlobalConfig(current =>
+      current.hasHomeTrustDialogAccepted ? current : { ...current, hasHomeTrustDialogAccepted: true },
+    )
     return
   }
   saveGlobalConfig(current => {

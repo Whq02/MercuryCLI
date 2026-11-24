@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -13,7 +13,11 @@ const HERE = import.meta.dir
 const BUN = process.execPath.includes('bun') ? process.execPath : join(process.env.HOME ?? '', '.bun/bin/bun')
 const SRC = process.env.PROVE_SRC ?? join(HERE, '../../src')
 
-function runIn(home: string, body: string): Record<string, unknown> {
+function runIn(
+  home: string,
+  body: string,
+  opts: { cwd?: string; env?: Record<string, string | undefined> } = {},
+): Record<string, unknown> {
   const src = `
     process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(home)}
     delete process.env.MERCURY_HOME
@@ -27,7 +31,12 @@ function runIn(home: string, body: string): Record<string, unknown> {
     g.enableConfigs()
     ${body}
   `
-  const res = spawnSync(BUN, ['-e', src], { encoding: 'utf8', timeout: 60_000 })
+  const res = spawnSync(BUN, ['-e', src], {
+    encoding: 'utf8',
+    timeout: 60_000,
+    ...(opts.cwd !== undefined ? { cwd: opts.cwd } : {}),
+    ...(opts.env !== undefined ? { env: { ...process.env, ...opts.env } } : {}),
+  })
   return childAnswer(res)
 }
 
@@ -84,6 +93,117 @@ console.log('L3 · the boot flow reads the latch (the promise: session only, re-
   `)
   check('the child succeeded', out.childFailed === undefined, JSON.stringify(out), 'the bun child could not load or run the config and trust modules: read its stderr in the dump above')
   check('checkHasTrustDialogAccepted is satisfied in-process by the latch', out.accepted === true, JSON.stringify(out), 'computeTrustDialogAccepted in src/platform/config/trust.ts must return true when getSessionTrustAccepted is true')
+}
+console.log('L4 · a home-folder trust persists for the home folder alone across starts, never for folders under it')
+{
+  const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'ff-trust-l4-')))
+  const configDir = join(scratch, 'config')
+  const dialogConfigDir = join(scratch, 'dialog-config')
+  const fakeHome = join(scratch, 'home')
+  const subUnderHome = join(fakeHome, 'never-trusted-child')
+  mkdirSync(configDir, { recursive: true })
+  mkdirSync(dialogConfigDir, { recursive: true })
+  mkdirSync(subUnderHome, { recursive: true })
+  const homeEnv = { HOME: fakeHome, USERPROFILE: fakeHome, MERCURY_CREDENTIAL_STORE: 'file' }
+  try {
+    const grant = runIn(configDir, `
+      trust.setPathTrusted(os.homedir())
+      console.log(JSON.stringify({ ok: true }))
+    `, { cwd: fakeHome, env: homeEnv })
+    check('L4 setPathTrusted child succeeded', grant.childFailed === undefined && grant.ok === true, JSON.stringify(grant))
+
+    const secondStartHome = runIn(configDir, `
+      const cfg = g.getGlobalConfig()
+      const key = pathmod.normalizePathForConfigKey(os.homedir())
+      console.log(JSON.stringify({
+        accepted: trust.checkHasTrustDialogAccepted(),
+        direct: trust.isPathTrusted(os.homedir()),
+        homeProjectRecord: cfg.projects?.[key]?.hasTrustDialogAccepted ?? null,
+      }))
+    `, { cwd: fakeHome, env: homeEnv })
+    check(
+      'L4(a) a new start in the home folder reads trusted after setPathTrusted(home)',
+      secondStartHome.childFailed === undefined && secondStartHome.accepted === true && secondStartHome.direct === true,
+      JSON.stringify(secondStartHome),
+      'save home trust in its own top-level GlobalConfig field in src/platform/config/trust.ts and read it only for the home folder',
+    )
+    check(
+      'L4(c) projects[<home>].hasTrustDialogAccepted is not written',
+      secondStartHome.childFailed === undefined && secondStartHome.homeProjectRecord === null,
+      JSON.stringify(secondStartHome),
+      'setPathTrusted must not write projects[<home>].hasTrustDialogAccepted',
+    )
+
+    const secondStartChild = runIn(configDir, `
+      console.log(JSON.stringify({
+        accepted: trust.checkHasTrustDialogAccepted(),
+        direct: trust.isPathTrusted(process.cwd()),
+      }))
+    `, { cwd: subUnderHome, env: homeEnv })
+    check(
+      'L4(b) a folder under the home folder that was never answered still reads NOT trusted',
+      secondStartChild.childFailed === undefined && secondStartChild.accepted === false && secondStartChild.direct === false,
+      JSON.stringify(secondStartChild),
+      'ancestorKeys / grantedUnder in src/platform/config/trust.ts must never read the home-folder trust field',
+    )
+
+    const dialogGrant = runIn(dialogConfigDir, `
+      globalThis.MACRO = { VERSION: '1.0.0' }
+      const React = await import('react')
+      const { App } = await import(${JSON.stringify(join(SRC, 'boot/App.tsx'))})
+      const { KeybindingSetup } = await import(${JSON.stringify(join(SRC, 'screen/keys/KeybindingProviderSetup.tsx'))})
+      const { getDefaultAppState } = await import(${JSON.stringify(join(SRC, 'screen/app-state/AppStateStore.ts'))})
+      const { TrustDialog } = await import(${JSON.stringify(join(SRC, 'screen/trust-dialog/TrustDialog.tsx'))})
+      const { KEY, mountOffscreen, waitFor } = await import(${JSON.stringify(join(HERE, '../lib/settingsPopupHarness.ts'))})
+      let done = false
+      const mounted = await mountOffscreen(
+        React.createElement(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined },
+          React.createElement(KeybindingSetup, null,
+            React.createElement(TrustDialog, { onDone: () => { done = true } }))),
+        100,
+        30,
+      )
+      try {
+        await waitFor(() => mounted.screen().includes('Yes, I trust this folder'), 10_000)
+        mounted.push(KEY.enter)
+        await waitFor(() => done, 10_000)
+      } finally {
+        mounted.unmount()
+      }
+      console.log('\\n' + JSON.stringify({ done }))
+    `, { cwd: fakeHome, env: homeEnv })
+    check('L4 TrustDialog answered yes in the home folder', dialogGrant.childFailed === undefined && dialogGrant.done === true, JSON.stringify(dialogGrant))
+
+    const afterDialogHome = runIn(dialogConfigDir, `
+      const cfg = g.getGlobalConfig()
+      const key = pathmod.normalizePathForConfigKey(os.homedir())
+      console.log(JSON.stringify({
+        accepted: trust.checkHasTrustDialogAccepted(),
+        direct: trust.isPathTrusted(os.homedir()),
+        homeProjectRecord: cfg.projects?.[key]?.hasTrustDialogAccepted ?? null,
+      }))
+    `, { cwd: fakeHome, env: homeEnv })
+    check(
+      'L4(a) a new start in the home folder reads trusted after TrustDialog answers yes',
+      afterDialogHome.childFailed === undefined && afterDialogHome.accepted === true && afterDialogHome.direct === true && afterDialogHome.homeProjectRecord === null,
+      JSON.stringify(afterDialogHome),
+      'TrustDialog in src/screen/trust-dialog/TrustDialog.tsx must persist home-folder trust through setPathTrusted without writing projects[<home>]',
+    )
+
+    const afterDialogChild = runIn(dialogConfigDir, `
+      console.log(JSON.stringify({
+        accepted: trust.checkHasTrustDialogAccepted(),
+        direct: trust.isPathTrusted(process.cwd()),
+      }))
+    `, { cwd: subUnderHome, env: homeEnv })
+    check(
+      'L4(b) after TrustDialog in home, a subfolder under home still reads NOT trusted',
+      afterDialogChild.childFailed === undefined && afterDialogChild.accepted === false && afterDialogChild.direct === false,
+      JSON.stringify(afterDialogChild),
+    )
+  } finally {
+    rmSync(scratch, { recursive: true, force: true })
+  }
 }
 
 console.log('L0 · a child that prints the expected object and then FAILS is refused')
