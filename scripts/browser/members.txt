@@ -1,6 +1,7 @@
 prove-browser-allowance.ts
 prove-browser-approval-words.ts
 prove-browser-attach-covered.ts
+prove-browser-attach-unapproved-origin-gate.ts
 prove-browser-attach.ts
 prove-browser-auth-boundary.ts
 prove-browser-birth-truth.ts

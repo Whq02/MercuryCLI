@@ -1,5 +1,5 @@
 import type { ElementHandle, Frame, Page } from 'puppeteer-core'
-import { type CheckedTarget, approveWebOrigin, consumeCheckedActOrigin } from '../../../integrations/browser/browserSession.js'
+import { type CheckedTarget, approveWebOrigin, consumeCheckedActOrigin, originApproved, sessionAttached } from '../../../integrations/browser/browserSession.js'
 import type { OwnerKey } from '../../../engine/run-owner/ownerKey.js'
 import { type Input, WAIT_CAP_MS, WAIT_DEFAULT_MS } from './schema.js'
 import { isDriverTimeout } from './failures.js'
@@ -25,14 +25,18 @@ export function checkedTarget(s: LiveSession, surface: Page | Frame): CheckedTar
   return { tab: s.tab, page: s.page, frame: surface === s.page ? null : (surface as Frame) }
 }
 
+function otherPageWords(op: string, s: LiveSession): string {
+  return `${op} refused: tab ${s.tab} holds another page than the one the permission check saw — nothing done; re-issue to act on the page that is there now`
+}
+
+function otherFrameWords(op: string): string {
+  return `${op} refused: the frame is another one than the permission check saw — nothing done; re-issue to act on the frame that is there now`
+}
+
 export function replacedSinceCheck(op: string, s: LiveSession, bound: CheckedTarget | null, surface: Page | Frame): string | null {
   if (bound === null || bound.tab !== s.tab) return null
-  if (bound.page !== s.page) {
-    return `${op} refused: tab ${s.tab} holds another page than the one the permission check saw — nothing done; re-issue to act on the page that is there now`
-  }
-  if (bound.frame !== (surface === s.page ? null : surface)) {
-    return `${op} refused: the frame is another one than the permission check saw — nothing done; re-issue to act on the frame that is there now`
-  }
+  if (bound.page !== s.page) return otherPageWords(op, s)
+  if (bound.frame !== (surface === s.page ? null : surface)) return otherFrameWords(op)
   return null
 }
 
@@ -46,6 +50,9 @@ export async function actOriginGate(owner: OwnerKey, s: LiveSession, input: Inpu
   const judged = checked !== null && (bound === null || bound.tab === s.tab) ? checked.origin : null
   if (judged !== null && judged !== live) {
     return `${op} refused: the page moved from ${judged} to ${live} between the permission check and the act — nothing done; re-issue to ask for the new origin`
+  }
+  if (judged === null && sessionAttached(s) && live.startsWith('http') && !originApproved(owner, live)) {
+    return input.frame === undefined ? otherPageWords(op, s) : otherFrameWords(op)
   }
   approveWebOrigin(owner, judged ?? live)
   return null
