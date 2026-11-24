@@ -323,14 +323,14 @@ export async function clearFocusedSession(): Promise<{ ok: true; cleared: boolea
     if (again === undefined || !again.ok) return { ok: false, reason: `a fresh session could not start, so this one stands — ${born.reason}` }
   }
   const unparked = await parkSessionById(oldSessionId)
-  const { markSessionCleared } = await import('../../sessions/transcripts/clearedSessions.js')
-  const marked = markSessionCleared(oldSessionId)
+  const { markSessionClearedRidingOut } = await import('../../sessions/transcripts/clearedSessions.js')
+  const marked = await markSessionClearedRidingOut(oldSessionId)
   if (unparked !== null) {
     logForDebugging(`[clear] session ${oldSessionId} is still running after its park was asked: ${unparked}`, { level: 'warn' })
     mintImmediateReceipt('the cleared session is still running — park it from the Session Concourse', 'warning')
   }
   if (!marked.ok) {
-    logForDebugging(`[clear] the cleared mark of session ${oldSessionId} was not saved: ${marked.error}`, { level: 'warn' })
+    logForDebugging(`[clear] the cleared mark of session ${oldSessionId} was not saved (${marked.kind}): ${marked.error}`, { level: 'warn' })
     mintImmediateReceipt('the cleared mark could not be saved, so this session may show in the list again', 'warning')
   }
   return { ok: true, cleared: true }
