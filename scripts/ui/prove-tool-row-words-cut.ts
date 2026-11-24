@@ -73,5 +73,23 @@ async function paint(node: React.ReactNode, width = 160): Promise<string> {
     JSON.stringify(block.content),
   )
 }
+
+{
+  const fullMessage =
+    'Not delivered: scout (id a1) has completed, so no turn of it is running to read a message. To give it this message as a new turn, call ResumeCrewmate with the same to and message.'
+  const output = { success: false, message: fullMessage }
+  const screenText = (await paint(SendMessageTool.renderToolResultMessage(output, [], { verbose: false, theme: 'dark' } as never))).replace(/^└\s*/, '')
+  check(
+    'K-31 SendMessage not-delivered row reads only Not delivered: <who> has <ended>',
+    screenText === 'Not delivered: scout (id a1) has completed',
+    JSON.stringify(screenText),
+  )
+  const block = SendMessageTool.mapToolResultToToolResultBlockParam(output, 'toolu_sm_2')
+  check(
+    'K-31 SendMessage not-delivered model payload keeps the full long sentence byte for byte',
+    Array.isArray(block.content) && block.content.length === 1 && block.content[0]?.type === 'text' && block.content[0].text === fullMessage,
+    JSON.stringify(block.content),
+  )
+}
 console.log(`\ntool-row-words-cut: ${failures} failure(s)`)
 process.exit(failures ? 1 : 0)

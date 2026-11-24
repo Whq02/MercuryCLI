@@ -5,7 +5,7 @@ import { enqueueMessageToMainAgent, queuePendingMessage } from '../../engine/tas
 import { lazySchema } from '../../platform/primitives/lazySchema.js'
 import { SEND_MESSAGE_TOOL_NAME } from '../kit/names/sendMessage.js'
 import { DESCRIPTION, getPrompt } from './prompt.js'
-import { DELIVERED_MODEL_TAIL, renderToolResultMessage, renderToolUseMessage } from './rows.js'
+import { DELIVERED_MODEL_TAIL, NOT_DELIVERED_MODEL_TAIL, renderToolResultMessage, renderToolUseMessage } from './rows.js'
 import { endedWords, mapMessageResult, messageNoticeFor, resolveCrewAddress, selfAddressRefusalText, senderCrewmateTask, unknownCrewmateRefusal, validateCrewMessage, type CrewMessageInput, type MessageOutput } from './crewAddress.js'
 
 export type SendMessageToolOutput = MessageOutput
@@ -109,7 +109,7 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> = buildTo
     return {
       data: {
         success: false,
-        message: `Not delivered: ${address.who} has ${ended}, so no turn of it is running to read a message. To give it this message as a new turn, call ResumeCrewmate with the same to and message.`,
+        message: `Not delivered: ${address.who} has ${ended}${NOT_DELIVERED_MODEL_TAIL}`,
       },
     }
   },
