@@ -92,7 +92,6 @@ try {
   clock += DAY
   const down = await contract.peekAntigravityClient({ now })
   check('a failed read keeps the stored version and records the failure words', down.kind === 'read' && !down.answer.ok && down.answer.words.includes('HTTP 503') && contract.presentedAntigravityClient().version === bump(CONSTANT, 7) && contract.readAntigravityClientRecord().lastFailure?.words.includes('HTTP 503') === true, JSON.stringify(down))
-  check('the words name the failure beside the presented version', contract.antigravityClientContractWords().includes(bump(CONSTANT, 7)) && contract.antigravityClientContractWords().includes('HTTP 503'))
   manifest.status = 200
   manifest.body = 'files: []\n'
   clock += DAY

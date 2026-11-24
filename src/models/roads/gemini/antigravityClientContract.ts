@@ -277,10 +277,3 @@ export function peekAntigravityClient(io?: AntigravityClientIo & { force?: boole
   peekInFlight = work
   return work
 }
-
-export function antigravityClientContractWords(presented: AntigravityClientPresented = presentedAntigravityClient()): string {
-  const record = readAntigravityClientRecord()
-  const parts = [`the plan sign-in presents Google's Antigravity client ${presented.version} (${presented.source}, ${presented.asOf})`]
-  if (record.lastFailure !== undefined) parts.push(`the last manifest read failed ${antigravityIsoDay(record.lastFailure.atMs)}: ${record.lastFailure.words}`)
-  return parts.join(' · ')
-}
