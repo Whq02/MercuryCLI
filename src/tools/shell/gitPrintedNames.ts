@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process'
 import { resolve } from 'node:path'
 import { findGitRoot, gitExe } from '../../platform/git/git.js'
-import { gitArgsAsync, gitSubcommandIndex } from '../../platform/git/spawnArgs.js'
+import { gitArgsAsync, gitSubcommandIndex, STASH_OWN_FLAGS } from '../../platform/git/spawnArgs.js'
 import { shellCommandText } from '../../permissions/rules/decision/commandAnalysis.js'
 import { subprocessEnv } from '../../platform/processes/subprocessEnv.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
@@ -15,7 +15,6 @@ const PAINTS = /^(?:--exit-code|--no-color|--color(?:=.*)?|--color-moved(?:=.*)?
 const SELECTS = /^(?:--cached|--staged|--merge-base|-R|-a|--text|-w|--ignore-all-space|-b|--ignore-space-change|--ignore-space-at-eol|--ignore-cr-at-eol|--ignore-blank-lines|-I.+|--ignore-matching-lines=.*|--diff-filter=.*|-S.+|-G.+|--pickaxe-all|--pickaxe-regex|--find-object=.*|-M.*|--find-renames(?:=.*)?|-C.*|--find-copies(?:=.*)?|--find-copies-harder|-B.*|--break-rewrites(?:=.*)?|-D|--irreversible-delete|--no-renames|--rename-empty|--no-rename-empty|-l\d+|--ignore-submodules(?:=.*)?|-m|-c|--cc|--first-parent|--diff-merges=.*|--no-diff-merges|--remerge-diff|--combined-all-paths|-[0123]|--base|--ours|--theirs|-q|-r|-t|--root|--no-commit-id|--always)$/
 const MERGE_FORMAT = /^(?:-c|--cc|--remerge-diff|--diff-merges=.*)$/
 const VALUED: ReadonlySet<string> = new Set(['-S', '-G', '-I', '--find-object', '--ignore-matching-lines'])
-const STASH_SELECTS: ReadonlySet<string> = new Set(['-u', '--include-untracked', '--only-untracked', '--no-include-untracked'])
 const HARMLESS_SETTING = /^(?:core\.pager|core\.quotepath|pager\.[\w-]+|color\.[\w.-]+|advice\.[\w-]+|diff\.(?:noprefix|mnemonicprefix|srcprefix|dstprefix|colormoved|colormovedws|wserrorhighlight|algorithm|context|interhunkcontext|indentheuristic|statgraphwidth|statnamewidth|wordregex))=/i
 const HARMLESS_GLOBAL = /^(?:--no-pager|--paginate|-[pP]|--no-optional-locks|--no-advice)$/
 const PATHSPEC_GLOBAL = /^--(?:literal|glob|noglob|icase)-pathspecs$/
@@ -61,7 +60,7 @@ export function gitPatchQuestion(words: readonly string[]): GitPatchQuestion | G
   for (let i = 0; i < before.length; i++) {
     const word = before[i] as string
     if (!word.startsWith('-') || word === '-') operands.push(word)
-    else if (stash && STASH_SELECTS.has(word)) kept.push(word)
+    else if (stash && STASH_OWN_FLAGS.has(word)) kept.push(word)
     else if (PRINTS_TEXT.test(word) || (!stash && word === '-u')) text = true
     else if (PRINTS_NO_TEXT.test(word)) silent = true
     else if (PAINTS.test(word)) continue
@@ -81,7 +80,7 @@ export function gitPatchQuestion(words: readonly string[]): GitPatchQuestion | G
     } else unknown ??= word
   }
   if (unknown !== null) return { label, unread: `git ${label} is given ${unknown}, an option Mercury does not read for what it prints` }
-  const optioned = stash && before.some(word => word.startsWith('-') && word !== '-' && !STASH_SELECTS.has(word))
+  const optioned = stash && before.some(word => word.startsWith('-') && word !== '-' && !STASH_OWN_FLAGS.has(word))
   if (!(text || ((subcommand === 'diff' || subcommand === 'show' || optioned || merged) && !silent))) return null
   const commits = subcommand === 'show' ? operands.filter(operand => !namesObjectPath(operand)) : operands
   if (subcommand === 'show' && operands.length > 0 && commits.length === 0 && after.length === 0) return null

@@ -7,7 +7,7 @@ import { gitExe } from './gitExe.js'
 
 const GIT_SPAWN_CONFIG = ['--no-pager', '-c', 'core.quotepath=false', '-c', 'core.fsmonitor=false', '-c', 'core.pager=cat'] as const
 const GIT_DIFF_CONFIG = ['--no-ext-diff', '--no-textconv'] as const
-const STASH_OWN_FLAGS = new Set(['-u', '--include-untracked', '--only-untracked', '--no-include-untracked'])
+export const STASH_OWN_FLAGS: ReadonlySet<string> = new Set(['-u', '--include-untracked', '--only-untracked', '--no-include-untracked'])
 
 const VALUE_GLOBALS = new Set(['-C', '-c', '--exec-path', '--git-dir', '--work-tree', '--namespace', '--super-prefix', '--shallow-file', '--config-env'])
 const PATCH_COMMANDS = new Set(['diff', 'show', 'log', 'format-patch', 'range-diff', 'blame'])
