@@ -5,7 +5,6 @@ import {
   type ReviewWriteResult,
 } from '../artifact-reviews/reviewStore.js'
 import type {
-  JourneyBodyStep,
   WalkthroughClaim,
 } from '../artifacts/reviewContracts.js'
 import { verificationSummary } from '../../platform/verification/verificationState.js'
@@ -14,7 +13,7 @@ import { gitStatus } from '../../platform/git-graph/observe.js'
 import { evidenceFor } from '../../engine/runtime-kernel/evidencePlane.js'
 import type { OwnerKey } from '../../engine/run-owner/ownerKey.js'
 import { getRunSnapshot } from '../../engine/run/runCoordinator.js'
-import { getJourney, listJourneys } from '../../tools/engines/journeys/runner.js'
+import { listJourneys } from '../../tools/engines/journeys/runner.js'
 
 
 interface WalkthroughReceiptFact {
@@ -300,52 +299,6 @@ export function createWalkthroughArtifact(args: {
     },
     body: { kind: 'walkthrough', markdown, claims },
     evidenceRefs,
-    initialStatus: 'ready-for-review',
-  })
-}
-
-
-export function createVisualJourneyArtifact(args: {
-  owner: OwnerKey
-  journeyId: string
-  sessionId: string
-  captures?: Array<{
-    stepId: string
-    beforeRef?: string
-    afterRef?: string
-    targetRef?: string
-    delta?: string
-  }>
-  cwd?: string
-  treeDigest?: string
-}): ReviewWriteResult<{ id: string; version: number }> {
-  const record = getJourney(args.owner, args.journeyId)
-  if (!record) {
-    return { ok: false, reason: `no journey '${args.journeyId}' for this owner` }
-  }
-  const byStep = new Map((args.captures ?? []).map(c => [c.stepId, c]))
-  const steps: JourneyBodyStep[] = record.steps.map(s => {
-    const cap = byStep.get(`${s.index}`) ?? byStep.get(s.label)
-    return {
-      id: `${s.index}`,
-      title: s.label,
-      result: `${s.state}${s.detail ? ` — ${s.detail}` : ''}`,
-      ...(cap?.beforeRef !== undefined && { beforeRef: cap.beforeRef }),
-      ...(cap?.afterRef !== undefined && { afterRef: cap.afterRef }),
-      ...(cap?.targetRef !== undefined && { targetRef: cap.targetRef }),
-      ...(cap?.delta !== undefined && { delta: cap.delta }),
-    }
-  })
-  return createReviewArtifact({
-    kind: 'journey',
-    title: record.objective || record.id,
-    producer: { sessionId: args.sessionId },
-    workspace: {
-      roots: [args.cwd ?? getCwd()],
-      ...(args.treeDigest !== undefined && { treeDigest: args.treeDigest }),
-    },
-    body: { kind: 'journey', steps },
-    evidenceRefs: [`mercury://journey/${record.id}`],
     initialStatus: 'ready-for-review',
   })
 }
