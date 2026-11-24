@@ -18,7 +18,7 @@ import {
   type TestRunRecord,
 } from './pythonTests.js'
 import { findPythonTestFiles } from './pythonProject.js'
-import { goRunPattern, jsTestNamePattern, parseGoTestJson, parseJsonReporter, type ReporterRead } from './runnerReporters.js'
+import { goAnchoredPattern, goRunPattern, jsTestNamePattern, parseGoTestJson, parseJsonReporter, type ReporterRead } from './runnerReporters.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 import { hostEnv } from '../../platform/environment/hostEnv.js'
 import { pathExtensionsForName } from '../../platform/host-os/programs.js'
@@ -743,11 +743,7 @@ export async function runRunnerProfile(
           }
           const goPattern =
             sep !== -1
-              ? goName
-                  .split('/')
-                  .filter(Boolean)
-                  .map(s => `^${s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`)
-                  .join('/')
+              ? goAnchoredPattern(goName)
               : opts.selectionKind === 'node' && goName.includes('/')
                 ? goRunPattern([goName])
                 : goName

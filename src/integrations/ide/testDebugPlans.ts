@@ -8,7 +8,7 @@ import { subprocessEnv } from '../../platform/processes/subprocessEnv.js'
 import { lldbDapInstallHint, probeGdbDap, resolveLldbDap } from '../debugger/dapClient.js'
 import { latestRunAtRoot } from './pythonTests.js'
 import { loadTs, parseSource, resolveStructureTypescript } from '../../tools/engines/structure/tsFacility.js'
-import { jsTestNamePattern } from './runnerReporters.js'
+import { goAnchoredPattern, jsTestNamePattern } from './runnerReporters.js'
 import { discoverRunnerProfiles, findRunnerRoot, resolveRunnerBinary } from './projectRunners.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
@@ -230,7 +230,7 @@ export function buildGoTestDebugPlan(nodeId: string, opts?: { from?: string }): 
   }
   const hit = hits[0]!
   const pkgDir = path.dirname(hit.file)
-  const pattern = segments.map(s => `^${escapeRegExp(s)}$`).join('/')
+  const pattern = goAnchoredPattern(name)
   return {
     framework: 'go',
     program: pkgDir,
