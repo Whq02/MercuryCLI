@@ -805,7 +805,7 @@ export async function callWithModel(question: OneShotQuestion): Promise<Assistan
   const stream = routedCallModel(sideQuestionParams(question, systemPrompt))
   const replies: AssistantMessage[] = []
   for await (const row of stream) if (row.type === 'assistant') replies.push(row)
-  return settleAssistantTurn(replies, question.signal.aborted) as AssistantMessage
+  return settleAssistantTurn(replies, question.signal.aborted)
 }
 
 export { MAX_NON_STREAMING_TOKENS, adjustParamsForNonStreaming } from './stream-core/nonStreaming.js'
