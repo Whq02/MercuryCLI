@@ -4,6 +4,10 @@ import { join } from 'node:path'
 import { type ArenaRun, grabScreens, requireDist, runArtifactArena, sendStamp } from '../streaming/artifactArena.ts'
 
 requireDist()
+;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+const { BrowserTool } = await import('../../src/tools/browser/BrowserTool.ts')
+const TOOL_DESC_LEAD = (await BrowserTool.description({} as never, {} as never)).trim().split(/\s+/).slice(0, 6).join(' ')
+if (TOOL_DESC_LEAD === '') throw new Error('BrowserTool.description() returned empty text')
 
 const KEEP = process.argv.includes('--keep')
 const arg = (key: string): string | undefined => (process.argv.includes(key) ? process.argv[process.argv.indexOf(key) + 1] : undefined)
@@ -66,7 +70,7 @@ section('provision — the card for the one-time browser download names the buil
     check('the card says where the build lands', rowsHaving(rows, 'unpacks to roughly twice that on disk, under') && rowsHaving(rows, join(run.paths.home, '.mercury', 'browsers').slice(0, 30)), `${downloadCardFix}; ${rowMatching(rows, /under /) ?? '(no cache row)'}`)
     check('the card says how to remove it', /\/browser remove \d+\.\d+/.test(rows.join('\n')), `${downloadCardFix}; ${rowMatching(rows, /remove/) ?? '(no remove row)'}`)
     check('the card asks for a download and the yes says so', rowsHaving(rows, QUESTION) && rowsHaving(rows, '1. Yes, download it'), `${downloadCardFix}; the question and the first answer (Yes, download it) must both paint`)
-    check('the card does not carry the tool description written for page driving', !rowsHaving(rows, 'Drive a real Chromium-family browser'), `${downloadCardFix}; the card must not print the tool description`)
+    check('the card does not carry the tool description written for page driving', !rowsHaving(rows, TOOL_DESC_LEAD), `${downloadCardFix}; the card must not print the tool description (${TOOL_DESC_LEAD})`)
     check('the card says nothing moves before the yes', rowsHaving(rows, 'Nothing is downloaded until you say yes'), `${downloadCardFix}; the dim line Nothing is downloaded until you say yes is missing`)
     const [final] = grabScreens(run, 120, 36, [-1])
     save('provision-declined-final-120x36', final!.rows)
@@ -107,7 +111,7 @@ section('first visit — the origin card says what a yes covers: the origin for 
     check('the card says the yes approves the origin for the session', text.includes(`Yes approves ${ORIGIN} for this session`), `${originCardFix}; ${rowMatching(rows, /approves/) ?? '(no scope row)'}`)
     check('the card says linked pages are read without asking and the first act on one asks', rowsHaving(rows, 'Pages it links or redirects to are read') && rowsHaving(rows, 'without asking; the first act'), `${originCardFix}; ${rowMatching(rows, /links or redirects/) ?? '(no linked-pages row)'}`)
     check('the card says a new origin opened by address is asked by name', text.includes('A new origin opened by address is asked by name'), `${originCardFix}; ${rowMatching(rows, /new origin/) ?? '(no new-origin row)'}`)
-    check('the card no longer carries the page-driving description', !rowsHaving(rows, 'Drive a real Chromium-family browser'), `${originCardFix}; the card must not print the tool description`)
+    check('the card no longer carries the page-driving description', !rowsHaving(rows, TOOL_DESC_LEAD), `${originCardFix}; the card must not print the tool description (${TOOL_DESC_LEAD})`)
     check('the three answers stand: yes, yes for this project, no', rowsHaving(rows, '1. Yes') && rowsHaving(rows, `2. Yes, and don't ask again for ${ORIGIN} in this project`) && rowsHaving(rows, '3. No, and tell Mercury what to do differently (esc)'), `${originCardFix}; the options list (Yes, Yes for this project, No) is built there`)
     const [final] = grabScreens(run, 120, 36, [-1])
     save('first-visit-declined-final-120x36', final!.rows)
