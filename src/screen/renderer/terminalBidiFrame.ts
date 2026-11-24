@@ -21,23 +21,27 @@ function rtlGlyphsOf(pool: CharPool): RtlGlyphs {
   return known
 }
 
+export function holdsRtl(screen: Screen): boolean {
+  return rtlGlyphsOf(screen.charPool).any
+}
+
+export function rowHoldsRtl(screen: Screen, y: number): boolean {
+  if (y >= screen.height) return false
+  const glyphs = rtlGlyphsOf(screen.charPool).flags
+  const end = (y + 1) * screen.width * 2
+  for (let at = y * screen.width * 2; at < end; at += 2) {
+    if (glyphs[screen.cells[at]!]) return true
+  }
+  return false
+}
+
 export function terminalBidiFrame(frame: Frame): Frame {
   if (!terminalTextCells().shapeRtl) return frame
   const source = frame.screen
-  const known = rtlGlyphsOf(source.charPool)
-  if (!known.any) return frame
-  const glyphs = known.flags
+  if (!holdsRtl(source)) return frame
   let projected: Screen | undefined
   for (let y = 0; y < source.height; y++) {
-    let needsShaping = false
-    const end = (y + 1) * source.width * 2
-    for (let at = y * source.width * 2; at < end; at += 2) {
-      if (glyphs[source.cells[at]!]) {
-        needsShaping = true
-        break
-      }
-    }
-    if (!needsShaping) continue
+    if (!rowHoldsRtl(source, y)) continue
     const row = []
     for (let x = 0; x < source.width; x++) {
       const cell = cellAt(source, x, y)!

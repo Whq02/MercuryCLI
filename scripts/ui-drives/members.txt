@@ -35,3 +35,4 @@ prove-resume-first-status.ts
 prove-resume-conversation-drive.ts
 prove-history-search-drive.ts
 prove-media-settings-picker-drive.ts
+prove-rtl-rows-drive.ts

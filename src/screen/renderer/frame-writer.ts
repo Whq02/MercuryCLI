@@ -27,7 +27,7 @@ import {
 import { LINK_END, link as oscLink } from './termio/osc.js'
 import { widthMayDisagree as measuredWidthMayDisagree } from './width-probe-table.js'
 import { readTerminalWidthMeasurements } from './terminal-session/widthProbe.js'
-import { terminalBidiFrame } from './terminalBidiFrame.js'
+import { holdsRtl, rowHoldsRtl, terminalBidiFrame } from './terminalBidiFrame.js'
 
 
 type Options = {
@@ -203,6 +203,33 @@ function emitCell(
   return true
 }
 
+function overwriteRow(
+  out: Diff,
+  cursor: CursorModel,
+  attrs: AttributeCursor,
+  frame: Frame,
+  y: number,
+): void {
+  const { screen, viewport } = frame
+  let inked = y < screen.height ? Math.min(screen.width, viewport.width) : 0
+  while (inked > 0 && isEmptyCellAt(screen, inked - 1, y)) inked--
+  cursor.moveTo(out, 0, y)
+  for (let x = 0; x < inked; x++) {
+    const cell = cellAtIndex(screen, y * screen.width + x)
+    if (cell.width === CellWidth.SpacerTail) continue
+    cursor.anchorTo(out, x, y)
+    if (cell.width !== CellWidth.SpacerHead && emitCell(out, cursor, attrs, cell, viewport.width)) continue
+    attrs.resetAll(out)
+    appendText(out, ' ')
+    cursor.wrote(1, true)
+  }
+  if (inked < viewport.width) {
+    attrs.resetAll(out)
+    cursor.anchorTo(out, inked, y)
+    out.push({ type: 'stdout', content: eraseToEndOfLine() })
+  }
+}
+
 function paintRows(
   out: Diff,
   cursor: CursorModel,
@@ -279,6 +306,22 @@ function emitDirtyCells(
 ): void {
   bleedLedger.clear()
   const stride = next.screen.width
+  const rtl = holdsRtl(prev.screen) || holdsRtl(next.screen)
+  const wholeRows = new Set<number>()
+  let judgedRow = -1
+  let judgedWhole = false
+  const writesWhole = (y: number): boolean => {
+    if (y !== judgedRow) {
+      judgedRow = y
+      judgedWhole = rowHoldsRtl(prev.screen, y) || rowHoldsRtl(next.screen, y)
+    }
+    if (!judgedWhole) return false
+    if (!wholeRows.has(y)) {
+      wholeRows.add(y)
+      overwriteRow(out, cursor, attrs, next, y)
+    }
+    return true
+  }
   diffEach(prev.screen, next.screen, (x, y, removed, added) => {
     if (y >= rowLimit) return
     if (alt && x >= next.viewport.width) return
@@ -305,6 +348,7 @@ function emitDirtyCells(
       }
     }
 
+    if (rtl && writesWhole(y)) return
     cursor.anchorTo(out, x, y)
     if (added) {
       emitCell(out, cursor, attrs, added, next.viewport.width)
@@ -322,6 +366,7 @@ function emitDirtyCells(
       const cell = cellAt(next.screen, x, y)
       if (cell === undefined) continue
       if (cell.width === CellWidth.SpacerTail || cell.width === CellWidth.SpacerHead) continue
+      if (rtl && writesWhole(y)) continue
       cursor.anchorTo(out, x, y)
       if (isEmptyCellAt(next.screen, x, y)) {
         attrs.resetAll(out)
@@ -414,30 +459,11 @@ export class FrameWriter {
 
   overwriteAlt(next: Frame): Diff {
     next = terminalBidiFrame(next)
-    const { screen, viewport } = next
-    const columns = Math.min(screen.width, viewport.width)
+    const { viewport } = next
     const out: Diff = [{ type: 'styleStr', str: SGR_RESET }]
     const cursor = new CursorModel({ x: 0, y: 0 }, viewport.width, true)
     const attrs = new AttributeCursor(this.options.stylePool)
-    for (let y = 0; y < viewport.height; y++) {
-      let inked = y < screen.height ? columns : 0
-      while (inked > 0 && isEmptyCellAt(screen, inked - 1, y)) inked--
-      cursor.moveTo(out, 0, y)
-      for (let x = 0; x < inked; x++) {
-        const cell = cellAtIndex(screen, y * screen.width + x)
-        if (cell.width === CellWidth.SpacerTail) continue
-        cursor.anchorTo(out, x, y)
-        if (cell.width !== CellWidth.SpacerHead && emitCell(out, cursor, attrs, cell, viewport.width)) continue
-        attrs.resetAll(out)
-        appendText(out, ' ')
-        cursor.wrote(1, true)
-      }
-      if (inked < viewport.width) {
-        attrs.resetAll(out)
-        cursor.anchorTo(out, inked, y)
-        out.push({ type: 'stdout', content: eraseToEndOfLine() })
-      }
-    }
+    for (let y = 0; y < viewport.height; y++) overwriteRow(out, cursor, attrs, next, y)
     attrs.resetAll(out)
     return out
   }
@@ -463,7 +489,12 @@ export class FrameWriter {
     const clipW = Math.min(width, cols)
     const cursor = new CursorModel({ x: 0, y: 0 }, cols, true)
     const attrs = new AttributeCursor(this.options.stylePool)
+    const clipped: Frame = { ...frame, viewport: { width: cols, height: rows } }
     for (let y = 0; y < clipH; y++) {
+      if (rowHoldsRtl(frame.screen, y)) {
+        overwriteRow(out, cursor, attrs, clipped, y)
+        continue
+      }
       cursor.moveTo(out, 0, y)
       let lastStyleOnLine = -1
       let index = y * width
