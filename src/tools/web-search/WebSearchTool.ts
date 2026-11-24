@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { buildTool, type ToolDef, type ToolUseContext } from '../kit/tool.js'
+import { buildTool, type ToolDef, type ToolUseContext, type ValidationResult } from '../kit/tool.js'
 import { performWebSearch } from '../engines/web-search/searchDoor.js'
 import { mapSearchResult, outputSchema, type Output } from './searchOutput.js'
 export type { Output } from './searchOutput.js'
@@ -18,6 +18,20 @@ const inputSchema = z.strictObject({
 })
 
 type Input = z.infer<typeof inputSchema>
+
+export async function validateSearchInput(input: { query: string; allowed_domains?: string[]; blocked_domains?: string[] }): Promise<ValidationResult> {
+  if (!input.query) {
+    return { result: false, message: 'Error: Missing query', errorCode: 1 }
+  }
+  if (input.allowed_domains?.length && input.blocked_domains?.length) {
+    return {
+      result: false,
+      message: 'allowed_domains and blocked_domains exclude each other; pass one of them',
+      errorCode: 2,
+    }
+  }
+  return { result: true }
+}
 
 export const WebSearchTool = buildTool({
   name: WEB_SEARCH_TOOL_NAME,
@@ -49,19 +63,7 @@ export const WebSearchTool = buildTool({
       ? `Searching for ${truncate(input.query, TOOL_SUMMARY_MAX_LENGTH)}`
       : 'Searching the web'
   },
-  async validateInput(input: Input) {
-    if (!input.query) {
-      return { result: false, message: 'Error: Missing query', errorCode: 1 }
-    }
-    if (input.allowed_domains?.length && input.blocked_domains?.length) {
-      return {
-        result: false,
-        message: 'allowed_domains and blocked_domains exclude each other; pass one of them',
-        errorCode: 2,
-      }
-    }
-    return { result: true }
-  },
+  validateInput: validateSearchInput,
   async checkPermissions() {
     return {
       behavior: 'passthrough',

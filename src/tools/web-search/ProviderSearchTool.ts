@@ -13,6 +13,7 @@ import { truncate } from '../../platform/text/format.js'
 import { getProviderSearchPrompt, PROVIDER_SEARCH_TOOL_NAME } from './prompt.js'
 import { mapSearchResult, outputSchema, type Output } from './searchOutput.js'
 import { getToolUseSummary, renderToolResultMessage, renderToolUseMessage, renderToolUseProgressMessage } from './rows.js'
+import { validateSearchInput } from './WebSearchTool.js'
 
 const inputSchema = z.strictObject({
   query: z.string().min(2).describe('Search words'),
@@ -54,19 +55,7 @@ export const ProviderSearchTool = buildTool({
       ? `Searching for ${truncate(input.query, TOOL_SUMMARY_MAX_LENGTH)}`
       : "Searching the web (provider's own search)"
   },
-  async validateInput(input: Input) {
-    if (!input.query) {
-      return { result: false, message: 'Error: Missing query', errorCode: 1 }
-    }
-    if (input.allowed_domains?.length && input.blocked_domains?.length) {
-      return {
-        result: false,
-        message: 'allowed_domains and blocked_domains exclude each other; pass one of them',
-        errorCode: 2,
-      }
-    }
-    return { result: true }
-  },
+  validateInput: validateSearchInput,
   async checkPermissions() {
     return {
       behavior: 'passthrough',
