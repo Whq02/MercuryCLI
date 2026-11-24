@@ -30,7 +30,7 @@ const before = createAssistantMessage({ content: 'BEFORE_COMMAND' })
 guts.rawRecords = [before]
 let done!: LocalJSXCommandOnDone
 const uuid = randomUUID()
-const pending = processSlashCommand('/order-fixture on', [], [], [], {
+const pending = processSlashCommand('/order-fixture on', [], [], {
   options: { commands: [{ name: 'order-fixture', type: 'local-jsx', description: 'fixture', load: async () => ({ call: async (onDone: LocalJSXCommandOnDone) => { done = onDone; return null } }) }] },
 } as never, () => {}, uuid)
 await settle(30)

@@ -172,10 +172,10 @@ check('the source relies on no disk-only substitution token', sourceMd !== '' &&
 check('the text loader carried Markdown, never rendered HTML', expanded !== '' && !/<(?:h1|h2|p|ul|li|code)>/.test(expanded))
 if (command !== undefined) {
   const slashContext = context([command], true) as never
-  const typed = await processSlashCommand(`/${NAME} ${POSITIVE}`, [], [], [], slashContext, () => {})
+  const typed = await processSlashCommand(`/${NAME} ${POSITIVE}`, [], [], slashContext, () => {})
   const typedBodies = bodiesOf(typed.messages as Message[])
   check('a typed /image-generation with an argument starts a turn carrying the same expansion', typed.shouldQuery === true && typedBodies.length === 1 && typedBodies[0] === expanded, `shouldQuery=${typed.shouldQuery} bodies=${typedBodies.length}`)
-  const bare = await processSlashCommand(`/${NAME}`, [], [], [], slashContext, () => {})
+  const bare = await processSlashCommand(`/${NAME}`, [], [], slashContext, () => {})
   check('a bare /image-generation answers its usage row and starts no turn', bare.shouldQuery === false && bare.resultText === bareUsageLine(command), String(bare.resultText))
 } else {
   check('the slash command expands the skill', false, 'no registered skill')

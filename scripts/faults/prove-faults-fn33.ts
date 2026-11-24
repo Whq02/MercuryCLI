@@ -56,7 +56,7 @@ async function runLocalJsxCommandError(): Promise<void> {
   const fakeContext = {
     options: { commands: [brokenCommand] },
   } as unknown as Parameters<typeof processSlashCommand>[4]
-  const res = await processSlashCommand('/broken-jsx-proof', [], [], [], fakeContext, () => {})
+  const res = await processSlashCommand('/broken-jsx-proof', [], [], fakeContext, () => {})
   check(
     'local-jsx failure returns commandError and stderr message',
     typeof res.commandError === 'string' &&

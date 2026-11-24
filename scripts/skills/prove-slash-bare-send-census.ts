@@ -187,7 +187,7 @@ section('§3 THE DISPATCHER — a bare send of every user-invocable prompt comma
       },
     } as Command
     try {
-      const result = await processSlashCommand(input, [], [], [], makeContext([spied]) as never, () => {})
+      const result = await processSlashCommand(input, [], [], makeContext([spied]) as never, () => {})
       const stderr = result.messages
         .map(message => (message.type === 'user' && typeof message.message.content === 'string' ? message.message.content : ''))
         .find(text => text.includes('<local-command-stderr>'))

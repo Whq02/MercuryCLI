@@ -74,7 +74,6 @@ type ProcessUserInputOptions = {
   skipSlashCommands?: boolean
   bridgeOrigin?: boolean
   skipAttachments?: boolean
-  isAlreadyProcessing?: boolean
   querySource: QuerySource
   canUseTool?: CanUseToolFn
 }
@@ -325,7 +324,6 @@ async function processUserInputBase(
     skipSlashCommands,
     bridgeOrigin,
     skipAttachments,
-    isAlreadyProcessing,
     querySource,
     canUseTool,
   } = options
@@ -428,26 +426,13 @@ async function processUserInputBase(
       uuid,
     )
   } else if (!skipSlash && isSlashLine && syntaxPrompt !== null) {
-    const slashBlocks = [...precedingInputBlocks]
-    if (
-      syntaxInput !== undefined &&
-      promptText !== null &&
-      promptText.startsWith(syntaxInput)
-    ) {
-      slashBlocks.push({
-        type: 'text',
-        text: promptText.slice(syntaxInput.length).trimStart(),
-      })
-    }
     result = await processSlashCommand(
       syntaxPrompt,
-      slashBlocks,
       imageContentBlocks,
       attachmentMessages,
       context,
       setToolJSX,
       uuid as UUID | undefined,
-      isAlreadyProcessing,
       canUseTool,
     )
   } else {

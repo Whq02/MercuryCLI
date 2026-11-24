@@ -451,13 +451,11 @@ async function runForkedPromptCommand(
 
 export async function processSlashCommand(
   inputString: string,
-  _precedingInputBlocks: ContentBlockParam[],
   imageContentBlocks: ContentBlockParam[],
   attachmentMessages: AttachmentMessage[],
   context: ProcessUserInputContext,
   setToolJSX: SetToolJSXFn,
   uuid?: UUID,
-  _isAlreadyProcessing?: boolean,
   canUseTool?: CanUseToolFn,
 ): Promise<ProcessUserInputBaseResult> {
   const caveat = createSyntheticUserCaveatMessage()

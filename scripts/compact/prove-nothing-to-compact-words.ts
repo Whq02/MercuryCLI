@@ -115,7 +115,7 @@ function makeContext(messages: AnyMsg[]): Record<string, unknown> {
 
 async function runSlashCompact(messages: AnyMsg[]): Promise<{ rendered: string; commandError: string | undefined }> {
   const ctx = makeContext(messages)
-  const result = await processSlashCommand('/compact', [], [], [], ctx as never, () => {})
+  const result = await processSlashCommand('/compact', [], [], ctx as never, () => {})
   const outputs: string[] = []
   for (const row of result.messages) {
     const raw = row.type === 'system' && 'content' in row && typeof row.content === 'string'

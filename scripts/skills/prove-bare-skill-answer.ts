@@ -75,7 +75,7 @@ const fixturePrompt = (name: string, hint: string | undefined, calls: { n: numbe
   }) as Command
 const send = async (commands: Command[], input: string, calls: { n: number; args: string[] }): Promise<Sent> => {
   const before = calls.n
-  const result = await processSlashCommand(input, [], [], [], makeContext(commands) as never, () => {})
+  const result = await processSlashCommand(input, [], [], makeContext(commands) as never, () => {})
   const contents = result.messages.map(message =>
     message.type === 'user' && typeof message.message.content === 'string'
       ? message.message.content
@@ -136,7 +136,7 @@ section('§2 THE REAL SKILLS — /debug bare turns nothing on and answers; /exte
   check('debug logging is off before the send', isDebugMode() === false)
   if (debug !== undefined) {
     const live = { ...debug, isEnabled: () => true } as Command
-    const result = await processSlashCommand('/debug', [], [], [], makeContext([live]) as never, () => {})
+    const result = await processSlashCommand('/debug', [], [], makeContext([live]) as never, () => {})
     check('/debug bare answers its usage row and starts no turn', result.shouldQuery === false && result.resultText === bareUsageLine(debug), `shouldQuery=${result.shouldQuery} text=${result.resultText}`)
     check('/debug bare turned debug logging on for nothing (the side effect belongs to the invoked skill)', isDebugMode() === false, 'isDebugMode() is true after a bare /debug')
     console.log(`  the row: ${bareUsageLine(debug)}`)
@@ -149,7 +149,7 @@ section('§2 THE REAL SKILLS — /debug bare turns nothing on and answers; /exte
   if (extensionMaker !== undefined) {
     let calls = 0
     const spied = { ...extensionMaker, isEnabled: () => true, getPromptForCommand: async () => { calls++; return [{ type: 'text', text: 'the extensionMaker pass' }] } } as Command
-    const result = await processSlashCommand('/extension-maker', [], [], [], makeContext([spied]) as never, () => {})
+    const result = await processSlashCommand('/extension-maker', [], [], makeContext([spied]) as never, () => {})
     check('/extension-maker bare builds its prompt and starts the turn, as today', calls === 1 && result.shouldQuery === true, `calls=${calls} shouldQuery=${result.shouldQuery}`)
   }
 }

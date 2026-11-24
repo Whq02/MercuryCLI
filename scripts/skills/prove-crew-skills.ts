@@ -167,12 +167,12 @@ const makeSlashContext = (commands: Command[]) => ({
   agentId: 'main',
 })
 
-const bareDeep = await processSlashCommand('/deep-research', [], [], [], makeSlashContext(allCommands) as never, () => {})
+const bareDeep = await processSlashCommand('/deep-research', [], [], makeSlashContext(allCommands) as never, () => {})
 check('bare /deep-research answers its usage line without starting a turn', deepCmd !== undefined && bareDeep.shouldQuery === false && bareDeep.resultText === bareUsageLine(deepCmd), bareDeep.resultText)
 
-const argDeep = await processSlashCommand('/deep-research compare sqlite wal and rollback modes', [], [], [], makeSlashContext(allCommands) as never, () => {})
-const bareReview = await processSlashCommand('/code-review', [], [], [], makeSlashContext(allCommands) as never, () => {})
-const argReview = await processSlashCommand('/code-review xhigh HEAD~1..HEAD', [], [], [], makeSlashContext(allCommands) as never, () => {})
+const argDeep = await processSlashCommand('/deep-research compare sqlite wal and rollback modes', [], [], makeSlashContext(allCommands) as never, () => {})
+const bareReview = await processSlashCommand('/code-review', [], [], makeSlashContext(allCommands) as never, () => {})
+const argReview = await processSlashCommand('/code-review xhigh HEAD~1..HEAD', [], [], makeSlashContext(allCommands) as never, () => {})
 
 const extractExpandedText = (messages: unknown[]): string =>
   messages

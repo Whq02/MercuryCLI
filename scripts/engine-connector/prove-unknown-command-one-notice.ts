@@ -63,7 +63,7 @@ section('§1 the runner\'s unknown branch: one notice carrying the frame identit
 {
   const uuid = randomUUID() as import('node:crypto').UUID
   const context = { options: { commands: roster, isNonInteractiveSession: true }, abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: { mode: 'default' } }) } as never
-  const result = await processSlashCommand(`/nosuch ${PARAGRAPH}`, [], [], [], context, () => {}, uuid)
+  const result = await processSlashCommand(`/nosuch ${PARAGRAPH}`, [], [], context, () => {}, uuid)
   const line = unknownCommandLine('nosuch', roster)
   check('the turn is refused and does not query the model', result.shouldQuery === false && result.commandRefused === true)
   check('the result text is the unknown-command sentence', result.resultText === line, String(result.resultText))
