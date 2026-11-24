@@ -2802,7 +2802,6 @@ src/permissions/rules/permissions.ts	EXTERNAL_PERMISSION_MODES	process	module	Lo
 src/permissions/rules/permissions.ts	INTERNAL_PERMISSION_MODES	process	module	Load-time list with no local writer
 src/permissions/rules/permissions.ts	PERMISSION_MODES	process	module	Load-time list with no local writer
 src/permissions/rules/permissionsLoader.ts	BEHAVIORS	process	module	Load-time list with no local writer
-src/permissions/rules/permissionsLoader.ts	EDITABLE_SOURCES	process	module	Load-time list with no local writer
 src/permissions/rules/protectedPaths.ts	HOME_FILES	process	module	Load-time list with no local writer
 src/permissions/rules/protectedPaths.ts	HOME_TREES	process	module	Load-time list with no local writer
 src/permissions/rules/protectedPaths.ts	MERCURY_SECRET_PATTERNS	process	module	Load-time list with no local writer
@@ -5489,7 +5488,6 @@ src/tools/shell/denyRuleReach.ts	READ_RULE_TOOLS	process	module	Load-time lookup
 src/tools/shell/denyRuleReach.ts	SHELLS	process	module	Load-time lookup with no local writer
 src/tools/shell/gitPrintedNames.ts	HARMLESS_VARIABLE	process	module	Load-time lookup with no local writer
 src/tools/shell/gitPrintedNames.ts	NAMES_ONLY	process	module	Load-time list with no local writer
-src/tools/shell/gitPrintedNames.ts	STASH_SELECTS	process	module	Load-time lookup with no local writer
 src/tools/shell/gitPrintedNames.ts	VALUED	process	module	Load-time lookup with no local writer
 src/tools/shell/maxOutputChars.ts	maxOutputCharsField	process	module	Load-time definition shared by all callers
 src/tools/shell/modeValidation.ts	IMPLEMENT_MODE_COMMANDS	process	module	Load-time lookup with no local writer
