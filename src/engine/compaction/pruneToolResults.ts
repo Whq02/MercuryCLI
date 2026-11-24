@@ -5,10 +5,6 @@ import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { expandPath } from '../../platform/files/path.js'
 import { isRecord } from '../../platform/primitives/isRecord.js'
 import type { FileStateCache } from '../../platform/files/fileStateCache.js'
-import type { OwnerKey } from '../run-owner/ownerKey.js'
-import { processMainOwner } from '../run-owner/resolveOwner.js'
-import { registerOwnerScopedStore } from '../run-owner/ownerLifecycle.js'
-import { OwnerScopedStore } from '../run-owner/ownerScopedStore.js'
 import { estimateContentTokens, roughTokenCountEstimationForMessages } from '../../models/facts/tokenEstimation.js'
 import { stripThinkingFromIndex } from '../messages/apiFilters.js'
 import { digestClearedToolResult, isClearedOrDigested } from './pruneDigest.js'
@@ -22,18 +18,8 @@ import { WRITE_TOOL_NAME } from '../../tools/kit/names/fileWrite.js'
 
 export const TIME_BASED_PRUNE_CLEARED_MESSAGE = '[stale tool result pruned — content cleared]'
 
-type PendingCacheEdits = {
-  userMessageIndex: number
-  block: unknown
-}
-
 type PruneResult = {
   messages: Message[]
-  compactionInfo?: {
-    trigger: string
-    deletedToolIds: string[]
-    baselineCacheDeletedTokens: number | null
-  }
   pruned?: {
     cleared: number
     tokensSaved: number
@@ -327,41 +313,6 @@ export function projectTimeBasedPrune(
 }
 
 
-type CacheEditState = {
-  registeredToolIds: string[]
-  pinnedEdits: PendingCacheEdits[]
-  pendingEdits: PendingCacheEdits | null
-}
-
-const cacheEditStore = new OwnerScopedStore<CacheEditState>({
-  name: 'microcompact-cache-edits',
-  create: () => ({ registeredToolIds: [], pinnedEdits: [], pendingEdits: null }),
-})
-registerOwnerScopedStore(cacheEditStore)
-
-function ownerOrMain(owner: OwnerKey | undefined): OwnerKey {
-  return owner ?? processMainOwner()
-}
-
-export const pinCacheEdits: (
-  userMessageIndex: number,
-  block: unknown,
-  owner?: OwnerKey,
-) => void = function (userMessageIndex, block, owner) {
-  const state = cacheEditStore.get(ownerOrMain(owner))
-  state.pinnedEdits.push({ userMessageIndex, block })
-}
-
-export const resetPruneState: (owner?: OwnerKey) => void = function (owner) {
-  const key = ownerOrMain(owner)
-  const state = cacheEditStore.peek(key)
-  if (state === undefined) return
-  state.registeredToolIds = []
-  state.pinnedEdits = []
-  state.pendingEdits = null
-}
-
-
 export async function pruneMessages(
   messages: Message[],
   _toolUseContext?: unknown,
@@ -382,7 +333,6 @@ export async function pruneMessages(
       : `time-based microcompact: gap ${Math.round(projected.gapMinutes)}min ≥ ${getTimeBasedPruneConfig().thresholdMinutes}min — cleared ${projected.cleared} tool results (~${projected.tokensSaved} tokens)`,
   )
   suppressFoldWarning()
-  resetPruneState()
   if (invalidate !== undefined) {
     for (const rawPath of projected.clearedReadPaths) {
       invalidate.readFileState.delete(expandPath(rawPath))

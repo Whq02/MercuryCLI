@@ -56,7 +56,6 @@ type PromptStateSnapshot = {
   betas?: readonly string[]
   flowActive?: boolean
   overageInUse?: boolean
-  cachedMicrocompact?: boolean
   effortValue?: string | null
   extraBodyParams?: Record<string, unknown>
   lane?: CacheLane
@@ -121,7 +120,6 @@ type PendingChanges = {
   removedBetas: string[]
   flowChanged: boolean
   overageChanged: boolean
-  cachedMicrocompactChanged: boolean
   effortChanged: boolean
   previousEffort: string
   newEffort: string
@@ -144,7 +142,6 @@ type LaneState = {
   sortedBetas: string[]
   isFlow: boolean
   isUsingOverage: boolean
-  hasCachedMicrocompact: boolean
   effortValue: string
   extraBodyHash: number
   callReferenceDigest?: string
@@ -301,9 +298,6 @@ function formatPendingReason(pending: PendingChanges): string {
   if (pending.overageChanged) {
     parts.push('overage state changed (TTL latched, no flip)')
   }
-  if (pending.cachedMicrocompactChanged) {
-    parts.push('cached microcompact toggled')
-  }
   if (pending.effortChanged) {
     parts.push(`effort changed (${pending.previousEffort || 'default'} → ${pending.newEffort || 'default'})`)
   }
@@ -367,7 +361,6 @@ export function recordPromptState(snapshot: PromptStateSnapshot): void {
     const sortedBetas = snapshot.betas ? [...snapshot.betas].sort() : []
     const isFlow = snapshot.flowActive === true
     const isUsingOverage = snapshot.overageInUse === true
-    const hasCachedMicrocompact = snapshot.cachedMicrocompact === true
     const effortValue = snapshot.effortValue ?? ''
     const extraBodyHash =
       snapshot.extraBodyParams !== undefined ? fastHash(safeStringify(snapshot.extraBodyParams)) : 0
@@ -406,7 +399,6 @@ export function recordPromptState(snapshot: PromptStateSnapshot): void {
         sortedBetas,
         isFlow,
         isUsingOverage,
-        hasCachedMicrocompact,
         effortValue,
         extraBodyHash,
         ...(callReferenceDigest !== undefined ? { callReferenceDigest } : {}),
@@ -427,7 +419,6 @@ export function recordPromptState(snapshot: PromptStateSnapshot): void {
     const betasChanged = !arraysEqual(prev.sortedBetas, sortedBetas)
     const flowChanged = prev.isFlow !== isFlow
     const overageChanged = prev.isUsingOverage !== isUsingOverage
-    const cachedMicrocompactChanged = prev.hasCachedMicrocompact !== hasCachedMicrocompact
     const effortChanged = prev.effortValue !== effortValue
     const extraBodyChanged = prev.extraBodyHash !== extraBodyHash
 
@@ -462,7 +453,6 @@ export function recordPromptState(snapshot: PromptStateSnapshot): void {
       betasChanged ||
       flowChanged ||
       overageChanged ||
-      cachedMicrocompactChanged ||
       effortChanged ||
       extraBodyChanged
 
@@ -494,7 +484,6 @@ export function recordPromptState(snapshot: PromptStateSnapshot): void {
         removedBetas,
         flowChanged,
         overageChanged,
-        cachedMicrocompactChanged,
         effortChanged,
         previousEffort: prev.effortValue,
         newEffort: effortValue,
@@ -517,7 +506,6 @@ export function recordPromptState(snapshot: PromptStateSnapshot): void {
     prev.sortedBetas = sortedBetas
     prev.isFlow = isFlow
     prev.isUsingOverage = isUsingOverage
-    prev.hasCachedMicrocompact = hasCachedMicrocompact
     prev.effortValue = effortValue
     prev.extraBodyHash = extraBodyHash
     prev.callReferenceDigest = callReferenceDigest

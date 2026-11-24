@@ -1,6 +1,5 @@
 import type { MessageParam, TextBlockParam } from '../../../engine/message-shapes/wire.js'
 import type { AnthropicStream } from './anthropicStream.js'
-import { logForDebugging } from 'src/platform/logs/debugLog.js'
 import { isWholeRecordedComposition } from '../../../engine/system-prompt/recordedComposition.js'
 import {
   type AssistantMessage,
@@ -8,27 +7,12 @@ import {
 } from '../../../engine/message-shapes/message.js'
 import type { ApiMessageDeltaUsage, ApiUsage } from '../../../engine/message-shapes/wire.js'
 import { splitSystemPromptBlocks } from '../../../engine/messages/apiSystemAndToolSchema.js'
-import { insertBlockAfterToolResults } from '../../../engine/message-shapes/contentArray.js'
 import { asSystemPrompt, type SystemPrompt } from '../../../engine/system-prompt/systemPromptType.js'
-import { pinCacheEdits } from '../../../engine/compaction/pruneToolResults.js'
 import { type NonNullableUsage } from '../../../engine/requests/apiCallLogging.js'
 import { assistantMessageToMessageParam, userMessageToMessageParam } from './messageParams.js'
 import { getCacheControl } from './requestParams.js'
 import { normalizeAnthropicToolIds } from './toolIds.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
-
-export type CachedMCEditsBlock = {
-  type: 'cache_edits'
-  edits: Array<{
-    type: 'delete'
-    cache_reference: string
-  }>
-}
-
-export type CachedMCPinnedEdits = {
-  userMessageIndex: number
-  block: CachedMCEditsBlock
-}
 
 export function buildSystemPromptBlocks(systemPrompt: SystemPrompt, enablePromptCaching: boolean): TextBlockParam[] {
   return splitSystemPromptBlocks(systemPrompt).map(block => ({
@@ -53,9 +37,6 @@ export function buildTurnSystemBlocks(attribution: string, systemPrompt: SystemP
 export function addCacheBreakpoints(
   messages: (UserMessage | AssistantMessage)[],
   enablePromptCaching: boolean,
-  useCachedMC: boolean = false,
-  newCacheEdits?: CachedMCEditsBlock | null,
-  pinnedEdits?: CachedMCPinnedEdits[],
   skipCacheWrite: boolean = false,
 ): MessageParam[] {
   let markerIndex = messages.length - 1
@@ -75,85 +56,6 @@ export function addCacheBreakpoints(
       ? userMessageToMessageParam(msg, shouldMark, enablePromptCaching)
       : assistantMessageToMessageParam(msg, shouldMark, enablePromptCaching)
   })
-
-  if (useCachedMC) {
-    const seenRefs = new Set<string>()
-    const dedupBlock = (block: CachedMCEditsBlock): CachedMCEditsBlock | null => {
-      const unique = block.edits.filter(edit => {
-        if (seenRefs.has(edit.cache_reference)) return false
-        seenRefs.add(edit.cache_reference)
-        return true
-      })
-      if (unique.length === 0) return null
-      return { ...block, edits: unique }
-    }
-    const ensureContentArray = (msg: MessageParam): Exclude<MessageParam['content'], string> => {
-      if (Array.isArray(msg.content)) return msg.content
-      const arr: Exclude<MessageParam['content'], string> = [{ type: 'text', text: msg.content }]
-      msg.content = arr
-      return arr
-    }
-
-    if (pinnedEdits) {
-      for (const pin of pinnedEdits) {
-        const target = result[pin.userMessageIndex]
-        if (!target || target.role !== 'user') continue
-        const deduped = dedupBlock(pin.block)
-        if (!deduped) continue
-        insertBlockAfterToolResults(ensureContentArray(target), deduped)
-      }
-    }
-
-    if (newCacheEdits && newCacheEdits.edits.length > 0) {
-      let lastUserIndex = -1
-      for (let i = result.length - 1; i >= 0; i--) {
-        if (result[i]?.role === 'user') {
-          lastUserIndex = i
-          break
-        }
-      }
-      if (lastUserIndex !== -1) {
-        const deduped = dedupBlock(newCacheEdits)
-        if (deduped) {
-          insertBlockAfterToolResults(ensureContentArray(result[lastUserIndex]!), deduped)
-          pinCacheEdits(lastUserIndex, newCacheEdits)
-          logForDebugging(
-            `cache edits on message[${lastUserIndex}]: ${deduped.edits.length} deleted — ${deduped.edits.map(e => e.cache_reference).join(', ')}`,
-          )
-        }
-      }
-    }
-
-    if (enablePromptCaching) {
-      let lastMarkerIndex = -1
-      for (let i = result.length - 1; i >= 0; i--) {
-        const content = result[i]?.content
-        if (
-          Array.isArray(content) &&
-          content.some(
-            block => block != null && typeof block === 'object' && (block as { cache_control?: unknown }).cache_control != null,
-          )
-        ) {
-          lastMarkerIndex = i
-          break
-        }
-      }
-      for (let i = 0; i < lastMarkerIndex; i++) {
-        const msg = result[i]
-        if (!msg || msg.role !== 'user' || !Array.isArray(msg.content)) continue
-        const stamped: Exclude<MessageParam['content'], string> = []
-        for (let j = 0; j < msg.content.length; j++) {
-          const block = msg.content[j]
-          if (block != null && typeof block === 'object' && block.type === 'tool_result' && block.tool_use_id) {
-            stamped.push({ ...block, cache_reference: block.tool_use_id } as typeof block)
-          } else {
-            stamped.push(block)
-          }
-        }
-        msg.content = stamped
-      }
-    }
-  }
 
   return normalizeAnthropicToolIds(result)
 }

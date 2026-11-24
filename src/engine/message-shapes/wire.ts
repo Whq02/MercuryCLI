@@ -467,11 +467,6 @@ type MidConversationSystemBlockParam = {
   cache_control?: CacheControlEphemeral | null
 }
 
-type CacheEditsBlockParam = {
-  type: 'cache_edits'
-  edits: Array<{ type: 'delete'; cache_reference: string }>
-}
-
 export type ContentBlockParam =
   | TextBlockParam
   | ImageBlockParam
@@ -491,7 +486,6 @@ export type ContentBlockParam =
   | ToolSearchToolResultBlockParam
   | ContainerUploadBlockParam
   | MidConversationSystemBlockParam
-  | CacheEditsBlockParam
   | ContentBlock
 
 export type MessageParam = {

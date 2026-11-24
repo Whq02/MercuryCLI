@@ -312,7 +312,7 @@ async function runFoldAttempt(opts: {
       const finish = (compactionResult: FoldResult, fromMemory: boolean) => {
         setLastSummarizedMessageId(undefined)
         runPostFoldCleanup(
-          { querySource: opts.querySource, owner: opts.owner, agentId: opts.toolUseContext.agentId },
+          { querySource: opts.querySource, agentId: opts.toolUseContext.agentId },
           buildPostFoldMessages(compactionResult),
         )
         return { compactionResult, fromMemory }

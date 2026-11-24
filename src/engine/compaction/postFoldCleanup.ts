@@ -2,16 +2,12 @@ import { getGitStatus, getSystemContext, getUserContext } from '../requestContex
 import { clearSystemPromptSections } from '../system-prompt/systemPromptSections.js'
 import { clearSessionMessagesCache } from '../../sessions/transcripts/sessionListings.js'
 import { resetInstructionFilesCache } from '../../sessions/instructions/instructionFiles.js'
-import type { OwnerKey } from '../run-owner/ownerKey.js'
-import { processMainOwner, processOwnerForLane } from '../run-owner/resolveOwner.js'
-import { resetPruneState } from './pruneToolResults.js'
 import type { Message } from '../message-shapes/message.js'
 import { restoreBoundPrefixFromMessages } from '../../models/roads/anthropic/boundPrefixRecord.js'
 
 
 type PostFoldScope = {
   querySource?: string
-  owner?: OwnerKey
   agentId?: string
 }
 
@@ -28,14 +24,6 @@ export function runPostFoldCleanup(scope?: QuerySource | PostFoldScope, preserve
     (querySource === undefined ||
       querySource.startsWith(MAIN_THREAD_PREFIX) ||
       querySource === 'sdk')
-  const owner: OwnerKey =
-    normalized.owner ??
-    (isMainThread
-      ? processMainOwner()
-      : processOwnerForLane(agentId ?? querySource ?? null))
-
-  resetPruneState(owner)
-
   if (!isMainThread) {
     if (preservedMessages !== undefined) {
       restoreBoundPrefixFromMessages(preservedMessages, { rosterOnly: true, fold: true })

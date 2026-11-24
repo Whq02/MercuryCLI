@@ -23,11 +23,7 @@ export function normalizeAnthropicToolIds(rows: MessageParam[]): MessageParam[] 
   return rows.map(row => ({ ...row, content: typeof row.content === 'string' ? row.content : row.content.map(block => {
     if (block === undefined || block === null) return block
     if (block.type === 'tool_use') return { ...block, id: replace(block.id) }
-    if (block.type === 'tool_result') {
-      const ref = block as typeof block & { cache_reference?: string }
-      return { ...block, tool_use_id: replace(block.tool_use_id), ...(ref.cache_reference !== undefined ? { cache_reference: replace(ref.cache_reference) } : {}) }
-    }
-    if (block.type === 'cache_edits') return { ...block, edits: block.edits.map(edit => ({ ...edit, cache_reference: replace(edit.cache_reference) })) }
+    if (block.type === 'tool_result') return { ...block, tool_use_id: replace(block.tool_use_id) }
     return block
   }) }))
 }

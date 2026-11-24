@@ -27,11 +27,7 @@ import { normalizeModelStringForAPI } from '../../../catalogue/engineModel.js'
 import { clientContractMoveOf } from '../../../../engine/requests/clientContractLearned.js'
 import type { RetryContext } from '../../../../engine/requests/withRetry.js'
 import { fitOutputTokensForRequest, outputFitWords } from '../../../../engine/requests/outputFit.js'
-import {
-  addCacheBreakpoints,
-  type CachedMCEditsBlock,
-  type CachedMCPinnedEdits,
-} from '../cacheAndUsage.js'
+import { addCacheBreakpoints } from '../cacheAndUsage.js'
 import { fitWireImages } from '../../../../engine/message-shapes/imageRequestFit.js'
 import {
   configureEffortParams,
@@ -49,11 +45,7 @@ type WireInputs = {
   betas: string[]
   rosterOwnerKey: string
   planned: PlannedRequest
-  cachedMCEnabled: boolean
-  cacheEditingHeaderLatched: boolean
   effort: ReturnType<typeof resolveAppliedEffort>
-  consumedCacheEdits: CachedMCEditsBlock | null
-  consumedPinnedEdits: CachedMCPinnedEdits[]
 }
 
 export function wireParamsFor(call: CallState, wire: WireInputs): (context: RetryContext) => BetaMessageStreamParams {
@@ -139,16 +131,8 @@ export function wireParamsFor(call: CallState, wire: WireInputs): (context: Retr
         : undefined
 
     const enablePromptCaching = wire.options.enablePromptCaching ?? getPromptCachingEnabled(context.model)
-    const useCachedMC = wire.options.querySource === 'main_thread' && wire.cachedMCEnabled
 
     const emitBetas = requestBetas.length > 0
-    if (wire.options.querySource === 'main_thread' && wire.cacheEditingHeaderLatched) {
-      const cacheEditingBeta = ''
-      if (!requestBetas.includes(cacheEditingBeta)) {
-        requestBetas.push(cacheEditingBeta)
-        logForDebugging('Cache editing beta header enabled for cached microcompact')
-      }
-    }
 
     const foldedToolChoice = foldToolChoiceForModel(wire.options.model, wire.options.toolChoice)
     if (foldedToolChoice !== wire.options.toolChoice) {
@@ -158,14 +142,7 @@ export function wireParamsFor(call: CallState, wire: WireInputs): (context: Retr
     let wirePrefix: WirePrefixParts = {
       system,
       tools: wire.planned.allTools,
-      messages: addCacheBreakpoints(
-        wire.planned.messagesForAPI,
-        enablePromptCaching,
-        useCachedMC,
-        wire.consumedCacheEdits,
-        wire.consumedPinnedEdits,
-        wire.options.skipCacheWrite,
-      ),
+      messages: addCacheBreakpoints(wire.planned.messagesForAPI, enablePromptCaching, wire.options.skipCacheWrite),
     }
     const inducedEdit = resolveInducedPrefixEdit()
     if (inducedEdit !== null && inducedEditApplies(wire.messages)) {

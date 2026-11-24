@@ -29,7 +29,7 @@ import type {
   JsonOutputFormat,
   StreamCapabilityAdvertisement,
 } from '../../../engine/message-shapes/wire.js'
-import { getCacheEditingHeaderLatched, setLastApiCompletionTimestamp } from 'src/boot/process-state/processState.js'
+import { setLastApiCompletionTimestamp } from 'src/boot/process-state/processState.js'
 import { logForDebugging } from 'src/platform/logs/debugLog.js'
 import { logForDiagnosticsNoPII } from 'src/platform/logs/diagnosticsLog.js'
 import { resetApiConnectionPool } from 'src/platform/network/proxy.js'
@@ -291,7 +291,6 @@ async function prepareCall(
     toolSchemas,
   )
 
-  const cacheEditingHeaderLatched = getCacheEditingHeaderLatched() === true
   const appliedEffort = effortRides
     ? resolveAppliedEffort(options.model, options.effortValue, effortContext)
     : undefined
@@ -303,11 +302,7 @@ async function prepareCall(
     betas,
     rosterOwnerKey,
     planned,
-    cachedMCEnabled: false,
-    cacheEditingHeaderLatched,
     effort: appliedEffort,
-    consumedCacheEdits: null,
-    consumedPinnedEdits: [],
   })
 
   const newMessages: AssistantMessage[] = []

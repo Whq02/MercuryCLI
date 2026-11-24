@@ -43,7 +43,6 @@ import {
 import { parseSlashCommand } from '../../commands/catalogue/slashCommandParsing.js'
 import { logError } from '../../platform/logs/errorLog.js'
 import { isNothingToFoldMessage } from '../compaction/fold/foldLimits.js'
-import { resetPruneState } from '../compaction/pruneToolResults.js'
 import { recordSkillUsage } from '../../screen/suggestions/skillUsage.js'
 import { getCrewmateContext } from '../../crew/agents/agentContext.js'
 import { addInvokedSkill, getIsNonInteractiveSession } from '../../boot/process-state/processState.js'
@@ -757,7 +756,6 @@ async function runLocalCommand(
       return { messages: [], shouldQuery: false }
     }
     if (result.type === 'compact') {
-      resetPruneState(undefined)
       const compaction = result.compactionResult
       const display = result.displayText
       const displayMessage = display
