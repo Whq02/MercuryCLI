@@ -7,7 +7,6 @@ import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
 import { minimaxApiBase, resolveMinimaxApiKey } from './minimaxAccounts.js'
 import { MINIMAX_DISPLAY_PINS, isMinimaxTextModelId, minimaxDisplayName, minimaxDisplayPin, type MinimaxThinkingDial } from '../../facts/pins/minimaxPins.js'
-import { passedOverAs } from '../../../platform/errors/passedOver.js'
 import { hostEnv } from '../../../platform/environment/hostEnv.js'
 
 export interface MinimaxLiveModel {
@@ -152,15 +151,6 @@ export function refreshMinimaxCatalogue(opts?: { force?: boolean; fetchImpl?: ty
   })()
   inFlight.set(identity, work)
   return work
-}
-
-export function kickMinimaxCatalogue(opts?: { env?: NodeJS.ProcessEnv; fetchImpl?: typeof fetch }): boolean {
-  const env = opts?.env ?? hostEnv()
-  if (!catalogueTrafficVerdict('minimax', env).allowed) return false
-  const snapshot = getCachedMinimaxCatalogue(env)
-  if (snapshot && !snapshot.lastError) return false
-  void refreshMinimaxCatalogue(opts).catch(passedOverAs(null))
-  return true
 }
 
 export interface MinimaxCatalogueRow {
