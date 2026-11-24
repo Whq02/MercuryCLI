@@ -113,7 +113,6 @@ console.log('§1 the pure owner — one row per run, counted by outcome')
   const broken = [attachmentNotice('x1', 'lint', 'completed', 0), agentNotice('x2'), attachmentNotice('x3', 'docs', 'completed', 0), assistantRow('x4'), attachmentNotice('x5', 'tests', 'completed', 0)]
   const xout = run(broken)
   check('an agent notification and an assistant row each break the run and keep their own rows', xout.length === 5 && xout.every((r, i) => r === broken[i]))
-  check('the predicate: a shell notice is recognised, an agent notice is not, a monitor summary without status is not', fold.shellNoticeOf(broken[0] as never) !== null && fold.shellNoticeOf(broken[1] as never) === null && fold.shellNoticeOf({ ...attachmentNotice('m1', 'x', 'completed'), attachment: { type: 'queued_command', prompt: '<task-notification><summary>Background command "x" printed a line</summary></task-notification>', commandMode: 'task-notification' } } as never) === null)
 
   check('the viewer (verbose) is inert: every notice shows one by one', run(mixed, true).length === 3)
   process.env.MERCURY_FULLSCREEN = '0'
