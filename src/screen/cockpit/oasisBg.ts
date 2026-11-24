@@ -32,10 +32,6 @@ export function oasisBgEnabled(
   return true
 }
 
-export function oasisBgEnter(theme: ThemeName = DEFAULT_THEME_SETTING): string {
-  return `\x1b]11;${groundFamilyFor(theme).NIGHT}\x07`
-}
-
 export function oasisBgExit(): string {
   return `\x1b]111\x07`
 }

@@ -280,14 +280,6 @@ section('§7 — the default appearance: True Black, and a saved choice wins')
   delete process.env.MERCURY_OASIS_BG
   process.env.TERM = 'xterm-256color'
   check(
-    'the default ground is pure black (the ground owner’s own default arm agrees)',
-    oasis.oasisBgEnter(DEFAULT_THEME_SETTING) === '\x1b]11;#000000\x07' &&
-      oasis.oasisBgEnter() === oasis.oasisBgEnter(DEFAULT_THEME_SETTING),
-    '',
-    'oasisBgEnter in src/screen/cockpit/oasisBg.ts must emit OSC 11 with #000000 for the default theme and default its argument to DEFAULT_THEME_SETTING',
-  )
-  check('the oasis ground is NIGHT', oasis.oasisBgEnter('dark') === `\x1b]11;${brand.OASIS_GROUND.NIGHT}\x07`, '', 'oasisBgEnter in src/screen/cockpit/oasisBg.ts must emit OSC 11 with OASIS_GROUND.NIGHT for dark')
-  check(
     'both appearances enable the ground on a TTY; unasked, the gate reads the resolved default',
     oasis.oasisBgEnabled(true, DEFAULT_THEME_SETTING) && oasis.oasisBgEnabled(true, 'dark') && oasis.oasisBgEnabled(true),
     '',
