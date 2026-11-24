@@ -3,6 +3,9 @@ import { useMemo, useRef, useState } from 'react'
 import { useLoad } from '../../../screen/effects/effects.js'
 import { Box, Text } from '../../../screen/themedRenderer.js'
 import { ConsentBodyText } from '../ConsentBodyText.js'
+import { boundLines, consentBodyBudget, consentContentWidth } from '../consentBodyBudget.js'
+import { drawnRows, reasonCutToFit, ROWS_ROUND_THE_CARD_TEXT } from '../consentReasonBudget.js'
+import { useTerminalSize } from '../../../screen/fullscreen-layout/useTerminalSize.js'
 import { Select } from '../../../screen/select/Select.js'
 import { useKeybinding } from '../../../screen/keys/useKeybinding.js'
 import { resolveThemeName } from '../resolveThemeName.js'
@@ -155,7 +158,15 @@ export function PowerShellPermissionRequest({
   const canAmend =
     (feedback.focusedOption === 'yes' && !feedback.yesInputMode) ||
     (feedback.focusedOption === 'no' && !feedback.noInputMode)
-
+  const { columns, rows } = useTerminalSize()
+  const width = consentContentWidth(columns)
+  const preview = typeof inputCommand === 'string' ? boundLines(inputCommand.split('\n'), width, consentBodyBudget(rows)) : null
+  const rowsBesideTheReason =
+    (preview === null ? 1 : drawnRows(preview.lines.join('\n'), width) + (preview.hiddenLines > 0 ? 1 : 0)) +
+    (explainer.visible ? 0 : drawnRows(description, width)) +
+    (toolUseConfirm.crewmate ? 1 : 0) +
+    options.length
+  const cutReason = reasonCutToFit(toolUseConfirm.permissionResult.decisionReason, width, rows - ROWS_ROUND_THE_CARD_TEXT - rowsBesideTheReason)
   return (
     <Box flexDirection="column">
       <PermissionDialog title="PowerShell command">
@@ -194,7 +205,9 @@ export function PowerShellPermissionRequest({
             />
           ) : (
             <>
-              <PermissionRuleExplanation permissionResult={toolUseConfirm.permissionResult} />
+              <PermissionRuleExplanation
+                permissionResult={cutReason === null ? toolUseConfirm.permissionResult : { ...toolUseConfirm.permissionResult, decisionReason: cutReason }}
+              />
               <Text bold>Do you want to proceed?</Text>
               <Select
                 scrollMovesFocus={false}

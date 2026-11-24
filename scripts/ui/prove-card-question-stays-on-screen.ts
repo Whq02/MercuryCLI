@@ -26,7 +26,9 @@ setCwdState(projectDir)
 
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { BashPermissionRequest } = await import('../../src/permissions/cards/bash/ShellPermissionRequest.tsx')
+const { PowerShellPermissionRequest } = await import('../../src/permissions/cards/powershell/PowerShellPermissionRequest.tsx')
 const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+const { PowerShellTool } = await import('../../src/tools/powershell/PowerShellTool.tsx')
 const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
@@ -52,18 +54,19 @@ const LAST_CHOICE = 'No, and tell Mercury what to do differently (esc)'
 const FOOT = 'esc cancel'
 const ROWS_THE_SCREEN_KEEPS_UNDER_THE_CARD = 1
 const state = () => ({ toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default' }, tasks: {}, sessionHooks: new Map() })
-const toolUseContext = { abortController: new AbortController(), getAppState: state, setAppState() {}, options: { tools: [BashTool] }, messages: [] } as never
+const toolUseContext = { abortController: new AbortController(), getAppState: state, setAppState() {}, options: { tools: [BashTool, PowerShellTool] }, messages: [] } as never
 const assistant = { message: { id: 'card-question' } } as never
 
-async function cardRows(name: string, command: string, reason: string, columns: number, rows: number): Promise<string[]> {
+async function cardRows(name: string, command: string, reason: string, columns: number, rows: number, kind: 'bash' | 'powershell' = 'bash'): Promise<string[]> {
   const base = getDefaultAppState()
   const initialState = { ...base, toolPermissionContext: { ...base.toolPermissionContext, mode: 'default' } }
-  const card = React.createElement(BashPermissionRequest as never, {
+  const isPowerShell = kind === 'powershell'
+  const card = React.createElement((isPowerShell ? PowerShellPermissionRequest : BashPermissionRequest) as never, {
     toolUseConfirm: {
-      tool: BashTool,
+      tool: isPowerShell ? PowerShellTool : BashTool,
       input: { command },
-      toolUseID: `card-${name}-${columns}-${rows}`,
-      description: 'Run a shell command',
+      toolUseID: `card-${kind}-${name}-${columns}-${rows}`,
+      description: isPowerShell ? 'Run a PowerShell command' : 'Run a shell command',
       cwd: projectDir,
       assistantMessage: assistant,
       permissionResult: { behavior: 'ask', message: reason, decisionReason: { type: 'safetyCheck', reason, operatorOnly: true } },
@@ -86,10 +89,10 @@ async function cardRows(name: string, command: string, reason: string, columns: 
     rows,
   )
   try {
-    await waitFor(() => scene.screen().includes('Bash command'), 5000)
+    await waitFor(() => scene.screen().includes(isPowerShell ? 'PowerShell command' : 'Bash command'), 5000)
     await waitFor(() => scene.screen().includes(FOOT), 1500)
     const lines = scene.lines()
-    if (framesDir !== undefined) writeFileSync(join(framesDir, `${name}-${columns}x${rows}.txt`), `${lines.join('\n').replaceAll(sandbox, '<scratch>')}\n`)
+    if (framesDir !== undefined) writeFileSync(join(framesDir, `${isPowerShell ? 'ps-' : ''}${name}-${columns}x${rows}.txt`), `${lines.join('\n').replaceAll(sandbox, '<scratch>')}\n`)
     return lines.map(line => line.replace(/^[│\s]+|[│\s]+$/g, ''))
   } finally {
     scene.unmount()
@@ -155,6 +158,30 @@ try {
     const drawn = await cardRows('short', short, reason, columns, rows)
     const question = drawn.indexOf(QUESTION)
     check(`${at}: a reason the window holds is drawn whole, down to its last words`, question > 0 && (drawn[question - 1] ?? '').endsWith('without explicit permission.') && !drawn.some(row => /more lines?$/.test(row)), JSON.stringify(drawn.slice(0, question + 1)))
+  }
+  for (const [name, title, command, reason] of cases) {
+    for (const [columns, rows] of [[120, 30], [120, 44], [80, 24]] as const) {
+      const at = `${columns}x${rows}`
+      const drawn = await cardRows(name, command, reason, columns, rows, 'powershell')
+      const foot = drawn.findIndex(row => row.startsWith(FOOT))
+      const question = drawn.indexOf(QUESTION)
+      check(`PowerShell ${at}: ${title} draws its question`, question > 0, JSON.stringify(drawn.slice(-6)))
+      check(`PowerShell ${at}: ${name}: and every choice down to the last`, drawn.some(row => row.includes('1. Yes')) && drawn.some(row => row.includes(LAST_CHOICE)), JSON.stringify(drawn.slice(-6)))
+      check(`PowerShell ${at}: ${name}: and its foot, with the row the screen keeps under a card to spare`, foot !== -1 && foot + 1 <= rows - ROWS_THE_SCREEN_KEEPS_UNDER_THE_CARD, `the foot is row ${foot + 1} of ${rows}`)
+      check(`PowerShell ${at}: ${name}: one row of the cut reason counts what it left out`, drawn.filter(row => /^… \+\d+ more lines$/.test(row)).length === 1, JSON.stringify(drawn.filter(row => row.includes('more line'))))
+      check(`PowerShell ${at}: ${name}: the cut reason keeps its last words, right above the question`, question > 0 && (drawn[question - 1] ?? '').endsWith('without explicit permission.'), JSON.stringify(drawn[question - 1]))
+      check(`PowerShell ${at}: ${name}: the reason still opens with the command it is about`, drawn.filter(row => row === "python - <<'EOF'").length === 2, JSON.stringify(drawn.slice(0, 16)))
+    }
+    const whole = await cardRows(name, command, reason, 120, 60, 'powershell')
+    const question = whole.indexOf(QUESTION)
+    check(`PowerShell 120x60: ${name}: a window that holds the whole reason draws it whole, and no row counts a cut`, question > 0 && (whole[question - 1] ?? '').endsWith('without explicit permission.') && !whole.some(row => /more lines?$/.test(row)), JSON.stringify(whole.slice(Math.max(0, question - 3), question + 1)))
+  }
+  for (const [columns, rows] of [[120, 30], [80, 24]] as const) {
+    const at = `${columns}x${rows}`
+    const reason = uncPathMessage(short, risk)
+    const drawn = await cardRows('short', short, reason, columns, rows, 'powershell')
+    const question = drawn.indexOf(QUESTION)
+    check(`PowerShell ${at}: a reason the window holds is drawn whole, down to its last words`, question > 0 && (drawn[question - 1] ?? '').endsWith('without explicit permission.') && !drawn.some(row => /more lines?$/.test(row)), JSON.stringify(drawn.slice(0, question + 1)))
   }
 } finally {
   process.chdir(originalCwd)

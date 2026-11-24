@@ -5,8 +5,8 @@ import { useLoad } from '../../../screen/effects/effects.js'
 import { Box, Text } from '../../../screen/themedRenderer.js'
 import { ConsentBodyText } from '../ConsentBodyText.js'
 import { boundLines, consentBodyBudget, consentContentWidth } from '../consentBodyBudget.js'
+import { drawnRows, reasonCutToFit, ROWS_ROUND_THE_CARD_TEXT } from '../consentReasonBudget.js'
 import { useTerminalSize } from '../../../screen/fullscreen-layout/useTerminalSize.js'
-import { wrapText } from '../../../platform/text/truncate.js'
 import { Select } from '../../../screen/select/Select.js'
 import { useKeybinding } from '../../../screen/keys/useKeybinding.js'
 import { resolveThemeName } from '../resolveThemeName.js'
@@ -23,7 +23,7 @@ import { shouldShowAlwaysAllowOptions } from '../../rules/permissionsLoader.js'
 import { expandPath, toTildePath } from '../../../platform/files/path.js'
 import { getFocusedWorkspaceCwd, getFocusedWorkspaceOriginalCwd, useFocusedWorkspaceCwd, useFocusedWorkspaceOriginalCwd } from '../../../screen/focused-session/useFocusedWorkspaceCwd.js'
 import type { Message } from '../../../engine/message-shapes/message.js'
-import type { PermissionDecisionReason, PermissionUpdate } from '../../rules/permissions.js'
+import type { PermissionUpdate } from '../../rules/permissions.js'
 import { PermissionDialog } from '../PermissionDialog.js'
 import { PermissionDecisionDebugInfo } from '../PermissionDecisionDebugInfo.js'
 import {
@@ -39,29 +39,6 @@ import { shellAskOptions, type ShellAskOption } from './shellAskOptions.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
 
 type BashCardInput = { command: string; cwd?: string }
-
-type WrappedReason = Extract<PermissionDecisionReason, { type: 'safetyCheck' }>
-
-const ROWS_ROUND_THE_CARD_TEXT = 8
-
-function drawnRows(text: string, width: number): number {
-  return wrapText(text, width, 'wrap').split('\n').length
-}
-
-function reasonCutToFit(
-  reason: PermissionDecisionReason | undefined,
-  width: number,
-  budget: number,
-): WrappedReason | null {
-  if (reason?.type !== 'safetyCheck' || !reason.operatorOnly) return null
-  const drawn = wrapText(reason.reason, width, 'wrap').split('\n')
-  if (drawn.length <= Math.max(budget, 3)) return null
-  const kept = Math.max(2, budget - 1)
-  const tail = Math.floor(kept / 2)
-  const hidden = drawn.length - kept
-  return { ...reason, reason: [...drawn.slice(0, kept - tail), `… +${hidden} more lines`, ...drawn.slice(drawn.length - tail)].join('\n') }
-}
-
 function suggestedBashRuleContents(suggestions: PermissionUpdate[]): string[] {
   const contents: string[] = []
   for (const update of suggestions) {
