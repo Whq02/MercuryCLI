@@ -229,8 +229,20 @@ export function parseGoTestJson(text: string, _root: string): ReporterRead | nul
 }
 
 export function goRunPattern(failures: string[]): string {
-  const tops = [...new Set(failures.map(f => /^[^/]+/.exec(f)?.[0] ?? '').filter(Boolean))]
-  return `^(${tops.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})$`
+  const escape = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const unique = [...new Set(failures.filter(Boolean))]
+  const leaves = unique.filter(f => !unique.some(other => other.startsWith(`${f}/`)))
+  const split = leaves.map(f => f.split('/').filter(Boolean)).filter(parts => parts.length > 0)
+  if (split.length > 0 && split.every(parts => parts.length >= 2 && parts.length === split[0]!.length)) {
+    const parent = split[0]!.slice(0, -1)
+    if (split.every(parts => parent.every((seg, i) => parts[i] === seg))) {
+      const last = [...new Set(split.map(parts => parts.at(-1)!))]
+      const tail = last.length === 1 ? `^${escape(last[0]!)}$` : `^(${last.map(escape).join('|')})$`
+      return [...parent.map(seg => `^${escape(seg)}$`), tail].join('/')
+    }
+  }
+  const tops = [...new Set(unique.map(f => /^[^/]+/.exec(f)?.[0] ?? '').filter(Boolean))]
+  return `^(${tops.map(escape).join('|')})$`
 }
 
 export function jsTestNamePattern(runner: 'vitest' | 'jest', name: string, parts?: string[]): string {

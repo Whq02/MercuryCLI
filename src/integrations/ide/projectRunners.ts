@@ -725,7 +725,13 @@ export async function runRunnerProfile(
           }
         }
         if (profile.selection === 'cargo-filter') argv.push(opts.selection)
-        else argv.splice(argv.length - 1, 0, '-run', opts.selection)
+        else {
+          const goPattern =
+            opts.selectionKind === 'node' && opts.selection.includes('/')
+              ? goRunPattern([opts.selection])
+              : opts.selection
+          argv.splice(argv.length - 1, 0, '-run', goPattern)
+        }
         break
       case 'none':
         return {

@@ -264,6 +264,7 @@ section('H. the go test -json stream through the real parser (written from the t
   check('H4 failures[] lists the failing test names in run order (a parent before its subtests, as go test -v prints them)', JSON.stringify(read?.failures) === JSON.stringify(['TestAdd', 'TestTable', 'TestTable/two']), JSON.stringify(read?.failures))
   const pattern = (reporters as { goRunPattern?: (failures: string[]) => string }).goRunPattern
   check('H5 the rerun pattern anchors the TOP-LEVEL names (go -run splits on / per level; a bare alternation would drop a sibling test)', pattern !== undefined && pattern(['TestAdd', 'TestTable/two', 'TestTable']) === '^(TestAdd|TestTable)$', pattern?.(['TestAdd', 'TestTable/two', 'TestTable']))
+  check('H5b a single failing subtest keeps its exact subtest path (^TestTable$/^two$)', pattern !== undefined && pattern(['TestTable', 'TestTable/two']) === '^TestTable$/^two$' && pattern(['TestTable/two']) === '^TestTable$/^two$' && pattern(['TestTable', 'TestTable/two', 'TestTable/three']) === '^TestTable$/^(two|three)$', JSON.stringify([pattern?.(['TestTable', 'TestTable/two']), pattern?.(['TestTable/two']), pattern?.(['TestTable', 'TestTable/two', 'TestTable/three'])]))
   const broken = parseGo ? parseGo(fixture('go-test-build-fail.jsonl'), FIXTURE_ROOT) : null
   check('H6 a package that failed to build is ERRORED with the compiler line, never a green run', broken !== null && JSON.stringify(broken.counts) === JSON.stringify({ passed: 0, failed: 0, skipped: 0, errored: 1 }) && broken.cases[0]?.outcome === 'errored' && broken.cases[0]?.id === 'example.com/broken' && broken.cases[0]?.file === './broken_test.go' && broken.cases[0]?.line === 5 && (broken.cases[0]?.message ?? '').includes('undefined: nope'), JSON.stringify(broken))
   check('H7 prose output (no JSON events) is null, never invented counts', parseGo !== undefined && parseGo('--- FAIL: TestAdd (0.00s)\nFAIL\n', FIXTURE_ROOT) === null)
@@ -301,6 +302,9 @@ section('I. go: the argv, the run road through a stand-in go on a scratch PATH, 
       const rerunArgv = JSON.parse(readFileSync(argvFile, 'utf8')) as string[]
       check('I4 rerunFailed runs go test -json -run ^(TestAdd|TestTable)$ ./...', rerun.state === 'ok' && JSON.stringify(rerunArgv) === JSON.stringify(['test', '-json', '-run', '^(TestAdd|TestTable)$', './...']), JSON.stringify(rerunArgv))
     }
+    const subRun = profile ? await runners.runRunnerProfile(profile, { from: root, selection: 'TestTable/two', selectionKind: 'node' }) : null
+    const subArgv = JSON.parse(readFileSync(argvFile, 'utf8')) as string[]
+    check('I4b selecting a Go subtest anchors every level (^TestTable$/^two$)', subRun?.state === 'ok' && JSON.stringify(subArgv) === JSON.stringify(['test', '-json', '-run', '^TestTable$/^two$', './...']), JSON.stringify(subArgv))
     const changed = runners.changedRunnerSelection({ ...profile!, root })
     check('I5 the changed-file focus keeps -json (or declines honestly on a tree without git)', changed.state === 'unavailable' || (changed.argv[0] === 'go' && changed.argv[1] === 'test' && changed.argv[2] === '-json'), JSON.stringify(changed))
   } finally {
@@ -350,6 +354,31 @@ section('J. the live leg — a real go toolchain on PATH')
     if (live.state === 'ok') {
       const rerun = await runners.rerunRunnerFailures(live.record, { from: root })
       check('J3 live rerunFailed runs exactly TestAdd', rerun.state === 'ok' && rerun.record.counts.failed === 1 && rerun.record.counts.passed === 0 && rerun.record.counts.skipped === 0, JSON.stringify(rerun.state === 'ok' ? rerun.record.counts : rerun))
+    }
+    writeFileSync(
+      path.join(root, 'sub_test.go'),
+      [
+        'package calc',
+        '',
+        'import "testing"',
+        '',
+        'func TestTable(t *testing.T) {',
+        '\tt.Run("one", func(t *testing.T) {})',
+        '\tt.Run("two", func(t *testing.T) { t.Fatal("case two") })',
+        '\tt.Run("two_extra", func(t *testing.T) {})',
+        '}',
+        '',
+        'func TestTableExtra(t *testing.T) {',
+        '\tt.Run("two", func(t *testing.T) {})',
+        '}',
+        '',
+      ].join('\n'),
+    )
+    const subOnly = await runners.runRunnerProfile(profile, { from: root, selection: 'TestTable/two', selectionKind: 'node' })
+    check('J4 live go subtest selection runs only TestTable/two (not two_extra or TestTableExtra/two)', subOnly.state === 'ok' && subOnly.record.counts.passed === 0 && subOnly.record.counts.failed === 2 && JSON.stringify(subOnly.record.failures) === JSON.stringify(['TestTable', 'TestTable/two']), JSON.stringify(subOnly.state === 'ok' ? { counts: subOnly.record.counts, failures: subOnly.record.failures } : subOnly))
+    if (subOnly.state === 'ok') {
+      const subRerun = await runners.rerunRunnerFailures(subOnly.record, { from: root })
+      check('J5 live go rerunFailed on a single failing subtest keeps only TestTable/two (not TestTable/one)', subRerun.state === 'ok' && subRerun.record.counts.passed === 0 && subRerun.record.counts.failed === 2 && JSON.stringify(subRerun.record.failures) === JSON.stringify(['TestTable', 'TestTable/two']), JSON.stringify(subRerun.state === 'ok' ? { counts: subRerun.record.counts, failures: subRerun.record.failures } : subRerun))
     }
     rmSync(root, { recursive: true, force: true })
   }
