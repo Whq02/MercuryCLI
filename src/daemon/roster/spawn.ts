@@ -43,7 +43,7 @@ export class SpawnPart {
     spec: RunnerChildSpec,
     opts?: Partial<LongLivedRespawnConfig>,
     start?: { cwd: string; worktree?: string },
-  ): { ok: boolean; pid?: number; error?: string } {
+  ): { ok: boolean; pid?: number; error?: string; startInstant?: Promise<string | null> } {
     const existing = this.handles.get(short)
     if (existing && !existing.entry.outcome) {
       return { ok: false, error: 'a live worker already holds this id' }
@@ -78,7 +78,7 @@ export class SpawnPart {
       this.handles.delete(short)
       return { ok: false, error: 'spawn failed (no pid)' }
     }
-    return { ok: true, pid }
+    return { ok: true, pid, ...(ll.startInstant !== undefined ? { startInstant: ll.startInstant } : {}) }
   }
 
   spawnLongLived(short: string): number | undefined {
@@ -118,7 +118,9 @@ export class SpawnPart {
     h.entry.pid = child.pid
     if (short.startsWith('concourse-w') && typeof child.pid === 'number') {
       const livePid = child.pid
-      void Promise.all([import('../concourse-workers/concourseWorkers.js'), getProcessStartInstantAsync(livePid)])
+      const startInstant = getProcessStartInstantAsync(livePid)
+      ll.startInstant = startInstant
+      void Promise.all([import('../concourse-workers/concourseWorkers.js'), startInstant])
         .then(([sup, startInstant]) => {
           if (this.handles.get(short)?.entry.pid === livePid) sup.markConcourseWorkerRespawn(short, livePid, undefined, startInstant)
         })

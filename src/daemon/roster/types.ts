@@ -48,6 +48,7 @@ export interface LongLivedSeat {
   seenDispatchIds?: Set<string>
   clearInFlight?: boolean
   spawnGeneration: number
+  startInstant?: Promise<string | null>
   lastErrorText?: string
   stderrTail?: Buffer
   connection?: RunnerConnection

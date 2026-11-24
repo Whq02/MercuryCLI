@@ -82,7 +82,7 @@ export function resetWarmRunnersForTesting(): void {
 export interface WarmRosterPort {
   has(short: string): { alive: boolean; present: boolean; ready: boolean }
   list(): ReadonlyArray<{ short: string; outcome?: unknown }>
-  registerLongLived(short: string, spec: RunnerChildSpec): { ok: boolean; pid?: number; error?: string }
+  registerLongLived(short: string, spec: RunnerChildSpec): { ok: boolean; pid?: number; error?: string; startInstant?: Promise<string | null> }
   door(short: string): RunnerDoor | undefined
   kill(short: string): boolean
   onExit?(short: string, listener: () => void): () => void
@@ -321,7 +321,7 @@ async function ensureWarmRunnerFlight(
     snapshotId,
     kit,
     bypassConsent,
-    startInstant: reg.pid === undefined ? Promise.resolve(null) : getProcessStartInstantAsync(reg.pid),
+    startInstant: reg.startInstant ?? (reg.pid === undefined ? Promise.resolve(null) : getProcessStartInstantAsync(reg.pid)),
   })
   deps.onWarmSpawned?.(short, workspaceId, reg.pid)
   return { state: 'warmed', detail: short, short }

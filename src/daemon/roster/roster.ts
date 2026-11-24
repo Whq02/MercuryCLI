@@ -262,7 +262,7 @@ export class TaskRoster {
     spec: RunnerChildSpec,
     opts?: Partial<LongLivedRespawnConfig>,
     start?: { cwd: string; worktree?: string },
-  ): { ok: boolean; pid?: number; error?: string } {
+  ): { ok: boolean; pid?: number; error?: string; startInstant?: Promise<string | null> } {
     return this.spawnPart.registerLongLived(short, spec, opts, start)
   }
 
