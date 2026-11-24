@@ -74,23 +74,21 @@ export function promptLabel(text: string): string {
   return clippedPrompt(flatPrompt(text))
 }
 
-export function sessionPromptFromWindow(chunk: string, builtIn: (name: string) => boolean = () => true, portable = false): string {
+export function sessionPromptFromWindow(chunk: string, builtIn: (name: string) => boolean = () => true): string {
   let commandFallback = ''
   for (const line of chunk.split('\n')) {
     if (!/"kind":\s*"input"/.test(line) || line.includes('"tool_result"') || /"isMeta":\s*true/.test(line)) continue
-    if (portable && (!line.includes('"kind":"input"') || line.includes('"kind":"tool-result"') || /"isCompactSummary":\s*true/.test(line))) continue
     try {
       const record = JSON.parse(line)
       const payload = record.payload
-      if (payload?.kind !== 'input' || (portable && typeof record.schemaVersion !== 'number')) continue
+      if (payload?.kind !== 'input') continue
       const meta = payload.meta ?? {}
-      if (!portable && (meta.hiddenFromTranscript === true || meta.isVirtual === true || meta.isCompactSummary === true || meta.toolUseResult !== undefined)) continue
+      if (meta.hiddenFromTranscript === true || meta.isVirtual === true || meta.isCompactSummary === true || meta.toolUseResult !== undefined) continue
       const texts = typeof payload.content === 'string' ? [stripGroundNote(payload.content)] : Array.isArray(payload.content)
-        ? payload.content.flatMap((block: { kind?: string; text?: string }) => block.kind === 'text' && typeof block.text === 'string' && (portable || !block.text.startsWith(GROUND_NOTE_MARK)) ? [portable ? stripGroundNote(block.text) : block.text] : []) : []
+        ? payload.content.flatMap((block: { kind?: string; text?: string }) => block.kind === 'text' && typeof block.text === 'string' && !block.text.startsWith(GROUND_NOTE_MARK) ? [block.text] : []) : []
       for (const text of texts) {
         if (!text) continue
         const flat = flatPrompt(text)
-        if (portable && (flat === '' || /^\s*<[a-z]/.test(flat) && !flat.includes('<command-name>') && !flat.includes('<bash-input>'))) continue
         const command = /<command-name>([\s\S]*?)<\/command-name>/.exec(flat)?.[1]
         if (command) {
           if (builtIn(command.replace(/^\//, ''))) continue
