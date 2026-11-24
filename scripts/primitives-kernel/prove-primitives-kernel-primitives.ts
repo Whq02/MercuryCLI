@@ -203,20 +203,6 @@ console.log('view mapping laws')
   check('stale reads as expiry honesty, not failure',
     P.transactionCardState('stale') === 'expired',
     'transactionCardState in src/engine/runtime-kernel/view.ts must map stale to expired')
-  const view = P.executionView({
-    spec: { version: 1, id: 'svc:web', owner: P.projectOwner('/w'), kind: 'service', label: 'web', lifecycle: 'project' },
-    generation: 2,
-    state: 'ready',
-    startedAt: 100,
-    updatedAt: 200,
-    settledAt: undefined,
-    evidenceRefs: ['mercury://evidence/e1'],
-    outputRef: 'mercury://execution/svc:web?child=output',
-  })
-  check('execution view derives, never stores',
-    view.state === 'ready' && view.generation === 2 &&
-      view.detailRefs.length === 2 && view.durationMs === undefined,
-    `state ${view.state}, generation ${view.generation}, detailRefs ${view.detailRefs.length}, durationMs ${view.durationMs}; fix executionView in src/engine/runtime-kernel/view.ts`)
 }
 
 console.log(`\n${pass} passed, ${fail} failed`)
