@@ -23,7 +23,6 @@ export function SedEditPermissionRequest({
   toolUseConfirm,
   onDone,
   onReject,
-  workerBadge,
   sedEditInfo,
 }: PermissionRequestProps & { sedEditInfo: SedEditInfo }): React.ReactNode {
   const [loaded, setLoaded] = useState<LoadedFile | null>(null)
@@ -106,7 +105,6 @@ export function SedEditPermissionRequest({
       content={content}
       path={sedEditInfo.filePath}
       parseInput={parseInput}
-      workerBadge={workerBadge}
       canApprove={loaded !== null}
     />
   )

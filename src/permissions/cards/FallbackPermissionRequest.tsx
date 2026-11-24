@@ -39,7 +39,6 @@ export function FallbackPermissionRequest({
   toolUseConfirm,
   onDone,
   onReject,
-  workerBadge,
   title,
   body,
   screen,
@@ -141,7 +140,6 @@ export function FallbackPermissionRequest({
     <PermissionDialog
       title={title ?? 'Tool use'}
       crewmate={toolUseConfirm.crewmate}
-      workerBadge={workerBadge}
     >
       <Box flexDirection="column">
         {bodyRows}

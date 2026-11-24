@@ -49,7 +49,6 @@ import { WebFetchPermissionRequest } from './web-fetch/WebFetchPermissionRequest
 import { BrowserPermissionRequest } from './browser/BrowserPermissionRequest.js'
 import { ComputerPermissionRequest } from './computer/ComputerPermissionRequest.js'
 import { COMPUTER_TOOL_NAME } from '../../integrations/desktop/toolName.js'
-import type { WorkerBadgeProps } from './WorkerBadge.js'
 
 import type { ToolUseContext } from '../../tools/kit/tool.js'
 
@@ -64,7 +63,6 @@ export type ToolUseConfirm<Input = Record<string, unknown>> = {
   permissionPromptStartTimeMs: number
   cwd?: string
   crewmate?: string
-  workerBadge?: WorkerBadgeProps
   onUserInteraction: () => void
   onAbort: () => void
   onDismissCheckmark?: () => void
@@ -87,7 +85,6 @@ export type PermissionRequestProps<Input = Record<string, unknown>> = {
   onDone: () => void
   onReject: () => void
   verbose: boolean
-  workerBadge: WorkerBadgeProps | undefined
 }
 
 

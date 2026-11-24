@@ -24,6 +24,6 @@ export function MediaPermissionRequest(props: PermissionRequestProps & { kind: M
     )
   }, [props.kind, props.toolUseConfirm.input, props.toolUseConfirm.cwd, props.toolUseConfirm.tool])
   const title = props.kind === 'image' ? 'Local image' : 'Local video'
-  if (detail === null) return <PermissionDialog title={title} crewmate={props.toolUseConfirm.crewmate} workerBadge={props.workerBadge}><Text>{String(props.toolUseConfirm.input.model ?? `Default ${props.kind}`)}</Text></PermissionDialog>
+  if (detail === null) return <PermissionDialog title={title} crewmate={props.toolUseConfirm.crewmate}><Text>{String(props.toolUseConfirm.input.model ?? `Default ${props.kind}`)}</Text></PermissionDialog>
   return <FallbackPermissionRequest {...props} screen="MediaPermissionRequest" title={title} body={<ConsentBodyText text={detail} />} />
 }

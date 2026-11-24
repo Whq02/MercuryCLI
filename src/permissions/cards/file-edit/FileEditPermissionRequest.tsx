@@ -148,7 +148,6 @@ export function FileEditPermissionRequest({
   toolUseConfirm,
   onDone,
   onReject,
-  workerBadge,
 }: PermissionRequestProps): React.ReactNode {
   const parsed = useMemo(
     () => parseEditInput(toolUseConfirm.input),
@@ -180,7 +179,6 @@ export function FileEditPermissionRequest({
       }
       path={parsed.file_path}
       parseInput={parseEditInput}
-      workerBadge={workerBadge}
     />
   )
 }

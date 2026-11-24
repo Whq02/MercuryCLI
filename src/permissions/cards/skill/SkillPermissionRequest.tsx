@@ -21,7 +21,6 @@ export function SkillPermissionRequest({
   toolUseConfirm,
   onDone,
   onReject,
-  workerBadge,
 }: PermissionRequestProps): React.ReactNode {
   usePermissionRequestLogging(toolUseConfirm)
 
@@ -133,7 +132,6 @@ export function SkillPermissionRequest({
     <PermissionDialog
       title={`Use skill "${skill}"?`}
       crewmate={toolUseConfirm.crewmate}
-      workerBadge={workerBadge}
     >
       <Box flexDirection="column">
         <Text>Mercury may use instructions, code, or files from this skill.</Text>

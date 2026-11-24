@@ -42,7 +42,6 @@ function PlainFileWritePermissionRequest({
   toolUseConfirm,
   onDone,
   onReject,
-  workerBadge,
 }: PermissionRequestProps): React.ReactNode {
   const parsed = useMemo(
     () => parseWriteInput(toolUseConfirm.input),
@@ -82,7 +81,6 @@ function PlainFileWritePermissionRequest({
       }
       path={parsed.file_path}
       parseInput={parseWriteInput}
-      workerBadge={workerBadge}
     />
   )
 }

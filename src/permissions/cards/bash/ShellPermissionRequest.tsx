@@ -105,7 +105,7 @@ export function MonitorPermissionRequest(props: PermissionRequestProps): React.R
 function ShellPermissionRequest(
   props: PermissionRequestProps & { command: string; cwd?: string; title?: string; summary?: string },
 ): React.ReactNode {
-  const { toolUseConfirm, toolUseContext, onDone, onReject, workerBadge, command, cwd, title, summary } = props
+  const { toolUseConfirm, toolUseContext, onDone, onReject, command, cwd, title, summary } = props
 
   usePermissionRequestLogging(toolUseConfirm)
   const feedback = useShellPermissionFeedback({ toolUseConfirm, onDone, onReject })
@@ -244,7 +244,7 @@ function ShellPermissionRequest(
 
   return (
     <Box flexDirection="column">
-      <PermissionDialog title={title ?? 'Bash command'} workerBadge={workerBadge}>
+      <PermissionDialog title={title ?? 'Bash command'}>
         <Box flexDirection="column">
           <Box flexDirection="column">
             {typeof inputCommand === 'string' ? (

@@ -33,7 +33,6 @@ export function PowerShellPermissionRequest({
   toolUseConfirm,
   onDone,
   onReject,
-  workerBadge,
 }: PermissionRequestProps): React.ReactNode {
   const { command }: PowerShellCardInput = PowerShellTool.inputSchema.parse(toolUseConfirm.input)
   const description = toolUseConfirm.description
@@ -159,7 +158,7 @@ export function PowerShellPermissionRequest({
 
   return (
     <Box flexDirection="column">
-      <PermissionDialog title="PowerShell command" workerBadge={workerBadge}>
+      <PermissionDialog title="PowerShell command">
         <Box flexDirection="column">
           <Box flexDirection="column">
             {typeof inputCommand === 'string' ? (

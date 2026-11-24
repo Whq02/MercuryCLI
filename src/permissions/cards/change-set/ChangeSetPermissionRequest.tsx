@@ -62,7 +62,7 @@ function computePreview(input: ChangeSetInput, owner: OwnerKey): PreviewData {
 }
 
 export function ChangeSetPermissionRequest(props: PermissionRequestProps): React.ReactNode {
-  const { toolUseConfirm, toolUseContext, onDone, onReject, workerBadge } = props;
+  const { toolUseConfirm, toolUseContext, onDone, onReject } = props;
   const { columns, rows } = useTerminalSize();
   const [expanded, setExpanded] = React.useState(false);
   useKeybinding('confirm:toggleFullPreview', () => setExpanded(prev => !prev), {
@@ -126,7 +126,7 @@ export function ChangeSetPermissionRequest(props: PermissionRequestProps): React
   }, [changed, budget, expanded, innerWidth]);
 
   return (
-    <PermissionDialog title="Apply change set" crewmate={toolUseConfirm.crewmate} workerBadge={workerBadge}>
+    <PermissionDialog title="Apply change set" crewmate={toolUseConfirm.crewmate}>
       <Box flexDirection="column" paddingX={2} paddingY={1}>
         {plan ? (
           <>

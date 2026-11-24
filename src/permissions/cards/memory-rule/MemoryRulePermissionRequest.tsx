@@ -18,7 +18,7 @@ export function memoryRuleCardText(toolUseConfirm: Pick<ToolUseConfirm, 'permiss
   return reason?.type === 'safetyCheck' ? reason.reason : toolUseConfirm.description
 }
 
-export function MemoryRulePermissionRequest({ toolUseConfirm, onDone, onReject, workerBadge }: PermissionRequestProps): React.ReactNode {
+export function MemoryRulePermissionRequest({ toolUseConfirm, onDone, onReject }: PermissionRequestProps): React.ReactNode {
   usePermissionRequestLogging(toolUseConfirm)
   const options: PermissionPromptOption<RuleAnswer>[] = [
     { label: 'Yes', value: 'yes' },
@@ -34,7 +34,7 @@ export function MemoryRulePermissionRequest({ toolUseConfirm, onDone, onReject, 
     onDone()
   }
   return (
-    <PermissionDialog title="Memory rule" crewmate={toolUseConfirm.crewmate} workerBadge={workerBadge}>
+    <PermissionDialog title="Memory rule" crewmate={toolUseConfirm.crewmate}>
       <Box flexDirection="column">
         <ConsentBodyText text={memoryRuleCardText(toolUseConfirm)} />
         <PermissionPrompt options={options} question="Go ahead?" onSelect={answer} onCancel={dismiss} />

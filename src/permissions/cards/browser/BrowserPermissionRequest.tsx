@@ -19,7 +19,6 @@ export function BrowserPermissionRequest({
   onDone,
   onReject,
   verbose,
-  workerBadge,
 }: PermissionRequestProps): React.ReactNode {
   const ruleContent = useMemo(
     () => checkedRuleContent(toolUseConfirm.permissionResult, toolUseConfirm.input),
@@ -101,7 +100,7 @@ export function BrowserPermissionRequest({
 
   if (provisioning) {
     return (
-      <PermissionDialog title="Browser download" crewmate={toolUseConfirm.crewmate} workerBadge={workerBadge}>
+      <PermissionDialog title="Browser download" crewmate={toolUseConfirm.crewmate}>
         <Box flexDirection="column">
           {downloadLines.map((line, i) => (
             <Text key={i}>{line}</Text>
@@ -115,7 +114,7 @@ export function BrowserPermissionRequest({
   }
 
   return (
-    <PermissionDialog title="Browser" crewmate={toolUseConfirm.crewmate} workerBadge={workerBadge}>
+    <PermissionDialog title="Browser" crewmate={toolUseConfirm.crewmate}>
       <Box flexDirection="column">
         {typeof useMessage === 'string' ? (
           <ConsentBodyText text={useMessage} />

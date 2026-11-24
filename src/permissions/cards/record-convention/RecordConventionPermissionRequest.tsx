@@ -25,7 +25,6 @@ export function RecordConventionPermissionRequest({
   toolUseConfirm,
   onDone,
   onReject,
-  workerBadge,
 }: PermissionRequestProps): React.ReactNode {
   const parsed = useMemo(
     () => parseRecordConventionInput(toolUseConfirm.input),
@@ -65,7 +64,6 @@ export function RecordConventionPermissionRequest({
       operationType={plan.write && plan.before === '' ? 'create' : 'write'}
       path={path}
       parseInput={parseRecordConventionInput}
-      workerBadge={workerBadge}
     />
   )
 }

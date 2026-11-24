@@ -2,20 +2,17 @@ import * as React from 'react'
 import { Box, Text } from '../../screen/themedRenderer.js'
 import type { Theme } from '../../screen/theme/theme.js'
 import { STATE_STYLE } from '../../screen/widgets/theme.js'
-import type { WorkerBadgeProps } from './WorkerBadge.js'
 
 type Props = {
   title: string
   subtitle?: React.ReactNode
   color?: keyof Theme
-  workerBadge?: WorkerBadgeProps
 }
 
 export function PermissionRequestTitle({
   title,
   subtitle,
   color = 'warning',
-  workerBadge,
 }: Props): React.ReactNode {  return (
     <Box flexDirection="column">
       <Box flexDirection="row" gap={1}>
@@ -23,11 +20,6 @@ export function PermissionRequestTitle({
           {`${STATE_STYLE.gated.glyph} `}
           {title}
         </Text>
-        {workerBadge && (
-          <Text color={'subtle'} dimColor={false}>
-            {'· '}@{workerBadge.name}
-          </Text>
-        )}
       </Box>
       {subtitle != null &&
         (typeof subtitle === 'string' ? (

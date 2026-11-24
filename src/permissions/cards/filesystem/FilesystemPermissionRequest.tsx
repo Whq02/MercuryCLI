@@ -12,7 +12,7 @@ function parseIdentity(input: unknown): ToolInput {
 }
 
 export function FilesystemPermissionRequest(props: PermissionRequestProps): React.ReactNode {
-  const { toolUseConfirm, toolUseContext, onDone, onReject, verbose, workerBadge } = props
+  const { toolUseConfirm, toolUseContext, onDone, onReject, verbose } = props
   const tool = toolUseConfirm.tool
 
   const readOnly = tool.isReadOnly(toolUseConfirm.input)
@@ -38,7 +38,6 @@ export function FilesystemPermissionRequest(props: PermissionRequestProps): Reac
         onDone={onDone}
         onReject={onReject}
         verbose={verbose}
-        workerBadge={workerBadge}
       />
     )
   }
@@ -67,7 +66,6 @@ export function FilesystemPermissionRequest(props: PermissionRequestProps): Reac
       operationType={readOnly ? 'read' : 'write'}
       path={path}
       parseInput={parseIdentity}
-      workerBadge={workerBadge}
     />
   )
 }

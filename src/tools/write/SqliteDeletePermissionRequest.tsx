@@ -10,7 +10,7 @@ import { hostPathOfWriteTarget, previewSqliteDeletion, SQLITE_ROW_NOT_CHECKPOINT
 
 const parseInput = (input: unknown): FileWriteInput => input as FileWriteInput
 
-export function SqliteDeletePermissionRequest({ toolUseConfirm, onDone, onReject, workerBadge }: PermissionRequestProps): React.ReactNode {
+export function SqliteDeletePermissionRequest({ toolUseConfirm, onDone, onReject }: PermissionRequestProps): React.ReactNode {
   const input = parseInput(toolUseConfirm.input)
   const state = useMemo(() => {
     try { return { preview: previewSqliteDeletion(input.file_path), error: null } }
@@ -33,7 +33,6 @@ export function SqliteDeletePermissionRequest({ toolUseConfirm, onDone, onReject
       ) : <Text>Row not found; nothing will be deleted.</Text>}
       path={hostPathOfWriteTarget(input.file_path)}
       parseInput={parseInput}
-      workerBadge={workerBadge}
       canApprove={state.error === null}
     />
   )

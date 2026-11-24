@@ -12,7 +12,6 @@ import {
 import { PermissionRequestTitle } from './PermissionRequestTitle.js'
 import { PermissionQueueContext } from './PermissionQueueContext.js'
 import { PopupFrameContext } from '../../screen/overlays/PopupGutter.js'
-import type { WorkerBadgeProps } from './WorkerBadge.js'
 
 type Props = {
   title: string
@@ -21,7 +20,6 @@ type Props = {
   titleColor?: keyof Theme
   innerPaddingX?: number
   crewmate?: string
-  workerBadge?: WorkerBadgeProps
   titleRight?: React.ReactNode
   children: React.ReactNode
 }
@@ -33,7 +31,6 @@ export function PermissionDialog({
   titleColor,
   innerPaddingX = 1,
   crewmate,
-  workerBadge,
   titleRight,
   children,
 }: Props): React.ReactNode {
@@ -78,7 +75,6 @@ export function PermissionDialog({
             title={title}
             subtitle={subtitle}
             color={titleColor}
-            workerBadge={workerBadge}
           />
           <Box flexDirection="row" gap={2} flexShrink={0}>
             {titleRight}

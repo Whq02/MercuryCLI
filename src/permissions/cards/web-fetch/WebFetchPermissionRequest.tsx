@@ -28,7 +28,6 @@ export function WebFetchPermissionRequest({
   onDone,
   onReject,
   verbose,
-  workerBadge,
 }: PermissionRequestProps): React.ReactNode {
   usePermissionRequestLogging(toolUseConfirm)
 
@@ -95,7 +94,6 @@ export function WebFetchPermissionRequest({
     <PermissionDialog
       title="Fetch"
       crewmate={toolUseConfirm.crewmate}
-      workerBadge={workerBadge}
     >
       <Box flexDirection="column">
         {typeof useMessage === 'string' ? (

@@ -11,7 +11,6 @@ import { isSqliteRowTarget, SQLITE_ROW_NOT_CHECKPOINTED } from '../../../tools/w
 import { PermissionDialog } from '../PermissionDialog.js'
 import { PermissionRuleExplanation } from '../PermissionRuleExplanation.js'
 import type { ToolUseConfirm } from '../PermissionRequest.js'
-import type { WorkerBadgeProps } from '../WorkerBadge.js'
 import type { FileOperationType, ToolInput } from './permissionOptions.js'
 import { useFilePermissionDialog } from './useFilePermissionDialog.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
@@ -27,7 +26,6 @@ type FilePermissionDialogProps<T extends ToolInput> = {
   path: string | null
   parseInput: (input: unknown) => T
   operationType?: FileOperationType
-  workerBadge?: WorkerBadgeProps
   canApprove?: boolean
 }
 
@@ -58,7 +56,6 @@ export function FilePermissionDialog<T extends ToolInput>({
   path,
   parseInput,
   operationType = 'write',
-  workerBadge,
   canApprove = true,
 }: FilePermissionDialogProps<T>): React.ReactNode {
   const {
@@ -131,7 +128,6 @@ export function FilePermissionDialog<T extends ToolInput>({
         title={title}
         subtitle={subtitle}
         crewmate={toolUseConfirm.crewmate}
-        workerBadge={workerBadge}
       >
         <Box flexDirection="column">
           {content}

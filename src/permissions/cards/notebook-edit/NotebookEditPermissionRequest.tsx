@@ -29,7 +29,6 @@ export function NotebookEditPermissionRequest({
   onDone,
   onReject,
   verbose,
-  workerBadge,
 }: PermissionRequestProps): React.ReactNode {
   const parsed = useMemo(
     () => parseNotebookInput(toolUseConfirm.input),
@@ -69,7 +68,6 @@ export function NotebookEditPermissionRequest({
       }
       path={parsed.notebook_path === '' ? null : parsed.notebook_path}
       parseInput={parseNotebookInput}
-      workerBadge={workerBadge}
     />
   )
 }

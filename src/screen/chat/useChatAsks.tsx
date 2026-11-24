@@ -179,7 +179,6 @@ export function useChatAsksCard({
               resolveHeadPermission();
             }}
             verbose={verbose}
-            workerBadge={toolUseConfirmQueue[0].workerBadge}
           />
           <CardQueuedWords />
         </Box>

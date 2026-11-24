@@ -134,7 +134,6 @@ export function ComputerPermissionRequest({
   onDone,
   onReject,
   verbose,
-  workerBadge,
 }: PermissionRequestProps): React.ReactNode {
   const judged = useMemo(() => {
     const carried = peekCheckedActApp(ownerFromToolUseContext(toolUseConfirm.toolUseContext))?.app ?? null
@@ -173,7 +172,7 @@ export function ComputerPermissionRequest({
   })
 
   return (
-    <PermissionDialog title="Computer" crewmate={toolUseConfirm.crewmate} workerBadge={workerBadge}>
+    <PermissionDialog title="Computer" crewmate={toolUseConfirm.crewmate}>
       <Box flexDirection="column">
         {typeof useMessage === 'string' ? (
           <ConsentBodyText text={useMessage} />
