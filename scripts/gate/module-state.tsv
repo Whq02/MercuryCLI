@@ -1012,9 +1012,6 @@ src/integrations/blender-protocol/blenderProject.ts	SKIP_DIRS	process	module	Loa
 src/integrations/blender-protocol/blenderProject.ts	versionCache	process	module	mtime+size / 30s TTL cache of blender --version keyed by binary path (has _resetBlenderVersionProbeForTesting)
 src/integrations/blender-protocol/bridgeGates.ts	blendContextCache	process	module	30s TTL single-slot memo of .blend discovery checked against resolved cwd (has _resetBlenderBridgeContextCacheForTesting)
 src/integrations/blender-protocol/bridgeGates.ts	locatedCache	process	module	30s TTL memo of host Blender app lookup (has _resetBlenderBridgeContextCacheForTesting)
-src/integrations/blender-protocol/bridgeProtocol.ts	BLENDER_BRIDGE_CLIENT_ERROR_CODES	process	module	Load-time list with no local writer
-src/integrations/blender-protocol/bridgeProtocol.ts	BLENDER_BRIDGE_EVENTS	process	module	Load-time list with no local writer
-src/integrations/blender-protocol/bridgeProtocol.ts	BLENDER_BRIDGE_SERVER_ERROR_CODES	process	module	Load-time list with no local writer
 src/integrations/blender-protocol/bridgeProtocol.ts	BLENDER_BRIDGE_VERBS	process	module	Load-time table with no local writer
 src/integrations/blender/bridgeClient.ts	resetBlenderBridgeClientForTest	reset-export
 src/integrations/blender/bridgeClient.ts	singleton	process	module	singleton TCP bridge client to the single local Blender addon window, keyed by port:token
@@ -1331,7 +1328,6 @@ src/integrations/lsp/unityLane.ts	probeCache	process	module	30s TTL cache of C# 
 src/integrations/lsp/web-sidecar/sidecar.ts	EXT_TO_LANGUAGE	process	module	Load-time table with no local writer
 src/integrations/lsp/web-sidecar/sidecar.ts	JSONC_BASENAME_PATTERNS	process	module	Load-time list with no local writer
 src/integrations/mcp-shapes/mcpServerRecords.ts	ConfigScopeSchema	process	module	once() pure lazy Zod schema singleton
-src/integrations/mcp-shapes/mcpServerRecords.ts	McpJsonConfigSchema	process	module	once() pure lazy Zod schema singleton
 src/integrations/mcp-shapes/mcpServerRecords.ts	McpServerConfigSchema	process	module	once() pure lazy Zod schema singleton
 src/integrations/mcp-shapes/mcpServerRecords.ts	TransportSchema	process	module	once() pure lazy Zod schema singleton
 src/integrations/mcp-shapes/toolPolicy.ts	RISK_RANK	process	module	load-time data; no local writer
@@ -1541,9 +1537,6 @@ src/integrations/skills/loadSkillsDir.ts	loadAllSkillsMemo	process	module	Proces
 src/integrations/skills/loadSkillsDir.ts	pendingConditional	owner	module	session; module Map of withheld path-filtered conditional skills shared across owners; cleared on clearSkillCaches/clearDynamicSkills; missing owner end
 src/integrations/skills/loadSkillsDir.ts	skillLoadRefusals	owner	module	Session skill-load notices retained until cleared
 src/integrations/skills/loadSkillsDir.ts	skillsLoadedSignal	process	module	process signal notifying subscribers when dynamic or conditional skills activate, bounded by caller unsubscribe
-src/integrations/unity-protocol/bridgeProtocol.ts	UNITY_BRIDGE_CLIENT_ERROR_CODES	process	module	Load-time list with no local writer
-src/integrations/unity-protocol/bridgeProtocol.ts	UNITY_BRIDGE_EVENTS	process	module	Load-time list with no local writer
-src/integrations/unity-protocol/bridgeProtocol.ts	UNITY_BRIDGE_SERVER_ERROR_CODES	process	module	Load-time list with no local writer
 src/integrations/unity-protocol/bridgeProtocol.ts	UNITY_BRIDGE_VERBS	process	module	Load-time table with no local writer
 src/integrations/unity/bridgeClient.ts	resetUnityBridgeClientForTest	reset-export
 src/integrations/unity/bridgeClient.ts	singleton	process	module	single cached Unity Editor TCP bridge client keyed by projectRoot+port
@@ -2381,7 +2374,6 @@ src/models/roads/provider-usage/shared.ts	CARRY_UNSTATED	process	module	Load-tim
 src/models/roads/provider-usage/shared.ts	CREDITS_UNREPORTED	process	module	Load-time table with no local writer
 src/models/roads/provider-usage/zen.ts	ZEN_GO_WINDOW_KEYS	process	module	Load-time table with no local writer
 src/models/roads/providerAdapter.ts	SPECIALIST_ROLES	process	module	Load-time list with no local writer
-src/models/roads/providerAdapter.ts	SPECIALIST_ROLE_ACCESS	process	module	Load-time table with no local writer
 src/models/roads/providerDiscovery.ts	cache	process	module	process-wide provider availability discovery cache keyed by ProviderFamilyId
 src/models/roads/providerDiscovery.ts	inFlight	process	module	in-flight provider discovery deduplication keyed by ProviderFamilyId
 src/models/roads/providerIdentityLine.ts	DOOR_WORDS	process	module	Load-time table with no local writer
@@ -2654,7 +2646,6 @@ src/permissions/guards/mission.ts	armedAtLanding	owner	module	session; single pe
 src/permissions/guards/mission.ts	cardMemo	owner	module	session; Map keyed by sessionId caching last read/written MissionCard; never deleted; missing owner disposal/end
 src/permissions/guards/mission.ts	clearActiveMission	reset-export
 src/permissions/guards/mission.ts	missionListeners	process	module	UI subscriber Set for active mission updates, bounded by caller unsubscribe
-src/permissions/guards/mission.ts	missionVersion	process	module	monotonic UI snapshot version counter bumped on mission updates
 src/permissions/guards/mission.ts	missionsBySession	owner	module	session; Map keyed by sessionId of active standing missions; cleared by clearActiveMission; missing automatic owner disposal
 src/permissions/guards/mission.ts	seatWatch	process	module	unsubscribe handle for focused session connector while armedAtLanding is active, cleared in dropSeatWatch
 src/permissions/guards/runStopAdapter.ts	deliveredRuns	owner	module	session; Set of runIds that minted a delivery walkthrough artifact; never deleted outside _resetDeliveryLatchForTesting; missing owner disposal/end
@@ -3020,7 +3011,6 @@ src/platform/environment/managedEnvVars.ts	PROVIDER_MANAGED_EXACT	process	module
 src/platform/environment/managedEnvVars.ts	SAFE_ENV_VARS	process	module	Load-time lookup with no local writer
 src/platform/environment/platform.ts	getLinuxDistroInfo	process	module	process-constant /etc/os-release distro info memoized via memoize
 src/platform/environment/platform.ts	getPlatform	process	module	process-constant host OS platform memoized via memoize
-src/platform/environment/platform.ts	getWslVersion	process	module	process-constant WSL version from /proc/version memoized via memoize
 src/platform/environment/sessionEnvVars.ts	sessionEnvVars	process	module	permanently empty read-only Map with no writer
 src/platform/environment/sessionEnvironment.ts	ENV_FILE_EVENTS	process	module	Load-time list with no local writer
 src/platform/environment/sessionEnvironment.ts	cache	process	module	Single-slot memo of session environment script keyed by session-env directory and MERCURY_ENV_FILE with invalidation epoch
