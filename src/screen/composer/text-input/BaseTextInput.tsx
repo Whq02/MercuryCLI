@@ -76,14 +76,12 @@ export function BaseTextInput({
   inputState,
   children,
   terminalFocus,
-  hidePlaceholderText = false,
   cursorOffset,
 }: BaseTextInputProps & {
   inputState: InputState
   children?: React.ReactNode
   terminalFocus: boolean
   invert?: (text: string) => string
-  hidePlaceholderText?: boolean
 }): React.ReactNode {
   const {
     onInput,
@@ -146,7 +144,7 @@ export function BaseTextInput({
     const placeholderNode =
       placeholderElement != null ? (
         placeholderElement
-      ) : placeholder && !hidePlaceholderText ? (
+      ) : placeholder ? (
         <Text dimColor wrap={multiline ? undefined : 'truncate-end'}>
           {placeholder}
         </Text>
