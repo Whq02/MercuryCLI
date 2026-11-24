@@ -9,6 +9,7 @@ import {
   findUnityProjectRoot,
 } from '../unity-protocol/unityProject.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
+import { isFile } from '../../platform/files/syncFileRead.js'
 
 export const UNITY_DAP_ADAPTER_KEY = 'unity'
 
@@ -23,15 +24,6 @@ interface UnityAdapterResolution {
 
 interface UnityAdapterFailure {
   reason: string
-}
-
-function isFile(p: string): boolean {
-  try {
-    return statSync(p).isFile()
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
 }
 
 function vstucExtensionRoots(home: string = homedir()): string[] {

@@ -1,5 +1,5 @@
 
-import { readdirSync, statSync, type Dirent } from 'node:fs'
+import { readdirSync, type Dirent } from 'node:fs'
 import { homedir } from 'node:os'
 import * as path from 'node:path'
 import { flagEnabled, flagEnv } from '../../platform/substrate/flagRegistry.js'
@@ -7,6 +7,7 @@ import { getCwd } from '../../platform/files/cwd.js'
 import { execFileNoThrowWithCwd } from '../../platform/processes/execFileNoThrow.js'
 import { whichSync } from '../../platform/processes/which.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
+import { isFile } from '../../platform/files/syncFileRead.js'
 import {
   asepriteSteamInstallCandidates,
   asepriteWindowsInstallCandidates,
@@ -18,15 +19,6 @@ const SKIP_DIRS = new Set(['.git', 'node_modules', '__pycache__'])
 
 export function mercuryAsepriteEnabled(): boolean {
   return flagEnabled('MERCURY_ASEPRITE')
-}
-
-function isFile(p: string): boolean {
-  try {
-    return statSync(p).isFile()
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
 }
 
 interface SpriteDiscovery {

@@ -93,3 +93,12 @@ export function isDirectory(path: string): boolean {
     return false
   }
 }
+
+export function isFile(path: string): boolean {
+  try {
+    return statSync(path).isFile()
+  } catch (error) {
+    passedOver(error)
+    return false
+  }
+}

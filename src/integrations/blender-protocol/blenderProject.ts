@@ -6,7 +6,7 @@ import { homedir } from 'node:os'
 import * as path from 'node:path'
 import { flagEnabled, flagEnv } from '../../platform/substrate/flagRegistry.js'
 import { getCwd } from '../../platform/files/cwd.js'
-import { isDirectory } from '../../platform/files/syncFileRead.js'
+import { isDirectory, isFile } from '../../platform/files/syncFileRead.js'
 import { whichSync } from '../../platform/processes/which.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 import { blenderProgramFilesRoot } from '../../platform/host-os/vendors.js'
@@ -17,15 +17,6 @@ const SKIP_DIRS = new Set(['.git', 'node_modules', '__pycache__'])
 
 export function mercuryBlenderEnabled(): boolean {
   return flagEnabled('MERCURY_BLENDER')
-}
-
-function isFile(p: string): boolean {
-  try {
-    return statSync(p).isFile()
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
 }
 
 interface BlendDiscovery {

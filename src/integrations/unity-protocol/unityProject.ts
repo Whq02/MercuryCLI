@@ -1,9 +1,9 @@
 
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { flagEnabled, flagEnv } from '../../platform/substrate/flagRegistry.js'
 import { getCwd } from '../../platform/files/cwd.js'
-import { isDirectory } from '../../platform/files/syncFileRead.js'
+import { isDirectory, isFile } from '../../platform/files/syncFileRead.js'
 import { projectFolderPath } from '../../platform/storage/projectHomeStores.js'
 import { whichSync } from '../../platform/processes/which.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
@@ -20,15 +20,6 @@ export const UNITY_LICENSE_DISCLAIMER =
 
 export function unityTestResultsPath(root: string, mode: 'EditMode' | 'PlayMode'): string {
   return path.join(projectFolderPath(root, 'unity-test-results'), `${mode.toLowerCase()}.xml`)
-}
-
-function isFile(p: string): boolean {
-  try {
-    return statSync(p).isFile()
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
 }
 
 export function findUnityProjectRoot(from: string = getCwd()): string | undefined {
