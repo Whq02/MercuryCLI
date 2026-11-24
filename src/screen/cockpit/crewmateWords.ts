@@ -16,10 +16,6 @@ export const CREW_CLEAR_DOOR = `${CREW_CLEAR_KEY} in ${CREW_VIEW_DOOR}`
 
 type CrewmateWordsState = { name: string; pinned: boolean; live?: boolean; local?: boolean }
 
-export function crewmateHeaderTail(state: CrewmateWordsState): string {
-  return `· ${state.name} · ${state.pinned ? MAIN_CHAT_WORD : VIEWING_WORD}`
-}
-
 const CREW_BOARD_STOP_PAUSE_KEYS = `x x stop · p pause in ${CREW_VIEW_DOOR}`
 
 const CREW_BOARD_KEYS_LIVE = `in ${CREW_VIEW_DOOR}: ${CREW_MAIN_CHAT_KEY} · x x stop · p pause`
