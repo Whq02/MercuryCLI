@@ -11,7 +11,7 @@ delete process.env.MERCURY_HOME
 process.env.MERCURY_ENTRYPOINT = 'cli'
 
 const { getMercuryHome } = await import('../../src/platform/environment/envUtils.ts')
-const { registerSession, updateSessionBridgeId, updateSessionName } = await import('../../src/sessions/transcripts/concurrentSessions.ts')
+const { registerSession, updateSessionName } = await import('../../src/sessions/transcripts/concurrentSessions.ts')
 const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
 const dir = join(getMercuryHome(), 'sessions')
 const own = join(dir, `${process.pid}.json`)
@@ -33,10 +33,6 @@ t.section('§2 the patches merge into the record')
   t.check('an absent name writes nothing', record().name === undefined)
   await updateSessionName('a named session')
   t.check('the name lands beside the other fields', record().name === 'a named session' && record().pid === process.pid)
-  await updateSessionBridgeId('bridge-1')
-  t.check('the bridge id lands', record().bridgeSessionId === 'bridge-1')
-  await updateSessionBridgeId(null)
-  t.check('a null bridge id clears it and keeps the name', record().bridgeSessionId === null && record().name === 'a named session')
 }
 
 t.finish('prove-session-registry')

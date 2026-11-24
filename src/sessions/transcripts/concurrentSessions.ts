@@ -61,7 +61,3 @@ export async function registerSession(): Promise<boolean> {
 export async function updateSessionName(name: string | undefined): Promise<void> {
   if (name) await patchOwnRecord({ name })
 }
-
-export async function updateSessionBridgeId(bridgeSessionId: string | null): Promise<void> {
-  await patchOwnRecord({ bridgeSessionId })
-}

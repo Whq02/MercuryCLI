@@ -20,7 +20,7 @@ t.section('§1 — the vestigial halves are gone; the peer-enumeration surface r
     !('updateSessionActivity' in registry),
     'removed',
   )
-  for (const kept of ['registerSession', 'updateSessionName', 'updateSessionBridgeId']) {
+  for (const kept of ['registerSession', 'updateSessionName']) {
     t.check(`${kept} remains (ps/ListPeers/Remote-Control surface)`, typeof registry[kept] === 'function', kept)
   }
 }
