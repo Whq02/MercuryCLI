@@ -502,6 +502,53 @@ console.log('— T7 the status vocabulary and the transcript card —')
   check("T7 a killed row reads 'stopped' on the Crew view — never the runner's word", view.includes('stopped') && !view.includes('killed'), view.slice(0, 600))
   const card = await paint(React.createElement(RosterWorkDetail, { work: stoppedRows.find(r => r.id === 'ag1')!, now: t0 + 61_001, onBack: () => {} }), 100)
   check("T7 …and on the card", card.includes('stopped') && !card.includes('killed'))
+  const { CrewmateCard } = await import('../../src/screen/fullscreen-layout/CrewmateCard.tsx')
+  const runningCard = await paint(
+    React.createElement(CrewmateCard, {
+      crewmate: { taskId: ag1.id, name: ag1.name, pinned: false, facts: ag1, local: false },
+      width: 120,
+    }),
+    120,
+  )
+  check(
+    'T7 CrewmateCard for a running crewmate reads running for <time> and never · running ·',
+    runningCard.includes(`${OPENAI_ID} · running for `) &&
+      !runningCard.includes(' · running · ') &&
+      runningCard.includes(crew.crewTokensLabel(ag1)!) &&
+      runningCard.includes(' · started '),
+    runningCard.replace(/\s+/g, ' ').slice(0, 220),
+  )
+  const landedAgent = agents.find(a => a.id === 'ag4')!
+  const landedCard = await paint(
+    React.createElement(CrewmateCard, {
+      crewmate: { taskId: landedAgent.id, name: landedAgent.name, pinned: false, facts: landedAgent, local: false },
+      width: 120,
+    }),
+    120,
+  )
+  check(
+    'T7 CrewmateCard for a landed crewmate reads landed in <time> and never · landed ·',
+    landedCard.includes(`${ANTHROPIC_ID} · landed in 9s · `) &&
+      !landedCard.includes(' · landed · ') &&
+      landedCard.includes(crew.crewTokensLabel(landedAgent)!) &&
+      landedCard.includes(' · started '),
+    landedCard.replace(/\s+/g, ' ').slice(0, 220),
+  )
+  const askingFacts = { ...ag1, pendingAsks: 1 }
+  const askingCard = await paint(
+    React.createElement(CrewmateCard, {
+      crewmate: { taskId: askingFacts.id, name: askingFacts.name, pinned: false, facts: askingFacts, local: false },
+      width: 140,
+    }),
+    140,
+  )
+  check(
+    'T7 CrewmateCard for a crewmate waiting for an answer keeps waiting for your answer and bare elapsed',
+    askingCard.includes(`${OPENAI_ID} · ${crew.CREW_ASK_WAIT_WORDS} · ${crew.crewTokensLabel(askingFacts)!} · `) &&
+      !askingCard.includes('running for ') &&
+      askingCard.includes(' · started '),
+    askingCard.replace(/\s+/g, ' ').slice(0, 220),
+  )
   _resetFocusedSessionConnectorForTesting()
 }
 

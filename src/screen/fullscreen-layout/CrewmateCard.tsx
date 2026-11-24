@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Box, Text } from '../themedRenderer.js'
-import { crewElapsedLabel, crewModelLabel, crewStatusWords, crewTokensLabel, type CrewmateFacts } from '../../engine/connector/crewFacts.js'
+import { crewElapsedLabel, crewModelLabel, crewStateLabel, crewStatusWords, crewTimeWords, crewTokensLabel, type CrewmateFacts } from '../../engine/connector/crewFacts.js'
 import { useLayoutChrome } from './layoutChromeContext.js'
 import { BACK_HINT, COMPACT_BACK_HINT, crewmateCardKeys, MAIN_CHAT_CARD_LINE } from '../cockpit/crewmateWords.js'
 import { displayWidth, GLYPH, truncateToWidth } from '../theme/glyphs.js'
@@ -11,10 +11,18 @@ import type { CrewmateInView } from '../tasks/useCrewmateView.js'
 
 function crewmateFactsLine(facts: CrewmateFacts | null, nowMs: number): string[] {
   if (facts === null) return []
-  const parts = [crewModelLabel(facts), crewStatusWords(facts, nowMs)]
+  const status = crewStatusWords(facts, nowMs)
+  const plainRunningOrLanded =
+    (facts.state === 'running' || facts.state === 'landed') &&
+    status === facts.state &&
+    status === crewStateLabel(facts)
+  const parts = [
+    crewModelLabel(facts),
+    plainRunningOrLanded ? crewTimeWords(facts, nowMs) : status,
+  ]
   const tokens = crewTokensLabel(facts)
   if (tokens !== null) parts.push(tokens)
-  parts.push(crewElapsedLabel(facts, nowMs))
+  if (!plainRunningOrLanded) parts.push(crewElapsedLabel(facts, nowMs))
   parts.push(`started ${new Date(facts.startedAt).toLocaleTimeString('en-GB', { hour12: false })}`)
   return parts
 }
