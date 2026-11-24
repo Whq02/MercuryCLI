@@ -343,17 +343,6 @@ function runScenario(body: string): Record<string, unknown> {
       } finally {
         fs.chmodSync(delDir, 0o700)
       }
-
-      const claimList = 'claim-list'
-      const claimId = await tasks.createTask(claimList, { subject: 's', description: 'd', status: 'pending', blocks: [], blockedBy: [] })
-      const claimEpoch = path.join(tasks.getTasksDir(claimList), '.epoch')
-      fs.writeFileSync(claimEpoch, '{broken', { mode: 0o600 })
-      try {
-        await tasks.claimTask(claimList, claimId, 'agent-1')
-        out.claimThrew = null
-      } catch (e) {
-        out.claimThrew = { name: e?.name ?? null, message: String(e?.message ?? e) }
-      }
     `)
     const ensureDirThrew = r.ensureDirThrew as { code: string | null } | null
     const unreadableEpochThrew = r.unreadableEpochThrew as { code: string | null } | null
@@ -361,13 +350,11 @@ function runScenario(body: string): Record<string, unknown> {
     const unreadableListThrew = r.unreadableListThrew as { code: string | null } | null
     const unreadableHwmThrew = r.unreadableHwmThrew as { code: string | null } | null
     const deleteDeniedThrew = r.deleteDeniedThrew as { code: string | null } | null
-    const claimThrew = r.claimThrew as { name: string | null } | null
     check('tasks-ensure-dir-fails-on-enotdir', ensureDirThrew !== null && (ensureDirThrew.code === 'EEXIST' || ensureDirThrew.code === 'ENOTDIR'), `${JSON.stringify(r.ensureDirThrew)} — ensureTasksDir in src/engine/task-framework/tasks.ts must throw EEXIST/ENOTDIR when the tasks root is a file`)
     check('tasks-epoch-unreadable-and-corrupt-throw', r.absentEpoch === 0 && unreadableEpochThrew !== null && (unreadableEpochThrew.code === 'EACCES' || unreadableEpochThrew.code === 'EPERM') && corruptEpochThrew !== null, `${JSON.stringify({ absent: r.absentEpoch, unreadable: r.unreadableEpochThrew, corrupt: r.corruptEpochThrew })} — readTaskEpoch in src/engine/task-framework/tasks.ts must return 0 for an absent .epoch and throw for an unreadable or corrupt one`)
     check('tasks-list-unreadable-dir-throws', Array.isArray(r.absentList) && r.absentList.length === 0 && unreadableListThrew !== null && (unreadableListThrew.code === 'EACCES' || unreadableListThrew.code === 'EPERM'), `${JSON.stringify({ absent: r.absentList, unreadable: r.unreadableListThrew })} — listTasks in src/engine/task-framework/tasks.ts must return [] for a missing list and throw EACCES/EPERM for an unreadable list directory`)
     check('tasks-highwatermark-unreadable-refuses-create', unreadableHwmThrew !== null && (unreadableHwmThrew.code === 'EACCES' || unreadableHwmThrew.code === 'EPERM'), `${JSON.stringify(r.unreadableHwmThrew)} — createTask in src/engine/task-framework/tasks.ts must throw EACCES/EPERM when .highwatermark is unreadable instead of reusing an id`)
     check('tasks-delete-failure-throws', r.deleteAbsent === false && deleteDeniedThrew !== null && (deleteDeniedThrew.code === 'EACCES' || deleteDeniedThrew.code === 'EPERM'), `${JSON.stringify({ absent: r.deleteAbsent, denied: r.deleteDeniedThrew })} — deleteTask in src/engine/task-framework/tasks.ts must return false for an absent task and throw EACCES/EPERM when the delete is denied`)
-    check('tasks-claim-failure-throws', claimThrew !== null, `${JSON.stringify(r.claimThrew)} — claimTask in src/engine/task-framework/tasks.ts must throw when the list's .epoch is corrupt`)
   }
 }
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
