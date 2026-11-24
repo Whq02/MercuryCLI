@@ -1108,11 +1108,9 @@ src/integrations/desktop/driver.ts	DESKTOP_KEY_NAMES	process	module	Load-time li
 src/integrations/desktop/fakeDesktopDriver.ts	BUTTONS	process	module	Load-time list with no local writer
 src/integrations/desktop/fakeDesktopDriver.ts	CANVAS_BACKGROUND	process	module	Load-time definition shared by all callers
 src/integrations/desktop/fakeDesktopDriver.ts	FAKE_SCENE_DEFAULT	process	module	Load-time table with no local writer
-src/integrations/desktop/fakeDesktopDriver.ts	GRANTS	process	module	Load-time list with no local writer
 src/integrations/desktop/fakeDesktopDriver.ts	MODIFIERS	process	module	Load-time list with no local writer
 src/integrations/desktop/fakeDesktopDriver.ts	PNG_SIGNATURE	process	module	Load-time definition shared by all callers
 src/integrations/desktop/fakeDesktopDriver.ts	SCENE_ACTS	process	module	Load-time lookup with no local writer
-src/integrations/desktop/fakeDesktopDriver.ts	SESSION_KINDS	process	module	Load-time list with no local writer
 src/integrations/desktop/nativeDriver.ts	BUTTONS	process	module	Load-time list with no local writer
 src/integrations/desktop/nativeDriver.ts	CAPTURE_CHILD_RETRY_WAIT_MS	process	module	Load-time list with no local writer
 src/integrations/desktop/nativeDriver.ts	GRANTS	process	module	Load-time list with no local writer
@@ -1254,7 +1252,6 @@ src/integrations/extensions/tree.ts	SKIP	process	module	Load-time lookup with no
 src/integrations/ide/cppBuild.ts	cmakeCache	process	module	30s TTL cache of whichSync(cmake) keyed by PATH
 src/integrations/ide/cppProjectProfile.ts	CPP_PROJECT_MARKERS	process	module	Load-time list with no local writer
 src/integrations/ide/cppProjectProfile.ts	profileCache	process	module	TTL cache of C++ project profile keyed by [root, resolvedFrom, PATH]
-src/integrations/ide/godotSession.ts	SKIP_DIRS	process	module	Load-time lookup with no local writer
 src/integrations/ide/godotSession.ts	parseCache	process	module	mtime-keyed parse cache for project.godot file
 src/integrations/ide/ideTransaction.ts	KIND_SET	process	module	Load-time lookup with no local writer
 src/integrations/ide/ideTransaction.ts	OUTCOME_SET	process	module	Load-time lookup with no local writer
@@ -3361,7 +3358,6 @@ src/platform/secure-storage/systemProtector.ts	dpapi	process	module	singleton Wi
 src/platform/secure-storage/windowsDpapiProtector.ts	POWERSHELL_ARGS	process	module	Load-time list with no local writer
 src/platform/settings-faults/faultNotices.ts	resetToldSettingsFaults	reset-export
 src/platform/settings-faults/faultNotices.ts	told	owner	module	Settings faults already reported in the session, removed when the fault clears
-src/platform/settings/changeDetector.ts	PROJECT_SOURCES	process	module	Load-time lookup with no local writer
 src/platform/settings/changeDetector.ts	awaitedParents	process	module	set of watched parent directories awaiting absent settings directories
 src/platform/settings/changeDetector.ts	bunPollIntervalMs	test	module	timing override mutated solely by resetForTesting
 src/platform/settings/changeDetector.ts	changeSignal	process	module	process-wide signal fanning out settings file changes to subscribers
