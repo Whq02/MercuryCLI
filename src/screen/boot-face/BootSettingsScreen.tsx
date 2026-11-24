@@ -23,6 +23,7 @@ import { useGreetingShimmer } from '../widgets/useGreetingShimmer.js';
 import { useInteractiveList } from '../widgets/useInteractiveList.js';
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js';
 import { useSplashCoreAccent } from '../widgets/useSplashCoreAccent.js';
+import { useBootComposition } from './useBootComposition.js';
 import { useTerminalSize } from '../fullscreen-layout/useTerminalSize.js';
 import { jevBootDetailLines } from './settings/detailLines.js';
 import { type WorkerApplySummary, type ApplyState, type SettingsEditor, type SettingsRow, settingsEditors, settingsMenuModel } from './settings/menuModel.js';
@@ -345,17 +346,7 @@ export function BootSettingsScreen({
     return settingsMenuModel({ apply, backgroundLaunchOn, changed, chatBoot, concourseLive, dirTail, effectiveByEnv, isBackgroundLaunchRow, isJevRow, isMotionRow, isSeatsRow, jevDetailLines, jevSettings, lastReceipt, list, liveCount, mainModel, menuRows, motionSetting, plainWorld, profile, profileReadError, saved, seatFacts, wordGlow });
   }, [saved, effectiveByEnv, seatFacts, motionSetting, jevSettings, jevDetailLines, backgroundLaunchOn, list.selectedIndex, list.note, lastReceipt, changed, liveCount, apply, mainModel, dirTail, profile, profileReadError, concourseLive, plainWorld, chatBoot, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
-  const composition = useMemo(() => {
-    const menu = core.composeBootMenu(columns, rows, menuM) as {
-      lines: string[];
-      entryLines: Array<{ entry: number; line: number }>;
-    };
-    const { placed, top } = core.placeBlock(menu.lines, rows) as { placed: string[]; top: number };
-    return {
-      placed,
-      entryAt: new Map<number, number>(menu.entryLines.map(e => [e.line + top, e.entry])),
-    };
-  }, [core, columns, rows, menuM]);
+  const composition = useBootComposition(core, columns, rows, menuM);
 
   return (
     <Box flexDirection="column" width={columns} height={rows}>

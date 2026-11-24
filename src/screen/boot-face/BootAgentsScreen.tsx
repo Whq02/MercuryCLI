@@ -16,6 +16,7 @@ import { useGreetingShimmer } from '../widgets/useGreetingShimmer.js';
 import { useInteractiveList } from '../widgets/useInteractiveList.js';
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js';
 import { useSplashCoreAccent } from '../widgets/useSplashCoreAccent.js';
+import { useBootComposition } from './useBootComposition.js';
 import { agentFormRowIds } from './agents/face.js';
 import { toggleRowOf, runDeleteOf, agentEditRun, modelPickRun, editFormRowOf, clearFormRowOf, formPickRun } from './agents/actions.js';
 import { formPromptKeys, confirmKeys, formSnapKeys } from './agents/keys.js';
@@ -280,17 +281,7 @@ export function BootAgentsScreen({
     return listFace({ base, built, confirm, counts, defs, faceTools, list, listRows, mainModel, note, sessionEffort });
   }, [counts, listRows, built, defs, list.selectedRow, list.selectedIndex, list.note, note, confirm, trash, trashList.selectedIndex, trashList.note, form, formSnap, formPrompt, formPick, formRowIds, formList.selectedIndex, pickList.selectedIndex, modelPick, modelPickList.selectedIndex, modelPickList.note, mainModel, sessionEffort, faceTools, workspaceDir, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
-  const composition = useMemo(() => {
-    const menu = core.composeBootMenu(columns, rows, menuM) as {
-      lines: string[];
-      entryLines: Array<{ entry: number; line: number }>;
-    };
-    const { placed, top } = core.placeBlock(menu.lines, rows) as { placed: string[]; top: number };
-    return {
-      placed,
-      entryAt: new Map<number, number>(menu.entryLines.map(e => [e.line + top, e.entry])),
-    };
-  }, [core, columns, rows, menuM]);
+  const composition = useBootComposition(core, columns, rows, menuM);
 
   if (suspended) return null;
 

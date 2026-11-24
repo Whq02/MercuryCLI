@@ -21,6 +21,7 @@ import { useGreetingShimmer } from '../widgets/useGreetingShimmer.js';
 import { useInteractiveList } from '../widgets/useInteractiveList.js';
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js';
 import { useSplashCoreAccent } from '../widgets/useSplashCoreAccent.js';
+import { useBootComposition } from './useBootComposition.js';
 import { loginsSwitchableFamily, loginsFlowReady, type LoginsScreenFactsV1, loginsSortedArms, collectLoginsScreenFacts, type LoginsArmV1 } from './logins/facts.js';
 import { loginsPickOptions, type FaceKeyLegId, type LoginsPickId } from './logins/pickLines.js';
 import type { OpenFlowState, FaceDeviceFamily, HandlesLegId } from './logins/flowLines.js';
@@ -278,17 +279,7 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
     });
   }, [facts, list.selectedIndex, list.note, mainModel, flow, pickList.selectedIndex, model.flow, model.pastePromptUp, model.copied, model.shadowWarning, model.accountLabel, draft, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
-  const composition = useMemo(() => {
-    const menu = core.composeBootMenu(columns, rows, menuM) as {
-      lines: string[];
-      entryLines: Array<{ entry: number; line: number }>;
-    };
-    const { placed, top } = core.placeBlock(menu.lines, rows) as { placed: string[]; top: number };
-    return {
-      placed,
-      entryAt: new Map<number, number>(menu.entryLines.map(e => [e.line + top, e.entry])),
-    };
-  }, [core, columns, rows, menuM]);
+  const composition = useBootComposition(core, columns, rows, menuM);
 
   return (
     <Box flexDirection="column" width={columns} height={rows}>

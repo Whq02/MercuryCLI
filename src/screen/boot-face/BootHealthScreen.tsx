@@ -24,6 +24,7 @@ import { useGreetingShimmer } from '../widgets/useGreetingShimmer.js';
 import { useInteractiveList } from '../widgets/useInteractiveList.js';
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js';
 import { useSplashCoreAccent } from '../widgets/useSplashCoreAccent.js';
+import { useBootComposition } from './useBootComposition.js';
 
 
 interface BootHealthScreenProps {
@@ -447,17 +448,7 @@ export function BootHealthScreen({ onClose, fullScene, certificate: given }: Boo
     };
   }, [checkRows, cert, progress, loadFailed, trailOpen, fixFlow, selected, list.selectedIndex, list.note, mainModel, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
-  const composition = useMemo(() => {
-    const menu = core.composeBootMenu(columns, rows, menuM) as {
-      lines: string[];
-      entryLines: Array<{ entry: number; line: number }>;
-    };
-    const { placed, top } = core.placeBlock(menu.lines, rows) as { placed: string[]; top: number };
-    return {
-      placed,
-      entryAt: new Map<number, number>(menu.entryLines.map(e => [e.line + top, e.entry])),
-    };
-  }, [core, columns, rows, menuM]);
+  const composition = useBootComposition(core, columns, rows, menuM);
 
   const nextCount = cert !== null && !trailOpen ? healthNextEntries(cert).length : 0;
   return (

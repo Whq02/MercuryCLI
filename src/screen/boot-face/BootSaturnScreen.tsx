@@ -34,6 +34,7 @@ import { useGreetingShimmer } from '../widgets/useGreetingShimmer.js';
 import { useInteractiveList } from '../widgets/useInteractiveList.js';
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js';
 import { useSplashCoreAccent } from '../widgets/useSplashCoreAccent.js';
+import { useBootComposition } from './useBootComposition.js';
 import { LOCAL_PULL_RECOMMENDATION } from '../../models/roads/local/localAccounts.js';
 import { LOCAL_SETUP_OFFER } from '../../commands/localsetup/words.js';
 import { clearFormRowOf, commitPromptOf, editFormRowOf, runNowOf, scheduleEditRpcOf, submitFormOf, type SaturnFormRowId } from './saturn/actions.js';
@@ -768,17 +769,7 @@ export function BootSaturnScreen({ onClose, fullScene, facts: given, nowMs: give
     return saturnMenuOf({ mainModel, saturnSummaryRows, facts, nowMs, wordGlow, form, givenNow, preflightOf, livePreflightOf, formPick, SATURN_WORKSPACE_CUSTOM_ROW, clampText, SATURN_OPENING_AUDIT_ROW, SATURN_AUDIT_MISSION, SATURN_OPENING_REVIEW_ROW, SATURN_REVIEW_MISSION, saturnOpeningRowIsCurrent, pickList, saturnFormLegendOf, saturnFormDetailLines, formPrompt, saturnFormEntries, formList, formNote, saturnEntryOf, list, note, saturnStatusLine, selected, saturnLegendOf, busy, saturnDetailLines, receiptsOf, liveReceiptsOf, saturnEmptyDetailLines });
   }, [facts, nowMs, selected, list.selectedIndex, list.note, note, mainModel, receiptsOf, form, formNote, formPrompt, formPick, formList.selectedIndex, pickList.selectedIndex, givenNow, preflightOf, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
-  const composition = useMemo(() => {
-    const menu = core.composeBootMenu(columns, rows, menuM) as {
-      lines: string[];
-      entryLines: Array<{ entry: number; line: number }>;
-    };
-    const { placed, top } = core.placeBlock(menu.lines, rows) as { placed: string[]; top: number };
-    return {
-      placed,
-      entryAt: new Map<number, number>(menu.entryLines.map(e => [e.line + top, e.entry])),
-    };
-  }, [core, columns, rows, menuM]);
+  const composition = useBootComposition(core, columns, rows, menuM);
 
   const rowPropsAt = (entryIdx: number): { props: ReturnType<typeof list.rowProps>; hoverLabel: string } | null => {
     if (form !== null) {

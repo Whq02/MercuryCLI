@@ -37,6 +37,7 @@ import { useGreetingShimmer } from '../widgets/useGreetingShimmer.js';
 import { useInteractiveList } from '../widgets/useInteractiveList.js';
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js';
 import { useSplashCoreAccent } from '../widgets/useSplashCoreAccent.js';
+import { useBootComposition } from './useBootComposition.js';
 import { kitMenuView } from '../kit-menu/kitMenuView.js';
 import { readLiveSessionCount } from './BootSettingsScreen.js';
 import { passedOver } from '../../platform/errors/passedOver.js';
@@ -456,17 +457,7 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
     };
   }, [listRows, states, selectedRow, list.selectedIndex, list.note, lastReceipt, liveCount, preset, presetsLayer, presetsList.selectedIndex, presetsList.note, mainModel, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
-  const composition = useMemo(() => {
-    const menu = core.composeBootMenu(columns, rows, menuM) as {
-      lines: string[];
-      entryLines: Array<{ entry: number; line: number }>;
-    };
-    const { placed, top } = core.placeBlock(menu.lines, rows) as { placed: string[]; top: number };
-    return {
-      placed,
-      entryAt: new Map<number, number>(menu.entryLines.map(e => [e.line + top, e.entry])),
-    };
-  }, [core, columns, rows, menuM]);
+  const composition = useBootComposition(core, columns, rows, menuM);
 
   return kitMenuView({ t, columns, rows, listRows, presetsLayer, list, presetsList, composition, kitEntryOf });
 }
