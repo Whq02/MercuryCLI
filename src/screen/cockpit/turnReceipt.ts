@@ -2,6 +2,7 @@ import type { FoldMetadata, Message, RenderableMessage, SystemCrewChatMessage, T
 import { flagEnabled } from '../../platform/substrate/flagRegistry.js'
 import { deriveUUID } from '../../engine/message-shapes/identity.js'
 import { NO_RESPONSE_REQUESTED } from '../../engine/message-shapes/rejectionText.js'
+import { isNotificationLaneRow } from '../../engine/message-shapes/noticeRows.js'
 import { isNotEmptyMessage } from '../../engine/message-shapes/text.js'
 import { keysOf } from '../../platform/primitives/entriesOf.js'
 
@@ -123,6 +124,7 @@ type LooseMessage = {
   results?: LooseMessage[]
   toolUseResult?: unknown
   turnId?: string
+  attachment?: { type?: string; commandMode?: string }
 }
 
 function chatRowOf(m: LooseMessage): Pick<SystemCrewChatMessage, 'turnId'> | null {
@@ -355,7 +357,7 @@ function walkTurnReceipts(
   }
   for (let index = 0; index < messages.length; index++) {
     const m = messages[index]!
-    const noticeWake = replyClosed && m.isVirtual === true && isTurnBoundary({ ...m, isVirtual: false })
+    const noticeWake = replyClosed && ((m.isVirtual === true && isTurnBoundary({ ...m, isVirtual: false })) || isNotificationLaneRow(m))
     const woken = noticeWake || (firstIdle !== undefined && isTurnWork(m))
     if (isTurnBoundary(m) || woken || (m.type === 'system' && m.subtype === 'away_summary')) {
       settle(index)
