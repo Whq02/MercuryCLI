@@ -148,7 +148,6 @@ type LaneState = {
   prefixFingerprint: PrefixFingerprint | null
   renderPrompt: () => string
   prevCacheReadTokens: number | null
-  expectedCacheDrop: boolean
   pendingChanges: PendingChanges | null
 }
 
@@ -405,7 +404,6 @@ export function recordPromptState(snapshot: PromptStateSnapshot): void {
         prefixFingerprint,
         renderPrompt,
         prevCacheReadTokens: null,
-        expectedCacheDrop: false,
         pendingChanges: null,
       })
       return
@@ -536,15 +534,6 @@ export async function checkResponseForCacheBreak(
     state.prevCacheReadTokens = cacheReadTokens
     if (prevCacheRead === null) return
 
-    if (state.expectedCacheDrop) {
-      state.expectedCacheDrop = false
-      state.pendingChanges = null
-      logForDebugging(
-        `cache-break: expected drop after deletion (${prevCacheRead} → ${cacheReadTokens}); not a break`,
-      )
-      return
-    }
-
     const drop = prevCacheRead - cacheReadTokens
     if (!(cacheReadTokens < prevCacheRead * CACHE_DROP_RATIO && drop >= MIN_CACHE_DROP_TOKENS)) {
       state.pendingChanges = null
@@ -609,15 +598,6 @@ export async function checkResponseForCacheBreak(
     state.pendingChanges = null
   } catch (error) {
     logError(error)
-  }
-}
-
-export function notifyCacheDeletion(querySource: string, agentId?: string): void {
-  const key = resolveStateKey(querySource, agentId)
-  if (key === null) return
-  const state = laneStates.get(key)
-  if (state !== undefined) {
-    state.expectedCacheDrop = true
   }
 }
 
