@@ -17,7 +17,7 @@ import { HOOK_EVENTS } from '../../../integrations/event-hooks/contract.js'
 import { hookRowsOfResult } from '../../../integrations/event-hooks/rows.js'
 import { createAttachmentMessage } from '../../../engine/attachments/attachments.js'
 import { logForDebugging } from '../../../platform/logs/debugLog.js'
-import { STRUCTURED_OUTPUT_TOOL_NAME } from '../../structured-output/structuredOutputTool.js'
+import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../../kit/names/syntheticOutput.js'
 import { errorMessage } from '../../../platform/errors/errors.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
 import { createUserMessage, extractTextContent } from '../../../engine/messages/messages.js'
@@ -178,7 +178,7 @@ export async function prepareAgentRun({ agentId, name, description, swarm, abort
   if (reviewReceipt !== undefined) systemPrompt.push(REVIEW_BRIEF, `Your declared review receipt is ${reviewReceipt}. Only its Review section is editable. Run bun verification under scripts, bash suite runners, or bun run typecheck in the frozen worktree; a with-box-lock.sh wrapper with a literal temporary BASE is accepted. Verification commands have a fresh temporary home and filesystem confinement: sources and the report are read-only, temporary results are writable. Ordinary permission checks still apply; unavailable confinement refuses without running.`)
   if (structuredOutputSpec !== undefined) {
     systemPrompt.push(
-      `When the task is COMPLETE, deliver the final answer by calling the ${STRUCTURED_OUTPUT_TOOL_NAME} tool with data matching its schema${
+      `When the task is COMPLETE, deliver the final answer by calling the ${SYNTHETIC_OUTPUT_TOOL_NAME} tool with data matching its schema${
         structuredOutputSpec.mode === 'strict'
           ? ' — the dispatch FAILS without a conforming call'
           : ' — prose alone is accepted but the caller loses the parsed data'

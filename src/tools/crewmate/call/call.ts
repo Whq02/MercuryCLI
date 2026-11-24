@@ -33,7 +33,7 @@ import { READ_TOOL_NAME } from '../../kit/names/fileRead.js'
 import { recordCrewStart } from '../../../crew/crew-start/crewStart.js'
 import { runForegroundAgentExecution, type ForegroundAgentMetadata } from '../foregroundExecution.js'
 import { resolveWorkerTools, runAsyncAgentLifecycle } from '../crewmateLifecycle.js'
-import { getSchemaBoundStructuredOutputTool } from '../../structured-output/structuredOutputTool.js'
+import { createSyntheticOutputTool } from '../../structured-output/SyntheticOutputTool.js'
 import { buildFrozenWorktreeNotice } from '../frozenWorktreeNotice.js'
 import { buildWorktreePrepareNotice } from '../worktreePrepareNotice.js'
 import type { AgentDefinition } from '../../../crew/agents/agentDefinition.js'
@@ -395,8 +395,8 @@ export async function agentToolCall(
 function structuredOutputSpecOf(input: AgentToolInput, definitionSchema: Record<string, unknown> | undefined) {
   const schema = input.output_schema ?? definitionSchema
   if (schema === undefined) return undefined
-  const bound = getSchemaBoundStructuredOutputTool(schema)
-  if (bound.error !== undefined) {
+  const bound = createSyntheticOutputTool(schema)
+  if (!bound.ok) {
     throw new Error(`output_schema is not a valid JSON Schema: ${bound.error}`)
   }
   return {

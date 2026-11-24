@@ -10,7 +10,7 @@ import type { MCPServerConnection } from '../../../integrations/mcp-shapes/mcpSe
 import { subagentDefaultEffort } from '../../../crew/agents/agentDefaults.js'
 import { createFileStateCacheWithSizeLimit } from '../../../platform/files/fileStateCache.js'
 import { logForDebugging } from '../../../platform/logs/debugLog.js'
-import { getSchemaBoundStructuredOutputTool } from '../../structured-output/structuredOutputTool.js'
+import { createSyntheticOutputTool } from '../../structured-output/SyntheticOutputTool.js'
 import type { PermissionMode } from '../../../permissions/rules/permissionMode.js'
 import { recordAtRunStart } from '../../../crew/crewmates/crewmateRecord.js'
 import { swarmBrief } from '../../../crew/board/seam.js'
@@ -91,12 +91,12 @@ export function agentToolsOf({ availableTools, swarm, mcp, structuredOutputSpec,
   }
 
   if (structuredOutputSpec !== undefined) {
-    const bound = getSchemaBoundStructuredOutputTool(structuredOutputSpec.schema)
-    if (bound.tool !== undefined) {
+    const bound = createSyntheticOutputTool(structuredOutputSpec.schema)
+    if (bound.ok) {
       tools = [...tools.filter(t => t.name !== bound.tool.name), bound.tool]
     } else {
       logForDebugging(
-        `runAgent: structured-output schema failed to bind (${bound.error ?? 'unknown'}) — dispatch proceeds without the tool`,
+        `runAgent: structured-output schema failed to bind (${bound.error}) — dispatch proceeds without the tool`,
         { level: 'error' },
       )
     }

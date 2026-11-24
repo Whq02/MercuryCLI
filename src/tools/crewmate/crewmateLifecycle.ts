@@ -523,7 +523,7 @@ function schemaIssueWordsOf(content: unknown): string {
         : ''
   const words = text
     .replace(/<\/?tool_use_error>/g, '')
-    .replace(/^\s*Output does not match required schema: /, '')
+    .replace(/^\s*Output does not match the required schema: /, '')
     .replace(/\s+/g, ' ')
     .trim()
   const chars = [...words]

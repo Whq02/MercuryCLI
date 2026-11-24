@@ -42,7 +42,8 @@ import {
 import { reconstructForSubagentResume } from '../../engine/tool-dispatch/toolResultStorage.js'
 import { recordedRequestContexts, restoreBoundPrefixFromMessages } from '../../models/roads/anthropic/boundPrefixRecord.js'
 import { pendingToolRosterRestore } from '../../models/roads/toolEconomy.js'
-import { getSchemaBoundStructuredOutputTool, STRUCTURED_OUTPUT_TOOL_NAME } from '../structured-output/structuredOutputTool.js'
+import { createSyntheticOutputTool } from '../structured-output/SyntheticOutputTool.js'
+import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../kit/names/syntheticOutput.js'
 import { getCwdState, getSdkAgentProgressSummariesEnabled } from '../../boot/process-state/processState.js'
 import { automaticResumePending, cancelAutomaticResume, resolveWorkerTools, runAsyncAgentLifecycle } from './crewmateLifecycle.js'
 import { operatorPauseGate } from '../../engine/loop/pauseGate.js'
@@ -144,7 +145,7 @@ function restoreStructuredOutputSpec(
   let spec = stored
   if (spec === undefined) {
     const restore = pendingToolRosterRestore()
-    const mark = restore?.marks.find(entry => entry.name === STRUCTURED_OUTPUT_TOOL_NAME)
+    const mark = restore?.marks.find(entry => entry.name === SYNTHETIC_OUTPUT_TOOL_NAME)
     if (mark?.definition !== undefined) {
       try {
         const parsed: unknown = JSON.parse(mark.definition)
@@ -161,8 +162,8 @@ function restoreStructuredOutputSpec(
     }
   }
   if (spec !== undefined) {
-    const bound = getSchemaBoundStructuredOutputTool(spec.schema)
-    if (bound.error !== undefined) {
+    const bound = createSyntheticOutputTool(spec.schema)
+    if (!bound.ok) {
       throw new Error(`output_schema is not a valid JSON Schema: ${bound.error}`)
     }
   }

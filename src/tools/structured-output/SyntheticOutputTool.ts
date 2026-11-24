@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { z } from 'zod/v4'
 import { Text } from '../../screen/themedRenderer.js'
-import { compileJsonSchema, formatSchemaIssues } from '../../platform/json-schema/jsonSchemaEngine.js'
+import { compileJsonSchema, formatSchemaIssues, issueKeywords } from '../../platform/json-schema/jsonSchemaEngine.js'
 import { buildTool, type Tool, type ToolDef, type ToolInputJSONSchema } from '../kit/tool.js'
 import { TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../platform/errors/errors.js'
 import { lazySchema } from '../../platform/primitives/lazySchema.js'
@@ -22,7 +22,6 @@ export type Output = z.infer<OutputSchema>
 const SUCCESS_MESSAGE: Output = 'Structured output provided successfully'
 const PROMPT = `Use this tool to provide your final structured output. Call it exactly once, at the end of your response, with the output in the requested format.`
 const HEADER_PAIRS = 3
-const TELEMETRY_CHARS = 150
 
 type Delivered = { data: Output; structured_output: unknown }
 
@@ -86,7 +85,17 @@ export const SyntheticOutputTool = buildTool({
   },
 } satisfies ToolDef<InputSchema, Output>)
 
-type SchemaBoundResult = { tool: Tool } | { error: string }
+export class SchemaMismatchError extends TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS {
+  readonly telemetrySafeMessage: string
+
+  constructor(message: string, telemetrySafeMessage: string) {
+    super(message, telemetrySafeMessage)
+    this.name = 'SchemaMismatchError'
+    this.telemetrySafeMessage = telemetrySafeMessage
+  }
+}
+
+type SchemaBoundResult = { ok: true; tool: Tool } | { ok: false; error: string }
 
 const schemaBoundCache = new WeakMap<object, SchemaBoundResult>()
 
@@ -95,7 +104,7 @@ export function createSyntheticOutputTool(jsonSchema: object): SchemaBoundResult
   if (cached !== undefined) return cached
   const compiled = compileJsonSchema(jsonSchema)
   if (!compiled.ok) {
-    const failed: SchemaBoundResult = { error: compiled.error }
+    const failed: SchemaBoundResult = { ok: false, error: compiled.error }
     schemaBoundCache.set(jsonSchema, failed)
     return failed
   }
@@ -105,16 +114,15 @@ export function createSyntheticOutputTool(jsonSchema: object): SchemaBoundResult
     async call(input) {
       const issues = compiled.check(input)
       if (issues.length > 0) {
-        const message = `Output does not match the required schema: ${formatSchemaIssues(issues)}`
-        throw new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
-          message,
-          message.slice(0, TELEMETRY_CHARS),
+        throw new SchemaMismatchError(
+          `Output does not match the required schema: ${formatSchemaIssues(issues)}`,
+          `${SYNTHETIC_OUTPUT_TOOL_NAME} schema mismatch: ${issueKeywords(issues)}`,
         )
       }
       return delivered(input)
     },
   }
-  const result: SchemaBoundResult = { tool }
+  const result: SchemaBoundResult = { ok: true, tool }
   schemaBoundCache.set(jsonSchema, result)
   return result
 }
