@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
-import { dirname, join, win32 as pathWin32 } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve, win32 as pathWin32 } from 'node:path'
 
 export const RUNTIME_PACK_PATH = 'vendor/node'
 
@@ -95,6 +95,11 @@ export function payloadBinaryPath(payloadDir: string, record: { path: string; bi
   return join(payloadDir, ...lockPathParts(record.path), ...lockPathParts(record.binary))
 }
 
+export function standsInsidePayload(payloadDir: string, binaryPath: string): boolean {
+  const climb = relative(resolve(payloadDir), resolve(binaryPath))
+  return climb !== '' && !climb.startsWith('..') && !isAbsolute(climb)
+}
+
 export function vendoredRuntimeBinaryPath(payloadDir: string, record: VendoredRuntimeRecord): string {
   return payloadBinaryPath(payloadDir, record)
 }
@@ -107,7 +112,7 @@ export function checkVendoredRuntime(payloadDir: string, record: VendoredRuntime
   const binaryPath = vendoredRuntimeBinaryPath(payloadDir, record)
   let isFile = false
   try {
-    isFile = statSync(binaryPath).isFile()
+    isFile = standsInsidePayload(payloadDir, binaryPath) && statSync(binaryPath).isFile()
   } catch {
     isFile = false
   }

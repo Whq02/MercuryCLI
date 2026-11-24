@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { lockPathParts, nodePackPlatform, payloadBinaryPath } from './vendoredRuntime.js'
+import { lockPathParts, nodePackPlatform, payloadBinaryPath, standsInsidePayload } from './vendoredRuntime.js'
 
 export const PYTHON_PACK_PATH = 'vendor/python'
 
@@ -138,7 +138,7 @@ export function checkVendoredPython(payloadDir: string, record: VendoredPythonRe
   const binaryPath = vendoredPythonBinaryPath(payloadDir, record)
   let isFile = false
   try {
-    isFile = statSync(binaryPath).isFile()
+    isFile = standsInsidePayload(payloadDir, binaryPath) && statSync(binaryPath).isFile()
   } catch {
     isFile = false
   }
