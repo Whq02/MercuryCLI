@@ -508,7 +508,7 @@ export function rawSettingsContainsKey(key: string): boolean {
 }
 
 
-const OUTSIDE_CHECKOUT_SOURCES: ReadonlySet<SettingSource> = new Set([
+export const OUTSIDE_CHECKOUT_SOURCES: ReadonlySet<SettingSource> = new Set([
   'userSettings',
   'flagSettings',
   'policySettings',

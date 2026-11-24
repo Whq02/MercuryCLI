@@ -5,16 +5,10 @@ import { getCwd } from '../../platform/files/cwd.js'
 import { isBareMode } from '../../platform/environment/envUtils.js'
 import { logError } from '../../platform/logs/errorLog.js'
 import { getEnabledSettingSources, type SettingSource } from '../../platform/settings/settingSources.js'
-import { getInitialSettings, getSettingsForSource } from '../../platform/settings/settings.js'
+import { getInitialSettings, getSettingsForSource, OUTSIDE_CHECKOUT_SOURCES } from '../../platform/settings/settings.js'
 import { subprocessEnv } from '../../platform/processes/subprocessEnv.js'
 import { signInLedgerEpoch } from '../sign-in/account-ledger/signInLedger.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
-
-const OUTSIDE_CHECKOUT_SOURCES: ReadonlySet<SettingSource> = new Set([
-  'userSettings',
-  'flagSettings',
-  'policySettings',
-])
 
 const KEY_COMMAND_TIMEOUT_MS = 10_000
 const KEY_COMMAND_BACKOFF_MS = 30_000
