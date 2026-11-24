@@ -73,25 +73,3 @@ export function decideTransition(
   if (!TRANSITIONS[from].includes(to)) return { legal: false, reason: 'illegal-transition' }
   return { legal: true, entryProof: ENTRY_PROOF_OF[to] }
 }
-
-export function isLiveState(s: ConcourseSessionState): boolean {
-  return s === 'working' || s === 'needs-you' || s === 'stalled' || s === 'paused' || s === 'ready-to-review'
-}
-
-export const BOARD_ORDER: readonly ConcourseSessionState[] = [
-  'needs-you',
-  'stalled',
-  'ready-to-review',
-  'working',
-  'queued',
-  'starting',
-  'paused',
-  'completed',
-  'failed',
-  'cancelled',
-]
-
-export function boardRank(s: ConcourseSessionState): number {
-  const i = BOARD_ORDER.indexOf(s)
-  return i === -1 ? BOARD_ORDER.length : i
-}

@@ -6,12 +6,9 @@ import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
 const {
-  BOARD_ORDER,
   CONCOURSE_SESSION_STATES,
   TERMINAL_STATES,
-  boardRank,
   decideTransition,
-  isLiveState,
 } = await import('../../src/daemon/concourse-workers/concourseLifecycle.js')
 type State = (typeof CONCOURSE_SESSION_STATES)[number]
 
@@ -66,24 +63,6 @@ t.section('§2 — entry proofs ride every legal transition')
     'queued can NEVER render as started (no queued→working shortcut)',
     started.legal === false && started.reason === 'illegal-transition',
     JSON.stringify(started),
-  )
-}
-
-t.section('§3 — the projections')
-{
-  t.check('queued/starting/draft are NOT live (§5.5)', !isLiveState('queued') && !isLiveState('starting') && !isLiveState('draft'), 'ok')
-  t.check(
-    'working/needs-you/stalled/paused/ready-to-review ARE live',
-    (['working', 'needs-you', 'stalled', 'paused', 'ready-to-review'] as State[]).every(isLiveState),
-    'ok',
-  )
-  t.check(
-    'the board order is attention-first (needs-you → stalled → ready-to-review → working)',
-    boardRank('needs-you') < boardRank('stalled') &&
-      boardRank('stalled') < boardRank('ready-to-review') &&
-      boardRank('ready-to-review') < boardRank('working') &&
-      boardRank('working') < boardRank('queued'),
-    JSON.stringify(BOARD_ORDER),
   )
 }
 
