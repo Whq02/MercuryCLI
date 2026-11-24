@@ -102,8 +102,6 @@ if (load.state === 'ok') {
   const devices = load.addon.listInputDevices()
   const fallback = load.addon.defaultInputDevice()
   check('listInputDevices() answers a list; defaultInputDevice() a name or null', Array.isArray(devices) && (fallback === null || typeof fallback === 'string'), `${devices.length} devices, default ${String(fallback)}`)
-  const described = capture.describeVendoredPack()
-  check('the capture owner describes the pack for /health', described.state === 'ok' && described.platform === PLATFORM, described.state === 'ok' ? described.dir : described.note)
   const resolved = capture.resolveCaptureBackend()
   check('the ladder resolves the vendored pack first', resolved.state === 'ok' && resolved.kind === 'vendored', resolved.state === 'ok' ? resolved.detail : resolved.note)
 

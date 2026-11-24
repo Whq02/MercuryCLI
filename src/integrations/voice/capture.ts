@@ -382,18 +382,3 @@ export async function startCapture(opts: StartCaptureOptions = {}): Promise<Capt
   }
   return handle
 }
-
-export function describeVendoredPack(): { state: 'ok'; version: string; platform: string; devices: string[]; defaultDevice: string | null; dir: string } | { state: 'unavailable'; note: string } {
-  const load = loadVoiceAddon()
-  if (load.state === 'unavailable') return load
-  let devices: string[] = []
-  let defaultDevice: string | null = null
-  try {
-    devices = load.addon.listInputDevices()
-    defaultDevice = load.addon.defaultInputDevice()
-  } catch (error) {
-    return { state: 'unavailable', note: `the voice addon loaded but could not enumerate input devices: ${error instanceof Error ? error.message : String(error)}` }
-  }
-  return { state: 'ok', version: load.manifest.version, platform: load.manifest.platform, devices, defaultDevice, dir: load.dir }
-}
-
