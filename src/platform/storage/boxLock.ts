@@ -6,6 +6,7 @@ import { lastMemorySample, refreshMemorySample, runtimeMemorySample, type Memory
 import { commandWords } from '../../permissions/guards/generatedAssets.js'
 import { passedOver, passedOverAs } from '../errors/passedOver.js'
 import { loadAverageSupported } from '../host-os/processes.js'
+import { pidAlive } from '../processes/pidAlive.js'
 
 const BOX_LOCK_SCRIPT = 'with-box-lock.sh'
 
@@ -72,15 +73,6 @@ function boxLockScriptOf(words: readonly string[]): string | null {
     if (basename(word) === BOX_LOCK_SCRIPT) return word
   }
   return null
-}
-
-function pidAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (error) {
-    return (error as NodeJS.ErrnoException).code === 'EPERM'
-  }
 }
 
 function slotNumber(name: string): number | null {

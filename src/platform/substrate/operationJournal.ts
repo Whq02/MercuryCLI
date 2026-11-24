@@ -9,6 +9,7 @@ import { getErrnoCode } from '../errors/errors.js'
 import * as lockfile from '../storage/lockfile.js'
 import { durableAtomicPublish, faultPoint } from './durablePublish.js'
 import { passedOver } from '../errors/passedOver.js'
+import { pidAlive } from '../processes/pidAlive.js'
 
 type DurableOperationState =
   | 'prepared'
@@ -57,15 +58,6 @@ function isTerminal(state: DurableOperationState): boolean {
 
 export function isTerminalJournalState(state: DurableOperationState): boolean {
   return isTerminal(state)
-}
-
-function pidAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (error) {
-    return (error as NodeJS.ErrnoException).code === 'EPERM'
-  }
 }
 
 const liveInProcessOperations = new Set<string>()

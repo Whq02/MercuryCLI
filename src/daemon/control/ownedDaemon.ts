@@ -4,6 +4,7 @@ import { closeSync, mkdirSync, openSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { renameWithWin32RetrySync } from '../../platform/substrate/durablePublish.js'
 import { registerCleanup } from '../../platform/processes/cleanupRegistry.js'
+import { pidAlive } from '../../platform/processes/pidAlive.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { errorMessage, isENOENT } from '../../platform/errors/errors.js'
 import { canonicalHomeSpelling, getMercuryHome } from '../../platform/environment/envUtils.js'
@@ -62,15 +63,6 @@ export function decideDaemonReap(facts: {
   return facts.gracefulAsked ? 'asked' : 'hard-kill'
 }
 
-function daemonAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (error) {
-    return (error as NodeJS.ErrnoException).code === 'EPERM'
-  }
-}
-
 export async function shutdownOwnedDaemonGracefully(
   pid: number,
   opts?: {
@@ -79,7 +71,7 @@ export async function shutdownOwnedDaemonGracefully(
     waitMs?: number
   },
 ): Promise<'settled' | 'unsettled' | 'asked'> {
-  const alive = opts?.alive ?? daemonAlive
+  const alive = opts?.alive ?? pidAlive
   const waitMs = opts?.waitMs ?? DAEMON_GRACEFUL_WAIT_MS
   const rpc =
     opts?.rpc ??
@@ -130,7 +122,7 @@ function reapDaemonOnSessionExit(pid: number): void {
     let answered = false
     const askToShutDown = (): Promise<void> => {
       if (asking) return asking
-      if (!daemonAlive(pid)) return Promise.resolve()
+      if (!pidAlive(pid)) return Promise.resolve()
       if (anotherLiveCockpitHoldsDaemon(process.pid)) return Promise.resolve()
       gracefulAsked = true
       asking = shutdownOwnedDaemonGracefully(pid).then(outcome => {
@@ -153,7 +145,7 @@ function reapDaemonOnSessionExit(pid: number): void {
     const verdict = decideDaemonReap({
       platform: process.platform,
       gracefulAsked,
-      stillAlive: daemonAlive(pid),
+      stillAlive: pidAlive(pid),
     })
     if (verdict === 'already-down' || verdict === 'asked') return
     try {

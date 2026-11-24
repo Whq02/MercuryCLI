@@ -1,6 +1,7 @@
 import { execFileSync, spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { subprocessEnv } from '../processes/subprocessEnv.js'
+import { pidAlive } from '../processes/pidAlive.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { heldFileRetryDelayMs, isHeldFileErrnoCode } from '../host-os/files.js'
 import {
@@ -291,15 +292,6 @@ export function restoreCurrent(roots: LayoutRoots, version: string): void {
 
 
 export type LockResult = { state: 'acquired' } | { state: 'held'; byPid: number | null }
-
-function pidAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (error) {
-    return (error as NodeJS.ErrnoException).code === 'EPERM'
-  }
-}
 
 export function acquireUpdateLock(roots: LayoutRoots): LockResult {
   const lockDir = join(roots.versionsDir, '.update.lock')

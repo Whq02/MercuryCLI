@@ -8,6 +8,7 @@ import { pollUntil, withDeadline } from '../async/deadline.js'
 import { passedOver } from '../errors/passedOver.js'
 import { hostEnv } from '../environment/hostEnv.js'
 import { processTreeEndMethod } from '../host-os/processes.js'
+import { pidAlive } from './pidAlive.js'
 
 
 export type ProcessTreeKillReceipt = {
@@ -49,15 +50,6 @@ export function taskkillActedPids(stdout: string): number[] {
     if (Number.isInteger(pid) && pid > 1 && !acted.includes(pid)) acted.push(pid)
   }
   return acted
-}
-
-function isAlivePid(pid: number): boolean {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (error) {
-    return (error as NodeJS.ErrnoException).code === 'EPERM'
-  }
 }
 
 type PosixTableRow = { pid: number; ppid: number; pgid: number }
@@ -169,7 +161,7 @@ async function endPosixTree(pid: number, signal: NodeJS.Signals): Promise<Proces
   const table = await listPosixProcessTable()
   const own = table.find(row => row.pid === process.pid)
   if (own !== undefined) ownProcessGroup = own.pgid
-  if (ownProcessGroup === pid || processStandsInTree(table, pid)) return { ended: 0, survivors: isAlivePid(pid) ? [pid] : [] }
+  if (ownProcessGroup === pid || processStandsInTree(table, pid)) return { ended: 0, survivors: pidAlive(pid) ? [pid] : [] }
   const rootRow = table.find(row => row.pid === pid)
   const groupPgid = rootRow !== undefined && rootRow.pgid === pid ? pid : undefined
   const targets =
@@ -318,7 +310,7 @@ async function sweepMsysTree(
   let found = msysTreeRows(before, memory, rootWinpids)
   const struck: number[] = []
   for (let round = 0; round < MSYS_SWEEP_ROUNDS && memory.pids.size > 0; round++) {
-    const live = found.map(row => row.winpid).filter(winpid => !struck.includes(winpid) && isAlivePid(winpid))
+    const live = found.map(row => row.winpid).filter(winpid => !struck.includes(winpid) && pidAlive(winpid))
     if (live.length === 0) break
     const { file, args } = win32TaskkillSweepCommand(live)
     const [stdout, table] = await Promise.all([
@@ -344,7 +336,7 @@ export async function endMsysGroupBeside(spawnfile: string, pgid: number): Promi
   const live = (await readMsysTable(reader))
     .filter(row => row.pgid === pgid && row.winpid > 1 && row.winpid !== process.pid)
     .map(row => row.winpid)
-    .filter(isAlivePid)
+    .filter(pidAlive)
   if (live.length === 0) return []
   const { file, args } = win32TaskkillSweepCommand(live)
   const stdout = await new Promise<string>(resolve => {
@@ -421,7 +413,7 @@ function stillLeftBehind(table: readonly MsysProcessRow[], entry: LeftBehind): n
   if (!entry.members.some(([pid, winpid]) => group.some(row => row.pid === pid && row.winpid === winpid))) return []
   return msysTreeRows(table, { pids: new Set(group.map(row => row.pid)), groups: new Set([entry.pgid]) })
     .map(row => row.winpid)
-    .filter(winpid => winpid !== process.pid && isAlivePid(winpid))
+    .filter(winpid => winpid !== process.pid && pidAlive(winpid))
 }
 
 function endLeftBehindHereNow(): void {
@@ -535,7 +527,7 @@ export async function endProcessTree(
     } else {
       signalPid(pid, signal)
     }
-    return { ended: 0, survivors: isAlivePid(pid) ? [pid] : [] }
+    return { ended: 0, survivors: pidAlive(pid) ? [pid] : [] }
   }
 }
 
@@ -549,17 +541,17 @@ export async function endProcessTreeSurvivors(
   }
   const walked = await endProcessTree(rootPid, signal)
   await sleep(REAP_POLL_MS)
-  const still = survivors.filter(pid => isAlivePid(pid))
+  const still = survivors.filter(pid => pidAlive(pid))
   const ended = walked.ended + survivors.length - still.length
   return { ended, survivors: [...new Set([...walked.survivors, ...still])] }
 }
 
 async function reapRemainingPids(pids: readonly number[]): Promise<number[]> {
-  let remaining = pids.filter(isAlivePid)
+  let remaining = pids.filter(pidAlive)
   if (remaining.length === 0) return remaining
   return pollUntil(
     () => {
-      remaining = remaining.filter(isAlivePid)
+      remaining = remaining.filter(pidAlive)
       return remaining.length === 0 ? remaining : undefined
     },
     REAP_POLL_MS,

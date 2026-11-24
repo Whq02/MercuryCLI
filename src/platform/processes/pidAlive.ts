@@ -1,18 +1,14 @@
-import { getProcessStartTokenCachedOrRefresh } from '../../daemon/control/ownerWatch.js'
 import { passedOver } from '../errors/passedOver.js'
+import { isRecord } from '../primitives/isRecord.js'
 
-export function pidAlive(pid: number, startToken?: string): boolean {
+export function pidAlive(pid: number): boolean {
   try {
     process.kill(pid, 0)
+    return true
   } catch (error) {
-    const code = (error as NodeJS.ErrnoException | null)?.code
-    if (code === 'ESRCH') return false
-    if (code !== 'EPERM') {
-      passedOver(error)
-      return false
-    }
+    const code = isRecord(error) && typeof error.code === 'string' ? error.code : undefined
+    if (code === 'EPERM') return true
+    if (code !== 'ESRCH') passedOver(error)
+    return false
   }
-  if (!startToken) return true
-  const live = getProcessStartTokenCachedOrRefresh(pid, undefined, startToken)
-  return live === null || live === startToken
 }
