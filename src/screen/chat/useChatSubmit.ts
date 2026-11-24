@@ -177,6 +177,7 @@ export function useChatSubmitTools({ store, setAppState, addNotification, remove
 type SubmitTools = ReturnType<typeof useChatSubmitTools>;
 type SubmitArgs = {
   addNotification: ReturnType<typeof useNotifications>['addNotification'];
+  removeNotification: ReturnType<typeof useNotifications>['removeNotification'];
   setAppState: ReturnType<typeof useSetAppState>;
   setInputValue: (value: string) => void;
   setInputMode: (mode: InputMode) => void;
@@ -197,7 +198,7 @@ type SubmitArgs = {
   getFocusedSeatLive: () => SessionLiveV1;
 };
 
-export function useChatSubmit({ addNotification, setAppState, setInputValue, setInputMode, setPastedContents, authWallHold, repinToBottom, setToolJSX, toolJSX, getToolUseContext, paintScreenCommandReceipt, setSubmitCount, lastCompletedAt, commandsRef, isLoadingRef, dialogInFlightRef, armedHandedBackRef, queuedDialogCommandsRef, getFocusedSeatLive }: SubmitArgs) {
+export function useChatSubmit({ addNotification, removeNotification, setAppState, setInputValue, setInputMode, setPastedContents, authWallHold, repinToBottom, setToolJSX, toolJSX, getToolUseContext, paintScreenCommandReceipt, setSubmitCount, lastCompletedAt, commandsRef, isLoadingRef, dialogInFlightRef, armedHandedBackRef, queuedDialogCommandsRef, getFocusedSeatLive }: SubmitArgs) {
   const drainQueuedDialogCommand = useCallback((): void => {
     const next = queuedDialogCommandsRef.current.shift();
     if (next === undefined) return;
@@ -208,7 +209,7 @@ export function useChatSubmit({ addNotification, setAppState, setInputValue, set
     const text = input.trim();
     if (text === '') return;
     submitTrace('repl-onSubmit', input, { fromKeybinding: options?.fromKeybinding === true, speculation: false, guardActive: isLoadingRef.current });
-    const deps: SubmitDeps = { addNotification, setAppState, setInputValue, setInputMode, setPastedContents, authWallHold, repinToBottom, setToolJSX, getToolUseContext, paintScreenCommandReceipt, setSubmitCount, commandsRef, isLoadingRef, dialogInFlightRef, armedHandedBackRef, queuedDialogCommandsRef, getFocusedSeatLive, drainQueuedDialogCommand, onSubmitRef };
+    const deps: SubmitDeps = { addNotification, removeNotification, setAppState, setInputValue, setInputMode, setPastedContents, authWallHold, repinToBottom, setToolJSX, getToolUseContext, paintScreenCommandReceipt, setSubmitCount, commandsRef, isLoadingRef, dialogInFlightRef, armedHandedBackRef, queuedDialogCommandsRef, getFocusedSeatLive, drainQueuedDialogCommand, onSubmitRef };
     const line = readSubmitLine(deps, input, helpers, options, submittedAt, text);
     const { seatCommand } = line;
     if (refuseUnknownSlash(deps, line)) return;
@@ -245,7 +246,7 @@ export function useChatSubmit({ addNotification, setAppState, setInputValue, set
         failDialog(error);
       }
     }
-  }, [addNotification, authWallHold, drainQueuedDialogCommand, getToolUseContext, lastCompletedAt, paintScreenCommandReceipt, repinToBottom, setInputMode, setInputValue, setPastedContents, setToolJSX]);
+  }, [addNotification, removeNotification, authWallHold, drainQueuedDialogCommand, getToolUseContext, lastCompletedAt, paintScreenCommandReceipt, repinToBottom, setInputMode, setInputValue, setPastedContents, setToolJSX]);
   const onSubmitRef = useRef(onSubmit);
   onSubmitRef.current = onSubmit;
   usePublish(() => {
@@ -286,7 +287,8 @@ export function useChatSubmit({ addNotification, setAppState, setInputValue, set
         }
       }
       armedHandedBackRef.current = null;
+      removeNotification('landing-hold');
     })();
-  }, [armedMessage, landing, setAppState, addNotification]);
+  }, [armedMessage, landing, setAppState, addNotification, removeNotification]);
   return { onSubmit, onCancel, landing, armedMessage };
 }
