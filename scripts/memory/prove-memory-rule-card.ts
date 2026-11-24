@@ -160,7 +160,7 @@ function replDoor(answer: Answer, frame: string, seen: Seen) {
     cockpit.readAsks()
     const entry = cockpit.asks()[0]?.confirm
     const m: Mounted = await mountOffscreen(
-      wrap(h(PermissionRequest, { toolUseConfirm: entry, toolUseContext: entry?.toolUseContext, onDone: () => {}, onReject: () => {}, verbose: false, workerBadge: undefined } as never)),
+      wrap(h(PermissionRequest, { toolUseConfirm: entry, toolUseContext: entry?.toolUseContext, onDone: () => {}, onReject: () => {}, verbose: false } as never)),
       100,
       40,
     )

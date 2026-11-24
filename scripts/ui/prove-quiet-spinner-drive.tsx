@@ -143,7 +143,7 @@ if (child) {
     : child === 'waiting-on-crewmates' ? spin(frozen, { mode: 'requesting', waitingOnCrewmates: live.phase === 'waiting', compactWarning: false, overrideMessage: null })
     : child === 'crew-view' ? h(CrewView, { onClose: noop, popup: true })
     : child === 'reconnect' ? spin(reconnect, { overrideMessage: 'Parsing the dunes' })
-    : child === 'permission-ask' ? h(PermissionRequest, { toolUseConfirm: confirm, toolUseContext, onDone: noop, onReject: noop, verbose: false, workerBadge: { name: 'checks', color: 'blue' } } as never)
+    : child === 'permission-ask' ? h(PermissionRequest, { toolUseConfirm: confirm, toolUseContext, onDone: noop, onReject: noop, verbose: false } as never)
     : child === 'compaction' ? h(FoldStatusRow, { rows: [], conversationId: 'quiet-fixture' })
     : child === 'still' ? spin(prefill, { overrideMessage: 'compacting context', still: true })
     : child === 'streaming-hold' ? h(StreamingHoldRow, holdProps)

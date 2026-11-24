@@ -93,7 +93,7 @@ function contextOf(): { abortController: AbortController } {
 const assistant = { type: 'assistant', uuid: 'mcp-card-assistant', message: { id: 'msg_mcp_card', role: 'assistant', content: [] } } as never
 
 async function paint(confirm: Confirm, needle: string, frame: string): Promise<Card> {
-  const mounted = await mountOffscreen(wrap(h(PermissionRequest, { toolUseConfirm: confirm, toolUseContext: confirm.toolUseContext, onDone: () => {}, onReject: () => {}, verbose: false, workerBadge: undefined } as never)), 120, 30)
+  const mounted = await mountOffscreen(wrap(h(PermissionRequest, { toolUseConfirm: confirm, toolUseContext: confirm.toolUseContext, onDone: () => {}, onReject: () => {}, verbose: false } as never)), 120, 30)
   await waitFor(() => mounted.screen().includes(QUESTION), 6000)
   await settle(150)
   const lines = mounted.lines()

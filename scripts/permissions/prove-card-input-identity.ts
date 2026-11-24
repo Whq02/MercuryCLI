@@ -69,7 +69,7 @@ const toolUseContext = { options: {}, getAppState: () => getDefaultAppState(), s
 function props(tool: unknown, input: Record<string, unknown>, onAllow: (input: unknown, updates: Array<{ rules: Array<{ toolName: string; ruleContent?: string }> }>) => void) {
   return {
     toolUseConfirm: { tool, input, toolUseContext, toolUseID: 'identity', permissionResult: { behavior: 'ask', message: 'approval' }, onAllow, onReject() {}, onUserInteraction() {}, onAbort() {}, recheckPermission: async () => {} },
-    toolUseContext, onDone() {}, onReject() {}, verbose: false, workerBadge: undefined,
+    toolUseContext, onDone() {}, onReject() {}, verbose: false,
   } as never
 }
 try {

@@ -191,7 +191,6 @@ async function mountCard(
             cardRejected++
           },
           verbose: false,
-          workerBadge: undefined,
         }),
       ),
     ),

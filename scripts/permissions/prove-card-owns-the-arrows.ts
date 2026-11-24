@@ -70,7 +70,7 @@ async function cardUp(name: string, input: Record<string, unknown>, mouseTrackin
     permissionPromptStartTimeMs: Date.now(), onAllow: () => {}, onReject: () => {}, onAbort: () => {}, onUserInteraction: () => {}, recheckPermission: async () => {},
   }
   const view = await mountOffscreen(
-    h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(KeybindingSetup, null, h(Painter), h(PermissionRequest, { toolUseConfirm: confirm, toolUseContext: context, onDone: () => {}, onReject: () => {}, verbose: false, workerBadge: undefined } as never))),
+    h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(KeybindingSetup, null, h(Painter), h(PermissionRequest, { toolUseConfirm: confirm, toolUseContext: context, onDone: () => {}, onReject: () => {}, verbose: false } as never))),
     110, 34, mouseTracking ? { mouseTracking: true } : undefined,
   )
   await waitFor(() => markOf(view) !== 0, 8_000)

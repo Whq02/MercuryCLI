@@ -29,7 +29,7 @@ for (const [name, emulation] of Object.entries({ headers: { headers: { 'x-card':
     const context = { abortController: new AbortController(), getAppState: () => state.getState(), setAppState: () => {}, messages: [], options: {} }
     let writes: unknown[] = []
     const confirm = { assistantMessage: { message: { id: 'card' } }, tool: BrowserTool, description: decision.message, input, toolUseContext: context, toolUseID: 'card', permissionResult: decision, permissionPromptStartTimeMs: 0, onUserInteraction() {}, onAbort() {}, onAllow(_input: unknown, rules: unknown[]) { writes = rules }, onReject() {}, recheckPermission: async () => {} }
-    const node = React.createElement(BrowserPermissionRequest, { toolUseConfirm: confirm as never, toolUseContext: context as never, onDone() {}, onReject() {}, verbose: false, workerBadge: undefined })
+    const node = React.createElement(BrowserPermissionRequest, { toolUseConfirm: confirm as never, toolUseContext: context as never, onDone() {}, onReject() {}, verbose: false })
     const frame = await renderToString(React.createElement(AppStoreContext.Provider, { value: state as never }, node), columns)
     console.log(`\n${name} at ${columns} columns\n${frame}`)
     const words = frame.split('\n').map(line => line.replace(/^[│\s]+/, '').replace(/[│\s]+$/, '')).join(' ').replace(/\s+/g, ' ')

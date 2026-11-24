@@ -76,7 +76,7 @@ async function cardUp(columns: number, rows: number): Promise<Card> {
       scrollRef, dividerYRef, hidePill: false, newMessageCount: 0, onPillClick: () => {},
       scrollable: h(Box, { flexDirection: 'column' }, ...CONVERSATION.map((row, index) => h(Text, { key: index }, row === '' ? ' ' : row))),
       statusBand: h(Text, null, 'activity specimen'), statusBandActive: false,
-      overlay: up ? h(Box, { flexDirection: 'column' }, h(PermissionRequest, { toolUseConfirm: confirm, toolUseContext: context, onDone: () => {}, onReject: () => {}, verbose: false, workerBadge: undefined } as never)) : null,
+      overlay: up ? h(Box, { flexDirection: 'column' }, h(PermissionRequest, { toolUseConfirm: confirm, toolUseContext: context, onDone: () => {}, onReject: () => {}, verbose: false } as never)) : null,
       bottom: h(Text, null, ' the status row'),
     } as never))
   }

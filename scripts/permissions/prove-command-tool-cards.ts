@@ -96,7 +96,7 @@ async function cardOf(tool: AnyTool, input: Record<string, unknown>, rules: Rule
   }
   const view: Mounted = await mountOffscreen(
     h(AppStateProvider, null, h(ThemeProvider, null, h(KeybindingSetup, null, h(Box, { width: 110, height: 34, flexDirection: 'column' },
-      h(PermissionRequest, { toolUseConfirm, toolUseContext: context, onDone: () => {}, onReject: () => {}, verbose: false, workerBadge: undefined } as never))))),
+      h(PermissionRequest, { toolUseConfirm, toolUseContext: context, onDone: () => {}, onReject: () => {}, verbose: false } as never))))),
     110, 34,
   )
   try {
@@ -210,7 +210,7 @@ section('a tool that starts no program keeps the fallback card as it was')
     onUserInteraction: () => {}, onAbort: () => {}, onAllow: (_input: unknown, updates: unknown[]) => { second.allowed = updates }, onReject: () => { second.rejected = true }, recheckPermission: async () => {},
   }
   void appState
-  const view = await mountOffscreen(h(AppStateProvider, null, h(ThemeProvider, null, h(KeybindingSetup, null, h(Box, { width: 110, height: 34, flexDirection: 'column' }, h(PermissionRequest, { toolUseConfirm, toolUseContext: context, onDone: () => {}, onReject: () => {}, verbose: false, workerBadge: undefined } as never))))), 110, 34)
+  const view = await mountOffscreen(h(AppStateProvider, null, h(ThemeProvider, null, h(KeybindingSetup, null, h(Box, { width: 110, height: 34, flexDirection: 'column' }, h(PermissionRequest, { toolUseConfirm, toolUseContext: context, onDone: () => {}, onReject: () => {}, verbose: false } as never))))), 110, 34)
   try {
     await waitFor(() => view.lines().some(line => /❯ 1\. /.test(line)), 8_000)
     await settle(300)

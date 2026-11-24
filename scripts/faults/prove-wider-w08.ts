@@ -114,7 +114,6 @@ async function w08_1_sedUncompilablePatternFallsBackToRealSed(): Promise<void> {
         onDone() {},
         onReject() {},
         verbose: false,
-        workerBadge: undefined,
         sedEditInfo: badInfo,
       })
       const tree = React.createElement(

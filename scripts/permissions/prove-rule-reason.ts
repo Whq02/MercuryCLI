@@ -395,7 +395,7 @@ section('§7 THE CONSENT CARD — one line under the rule, the hint below it; no
     recheckPermission: async () => {},
   }
   const card = await mount(
-    React.createElement(FallbackPermissionRequest, { toolUseConfirm: toolUseConfirm as never, toolUseContext: toolUseContext as never, onDone() {}, onReject() {}, verbose: true, workerBadge: undefined }),
+    React.createElement(FallbackPermissionRequest, { toolUseConfirm: toolUseConfirm as never, toolUseContext: toolUseContext as never, onDone() {}, onReject() {}, verbose: true }),
     cardContext,
   )
   const cardFrame = card.frame()

@@ -68,7 +68,7 @@ function cardOf(name: string, input: Record<string, unknown>, answers: Answers):
     permissionResult: { behavior: 'ask', message: `Mercury wants to use ${name}` }, assistantMessage: { type: 'assistant', uuid: 'card-assistant', message: { id: 'msg_card', role: 'assistant', content: [] } },
     permissionPromptStartTimeMs: Date.now(), onAllow: (...args: unknown[]) => { answers.allowed.push(args) }, onReject: () => { answers.rejected++ }, onAbort: () => {}, onUserInteraction: () => {}, recheckPermission: async () => {},
   }
-  return h(PermissionRequest, { toolUseConfirm: confirm, toolUseContext: context, onDone: () => { answers.done++ }, onReject: () => {}, verbose: false, workerBadge: undefined } as never)
+  return h(PermissionRequest, { toolUseConfirm: confirm, toolUseContext: context, onDone: () => { answers.done++ }, onReject: () => {}, verbose: false } as never)
 }
 async function stage(): Promise<Mounted> {
   _resetInterviewForProofs()

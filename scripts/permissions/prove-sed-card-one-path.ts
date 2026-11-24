@@ -144,7 +144,7 @@ async function approveCard(command: string, beforeApprove?: () => void): Promise
   const stdout = Object.assign(stream, { columns, rows: 40 }) as unknown as NodeJS.WriteStream
   const store = createStore({ ...getDefaultAppState(), toolPermissionContext: getEmptyToolPermissionContext() })
   const stdinValue = { stdin, setRawMode() {}, isRawModeSupported: true, internal_exitOnCtrlC: false, internal_eventEmitter: emitter, internal_querier: null }
-  const node = React.createElement(BashPermissionRequest, { toolUseConfirm: toolUseConfirm as never, toolUseContext: toolUseContext as never, onDone() {}, onReject() {}, verbose: false, workerBadge: undefined })
+  const node = React.createElement(BashPermissionRequest, { toolUseConfirm: toolUseConfirm as never, toolUseContext: toolUseContext as never, onDone() {}, onReject() {}, verbose: false })
   const tree = React.createElement(
     StdinContext.Provider,
     { value: stdinValue as never },

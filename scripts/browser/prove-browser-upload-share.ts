@@ -68,7 +68,7 @@ async function cardOf(input: Record<string, unknown>, decision: Decision, column
   const state = createStore(getDefaultAppState())
   const context = { abortController: new AbortController(), getAppState: () => state.getState(), setAppState: () => {}, messages: [], options: {} }
   const confirm = { assistantMessage: { message: { id: 'card' } }, tool: BrowserTool, description: await BrowserTool.description(), input, toolUseContext: context, toolUseID: 'card', permissionResult: decision, permissionPromptStartTimeMs: 0, onUserInteraction() {}, onAbort() {}, onAllow() {}, onReject() {}, recheckPermission: async () => {} }
-  const node = React.createElement(BrowserPermissionRequest, { toolUseConfirm: confirm as never, toolUseContext: context as never, onDone() {}, onReject() {}, verbose: false, workerBadge: undefined })
+  const node = React.createElement(BrowserPermissionRequest, { toolUseConfirm: confirm as never, toolUseContext: context as never, onDone() {}, onReject() {}, verbose: false })
   const frame = await renderToString(React.createElement(AppStoreContext.Provider, { value: state as never }, node), columns)
   return frame.split('\n').map(line => line.replace(/^[│\s]+/, '').replace(/[│\s]+$/, '')).join(' ').replace(/\s+/g, ' ')
 }

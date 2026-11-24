@@ -156,7 +156,6 @@ try {
               cardRejected++
             },
             verbose: false,
-            workerBadge: undefined,
           }),
         ),
       ),
