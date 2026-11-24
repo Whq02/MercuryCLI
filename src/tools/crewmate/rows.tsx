@@ -24,7 +24,7 @@ import type { ApiUsage, ToolResultBlockParam } from '../../engine/message-shapes
 import { isRecord } from '../../platform/primitives/isRecord.js'
 import { renderModelName, getEngineModel } from '../../models/catalogue/engineModel.js'
 import { Markdown } from '../../screen/messages/Markdown.js'
-import { getAgentColor } from './crewmateColors.js'
+import { getAgentColor } from './agentColors.js'
 import { useNowTick } from '../../screen/widgets/components.js'
 import { useFocusedWorkRoster } from '../../screen/tasks/useFocusedWork.js'
 import {

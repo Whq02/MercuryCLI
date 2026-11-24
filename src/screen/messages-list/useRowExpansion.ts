@@ -1,6 +1,6 @@
 import { useCallback, useRef, useSyncExternalStore } from 'react'
 import type { NormalizedMessage, RenderableMessage } from '../../engine/message-shapes/message.js'
-import { CREWMATE_TOOL_NAME } from '../../tools/kit/names/agent.js'
+import { CREWMATE_TOOL_NAME } from '../../tools/kit/names/crewmate.js'
 import { hiddenCrewmateToolUses } from '../../tools/crewmate/rows.js'
 import { expandedRowsOf, subscribeExpandedRows, toggleExpandedRow } from '../messages/transcriptMemory.js'
 import { getToolUseID } from '../../engine/messages/lookups.js'

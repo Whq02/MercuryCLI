@@ -6,14 +6,14 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  const where = 'change the rung words in escRungOf/escRungHint (src/screen/composer/input-core/interruptArity.ts), the latch release in interruptLatchRelease (src/engine/connector/interruptLatch.ts), the row words in statusLine/escBackHint (src/screen/chat/SwitchboardTagBar.tsx), or the no-seat interrupt in noSessionConnector (src/engine/connector/noSessionConnector.ts)'
+  const where = 'change the rung words in escRungOf/escRungHint (src/screen/composer/input-core/escRung.ts), the latch release in interruptLatchRelease (src/engine/connector/interruptLatch.ts), the row words in statusLine/escBackHint (src/screen/chat/SwitchboardTagBar.tsx), or the no-seat interrupt in noSessionConnector (src/engine/connector/noSessionConnector.ts)'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}${where}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const arity = await import('../../src/screen/composer/input-core/interruptArity.ts')
+const arity = await import('../../src/screen/composer/input-core/escRung.ts')
 const latch = await import('../../src/engine/connector/interruptLatch.ts')
 const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
 const bar = await import('../../src/screen/chat/SwitchboardTagBar.tsx')

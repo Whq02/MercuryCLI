@@ -10,7 +10,7 @@ import { formatFileSize } from '../../../platform/text/format.js'
 import { logError } from '../../../platform/logs/errorLog.js'
 import { readFileInRange } from '../../../platform/files/readFileInRange.js'
 import type { FileState } from '../../../platform/files/fileStateCache.js'
-import { MAX_LINES_TO_READ } from '../../kit/names/fileRead.js'
+import { MAX_LINES_TO_READ } from '../../kit/names/read.js'
 import type { FileEditInput, FileEditOutput } from '../schema.js'
 import { passedOver, passedOverAs } from '../../../platform/errors/passedOver.js'
 

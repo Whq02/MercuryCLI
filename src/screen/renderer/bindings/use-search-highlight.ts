@@ -1,5 +1,5 @@
 import { useContext, useMemo } from 'react'
-import { ScreenInstanceContext } from '../elements/InkInstanceContext.js'
+import { ScreenInstanceContext } from '../elements/ScreenInstanceContext.js'
 import type { DOMElement } from '../dom.js'
 import type { MatchPosition } from '../matchPositions.js'
 

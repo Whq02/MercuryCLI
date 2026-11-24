@@ -217,7 +217,7 @@ reg(
     'src/screen/settings/config/ConfigViews.tsx',
     'src/screen/settings/config/useConfigKeys.ts',
     'src/screen/help/Commands.tsx',
-    'src/screen/help/HelpV2.tsx',
+    'src/screen/help/Help.tsx',
     'src/screen/settings/Jev.tsx',
     'src/screen/settings/LocalServer.tsx',
     'src/commands/llmhost/LlmHostDialog.tsx',

@@ -222,13 +222,13 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 }
 
 {
-  const { crewmateFanoutCap } = await import('../../src/tools/crewmate/subagentDoctrine.ts')
+  const { crewmateFanoutCap } = await import('../../src/tools/crewmate/crewmateDoctrine.ts')
   delete process.env.MERCURY_AGENT_FANOUT_CAP
-  t('fan-out cap unset ⇒ no mechanical cap', crewmateFanoutCap() === null, '', 'agentFanoutCap in src/tools/crewmate/subagentDoctrine.ts must return null when MERCURY_AGENT_FANOUT_CAP is unset')
+  t('fan-out cap unset ⇒ no mechanical cap', crewmateFanoutCap() === null, '', 'agentFanoutCap in src/tools/crewmate/crewmateDoctrine.ts must return null when MERCURY_AGENT_FANOUT_CAP is unset')
   process.env.MERCURY_AGENT_FANOUT_CAP = '3'
-  t('fan-out cap set ⇒ the integer', crewmateFanoutCap() === 3, '', 'agentFanoutCap in src/tools/crewmate/subagentDoctrine.ts must return the integer in MERCURY_AGENT_FANOUT_CAP')
+  t('fan-out cap set ⇒ the integer', crewmateFanoutCap() === 3, '', 'agentFanoutCap in src/tools/crewmate/crewmateDoctrine.ts must return the integer in MERCURY_AGENT_FANOUT_CAP')
   process.env.MERCURY_AGENT_FANOUT_CAP = 'lots'
-  t('junk ⇒ no cap', crewmateFanoutCap() === null, '', 'agentFanoutCap in src/tools/crewmate/subagentDoctrine.ts must return null when MERCURY_AGENT_FANOUT_CAP is not a number')
+  t('junk ⇒ no cap', crewmateFanoutCap() === null, '', 'agentFanoutCap in src/tools/crewmate/crewmateDoctrine.ts must return null when MERCURY_AGENT_FANOUT_CAP is not a number')
   delete process.env.MERCURY_AGENT_FANOUT_CAP
 }
 

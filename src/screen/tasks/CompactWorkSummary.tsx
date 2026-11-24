@@ -6,7 +6,7 @@ import { compactWorkSummaryText, useCompactWorkCounts } from './useFocusedWork.j
 import { stringWidth } from '../renderer/stringWidth.js'
 import { presentStripStops, stripKeyMapHintOf, subscribeSurfaceRoute } from '../routes/surfaceRoute.js'
 import { useEscapeOwned } from '../keys/useEscapeOwned.js'
-import { escRungHint, escRungOf, type EscRungV1 } from '../composer/input-core/interruptArity.js'
+import { escRungHint, escRungOf, type EscRungV1 } from '../composer/input-core/escRung.js'
 import {
   getFocusedSessionConnector,
   subscribeThroughFocused,

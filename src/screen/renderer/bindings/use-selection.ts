@@ -1,5 +1,5 @@
 import { useContext, useMemo, useSyncExternalStore } from 'react'
-import { ScreenInstanceContext } from '../elements/InkInstanceContext.js'
+import { ScreenInstanceContext } from '../elements/ScreenInstanceContext.js'
 import { type FocusMove, type SelectionState } from '../geometry/selection.js'
 import type ScreenInstance from '../screenInstance.js'
 

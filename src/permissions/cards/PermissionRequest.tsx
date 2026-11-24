@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { useContext } from 'react'
 import { useClaim } from '../../screen/effects/effects.js'
-import { ScreenInstanceContext } from '../../screen/renderer/elements/InkInstanceContext.js'
+import { ScreenInstanceContext } from '../../screen/renderer/elements/ScreenInstanceContext.js'
 import { useKeybinding } from '../../screen/keys/useKeybinding.js'
 import { armComposerSeed } from '../../screen/cockpit/composerSeed.js'
 import { armPermissionFocus } from '../rules/permissionFocus.js'

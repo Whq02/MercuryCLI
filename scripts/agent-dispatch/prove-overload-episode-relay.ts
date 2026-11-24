@@ -13,14 +13,14 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log('    fix: the episode, probe cadence and wording are in src/engine/tasks/local-agent/agentOverload.ts; the pause row is src/engine/tasks/local-agent/agentPause.ts; overloadPauseOf and the pause and eviction of a lane are in src/engine/tasks/local-agent/crewmateTask.tsx; armOverloadProbe and overloadBudgetCutOf are in src/tools/crewmate/crewmateLifecycle.ts; sweep eviction is src/engine/task-framework/taskRegistry.ts')
+  if (!cond) console.log('    fix: the episode, probe cadence and wording are in src/engine/tasks/local-agent/crewmateOverload.ts; the pause row is src/engine/tasks/local-agent/crewmatePause.ts; overloadPauseOf and the pause and eviction of a lane are in src/engine/tasks/local-agent/crewmateTask.tsx; armOverloadProbe and overloadBudgetCutOf are in src/tools/crewmate/crewmateLifecycle.ts; sweep eviction is src/engine/task-framework/taskRegistry.ts')
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const overload = await import('../../src/engine/tasks/local-agent/agentOverload.ts')
-const pause = await import('../../src/engine/tasks/local-agent/agentPause.ts')
+const overload = await import('../../src/engine/tasks/local-agent/crewmateOverload.ts')
+const pause = await import('../../src/engine/tasks/local-agent/crewmatePause.ts')
 const lane = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
 const { createAssistantAPIErrorMessage } = await import('../../src/engine/message-shapes/factories.ts')
 import type { Message } from '../../src/engine/message-shapes/message.ts'
@@ -77,7 +77,7 @@ section('§4 the words: calm, one spelling')
 {
   const words = overload.overloadPauseWords('Fable 5.1', 1)
   const line = overload.overloadNoticeWords('lane', 'Fable 5.1', 1)
-  const row: import('../../src/engine/tasks/local-agent/agentPause.ts').CrewmatePauseV1 = { why: 'provider overloaded', words }
+  const row: import('../../src/engine/tasks/local-agent/crewmatePause.ts').CrewmatePauseV1 = { why: 'provider overloaded', words }
   check("the row's status cell", pause.pauseStatusWords(row, 0) === 'paused — provider overloaded · resumes by itself when the provider answers', pause.pauseStatusWords(row, 0))
   check('the pause decodes off the wire with its new reason', pause.decodeCrewmatePause({ why: 'provider overloaded', words }) !== null && pause.decodeCrewmatePause({ why: 'provider jammed', words }) === null)
   check("the parent's line names the pause, the provider, the kept work and the probing, and shouts no error", line === 'Crewmate "lane" paused — Fable 5.1 is overloaded (HTTP 529); its work so far is kept and rides below; Mercury probes the provider for up to 1h and resumes the crewmate by itself when it answers — a message resumes it sooner; the crew view stops it' && !/error|failed/i.test(line.replace('HTTP 529', '')), line)

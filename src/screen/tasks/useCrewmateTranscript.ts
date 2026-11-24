@@ -6,7 +6,7 @@ import { getFocusedSessionConnector } from '../../engine/connector/focusedConnec
 import { crewmateQueuedRows, crewmateQueueSize, crewmateQueueVersion, pruneLandedCrewmateLines, subscribeCrewmateQueue } from './crewmateQueue.js'
 import { isCrewmateTask } from '../../engine/tasks/local-agent/crewmateTask.js'
 import type { TaskState } from '../../engine/tasks/taskState.js'
-import { crewmateTranscriptFileIn, resolveCrewmateTranscriptFile } from '../../crew/crewmates/agentTranscriptReader.js'
+import { crewmateTranscriptFileIn, resolveCrewmateTranscriptFile } from '../../crew/crewmates/crewmateTranscriptReader.js'
 import { asAgentId } from '../../sessions/transcripts/ids.js'
 import type { Message } from '../../engine/message-shapes/message.js'
 import { loadTranscriptFile } from '../../sessions/transcripts/loading.js'

@@ -14,7 +14,7 @@ import type { useChatAsksCard } from './useChatAsks.js';
 import type { useChatDialogPaints, useChatDialogs, useChatDialogsView } from './useChatDialogs.js';
 import type { useChatScroll, useChatScrollPin } from './useChatScroll.js';
 import { TranscriptFooter, type useChatSearch } from './useChatSearch.js';
-import type { useChatRewindPickerView } from './useChatSelector.js';
+import type { useChatRewindPickerView } from './useChatRewindPicker.js';
 import type { useChatStatusStrip } from './useChatStatus.js';
 import { AnimatedTitle, type useChatTitle } from './useChatTitle.js';
 import type { useChatTools } from './useChatTools.js';

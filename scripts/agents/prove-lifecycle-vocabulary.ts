@@ -47,11 +47,11 @@ section('§B the reconciliation — Mercury keeps aborted revivable', 'to fix: t
 }
 
 
-section('§E the transcript\'s own end — one fact for every verb once the registry row is gone', 'to fix: the end derivation in readAgentTranscript and transcriptEndWords in src/crew/crewmates/agentTranscriptReader.ts')
+section('§E the transcript\'s own end — one fact for every verb once the registry row is gone', 'to fix: the end derivation in readAgentTranscript and transcriptEndWords in src/crew/crewmates/crewmateTranscriptReader.ts')
 {
   const { mkdtempSync, writeFileSync, rmSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
-  const { readCrewmateTranscript, transcriptEndWords } = await import('../../src/crew/crewmates/agentTranscriptReader.ts')
+  const { readCrewmateTranscript, transcriptEndWords } = await import('../../src/crew/crewmates/crewmateTranscriptReader.ts')
   const { INTERRUPT_MESSAGE, turnCutLine } = await import('../../src/engine/message-shapes/rejectionText.ts')
   const dir = mkdtempSync(join(tmpdir(), 'lifecycle-end-'))
   const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.ts')

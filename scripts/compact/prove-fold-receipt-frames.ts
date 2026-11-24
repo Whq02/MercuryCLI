@@ -10,7 +10,7 @@ const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 const { render, Box, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
 const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
-const { FoldBoundaryMessage } = await import('../../src/screen/messages/CompactBoundaryMessage.js')
+const { FoldBoundaryMessage } = await import('../../src/screen/messages/FoldBoundaryMessage.js')
 const { SystemTextMessage } = await import('../../src/screen/messages/SystemTextMessage.js')
 const { createSystemMessage } = await import('../../src/engine/message-shapes/systemMessages.js')
 const { overflowRecoveryNotice } = await import('../../src/engine/compaction/overflowRecovery.js')
@@ -21,7 +21,7 @@ import type { FoldMetadata } from '../../src/engine/message-shapes/message.js'
 let failures = 0
 function check(label: string, pass: boolean, detail = ''): void {
   if (!pass) failures++
-  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass ? `${detail ? ` — ${detail}` : ''} (receipt wording comes from src/engine/compaction/foldReceipt.ts, the row layout from src/screen/messages/CompactBoundaryMessage.tsx, and the emergency prune notice from overflowRecoveryNotice in src/engine/compaction/overflowRecovery.ts; change the one that owns the missing or extra words)` : ''}`)
+  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass ? `${detail ? ` — ${detail}` : ''} (receipt wording comes from src/engine/compaction/foldReceipt.ts, the row layout from src/screen/messages/FoldBoundaryMessage.tsx, and the emergency prune notice from overflowRecoveryNotice in src/engine/compaction/overflowRecovery.ts; change the one that owns the missing or extra words)` : ''}`)
 }
 const arg = (name: string): string | undefined => {
   const index = process.argv.indexOf(name)

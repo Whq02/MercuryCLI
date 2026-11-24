@@ -15,7 +15,7 @@ const RESTORE_OWNER = 'restorePreservedReads in src/engine/compaction/fold/foldA
 const compact = await import(join(SRC, 'engine/compaction/foldConversation.ts'))
 const { createFileStateCacheWithSizeLimit } = await import(join(SRC, 'platform/files/fileStateCache.ts'))
 const { createAssistantMessage, createUserMessage } = await import(join(SRC, 'engine/messages/messages.ts'))
-const { FILE_UNCHANGED_STUB } = await import(join(SRC, 'tools/kit/names/fileRead.ts'))
+const { FILE_UNCHANGED_STUB } = await import(join(SRC, 'tools/kit/names/read.ts'))
 
 type Entry = { content: string; timestamp: number; offset: number | undefined; limit: number | undefined }
 const restore = compact.restorePreservedReads as

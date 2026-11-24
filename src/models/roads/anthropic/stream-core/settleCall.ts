@@ -1,6 +1,6 @@
 import { setLastMainRequestId } from 'src/boot/process-state/processState.js'
 import { addToTotalSessionCost } from 'src/models/usage/sessionCost.js'
-import { getCrewmateContext } from 'src/crew/agents/agentContext.js'
+import { getCrewmateContext } from 'src/crew/agents/crewmateContext.js'
 import { calculateUSDCost } from 'src/models/usage/modelCost.js'
 import { stopSessionActivity } from '../../../../engine/requests/sessionActivity.js'
 import { clearModelRefusal } from '../modelRefusal.js'

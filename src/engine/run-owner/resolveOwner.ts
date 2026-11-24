@@ -1,6 +1,6 @@
 
 import { getOriginalCwd, getSessionId } from '../../boot/process-state/processState.js'
-import { getCrewmateContext } from '../../crew/agents/agentContext.js'
+import { getCrewmateContext } from '../../crew/agents/crewmateContext.js'
 import {
   agentLane,
   MAIN_LANE,

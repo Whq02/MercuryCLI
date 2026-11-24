@@ -1,4 +1,4 @@
-import { pauseClockWords, pauseCountdownWords } from '../../engine/tasks/local-agent/agentPause.js'
+import { pauseClockWords, pauseCountdownWords } from '../../engine/tasks/local-agent/crewmatePause.js'
 
 export function askToRunWords(toolName: string): string {
   return `asks to run ${toolName} — allow?`

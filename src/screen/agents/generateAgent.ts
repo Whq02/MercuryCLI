@@ -1,6 +1,6 @@
 import { routedCallModelSettled } from '../../models/roads/callModelRouter.js'
 import { getEmptyToolPermissionContext } from '../../tools/kit/tool.js'
-import { CREWMATE_TOOL_NAME } from '../../tools/kit/names/agent.js'
+import { CREWMATE_TOOL_NAME } from '../../tools/kit/names/crewmate.js'
 import { getUserContext } from '../../engine/requestContext.js'
 import { isMnemeEnabled } from '../../sessions/mneme/paths.js'
 import { prependUserContext } from '../../engine/messages/apiSystemAndToolSchema.js'

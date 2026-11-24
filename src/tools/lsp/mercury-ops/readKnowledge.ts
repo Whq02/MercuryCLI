@@ -3,7 +3,7 @@ import { checkSeenLines, fileGeneration } from '../../engines/change-transaction
 import { type NormalizedFileEdits } from '../../../integrations/lsp/workspaceEditApply.js'
 import { ownerFromToolUseContext } from '../../../engine/run-owner/resolveOwner.js'
 import { getCheckedFileModificationTime } from '../../../platform/files/file.js'
-import { MAX_LINES_TO_READ } from '../../kit/names/fileRead.js'
+import { MAX_LINES_TO_READ } from '../../kit/names/read.js'
 import type { OpEnv } from './types.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
 

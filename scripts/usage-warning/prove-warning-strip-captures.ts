@@ -16,8 +16,8 @@ const ROOT = join(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 const VSHOT = join(ROOT, 'scripts', 'ui', 'vshot.py')
 const SENDS_HINT = 'a send never found its awaitText on screen; open the saved grid.json (set USAGE_WARNING_SHOT_DIR to keep it) and compare with the awaitText of that send in this file'
-const STRIP_HINT = 'the strip text is built in warningFacts and providerLimitWarningFacts in src/models/roads/limitWarning.ts; the notice is shown by src/screen/notifications/useRateLimitWarningNotification.tsx'
-const CLEAR_HINT = 'the notice should leave the screen after it shows; see src/screen/notifications/useRateLimitWarningNotification.tsx'
+const STRIP_HINT = 'the strip text is built in warningFacts and providerLimitWarningFacts in src/models/roads/limitWarning.ts; the notice is shown by src/screen/notifications/useRateLimitWarningNotice.tsx'
+const CLEAR_HINT = 'the notice should leave the screen after it shows; see src/screen/notifications/useRateLimitWarningNotice.tsx'
 if (!existsSync(DIST)) {
   console.log('  [SKIP] dist/mercury.mjs absent — build first (the gate prebuilds)')
   process.exit(0)

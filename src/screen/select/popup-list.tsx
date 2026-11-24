@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Box, Text, useInput } from '../themedRenderer.js'
-import { ScreenInstanceContext } from '../renderer/elements/InkInstanceContext.js'
+import { ScreenInstanceContext } from '../renderer/elements/ScreenInstanceContext.js'
 import type { DOMElement } from '../themedRenderer.js'
 import type { ScrollBoxHandle } from '../renderer/elements/ScrollBox.js'
 import type { Key } from '../renderer/events/input-event.js'

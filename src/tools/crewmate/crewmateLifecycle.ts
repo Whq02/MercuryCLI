@@ -51,7 +51,7 @@ import { recoveryBudgetMs, recoveryBudgetSpentFactsOf } from '../../engine/reque
 import { getMarketingNameForModel } from '../../models/catalogue/engineModel.js'
 import { clearInvokedSkillsForAgent, getCwdState } from '../../boot/process-state/processState.js'
 import { runWithCwdOverride } from '../../platform/files/cwd.js'
-import { pauseResumeWords, type CrewmatePauseV1 } from '../../engine/tasks/local-agent/agentPause.js'
+import { pauseResumeWords, type CrewmatePauseV1 } from '../../engine/tasks/local-agent/crewmatePause.js'
 import { crewmatePauseRecordPath, clearCrewmatePauseRecord, writeCrewmatePauseRecord } from '../../engine/tasks/local-agent/pauseCarry.js'
 import { CREW_ACCOUNT_RESUME_NOTE, crewAccountResumeSummary, subscribeCrewAccountChange } from '../../crew/crewmates/crewAccountChange.js'
 import {
@@ -64,12 +64,12 @@ import {
   overloadPauseWords,
   overloadProbeRequestMs,
   type OverloadEpisode,
-} from '../../engine/tasks/local-agent/agentOverload.js'
+} from '../../engine/tasks/local-agent/crewmateOverload.js'
 import { createUserMessage } from '../../engine/messages/messages.js'
 import { asSystemPrompt } from '../../engine/system-prompt/systemPromptType.js'
 import { getEmptyToolPermissionContext } from '../kit/tool.js'
-import { EDIT_TOOL_NAME } from '../kit/names/fileEdit.js'
-import { WRITE_TOOL_NAME } from '../kit/names/fileWrite.js'
+import { EDIT_TOOL_NAME } from '../kit/names/edit.js'
+import { WRITE_TOOL_NAME } from '../kit/names/write.js'
 import { NOTEBOOK_EDIT_TOOL_NAME } from '../notebook-edit/constants.js'
 import { JEV_TOOL_NAME } from '../../models/jev/jevContract.js'
 import { readJevSettings } from '../../models/jev/jevSetting.js'
@@ -81,10 +81,10 @@ import {
 } from '../../engine/messages/messages.js'
 import { isSyntheticApiErrorMessage } from '../../engine/message-shapes/factories.js'
 import { emitTaskProgress as emitSdkTaskProgress } from '../../engine/task-framework/sdkProgress.js'
-import { emitBackgroundCrewmateRows } from '../../engine/task-framework/sdkAgentFrames.js'
+import { emitBackgroundCrewmateRows } from '../../engine/task-framework/sdkCrewmateFrames.js'
 import { permissionRuleValueFromString } from '../../permissions/rules/permissionRuleParser.js'
 import type { CanUseToolFn } from '../kit/tool.js'
-import { CREWMATE_TOOL_NAME, MERCURY_SCOUT_AGENT_TYPE } from '../kit/names/agent.js'
+import { CREWMATE_TOOL_NAME, MERCURY_SCOUT_AGENT_TYPE } from '../kit/names/crewmate.js'
 import { STRUCTURED_TAG } from '../../engine/message-shapes/messageTags.js'
 import type { AgentDefinition } from '../../crew/agents/agentDefinition.js'
 import { passedOver } from '../../platform/errors/passedOver.js'

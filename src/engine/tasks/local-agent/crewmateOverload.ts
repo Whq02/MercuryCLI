@@ -1,5 +1,5 @@
 import { flagEnv } from '../../../platform/substrate/flagRegistry.js'
-import { pauseCountdownWords } from './agentPause.js'
+import { pauseCountdownWords } from './crewmatePause.js'
 
 const OVERLOAD_PROBE_FIRST_MS = 30_000
 const OVERLOAD_PROBE_EARLY_MS = 60_000

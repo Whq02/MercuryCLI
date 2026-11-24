@@ -26,7 +26,7 @@ globalThis.fetch = Object.assign(async () => { networkCalls++; throw new Error('
 const React = await import('react')
 const { Box, Text, useInput } = await import('../../src/screen/themedRenderer.ts')
 const { default: ScrollBox } = await import('../../src/screen/renderer/elements/ScrollBox.tsx')
-const { ScreenInstanceContext } = await import('../../src/screen/renderer/elements/InkInstanceContext.ts')
+const { ScreenInstanceContext } = await import('../../src/screen/renderer/elements/ScreenInstanceContext.ts')
 const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
 const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')

@@ -11,7 +11,7 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.NODE_ENV = 'test'
 
 let failures = 0
-const failureHint = 'Change StructuredOutputTool or getSchemaBoundStructuredOutputTool in src/tools/structured-output/SyntheticOutputTool.ts so it does what this label says.'
+const failureHint = 'Change StructuredOutputTool or getSchemaBoundStructuredOutputTool in src/tools/structured-output/StructuredOutputTool.ts so it does what this label says.'
 const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + (detail ? detail + ' ' : '') + failureHint : ''}`)
   if (!ok) failures++
@@ -20,7 +20,7 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 const j = (v: unknown): string => JSON.stringify(v)
 
 await import('../../src/tools/kit/toolList.js')
-const { StructuredOutputTool, getSchemaBoundStructuredOutputTool, isStructuredOutputToolEnabled, STRUCTURED_OUTPUT_TOOL_NAME } = await import('../../src/tools/structured-output/SyntheticOutputTool.js')
+const { StructuredOutputTool, getSchemaBoundStructuredOutputTool, isStructuredOutputToolEnabled, STRUCTURED_OUTPUT_TOOL_NAME } = await import('../../src/tools/structured-output/StructuredOutputTool.js')
 type Bound = { tool: { call: (input: unknown, context: unknown) => Promise<{ data: string; structured_output: unknown }>; inputJSONSchema?: unknown; name: string } } | { error: string }
 type Row = { props?: { color?: string; children?: unknown } }
 

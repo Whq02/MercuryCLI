@@ -12,7 +12,7 @@ import {
 import { hasSeatLive, IDLE_LIVE, type SeatStatusV1, type SessionLiveV1 } from '../../engine/connector/seatLive.js'
 import type { RunnerStateFactV1 } from '../../engine/connector/seatProjections.js'
 import type { SampleRowV1, WorkRowV1 } from '../../engine/connector/types.js'
-import { escRungHint, escRungOf } from '../composer/input-core/interruptArity.js'
+import { escRungHint, escRungOf } from '../composer/input-core/escRung.js'
 import { SEND_NOW_HINT } from '../composer/input-core/sendNowChord.js'
 import { crewmatesOf, crewWaitingWords } from '../../engine/connector/crewFacts.js'
 import { withSampleWords, workWaitingWords } from '../../engine/connector/workCounts.js'

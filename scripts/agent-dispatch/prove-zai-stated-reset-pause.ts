@@ -15,8 +15,8 @@ let checks = 0
 const statedResetWhere: Record<string, string> = {
   '1': 'change zaiStatedResetWaitMs in src/models/roads/zai/zaiClient.ts',
   '2': 'change mapZaiHttpFailure in src/models/roads/zai/zaiClient.ts or providerWaitIsWindow in src/engine/requests/recoveryBudget.ts',
-  '3': 'change usageWindowPauseOf in src/engine/tasks/local-agent/crewmateTask.tsx or pauseResumeWords and pauseStatusWords in src/engine/tasks/local-agent/agentPause.ts',
-  '4': 'change usageWindowPauseOf in src/engine/tasks/local-agent/crewmateTask.tsx or pauseResumeWords in src/engine/tasks/local-agent/agentPause.ts',
+  '3': 'change usageWindowPauseOf in src/engine/tasks/local-agent/crewmateTask.tsx or pauseResumeWords and pauseStatusWords in src/engine/tasks/local-agent/crewmatePause.ts',
+  '4': 'change usageWindowPauseOf in src/engine/tasks/local-agent/crewmateTask.tsx or pauseResumeWords in src/engine/tasks/local-agent/crewmatePause.ts',
 }
 let statedResetHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -32,7 +32,7 @@ function section(t: string): void {
 const zai = await import('../../src/models/roads/zai/zaiClient.ts')
 const { compatFaultToTypedError } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
 const { providerWaitIsWindow, stampProviderWait } = await import('../../src/engine/requests/recoveryBudget.ts')
-const pause = await import('../../src/engine/tasks/local-agent/agentPause.ts')
+const pause = await import('../../src/engine/tasks/local-agent/crewmatePause.ts')
 const lane = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
 const { createAssistantAPIErrorMessage } = await import('../../src/engine/message-shapes/factories.ts')
 import type { Message } from '../../src/engine/message-shapes/message.ts'

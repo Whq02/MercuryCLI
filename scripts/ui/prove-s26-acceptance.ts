@@ -5,7 +5,7 @@ import { join } from 'node:path'
 process.env.NODE_ENV = 'test'
 
 import { hunkPatchText } from '../../src/screen/diff/DiffDialog.js'
-import { getRelativeInstructionFilePath } from '../../src/screen/memory/MemoryUpdateNotification.js'
+import { getRelativeInstructionFilePath } from '../../src/screen/memory/instructionFilePath.js'
 import {
   NULL_RENDERING_ATTACHMENT_TYPES,
   isNullRenderingAttachment,
@@ -16,7 +16,7 @@ let passes = 0
 let s26SectionName = ''
 function s26Where(): string {
   if (s26SectionName === 'hunk patch grammar') return 'change hunkPatchText in src/screen/diff/DiffDialog.tsx'
-  if (s26SectionName === 'memory path helper') return 'change getRelativeInstructionFilePath in src/screen/memory/MemoryUpdateNotification.tsx'
+  if (s26SectionName === 'memory path helper') return 'change getRelativeInstructionFilePath in src/screen/memory/instructionFilePath.ts'
   return 'change NULL_RENDERING_ATTACHMENT_TYPES or isNullRenderingAttachment in src/screen/messages/nullRenderingAttachments.ts'
 }
 function check(label: string, cond: boolean, detail = ''): void {

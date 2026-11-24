@@ -550,7 +550,7 @@ if (ONLY.has('4')) {
   const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
   const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
   const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
-  const { Help } = await import('../../src/screen/help/HelpV2.tsx')
+  const { Help } = await import('../../src/screen/help/Help.tsx')
   const { default: Composer } = await import('../../src/screen/composer/Composer.tsx')
   const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
   const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')

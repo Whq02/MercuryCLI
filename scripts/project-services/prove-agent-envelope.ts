@@ -304,14 +304,14 @@ section('A. the async completion notification')
 section('D. doctrine splice')
 {
   const { buildCrewmateMercurySections } = await import(
-    '../../src/tools/crewmate/subagentDoctrine.ts'
+    '../../src/tools/crewmate/crewmateDoctrine.ts'
   )
   const sections = buildCrewmateMercurySections({
     agentDefinition: { agentType: 'mercury-crew' } as never,
   })
   check('D1 the envelope doctrine reaches spawned agents',
     sections.some(s => s.includes('mercury-envelope')),
-    'buildSubagentMercurySections in src/tools/crewmate/subagentDoctrine.ts must add ENVELOPE_DOCTRINE while change receipts are on')
+    'buildSubagentMercurySections in src/tools/crewmate/crewmateDoctrine.ts must add ENVELOPE_DOCTRINE while change receipts are on')
   check('D2 the doctrine text is the contracts export, and it ends on the fields (the cross-check claim rides the seat contract, not the envelope)', ENVELOPE_DOCTRINE.endsWith('(names of verification commands you actually ran).') && !ENVELOPE_DOCTRINE.includes('cross-checked') && sections.some(s => s === ENVELOPE_DOCTRINE),
     'ENVELOPE_DOCTRINE in src/crew/agent-results/contracts.ts must end on the fields and buildSubagentMercurySections must splice it unchanged')
 
@@ -321,7 +321,7 @@ section('D. doctrine splice')
   })
   check('D3 gate OFF drops the doctrine (byte-identical prompts)',
     !off.some(s => s.includes('mercury-envelope')),
-    'buildSubagentMercurySections in src/tools/crewmate/subagentDoctrine.ts must drop the doctrine when MERCURY_CHANGE_RECEIPTS is 0')
+    'buildSubagentMercurySections in src/tools/crewmate/crewmateDoctrine.ts must drop the doctrine when MERCURY_CHANGE_RECEIPTS is 0')
   delete process.env.MERCURY_CHANGE_RECEIPTS
 }
 

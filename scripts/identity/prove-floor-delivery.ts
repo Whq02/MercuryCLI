@@ -15,7 +15,7 @@ const sectionHints: Record<string, string> = {
   '§2': 'change buildEffectiveSystemPrompt in src/engine/system-prompt/systemPrompt.ts',
   '§3': 'change getMercuryContractSections in src/engine/system-prompt/mercuryContract.ts',
   '§4': 'change composeSystemPrompt in src/engine/system-prompt/composer.ts or buildBehaviourContract and the renderers in src/engine/system-prompt/behaviourContract.ts',
-  '§5': 'change buildSubagentMercurySections in src/tools/crewmate/subagentDoctrine.ts',
+  '§5': 'change buildSubagentMercurySections in src/tools/crewmate/crewmateDoctrine.ts',
 }
 let currentSectionHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -187,7 +187,7 @@ section('§4 composer + renderers — position law, both wires')
 
 section('§5 subagent doctrine — the constitution LEADS every spawned child')
 {
-  const { buildCrewmateMercurySections } = await import('../../src/tools/crewmate/subagentDoctrine.ts')
+  const { buildCrewmateMercurySections } = await import('../../src/tools/crewmate/crewmateDoctrine.ts')
   const { MERCURY_SCOUT_AGENT } = await import('../../src/tools/crewmate/built-in/mercuryScoutAgent.ts')
 
   const normal = buildCrewmateMercurySections({ agentDefinition: { agentType: 'mercury-crew' } })

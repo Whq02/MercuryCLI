@@ -11,7 +11,7 @@ process.chdir(scratch)
 process.on('exit', () => rmSync(scratch, { recursive: true, force: true }))
 
 const { default: command, VERIFIER_BRIEF, verifierPrompt } = await import('../../src/commands/verify/index.ts')
-const { CREWMATE_TOOL_NAME, MERCURY_CREW_AGENT_TYPE } = await import('../../src/tools/kit/names/agent.ts')
+const { CREWMATE_TOOL_NAME, MERCURY_CREW_AGENT_TYPE } = await import('../../src/tools/kit/names/crewmate.ts')
 const { getVerificationNudgeNote } = await import('../../src/tools/task-update/prompt.ts')
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {

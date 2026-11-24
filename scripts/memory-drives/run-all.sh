@@ -13,7 +13,7 @@
 # gate-watch: scripts/project-intel/fixtures/materialize.ts
 # gate-watch: scripts/ui/** scripts/memory-study/**
 # gate-watch: scripts/jev/lib/jevStandin.ts src/screen/widgets/useFlatList.ts
-# gate-watch: src/sessions/instructions/sourceText.ts src/sessions/memory-shapes/types.ts src/sessions/mneme/** src/tools/engines/eval-kernels/evalBridge.ts
+# gate-watch: src/sessions/instructions/sourceText.ts src/sessions/instruction-contracts/instructionFileType.ts src/sessions/mneme/** src/tools/engines/eval-kernels/evalBridge.ts
 # gate-watch: docs/SAMPLES.md src/tools/journal/**
 # gate-watch: .gitignore scripts/vendor/build-embed.ts scripts/vendor/fetch-embed-models.ts native/embed/**
 # gate-watch: scripts/lib/hermetic.ts

@@ -6,7 +6,7 @@ import { registerRunStopGuard } from '../../../permissions/guards/runStop.js'
 import { registerStructuredOutputGuard, releaseStructuredOutputGuard } from '../../../permissions/guards/structuredOutput.js'
 import { registerWardsGuard } from '../../../permissions/guards/wardsGuard.js'
 import { flagEnv } from '../../../platform/substrate/flagRegistry.js'
-import { STRUCTURED_OUTPUT_TOOL_NAME } from '../../../tools/kit/names/syntheticOutput.js'
+import { STRUCTURED_OUTPUT_TOOL_NAME } from '../../../tools/kit/names/structuredOutput.js'
 import { assertSingleRole } from '../../../daemon/concourse-workers/workerRole.js'
 import type { ConversationConfig } from '../turn.js'
 

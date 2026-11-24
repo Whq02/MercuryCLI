@@ -1,4 +1,4 @@
-import { getCrewmateModel } from '../../models/catalogue/agentModel.js'
+import { getCrewmateModel } from '../../models/catalogue/crewmateModel.js'
 import { matchReachableModelName, modelNameHeadlessRefusal } from '../../models/catalogue/modelNameRoad.js'
 import { MODEL_LOOKUP_LADDER } from '../../models/facts/modelLookup.js'
 import { resolveEngineDispatch, unrecognisedModelWordRefusal } from './engineDispatch.js'

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { buildCrewmateMercurySections } from '../../src/tools/crewmate/subagentDoctrine.js'
+import { buildCrewmateMercurySections } from '../../src/tools/crewmate/crewmateDoctrine.js'
 import { MERCURY_CONSTITUTION, mercuryCrewmateContract } from '../../src/engine/system-prompt/mercuryContract.js'
 import { MERCURY_SCOUT_AGENT } from '../../src/tools/crewmate/built-in/mercuryScoutAgent.js'
 
@@ -35,10 +35,10 @@ setStamp(false)
 const gpStock = JSON.stringify(buildCrewmateMercurySections({ agentDefinition: GP }))
 const exemptStock = JSON.stringify(buildCrewmateMercurySections({ agentDefinition: { agentType: 'mercury-scout' } }))
 setStamp(true)
-check('mercury-crew: bare-stamped === full-stamped', gpStock === JSON.stringify(buildCrewmateMercurySections({ agentDefinition: GP })), '', 'buildSubagentMercurySections in src/tools/crewmate/subagentDoctrine.ts must not read the MACRO stamp')
+check('mercury-crew: bare-stamped === full-stamped', gpStock === JSON.stringify(buildCrewmateMercurySections({ agentDefinition: GP })), '', 'buildSubagentMercurySections in src/tools/crewmate/crewmateDoctrine.ts must not read the MACRO stamp')
 const seatSub = join(buildCrewmateMercurySections({ agentDefinition: GP }))
 const seatCrew = join(buildCrewmateMercurySections({ agentDefinition: GP, seat: 'a crewmate' }))
-check('the seat word is the one word: a plain spawn reads a crewmate', seatSub.includes("Mercury's agents, a crewmate, spawned for one assignment"), '', 'the seat word in buildSubagentMercurySections (src/tools/crewmate/subagentDoctrine.ts) and mercurySubagentContract (src/engine/system-prompt/mercuryContract.ts) must default to a crewmate')
+check('the seat word is the one word: a plain spawn reads a crewmate', seatSub.includes("Mercury's agents, a crewmate, spawned for one assignment"), '', 'the seat word in buildSubagentMercurySections (src/tools/crewmate/crewmateDoctrine.ts) and mercurySubagentContract (src/engine/system-prompt/mercuryContract.ts) must default to a crewmate')
 check('the seat word named outright reads the same', seatCrew.includes("Mercury's agents, a crewmate, spawned for one assignment"))
 check('never the old word, never both', !seatSub.includes('or a crewmate') && !seatSub.includes('sub-agent') && !mercuryCrewmateContract('a crewmate').includes('sub-agent'), '', 'remove the old seat word from mercurySubagentContract in src/engine/system-prompt/mercuryContract.ts')
 check('no capital for emphasis in the three contracts', !/\b[A-Z]{2,}\b/.test(mercuryCrewmateContract()), '', 'write the emphasised word in lower case in mercurySubagentContract in src/engine/system-prompt/mercuryContract.ts')
@@ -50,8 +50,8 @@ setStamp(true)
 {
   const s = buildCrewmateMercurySections({ agentDefinition: GP })
   check('returns a non-empty section list', s.length >= 2, `len=${s.length}`)
-  check('section[0] is the constitution (LEADS)', s[0] === MERCURY_CONSTITUTION, '', 'buildSubagentMercurySections in src/tools/crewmate/subagentDoctrine.ts must put MERCURY_CONSTITUTION first')
-  check('NORMAL doctrine present', join(s).includes(NORMAL_MARK) && join(s).includes('<subagent-doctrine>'), '', 'buildSubagentMercurySections in src/tools/crewmate/subagentDoctrine.ts must include the doctrine block with its opening mark')
+  check('section[0] is the constitution (LEADS)', s[0] === MERCURY_CONSTITUTION, '', 'buildSubagentMercurySections in src/tools/crewmate/crewmateDoctrine.ts must put MERCURY_CONSTITUTION first')
+  check('NORMAL doctrine present', join(s).includes(NORMAL_MARK) && join(s).includes('<subagent-doctrine>'), '', 'buildSubagentMercurySections in src/tools/crewmate/crewmateDoctrine.ts must include the doctrine block with its opening mark')
 }
 
 section('(c) the fixed-output agents get the SAME NORMAL doctrine as mercury-crew')
@@ -62,10 +62,10 @@ for (const a of EXEMPT) {
 
 section('(d) C14: exempt Set DERIVED from fixedOutputContract (membership, not a string literal)')
 {
-  const { isFixedOutputAgent } = await import('../../src/tools/crewmate/subagentDoctrine.ts')
+  const { isFixedOutputAgent } = await import('../../src/tools/crewmate/crewmateDoctrine.ts')
   for (const def of [MERCURY_SCOUT_AGENT]) {
     check(`${def.agentType}: def carries fixedOutputContract:true`, def.fixedOutputContract === true, '', 'set fixedOutputContract: true on the agent definition in src/tools/crewmate/built-in/mercuryScoutAgent.ts')
-    check(`${def.agentType}: agentType ∈ derived exempt Set`, isFixedOutputAgent({ agentType: def.agentType }), '', 'isFixedOutputAgent in src/tools/crewmate/subagentDoctrine.ts must derive its set from agents carrying fixedOutputContract')
+    check(`${def.agentType}: agentType ∈ derived exempt Set`, isFixedOutputAgent({ agentType: def.agentType }), '', 'isFixedOutputAgent in src/tools/crewmate/crewmateDoctrine.ts must derive its set from agents carrying fixedOutputContract')
   }
   check('a non-flagged agent (mercury-crew) is NOT exempt', !isFixedOutputAgent(GP))
   check('a made-up agentType is NOT exempt (no drift to over-exempting)', !isFixedOutputAgent({ agentType: 'not-a-real-fixed-output-agent' }))
@@ -73,12 +73,12 @@ section('(d) C14: exempt Set DERIVED from fixedOutputContract (membership, not a
 
 
 section('(e) memory front page — every agent receives it; the memory switch removes it')
-check('mercury-crew carries the memory front page', join(buildCrewmateMercurySections({ agentDefinition: GP })).includes('# Memory'), '', 'buildSubagentMercurySections in src/tools/crewmate/subagentDoctrine.ts must include the memory front page from src/sessions/mneme/mnemeFrontPage.ts')
+check('mercury-crew carries the memory front page', join(buildCrewmateMercurySections({ agentDefinition: GP })).includes('# Memory'), '', 'buildSubagentMercurySections in src/tools/crewmate/crewmateDoctrine.ts must include the memory front page from src/sessions/mneme/mnemeFrontPage.ts')
 for (const a of EXEMPT) {
   check(`${a}: carries the memory front page (crewmates get the pinned rules)`, join(buildCrewmateMercurySections({ agentDefinition: { agentType: a } })).includes('# Memory'))
 }
 process.env.MERCURY_BARE = '1'
-check('memory off: no front page in the doctrine', !join(buildCrewmateMercurySections({ agentDefinition: GP })).includes('# Memory'), '', 'buildSubagentMercurySections in src/tools/crewmate/subagentDoctrine.ts must leave the front page out when MERCURY_BARE is set')
+check('memory off: no front page in the doctrine', !join(buildCrewmateMercurySections({ agentDefinition: GP })).includes('# Memory'), '', 'buildSubagentMercurySections in src/tools/crewmate/crewmateDoctrine.ts must leave the front page out when MERCURY_BARE is set')
 delete process.env.MERCURY_BARE
 
 section('(e1) memory front page — the verb sentence rides only with a reader that has the verbs; an empty library is one sentence')
@@ -135,9 +135,9 @@ section('(e2) API-currency: the env block carries the rule once; the doctrine se
 section('(f) gate clause present in the operating block; no softener')
 {
   const normalBlock = buildCrewmateMercurySections({ agentDefinition: GP })[1]
-  check('NORMAL block keeps the never-bypass-a-gate clause', normalBlock.includes(GATE_CLAUSE), '', 'restore the never-bypass-a-gate clause in the doctrine block built by src/tools/crewmate/subagentDoctrine.ts')
+  check('NORMAL block keeps the never-bypass-a-gate clause', normalBlock.includes(GATE_CLAUSE), '', 'restore the never-bypass-a-gate clause in the doctrine block built by src/tools/crewmate/crewmateDoctrine.ts')
   const SOFTENERS = [/may bypass/i, /skip the gate/i, /ok to bypass/i, /no need to confirm/i]
-  check('the block contains no gate-softener', !SOFTENERS.some(re => re.test(normalBlock)), '', 'remove the gate-softening words from the doctrine block built by src/tools/crewmate/subagentDoctrine.ts')
+  check('the block contains no gate-softener', !SOFTENERS.some(re => re.test(normalBlock)), '', 'remove the gate-softening words from the doctrine block built by src/tools/crewmate/crewmateDoctrine.ts')
 }
 
 setStamp(false)

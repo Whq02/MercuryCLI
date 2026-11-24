@@ -377,7 +377,7 @@ console.log('\nsrc/boot/main/runLaunch.ts')
 {
   const r = runCase(`
     const { mock } = await import('bun:test')
-    mock.module(path.join(SRC, 'permissions/rules/bypassPermissionsKillswitch.ts'), () => ({
+    mock.module(path.join(SRC, 'permissions/rules/sovereignKillswitch.ts'), () => ({
       checkAndDisableSovereignIfNeeded: async () => {
         throw new Error('killswitch policy check failed')
       },

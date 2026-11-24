@@ -9,12 +9,12 @@ import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { lazySchema } from '../../platform/primitives/lazySchema.js'
 import { endedWords, mapMessageResult, messageNoticeFor, resolveCrewAddress, selfAddressRefusalText, senderCrewmateTask, unknownCrewmateRefusal, validateCrewMessage, type CrewMessageInput, type MessageOutput } from '../send-message/crewAddress.js'
 import { renderToolResultMessage, renderToolUseMessage } from '../send-message/rows.js'
-import { RESUME_CREWMATE_TOOL_NAME } from '../kit/names/resumeAgent.js'
+import { RESUME_CREWMATE_TOOL_NAME } from '../kit/names/resumeCrewmate.js'
 import { DESCRIPTION, getPrompt } from './prompt.js'
 import { EFFORT_LEVELS, type EffortLevel } from '../../models/effort/effort.js'
 import { stopCrewmateByOperator } from '../../crew/agents/operatorStop.js'
 import { flushSessionStorage } from '../../sessions/transcripts/sessionStorage.js'
-import { liveCrewmateOwner } from '../crewmate/liveAgentOwner.js'
+import { liveCrewmateOwner } from '../crewmate/liveCrewmateOwner.js'
 
 type ResumeCrewmateToolOutput = MessageOutput
 type Input = CrewMessageInput & { model?: string; effort?: EffortLevel; interrupt?: boolean }

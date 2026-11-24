@@ -1,5 +1,5 @@
 import type { Command } from '../catalogue/commands.js'
-import { CREWMATE_TOOL_NAME, MERCURY_CREW_AGENT_TYPE } from '../../tools/kit/names/agent.js'
+import { CREWMATE_TOOL_NAME, MERCURY_CREW_AGENT_TYPE } from '../../tools/kit/names/crewmate.js'
 
 export const VERIFIER_BRIEF = `You are verifying someone else's work for Mercury. Your job is to try to BREAK the implementation you are handed, not to confirm it. An implementation that survives you has earned its pass; one you wave through has learned nothing.
 

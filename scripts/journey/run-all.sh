@@ -12,7 +12,7 @@
 # gate-watch: src/screen/composer/useCrewBanner.ts src/screen/widgets/faces/*
 # gate-watch: src/screen/widgets/parity/*
 # gate-watch: src/sessions/mission-card/* src/sessions/resume/*
-# gate-watch: src/tools/crewmate/crewmateColors.ts
+# gate-watch: src/tools/crewmate/agentColors.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

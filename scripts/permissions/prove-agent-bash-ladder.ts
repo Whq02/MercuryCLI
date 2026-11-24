@@ -21,7 +21,7 @@ const { decideToolPermissionWithModes, defaultWrapperPorts } = await import('../
 const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { resolveCrewmatePromptPosture, composeCrewmateAppState, withAllowedCommandRules } = await import(
-  '../../src/tools/crewmate/agentPermissionPosture.ts'
+  '../../src/tools/crewmate/crewmatePermissionPosture.ts'
 )
 const { resolveAgentTools, filterToolsForCrewmate } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
 const { MERCURY_SCOUT_AGENT } = await import('../../src/tools/crewmate/built-in/mercuryScoutAgent.ts')
@@ -30,10 +30,10 @@ const { MERCURY_CREW_AGENT } = await import('../../src/tools/crewmate/built-in/m
 let failures = 0
 let checks = 0
 function ladderFixHint(label: string): string {
-  if (/ answers as /.test(label)) return 'fix: an agent must reach the same decision as its parent peer; compare the two cells and fix composeAgentAppState or resolveAgentPromptPosture in src/tools/crewmate/agentPermissionPosture.ts, or the agent context built by contextFor in this file'
+  if (/ answers as /.test(label)) return 'fix: an agent must reach the same decision as its parent peer; compare the two cells and fix composeAgentAppState or resolveAgentPromptPosture in src/tools/crewmate/crewmatePermissionPosture.ts, or the agent context built by contextFor in this file'
   if (/ — (main|a prompt-less parent|a run|a daemon seat)$/.test(label)) return 'fix: the cell shows behavior, wrapper and engine; the decision comes from decideToolPermissionWithModes in src/permissions/rules/decision/wrapper.ts and the Bash rules in src/tools/shell/bashPermissions.ts, so change the stage that answered differently, or the want in the ROWS entry in this file if the ladder was meant to change'
   if (/keeps Bash|Crewmate tool|the one filter|read-only scout/.test(label)) return 'fix: the agent tool roster comes from resolveAgentTools and filterToolsForAgent in src/tools/crewmate/crewmateLifecycle.ts and the definitions in src/tools/crewmate/built-in/mercuryCrewAgent.ts and mercuryScoutAgent.ts'
-  return 'fix: the allow-rule merge and the prompt posture are withAllowedCommandRules, composeAgentAppState and resolveAgentPromptPosture in src/tools/crewmate/agentPermissionPosture.ts; change the one this check names'
+  return 'fix: the allow-rule merge and the prompt posture are withAllowedCommandRules, composeAgentAppState and resolveAgentPromptPosture in src/tools/crewmate/crewmatePermissionPosture.ts; change the one this check names'
 }
 function check(label: string, cond: boolean, detail = ''): void {
   checks++

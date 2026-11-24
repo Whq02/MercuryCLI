@@ -44,7 +44,7 @@ import { parseSlashCommand } from '../../commands/catalogue/slashCommandParsing.
 import { logError } from '../../platform/logs/errorLog.js'
 import { isNothingToFoldMessage } from '../compaction/fold/foldLimits.js'
 import { recordSkillUsage } from '../../screen/suggestions/skillUsage.js'
-import { getCrewmateContext } from '../../crew/agents/agentContext.js'
+import { getCrewmateContext } from '../../crew/agents/crewmateContext.js'
 import { addInvokedSkill, getIsNonInteractiveSession } from '../../boot/process-state/processState.js'
 import { registerSkillHooks } from '../../integrations/event-hooks/registerFrontmatterHooks.js'
 

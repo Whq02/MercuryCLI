@@ -27,7 +27,7 @@ import { type ToolJSXState, useChatDialogPaints, useChatDialogs, useChatDialogsV
 import { useChatDraft } from './useChatDraft.js';
 import { useChatScroll, useChatScrollFollow, useChatScrollPin } from './useChatScroll.js';
 import { useChatSearch } from './useChatSearch.js';
-import { useChatRewindPicker, useChatRewindPickerView } from './useChatSelector.js';
+import { useChatRewindPicker, useChatRewindPickerView } from './useChatRewindPicker.js';
 import { useChatConversation, useChatSession } from './useChatSession.js';
 import { useChatSeatClock, useChatStatusStrip, useChatTurnBoundary, useChatTurnEnd, useChatTurnSignals } from './useChatStatus.js';
 import { useChatReceipts, useChatSubmit, useChatSubmitTools } from './useChatSubmit.js';

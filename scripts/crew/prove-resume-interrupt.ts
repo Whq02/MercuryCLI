@@ -3,7 +3,7 @@ import { rmSync } from 'node:fs'
 import { makeWorld, bootLead, LEAD_MODEL, toolResultOf, userTextsOf } from './crew-world.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ResumeCrewmateTool } = await import('../../src/tools/resume-crewmate/ResumeAgentTool.ts')
+const { ResumeCrewmateTool } = await import('../../src/tools/resume-crewmate/ResumeCrewmateTool.ts')
 const childPrompt = 'interrupt-child-only'
 const resumePrompt = 'resume-the-cut-turn-now'
 const world = await makeWorld('resume-interrupt', [

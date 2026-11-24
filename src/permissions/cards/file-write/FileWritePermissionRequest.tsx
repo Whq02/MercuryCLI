@@ -10,7 +10,7 @@ import { displayAddressedTarget } from '../../../platform/files/file.js'
 import { FilePermissionDialog } from '../file-dialog/FilePermissionDialog.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
 import { RemotePathSubtitle } from '../RemotePathSubtitle.js'
-import { WriteDiff } from './FileWriteToolDiff.js'
+import { WriteDiff } from './WriteDiff.js'
 import { parseStructuredWriteTarget } from '../../../tools/write/structuredTargets.js'
 import { SqliteDeletePermissionRequest } from '../../../tools/write/SqliteDeletePermissionRequest.js'
 

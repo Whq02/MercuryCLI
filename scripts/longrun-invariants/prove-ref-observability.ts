@@ -13,7 +13,7 @@ import type { ResourceContext } from '../../src/integrations/resources/contracts
 import { formatEnvelopeBlock } from '../../src/crew/agent-results/normalize.js'
 import type { CrewmateResultEnvelope } from '../../src/crew/agent-results/contracts.js'
 import { makeOwnerKey } from '../../src/engine/run-owner/ownerKey.js'
-import { OUTCOME_CAP_CHARS } from '../../src/crew/crewmates/agentTranscriptReader.js'
+import { OUTCOME_CAP_CHARS } from '../../src/crew/crewmates/crewmateTranscriptReader.js'
 import { entryToRecord } from '../../src/sessions/fabric/entryCodec.js'
 import { ordinalOf } from '../../src/sessions/fabric/ordinal.js'
 
@@ -105,7 +105,7 @@ console.log('\n=== items 3: mercury://agent/<id>?child=report (canonical project
   writeAgentTranscript(bigFile, { finalText: 'R'.repeat(OUTCOME_CAP_CHARS + 500) })
   tasks['ag-big'] = { id: 'ag-big', type: 'agent', status: 'completed', description: 'long report', startTime: 1, endTime: 2, outputFile: bigFile }
   const big = await resolveRef('mercury://agent/ag-big?child=report')
-  check('over-cap report is MARKED truncated', big.state === 'ok' && big.resource.text?.includes('[report truncated') === true, `state=${big.state}; reportText in src/integrations/resources/adapters/agent.ts must append the report truncated line when view.finalTextTruncated, which OUTCOME_CAP_CHARS in src/crew/crewmates/agentTranscriptReader.ts sets`)
+  check('over-cap report is MARKED truncated', big.state === 'ok' && big.resource.text?.includes('[report truncated') === true, `state=${big.state}; reportText in src/integrations/resources/adapters/agent.ts must append the report truncated line when view.finalTextTruncated, which OUTCOME_CAP_CHARS in src/crew/crewmates/crewmateTranscriptReader.ts sets`)
 
   const detail = await resolveRef('mercury://agent/ag-done')
   check('detail view advertises ?child=report', detail.state === 'ok' && (detail.resource.children ?? []).some(c => c.ref.endsWith('?child=report')), `state=${detail.state}; the detail branch of agentAdapter.resolve in src/integrations/resources/adapters/agent.ts must list the ?child=report child`)

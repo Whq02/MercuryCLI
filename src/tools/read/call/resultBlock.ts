@@ -1,7 +1,7 @@
 import type { ToolResultBlockParam } from '../../../engine/message-shapes/wire.js'
 import { formatFileSize } from '../../../platform/text/format.js'
 import { mapNotebookCellsToToolResult } from '../../kit/notebook.js'
-import { FILE_UNCHANGED_STUB } from '../../kit/names/fileRead.js'
+import { FILE_UNCHANGED_STUB } from '../../kit/names/read.js'
 import { cyberRiskReminderForCurrentModel } from './reminder.js'
 import type { Output } from './schema.js'
 import { serializeTextResult } from './serialize.js'

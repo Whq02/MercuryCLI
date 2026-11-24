@@ -1,5 +1,5 @@
 import { isMnemeEnabled } from '../../../sessions/mneme/paths.js'
-import type { AgentColorName } from '../../../tools/crewmate/crewmateColors.js'
+import type { AgentColorName } from '../../../tools/crewmate/agentColors.js'
 import { loadAgentMemoryPrompt, withMemoryVerbs, type AgentMemoryScope } from '../../../crew/agents/agentMemory.js'
 import type { AgentDefinition, ExtensionAgentDefinition } from '../../../crew/agents/agentDefinition.js'
 import { logForDebugging } from '../../../platform/logs/debugLog.js'

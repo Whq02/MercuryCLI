@@ -29,7 +29,7 @@ const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
 const { READ_THROUGH_MARGIN, planReadThrough } = await import('../../src/tools/edit/readThrough.ts')
 const { ReadTool, MaxFileReadTokenExceededError } = await import('../../src/tools/read/ReadTool.ts')
 const { DEFAULT_MAX_OUTPUT_TOKENS } = await import('../../src/tools/read/call/fileReadLimits.ts')
-const { MAX_LINES_TO_READ } = await import('../../src/tools/kit/names/fileRead.ts')
+const { MAX_LINES_TO_READ } = await import('../../src/tools/kit/names/read.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0

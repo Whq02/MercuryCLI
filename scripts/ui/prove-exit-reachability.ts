@@ -49,7 +49,7 @@ try {
   const { Dialog } = await import('../../src/screen/theme/Dialog.tsx')
   const { TranscriptFooter } = await import('../../src/screen/chat/useChatSearch.tsx')
   const { ThemePicker } = await import('../../src/commands/appearance/ThemePicker.tsx')
-  const { Help } = await import('../../src/screen/help/HelpV2.tsx')
+  const { Help } = await import('../../src/screen/help/Help.tsx')
   const { SelectInputOption } = await import('../../src/screen/select/SelectInputOption.tsx')
   const { Select } = await import('../../src/screen/select/Select.tsx')
   const { RewindPicker } = await import('../../src/screen/rewind-picker/RewindPicker.tsx')
@@ -255,7 +255,7 @@ try {
           const hasHint = await waitFor(() => view.screen().includes('esc close'), 3000)
           view.push(KEY.esc)
           const exited = await waitFor(() => closed, 3000)
-          return [{ label: 'Help: renders esc close and dismisses on esc', ok: hasHint && exited, detail: `hint=${hasHint} exited=${exited} screen=${view.screen().slice(0, 300)} — src/screen/help/HelpV2.tsx must render esc close and call onClose on esc` }]
+          return [{ label: 'Help: renders esc close and dismisses on esc', ok: hasHint && exited, detail: `hint=${hasHint} exited=${exited} screen=${view.screen().slice(0, 300)} — src/screen/help/Help.tsx must render esc close and call onClose on esc` }]
         } finally {
           view.unmount()
         }

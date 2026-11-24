@@ -1,5 +1,5 @@
 import { EMPTY_USAGE, type NonNullableUsage } from '../../request-parts/emptyUsage.js'
-import { STRUCTURED_OUTPUT_TOOL_NAME } from '../../../tools/kit/names/syntheticOutput.js'
+import { STRUCTURED_OUTPUT_TOOL_NAME } from '../../../tools/kit/names/structuredOutput.js'
 import type { AssistantMessage, Message } from '../../message-shapes/message.js'
 import type { FileStateCache } from '../../../platform/files/fileStateCache.js'
 import { reconstructContentReplacementState, type ContentReplacementState } from '../../tool-dispatch/toolResultStorage.js'

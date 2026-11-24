@@ -1,5 +1,5 @@
 import React, { useContext, useInsertionEffect, useState, useSyncExternalStore } from 'react';
-import { ScreenInstanceContext } from '../renderer/elements/InkInstanceContext.js';
+import { ScreenInstanceContext } from '../renderer/elements/ScreenInstanceContext.js';
 import { Box, MotionParkContext, Text } from '../themedRenderer.js';
 import { useTerminalSize } from '../fullscreen-layout/useTerminalSize.js';
 import {

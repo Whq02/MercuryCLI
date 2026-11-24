@@ -10,7 +10,7 @@ import { checkReadPermissionForTool } from '../../permissions/rules/filesystem.j
 import { windowsPathNeedsPermission } from '../../permissions/rules/windowsPath.js'
 import { matchWildcardPattern } from '../../permissions/rules/shellRuleMatching.js'
 import { resolveModelCapabilities } from '../../models/facts/capabilities.js'
-import { DESCRIPTION, READ_TOOL_NAME, LINE_FORMAT_INSTRUCTION, renderPromptTemplate } from '../kit/names/fileRead.js'
+import { DESCRIPTION, READ_TOOL_NAME, LINE_FORMAT_INSTRUCTION, renderPromptTemplate } from '../kit/names/read.js'
 import { parseRichFormatTarget } from './readRichFormats.js'
 import { parseReadQueryTarget } from './readQueryTarget.js'
 import { classifyReadTarget, readTargetPromptLines, readTargetsEnabled } from './readTarget.js'

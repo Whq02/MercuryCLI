@@ -1,5 +1,5 @@
 import { flagEnv } from '../../platform/substrate/flagRegistry.js'
-import { crewmateWaitElapsed } from '../../engine/tasks/local-agent/agentWait.js'
+import { crewmateWaitElapsed } from '../../engine/tasks/local-agent/crewmateWait.js'
 import type { TaskState } from '../../engine/tasks/taskState.js'
 import { taskOwnerGone } from '../../engine/task-framework/taskRegistry.js'
 import {

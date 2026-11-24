@@ -21,8 +21,8 @@ const deferred = <T,>() => {
 }
 
 await import('../../src/tools/crewmate/CrewmateTool.js')
-const reader = await import('../../src/crew/crewmates/agentTranscriptReader.js')
-mock.module('../../src/crew/crewmates/agentTranscriptReader.js', () => ({
+const reader = await import('../../src/crew/crewmates/crewmateTranscriptReader.js')
+mock.module('../../src/crew/crewmates/crewmateTranscriptReader.js', () => ({
   ...reader,
   readCrewmateTranscript: async () => ({ finalText: 'initial transcript' } as never),
 }))

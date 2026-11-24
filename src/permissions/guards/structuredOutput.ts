@@ -1,4 +1,4 @@
-import { STRUCTURED_OUTPUT_TOOL_NAME } from '../../tools/kit/names/syntheticOutput.js'
+import { STRUCTURED_OUTPUT_TOOL_NAME } from '../../tools/kit/names/structuredOutput.js'
 import type { Message } from '../../engine/message-shapes/message.js'
 import { hasSuccessfulToolCall } from '../../engine/messages/messages.js'
 import { isToolResultMessage } from '../../engine/messages/merge.js'

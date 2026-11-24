@@ -41,7 +41,7 @@ const COMMON = `
 You are auditing VULCAN — the native Godot editor-control surface just built in this repo (Mercury).
 READ-ONLY: do NOT edit any file; REPORT findings only (the integrator fixes by hand).
 Ground yourself first: assets/vulcan/optable.json.
-The new surfaces: src/integrations/vulcan-optable/*, src/integrations/vulcan/*, src/tools/godot/*, assets/vulcan/addon/**, scripts/vulcan/*, plus edits in src/tools/kit/toolList.ts, src/engine/system-prompt/defaultSystemPrompt.ts, src/tools/crewmate/subagentDoctrine.ts, src/screen/cockpit/harnessMap.ts, src/platform/substrate/startupMenu.ts, src/platform/substrate/flagRegistry.ts, src/utils/healthReport.ts, assets/splash/mercury-splash.mjs.
+The new surfaces: src/integrations/vulcan-optable/*, src/integrations/vulcan/*, src/tools/godot/*, assets/vulcan/addon/**, scripts/vulcan/*, plus edits in src/tools/kit/toolList.ts, src/engine/system-prompt/defaultSystemPrompt.ts, src/tools/crewmate/crewmateDoctrine.ts, src/screen/cockpit/harnessMap.ts, src/platform/substrate/startupMenu.ts, src/platform/substrate/flagRegistry.ts, src/utils/healthReport.ts, assets/splash/mercury-splash.mjs.
 Report ONLY defects you can argue concretely (file, line, failure scenario). No style nits unless they mask a bug. Severity honestly.
 `
 

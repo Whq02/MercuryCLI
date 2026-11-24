@@ -27,7 +27,7 @@ for (const key of ['OPENAI_API_KEY', 'MERCURY_CONFIG_DIR', 'MERCURY_AUTH_SCOPE_D
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-subagent-effort-'))
 process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:9'
 
-const defaults = await import('../../src/crew/agents/agentDefaults.js')
+const defaults = await import('../../src/crew/agents/crewmateDefaults.js')
 const config = await import('../../src/platform/settings/config.js')
 const effort = await import('../../src/models/effort/effort.js')
 const runner = await import('../../src/tools/crewmate/runCrewmate.js')
@@ -37,24 +37,24 @@ const store = await import('../../src/models/roads/openai/qualificationStore.js'
 const localDiscovery = await import('../../src/models/roads/local/localDiscovery.js')
 const localCatalogue = await import('../../src/models/roads/local/localCatalogue.js')
 const wire = await import('../../src/models/roads/openaicompat/compatWire.js')
-const doctrine = await import('../../src/tools/crewmate/subagentDoctrine.js')
+const doctrine = await import('../../src/tools/crewmate/crewmateDoctrine.js')
 
 {
   console.log('\n— §1 · the defaults record: conventions, the setting, tolerance —')
   const none = defaults.crewmateDefaultsOf(undefined)
-  check('no record ⇒ high, the parent\'s model, eight — each marked as the convention', none.effort === 'high' && none.effortSource === 'convention' && none.model === undefined && none.maxConcurrent === 8 && none.maxConcurrentSource === 'convention', 'In src/crew/agents/agentDefaults.ts fix subagentDefaultsOf (the convention values) or the SUBAGENT_DEFAULT_* constants')
-  check('the conventions are the exported constants', defaults.CREWMATE_DEFAULT_EFFORT === 'high' && defaults.CREWMATE_DEFAULT_MAX_CONCURRENT === 8, 'change SUBAGENT_DEFAULT_EFFORT or SUBAGENT_DEFAULT_MAX_CONCURRENT in src/crew/agents/agentDefaults.ts')
+  check('no record ⇒ high, the parent\'s model, eight — each marked as the convention', none.effort === 'high' && none.effortSource === 'convention' && none.model === undefined && none.maxConcurrent === 8 && none.maxConcurrentSource === 'convention', 'In src/crew/agents/crewmateDefaults.ts fix subagentDefaultsOf (the convention values) or the SUBAGENT_DEFAULT_* constants')
+  check('the conventions are the exported constants', defaults.CREWMATE_DEFAULT_EFFORT === 'high' && defaults.CREWMATE_DEFAULT_MAX_CONCURRENT === 8, 'change SUBAGENT_DEFAULT_EFFORT or SUBAGENT_DEFAULT_MAX_CONCURRENT in src/crew/agents/crewmateDefaults.ts')
   const set = defaults.crewmateDefaultsOf({ defaultEffort: 'low', defaultModel: 'sonnet', maxConcurrent: 3 })
-  check('a full record reads back as set', set.effort === 'low' && set.effortSource === 'setting' && set.model === 'sonnet' && set.maxConcurrent === 3 && set.maxConcurrentSource === 'setting', 'In src/crew/agents/agentDefaults.ts fix subagentDefaultsOf so a valid agents record reads back as source setting')
+  check('a full record reads back as set', set.effort === 'low' && set.effortSource === 'setting' && set.model === 'sonnet' && set.maxConcurrent === 3 && set.maxConcurrentSource === 'setting', 'In src/crew/agents/crewmateDefaults.ts fix subagentDefaultsOf so a valid agents record reads back as source setting')
   const junk = defaults.crewmateDefaultsOf({ defaultEffort: 'ultra' as never, defaultModel: '   ', maxConcurrent: 0 })
-  check('a hand-edited file never breaks a spawn: a word off the ladder, a blank model and a cap of zero read as unset', junk.effort === 'high' && junk.effortSource === 'convention' && junk.model === undefined && junk.maxConcurrent === 8 && junk.maxConcurrentSource === 'convention', 'In src/crew/agents/agentDefaults.ts make subagentDefaultsOf treat an off-ladder effort, blank model and zero cap as unset')
-  check('a fractional or negative cap reads as unset too', defaults.crewmateDefaultsOf({ maxConcurrent: 2.5 }).maxConcurrent === 8 && defaults.crewmateDefaultsOf({ maxConcurrent: -1 }).maxConcurrent === 8, 'In src/crew/agents/agentDefaults.ts make subagentDefaultsOf treat a fractional or negative maxConcurrent as unset')
+  check('a hand-edited file never breaks a spawn: a word off the ladder, a blank model and a cap of zero read as unset', junk.effort === 'high' && junk.effortSource === 'convention' && junk.model === undefined && junk.maxConcurrent === 8 && junk.maxConcurrentSource === 'convention', 'In src/crew/agents/crewmateDefaults.ts make subagentDefaultsOf treat an off-ladder effort, blank model and zero cap as unset')
+  check('a fractional or negative cap reads as unset too', defaults.crewmateDefaultsOf({ maxConcurrent: 2.5 }).maxConcurrent === 8 && defaults.crewmateDefaultsOf({ maxConcurrent: -1 }).maxConcurrent === 8, 'In src/crew/agents/crewmateDefaults.ts make subagentDefaultsOf treat a fractional or negative maxConcurrent as unset')
   check('the key is on the global-config allowlist', (config.GLOBAL_CONFIG_KEYS as readonly string[]).includes('agents') && config.isGlobalConfigKey('agents'), 'add \'agents\' to GLOBAL_CONFIG_KEYS in src/platform/settings/config.ts')
-  check('the live reader answers the convention on a fresh config home', defaults.defaultCrewmateEffort() === 'high' && defaults.defaultCrewmateModel() === undefined, 'In src/crew/agents/agentDefaults.ts fix subagentDefaultEffort and subagentDefaultModel to answer the convention when the config has no agents record')
+  check('the live reader answers the convention on a fresh config home', defaults.defaultCrewmateEffort() === 'high' && defaults.defaultCrewmateModel() === undefined, 'In src/crew/agents/crewmateDefaults.ts fix subagentDefaultEffort and subagentDefaultModel to answer the convention when the config has no agents record')
   config.saveGlobalConfig(current => ({ ...current, agents: { ...current.agents, defaultEffort: 'max' } }))
-  check('a saved setting reaches the live reader without a restart', defaults.defaultCrewmateEffort() === 'max' && defaults.crewmateDefaults().effortSource === 'setting', 'In src/crew/agents/agentDefaults.ts make subagentDefaultEffort and subagentDefaults read the saved global config on each call')
+  check('a saved setting reaches the live reader without a restart', defaults.defaultCrewmateEffort() === 'max' && defaults.crewmateDefaults().effortSource === 'setting', 'In src/crew/agents/crewmateDefaults.ts make subagentDefaultEffort and subagentDefaults read the saved global config on each call')
   config.saveGlobalConfig(current => ({ ...current, agents: undefined }))
-  check('…and clearing it restores the convention', defaults.defaultCrewmateEffort() === 'high', 'In src/crew/agents/agentDefaults.ts make subagentDefaultEffort fall back to the convention when agents is cleared')
+  check('…and clearing it restores the convention', defaults.defaultCrewmateEffort() === 'high', 'In src/crew/agents/crewmateDefaults.ts make subagentDefaultEffort fall back to the convention when agents is cleared')
 }
 
 {
@@ -73,7 +73,7 @@ const doctrine = await import('../../src/tools/crewmate/subagentDoctrine.js')
   console.log('\n— §4 · the default word resolves per row through the one owner (never an error) —')
   const { resolveCrewmateEffort } = runner
   const spawnWord = resolveCrewmateEffort({ effortOverride: undefined, useExactTools: undefined, definitionEffort: undefined, defaultEffort: defaults.defaultCrewmateEffort() })
-  check('the spawn word is high', spawnWord === 'high', 'In src/crew/agents/agentDefaults.ts subagentDefaultEffort should answer high on a fresh config home')
+  check('the spawn word is high', spawnWord === 'high', 'In src/crew/agents/crewmateDefaults.ts subagentDefaultEffort should answer high on a fresh config home')
   const stamped = (model: string, word = spawnWord) => effort.resolveStampedEffortTruth(model, word, { agentId: 'spawn' })
 
   const anthropic = stamped('claude-opus-4-8')
@@ -157,13 +157,13 @@ const doctrine = await import('../../src/tools/crewmate/subagentDoctrine.js')
 
 {
   console.log('\n— §6 · the cap: the env knob · the setting · eight —')
-  check('no knob, no setting ⇒ eight by convention', JSON.stringify(defaults.crewmateConcurrencyCap(null, undefined)) === JSON.stringify({ cap: 8, source: 'convention' }), 'fix subagentConcurrencyCap in src/crew/agents/agentDefaults.ts so the convention is eight')
-  check('the setting ⇒ its number', JSON.stringify(defaults.crewmateConcurrencyCap(null, { maxConcurrent: 3 })) === JSON.stringify({ cap: 3, source: 'setting' }), 'fix subagentConcurrencyCap in src/crew/agents/agentDefaults.ts so maxConcurrent gives source setting')
-  check('the env knob outranks the setting', JSON.stringify(defaults.crewmateConcurrencyCap(12, { maxConcurrent: 3 })) === JSON.stringify({ cap: 12, source: 'env' }), 'fix subagentConcurrencyCap in src/crew/agents/agentDefaults.ts so the env value outranks the setting')
+  check('no knob, no setting ⇒ eight by convention', JSON.stringify(defaults.crewmateConcurrencyCap(null, undefined)) === JSON.stringify({ cap: 8, source: 'convention' }), 'fix subagentConcurrencyCap in src/crew/agents/crewmateDefaults.ts so the convention is eight')
+  check('the setting ⇒ its number', JSON.stringify(defaults.crewmateConcurrencyCap(null, { maxConcurrent: 3 })) === JSON.stringify({ cap: 3, source: 'setting' }), 'fix subagentConcurrencyCap in src/crew/agents/crewmateDefaults.ts so maxConcurrent gives source setting')
+  check('the env knob outranks the setting', JSON.stringify(defaults.crewmateConcurrencyCap(12, { maxConcurrent: 3 })) === JSON.stringify({ cap: 12, source: 'env' }), 'fix subagentConcurrencyCap in src/crew/agents/crewmateDefaults.ts so the env value outranks the setting')
   process.env.MERCURY_AGENT_FANOUT_CAP = '5'
-  check('the env read is the doctrine module\'s (one owner of the knob) and the fold reads it', doctrine.crewmateFanoutCap() === 5 && defaults.crewmateConcurrencyCap(doctrine.crewmateFanoutCap()).cap === 5, 'fix agentFanoutCap in src/tools/crewmate/subagentDoctrine.ts or its use in subagentConcurrencyCap')
+  check('the env read is the doctrine module\'s (one owner of the knob) and the fold reads it', doctrine.crewmateFanoutCap() === 5 && defaults.crewmateConcurrencyCap(doctrine.crewmateFanoutCap()).cap === 5, 'fix agentFanoutCap in src/tools/crewmate/crewmateDoctrine.ts or its use in subagentConcurrencyCap')
   delete process.env.MERCURY_AGENT_FANOUT_CAP
-  check('the knob unset ⇒ the live fold answers the setting or the convention', defaults.crewmateConcurrencyCap(doctrine.crewmateFanoutCap()).source !== 'env', 'fix subagentConcurrencyCap in src/crew/agents/agentDefaults.ts and agentFanoutCap in src/tools/crewmate/subagentDoctrine.ts so an unset MERCURY_AGENT_FANOUT_CAP is not source env')
+  check('the knob unset ⇒ the live fold answers the setting or the convention', defaults.crewmateConcurrencyCap(doctrine.crewmateFanoutCap()).source !== 'env', 'fix subagentConcurrencyCap in src/crew/agents/crewmateDefaults.ts and agentFanoutCap in src/tools/crewmate/crewmateDoctrine.ts so an unset MERCURY_AGENT_FANOUT_CAP is not source env')
 }
 
 for (const [key, value] of Object.entries(savedEnv)) {

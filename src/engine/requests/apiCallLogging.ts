@@ -1,6 +1,6 @@
 import { addToTotalDurationState } from '../../boot/process-state/processState.js'
 import type { NonNullableUsage } from '../request-parts/emptyUsage.js'
-import { consumeInvokingRequestId } from '../../crew/agents/agentContext.js'
+import { consumeInvokingRequestId } from '../../crew/agents/crewmateContext.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { logError } from '../../platform/logs/errorLog.js'
 import { extractConnectionErrorDetails } from './apiErrorDetails.js'

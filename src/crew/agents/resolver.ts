@@ -15,7 +15,7 @@ import {
 import {
   getCrewmateModel,
   getDefaultCrewmateModel,
-} from '../../models/catalogue/agentModel.js'
+} from '../../models/catalogue/crewmateModel.js'
 import type { AgentOverrideProvenance } from './overrides.js'
 
 type AgentShadowReason =

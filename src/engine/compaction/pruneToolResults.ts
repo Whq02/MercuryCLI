@@ -12,9 +12,9 @@ import { isBelowPlaceholderFloor, isProtectedFromPruning, PROTECT_NEWEST_TOOL_OU
 import { clearFoldWarningSuppression, suppressFoldWarning } from './foldWarningSuppression.js'
 import { getTimeBasedPruneConfig } from './timeBasedPruneConfig.js'
 import { REPEATED_RESULT_TAG } from '../../tools/kit/toolLimits.js'
-import { READ_TOOL_NAME } from '../../tools/kit/names/fileRead.js'
-import { EDIT_TOOL_NAME } from '../../tools/kit/names/fileEdit.js'
-import { WRITE_TOOL_NAME } from '../../tools/kit/names/fileWrite.js'
+import { READ_TOOL_NAME } from '../../tools/kit/names/read.js'
+import { EDIT_TOOL_NAME } from '../../tools/kit/names/edit.js'
+import { WRITE_TOOL_NAME } from '../../tools/kit/names/write.js'
 
 export const TIME_BASED_PRUNE_CLEARED_MESSAGE = '[stale tool result pruned — content cleared]'
 

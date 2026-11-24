@@ -20,7 +20,7 @@ const home = realpathSync(mkdtempSync(join(tmpdir(), 'child-rows-')))
 process.env.MERCURY_CONFIG_DIR = home
 const state = await import('../../src/boot/process-state/processState.ts')
 state.setIsInteractive(false)
-const { emitBackgroundCrewmateRows } = await import('../../src/engine/task-framework/sdkAgentFrames.ts')
+const { emitBackgroundCrewmateRows } = await import('../../src/engine/task-framework/sdkCrewmateFrames.ts')
 const { drainRows } = await import('../../src/daemon/runner/sdkEventQueue.ts')
 const { mainThreadStep } = await import('../../src/engine/rows/read.ts')
 const blocks = [{ type: 'thinking', thinking: 'consider' }, { type: 'text', text: 'words' }, { type: 'tool_use', id: 'call-background', name: 'Read', input: { file_path: 'proof' } }]
@@ -30,7 +30,7 @@ try {
   emitBackgroundCrewmateRows('agent-parent', assistant([{ type: 'text', text: 'more' }]))
   const rows = drainRows() as Row[]
   const items = rows.filter(row => ['reasoning', 'text', 'tool_call'].includes(row.type))
-  check('background normalized blocks have distinct consecutive addresses', JSON.stringify(items.map(row => row.block)) === JSON.stringify([0, 1, 2, 3]), items, 'Change childRowsOf in src/engine/rows/child.ts or emitBackgroundAgentRows in src/engine/task-framework/sdkAgentFrames.ts so consecutive background pieces get block addresses 0,1,2,3.')
+  check('background normalized blocks have distinct consecutive addresses', JSON.stringify(items.map(row => row.block)) === JSON.stringify([0, 1, 2, 3]), items, 'Change childRowsOf in src/engine/rows/child.ts or emitBackgroundAgentRows in src/engine/task-framework/sdkCrewmateFrames.ts so consecutive background pieces get block addresses 0,1,2,3.')
   check('background pieces keep one provider message identity and Agent scope', items.length === 4 && items.every(row => row.message_id === 'background-message' && row.parent_call_id === 'agent-parent'), items, 'Change childRowsOf in src/engine/rows/child.ts so every piece carries the provider message id and the parent call id of its crewmate as parent_call_id.')
   check('background model call emits one scoped step', rows.filter(row => row.type === 'step').length === 1 && rows.find(row => row.type === 'step')?.usage.output_tokens === 8, rows, 'Change childRowsOf in src/engine/rows/child.ts to emit exactly one step row per model call with the call usage.')
   const { childRowsOf } = await import('../../src/engine/rows/child.ts')
@@ -41,7 +41,7 @@ try {
   emitBackgroundCrewmateRows('handover-parent', settled)
   emitBackgroundCrewmateRows('handover-parent', settled)
   const handed = [...foreground, ...drainRows()] as Row[]
-  check('foreground to background handover keeps one block cursor and no duplicate pieces', JSON.stringify(handed.filter(row => row.block !== undefined).map(row => row.block)) === '[0,1,2]', handed, 'Change childRowsOf in src/engine/rows/child.ts and emitBackgroundAgentRows in src/engine/task-framework/sdkAgentFrames.ts so a settled message continues the foreground block cursor and repeats emit no duplicate pieces.')
+  check('foreground to background handover keeps one block cursor and no duplicate pieces', JSON.stringify(handed.filter(row => row.block !== undefined).map(row => row.block)) === '[0,1,2]', handed, 'Change childRowsOf in src/engine/rows/child.ts and emitBackgroundAgentRows in src/engine/task-framework/sdkCrewmateFrames.ts so a settled message continues the foreground block cursor and repeats emit no duplicate pieces.')
   check('handover emits one step after the settled final piece', handed.filter(row => row.type === 'step').length === 1 && handed.at(-1)?.type === 'step', handed, 'Change childRowsOf in src/engine/rows/child.ts to emit the step only once the settled final piece is out.')
 
   for (const childModel of [null, 'same', 'haiku']) {

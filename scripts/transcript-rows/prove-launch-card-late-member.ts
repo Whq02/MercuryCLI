@@ -44,7 +44,7 @@ const { buildMessageLookups } = await import(src('engine/messages/lookups.ts'))
 const { normalizeMessages } = await import(src('engine/message-shapes/normalize.ts'))
 const { getTools } = await import(src('tools/kit/toolList.ts'))
 const { CrewmateTool } = await import(src('tools/crewmate/CrewmateTool.tsx'))
-const { CREWMATE_TOOL_NAME } = await import(src('tools/kit/names/agent.ts'))
+const { CREWMATE_TOOL_NAME } = await import(src('tools/kit/names/crewmate.ts'))
 const { BashTool } = await import(src('tools/shell/BashTool.tsx'))
 
 enableConfigs()

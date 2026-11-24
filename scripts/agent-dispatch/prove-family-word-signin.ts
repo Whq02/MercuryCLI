@@ -75,7 +75,7 @@ const { XAI_DISPLAY_PINS } = await import('../../src/models/facts/pins/xaiPins.t
 const { META_DISPLAY_PINS } = await import('../../src/models/facts/pins/metaPins.ts')
 const { MISTRAL_DISPLAY_PINS } = await import('../../src/models/facts/pins/mistralPins.ts')
 const { KIMI_DISPLAY_PINS } = await import('../../src/models/facts/pins/kimiPins.ts')
-const { buildCrewmateLaunchPlan } = await import('../../src/crew/crewmates/agentLaunchPlan.ts')
+const { buildCrewmateLaunchPlan } = await import('../../src/crew/crewmates/crewmateLaunchPlan.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 type Road = { model?: string; backend?: string; displayLabel?: string; note?: string; threw?: string }
@@ -144,7 +144,7 @@ section('§4 a re-keyed credential: the cache is keyed under the old identity; t
   check('…by a second read of the list', hits.xai === 2, show(hits))
 }
 
-section('§5 the list cannot be read while the sign-in is live: the known default runs, with the receipt line', 'to fix: the pinnedDefault fallback and its note in the family-word branch of resolveEngineDispatch (src/crew/crewmates/engineDispatch.ts), and the modelNote in buildAgentLaunchPlan (src/crew/crewmates/agentLaunchPlan.ts)')
+section('§5 the list cannot be read while the sign-in is live: the known default runs, with the receipt line', 'to fix: the pinnedDefault fallback and its note in the family-word branch of resolveEngineDispatch (src/crew/crewmates/engineDispatch.ts), and the modelNote in buildAgentLaunchPlan (src/crew/crewmates/crewmateLaunchPlan.ts)')
 {
   modes.xai = 'fail'
   resetAll()

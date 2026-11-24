@@ -1,6 +1,6 @@
 import { permissionRuleValueFromString } from '../../permissions/rules/permissionRuleParser.js'
 import { validatePermissionRule } from '../../platform/settings/permissionValidation.js'
-import { CREWMATE_TOOL_NAME } from '../kit/names/agent.js'
+import { CREWMATE_TOOL_NAME } from '../kit/names/crewmate.js'
 
 export function agentToolRuleProblem(spec: string): string | null {
   if (!/[()]/.test(spec)) return null

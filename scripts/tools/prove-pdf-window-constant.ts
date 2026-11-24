@@ -1,4 +1,4 @@
-import { LINE_FORMAT_INSTRUCTION, renderPromptTemplate } from '../../src/tools/kit/names/fileRead.ts'
+import { LINE_FORMAT_INSTRUCTION, renderPromptTemplate } from '../../src/tools/kit/names/read.ts'
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {

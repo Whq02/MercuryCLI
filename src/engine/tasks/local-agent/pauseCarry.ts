@@ -12,7 +12,7 @@ import { logError } from '../../../platform/logs/errorLog.js'
 import { getSessionId } from '../../../boot/process-state/processState.js'
 import { getCrewmateMetadataPath, getTranscriptPath, readCrewmateMetadata } from '../../../sessions/transcripts/paths.js'
 import { notifyTasksUpdated } from '../../task-framework/tasks.js'
-import { decodeCrewmatePause, type CrewmatePauseV1 } from './agentPause.js'
+import { decodeCrewmatePause, type CrewmatePauseV1 } from './crewmatePause.js'
 import { CREWMATE_RESUME_DOOR, CREWMATE_WINDOW_RESUME_NOTE, enqueueCrewmateReceiptRow, isCrewmateTask, type CrewmateTaskState } from './crewmateTask.js'
 import { passedOverAs } from '../../../platform/errors/passedOver.js'
 

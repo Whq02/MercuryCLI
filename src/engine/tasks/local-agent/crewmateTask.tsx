@@ -40,9 +40,9 @@ import { PANEL_GRACE_MS, registerTask, updateTaskState } from '../../task-framew
 import { operatorPauseGate } from '../../loop/pauseGate.js'
 import { emitTaskEnded, enqueueRow, type TaskUsage } from '../../../daemon/runner/sdkEventQueue.js'
 import { AGENT_MESSAGE_STATUS, MAIN_AGENT_MESSAGE_SUMMARY } from './agentMessage.js'
-import { foldCrewmateWaitEvent, type CrewmateWaitV1 } from './agentWait.js'
-import type { CrewmatePauseV1 } from './agentPause.js'
-import { isOverloadAnswerText, overloadPauseWords } from './agentOverload.js'
+import { foldCrewmateWaitEvent, type CrewmateWaitV1 } from './crewmateWait.js'
+import type { CrewmatePauseV1 } from './crewmatePause.js'
+import { isOverloadAnswerText, overloadPauseWords } from './crewmateOverload.js'
 import type { BackgroundHandoverReason } from './launchReceipts.js'
 import { isSyntheticApiErrorMessage } from '../../message-shapes/factories.js'
 import { observedFamilyWindow } from '../../../models/roads/capFailover.js'
@@ -361,7 +361,7 @@ export const CREWMATE_RESUME_NOTE =
 export const CREWMATE_BUDGET_RESUME_NOTE =
   "The recovery budget's allowance is back and you were resumed by yourself after it was spent waiting on the provider. Continue from where your transcript ends — the work before the cut stands; do not redo it."
 
-export { CREWMATE_WINDOW_RESUME_NOTE } from './agentPause.js'
+export { CREWMATE_WINDOW_RESUME_NOTE } from './crewmatePause.js'
 
 export function pauseCrewmateTask(
   taskId: string,

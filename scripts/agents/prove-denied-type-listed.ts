@@ -12,8 +12,8 @@ function check(label: string, ok: boolean, detail = '', hint = ''): void {
 const { CrewmateTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
 const { setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.ts')
 setSessionTrustAccepted(true)
-const { buildCrewmateLaunchPlan } = await import('../../src/crew/crewmates/agentLaunchPlan.ts')
-const { MERCURY_CREW_AGENT_TYPE } = await import('../../src/tools/kit/names/agent.ts')
+const { buildCrewmateLaunchPlan } = await import('../../src/crew/crewmates/crewmateLaunchPlan.ts')
+const { MERCURY_CREW_AGENT_TYPE } = await import('../../src/tools/kit/names/crewmate.ts')
 type AgentDefinition = import('../../src/crew/agents/agentDefinition.ts').AgentDefinition
 type ToolPermissionContext = import('../../src/tools/kit/tool.ts').ToolPermissionContext
 
@@ -68,7 +68,7 @@ try {
 } catch (error) {
   launchRefusal = (error as Error).message
 }
-check('a launch of the denied type is refused', launchRefusal.includes('is denied by the rule Crewmate(deployer) in your user settings'), launchRefusal, 'buildAgentLaunchPlan in src/crew/crewmates/agentLaunchPlan.ts must throw the ruleSentence refusal for a denied type')
+check('a launch of the denied type is refused', launchRefusal.includes('is denied by the rule Crewmate(deployer) in your user settings'), launchRefusal, 'buildAgentLaunchPlan in src/crew/crewmates/crewmateLaunchPlan.ts must throw the ruleSentence refusal for a denied type')
 
 console.log('── §4 refusals: the control ──')
 const open = await promptUnder(context([]))

@@ -146,7 +146,7 @@ else {
     } finally {
       fs.chmodSync(unreadableTranscript, 0o600)
     }
-    const { CREWMATE_TOOL_NAME } = await import(${JSON.stringify(join(SRC, 'tools/kit/names/agent.ts'))})
+    const { CREWMATE_TOOL_NAME } = await import(${JSON.stringify(join(SRC, 'tools/kit/names/crewmate.ts'))})
     const { BACKGROUND_LAUNCH_LINE } = await import(${JSON.stringify(join(SRC, 'engine/tasks/local-agent/launchReceipts.ts'))})
     const agent1 = 'a12345678'
     const agent2 = 'b87654321'

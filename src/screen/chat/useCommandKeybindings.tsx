@@ -2,7 +2,7 @@ import { useMemo, useRef } from 'react'
 import { useKeybindings } from '../keys/useKeybinding.js'
 import { useOptionalKeybindingContext } from '../keys/KeybindingContext.js'
 import { useIsModalOverlayActive } from '../overlays/overlayHooks.js'
-import type { ComposerHelpers } from '../composer/input-core/promptInputHelpers.js'
+import type { ComposerHelpers } from '../composer/input-core/composerHelpers.js'
 import { findCommand } from '../../commands/catalogue/commands.js'
 import type { Command } from '../../commands/catalogue/commands.js'
 

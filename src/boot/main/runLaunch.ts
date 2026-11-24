@@ -156,7 +156,7 @@ export async function runLaunch(args: RunLaunchArgs): Promise<void> {
   let parsedJsonSchema: Record<string, unknown> | undefined
   if (jsonSchemaOpt) {
     const { isStructuredOutputToolEnabled, getSchemaBoundStructuredOutputTool } = await import(
-      '../../tools/structured-output/SyntheticOutputTool.js'
+      '../../tools/structured-output/StructuredOutputTool.js'
     )
     if (isStructuredOutputToolEnabled({ isNonInteractiveSession: true })) {
       parsedJsonSchema = JSON.parse(jsonSchemaOpt) as Record<string, unknown>
@@ -220,7 +220,7 @@ export async function runLaunch(args: RunLaunchArgs): Promise<void> {
   )
 
   if (modeBypassesPermissions(args.permissionMode) || args.allowDangerousSkip || store.getState().toolPermissionContext.isBypassPermissionsModeAvailable === true) {
-    void import('../../permissions/rules/bypassPermissionsKillswitch.js')
+    void import('../../permissions/rules/sovereignKillswitch.js')
       .then(m =>
         m.checkAndDisableSovereignIfNeeded(
           store.getState().toolPermissionContext,

@@ -470,7 +470,7 @@ t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly 
   t.check('picking a connect row routes to sign-in', agentModelPickOutcome(rows.find(r => r.value === '__mercury_connect__:zai')!).kind === 'needs-sign-in')
 
   {
-    const { getCrewmateModel } = await import('../../src/models/catalogue/agentModel.js')
+    const { getCrewmateModel } = await import('../../src/models/catalogue/crewmateModel.js')
     const { classifyModelRoute } = await import('../../src/models/roads/routeLaw.js')
     const PARENT = DEFAULT_OPUS
     t.check(
@@ -693,7 +693,7 @@ t.section('§9 — THE BUILT-IN MODEL DIAL (AGENTDIALS C1: the override round-tr
     '../../src/tools/crewmate/loadAgentsDir.js'
   )
   const { buildStudioRows } = await import('../../src/screen/agents/studio/studioData.js')
-  const { getCrewmateModel } = await import('../../src/models/catalogue/agentModel.js')
+  const { getCrewmateModel } = await import('../../src/models/catalogue/crewmateModel.js')
   const { parseUserSpecifiedModel } = await import('../../src/models/catalogue/engineModel.js')
   const { resolveEffectiveAgentRuntime } = await import('../../src/crew/agents/resolver.js')
   const { agentFaceDetailLines, BootAgentsScreen } = await import('../../src/screen/boot-face/BootAgentsScreen.js')

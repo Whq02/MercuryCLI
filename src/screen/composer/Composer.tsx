@@ -34,7 +34,7 @@ import { useComposerState } from './useComposerState.js'
 import { useComposerWiring } from './useComposerWiring.js'
 import { composerGates, composerInputBody, composerTextInputProps, composerView } from './composerView.js'
 import type { CompactWorkControls, CompactWorkFocus } from '../tasks/CompactWorkSummary.js'
-import type { ComposerHelpers } from './input-core/promptInputHelpers.js'
+import type { ComposerHelpers } from './input-core/composerHelpers.js'
 export type ComposerProps = {
   toolPermissionContext: AppState['toolPermissionContext']
   setToolPermissionContext: (

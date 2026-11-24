@@ -2,7 +2,7 @@ import { rebuildSeenLinesFromTranscript } from '../engines/change-transaction/se
 import { processOwnerForLane } from '../../engine/run-owner/resolveOwner.js'
 import { stat, utimes } from 'node:fs/promises'
 import { getEngineModel } from '../../models/catalogue/engineModel.js'
-import { getCrewmateModel } from '../../models/catalogue/agentModel.js'
+import { getCrewmateModel } from '../../models/catalogue/crewmateModel.js'
 import { crewmateModelOverride } from '../../crew/crewmates/crewmateModelWord.js'
 import { recordAfterResume } from '../../crew/crewmates/crewmateRecord.js'
 import type { Message } from '../../engine/message-shapes/message.js'
@@ -22,7 +22,7 @@ import { getTaskOutputPath } from '../../engine/task-framework/diskOutput.js'
 import {
   runWithCrewmateContext,
   type CrewmateContext,
-} from '../../crew/agents/agentContext.js'
+} from '../../crew/agents/crewmateContext.js'
 import { runWithCwdOverride } from '../../platform/files/cwd.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import {
@@ -42,19 +42,19 @@ import {
 import { reconstructForCrewmateResume } from '../../engine/tool-dispatch/toolResultStorage.js'
 import { recordedRequestContexts, restoreBoundPrefixFromMessages } from '../../models/roads/anthropic/boundPrefixRecord.js'
 import { pendingToolRosterRestore } from '../../models/roads/toolEconomy.js'
-import { getSchemaBoundStructuredOutputTool } from '../structured-output/SyntheticOutputTool.js'
-import { STRUCTURED_OUTPUT_TOOL_NAME } from '../kit/names/syntheticOutput.js'
+import { getSchemaBoundStructuredOutputTool } from '../structured-output/StructuredOutputTool.js'
+import { STRUCTURED_OUTPUT_TOOL_NAME } from '../kit/names/structuredOutput.js'
 import { getCwdState } from '../../boot/process-state/processState.js'
 import { automaticResumePending, cancelAutomaticResume, resolveCrewmateTools, runAsyncCrewmateLifecycle } from './crewmateLifecycle.js'
 import { operatorPauseGate } from '../../engine/loop/pauseGate.js'
-import { MERCURY_CREW_AGENT_TYPE } from '../kit/names/agent.js'
+import { MERCURY_CREW_AGENT_TYPE } from '../kit/names/crewmate.js'
 import type { AgentDefinition } from '../../crew/agents/agentDefinition.js'
 import { getAgentDefinitionsWithOverrides } from './loadAgentsDir.js'
 import { isBuiltInAgent } from '../../crew/agents/agentDefinition.js'
 import { runCrewmate } from './runCrewmate.js'
 import { continuationDirectoryNote } from './continuationNote.js'
 import { EFFORT_LEVELS, isEffortLevel, resolveStampedEffortTruth, type EffortLevel } from '../../models/effort/effort.js'
-import { liveCrewmateOwner } from './liveAgentOwner.js'
+import { liveCrewmateOwner } from './liveCrewmateOwner.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
 export { liveCrewmateOwner }

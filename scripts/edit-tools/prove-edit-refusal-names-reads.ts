@@ -16,7 +16,7 @@ const { mintFileAnchor } = await import('../../src/tools/engines/change-transact
 const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
 const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
-const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import('../../src/tools/kit/names/fileEdit.ts')
+const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import('../../src/tools/kit/names/edit.ts')
 
 let failures = 0
 let checks = 0
@@ -177,7 +177,7 @@ section('E. a read of an earlier version of the file is named as such')
   const later = new Date(Date.now() + 120_000)
   utimesSync(file, later, later)
   const stale = await validate({ file_path: file, old_string: 'const v5 = 5000', new_string: 'x' }, ctx)
-  check('E2 a full read whose bytes no longer match still refuses as an unexpected modification, not as an unread file', !stale.ok && stale.message === FILE_UNEXPECTEDLY_MODIFIED_ERROR, `a full read whose bytes differ must refuse with FILE_UNEXPECTEDLY_MODIFIED_ERROR (src/tools/kit/names/fileEdit.ts); got: ${messageOf(stale)}`)
+  check('E2 a full read whose bytes no longer match still refuses as an unexpected modification, not as an unread file', !stale.ok && stale.message === FILE_UNEXPECTEDLY_MODIFIED_ERROR, `a full read whose bytes differ must refuse with FILE_UNEXPECTEDLY_MODIFIED_ERROR (src/tools/kit/names/edit.ts); got: ${messageOf(stale)}`)
 }
 
 section('L. the law itself is unchanged')

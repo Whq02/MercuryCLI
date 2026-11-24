@@ -24,7 +24,7 @@ import { readHooksMap } from '../../integrations/event-hook-schemas/hooks.js'
 import type { HooksSettings } from '../../platform/settings/settingsSchema.js'
 import { isMnemeEnabled } from '../../sessions/mneme/paths.js'
 import { getBuiltInAgents } from './builtInAgents.js'
-import { setAgentColor } from './crewmateColors.js'
+import { setAgentColor } from './agentColors.js'
 import {
   loadAgentMemoryPrompt,
   withMemoryVerbs,

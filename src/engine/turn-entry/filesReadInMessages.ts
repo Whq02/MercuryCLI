@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs'
 
 import type { Message } from '../message-shapes/message.js'
-import { EDIT_TOOL_NAME } from '../../tools/kit/names/fileEdit.js'
+import { EDIT_TOOL_NAME } from '../../tools/kit/names/edit.js'
 import { REPEATED_RESULT_TAG } from '../../tools/kit/toolLimits.js'
-import { READ_TOOL_NAME, FILE_UNCHANGED_STUB } from '../../tools/kit/names/fileRead.js'
-import { WRITE_TOOL_NAME } from '../../tools/kit/names/fileWrite.js'
+import { READ_TOOL_NAME, FILE_UNCHANGED_STUB } from '../../tools/kit/names/read.js'
+import { WRITE_TOOL_NAME } from '../../tools/kit/names/write.js'
 import { createFileStateCacheWithSizeLimit, type FileStateCache } from '../../platform/files/fileStateCache.js'
 import { getFileModificationTime, stripLineNumberPrefix } from '../../platform/files/file.js'
 import { isENOENT } from '../../platform/errors/errors.js'

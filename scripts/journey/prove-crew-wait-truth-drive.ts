@@ -391,21 +391,21 @@ if (cap !== null) {
   for (const seat of ['fable', 'gpt'] as Seat[]) {
     const rows = rowsOf(seat)
     const firstByte = rows.filter(r => r.includes('waiting for the first byte'))
-    check(`W1 ${SEATS[seat]}: the first-byte wait names its limit ("waiting for the first byte · Ns, limit N s" — a minute or more spelled in minutes)`, firstByte.some(r => /waiting for the first byte · \d+s, limit (?:\d+m(?: \d+s)?|\d+ ?s)\b/.test(r)), firstByte[0]?.slice(0, 160) ?? rows[0]?.slice(0, 160) ?? '(no row)', 'change agentWaitWords in src/engine/tasks/local-agent/agentWait.ts so the first-byte phase prints its elapsed counter and limit')
+    check(`W1 ${SEATS[seat]}: the first-byte wait names its limit ("waiting for the first byte · Ns, limit N s" — a minute or more spelled in minutes)`, firstByte.some(r => /waiting for the first byte · \d+s, limit (?:\d+m(?: \d+s)?|\d+ ?s)\b/.test(r)), firstByte[0]?.slice(0, 160) ?? rows[0]?.slice(0, 160) ?? '(no row)', 'change agentWaitWords in src/engine/tasks/local-agent/crewmateWait.ts so the first-byte phase prints its elapsed counter and limit')
     const reasoningSeconds = rows.map(r => /reasoning (\d+)s\b/.exec(r)?.[1]).filter((v): v is string => v !== undefined).map(Number)
     const reasoningTokens = rows.map(r => /reasoning \d+s · ~(\d+) tokens so far/.exec(r)?.[1]).filter((v): v is string => v !== undefined).map(Number)
     const moves = (xs: readonly number[]): boolean => xs.length >= 2 && xs[xs.length - 1]! > xs[0]!
-    check(`W1 ${SEATS[seat]}: reasoning is named with a counter that moves (seconds ${reasoningSeconds.join(',') || 'none'} · tokens ${reasoningTokens.join(',') || 'none'})`, moves(reasoningSeconds) || moves(reasoningTokens), '', 'change agentWaitWords and streamedTokensWords in src/engine/tasks/local-agent/agentWait.ts so the reasoning phase shows seconds or a token count that grows between frames')
-    check(`W1 ${SEATS[seat]}: the tool phase paints the running tool's own line`, rows.some(r => /sleep 2|wait two seconds|Bash/.test(r)), '', 'the crewmate row must show the running tool; look at agentWaitWords in src/engine/tasks/local-agent/agentWait.ts and the fixture seat output above')
+    check(`W1 ${SEATS[seat]}: reasoning is named with a counter that moves (seconds ${reasoningSeconds.join(',') || 'none'} · tokens ${reasoningTokens.join(',') || 'none'})`, moves(reasoningSeconds) || moves(reasoningTokens), '', 'change agentWaitWords and streamedTokensWords in src/engine/tasks/local-agent/crewmateWait.ts so the reasoning phase shows seconds or a token count that grows between frames')
+    check(`W1 ${SEATS[seat]}: the tool phase paints the running tool's own line`, rows.some(r => /sleep 2|wait two seconds|Bash/.test(r)), '', 'the crewmate row must show the running tool; look at agentWaitWords in src/engine/tasks/local-agent/crewmateWait.ts and the fixture seat output above')
     check(`W1 ${SEATS[seat]}: the row lands`, rows.some(r => r.includes('landed')) || (cap.text.includes(SEATS[seat]) && seatRow(cap.text, seat)?.includes('landed') === true), seatRow(cap.text, seat)?.slice(0, 160) ?? '(no final row)', 'the seat row never reached landed; read the frames printed above and the seat fixture in this file')
     const distinct = new Set(rows.map(r => PHASE_WORDS.find(w => r.includes(w)) ?? (r.includes('landed') ? 'landed' : 'other')))
-    check(`W1 ${SEATS[seat]}: never one word across the run (${[...distinct].join(' → ')})`, distinct.size >= 3, '', 'the seat row must pass through at least three phase words; read the frames printed above and agentWaitWords in src/engine/tasks/local-agent/agentWait.ts')
+    check(`W1 ${SEATS[seat]}: never one word across the run (${[...distinct].join(' → ')})`, distinct.size >= 3, '', 'the seat row must pass through at least three phase words; read the frames printed above and agentWaitWords in src/engine/tasks/local-agent/crewmateWait.ts')
   }
 
   console.log('\n— W2 time-to-first-visible-output —')
   const fable = firstPhaseTick('fable')
   const gpt = firstPhaseTick('gpt')
-  check('W2 both seats showed a phase word', fable !== null && gpt !== null, `fable ${fable?.tick ?? 'never'} · gpt ${gpt?.tick ?? 'never'}`, 'a seat whose row never showed a phase word is the wire to fix; read agentWaitWords in src/engine/tasks/local-agent/agentWait.ts')
+  check('W2 both seats showed a phase word', fable !== null && gpt !== null, `fable ${fable?.tick ?? 'never'} · gpt ${gpt?.tick ?? 'never'}`, 'a seat whose row never showed a phase word is the wire to fix; read agentWaitWords in src/engine/tasks/local-agent/crewmateWait.ts')
   if (fable !== null && gpt !== null) {
     const diff = Math.abs(fable.tick - gpt.tick)
     check(`W2 the first visible output lands within three frames on both wires (fable @${fable.tick}, gpt @${gpt.tick}, ${(diff * 0.2).toFixed(1)} s apart)`, diff <= 3, '', 'one wire paints its first phase word later than the other; compare the two seat rows printed above')

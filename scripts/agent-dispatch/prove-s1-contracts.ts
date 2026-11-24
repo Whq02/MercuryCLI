@@ -7,7 +7,7 @@ import { zaiProviderAdapter } from '../../src/models/roads/zai/zaiAdapter.js'
 import {
   buildCrewmateLaunchPlan,
   type CrewmateLaunchPlanInput,
-} from '../../src/crew/crewmates/agentLaunchPlan.js'
+} from '../../src/crew/crewmates/crewmateLaunchPlan.js'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -54,7 +54,7 @@ section('1 · ProviderAdapter — exactly the frozen member set')
 
 section('2 · buildAgentLaunchPlan — decision laws')
 {
-  s1Where = 'change buildAgentLaunchPlan in src/crew/crewmates/agentLaunchPlan.ts so the plan follows the law this check names'
+  s1Where = 'change buildAgentLaunchPlan in src/crew/crewmates/crewmateLaunchPlan.ts so the plan follows the law this check names'
   const mkDef = (over: Partial<CustomAgentDefinition> = {}): CustomAgentDefinition => ({
     agentType: 'orbit-probe',
     whenToUse: 'orbit s1 freeze probe',

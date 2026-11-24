@@ -157,8 +157,8 @@ section('§3 — the surfaces tell the truth')
     const asked = selector.session.calls.splice(0)
     const receipts = selector.notices.splice(0)
     const landedDraft = selector.draft().text
-    check("the Chat's restore road calls the connector's rewind and paints the receipt", asked.join() === `rewind ${JSON.stringify({ userMessageId: '00000000-0000-4000-8000-00000000a001', mode: 'both' })}` && receipts.length === 1 && receipts[0]!.key === 'rewind-receipt' && receipts[0]!.text.startsWith('rewound: '), `${asked.join()} · ${j(receipts)} | change onRestore in src/screen/chat/useChatSelector.tsx`)
-    check('the Chat onRestore callback, its landed-rewind gate and the resubmit all exist inside that one callback', landedDraft === 'the words to wind back to' && selector.calls.splice(0).join() === 'setInputMode prompt', `${j({ landedDraft })} | change onRestore in src/screen/chat/useChatSelector.tsx`)
+    check("the Chat's restore road calls the connector's rewind and paints the receipt", asked.join() === `rewind ${JSON.stringify({ userMessageId: '00000000-0000-4000-8000-00000000a001', mode: 'both' })}` && receipts.length === 1 && receipts[0]!.key === 'rewind-receipt' && receipts[0]!.text.startsWith('rewound: '), `${asked.join()} · ${j(receipts)} | change onRestore in src/screen/chat/useChatRewindPicker.tsx`)
+    check('the Chat onRestore callback, its landed-rewind gate and the resubmit all exist inside that one callback', landedDraft === 'the words to wind back to' && selector.calls.splice(0).join() === 'setInputMode prompt', `${j({ landedDraft })} | change onRestore in src/screen/chat/useChatRewindPicker.tsx`)
     const pendingStore = await import('../../src/screen/composer/input-core/pending-input.ts')
     pendingStore.edit('')
     selector.session.rewind = answer('refused', false)
@@ -167,7 +167,7 @@ section('§3 — the surfaces tell the truth')
     selector.session.rewind = answer('applied', false)
     await selector.selector().onRestore(anchor, 'code')
     const afterCodeOnly = selector.draft().text
-    check('the composer takes the words back only after a LANDED conversation rewind', draftWhenAsked.join('|') === '||' && afterRefusal === '' && afterCodeOnly === '' && landedDraft !== '', `${j({ draftWhenAsked, afterRefusal, afterCodeOnly, landedDraft })} | change onRestore in src/screen/chat/useChatSelector.tsx so the draft fills only after a landed conversation rewind`)
+    check('the composer takes the words back only after a LANDED conversation rewind', draftWhenAsked.join('|') === '||' && afterRefusal === '' && afterCodeOnly === '' && landedDraft !== '', `${j({ draftWhenAsked, afterRefusal, afterCodeOnly, landedDraft })} | change onRestore in src/screen/chat/useChatRewindPicker.tsx so the draft fills only after a landed conversation rewind`)
     selector.session.calls.length = 0
     selector.session.turnActive = true
     selector.session.onInterrupt = () => void setTimeout(() => (selector.session.turnActive = false), 300)
@@ -183,7 +183,7 @@ section('§3 — the surfaces tell the truth')
     const boundedIn = Date.now() - boundedAt
     const boundedOrder = selector.session.calls.splice(0).map(call => call.split(' ')[0]).join(' · ')
     await selector.close()
-    check('a running turn is interrupted and given a bounded settle before the ask', settledOrder === 'interrupt · rewind' && settledIn >= 250 && settledIn < 3000 && boundedOrder === 'interrupt · rewind' && boundedIn >= 4500 && boundedIn < 9000, `${j({ settledOrder, settledIn, boundedOrder, boundedIn })} | change onRestore in src/screen/chat/useChatSelector.tsx so it interrupts a running turn, waits a bounded time, then rewinds`)
+    check('a running turn is interrupted and given a bounded settle before the ask', settledOrder === 'interrupt · rewind' && settledIn >= 250 && settledIn < 3000 && boundedOrder === 'interrupt · rewind' && boundedIn >= 4500 && boundedIn < 9000, `${j({ settledOrder, settledIn, boundedOrder, boundedIn })} | change onRestore in src/screen/chat/useChatRewindPicker.tsx so it interrupts a running turn, waits a bounded time, then rewinds`)
   }
 }
 

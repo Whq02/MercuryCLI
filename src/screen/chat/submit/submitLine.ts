@@ -3,7 +3,7 @@ import { addToHistory, expandPastedTextRefs } from '../../../sessions/promptHist
 import * as pendingInput from '../../composer/input-core/pending-input.js';
 import { getFocusedSessionConnector } from '../../../engine/connector/focusedConnector.js';
 import type { CommandSeat } from '../../../commands/catalogue/command.js';
-import type { ComposerHelpers } from '../../composer/input-core/promptInputHelpers.js';
+import type { ComposerHelpers } from '../../composer/input-core/composerHelpers.js';
 import type { InputMode } from '../../composer/input-core/textInput.js';
 import type { PastedContent } from '../../../platform/config/schema.js';
 import { createUserMessage } from '../../../engine/messages/messages.js';

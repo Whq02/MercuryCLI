@@ -4,11 +4,11 @@ import { setAgentDisabled, setAgentOverride } from '../../../crew/agents/overrid
 import { AgentStoreError, deleteAgentToTrash } from '../../../crew/agents/store.js';
 import { isFileBacked, type StudioRow } from '../../agents/studio/studioData.js';
 import type { FieldId } from '../../agents/studio/studioEditorModel.js';
-import { AGENT_COLORS } from '../../../tools/crewmate/crewmateColors.js';
+import { AGENT_COLORS } from '../../../tools/crewmate/agentColors.js';
 import { EFFORT_LEVELS, resolveEffortTruth, type EffortValue } from '../../../models/effort/effort.js';
 import { agentModelPickOutcome, getAgentModelPickerRows } from '../../../models/catalogue/agentModelPicker.js';
 import { bootBirthFacts } from '../../../daemon/switchboard/bootBirthFacts.js';
-import { offeredDefinitionModes } from '../../../tools/crewmate/agentPermissionPosture.js';
+import { offeredDefinitionModes } from '../../../tools/crewmate/crewmatePermissionPosture.js';
 import { agentFormFieldKind } from './face.js';
 import type { AgentsFaceContext } from './context.js';
 

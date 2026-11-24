@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import type { InstructionProfile } from '../../sessions/instruction-contracts/contracts.js'
-import type { AgentColorName } from '../../tools/crewmate/crewmateColors.js'
+import type { AgentColorName } from '../../tools/crewmate/agentColors.js'
 import type { AgentMemoryScope } from './agentMemory.js'
 import type { EffortValue } from '../../models/effort/effort.js'
 import type { PermissionMode } from '../../permissions/rules/permissionMode.js'

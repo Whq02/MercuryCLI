@@ -3,7 +3,7 @@ import type { ProviderUsabilityReads } from '../../src/models/roads/providerUsab
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 for (const key of ['OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'HF_TOKEN', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_HOME', 'MERCURY_MODEL']) delete process.env[key]
 let failures = 0
-const providerDecidesFailureHint = 'change the 429 mapping in mapOpenaiHttpFailure (src/models/roads/openai/openaiWire.ts), mapCompatHttpFailure (src/models/roads/openaicompat/compatChatClient.ts), classifyAnthropicRefusal (src/models/roads/anthropicRefusal.ts), getAssistantMessageFromError (src/engine/requests/apiErrorRows.ts) or retryAfterHeaderMs (src/engine/requests/retryAfter.ts); the dispatch door in src/models/roads/providerUsability.ts; the live facts in src/daemon/saturn/saturnAccount.ts; or the pause and automatic retry in src/tools/crewmate/crewmateLifecycle.ts and src/engine/tasks/local-agent/agentPause.ts, whichever this label names'
+const providerDecidesFailureHint = 'change the 429 mapping in mapOpenaiHttpFailure (src/models/roads/openai/openaiWire.ts), mapCompatHttpFailure (src/models/roads/openaicompat/compatChatClient.ts), classifyAnthropicRefusal (src/models/roads/anthropicRefusal.ts), getAssistantMessageFromError (src/engine/requests/apiErrorRows.ts) or retryAfterHeaderMs (src/engine/requests/retryAfter.ts); the dispatch door in src/models/roads/providerUsability.ts; the live facts in src/daemon/saturn/saturnAccount.ts; or the pause and automatic retry in src/tools/crewmate/crewmateLifecycle.ts and src/engine/tasks/local-agent/crewmatePause.ts, whichever this label names'
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)} — ${providerDecidesFailureHint}`}`)
   if (!ok) failures++
@@ -160,7 +160,7 @@ const { createUserMessage } = await import('../../src/engine/messages/messages.j
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.js')
 const { turnDoor: startTurn } = await import('../../src/engine/turnDoor.ts')
 const { registerAsyncCrewmate } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
-const { pauseStatusWords } = await import('../../src/engine/tasks/local-agent/agentPause.js')
+const { pauseStatusWords } = await import('../../src/engine/tasks/local-agent/crewmatePause.js')
 const { openaiLimitWindow } = await import('../../src/models/roads/openai/openaiLimitState.js')
 const { generateTaskId } = await import('../../src/engine/tasks/taskBase.js')
 await import('../../src/engine/tasks/tasks.js')

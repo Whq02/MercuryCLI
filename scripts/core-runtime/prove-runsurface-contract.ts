@@ -163,9 +163,9 @@ const { createFileStateCacheWithSizeLimit } = await import(
   '../../src/platform/files/fileStateCache.ts'
 )
 const { STRUCTURED_OUTPUT_TOOL_NAME } = await import(
-  '../../src/tools/structured-output/SyntheticOutputTool.ts'
+  '../../src/tools/structured-output/StructuredOutputTool.ts'
 )
-const { CREWMATE_TOOL_NAME } = await import('../../src/tools/kit/names/agent.ts')
+const { CREWMATE_TOOL_NAME } = await import('../../src/tools/kit/names/crewmate.ts')
 const { logError } = await import('../../src/platform/logs/errorLog.ts')
 const printMod = await import('../../src/daemon/runner/runHeadless.ts')
 const resumeMod = await import('../../src/daemon/runner/resume.ts')

@@ -127,7 +127,7 @@ const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/f
 const { turnDoor: startTurn } = await import('../../src/engine/turnDoor.ts')
 const { getCrewmateTranscript } = await import('../../src/sessions/transcripts/sessionListings.ts')
 const { getCrewmateTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
-const { ResumeCrewmateTool } = await import('../../src/tools/resume-crewmate/ResumeAgentTool.ts')
+const { ResumeCrewmateTool } = await import('../../src/tools/resume-crewmate/ResumeCrewmateTool.ts')
 const { registerAsyncCrewmate, failCrewmateTask, registerCrewmateName } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
 const { generateTaskId } = await import('../../src/engine/tasks/taskBase.ts')
 await import('../../src/engine/tasks/tasks.ts')
@@ -289,7 +289,7 @@ const b = await drive(storeB, idB, 2)
   check('the run ends failed, provider-declined, with the second refusal\'s words', outcome.status === 'failed' && outcome.reason === 'provider-declined' && outcome.error.includes('refused the retried request too'), JSON.stringify(outcome))
 }
 
-section('§4 the run that ended on the error stays resumable by message: the next line continues it from its transcript', 'to fix: ResumeAgentTool (src/tools/resume-crewmate/ResumeAgentTool.ts) and resumeCrewmateBackground (src/tools/crewmate/resumeCrewmate.ts) must resume the failed agent from its transcript with the message')
+section('§4 the run that ended on the error stays resumable by message: the next line continues it from its transcript', 'to fix: ResumeAgentTool (src/tools/resume-crewmate/ResumeCrewmateTool.ts) and resumeCrewmateBackground (src/tools/crewmate/resumeCrewmate.ts) must resume the failed agent from its transcript with the message')
 {
   seen.length = 0
   refusals = 0

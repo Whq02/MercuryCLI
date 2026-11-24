@@ -1,5 +1,5 @@
 import type { BuiltInAgentDefinition } from '../../../crew/agents/agentDefinition.js'
-import { MERCURY_CREW_AGENT_TYPE } from '../../kit/names/agent.js'
+import { MERCURY_CREW_AGENT_TYPE } from '../../kit/names/crewmate.js'
 
 export const MERCURY_CREW_AGENT: BuiltInAgentDefinition = {
   agentType: MERCURY_CREW_AGENT_TYPE,

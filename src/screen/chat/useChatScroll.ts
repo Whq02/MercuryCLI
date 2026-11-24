@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useMeasure, usePublish } from '../effects/effects.js';
 import { computeUnseenDivider, countUnseenAssistantTurns, useUnseenDivider } from '../fullscreen-layout/FullscreenLayout.js';
 import { setMessageCursor } from '../messages/messageCursorStore.js';
-import { ScreenInstanceContext } from '../renderer/elements/InkInstanceContext.js';
+import { ScreenInstanceContext } from '../renderer/elements/ScreenInstanceContext.js';
 import type { ScrollBoxHandle } from '../renderer/elements/ScrollBox.js';
 import type { Message } from '../../engine/message-shapes/message.js';
 import { isHumanTurn } from './messagePredicates.js';

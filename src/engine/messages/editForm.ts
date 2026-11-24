@@ -1,5 +1,5 @@
 import { flagEnv } from '../../platform/substrate/flagRegistry.js'
-import { EDIT_TOOL_NAME } from '../../tools/kit/names/fileEdit.js'
+import { EDIT_TOOL_NAME } from '../../tools/kit/names/edit.js'
 
 function forcedEditForm(): 'full' | 'plain' | undefined {
   const value = flagEnv('MERCURY_EDIT_FORM')

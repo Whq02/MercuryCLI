@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // gate-watch: src/engine/system-prompt/defaultSystemPrompt.ts src/screen/cockpit/runtimePosture.ts src/screen/cockpit-gauges/harnessMap.ts
-// gate-watch: src/sessions/mneme/mnemeFrontPage.ts src/crew/agent-results/contracts.ts src/tools/crewmate/subagentDoctrine.ts
+// gate-watch: src/sessions/mneme/mnemeFrontPage.ts src/crew/agent-results/contracts.ts src/tools/crewmate/crewmateDoctrine.ts
 // gate-watch: scripts/prompt/fixtures/prompt-ablation/**
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
@@ -43,7 +43,7 @@ const { getOriginalCwd, setOriginalCwd, setCwdState, setAskChannel } = await imp
 const { markSessionNonInteractive, resetRuntimePostureForTest } = await import('../../src/screen/cockpit/runtimePosture.ts')
 const { resetHarnessMapForTest } = await import('../../src/screen/cockpit-gauges/harnessMap.ts')
 const { getLocalISODate } = await import('../../src/platform/primitives/localIsoDate.ts')
-const { buildCrewmateMercurySections } = await import('../../src/tools/crewmate/subagentDoctrine.ts')
+const { buildCrewmateMercurySections } = await import('../../src/tools/crewmate/crewmateDoctrine.ts')
 const { MERCURY_CREW_AGENT } = await import('../../src/tools/crewmate/built-in/mercuryCrewAgent.ts')
 const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.ts')
 const { retainItems } = await import('../../src/sessions/mneme/memoryVerbs.ts')
@@ -111,7 +111,7 @@ try {
   for (const row of rows) {
     const sentence = fill(row.sentence!)
     const present = row.seats!.split(' ').filter(seat => seats[seat]!.includes(sentence))
-    check(`${row.id} is absent from ${row.seats} (carrier: ${row.carrier})`, present.length === 0, `still rides the ${present.join(' and ')} seat`, 'a sentence the study cut is back in a seat prompt; find its row in scripts/prompt/fixtures/prompt-ablation/cut-rows.tsv, then remove the sentence from the source named in its carrier column (the seats are assembled in src/engine/system-prompt/defaultSystemPrompt.ts and src/tools/crewmate/subagentDoctrine.ts)')
+    check(`${row.id} is absent from ${row.seats} (carrier: ${row.carrier})`, present.length === 0, `still rides the ${present.join(' and ')} seat`, 'a sentence the study cut is back in a seat prompt; find its row in scripts/prompt/fixtures/prompt-ablation/cut-rows.tsv, then remove the sentence from the source named in its carrier column (the seats are assembled in src/engine/system-prompt/defaultSystemPrompt.ts and src/tools/crewmate/crewmateDoctrine.ts)')
   }
 
 

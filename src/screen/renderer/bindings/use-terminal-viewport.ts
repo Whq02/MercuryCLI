@@ -1,7 +1,7 @@
 import { useCallback, useContext, useRef } from 'react'
 import { useMeasure } from '../../effects/effects.js'
 import { LiveTerminalSizeContext, TerminalSizeContext } from '../elements/TerminalSizeContext.js'
-import { ScreenInstanceContext } from '../elements/InkInstanceContext.js'
+import { ScreenInstanceContext } from '../elements/ScreenInstanceContext.js'
 import type { DOMElement } from '../dom.js'
 
 type ViewportEntry = { isVisible: boolean }

@@ -1,7 +1,7 @@
 
 import { searchToolsAvailability } from '../../../platform/shell/ripgrep.js'
 import type { BuiltInAgentDefinition } from '../../../crew/agents/agentDefinition.js'
-import { CREWMATE_TOOL_NAME } from '../../kit/names/agent.js'
+import { CREWMATE_TOOL_NAME } from '../../kit/names/crewmate.js'
 
 function searchToolGuidance(): string {
   const search = searchToolsAvailability()

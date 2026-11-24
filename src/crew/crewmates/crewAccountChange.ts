@@ -26,7 +26,7 @@ export function subscribeCrewAccountChange(listener: () => void): () => void {
   }
 }
 
-export { CREW_ACCOUNT_RESUME_NOTE } from '../../engine/tasks/local-agent/agentPause.js'
+export { CREW_ACCOUNT_RESUME_NOTE } from '../../engine/tasks/local-agent/crewmatePause.js'
 
 export function crewAccountResumeSummary(name: string): string {
   return `${name} resumed by itself — the operator signed in on another account; its partial work carried forward`

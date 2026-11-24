@@ -3,8 +3,8 @@ import type { UUID } from 'crypto'
 import { findToolByName, safeSearchOrReadClassification, type Tools } from '../../tools/kit/tool.js'
 import { BASH_TOOL_NAME } from '../../tools/kit/names/bash.js'
 import { extractBashCommentLabel } from '../../tools/shell/commentLabel.js'
-import { EDIT_TOOL_NAME } from '../../tools/kit/names/fileEdit.js'
-import { WRITE_TOOL_NAME } from '../../tools/kit/names/fileWrite.js'
+import { EDIT_TOOL_NAME } from '../../tools/kit/names/edit.js'
+import { WRITE_TOOL_NAME } from '../../tools/kit/names/write.js'
 import {
   detectGitOperation,
   type BranchAction,

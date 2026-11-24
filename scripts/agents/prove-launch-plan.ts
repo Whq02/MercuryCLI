@@ -5,7 +5,7 @@ process.env.NODE_ENV = 'test'
 import { join } from 'node:path'
 
 let failures = 0
-const launchPlanChangeHint = ' — change: buildAgentLaunchPlan in src/crew/crewmates/agentLaunchPlan.ts must resolve the type, model, isolation, async decision or worker mode this check names (the roster comes from getBuiltInAgents in src/tools/crewmate/builtInAgents.ts)'
+const launchPlanChangeHint = ' — change: buildAgentLaunchPlan in src/crew/crewmates/crewmateLaunchPlan.ts must resolve the type, model, isolation, async decision or worker mode this check names (the roster comes from getBuiltInAgents in src/tools/crewmate/builtInAgents.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? launchPlanChangeHint : ''}`)
@@ -14,7 +14,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-const { buildCrewmateLaunchPlan } = await import('../../src/crew/crewmates/agentLaunchPlan.ts')
+const { buildCrewmateLaunchPlan } = await import('../../src/crew/crewmates/crewmateLaunchPlan.ts')
 const { getBuiltInAgents } = await import('../../src/tools/crewmate/builtInAgents.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 

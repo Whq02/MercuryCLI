@@ -17,7 +17,7 @@ const api = await startFixtureApi([])
 process.env.ANTHROPIC_BASE_URL = api.url
 
 const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
-const { FILE_UNCHANGED_STUB } = await import('../../src/tools/kit/names/fileRead.ts')
+const { FILE_UNCHANGED_STUB } = await import('../../src/tools/kit/names/read.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { buildRequestContextPlan } = await import('../../src/engine/run/requestContextPlan.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')

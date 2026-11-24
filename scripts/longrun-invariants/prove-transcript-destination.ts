@@ -8,7 +8,7 @@ process.env.MERCURY_CONFIG_DIR = HOME
 
 await import('../../src/engine/tasks/tasks.js')
 const { resolveCrewmateTranscriptFile, crewmateTranscriptFileIn } = await import(
-  '../../src/crew/crewmates/agentTranscriptReader.js'
+  '../../src/crew/crewmates/crewmateTranscriptReader.js'
 )
 const { recordSidechainTranscript, registerCrewmateTranscriptDestination, getProject } =
   await import('../../src/sessions/transcripts/writer.js')
@@ -54,12 +54,12 @@ section('the destination is captured at launch; readers fall back across dirs')
   check(
     'the reader falls back to the OLD destination when the primary is empty',
     resolveCrewmateTranscriptFile([newDir, oldDir], 'agX') === crewmateTranscriptFileIn(oldDir, 'agX'),
-    'resolveAgentTranscriptFile in src/crew/crewmates/agentTranscriptReader.ts must return the first dir in the list whose agent-<id>.jsonl exists',
+    'resolveAgentTranscriptFile in src/crew/crewmates/crewmateTranscriptReader.ts must return the first dir in the list whose agent-<id>.jsonl exists',
   )
   check(
     'with no file anywhere the primary path is still named (honest missing state)',
     resolveCrewmateTranscriptFile([newDir, oldDir], 'agY') === crewmateTranscriptFileIn(newDir, 'agY'),
-    'resolveAgentTranscriptFile in src/crew/crewmates/agentTranscriptReader.ts must return the first dir path when no dir holds the file',
+    'resolveAgentTranscriptFile in src/crew/crewmates/crewmateTranscriptReader.ts must return the first dir path when no dir holds the file',
   )
   rmSync(oldDir, { recursive: true, force: true })
   rmSync(newDir, { recursive: true, force: true })

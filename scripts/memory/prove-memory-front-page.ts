@@ -2,7 +2,7 @@
 // gate-watch: src/sessions/mneme/mnemeFrontPage.ts src/sessions/mneme/mnemeUsage.ts src/sessions/mneme/mnemeArchive.ts
 // gate-watch: src/sessions/mneme/mnemeLookup.ts src/sessions/mneme/mnemeConsolidate.ts src/sessions/mneme/mnemeCorrect.ts
 // gate-watch: src/sessions/mneme/mnemeLibrary.ts src/sessions/mneme/mnemeTopicDocs.ts src/engine/system-prompt/defaultSystemPrompt.ts
-// gate-watch: src/sessions/mneme/memoryVerbs.ts src/sessions/mneme/mnemeBuffer.ts src/screen/status-notices/statusNoticeDefinitions.tsx src/tools/crewmate/subagentDoctrine.ts
+// gate-watch: src/sessions/mneme/memoryVerbs.ts src/sessions/mneme/mnemeBuffer.ts src/screen/status-notices/statusNoticeDefinitions.tsx src/tools/crewmate/crewmateDoctrine.ts
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

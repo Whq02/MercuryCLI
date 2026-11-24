@@ -10,7 +10,7 @@ import type { useChatDialogs, useChatDialogsView } from './useChatDialogs.js';
 import type { useChatFocusedSeat } from './useChatFocusedSeat.js';
 import type { useChatScroll, useChatScrollPin } from './useChatScroll.js';
 import type { useChatSearch } from './useChatSearch.js';
-import type { useChatRewindPicker, useChatRewindPickerView } from './useChatSelector.js';
+import type { useChatRewindPicker, useChatRewindPickerView } from './useChatRewindPicker.js';
 import type { useChatConversation, useChatSession } from './useChatSession.js';
 import type { useChatStatusStrip } from './useChatStatus.js';
 import type { useChatTools } from './useChatTools.js';

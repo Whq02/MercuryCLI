@@ -32,7 +32,7 @@ import { errorMessage } from '../../../platform/errors/errors.js'
 import { logError } from '../../../platform/logs/errorLog.js'
 import { AMBER, CRIMSON, SECOND, TEAL } from '../../theme/mercuryPalette.js'
 import { truncateToWidth } from '../../theme/glyphs.js'
-import type { generateAgent } from '../generateCrewmate.js'
+import type { generateAgent } from '../generateAgent.js'
 import { startTimeout, stopTimeout, type TimerHandle } from '../../../platform/async/timers.js'
 
 
@@ -358,7 +358,7 @@ function liveDeps(): StudioEditorDeps {
     listDrafts: listAgentDraftsWithError,
     discardDraft: discardAgentDraft,
     generate: async (prompt, model, existingIdentifiers, signal) =>
-      (await import('../generateCrewmate.js')).generateAgent(prompt, model, existingIdentifiers, signal),
+      (await import('../generateAgent.js')).generateAgent(prompt, model, existingIdentifiers, signal),
     setTimer: (fn, ms) => startTimeout(fn, ms),
     clearTimer: handle => stopTimeout(handle),
   }

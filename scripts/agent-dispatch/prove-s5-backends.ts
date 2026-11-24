@@ -13,7 +13,7 @@ const backendsWhere: Record<string, string> = {
   '1b': 'change routedCallModel in src/models/roads/callModelRouter.ts or resolveEngineDispatch in src/crew/crewmates/engineDispatch.ts',
   '2': 'change zaiCallModel in src/models/roads/zai/zaiCallModel.ts',
   '3': 'change zaiCallModel in src/models/roads/zai/zaiCallModel.ts',
-  '4': 'change buildAgentLaunchPlan in src/crew/crewmates/agentLaunchPlan.ts',
+  '4': 'change buildAgentLaunchPlan in src/crew/crewmates/crewmateLaunchPlan.ts',
   '5': 'change SPECIALIST_ROLES and SPECIALIST_ROLE_ACCESS in src/models/roads/providerAdapter.ts',
 }
 let backendsHint = ''
@@ -40,7 +40,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(joinPath(tmpdir(), 'prove-s5-home-'
 const { classifyModelRoute, declaredRouteOf } = await import('../../src/models/roads/callModelRouter.js')
 const { zaiCallModel } = await import('../../src/models/roads/zai/zaiCallModel.js')
 const { buildCrewmateLaunchPlan } = await import(
-  '../../src/crew/crewmates/agentLaunchPlan.js'
+  '../../src/crew/crewmates/crewmateLaunchPlan.js'
 )
 const { SPECIALIST_ROLES, SPECIALIST_ROLE_ACCESS } = await import(
   '../../src/models/roads/providerAdapter.js'
@@ -488,7 +488,7 @@ section('4 · the launch-plan engine law (role→sandbox · denials · no floor)
   check('no dispatch: engine fields absent', plain.engineBackend === undefined && plain.engineToolDenials === undefined)
 
   {
-    const launchPlanModule = await import('../../src/crew/crewmates/agentLaunchPlan.js')
+    const launchPlanModule = await import('../../src/crew/crewmates/crewmateLaunchPlan.js')
     check(
       'the launch-plan module exports no specialist-denial table (provider parity)',
       !('ENGINE_SPECIALIST_TOOL_DENIALS' in launchPlanModule),

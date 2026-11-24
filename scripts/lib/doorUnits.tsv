@@ -39,9 +39,9 @@ src/screen/chat/Chat.tsx	src/screen/chat/useChatBoot.tsx
 src/screen/chat/Chat.tsx	src/screen/chat/useChatDialogs.tsx
 src/screen/chat/Chat.tsx	src/screen/chat/useChatDraft.ts
 src/screen/chat/Chat.tsx	src/screen/chat/useChatFocusedSeat.ts
+src/screen/chat/Chat.tsx	src/screen/chat/useChatRewindPicker.tsx
 src/screen/chat/Chat.tsx	src/screen/chat/useChatScroll.ts
 src/screen/chat/Chat.tsx	src/screen/chat/useChatSearch.tsx
-src/screen/chat/Chat.tsx	src/screen/chat/useChatSelector.tsx
 src/screen/chat/Chat.tsx	src/screen/chat/useChatSession.ts
 src/screen/chat/Chat.tsx	src/screen/chat/useChatStatus.tsx
 src/screen/chat/Chat.tsx	src/screen/chat/useChatSubmit.ts
@@ -61,8 +61,8 @@ src/screen/messages/Messages.tsx	src/screen/messages-list/useRowExpansion.ts
 src/screen/messages/Messages.tsx	src/screen/messages-list/useSearchFacets.ts
 src/screen/messages/Messages.tsx	src/screen/messages-list/useTranscriptRows.ts
 src/screen/messages/Messages.tsx	src/screen/messages-list/useVisibleRows.ts
+src/screen/messages/StatusNotices.tsx	src/screen/status-notices/agentDescriptionTokens.ts
 src/screen/messages/StatusNotices.tsx	src/screen/status-notices/statusNoticeDefinitions.tsx
-src/screen/messages/StatusNotices.tsx	src/screen/status-notices/statusNoticeHelpers.ts
 src/screen/rewind-picker/RewindPicker.tsx	src/screen/rewind-picker/preview.ts
 src/screen/rewind-picker/RewindPicker.tsx	src/screen/rewind-picker/stats.ts
 src/screen/rewind-picker/RewindPicker.tsx	src/screen/rewind-picker/views.tsx

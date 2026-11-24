@@ -17,7 +17,7 @@ import { getMnemeHome, isMnemeEnabled } from '../../sessions/mneme/paths.js'
 import { updateSettingsForSource } from '../../platform/settings/settings.js'
 import { Select } from '../select/Select.js'
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js'
-import { getRelativeInstructionFilePath } from './MemoryUpdateNotification.js'
+import { getRelativeInstructionFilePath } from './instructionFilePath.js'
 import { instructionFileListLayout } from './memoryCentreLayout.js'
 
 export function openMemoryFolder(

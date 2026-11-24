@@ -1445,7 +1445,7 @@ export async function sessionRekeys(tag: string): Promise<{ atMount: string; hop
   return { atMount, hop, again, rest, landing }
 }
 
-type SelectorModule = typeof import('../../src/screen/chat/useChatSelector.tsx')
+type SelectorModule = typeof import('../../src/screen/chat/useChatRewindPicker.tsx')
 type SelectorArgs = Parameters<SelectorModule['useChatRewindPickerView']>[0]
 type SelectorValue = ReturnType<SelectorModule['useChatRewindPickerView']>
 type RewindAnswer = { outcome: 'applied' | 'noop' | 'refused'; mode: string; refusal?: string; detail?: string; conversation?: { removed: number }; code?: { filesChanged: string[]; insertions: number; deletions: number } }
@@ -1489,7 +1489,7 @@ export async function openSelectorPart(tag: string, options: { keepHome?: boolea
       return { sequence: '', confirmation: clipboard.confirmation, settled: [] }
     },
   }))
-  const module = await import('../../src/screen/chat/useChatSelector.tsx')
+  const module = await import('../../src/screen/chat/useChatRewindPicker.tsx')
   const cursor = await import('../../src/screen/messages/messageCursorStore.ts')
   const pending = await import('../../src/screen/composer/input-core/pending-input.ts')
   const slot = await import('../../src/engine/connector/focusedConnector.ts')

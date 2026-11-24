@@ -44,7 +44,7 @@ sessionAdmit	3
 sessionControl	16
 sessionDispatch	2
 sessionList	1
-sessionRelease	3
+sessionRelease	2
 sessionRewind	1
 set-effort	1
 set-kit	1
@@ -53,7 +53,7 @@ set-schedule	1
 set-spawn-switch	1
 set-title	7
 signIns	3
-stop	61
+stop	60
 stop-agent	1
 terminal/create	2
 terminal/kill	2

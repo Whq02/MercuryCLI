@@ -1,5 +1,5 @@
 import type { FrontmatterData } from '../../platform/text/frontmatterParser.js'
-import type { InstructionFileType } from '../memory-shapes/types.js'
+import type { InstructionFileType } from './instructionFileType.js'
 
 export type InstructionProfile = 'auto' | 'native'
 

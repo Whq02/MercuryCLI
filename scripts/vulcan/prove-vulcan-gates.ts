@@ -14,7 +14,7 @@ const failHintsBySection: Record<string, string> = {
   '§4': 'change checkPermissions and isReadOnly in src/tools/godot/GodotTool.ts so read, mutate and exec ops get the permission class this check names',
   '§5': 'change src/integrations/vulcan/addonInstaller.ts (vulcanInstallStatus, applyVulcanInstall, applyVulcanUninstall, describeVulcanStatus, readEnabledPlugins, readRuntimeAutoloadEntry) so install, refresh and uninstall report what this check names',
   '§6': 'change the MERCURY_GODOT_TOOLS rows in the flag registry (FLAG_REGISTRY)',
-  '§7': 'change src/screen/cockpit-gauges/harnessMap.ts, src/tools/crewmate/subagentDoctrine.ts, src/platform/substrate/startupMenu.ts or the vulcan row in src/platform/health/sections/runtime.ts, whichever this check names',
+  '§7': 'change src/screen/cockpit-gauges/harnessMap.ts, src/tools/crewmate/crewmateDoctrine.ts, src/platform/substrate/startupMenu.ts or the vulcan row in src/platform/health/sections/runtime.ts, whichever this check names',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -205,7 +205,7 @@ section('§7 · behavioral seams — harness map, doctrine, boot menu, health, p
   resetHarnessMapForTest()
   check('harness map: VULCAN line when armed (delta machinery sees the flip)', computeHarnessMapLines().some(l => l.includes('VULCAN') && l.includes('is armed')))
 
-  const { buildCrewmateMercurySections } = await import('../../src/tools/crewmate/subagentDoctrine.js')
+  const { buildCrewmateMercurySections } = await import('../../src/tools/crewmate/crewmateDoctrine.js')
   const doctrine = () =>
     buildCrewmateMercurySections({ agentDefinition: { agentType: 'mercury-crew' } }).join('\n')
   const armedDoctrine = runWithCwdOverride(proj, doctrine)

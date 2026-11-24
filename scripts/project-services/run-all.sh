@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/crew/agent-results/** src/crew/crewmates/agentTranscriptReader.ts src/engine/messages/*
+# gate-watch: src/crew/agent-results/** src/crew/crewmates/crewmateTranscriptReader.ts src/engine/messages/*
 # gate-watch: src/engine/run/**
 # gate-watch: src/screen/renderer/**
 # gate-watch: src/sessions/fabric/entryCodec.ts

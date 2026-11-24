@@ -194,7 +194,7 @@ section('L3 — THE TEAR-DOWN: the fixture sees the connection drop within a sec
 {
   const closed = wire.find(c => c.kind === 'anthropic-closed')
   const lag = closed !== undefined && escAt > 0 ? closed.at - escAt : Number.NaN
-  check(`the connection dropped (the client aborted the stream — never the fixture's own ceiling)`, closed !== undefined && closed.why === 'client-dropped', `${JSON.stringify(closed ?? null)} — the esc did not abort the open stream; the client must drop the connection (see escRungOf in src/screen/composer/input-core/interruptArity.ts and the abort path of the interrupted turn)`)
+  check(`the connection dropped (the client aborted the stream — never the fixture's own ceiling)`, closed !== undefined && closed.why === 'client-dropped', `${JSON.stringify(closed ?? null)} — the esc did not abort the open stream; the client must drop the connection (see escRungOf in src/screen/composer/input-core/escRung.ts and the abort path of the interrupted turn)`)
   check(`the drop landed within ${TEARDOWN_BUDGET_MS} ms of the esc (measured ${Number.isFinite(lag) ? `${lag} ms` : 'never'})`, Number.isFinite(lag) && lag >= 0 && lag <= TEARDOWN_BUDGET_MS, `esc ${escAt} closed ${closed?.at} — the teardown after the esc is slower than ${TEARDOWN_BUDGET_MS} ms or never happened; the request must be aborted on the esc, not on a timeout`)
   if (Number.isFinite(lag)) console.log(`  [info] esc → connection drop: ${lag} ms`)
 }
@@ -203,7 +203,7 @@ section('L4 — THE ROW TELLS THE TRUTH after the interrupt')
 {
   const before = markGrids.get('esc-sent') ?? ''
   const status = before.split('\n').find(line => line.includes('esc interrupts')) ?? ''
-  check('the live status row shows Opus 5 and high effort with the esc hint, without a phase or ready label', status.includes('Opus 5 · high') && status.includes('esc interrupts · ⇧← back') && !/thinking|ready ·/.test(status), `${status} — the status row at the esc must show the model, effort and esc hint without a phase label; see statusLine in src/screen/chat/SwitchboardTagBar.tsx and escRungHint in src/screen/composer/input-core/interruptArity.ts`)
+  check('the live status row shows Opus 5 and high effort with the esc hint, without a phase or ready label', status.includes('Opus 5 · high') && status.includes('esc interrupts · ⇧← back') && !/thinking|ready ·/.test(status), `${status} — the status row at the esc must show the model, effort and esc hint without a phase label; see statusLine in src/screen/chat/SwitchboardTagBar.tsx and escRungHint in src/screen/composer/input-core/escRung.ts`)
   check('the interruption painted (⨯ Interrupted)', /Interrupted/.test(gridText), `${gridText.split('\n').slice(-12).join('\n')}\n — no Interrupted line painted after the esc; the interrupted turn must write its notice into the transcript`)
   check('the composer returned', /│❯\s/.test(gridText) && / for a new line/.test(gridText), `${gridText.split('\n').slice(-8).join('\n')}\n — the composer did not come back after the interrupt; read the last rows above`)
   check("the status row reads ready — no 'interrupting' left standing", /ready · [^\n]*← back/.test(gridText) && !/interrupting —/.test(gridText), `${gridText.split('\n').slice(-8).join('\n')}\n — the interrupting label stayed on the status row; its source is statusLine in src/screen/chat/SwitchboardTagBar.tsx (s.interrupting must clear once the turn ends)`)

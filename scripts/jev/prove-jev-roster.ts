@@ -29,7 +29,7 @@ writeFileSync(join(HOME, '.mercury.json'), JSON.stringify({ hasCompletedOnboardi
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 const { setJevEnabled, setJevSubagents, readJevSettings } = await import('../../src/models/jev/jevSetting.ts')
-const { runWithCrewmateContext } = await import('../../src/crew/agents/agentContext.ts')
+const { runWithCrewmateContext } = await import('../../src/crew/agents/crewmateContext.ts')
 const { storeJevApiKey } = await import('../../src/models/jev/jevKey.ts')
 const { resetJevLedger } = await import('../../src/models/jev/jevLedger.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')

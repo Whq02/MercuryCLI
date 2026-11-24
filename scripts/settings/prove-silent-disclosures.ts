@@ -17,7 +17,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 const section = (t: string): void => {
-  whereToLook = t.startsWith('§2') ? 'checkAndDisableSovereignIfNeeded in src/permissions/rules/bypassPermissionsKillswitch.ts (the mode reset and its notification)' : 'src/screen/notifications/notifications.tsx (enqueueNotification)'
+  whereToLook = t.startsWith('§2') ? 'checkAndDisableSovereignIfNeeded in src/permissions/rules/sovereignKillswitch.ts (the mode reset and its notification)' : 'src/screen/notifications/notifications.tsx (enqueueNotification)'
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
@@ -109,7 +109,7 @@ section('§2 the killswitch drive — the mode flip says why')
   enableConfigs()
   const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.js')
   resetSettingsCache()
-  const killswitch = await import('../../src/permissions/rules/bypassPermissionsKillswitch.ts')
+  const killswitch = await import('../../src/permissions/rules/sovereignKillswitch.ts')
 
   const live = makeStore({
     toolPermissionContext: { mode: 'sovereign', isBypassPermissionsModeAvailable: true },

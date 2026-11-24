@@ -15,7 +15,7 @@ import { FileTooLargeError, readFileInRange, type ReadFileRangeResult } from '..
 import { openRegularFileSync } from '../regularFile.js'
 import type { FileReadingLimits } from './fileReadLimits.js'
 import { buildOutlineNumberedWindow } from '../outline.js'
-import { MAX_LINES_TO_READ } from '../../kit/names/fileRead.js'
+import { MAX_LINES_TO_READ } from '../../kit/names/read.js'
 import type { Input, OverCapNote, Output, LaneResult } from './schema.js'
 import { resultLineAnchors, resultOutlineBodies, notifyFileReadListeners } from './results.js'
 import { MaxFileReadTokenExceededError, overCapNextWords, MAX_DISPLAY_LINE_CHARS, numberedReadContent, firstWindowUnderCap, tokensOverCap } from './window.js'

@@ -13,7 +13,7 @@ import { matchWildcardPattern, parsePermissionRule } from '../../permissions/rul
 import { parseForSecurity, splitCommand, pinnedCommandAnalysis, getAllCommands } from '../../permissions/rules/decision/commandAnalysis.js'
 import { namesWholeServerOf } from '../../permissions/rules/decision/rules.js'
 import { webFetchRuleMatches } from '../../permissions/rules/webFetchRuleMatches.js'
-import { MERCURY_CREW_AGENT_TYPE } from '../../tools/kit/names/agent.js'
+import { MERCURY_CREW_AGENT_TYPE } from '../../tools/kit/names/crewmate.js'
 import { hooksDisabled, managedHooksOnly, settingsHooksFor, type HookSource, type LayeredHook } from './hooksConfigSnapshot.js'
 import { sessionHooksFor, type HookScope } from './sessionHooks.js'
 import { passedOver } from '../../platform/errors/passedOver.js'

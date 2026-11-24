@@ -18,11 +18,11 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 
 let failures = 0
 const NEUTRAL_DOORS_FIX_HINT_BY_SECTION: Record<string, string> = {
-  '1': 'change getAgentModel in src/models/catalogue/agentModel.ts',
+  '1': 'change getAgentModel in src/models/catalogue/crewmateModel.ts',
   '2': 'change isModelAllowed in src/models/catalogue/modelAllowlist.ts, or the family words in src/models/catalogue/modelFamilies.ts and src/models/facts/aliases.ts',
   '3': 'remove the substitution or floor text it names: src/screen/cockpit/runtimePosture.ts, src/screen/cockpit-gauges/substrateSnapshot.ts, src/screen/concourse-model/workerModels.ts, src/models/facts/seatSlots.ts or src/models/roads/modelRegistry.ts',
   '4': 'change the Crewmate tool model field in src/tools/crewmate/CrewmateTool.tsx, AGENT_DISPATCH_MODELS in src/models/facts/aliases.ts, or unrecognisedModelWordRefusal in src/crew/crewmates/engineDispatch.ts',
-  '5': 'change the model picker door in src/commands/model/mercuryModel.tsx, parseUserSpecifiedModel in src/models/catalogue/engineModel.ts, or subagentDefaultsOf in src/crew/agents/agentDefaults.ts',
+  '5': 'change the model picker door in src/commands/model/mercuryModel.tsx, parseUserSpecifiedModel in src/models/catalogue/engineModel.ts, or subagentDefaultsOf in src/crew/agents/crewmateDefaults.ts',
 }
 let neutralDoorsFixHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -41,7 +41,7 @@ console.log('============================================================')
 const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const { saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
-const agent = await import('../../src/models/catalogue/agentModel.ts')
+const agent = await import('../../src/models/catalogue/crewmateModel.ts')
 const model = await import('../../src/models/catalogue/engineModel.ts')
 
 section('§1 the sub-agent resolver follows the parent whatever its provider and substitutes nothing')
@@ -210,7 +210,7 @@ section('§5 the doors store exact ids; the words come from a lookup of the id')
     check(`the bare family word '${word}' resolves to its family's first recorded row (${head}) at write time, the way 'grok' resolves to xAI's newest row`, model.parseUserSpecifiedModel(word) === head, model.parseUserSpecifiedModel(word))
     check(`  …and the picker door maps the word onto that row`, picker.modelChoiceRow(word) === head && picker.modelChoiceLabel(word) === picker.modelChoiceLabel(head), `${picker.modelChoiceRow(word)} · ${picker.modelChoiceLabel(word)}`)
   }
-  const { crewmateDefaultsOf } = await import('../../src/crew/agents/agentDefaults.ts')
+  const { crewmateDefaultsOf } = await import('../../src/crew/agents/crewmateDefaults.ts')
   check("the sub-agent default reader takes the choice word 'inherit' as unset", crewmateDefaultsOf({ defaultModel: 'inherit' }).model === undefined && crewmateDefaultsOf({ defaultModel: fable }).model === fable)
 }
 

@@ -72,7 +72,7 @@ const { callUtilityModel } = await import('../../src/models/roads/anthropic/stre
 const { nativeSearch } = await import('../../src/tools/engines/web-search/nativeSearch.ts')
 const { nativeSearchFamilyOf, resolveSearchDoorPlan } = await import('../../src/tools/engines/web-search/searchDoor.ts')
 const { runQuestionHook } = await import('../../src/integrations/event-hook-runners/questionRunner.ts')
-const { generateAgent } = await import('../../src/screen/agents/generateCrewmate.ts')
+const { generateAgent } = await import('../../src/screen/agents/generateAgent.ts')
 
 const makeToolContext = (engineModel: string): never =>
   ({
@@ -220,7 +220,7 @@ section('§3 the rewritten sites reach the wire through the router')
       agentCall.options.model === 'gpt-5.4' &&
       agentCall.options.querySource === 'agent_creation' &&
       draft.identifier === 'router-agent',
-    JSON.stringify({ calls: settledCalls.length, model: agentCall?.options.model, draft }) + ' — generateAgent in src/screen/agents/generateCrewmate.ts must call routedCallModelSettled once with the requested model and querySource agent_creation'
+    JSON.stringify({ calls: settledCalls.length, model: agentCall?.options.model, draft }) + ' — generateAgent in src/screen/agents/generateAgent.ts must call routedCallModelSettled once with the requested model and querySource agent_creation'
   )
 }
 

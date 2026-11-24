@@ -16,7 +16,7 @@ import type { ExternalInstructionInclude } from '../../sessions/instructions/ins
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js'
 import { seatCeilingFactsAsync, type SeatCeilingFacts } from '../../daemon/switchboard-capacity/capacityCheck.js'
 import { jevSessionFactsStamp, subscribeJevSessionFacts } from '../../models/jev/jevSessionFacts.js'
-import { crewmateDefaultsOf } from '../../crew/agents/agentDefaults.js'
+import { crewmateDefaultsOf } from '../../crew/agents/crewmateDefaults.js'
 import { useLocalServerConfig } from './LocalServer.js'
 import { useMediaConfig } from './Media.js'
 import { type SubMenu, type SettingsItem, validated, type ConfigRowKit } from './config/configItems.js'

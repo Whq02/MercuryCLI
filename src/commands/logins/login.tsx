@@ -18,7 +18,7 @@ import { stripSignatureBlocks } from '../../engine/messages/messages.js'
 import {
   checkAndDisableSovereignIfNeeded,
   resetSovereignCheck,
-} from '../../permissions/rules/bypassPermissionsKillswitch.js'
+} from '../../permissions/rules/sovereignKillswitch.js'
 import { resetUserCache } from '../../platform/environment/user.js'
 import { loginFamilyFocusFor } from '../../models/sign-in/flow-cards/loginFamilyRows.js'
 

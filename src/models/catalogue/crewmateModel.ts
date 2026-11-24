@@ -1,4 +1,4 @@
-import { defaultCrewmateModel } from '../../crew/agents/agentDefaults.js'
+import { defaultCrewmateModel } from '../../crew/agents/crewmateDefaults.js'
 
 import { classifyModelRoute } from '../roads/idSpaces.js'
 import { FIRST_PARTY_FAMILY_WORDS, routeOfFamilyWord } from './modelFamilies.js'

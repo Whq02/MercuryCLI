@@ -38,7 +38,7 @@ const { applyTaskOffsetsAndEvictions } = await import('../../src/engine/task-fra
 const { SendMessageTool } = await import('../../src/tools/send-message/SendMessageTool.ts')
 const { CrewmateTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
 const { getPrompt } = await import('../../src/tools/resume-crewmate/prompt.ts')
-const { ResumeCrewmateTool } = await import('../../src/tools/resume-crewmate/ResumeAgentTool.ts')
+const { ResumeCrewmateTool } = await import('../../src/tools/resume-crewmate/ResumeCrewmateTool.ts')
 const lr = (await import('../../src/engine/tasks/local-agent/launchReceipts.ts')) as Record<string, unknown> & { BACKGROUND_LAUNCH_LINE: string }
 const queue = await import('../../src/screen/composer/input-core/command-queue.ts')
 const { getCrewmateTranscriptPath, getCrewmateMetadataPath, readCrewmateMetadata } = await import('../../src/sessions/transcripts/paths.ts')
@@ -230,9 +230,9 @@ check('…while its transcript stays on disk, the record the id road resumes fro
 section('§2 THE ID ROAD (control) — a message to the finished agent\'s id resumes it from its transcript')
 const byId = await send(ctx, harbour, 'a word for the harbour', 'req_id')
 console.log(`  the answer: ${JSON.stringify(byId.data)}`)
-check('the id road resumes the finished agent in the background', byId.data.success === true && /resumed in the background with your message/.test(byId.data.message), byId.data.message, 'ResumeAgentTool.call in src/tools/resume-crewmate/ResumeAgentTool.ts must resume a finished agent addressed by its id')
+check('the id road resumes the finished agent in the background', byId.data.success === true && /resumed in the background with your message/.test(byId.data.message), byId.data.message, 'ResumeAgentTool.call in src/tools/resume-crewmate/ResumeCrewmateTool.ts must resume a finished agent addressed by its id')
 const rowById = rowOf(store, harbour)
-check('…a fresh running row stands under the same id, its prompt the notice carrying the message', rowById?.status === 'running' && (rowById.prompt ?? '').includes('a word for the harbour'), JSON.stringify({ status: rowById?.status }), 'the resume in src/tools/resume-crewmate/ResumeAgentTool.ts must register a running row under the same id with the message in its prompt')
+check('…a fresh running row stands under the same id, its prompt the notice carrying the message', rowById?.status === 'running' && (rowById.prompt ?? '').includes('a word for the harbour'), JSON.stringify({ status: rowById?.status }), 'the resume in src/tools/resume-crewmate/ResumeCrewmateTool.ts must register a running row under the same id with the message in its prompt')
 settleResumed(store, harbour)
 
 section('§3 THE PIN — the same message to the finished agent\'s NAME takes the resume road (RED on the base: the "spawn a crew first" refusal)')
@@ -240,9 +240,9 @@ const byName = await send(ctx, 'harbour-count', 'a second word for the harbour',
 console.log(`  the answer: ${JSON.stringify(byName.data)}`)
 check('the name road resumes the finished agent exactly as the id road did', byName.data.success === true && /resumed in the background with your message/.test(byName.data.message), byName.data.message, 'the name address must resolve a finished agent: look at the name lookup in src/tools/send-message/crewAddress.ts and the receipts reader in src/engine/tasks/local-agent/launchReceipts.ts')
 check('the words never say "spawn a crew" for a name a finished agent carried', !/spawn a crew/i.test(byName.data.message), byName.data.message, 'a finished agent name must resolve through src/tools/send-message/crewAddress.ts instead of falling to the refusal')
-check('the answer names the id the name resolved to', byName.data.message.includes(harbour), byName.data.message, 'the resume answer in src/tools/resume-crewmate/ResumeAgentTool.ts must print the resolved agent id')
+check('the answer names the id the name resolved to', byName.data.message.includes(harbour), byName.data.message, 'the resume answer in src/tools/resume-crewmate/ResumeCrewmateTool.ts must print the resolved agent id')
 const rowByName = rowOf(store, harbour)
-check('…the same outcome as the id road: a running row under the same id, its prompt the notice carrying the message', rowByName?.status === 'running' && (rowByName.prompt ?? '').includes('a second word for the harbour'), JSON.stringify({ status: rowByName?.status }), 'the name road in src/tools/resume-crewmate/ResumeAgentTool.ts must end in the same resume as the id road')
+check('…the same outcome as the id road: a running row under the same id, its prompt the notice carrying the message', rowByName?.status === 'running' && (rowByName.prompt ?? '').includes('a second word for the harbour'), JSON.stringify({ status: rowByName?.status }), 'the name road in src/tools/resume-crewmate/ResumeCrewmateTool.ts must end in the same resume as the id road')
 settleResumed(store, harbour)
 
 section('§4 A NAME NOBODY CARRIED, with agents in the session — the refusal names what it found and never says "spawn a crew" (RED on the base)')
@@ -324,8 +324,8 @@ section('§10 THE WORDS — the prompt tells the model a finished agent\'s name 
 {
   const prompt = getPrompt()
   const toField = (ResumeCrewmateTool.inputSchema as { shape: { to: { description?: string } } }).shape.to.description ?? ''
-  check('the to field keeps the two-address sentence the receipts proof pins', toField.includes('the id its launch receipt names or the name its launch gave it'), toField, 'the to field description in src/tools/resume-crewmate/ResumeAgentTool.ts must keep the two-address sentence')
-  check('…and says the name reaches the agent after it has finished, the newest launch when two carried it; the prompt says what a resumed turn is', /running or finished/.test(toField) && /newest/.test(toField) && prompt.includes('resumed from its transcript'), toField, 'the to field in src/tools/resume-crewmate/ResumeAgentTool.ts must say running or finished and newest, and getPrompt in src/tools/resume-crewmate/prompt.ts must say resumed from its transcript')
+  check('the to field keeps the two-address sentence the receipts proof pins', toField.includes('the id its launch receipt names or the name its launch gave it'), toField, 'the to field description in src/tools/resume-crewmate/ResumeCrewmateTool.ts must keep the two-address sentence')
+  check('…and says the name reaches the agent after it has finished, the newest launch when two carried it; the prompt says what a resumed turn is', /running or finished/.test(toField) && /newest/.test(toField) && prompt.includes('resumed from its transcript'), toField, 'the to field in src/tools/resume-crewmate/ResumeCrewmateTool.ts must say running or finished and newest, and getPrompt in src/tools/resume-crewmate/prompt.ts must say resumed from its transcript')
 }
 
 

@@ -25,7 +25,7 @@ const failureHint = (label: string): string => {
   if (/side queries/.test(label)) return 'change sideQueryThinkingParam in src/engine/requests/sideRequest.ts'
   if (/forced tool choice is not rewritten/.test(label)) return 'change foldToolChoiceForModel in src/models/facts/capabilities.ts'
   if (/effort ladder|unpinned default/.test(label)) return 'change the effort ladder in src/models/effort/effort.ts (selectableEffortLevelsForLadder, resolveEffortTruth) or routeEffortsFor in src/models/roads/anthropic/anthropicAdapter.ts'
-  if (/family default, the haiku alias/.test(label)) return 'change the family order in FAMILY_GENERATIONS (src/models/facts/builtInModelTable.ts), parseUserSpecifiedModel (src/models/catalogue/engineModel.ts) or getAgentModel (src/models/catalogue/agentModel.ts)'
+  if (/family default, the haiku alias/.test(label)) return 'change the family order in FAMILY_GENERATIONS (src/models/facts/builtInModelTable.ts), parseUserSpecifiedModel (src/models/catalogue/engineModel.ts) or getAgentModel (src/models/catalogue/crewmateModel.ts)'
   if (/canonical|display|chip|alias|family order|saved full|spoken|annotation/.test(label)) return 'change the Haiku 5.5 row in src/models/facts/builtInModelTable.ts (FAMILY_GENERATIONS, familyHeadOf) or the name and alias readers in src/models/catalogue/engineModel.ts'
   return 'change the Haiku 5.5 capability facts in src/models/facts/capabilities.ts (context window, output ceiling, thinking, betas, cutoff, resolveModelCapabilities)'
 }
@@ -46,7 +46,7 @@ try {
   const { classOfModel } = await import('../../src/models/roads/modelRegistry.ts')
   const { routeEffortsFor } = await import('../../src/models/roads/anthropic/anthropicAdapter.ts')
   const { sideRequestThinkingParam } = await import('../../src/engine/requests/sideRequest.ts')
-  const { getCrewmateModel } = await import('../../src/models/catalogue/agentModel.ts')
+  const { getCrewmateModel } = await import('../../src/models/catalogue/crewmateModel.ts')
 
   check('Haiku 5.5 has its own canonical and declared row', model.getCanonicalName(ID) === ID && configs.familyHeadOf(ID) === null)
   check('case and context annotation retain the canonical', model.getCanonicalName('Claude-Haiku-5-5[1m]') === ID)

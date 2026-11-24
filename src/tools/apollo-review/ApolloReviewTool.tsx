@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { buildTool, type ToolPermissionContext } from '../kit/tool.js'
 import { zodToJsonSchema } from '../../platform/primitives/zodToJsonSchema.js'
-import { getCrewmateContext } from '../../crew/agents/agentContext.js'
+import { getCrewmateContext } from '../../crew/agents/crewmateContext.js'
 import {
   isFlowGateEnabled,
   setPermissionModeWithGuards,

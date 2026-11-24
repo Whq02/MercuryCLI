@@ -31,7 +31,7 @@ try {
   const { appendObservation } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
   const { openEntry, closeEntry } = await import('../../src/sessions/mneme/ledger.ts')
   const { loadMemoryPrompt: pageFor } = await import('../../src/sessions/mneme/mnemeFrontPage.ts')
-  const { buildCrewmateMercurySections } = await import('../../src/tools/crewmate/subagentDoctrine.ts')
+  const { buildCrewmateMercurySections } = await import('../../src/tools/crewmate/crewmateDoctrine.ts')
   const seatBefore = buildCrewmateMercurySections({ agentDefinition: { agentType: 'mercury-crew' } } as never).find(section => section.startsWith('# Memory')) ?? ''
   const emptyBefore = pageFor({ dir: sibling } as never)
   appendObservation({ text: 'a fact retained mid-conversation waits in the buffer', source: 'tool:Retain s:mid', topicHint: 'harbour' }, sibling)

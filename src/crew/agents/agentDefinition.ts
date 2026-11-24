@@ -5,7 +5,7 @@ import type { ToolUseContext } from '../../tools/kit/tool.js'
 import type { EffortValue } from '../../models/effort/effort.js'
 import type { PermissionMode } from '../../permissions/rules/permissionMode.js'
 import type { HooksSettings } from '../../platform/settings/settingsSchema.js'
-import type { AgentColorName } from '../../tools/crewmate/crewmateColors.js'
+import type { AgentColorName } from '../../tools/crewmate/agentColors.js'
 import type { AgentMemoryScope } from './agentMemory.js'
 
 export type AgentMcpServerSpec = string | { [name: string]: McpServerConfig }

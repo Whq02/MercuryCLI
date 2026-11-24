@@ -323,7 +323,7 @@ console.log('— T5 the usage attribution —')
   check('T5 no settled response ⇒ no line (never a zero that reads as fact)', crew.crewUsageLine([agents.find(a => a.id === 'ag3')!]) === null)
   const { addToTotalSessionCost } = await import('../../src/models/usage/sessionCost.ts')
   const state = await import('../../src/boot/process-state/processState.ts')
-  const { runWithCrewmateContext } = await import('../../src/crew/agents/agentContext.ts')
+  const { runWithCrewmateContext } = await import('../../src/crew/agents/crewmateContext.ts')
   const inBefore = state.getTotalInputTokens()
   const outBefore = state.getTotalOutputTokens()
   runWithCrewmateContext(

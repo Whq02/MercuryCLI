@@ -1,5 +1,5 @@
 import React, { createContext, type PropsWithChildren, useContext, useInsertionEffect, useRef } from 'react';
-import { ScreenInstanceContext } from './InkInstanceContext.js';
+import { ScreenInstanceContext } from './ScreenInstanceContext.js';
 import { consumeLauncherAltHold } from '../launcherAltHold.js';
 import { DISABLE_ALTERNATE_SCROLL, DISABLE_MOUSE_TRACKING, ENABLE_ALTERNATE_SCROLL, ENABLE_MOUSE_TRACKING, ENTER_ALT_SCREEN, EXIT_ALT_SCREEN } from '../termio/dec.js';
 import { noteModeAcquired, noteModeReleased } from '../root/terminalModeLedger.js';

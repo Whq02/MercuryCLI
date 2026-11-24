@@ -9,7 +9,7 @@ import { FallbackToolUseRejectedMessage } from '../../../tools/kit/FallbackToolU
 import { UserToolErrorMessage } from './UserToolErrorMessage.js'
 import { UserToolRejectMessage } from './UserToolRejectMessage.js'
 import { UserToolSuccessMessage } from './UserToolSuccessMessage.js'
-import { useGetToolFromMessages } from './utils.js'
+import { useGetToolFromMessages } from './useGetToolFromMessages.js'
 
 type Props = {
   param: ToolResultBlockParam

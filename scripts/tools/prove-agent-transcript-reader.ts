@@ -12,10 +12,10 @@ import {
   PROMPT_CAP_CHARS,
   readCrewmateTranscript,
   summarizeToolInput,
-} from '../../src/crew/crewmates/agentTranscriptReader.ts'
+} from '../../src/crew/crewmates/crewmateTranscriptReader.ts'
 
 let failures = 0
-const readerFailureHint = 'Change readAgentTranscript or summarizeToolInput in src/crew/crewmates/agentTranscriptReader.ts until this check holds'
+const readerFailureHint = 'Change readAgentTranscript or summarizeToolInput in src/crew/crewmates/crewmateTranscriptReader.ts until this check holds'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? (detail ? ` — ${detail}` : '') : ` — ${readerFailureHint}${detail ? `. ${detail}` : ''}`}`)

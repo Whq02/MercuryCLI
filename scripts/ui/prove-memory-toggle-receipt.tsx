@@ -6,7 +6,7 @@ pinSourceRef()
 const home = pinScratchHome('memory-toggle-receipt')
 let failures = 0
 const check = (label: string, ok: boolean): void => {
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' | to fix: the Memory: on/off row, its focus and its updateSettingsForSource write are in src/screen/memory/MemoryFileSelector.tsx; flip the shown switch only after the write returns no error'}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' | to fix: the Memory: on/off row, its focus and its updateSettingsForSource write are in src/screen/memory/InstructionFileSelector.tsx; flip the shown switch only after the write returns no error'}`)
   if (!ok) failures++
 }
 await import('../../src/tools/crewmate/CrewmateTool.js')
@@ -23,7 +23,7 @@ mock.module('../../src/platform/settings/settings.js', () => ({
     return { error: refused ? new Error('fixture write refused') : null }
   },
 }))
-const { InstructionFileSelector } = await import('../../src/screen/memory/MemoryFileSelector.js')
+const { InstructionFileSelector } = await import('../../src/screen/memory/InstructionFileSelector.js')
 const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
 const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')

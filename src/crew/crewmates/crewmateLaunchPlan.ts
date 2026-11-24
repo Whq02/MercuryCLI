@@ -2,9 +2,9 @@
 import type { ToolPermissionContext } from '../../tools/kit/tool.js'
 import type { EngineDispatch } from './engineDispatch.js'
 import { classifyModelRoute, laneLabelForVerdict, providerDisplayName } from '../../models/roads/routeLaw.js'
-import { CREWMATE_TOOL_NAME } from '../../tools/kit/names/agent.js'
+import { CREWMATE_TOOL_NAME } from '../../tools/kit/names/crewmate.js'
 import type { AgentDefinition } from '../agents/agentDefinition.js'
-import { getCrewmateModel } from '../../models/catalogue/agentModel.js'
+import { getCrewmateModel } from '../../models/catalogue/crewmateModel.js'
 import type { PermissionMode } from '../../permissions/rules/permissionMode.js'
 import {
   filterDeniedAgents,

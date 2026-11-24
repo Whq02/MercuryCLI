@@ -19,7 +19,7 @@ import { fluxMark } from '../../../integrations/media-flux/fluxProbe.js'
 import useStdin from '../bindings/use-stdin.js'
 import type { InputEvent } from '../events/input-event.js'
 import { elevatedSurfaceOwnsNode } from '../recessLayer.js'
-import { ScreenInstanceContext } from './InkInstanceContext.js'
+import { ScreenInstanceContext } from './ScreenInstanceContext.js'
 import { startMicrotask } from '../../../platform/async/timers.js'
 
 function markUnstick(scroll: { stickyScroll?: boolean }): void {

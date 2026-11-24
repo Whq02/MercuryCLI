@@ -202,7 +202,7 @@ try {
   check('the shell-cwd file is written and the root file is untouched', readFileSync(join(SHELL_CWD, 'package.json'), 'utf8') === 'foo b\n' && readFileSync(join(PROJECT, 'package.json'), 'utf8') === 'root a\n')
   section('§3 a change while the card is open refuses without overwriting it')
   const target = join(SHELL_CWD, 'notes.txt')
-  const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import('../../src/tools/kit/names/fileEdit.js')
+  const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import('../../src/tools/kit/names/edit.js')
   for (const changed of ['another session\n', 'alpha\r\n']) {
     writeFileSync(target, 'alpha\n')
     const stale = await approveCard("sed -i 's/alpha/beta/' notes.txt", () => writeFileSync(target, changed))

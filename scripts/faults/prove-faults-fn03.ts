@@ -165,7 +165,7 @@ console.log('\nbootLogins/runs.ts:40,43 — postLoginSettleOf keeps bypass permi
 {
   const rejected = runScenario(`
     const { mock } = await import('bun:test')
-    const killswitchPath = ${JSON.stringify(join(SRC, 'permissions/rules/bypassPermissionsKillswitch.ts'))}
+    const killswitchPath = ${JSON.stringify(join(SRC, 'permissions/rules/sovereignKillswitch.ts'))}
     mock.module(killswitchPath, () => ({
       resetSovereignCheck: () => {},
       checkAndDisableSovereignIfNeeded: async () => { throw new Error('killswitch probe failed') },
@@ -233,7 +233,7 @@ console.log('\nbootLogins/runs.ts:40,43 — postLoginSettleOf keeps bypass permi
   )
   const control = runScenario(`
     const { mock } = await import('bun:test')
-    const killswitchPath = ${JSON.stringify(join(SRC, 'permissions/rules/bypassPermissionsKillswitch.ts'))}
+    const killswitchPath = ${JSON.stringify(join(SRC, 'permissions/rules/sovereignKillswitch.ts'))}
     mock.module(killswitchPath, () => ({
       resetSovereignCheck: () => {},
       checkAndDisableSovereignIfNeeded: async () => {},
@@ -670,7 +670,7 @@ console.log('\nextensions/bindings.ts:48 — corrupt or unreadable keybindings.j
 console.log('\nMemoryFileSelector.tsx:191 — failed memory folder creation skips openPath and returns failure sentence')
 {
   const res = runScenario(`
-    const mod = await import(${JSON.stringify(join(SRC, 'screen/memory/MemoryFileSelector.tsx'))})
+    const mod = await import(${JSON.stringify(join(SRC, 'screen/memory/InstructionFileSelector.tsx'))})
     const { toTildePath } = await import(${JSON.stringify(join(SRC, 'platform/files/path.ts'))})
     if (typeof mod.openMemoryFolder !== 'function') {
       out.missing = true
@@ -704,7 +704,7 @@ console.log('\nMemoryFileSelector.tsx:191 — failed memory folder creation skip
       typeof res.badNote === 'string' &&
       res.badNote.startsWith(`Could not open the memory folder at ${String(res.badDisplay)} (`) &&
       res.badNote.endsWith(') — check folder permissions.'),
-    JSON.stringify(res) + ' — change openMemoryFolder in src/screen/memory/MemoryFileSelector.tsx so a failed mkdir skips openPath and returns the Could not open the memory folder sentence',
+    JSON.stringify(res) + ' — change openMemoryFolder in src/screen/memory/InstructionFileSelector.tsx so a failed mkdir skips openPath and returns the Could not open the memory folder sentence',
   )
   check(
     'memory-selector-mkdir-ok-control',
@@ -712,7 +712,7 @@ console.log('\nMemoryFileSelector.tsx:191 — failed memory folder creation skip
       res.goodNote === null &&
       res.goodExists === true &&
       res.openedGood === res.goodDir,
-    JSON.stringify(res) + ' — change openMemoryFolder in src/screen/memory/MemoryFileSelector.tsx so a good folder is created, opened and returns null',
+    JSON.stringify(res) + ' — change openMemoryFolder in src/screen/memory/InstructionFileSelector.tsx so a good folder is created, opened and returns null',
   )
 }
 

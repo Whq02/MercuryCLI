@@ -6,7 +6,7 @@ import { ownerFromToolUseContext } from '../../../engine/run-owner/resolveOwner.
 import { needsPowerShellBom } from '../../../platform/files/file.js'
 import { plural } from '../../../platform/text/strings.js'
 import type { FileState } from '../../../platform/files/fileStateCache.js'
-import { MAX_LINES_TO_READ } from '../../kit/names/fileRead.js'
+import { MAX_LINES_TO_READ } from '../../kit/names/read.js'
 import { otherLiveSessionsClause, UNREAD_EXISTING_FILE_NOTE } from '../otherSession.js'
 import { findActualString } from './editMatching.js'
 import { noMatchHint } from '../editResult.js'

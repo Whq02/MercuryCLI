@@ -17,7 +17,7 @@ function section(t: string): void {
 }
 
 const storage = (await import('../../src/sessions/transcripts/sessionStorage.js')) as typeof import('../../src/sessions/transcripts/sessionStorage.js')
-const agent = (await import('../../src/models/catalogue/agentModel.js')) as typeof import('../../src/models/catalogue/agentModel.js')
+const agent = (await import('../../src/models/catalogue/crewmateModel.js')) as typeof import('../../src/models/catalogue/crewmateModel.js')
 const record = (await import('../../src/crew/crewmates/crewmateRecord.js')) as typeof import('../../src/crew/crewmates/crewmateRecord.js')
 
 console.log('============================================================')
@@ -45,19 +45,19 @@ section('§2 the restore chain (getAgentModel is id-stable)')
   check(
     "restored 'claude-sonnet-5' dispatches claude-sonnet-5 (not the parent)",
     agent.getCrewmateModel('inherit', parent, 'claude-sonnet-5' as never) === 'claude-sonnet-5',
-    agent.getCrewmateModel('inherit', parent, 'claude-sonnet-5' as never) + ' · fix getAgentModel in src/models/catalogue/agentModel.ts',
+    agent.getCrewmateModel('inherit', parent, 'claude-sonnet-5' as never) + ' · fix getAgentModel in src/models/catalogue/crewmateModel.ts',
   )
   check(
     "restored 'glm-5.2' dispatches glm-5.2 (the zai transport — no silent provider switch)",
     agent.getCrewmateModel('inherit', parent, 'glm-5.2' as never) === 'glm-5.2',
-    agent.getCrewmateModel('inherit', parent, 'glm-5.2' as never) + ' · fix getAgentModel in src/models/catalogue/agentModel.ts',
+    agent.getCrewmateModel('inherit', parent, 'glm-5.2' as never) + ' · fix getAgentModel in src/models/catalogue/crewmateModel.ts',
   )
   const haikuRestore = agent.getCrewmateModel('inherit', parent, 'haiku' as never)
-  check('a restored haiku alias dispatches as the haiku row', /haiku/i.test(haikuRestore), haikuRestore + ' · fix getAgentModel in src/models/catalogue/agentModel.ts')
+  check('a restored haiku alias dispatches as the haiku row', /haiku/i.test(haikuRestore), haikuRestore + ' · fix getAgentModel in src/models/catalogue/crewmateModel.ts')
   check(
     'absent persisted model ⇒ legacy re-resolution (inherit → parent)',
     agent.getCrewmateModel('inherit', parent, undefined) === parent,
-    'fix getAgentModel in src/models/catalogue/agentModel.ts to return the parent model when no persisted model is given',
+    'fix getAgentModel in src/models/catalogue/crewmateModel.ts to return the parent model when no persisted model is given',
   )
 }
 

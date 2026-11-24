@@ -41,7 +41,7 @@ console.log('============================================================')
 
 const words = await import(join(ROOT, 'src/permissions/rules/askWords.ts')).catch(() => null)
 const crewFacts = await import(join(ROOT, 'src/engine/connector/crewFacts.ts'))
-const { pauseClockWords } = await import(join(ROOT, 'src/engine/tasks/local-agent/agentPause.ts'))
+const { pauseClockWords } = await import(join(ROOT, 'src/engine/tasks/local-agent/crewmatePause.ts'))
 
 const NOW = Date.UTC(2026, 9, 9, 6, 30, 0)
 const ASKED_AT = NOW - 60_000

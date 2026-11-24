@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-// gate-watch: src/sessions/mneme/** src/engine/system-prompt/defaultSystemPrompt.ts src/tools/crewmate/subagentDoctrine.ts src/commands/catalogue/commands.ts
-// gate-watch: src/sessions/instructions/instructionFiles.ts src/sessions/instructions/sourceText.ts src/sessions/memory-shapes/types.ts
+// gate-watch: src/sessions/mneme/** src/engine/system-prompt/defaultSystemPrompt.ts src/tools/crewmate/crewmateDoctrine.ts src/commands/catalogue/commands.ts
+// gate-watch: src/sessions/instructions/instructionFiles.ts src/sessions/instructions/sourceText.ts src/sessions/instruction-contracts/instructionFileType.ts
 // gate-watch: src/platform/substrate/flagRegistry.ts src/crew/agents/agentMemory.ts src/engine/attachments/turnAttachments.ts
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'

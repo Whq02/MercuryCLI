@@ -17,7 +17,7 @@ const section = (t: string, hint = ''): void => {
 await import('../../src/tools/crewmate/CrewmateTool.tsx')
 const { finalizeCrewmateTool } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
 const { getSchemaBoundStructuredOutputTool, SchemaMismatchError, STRUCTURED_OUTPUT_TOOL_NAME } = await import(
-  '../../src/tools/structured-output/SyntheticOutputTool.ts'
+  '../../src/tools/structured-output/StructuredOutputTool.ts'
 )
 const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
 type Message = import('../../src/engine/message-shapes/message.ts').Message
@@ -73,7 +73,7 @@ function transcript(finalRound: 'valid' | 'invalid-errored' | 'none'): Message[]
   ]
 }
 
-section('§A the ONE validation owner — the bound tool', 'to fix: getSchemaBoundStructuredOutputTool and SchemaMismatchError in src/tools/structured-output/SyntheticOutputTool.ts')
+section('§A the ONE validation owner — the bound tool', 'to fix: getSchemaBoundStructuredOutputTool and SchemaMismatchError in src/tools/structured-output/StructuredOutputTool.ts')
 {
   const bound = getSchemaBoundStructuredOutputTool(SCHEMA)
   check('a valid schema binds to a live tool', bound.tool !== undefined && bound.error === undefined)

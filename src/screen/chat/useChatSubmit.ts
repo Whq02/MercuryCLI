@@ -19,7 +19,7 @@ import type { AppState } from '../app-state/AppStateStore.js';
 import type { SetToolJSXFn } from '../../tools/kit/tool.js';
 import type { SessionListing } from '../../sessions/transcripts/transcriptEntries.js';
 import type { Message, UserMessage } from '../../engine/message-shapes/message.js';
-import type { ComposerHelpers } from '../composer/input-core/promptInputHelpers.js';
+import type { ComposerHelpers } from '../composer/input-core/composerHelpers.js';
 import type { InputMode } from '../composer/input-core/textInput.js';
 import type { PastedContent } from '../../platform/config/schema.js';
 import { logForDebugging } from '../../platform/logs/debugLog.js';

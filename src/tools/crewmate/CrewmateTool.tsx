@@ -2,7 +2,7 @@ import { evaluateLaunchAuthority } from '../../daemon/switchboard/launchAuthorit
 import { buildTool, type Tool as ToolShape, type ToolDef, type ToolPermissionContext, type ToolUseContext } from '../kit/tool.js'
 import { getDenyRuleForAgent } from '../../permissions/rules/decision/rules.js'
 import { reasonForRule, refusalWithReason, ruleSentence } from '../../permissions/rules/ruleReason.js'
-import { CREWMATE_TOOL_NAME } from '../kit/names/agent.js'
+import { CREWMATE_TOOL_NAME } from '../kit/names/crewmate.js'
 import { agentRosterOf, getPrompt, withoutAgentRoster } from './prompt.js'
 import { swarmSessionEnabled } from '../../crew/board/seam.js'
 import * as UI from './rows.js'

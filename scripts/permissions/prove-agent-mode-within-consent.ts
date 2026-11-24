@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/crewmate/agentPermissionPosture.ts src/tools/crewmate/loadAgentsDir.ts src/tools/crewmate/runCrewmate.ts
+// gate-watch: src/tools/crewmate/crewmatePermissionPosture.ts src/tools/crewmate/loadAgentsDir.ts src/tools/crewmate/runCrewmate.ts
 // gate-watch: src/permissions/rules/decision/engine.ts src/crew/agents/codec.ts src/permissions/rules/permissions.ts
 // gate-watch: src/screen/agents/studio/StudioEditor.tsx src/screen/agents/studio/AgentStudio.tsx src/screen/boot-face/BootAgentsScreen.tsx
 // gate-watch: scripts/lib/firstRunSeed.ts
@@ -25,11 +25,11 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const j = (v: unknown): string => JSON.stringify(v)
-const CONSENT_COMPOSE_HINT = ' · fix composeAgentAppState or definitionModeWithinConsent in src/tools/crewmate/agentPermissionPosture.ts so a definition word never exceeds the parent launch consent'
-const CONSENT_OFFER_HINT = ' · fix offeredDefinitionModes in src/tools/crewmate/agentPermissionPosture.ts so sovereign is offered only under the launch consent'
+const CONSENT_COMPOSE_HINT = ' · fix composeAgentAppState or definitionModeWithinConsent in src/tools/crewmate/crewmatePermissionPosture.ts so a definition word never exceeds the parent launch consent'
+const CONSENT_OFFER_HINT = ' · fix offeredDefinitionModes in src/tools/crewmate/crewmatePermissionPosture.ts so sovereign is offered only under the launch consent'
 const CONSENT_ROUTE_HINT = ' · fix the permissionMode check in parseAgentsFromJson or parseAgentFromJson (src/tools/crewmate/loadAgentsDir.ts) or decodeAgentDocument (src/crew/agents/codec.ts) so both routes accept exactly PERMISSION_MODES and refuse other words alike'
 
-const { composeCrewmateAppState, definitionModeWithinConsent, offeredDefinitionModes } = await import('../../src/tools/crewmate/agentPermissionPosture.ts')
+const { composeCrewmateAppState, definitionModeWithinConsent, offeredDefinitionModes } = await import('../../src/tools/crewmate/crewmatePermissionPosture.ts')
 const { postureBypassesAsks } = await import('../../src/permissions/rules/decision/engine.ts')
 const { parseAgentFromJson, parseAgentsFromJson } = await import('../../src/tools/crewmate/loadAgentsDir.ts')
 const { decodeAgentDocument } = await import('../../src/crew/agents/codec.ts')

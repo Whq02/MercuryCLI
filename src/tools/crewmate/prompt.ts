@@ -1,4 +1,4 @@
-import { MERCURY_SCOUT_AGENT_TYPE } from '../kit/names/agent.js'
+import { MERCURY_SCOUT_AGENT_TYPE } from '../kit/names/crewmate.js'
 import type { AgentDefinition } from '../../crew/agents/agentDefinition.js'
 import { SCOUT_TOOLS_DESCRIPTION } from './scoutPolicy.js'
 

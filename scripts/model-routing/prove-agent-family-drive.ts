@@ -83,7 +83,7 @@ try {
     const record = { parent, word, expected, rc, childModels, wire, stdout, stderr }
     records.push(record)
     console.log(JSON.stringify(record, null, 2))
-    console.log(`[${ok ? 'PASS' : 'FAIL'}] ${parent} + ${word} launches ${expected}${ok ? '' : ` — read rc, childModels and stderr in the record above; if the child model is wrong, fix getAgentModel in src/models/catalogue/agentModel.ts (the model word the Crewmate call passes from src/tools/crewmate/call/call.ts)`}`)
+    console.log(`[${ok ? 'PASS' : 'FAIL'}] ${parent} + ${word} launches ${expected}${ok ? '' : ` — read rc, childModels and stderr in the record above; if the child model is wrong, fix getAgentModel in src/models/catalogue/crewmateModel.ts (the model word the Crewmate call passes from src/tools/crewmate/call/call.ts)`}`)
     if (!ok) failures++
   }
   if (OUT) writeFileSync(OUT, JSON.stringify({ bundle: BIN, records }, null, 2) + '\n')

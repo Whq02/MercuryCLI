@@ -25,7 +25,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const failHint = label.startsWith('sovereign')
     ? ' | fix the sovereign allowance in src/engine/tool-dispatch/toolExecution.ts (the bypassed_ask attachment) and its row in src/screen/messages/AttachmentMessage.tsx'
-    : ' | fix the card body cut and its ctrl+f chord in src/permissions/cards/ConsentBodyText.tsx, src/tools/edit/EditDiff.tsx or src/permissions/cards/file-write/FileWriteToolDiff.tsx; rerun one scene with --only=<id> --keep and MERCURY_CARD_FIT_CAPTURE_DIR=<dir> to read the frames'
+    : ' | fix the card body cut and its ctrl+f chord in src/permissions/cards/ConsentBodyText.tsx, src/tools/edit/EditDiff.tsx or src/permissions/cards/file-write/WriteDiff.tsx; rerun one scene with --only=<id> --keep and MERCURY_CARD_FIT_CAPTURE_DIR=<dir> to read the frames'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : failHint}`)
 }
 function section(t: string): void {

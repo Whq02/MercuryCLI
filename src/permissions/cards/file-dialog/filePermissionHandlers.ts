@@ -1,4 +1,4 @@
-import { EDIT_TOOL_NAME } from '../../../tools/kit/names/fileEdit.js'
+import { EDIT_TOOL_NAME } from '../../../tools/kit/names/edit.js'
 import { generateSuggestions } from '../../rules/filesystem.js'
 import type { ToolPermissionContext } from '../../../tools/kit/tool.js'
 import type { PermissionUpdate } from '../../rules/permissions.js'

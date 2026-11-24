@@ -4,7 +4,7 @@ import {
   readCrewmateTranscript,
   transcriptEndWords,
   type CrewmateTranscriptView,
-} from '../../../crew/crewmates/agentTranscriptReader.js'
+} from '../../../crew/crewmates/crewmateTranscriptReader.js'
 import type { AgentId } from '../../../sessions/transcripts/ids.js'
 import { getCrewmateTranscriptPath } from '../../../sessions/transcripts/paths.js'
 import { historyTail } from '../../../sessions/transcripts/historyParts.js'

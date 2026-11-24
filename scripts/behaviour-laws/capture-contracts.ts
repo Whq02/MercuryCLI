@@ -57,7 +57,7 @@ async function main(): Promise<void> {
       spec.permissionMode as never,
     )
   } else {
-    const doctrine = await import('../../src/tools/crewmate/subagentDoctrine.js')
+    const doctrine = await import('../../src/tools/crewmate/crewmateDoctrine.js')
     const { MERCURY_SCOUT_AGENT } = await import('../../src/tools/crewmate/built-in/mercuryScoutAgent.js')
     const agentDefinition =
       spec.kind === 'subagent-fixed'

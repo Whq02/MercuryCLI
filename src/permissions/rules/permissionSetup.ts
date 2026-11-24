@@ -1,6 +1,6 @@
 import type { ToolPermissionContext } from '../../tools/kit/tool.js'
 import { lspPermissionNote, lspCliNote, lspHookNote } from '../../integrations/lsp-family/toolFamily.js'
-import { CREWMATE_TOOL_NAME } from '../../tools/kit/names/agent.js'
+import { CREWMATE_TOOL_NAME } from '../../tools/kit/names/crewmate.js'
 import { BASH_TOOL_NAME } from '../../tools/kit/names/bash.js'
 import { POWERSHELL_TOOL_NAME } from '../../tools/kit/names/powershell.js'
 import { setSessionPermissionModeResolution } from '../../boot/process-state/processState.js'

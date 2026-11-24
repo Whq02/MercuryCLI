@@ -1,6 +1,6 @@
 import type { Message } from '../../engine/message-shapes/message.js'
 import type { QueuedCommand } from '../../screen/composer/input-core/textInput.js'
-import { CREWMATE_TOOL_NAME } from '../../tools/kit/names/agent.js'
+import { CREWMATE_TOOL_NAME } from '../../tools/kit/names/crewmate.js'
 import { contextFillView } from '../../engine/context-window/contextFill.js'
 import { sliceHeadAtGrapheme, sliceTailAtGrapheme } from '../../platform/text/textSegments.js'
 import { persistToolResult, PERSISTED_OUTPUT_TAG, type ContentReplacementState, type ToolResultReplacementRecord } from '../../engine/tool-dispatch/toolResultStorage.js'

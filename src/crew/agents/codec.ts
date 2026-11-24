@@ -1,6 +1,6 @@
 import { agentToolRuleProblem } from '../../tools/crewmate/agentToolRules.js'
 import { parseToolListFromCLI } from '../../permissions/rules/permissionSetup.js'
-import { AGENT_COLORS, type AgentColorName } from '../../tools/crewmate/crewmateColors.js'
+import { AGENT_COLORS, type AgentColorName } from '../../tools/crewmate/agentColors.js'
 import type { AgentMemoryScope } from './agentMemory.js'
 import { isInstructionProfile } from '../../sessions/instructions/profile.js'
 import { EFFORT_LEVELS, parseEffortValue } from '../../models/effort/effort.js'

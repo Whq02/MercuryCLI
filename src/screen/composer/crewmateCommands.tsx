@@ -8,7 +8,7 @@ import { getFocusedSessionConnector } from '../../engine/connector/focusedConnec
 import type { AppState } from '../app-state/AppState.js'
 import { publishAtomic } from '../../platform/substrate/fileStore.js'
 import { isCrewmateTask, requestCrewmateFold } from '../../engine/tasks/local-agent/crewmateTask.js'
-import { MERCURY_CREW_AGENT_TYPE } from '../../tools/kit/names/agent.js'
+import { MERCURY_CREW_AGENT_TYPE } from '../../tools/kit/names/crewmate.js'
 import {
   crewmateCommandUnreachableWords,
   crewmateFoldWords,

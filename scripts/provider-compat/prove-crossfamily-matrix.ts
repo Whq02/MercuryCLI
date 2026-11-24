@@ -594,7 +594,7 @@ section('§A the dispatch boundary — the engine grammar is TOTAL over the rout
 {
   const engine = await import('../../src/crew/crewmates/engineDispatch.ts')
   const { PROVIDER_ID_SPACES } = await import('../../src/models/roads/routeLaw.ts')
-  const { getCrewmateModel } = await import('../../src/models/catalogue/agentModel.ts')
+  const { getCrewmateModel } = await import('../../src/models/catalogue/crewmateModel.ts')
 
   const CLASS_TO_ROUTE: Record<string, string> = {
     gpt: 'openai', glm: 'zai', kimi: 'moonshot', deepseek: 'deepseek', grok: 'xai', muse: 'meta',
@@ -655,9 +655,9 @@ section('§A the dispatch boundary — the engine grammar is TOTAL over the rout
   const anthropicPass = await engine.resolveEngineDispatch('claude-sonnet-5')
   check('an anthropic id stays outside the engine grammar (null — the home lane untouched)', anthropicPass === null, `got ${text(anthropicPass)}; resolveEngineDispatch in src/crew/crewmates/engineDispatch.ts must return null for an anthropic id`)
 
-  check('an anthropic haiku spelling resolves to the haiku row', /haiku/.test(getCrewmateModel('haiku', 'claude-opus-5')), `got ${getCrewmateModel('haiku', 'claude-opus-5')}; getAgentModel in src/models/catalogue/agentModel.ts must resolve the haiku alias to a haiku model`)
+  check('an anthropic haiku spelling resolves to the haiku row', /haiku/.test(getCrewmateModel('haiku', 'claude-opus-5')), `got ${getCrewmateModel('haiku', 'claude-opus-5')}; getAgentModel in src/models/catalogue/crewmateModel.ts must resolve the haiku alias to a haiku model`)
   for (const foreign of ['huggingface/TheDrummer/Haiku-RP-12B', 'local/haiku-13b', 'openrouter/thedrummer/haiku-writer']) {
-    check(`a foreign '${foreign.split('/')[0]}' id named haiku rides untouched`, getCrewmateModel(foreign, 'claude-opus-5') === foreign, `got ${getCrewmateModel(foreign, 'claude-opus-5')}; getAgentModel in src/models/catalogue/agentModel.ts must not rewrite a provider-prefixed id that merely contains haiku`)
+    check(`a foreign '${foreign.split('/')[0]}' id named haiku rides untouched`, getCrewmateModel(foreign, 'claude-opus-5') === foreign, `got ${getCrewmateModel(foreign, 'claude-opus-5')}; getAgentModel in src/models/catalogue/crewmateModel.ts must not rewrite a provider-prefixed id that merely contains haiku`)
   }
 }
 

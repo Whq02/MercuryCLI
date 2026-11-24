@@ -5,7 +5,7 @@ import { compileJsonSchema, formatSchemaIssues, issueKeywords } from '../../plat
 import { buildTool, type Tool, type ToolDef, type ToolInputJSONSchema } from '../kit/tool.js'
 import { TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../platform/errors/errors.js'
 import { lazySchema } from '../../platform/primitives/lazySchema.js'
-import { STRUCTURED_OUTPUT_TOOL_NAME } from '../kit/names/syntheticOutput.js'
+import { STRUCTURED_OUTPUT_TOOL_NAME } from '../kit/names/structuredOutput.js'
 
 export { STRUCTURED_OUTPUT_TOOL_NAME }
 

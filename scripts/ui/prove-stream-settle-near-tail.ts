@@ -39,7 +39,7 @@ function check(label: string, ok: boolean, detail = ''): void {
 
 const React = await import('react')
 const h = React.createElement
-const { ScreenInstanceContext } = await import('../../src/screen/renderer/elements/InkInstanceContext.ts')
+const { ScreenInstanceContext } = await import('../../src/screen/renderer/elements/ScreenInstanceContext.ts')
 const { App } = await import('../../src/boot/App.tsx')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { SurfaceRouter } = await import('../../src/screen/routes/SurfaceRouter.tsx')

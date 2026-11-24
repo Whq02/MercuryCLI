@@ -33,7 +33,7 @@ const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/f
 const { turnDoor: startTurn } = await import('../../src/engine/turnDoor.ts')
 const { runCrewmate } = await import('../../src/tools/crewmate/runCrewmate.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
-const { getCrewmateModel } = await import('../../src/models/catalogue/agentModel.ts')
+const { getCrewmateModel } = await import('../../src/models/catalogue/crewmateModel.ts')
 const { resolveEngineDispatch } = await import('../../src/crew/crewmates/engineDispatch.ts')
 const { flushSessionStorage, readCrewmateMetadata } = await import('../../src/sessions/transcripts/sessionStorage.ts')
 await import('../../src/engine/tasks/tasks.ts')
@@ -57,7 +57,7 @@ const crewmate = async (prompt: string, opts: { model?: string; effort: string }
 }
 let checks = 0
 let failures = 0
-const inheritanceHint = 'change how a crewmate inherits the parent model and effort: getAgentModel in src/models/catalogue/agentModel.ts, resolveEngineDispatch in src/crew/crewmates/engineDispatch.ts, and the model, effort and thinking handling in runAgent in src/tools/crewmate/runCrewmate.ts'
+const inheritanceHint = 'change how a crewmate inherits the parent model and effort: getAgentModel in src/models/catalogue/crewmateModel.ts, resolveEngineDispatch in src/crew/crewmates/engineDispatch.ts, and the model, effort and thinking handling in runAgent in src/tools/crewmate/runCrewmate.ts'
 const check = (label: string, truth: unknown, detail?: unknown) => { checks++; if (!truth) failures++; console.log(`${truth ? 'PASS' : 'FAIL'} ${label}${!truth ? ' — ' + (detail !== undefined ? JSON.stringify(detail) + '; ' : '') + inheritanceHint : ''}`) }
 try {
   const resolved = await resolveEngineDispatch(getCrewmateModel(undefined, model, 'compat'))

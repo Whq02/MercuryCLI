@@ -49,7 +49,7 @@ import {
   callStructuredWriteTarget,
   parseStructuredWriteTarget,
 } from '../structuredTargets.js'
-import { WRITE_TOOL_NAME } from '../../kit/names/fileWrite.js'
+import { WRITE_TOOL_NAME } from '../../kit/names/write.js'
 import type { AssistantMessage } from '../../../engine/message-shapes/message.js'
 import type { Input, Output } from './schema.js'
 import { passedOverAs } from '../../../platform/errors/passedOver.js'

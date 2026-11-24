@@ -61,7 +61,7 @@ try {
   second = bootLead(world, ['--sovereign', '--continue'], TOOLS)
   second.submit('parent-resume-one')
   await second.waitFor('the resumed crewmate asks its model', () => childRequests().length === 2 && toolResultOf(world, 'resume-one') !== null)
-  tally.check('B1 the resume is taken', toolResultOf(world, 'resume-one')?.isError === false, `${toolResultOf(world, 'resume-one')?.text.slice(0, 300) ?? 'no result'} \u2014 ResumeCrewmate in src/tools/resume-crewmate/ResumeAgentTool.ts refused or failed to resume the cut crewmate`)
+  tally.check('B1 the resume is taken', toolResultOf(world, 'resume-one')?.isError === false, `${toolResultOf(world, 'resume-one')?.text.slice(0, 300) ?? 'no result'} \u2014 ResumeCrewmate in src/tools/resume-crewmate/ResumeCrewmateTool.ts refused or failed to resume the cut crewmate`)
   const resumed = childRequests()[1]!.messages
   tally.check('B2 the request the resumed crewmate sends still holds the call it had made', callsOf(resumed).length === 1, `${shape(resumed)} \u2014 the resume (resumeCrewmateBackground in src/tools/crewmate/resumeCrewmate.ts) must send the recorded transcript with the open tool call kept`)
   const results = resultsOf(resumed)
@@ -76,7 +76,7 @@ try {
   await second.waitFor('the resumed crewmate finishes', () => userTextsOf(world).some(text => text.includes('CHILD-RESUMED')))
   second.submit('parent-resume-two')
   await second.waitFor('the crewmate asks its model again', () => childRequests().length === 3 && toolResultOf(world, 'resume-two') !== null)
-  tally.check('C1 the second resume is taken', toolResultOf(world, 'resume-two')?.isError === false, `${toolResultOf(world, 'resume-two')?.text.slice(0, 300) ?? 'no result'} \u2014 ResumeCrewmate in src/tools/resume-crewmate/ResumeAgentTool.ts refused or failed the second resume`)
+  tally.check('C1 the second resume is taken', toolResultOf(world, 'resume-two')?.isError === false, `${toolResultOf(world, 'resume-two')?.text.slice(0, 300) ?? 'no result'} \u2014 ResumeCrewmate in src/tools/resume-crewmate/ResumeCrewmateTool.ts refused or failed the second resume`)
   const again = childRequests()[2]!.messages
   tally.check('C2 the call and its one answer are still there, and the reply of the first resume behind them', callsOf(again).length === 1 && resultsOf(again).length === 1 && JSON.stringify(again).includes('CHILD-RESUMED') && JSON.stringify(again).indexOf(ENDED_RUN_TOOL_RESULT) < JSON.stringify(again).indexOf('CHILD-RESUMED'), `${shape(again)} \u2014 the second resume must read the same call answered once, with the first resume's reply after it; see settleToolUsesOfEndedRun in src/engine/messages/apiFilters.ts`)
   tally.check('C3 the roles alternate', again.every((row, index) => index === 0 || row.role !== again[index - 1]!.role), `${shape(again)} \u2014 rows of the second resume request must alternate user and assistant; see settleToolUsesOfEndedRun in src/engine/messages/apiFilters.ts`)

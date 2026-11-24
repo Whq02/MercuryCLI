@@ -2,7 +2,7 @@ import { useCallback, useContext, useRef } from 'react'
 import { useSubscription, useTimer } from '../effects/effects.js'
 import type { RefObject } from 'react'
 import CursorDeclarationContext, { type CursorDeclaration, type CursorDeclarationSetter } from '../renderer/elements/CursorDeclarationContext.js'
-import { ScreenInstanceContext } from '../renderer/elements/InkInstanceContext.js'
+import { ScreenInstanceContext } from '../renderer/elements/ScreenInstanceContext.js'
 import type { ScrollBoxHandle } from '../renderer/elements/ScrollBox.js'
 import { startTimeout, stopTimeout } from '../../platform/async/timers.js'
 

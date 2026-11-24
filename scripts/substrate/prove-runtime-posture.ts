@@ -21,9 +21,9 @@ const {
   resetRuntimePostureForTest,
   runtimePostureEnabled,
 } = await import('../../src/screen/cockpit/runtimePosture.js')
-const { buildCrewmateMercurySections } = await import('../../src/tools/crewmate/subagentDoctrine.js')
+const { buildCrewmateMercurySections } = await import('../../src/tools/crewmate/crewmateDoctrine.js')
 
-const POSTURE_HINT = 'change getRuntimePostureSection or getRuntimePostureDoctrineLine in src/screen/cockpit/runtimePosture.ts (or buildSubagentMercurySections in src/tools/crewmate/subagentDoctrine.ts for the subagent checks) so the posture text matches this label'
+const POSTURE_HINT = 'change getRuntimePostureSection or getRuntimePostureDoctrineLine in src/screen/cockpit/runtimePosture.ts (or buildSubagentMercurySections in src/tools/crewmate/crewmateDoctrine.ts for the subagent checks) so the posture text matches this label'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {

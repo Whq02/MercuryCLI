@@ -3,7 +3,7 @@ import { Suspense, useCallback, useState } from 'react'
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { Box, Text, wrapText } from '../../screen/themedRenderer.js'
 import { MemoryCentreView } from '../../screen/memory/MemoryCentreView.js'
-import { InstructionFileSelector } from '../../screen/memory/MemoryFileSelector.js'
+import { InstructionFileSelector } from '../../screen/memory/InstructionFileSelector.js'
 import {
   MEMORY_POPUP_ROWS,
   MEMORY_POPUP_TITLE_VIEW,

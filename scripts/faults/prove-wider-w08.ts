@@ -20,7 +20,7 @@ const W08_WHERE: Record<string, string> = {
   'w08-7': 'resolveAstScope in src/tools/engines/structure/ast-patterns/scope.ts and renderSearchTrailer in src/tools/engines/structure/ast-patterns/render.ts',
   'w08-8': 'analyzeContextUsage in src/engine/context-window/analyzeContext.ts and src/commands/context/ContextVisualization.tsx',
   'w08-9': 'trackGitOperations in src/tools/kit/gitOperationTracking.ts and src/tools/shell/BashTool.tsx',
-  'w08-10': 'src/platform/host-os/browser.ts, openMemoryFolder in src/screen/memory/MemoryFileSelector.tsx and src/screen/mcp/ElicitationDialog.tsx',
+  'w08-10': 'src/platform/host-os/browser.ts, openMemoryFolder in src/screen/memory/InstructionFileSelector.tsx and src/screen/mcp/ElicitationDialog.tsx',
   'w08-11': 'videoToolEnabled in src/integrations/media-video/registry.ts and src/engine/tool-dispatch/withheldTools.ts',
   'w08-12': 'resolveAdapter in src/integrations/debugger/client/adapters.ts, src/tools/debug/DebugTool.ts and src/engine/tool-dispatch/withheldTools.ts',
 }
@@ -526,7 +526,7 @@ async function w08_10_browserAndPathOpenFailuresSurfaced(): Promise<void> {
   const prevBrowser = process.env.BROWSER
   process.env.BROWSER = fakeBrowser
   const browser = await import(join(SRC, 'platform/host-os/browser.ts'))
-  const { openMemoryFolder } = await import(join(SRC, 'screen/memory/MemoryFileSelector.tsx'))
+  const { openMemoryFolder } = await import(join(SRC, 'screen/memory/InstructionFileSelector.tsx'))
   const { ElicitationDialog } = await import(join(SRC, 'screen/mcp/ElicitationDialog.tsx'))
   const { AppStoreContext } = await import(join(SRC, 'screen/app-state/AppState.tsx'))
   const { getDefaultAppState } = await import(join(SRC, 'screen/app-state/AppStateStore.ts'))

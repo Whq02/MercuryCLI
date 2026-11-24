@@ -35,7 +35,7 @@ const SECTION_FIX: Record<string, string> = {
   '§K2': 'pressCrewStop, crewStopArmed and CREW_STOP_WINDOW_MS in src/screen/widgets/faces/crewStopChord.ts',
   '§K3': 'runAsyncAgentLifecycle in src/tools/crewmate/crewmateLifecycle.ts, agentStopReasonOf in src/engine/tasks/local-agent/crewmateTask.tsx, stopOrDismissAgent in src/crew/crewmates/crewmateView.ts',
   '§K4': 'AGENT_RESUME_NOTE in src/engine/tasks/local-agent/crewmateTask.tsx',
-  '§K10': 'foldAgentWaitEvent and agentWaitWords in src/engine/tasks/local-agent/agentWait.ts, the crew fact words in src/engine/connector/crewFacts.ts',
+  '§K10': 'foldAgentWaitEvent and agentWaitWords in src/engine/tasks/local-agent/crewmateWait.ts, the crew fact words in src/engine/connector/crewFacts.ts',
   '§K10b': 'primeOpenaiCatalogue and refreshOpenaiCatalogue in src/models/roads/openai/openaiCatalogue.ts',
   '§K4b': 'resolveWorkerTools in src/tools/crewmate/crewmateLifecycle.ts',
   '§K11': 'DaemonSessionConnector in src/engine/connector/daemonConnector.ts',
@@ -232,7 +232,7 @@ section('§K4 the resume road — one owner behind every door')
 
 section('§K10 the wait tells its truth — the phase fold, the one spelling, every surface')
 {
-  const { foldCrewmateWaitEvent, crewmateWaitWords, crewmateWaitElapsed } = await import('../../src/engine/tasks/local-agent/agentWait.js')
+  const { foldCrewmateWaitEvent, crewmateWaitWords, crewmateWaitElapsed } = await import('../../src/engine/tasks/local-agent/crewmateWait.js')
   const { createProgressTracker, foldTurnProgressIntoTracker, getProgressUpdate } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
   const t0 = 1_000_000
   let wait = foldCrewmateWaitEvent(null, { type: 'stream_request_start' }, t0)
@@ -277,7 +277,7 @@ section('§K10 the wait tells its truth — the phase fold, the one spelling, ev
   const seatRow = projectWorkRoster({ 'ag-s': { ...running, id: 'ag-s', agentId: 'ag-s', wait: 'waiting for a seat — 3 of 3 held (a, b, the chat)' } } as never)
   const seatFacts = crew.crewmateFactsOf(seatRow[0]!, 'fx')!
   check('K10 the seat gate\'s own sentence outranks the phase on the card line; the status cell speaks the GATE and the holders ride the row\'s tail (a narrow row sheds the holders last, never the gate)', crew.crewPhaseWords(seatFacts, t0 + 2000) === 'waiting for a seat — 3 of 3 held (a, b, the chat)' && crew.crewStatusWords(seatFacts, t0 + 2000) === 'waiting for a seat — 3 of 3 held' && crew.crewWaitHolders(seatFacts) === 'held by a, b, the chat' && crew.crewWaitLine(seatFacts) === 'waiting for a seat — 3 of 3 held (a, b, the chat)' && seatFacts.phase?.phase === 'first-byte')
-  const aw = await import('../../src/engine/tasks/local-agent/agentWait.js')
+  const aw = await import('../../src/engine/tasks/local-agent/crewmateWait.js')
   const stillWords = aw.crewmateWaitWords({ phase: 'first-byte', sinceMs: t0, budgetMs: 60_000 }, null)
   check('K10 the one spelling without a counter — the still for a per-frame channel', stillWords === 'waiting for the first byte, limit 1m' && aw.crewmateWaitWords({ phase: 'reasoning', sinceMs: t0 }, null) === 'reasoning, no tokens yet' && aw.crewmateWaitWords({ phase: 'first-byte', sinceMs: t0, budgetMs: 60_000 }, t0 + 3000) === 'waiting for the first byte · 3s, limit 1m', stillWords)
 }

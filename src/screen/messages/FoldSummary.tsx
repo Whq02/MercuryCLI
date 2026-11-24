@@ -5,7 +5,7 @@ import type { Screen } from '../chat/Chat.js';
 import type { NormalizedUserMessage } from '../../engine/message-shapes/message.js';
 import { getUserMessageText } from '../../engine/messages/messages.js';
 import { ConfigurableShortcutHint } from '../keys/ConfigurableShortcutHint.js';
-import { MercuryFoldSummary } from './MercuryCompactSummary.js';
+import { MercuryFoldSummary } from './MercuryFoldSummary.js';
 import { MessageResponse } from '../../tools/kit/MessageResponse.js';
 type Props = {
   message: NormalizedUserMessage;

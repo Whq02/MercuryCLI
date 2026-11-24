@@ -108,12 +108,12 @@ const selectorRun = await (async () => {
 section('§B B04 — the screen\'s view-only callback, read off its mounted selector part')
 {
   const { view } = selectorRun
-  check('the Chat callback enters the SAME display path ctrl+o rides', view.calls.slice(0, 3).join(' · ') === 'handleEnterTranscript · setScreen transcript · setShowAllInTranscript true', view.calls.join(' · ') + ' · onViewOnly in src/screen/chat/useChatSelector.tsx must call handleEnterTranscript, setScreen transcript, setShowAllInTranscript true first')
-  check('the Chat view callback never touches the rows of the session (was: never touches setMessages()', view.rowsKept && view.asked.length === 0, `${view.asked.join(',')} · onViewOnly in src/screen/chat/useChatSelector.tsx must not write the session rows`)
-  check('the Chat view callback never touches the conversation id (was: never touches setConversationId)', view.conversationKept, 'onViewOnly in src/screen/chat/useChatSelector.tsx must not change the conversation id')
-  check('the Chat view callback never touches the transcript file (was: never touches resetSessionFilePointer)', view.bytesKept, 'onViewOnly in src/screen/chat/useChatSelector.tsx must not write the transcript file')
-  check('the Chat view callback does nothing but enter the view and close the selector (was: never touches removeTranscriptMessage)', view.calls.slice(3).join(' · ') === 'setShowMessageSelector false · setMessageSelectorPreselect undefined' && view.calls.length === 5, view.calls.join(' · ') + ' · onViewOnly in src/screen/chat/useChatSelector.tsx must end with setShowMessageSelector false and setMessageSelectorPreselect undefined, with no other calls')
-  check('the Chat view callback makes no branch (was: never touches createBranchSession)', view.filesAdded === 0 && view.resumes === 0, `${view.filesAdded} files added · ${view.resumes} resumes · onViewOnly in src/screen/chat/useChatSelector.tsx must not call createBranchSession or resume`)
+  check('the Chat callback enters the SAME display path ctrl+o rides', view.calls.slice(0, 3).join(' · ') === 'handleEnterTranscript · setScreen transcript · setShowAllInTranscript true', view.calls.join(' · ') + ' · onViewOnly in src/screen/chat/useChatRewindPicker.tsx must call handleEnterTranscript, setScreen transcript, setShowAllInTranscript true first')
+  check('the Chat view callback never touches the rows of the session (was: never touches setMessages()', view.rowsKept && view.asked.length === 0, `${view.asked.join(',')} · onViewOnly in src/screen/chat/useChatRewindPicker.tsx must not write the session rows`)
+  check('the Chat view callback never touches the conversation id (was: never touches setConversationId)', view.conversationKept, 'onViewOnly in src/screen/chat/useChatRewindPicker.tsx must not change the conversation id')
+  check('the Chat view callback never touches the transcript file (was: never touches resetSessionFilePointer)', view.bytesKept, 'onViewOnly in src/screen/chat/useChatRewindPicker.tsx must not write the transcript file')
+  check('the Chat view callback does nothing but enter the view and close the selector (was: never touches removeTranscriptMessage)', view.calls.slice(3).join(' · ') === 'setShowMessageSelector false · setMessageSelectorPreselect undefined' && view.calls.length === 5, view.calls.join(' · ') + ' · onViewOnly in src/screen/chat/useChatRewindPicker.tsx must end with setShowMessageSelector false and setMessageSelectorPreselect undefined, with no other calls')
+  check('the Chat view callback makes no branch (was: never touches createBranchSession)', view.filesAdded === 0 && view.resumes === 0, `${view.filesAdded} files added · ${view.resumes} resumes · onViewOnly in src/screen/chat/useChatRewindPicker.tsx must not call createBranchSession or resume`)
 }
 
 section('§C B07 — rerun ≠ replay: rewind-branch before the anchor, fork-branch inclusive')
@@ -179,29 +179,29 @@ section('§C B07 — rerun ≠ replay: rewind-branch before the anchor, fork-bra
   }
   const mounted = selectorRun.rerun
   const beforeAnchor = '00000000-0000-4000-8000-000000000004'
-  check("Chat rerun branches at forkOrdinal: idx (before the anchor)", mounted.outcome.ok === true && mounted.branchEntries.some(entry => entry.uuid === beforeAnchor) && !mounted.branchEntries.some(entry => entry.uuid === anchorUuid) && mounted.sourceKept, `${JSON.stringify(mounted.outcome)} · ${mounted.branchEntries.length} entries in the branch · onRerun in src/screen/chat/useChatSelector.tsx must pass forkOrdinal: idx to createBranchSession and leave the source alone`)
-  check("Chat rerun uses boundaryKind: 'rewind'", mounted.branchEntries.at(-1)?.subtype === 'rewind_boundary', String(mounted.branchEntries.at(-1)?.subtype) + ' · onRerun in src/screen/chat/useChatSelector.tsx must pass boundaryKind rewind')
-  check('Chat rerun switches in-process through the ONE resume chokepoint', mounted.entrypoint === 'fork' && typeof mounted.branchId === 'string' && mounted.branchId !== SID, `${String(mounted.branchId)} · ${String(mounted.entrypoint)} · onRerun in src/screen/chat/useChatSelector.tsx must call resume(branchId, branchLog, fork) with the new branch id`)
-  check('Chat rerun stages the resubmit under operator control (no auto-send)', mounted.calls.includes('setInputValue "turn 5"') && mounted.asked.length === 0, `${mounted.calls.join(' · ')} · asked of the session: ${mounted.asked.join(',')} · onRerun in src/screen/chat/useChatSelector.tsx must call setInputValue with the message text and must not submit it`)
+  check("Chat rerun branches at forkOrdinal: idx (before the anchor)", mounted.outcome.ok === true && mounted.branchEntries.some(entry => entry.uuid === beforeAnchor) && !mounted.branchEntries.some(entry => entry.uuid === anchorUuid) && mounted.sourceKept, `${JSON.stringify(mounted.outcome)} · ${mounted.branchEntries.length} entries in the branch · onRerun in src/screen/chat/useChatRewindPicker.tsx must pass forkOrdinal: idx to createBranchSession and leave the source alone`)
+  check("Chat rerun uses boundaryKind: 'rewind'", mounted.branchEntries.at(-1)?.subtype === 'rewind_boundary', String(mounted.branchEntries.at(-1)?.subtype) + ' · onRerun in src/screen/chat/useChatRewindPicker.tsx must pass boundaryKind rewind')
+  check('Chat rerun switches in-process through the ONE resume chokepoint', mounted.entrypoint === 'fork' && typeof mounted.branchId === 'string' && mounted.branchId !== SID, `${String(mounted.branchId)} · ${String(mounted.entrypoint)} · onRerun in src/screen/chat/useChatRewindPicker.tsx must call resume(branchId, branchLog, fork) with the new branch id`)
+  check('Chat rerun stages the resubmit under operator control (no auto-send)', mounted.calls.includes('setInputValue "turn 5"') && mounted.asked.length === 0, `${mounted.calls.join(' · ')} · asked of the session: ${mounted.asked.join(',')} · onRerun in src/screen/chat/useChatRewindPicker.tsx must call setInputValue with the message text and must not submit it`)
 }
 
 section('§D B07 — distinct receipts')
 {
   const painted = { 'view-only-history': selectorRun.view.notices, 'branch-created': selectorRun.branchNotices, 'rerun-branch-created': selectorRun.rerun.notices }
-  for (const [key, notices] of Object.entries(painted)) check(`receipt key: '${key}'`, notices.length === 1 && notices[0]!.key === key, notices.map(notice => notice.key).join(',') + ' · the callback in src/screen/chat/useChatSelector.tsx (onViewOnly, onBranchCreated or onRerun) must raise exactly one notification with this key')
+  for (const [key, notices] of Object.entries(painted)) check(`receipt key: '${key}'`, notices.length === 1 && notices[0]!.key === key, notices.map(notice => notice.key).join(',') + ' · the callback in src/screen/chat/useChatRewindPicker.tsx (onViewOnly, onBranchCreated or onRerun) must raise exactly one notification with this key')
   check(
     'receipt copy is action-specific',
     (painted['view-only-history'][0]?.text ?? '').includes('nothing changed') &&
       (painted['branch-created'][0]?.text ?? '').startsWith('Branch created:') &&
       (painted['rerun-branch-created'][0]?.text ?? '').startsWith('Branch created:') &&
       (painted['rerun-branch-created'][0]?.text ?? '').includes('prompt staged, Enter reruns'),
-    Object.values(painted).map(notices => notices[0]?.text ?? '(none)').join(' | ') + ' · fix the notification text in onViewOnly, onBranchCreated and onRerun in src/screen/chat/useChatSelector.tsx',
+    Object.values(painted).map(notices => notices[0]?.text ?? '(none)').join(' | ') + ' · fix the notification text in onViewOnly, onBranchCreated and onRerun in src/screen/chat/useChatRewindPicker.tsx',
   )
 }
 
 section('§E — the rerun guard + the /rewind alias')
 {
-  check('a mid-run rerun refuses honestly (no switch under a live turn)', selectorRun.midRun.ok === false && selectorRun.midRun.reason === 'a run is in flight — esc to interrupt it first' && selectorRun.midRunResumes === 0, JSON.stringify(selectorRun.midRun) + ' · onRerun in src/screen/chat/useChatSelector.tsx must return the in-flight refusal when isLoadingRef.current is true, before any resume')
+  check('a mid-run rerun refuses honestly (no switch under a live turn)', selectorRun.midRun.ok === false && selectorRun.midRun.reason === 'a run is in flight — esc to interrupt it first' && selectorRun.midRunResumes === 0, JSON.stringify(selectorRun.midRun) + ' · onRerun in src/screen/chat/useChatRewindPicker.tsx must return the in-flight refusal when isLoadingRef.current is true, before any resume')
 }
 
 console.log(

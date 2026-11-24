@@ -9,7 +9,7 @@ import type { useChatAsks } from './useChatAsks.js';
 import type { useChatDialogPaints, useChatDialogs } from './useChatDialogs.js';
 import type { useChatDraft } from './useChatDraft.js';
 import { TranscriptFooter, TranscriptSearchBar, type useChatSearch } from './useChatSearch.js';
-import type { useChatRewindPicker, useChatRewindPickerView } from './useChatSelector.js';
+import type { useChatRewindPicker, useChatRewindPickerView } from './useChatRewindPicker.js';
 import type { useChatSubmit, useChatSubmitTools } from './useChatSubmit.js';
 import type { useChatTools } from './useChatTools.js';
 

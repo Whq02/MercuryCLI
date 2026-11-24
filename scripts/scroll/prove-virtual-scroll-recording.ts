@@ -11,7 +11,7 @@ process.env['MERCURY_CONNECTOR_TRACE'] = TRACE
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 const { Box } = await import('../../src/screen/themedRenderer.js')
-const { ScreenInstanceContext } = await import('../../src/screen/renderer/elements/InkInstanceContext.js')
+const { ScreenInstanceContext } = await import('../../src/screen/renderer/elements/ScreenInstanceContext.js')
 const { useVirtualScroll } = await import('../../src/screen/virtual-message-list/useVirtualScroll.js')
 
 const SELF = 'scripts/scroll/prove-virtual-scroll-recording.ts'

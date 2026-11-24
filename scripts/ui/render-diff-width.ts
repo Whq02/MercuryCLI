@@ -41,7 +41,7 @@ if (process.env.DIFF_WIDTH_CHILD) {
   }
   const { PermissionDialog } = await import('../../src/permissions/cards/PermissionDialog.js')
   const { WriteDiff } = await import(
-    '../../src/permissions/cards/file-write/FileWriteToolDiff.js'
+    '../../src/permissions/cards/file-write/WriteDiff.js'
   )
   const { EditDiff } = await import('../../src/tools/edit/EditDiff.js')
 

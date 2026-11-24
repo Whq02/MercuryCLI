@@ -34,25 +34,25 @@ import type {
 } from '../../engine/message-shapes/message.js'
 import type { CrewmateToolProgress, ShellProgress } from '../kit/toolProgress.js'
 import type { SetAppState } from '../../engine/tasks/taskBase.js'
-import { runWithCrewmateContext, type AgentContext } from '../../crew/agents/agentContext.js'
+import { runWithCrewmateContext, type AgentContext } from '../../crew/agents/crewmateContext.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { mirrorSwarmNotice, watchSwarmLaunch } from '../../crew/board/seam.js'
 import { AbortError, errorMessage } from '../../platform/errors/errors.js'
 import { flushSessionStorage } from '../../sessions/transcripts/sessionStorage.js'
-import { pauseLineWords, type CrewmatePauseV1 } from '../../engine/tasks/local-agent/agentPause.js'
+import { pauseLineWords, type CrewmatePauseV1 } from '../../engine/tasks/local-agent/crewmatePause.js'
 import {
   extractTextContent,
   isSyntheticMessage,
   normalizeMessages,
 } from '../../engine/messages/messages.js'
 import { emitTaskEnded } from '../../daemon/runner/sdkEventQueue.js'
-import { emitBackgroundCrewmateRows } from '../../engine/task-framework/sdkAgentFrames.js'
+import { emitBackgroundCrewmateRows } from '../../engine/task-framework/sdkCrewmateFrames.js'
 import { getTaskOutputPath } from '../../engine/task-framework/diskOutput.js'
 import { getAssistantMessageContentLength } from '../../engine/context-window/contextTokenCount.js'
 import { BASH_TOOL_NAME } from '../kit/names/bash.js'
 import { BackgroundHint } from '../shell/rows.js'
-import { READ_TOOL_NAME } from '../kit/names/fileRead.js'
-import { noteOverloadDeath, overloadDeathNotifies, overloadNoticeWords } from '../../engine/tasks/local-agent/agentOverload.js'
+import { READ_TOOL_NAME } from '../kit/names/read.js'
+import { noteOverloadDeath, overloadDeathNotifies, overloadNoticeWords } from '../../engine/tasks/local-agent/crewmateOverload.js'
 import {
   deriveCrewmateTerminalOutcome,
   emitTaskProgress,

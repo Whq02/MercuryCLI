@@ -85,7 +85,7 @@ const screens = async (): Promise<{ rows: string[]; listed: string[]; attached: 
   } catch {
     return { rows: [], listed: [], attached: [], words: { footer: '', centre: '', health: '' } }
   }
-  const { getRelativeInstructionFilePath } = await import(join(repo, 'src/screen/memory/MemoryUpdateNotification.tsx'))
+  const { getRelativeInstructionFilePath } = await import(join(repo, 'src/screen/memory/instructionFilePath.ts'))
   const shown = (path: string): string => getRelativeInstructionFilePath(path).split(sep).join('/')
   const { profileStatusLine } = await import(join(repo, 'src/commands/memory/memory.tsx'))
   const { filesRow } = await import(join(repo, 'src/screen/memory/memoryCentreLayout.ts'))

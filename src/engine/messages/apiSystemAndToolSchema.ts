@@ -15,10 +15,10 @@ import { normalizeToolSchemaFor, rememberRenamedArgumentKeys, schemaLaneFor } fr
 import { userContextReminderBody } from '../attachments/userContextReminder.js'
 
 import { BASH_TOOL_NAME } from '../../tools/kit/names/bash.js'
-import { EDIT_TOOL_NAME } from '../../tools/kit/names/fileEdit.js'
+import { EDIT_TOOL_NAME } from '../../tools/kit/names/edit.js'
 import { editFormCacheMark } from './editForm.js'
 import { normalizeFileEditInput } from '../../tools/edit/call/editMatching.js'
-import { WRITE_TOOL_NAME } from '../../tools/kit/names/fileWrite.js'
+import { WRITE_TOOL_NAME } from '../../tools/kit/names/write.js'
 import { resolveShellCwd } from '../../platform/shell/shellExec.js'
 import { createUserMessage } from '../message-shapes/factories.js'
 import { rememberedPlatform } from '../../platform/host-os/host.js'

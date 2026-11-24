@@ -7,7 +7,7 @@ import type {
 } from '../../engine/message-shapes/message.js'
 import type { ToolUseBlock } from '../../engine/message-shapes/wire.js'
 
-import { CREWMATE_TOOL_NAME } from '../../tools/kit/names/agent.js'
+import { CREWMATE_TOOL_NAME } from '../../tools/kit/names/crewmate.js'
 import { isRecord } from '../../platform/primitives/isRecord.js'
 
 type MessageWithoutProgress = Exclude<NormalizedMessage, { type: 'progress' }>

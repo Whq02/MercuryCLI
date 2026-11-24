@@ -3,7 +3,7 @@ import { getIsNonInteractiveSession, getSessionKind } from '../../boot/process-s
 import { REPEATED_RESULT_MIN_CHARS, REPEATED_RESULT_TAG } from '../../tools/kit/toolLimits.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { errorMessage } from '../../platform/errors/errors.js'
-import { FILE_UNCHANGED_STUB } from '../../tools/kit/names/fileRead.js'
+import { FILE_UNCHANGED_STUB } from '../../tools/kit/names/read.js'
 import type { Message } from '../message-shapes/message.js'
 import type { TextBlockParam, ToolResultBlockParam } from '../message-shapes/wire.js'
 import { createAttachmentMessage } from '../attachments/turnAttachments.js'

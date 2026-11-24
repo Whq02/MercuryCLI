@@ -21,7 +21,7 @@ import { modifiedSinceReadMessage, otherLiveSessionsClause, unreadExistingWriteM
 import { buildEditedLines } from '../edit/editResult.js'
 import { findActualString, getPatchForEdit, locateActualString, type ActualMatchOutcome } from '../edit/call/editMatching.js'
 import type { FileEditInput, FileEditOutput } from '../edit/schema.js'
-import { READ_TOOL_NAME } from '../kit/names/fileRead.js'
+import { READ_TOOL_NAME } from '../kit/names/read.js'
 import {
   extractZipEntryBuffer,
   findEocdOffset,

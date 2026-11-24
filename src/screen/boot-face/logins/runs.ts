@@ -27,7 +27,7 @@ export function postLoginSettleOf(ctx: LoginsFlowContext): void {
     try {
       const [user, killswitch] = await Promise.all([
         import('../../../platform/environment/user.js'),
-        import('../../../permissions/rules/bypassPermissionsKillswitch.js'),
+        import('../../../permissions/rules/sovereignKillswitch.js'),
       ]);
       user.resetUserCache();
       killswitch.resetSovereignCheck();

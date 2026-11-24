@@ -35,7 +35,7 @@ else
   echo "  ✗ the built-in roster reads '$roster'"; fail=1
 fi
 
-res=$("$bun" -e "import('$root/src/models/catalogue/agentModel.js').then(m=>{const p='claude-opus-4-8[1m]';const inh=m.getCrewmateModel('inherit',p);const hk=m.getCrewmateModel('haiku',p);const ok=inh===p&&/haiku/i.test(hk);console.log(ok?'OK':'BAD',inh,'|',hk);}).catch(e=>console.log('ERR',(e&&e.message)||e));" 2>&1 | tail -1)
+res=$("$bun" -e "import('$root/src/models/catalogue/crewmateModel.js').then(m=>{const p='claude-opus-4-8[1m]';const inh=m.getCrewmateModel('inherit',p);const hk=m.getCrewmateModel('haiku',p);const ok=inh===p&&/haiku/i.test(hk);console.log(ok?'OK':'BAD',inh,'|',hk);}).catch(e=>console.log('ERR',(e&&e.message)||e));" 2>&1 | tail -1)
 case "$res" in
   OK*) echo "  ✓ resolver: inherit→the parent, raw-haiku→the haiku row (stamp-independent)  [$res]" ;;
   *)   echo "  ✗ resolver invariant failed: $res"; fail=1 ;;

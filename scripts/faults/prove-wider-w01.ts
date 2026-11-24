@@ -26,7 +26,7 @@ let failures = 0
 const UNREAD_FIX =
   'the reader of that file in src/sessions/mneme must call recordMnemeUnread(path, error) on failure and clearMnemeUnread(path) on success (src/sessions/mneme/mnemeUnread.ts), and the screen must show mnemeUnreadSentence'
 const CREW_NOTE_FIX =
-  'the note comes from subagentMemoryLoadNote in src/tools/crewmate/subagentDoctrine.ts; check where src/tools/crewmate/call/call.ts and src/tools/crewmate/runCrewmate.ts use it when loadMemoryPrompt fails'
+  'the note comes from subagentMemoryLoadNote in src/tools/crewmate/crewmateDoctrine.ts; check where src/tools/crewmate/call/call.ts and src/tools/crewmate/runCrewmate.ts use it when loadMemoryPrompt fails'
 const PROBE_FIX =
   'the preserved-thinking row is built in src/platform/health/sections/memory.ts from readThinkingDropLedger in src/models/roads/anthropic/thinkingBinding.ts'
 function check(label: string, cond: boolean, detail = '', hint = ''): void {

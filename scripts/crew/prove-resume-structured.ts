@@ -59,7 +59,7 @@ for (const structured of [true, false]) {
     second.submit(followup)
     await second.waitFor('the parent resume turn settled', () => second!.frames.some(row => row.type === 'outcome'))
     const resume = toolResultOf(world, `p2-${label}-resume`)
-    check(`${label}: the evicted child resumed by its recorded name`, resume !== null && !resume.isError && resume.text.includes('resumed in the background with your message'), `${JSON.stringify(resume)} — ResumeCrewmate in src/tools/resume-crewmate/ResumeAgentTool.ts must resolve the recorded name to the on-disk transcript and call resumeCrewmateBackground (src/tools/crewmate/resumeCrewmate.ts)`)
+    check(`${label}: the evicted child resumed by its recorded name`, resume !== null && !resume.isError && resume.text.includes('resumed in the background with your message'), `${JSON.stringify(resume)} — ResumeCrewmate in src/tools/resume-crewmate/ResumeCrewmateTool.ts must resolve the recorded name to the on-disk transcript and call resumeCrewmateBackground (src/tools/crewmate/resumeCrewmate.ts)`)
     if (resume !== null && !resume.isError && resume.text.includes('resumed in the background')) {
       await second.waitFor('the resumed completion reached the main model', () => userTextsOf(world).some(text => text.includes('<status>completed</status>') && text.includes('SECOND-CHILD-DONE')))
     }

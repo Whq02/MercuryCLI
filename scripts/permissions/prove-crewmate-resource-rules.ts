@@ -18,7 +18,7 @@ setOriginalCwd(home)
 setProjectRoot(home)
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { resolveAgentTools } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
-const { composeCrewmateAppState } = await import('../../src/tools/crewmate/agentPermissionPosture.ts')
+const { composeCrewmateAppState } = await import('../../src/tools/crewmate/crewmatePermissionPosture.ts')
 const { decodeAgentDocument } = await import('../../src/crew/agents/codec.ts')
 const { parseAgentFromJson, getAgentDefinitionsWithOverrides, clearAgentDefinitionsCache } = await import('../../src/tools/crewmate/loadAgentsDir.ts')
 const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.ts')
@@ -26,7 +26,7 @@ const { checkWritePermissionForTool } = await import('../../src/permissions/rule
 const fileWriteToolHasPermission = (_tool: unknown, input: { file_path: string }, context: ReturnType<typeof getEmptyToolPermissionContext>) => checkWritePermissionForTool({ name: 'Edit', getPath: (value: { file_path: string }) => value.file_path }, input, context)
 let failures = 0
 let checks = 0
-const resourceRulesFixHint = 'change the function this check exercises: tool toolbox in resolveAgentTools (src/tools/crewmate/crewmateLifecycle.ts), the rule overlay in composeAgentAppState (src/tools/crewmate/agentPermissionPosture.ts), Bash rules in bashToolHasPermission (src/tools/shell/bashPermissions.ts), Edit rules in checkWritePermissionForTool (src/permissions/rules/filesystem.ts), malformed-pattern diagnostics in decodeAgentDocument (src/crew/agents/codec.ts), parseAgentFromJson and getAgentDefinitionsWithOverrides (src/tools/crewmate/loadAgentsDir.ts)'
+const resourceRulesFixHint = 'change the function this check exercises: tool toolbox in resolveAgentTools (src/tools/crewmate/crewmateLifecycle.ts), the rule overlay in composeAgentAppState (src/tools/crewmate/crewmatePermissionPosture.ts), Bash rules in bashToolHasPermission (src/tools/shell/bashPermissions.ts), Edit rules in checkWritePermissionForTool (src/permissions/rules/filesystem.ts), malformed-pattern diagnostics in decodeAgentDocument (src/crew/agents/codec.ts), parseAgentFromJson and getAgentDefinitionsWithOverrides (src/tools/crewmate/loadAgentsDir.ts)'
 const check =(label: string, ok: boolean, detail?: unknown): void => {
   checks++
   if (!ok) failures++

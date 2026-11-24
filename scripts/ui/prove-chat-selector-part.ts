@@ -24,7 +24,7 @@ const answered = (text: string): Message => createAssistantMessage({ content: te
 const said = (): string => t.calls.splice(0).join(' · ')
 const told = (): string => t.notices.splice(0).map(notice => `${notice.key}: ${notice.text}`).join(' | ')
 const heard = (): string => t.session.calls.splice(0).join(' · ')
-const SEL_AT = 'change useChatRewindPickerView in src/screen/chat/useChatSelector.tsx'
+const SEL_AT = 'change useChatRewindPickerView in src/screen/chat/useChatRewindPicker.tsx'
 
 section('§1 the selector: when it is drawn and what it is handed')
 const rows = [asked('the first question'), answered('the first answer')]
@@ -153,14 +153,14 @@ section('§6 the states the arbitration reads')
   const { useChatRewindPicker } = t.module
   const states = await mountPart(() => useChatRewindPicker())
   const first = states.value()
-  check('the selector starts down, with no preselected message', first.showRewindPicker === false && first.rewindPickerPreselect === undefined, 'change useChatSelector in src/screen/chat/useChatSelector.tsx so the selector starts down with no preselect')
+  check('the selector starts down, with no preselected message', first.showRewindPicker === false && first.rewindPickerPreselect === undefined, 'change useChatSelector in src/screen/chat/useChatRewindPicker.tsx so the selector starts down with no preselect')
   first.openRewindPicker()
   await settle(80)
-  check('opening it shows it, and the opener is the same from one render to the next', states.value().showRewindPicker === true && states.value().openRewindPicker === first.openRewindPicker, 'change useChatSelector in src/screen/chat/useChatSelector.tsx so openMessageSelector shows it and stays the same function across renders')
+  check('opening it shows it, and the opener is the same from one render to the next', states.value().showRewindPicker === true && states.value().openRewindPicker === first.openRewindPicker, 'change useChatSelector in src/screen/chat/useChatRewindPicker.tsx so openMessageSelector shows it and stays the same function across renders')
   states.value().setShowRewindPicker(false)
   states.value().setRewindPickerPreselect(chosen as never)
   await settle(80)
-  check('it is closed and a message preselected through the setters the part hands on', states.value().showRewindPicker === false && states.value().rewindPickerPreselect === chosen, 'change useChatSelector in src/screen/chat/useChatSelector.tsx so its setters close the selector and preselect a message')
+  check('it is closed and a message preselected through the setters the part hands on', states.value().showRewindPicker === false && states.value().rewindPickerPreselect === chosen, 'change useChatSelector in src/screen/chat/useChatRewindPicker.tsx so its setters close the selector and preselect a message')
   states.unmount()
 }
 

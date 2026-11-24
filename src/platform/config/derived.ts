@@ -7,7 +7,7 @@ import {
   getMercuryHome,
   isEnvDefinedFalsy,
   } from '../environment/envUtils.js'
-import type { InstructionFileType } from '../../sessions/memory-shapes/types.js'
+import type { InstructionFileType } from '../../sessions/instruction-contracts/instructionFileType.js'
 import { getManagedFilePath } from '../settings/managedPath.js'
 
 import { getGlobalConfig, isConfigReadingAllowed, saveGlobalConfigDeferred } from './globalConfig.js'

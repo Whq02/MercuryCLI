@@ -98,7 +98,7 @@ const popupFailSurfaces: Array<[RegExp, string]> = [
   [/file permission/, 'src/permissions/cards/file-dialog/FilePermissionDialog.tsx'],
   [/ trust:/, 'src/boot/first-run/MercurySetupFrame.tsx and TrustDialog/TrustDialog.tsx'],
   [/late selector/, 'src/screen/overlays/PopupForm.tsx and CustomSelect/select.tsx'],
-  [/memory files/, 'src/screen/memory/MemoryFileSelector.tsx'],
+  [/memory files/, 'src/screen/memory/InstructionFileSelector.tsx'],
   [/memory/, 'src/screen/memory/MemoryCentreView.tsx'],
 ]
 const popupFailHint = (label: string) => {
@@ -1021,7 +1021,7 @@ mock.module('../../src/sessions/mneme/mnemeLibrary.ts', () => ({ ...libraryModul
 const maintenanceModule = await import('../../src/sessions/mneme/mnemeMaintenance.ts')
 mock.module('../../src/sessions/mneme/mnemeMaintenance.ts', () => ({ ...maintenanceModule, mnemeStatus: () => ({ enabled: true, entryCount: 480, buffered: 0, pendingConsuming: 0, historyCount: 0, topicCount: 24, due: false, dueReason: '', running: false, degraded: false, lastConsolidatedAt: null }) }))
 const { MemoryCentreView } = await import('../../src/screen/memory/MemoryCentreView.tsx')
-const { InstructionFileSelector } = await import('../../src/screen/memory/MemoryFileSelector.tsx')
+const { InstructionFileSelector } = await import('../../src/screen/memory/InstructionFileSelector.tsx')
 const { memoryFooter } = await import('../../src/screen/memory/memoryCentreLayout.ts')
 const { useSettingsPopupFrame } = await import('../../src/screen/settings/Settings.tsx')
 function MemoryFixture({ width, rows }: { width: number; rows: number }): React.ReactNode {

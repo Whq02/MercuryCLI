@@ -3,7 +3,7 @@ import { semanticBoolean } from '../../kit/semanticBoolean.js'
 import { EFFORT_LEVELS, type EffortLevel } from '../../../models/effort/effort.js'
 import { lazySchema } from '../../../platform/primitives/lazySchema.js'
 import { crewmateToolResultSchema } from '../crewmateLifecycle.js'
-import { MERCURY_CREW_AGENT_TYPE } from '../../kit/names/agent.js'
+import { MERCURY_CREW_AGENT_TYPE } from '../../kit/names/crewmate.js'
 import type { CrewmateToolProgress, ShellProgress } from '../../kit/toolProgress.js'
 import type { describeAgentRuntimeRef } from '../../../models/roads/primaryBackend.js'
 export type Progress = CrewmateToolProgress | ShellProgress

@@ -1,7 +1,7 @@
 import { getSessionId } from '../../boot/process-state/processState.js'
 import { liveSessions } from '../../sessions/mneme/ledger.js'
 import { mnemeProjectKey } from '../../sessions/mneme/paths.js'
-import { FILE_UNEXPECTEDLY_MODIFIED_ERROR } from '../kit/names/fileEdit.js'
+import { FILE_UNEXPECTEDLY_MODIFIED_ERROR } from '../kit/names/edit.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
 export const UNREAD_EXISTING_FILE_NOTE = "it exists and was not read in this session, so it may be another session's work"

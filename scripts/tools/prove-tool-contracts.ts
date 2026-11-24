@@ -91,9 +91,9 @@ t(
   'getAgentModelPickerRows in src/models/catalogue/agentModelPicker.ts must put inherit first',
 )
 
-const { getCrewmateModel } = await import('../../src/models/catalogue/agentModel.ts')
+const { getCrewmateModel } = await import('../../src/models/catalogue/crewmateModel.ts')
 const pinned = getCrewmateModel('haiku', 'claude-opus-4-8', undefined, 'default')
-t('a haiku agent-def pin resolves to the haiku row', /haiku/i.test(pinned), `resolved=${pinned}`, 'getAgentModel in src/models/catalogue/agentModel.ts must resolve the haiku pin to the haiku row')
+t('a haiku agent-def pin resolves to the haiku row', /haiku/i.test(pinned), `resolved=${pinned}`, 'getAgentModel in src/models/catalogue/crewmateModel.ts must resolve the haiku pin to the haiku row')
 
 t(
   "Agent run_in_background accepts quoted 'true'",

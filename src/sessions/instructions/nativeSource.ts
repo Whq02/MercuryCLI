@@ -1,7 +1,7 @@
 import { join, sep } from 'path'
 
 import { getManagedRulesDir, getInstructionFilePath, getUserRulesDir } from '../../platform/settings/config.js'
-import type { InstructionFileType } from '../memory-shapes/types.js'
+import type { InstructionFileType } from '../instruction-contracts/instructionFileType.js'
 import { projectConfigDirs } from '../../platform/settings/projectConfig.js'
 import { getInitialSettings, getSettingsForSource } from '../../platform/settings/settings.js'
 import type { InstructionConvention } from '../instruction-contracts/contracts.js'

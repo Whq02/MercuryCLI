@@ -40,7 +40,7 @@ const disabledFlags = [selectorPart.part.value().messageActionsDisabled]
 await selectorPart.plant({ focusedInputDialog: undefined, chatSurfaceCovered: true })
 disabledFlags.push(selectorPart.part.value().messageActionsDisabled)
 await selectorPart.close()
-check('messageActionsDisabled is false unconditionally (no feature flag)', disabledFlags.join() === 'false,false', disabledFlags.join(), 'messageActionsDisabled in src/screen/chat/useChatSelector.tsx must not depend on a feature flag or on the covered surface')
+check('messageActionsDisabled is false unconditionally (no feature flag)', disabledFlags.join() === 'false,false', disabledFlags.join(), 'messageActionsDisabled in src/screen/chat/useChatRewindPicker.tsx must not depend on a feature flag or on the covered surface')
 const { openKeysPart } = await import('./chatScenarios.ts')
 const keys = await openKeysPart('message-actions-keys')
 await keys.plant({ messageCursorActive: true })

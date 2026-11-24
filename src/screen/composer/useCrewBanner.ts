@@ -9,7 +9,7 @@ import {
   AGENT_COLORS,
   AGENT_COLOR_TO_THEME_COLOR,
   getAgentColor,
-} from '../../tools/crewmate/crewmateColors.js'
+} from '../../tools/crewmate/agentColors.js'
 import { isOneOf } from '../../platform/primitives/isOneOf.js'
 
 const CREWMATE_FALLBACK: keyof Theme = 'suggestion'

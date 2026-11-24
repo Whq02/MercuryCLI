@@ -24,7 +24,7 @@ const section = (t: string): void => {
 
 const { scrubbedSessionEnvNotice, shortScrubbedSessionEnvNotice, sessionEnvNoticeForResult, resetSessionEnvNoticeOnFold } = await import('../../src/tools/kit/sessionEnvNotice.ts')
 const { getOriginalCwd, setOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
-const { runWithCrewmateContext } = await import('../../src/crew/agents/agentContext.ts')
+const { runWithCrewmateContext } = await import('../../src/crew/agents/crewmateContext.ts')
 const { disposeOwner, disposeOwnerProcesses, ownerLifecycleCounts } = await import('../../src/engine/run-owner/ownerLifecycle.ts')
 const { currentOwner, processMainOwner, processOwnerForLane } = await import('../../src/engine/run-owner/resolveOwner.ts')
 

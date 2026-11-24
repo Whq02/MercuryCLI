@@ -14,7 +14,7 @@ const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 await import('../../src/engine/tasks/tasks.ts')
 const { SendMessageTool } = await import('../../src/tools/send-message/SendMessageTool.ts')
-const resumePath = join(import.meta.dir, '../../src/tools/resume-crewmate/ResumeAgentTool.ts')
+const resumePath = join(import.meta.dir, '../../src/tools/resume-crewmate/ResumeCrewmateTool.ts')
 const ResumeCrewmateTool = existsSync(resumePath) ? (await import(resumePath)).ResumeCrewmateTool as typeof SendMessageTool : undefined
 const { getPrompt } = await import('../../src/tools/send-message/prompt.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
@@ -36,7 +36,7 @@ const check = (label: string, yes: boolean, detail = '') => {
   if (!yes) failures++
   console.log(`[${yes ? 'PASS' : 'FAIL'}] ${label}${!yes && detail ? ` — ${detail}` : ''}${yes ? '' : splitFixHint}`)
 }
-const splitFixHint = ' | fix: delivery, refusals and validation are call and validateInput in src/tools/send-message/SendMessageTool.ts (SendMessage) and src/tools/resume-crewmate/ResumeAgentTool.ts (ResumeCrewmate); the SendMessage prompt is getPrompt in src/tools/send-message/prompt.ts'
+const splitFixHint = ' | fix: delivery, refusals and validation are call and validateInput in src/tools/send-message/SendMessageTool.ts (SendMessage) and src/tools/resume-crewmate/ResumeCrewmateTool.ts (ResumeCrewmate); the SendMessage prompt is getPrompt in src/tools/send-message/prompt.ts'
 let state = { ...getDefaultAppState(), toolPermissionContext: getEmptyToolPermissionContext() } as AppState
 const setState = (update: (prev: AppState) => AppState) => { state = update(state) }
 const context = (agentId?: string) => ({
@@ -78,7 +78,7 @@ const evict = (id: string) => {
   state = { ...state, tasks, crewmateNameRegistry: new Map([...state.crewmateNameRegistry].filter(([, value]) => String(value) !== id)) }
 }
 const stop = (id: string) => killAsyncCrewmate(id, setState as never)
-const guard = setTimeout(() => { console.log('[FAIL] split proof exceeded 120 seconds; a SendMessage or ResumeCrewmate call (src/tools/send-message/SendMessageTool.ts, src/tools/resume-crewmate/ResumeAgentTool.ts) never settled, so look at the last line printed above'); process.exit(1) }, 120_000)
+const guard = setTimeout(() => { console.log('[FAIL] split proof exceeded 120 seconds; a SendMessage or ResumeCrewmate call (src/tools/send-message/SendMessageTool.ts, src/tools/resume-crewmate/ResumeCrewmateTool.ts) never settled, so look at the last line printed above'); process.exit(1) }, 120_000)
 guard.unref()
 
 check('ResumeCrewmate exists as a separate verb', ResumeCrewmateTool !== undefined)

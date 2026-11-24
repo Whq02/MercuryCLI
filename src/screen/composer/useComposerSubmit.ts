@@ -17,7 +17,7 @@ import { appendMessageToCrewmate, isCrewmateTask, queueOperatorMessage } from '.
 import { createUserMessage } from '../../engine/message-shapes/factories.js'
 import { danglingReferences, expandPastedTextRefs, pasteUnavailableLine, resolvePastedContents } from '../../sessions/promptHistory.js'
 import { handleSpeculationAccept } from '../prompt-suggestion/speculation.js'
-import type { ComposerHelpers } from './input-core/promptInputHelpers.js'
+import type { ComposerHelpers } from './input-core/composerHelpers.js'
 import type { SuggestionsState } from './typeahead/useTypeahead.js'
 import type { usePromptSuggestion } from './usePromptSuggestion.js'
 import type { useInputUndo } from './useInputUndo.js'

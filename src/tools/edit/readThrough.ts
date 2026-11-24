@@ -2,7 +2,7 @@ import { mintRangeAnchor } from '../engines/change-transaction/snapshotAnchor.js
 import { bytesPerTokenForFileType } from '../../models/facts/tokenEstimation.js'
 import { addLineNumbers } from '../../platform/files/file.js'
 import { getDefaultFileReadingLimits } from '../read/call/fileReadLimits.js'
-import { MAX_LINES_TO_READ } from '../kit/names/fileRead.js'
+import { MAX_LINES_TO_READ } from '../kit/names/read.js'
 import { stripBom } from '../../platform/files/readFileInRange.js'
 
 export type LineRange = { start: number; end: number }

@@ -32,7 +32,7 @@ const INTERRUPT_FIX_HINT_BY_SECTION: Record<string, string> = {
   A: 'change turnCutResultText for the operator cut in src/engine/message-shapes/turnCut.ts',
   B: 'change turnCutResultText, turnCutLine or turnCutOfText in src/engine/message-shapes/turnCut.ts, or createUserInterruptionMessage in src/engine/message-shapes/factories.ts',
   C: 'change isDenialResultText or unwrapToolUseError in src/engine/message-shapes/rejectionText.ts, turnCutOfText or isTurnCutText in src/engine/message-shapes/turnCut.ts, isNotEmptyMessage in src/engine/message-shapes/text.ts, or buildMessageLookups in src/engine/messages/lookups.ts',
-  D: 'change readAgentTranscript in src/crew/crewmates/agentTranscriptReader.ts, or the cut-line functions in src/engine/message-shapes/turnCut.ts',
+  D: 'change readAgentTranscript in src/crew/crewmates/crewmateTranscriptReader.ts, or the cut-line functions in src/engine/message-shapes/turnCut.ts',
   E: '',
 }
 let interruptFixHint = ''
@@ -131,7 +131,7 @@ section('C the census: every reader that recognised an interrupt result still do
 
 section('D the crewmate transcript reader, and the cut lines a stored transcript may hold')
 {
-  const { readCrewmateTranscript } = await import('../../src/crew/crewmates/agentTranscriptReader.ts')
+  const { readCrewmateTranscript } = await import('../../src/crew/crewmates/crewmateTranscriptReader.ts')
   const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.ts')
   const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.ts')
   const dir = mkdtempSync(join(tmpdir(), 'interrupt-result-'))

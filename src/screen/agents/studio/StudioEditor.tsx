@@ -11,7 +11,7 @@ import type { Tools } from '../../../tools/kit/tool.js'
 import type { AgentDefinition } from '../../../crew/agents/agentDefinition.js'
 import { type EffortValue, resolveEffortTruth } from '../../../models/effort/effort.js'
 import type { ModelName } from '../../../models/catalogue/engineModel.js'
-import { offeredDefinitionModes } from '../../../tools/crewmate/agentPermissionPosture.js'
+import { offeredDefinitionModes } from '../../../tools/crewmate/crewmatePermissionPosture.js'
 import { editPromptInEditor } from '../../composer/promptEditor.js'
 import { AMBER, CRIMSON, FAINT, IVORY, SECOND, TEAL } from '../../theme/mercuryPalette.js'
 import { Select } from '../../select/Select.js'
@@ -22,7 +22,7 @@ import TextInput from '../../composer/text-input/TextInput.js'
 import { ColorPicker } from '../ColorPicker.js'
 import { ToolSelector } from '../ToolSelector.js'
 import { ModelSelector } from '../ModelSelector.js'
-import type { AgentColorName } from '../../../tools/crewmate/crewmateColors.js'
+import type { AgentColorName } from '../../../tools/crewmate/agentColors.js'
 import {
   computeStudioValidation,
   createStudioEditorMachine,

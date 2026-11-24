@@ -133,7 +133,7 @@ t.section('S4 — the retry budget: one budget across attempts, words that speak
 
 t.section("S7 — the request phase's retry word names the provider's answer, never a bare fault")
 {
-  const wait = await import('../../src/engine/tasks/local-agent/agentWait.js')
+  const wait = await import('../../src/engine/tasks/local-agent/crewmateWait.js')
   const at = 1_000
   const fold = (extra: Record<string, unknown>): ReturnType<typeof wait.foldCrewmateWaitEvent> => wait.foldCrewmateWaitEvent(null, { type: 'system', subtype: 'api_error', retryInMs: 40_000, retryAttempt: 3, maxRetries: 10, ...extra }, at)
   const busy = fold({ errorDetail: { status: 429 } })

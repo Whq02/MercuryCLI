@@ -83,7 +83,7 @@ if (typeof table === 'string') {
 const words = table
 const { PROVIDER_ID_SPACES } = await import('../../src/models/roads/idSpaces.ts')
 const model = await import('../../src/models/catalogue/engineModel.ts')
-const agent = await import('../../src/models/catalogue/agentModel.ts')
+const agent = await import('../../src/models/catalogue/crewmateModel.ts')
 const engine = await import('../../src/crew/crewmates/engineDispatch.ts')
 const { keyLanePins, getModelOptions } = await import('../../src/models/catalogue/modelOptions.ts')
 const discovery = await import('../../src/models/roads/providerDiscovery.ts')

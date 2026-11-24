@@ -231,7 +231,7 @@ section('B. Agent parent-boundary shape (mapToolResultToToolResultBlockParam)')
   const oneShot = map({ ...base, agentType: 'mercury-scout' }, 'toolu_fixture')
   check('B4 one-shot builtin drops the agentId/usage trailer',
     (oneShot.content as unknown[]).length === 1,
-    `blocks=${(oneShot.content as unknown[]).length} · src/tools/crewmate/call/resultBlock.ts must skip the trailer for a type in ONE_SHOT_BUILTIN_AGENT_TYPES (src/tools/kit/names/agent.ts)`)
+    `blocks=${(oneShot.content as unknown[]).length} · src/tools/crewmate/call/resultBlock.ts must skip the trailer for a type in ONE_SHOT_BUILTIN_AGENT_TYPES (src/tools/kit/names/crewmate.ts)`)
 }
 
 section('C. effectObserver seam (the slice-1 attachment point)')

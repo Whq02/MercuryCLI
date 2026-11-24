@@ -301,11 +301,11 @@ src/crew/crewmates/activity.ts	ACTIVITY_PHASES	process	module	Load-time list wit
 src/crew/crewmates/activity.ts	feedListeners	process	module	foreground TUI crew-activity feed subscriber Set
 src/crew/crewmates/activity.ts	liveFeed	process	module	foreground TUI live crew-activity feed state
 src/crew/crewmates/activity.ts	registry	process	module	module-load activity classifier registry populated by registerActivityClassifier
-src/crew/crewmates/agentTranscriptReader.ts	COMPLETED_END	process	module	Load-time table with no local writer
-src/crew/crewmates/agentTranscriptReader.ts	FAILED_END	process	module	Load-time table with no local writer
-src/crew/crewmates/agentTranscriptReader.ts	NO_ROWS_END	process	module	Load-time table with no local writer
-src/crew/crewmates/agentTranscriptReader.ts	OPEN_END	process	module	immutable constant object (census write is local let end reassignment)
-src/crew/crewmates/agentTranscriptReader.ts	STOPPED_END	process	module	Load-time table with no local writer
+src/crew/crewmates/crewmateTranscriptReader.ts	COMPLETED_END	process	module	Load-time table with no local writer
+src/crew/crewmates/crewmateTranscriptReader.ts	FAILED_END	process	module	Load-time table with no local writer
+src/crew/crewmates/crewmateTranscriptReader.ts	NO_ROWS_END	process	module	Load-time table with no local writer
+src/crew/crewmates/crewmateTranscriptReader.ts	OPEN_END	process	module	immutable constant object (census write is local let end reassignment)
+src/crew/crewmates/crewmateTranscriptReader.ts	STOPPED_END	process	module	Load-time table with no local writer
 src/crew/crewmates/capabilities.ts	CAPABILITY_KINDS	process	module	Load-time list with no local writer
 src/crew/crewmates/capabilities.ts	CAPABILITY_STATES	process	module	Load-time list with no local writer
 src/crew/crewmates/capabilities.ts	sets	process	module	process-wide external-seat capability Map keyed by seatId, cleared by forgetCapabilities
@@ -1644,7 +1644,7 @@ src/models/advisor/advisorSettings.ts	ADVISOR_ENV_VAR	process	module	Load-time d
 src/models/advisor/advisorSettings.ts	ADVISOR_MINUTES_LADDER	process	module	Derived collection initialized at load
 src/models/advisor/index.ts	resetAdvisorContextsForTests	reset-export
 src/models/advisor/index.ts	resetAdvisorRoadsForTests	reset-export
-src/models/catalogue/agentModel.ts	FIRST_PARTY_TIER_WORDS	process	module	Load-time lookup with no local writer
+src/models/catalogue/crewmateModel.ts	FIRST_PARTY_TIER_WORDS	process	module	Load-time lookup with no local writer
 src/models/catalogue/bareFamilyWords.ts	BARE_FAMILY_WORDS	process	module	Load-time list with no local writer
 src/models/catalogue/computedDefault.ts	FIRST_PARTY_EVIDENCE	process	module	Load-time table with no local writer
 src/models/catalogue/computedDefault.ts	FIRST_PARTY_GATE	process	module	Load-time table with no local writer
@@ -2675,8 +2675,8 @@ src/permissions/guards/wardsGuard.ts	homeUnknownLogged	process	module	one-time p
 src/permissions/guards/wardsGuard.ts	resetWardsEngagedSessionsForTest	reset-export
 src/permissions/guards/wardsGuard.ts	wardFirings	owner	module	Session guard events retained in the module
 src/permissions/guards/wardsGuard.ts	wardsEngagedSessions	owner	module	Session engagement retained in the module
-src/permissions/rules/bypassPermissionsKillswitch.ts	resetSovereignCheck	reset-export
-src/permissions/rules/bypassPermissionsKillswitch.ts	sovereignCheckRan	owner	module	Session state retained in this module
+src/permissions/rules/sovereignKillswitch.ts	resetSovereignCheck	reset-export
+src/permissions/rules/sovereignKillswitch.ts	sovereignCheckRan	owner	module	Session state retained in this module
 src/permissions/rules/capabilityGate.ts	AGENT_CAP_RISK_RANK	process	module	Load-time table with no local writer
 src/permissions/rules/capabilityGate.ts	VALID_CATS	process	module	Load-time lookup with no local writer
 src/permissions/rules/capabilityGate.ts	clearAllCapabilityKills	reset-export
@@ -4134,7 +4134,7 @@ src/screen/fullscreen-layout/layoutChromeContext.tsx	LayoutChromeContext	process
 src/screen/fullscreen-layout/useLayoutTier.ts	LAYOUT_BREAKPOINTS	process	module	Load-time table with no local writer
 src/screen/fullscreen-layout/useLayoutTier.ts	cockpitLatched	process	module	single-terminal hysteresis latch for cockpit vs compact layout tier
 src/screen/fullscreen-layout/useLayoutTier.ts	resetChromeModeLatchForTests	reset-export
-src/screen/help/HelpV2.tsx	TAB_IDS	process	module	Load-time list with no local writer
+src/screen/help/Help.tsx	TAB_IDS	process	module	Load-time list with no local writer
 src/screen/help/ShortcutsTab.tsx	ADVANCED	process	module	Load-time list with no local writer
 src/screen/help/ShortcutsTab.tsx	EVERYDAY	process	module	Load-time table with no local writer
 src/screen/help/commandDomains.ts	COMMAND_DOMAINS	process	module	Load-time list with no local writer
@@ -4201,7 +4201,7 @@ src/screen/kit-menu-model/menuStore.ts	kitMenuStore	process	module	Load-time loo
 src/screen/kit-menu-model/presetHook.ts	STORE_PRESET_HOOK	process	module	Load-time table with no local writer
 src/screen/kit-menu-model/presetHook.ts	bound	test	module	test seam overridden only by bindKitPresetHook and reset by _resetKitPresetHookForTesting (0 production callers of bindKitPresetHook)
 src/screen/memory/MemoryCentreView.tsx	VIEW_OF_SECTION	process	module	Load-time table with no local writer
-src/screen/memory/MemoryFileSelector.tsx	lastSelectedPath	process	module	single-TUI last selected memory file path remembered across modal opens
+src/screen/memory/InstructionFileSelector.tsx	lastSelectedPath	process	module	single-TUI last selected memory file path remembered across modal opens
 src/screen/memory/centre/refs.ts	EMPTY_WORDS	process	module	Load-time table with no local writer
 src/screen/memory/centre/refs.ts	NOTE_COLOR	process	module	Load-time table with no local writer
 src/screen/memory/centre/refs.ts	QUIET_STATES	process	module	Load-time lookup with no local writer
@@ -4339,7 +4339,7 @@ src/screen/renderer/elements/Button.tsx	Button	process	module	Load-time definiti
 src/screen/renderer/elements/ClockContext.tsx	ClockContext	process	module	Load-time definition shared by all callers
 src/screen/renderer/elements/ClockContext.tsx	REAL_CLOCK_TIMERS	process	module	Load-time table with no local writer
 src/screen/renderer/elements/CursorDeclarationContext.ts	CursorDeclarationContext	process	module	Load-time definition shared by all callers
-src/screen/renderer/elements/InkInstanceContext.ts	ScreenInstanceContext	process	module	Load-time definition shared by all callers
+src/screen/renderer/elements/ScreenInstanceContext.ts	ScreenInstanceContext	process	module	Load-time definition shared by all callers
 src/screen/renderer/elements/MotionParkContext.ts	MotionParkContext	process	module	Load-time definition shared by all callers
 src/screen/renderer/elements/ScrollBox.tsx	INNER_STYLE	process	module	load-time data; no local writer
 src/screen/renderer/elements/ScrollBox.tsx	ScrollBox	process	module	Load-time definition shared by all callers
@@ -4813,7 +4813,7 @@ src/sessions/instructions/nativeSource.ts	mercuryNativeConvention	process	module
 src/sessions/instructions/profile.ts	sessionProfile	owner	module	Session state retained in this module
 src/sessions/instructions/sourceText.ts	COMPOSABLE_EXTENSIONS	process	module	Load-time table with no local writer
 src/sessions/instructions/sourceText.ts	TEXT_FILE_EXTENSIONS	process	module	Load-time lookup with no local writer
-src/sessions/memory-shapes/types.ts	INSTRUCTION_FILE_TYPE_VALUES	process	module	Load-time list with no local writer
+src/sessions/instruction-contracts/instructionFileType.ts	INSTRUCTION_FILE_TYPE_VALUES	process	module	Load-time list with no local writer
 src/sessions/mission/goalJudge.ts	GOAL_QUESTION	process	module	Load-time table with no local writer
 src/sessions/mission/goalJudge.ts	helperForTesting	test	module	test-only goal judge override installed by _setMissionJudgeForTesting
 src/sessions/mission/projection.ts	TERMINAL_RUN	process	module	Load-time lookup with no local writer
@@ -5074,9 +5074,9 @@ src/tools/crewmate/built-in/mercuryCrewAgent.ts	MERCURY_CREW_AGENT	process	modul
 src/tools/crewmate/built-in/mercuryScoutAgent.ts	MERCURY_SCOUT_AGENT	process	module	Load-time table with no local writer
 src/tools/crewmate/call/schema.ts	inputSchema	process	module	Load-time definition shared by all callers
 src/tools/crewmate/call/schema.ts	outputSchema	process	module	Load-time definition shared by all callers
-src/tools/crewmate/crewmateColors.ts	AGENT_COLORS	process	module	Load-time list with no local writer
-src/tools/crewmate/crewmateColors.ts	AGENT_COLOR_TO_THEME_COLOR	process	module	Load-time table with no local writer
-src/tools/crewmate/crewmateColors.ts	agentColorRegistry	owner	module	Session state retained in this module
+src/tools/crewmate/agentColors.ts	AGENT_COLORS	process	module	Load-time list with no local writer
+src/tools/crewmate/agentColors.ts	AGENT_COLOR_TO_THEME_COLOR	process	module	Load-time table with no local writer
+src/tools/crewmate/agentColors.ts	agentColorRegistry	owner	module	Session state retained in this module
 src/tools/crewmate/crewmateLifecycle.ts	EMPTY_USAGE	process	module	Load-time table with no local writer
 src/tools/crewmate/crewmateLifecycle.ts	SETTLED_STOP_REASONS	process	module	Load-time lookup with no local writer
 src/tools/crewmate/crewmateLifecycle.ts	WRITE_TOOL_NAMES	process	module	Load-time lookup with no local writer
@@ -5101,7 +5101,7 @@ src/tools/crewmate/run/worktreeReadiness.ts	HOOKS_BEHIND_THE_GATE	process	module
 src/tools/crewmate/run/worktreeReadiness.ts	holds	owner	module	agent; Map<agentId, Promise<void>> holding agent tool execution until worktree clone completes; deleted when settled or releaseToolHold
 src/tools/crewmate/runCrewmate.ts	executorClaims	call	module	maps active agentId to per-invocation symbol guarding cleanup ownership
 src/tools/crewmate/scoutPolicy.ts	SCOUT_DENIED_TOOLS	process	module	Load-time lookup with no local writer
-src/tools/crewmate/subagentDoctrine.ts	FIXED_OUTPUT_AGENT_TYPES	process	module	Load-time lookup with no local writer
+src/tools/crewmate/crewmateDoctrine.ts	FIXED_OUTPUT_AGENT_TYPES	process	module	Load-time lookup with no local writer
 src/tools/cron/CronCreateTool.ts	CronCreateTool	process	module	Load-time definition shared by all callers
 src/tools/cron/CronCreateTool.ts	inputSchema	process	module	Load-time definition shared by all callers
 src/tools/cron/CronCreateTool.ts	outputSchema	process	module	Load-time definition shared by all callers
@@ -5306,7 +5306,7 @@ src/tools/kit/crewmateBarredTools.ts	CREWMATE_BARRED_TOOLS	process	module	Load-t
 src/tools/kit/crewmateBarredTools.ts	RULE_INHERITS	process	module	Derived collection initialized at load
 src/tools/kit/documentText.ts	SEARCHABLE_DOCUMENT_EXTENSIONS	process	module	Load-time list with no local writer
 src/tools/kit/gitOperationTracking.ts	PR_COMMANDS	process	module	Load-time list with no local writer
-src/tools/kit/names/agent.ts	ONE_SHOT_BUILTIN_AGENT_TYPES	process	module	Load-time lookup with no local writer
+src/tools/kit/names/crewmate.ts	ONE_SHOT_BUILTIN_AGENT_TYPES	process	module	Load-time lookup with no local writer
 src/tools/kit/names/lsp.ts	LSP_DESCRIPTIONS	process	module	Load-time table with no local writer
 src/tools/kit/names/lsp.ts	LSP_SEARCH_HINTS	process	module	Load-time table with no local writer
 src/tools/kit/names/lsp.ts	LSP_TOOL_NAMES	process	module	Load-time list with no local writer
@@ -5457,9 +5457,9 @@ src/tools/read/readRichFormats.ts	SQLITE_EXTENSIONS	process	module	Load-time loo
 src/tools/record-convention/RecordConventionTool.ts	RecordConventionTool	process	module	Load-time definition shared by all callers
 src/tools/record-convention/RecordConventionTool.ts	inputSchema	process	module	Load-time definition shared by all callers
 src/tools/record-convention/RecordConventionTool.ts	outputSchema	process	module	Load-time definition shared by all callers
-src/tools/resume-crewmate/ResumeAgentTool.ts	ResumeCrewmateTool	process	module	Load-time definition shared by all callers
-src/tools/resume-crewmate/ResumeAgentTool.ts	inputSchema	process	module	Load-time definition shared by all callers
-src/tools/resume-crewmate/ResumeAgentTool.ts	outputSchema	process	module	Load-time definition shared by all callers
+src/tools/resume-crewmate/ResumeCrewmateTool.ts	ResumeCrewmateTool	process	module	Load-time definition shared by all callers
+src/tools/resume-crewmate/ResumeCrewmateTool.ts	inputSchema	process	module	Load-time definition shared by all callers
+src/tools/resume-crewmate/ResumeCrewmateTool.ts	outputSchema	process	module	Load-time definition shared by all callers
 src/tools/rewind/RewindTool.tsx	RewindTool	process	module	Load-time definition shared by all callers
 src/tools/rewind/RewindTool.tsx	inputSchema	process	module	Load-time definition shared by all callers
 src/tools/rewind/RewindTool.tsx	outputSchema	process	module	Load-time definition shared by all callers
@@ -5582,10 +5582,10 @@ src/tools/structure/StructureTool.ts	OPS	process	module	Load-time list with no l
 src/tools/structure/StructureTool.ts	SELECT_LANE_EXTS	process	module	Load-time list with no local writer
 src/tools/structure/StructureTool.ts	StructureTool	process	module	Load-time definition shared by all callers
 src/tools/structure/StructureTool.ts	inputSchema	process	module	Load-time definition shared by all callers
-src/tools/structured-output/SyntheticOutputTool.ts	StructuredOutputTool	process	module	module definition evaluated once
-src/tools/structured-output/SyntheticOutputTool.ts	inputSchema	process	module	Load-time definition shared by all callers
-src/tools/structured-output/SyntheticOutputTool.ts	outputSchema	process	module	Load-time definition shared by all callers
-src/tools/structured-output/SyntheticOutputTool.ts	schemaBoundCache	process	module	WeakMap memo compiling JSON schema object into validated Tool wrapper
+src/tools/structured-output/StructuredOutputTool.ts	StructuredOutputTool	process	module	module definition evaluated once
+src/tools/structured-output/StructuredOutputTool.ts	inputSchema	process	module	Load-time definition shared by all callers
+src/tools/structured-output/StructuredOutputTool.ts	outputSchema	process	module	Load-time definition shared by all callers
+src/tools/structured-output/StructuredOutputTool.ts	schemaBoundCache	process	module	WeakMap memo compiling JSON schema object into validated Tool wrapper
 src/tools/task-create/TaskCreateTool.ts	TaskCreateTool	process	module	Load-time definition shared by all callers
 src/tools/task-create/TaskCreateTool.ts	inputSchema	process	module	Load-time definition shared by all callers
 src/tools/task-create/TaskCreateTool.ts	outputSchema	process	module	Load-time definition shared by all callers

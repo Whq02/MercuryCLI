@@ -3,9 +3,9 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { READ_TOOL_NAME } from '../../src/tools/kit/names/fileRead.js'
-import { EDIT_TOOL_NAME } from '../../src/tools/kit/names/fileEdit.js'
-import { WRITE_TOOL_NAME } from '../../src/tools/kit/names/fileWrite.js'
+import { READ_TOOL_NAME } from '../../src/tools/kit/names/read.js'
+import { EDIT_TOOL_NAME } from '../../src/tools/kit/names/edit.js'
+import { WRITE_TOOL_NAME } from '../../src/tools/kit/names/write.js'
 import { NOTEBOOK_EDIT_TOOL_NAME } from '../../src/tools/notebook-edit/constants.js'
 
 let failures = 0

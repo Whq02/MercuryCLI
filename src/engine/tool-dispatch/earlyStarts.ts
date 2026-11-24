@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { CanUseToolFn, ToolUseContext } from '../../tools/kit/tool.js'
 import { findToolByName } from '../../tools/kit/tool.js'
-import { CREWMATE_TOOL_NAME } from '../../tools/kit/names/agent.js'
+import { CREWMATE_TOOL_NAME } from '../../tools/kit/names/crewmate.js'
 import type { AssistantMessage } from '../message-shapes/message.js'
 import type { PermissionDecision } from '../../permissions/rules/permissions.js'
 import type { ToolUseBlock } from '../message-shapes/wire.js'

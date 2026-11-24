@@ -11,10 +11,10 @@ mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 
 import { execFileSync } from 'node:child_process'
 import { getIsGit } from '../../src/platform/git/git.js'
-import { getCrewmateModel } from '../../src/models/catalogue/agentModel.js'
+import { getCrewmateModel } from '../../src/models/catalogue/crewmateModel.js'
 import { sessionEnvNoticeForResult, scrubbedSessionEnvNotice } from '../../src/tools/kit/sessionEnvNotice.js'
 import * as state from '../../src/boot/process-state/processState.js'
-import { consumeInvokingRequestId, getCrewmateContext, runWithCrewmateContext, type CrewmateContext } from '../../src/crew/agents/agentContext.js'
+import { consumeInvokingRequestId, getCrewmateContext, runWithCrewmateContext, type CrewmateContext } from '../../src/crew/agents/crewmateContext.js'
 import { getProjectPathForConfig } from '../../src/platform/config/projectConfig.js'
 import { getCwd, getStartingCwd, runWithCwdOverride, setContextShellCwd } from '../../src/platform/files/cwd.js'
 import { getAuthConfigHomeDir, withAuthScope } from '../../src/platform/environment/envUtils.js'
