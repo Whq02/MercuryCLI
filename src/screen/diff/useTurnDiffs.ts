@@ -1,7 +1,5 @@
 import { useMemo, useRef } from 'react'
-import { z } from 'zod/v4'
-import { hunkSchema } from '../../tools/edit/schema.js'
-import { lazySchema } from '../../platform/primitives/lazySchema.js'
+import { isRecord } from '../../platform/primitives/isRecord.js'
 import type { Message, UserMessage } from '../../engine/message-shapes/message.js'
 
 type LineChanges = Record<'linesAdded' | 'linesRemoved', number>
@@ -91,7 +89,6 @@ function countHunkLines(hunks: readonly Hunk[]): LineChanges {
 }
 
 function synthesizeCreateHunks(content: string): Hunk[] {
-  if (content === '') return []
   const lines = content.split('\n')
   return [
     {
@@ -104,33 +101,30 @@ function synthesizeCreateHunks(content: string): Hunk[] {
   ]
 }
 
-const fileEditResultSchema = lazySchema(() =>
-  z.object({
-    filePath: z.string(),
-    type: z.string().optional(),
-    structuredPatch: z.array(hunkSchema()).optional(),
-    content: z.string().optional(),
-  }),
-)
+function hunkOf(entry: unknown): Hunk {
+  const record = isRecord(entry) ? entry : {}
+  const count = (value: unknown): number => (typeof value === 'number' ? value : 0)
+  return {
+    oldStart: count(record.oldStart),
+    oldLines: count(record.oldLines),
+    newStart: count(record.newStart),
+    newLines: count(record.newLines),
+    lines: Array.isArray(record.lines) ? record.lines.filter((line): line is string => typeof line === 'string') : [],
+  }
+}
 
 function extractFileEdit(result: unknown): {
   filePath: string
   hunks: Hunk[]
   isNewFile: boolean
 } | null {
-  const parsed = fileEditResultSchema().safeParse(result)
-  if (!parsed.success) return null
-  const { filePath, type, structuredPatch, content } = parsed.data satisfies FileEditLikeResult
-  const isNewFile = type === 'create'
-  if (structuredPatch && structuredPatch.length > 0) {
-    return { filePath, hunks: structuredPatch, isNewFile }
-  }
-  if (isNewFile && content !== undefined) {
-    const hunks = synthesizeCreateHunks(content)
-    if (hunks.length > 0) {
-      return { filePath, hunks, isNewFile: true }
-    }
-  }
+  if (!isRecord(result)) return null
+  const { filePath, type, structuredPatch, content }: FileEditLikeResult = result
+  if (typeof filePath !== 'string') return null
+  const patch = Array.isArray(structuredPatch) ? structuredPatch.map(hunkOf) : []
+  const created = type === 'create' && typeof content === 'string' ? content : null
+  if (patch.length > 0) return { filePath, hunks: patch, isNewFile: created !== null }
+  if (created !== null) return { filePath, hunks: synthesizeCreateHunks(created), isNewFile: true }
   return null
 }
 
@@ -193,17 +187,9 @@ export function useTurnDiffs(messages: readonly Message[]): TurnDiff[] {
         continue
       }
 
+      if (!cache.currentTurn) continue
       const extracted = extractFileEdit(msg.toolUseResult)
       if (!extracted) continue
-
-      if (!cache.currentTurn) {
-        cache.currentTurn = {
-          turnIndex: ++cache.turnCounter,
-          userPromptPreview: '',
-          timestamp: msg.timestamp,
-          files: new Map(),
-        }
-      }
 
       const delta = countHunkLines(extracted.hunks)
       const existing = cache.currentTurn.files.get(extracted.filePath)
