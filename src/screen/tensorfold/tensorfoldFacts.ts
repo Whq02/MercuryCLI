@@ -22,7 +22,7 @@ import { tensorFoldHasNativeEngine, tensorFoldMachineSupportKind, tensorFoldSupp
 
 const LOOPBACK = /^(?:localhost|127(?:\.\d+){3}|::1|\[::1\])$/i
 
-function quietly<T>(read: () => T, fallback: T): T {
+export function quietly<T>(read: () => T, fallback: T): T {
   try {
     return read()
   } catch {

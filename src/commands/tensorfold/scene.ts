@@ -9,7 +9,7 @@ import { cachedLocalModels, type LocalModelRecord } from '../../models/roads/loc
 import { detectTensorFoldApp, type TensorFoldAppState } from '../../models/roads/local/tensorfoldApp.js'
 import { helperHeadingWords } from '../../models/roads/local/tensorfoldHelper.js'
 import { tensorFoldHostAddress, tensorFoldHosts, tensorFoldHostsReadError } from '../../models/roads/local/tensorfoldHosts.js'
-import { sameUrl, withDiscoveredHosts } from '../../screen/tensorfold/tensorfoldFacts.js'
+import { quietly, sameUrl, withDiscoveredHosts } from '../../screen/tensorfold/tensorfoldFacts.js'
 import { lastTensorFoldTurn } from '../../models/roads/local/tensorfoldUsage.js'
 import type { TensorFoldEngine, TensorFoldHost, TensorFoldLastReply, TensorFoldServed } from '../../models/tensorfold/contracts.js'
 import { servedByAdapter } from '../../models/tensorfold/adapter/identity.js'
@@ -180,14 +180,6 @@ function answersAsOf(records: readonly LocalModelRecord[], port: number): string
     }
   })
   return hit === undefined ? undefined : localServerName(hit)
-}
-
-function quietly<T>(read: () => T, fallback: T): T {
-  try {
-    return read()
-  } catch {
-    return fallback
-  }
 }
 
 function defaultRent(): { pod: string; serves: string; title: string } | undefined {
