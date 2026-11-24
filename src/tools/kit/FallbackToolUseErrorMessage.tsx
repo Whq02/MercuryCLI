@@ -50,21 +50,6 @@ function deriveDisplayedError(
   return `Error: ${trimmed}`
 }
 
-export function isToolErrorResultTruncated(
-  result: ToolResultBlockParam['content'],
-): boolean {
-  if (contentText(result) === null) return false
-  const collapsed = deriveDisplayedError(result, false)
-  if (collapsed !== deriveDisplayedError(result, true)) return true
-  const classified = classifyToolError(collapsed)
-  const fullBodyLines = classifyToolError(collapsed, Number.MAX_SAFE_INTEGER)
-    .bodyLines.length
-  return (
-    fullBodyLines - classified.bodyLines.length > 0 ||
-    classified.stackFrameCount > 0
-  )
-}
-
 export function FallbackToolUseErrorMessage({
   result,
   verbose,

@@ -3,7 +3,7 @@ import { z } from 'zod/v4'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { runToolUse } = await import('../../src/engine/tool-dispatch/toolExecution.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
-const { isToolErrorResultTruncated, FallbackToolUseErrorMessage } = await import('../../src/tools/kit/FallbackToolUseErrorMessage.tsx')
+const { FallbackToolUseErrorMessage } = await import('../../src/tools/kit/FallbackToolUseErrorMessage.tsx')
 const React = await import('react')
 const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
 const { enableConfigs } = await import('../../src/platform/settings/config.ts')
@@ -14,7 +14,7 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail}`}`)
 }
 const refusalHint = ' | change formatZodValidationError in src/tools/kit/toolErrors.ts or refuseInvalidInput in src/engine/tool-dispatch/toolExecution.ts'
-const cardHint = ' | change deriveDisplayedError or isToolErrorResultTruncated in src/tools/kit/FallbackToolUseErrorMessage.tsx'
+const cardHint = ' | change deriveDisplayedError in src/tools/kit/FallbackToolUseErrorMessage.tsx'
 let calls = 0
 const tool = {
   name: 'SchemaSentenceProbe',
@@ -48,7 +48,6 @@ for (const input of [{ count: 'two' }, {}]) {
   check('the refusal explains the expected shape', 'count' in input ? text.includes('number') : text.includes('missing'), text + refusalHint)
   const row = updates.find(u => u.message.type === 'user')?.message
   check('the saved result carries the same sentence, not raw schema JSON', row?.type === 'user' && row.toolUseResult === text.replace(/^<tool_use_error>|<\/tool_use_error>$/g, ''), JSON.stringify(row) + ' | make the saved toolUseResult in refuseInvalidInput (src/engine/tool-dispatch/toolExecution.ts) equal the sentence text')
-  check('a short schema sentence stays visible in the collapsed card', !isToolErrorResultTruncated(text), text + cardHint)
   for (const verbose of [false, true]) {
     const frame = await renderToString(React.createElement(FallbackToolUseErrorMessage, { result: text, verbose }), 120)
     check(`the ${verbose ? 'expanded' : 'collapsed'} card shows the field and shape`, frame.includes('count') && frame.includes('count' in input ? 'number' : 'missing'), frame + cardHint)

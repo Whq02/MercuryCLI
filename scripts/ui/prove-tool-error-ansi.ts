@@ -2,11 +2,10 @@ import assert from 'node:assert/strict'
 import React from 'react'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
-const { FallbackToolUseErrorMessage, isToolErrorResultTruncated } = await import('../../src/tools/kit/FallbackToolUseErrorMessage.js')
+const { FallbackToolUseErrorMessage } = await import('../../src/tools/kit/FallbackToolUseErrorMessage.js')
 const { renderToString } = await import('../../src/screen/renderer/staticRender.js')
 const plain = 'Error: ENOENT: missing file\n    at open (file.ts:1:2)'
 const decorated = '\u001b[31mError:\u001b[0m ENOENT: missing file\n\u001b[32m    at open (file.ts:1:2)\u001b[0m\u001b[2K'
-assert.equal(isToolErrorResultTruncated(decorated), isToolErrorResultTruncated(plain), 'ANSI cannot hide a stack frame from classification: isToolErrorResultTruncated in src/tools/kit/FallbackToolUseErrorMessage.tsx must classify the text after stripAnsi')
 for (const verbose of [false, true]) {
   const expected = await renderToString(React.createElement(FallbackToolUseErrorMessage, { result: plain, verbose }), 100)
   const actual = await renderToString(React.createElement(FallbackToolUseErrorMessage, { result: decorated, verbose }), 100)
