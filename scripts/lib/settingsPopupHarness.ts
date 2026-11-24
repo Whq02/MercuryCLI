@@ -29,6 +29,7 @@ export function pinSourceRef(argv: string[] = process.argv): string | undefined 
 export const KEY = {
   esc: '\x1b',
   enter: '\r',
+  tab: '\t',
   up: '\x1b[A',
   down: '\x1b[B',
   left: '\x1b[D',
