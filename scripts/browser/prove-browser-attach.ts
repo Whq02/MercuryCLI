@@ -151,7 +151,7 @@ try {
     const info = await permission({ op: 'info', tab: tabA })
     check('info and status stay within what the attach ask covered', info.behavior === 'allow' && (await permission({ op: 'status' })).behavior === 'allow', info.behavior)
     const read = (await permission({ op: 'extract', tab: tabA })) as { behavior: string; message?: string; suggestions?: unknown[]; decisionReason?: { type?: string; operatorOnly?: boolean } }
-    check('the first read of an origin asks and names the origin and the tab', read.behavior === 'ask' && read.message === `Browser extract on ${A.origin} in tab ${tabA} — a tab of your attached browser, with your sign-ins; first read there, not yet approved this session`, JSON.stringify(read))
+    check('the first read of an origin asks and names the origin and the tab', read.behavior === 'ask' && read.message === `Browser extract on ${A.origin} in tab ${tabA} — a tab of your attached browser, signed in as you; first read there, not yet approved this session`, JSON.stringify(read))
     check('that ask is the operator’s own and offers no standing rule', read.decisionReason?.type === 'safetyCheck' && read.decisionReason.operatorOnly === true && (read.suggestions ?? []).length === 0, JSON.stringify(read))
     const text = await run({ op: 'extract', tab: tabA })
     check('approved, the read answers', text.result.includes('signed in as the owner of inbox'), text.result)
@@ -173,7 +173,7 @@ try {
     ])
     check('another origin asks for itself before any read', others.every(verdict => verdict.behavior === 'ask' && (verdict.message ?? '').includes(`on ${B.origin} in tab ${tabB}`) && (verdict.message ?? '').includes('first read there')), others.map(verdict => `${verdict.behavior}: ${verdict.message}`).join(' | '))
     const act = await permission({ op: 'click', tab: tabB, selector: '#go' })
-    check('and before its first act', act.behavior === 'ask' && act.message === `Browser click #go on ${B.origin} in tab ${tabB} — a tab of your attached browser, with your sign-ins; first act there, not yet approved this session`, JSON.stringify(act))
+    check('and before its first act', act.behavior === 'ask' && act.message === `Browser click #go on ${B.origin} in tab ${tabB} — a tab of your attached browser, signed in as you; first act there, not yet approved this session`, JSON.stringify(act))
     const allowRule = await decide({ op: 'extract', tab: tabB }, { allow: [`Browser(origin:${B.origin})`] })
     const denyRule = await decide({ op: 'extract', tab: tabB }, { deny: [`Browser(origin:${B.origin})`] })
     check('an allow rule written for the isolated browser does not answer for the user’s own; a deny rule denies', allowRule.behavior === 'ask' && denyRule.behavior === 'deny', `${JSON.stringify(allowRule)} | ${JSON.stringify(denyRule)}`)

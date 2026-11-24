@@ -138,7 +138,7 @@ export async function checkBrowserPermissions(asked: Input, context: ToolUseCont
       return {
         behavior: 'ask' as const,
         message: `Browser open: ${input.url ?? '(no url)'}${inTab} — first visit to ${target} this session, in your attached browser (${attached.endpoint}), where you are signed in`,
-        decisionReason: { type: 'safetyCheck' as const, reason: `${target} opens in your own browser, with your sign-ins. Yes approves it for this session; every other origin asks before its first read and its first act.`, operatorOnly: true },
+        decisionReason: { type: 'safetyCheck' as const, reason: `${target} opens in your own browser, signed in as you. Yes approves it for this session; every other origin asks before its first read and its first act.`, operatorOnly: true },
       }
     }
     return {
@@ -260,8 +260,8 @@ export async function checkBrowserPermissions(asked: Input, context: ToolUseCont
   if (attached !== null) {
     return {
       behavior: 'ask' as const,
-      message: `${sent?.headers ? `Browser viewport on ${origin}${inTab} with ${sent.words}` : `Browser ${input.op}${actDetail(input)} on ${origin}${inTab}`} — a tab of your attached browser, with your sign-ins; ${ACT_OPS.has(input.op) || sent !== null ? 'first act' : 'first read'} there, not yet approved this session${sourceAsk === null ? '' : `\n${sourceAsk.message}`}`,
-      decisionReason: { type: 'safetyCheck' as const, reason: `${origin} is open in your own browser, with your sign-ins. Yes approves it for this session: Mercury reads and drives its pages without asking again; every other origin asks.`, operatorOnly: true },
+      message: `${sent?.headers ? `Browser viewport on ${origin}${inTab} with ${sent.words}` : `Browser ${input.op}${actDetail(input)} on ${origin}${inTab}`} — a tab of your attached browser, signed in as you; ${ACT_OPS.has(input.op) || sent !== null ? 'first act' : 'first read'} there, not yet approved this session${sourceAsk === null ? '' : `\n${sourceAsk.message}`}`,
+      decisionReason: { type: 'safetyCheck' as const, reason: `${origin} is open in your own browser, signed in as you. Yes approves it for this session: Mercury reads and drives its pages without asking again; every other origin asks.`, operatorOnly: true },
       suggestions: [],
     }
   }
