@@ -83,7 +83,7 @@ function isOwnGround(path: string, cwd?: string): boolean {
   return ownGroundCategory(canonical(path, cwd)) !== null
 }
 
-function pathOperands(args: readonly string[]): string[] {
+export function pathOperands(args: readonly string[]): string[] {
   const operands: string[] = []
   let optionsEnded = false
   for (const arg of args) {

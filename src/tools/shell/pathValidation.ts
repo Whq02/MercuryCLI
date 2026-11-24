@@ -18,6 +18,7 @@ import {
   formatDirectoryList,
   type FileOperationType,
 } from '../../permissions/rules/pathValidation.js'
+import { pathOperands } from '../../permissions/rules/ownGround.js'
 import { allWorkingDirectories, envFileReadAsk, envFileTargetsInGlob, isProjectEnvFileName, matchingRulesForInput, pathInAllowedWorkingPath, ruleMatcherFor } from '../../permissions/rules/filesystem.js'
 import { createEditRuleSuggestion, createReadRuleSuggestion } from '../../permissions/rules/permissionUpdate.js'
 import { refusalWithReason, ruleSentence, withRuleReason } from '../../permissions/rules/ruleReason.js'
@@ -58,19 +59,6 @@ export const COMMAND_OPERATION_TYPE: Record<PathCommand, FileOperationType> = {
   rm: 'write', rmdir: 'write', mv: 'write', cp: 'write', sed: 'write',
 }
 
-
-function extractBaseline(args: string[]): string[] {
-  const operands: string[] = []
-  let optionsEnded = false
-  for (const arg of args) {
-    if (!optionsEnded && arg === '--') {
-      optionsEnded = true
-      continue
-    }
-    if (optionsEnded || !arg.startsWith('-')) operands.push(arg)
-  }
-  return operands
-}
 
 const HOME = (): string => hostEnv().HOME || hostEnv().USERPROFILE || ''
 
@@ -247,12 +235,12 @@ export const PATH_EXTRACTORS: Record<PathCommand, (args: string[]) => string[]> 
     return [operands.join(' ')]
   },
   ls: args => {
-    const operands = extractBaseline(args)
+    const operands = pathOperands(args)
     return operands.length === 0 ? ['.'] : operands
   },
   find: extractFindOperands,
   tr: args => {
-    const operands = extractBaseline(args)
+    const operands = pathOperands(args)
     const deleteStyle = args.some(a => a === '-d' || a === '--delete' || (a.startsWith('-') && a.includes('d')))
     return operands.slice(deleteStyle ? 1 : 2)
   },
@@ -261,7 +249,7 @@ export const PATH_EXTRACTORS: Record<PathCommand, (args: string[]) => string[]> 
   sed: args => readSedArguments(args).operands,
   jq: extractJqOperands,
   git: extractGitOperands,
-  tee: args => extractBaseline(args).filter(a => a !== '/dev/null'),
+  tee: args => pathOperands(args).filter(a => a !== '/dev/null'),
   dd: args => args.filter(a => a.startsWith('of=') && !/^of=\/dev\/(?:null|stdout|stderr|fd\/[12])$/.test(a)).map(a => a.slice(3)),
   awk: args => readAwkArguments(args).operands,
   xargs: extractFlagged(XARGS_GRAMMAR, XARGS_FILES, 'none'),
@@ -275,16 +263,16 @@ export const PATH_EXTRACTORS: Record<PathCommand, (args: string[]) => string[]> 
   date: extractFlagged(DATE_GRAMMAR, DATE_FILES, 'none'),
   pyright: extractFlagged(PYRIGHT_GRAMMAR, PYRIGHT_FILES),
   test: extractTestOperands,
-  mkdir: extractBaseline, touch: extractBaseline, rm: extractBaseline, rmdir: extractBaseline,
-  mv: extractBaseline, cp: extractBaseline, cat: extractBaseline, head: extractBaseline,
-  tail: extractBaseline, sort: extractBaseline, uniq: extractBaseline, wc: extractBaseline,
-  cut: extractBaseline, paste: extractBaseline, column: extractBaseline, file: extractBaseline,
-  stat: extractBaseline, strings: extractBaseline,
-  hexdump: extractBaseline, od: extractBaseline, base64: extractBaseline, nl: extractBaseline,
-  sha256sum: extractBaseline, sha1sum: extractBaseline, md5sum: extractBaseline,
-  realpath: extractBaseline, readlink: extractBaseline, comm: extractBaseline, cmp: extractBaseline,
-  tac: extractBaseline, rev: extractBaseline, fold: extractBaseline, fmt: extractBaseline, pr: extractBaseline,
-  expand: extractBaseline, unexpand: extractBaseline, tsort: extractBaseline,
+  mkdir: pathOperands, touch: pathOperands, rm: pathOperands, rmdir: pathOperands,
+  mv: pathOperands, cp: pathOperands, cat: pathOperands, head: pathOperands,
+  tail: pathOperands, sort: pathOperands, uniq: pathOperands, wc: pathOperands,
+  cut: pathOperands, paste: pathOperands, column: pathOperands, file: pathOperands,
+  stat: pathOperands, strings: pathOperands,
+  hexdump: pathOperands, od: pathOperands, base64: pathOperands, nl: pathOperands,
+  sha256sum: pathOperands, sha1sum: pathOperands, md5sum: pathOperands,
+  realpath: pathOperands, readlink: pathOperands, comm: pathOperands, cmp: pathOperands,
+  tac: pathOperands, rev: pathOperands, fold: pathOperands, fmt: pathOperands, pr: pathOperands,
+  expand: pathOperands, unexpand: pathOperands, tsort: pathOperands,
 }
 
 const AWK_READ_OPTIONS = new Set(['-f', '--file', '-E', '--exec', '-i', '--include', '-l', '--load'])
@@ -523,7 +511,7 @@ function gitPrintedPaths(args: string[]): { paths: string[]; whole: boolean; rec
   if (subcommand === 'show' || subcommand === 'cat-file') return { paths: [...operands(GIT_VALUE_FLAGS).flatMap(gitObjectPath), ...namedAfter], whole: false, recursive: false }
   if (subcommand === 'blame' || subcommand === 'annotate') return { paths: [...named(operands(GIT_VALUE_FLAGS)), ...after], whole: false, recursive: false }
   if (GIT_DIFF_COMMANDS.has(subcommand)) {
-    if (rest.includes('--no-index')) return { paths: extractBaseline(rest.filter(word => word !== '--no-index')).slice(0, 2), whole: false, recursive: false }
+    if (rest.includes('--no-index')) return { paths: pathOperands(rest.filter(word => word !== '--no-index')).slice(0, 2), whole: false, recursive: false }
     return { paths: [...named(operands(GIT_VALUE_FLAGS)), ...namedAfter], whole: false, recursive: true, excludes }
   }
   if (GIT_LOG_COMMANDS.has(subcommand)) {
@@ -746,7 +734,7 @@ const FOLLOWS_LINKS: Partial<Record<PathCommand, (args: string[]) => boolean>> =
 function isAbsolutePosixMkdirP(command: PathCommand, args: string[]): boolean {
   if (command !== 'mkdir' || getPlatform() === 'windows') return false
   const flags = args.filter(arg => arg.startsWith('-'))
-  const operands = extractBaseline(args)
+  const operands = pathOperands(args)
   return (
     flags.length > 0 &&
     flags.every(flag => flag === '-p' || flag === '--parents') &&
