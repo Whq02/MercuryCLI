@@ -146,6 +146,12 @@ t.section('§2 — OVERLONG DETAIL LINES WRAP WHEN THE PANE HAS ROWS FREE (AGENT
   const inner36 = detailInnerLines(core.composeBootMenu(120, 36, agentsM).lines)
   const clipped36 = inner36.filter(hasTrailingClip)
   t.check('agents 120×36: neither moreHint nor the line above it ends in a trailing ellipsis', clipped36.length === 0 && inner36.map(l => l.trim()).join(' ').includes('the trail continues'), clipped36.length === 0 ? '' : `${FIX} | clipped=${JSON.stringify(clipped36)}`)
+  for (const rows of [37, 38] as const) {
+    const inner = detailInnerLines(core.composeBootMenu(120, rows, agentsM).lines)
+    const clipped = inner.filter(hasTrailingClip)
+    const joined = inner.map(l => l.trim()).join(' ')
+    t.check(`agents 120×${rows}: no line is clipped with a trailing ellipsis and the trail line stands at the foot`, clipped.length === 0 && joined.includes('the trail continues'), `${FIX} | clipped=${JSON.stringify(clipped)} inner=${JSON.stringify(inner)}`)
+  }
 
   for (const [cols, rows] of [[120, 40], [204, 43]] as const) {
     const inner = detailInnerLines(core.composeBootMenu(cols, rows, agentsM).lines)

@@ -1026,21 +1026,13 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
     leftPanel.length - summaryPanel.length - envPanel.length - 3,
     geometryBudget,
   )
-  const expandDetailRows = (items, budget) => {
-    const overflows = items.length > budget
-    let free = Math.max(0, budget - items.length)
-    return items.map(item => {
-      if (item.fixed !== undefined) return [item.fixed]
-      const wrapped = wrapDetailLine(item.raw, detailLineW, textW)
-      const extra = wrapped.length - 1
-      if (extra > 0 && (overflows || extra <= free)) {
-        if (!overflows) free -= extra
-        return wrapped.map(l => item.style(l))
-      }
-      return [item.style(item.raw)]
-    })
-  }
-  const dLines = expandDetailRows(dItems, detailBudget)
+  const expandDetailRows = items =>
+    items.map(item =>
+      item.fixed !== undefined
+        ? [item.fixed]
+        : wrapDetailLine(item.raw, detailLineW, textW).map(l => item.style(l)),
+    )
+  const dLines = expandDetailRows(dItems)
   const dRows = dLines.flat()
   const wholeLines = room => {
     if (m.detailOverrideConfirms) return dRows.slice(0, room)
