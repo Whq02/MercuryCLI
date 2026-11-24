@@ -102,3 +102,4 @@ prove-focus-second-window.ts
 prove-admission-awaits-no-child.ts
 prove-runner-spawn-never-blocks-on-a-read.ts
 prove-own-start-token-asked-once.ts
+prove-claim-waits-for-no-start-read.ts

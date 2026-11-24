@@ -35,11 +35,13 @@ import { registerSessionDoors } from './main/sessionDoors.js'
 import { passedOver } from '../platform/errors/passedOver.js'
 import { hostEnv } from '../platform/environment/hostEnv.js'
 import { startTimeout, stopTimeout } from '../platform/async/timers.js'
+import { getProcessStartTokenAsync } from '../daemon/control/ownerWatch.js'
 export { startDeferredPrefetches } from './main/deferredPrefetches.js'
 
 profileCheckpoint('main_tsx_entry')
 startMdmRawRead();
 startKeychainPrefetch();
+if (isRunArgv()) void getProcessStartTokenAsync(process.pid)
 profileCheckpoint('main_tsx_imports_loaded')
 
 function refuseDebugger(): void {
