@@ -5,7 +5,7 @@ import { isFlowGateEnabled, transitionPermissionMode } from './permissionSetup.j
 
 
 function sovereignAvailable(context: ToolPermissionContext): boolean {
-  return (context as { isBypassPermissionsModeAvailable?: boolean }).isBypassPermissionsModeAvailable === true
+  return context.isBypassPermissionsModeAvailable === true
 }
 
 function canCycleToFlow(_context: ToolPermissionContext): boolean {

@@ -314,9 +314,9 @@ export function createSovereignDisabledContext(
   let next = currentContext
   if (modeBypassesPermissions(currentContext.mode)) {
     recordModeTransition({ from: currentContext.mode, to: 'default', road: 'bypass-disabled' })
-    next = { ...(next as object), mode: 'default' } as ToolPermissionContext
+    next = { ...next, mode: 'default' }
   }
-  return { ...(next as object), isBypassPermissionsModeAvailable: false } as ToolPermissionContext
+  return { ...next, isBypassPermissionsModeAvailable: false }
 }
 
 
