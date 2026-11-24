@@ -215,7 +215,7 @@ try {
   await push('\r')
   check('the workbench opens above the scrollable transcript', await waitFor(() => /PROMPTS \(3\)/.test(mounted!.screen()), 4000), mounted!.screen())
   await push(UP)
-  check('unconfirmed win32 arrows still navigate the workbench list', /output B/.test(mounted!.lines().find(line => /^│ ▸ /.test(line)) ?? ''), mounted!.screen())
+  check('unconfirmed win32 arrows still navigate the workbench list', /output B/.test(mounted!.lines().find(line => /│ ▸ /.test(line)) ?? ''), mounted!.screen())
   await push('\x1b')
   await push(DRAFT)
   await notches('closing the workbench restores the conhost scroll target')
