@@ -4,8 +4,8 @@ import { check, cleanup, finish, section, setup } from './lib.js'
 
 setup()
 const { applySchemaToReply } = await import('../../src/tools/engines/eval-kernels/evalBridge.js')
-const { getSchemaBoundStructuredOutputTool, SchemaMismatchError } = await import(
-  '../../src/tools/structured-output/structuredOutputTool.js'
+const { createSyntheticOutputTool: getSchemaBoundStructuredOutputTool, SchemaMismatchError } = await import(
+  '../../src/tools/structured-output/SyntheticOutputTool.js'
 )
 const { createSyntheticOutputTool } = await import('../../src/tools/structured-output/SyntheticOutputTool.js')
 
@@ -85,7 +85,7 @@ for (const row of divergence) {
   hinted(
     `${row.name}: all three surfaces agree`,
     fromEval === fromWorkflow && fromEval === fromHeadless,
-    'the three validators must give one verdict: applySchemaToReply in src/tools/engines/eval-kernels/evalBridge.ts, getSchemaBoundStructuredOutputTool in src/tools/structured-output/structuredOutputTool.ts, createSyntheticOutputTool in src/tools/structured-output/SyntheticOutputTool.ts; change the one that differs from the others',
+    'the three validators must give one verdict: applySchemaToReply in src/tools/engines/eval-kernels/evalBridge.ts, getSchemaBoundStructuredOutputTool in src/tools/structured-output/SyntheticOutputTool.ts, createSyntheticOutputTool in src/tools/structured-output/SyntheticOutputTool.ts; change the one that differs from the others',
     `eval=${fromEval} workflow=${fromWorkflow} headless=${fromHeadless}`,
   )
   hinted(`${row.name}: the unified verdict is ${row.expect}`, fromEval === row.expect, 'the eval verdict from applySchemaToReply in src/tools/engines/eval-kernels/evalBridge.ts differs from the expected one for this schema and value', `got ${fromEval}`)
@@ -99,7 +99,7 @@ for (const row of agreement) {
   hinted(
     `${row.name}: eval ≡ workflow ≡ headless ≡ ${row.expect}`,
     fromEval === fromWorkflow && fromEval === fromHeadless && fromEval === row.expect,
-    'a plain schema must keep one verdict on all three validators: applySchemaToReply (src/tools/engines/eval-kernels/evalBridge.ts), getSchemaBoundStructuredOutputTool (src/tools/structured-output/structuredOutputTool.ts), createSyntheticOutputTool (src/tools/structured-output/SyntheticOutputTool.ts)',
+    'a plain schema must keep one verdict on all three validators: applySchemaToReply (src/tools/engines/eval-kernels/evalBridge.ts), getSchemaBoundStructuredOutputTool (src/tools/structured-output/SyntheticOutputTool.ts), createSyntheticOutputTool (src/tools/structured-output/SyntheticOutputTool.ts)',
     `eval=${fromEval} workflow=${fromWorkflow} headless=${fromHeadless}`,
   )
 }
@@ -111,7 +111,7 @@ section('a refused schema teaches the correction, on both surfaces')
   hinted('eval error names the refusal class', !fromEval.ok && (fromEval.error ?? '').includes('unknown keyword'), 'applySchemaToReply in src/tools/engines/eval-kernels/evalBridge.ts must refuse a schema with an unknown keyword and name it', fromEval.ok ? 'accepted' : fromEval.error)
   hinted('eval error teaches the correction', !fromEval.ok && (fromEval.error ?? '').includes('remove the unknown keyword'), 'the refusal text from applySchemaToReply in src/tools/engines/eval-kernels/evalBridge.ts must tell the caller to remove the unknown keyword', fromEval.ok ? '' : fromEval.error)
   const bound = getSchemaBoundStructuredOutputTool(schema)
-  hinted('workflow refusal carries the same teaching text', bound.error !== undefined && bound.error.includes('remove the unknown keyword'), 'getSchemaBoundStructuredOutputTool in src/tools/structured-output/structuredOutputTool.ts must return the same remove-the-unknown-keyword refusal as the eval seam', bound.error ?? 'bound a tool')
+  hinted('workflow refusal carries the same teaching text', bound.error !== undefined && bound.error.includes('remove the unknown keyword'), 'getSchemaBoundStructuredOutputTool in src/tools/structured-output/SyntheticOutputTool.ts must return the same remove-the-unknown-keyword refusal as the eval seam', bound.error ?? 'bound a tool')
 }
 
 section('non-strict eval: value-over-refusal, no silent flip into refusal')

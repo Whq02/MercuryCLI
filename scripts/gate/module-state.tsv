@@ -5600,7 +5600,6 @@ src/tools/structured-output/SyntheticOutputTool.ts	SyntheticOutputTool	process	m
 src/tools/structured-output/SyntheticOutputTool.ts	inputSchema	process	module	Load-time definition shared by all callers
 src/tools/structured-output/SyntheticOutputTool.ts	outputSchema	process	module	Load-time definition shared by all callers
 src/tools/structured-output/SyntheticOutputTool.ts	schemaBoundCache	process	module	WeakMap memo compiling JSON schema object into validated Tool wrapper
-src/tools/structured-output/structuredOutputTool.ts	boundToolCache	process	module	WeakMap memo compiling JSON schema object into validated StructuredOutput Tool wrapper
 src/tools/task-create/TaskCreateTool.ts	TaskCreateTool	process	module	Load-time definition shared by all callers
 src/tools/task-create/TaskCreateTool.ts	inputSchema	process	module	Load-time definition shared by all callers
 src/tools/task-create/TaskCreateTool.ts	outputSchema	process	module	Load-time definition shared by all callers

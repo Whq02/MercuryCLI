@@ -13,7 +13,7 @@ try {
     assert.equal(url.hostname, '127.0.0.1', 'parity verification stays on the fixture')
     return fetchBefore(input, init)
   }) as typeof fetch
-  const { getSchemaBoundStructuredOutputTool } = await import(`${root}/src/tools/structured-output/structuredOutputTool.ts`)
+  const { createSyntheticOutputTool: getSchemaBoundStructuredOutputTool } = await import(`${root}/src/tools/structured-output/SyntheticOutputTool.ts`)
   const { finalizeAgentTool } = await import(`${root}/src/tools/crewmate/crewmateLifecycle.ts`)
   const { refreshCompatCatalogues } = await import(`${root}/src/models/roads/openaicompat/compatCatalogue.ts`)
   const schema = { type: 'object', properties: { result: { type: 'string' }, steps: { type: 'integer' } }, required: ['result', 'steps'], additionalProperties: false }
@@ -78,8 +78,8 @@ try {
     const invalidCalls = invalidRows.flatMap(row => row.message.content).filter((block: any) => block.type === 'tool_use')
     if (invalidCalls.length) {
       assert.equal(invalidCalls.length, 1)
-      await assert.rejects(() => bound.tool.call(invalidCalls[0].input), /does not match required schema/)
-      const invalidResult = api.createUserMessage({ content: [{ type: 'tool_result', tool_use_id: invalidCalls[0].id, content: 'Output does not match required schema: additional property extra', is_error: true }] })
+      await assert.rejects(() => bound.tool.call(invalidCalls[0].input), /does not match the required schema/)
+      const invalidResult = api.createUserMessage({ content: [{ type: 'tool_result', tool_use_id: invalidCalls[0].id, content: 'Output does not match the required schema: additional property extra', is_error: true }] })
       const invalid = finalizeAgentTool([...invalidRows, invalidResult, ...reply], `crew-${dialect}`, metadata)
       assert.equal(invalid.outcome.status, 'failed')
       assert.equal(invalid.outcome.reason, 'schema-mismatch')

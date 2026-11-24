@@ -157,7 +157,7 @@ const transcript = (finalRound: 'valid' | 'invalid' | 'invalid-long' | 'none'): 
     return [...base, asst([{ type: 'tool_use', id: 's1', name: 'StructuredOutput', input: PAYLOAD }]), user([{ type: 'tool_result', tool_use_id: 's1', content: 'Structured output provided successfully' }]), asst([{ type: 'text', text: PROSE, citations: null }])]
   }
   const words = finalRound === 'invalid' ? ISSUE : `${ISSUE},   ${'/x: must be string, '.repeat(40)}`
-  return [...base, asst([{ type: 'tool_use', id: 's1', name: 'StructuredOutput', input: { function_name: 'compute_201', def_line: '1205' } }]), user([{ type: 'tool_result', tool_use_id: 's1', content: `<tool_use_error>Output does not match required schema: ${words}</tool_use_error>`, is_error: true }]), asst([{ type: 'text', text: PROSE, citations: null }])]
+  return [...base, asst([{ type: 'tool_use', id: 's1', name: 'StructuredOutput', input: { function_name: 'compute_201', def_line: '1205' } }]), user([{ type: 'tool_result', tool_use_id: 's1', content: `<tool_use_error>Output does not match the required schema: ${words}</tool_use_error>`, is_error: true }]), asst([{ type: 'text', text: PROSE, citations: null }])]
 }
 const spec = { structuredSpec: { mode: 'permissive' as const, source: 'dispatch' as const } }
 

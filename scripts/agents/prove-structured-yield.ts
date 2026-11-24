@@ -16,8 +16,8 @@ const section = (t: string, hint = ''): void => {
 
 await import('../../src/tools/crewmate/CrewmateTool.tsx')
 const { finalizeAgentTool } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
-const { getSchemaBoundStructuredOutputTool, SchemaMismatchError, STRUCTURED_OUTPUT_TOOL_NAME } = await import(
-  '../../src/tools/structured-output/structuredOutputTool.ts'
+const { createSyntheticOutputTool: getSchemaBoundStructuredOutputTool, SchemaMismatchError, SYNTHETIC_OUTPUT_TOOL_NAME: STRUCTURED_OUTPUT_TOOL_NAME } = await import(
+  '../../src/tools/structured-output/SyntheticOutputTool.ts'
 )
 const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
 type Message = import('../../src/engine/message-shapes/message.ts').Message
@@ -68,12 +68,12 @@ function transcript(finalRound: 'valid' | 'invalid-errored' | 'none'): Message[]
     asst([
       { type: 'tool_use', id: 's1', name: STRUCTURED_OUTPUT_TOOL_NAME, input: { verdict: 'maybe' } },
     ]),
-    user([{ type: 'tool_result', tool_use_id: 's1', content: 'Output does not match required schema', is_error: true }]),
+    user([{ type: 'tool_result', tool_use_id: 's1', content: 'Output does not match the required schema', is_error: true }]),
     asst([{ type: 'text', text: 'Could not finalize.', citations: null }]),
   ]
 }
 
-section('§A the ONE validation owner — the bound tool', 'to fix: getSchemaBoundStructuredOutputTool and SchemaMismatchError in src/tools/structured-output/structuredOutputTool.ts')
+section('§A the ONE validation owner — the bound tool', 'to fix: getSchemaBoundStructuredOutputTool and SchemaMismatchError in src/tools/structured-output/SyntheticOutputTool.ts')
 {
   const bound = getSchemaBoundStructuredOutputTool(SCHEMA)
   check('a valid schema binds to a live tool', bound.tool !== undefined && bound.error === undefined)
