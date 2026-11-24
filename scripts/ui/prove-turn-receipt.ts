@@ -213,6 +213,78 @@ withEnv('1', () => {
   const recounted = inject([{ type: 'system', subtype: 'compact_boundary', uuid: 'cb3', compactMetadata: { postTokens: 65500 } } as never, prompt('after the fold', 'p4'), withUsage('u4', 66100)])
   const recountedDelta = (recounted as Array<{ type?: string; contextDelta?: number }>).find(row => row.type === 'turn_receipt')?.contextDelta
   check('F44R-39: the post-fold recount measures growth from the landing size, not zero', recountedDelta === 600, String(recountedDelta))
+  const awaySummary = { type: 'system', subtype: 'away_summary', uuid: 'away-1', content: 'resumed' } as never
+  const syntheticSentinel = {
+    type: 'assistant',
+    uuid: 'synth-1',
+    message: {
+      role: 'assistant',
+      model: '<synthetic>',
+      content: [{ type: 'text', text: 'No response requested.' }],
+      usage: { input_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, output_tokens: 0 },
+    },
+  } as never
+  const resumedKnown = inject([
+    prompt('before resume', 'rp0'),
+    withUsage('ru0', 50000),
+    syntheticSentinel,
+    awaySummary,
+    prompt('after resume', 'rp1'),
+    withUsage('ru1', 52000),
+  ])
+  const resumedKnownDeltas = (resumedKnown as Array<{ type?: string; uuid?: string; contextDelta?: number }>)
+    .filter(r => r?.type === 'turn_receipt')
+    .map(r => [r.uuid, r.contextDelta])
+  check(
+    'resumed session with prior usage and synthetic sentinel measures only what the new turn added (+2,000, never +52,000)',
+    resumedKnownDeltas.some(([id, d]) => id === 'rp1-turn-receipt' && d === 2000),
+    JSON.stringify(resumedKnownDeltas),
+  )
+  const resumedUnknown = inject([
+    prompt('old turn without usage', 'ou0'),
+    replyRow('old answer', 'or0'),
+    awaySummary,
+    prompt('first after resume', 'np1'),
+    withUsage('nu1', 52000),
+    prompt('second after resume', 'np2'),
+    withUsage('nu2', 53500),
+  ])
+  const resumedUnknownDeltas = (resumedUnknown as Array<{ type?: string; uuid?: string; contextDelta?: number }>)
+    .filter(r => r?.type === 'turn_receipt')
+    .map(r => [r.uuid, r.contextDelta])
+  check(
+    'resumed session whose prior rows carry no usage omits ctx on the first resumed turn and measures turn 2 from it',
+    resumedUnknownDeltas.some(([id, d]) => id === 'np1-turn-receipt' && d === undefined) &&
+      resumedUnknownDeltas.some(([id, d]) => id === 'np2-turn-receipt' && d === 1500),
+    JSON.stringify(resumedUnknownDeltas),
+  )
+  const resumedTruncated = inject([
+    awaySummary,
+    prompt('first after truncated resume', 'tp1'),
+    withUsage('tu1', 52000),
+  ])
+  const resumedTruncatedDelta = (resumedTruncated as Array<{ type?: string; contextDelta?: number }>).find(
+    row => row.type === 'turn_receipt',
+  )?.contextDelta
+  check(
+    'resumed session starting at away_summary omits ctx on the first resumed turn (never charges full history)',
+    resumedTruncatedDelta === undefined,
+    String(resumedTruncatedDelta),
+  )
+  const resumedNoRecap = inject([
+    prompt('old turn without usage', 'nr0'),
+    replyRow('old answer', 'na0'),
+    prompt('first after resume without recap', 'nr1'),
+    withUsage('nu-nr1', 52000),
+  ])
+  const resumedNoRecapDeltas = (resumedNoRecap as Array<{ type?: string; uuid?: string; contextDelta?: number }>)
+    .filter(r => r?.type === 'turn_receipt')
+    .map(r => [r.uuid, r.contextDelta])
+  check(
+    'resumed session without away_summary whose prior turn had no usage omits ctx on the next turn',
+    resumedNoRecapDeltas.some(([id, d]) => id === 'nr1-turn-receipt' && d === undefined),
+    JSON.stringify(resumedNoRecapDeltas),
+  )
   const grouped = inject([
     prompt('grouped turn', 'p1'),
     {

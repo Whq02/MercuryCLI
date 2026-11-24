@@ -1,5 +1,6 @@
 import type { FoldMetadata, Message, RenderableMessage, SystemCrewChatMessage, TurnReceiptMessage } from '../../engine/message-shapes/message.js'
 import { flagEnabled } from '../../platform/substrate/flagRegistry.js'
+import { SYNTHETIC_MODEL } from '../../engine/message-shapes/factories.js'
 import { deriveUUID } from '../../engine/message-shapes/identity.js'
 import { NO_RESPONSE_REQUESTED } from '../../engine/message-shapes/rejectionText.js'
 import { isNotificationLaneRow } from '../../engine/message-shapes/noticeRows.js'
@@ -119,7 +120,7 @@ type LooseMessage = {
   isVirtual?: boolean
   isApiErrorMessage?: boolean
   uuid?: string
-  message?: { content?: unknown; usage?: unknown; stop_reason?: string | null }
+  message?: { content?: unknown; model?: string; usage?: unknown; stop_reason?: string | null }
   messages?: LooseMessage[]
   results?: LooseMessage[]
   toolUseResult?: unknown
@@ -136,7 +137,8 @@ export function promptTokensOf(usage: unknown): number | undefined {
   if (!u || typeof u.input_tokens !== 'number') return undefined
   const read = typeof u.cache_read_input_tokens === 'number' ? u.cache_read_input_tokens : 0
   const written = typeof u.cache_creation_input_tokens === 'number' ? u.cache_creation_input_tokens : 0
-  return u.input_tokens + read + written
+  const total = u.input_tokens + read + written
+  return total > 0 ? total : undefined
 }
 
 export function formatContextDelta(delta: number): string {
@@ -345,36 +347,57 @@ function walkTurnReceipts(
   let previousPrompt: number | undefined
   let turnPrompt: number | undefined
   let preFoldTail: string | undefined
+  let preFoldTurn = false
+  let baselineUnknown = false
   const settleDelta = (): number | undefined => {
     if (turnPrompt === undefined) return undefined
-    const delta = turnPrompt - (previousPrompt ?? 0)
+    const delta =
+      baselineUnknown && previousPrompt === undefined
+        ? undefined
+        : turnPrompt - (previousPrompt ?? 0)
     previousPrompt = turnPrompt
     turnPrompt = undefined
+    baselineUnknown = false
     return delta
   }
   const settle = (end: number): void => {
-    visit(settleTally(tally), anchorUuid, end, replied, settleDelta(), { close: firstIdle ?? end })
+    const settledCounts = settleTally(tally)
+    const delta = settleDelta()
+    if (!preFoldTurn && (replied || hasActivity(settledCounts)) && previousPrompt === undefined) {
+      baselineUnknown = true
+    }
+    visit(settledCounts, anchorUuid, end, replied, delta, { close: firstIdle ?? end })
   }
   for (let index = 0; index < messages.length; index++) {
     const m = messages[index]!
     const noticeWake = replyClosed && ((m.isVirtual === true && isTurnBoundary({ ...m, isVirtual: false })) || isNotificationLaneRow(m))
     const woken = noticeWake || (firstIdle !== undefined && isTurnWork(m))
-    if (isTurnBoundary(m) || woken || (m.type === 'system' && m.subtype === 'away_summary')) {
+    const isAwaySummary = m.type === 'system' && m.subtype === 'away_summary'
+    if (isTurnBoundary(m) || woken || isAwaySummary) {
       settle(index)
       tally = emptyTally()
       replied = false
       replyClosed = false
       firstIdle = undefined
+      preFoldTurn = preFoldTail !== undefined
       anchorUuid = (m.type === 'user' || woken) && typeof m.uuid === 'string' ? m.uuid : 'turn-0'
+      if (isAwaySummary && previousPrompt === undefined) {
+        baselineUnknown = true
+      }
     }
     if (m.type === 'system' && m.subtype === 'compact_boundary') {
       previousPrompt = m.compactMetadata?.postTokens
       turnPrompt = undefined
       preFoldTail = m.compactMetadata?.preservedSegment?.tailUuid
+      preFoldTurn = true
+      baselineUnknown = false
     }
     if (preFoldTail === undefined) {
       for (const row of [m, ...(m.messages ?? [])]) {
-        const prompt = row.type === 'assistant' ? promptTokensOf(row.message?.usage) : undefined
+        const prompt =
+          row.type === 'assistant' && row.isApiErrorMessage !== true && row.message?.model !== SYNTHETIC_MODEL
+            ? promptTokensOf(row.message?.usage)
+            : undefined
         if (prompt !== undefined) turnPrompt = prompt
       }
     } else if ([m, ...(m.messages ?? []), ...(m.results ?? [])].some(row => row.uuid === preFoldTail)) {
