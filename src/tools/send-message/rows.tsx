@@ -4,7 +4,7 @@ import { MessageResponse } from '../kit/MessageResponse.js'
 import { Text } from '../../screen/themedRenderer.js'
 import type { Input, SendMessageToolOutput } from './SendMessageTool.js'
 
-
+export const DELIVERED_MODEL_TAIL = '; it reads it at its next tool boundary.'
 export function renderToolUseMessage(_input?: Partial<Input>): React.ReactNode {
   return null
 }
@@ -29,9 +29,12 @@ export function renderToolResultMessage(
     output = content
   }
   if (!output) return null
+  const shown = output.message.endsWith(DELIVERED_MODEL_TAIL)
+    ? output.message.slice(0, -DELIVERED_MODEL_TAIL.length)
+    : output.message
   return (
     <MessageResponse>
-      <Text dimColor>{output.message}</Text>
+      <Text dimColor>{shown}</Text>
     </MessageResponse>
   )
 }

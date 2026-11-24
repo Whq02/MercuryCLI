@@ -17,6 +17,7 @@ const React = (await import('react')).default
 const { renderToAnsiString } = await import('../../src/screen/renderer/staticRender.tsx')
 const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
 const { SleepTool } = await import('../../src/tools/sleep/SleepTool.tsx')
+const { SendMessageTool } = await import('../../src/tools/send-message/SendMessageTool.ts')
 
 let failures = 0
 function check(label: string, pass: boolean, detail = ''): void {
@@ -56,5 +57,21 @@ async function paint(node: React.ReactNode, width = 160): Promise<string> {
   check('K-29 Sleep interrupted row stays unchanged', interruptedScreen === 'Sleep interrupted after 2s', JSON.stringify(interruptedScreen))
 }
 
+{
+  const fullMessage = 'Delivered to scout (id a1); it reads it at its next tool boundary.'
+  const output = { success: true, message: fullMessage }
+  const screenText = (await paint(SendMessageTool.renderToolResultMessage(output, [], { verbose: false, theme: 'dark' } as never))).replace(/^└\s*/, '')
+  check(
+    'K-30 SendMessage delivered row reads only Delivered to <who>',
+    screenText === 'Delivered to scout (id a1)',
+    JSON.stringify(screenText),
+  )
+  const block = SendMessageTool.mapToolResultToToolResultBlockParam(output, 'toolu_sm_1')
+  check(
+    'K-30 SendMessage delivered model payload keeps the full long sentence byte for byte',
+    Array.isArray(block.content) && block.content.length === 1 && block.content[0]?.type === 'text' && block.content[0].text === fullMessage,
+    JSON.stringify(block.content),
+  )
+}
 console.log(`\ntool-row-words-cut: ${failures} failure(s)`)
 process.exit(failures ? 1 : 0)
