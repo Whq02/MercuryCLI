@@ -1072,7 +1072,6 @@ src/integrations/desktop/ansiSpans.ts	DEFAULT_BG	process	module	Load-time defini
 src/integrations/desktop/ansiSpans.ts	DEFAULT_FG	process	module	Load-time definition shared by all callers
 src/integrations/desktop/ansiSpans.ts	PALETTE	process	module	Load-time table with no local writer
 src/integrations/desktop/ansiSpans.ts	VGA_16	process	module	Load-time list with no local writer
-src/integrations/desktop/ansiToPng.ts	CRC_TABLE	process	module	Load-time definition shared by all callers
 src/integrations/desktop/ansiToPng.ts	SHADE_BLEND	process	module	Load-time table with no local writer
 src/integrations/desktop/ansiToPng.ts	STROKE_GLYPHS	process	module	Load-time table with no local writer
 src/integrations/desktop/ansiToPng.ts	fallbackGlyphCache	process	module	lazy pure memo of rasterized static fallback glyph bitmap
@@ -1108,7 +1107,6 @@ src/integrations/desktop/desktopSession.ts	snapshot	process	module	foreground TU
 src/integrations/desktop/driver.ts	DESKTOP_KEY_NAMES	process	module	Load-time list with no local writer
 src/integrations/desktop/fakeDesktopDriver.ts	BUTTONS	process	module	Load-time list with no local writer
 src/integrations/desktop/fakeDesktopDriver.ts	CANVAS_BACKGROUND	process	module	Load-time definition shared by all callers
-src/integrations/desktop/fakeDesktopDriver.ts	CRC_TABLE	process	module	Load-time definition shared by all callers
 src/integrations/desktop/fakeDesktopDriver.ts	FAKE_SCENE_DEFAULT	process	module	Load-time table with no local writer
 src/integrations/desktop/fakeDesktopDriver.ts	GRANTS	process	module	Load-time list with no local writer
 src/integrations/desktop/fakeDesktopDriver.ts	MODIFIERS	process	module	Load-time list with no local writer
