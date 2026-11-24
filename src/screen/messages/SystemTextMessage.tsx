@@ -152,7 +152,7 @@ function renderFallbackSystemRow({
   warningColor,
   errorColor,
 }: {
-  row: { content: string; level: SystemMessageLevel }
+  row: { content?: unknown; level?: SystemMessageLevel | null }
   addMargin: boolean
   verbose: boolean
   columns: number
@@ -160,8 +160,9 @@ function renderFallbackSystemRow({
   warningColor: string
   errorColor: string
 }): React.ReactNode {
-  const { level, content } = row
-  if (level === 'info' && !verbose) return null
+  const level = row.level ?? 'info'
+  const content = row.content
+  if ((level === 'info' && !verbose) || typeof content !== 'string') return null
   const glyph =
     level === 'warning' || level === 'warn'
       ? GLYPH.warn
