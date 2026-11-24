@@ -1,6 +1,6 @@
 import { historyHead, historyRange } from './historyParts.js'
 import { createHash, type UUID } from 'node:crypto'
-import { open, readdir, stat, type FileHandle } from 'node:fs/promises'
+import { open, type FileHandle } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 
 import { getMercuryHome } from '../../platform/environment/envUtils.js'
@@ -8,7 +8,7 @@ import { PROJECT_CONFIG_DIR_NAMES } from '../../platform/settings/projectConfig.
 import { djb2Hash } from '../../platform/primitives/hash.js'
 import { sliceHeadAtGrapheme } from '../../platform/text/textSegments.js'
 import { errorMessage, getErrnoCode } from '../../platform/errors/errors.js'
-import { projectDirectoryIdentity, resolveDirectoryIdentity, resolveProjectStore, type ProjectStoreReadFailure, type StoreSpellingRules } from '../../platform/storage/projectStoreIdentity.js'
+import { projectDirectoryIdentity, resolveProjectStore, type ProjectStoreReadFailure, type StoreSpellingRules } from '../../platform/storage/projectStoreIdentity.js'
 import { setStoreHealth, transcriptStoreHealth } from './writer/storeHealth.js'
 import { stripGroundNote } from './isolationNote.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
@@ -325,23 +325,6 @@ export function projectSlugMatches(name: string, spelling: string): boolean {
   return /^[a-z0-9]+$/i.test(name.slice(MAX_SANITIZED_LENGTH + 1, -tail.length))
 }
 
-export async function canonicalizePath(dir: string): Promise<string> {
-  return resolveDirectoryIdentity(dir).canonical
-}
-
-async function directoryExists(
-  path: string,
-  onReadError?: (path: string, error: unknown) => void,
-): Promise<boolean> {
-  try {
-    return (await stat(path)).isDirectory()
-  } catch (error) {
-    passedOver(error)
-    if (!isAbsenceError(error)) onReadError?.(path, error)
-    return false
-  }
-}
-
 const projectDirMemo = new Map<string, string>()
 
 export function foldProjectConfigHomeTail(dir: string): string {
@@ -389,28 +372,6 @@ export function getProjectDir(projectDir: string): string {
     projectDirMemo.set(canonicalKey, resolved)
   }
   return resolved
-}
-
-export async function findProjectDir(
-  projectPath: string,
-  onReadError?: (path: string, error: unknown) => void,
-): Promise<string | undefined> {
-  const canonical = await canonicalizePath(projectPath)
-  const exact = getProjectDir(canonical)
-  if (await directoryExists(exact, onReadError)) return exact
-  const sanitized = sanitizePath(canonical)
-  if (sanitized.length <= MAX_SANITIZED_LENGTH) return undefined
-  const prefix = `${sanitized.slice(0, MAX_SANITIZED_LENGTH)}-`
-  const suffix = exact.slice(exact.lastIndexOf('-'))
-  const projects = getProjectsDir()
-  try {
-    const name = (await readdir(projects)).find(entry => entry.startsWith(prefix) && entry.endsWith(suffix))
-    return name === undefined ? undefined : join(projects, name)
-  } catch (error) {
-    passedOver(error)
-    reportReadError(projects, error, onReadError)
-    return undefined
-  }
 }
 
 
