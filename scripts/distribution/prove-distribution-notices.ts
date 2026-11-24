@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { SOURCE_LICENCES, sourceAttributionLines } from './sourceAttributions.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
@@ -77,7 +78,17 @@ for (const vendor of ['ripgrep', 'debugpy', 'pyright', 'js-debug', 'TypeScript c
     }
   }
 }
-check('Ink attribution recorded', /Ink.*project.*MIT|vadimdemedes\/ink/s.test(notices))
+{
+  const attributions = sourceAttributionLines()
+  const composed = attributions.join('\n')
+  check('Ink attribution recorded: the notices carry the source attributions as scripts/distribution/sourceAttributions.ts composes them', /Ink.*project.*MIT|vadimdemedes\/ink/s.test(composed) && notices.includes(composed), 'regenerate, or change sourceAttributionLines in scripts/distribution/sourceAttributions.ts')
+  for (const licence of SOURCE_LICENCES) {
+    const line = attributions.find(l => l.startsWith('- ') && l.includes(`**${licence.project}**`)) ?? ''
+    const lacking = licence.copyright.filter(c => !line.includes(c))
+    check(`the ${licence.project} attribution carries each copyright line of its ${licence.file} at ${licence.version}, letter for letter`, lacking.length === 0, `lacking: ${lacking.join(' | ')}; change sourceAttributionLines in scripts/distribution/sourceAttributions.ts`)
+    check(`the ${licence.project} licence text, its permission notice, is composed under Source attributions letter for letter`, licence.copyright.every(c => licence.text.split('\n').includes(c)) && composed.includes(licence.text), 'change sourceAttributionLines in scripts/distribution/sourceAttributions.ts')
+  }
+}
 check('bundled-skills section present', notices.includes('src/integrations/skills/bundled'))
 
 const gen = join(ROOT, 'scripts/distribution/generate-third-party-notices.ts')
