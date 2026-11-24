@@ -64,6 +64,51 @@ process.exit(assertionResults.some(a=>a.status==='failed') ? 1 : 0);
       }
     }
   }
+  const cargoRoot = path.join(home, 'cargo-multi-fail')
+  const cargoBinDir = path.join(cargoRoot, 'bin')
+  mkdirSync(cargoBinDir, { recursive: true })
+  writeFileSync(path.join(cargoRoot, 'Cargo.toml'), '[package]\nname = "probe"\nversion = "0.1.0"\nedition = "2021"\n')
+  const cargoArgvFile = path.join(cargoRoot, 'argv.json')
+  const cargoStandIn = path.join(cargoBinDir, 'cargo')
+  writeFileSync(cargoStandIn, `#!/usr/bin/env node
+const fs = require('fs');
+const args = process.argv.slice(2);
+fs.writeFileSync(${JSON.stringify(cargoArgvFile)}, JSON.stringify(args));
+const tests = [
+  { name: 'tests::fail_a', ok: false },
+  { name: 'tests::fail_a_extra', ok: true },
+  { name: 'tests::fail_b', ok: false },
+  { name: 'tests::ok_c', ok: true },
+];
+const sep = args.indexOf('--');
+const harness = sep === -1 ? [] : args.slice(sep + 1);
+const exact = harness.includes('--exact');
+const filters = sep === -1 ? args.slice(1).filter(a => !a.startsWith('-')) : harness.filter(a => !a.startsWith('-'));
+const selected = filters.length === 0 ? tests : tests.filter(t => filters.some(f => exact ? t.name === f : t.name.includes(f)));
+let passed = 0, failed = 0;
+console.log('running ' + selected.length + ' tests');
+for (const t of selected) {
+  if (t.ok) passed++; else failed++;
+  console.log('test ' + t.name + ' ... ' + (t.ok ? 'ok' : 'FAILED'));
+}
+console.log('test result: ' + (failed ? 'FAILED' : 'ok') + '. ' + passed + ' passed; ' + failed + ' failed; 0 ignored; 0 measured; ' + (tests.length - selected.length) + ' filtered out; finished in 0.00s');
+process.exit(failed ? 101 : 0);
+`)
+  chmodSync(cargoStandIn, 0o755)
+  const savedPath = process.env.PATH
+  process.env.PATH = `${cargoBinDir}${path.delimiter}${savedPath ?? ''}`
+  try {
+    const cargoProfile = runners.discoverRunnerProfiles(cargoRoot).profiles.find(p => p.runner === 'cargo' && p.kind === 'test')!
+    const cargoRun = await runners.runRunnerProfile(cargoProfile, { from: cargoRoot })
+    check('cargo: full run records both failures', cargoRun.state === 'ok' && JSON.stringify(cargoRun.record.failures) === JSON.stringify(['tests::fail_a', 'tests::fail_b']), cargoRun.state === 'ok' ? cargoRun.record.failures : cargoRun)
+    if (cargoRun.state === 'ok') {
+      const cargoRerun = await runners.rerunRunnerFailures(cargoRun.record, { from: cargoRoot })
+      const cargoRerunArgv = JSON.parse(readFileSync(cargoArgvFile, 'utf8')) as string[]
+      check('cargo: rerun selects all failed tests exactly without sibling prefix matches', cargoRerun.state === 'ok' && cargoRerun.record.counts.failed === 2 && cargoRerun.record.counts.passed === 0 && JSON.stringify(cargoRerun.record.failures) === JSON.stringify(['tests::fail_a', 'tests::fail_b']), cargoRerun.state === 'ok' ? { counts: cargoRerun.record.counts, failures: cargoRerun.record.failures, argv: cargoRerunArgv } : cargoRerun)
+    }
+  } finally {
+    process.env.PATH = savedPath
+  }
 } finally { rmSync(home, { recursive: true, force: true }) }
 if (failures) process.exit(1)
 console.log('prove-describe-rerun: GREEN')

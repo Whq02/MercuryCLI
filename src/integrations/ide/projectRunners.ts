@@ -993,6 +993,13 @@ export async function rerunRunnerFailures(
         selectionLabel: 'rerun-failed',
         ...(opts.signal ? { signal: opts.signal } : {}),
       })
+    case 'cargo':
+      return runRunnerProfile(profile, {
+        from,
+        argvOverride: [...profile.command, '--', '--exact', ...new Set(record.failures)],
+        selectionLabel: 'rerun-failed',
+        ...(opts.signal ? { signal: opts.signal } : {}),
+      })
     default:
       return runRunnerProfile(profile, {
         from,
