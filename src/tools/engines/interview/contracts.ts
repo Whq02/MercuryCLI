@@ -179,10 +179,7 @@ export function foldInterview(
   state: InterviewSessionState,
   event: InterviewEvent,
 ): InterviewSessionState {
-  if (state.seenEventIds.has(event.eventId)) return state
-  const seen = new Set(state.seenEventIds)
-  seen.add(event.eventId)
-  return applyEvent({ ...state, seenEventIds: seen }, event)
+  return foldInterviewShared(state, event, new Set(state.seenEventIds))
 }
 
 export function foldInterviewShared(
