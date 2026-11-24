@@ -12,7 +12,7 @@ export function useCursorFollow(
   options: { restOnClear?: boolean } = {},
 ): CursorDeclarationSetter {
   const publishCursor = useContext(CursorDeclarationContext)
-  const ink = useContext(ScreenInstanceContext)
+  const instance = useContext(ScreenInstanceContext)
   const cursor = useRef<CursorDeclaration | null>(null)
   const followedTop = useRef<number | undefined>(undefined)
   const pending = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -49,8 +49,8 @@ export function useCursorFollow(
     return () => stopTimeout(pending.current)
   }, [viewport.width, viewport.rows, scrollRef, follow])
   useSubscription(() => {
-    if (!ink) return
-    return ink.subscribeFrame(() => {
+    if (!instance) return
+    return instance.subscribeFrame(() => {
       const body = scrollRef.current
       const current = cursor.current
       if (!body || !current || !current.node.parentNode) return
@@ -58,7 +58,7 @@ export function useCursorFollow(
       if (elementTop === undefined || elementTop === followedTop.current) return
       followNow()
     })
-  }, [ink, scrollRef, followNow])
+  }, [instance, scrollRef, followNow])
   return useCallback<CursorDeclarationSetter>((next, clearIfNode) => {
     publishCursor(next, clearIfNode)
     if (next === null) {

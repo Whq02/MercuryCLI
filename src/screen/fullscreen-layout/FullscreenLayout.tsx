@@ -255,7 +255,7 @@ export function FullscreenLayout({
   const tokens = useMercuryTokens()
   const elevatedRef = useElevatedSurface()
   const viewedCrewmate = useViewedCrewmate()
-  const ink = useContext(ScreenInstanceContext)
+  const screenInstance = useContext(ScreenInstanceContext)
   const motionParked = useContext(MotionParkContext)
 
   const modelPickerClaimed = useSyncExternalStore(
@@ -332,8 +332,8 @@ export function FullscreenLayout({
 
   useInsertionEffect(() => {
     if (!fullscreen || motionParked) return
-    ink?.repaintAfterNestedAltScreenClose()
-  }, [fullscreen, motionParked, ink, modalMounted, modalUp, popupUp, commandPopupUp])
+    screenInstance?.repaintAfterNestedAltScreenClose()
+  }, [fullscreen, motionParked, screenInstance, modalMounted, modalUp, popupUp, commandPopupUp])
 
   const recessTarget = useMemo(() => recessTargetFor(tokens), [tokens])
   useClaim(() => {

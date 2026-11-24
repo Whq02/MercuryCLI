@@ -81,10 +81,10 @@ export function SurfaceRouter({ children }: { children: React.ReactNode }): Reac
   useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion);
   const route = currentSurfaceRoute();
   const routeId = surfaceRouteId(route);
-  const ink = useContext(ScreenInstanceContext);
+  const instance = useContext(ScreenInstanceContext);
   useInsertionEffect(() => {
-    ink?.repaintAfterNestedAltScreenClose();
-  }, [ink, routeId]);
+    instance?.repaintAfterNestedAltScreenClose();
+  }, [instance, routeId]);
   const entry = getRouteSurface(route.kind);
   const liveSizeCtx = useContext(LiveTerminalSizeContext);
   const baseSizeCtx = useContext(TerminalSizeContext);

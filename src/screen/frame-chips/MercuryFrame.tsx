@@ -38,7 +38,7 @@ import { compactModeChip } from '../widgets/compactModeChip.js'
 import { useProviderUsageOnShow } from '../model-picker/useProviderUsageOnShow.js'
 import { usagePollTtlMs } from '../../models/roads/usageFreshness.js'
 import { getUsageRecordVersion, subscribeUsageRecord } from '../../models/roads/anthropic/anthropicLimits.js'
-import inkInstances from '../renderer/instances.js'
+import screenInstances from '../renderer/instances.js'
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js'
 import {
   subscribeVerification,
@@ -159,8 +159,8 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
 
   let mouseOff = false
   try {
-    const ink = inkInstances.get(process.stdout)
-    mouseOff = !!ink && typeof ink.isMouseTrackingEnabled === 'function' && !ink.isMouseTrackingEnabled()
+    const instance = screenInstances.get(process.stdout)
+    mouseOff = !!instance && typeof instance.isMouseTrackingEnabled === 'function' && !instance.isMouseTrackingEnabled()
   } catch {
     mouseOff = false
   }

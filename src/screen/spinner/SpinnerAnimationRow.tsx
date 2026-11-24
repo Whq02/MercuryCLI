@@ -85,7 +85,7 @@ export function SpinnerAnimationRow(props: SpinnerAnimationRowProps): React.Reac
     columns, message, mode, still, verbose, effectiveElapsedMs, liveWords, otps, suffixText, wasStacked: wasStacked.current,
   }, wanted => turnStripLines(start, wanted))
   wasStacked.current = plan.stacked
-  const [messageRef, glimmerIndex] = useShimmerAnimation(mode, message, stillWaiting)
+  const [messageRef, shimmerIndex] = useShimmerAnimation(mode, message, stillWaiting)
   const { textSecondary } = useMercuryTokens()
 
   const color = overrideColor ?? messageColor
@@ -114,7 +114,7 @@ export function SpinnerAnimationRow(props: SpinnerAnimationRowProps): React.Reac
         )}
         <Box ref={messageRef}>
           {still ? <Text color={color}>{message}</Text> : (
-            <ShimmerMessage attentionIntensity={attention} flashOpacity={flash} glimmerIndex={glimmerIndex} message={message} messageColor={color} mode={mode} shimmerColor={overrideColor ?? shimmerColor} />
+            <ShimmerMessage attentionIntensity={attention} flashOpacity={flash} glimmerIndex={shimmerIndex} message={message} messageColor={color} mode={mode} shimmerColor={overrideColor ?? shimmerColor} />
           )}
         </Box>
         {plan.segBVisible && !plan.secondRow && <Text>{suffix}{figures}</Text>}

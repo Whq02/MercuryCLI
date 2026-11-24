@@ -37,16 +37,16 @@ export function ShimmerMessage({ flashOpacity, glimmerIndex, message, messageCol
     const first = glimmerIndex - 1
     const last = glimmerIndex + 1
     if (first < stringWidth(message) && last >= 0) {
-      let before = '', glimmer = '', after = ''
+      let before = '', shimmer = '', after = ''
       let column = 0
       for (const { segment } of getGraphemeSegmenter().segment(message)) {
         const end = column + stringWidth(segment)
         if (end <= Math.max(0, first)) before += segment
         else if (column > last) after += segment
-        else glimmer += segment
+        else shimmer += segment
         column = end
       }
-      content = <>{before}<Text color={shimmerColor}>{glimmer}</Text>{after}</>
+      content = <>{before}<Text color={shimmerColor}>{shimmer}</Text>{after}</>
     }
   }
   return <><Text color={color}>{content}</Text><Text color={spaceColor}> </Text></>

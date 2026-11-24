@@ -289,7 +289,7 @@ function FilesReader({ document, width, rowBudget, onBack, onPick }: {
   const tokens = useMercuryTokens()
   const ground = estateGroundBg(tokens)
   const scroll = useRef<ScrollBoxHandle | null>(null)
-  const ink = useContext(ScreenInstanceContext)
+  const instance = useContext(ScreenInstanceContext)
   const height = Math.max(1, rowBudget)
   const [view, setView] = useState({ top: 0, total: 0 })
   const sync = useCallback(() => {
@@ -300,7 +300,7 @@ function FilesReader({ document, width, rowBudget, onBack, onPick }: {
     setView(previous => previous.top === top && previous.total === total ? previous : { top, total })
   }, [height])
   useMeasure(sync)
-  useSubscription(() => ink?.subscribeFrame(sync), [ink, sync])
+  useSubscription(() => instance?.subscribeFrame(sync), [instance, sync])
   const below = Math.max(0, view.total - view.top - height)
   const contentWidth = Math.max(1, width - 4 - (view.top > 0 || below > 0 ? 1 : 0))
   const content = useMemo(() => {
