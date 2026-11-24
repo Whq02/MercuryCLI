@@ -1,6 +1,6 @@
 import type { PermissionUpdate } from './permissions.js'
 import { isDestructiveCommandVerb } from './shell-commands/destructiveCommandWarning.js'
-import { precedingBackslashCount } from '../../platform/shell/bash/heredoc.js'
+import { precedingBackslashes } from './permissionRuleParser.js'
 
 const COMMAND_PREFIX_ARITY: Readonly<Record<string, number>> = {
   git: 2, npm: 2, pnpm: 2, yarn: 2, bun: 2, docker: 2, gh: 2, cargo: 2,
@@ -41,7 +41,7 @@ export type ShellPermissionRule =
 
 export function hasWildcards(pattern: string): boolean {
   for (let i = 0; i < pattern.length; i++) {
-    if (pattern[i] === '*' && precedingBackslashCount(pattern, i) % 2 === 0) return true
+    if (pattern[i] === '*' && precedingBackslashes(pattern, i) % 2 === 0) return true
   }
   return false
 }
@@ -49,7 +49,7 @@ export function hasWildcards(pattern: string): boolean {
 function countUnescapedWildcards(pattern: string): number {
   let count = 0
   for (let i = 0; i < pattern.length; i++) {
-    if (pattern[i] === '*' && precedingBackslashCount(pattern, i) % 2 === 0) count++
+    if (pattern[i] === '*' && precedingBackslashes(pattern, i) % 2 === 0) count++
   }
   return count
 }

@@ -105,7 +105,7 @@ function countOccurrences(text: string, token: string): number {
   return count
 }
 
-export function precedingBackslashCount(text: string, i: number): number {
+function precedingBackslashCount(text: string, i: number): number {
   let count = 0
   let j = i - 1
   while (j >= 0 && text[j] === '\\') {
