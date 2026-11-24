@@ -396,7 +396,7 @@ async function runForkedPromptCommand(
             <Text dimColor>{`/${commandName} running in a crewmate (${emitted} message${emitted === 1 ? '' : 's'}, ${responseLength} chars)`}</Text>
           </Box>
         ),
-        shouldHidePromptInput: true,
+        shouldHideComposer: true,
         shouldContinueAnimation: true,
         showSpinner: true,
       })
@@ -689,7 +689,7 @@ async function runLocalJsxCommand(
         }
         setToolJSX({
           jsx: element as React.ReactNode,
-          shouldHidePromptInput: true,
+          shouldHideComposer: true,
           showSpinner: false,
           isLocalJSXCommand: true,
           isImmediate: command.immediate === true,
@@ -698,7 +698,7 @@ async function runLocalJsxCommand(
         logError(error)
         setToolJSX({
           jsx: null,
-          shouldHidePromptInput: false,
+          shouldHideComposer: false,
           isLocalJSXCommand: false,
           clearLocalJSX: true,
         })

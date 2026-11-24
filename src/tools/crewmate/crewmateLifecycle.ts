@@ -119,10 +119,10 @@ export type ResolvedAgentTools = {
 
 export function resolveCrewmateTools(
   definition: AgentDefinition,
-  workerPermissionMode: NonNullable<AgentDefinition['permissionMode']>,
+  crewmatePermissionMode: NonNullable<AgentDefinition['permissionMode']>,
   pool: Tools,
 ): Tools {
-  return resolveAgentTools({ ...definition, permissionMode: workerPermissionMode }, pool, false).resolvedTools
+  return resolveAgentTools({ ...definition, permissionMode: crewmatePermissionMode }, pool, false).resolvedTools
 }
 
 export function resolveAgentTools(
@@ -1096,7 +1096,7 @@ export function crewmateNoticeOwed(): boolean {
 export async function runAsyncCrewmateLifecycle(args: {
   taskId: string
   abortController: AbortController
-  makeStream: (onQueryProgress?: (event: unknown) => void) => AsyncGenerator<Message, void>
+  makeStream: (onTurnProgress?: (event: unknown) => void) => AsyncGenerator<Message, void>
   metadata: {
     prompt: string
     resolvedAgentModel: string
@@ -1124,7 +1124,7 @@ export async function runAsyncCrewmateLifecycle(args: {
   const readState = taskStateReader(toolUseContext, rootSetAppState)
   const accumulated: Message[] = []
   const owedKey = {}
-  const onQueryProgress = (event: unknown): void => {
+  const onTurnProgress = (event: unknown): void => {
     publishCrewmateWaitFromEvent(taskId, tracker, event, rootSetAppState)
   }
 
@@ -1133,7 +1133,7 @@ export async function runAsyncCrewmateLifecycle(args: {
   let result: CrewmateToolResult | undefined
   try {
     try {
-      for await (const message of makeStream(onQueryProgress)) {
+      for await (const message of makeStream(onTurnProgress)) {
         accumulated.push(message)
         emitBackgroundCrewmateRows(toolUseContext.toolUseId, message)
         const currentTask = readState().tasks?.[taskId]

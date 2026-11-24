@@ -84,7 +84,7 @@ export function BackgroundTasksDialog({
 }): React.ReactNode {
   const summaryEntry = entry === 'compact-summary'
   const tasks = useAppState((state: AppState) => state.tasks)
-  const viewingAgentTaskId = useAppState((state: AppState) => state.viewingCrewmateTaskId)
+  const viewingCrewmateTaskId = useAppState((state: AppState) => state.viewingCrewmateTaskId)
   const setAppState = useSetAppState()
   const roster = useFocusedWorkRoster()
   const sessionCrew = useSessionCrew()
@@ -118,7 +118,7 @@ export function BackgroundTasksDialog({
   const sortedTasks = useScreenTasks
     ? Object.values(tasks ?? {})
         .filter(isManageableTask)
-        .filter(task => task.id !== viewingAgentTaskId)
+        .filter(task => task.id !== viewingCrewmateTaskId)
         .sort((a, b) => {
           const aRunning = a.status === 'running' ? 0 : 1
           const bRunning = b.status === 'running' ? 0 : 1
@@ -132,7 +132,7 @@ export function BackgroundTasksDialog({
   const crewmateTasks = sortedTasks.filter(task => kindOf(task) === 'agent')
 
   const excludeIds = new Set<string>(sortedTasks.map(task => task.id))
-  if (viewingAgentTaskId !== undefined) excludeIds.add(viewingAgentTaskId)
+  if (viewingCrewmateTaskId !== undefined) excludeIds.add(viewingCrewmateTaskId)
 
   const otherShells = rosterRowsOf(roster.rows, 'shell', excludeIds)
   const otherMonitors = rosterRowsOf(roster.rows, 'monitor', excludeIds)
@@ -140,7 +140,7 @@ export function BackgroundTasksDialog({
   const otherAgents = boardCrewmateRowsOf(roster.rows, crewFacts, excludeIds)
 
   const leadItems: BoardItem[] =
-    viewingAgentTaskId !== undefined ? [{ id: LEAD_ROW_ID, kind: 'lead' }] : []
+    viewingCrewmateTaskId !== undefined ? [{ id: LEAD_ROW_ID, kind: 'lead' }] : []
   const sampleItems: BoardItem[] = (roster.samples ?? []).map(sample => ({
     id: `sample:${sample.id}`,
     kind: 'sample',

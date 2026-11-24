@@ -7,6 +7,6 @@ export function resolveToolJSX(prev: ToolJSXState, next: ToolJSXState): ToolJSXS
   if (next.clearLocalJSX) return prev?.isLocalJSXCommand ? null : prev
   if (next.clearUnlessLocalJSX) return prev?.isLocalJSXCommand ? prev : null
   if (next.deferIfLocalJSX && prev?.isLocalJSXCommand) return prev
-  if (next.jsx === null && !next.shouldHidePromptInput) return null
+  if (next.jsx === null && !next.shouldHideComposer) return null
   return next
 }

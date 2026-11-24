@@ -37,7 +37,7 @@ type BottomSlotArgs = Pick<ReturnType<typeof useChatDialogs>, 'isExiting' | 'sho
   };
 
 export function chatBottomSlot({ isExiting, showExitFlow, toolJSX, showBashesDialog, setShowBashesDialog, handleExit, toolPermissionContext, apiKeyVerification, commands, agentDefinitions, verbose, setToolPermissionContext, submitCount, getToolUseContext, openRewindPicker, messageActionsDisabled, messageActions, messageCursorActive, vimMode, setVimMode, isSearchingHistory, setIsSearchingHistory, helpOpen, setHelpOpen, insertTextRef, onSubmit, dialogPaints, inTranscript, searchBarOpen, previewSearch, commitSearch, cancelSearch, warmSearchIndex, searchMatchCount, searchMatchCurrent, committedSearchQuery, inVirtualTranscript, dumpMode, showAllInTranscript, editorStatus, disabled, debug, disableSlashCommands, focusedInputDialog, compactWork, compactFocus, isLoading, dialogsHiddenWhileTyping, columns }: BottomSlotArgs): React.ReactNode {
-  const composer = !disabled && !isExiting && !showExitFlow && !toolJSX?.shouldHidePromptInput && (focusedInputDialog === undefined || compactFocus === 'detail') ? (
+  const composer = !disabled && !isExiting && !showExitFlow && !toolJSX?.shouldHideComposer && (focusedInputDialog === undefined || compactFocus === 'detail') ? (
     <Composer
       compactWork={compactWork}
       compactFocus={compactFocus}

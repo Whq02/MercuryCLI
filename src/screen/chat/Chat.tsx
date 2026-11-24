@@ -76,7 +76,7 @@ setCrashConversationLocator(() => {
 function selectFocusedInputDialog({
   exiting,
   showRewindPicker,
-  isPromptInputActive,
+  isComposerActive,
   toolJSX,
   toolUseConfirmCount,
   elicitationCount,
@@ -85,7 +85,7 @@ function selectFocusedInputDialog({
 }: {
   exiting: boolean;
   showRewindPicker: boolean;
-  isPromptInputActive: boolean;
+  isComposerActive: boolean;
   toolJSX: ToolJSXState;
   toolUseConfirmCount: number;
   elicitationCount: number;
@@ -94,7 +94,7 @@ function selectFocusedInputDialog({
 }): FocusedInputDialog | undefined {
   if (exiting) return undefined;
   if (showRewindPicker) return 'message-selector';
-  if (isPromptInputActive) return undefined;
+  if (isComposerActive) return undefined;
   if (toolJSX !== null && !toolJSX.shouldContinueAnimation) return undefined;
   if (toolUseConfirmCount > 0) return 'tool-permission';
   if (elicitationCount > 0) return 'elicitation';
@@ -141,19 +141,19 @@ export function Chat({ commands: initialCommands, initialTools, debug = false, d
   const { toolJSX, setToolJSX, isExiting, showExitFlow, setShowExitFlow, exitCommandJsx, showCostThreshold, setShowCostThreshold, showBashesDialog, setShowBashesDialog, handleExit } = useChatDialogs({ store, addNotification });
   const { showRewindPicker, setShowRewindPicker, openRewindPicker, rewindPickerPreselect, setRewindPickerPreselect } = useChatRewindPicker();
   const { scrollRef, scrollRestoreRef, modalScrollRef, lastUserScrollAtRef, repinToBottom, noteUserScroll } = useChatScrollPin();
-  const { isPromptInputActive, setInputValue, setInputMode, setPastedContents, authWallHold, insertTextRef, vimMode, setVimMode, isSearchingHistory, setIsSearchingHistory, helpOpen, setHelpOpen } = useChatDraft({ messages, fullscreen, repinToBottom, lastUserScrollAtRef });
+  const { isComposerActive, setInputValue, setInputMode, setPastedContents, authWallHold, insertTextRef, vimMode, setVimMode, isSearchingHistory, setIsSearchingHistory, helpOpen, setHelpOpen } = useChatDraft({ messages, fullscreen, repinToBottom, lastUserScrollAtRef });
 
   const focusedInputDialog = selectFocusedInputDialog({
     exiting: isExiting || showExitFlow,
     showRewindPicker,
-    isPromptInputActive,
+    isComposerActive,
     toolJSX,
     toolUseConfirmCount: toolUseConfirmQueue.length,
     elicitationCount: elicitationQueue.length,
     showCostThreshold,
     hasCrashResume: crashResumeStaged !== null,
   });
-  const dialogsHiddenWhileTyping = isPromptInputActive && !isExiting && !showRewindPicker && (toolUseConfirmQueue.length > 0 || showCostThreshold);
+  const dialogsHiddenWhileTyping = isComposerActive && !isExiting && !showRewindPicker && (toolUseConfirmQueue.length > 0 || showCostThreshold);
 
   const { dialogSlotRef, dialogPaints, localJsx, compactDetailUp, dialogOwnsKeys } = useChatDialogPaints({ toolJSX, compactFocus, compactWork, fullscreen, chatSurfaceCovered, focusedInputDialog });
   const { unseen, captureScrollForFlip, setFlipGeneration, unseenDivider, newMessageCount, onScroll, onPillClick } = useChatScroll({ messages, fullscreen, scrollRef, scrollRestoreRef, noteUserScroll });

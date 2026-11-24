@@ -159,7 +159,7 @@ function calculateMessagesToKeepIndex(messages: Message[], lastSummarizedIndex: 
 export async function trySessionNotesFold(
   messages: Message[],
   agentId?: string,
-  autoCompactThreshold?: number,
+  autoFoldThreshold?: number,
   rosterContext?: Pick<ToolUseContext, 'getAppState' | 'agentId' | 'options'>,
   trigger?: 'auto' | 'manual',
 ): Promise<FoldResult | null> {
@@ -236,7 +236,7 @@ export async function trySessionNotesFold(
       ...attachments,
     ]
     const preHookEstimate = estimateContextTokens(proposedBeforeHooks)
-    if (autoCompactThreshold !== undefined && preHookEstimate >= autoCompactThreshold) {
+    if (autoFoldThreshold !== undefined && preHookEstimate >= autoFoldThreshold) {
       return null
     }
 
@@ -273,7 +273,7 @@ export async function trySessionNotesFold(
     }
 
     const finalEstimate = estimateContextTokens(buildPostFoldMessages(result))
-    if (autoCompactThreshold !== undefined && finalEstimate >= autoCompactThreshold) {
+    if (autoFoldThreshold !== undefined && finalEstimate >= autoFoldThreshold) {
       return null
     }
     result.postFoldTokenCount = finalEstimate

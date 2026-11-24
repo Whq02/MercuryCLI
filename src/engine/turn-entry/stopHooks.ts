@@ -30,7 +30,7 @@ type StopHookOutcome = {
 }
 
 export async function* handleStopHooks(
-  messagesForQuery: Message[],
+  messagesForRequest: Message[],
   assistantMessages: AssistantMessage[],
   systemPrompt: SystemPrompt,
   userContext: { [k: string]: string },
@@ -43,7 +43,7 @@ export async function* handleStopHooks(
     return { blockingErrors: [], preventContinuation: false }
   }
 
-  const allMessages: Message[] = [...messagesForQuery, ...assistantMessages]
+  const allMessages: Message[] = [...messagesForRequest, ...assistantMessages]
   const hookContext: TurnAnswerContext = {
     messages: allMessages,
     systemPrompt,

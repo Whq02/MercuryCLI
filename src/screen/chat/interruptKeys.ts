@@ -115,7 +115,7 @@ export function InterruptKeys({
     settingsRevision,
     settingsRevision,
   )
-  const viewingAgentTaskId = useSyncExternalStore(
+  const viewingCrewmateTaskId = useSyncExternalStore(
     appStateStore.subscribe,
     () => appStateStore.getState().viewingCrewmateTaskId,
     () => appStateStore.getState().viewingCrewmateTaskId,
@@ -147,7 +147,7 @@ export function InterruptKeys({
     sharedGuard &&
     !isElicitationFocused &&
     !isInterviewFocused &&
-    !viewingAgentTaskId &&
+    !viewingCrewmateTaskId &&
     turnActive
 
   const backgroundActive = escapeEligible && shellRunning && backgroundKeyEnabled
@@ -227,7 +227,7 @@ export function InterruptKeys({
     },
     {
       context: 'Global',
-      isActive: sharedGuard && (turnActive || Boolean(viewingAgentTaskId)),
+      isActive: sharedGuard && (turnActive || Boolean(viewingCrewmateTaskId)),
     },
   )
 

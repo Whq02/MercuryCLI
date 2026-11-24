@@ -23,7 +23,7 @@ export function useChatDraft({
   repinToBottom: () => void;
   lastUserScrollAtRef: { current: number };
 }) {
-  const isPromptInputActive = useSyncExternalStore(pendingInput.subscribeActive, pendingInput.active, pendingInput.active);
+  const isComposerActive = useSyncExternalStore(pendingInput.subscribeActive, pendingInput.active, pendingInput.active);
   const [inputMode, setInputModeState] = useState<InputMode>(() => pendingInput.mode());
   void inputMode;
   const [vimMode, setVimMode] = useState<VimMode>('INSERT');
@@ -69,5 +69,5 @@ export function useChatDraft({
       }),
     [],
   );
-  return { isPromptInputActive, setInputValue, setInputMode, setPastedContents, authWallHold, insertTextRef, vimMode, setVimMode, isSearchingHistory, setIsSearchingHistory, helpOpen, setHelpOpen };
+  return { isComposerActive, setInputValue, setInputMode, setPastedContents, authWallHold, insertTextRef, vimMode, setVimMode, isSearchingHistory, setIsSearchingHistory, helpOpen, setHelpOpen };
 }

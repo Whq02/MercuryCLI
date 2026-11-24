@@ -1075,7 +1075,7 @@ async function* runForegroundCommand(args: ForegroundRunArgs): AsyncGenerator<Ba
           ensureForegroundRegistered()
           setToolJSX({
             jsx: <BackgroundHint onBackground={requestUserBackground} />,
-            shouldHidePromptInput: false,
+            shouldHideComposer: false,
             shouldContinueAnimation: true,
             showSpinner: true,
           })

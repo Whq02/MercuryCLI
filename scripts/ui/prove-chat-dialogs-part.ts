@@ -36,7 +36,7 @@ const act = async (run: () => void): Promise<void> => {
   await settle(80)
 }
 const rows = (count: number): never[] => Array.from({ length: count }, (_, at) => createUserMessage({ content: `row ${at}` })) as never[]
-const local = { jsx: h(Text, null, 'A LOCAL DIALOG'), shouldHidePromptInput: false, isLocalJSXCommand: true, isImmediate: true } as never
+const local = { jsx: h(Text, null, 'A LOCAL DIALOG'), shouldHideComposer: false, isLocalJSXCommand: true, isImmediate: true } as never
 
 section('§1 the view: the cost threshold', 'what to change: the cost-threshold branch of focusedBottomDialog in useChatDialogsView, src/screen/chat/useChatDialogs.tsx (and the cost-threshold dialog it draws)')
 await t.plant({ messages: rows(1) })
@@ -93,7 +93,7 @@ check('in the fullscreen layout a local dialog is the centred modal and nothing 
 check('the ref the part hands on holds the dialog of this render', t.part.value().toolJSXRef.current === local)
 await t.plant({ fullscreen: false })
 check('outside it an immediate local dialog is drawn at the bottom', t.part.value().centredModalUp === false && t.part.value().centredModal === null && slotOf(t.part.value().bottomImmediateJsx) === (local as { jsx: unknown }).jsx && t.part.value().inlineToolJsx === null)
-const tool = { jsx: h(Text, null, 'A TOOL ROW'), shouldHidePromptInput: false } as never
+const tool = { jsx: h(Text, null, 'A TOOL ROW'), shouldHideComposer: false } as never
 await t.plant({ toolJSX: tool, localJsx: false, fullscreen: true })
 check('the row of a tool is drawn inline', t.part.value().centredModalUp === false && slotOf(t.part.value().inlineToolJsx) === (tool as { jsx: unknown }).jsx && t.frame().includes('A TOOL ROW'), t.frame())
 t.contexts.length = 0
@@ -113,7 +113,7 @@ section('§4 the states: the dialog of a command, the exit and the shells dialog
   check('the part starts with no dialog, not exiting, nothing asked', states.value().toolJSX === null && states.value().isExiting === false && states.value().showExitFlow === false && states.value().exitCommandJsx === null && states.value().showCostThreshold === false && states.value().showBashesDialog === false)
   await act(() => states.value().setToolJSX(local))
   check('a dialog a command sets is held', states.value().toolJSX === local)
-  await act(() => states.value().setToolJSX({ jsx: null, shouldHidePromptInput: false, clearUnlessLocalJSX: true } as never))
+  await act(() => states.value().setToolJSX({ jsx: null, shouldHideComposer: false, clearUnlessLocalJSX: true } as never))
   check('a clear that spares local dialogs leaves it', states.value().toolJSX === local)
   await act(() => states.value().setToolJSX(null))
   check('and a plain clear takes it down', states.value().toolJSX === null)

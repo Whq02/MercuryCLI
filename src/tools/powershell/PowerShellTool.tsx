@@ -556,7 +556,7 @@ async function* executePowerShell(
         }
         setToolJSX({
           jsx: <BackgroundHint onBackground={wakeProgress} />,
-          shouldHidePromptInput: false,
+          shouldHideComposer: false,
           shouldContinueAnimation: true,
           showSpinner: true,
         })

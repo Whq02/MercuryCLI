@@ -463,10 +463,10 @@ console.log('native-core T13/T14 — input-scheduling contract')
   const composer = await openDraftPart('inputsched-draft', { keepHome: true })
   composer.pending.edit('h')
   await settleDraft(80)
-  const typed = { active: composer.part.value().isPromptInputActive, text: composer.pending.text(), pins: composer.pins() }
+  const typed = { active: composer.part.value().isComposerActive, text: composer.pending.text(), pins: composer.pins() }
   composer.pending.edit('')
   await settleDraft(80)
-  const idle = composer.part.value().isPromptInputActive
+  const idle = composer.part.value().isComposerActive
   composer.scrolledAt.current = Date.now()
   composer.pending.edit('x')
   await settleDraft(80)

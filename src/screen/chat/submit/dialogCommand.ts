@@ -94,7 +94,7 @@ export function openDialogCommand(deps: SubmitDeps, line: SubmitLine, seatComman
   const mountDialog = (element: ReactNode): void => {
     if (element && !completed) {
       slot.mounted = true;
-      setToolJSX({ jsx: element, shouldHidePromptInput: false, isLocalJSXCommand: true, isImmediate: true });
+      setToolJSX({ jsx: element, shouldHideComposer: false, isLocalJSXCommand: true, isImmediate: true });
     } else if (!element && !completed && !isSettingsPopupOpen()) {
       addNotification({
         key: `command-${seatCommand.name}`,

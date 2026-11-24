@@ -87,7 +87,7 @@ export function advanceToolCallChain(
 
 export type ToolTerminalFrame = {
   jsx: React.ReactNode | null
-  shouldHidePromptInput: boolean
+  shouldHideComposer: boolean
   shouldContinueAnimation?: true
   showSpinner?: boolean
   isLocalJSXCommand?: boolean

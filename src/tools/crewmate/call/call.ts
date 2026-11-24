@@ -189,7 +189,7 @@ export async function crewmateToolCall(
   let promptMessages: Message[] = [createUserMessage({ content: input.prompt })]
   let systemPromptOverride: string[] | undefined
 
-  const workerTools = resolveCrewmateTools(
+  const crewmateTools = resolveCrewmateTools(
         agentDef,
         plan.crewmatePermissionMode,
         toolPoolOfTheTable(
@@ -227,7 +227,7 @@ export async function crewmateToolCall(
         context,
         plan.model,
         earlyAgentId,
-        new Set(workerTools.map(tool => tool.name)),
+        new Set(crewmateTools.map(tool => tool.name)),
         CREWMATE_SEAT,
       )
       systemPromptOverride = built.prompt
@@ -329,7 +329,7 @@ export async function crewmateToolCall(
 
   const effectiveSystemPromptOverride = cwdOverride ? undefined : systemPromptOverride
 
-  const runAgentParams = runCrewmateParamsOf({ agentDef, promptMessages, context, canUseTool, plan, querySource, structuredOutputSpec, effectiveSystemPromptOverride, modelForRunLoop, input, workerTools, worktreeInfo, launchDirectory, startTime, earlyAgentId, rootSetAppState })
+  const runAgentParams = runCrewmateParamsOf({ agentDef, promptMessages, context, canUseTool, plan, querySource, structuredOutputSpec, effectiveSystemPromptOverride, modelForRunLoop, input, workerTools: crewmateTools, worktreeInfo, launchDirectory, startTime, earlyAgentId, rootSetAppState })
 
   const agentContext = crewmateContextOf(earlyAgentId, agentDef, parentAssistantMessage)
 
@@ -420,7 +420,7 @@ function metadataOf(input: CrewmateToolInput, plan: CrewmateLaunchPlan, agentDef
   }
 }
 
-function runCrewmateParamsOf({ agentDef, promptMessages, context, canUseTool, plan, querySource, structuredOutputSpec, effectiveSystemPromptOverride, modelForRunLoop, input, workerTools, worktreeInfo, launchDirectory, startTime, earlyAgentId, rootSetAppState }: {
+function runCrewmateParamsOf({ agentDef, promptMessages, context, canUseTool, plan, querySource, structuredOutputSpec, effectiveSystemPromptOverride, modelForRunLoop, input, workerTools: crewmateTools, worktreeInfo, launchDirectory, startTime, earlyAgentId, rootSetAppState }: {
   agentDef: AgentDefinition; promptMessages: Message[]; context: ToolUseContext; canUseTool: CanUseToolFn; plan: CrewmateLaunchPlan; querySource: ReturnType<typeof getQuerySourceForAgent>
   structuredOutputSpec: ReturnType<typeof structuredOutputSpecOf>; effectiveSystemPromptOverride: string[] | undefined; modelForRunLoop: string | undefined; input: CrewmateToolInput
   workerTools: ReturnType<typeof resolveCrewmateTools>; worktreeInfo: Awaited<ReturnType<typeof createCrewmateWorktree>> | undefined; launchDirectory: string | undefined
@@ -442,7 +442,7 @@ function runCrewmateParamsOf({ agentDef, promptMessages, context, canUseTool, pl
     },
     ...(modelForRunLoop !== undefined ? { model: modelForRunLoop } : {}),
     ...(input.effort !== undefined ? { effortOverride: input.effort } : {}),
-    availableTools: workerTools,
+    availableTools: crewmateTools,
     ...(worktreeInfo ? { worktreePath: worktreeInfo.worktreePath } : {}),
     ...(worktreeInfo === undefined && launchDirectory !== undefined ? { cwd: launchDirectory } : {}),
     ...(input.review_receipt !== undefined ? { reviewReceipt: input.review_receipt } : {}),

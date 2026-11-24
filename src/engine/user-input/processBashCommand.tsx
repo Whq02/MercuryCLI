@@ -95,7 +95,7 @@ export async function processBashCommand(
           {progressJsx}
         </Box>
       ),
-      shouldHidePromptInput: false,
+      shouldHideComposer: false,
       deferIfLocalJSX: true,
     })
   }
@@ -168,6 +168,6 @@ export async function processBashCommand(
       shouldStartTurn: false,
     }
   } finally {
-    setToolJSX({ jsx: null, shouldHidePromptInput: false, clearUnlessLocalJSX: true })
+    setToolJSX({ jsx: null, shouldHideComposer: false, clearUnlessLocalJSX: true })
   }
 }

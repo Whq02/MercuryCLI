@@ -77,7 +77,7 @@ async function deliverCrewmateLine({
   targetTaskId,
   targetName,
   payload,
-  onCrewmateSubmit: onAgentSubmit,
+  onCrewmateSubmit,
   appStateStore,
   setAppState,
   addNotification,
@@ -109,8 +109,8 @@ async function deliverCrewmateLine({
     return false
   }
   const expanded = expandPastedTextRefs(payload, resolved.pastedContents)
-  if (onAgentSubmit !== undefined) {
-    await onAgentSubmit(expanded)
+  if (onCrewmateSubmit !== undefined) {
+    await onCrewmateSubmit(expanded)
     return true
   }
   const localTask = appStateStore.getState().tasks[targetTaskId]

@@ -94,7 +94,7 @@ check('while a session is landing the screen stays, though no session is in the 
 await stays('while a local dialog is up it stays', { landing: false, localJsx: true })
 await stays('while another surface covers the chat it stays', { localJsx: false, chatSurfaceCovered: true })
 await stays('while a line is armed for the landing it stays', { chatSurfaceCovered: false, armedMessage: { message: asked('an armed line') } as never })
-await stays('a dialog that mounted while the beat ran is read when it fires, and the screen stays', { armedMessage: null, toolJSXRef: { current: { jsx: null, shouldHidePromptInput: false, isLocalJSXCommand: true } as never } })
+await stays('a dialog that mounted while the beat ran is read when it fires, and the screen stays', { armedMessage: null, toolJSXRef: { current: { jsx: null, shouldHideComposer: false, isLocalJSXCommand: true } as never } })
 await t.plant({ localJsx: true })
 await t.plant({ localJsx: false, toolJSXRef: { current: null } })
 check('with none of them and no session in the slot the screen hands the frame to the landing for an absent chat, one beat later', await waitFor(() => t.route.currentSurfaceRoute().kind !== 'repl', 3000), t.route.currentSurfaceRoute().kind + settleWhere)

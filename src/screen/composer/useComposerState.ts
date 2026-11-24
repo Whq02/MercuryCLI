@@ -57,7 +57,7 @@ export function useComposerState({
   )
   const footerSelection = useAppState((s: AppState) => s.footerSelection)
   const viewSelectionMode = useAppState((s: AppState) => s.viewSelectionMode)
-  const viewingAgentTaskId = useAppState((s: AppState) => s.viewingCrewmateTaskId)
+  const viewingCrewmateTaskId = useAppState((s: AppState) => s.viewingCrewmateTaskId)
   const promptSuggestionEnabled = useAppState(
     (s: AppState) => s.promptSuggestionEnabled,
   )
@@ -124,7 +124,7 @@ export function useComposerState({
     viewedTask,
     footerSelection,
     viewSelectionMode,
-    viewingAgentTaskId,
+    viewingAgentTaskId: viewingCrewmateTaskId,
     promptSuggestionEnabled,
     speculationActive,
     cockpitActive,

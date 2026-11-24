@@ -71,7 +71,7 @@ export function ComposerFooterLeftSide({
   const tasks = useAppState((s: AppState) => s.tasks)
   const footerSelection = useAppState((s: AppState) => s.footerSelection)
   const toolPermissionContext = useAppState((s: AppState) => s.toolPermissionContext)
-  const viewingAgentTaskId = useAppState((s: AppState) => s.viewingCrewmateTaskId)
+  const viewingCrewmateTaskId = useAppState((s: AppState) => s.viewingCrewmateTaskId)
   const currentNotice = useAppState((s: AppState) => s.notifications.current)
   const viewedCrewmate = useViewedCrewmate()
   const selection = useSelection()
@@ -201,8 +201,8 @@ export function ComposerFooterLeftSide({
   }
 
   const parts: React.ReactNode[] = []
-  const viewingCrewmate = viewingAgentTaskId !== undefined
-  const viewedLocalTask = viewingAgentTaskId !== undefined ? tasks[viewingAgentTaskId] : undefined
+  const viewingCrewmate = viewingCrewmateTaskId !== undefined
+  const viewedLocalTask = viewingCrewmateTaskId !== undefined ? tasks[viewingCrewmateTaskId] : undefined
 
   if (viewingCrewmate) {
     const viewedFinished =

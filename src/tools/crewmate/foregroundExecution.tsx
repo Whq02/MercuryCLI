@@ -252,7 +252,7 @@ export async function runForegroundCrewmateExecution(
         hintShown = true
         toolUseContext.setToolJSX({
           jsx: <BackgroundHint />,
-          shouldHidePromptInput: false,
+          shouldHideComposer: false,
           shouldContinueAnimation: true,
           showSpinner: true,
         })

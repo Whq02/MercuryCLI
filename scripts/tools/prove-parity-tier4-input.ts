@@ -11,9 +11,9 @@ t('popNewestEditable stays retired', typeof queue.popNewestEditable === 'undefin
 t('popAllEditable stays retired', typeof queue.popAllEditable === 'undefined', '', 'remove the popAllEditable export from src/screen/composer/input-core/command-queue.ts')
 
 const { resolveToolJSX } = await import('../../src/screen/chat/toolJsxArbitration.ts')
-const dialog = { jsx: 'DIALOG', shouldHidePromptInput: false, isLocalJSXCommand: true } as never
-const progress = { jsx: 'PROGRESS', shouldHidePromptInput: false, deferIfLocalJSX: true } as never
-const teardown = { jsx: null, shouldHidePromptInput: false, clearUnlessLocalJSX: true } as never
+const dialog = { jsx: 'DIALOG', shouldHideComposer: false, isLocalJSXCommand: true } as never
+const progress = { jsx: 'PROGRESS', shouldHideComposer: false, deferIfLocalJSX: true } as never
+const teardown = { jsx: null, shouldHideComposer: false, clearUnlessLocalJSX: true } as never
 
 t(
   "a bang's progress render yields to a dialog already in the slot",
@@ -35,7 +35,7 @@ t(
 )
 t(
   'a bang progress render still paints when the slot is its own',
-  resolveToolJSX(progress, { jsx: 'P2', shouldHidePromptInput: false, deferIfLocalJSX: true } as never) !== progress,
+  resolveToolJSX(progress, { jsx: 'P2', shouldHideComposer: false, deferIfLocalJSX: true } as never) !== progress,
   '',
   'resolveToolJSX in src/screen/chat/toolJsxArbitration.ts must return the new progress state when the previous state is not a dialog',
 )

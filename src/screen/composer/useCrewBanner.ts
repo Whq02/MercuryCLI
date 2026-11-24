@@ -30,10 +30,10 @@ export function useCrewBanner(): { text: string; bgColor: keyof Theme } | null {
   const standalone = useAppState(
     (state: AppState) => state.standaloneAgentContext,
   )
-  const viewingAgentTaskId = useAppState(
+  const viewingCrewmateTaskId = useAppState(
     (state: AppState) => state.viewingCrewmateTaskId,
   )
-  void viewingAgentTaskId
+  void viewingCrewmateTaskId
 
   const state = store.getState()
 

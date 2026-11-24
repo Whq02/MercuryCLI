@@ -19,7 +19,7 @@ check('/compact is a session-seat command (the cockpit sends the line to the run
   const dialogs = await openDialogsPart('compact-seat-road-dialogs')
   const React = await import('react')
   await dialogs.plant({ focusedInputDialog: 'cost-threshold' })
-  await dialogs.plant({ focusedInputDialog: undefined, toolJSX: { jsx: React.createElement(React.Fragment), shouldHidePromptInput: false, isLocalJSXCommand: true } as never, localJsx: true })
+  await dialogs.plant({ focusedInputDialog: undefined, toolJSX: { jsx: React.createElement(React.Fragment), shouldHideComposer: false, isLocalJSXCommand: true } as never, localJsx: true })
   const builtElsewhere = dialogs.contexts.length
   await dialogs.plant({ toolJSX: null, localJsx: false, compactDetailUp: true })
   const modal = dialogs.part.value().centredModal as { type?: unknown; props?: { entry?: string; toolUseContext?: { planted?: string } } } | null

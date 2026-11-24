@@ -21,7 +21,7 @@ type SummaryNeeds = {
   promptText: string
   gauge: ReturnType<typeof readRequestGauge>
   overflow?: OverflowSignal
-  preCompactTokenCount: number
+  preFoldTokenCount: number
   landing?: number
   ceiling?: number
   fitsUnder: FitsUnder
@@ -35,7 +35,7 @@ export async function summariseForFold({
   promptText,
   gauge,
   overflow,
-  preCompactTokenCount,
+  preFoldTokenCount,
   landing,
   ceiling,
   fitsUnder,
@@ -65,7 +65,7 @@ export async function summariseForFold({
     let summaryInput = messages
     if (
       overflow !== undefined ||
-      preCompactTokenCount + fit.promptTokens > fit.blockingLimit ||
+      preFoldTokenCount + fit.promptTokens > fit.blockingLimit ||
       requestTokens > fit.limitTokens
     ) {
       let split: { retiring: Message[]; rounds: number } | null = null

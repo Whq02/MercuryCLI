@@ -121,9 +121,9 @@ await t.plant({ streamingSuppressed: true })
 check('where the reveal is suppressed the spinner stands though prose streams', rows() === 'spinner+rollup', rows())
 await t.plant({ streamingSuppressed: false, textActive: false, toolUseConfirmQueue: [{ toolUseID: 'toolu_1' }] as never })
 check('a permission card waiting gives the slot up', t.part.value().spinnerSlotReserved === false && rows() === 'rollup', rows())
-await t.plant({ toolUseConfirmQueue: [], toolJSX: { jsx: null, shouldHidePromptInput: false } as never })
+await t.plant({ toolUseConfirmQueue: [], toolJSX: { jsx: null, shouldHideComposer: false } as never })
 const underDialog = t.part.value().spinnerSlotReserved
-await t.plant({ toolJSX: { jsx: null, shouldHidePromptInput: false, showSpinner: true } as never })
+await t.plant({ toolJSX: { jsx: null, shouldHideComposer: false, showSpinner: true } as never })
 check('so does the dialog of a command, unless it asks for the spinner', underDialog === false && t.part.value().spinnerSlotReserved === true && rows() === 'spinner+rollup', `${underDialog} · ${rows()}`)
 const sleeping = createAssistantMessage({ content: [{ type: 'tool_use', id: 'toolu_sleep', name: 'Sleep', input: {} }] as never }) as never
 await t.plant({ toolJSX: null, messages: [sleeping], seatLive: live({ inFlight: true, phase: 'tool', inProgressToolUseIDs: new Set(['toolu_sleep']) }) })

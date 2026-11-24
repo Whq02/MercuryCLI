@@ -21,8 +21,8 @@ const check = (label: string, cond: boolean, detail = ''): void => {
     flying: await slot({}),
     stopping: await slot({ seatLive: IDLE_LIVE, isStopping: true }),
     resting: await slot({ seatLive: IDLE_LIVE }),
-    dialog: await slot({ toolJSX: { jsx: null, shouldHidePromptInput: false } as never }),
-    dialogWithSpinner: await slot({ toolJSX: { jsx: null, shouldHidePromptInput: false, showSpinner: true } as never }),
+    dialog: await slot({ toolJSX: { jsx: null, shouldHideComposer: false } as never }),
+    dialogWithSpinner: await slot({ toolJSX: { jsx: null, shouldHideComposer: false, showSpinner: true } as never }),
     card: await slot({ toolUseConfirmQueue: [{ toolUseID: 'toolu_gate' }] as never }),
   };
   await slot({});

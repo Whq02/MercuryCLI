@@ -843,7 +843,7 @@ export async function* runCrewmate(
     let stoppedEarly = false
 
     for (;;) {
-      const queryParams: TurnParams = {
+      const turnParams: TurnParams = {
         messages: currentMessages,
         systemPrompt: brandedSystemPrompt,
         userContext,
@@ -854,7 +854,7 @@ export async function* runCrewmate(
         ...(effectiveMaxTurns !== undefined ? { maxTurns: effectiveMaxTurns } : {}),
         deps: wrappedDeps,
       }
-      const turnStream = toolUseContext.startTurn(queryParams)
+      const turnStream = toolUseContext.startTurn(turnParams)
       const settled = settledSidechainMessages(turnStream, observeProgress)
       let lastAssistant: Message | undefined
       const conversationRows: Message[] = [...currentMessages]

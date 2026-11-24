@@ -30,31 +30,31 @@ interface LandingNeeds {
   landingCount: (rows: Message[]) => number
 }
 
-export function landFold(partial: FoldResult, messagesToKeep: Message[] | undefined, recentRounds: FoldMetadata['recentRounds'], { messages, boundary, ledger, prose, capsule, memoryText, suppressFollowUpQuestions, newestMessageFollows, before, landing, ceiling, foldTarget, splitRounds, selectTail, landingCount }: LandingNeeds): { partial: FoldResult; messagesToKeep: Message[] | undefined; truePostCompactTokenCount: number; folded: Map<string, string> } {
-  let truePostCompactTokenCount = landingCount(buildPostFoldMessages(partial))
+export function landFold(partial: FoldResult, messagesToKeep: Message[] | undefined, recentRounds: FoldMetadata['recentRounds'], { messages, boundary, ledger, prose, capsule, memoryText, suppressFollowUpQuestions, newestMessageFollows, before, landing, ceiling, foldTarget, splitRounds, selectTail, landingCount }: LandingNeeds): { partial: FoldResult; messagesToKeep: Message[] | undefined; truePostFoldTokenCount: number; folded: Map<string, string> } {
+  let truePostFoldTokenCount = landingCount(buildPostFoldMessages(partial))
   const room = landing ?? ceiling
-  if (room !== undefined && truePostCompactTokenCount >= room) {
+  if (room !== undefined && truePostFoldTokenCount >= room) {
     const fit = fitPostFoldUnderThreshold(partial, room, landingCount)
     if (fit.shed.length > 0) {
       logForDebugging(
-        `compact: post-compact estimate ${truePostCompactTokenCount} >= the landing line ${room} (threshold ${ceiling}); shed ${fit.shed.join(', ')} → ${fit.estimate}`,
+        `compact: post-compact estimate ${truePostFoldTokenCount} >= the landing line ${room} (threshold ${ceiling}); shed ${fit.shed.join(', ')} → ${fit.estimate}`,
       )
     }
     partial = fit.result
-    truePostCompactTokenCount = fit.estimate
+    truePostFoldTokenCount = fit.estimate
   }
 
   const completeFit = room === undefined ? { result: partial, estimate: landingCount(buildPostFoldMessages(partial)) } : fitPostFoldUnderThreshold(partial, room, landingCount)
   partial = completeFit.result
-  truePostCompactTokenCount = completeFit.estimate
-  if (truePostCompactTokenCount >= before && partial.attachments.some(isRestoredFileAttachment)) {
+  truePostFoldTokenCount = completeFit.estimate
+  if (truePostFoldTokenCount >= before && partial.attachments.some(isRestoredFileAttachment)) {
     const withoutFiles = { ...partial, attachments: withoutRestoredFiles(partial.attachments) }
     const withoutFilesEstimate = landingCount(buildPostFoldMessages(withoutFiles))
     logForDebugging(
-      `compact: post-compact estimate ${truePostCompactTokenCount} >= before ${before}; omitted restored file attachments → ${withoutFilesEstimate}`,
+      `compact: post-compact estimate ${truePostFoldTokenCount} >= before ${before}; omitted restored file attachments → ${withoutFilesEstimate}`,
     )
     partial = withoutFiles
-    truePostCompactTokenCount = withoutFilesEstimate
+    truePostFoldTokenCount = withoutFilesEstimate
   }
   const folded = new Map<string, string>()
   const rekeep = (keep: Message[], rounds: NonNullable<FoldMetadata['recentRounds']>): void => {
@@ -78,10 +78,10 @@ export function landFold(partial: FoldResult, messagesToKeep: Message[] | undefi
     annotateBoundaryWithWork(boundary, messages, keep, partial.summaryMessages.at(-1)!.uuid)
     const fitted = fitPostFoldUnderThreshold(partial, room ?? Infinity, landingCount)
     partial = fitted.result
-    truePostCompactTokenCount = fitted.estimate
+    truePostFoldTokenCount = fitted.estimate
   }
-  const widest = { partial, messagesToKeep, recentRounds, logicalParentUuid: boundary.logicalParentUuid, estimate: truePostCompactTokenCount }
-  while (room !== undefined && foldTarget === undefined && truePostCompactTokenCount >= room && recentRounds !== undefined && recentRounds.kept > Math.max(1, splitRounds)) {
+  const widest = { partial, messagesToKeep, recentRounds, logicalParentUuid: boundary.logicalParentUuid, estimate: truePostFoldTokenCount }
+  while (room !== undefined && foldTarget === undefined && truePostFoldTokenCount >= room && recentRounds !== undefined && recentRounds.kept > Math.max(1, splitRounds)) {
     const narrower = selectTail({ keepRounds: recentRounds.kept - 1 })
     if (narrower === null) break
     boundary.logicalParentUuid = narrower.precedingUuid
@@ -91,18 +91,18 @@ export function landFold(partial: FoldResult, messagesToKeep: Message[] | undefi
     const whole = messagesToKeep
     const target = foldTarget ?? room
     for (const result of foldableResults(whole)) {
-      if (truePostCompactTokenCount < target) break
+      if (truePostFoldTokenCount < target) break
       folded.set(result.toolUseId, foldedResultPlaceholder(result))
       const keep = withFoldedResults(whole, folded)
       rekeep(keep, { ...recentRounds, tokens: roughTokenCountEstimationForMessages(keep), folded: folded.size })
     }
   }
-  if (landing !== undefined && truePostCompactTokenCount >= landing && recentRounds !== undefined) {
+  if (landing !== undefined && truePostFoldTokenCount >= landing && recentRounds !== undefined) {
     if (widest.recentRounds !== undefined && widest.estimate < (ceiling ?? Infinity)) {
       folded.clear()
       partial = widest.partial
       messagesToKeep = widest.messagesToKeep
-      truePostCompactTokenCount = widest.estimate
+      truePostFoldTokenCount = widest.estimate
       boundary.logicalParentUuid = widest.logicalParentUuid
       recentRounds = widest.recentRounds
       annotateBoundaryWithPreservedSegment(boundary, partial.summaryMessages.at(-1)!.uuid, messagesToKeep ?? [])
@@ -111,6 +111,6 @@ export function landFold(partial: FoldResult, messagesToKeep: Message[] | undefi
     recentRounds = { ...recentRounds, reason: 'no-room' }
     boundary.compactMetadata.recentRounds = recentRounds
   }
-  if (ceiling !== undefined && truePostCompactTokenCount >= ceiling) throw new Error(postFoldOverThresholdMessage(truePostCompactTokenCount, ceiling))
-  return { partial, messagesToKeep, truePostCompactTokenCount, folded }
+  if (ceiling !== undefined && truePostFoldTokenCount >= ceiling) throw new Error(postFoldOverThresholdMessage(truePostFoldTokenCount, ceiling))
+  return { partial, messagesToKeep, truePostFoldTokenCount, folded }
 }

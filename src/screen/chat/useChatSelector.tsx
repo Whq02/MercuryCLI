@@ -50,9 +50,9 @@ export function useChatRewindPickerView({
   addNotification,
   setInputValue,
   setInputMode,
-  setShowRewindPicker: setShowMessageSelector,
-  rewindPickerPreselect: messageSelectorPreselect,
-  setRewindPickerPreselect: setMessageSelectorPreselect,
+  setShowRewindPicker,
+  rewindPickerPreselect,
+  setRewindPickerPreselect,
   focusedInputDialog,
   chatSurfaceCovered,
   messages,
@@ -144,8 +144,8 @@ export function useChatRewindPickerView({
     [addNotification, setInputMode, setInputValue],
   );
   const onSummarize = useCallback(async () => {
-    setShowMessageSelector(false);
-    setMessageSelectorPreselect(undefined);
+    setShowRewindPicker(false);
+    setRewindPickerPreselect(undefined);
     refuseSessionRewrite('summarising a stretch of the conversation');
   }, [refuseSessionRewrite]);
 
@@ -156,14 +156,14 @@ export function useChatRewindPickerView({
         onPreRestore={onCancel}
         onRestore={onRestore}
         onSummarize={onSummarize}
-        preselectedMessage={messageSelectorPreselect}
+        preselectedMessage={rewindPickerPreselect}
         providerOrigin={modelDisplayString(focusedEffectiveModel)}
         onViewOnly={() => {
           handleEnterTranscript();
           setScreen('transcript');
           setShowAllInTranscript(true);
-          setShowMessageSelector(false);
-          setMessageSelectorPreselect(undefined);
+          setShowRewindPicker(false);
+          setRewindPickerPreselect(undefined);
           addNotification({
             key: 'view-only-history',
             text: `read-only view — ${getShortcutDisplay('app:toggleTranscript', 'Global', 'ctrl+o')} returns; nothing changed`,
@@ -198,8 +198,8 @@ export function useChatRewindPickerView({
           const loaded = await loadConversationForResume(branchId, branch.branchTranscriptPath);
           if (!loaded) return { ok: false as const, reason: `branch created but not loadable — mercury --resume ${branchId}` };
           const branchLog: ResumableListing = { ...loaded, fullPath: branch.branchTranscriptPath };
-          setShowMessageSelector(false);
-          setMessageSelectorPreselect(undefined);
+          setShowRewindPicker(false);
+          setRewindPickerPreselect(undefined);
           await resume(branchId, branchLog, 'fork');
           const resubmit = textForResubmit(message);
           if (resubmit) {
@@ -215,8 +215,8 @@ export function useChatRewindPickerView({
           return { ok: true as const };
         }}
         onClose={() => {
-          setShowMessageSelector(false);
-          setMessageSelectorPreselect(undefined);
+          setShowRewindPicker(false);
+          setRewindPickerPreselect(undefined);
         }}
       />
     ) : null;

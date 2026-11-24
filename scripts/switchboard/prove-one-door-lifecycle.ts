@@ -79,7 +79,7 @@ console.log('C2 — the chat that fronts a resting slot, read off the mounted se
   const session = await openSessionPart('one-door-session', { keepHome: true })
   const kind = (): string => session.route.currentSurfaceRoute().kind
   const beat = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 450))
-  const dialog = { jsx: null, shouldHidePromptInput: false, isLocalJSXCommand: true } as never
+  const dialog = { jsx: null, shouldHideComposer: false, isLocalJSXCommand: true } as never
   process.env.MERCURY_FULLSCREEN = '0'
   await session.focus(null)
   await beat()

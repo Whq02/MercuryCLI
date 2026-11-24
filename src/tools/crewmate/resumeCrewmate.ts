@@ -337,8 +337,8 @@ export async function resumeCrewmateBackground(args: {
     ...(foldRequested === true ? { foldRequested } : {}),
   })
 
-  const workerPermissionMode = selectedAgent.permissionMode ?? 'implement'
-  let workerTools: ReturnType<typeof resolveCrewmateTools>
+  const crewmatePermissionMode = selectedAgent.permissionMode ?? 'implement'
+  let crewmateTools: ReturnType<typeof resolveCrewmateTools>
   try {
     await latchSwarmCrewmate(
       agentId,
@@ -351,12 +351,12 @@ export async function resumeCrewmateBackground(args: {
     const pool = assembleToolPool(
       {
         ...appState.toolPermissionContext,
-        mode: workerPermissionMode,
+        mode: crewmatePermissionMode,
       },
       appState.mcp.tools ?? [],
       agentId,
     )
-    workerTools = resolveCrewmateTools(selectedAgent, workerPermissionMode, pool)
+    crewmateTools = resolveCrewmateTools(selectedAgent, crewmatePermissionMode, pool)
   } catch (error) {
     failCrewmateTask(agentId, errorMessage(error), rootSetAppState, task.abortController)
     settleSwarmCrewmate(agentId)
@@ -413,7 +413,7 @@ export async function resumeCrewmateBackground(args: {
     rootSetAppState,
     canUseTool: args.canUseTool,
     abortController: task.abortController!,
-    workerTools,
+    workerTools: crewmateTools,
     restoredContexts,
     meta,
     restoredModel,
@@ -475,7 +475,7 @@ function startResumedLifecycle(input: {
     rootSetAppState,
     canUseTool,
     abortController,
-    workerTools,
+    workerTools: crewmateTools,
     restoredContexts,
     meta,
     restoredModel,
@@ -515,7 +515,7 @@ function startResumedLifecycle(input: {
             isAsync: true,
             resumed: true,
             querySource,
-            availableTools: workerTools,
+            availableTools: crewmateTools,
             override: {
               agentId: typedAgentId,
               abortController,

@@ -22,7 +22,7 @@ export type MessagesProps = {
   messages: WireMessage[]
   tools: Tools
   verbose: boolean
-  toolJSX: { jsx: React.ReactNode | null; shouldHidePromptInput: boolean } | null
+  toolJSX: { jsx: React.ReactNode | null; shouldHideComposer: boolean } | null
   toolUseConfirmQueue: unknown[]
   inProgressToolUseIDs: Set<string>
   isRewindPickerVisible: boolean
