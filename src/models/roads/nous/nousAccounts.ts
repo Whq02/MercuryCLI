@@ -20,10 +20,6 @@ export function nousChatCompletionsUrl(env: NodeJS.ProcessEnv = hostEnv(), sourc
   return `${nousApiBase(env, source === 'signin' ? nousStoredTokens() : undefined)}/chat/completions`
 }
 
-export function nousModelsUrl(env: NodeJS.ProcessEnv = hostEnv()): string {
-  return `${nousApiBase(env)}/models`
-}
-
 export function nousPortalBase(env: NodeJS.ProcessEnv = hostEnv()): string {
   return (flagEnv('MERCURY_NOUS_PORTAL_BASE', env)?.trim() || NOUS_PORTAL_BASE_URL).replace(/\/+$/, '')
 }
