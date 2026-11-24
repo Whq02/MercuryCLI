@@ -164,12 +164,12 @@ try {
   assert.match(boxServiceCommand({ ...machine, os: 'windows', home: 'C:\\Fixture\\Home' }, 'start'), /-Xml \(Get-Content -LiteralPath '[^']+task\.xml' -Raw -Encoding UTF8\)/)
   const winBox = { ...machine, name: 'win-fixture', os: 'windows' as const, home: 'C:\\Fixture\\Home', arch: 'amd64', unifiedMemory: false, memoryGb: 64, gpus: [], engines: [] }
   const winScripts: string[] = []
-  const winRunner = { ...runner, async run(_command: string, args: string[]) { const script = Buffer.from(args.at(-1)!, 'base64').toString('utf16le'); winScripts.push(script); if (script.includes('releases/download/v0.40.6')) throw new Error('install captured'); if (script.includes('Test-Path') || script.includes('WriteAllBytes') || script.includes('ScheduledTask')) return ''; throw new Error('not answering') } }
+  const winRunner = { ...runner, async run(_command: string, args: string[]) { const script = Buffer.from(args.at(-1)!, 'base64').toString('utf16le'); winScripts.push(script); if (script.includes('releases/download/v0.40.18')) throw new Error('install captured'); if (script.includes('Test-Path') || script.includes('WriteAllBytes') || script.includes('ScheduledTask')) return ''; throw new Error('not answering') } }
   const { boxEngineScript } = await import('../../src/models/hosting/boxEngine.js')
   const nemotron = BOX_RECIPES.find(row => row.id === 'nemotron35-bolt')!
   await assert.rejects(() => startBoxEngine(winBox, nemotron, { destination: 'C:\\Models', bank: false, confirmed: true, runner: winRunner }), /install captured/)
   assert.ok(winScripts.some(script => script.includes('RawContentStream') && script.includes('-UseBasicParsing')), 'Windows reads engine answers as raw UTF-8 without the Internet Explorer parser')
-  const winInstall = winScripts.find(script => script.includes('releases/download/v0.40.6'))!
+  const winInstall = winScripts.find(script => script.includes('releases/download/v0.40.18'))!
   assert.equal(winInstall.match(/Invoke-WebRequest -UseBasicParsing -Uri /g)?.length, 2)
   assert.match(winInstall, /-OutFile \$sumsFile; \$line=Get-Content -LiteralPath \$sumsFile/)
   const winLine = new RegExp(/-match '([^']+)'/.exec(winInstall)![1]!)
@@ -183,7 +183,7 @@ try {
   assert.equal(written(winScripts[1]!).toString('utf8'), boxServiceDocument(winBox))
   const linuxBox = { ...local, name: 'linux-ollama', os: 'linux' as const, arch: 'x86_64', unifiedMemory: false, memoryGb: 64, gpus: [], engines: [] }
   let linuxInstall = ''
-  const linuxRunner = { ...runner, async run(_command: string, args: string[]) { const script = args.at(-1) ?? ''; if (script.includes('releases/download/v0.40.6')) { linuxInstall = script; throw new Error('install captured') } if (script.includes('if test -e')) return ''; throw new Error('not answering') } }
+  const linuxRunner = { ...runner, async run(_command: string, args: string[]) { const script = args.at(-1) ?? ''; if (script.includes('releases/download/v0.40.18')) { linuxInstall = script; throw new Error('install captured') } if (script.includes('if test -e')) return ''; throw new Error('not answering') } }
   await assert.rejects(() => startBoxEngine(linuxBox, nemotron, { destination: '/srv/models', bank: false, confirmed: true, runner: linuxRunner }), /install captured/)
   const archiveCheck = linuxInstall.slice(linuxInstall.indexOf('-o SHA256SUMS; ') + '-o SHA256SUMS; '.length, linuxInstall.indexOf('; tar --zstd'))
   const release = join(process.env.MERCURY_CONFIG_DIR!, 'ollama-release')

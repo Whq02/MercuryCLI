@@ -8,6 +8,8 @@ import { hostRunner, type HostRunner } from './ssh.js'
 import { LLAMACPP_ENGINE_SHA } from './recipes.js'
 import { passedOverAs } from '../../platform/errors/passedOver.js'
 
+const OLLAMA_BOX_RELEASE = '0.40.18'
+
 interface BoxStartOptions { runner?: HostRunner; signal?: AbortSignal; timeoutMs?: number; pauseMs?: number; port?: number; bank: boolean; destination: string; confirmed: boolean; onStep?: (words: string) => void }
 export function boxEngineScript(box: HostBox, recipe: BoxRecipe, executable: string, destination: string, port: number, loadModel = true): string {
   const env: Record<string, string> = recipe.engine === 'ollama' ? { OLLAMA_HOST: '127.0.0.1:' + port, OLLAMA_MODELS: destination, OLLAMA_KEEP_ALIVE: '-1', ...(recipe.contextPerSlot ? { OLLAMA_CONTEXT_LENGTH: String(recipe.contextPerSlot) } : {}) } : {}
@@ -26,12 +28,12 @@ async function engineBinary(box: HostBox, recipe: BoxRecipe, runner: HostRunner,
   if (existing) return existing.path
   const dir = boxJoin(box, box.home, '.local', 'share', 'mercury-host', 'runtime')
   if (recipe.engine === 'ollama') {
-    step(box.os === 'darwin' ? 'installing Ollama with Homebrew' : 'downloading Ollama v0.40.6 for ' + box.os + ' ' + box.arch + ' and checking its checksum')
+    step(box.os === 'darwin' ? 'installing Ollama with Homebrew' : 'downloading Ollama v' + OLLAMA_BOX_RELEASE + ' for ' + box.os + ' ' + box.arch + ' and checking its checksum')
     if (box.os === 'darwin') return (await runBoxScript(box, 'command -v brew >/dev/null || { echo "Install Homebrew to install Ollama, or install Ollama and discover this computer again." >&2; exit 1; }; brew install ollama >&2; printf "%s/bin/ollama" "$(brew --prefix ollama)"', runner, signal, 30 * 60_000)).trim().split('\n').at(-1)!
     if (!['amd64', 'x86_64', 'arm64', 'aarch64'].includes(box.arch.toLowerCase())) throw new Error('Ollama has no selected package for this architecture: ' + box.arch)
     const arch = ['arm64', 'aarch64'].includes(box.arch.toLowerCase()) ? 'arm64' : 'amd64'
     const name = box.os === 'windows' ? 'ollama-windows-' + arch + '.zip' : 'ollama-linux-' + arch + '.tar.zst'
-    const base = 'https://github.com/ollama/ollama/releases/download/v0.40.6/'
+    const base = `https://github.com/ollama/ollama/releases/download/v${OLLAMA_BOX_RELEASE}/`
     const script = box.os === 'windows'
       ? '$dir=' + psQuote(dir) + '; New-Item -ItemType Directory -Force -Path $dir | Out-Null; $archive=Join-Path $dir ' + psQuote(name) + '; $sumsFile=Join-Path $dir ' + psQuote('sha256sum.txt') + '; Invoke-WebRequest -UseBasicParsing -Uri ' + psQuote(base + name) + ' -OutFile $archive; Invoke-WebRequest -UseBasicParsing -Uri ' + psQuote(base + 'sha256sum.txt') + ' -OutFile $sumsFile; $line=Get-Content -LiteralPath $sumsFile | Where-Object { $_ -match ' + psQuote('\\s(\\./)?' + name.replaceAll('.', '\\.') + '$') + ' } | Select-Object -First 1; if (!$line -or ($line.Trim() -split "\\s+")[0] -ne (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash) { throw "Ollama archive checksum failed" }; Expand-Archive -LiteralPath $archive -DestinationPath $dir -Force'
       : 'command -v zstd >/dev/null || { echo "Install zstd to unpack Ollama, or install Ollama and discover this computer again." >&2; exit 1; }; mkdir -p ' + shQuote(dir) + '; cd ' + shQuote(dir) + '; curl -fL ' + shQuote(base + name) + ' -o ' + shQuote(name) + '; curl -fL ' + shQuote(base + 'sha256sum.txt') + ' -o SHA256SUMS; line=$(grep -E ' + shQuote(' (\\./)?' + name.replaceAll('.', '\\.') + '$') + ' SHA256SUMS); printf "%s\\n" "$line" | sha256sum -c -; tar --zstd -xf ' + shQuote(name)
