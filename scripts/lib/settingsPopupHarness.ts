@@ -58,7 +58,7 @@ export async function releaseScratchHome(home: string): Promise<void> {
       return
     } catch (error) {
       fault = String(error)
-      if (attempt === 1) await settle(250)
+      if (attempt === 1) await pause(250)
     }
   }
   const swept = process.platform === 'win32' ? null : spawnSync('rm', ['-rf', home], { encoding: 'utf8' })
@@ -187,13 +187,15 @@ export async function mountOffscreen(element: unknown, columns: number, rows: nu
   }
 }
 
-export const settle = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
+export const pause = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
+
+export const settle = (ms: number): Promise<void> => pause(ms)
 
 export async function waitFor(pred: () => boolean, ms: number): Promise<boolean> {
   const deadline = Date.now() + ms
   while (Date.now() < deadline) {
     if (pred()) return true
-    await settle(40)
+    await pause(40)
   }
   return pred()
 }
