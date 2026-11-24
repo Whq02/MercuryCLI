@@ -5,6 +5,7 @@ prove-anthropic-account-switch.ts
 prove-automatic-resume-after-interrupted-launch.ts
 prove-board-wake-is-the-harness-notice.ts
 prove-board-wake-says-its-advice.ts
+prove-changed-file-note-reaches-its-reader-only.ts
 prove-completion-headroom.ts
 prove-crew-board-open-race.ts
 prove-crew-cleanup-reminds.ts
