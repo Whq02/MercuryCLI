@@ -316,7 +316,6 @@ const MERCURY_DESERT_VERBS: readonly string[] = [
   'Fork-choosing',
   'Papyrus-pressing',
   'Hardpan-treading',
-  'Mantis-swaying',
   'Grid-pinning',
   'Crate-battening',
   'Bajada-striding',
