@@ -96,7 +96,7 @@ export function renderFrontPage(input: {
     '# Memory',
     `What Mercury remembers about this project lives in topic pages under ${dir}. The index below names each topic; Recall searches the pages (query) or reads one whole (read:"doc:<slug>"). ${MEMORY_WRITE_VERBS_SENTENCE} Memory is a record of what was learned, not a second copy of the project: never save what the code, the git history or the instruction files already hold.`,
     '',
-    memoryRecallModeLine(dir),
+    memoryRecallModeLine(),
     MEMORY_EVIDENCE_CONTRACT,
     '',
     '## Index',

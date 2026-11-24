@@ -244,7 +244,7 @@ export function memoryRecallModeWords(opts: { home?: string; homeOnly?: boolean 
   return `semantic + word match (${ready.model})`
 }
 
-export function memoryRecallModeLine(dir: string): string {
+export function memoryRecallModeLine(): string {
   return `Recall ranks by ${memoryRecallModeWords()}.`
 }
 
