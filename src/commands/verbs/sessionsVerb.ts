@@ -2,7 +2,7 @@ import { readdir, stat } from 'node:fs/promises'
 import { createInterface } from 'node:readline'
 import { join } from 'node:path'
 import { getOriginalCwd } from '../../boot/process-state/processState.js'
-import { readSessionWorkers } from '../../daemon/concourse-workers/concourseWorkers.js'
+import { boardHomedSessionIds } from '../../daemon/concourse-workers/concourseWorkers.js'
 import { binaryName } from '../../platform/config/derived.js'
 import { getProjectDir, getProjectsDir } from '../../sessions/transcripts/paths.js'
 import { buildSessionDeleteOffer, operatorPruneTranscripts } from '../../daemon/switchboard/transcriptPruneDoor.js'
@@ -56,14 +56,6 @@ async function savedSessionNamed(sessionId: string, projectStore: string): Promi
   return null
 }
 
-function liveSessionIds(): Set<string> {
-  const live = new Set<string>()
-  for (const record of Object.values(readSessionWorkers())) {
-    if (record.endedAt === undefined) live.add(record.sessionId)
-  }
-  return live
-}
-
 const kib = (bytes: number): string => `${Math.max(1, Math.round(bytes / 1024))} KB`
 
 export async function sessionsDeleteCli(
@@ -84,7 +76,7 @@ export async function sessionsDeleteCli(
     io.err(`The roster is /sessions inside ${cli}; a session's id is the UUID in its .jsonl file name.`)
     return 1
   }
-  const offer = buildSessionDeleteOffer(saved, { scopeLabel: `session ${sessionId}`, liveSessionIds: liveSessionIds() })
+  const offer = buildSessionDeleteOffer(saved, { scopeLabel: `session ${sessionId}`, liveSessionIds: boardHomedSessionIds() })
   if (offer === null) {
     io.err(`Session ${sessionId} is live: the background process that hosts your sessions (the daemon) runs it now. Stop it first, then delete it.`)
     return 1
@@ -121,7 +113,7 @@ export async function sessionsListCli(options: { all?: boolean; limit?: number }
   const limit = options.limit !== undefined && Number.isFinite(options.limit) && options.limit > 0 ? Math.floor(options.limit) : 50
   const lite = options.all === true ? (await listSessionsAcrossProjectsProgressive(undefined, 0)).allStatLogs : await listSessions()
   const logs = await readListedSessions(lite, limit)
-  const live = liveSessionIds()
+  const live = boardHomedSessionIds()
   if (logs.length === 0) {
     io.out(options.all === true ? `No saved sessions under ${getProjectsDir()}.` : `No saved sessions for this project (${getProjectDir(getOriginalCwd())}); ${cli} sessions list --all reads every project.`)
     return 0

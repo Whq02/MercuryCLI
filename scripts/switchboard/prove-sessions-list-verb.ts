@@ -97,6 +97,36 @@ try {
     check('a bare `sessions` runs the listing (an action on the parent command)', bare.status === 0 && bare.stdout.startsWith('No saved sessions for this project') && unplaced(bare.stdout) === unplaced(listed.stdout) && builtHelp('sessions').includes(' --all ') && builtHelp('sessions').includes(' --limit <n> '))
     check('`sessions list` is a sub-command with --all and --limit', builtHelp('sessions', 'list').includes('Usage: mercury sessions list [options]') && builtHelp('sessions', 'list').includes('--all List the saved sessions of every project, not only this one') && builtHelp('sessions', 'list').includes('--limit <n>'))
   }
+  section('§4 a parked session is not live: `sessions delete` removes it, and only a session the board still homes is refused (the Windows box, report 428; liveness is boardHomedSessionIds in src/daemon/concourse-workers/queries.ts, read by src/commands/verbs/sessionsVerb.ts)')
+  {
+    const { existsSync } = await import('node:fs')
+    const workers = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+    const deleteVerb = (await import('../../src/commands/verbs/sessionsVerb.ts')).sessionsDeleteCli
+    const parked = '44444444-4444-4444-8444-444444444444'
+    const homed = '55555555-5555-4555-8555-555555555555'
+    seed(STORE, parked, '2026-10-04T00:00:00.000Z', 'a parked chat')
+    seed(STORE, homed, '2026-10-05T00:00:00.000Z', 'a chat the board still homes')
+    const now = Date.now()
+    const record = (runnerId: string, sessionId: string, more: Record<string, unknown>): Record<string, unknown> => ({ schema: 1, runnerId, sessionId, workspaceId: PROJ, isolation: 'shared', modelKey: 'claude-sonnet-5', spawnedAt: now - 60_000, lastLiveAt: now - 50_000, ...more })
+    workers.updateConcourseWorkers(records => {
+      Object.assign(records, {
+        'concourse-w1': record('concourse-w1', parked, { pid: 2_147_000_000, parkedAt: now - 40_000, parkedBy: 'operator' }),
+        'concourse-w2': record('concourse-w2', homed, { pid: process.pid }),
+      })
+    })
+    const remove = async (sessionId: string): Promise<{ code: number; out: string[]; err: string[] }> => {
+      const out: string[] = []
+      const err: string[] = []
+      const code = await deleteVerb(sessionId, { yes: true }, { out: (l: string) => out.push(l), err: (l: string) => err.push(l), interactive: false, ask: async () => false })
+      return { code, out, err }
+    }
+    const listed = await run({})
+    check('the list marks the homed session live and the parked one not', listed.out.some(l => l.startsWith(homed) && l.includes('  live  ')) && listed.out.some(l => l.startsWith(parked) && !l.includes('  live  ')), listed.out.join('\n'))
+    const refused = await remove(homed)
+    check('a session the board still homes is refused as live, and its transcript stands', refused.code === 1 && refused.err.some(l => l.includes('is live')) && existsSync(join(STORE, `${homed}.jsonl`)), JSON.stringify(refused))
+    const removed = await remove(parked)
+    check('the parked session, whose runner is gone, is deleted', removed.code === 0 && removed.out.some(l => l.startsWith(`Deleted session ${parked}`)) && !existsSync(join(STORE, `${parked}.jsonl`)), JSON.stringify(removed))
+  }
 } finally {
   removeScratch(HOME)
   removeScratch(PROJ)
