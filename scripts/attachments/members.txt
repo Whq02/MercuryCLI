@@ -25,3 +25,4 @@ prove-session-context-once.ts
 prove-turn-attachment-roster.ts
 prove-image-survives-slow-ocr.ts
 prove-attachment-producers-per-seat.ts
+prove-changed-file-scan-gives-the-thread-back.ts

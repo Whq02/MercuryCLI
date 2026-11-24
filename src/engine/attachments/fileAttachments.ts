@@ -26,6 +26,7 @@ import { matchingRuleForInput } from '../../permissions/rules/filesystem.js'
 import { isFileReadDenied } from '../attachment-shapes/fileReadDenied.js'
 import type { AlreadyReadFileAttachment, Attachment, FoldFileReferenceAttachment, DroppedImageAttachment, FileAttachment, PDFReferenceAttachment } from '../attachment-shapes/attachmentTypes.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
+import { sleep } from '../../platform/async/sleep.js'
 
 type FileRow =
   | FileAttachment
@@ -215,38 +216,85 @@ async function changedContent(filename: string, previous: string, output: ReadOu
   return []
 }
 
-async function changedFile(key: string, context: ToolUseContext, state: ReturnType<ToolUseContext['getAppState']>): Promise<Attachment[]> {
+type MovedRead = { key: string; path: string; previous: FileState; windowed: boolean }
+type FreshRead = { key: string; path: string; previous: FileState; data: ReadOutput }
+
+async function movedRead(key: string, context: ToolUseContext, state: ReturnType<ToolUseContext['getAppState']>): Promise<MovedRead | null> {
   const previous = context.readFileState.get(key)
-  if (!previous) return []
-  if (isRemotePath(key)) return []
+  if (!previous) return null
+  if (isRemotePath(key)) return null
   const windowed = (previous.offset ?? 0) !== 0 || previous.limit !== undefined
-  if (windowed && previous.isPartialView) return []
+  if (windowed && previous.isPartialView) return null
   const path = expandPath(key)
-  if (isFileReadDenied(path, state.toolPermissionContext)) return []
+  if (isFileReadDenied(path, state.toolPermissionContext)) return null
   try {
-    if (await getFileModificationTimeAsync(path) <= previous.timestamp) return []
+    if (await getFileModificationTimeAsync(path) <= previous.timestamp) return null
     if (isDirectoryTarget(path)) {
       context.readFileState.delete(key)
-      return []
+      return null
     }
+    return { key, path, previous, windowed }
+  } catch (failure) {
+    if (isENOENT(failure)) context.readFileState.delete(key)
+    return null
+  }
+}
+
+async function freshRead({ key, path, previous, windowed }: MovedRead, context: ToolUseContext): Promise<FreshRead | null> {
+  try {
     const input = { file_path: path, ...(windowed && previous.offset ? { offset: previous.offset } : {}), ...(windowed && previous.limit !== undefined ? { limit: previous.limit } : {}) }
-    if (!(await ReadTool.validateInput(input, context)).result) return []
+    if (!(await ReadTool.validateInput(input, context)).result) return null
     const read = await ReadTool.call(input, context)
     if (windowed) context.readFileState.delete(path)
     else {
       const now = context.readFileState.get(path)
       if (now !== undefined) context.readFileState.set(path, { ...now, offset: undefined })
     }
-    return await changedContent(path, previous.content, read.data, Math.max(1, previous.offset ?? 1))
+    return { key, path, previous, data: read.data }
+  } catch (failure) {
+    if (isENOENT(failure)) context.readFileState.delete(key)
+    return null
+  }
+}
+
+async function changedFile({ key, path, previous, data }: FreshRead, context: ToolUseContext): Promise<Attachment[]> {
+  try {
+    return await changedContent(path, previous.content, data, Math.max(1, previous.offset ?? 1))
   } catch (failure) {
     if (isENOENT(failure)) context.readFileState.delete(key)
     return []
   }
 }
 
+const CHANGED_FILE_SLICE_MS = 8
+const CHANGED_FILE_READ_AHEAD = 8
+
 export async function getChangedFiles(context: ToolUseContext): Promise<Attachment[]> {
   const keys = cacheKeys(context.readFileState)
   if (!keys.length) return []
   const state = context.getAppState()
-  return (await Promise.all(keys.map(key => changedFile(key, context, state)))).flat()
+  const moved = (await Promise.all(keys.map(key => movedRead(key, context, state)))).filter(read => read !== null)
+  const calledOff = context.abortController.signal
+  const notes: Attachment[] = []
+  const fresh: Array<FreshRead | null> = []
+  let told = 0
+  while (told < moved.length && !calledOff.aborted) {
+    fresh.push(...(await Promise.all(moved.slice(told, told + CHANGED_FILE_READ_AHEAD).map(read => freshRead(read, context)))))
+    let sliceStartedAt = performance.now()
+    for (; told < fresh.length && !calledOff.aborted; told++) {
+      const read = fresh[told]
+      if (!read) continue
+      if (performance.now() - sliceStartedAt >= CHANGED_FILE_SLICE_MS) {
+        await sleep(0)
+        sliceStartedAt = performance.now()
+      }
+      notes.push(...(await changedFile(read, context)))
+    }
+  }
+  const untold = moved.slice(told).map((read, at) => ({ read, fresh: fresh[told + at] }))
+  for (const { read, fresh: unsaid } of untold.reverse()) {
+    if (unsaid) context.readFileState.set(read.key, read.previous)
+    else context.readFileState.get(read.key)
+  }
+  return notes
 }
