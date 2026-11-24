@@ -135,7 +135,7 @@ export function SelectMulti<T = string>({
                   value={state.inputValues.get(val) ?? ''}
                   onChange={text => state.updateInputValue(val, text)}
                   onSubmit={text => state.activateInputValue(val, 'enter', text)}
-                  reservedIndexWidth={hideIndexes ? 0 : digitWidth}
+                  reservedIndexWidth={hideIndexes ? 0 : Math.max(digitWidth, inputOption.indexLabel?.length ?? 0)}
                   index={option.index + 1}
                   shouldShowDownArrow={false}
                   shouldShowUpArrow={false}
