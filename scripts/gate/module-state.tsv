@@ -1977,7 +1977,6 @@ src/models/roads/anthropic/cacheAndUsage.ts	cacheCounters	process	module	Load-ti
 src/models/roads/anthropic/cacheDiagnostics.ts	refusal	process	module	process-wide latch disabling Anthropic cache diagnostics param after HTTP 400 refusal
 src/models/roads/anthropic/messageEffort.ts	refusal	process	module	process-wide latch disabling message-level effort rows after HTTP 400 refusal
 src/models/roads/anthropic/mockRateLimits.ts	CLAIM_DERIVED_TYPES	process	module	Load-time lookup with no local writer
-src/models/roads/anthropic/mockRateLimits.ts	SCENARIO_DESCRIPTIONS	process	module	Load-time table with no local writer
 src/models/roads/anthropic/mockRateLimits.ts	WARNING_HEADER_KEYS	process	module	Load-time list with no local writer
 src/models/roads/anthropic/mockRateLimits.ts	enabled	test	module	mock rate-limit activation flag gated on MERCURY_MOCK_LIMITS for dev/test scenarios
 src/models/roads/anthropic/mockRateLimits.ts	exceededLimits	test	module	mock rate-limit exceeded-window list gated on MERCURY_MOCK_LIMITS for dev/test scenarios
