@@ -2,6 +2,8 @@ import { mkdir, readFile, stat, unlink, writeFile } from 'node:fs/promises'
 import { dirname, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { formatEditPreview, type NormalizedFileEdits, type WorkspaceEditLike } from '../../../integrations/lsp/workspaceEditApply.js'
+import { snapshotDiagnosticsBeforeWrite } from '../../../integrations/lsp/LSPDiagnosticRegistry.js'
+import { ownerFromToolUseContext } from '../../../engine/run-owner/resolveOwner.js'
 import { renameWithWin32Retry } from '../../../platform/substrate/durablePublish.js'
 import { logForDebugging } from '../../../platform/logs/debugLog.js'
 import { errorMessage, getErrnoCode } from '../../../platform/errors/errors.js'
@@ -312,6 +314,7 @@ export async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
   if (!isDirectory) {
     try {
       movedText = await readFile(newPath, 'utf8')
+      snapshotDiagnosticsBeforeWrite(newPath, null, movedText, env.manager.getDocumentVersion(newPath), ownerFromToolUseContext(env.context))
       await env.manager.openFile(newPath, movedText)
     } catch (error) {
       logForDebugging(`lsp ops: post-move open failed: ${String(error)}`)
