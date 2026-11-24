@@ -1359,7 +1359,6 @@ src/integrations/mcp/automationAccess.ts	secret	process	module	Load-time definit
 src/integrations/mcp/automationGateway.ts	grantSchema	process	module	Load-time definition shared by all callers
 src/integrations/mcp/automationServer.ts	automationSchemas	process	module	Load-time table with no local writer
 src/integrations/mcp/automationServer.ts	id	process	module	Load-time definition shared by all callers
-src/integrations/mcp/client.ts	clearMcpAuthCache	reset-export
 src/integrations/mcp/client.ts	clearServerCache	reset-export
 src/integrations/mcp/client.ts	connectToServer	process	module	memoized shared MCP server connection pool keyed by getServerCacheKey
 src/integrations/mcp/client.ts	fetchCommandsForClient	process	module	LRUCache (max 20) memoized MCP prompts/commands list keyed by server name
