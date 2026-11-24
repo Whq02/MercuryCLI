@@ -1011,6 +1011,9 @@ src/integrations/blender-protocol/blenderProject.ts	SKIP_DIRS	process	module	Loa
 src/integrations/blender-protocol/blenderProject.ts	versionCache	process	module	mtime+size / 30s TTL cache of blender --version keyed by binary path (has _resetBlenderVersionProbeForTesting)
 src/integrations/blender-protocol/bridgeGates.ts	blendContextCache	process	module	30s TTL single-slot memo of .blend discovery checked against resolved cwd (has _resetBlenderBridgeContextCacheForTesting)
 src/integrations/blender-protocol/bridgeGates.ts	locatedCache	process	module	30s TTL memo of host Blender app lookup (has _resetBlenderBridgeContextCacheForTesting)
+src/integrations/blender-protocol/bridgeProtocol.ts	BLENDER_BRIDGE_CLIENT_ERROR_CODES	process	module	load-time data; no local writer
+src/integrations/blender-protocol/bridgeProtocol.ts	BLENDER_BRIDGE_EVENTS	process	module	load-time data; no local writer
+src/integrations/blender-protocol/bridgeProtocol.ts	BLENDER_BRIDGE_SERVER_ERROR_CODES	process	module	load-time data; no local writer
 src/integrations/blender-protocol/bridgeProtocol.ts	BLENDER_BRIDGE_VERBS	process	module	Load-time table with no local writer
 src/integrations/blender/bridgeClient.ts	resetBlenderBridgeClientForTest	reset-export
 src/integrations/blender/bridgeClient.ts	singleton	process	module	singleton TCP bridge client to the single local Blender addon window, keyed by port:token
@@ -1536,6 +1539,9 @@ src/integrations/skills/loadSkillsDir.ts	loadAllSkillsMemo	process	module	Proces
 src/integrations/skills/loadSkillsDir.ts	pendingConditional	owner	module	session; module Map of withheld path-filtered conditional skills shared across owners; cleared on clearSkillCaches/clearDynamicSkills; missing owner end
 src/integrations/skills/loadSkillsDir.ts	skillLoadRefusals	owner	module	Session skill-load notices retained until cleared
 src/integrations/skills/loadSkillsDir.ts	skillsLoadedSignal	process	module	process signal notifying subscribers when dynamic or conditional skills activate, bounded by caller unsubscribe
+src/integrations/unity-protocol/bridgeProtocol.ts	UNITY_BRIDGE_CLIENT_ERROR_CODES	process	module	load-time data; no local writer
+src/integrations/unity-protocol/bridgeProtocol.ts	UNITY_BRIDGE_EVENTS	process	module	load-time data; no local writer
+src/integrations/unity-protocol/bridgeProtocol.ts	UNITY_BRIDGE_SERVER_ERROR_CODES	process	module	load-time data; no local writer
 src/integrations/unity-protocol/bridgeProtocol.ts	UNITY_BRIDGE_VERBS	process	module	Load-time table with no local writer
 src/integrations/unity/bridgeClient.ts	resetUnityBridgeClientForTest	reset-export
 src/integrations/unity/bridgeClient.ts	singleton	process	module	single cached Unity Editor TCP bridge client keyed by projectRoot+port
