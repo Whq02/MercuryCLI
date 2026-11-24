@@ -23,7 +23,7 @@ import {
 import {
   getAdvisorNoteAttachments,
   getSwarmAttachments,
-  getAgentPendingMessageAttachments,
+  getCrewmatePendingMessageAttachments,
   getQueuedCommandAttachments,
 } from './queuedCommands.js'
 import {
@@ -203,7 +203,7 @@ export async function getAttachments(
       ...(opening
         ? [maybe('task_reminders', () => getTaskReminderAttachments(history, toolUseContext))]
         : []),
-      maybe('agent_pending_messages', () => getAgentPendingMessageAttachments(toolUseContext), {
+      maybe('agent_pending_messages', () => getCrewmatePendingMessageAttachments(toolUseContext), {
         priority: true,
       }),
       ...(!options?.localSubmission

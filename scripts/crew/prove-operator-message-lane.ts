@@ -10,7 +10,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 await import('../../src/engine/tasks/tasks.js')
 const { drainPendingMessages, peekOperatorMessages, queueOperatorMessage, queuePendingMessage, takeOperatorMessages } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
 const { composerTargetTaskId, composerTargetPinned } = await import('../../src/screen/app-state/selectors.js')
-const { clearMainChat, enterCrewmateView, exitCrewmateView, setMainChat, stopOrDismissAgent } = await import('../../src/crew/crewmates/crewmateView.js')
+const { clearMainChat, enterCrewmateView, exitCrewmateView, setMainChat, stopOrDismissCrewmate } = await import('../../src/crew/crewmates/crewmateView.js')
 const { crewmateComposerHint, crewmateHeaderTail, crewmateStatusWords, crewmatePlaceholder, crewmateCardKeys, BACK_HINT, LEAD_ROW_NAME } = await import('../../src/screen/cockpit/crewmateWords.js')
 
 let failures = 0
@@ -79,39 +79,39 @@ section('§3 the composer\'s target: the pin outlives the view, esc leaves it al
   check('pinning the pinned crewmate again is the identity update', store.state === before, 'setMainChat in src/crew/crewmates/crewmateView.ts must return the previous state object when the task is already pinned')
   const taskA1 = store.state.tasks.a1 as { status: string; evictAfter?: number }
   store.state = { ...store.state, tasks: { ...store.state.tasks, a1: { ...taskA1, status: 'completed' } } }
-  stopOrDismissAgent('a1', store.set)
+  stopOrDismissCrewmate('a1', store.set)
   check('dismissing the pinned crewmate releases the pin', store.state.mainChatTaskId === undefined, 'stopOrDismissAgent in src/crew/crewmates/crewmateView.ts must clear mainChatTaskId when it dismisses the pinned crewmate')
 }
 
 section('§4 the operator\'s interrupt: one crewmate, a typed kind the lead can tell apart')
 {
-  const { AGENT_INTERRUPT_BY_OPERATOR, AGENT_INTERRUPTED_STATUS_WORD, AGENT_INTERRUPTED_WORDS, AGENT_STOP_BY_OPERATOR, agentStopReasonOf, agentStopStatusWordOf, enqueueAgentNotification } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
+  const { CREWMATE_INTERRUPT_BY_OPERATOR, CREWMATE_INTERRUPTED_STATUS_WORD, CREWMATE_INTERRUPTED_WORDS, CREWMATE_STOP_BY_OPERATOR, crewmateStopReasonOf, crewmateStopStatusWordOf, enqueueCrewmateNotification } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
   const { turnCutLine, turnCutOf } = await import('../../src/engine/message-shapes/turnCut.js')
   const { interruptCrewmate } = await import('../../src/screen/tasks/crewmateInterrupt.js')
   const { dequeueAll, resetCommandQueue } = await import('../../src/screen/composer/input-core/command-queue.js')
-  check('the operator\'s interrupt is a typed cut of the operator\'s own kind — the crewmate\'s transcript row is the lead\'s own interrupt row', turnCutOf(AGENT_INTERRUPT_BY_OPERATOR).kind === 'operator' && turnCutLine(turnCutOf(AGENT_INTERRUPT_BY_OPERATOR), false) === '[Request interrupted by user]' && turnCutLine(turnCutOf(AGENT_INTERRUPT_BY_OPERATOR), true) === '[Request interrupted by user for tool use]', 'turnCutOf and turnCutLine in src/engine/message-shapes/turnCut.ts must treat AGENT_INTERRUPT_BY_OPERATOR as the operator kind and print the two interrupt rows')
-  check('the stop words and the status word name the operator, distinct from the crew view\'s stop', agentStopReasonOf(AGENT_INTERRUPT_BY_OPERATOR) === AGENT_INTERRUPTED_WORDS && agentStopStatusWordOf(AGENT_INTERRUPT_BY_OPERATOR) === AGENT_INTERRUPTED_STATUS_WORD && agentStopReasonOf(AGENT_STOP_BY_OPERATOR) === 'stopped from the crew view' && agentStopStatusWordOf(AGENT_STOP_BY_OPERATOR) === undefined && agentStopStatusWordOf('stalled') === undefined, 'agentStopReasonOf and agentStopStatusWordOf in src/engine/tasks/local-agent/crewmateTask.ts must map the operator interrupt to the interrupted words and status word, and the crew view stop to its own words with no status word')
+  check('the operator\'s interrupt is a typed cut of the operator\'s own kind — the crewmate\'s transcript row is the lead\'s own interrupt row', turnCutOf(CREWMATE_INTERRUPT_BY_OPERATOR).kind === 'operator' && turnCutLine(turnCutOf(CREWMATE_INTERRUPT_BY_OPERATOR), false) === '[Request interrupted by user]' && turnCutLine(turnCutOf(CREWMATE_INTERRUPT_BY_OPERATOR), true) === '[Request interrupted by user for tool use]', 'turnCutOf and turnCutLine in src/engine/message-shapes/turnCut.ts must treat AGENT_INTERRUPT_BY_OPERATOR as the operator kind and print the two interrupt rows')
+  check('the stop words and the status word name the operator, distinct from the crew view\'s stop', crewmateStopReasonOf(CREWMATE_INTERRUPT_BY_OPERATOR) === CREWMATE_INTERRUPTED_WORDS && crewmateStopStatusWordOf(CREWMATE_INTERRUPT_BY_OPERATOR) === CREWMATE_INTERRUPTED_STATUS_WORD && crewmateStopReasonOf(CREWMATE_STOP_BY_OPERATOR) === 'stopped from the crew view' && crewmateStopStatusWordOf(CREWMATE_STOP_BY_OPERATOR) === undefined && crewmateStopStatusWordOf('stalled') === undefined, 'agentStopReasonOf and agentStopStatusWordOf in src/engine/tasks/local-agent/crewmateTask.ts must map the operator interrupt to the interrupted words and status word, and the crew view stop to its own words with no status word')
   const notices = (reason: string): string => {
     resetCommandQueue()
     const store = makeStore({ n1: agent('n1', 'killed') })
-    enqueueAgentNotification({ taskId: 'n1', description: 'Lane n1', status: 'killed', setAppState: store.set, stopReason: agentStopReasonOf(reason), statusWord: agentStopStatusWordOf(reason) })
+    enqueueCrewmateNotification({ taskId: 'n1', description: 'Lane n1', status: 'killed', setAppState: store.set, stopReason: crewmateStopReasonOf(reason), statusWord: crewmateStopStatusWordOf(reason) })
     const queued = dequeueAll()
     return queued.map(command => (typeof command.value === 'string' ? command.value : '')).join('\n')
   }
-  const interrupted = notices(AGENT_INTERRUPT_BY_OPERATOR)
-  const stopped = notices(AGENT_STOP_BY_OPERATOR)
+  const interrupted = notices(CREWMATE_INTERRUPT_BY_OPERATOR)
+  const stopped = notices(CREWMATE_STOP_BY_OPERATOR)
   console.log(`  the lead's notice for an interrupted crewmate:\n${interrupted.split('\n').map(line => `    ${line}`).join('\n')}`)
-  check('the lead\'s notice carries the typed kind <status>interrupted</status> and says the operator cut it off', interrupted.includes(`<status>${AGENT_INTERRUPTED_STATUS_WORD}</status>`) && interrupted.includes(AGENT_INTERRUPTED_WORDS) && interrupted.includes('the operator cut it off on purpose — not a fault, not a loop stop'), interrupted.slice(0, 300))
-  check('a crewmate stopped from the crew view carries the plain killed status and never the interrupted kind', stopped.includes('<status>killed</status>') && stopped.includes('stopped from the crew view') && !stopped.includes(`<status>${AGENT_INTERRUPTED_STATUS_WORD}</status>`) && !stopped.includes(AGENT_INTERRUPTED_WORDS), stopped.slice(0, 300))
+  check('the lead\'s notice carries the typed kind <status>interrupted</status> and says the operator cut it off', interrupted.includes(`<status>${CREWMATE_INTERRUPTED_STATUS_WORD}</status>`) && interrupted.includes(CREWMATE_INTERRUPTED_WORDS) && interrupted.includes('the operator cut it off on purpose — not a fault, not a loop stop'), interrupted.slice(0, 300))
+  check('a crewmate stopped from the crew view carries the plain killed status and never the interrupted kind', stopped.includes('<status>killed</status>') && stopped.includes('stopped from the crew view') && !stopped.includes(`<status>${CREWMATE_INTERRUPTED_STATUS_WORD}</status>`) && !stopped.includes(CREWMATE_INTERRUPTED_WORDS), stopped.slice(0, 300))
   resetCommandQueue()
   const a = new AbortController()
   const b = new AbortController()
   const store = makeStore({ a1: { ...agent('a1'), abortController: a }, a2: { ...agent('a2'), abortController: b } })
   const stops: Array<{ id: string; note?: string }> = []
   const road = interruptCrewmate('a1', store.state as never, store.set, async (id, note) => { stops.push({ id, note }) })
-  check('a local crewmate\'s interrupt aborts ITS controller with the typed reason and leaves the other crewmate running', road === 'local' && a.signal.aborted && a.signal.reason === AGENT_INTERRUPT_BY_OPERATOR && !b.signal.aborted && stops.length === 0, `interruptCrewmate in src/screen/tasks/crewmateInterrupt.ts must abort only the named local crewmate with AGENT_INTERRUPT_BY_OPERATOR; road was ${road}`)
+  check('a local crewmate\'s interrupt aborts ITS controller with the typed reason and leaves the other crewmate running', road === 'local' && a.signal.aborted && a.signal.reason === CREWMATE_INTERRUPT_BY_OPERATOR && !b.signal.aborted && stops.length === 0, `interruptCrewmate in src/screen/tasks/crewmateInterrupt.ts must abort only the named local crewmate with AGENT_INTERRUPT_BY_OPERATOR; road was ${road}`)
   const hosted = interruptCrewmate('h9', store.state as never, store.set, async (id, note) => { stops.push({ id, note }) })
-  check('a hosted crewmate\'s interrupt takes the connector\'s stop door with the typed note, once, for that id alone', hosted === 'hosted' && JSON.stringify(stops) === JSON.stringify([{ id: 'h9', note: AGENT_INTERRUPT_BY_OPERATOR }]), `interruptCrewmate in src/screen/tasks/crewmateInterrupt.ts must call the stop door once with the typed note for an id with no local task; got ${hosted} and ${JSON.stringify(stops)}`)
+  check('a hosted crewmate\'s interrupt takes the connector\'s stop door with the typed note, once, for that id alone', hosted === 'hosted' && JSON.stringify(stops) === JSON.stringify([{ id: 'h9', note: CREWMATE_INTERRUPT_BY_OPERATOR }]), `interruptCrewmate in src/screen/tasks/crewmateInterrupt.ts must call the stop door once with the typed note for an id with no local task; got ${hosted} and ${JSON.stringify(stops)}`)
   const idle = interruptCrewmate('a2', { tasks: { a2: agent('a2', 'completed') } } as never, store.set, async () => {})
   check('a crewmate between turns has nothing to interrupt', idle === 'idle', `interruptCrewmate in src/screen/tasks/crewmateInterrupt.ts must return idle for a task that is not running; got ${idle}`)
 }

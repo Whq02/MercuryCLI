@@ -1,20 +1,20 @@
 import { z } from 'zod/v4'
 
-import { isLocalAgentTask } from '../../engine/tasks/local-agent/crewmateTask.js'
+import { isCrewmateTask } from '../../engine/tasks/local-agent/crewmateTask.js'
 import { isLocalShellTask, type LocalShellTaskState } from '../../engine/tasks/local-shell/shellTaskState.js'
 import { isTerminalTaskStatus, type TaskStateBase } from '../../engine/tasks/taskBase.js'
 import {
   bareMissWords,
-  finishedAgentFromRow,
-  finishedAgentWords,
+  finishedCrewmateFromRow,
+  finishedCrewmateWords,
   finishedShellFromRow,
   finishedShellWords,
   finishedTaskOnDisk,
-  isPausedAgentRow,
+  isPausedCrewmateRow,
   resolveStopTargetId,
   stopTask,
   stoppedWhilePausedWords,
-  type FinishedAgent,
+  type FinishedCrewmate,
   type FinishedShell,
 } from '../../engine/tasks/stopTask.js'
 import { buildTool, type ToolDef, type ToolUseContext, type ValidationResult } from '../kit/tool.js'
@@ -89,8 +89,8 @@ function isFinishedShellRow(task: unknown): task is LocalShellTaskState {
   return isLocalShellTask(task) && isTerminalTaskStatus(task.status)
 }
 
-function isFinishedAgentRow(task: unknown): task is TaskStateBase & { type: 'local_agent' } {
-  return isLocalAgentTask(task) && isTerminalTaskStatus(task.status)
+function isFinishedCrewmateRow(task: unknown): task is TaskStateBase & { type: 'local_agent' } {
+  return isCrewmateTask(task) && isTerminalTaskStatus(task.status)
 }
 
 function alreadyFinishedOutput(shell: FinishedShell): Output {
@@ -106,7 +106,7 @@ function alreadyFinishedOutput(shell: FinishedShell): Output {
   }
 }
 
-function alreadyFinishedAgentOutput(agent: FinishedAgent, message: string): Output {
+function alreadyFinishedCrewmateOutput(agent: FinishedCrewmate, message: string): Output {
   return {
     message,
     task_id: agent.taskId,
@@ -172,7 +172,7 @@ export const TaskStopTool = buildTool({
         errorCode: 1,
       }
     }
-    if (task.status !== 'running' && !isFinishedShellRow(task) && !isFinishedAgentRow(task)) {
+    if (task.status !== 'running' && !isFinishedShellRow(task) && !isFinishedCrewmateRow(task)) {
       return {
         result: false,
         message: `Task ${taskId} is not running (status: ${task.status})`,
@@ -197,15 +197,15 @@ export const TaskStopTool = buildTool({
         if (onDisk.kind === 'shell') {
           return { data: alreadyFinishedOutput(onDisk.shell) }
         }
-        return { data: alreadyFinishedAgentOutput(onDisk.agent, `${onDisk.words}; nothing was stopped`) }
+        return { data: alreadyFinishedCrewmateOutput(onDisk.agent, `${onDisk.words}; nothing was stopped`) }
       }
     }
     if (isFinishedShellRow(task)) {
       return { data: alreadyFinishedOutput(finishedShellFromRow(task)) }
     }
-    if (isFinishedAgentRow(task) && !isPausedAgentRow(task)) {
-      const agent = finishedAgentFromRow(task)
-      return { data: alreadyFinishedAgentOutput(agent, finishedAgentWords(agent)) }
+    if (isFinishedCrewmateRow(task) && !isPausedCrewmateRow(task)) {
+      const agent = finishedCrewmateFromRow(task)
+      return { data: alreadyFinishedCrewmateOutput(agent, finishedCrewmateWords(agent)) }
     }
     const stopped = await stopTask(taskId, {
       getAppState: context.getAppState,

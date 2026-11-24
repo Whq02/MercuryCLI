@@ -33,7 +33,7 @@ const {
 
 const { JEV_DEFAULT_SETTINGS } = await import('../../src/models/jev/jevSetting.js')
 const defaults = { ...JEV_DEFAULT_SETTINGS, enabled: true }
-check('main default pace is 100/min and the per-agent cap is 200', defaults.pacePerMinute === 100 && contract.JEV_SUBAGENT_CALL_BUDGET === 200, `main ${defaults.pacePerMinute}; cap ${contract.JEV_SUBAGENT_CALL_BUDGET}`)
+check('main default pace is 100/min and the per-agent cap is 200', defaults.pacePerMinute === 100 && contract.JEV_CREWMATE_CALL_BUDGET === 200, `main ${defaults.pacePerMinute}; cap ${contract.JEV_CREWMATE_CALL_BUDGET}`)
 const mid = (): number => 0.5
 const T0 = 1_700_000_000_000
 

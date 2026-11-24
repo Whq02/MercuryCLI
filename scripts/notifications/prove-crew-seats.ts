@@ -75,11 +75,11 @@ t.section('S2 — the seat sentence')
 t.section('S3 — the crew facts owner carries the wait')
 {
   const base = { id: 'a1', kind: 'agent' as const, name: 'tide-gauges', status: 'running', startTime: 1_000, model: 'gpt-5.6-sol' }
-  const waiting = crew.crewAgentFactsOf({ ...base, wait: 'waiting for a seat — 3 of 3 held (a, b, the chat)' }, 's1')
+  const waiting = crew.crewmateFactsOf({ ...base, wait: 'waiting for a seat — 3 of 3 held (a, b, the chat)' }, 's1')
   t.check('a waiting row reads `waiting` and spells the sentence', waiting !== null && waiting.running && crew.crewStateLabel(waiting) === 'waiting' && crew.crewWaitLine(waiting) === 'waiting for a seat — 3 of 3 held (a, b, the chat)', JSON.stringify(waiting))
-  const working = crew.crewAgentFactsOf(base, 's1')
+  const working = crew.crewmateFactsOf(base, 's1')
   t.check('a row without a wait reads its state and no line', working !== null && crew.crewStateLabel(working) === 'running' && crew.crewWaitLine(working) === null, JSON.stringify(working))
-  const landed = crew.crewAgentFactsOf({ ...base, status: 'completed', endTime: 2_000, wait: 'stale words' }, 's1')
+  const landed = crew.crewmateFactsOf({ ...base, status: 'completed', endTime: 2_000, wait: 'stale words' }, 's1')
   t.check('a settled row never wears a wait', landed !== null && crew.crewStateLabel(landed) === 'landed' && crew.crewWaitLine(landed) === null, JSON.stringify(landed))
 }
 
@@ -135,15 +135,15 @@ t.section("S7 — the request phase's retry word names the provider's answer, ne
 {
   const wait = await import('../../src/engine/tasks/local-agent/agentWait.js')
   const at = 1_000
-  const fold = (extra: Record<string, unknown>): ReturnType<typeof wait.foldAgentWaitEvent> => wait.foldAgentWaitEvent(null, { type: 'system', subtype: 'api_error', retryInMs: 40_000, retryAttempt: 3, maxRetries: 10, ...extra }, at)
+  const fold = (extra: Record<string, unknown>): ReturnType<typeof wait.foldCrewmateWaitEvent> => wait.foldCrewmateWaitEvent(null, { type: 'system', subtype: 'api_error', retryInMs: 40_000, retryAttempt: 3, maxRetries: 10, ...extra }, at)
   const busy = fold({ errorDetail: { status: 429 } })
-  t.check('a 429 retry names the provider busy', busy?.phase === 'retry' && busy.reason === 'the provider busy (HTTP 429)' && wait.agentWaitWords(busy, at + 500) === 'retrying in 40 s — the provider busy (HTTP 429) (retry 3)', JSON.stringify(busy))
+  t.check('a 429 retry names the provider busy', busy?.phase === 'retry' && busy.reason === 'the provider busy (HTTP 429)' && wait.crewmateWaitWords(busy, at + 500) === 'retrying in 40 s — the provider busy (HTTP 429) (retry 3)', JSON.stringify(busy))
   const overloaded = fold({ errorDetail: { status: 529 } })
   t.check('a 529 retry names the overload', overloaded?.reason === 'the provider overloaded (HTTP 529)', JSON.stringify(overloaded))
   t.check('a 503 retry names the provider error', fold({ errorDetail: { status: 503 } })?.reason === 'a provider error (HTTP 503)')
   t.check('a first-byte timeout names itself', fold({ error: { message: 'no first byte from Opus 5 after 90 s' } })?.reason === 'no first byte')
   t.check('a status-less connection error is a connection fault', fold({ error: { message: 'Connection error.' } })?.reason === 'a connection fault' && fold({ error: { message: 'read ECONNRESET' } })?.reason === 'a connection fault')
-  t.check('a notice with nothing readable keeps the plain word, never nothing', fold({})?.reason === 'a provider fault' && wait.agentWaitWords(fold({}), at + 500) === 'retrying in 40 s — a provider fault (retry 3)')
+  t.check('a notice with nothing readable keeps the plain word, never nothing', fold({})?.reason === 'a provider fault' && wait.crewmateWaitWords(fold({}), at + 500) === 'retrying in 40 s — a provider fault (retry 3)')
 }
 
 t.section('S6 — the live facts: the held reading, the inherited stamp')

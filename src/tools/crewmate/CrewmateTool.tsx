@@ -2,7 +2,7 @@ import { evaluateLaunchAuthority } from '../../daemon/switchboard/launchAuthorit
 import { buildTool, type Tool as ToolShape, type ToolDef, type ToolPermissionContext, type ToolUseContext } from '../kit/tool.js'
 import { getDenyRuleForAgent } from '../../permissions/rules/decision/rules.js'
 import { reasonForRule, refusalWithReason, ruleSentence } from '../../permissions/rules/ruleReason.js'
-import { AGENT_TOOL_NAME } from '../kit/names/agent.js'
+import { CREWMATE_TOOL_NAME } from '../kit/names/agent.js'
 import { agentRosterOf, getPrompt, withoutAgentRoster } from './prompt.js'
 import { swarmSessionEnabled } from '../../crew/board/seam.js'
 import * as UI from './rows.js'
@@ -10,13 +10,13 @@ import { isResultTruncated } from './rows.js'
 import type { CanUseToolFn } from '../kit/tool.js'
 import type { AgentDefinition } from '../../crew/agents/agentDefinition.js'
 import type { AssistantMessage } from '../../engine/message-shapes/message.js'
-import { type Progress, type AgentToolInput, inputSchema, outputSchema, type AgentToolOutput } from './call/schema.js'
-import { agentCwdQuestion } from './call/cwd.js'
-import { mcpServerNamesWithTools, agentToolCall } from './call/call.js'
-import { agentToolResultBlock } from './call/resultBlock.js'
-export type { Progress, AgentToolInput, AgentToolOutput } from './call/schema.js'
+import { type Progress, type CrewmateToolInput, inputSchema, outputSchema, type CrewmateToolOutput } from './call/schema.js'
+import { crewmateCwdQuestion } from './call/cwd.js'
+import { mcpServerNamesWithTools, crewmateToolCall } from './call/call.js'
+import { crewmateToolResultBlock } from './call/resultBlock.js'
+export type { Progress, CrewmateToolInput, CrewmateToolOutput } from './call/schema.js'
 export { inputSchema, outputSchema } from './call/schema.js'
-export { resolveAgentCwd, agentCwdQuestion } from './call/cwd.js'
+export { resolveCrewmateCwd, crewmateCwdQuestion } from './call/cwd.js'
 
 const RESULT_SIZE_CAP = 100_000
 
@@ -24,14 +24,14 @@ const RESULT_SIZE_CAP = 100_000
 type InputSchema = ReturnType<typeof inputSchema>
 type OutputSchema = ReturnType<typeof outputSchema>
 
-const AGENT_DESCRIPTION =
+const CREWMATE_DESCRIPTION =
   'Delegate a task to a crewmate: a new crewmate that handles complex, multi-step work on its own'
 
-const AGENT_WIRE_DESCRIPTION =
+const CREWMATE_WIRE_DESCRIPTION =
   'Launch an independent crewmate from a task brief and return its report. The child does not inherit this conversation; its session-owned processes end with it.'
 
-export const AgentTool = buildTool({
-  name: AGENT_TOOL_NAME,
+export const CrewmateTool = buildTool({
+  name: CREWMATE_TOOL_NAME,
   maxResultSizeChars: RESULT_SIZE_CAP,
   searchHint: 'delegate a bounded task to an independent agent and receive its report',
   searchKeywords: [
@@ -52,11 +52,11 @@ export const AgentTool = buildTool({
     return outputSchema()
   },
   async description() {
-    return AGENT_DESCRIPTION
+    return CREWMATE_DESCRIPTION
   },
   wireDescription(fullPrompt: string): string {
     const roster = agentRosterOf(fullPrompt)
-    return roster ? `${AGENT_WIRE_DESCRIPTION}\n\n${roster}` : AGENT_WIRE_DESCRIPTION
+    return roster ? `${CREWMATE_WIRE_DESCRIPTION}\n\n${roster}` : CREWMATE_WIRE_DESCRIPTION
   },
   manualText(fullPrompt: string): string {
     return withoutAgentRoster(fullPrompt)
@@ -84,7 +84,7 @@ export const AgentTool = buildTool({
     const permissionContext = await getToolPermissionContext()
     const refusals = new Map<string, string>()
     for (const agent of eligible) {
-      const denyRule = getDenyRuleForAgent(permissionContext, AGENT_TOOL_NAME, agent.agentType)
+      const denyRule = getDenyRuleForAgent(permissionContext, CREWMATE_TOOL_NAME, agent.agentType)
       if (denyRule) {
         refusals.set(
           agent.agentType,
@@ -114,17 +114,17 @@ export const AgentTool = buildTool({
   isReadOnly() {
     return true
   },
-  async checkPermissions(input: AgentToolInput, context: ToolUseContext) {
+  async checkPermissions(input: CrewmateToolInput, context: ToolUseContext) {
     if (input.cwd) {
-      const decision = agentCwdQuestion(input.cwd, context.getAppState().toolPermissionContext)
+      const decision = crewmateCwdQuestion(input.cwd, context.getAppState().toolPermissionContext)
       if (decision !== null) return decision
     }
     return { behavior: 'allow' as const, updatedInput: input }
   },
-  getActivityDescription(input?: Partial<AgentToolInput>) {
+  getActivityDescription(input?: Partial<CrewmateToolInput>) {
     return input?.description ?? 'Running task'
   },
-  extractSearchText(output: AgentToolOutput): string {
+  extractSearchText(output: CrewmateToolOutput): string {
     if (output.status === 'async_launched' || !Array.isArray(output.content)) return ''
     return output.content
       .map(block => block.text)
@@ -139,18 +139,18 @@ export const AgentTool = buildTool({
   renderToolUseRejectedMessage: UI.renderToolUseRejectedMessage,
   renderToolUseErrorMessage: UI.renderToolUseErrorMessage,
   renderToolResultMessage: UI.renderToolResultMessage,
-  renderGroupedToolUse: UI.renderGroupedAgentToolUse,
+  renderGroupedToolUse: UI.renderGroupedCrewmateToolUse,
   isResultTruncated,
   async call(
-    input: AgentToolInput,
+    input: CrewmateToolInput,
     context: ToolUseContext,
     canUseTool: CanUseToolFn,
     parentAssistantMessage: AssistantMessage,
     onProgress,
   ) {
-    return agentToolCall(input, context, canUseTool, parentAssistantMessage, onProgress)
+    return crewmateToolCall(input, context, canUseTool, parentAssistantMessage, onProgress)
   },
-  mapToolResultToToolResultBlockParam(output: AgentToolOutput, toolUseID: string) {
-    return agentToolResultBlock(output, toolUseID)
+  mapToolResultToToolResultBlockParam(output: CrewmateToolOutput, toolUseID: string) {
+    return crewmateToolResultBlock(output, toolUseID)
   },
-} satisfies ToolDef<InputSchema, AgentToolOutput, Progress>)
+} satisfies ToolDef<InputSchema, CrewmateToolOutput, Progress>)

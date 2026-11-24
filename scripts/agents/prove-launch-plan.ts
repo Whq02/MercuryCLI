@@ -14,7 +14,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-const { buildAgentLaunchPlan } = await import('../../src/crew/crewmates/agentLaunchPlan.ts')
+const { buildCrewmateLaunchPlan } = await import('../../src/crew/crewmates/agentLaunchPlan.ts')
 const { getBuiltInAgents } = await import('../../src/tools/crewmate/builtInAgents.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
@@ -70,16 +70,16 @@ console.log('============================================================')
 
 section('§1 — canonical decode: ONE truth')
 {
-  const plan = buildAgentLaunchPlan(base({ requestedType: 'mercury-scout' }))
+  const plan = buildCrewmateLaunchPlan(base({ requestedType: 'mercury-scout' }))
   check('a registered id resolves to itself through the one seam', plan.agentType === 'mercury-scout', plan.agentType)
-  check('explicit canonical type resolves to its definition', buildAgentLaunchPlan(base({ requestedType: 'mercury-scout' })).definition === (SCOUT as never))
+  check('explicit canonical type resolves to its definition', buildCrewmateLaunchPlan(base({ requestedType: 'mercury-scout' })).definition === (SCOUT as never))
 }
 
 section('§2 — lookup, restriction, and the denial band')
 {
   let err: Error | undefined
   try {
-    buildAgentLaunchPlan(base({ requestedType: 'no-such-agent' }))
+    buildCrewmateLaunchPlan(base({ requestedType: 'no-such-agent' }))
   } catch (e) {
     err = e as Error
   }
@@ -91,7 +91,7 @@ section('§2 — lookup, restriction, and the denial band')
   const realRoster = getBuiltInAgents() as never[]
   const refusalFor = (requestedType: string): string => {
     try {
-      buildAgentLaunchPlan(base({ requestedType, activeAgents: realRoster }))
+      buildCrewmateLaunchPlan(base({ requestedType, activeAgents: realRoster }))
       return 'no refusal'
     } catch (e) {
       return (e as Error).message
@@ -110,7 +110,7 @@ section('§2 — lookup, restriction, and the denial band')
   }
   err = undefined
   try {
-    buildAgentLaunchPlan(base({ requestedType: 'mercury-scout', toolPermissionContext: denyCtx }))
+    buildCrewmateLaunchPlan(base({ requestedType: 'mercury-scout', toolPermissionContext: denyCtx }))
   } catch (e) {
     err = e as Error
   }
@@ -122,7 +122,7 @@ section('§2 — lookup, restriction, and the denial band')
 
   err = undefined
   try {
-    buildAgentLaunchPlan(base({ requestedType: 'mercury-scout', allowedAgentTypes: ['mercury-crew'] }))
+    buildCrewmateLaunchPlan(base({ requestedType: 'mercury-scout', allowedAgentTypes: ['mercury-crew'] }))
   } catch (e) {
     err = e as Error
   }
@@ -132,35 +132,35 @@ section('§2 — lookup, restriction, and the denial band')
     err?.message,
   )
 
-  check('no type → the default type', buildAgentLaunchPlan(base({})).agentType === 'mercury-crew')
+  check('no type → the default type', buildCrewmateLaunchPlan(base({})).agentType === 'mercury-crew')
 }
 
 section('§3 — model resolution')
 {
-  const pinned = buildAgentLaunchPlan(base({ requestedType: 'legacy-haiku-role' }))
+  const pinned = buildCrewmateLaunchPlan(base({ requestedType: 'legacy-haiku-role' }))
   check('a haiku frontmatter pin runs the haiku row it named', /haiku/i.test(pinned.model), pinned.model)
   check('the receipt names the pinned Anthropic engine', pinned.modelNote === `engine: Anthropic (${pinned.model}) via the native in-process transport`, pinned.modelNote)
 
-  const explicit = buildAgentLaunchPlan(base({ requestedType: 'mercury-crew', modelParam: 'opus' }))
+  const explicit = buildCrewmateLaunchPlan(base({ requestedType: 'mercury-crew', modelParam: 'opus' }))
   check('an explicit model param resolves with the same engine receipt shape', /opus/i.test(explicit.model) && explicit.modelNote === `engine: Anthropic (${explicit.model}) via the native in-process transport`, explicit.model)
-  const defPin = buildAgentLaunchPlan(base({ requestedType: 'mercury-scout' }))
+  const defPin = buildCrewmateLaunchPlan(base({ requestedType: 'mercury-scout' }))
   check("the definition's model pin resolves when no param is given", /sonnet/i.test(defPin.model), defPin.model)
 }
 
 section('§4 — isolation · the async decision law · worker permission mode')
 {
-  check('explicit isolation param wins over the definition', buildAgentLaunchPlan(base({ requestedType: 'bg-role', isolationParam: 'remote' })).isolation === 'remote')
-  check("the definition's isolation carries when no param is given", buildAgentLaunchPlan(base({ requestedType: 'bg-role' })).isolation === 'worktree')
-  check('no isolation anywhere → undefined', buildAgentLaunchPlan(base({ requestedType: 'mercury-crew' })).isolation === undefined)
+  check('explicit isolation param wins over the definition', buildCrewmateLaunchPlan(base({ requestedType: 'bg-role', isolationParam: 'remote' })).isolation === 'remote')
+  check("the definition's isolation carries when no param is given", buildCrewmateLaunchPlan(base({ requestedType: 'bg-role' })).isolation === 'worktree')
+  check('no isolation anywhere → undefined', buildCrewmateLaunchPlan(base({ requestedType: 'mercury-crew' })).isolation === undefined)
 
-  check('run_in_background → async', buildAgentLaunchPlan(base({ requestedType: 'mercury-crew', runInBackground: true })).shouldRunAsync === true)
-  check('background:true definition → async', buildAgentLaunchPlan(base({ requestedType: 'bg-role' })).shouldRunAsync === true)
-  check('forceAsync → async', buildAgentLaunchPlan(base({ requestedType: 'mercury-crew', forceAsync: true })).shouldRunAsync === true)
-  check('nothing forcing → sync', buildAgentLaunchPlan(base({ requestedType: 'mercury-crew' })).shouldRunAsync === false)
-  check('backgroundTasksDisabled kills EVERY async route', buildAgentLaunchPlan(base({ requestedType: 'bg-role', runInBackground: true, forceAsync: true, backgroundTasksDisabled: true })).shouldRunAsync === false)
+  check('run_in_background → async', buildCrewmateLaunchPlan(base({ requestedType: 'mercury-crew', runInBackground: true })).shouldRunAsync === true)
+  check('background:true definition → async', buildCrewmateLaunchPlan(base({ requestedType: 'bg-role' })).shouldRunAsync === true)
+  check('forceAsync → async', buildCrewmateLaunchPlan(base({ requestedType: 'mercury-crew', forceAsync: true })).shouldRunAsync === true)
+  check('nothing forcing → sync', buildCrewmateLaunchPlan(base({ requestedType: 'mercury-crew' })).shouldRunAsync === false)
+  check('backgroundTasksDisabled kills EVERY async route', buildCrewmateLaunchPlan(base({ requestedType: 'bg-role', runInBackground: true, forceAsync: true, backgroundTasksDisabled: true })).shouldRunAsync === false)
 
-  check("the worker mode is the definition's permissionMode", buildAgentLaunchPlan(base({ requestedType: 'bg-role' })).workerPermissionMode === 'dontAsk')
-  check("no definition mode → the 'implement' worker default", buildAgentLaunchPlan(base({ requestedType: 'mercury-crew' })).workerPermissionMode === 'implement')
+  check("the worker mode is the definition's permissionMode", buildCrewmateLaunchPlan(base({ requestedType: 'bg-role' })).workerPermissionMode === 'dontAsk')
+  check("no definition mode → the 'implement' worker default", buildCrewmateLaunchPlan(base({ requestedType: 'mercury-crew' })).workerPermissionMode === 'implement')
 }
 
 

@@ -21,47 +21,47 @@ import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../../kit/names/syntheticOutput.js'
 import { errorMessage } from '../../../platform/errors/errors.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
 import { createUserMessage, extractTextContent } from '../../../engine/messages/messages.js'
-import { getAgentTranscriptPath, readAgentMetadata, registerAgentTranscriptDestination, writeAgentMetadata } from '../../../sessions/transcripts/sessionStorage.js'
+import { getCrewmateTranscriptPath, readCrewmateMetadata, registerCrewmateTranscriptDestination, writeCrewmateMetadata } from '../../../sessions/transcripts/sessionStorage.js'
 import { swarmBrief } from '../../../crew/board/seam.js'
 import { asSystemPrompt } from '../../../engine/system-prompt/systemPromptType.js'
 import { isRestrictedToExtensionsOnly, isSourceAdminTrusted } from '../../../platform/settings/extensionOnlyPolicy.js'
-import type { MercuryAgentSeat } from '../../../engine/system-prompt/mercuryContract.js'
+import type { MercuryCrewmateSeat } from '../../../engine/system-prompt/mercuryContract.js'
 import type { AgentDefinition } from '../../../crew/agents/agentDefinition.js'
 import { REVIEW_BRIEF } from '../reviewerPolicy.js'
-import { agentPostureOf, agentToolsOf, childContextOf, runStartRecordOf } from './setup.js'
-import { type AgentRun, sdkStatusOf } from './watch.js'
-import type { connectAgentMcpServers, landAgentTranscriptRows, resolveAgentEffort, RecoveryAccountant, RunAgentParams } from '../runCrewmate.js'
+import { crewmatePostureOf, crewmateToolsOf, childContextOf, runStartRecordOf } from './setup.js'
+import { type CrewmateRun, sdkStatusOf } from './watch.js'
+import type { connectCrewmateMcpServers, landCrewmateTranscriptRows, resolveCrewmateEffort, RecoveryAccountant, RunCrewmateParams } from '../runCrewmate.js'
 
-type PrepareNeeds = Pick<RunAgentParams, 'name' | 'description' | 'override' | 'agentDefinition' | 'instructionProfileOverride' | 'toolUseContext' | 'isAsync' | 'canShowPermissionPrompts' | 'allowedTools' | 'effortOverride' | 'useExactTools' | 'promptMessages' | 'cwd' | 'availableTools' | 'structuredOutputSpec' | 'worktreePath' | 'thinkingConfigOverride' | 'querySource' | 'contentReplacementState' | 'seatHolder' | 'onWait' | 'preserveToolUseResults' | 'onQueryProgress' | 'onCacheSafeParams' | 'model' | 'launchedAt'> & {
+type PrepareNeeds = Pick<RunCrewmateParams, 'name' | 'description' | 'override' | 'agentDefinition' | 'instructionProfileOverride' | 'toolUseContext' | 'isAsync' | 'canShowPermissionPrompts' | 'allowedTools' | 'effortOverride' | 'useExactTools' | 'promptMessages' | 'cwd' | 'availableTools' | 'structuredOutputSpec' | 'worktreePath' | 'thinkingConfigOverride' | 'querySource' | 'contentReplacementState' | 'seatHolder' | 'onWait' | 'preserveToolUseResults' | 'onQueryProgress' | 'onCacheSafeParams' | 'model' | 'launchedAt'> & {
   agentId: AgentId
   swarm: boolean
   abortController: AbortController
   slimAgentGateOn: () => boolean
   withoutInstructionBlob: (context: { [k: string]: string }) => { [k: string]: string }
   readOnlyScout: boolean
-  resolveAgentEffort: typeof resolveAgentEffort
+  resolveAgentEffort: typeof resolveCrewmateEffort
   hookScope: { sessionId: string; crewmateId: AgentId }
   resolvedAgentModel: string
   rootSetAppState: ToolUseContext['setAppState']
   preloadSkills: (definition: AgentDefinition, toolUseContext: ToolUseContext) => Promise<Message[]>
-  connectAgentMcpServers: typeof connectAgentMcpServers
+  connectAgentMcpServers: typeof connectCrewmateMcpServers
   mcp: { clients: MCPServerConnection[]; tools: Tool[]; cleanup: () => Promise<void> }
   reviewReceipt: string | undefined
-  buildAgentSystemPrompt: (definition: AgentDefinition, toolUseContext: ToolUseContext, resolvedAgentModel: string, enabledToolNames: ReadonlySet<string>, agentId: AgentId, seat: MercuryAgentSeat) => Promise<string[]>
-  seat: MercuryAgentSeat
+  buildAgentSystemPrompt: (definition: AgentDefinition, toolUseContext: ToolUseContext, resolvedAgentModel: string, enabledToolNames: ReadonlySet<string>, agentId: AgentId, seat: MercuryCrewmateSeat) => Promise<string[]>
+  seat: MercuryCrewmateSeat
   isFork: boolean
   readFileState: ReturnType<typeof createFileStateCacheWithSizeLimit>
   childContextRef: { current: ToolUseContext | undefined }
-  agentKind: NonNullable<RunAgentParams['agentKind']>
-  run: AgentRun
+  agentKind: NonNullable<RunCrewmateParams['agentKind']>
+  run: CrewmateRun
   accountant: RecoveryAccountant
   touchThrough: (declaredMs: number) => void
   initialMessages: Message[]
-  landAgentTranscriptRows: typeof landAgentTranscriptRows
-  resolvedEffort: ReturnType<typeof resolveAgentEffort>
+  landAgentTranscriptRows: typeof landCrewmateTranscriptRows
+  resolvedEffort: ReturnType<typeof resolveCrewmateEffort>
 }
 
-export async function prepareAgentRun({ agentId, name, description, swarm, abortController, override, agentDefinition, slimAgentGateOn, withoutInstructionBlob, instructionProfileOverride, readOnlyScout, toolUseContext, isAsync, canShowPermissionPrompts, allowedTools, effortOverride, useExactTools, resolveAgentEffort, hookScope, promptMessages, resolvedAgentModel, cwd, rootSetAppState, preloadSkills, connectAgentMcpServers, mcp, availableTools, structuredOutputSpec, reviewReceipt, worktreePath, buildAgentSystemPrompt, seat, thinkingConfigOverride, isFork, querySource, readFileState, contentReplacementState, childContextRef, agentKind, seatHolder, onWait, preserveToolUseResults, run, onQueryProgress, accountant, touchThrough, initialMessages, onCacheSafeParams, landAgentTranscriptRows, model, launchedAt, resolvedEffort }: PrepareNeeds) {
+export async function prepareCrewmateRun({ agentId, name, description, swarm, abortController, override, agentDefinition, slimAgentGateOn, withoutInstructionBlob, instructionProfileOverride, readOnlyScout, toolUseContext, isAsync, canShowPermissionPrompts, allowedTools, effortOverride, useExactTools, resolveAgentEffort, hookScope, promptMessages, resolvedAgentModel, cwd, rootSetAppState, preloadSkills, connectAgentMcpServers, mcp, availableTools, structuredOutputSpec, reviewReceipt, worktreePath, buildAgentSystemPrompt, seat, thinkingConfigOverride, isFork, querySource, readFileState, contentReplacementState, childContextRef, agentKind, seatHolder, onWait, preserveToolUseResults, run, onQueryProgress, accountant, touchThrough, initialMessages, onCacheSafeParams, landAgentTranscriptRows, model, launchedAt, resolvedEffort }: PrepareNeeds) {
   let userContext = override?.userContext ?? (await getUserContext())
   const systemContext = { ...(override?.systemContext ?? (await getSystemContext())) }
 
@@ -120,7 +120,7 @@ export async function prepareAgentRun({ agentId, name, description, swarm, abort
     }
   }
 
-  const { posture, agentGetAppState } = agentPostureOf({ toolUseContext, agentDefinition, isAsync, canShowPermissionPrompts, allowedTools, effortOverride, useExactTools, resolveAgentEffort })
+  const { posture, agentGetAppState } = crewmatePostureOf({ toolUseContext, agentDefinition, isAsync, canShowPermissionPrompts, allowedTools, effortOverride, useExactTools, resolveAgentEffort })
 
   const hookContextMessages: Message[] = []
   try {
@@ -162,7 +162,7 @@ export async function prepareAgentRun({ agentId, name, description, swarm, abort
   mcp.tools = agentMcp.tools
   mcp.cleanup = agentMcp.cleanup
 
-  const tools = agentToolsOf({ availableTools, swarm, mcp, structuredOutputSpec, reviewReceipt, worktreePath, readOnlyScout })
+  const tools = crewmateToolsOf({ availableTools, swarm, mcp, structuredOutputSpec, reviewReceipt, worktreePath, readOnlyScout })
 
   const enabledToolNames = new Set(tools.map(tool => tool.name))
   const systemPrompt: string[] =
@@ -208,9 +208,9 @@ export async function prepareAgentRun({ agentId, name, description, swarm, abort
   }
 
   try {
-    registerAgentTranscriptDestination(
+    registerCrewmateTranscriptDestination(
       agentId,
-      getAgentTranscriptPath(agentId),
+      getCrewmateTranscriptPath(agentId),
     )
   } catch (error) {
     logForDebugging(`runAgent: the transcript of crewmate ${agentId} could not be registered, so its rows may land beside the session's: ${errorMessage(error)}`)
@@ -218,17 +218,17 @@ export async function prepareAgentRun({ agentId, name, description, swarm, abort
   }
   await landAgentTranscriptRows(messages, agentId)
 
-  let latestRecord: Awaited<ReturnType<typeof readAgentMetadata>> = null
+  let latestRecord: Awaited<ReturnType<typeof readCrewmateMetadata>> = null
   let recordUnread = false
   try {
-    latestRecord = await readAgentMetadata(agentId)
+    latestRecord = await readCrewmateMetadata(agentId)
   } catch (error) {
     recordUnread = true
     logForDebugging(`runAgent: the record of crewmate ${agentId} could not be read, so it is left as it is and this launch is not recorded: ${errorMessage(error)}`)
     passedOver(error)
   }
   if (!recordUnread) {
-    await writeAgentMetadata(agentId, runStartRecordOf({ latestRecord, model, effortOverride, agentDefinition, swarm, worktreePath, cwd, description, name, launchedAt, swarmWords, thinkingOverride, structuredOutputSpec, instructionCapture, resolvedAgentModel, resolvedEffort })).catch((error: unknown) => {
+    await writeCrewmateMetadata(agentId, runStartRecordOf({ latestRecord, model, effortOverride, agentDefinition, swarm, worktreePath, cwd, description, name, launchedAt, swarmWords, thinkingOverride, structuredOutputSpec, instructionCapture, resolvedAgentModel, resolvedEffort })).catch((error: unknown) => {
       logForDebugging(`runAgent: the record of crewmate ${agentId} could not be saved, so a resume falls back to the default agent type, model and directory: ${errorMessage(error)}`)
     })
   }

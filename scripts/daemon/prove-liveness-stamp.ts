@@ -210,8 +210,8 @@ console.log('\nL6 structural — no surface reads transcript growth as liveness'
     ],
   })
   runSwarmCommand('on')
-  await seam.latchSwarmAgent('reader', 'Reader')
-  await seam.latchSwarmAgent('writer', 'Writer')
+  await seam.latchSwarmCrewmate('reader', 'Reader')
+  await seam.latchSwarmCrewmate('writer', 'Writer')
   const board = seam.swarmStore()
   const posted = board?.post(seam.swarmPrincipal('writer')!, { clientOpId: 'liveness-stamp', kind: 'message', text: 'Read this before you answer.', mentions: ['reader'] })
   reader.rig.ctx.setSDKStatus = (frame: unknown): void => {

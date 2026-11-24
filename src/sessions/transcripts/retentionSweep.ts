@@ -15,7 +15,7 @@ import { getProjectsDir } from './sessionStorage.js'
 import { getSettingsWithAllErrors } from '../../platform/settings-faults/allErrors.js'
 import { getInitialSettings, rawSettingsContainsKey } from '../../platform/settings/settings.js'
 import { TOOL_RESULTS_SUBDIR } from '../../engine/tool-dispatch/toolResultStorage.js'
-import { cleanupStaleAgentWorktrees } from '../../platform/git/worktree/worktree.js'
+import { cleanupStaleCrewmateWorktrees } from '../../platform/git/worktree/worktree.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
 
@@ -473,7 +473,7 @@ export async function sweepOldMessageFilesInBackground(): Promise<SweepResult> {
   }
 
   try {
-    const removed = await cleanupStaleAgentWorktrees(cutoff)
+    const removed = await cleanupStaleCrewmateWorktrees(cutoff)
     total.messages += removed
   } catch (error) {
     logError(error)

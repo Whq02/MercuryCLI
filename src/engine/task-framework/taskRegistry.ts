@@ -82,7 +82,7 @@ function retainedEvictionDue(task: TaskState, now: number): boolean {
   return deadline !== undefined && deadline <= now
 }
 
-function pruneAgentNameRegistry(
+function pruneCrewmateNameRegistry(
   registry: AppState['agentNameRegistry'],
   taskId: string,
 ): AppState['agentNameRegistry'] {
@@ -185,7 +185,7 @@ export function evictTerminalTask(taskId: string, setAppState: TaskAppStateSette
     return {
       ...prev,
       tasks: restTasks,
-      agentNameRegistry: pruneAgentNameRegistry(prev.agentNameRegistry, taskId),
+      agentNameRegistry: pruneCrewmateNameRegistry(prev.agentNameRegistry, taskId),
     }
   })
 }
@@ -243,7 +243,7 @@ export function applyTaskOffsetsAndEvictions(
       if (!retainedEvictionDue(task, now)) continue
       nextTasks ??= { ...prev.tasks }
       delete nextTasks[taskId]
-      nextRegistry = pruneAgentNameRegistry(nextRegistry, taskId)
+      nextRegistry = pruneCrewmateNameRegistry(nextRegistry, taskId)
     }
 
     if (nextTasks === undefined) return prev

@@ -1,15 +1,15 @@
 
-import type { AgentResultEnvelope } from './contracts.js'
+import type { CrewmateResultEnvelope } from './contracts.js'
 
-const envelopes = new WeakMap<object, AgentResultEnvelope>()
+const envelopes = new WeakMap<object, CrewmateResultEnvelope>()
 
-export function attachAgentEnvelope(
+export function attachCrewmateEnvelope(
   data: object,
-  envelope: AgentResultEnvelope,
+  envelope: CrewmateResultEnvelope,
 ): void {
   envelopes.set(data, envelope)
 }
 
-export function envelopeFor(data: object): AgentResultEnvelope | undefined {
+export function envelopeFor(data: object): CrewmateResultEnvelope | undefined {
   return envelopes.get(data)
 }

@@ -1,5 +1,5 @@
 
-type AgentWaitPhase =
+type CrewmateWaitPhase =
   | 'request-sent'
   | 'first-byte'
   | 'retry'
@@ -8,8 +8,8 @@ type AgentWaitPhase =
   | 'streaming'
   | 'tool'
 
-export type AgentWaitV1 = {
-  phase: AgentWaitPhase
+export type CrewmateWaitV1 = {
+  phase: CrewmateWaitPhase
   sinceMs: number
   budgetMs?: number
   reason?: string
@@ -69,10 +69,10 @@ function decodeWait(raw: unknown): { kind: 'first-byte'; budgetMs: number; since
   return null
 }
 
-export function foldAgentWaitEvent(prev: AgentWaitV1 | null, raw: unknown, nowMs: number): AgentWaitV1 | null {
+export function foldCrewmateWaitEvent(prev: CrewmateWaitV1 | null, raw: unknown, nowMs: number): CrewmateWaitV1 | null {
   if (!isRecord(raw)) return prev
   const event = raw as StreamEventLike
-  const next = (phase: AgentWaitPhase, extra: Partial<AgentWaitV1> = {}): AgentWaitV1 =>
+  const next = (phase: CrewmateWaitPhase, extra: Partial<CrewmateWaitV1> = {}): CrewmateWaitV1 =>
     prev !== null && prev.phase === phase && extra.budgetMs === prev.budgetMs && extra.reason === prev.reason ? prev : { phase, sinceMs: nowMs, ...extra }
   switch (event.type) {
     case 'stream_request_start':
@@ -142,7 +142,7 @@ export function foldAgentWaitEvent(prev: AgentWaitV1 | null, raw: unknown, nowMs
   }
 }
 
-export function agentWaitElapsed(ms: number): string {
+export function crewmateWaitElapsed(ms: number): string {
   const s = Math.max(0, Math.floor(ms / 1000))
   if (s < 60) return `${s}s`
   const m = Math.floor(s / 60)
@@ -151,7 +151,7 @@ export function agentWaitElapsed(ms: number): string {
   return `${h}h ${m % 60}m`
 }
 
-function agentWaitBudget(ms: number): string {
+function crewmateWaitBudget(ms: number): string {
   const s = Math.max(1, Math.round(ms / 1000))
   if (s < 60) return `${s} s`
   const m = Math.floor(s / 60)
@@ -159,16 +159,16 @@ function agentWaitBudget(ms: number): string {
   return rest === 0 ? `${m}m` : `${m}m ${rest}s`
 }
 
-export function agentWaitWords(wait: AgentWaitV1 | null | undefined, nowMs: number | null): string | null {
+export function crewmateWaitWords(wait: CrewmateWaitV1 | null | undefined, nowMs: number | null): string | null {
   if (!wait) return null
-  const counter = nowMs === null ? null : agentWaitElapsed(nowMs - wait.sinceMs)
+  const counter = nowMs === null ? null : crewmateWaitElapsed(nowMs - wait.sinceMs)
   switch (wait.phase) {
     case 'request-sent':
       return 'request sent'
     case 'first-byte':
-      return `waiting for the first byte${counter !== null ? ` · ${counter}` : ''}, limit ${agentWaitBudget(wait.budgetMs ?? 0)}`
+      return `waiting for the first byte${counter !== null ? ` · ${counter}` : ''}, limit ${crewmateWaitBudget(wait.budgetMs ?? 0)}`
     case 'retry': {
-      const delay = agentWaitBudget(wait.budgetMs ?? 0)
+      const delay = crewmateWaitBudget(wait.budgetMs ?? 0)
       const ladder = wait.attempt !== undefined ? ` (retry ${wait.attempt}${wait.of !== undefined ? ` of ${wait.of}` : ''})` : ''
       return `retrying in ${delay} — ${wait.reason ?? 'a provider fault'}${ladder}`
     }

@@ -4,7 +4,7 @@
 import { join } from 'node:path'
 
 let failures = 0
-const VIEWS_AGREE_HINT = 'to fix: make the runs board and the crew view derive from one source: boardAgentRowsOf and boardRowElapsedMs (src/screen/tasks/BackgroundTasksDialog.tsx, src/screen/tasks/background-tasks/rows.tsx), crewAgentFactsOf, crewElapsedLabel and workRowOfCrewFacts (src/engine/connector/crewFacts.ts), sessionCrewRows (src/screen/app-state/crewLedger.ts)'
+const VIEWS_AGREE_HINT = 'to fix: make the runs board and the crew view derive from one source: boardCrewmateRowsOf and boardRowElapsedMs (src/screen/tasks/BackgroundTasksDialog.tsx, src/screen/tasks/background-tasks/rows.tsx), crewmateFactsOf, crewElapsedLabel and workRowOfCrewFacts (src/engine/connector/crewFacts.ts), sessionCrewRows (src/screen/app-state/crewLedger.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${VIEWS_AGREE_HINT}` : ''}`)
@@ -12,17 +12,17 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 await import('../../src/tools/crewmate/CrewmateTool.tsx')
 type WorkRowV1 = import('../../src/engine/connector/types.ts').WorkRowV1
-type CrewAgentFacts = import('../../src/engine/connector/crewFacts.ts').CrewAgentFacts
+type CrewAgentFacts = import('../../src/engine/connector/crewFacts.ts').CrewmateFacts
 const crew = await import('../../src/engine/connector/crewFacts.ts')
 const ledgerMod = await import('../../src/screen/app-state/crewLedger.ts')
 const board = (await import('../../src/screen/tasks/BackgroundTasksDialog.tsx')) as {
   rosterRowsOf: (rows: readonly WorkRowV1[], kind: WorkRowV1['kind'], excludeIds?: ReadonlySet<string>) => WorkRowV1[]
-  boardAgentRowsOf?: (rows: readonly WorkRowV1[], crewFacts: readonly CrewAgentFacts[], excludeIds?: ReadonlySet<string>) => WorkRowV1[]
+  boardCrewmateRowsOf?: (rows: readonly WorkRowV1[], crewFacts: readonly CrewAgentFacts[], excludeIds?: ReadonlySet<string>) => WorkRowV1[]
   boardRowElapsedMs?: (item: { work?: WorkRowV1 }, now: number) => number | null
 }
 const { formatDuration } = await import('../../src/platform/text/format.ts')
 
-const boardAgentRows = board.boardAgentRowsOf ?? ((rows, _crewFacts, excludeIds) => board.rosterRowsOf(rows, 'agent', excludeIds))
+const boardAgentRows = board.boardCrewmateRowsOf ?? ((rows, _crewFacts, excludeIds) => board.rosterRowsOf(rows, 'agent', excludeIds))
 const boardElapsed = board.boardRowElapsedMs ?? ((item, now) => (item.work === undefined || !Number.isFinite(item.work.startTime) || item.work.startTime === 0 ? null : Math.max(0, now - item.work.startTime)))
 
 const SID = 'sess-1'
@@ -34,8 +34,8 @@ console.log('— §1 one clock, stopped at the end —')
 {
   const landed = row({ id: 'b', status: 'completed', startTime: t0 - 120_000, endTime: t0 - 100_000 })
   const running = row({ id: 'a', status: 'running', startTime: t0 - 30_000 })
-  const factsB = crew.crewAgentFactsOf(landed, SID)!
-  const factsA = crew.crewAgentFactsOf(running, SID)!
+  const factsB = crew.crewmateFactsOf(landed, SID)!
+  const factsA = crew.crewmateFactsOf(running, SID)!
   for (const later of [t0, t0 + 23_000, t0 + 10 * 60_000]) {
     const boardAge = boardElapsed({ work: landed }, later)
     check(`a landed helper's time on the runs board is its real length (20s) at +${(later - t0) / 1000}s, the crew view's own figure`, boardAge !== null && formatDuration(boardAge) === crew.crewElapsedLabel(factsB, later) && formatDuration(boardAge) === formatDuration(20_000), `board ${boardAge === null ? 'null' : formatDuration(boardAge)} · crew ${crew.crewElapsedLabel(factsB, later)}`)
@@ -52,7 +52,7 @@ console.log('— §2 the same crew in both views —')
     row({ id: 'b', status: 'completed', startTime: t0 - 120_000, endTime: t0 - 100_000 }),
     row({ id: 'c', status: 'completed', startTime: t0 - 300_000, endTime: t0 - 290_000 }),
   ]
-  const evicted = crew.crewAgentFactsOf(row({ id: 'd', status: 'running', startTime: t0 - 400_000 }), SID)!
+  const evicted = crew.crewmateFactsOf(row({ id: 'd', status: 'running', startTime: t0 - 400_000 }), SID)!
   const seen = ledgerMod.seenCrewOf({}, { rows }, SID)
   let ledger = ledgerMod.foldCrewLedger({ d: { facts: evicted, hosted: true, listed: true, cleared: false, stamp: ledgerMod.crewFactsStamp(evicted) } }, seen, SID, true, t0)
   ledger = ledgerMod.clearCrewLedgerRow(ledger, 'c')
@@ -63,7 +63,7 @@ console.log('— §2 the same crew in both views —')
   const boardIds = boardRows.map(r => r.id)
   check('the runs board lists exactly the rows the crew view lists, in the same order', boardIds.join(',') === crewIds.join(','), `board ${boardIds.join(',')} · crew ${crewIds.join(',')}`)
   const d = boardRows.find(r => r.id === 'd')
-  check('a helper the runner stopped listing mid-run reads stopped on the board with the crew view’s own reason, its time frozen where the view froze it', d !== undefined && crew.crewStateLabel(crew.crewAgentFactsOf(d, SID)!) === 'stopped' && d.stopReason === ledgerMod.CREW_UNLISTED_STOP_WORDS && boardElapsed({ work: d }, t0 + 60_000) === 400_000, d === undefined ? 'absent' : JSON.stringify({ status: d.status, stopReason: d.stopReason, age: boardElapsed({ work: d }, t0 + 60_000) }))
+  check('a helper the runner stopped listing mid-run reads stopped on the board with the crew view’s own reason, its time frozen where the view froze it', d !== undefined && crew.crewStateLabel(crew.crewmateFactsOf(d, SID)!) === 'stopped' && d.stopReason === ledgerMod.CREW_UNLISTED_STOP_WORDS && boardElapsed({ work: d }, t0 + 60_000) === 400_000, d === undefined ? 'absent' : JSON.stringify({ status: d.status, stopReason: d.stopReason, age: boardElapsed({ work: d }, t0 + 60_000) }))
   const screenOwned = boardAgentRows(rows, crewRows.map(r => r.facts), new Set(['a']))
   check('a helper the cockpit itself hosts is left to its own section', screenOwned.map(r => r.id).join(',') === 'b,d', screenOwned.map(r => r.id).join(','))
   check('three helpers side by side: running first, newest first, on both', boardIds[0] === 'a' && boardIds[1] === 'b' && boardIds[2] === 'd' && crewIds[0] === 'a')
@@ -72,8 +72,8 @@ console.log('— §2 the same crew in both views —')
 console.log('— §3 the facts round-trip to a board row —')
 {
   const full = row({ id: 'r', status: 'killed', startTime: t0 - 50_000, endTime: t0 - 10_000, description: 'count slowly', error: undefined, cacheReadTokens: 12, costUSD: 0.06, unpricedTurns: 1, activity: 'Bash', toolUseId: 'tu-r', pendingAsks: 0, crew: 'alpha', effort: 'high', transcriptAgentId: 'ag-r', stopReason: 'interrupted by the operator on its screen', unreadNotices: 2, cwd: '/tmp/x', worktree: '/tmp/x/.wt' })
-  const facts = crew.crewAgentFactsOf(full, SID)!
-  const back = crew.workRowOfCrewFacts !== undefined ? crew.crewAgentFactsOf(crew.workRowOfCrewFacts(facts), SID) : null
+  const facts = crew.crewmateFactsOf(full, SID)!
+  const back = crew.workRowOfCrewFacts !== undefined ? crew.crewmateFactsOf(crew.workRowOfCrewFacts(facts), SID) : null
   check('a board row rebuilt from the crew facts yields the same facts (one derivation, both ways)', back !== null && JSON.stringify(back) === JSON.stringify(facts), back === null ? 'no workRowOfCrewFacts' : JSON.stringify(back).slice(0, 200))
 }
 

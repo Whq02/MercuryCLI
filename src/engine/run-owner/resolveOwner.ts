@@ -1,6 +1,6 @@
 
 import { getOriginalCwd, getSessionId } from '../../boot/process-state/processState.js'
-import { getAgentContext } from '../../crew/agents/agentContext.js'
+import { getCrewmateContext } from '../../crew/agents/agentContext.js'
 import {
   agentLane,
   MAIN_LANE,
@@ -51,7 +51,7 @@ export function processOwnerForLane(agentId?: string | null): OwnerKey {
 }
 
 export function currentOwner(): OwnerKey {
-  return processOwnerForLane(getAgentContext()?.agentId)
+  return processOwnerForLane(getCrewmateContext()?.agentId)
 }
 
 export function ownerFromToolUseContext(context: {

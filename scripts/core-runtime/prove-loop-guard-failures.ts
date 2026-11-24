@@ -41,10 +41,10 @@ const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/f
 const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
 const { refreshHooksSnapshot } = await import('../../src/integrations/event-hooks/hooksConfigSnapshot.ts')
 const { getSettingsFilePathForSource } = await import('../../src/platform/settings/settings.ts')
-const { runAgent } = await import('../../src/tools/crewmate/runCrewmate.ts')
-const { finalizeAgentTool } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
-const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
-const { enqueueAgentNotification } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { runCrewmate } = await import('../../src/tools/crewmate/runCrewmate.ts')
+const { finalizeCrewmateTool } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+const { CrewmateTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
+const { enqueueCrewmateNotification } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
 const queue = await import('../../src/screen/composer/input-core/command-queue.ts')
 const { flushSessionStorage } = await import('../../src/sessions/transcripts/sessionStorage.ts')
 
@@ -132,7 +132,7 @@ async function run(steps: Step[], options: { headless?: boolean; oculus?: boolea
   }
   const prompt = [createUserMessage({ content: 'Run the fixture.' })]
   const agentId = `failure-agent-${++sequence}`
-  const stream = options.agent ? runAgent({
+  const stream = options.agent ? runCrewmate({
     agentDefinition: { agentType: 'mercury-crew', whenToUse: 'fixture', source: 'projectSettings', getSystemPrompt: () => 'Run the fixture.' } as never,
     promptMessages: prompt, toolUseContext: context(), canUseTool: allow as never,
     isAsync: true, canShowPermissionPrompts: true, querySource: 'agent:custom:failure-fixture' as never,
@@ -168,10 +168,10 @@ check('a crewmate of that same screen session still stops on three', cockpitCrew
 check('the stopped sentence carries the tool, count, call shape and complete error', Boolean(stopped(headless)?.attachment.message.includes(ERROR) && stopped(headless)?.attachment.message.includes('Bash') && stopped(headless)?.attachment.message.includes('3') && stopped(headless)?.attachment.message.includes('"command": <') && !stopped(headless)?.attachment.message.includes(INPUT.command)), stopped(headless), 'the stopped sentence is built in ' + LOOP_GUARD_WHERE + ' (the Stopped after message)')
 const crew = await run(repeats(4), { agent: true })
 check('runAgent stops the crewmate on three even in an interactive process', crew.calls.length === 3 && Boolean(stopped(crew)), { calls: crew.calls.length, stop: stopped(crew) }, 'a crewmate run through runAgent must stop on three; see the lane test in stopFailedCalls in ' + LOOP_GUARD_WHERE)
-const final = finalizeAgentTool(crew.yields, crew.agentId, { prompt: 'fixture', resolvedAgentModel: MODEL, isBuiltInAgent: true, startTime: Date.now(), agentType: 'mercury-crew', isAsync: true })
+const final = finalizeCrewmateTool(crew.yields, crew.agentId, { prompt: 'fixture', resolvedAgentModel: MODEL, isBuiltInAgent: true, startTime: Date.now(), agentType: 'mercury-crew', isAsync: true })
 const failure = final.outcome?.status === 'failed' ? final.outcome : undefined
 check('crewmate finalization preserves the loop-stopped cause', failure?.reason === 'loop-stopped' && failure.error === stopped(crew)?.attachment.message, final.outcome, 'finalizeAgentTool in src/tools/crewmate/crewmateLifecycle.ts must report status failed with reason loop-stopped and the loop_stopped message as the error')
-const parent = AgentTool.mapToolResultToToolResultBlockParam({ ...final, status: 'failed', prompt: 'fixture', error: failure?.error } as never, 'parent-fixture')
+const parent = CrewmateTool.mapToolResultToToolResultBlockParam({ ...final, status: 'failed', prompt: 'fixture', error: failure?.error } as never, 'parent-fixture')
 check('the parent tool result is an error with the repeated call shape and cause', parent.is_error === true && JSON.stringify(parent.content).includes('command') && JSON.stringify(parent.content).includes(ERROR.split('\n')[0]!), parent, 'AgentTool.mapToolResultToToolResultBlockParam in src/tools/crewmate/CrewmateTool.tsx must return an error result that carries the error text of a failed run')
 
 for (const kind of ['permission', 'hook'] as const) {
@@ -200,7 +200,7 @@ for (const name of ['Sleep', 'UnavailableFixture']) {
 setSettings()
 queue.resetCommandQueue()
 let appState = { ...getDefaultAppState(), tasks: { [crew.agentId]: { id: crew.agentId, type: 'local_agent', status: 'failed', notified: false, endTime: Date.now() } } } as unknown as AppState
-enqueueAgentNotification({ taskId: crew.agentId, description: 'failure fixture', status: 'failed', error: failure?.error, setAppState: update => { appState = update(appState) } })
+enqueueCrewmateNotification({ taskId: crew.agentId, description: 'failure fixture', status: 'failed', error: failure?.error, setAppState: update => { appState = update(appState) } })
 const completion = String(queue.getCommandQueue()[0]?.value ?? '')
 check('the real completion notification carries the cause instead of silence', completion.includes('command') && completion.includes(ERROR), completion, 'enqueueAgentNotification in src/engine/tasks/local-agent/crewmateTask.tsx must put the failed run error text in the queued notification')
 queue.resetCommandQueue()

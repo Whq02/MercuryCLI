@@ -7,7 +7,7 @@ import type { BypassedAskRoad, PermissionMode } from '../../permissions/rules/pe
 import type { DiagnosticFile } from '../../integrations/lsp/diagnosticTracking.js'
 import type { DiscoverySignal } from '../../integrations/skill-search/skillDiscovery.js'
 import type { TaskType } from '../tasks/taskBase.js'
-import type { FileReadToolOutput } from './fileReadOutput.js'
+import type { FileReadOutput } from './fileReadOutput.js'
 import type { InstructionSourceEntry } from '../../sessions/instruction-contracts/contracts.js'
 import type { Task } from '../task-framework/tasks.js'
 import type { CapsuleSectionName } from './capsuleKinds.js'
@@ -37,7 +37,7 @@ export type AgentRosterRow = {
 }
 
 type FileLocation = { filename: string; displayPath: string }
-type ReadFileBody = FileLocation & { content: FileReadToolOutput; truncated?: boolean }
+type ReadFileBody = FileLocation & { content: FileReadOutput; truncated?: boolean }
 type PathLocation = { path: string; displayPath: string }
 type RosterDelta = { addedNames: string[]; removedNames: string[] }
 
@@ -49,7 +49,7 @@ type FileBodies = {
   dropped_image_file: FileLocation & { reason: string; unread?: 'retry' | 'refused' }
   directory: PathLocation & { content: string }
   edited_text_file: { filename: string; snippet: string }
-  edited_image_file: { filename: string; content: FileReadToolOutput }
+  edited_image_file: { filename: string; content: FileReadOutput }
   diagnostics: { files: DiagnosticFile[]; isNew: boolean }
   mcp_resource: { server: string; uri: string; name: string; description?: string; content: ReadResourceResult }
 }

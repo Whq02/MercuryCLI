@@ -184,7 +184,7 @@ function sessionFor(owner: string): OwnerSession {
   return owned
 }
 
-function liveAgentSessions(): number {
+function liveCrewmateSessions(): number {
   let count = 0
   for (const owned of sessions.values()) {
     if (owned.owner === MAIN_OWNER) continue
@@ -206,7 +206,7 @@ function announceRelease(): void {
 
 const CEILING_WORDS = 'the shell.sessions setting, or the MERCURY_SHELL_ENGINE_SESSIONS pin'
 
-async function admitAgentSession(
+async function admitCrewmateSession(
   owned: OwnerSession,
   ceiling: number,
   taskOutput: TaskOutput,
@@ -218,12 +218,12 @@ async function admitAgentSession(
       refused: `no shell engine session is free for a crewmate: the ceiling is ${ceiling} (${CEILING_WORDS}), the main conversation's own session; raise the ceiling, or run this call with run_in_background (its own ${windowsBashAbsent() ? 'engine process' : 'system shell'})`,
     }
   }
-  if (liveAgentSessions() < share) {
+  if (liveCrewmateSessions() < share) {
     owned.reserved = true
     return 'admitted'
   }
   const rowNote = (): string =>
-    `waiting for a free shell engine session: ${liveAgentSessions()} of ${share} crewmate sessions are in use (the ceiling is ${ceiling}; a session frees when a crewmate ends)`
+    `waiting for a free shell engine session: ${liveCrewmateSessions()} of ${share} crewmate sessions are in use (the ceiling is ${ceiling}; a session frees when a crewmate ends)`
   waitingOwners.add(owned.owner)
   taskOutput.setLiveNotice(rowNote())
   taskOutput.emitLiveView()
@@ -238,10 +238,10 @@ async function admitAgentSession(
       if (woke === 'aborted') return 'aborted'
       if (woke === 'timed out') {
         return {
-          refused: `no shell engine session was free within ${Math.round(options.timeout / 1000)}s: ${liveAgentSessions()} of ${share} crewmate sessions stayed in use (the ceiling is ${ceiling}, ${CEILING_WORDS}); the command did not run`,
+          refused: `no shell engine session was free within ${Math.round(options.timeout / 1000)}s: ${liveCrewmateSessions()} of ${share} crewmate sessions stayed in use (the ceiling is ${ceiling}, ${CEILING_WORDS}); the command did not run`,
         }
       }
-      if (liveAgentSessions() < share) {
+      if (liveCrewmateSessions() < share) {
         owned.reserved = true
         return 'admitted'
       }
@@ -477,7 +477,7 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
 
     if (owned.owner !== MAIN_OWNER && (owned.live === null || owned.live.exited)) {
       const ceiling = options.sessionCeiling ?? resolveEngineSessionCeiling()
-      const admission = await admitAgentSession(owned, ceiling, taskOutput, options)
+      const admission = await admitCrewmateSession(owned, ceiling, taskOutput, options)
       if (admission === 'aborted') {
         settle({ stdout: '', stderr: 'Command was aborted before execution', code: 145, interrupted: true })
         return

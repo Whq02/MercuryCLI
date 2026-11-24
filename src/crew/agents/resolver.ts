@@ -13,8 +13,8 @@ import {
   resolveEffortTruth,
 } from '../../models/effort/effort.js'
 import {
-  getAgentModel,
-  getDefaultSubagentModel,
+  getCrewmateModel,
+  getDefaultCrewmateModel,
 } from '../../models/catalogue/agentModel.js'
 import type { AgentOverrideProvenance } from './overrides.js'
 
@@ -108,8 +108,8 @@ export function resolveEffectiveAgentRuntime(
     tools?: Tools
   },
 ): EffectiveAgentRuntime {
-  const modelIntent = agent.model ?? getDefaultSubagentModel()
-  const model = getAgentModel(
+  const modelIntent = agent.model ?? getDefaultCrewmateModel()
+  const model = getCrewmateModel(
     agent.model,
     ctx.parentModel,
   )

@@ -69,5 +69,5 @@ export function overloadNoticeWords(description: string, who: string, scale: num
   return `Crewmate "${description}" paused — ${who} is overloaded${overloadStatusWords(status)}; its work so far is kept and rides below; Mercury probes the provider for up to ${overloadProbeWindowWords(scale)} and resumes the crewmate by itself when it answers — a message resumes it sooner; the crew view stops it`
 }
 
-export const AGENT_OVERLOAD_RESUME_NOTE =
+export const CREWMATE_OVERLOAD_RESUME_NOTE =
   'The provider is answering again and you were resumed by yourself after it was overloaded and paused you. Continue from where your transcript ends — the work before the pause stands; do not redo it.'

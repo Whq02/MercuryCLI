@@ -11,8 +11,8 @@ import {
   INTERRUPT_MESSAGE_FOR_TOOL_USE,
   REJECT_MESSAGE,
   REJECT_MESSAGE_WITH_REASON_PREFIX,
-  SUBAGENT_REJECT_MESSAGE,
-  SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX,
+  CREWMATE_REJECT_MESSAGE,
+  CREWMATE_REJECT_MESSAGE_WITH_REASON_PREFIX,
   isDenialResultText,
 } from '../../src/engine/message-shapes/rejectionText.ts'
 import { CONFIG_HOME, cleanupScenario, scenario } from './renderScenarios.ts'
@@ -37,8 +37,8 @@ const DENIALS: Array<[string, string]> = [
   ['cancel', CANCEL_MESSAGE],
   ['reject', REJECT_MESSAGE],
   ['reject+reason', REJECT_MESSAGE_WITH_REASON_PREFIX + 'do it the other way'],
-  ['subagent-reject', SUBAGENT_REJECT_MESSAGE],
-  ['subagent-reject+reason', SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX + 'nope'],
+  ['subagent-reject', CREWMATE_REJECT_MESSAGE],
+  ['subagent-reject+reason', CREWMATE_REJECT_MESSAGE_WITH_REASON_PREFIX + 'nope'],
   ['plan-rejection(on disk)', 'The operator declined the proposed plan\n\nDeclined plan:\nthe rejected plan body'],
   ['auto-reject(fn)', AUTO_REJECT_MESSAGE('Bash')],
   ['dont-ask-reject(fn)', DONT_ASK_REJECT_MESSAGE('Write')],

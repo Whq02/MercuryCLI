@@ -34,15 +34,15 @@ const { definitionForStoredType } = await import('../../src/tools/crewmate/resum
 const receipts = await import('../../src/engine/tasks/local-agent/launchReceipts.ts')
 const { getAgentDefinitionsWithOverrides } = await import('../../src/tools/crewmate/loadAgentsDir.ts')
 type Message = import('../../src/engine/message-shapes/message.ts').Message
-type AgentId = Parameters<typeof storage.writeAgentMetadata>[0]
+type AgentId = Parameters<typeof storage.writeCrewmateMetadata>[0]
 
 section('§1 a saved sidecar reads as written — no translation table at the disk boundary', 'to fix: readAgentMetadata in src/sessions/transcripts/paths.ts must return the sidecar JSON as written, with no type translation')
 for (const [index, stored] of OLD_TYPES.entries()) {
   const id = `stored-type-proof-${index}` as AgentId
-  const sidecarPath = paths.getAgentMetadataPath(id)
+  const sidecarPath = paths.getCrewmateMetadataPath(id)
   mkdirSync(dirname(sidecarPath), { recursive: true })
   writeFileSync(sidecarPath, JSON.stringify({ agentType: stored, description: `old helper ${index}`, model: 'claude-fable-5-1' }))
-  const back = await storage.readAgentMetadata(id)
+  const back = await storage.readCrewmateMetadata(id)
   check(`a sidecar carrying '${stored}' still opens and keeps its word`, back?.agentType === stored && back.description === `old helper ${index}` && back.model === 'claude-fable-5-1', JSON.stringify(back))
 }
 

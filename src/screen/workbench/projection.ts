@@ -4,10 +4,10 @@ import { getCwd } from '../../platform/files/cwd.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { getGitState, getGitWorktreeLanes, subscribeGitFacts } from '../../platform/git/git.js'
 import {
-  getAgentMetadataPath,
-  readAgentMetadata,
+  getCrewmateMetadataPath,
+  readCrewmateMetadata,
 } from '../../sessions/transcripts/paths.js'
-import { subscribeAgentMetadataPath } from '../../sessions/transcripts/fileWatch.js'
+import { subscribeCrewmateMetadataPath } from '../../sessions/transcripts/fileWatch.js'
 import { asAgentId } from '../../sessions/transcripts/ids.js'
 import { computeWorkingTreeDigestAsync } from '../../platform/verification/verificationState.js'
 import { listReviewArtifactHeadsSource } from '../../sessions/artifact-reviews/reviewStore.js'
@@ -37,7 +37,7 @@ import { cachedAttentionView } from '../attention/viewModel.js'
 import { isAttentionStoreArmed } from '../attention/store.js'
 import {
   composeWorkbenchSnapshot,
-  type AgentMetaFact,
+  type CrewmateMetaFact,
   type ExecutionFact,
   type RichTaskFact,
   type RunFacts,
@@ -120,15 +120,15 @@ export function pickRunFacts(snap: RunSnapshot | null): RunFacts | null {
 }
 
 
-const agentMetaCache = new Map<string, AgentMetaFact>()
+const crewmateMetaCache = new Map<string, CrewmateMetaFact>()
 
-async function agentMetaFor(agentId: string): Promise<AgentMetaFact | null> {
-  const cached = agentMetaCache.get(agentId)
+async function crewmateMetaFor(agentId: string): Promise<CrewmateMetaFact | null> {
+  const cached = crewmateMetaCache.get(agentId)
   if (cached) return cached
   try {
-    const meta = await readAgentMetadata(asAgentId(agentId))
+    const meta = await readCrewmateMetadata(asAgentId(agentId))
     if (!meta) return null
-    const fact: AgentMetaFact = {
+    const fact: CrewmateMetaFact = {
       ...(meta.agentType !== undefined && { agentType: meta.agentType }),
       ...(meta.worktreePath !== undefined && {
         worktreePath: realpathSafe(meta.worktreePath),
@@ -136,7 +136,7 @@ async function agentMetaFor(agentId: string): Promise<AgentMetaFact | null> {
       ...(meta.model !== undefined && { model: meta.model }),
       ...(meta.effortOverride !== undefined && { effortOverride: meta.effortOverride }),
     }
-    agentMetaCache.set(agentId, fact)
+    crewmateMetaCache.set(agentId, fact)
     return fact
   } catch (error) {
     passedOver(error)
@@ -188,14 +188,14 @@ export async function gatherWorkbenchInputs(opts?: {
     }
   }
 
-  const agentMeta = new Map<string, AgentMetaFact>()
+  const agentMeta = new Map<string, CrewmateMetaFact>()
   const laneRuns = new Map<string, RunFacts>()
   await Promise.all(
     [...richTasks.values()]
       .filter(t => t.agentId)
       .map(async t => {
-        watchAgentMeta(t.agentId!)
-        const meta = await agentMetaFor(t.agentId!)
+        watchCrewmateMeta(t.agentId!)
+        const meta = await crewmateMetaFor(t.agentId!)
         if (meta) agentMeta.set(t.agentId!, meta)
         const run = pickRunFacts(getRunSnapshot(processOwnerForLane(t.agentId!)))
         if (run) laneRuns.set(t.id, run)
@@ -321,15 +321,15 @@ const listeners = new Set<() => void>()
 let heartbeat: ReturnType<typeof setInterval> | null = null
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 const engineUnsubs: Array<() => void> = []
-const watchedAgentMeta = new Set<string>()
+const watchedCrewmateMeta = new Set<string>()
 let coalescer: SerialCoalescer | null = null
 
-function watchAgentMeta(agentId: string): void {
-  if (heartbeat === null || watchedAgentMeta.has(agentId)) return
-  watchedAgentMeta.add(agentId)
+function watchCrewmateMeta(agentId: string): void {
+  if (heartbeat === null || watchedCrewmateMeta.has(agentId)) return
+  watchedCrewmateMeta.add(agentId)
   engineUnsubs.push(
-    subscribeAgentMetadataPath(getAgentMetadataPath(asAgentId(agentId)), () => {
-      agentMetaCache.delete(agentId)
+    subscribeCrewmateMetadataPath(getCrewmateMetadataPath(asAgentId(agentId)), () => {
+      crewmateMetaCache.delete(agentId)
       scheduleDebounced()
     }),
   )
@@ -397,7 +397,7 @@ function stopEngine(): void {
     stopTimeout(debounceTimer)
     debounceTimer = null
   }
-  watchedAgentMeta.clear()
+  watchedCrewmateMeta.clear()
   for (const unsub of engineUnsubs.splice(0)) {
     try {
       unsub()
@@ -460,6 +460,6 @@ export function _resetWorkbenchForTesting(): void {
   listeners.clear()
   snapshot = null
   lastGood.clear()
-  agentMetaCache.clear()
+  crewmateMetaCache.clear()
   appStateProvider = null
 }

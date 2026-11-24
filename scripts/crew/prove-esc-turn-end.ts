@@ -19,7 +19,7 @@ enableConfigs()
 const { Text } = await import('../../src/screen/themedRenderer.js')
 const { getQueuedCommandAttachments } = await import('../../src/engine/attachments/queuedCommands.js')
 await import('../../src/engine/tasks/tasks.js')
-const { registerAsyncAgent } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
+const { registerAsyncCrewmate } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
 const { getRunningTasks } = await import('../../src/engine/task-framework/taskRegistry.js')
 const { projectWorkRoster } = await import('../../src/engine/connector/workRoster.js')
 const { resetCommandQueue } = await import('../../src/screen/composer/input-core/command-queue.js')
@@ -34,7 +34,7 @@ const stamp = new Date(0)
 stamp.setHours(18, 58, 1, 0)
 let state = { tasks: {} } as Parameters<typeof getRunningTasks>[0]
 const setState = (update: (prev: typeof state) => typeof state): void => { state = update(state) }
-const task = registerAsyncAgent({ agentId: 'crew-worker', description: 'the worker', prompt: 'keep working', setAppState: setState, selectedAgent: { agentType: 'mercury-crew' } as never })
+const task = registerAsyncCrewmate({ agentId: 'crew-worker', description: 'the worker', prompt: 'keep working', setAppState: setState, selectedAgent: { agentType: 'mercury-crew' } as never })
 const beforeCrew = JSON.stringify(projectWorkRoster(state.tasks))
 const queue: QueuedCommand[] = [{ mode: 'prompt', value: 'start work' }]
 const outputs: RowDraft[] = []

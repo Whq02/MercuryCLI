@@ -7,10 +7,10 @@ import { join } from 'node:path'
 
 import {
   ACTIVITY_LAST_N,
-  agentTranscriptFile,
+  crewmateTranscriptFileIn,
   OUTCOME_CAP_CHARS,
   PROMPT_CAP_CHARS,
-  readAgentTranscript,
+  readCrewmateTranscript,
   summarizeToolInput,
 } from '../../src/crew/crewmates/agentTranscriptReader.ts'
 
@@ -31,7 +31,7 @@ console.log('============================================================')
 const tmp = mkdtempSync(join(tmpdir(), 'wf-reader-proof-'))
 const dir = tmp
 const agentId = 'proof1'
-const file = agentTranscriptFile(dir, agentId)
+const file = crewmateTranscriptFileIn(dir, agentId)
 
 const user = (content: unknown) => ({ type: 'user', message: { role: 'user', content } })
 const asst = (id: string, content: unknown[], usage?: Record<string, number>, model = 'claude-sonnet-5') => ({
@@ -66,7 +66,7 @@ const encLine = (e: unknown): string =>
   )
 writeFileSync(file, entries.map(encLine).join('\n') + '\n{"schemaVersion":1,"recordId":"torn', 'utf8')
 
-const v = (await readAgentTranscript(file))!
+const v = (await readCrewmateTranscript(file))!
 
 section('prompt — verbatim first user message, honestly capped')
 check('reader returned a view', v !== undefined)
@@ -99,7 +99,7 @@ check('torn trailing line tolerated (live tail)', v.entryCount === entries.lengt
 
 section('a row persisted twice counts once')
 {
-  const twinFile = agentTranscriptFile(dir, 'twin')
+  const twinFile = crewmateTranscriptFileIn(dir, 'twin')
   const twinEntries: unknown[] = [
     user('run one command'),
     asst('mt', [{ type: 'tool_use', id: 'tw1', name: 'Bash', input: { command: 'echo once' } }], { input_tokens: 10, output_tokens: 5 }),
@@ -108,14 +108,14 @@ section('a row persisted twice counts once')
     asst('mt2', [{ type: 'text', text: 'ran it once' }], { input_tokens: 10, output_tokens: 5 }),
   ]
   writeFileSync(twinFile, twinEntries.map(encLine).join('\n') + '\n', 'utf8')
-  const tv = (await readAgentTranscript(twinFile))!
+  const tv = (await readCrewmateTranscript(twinFile))!
   check('one tool_use id in two assistant rows counts ONE call', tv.toolCallsTotal === 1, String(tv.toolCallsTotal))
   check('the result joins that one call', tv.toolCalls[0]?.resultPreview === 'once' && tv.toolCalls[0]?.isError === false, JSON.stringify(tv.toolCalls))
   check('usage still counts the doubled message once (2 API turns)', tv.usage?.apiTurns === 2, String(tv.usage?.apiTurns))
 }
 
 section('edge cases')
-check('missing file → undefined (honest not-found)', (await readAgentTranscript(join(dir, 'agent-none.jsonl'))) === undefined)
+check('missing file → undefined (honest not-found)', (await readCrewmateTranscript(join(dir, 'agent-none.jsonl'))) === undefined)
 check("summarizeToolInput prefers the meaningful field", summarizeToolInput({ command: 'ls -la' }) === 'ls -la')
 check('summarizeToolInput collapses whitespace + clips', summarizeToolInput({ prompt: 'a\n\n' + 'b'.repeat(300) }).length <= 121)
 

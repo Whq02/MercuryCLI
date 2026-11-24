@@ -7,7 +7,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'compaction-sizing-h
 process.env.NODE_ENV = 'test'
 
 const { getAutoFoldThreshold } = await import('../../src/engine/compaction/autoFold.js')
-const { getAgentModel } = await import('../../src/models/catalogue/agentModel.js')
+const { getCrewmateModel } = await import('../../src/models/catalogue/agentModel.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -22,7 +22,7 @@ section('§A the derivation: child threshold ≠ parent threshold when windows d
 {
   const parent = 'claude-opus-4-6[1m]'
   const childOverride = 'claude-opus-4-6'
-  const effective = getAgentModel(undefined, parent, childOverride as never)
+  const effective = getCrewmateModel(undefined, parent, childOverride as never)
   check('the chokepoint resolves the OVERRIDE, not the parent', effective === childOverride, `${effective} · getAgentModel in src/models/catalogue/agentModel.ts must return the child override model when one is given, not the parent model`)
   const parentThreshold = getAutoFoldThreshold(parent)
   const childThreshold = getAutoFoldThreshold(effective)
@@ -36,7 +36,7 @@ section('§A the derivation: child threshold ≠ parent threshold when windows d
     childThreshold < parentThreshold,
     `parent=${parentThreshold} child=${childThreshold} · the child threshold must come from the model getAgentModel (src/models/catalogue/agentModel.ts) returns, via getAutoCompactThreshold in src/engine/compaction-window/autoFoldWindow.ts`,
   )
-  const inherited = getAgentModel(undefined, parent, undefined)
+  const inherited = getCrewmateModel(undefined, parent, undefined)
   check(
     'no override + no definition model ⇒ the parent model (inherit unchanged)',
     getAutoFoldThreshold(inherited) === parentThreshold,

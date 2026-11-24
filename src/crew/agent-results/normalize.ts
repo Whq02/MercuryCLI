@@ -5,10 +5,10 @@ import { processOwnerForLane } from '../../engine/run-owner/resolveOwner.js'
 import { storeArtifact } from '../../sessions/artifacts/store.js'
 import { evidenceRecordsFor } from '../../platform/verification/verificationState.js'
 import {
-  AGENT_ENVELOPE_VERSION,
+  CREWMATE_ENVELOPE_VERSION,
   declaredEnvelopeSchema,
   ENVELOPE_TAG,
-  type AgentResultEnvelope,
+  type CrewmateResultEnvelope,
   type DeclaredEnvelope,
   type EnvelopeCheck,
 } from './contracts.js'
@@ -55,9 +55,9 @@ function clipSummary(text: string): string {
   return collapsed.length > SUMMARY_CLIP ? collapsed.slice(0, SUMMARY_CLIP) + '…' : collapsed
 }
 
-export async function buildAgentResultEnvelope(
+export async function buildCrewmateResultEnvelope(
   input: NormalizeInput,
-): Promise<AgentResultEnvelope> {
+): Promise<CrewmateResultEnvelope> {
   const { declared, malformedRaw, prose } = parseDeclaration(input.finalText)
 
   const owner = processOwnerForLane(input.agentId)
@@ -114,7 +114,7 @@ export async function buildAgentResultEnvelope(
   }
 
   return {
-    version: AGENT_ENVELOPE_VERSION,
+    version: CREWMATE_ENVELOPE_VERSION,
     agentId: input.agentId,
     ...(input.agentType ? { agentType: input.agentType } : {}),
     status: input.status,
@@ -141,7 +141,7 @@ export async function buildAgentResultEnvelope(
   }
 }
 
-export function formatEnvelopeBlock(envelope: AgentResultEnvelope): string {
+export function formatEnvelopeBlock(envelope: CrewmateResultEnvelope): string {
   const lines: string[] = [
     `<envelope v="${envelope.version}" status="${envelope.status}">`,
     `summary: ${envelope.summary}`,

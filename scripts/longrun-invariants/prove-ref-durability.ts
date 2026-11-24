@@ -9,7 +9,7 @@ process.env.MERCURY_CONFIG_DIR = HOME
 await import('../../src/engine/tasks/tasks.js')
 const { agentAdapter } = await import('../../src/integrations/resources/adapters/agent.js')
 const { boundedTextView, parseMercuryRef } = await import('../../src/integrations/resources/contracts.js')
-const { getAgentTranscriptPath } = await import('../../src/sessions/transcripts/paths.js')
+const { getCrewmateTranscriptPath } = await import('../../src/sessions/transcripts/paths.js')
 const { asAgentId } = await import('../../src/sessions/transcripts/ids.js')
 
 let failures = 0
@@ -37,7 +37,7 @@ const resolve = async (refText: string): Promise<Resolved> =>
 section('§A a settled agent outlives the registry (disk probe on miss)')
 {
   const id = 'aref-durable-1'
-  const file = getAgentTranscriptPath(asAgentId(id))
+  const file = getCrewmateTranscriptPath(asAgentId(id))
   mkdirSync(dirname(file), { recursive: true })
   const rows = Array.from({ length: 300 }, (_, i) =>
     JSON.stringify({

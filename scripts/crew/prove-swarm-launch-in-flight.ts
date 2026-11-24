@@ -33,12 +33,12 @@ const seam = await import('../../src/crew/board/seam.ts')
 const { runSwarmCommand } = await import('../../src/commands/swarm/swarm.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 await import('../../src/tools/kit/toolList.ts')
-const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
-const { killAsyncAgent } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { CrewmateTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
+const { killAsyncCrewmate } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
 const { getCommandQueue } = await import('../../src/screen/composer/input-core/command-queue.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 const { turnDoor: startTurn } = await import('../../src/engine/turnDoor.ts')
-const { readAgentMetadata } = await import('../../src/sessions/transcripts/paths.ts')
+const { readCrewmateMetadata } = await import('../../src/sessions/transcripts/paths.ts')
 const { enableDebugLogging, getDebugLogPath } = await import('../../src/platform/logs/debugLog.ts')
 type AppState = ReturnType<typeof getDefaultAppState>
 
@@ -93,7 +93,7 @@ function launch(input: { name: string; run_in_background?: boolean; team?: strin
     updateAttributionState: () => {},
     toolUseId: `toolu_launch_${serial}`,
   }
-  return AgentTool.call({ description: `launch ${serial}`, prompt: `work as launch ${serial}`, crewmate_type: seatType.agentType, ...input } as never, context as never, (async () => ({ behavior: 'allow' })) as never, { requestId: `req-${serial}`, message: { id: `msg_${serial}` } } as never).then(
+  return CrewmateTool.call({ description: `launch ${serial}`, prompt: `work as launch ${serial}`, crewmate_type: seatType.agentType, ...input } as never, context as never, (async () => ({ behavior: 'allow' })) as never, { requestId: `req-${serial}`, message: { id: `msg_${serial}` } } as never).then(
     result => { const data = result.data as { agentId?: string; status?: string }; return { agentId: data.agentId, status: data.status } },
     error => ({ refused: error instanceof Error ? error.message : String(error) }),
   )
@@ -124,7 +124,7 @@ console.log('── a background launch stopped before it enrolled gives its nam
   let rival: Promise<Launched> | undefined
   named.push(agent => {
     enrolledWhenStopped = board.member(agent)
-    killAsyncAgent(agent, set)
+    killAsyncCrewmate(agent, set)
     rival = launch({ name: 'carrier', run_in_background: true })
   })
   const first = await launch({ name: 'carrier', run_in_background: true })
@@ -133,7 +133,7 @@ console.log('── a background launch stopped before it enrolled gives its nam
   check('a second launch under the name is not refused: the stopped launch holds no name, before it has unwound', second?.status === 'async_launched', second)
   await until(() => told(first.agentId) && told(second?.agentId))
   check('the second launch holds the name and runs to its end', statusOf(second?.agentId) === 'completed' && seats().includes(`carrier=${second?.agentId}:parked`), { status: statusOf(second?.agentId), seats: seats() })
-  check('the stopped launch, unwinding late, stays off the board', board.member(first.agentId ?? '') === false && seam.swarmRoad(first.agentId) === false && (await readAgentMetadata(first.agentId as never))?.swarm === false, { member: board.member(first.agentId ?? ''), road: seam.swarmRoad(first.agentId) })
+  check('the stopped launch, unwinding late, stays off the board', board.member(first.agentId ?? '') === false && seam.swarmRoad(first.agentId) === false && (await readCrewmateMetadata(first.agentId as never))?.swarm === false, { member: board.member(first.agentId ?? ''), road: seam.swarmRoad(first.agentId) })
 }
 
 console.log('── a launch stopped before it enrolled meets a board that cannot be written ──')
@@ -142,7 +142,7 @@ console.log('── a launch stopped before it enrolled meets a board that canno
   const enroll = board.enroll
   let thrown: Error | undefined
   named.push(agent => {
-    killAsyncAgent(agent, set)
+    killAsyncCrewmate(agent, set)
     holder.exec('BEGIN IMMEDIATE')
     board.enroll = seat => {
       board.enroll = enroll
@@ -153,7 +153,7 @@ console.log('── a launch stopped before it enrolled meets a board that canno
   await until(() => told(first.agentId))
   const notice = notices(first.agentId)[0] ?? ''
   check('another writer holds the board\'s file for as long as the stopped launch\'s enrollment waits, and the store says so', statusOf(first.agentId) === 'killed' && thrown !== undefined && thrown.message !== RUNNING('ferry'), { status: statusOf(first.agentId), thrown: thrown?.message })
-  check('the store\'s failure is not read as the name\'s refusal: no record takes the seat off the board', seam.swarmRoad(first.agentId) === true && (await readAgentMetadata(first.agentId as never))?.swarm !== false, { road: seam.swarmRoad(first.agentId), sidecar: await readAgentMetadata(first.agentId as never) })
+  check('the store\'s failure is not read as the name\'s refusal: no record takes the seat off the board', seam.swarmRoad(first.agentId) === true && (await readCrewmateMetadata(first.agentId as never))?.swarm !== false, { road: seam.swarmRoad(first.agentId), sidecar: await readCrewmateMetadata(first.agentId as never) })
   check('the lead is told the launch failed, in the store\'s words', thrown !== undefined && notice.includes('<status>failed</status>') && notice.includes(thrown.message), notice.slice(0, 400))
 }
 
@@ -184,7 +184,7 @@ console.log('── a foreground launch whose task is stopped before it enrolled
   named.push(agent => {
     stopped = agent
     enrolledWhenStopped = board.member(agent)
-    killAsyncAgent(agent, set)
+    killAsyncCrewmate(agent, set)
     rival = launch({ name: 'scout', run_in_background: true })
   })
   const first = await launch({ name: 'scout' })

@@ -28,9 +28,9 @@ const runs = (arm: string): boolean => only.size === 0 || only.has(arm)
 
 section('S the doors a sub-agent could nest or fork through are shut at their owners (the source)')
 {
-  const { ALL_AGENT_DISALLOWED_TOOLS, CUSTOM_AGENT_DISALLOWED_TOOLS } = await import('../../src/tools/kit/crewmateBarredTools.ts')
-  const { AGENT_TOOL_NAME } = await import('../../src/tools/kit/names/agent.ts')
-  check('every sub-agent loses the Crewmate tool (the one deny set)', ALL_AGENT_DISALLOWED_TOOLS.has(AGENT_TOOL_NAME) && CUSTOM_AGENT_DISALLOWED_TOOLS === ALL_AGENT_DISALLOWED_TOOLS)
+  const { ALL_CREWMATE_DISALLOWED_TOOLS, CUSTOM_CREWMATE_DISALLOWED_TOOLS } = await import('../../src/tools/kit/crewmateBarredTools.ts')
+  const { CREWMATE_TOOL_NAME } = await import('../../src/tools/kit/names/agent.ts')
+  check('every sub-agent loses the Crewmate tool (the one deny set)', ALL_CREWMATE_DISALLOWED_TOOLS.has(CREWMATE_TOOL_NAME) && CUSTOM_CREWMATE_DISALLOWED_TOOLS === ALL_CREWMATE_DISALLOWED_TOOLS)
 }
 
 const FOLD_WINDOW_MODEL = 'claude-opus-4-6'

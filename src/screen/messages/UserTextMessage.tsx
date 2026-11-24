@@ -18,7 +18,7 @@ import {
 import { advisorBlockOf, isAdvisorOrigin, isBuildNoticeOrigin, isMonitorText, isSaturnOrigin, noticeOfText, ROW_SECOND_CLOCK_GAP_MS, saturnBlockOf, wrappedNoticeBlocks } from '../../engine/message-shapes/noticeRows.js'
 import { InterruptedByUser } from './InterruptedByUser.js'
 import { MessageResponse } from '../../tools/kit/MessageResponse.js'
-import { UserAgentNotificationMessage } from './UserCrewmateNotificationMessage.js'
+import { UserCrewmateNotificationMessage } from './UserCrewmateNotificationMessage.js'
 import { UserBashInputMessage } from './UserBashInputMessage.js'
 import { UserBashOutputMessage } from './UserBashOutputMessage.js'
 import { UserChannelMessage } from './UserChannelMessage.js'
@@ -128,7 +128,7 @@ export function UserTextMessage({
   }
 
   if (head.startsWith(`<${TASK_NOTIFICATION_TAG}`)) {
-    return <UserAgentNotificationMessage addMargin={addMargin} param={param} arrivedAt={arrivedAt} completedAt={noticeSentAt} deliveredAt={noticeDeliveredAt} expanded={expanded} />
+    return <UserCrewmateNotificationMessage addMargin={addMargin} param={param} arrivedAt={arrivedAt} completedAt={noticeSentAt} deliveredAt={noticeDeliveredAt} expanded={expanded} />
   }
 
   if (

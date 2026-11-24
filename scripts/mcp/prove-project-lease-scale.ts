@@ -131,7 +131,7 @@ try {
   const bulkAgent = leases.projectLeaseHolder('bulk-agent')
   seed(bulkAgent, ROWS)
   const controller = new AbortController()
-  const end = leases.beginAgentProjectLeases('bulk-agent', controller.signal)
+  const end = leases.beginCrewmateProjectLeases('bulk-agent', controller.signal)
   const own = await timed(() => leases.takeProjectLeases(root, [`${TREE}extra.png`], bulkAgent))
   check(`the agent holding ${ROWS} rows takes one more within ${STEP_BOUND_MS} ms and its result names the tree`, within(own, STEP_BOUND_MS) && own.value?.ok === true && own.value.held === ROWS + 1 && own.value.under === TREE && own.value.leases.length === leases.LEASE_DETAIL_LIMIT, { step: describeStep(own), value: own.value?.ok === true ? { ...own.value, leases: own.value.leases.length } : own.value })
   controller.abort()

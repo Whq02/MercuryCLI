@@ -39,7 +39,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(joinPath(tmpdir(), 'prove-s5-home-'
 
 const { classifyModelRoute, declaredRouteOf } = await import('../../src/models/roads/callModelRouter.js')
 const { zaiCallModel } = await import('../../src/models/roads/zai/zaiCallModel.js')
-const { buildAgentLaunchPlan } = await import(
+const { buildCrewmateLaunchPlan } = await import(
   '../../src/crew/crewmates/agentLaunchPlan.js'
 )
 const { SPECIALIST_ROLES, SPECIALIST_ROLE_ACCESS } = await import(
@@ -429,7 +429,7 @@ section('4 · the launch-plan engine law (role→sandbox · denials · no floor)
     forceAsync: false,
   }
 
-  const gptPlan = buildAgentLaunchPlan({
+  const gptPlan = buildCrewmateLaunchPlan({
     ...base,
     requestedType: 'mercury-crew',
     engineDispatch: { backend: 'openai', model: 'gpt-5.6-sol' },
@@ -448,14 +448,14 @@ section('4 · the launch-plan engine law (role→sandbox · denials · no floor)
     gptPlan.modelNote,
   )
   check('openai: no isolation unless asked', gptPlan.isolation === undefined)
-  const gptWorktree = buildAgentLaunchPlan({
+  const gptWorktree = buildCrewmateLaunchPlan({
     ...base,
     requestedType: 'mercury-crew',
     isolationParam: 'worktree',
     engineDispatch: { backend: 'openai', model: 'gpt-5.6-sol' },
   })
   check("openai: explicit worktree isolation honored", gptWorktree.isolation === 'worktree')
-  const gptAsync = buildAgentLaunchPlan({
+  const gptAsync = buildCrewmateLaunchPlan({
     ...base,
     requestedType: 'mercury-crew',
     runInBackground: true,
@@ -463,7 +463,7 @@ section('4 · the launch-plan engine law (role→sandbox · denials · no floor)
   })
   check('openai: async law intact (runInBackground honored)', gptAsync.shouldRunAsync === true)
 
-  const zaiPlan = buildAgentLaunchPlan({
+  const zaiPlan = buildCrewmateLaunchPlan({
     ...base,
     requestedType: 'mercury-crew',
     runInBackground: true,
@@ -484,7 +484,7 @@ section('4 · the launch-plan engine law (role→sandbox · denials · no floor)
     zaiPlan.modelNote,
   )
 
-  const plain = buildAgentLaunchPlan({ ...base, requestedType: 'mercury-crew' })
+  const plain = buildCrewmateLaunchPlan({ ...base, requestedType: 'mercury-crew' })
   check('no dispatch: engine fields absent', plain.engineBackend === undefined && plain.engineToolDenials === undefined)
 
   {

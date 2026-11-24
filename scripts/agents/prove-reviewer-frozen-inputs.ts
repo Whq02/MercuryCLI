@@ -37,7 +37,7 @@ for (const definition of roster) check(`the agents inventory renders ${definitio
 section('§2 the frozen worktree on a real repository')
 const state = await import('../../src/boot/process-state/processState.ts')
 const config = await import('../../src/platform/config/globalConfig.ts')
-const { cleanupStaleAgentWorktrees, createAgentWorktree } = await import('../../src/platform/git/worktree/worktree.ts')
+const { cleanupStaleCrewmateWorktrees, createCrewmateWorktree } = await import('../../src/platform/git/worktree/worktree.ts')
 const { crewWorktreeLeftoverOf } = await import('../../src/crew/crewmates/crewWorktreeReminder.ts')
 const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'reviewer-frozen-')))
@@ -58,7 +58,7 @@ state.setCwdState(repo)
 state.setIsInteractive(true)
 config.enableConfigs()
 
-const frozen = await createAgentWorktree('agent-af000001', { at: first })
+const frozen = await createCrewmateWorktree('agent-af000001', { at: first })
 check('the worktree stands at the named commit', existsSync(frozen.worktreePath) && execFileSync('git', ['rev-parse', 'HEAD'], { cwd: frozen.worktreePath, encoding: 'utf8' }).trim() === first, 'createAgentWorktree in src/platform/git/worktree/worktree.ts must check out the commit named by the at option')
 check('…detached (no branch)', (() => {
   try {
@@ -75,39 +75,39 @@ check('a later commit on the branch does not move it', execFileSync('git', ['rev
 check('no branch was made for it', !g('branch', '--list').includes('frozen01'), 'createAgentWorktree in src/platform/git/worktree/worktree.ts must not create a branch when at is given')
 let refused = ''
 try {
-  await createAgentWorktree('agent-frozen02', { at: 'no-such-ref-anywhere' })
+  await createCrewmateWorktree('agent-frozen02', { at: 'no-such-ref-anywhere' })
 } catch (error) {
   refused = error instanceof Error ? error.message : String(error)
 }
 check('a spelling that resolves to no commit refuses before anything is created', refused.includes('does not resolve to a commit') && !g('worktree', 'list').includes('frozen02'), refused)
 refused = ''
 try {
-  await createAgentWorktree('agent-frozen03', { at: 'main; rm -rf /' })
+  await createCrewmateWorktree('agent-frozen03', { at: 'main; rm -rf /' })
 } catch (error) {
   refused = error instanceof Error ? error.message : String(error)
 }
 check('a hostile spelling refuses as not a commit spelling', refused.includes('is not a commit spelling'), refused)
 refused = ''
 try {
-  await createAgentWorktree('agent-af000001', { at: second })
+  await createCrewmateWorktree('agent-af000001', { at: second })
 } catch (error) {
   refused = error instanceof Error ? error.message : String(error)
 }
 check('the same slug at another commit refuses (a frozen tree is never silently moved)', refused.includes('already exists at'), refused)
-const again = await createAgentWorktree('agent-af000001', { at: first })
+const again = await createCrewmateWorktree('agent-af000001', { at: first })
 check('the same slug at the same commit resumes it', again.existed !== false && again.worktreePath === frozen.worktreePath && again.headCommit === first, 'createAgentWorktree in src/platform/git/worktree/worktree.ts must resume an existing worktree of the same slug and commit')
 const left = await crewWorktreeLeftoverOf({ name: 'mate', path: frozen.worktreePath, branch: frozen.worktreeBranch, gitRoot: frozen.gitRoot }, Date.now())
 const DAY = 86_400_000
 const old = new Date(Date.now() - 9 * DAY)
 utimesSync(frozen.worktreePath, old, old)
-const taken = await runWithCwdOverride(repo, () => cleanupStaleAgentWorktrees(new Date(Date.now() - 8 * DAY)))
+const taken = await runWithCwdOverride(repo, () => cleanupStaleCrewmateWorktrees(new Date(Date.now() - 8 * DAY)))
 check('a clean frozen worktree settles (removed)', left.state === 'clean' && taken === 1 && !existsSync(frozen.worktreePath), JSON.stringify({ left, taken }))
 const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
 const { buildWorktreePrepareNotice } = await import('../../src/tools/crewmate/worktreePrepareNotice.ts')
 mkdirSync(join(repo, '.mercury'), { recursive: true })
 writeFileSync(join(repo, '.mercury', 'settings.json'), JSON.stringify({ workspace: { worktree: { prepare: 'echo "codegen missing" >&2; exit 3' } } }))
 resetSettingsCache()
-const unprepared = await createAgentWorktree('agent-prep01')
+const unprepared = await createCrewmateWorktree('agent-prep01')
 check('a failing workspace.worktree.prepare comes back on the handle with its exit code and stderr, the worktree still made', unprepared.prepareFailure === 'workspace.worktree.prepare failed with exit 3: codegen missing' && existsSync(unprepared.worktreePath), JSON.stringify(unprepared.prepareFailure))
 const prepareNotice = buildWorktreePrepareNotice(unprepared.prepareFailure ?? '')
 check('the notice a crewmate gets carries the failure and says the worktree is used anyway', prepareNotice.startsWith('workspace.worktree.prepare failed with exit 3: codegen missing; the worktree is used anyway') && prepareNotice.includes('may be missing'), prepareNotice)

@@ -101,7 +101,7 @@ async function runBaselineRows(): Promise<void> {
 }
 
 async function runWorktreeRows(): Promise<void> {
-  const { cleanupStaleAgentWorktrees, createAgentWorktree, keepWorktree, prepareWorktreeFiles, restoreWorktreeSession } = await import('../../src/platform/git/worktree/worktree.ts')
+  const { cleanupStaleCrewmateWorktrees, createCrewmateWorktree, keepWorktree, prepareWorktreeFiles, restoreWorktreeSession } = await import('../../src/platform/git/worktree/worktree.ts')
   const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
   const gitEnv = {
     ...process.env,
@@ -140,7 +140,7 @@ async function runWorktreeRows(): Promise<void> {
     chmodSync(includeFile, 0o200)
     let launchErr: unknown = null
     try {
-      await createAgentWorktree('agent-a1111111', { from: repo, foldersBehindLaunch: true })
+      await createCrewmateWorktree('agent-a1111111', { from: repo, foldersBehindLaunch: true })
     } catch (error) {
       launchErr = error
     } finally {
@@ -238,7 +238,7 @@ async function runWorktreeRows(): Promise<void> {
     await utimes(realOrphan, oldTime, oldTime)
 
     try {
-      await runWithCwdOverride(jRepo, () => cleanupStaleAgentWorktrees(new Date(Date.now() - 8 * 24 * 60 * 60 * 1000)))
+      await runWithCwdOverride(jRepo, () => cleanupStaleCrewmateWorktrees(new Date(Date.now() - 8 * 24 * 60 * 60 * 1000)))
     } finally {
       if (existsSync(badDotGit)) chmodSync(badDotGit, 0o600)
       if (existsSync(badGitdirFile)) chmodSync(badGitdirFile, 0o600)

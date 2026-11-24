@@ -91,7 +91,7 @@ const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool
 const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
 const seam = await import('../../src/crew/board/seam.ts')
 const { runSwarmCommand } = await import('../../src/commands/swarm/swarm.ts')
-const { AgentTool, inputSchema: getAgentInputSchema } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
+const { CrewmateTool, inputSchema: getAgentInputSchema } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
 const { getBuiltInAgents } = await import('../../src/tools/crewmate/builtInAgents.ts')
 const { SYNTHETIC_OUTPUT_TOOL_NAME } = await import('../../src/tools/kit/names/syntheticOutput.ts')
 const { compileJsonSchema } = await import('../../src/platform/json-schema/jsonSchemaEngine.ts')
@@ -402,7 +402,7 @@ function describedArguments(text: string): DescribedArgument[] {
   let tool = ''
   for (const line of joinedCodeSpans(text).split('\n')) {
     if (/^#{1,6} /.test(line)) tool = ''
-    if (/\bLaunch\b/.test(line)) tool = AgentTool.name
+    if (/\bLaunch\b/.test(line)) tool = CrewmateTool.name
     for (const span of codeSpansOf(line)) {
       if (registeredToolNames.has(span)) tool = span
       const pair = /^([a-zA-Z_][a-zA-Z0-9_]*):\s*(.+)$/.exec(span)
@@ -459,11 +459,11 @@ const commsBoundPattern = /\b(?:max|maximum|at most|under|fewer than|limit(?:ed)
 check('neither skill bounds CrewBoard reads or posts by tokens, characters, or count', !commsBoundPattern.test(deepSource) && !commsBoundPattern.test(reviewSource))
 check('neither skill contains retired workflow calls or /workflows references', !/\bWorkflow\s*\(|\/workflows\b/i.test(bothTexts))
 
-const { resolveAgentEffort } = await import('../../src/tools/crewmate/runCrewmate.ts')
+const { resolveCrewmateEffort } = await import('../../src/tools/crewmate/runCrewmate.ts')
 for (const [name, source] of [['deep-research', deepSource], ['code-review', reviewSource]] as const) {
   const identityLine = source.split('\n').find(line => line.includes('on every `Crewmate` launch')) ?? ''
   const identity = launchArguments(identityLine.slice(identityLine.indexOf('on every `Crewmate` launch')))
-  const effort = resolveAgentEffort({ effortOverride: identity.effort === '<effort>' ? 'max' : undefined, useExactTools: false, definitionEffort: undefined, defaultEffort: 'high' })
+  const effort = resolveCrewmateEffort({ effortOverride: identity.effort === '<effort>' ? 'max' : undefined, useExactTools: false, definitionEffort: undefined, defaultEffort: 'high' })
   check(`${name}: a max-effort lead dispatches explicit identity instead of silently taking the high crewmate default`, effort === 'max' && identity.model === '<worker_model>', { identity, effort })
 }
 
@@ -490,13 +490,13 @@ const chosenBase = reviewSource.slice(0, 700).includes('@{upstream}...HEAD') ? h
 check('a published feature whose upstream equals its head is compared with its integration base, not itself', git('diff', `${chosenBase}...HEAD`).includes('+export const counter = 2'))
 check('a missing PR head uses patch-only evidence rather than freezing unrelated HEAD', reviewSource.includes('patch-only') && !reviewSource.includes('set `<head_sha>` to `HEAD`') && reviewSource.includes('`file: "<path>"`') && reviewSource.includes('`page: 0`'))
 
-const { finalizeAgentTool } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+const { finalizeCrewmateTool } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
 const { createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
 const missingOutput = createAssistantMessage({ content: [{ type: 'text', text: 'Looks fine overall.' }] as never })
 missingOutput.message.stop_reason = 'end_turn'
 for (const [name, source] of [['deep-research', deepSource], ['code-review', reviewSource]] as const) {
   const mode = /`schema_mode: "(strict|permissive)"`/.exec(source)?.[1] === 'strict' ? 'strict' : 'permissive'
-  const result = finalizeAgentTool([missingOutput], `missing-${name}`, { prompt: 'Return findings', resolvedAgentModel: 'claude-opus-4-8', isBuiltInAgent: true, startTime: Date.now(), agentType: 'mercury-crew', isAsync: false, structuredSpec: { mode, source: 'dispatch' } })
+  const result = finalizeCrewmateTool([missingOutput], `missing-${name}`, { prompt: 'Return findings', resolvedAgentModel: 'claude-opus-4-8', isBuiltInAgent: true, startTime: Date.now(), agentType: 'mercury-crew', isAsync: false, structuredSpec: { mode, source: 'dispatch' } })
   check(`${name}: the prescribed structured launch does not count absent output as completed`, result.outcome?.status === 'failed' && result.structured?.data === undefined, result.outcome)
 }
 check('all review candidates have a batch and a ruling, including beyond three verifier batches', reviewSource.includes('every candidate exactly once') && reviewSource.includes('successive foreground rounds') && reviewSource.includes('missing rulings as `UNPROVEN`'))
@@ -581,7 +581,7 @@ async function runLaunchProof(sessionUuid: string, boardLabel: string, researche
       updateAttributionState: () => {},
       toolUseId: `toolu_${boardLabel}_${n}`,
     }
-    const res = await AgentTool.call(
+    const res = await CrewmateTool.call(
       input as never,
       context as never,
       (async (_tool: unknown, toolInput: unknown) => ({ behavior: 'allow', updatedInput: toolInput })) as never,

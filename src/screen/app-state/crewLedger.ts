@@ -1,18 +1,18 @@
-import { crewAgentsOf, crewSettled, type CrewAgentFacts } from '../../engine/connector/crewFacts.js'
+import { crewmatesOf, crewSettled, type CrewmateFacts } from '../../engine/connector/crewFacts.js'
 import type { WorkRosterV1 } from '../../engine/connector/types.js'
 import type { TaskState } from '../../engine/tasks/taskState.js'
 import { projectWorkRoster } from '../../engine/connector/workRoster.js'
 import type { AppState } from './AppStateStore.js'
 
-export type CrewLedgerRow = { facts: CrewAgentFacts; hosted: boolean; listed: boolean; cleared: boolean; stamp: string }
+export type CrewLedgerRow = { facts: CrewmateFacts; hosted: boolean; listed: boolean; cleared: boolean; stamp: string }
 export type CrewLedger = Record<string, CrewLedgerRow>
-type CrewSeen = { facts: CrewAgentFacts; hosted: boolean }
+type CrewSeen = { facts: CrewmateFacts; hosted: boolean }
 
 type SetAppState = (updater: (prevState: AppState) => AppState) => void
 
 export const CREW_UNLISTED_STOP_WORDS = 'its runner no longer lists it'
 
-export function crewFactsStamp(facts: CrewAgentFacts): string {
+export function crewFactsStamp(facts: CrewmateFacts): string {
   return JSON.stringify(facts)
 }
 
@@ -23,13 +23,13 @@ function dismissed(task: TaskState): boolean {
 export function seenCrewOf(tasks: Record<string, TaskState> | undefined, roster: Pick<WorkRosterV1, 'rows'>, sessionId: string | null): CrewSeen[] {
   const kept: Record<string, TaskState> = {}
   for (const [id, task] of Object.entries(tasks ?? {})) if (!dismissed(task)) kept[id] = task
-  const local = crewAgentsOf(projectWorkRoster(kept), sessionId)
+  const local = crewmatesOf(projectWorkRoster(kept), sessionId)
   const localIds = new Set(local.map(facts => facts.id))
-  const hosted = crewAgentsOf(roster.rows, sessionId).filter(facts => !localIds.has(facts.id))
+  const hosted = crewmatesOf(roster.rows, sessionId).filter(facts => !localIds.has(facts.id))
   return [...local.map(facts => ({ facts, hosted: false })), ...hosted.map(facts => ({ facts, hosted: true }))]
 }
 
-function settledUnlisted(facts: CrewAgentFacts, nowMs: number): CrewAgentFacts {
+function settledUnlisted(facts: CrewmateFacts, nowMs: number): CrewmateFacts {
   if (!facts.running) return facts
   return {
     ...facts,
@@ -86,7 +86,7 @@ export function foldCrewLedger(
   return next ?? ledger
 }
 
-function crewLedgerOrder(a: CrewAgentFacts, b: CrewAgentFacts): number {
+function crewLedgerOrder(a: CrewmateFacts, b: CrewmateFacts): number {
   if (a.running !== b.running) return a.running ? -1 : 1
   return b.startedAt - a.startedAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
 }

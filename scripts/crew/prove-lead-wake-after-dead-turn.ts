@@ -28,7 +28,7 @@ const seam = await import('../../src/crew/board/seam.ts')
 const { runSwarmCommand } = await import('../../src/commands/swarm/swarm.ts')
 const { operatorPauseGate } = await import('../../src/engine/loop/pauseGate.ts')
 runSwarmCommand('on')
-await seam.latchSwarmAgent('sender', 'Sender')
+await seam.latchSwarmCrewmate('sender', 'Sender')
 
 let wakes = 0
 let idle = true
@@ -109,6 +109,6 @@ check('lifting the hold wakes it once for what arrived', wakes === 6, `${wakes} 
 
 watch.stop()
 runSwarmCommand('off')
-seam.settleSwarmAgent('sender')
+seam.settleSwarmCrewmate('sender')
 console.log(failures === 0 ? '\nprove-lead-wake-after-dead-turn: ALL LAWS HOLD' : `\nprove-lead-wake-after-dead-turn: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

@@ -26,7 +26,7 @@ const lr = await import('../../src/engine/tasks/local-agent/launchReceipts.ts')
 const q = await import('../../src/screen/composer/input-core/command-queue.ts')
 const { recordTranscript } = await import('../../src/sessions/transcripts/sessionStorage.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
-const { AGENT_RESUME_NOTE, agentStopReasonOf, AGENT_STOP_BY_OPERATOR } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { CREWMATE_RESUME_NOTE, crewmateStopReasonOf, CREWMATE_STOP_BY_OPERATOR } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
 
 console.log('============================================================')
 console.log(' the restart carry — the words, the queue log, the journal identity, the seat facts')
@@ -40,7 +40,7 @@ section('C1 the ruled row: one row, the crash words and the stop words')
   const stop = lr.restartCarryRow('stop', { relaunched: 3, delivered: 0, stopped: 0 })
   check("a stop restart says the stop, never a crash: 'after a stop'", stop === 'runner restarted after a stop: 3 background crewmates relaunched, 0 delivered from their receipts, 0 stopped' && !stop.includes('crash'), stop + ' — change restartCarryRow in src/engine/tasks/local-agent/launchReceipts.ts')
   check('the row is recognisable by its prefix (the wake reads it)', lr.isRestartCarryRow(crash) && lr.isRestartCarryRow(stop) && !lr.isRestartCarryRow('<task-notification>'), 'change isRestartCarryRow or the row prefix in src/engine/tasks/local-agent/launchReceipts.ts')
-  check('the relaunch note is shaped like the resume note and tells the agent to read its diff before it edits', lr.AGENT_RELAUNCH_NOTE.includes('Continue from where your transcript ends') && AGENT_RESUME_NOTE.includes('Continue from where your transcript ends') && /git diff/.test(lr.AGENT_RELAUNCH_NOTE) && /read a file again before you edit it/.test(lr.AGENT_RELAUNCH_NOTE), lr.AGENT_RELAUNCH_NOTE + ' — change AGENT_RELAUNCH_NOTE in src/engine/tasks/local-agent/launchReceipts.ts (AGENT_RESUME_NOTE is in LocalAgentTask.tsx)')
+  check('the relaunch note is shaped like the resume note and tells the agent to read its diff before it edits', lr.CREWMATE_RELAUNCH_NOTE.includes('Continue from where your transcript ends') && CREWMATE_RESUME_NOTE.includes('Continue from where your transcript ends') && /git diff/.test(lr.CREWMATE_RELAUNCH_NOTE) && /read a file again before you edit it/.test(lr.CREWMATE_RELAUNCH_NOTE), lr.CREWMATE_RELAUNCH_NOTE + ' — change AGENT_RELAUNCH_NOTE in src/engine/tasks/local-agent/launchReceipts.ts (AGENT_RESUME_NOTE is in LocalAgentTask.tsx)')
 }
 
 section('C2 the queue log: enqueue rows in both record shapes, with the identity fields when the runner wrote them')
@@ -87,10 +87,10 @@ section('C3 the undelivered lines: what the dying runner still held, by the log 
 
 section('C4 the held notices: the finished agent, the operator stop, the runner-death stop')
 {
-  const crewViewStop = `Agent "beta" was ${agentStopReasonOf(AGENT_STOP_BY_OPERATOR)} — its work is kept`
+  const crewViewStop = `Agent "beta" was ${crewmateStopReasonOf(CREWMATE_STOP_BY_OPERATOR)} — its work is kept`
   const notice = (id: string, status: string, summary: string): string =>
     `<task-notification>\n<task-id>${id}</task-id>\n<tool-use-id>toolu_${id}</tool-use-id>\n<status>${status}</status>\n<summary>${summary}</summary>\n</task-notification>`
-  const held = lr.heldAgentNotices(
+  const held = lr.heldCrewmateNotices(
     [
       envelope({ operation: 'enqueue', content: notice('alpha', 'completed', 'Agent "alpha" completed'), mode: 'task-notification', sentAt: '2026-01-01T00:05:00.000Z' }),
       envelope({ operation: 'enqueue', content: notice('beta', 'killed', crewViewStop), mode: 'task-notification' }),

@@ -107,7 +107,7 @@ section("§3 the row: the fable family's newest generation, its class, its picke
 {
   const { FAMILY_GENERATIONS, familyHeadOf, newestGenerationKey, previousGenerationKeys } = await import('../../src/models/facts/builtInModelTable.ts')
   const { getDefaultFableModel, parseUserSpecifiedModel, renderModelSetting, renderDefaultModelSetting } = await import('../../src/models/catalogue/engineModel.ts')
-  const { AGENT_DISPATCH_MODELS, MODEL_ALIASES } = await import('../../src/models/facts/aliases.ts')
+  const { CREWMATE_DISPATCH_MODELS, MODEL_ALIASES } = await import('../../src/models/facts/aliases.ts')
   const { classOfModel } = await import('../../src/models/roads/modelRegistry.ts')
   const { listAnthropicModels, resolveAnthropicModel, routeEffortsFor } = await import('../../src/models/roads/anthropic/anthropicAdapter.ts')
   const { focusedOptionSupports1m, getModelOptions } = await import('../../src/models/catalogue/modelOptions.ts')
@@ -126,7 +126,7 @@ section("§3 the row: the fable family's newest generation, its class, its picke
   check("'fable[1m]' keeps its rider on the new row", parseUserSpecifiedModel('fable[1m]') === `${ID}[1m]`, parseUserSpecifiedModel('fable[1m]'))
   check("the spoken spellings 'Fable 5.2' and 'fable-5.2' resolve to the row", parseUserSpecifiedModel('Fable 5.2') === ID && parseUserSpecifiedModel('fable-5.2') === ID, `${parseUserSpecifiedModel('Fable 5.2')} / ${parseUserSpecifiedModel('fable-5.2')}`)
   check("the family word renders capitalised, the default setting renders the row's name", renderModelSetting('fable') === 'Fable' && renderDefaultModelSetting('fable') === 'Fable 5.2', `${renderModelSetting('fable')} / ${renderDefaultModelSetting('fable')}`)
-  check("the settings alias list and the dispatch vocabulary carry 'fable52' beside 'fable51'", (MODEL_ALIASES as readonly string[]).includes('fable52') && (MODEL_ALIASES as readonly string[]).includes('fable51') && (AGENT_DISPATCH_MODELS as readonly string[]).includes('fable52'))
+  check("the settings alias list and the dispatch vocabulary carry 'fable52' beside 'fable51'", (MODEL_ALIASES as readonly string[]).includes('fable52') && (MODEL_ALIASES as readonly string[]).includes('fable51') && (CREWMATE_DISPATCH_MODELS as readonly string[]).includes('fable52'))
   check("a crew record's 'fable' folds to the newest row while its 'fable51' stays on Fable 5.1", foldLegacyWorkerModelKey('fable') === ID && foldLegacyWorkerModelKey('fable51') === PREVIOUS, `${foldLegacyWorkerModelKey('fable')} / ${foldLegacyWorkerModelKey('fable51')}`)
   check('the cap handoff ranks the row as the newest first-party frontier member', _firstPartyFrontierMemberForTest('fallback') === ID, _firstPartyFrontierMemberForTest('fallback'))
   check('a declared row has no family head; an undeclared fable generation takes this row as its head', familyHeadOf(ID) === null && familyHeadOf(UNDECLARED) === 'fable52', `${String(familyHeadOf(ID))} / ${String(familyHeadOf(UNDECLARED))}`)

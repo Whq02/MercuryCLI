@@ -403,19 +403,19 @@ async function runAgentTranscript(): Promise<void> {
   console.log('\nsessionStorage/loading + logs — getAgentTranscript throws on unreadable transcript instead of null')
   if (!POSIX_MODES) return
   const { asAgentId } = await import('../../src/sessions/transcripts/ids.ts')
-  const { getAgentTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
-  const { getAgentTranscript } = await import('../../src/sessions/transcripts/sessionListings.ts')
+  const { getCrewmateTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
+  const { getCrewmateTranscript } = await import('../../src/sessions/transcripts/sessionListings.ts')
   const missingId = asAgentId('fn33-missing-agent')
-  check('getAgentTranscript returns null when transcript is absent', (await getAgentTranscript(missingId)) === null)
+  check('getAgentTranscript returns null when transcript is absent', (await getCrewmateTranscript(missingId)) === null)
 
   const lockedId = asAgentId('fn33-locked-agent')
-  const lockedPath = getAgentTranscriptPath(lockedId)
+  const lockedPath = getCrewmateTranscriptPath(lockedId)
   mkdirSync(join(lockedPath, '..'), { recursive: true })
   writeFileSync(lockedPath, '{"type":"user"}\n', { mode: 0o600 })
   chmodSync(lockedPath, 0o000)
   let threwCode: string | null = null
   try {
-    await getAgentTranscript(lockedId)
+    await getCrewmateTranscript(lockedId)
   } catch (error) {
     threwCode = (error as NodeJS.ErrnoException | null)?.code ?? 'THREW'
   } finally {

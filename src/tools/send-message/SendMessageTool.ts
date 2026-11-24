@@ -6,7 +6,7 @@ import { lazySchema } from '../../platform/primitives/lazySchema.js'
 import { SEND_MESSAGE_TOOL_NAME } from '../kit/names/sendMessage.js'
 import { DESCRIPTION, getPrompt } from './prompt.js'
 import { renderToolResultMessage, renderToolUseMessage } from './rows.js'
-import { endedWords, mapMessageResult, messageNoticeFor, resolveCrewAddress, selfAddressRefusalText, senderAgentTask, unknownAgentRefusal, validateCrewMessage, type CrewMessageInput, type MessageOutput } from './crewAddress.js'
+import { endedWords, mapMessageResult, messageNoticeFor, resolveCrewAddress, selfAddressRefusalText, senderCrewmateTask, unknownCrewmateRefusal, validateCrewMessage, type CrewMessageInput, type MessageOutput } from './crewAddress.js'
 
 export type SendMessageToolOutput = MessageOutput
 export type Input = CrewMessageInput
@@ -52,7 +52,7 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> = buildTo
     if (self !== null) return { data: { success: false, message: self } }
     const address = await resolveCrewAddress(to, context)
     if (address.kind === 'main') {
-      const sender = senderAgentTask(context)
+      const sender = senderCrewmateTask(context)
       if (sender === undefined) {
         return {
           data: {
@@ -77,7 +77,7 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> = buildTo
       }
     }
     if (address.kind === 'unknown') {
-      return { data: { success: false, message: await unknownAgentRefusal(to, context, 'deliver to') } }
+      return { data: { success: false, message: await unknownCrewmateRefusal(to, context, 'deliver to') } }
     }
     const resolvedSelf = selfAddressRefusalText(to, context, 'deliver to', address.agentId)
     if (resolvedSelf !== null) return { data: { success: false, message: resolvedSelf } }

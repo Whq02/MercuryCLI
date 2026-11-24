@@ -6,7 +6,7 @@ import { bootLead, closeWorld, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, TURN
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const { crewAgentFactsOf, crewStateLabel, crewTokensLabel } = await import('../../src/engine/connector/crewFacts.ts')
+const { crewmateFactsOf, crewStateLabel, crewTokensLabel } = await import('../../src/engine/connector/crewFacts.ts')
 type WorkRow = import('../../src/engine/connector/types.ts').WorkRowV1
 
 const FIRST = 'START-HARBOUR'
@@ -84,7 +84,7 @@ try {
 tally.section('L4 — the rail\'s row for the launched-but-unanswered phase needs no new word')
 {
   const row = { id: 'agent-1', kind: 'agent', name: 'count the harbour', status: 'running', startTime: Date.now() } as WorkRow
-  const facts = crewAgentFactsOf(row, 'lead')
+  const facts = crewmateFactsOf(row, 'lead')
   tally.check('a running record with no settled response has no tokens label (no fabricated zero)', facts !== null && crewTokensLabel(facts) === null, 'crewTokensLabel in src/engine/connector/crewFacts.ts must return null for a running record with no settled response')
   tally.check('…and its one status word is running — the verb the rail paints for that phase', facts !== null && crewStateLabel(facts) === 'running', String(facts === null ? null : crewStateLabel(facts)) + ' — crewStateLabel in src/engine/connector/crewFacts.ts must read running for a running agent record')
 }

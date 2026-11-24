@@ -22,7 +22,7 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 
 const state = await import('../../src/boot/process-state/processState.ts')
 const config = await import('../../src/platform/config/globalConfig.ts')
-const { cleanupStaleAgentWorktrees, cleanupWorktree, createAgentWorktree, createWorktreeForSession, getCurrentWorktreeSession, unlockAgentWorktree } = await import('../../src/platform/git/worktree/worktree.ts')
+const { cleanupStaleCrewmateWorktrees, cleanupWorktree, createCrewmateWorktree, createWorktreeForSession, getCurrentWorktreeSession, unlockCrewmateWorktree } = await import('../../src/platform/git/worktree/worktree.ts')
 const { ensureWorkerWorktree, reapWorkerWorktree } = await import('../../src/daemon/concourse-workers/concourseWorktrees.ts')
 const { crewLeftoverWorktrees } = await import('../../src/crew/crewmates/crewWorktreeReminder.ts')
 const clones = (await import('../../src/platform/git/worktree/worktreeClone.ts')) as Record<string, unknown>
@@ -99,7 +99,7 @@ state.setIsInteractive(true)
 config.enableConfigs()
 
 section('§1 a copy records what it holds as clones, beside its base commit')
-const noted = await createAgentWorktree('agent-ab100001')
+const noted = await createCrewmateWorktree('agent-ab100001')
 const record = existsSync(adminFile(repo, 'agent-ab100001', 'WORKTREE_CLONES')) ? readFileSync(adminFile(repo, 'agent-ab100001', 'WORKTREE_CLONES'), 'utf8') : '<absent>'
 if (cloneRoad) check('the record names the two cloned folders, one a line', record === 'node_modules\nvendor/pack-a\n', JSON.stringify(record) + ' | fix the WORKTREE_CLONES record written for a cloned copy in src/platform/git/worktree/worktreeClone.ts')
 else {
@@ -107,7 +107,7 @@ else {
   check('a linked copy records nothing', record === '<absent>', JSON.stringify(record))
 }
 process.env.MERCURY_WORKTREE_CLONE = 'off'
-const plain = await createAgentWorktree('agent-ab100002')
+const plain = await createCrewmateWorktree('agent-ab100002')
 delete process.env.MERCURY_WORKTREE_CLONE
 if (!links) skip(`the links a copy is made of with no clone, and the fixture's own link to a file in §4: ${LINK_PRIVILEGE}`)
 check(`a copy made of ${links ? 'links' : 'the folders this account gets in place of links'} records nothing`, !existsSync(adminFile(repo, 'agent-ab100002', 'WORKTREE_CLONES')) && (links ? lstatSync(join(plain.worktreePath, 'node_modules')).isSymbolicLink() : lstatSync(join(plain.worktreePath, 'node_modules')).isDirectory()))
@@ -154,8 +154,8 @@ writeFileSync(join(outside, 'keep.txt'), 'outside the tree\n')
 writeFileSync(join(outside, 'sealed', 'inner.txt'), 'outside and read-only\n')
 chmodSync(join(outside, 'sealed'), 0o555)
 const outsideModeBefore = statSync(join(outside, 'sealed')).mode & 0o7777
-const handed = await createAgentWorktree('agent-ab400002')
-await unlockAgentWorktree(handed.worktreePath, repo)
+const handed = await createCrewmateWorktree('agent-ab400002')
+await unlockCrewmateWorktree(handed.worktreePath, repo)
 let linkedOut = true
 if (links) {
   symlinkSync(outside, join(handed.worktreePath, 'node_modules', 'link-out-of-the-tree'))
@@ -189,8 +189,8 @@ check('a folder with the name but outside a worktrees home is not deleted', exis
 rmSync(impostor, { recursive: true, force: true })
 
 section('§5 a tree left set aside by a process that died is no worktree to anyone, and the janitor sweeps it')
-const orphaned = await createAgentWorktree('agent-ab500001')
-await unlockAgentWorktree(orphaned.worktreePath, repo)
+const orphaned = await createCrewmateWorktree('agent-ab500001')
+await unlockCrewmateWorktree(orphaned.worktreePath, repo)
 const orphanAside = setWorktreeAside?.(orphaned.worktreePath) ?? null
 git(repo, 'worktree', 'remove', orphaned.worktreePath)
 const freshAside = join(home, `.removing-agent-ab500002-1-${Date.now().toString(36)}`)
@@ -199,13 +199,13 @@ check('git lists neither the path it had nor the tree set aside', orphanAside !=
 const leftovers = await crewLeftoverWorktrees(repo, Date.now())
 check('the crew\'s list of leftover worktrees names neither', !leftovers.some(row => row.path === orphaned.worktreePath || row.path.includes('.removing-')), leftovers.map(row => row.path).join(' | ') + ' | crewLeftoverWorktrees in src/crew/crewmates/crewWorktreeReminder.ts must skip .removing- folders')
 check('git status of the project is clean while both stand there', git(repo, 'status', '--porcelain') === '', git(repo, 'status', '--porcelain') + ' | the set-aside folders must stay inside the ignored .mercury/worktrees home')
-const withinGrace = await cleanupStaleAgentWorktrees(hoursAgo(8 * 24))
+const withinGrace = await cleanupStaleCrewmateWorktrees(hoursAgo(8 * 24))
 check('inside its first hour the janitor leaves a set-aside tree to its own delete', orphanAside !== null && existsSync(orphanAside) && existsSync(freshAside), String(withinGrace) + ' | cleanupStaleAgentWorktrees in src/platform/git/worktree/worktree.ts must leave a .removing- folder younger than an hour alone')
 if (orphanAside !== null) utimesSync(orphanAside, hoursAgo(2), hoursAgo(2))
-const stale = await createAgentWorktree('agent-ab400001')
-await unlockAgentWorktree(stale.worktreePath, repo)
+const stale = await createCrewmateWorktree('agent-ab400001')
+await unlockCrewmateWorktree(stale.worktreePath, repo)
 utimesSync(stale.worktreePath, hoursAgo(9 * 24), hoursAgo(9 * 24))
-const removedCount = await cleanupStaleAgentWorktrees(hoursAgo(8 * 24))
+const removedCount = await cleanupStaleCrewmateWorktrees(hoursAgo(8 * 24))
 check('the janitor removes an old clean lane and its branch', !existsSync(stale.worktreePath) && git(repo, 'branch', '--list', 'worktree-agent-ab400001') === '' && removedCount >= 1, String(removedCount) + ' | cleanupStaleAgentWorktrees in src/platform/git/worktree/worktree.ts must remove an old clean agent worktree and its branch')
 check('…and sweeps the tree whose delete died more than an hour ago', orphanAside !== null && (await (async () => {
   const until = Date.now() + 60_000

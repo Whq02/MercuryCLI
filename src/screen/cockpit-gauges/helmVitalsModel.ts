@@ -14,7 +14,7 @@ import { localWindowReasonTag } from '../../models/roads/local/localWindow.js'
 import { openrouterSlots } from '../../models/roads/accountSlots.js'
 import { NO_USAGE_READ_WORDS, usageAgeTail, usageAgeWords } from '../../models/roads/usageFreshness.js'
 import { formatLaneSpend } from '../../models/usage/sessionCost.js'
-import { crewAgentsOf, crewUsageLine } from '../../engine/connector/crewFacts.js'
+import { crewmatesOf, crewUsageLine } from '../../engine/connector/crewFacts.js'
 import type { WorkRosterV1 } from '../../engine/connector/types.js'
 import { contextPercentLabel, contextWindowLabel } from '../../engine/context-window/contextFill.js'
 import type { LiveContextUsage } from './contextUsageLive.js'
@@ -162,7 +162,7 @@ export function buildVitalsModel(input: VitalsInput): VitalsModel {
   } else if (usage.readerNoteCompact !== undefined) {
     usageRows.push({ kind: 'text', key: 'usage:reader', text: `  ${usage.readerNoteCompact}`, color: tok.warning })
   }
-  const crewLine = crewUsageLine(crewAgentsOf(input.workRoster.rows, input.focusedSessionId))
+  const crewLine = crewUsageLine(crewmatesOf(input.workRoster.rows, input.focusedSessionId))
   if (crewLine !== null) muted('usage:crew', crewLine)
   const scheduledLine = scheduledUsageLine()
   if (scheduledLine !== null) muted('usage:scheduled', scheduledLine)

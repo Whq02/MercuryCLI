@@ -1,13 +1,13 @@
 import type { TaskState, BackgroundTaskState } from '../../engine/tasks/taskState.js'
 import { isBackgroundTask } from '../../engine/tasks/taskState.js'
 import {
-  isLocalAgentTask,
-  isPanelAgentTask,
+  isCrewmateTask,
+  isPanelCrewmateTask,
 } from '../../engine/tasks/local-agent/crewmateTask.js'
 import { GLYPH } from '../theme/glyphs.js'
 import {
-  deriveAgentLifecycle,
-  type AgentLifecycle,
+  deriveCrewmateLifecycle,
+  type CrewmateLifecycle,
 } from '../../crew/agent-results/lifecycle.js'
 
 function isTerminalStatus(status: string): boolean {
@@ -18,7 +18,7 @@ export function isManageableTask(task: TaskState): task is BackgroundTaskState {
   const original: TaskState = task
   if (isBackgroundTask(task)) return true
   const candidate: TaskState = original
-  if (isPanelAgentTask(candidate) && candidate.status === 'completed') {
+  if (isPanelCrewmateTask(candidate) && candidate.status === 'completed') {
     const deadline = candidate.evictAfter
     if (deadline === 0) return false
     if (deadline === undefined) return true
@@ -74,10 +74,10 @@ export function getTaskStatusColor(
 }
 
 
-export function agentLifecycleOf(task: TaskState): AgentLifecycle | undefined {
-  if (!isLocalAgentTask(task)) return undefined
+export function crewmateLifecycleOf(task: TaskState): CrewmateLifecycle | undefined {
+  if (!isCrewmateTask(task)) return undefined
   const row = task as { status: string; endTime?: number }
-  return deriveAgentLifecycle({
+  return deriveCrewmateLifecycle({
     taskStatus: row.status,
     ...(row.endTime !== undefined ? { finishedAtMs: row.endTime } : {}),
     transcriptExists: isTerminalStatus(row.status),

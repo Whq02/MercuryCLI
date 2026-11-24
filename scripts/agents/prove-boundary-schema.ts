@@ -26,13 +26,13 @@ if (childAt !== -1) {
   bootstrap.setOriginalCwd(process.cwd())
   bootstrap.setCwdState(process.cwd())
   bootstrap.switchSession('00000000-0000-4000-8000-000000000044' as never)
-  const { runAgent } = await import('../../src/tools/crewmate/runCrewmate.ts')
+  const { runCrewmate } = await import('../../src/tools/crewmate/runCrewmate.ts')
   const { resumeAgentBackground } = await import('../../src/tools/crewmate/resumeCrewmate.ts')
   const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
   const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
   const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
   const { turnDoor: startTurn } = await import('../../src/engine/turnDoor.ts')
-  const { readAgentMetadata, flushSessionStorage } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+  const { readCrewmateMetadata, flushSessionStorage } = await import('../../src/sessions/transcripts/sessionStorage.ts')
   await import('../../src/engine/tasks/tasks.ts')
   type AppState = import('../../src/screen/app-state/AppStateStore.ts').AppState
   let state = getDefaultAppState()
@@ -47,7 +47,7 @@ if (childAt !== -1) {
   const allow = (async (_tool: unknown, input: unknown) => ({ behavior: 'allow', updatedInput: input })) as never
   if (mode === 'launch') {
     const definition = { agentType: 'mercury-crew', whenToUse: 'schema boundary fixture', source: 'projectSettings', getSystemPrompt: () => 'Return the required structured answer.' } as never
-    for await (const _row of runAgent({ agentDefinition: definition, promptMessages: [createUserMessage({ content: 'SCHEMA-LAUNCH' })], toolUseContext: context, canUseTool: allow, isAsync: true, canShowPermissionPrompts: false, querySource: 'agent:custom:schema-boundary' as never, availableTools: [] as never, model, override: { agentId }, description: 'schema continuation', cwd: process.cwd(), structuredOutputSpec: spec })) {}
+    for await (const _row of runCrewmate({ agentDefinition: definition, promptMessages: [createUserMessage({ content: 'SCHEMA-LAUNCH' })], toolUseContext: context, canUseTool: allow, isAsync: true, canShowPermissionPrompts: false, querySource: 'agent:custom:schema-boundary' as never, availableTools: [] as never, model, override: { agentId }, description: 'schema continuation', cwd: process.cwd(), structuredOutputSpec: spec })) {}
   } else {
     await resumeAgentBackground({ agentId, prompt: 'SCHEMA-' + mode.toUpperCase(), toolUseContext: context, canUseTool: allow })
     const deadline = Date.now() + 30000
@@ -55,7 +55,7 @@ if (childAt !== -1) {
   }
   await flushSessionStorage()
   const task = state.tasks[agentId] as any
-  console.log(JSON.stringify({ metadata: await readAgentMetadata(agentId as never), status: task?.status, error: task?.error, result: task?.result }))
+  console.log(JSON.stringify({ metadata: await readCrewmateMetadata(agentId as never), status: task?.status, error: task?.error, result: task?.result }))
   process.exit(0)
 } else {
   const { startFixtureApi } = await import('../lib/fixtureApi.ts')

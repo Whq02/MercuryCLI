@@ -12,7 +12,7 @@ import {
 } from '../../permissions/rules/permissionMode.js'
 import type { Theme } from '../../screen/theme/theme.js'
 import { buildTool } from '../kit/tool.js'
-import { REJECT_MESSAGE, REJECT_MESSAGE_WITH_REASON_PREFIX, SUBAGENT_REJECT_MESSAGE, SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX, unwrapToolUseError } from '../../engine/message-shapes/rejectionText.js'
+import { REJECT_MESSAGE, REJECT_MESSAGE_WITH_REASON_PREFIX, CREWMATE_REJECT_MESSAGE, CREWMATE_REJECT_MESSAGE_WITH_REASON_PREFIX, unwrapToolUseError } from '../../engine/message-shapes/rejectionText.js'
 import {
   ASK_USER_QUESTION_TOOL_CHIP_WIDTH,
   ASK_USER_QUESTION_TOOL_NAME,
@@ -179,8 +179,8 @@ function isDeclineErrorText(error: unknown): boolean {
   return (
     unwrapped.startsWith(REJECT_MESSAGE) ||
     unwrapped.startsWith(REJECT_MESSAGE_WITH_REASON_PREFIX) ||
-    unwrapped.startsWith(SUBAGENT_REJECT_MESSAGE) ||
-    unwrapped.startsWith(SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX)
+    unwrapped.startsWith(CREWMATE_REJECT_MESSAGE) ||
+    unwrapped.startsWith(CREWMATE_REJECT_MESSAGE_WITH_REASON_PREFIX)
   )
 }
 

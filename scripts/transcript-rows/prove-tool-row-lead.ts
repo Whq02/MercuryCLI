@@ -16,7 +16,7 @@ const { Box, Text } = await import('../../src/screen/themedRenderer.js')
 const { renderToAnsiString } = await import('../../src/screen/renderer/staticRender.tsx')
 const { AssistantToolUseMessage } = await import('../../src/screen/messages/AssistantToolUseMessage.js')
 const { CollapsedReadSearchContent } = await import('../../src/screen/messages/CollapsedReadSearchContent.js')
-const { UserAgentNotificationMessage } = await import('../../src/screen/messages/UserCrewmateNotificationMessage.js')
+const { UserCrewmateNotificationMessage } = await import('../../src/screen/messages/UserCrewmateNotificationMessage.js')
 const { MessageMetaProvider } = await import('../../src/screen/messages/TranscriptNameplate.js')
 const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
 const { useMercuryTokens } = await import('../../src/screen/widgets/useMercuryTokens.js')
@@ -216,7 +216,7 @@ section('§2 a mixed turn: group, read, edit, agent rows align; the notice row k
   const notice = React.createElement(
     MessageMetaProvider as never,
     { message: { type: 'user', timestamp: STAMP } },
-    React.createElement(UserAgentNotificationMessage as never, {
+    React.createElement(UserCrewmateNotificationMessage as never, {
       param: { type: 'text', text: '<summary>Agent "the errand" completed</summary><status>completed</status>' },
     } as never),
   )

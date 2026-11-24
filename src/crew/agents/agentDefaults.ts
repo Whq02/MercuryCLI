@@ -3,12 +3,12 @@ import { EFFORT_LEVELS, type EffortLevel } from '../../models/effort/effortLadde
 import { getGlobalConfig, type GlobalConfig } from '../../platform/settings/config.js'
 import { isOneOf } from '../../platform/primitives/isOneOf.js'
 
-export const SUBAGENT_DEFAULT_EFFORT: EffortLevel = 'high'
-export const SUBAGENT_DEFAULT_MAX_CONCURRENT = 8
+export const CREWMATE_DEFAULT_EFFORT: EffortLevel = 'high'
+export const CREWMATE_DEFAULT_MAX_CONCURRENT = 8
 
-type SubagentDefaultsRecord = NonNullable<GlobalConfig['agents']>
+type CrewmateDefaultsRecord = NonNullable<GlobalConfig['agents']>
 
-type SubagentDefaults = {
+type CrewmateDefaults = {
   effort: EffortLevel
   effortSource: 'setting' | 'convention'
   model: string | undefined
@@ -24,7 +24,7 @@ function isPositiveInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value > 0
 }
 
-export function subagentDefaultsOf(record: SubagentDefaultsRecord | undefined): SubagentDefaults {
+export function crewmateDefaultsOf(record: CrewmateDefaultsRecord | undefined): CrewmateDefaults {
   const effort = isLadderWord(record?.defaultEffort) ? record.defaultEffort : undefined
   const model =
     typeof record?.defaultModel === 'string' && record.defaultModel.trim() !== '' && record.defaultModel.trim().toLowerCase() !== 'inherit'
@@ -32,31 +32,31 @@ export function subagentDefaultsOf(record: SubagentDefaultsRecord | undefined): 
       : undefined
   const cap = isPositiveInteger(record?.maxConcurrent) ? record.maxConcurrent : undefined
   return {
-    effort: effort ?? SUBAGENT_DEFAULT_EFFORT,
+    effort: effort ?? CREWMATE_DEFAULT_EFFORT,
     effortSource: effort !== undefined ? 'setting' : 'convention',
     model,
-    maxConcurrent: cap ?? SUBAGENT_DEFAULT_MAX_CONCURRENT,
+    maxConcurrent: cap ?? CREWMATE_DEFAULT_MAX_CONCURRENT,
     maxConcurrentSource: cap !== undefined ? 'setting' : 'convention',
   }
 }
 
-export function subagentDefaults(): SubagentDefaults {
-  return subagentDefaultsOf(getGlobalConfig().agents)
+export function crewmateDefaults(): CrewmateDefaults {
+  return crewmateDefaultsOf(getGlobalConfig().agents)
 }
 
-export function subagentDefaultEffort(): EffortLevel {
-  return subagentDefaults().effort
+export function crewmateDefaultEffort(): EffortLevel {
+  return crewmateDefaults().effort
 }
 
-export function subagentDefaultModel(): string | undefined {
-  return subagentDefaults().model
+export function crewmateDefaultModel(): string | undefined {
+  return crewmateDefaults().model
 }
 
-export function subagentConcurrencyCap(
+export function crewmateConcurrencyCap(
   envCap: number | null,
-  record: SubagentDefaultsRecord | undefined = getGlobalConfig().agents,
+  record: CrewmateDefaultsRecord | undefined = getGlobalConfig().agents,
 ): { cap: number; source: 'env' | 'setting' | 'convention' } {
   if (envCap !== null) return { cap: envCap, source: 'env' }
-  const defaults = subagentDefaultsOf(record)
+  const defaults = crewmateDefaultsOf(record)
   return { cap: defaults.maxConcurrent, source: defaults.maxConcurrentSource }
 }

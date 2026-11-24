@@ -3,16 +3,16 @@ import { getOriginalCwd, getSessionId, getSessionProjectDir } from '../../boot/p
 import type { SetAppState, TaskKillReceipt, TaskStateBase, TaskType } from './taskBase.js'
 import type { AppState } from '../../screen/app-state/AppState.js'
 import { getTaskByType } from './tasks.js'
-import { readAgentTranscript } from '../../crew/crewmates/agentTranscriptReader.js'
+import { readCrewmateTranscript } from '../../crew/crewmates/agentTranscriptReader.js'
 import { asAgentId } from '../../sessions/transcripts/ids.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
-import { getAgentTranscriptPath } from '../../sessions/transcripts/paths.js'
+import { getCrewmateTranscriptPath } from '../../sessions/transcripts/paths.js'
 import { emitTaskEnded } from '../../daemon/runner/sdkEventQueue.js'
 import { updateTaskState } from '../task-framework/taskRegistry.js'
 import { projectLeaseHolder, releaseProjectLeases } from '../../integrations/vulcan/engine/leases.js'
-import type { AgentPauseV1 } from './local-agent/agentPause.js'
-import { AGENT_RESUME_DOOR, isLocalAgentTask, stopPausedAgentTask } from './local-agent/crewmateTask.js'
-import { agentPauseRecordPath, clearAgentPauseRecord } from './local-agent/pauseCarry.js'
+import type { CrewmatePauseV1 } from './local-agent/agentPause.js'
+import { CREWMATE_RESUME_DOOR, isCrewmateTask, stopPausedCrewmateTask } from './local-agent/crewmateTask.js'
+import { crewmatePauseRecordPath, clearCrewmatePauseRecord } from './local-agent/pauseCarry.js'
 import { isLocalShellTask, type LocalShellTaskState } from './local-shell/shellTaskState.js'
 import { findTaskOutcome, type TaskOutcomeEnvelope, type TaskOutcomeState } from './taskOutcomeEnvelope.js'
 
@@ -52,7 +52,7 @@ export type FinishedShell = {
   outputPath?: string
 }
 
-export type FinishedAgent = {
+export type FinishedCrewmate = {
   taskId: string
   description?: string
   ended: string
@@ -61,7 +61,7 @@ export type FinishedAgent = {
 }
 
 type FinishedTaskOnDisk =
-  | { kind: 'agent'; words: string; agent: FinishedAgent }
+  | { kind: 'agent'; words: string; agent: FinishedCrewmate }
   | { kind: 'shell'; words: string; shell: FinishedShell }
 
 function endedWord(state: TaskOutcomeState): string {
@@ -109,7 +109,7 @@ export function finishedShellWords(shell: FinishedShell): string {
   return `Task ${shell.taskId} (${shell.command}) had already ${shell.ended}${exit} at ${new Date(shell.endedAt).toISOString()}; nothing was stopped${where}`
 }
 
-export function finishedAgentFromRow(task: TaskStateBase): FinishedAgent {
+export function finishedCrewmateFromRow(task: TaskStateBase): FinishedCrewmate {
   return {
     taskId: task.id,
     description: task.description,
@@ -119,41 +119,41 @@ export function finishedAgentFromRow(task: TaskStateBase): FinishedAgent {
   }
 }
 
-export function finishedAgentWords(agent: FinishedAgent): string {
+export function finishedCrewmateWords(agent: FinishedCrewmate): string {
   const when = agent.endedAt !== undefined ? ` at ${new Date(agent.endedAt).toISOString()}` : ''
   const named = agent.description !== undefined ? ` (${agent.description})` : ''
   return `Task ${agent.taskId}${named} had already ${agent.ended}${when}; nothing was stopped; its output file is ${agent.outputPath} — read it directly; ResumeCrewmate to that id resumes it`
 }
 
-type PausedAgentStop = { description: string; pause: AgentPauseV1; leasesReleased: number; recordKept?: string }
+type PausedCrewmateStop = { description: string; pause: CrewmatePauseV1; leasesReleased: number; recordKept?: string }
 
-export function isPausedAgentRow(task: unknown): task is TaskStateBase & { paused: AgentPauseV1 } {
-  return isLocalAgentTask(task) && task.status !== 'running' && task.paused !== undefined
+export function isPausedCrewmateRow(task: unknown): task is TaskStateBase & { paused: CrewmatePauseV1 } {
+  return isCrewmateTask(task) && task.status !== 'running' && task.paused !== undefined
 }
 
-export function stoppedWhilePausedWords(taskId: string, stop: PausedAgentStop): string {
+export function stoppedWhilePausedWords(taskId: string, stop: PausedCrewmateStop): string {
   const retry = stop.pause.resumesAtMs !== undefined ? `the retry it had armed for ${new Date(stop.pause.resumesAtMs).toISOString()} is cancelled` : 'no retry stays armed'
   const leases = stop.leasesReleased > 0 ? `${stop.leasesReleased} lease${stop.leasesReleased === 1 ? '' : 's'} released` : 'no lease was held'
-  const kept = stop.recordKept !== undefined ? `; its pause record ${agentPauseRecordPath(taskId)} could not be removed (${stop.recordKept}) — delete it, or the next session start resumes it` : ''
-  return `Stopped task ${taskId} (${stop.description}) while it was paused: ${retry}, ${leases}; its work is kept${kept}; ${AGENT_RESUME_DOOR}`
+  const kept = stop.recordKept !== undefined ? `; its pause record ${crewmatePauseRecordPath(taskId)} could not be removed (${stop.recordKept}) — delete it, or the next session start resumes it` : ''
+  return `Stopped task ${taskId} (${stop.description}) while it was paused: ${retry}, ${leases}; its work is kept${kept}; ${CREWMATE_RESUME_DOOR}`
 }
 
-export async function stopPausedAgent(
+export async function stopPausedCrewmate(
   taskId: string,
   context: { getAppState: () => AppState; setAppState: SetAppState },
-): Promise<PausedAgentStop | null> {
+): Promise<PausedCrewmateStop | null> {
   const task = context.getAppState().tasks?.[taskId]
-  if (!isPausedAgentRow(task)) return null
+  if (!isPausedCrewmateRow(task)) return null
   const { cancelAutomaticResume } = await import('../../tools/crewmate/crewmateLifecycle.js')
   cancelAutomaticResume(taskId)
   let recordKept: string | undefined
   try {
-    await clearAgentPauseRecord(taskId)
+    await clearCrewmatePauseRecord(taskId)
   } catch (error) {
     recordKept = error instanceof Error ? error.message : String(error)
     logForDebugging(`stop of paused crewmate ${taskId}: its pause record could not be removed — ${recordKept}`)
   }
-  const stopped = stopPausedAgentTask(taskId, context.setAppState)
+  const stopped = stopPausedCrewmateTask(taskId, context.setAppState)
   if (stopped === null) return null
   let leasesReleased = 0
   try {
@@ -168,12 +168,12 @@ export async function stopPausedAgent(
 export async function finishedTaskOnDisk(taskId: string): Promise<FinishedTaskOnDisk | null> {
   let transcriptPath: string | null = null
   try {
-    transcriptPath = getAgentTranscriptPath(asAgentId(taskId))
+    transcriptPath = getCrewmateTranscriptPath(asAgentId(taskId))
   } catch {
     transcriptPath = null
   }
   if (transcriptPath !== null && existsSync(transcriptPath)) {
-    const view = await readAgentTranscript(transcriptPath)
+    const view = await readCrewmateTranscript(transcriptPath)
     let endedAt: number | undefined
     try {
       endedAt = Math.floor(statSync(transcriptPath).mtimeMs)
@@ -210,14 +210,14 @@ export async function stopTask(
   taskType: TaskType
   command: string
   settlement?: TaskKillReceipt
-  pausedStop?: PausedAgentStop
+  pausedStop?: PausedCrewmateStop
 }> {
   const task = context.getAppState().tasks?.[taskId]
   if (!task) {
     throw new StopTaskError('not_found', await taskNotFoundWords(taskId))
   }
   if (task.status !== 'running') {
-    const pausedStop = await stopPausedAgent(taskId, context)
+    const pausedStop = await stopPausedCrewmate(taskId, context)
     if (pausedStop !== null) {
       return {
         taskId,

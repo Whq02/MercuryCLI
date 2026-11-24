@@ -3,7 +3,7 @@
 import { join } from 'node:path'
 import {
   MERCURY_CONSTITUTION,
-  MERCURY_SUBAGENT_CONTRACT,
+  MERCURY_CREWMATE_CONTRACT,
   getMercuryContractSections,
 } from '../../src/engine/system-prompt/mercuryContract.js'
 
@@ -39,7 +39,7 @@ check('every section carries a semantic name + string text', secs.every(s => typ
 check('no positional section names (semantic-ID law)', secs.every(s => !/^wrapper-\d|^mode-\d+$/.test(s.name)), secs.map(s => s.name).join(', '), 'rename the positional section in getMercuryContractSections in src/engine/system-prompt/mercuryContract.ts to a semantic name')
 
 section('the seat contract stays beside the constitution')
-check('the crewmate contract carries its evidence rule and its gate rule', /Claim only what you opened or ran shows/.test(MERCURY_SUBAGENT_CONTRACT) && /Never bypass a safety, permission, approval, or capability gate/.test(MERCURY_SUBAGENT_CONTRACT), '', 'restore the evidence rule and the gate rule in MERCURY_SUBAGENT_CONTRACT in src/engine/system-prompt/mercuryContract.ts')
+check('the crewmate contract carries its evidence rule and its gate rule', /Claim only what you opened or ran shows/.test(MERCURY_CREWMATE_CONTRACT) && /Never bypass a safety, permission, approval, or capability gate/.test(MERCURY_CREWMATE_CONTRACT), '', 'restore the evidence rule and the gate rule in MERCURY_SUBAGENT_CONTRACT in src/engine/system-prompt/mercuryContract.ts')
 
 
 console.log('\n' + '═'.repeat(76))

@@ -26,7 +26,7 @@ import { passedOver } from '../../platform/errors/passedOver.js'
 
 const TASK_ID_PATTERN = /^[A-Za-z0-9_-]{1,20}$/
 
-function agentOutputTaskId(filePath: string | undefined): string | null {
+function crewmateOutputTaskId(filePath: string | undefined): string | null {
   if (!filePath) return null
   try {
     const outputDir = getTaskOutputDir()
@@ -41,12 +41,12 @@ function agentOutputTaskId(filePath: string | undefined): string | null {
 }
 
 export function userFacingName(input?: Partial<Input>): string {
-  return agentOutputTaskId(input?.file_path) !== null ? 'Read crewmate output' : READ_TOOL_NAME
+  return crewmateOutputTaskId(input?.file_path) !== null ? 'Read crewmate output' : READ_TOOL_NAME
 }
 
 export function getToolUseSummary(input: Partial<Input> | undefined): string | null {
   if (!input?.file_path) return null
-  const taskId = agentOutputTaskId(input.file_path)
+  const taskId = crewmateOutputTaskId(input.file_path)
   if (taskId !== null) return taskId
   return truncatePathMiddle(getDisplayPath(input.file_path), TOOL_SUMMARY_MAX_LENGTH)
 }
@@ -56,7 +56,7 @@ export function renderToolUseMessage(
   { verbose }: { verbose: boolean },
 ): React.ReactNode {
   if (!input.file_path) return null
-  if (agentOutputTaskId(input.file_path) !== null) return ''
+  if (crewmateOutputTaskId(input.file_path) !== null) return ''
   const trailers: string[] = []
   if (input.pages) {
     trailers.push(`pages ${input.pages}`)
@@ -75,7 +75,7 @@ export function renderToolUseMessage(
 }
 
 export function renderToolUseTag(input?: Partial<Input>): string | null {
-  const taskId = agentOutputTaskId(input?.file_path)
+  const taskId = crewmateOutputTaskId(input?.file_path)
   return taskId !== null ? taskId : null
 }
 

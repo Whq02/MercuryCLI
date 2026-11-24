@@ -16,7 +16,7 @@ import type { ExternalInstructionInclude } from '../../sessions/instructions/ins
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js'
 import { seatCeilingFactsAsync, type SeatCeilingFacts } from '../../daemon/switchboard-capacity/capacityCheck.js'
 import { jevSessionFactsStamp, subscribeJevSessionFacts } from '../../models/jev/jevSessionFacts.js'
-import { subagentDefaultsOf } from '../../crew/agents/agentDefaults.js'
+import { crewmateDefaultsOf } from '../../crew/agents/agentDefaults.js'
 import { useLocalServerConfig } from './LocalServer.js'
 import { useMediaConfig } from './Media.js'
 import { type SubMenu, type SettingsItem, validated, type ConfigRowKit } from './config/configItems.js'
@@ -135,7 +135,7 @@ export function Config({
   }
   items.push(...configApiKeyRows({ ...rowKit, providerScoped }))
 
-  const agentDefaults = subagentDefaultsOf(config.agents)
+  const agentDefaults = crewmateDefaultsOf(config.agents)
   const writeAgents = (patch: Partial<NonNullable<GlobalConfig['agents']>>): void => {
     writeGlobal(c => ({ ...c, agents: { ...c.agents, ...patch } }))
   }

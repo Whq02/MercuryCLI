@@ -180,8 +180,8 @@ const queue = await import(join(ROOT, 'src/screen/composer/input-core/command-qu
 const { AskAdvisorTool, askAdvisorAgentId } = await import(join(ROOT, 'src/tools/ask-advisor/AskAdvisorTool.ts'))
 const { ASK_ADVISOR_TOOL_NAME } = await import(join(ROOT, 'src/tools/ask-advisor/constants.ts'))
 const toolsConstants = await import(join(ROOT, 'src/tools/kit/crewmateBarredTools.ts'))
-const { runAgent } = await import(join(ROOT, 'src/tools/crewmate/runCrewmate.ts'))
-const { getAgentTranscriptPath, getTranscriptPath } = await import(join(ROOT, 'src/sessions/transcripts/paths.ts'))
+const { runCrewmate } = await import(join(ROOT, 'src/tools/crewmate/runCrewmate.ts'))
+const { getCrewmateTranscriptPath, getTranscriptPath } = await import(join(ROOT, 'src/sessions/transcripts/paths.ts'))
 const { flushSessionStorage, recordTranscript } = await import(join(ROOT, 'src/sessions/transcripts/writer.ts'))
 const { recordToEntry } = await import(join(ROOT, 'src/sessions/fabric/entryCodec.ts'))
 const { getAttachments, createAttachmentMessage } = await import(join(ROOT, 'src/engine/attachments/turnAttachments.ts'))
@@ -267,7 +267,7 @@ const toolResultsOf = (yields: AnyMsg[]): Array<{ id: string; text: string }> =>
 
 section('§0 the wiring: one road per seat into one drain, the framing, the tool gate and its enrolment (red on the base: the main chat queued the note as a prompt)')
 {
-  check('the tool is barred for every crewmate: the one deny set names it with its reason (a present human — the main chat alone), and no second allow-set exists', (toolsConstants.ALL_AGENT_DISALLOWED_TOOLS as Set<string>).has(ASK_ADVISOR_TOOL_NAME) && (toolsConstants.CREWMATE_BARRED_TOOLS as Record<string, string>)[ASK_ADVISOR_TOOL_NAME] === 'present human' && !('IN_PROCESS_CREWMATE_ALLOWED_TOOLS' in toolsConstants) && !('ASYNC_AGENT_ALLOWED_TOOLS' in toolsConstants), 'change CREWMATE_BARRED_TOOLS in src/tools/kit/crewmateBarredTools.ts so it lists AskAdvisor with the reason present human; ALL_AGENT_DISALLOWED_TOOLS derives from it and no second allow-set may exist')
+  check('the tool is barred for every crewmate: the one deny set names it with its reason (a present human — the main chat alone), and no second allow-set exists', (toolsConstants.ALL_CREWMATE_DISALLOWED_TOOLS as Set<string>).has(ASK_ADVISOR_TOOL_NAME) && (toolsConstants.CREWMATE_BARRED_TOOLS as Record<string, string>)[ASK_ADVISOR_TOOL_NAME] === 'present human' && !('IN_PROCESS_CREWMATE_ALLOWED_TOOLS' in toolsConstants) && !('ASYNC_AGENT_ALLOWED_TOOLS' in toolsConstants), 'change CREWMATE_BARRED_TOOLS in src/tools/kit/crewmateBarredTools.ts so it lists AskAdvisor with the reason present human; ALL_CREWMATE_DISALLOWED_TOOLS derives from it and no second allow-set may exist')
   check("the tool's own words say the main chat alone, never crewmates", (await AskAdvisorTool.prompt()).includes('this tool is never available to crewmates. Its reply') && !/workflow/i.test(await AskAdvisorTool.prompt()) && !(await AskAdvisorTool.prompt()).includes('Advisor for crewmates') && (AskAdvisorTool.capability?.conditions ?? []).some(c => c.includes('the main chat alone, never crewmates; the advisor keeps')), await AskAdvisorTool.prompt())
   const { toolCensus } = await import('../builtin-tools/census-gen.ts')
   const census = toolCensus().anchor
@@ -568,7 +568,7 @@ async function driveAgent(opts: { agentId: string; isAsync: boolean; querySource
   let threw: string | undefined
   let childContext: Raw | undefined
   try {
-    const stream = runAgent({
+    const stream = runCrewmate({
       agentDefinition: { agentType: 'advisor-rig-worker', whenToUse: 'the advisor rig', source: 'projectSettings', getSystemPrompt: () => 'You are the rig worker. Call EchoTool each round.' } as never,
       promptMessages: [createUserMessage({ content: 'work the rounds' })] as never,
       toolUseContext: ctx as never,
@@ -664,9 +664,9 @@ section("§5 a crewmate's direct ask is refused with the settings on; a stashed 
   const redelivered = getAdvisorNoteAttachments(mainCtx as never, { querySource: 'sdk' }) as Raw[]
   check('…and once the chat is advised again the held note is delivered intact', redelivered.length === 1 && redelivered[0]!.prompt === note.text && advisor.peekAdvisorNotes(SESSION).length === 0, j(redelivered))
   ctx.agentKind = 'crewmate'
-  const { createSubagentContext } = await import(join(ROOT, 'src/crew/agents/forkedAgent.ts'))
-  const fork = createSubagentContext(ctx as never)
-  check('a crewmate context fork retains the crewmate exclusion', fork.agentKind === 'crewmate', 'change createSubagentContext in src/crew/agents/forkedAgent.ts to carry agentKind into the fork')
+  const { createChildContext } = await import(join(ROOT, 'src/crew/agents/forkedAgent.ts'))
+  const fork = createChildContext(ctx as never)
+  check('a crewmate context fork retains the crewmate exclusion', fork.agentKind === 'crewmate', 'change createChildContext in src/crew/agents/forkedAgent.ts to carry agentKind into the fork')
   const forkDenied = await AskAdvisorTool.call({ question: QUESTION }, fork) as { data: { status: string; text: string } }
   check('a crewmate fork cannot call AskAdvisor through a stale tool', forkDenied.data.status === 'refused' && wire.length === before && forkDenied.data.text.includes(advisor.ADVISOR_CREWMATE_REFUSAL), j(forkDenied))
 }

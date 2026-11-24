@@ -57,7 +57,7 @@ const read = (repo: string, at: Lane) =>
 const sweep = (repo: string, lane?: string): Promise<number> => {
   const old = new Date(Date.now() - 9 * DAY)
   if (lane !== undefined && existsSync(lane)) utimesSync(lane, old, old)
-  return runWithCwdOverride(repo, () => wt.cleanupStaleAgentWorktrees(new Date(Date.now() - 8 * DAY)))
+  return runWithCwdOverride(repo, () => wt.cleanupStaleCrewmateWorktrees(new Date(Date.now() - 8 * DAY)))
 }
 const branchThere = (repo: string, branch: string): boolean => {
   try {

@@ -15,4 +15,4 @@ if (process.platform === 'linux') {
   void stat(`/lib/libc.musl-${arch}.so.1`).then(() => { muslProbeResult = true }).catch(passedOver)
 }
 
-export const envDynamic = { ...env, getIsDocker, isMuslEnvironment: () => process.platform === 'linux' && muslProbeResult }
+export const envProbes = { ...env, getIsDocker, isMuslEnvironment: () => process.platform === 'linux' && muslProbeResult }

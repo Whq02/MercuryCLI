@@ -5,7 +5,7 @@ import { jevKeyPresence, resolveJevApiKey } from '../../models/jev/jevKey.js'
 import { noteJevAttempt, noteJevWireFailure, settleJevCall, takeJevNotice } from '../../models/jev/jevLedger.js'
 import { readJevSettings } from '../../models/jev/jevSetting.js'
 import { type JevAgentIdentity, jevStatus } from '../../models/jev/jevStatus.js'
-import { getAgentContext } from '../../crew/agents/agentContext.js'
+import { getCrewmateContext } from '../../crew/agents/agentContext.js'
 import { checkReadPermissionForTool } from '../../permissions/rules/filesystem.js'
 import { JEV_EVAL_MAX_RESULT_CHARS, JEV_EVAL_TOOL_NAME } from './constants.js'
 import { jevEvalFileOf } from './jevEvalEvidence.js'
@@ -31,7 +31,7 @@ interface JevEvalOutput {
 }
 
 function jevAgentIdentity(): JevAgentIdentity | undefined {
-  const context = getAgentContext()
+  const context = getCrewmateContext()
   return context === undefined ? undefined : { id: context.agentId, subagent: true }
 }
 

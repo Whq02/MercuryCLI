@@ -35,7 +35,7 @@ const { turnDoor: startTurn } = await import(join(source, 'engine', 'turnDoor.ts
 await import(join(source, 'tools/crewmate/resumeCrewmate.ts'))
 const swarmOnText = runSwarmCommand('on')
 assert(swarmOnText.startsWith('Swarm on'), `runSwarmCommand('on') did not enable swarm in src/commands/swarm/swarm.ts: ${swarmOnText}`)
-await seam.latchSwarmAgent('poster', 'Poster')
+await seam.latchSwarmCrewmate('poster', 'Poster')
 const store = () => seam.swarmStore()!
 const tasks: Record<string, { type: string; id: string; agentId: string; status: string }> = {}
 let contextReads = 0
@@ -43,11 +43,11 @@ const context = { getAppState: () => { contextReads++; return { tasks } }, optio
 const turn = async (): Promise<void> => { await flushSessionStorage(); for (let n = 0; n < 6; n++) await new Promise<void>(resolve => setImmediate(resolve)) }
 let serial = 0
 async function park(id: string, status = 'completed'): Promise<void> {
-  await seam.latchSwarmAgent(id, id)
+  await seam.latchSwarmCrewmate(id, id)
   tasks[id] = { type: 'local_agent', id, agentId: id, status }
   const waited = store().post(seam.swarmPrincipal(id)!, { clientOpId: `wait-${id}`, kind: 'ask', text: `@main wake me when seat poster posts` })
   assert(waited.ok, JSON.stringify(waited))
-  seam.settleSwarmAgent(id)
+  seam.settleSwarmCrewmate(id)
   seam.mirrorSwarmNotice(id, `completed ${id}`, `${id} completed`, 'completed')
 }
 const trigger = (): void => { const posted = store().post(seam.swarmPrincipal('poster')!, { clientOpId: `trigger-${++serial}`, kind: 'result', text: `TRIGGER-${serial}` }); assert(posted.ok, `poster trigger post failed in src/crew/board/store.ts: ${JSON.stringify(posted)}`) }

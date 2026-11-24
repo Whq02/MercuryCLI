@@ -2,7 +2,7 @@ import { basename } from 'node:path'
 import type { TaskStatus } from '../../engine/tasks/taskBase.js'
 import { isTerminalTaskStatus } from '../../engine/tasks/taskBase.js'
 import type { TaskState } from '../../engine/tasks/taskState.js'
-import { isLocalAgentTask } from '../../engine/tasks/local-agent/crewmateTask.js'
+import { isCrewmateTask } from '../../engine/tasks/local-agent/crewmateTask.js'
 import { isLocalShellTask } from '../../engine/tasks/local-shell/shellTaskState.js'
 import type { WorkRosterV1 } from '../../engine/connector/types.js'
 import { workRowRuns } from '../../engine/connector/workCounts.js'
@@ -114,7 +114,7 @@ function orderCrew(crewRows: readonly CrewRow[], keptIds: readonly string[]): Cr
 
 function runsOf(tasks: Record<string, TaskState>, roster: Pick<WorkRosterV1, 'rows'>): RunRow[] {
   const localRuns: RunRow[] = Object.values(tasks)
-    .filter(t => !isLocalAgentTask(t))
+    .filter(t => !isCrewmateTask(t))
     .filter(t => !isTerminalTaskStatus(t.status))
     .map(t => ({
       id: t.id,

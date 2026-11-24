@@ -63,12 +63,12 @@ bootstrap.setIsInteractive(false)
 bootstrap.setOriginalCwd(process.cwd())
 bootstrap.setCwdState(process.cwd())
 bootstrap.switchSession('00000000-0000-4000-8000-0000000000bb' as never)
-const { runAgent } = await import('../../src/tools/crewmate/runCrewmate.ts')
+const { runCrewmate } = await import('../../src/tools/crewmate/runCrewmate.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 const { turnDoor: startTurn } = await import('../../src/engine/turnDoor.ts')
-const { flushSessionStorage, getAgentTranscript } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+const { flushSessionStorage, getCrewmateTranscript } = await import('../../src/sessions/transcripts/sessionStorage.ts')
 await import('../../src/engine/tasks/tasks.ts')
 
 type AppState = import('../../src/screen/app-state/AppStateStore.ts').AppState
@@ -94,7 +94,7 @@ const allow = (async (_tool: unknown, input: unknown) => ({ behavior: 'allow', u
 const definition = { agentType: 'mercury-crew', whenToUse: 'heap fixture', source: 'projectSettings', getSystemPrompt: () => 'Answer at length. Do not call tools.' } as never
 
 async function crewmate(agentId: string): Promise<void> {
-  for await (const row of runAgent({
+  for await (const row of runCrewmate({
     agentDefinition: definition,
     promptMessages: [createUserMessage({ content: filler('prompt', PROMPT_BYTES, agentId) })],
     toolUseContext: contextOf() as never,
@@ -139,7 +139,7 @@ await batch('second', BATCH)
 const afterSecond = await heapAfterCollection()
 const kept = afterSecond - afterFirst
 
-const answered = await getAgentTranscript('second-000' as never)
+const answered = await getCrewmateTranscript('second-000' as never)
 check(
   `every crewmate ran its turn against the loopback model (${requests} requests) and its transcript is on disk`,
   requests >= 2 * BATCH + AT_ONCE && JSON.stringify(answered?.messages ?? []).includes('reply '),

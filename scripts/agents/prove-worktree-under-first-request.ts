@@ -23,19 +23,19 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 const state = await import('../../src/boot/process-state/processState.ts')
 const config = await import('../../src/platform/config/globalConfig.ts')
 const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
-const { createAgentWorktree } = await import('../../src/platform/git/worktree/worktree.ts')
+const { createCrewmateWorktree } = await import('../../src/platform/git/worktree/worktree.ts')
 const { operatorPauseGate, parkBeforeTool } = await import('../../src/engine/loop/pauseGate.ts')
 const cloneModule = await import('../../src/platform/git/worktree/worktreeClone.ts')
 const readiness = (await import('../../src/tools/crewmate/run/worktreeReadiness.ts').catch(() => null)) as null | {
   holdToolsUntil: (agentId: string, ready: Promise<unknown>) => void
   releaseToolHold: (agentId: string) => void
-  heldAgentCount: () => number
+  heldCrewmateCount: () => number
   worktreeHoldOf: (context: { agentId?: unknown; abortController: { signal: AbortSignal } }) => Promise<void> | undefined
   worktreeReadyOf?: (agentId: string) => Promise<void> | undefined
   hookMayMeetCopy?: (event: string) => boolean
 }
-type Launch = Awaited<ReturnType<typeof createAgentWorktree>> & { ready?: Promise<void> }
-const launch = (slug: string, from?: string): Promise<Launch> => createAgentWorktree(slug, { ...(from !== undefined ? { from } : {}), foldersBehindLaunch: true } as never) as Promise<Launch>
+type Launch = Awaited<ReturnType<typeof createCrewmateWorktree>> & { ready?: Promise<void> }
+const launch = (slug: string, from?: string): Promise<Launch> => createCrewmateWorktree(slug, { ...(from !== undefined ? { from } : {}), foldersBehindLaunch: true } as never) as Promise<Launch>
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'worktree-first-request-')))
 const links = accountLinks(scratch)
@@ -155,7 +155,7 @@ try {
     await linked.ready
     const placed = lstatSync(join(linked.worktreePath, 'node_modules'))
     check(`a launch that does not wait still ends with ${links ? 'the links' : 'the folders this account gets in place of the links'} in place`, (links ? placed.isSymbolicLink() : placed.isDirectory()) && linked.prepareFailure === undefined)
-    check('…and holds no tool once they are', readiness !== null && readiness.heldAgentCount() === 0)
+    check('…and holds no tool once they are', readiness !== null && readiness.heldCrewmateCount() === 0)
   } else {
     const realCp = execFileSync('sh', ['-c', 'command -v cp'], { encoding: 'utf8' }).trim()
     const cloneLine = process.platform === 'darwin' ? `${realCp} -c -R -p "$5/." "$6/" || exit 1` : `${realCp} "$@" || exit 1`
@@ -201,7 +201,7 @@ try {
     const lead = seat()
     const neighbour = seat('agent-ae299999')
     readiness?.holdToolsUntil('agent-ae200001', second.ready ?? Promise.resolve())
-    check('one crewmate is held while its folders are cloned', readiness !== null && readiness.heldAgentCount() === 1, String(readiness?.heldAgentCount()))
+    check('one crewmate is held while its folders are cloned', readiness !== null && readiness.heldCrewmateCount() === 1, String(readiness?.heldCrewmateCount()))
     let heldEnded = false
     let wholeWhenItEnded = false
     const heldCall = parkBeforeTool(held as never, 'Read').then(() => {
@@ -224,7 +224,7 @@ try {
     check('it goes on when the folders are in place, and answers from the finished folder', heldEnded && wholeWhenItEnded && read(join(second.worktreePath, 'node_modules', 'pkg-0', 'lib', 'm0.js')) === 'module.exports = 0\n')
     check('the hold said nothing on the crewmate\'s row', held.said.length === 0, JSON.stringify(held.said))
     await wait(20)
-    check('the hold has left the map', readiness !== null && readiness.heldAgentCount() === 0, String(readiness?.heldAgentCount()))
+    check('the hold has left the map', readiness !== null && readiness.heldCrewmateCount() === 0, String(readiness?.heldCrewmateCount()))
     rearm()
 
     section('§3 a crewmate stopped while its clone runs is let go at once, and the copy still ends whole')
@@ -249,7 +249,7 @@ try {
     await wait(150)
     check('what runs at the stopped crewmate\'s end can still wait for the folders: the promise is there after the stop and has not settled', endWait !== undefined && !endWaitOver && readiness?.worktreeHoldOf(stopped) === undefined)
     readiness?.releaseToolHold('agent-ae300001')
-    check('when the crewmate ends its hold leaves the map, the clone still running', readiness !== null && readiness.heldAgentCount() === 0 && !existsSync(releaseAt))
+    check('when the crewmate ends its hold leaves the map, the clone still running', readiness !== null && readiness.heldCrewmateCount() === 0 && !existsSync(releaseAt))
     release()
     await third.ready
     check('the copy ends with its folders whole all the same', JSON.stringify(listing(join(third.worktreePath, 'node_modules'))) === JSON.stringify(whole))
@@ -278,13 +278,13 @@ try {
     readiness?.holdToolsUntil('agent-ae500001', failedBehind.ready ?? Promise.resolve())
     await failedBehind.ready
     await wait(20)
-    const failedBefore = await createAgentWorktree('agent-ae500002')
+    const failedBefore = await createCrewmateWorktree('agent-ae500002')
     const printed = quiet.stop()
     const shape = (root: string): string => JSON.stringify(listing(root).filter(row => !row.startsWith('.git ')))
     check('the folder is the link to the checkout\'s', lstatSync(join(failedBehind.worktreePath, 'node_modules')).isSymbolicLink() && realpathSync(join(failedBehind.worktreePath, 'node_modules')) === realpathSync(join(fixture, 'node_modules')))
     check('the copy is, entry for entry, the copy a launch that waited ends with', shape(failedBehind.worktreePath) === shape(failedBefore.worktreePath), `${shape(failedBehind.worktreePath)} against ${shape(failedBefore.worktreePath)}`)
     check('no failure is reported, nothing is printed, nothing is left beside the copy', failedBehind.prepareFailure === undefined && printed === '' && readdirSync(home).every(name => !name.startsWith('.cloning-')), JSON.stringify(printed.slice(0, 200)))
-    check('…and the hold has ended and left the map', readiness !== null && readiness.heldAgentCount() === 0)
+    check('…and the hold has ended and left the map', readiness !== null && readiness.heldCrewmateCount() === 0)
 
     section('§6 a helper that never answers is ended at its bound')
     use('hanging')
@@ -301,7 +301,7 @@ try {
     section('§7 a launch still waits where the user set up steps of their own, and for every other caller')
     use('pausing')
     release()
-    const plain = await createAgentWorktree('agent-ae700001')
+    const plain = await createCrewmateWorktree('agent-ae700001')
     check('a caller that does not ask gets the folders before the call returns, and no promise', (plain as Launch).ready === undefined && JSON.stringify(listing(join(plain.worktreePath, 'node_modules'))) === JSON.stringify(whole))
     const again = await launch('agent-ae700001')
     check('a copy that already exists is handed back as it is, with no promise', again.ready === undefined && again.worktreePath === plain.worktreePath)

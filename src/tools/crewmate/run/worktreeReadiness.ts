@@ -22,7 +22,7 @@ export function releaseToolHold(agentId: string): void {
   holds.delete(agentId)
 }
 
-export function heldAgentCount(): number {
+export function heldCrewmateCount(): number {
   return holds.size
 }
 

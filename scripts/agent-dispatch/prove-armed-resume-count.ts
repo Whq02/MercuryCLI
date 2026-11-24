@@ -28,8 +28,8 @@ const armed = (id: string): boolean => utils.automaticResumePending(id)
 const settle = (ms = 0): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
 function failedRow(id: string): AbortController {
-  const registered = lane.registerAsyncAgent({ agentId: id, description: id, prompt: 'work', setAppState: set })
-  lane.failAgentTask(id, 'API Error: 529 {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}', set, registered.abortController)
+  const registered = lane.registerAsyncCrewmate({ agentId: id, description: id, prompt: 'work', setAppState: set })
+  lane.failCrewmateTask(id, 'API Error: 529 {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}', set, registered.abortController)
   return registered.abortController!
 }
 
@@ -106,7 +106,7 @@ section('every road that ends the wait brings the count back to zero')
   const taken = 'count-taken'
   const takenResume = held<void>()
   utils.armBudgetCutResume({ taskId: taken, description: taken, registration: failedRow(taken), toolUseContext: context, rootSetAppState: set, delayMs: 20, pause: windowPause(20), resume: () => takenResume.port() })
-  lane.registerAsyncAgent({ agentId: taken, description: taken, prompt: 'work', setAppState: set })
+  lane.registerAsyncCrewmate({ agentId: taken, description: taken, prompt: 'work', setAppState: set })
   await settle(120)
   check('a crewmate that runs again under another registration when its timer fires is not resumed, and nothing waits', count() === 0 && takenResume.calls() === 0, { count: count(), resumes: takenResume.calls() })
 
@@ -116,7 +116,7 @@ section('every road that ends the wait brings the count back to zero')
   const goneRegistration = failedRow(gone)
   utils.armOverloadProbe({ taskId: gone, description: gone, registration: goneRegistration, rootSetAppState: set, toolUseContext: context, model: 'claude-fable-5-1', pause: overloadPause, afterDeath: true, probe: () => goneProbe.port(), resume: () => goneResume.port() })
   const goneOut = await goneProbe.entered
-  lane.unpauseAgentTask(gone, set, goneRegistration)
+  lane.unpauseCrewmateTask(gone, set, goneRegistration)
   goneProbe.release(true)
   await settle()
   check('a probe that comes back to a row no longer paused resumes nothing and leaves nothing waiting', goneOut && count() === 0 && goneResume.calls() === 0, { goneOut, count: count(), resumes: goneResume.calls() })

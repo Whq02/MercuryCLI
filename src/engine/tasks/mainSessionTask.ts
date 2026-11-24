@@ -6,20 +6,20 @@ import type { AgentDefinition } from '../../crew/agents/agentDefinition.js'
 import { asAgentId, TASK_ID_ALPHABET, TASK_ID_SUFFIX_LENGTH } from '../../sessions/transcripts/ids.js'
 import { createAbortController } from '../../platform/async/abortController.js'
 import { registerCleanup } from '../../platform/processes/cleanupRegistry.js'
-import { getAgentTranscriptPath } from '../../sessions/transcripts/paths.js'
+import { getCrewmateTranscriptPath } from '../../sessions/transcripts/paths.js'
 import { initTaskOutputAsSymlink } from '../task-framework/diskOutput.js'
 import { registerTask } from '../task-framework/taskRegistry.js'
-import type { LocalAgentTaskState } from './local-agent/crewmateTask.js'
-import { isLocalAgentTask } from './local-agent/crewmateTask.js'
+import type { CrewmateTaskState } from './local-agent/crewmateTask.js'
+import { isCrewmateTask } from './local-agent/crewmateTask.js'
 
 const MAIN_SESSION_AGENT_TYPE = 'main-session'
 
-type LocalMainSessionTaskState = LocalAgentTaskState & {
+type LocalMainSessionTaskState = CrewmateTaskState & {
   agentType: typeof MAIN_SESSION_AGENT_TYPE
 }
 
 export function isMainSessionTask(task: unknown): task is LocalMainSessionTaskState {
-  return isLocalAgentTask(task) && task.agentType === MAIN_SESSION_AGENT_TYPE
+  return isCrewmateTask(task) && task.agentType === MAIN_SESSION_AGENT_TYPE
 }
 
 function generateMainSessionTaskId(): string {
@@ -38,7 +38,7 @@ export function registerMainSessionTask(
   existingAbortController?: AbortController,
 ): { taskId: string; abortSignal: AbortSignal } {
   const taskId = generateMainSessionTaskId()
-  void initTaskOutputAsSymlink(taskId, getAgentTranscriptPath(asAgentId(taskId)))
+  void initTaskOutputAsSymlink(taskId, getCrewmateTranscriptPath(asAgentId(taskId)))
   const abortController = existingAbortController ?? createAbortController()
   const cleanup = registerCleanup(async () => {
     setAppState(prev => {

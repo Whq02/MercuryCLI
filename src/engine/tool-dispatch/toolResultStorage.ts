@@ -410,7 +410,7 @@ export function reconstructContentReplacementState(
   return state
 }
 
-export function reconstructForSubagentResume(
+export function reconstructForCrewmateResume(
   parentState: ContentReplacementState | undefined,
   resumedMessages: Message[],
   sidechainRecords: ContentReplacementRecord[],

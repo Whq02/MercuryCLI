@@ -82,8 +82,8 @@ for (const c of [
   'CANCEL_MESSAGE',
   'REJECT_MESSAGE',
   'REJECT_MESSAGE_WITH_REASON_PREFIX',
-  'SUBAGENT_REJECT_MESSAGE',
-  'SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX',
+  'CREWMATE_REJECT_MESSAGE',
+  'CREWMATE_REJECT_MESSAGE_WITH_REASON_PREFIX',
   'DENIAL_WORKAROUND_GUIDANCE',
   'AUTO_REJECT_MESSAGE',
   'DONT_ASK_REJECT_MESSAGE',
@@ -140,8 +140,8 @@ add('isUnsignedThinkingBlock', 'non-thinking', () =>
   M.isUnsignedThinkingBlock({ type: 'text', text: 't' } as never),
 );
 perFixture('buildMessageLookups', m => M.buildMessageLookups(M.normalizeMessages(m) as never, m));
-perFixture('buildSubagentLookups', m =>
-  M.buildSubagentLookups(
+perFixture('buildNestedLookups', m =>
+  M.buildNestedLookups(
     (M.normalizeMessages(m) as { type: string }[])
       .filter(x => x.type === 'user' || x.type === 'assistant')
       .map(message => ({ message })) as never,
@@ -511,7 +511,7 @@ if (unaccounted.length) {
   const mapKeys = (v: unknown): string[] => ((v as { '\u00abmap\u00bb'?: [unknown, unknown][] })?.['\u00abmap\u00bb'] ?? []).map(e => String(e[0]));
   const mapGet = (v: unknown, k: string): unknown => ((v as { '\u00abmap\u00bb'?: [unknown, unknown][] })?.['\u00abmap\u00bb'] ?? []).find(e => e[0] === k)?.[1];
 
-  const subagent = produced('buildSubagentLookups/toolTurn');
+  const subagent = produced('buildNestedLookups/toolTurn');
   const subLookups = (subagent.lookups ?? {}) as Norm;
   shape('the subagent lookups over the tool turn index BOTH tool uses by id (a wrong wrapping answers empty maps)', mapKeys(subLookups.toolUseByToolUseID).join(',') === 'toolu_0001,toolu_0002', String(JSON.stringify(subLookups.toolUseByToolUseID)).slice(0, 160));
   const use1 = mapGet(subLookups.toolUseByToolUseID, 'toolu_0001') as Norm | undefined;
@@ -519,7 +519,7 @@ if (unaccounted.length) {
   shape('…both results resolved, none in progress', setOf(subLookups.resolvedToolUseIDs).join(',') === 'toolu_0001,toolu_0002' && setOf(subagent.inProgressToolUseIDs).length === 0, `${setOf(subLookups.resolvedToolUseIDs)} / ${setOf(subagent.inProgressToolUseIDs)}`);
   const result2 = mapGet(subLookups.toolResultByToolUseID, 'toolu_0002') as Norm | undefined;
   shape('…and the result row for toolu_0002 is the user tool_result message', result2?.type === 'user' && JSON.stringify(result2?.message).includes('"tool_use_id":"toolu_0002"'), String(JSON.stringify(result2)).slice(0, 160));
-  const interrupted = produced('buildSubagentLookups/interrupted');
+  const interrupted = produced('buildNestedLookups/interrupted');
   shape('the interrupted fixture leaves its Bash use in progress (toolu_0003 unresolved)', setOf(interrupted.inProgressToolUseIDs).join(',') === 'toolu_0003' && mapKeys((interrupted.lookups as Norm).toolUseByToolUseID).join(',') === 'toolu_0003', JSON.stringify(interrupted.inProgressToolUseIDs));
   shape('every tool use of the normalized two-block turn is counted', setOf(results['getToolUseIDs/toolTurn']).join(',') === 'toolu_0001,toolu_0002', JSON.stringify(results['getToolUseIDs/toolTurn']));
   shape('the composite turn counts all three tool uses', setOf(results['getToolUseIDs/composite']).join(',') === 'toolu_0001,toolu_0002,toolu_0004', JSON.stringify(results['getToolUseIDs/composite']));

@@ -189,8 +189,8 @@ async function pendingLiveness(): Promise<void> {
   const { runSwarmCommand } = await import(join(source, 'commands/swarm/swarm.ts'))
   const swarmOnText = runSwarmCommand('on')
   assert(swarmOnText.startsWith('Swarm on'), `runSwarmCommand('on') failed in pendingLiveness: ${swarmOnText}`)
-  await seam.latchSwarmAgent('target', 'Target')
-  await seam.latchSwarmAgent('poster', 'Poster')
+  await seam.latchSwarmCrewmate('target', 'Target')
+  await seam.latchSwarmCrewmate('poster', 'Poster')
   const board = seam.swarmStore()!
   const target = seam.swarmPrincipal('target')!, poster = seam.swarmPrincipal('poster')!
   const tasks = { target: { type: 'local_agent', id: 'target', agentId: 'target', status: 'running' } }
@@ -212,7 +212,7 @@ async function pendingLiveness(): Promise<void> {
     assert(waitPost.ok, `target wait declaration failed in src/crew/board/store.ts: ${JSON.stringify(waitPost)}`)
     const triggerPost = board.post(poster, { clientOpId: 'trigger', kind: 'result', text: 'PENDING-WAKE' })
     assert(triggerPost.ok, `poster trigger post failed in src/crew/board/store.ts: ${JSON.stringify(triggerPost)}`)
-    seam.settleSwarmAgent('target')
+    seam.settleSwarmCrewmate('target')
     seam.mirrorSwarmNotice('target', 'completed', 'Target completed', 'completed')
     await flushSessionStorage()
     await new Promise<void>(resolve => setImmediate(resolve))
@@ -253,7 +253,7 @@ async function pendingLiveness(): Promise<void> {
     release()
     watcher.stop()
     runSwarmCommand('off')
-    seam.settleSwarmAgent('poster'); seam.settleSwarmAgent('target')
+    seam.settleSwarmCrewmate('poster'); seam.settleSwarmCrewmate('target')
   }
 }
 

@@ -145,11 +145,11 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 }
 
 {
-  const { agentStalledError, declaredRecoveryWaitMs, agentIdleLimitMs, DEFAULT_AGENT_IDLE_MINUTES } = await import('../../src/tools/crewmate/runCrewmate.ts')
-  t('agent idle default is 15 minutes', DEFAULT_AGENT_IDLE_MINUTES === 15 && agentIdleLimitMs() === 15 * 60_000, '', 'DEFAULT_AGENT_IDLE_MINUTES and agentIdleLimitMs in src/tools/crewmate/runCrewmate.ts must default to 15 minutes')
-  const zero = agentStalledError({ agentType: 'mercury-crew', agentId: 'a1', limitMs: 60_000, elapsedMs: 61_000, events: 0, toolUses: 0 })
+  const { crewmateStalledError, declaredRecoveryWaitMs, crewmateIdleLimitMs, DEFAULT_CREWMATE_IDLE_MINUTES } = await import('../../src/tools/crewmate/runCrewmate.ts')
+  t('agent idle default is 15 minutes', DEFAULT_CREWMATE_IDLE_MINUTES === 15 && crewmateIdleLimitMs() === 15 * 60_000, '', 'DEFAULT_AGENT_IDLE_MINUTES and agentIdleLimitMs in src/tools/crewmate/runCrewmate.ts must default to 15 minutes')
+  const zero = crewmateStalledError({ agentType: 'mercury-crew', agentId: 'a1', limitMs: 60_000, elapsedMs: 61_000, events: 0, toolUses: 0 })
   t('a zero-tool-use stall says so (rider R1)', /never used a tool/.test(zero.message) && zero.code === 'DEADLINE_EXCEEDED', zero.message, 'agentStalledError in src/tools/crewmate/runCrewmate.ts must say the agent never used a tool, with code DEADLINE_EXCEEDED')
-  const some = agentStalledError({ agentType: 'mercury-crew', agentId: 'a2', limitMs: 60_000, elapsedMs: 200_000, events: 9, toolUses: 3 })
+  const some = crewmateStalledError({ agentType: 'mercury-crew', agentId: 'a2', limitMs: 60_000, elapsedMs: 200_000, events: 9, toolUses: 3 })
   t('a mid-run stall names its tool-use count', /3 tool uses before the silence/.test(some.message), some.message, 'agentStalledError in src/tools/crewmate/runCrewmate.ts must name the tool-use count')
   t('declared recovery: api_error retryInMs honored', declaredRecoveryWaitMs({ type: 'system', subtype: 'api_error', retryInMs: 30_000 }) === 30_000, '', 'declaredRecoveryWaitMs in src/tools/crewmate/runCrewmate.ts must honor retryInMs on an api_error system message')
   t('declared recovery: recoveryTimeoutMs honored when no retry delay', declaredRecoveryWaitMs({ type: 'system', subtype: 'api_error', recoveryTimeoutMs: 45_000 }) === 45_000, '', 'declaredRecoveryWaitMs in src/tools/crewmate/runCrewmate.ts must fall back to recoveryTimeoutMs when no retry delay is given')
@@ -222,13 +222,13 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 }
 
 {
-  const { agentFanoutCap } = await import('../../src/tools/crewmate/subagentDoctrine.ts')
+  const { crewmateFanoutCap } = await import('../../src/tools/crewmate/subagentDoctrine.ts')
   delete process.env.MERCURY_AGENT_FANOUT_CAP
-  t('fan-out cap unset ⇒ no mechanical cap', agentFanoutCap() === null, '', 'agentFanoutCap in src/tools/crewmate/subagentDoctrine.ts must return null when MERCURY_AGENT_FANOUT_CAP is unset')
+  t('fan-out cap unset ⇒ no mechanical cap', crewmateFanoutCap() === null, '', 'agentFanoutCap in src/tools/crewmate/subagentDoctrine.ts must return null when MERCURY_AGENT_FANOUT_CAP is unset')
   process.env.MERCURY_AGENT_FANOUT_CAP = '3'
-  t('fan-out cap set ⇒ the integer', agentFanoutCap() === 3, '', 'agentFanoutCap in src/tools/crewmate/subagentDoctrine.ts must return the integer in MERCURY_AGENT_FANOUT_CAP')
+  t('fan-out cap set ⇒ the integer', crewmateFanoutCap() === 3, '', 'agentFanoutCap in src/tools/crewmate/subagentDoctrine.ts must return the integer in MERCURY_AGENT_FANOUT_CAP')
   process.env.MERCURY_AGENT_FANOUT_CAP = 'lots'
-  t('junk ⇒ no cap', agentFanoutCap() === null, '', 'agentFanoutCap in src/tools/crewmate/subagentDoctrine.ts must return null when MERCURY_AGENT_FANOUT_CAP is not a number')
+  t('junk ⇒ no cap', crewmateFanoutCap() === null, '', 'agentFanoutCap in src/tools/crewmate/subagentDoctrine.ts must return null when MERCURY_AGENT_FANOUT_CAP is not a number')
   delete process.env.MERCURY_AGENT_FANOUT_CAP
 }
 

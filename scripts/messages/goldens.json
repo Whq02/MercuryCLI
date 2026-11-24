@@ -4,8 +4,8 @@
  "CANCEL_MESSAGE/value": "The operator stopped this action before it ran; nothing was changed. Stop what you are doing and wait for the operator to say how to proceed.",
  "REJECT_MESSAGE/value": "The operator declined this tool call; it was not run and nothing was changed. Do not try to reach the same effect by another route. If the task cannot continue without this action, stop and say plainly what was not run and why the task needs it, then wait for the operator.",
  "REJECT_MESSAGE_WITH_REASON_PREFIX/value": "The operator declined this tool call; it was not run and nothing was changed. The operator said:\n",
- "SUBAGENT_REJECT_MESSAGE/value": "Permission for this tool call was declined; it was not run and nothing was changed. Do not try to reach the same effect by another route. If the task cannot continue without this action, stop and say plainly what was not run and why the task needs it, then wait for the operator.",
- "SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX/value": "Permission for this tool call was declined; it was not run and nothing was changed. The operator said:\n",
+ "CREWMATE_REJECT_MESSAGE/value": "Permission for this tool call was declined; it was not run and nothing was changed. Do not try to reach the same effect by another route. If the task cannot continue without this action, stop and say plainly what was not run and why the task needs it, then wait for the operator.",
+ "CREWMATE_REJECT_MESSAGE_WITH_REASON_PREFIX/value": "Permission for this tool call was declined; it was not run and nothing was changed. The operator said:\n",
  "DENIAL_WORKAROUND_GUIDANCE/value": "Do not try to reach the same effect by another route. If the task cannot continue without this action, stop and say plainly what was not run and why the task needs it, then wait for the operator.",
  "AUTO_REJECT_MESSAGE/value": "«fn/1»",
  "DONT_ASK_REJECT_MESSAGE/value": "«fn/1»",
@@ -19459,7 +19459,7 @@
    ]
   }
  },
- "buildSubagentLookups/basic": {
+ "buildNestedLookups/basic": {
   "inProgressToolUseIDs": {
    "«set»": []
   },
@@ -19497,7 +19497,7 @@
    }
   }
  },
- "buildSubagentLookups/toolTurn": {
+ "buildNestedLookups/toolTurn": {
   "inProgressToolUseIDs": {
    "«set»": []
   },
@@ -19618,7 +19618,7 @@
    }
   }
  },
- "buildSubagentLookups/interrupted": {
+ "buildNestedLookups/interrupted": {
   "inProgressToolUseIDs": {
    "«set»": [
     "toolu_0003"
@@ -19670,7 +19670,7 @@
    }
   }
  },
- "buildSubagentLookups/attachments": {
+ "buildNestedLookups/attachments": {
   "inProgressToolUseIDs": {
    "«set»": []
   },
@@ -19751,7 +19751,7 @@
    }
   }
  },
- "buildSubagentLookups/thinking": {
+ "buildNestedLookups/thinking": {
   "inProgressToolUseIDs": {
    "«set»": []
   },
@@ -19789,7 +19789,7 @@
    }
   }
  },
- "buildSubagentLookups/whitespace": {
+ "buildNestedLookups/whitespace": {
   "inProgressToolUseIDs": {
    "«set»": []
   },
@@ -19827,7 +19827,7 @@
    }
   }
  },
- "buildSubagentLookups/boundaries": {
+ "buildNestedLookups/boundaries": {
   "inProgressToolUseIDs": {
    "«set»": []
   },
@@ -19865,7 +19865,7 @@
    }
   }
  },
- "buildSubagentLookups/virtual": {
+ "buildNestedLookups/virtual": {
   "inProgressToolUseIDs": {
    "«set»": []
   },
@@ -19903,7 +19903,7 @@
    }
   }
  },
- "buildSubagentLookups/multiBlock": {
+ "buildNestedLookups/multiBlock": {
   "inProgressToolUseIDs": {
    "«set»": []
   },
@@ -19941,7 +19941,7 @@
    }
   }
  },
- "buildSubagentLookups/synthetic": {
+ "buildNestedLookups/synthetic": {
   "inProgressToolUseIDs": {
    "«set»": []
   },
@@ -19979,7 +19979,7 @@
    }
   }
  },
- "buildSubagentLookups/system": {
+ "buildNestedLookups/system": {
   "inProgressToolUseIDs": {
    "«set»": []
   },
@@ -20017,7 +20017,7 @@
    }
   }
  },
- "buildSubagentLookups/composite": {
+ "buildNestedLookups/composite": {
   "inProgressToolUseIDs": {
    "«set»": []
   },

@@ -166,7 +166,7 @@ export async function killTask(
   }
 }
 
-export function killShellTasksForAgent(
+export function killShellTasksForCrewmate(
   agentId: string | undefined,
   getAppState: () => AppState,
   setAppState: SetAppState,

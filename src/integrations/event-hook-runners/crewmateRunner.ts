@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { toolMatchesName, type ToolPermissionContext, type ToolUseContext } from '../../tools/kit/tool.js'
 import { asAgentId } from '../../sessions/transcripts/ids.js'
-import { ALL_AGENT_DISALLOWED_TOOLS } from '../../tools/kit/crewmateBarredTools.js'
+import { ALL_CREWMATE_DISALLOWED_TOOLS } from '../../tools/kit/crewmateBarredTools.js'
 import { clearGuards } from '../../permissions/guards/guards.js'
 import { registerStructuredOutputGuard } from '../../permissions/guards/structuredOutput.js'
 import { readCatalogueIfPending } from '../../models/roads/catalogueOnDemand.js'
@@ -13,7 +13,7 @@ import { createCombinedAbortSignal } from '../../platform/async/combinedAbortSig
 import { errorMessage } from '../../platform/errors/errors.js'
 import { createUserMessage, handleMessageFromStream } from '../../engine/messages/messages.js'
 import { stripExplicitNulls } from '../../engine/message-shapes/structuredOutputDialect.js'
-import { forgetAgentEffortWord, noteAgentEffortWord } from '../../models/effort/effort.js'
+import { forgetCrewmateEffortWord, noteCrewmateEffortWord } from '../../models/effort/effort.js'
 import { getEngineModel } from '../../models/catalogue/engineModel.js'
 import { utilityCallFor } from '../../models/catalogue/utilityModel.js'
 import { asSystemPrompt } from '../../engine/system-prompt/systemPromptType.js'
@@ -25,7 +25,7 @@ const CREWMATE_HOOK_TURN_CAP = 50
 
 function readToolsOf(context: ToolUseContext): ToolUseContext['options']['tools'] {
   return (context.options.tools ?? []).filter(tool => {
-    if (toolMatchesName(tool, SYNTHETIC_OUTPUT_TOOL_NAME) || ALL_AGENT_DISALLOWED_TOOLS.has(tool.name)) return false
+    if (toolMatchesName(tool, SYNTHETIC_OUTPUT_TOOL_NAME) || ALL_CREWMATE_DISALLOWED_TOOLS.has(tool.name)) return false
     try {
       return tool.isReadOnly({})
     } catch (error) {
@@ -46,7 +46,7 @@ export async function runCrewmateHook(run: ModelHookRun): Promise<ModelHookEnd> 
     combined.signal.removeEventListener('abort', onCombinedAbort)
     combined.cleanup()
     clearGuards(hookAgentId)
-    forgetAgentEffortWord(hookAgentId)
+    forgetCrewmateEffortWord(hookAgentId)
     return end
   }
   const cutEnd = (): ModelHookEnd => (run.signal?.aborted ? { kind: 'cancelled', durationMs: Date.now() - startedAt } : { kind: 'timed_out', durationMs: Date.now() - startedAt })
@@ -61,7 +61,7 @@ export async function runCrewmateHook(run: ModelHookRun): Promise<ModelHookEnd> 
     ])
     await readCatalogueIfPending(declaredRouteOf(run.model ?? getEngineModel()) ?? '')
     const call = run.model === undefined ? utilityCallFor() : utilityCallFor(run.model, { named: true })
-    noteAgentEffortWord(hookAgentId, call.effortValue)
+    noteCrewmateEffortWord(hookAgentId, call.effortValue)
     const getAppState = (): ReturnType<ToolUseContext['getAppState']> => {
       const state = run.toolUseContext.getAppState()
       const permissionContext = state.toolPermissionContext as ToolPermissionContext

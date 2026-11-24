@@ -2,9 +2,9 @@ import { existsSync } from 'node:fs'
 import type { ToolUseContext, ValidationResult } from '../kit/tool.js'
 import { asAgentId, toAgentId } from '../../sessions/transcripts/ids.js'
 import { agentStatusWord } from '../../integrations/resources/adapters/agentStatusWord.js'
-import { getAgentTranscriptPath } from '../../sessions/transcripts/paths.js'
-import { readAgentTranscript } from '../../crew/crewmates/agentTranscriptReader.js'
-import { agentMessageNotice, agentMessageSummary, isLocalAgentTask, type LocalAgentTaskState } from '../../engine/tasks/local-agent/crewmateTask.js'
+import { getCrewmateTranscriptPath } from '../../sessions/transcripts/paths.js'
+import { readCrewmateTranscript } from '../../crew/crewmates/agentTranscriptReader.js'
+import { agentMessageNotice, agentMessageSummary, isCrewmateTask, type CrewmateTaskState } from '../../engine/tasks/local-agent/crewmateTask.js'
 import { launchesNamed, namedLaunchReceipts, recordedLaunchesNamed, recordedNamedLaunches, type NamedLaunch } from '../../engine/tasks/local-agent/launchReceipts.js'
 import { isMainSessionTask } from '../../engine/tasks/mainSessionTask.js'
 import { MAIN_THREAD_AGENT } from '../../sessions/notices/unreadLedger.js'
@@ -12,14 +12,14 @@ import { MAIN_THREAD_AGENT } from '../../sessions/notices/unreadLedger.js'
 export type MessageOutput = { success: boolean; message: string }
 export type CrewMessageInput = { to: string; message: string }
 type CrewMessageVerb = 'deliver to' | 'resume'
-type CrewAgentAddress = {
+type CrewmateAddress = {
   kind: 'agent'
   agentId: string
   who: string
-  task?: LocalAgentTaskState
+  task?: CrewmateTaskState
   transcriptPath: string | null
 }
-type CrewAddress = { kind: 'main' } | { kind: 'unknown' } | CrewAgentAddress
+type CrewAddress = { kind: 'main' } | { kind: 'unknown' } | CrewmateAddress
 
 export async function validateCrewMessage(input: CrewMessageInput): Promise<ValidationResult> {
   if (input.to.trim() === '') return { result: false, message: 'Recipient ("to") must not be empty.', errorCode: 9 }
@@ -37,14 +37,14 @@ export function selfAddressRefusalText(to: string, context: ToolUseContext, verb
     : `Cannot deliver to "${to}": that is this session's own address, so the message would only land back in your own queue and read as if another crewmate sent it.`
 }
 
-export function senderAgentTask(context: ToolUseContext): LocalAgentTaskState | undefined {
+export function senderCrewmateTask(context: ToolUseContext): CrewmateTaskState | undefined {
   if (context.agentId === undefined) return undefined
   const task = context.getAppState().tasks?.[String(context.agentId)]
-  return task !== undefined && isLocalAgentTask(task) && !isMainSessionTask(task) ? task : undefined
+  return task !== undefined && isCrewmateTask(task) && !isMainSessionTask(task) ? task : undefined
 }
 
 export function messageNoticeFor(receiverId: string, content: string, context: ToolUseContext): string {
-  const sender = senderAgentTask(context)
+  const sender = senderCrewmateTask(context)
   return agentMessageNotice({
     taskId: receiverId,
     summary: agentMessageSummary(sender === undefined ? null : { taskId: sender.id, description: sender.description }),
@@ -52,8 +52,8 @@ export function messageNoticeFor(receiverId: string, content: string, context: T
   })
 }
 
-function agentTranscriptPathOf(agentId: string): string | null {
-  const path = getAgentTranscriptPath(asAgentId(agentId))
+function crewmateTranscriptPathOf(agentId: string): string | null {
+  const path = getCrewmateTranscriptPath(asAgentId(agentId))
   return existsSync(path) ? path : null
 }
 
@@ -63,9 +63,9 @@ export async function resolveCrewAddress(to: string, context: ToolUseContext): P
   const registry = state.agentNameRegistry
   const registered = registry?.get(to)
   const candidate = state.tasks?.[to]
-  const liveId = isLocalAgentTask(candidate) && !isMainSessionTask(candidate) ? to : undefined
+  const liveId = isCrewmateTask(candidate) && !isMainSessionTask(candidate) ? to : undefined
   const minted = toAgentId(to) ?? undefined
-  const transcriptPath = minted === undefined ? null : agentTranscriptPathOf(minted)
+  const transcriptPath = minted === undefined ? null : crewmateTranscriptPathOf(minted)
   const knownId = liveId ?? (transcriptPath !== null ? minted : undefined)
   const unresolved = registered === undefined && knownId === undefined
   const receipts = unresolved ? launchesNamed(context.messages ?? [], to) : []
@@ -78,26 +78,26 @@ export async function resolveCrewAddress(to: string, context: ToolUseContext): P
   const name = registered !== undefined ? to : [...registry ?? []].find(([, id]) => String(id) === String(agentId))?.[0] ?? launch?.name
   const who = name === undefined ? String(agentId) : `${name} (id ${agentId}${launches.length > 1 ? `, the newest of ${launches.length} launches that carried the name` : ''})`
   const task = context.getAppState().tasks?.[String(agentId)]
-  const local = isLocalAgentTask(task) && !isMainSessionTask(task) ? task : undefined
-  return { kind: 'agent', agentId: String(agentId), who, task: local, transcriptPath: agentTranscriptPathOf(String(agentId)) }
+  const local = isCrewmateTask(task) && !isMainSessionTask(task) ? task : undefined
+  return { kind: 'agent', agentId: String(agentId), who, task: local, transcriptPath: crewmateTranscriptPathOf(String(agentId)) }
 }
 
-export async function endedWords(address: CrewAgentAddress): Promise<string> {
+export async function endedWords(address: CrewmateAddress): Promise<string> {
   const task = address.task
   if (task !== undefined) {
     if (task.status === 'failed') return `failed${task.error ? ` (${task.error})` : ''}`
     return agentStatusWord(task.status)
   }
-  const view = address.transcriptPath === null ? undefined : await readAgentTranscript(address.transcriptPath)
+  const view = address.transcriptPath === null ? undefined : await readCrewmateTranscript(address.transcriptPath)
   if (view === undefined) return 'ended (its transcript is unreadable)'
   return view.end.kind === 'cut' ? `ended (${view.end.words})` : view.end.kind
 }
 
-type KnownLaunchedAgent = { name: string; agentId: string; status: string }
-async function knownLaunchedAgents(context: ToolUseContext): Promise<KnownLaunchedAgent[]> {
+type KnownLaunchedCrewmate = { name: string; agentId: string; status: string }
+async function knownLaunchedCrewmates(context: ToolUseContext): Promise<KnownLaunchedCrewmate[]> {
   const state = context.getAppState()
   const statusOf = (id: string) => state.tasks?.[id] === undefined ? 'finished' : agentStatusWord(state.tasks[id]!.status)
-  const byName = new Map<string, KnownLaunchedAgent>()
+  const byName = new Map<string, KnownLaunchedCrewmate>()
   for (const launch of await recordedNamedLaunches()) {
     byName.set(launch.name, { name: launch.name, agentId: launch.agentId, status: statusOf(launch.agentId) })
   }
@@ -110,8 +110,8 @@ async function knownLaunchedAgents(context: ToolUseContext): Promise<KnownLaunch
   return [...byName.values()]
 }
 
-export async function unknownAgentRefusal(to: string, context: ToolUseContext, verb: CrewMessageVerb): Promise<string> {
-  const known = await knownLaunchedAgents(context)
+export async function unknownCrewmateRefusal(to: string, context: ToolUseContext, verb: CrewMessageVerb): Promise<string> {
+  const known = await knownLaunchedCrewmates(context)
   const own = known.find(agent => agent.name === to || agent.agentId === to) ?? known.find(agent => agent.name.toLowerCase() === to.toLowerCase())
   if (own !== undefined) {
     return `Cannot ${verb} "${to}": that is a crewmate of this session (id ${own.agentId}; ${own.status}). Address it by its name or by its id ${own.agentId}` +

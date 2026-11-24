@@ -47,9 +47,9 @@ const model = await import('../../src/models/catalogue/engineModel.ts')
 section('§1 the sub-agent resolver follows the parent whatever its provider and substitutes nothing')
 {
   const haikuParent = 'claude-haiku-4-5-20251001'
-  check('inherit from a parent on the small tier is that parent, exactly', agent.getAgentModel('inherit', haikuParent) === haikuParent, agent.getAgentModel('inherit', haikuParent))
-  check("a definition that names 'haiku' runs the haiku default, not a stand-in", agent.getAgentModel('haiku', 'claude-opus-5') === model.getDefaultHaikuModel(), agent.getAgentModel('haiku', 'claude-opus-5'))
-  check("a restored haiku id dispatches as itself", agent.getAgentModel('inherit', 'claude-opus-5', 'haiku') === model.getDefaultHaikuModel(), agent.getAgentModel('inherit', 'claude-opus-5', 'haiku'))
+  check('inherit from a parent on the small tier is that parent, exactly', agent.getCrewmateModel('inherit', haikuParent) === haikuParent, agent.getCrewmateModel('inherit', haikuParent))
+  check("a definition that names 'haiku' runs the haiku default, not a stand-in", agent.getCrewmateModel('haiku', 'claude-opus-5') === model.getDefaultHaikuModel(), agent.getCrewmateModel('haiku', 'claude-opus-5'))
+  check("a restored haiku id dispatches as itself", agent.getCrewmateModel('inherit', 'claude-opus-5', 'haiku') === model.getDefaultHaikuModel(), agent.getCrewmateModel('inherit', 'claude-opus-5', 'haiku'))
   const ownFamily: Array<[string, string]> = [
     ['gpt', 'gpt-5.6-sol'],
     ['openai', 'gpt-5.6-sol'],
@@ -69,18 +69,18 @@ section('§1 the sub-agent resolver follows the parent whatever its provider and
     ['sonnet', 'claude-sonnet-5'],
   ]
   for (const [word, parent] of ownFamily) {
-    check(`the family word '${word}' with a parent on that family inherits the parent's exact model (${parent})`, agent.getAgentModel(undefined, parent, word) === parent, agent.getAgentModel(undefined, parent, word))
-    check(`  …and as the definition's own model too`, agent.getAgentModel(word, parent) === parent, agent.getAgentModel(word, parent))
+    check(`the family word '${word}' with a parent on that family inherits the parent's exact model (${parent})`, agent.getCrewmateModel(undefined, parent, word) === parent, agent.getCrewmateModel(undefined, parent, word))
+    check(`  …and as the definition's own model too`, agent.getCrewmateModel(word, parent) === parent, agent.getCrewmateModel(word, parent))
   }
-  check("a first-party family word with a parent on another family resolves to that family's default", agent.getAgentModel(undefined, 'gpt-5.6-sol', 'opus') === model.getDefaultOpusModel(), agent.getAgentModel(undefined, 'gpt-5.6-sol', 'opus'))
-  check("an exact id of another family passes through unchanged", agent.getAgentModel(undefined, 'claude-opus-5', 'gemini-2.5-pro') === 'gemini-2.5-pro', agent.getAgentModel(undefined, 'claude-opus-5', 'gemini-2.5-pro'))
-  check("an exact engine id in the definition passes through unchanged", agent.getAgentModel('openrouter/qwen/qwen3-coder', 'claude-opus-5') === 'openrouter/qwen/qwen3-coder')
+  check("a first-party family word with a parent on another family resolves to that family's default", agent.getCrewmateModel(undefined, 'gpt-5.6-sol', 'opus') === model.getDefaultOpusModel(), agent.getCrewmateModel(undefined, 'gpt-5.6-sol', 'opus'))
+  check("an exact id of another family passes through unchanged", agent.getCrewmateModel(undefined, 'claude-opus-5', 'gemini-2.5-pro') === 'gemini-2.5-pro', agent.getCrewmateModel(undefined, 'claude-opus-5', 'gemini-2.5-pro'))
+  check("an exact engine id in the definition passes through unchanged", agent.getCrewmateModel('openrouter/qwen/qwen3-coder', 'claude-opus-5') === 'openrouter/qwen/qwen3-coder')
   saveGlobalConfig(c => ({ ...c, agents: { defaultModel: 'gemini-2.5-pro' } }))
-  check("the configured sub-agent default, an exact id of any family, is what a definition naming no model runs", agent.getAgentModel(undefined, 'claude-opus-5') === 'gemini-2.5-pro', agent.getAgentModel(undefined, 'claude-opus-5'))
+  check("the configured sub-agent default, an exact id of any family, is what a definition naming no model runs", agent.getCrewmateModel(undefined, 'claude-opus-5') === 'gemini-2.5-pro', agent.getCrewmateModel(undefined, 'claude-opus-5'))
   saveGlobalConfig(c => ({ ...c, agents: { defaultModel: 'gpt' } }))
-  check("a configured family word naming the parent's family inherits the parent's exact model", agent.getAgentModel(undefined, 'gpt-5.6-sol') === 'gpt-5.6-sol', agent.getAgentModel(undefined, 'gpt-5.6-sol'))
+  check("a configured family word naming the parent's family inherits the parent's exact model", agent.getCrewmateModel(undefined, 'gpt-5.6-sol') === 'gpt-5.6-sol', agent.getCrewmateModel(undefined, 'gpt-5.6-sol'))
   saveGlobalConfig(c => ({ ...c, agents: {} }))
-  check("with no configured default, a definition naming no model inherits the parent", agent.getAgentModel(undefined, 'gpt-5.6-sol') === 'gpt-5.6-sol')
+  check("with no configured default, a definition naming no model inherits the parent", agent.getCrewmateModel(undefined, 'gpt-5.6-sol') === 'gpt-5.6-sol')
   check('no floor note rides the resolver any more', !('getAgentModelWithFloorNote' in agent))
 }
 
@@ -178,15 +178,15 @@ section('§3 the floor is gone: no substitution anywhere, no telemetry of one, n
 section('§4 the Crewmate tool: haiku is a dispatch word like any other, and the words name no provider as the exact case')
 {
   const aliases = await import('../../src/models/facts/aliases.ts')
-  check("AGENT_DISPATCH_MODELS carries 'haiku'", (aliases.AGENT_DISPATCH_MODELS as readonly string[]).includes('haiku'))
-  const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
-  const schema = AgentTool.inputSchema as { safeParse: (v: unknown) => { success: boolean }; shape: { model: { description?: string } } }
+  check("AGENT_DISPATCH_MODELS carries 'haiku'", (aliases.CREWMATE_DISPATCH_MODELS as readonly string[]).includes('haiku'))
+  const { CrewmateTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
+  const schema = CrewmateTool.inputSchema as { safeParse: (v: unknown) => { success: boolean }; shape: { model: { description?: string } } }
   check("the Crewmate tool schema accepts model 'haiku'", schema.safeParse({ description: 'test', prompt: 'test', model: 'haiku' }).success === true)
   const description = schema.shape.model.description ?? ''
   const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
   const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
   const permissionContext = getEmptyToolPermissionContext()
-  const manual = await AgentTool.prompt({ getToolPermissionContext: async () => permissionContext, tools: [...getAllBaseTools()], agents: [] })
+  const manual = await CrewmateTool.prompt({ getToolPermissionContext: async () => permissionContext, tools: [...getAllBaseTools()], agents: [] })
   const MODEL_SECTION = '\n## Model selection\n'
   const modelWords = manual.includes(MODEL_SECTION) ? manual.slice(manual.indexOf(MODEL_SECTION) + MODEL_SECTION.length).split('\n## ')[0]! : ''
   check('the model field names no provider as the exact-id case, and the manual has no model section of its own', description.length > 0 && !/Anthropic/.test(description) && modelWords.length === 0, description.slice(0, 200))
@@ -210,8 +210,8 @@ section('§5 the doors store exact ids; the words come from a lookup of the id')
     check(`the bare family word '${word}' resolves to its family's first recorded row (${head}) at write time, the way 'grok' resolves to xAI's newest row`, model.parseUserSpecifiedModel(word) === head, model.parseUserSpecifiedModel(word))
     check(`  …and the picker door maps the word onto that row`, picker.modelChoiceRow(word) === head && picker.modelChoiceLabel(word) === picker.modelChoiceLabel(head), `${picker.modelChoiceRow(word)} · ${picker.modelChoiceLabel(word)}`)
   }
-  const { subagentDefaultsOf } = await import('../../src/crew/agents/agentDefaults.ts')
-  check("the sub-agent default reader takes the choice word 'inherit' as unset", subagentDefaultsOf({ defaultModel: 'inherit' }).model === undefined && subagentDefaultsOf({ defaultModel: fable }).model === fable)
+  const { crewmateDefaultsOf } = await import('../../src/crew/agents/agentDefaults.ts')
+  check("the sub-agent default reader takes the choice word 'inherit' as unset", crewmateDefaultsOf({ defaultModel: 'inherit' }).model === undefined && crewmateDefaultsOf({ defaultModel: fable }).model === fable)
 }
 
 console.log(`\n${failures === 0 ? 'ALL PASS' : `${failures} FAIL`}`)

@@ -397,7 +397,7 @@ section('P1 THE THREE LAYERS — p on a hosted chat parks a real loop in the run
   }
   const chipOf = (): string | null => {
     const r = rosterOf()
-    return crew.crewPauseChipWords(crew.crewAgentsOf(r.rows, SESSION), r.pauseGate ?? { paused: false, parked: 0 })
+    return crew.crewPauseChipWords(crew.crewmatesOf(r.rows, SESSION), r.pauseGate ?? { paused: false, parked: 0 })
   }
   const press = async (): Promise<{ outcome: string; detail?: string; paused?: boolean }> => {
     const hostedPaused = rosterOf().pauseGate?.paused ?? false
@@ -434,7 +434,7 @@ section('P1 THE THREE LAYERS — p on a hosted chat parks a real loop in the run
   seat.requestSessionFacts(RUNNER, roster as never, { immediate: true })
   await settle(30)
   const parkedRoster = rosterOf()
-  const parkedRow = crew.crewAgentsOf(parkedRoster.rows, SESSION)[0]
+  const parkedRow = crew.crewmatesOf(parkedRoster.rows, SESSION)[0]
   check("the roster row carries the parked words from the seam: the status cell reads paused by the operator, the tail names the tool", parkedRow !== undefined && crew.crewStatusWords(parkedRow, Date.now()) === 'paused by the operator' && crew.crewOperatorPauseParts(parkedRow)?.detail === 'at a tool (SerialTool)', `${chipAt} (crewStatusWords, crewOperatorPauseParts) must read the parked wait words as 'paused by the operator' with the tool in the detail · ${j(parkedRow?.wait)}`)
   check("the runner's fact counts the parked loop: pauseGate { paused: true, parked: 1 }", parkedRoster.pauseGate?.paused === true && parkedRoster.pauseGate?.parked === 1, `the runner's facts (sessionFactsToWire in src/engine/connector/seatWire.ts) must carry pauseGate { paused, parked } from ${gateAt} · ${j(parkedRoster.pauseGate)}`)
   check('the chip reads paused by the operator · 1 parked', chipOf() === 'paused by the operator · 1 parked', `${chipAt} must append '· N parked' when loops are parked · ${chipOf() ?? 'null'}`)

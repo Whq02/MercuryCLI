@@ -1,8 +1,8 @@
 import type { TaskState } from '../../engine/tasks/taskState.js'
 import type { TaskType } from '../../engine/tasks/taskBase.js'
 import {
-  isPanelAgentTask,
-  type LocalAgentTaskState,
+  isPanelCrewmateTask,
+  type CrewmateTaskState,
 } from '../../engine/tasks/local-agent/crewmateTask.js'
 import type { AppState } from './AppStateStore.js'
 
@@ -20,7 +20,7 @@ export function composerTargetPinned(
 
 type ActiveAgentForInput =
   | { type: 'leader' }
-  | { type: 'named_agent'; task: LocalAgentTaskState }
+  | { type: 'named_agent'; task: CrewmateTaskState }
 
 export function getActiveAgentForInput(
   appState: Pick<AppState, 'viewingAgentTaskId' | 'mainChatTaskId' | 'tasks'>,
@@ -29,7 +29,7 @@ export function getActiveAgentForInput(
   if (!taskId) return { type: 'leader' }
   const task = appState.tasks[taskId]
   if (!task) return { type: 'leader' }
-  if (isPanelAgentTask(task)) return { type: 'named_agent', task }
+  if (isPanelCrewmateTask(task)) return { type: 'named_agent', task }
   return { type: 'leader' }
 }
 
@@ -56,7 +56,7 @@ type EveryTaskTypeClassified = Assert<IsEqual<TaskType, ClassifiedTaskType>>
 
 void (true satisfies EveryTaskTypeClassified)
 
-type ViewedAgent = {
+type ViewedCrewmate = {
   kind: 'local_agent'
   taskId: string
   name: string
@@ -72,11 +72,11 @@ function getViewedEscAction(_task: TaskState): 'interrupt' | 'main' {
   return 'main'
 }
 
-export function projectViewedAgent(
+export function projectViewedCrewmate(
   task: TaskState,
   agentNameRegistry: ReadonlyMap<string, string>,
-): ViewedAgent | undefined {
-  if (isPanelAgentTask(task)) {
+): ViewedCrewmate | undefined {
+  if (isPanelCrewmateTask(task)) {
     let registeredName: string | undefined
     for (const [name, taskId] of agentNameRegistry) {
       if (taskId === task.id) registeredName = name
@@ -95,12 +95,12 @@ export function projectViewedAgent(
   return undefined
 }
 
-export function getViewedAgent(
+export function getViewedCrewmate(
   appState: Pick<AppState, 'viewingAgentTaskId' | 'tasks' | 'agentNameRegistry'>,
-): ViewedAgent | undefined {
+): ViewedCrewmate | undefined {
   const taskId = appState.viewingAgentTaskId
   if (!taskId) return undefined
   const task = appState.tasks[taskId]
   if (!task) return undefined
-  return projectViewedAgent(task, appState.agentNameRegistry)
+  return projectViewedCrewmate(task, appState.agentNameRegistry)
 }

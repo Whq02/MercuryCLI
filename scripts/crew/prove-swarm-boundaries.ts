@@ -24,8 +24,8 @@ const { runSwarmCommand } = await import('../../src/commands/swarm/swarm.ts')
 const seam = await import('../../src/crew/board/seam.ts')
 const swarmOnText = runSwarmCommand('on')
 assert(swarmOnText.startsWith('Swarm on'), `runSwarmCommand('on') failed in src/commands/swarm/swarm.ts: ${swarmOnText}`)
-await seam.latchSwarmAgent('reader', 'Reader')
-await seam.latchSwarmAgent('writer', 'Writer')
+await seam.latchSwarmCrewmate('reader', 'Reader')
+await seam.latchSwarmCrewmate('writer', 'Writer')
 const board = seam.swarmStore()!
 const writer = seam.swarmPrincipal('writer')!
 const { turnDoor } = await import('../../src/engine/turnDoor.ts')

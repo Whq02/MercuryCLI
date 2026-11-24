@@ -1,6 +1,6 @@
 import { SESSION_VERBS, type SessionVerbRow } from '../../../daemon/runner-wire/sessionVerbs.js'
 import { registeredEmptyDetailAction } from '../emptyDetailControls.js'
-import type { AgentControlReceiptV1, EmptyDetailControlVerbKey, KitDialReceiptV1 } from '../types.js'
+import type { CrewmateControlReceiptV1, EmptyDetailControlVerbKey, KitDialReceiptV1 } from '../types.js'
 
 type SessionVerbKey = keyof typeof SESSION_VERBS
 type SessionControlOp = typeof SESSION_VERBS.sessionControl.daemon.op
@@ -48,7 +48,7 @@ export async function sendControlReceipt(
   key: ControlVerbKey,
   fields?: ControlExtraFields,
   onApplied?: () => void,
-): Promise<AgentControlReceiptV1> {
+): Promise<CrewmateControlReceiptV1> {
   const action = registeredControlAction(key)
   if (action === null) return { outcome: 'refused', detail: `unregistered control verb: ${String(key)}` }
   try {
@@ -69,7 +69,7 @@ export async function sendEmptyDetailControl(
   chainRpc: ControlRpc,
   sessionId: string,
   key: EmptyDetailControlVerbKey,
-): Promise<AgentControlReceiptV1> {
+): Promise<CrewmateControlReceiptV1> {
   if (registeredEmptyDetailAction(key) === null) {
     return { outcome: 'refused', detail: `unregistered control verb: ${String(key)}` }
   }

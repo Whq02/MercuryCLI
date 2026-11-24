@@ -21,7 +21,7 @@ import {
   crewWaitLine,
   crewTokensSummary,
   crewUnreadLabel,
-  type CrewAgentFacts,
+  type CrewmateFacts,
   crewWaitHolders,
 } from '../../../engine/connector/crewFacts.js'
 import { operatorPauseGate } from '../../../engine/loop/pauseGate.js'
@@ -56,7 +56,7 @@ import { useSessionCrew } from '../../tasks/useCrewLedger.js'
 import { crewWorktreeLeftWords } from '../../../crew/crewmates/crewWorktreeReminder.js'
 
 
-type Row = { kind: 'agent'; id: string; facts: CrewAgentFacts }
+type Row = { kind: 'agent'; id: string; facts: CrewmateFacts }
 
 const subscribeFocusedAsks = subscribeThroughFocused((connector, listener) => connector.subscribeAsks(listener))
 const getFocusedAsks = (): readonly SessionAskV1[] => getFocusedSessionConnector().asks()
@@ -128,7 +128,7 @@ export function CrewView({
     if (board?.on && key.tab) { setBoardTab(value => !value); return }
     if (showingBoard) return
     const selected = rows[sel]
-    const target: CrewAgentFacts | null =
+    const target: CrewmateFacts | null =
       mode.view === 'card' && !listMode
         ? (agents.find(a => a.id === mode.id) ?? null)
         : selected?.kind === 'agent'
@@ -211,7 +211,7 @@ export function CrewView({
     }
   })
 
-  const doorKeys = (target: CrewAgentFacts | null): string[] =>
+  const doorKeys = (target: CrewmateFacts | null): string[] =>
     armedTarget !== null ? [crewStopHint(armedTarget.name)] : [...(target === null ? [] : target.running ? ['x x stop'] : crewSettled(target) ? ['r resume', CREW_CLEAR_KEY] : ['r resume']), pauseDoor]
 
   if (showingBoard && board !== null) {
@@ -295,7 +295,7 @@ export function CrewView({
               const on = gi === sel
               return (
                 <InteractiveRow key={row.id} id={`crew:row:${row.id}`} selected={on} onSelect={() => cursor.select(gi)} onActivate={() => openRow(row)} selectionBand={false} hoverStyle="chrome-ink">
-                  {() => <AgentRow facts={row.facts} seat={board?.seats?.find(seat => seat.agent === row.facts.id)} on={on} now={now} width={width} billed={billed} asks={asks} />}
+                  {() => <CrewmateRow facts={row.facts} seat={board?.seats?.find(seat => seat.agent === row.facts.id)} on={on} now={now} width={width} billed={billed} asks={asks} />}
                 </InteractiveRow>
               )
             })}
@@ -307,7 +307,7 @@ export function CrewView({
   )
 }
 
-function AgentRow({
+function CrewmateRow({
   facts,
   seat,
   on,
@@ -316,7 +316,7 @@ function AgentRow({
   billed,
   asks,
 }: {
-  facts: CrewAgentFacts
+  facts: CrewmateFacts
   seat?: BoardSeat
   on: boolean
   now: number

@@ -3,7 +3,7 @@ import { rmSync } from 'node:fs'
 import { makeWorld, bootLead, LEAD_MODEL, toolResultOf, userTextsOf } from './crew-world.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ResumeAgentTool } = await import('../../src/tools/resume-crewmate/ResumeAgentTool.ts')
+const { ResumeCrewmateTool } = await import('../../src/tools/resume-crewmate/ResumeAgentTool.ts')
 const childPrompt = 'interrupt-child-only'
 const resumePrompt = 'resume-the-cut-turn-now'
 const world = await makeWorld('resume-interrupt', [
@@ -21,7 +21,7 @@ const childRequests = (): any[] => world.fixture.messageRequests().filter(reques
   return text.includes(childPrompt) && !text.includes('parent-launch')
 }).map(request => request.body)
 try {
-  const input = ResumeAgentTool.inputSchema.parse({ to: 'interrupt-child', message: resumePrompt, interrupt: true })
+  const input = ResumeCrewmateTool.inputSchema.parse({ to: 'interrupt-child', message: resumePrompt, interrupt: true })
   assert.equal((input as Record<string, unknown>).interrupt, true, 'interrupt survives tool validation')
   lead.submit('parent-launch')
   await lead.waitFor('child is streaming', () => childRequests().length === 1)

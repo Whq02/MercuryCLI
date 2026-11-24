@@ -82,7 +82,7 @@ const { turnDoor: startTurn } = await import('../../src/engine/turnDoor.ts')
 const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
 const { createUserMessage, createAssistantMessage } = await import('../../src/engine/message-shapes/factories.ts')
 const { getAttachments, createAttachmentMessage } = await import('../../src/engine/attachments/turnAttachments.ts')
-const { runAgent } = await import('../../src/tools/crewmate/runCrewmate.ts')
+const { runCrewmate } = await import('../../src/tools/crewmate/runCrewmate.ts')
 const { planToolPayload, clearToolRosterLatches, toolRosterLatchFor } = await import('../../src/models/roads/toolEconomy.ts')
 const { processOwnerForLane } = await import('../../src/engine/run-owner/resolveOwner.ts')
 const { recordGatewayProbe, openaiGatewayProbeKey } = await import('../../src/models/roads/deferralProbe.ts')
@@ -116,7 +116,7 @@ delete parent.agentId
 parent.options.thinkingConfig = { type: 'enabled', budgetTokens: 10000 }
 Object.assign(parent, { setInProgressToolUseIDs() {}, setResponseLength() {}, updateFileHistoryState() {}, updateAttributionState() {} })
 const definition = { agentType: 'mercury-crew', whenToUse: 'Fixture', source: 'projectSettings', getSystemPrompt: () => 'Post three results.' }
-for await (const reply of runAgent({
+for await (const reply of runCrewmate({
   agentDefinition: definition as never, promptMessages: messages.slice(), toolUseContext: parent,
   canUseTool: (async (_tool: unknown, input: unknown) => ({ behavior: 'allow', updatedInput: input })) as never,
   isAsync: true, querySource: 'agent:builtin:mercury-crew', availableTools, model, effortOverride: 'max',

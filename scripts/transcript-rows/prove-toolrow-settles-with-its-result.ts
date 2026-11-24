@@ -54,7 +54,7 @@ const { EvalTool } = await import(src('tools/eval/EvalTool.ts'))
 const { EditTool } = await import(src('tools/edit/EditTool.ts'))
 const { createLiveTurnFold, liveTurnStateOf } = await import(src('sessions/resume/conversationRecovery.ts'))
 const { readTranscriptChainSince } = await import(src('sessions/transcripts/transcriptReader.ts'))
-const { buildMessageLookups, buildSubagentLookups } = await import(src('engine/messages/lookups.ts'))
+const { buildMessageLookups, buildNestedLookups } = await import(src('engine/messages/lookups.ts'))
 const { normalizeMessages } = await import(src('engine/message-shapes/normalize.ts'))
 const openToolUseIDsOf = await import(src('engine/message-shapes/openToolUses.ts')).then(
   m => (m as { openToolUseIDsOf: (messages: readonly unknown[]) => Set<string> }).openToolUseIDsOf,
@@ -397,7 +397,7 @@ section('§C the safety law — a call a later reply or prompt stands after is r
   const both = (records: Rec[]): { fold: Set<string>; lookups: Set<string>; sub: Set<string>; law: Set<string> } => {
     const normalized = normalizeMessages(records as never)
     const lookups = buildMessageLookups(normalized as never, records as never)
-    const sub = buildSubagentLookups(normalized.filter(m => m.type === 'user' || m.type === 'assistant').map(message => ({ message })) as never)
+    const sub = buildNestedLookups(normalized.filter(m => m.type === 'user' || m.type === 'assistant').map(message => ({ message })) as never)
     return { fold: liveTurnStateOf(records as never).inProgressToolUseIDs, lookups: lookups.resolvedToolUseIDs, sub: sub.inProgressToolUseIDs, law: openToolUseIDsOf(records as never) }
   }
   const same = (a: Set<string>, b: Set<string>): boolean => a.size === b.size && [...a].every(x => b.has(x))

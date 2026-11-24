@@ -23,7 +23,7 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 
 const state = await import('../../src/boot/process-state/processState.ts')
 const config = await import('../../src/platform/config/globalConfig.ts')
-const { createAgentWorktree, unlockAgentWorktree } = await import('../../src/platform/git/worktree/worktree.ts')
+const { createCrewmateWorktree, unlockCrewmateWorktree } = await import('../../src/platform/git/worktree/worktree.ts')
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'worktree-clone-links-')))
 const cloneRoad = cloneRoadExpected(scratch)
@@ -102,7 +102,7 @@ state.setIsInteractive(true)
 config.enableConfigs()
 
 const rows = async (word: string, slug: string, expectCopy: boolean): Promise<void> => {
-  const made = await createAgentWorktree(slug)
+  const made = await createCrewmateWorktree(slug)
   const copy = made.worktreePath
   const inCopy = join(copy, 'node_modules')
   if (!expectCopy && !links) {
@@ -130,7 +130,7 @@ const rows = async (word: string, slug: string, expectCopy: boolean): Promise<vo
   check(`${word}: a relative link inside the folder and a link to nothing are kept as written`, link(join(inCopy, '.bin', 'rel-inside')) === '../pkg-0/index.js' && link(join(inCopy, 'dangling')) === './nowhere')
   check(`${word}: a folder the checkout holds read-only is the owner's to write in the copy, its file whole`, (statSync(join(inCopy, 'sealed')).mode & 0o200) !== 0 && read(join(inCopy, 'sealed', 'inside.js')) === 'module.exports = "sealed"\n', (statSync(join(inCopy, 'sealed')).mode & 0o7777).toString(8))
   check(`${word}: nothing of the checkout moved: its links, its read-only folder, its files`, link(join(modules, 'abs-into-checkout')) === join(mono, 'tools') && link(join(modules, '.bin', 'abs-into-folder')) === join(mono, 'node_modules', 'pkg-0', 'index.js') && link(join(modules, 'rel-out')) === '../../sibling-project/pkg' && (statSync(join(modules, 'sealed')).mode & 0o7777) === 0o555 && read(join(mono, 'packages', 'lib', 'index.js')) === 'module.exports = "lib at the commit"\n')
-  await unlockAgentWorktree(copy, mono)
+  await unlockCrewmateWorktree(copy, mono)
   git(copy, 'checkout', '-q', '--', 'packages/lib/index.js')
   let removal = ''
   try {

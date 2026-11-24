@@ -157,7 +157,7 @@ function runScenario(body: string): Record<string, unknown> {
       })
       fs.chmodSync(agentFile, 0o000)
       writer.setSessionFileForTesting(sessionFile)
-      writer.registerAgentTranscriptDestination('a1', agentFile)
+      writer.registerCrewmateTranscriptDestination('a1', agentFile)
       let notices = 0
       const off = subscribeTranscriptStoreHealth(() => {
         if (transcriptStoreHealth().failing) notices++

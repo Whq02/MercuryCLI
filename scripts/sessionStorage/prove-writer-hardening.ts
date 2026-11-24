@@ -11,7 +11,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 const { appendEntryToFile } = await import(
   join(ROOT, 'src/sessions/transcripts/writer.ts')
 )
-const { getAgentMetadataPath, readAgentMetadata, writeAgentMetadata } =
+const { getCrewmateMetadataPath, readCrewmateMetadata, writeCrewmateMetadata } =
   await import(join(ROOT, 'src/sessions/transcripts/paths.ts'))
 const { applySnipRemovals } = await import(
   join(ROOT, 'src/sessions/transcripts/chain.ts')
@@ -59,14 +59,14 @@ try {
 
   {
     const agentId = 'p1proof0-0000-4000-8000-000000000001' as never
-    const sidecar = getAgentMetadataPath(agentId)
+    const sidecar = getCrewmateMetadataPath(agentId)
 
-    const missing = await readAgentMetadata(agentId)
+    const missing = await readCrewmateMetadata(agentId)
     check(
       'missing sidecar reads as null (fallback path)',
       missing === null,
       '',
-      'readAgentMetadata in src/sessions/transcripts/paths.ts must return null when the sidecar file does not exist',
+      'readCrewmateMetadata in src/sessions/transcripts/paths.ts must return null when the sidecar file does not exist',
     )
 
     mkdirSync(dirname(sidecar), { recursive: true })
@@ -74,7 +74,7 @@ try {
     let corruptResult: unknown = 'unset'
     let corruptThrew = false
     try {
-      corruptResult = await readAgentMetadata(agentId)
+      corruptResult = await readCrewmateMetadata(agentId)
     } catch {
       corruptThrew = true
     }
@@ -82,16 +82,16 @@ try {
       'corrupt sidecar reads as null instead of throwing',
       !corruptThrew && corruptResult === null,
       '',
-      'readAgentMetadata in src/sessions/transcripts/paths.ts must catch a JSON parse error and return null',
+      'readCrewmateMetadata in src/sessions/transcripts/paths.ts must catch a JSON parse error and return null',
     )
 
-    await writeAgentMetadata(agentId, { agentType: 'verifier', model: 'm-1' })
-    const roundTrip = await readAgentMetadata(agentId)
+    await writeCrewmateMetadata(agentId, { agentType: 'verifier', model: 'm-1' })
+    const roundTrip = await readCrewmateMetadata(agentId)
     check(
       'valid sidecar round-trips agentType + model',
       roundTrip?.agentType === 'verifier' && roundTrip?.model === 'm-1',
       '',
-      'writeAgentMetadata and readAgentMetadata in src/sessions/transcripts/paths.ts must store and return agentType and model',
+      'writeCrewmateMetadata and readCrewmateMetadata in src/sessions/transcripts/paths.ts must store and return agentType and model',
     )
   }
 

@@ -3,7 +3,7 @@ import { basename, dirname } from 'node:path'
 
 import { execFileNoThrowWithCwd } from '../../platform/processes/execFileNoThrow.js'
 import { findCanonicalGitRoot, gitExe } from '../../platform/git/git.js'
-import { isAgentLane, worktreeBranchName, worktreeRemovalSafe } from '../../platform/git/worktree/worktree.js'
+import { isCrewmateLane, worktreeBranchName, worktreeRemovalSafe } from '../../platform/git/worktree/worktree.js'
 
 export const CREW_JANITOR_DAYS = 7
 const DAY_MS = 86_400_000
@@ -99,7 +99,7 @@ export async function crewLeftoverWorktrees(from: string, nowMs: number): Promis
     const path = line.slice('worktree '.length).trim()
     if (path === gitRoot || basename(dirname(path)) !== 'worktrees') continue
     const slug = basename(path)
-    if (!(await isAgentLane(slug, path))) continue
+    if (!(await isCrewmateLane(slug, path))) continue
     out.push(await crewWorktreeLeftoverOf({ name: slug, path, branch: worktreeBranchName(slug), gitRoot }, nowMs))
   }
   return out

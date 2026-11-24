@@ -1,6 +1,6 @@
 import {
-  JEV_SUBAGENT_CALL_BUDGET,
-  JEV_SUBAGENT_PACE_PER_MINUTE,
+  JEV_CREWMATE_CALL_BUDGET,
+  JEV_CREWMATE_PACE_PER_MINUTE,
   type JevLocalRefusalKind,
   type JevRoad,
   type JevStatusKind,
@@ -95,11 +95,11 @@ export function jevAdmission(settings: JevSettings, now: number = Date.now(), ag
       words: `request ceiling hit — ${state.attempts} of ${settings.requestCeiling} requests this session; /clear resets the count, /jev raises or clears the ceiling`,
     }
   }
-  if (agentId !== undefined && (state.subagentAttempts.get(agentId) ?? 0) >= JEV_SUBAGENT_CALL_BUDGET) {
-    return { ok: false, kind: 'subagent-budget-hit', words: `crewmate budget hit — this crewmate has used its ${JEV_SUBAGENT_CALL_BUDGET} JEV calls; carry on unaided` }
+  if (agentId !== undefined && (state.subagentAttempts.get(agentId) ?? 0) >= JEV_CREWMATE_CALL_BUDGET) {
+    return { ok: false, kind: 'subagent-budget-hit', words: `crewmate budget hit — this crewmate has used its ${JEV_CREWMATE_CALL_BUDGET} JEV calls; carry on unaided` }
   }
   const times = agentId === undefined ? state.attemptTimes : state.subagentAttemptTimes
-  const pace = agentId === undefined ? settings.pacePerMinute : JEV_SUBAGENT_PACE_PER_MINUTE
+  const pace = agentId === undefined ? settings.pacePerMinute : JEV_CREWMATE_PACE_PER_MINUTE
   if (times.length >= pace) {
     const retryInMs = Math.max(1, times[0]! + JEV_PACE_WINDOW_MS - now)
     return {

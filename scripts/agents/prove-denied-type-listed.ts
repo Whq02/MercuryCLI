@@ -9,10 +9,10 @@ function check(label: string, ok: boolean, detail = '', hint = ''): void {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!ok && hint ? ` — ${hint}` : ''}`)
 }
 
-const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
+const { CrewmateTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
 const { setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.ts')
 setSessionTrustAccepted(true)
-const { buildAgentLaunchPlan } = await import('../../src/crew/crewmates/agentLaunchPlan.ts')
+const { buildCrewmateLaunchPlan } = await import('../../src/crew/crewmates/agentLaunchPlan.ts')
 const { MERCURY_CREW_AGENT_TYPE } = await import('../../src/tools/kit/names/agent.ts')
 type AgentDefinition = import('../../src/crew/agents/agentDefinition.ts').AgentDefinition
 type ToolPermissionContext = import('../../src/tools/kit/tool.ts').ToolPermissionContext
@@ -33,7 +33,7 @@ const context = (deny: readonly string[], reasons?: Record<string, string>, sour
 }) as unknown as ToolPermissionContext
 
 const promptUnder = (ctx: ToolPermissionContext): Promise<string> =>
-  AgentTool.prompt!({ getToolPermissionContext: async () => ctx as never, tools: [], agents })
+  CrewmateTool.prompt!({ getToolPermissionContext: async () => ctx as never, tools: [], agents })
 
 console.log('── §1 a denied type stays listed, with its refusal (user rule vs project rule) ──')
 const denied = await promptUnder(context(['Crewmate(deployer)']))
@@ -59,7 +59,7 @@ check('a project rule with a reason names the shared project settings and the re
 console.log('── §3 the launch still refuses with the same words ──')
 let launchRefusal = ''
 try {
-  buildAgentLaunchPlan({
+  buildCrewmateLaunchPlan({
     requestedType: 'deployer',
     defaultAgentType: MERCURY_CREW_AGENT_TYPE,
     activeAgents: agents,
@@ -78,7 +78,7 @@ check('…and no listing line mentions a denial', listingOf(open).every(l => !l.
 const restricted = await promptUnder(context(['Crewmate(deployer)']))
 check('a deny on a whole other tool never marks a type', (await promptUnder(context(['Bash']))) === open, '', 'getDenyRuleForAgent as used by the prompt method of AgentTool in src/tools/crewmate/CrewmateTool.tsx must ignore deny rules on other tools')
 check('a deny on the Crewmate tool for one type marks exactly that line', listingOf(restricted).filter(l => l.includes(' — launching it is denied')).length === 1, '', 'the prompt method of AgentTool in src/tools/crewmate/CrewmateTool.tsx must mark only the denied type')
-const allowedTypes = await AgentTool.prompt!({ getToolPermissionContext: async () => context(['Crewmate(deployer)']) as never, tools: [], agents, allowedAgentTypes: ['auditor'] })
+const allowedTypes = await CrewmateTool.prompt!({ getToolPermissionContext: async () => context(['Crewmate(deployer)']) as never, tools: [], agents, allowedAgentTypes: ['auditor'] })
 check('a Crewmate(x,y) restriction still narrows the list (a denied type outside it stays off)', !allowedTypes.includes('- deployer:') && allowedTypes.includes('- auditor:'), '', 'getPrompt in src/tools/crewmate/prompt.ts must still apply allowedAgentTypes to the listing')
 
 console.log(failed === 0 ? '\nprove-denied-type-listed: all green' : `\nprove-denied-type-listed: ${failed} FAILURE(S)`)

@@ -30,7 +30,7 @@ try {
   enableConfigs()
   const { DebugTool } = await import('../../src/tools/debug/DebugTool.ts')
   const { BrowserTool } = await import('../../src/tools/browser/BrowserTool.ts')
-  const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
+  const { CrewmateTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
   const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
   const { toolToAPISchema } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
@@ -40,7 +40,7 @@ try {
   const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
   const { isNullRenderingAttachment } = await import('../../src/screen/messages/nullRenderingAttachments.ts')
   const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
-  const tools: import('../../src/tools/kit/tool.js').Tool[] = [DebugTool, BrowserTool, AgentTool, ToolSearchTool]
+  const tools: import('../../src/tools/kit/tool.js').Tool[] = [DebugTool, BrowserTool, CrewmateTool, ToolSearchTool]
   const permission = getEmptyToolPermissionContext()
   const options = { getToolPermissionContext: async () => permission, tools, agents: [], model: 'claude-fable-5-1', conversationKey: 'wire-manual-proof' }
   const context: any = { options: { tools, engineModel: options.model, agentDefinitions: { activeAgents: [] } }, getAppState: () => ({ toolPermissionContext: permission, mcp: { clients: [] } }), messages: [] }

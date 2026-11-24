@@ -313,7 +313,7 @@ export function publishDesktopIdle(): void {
   publish(IDLE_SNAPSHOT)
 }
 
-const AGENT_COMPUTER_REFUSAL =
+const CREWMATE_COMPUTER_REFUSAL =
   "the Computer tool drives the operator's own screen; a crewmate never carries it in this release — the main session does"
 const HEADLESS_COMPUTER_REFUSAL =
   'the Computer tool drives the screen of an interactive session; this headless run has no operator at the screen — open an interactive session to use Computer; this run cannot take the desktop'
@@ -322,7 +322,7 @@ export function desktopPostureRefusal(context: {
   agentId?: string
   options?: { isNonInteractiveSession?: boolean }
 }): string | null {
-  if (typeof context.agentId === 'string' && context.agentId !== '') return AGENT_COMPUTER_REFUSAL
+  if (typeof context.agentId === 'string' && context.agentId !== '') return CREWMATE_COMPUTER_REFUSAL
   if ((context.options?.isNonInteractiveSession === true || getIsNonInteractiveSession()) && !canAnswerAsks()) return HEADLESS_COMPUTER_REFUSAL
   return null
 }

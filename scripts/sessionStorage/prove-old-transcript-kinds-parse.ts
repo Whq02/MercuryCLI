@@ -210,11 +210,11 @@ check('the lite session listing reads no crew stamp from the old head line: the 
 console.log('§4 an agent sidecar written under the old keys reads as written — no crewmate record is read from it')
 {
   const agentId = 'agent-old-sidecar-0001'
-  const sidecarPath = paths.getAgentMetadataPath(agentId as never)
+  const sidecarPath = paths.getCrewmateMetadataPath(agentId as never)
   mkdirSync(join(sidecarPath, '..'), { recursive: true })
   const old = { agentType: 'general-purpose', name: AGENT, launchedAt: 1, teammate: { teamName: TEAM, prompt: 'work the docs', transcriptAgentId: 'agent-old-sidecar-0001' } }
   writeFileSync(sidecarPath, JSON.stringify(old))
-  const meta = (await paths.readAgentMetadata(agentId as never)) as Record<string, unknown> | null
+  const meta = (await paths.readCrewmateMetadata(agentId as never)) as Record<string, unknown> | null
   check('the sidecar reads', meta !== null)
   check('no crewmate record is read from the old key', meta !== null && !('crewmate' in meta) && JSON.stringify(meta.teammate) === JSON.stringify(old.teammate), JSON.stringify(meta))
   check('the rest of the sidecar reads', typeof meta?.agentType === 'string' && meta?.name === AGENT)
@@ -232,13 +232,13 @@ console.log('§5 a roster saved in the old folder, under the old lead name, is n
 console.log('§6 the Agent tool reads its input as declared — an old field name is an unknown field')
 {
   const agentTool = await import('../../src/tools/crewmate/CrewmateTool.tsx')
-  const parsed = agentTool.AgentTool.inputSchema.safeParse({ description: 'd', prompt: 'p', name: 'water', team_name: TEAM })
+  const parsed = agentTool.CrewmateTool.inputSchema.safeParse({ description: 'd', prompt: 'p', name: 'water', team_name: TEAM })
   const data = (parsed.success ? parsed.data : {}) as Record<string, unknown>
   check('an input carrying team_name parses as an input carrying an unknown field', parsed.success === true, parsed.success ? '' : JSON.stringify(parsed.error.issues.slice(0, 2)))
   check('and lands no crew_name', !('crew_name' in data) && !('team_name' in data), JSON.stringify(data))
-  const jsonSchema = JSON.stringify((await import('../../src/platform/primitives/zodToJsonSchema.ts')).zodToJsonSchema(agentTool.AgentTool.inputSchema as never))
+  const jsonSchema = JSON.stringify((await import('../../src/platform/primitives/zodToJsonSchema.ts')).zodToJsonSchema(agentTool.CrewmateTool.inputSchema as never))
   check('the schema the model sees names neither the old field nor a crew name', !jsonSchema.includes('crew_name') && !jsonSchema.includes('team_name'))
-  check('the schema keeps its shape for every reader of its words', 'name' in ((agentTool.AgentTool.inputSchema as unknown as { shape: Record<string, unknown> }).shape ?? {}) && 'name' in ((agentTool.inputSchema() as unknown as { shape: Record<string, unknown> }).shape ?? {}))
+  check('the schema keeps its shape for every reader of its words', 'name' in ((agentTool.CrewmateTool.inputSchema as unknown as { shape: Record<string, unknown> }).shape ?? {}) && 'name' in ((agentTool.inputSchema() as unknown as { shape: Record<string, unknown> }).shape ?? {}))
 }
 
 console.log('§7 a saved keybinding under the old action id binds nothing Mercury knows')

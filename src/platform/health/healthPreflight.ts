@@ -5,7 +5,7 @@ import { basename, join } from 'node:path'
 import { flagEnabled } from '../substrate/flagRegistry.js'
 import {
   MERCURY_CONSTITUTION,
-  MERCURY_SUBAGENT_CONTRACT,
+  MERCURY_CREWMATE_CONTRACT,
 } from '../../engine/system-prompt/mercuryContract.js'
 import { publishAtomic } from '../substrate/fileStore.js'
 import { getCwd } from '../files/cwd.js'
@@ -51,7 +51,7 @@ async function runPreflight(): Promise<PreflightSummary> {
     wrapped('wrapper', async () => ({
       id: 'wrapper',
       status: 'ok' as const,
-      evidence: `the constitution ${MERCURY_CONSTITUTION.length} chars — repo-owned source; crewmate contract ${MERCURY_SUBAGENT_CONTRACT.length} chars`,
+      evidence: `the constitution ${MERCURY_CONSTITUTION.length} chars — repo-owned source; crewmate contract ${MERCURY_CREWMATE_CONTRACT.length} chars`,
     })),
     wrapped('gate', async () => {
       let raw: unknown = null

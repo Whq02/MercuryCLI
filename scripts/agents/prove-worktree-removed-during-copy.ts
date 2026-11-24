@@ -52,9 +52,9 @@ if (road !== undefined) {
   const config = await import('../../src/platform/config/globalConfig.ts')
   const wt = await import('../../src/platform/git/worktree/worktree.ts')
   process.chdir(repo); state.setOriginalCwd(repo); state.setCwdState(repo); state.setIsInteractive(true); config.enableConfigs()
-  const made = await wt.createAgentWorktree('agent-a123abcd', { foldersBehindLaunch: true })
+  const made = await wt.createCrewmateWorktree('agent-a123abcd', { foldersBehindLaunch: true })
   await started
-  await wt.unlockAgentWorktree(made.worktreePath, repo)
+  await wt.unlockCrewmateWorktree(made.worktreePath, repo)
   git('worktree', 'remove', made.worktreePath)
   const removed = !existsSync(made.worktreePath)
   if (action === 'link') symlinkSync(outside, made.worktreePath, 'dir')

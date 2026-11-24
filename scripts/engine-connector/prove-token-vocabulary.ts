@@ -42,7 +42,7 @@ const { createProgressTracker, getProgressUpdate, updateProgressFromMessage, get
 )
 const { projectWorkRoster } = await import('../../src/engine/connector/workRoster.ts')
 const crew = await import('../../src/engine/connector/crewFacts.ts')
-const { finalizeAgentTool } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+const { finalizeCrewmateTool } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
 const { addToTotalSessionCost, formatTotalCost } = await import('../../src/models/usage/sessionCost.ts')
 const state = await import('../../src/boot/process-state/processState.ts')
 type WorkRowV1 = import('../../src/engine/connector/types.ts').WorkRowV1
@@ -166,7 +166,7 @@ const store = {
   ag1: agentTask('ag1', 'tide-gauges', { toolUseId: 'tu-ag1', model: MODEL, progress: seatProgress, startTime: t0 + 1 }),
 } as never
 const rows: WorkRowV1[] = projectWorkRoster(store)
-const agents = crew.crewAgentsOf(rows, 'fx-session')
+const agents = crew.crewmatesOf(rows, 'fx-session')
 const ag1 = agents.find(a => a.id === 'ag1')!
 {
   const row = rows.find(r => r.id === 'ag1')!
@@ -180,11 +180,11 @@ const ag1 = agents.find(a => a.id === 'ag1')!
   check('§3 the attribution line is the crew\'s SPEND, with the word', line !== null && line.startsWith('crewmates 3.5k spent · 1 crewmate'), String(line))
   const older: WorkRowV1 = { ...row }
   delete (older as { contextTokens?: number }).contextTokens
-  const olderFacts = crew.crewAgentFactsOf(older, 'fx-session')!
+  const olderFacts = crew.crewmateFactsOf(older, 'fx-session')!
   check("§3 an older runner's row (no context on the wire) spells its sum as what it is", olderFacts.tokens?.context === null && crew.crewTokensLabel(olderFacts) === '3.5k spent', String(crew.crewTokensLabel(olderFacts)))
   const totalOnly: WorkRowV1 = { id: 'ag9', kind: 'agent', name: 'old', status: 'running', startTime: t0, totalTokens: 4000 }
-  check('§3 a total-only row the same', crew.crewTokensLabel(crew.crewAgentFactsOf(totalOnly, null)!) === '4k spent')
-  const fresh = crew.crewAgentFactsOf({ id: 'ag8', kind: 'agent', name: 'fresh', status: 'running', startTime: t0 }, null)!
+  check('§3 a total-only row the same', crew.crewTokensLabel(crew.crewmateFactsOf(totalOnly, null)!) === '4k spent')
+  const fresh = crew.crewmateFactsOf({ id: 'ag8', kind: 'agent', name: 'fresh', status: 'running', startTime: t0 }, null)!
   check('§3 no settled response ⇒ no label at all (never a zero)', crew.crewTokensLabel(fresh) === null && crew.crewSpendLabel(fresh) === null)
 }
 
@@ -242,7 +242,7 @@ console.log('— §5 the surfaces —')
   const view = await paint(React.createElement(CrewView, { onClose: () => {} }), 110)
   check('§5 the Crew view paints the context with its word', !view.startsWith('RENDER FAILED') && view.includes('2.6k context') && !BARE.test(view), view.replace(/\s+/g, ' ').slice(0, 300))
   const grouped = await paint(
-    ui.renderGroupedAgentToolUse(
+    ui.renderGroupedCrewmateToolUse(
       [{ toolUseID: 'tu-ag1', input: { description: 'tide-gauges', prompt: 'p', crewmate_type: 'mercury-crew' }, progressMessages: [] }] as never,
       { shouldAnimate: false, tools: [] as never },
     ),
@@ -289,7 +289,7 @@ console.log("— §6 the Crewmate tool's result —")
     toolResult('tu-f1-0'),
     assistant('f2', { input_tokens: 2000, cache_read_input_tokens: 500, output_tokens: 100 }, [{ type: 'text', text: 'the report' }], 'end_turn'),
   ]
-  const result = finalizeAgentTool(messages as never, 'ag-fx', {
+  const result = finalizeCrewmateTool(messages as never, 'ag-fx', {
     prompt: 'do the work',
     resolvedAgentModel: MODEL,
     isBuiltInAgent: false,

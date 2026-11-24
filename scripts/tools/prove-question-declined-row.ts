@@ -29,7 +29,7 @@ const { Box } = await import('../../src/screen/themedRenderer.ts')
 const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 const { decisionOfAnswer } = await import('../../src/daemon/runner/runnerAsks.ts')
-const { REJECT_MESSAGE, REJECT_MESSAGE_WITH_REASON_PREFIX, SUBAGENT_REJECT_MESSAGE, DENIAL_WORKAROUND_GUIDANCE } = await import('../../src/engine/message-shapes/rejectionText.ts')
+const { REJECT_MESSAGE, REJECT_MESSAGE_WITH_REASON_PREFIX, CREWMATE_REJECT_MESSAGE, DENIAL_WORKAROUND_GUIDANCE } = await import('../../src/engine/message-shapes/rejectionText.ts')
 const { AskUserQuestionTool } = await import('../../src/tools/ask-question/AskUserQuestionTool.tsx')
 const { UserToolErrorMessage } = await import('../../src/screen/messages/user-tool-result/UserToolErrorMessage.tsx')
 
@@ -125,7 +125,7 @@ section('the row the operator reads for it is the decline, not an error')
   check('no error head and none of the guidance written for the model', !row.some(line => /Error|Do not try to reach|stop and say plainly|wait for the operator/.test(line)), JSON.stringify(row))
   const wordedRow = await rowOf(worded.content)
   check('a decline with words reads the same line', wordedRow.length === 1 && wordedRow[0] === 'User declined to answer', JSON.stringify(wordedRow))
-  const crewmate = await rowOf(`<tool_use_error>${SUBAGENT_REJECT_MESSAGE}</tool_use_error>`)
+  const crewmate = await rowOf(`<tool_use_error>${CREWMATE_REJECT_MESSAGE}</tool_use_error>`)
   check("a crewmate's declined question reads the same line", crewmate.length === 1 && crewmate[0] === 'User declined to answer', JSON.stringify(crewmate))
 }
 

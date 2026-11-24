@@ -328,12 +328,12 @@ async function provePauseCarry(): Promise<void> {
     bootstrap.switchSession('00000000-0000-4000-8000-00000000f024' as never, project)
 
     const corruptId = 'corrupt01'
-    const corruptPath = pc.agentPauseRecordPath(corruptId)
+    const corruptPath = pc.crewmatePauseRecordPath(corruptId)
     mkdirSync(join(corruptPath, '..'), { recursive: true })
     writeFileSync(corruptPath, '{corrupt-json', { mode: 0o600 })
     let parseThrew = false
     try {
-      await pc.readAgentPauseRecord(corruptId)
+      await pc.readCrewmatePauseRecord(corruptId)
     } catch {
       parseThrew = true
     }
@@ -351,12 +351,12 @@ async function provePauseCarry(): Promise<void> {
 
     if (POSIX_MODES) {
       const lockedId = 'locked01'
-      const lockedPath = pc.agentPauseRecordPath(lockedId)
+      const lockedPath = pc.crewmatePauseRecordPath(lockedId)
       writeFileSync(lockedPath, JSON.stringify({ description: 'x', armedAt: Date.now(), pause: { why: 'usage limit', words: 'wait', resumesAtMs: Date.now() + 60_000 } }), { mode: 0o600 })
       chmodSync(lockedPath, 0o200)
       let eaccesCode: string | undefined
       try {
-        await pc.readAgentPauseRecord(lockedId)
+        await pc.readCrewmatePauseRecord(lockedId)
       } catch (e) {
         eaccesCode = (e as NodeJS.ErrnoException).code
       } finally {

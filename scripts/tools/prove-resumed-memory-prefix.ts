@@ -3,7 +3,7 @@ const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 await import('../../src/tools/crewmate/CrewmateTool.tsx')
 const { resolveAgentTools } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
-const { buildSubagentMercurySections } = await import('../../src/tools/crewmate/subagentDoctrine.ts')
+const { buildCrewmateMercurySections } = await import('../../src/tools/crewmate/subagentDoctrine.ts')
 const { MEMORY_WRITE_VERBS_SENTENCE } = await import('../../src/sessions/mneme/mnemeFrontPage.ts')
 const memoryNames = ['Retain', 'Recall', 'Reflect', 'Correct']
 const pool = ['Read', ...memoryNames].map(name => ({ name })) as never
@@ -18,7 +18,7 @@ for (const definition of [
 ]) {
   const front = resolveAgentTools(definition as never, pool).resolvedTools
   const back = resolveAgentTools(definition as never, pool).resolvedTools
-  const prefix = (tools: typeof front) => buildSubagentMercurySections({ agentDefinition: definition, toolNames: new Set(tools.map(t => t.name)) }).join('\n\n')
+  const prefix = (tools: typeof front) => buildCrewmateMercurySections({ agentDefinition: definition, toolNames: new Set(tools.map(t => t.name)) }).join('\n\n')
   const initial = prefix(front)
   const resumed = prefix(back)
   check(`${definition.agentType}: memory verbs survive background resume`, memoryNames.every(name => back.some(tool => tool.name === name)), `${back.map(tool => tool.name).join(', ')}; hint: resolveAgentTools in src/tools/crewmate/crewmateLifecycle.ts must keep Retain, Recall, Reflect and Correct for this agent when it resumes`)
@@ -29,7 +29,7 @@ for (const definition of [
 for (const async of [false, true]) {
   const definition = { agentType: 'reader', source: 'projectSettings', tools: ['*'], disallowedTools: ['Retain', 'Correct'] }
   const tools = resolveAgentTools(definition as never, pool).resolvedTools
-  const prefix = buildSubagentMercurySections({ agentDefinition: definition, toolNames: new Set(tools.map(t => t.name)) }).join('\n')
+  const prefix = buildCrewmateMercurySections({ agentDefinition: definition, toolNames: new Set(tools.map(t => t.name)) }).join('\n')
   check(`explicit memory denials still narrow the ${async ? 'background' : 'foreground'} pool`, !tools.some(t => t.name === 'Retain' || t.name === 'Correct'), `pool kept ${tools.map(t => t.name).join(', ')}; hint: resolveAgentTools in src/tools/crewmate/crewmateLifecycle.ts must drop the tools named in disallowedTools`)
   check('a reader is never told to use unavailable memory writers', !prefix.includes(MEMORY_WRITE_VERBS_SENTENCE), 'hint: buildSubagentMercurySections in src/tools/crewmate/subagentDoctrine.ts must leave out MEMORY_WRITE_VERBS_SENTENCE when Retain and Correct are not in the tool pool')
 }

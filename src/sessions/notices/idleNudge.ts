@@ -1,5 +1,5 @@
 import { flagEnv } from '../../platform/substrate/flagRegistry.js'
-import { agentWaitElapsed } from '../../engine/tasks/local-agent/agentWait.js'
+import { crewmateWaitElapsed } from '../../engine/tasks/local-agent/agentWait.js'
 import type { TaskState } from '../../engine/tasks/taskState.js'
 import { taskOwnerGone } from '../../engine/task-framework/taskRegistry.js'
 import {
@@ -44,7 +44,7 @@ export function noticeRecipientTask(tasks: Record<string, TaskState> | undefined
   return tasks?.[agentId]
 }
 
-export function agentRecipientState(tasks: Record<string, TaskState> | undefined, agentId: string): NoticeRecipientState {
+export function crewmateRecipientState(tasks: Record<string, TaskState> | undefined, agentId: string): NoticeRecipientState {
   const task = noticeRecipientTask(tasks, agentId)
   if (task === undefined) return { state: 'gone', why: 'no crewmate by that id in this session' }
   if (task.status === 'running') {
@@ -81,7 +81,7 @@ export interface IdleNudge {
 export function nudgeWords(notices: readonly NoticeRecord[], waitedMs: number, bodies?: readonly string[]): string {
   const n = notices.length
   const one = n === 1
-  const waited = agentWaitElapsed(waitedMs)
+  const waited = crewmateWaitElapsed(waitedMs)
   const road = bodies !== undefined
     ? `${one ? 'here it is' : 'here they are'}, oldest first`
     : `${one ? 'it arrives as the turn' : 'they arrive as the turns'} just before this one; read ${one ? 'it' : 'them'} and act on anything still open`

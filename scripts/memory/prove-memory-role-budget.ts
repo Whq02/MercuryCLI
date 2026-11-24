@@ -31,14 +31,14 @@ try {
   const { appendObservation } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
   const { openEntry, closeEntry } = await import('../../src/sessions/mneme/ledger.ts')
   const { loadMemoryPrompt: pageFor } = await import('../../src/sessions/mneme/mnemeFrontPage.ts')
-  const { buildSubagentMercurySections } = await import('../../src/tools/crewmate/subagentDoctrine.ts')
-  const seatBefore = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-crew' } } as never).find(section => section.startsWith('# Memory')) ?? ''
+  const { buildCrewmateMercurySections } = await import('../../src/tools/crewmate/subagentDoctrine.ts')
+  const seatBefore = buildCrewmateMercurySections({ agentDefinition: { agentType: 'mercury-crew' } } as never).find(section => section.startsWith('# Memory')) ?? ''
   const emptyBefore = pageFor({ dir: sibling } as never)
   appendObservation({ text: 'a fact retained mid-conversation waits in the buffer', source: 'tool:Retain s:mid', topicHint: 'harbour' }, sibling)
   openEntry('role-budget-project', { sessionId: 'role-budget-main', model: 'claude-fable-5-1' })
   closeEntry('role-budget-project', 'role-budget-main', { outcome: 'closed', handoff: 'MAIN-NOTED: the harbour work continues.' })
   assert.equal(pageFor({ dir: sibling } as never), emptyBefore, 'the empty page is byte-identical after a pending row is retained and a note is left in the ledger (neither rides the page; the prefix never moves mid-conversation)')
-  const seatAfter = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-crew' } } as never).find(section => section.startsWith('# Memory')) ?? ''
+  const seatAfter = buildCrewmateMercurySections({ agentDefinition: { agentType: 'mercury-crew' } } as never).find(section => section.startsWith('# Memory')) ?? ''
   assert.equal(seatAfter, seatBefore, 'a crewmate rebuilt after the main left its note presents the memory page its first request carried')
   const child = renderFrontPage({ dir: origin, topics: [doc], archives: [], pins: readPins(origin), usage: {}, now: new Date(now), role: 'child' } as never).text
   assert.ok(child.includes('shared vessel') && child.includes('without checking'), 'renderFrontPage(role="child") in src/sessions/mneme/mnemeFrontPage.ts must include both global safety and honesty rules')

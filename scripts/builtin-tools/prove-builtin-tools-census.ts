@@ -166,7 +166,7 @@ check(
 )
 const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
 const { findToolByName } = await import('../../src/tools/kit/tool.ts')
-const { ALL_AGENT_DISALLOWED_TOOLS } = await import(
+const { ALL_CREWMATE_DISALLOWED_TOOLS } = await import(
   '../../src/tools/kit/crewmateBarredTools.ts'
 )
 const catalogue = getAllBaseTools()
@@ -176,7 +176,7 @@ check(
   offered.length === 0,
   `resolved: ${offered.join(', ')} — remove the tool from getAllBaseTools in src/tools/kit/toolList.ts`,
 )
-const inAgentSets = [...retiredNames].filter(n => ALL_AGENT_DISALLOWED_TOOLS.has(n))
+const inAgentSets = [...retiredNames].filter(n => ALL_CREWMATE_DISALLOWED_TOOLS.has(n))
 check('the crewmate barred set names no retired tool', inAgentSets.length === 0, `${inAgentSets.join(', ')} — remove the name from CREWMATE_BARRED_TOOLS in src/tools/kit/crewmateBarredTools.ts`)
 const { getTools } = await import('../../src/tools/kit/toolList.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')

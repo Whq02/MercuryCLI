@@ -9,8 +9,8 @@ import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
 
 const {
   getActiveAgentForInput,
-  getViewedAgent,
-  projectViewedAgent,
+  getViewedCrewmate,
+  projectViewedCrewmate,
   NON_VIEWABLE_TASK_TYPES,
   VIEWABLE_TASK_TYPES,
 } = await import('../../src/screen/app-state/selectors.ts')
@@ -18,7 +18,7 @@ const { isManageableTask } = await import(
   '../../src/screen/tasks/taskStatus.tsx'
 )
 const { interruptCrewmate } = await import('../../src/screen/tasks/crewmateInterrupt.ts')
-const { AGENT_INTERRUPT_BY_OPERATOR } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { CREWMATE_INTERRUPT_BY_OPERATOR } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
 const { runPulseArena } = await import('./lib/pulseArena.ts')
 const { checker } = await import('../engine-durability/harness.ts')
 type ScriptedTurn = import('../lib/fixtureApi.ts').ScriptedTurn
@@ -73,13 +73,13 @@ t.section('§1 the projection is exhaustive and honest')
   const registry = new Map([['probe-name', 'la-1']])
   const empty = new Map<string, string>()
 
-  const pl = projectViewedAgent(localAgent, registry as never)
+  const pl = projectViewedCrewmate(localAgent, registry as never)
   t.check(
     'local agent projects with the REGISTRY name (labels are not identity)',
     pl?.kind === 'local_agent' && pl.name === 'probe-name' && pl.statusLabel === 'running',
     JSON.stringify(pl && { kind: pl.kind, name: pl.name }) + ' · projectViewedAgent in src/screen/app-state/selectors.ts must name a local agent from the registry map, not from its description',
   )
-  const plFallback = projectViewedAgent(localAgent, empty as never)
+  const plFallback = projectViewedCrewmate(localAgent, empty as never)
   t.check(
     'unregistered local agent falls back to its description honestly',
     plFallback?.name === 'poise probe',
@@ -87,12 +87,12 @@ t.section('§1 the projection is exhaustive and honest')
   )
   t.check(
     'the main-session task NEVER projects as a viewed agent',
-    projectViewedAgent(mainSession, registry as never) === undefined,
+    projectViewedCrewmate(mainSession, registry as never) === undefined,
     'projectViewedAgent in src/screen/app-state/selectors.ts must return undefined for the main-session task',
   )
 
   const doneAgent = { ...(localAgent as object), status: 'completed' } as never
-  const pd = projectViewedAgent(doneAgent, registry as never)
+  const pd = projectViewedCrewmate(doneAgent, registry as never)
   t.check(
     'completed local agent projects completed + not working',
     pd?.statusLabel === 'completed' && pd.isWorking === false,
@@ -117,7 +117,7 @@ t.section('§1 the projection is exhaustive and honest')
     ['local agent', localAgent, true],
     ['main-session', mainSession, false],
   ] as [string, { id: string }, boolean][]) {
-    const projected = getViewedAgent(stateOf(task)) !== undefined
+    const projected = getViewedCrewmate(stateOf(task)) !== undefined
     const routed = getActiveAgentForInput(stateOf(task)).type !== 'leader'
     t.check(
       `${label}: projection and input router agree (${viewable ? 'viewable' : 'never a destination'})`,
@@ -278,7 +278,7 @@ t.section('§3 manage-visibility predicate + the one esc grammar')
     return { road, stops, aborted: signal?.aborted ? signal.reason : undefined }
   }
   const escTable: [string, { id?: string } | undefined, { running: boolean } | null | undefined, Road, unknown][] = [
-    ['local agent running → interrupted with the operator reason', la({ abortController: new AbortController() }), undefined, 'local', AGENT_INTERRUPT_BY_OPERATOR],
+    ['local agent running → interrupted with the operator reason', la({ abortController: new AbortController() }), undefined, 'local', CREWMATE_INTERRUPT_BY_OPERATOR],
     ['local agent completed → idle (esc goes back to Mercury Lead)', la({ status: 'completed', abortController: new AbortController() }), undefined, 'idle', undefined],
     ['hosted crewmate running → the stop door once, with the typed note', undefined, { running: true }, 'hosted', undefined],
     ['hosted crewmate not running → idle, no stop sent', undefined, { running: false }, 'idle', undefined],
@@ -286,7 +286,7 @@ t.section('§3 manage-visibility predicate + the one esc grammar')
   ]
   for (const [label, task, facts, want, reason] of escTable) {
     const got = drive(task, facts)
-    const hostedStops = want === 'hosted' ? got.stops.length === 1 && got.stops[0] === `a-hosted:${AGENT_INTERRUPT_BY_OPERATOR}` : got.stops.length === 0
+    const hostedStops = want === 'hosted' ? got.stops.length === 1 && got.stops[0] === `a-hosted:${CREWMATE_INTERRUPT_BY_OPERATOR}` : got.stops.length === 0
     t.check(
       `esc grammar: ${label}`,
       got.road === want && got.aborted === reason && hostedStops,

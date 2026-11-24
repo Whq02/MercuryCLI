@@ -64,7 +64,7 @@ const { routedCallModel } = await import('../../src/models/roads/callModelRouter
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
-const { deriveAgentTerminalOutcome, finalizeAgentTool } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+const { deriveCrewmateTerminalOutcome, finalizeCrewmateTool } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
 
 console.log('\n§1 the first call 404s — the typed refusal, one model, once')
 const abort = new AbortController()
@@ -110,7 +110,7 @@ check('exactly one model id ever reached the wire — no silent substitution',
 
 console.log('\n§2 the parent seam receives the full refusal')
 const messageStream = assistants as never[]
-const outcome = deriveAgentTerminalOutcome(messageStream as never)
+const outcome = deriveCrewmateTerminalOutcome(messageStream as never)
 check('outcome is the typed failure', outcome.status === 'failed', `${JSON.stringify(outcome)} | ${seamWhere}`)
 check('the failure reason is provider-declined',
   outcome.status === 'failed' && outcome.reason === 'provider-declined', `${JSON.stringify(outcome)} | ${seamWhere}`)
@@ -119,7 +119,7 @@ check('the parent-visible error is the FULL refusal (status · request id · mod
     outcome.error.includes(MODEL) && outcome.error.includes('HTTP 404') && outcome.error.includes(REQUEST_ID),
   `${JSON.stringify(outcome)} | ${seamWhere}`)
 
-const finalized = finalizeAgentTool(messageStream as never, 'agent-404-probe', {
+const finalized = finalizeCrewmateTool(messageStream as never, 'agent-404-probe', {
   prompt: 'begin the delegated task',
   resolvedAgentModel: MODEL,
   isBuiltInAgent: false,

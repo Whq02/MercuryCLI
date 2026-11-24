@@ -1,1 +1,1 @@
-export const RESUME_AGENT_TOOL_NAME = 'ResumeCrewmate'
+export const RESUME_CREWMATE_TOOL_NAME = 'ResumeCrewmate'

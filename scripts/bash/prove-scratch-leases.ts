@@ -56,12 +56,12 @@ try {
   const rel3 = releaseScratchLease(l3.leaseId)
   check("'preserve' policy keeps the root on release", rel3.released && !rel3.cleaned && existsSync(root3), '', 'releaseScratchLease in src/platform/files/scratchLeases.ts must honour cleanupPolicy preserve by releasing the lease without deleting the root')
 
-  const { buildSubagentMercurySections } = await import(join(ROOT, 'src/tools/crewmate/subagentDoctrine.ts'))
-  const doctrine = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-crew' } }).join('\n')
+  const { buildCrewmateMercurySections } = await import(join(ROOT, 'src/tools/crewmate/subagentDoctrine.ts'))
+  const doctrine = buildCrewmateMercurySections({ agentDefinition: { agentType: 'mercury-crew' } }).join('\n')
   check('subagent doctrine briefs scratch discipline (the ONE seam)',
     doctrine.includes('under your session scratchpad') &&
     doctrine.includes('never bare /tmp or the project tree') &&
-    /delet\w* what your run created/i.test(doctrine), '', 'buildSubagentMercurySections in src/tools/crewmate/subagentDoctrine.ts must include the scratch rules: use the session scratchpad, never bare /tmp or the project tree, delete what the run created')
+    /delet\w* what your run created/i.test(doctrine), '', 'buildCrewmateMercurySections in src/tools/crewmate/subagentDoctrine.ts must include the scratch rules: use the session scratchpad, never bare /tmp or the project tree, delete what the run created')
   const { crewChecks } = await import(join(ROOT, 'src/platform/health/sections/crew.ts'))
   const leasesRow = crewChecks().find((row: { id: string }) => row.id === 'scratch-leases')
   const rootH = join(projTemp, 'health-row-scratch')

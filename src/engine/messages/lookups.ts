@@ -141,7 +141,7 @@ export function buildMessageLookups(normalizedMessages: NormalizedMessage[], mes
   return lookups
 }
 
-export function buildSubagentLookups(messages: { message: AssistantMessage | NormalizedUserMessage }[]): {
+export function buildNestedLookups(messages: { message: AssistantMessage | NormalizedUserMessage }[]): {
   lookups: MessageLookups; inProgressToolUseIDs: Set<string>
 } {
   const open = freshOpenToolUses()

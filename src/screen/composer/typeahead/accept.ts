@@ -170,7 +170,7 @@ export function acceptChannelTarget({ currentInput, cursor, clearSuggestions, se
   return
 }
 
-export function acceptAgent({ currentInput, cursor, clearSuggestions, setInput, setCursorOffset }: AcceptContext, suggestion: Suggestion): void {
+export function acceptCrewmate({ currentInput, cursor, clearSuggestions, setInput, setCursorOffset }: AcceptContext, suggestion: Suggestion): void {
   if (!suggestion.id.startsWith('dm-')) return
   const before = currentInput.slice(0, cursor)
   const match = before.match(/(^|\s)@[\w-]*$/)

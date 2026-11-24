@@ -11,10 +11,10 @@ mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 
 import { execFileSync } from 'node:child_process'
 import { getIsGit } from '../../src/platform/git/git.js'
-import { getAgentModel } from '../../src/models/catalogue/agentModel.js'
+import { getCrewmateModel } from '../../src/models/catalogue/agentModel.js'
 import { sessionEnvNoticeForResult, scrubbedSessionEnvNotice } from '../../src/tools/kit/sessionEnvNotice.js'
 import * as state from '../../src/boot/process-state/processState.js'
-import { consumeInvokingRequestId, getAgentContext, runWithAgentContext, type SubagentContext } from '../../src/crew/agents/agentContext.js'
+import { consumeInvokingRequestId, getCrewmateContext, runWithCrewmateContext, type CrewmateContext } from '../../src/crew/agents/agentContext.js'
 import { getProjectPathForConfig } from '../../src/platform/config/projectConfig.js'
 import { getCwd, getStartingCwd, runWithCwdOverride, setContextShellCwd } from '../../src/platform/files/cwd.js'
 import { getAuthConfigHomeDir, withAuthScope } from '../../src/platform/environment/envUtils.js'
@@ -55,7 +55,7 @@ const subB = makeDir('workspace-b/sub-b')
 const homeA = makeDir('home-a')
 const homeB = makeDir('home-b')
 
-const mkAgent = (id: string, req: string, kind: 'spawn' | 'resume'): SubagentContext => ({
+const mkAgent = (id: string, req: string, kind: 'spawn' | 'resume'): CrewmateContext => ({
   agentType: 'subagent',
   agentId: id,
   subagentName: id,
@@ -72,7 +72,7 @@ const usage = (tokens: number, cost: number): state.ModelUsage => ({
   costUSD: cost,
 })
 
-const asAgent = (ctx: SubagentContext): Wrap => fn => runWithAgentContext({ ...ctx }, fn)
+const asAgent = (ctx: CrewmateContext): Wrap => fn => runWithCrewmateContext({ ...ctx }, fn)
 const asCwd = (dir: string): Wrap => fn => runWithCwdOverride(dir, fn)
 const asHome = (dir: string): Wrap => fn => withAuthScope(dir, fn)
 const asWorkload = (tag: string | undefined): Wrap => fn => runWithWorkload(tag, fn)
@@ -124,8 +124,8 @@ const PROBES: Array<() => Promise<ProbeResult>> = [
     const [a, b] = await abRead({
       wrapA: asAgent(agentA),
       wrapB: asAgent(agentB),
-      readA: () => ({ id: getAgentContext()?.agentId, e1: consumeInvokingRequestId()?.invokingRequestId, e2: consumeInvokingRequestId()?.invokingRequestId }),
-      readB: () => ({ id: getAgentContext()?.agentId, e1: consumeInvokingRequestId()?.invokingRequestId, e2: consumeInvokingRequestId()?.invokingRequestId }),
+      readA: () => ({ id: getCrewmateContext()?.agentId, e1: consumeInvokingRequestId()?.invokingRequestId, e2: consumeInvokingRequestId()?.invokingRequestId }),
+      readB: () => ({ id: getCrewmateContext()?.agentId, e1: consumeInvokingRequestId()?.invokingRequestId, e2: consumeInvokingRequestId()?.invokingRequestId }),
     })
     return ownProbe('agent-context', a.id === 'agent-alpha' && a.e1 === 'req-alpha' && a.e2 === undefined && b.id === 'agent-beta' && b.e1 === 'req-beta' && b.e2 === undefined, `A=${a.id}/${a.e1} B=${b.id}/${b.e1}`)
   },
@@ -252,9 +252,9 @@ const PROBES: Array<() => Promise<ProbeResult>> = [
     return ownProbe('shell-cwd-unscoped-agent', a === subA && b === subB, `A=${a} B=${b}`)
   },
   async () => {
-    const scoped = (ctx: SubagentContext, dir: string, home: string): Wrap => fn =>
+    const scoped = (ctx: CrewmateContext, dir: string, home: string): Wrap => fn =>
       asAgent(ctx)(() => asCwd(dir)(() => asHome(home)(fn)))
-    const read = (model: string) => [getAgentContext()?.agentId, getCwd(), getAuthConfigHomeDir(), getAgentModel('inherit', model)].join('|')
+    const read = (model: string) => [getCrewmateContext()?.agentId, getCwd(), getAuthConfigHomeDir(), getCrewmateModel('inherit', model)].join('|')
     const [a, b] = await abRead({
       wrapA: scoped(agentA, dirA, homeA), wrapB: scoped(agentB, dirB, homeB),
       readA: () => read('fixture-first'), readB: () => read('fixture-second'),

@@ -2,7 +2,7 @@ import React from 'react'
 import { Box, Text, type TextProps } from '../../screen/themedRenderer.js'
 import { plural } from '../../platform/text/strings.js'
 
-type AgentProgressLineProps = {
+type CrewmateProgressLineProps = {
   agentType: string
   name?: string
   description?: string
@@ -21,7 +21,7 @@ type AgentProgressLineProps = {
   shouldAnimate?: boolean
 }
 
-export function AgentProgressLine({
+export function CrewmateProgressLine({
   agentType,
   name,
   description,
@@ -36,7 +36,7 @@ export function AgentProgressLine({
   isLast,
   isResolved,
   isAsync = false,
-}: AgentProgressLineProps): React.ReactNode {
+}: CrewmateProgressLineProps): React.ReactNode {
   const connector = isLast ? '└─ ' : '├─ '
   const trunk = isLast ? '   ' : '│  '
   const dim = !isResolved
@@ -87,4 +87,4 @@ export function AgentProgressLine({
   )
 }
 
-export default AgentProgressLine
+export default CrewmateProgressLine

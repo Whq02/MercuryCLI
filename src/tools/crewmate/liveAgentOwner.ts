@@ -1,12 +1,12 @@
-import { isLocalAgentTask } from '../../engine/tasks/local-agent/crewmateTask.js'
+import { isCrewmateTask } from '../../engine/tasks/local-agent/crewmateTask.js'
 import { isMainSessionTask } from '../../engine/tasks/mainSessionTask.js'
 
-export function liveAgentOwner(
+export function liveCrewmateOwner(
   agentId: string,
   tasks: Record<string, unknown> | undefined,
 ): { kind: 'agent'; words: string } | null {
   const own = tasks?.[agentId]
-  if (isLocalAgentTask(own) && !isMainSessionTask(own) && own.status === 'running') {
+  if (isCrewmateTask(own) && !isMainSessionTask(own) && own.status === 'running') {
     return {
       kind: 'agent',
       words:

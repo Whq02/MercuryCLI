@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { SESSION_VERBS } from '../../../daemon/runner-wire/sessionVerbs.js'
 import { submitTrace } from '../../../screen/chat/submitTrace.js'
 import type {
-  AgentControlReceiptV1,
+  CrewmateControlReceiptV1,
   BoardPostReceiptV1,
   BoardPostRequestV1,
   EmptyDetailControlVerbKey,
@@ -100,11 +100,11 @@ export class VerbsPart {
     }
   }
 
-  controlVerb(key: EmptyDetailControlVerbKey): Promise<AgentControlReceiptV1> {
+  controlVerb(key: EmptyDetailControlVerbKey): Promise<CrewmateControlReceiptV1> {
     return sendEmptyDetailControl(this.needs.chainRpc, this.needs.record().sessionId, key)
   }
 
-  pauseGate(paused: boolean): Promise<AgentControlReceiptV1> {
+  pauseGate(paused: boolean): Promise<CrewmateControlReceiptV1> {
     return sendControlReceipt(
       this.needs.chainRpc,
       this.needs.record().sessionId,
@@ -189,7 +189,7 @@ export class VerbsPart {
     action: typeof SESSION_VERBS.stopAgent.daemon.action | typeof SESSION_VERBS.resumeAgent.daemon.action,
     agentId: string,
     note?: string,
-  ): Promise<AgentControlReceiptV1> {
+  ): Promise<CrewmateControlReceiptV1> {
     if (agentId === '') return { outcome: 'refused', detail: `${action} needs a crewmate` }
     const key = action === SESSION_VERBS.stopAgent.daemon.action ? 'stopAgent' : 'resumeAgent'
     return sendControlReceipt(

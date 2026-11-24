@@ -148,16 +148,16 @@ section('§2 the valve and the latch — one receipt while off; born once, stick
 section('§3 the roster — the switch decides whether the model sees the Crewmate tool')
 const { getTools } = await import('../../src/tools/kit/toolList.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
-const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
+const { CrewmateTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
 const rosterNames = (): string[] => getTools({ ...getEmptyToolPermissionContext(), mode: 'default' } as never).map(t => t.name)
 {
   sw._resetSpawnSwitchesForTesting()
   const today = rosterNames()
-  check("on (the default) ⇒ the Crewmate tool is in the roster — today's behaviour", today.includes(AgentTool.name), today.join(','))
+  check("on (the default) ⇒ the Crewmate tool is in the roster — today's behaviour", today.includes(CrewmateTool.name), today.join(','))
   sw.setSpawnSwitch('subagents', false)
   const noAgents = rosterNames()
-  check('sub-agents off ⇒ the Crewmate tool is absent', !noAgents.includes(AgentTool.name), noAgents.join(','))
-  check('…nothing else moved', j(today.filter(n => n !== AgentTool.name)) === j(noAgents))
+  check('sub-agents off ⇒ the Crewmate tool is absent', !noAgents.includes(CrewmateTool.name), noAgents.join(','))
+  check('…nothing else moved', j(today.filter(n => n !== CrewmateTool.name)) === j(noAgents))
   sw.setSpawnSwitch('subagents', true)
   check('back on ⇒ the roster is today\'s again', j(rosterNames()) === j(today))
 }
@@ -167,7 +167,7 @@ section('§4 the spawn roads — every road answers the receipt, and nothing out
   sw.setSpawnSwitch('subagents', false)
   let agentError = ''
   try {
-    await AgentTool.call({ prompt: 'delegate', description: 'a task' } as never, { options: {} } as never, (async () => ({ behavior: 'allow' })) as never, {} as never)
+    await CrewmateTool.call({ prompt: 'delegate', description: 'a task' } as never, { options: {} } as never, (async () => ({ behavior: 'allow' })) as never, {} as never)
   } catch (e) {
     agentError = e instanceof Error ? e.message : String(e)
   }
@@ -418,7 +418,7 @@ if (!existsSync(DIST)) {
     const reqs = fixture.messageRequests().filter(q => !isHandoffRequest(q))
     check('one marked closing ask follows the first turn', j(fixture.messageRequests().map(isHandoffRequest)) === j([false, true]), j(fixture.messageRequests().map(isHandoffRequest)))
     const names = reqs.length > 0 ? toolNames(reqs[0]!.body as Body) : []
-    check('the first request carries no Crewmate tool', reqs.length >= 1 && !names.includes(AgentTool.name) && names.includes('Read'), names.join(','))
+    check('the first request carries no Crewmate tool', reqs.length >= 1 && !names.includes(CrewmateTool.name) && names.includes('Read'), names.join(','))
     await fixture.close()
   }
 
@@ -447,15 +447,15 @@ if (!existsSync(DIST)) {
       const b1 = reqs[0]!.body as Body
       const b2 = reqs[1]!.body as Body
       const b3 = reqs[2]!.body as Body
-      check('request 1 carries the Crewmate tool', toolNames(b1).includes(AgentTool.name), toolNames(b1).join(','))
-      check('request 2 (the next request after the toggle) STILL carries the Crewmate tool — the roster is frozen; the valve refuses at launch', toolNames(b2).includes(AgentTool.name), toolNames(b2).join(','))
+      check('request 1 carries the Crewmate tool', toolNames(b1).includes(CrewmateTool.name), toolNames(b1).join(','))
+      check('request 2 (the next request after the toggle) STILL carries the Crewmate tool — the roster is frozen; the valve refuses at launch', toolNames(b2).includes(CrewmateTool.name), toolNames(b2).join(','))
       check('…and the tools array is byte-identical to request 1 (nothing left, nothing moved)', j(toolNames(b1)) === j(toolNames(b2)))
       const pm = (b1.messages ?? []) as unknown[]
       const cm = (b2.messages ?? []) as unknown[]
       const prefixSame = pm.every((m, i) => j(withoutCacheControl(m)) === j(withoutCacheControl(cm[i])))
       check('the shared messages prefix is byte-identical and the turn is appended (the toggle is a roster change, never a history rewrite)', prefixSame && cm.length > pm.length, `${pm.length}→${cm.length}`)
       check('the top-level system moves at most at the toggle: request 3 is byte-identical to request 2', j(withoutCacheControl(b2.system)) === j(withoutCacheControl(b3.system)))
-      check('request 3 keeps the same roster (frozen)', toolNames(b3).includes(AgentTool.name) && j(toolNames(b2)) === j(toolNames(b3)))
+      check('request 3 keeps the same roster (frozen)', toolNames(b3).includes(CrewmateTool.name) && j(toolNames(b2)) === j(toolNames(b3)))
     }
     const notices = transcriptNotices(arena, SID)
     check('the scripted drop writes exactly one receipt (kept in the transcript, never painted)', notices.length === 1, `${notices.length} ${notices[0]?.slice(0, 200) ?? ''}`)
@@ -484,7 +484,7 @@ if (!existsSync(DIST)) {
     const switches = (facts?.result as { spawn_switches?: Record<string, { on?: boolean; source?: string }> } | undefined)?.spawn_switches
     check("the facts still read the wire's second field on, default, and the crewmates switch as it was born", j(switches?.workflows) === j({ on: true, source: 'default' }) && j(switches?.subagents) === j({ on: true, source: 'default' }), j(facts))
     const reqs = fixture.messageRequests().filter(q => !isHandoffRequest(q))
-    check('both requests carry the same tools, the Crewmate tool among them and no Workflow tool', reqs.length === 2 && toolNames(reqs[0]!.body as Body).includes(AgentTool.name) && !toolNames(reqs[0]!.body as Body).includes('Workflow') && j(toolNames(reqs[0]!.body as Body)) === j(toolNames(reqs[1]!.body as Body)), String(reqs.length))
+    check('both requests carry the same tools, the Crewmate tool among them and no Workflow tool', reqs.length === 2 && toolNames(reqs[0]!.body as Body).includes(CrewmateTool.name) && !toolNames(reqs[0]!.body as Body).includes('Workflow') && j(toolNames(reqs[0]!.body as Body)) === j(toolNames(reqs[1]!.body as Body)), String(reqs.length))
     await fixture.close()
   }
 

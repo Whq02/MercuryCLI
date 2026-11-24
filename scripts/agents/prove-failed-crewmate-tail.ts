@@ -18,10 +18,10 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
+const { CrewmateTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
 const { lastToolCallsOf } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
 const { noteCrewWorktreeLeftover, CREW_JANITOR_DAYS } = await import('../../src/crew/crewmates/crewWorktreeReminder.ts')
-const { enqueueAgentNotification } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { enqueueCrewmateNotification } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
 const { dequeueAll } = await import('../../src/daemon/runner/messageQueueManager.ts')
 const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
 type Message = import('../../src/engine/message-shapes/message.ts').Message
@@ -29,7 +29,7 @@ type Message = import('../../src/engine/message-shapes/message.ts').Message
 type Block = { type: 'text'; text: string }
 type Mapped = { type: 'tool_result'; tool_use_id: string; is_error?: boolean; content: Block[] }
 const map = (data: Record<string, unknown>, id: string): Mapped =>
-  (AgentTool as unknown as { mapToolResultToToolResultBlockParam: (d: unknown, id: string) => Mapped }).mapToolResultToToolResultBlockParam(data, id)
+  (CrewmateTool as unknown as { mapToolResultToToolResultBlockParam: (d: unknown, id: string) => Mapped }).mapToolResultToToolResultBlockParam(data, id)
 const trailerOf = (mapped: Mapped): string => mapped.content[mapped.content.length - 1]?.text ?? ''
 
 const use = (id: string, name: string, input: unknown) => ({ type: 'tool_use' as const, id, name, input })
@@ -104,7 +104,7 @@ section('3. the death notice: the last tool calls and the worktree state ride th
   const setAppState = (fn: (prev: typeof state) => typeof state): void => {
     state = fn(state)
   }
-  const notify = enqueueAgentNotification as unknown as (args: Record<string, unknown>) => void
+  const notify = enqueueCrewmateNotification as unknown as (args: Record<string, unknown>) => void
   notify({ taskId: 'a0000001', description: 'helper', status: 'failed', error: 'API Error: 529', setAppState, finalMessage: 'partial', usage: { totalTokens: 400, toolUses: 3, durationMs: 5000 }, landedWrites: ['/w/src/a.ts'], lastCalls: calls, worktreePath, worktreeBranch: 'agent-a0000001' })
   notify({ taskId: 'a0000002', description: 'quiet', status: 'completed', setAppState, finalMessage: 'done', usage: { totalTokens: 10, toolUses: 0, durationMs: 100 } })
   const queued = dequeueAll().map(entry => String((entry as { value?: string }).value ?? ''))

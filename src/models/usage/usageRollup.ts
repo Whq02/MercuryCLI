@@ -1,7 +1,7 @@
 import type { Entry } from '../../sessions/transcripts/transcriptEntries.js'
 import { servedModelOfAssistantRow } from '../catalogue/retainedModel.js'
 import { calculateUSDCost, modelPricingBasis } from './modelCost.js'
-import { listAgentTranscriptPaths } from '../../sessions/transcripts/paths.js'
+import { listCrewmateTranscriptPaths } from '../../sessions/transcripts/paths.js'
 import { scanTranscriptEntriesForward } from '../../sessions/transcripts/transcriptReader.js'
 
 type RolledModelUsage = {
@@ -130,7 +130,7 @@ function emptyUsageRollup(): TranscriptUsageRollup {
 export async function rollupSessionUsage(transcriptPath: string, sessionId: string): Promise<TranscriptUsageRollup> {
   const rollup = emptyUsageRollup()
   rollupTranscriptUsage(rollup, transcriptPath)
-  for (const agentPath of await listAgentTranscriptPaths(transcriptPath, sessionId)) {
+  for (const agentPath of await listCrewmateTranscriptPaths(transcriptPath, sessionId)) {
     rollupTranscriptUsage(rollup, agentPath)
   }
   return rollup

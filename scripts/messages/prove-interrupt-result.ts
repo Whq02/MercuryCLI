@@ -131,7 +131,7 @@ section('C the census: every reader that recognised an interrupt result still do
 
 section('D the crewmate transcript reader, and the cut lines a stored transcript may hold')
 {
-  const { readAgentTranscript } = await import('../../src/crew/crewmates/agentTranscriptReader.ts')
+  const { readCrewmateTranscript } = await import('../../src/crew/crewmates/agentTranscriptReader.ts')
   const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.ts')
   const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.ts')
   const dir = mkdtempSync(join(tmpdir(), 'interrupt-result-'))
@@ -147,7 +147,7 @@ section('D the crewmate transcript reader, and the cut lines a stored transcript
   ]
   const file = join(dir, 'agent.jsonl')
   writeFileSync(file, rows.join('\n') + '\n')
-  const view = await readAgentTranscript(file)
+  const view = await readCrewmateTranscript(file)
   check('the interruption row still ends the transcript as stopped', view?.end.kind === 'stopped' && view.end.words === 'stopped', JSON.stringify(view?.end))
   const call = view?.toolCalls.find(c => c.name === 'Bash')
   check('the settled call is an error whose preview carries the facts', call?.isError === true && PARTIAL.test(call.resultPreview ?? ''), JSON.stringify(call))
@@ -160,7 +160,7 @@ section('D the crewmate transcript reader, and the cut lines a stored transcript
   ]
   const cutFile = join(dir, 'agent-cut.jsonl')
   writeFileSync(cutFile, cutRows.join('\n') + '\n')
-  const cutView = await readAgentTranscript(cutFile)
+  const cutView = await readCrewmateTranscript(cutFile)
   check('a cut row still ends the transcript with its own words', cutView?.end.kind === 'cut' && cutView.end.words === 'cut off by a no-progress timeout (the provider went quiet)', JSON.stringify(cutView?.end))
   const STORED: Array<{ wrote: string; line: string; lineToolUse: string; result: string; kind: string; why: string }> = [
     { wrote: 'stalled', line: '[Request cut off by a no-progress timeout (the provider went quiet)]', lineToolUse: '[Request cut off during tool use by a no-progress timeout (the provider went quiet)]', result: 'Cut off by a no-progress timeout (the provider went quiet)', kind: 'idle-timeout', why: 'a no-progress timeout (the provider went quiet)' },
@@ -178,7 +178,7 @@ section('D the crewmate transcript reader, and the cut lines a stored transcript
       row('user', [{ type: 'tool_result', tool_use_id: 'toolu_3', content: stored.result, is_error: true }]),
       row('user', [{ type: 'text', text: stored.lineToolUse }]),
     ].join('\n') + '\n')
-    const storedView = await readAgentTranscript(storedFile)
+    const storedView = await readCrewmateTranscript(storedFile)
     const read = turnCutOfText(stored.line)
     const readToolUse = turnCutOfText(stored.lineToolUse)
     check(`a transcript an older build ended on '${stored.wrote}' still ends as cut, in the words it was stored with`, storedView?.end.kind === 'cut' && storedView.end.words === stored.result.replace(/^Cut off/, 'cut off'), JSON.stringify(storedView?.end))

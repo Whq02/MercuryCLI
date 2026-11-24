@@ -205,9 +205,9 @@ section('§7 · behavioral seams — harness map, doctrine, boot menu, health, p
   resetHarnessMapForTest()
   check('harness map: VULCAN line when armed (delta machinery sees the flip)', computeHarnessMapLines().some(l => l.includes('VULCAN') && l.includes('is armed')))
 
-  const { buildSubagentMercurySections } = await import('../../src/tools/crewmate/subagentDoctrine.js')
+  const { buildCrewmateMercurySections } = await import('../../src/tools/crewmate/subagentDoctrine.js')
   const doctrine = () =>
-    buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-crew' } }).join('\n')
+    buildCrewmateMercurySections({ agentDefinition: { agentType: 'mercury-crew' } }).join('\n')
   const armedDoctrine = runWithCwdOverride(proj, doctrine)
   check('subagent doctrine: VULCAN line when armed + project', armedDoctrine.includes('VULCAN'))
   delete process.env.MERCURY_GODOT_TOOLS

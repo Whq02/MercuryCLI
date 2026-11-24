@@ -15,13 +15,13 @@ enableConfigs()
 await import('../../src/engine/tasks/tasks.ts')
 const { SendMessageTool } = await import('../../src/tools/send-message/SendMessageTool.ts')
 const resumePath = join(import.meta.dir, '../../src/tools/resume-crewmate/ResumeAgentTool.ts')
-const ResumeAgentTool = existsSync(resumePath) ? (await import(resumePath)).ResumeAgentTool as typeof SendMessageTool : undefined
+const ResumeCrewmateTool = existsSync(resumePath) ? (await import(resumePath)).ResumeCrewmateTool as typeof SendMessageTool : undefined
 const { getPrompt } = await import('../../src/tools/send-message/prompt.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
-const { registerAsyncAgent, registerAgentName, killAsyncAgent } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { registerAsyncCrewmate, registerCrewmateName, killAsyncCrewmate } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
 const { generateTaskId } = await import('../../src/engine/tasks/taskBase.ts')
-const { getAgentTranscriptPath, writeAgentMetadata } = await import('../../src/sessions/transcripts/paths.ts')
+const { getCrewmateTranscriptPath, writeCrewmateMetadata } = await import('../../src/sessions/transcripts/paths.ts')
 const { asAgentId } = await import('../../src/sessions/transcripts/ids.ts')
 const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
 const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.ts')
@@ -52,8 +52,8 @@ const call = async (tool: typeof SendMessageTool, to: string, message = 'the unc
 }
 const launch = (name: string) => {
   const id = generateTaskId('local_agent')
-  registerAsyncAgent({ agentId: id, description: name, prompt: 'work', setAppState: setState as never })
-  registerAgentName(name, id, setState as never)
+  registerAsyncCrewmate({ agentId: id, description: name, prompt: 'work', setAppState: setState as never })
+  registerCrewmateName(name, id, setState as never)
   return id
 }
 const pending = (id: string) => (state.tasks[id] as unknown as { pendingMessages: string[] }).pendingMessages
@@ -62,7 +62,7 @@ const mark = (id: string, status: string, error?: string) => {
 }
 let ordinal = 0
 const seed = (id: string) => {
-  const path = getAgentTranscriptPath(asAgentId(id))
+  const path = getCrewmateTranscriptPath(asAgentId(id))
   mkdirSync(dirname(path), { recursive: true })
   const sessionId = String(getSessionId())
   const first = crypto.randomUUID()
@@ -77,18 +77,18 @@ const evict = (id: string) => {
   delete tasks[id]
   state = { ...state, tasks, agentNameRegistry: new Map([...state.agentNameRegistry].filter(([, value]) => String(value) !== id)) }
 }
-const stop = (id: string) => killAsyncAgent(id, setState as never)
+const stop = (id: string) => killAsyncCrewmate(id, setState as never)
 const guard = setTimeout(() => { console.log('[FAIL] split proof exceeded 120 seconds; a SendMessage or ResumeCrewmate call (src/tools/send-message/SendMessageTool.ts, src/tools/resume-crewmate/ResumeAgentTool.ts) never settled, so look at the last line printed above'); process.exit(1) }, 120_000)
 guard.unref()
 
-check('ResumeCrewmate exists as a separate verb', ResumeAgentTool !== undefined)
+check('ResumeCrewmate exists as a separate verb', ResumeCrewmateTool !== undefined)
 const id = launch('researcher')
 const delivered = await call(SendMessageTool, 'researcher')
 const delivery = `Delivered to researcher (id ${id}); it reads it at its next tool boundary.`
 check('running delivery has one canonical spelling', delivered.success && delivered.message === delivery, delivered.message)
 check('the running road queues the unchanged receiver notice', pending(id).length === 1 && pending(id)[0]!.includes('<status>message</status>') && pending(id)[0]!.includes('<message>the unchanged message\nwith a second line</message>'))
 check('the id prints the known name too', (await call(SendMessageTool, id)).message === delivery)
-for (const tool of [SendMessageTool, ResumeAgentTool].filter(Boolean) as typeof SendMessageTool[]) {
+for (const tool of [SendMessageTool, ResumeCrewmateTool].filter(Boolean) as typeof SendMessageTool[]) {
   for (const to of [id, 'researcher']) check(`${tool.name} refuses self by ${to === id ? 'id' : 'name'}`, !(await call(tool, to, 'self', id)).success)
   for (const [input, words] of [
     [{ to: ' ', message: 'x' }, 'Recipient ("to") must not be empty.'],
@@ -102,26 +102,26 @@ for (const tool of [SendMessageTool, ResumeAgentTool].filter(Boolean) as typeof 
   check(`${tool.name} refuses unknown with the session names`, !(await call(tool, 'nobody-here')).success)
 }
 check('main cannot deliver to itself', !(await call(SendMessageTool, 'MAIN')).success)
-if (ResumeAgentTool) {
+if (ResumeCrewmateTool) {
   for (const to of [id, 'researcher']) {
     const before = pending(id).length
     const controller = (state.tasks[id] as unknown as { abortController: AbortController }).abortController
-    const refusal = await ResumeAgentTool.call({ to, message: 'do not interrupt myself', interrupt: true } as never, context(id))
+    const refusal = await ResumeCrewmateTool.call({ to, message: 'do not interrupt myself', interrupt: true } as never, context(id))
     check('interrupt refuses self without aborting or queuing', !refusal.data.success && !controller.signal.aborted && pending(id).length === before)
   }
   const deaf = launch('ignores-interrupt')
   const controller = (state.tasks[deaf] as unknown as { abortController: AbortController }).abortController
-  const refusal = await ResumeAgentTool.call({ to: 'ignores-interrupt', message: 'must not start twice', interrupt: true } as never, context())
+  const refusal = await ResumeCrewmateTool.call({ to: 'ignores-interrupt', message: 'must not start twice', interrupt: true } as never, context())
   check('an interrupt that has not settled refuses without starting a second turn or queuing a hidden retry', !refusal.data.success && refusal.data.message.includes('has not ended') && controller.signal.aborted && state.tasks[deaf]?.status === 'running' && (pending(deaf) ?? []).length === 0)
   stop(deaf)
 }
 const sender = launch('sender')
 check('a crewmate delivers to main with the exact timing words', (await call(SendMessageTool, 'MAIN', 'hello', sender)).message === 'Delivered to the main agent; it reads it at its next tool boundary, or between turns starts a turn for it.')
-if (ResumeAgentTool) {
-  check('main is never resumed', !(await call(ResumeAgentTool, 'main', 'hello', sender)).success)
+if (ResumeCrewmateTool) {
+  check('main is never resumed', !(await call(ResumeCrewmateTool, 'main', 'hello', sender)).success)
   const before = pending(id).length
   const taskCount = Object.keys(state.tasks).length
-  const running = await call(ResumeAgentTool, 'researcher')
+  const running = await call(ResumeCrewmateTool, 'researcher')
   const queue = before === 0 ? 'it reads it at its next tool boundary, or as its next turn when the current one ends' : `${before} earlier ${before === 1 ? 'message is' : 'messages are'} queued ahead of it; it reads them in order at its next tool boundary, or as its next turn when the current one ends`
   check('a running receiver queues the message in order, never registered twice', running.message === `Crewmate researcher (id ${id}) is still running, so nothing was resumed: the message was queued and ${queue}.` && pending(id).length === before + 1 && Object.keys(state.tasks).length === taskCount, running.message)
 }
@@ -130,26 +130,26 @@ mark(id, 'completed')
 const finished = await call(SendMessageTool, 'researcher')
 check('SendMessage to a completed task refuses without starting work', !finished.success && finished.message === `Not delivered: researcher (id ${id}) has completed, so no turn of it is running to read a message. To give it this message as a new turn, call ResumeCrewmate with the same to and message.` && state.tasks[id]?.status === 'completed', finished.message)
 if (state.tasks[id]?.status === 'running') stop(id)
-await writeAgentMetadata(asAgentId(id), { agentType: 'mercury-crew', name: 'architect', description: 'architect', launchedAt: Date.now() })
+await writeCrewmateMetadata(asAgentId(id), { agentType: 'mercury-crew', name: 'architect', description: 'architect', launchedAt: Date.now() })
 evict(id)
 const disk = await call(SendMessageTool, 'architect')
 check('an evicted id-shaped name resolves and delivery never resumes it', !disk.success && disk.message.includes(`architect (id ${id}) has completed`) && state.tasks[id] === undefined, disk.message)
-if (ResumeAgentTool) {
-  const resumed = await call(ResumeAgentTool, 'architect')
+if (ResumeCrewmateTool) {
+  const resumed = await call(ResumeCrewmateTool, 'architect')
   check('the id-shaped name resumes the sidecar id from disk', resumed.success && resumed.message.startsWith(`Crewmate architect (id ${id}) had completed; it was resumed in the background with your message, and its completion notice will come to you. Output file: `) && state.tasks[id]?.status === 'running', resumed.message)
   stop(id)
   seed(id)
-  registerAgentName('researcher', id, setState as never)
+  registerCrewmateName('researcher', id, setState as never)
   mark(id, 'failed', 'fixture failed')
-  const childResume = await call(ResumeAgentTool, 'researcher', 'retry', sender)
+  const childResume = await call(ResumeCrewmateTool, 'researcher', 'retry', sender)
   check('failed crewmate resumes, and a crewmate sender is told where the completion goes', childResume.success && childResume.message.includes('had failed (fixture failed)') && childResume.message.includes('Its completion notice goes to the main agent, not to you.') && state.tasks[id]?.status === 'running', childResume.message)
   stop(id)
 }
 const missing = launch('missing-record')
 mark(missing, 'completed')
 evict(missing)
-await writeAgentMetadata(asAgentId(missing), { name: 'missing-record', description: 'missing', launchedAt: Date.now() })
-for (const tool of [SendMessageTool, ResumeAgentTool].filter(Boolean) as typeof SendMessageTool[]) {
+await writeCrewmateMetadata(asAgentId(missing), { name: 'missing-record', description: 'missing', launchedAt: Date.now() })
+for (const tool of [SendMessageTool, ResumeCrewmateTool].filter(Boolean) as typeof SendMessageTool[]) {
   const absent = await call(tool, 'missing-record')
   check(`${tool.name} names a missing transcript`, !absent.success && absent.message.includes('no transcript on disk'), absent.message)
 }
@@ -158,8 +158,8 @@ for (const status of ['failed', 'killed']) {
   mark(finishedId, status, status === 'failed' ? 'failure reason' : undefined)
   const answer = await call(SendMessageTool, `ended-${status}`)
   check(`SendMessage never resumes a ${status} task`, !answer.success && answer.message.includes(status === 'failed' ? 'has failed (failure reason)' : 'has stopped') && state.tasks[finishedId]?.status === status)
-  if (ResumeAgentTool) {
-    const failedResume = await call(ResumeAgentTool, `ended-${status}`)
+  if (ResumeCrewmateTool) {
+    const failedResume = await call(ResumeCrewmateTool, `ended-${status}`)
     check('a resume exception is an error with a next step', !failedResume.success && failedResume.message.includes(`No transcript found for crewmate ${finishedId}`) && failedResume.message.endsWith('Launch a new crewmate with Crewmate if the work is still wanted.'), failedResume.message)
   }
 }
@@ -169,7 +169,7 @@ const expectedSchemas = [
   { type: 'object', properties: { to: { type: 'string', description: 'The crewmate to send to: the id its launch receipt names or the name its launch gave it (a name two launches carried reaches the newest); "main" from a background crewmate reaches the agent that launched it' }, message: { type: 'string', description: 'The message' } }, required: ['to', 'message'] },
   { type: 'object', properties: { to: { type: 'string', description: 'The crewmate to resume: the id its launch receipt names or the name its launch gave it, running or finished; a name two launches carried reaches the newest' }, message: { type: 'string', description: 'Its next turn: what to do, written as you would brief it' }, model: { description: 'Model for the resumed turn of a finished crewmate; omitted, its recorded model stays. Read mercury://models for available ids.', type: 'string' }, effort: { description: 'Effort for the resumed turn; omitted, its recorded effort stays. Max is admitted; an unsupported lower tier is refused, not clamped.', type: 'string', enum: ['low', 'medium', 'high', 'xhigh', 'max'] }, interrupt: { description: 'Interrupt a running turn and start this message as its next turn; omitted or false, deliver it at the next tool boundary.', type: 'boolean' } }, required: ['to', 'message'] },
 ]
-for (const [index, tool] of [SendMessageTool, ResumeAgentTool].entries()) {
+for (const [index, tool] of [SendMessageTool, ResumeCrewmateTool].entries()) {
   if (!tool) continue
   const schema = zodToJsonSchema(tool.inputSchema as never) as Record<string, unknown>
   delete schema.$schema

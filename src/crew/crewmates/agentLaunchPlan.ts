@@ -2,9 +2,9 @@
 import type { ToolPermissionContext } from '../../tools/kit/tool.js'
 import type { EngineDispatch } from './engineDispatch.js'
 import { classifyModelRoute, laneLabelForVerdict, providerDisplayName } from '../../models/roads/routeLaw.js'
-import { AGENT_TOOL_NAME } from '../../tools/kit/names/agent.js'
+import { CREWMATE_TOOL_NAME } from '../../tools/kit/names/agent.js'
 import type { AgentDefinition } from '../agents/agentDefinition.js'
-import { getAgentModel } from '../../models/catalogue/agentModel.js'
+import { getCrewmateModel } from '../../models/catalogue/agentModel.js'
 import type { PermissionMode } from '../../permissions/rules/permissionMode.js'
 import {
   filterDeniedAgents,
@@ -12,7 +12,7 @@ import {
 } from '../../permissions/rules/permissionDoor.js'
 import { reasonForRule, refusalWithReason, ruleSentence } from '../../permissions/rules/ruleReason.js'
 
-export type AgentLaunchPlanInput = {
+export type CrewmateLaunchPlanInput = {
   requestedType?: string
   activeAgents: readonly AgentDefinition[]
   allowedAgentTypes?: readonly string[]
@@ -33,7 +33,7 @@ export type AgentLaunchPlanInput = {
   }
 }
 
-export type AgentLaunchPlan = {
+export type CrewmateLaunchPlan = {
   agentType: string
   definition: AgentDefinition
   model: string
@@ -44,7 +44,7 @@ export type AgentLaunchPlan = {
   engineBackend?: EngineDispatch['backend']
 }
 
-export function buildAgentLaunchPlan(i: AgentLaunchPlanInput): AgentLaunchPlan {
+export function buildCrewmateLaunchPlan(i: CrewmateLaunchPlanInput): CrewmateLaunchPlan {
   const effectiveType = (i.requestedType || undefined) ?? i.defaultAgentType
 
   const allAgents = i.activeAgents
@@ -53,7 +53,7 @@ export function buildAgentLaunchPlan(i: AgentLaunchPlanInput): AgentLaunchPlan {
       ? allAgents.filter(a => i.allowedAgentTypes!.includes(a.agentType))
       : allAgents) as AgentDefinition[],
     i.toolPermissionContext,
-    AGENT_TOOL_NAME,
+    CREWMATE_TOOL_NAME,
   )
   const found = agents.find(agent => agent.agentType === effectiveType)
   if (!found) {
@@ -63,14 +63,14 @@ export function buildAgentLaunchPlan(i: AgentLaunchPlanInput): AgentLaunchPlan {
     if (agentExistsButDenied) {
       const denyRule = getDenyRuleForAgent(
         i.toolPermissionContext,
-        AGENT_TOOL_NAME,
+        CREWMATE_TOOL_NAME,
         effectiveType,
       )
       throw new Error(
         refusalWithReason(
           denyRule
             ? ruleSentence(`The ${effectiveType} crewmate`, 'deny', denyRule)
-            : `The ${effectiveType} crewmate is denied by the rule ${AGENT_TOOL_NAME}(${effectiveType}).`,
+            : `The ${effectiveType} crewmate is denied by the rule ${CREWMATE_TOOL_NAME}(${effectiveType}).`,
           denyRule ? reasonForRule(i.toolPermissionContext, denyRule) : undefined,
         ),
       )
@@ -100,7 +100,7 @@ export function buildAgentLaunchPlan(i: AgentLaunchPlanInput): AgentLaunchPlan {
     }
   }
 
-  const model = i.resolvedModel ?? getAgentModel(
+  const model = i.resolvedModel ?? getCrewmateModel(
     definition.model,
     i.engineModel,
     i.modelParam,

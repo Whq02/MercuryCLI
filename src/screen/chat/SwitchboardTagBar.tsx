@@ -14,7 +14,7 @@ import type { RunnerStateFactV1 } from '../../engine/connector/seatProjections.j
 import type { SampleRowV1, WorkRowV1 } from '../../engine/connector/types.js'
 import { escRungHint, escRungOf } from '../composer/input-core/interruptArity.js'
 import { SEND_NOW_HINT } from '../composer/input-core/sendNowChord.js'
-import { crewAgentsOf, crewWaitingWords } from '../../engine/connector/crewFacts.js'
+import { crewmatesOf, crewWaitingWords } from '../../engine/connector/crewFacts.js'
 import { withSampleWords, workWaitingWords } from '../../engine/connector/workCounts.js'
 import { requestWaitLine, requestWaitLinePastEstimate, shortenRequestWaitLine } from '../../models/roads/streamIdleBudget.js'
 import { useTerminalSize } from '../fullscreen-layout/useTerminalSize.js'
@@ -186,7 +186,7 @@ type CrewSpan = { startedAt: number; endedAt: number | null; running: boolean }
 type KindClock = { word: string; running: boolean; ms: number }
 
 function crewSpansOf(rows: readonly WorkRowV1[]): CrewSpan[] {
-  return crewAgentsOf(rows, null).map(a => ({ startedAt: a.startedAt, endedAt: a.endedAt, running: a.running }))
+  return crewmatesOf(rows, null).map(a => ({ startedAt: a.startedAt, endedAt: a.endedAt, running: a.running }))
 }
 
 function kindClockOf(spans: readonly CrewSpan[], words: readonly [string, string], nowMs: number): KindClock | null {

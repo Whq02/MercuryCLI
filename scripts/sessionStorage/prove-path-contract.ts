@@ -106,8 +106,8 @@ for (const path of [posix, win32]) {
     equal(api.getTranscriptPathForSession(state.session), path.join(base, `${state.session}.jsonl`))
     equal(api.getTranscriptPathForSession('other'), path.join(project(state.cwd), 'other.jsonl'))
     deepStrictEqual(['setAgentTranscriptSubdir', 'clearAgentTranscriptSubdir'].filter(name => name in api), [])
-    equal(api.getAgentTranscriptPath(id), path.join(base, state.session, 'subagents', `agent-${id}.jsonl`))
-    equal(api.getAgentMetadataPath(id), api.getAgentTranscriptPath(id).replace(/\.jsonl$/, '.meta.json'))
+    equal(api.getCrewmateTranscriptPath(id), path.join(base, state.session, 'subagents', `agent-${id}.jsonl`))
+    equal(api.getCrewmateMetadataPath(id), api.getCrewmateTranscriptPath(id).replace(/\.jsonl$/, '.meta.json'))
     for (const error of [undefined, absent, broken]) {
       state.statError = error
       events.length = 0
@@ -147,45 +147,45 @@ for (const path of [posix, win32]) {
 
   state.override = undefined
   state.resolutionError = absent
-  deepStrictEqual(await api.listAgentMetadata(), [])
+  deepStrictEqual(await api.listCrewmateMetadata(), [])
   state.resolutionError = broken
-  await rejects(() => api.listAgentMetadata(), error => error === broken)
+  await rejects(() => api.listCrewmateMetadata(), error => error === broken)
   state.resolutionError = undefined
-  const meta = api.getAgentMetadataPath(id)
+  const meta = api.getCrewmateMetadataPath(id)
   for (const raw of ['{"agentType":"worker","model":"m"}', 'false', '0', '""', '[]', 'null']) {
     files.set(meta, raw)
-    deepStrictEqual(await api.readAgentMetadata(id), JSON.parse(raw))
+    deepStrictEqual(await api.readCrewmateMetadata(id), JSON.parse(raw))
   }
   files.set(meta, '{broken')
   events.length = 0
-  equal(await api.readAgentMetadata(id), null)
+  equal(await api.readCrewmateMetadata(id), null)
   deepStrictEqual(events.at(-1), ['warn', `The launch sidecar at ${meta} does not decode; the resume re-resolves the agent instead`, { level: 'warn' }])
   for (const error of [absent, broken]) {
     files.set(meta, error)
-    if (error === absent) equal(await api.readAgentMetadata(id), null)
-    else await rejects(() => api.readAgentMetadata(id), failure => failure === broken)
+    if (error === absent) equal(await api.readCrewmateMetadata(id), null)
+    else await rejects(() => api.readCrewmateMetadata(id), failure => failure === broken)
   }
   const metadata = { agentType: 'worker', model: 'm', effort: 'max', name: '', launchedAt: 1 }
   events.length = 0
-  await api.writeAgentMetadata(id, metadata)
+  await api.writeCrewmateMetadata(id, metadata)
   deepStrictEqual(events.at(-1), ['publish', meta, JSON.stringify(metadata)])
   state.publishError = broken
-  await rejects(() => api.writeAgentMetadata(id, metadata), error => error === broken)
+  await rejects(() => api.writeCrewmateMetadata(id, metadata), error => error === broken)
   state.publishError = undefined
 
   const root = path.join(project(state.cwd), state.session, 'subagents')
   directories.set(root, ['agent-a.meta.json', 'ignored.json', 'agent-z.meta.json', 'agent-b.meta.json', 'agent-c.meta.json', 'agent-.meta.json'])
-  files.set(api.getAgentMetadataPath('a' as never), 'false')
-  files.set(api.getAgentMetadataPath('z' as never), '{torn')
-  files.set(api.getAgentMetadataPath('b' as never), broken)
-  files.set(api.getAgentMetadataPath('c' as never), '0')
+  files.set(api.getCrewmateMetadataPath('a' as never), 'false')
+  files.set(api.getCrewmateMetadataPath('z' as never), '{torn')
+  files.set(api.getCrewmateMetadataPath('b' as never), broken)
+  files.set(api.getCrewmateMetadataPath('c' as never), '0')
   events.length = 0
-  deepStrictEqual(await api.listAgentMetadata(), [{ agentId: 'a', metadata: false }, { agentId: 'c', metadata: 0 }])
-  deepStrictEqual(events.filter(row => row[0] === 'read').map(row => row[1]), ['a', 'z', 'b', 'c'].map(name => api.getAgentMetadataPath(name as never)))
+  deepStrictEqual(await api.listCrewmateMetadata(), [{ agentId: 'a', metadata: false }, { agentId: 'c', metadata: 0 }])
+  deepStrictEqual(events.filter(row => row[0] === 'read').map(row => row[1]), ['a', 'z', 'b', 'c'].map(name => api.getCrewmateMetadataPath(name as never)))
   directories.set(root, absent)
-  deepStrictEqual(await api.listAgentMetadata(), [])
+  deepStrictEqual(await api.listCrewmateMetadata(), [])
   directories.set(root, broken)
-  await rejects(() => api.listAgentMetadata(), error => error === broken)
+  await rejects(() => api.listCrewmateMetadata(), error => error === broken)
 
   const transcript = path.join(state.home, 'elsewhere', 'session.jsonl')
   const tree = path.join(path.dirname(transcript), 'tree-session', 'subagents')
@@ -199,13 +199,13 @@ for (const path of [posix, win32]) {
     if (depth <= 4) expected.push(path.join(current, `agent-${depth}.jsonl`))
   }
   events.length = 0
-  deepStrictEqual(await api.listAgentTranscriptPaths(transcript, 'tree-session'), expected.sort())
+  deepStrictEqual(await api.listCrewmateTranscriptPaths(transcript, 'tree-session'), expected.sort())
   deepStrictEqual(events.filter(row => row[0] === 'readdir').map(row => row[1]), [tree, ...Array.from({ length: 4 }, (_, depth) => path.join(tree, ...Array(depth + 1).fill('d'))), path.join(tree, 'missing')])
   for (const read of events.filter(row => row[0] === 'readdir')) deepStrictEqual(read[2], { withFileTypes: true })
   directories.set(path.join(tree, 'missing'), broken)
-  await rejects(() => api.listAgentTranscriptPaths(transcript, 'tree-session'), error => error === broken)
+  await rejects(() => api.listCrewmateTranscriptPaths(transcript, 'tree-session'), error => error === broken)
   directories.set(tree, absent)
-  deepStrictEqual(await api.listAgentTranscriptPaths(transcript, 'tree-session'), [])
+  deepStrictEqual(await api.listCrewmateTranscriptPaths(transcript, 'tree-session'), [])
 
   for (const type of ['user', 'assistant', 'system', 'attachment', 'progress', 'unknown', 'constructor']) {
     equal(api.isTranscriptMessage({ type } as never), ['user', 'assistant', 'system', 'attachment'].includes(type))

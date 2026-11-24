@@ -3,13 +3,13 @@ import * as React from 'react'
 import { Box, Text } from '../../screen/themedRenderer.js'
 import { Message as MessageComponent } from '../../screen/messages/Message.js'
 import { MessageResponse } from '../kit/MessageResponse.js'
-import { CtrlOToExpand, SubAgentProvider } from '../../screen/messages/CtrlOToExpand.js'
+import { CtrlOToExpand, NestedRowsProvider } from '../../screen/messages/CtrlOToExpand.js'
 import { FallbackToolUseRejectedMessage } from '../kit/FallbackToolUseRejectedMessage.js'
 import { ShellTimeDisplay } from '../../screen/shell-output/ShellTimeDisplay.js'
 import type { ProgressMessage } from '../../engine/message-shapes/message.js'
 import type { EvalToolProgress } from '../kit/toolProgress.js'
 import type { Tools } from '../kit/tool.js'
-import { buildSubagentLookups } from '../../engine/messages/messages.js'
+import { buildNestedLookups } from '../../engine/messages/messages.js'
 import type { EvalToolOutput } from './EvalTool.js'
 
 const EMPTY_SET: Set<string> = new Set()
@@ -69,7 +69,7 @@ export function renderEvalProgressMessage(
       </MessageResponse>
     )
   }
-  const { lookups } = buildSubagentLookups(nested)
+  const { lookups } = buildNestedLookups(nested)
   const shown = nested.slice(-4)
   return (
     <Box flexDirection="column">
@@ -78,7 +78,7 @@ export function renderEvalProgressMessage(
           +{nested.length - shown.length} earlier bridge call(s) <CtrlOToExpand />
         </Text>
       ) : null}
-      <SubAgentProvider>
+      <NestedRowsProvider>
         {shown.map((row, index) => (
           <MessageResponse key={index}>
             <MessageComponent
@@ -97,7 +97,7 @@ export function renderEvalProgressMessage(
             />
           </MessageResponse>
         ))}
-      </SubAgentProvider>
+      </NestedRowsProvider>
       {outputTail !== null ? (
         <MessageResponse>
           <Box flexDirection="column">

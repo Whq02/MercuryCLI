@@ -1,6 +1,6 @@
 import { routedCallModelSettled } from '../../models/roads/callModelRouter.js'
 import { getEmptyToolPermissionContext } from '../../tools/kit/tool.js'
-import { AGENT_TOOL_NAME } from '../../tools/kit/names/agent.js'
+import { CREWMATE_TOOL_NAME } from '../../tools/kit/names/agent.js'
 import { getUserContext } from '../../engine/requestContext.js'
 import { isMnemeEnabled } from '../../sessions/mneme/paths.js'
 import { prependUserContext } from '../../engine/messages/apiSystemAndToolSchema.js'
@@ -59,7 +59,7 @@ Then design:
 The "whenToUse" field must contain worked examples inside <example> blocks.
 Each example contains a Context line, a user line, one or more assistant
 lines, and a <commentary> block explaining the delegation. The examples must
-show the assistant launching the agent through the ${AGENT_TOOL_NAME} tool
+show the assistant launching the agent through the ${CREWMATE_TOOL_NAME} tool
 rather than answering directly.`,
     `Your output is a single valid JSON object with exactly these fields:
 - "identifier": the agent's identifier as described above.

@@ -69,7 +69,7 @@ async function main(): Promise<void> {
         : ''
     segments = await prompts.enhanceSystemPromptWithEnvDetails(
       [
-        ...doctrine.buildSubagentMercurySections({
+        ...doctrine.buildCrewmateMercurySections({
           agentDefinition: agentDefinition as never,
           toolUseContext: { options: {} } as never,
           childModel: spec.model,

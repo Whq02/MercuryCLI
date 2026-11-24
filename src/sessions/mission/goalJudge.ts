@@ -8,7 +8,7 @@ import { readJevSettings } from '../../models/jev/jevSetting.js'
 import { jevStatus } from '../../models/jev/jevStatus.js'
 import { routedCallModelSettled } from '../../models/roads/callModelRouter.js'
 import { declaredRouteOf } from '../../models/roads/routeLaw.js'
-import { getAgentContext } from '../../crew/agents/agentContext.js'
+import { getCrewmateContext } from '../../crew/agents/agentContext.js'
 import { hasFirstPartyCredential } from '../../models/sign-in/credentials/auth.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { createUserMessage } from '../../engine/message-shapes/factories.js'
@@ -69,7 +69,7 @@ const GOAL_QUESTION: JevChoiceQuestion = {
 }
 
 function jevAgent(): { id: string; subagent: boolean } | undefined {
-  const context = getAgentContext()
+  const context = getCrewmateContext()
   return context === undefined ? undefined : { id: context.agentId, subagent: true }
 }
 

@@ -22,7 +22,7 @@ export const MAX_FULL_READ_BYTES = 16 * 1024 * 1024
 const HEAD_READ_BYTES = 64 * 1024
 const TAIL_READ_BYTES = 2 * 1024 * 1024
 
-export type AgentToolCallView = {
+export type CrewmateToolCallView = {
   name: string
   inputSummary: string
   resultPreview?: string
@@ -30,7 +30,7 @@ export type AgentToolCallView = {
   timestamp?: string
 }
 
-export type AgentUsageRollup = {
+export type CrewmateUsageRollup = {
   inputTokens: number
   outputTokens: number
   cacheReadTokens: number
@@ -39,10 +39,10 @@ export type AgentUsageRollup = {
   apiTurns: number
 }
 
-export type AgentTranscriptView = {
+export type CrewmateTranscriptView = {
   prompt?: string
   promptTruncated?: boolean
-  toolCalls: AgentToolCallView[]
+  toolCalls: CrewmateToolCallView[]
   toolCallsTotal: number
   reasoning: string[]
   reasoningTotal: number
@@ -50,23 +50,23 @@ export type AgentTranscriptView = {
   finalText?: string
   finalTextTruncated?: boolean
   model?: string
-  usage?: AgentUsageRollup
+  usage?: CrewmateUsageRollup
   entryCount: number
   truncatedRead?: boolean
-  end: AgentTranscriptEnd
+  end: CrewmateTranscriptEnd
 }
 
-export type AgentTranscriptEnd = {
+export type CrewmateTranscriptEnd = {
   kind: 'completed' | 'failed' | 'stopped' | 'cut'
   words: string
 }
-const OPEN_END: AgentTranscriptEnd = { kind: 'cut', words: 'cut off mid-turn' }
-const NO_ROWS_END: AgentTranscriptEnd = { kind: 'cut', words: 'no readable rows' }
-const COMPLETED_END: AgentTranscriptEnd = { kind: 'completed', words: 'completed' }
-const FAILED_END: AgentTranscriptEnd = { kind: 'failed', words: 'failed' }
-const STOPPED_END: AgentTranscriptEnd = { kind: 'stopped', words: 'stopped' }
+const OPEN_END: CrewmateTranscriptEnd = { kind: 'cut', words: 'cut off mid-turn' }
+const NO_ROWS_END: CrewmateTranscriptEnd = { kind: 'cut', words: 'no readable rows' }
+const COMPLETED_END: CrewmateTranscriptEnd = { kind: 'completed', words: 'completed' }
+const FAILED_END: CrewmateTranscriptEnd = { kind: 'failed', words: 'failed' }
+const STOPPED_END: CrewmateTranscriptEnd = { kind: 'stopped', words: 'stopped' }
 
-export function transcriptEndWords(end: AgentTranscriptEnd | undefined): string {
+export function transcriptEndWords(end: CrewmateTranscriptEnd | undefined): string {
   return end === undefined ? 'transcript on disk (unreadable)' : `${end.words} (transcript on disk)`
 }
 
@@ -133,9 +133,9 @@ type RawEntry = {
   }
 }
 
-export async function readAgentTranscript(
+export async function readCrewmateTranscript(
   file: string,
-): Promise<AgentTranscriptView | undefined> {
+): Promise<CrewmateTranscriptView | undefined> {
   let raw: string
   let truncatedRead = false
   try {
@@ -158,13 +158,13 @@ export async function readAgentTranscript(
 
   let prompt: string | undefined
   let promptTruncated = false
-  const toolCallsAll: AgentToolCallView[] = []
-  const pendingResults = new Map<string, AgentToolCallView>()
+  const toolCallsAll: CrewmateToolCallView[] = []
+  const pendingResults = new Map<string, CrewmateToolCallView>()
   const reasoningAll: string[] = []
   let unreadableReasoningTotal = 0
   let finalText: string | undefined
   let model: string | undefined
-  const usage: AgentUsageRollup = {
+  const usage: CrewmateUsageRollup = {
     inputTokens: 0,
     outputTokens: 0,
     cacheReadTokens: 0,
@@ -174,7 +174,7 @@ export async function readAgentTranscript(
   }
   const seenUsageIds = new Set<string>()
   const seenToolUseIds = new Set<string>()
-  let end: AgentTranscriptEnd = OPEN_END
+  let end: CrewmateTranscriptEnd = OPEN_END
 
   for (const e of entries) {
     const msg = e.message
@@ -252,7 +252,7 @@ export async function readAgentTranscript(
           if (seenToolUseIds.has(id)) continue
           seenToolUseIds.add(id)
         }
-        const call: AgentToolCallView = {
+        const call: CrewmateToolCallView = {
           name: String(block.name ?? '?'),
           inputSummary: summarizeToolInput(block.input),
           timestamp: typeof e.timestamp === 'string' ? e.timestamp : undefined,
@@ -300,21 +300,21 @@ export async function readAgentTranscript(
   }
 }
 
-export function agentTranscriptFile(
+export function crewmateTranscriptFileIn(
   transcriptDir: string,
   agentId: string,
 ): string {
   return path.join(transcriptDir, `agent-${agentId}.jsonl`)
 }
 
-export function resolveAgentTranscriptFile(
+export function resolveCrewmateTranscriptFile(
   dirs: readonly (string | undefined)[],
   agentId: string,
 ): string | undefined {
   let primary: string | undefined
   for (const d of dirs) {
     if (!d) continue
-    const p = agentTranscriptFile(d, agentId)
+    const p = crewmateTranscriptFileIn(d, agentId)
     primary ??= p
     try {
       if (existsSync(p)) return p

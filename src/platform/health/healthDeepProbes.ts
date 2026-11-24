@@ -798,8 +798,8 @@ export async function probeServiceLifecycle(): Promise<CheckResult> {
   }
 }
 
-export async function probeAgentEnvelope(): Promise<CheckResult> {
-  const { buildAgentResultEnvelope } = await import('../../crew/agent-results/normalize.js')
+export async function probeCrewmateEnvelope(): Promise<CheckResult> {
+  const { buildCrewmateResultEnvelope } = await import('../../crew/agent-results/normalize.js')
   const { observeToolTerminal } = await import('../../engine/run-owner/effectObserver.js')
   const { processOwnerForLane } = await import('../../engine/run-owner/resolveOwner.js')
   const { disposeOwner } = await import('../../engine/run-owner/ownerLifecycle.js')
@@ -823,7 +823,7 @@ export async function probeAgentEnvelope(): Promise<CheckResult> {
         completedAt: Date.now(),
       },
     })
-    const envelope = await buildAgentResultEnvelope({
+    const envelope = await buildCrewmateResultEnvelope({
       agentId,
       status: 'completed',
       finalText:

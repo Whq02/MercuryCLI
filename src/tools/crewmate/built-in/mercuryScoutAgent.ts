@@ -1,7 +1,7 @@
 
 import { searchToolsAvailability } from '../../../platform/shell/ripgrep.js'
 import type { BuiltInAgentDefinition } from '../../../crew/agents/agentDefinition.js'
-import { AGENT_TOOL_NAME } from '../../kit/names/agent.js'
+import { CREWMATE_TOOL_NAME } from '../../kit/names/agent.js'
 
 function searchToolGuidance(): string {
   const search = searchToolsAvailability()
@@ -24,7 +24,7 @@ export const MERCURY_SCOUT_AGENT: BuiltInAgentDefinition = {
   whenToUse:
     'Fast read-only repository recon: locating files by pattern, searching code for keywords, and answering how-it-works questions with paths, line numbers and excerpts as evidence. State thoroughness: "quick" (first solid hit), "medium", or "very thorough" (multiple locations and naming conventions).',
   disallowedTools: [
-    AGENT_TOOL_NAME,
+    CREWMATE_TOOL_NAME,
     'Edit',
     'Write',
     'NotebookEdit',

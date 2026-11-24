@@ -1,10 +1,10 @@
-import type { AgentControlReceiptV1, EngineCarrierKind } from '../../../engine/connector/types.js'
+import type { CrewmateControlReceiptV1, EngineCarrierKind } from '../../../engine/connector/types.js'
 import type { PauseGate } from '../../../engine/loop/pauseGate.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
 
 export type CrewPauseReach =
   | { kind: 'blank' }
-  | { kind: 'carrier'; carrier: EngineCarrierKind; hostedPaused: boolean; send: (paused: boolean) => Promise<AgentControlReceiptV1> }
+  | { kind: 'carrier'; carrier: EngineCarrierKind; hostedPaused: boolean; send: (paused: boolean) => Promise<CrewmateControlReceiptV1> }
 
 export type CrewPauseReceipt =
   | { outcome: 'applied'; paused: boolean }

@@ -8,7 +8,7 @@ import { useMercuryTokens } from '../../screen/widgets/useMercuryTokens.js'
 import { useElevatedSurface } from '../../screen/widgets/useElevatedSurface.js'
 import { useTerminalSize } from '../../screen/fullscreen-layout/useTerminalSize.js'
 import { getInMemoryErrors, logError } from '../../platform/logs/errorLog.js'
-import { envDynamic } from '../../platform/environment/envProbes.js'
+import { envProbes } from '../../platform/environment/envProbes.js'
 import {
   getLastAPIRequest,
   getLastMainRequestId,
@@ -30,7 +30,7 @@ import type { ToolPermissionContext } from '../../tools/kit/tool.js'
 import {
   MAX_TRANSCRIPT_READ_BYTES,
   getTranscriptPathForSession,
-  loadAllSubagentTranscriptsFromDisk,
+  loadAllCrewmateTranscriptsFromDisk,
 } from '../../sessions/transcripts/sessionStorage.js'
 import { historyHead, historyRange } from '../../sessions/transcripts/historyParts.js'
 import { getSessionId } from '../../boot/process-state/processState.js'
@@ -131,7 +131,7 @@ function productVersion(): string {
 }
 
 function platformLine(): string {
-  return `${platformDisplayName()} · ${osType()} ${release()} · ${process.arch} · ${envDynamic.terminal ?? 'unknown terminal'}`
+  return `${platformDisplayName()} · ${osType()} ${release()} · ${process.arch} · ${envProbes.terminal ?? 'unknown terminal'}`
 }
 
 function installLine(): string {
@@ -291,7 +291,7 @@ export async function gatherReport(
       recordProbeError('git repository probe failed:', err)
       return undefined
     }),
-    loadAllSubagentTranscriptsFromDisk().catch((err): Record<string, Message[]> => {
+    loadAllCrewmateTranscriptsFromDisk().catch((err): Record<string, Message[]> => {
       recordProbeError(
         'subagent transcripts could not be read from disk; the report carries only those in memory:',
         err,
@@ -352,7 +352,7 @@ export async function gatherReport(
     install: redactSensitiveInfo(installLine()),
     model: modelFacts(),
     is_git: isGit,
-    terminal: envDynamic.terminal ?? 'unknown',
+    terminal: envProbes.terminal ?? 'unknown',
     session_id: sessionId,
     last_request_id: lastAssistantRequestId ?? getLastMainRequestId() ?? null,
     last_api_request: getLastAPIRequest(),

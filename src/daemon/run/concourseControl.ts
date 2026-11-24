@@ -8,7 +8,7 @@ import { answerPermissionAsk } from '../session-seat/permissionAsks.js'
 import type { TaskRoster } from '../roster/roster.js'
 import { dropSaturnSelfWakes, type SaturnSelfWakeDropWhy } from '../saturn/saturn.js'
 import { SESSION_VERBS } from '../runner-wire/sessionVerbs.js'
-import { controlSessionAgent, applySeatScheduleControl, onSeatSpawned, pushScheduleRosterForSession, refreshSessionFacts, setSessionEffort, setSessionKitDial, actOnSessionMcp, listSessionMcpTools, setSessionModel, setSessionPermissionMode, setSessionSpawnSwitch, withdrawSessionSend, isGenericSeatVerb, forwardGenericSeatVerb, pauseSessionGate, postSessionBoard, leaveSession } from '../session-seat/sessionSeat.js'
+import { controlSessionCrewmate, applySeatScheduleControl, onSeatSpawned, pushScheduleRosterForSession, refreshSessionFacts, setSessionEffort, setSessionKitDial, actOnSessionMcp, listSessionMcpTools, setSessionModel, setSessionPermissionMode, setSessionSpawnSwitch, withdrawSessionSend, isGenericSeatVerb, forwardGenericSeatVerb, pauseSessionGate, postSessionBoard, leaveSession } from '../session-seat/sessionSeat.js'
 import type { DaemonRunState } from './state.js'
 import { passedOver, passedOverAs } from '../../platform/errors/passedOver.js'
 import { errorMessage } from '../../platform/errors/errors.js'
@@ -199,7 +199,7 @@ export function makeConcourseControl(state: DaemonRunState, { concourseDispatchH
     if (action === SESSION_VERBS.stopAgent.daemon.action || action === SESSION_VERBS.resumeAgent.daemon.action) {
       if (agentId === undefined || agentId === '') return { outcome: 'refused' as const, detail: `${action} requires agentId` }
       if (roster === null) return { outcome: 'refused' as const, detail: 'daemon roster not ready' }
-      return controlSessionAgent(sessionId, agentId, action, roster, undefined, note !== undefined ? { note } : undefined)
+      return controlSessionCrewmate(sessionId, agentId, action, roster, undefined, note !== undefined ? { note } : undefined)
     }
     if (action === SESSION_VERBS.withdrawSend.daemon.action) {
       if (clientMessageId === undefined || clientMessageId === '') return { outcome: 'refused' as const, detail: `${SESSION_VERBS.withdrawSend.daemon.action} requires clientMessageId` }

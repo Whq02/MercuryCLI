@@ -7,7 +7,7 @@ import { noteProjectOnboardingShown, projectOnboardingHint } from '../../boot/pr
 import { truncateToWidth } from '../theme/glyphs.js'
 import { crewmatePlaceholder } from '../cockpit/crewmateWords.js'
 
-const AGENT_NAME_MAX_COLUMNS = 24
+const CREWMATE_NAME_MAX_COLUMNS = 24
 
 export function useComposerPlaceholder({
   input,
@@ -42,7 +42,7 @@ export function useComposerPlaceholder({
   if (!isInputEmpty) return undefined
   if (viewingAgentName) {
     return crewmatePlaceholder(
-      truncateToWidth(viewingAgentName, AGENT_NAME_MAX_COLUMNS),
+      truncateToWidth(viewingAgentName, CREWMATE_NAME_MAX_COLUMNS),
     )
   }
   if (onboardingHint) return onboardingHint

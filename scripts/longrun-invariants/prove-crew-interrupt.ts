@@ -8,15 +8,15 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'crew-interrupt-home
 
 await import('../../src/engine/tasks/tasks.js')
 const {
-  AGENT_RESUME_DOOR,
-  AGENT_RESUME_NOTE,
-  AGENT_STOP_BY_OPERATOR,
-  agentStopReasonOf,
+  CREWMATE_RESUME_DOOR,
+  CREWMATE_RESUME_NOTE,
+  CREWMATE_STOP_BY_OPERATOR,
+  crewmateStopReasonOf,
   crewStillRunning,
-  registerAgentForeground,
-  registerAsyncAgent,
+  registerCrewmateForeground,
+  registerAsyncCrewmate,
 } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
-const { runAsyncAgentLifecycle } = await import('../../src/tools/crewmate/crewmateLifecycle.js')
+const { runAsyncCrewmateLifecycle } = await import('../../src/tools/crewmate/crewmateLifecycle.js')
 const { createTurnDriver } = await import('../../src/daemon/runner/turnDriver.js')
 const { getCommandQueueSnapshot, resetCommandQueue } = await import('../../src/daemon/runner/messageQueueManager.js')
 const { AbortError } = await import('../../src/platform/errors/errors.js')
@@ -24,7 +24,7 @@ const { CREW_STOP_WINDOW_MS, crewStopArmed, crewStopHint, pressCrewStop } = awai
   '../../src/screen/widgets/faces/crewStopChord.js'
 )
 const { crewStillRunningLine } = await import('../../src/engine/connector/crewFacts.js')
-const { stopOrDismissAgent } = await import('../../src/crew/crewmates/crewmateView.js')
+const { stopOrDismissCrewmate } = await import('../../src/crew/crewmates/crewmateView.js')
 
 import type { Message as MessageType } from '../../src/engine/message-shapes/message.js'
 
@@ -72,10 +72,10 @@ section('§K1a the controller law — an agent task owns a fresh controller')
 {
   const store = makeStore()
   const turn = new AbortController()
-  const task = registerAsyncAgent({ agentId: 'ag-own', description: 'own', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never })
+  const task = registerAsyncCrewmate({ agentId: 'ag-own', description: 'own', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never })
   turn.abort()
   check('a registered background agent\'s controller is fresh — a turn\'s abort never reaches it', task.abortController !== undefined && !task.abortController.signal.aborted)
-  const fg = registerAgentForeground({ agentId: 'ag-fg', description: 'fg', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never })
+  const fg = registerCrewmateForeground({ agentId: 'ag-fg', description: 'fg', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never })
   check('the foreground registration hands back the task\'s own controller for the run to own', fg.abortController instanceof AbortController && !fg.abortController.signal.aborted)
   check('the crew census counts running agents, never the session\'s own row', crewStillRunning({
     a: { type: 'local_agent', status: 'running', agentType: 'mercury-crew' },
@@ -185,9 +185,9 @@ async function lifecycleWith(name: string, drive: (controller: AbortController) 
   resetCommandQueue()
   const store = makeStore()
   const taskId = `ag-${name}`
-  const task = registerAsyncAgent({ agentId: taskId, description: name, prompt: 'work', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never })
+  const task = registerAsyncCrewmate({ agentId: taskId, description: name, prompt: 'work', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never })
   const controller = task.abortController!
-  await runAsyncAgentLifecycle({
+  await runAsyncCrewmateLifecycle({
     taskId,
     abortController: controller,
     makeStream: () => drive(controller) as never,
@@ -208,15 +208,15 @@ async function lifecycleWith(name: string, drive: (controller: AbortController) 
   const stopped = await lifecycleWith('crew-stop', async function* (controller) {
     yield userMsg('go')
     await new Promise<void>(resolve => {
-      setTimeout(() => controller.abort(AGENT_STOP_BY_OPERATOR), 10)
+      setTimeout(() => controller.abort(CREWMATE_STOP_BY_OPERATOR), 10)
       controller.signal.addEventListener('abort', () => resolve(), { once: true })
     })
     throw new AbortError()
   })
   check('a crew-view stop settles the record killed WITH its reason', stopped.task?.status === 'killed' && stopped.task.stopReason === 'stopped from the crew view', JSON.stringify(stopped.task))
   check('exactly ONE killed notice reached the queue', stopped.notes.length === 1 && stopped.notes[0]!.includes('<status>killed</status>'), stopped.notes.join('|').slice(0, 300))
-  check('the notice names the door that stopped it and the resume road', stopped.notes[0]!.includes('stopped from the crew view') && stopped.notes[0]!.includes(AGENT_RESUME_DOOR))
-  check('the stop vocabulary: the operator\'s reason spells itself; any other abort stays unnamed', agentStopReasonOf(AGENT_STOP_BY_OPERATOR) === 'stopped from the crew view' && agentStopReasonOf(undefined) === undefined && agentStopReasonOf('interrupt') === undefined)
+  check('the notice names the door that stopped it and the resume road', stopped.notes[0]!.includes('stopped from the crew view') && stopped.notes[0]!.includes(CREWMATE_RESUME_DOOR))
+  check('the stop vocabulary: the operator\'s reason spells itself; any other abort stays unnamed', crewmateStopReasonOf(CREWMATE_STOP_BY_OPERATOR) === 'stopped from the crew view' && crewmateStopReasonOf(undefined) === undefined && crewmateStopReasonOf('interrupt') === undefined)
 }
 {
   const failed = await lifecycleWith('crew-fail', async function* () {
@@ -228,46 +228,46 @@ async function lifecycleWith(name: string, drive: (controller: AbortController) 
 {
   resetCommandQueue()
   const store = makeStore()
-  const task = registerAsyncAgent({ agentId: 'ag-helper', description: 'helper', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never })
-  stopOrDismissAgent('ag-helper', store.set as never, AGENT_STOP_BY_OPERATOR)
-  check('stopOrDismissAgent aborts the running task\'s controller with the operator\'s reason', task.abortController!.signal.aborted && task.abortController!.signal.reason === AGENT_STOP_BY_OPERATOR)
+  const task = registerAsyncCrewmate({ agentId: 'ag-helper', description: 'helper', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never })
+  stopOrDismissCrewmate('ag-helper', store.set as never, CREWMATE_STOP_BY_OPERATOR)
+  check('stopOrDismissAgent aborts the running task\'s controller with the operator\'s reason', task.abortController!.signal.aborted && task.abortController!.signal.reason === CREWMATE_STOP_BY_OPERATOR)
 }
 
 section('§K4 the resume road — one owner behind every door')
 {
-  check('the resume note tells the agent the work before the stop stands', AGENT_RESUME_NOTE.includes('resumed you from the crew view') && AGENT_RESUME_NOTE.includes('do not redo it'))
+  check('the resume note tells the agent the work before the stop stands', CREWMATE_RESUME_NOTE.includes('resumed you from the crew view') && CREWMATE_RESUME_NOTE.includes('do not redo it'))
 }
 
 section('§K10 the wait tells its truth — the phase fold, the one spelling, every surface')
 {
-  const { foldAgentWaitEvent, agentWaitWords, agentWaitElapsed } = await import('../../src/engine/tasks/local-agent/agentWait.js')
+  const { foldCrewmateWaitEvent, crewmateWaitWords, crewmateWaitElapsed } = await import('../../src/engine/tasks/local-agent/agentWait.js')
   const { createProgressTracker, foldTurnProgressIntoTracker, getProgressUpdate } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
   const t0 = 1_000_000
-  let wait = foldAgentWaitEvent(null, { type: 'stream_request_start' }, t0)
-  check('K10 the request leaves ⇒ request-sent', wait?.phase === 'request-sent' && agentWaitWords(wait, t0 + 2000) === 'request sent')
-  const same = foldAgentWaitEvent(wait, { type: 'stream_event', event: { type: 'ping' } }, t0 + 100)
+  let wait = foldCrewmateWaitEvent(null, { type: 'stream_request_start' }, t0)
+  check('K10 the request leaves ⇒ request-sent', wait?.phase === 'request-sent' && crewmateWaitWords(wait, t0 + 2000) === 'request sent')
+  const same = foldCrewmateWaitEvent(wait, { type: 'stream_event', event: { type: 'ping' } }, t0 + 100)
   check('K10 an event that moves nothing returns the SAME wait (no republish)', same === wait)
-  wait = foldAgentWaitEvent(wait, { type: 'request_wait', wait: { kind: 'first-byte', cold: true, promptTokens: 900, model: 'Fable 5.1', budgetMs: 60_000, sinceMs: t0 + 50, attempt: 1 } }, t0 + 60)
-  check('K10 the first-byte wait names its limit (minutes at or above sixty seconds) and counts from its own clock', wait?.phase === 'first-byte' && agentWaitWords(wait, t0 + 4050) === 'waiting for the first byte · 4s, limit 1m', agentWaitWords(wait, t0 + 4050) ?? 'null')
-  check('K10 a budget under a minute keeps its seconds', agentWaitWords({ ...wait!, budgetMs: 45_000 }, t0 + 4050) === 'waiting for the first byte · 4s, limit 45 s', agentWaitWords({ ...wait!, budgetMs: 45_000 }, t0 + 4050) ?? 'null')
-  wait = foldAgentWaitEvent(wait, { type: 'request_wait', wait: null }, t0 + 3000)
-  check('K10 the wait ending ⇒ the first byte is in, no tokens yet', wait?.phase === 'replying' && agentWaitWords(wait, t0 + 3500) === 'first byte in, no tokens yet')
-  wait = foldAgentWaitEvent(wait, { type: 'stream_event', event: { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: 'weighing' } } }, t0 + 4000)
-  check('K10 a thinking delta ⇒ reasoning with the counter moving on the thinking clock', wait?.phase === 'reasoning' && agentWaitWords(wait, t0 + 4000 + 130_000) === 'reasoning 2m 10s, no tokens yet')
-  const stillReasoning = foldAgentWaitEvent(wait, { type: 'stream_event', event: { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: 'more' } } }, t0 + 9000)
+  wait = foldCrewmateWaitEvent(wait, { type: 'request_wait', wait: { kind: 'first-byte', cold: true, promptTokens: 900, model: 'Fable 5.1', budgetMs: 60_000, sinceMs: t0 + 50, attempt: 1 } }, t0 + 60)
+  check('K10 the first-byte wait names its limit (minutes at or above sixty seconds) and counts from its own clock', wait?.phase === 'first-byte' && crewmateWaitWords(wait, t0 + 4050) === 'waiting for the first byte · 4s, limit 1m', crewmateWaitWords(wait, t0 + 4050) ?? 'null')
+  check('K10 a budget under a minute keeps its seconds', crewmateWaitWords({ ...wait!, budgetMs: 45_000 }, t0 + 4050) === 'waiting for the first byte · 4s, limit 45 s', crewmateWaitWords({ ...wait!, budgetMs: 45_000 }, t0 + 4050) ?? 'null')
+  wait = foldCrewmateWaitEvent(wait, { type: 'request_wait', wait: null }, t0 + 3000)
+  check('K10 the wait ending ⇒ the first byte is in, no tokens yet', wait?.phase === 'replying' && crewmateWaitWords(wait, t0 + 3500) === 'first byte in, no tokens yet')
+  wait = foldCrewmateWaitEvent(wait, { type: 'stream_event', event: { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: 'weighing' } } }, t0 + 4000)
+  check('K10 a thinking delta ⇒ reasoning with the counter moving on the thinking clock', wait?.phase === 'reasoning' && crewmateWaitWords(wait, t0 + 4000 + 130_000) === 'reasoning 2m 10s, no tokens yet')
+  const stillReasoning = foldCrewmateWaitEvent(wait, { type: 'stream_event', event: { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: 'more' } } }, t0 + 9000)
   check('K10 later thinking deltas keep the reasoning phase and its clock and advance the counter (a new wait); a ping while reasoning returns the SAME wait',
     stillReasoning !== wait && stillReasoning?.phase === 'reasoning' && stillReasoning.sinceMs === wait?.sinceMs && stillReasoning.streamedChars === 'weighing'.length + 'more'.length
-      && agentWaitWords(stillReasoning, t0 + 4000 + 130_000) === 'reasoning 2m 10s, no tokens yet'
-      && foldAgentWaitEvent(stillReasoning, { type: 'stream_event', event: { type: 'ping' } }, t0 + 9500) === stillReasoning)
-  wait = foldAgentWaitEvent(wait, { type: 'stream_event', event: { type: 'content_block_delta', index: 1, delta: { type: 'text_delta', text: 'hi' } } }, t0 + 10_000)
-  check('K10 a visible token ⇒ streaming', wait?.phase === 'streaming' && agentWaitWords(wait, t0 + 11_000) === 'streaming')
-  wait = foldAgentWaitEvent(wait, { type: 'assistant', message: { content: [{ type: 'tool_use', id: 't1', name: 'Read', input: {} }] } }, t0 + 12_000)
-  check('K10 a reply with tool calls ⇒ the tool phase, whose word is the activity line (null here)', wait?.phase === 'tool' && agentWaitWords(wait, t0 + 13_000) === null)
-  const retry = foldAgentWaitEvent(wait, { type: 'request_wait', wait: { kind: 'retry', attempt: 2, of: 3, reason: 'a 529', delayMs: 4000, sinceMs: t0 + 20_000 } }, t0 + 20_000)
-  check('K10 a scheduled retry names its delay, its cause and the ladder', retry?.phase === 'retry' && agentWaitWords(retry, t0 + 20_500) === 'retrying in 4 s — a 529 (retry 2 of 3)')
-  const backoff = foldAgentWaitEvent(wait, { type: 'system', subtype: 'api_error', retryInMs: 2500, retryAttempt: 1 }, t0 + 30_000)
-  check('K10 a provider fault with a retry delay is a retry too', backoff?.phase === 'retry' && agentWaitWords(backoff, t0 + 30_000) === 'retrying in 3 s — a provider fault (retry 1)')
-  check('K10 the counter\'s spelling', agentWaitElapsed(12_000) === '12s' && agentWaitElapsed(130_000) === '2m 10s' && agentWaitElapsed(3_900_000) === '1h 5m')
+      && crewmateWaitWords(stillReasoning, t0 + 4000 + 130_000) === 'reasoning 2m 10s, no tokens yet'
+      && foldCrewmateWaitEvent(stillReasoning, { type: 'stream_event', event: { type: 'ping' } }, t0 + 9500) === stillReasoning)
+  wait = foldCrewmateWaitEvent(wait, { type: 'stream_event', event: { type: 'content_block_delta', index: 1, delta: { type: 'text_delta', text: 'hi' } } }, t0 + 10_000)
+  check('K10 a visible token ⇒ streaming', wait?.phase === 'streaming' && crewmateWaitWords(wait, t0 + 11_000) === 'streaming')
+  wait = foldCrewmateWaitEvent(wait, { type: 'assistant', message: { content: [{ type: 'tool_use', id: 't1', name: 'Read', input: {} }] } }, t0 + 12_000)
+  check('K10 a reply with tool calls ⇒ the tool phase, whose word is the activity line (null here)', wait?.phase === 'tool' && crewmateWaitWords(wait, t0 + 13_000) === null)
+  const retry = foldCrewmateWaitEvent(wait, { type: 'request_wait', wait: { kind: 'retry', attempt: 2, of: 3, reason: 'a 529', delayMs: 4000, sinceMs: t0 + 20_000 } }, t0 + 20_000)
+  check('K10 a scheduled retry names its delay, its cause and the ladder', retry?.phase === 'retry' && crewmateWaitWords(retry, t0 + 20_500) === 'retrying in 4 s — a 529 (retry 2 of 3)')
+  const backoff = foldCrewmateWaitEvent(wait, { type: 'system', subtype: 'api_error', retryInMs: 2500, retryAttempt: 1 }, t0 + 30_000)
+  check('K10 a provider fault with a retry delay is a retry too', backoff?.phase === 'retry' && crewmateWaitWords(backoff, t0 + 30_000) === 'retrying in 3 s — a provider fault (retry 1)')
+  check('K10 the counter\'s spelling', crewmateWaitElapsed(12_000) === '12s' && crewmateWaitElapsed(130_000) === '2m 10s' && crewmateWaitElapsed(3_900_000) === '1h 5m')
   const tracker = createProgressTracker()
   check('K10 the tracker folds and reports a change once', foldTurnProgressIntoTracker(tracker, { type: 'stream_request_start' }, t0) === true && foldTurnProgressIntoTracker(tracker, { type: 'stream_event', event: { type: 'ping' } }, t0 + 1) === false && getProgressUpdate(tracker).phase?.phase === 'request-sent')
   const { projectWorkRoster } = await import('../../src/engine/connector/workRoster.js')
@@ -275,19 +275,19 @@ section('§K10 the wait tells its truth — the phase fold, the one spelling, ev
   const running = { id: 'ag-w', type: 'local_agent', status: 'running', description: 'crew-fable', agentId: 'ag-w', prompt: 'p', agentType: 'mercury-crew', isBackgrounded: true, outputFile: '/n', outputOffset: 0, notified: false, startTime: t0, progress: { toolUseCount: 0, tokenCount: 0, recentActivities: [], phase: { phase: 'first-byte', sinceMs: t0, budgetMs: 45_000 } } }
   const rows = projectWorkRoster({ 'ag-w': running } as never)
   check('K10 the roster row carries the phase whole', rows[0]?.phase?.phase === 'first-byte' && rows[0]?.phase?.budgetMs === 45_000)
-  const facts = crew.crewAgentFactsOf(rows[0]!, 'fx')!
+  const facts = crew.crewmateFactsOf(rows[0]!, 'fx')!
   check('K10 the row stays running while its detail keeps the phase', facts.phase?.phase === 'first-byte' && crew.crewStatusWords(facts, t0 + 2000) === 'running' && crew.crewPhaseWords(facts, t0 + 2000) === 'waiting for the first byte · 2s, limit 45 s' && crew.crewStateLabel(facts) === 'running')
   const toolRow = projectWorkRoster({ 'ag-t': { ...running, id: 'ag-t', agentId: 'ag-t', progress: { toolUseCount: 1, tokenCount: 0, recentActivities: [], lastActivity: { toolName: 'Read', input: {}, activityDescription: 'Read notes.txt' }, phase: { phase: 'tool', sinceMs: t0 } } } } as never)
-  const toolFacts = crew.crewAgentFactsOf(toolRow[0]!, 'fx')!
+  const toolFacts = crew.crewmateFactsOf(toolRow[0]!, 'fx')!
   check('K10 the tool phase speaks the running tool\'s own line', crew.crewPhaseWords(toolFacts, t0 + 1000) === 'Read notes.txt')
-  const landedFacts = crew.crewAgentFactsOf({ ...rows[0]!, status: 'completed', endTime: t0 + 9000 }, 'fx')!
+  const landedFacts = crew.crewmateFactsOf({ ...rows[0]!, status: 'completed', endTime: t0 + 9000 }, 'fx')!
   check('K10 a settled row keeps the one status word', crew.crewPhaseWords(landedFacts, t0 + 9000) === null && crew.crewStatusWords(landedFacts, t0 + 9000) === 'landed')
   const seatRow = projectWorkRoster({ 'ag-s': { ...running, id: 'ag-s', agentId: 'ag-s', wait: 'waiting for a seat — 3 of 3 held (a, b, the chat)' } } as never)
-  const seatFacts = crew.crewAgentFactsOf(seatRow[0]!, 'fx')!
+  const seatFacts = crew.crewmateFactsOf(seatRow[0]!, 'fx')!
   check('K10 the seat gate\'s own sentence outranks the phase on the card line; the status cell speaks the GATE and the holders ride the row\'s tail (a narrow row sheds the holders last, never the gate)', crew.crewPhaseWords(seatFacts, t0 + 2000) === 'waiting for a seat — 3 of 3 held (a, b, the chat)' && crew.crewStatusWords(seatFacts, t0 + 2000) === 'waiting for a seat — 3 of 3 held' && crew.crewWaitHolders(seatFacts) === 'held by a, b, the chat' && crew.crewWaitLine(seatFacts) === 'waiting for a seat — 3 of 3 held (a, b, the chat)' && seatFacts.phase?.phase === 'first-byte')
   const aw = await import('../../src/engine/tasks/local-agent/agentWait.js')
-  const stillWords = aw.agentWaitWords({ phase: 'first-byte', sinceMs: t0, budgetMs: 60_000 }, null)
-  check('K10 the one spelling without a counter — the still for a per-frame channel', stillWords === 'waiting for the first byte, limit 1m' && aw.agentWaitWords({ phase: 'reasoning', sinceMs: t0 }, null) === 'reasoning, no tokens yet' && aw.agentWaitWords({ phase: 'first-byte', sinceMs: t0, budgetMs: 60_000 }, t0 + 3000) === 'waiting for the first byte · 3s, limit 1m', stillWords)
+  const stillWords = aw.crewmateWaitWords({ phase: 'first-byte', sinceMs: t0, budgetMs: 60_000 }, null)
+  check('K10 the one spelling without a counter — the still for a per-frame channel', stillWords === 'waiting for the first byte, limit 1m' && aw.crewmateWaitWords({ phase: 'reasoning', sinceMs: t0 }, null) === 'reasoning, no tokens yet' && aw.crewmateWaitWords({ phase: 'first-byte', sinceMs: t0, budgetMs: 60_000 }, t0 + 3000) === 'waiting for the first byte · 3s, limit 1m', stillWords)
 }
 
 section('§K10b a GPT seat pays no per-runner catalogue fetch — the daemon\'s snapshot rides the claim')
@@ -314,12 +314,12 @@ section('§K10b a GPT seat pays no per-runner catalogue fetch — the daemon\'s 
 
 section('§K4b the resumed agent\'s pool is the launch\'s — one derivation')
 {
-  const { resolveWorkerTools } = await import('../../src/tools/crewmate/crewmateLifecycle.js')
+  const { resolveCrewmateTools } = await import('../../src/tools/crewmate/crewmateLifecycle.js')
   const def = { agentType: 'mercury-crew', source: 'built-in', whenToUse: '', systemPrompt: '' } as never
   const tool = (name: string): never => ({ name, description: '', inputSchema: {}, call: async () => ({}) }) as never
   const pool = [tool('Read'), tool('Bash'), tool('Crewmate')] as never
-  const launch = resolveWorkerTools(def, 'implement', pool).map(t => t.name)
-  const resume = resolveWorkerTools(def, 'implement', pool).map(t => t.name)
+  const launch = resolveCrewmateTools(def, 'implement', pool).map(t => t.name)
+  const resume = resolveCrewmateTools(def, 'implement', pool).map(t => t.name)
   check('K4b the same inputs derive the same pool for a launch and a resume', launch.join(',') === resume.join(','), `${launch.join(',')} vs ${resume.join(',')}`)
 }
 

@@ -66,7 +66,7 @@ const { checkReadPermissionForTool } = await import('../../src/permissions/rules
 const worktree = await import('../../src/platform/git/worktree/worktree.ts')
 const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
 type Made = { worktreePath: string; prepareFailure?: string; ready?: Promise<void> }
-const make = (slug: string, options: Record<string, unknown> = {}): Promise<Made> => (worktree.createAgentWorktree as (slug: string, options: unknown) => Promise<Made>)(slug, options)
+const make = (slug: string, options: Record<string, unknown> = {}): Promise<Made> => (worktree.createCrewmateWorktree as (slug: string, options: unknown) => Promise<Made>)(slug, options)
 const prepare = worktree.prepareWorktreeFiles as (repo: string, path: string, from?: string, preserve?: boolean, permission?: unknown, carry?: boolean) => Promise<boolean>
 
 const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@invalid', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@invalid' }

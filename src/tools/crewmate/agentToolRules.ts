@@ -1,6 +1,6 @@
 import { permissionRuleValueFromString } from '../../permissions/rules/permissionRuleParser.js'
 import { validatePermissionRule } from '../../platform/settings/permissionValidation.js'
-import { AGENT_TOOL_NAME } from '../kit/names/agent.js'
+import { CREWMATE_TOOL_NAME } from '../kit/names/agent.js'
 
 export function agentToolRuleProblem(spec: string): string | null {
   if (!/[()]/.test(spec)) return null
@@ -26,7 +26,7 @@ export function scopedAgentToolRules(definition: { tools?: readonly string[]; di
     if (problem !== null) throw new Error(problem)
     const rule = permissionRuleValueFromString(spec)
     if (skipBare && (bareTools.has('*') || bareTools.has(rule.toolName))) return false
-    return rule.ruleContent !== undefined && rule.toolName !== AGENT_TOOL_NAME
+    return rule.ruleContent !== undefined && rule.toolName !== CREWMATE_TOOL_NAME
   })
   return { allow: scoped(definition.tools, true), deny: scoped(definition.disallowedTools, false) }
 }

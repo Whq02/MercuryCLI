@@ -19,8 +19,8 @@ import { noteCrewAccountChange } from '../../crew/crewmates/crewAccountChange.js
 import { operatorPauseGate } from '../../engine/loop/pauseGate.js'
 import { SEND_NOW_NOTHING_QUEUED, sendQueuedWordsNow } from './sendNow.js'
 import { swarmOwnerPost } from '../../crew/board/seam.js'
-import { stopAgentByOperator } from '../../crew/agents/operatorStop.js'
-import { AGENT_INTERRUPT_BY_OPERATOR, isLocalAgentTask, queueOperatorMessage, AGENT_RESUME_NOTE, enqueueAgentReceiptRow } from '../../engine/tasks/local-agent/crewmateTask.js'
+import { stopCrewmateByOperator } from '../../crew/agents/operatorStop.js'
+import { CREWMATE_INTERRUPT_BY_OPERATOR, isCrewmateTask, queueOperatorMessage, CREWMATE_RESUME_NOTE, enqueueCrewmateReceiptRow } from '../../engine/tasks/local-agent/crewmateTask.js'
 import { drainRows } from './sdkEventQueue.js'
 import { setRunInputClosed } from '../../boot/process-state/processState.js'
 import { gracefulShutdownSync } from '../../platform/processes/gracefulShutdown.js'
@@ -189,7 +189,7 @@ export function runnerArmsOf(ports: RunnerPorts): RunnerArms {
     },
     'agent/stop': async params => {
       try {
-        const receipt = await stopAgentByOperator(params.agent_id, { getAppState, setAppState }, params.note === AGENT_INTERRUPT_BY_OPERATOR ? { reason: AGENT_INTERRUPT_BY_OPERATOR } : {})
+        const receipt = await stopCrewmateByOperator(params.agent_id, { getAppState, setAppState }, params.note === CREWMATE_INTERRUPT_BY_OPERATOR ? { reason: CREWMATE_INTERRUPT_BY_OPERATOR } : {})
         if (receipt.outcome !== 'applied') throw refused(receipt.reason, 'agent')
         return { receipt: 'applied', kind: receipt.kind, status: receipt.status }
       } finally {
@@ -226,12 +226,12 @@ export function runnerArmsOf(ports: RunnerPorts): RunnerArms {
       const target = getAppState().tasks[params.agent_id]
       if (target !== undefined && target.status === 'running') {
         const note = params.note !== undefined ? params.note.trim() : ''
-        if (note === '' || !isLocalAgentTask(target)) throw refused('the crewmate is running — nothing to resume', 'agent')
+        if (note === '' || !isCrewmateTask(target)) throw refused('the crewmate is running — nothing to resume', 'agent')
         queueOperatorMessage(params.agent_id, note, setAppState)
         return { queued: true, agent_id: params.agent_id }
       }
       if (live.awaitingSessionClaim) throw refused('nothing to resume from yet — the session is still starting', 'nothing-to-resume')
-      const { AgentNotRecorded, resumeAgentBackground, operatorResumeWords } = await import('../../tools/crewmate/resumeCrewmate.js')
+      const { CrewmateNotRecorded, resumeAgentBackground, operatorResumeWords } = await import('../../tools/crewmate/resumeCrewmate.js')
       let standing = getLastCacheSafeParams()?.toolUseContext as ToolUseContext | undefined
       if (standing === undefined) {
         await options.initializeMcp?.()
@@ -242,14 +242,14 @@ export function runnerArmsOf(ports: RunnerPorts): RunnerArms {
       void _staleToolUseId
       const resumed = await resumeAgentBackground({
         agentId: params.agent_id,
-        prompt: params.note !== undefined && params.note.trim() !== '' ? params.note : AGENT_RESUME_NOTE,
+        prompt: params.note !== undefined && params.note.trim() !== '' ? params.note : CREWMATE_RESUME_NOTE,
         replyTarget: params.note?.trim() ? 'operator' : 'parent',
         toolUseContext: { ...lastContext, abortController: new AbortController() } as ToolUseContext,
         canUseTool,
       }).catch((error: unknown) => {
-        throw error instanceof AgentNotRecorded ? refused(error.message, 'agent') : error
+        throw error instanceof CrewmateNotRecorded ? refused(error.message, 'agent') : error
       })
-      if (!params.note?.trim()) enqueueAgentReceiptRow({ taskId: resumed.agentId, description: resumed.description, summary: operatorResumeWords(resumed.description) + (resumed.note ?? '') })
+      if (!params.note?.trim()) enqueueCrewmateReceiptRow({ taskId: resumed.agentId, description: resumed.description, summary: operatorResumeWords(resumed.description) + (resumed.note ?? '') })
       return {
         agent_id: resumed.agentId,
         output_file: resumed.outputFile,

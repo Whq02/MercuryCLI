@@ -59,9 +59,9 @@ const { configMemoryRows } = await import('../../src/screen/settings/config/conf
 const { memoryChecks } = await import('../../src/platform/health/sections/memory.ts')
 const { runHealthReport } = await import('../../src/platform/health/healthReport.ts')
 const { readThinkingDropLedger, thinkingDropLedgerPath } = await import('../../src/models/roads/anthropic/thinkingBinding.ts')
-const { agentToolCall } = await import('../../src/tools/crewmate/call/call.ts')
-const { agentToolResultBlock } = await import('../../src/tools/crewmate/call/resultBlock.ts')
-const { runAgent } = await import('../../src/tools/crewmate/runCrewmate.ts')
+const { crewmateToolCall } = await import('../../src/tools/crewmate/call/call.ts')
+const { crewmateToolResultBlock } = await import('../../src/tools/crewmate/call/resultBlock.ts')
+const { runCrewmate } = await import('../../src/tools/crewmate/runCrewmate.ts')
 const { MERCURY_CREW_AGENT } = await import('../../src/tools/crewmate/built-in/mercuryCrewAgent.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { tellTheToolTable } = await import('../../src/tools/kit/toolTable.ts')
@@ -445,14 +445,14 @@ try {
     chmodSync(dir, 0o300)
     try {
       const ctx = makeContext()
-      const answer = await agentToolCall(
+      const answer = await crewmateToolCall(
         { description: 'probe launch', prompt: 'say ok', run_in_background: true },
         ctx as never,
         (async () => ({ behavior: 'allow', updatedInput: {} })) as never,
         parentMsg as never,
       )
       ctx.abortController.abort()
-      const receipt = agentToolResultBlock(answer.data, 'tu-w01-4')
+      const receipt = crewmateToolResultBlock(answer.data, 'tu-w01-4')
       const receiptText = receipt.content.map(b => b.text).join('\n')
       check('crewmate launch is not refused when loadMemoryPrompt fails', answer.data.status === 'async_launched', JSON.stringify(answer.data))
       check(
@@ -464,7 +464,7 @@ try {
 
       resetCommandQueue()
       const runCtx = makeContext()
-      const gen = runAgent({
+      const gen = runCrewmate({
         agentDefinition: MERCURY_CREW_AGENT,
         promptMessages: [],
         toolUseContext: runCtx as never,
@@ -489,14 +489,14 @@ try {
     }
 
     const okCtx = makeContext()
-    const okAnswer = await agentToolCall(
+    const okAnswer = await crewmateToolCall(
       { description: 'clean launch', prompt: 'say ok', run_in_background: true },
       okCtx as never,
       (async () => ({ behavior: 'allow', updatedInput: {} })) as never,
       parentMsg as never,
     )
     okCtx.abortController.abort()
-    const okText = agentToolResultBlock(okAnswer.data, 'tu-w01-4-ok').content.map(b => b.text).join('\n')
+    const okText = crewmateToolResultBlock(okAnswer.data, 'tu-w01-4-ok').content.map(b => b.text).join('\n')
     check(
       'clean crewmate launch carries no memory-load failure note',
       !okText.includes('this crewmate runs without your pinned rules'),

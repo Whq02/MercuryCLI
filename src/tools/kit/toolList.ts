@@ -32,12 +32,12 @@ import { mercuryRefsEnabled } from '../../integrations/resources/contracts.js'
 import { structureEnabled, structurePolyglotEnabled } from '../engines/structure/contracts.js'
 import { isToolSearchEnabledOptimistic } from '../../engine/messages/toolSearch.js'
 
-import { AgentTool } from '../crewmate/CrewmateTool.js'
+import { CrewmateTool } from '../crewmate/CrewmateTool.js'
 import { AstEditTool } from '../ast-edit/AstEditTool.js'
 import { AstSearchTool } from '../ast-search/AstSearchTool.js'
 import {
-  ALL_AGENT_DISALLOWED_TOOLS,
-  CUSTOM_AGENT_DISALLOWED_TOOLS,
+  ALL_CREWMATE_DISALLOWED_TOOLS,
+  CUSTOM_CREWMATE_DISALLOWED_TOOLS,
 } from './crewmateBarredTools.js'
 import { ApolloReviewTool } from '../apollo-review/ApolloReviewTool.js'
 import { AskUserQuestionTool } from '../ask-question/AskUserQuestionTool.js'
@@ -86,7 +86,7 @@ import { CronDeleteTool } from '../cron/CronDeleteTool.js'
 import { CronListTool } from '../cron/CronListTool.js'
 import { ScheduleWakeupTool } from '../schedule-wakeup/ScheduleWakeupTool.js'
 import { SendMessageTool } from '../send-message/SendMessageTool.js'
-import { ResumeAgentTool } from '../resume-crewmate/ResumeAgentTool.js'
+import { ResumeCrewmateTool } from '../resume-crewmate/ResumeAgentTool.js'
 import { ServiceTool } from '../service/ServiceTool.js'
 import { SkillTool } from '../skill/SkillTool.js'
 import { SleepTool } from '../sleep/SleepTool.js'
@@ -115,7 +115,7 @@ import { passedOver } from '../../platform/errors/passedOver.js'
 import { logError } from '../../platform/logs/errorLog.js'
 
 
-export { ALL_AGENT_DISALLOWED_TOOLS, CUSTOM_AGENT_DISALLOWED_TOOLS }
+export { ALL_CREWMATE_DISALLOWED_TOOLS, CUSTOM_CREWMATE_DISALLOWED_TOOLS }
 
 
 function cycleTolerant<T>(get: () => T): T | undefined {
@@ -143,7 +143,7 @@ export function getAllBaseTools(agentId?: string): Tools {
   const search = searchToolsAvailability()
   const searchReady = search.available && search.mode !== 'embedded'
   const candidates: Array<Tool | false | null | undefined> = [
-    AgentTool,
+    CrewmateTool,
     BashTool,
     ...(searchReady ? [GlobTool, GrepTool] : []),
     ReadTool,
@@ -184,7 +184,7 @@ export function getAllBaseTools(agentId?: string): Tools {
     ...(checkpointRewindEnabled() ? [CheckpointTool, RewindTool] : []),
     cycleTolerant(() => SendMessageTool),
     ...swarmTools(agentId),
-    cycleTolerant(() => ResumeAgentTool),
+    cycleTolerant(() => ResumeCrewmateTool),
     SLEEP_TOOL,
     ...(SCHEDULING_ENABLED_AT_LOAD ? [CronCreateTool, CronDeleteTool, CronListTool, ScheduleWakeupTool] : []),
     MONITOR_TOOL,

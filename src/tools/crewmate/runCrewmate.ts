@@ -14,21 +14,21 @@ import {
   filterMcpServersByPolicy,
 } from '../../integrations/mcp/serverConfigs.js'
 import type { CacheSafeParams } from '../../crew/agents/forkedAgent.js'
-import { killShellTasksForAgent } from '../../engine/tasks/local-shell/killShellTasks.js'
+import { killShellTasksForCrewmate } from '../../engine/tasks/local-shell/killShellTasks.js'
 import { endEngineSessionFor } from '../../platform/shell/engineSession.js'
 import { INSTRUCTIONS_CONTEXT_KEY } from '../../engine/attachments/userContextReminder.js'
 import { releaseDiagnosticsWriter } from '../../integrations/lsp/LSPDiagnosticRegistry.js'
 import { disposeOwnerProcesses } from '../../engine/run-owner/ownerLifecycle.js'
 import { processOwnerForLane } from '../../engine/run-owner/resolveOwner.js'
-import { beginAgentProjectLeases } from '../../integrations/vulcan/engine/leases.js'
+import { beginCrewmateProjectLeases } from '../../integrations/vulcan/engine/leases.js'
 import type { AssistantMessage, Message } from '../../engine/message-shapes/message.js'
 import type { AgentId } from '../../sessions/transcripts/ids.js'
 import { asAgentId } from '../../sessions/transcripts/ids.js'
 import type { Tool, Tools, ToolUseContext } from '../kit/tool.js'
 import { McpServerConfigSchema, type MCPServerConnection } from '../../integrations/mcp-shapes/mcpServerRecords.js'
 import { generateTaskId } from '../../engine/tasks/taskBase.js'
-import { forgetAgentEffortWord, noteAgentEffortWord, parseEffortValue, type EffortValue } from '../../models/effort/effort.js'
-import { subagentDefaultEffort } from '../../crew/agents/agentDefaults.js'
+import { forgetCrewmateEffortWord, noteCrewmateEffortWord, parseEffortValue, type EffortValue } from '../../models/effort/effort.js'
+import { crewmateDefaultEffort } from '../../crew/agents/agentDefaults.js'
 import {
   cloneFileStateCache,
   createFileStateCacheWithSizeLimit,
@@ -48,7 +48,7 @@ import { AbortError, errorMessage } from '../../platform/errors/errors.js'
 import { createUserMessage, extractTextContent } from '../../engine/messages/messages.js'
 import { isFoldBoundaryMessage } from '../../engine/message-shapes/systemMessages.js'
 import { refusalRetryRowOf } from './refusalRetry.js'
-import { getAgentModel } from '../../models/catalogue/agentModel.js'
+import { getCrewmateModel } from '../../models/catalogue/agentModel.js'
 import { readCatalogueIfPending } from '../../models/roads/catalogueOnDemand.js'
 import { delegationDispatchBlocker } from '../../models/roads/providerUsability.js'
 import { classifyModelRoute } from '../../models/roads/callModelRouter.js'
@@ -56,8 +56,8 @@ import type { CanUseToolFn } from '../kit/tool.js'
 import type { QuerySource } from '../../engine/requests/querySource.js'
 import { flushSessionStorage, recordSidechainTranscript, writtenChainTail } from '../../sessions/transcripts/sessionStorage.js'
 import { settledSidechainMessages } from '../../sessions/transcripts/settledSidechainMessages.js'
-import { closeAgentTranscript } from '../../sessions/transcripts/writer.js'
-import { latchSwarmAgent, settleSwarmAgent } from '../../crew/board/seam.js'
+import { closeCrewmateTranscript } from '../../sessions/transcripts/writer.js'
+import { latchSwarmCrewmate, settleSwarmCrewmate } from '../../crew/board/seam.js'
 import { asSystemPrompt } from '../../engine/system-prompt/systemPromptType.js'
 import {
   isRestrictedToExtensionsOnly,
@@ -65,17 +65,17 @@ import {
 } from '../../platform/settings/extensionOnlyPolicy.js'
 import type { ThinkingConfig } from '../../models/effort/thinking.js'
 import type { ContentReplacementState } from '../../engine/tool-dispatch/toolResultStorage.js'
-import { buildSubagentMercurySectionsWithOutcome, subagentMemoryLoadNote } from './subagentDoctrine.js'
-import { enqueueAgentReceiptRow } from '../../engine/tasks/local-agent/crewmateTask.js'
-import type { MercuryAgentSeat } from '../../engine/system-prompt/mercuryContract.js'
+import { buildCrewmateMercurySectionsWithOutcome, crewmateMemoryLoadNote } from './subagentDoctrine.js'
+import { enqueueCrewmateReceiptRow } from '../../engine/tasks/local-agent/crewmateTask.js'
+import type { MercuryCrewmateSeat } from '../../engine/system-prompt/mercuryContract.js'
 import type { AgentDefinition, AgentMcpServerSpec } from '../../crew/agents/agentDefinition.js'
 import { isBuiltInAgent } from '../../crew/agents/agentDefinition.js'
 import { canonicalReviewerReceipt } from './reviewerPolicy.js'
 import { MERCURY_SCOUT_AGENT } from './built-in/mercuryScoutAgent.js'
 
 import { fireCrewmateEndOf } from './run/crewmateEnd.js'
-import { armWatchdogOf, askLivelyOf, callModelOf, cutAtBudgetOf, observeProgressOf, stalledErrorOf, touchThroughOf, unarmedAgentRun } from './run/watch.js'
-import { prepareAgentRun } from './run/prepare.js'
+import { armWatchdogOf, askLivelyOf, callModelOf, cutAtBudgetOf, observeProgressOf, stalledErrorOf, touchThroughOf, unarmedCrewmateRun } from './run/watch.js'
+import { prepareCrewmateRun } from './run/prepare.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 import { startTimeout, stopInterval, stopTimeout } from '../../platform/async/timers.js'
 
@@ -111,7 +111,7 @@ export type CrewmateTurnProgressEvent =
   | { type: 'stream_activity'; atMs: number }
   | { type: 'request_wait'; wait: unknown }
 
-export type RunAgentParams = {
+export type RunCrewmateParams = {
   agentDefinition: AgentDefinition
   promptMessages: Message[]
   toolUseContext: ToolUseContext
@@ -121,7 +121,7 @@ export type RunAgentParams = {
   availableTools: Tools
   resumed?: boolean
   agentKind?: 'crewmate'
-  seat?: MercuryAgentSeat
+  seat?: MercuryCrewmateSeat
   canShowPermissionPrompts?: boolean
   forkContextMessages?: Message[]
   override?: {
@@ -172,11 +172,11 @@ function withoutInstructionBlob(context: {
   return next
 }
 
-function slimAgentGateOn(): boolean {
+function slimCrewmateGateOn(): boolean {
   return true
 }
 
-export async function connectAgentMcpServers(
+export async function connectCrewmateMcpServers(
   specs: readonly AgentMcpServerSpec[] | undefined,
   definition: AgentDefinition,
   parentCatalogue: readonly MCPServerConnection[],
@@ -301,13 +301,13 @@ function isPromptCommand(command: Command): command is Command & PromptCommand {
   return command.type === 'prompt'
 }
 
-async function buildAgentSystemPrompt(
+async function buildCrewmateSystemPrompt(
   definition: AgentDefinition,
   toolUseContext: ToolUseContext,
   resolvedAgentModel: string,
   enabledToolNames: ReadonlySet<string>,
   agentId: AgentId,
-  seat: MercuryAgentSeat,
+  seat: MercuryCrewmateSeat,
 ): Promise<string[]> {
   let ownPrompt: string
   try {
@@ -320,18 +320,18 @@ async function buildAgentSystemPrompt(
     )
     ownPrompt = ''
   }
-  const doctrine = buildSubagentMercurySectionsWithOutcome({
+  const doctrine = buildCrewmateMercurySectionsWithOutcome({
     agentDefinition: definition,
     toolUseContext,
     toolNames: enabledToolNames,
     seat,
   })
   if (doctrine.memoryLoadError !== undefined) {
-    enqueueAgentReceiptRow({
+    enqueueCrewmateReceiptRow({
       taskId: agentId,
       description: definition.agentType,
       status: 'running',
-      summary: subagentMemoryLoadNote(doctrine.memoryLoadError),
+      summary: crewmateMemoryLoadNote(doctrine.memoryLoadError),
     })
   }
   return enhanceSystemPromptWithEnvDetails(
@@ -342,9 +342,9 @@ async function buildAgentSystemPrompt(
   )
 }
 
-export const DEFAULT_AGENT_IDLE_MINUTES = 15
-export function agentIdleLimitMs(): number {
-  return minutesKnobToMs(flagEnv('MERCURY_AGENT_IDLE_MINUTES'), DEFAULT_AGENT_IDLE_MINUTES)
+export const DEFAULT_CREWMATE_IDLE_MINUTES = 15
+export function crewmateIdleLimitMs(): number {
+  return minutesKnobToMs(flagEnv('MERCURY_AGENT_IDLE_MINUTES'), DEFAULT_CREWMATE_IDLE_MINUTES)
 }
 
 export interface RecoveryAccountant {
@@ -419,7 +419,7 @@ export function declaredRecoveryWaitMs(message: unknown): number {
   return Math.min(declared, DECLARED_RECOVERY_CAP_MS)
 }
 
-export function agentStalledError(args: { agentType: string; agentId: string; limitMs: number; elapsedMs: number; events: number; toolUses: number; retried?: boolean }): DeadlineExceededError {
+export function crewmateStalledError(args: { agentType: string; agentId: string; limitMs: number; elapsedMs: number; events: number; toolUses: number; retried?: boolean }): DeadlineExceededError {
   return new DeadlineExceededError(
     `crewmate ${args.agentType} (${args.agentId})`,
     args.limitMs,
@@ -429,16 +429,16 @@ export function agentStalledError(args: { agentType: string; agentId: string; li
   )
 }
 
-export function resolveAgentEffort(facts: {
+export function resolveCrewmateEffort(facts: {
   effortOverride: string | undefined
   useExactTools: boolean | undefined
   definitionEffort: EffortValue | undefined
   defaultEffort: EffortValue | undefined
 }): EffortValue | undefined {
-  return agentOwnEffortWord(facts) ?? facts.defaultEffort
+  return crewmateOwnEffortWord(facts) ?? facts.defaultEffort
 }
 
-export function agentOwnEffortWord(facts: {
+export function crewmateOwnEffortWord(facts: {
   effortOverride: string | undefined
   useExactTools: boolean | undefined
   definitionEffort: EffortValue | undefined
@@ -450,7 +450,7 @@ export function agentOwnEffortWord(facts: {
   return pin ?? facts.definitionEffort
 }
 
-export async function landAgentTranscriptRows(
+export async function landCrewmateTranscriptRows(
   messages: Message[],
   agentId: AgentId,
   parentUuid?: UUID | null,
@@ -517,7 +517,7 @@ async function preloadSkills(
   return messages
 }
 
-async function preflightAgentRun(params: RunAgentParams): Promise<{
+async function preflightCrewmateRun(params: RunCrewmateParams): Promise<{
   reviewReceipt: string | undefined
   resolvedAgentModel: string
   resolvedEffort: EffortValue | undefined
@@ -534,16 +534,16 @@ async function preflightAgentRun(params: RunAgentParams): Promise<{
     reviewReceipt = canonicalReviewerReceipt(params.reviewReceipt, worktreePath)
   }
 
-  const resolvedAgentModel = getAgentModel(
+  const resolvedAgentModel = getCrewmateModel(
     agentDefinition.model,
     toolUseContext.options.engineModel,
     model,
   )
-  const resolvedEffort = resolveAgentEffort({
+  const resolvedEffort = resolveCrewmateEffort({
     effortOverride,
     useExactTools,
     definitionEffort: agentDefinition.effort,
-    defaultEffort: subagentDefaultEffort(),
+    defaultEffort: crewmateDefaultEffort(),
   })
   const routeVerdict = classifyModelRoute(resolvedAgentModel)
   if (routeVerdict.kind === 'route') {
@@ -571,7 +571,7 @@ function historyFromLatestFoldBoundary(rows: readonly Message[]): Message[] {
   return [...rows]
 }
 
-type PrepareRecord = Parameters<typeof prepareAgentRun>[0]
+type PrepareRecord = Parameters<typeof prepareCrewmateRun>[0]
 
 type RunMade = Pick<
   PrepareRecord,
@@ -603,7 +603,7 @@ type RunMade = Pick<
   | 'resolvedEffort'
 >
 
-function prepareRecordOf(params: RunAgentParams, made: RunMade): PrepareRecord {
+function prepareRecordOf(params: RunCrewmateParams, made: RunMade): PrepareRecord {
   return {
     agentId: made.agentId,
     name: params.name,
@@ -660,10 +660,10 @@ function prepareRecordOf(params: RunAgentParams, made: RunMade): PrepareRecord {
   }
 }
 
-export async function* runAgent(
-  params: RunAgentParams,
+export async function* runCrewmate(
+  params: RunCrewmateParams,
 ): AsyncGenerator<Message, void> {
-  const { reviewReceipt, resolvedAgentModel, resolvedEffort } = await preflightAgentRun(params)
+  const { reviewReceipt, resolvedAgentModel, resolvedEffort } = await preflightCrewmateRun(params)
   const {
     agentDefinition,
     promptMessages,
@@ -693,14 +693,14 @@ export async function* runAgent(
     override?.abortController ?? (isAsync ? new AbortController() : toolUseContext.abortController)
   const abortController = createChildAbortController(parentAbort)
   const startedAt = Date.now()
-  const idleLimitMs = agentIdleLimitMs()
-  const run = unarmedAgentRun()
+  const idleLimitMs = crewmateIdleLimitMs()
+  const run = unarmedCrewmateRun()
   const stalledError = stalledErrorOf(run, {
     agentDefinition,
     agentId,
     idleLimitMs,
     startedAt,
-    agentStalledError,
+    agentStalledError: crewmateStalledError,
   })
   const armWatchdog = armWatchdogOf(run, {
     agentDefinition,
@@ -729,13 +729,13 @@ export async function* runAgent(
 
   const executorToken = Symbol(agentId)
   executorClaims.set(agentId, executorToken)
-  const endProjectLeases = beginAgentProjectLeases(agentId, abortController.signal)
-  const ownEffort = agentOwnEffortWord({
+  const endProjectLeases = beginCrewmateProjectLeases(agentId, abortController.signal)
+  const ownEffort = crewmateOwnEffortWord({
     effortOverride,
     useExactTools,
     definitionEffort: agentDefinition.effort,
   })
-  noteAgentEffortWord(agentId, ownEffort)
+  noteCrewmateEffortWord(agentId, ownEffort)
 
   const isFork = forkContextMessages !== undefined && forkContextMessages.length > 0
   const initialMessages: Message[] = isFork
@@ -782,7 +782,7 @@ export async function* runAgent(
       deadlineTimer.unref?.()
     }
 
-    const swarm = await latchSwarmAgent(
+    const swarm = await latchSwarmCrewmate(
       agentId,
       name ?? description ?? agentDefinition.agentType,
       Boolean(resumed),
@@ -790,23 +790,23 @@ export async function* runAgent(
       abortController.signal,
     )
 
-    const prepared = await prepareAgentRun(
+    const prepared = await prepareCrewmateRun(
       prepareRecordOf(params, {
         agentId,
         swarm,
         abortController,
-        slimAgentGateOn,
+        slimAgentGateOn: slimCrewmateGateOn,
         withoutInstructionBlob,
         readOnlyScout,
-        resolveAgentEffort,
+        resolveAgentEffort: resolveCrewmateEffort,
         hookScope,
         resolvedAgentModel,
         rootSetAppState,
         preloadSkills,
-        connectAgentMcpServers,
+        connectAgentMcpServers: connectCrewmateMcpServers,
         mcp,
         reviewReceipt,
-        buildAgentSystemPrompt,
+        buildAgentSystemPrompt: buildCrewmateSystemPrompt,
         seat,
         isFork,
         readFileState,
@@ -816,7 +816,7 @@ export async function* runAgent(
         accountant,
         touchThrough,
         initialMessages,
-        landAgentTranscriptRows,
+        landAgentTranscriptRows: landCrewmateTranscriptRows,
         resolvedEffort,
       }),
     )
@@ -863,7 +863,7 @@ export async function* runAgent(
           if (raw.type === 'stream_event' || raw.type === 'stream_request_start' || raw.type === 'tombstone') continue
           const message: Message = raw
           if (message.type === 'attachment') {
-            lastRecordedUuid = await landAgentTranscriptRows([message], agentId, lastRecordedUuid)
+            lastRecordedUuid = await landCrewmateTranscriptRows([message], agentId, lastRecordedUuid)
             conversationRows.push(message)
             yield message
             if (message.attachment.type === 'max_turns_reached' || message.attachment.type === 'loop_stopped') {
@@ -880,7 +880,7 @@ export async function* runAgent(
             continue
           }
           if (!recordableRow(message)) continue
-          lastRecordedUuid = await landAgentTranscriptRows([message], agentId, lastRecordedUuid)
+          lastRecordedUuid = await landCrewmateTranscriptRows([message], agentId, lastRecordedUuid)
           if (message.type !== 'progress') conversationRows.push(message)
           if (message.type === 'assistant') {
             lastAssistant = message
@@ -900,7 +900,7 @@ export async function* runAgent(
         `runAgent: ${agentId} ended on a refused ${retry.refusalClass} — one retry from its transcript`,
       )
       retriedRefusals.add(retry.refusalClass)
-      lastRecordedUuid = await landAgentTranscriptRows([retry.row], agentId, lastRecordedUuid)
+      lastRecordedUuid = await landCrewmateTranscriptRows([retry.row], agentId, lastRecordedUuid)
       yield retry.row
       currentMessages = [...historyFromLatestFoldBoundary(conversationRows), retry.row]
     }
@@ -928,7 +928,7 @@ export async function* runAgent(
       stopTimeout(deadlineTimer)
       deadlineTimer = null
     }
-    await teardownAgentRun({
+    await teardownCrewmateRun({
       endProjectLeases,
       abortController,
       crewmateRun,
@@ -970,7 +970,7 @@ function recordAssistantStats(
   }
 }
 
-async function teardownAgentRun(args: {
+async function teardownCrewmateRun(args: {
   endProjectLeases: () => Promise<void>
   abortController: AbortController
   crewmateRun: {
@@ -990,7 +990,7 @@ async function teardownAgentRun(args: {
   agentDefinition: AgentDefinition
   name: string | undefined
   worktreePath: string | undefined
-  run: ReturnType<typeof unarmedAgentRun>
+  run: ReturnType<typeof unarmedCrewmateRun>
   accountant: RecoveryAccountant
   mcp: { cleanup: () => Promise<void> }
   readFileState: ReturnType<typeof createFileStateCacheWithSizeLimit>
@@ -1045,13 +1045,13 @@ async function teardownAgentRun(args: {
 
   if (executorClaims.get(agentId) === executorToken) {
     executorClaims.delete(agentId)
-    settleSwarmAgent(agentId)
-    forgetAgentEffortWord(agentId)
-    closeAgentTranscript(agentId)
+    settleSwarmCrewmate(agentId)
+    forgetCrewmateEffortWord(agentId)
+    closeCrewmateTranscript(agentId)
     if (agentDefinition.hooks !== undefined) {
       removeSessionHooks(rootSetAppState, hookScope)
     }
-    killShellTasksForAgent(agentId, toolUseContext.getAppState, rootSetAppState)
+    killShellTasksForCrewmate(agentId, toolUseContext.getAppState, rootSetAppState)
     const owner = processOwnerForLane(agentId)
     await endEngineSessionFor(owner).catch(passedOver)
     await disposeOwnerProcesses(owner).catch(passedOver)

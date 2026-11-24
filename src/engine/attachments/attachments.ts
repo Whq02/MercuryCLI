@@ -26,7 +26,7 @@ export {
 } from './reminders.js'
 
 export {
-  getAgentPendingMessageAttachments,
+  getCrewmatePendingMessageAttachments,
   getQueuedCommandAttachments,
 } from './queuedCommands.js'
 

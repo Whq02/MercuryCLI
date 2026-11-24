@@ -45,7 +45,7 @@ import { logError } from '../../platform/logs/errorLog.js'
 import { isNothingToFoldMessage } from '../compaction/fold/foldLimits.js'
 import { resetPruneState } from '../compaction/pruneToolResults.js'
 import { recordSkillUsage } from '../../screen/suggestions/skillUsage.js'
-import { getAgentContext } from '../../crew/agents/agentContext.js'
+import { getCrewmateContext } from '../../crew/agents/agentContext.js'
 import { addInvokedSkill, getIsNonInteractiveSession } from '../../boot/process-state/processState.js'
 import { registerSkillHooks } from '../../integrations/event-hooks/registerFrontmatterHooks.js'
 
@@ -284,7 +284,7 @@ async function executePromptCommand(
       command.name,
       command.source ?? command.name,
       expansionText,
-      getAgentContext()?.agentId,
+      getCrewmateContext()?.agentId,
     )
 
     const isUserInvocable = command.userInvocable !== false

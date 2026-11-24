@@ -11,15 +11,15 @@ import { AGENT_MESSAGE_STATUS } from './agentMessage.js'
 import type { AppState } from '../../../screen/app-state/AppStateStore.js'
 import type { Message } from '../../message-shapes/message.js'
 import type { QueuedCommand } from '../../../screen/composer/input-core/textInput.js'
-import { AGENT_TOOL_NAME } from '../../../tools/kit/names/agent.js'
+import { CREWMATE_TOOL_NAME } from '../../../tools/kit/names/agent.js'
 import { sliceHeadAtGrapheme } from '../../../platform/text/textSegments.js'
 import { isSaturnOrigin, type SaturnOrigin } from '../../message-shapes/noticeRows.js'
 import { stripTerminalControls } from '../../../platform/text/strings.js'
-import { listAgentMetadata } from '../../../sessions/transcripts/paths.js'
+import { listCrewmateMetadata } from '../../../sessions/transcripts/paths.js'
 import { PANEL_GRACE_MS } from '../../task-framework/taskRegistry.js'
 import { notifyTasksUpdated } from '../../task-framework/tasks.js'
 import { isRestartCarryText, RESTART_CARRY_ROW_PREFIX } from '../../../screen/composer/input-core/command-queue.js'
-import { AGENT_STOP_BY_OPERATOR, agentStopReasonOf, enqueueAgentNotification, type LocalAgentTaskState } from './crewmateTask.js'
+import { CREWMATE_STOP_BY_OPERATOR, crewmateStopReasonOf, enqueueCrewmateNotification, type CrewmateTaskState } from './crewmateTask.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
 
 export const BACKGROUND_LAUNCH_LINE = 'Crewmate launched in the background.'
@@ -121,7 +121,7 @@ export function backgroundLaunchReceipts(messages: readonly Message[]): Backgrou
     if (message.type === 'assistant') {
       const stamp = Date.parse(message.timestamp)
       for (const block of blocksOf(message.message.content)) {
-        if (block.type !== 'tool_use' || block.name !== AGENT_TOOL_NAME || typeof block.id !== 'string') continue
+        if (block.type !== 'tool_use' || block.name !== CREWMATE_TOOL_NAME || typeof block.id !== 'string') continue
         const input = (block.input ?? {}) as { description?: unknown; prompt?: unknown; crewmate_type?: unknown }
         launches.set(block.id, {
           description: recordedDescription(input.description) || 'crewmate',
@@ -172,7 +172,7 @@ export function namedLaunchReceipts(messages: readonly Message[]): NamedLaunchRe
     if (message.type === 'assistant') {
       const stamp = Date.parse(message.timestamp)
       for (const block of blocksOf(message.message.content)) {
-        if (block.type !== 'tool_use' || block.name !== AGENT_TOOL_NAME || typeof block.id !== 'string') continue
+        if (block.type !== 'tool_use' || block.name !== CREWMATE_TOOL_NAME || typeof block.id !== 'string') continue
         const input = (block.input ?? {}) as { name?: unknown; description?: unknown }
         if (typeof input.name !== 'string' || input.name.trim() === '') continue
         launches.set(block.id, {
@@ -210,7 +210,7 @@ export function launchesNamed(messages: readonly Message[], name: string): Named
 
 export async function recordedNamedLaunches(): Promise<NamedLaunch[]> {
   const launches: NamedLaunch[] = []
-  for (const { agentId, metadata } of await listAgentMetadata()) {
+  for (const { agentId, metadata } of await listCrewmateMetadata()) {
     if (typeof metadata.name !== 'string' || metadata.name.trim() === '') continue
     launches.push({
       agentId,
@@ -256,7 +256,7 @@ export function orphanedBackgroundLaunches(
   )
 }
 
-export function stoppedRecordFor(receipt: BackgroundLaunchReceipt, now: number = Date.now()): LocalAgentTaskState {
+export function stoppedRecordFor(receipt: BackgroundLaunchReceipt, now: number = Date.now()): CrewmateTaskState {
   return {
     ...createTaskStateBase({ task_id: receipt.agentId, task_type: 'local_agent', description: receipt.description, call_id: receipt.toolUseId }),
     type: 'local_agent',
@@ -290,7 +290,7 @@ export function reconcileBackgroundLaunchesOnResume(
   })
   notifyTasksUpdated()
   for (const receipt of orphans) {
-    enqueueAgentNotification({
+    enqueueCrewmateNotification({
       taskId: receipt.agentId,
       description: receipt.description,
       status: 'killed',
@@ -303,7 +303,7 @@ export function reconcileBackgroundLaunchesOnResume(
   return orphans
 }
 
-export const AGENT_RELAUNCH_NOTE =
+export const CREWMATE_RELAUNCH_NOTE =
   "The session's runner restarted while you were working, and you were relaunched from your transcript. Continue from where your transcript ends — the work before the restart stands on disk; do not redo it. Read your own diff (git diff) and read a file again before you edit it: the restart emptied the record of what you had read, so an edit without a fresh read is refused."
 
 export type RestartCarryCounts = { relaunched: number; delivered: number; stopped: number }
@@ -412,7 +412,7 @@ export function undeliveredLines(rows: readonly QueueLogRow[]): QueueLogRow[] {
   return pendingQueueLogRows(rows).filter(row => (row.mode === 'prompt' || row.mode === 'bash') && row.isMeta !== true && typeof row.content === 'string' && row.content.trim() !== '')
 }
 
-export type HeldAgentNotice = {
+export type HeldCrewmateNotice = {
   taskId: string
   status: 'completed' | 'failed' | 'killed'
   value: string
@@ -426,10 +426,10 @@ const HELD_NOTICE_STATUSES: ReadonlySet<string> = new Set(['completed', 'failed'
 
 const NOTICE_BLOCK = new RegExp(`<${TASK_NOTIFICATION_TAG}>[\\s\\S]*?</${TASK_NOTIFICATION_TAG}>`, 'g')
 
-export function heldAgentNotices(lines: Iterable<string>, agentIds: ReadonlySet<string>): Map<string, HeldAgentNotice> {
-  const outcomes = new Map<string, HeldAgentNotice>()
-  const stops = new Map<string, HeldAgentNotice>()
-  const operatorStopWords = agentStopReasonOf(AGENT_STOP_BY_OPERATOR) ?? ''
+export function heldCrewmateNotices(lines: Iterable<string>, agentIds: ReadonlySet<string>): Map<string, HeldCrewmateNotice> {
+  const outcomes = new Map<string, HeldCrewmateNotice>()
+  const stops = new Map<string, HeldCrewmateNotice>()
+  const operatorStopWords = crewmateStopReasonOf(CREWMATE_STOP_BY_OPERATOR) ?? ''
   for (const row of queueLogRows(lines)) {
     if (row.operation !== 'enqueue' || typeof row.content !== 'string' || !row.content.includes(`<${TASK_NOTIFICATION_TAG}>`)) continue
     const value = row.content
@@ -438,9 +438,9 @@ export function heldAgentNotices(lines: Iterable<string>, agentIds: ReadonlySet<
     if (taskId === undefined || taskId === '' || !agentIds.has(taskId) || status === undefined || !HELD_NOTICE_STATUSES.has(status)) continue
     const summary = pickTag(value, SUMMARY_TAG) ?? ''
     const landed = summary.match(/(\d+ file writes? landed: [^—]+)/)
-    const held: HeldAgentNotice = {
+    const held: HeldCrewmateNotice = {
       taskId,
-      status: status === 'paused' ? 'failed' : (status as HeldAgentNotice['status']),
+      status: status === 'paused' ? 'failed' : (status as HeldCrewmateNotice['status']),
       value,
       ...(row.agentCompletion !== undefined ? { agentCompletion: row.agentCompletion } : {}),
       ...(row.sentAt !== undefined ? { at: row.sentAt } : row.at !== undefined ? { at: row.at } : {}),
@@ -493,7 +493,7 @@ function endedNoticeIds(messages: readonly Message[]): Set<string> {
   return ids
 }
 
-export function settledRecordFor(receipt: BackgroundLaunchReceipt, status: HeldAgentNotice['status'], now: number = Date.now()): LocalAgentTaskState {
+export function settledRecordFor(receipt: BackgroundLaunchReceipt, status: HeldCrewmateNotice['status'], now: number = Date.now()): CrewmateTaskState {
   const { error: _unsaid, ...record } = stoppedRecordFor(receipt, now)
   void _unsaid
   return { ...record, status, notified: true }

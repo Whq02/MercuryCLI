@@ -42,7 +42,7 @@ export interface RunFacts {
   verificationState?: string
 }
 
-export interface AgentMetaFact {
+export interface CrewmateMetaFact {
   agentType?: string
   worktreePath?: string
   model?: string
@@ -74,7 +74,7 @@ export interface WorkbenchSourceInputs {
   executions: ExecutionFact[]
   mainRun: RunFacts | null
   richTasks: Map<string, RichTaskFact>
-  agentMeta: Map<string, AgentMetaFact>
+  agentMeta: Map<string, CrewmateMetaFact>
   laneRuns: Map<string, RunFacts>
   artifacts: ArtifactHeadFact[]
   gitWorktreeLanes: Array<{ path: string; branch?: string; head?: string }>

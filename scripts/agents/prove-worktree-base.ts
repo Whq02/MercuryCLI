@@ -23,7 +23,7 @@ const section = (t: string, hint = ''): void => {
 
 const state = await import('../../src/boot/process-state/processState.ts')
 const config = await import('../../src/platform/config/globalConfig.ts')
-const { createAgentWorktree, createWorktreeForSession, keepWorktree } = await import('../../src/platform/git/worktree/worktree.ts')
+const { createCrewmateWorktree, createWorktreeForSession, keepWorktree } = await import('../../src/platform/git/worktree/worktree.ts')
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'worktree-base-')))
 const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@invalid', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@invalid' }
@@ -49,7 +49,7 @@ const readText = (path: string): string => {
     return ''
   }
 }
-type Cut = Awaited<ReturnType<typeof createAgentWorktree>>
+type Cut = Awaited<ReturnType<typeof createCrewmateWorktree>>
 const fulfilled = (outcomes: PromiseSettledResult<Cut>[]): Cut[] =>
   outcomes.filter((outcome): outcome is PromiseFulfilledResult<Cut> => outcome.status === 'fulfilled').map(outcome => outcome.value)
 const refusals = (outcomes: PromiseSettledResult<Cut>[]): string =>
@@ -96,7 +96,7 @@ git(stale.repo, 'symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin
 check('the fixture has no remote at all', git(stale.repo, 'remote') === '', git(stale.repo, 'remote'))
 check('the fixture bookmark shares no commit with main', gitCode(stale.repo, 'merge-base', 'main', 'refs/remotes/origin/main') !== 0)
 enter(stale.repo)
-const lane = await createAgentWorktree('agent-a0000001')
+const lane = await createCrewmateWorktree('agent-a0000001')
 check('the worktree lives under the repository worktrees home', lane.worktreePath.startsWith(join(stale.repo, '.mercury', 'worktrees')), lane.worktreePath)
 check('the worktree HEAD is the checkout HEAD', headOf(lane.worktreePath) === stale.head, `${headOf(lane.worktreePath)} vs ${stale.head}`)
 check('…not the stale bookmark', headOf(lane.worktreePath) !== unrelated && gitCode(lane.worktreePath, 'merge-base', '--is-ancestor', unrelated, 'HEAD') !== 0)
@@ -122,7 +122,7 @@ check('the fixture origin main is ahead of the local main', git(local.repo, 'rev
 const fetchHead = join(local.repo, '.git', 'FETCH_HEAD')
 rmSync(fetchHead, { force: true })
 enter(local.repo)
-const ahead = await createAgentWorktree('agent-a0000002')
+const ahead = await createCrewmateWorktree('agent-a0000002')
 check('with the remote-tracking ref present the worktree HEAD is the local HEAD', headOf(ahead.worktreePath) === local.head, `${headOf(ahead.worktreePath)} vs ${local.head}`)
 check('…not the remote main', headOf(ahead.worktreePath) !== remoteHead)
 check('the baseline records the local HEAD', baselineOf(ahead.worktreePath) === local.head, String(baselineOf(ahead.worktreePath)))
@@ -130,14 +130,14 @@ check('the branch carries no upstream', upstreamLines(local.repo, 'worktree-agen
 check('no fetch ran (FETCH_HEAD stays absent)', !existsSync(fetchHead))
 git(local.repo, 'update-ref', '-d', 'refs/remotes/origin/main')
 rmSync(fetchHead, { force: true })
-const aheadNoRef = await createAgentWorktree('agent-a0000003')
+const aheadNoRef = await createCrewmateWorktree('agent-a0000003')
 check('with the remote-tracking ref absent the worktree HEAD is still the local HEAD', headOf(aheadNoRef.worktreePath) === local.head, `${headOf(aheadNoRef.worktreePath)} vs ${local.head}`)
 check('…and still no fetch ran', !existsSync(fetchHead))
 check('the remote-tracking ref was not recreated', gitCode(local.repo, 'rev-parse', '--verify', '-q', 'refs/remotes/origin/main') !== 0)
 
 section('§3 the pinned road stands at the pinned commit whatever the stale bookmark says', 'to fix: the `at` option of createAgentWorktree in src/platform/git/worktree/worktree.ts must create a detached worktree at that commit and record it as the base')
 enter(stale.repo)
-const pinned = await createAgentWorktree('agent-a0000004', { at: stale.first })
+const pinned = await createCrewmateWorktree('agent-a0000004', { at: stale.first })
 check('the worktree HEAD is the pin', headOf(pinned.worktreePath) === stale.first, `${headOf(pinned.worktreePath)} vs ${stale.first}`)
 check('…detached, with no branch', isDetached(pinned.worktreePath) && pinned.worktreeBranch === undefined)
 check('the baseline records the pin', baselineOf(pinned.worktreePath) === stale.first, String(baselineOf(pinned.worktreePath)))
@@ -148,7 +148,7 @@ section('§4 six creations launched together in one process, on a repository wit
 git(local.repo, 'update-ref', 'refs/remotes/origin/main', remoteHead)
 enter(local.repo)
 const sixSlugs = Array.from({ length: 6 }, (_, index) => `agent-a100000${index}`)
-const six = await Promise.allSettled(sixSlugs.map(slug => createAgentWorktree(slug)))
+const six = await Promise.allSettled(sixSlugs.map(slug => createCrewmateWorktree(slug)))
 const sixOk = fulfilled(six)
 check('all six creations succeed', sixOk.length === 6, refusals(six))
 check('six distinct worktrees', new Set(sixOk.map(cut => cut.worktreePath)).size === 6)
@@ -158,7 +158,7 @@ check('each is on its own branch with no upstream', sixSlugs.every(slug => upstr
 const registry = git(local.repo, 'worktree', 'list', '--porcelain').split('\n').filter(line => line.startsWith('worktree ')).map(line => resolve(line.slice('worktree '.length)))
 check('git lists all six', sixOk.length === 6 && sixOk.every(cut => registry.includes(realpathSync(cut.worktreePath)) || registry.includes(resolve(cut.worktreePath))))
 check('the shared config holds no lock afterwards', !existsSync(join(local.repo, '.git', 'config.lock')))
-const sixPinned = await Promise.allSettled(Array.from({ length: 6 }, (_, index) => createAgentWorktree(`agent-a200000${index}`, { at: local.first })))
+const sixPinned = await Promise.allSettled(Array.from({ length: 6 }, (_, index) => createCrewmateWorktree(`agent-a200000${index}`, { at: local.first })))
 const sixPinnedOk = fulfilled(sixPinned)
 check('six pinned creations launched together all succeed', sixPinnedOk.length === 6, refusals(sixPinned))
 check('each pinned one stands at the pin, detached', sixPinnedOk.length === 6 && sixPinnedOk.every(cut => headOf(cut.worktreePath) === local.first && isDetached(cut.worktreePath)))
@@ -179,7 +179,7 @@ enter(stale.repo)
 let lockedOutcome: Cut | null = null
 let lockedRefusal = ''
 try {
-  lockedOutcome = await createAgentWorktree(lockSlug)
+  lockedOutcome = await createCrewmateWorktree(lockSlug)
 } catch (error) {
   lockedRefusal = error instanceof Error ? error.message : String(error)
 }
@@ -211,12 +211,12 @@ git(laneRoot, 'commit', '-q', '-m', 'lane work')
 const laneHead = headOf(laneRoot)
 check('the fixture lane is ahead of main', laneHead !== stale.head && headOf(stale.repo) === stale.head)
 enter(stale.repo)
-const fromLane = await createAgentWorktree('agent-a4000000', { from: laneRoot })
+const fromLane = await createCrewmateWorktree('agent-a4000000', { from: laneRoot })
 check("the worktree HEAD is the lane's HEAD", headOf(fromLane.worktreePath) === laneHead, `${headOf(fromLane.worktreePath)} vs ${laneHead}`)
 check('…not the main checkout HEAD', headOf(fromLane.worktreePath) !== stale.head)
 check('the baseline records the lane HEAD', baselineOf(fromLane.worktreePath) === laneHead)
 check("it still lives under the repository's own worktrees home", fromLane.worktreePath.startsWith(join(stale.repo, '.mercury', 'worktrees')) && fromLane.gitRoot === stale.repo, `${fromLane.worktreePath} / ${String(fromLane.gitRoot)}`)
-const fromLanePinned = await createAgentWorktree('agent-a4000001', { from: laneRoot, at: 'HEAD~1' })
+const fromLanePinned = await createCrewmateWorktree('agent-a4000001', { from: laneRoot, at: 'HEAD~1' })
 check('a relative pin resolves in the launching worktree', headOf(fromLanePinned.worktreePath) === stale.head, headOf(fromLanePinned.worktreePath))
 
 process.chdir(ROOT)

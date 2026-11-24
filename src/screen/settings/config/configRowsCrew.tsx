@@ -1,14 +1,14 @@
 import { Text } from '../../themedRenderer.js'
 import type { GlobalConfig } from '../../../platform/settings/config.js'
 import { BACKGROUND_LAUNCH_DOORS, BACKGROUND_LAUNCH_KEY, BACKGROUND_LAUNCH_LABEL, BACKGROUND_LAUNCH_NOTE, BACKGROUND_LAUNCH_SUMMARY, backgroundLaunchValueWords, backgroundSessionsLaunchCrewmates, setBackgroundSessionsLaunchCrewmates } from '../../../daemon/switchboard/backgroundLaunch.js'
-import type { subagentDefaultsOf } from '../../../crew/agents/agentDefaults.js'
-import { agentFanoutCap } from '../../../tools/crewmate/subagentDoctrine.js'
+import type { crewmateDefaultsOf } from '../../../crew/agents/agentDefaults.js'
+import { crewmateFanoutCap } from '../../../tools/crewmate/subagentDoctrine.js'
 import { EFFORT_LEVELS } from '../../../models/effort/effort.js'
 import { modelChoiceLabel } from '../../../commands/model/mercuryModel.js'
-import { AGENT_INHERIT_ROW, type SettingsItem, cycleIn, type ConfigRowKit } from './configItems.js'
+import { CREWMATE_INHERIT_ROW, type SettingsItem, cycleIn, type ConfigRowKit } from './configItems.js'
 
 export function configCrewRows({ tokens, writeGlobal, recordToggle, recordSet, bump, agentDefaults, writeAgents }: ConfigRowKit & {
-  agentDefaults: ReturnType<typeof subagentDefaultsOf>
+  agentDefaults: ReturnType<typeof crewmateDefaultsOf>
   writeAgents: (patch: Partial<NonNullable<GlobalConfig['agents']>>) => void
 }): SettingsItem[] {
   const items: SettingsItem[] = []
@@ -39,13 +39,13 @@ export function configCrewRows({ tokens, writeGlobal, recordToggle, recordSet, b
     setByYou: agentDefaults.model !== undefined,
     value: (
       <Text>
-        {agentDefaults.model === undefined || agentDefaults.model === AGENT_INHERIT_ROW.id ? AGENT_INHERIT_ROW.name : modelChoiceLabel(agentDefaults.model)}
+        {agentDefaults.model === undefined || agentDefaults.model === CREWMATE_INHERIT_ROW.id ? CREWMATE_INHERIT_ROW.name : modelChoiceLabel(agentDefaults.model)}
       </Text>
     ),
     warning: 'Used when the call and agent definition name no model. Inherit uses the parent’s model.',
     open: 'agent-model',
   })
-  const envFanoutCap = agentFanoutCap()
+  const envFanoutCap = crewmateFanoutCap()
   items.push({
     id: 'agentsMaxConcurrent',
     label: 'Crewmates at once',

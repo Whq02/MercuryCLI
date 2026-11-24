@@ -88,19 +88,19 @@ export function getEffortEnvOverride(): EffortLevel | null | undefined {
 }
 
 
-const agentEffortWords = new Map<string, EffortValue>()
+const crewmateEffortWords = new Map<string, EffortValue>()
 
-export function noteAgentEffortWord(agentId: string, word: EffortValue | undefined): void {
-  if (word === undefined) agentEffortWords.delete(agentId)
-  else agentEffortWords.set(agentId, word)
+export function noteCrewmateEffortWord(agentId: string, word: EffortValue | undefined): void {
+  if (word === undefined) crewmateEffortWords.delete(agentId)
+  else crewmateEffortWords.set(agentId, word)
 }
 
-export function forgetAgentEffortWord(agentId: string): void {
-  agentEffortWords.delete(agentId)
+export function forgetCrewmateEffortWord(agentId: string): void {
+  crewmateEffortWords.delete(agentId)
 }
 
-export function agentOwnEffortWordOf(agentId: string | undefined): EffortValue | undefined {
-  return agentId === undefined ? undefined : agentEffortWords.get(agentId)
+export function crewmateOwnEffortWordOf(agentId: string | undefined): EffortValue | undefined {
+  return agentId === undefined ? undefined : crewmateEffortWords.get(agentId)
 }
 
 export type EffortEnvOverrideView =
@@ -195,7 +195,7 @@ function resolveEffortTruthWithEnv(
   const freeze = (record: EffortResolution): EffortResolution => Object.freeze(record)
 
   const pinned = context.pinned === true
-  const ownWord = pinned ? undefined : agentOwnEffortWordOf(context.agentId)
+  const ownWord = pinned ? undefined : crewmateOwnEffortWordOf(context.agentId)
   const envOverride = pinned || ownWord !== undefined ? undefined : sessionEnvOverride
   const appStateEffortValue = ownWord !== undefined ? (sessionEffortValue ?? ownWord) : sessionEffortValue
 

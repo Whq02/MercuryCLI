@@ -34,7 +34,7 @@ import type { FoldStatusV1 } from '../compaction/foldStatus.js'
 import { getFocusedSessionConnector, setFocusedSessionConnector, subscribeFocusedSessionConnector, claimHopEpoch, hopEpochIsCurrent } from './focusedConnector.js'
 import type {
   AdvisorFactsV1,
-  AgentControlReceiptV1,
+  CrewmateControlReceiptV1,
   AskAnswerV1,
   AskReceiptV1,
   BoardPostReceiptV1,
@@ -337,11 +337,11 @@ abstract class ConnectorHandOffs {
     return this.deliveryPart.withdrawSend(clientMessageId)
   }
 
-  stopAgent(agentId: string, note?: string): Promise<AgentControlReceiptV1> {
+  stopAgent(agentId: string, note?: string): Promise<CrewmateControlReceiptV1> {
     return this.verbsPart.agentVerb('stop-agent', agentId, note)
   }
 
-  resumeAgent(agentId: string, note?: string): Promise<AgentControlReceiptV1> {
+  resumeAgent(agentId: string, note?: string): Promise<CrewmateControlReceiptV1> {
     return this.verbsPart.agentVerb('resume-agent', agentId, note)
   }
 
@@ -349,7 +349,7 @@ abstract class ConnectorHandOffs {
     return this.sendsPart.queuedSendCount()
   }
 
-  pauseGate(paused: boolean): Promise<AgentControlReceiptV1> {
+  pauseGate(paused: boolean): Promise<CrewmateControlReceiptV1> {
     return this.verbsPart.pauseGate(paused)
   }
 

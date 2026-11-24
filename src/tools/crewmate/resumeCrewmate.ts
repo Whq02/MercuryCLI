@@ -2,7 +2,7 @@ import { rebuildSeenLinesFromTranscript } from '../engines/change-transaction/se
 import { processOwnerForLane } from '../../engine/run-owner/resolveOwner.js'
 import { stat, utimes } from 'node:fs/promises'
 import { getEngineModel } from '../../models/catalogue/engineModel.js'
-import { getAgentModel } from '../../models/catalogue/agentModel.js'
+import { getCrewmateModel } from '../../models/catalogue/agentModel.js'
 import { crewmateModelOverride } from '../../crew/crewmates/crewmateModelWord.js'
 import { recordAfterResume } from '../../crew/crewmates/crewmateRecord.js'
 import type { Message } from '../../engine/message-shapes/message.js'
@@ -10,18 +10,18 @@ import type { AgentId } from '../../sessions/transcripts/ids.js'
 import { asAgentId } from '../../sessions/transcripts/ids.js'
 import type { CanUseToolFn, ToolUseContext } from '../kit/tool.js'
 import { assembleToolPool } from '../kit/toolList.js'
-import { latchSwarmAgent, settleSwarmAgent, swarmResumeAdmitted } from '../../crew/board/seam.js'
+import { latchSwarmCrewmate, settleSwarmCrewmate, swarmResumeAdmitted } from '../../crew/board/seam.js'
 import {
-  failAgentTask,
-  isLocalAgentTask,
-  registerAsyncAgent,
-  setAgentWaitLine,
+  failCrewmateTask,
+  isCrewmateTask,
+  registerAsyncCrewmate,
+  setCrewmateWaitLine,
 } from '../../engine/tasks/local-agent/crewmateTask.js'
 import { recordedDescription } from '../../engine/tasks/local-agent/launchReceipts.js'
 import { getTaskOutputPath } from '../../engine/task-framework/diskOutput.js'
 import {
-  runWithAgentContext,
-  type SubagentContext,
+  runWithCrewmateContext,
+  type CrewmateContext,
 } from '../../crew/agents/agentContext.js'
 import { runWithCwdOverride } from '../../platform/files/cwd.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
@@ -35,31 +35,31 @@ import { createAttachmentMessage } from '../../engine/attachments/turnAttachment
 import { errorMessage } from '../../platform/errors/errors.js'
 import { getQuerySourceForAgent } from './promptCategory.js'
 import {
-  getAgentTranscript,
-  readAgentMetadata,
-  writeAgentMetadata,
+  getCrewmateTranscript,
+  readCrewmateMetadata,
+  writeCrewmateMetadata,
 } from '../../sessions/transcripts/sessionStorage.js'
-import { reconstructForSubagentResume } from '../../engine/tool-dispatch/toolResultStorage.js'
+import { reconstructForCrewmateResume } from '../../engine/tool-dispatch/toolResultStorage.js'
 import { recordedRequestContexts, restoreBoundPrefixFromMessages } from '../../models/roads/anthropic/boundPrefixRecord.js'
 import { pendingToolRosterRestore } from '../../models/roads/toolEconomy.js'
 import { createSyntheticOutputTool } from '../structured-output/SyntheticOutputTool.js'
 import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../kit/names/syntheticOutput.js'
-import { getCwdState, getSdkAgentProgressSummariesEnabled } from '../../boot/process-state/processState.js'
-import { automaticResumePending, cancelAutomaticResume, resolveWorkerTools, runAsyncAgentLifecycle } from './crewmateLifecycle.js'
+import { getCwdState, getSdkCrewmateProgressSummariesEnabled } from '../../boot/process-state/processState.js'
+import { automaticResumePending, cancelAutomaticResume, resolveCrewmateTools, runAsyncCrewmateLifecycle } from './crewmateLifecycle.js'
 import { operatorPauseGate } from '../../engine/loop/pauseGate.js'
 import { MERCURY_CREW_AGENT_TYPE } from '../kit/names/agent.js'
 import type { AgentDefinition } from '../../crew/agents/agentDefinition.js'
 import { getAgentDefinitionsWithOverrides } from './loadAgentsDir.js'
 import { isBuiltInAgent } from '../../crew/agents/agentDefinition.js'
-import { runAgent } from './runCrewmate.js'
+import { runCrewmate } from './runCrewmate.js'
 import { continuationDirectoryNote } from './continuationNote.js'
 import { EFFORT_LEVELS, isEffortLevel, resolveStampedEffortTruth, type EffortLevel } from '../../models/effort/effort.js'
-import { liveAgentOwner } from './liveAgentOwner.js'
+import { liveCrewmateOwner } from './liveAgentOwner.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
-export { liveAgentOwner }
+export { liveCrewmateOwner }
 
-type ResumeAgentResult = {
+type ResumeCrewmateResult = {
   agentId: string
   description: string
   outputFile: string
@@ -68,7 +68,7 @@ type ResumeAgentResult = {
   note?: string
 }
 
-const RESUMED_AGENT_DESCRIPTION = 'Resumed crewmate'
+const RESUMED_CREWMATE_DESCRIPTION = 'Resumed crewmate'
 
 export class BoardResumeDirectoryError extends Error {
   constructor(readonly directory: string, readonly kind: 'worktree' | 'directory') {
@@ -89,15 +89,15 @@ export function definitionForStoredType(
 
 export function boardResumeRefusal(agentId: string, tasks: Record<string, unknown> | undefined): string | null {
   if (operatorPauseGate.holds('main') || operatorPauseGate.holds(agentId)) return 'The operator pause is still in force.'
-  const owner = liveAgentOwner(agentId, tasks)
+  const owner = liveCrewmateOwner(agentId, tasks)
   if (owner !== null) return owner.words
   const task = tasks?.[agentId]
-  if (isLocalAgentTask(task) && (task.status === 'pending' || task.status === 'killed' || task.stopReason !== undefined || task.paused !== undefined)) return 'The crewmate is held; the lead can resume it.'
+  if (isCrewmateTask(task) && (task.status === 'pending' || task.status === 'killed' || task.stopReason !== undefined || task.paused !== undefined)) return 'The crewmate is held; the lead can resume it.'
   if (automaticResumePending(agentId)) return 'The provider recovery already holds this crewmate.'
   return null
 }
 
-export class AgentNotRecorded extends Error {}
+export class CrewmateNotRecorded extends Error {}
 
 async function existingDirectory(
   path: string | undefined,
@@ -182,15 +182,15 @@ export async function resumeAgentBackground(args: {
   automatic?: boolean
   boardEventIds?: string[]
   onAdmitted?: () => void
-}): Promise<ResumeAgentResult> {
+}): Promise<ResumeCrewmateResult> {
   const { agentId, prompt, toolUseContext } = args
   const typedAgentId = asAgentId(agentId)
   const [transcript, meta] = await Promise.all([
-    getAgentTranscript(typedAgentId),
-    readAgentMetadata(typedAgentId),
+    getCrewmateTranscript(typedAgentId),
+    readCrewmateMetadata(typedAgentId),
   ])
   if (!transcript || transcript.messages.length === 0) {
-    throw new AgentNotRecorded(`No transcript found for crewmate ${agentId}`)
+    throw new CrewmateNotRecorded(`No transcript found for crewmate ${agentId}`)
   }
 
   const { activeAgents } = await getAgentDefinitionsWithOverrides(getCwdState())
@@ -200,7 +200,7 @@ export async function resumeAgentBackground(args: {
     args.model !== undefined
       ? await crewmateModelOverride(args.model, parentModel)
       : meta?.model
-  const lifecycleModel = getAgentModel(selectedAgent.model, parentModel, restoredModel)
+  const lifecycleModel = getCrewmateModel(selectedAgent.model, parentModel, restoredModel)
   const storedEffort =
     meta?.effortOverride !== undefined && isEffortLevel(meta.effortOverride)
       ? meta.effortOverride
@@ -244,7 +244,7 @@ export async function resumeAgentBackground(args: {
   const cleaned: Message[] = filterWhitespaceOnlyAssistantMessages(
     filterOrphanedThinkingOnlyMessages(settleToolUsesOfEndedRun(transcript.messages)),
   )
-  const contentReplacementState = reconstructForSubagentResume(
+  const contentReplacementState = reconstructForCrewmateResume(
     toolUseContext.contentReplacementState,
     cleaned,
     transcript.contentReplacements,
@@ -288,7 +288,7 @@ export async function resumeAgentBackground(args: {
 
   const rootSetAppState = toolUseContext.setAppStateForTasks ?? toolUseContext.setAppState
   const tasks = toolUseContext.getAppState().tasks
-  const owner = liveAgentOwner(agentId, tasks)
+  const owner = liveCrewmateOwner(agentId, tasks)
   if (owner !== null) {
     throw new Error(owner.words)
   }
@@ -308,11 +308,11 @@ export async function resumeAgentBackground(args: {
   }
 
   const existingTask = tasks?.[agentId]
-  const previousTask = isLocalAgentTask(existingTask) ? existingTask : undefined
+  const previousTask = isCrewmateTask(existingTask) ? existingTask : undefined
   const description =
     recordedDescription(meta?.description) ||
     recordedDescription(previousTask?.description) ||
-    RESUMED_AGENT_DESCRIPTION
+    RESUMED_CREWMATE_DESCRIPTION
   const replyTarget =
     args.replyTarget ?? (args.automatic === true ? previousTask?.replyTarget : undefined) ?? 'parent'
   const compactRequested: true | undefined =
@@ -325,7 +325,7 @@ export async function resumeAgentBackground(args: {
     )
   }
 
-  const task = registerAsyncAgent({
+  const task = registerAsyncCrewmate({
     agentId,
     description,
     prompt,
@@ -338,9 +338,9 @@ export async function resumeAgentBackground(args: {
   })
 
   const workerPermissionMode = selectedAgent.permissionMode ?? 'implement'
-  let workerTools: ReturnType<typeof resolveWorkerTools>
+  let workerTools: ReturnType<typeof resolveCrewmateTools>
   try {
-    await latchSwarmAgent(
+    await latchSwarmCrewmate(
       agentId,
       meta?.name ?? description,
       true,
@@ -356,16 +356,16 @@ export async function resumeAgentBackground(args: {
       appState.mcp.tools ?? [],
       agentId,
     )
-    workerTools = resolveWorkerTools(selectedAgent, workerPermissionMode, pool)
+    workerTools = resolveCrewmateTools(selectedAgent, workerPermissionMode, pool)
   } catch (error) {
-    failAgentTask(agentId, errorMessage(error), rootSetAppState, task.abortController)
-    settleSwarmAgent(agentId)
+    failCrewmateTask(agentId, errorMessage(error), rootSetAppState, task.abortController)
+    settleSwarmCrewmate(agentId)
     throw error
   }
 
   let saveNote = ''
   try {
-    const latestMeta = await readAgentMetadata(typedAgentId)
+    const latestMeta = await readCrewmateMetadata(typedAgentId)
     const updatedRecord = recordAfterResume(meta, latestMeta, {
       fresh: {
         agentType: selectedAgent.agentType,
@@ -384,7 +384,7 @@ export async function resumeAgentBackground(args: {
       model: restoredModel,
       effortOverride: args.effort ?? meta?.effortOverride,
     })
-    await writeAgentMetadata(typedAgentId, updatedRecord)
+    await writeCrewmateMetadata(typedAgentId, updatedRecord)
   } catch (error) {
     saveNote = ` NOTE: the crewmate's record could not be saved (${errorMessage(error)}) — its next resume reads the model, effort and directory recorded before this one.`
   }
@@ -397,8 +397,8 @@ export async function resumeAgentBackground(args: {
     args.onAdmitted?.()
     swarmResumeAdmitted(agentId)
   } catch (error) {
-    failAgentTask(agentId, errorMessage(error), rootSetAppState, task.abortController)
-    settleSwarmAgent(agentId)
+    failCrewmateTask(agentId, errorMessage(error), rootSetAppState, task.abortController)
+    settleSwarmCrewmate(agentId)
     throw error
   }
 
@@ -450,14 +450,14 @@ function startResumedLifecycle(input: {
   rootSetAppState: ToolUseContext['setAppState']
   canUseTool: CanUseToolFn | undefined
   abortController: AbortController
-  workerTools: ReturnType<typeof resolveWorkerTools>
+  workerTools: ReturnType<typeof resolveCrewmateTools>
   restoredContexts: ReturnType<typeof recordedRequestContexts>
-  meta: Awaited<ReturnType<typeof readAgentMetadata>>
+  meta: Awaited<ReturnType<typeof readCrewmateMetadata>>
   restoredModel: string | undefined
   restoredEffort: EffortLevel | undefined
   lifecycleModel: string
   structuredOutputSpec: ReturnType<typeof restoreStructuredOutputSpec>
-  contentReplacementState: ReturnType<typeof reconstructForSubagentResume>
+  contentReplacementState: ReturnType<typeof reconstructForCrewmateResume>
   worktreePath: string | undefined
   cwdPath: string | undefined
   invokingRequestId: string | undefined
@@ -491,7 +491,7 @@ function startResumedLifecycle(input: {
   } = input
   const querySource = getQuerySourceForAgent(selectedAgent.agentType, isBuiltInAgent(selectedAgent))
   const targetCwd = worktreePath ?? cwdPath ?? getCwdState()
-  const agentContext: SubagentContext = {
+  const agentContext: CrewmateContext = {
     agentType: 'subagent',
     agentId: typedAgentId,
     subagentName: selectedAgent.agentType,
@@ -500,15 +500,15 @@ function startResumedLifecycle(input: {
     invokingRequestId,
     invocationEmitted: false,
   }
-  const enableSummarization = getSdkAgentProgressSummariesEnabled()
+  const enableSummarization = getSdkCrewmateProgressSummariesEnabled()
   const startTime = Date.now()
-  void runWithAgentContext(agentContext, () =>
+  void runWithCrewmateContext(agentContext, () =>
     runWithCwdOverride(targetCwd, () =>
-      runAsyncAgentLifecycle({
+      runAsyncCrewmateLifecycle({
         taskId: agentId,
         abortController,
         makeStream: (onCacheSafeParams, onQueryProgress) =>
-          runAgent({
+          runCrewmate({
             agentDefinition: selectedAgent,
             promptMessages,
             toolUseContext,
@@ -541,7 +541,7 @@ function startResumedLifecycle(input: {
             description,
             ...(meta?.name !== undefined ? { name: meta.name } : {}),
             ...(meta?.launchedAt !== undefined ? { launchedAt: meta.launchedAt } : {}),
-            onWait: line => setAgentWaitLine(agentId, line, rootSetAppState),
+            onWait: line => setCrewmateWaitLine(agentId, line, rootSetAppState),
             onCacheSafeParams,
             ...(onQueryProgress !== undefined ? { onQueryProgress } : {}),
           }),

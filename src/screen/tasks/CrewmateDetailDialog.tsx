@@ -4,7 +4,7 @@ import { Box, Text, useInput } from '../themedRenderer.js'
 import { useElapsedTime } from '../effects/useElapsedTime.js'
 import { useKeybinding, useKeybindings } from '../keys/useKeybinding.js'
 import { useExitChord } from '../keys/useExitChord.js'
-import type { LocalAgentTaskState } from '../../engine/tasks/local-agent/crewmateTask.js'
+import type { CrewmateTaskState } from '../../engine/tasks/local-agent/crewmateTask.js'
 import type { ToolActivity } from '../../engine/tasks/local-agent/crewmateTask.js'
 import { getAllBaseTools } from '../../tools/kit/toolList.js'
 import { getTheme } from '../theme/theme.js'
@@ -12,7 +12,7 @@ import { useTheme } from '../theme/ThemeProvider.js'
 import { KeyboardShortcutHint } from '../theme/KeyboardShortcutHint.js'
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js'
 import { renderToolActivity } from './renderToolActivity.js'
-import { agentLifecycleOf, getTaskStatusColor, getTaskStatusIcon } from './taskStatus.js'
+import { crewmateLifecycleOf, getTaskStatusColor, getTaskStatusIcon } from './taskStatus.js'
 import { GLYPH } from '../theme/glyphs.js'
 
 const PROMPT_CAP = 300
@@ -24,14 +24,14 @@ function statusWord(status: string): string {
   return status
 }
 
-export function AsyncAgentDetailDialog({
+export function CrewmateDetailDialog({
   agent,
   onDone,
   onKillAgent,
   onBack,
   onForeground,
 }: {
-  agent: LocalAgentTaskState
+  agent: CrewmateTaskState
   onDone: () => void
   onKillAgent?: () => void
   onBack?: () => void
@@ -66,7 +66,7 @@ export function AsyncAgentDetailDialog({
     }
   })
 
-  const lifecycle = !isRunning ? agentLifecycleOf(agent) : undefined
+  const lifecycle = !isRunning ? crewmateLifecycleOf(agent) : undefined
   const tokenCount =
     agent.progress?.tokenCount ?? agent.progress?.totalTokens ?? agent.lastReportedTokenCount
   const toolUseCount =

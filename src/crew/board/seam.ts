@@ -8,7 +8,7 @@ import { getSessionId } from '../../boot/process-state/processState.js'
 import { getSettingsForSource } from '../../platform/settings/settings.js'
 import { isReadOnlyDiagnostic } from '../../platform/logs/diagnosticReadOnly.js'
 import { flushSessionStorage, swarmSwitchOfSession } from '../../sessions/transcripts/writer.js'
-import { getTranscriptPath, readAgentMetadata } from '../../sessions/transcripts/paths.js'
+import { getTranscriptPath, readCrewmateMetadata } from '../../sessions/transcripts/paths.js'
 import { operatorPauseGate } from '../../engine/loop/pauseGate.js'
 import type { AgentId } from '../../sessions/transcripts/ids.js'
 import type { Message } from '../../engine/message-shapes/message.js'
@@ -261,9 +261,9 @@ export function swarmOwnerPost(input: OwnerPostInput): OwnerPostReceipt {
   const store = swarmStore(), principal = swarmPrincipal()
   return store && principal ? store.postOwner(principal, input) : { ok: false, reason: 'No live wave; /swarm on opens it.' }
 }
-export async function latchSwarmAgent(agentId: string, name: string, resumed = false, team?: string, signal?: AbortSignal): Promise<boolean> {
+export async function latchSwarmCrewmate(agentId: string, name: string, resumed = false, team?: string, signal?: AbortSignal): Promise<boolean> {
   if (!roads.has(key(agentId))) {
-    const saved = await readAgentMetadata(agentId as AgentId)
+    const saved = await readCrewmateMetadata(agentId as AgentId)
     const on = saved === null ? pendingLaunches.has(key(agentId)) || !resumed && swarmSessionEnabled() : saved.swarm === true
     roads.set(key(agentId), { on, execution: randomUUID(), name, active: true })
   }
@@ -432,7 +432,7 @@ export function swarmResumeAdmitted(agentId: string): void {
   if (principal) swarmStore()?.resumeAdmitted(principal)
 }
 
-export function settleSwarmAgent(agentId: string): void {
+export function settleSwarmCrewmate(agentId: string): void {
   const road = roads.get(key(agentId))
   if (road) {
     const state = isReadOnlyDiagnostic() ? undefined : sessions.get(String(getSessionId()))

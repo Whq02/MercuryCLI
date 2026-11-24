@@ -10,31 +10,31 @@ import { logForDebugging } from '../../../platform/logs/debugLog.js'
 import { getErrnoCode } from '../../../platform/errors/errors.js'
 import { logError } from '../../../platform/logs/errorLog.js'
 import { getSessionId } from '../../../boot/process-state/processState.js'
-import { getAgentMetadataPath, getTranscriptPath, readAgentMetadata } from '../../../sessions/transcripts/paths.js'
+import { getCrewmateMetadataPath, getTranscriptPath, readCrewmateMetadata } from '../../../sessions/transcripts/paths.js'
 import { notifyTasksUpdated } from '../../task-framework/tasks.js'
-import { decodeAgentPause, type AgentPauseV1 } from './agentPause.js'
-import { AGENT_RESUME_DOOR, AGENT_WINDOW_RESUME_NOTE, enqueueAgentReceiptRow, isLocalAgentTask, type LocalAgentTaskState } from './crewmateTask.js'
+import { decodeCrewmatePause, type CrewmatePauseV1 } from './agentPause.js'
+import { CREWMATE_RESUME_DOOR, CREWMATE_WINDOW_RESUME_NOTE, enqueueCrewmateReceiptRow, isCrewmateTask, type CrewmateTaskState } from './crewmateTask.js'
 import { passedOverAs } from '../../../platform/errors/passedOver.js'
 
-type AgentPauseRecordFacts = {
+type CrewmatePauseRecordFacts = {
   description: string
   armedAt: number
   toolUseId?: string
 }
 
-type AgentPauseRecordV1 =
-  | (AgentPauseRecordFacts & { pause: AgentPauseV1 & { resumesAtMs: number } })
-  | (AgentPauseRecordFacts & { pause: { why: 'provider overloaded'; words: string }; model: string })
+type CrewmatePauseRecordV1 =
+  | (CrewmatePauseRecordFacts & { pause: CrewmatePauseV1 & { resumesAtMs: number } })
+  | (CrewmatePauseRecordFacts & { pause: { why: 'provider overloaded'; words: string }; model: string })
 
-export function agentPauseRecordPath(agentId: string): string {
-  return getAgentMetadataPath(asAgentId(agentId)).replace(/\.meta\.json$/, '.pause.json')
+export function crewmatePauseRecordPath(agentId: string): string {
+  return getCrewmateMetadataPath(asAgentId(agentId)).replace(/\.meta\.json$/, '.pause.json')
 }
 
 const writesInFlight = new Map<string, Promise<void>>()
 
-export async function writeAgentPauseRecord(agentId: string, record: AgentPauseRecordV1): Promise<void> {
+export async function writeCrewmatePauseRecord(agentId: string, record: CrewmatePauseRecordV1): Promise<void> {
   const previous = writesInFlight.get(agentId) ?? Promise.resolve()
-  const write: Promise<void> = previous.catch(passedOverAs(undefined)).then(() => publishAtomic(agentPauseRecordPath(agentId), JSON.stringify(record))).then(() => undefined)
+  const write: Promise<void> = previous.catch(passedOverAs(undefined)).then(() => publishAtomic(crewmatePauseRecordPath(agentId), JSON.stringify(record))).then(() => undefined)
   writesInFlight.set(agentId, write)
   try {
     await write
@@ -43,22 +43,22 @@ export async function writeAgentPauseRecord(agentId: string, record: AgentPauseR
   }
 }
 
-export async function clearAgentPauseRecord(agentId: string): Promise<void> {
+export async function clearCrewmatePauseRecord(agentId: string): Promise<void> {
   await writesInFlight.get(agentId)?.catch(passedOverAs(undefined))
   try {
-    await unlink(agentPauseRecordPath(agentId))
+    await unlink(crewmatePauseRecordPath(agentId))
   } catch (failure) {
     const code = getErrnoCode(failure)
     if (code !== 'ENOENT' && code !== 'ENOTDIR') throw failure
   }
 }
 
-function decodeAgentPauseRecord(raw: unknown): AgentPauseRecordV1 | null {
+function decodeCrewmatePauseRecord(raw: unknown): CrewmatePauseRecordV1 | null {
   if (raw === null || typeof raw !== 'object') return null
   const record = raw as Record<string, unknown>
-  const pause = decodeAgentPause(record.pause)
+  const pause = decodeCrewmatePause(record.pause)
   if (pause === null || typeof record.description !== 'string' || typeof record.armedAt !== 'number' || !Number.isFinite(record.armedAt)) return null
-  const facts: AgentPauseRecordFacts = {
+  const facts: CrewmatePauseRecordFacts = {
     description: record.description,
     armedAt: record.armedAt,
     ...(typeof record.toolUseId === 'string' && record.toolUseId !== '' ? { toolUseId: record.toolUseId } : {}),
@@ -68,19 +68,19 @@ function decodeAgentPauseRecord(raw: unknown): AgentPauseRecordV1 | null {
   return { ...facts, pause: { why: pause.why, words: pause.words }, model: record.model }
 }
 
-export async function readAgentPauseRecord(agentId: string): Promise<AgentPauseRecordV1 | null> {
+export async function readCrewmatePauseRecord(agentId: string): Promise<CrewmatePauseRecordV1 | null> {
   let bytes: string
   try {
-    bytes = await readFile(agentPauseRecordPath(agentId), 'utf-8')
+    bytes = await readFile(crewmatePauseRecordPath(agentId), 'utf-8')
   } catch (failure) {
     const code = getErrnoCode(failure)
     if (code === 'ENOENT' || code === 'ENOTDIR') return null
     throw failure
   }
-  return decodeAgentPauseRecord(JSON.parse(bytes))
+  return decodeCrewmatePauseRecord(JSON.parse(bytes))
 }
 
-async function listAgentPauseRecords(): Promise<Array<{ agentId: AgentId; record: AgentPauseRecordV1 }>> {
+async function listCrewmatePauseRecords(): Promise<Array<{ agentId: AgentId; record: CrewmatePauseRecordV1 }>> {
   const directory = join(dirname(getTranscriptPath()), String(getSessionId()), 'subagents')
   let names: string[]
   try {
@@ -90,22 +90,22 @@ async function listAgentPauseRecords(): Promise<Array<{ agentId: AgentId; record
     if (code === 'ENOENT' || code === 'ENOTDIR') return []
     throw failure
   }
-  const rows: Array<{ agentId: AgentId; record: AgentPauseRecordV1 }> = []
+  const rows: Array<{ agentId: AgentId; record: CrewmatePauseRecordV1 }> = []
   for (const name of names) {
     const match = /^agent-(.+)\.pause\.json$/.exec(name)
     if (!match) continue
     const agentId = asAgentId(match[1]!)
-    let record: AgentPauseRecordV1 | null
+    let record: CrewmatePauseRecordV1 | null
     try {
-      record = await readAgentPauseRecord(agentId)
+      record = await readCrewmatePauseRecord(agentId)
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
       logError(error)
-      enqueueAgentReceiptRow({
+      enqueueCrewmateReceiptRow({
         taskId: agentId,
         description: agentId,
         status: 'failed',
-        summary: `Crewmate "${agentId}" could not be resumed automatically (${msg}) — ${AGENT_RESUME_DOOR}`,
+        summary: `Crewmate "${agentId}" could not be resumed automatically (${msg}) — ${CREWMATE_RESUME_DOOR}`,
       })
       continue
     }
@@ -123,7 +123,7 @@ type PauseCarryPorts = {
 }
 
 export async function carryPausedCrewmatesOnResume(ports: PauseCarryPorts): Promise<string[]> {
-  const records = await listAgentPauseRecords()
+  const records = await listCrewmatePauseRecords()
   if (records.length === 0) return []
   const now = ports.now ?? Date.now()
   const { armBudgetCutResume, armOverloadProbe, windowPauseResumeDelayMs } = await import('../../../tools/crewmate/crewmateLifecycle.js')
@@ -131,15 +131,15 @@ export async function carryPausedCrewmatesOnResume(ports: PauseCarryPorts): Prom
   let context: ToolUseContext | undefined
   for (const { agentId, record } of records) {
     const standing = ports.getAppState().tasks?.[agentId]
-    if (isLocalAgentTask(standing) && standing.status === 'running') {
-      await clearAgentPauseRecord(agentId).catch(passedOverAs(undefined))
+    if (isCrewmateTask(standing) && standing.status === 'running') {
+      await clearCrewmatePauseRecord(agentId).catch(passedOverAs(undefined))
       continue
     }
-    const metadata = await readAgentMetadata(agentId).catch(passedOverAs(null))
+    const metadata = await readCrewmateMetadata(agentId).catch(passedOverAs(null))
     const registration = new AbortController()
     ports.setAppState(prev => {
       const previous = prev.tasks[agentId]
-      const base = isLocalAgentTask(previous)
+      const base = isCrewmateTask(previous)
         ? previous
         : {
             ...createTaskStateBase({ task_id: agentId, task_type: 'local_agent', description: record.description, call_id: record.toolUseId ?? '' }),
@@ -151,7 +151,7 @@ export async function carryPausedCrewmatesOnResume(ports: PauseCarryPorts): Prom
             isBackgrounded: true,
             retain: false,
           }
-      const row: LocalAgentTaskState = {
+      const row: CrewmateTaskState = {
         ...base,
         status: 'failed',
         endTime: record.armedAt,
@@ -179,7 +179,7 @@ export async function carryPausedCrewmatesOnResume(ports: PauseCarryPorts): Prom
         canUseTool: ports.canUseTool,
         delayMs: windowPauseResumeDelayMs(record.pause.resumesAtMs, now),
         pause: record.pause,
-        prompt: AGENT_WINDOW_RESUME_NOTE,
+        prompt: CREWMATE_WINDOW_RESUME_NOTE,
         summary: `Crewmate "${record.description}" resumed by itself — the usage window reset; its partial work carried forward`,
       })
       if (armed !== null) carried.push(agentId)

@@ -1,6 +1,6 @@
 import type { AppState } from '../../screen/app-state/AppState.js'
 import type { TaskState } from '../tasks/taskState.js'
-import { isLocalAgentTask } from '../tasks/local-agent/crewmateTask.js'
+import { isCrewmateTask } from '../tasks/local-agent/crewmateTask.js'
 import { isLocalShellTask } from '../tasks/local-shell/shellTaskState.js'
 import type { WorkRowV1 } from './types.js'
 import { unreadNoticeCount } from '../../sessions/notices/unreadLedger.js'
@@ -53,7 +53,7 @@ function startFoldersOf(task: TaskState): Partial<WorkRowV1> {
   }
 }
 
-function agentCounters(task: TaskState): Partial<WorkRowV1> {
+function crewmateCounters(task: TaskState): Partial<WorkRowV1> {
   const progress = (task as { progress?: unknown }).progress
   if (typeof progress !== 'object' || progress === null) return {}
   const p = progress as {
@@ -111,14 +111,14 @@ function agentCounters(task: TaskState): Partial<WorkRowV1> {
 export function projectWorkRoster(tasks: AppState['tasks']): WorkRowV1[] {
   const rows: WorkRowV1[] = []
   for (const task of Object.values(tasks ?? {})) {
-    if (isLocalAgentTask(task)) {
+    if (isCrewmateTask(task)) {
       if (task.agentType === 'main-session') continue
       rows.push({
         ...plainRow(task, 'agent', task.description || task.agentType),
         agentId: task.agentId,
         ...(task.agentType !== undefined ? { agentType: task.agentType } : {}),
         ...startFoldersOf(task),
-        ...agentCounters(task),
+        ...crewmateCounters(task),
         ...unreadNoticesOf(task.id, String(task.agentId)),
         ...(typeof task.wait === 'string' && task.wait !== '' ? { wait: task.wait } : {}),
         ...(typeof task.pendingAsks === 'number' && task.pendingAsks > 0 ? { pendingAsks: task.pendingAsks } : {}),

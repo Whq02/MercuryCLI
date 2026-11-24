@@ -32,7 +32,7 @@ const { checkReadPermissionForTool } = await import('../../src/permissions/rules
 const worktree = await import('../../src/platform/git/worktree/worktree.ts')
 const { discardSetAside, setWorktreeAside } = await import('../../src/platform/git/worktree/worktreeClone.ts')
 type Made = { worktreePath: string; worktreeBranch?: string; gitRoot?: string; prepareFailure?: string; ready?: Promise<void> }
-const make = (slug: string, options: Record<string, unknown> = {}): Promise<Made> => (worktree.createAgentWorktree as (slug: string, options: unknown) => Promise<Made>)(slug, options)
+const make = (slug: string, options: Record<string, unknown> = {}): Promise<Made> => (worktree.createCrewmateWorktree as (slug: string, options: unknown) => Promise<Made>)(slug, options)
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'worktree-clone-held-')))
 const links = accountLinks(scratch)

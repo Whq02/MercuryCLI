@@ -46,7 +46,7 @@ try {
   const { classOfModel } = await import('../../src/models/roads/modelRegistry.ts')
   const { routeEffortsFor } = await import('../../src/models/roads/anthropic/anthropicAdapter.ts')
   const { sideRequestThinkingParam } = await import('../../src/engine/requests/sideRequest.ts')
-  const { getAgentModel } = await import('../../src/models/catalogue/agentModel.ts')
+  const { getCrewmateModel } = await import('../../src/models/catalogue/agentModel.ts')
 
   check('Haiku 5.5 has its own canonical and declared row', model.getCanonicalName(ID) === ID && configs.familyHeadOf(ID) === null)
   check('case and context annotation retain the canonical', model.getCanonicalName('Claude-Haiku-5-5[1m]') === ID)
@@ -56,7 +56,7 @@ try {
   const recognition = recognizeModelId('haiku55')
   check('id-space recognition agrees with the alias', recognition.kind === 'first-party' && recognition.why === 'alias')
   check('Haiku family order is newest first and preserves 4.5', configs.FAMILY_GENERATIONS.haiku.join(',') === 'haiku55,haiku45', configs.FAMILY_GENERATIONS.haiku)
-  check('family default, the haiku alias and the crew family word use the new head', model.getDefaultHaikuModel() === ID && model.parseUserSpecifiedModel('haiku') === ID && getAgentModel('haiku', 'claude-sonnet-5-5') === ID)
+  check('family default, the haiku alias and the crew family word use the new head', model.getDefaultHaikuModel() === ID && model.parseUserSpecifiedModel('haiku') === ID && getCrewmateModel('haiku', 'claude-sonnet-5-5') === ID)
   check('a saved full 4.5 ID stays on 4.5', model.parseUserSpecifiedModel(OLD) === OLD && model.renderModelName(OLD) === 'Haiku 4.5')
   check('the spoken display name resolves to the new row', model.parseUserSpecifiedModel('Haiku 5.5') === ID)
   const rows = getModelOptions({ anthropicCredentialed: () => true }).filter(row => row.group === undefined)

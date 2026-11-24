@@ -24,7 +24,7 @@ const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPr
 const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
 const { recordSentRequest } = await import('../../src/crew/agents/forkedAgent.ts')
 const { rosterOwnerFromToolUseContext } = await import('../../src/engine/run-owner/resolveOwner.ts')
-const { noteAgentEffortWord, forgetAgentEffortWord } = await import('../../src/models/effort/effort.ts')
+const { noteCrewmateEffortWord, forgetCrewmateEffortWord } = await import('../../src/models/effort/effort.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
 const { ReadTool } = await import('../../src/tools/read/ReadTool.ts')
@@ -68,7 +68,7 @@ try {
       for (const continued of [false, true]) {
         const tools = [ReadTool]
         const owner = `posture-${road.lane}-${thinkingConfig.type}-${continued}`
-        noteAgentEffortWord(owner, 'max')
+        noteCrewmateEffortWord(owner, 'max')
         process.env.MERCURY_EFFORT_LEVEL = 'low'
         const context: any = { agentId: owner, abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: [], readFileState: new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024), options: { tools, commands: [], mcpClients: [], engineModel: road.model, maxThinkingTokens: 8192, thinkingConfig, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
         if (road.lane === 'openrouter-responses') tools.push(ToolSearchTool as never, { ...ReadTool, name: 'mcp__fold_fixture__read', isMcp: true } as never)
@@ -107,7 +107,7 @@ try {
         check(`${label}: route-preserved thinking rides byte-identically`, JSON.stringify(preserved(body)) === JSON.stringify(preserved(reference)), { actual: preserved(body), expected: preserved(reference) }, 'the fold request must carry the session thinking and reasoning blocks unchanged: see compactConversation in src/engine/compaction/foldConversation.ts and recordSentRequest in src/crew/agents/forkedAgent.ts')
         if (road.dialect === 'anthropic') check(`${label}: the signed block is present and unchanged`, JSON.stringify(preserved(body)).includes(JSON.stringify(signed)), preserved(body), 'the fold request must keep the signed thinking block byte for byte: see compactConversation in src/engine/compaction/foldConversation.ts')
         if (road.lane === 'openai') check(`${label}: encrypted reasoning stays ahead of its answer`, body?.input?.some((item: any, index: number) => JSON.stringify(item) === JSON.stringify(reasoning) && body.input[index + 1]?.type === 'message'), body?.input, 'the fold request must keep each encrypted reasoning item directly before its answer message: see compactConversation in src/engine/compaction/foldConversation.ts')
-        forgetAgentEffortWord(owner)
+        forgetCrewmateEffortWord(owner)
         delete process.env.MERCURY_EFFORT_LEVEL
       }
     }

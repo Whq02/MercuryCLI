@@ -533,13 +533,13 @@ section('C12 — KEY ON: a repeat counts only across rounds, on the live shape (
 
 section('C14 — KEY ON: a sub-agent the guard ends settles to its parent as a typed failure naming the cycle, never as a completed report')
 {
-  const { finalizeAgentTool } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
-  const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
+  const { finalizeCrewmateTool } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+  const { CrewmateTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
   const run = await runScript(pairs(10, () => TEST), identicalResults, 'agent-rig-3')
   const collected = run.yields.filter(m => m.type === 'assistant' || m.type === 'user' || m.type === 'attachment')
-  const finalized = finalizeAgentTool(collected as never, 'agent-rig-3', { prompt: 'loop', resolvedAgentModel: MODEL, isBuiltInAgent: true, startTime: Date.now(), agentType: 'mercury-crew', isAsync: false })
+  const finalized = finalizeCrewmateTool(collected as never, 'agent-rig-3', { prompt: 'loop', resolvedAgentModel: MODEL, isBuiltInAgent: true, startTime: Date.now(), agentType: 'mercury-crew', isAsync: false })
   check('the finalized outcome is a typed failure with the loop-stopped reason and the stop text naming the cycle', finalized.outcome?.status === 'failed' && (finalized.outcome as { reason?: string }).reason === 'loop-stopped' && /the same cycle of tool calls \(Edit -> Bash\)/.test(String((finalized.outcome as { error?: string }).error)), JSON.stringify(finalized.outcome))
-  const block = AgentTool.mapToolResultToToolResultBlockParam({ status: 'failed', prompt: 'loop', error: (finalized.outcome as { error?: string }).error, ...finalized } as never, 'tu_parent') as { is_error?: boolean; content?: Array<{ text?: string }> }
+  const block = CrewmateTool.mapToolResultToToolResultBlockParam({ status: 'failed', prompt: 'loop', error: (finalized.outcome as { error?: string }).error, ...finalized } as never, 'tu_parent') as { is_error?: boolean; content?: Array<{ text?: string }> }
   const parentText = (block.content ?? []).map(b => b.text ?? '').join('\n')
   check('the parent receives is_error with "Crewmate execution failed: The loop guard ended the turn"', block.is_error === true && /Crewmate execution failed: The loop guard ended the turn/.test(parentText), parentText.slice(0, 300))
 }

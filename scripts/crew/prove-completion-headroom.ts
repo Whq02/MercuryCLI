@@ -19,7 +19,7 @@ const { createAssistantMessage, createUserMessage } = await load('src/engine/mes
 const tasks = await load('src/engine/tasks/local-agent/crewmateTask.tsx')
 const queue = await load('src/daemon/runner/messageQueueManager.ts')
 const { getQueuedCommandAttachments } = await load('src/engine/attachments/queuedCommands.ts')
-const { getAgentTranscriptPath } = await load('src/sessions/transcripts/paths.ts')
+const { getCrewmateTranscriptPath } = await load('src/sessions/transcripts/paths.ts')
 const { getSessionId } = await load('src/boot/process-state/processState.ts')
 const { encodeSeedTranscript } = await load('scripts/lib/seedTranscript.ts')
 const { agentAdapter } = await load('src/integrations/resources/adapters/agent.ts')
@@ -28,7 +28,7 @@ const { getDefaultAppState } = await load('src/screen/app-state/AppStateStore.ts
 const { runTools } = await load('src/engine/tool-dispatch/toolOrchestration.ts')
 const { buildRequestContextPlan } = await load('src/engine/run/requestContextPlan.ts')
 const { processMainOwner } = await load('src/engine/run-owner/resolveOwner.ts')
-const { AgentTool } = await load('src/tools/crewmate/CrewmateTool.tsx')
+const { CrewmateTool } = await load('src/tools/crewmate/CrewmateTool.tsx')
 const { createFileStateCacheWithSizeLimit } = await load('src/platform/files/fileStateCache.ts')
 const { createContentReplacementState } = await load('src/engine/tool-dispatch/toolResultStorage.ts')
 const { z } = await import('zod')
@@ -48,13 +48,13 @@ const parent = (used: number): any => {
 let app = getDefaultAppState()
 const setAppState = (update: any): void => { app = update(app) }
 function notice(id: string, text: string): any {
-  tasks.registerAsyncAgent({ agentId: id, description: id, prompt: 'fixture', setAppState })
+  tasks.registerAsyncCrewmate({ agentId: id, description: id, prompt: 'fixture', setAppState })
   const answer = createAssistantMessage({ content: [{ type: 'text', text }] })
-  const path = getAgentTranscriptPath(id)
+  const path = getCrewmateTranscriptPath(id)
   mkdirSync(dirname(path), { recursive: true })
   writeFileSync(path, encodeSeedTranscript([answer], getSessionId()))
-  tasks.completeAgentTask({ agentId: id }, setAppState)
-  tasks.enqueueAgentNotification({ taskId: id, description: id, status: 'completed', finalMessage: text, setAppState })
+  tasks.completeCrewmateTask({ agentId: id }, setAppState)
+  tasks.enqueueCrewmateNotification({ taskId: id, description: id, status: 'completed', finalMessage: text, setAppState })
   return queue.dequeue()
 }
 const inline = (value: string): string => /<result>([\s\S]*)<\/result>/.exec(value)?.[1] ?? ''
@@ -74,7 +74,7 @@ try {
     check(`${id} report ref reads every report byte`, answer.state === 'ok' && answer.resource.text === report(id), answer.state, 'agentAdapter.resolve in src/integrations/resources/adapters/agent.ts must return the whole report from the agent transcript for the child=report ref')
   }
   console.log('\nforeground completion batch')
-  const fake = { name: AgentTool.name, inputSchema: z.object({ id: z.string() }), isReadOnly: () => true, isConcurrencySafe: () => true, maxResultSizeChars: AgentTool.maxResultSizeChars, call: async (input: { id: string }) => ({ data: { status: 'completed', agentId: input.id, content: [{ type: 'text', text: report(input.id) }] } }), mapToolResultToToolResultBlockParam: AgentTool.mapToolResultToToolResultBlockParam }
+  const fake = { name: CrewmateTool.name, inputSchema: z.object({ id: z.string() }), isReadOnly: () => true, isConcurrencySafe: () => true, maxResultSizeChars: CrewmateTool.maxResultSizeChars, call: async (input: { id: string }) => ({ data: { status: 'completed', agentId: input.id, content: [{ type: 'text', text: report(input.id) }] } }), mapToolResultToToolResultBlockParam: CrewmateTool.mapToolResultToToolResultBlockParam }
   const calls = Array.from({ length: 8 }, (_, i) => ({ type: 'tool_use', id: `call-${i}`, name: fake.name, input: { id: `report-${i}` } }))
   const assistant = parent(990_000)
   assistant.message.content = calls
@@ -99,11 +99,11 @@ try {
   }
   const mixed = await buildRequestContextPlan({ messages: [assistant, ...emitted.slice(0, 2)], owner: processMainOwner(), querySource: 'sdk', contentReplacementState: createContentReplacementState(), engineModel: MODEL, skipToolNames: new Set(), preserveBodies: true }, 'apply')
   check('two completed reports share as two, not as eight planned calls', JSON.stringify(mixed.messages) === JSON.stringify([assistant, ...emitted.slice(0, 2)]), '', 'the foreground cut in buildRequestContextPlan (src/engine/run/requestContextPlan.ts) must count only the completed reports, not the planned calls, when sharing room')
-  const { heldAgentNotices } = await load('src/engine/tasks/local-agent/launchReceipts.ts')
+  const { heldCrewmateNotices } = await load('src/engine/tasks/local-agent/launchReceipts.ts')
   const recorded = encodeSeedTranscript(commands.map((command: any) => ({ type: 'queue-operation', operation: 'enqueue', content: command.value, mode: command.mode, agentCompletion: command.agentCompletion })), getSessionId())
-  const held = heldAgentNotices(recorded.split('\n'), new Set(commands.map((_: any, i: number) => 'report-' + i)))
+  const held = heldCrewmateNotices(recorded.split('\n'), new Set(commands.map((_: any, i: number) => 'report-' + i)))
   const carried = await getQueuedCommandAttachments([...held.values()].map((notice: any) => ({ value: notice.value, mode: 'task-notification', agentCompletion: notice.agentCompletion })), { messages: [parent(990_000)], model: MODEL })
-  check('completion delivery metadata survives the queue record and restart reader', carried.length === 8 && carried.every((row: any) => inline(row.prompt).length <= 2_500), '', 'the agentCompletion span of a queued notice must survive the queue record and heldAgentNotices in src/engine/tasks/local-agent/launchReceipts.ts')
+  check('completion delivery metadata survives the queue record and restart reader', carried.length === 8 && carried.every((row: any) => inline(row.prompt).length <= 2_500), '', 'the agentCompletion span of a queued notice must survive the queue record and heldCrewmateNotices in src/engine/tasks/local-agent/launchReceipts.ts')
 
   console.log('\nrefusals')
   const ample = await getQueuedCommandAttachments([commands[0]], { messages: [parent(100_000)], model: MODEL })
@@ -126,7 +126,7 @@ try {
   check('SendMessage text is not a completion summary', notes[0].prompt === message.value, '', 'a SendMessage notice (agentMessageNotice in src/engine/tasks/local-agent/crewmateTask.tsx) carries no agentCompletion span, so fitCompletionCommands in src/crew/agent-results/summaryRoom.ts must leave it unchanged')
   const unknown = await getQueuedCommandAttachments(commands, { messages: [], model: 'local/not-listed' })
   check('an unknown parent window keeps the old delivery', unknown.every((row: any, i: number) => row.prompt === commands[i].value), '', 'shareFor in src/crew/agent-results/summaryRoom.ts must return the full cap when the parent model has no known window')
-  check('the full report still stands after every delivery', readFileSync(getAgentTranscriptPath('report-0'), 'utf8').includes(report('report-0').replaceAll('\n', '\\n')), '', 'delivery must only shorten the notice text, never the agent transcript written by notice(); check fitCompletionCommands in src/crew/agent-results/summaryRoom.ts')
+  check('the full report still stands after every delivery', readFileSync(getCrewmateTranscriptPath('report-0'), 'utf8').includes(report('report-0').replaceAll('\n', '\\n')), '', 'delivery must only shorten the notice text, never the agent transcript written by notice(); check fitCompletionCommands in src/crew/agent-results/summaryRoom.ts')
 } finally {
   queue.resetCommandQueue()
   rmSync(home, { recursive: true, force: true })

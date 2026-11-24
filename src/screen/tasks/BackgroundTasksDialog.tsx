@@ -15,12 +15,12 @@ import type { CompactWorkControls } from './CompactWorkSummary.js'
 import { focusedRunnerPresence, useFocusedWorkRoster } from './useFocusedWork.js'
 import { getBootRecovery, subscribeBootRecovery } from '../../platform/substrate/recoveryOrchestrator.js'
 import { isLocalShellTask } from '../../engine/tasks/local-shell/shellTaskState.js'
-import { isLocalAgentTask } from '../../engine/tasks/local-agent/crewmateTask.js'
+import { isCrewmateTask } from '../../engine/tasks/local-agent/crewmateTask.js'
 import type { TaskState } from '../../engine/tasks/taskState.js'
 import { useNowTick } from '../widgets/components.js'
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js'
 import type { WorkRowV1 } from '../../engine/connector/types.js'
-import { type CrewAgentFacts, workRowOfCrewFacts } from '../../engine/connector/crewFacts.js'
+import { type CrewmateFacts, workRowOfCrewFacts } from '../../engine/connector/crewFacts.js'
 import { getFocusedSessionConnector } from '../../engine/connector/focusedConnector.js'
 import { crewStopArmed, type CrewStopArm } from '../widgets/faces/crewStopChord.js'
 import { useSessionCrew } from './useCrewLedger.js'
@@ -35,7 +35,7 @@ const LEAD_ROW_ID = 'lead'
 
 function kindOf(task: TaskState): RowKind {
   if (isLocalShellTask(task)) return task.kind === 'monitor' ? 'monitor' : 'shell'
-  if (isLocalAgentTask(task)) return 'agent'
+  if (isCrewmateTask(task)) return 'agent'
   if ((task as { type?: string }).type === 'monitor_mcp') return 'monitor'
   throw new Error(
     `BackgroundTasksDialog: unrecognised task kind ${(task as { type?: string }).type}`,
@@ -57,9 +57,9 @@ export function rosterRowsOf(
     })
 }
 
-export function boardAgentRowsOf(
+export function boardCrewmateRowsOf(
   rows: readonly WorkRowV1[],
-  crew: readonly CrewAgentFacts[],
+  crew: readonly CrewmateFacts[],
   excludeIds?: ReadonlySet<string>,
 ): WorkRowV1[] {
   const shown = new Set(crew.map(facts => facts.id))
@@ -136,8 +136,8 @@ export function BackgroundTasksDialog({
 
   const otherShells = rosterRowsOf(roster.rows, 'shell', excludeIds)
   const otherMonitors = rosterRowsOf(roster.rows, 'monitor', excludeIds)
-  const crewFacts: CrewAgentFacts[] = sessionCrew.map(row => row.facts)
-  const otherAgents = boardAgentRowsOf(roster.rows, crewFacts, excludeIds)
+  const crewFacts: CrewmateFacts[] = sessionCrew.map(row => row.facts)
+  const otherAgents = boardCrewmateRowsOf(roster.rows, crewFacts, excludeIds)
 
   const leadItems: BoardItem[] =
     viewingAgentTaskId !== undefined ? [{ id: LEAD_ROW_ID, kind: 'lead' }] : []
@@ -222,7 +222,7 @@ export function BackgroundTasksDialog({
       : undefined
   const hasTaskDetail =
     detailTask !== undefined &&
-    (isLocalAgentTask(detailTask) || isLocalShellTask(detailTask))
+    (isCrewmateTask(detailTask) || isLocalShellTask(detailTask))
   const inDetail = hasTaskDetail || detailWork !== undefined
   const listActive = !inDetail
 

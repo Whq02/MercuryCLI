@@ -26,7 +26,7 @@ export const TRACKED_SETTLE_POLL_MS = 250
 
 export const TRACKED_ARM_GRACE_TICKS = 4
 
-const TRACKED_AGENT_TASK_TYPES: ReadonlySet<string> = new Set([
+const TRACKED_CREWMATE_TASK_TYPES: ReadonlySet<string> = new Set([
   'local_agent',
   'remote_agent',
 ])
@@ -36,7 +36,7 @@ export const UNTRACKED_TASK_TYPES: ReadonlyMap<string, string> = new Map([
   ['monitor_mcp', 'gated off by the MONITOR_TOOL feature macro in Mercury — no producer'],
 ])
 
-const SUBAGENT_TRACKED_TASK_TYPES: ReadonlyMap<string, string> = new Map([
+const WAITER_OWN_TASK_TYPES: ReadonlyMap<string, string> = new Map([
   ['local_bash', "a waiter's own background shells: a crewmate's wait ends when the shells it launched settle (a shell task carries the spawning crewmate's id), and a one-prompt run's wait — its input closed, so the run ends with the turn and no notice could reach it between turns — ends when the run's own shells settle"],
 ])
 
@@ -46,7 +46,7 @@ export const TERMINAL_TASK_STATUSES: ReadonlySet<string> = new Set([
   'killed',
 ])
 
-export function countTrackedRunningAgents(
+export function countTrackedRunningTasks(
   getAppState: () => AppState,
   selfTaskId?: string,
 ): number {
@@ -56,8 +56,8 @@ export function countTrackedRunningAgents(
       const t = task as { id?: unknown; status?: unknown; type?: unknown; agentId?: unknown }
       if (typeof t.status === 'string' && TERMINAL_TASK_STATUSES.has(t.status)) continue
       if (selfTaskId !== undefined && t.id === selfTaskId) continue
-      if (typeof t.type === 'string' && TRACKED_AGENT_TASK_TYPES.has(t.type)) running++
-      else if ((selfTaskId !== undefined || isRunInputClosed()) && typeof t.type === 'string' && SUBAGENT_TRACKED_TASK_TYPES.has(t.type) && t.agentId === selfTaskId) running++
+      if (typeof t.type === 'string' && TRACKED_CREWMATE_TASK_TYPES.has(t.type)) running++
+      else if ((selfTaskId !== undefined || isRunInputClosed()) && typeof t.type === 'string' && WAITER_OWN_TASK_TYPES.has(t.type) && t.agentId === selfTaskId) running++
     }
   } catch (error) {
     passedOver(error)
@@ -145,7 +145,7 @@ export const SleepTool = buildTool({
     const ms = wait.value * 1000
     const start = Date.now()
     let interrupted = false
-    let armed = countTrackedRunningAgents(getAppState, agentId) > 0
+    let armed = countTrackedRunningTasks(getAppState, agentId) > 0
     let newInput = false
     await new Promise<void>(resolve => {
       const signal = abortController.signal
@@ -189,13 +189,13 @@ export const SleepTool = buildTool({
           }
           if (!armed) {
             if (tick > TRACKED_ARM_GRACE_TICKS) return false
-            armed = countTrackedRunningAgents(getAppState, agentId) > 0
+            armed = countTrackedRunningTasks(getAppState, agentId) > 0
             if (!armed) {
               tick++
               return undefined
             }
           }
-          if (countTrackedRunningAgents(getAppState, agentId) === 0) {
+          if (countTrackedRunningTasks(getAppState, agentId) === 0) {
             cleanup()
             resolve()
             return true

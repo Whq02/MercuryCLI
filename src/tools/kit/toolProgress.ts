@@ -36,7 +36,7 @@ export type PowerShellProgress = {
 export type ShellProgress = BashProgress | PowerShellProgress
 
 
-export type AgentToolProgress = {
+export type CrewmateToolProgress = {
   type: 'agent_progress'
   message: AssistantMessage | NormalizedUserMessage
   prompt: string
@@ -103,7 +103,7 @@ export type ToolProgressData =
   | BashProgress
   | PowerShellProgress
   | TestProgress
-  | AgentToolProgress
+  | CrewmateToolProgress
   | SkillToolProgress
   | MCPProgress
   | WebSearchProgress

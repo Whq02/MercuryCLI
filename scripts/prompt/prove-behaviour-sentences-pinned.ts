@@ -43,7 +43,7 @@ const { getOriginalCwd, setOriginalCwd, setCwdState, setAskChannel } = await imp
 const { markSessionNonInteractive, resetRuntimePostureForTest } = await import('../../src/screen/cockpit/runtimePosture.ts')
 const { resetHarnessMapForTest } = await import('../../src/screen/cockpit-gauges/harnessMap.ts')
 const { getLocalISODate } = await import('../../src/platform/primitives/localIsoDate.ts')
-const { buildSubagentMercurySections } = await import('../../src/tools/crewmate/subagentDoctrine.ts')
+const { buildCrewmateMercurySections } = await import('../../src/tools/crewmate/subagentDoctrine.ts')
 const { MERCURY_CREW_AGENT } = await import('../../src/tools/crewmate/built-in/mercuryCrewAgent.ts')
 const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.ts')
 const { retainItems } = await import('../../src/sessions/mneme/memoryVerbs.ts')
@@ -86,7 +86,7 @@ async function assemble(mode: 'interactive' | 'headless'): Promise<string> {
 }
 async function crewmate(): Promise<string> {
   resetRuntimePostureForTest()
-  const doctrine = buildSubagentMercurySections({ agentDefinition: MERCURY_CREW_AGENT, toolNames: new Set(TOOL_NAMES), seat: 'a crewmate' })
+  const doctrine = buildCrewmateMercurySections({ agentDefinition: MERCURY_CREW_AGENT, toolNames: new Set(TOOL_NAMES), seat: 'a crewmate' })
   const prompt = await enhanceSystemPromptWithEnvDetails([...doctrine, MERCURY_CREW_AGENT.getSystemPrompt()], MODEL, undefined, 'agent-sentences-pinned')
   return prompt.join('\n\n')
 }

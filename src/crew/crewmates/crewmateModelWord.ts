@@ -1,4 +1,4 @@
-import { getAgentModel } from '../../models/catalogue/agentModel.js'
+import { getCrewmateModel } from '../../models/catalogue/agentModel.js'
 import { matchReachableModelName, modelNameHeadlessRefusal } from '../../models/catalogue/modelNameRoad.js'
 import { MODEL_LOOKUP_LADDER } from '../../models/facts/modelLookup.js'
 import { resolveEngineDispatch, unrecognisedModelWordRefusal } from './engineDispatch.js'
@@ -11,7 +11,7 @@ export async function crewmateModelOverride(model: string | undefined, parent: s
     throw new Error(modelNameHeadlessRefusal(matched, 'model') + ' ' + MODEL_LOOKUP_LADDER)
   }
   const word = matched !== null && (matched.kind === 'match' || matched.kind === 'exact') ? matched.id : model
-  const resolved = getAgentModel(undefined, parent, word)
+  const resolved = getCrewmateModel(undefined, parent, word)
   const dispatch = await resolveEngineDispatch(resolved)
   if (dispatch !== null) return dispatch.model
   const refusal = unrecognisedModelWordRefusal(word)

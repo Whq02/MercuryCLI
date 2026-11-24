@@ -44,23 +44,23 @@ const delta = (kind: 'thinking_delta' | 'text_delta' | 'input_json_delta', chars
 section('C1 — the counter moves while the model reasons')
 {
   sectionHint = 'to fix, change foldAgentWaitEvent, agentWaitWords or streamedTokensWords in src/engine/tasks/local-agent/agentWait.ts'
-  let w = wait.foldAgentWaitEvent(null, { type: 'stream_request_start' }, T0)
-  w = wait.foldAgentWaitEvent(w, { type: 'stream_event', event: { type: 'message_start' } }, T0 + 1_000)
-  check('the first byte in: no tokens yet', w?.phase === 'replying' && wait.agentWaitWords(w, T0 + 1_000) === 'first byte in, no tokens yet', JSON.stringify(w))
-  w = wait.foldAgentWaitEvent(w, { type: 'stream_event', event: { type: 'content_block_start', index: 0, content_block: { type: 'thinking', thinking: '' } } }, T0 + 2_000)
-  check('the thinking block opens: reasoning, still no tokens', w?.phase === 'reasoning' && wait.agentWaitWords(w, T0 + 5_000) === 'reasoning 3s, no tokens yet', wait.agentWaitWords(w, T0 + 5_000) ?? 'null')
-  w = wait.foldAgentWaitEvent(w, delta('thinking_delta', 20), T0 + 3_000)
-  check('a first small delta counts but does not yet spell (a handful is no counter)', w?.phase === 'reasoning' && w.streamedChars === 20 && wait.agentWaitWords(w, T0 + 5_000) === 'reasoning 3s, no tokens yet', JSON.stringify(w))
-  for (let i = 0; i < 100; i++) w = wait.foldAgentWaitEvent(w, delta('thinking_delta', 50), T0 + 4_000 + i)
+  let w = wait.foldCrewmateWaitEvent(null, { type: 'stream_request_start' }, T0)
+  w = wait.foldCrewmateWaitEvent(w, { type: 'stream_event', event: { type: 'message_start' } }, T0 + 1_000)
+  check('the first byte in: no tokens yet', w?.phase === 'replying' && wait.crewmateWaitWords(w, T0 + 1_000) === 'first byte in, no tokens yet', JSON.stringify(w))
+  w = wait.foldCrewmateWaitEvent(w, { type: 'stream_event', event: { type: 'content_block_start', index: 0, content_block: { type: 'thinking', thinking: '' } } }, T0 + 2_000)
+  check('the thinking block opens: reasoning, still no tokens', w?.phase === 'reasoning' && wait.crewmateWaitWords(w, T0 + 5_000) === 'reasoning 3s, no tokens yet', wait.crewmateWaitWords(w, T0 + 5_000) ?? 'null')
+  w = wait.foldCrewmateWaitEvent(w, delta('thinking_delta', 20), T0 + 3_000)
+  check('a first small delta counts but does not yet spell (a handful is no counter)', w?.phase === 'reasoning' && w.streamedChars === 20 && wait.crewmateWaitWords(w, T0 + 5_000) === 'reasoning 3s, no tokens yet', JSON.stringify(w))
+  for (let i = 0; i < 100; i++) w = wait.foldCrewmateWaitEvent(w, delta('thinking_delta', 50), T0 + 4_000 + i)
   check('the reasoning phase keeps its clock and counts every thinking delta', w?.phase === 'reasoning' && w.sinceMs === T0 + 2_000 && w.streamedChars === 5_020, JSON.stringify(w))
-  const words = wait.agentWaitWords(w, T0 + 132_000)
+  const words = wait.crewmateWaitWords(w, T0 + 132_000)
   check('the row: reasoning with the counter and the estimate, never "no tokens yet"', words === 'reasoning 2m 10s · ~1.3k tokens so far', words ?? 'null')
-  check('the words without a clock keep the estimate', wait.agentWaitWords(w, null) === 'reasoning · ~1.3k tokens so far', wait.agentWaitWords(w, null) ?? 'null')
-  w = wait.foldAgentWaitEvent(w, delta('text_delta', 400), T0 + 140_000)
-  check('text streams: the phase moves on and the count carries across', w?.phase === 'streaming' && w.streamedChars === 5_420 && wait.agentWaitWords(w, T0 + 141_000) === 'streaming · ~1.4k tokens so far', JSON.stringify(w))
-  w = wait.foldAgentWaitEvent(w, delta('input_json_delta', 80), T0 + 142_000)
+  check('the words without a clock keep the estimate', wait.crewmateWaitWords(w, null) === 'reasoning · ~1.3k tokens so far', wait.crewmateWaitWords(w, null) ?? 'null')
+  w = wait.foldCrewmateWaitEvent(w, delta('text_delta', 400), T0 + 140_000)
+  check('text streams: the phase moves on and the count carries across', w?.phase === 'streaming' && w.streamedChars === 5_420 && wait.crewmateWaitWords(w, T0 + 141_000) === 'streaming · ~1.4k tokens so far', JSON.stringify(w))
+  w = wait.foldCrewmateWaitEvent(w, delta('input_json_delta', 80), T0 + 142_000)
   check('tool input streams into the same count', w?.streamedChars === 5_500, JSON.stringify(w))
-  const same = wait.foldAgentWaitEvent(w, { type: 'stream_event', event: { type: 'content_block_stop', index: 0 } }, T0 + 143_000)
+  const same = wait.foldCrewmateWaitEvent(w, { type: 'stream_event', event: { type: 'content_block_stop', index: 0 } }, T0 + 143_000)
   check('an event that streams nothing returns the same wait (the publisher stays quiet)', same === w)
   check('a small count spells whole tokens', wait.streamedTokensWords(200) === '~50 tokens so far' && wait.streamedTokensWords(36) === null && wait.streamedTokensWords(undefined) === null, String(wait.streamedTokensWords(200)))
 }
@@ -111,7 +111,7 @@ section('C3 — the paused row says PAUSED with why and the countdown')
 {
   sectionHint = 'to fix, change crewAgentFactsOf, crewStateOf, crewStatusWords, crewPauseLine or crewCountLabel in src/engine/connector/crewFacts.ts, or decodeAgentPause in src/engine/tasks/local-agent/agentPause.ts'
   const now = T0 + 120_000
-  const paused = crew.crewAgentFactsOf(
+  const paused = crew.crewmateFactsOf(
     {
       id: 'agent-2',
       kind: 'agent',
@@ -124,23 +124,23 @@ section('C3 — the paused row says PAUSED with why and the countdown')
     } as never,
     null,
   )
-  const busy = crew.crewAgentFactsOf(
+  const busy = crew.crewmateFactsOf(
     { id: 'agent-3', kind: 'agent', name: 'fixer', status: 'failed', startTime: T0, endTime: T0 + 30_000, paused: { why: 'provider busy', words: 'the provider refused 3 times in a row (HTTP 429, busy) — the 20m retry budget is spent' } } as never,
     null,
   )
-  const running = crew.crewAgentFactsOf({ id: 'agent-1', kind: 'agent', name: 'reader', status: 'running', startTime: T0, paused: { why: 'usage limit', words: 'stale' } } as never, null)
-  const failed = crew.crewAgentFactsOf({ id: 'agent-4', kind: 'agent', name: 'lost', status: 'failed', startTime: T0, endTime: T0 + 10, error: 'crashed' } as never, null)
+  const running = crew.crewmateFactsOf({ id: 'agent-1', kind: 'agent', name: 'reader', status: 'running', startTime: T0, paused: { why: 'usage limit', words: 'stale' } } as never, null)
+  const failed = crew.crewmateFactsOf({ id: 'agent-4', kind: 'agent', name: 'lost', status: 'failed', startTime: T0, endTime: T0 + 10, error: 'crashed' } as never, null)
   check('a settled row carrying a pause is paused, not failed', paused !== null && paused.state === 'paused' && paused.paused !== null && crew.crewStateLabel(paused) === 'paused', JSON.stringify(paused?.state))
   check('the status cell: paused, why, and the countdown', paused !== null && crew.crewStatusWords(paused, now) === `paused — Opus 5's 5-hour limit is spent until 15:00 · retries by itself at ${pause.pauseClockWords(now + 42 * 60_000)} (in 42m) · r retries now`, paused === null ? 'null' : crew.crewStatusWords(paused, now))
   check('a pause with no stated reset says so', busy !== null && crew.crewStatusWords(busy, now) === 'paused — the provider refused 3 times in a row (HTTP 429, busy) — the 20m retry budget is spent · no reset stated — a message resumes it · r retries now', busy === null ? 'null' : crew.crewStatusWords(busy, now))
   check('a countdown that has run out reads "resuming now"', paused !== null && crew.crewStatusWords(paused, now + 43 * 60_000) === "paused — Opus 5's 5-hour limit is spent until 15:00 · resuming now · r retries now")
-  check("the row's line carries the pause's own words and the doors", paused !== null && crew.crewPauseLine(paused, now) === `paused — Opus 5's 5-hour limit is spent until 15:00 · retries by itself at ${pause.pauseClockWords(now + 42 * 60_000)} (in 42m) · r retries now; ${pause.AGENT_PAUSE_DOORS}`, paused === null ? 'null' : String(crew.crewPauseLine(paused, now)))
+  check("the row's line carries the pause's own words and the doors", paused !== null && crew.crewPauseLine(paused, now) === `paused — Opus 5's 5-hour limit is spent until 15:00 · retries by itself at ${pause.pauseClockWords(now + 42 * 60_000)} (in 42m) · r retries now; ${pause.CREWMATE_PAUSE_DOORS}`, paused === null ? 'null' : String(crew.crewPauseLine(paused, now)))
   check('a running row is never paused, whatever it carries', running !== null && running.state === 'running' && crew.crewPauseLine(running, now) === null)
   check('a failed row without a pause keeps its word', failed !== null && failed.state === 'failed' && failed.paused === null && crew.crewStatusWords(failed, now) === 'failed')
   const all = [running!, paused!, busy!, failed!]
   check('the count line counts the running and the paused rows (the list header beneath carries the total)', crew.crewCountLabel(all) === '1 running · 2 paused' && crew.crewPaused(all).length === 2, crew.crewCountLabel(all))
   check('a crew with no pause keeps the running count alone', crew.crewCountLabel([running!, failed!]) === '1 running', crew.crewCountLabel([running!, failed!]))
-  check('a malformed pause on the wire is no pause', crew.crewStateOf({ status: 'failed', paused: { why: 'tired' } } as never) === 'failed' && pause.decodeAgentPause({ why: 'usage limit' }) === null)
+  check('a malformed pause on the wire is no pause', crew.crewStateOf({ status: 'failed', paused: { why: 'tired' } } as never) === 'failed' && pause.decodeCrewmatePause({ why: 'usage limit' }) === null)
 }
 
 section("C4 — the pause's owner: the provider's typed refusal pauses; anything else does not")

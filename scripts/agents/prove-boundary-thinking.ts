@@ -26,13 +26,13 @@ if (childAt !== -1) {
   bootstrap.setOriginalCwd(process.cwd())
   bootstrap.setCwdState(process.cwd())
   bootstrap.switchSession('00000000-0000-4000-8000-000000000043' as never)
-  const { runAgent } = await import('../../src/tools/crewmate/runCrewmate.ts')
+  const { runCrewmate } = await import('../../src/tools/crewmate/runCrewmate.ts')
   const { resumeAgentBackground } = await import('../../src/tools/crewmate/resumeCrewmate.ts')
   const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
   const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
   const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
   const { turnDoor: startTurn } = await import('../../src/engine/turnDoor.ts')
-  const { readAgentMetadata, flushSessionStorage } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+  const { readCrewmateMetadata, flushSessionStorage } = await import('../../src/sessions/transcripts/sessionStorage.ts')
   await import('../../src/engine/tasks/tasks.ts')
   type AppState = import('../../src/screen/app-state/AppStateStore.ts').AppState
   let state = getDefaultAppState()
@@ -52,10 +52,10 @@ if (childAt !== -1) {
     assert.equal(state.tasks[agentId]?.status, 'completed', JSON.stringify(state.tasks[agentId]))
   } else {
     const definition = { agentType: 'mercury-crew', whenToUse: 'thinking boundary fixture', source: 'projectSettings', getSystemPrompt: () => 'Answer with one line. Do not call tools.' } as never
-    for await (const _row of runAgent({ agentDefinition: definition, promptMessages: [createUserMessage({ content: 'THINKING-' + mode.toUpperCase() })], toolUseContext: context, canUseTool: allow, isAsync: true, canShowPermissionPrompts: false, querySource: 'agent:custom:thinking-boundary' as never, availableTools: [] as never, model, override: { agentId: mode === 'launch' ? agentId : agentId + '-' + mode }, description: 'thinking continuation', cwd: process.cwd() })) {}
+    for await (const _row of runCrewmate({ agentDefinition: definition, promptMessages: [createUserMessage({ content: 'THINKING-' + mode.toUpperCase() })], toolUseContext: context, canUseTool: allow, isAsync: true, canShowPermissionPrompts: false, querySource: 'agent:custom:thinking-boundary' as never, availableTools: [] as never, model, override: { agentId: mode === 'launch' ? agentId : agentId + '-' + mode }, description: 'thinking continuation', cwd: process.cwd() })) {}
   }
   await flushSessionStorage()
-  console.log(JSON.stringify({ metadata: await readAgentMetadata((mode === 'launch' || mode === 'resume' ? agentId : agentId + '-' + mode) as never) }))
+  console.log(JSON.stringify({ metadata: await readCrewmateMetadata((mode === 'launch' || mode === 'resume' ? agentId : agentId + '-' + mode) as never) }))
   process.exit(0)
 } else {
   const { startFixtureApi } = await import('../lib/fixtureApi.ts')

@@ -3,7 +3,7 @@ import type { OwnerKey } from './ownerKey.js'
 
 export type InvocationKind = 'spawn' | 'resume'
 
-export type SubagentContext = {
+export type CrewmateContext = {
   agentType: 'subagent'
   agentId: string
   subagentName?: string
@@ -13,7 +13,7 @@ export type SubagentContext = {
   invocationEmitted?: boolean
 }
 
-export type AgentContext = SubagentContext
+export type AgentContext = CrewmateContext
 
 export interface LeaseHolder {
   sessionId: string

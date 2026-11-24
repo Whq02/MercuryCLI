@@ -193,8 +193,8 @@ async function main(): Promise<void> {
   section('§3 nothing advertises it')
   removedWhere = 'remove the word coordinator from the surface that check names (the refusal text is backgroundedLaunchRefusal in src/daemon/switchboard/launchAuthority.ts, the boot menu is src/platform/substrate/startupMenu.ts)'
   {
-    const { MERCURY_CONSTITUTION, MERCURY_SUBAGENT_CONTRACT } = await import('../../src/engine/system-prompt/mercuryContract.ts')
-    const sizes = `crewmate contract ${MERCURY_SUBAGENT_CONTRACT.length} chars`
+    const { MERCURY_CONSTITUTION, MERCURY_CREWMATE_CONTRACT } = await import('../../src/engine/system-prompt/mercuryContract.ts')
+    const sizes = `crewmate contract ${MERCURY_CREWMATE_CONTRACT.length} chars`
     const health = await mercury(world('health'), ['health', '--json'])
     let wrapper = ''
     try {

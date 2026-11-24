@@ -32,7 +32,7 @@ const { getOriginalCwd, setOriginalCwd, setCwdState, setAskChannel } = await imp
 const { markSessionNonInteractive, resetRuntimePostureForTest } = await import('../../src/screen/cockpit/runtimePosture.ts')
 const { resetHarnessMapForTest } = await import('../../src/screen/cockpit-gauges/harnessMap.ts')
 const { buildEffectiveSystemPrompt } = await import('../../src/engine/system-prompt/systemPrompt.ts')
-const { buildSubagentMercurySections } = await import('../../src/tools/crewmate/subagentDoctrine.ts')
+const { buildCrewmateMercurySections } = await import('../../src/tools/crewmate/subagentDoctrine.ts')
 const { assembleTurnSystemPrompt, buildSystemPromptBlocks } = await import('../../src/models/roads/anthropic/cacheAndUsage.ts')
 
 const TEXT: string = (contract as { MERCURY_CONSTITUTION?: string }).MERCURY_CONSTITUTION ?? ''
@@ -203,11 +203,11 @@ try {
     check('an agent prompt (--agent) rides behind the constitution, the append last', j(agent) === j([TEXT, 'AGENT-PROMPT', 'APPEND']), '', 'buildEffectiveSystemPrompt in src/engine/system-prompt/systemPrompt.ts must return the constitution, the agent prompt, then the append')
     const override = buildEffectiveSystemPrompt({ mainThreadAgentDefinition: agentDef, toolUseContext: ctx, customSystemPrompt: 'CUSTOM', defaultSystemPrompt: ['D'], appendSystemPrompt: 'APPEND', overrideSystemPrompt: 'OVERRIDE' })
     check('overrideSystemPrompt stays the one exact-replacement road', j(override) === j(['OVERRIDE']), '', 'buildEffectiveSystemPrompt in src/engine/system-prompt/systemPrompt.ts must return only the override prompt when overrideSystemPrompt is set')
-    const crew = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-crew' } })
+    const crew = buildCrewmateMercurySections({ agentDefinition: { agentType: 'mercury-crew' } })
     check('a crewmate: element 0 is the constitution, element 1 its seat contract', crew[0] === TEXT && typeof crew[1] === 'string' && crew[1]!.startsWith('<subagent-doctrine>'), '', 'buildSubagentMercurySections in src/tools/crewmate/subagentDoctrine.ts must return the constitution first and the seat contract (MERCURY_SUBAGENT_CONTRACT, starting <subagent-doctrine>) second')
-    const scout = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-scout' } })
+    const scout = buildCrewmateMercurySections({ agentDefinition: { agentType: 'mercury-scout' } })
     check('the fixed-output scout: the constitution still leads', scout[0] === TEXT, '', 'buildSubagentMercurySections in src/tools/crewmate/subagentDoctrine.ts must lead with the constitution for the mercury-scout agent too')
-    const everySeat = [TEXT, contract.MERCURY_SUBAGENT_CONTRACT].join('\n')
+    const everySeat = [TEXT, contract.MERCURY_CREWMATE_CONTRACT].join('\n')
     check('no seat text negates the identity or names an engine family', !/claim to be human|misrepresent what you are|not a person/i.test(everySeat) && !/\b(Claude|Anthropic|GPT|OpenAI|Gemini)\b/.test(everySeat), '', 'remove the negated identity or the engine-family name from MERCURY_CONSTITUTION or MERCURY_SUBAGENT_CONTRACT in src/engine/system-prompt/mercuryContract.ts')
   }
 

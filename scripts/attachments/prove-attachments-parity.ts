@@ -67,7 +67,7 @@ const SKIPPED: Record<string, string> = {
   getAttachments: 'per-turn orchestrator over ToolUseContext/appState — pinned by substrate suites (cache-stability, ctx-forecast, away-summary); gains fixture cases as R3 extraction reaches it',
   getAttachmentMessages: 'async generator over the same ToolUseContext orchestration (the streaming wrapper of getAttachments)',
   getQueuedCommandAttachments: 'reads AppState queuedCommands',
-  getAgentPendingMessageAttachments: 'reads the crewmates\' pending-message state',
+  getCrewmatePendingMessageAttachments: 'reads the crewmates\' pending-message state',
   getDateChangeAttachments: 'reads session clock state',
   getDeferredToolsDeltaAttachment: 'reads MCP registry state',
   getMcpInstructionsDeltaAttachment: 'reads MCP connection state',

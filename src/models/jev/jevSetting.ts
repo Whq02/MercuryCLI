@@ -1,5 +1,5 @@
 import { getGlobalConfig, isConfigReadingAllowed, saveGlobalConfig } from '../../platform/settings/config.js'
-import { JEV_SUBAGENT_CALL_BUDGET, JEV_SUBAGENT_PACE_PER_MINUTE, type JevRoad, jevRoadWords, jevUsdLabel } from './jevContract.js'
+import { JEV_CREWMATE_CALL_BUDGET, JEV_CREWMATE_PACE_PER_MINUTE, type JevRoad, jevRoadWords, jevUsdLabel } from './jevContract.js'
 
 export interface JevSettings {
   enabled: boolean
@@ -132,7 +132,7 @@ export function jevSettingLines(settings: JevSettings = readJevSettings()): stri
     `session allowance: ${jevUsdLabel(settings.allowanceUsd)} (a runaway stop, not a budget; ${jevRoadWords(settings.road)} road only, reset by /clear)`,
     `pace: ${settings.pacePerMinute} requests a minute`,
     `request ceiling: ${jevCeilingWords(settings)}`,
-    `crewmates: ${settings.subagents ? `on — ${JEV_SUBAGENT_CALL_BUDGET} calls each; ${JEV_SUBAGENT_PACE_PER_MINUTE} a minute per session, on the same allowance` : 'off'}`,
+    `crewmates: ${settings.subagents ? `on — ${JEV_CREWMATE_CALL_BUDGET} calls each; ${JEV_CREWMATE_PACE_PER_MINUTE} a minute per session, on the same allowance` : 'off'}`,
     `doors: ${JEV_DOORS}`,
   ]
 }

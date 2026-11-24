@@ -1,7 +1,7 @@
 import { useCallback, useRef, useSyncExternalStore } from 'react'
 import type { NormalizedMessage, RenderableMessage } from '../../engine/message-shapes/message.js'
-import { AGENT_TOOL_NAME } from '../../tools/kit/names/agent.js'
-import { hiddenAgentToolUses } from '../../tools/crewmate/rows.js'
+import { CREWMATE_TOOL_NAME } from '../../tools/kit/names/agent.js'
+import { hiddenCrewmateToolUses } from '../../tools/crewmate/rows.js'
 import { expandedRowsOf, subscribeExpandedRows, toggleExpandedRow } from '../messages/transcriptMemory.js'
 import { getToolUseID } from '../../engine/messages/lookups.js'
 import { hasNoticeFold } from '../../engine/message-shapes/noticeRows.js'
@@ -37,14 +37,14 @@ export function useRowExpansion({ conversationId, isMessageSelectorVisible, look
 
   const isAgentToolName = useCallback(
     (name?: string): boolean =>
-      name === AGENT_TOOL_NAME,
+      name === CREWMATE_TOOL_NAME,
     [],
   )
   const agentFoldHidden = useCallback(
     (toolUseID: string): boolean => {
       const progress =
         lookupsRef.current.progressMessagesByToolUseID.get(toolUseID) ?? []
-      return hiddenAgentToolUses(progress, tools) > 0
+      return hiddenCrewmateToolUses(progress, tools) > 0
     },
     [tools],
   )

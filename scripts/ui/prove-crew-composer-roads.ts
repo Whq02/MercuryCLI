@@ -167,7 +167,7 @@ const { TranscriptSwap } = await import('../../src/screen/chat/CrewmateTranscrip
 const crewmateView = await import('../../src/crew/crewmates/crewmateView.ts')
 const { createTaskStateBase } = await import('../../src/engine/tasks/taskBase.ts')
 const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
-const { getAgentTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
+const { getCrewmateTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
 const { asAgentId } = await import('../../src/sessions/transcripts/ids.ts')
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
 const { processBashCommand } = await import('../../src/engine/user-input/processBashCommand.tsx')
@@ -558,7 +558,7 @@ async function run(cols: number, rows: number): Promise<void> {
       isBackgrounded: true,
       messages: [],
     }
-    const file = getAgentTranscriptPath(asAgentId(LOCAL_ID))
+    const file = getCrewmateTranscriptPath(asAgentId(LOCAL_ID))
     rmSync(file, { force: true })
     scene.setState(prev => ({ ...prev, tasks: { ...(prev.tasks as Record<string, unknown>), [LOCAL_ID]: { ...base, status: 'completed' } } }))
     await sleep(200)
@@ -617,7 +617,7 @@ async function run(cols: number, rows: number): Promise<void> {
     const files = [
       join(getProjectDir(CWD), SESSION_ID, 'subagents', `agent-${ATLAS.id}.jsonl`),
       join(getProjectDir(CWD), SESSION_ID, 'subagents', `agent-${BIRCH.id}.jsonl`),
-      getAgentTranscriptPath(asAgentId(LOCAL_ID)),
+      getCrewmateTranscriptPath(asAgentId(LOCAL_ID)),
     ]
     const transcriptsBefore = files.map(file => readFileSync(file, 'utf8'))
     const resumesBefore = resumes().length

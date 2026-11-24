@@ -8,11 +8,11 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'vanguard-envelope-'))
 delete process.env.MERCURY_CHANGE_RECEIPTS
 
-const { buildAgentResultEnvelope, formatEnvelopeBlock, parseDeclaration } = await import(
+const { buildCrewmateResultEnvelope, formatEnvelopeBlock, parseDeclaration } = await import(
   '../../src/crew/agent-results/normalize.ts'
 )
 const { ENVELOPE_DOCTRINE } = await import('../../src/crew/agent-results/contracts.ts')
-const { attachAgentEnvelope, envelopeFor } = await import(
+const { attachCrewmateEnvelope, envelopeFor } = await import(
   '../../src/crew/agent-results/ingest.ts'
 )
 const { observeToolTerminal } = await import('../../src/engine/run-owner/effectObserver.ts')
@@ -68,7 +68,7 @@ section('N. normalizer laws')
 {
   _resetChangeReceiptsForTesting()
 
-  const legacy = await buildAgentResultEnvelope({
+  const legacy = await buildCrewmateResultEnvelope({
     agentId: AGENT_ID,
     status: 'completed',
     finalText: 'I did some work.\n'.repeat(100),
@@ -87,7 +87,7 @@ section('N. normalizer laws')
   check('N2a parseDeclaration strips the block from prose',
     parsed.declared?.summary === 'declared summary' && parsed.prose === 'Long prose here.',
     `declared summary ${parsed.declared?.summary} · prose ${JSON.stringify(parsed.prose)} · fix parseDeclaration in src/crew/agent-results/normalize.ts`)
-  const declared = await buildAgentResultEnvelope({
+  const declared = await buildCrewmateResultEnvelope({
     agentId: AGENT_ID,
     status: 'completed',
     finalText: declaredText,
@@ -99,7 +99,7 @@ section('N. normalizer laws')
     declared.recommendedNextAction === 'merge it',
     `${JSON.stringify(declared)} · fix how buildAgentResultEnvelope in src/crew/agent-results/normalize.ts carries the declared fields`)
 
-  const malformed = await buildAgentResultEnvelope({
+  const malformed = await buildCrewmateResultEnvelope({
     agentId: AGENT_ID,
     status: 'completed',
     finalText: 'Prose stands.\n<mercury-envelope>{not json at all</mercury-envelope>',
@@ -110,7 +110,7 @@ section('N. normalizer laws')
     malformed.artifacts.length === 1,
     `ref ${malformed.malformedDeclarationRef} · summary ${JSON.stringify(malformed.summary)} · artifacts ${malformed.artifacts.length} · fix the malformed-declaration branch of buildAgentResultEnvelope in src/crew/agent-results/normalize.ts`)
 
-  const extraKeys = await buildAgentResultEnvelope({
+  const extraKeys = await buildCrewmateResultEnvelope({
     agentId: AGENT_ID,
     status: 'completed',
     finalText: 'P.\n<mercury-envelope>{"summary":"s","invented_field":true}</mercury-envelope>',
@@ -129,7 +129,7 @@ section('O. observed truth — the observer, never prose')
   recordEvidence('/tmp', { command: 'bash scripts/lsp/run-all.sh', ok: true, scope: 'suite', coverage: 'scripts/lsp suite' }, owner)
   recordEvidence('/tmp', { command: 'bun run typecheck', ok: false, scope: 'typecheck', coverage: 'strict typecheck floor' }, owner)
 
-  const env = await buildAgentResultEnvelope({
+  const env = await buildCrewmateResultEnvelope({
     agentId: AGENT_ID,
     status: 'completed',
     finalText:
@@ -168,7 +168,7 @@ section('P. a second seat in the same project reports only the checks its own ru
   const inherited = verificationSummary('/tmp', { skipDigest: true, owner: fresh })
   check('P1 the project history still reaches the fresh seat as tree state (the last persisted check was the failed typecheck)',
     inherited.state === 'failed' && inherited.lastEvidence?.command === 'bun run typecheck', `${inherited.state} · ${inherited.lastEvidence?.command ?? 'no evidence'} · verificationSummary in src/platform/verification/verificationState.ts must still report the persisted project history`)
-  const idle = await buildAgentResultEnvelope({
+  const idle = await buildCrewmateResultEnvelope({
     agentId: FRESH_ID,
     status: 'completed',
     finalText: 'Read the brief; ran nothing.\n<mercury-envelope>{"summary":"read only"}</mercury-envelope>',
@@ -176,7 +176,7 @@ section('P. a second seat in the same project reports only the checks its own ru
   check('P2 a seat that ran no check reports no check — the persisted project history is not its observed checks',
     idle.checks.length === 0, idle.checks.map(c => `${c.name}:${c.state}`).join(' · ') + ' · buildAgentResultEnvelope in src/crew/agent-results/normalize.ts must list only checks the seat itself ran')
   recordEvidence('/tmp', { command: 'bun run scripts/eval/prove-output-bounds.ts', ok: true, scope: 'proof', coverage: 'prove-output-bounds.ts' }, fresh)
-  const own = await buildAgentResultEnvelope({
+  const own = await buildCrewmateResultEnvelope({
     agentId: FRESH_ID,
     status: 'completed',
     finalText: 'Ran one proof.\n<mercury-envelope>{"summary":"one proof","checks":["prove-output-bounds"]}</mercury-envelope>',
@@ -184,7 +184,7 @@ section('P. a second seat in the same project reports only the checks its own ru
   check('P3 after its own check the envelope carries exactly that one, observed',
     own.checks.length === 1 && own.checks[0]?.name === 'prove-output-bounds' && own.checks[0]?.state === 'observed', own.checks.map(c => `${c.name}:${c.state}`).join(' · ') + ' · buildAgentResultEnvelope in src/crew/agent-results/normalize.ts must carry the seat own evidence')
   check('P4 the seat that performed the checks still reports them',
-    (await buildAgentResultEnvelope({ agentId: AGENT_ID, status: 'completed', finalText: 'done' })).checks.length === 2,
+    (await buildCrewmateResultEnvelope({ agentId: AGENT_ID, status: 'completed', finalText: 'done' })).checks.length === 2,
     'the seat that ran the checks must still report both · buildAgentResultEnvelope in src/crew/agent-results/normalize.ts')
 
   _resetVerificationStateForTesting()
@@ -195,7 +195,7 @@ section('P. a second seat in the same project reports only the checks its own ru
   check('P5 after a restart the store still answers tree state, and the store carries no in-memory marker',
     afterRestart.lastEvidence?.command === 'bun run scripts/eval/prove-output-bounds.ts' && !store.includes('inherited'),
     `${afterRestart.lastEvidence?.command ?? 'no evidence'} · marker in store: ${store.includes('inherited')} · the inherited marker must stay in memory only, see the persist and load code in src/platform/verification/verificationState.ts`)
-  const resumedEnvelope = await buildAgentResultEnvelope({
+  const resumedEnvelope = await buildCrewmateResultEnvelope({
     agentId: RESUMED_ID,
     status: 'completed',
     finalText: 'Resumed; ran nothing this time.\n<mercury-envelope>{"summary":"resumed"}</mercury-envelope>',
@@ -205,8 +205,8 @@ section('P. a second seat in the same project reports only the checks its own ru
 
 section('B. the AgentTool parent boundary')
 {
-  const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
-  const map = (AgentTool as { mapToolResultToToolResultBlockParam: Function })
+  const { CrewmateTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
+  const map = (CrewmateTool as { mapToolResultToToolResultBlockParam: Function })
     .mapToolResultToToolResultBlockParam
   const data = {
     status: 'completed',
@@ -217,12 +217,12 @@ section('B. the AgentTool parent boundary')
     totalToolUseCount: 2,
     totalDurationMs: 30,
   }
-  const envelope = await buildAgentResultEnvelope({
+  const envelope = await buildCrewmateResultEnvelope({
     agentId: AGENT_ID,
     status: 'completed',
     finalText: 'final prose',
   })
-  attachAgentEnvelope(data, envelope)
+  attachCrewmateEnvelope(data, envelope)
   check('B0 the ingest side-channel round-trips', envelopeFor(data) === envelope, 'attachAgentEnvelope and envelopeFor in src/crew/agent-results/ingest.ts must return the same envelope object')
   const block = map(data, 'toolu_b')
   const trailer = (block.content as { text: string }[])[1]?.text ?? ''
@@ -243,7 +243,7 @@ section('B. the AgentTool parent boundary')
 
 section('A. the async completion notification')
 {
-  const { enqueueAgentNotification } = await import(
+  const { enqueueCrewmateNotification } = await import(
     '../../src/engine/tasks/local-agent/crewmateTask.tsx'
   )
   const { dequeueAll } = await import('../../src/daemon/runner/messageQueueManager.ts')
@@ -271,14 +271,14 @@ section('A. the async completion notification')
     state = fn(state)
   }
 
-  enqueueAgentNotification({
+  enqueueCrewmateNotification({
     taskId: AGENT_ID,
     description: 'fixture agent',
     status: 'completed',
     setAppState: setAppState as never,
     finalMessage: 'done',
     envelopeBlock: formatEnvelopeBlock(
-      await buildAgentResultEnvelope({
+      await buildCrewmateResultEnvelope({
         agentId: AGENT_ID,
         status: 'completed',
         finalText: 'done',
@@ -291,7 +291,7 @@ section('A. the async completion notification')
     String((queued[0] as { value?: string }).value).includes('<envelope v="1"'),
     `queued ${queued.length} · enqueueAgentNotification in src/engine/tasks/local-agent/crewmateTask.tsx must include envelopeBlock in the notification`)
 
-  enqueueAgentNotification({
+  enqueueCrewmateNotification({
     taskId: AGENT_ID,
     description: 'fixture agent',
     status: 'completed',
@@ -303,10 +303,10 @@ section('A. the async completion notification')
 
 section('D. doctrine splice')
 {
-  const { buildSubagentMercurySections } = await import(
+  const { buildCrewmateMercurySections } = await import(
     '../../src/tools/crewmate/subagentDoctrine.ts'
   )
-  const sections = buildSubagentMercurySections({
+  const sections = buildCrewmateMercurySections({
     agentDefinition: { agentType: 'mercury-crew' } as never,
   })
   check('D1 the envelope doctrine reaches spawned agents',
@@ -316,7 +316,7 @@ section('D. doctrine splice')
     'ENVELOPE_DOCTRINE in src/crew/agent-results/contracts.ts must end on the fields and buildSubagentMercurySections must splice it unchanged')
 
   process.env.MERCURY_CHANGE_RECEIPTS = '0'
-  const off = buildSubagentMercurySections({
+  const off = buildCrewmateMercurySections({
     agentDefinition: { agentType: 'mercury-crew' } as never,
   })
   check('D3 gate OFF drops the doctrine (byte-identical prompts)',

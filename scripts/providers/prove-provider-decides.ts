@@ -146,14 +146,14 @@ const { enableConfigs } = await import('../../src/platform/config/globalConfig.j
 enableConfigs()
 const bootstrap = await import('../../src/boot/process-state/processState.js')
 bootstrap.setIsInteractive(false)
-const { runAgent } = await import('../../src/tools/crewmate/runCrewmate.js')
+const { runCrewmate } = await import('../../src/tools/crewmate/runCrewmate.js')
 const { resumeAgentBackground } = await import('../../src/tools/crewmate/resumeCrewmate.js')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
 const { createUserMessage } = await import('../../src/engine/messages/messages.js')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.js')
 const { turnDoor: startTurn } = await import('../../src/engine/turnDoor.ts')
-const { getAgentTranscript } = await import('../../src/sessions/transcripts/sessionListings.js')
-const { registerAsyncAgent, failAgentTask, pauseAgentTask, usageWindowPauseOf } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
+const { getCrewmateTranscript } = await import('../../src/sessions/transcripts/sessionListings.js')
+const { registerAsyncCrewmate, failCrewmateTask, pauseCrewmateTask, usageWindowPauseOf } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
 const { generateTaskId } = await import('../../src/engine/tasks/taskBase.js')
 await import('../../src/engine/tasks/tasks.js')
 type Message = import('../../src/engine/message-shapes/message.js').Message
@@ -172,7 +172,7 @@ const allow = (async (_tool: unknown, input: unknown) => ({ behavior: 'allow', u
 const agentId = generateTaskId('local_agent')
 const rows: Message[] = []
 try {
-  for await (const row of runAgent({ agentDefinition: definition, promptMessages: [createUserMessage({ content: 'Continue the kept work.' })], toolUseContext: ctx, canUseTool: allow, isAsync: true, canShowPermissionPrompts: false, querySource: 'agent:custom:provider-decides-fixture' as never, availableTools: [] as never, model: MODEL, override: { agentId }, description: 'provider refusal fixture' })) {
+  for await (const row of runCrewmate({ agentDefinition: definition, promptMessages: [createUserMessage({ content: 'Continue the kept work.' })], toolUseContext: ctx, canUseTool: allow, isAsync: true, canShowPermissionPrompts: false, querySource: 'agent:custom:provider-decides-fixture' as never, availableTools: [] as never, model: MODEL, override: { agentId }, description: 'provider refusal fixture' })) {
     if (row.type === 'assistant' || row.type === 'user') rows.push(row as Message)
   }
   const pause = usageWindowPauseOf(rows, MODEL)
@@ -180,16 +180,16 @@ try {
   check('the refusal row invites the next request on the same provider', pause?.words.includes('The next request goes to OpenAI again; resume any time.') === true, 'the pause words built from the refusal by usageWindowPauseOf in src/engine/tasks/local-agent/crewmateTask.tsx must say that the next request goes to OpenAI again; got ' + JSON.stringify(pause))
   check('the pause carries the provider answer and names both retry doors', pause !== null && pause.words.includes('The weekly usage limit was reached.') && pauseStatusWords(pause, Date.now()).includes('retries by itself at') && pauseStatusWords(pause, Date.now()).includes('r retries now'), 'the pause from usageWindowPauseOf in src/engine/tasks/local-agent/crewmateTask.tsx must carry the provider message, and pauseStatusWords in src/engine/tasks/local-agent/agentPause.ts must name both retries by itself at and r retries now; got ' + JSON.stringify(pause))
   check('the agent reaches a real fixture 429 once and keeps its six-day automatic retry', wire.length === 1 && wire[0]?.status === 429 && pause?.resumesAtMs !== undefined && pause.resumesAtMs > Date.now() + 5 * 24 * 60 * 60 * 1000, 'the agent must send exactly one request that the fixture refuses with 429 and usageWindowPauseOf in src/engine/tasks/local-agent/crewmateTask.tsx must set resumesAtMs about six days ahead; requests seen ' + String(wire.length) + ', resumesAtMs ' + String(pause?.resumesAtMs))
-  registerAsyncAgent({ agentId, description: 'provider refusal fixture', prompt: 'Continue the kept work.', selectedAgent: definition, setAppState: setState as never })
-  failAgentTask(agentId, 'fixture usage refusal', setState as never)
-  if (pause) pauseAgentTask(agentId, pause, setState as never)
+  registerAsyncCrewmate({ agentId, description: 'provider refusal fixture', prompt: 'Continue the kept work.', selectedAgent: definition, setAppState: setState as never })
+  failCrewmateTask(agentId, 'fixture usage refusal', setState as never)
+  if (pause) pauseCrewmateTask(agentId, pause, setState as never)
   await resumeAgentBackground({ agentId, prompt: 'Retry now using the same account.', toolUseContext: ctx, canUseTool: allow })
   const deadline = Date.now() + 60000
   while (Date.now() < deadline && state.tasks[agentId]?.status === 'running') await new Promise(resolve => setTimeout(resolve, 50))
   check('manual resume reaches the wire without relogin', wire.length === 2 && wire[1]?.status === 200 && wire[1]?.body.includes('Retry now using the same account.') === true, 'resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts must send the resume prompt to the provider as a second request that is served with 200; requests seen ' + String(wire.length))
   check('the resumed agent completes on the served answer', state.tasks[agentId]?.status === 'completed', 'resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts must finish the task as completed once the second request is served; status is ' + String(state.tasks[agentId]?.status))
   check('the served OpenAI response clears the note on its own source', openaiLimitWindow('api-key').state === 'clear', 'a served OpenAI response must clear the api-key note through src/models/roads/openai/openaiLimitState.ts')
-  const transcript = await getAgentTranscript(agentId as never)
+  const transcript = await getCrewmateTranscript(agentId as never)
   check('the transcript retains the refusal and the resumed answer', transcript?.messages.some(row => row.type === 'assistant' && row.isApiErrorMessage === true) === true && JSON.stringify(transcript?.messages).includes('The provider served the resumed request.'), 'the agent transcript read by getAgentTranscript in src/sessions/transcripts/sessionListings.js must keep the api error row and the resumed answer after the resume')
 } catch (error) {
   console.log(`FAIL agent fixture: ${error instanceof Error ? error.message : String(error)}`)

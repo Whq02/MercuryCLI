@@ -5,8 +5,8 @@ import { anthropicProviderAdapter } from '../../src/models/roads/anthropic/anthr
 import { openaiProviderAdapter } from '../../src/models/roads/openai/openaiAdapter.js'
 import { zaiProviderAdapter } from '../../src/models/roads/zai/zaiAdapter.js'
 import {
-  buildAgentLaunchPlan,
-  type AgentLaunchPlanInput,
+  buildCrewmateLaunchPlan,
+  type CrewmateLaunchPlanInput,
 } from '../../src/crew/crewmates/agentLaunchPlan.js'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -62,7 +62,7 @@ section('2 · buildAgentLaunchPlan — decision laws')
     source: 'projectSettings',
     ...over,
   })
-  const base = (over: Partial<AgentLaunchPlanInput> = {}): AgentLaunchPlanInput => ({
+  const base = (over: Partial<CrewmateLaunchPlanInput> = {}): CrewmateLaunchPlanInput => ({
     requestedType: 'orbit-probe',
     activeAgents: [mkDef()],
     toolPermissionContext: getEmptyToolPermissionContext(),
@@ -73,7 +73,7 @@ section('2 · buildAgentLaunchPlan — decision laws')
     ...over,
   })
 
-  const plan = buildAgentLaunchPlan(base())
+  const plan = buildCrewmateLaunchPlan(base())
   check('resolves the requested definition (agentType echoes)', plan.agentType === 'orbit-probe')
   check("workerPermissionMode defaults to 'implement'", plan.workerPermissionMode === 'implement')
   check('no isolation by default', plan.isolation === undefined)
@@ -81,7 +81,7 @@ section('2 · buildAgentLaunchPlan — decision laws')
 
   let notFoundMsg = ''
   try {
-    buildAgentLaunchPlan(base({ requestedType: 'orbit-unknown' }))
+    buildCrewmateLaunchPlan(base({ requestedType: 'orbit-unknown' }))
   } catch (e) {
     notFoundMsg = e instanceof Error ? e.message : String(e)
   }
@@ -92,7 +92,7 @@ section('2 · buildAgentLaunchPlan — decision laws')
   )
 
   const roster = [mkDef({ agentType: 'mercury-scout' })]
-  const seamPlan = buildAgentLaunchPlan(
+  const seamPlan = buildCrewmateLaunchPlan(
     base({
       requestedType: 'mercury-scout',
       activeAgents: roster,
@@ -101,46 +101,46 @@ section('2 · buildAgentLaunchPlan — decision laws')
   check('the plan resolves a registered id as written', seamPlan.agentType === 'mercury-scout')
   let emptyPlan: string | undefined
   try {
-    emptyPlan = buildAgentLaunchPlan(base({ requestedType: '', activeAgents: roster, defaultAgentType: 'mercury-scout' })).agentType
+    emptyPlan = buildCrewmateLaunchPlan(base({ requestedType: '', activeAgents: roster, defaultAgentType: 'mercury-scout' })).agentType
   } catch (e) {
     emptyPlan = e instanceof Error ? e.message : String(e)
   }
   check('an empty requested type is no type: the default agent type runs', emptyPlan === 'mercury-scout', String(emptyPlan))
 
-  const isoDef = buildAgentLaunchPlan(base({ activeAgents: [mkDef({ isolation: 'worktree' })] }))
+  const isoDef = buildCrewmateLaunchPlan(base({ activeAgents: [mkDef({ isolation: 'worktree' })] }))
   check("definition isolation rides ('worktree')", isoDef.isolation === 'worktree')
-  const isoParam = buildAgentLaunchPlan(
+  const isoParam = buildCrewmateLaunchPlan(
     base({ activeAgents: [mkDef({ isolation: 'worktree' })], isolationParam: 'remote' }),
   )
   check('explicit isolationParam wins over the definition', isoParam.isolation === 'remote')
 
   check(
     'runInBackground:true ⇒ async',
-    buildAgentLaunchPlan(base({ runInBackground: true })).shouldRunAsync === true,
+    buildCrewmateLaunchPlan(base({ runInBackground: true })).shouldRunAsync === true,
   )
   check(
     'definition.background:true ⇒ async',
-    buildAgentLaunchPlan(base({ activeAgents: [mkDef({ background: true })] })).shouldRunAsync === true,
+    buildCrewmateLaunchPlan(base({ activeAgents: [mkDef({ background: true })] })).shouldRunAsync === true,
   )
   check(
     'forceAsync:true ⇒ async',
-    buildAgentLaunchPlan(base({ forceAsync: true })).shouldRunAsync === true,
+    buildCrewmateLaunchPlan(base({ forceAsync: true })).shouldRunAsync === true,
   )
   check(
     'backgroundTasksDisabled vetoes every async source',
-    buildAgentLaunchPlan(
+    buildCrewmateLaunchPlan(
       base({ runInBackground: true, forceAsync: true, backgroundTasksDisabled: true }),
     ).shouldRunAsync === false,
   )
 
-  const modeDef = buildAgentLaunchPlan(base({ activeAgents: [mkDef({ permissionMode: 'dontAsk' })] }))
+  const modeDef = buildCrewmateLaunchPlan(base({ activeAgents: [mkDef({ permissionMode: 'dontAsk' })] }))
   check("definition permissionMode wins ('dontAsk')", modeDef.workerPermissionMode === 'dontAsk')
 
-  const haikuPlan = buildAgentLaunchPlan(base({ activeAgents: [mkDef({ model: 'haiku' })] }))
+  const haikuPlan = buildCrewmateLaunchPlan(base({ activeAgents: [mkDef({ model: 'haiku' })] }))
   check('a haiku definition pin resolves to the haiku row', /haiku/i.test(haikuPlan.model), haikuPlan.model)
   check('the receipt names the resolved Anthropic engine', haikuPlan.modelNote === `engine: Anthropic (${haikuPlan.model}) via the native in-process transport`, haikuPlan.modelNote ?? 'undefined')
 
-  const untyped = buildAgentLaunchPlan(base({ requestedType: undefined }))
+  const untyped = buildCrewmateLaunchPlan(base({ requestedType: undefined }))
   check('no requested type resolves the default type', untyped.agentType === 'orbit-probe')
 }
 

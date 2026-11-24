@@ -21,7 +21,7 @@ const {
   resetRuntimePostureForTest,
   runtimePostureEnabled,
 } = await import('../../src/screen/cockpit/runtimePosture.js')
-const { buildSubagentMercurySections } = await import('../../src/tools/crewmate/subagentDoctrine.js')
+const { buildCrewmateMercurySections } = await import('../../src/tools/crewmate/subagentDoctrine.js')
 
 const POSTURE_HINT = 'change getRuntimePostureSection or getRuntimePostureDoctrineLine in src/screen/cockpit/runtimePosture.ts (or buildSubagentMercurySections in src/tools/crewmate/subagentDoctrine.ts for the subagent checks) so the posture text matches this label'
 
@@ -46,7 +46,7 @@ section('gate — default-ON, =0 byte-identical absence')
   check('=0 ⇒ disabled', runtimePostureEnabled() === false)
   check('=0 ⇒ section null (absent from the prompt)', getRuntimePostureSection() === null)
   check('=0 ⇒ doctrine line null', getRuntimePostureDoctrineLine() === null)
-  const sections = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-crew' } })
+  const sections = buildCrewmateMercurySections({ agentDefinition: { agentType: 'mercury-crew' } })
   check(
     '=0 ⇒ no posture text in the subagent doctrine',
     sections.every(s => !s.includes('Runtime posture:')),
@@ -139,7 +139,7 @@ section('boot-state capture — kills + MCP cap render when armed at boot')
 section('composition into the subagent doctrine (both chokepoints share the seam)')
 {
   resetRuntimePostureForTest()
-  const interactiveChild = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-crew' } })
+  const interactiveChild = buildCrewmateMercurySections({ agentDefinition: { agentType: 'mercury-crew' } })
   check(
     'an interactive parent\'s child carries no posture line (its seat contract says a denied tool is a real denial; a lease refusal names the holder)',
     interactiveChild.every(s => !s.startsWith('Runtime posture:')),
@@ -147,12 +147,12 @@ section('composition into the subagent doctrine (both chokepoints share the seam
   const { setAskChannel } = await import('../../src/boot/process-state/processState.ts')
   setAskChannel('none')
   markSessionNonInteractive('default')
-  const sections = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-crew' } })
+  const sections = buildCrewmateMercurySections({ agentDefinition: { agentType: 'mercury-crew' } })
   check(
     'a headless parent\'s child carries the headless posture line',
     sections.some(s => s.startsWith('Runtime posture: this process is headless')),
   )
-  const exempt = buildSubagentMercurySections({ agentDefinition: { agentType: 'Explore' } })
+  const exempt = buildCrewmateMercurySections({ agentDefinition: { agentType: 'Explore' } })
   check(
     'fable-exempt agents still get the posture (it is scope-neutral)',
     exempt.some(s => s.startsWith('Runtime posture:')),
@@ -162,7 +162,7 @@ section('composition into the subagent doctrine (both chokepoints share the seam
   setAskChannel('sdk')
   setSessionKind('oculus')
   markSessionNonInteractive('default')
-  const oculusChild = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-crew' } })
+  const oculusChild = buildCrewmateMercurySections({ agentDefinition: { agentType: 'mercury-crew' } })
   check(
     "an oculus parent's child carries the oculus posture line, never the headless one",
     oculusChild.some(s => s.startsWith('Runtime posture: this process is an oculus session')) && oculusChild.every(s => !s.startsWith('Runtime posture: this process is headless')),

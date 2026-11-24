@@ -33,7 +33,7 @@ import type {
   ToolPermissionRulesBySource,
 } from '../../permissions/rules/permissions.js'
 import type {
-  AgentToolProgress,
+  CrewmateToolProgress,
   BashProgress,
   MCPProgress,
   SkillToolProgress,
@@ -45,7 +45,7 @@ import type { SystemPrompt } from '../../engine/system-prompt/systemPromptType.j
 
 
 export type {
-  AgentToolProgress,
+  CrewmateToolProgress,
   BashProgress,
   MCPProgress,
   SkillToolProgress,

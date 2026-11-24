@@ -8,7 +8,7 @@ import { CursorRow } from '../../widgets/CursorRow.js'
 import { bootRecoveryStatusLine, type getBootRecovery } from '../../../platform/substrate/recoveryOrchestrator.js'
 import { isLocalShellTask, type LocalShellTaskState } from '../../../engine/tasks/local-shell/shellTaskState.js'
 import { killTask } from '../../../engine/tasks/local-shell/killShellTasks.js'
-import { isLocalAgentTask, killAsyncAgent, type LocalAgentTaskState } from '../../../engine/tasks/local-agent/crewmateTask.js'
+import { isCrewmateTask, killAsyncCrewmate, type CrewmateTaskState } from '../../../engine/tasks/local-agent/crewmateTask.js'
 import type { TaskState } from '../../../engine/tasks/taskState.js'
 import { KeyboardShortcutHint } from '../../theme/KeyboardShortcutHint.js'
 import { CommandCenter, SectionHeader } from '../../widgets/components.js'
@@ -20,7 +20,7 @@ import { workRowRuns } from '../../../engine/connector/workCounts.js'
 import { crewStopHint } from '../../widgets/faces/crewStopChord.js'
 import { GLYPH } from '../../theme/glyphs.js'
 import type { focusedRunnerPresence } from '../useFocusedWork.js'
-import { AsyncAgentDetailDialog } from '../CrewmateDetailDialog.js'
+import { CrewmateDetailDialog } from '../CrewmateDetailDialog.js'
 import { BackgroundTask as BackgroundTaskComponent } from '../BackgroundTask.js'
 import { ShellDetailDialog, shellCardFactsOfRow, shellCardFactsOfTask } from '../ShellDetailDialog.js'
 import { RosterWorkDetail, type BoardItem, MISSION_IN_PROGRESS_CAP, WorkRowLine, MISSION_PENDING_CAP, WINDOW, SampleRowLine, AgeCell } from './rows.js'
@@ -28,19 +28,19 @@ import { CompactSessionOverview } from './overview.js'
 import type { MissionTask } from './context.js'
 
 export function taskDetailView({ backFromDetail, detailTask, onDone, setAppState }: { backFromDetail: () => void; detailTask: TaskState; onDone: () => void; setAppState: ReturnType<typeof useSetAppState> }) {
-  if (isLocalAgentTask(detailTask)) {
-    const agent = detailTask as LocalAgentTaskState
+  if (isCrewmateTask(detailTask)) {
+    const agent = detailTask as CrewmateTaskState
     return (
       <CommandCenter elevated
         view={`crewmate › ${agent.description !== '' ? agent.description : agent.agentType}`}
         onClose={onDone}
         captureInput={false}
       >
-        <AsyncAgentDetailDialog
+        <CrewmateDetailDialog
           agent={agent}
           onDone={onDone}
           onBack={backFromDetail}
-          onKillAgent={() => killAsyncAgent(agent.id, setAppState)}
+          onKillAgent={() => killAsyncCrewmate(agent.id, setAppState)}
           onForeground={() => {
             enterCrewmateView(agent.id, setAppState)
             onDone()

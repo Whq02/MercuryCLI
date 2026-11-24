@@ -10,14 +10,14 @@ enableConfigs()
 const { MODEL_LOOKUP_LADDER, PROVIDER_MODEL_PAGES } = await import('../../src/models/facts/modelLookup.js')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
 const { WebSearchTool } = await import('../../src/tools/web-search/WebSearchTool.js')
-const { AgentTool } = process.argv[2] ? await import(process.argv[2]) : await import('../../src/tools/crewmate/CrewmateTool.js')
+const { CrewmateTool } = process.argv[2] ? await import(process.argv[2]) : await import('../../src/tools/crewmate/CrewmateTool.js')
 const { unrecognisedModelWordRefusal } = await import('../../src/crew/crewmates/engineDispatch.js')
 const { liveModelsReferenceText } = await import('../../src/integrations/resources/adapters/models.js')
 const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.js')
-const schema = zodToJsonSchema(AgentTool.inputSchema as never) as any
+const schema = zodToJsonSchema(CrewmateTool.inputSchema as never) as any
 assert.ok(schema.properties.model.description.includes('read mercury://models'), 'the model field points at live model discovery')
 assert.ok(!schema.properties.model.description.includes('mercury://models/known'), 'fallback belongs to the launch result')
-const manual: string = await AgentTool.prompt({ getToolPermissionContext: async () => getEmptyToolPermissionContext(), tools: [], agents: [] })
+const manual: string = await CrewmateTool.prompt({ getToolPermissionContext: async () => getEmptyToolPermissionContext(), tools: [], agents: [] })
 assert.ok(!manual.includes('\n## Model selection\n'), 'the manual has no duplicate model section')
 assert.ok(!manual.includes(MODEL_LOOKUP_LADDER), 'the concrete refusal, not the manual, carries the ladder')
 const word = 'frobnicator-9000'
@@ -47,7 +47,7 @@ try {
   context.messages = [{ type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'search-fixture', content: JSON.stringify(answer.data) }] } }]
   let ask = ''
   try {
-    await AgentTool.call({ prompt: 'fixture task', description: 'fixture', crewmate_type: 'mercury-crew', model: word }, context, (() => { launches++; throw new Error('unexpected launch permission') }) as never, {} as never)
+    await CrewmateTool.call({ prompt: 'fixture task', description: 'fixture', crewmate_type: 'mercury-crew', model: word }, context, (() => { launches++; throw new Error('unexpected launch permission') }) as never, {} as never)
     assert.fail('web findings must never turn an unknown word into a model')
   } catch (error) { ask = error instanceof Error ? error.message : String(error) }
   assert.match(ask, /ask the operator for the model id/)

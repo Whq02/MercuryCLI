@@ -32,7 +32,7 @@ async function endings(): Promise<void> {
   enableConfigs()
   const { getDefaultAppState } = await import(join(source, 'screen/app-state/AppStateStore.ts'))
   const { getCommandQueue, resetCommandQueue } = await import(join(source, 'screen/composer/input-core/command-queue.ts'))
-  const { registerAsyncAgent } = await import(join(source, 'engine/tasks/local-agent/crewmateTask.tsx'))
+  const { registerAsyncCrewmate } = await import(join(source, 'engine/tasks/local-agent/crewmateTask.tsx'))
   const { createAssistantMessage } = await import(join(source, 'engine/message-shapes/factories.ts'))
   const { AbortError } = await import(join(source, 'platform/errors/errors.ts'))
   const lifecycle = await import(join(source, 'tools/crewmate/crewmateLifecycle.ts'))
@@ -46,10 +46,10 @@ async function endings(): Promise<void> {
     let state = getDefaultAppState()
     const set = (update: (before: AppState) => AppState): void => { state = update(state) }
     const taskId = `a${String(++serial).padStart(8, '0')}`
-    const task = registerAsyncAgent({ agentId: taskId, description: kind, prompt: 'work', setAppState: set })
+    const task = registerAsyncCrewmate({ agentId: taskId, description: kind, prompt: 'work', setAppState: set })
     const context = { getAppState: () => state, setAppState: set, setAppStateForTasks: set, options: { tools: [] }, abortController: new AbortController(), messages: [] } as never
     const run = (stream: () => AsyncGenerator<unknown, void>, getWorktreeResult: () => Promise<Record<string, never>>): Promise<void> =>
-      lifecycle.runAsyncAgentLifecycle({ taskId, abortController: task.abortController!, makeStream: stream, metadata: { prompt: 'work', resolvedAgentModel: 'fixture', isBuiltInAgent: false, startTime: Date.now(), agentType: 'mercury-crew', isAsync: true }, description: kind, toolUseContext: context, rootSetAppState: set, agentIdForCleanup: taskId, enableSummarization: false, getWorktreeResult })
+      lifecycle.runAsyncCrewmateLifecycle({ taskId, abortController: task.abortController!, makeStream: stream, metadata: { prompt: 'work', resolvedAgentModel: 'fixture', isBuiltInAgent: false, startTime: Date.now(), agentType: 'mercury-crew', isAsync: true }, description: kind, toolUseContext: context, rootSetAppState: set, agentIdForCleanup: taskId, enableSummarization: false, getWorktreeResult })
     return { taskId, controller: task.abortController as AbortController, context, run, status: (): string | undefined => state.tasks[taskId]?.status }
   }
 

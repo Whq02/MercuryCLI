@@ -30,7 +30,7 @@ import { suggestionForExactCommand } from '../../permissions/rules/shellRuleMatc
 import { ruleSentence } from '../../permissions/rules/ruleReason.js'
 import { recordSkillUsage } from '../../screen/suggestions/skillUsage.js'
 import { createAgentId } from '../../platform/primitives/uuid.js'
-import { runAgent } from '../crewmate/runCrewmate.js'
+import { runCrewmate } from '../crewmate/runCrewmate.js'
 import { evaluateLaunchAuthority } from '../../daemon/switchboard/launchAuthority.js'
 import { READ_TOOL_NAME } from '../kit/names/fileRead.js'
 import { GLOB_TOOL_NAME } from '../glob/prompt.js'
@@ -283,7 +283,7 @@ async function runForkedSkill(
     }
     const collected: Message[] = []
     const progressToolUseID = parentToolUseID ?? parentAssistantMessage.uuid
-    for await (const emitted of runAgent({
+    for await (const emitted of runCrewmate({
       agentDefinition,
       promptMessages,
       toolUseContext: forkContext,

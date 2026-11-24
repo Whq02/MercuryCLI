@@ -2,9 +2,9 @@
 import type { AppState } from '../../screen/app-state/AppState.js'
 import type { TaskState } from '../tasks/taskState.js'
 import type { WorkRowV1 } from '../connector/types.js'
-import { crewAgentFactsOf, crewStateLabel, crewWaitLine } from '../connector/crewFacts.js'
+import { crewmateFactsOf, crewStateLabel, crewWaitLine } from '../connector/crewFacts.js'
 import { workRowRuns } from '../connector/workCounts.js'
-import { isLocalAgentTask } from '../tasks/local-agent/crewmateTask.js'
+import { isCrewmateTask } from '../tasks/local-agent/crewmateTask.js'
 import { TASK_ID_TAG } from '../message-shapes/messageTags.js'
 import { getTaskOutputPath } from '../task-framework/diskOutput.js'
 import { projectWorkRoster } from '../connector/workRoster.js'
@@ -44,7 +44,7 @@ function owedLine(parts: Array<string | null>): string | null {
 
 function pendingFor(task: TaskState | undefined): string | null {
   if (task === undefined) return null
-  if (isLocalAgentTask(task)) {
+  if (isCrewmateTask(task)) {
     const n = task.pendingMessages?.length ?? 0
     return n > 0 ? `${plural(n, 'message')} queued for its next tool round` : null
   }
@@ -67,7 +67,7 @@ function rowFor(
   const outputFilePath = getTaskOutputPath(row.id)
   const description = task?.description ?? row.description ?? row.name
   if (row.kind === 'agent') {
-    const facts = crewAgentFactsOf(row, null)
+    const facts = crewmateFactsOf(row, null)
     if (facts === null) return null
     return {
       taskId: row.id,
@@ -111,7 +111,7 @@ export function getAgentRosterAttachment(input: AgentRosterInput): AgentRosterAt
     const task = tasks[row.id]
     if (input.excludeAgentId !== undefined) {
       if (row.id === input.excludeAgentId) continue
-      if (task !== undefined && isLocalAgentTask(task) && task.agentId === input.excludeAgentId) continue
+      if (task !== undefined && isCrewmateTask(task) && task.agentId === input.excludeAgentId) continue
     }
     const built = rowFor(row, task, input, nameOfId)
     if (built !== null) rows.push(built)

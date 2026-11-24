@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import type { AppState } from '../app-state/AppState.js'
-import { isLocalAgentTask } from '../../engine/tasks/local-agent/crewmateTask.js'
+import { isCrewmateTask } from '../../engine/tasks/local-agent/crewmateTask.js'
 import { useComposerCrewmate, useViewedCrewmate } from '../tasks/useCrewmateView.js'
 
 export function useComposerCrewmateRefs(viewedTask: AppState['tasks'][string] | undefined) {
@@ -15,7 +15,7 @@ export function useComposerCrewmateRefs(viewedTask: AppState['tasks'][string] | 
   commandCrewmateRef.current = commandCrewmate
   const viewedAgentName =
     composerCrewmate?.name ??
-    (viewedTask !== undefined && isLocalAgentTask(viewedTask)
+    (viewedTask !== undefined && isCrewmateTask(viewedTask)
       ? viewedTask.description !== ''
         ? viewedTask.description
         : viewedTask.agentType

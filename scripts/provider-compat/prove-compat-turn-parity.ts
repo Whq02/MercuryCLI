@@ -14,7 +14,7 @@ try {
     return fetchBefore(input, init)
   }) as typeof fetch
   const { createSyntheticOutputTool: getSchemaBoundStructuredOutputTool } = await import(`${root}/src/tools/structured-output/SyntheticOutputTool.ts`)
-  const { finalizeAgentTool } = await import(`${root}/src/tools/crewmate/crewmateLifecycle.ts`)
+  const { finalizeCrewmateTool } = await import(`${root}/src/tools/crewmate/crewmateLifecycle.ts`)
   const { refreshCompatCatalogues } = await import(`${root}/src/models/roads/openaicompat/compatCatalogue.ts`)
   const schema = { type: 'object', properties: { result: { type: 'string' }, steps: { type: 'integer' } }, required: ['result', 'steps'], additionalProperties: false }
   const payload = { result: 'ready', steps: 2 }
@@ -66,11 +66,11 @@ try {
     assert.ok(replayRows.some((row: any) => row.tool_call_id === calls[0].id || row.type === 'function_call_output' && row.call_id === calls[0].id), `${dialect}: the validated result pairs with its call`)
     assert.match(JSON.stringify(replayRows), /"(?:image_url|input_image)"/)
     const metadata = { prompt: 'fixture', resolvedAgentModel: model, isBuiltInAgent: true, startTime: Date.now(), agentType: 'fixture', isAsync: false, structuredSpec: { mode: 'strict', source: 'dispatch' } }
-    const complete = finalizeAgentTool([...history, ...reply], `crew-${dialect}`, metadata)
+    const complete = finalizeCrewmateTool([...history, ...reply], `crew-${dialect}`, metadata)
     assert.equal(complete.outcome.status, 'completed')
     assert.deepEqual(complete.structured.data, payload)
     assert.equal(complete.structured.mode, 'strict')
-    const missing = finalizeAgentTool(reply, `crew-${dialect}`, metadata)
+    const missing = finalizeCrewmateTool(reply, `crew-${dialect}`, metadata)
     assert.equal(missing.outcome.status, 'failed')
     assert.equal(missing.outcome.reason, 'schema-mismatch')
     engine.state.call = { name: 'StructuredOutput', arguments: JSON.stringify({ ...payload, extra: 'invalid' }) }
@@ -80,7 +80,7 @@ try {
       assert.equal(invalidCalls.length, 1)
       await assert.rejects(() => bound.tool.call(invalidCalls[0].input), /does not match the required schema/)
       const invalidResult = api.createUserMessage({ content: [{ type: 'tool_result', tool_use_id: invalidCalls[0].id, content: 'Output does not match the required schema: additional property extra', is_error: true }] })
-      const invalid = finalizeAgentTool([...invalidRows, invalidResult, ...reply], `crew-${dialect}`, metadata)
+      const invalid = finalizeCrewmateTool([...invalidRows, invalidResult, ...reply], `crew-${dialect}`, metadata)
       assert.equal(invalid.outcome.status, 'failed')
       assert.equal(invalid.outcome.reason, 'schema-mismatch')
     } else assert.ok(invalidRows.some(row => row.refusedToolCalls?.length), `${dialect}: invalid structured call without tool_use must populate refusedToolCalls`)

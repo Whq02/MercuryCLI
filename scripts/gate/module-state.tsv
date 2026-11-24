@@ -944,7 +944,7 @@ src/engine/system-prompt/behaviourContract.ts	registry	process	module	bounded (8
 src/engine/system-prompt/defaultSystemPrompt.ts	localStartTasks	owner	module	session; Map keyed by sessionId latching first StartTask for local models; never deleted; missing owner disposal/end
 src/engine/system-prompt/defaultSystemPrompt.ts	memoryAtStartBySession	owner	module	session; Map keyed by sessionId:kind caching startup memory prompt; cleared via clearSystemPromptSections and resetMemoryAtStartForTest; missing per-owner disposal
 src/engine/system-prompt/defaultSystemPrompt.ts	resetMemoryAtStartForTest	reset-export
-src/engine/system-prompt/mercuryContract.ts	MERCURY_SUBAGENT_CONTRACT	process	module	Load-time definition shared by all callers
+src/engine/system-prompt/mercuryContract.ts	MERCURY_CREWMATE_CONTRACT	process	module	Load-time definition shared by all callers
 src/engine/system-prompt/mercuryContract.ts	PROMPT_LAYER_SETS	process	module	Load-time list with no local writer
 src/engine/system-prompt/recordedComposition.ts	currentStaticSets	process	module	Derived collection initialized at load
 src/engine/system-prompt/systemPromptSections.ts	clearListeners	process	module	process listener registry invoked by clearSystemPromptSections(), bounded by caller unsubscribe
@@ -966,7 +966,7 @@ src/engine/task-framework/tasks.ts	resetTaskList	reset-export
 src/engine/task-framework/tasks.ts	taskLockSeq	process	module	monotonic process-wide sequence counter minting unique PID lock owner IDs
 src/engine/task-framework/tasks.ts	tasksUpdatedSignal	process	module	shared signal notifying subscribers when on-disk task files change
 src/engine/tasks/local-agent/agentMessage.ts	AGENT_MESSAGE_HEAD	process	module	Load-time lookup with no local writer
-src/engine/tasks/local-agent/crewmateTask.tsx	LocalAgentTask	process	module	Load-time table with no local writer
+src/engine/tasks/local-agent/crewmateTask.tsx	CrewmateTask	process	module	Load-time table with no local writer
 src/engine/tasks/local-agent/crewmateTask.tsx	backgroundSignalResolvers	owner	module	session (module); keyed by live foreground taskId, maps to foreground-wait resolve callbacks; deleted on signal/background/kill/finish; releaseForegroundSiblings iterates across whole map
 src/engine/tasks/local-agent/crewmateTask.tsx	deferredPublishes	owner	module	agent (module); keyed by taskId, holds 750ms unref'd progress settle timer; deleted on timer fire (not cancelled on owner dispose)
 src/engine/tasks/local-agent/crewmateTask.tsx	registrationEndTimes	call	module	WeakMap keyed by per-registration AbortController holding completion timestamp
@@ -977,7 +977,7 @@ src/engine/tasks/local-agent/launchReceipts.ts	HELD_NOTICE_STATUSES	process	modu
 src/engine/tasks/local-agent/launchReceipts.ts	NON_ENDING_STATUSES	process	module	Load-time lookup with no local writer
 src/engine/tasks/local-agent/launchReceipts.ts	NOTICE_BLOCK	process	module	Load-time lookup with no local writer
 src/engine/tasks/local-agent/launchReceipts.ts	TAKING_OPERATIONS	process	module	Load-time lookup with no local writer
-src/engine/tasks/local-agent/pauseCarry.ts	clearAgentPauseRecord	reset-export
+src/engine/tasks/local-agent/pauseCarry.ts	clearCrewmatePauseRecord	reset-export
 src/engine/tasks/local-agent/pauseCarry.ts	writesInFlight	call	module	per-agentId serialized async write promise chain for pause.json
 src/engine/tasks/local-shell/shellTask.tsx	LocalShellTask	process	module	Load-time table with no local writer
 src/engine/tasks/taskBase.ts	taskKinds	process	module	Load-time list with no local writer
@@ -1611,8 +1611,8 @@ src/integrations/vulcan/engine/frames.ts	PNG_SIGNATURE	process	module	Load-time 
 src/integrations/vulcan/engine/frozenTree.ts	NON_ASSET_SUFFIXES	process	module	Load-time list with no local writer
 src/integrations/vulcan/engine/leases.ts	HOLDER_COLUMNS	process	module	Load-time table with no local writer
 src/integrations/vulcan/engine/leases.ts	LEASE_STORAGE_NAMES	process	module	Load-time list with no local writer
-src/integrations/vulcan/engine/leases.ts	agentLifetimes	owner	module	Agent state retained in this module
 src/integrations/vulcan/engine/leases.ts	closing	process	module	process-wide shutdown latch rejecting new project leases during exit cleanup
+src/integrations/vulcan/engine/leases.ts	crewmateLifetimes	owner	module	Agent state retained in this module
 src/integrations/vulcan/engine/leases.ts	ended	owner	module	Session state retained in this module
 src/integrations/vulcan/engine/leases.ts	hooksInstalled	process	module	idempotent one-time guard installing lease cleanup and session-switch listeners
 src/integrations/vulcan/engine/leases.ts	owned	owner	module	Agent state retained in this module
@@ -1669,10 +1669,10 @@ src/models/effort/effort.ts	ALIASES	process	module	Load-time table with no local
 src/models/effort/effort.ts	DEFAULT_OPUS_EFFORT_CONFIG	process	module	Load-time table with no local writer
 src/models/effort/effort.ts	FAMILY_PROBES	process	module	Load-time list with no local writer
 src/models/effort/effort.ts	LAUNCH_FAMILIES	process	module	Load-time list with no local writer
-src/models/effort/effort.ts	agentEffortWords	owner	module	agent; module; per-agent effort override keyed by agentId
+src/models/effort/effort.ts	crewmateEffortWords	owner	module	agent; module; per-agent effort override keyed by agentId
 src/models/effort/effortLadder.ts	EFFORT_LADDER	process	module	Load-time list with no local writer
 src/models/effort/thinking.ts	notedThinkingConfig	owner	module	Session state retained in this module
-src/models/facts/aliases.ts	AGENT_DISPATCH_MODELS	process	module	Load-time list with no local writer
+src/models/facts/aliases.ts	CREWMATE_DISPATCH_MODELS	process	module	Load-time list with no local writer
 src/models/facts/aliases.ts	MODEL_ALIASES	process	module	Load-time list with no local writer
 src/models/facts/betasClearing.ts	clearBetasWhereKept	reset-export
 src/models/facts/betasClearing.ts	whatClearsTheBetas	process	module	one-time circular-dependency callback registration via tellWhatClearsTheBetas
@@ -3016,7 +3016,7 @@ src/platform/environment/env.ts	detectDeploymentEnvironment	process	module	memoi
 src/platform/environment/env.ts	env	process	module	process host environment facade containing memoized host probes (package managers, runtimes, bun, wsl)
 src/platform/environment/env.ts	getGlobalMercuryFile	process	module	memoized process global config file path in getMercuryHome()
 src/platform/environment/env.ts	isWslEnvironment	process	module	memoized host WSL marker file check
-src/platform/environment/envProbes.ts	envDynamic	process	module	process host environment facade extending env with getIsDocker and isMuslEnvironment
+src/platform/environment/envProbes.ts	envProbes	process	module	process host environment facade extending env with getIsDocker and isMuslEnvironment
 src/platform/environment/envProbes.ts	getIsDocker	process	module	memoized host /.dockerenv check
 src/platform/environment/envProbes.ts	muslProbeResult	process	module	load-time async Linux musl libc probe result
 src/platform/environment/envUtils.ts	authScope	process	module	Process fallback for the account configuration directory when a call has no override
@@ -3791,10 +3791,10 @@ src/screen/cockpit-gauges/agentStateSnapshot.ts	EMPTY	process	module	Load-time t
 src/screen/cockpit-gauges/contextUsageLive.ts	listeners	process	module	foreground TUI subscriber Set for context usage gauge
 src/screen/cockpit-gauges/contextUsageLive.ts	usageSlots	owner	store	agent/session-level live context usage in registered OwnerScopedStore (ctx-usage-live, default cap 64, disposed on disposeOwner)
 src/screen/cockpit-gauges/contextUsageLive.ts	version	process	module	foreground TUI subscription version counter for context usage gauge
-src/screen/cockpit-gauges/critterSleep.ts	AGENT_EXECUTION_KINDS	process	module	Load-time lookup with no local writer
-src/screen/cockpit-gauges/critterSleep.ts	NO_AGENTS	process	module	Load-time table with no local writer
+src/screen/cockpit-gauges/critterSleep.ts	CREWMATE_EXECUTION_KINDS	process	module	Load-time lookup with no local writer
+src/screen/cockpit-gauges/critterSleep.ts	NO_CREWMATES	process	module	Load-time table with no local writer
 src/screen/cockpit-gauges/critterSleep.ts	baselineTs	process	module	foreground TUI idle-sleep baseline timestamp, reset on session switch
-src/screen/cockpit-gauges/critterSleep.ts	lastAgentEventTs	process	module	foreground TUI latest agent-execution timestamp for idle-sleep check
+src/screen/cockpit-gauges/critterSleep.ts	lastCrewmateEventTs	process	module	foreground TUI latest agent-execution timestamp for idle-sleep check
 src/screen/cockpit-gauges/critterSleep.ts	listeners	process	module	foreground TUI critter-sleep subscriber Set
 src/screen/cockpit-gauges/critterSleep.ts	resetCritterSleepForTests	reset-export
 src/screen/cockpit-gauges/critterSleep.ts	sessionKey	process	module	foreground TUI tracked session id for resetting baselineTs on switch
@@ -4229,7 +4229,7 @@ src/screen/messages-list/transcript.ts	EMPTY_SYNTHETIC	process	module	Load-time 
 src/screen/messages/AssistantTextMessage.tsx	subscribeFocusedRowModel	process	module	Load-time definition shared by all callers
 src/screen/messages/AssistantToolUseMessage.tsx	EDIT_META_TOOLS	process	module	Load-time lookup with no local writer
 src/screen/messages/AssistantToolUseMessage.tsx	toolStartStamps	owner	module	session; running tool elapsed start timestamps keyed by toolUseId; bounded cap 256 and deleted on completion
-src/screen/messages/CtrlOToExpand.tsx	SubAgentContext	process	module	Load-time definition shared by all callers
+src/screen/messages/CtrlOToExpand.tsx	NestedRowsContext	process	module	Load-time definition shared by all callers
 src/screen/messages/DiagnosticsDisplay.tsx	SEVERITY_SYMBOLS	process	module	Load-time table with no local writer
 src/screen/messages/FoldStatusRow.tsx	subscribeFocusedFold	process	module	Load-time definition shared by all callers
 src/screen/messages/LiveStreamingTail.tsx	fenceCarry	process	module	single-TUI streaming tail incremental fence-scan carry cache (self-resets on prefix mismatch)
@@ -4609,7 +4609,7 @@ src/screen/settings/Jev.tsx	JEV_ROW_LABELS	process	module	Load-time table with n
 src/screen/settings/LocalServer.tsx	LOCAL_SERVER_ROW_IDS	process	module	Load-time list with no local writer
 src/screen/settings/Settings.tsx	SettingsPopupFrameContext	process	module	Load-time definition shared by all callers
 src/screen/settings/Settings.tsx	settingsOpens	process	module	monotonic process-wide open-token counter for Settings popup
-src/screen/settings/config/configItems.ts	AGENT_INHERIT_ROW	process	module	Load-time table with no local writer
+src/screen/settings/config/configItems.ts	CREWMATE_INHERIT_ROW	process	module	Load-time table with no local writer
 src/screen/settings/config/configItems.ts	SESSION_CEILING_LADDER	process	module	Load-time list with no local writer
 src/screen/settings/config/configItems.ts	THEME_LABELS	process	module	Load-time table with no local writer
 src/screen/settings/config/configRowFacts.ts	CONFIG_PROVIDER_PRESENTATION	process	module	Load-time table with no local writer
@@ -4752,9 +4752,9 @@ src/screen/workbench/attentionBridge.ts	STATE_MAP	process	module	Load-time table
 src/screen/workbench/attentionBridge.ts	registered	process	module	idempotent one-time guard registering workbench attention gatherer
 src/screen/workbench/attentionBridge.ts	reported	owner	module	session level; module Map; replaced each gather, missing owner isolation — tracks active workbench attention subjects for retraction diffing
 src/screen/workbench/currentWork.ts	ACTIVE_THREAD_STATES	process	module	Load-time lookup with no local writer
-src/screen/workbench/projection.ts	agentMetaCache	owner	module	agent level; module Map keyed by agentId; missing end — caches agent metadata forever without eviction on agent end
 src/screen/workbench/projection.ts	appStateProvider	process	module	single interactive terminal workbench AppState provider callback
 src/screen/workbench/projection.ts	coalescer	process	module	single interactive terminal workbench serial refresh coalescer
+src/screen/workbench/projection.ts	crewmateMetaCache	owner	module	agent level; module Map keyed by agentId; missing end — caches agent metadata forever without eviction on agent end
 src/screen/workbench/projection.ts	debounceTimer	process	module	single interactive terminal workbench 300ms refresh debounce timer
 src/screen/workbench/projection.ts	engineUnsubs	process	module	single interactive terminal workbench subscription teardown handles
 src/screen/workbench/projection.ts	heartbeat	process	module	single interactive terminal workbench 20s refresh heartbeat interval
@@ -4762,7 +4762,7 @@ src/screen/workbench/projection.ts	lastGood	process	module	single interactive te
 src/screen/workbench/projection.ts	listeners	process	module	single interactive terminal workbench snapshot subscriber set
 src/screen/workbench/projection.ts	oneShotVersion	process	module	monotonic version counter for one-shot workbench snapshot queries
 src/screen/workbench/projection.ts	snapshot	process	module	single interactive terminal workbench projection snapshot
-src/screen/workbench/projection.ts	watchedAgentMeta	process	module	Agent metadata watches attached to the shared projection and cleared when it stops
+src/screen/workbench/projection.ts	watchedCrewmateMeta	process	module	Agent metadata watches attached to the shared projection and cleared when it stops
 src/screen/workbench/selectors.ts	EXECUTION_THREAD_KINDS	process	module	Load-time lookup with no local writer
 src/sessions/artifact-reviews/reviewStore.ts	mirrorChains	process	module	per-artifactId async serialization chain for mirroring review status to crew, deleted in finally
 src/sessions/artifacts/reviewContracts.ts	STATUS_TRANSITIONS	process	module	Load-time table with no local writer
@@ -4981,12 +4981,12 @@ src/sessions/transcripts/transcriptReader.ts	states	process	module	file-path-key
 src/sessions/transcripts/vnext.ts	fileStates	process	module	file-path-keyed transcript ordinal and header state map for on-disk jsonl files
 src/sessions/transcripts/vnext.ts	reportedReadFailures	process	module	file-path-keyed dedupe Set for transcript format read failure health notices
 src/sessions/transcripts/vnext.ts	resetTranscriptFormatCacheForTesting	reset-export
-src/sessions/transcripts/writer.ts	agentFileMessages	owner	module	Message identifiers retained by agent transcript path after a successful read
-src/sessions/transcripts/writer.ts	agentTranscriptDestinations	owner	module	agent; Map<agentId, filePath> routing subagent writes; never deleted on agent end; missing owner end
 src/sessions/transcripts/writer.ts	cleanupRegistered	process	module	one-shot guard registering transcript writer flush cleanup and exit-cliff seam
+src/sessions/transcripts/writer.ts	crewmateFileMessages	owner	module	Message identifiers retained by agent transcript path after a successful read
+src/sessions/transcripts/writer.ts	crewmateTranscriptDestinations	owner	module	agent; Map<agentId, filePath> routing subagent writes; never deleted on agent end; missing owner end
 src/sessions/transcripts/writer.ts	getSessionMessages	owner	module	session; memoize(sessionId) caching Promise<Set<UUID>>; cleared only via clearSessionMessagesCache; missing owner end
 src/sessions/transcripts/writer.ts	project	owner	module	Session state retained in this module
-src/sessions/transcripts/writer.ts	reportedAgentReadFailures	process	module	file-path-keyed dedupe Set for agent transcript read failure health notices
+src/sessions/transcripts/writer.ts	reportedCrewmateReadFailures	process	module	file-path-keyed dedupe Set for agent transcript read failure health notices
 src/sessions/transcripts/writer.ts	resetProjectFlushStateForTesting	reset-export
 src/sessions/transcripts/writer.ts	resetProjectForTesting	reset-export
 src/sessions/transcripts/writer.ts	resetSessionFilePointer	reset-export
@@ -5080,7 +5080,7 @@ src/tools/context-left/ContextLeftTool.ts	ContextLeftTool	process	module	Load-ti
 src/tools/context-left/ContextLeftTool.ts	FILL_SOURCE_WORDS	process	module	Load-time table with no local writer
 src/tools/context-left/ContextLeftTool.ts	WINDOW_SOURCE_WORDS	process	module	Load-time table with no local writer
 src/tools/context-left/ContextLeftTool.ts	inputSchema	process	module	Load-time definition shared by all callers
-src/tools/crewmate/CrewmateTool.tsx	AgentTool	process	module	Load-time definition shared by all callers
+src/tools/crewmate/CrewmateTool.tsx	CrewmateTool	process	module	Load-time definition shared by all callers
 src/tools/crewmate/built-in/mercuryCrewAgent.ts	MERCURY_CREW_AGENT	process	module	Load-time table with no local writer
 src/tools/crewmate/built-in/mercuryScoutAgent.ts	MERCURY_SCOUT_AGENT	process	module	Load-time table with no local writer
 src/tools/crewmate/call/schema.ts	inputSchema	process	module	Load-time definition shared by all callers
@@ -5091,8 +5091,8 @@ src/tools/crewmate/crewmateColors.ts	agentColorRegistry	owner	module	Session sta
 src/tools/crewmate/crewmateLifecycle.ts	EMPTY_USAGE	process	module	Load-time table with no local writer
 src/tools/crewmate/crewmateLifecycle.ts	SETTLED_STOP_REASONS	process	module	Load-time lookup with no local writer
 src/tools/crewmate/crewmateLifecycle.ts	WRITE_TOOL_NAMES	process	module	Load-time lookup with no local writer
-src/tools/crewmate/crewmateLifecycle.ts	agentToolResultSchema	process	module	Load-time definition shared by all callers
 src/tools/crewmate/crewmateLifecycle.ts	automaticResumesFiring	owner	module	session (module); set of taskIds currently executing resumeNow; deleted in finally; armedAutomaticResumeCount sums across whole process
+src/tools/crewmate/crewmateLifecycle.ts	crewmateToolResultSchema	process	module	Load-time definition shared by all callers
 src/tools/crewmate/crewmateLifecycle.ts	cutsAlreadyResumed	call	module	WeakSet keyed by per-registration AbortController guarding one-shot budget-cut auto-resume
 src/tools/crewmate/crewmateLifecycle.ts	noticesOwed	owner	module	session (module); set of live completion-notice tokens while a crewmate notice is enqueuing; deleted in finally; crewmateNoticeOwed() is process-global
 src/tools/crewmate/crewmateLifecycle.ts	overloadEpisodes	owner	module	agent (module); keyed by taskId, tracks provider overload probe window; deleted by closeOverloadEpisode, missing end if abandoned without close
@@ -5312,7 +5312,7 @@ src/tools/journey/JourneyTool.ts	OPS	process	module	Load-time list with no local
 src/tools/journey/JourneyTool.ts	inputSchema	process	module	Load-time definition shared by all callers
 src/tools/kit/InlineChangeView.tsx	STATE_TONE_KEY	process	module	Load-time table with no local writer
 src/tools/kit/MessageResponse.tsx	MessageResponseContext	process	module	Load-time definition shared by all callers
-src/tools/kit/crewmateBarredTools.ts	ALL_AGENT_DISALLOWED_TOOLS	process	module	Load-time lookup with no local writer
+src/tools/kit/crewmateBarredTools.ts	ALL_CREWMATE_DISALLOWED_TOOLS	process	module	Load-time lookup with no local writer
 src/tools/kit/crewmateBarredTools.ts	CREWMATE_BARRED_TOOLS	process	module	Load-time table with no local writer
 src/tools/kit/crewmateBarredTools.ts	RULE_INHERITS	process	module	Derived collection initialized at load
 src/tools/kit/documentText.ts	SEARCHABLE_DOCUMENT_EXTENSIONS	process	module	Load-time list with no local writer
@@ -5468,7 +5468,7 @@ src/tools/read/readRichFormats.ts	SQLITE_EXTENSIONS	process	module	Load-time loo
 src/tools/record-convention/RecordConventionTool.ts	RecordConventionTool	process	module	Load-time definition shared by all callers
 src/tools/record-convention/RecordConventionTool.ts	inputSchema	process	module	Load-time definition shared by all callers
 src/tools/record-convention/RecordConventionTool.ts	outputSchema	process	module	Load-time definition shared by all callers
-src/tools/resume-crewmate/ResumeAgentTool.ts	ResumeAgentTool	process	module	Load-time definition shared by all callers
+src/tools/resume-crewmate/ResumeAgentTool.ts	ResumeCrewmateTool	process	module	Load-time definition shared by all callers
 src/tools/resume-crewmate/ResumeAgentTool.ts	inputSchema	process	module	Load-time definition shared by all callers
 src/tools/resume-crewmate/ResumeAgentTool.ts	outputSchema	process	module	Load-time definition shared by all callers
 src/tools/rewind/RewindTool.tsx	RewindTool	process	module	Load-time definition shared by all callers
@@ -5580,11 +5580,11 @@ src/tools/skill/SkillTool.ts	inputSchema	process	module	Load-time definition sha
 src/tools/skill/SkillTool.ts	outputSchema	process	module	Load-time definition shared by all callers
 src/tools/skill/prompt.ts	promptForRoot	process	module	memoized constant string builder (buildPrompt ignores _cwd and returns static string)
 src/tools/skill/rows.tsx	EMPTY_SET	process	module	Load-time lookup with no local writer
-src/tools/sleep/SleepTool.tsx	SUBAGENT_TRACKED_TASK_TYPES	process	module	Load-time lookup with no local writer
 src/tools/sleep/SleepTool.tsx	SleepTool	process	module	Load-time definition shared by all callers
 src/tools/sleep/SleepTool.tsx	TERMINAL_TASK_STATUSES	process	module	Load-time lookup with no local writer
-src/tools/sleep/SleepTool.tsx	TRACKED_AGENT_TASK_TYPES	process	module	Load-time lookup with no local writer
+src/tools/sleep/SleepTool.tsx	TRACKED_CREWMATE_TASK_TYPES	process	module	Load-time lookup with no local writer
 src/tools/sleep/SleepTool.tsx	UNTRACKED_TASK_TYPES	process	module	Load-time lookup with no local writer
+src/tools/sleep/SleepTool.tsx	WAITER_OWN_TASK_TYPES	process	module	Load-time lookup with no local writer
 src/tools/sleep/SleepTool.tsx	inputSchema	process	module	Load-time definition shared by all callers
 src/tools/sleep/SleepTool.tsx	outputSchema	process	module	Load-time definition shared by all callers
 src/tools/structure/StructureTool.ts	ACTIONS	process	module	Load-time list with no local writer

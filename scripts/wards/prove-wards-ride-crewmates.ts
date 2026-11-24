@@ -43,7 +43,7 @@ const { registerWardsGuard, resetWardsEngagedSessionsForTest, WARDS_HOOK_ID } = 
 const { disengageToolGuard, engageToolGuard, guardsEngaged, resetGuardsForTesting } = await import(join(SRC, 'permissions/guards/guards.ts'))
 const { COMMIT_GATE_ID, engageCommitGate } = await import(join(SRC, 'permissions/guards/commitGate.ts'))
 const { deleteFlagEnv, setFlagEnv } = await import(join(SRC, 'platform/substrate/flagRegistry.ts'))
-const { createSubagentContext } = await import(join(SRC, 'crew/agents/forkedAgent.ts'))
+const { createChildContext } = await import(join(SRC, 'crew/agents/forkedAgent.ts'))
 const { runWithCwdOverride } = await import(join(SRC, 'platform/files/cwd.ts'))
 const { createFileStateCacheWithSizeLimit } = await import(join(SRC, 'platform/files/fileStateCache.ts'))
 enableConfigs()
@@ -130,9 +130,9 @@ for (const [label, command] of REFUSED) {
 }
 
 section('§3 a crewmate of that session is refused the same calls')
-const crewmate = createSubagentContext(sessionContext as never, {})
+const crewmate = createChildContext(sessionContext as never, {})
 const crewmateId = String(crewmate.agentId)
-check('the crewmate\'s context carries an id of its own', typeof crewmate.agentId === 'string' && crewmateId !== sessionId, crewmateId + ' · to fix: createSubagentContext in src/crew/agents/forkedAgent.ts must give the context its own agentId')
+check('the crewmate\'s context carries an id of its own', typeof crewmate.agentId === 'string' && crewmateId !== sessionId, crewmateId + ' · to fix: createChildContext in src/crew/agents/forkedAgent.ts must give the context its own agentId')
 check('no guard is engaged under the crewmate\'s own id: what refuses it is the session\'s', guardsEngaged(crewmateId).tool.length === 0, JSON.stringify(guardsEngaged(crewmateId)) + ' · to fix: the session guards must stay engaged under the session id only; see src/permissions/guards/wardsGuard.ts and src/permissions/guards/guards.ts')
 for (const [label, command] of REFUSED) {
   const theirs = await run(crewmate, command)
@@ -145,11 +145,11 @@ for (const [label, command] of REFUSED) {
 
 section('§4 a crewmate of a crewmate, and a forked context, are refused the same way')
 {
-  const nested = createSubagentContext(crewmate as never, {})
-  check('the nested crewmate carries a third id', String(nested.agentId) !== crewmateId && String(nested.agentId) !== sessionId, String(nested.agentId) + ' · to fix: createSubagentContext in src/crew/agents/forkedAgent.ts must give each nested context its own agentId')
+  const nested = createChildContext(crewmate as never, {})
+  check('the nested crewmate carries a third id', String(nested.agentId) !== crewmateId && String(nested.agentId) !== sessionId, String(nested.agentId) + ' · to fix: createChildContext in src/crew/agents/forkedAgent.ts must give each nested context its own agentId')
   const deep = await run(nested, 'sudo true')
   check('a crewmate\'s crewmate · sudo · refused by a ward, the tool never reached', deep.warded && !deep.reached, `reached the tool: ${JSON.stringify(ran)} · ${deep.text.slice(0, 160)}` + KEYS_FIX)
-  const forked = { ...createSubagentContext(sessionContext as never, { shareAbortController: true }), rosterOwner: undefined }
+  const forked = { ...createChildContext(sessionContext as never, { shareAbortController: true }), rosterOwner: undefined }
   const theirs = await run(forked, 'rm -rf ~')
   check('a forked context · a recursive delete of the home directory · refused by a ward, the tool never reached', theirs.warded && !theirs.reached, `reached the tool: ${JSON.stringify(ran)} · ${theirs.text.slice(0, 160)}` + KEYS_FIX)
 }
@@ -180,7 +180,7 @@ section('§6 a guard engaged under a crewmate\'s own id judges that crewmate alo
   const own = await run(sessionContext, 'echo ok')
   check('the session\'s own plain command is not judged by the crewmate\'s guard and reaches the tool', own.reached && order.join(',') === 'session', `${order.join(',')} · ${own.text.slice(0, 120)}` + KEYS_FIX)
   order.length = 0
-  const other = createSubagentContext(sessionContext as never, {})
+  const other = createChildContext(sessionContext as never, {})
   const sibling = await run(other, 'echo ok')
   check('another crewmate is not judged by that guard either', sibling.reached && order.join(',') === 'session', `${order.join(',')} · ${sibling.text.slice(0, 120)}` + KEYS_FIX)
   disengageToolGuard(sessionId, 'ride-order-session')
@@ -217,7 +217,7 @@ section('§9 a command embedded in the text of a skill or a custom command is ju
   const { executeShellCommandsInPrompt } = await import(join(SRC, 'engine/tool-dispatch/promptShellExecution.ts'))
   const askingState = { ...appState, toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default', shouldAvoidPermissionPrompts: true } }
   const asking = { ...sessionContext, getAppState: () => askingState }
-  const theirs = createSubagentContext(asking as never, {})
+  const theirs = createChildContext(asking as never, {})
   const embedded = [
     ['sudo, inline', 'Run this first: !`sudo true`'],
     ['a write of the global git config, in a block', '```!\ngit config --global core.editor vi\n```'],

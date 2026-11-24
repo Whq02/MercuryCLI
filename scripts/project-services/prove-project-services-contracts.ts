@@ -9,7 +9,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'vanguard-contracts-
 process.env.MERCURY_BARE = '1'
 
 const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
-const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
+const { CrewmateTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
 const {
   observeToolTerminal,
   subscribeToolTerminal,
@@ -199,7 +199,7 @@ section('A. FileEdit staleness + refusal laws (validateInput/call)')
 
 section('B. Agent parent-boundary shape (mapToolResultToToolResultBlockParam)')
 {
-  const map = (AgentTool as { mapToolResultToToolResultBlockParam: Function })
+  const map = (CrewmateTool as { mapToolResultToToolResultBlockParam: Function })
     .mapToolResultToToolResultBlockParam
   const base = {
     status: 'completed',

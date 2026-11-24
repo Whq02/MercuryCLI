@@ -13,7 +13,7 @@ try {
   const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
   const { askForHandoff } = await import('../../src/sessions/mneme/handoffAsk.ts')
-  const { createSubagentContext } = await import('../../src/crew/agents/forkedAgent.ts')
+  const { createChildContext } = await import('../../src/crew/agents/forkedAgent.ts')
   const { resolveHookPermissionDecision } = await import('../../src/engine/tool-dispatch/toolHooks.ts')
   const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
   const { createUserMessage, createAssistantMessage } = await import('../../src/engine/message-shapes/factories.ts')
@@ -32,7 +32,7 @@ try {
     cacheSafeParams: { systemPrompt: [] as never, userContext: {}, systemContext: {}, toolUseContext: parent, forkContextMessages: [createUserMessage({ content: 'work' })] },
     run: async params => {
       try {
-      const context = createSubagentContext(params.cacheSafeParams.toolUseContext, params.overrides)
+      const context = createChildContext(params.cacheSafeParams.toolUseContext, params.overrides)
       const result = await resolveHookPermissionDecision(
         { behavior: 'allow', decisionReason: { type: 'hook', hookName: 'allow Bash' } },
         { name: 'Bash' } as never, { command: 'echo forbidden' }, context,

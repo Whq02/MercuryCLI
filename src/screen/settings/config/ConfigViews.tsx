@@ -11,14 +11,14 @@ import { Select } from '../../select/Select.js'
 import { LanguagePicker } from './LanguagePicker.js'
 import { ExternalInstructionIncludesDialog } from './ExternalInstructionIncludesDialog.js'
 import type { ExternalInstructionInclude } from '../../../sessions/instructions/instructionFiles.js'
-import type { subagentDefaultsOf } from '../../../crew/agents/agentDefaults.js'
+import type { crewmateDefaultsOf } from '../../../crew/agents/agentDefaults.js'
 import { MercuryModelChoicePicker, modelChoiceLabel, modelChoiceRow } from '../../../commands/model/mercuryModel.js'
 import { parseUserSpecifiedModel } from '../../../models/catalogue/engineModel.js'
 import { LOCAL_SERVER_APPLY_MENU, LocalServerApplyDialog, type LocalServerConfigState } from '../LocalServer.js'
 import { MediaConfigPicker, type useMediaConfig } from '../Media.js'
 import type { MercuryThemeTokens } from '../../theme/mercuryTokens.js'
 import { CONFIG_SEARCH_PLACEHOLDER, CONFIG_ROW_MARK, configMoreRow, type ConfigListWindow } from './configLayout.js'
-import { type SubMenu, AGENT_INHERIT_ROW, type SettingsItem, THEME_LABELS } from './configItems.js'
+import { type SubMenu, CREWMATE_INHERIT_ROW, type SettingsItem, THEME_LABELS } from './configItems.js'
 
 const LABEL_CELLS = 36
 function valueOnOneLine(value: React.ReactNode): React.ReactNode {
@@ -51,7 +51,7 @@ export function configSubMenuView({
   themeSetting: ThemeSetting
   setThemeSetting: (setting: ThemeSetting) => void
   setSubMenu: (menu: SubMenu | null) => void
-  agentDefaults: ReturnType<typeof subagentDefaultsOf>
+  agentDefaults: ReturnType<typeof crewmateDefaultsOf>
   writeAgents: (patch: Partial<NonNullable<GlobalConfig['agents']>>) => void
   recordSet: (key: string, text: string) => void
   signInFromDoor: () => void
@@ -83,12 +83,12 @@ export function configSubMenuView({
     return (
       <ModalContext.Provider value={{ rows: contentHeight, columns: width, scrollRef: null }}>
       <MercuryModelChoicePicker
-        leading={[AGENT_INHERIT_ROW]}
-        current={agentDefaults.model === undefined || agentDefaults.model === AGENT_INHERIT_ROW.id ? AGENT_INHERIT_ROW.id : modelChoiceRow(agentDefaults.model)}
+        leading={[CREWMATE_INHERIT_ROW]}
+        current={agentDefaults.model === undefined || agentDefaults.model === CREWMATE_INHERIT_ROW.id ? CREWMATE_INHERIT_ROW.id : modelChoiceRow(agentDefaults.model)}
         onSelect={id => {
-          const next = id === AGENT_INHERIT_ROW.id ? undefined : parseUserSpecifiedModel(id)
+          const next = id === CREWMATE_INHERIT_ROW.id ? undefined : parseUserSpecifiedModel(id)
           writeAgents({ defaultModel: next })
-          recordSet('agentsDefaultModel', `set the crewmate default model to ${next === undefined ? AGENT_INHERIT_ROW.name : modelChoiceLabel(next)}`)
+          recordSet('agentsDefaultModel', `set the crewmate default model to ${next === undefined ? CREWMATE_INHERIT_ROW.name : modelChoiceLabel(next)}`)
           setSubMenu(null)
         }}
         onSignIn={signInFromDoor}

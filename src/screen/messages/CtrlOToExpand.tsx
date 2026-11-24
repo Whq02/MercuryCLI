@@ -5,20 +5,20 @@ import { GLYPH } from '../theme/glyphs.js'
 import { useShortcutDisplay } from '../keys/useShortcutDisplay.js'
 import { InVirtualListContext } from './messageActions.js'
 
-const SubAgentContext = createContext(false)
+const NestedRowsContext = createContext(false)
 
-export function SubAgentProvider({
+export function NestedRowsProvider({
   children,
 }: {
   children: React.ReactNode
 }): React.ReactNode {
   return (
-    <SubAgentContext.Provider value={true}>{children}</SubAgentContext.Provider>
+    <NestedRowsContext.Provider value={true}>{children}</NestedRowsContext.Provider>
   )
 }
 
 export function CtrlOToExpand(): React.ReactNode {
-  const inSubAgent = useContext(SubAgentContext)
+  const inSubAgent = useContext(NestedRowsContext)
   const inVirtualList = useContext(InVirtualListContext)
   const chord = useShortcutDisplay('app:toggleTranscript', 'Global', 'ctrl+o')
   if (inSubAgent) return null

@@ -54,8 +54,8 @@ const {
 } = journal
 const { JournalTool, journalResultWords } = await import('../../src/tools/journal/JournalTool.js')
 const { JOURNAL_TOOL_NAME } = await import('../../src/tools/journal/prompt.js')
-const { ALL_AGENT_DISALLOWED_TOOLS } = await import('../../src/tools/kit/crewmateBarredTools.js')
-const { filterToolsForAgent } = await import('../../src/tools/crewmate/crewmateLifecycle.js')
+const { ALL_CREWMATE_DISALLOWED_TOOLS } = await import('../../src/tools/kit/crewmateBarredTools.js')
+const { filterToolsForCrewmate } = await import('../../src/tools/crewmate/crewmateLifecycle.js')
 const { getAllBaseTools } = await import('../../src/tools/kit/toolList.js')
 
 const key = mnemeProjectKey()
@@ -186,8 +186,8 @@ check('the tool result says the write waits for the session end', journalResultW
 check('a refused result is an error with its reason', journalResultWords(long).startsWith('journal entry refused: '))
 const block = JournalTool.mapToolResultToToolResultBlockParam(long, 'tu-1') as { is_error?: boolean }
 check('the refused block is marked is_error', block.is_error === true)
-check('no agent may hold the Journal tool', ALL_AGENT_DISALLOWED_TOOLS.has(JOURNAL_TOOL_NAME))
-const forAgent = filterToolsForAgent({ tools: getAllBaseTools(), isBuiltIn: true })
+check('no agent may hold the Journal tool', ALL_CREWMATE_DISALLOWED_TOOLS.has(JOURNAL_TOOL_NAME))
+const forAgent = filterToolsForCrewmate({ tools: getAllBaseTools(), isBuiltIn: true })
 check('a crewmate\'s tool pool has no Journal', !forAgent.some(t => t.name === JOURNAL_TOOL_NAME))
 check('the tool carries its capability and its proof', (JournalTool as { capability?: { proof?: string; units?: string[] } }).capability?.proof === 'scripts/memory/prove-journal.ts' && (JournalTool as { capability?: { units?: string[] } }).capability?.units?.includes('memory') === true)
 const description = await JournalTool.description()

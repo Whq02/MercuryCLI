@@ -9,7 +9,7 @@ import { WorkingGlyph } from '../../widgets/LiveGlyphs.js'
 import { useMercuryTokens } from '../../widgets/useMercuryTokens.js'
 import type { SampleRowV1, WorkRowV1 } from '../../../engine/connector/types.js'
 import { sampleStateWord } from '../../../integrations/sample-contracts/contracts.js'
-import { crewAgentFactsOf, crewCostLabel, crewModelLabel, CREW_ASK_WAIT_WORDS, crewPhaseWords, crewSpendLabel, crewStateLabel, crewStatusWords, crewTokensBreakdown, crewTokensLabel, crewToolUsesLabel } from '../../../engine/connector/crewFacts.js'
+import { crewmateFactsOf, crewCostLabel, crewModelLabel, CREW_ASK_WAIT_WORDS, crewPhaseWords, crewSpendLabel, crewStateLabel, crewStatusWords, crewTokensBreakdown, crewTokensLabel, crewToolUsesLabel } from '../../../engine/connector/crewFacts.js'
 import { getFocusedSessionConnector } from '../../../engine/connector/focusedConnector.js'
 import { GLYPH } from '../../theme/glyphs.js'
 
@@ -66,7 +66,7 @@ export function AgeCell({ item, now }: { item: BoardItem; now: number }): React.
 
 export function WorkRowLine({ work }: { work: WorkRowV1 }): React.ReactNode {
   const tokens = useMercuryTokens()
-  const crew = crewAgentFactsOf(work, null)
+  const crew = crewmateFactsOf(work, null)
   const crewTokens = crew === null ? null : crewTokensLabel(crew)
   const running = work.status === 'running'
   const pending = work.status === 'pending'
@@ -112,7 +112,7 @@ export function RosterWorkDetail({
     },
     { context: 'Confirmation', isActive: true },
   )
-  const crew = crewAgentFactsOf(work, null)
+  const crew = crewmateFactsOf(work, null)
   const rows: KVRow[] = [
     { k: 'state', v: crew !== null ? crewStateLabel(crew) : work.status, tone: work.status === 'running' ? tokens.success : tokens.textPrimary },
     { k: 'started', v: `${formatDuration(Math.max(0, now - work.startTime))} ago`, tone: tokens.textMuted },

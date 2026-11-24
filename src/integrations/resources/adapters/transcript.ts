@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path'
 import { boundedTextView, type ResourceAdapter, type ResourceChild, type ResourceContext } from '../contracts.js'
 import { parseOwnerKey } from '../../../engine/execution-plane/owner.js'
 import { projectIntelEnabled } from '../../../sessions/project-intel-pins/contracts.js'
-import { readAgentTranscript, transcriptEndWords } from '../../../crew/crewmates/agentTranscriptReader.js'
+import { readCrewmateTranscript, transcriptEndWords } from '../../../crew/crewmates/agentTranscriptReader.js'
 import { recordToEntry } from '../../../sessions/fabric/entryCodec.js'
 import { validateRecord } from '../../../sessions/fabric/validate.js'
 import { effortStampLine, isEffortStamp } from '../../../models/effort/effortStamp.js'
@@ -173,7 +173,7 @@ export const transcriptAdapter: ResourceAdapter = {
       const rows = jsonlConciseRows(agentFile)
       const view = boundedTextView(rows.join('\n'), ref.selectors, 100)
       const registryStatus = stem.startsWith('agent-') ? registryStatusOf(ctx, stem.slice('agent-'.length)) : null
-      const status = registryStatus !== null ? agentStatusWord(registryStatus) : transcriptEndWords((await readAgentTranscript(agentFile))?.end)
+      const status = registryStatus !== null ? agentStatusWord(registryStatus) : transcriptEndWords((await readCrewmateTranscript(agentFile))?.end)
       return {
         state: 'ok',
         resource: {

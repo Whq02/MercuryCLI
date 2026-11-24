@@ -18,7 +18,7 @@ setOriginalCwd(home)
 setProjectRoot(home)
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { resolveAgentTools } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
-const { composeAgentAppState } = await import('../../src/tools/crewmate/agentPermissionPosture.ts')
+const { composeCrewmateAppState } = await import('../../src/tools/crewmate/agentPermissionPosture.ts')
 const { decodeAgentDocument } = await import('../../src/crew/agents/codec.ts')
 const { parseAgentFromJson, getAgentDefinitionsWithOverrides, clearAgentDefinitionsCache } = await import('../../src/tools/crewmate/loadAgentsDir.ts')
 const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.ts')
@@ -37,7 +37,7 @@ const definition = { source: 'projectSettings', tools: ['Edit(src/**)', 'Bash'],
 const child = (mode: string, extra = {}) => {
   const parent = { toolPermissionContext: { ...getEmptyToolPermissionContext(), mode, isBypassPermissionsModeAvailable: true, ...extra } }
   const before = JSON.stringify(parent)
-  const result = composeAgentAppState(parent as never, { definitionMode: undefined, avoidPrompts: false, isAsync: false, allowedTools: undefined, effortValue: undefined, definitionTools: definition } as never)
+  const result = composeCrewmateAppState(parent as never, { definitionMode: undefined, avoidPrompts: false, isAsync: false, allowedTools: undefined, effortValue: undefined, definitionTools: definition } as never)
   check(`${mode}: the parent state is unchanged`, JSON.stringify(parent) === before)
   return result.toolPermissionContext
 }
@@ -62,10 +62,10 @@ try {
   }
   const scoped = child('default')
   check('only resource rules enter the overlay', JSON.stringify(scoped.alwaysAllowRules.toolsNarrowing) === JSON.stringify(['Edit(src/**)']) && JSON.stringify(scoped.alwaysDenyRules.toolsNarrowing) === JSON.stringify(['Bash(rm *)']), scoped)
-  const sibling = composeAgentAppState({ toolPermissionContext: getEmptyToolPermissionContext() } as never, { definitionMode: undefined, avoidPrompts: false, isAsync: false, allowedTools: undefined, effortValue: undefined } as never)
+  const sibling = composeCrewmateAppState({ toolPermissionContext: getEmptyToolPermissionContext() } as never, { definitionMode: undefined, avoidPrompts: false, isAsync: false, allowedTools: undefined, effortValue: undefined } as never)
   check('another crewmate receives none of these rules', sibling.toolPermissionContext.alwaysDenyRules.toolsNarrowing === undefined)
   const nestedDefinition = { source: 'projectSettings', tools: ['Edit(docs/**)', 'Bash'], disallowedTools: ['Bash(git status *)'] }
-  const nestedState = composeAgentAppState({ toolPermissionContext: scoped } as never, { definitionMode: undefined, avoidPrompts: false, isAsync: false, allowedTools: undefined, effortValue: undefined, definitionTools: nestedDefinition } as never)
+  const nestedState = composeCrewmateAppState({ toolPermissionContext: scoped } as never, { definitionMode: undefined, avoidPrompts: false, isAsync: false, allowedTools: undefined, effortValue: undefined, definitionTools: nestedDefinition } as never)
   const nestedCtx = nestedState.toolPermissionContext
   check('nested crewmate gets its own allow scope without parent allow leakage', JSON.stringify(nestedCtx.alwaysAllowRules.toolsNarrowing) === JSON.stringify(['Edit(docs/**)']), nestedCtx.alwaysAllowRules.toolsNarrowing)
   const nestedEditDocs = await fileWriteToolHasPermission({ name: 'Edit' } as never, { file_path: join(home, 'docs', 'a.md') }, nestedCtx)
@@ -74,7 +74,7 @@ try {
   const parentGitStatus = await bashToolHasPermission({ command: 'git status' }, scoped)
   const parentEditDocs = await fileWriteToolHasPermission({ name: 'Edit' } as never, { file_path: join(home, 'docs', 'a.md') }, scoped)
   check('nested crewmate rules never leak into the parent evaluation', parentGitStatus.behavior === 'allow' && parentEditDocs.behavior === 'deny', { parentGitStatus, parentEditDocs })
-  const nestedWildcard = composeAgentAppState({ toolPermissionContext: scoped } as never, { definitionMode: undefined, avoidPrompts: false, isAsync: false, allowedTools: undefined, effortValue: undefined, definitionTools: { tools: ['*'] } } as never)
+  const nestedWildcard = composeCrewmateAppState({ toolPermissionContext: scoped } as never, { definitionMode: undefined, avoidPrompts: false, isAsync: false, allowedTools: undefined, effortValue: undefined, definitionTools: { tools: ['*'] } } as never)
   check('nested wildcard crewmate clears parent allow narrowing', nestedWildcard.toolPermissionContext.alwaysAllowRules.toolsNarrowing === undefined, nestedWildcard.toolPermissionContext.alwaysAllowRules)
   console.log('refusals')
   const restricted = child('sovereign', { alwaysDenyRules: { session: ['Edit(src/private/**)'], toolsNarrowing: ['Bash(git push *)'] } })

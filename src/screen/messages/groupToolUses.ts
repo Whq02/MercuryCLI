@@ -7,7 +7,7 @@ import type {
 } from '../../engine/message-shapes/message.js'
 import type { ToolUseBlock } from '../../engine/message-shapes/wire.js'
 
-import { AGENT_TOOL_NAME } from '../../tools/kit/names/agent.js'
+import { CREWMATE_TOOL_NAME } from '../../tools/kit/names/agent.js'
 import { isRecord } from '../../platform/primitives/isRecord.js'
 
 type MessageWithoutProgress = Exclude<NormalizedMessage, { type: 'progress' }>
@@ -51,7 +51,7 @@ export function applyGrouping(
     if (!isToolUseMessage(row)) continue
     const call = row.message.content[0]
     if (!names.has(call.name)) continue
-    if (call.name === AGENT_TOOL_NAME) {
+    if (call.name === CREWMATE_TOOL_NAME) {
       const result = results.get(call.id)
       if (!result) continue
       const id = isRecord(result.toolUseResult) ? result.toolUseResult['agentId'] : undefined

@@ -16,7 +16,7 @@ const schemaWhere = 'what to change: inputSchema in src/tools/crewmate/call/sche
 const wordsWhere = 'what to change: the field descriptions in src/tools/crewmate/call/schema.ts and the text built by getPrompt in src/tools/crewmate/prompt.ts, which must not mention crew_name or crewmate spawning notes'
 const receiptWhere = 'what to change: agentToolResultBlock in src/tools/crewmate/call/resultBlock.ts, which must give no special receipt for a crewmate_spawned status'
 
-const { inputSchema, AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
+const { inputSchema, CrewmateTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
 const { getPrompt } = await import('../../src/tools/crewmate/prompt.ts')
 
 console.log('── §1 the schema: crew_name is an unknown key like any other ──')
@@ -45,7 +45,7 @@ check('the tool prompt never spells crew_name', !prompt.includes('crew_name'), '
 check('the tool prompt has no in-process-crewmate or crewmates-cannot-spawn note', !/in-process crewmate session|cannot spawn crewmates/.test(prompt), '', wordsWhere)
 const receiptOf = (status: string): string => {
   try {
-    return JSON.stringify(AgentTool.mapToolResultToToolResultBlockParam({ status, agentId: 'x', agentName: 'pong', crewName: 'k3' } as never, 'tool-1'))
+    return JSON.stringify(CrewmateTool.mapToolResultToToolResultBlockParam({ status, agentId: 'x', agentName: 'pong', crewName: 'k3' } as never, 'tool-1'))
   } catch (error) {
     return `threw: ${(error as Error).message}`
   }

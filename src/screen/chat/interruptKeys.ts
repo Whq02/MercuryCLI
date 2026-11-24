@@ -6,8 +6,8 @@ import { useShortcutDisplay } from '../keys/useShortcutDisplay.js'
 import { useAppStateStore, useSetAppState } from '../app-state/AppState.js'
 import type { AppState } from '../app-state/AppStateStore.js'
 import {
-  isLocalAgentTask,
-  stopRunningAgentTasks,
+  isCrewmateTask,
+  stopRunningCrewmateTasks,
 } from '../../engine/tasks/local-agent/crewmateTask.js'
 import { enqueuePendingNotification } from '../composer/input-core/command-queue.js'
 import { pressInterrupt } from '../composer/input-core/interruptArity.js'
@@ -17,7 +17,7 @@ import { settingsChangeDetector } from '../../platform/settings/changeDetector.j
 import { getSettingsSnapshot, settingsRevision } from '../../platform/settings/snapshot.js'
 import { getFocusedSessionConnector } from '../../engine/connector/focusedConnector.js'
 import { hasSeatLive } from '../../engine/connector/seatLive.js'
-import type { AgentControlReceiptV1 } from '../../engine/connector/types.js'
+import type { CrewmateControlReceiptV1 } from '../../engine/connector/types.js'
 import { crewStillRunningLine, interruptReceiptLine } from '../../engine/connector/crewFacts.js'
 import { workCounts } from '../../engine/connector/workCounts.js'
 import { createSystemMessage } from '../../engine/message-shapes/systemMessages.js'
@@ -36,7 +36,7 @@ import { passedOver } from '../../platform/errors/passedOver.js'
 const KILL_CONFIRM_WINDOW_MS = 3000
 const NONE_RUNNING_TIMEOUT_MS = 2000
 
-export function backgroundShellNotice(receipt: AgentControlReceiptV1): Notification | null {
+export function backgroundShellNotice(receipt: CrewmateControlReceiptV1): Notification | null {
   if (receipt.outcome === 'applied') return null
   return { key: 'background-shell', text: receipt.detail ?? 'no reason given', priority: 'immediate' }
 }
@@ -53,11 +53,11 @@ export function interruptFocusedTurn(): boolean {
   return true
 }
 
-function killRunningAgents(
+function killRunningCrewmates(
   getState: () => AppState,
   setAppState: (updater: (prev: AppState) => AppState) => void,
 ): boolean {
-  const running = stopRunningAgentTasks(getState().tasks, setAppState)
+  const running = stopRunningCrewmateTasks(getState().tasks, setAppState)
   if (running.length === 0) return false
   const summary =
     running.length === 1
@@ -248,7 +248,7 @@ export function InterruptKeys({
     () => {
       const tasks = appStateStore.getState().tasks
       const hasRunning = Object.values(tasks).some(
-        task => isLocalAgentTask(task) && task.status === 'running',
+        task => isCrewmateTask(task) && task.status === 'running',
       )
       if (!hasRunning) {
         lastKillPressRef.current = null
@@ -268,7 +268,7 @@ export function InterruptKeys({
       ) {
         lastKillPressRef.current = null
         removeNotification('kill-agents-confirm')
-        if (killRunningAgents(appStateStore.getState, setAppState)) {
+        if (killRunningCrewmates(appStateStore.getState, setAppState)) {
           onAgentsKilled?.()
         }
         return

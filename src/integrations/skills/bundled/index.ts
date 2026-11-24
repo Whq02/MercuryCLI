@@ -11,7 +11,7 @@ import { registerMcpSmithySkill } from './mcp-smithy.js'
 import { registerProviderApisSkill } from './provider-apis.js'
 import { registerSkillForgeSkill } from './skill-forge.js'
 import { registerLoopSkill } from './loop.js'
-import { registerScheduleRemoteAgentsSkill } from './schedule.js'
+import { registerScheduleSkill } from './schedule.js'
 import { registerResearchSkill } from './research.js'
 
 export function initBundledSkills(): void {
@@ -28,6 +28,6 @@ export function initBundledSkills(): void {
   registerProviderApisSkill()
   registerSkillForgeSkill()
   registerLoopSkill()
-  registerScheduleRemoteAgentsSkill()
+  registerScheduleSkill()
   registerResearchSkill()
 }

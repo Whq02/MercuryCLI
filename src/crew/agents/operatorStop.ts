@@ -1,11 +1,11 @@
 import type { SetAppState } from '../../engine/tasks/taskBase.js'
 import type { AppState } from '../../screen/app-state/AppState.js'
-import { stopOrDismissAgent } from '../crewmates/crewmateView.js'
-import { AGENT_STOP_BY_OPERATOR, isLocalAgentTask } from '../../engine/tasks/local-agent/crewmateTask.js'
-import { isPausedAgentRow, StopTaskError, stopPausedAgent, stopTask, taskNotFoundWords } from '../../engine/tasks/stopTask.js'
+import { stopOrDismissCrewmate } from '../crewmates/crewmateView.js'
+import { CREWMATE_STOP_BY_OPERATOR, isCrewmateTask } from '../../engine/tasks/local-agent/crewmateTask.js'
+import { isPausedCrewmateRow, StopTaskError, stopPausedCrewmate, stopTask, taskNotFoundWords } from '../../engine/tasks/stopTask.js'
 import { sleep } from '../../platform/async/sleep.js'
 
-export const AGENT_STOP_SETTLE_MS = 3_000
+export const CREWMATE_STOP_SETTLE_MS = 3_000
 const SETTLE_TICK_MS = 50
 
 type OperatorStopKind = 'agent' | 'workflow' | 'task'
@@ -38,25 +38,25 @@ export function unsettledWords(name: string, settleMs: number): string {
   return `the stop reached ${name} but it has not ended within ${Math.round(settleMs / 1000)} s — its tool may be ignoring the stop; the row follows when it ends`
 }
 
-export async function stopAgentByOperator(
+export async function stopCrewmateByOperator(
   taskId: string,
   context: OperatorStopContext,
   options: OperatorStopOptions = {},
 ): Promise<OperatorStopReceipt> {
-  const settleMs = options.settleMs ?? AGENT_STOP_SETTLE_MS
+  const settleMs = options.settleMs ?? CREWMATE_STOP_SETTLE_MS
   const pause = options.sleep ?? sleep
   const task = context.getAppState().tasks?.[taskId]
   if (task === undefined) return { outcome: 'refused', reason: await taskNotFoundWords(taskId) }
   const name = nameOf(task)
-  if (isPausedAgentRow(task)) {
-    const stopped = await stopPausedAgent(taskId, context)
+  if (isPausedCrewmateRow(task)) {
+    const stopped = await stopPausedCrewmate(taskId, context)
     if (stopped !== null) return { outcome: 'applied', kind: 'agent', status: context.getAppState().tasks?.[taskId]?.status ?? 'killed' }
   }
   if (task.status !== 'running') return { outcome: 'refused', reason: notRunningWords(name, task.status) }
-  if (isLocalAgentTask(task)) {
-    stopOrDismissAgent(taskId, context.setAppState, options.reason ?? AGENT_STOP_BY_OPERATOR)
+  if (isCrewmateTask(task)) {
+    stopOrDismissCrewmate(taskId, context.setAppState, options.reason ?? CREWMATE_STOP_BY_OPERATOR)
     const signalled = context.getAppState().tasks?.[taskId]
-    if (isLocalAgentTask(signalled) && signalled.status === 'running' && signalled.abortController !== undefined && !signalled.abortController.signal.aborted) {
+    if (isCrewmateTask(signalled) && signalled.status === 'running' && signalled.abortController !== undefined && !signalled.abortController.signal.aborted) {
       return { outcome: 'refused', reason: `the stop did not reach ${name} — its controller stands unaborted` }
     }
     const until = Date.now() + settleMs

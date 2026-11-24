@@ -22,7 +22,7 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 
 const state = await import('../../src/boot/process-state/processState.ts')
 const config = await import('../../src/platform/config/globalConfig.ts')
-const { cleanupStaleAgentWorktrees, createAgentWorktree } = await import('../../src/platform/git/worktree/worktree.ts')
+const { cleanupStaleCrewmateWorktrees, createCrewmateWorktree } = await import('../../src/platform/git/worktree/worktree.ts')
 const { ensureWorkerWorktree, reapWorkerWorktree } = await import('../../src/daemon/concourse-workers/concourseWorktrees.ts')
 const { crewLeftoverWorktrees } = await import('../../src/crew/crewmates/crewWorktreeReminder.ts')
 
@@ -125,7 +125,7 @@ try {
     section('§1 a volume that cannot clone: nothing is ever cloned beside a copy')
     skip("the proof's runtime cannot force a clone of one file here: the folders are linked as before and there is nothing to move into place")
     if (!links) skip(`the fixture's own link, and the link the copy would hold: ${LINK_PRIVILEGE}`)
-    const linked = await createAgentWorktree('agent-ad100001')
+    const linked = await createCrewmateWorktree('agent-ad100001')
     const placed = lstatSync(join(linked.worktreePath, 'node_modules'))
     check(`the copy holds ${links ? 'the link' : 'the folder this account gets in place of the link'} and nothing stands beside it`, (links ? placed.isSymbolicLink() : placed.isDirectory()) && staged(home).length === 0, staged(home).join(', '))
   } else {
@@ -150,7 +150,7 @@ try {
 
     section('§1 while a folder is being cloned it stands beside the copy, and is moved in whole')
     const quietDuring = capture()
-    const creating = createAgentWorktree('agent-ad100001')
+    const creating = createCrewmateWorktree('agent-ad100001')
     const paused = await until(() => existsSync(join(hold, 'paused')))
     const printedDuring = quietDuring.stop()
     const copy = join(home, 'agent-ad100001')
@@ -170,7 +170,7 @@ try {
     rearm()
 
     section('§2 moving the folder in replaces nothing but an empty folder')
-    const racing = createAgentWorktree('agent-ad200001')
+    const racing = createCrewmateWorktree('agent-ad200001')
     await until(() => existsSync(join(hold, 'paused')))
     const taken = join(home, 'agent-ad200001', 'node_modules')
     mkdirSync(taken, { recursive: true })
@@ -180,7 +180,7 @@ try {
     check('a folder that took the name while the clone ran is left as it is', JSON.stringify(readdirSync(taken)) === JSON.stringify(['mine']) && read(join(taken, 'mine')) === 'made meanwhile\n', readdirSync(taken).join(', '))
     check('…the clone is dropped, nothing is left beside the copy and the launch has no failure to report', staged(home).length === 0 && raced.prepareFailure === undefined, staged(home).join(', '))
     rearm()
-    const overEmpty = createAgentWorktree('agent-ad200002')
+    const overEmpty = createCrewmateWorktree('agent-ad200002')
     await until(() => existsSync(join(hold, 'paused')))
     mkdirSync(join(home, 'agent-ad200002', 'node_modules'), { recursive: true })
     release()
@@ -197,14 +197,14 @@ try {
         'process.env.NODE_ENV = \'test\'',
         `const state = await import(${JSON.stringify(join(ROOT, 'src/boot/process-state/processState.ts'))})`,
         `const config = await import(${JSON.stringify(join(ROOT, 'src/platform/config/globalConfig.ts'))})`,
-        `const { createAgentWorktree } = await import(${JSON.stringify(join(ROOT, 'src/platform/git/worktree/worktree.ts'))})`,
+        `const { createCrewmateWorktree } = await import(${JSON.stringify(join(ROOT, 'src/platform/git/worktree/worktree.ts'))})`,
         'const fixture = process.argv[2] as string',
         'process.chdir(fixture)',
         'state.setOriginalCwd(fixture)',
         'state.setCwdState(fixture)',
         'state.setIsInteractive(true)',
         'config.enableConfigs()',
-        'await createAgentWorktree(process.argv[3] as string)',
+        'await createCrewmateWorktree(process.argv[3] as string)',
         '',
       ].join('\n'),
     )
@@ -238,11 +238,11 @@ try {
     writeFileSync(join(old, '0', 'pkg', 'sealed', 'file'), 'x\n')
     symlinkSync(outside, join(old, '0', 'link-out-of-the-tree'))
     if (process.getuid?.() !== 0) chmodSync(join(old, '0', 'pkg', 'sealed'), 0o555)
-    await cleanupStaleAgentWorktrees(hoursAgo(8 * 24))
+    await cleanupStaleCrewmateWorktrees(hoursAgo(8 * 24))
     check('inside its first hour the janitor leaves such a folder alone', present(old) && left.every(name => present(join(home, name))))
     utimesSync(old, hoursAgo(2), hoursAgo(2))
     for (const name of left) utimesSync(join(home, name), hoursAgo(2), hoursAgo(2))
-    await cleanupStaleAgentWorktrees(hoursAgo(8 * 24))
+    await cleanupStaleCrewmateWorktrees(hoursAgo(8 * 24))
     check('an hour on the janitor sweeps it, a read-only folder inside it included', await until(() => !present(old)), listing(old).join(' | '))
     check('…and what the killed process left with it', await until(() => staged(home).length === 0), staged(home).join(', '))
     check('…never through a link: the folder a link in it named is whole', read(join(outside, 'keep.txt')) === 'outside the tree\n')
@@ -266,10 +266,10 @@ try {
     section('§5 on the platform\'s own road, and with no clone at all, nothing is left beside a copy')
     process.env.PATH = pathBefore
     delete process.env.MERCURY_WORKTREE_CLONE
-    const own = await createAgentWorktree('agent-ad500001')
+    const own = await createCrewmateWorktree('agent-ad500001')
     check('the platform\'s own road leaves the folder in the copy and nothing beside it', (cloneRoadExpected(scratch) ? lstatSync(join(own.worktreePath, 'node_modules')).isDirectory() : lstatSync(join(own.worktreePath, 'node_modules')).isSymbolicLink()) && staged(home).length === 0, staged(home).join(', '))
     process.env.MERCURY_WORKTREE_CLONE = 'off'
-    const off = await createAgentWorktree('agent-ad500002')
+    const off = await createCrewmateWorktree('agent-ad500002')
     delete process.env.MERCURY_WORKTREE_CLONE
     check('MERCURY_WORKTREE_CLONE=off makes the link and stages nothing', lstatSync(join(off.worktreePath, 'node_modules')).isSymbolicLink() && staged(home).length === 0)
   }

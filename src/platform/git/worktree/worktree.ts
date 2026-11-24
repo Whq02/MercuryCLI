@@ -834,7 +834,7 @@ export function preflightWorktreeCapability(cwd: string = getCwd()): WorktreeCap
   }
 }
 
-export async function createAgentWorktree(
+export async function createCrewmateWorktree(
   slug: string,
   options?: { at?: string; from?: string; foldersBehindLaunch?: boolean; permission?: ToolPermissionContext },
 ): Promise<{ worktreePath: string; worktreeBranch?: string; headCommit?: string; gitRoot?: string; prepareFailure?: string; ready?: Promise<void> }> {
@@ -855,7 +855,7 @@ export async function createAgentWorktree(
     logForDebugging(`resumed agent worktree ${created.worktreePath}`)
     return { worktreePath: created.worktreePath, worktreeBranch: created.worktreeBranch, ...(created.headCommit !== null ? { headCommit: created.headCommit } : {}), gitRoot }
   }
-  await markAgentLane(created.worktreePath, slug)
+  await markCrewmateLane(created.worktreePath, slug)
   const behindLaunch = options?.foldersBehindLaunch === true && !(await launchWaitsForFolders(gitRoot))
   let prepareFailure: string | undefined
   if (behindLaunch) {
@@ -876,17 +876,17 @@ export async function createAgentWorktree(
   }
 }
 
-export async function unlockAgentWorktree(worktreePath: string, gitRoot: string): Promise<void> {
+export async function unlockCrewmateWorktree(worktreePath: string, gitRoot: string): Promise<void> {
   await runGit(['worktree', 'unlock', worktreePath], gitRoot)
 }
 
-async function removeAgentWorktree(worktreePath: string, worktreeBranch?: string, repoRoot?: string): Promise<boolean> {
+async function removeCrewmateWorktree(worktreePath: string, worktreeBranch?: string, repoRoot?: string): Promise<boolean> {
   const gitRoot = repoRoot ?? findCanonicalGitRoot(worktreePath)
   if (!gitRoot) {
     logForDebugging(`removeAgentWorktree: no git root for ${worktreePath}`, { level: 'warn' })
     return false
   }
-  await unlockAgentWorktree(worktreePath, gitRoot)
+  await unlockCrewmateWorktree(worktreePath, gitRoot)
   const removed = await removeWorktreeTree(worktreePath, gitRoot)
   if (removed.code !== 0) {
     logForDebugging(`agent worktree remove failed: ${removed.stderr.trim()}`, { level: 'warn' })
@@ -903,12 +903,12 @@ async function removeAgentWorktree(worktreePath: string, worktreeBranch?: string
 export { classifyPorcelainRecords, hasWorktreeChanges, readWorktreeDelta, worktreeRemovalSafe } from './delta.js'
 
 
-const AGENT_LANE_SLUG = /^agent-a[0-9a-f]{7,32}$/
+const CREWMATE_LANE_HEX_SLUG = /^agent-a[0-9a-f]{7,32}$/
 const CREWMATE_LANE_SLUG = /^agent-a[0-9a-z]{7}$/
 const LANE_MARKER_FILENAME = 'WORKTREE_LANE'
 
-async function markAgentLane(worktreePath: string, slug: string): Promise<void> {
-  if (!AGENT_LANE_SLUG.test(slug) && !CREWMATE_LANE_SLUG.test(slug)) return
+async function markCrewmateLane(worktreePath: string, slug: string): Promise<void> {
+  if (!CREWMATE_LANE_HEX_SLUG.test(slug) && !CREWMATE_LANE_SLUG.test(slug)) return
   const adminDir = await resolveWorktreeAdminDir(worktreePath)
   if (adminDir === null) return
   try {
@@ -918,8 +918,8 @@ async function markAgentLane(worktreePath: string, slug: string): Promise<void> 
   }
 }
 
-export async function isAgentLane(slug: string, worktreePath: string): Promise<boolean> {
-  if (AGENT_LANE_SLUG.test(slug)) return true
+export async function isCrewmateLane(slug: string, worktreePath: string): Promise<boolean> {
+  if (CREWMATE_LANE_HEX_SLUG.test(slug)) return true
   if (!CREWMATE_LANE_SLUG.test(slug)) return false
   const adminDir = await resolveWorktreeAdminDir(worktreePath)
   if (adminDir === null) return false
@@ -933,7 +933,7 @@ export async function isAgentLane(slug: string, worktreePath: string): Promise<b
 }
 
 const EPHEMERAL_SLUG_PATTERNS: RegExp[] = [
-  AGENT_LANE_SLUG,
+  CREWMATE_LANE_HEX_SLUG,
   /^parcel-[0-9a-f]{6,32}$/,
   /^wf_[0-9a-f]{8}-[0-9a-f]{3}-\d+$/,
   /^wf-\d+$/,
@@ -1071,7 +1071,7 @@ async function sweepAdoptingSiblings(home: string, effectiveCutoffMs: number): P
   return swept
 }
 
-export async function cleanupStaleAgentWorktrees(cutoffDate: Date): Promise<number> {
+export async function cleanupStaleCrewmateWorktrees(cutoffDate: Date): Promise<number> {
   const requestedCutoffMs = cutoffDate.getTime()
   if (!Number.isFinite(requestedCutoffMs) || requestedCutoffMs <= MIN_VALID_DATE_MS) return 0
   const gitRoot = findCanonicalGitRoot(getCwd())
@@ -1087,7 +1087,7 @@ export async function cleanupStaleAgentWorktrees(cutoffDate: Date): Promise<numb
   for (const candidate of candidates.values()) {
     const slug = basename(candidate.path)
     if (activePath !== null && resolve(candidate.path) === activePath) continue
-    const agentLane = await isAgentLane(slug, candidate.path)
+    const agentLane = await isCrewmateLane(slug, candidate.path)
     if (!agentLane && !isEphemeralSlug(slug)) continue
 
     let mtimeMs: number
@@ -1108,7 +1108,7 @@ export async function cleanupStaleAgentWorktrees(cutoffDate: Date): Promise<numb
         logForDebugging(`worktree janitor keeps ${candidate.path}: ${verdict.detail}`)
         continue
       }
-      if (await removeAgentWorktree(candidate.path, candidate.branch, gitRoot)) {
+      if (await removeCrewmateWorktree(candidate.path, candidate.branch, gitRoot)) {
         removed++
       }
       continue
@@ -1130,7 +1130,7 @@ export async function cleanupStaleAgentWorktrees(cutoffDate: Date): Promise<numb
     if (unpushed.code !== 0) continue
     const unpushedCount = parseInt(unpushed.stdout.trim(), 10)
     if (Number.isNaN(unpushedCount) || unpushedCount > 0) continue
-    if (await removeAgentWorktree(candidate.path, candidate.branch, gitRoot)) {
+    if (await removeCrewmateWorktree(candidate.path, candidate.branch, gitRoot)) {
       removed++
     }
   }

@@ -838,8 +838,8 @@ section('EMPTY-ALIAS — the shared-empties hazard, pinned as current truth')
     { message: mkAssistant([tu('toolu_sub1'), tu('toolu_sub2')]) },
     { message: M.normalizeMessages([mkUser([tr('toolu_sub1')])] as never)[0] },
   ]
-  const r1 = M.buildSubagentLookups(subMsgs as never)
-  const r2 = M.buildSubagentLookups(subMsgs as never)
+  const r1 = M.buildNestedLookups(subMsgs as never)
+  const r2 = M.buildNestedLookups(subMsgs as never)
 
   const aliasedPlanes = [
     'siblingToolUseIDs',

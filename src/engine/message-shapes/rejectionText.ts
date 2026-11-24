@@ -13,9 +13,9 @@ export const REJECT_MESSAGE =
   `The operator declined this tool call; it was not run and nothing was changed. ${DENIAL_WORKAROUND_GUIDANCE}`
 export const REJECT_MESSAGE_WITH_REASON_PREFIX =
   'The operator declined this tool call; it was not run and nothing was changed. The operator said:\n'
-export const SUBAGENT_REJECT_MESSAGE =
+export const CREWMATE_REJECT_MESSAGE =
   `Permission for this tool call was declined; it was not run and nothing was changed. ${DENIAL_WORKAROUND_GUIDANCE}`
-export const SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX =
+export const CREWMATE_REJECT_MESSAGE_WITH_REASON_PREFIX =
   'Permission for this tool call was declined; it was not run and nothing was changed. The operator said:\n'
 
 const DENIAL_SENTENCES_ON_DISK = [
@@ -64,8 +64,8 @@ export function isDenialResultText(raw: string): boolean {
     /^Cut off(?: by|:) /.test(text) ||
     text === REJECT_MESSAGE ||
     text.startsWith(REJECT_MESSAGE_WITH_REASON_PREFIX) ||
-    text === SUBAGENT_REJECT_MESSAGE ||
-    text.startsWith(SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX) ||
+    text === CREWMATE_REJECT_MESSAGE ||
+    text.startsWith(CREWMATE_REJECT_MESSAGE_WITH_REASON_PREFIX) ||
     DENIAL_SENTENCES_ON_DISK.some(sentence => text.startsWith(sentence)) ||
     /^Ward '[^']+' blocked this /.test(text) ||
     (text.includes(' has been denied') && text.includes(DENIAL_WORKAROUND_GUIDANCE))
@@ -79,7 +79,7 @@ export function unwrapToolUseError(text: string): string {
 
 export function denialLineOf(raw: string): string {
   const text = unwrapToolUseError(raw).trim()
-  const said = [REJECT_MESSAGE_WITH_REASON_PREFIX, SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX].find(prefix => text.startsWith(prefix))
+  const said = [REJECT_MESSAGE_WITH_REASON_PREFIX, CREWMATE_REJECT_MESSAGE_WITH_REASON_PREFIX].find(prefix => text.startsWith(prefix))
   if (said !== undefined) {
     const reason = text.slice(said.length).trim().split('\n')[0]?.trim() ?? ''
     return reason === '' ? said.trim() : `${said.trim()} ${reason}`

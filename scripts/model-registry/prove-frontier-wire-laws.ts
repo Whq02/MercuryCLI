@@ -44,7 +44,7 @@ const { getCanonicalName, parseUserSpecifiedModel, renderModelName } = await imp
 const { classOfModel } = await import('../../src/models/roads/modelRegistry.ts')
 const seatSlots = await import('../../src/models/facts/seatSlots.ts')
 const { getLaunchDefaultEffort } = await import('../../src/models/effort/effort.ts')
-const { AGENT_DISPATCH_MODELS, MODEL_ALIASES } = await import('../../src/models/facts/aliases.ts')
+const { CREWMATE_DISPATCH_MODELS, MODEL_ALIASES } = await import('../../src/models/facts/aliases.ts')
 const { foldLegacyWorkerModelKey } = await import('../../src/screen/concourse-model/workerModels.ts')
 
 let failures = 0
@@ -181,7 +181,7 @@ section('§4 Claude Fable 5.1 is recognised everywhere the family is; the family
   check('the effort ladder reaches max on both members', getMaxSupportedEffortLevel(ID) === 'max' && modelSupportsXHighEffort(ID))
   check("the launch default follows the family table ('high', Fable 5's own)", getLaunchDefaultEffort(ID) === 'high' && getLaunchDefaultEffort(FAMILY) === 'high')
 
-  check("the subagent dispatch vocabulary and the settings alias list carry 'fable51'", (AGENT_DISPATCH_MODELS as readonly string[]).includes('fable51') && (MODEL_ALIASES as readonly string[]).includes('fable51'))
+  check("the subagent dispatch vocabulary and the settings alias list carry 'fable51'", (CREWMATE_DISPATCH_MODELS as readonly string[]).includes('fable51') && (MODEL_ALIASES as readonly string[]).includes('fable51'))
   check("a crew record's legacy keys: fable51 stays on this member, the family word lands on the newest row", foldLegacyWorkerModelKey('fable51') === ID && foldLegacyWorkerModelKey('fable') === 'claude-fable-5-2', `${foldLegacyWorkerModelKey('fable51')} / ${foldLegacyWorkerModelKey('fable')}`)
 }
 

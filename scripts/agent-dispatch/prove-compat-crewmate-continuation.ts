@@ -33,13 +33,13 @@ if (childAt !== -1) {
   bootstrap.setOriginalCwd(process.cwd())
   bootstrap.setCwdState(process.cwd())
   bootstrap.switchSession('00000000-0000-4000-8000-000000000047' as never)
-  const { runAgent } = await import('../../src/tools/crewmate/runCrewmate.ts')
+  const { runCrewmate } = await import('../../src/tools/crewmate/runCrewmate.ts')
   const { resumeAgentBackground } = await import('../../src/tools/crewmate/resumeCrewmate.ts')
   const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
   const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
   const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
   const { turnDoor: startTurn } = await import('../../src/engine/turnDoor.ts')
-  const { readAgentMetadata, flushSessionStorage, getAgentTranscript } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+  const { readCrewmateMetadata, flushSessionStorage, getCrewmateTranscript } = await import('../../src/sessions/transcripts/sessionStorage.ts')
   await import('../../src/engine/tasks/tasks.ts')
   let state: any = { ...getDefaultAppState(), effortValue: 'low' }
   const setState = (update: any) => { state = update(state) }
@@ -47,15 +47,15 @@ if (childAt !== -1) {
   const allow = (async (_tool: unknown, input: unknown) => ({ behavior: 'allow', updatedInput: input })) as never
   if (mode === 'launch') {
     const definition = { agentType: 'mercury-crew', whenToUse: 'compat continuation fixture', source: 'projectSettings', getSystemPrompt: () => 'Submit the final answer through StructuredOutput.' } as never
-    for await (const _row of runAgent({ agentDefinition: definition, promptMessages: [createUserMessage({ content: 'CONTRACT-FIRST' })], toolUseContext: context, canUseTool: allow, isAsync: true, canShowPermissionPrompts: false, querySource: 'agent:custom:compat-contract' as never, availableTools: [] as never, override: { agentId }, description: 'compat contract continuation', cwd: process.cwd(), structuredOutputSpec: spec })) {}
+    for await (const _row of runCrewmate({ agentDefinition: definition, promptMessages: [createUserMessage({ content: 'CONTRACT-FIRST' })], toolUseContext: context, canUseTool: allow, isAsync: true, canShowPermissionPrompts: false, querySource: 'agent:custom:compat-contract' as never, availableTools: [] as never, override: { agentId }, description: 'compat contract continuation', cwd: process.cwd(), structuredOutputSpec: spec })) {}
   } else {
     await resumeAgentBackground({ agentId, prompt: 'CONTRACT-SECOND', toolUseContext: context, canUseTool: allow })
     const deadline = Date.now() + 30000
     while (Date.now() < deadline && state.tasks[agentId]?.status === 'running') await new Promise(resolve => setTimeout(resolve, 25))
   }
   await flushSessionStorage()
-  const metadata = await readAgentMetadata(agentId as never)
-  const transcript = await getAgentTranscript(agentId as never)
+  const metadata = await readCrewmateMetadata(agentId as never)
+  const transcript = await getCrewmateTranscript(agentId as never)
   console.log(JSON.stringify({ metadata, status: state.tasks[agentId]?.status, error: state.tasks[agentId]?.error, hasFirst: JSON.stringify(transcript?.messages).includes('CONTRACT-FIRST'), hasSecond: JSON.stringify(transcript?.messages).includes('CONTRACT-SECOND') }))
   process.exit(0)
 } else {

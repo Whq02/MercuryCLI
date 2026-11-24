@@ -1,6 +1,6 @@
 import type { Message } from '../../engine/message-shapes/message.js'
 import type { QueuedCommand } from '../../screen/composer/input-core/textInput.js'
-import { AGENT_TOOL_NAME } from '../../tools/kit/names/agent.js'
+import { CREWMATE_TOOL_NAME } from '../../tools/kit/names/agent.js'
 import { contextFillView } from '../../engine/context-window/contextFill.js'
 import { sliceHeadAtGrapheme, sliceTailAtGrapheme } from '../../platform/text/textSegments.js'
 import { persistToolResult, PERSISTED_OUTPUT_TAG, type ContentReplacementState, type ToolResultReplacementRecord } from '../../engine/tool-dispatch/toolResultStorage.js'
@@ -59,7 +59,7 @@ export async function fitCompletionResults(messages: Message[], state: ContentRe
   const crewCalls = new Set<string>()
   for (const message of messages) {
     if (message.type !== 'assistant') continue
-    for (const block of message.message.content) if (block.type === 'tool_use' && block.name === AGENT_TOOL_NAME) crewCalls.add(block.id)
+    for (const block of message.message.content) if (block.type === 'tool_use' && block.name === CREWMATE_TOOL_NAME) crewCalls.add(block.id)
   }
   const candidates: Array<{ message: Message; id: string; agentId: string; content: string | Array<{ type: 'text'; text: string }>; text: string }> = []
   for (const message of messages) {

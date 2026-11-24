@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react'
 import { sendNowLive } from '../../screen/composer/input-core/sendNowChord.js'
 import { getFocusedSessionConnector, subscribeThroughFocused } from './focusedConnector.js'
 import { hasSeatLive } from './seatLive.js'
-import type { AgentControlReceiptV1 } from './types.js'
+import type { CrewmateControlReceiptV1 } from './types.js'
 
 const subscribeFocusedSendNow = subscribeThroughFocused((connector, listener) => {
   const records = connector.subscribeRecords(listener)
@@ -24,6 +24,6 @@ export function useFocusedSendNowLive(): boolean {
   return useSyncExternalStore(subscribeFocusedSendNow, focusedSendNowLive, focusedSendNowLive)
 }
 
-export function sendFocusedWordsNow(): Promise<AgentControlReceiptV1> {
+export function sendFocusedWordsNow(): Promise<CrewmateControlReceiptV1> {
   return getFocusedSessionConnector().sendNow()
 }

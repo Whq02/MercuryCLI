@@ -127,6 +127,6 @@ export function subscribeStorageFile(filePath: string, listener: () => void): ()
   }
 }
 
-export function subscribeAgentMetadataPath(path: string, listener: () => void): () => void {
+export function subscribeCrewmateMetadataPath(path: string, listener: () => void): () => void {
   return subscribeStorageFile(path, listener)
 }

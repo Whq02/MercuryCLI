@@ -3,19 +3,19 @@ import { splitWaitSentence } from '../../crew/capacity/seatWords.js'
 import { workRowRuns, type WorkCountsV1 } from './workCounts.js'
 import { formatDuration, formatTokens } from '../../platform/text/format.js'
 import { formatSessionCost } from '../../models/roads/spendSpelling.js'
-import { agentWaitWords, type AgentWaitV1 } from '../tasks/local-agent/agentWait.js'
-import { decodeAgentPause, pauseLineWords, pauseStatusWords, type AgentPauseV1 } from '../tasks/local-agent/agentPause.js'
+import { crewmateWaitWords, type CrewmateWaitV1 } from '../tasks/local-agent/agentWait.js'
+import { decodeCrewmatePause, pauseLineWords, pauseStatusWords, type CrewmatePauseV1 } from '../tasks/local-agent/agentPause.js'
 import { operatorPauseWaitParts, pauseGateChipWords } from '../loop/pauseGate.js'
 import { parkedAskRowWords, type ParkedAskFacts } from '../../permissions/rules/askWords.js'
 import { CREW_VIEW_DOOR } from '../../screen/cockpit/crewmateWords.js'
 
-export type CrewAgentKind = 'agent' | 'named'
+export type CrewmateKind = 'agent' | 'named'
 
-export type CrewAgentState = 'running' | 'idle' | 'paused' | 'landed' | 'stopped' | 'interrupted' | 'failed'
+export type CrewmateState = 'running' | 'idle' | 'paused' | 'landed' | 'stopped' | 'interrupted' | 'failed'
 
 export const CREW_INTERRUPTED_BY_OPERATOR_WORDS = 'interrupted by the operator on its screen'
 
-export interface CrewAgentTokens {
+export interface CrewmateTokens {
   total: number
   context: number | null
   input: number | null
@@ -23,15 +23,15 @@ export interface CrewAgentTokens {
   cached?: number | null
 }
 
-export interface CrewAgentFacts {
+export interface CrewmateFacts {
   id: string
   name: string
-  kind: CrewAgentKind
+  kind: CrewmateKind
   status: string
-  state: CrewAgentState
+  state: CrewmateState
   running: boolean
   model: string | null
-  tokens: CrewAgentTokens | null
+  tokens: CrewmateTokens | null
   costUSD: number | null
   unpricedTurns: number
   toolUses: number | null
@@ -47,8 +47,8 @@ export interface CrewAgentFacts {
   description: string | null
   error: string | null
   stopReason: string | null
-  phase: AgentWaitV1 | null
-  paused: AgentPauseV1 | null
+  phase: CrewmateWaitV1 | null
+  paused: CrewmatePauseV1 | null
   pendingAsks: number
   unreadNotices: number
   sessionId: string | null
@@ -63,7 +63,7 @@ export function isCrewRow(row: WorkRowV1): boolean {
 const positive = (v: unknown): number | null =>
   typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : null
 
-function tokensOf(row: WorkRowV1): CrewAgentTokens | null {
+function tokensOf(row: WorkRowV1): CrewmateTokens | null {
   const input = typeof row.inputTokens === 'number' && Number.isFinite(row.inputTokens) ? row.inputTokens : null
   const output = typeof row.outputTokens === 'number' && Number.isFinite(row.outputTokens) ? row.outputTokens : null
   const context = positive(row.contextTokens)
@@ -75,9 +75,9 @@ function tokensOf(row: WorkRowV1): CrewAgentTokens | null {
   return total === null ? null : { total, context, input: null, output: null, cached }
 }
 
-export function crewStateOf(row: Pick<WorkRowV1, 'status' | 'paused' | 'stopReason' | 'idle'>): CrewAgentState {
+export function crewStateOf(row: Pick<WorkRowV1, 'status' | 'paused' | 'stopReason' | 'idle'>): CrewmateState {
   if (workRowRuns(row as WorkRowV1)) return row.idle === true ? 'idle' : 'running'
-  if (decodeAgentPause(row.paused) !== null) return 'paused'
+  if (decodeCrewmatePause(row.paused) !== null) return 'paused'
   switch (row.status) {
     case 'failed':
       return 'failed'
@@ -92,11 +92,11 @@ export function crewStateOf(row: Pick<WorkRowV1, 'status' | 'paused' | 'stopReas
   }
 }
 
-export function crewSettled(facts: Pick<CrewAgentFacts, 'running' | 'state'>): boolean {
+export function crewSettled(facts: Pick<CrewmateFacts, 'running' | 'state'>): boolean {
   return !facts.running && facts.state !== 'paused'
 }
 
-export function crewAgentFactsOf(row: WorkRowV1, sessionId: string | null): CrewAgentFacts | null {
+export function crewmateFactsOf(row: WorkRowV1, sessionId: string | null): CrewmateFacts | null {
   if (!isCrewRow(row)) return null
   return {
     id: row.id,
@@ -123,7 +123,7 @@ export function crewAgentFactsOf(row: WorkRowV1, sessionId: string | null): Crew
     error: row.error ?? null,
     stopReason: typeof row.stopReason === 'string' && row.stopReason !== '' ? row.stopReason : null,
     phase: row.phase ?? null,
-    paused: decodeAgentPause(row.paused),
+    paused: decodeCrewmatePause(row.paused),
     pendingAsks: row.pendingAsks ?? 0,
     unreadNotices: typeof row.unreadNotices === 'number' && Number.isFinite(row.unreadNotices) && row.unreadNotices > 0 ? Math.floor(row.unreadNotices) : 0,
     sessionId,
@@ -132,7 +132,7 @@ export function crewAgentFactsOf(row: WorkRowV1, sessionId: string | null): Crew
   }
 }
 
-export function workRowOfCrewFacts(facts: CrewAgentFacts): WorkRowV1 {
+export function workRowOfCrewFacts(facts: CrewmateFacts): WorkRowV1 {
   const t = facts.tokens
   return {
     id: facts.id,
@@ -170,10 +170,10 @@ export function workRowOfCrewFacts(facts: CrewAgentFacts): WorkRowV1 {
   }
 }
 
-export function crewAgentsOf(rows: readonly WorkRowV1[], sessionId: string | null): CrewAgentFacts[] {
-  const out: CrewAgentFacts[] = []
+export function crewmatesOf(rows: readonly WorkRowV1[], sessionId: string | null): CrewmateFacts[] {
+  const out: CrewmateFacts[] = []
   for (const row of rows) {
-    const facts = crewAgentFactsOf(row, sessionId)
+    const facts = crewmateFactsOf(row, sessionId)
     if (facts !== null) out.push(facts)
   }
   out.sort((a, b) => {
@@ -183,21 +183,21 @@ export function crewAgentsOf(rows: readonly WorkRowV1[], sessionId: string | nul
   return out
 }
 
-export function crewRunning(agents: readonly CrewAgentFacts[]): CrewAgentFacts[] {
+export function crewRunning(agents: readonly CrewmateFacts[]): CrewmateFacts[] {
   return agents.filter(a => a.running)
 }
 
-export function crewAgentByToolUse(agents: readonly CrewAgentFacts[], toolUseId: string): CrewAgentFacts | null {
+export function crewmateByToolUse(agents: readonly CrewmateFacts[], toolUseId: string): CrewmateFacts | null {
   return agents.find(a => a.toolUseId === toolUseId) ?? null
 }
 
-export function crewTokenSum(agents: readonly CrewAgentFacts[]): number {
+export function crewTokenSum(agents: readonly CrewmateFacts[]): number {
   let sum = 0
   for (const a of agents) sum += a.tokens?.total ?? 0
   return sum
 }
 
-export function crewSpendOf(agents: readonly CrewAgentFacts[]): { costUSD: number; unpricedTurns: number } {
+export function crewSpendOf(agents: readonly CrewmateFacts[]): { costUSD: number; unpricedTurns: number } {
   let costUSD = 0
   let unpricedTurns = 0
   for (const a of agents) {
@@ -212,33 +212,33 @@ export const CREW_EMPTY_LINE = 'no crewmates running'
 export const CREW_EMPTY_DOOR = 'ask the chat to delegate work'
 export const CREW_MODEL_UNKNOWN = '—'
 
-export function crewModelLabel(facts: CrewAgentFacts): string {
+export function crewModelLabel(facts: CrewmateFacts): string {
   return facts.model ?? CREW_MODEL_UNKNOWN
 }
 
-export function crewStateLabel(facts: CrewAgentFacts): string {
+export function crewStateLabel(facts: CrewmateFacts): string {
   return facts.running && facts.wait !== null ? 'waiting' : facts.state
 }
 
-export function crewWaitLine(facts: CrewAgentFacts): string | null {
+export function crewWaitLine(facts: CrewmateFacts): string | null {
   return facts.running ? facts.wait : null
 }
 
-export function crewWaitHolders(facts: CrewAgentFacts): string | null {
+export function crewWaitHolders(facts: CrewmateFacts): string | null {
   const line = crewWaitLine(facts)
   if (line === null) return null
   const { holders } = splitWaitSentence(line)
   return holders === '' ? null : `held by ${holders}`
 }
 
-export function crewPhaseWords(facts: CrewAgentFacts, nowMs: number): string | null {
+export function crewPhaseWords(facts: CrewmateFacts, nowMs: number): string | null {
   if (!facts.running || facts.state === 'idle') return null
-  return facts.wait ?? agentWaitWords(facts.phase, nowMs) ?? facts.activity
+  return facts.wait ?? crewmateWaitWords(facts.phase, nowMs) ?? facts.activity
 }
 
 export const CREW_ASK_WAIT_WORDS = 'waiting for your answer'
 
-export function crewStatusWords(facts: CrewAgentFacts, nowMs: number): string {
+export function crewStatusWords(facts: CrewmateFacts, nowMs: number): string {
   if (facts.running && facts.pendingAsks > 0) return CREW_ASK_WAIT_WORDS
   const parkedByOperator = crewOperatorPauseParts(facts)
   if (parkedByOperator !== null) return parkedByOperator.gate
@@ -247,47 +247,47 @@ export function crewStatusWords(facts: CrewAgentFacts, nowMs: number): string {
   return crewStateLabel(facts)
 }
 
-export function crewParkedAsks<T extends ParkedAskFacts>(facts: Pick<CrewAgentFacts, 'id' | 'running'>, asks: readonly T[]): T[] {
+export function crewParkedAsks<T extends ParkedAskFacts>(facts: Pick<CrewmateFacts, 'id' | 'running'>, asks: readonly T[]): T[] {
   if (!facts.running) return []
   return asks.filter(ask => ask.agentId === facts.id)
 }
 
-export function crewAskWaitDetail(facts: Pick<CrewAgentFacts, 'id' | 'running' | 'pendingAsks'>, asks: readonly ParkedAskFacts[], nowMs: number): string | null {
+export function crewAskWaitDetail(facts: Pick<CrewmateFacts, 'id' | 'running' | 'pendingAsks'>, asks: readonly ParkedAskFacts[], nowMs: number): string | null {
   if (!facts.running || facts.pendingAsks <= 0) return null
   const parked = crewParkedAsks(facts, asks)
   if (parked.length === 0) return null
   return parked.map(ask => parkedAskRowWords(ask, nowMs)).join(' · ')
 }
 
-export function crewOperatorPauseParts(facts: Pick<CrewAgentFacts, 'running' | 'wait'>): { gate: string; detail: string; door: string } | null {
+export function crewOperatorPauseParts(facts: Pick<CrewmateFacts, 'running' | 'wait'>): { gate: string; detail: string; door: string } | null {
   if (!facts.running) return null
   return operatorPauseWaitParts(facts.wait)
 }
 
-export function crewOperatorPaused(agents: readonly CrewAgentFacts[]): CrewAgentFacts[] {
+export function crewOperatorPaused(agents: readonly CrewmateFacts[]): CrewmateFacts[] {
   return agents.filter(a => crewOperatorPauseParts(a) !== null)
 }
 
-export function crewPauseChipWords(agents: readonly CrewAgentFacts[], gate: { paused: boolean; parked: number }): string | null {
+export function crewPauseChipWords(agents: readonly CrewmateFacts[], gate: { paused: boolean; parked: number }): string | null {
   const parkedRows = crewOperatorPaused(agents).length
   return pauseGateChipWords({ paused: gate.paused || parkedRows > 0, parked: Math.max(gate.parked, parkedRows) })
 }
 
-export function crewPauseLine(facts: CrewAgentFacts, nowMs: number): string | null {
+export function crewPauseLine(facts: CrewmateFacts, nowMs: number): string | null {
   if (facts.running || facts.paused === null) return null
   return pauseLineWords(facts.paused, nowMs)
 }
 
-export function crewPaused(agents: readonly CrewAgentFacts[]): CrewAgentFacts[] {
+export function crewPaused(agents: readonly CrewmateFacts[]): CrewmateFacts[] {
   return agents.filter(a => a.state === 'paused')
 }
 
-export function crewUnreadLabel(facts: CrewAgentFacts): string | null {
+export function crewUnreadLabel(facts: CrewmateFacts): string | null {
   if (!(facts.unreadNotices > 0)) return null
   return `${facts.unreadNotices} unread`
 }
 
-export function crewToolUsesLabel(facts: CrewAgentFacts): string | null {
+export function crewToolUsesLabel(facts: CrewmateFacts): string | null {
   if (facts.toolUses === null) return null
   return `${facts.toolUses} tool use${facts.toolUses === 1 ? '' : 's'}`
 }
@@ -297,7 +297,7 @@ export function crewWaitingWords(running: number): string | null {
   return `waiting on ${running} crewmate${running === 1 ? '' : 's'}`
 }
 
-export function crewWaitingLine(agents: readonly CrewAgentFacts[]): string | null {
+export function crewWaitingLine(agents: readonly CrewmateFacts[]): string | null {
   return crewWaitingWords(crewRunning(agents).length)
 }
 
@@ -320,47 +320,47 @@ export function interruptReceiptLine(
   return crewStillRunningLine(running)
 }
 
-export function crewTokensLabel(facts: CrewAgentFacts): string | null {
+export function crewTokensLabel(facts: CrewmateFacts): string | null {
   const t = facts.tokens
   if (t === null) return null
   return t.context !== null ? `${formatTokens(t.context)} context` : `${formatTokens(t.total)} spent`
 }
 
-export function crewSpendLabel(facts: CrewAgentFacts): string | null {
+export function crewSpendLabel(facts: CrewmateFacts): string | null {
   return facts.tokens === null ? null : `${formatTokens(facts.tokens.total)} spent`
 }
 
-export function crewTokensBreakdown(facts: CrewAgentFacts): string | null {
+export function crewTokensBreakdown(facts: CrewmateFacts): string | null {
   const t = facts.tokens
   if (t === null || t.input === null || t.output === null) return null
   return `${formatTokens(t.input)} in · ${formatTokens(t.output)} out${(t.cached ?? 0) > 0 ? ` · ${formatTokens(t.cached!)} cached` : ''}`
 }
 
-export function crewTokensSummary(facts: CrewAgentFacts): string {
+export function crewTokensSummary(facts: CrewmateFacts): string {
   const label = crewTokensLabel(facts)
   if (label === null) return 'usage not reported'
   const breakdown = crewTokensBreakdown(facts)
   return breakdown === null ? label : `${label} · ${breakdown}`
 }
 
-export function crewCostLabel(facts: CrewAgentFacts): string | null {
+export function crewCostLabel(facts: CrewmateFacts): string | null {
   const cost = facts.costUSD ?? 0
   if (cost <= 0 && facts.unpricedTurns <= 0) return null
   return formatSessionCost(cost, facts.unpricedTurns)
 }
 
-export function crewElapsedLabel(facts: CrewAgentFacts, nowMs: number): string {
+export function crewElapsedLabel(facts: CrewmateFacts, nowMs: number): string {
   return formatDuration(Math.max(0, (facts.endedAt ?? nowMs) - facts.startedAt))
 }
 
-export function crewCountLabel(agents: readonly CrewAgentFacts[]): string {
+export function crewCountLabel(agents: readonly CrewmateFacts[]): string {
   if (agents.length === 0) return CREW_EMPTY_LINE
   const running = crewRunning(agents).length
   const paused = crewPaused(agents).length
   return `${running} running${paused > 0 ? ` · ${paused} paused` : ''}`
 }
 
-export function crewUsageLine(agents: readonly CrewAgentFacts[]): string | null {
+export function crewUsageLine(agents: readonly CrewmateFacts[]): string | null {
   const counted = agents.filter(a => a.tokens !== null)
   if (counted.length === 0) return null
   const running = crewRunning(counted).length
@@ -370,7 +370,7 @@ export function crewUsageLine(agents: readonly CrewAgentFacts[]): string | null 
   return `crewmates ${formatTokens(crewTokenSum(counted))} spent · ${n} crewmate${n === 1 ? '' : 's'}${running > 0 ? ` · ${running} live` : ''}${spendPart}`
 }
 
-export function crewRowLine(facts: CrewAgentFacts, nowMs: number): string {
+export function crewRowLine(facts: CrewmateFacts, nowMs: number): string {
   return [
     facts.name,
     crewModelLabel(facts),

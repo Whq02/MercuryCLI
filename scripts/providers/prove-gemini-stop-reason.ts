@@ -21,7 +21,7 @@ const { geminiCallModel } = await import('../../src/models/roads/gemini/geminiCa
 const { geminiFinishReason } = await import('../../src/models/roads/gemini/geminiClient.ts')
 const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
-const { finalizeAgentTool, finalResponseOf, stoppedPartWay, PROMOTED_NARRATION_NOTE } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+const { finalizeCrewmateTool, finalResponseOf, stoppedPartWay, PROMOTED_NARRATION_NOTE } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
 const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
 import type { AssistantMessage, Message } from '../../src/engine/message-shapes/message.ts'
 import type { CompatCallModelParams } from '../../src/models/roads/openaicompat/compatChatCallModel.ts'
@@ -81,7 +81,7 @@ try {
   const record = (late.at(-1) as unknown as { geminiProviderTurn?: { parts: unknown[] } }).geminiProviderTurn
   check('the replay record carries the signed text part Google sent', j(record?.parts) === j([{ text: 'I have written and verified the renderer spec.' }, { text: '', thoughtSignature: 'EpQDCpEDAWkUfRPYB5q' }]), j(record))
   const transcript: Message[] = [createUserMessage({ content: 'Write the spec.' }), ...late]
-  const result = finalizeAgentTool(transcript, 'agent-late', metadata)
+  const result = finalizeCrewmateTool(transcript, 'agent-late', metadata)
   check('the crewmate envelope reads the whole final reply: the answer is the report and nothing is promoted', result.outcome?.status === 'completed' && result.outcome.promotedNarration === false && result.content.length === 1 && result.content[0]!.text === 'I have written and verified the renderer spec.', j(result.outcome) + ' ' + j(result.content))
 
   console.log('── (b) the same signature arriving with the first text part keeps the shape the F35A-11 proof pins ──')
@@ -132,25 +132,25 @@ try {
   const toolRow = sibling('msg-earlier', [{ type: 'tool_use', id: 'call-1', name: 'Read', input: { path: '/a' } }] as never, 'tool_use')
   const toolAnswer = createUserMessage({ content: [{ type: 'tool_result', tool_use_id: 'call-1', content: 'ok' }] as never })
 
-  const geminiShape = finalizeAgentTool([prompt, earlier, toolRow, toolAnswer, sibling('msg-final', [{ type: 'text', text: 'The final report.', citations: null }] as never, null), sibling('msg-final', [{ type: 'thinking', thinking: '', signature: 'sig' }] as never, 'end_turn')], 'agent-a', metadata)
+  const geminiShape = finalizeCrewmateTool([prompt, earlier, toolRow, toolAnswer, sibling('msg-final', [{ type: 'text', text: 'The final report.', citations: null }] as never, null), sibling('msg-final', [{ type: 'thinking', thinking: '', signature: 'sig' }] as never, 'end_turn')], 'agent-a', metadata)
   check('the recorded Gemini shape (text with null, then a signed empty thinking block with end_turn) reports the text, not promoted', geminiShape.outcome?.status === 'completed' && geminiShape.outcome.promotedNarration === false && geminiShape.content[0]?.text === 'The final report.', j(geminiShape.outcome) + ' ' + j(geminiShape.content))
 
-  const anthropicShape = finalizeAgentTool([prompt, sibling('msg-final', [{ type: 'thinking', thinking: 'plan', signature: 'sig' }] as never, null), sibling('msg-final', [{ type: 'text', text: 'Done.', citations: null }] as never, 'end_turn')], 'agent-b', metadata)
+  const anthropicShape = finalizeCrewmateTool([prompt, sibling('msg-final', [{ type: 'thinking', thinking: 'plan', signature: 'sig' }] as never, null), sibling('msg-final', [{ type: 'text', text: 'Done.', citations: null }] as never, 'end_turn')], 'agent-b', metadata)
   check('the Anthropic shape (thinking, then text with end_turn) reports the text, not promoted', anthropicShape.outcome?.status === 'completed' && anthropicShape.outcome.promotedNarration === false && anthropicShape.content[0]?.text === 'Done.', j(anthropicShape.outcome))
 
-  const cutOff = finalizeAgentTool([prompt, earlier, toolAnswer, sibling('msg-final', [{ type: 'tool_use', id: 'call-2', name: 'Read', input: { path: '/b' } }] as never, 'tool_use')], 'agent-c', metadata)
+  const cutOff = finalizeCrewmateTool([prompt, earlier, toolAnswer, sibling('msg-final', [{ type: 'tool_use', id: 'call-2', name: 'Read', input: { path: '/b' } }] as never, 'tool_use')], 'agent-c', metadata)
   check('a run that ended on a tool_use reply promotes the earlier narration and says part-way', cutOff.outcome?.status === 'completed' && cutOff.outcome.promotedNarration === true && cutOff.content[0]?.text === 'Narration from an earlier turn.', j(cutOff.outcome))
 
-  const quietEnd = finalizeAgentTool([prompt, earlier, toolRow, toolAnswer, sibling('msg-final', [{ type: 'thinking', thinking: '', signature: 'sig' }] as never, 'end_turn')], 'agent-d', metadata)
+  const quietEnd = finalizeCrewmateTool([prompt, earlier, toolRow, toolAnswer, sibling('msg-final', [{ type: 'thinking', thinking: '', signature: 'sig' }] as never, 'end_turn')], 'agent-d', metadata)
   check('a reply that ended its turn with no text promotes the earlier narration without the part-way note', quietEnd.outcome?.status === 'completed' && quietEnd.outcome.promotedNarration === false && quietEnd.content[0]?.text === 'Narration from an earlier turn.', j(quietEnd.outcome))
 
-  const unsettled = finalizeAgentTool([prompt, earlier, toolRow, toolAnswer, sibling('msg-final', [{ type: 'thinking', thinking: '', signature: 'sig' }] as never, null)], 'agent-e', metadata)
+  const unsettled = finalizeCrewmateTool([prompt, earlier, toolRow, toolAnswer, sibling('msg-final', [{ type: 'thinking', thinking: '', signature: 'sig' }] as never, null)], 'agent-e', metadata)
   check('a reply with no stop reason at all is part-way', unsettled.outcome?.status === 'completed' && unsettled.outcome.promotedNarration === true, j(unsettled.outcome))
 
-  const maxed = finalizeAgentTool([prompt, earlier, toolRow, toolAnswer, sibling('msg-final', [{ type: 'thinking', thinking: 'cut', signature: 'sig' }] as never, 'max_tokens')], 'agent-f', metadata)
+  const maxed = finalizeCrewmateTool([prompt, earlier, toolRow, toolAnswer, sibling('msg-final', [{ type: 'thinking', thinking: 'cut', signature: 'sig' }] as never, 'max_tokens')], 'agent-f', metadata)
   check('a reply cut at max_tokens is part-way', maxed.outcome?.status === 'completed' && maxed.outcome.promotedNarration === true, j(maxed.outcome))
 
-  const trailingUser = finalizeAgentTool([prompt, sibling('msg-final', [{ type: 'text', text: 'Report.', citations: null }] as never, 'end_turn'), createUserMessage({ content: 'The check did not count.', isMeta: true })], 'agent-g', metadata)
+  const trailingUser = finalizeCrewmateTool([prompt, sibling('msg-final', [{ type: 'text', text: 'Report.', citations: null }] as never, 'end_turn'), createUserMessage({ content: 'The check did not count.', isMeta: true })], 'agent-g', metadata)
   check('a user row after the final reply (a stop-hook line) does not hide the reply', trailingUser.outcome?.status === 'completed' && trailingUser.outcome.promotedNarration === false && trailingUser.content[0]?.text === 'Report.', j(trailingUser.outcome))
 
   const response = finalResponseOf([prompt, earlier, toolRow, toolAnswer, sibling('msg-final', [{ type: 'text', text: 'A', citations: null }] as never, null), sibling('msg-final', [{ type: 'text', text: 'B', citations: null }] as never, 'end_turn')])

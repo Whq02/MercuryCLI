@@ -58,7 +58,7 @@ export async function getQueuedCommandAttachments(queuedCommands: QueuedCommand[
   return Promise.all(eligible.map(queuedRow))
 }
 
-export function getAgentPendingMessageAttachments(toolUseContext: ToolUseContext): Attachment[] {
+export function getCrewmatePendingMessageAttachments(toolUseContext: ToolUseContext): Attachment[] {
   if (!toolUseContext.agentId) return []
   const setAppState = toolUseContext.setAppStateForTasks ?? toolUseContext.setAppState
   const messages = drainPendingMessages(

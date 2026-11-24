@@ -3,23 +3,23 @@ import {
   withOwnerContext,
   type AgentContext,
   type InvocationKind,
-  type SubagentContext,
+  type CrewmateContext,
 } from '../../engine/run-owner/ownerContext.js'
 
-export type { SubagentContext, AgentContext }
+export type { CrewmateContext, AgentContext }
 
-export function getAgentContext(): AgentContext | undefined {
+export function getCrewmateContext(): AgentContext | undefined {
   return getOwnerContext()?.agent
 }
 
-export function runWithAgentContext<T>(context: AgentContext, fn: () => T): T {
+export function runWithCrewmateContext<T>(context: AgentContext, fn: () => T): T {
   return withOwnerContext({ agent: context }, fn)
 }
 
 export function consumeInvokingRequestId():
   | { invokingRequestId: string; invocationKind?: InvocationKind }
   | undefined {
-  const context = getAgentContext()
+  const context = getCrewmateContext()
   if (!context || context.invokingRequestId === undefined || context.invocationEmitted) {
     return undefined
   }

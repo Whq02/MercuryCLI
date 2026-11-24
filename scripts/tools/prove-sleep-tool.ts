@@ -6,7 +6,7 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'sleep-tool-home-'))
 delete process.env.MERCURY_HOME
 
-const { ALL_AGENT_DISALLOWED_TOOLS } = await import('../../src/tools/kit/crewmateBarredTools.ts')
+const { ALL_CREWMATE_DISALLOWED_TOOLS } = await import('../../src/tools/kit/crewmateBarredTools.ts')
 const { SLEEP_TOOL_NAME } = await import('../../src/tools/sleep/prompt.ts')
 
 let failures = 0
@@ -20,7 +20,7 @@ console.log(' Sleep tool — stamp-gated + interruptible contract')
 console.log('============================================================')
 
 check("a sub-agent's roster: Sleep is not in the deny set every agent loses",
-  !ALL_AGENT_DISALLOWED_TOOLS.has(SLEEP_TOOL_NAME), 'remove Sleep from CREWMATE_BARRED_TOOLS in src/tools/kit/crewmateBarredTools.ts')
+  !ALL_CREWMATE_DISALLOWED_TOOLS.has(SLEEP_TOOL_NAME), 'remove Sleep from CREWMATE_BARRED_TOOLS in src/tools/kit/crewmateBarredTools.ts')
 
 {
   const { formatZodValidationError } = await import('../../src/tools/kit/toolErrors.ts')

@@ -285,7 +285,7 @@ section('RV — reasoning depth is not answer length; one balanced default + one
   check(
     'RV-03/04/05: the stated-preferences rule is the constitution\'s; no narration or appendix rule rides any seat text',
     /stated preferences on scope, approach, delegation and communication ahead of your defaults/.test(contract.MERCURY_CONSTITUTION) &&
-      !/narration|appendix/.test([contract.MERCURY_CONSTITUTION, contract.MERCURY_SUBAGENT_CONTRACT].join('\n')),
+      !/narration|appendix/.test([contract.MERCURY_CONSTITUTION, contract.MERCURY_CREWMATE_CONTRACT].join('\n')),
     'MERCURY_CONSTITUTION in src/engine/system-prompt/mercuryContract.ts must keep the stated-preferences sentence, and no narration or appendix rule may appear in it or in MERCURY_SUBAGENT_CONTRACT',
   )
 }

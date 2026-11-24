@@ -5,8 +5,8 @@ import type { KeyboardEvent } from '../renderer/events/keyboard-event.js'
 import { useKeybinding } from '../keys/useKeybinding.js'
 import { isMcpTool } from '../../integrations/mcp/utils.js'
 import { mcpInfoFromString } from '../../integrations/mcp-shapes/mcpToolNames.js'
-import { AGENT_TOOL_NAME } from '../../tools/kit/names/agent.js'
-import { filterToolsForAgent } from '../../tools/crewmate/crewmateLifecycle.js'
+import { CREWMATE_TOOL_NAME } from '../../tools/kit/names/agent.js'
+import { filterToolsForCrewmate } from '../../tools/crewmate/crewmateLifecycle.js'
 import type { Tools } from '../../tools/kit/tool.js'
 import { plural } from '../../platform/text/strings.js'
 import Divider from '../theme/Divider.js'
@@ -125,8 +125,8 @@ export function ToolSelector({
 }): React.ReactNode {
   const candidateTools = useMemo(
     () =>
-      filterToolsForAgent({ tools, isBuiltIn: false }).filter(
-        tool => tool.name !== AGENT_TOOL_NAME,
+      filterToolsForCrewmate({ tools, isBuiltIn: false }).filter(
+        tool => tool.name !== CREWMATE_TOOL_NAME,
       ),
     [tools],
   )

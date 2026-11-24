@@ -29,7 +29,7 @@ const CONSENT_COMPOSE_HINT = ' · fix composeAgentAppState or definitionModeWith
 const CONSENT_OFFER_HINT = ' · fix offeredDefinitionModes in src/tools/crewmate/agentPermissionPosture.ts so sovereign is offered only under the launch consent'
 const CONSENT_ROUTE_HINT = ' · fix the permissionMode check in parseAgentsFromJson or parseAgentFromJson (src/tools/crewmate/loadAgentsDir.ts) or decodeAgentDocument (src/crew/agents/codec.ts) so both routes accept exactly PERMISSION_MODES and refuse other words alike'
 
-const { composeAgentAppState, definitionModeWithinConsent, offeredDefinitionModes } = await import('../../src/tools/crewmate/agentPermissionPosture.ts')
+const { composeCrewmateAppState, definitionModeWithinConsent, offeredDefinitionModes } = await import('../../src/tools/crewmate/agentPermissionPosture.ts')
 const { postureBypassesAsks } = await import('../../src/permissions/rules/decision/engine.ts')
 const { parseAgentFromJson, parseAgentsFromJson } = await import('../../src/tools/crewmate/loadAgentsDir.ts')
 const { decodeAgentDocument } = await import('../../src/crew/agents/codec.ts')
@@ -41,7 +41,7 @@ const parentOf = (mode: string, consent: boolean): { toolPermissionContext: Ctx 
   toolPermissionContext: { mode, alwaysAllowRules: {}, alwaysDenyRules: {}, alwaysAskRules: {}, isBypassPermissionsModeAvailable: consent } as unknown as Ctx,
 })
 const childOf = (parentMode: string, consent: boolean, definitionMode: string): Ctx =>
-  (composeAgentAppState(parentOf(parentMode, consent) as never, { definitionMode: definitionMode as never, avoidPrompts: false, isAsync: false, allowedTools: undefined, effortValue: undefined }) as unknown as { toolPermissionContext: Ctx }).toolPermissionContext
+  (composeCrewmateAppState(parentOf(parentMode, consent) as never, { definitionMode: definitionMode as never, avoidPrompts: false, isAsync: false, allowedTools: undefined, effortValue: undefined }) as unknown as { toolPermissionContext: Ctx }).toolPermissionContext
 
 section("§1 the posture owner: a definition's bypass word never exceeds the parent's launch consent")
 {

@@ -75,7 +75,7 @@ bootstrap.setOriginalCwd(PROJECT)
 bootstrap.setCwdState(PROJECT)
 process.chdir(PROJECT)
 const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
-const { ALL_AGENT_DISALLOWED_TOOLS } = await import('../../src/tools/kit/crewmateBarredTools.ts')
+const { ALL_CREWMATE_DISALLOWED_TOOLS } = await import('../../src/tools/kit/crewmateBarredTools.ts')
 const { getCommands, builtinCommands } = await import('../../src/commands/catalogue/commands.ts')
 const { unknownCommandLine } = await import('../../src/engine/user-input/processSlashCommand.tsx')
 const { parseSettingsFile } = await import('../../src/platform/settings/settings.ts')
@@ -96,7 +96,7 @@ section('§1 the catalogue: no tool of that name, with either flag at any value'
     check(`…and none with both flags set to ${value}`, !names(getAllBaseTools() as readonly Named[], TOOL), '', WF_ROSTER_FIX)
     for (const name of FLAGS) delete process.env[name]
   }
-  check("a crewmate's barred list names no tool the catalogue does not have", !ALL_AGENT_DISALLOWED_TOOLS.has(TOOL), [...ALL_AGENT_DISALLOWED_TOOLS].join(', '), WF_ROSTER_FIX)
+  check("a crewmate's barred list names no tool the catalogue does not have", !ALL_CREWMATE_DISALLOWED_TOOLS.has(TOOL), [...ALL_CREWMATE_DISALLOWED_TOOLS].join(', '), WF_ROSTER_FIX)
 }
 
 section('§2 the command: /workflows is a name Mercury does not have')

@@ -8,8 +8,8 @@ import {
   jevMaxCallUsd,
   jevRoadWords,
   type JevRoad,
-  JEV_SUBAGENT_CALL_BUDGET,
-  JEV_SUBAGENT_PACE_PER_MINUTE,
+  JEV_CREWMATE_CALL_BUDGET,
+  JEV_CREWMATE_PACE_PER_MINUTE,
   JEV_USD_PER_INPUT_TOKEN,
   type JevStatus,
   jevClockLabel,
@@ -206,7 +206,7 @@ export function jevRowNote(id: JevRowId, road: JevRoad = readJevSettings().road)
     case 'ceiling':
       return `an optional cap on requests a session, off by default; the count resets with the cost ledger on /clear · ←/→ walk off · ${JEV_CEILING_RUNGS.join(' · ')} · ↵ types a count or off · ⌫ returns to off`
     case 'subagents':
-      return `on by default, off by choice: JevEval is offered to crewmates unless you turn this row off · on: each crewmate may make ${JEV_SUBAGENT_CALL_BUDGET} calls; all crewmates share ${JEV_SUBAGENT_PACE_PER_MINUTE} a minute per session, separate from the main pace, counted on the same allowance · ↵, space or ←/→ flip it`
+      return `on by default, off by choice: JevEval is offered to crewmates unless you turn this row off · on: each crewmate may make ${JEV_CREWMATE_CALL_BUDGET} calls; all crewmates share ${JEV_CREWMATE_PACE_PER_MINUTE} a minute per session, separate from the main pace, counted on the same allowance · ↵, space or ←/→ flip it`
   }
 }
 

@@ -75,7 +75,7 @@ const { XAI_DISPLAY_PINS } = await import('../../src/models/facts/pins/xaiPins.t
 const { META_DISPLAY_PINS } = await import('../../src/models/facts/pins/metaPins.ts')
 const { MISTRAL_DISPLAY_PINS } = await import('../../src/models/facts/pins/mistralPins.ts')
 const { KIMI_DISPLAY_PINS } = await import('../../src/models/facts/pins/kimiPins.ts')
-const { buildAgentLaunchPlan } = await import('../../src/crew/crewmates/agentLaunchPlan.ts')
+const { buildCrewmateLaunchPlan } = await import('../../src/crew/crewmates/agentLaunchPlan.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 type Road = { model?: string; backend?: string; displayLabel?: string; note?: string; threw?: string }
@@ -153,7 +153,7 @@ section('§5 the list cannot be read while the sign-in is live: the known defaul
   check("'grok' resolves to grok-4.7, the family's pinned default (RED on the base)", grok.backend === 'xai' && grok.model === 'grok-4.7' && grok.displayLabel === 'Grok 4.7', show(grok))
   check('…with a note that says the list could not be read, names the HTTP failure and the default that runs', grok.note !== undefined && grok.note.includes('the xAI model list could not be read') && grok.note.includes('HTTP 500') && grok.note.includes('Grok 4.7 (grok-4.7)'), show(grok))
   check('…and the note points at the two pages', grok.note?.includes('mercury://models') === true && grok.note.includes('mercury://models/known'), show(grok))
-  const plan = buildAgentLaunchPlan({
+  const plan = buildCrewmateLaunchPlan({
     activeAgents: [{ agentType: 'fixture-worker', whenToUse: 'x', tools: ['*'], source: 'built-in', baseDir: 'built-in', getSystemPrompt: () => '' } as never],
     toolPermissionContext: getEmptyToolPermissionContext(),
     defaultAgentType: 'fixture-worker',

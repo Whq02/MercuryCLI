@@ -75,7 +75,7 @@ process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${await ready}`
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 await import('../../src/engine/tasks/tasks.ts')
-const { DEFAULT_AGENT_IDLE_MINUTES, agentIdleLimitMs, runAgent } = await import('../../src/tools/crewmate/runCrewmate.ts')
+const { DEFAULT_CREWMATE_IDLE_MINUTES, crewmateIdleLimitMs, runCrewmate } = await import('../../src/tools/crewmate/runCrewmate.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
@@ -130,7 +130,7 @@ async function drive(kind: string) {
   const logStart = readFileSync(getDebugLogPath(), 'utf8').length
   await runWithCwdOverride(home, async () => {
     try {
-      for await (const row of runAgent({ agentDefinition: { agentType: 'stall-fixture', source: 'projectSettings', getSystemPrompt: () => 'Continue the fixture.' } as never, promptMessages: [createUserMessage({ content: 'continue the previous answer' })], forkContextMessages: [createUserMessage({ content: 'earlier question' }), previous], toolUseContext: context as never, canUseTool: (kind === 'ask' ? answerAsk : async (_tool: unknown, input: unknown) => ({ behavior: 'allow', updatedInput: input })) as never, isAsync: false, querySource: 'agent:custom', availableTools: (kind === 'ask' ? [probeTool] : []) as never, model, effortOverride: 'max', override: { agentId: `stall-${kind}`, userContext: {}, systemContext: {}, systemPrompt: ['Continue the fixture.'] } })) rows.push(row)
+      for await (const row of runCrewmate({ agentDefinition: { agentType: 'stall-fixture', source: 'projectSettings', getSystemPrompt: () => 'Continue the fixture.' } as never, promptMessages: [createUserMessage({ content: 'continue the previous answer' })], forkContextMessages: [createUserMessage({ content: 'earlier question' }), previous], toolUseContext: context as never, canUseTool: (kind === 'ask' ? answerAsk : async (_tool: unknown, input: unknown) => ({ behavior: 'allow', updatedInput: input })) as never, isAsync: false, querySource: 'agent:custom', availableTools: (kind === 'ask' ? [probeTool] : []) as never, model, effortOverride: 'max', override: { agentId: `stall-${kind}`, userContext: {}, systemContext: {}, systemPrompt: ['Continue the fixture.'] } })) rows.push(row)
     } catch (caught) { error = String(caught) }
   })
   const evidence = await command('read')
@@ -162,10 +162,10 @@ try {
   check('a permission ask held for three idle limits is not a stall: the crewmate is not cut and no request is sent again', asked.error === '' && (asked.asks[0]?.heldMs ?? 0) >= HELD_ASK_MS - 500 && asked.requests.length === 4 && asked.cancelled === 0 && !asked.log.includes('stalled request — retrying'), { error: asked.error, asks: asked.asks, requests: asked.requests.length, cancelled: asked.cancelled }, 'time spent waiting on a permission ask must not count as idle; see askLivelyOf in src/tools/crewmate/runCrewmate.ts and src/tools/crewmate/run/watch.ts')
   check('a denied ask reaches the model as an error tool result and the crewmate goes on to the other tool and finishes', asked.asks.map(ask => ask.decision).join() === 'allow,deny,allow' && JSON.stringify(asked.requests[2] ?? null).includes('fixture-denied') && JSON.stringify(asked.requests[2] ?? null).includes('"is_error":true') && JSON.stringify(asked.requests[3] ?? null).includes('ran route-b') && textOf(asked.rows).includes('ask-final-done.'), { asks: asked.asks, text: textOf(asked.rows) }, 'a denied permission ask must come back to the model as an is_error tool result and the run must continue; see askLivelyOf in src/tools/crewmate/runCrewmate.ts')
   delete process.env.MERCURY_AGENT_IDLE_MINUTES
-  const defaultIdleMs = agentIdleLimitMs()
+  const defaultIdleMs = crewmateIdleLimitMs()
   process.env.MERCURY_AGENT_IDLE_MINUTES = '0'
-  const disabledIdleMs = agentIdleLimitMs()
-  check('MERCURY_AGENT_IDLE_MINUTES stays 15 minutes by default and 0 disables', DEFAULT_AGENT_IDLE_MINUTES === 15 && defaultIdleMs === 15 * 60_000 && disabledIdleMs === 0, { DEFAULT_AGENT_IDLE_MINUTES, defaultIdleMs, disabledIdleMs }, 'DEFAULT_AGENT_IDLE_MINUTES and agentIdleLimitMs in src/tools/crewmate/runCrewmate.ts must give 15 minutes unset and 0 (disabled) for MERCURY_AGENT_IDLE_MINUTES=0')
+  const disabledIdleMs = crewmateIdleLimitMs()
+  check('MERCURY_AGENT_IDLE_MINUTES stays 15 minutes by default and 0 disables', DEFAULT_CREWMATE_IDLE_MINUTES === 15 && defaultIdleMs === 15 * 60_000 && disabledIdleMs === 0, { DEFAULT_AGENT_IDLE_MINUTES: DEFAULT_CREWMATE_IDLE_MINUTES, defaultIdleMs, disabledIdleMs }, 'DEFAULT_AGENT_IDLE_MINUTES and agentIdleLimitMs in src/tools/crewmate/runCrewmate.ts must give 15 minutes unset and 0 (disabled) for MERCURY_AGENT_IDLE_MINUTES=0')
   console.log(`${failures ? 'FAIL' : 'PASS'} stalled request recovery; failures=${failures}`)
 } finally {
   const stopped = new Promise<void>(done => server.once('exit', () => done()))

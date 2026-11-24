@@ -79,8 +79,8 @@ if (ledger === null) {
   fresh()
   clockMs = 1_000
   const store = makeStore()
-  task.registerAsyncAgent({ agentId: 'ag-1', description: 'reads the tree', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never })
-  task.enqueueAgentNotification({ taskId: 'ag-1', description: 'reads the tree', status: 'completed', setAppState: store.set as never })
+  task.registerAsyncCrewmate({ agentId: 'ag-1', description: 'reads the tree', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never })
+  task.enqueueCrewmateNotification({ taskId: 'ag-1', description: 'reads the tree', status: 'completed', setAppState: store.set as never })
   const open = L.openNotices()
   check('N1 the completion notice is one unread row for the main thread', open.length === 1 && open[0]!.agentId === L.MAIN_THREAD_AGENT && open[0]!.kind === 'completion' && open[0]!.state === 'unread', JSON.stringify(open))
   check('N1 the row carries the notice in a line and its delivery clock', open[0]?.words === 'Crewmate "reads the tree" completed' && open[0]?.deliveredAtMs === 1_000, JSON.stringify(open[0]))
@@ -125,7 +125,7 @@ if (ledger === null) {
   fresh()
   clockMs = 2_000
   const store = makeStore()
-  task.registerAsyncAgent({ agentId: 'ag-3', description: 'runs the tests', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never })
+  task.registerAsyncCrewmate({ agentId: 'ag-3', description: 'runs the tests', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never })
   task.queuePendingMessage('ag-3', 'please stop after the unit tests\nand report the count', store.set as never)
   const row = L.openNotices()[0]
   check('N2 the message is one unread row for that agent, its first words as the line', row !== undefined && row.agentId === 'ag-3' && row.kind === 'message' && row.words === 'please stop after the unit tests' && L.unreadNoticeCount('ag-3') === 1, JSON.stringify(row))
@@ -234,22 +234,22 @@ if (ledger === null || nudge === null) {
   fresh()
   clockMs = 0
   const store = makeStore()
-  task.registerAsyncAgent({ agentId: 'ag-4', description: 'the finished one', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never })
-  task.registerAsyncAgent({ agentId: 'ag-5', description: 'the running one', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never })
-  task.registerAsyncAgent({ agentId: 'ag-6', description: 'the stopped one', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never })
-  task.completeAgentTask({ agentId: 'ag-4' }, store.set as never)
-  task.killAsyncAgent('ag-6', store.set as never, 'stopped from the crew view')
+  task.registerAsyncCrewmate({ agentId: 'ag-4', description: 'the finished one', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never })
+  task.registerAsyncCrewmate({ agentId: 'ag-5', description: 'the running one', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never })
+  task.registerAsyncCrewmate({ agentId: 'ag-6', description: 'the stopped one', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never })
+  task.completeCrewmateTask({ agentId: 'ag-4' }, store.set as never)
+  task.killAsyncCrewmate('ag-6', store.set as never, 'stopped from the crew view')
   const tasks = () => store.state.tasks as never
-  check('N4 a completed agent is gone — its run ended', JSON.stringify(N.agentRecipientState(tasks(), 'ag-4')) === JSON.stringify({ state: 'gone', why: 'its run ended' }), JSON.stringify(N.agentRecipientState(tasks(), 'ag-4')))
-  check('N4 a running agent is busy — its own round reads its notices', N.agentRecipientState(tasks(), 'ag-5').state === 'busy')
-  check('N4 a stopped agent is gone — it was stopped', JSON.stringify(N.agentRecipientState(tasks(), 'ag-6')) === JSON.stringify({ state: 'gone', why: 'it was stopped' }))
-  check('N4 an id this session never held is gone', JSON.stringify(N.agentRecipientState(tasks(), 'ag-none')) === JSON.stringify({ state: 'gone', why: 'no crewmate by that id in this session' }))
+  check('N4 a completed agent is gone — its run ended', JSON.stringify(N.crewmateRecipientState(tasks(), 'ag-4')) === JSON.stringify({ state: 'gone', why: 'its run ended' }), JSON.stringify(N.crewmateRecipientState(tasks(), 'ag-4')))
+  check('N4 a running agent is busy — its own round reads its notices', N.crewmateRecipientState(tasks(), 'ag-5').state === 'busy')
+  check('N4 a stopped agent is gone — it was stopped', JSON.stringify(N.crewmateRecipientState(tasks(), 'ag-6')) === JSON.stringify({ state: 'gone', why: 'it was stopped' }))
+  check('N4 an id this session never held is gone', JSON.stringify(N.crewmateRecipientState(tasks(), 'ag-none')) === JSON.stringify({ state: 'gone', why: 'no crewmate by that id in this session' }))
   queue.enqueue({ value: NOTE('t9', 'Agent "its helper" completed'), mode: 'task-notification', priority: 'next', agentId: 'ag-4' })
   queue.enqueue({ value: NOTE('t10', 'Agent "its other helper" completed'), mode: 'task-notification', priority: 'next', agentId: 'ag-5' })
   const wakes: string[] = []
   const discarded: string[][] = []
   const nudger = N.startIdleNudge({
-    recipient: agentId => N.agentRecipientState(tasks(), agentId),
+    recipient: agentId => N.crewmateRecipientState(tasks(), agentId),
     wake: agentId => {
       wakes.push(agentId)
       return true
@@ -283,8 +283,8 @@ if (ledger === null) {
   fresh()
   clockMs = 100
   const store = makeStore()
-  task.registerAsyncAgent({ agentId: 'ag-7', description: 'tide-gauges', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never, model: 'claude-fable-5-1' })
-  task.registerAsyncAgent({ agentId: 'ag-8', description: 'reef-survey', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never, model: 'claude-fable-5-1' })
+  task.registerAsyncCrewmate({ agentId: 'ag-7', description: 'tide-gauges', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never, model: 'claude-fable-5-1' })
+  task.registerAsyncCrewmate({ agentId: 'ag-8', description: 'reef-survey', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never, model: 'claude-fable-5-1' })
   queue.enqueue({ value: NOTE('t11', 'Agent "its helper" completed'), mode: 'task-notification', priority: 'next', agentId: 'ag-7' })
   task.queuePendingMessage('ag-7', 'one more thing', store.set as never)
   const rows = projectWorkRoster(store.state.tasks as never)
@@ -292,8 +292,8 @@ if (ledger === null) {
   const eight = rows.find(r => r.id === 'ag-8')
   check('N5 the roster row counts the agent\'s unread notices — a completion and a message', seven?.unreadNotices === 2, JSON.stringify(seven))
   check('N5 a row with none carries no count', eight !== undefined && !('unreadNotices' in eight), JSON.stringify(eight))
-  const facts7 = crew.crewAgentFactsOf(seven!, 'fx-session')!
-  const facts8 = crew.crewAgentFactsOf(eight!, 'fx-session')!
+  const facts7 = crew.crewmateFactsOf(seven!, 'fx-session')!
+  const facts8 = crew.crewmateFactsOf(eight!, 'fx-session')!
   check('N5 the crew facts carry the number and its one spelling', facts7.unreadNotices === 2 && crew.crewUnreadLabel(facts7) === '2 unread' && facts8.unreadNotices === 0 && crew.crewUnreadLabel(facts8) === null)
   const answer = { model: { effective: 'm', setting: null }, usage: { totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0, hasUnknownModelCost: false }, identity: { firstPartyApi: true, consoleBilling: false, claudeAiBilling: false, accountEmail: null }, skills: [], mcp: [], permissionMode: 'default', workspace: { cwd: '/w', originalCwd: '/w', projectRoot: '/w', instructionRoots: [] }, queue: [], work: rows, notices: L.noticeRows() }
   const onWire = wire.sessionFactsToWire(answer as never) as { work: Array<Record<string, unknown>>; notices: Array<Record<string, unknown>> }

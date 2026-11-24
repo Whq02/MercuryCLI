@@ -290,16 +290,16 @@ try {
       let failPath = false
       mock.module(SRC + '/sessions/transcripts/paths.ts', () => ({
         ...pathsMod,
-        getAgentTranscriptPath: id => {
+        getCrewmateTranscriptPath: id => {
           if (failPath) throw new Error('bad-transcript-path')
-          return pathsMod.getAgentTranscriptPath(id)
+          return pathsMod.getCrewmateTranscriptPath(id)
         },
       }))
       mock.module(SRC + '/sessions/transcripts/paths.js', () => ({
         ...pathsMod,
-        getAgentTranscriptPath: id => {
+        getCrewmateTranscriptPath: id => {
           if (failPath) throw new Error('bad-transcript-path')
-          return pathsMod.getAgentTranscriptPath(id)
+          return pathsMod.getCrewmateTranscriptPath(id)
         },
       }))
       mock.module(SRC + '/engine/tasks/local-agent/launchReceipts.ts', () => ({
@@ -312,7 +312,7 @@ try {
         recordedLaunchesNamed: async () => { throw new Error('launch-read-failed') },
         recordedNamedLaunches: async () => { throw new Error('launch-list-failed') },
       }))
-      const { resolveCrewAddress, unknownAgentRefusal } = await import(SRC + '/tools/send-message/crewAddress.ts')
+      const { resolveCrewAddress, unknownCrewmateRefusal } = await import(SRC + '/tools/send-message/crewAddress.ts')
       const ctx = {
         messages: [],
         getAppState: () => ({ tasks: {}, agentNameRegistry: new Map() }),
@@ -334,7 +334,7 @@ try {
         out.namedMessage = e instanceof Error ? e.message : String(e)
       }
       try {
-        await unknownAgentRefusal('worker-one', ctx, 'deliver to')
+        await unknownCrewmateRefusal('worker-one', ctx, 'deliver to')
         out.knownThrew = false
       } catch (e) {
         out.knownThrew = true

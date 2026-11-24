@@ -33,7 +33,7 @@ import { errorMessage } from '../../platform/errors/errors.js'
 import { getInMemoryErrors, withoutStackFrames } from '../../platform/logs/errorLog.js'
 import { flagEnv } from '../../platform/substrate/flagRegistry.js'
 import { sessionLaneWall } from '../../tools/monitor/laneWall.js'
-import { startIdleNudge, MAIN_THREAD_AGENT, agentRecipientState, nudgeWords } from '../../sessions/notices/idleNudge.js'
+import { startIdleNudge, MAIN_THREAD_AGENT, crewmateRecipientState, nudgeWords } from '../../sessions/notices/idleNudge.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
 export function landAdvisorQuiet(quiet: AdvisorQuiet, ports: RunnerPorts): void {
@@ -174,7 +174,7 @@ export function startRunnerIdleNudge(ports: RunnerPorts): ReturnType<typeof star
   const { carriersOf, driver, getAppState, live, retireQueuedCommands } = ports
   const idleNudge = startIdleNudge({
     recipient: agentId => {
-      if (agentId !== MAIN_THREAD_AGENT) return agentRecipientState(getAppState().tasks, agentId)
+      if (agentId !== MAIN_THREAD_AGENT) return crewmateRecipientState(getAppState().tasks, agentId)
       if (isShuttingDown()) return { state: 'gone', why: 'the session is shutting down' }
       if (live.inputClosed) return { state: 'gone', why: "the session's input closed" }
       if (sessionLaneWall().closed) return { state: 'busy' }

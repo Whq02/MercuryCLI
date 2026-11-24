@@ -23,7 +23,7 @@ const { getTools } = await import('../../src/tools/kit/toolList.ts')
 const { withheldTools } = await import('../../src/engine/tool-dispatch/withheldTools.ts')
 const withheld = new Set(withheldTools().map(w => w.tool))
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
-const { filterToolsForAgent, resolveAgentTools } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+const { filterToolsForCrewmate, resolveAgentTools } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
 const lspManager = await import('../../src/integrations/lsp/serverManagerLifecycle.ts')
 const { toolToAPISchema } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
 const { clearToolSchemaCache } = await import('../../src/models/roads/toolSchemaCache.ts')
@@ -119,7 +119,7 @@ for (const kind of kinds) {
     check(`${kind.label}: LSP is globally mounted`, lspManager.isLspToolMounted(), '', 'isLspToolMounted in src/integrations/lsp/serverManagerLifecycle.ts must read true after initializeLspServerManager and waitForInitialization')
   }
   let pool: Tool[] = getTools(permissionContext) as Tool[]
-  if (kind.agent !== undefined) pool = filterToolsForAgent({ tools: pool, isBuiltIn: kind.agent.isBuiltIn }) as Tool[]
+  if (kind.agent !== undefined) pool = filterToolsForCrewmate({ tools: pool, isBuiltIn: kind.agent.isBuiltIn }) as Tool[]
   if (kind.disallowedTools) pool = resolveAgentTools({ source: 'projectSettings', tools: ['*'], disallowedTools: kind.disallowedTools }, pool).resolvedTools as Tool[]
   const offered = new Set(pool.map(tool => tool.name))
   if (kind.mountLsp) check(`${kind.label}: the actual pool honors its LSP restriction`, LSP_NAMES.every(name => offered.has(name) === !kind.disallowedTools?.includes('LSP')), LSP_NAMES.filter(name => offered.has(name)).join(','), 'filterToolsForAgent and resolveAgentTools in src/tools/crewmate/crewmateLifecycle.ts must drop every Lsp tool when the agent disallows LSP')

@@ -328,13 +328,13 @@ section('refused launches stay error rows; only results with an agent id count')
 {
   const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
   enableConfigs()
-  const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.js')
+  const { CrewmateTool } = await import('../../src/tools/crewmate/CrewmateTool.js')
   const { normalizeMessages } = await import('../../src/engine/message-shapes/normalize.js')
   const { composeTranscript } = await import('../../src/screen/messages/Messages.js')
   const { Message } = await import('../../src/screen/messages/Message.js')
   const { Box } = await import('../../src/screen/themedRenderer.js')
   const { renderToAnsiString } = await import('../../src/screen/renderer/staticRender.js')
-  const tools = [AgentTool]
+  const tools = [CrewmateTool]
   const descriptions = ['Gate medic: Linux refused', 'Gate medic: Mac refused', 'Gate medic: Linux pool', 'Gate medic: Mac pool']
   const errors = ['Unknown model: fixture-invalid', 'Worktree not found: missing-worktree']
   const call = (i: number) => ({ type: 'tool_use', id: `launch-${i}`, name: 'Crewmate', input: { description: descriptions[i], prompt: 'Inspect the assigned pool.', run_in_background: true } })

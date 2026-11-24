@@ -38,7 +38,7 @@ const { StructureTool } = await import('../../src/tools/structure/StructureTool.
 const { LspReadTool, LspRenameTool } = await import('../../src/tools/lsp/lspTools.ts')
 const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
 const { PowerShellTool } = await import('../../src/tools/powershell/PowerShellTool.tsx')
-const { resolveAgentCwd } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
+const { resolveCrewmateCwd } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
 const pathModule = (await import('../../src/platform/files/path.ts')) as { CONTROL_PATH_MESSAGE?: string; NUL_PATH_MESSAGE: string; controlCharacterPathRefusal?: (path: string | undefined) => string | null; hasControlCharacter?: (path: string) => boolean }
 const { NUL_PATH_MESSAGE } = pathModule
 const CONTROL_PATH_MESSAGE = pathModule.CONTROL_PATH_MESSAGE ?? '(absent)'
@@ -102,7 +102,7 @@ for (const [name, tool, input] of cases) {
 {
   let threw: string | null = null
   try {
-    resolveAgentCwd(planted, appState.toolPermissionContext as never)
+    resolveCrewmateCwd(planted, appState.toolPermissionContext as never)
   } catch (err) {
     threw = err instanceof Error ? err.message : String(err)
   }

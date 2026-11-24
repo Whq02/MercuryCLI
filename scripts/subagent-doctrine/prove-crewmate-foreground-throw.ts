@@ -26,7 +26,7 @@ let finallyRuns = 0
 let yielded = 0
 mock.module('../../src/tools/crewmate/runCrewmate.ts', () => ({
   ...realRunAgent,
-  runAgent: async function* () {
+  runCrewmate: async function* () {
     try {
       yielded += 1
       yield createAssistantMessage({ content: 'first row' })
@@ -38,7 +38,7 @@ mock.module('../../src/tools/crewmate/runCrewmate.ts', () => ({
   },
 }))
 
-const { runForegroundAgentExecution } = await import('../../src/tools/crewmate/foregroundExecution.tsx')
+const { runForegroundCrewmateExecution } = await import('../../src/tools/crewmate/foregroundExecution.tsx')
 const { MERCURY_CREW_AGENT } = await import('../../src/tools/crewmate/built-in/mercuryCrewAgent.ts')
 
 let state: Record<string, unknown> = { tasks: {}, toolPermissionContext: { mode: 'default', alwaysAllowRules: {}, alwaysDenyRules: {}, additionalWorkingDirectories: new Map() } }
@@ -48,7 +48,7 @@ const setAppState = (f: (prev: typeof state) => typeof state): void => {
 const thrown = 'the consumer threw inside its loop body'
 let result: unknown = 'not settled'
 try {
-  result = await runForegroundAgentExecution({
+  result = await runForegroundCrewmateExecution({
     runAgentParams: { agentDefinition: MERCURY_CREW_AGENT, promptMessages: [], toolUseContext: {} as never, canUseTool: (async () => ({ behavior: 'allow' })) as never, isAsync: false, querySource: 'agent:builtin:mercury-crew' as never, override: {}, availableTools: [], description: 'throwing consumer' } as never,
     promptMessages: [createUserMessage({ content: 'work' })],
     prompt: 'work',

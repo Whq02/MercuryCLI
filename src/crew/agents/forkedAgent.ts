@@ -25,7 +25,7 @@ import { createUserMessage, extractTextContent, getLastAssistantMessage } from '
 import { parseToolListFromCLI } from '../../permissions/rules/permissionSetup.js'
 import { recordSidechainTranscript, writtenChainTail } from '../../sessions/transcripts/sessionStorage.js'
 import { settledSidechainMessages } from '../../sessions/transcripts/settledSidechainMessages.js'
-import { closeAgentTranscript } from '../../sessions/transcripts/writer.js'
+import { closeCrewmateTranscript } from '../../sessions/transcripts/writer.js'
 import type { SystemPrompt } from '../../engine/system-prompt/systemPromptType.js'
 import { cloneContentReplacementState, type ContentReplacementState } from '../../engine/tool-dispatch/toolResultStorage.js'
 import { createAgentId } from '../../platform/primitives/uuid.js'
@@ -41,7 +41,7 @@ export type CacheSafeParams = {
   postFoldCarry?: Message[]
 }
 
-type SubagentContextOverrides = {
+type ChildContextOverrides = {
   readFileState?: FileStateCache
   contentReplacementState?: ContentReplacementState
   abortController?: AbortController
@@ -67,7 +67,7 @@ export type ForkedAgentParams = {
   canUseTool: CanUseToolFn
   querySource: QuerySource
   forkLabel: string
-  overrides?: SubagentContextOverrides
+  overrides?: ChildContextOverrides
   maxOutputTokens?: number
   maxTurns?: number
   onMessage?: (message: Message) => void
@@ -195,9 +195,9 @@ export function extractResultText(messages: Message[], defaultText: string = 'Ex
 }
 
 
-export function createSubagentContext(
+export function createChildContext(
   parentContext: ToolUseContext,
-  overrides?: SubagentContextOverrides,
+  overrides?: ChildContextOverrides,
 ): ToolUseContext {
   const readFileState = cloneFileStateCache(overrides?.readFileState ?? parentContext.readFileState)
   const contentReplacementState =
@@ -315,7 +315,7 @@ export async function runForkedAgent(params: ForkedAgentParams): Promise<ForkedA
 
   const startTime = Date.now()
   const childContext: ToolUseContext = {
-    ...createSubagentContext(toolUseContext, overrides),
+    ...createChildContext(toolUseContext, overrides),
     rosterOwner: rosterOwnerFromToolUseContext(toolUseContext),
   }
   const messages: Message[] = [...forkContextMessages, ...promptMessages]
@@ -399,7 +399,7 @@ export async function runForkedAgent(params: ForkedAgentParams): Promise<ForkedA
     childContext.readFileState.clear()
     messages.length = 0
     if (transcriptAgentId !== undefined) {
-      closeAgentTranscript(transcriptAgentId)
+      closeCrewmateTranscript(transcriptAgentId)
     }
   }
 }

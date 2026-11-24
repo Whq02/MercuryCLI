@@ -15,7 +15,7 @@ const section = (t: string, hint = ''): void => {
 }
 
 await import('../../src/tools/crewmate/CrewmateTool.tsx')
-const { finalizeAgentTool } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+const { finalizeCrewmateTool } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
 const { createSyntheticOutputTool: getSchemaBoundStructuredOutputTool, SchemaMismatchError, SYNTHETIC_OUTPUT_TOOL_NAME: STRUCTURED_OUTPUT_TOOL_NAME } = await import(
   '../../src/tools/structured-output/SyntheticOutputTool.ts'
 )
@@ -92,22 +92,22 @@ section('§A the ONE validation owner — the bound tool', 'to fix: getSchemaBou
 section('§B the capture', 'to fix: finalizeAgentTool in src/tools/crewmate/crewmateLifecycle.ts (the structured capture, FAILED_STRUCTURED_YIELD)')
 {
   const spec = { structuredSpec: { mode: 'permissive' as const, source: 'dispatch' as const } }
-  const valid = finalizeAgentTool(transcript('valid'), 'a1', { ...META, ...spec })
+  const valid = finalizeCrewmateTool(transcript('valid'), 'a1', { ...META, ...spec })
   check('a valid round lands parsed data with source+mode', JSON.stringify(valid.structured?.data) === '{"verdict":"pass","findings":["clean"]}' && valid.structured?.source === 'dispatch' && valid.structured?.mode === 'permissive', JSON.stringify(valid.structured))
   check('the run stays completed and the prose stands', valid.outcome?.status === 'completed' && valid.content.some(b => b.text.includes('Done')))
-  const errored = finalizeAgentTool(transcript('invalid-errored'), 'a2', { ...META, ...spec })
+  const errored = finalizeCrewmateTool(transcript('invalid-errored'), 'a2', { ...META, ...spec })
   check('an errored round records the typed miss (no data)', errored.structured?.data === undefined && (errored.structured?.error ?? '').includes('schema validation'), JSON.stringify(errored.structured))
 }
 
 section('§C the modes', 'to fix: finalizeAgentTool in src/tools/crewmate/crewmateLifecycle.ts (the strict and permissive handling of structuredSpec, NO_STRUCTURED_YIELD)')
 {
   const strict = { structuredSpec: { mode: 'strict' as const, source: 'agent-definition' as const } }
-  const missing = finalizeAgentTool(transcript('none'), 'a3', { ...META, ...strict })
+  const missing = finalizeCrewmateTool(transcript('none'), 'a3', { ...META, ...strict })
   check('strict + no yield ⇒ outcome FAILED with reason schema-mismatch', missing.outcome?.status === 'failed' && missing.outcome.reason === 'schema-mismatch', JSON.stringify(missing.outcome))
   check('…while the miss is typed and the prose remains readable', (missing.structured?.error ?? '').includes('no structured yield') && missing.content.length > 0)
-  const permissive = finalizeAgentTool(transcript('none'), 'a4', { ...META, structuredSpec: { mode: 'permissive' as const, source: 'dispatch' as const } })
+  const permissive = finalizeCrewmateTool(transcript('none'), 'a4', { ...META, structuredSpec: { mode: 'permissive' as const, source: 'dispatch' as const } })
   check('permissive + no yield ⇒ completed with the error recorded', permissive.outcome?.status === 'completed' && (permissive.structured?.error ?? '').includes('no structured yield'))
-  const unspecced = finalizeAgentTool(transcript('valid'), 'a5', META)
+  const unspecced = finalizeCrewmateTool(transcript('valid'), 'a5', META)
   check('no spec ⇒ NO structured field (nothing invented)', unspecced.structured === undefined)
 }
 

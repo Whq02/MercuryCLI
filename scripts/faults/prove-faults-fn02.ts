@@ -282,7 +282,7 @@ console.log('\nFeedback — failed getIsGit records undefined + error instead of
     mock.module(storagePath, () => ({
       ...realStorage,
       getTranscriptPathForSession: () => transcriptFile,
-      loadAllSubagentTranscriptsFromDisk: async () => ({}),
+      loadAllCrewmateTranscriptsFromDisk: async () => ({}),
     }))
     const mod = await import(${JSON.stringify(join(SRC, 'commands/feedback/BugReport.tsx'))})
     if (typeof mod.gatherReport !== 'function') {

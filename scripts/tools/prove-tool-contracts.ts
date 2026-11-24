@@ -17,16 +17,16 @@ const t = (name: string, ok: boolean, detail = '', hint = ''): void => {
 const aliases = await import('../../src/models/facts/aliases.ts')
 t(
   'AGENT_DISPATCH_MODELS is the canonical list',
-  Array.isArray(aliases.AGENT_DISPATCH_MODELS) &&
+  Array.isArray(aliases.CREWMATE_DISPATCH_MODELS) &&
     ['sonnet', 'opus', 'haiku', 'fable', 'fable51', 'sonnet[1m]', 'opus[1m]', 'fable[1m]'].every(
-      m => (aliases.AGENT_DISPATCH_MODELS as readonly string[]).includes(m),
+      m => (aliases.CREWMATE_DISPATCH_MODELS as readonly string[]).includes(m),
     ),
   '',
   'add the missing model word to AGENT_DISPATCH_MODELS in src/models/facts/aliases.ts',
 )
 
-const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
-const agentSchema = AgentTool.inputSchema
+const { CrewmateTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
+const agentSchema = CrewmateTool.inputSchema
 const agentBase = { description: 'test', prompt: 'test' }
 for (const m of [
   'sonnet',
@@ -91,8 +91,8 @@ t(
   'getAgentModelPickerRows in src/models/catalogue/agentModelPicker.ts must put inherit first',
 )
 
-const { getAgentModel } = await import('../../src/models/catalogue/agentModel.ts')
-const pinned = getAgentModel('haiku', 'claude-opus-4-8', undefined, 'default')
+const { getCrewmateModel } = await import('../../src/models/catalogue/agentModel.ts')
+const pinned = getCrewmateModel('haiku', 'claude-opus-4-8', undefined, 'default')
 t('a haiku agent-def pin resolves to the haiku row', /haiku/i.test(pinned), `resolved=${pinned}`, 'getAgentModel in src/models/catalogue/agentModel.ts must resolve the haiku pin to the haiku row')
 
 t(

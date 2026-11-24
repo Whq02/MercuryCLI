@@ -43,7 +43,7 @@ const LEASE_FILENAME = 'project-leases.sqlite'
 const LEASE_STORAGE_NAMES = [LEASE_FILENAME, `${LEASE_FILENAME}-journal`, `${LEASE_FILENAME}-wal`, `${LEASE_FILENAME}-shm`]
 const owned = new Map<string, { root: string; holder: LeaseHolder }>()
 const ended = new Set<string>()
-const agentLifetimes = new Map<string, { ended: boolean }>()
+const crewmateLifetimes = new Map<string, { ended: boolean }>()
 let closing = false
 let hooksInstalled = false
 let sessionRevision = 0
@@ -52,19 +52,19 @@ function holderKey(root: string, holder: LeaseHolder): string {
   return JSON.stringify([root, holder.sessionId, holder.agentId])
 }
 
-function agentKey(holder: LeaseHolder): string {
+function crewmateKey(holder: LeaseHolder): string {
   return JSON.stringify([holder.sessionId, holder.agentId, holder.pid])
 }
 
-export function beginAgentProjectLeases(agentId: string, signal: AbortSignal): () => Promise<void> {
+export function beginCrewmateProjectLeases(agentId: string, signal: AbortSignal): () => Promise<void> {
   const holder = projectLeaseHolder(agentId)
-  const key = agentKey(holder)
+  const key = crewmateKey(holder)
   const lifetime = { ended: false }
-  agentLifetimes.set(key, lifetime)
+  crewmateLifetimes.set(key, lifetime)
   let ending: Promise<void> | undefined
   const end = (): Promise<void> => {
     signal.removeEventListener('abort', onAbort)
-    if (agentLifetimes.get(key) !== lifetime) return Promise.resolve()
+    if (crewmateLifetimes.get(key) !== lifetime) return Promise.resolve()
     lifetime.ended = true
     ending ??= Promise.all([...owned.values()]
       .filter(entry => sameHolder(entry.holder, holder))
@@ -323,7 +323,7 @@ async function transaction<T>(projectRoot: string, change: (db: LeaseDatabase, t
         const holder = holderOf(row)
         const token = observed.has(identityKey(holder)) ? tokens.get(holder.pid) ?? null : null
         const alive = holderAlive({ owner: holder.sessionId, pid: holder.pid, procStart: holder.procStart, acquiredAt: 0 }, 'assume-alive', token)
-        const sessionEnded = holder.pid === process.pid && (ended.has(holderKey(root, holder)) || agentLifetimes.get(agentKey(holder))?.ended === true)
+        const sessionEnded = holder.pid === process.pid && (ended.has(holderKey(root, holder)) || crewmateLifetimes.get(crewmateKey(holder))?.ended === true)
         if (!alive || sessionEnded) db.prepare('DELETE FROM leases WHERE session = ? AND agent = ? AND pid = ? AND proc_start IS ?').run(row.session, row.agent, row.pid, row.proc_start)
       }
       const result = change(db, tokens)
@@ -373,7 +373,7 @@ export async function takeProjectLeases(projectRoot: string, paths: readonly str
   const resolved = [...new Set(paths.map(file => canonicalProjectLeasePath(root, file)))]
   const identity = { ...holder }
   remember(root, identity)
-  const lifetime = agentLifetimes.get(agentKey(identity))
+  const lifetime = crewmateLifetimes.get(crewmateKey(identity))
   const sessionId = getSessionId()
   const revision = sessionRevision
   return transaction<ProjectLeaseTakeResult>(root, (db, tokens) => {
@@ -381,7 +381,7 @@ export async function takeProjectLeases(projectRoot: string, paths: readonly str
     identity.procStart ??= liveToken || undefined
     if (!holderAlive({ owner: identity.sessionId, pid: identity.pid, procStart: identity.procStart, acquiredAt: 0 }, 'assume-alive', liveToken)) throw new Error('the lease holder process has ended')
     if (identity.pid === process.pid && (closing || ended.has(holderKey(root, identity)) || revision !== sessionRevision || sessionId !== getSessionId())) throw new Error('the lease holder session has ended')
-    if (identity.pid === process.pid && (lifetime?.ended || agentLifetimes.get(agentKey(identity)) !== lifetime)) throw new Error('the lease holder agent has ended')
+    if (identity.pid === process.pid && (lifetime?.ended || crewmateLifetimes.get(crewmateKey(identity)) !== lifetime)) throw new Error('the lease holder agent has ended')
     const conflict = firstConflict(db, resolved, identity)
     if (conflict) return { ok: false, conflict: conflict.lease, message: conflict.message }
     const acquiredAt = new Date().toISOString()

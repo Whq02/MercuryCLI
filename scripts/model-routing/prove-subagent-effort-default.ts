@@ -41,38 +41,38 @@ const doctrine = await import('../../src/tools/crewmate/subagentDoctrine.js')
 
 {
   console.log('\n— §1 · the defaults record: conventions, the setting, tolerance —')
-  const none = defaults.subagentDefaultsOf(undefined)
+  const none = defaults.crewmateDefaultsOf(undefined)
   check('no record ⇒ high, the parent\'s model, eight — each marked as the convention', none.effort === 'high' && none.effortSource === 'convention' && none.model === undefined && none.maxConcurrent === 8 && none.maxConcurrentSource === 'convention', 'In src/crew/agents/agentDefaults.ts fix subagentDefaultsOf (the convention values) or the SUBAGENT_DEFAULT_* constants')
-  check('the conventions are the exported constants', defaults.SUBAGENT_DEFAULT_EFFORT === 'high' && defaults.SUBAGENT_DEFAULT_MAX_CONCURRENT === 8, 'change SUBAGENT_DEFAULT_EFFORT or SUBAGENT_DEFAULT_MAX_CONCURRENT in src/crew/agents/agentDefaults.ts')
-  const set = defaults.subagentDefaultsOf({ defaultEffort: 'low', defaultModel: 'sonnet', maxConcurrent: 3 })
+  check('the conventions are the exported constants', defaults.CREWMATE_DEFAULT_EFFORT === 'high' && defaults.CREWMATE_DEFAULT_MAX_CONCURRENT === 8, 'change SUBAGENT_DEFAULT_EFFORT or SUBAGENT_DEFAULT_MAX_CONCURRENT in src/crew/agents/agentDefaults.ts')
+  const set = defaults.crewmateDefaultsOf({ defaultEffort: 'low', defaultModel: 'sonnet', maxConcurrent: 3 })
   check('a full record reads back as set', set.effort === 'low' && set.effortSource === 'setting' && set.model === 'sonnet' && set.maxConcurrent === 3 && set.maxConcurrentSource === 'setting', 'In src/crew/agents/agentDefaults.ts fix subagentDefaultsOf so a valid agents record reads back as source setting')
-  const junk = defaults.subagentDefaultsOf({ defaultEffort: 'ultra' as never, defaultModel: '   ', maxConcurrent: 0 })
+  const junk = defaults.crewmateDefaultsOf({ defaultEffort: 'ultra' as never, defaultModel: '   ', maxConcurrent: 0 })
   check('a hand-edited file never breaks a spawn: a word off the ladder, a blank model and a cap of zero read as unset', junk.effort === 'high' && junk.effortSource === 'convention' && junk.model === undefined && junk.maxConcurrent === 8 && junk.maxConcurrentSource === 'convention', 'In src/crew/agents/agentDefaults.ts make subagentDefaultsOf treat an off-ladder effort, blank model and zero cap as unset')
-  check('a fractional or negative cap reads as unset too', defaults.subagentDefaultsOf({ maxConcurrent: 2.5 }).maxConcurrent === 8 && defaults.subagentDefaultsOf({ maxConcurrent: -1 }).maxConcurrent === 8, 'In src/crew/agents/agentDefaults.ts make subagentDefaultsOf treat a fractional or negative maxConcurrent as unset')
+  check('a fractional or negative cap reads as unset too', defaults.crewmateDefaultsOf({ maxConcurrent: 2.5 }).maxConcurrent === 8 && defaults.crewmateDefaultsOf({ maxConcurrent: -1 }).maxConcurrent === 8, 'In src/crew/agents/agentDefaults.ts make subagentDefaultsOf treat a fractional or negative maxConcurrent as unset')
   check('the key is on the global-config allowlist', (config.GLOBAL_CONFIG_KEYS as readonly string[]).includes('agents') && config.isGlobalConfigKey('agents'), 'add \'agents\' to GLOBAL_CONFIG_KEYS in src/platform/settings/config.ts')
-  check('the live reader answers the convention on a fresh config home', defaults.subagentDefaultEffort() === 'high' && defaults.subagentDefaultModel() === undefined, 'In src/crew/agents/agentDefaults.ts fix subagentDefaultEffort and subagentDefaultModel to answer the convention when the config has no agents record')
+  check('the live reader answers the convention on a fresh config home', defaults.crewmateDefaultEffort() === 'high' && defaults.crewmateDefaultModel() === undefined, 'In src/crew/agents/agentDefaults.ts fix subagentDefaultEffort and subagentDefaultModel to answer the convention when the config has no agents record')
   config.saveGlobalConfig(current => ({ ...current, agents: { ...current.agents, defaultEffort: 'max' } }))
-  check('a saved setting reaches the live reader without a restart', defaults.subagentDefaultEffort() === 'max' && defaults.subagentDefaults().effortSource === 'setting', 'In src/crew/agents/agentDefaults.ts make subagentDefaultEffort and subagentDefaults read the saved global config on each call')
+  check('a saved setting reaches the live reader without a restart', defaults.crewmateDefaultEffort() === 'max' && defaults.crewmateDefaults().effortSource === 'setting', 'In src/crew/agents/agentDefaults.ts make subagentDefaultEffort and subagentDefaults read the saved global config on each call')
   config.saveGlobalConfig(current => ({ ...current, agents: undefined }))
-  check('…and clearing it restores the convention', defaults.subagentDefaultEffort() === 'high', 'In src/crew/agents/agentDefaults.ts make subagentDefaultEffort fall back to the convention when agents is cleared')
+  check('…and clearing it restores the convention', defaults.crewmateDefaultEffort() === 'high', 'In src/crew/agents/agentDefaults.ts make subagentDefaultEffort fall back to the convention when agents is cleared')
 }
 
 {
   console.log('\n— §2 · the runner\'s ladder: the pin · the definition · the configured default —')
-  const { resolveAgentEffort, agentOwnEffortWord } = runner
-  check('nothing named ⇒ the configured default', resolveAgentEffort({ effortOverride: undefined, useExactTools: false, definitionEffort: undefined, defaultEffort: 'high' }) === 'high', 'fix resolveAgentEffort in src/tools/crewmate/runCrewmate.ts so the configured default is the last rung')
-  check("the definition's word outranks the default", resolveAgentEffort({ effortOverride: undefined, useExactTools: false, definitionEffort: 'low', defaultEffort: 'high' }) === 'low', 'fix resolveAgentEffort in src/tools/crewmate/runCrewmate.ts so definitionEffort outranks defaultEffort')
-  check("the call's word outranks both", resolveAgentEffort({ effortOverride: 'xhigh', useExactTools: false, definitionEffort: 'low', defaultEffort: 'high' }) === 'xhigh', 'fix resolveAgentEffort in src/tools/crewmate/runCrewmate.ts so effortOverride outranks the definition and default')
-  check('an exact-tools run ignores the pin', resolveAgentEffort({ effortOverride: 'xhigh', useExactTools: true, definitionEffort: 'low', defaultEffort: 'high' }) === 'low', 'fix resolveAgentEffort in src/tools/crewmate/runCrewmate.ts so useExactTools ignores effortOverride')
-  check('a pin off the ladder yields to the next rung', resolveAgentEffort({ effortOverride: 'turbo', useExactTools: false, definitionEffort: undefined, defaultEffort: 'high' }) === 'high', 'fix resolveAgentEffort in src/tools/crewmate/runCrewmate.ts so an effortOverride off the ladder falls to the next rung')
-  check('the own word is the pin else the definition, never the default', agentOwnEffortWord({ effortOverride: undefined, useExactTools: false, definitionEffort: undefined }) === undefined, 'fix agentOwnEffortWord in src/tools/crewmate/runCrewmate.ts so it never returns the default')
+  const { resolveCrewmateEffort, crewmateOwnEffortWord } = runner
+  check('nothing named ⇒ the configured default', resolveCrewmateEffort({ effortOverride: undefined, useExactTools: false, definitionEffort: undefined, defaultEffort: 'high' }) === 'high', 'fix resolveAgentEffort in src/tools/crewmate/runCrewmate.ts so the configured default is the last rung')
+  check("the definition's word outranks the default", resolveCrewmateEffort({ effortOverride: undefined, useExactTools: false, definitionEffort: 'low', defaultEffort: 'high' }) === 'low', 'fix resolveAgentEffort in src/tools/crewmate/runCrewmate.ts so definitionEffort outranks defaultEffort')
+  check("the call's word outranks both", resolveCrewmateEffort({ effortOverride: 'xhigh', useExactTools: false, definitionEffort: 'low', defaultEffort: 'high' }) === 'xhigh', 'fix resolveAgentEffort in src/tools/crewmate/runCrewmate.ts so effortOverride outranks the definition and default')
+  check('an exact-tools run ignores the pin', resolveCrewmateEffort({ effortOverride: 'xhigh', useExactTools: true, definitionEffort: 'low', defaultEffort: 'high' }) === 'low', 'fix resolveAgentEffort in src/tools/crewmate/runCrewmate.ts so useExactTools ignores effortOverride')
+  check('a pin off the ladder yields to the next rung', resolveCrewmateEffort({ effortOverride: 'turbo', useExactTools: false, definitionEffort: undefined, defaultEffort: 'high' }) === 'high', 'fix resolveAgentEffort in src/tools/crewmate/runCrewmate.ts so an effortOverride off the ladder falls to the next rung')
+  check('the own word is the pin else the definition, never the default', crewmateOwnEffortWord({ effortOverride: undefined, useExactTools: false, definitionEffort: undefined }) === undefined, 'fix agentOwnEffortWord in src/tools/crewmate/runCrewmate.ts so it never returns the default')
 }
 
 
 {
   console.log('\n— §4 · the default word resolves per row through the one owner (never an error) —')
-  const { resolveAgentEffort } = runner
-  const spawnWord = resolveAgentEffort({ effortOverride: undefined, useExactTools: undefined, definitionEffort: undefined, defaultEffort: defaults.subagentDefaultEffort() })
+  const { resolveCrewmateEffort } = runner
+  const spawnWord = resolveCrewmateEffort({ effortOverride: undefined, useExactTools: undefined, definitionEffort: undefined, defaultEffort: defaults.crewmateDefaultEffort() })
   check('the spawn word is high', spawnWord === 'high', 'In src/crew/agents/agentDefaults.ts subagentDefaultEffort should answer high on a fresh config home')
   const stamped = (model: string, word = spawnWord) => effort.resolveStampedEffortTruth(model, word, { agentId: 'spawn' })
 
@@ -132,7 +132,7 @@ const doctrine = await import('../../src/tools/crewmate/subagentDoctrine.js')
   const localThinking = stamped('local/qwen3:8b')
   check('a local thinking model runs the default word where its server serves it (high, on the Ollama vocabulary)', localThinking.wire === 'high' && (wire.LOCAL_SERVER_EFFORTS.ollama as readonly string[]).includes('high'), JSON.stringify(localThinking) + ' — fix resolveStampedEffortTruth in src/models/effort/effort.ts or LOCAL_SERVER_EFFORTS in src/models/roads/openaicompat/compatWire.ts so a local thinking row runs high')
   config.saveGlobalConfig(current => ({ ...current, agents: { ...current.agents, defaultEffort: 'max' } }))
-  const configured = resolveAgentEffort({ effortOverride: undefined, useExactTools: undefined, definitionEffort: undefined, defaultEffort: defaults.subagentDefaultEffort() })
+  const configured = resolveCrewmateEffort({ effortOverride: undefined, useExactTools: undefined, definitionEffort: undefined, defaultEffort: defaults.crewmateDefaultEffort() })
   const localConfigured = stamped('local/qwen3:8b', configured)
   check("the configured word (max) rides a local row that serves it", configured === 'max' && localConfigured.wire === 'max', JSON.stringify(localConfigured) + ' — fix resolveStampedEffortTruth in src/models/effort/effort.ts so a local row that serves max carries the configured word')
   const localPlain = stamped('local/llama3.2:latest', configured)
@@ -147,23 +147,23 @@ const doctrine = await import('../../src/tools/crewmate/subagentDoctrine.js')
   process.env.MERCURY_EFFORT_LEVEL = 'max'
   const lead = effort.resolveEffortTruth('claude-opus-4-8', 'max')
   check("the seat's own request carries the stamp (max)", lead.wire === 'max' && lead.requestedSource === 'env', JSON.stringify(lead) + ' — fix resolveEffortTruth in src/models/effort/effort.ts so MERCURY_EFFORT_LEVEL gives the lead requestedSource env')
-  const word = runner.resolveAgentEffort({ effortOverride: undefined, useExactTools: undefined, definitionEffort: undefined, defaultEffort: defaults.subagentDefaultEffort() })
-  effort.noteAgentEffortWord('crew-1', word)
+  const word = runner.resolveCrewmateEffort({ effortOverride: undefined, useExactTools: undefined, definitionEffort: undefined, defaultEffort: defaults.crewmateDefaultEffort() })
+  effort.noteCrewmateEffortWord('crew-1', word)
   const crew = effort.resolveEffortTruth('claude-opus-4-8', word, { agentId: 'crew-1' })
   check("a sub-agent without a word of its own runs the configured default (high) under that stamp — the stamp is the seat's, never the crew's", crew.wire === 'high' && crew.requestedSource === 'agent', JSON.stringify(crew) + ' — fix resolveEffortTruth in src/models/effort/effort.ts so an agent with a noted word (noteAgentEffortWord) is not overridden by the env stamp')
-  effort.forgetAgentEffortWord('crew-1')
+  effort.forgetCrewmateEffortWord('crew-1')
   delete process.env.MERCURY_EFFORT_LEVEL
 }
 
 {
   console.log('\n— §6 · the cap: the env knob · the setting · eight —')
-  check('no knob, no setting ⇒ eight by convention', JSON.stringify(defaults.subagentConcurrencyCap(null, undefined)) === JSON.stringify({ cap: 8, source: 'convention' }), 'fix subagentConcurrencyCap in src/crew/agents/agentDefaults.ts so the convention is eight')
-  check('the setting ⇒ its number', JSON.stringify(defaults.subagentConcurrencyCap(null, { maxConcurrent: 3 })) === JSON.stringify({ cap: 3, source: 'setting' }), 'fix subagentConcurrencyCap in src/crew/agents/agentDefaults.ts so maxConcurrent gives source setting')
-  check('the env knob outranks the setting', JSON.stringify(defaults.subagentConcurrencyCap(12, { maxConcurrent: 3 })) === JSON.stringify({ cap: 12, source: 'env' }), 'fix subagentConcurrencyCap in src/crew/agents/agentDefaults.ts so the env value outranks the setting')
+  check('no knob, no setting ⇒ eight by convention', JSON.stringify(defaults.crewmateConcurrencyCap(null, undefined)) === JSON.stringify({ cap: 8, source: 'convention' }), 'fix subagentConcurrencyCap in src/crew/agents/agentDefaults.ts so the convention is eight')
+  check('the setting ⇒ its number', JSON.stringify(defaults.crewmateConcurrencyCap(null, { maxConcurrent: 3 })) === JSON.stringify({ cap: 3, source: 'setting' }), 'fix subagentConcurrencyCap in src/crew/agents/agentDefaults.ts so maxConcurrent gives source setting')
+  check('the env knob outranks the setting', JSON.stringify(defaults.crewmateConcurrencyCap(12, { maxConcurrent: 3 })) === JSON.stringify({ cap: 12, source: 'env' }), 'fix subagentConcurrencyCap in src/crew/agents/agentDefaults.ts so the env value outranks the setting')
   process.env.MERCURY_AGENT_FANOUT_CAP = '5'
-  check('the env read is the doctrine module\'s (one owner of the knob) and the fold reads it', doctrine.agentFanoutCap() === 5 && defaults.subagentConcurrencyCap(doctrine.agentFanoutCap()).cap === 5, 'fix agentFanoutCap in src/tools/crewmate/subagentDoctrine.ts or its use in subagentConcurrencyCap')
+  check('the env read is the doctrine module\'s (one owner of the knob) and the fold reads it', doctrine.crewmateFanoutCap() === 5 && defaults.crewmateConcurrencyCap(doctrine.crewmateFanoutCap()).cap === 5, 'fix agentFanoutCap in src/tools/crewmate/subagentDoctrine.ts or its use in subagentConcurrencyCap')
   delete process.env.MERCURY_AGENT_FANOUT_CAP
-  check('the knob unset ⇒ the live fold answers the setting or the convention', defaults.subagentConcurrencyCap(doctrine.agentFanoutCap()).source !== 'env', 'fix subagentConcurrencyCap in src/crew/agents/agentDefaults.ts and agentFanoutCap in src/tools/crewmate/subagentDoctrine.ts so an unset MERCURY_AGENT_FANOUT_CAP is not source env')
+  check('the knob unset ⇒ the live fold answers the setting or the convention', defaults.crewmateConcurrencyCap(doctrine.crewmateFanoutCap()).source !== 'env', 'fix subagentConcurrencyCap in src/crew/agents/agentDefaults.ts and agentFanoutCap in src/tools/crewmate/subagentDoctrine.ts so an unset MERCURY_AGENT_FANOUT_CAP is not source env')
 }
 
 for (const [key, value] of Object.entries(savedEnv)) {

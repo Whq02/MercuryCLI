@@ -74,7 +74,7 @@ const { default: Ajv2020 } = await import('ajv/dist/2020.js')
 const { checkParsedPaths: checkPathConstraints } = await import('../bash/floor-proof-helpers.ts')
 const { AstEditTool } = await import('../../src/tools/ast-edit/AstEditTool.js')
 const { ChangeSetTool } = await import('../../src/tools/change-set/ChangeSetTool.js')
-const { buildAgentLaunchPlan } = await import('../../src/crew/crewmates/agentLaunchPlan.js')
+const { buildCrewmateLaunchPlan } = await import('../../src/crew/crewmates/agentLaunchPlan.js')
 const { planAstRewrite, resolveAstScope } = await import('../../src/tools/engines/structure/astPatterns.js')
 const helper = await import('../../src/permissions/rules/ruleReason.js').catch(() => null)
 
@@ -453,7 +453,7 @@ section('§8 THE BESPOKE TOOL SENTENCES — a Bash operand, a redirection, a str
   const scout = { agentType: 'scout-role', whenToUse: 'recon', source: 'built-in', getSystemPrompt: () => 'scout' }
   const launch = (ctx: Ctx): string => {
     try {
-      buildAgentLaunchPlan({ requestedType: 'scout-role', activeAgents: [scout], toolPermissionContext: ctx, defaultAgentType: 'scout-role', engineModel: 'proof-model', backgroundTasksDisabled: false, forceAsync: false } as never)
+      buildCrewmateLaunchPlan({ requestedType: 'scout-role', activeAgents: [scout], toolPermissionContext: ctx, defaultAgentType: 'scout-role', engineModel: 'proof-model', backgroundTasksDisabled: false, forceAsync: false } as never)
       return 'launched'
     } catch (error) {
       return (error as Error).message

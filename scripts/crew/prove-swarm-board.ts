@@ -22,19 +22,19 @@ const { updateSettingsForSource } = await import('../../src/platform/settings/se
 const seam = await import('../../src/crew/board/seam.ts')
 const { runSwarmCommand } = await import('../../src/commands/swarm/swarm.ts')
 const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
-const { writeAgentMetadata } = await import('../../src/sessions/transcripts/paths.ts')
+const { writeCrewmateMetadata } = await import('../../src/sessions/transcripts/paths.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 const { runToolUse } = await import('../../src/engine/tool-dispatch/toolExecution.ts')
 const { SendMessageTool } = await import('../../src/tools/send-message/SendMessageTool.ts')
-const { ResumeAgentTool } = await import('../../src/tools/resume-crewmate/ResumeAgentTool.ts')
+const { ResumeCrewmateTool } = await import('../../src/tools/resume-crewmate/ResumeAgentTool.ts')
 const { getSwarmAttachments } = await import('../../src/engine/attachments/queuedCommands.ts')
 const { drainPendingMessages } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
 const { operatorPauseGate } = await import('../../src/engine/loop/pauseGate.ts')
-const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
+const { CrewmateTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
-const crewmateManual = (): Promise<string> => AgentTool.prompt({ getToolPermissionContext: async () => getEmptyToolPermissionContext(), tools: [], agents: [] })
+const crewmateManual = (): Promise<string> => CrewmateTool.prompt({ getToolPermissionContext: async () => getEmptyToolPermissionContext(), tools: [], agents: [] })
 const SEATS_TALK = 'Seats talk to each other directly: a board post that starts @seat reaches a running seat at its next step and wakes an idle one'
 let checks = 0
 function check(label: string, truth: unknown): void { assert(truth, label); checks++; console.log(`PASS ${label}`) }
@@ -55,13 +55,13 @@ updateSettingsForSource('projectSettings', { swarm: { enabled: false } })
 check('with the user setting absent the master is on, and a repository cannot turn it off either', seam.swarmMasterEnabled())
 updateSettingsForSource('userSettings', { swarm: { enabled: true } })
 check('the master setting does not override a session switched off', seam.swarmMasterEnabled() && !seam.swarmSessionEnabled() && runSwarmCommand('status').startsWith('Swarm off'))
-check('an earlier launch stays plain', await seam.latchSwarmAgent('earlier', 'Earlier') === false)
-await writeAgentMetadata('earlier' as never, { agentType: 'mercury-crew', swarm: false })
+check('an earlier launch stays plain', await seam.latchSwarmCrewmate('earlier', 'Earlier') === false)
+await writeCrewmateMetadata('earlier' as never, { agentType: 'mercury-crew', swarm: false })
 const enabledResult = runSwarmCommand('on')
 check(`the command turns enrollment back on (${enabledResult})`, enabledResult.startsWith('Swarm on') && seam.swarmModuleLoaded())
 check('switched on again the Crewmate tool says it again', (await crewmateManual()).includes(SEATS_TALK))
-check('plain launch does not migrate', !await seam.latchSwarmAgent('earlier', 'Earlier'))
-check('two later crewmates join', await seam.latchSwarmAgent('alpha', 'Alpha') && await seam.latchSwarmAgent('beta', 'Beta'))
+check('plain launch does not migrate', !await seam.latchSwarmCrewmate('earlier', 'Earlier'))
+check('two later crewmates join', await seam.latchSwarmCrewmate('alpha', 'Alpha') && await seam.latchSwarmCrewmate('beta', 'Beta'))
 const board = seam.swarmStore()!
 let changes = 0
 const unsubscribe = board.subscribe(() => { changes++ })
@@ -71,7 +71,7 @@ const set = (fn: (s: typeof state) => typeof state): void => { state = fn(state)
 const context = (agentId?: string): any => ({
   agentId,
   abortController: new AbortController(),
-  options: { tools: [...seam.swarmTools(agentId), SendMessageTool, ResumeAgentTool], commands: [], engineModel: 'fixture-model', thinkingConfig: { type: 'adaptive' }, mcpClients: [], mcpResources: {}, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [], allAgents: [] } },
+  options: { tools: [...seam.swarmTools(agentId), SendMessageTool, ResumeCrewmateTool], commands: [], engineModel: 'fixture-model', thinkingConfig: { type: 'adaptive' }, mcpClients: [], mcpResources: {}, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [], allAgents: [] } },
   getAppState: () => state, setAppState: set, setAppStateForTasks: set,
   messages: [], readFileState: createFileStateCacheWithSizeLimit(100), setInProgressToolUseIDs() {}, setResponseLength() {}, updateFileHistoryState() {}, updateAttributionState() {},
 })
@@ -119,14 +119,14 @@ check('pre-swarm recipient stays on its original inbox once', plain.success && d
 operatorPauseGate.pause()
 const paused = await SendMessageTool.call({ to: 'beta', message: 'Wait until resumed.' }, context())
 check('a peer note cannot lift an owner pause', paused.data.success && operatorPauseGate.holds('beta') && getSwarmAttachments(context('beta'), []).length === 0)
-const interrupted = await ResumeAgentTool.call({ to: 'beta', message: 'Interrupt', interrupt: true }, context('alpha'), (() => {}) as never, {} as never)
+const interrupted = await ResumeCrewmateTool.call({ to: 'beta', message: 'Interrupt', interrupt: true }, context('alpha'), (() => {}) as never, {} as never)
 check('peer interrupt is refused without reopening pause', !interrupted.data.success && operatorPauseGate.holds('beta'))
 operatorPauseGate.resume()
 check('pause keeps the direct note queued until resumed', JSON.stringify(drainPendingMessages('beta', () => state, set)).includes('Wait until resumed.'))
 runSwarmCommand('off')
 check('off hides the lead board and stops lead delivery', !getAllBaseTools().some(t => t.name === 'CrewBoard') && !seam.swarmView().on && seam.swarmBoundary(undefined, new Set()).length === 0)
 check('off preserves earlier board seats', seam.swarmRoad('alpha') && seam.swarmRoad('beta'))
-check('off makes future seats plain', !await seam.latchSwarmAgent('later', 'Later'))
+check('off makes future seats plain', !await seam.latchSwarmCrewmate('later', 'Later'))
 runSwarmCommand('on')
 const post = { clientOpId: 'retry', kind: 'ask' as const, text: 'A retry-safe question.' }
 const principal = seam.swarmPrincipal('beta')!

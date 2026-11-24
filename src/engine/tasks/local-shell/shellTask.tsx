@@ -23,7 +23,7 @@ import { abortSpeculation } from '../../../screen/prompt-suggestion/speculation.
 import { processOwnerForLane } from '../../run-owner/resolveOwner.js'
 import { recordTaskLaunch, settleTaskLaunch } from '../taskLaunchLedger.js'
 import { recordTaskOutcome, shellOutcomeState } from '../taskOutcomeEnvelope.js'
-import { backgroundAgentTask, isLocalAgentTask } from '../local-agent/crewmateTask.js'
+import { backgroundCrewmateTask, isCrewmateTask } from '../local-agent/crewmateTask.js'
 import { getCwd } from '../../../platform/files/cwd.js'
 import { logForDebugging } from '../../../platform/logs/debugLog.js'
 import { logError } from '../../../platform/logs/errorLog.js'
@@ -660,8 +660,8 @@ export function backgroundAll(getAppState: () => AppState, setAppState: SetAppSt
     }
   }
   for (const task of tasks) {
-    if (isLocalAgentTask(task) && !task.isBackgrounded && task.status === 'running') {
-      backgroundAgentTask(task.id, getAppState, setAppState)
+    if (isCrewmateTask(task) && !task.isBackgrounded && task.status === 'running') {
+      backgroundCrewmateTask(task.id, getAppState, setAppState)
     }
   }
 }

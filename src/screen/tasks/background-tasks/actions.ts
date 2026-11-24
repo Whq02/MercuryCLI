@@ -2,7 +2,7 @@ import { KeyboardEvent } from '../../renderer/events/keyboard-event.js'
 import { clearMainChat, enterCrewmateView, exitCrewmateView } from '../../../crew/crewmates/crewmateView.js'
 import { isLocalShellTask } from '../../../engine/tasks/local-shell/shellTaskState.js'
 import { killTask } from '../../../engine/tasks/local-shell/killShellTasks.js'
-import { killAsyncAgent, killAllRunningAgentTasks } from '../../../engine/tasks/local-agent/crewmateTask.js'
+import { killAsyncCrewmate, killAllRunningCrewmateTasks } from '../../../engine/tasks/local-agent/crewmateTask.js'
 import { openSampleUrl } from '../../../integrations/samples/open.js'
 import { getFocusedSessionConnector } from '../../../engine/connector/focusedConnector.js'
 import { workRowRuns } from '../../../engine/connector/workCounts.js'
@@ -51,7 +51,7 @@ export function stopSelectedOf(ctx: BoardContext, item: BoardItem): void {
         void killTask(task.id, setAppState)
         return
       case 'agent':
-        killAsyncAgent(task.id, setAppState)
+        killAsyncCrewmate(task.id, setAppState)
         return
       case 'monitor':
         ;(task as { abortController?: AbortController }).abortController?.abort()
@@ -81,7 +81,7 @@ export function boardKeyDownOf(ctx: BoardContext, e: KeyboardEvent): void {
     }
     if (e.key === 'X') {
       e.stopImmediatePropagation()
-      killAllRunningAgentTasks(tasks, setAppState)
+      killAllRunningCrewmateTasks(tasks, setAppState)
       return
     }
     if (e.key === 'f' || e.key === 'm') {

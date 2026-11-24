@@ -2,13 +2,13 @@ import { readFile } from 'node:fs/promises'
 import { useState } from 'react'
 import { useTimer } from '../effects/effects.js'
 import { getFocusedSessionConnector } from '../../engine/connector/focusedConnector.js'
-import { isLocalAgentTask } from '../../engine/tasks/local-agent/crewmateTask.js'
+import { isCrewmateTask } from '../../engine/tasks/local-agent/crewmateTask.js'
 import { getContextWindowForModel } from '../../models/facts/capabilities.js'
 import { normalizeModelStringForAPI, parseUserSpecifiedModel } from '../../models/catalogue/engineModel.js'
 import { crewmateTranscriptFile } from './useCrewmateTranscript.js'
 import type { CrewmateInView } from './useCrewmateView.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
-import { subscribeAgentMetadataPath } from '../../sessions/transcripts/fileWatch.js'
+import { subscribeCrewmateMetadataPath } from '../../sessions/transcripts/fileWatch.js'
 
 type CrewmateModel = { model: string | null; effort: string | null; next: { model: string | null; effort: string | null } | null }
 type CrewmateRecord = { model: string | null; effort: string | null; effortOverride: string | null }
@@ -64,14 +64,14 @@ export function useCrewmateModel(crewmate: CrewmateInView | null): CrewmateModel
       }
     }
     void read()
-    const stop = subscribeAgentMetadataPath(file, () => { void read() })
+    const stop = subscribeCrewmateMetadataPath(file, () => { void read() })
     return () => {
       stop()
     }
   }, [file, startedAt])
   if (crewmate === null) return null
   const local = crewmate.local
-  const launchModel = local !== undefined && isLocalAgentTask(local) ? word(local.model) : null
+  const launchModel = local !== undefined && isCrewmateTask(local) ? word(local.model) : null
   const identity = recorded?.file === file ? recorded.identity : null
   return crewmateModelOf(identity, { model: launchModel ?? crewmate.facts?.model ?? null, effort: crewmate.facts?.effort ?? null })
 }

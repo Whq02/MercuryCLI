@@ -13,7 +13,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'poise-intent-config
 const { builtinCommands } = await import('../../src/commands/catalogue/commands.ts')
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { classifyAgentViewSubmission } = await import(
+const { classifyCrewmateViewSubmission } = await import(
   '../../src/screen/composer/promptIntent.ts'
 )
 const { runPulseArena, anchoredOffset, restoreOffsets } = await import('./lib/pulseArena.ts')
@@ -52,7 +52,7 @@ t.section('§1 generated registry matrix: every command classifies to its declar
     for (const name of [c.name, ...(c.aliases ?? [])]) {
       for (const fromKeybinding of [false, true]) {
         total++
-        const intent = classifyAgentViewSubmission(`/${name}`, fromKeybinding, roster)
+        const intent = classifyCrewmateViewSubmission(`/${name}`, fromKeybinding, roster)
         const expectCommand = rosterNames.has(name)
         if (expectCommand && intent.kind === 'session-command') sessionCount++
         else if (expectCommand && intent.kind === 'agent-command') {
@@ -83,7 +83,7 @@ t.section('§1 generated registry matrix: every command classifies to its declar
     .filter(c => c.aliases?.length)
     .flatMap(c =>
       (c.aliases ?? []).filter(a => {
-        const viaAlias = classifyAgentViewSubmission(`/${a}`, false, roster)
+        const viaAlias = classifyCrewmateViewSubmission(`/${a}`, false, roster)
         return !((viaAlias.kind === 'session-command' || viaAlias.kind === 'agent-command') && viaAlias.command.name === c.name)
       }),
     )
@@ -93,28 +93,28 @@ t.section('§1 generated registry matrix: every command classifies to its declar
 t.section('§2 unknown / literal / guidance laws')
 {
   const commands = [...builtinCommands()]
-  const unknown = classifyAgentViewSubmission('/frobnicate', false, commands)
+  const unknown = classifyCrewmateViewSubmission('/frobnicate', false, commands)
   t.check(
     'unknown slash input classifies unknown-command (never guidance)',
     unknown.kind === 'unknown-command' && unknown.bareName === 'frobnicate',
     unknown.kind,
     'classifyAgentViewSubmission in src/screen/composer/promptIntent.ts must return unknown-command with bareName for a slash name outside the roster',
   )
-  const unknownArgs = classifyAgentViewSubmission('/frobnicate now please', false, commands)
+  const unknownArgs = classifyCrewmateViewSubmission('/frobnicate now please', false, commands)
   t.check(
     'unknown slash with args keeps the bare name',
     unknownArgs.kind === 'unknown-command' && unknownArgs.bareName === 'frobnicate',
     unknownArgs.kind,
     'classifyAgentViewSubmission in src/screen/composer/promptIntent.ts must keep bareName when an unknown slash name has arguments',
   )
-  const literal = classifyAgentViewSubmission('//health check this', false, commands)
+  const literal = classifyCrewmateViewSubmission('//health check this', false, commands)
   t.check(
     "'//x …' is the literal-send path delivering '/x …'",
     literal.kind === 'agent-literal' && literal.text === '/health check this',
     JSON.stringify(literal),
     'classifyAgentViewSubmission in src/screen/composer/promptIntent.ts must turn a leading // into agent-literal with one slash removed',
   )
-  const guidance = classifyAgentViewSubmission('please fix the tests', false, commands)
+  const guidance = classifyCrewmateViewSubmission('please fix the tests', false, commands)
   t.check('plain text is agent guidance', guidance.kind === 'agent-guidance', guidance.kind, 'classifyAgentViewSubmission in src/screen/composer/promptIntent.ts must return agent-guidance for text that does not start with a slash')
 }
 

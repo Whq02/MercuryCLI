@@ -16,7 +16,7 @@ export const SLEEP_AFTER_MS = 45_000
 
 const SLEEP_CHECK_MS = 30_000
 
-const AGENT_EXECUTION_KINDS: ReadonlySet<string> = new Set(['agent'])
+const CREWMATE_EXECUTION_KINDS: ReadonlySet<string> = new Set(['agent'])
 
 export function critterSleepMode(): 'off' | 'forced' | 'live' {
   const env = flagEnv('MERCURY_CRITTER_SLEEP')
@@ -25,17 +25,17 @@ export function critterSleepMode(): 'off' | 'forced' | 'live' {
   return 'live'
 }
 
-interface AgentActivity {
+interface CrewmateActivity {
   liveNow: boolean
   lastEventTs: number
 }
 
-const NO_AGENTS: AgentActivity = { liveNow: false, lastEventTs: 0 }
+const NO_CREWMATES: CrewmateActivity = { liveNow: false, lastEventTs: 0 }
 
-function agentsActiveNow(): boolean {
+function crewmatesActiveNow(): boolean {
   try {
     return listExecutions(processMainOwner(), { liveOnly: true }).some(r =>
-      AGENT_EXECUTION_KINDS.has(r.spec.kind),
+      CREWMATE_EXECUTION_KINDS.has(r.spec.kind),
     )
   } catch (error) {
     passedOver(error)
@@ -51,7 +51,7 @@ export function lastActivityTs(
   s: TurnSignals,
   baselineTs: number,
   now: number,
-  agents: AgentActivity = NO_AGENTS,
+  agents: CrewmateActivity = NO_CREWMATES,
 ): number {
   if (signalsActive(s) || agents.liveNow) return now
   return Math.max(baselineTs, s.lastTurnEndTs ?? 0, agents.lastEventTs)
@@ -61,7 +61,7 @@ export function isAsleepAt(
   s: TurnSignals,
   baselineTs: number,
   now: number,
-  agents: AgentActivity = NO_AGENTS,
+  agents: CrewmateActivity = NO_CREWMATES,
 ): boolean {
   return now - lastActivityTs(s, baselineTs, now, agents) >= SLEEP_AFTER_MS
 }
@@ -73,7 +73,7 @@ let unsubExec: (() => void) | null = null
 let unsubClock: (() => void) | null = null
 let unsubSwitch: (() => void) | null = null
 let baselineTs = Date.now()
-let lastAgentEventTs = 0
+let lastCrewmateEventTs = 0
 let sleepSince = 0
 let sessionKey = ''
 let swayAnchor: SwayAnchor = { phase: 0, at: 0 }
@@ -117,9 +117,9 @@ function recompute(): void {
   if (mode === 'off') next = 0
   else if (mode === 'forced') next = sleepSince || now
   else {
-    const agents: AgentActivity = {
-      liveNow: agentsActiveNow() || daemonCrewLivenessSync().workersActive,
-      lastEventTs: lastAgentEventTs,
+    const agents: CrewmateActivity = {
+      liveNow: crewmatesActiveNow() || daemonCrewLivenessSync().workersActive,
+      lastEventTs: lastCrewmateEventTs,
     }
     next = isAsleepAt(turnSignals(), baselineTs, now, agents) ? sleepSince || now : 0
   }
@@ -155,8 +155,8 @@ export function subscribeCritterSleep(cb: () => void): () => void {
     unsubSignals = subscribeTurnSignals(() => recompute())
     unsubExec = subscribeExecutionEvents(ev => {
       const record = 'record' in ev.event ? ev.event.record : undefined
-      if (!record || !AGENT_EXECUTION_KINDS.has(record.spec.kind)) return
-      lastAgentEventTs = Date.now()
+      if (!record || !CREWMATE_EXECUTION_KINDS.has(record.spec.kind)) return
+      lastCrewmateEventTs = Date.now()
       recompute()
     })
     unsubSwitch = onSessionSwitch(() => recompute())
@@ -196,7 +196,7 @@ export function critterSleepStatsForProofs(): {
 export function resetCritterSleepForTests(nowMs: number = Date.now()): void {
   sleepSince = 0
   baselineTs = nowMs
-  lastAgentEventTs = 0
+  lastCrewmateEventTs = 0
   sessionKey = getSessionId() || 'boot'
   swayAnchor = { phase: 0, at: 0 }
   emit()

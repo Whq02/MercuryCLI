@@ -199,7 +199,7 @@ const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/f
 const { turnDoor: startTurn } = await import('../../src/engine/turnDoor.ts')
 const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
 await import('../../src/tools/kit/toolList.ts')
-const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
+const { CrewmateTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
 const { getBuiltInAgents } = await import('../../src/tools/crewmate/builtInAgents.ts')
 const { settleModelSelection, settlePendingAtBoundary } = await import(
   '../../src/models/catalogue/modelTransition.ts'
@@ -224,7 +224,7 @@ function makeCtx(model: string): Record<string, unknown> {
     abortController: new AbortController(),
     options: {
       commands: [],
-      tools: [BashTool, AgentTool],
+      tools: [BashTool, CrewmateTool],
       engineModel: model,
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],

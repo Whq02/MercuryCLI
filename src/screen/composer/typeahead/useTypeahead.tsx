@@ -30,7 +30,7 @@ import type { AgentDefinition } from '../../../crew/agents/agentDefinition.js'
 import { disarmTypeaheadTimer } from './timers.js'
 import { ladderChannelTarget, ladderClearStale, ladderCommands, ladderMentions, ladderPaths, type LadderContext } from './ladder.js'
 import type { SuggestionsState } from './state.js'
-import { acceptAgent, acceptChannelTarget, acceptCommand, acceptGhost, acceptCustomTitle, acceptDirectory, acceptFile, acceptShell, acceptSlackChannel, acceptWithoutList, type AcceptContext } from './accept.js'
+import { acceptCrewmate, acceptChannelTarget, acceptCommand, acceptGhost, acceptCustomTitle, acceptDirectory, acceptFile, acceptShell, acceptSlackChannel, acceptWithoutList, type AcceptContext } from './accept.js'
 import { acceptPromptSuggestionOf, handleTypeaheadKey, routeTypeaheadInput, typeaheadKeybindings } from './keys.js'
 import { promptGhostOf, publishSuggestionsOf, rerunLadderOf, runUnifiedFetchOf } from './fetch.js'
 
@@ -93,7 +93,7 @@ function dispatchAcceptedSuggestion(
       acceptChannelTarget(ctx, suggestion)
       break
     case 'agent':
-      acceptAgent(ctx, suggestion)
+      acceptCrewmate(ctx, suggestion)
       break
     case 'slack-channel':
       acceptSlackChannel(ctx, suggestion)

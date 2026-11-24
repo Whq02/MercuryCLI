@@ -43,8 +43,8 @@ const { applyGrouping } = await import(src('screen/messages/groupToolUses.ts'))
 const { buildMessageLookups } = await import(src('engine/messages/lookups.ts'))
 const { normalizeMessages } = await import(src('engine/message-shapes/normalize.ts'))
 const { getTools } = await import(src('tools/kit/toolList.ts'))
-const { AgentTool } = await import(src('tools/crewmate/CrewmateTool.tsx'))
-const { AGENT_TOOL_NAME } = await import(src('tools/kit/names/agent.ts'))
+const { CrewmateTool } = await import(src('tools/crewmate/CrewmateTool.tsx'))
+const { CREWMATE_TOOL_NAME } = await import(src('tools/kit/names/agent.ts'))
 const { BashTool } = await import(src('tools/shell/BashTool.tsx'))
 
 enableConfigs()
@@ -112,7 +112,7 @@ type Scene = {
 function sceneRecords(base: number, apiId: string, t0: number): Scene {
   const idOf = (s: Station): string => `toolu_${apiId}_${s}`
   const launchOf = (n: number, s: Station, label: string): Rec =>
-    assistantRec(n, t0 + 1_000, apiId, [{ type: 'tool_use', id: idOf(s), name: AGENT_TOOL_NAME, input: { description: label, prompt: `survey station ${s} and report in one line`, crewmate_type: 'mercury-crew', run_in_background: true } }])
+    assistantRec(n, t0 + 1_000, apiId, [{ type: 'tool_use', id: idOf(s), name: CREWMATE_TOOL_NAME, input: { description: label, prompt: `survey station ${s} and report in one line`, crewmate_type: 'mercury-crew', run_in_background: true } }])
   const launchedOf = (n: number, s: Station): Rec =>
     userRec(n, t0 + 2_000, [{ type: 'tool_result', tool_use_id: idOf(s), content: [{ type: 'text', text: `Async agent launched: seat-${s}` }] }], {
       toolUseResult: { isAsync: true, status: 'async_launched', agentId: `agent-${apiId}-${s}`, description: `seat-${s}`, prompt: `survey station ${s} and report in one line`, outputFile: join(PROJECT, `${apiId}-${s}.output`), canReadOutputFile: true },
@@ -169,7 +169,7 @@ class Input extends EventEmitter {
   }
 }
 
-const tools = [...getTools(getDefaultAppState().toolPermissionContext).filter(t => t.name !== AGENT_TOOL_NAME && t.name !== 'Bash'), AgentTool, BashTool]
+const tools = [...getTools(getDefaultAppState().toolPermissionContext).filter(t => t.name !== CREWMATE_TOOL_NAME && t.name !== 'Bash'), CrewmateTool, BashTool]
 type Stage = { records: Rec[]; running: Set<string> }
 type Screen = { set(records: Rec[], running: string[]): void; frame(): string; lines(): string[]; close(): Promise<void> }
 async function mount(first: Stage): Promise<Screen> {

@@ -77,11 +77,11 @@ section('§4 the words: calm, one spelling')
 {
   const words = overload.overloadPauseWords('Fable 5.1', 1)
   const line = overload.overloadNoticeWords('lane', 'Fable 5.1', 1)
-  const row: import('../../src/engine/tasks/local-agent/agentPause.ts').AgentPauseV1 = { why: 'provider overloaded', words }
+  const row: import('../../src/engine/tasks/local-agent/agentPause.ts').CrewmatePauseV1 = { why: 'provider overloaded', words }
   check("the row's status cell", pause.pauseStatusWords(row, 0) === 'paused — provider overloaded · resumes by itself when the provider answers', pause.pauseStatusWords(row, 0))
-  check('the pause decodes off the wire with its new reason', pause.decodeAgentPause({ why: 'provider overloaded', words }) !== null && pause.decodeAgentPause({ why: 'provider jammed', words }) === null)
+  check('the pause decodes off the wire with its new reason', pause.decodeCrewmatePause({ why: 'provider overloaded', words }) !== null && pause.decodeCrewmatePause({ why: 'provider jammed', words }) === null)
   check("the parent's line names the pause, the provider, the kept work and the probing, and shouts no error", line === 'Crewmate "lane" paused — Fable 5.1 is overloaded (HTTP 529); its work so far is kept and rides below; Mercury probes the provider for up to 1h and resumes the crewmate by itself when it answers — a message resumes it sooner; the crew view stops it' && !/error|failed/i.test(line.replace('HTTP 529', '')), line)
-  check('the resume note tells the agent why it is back and what stands', overload.AGENT_OVERLOAD_RESUME_NOTE.includes('resumed by yourself after it was overloaded') && overload.AGENT_OVERLOAD_RESUME_NOTE.includes('do not redo it'))
+  check('the resume note tells the agent why it is back and what stands', overload.CREWMATE_OVERLOAD_RESUME_NOTE.includes('resumed by yourself after it was overloaded') && overload.CREWMATE_OVERLOAD_RESUME_NOTE.includes('do not redo it'))
 }
 
 
@@ -107,9 +107,9 @@ section('§7 a paused agent survives eviction until its probe can resume it')
   }
   const paused = { why: 'provider overloaded', words: 'fixture paused' } as const
   const id = 'paused-sweep-background'
-  const registered = lane.registerAsyncAgent({ agentId: id, description: 'paused fixture', prompt: 'work', setAppState: set as never })
-  lane.failAgentTask(id, OVERLOADED_ROW, set as never, registered.abortController)
-  lane.enqueueAgentNotification({ taskId: id, description: 'paused fixture', status: 'failed', statusWord: 'paused', summary: 'fixture paused', setAppState: set as never, controller: registered.abortController })
+  const registered = lane.registerAsyncCrewmate({ agentId: id, description: 'paused fixture', prompt: 'work', setAppState: set as never })
+  lane.failCrewmateTask(id, OVERLOADED_ROW, set as never, registered.abortController)
+  lane.enqueueCrewmateNotification({ taskId: id, description: 'paused fixture', status: 'failed', statusWord: 'paused', summary: 'fixture paused', setAppState: set as never, controller: registered.abortController })
   process.env.MERCURY_OVERLOAD_PROBE_SCALE = '0.001'
   let probes = 0
   let resumed = 0
@@ -125,21 +125,21 @@ section('§7 a paused agent survives eviction until its probe can resume it')
   await Promise.race([resumeReady, new Promise<void>(resolve => { wait = setTimeout(resolve, 2000) })])
   clearTimeout(wait)
   check('the kept row reaches a second probe and resumes exactly once', probes === 2 && resumed === 1, JSON.stringify({ probes, resumed }))
-  lane.unpauseAgentTask(id, set as never, registered.abortController)
+  lane.unpauseCrewmateTask(id, set as never, registered.abortController)
   framework.evictTerminalTask(id, set as never)
   check('unpausing restores ordinary deadline eviction', store.state.tasks[id] === undefined)
   utils.closeOverloadEpisode(id)
   delete process.env.MERCURY_OVERLOAD_PROBE_SCALE
 
   const foregroundId = 'paused-sweep-foreground'
-  const foreground = lane.registerAgentForeground({ agentId: foregroundId, description: 'handover fixture', prompt: 'work', setAppState: set as never })
-  lane.failAgentTask(foregroundId, OVERLOADED_ROW, set as never, foreground.abortController)
-  lane.enqueueAgentNotification({ taskId: foregroundId, description: 'handover fixture', status: 'failed', statusWord: 'paused', summary: 'fixture paused', setAppState: set as never, controller: foreground.abortController })
-  lane.pauseAgentTask(foregroundId, paused, set as never, foreground.abortController)
+  const foreground = lane.registerCrewmateForeground({ agentId: foregroundId, description: 'handover fixture', prompt: 'work', setAppState: set as never })
+  lane.failCrewmateTask(foregroundId, OVERLOADED_ROW, set as never, foreground.abortController)
+  lane.enqueueCrewmateNotification({ taskId: foregroundId, description: 'handover fixture', status: 'failed', statusWord: 'paused', summary: 'fixture paused', setAppState: set as never, controller: foreground.abortController })
+  lane.pauseCrewmateTask(foregroundId, paused, set as never, foreground.abortController)
   check('the handover fixture has no retain field', !('retain' in store.state.tasks[foregroundId]!))
   await sweep()
   check('a paused row with no retain field survives the sweep', store.state.tasks[foregroundId]?.paused !== undefined)
-  lane.unpauseAgentTask(foregroundId, set as never, foreground.abortController)
+  lane.unpauseCrewmateTask(foregroundId, set as never, foreground.abortController)
   await sweep()
   check('the same unpaused retain-less row is evicted', store.state.tasks[foregroundId] === undefined)
   resetCommandQueue()

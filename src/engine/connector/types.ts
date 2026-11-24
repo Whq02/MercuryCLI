@@ -6,8 +6,8 @@ import type { InputMode } from '../../screen/composer/input-core/textInput.js'
 import type { PastedContent } from '../../platform/config/schema.js'
 import type { MCPServerConnection } from '../../integrations/mcp-shapes/mcpServerRecords.js'
 import type { ContentBlockParam } from '../message-shapes/wire.js'
-import type { AgentWaitV1 } from '../tasks/local-agent/agentWait.js'
-import type { AgentPauseV1 } from '../tasks/local-agent/agentPause.js'
+import type { CrewmateWaitV1 } from '../tasks/local-agent/agentWait.js'
+import type { CrewmatePauseV1 } from '../tasks/local-agent/agentPause.js'
 import type { SessionKitEditV1 } from '../../daemon/session-seat/sessionKit.js'
 import type { SpawnSwitchFacts, SpawnSwitchKind } from '../../daemon/switchboard/spawnSwitches.js'
 import type { BoardPostRequestV1, McpToolsV1, SessionRewindMode, SessionRewindOutcomeV1 } from '../../daemon/control/protocol.js'
@@ -67,7 +67,7 @@ export type AskReceiptV1 =
   | { ok: false; detail: string }
 
 
-export type AgentControlReceiptV1 = {
+export type CrewmateControlReceiptV1 = {
   outcome: 'applied' | 'refused'
   detail?: string
 }
@@ -330,8 +330,8 @@ export type WorkRowV1 = {
   transcriptAgentId?: string
   idle?: boolean
   stopReason?: string
-  phase?: AgentWaitV1
-  paused?: AgentPauseV1
+  phase?: CrewmateWaitV1
+  paused?: CrewmatePauseV1
   unreadNotices?: number
   command?: string
   cwd?: string
@@ -439,7 +439,7 @@ export type EmptyDetailControlVerbKey = {
 }[keyof typeof SESSION_VERBS]
 
 export type EmptyDetailControlMethods = {
-  [K in EmptyDetailControlVerbKey]: () => Promise<AgentControlReceiptV1>
+  [K in EmptyDetailControlVerbKey]: () => Promise<CrewmateControlReceiptV1>
 }
 
 export interface EngineConnectorV1 extends EmptyDetailControlMethods {
@@ -466,10 +466,10 @@ export interface EngineConnectorV1 extends EmptyDetailControlMethods {
   recallableSend(): RecallableSendV1 | null
   withdrawSend(clientMessageId: string): Promise<WithdrawReceiptV1>
 
-  stopAgent(agentId: string, note?: string): Promise<AgentControlReceiptV1>
-  resumeAgent(agentId: string, note?: string): Promise<AgentControlReceiptV1>
+  stopAgent(agentId: string, note?: string): Promise<CrewmateControlReceiptV1>
+  resumeAgent(agentId: string, note?: string): Promise<CrewmateControlReceiptV1>
   queuedSendCount(): number
-  pauseGate(paused: boolean): Promise<AgentControlReceiptV1>
+  pauseGate(paused: boolean): Promise<CrewmateControlReceiptV1>
   postBoard(post: BoardPostRequestV1): Promise<BoardPostReceiptV1>
   leave(opts?: { signal?: AbortSignal }): Promise<LeaveReceiptV1>
 

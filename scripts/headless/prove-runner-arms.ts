@@ -64,7 +64,7 @@ async function spied(rel: string, names: string[]): Promise<Record<string, (...a
   return real
 }
 
-await spied('src/crew/agents/operatorStop.ts', ['stopAgentByOperator'])
+await spied('src/crew/agents/operatorStop.ts', ['stopCrewmateByOperator'])
 await spied('src/tools/crewmate/resumeCrewmate.ts', ['resumeAgentBackground'])
 const sendNowReal = await spied('src/daemon/runner/sendNow.ts', ['sendQueuedWordsNow'])
 await spied('src/commands/catalogue/commands.ts', ['clearCommandMemoizationCaches', 'getCommands'])
@@ -116,7 +116,7 @@ const { createRunnerState } = await import('../../src/daemon/runner/runnerPorts.
 const { RUNNER_NOTIFICATION_METHODS, RUNNER_REQUEST_METHODS } = await import('../../src/daemon/runner/runnerMethods.ts')
 const { RPC_INVALID_PARAMS, RPC_REFUSED } = await import('../../src/daemon/runner-wire/errors.ts')
 const { isLocalShellTask } = await import('../../src/engine/tasks/local-shell/shellTaskState.ts')
-const { AGENT_INTERRUPT_BY_OPERATOR, AGENT_RESUME_NOTE, peekOperatorMessages } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { CREWMATE_INTERRUPT_BY_OPERATOR, CREWMATE_RESUME_NOTE, peekOperatorMessages } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
 const { drainRows } = await import('../../src/daemon/runner/sdkEventQueue.ts')
 const { dequeue, enqueue } = await import('../../src/daemon/runner/messageQueueManager.ts')
 const { runnerParkRefusal } = await import('../../src/daemon/runner/parkRefusal.ts')
@@ -218,7 +218,7 @@ section('§2 turn/interrupt: the in-flight request and the note being left are a
     j(answer) === j({ interrupted: true }) && soft.flight.signal.aborted && soft.leave.signal.aborted && (soft.leave.signal.reason as Error).message === 'the handoff was skipped by ctrl-c' && usedNames(soft.used) === 'driver.releaseHold' && !agent.signal.aborted && soft.store.sets === 0,
     `${j(answer)} · flight ${soft.flight.signal.aborted} · leave ${soft.leave.signal.aborted} · ports ${usedNames(soft.used)} · agent ${agent.signal.aborted} · writes ${soft.store.sets}`,
   )
-  check("the runner's interrupt releases the driver's hold and stops no task", soft.used.filter(call => call.name === 'driver.releaseHold').length === 1 && soft.kills.length === 0 && soft.store.sets === 0 && said('stopAgentByOperator').length === 0, `${usedNames(soft.used)} · kills ${soft.kills.length}`)
+  check("the runner's interrupt releases the driver's hold and stops no task", soft.used.filter(call => call.name === 'driver.releaseHold').length === 1 && soft.kills.length === 0 && soft.store.sets === 0 && said('stopCrewmateByOperator').length === 0, `${usedNames(soft.used)} · kills ${soft.kills.length}`)
   check('…and never ends the process: no shutdown, no exit, no end-session signal in the handler', said('gracefulShutdownSync').length === 0 && said('gracefulShutdown').length === 0 && !soft.live.inputClosed)
   const hard = scene()
   await hard.arms['turn/interrupt']({ hard: true }, ref, signalOf())
@@ -246,21 +246,21 @@ section('§3 agent/stop: the one operator-stop owner, its reason, and its answer
   const { ports } = stubPorts({ getAppState: store.get, setAppState: store.set, enqueueRow: (row: unknown) => rows.push(row) })
   const arms = runnerArmsOf(ports)
   forget()
-  answers.set('stopAgentByOperator', async () => ({ outcome: 'applied', kind: 'agent', status: 'killed' }))
+  answers.set('stopCrewmateByOperator', async () => ({ outcome: 'applied', kind: 'agent', status: 'killed' }))
   const applied = await arms['agent/stop']({ agent_id: 'a1' }, ref, signalOf())
-  const plain = said('stopAgentByOperator')[0]
+  const plain = said('stopCrewmateByOperator')[0]
   const context = plain?.args[1] as { getAppState?: unknown; setAppState?: unknown } | undefined
-  await arms['agent/stop']({ agent_id: 'a1', note: AGENT_INTERRUPT_BY_OPERATOR }, ref, signalOf())
+  await arms['agent/stop']({ agent_id: 'a1', note: CREWMATE_INTERRUPT_BY_OPERATOR }, ref, signalOf())
   await arms['agent/stop']({ agent_id: 'a1', note: 'some other words' }, ref, signalOf())
-  const reasons = said('stopAgentByOperator').map(call => j(call.args[2]))
-  answers.set('stopAgentByOperator', async () => ({ outcome: 'refused', reason: 'Lane a1 is not running (status: completed) — nothing to stop' }))
+  const reasons = said('stopCrewmateByOperator').map(call => j(call.args[2]))
+  answers.set('stopCrewmateByOperator', async () => ({ outcome: 'refused', reason: 'Lane a1 is not running (status: completed) — nothing to stop' }))
   const refusedStop = await refusalOf(arms['agent/stop']({ agent_id: 'a1' }, ref, signalOf()))
   check(
     "the runner's stop_task rides the one operator-stop owner and answers applied or refused with its reason",
     j(applied) === j({ receipt: 'applied', kind: 'agent', status: 'killed' }) && plain?.args[0] === 'a1' && context?.getAppState === store.get && context.setAppState === store.set && refusedStop?.code === RPC_REFUSED && refusedStop.data?.kind === 'agent' && refusedStop.message === 'Lane a1 is not running (status: completed) — nothing to stop',
     `${j(applied)} · ${j(refusedStop)}`,
   )
-  check('the typed note rides the stop verb into the runner as the operator-interrupt reason, and no other note does', j(reasons) === j([j({}), j({ reason: AGENT_INTERRUPT_BY_OPERATOR }), j({})]), j(reasons))
+  check('the typed note rides the stop verb into the runner as the operator-interrupt reason, and no other note does', j(reasons) === j([j({}), j({ reason: CREWMATE_INTERRUPT_BY_OPERATOR }), j({})]), j(reasons))
   drainRows()
 }
 
@@ -293,7 +293,7 @@ section('§4 agent/resume: a running crewmate is told, a stopped one rides the o
   const asked = said('resumeAgentBackground')[0]?.args[0] as { agentId?: string; prompt?: string; replyTarget?: string; canUseTool?: unknown; toolUseContext?: Record<string, unknown> } | undefined
   check(
     "the runner's resume_task rides the one resume owner with the resume note and the runner's own permission road",
-    asked?.agentId === 'gone' && asked.prompt === AGENT_RESUME_NOTE && asked.replyTarget === 'parent' && asked.canUseTool === canUseTool && asked.toolUseContext?.marker === 'the relaunch context' && !('toolUseId' in (asked.toolUseContext ?? {})) && asked.toolUseContext?.abortController instanceof AbortController && j(order) === j(['initializeMcp', 'relaunchContext']),
+    asked?.agentId === 'gone' && asked.prompt === CREWMATE_RESUME_NOTE && asked.replyTarget === 'parent' && asked.canUseTool === canUseTool && asked.toolUseContext?.marker === 'the relaunch context' && !('toolUseId' in (asked.toolUseContext ?? {})) && asked.toolUseContext?.abortController instanceof AbortController && j(order) === j(['initializeMcp', 'relaunchContext']),
     `${j({ ...asked, canUseTool: asked?.canUseTool === canUseTool })} · ${j(order)}`,
   )
   check('the crew resume answer carries the note and recorded directory', j(resumed) === j({ agent_id: 'gone', output_file: '/out/gone.md', cwd_fallback: '/session', recorded_cwd: '/recorded', note: ' (in the session folder)' }), j(resumed))
@@ -302,13 +302,13 @@ section('§4 agent/resume: a running crewmate is told, a stopped one rides the o
   const withNote = said('resumeAgentBackground')[1]?.args[0] as { prompt?: string; replyTarget?: string } | undefined
   const second = dequeue(command => typeof command.value === 'string' && command.value.includes('<task-id>gone</task-id>'))
   check("a resume with the operator's own words sends those words, answers to the operator, and leaves no receipt row of its own", withNote?.prompt === 'carry on with the tests' && withNote.replyTarget === 'operator' && receipt !== undefined && String(receipt.value).includes('(in the session folder)') && second === undefined, `${j(withNote)} · receipt ${receipt !== undefined} · second ${second !== undefined}`)
-  const owner = (await import('../../src/tools/crewmate/resumeCrewmate.ts')) as { AgentNotRecorded?: new (message: string) => Error }
-  const NotRecorded = owner.AgentNotRecorded ?? Error
+  const owner = (await import('../../src/tools/crewmate/resumeCrewmate.ts')) as { CrewmateNotRecorded?: new (message: string) => Error }
+  const NotRecorded = owner.CrewmateNotRecorded ?? Error
   answers.set('resumeAgentBackground', async () => Promise.reject(new NotRecorded('No transcript found for crewmate a-none')))
   const unrecorded = await refusalOf(arms['agent/resume']({ agent_id: 'a-none' }, ref, signalOf()))
   answers.set('resumeAgentBackground', async () => Promise.reject(new Error('the resume owner broke')))
   const broken = await refusalOf(arms['agent/resume']({ agent_id: 'a-none' }, ref, signalOf()))
-  check("agent/resume for a crewmate nothing recorded answers the typed refusal of kind agent with the owner's sentence, and a fault of the owner stays a fault", owner.AgentNotRecorded !== undefined && unrecorded?.code === RPC_REFUSED && unrecorded.data?.kind === 'agent' && unrecorded.message === 'No transcript found for crewmate a-none' && broken?.code === undefined && broken?.message === 'the resume owner broke', `${j({ code: unrecorded?.code, kind: unrecorded?.data?.kind, message: unrecorded?.message })} · ${j({ code: broken?.code, message: broken?.message })}`)
+  check("agent/resume for a crewmate nothing recorded answers the typed refusal of kind agent with the owner's sentence, and a fault of the owner stays a fault", owner.CrewmateNotRecorded !== undefined && unrecorded?.code === RPC_REFUSED && unrecorded.data?.kind === 'agent' && unrecorded.message === 'No transcript found for crewmate a-none' && broken?.code === undefined && broken?.message === 'the resume owner broke', `${j({ code: unrecorded?.code, kind: unrecorded?.data?.kind, message: unrecorded?.message })} · ${j({ code: broken?.code, message: broken?.message })}`)
 }
 
 section('§4b project/query: a folder nobody trusted, a parameter that is missing or malformed, and what the project does not hold or will not serve')

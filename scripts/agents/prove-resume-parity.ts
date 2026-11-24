@@ -27,13 +27,13 @@ console.log('============================================================')
 section('§1 the metadata carrier (round-trip, hermetic home)')
 {
   const id = 'resume-parity-proof-agent'
-  await storage.writeAgentMetadata(id as Parameters<typeof storage.writeAgentMetadata>[0], {
+  await storage.writeCrewmateMetadata(id as Parameters<typeof storage.writeCrewmateMetadata>[0], {
     agentType: 'mercury-crew',
     description: 'proof',
     model: 'glm-5.2',
     effortOverride: 'high',
   })
-  const back = await storage.readAgentMetadata(id as Parameters<typeof storage.readAgentMetadata>[0])
+  const back = await storage.readCrewmateMetadata(id as Parameters<typeof storage.readCrewmateMetadata>[0])
   check('model round-trips', back?.model === 'glm-5.2', JSON.stringify(back) + ' · fix writeAgentMetadata and readAgentMetadata in src/sessions/transcripts/sessionStorage.ts')
   check('effortOverride round-trips', back?.effortOverride === 'high', JSON.stringify(back) + ' · fix writeAgentMetadata and readAgentMetadata in src/sessions/transcripts/sessionStorage.ts')
   check('agentType/description intact', back?.agentType === 'mercury-crew' && back?.description === 'proof', JSON.stringify(back) + ' · fix writeAgentMetadata and readAgentMetadata in src/sessions/transcripts/sessionStorage.ts')
@@ -44,19 +44,19 @@ section('§2 the restore chain (getAgentModel is id-stable)')
   const parent = 'claude-opus-4-8[1m]'
   check(
     "restored 'claude-sonnet-5' dispatches claude-sonnet-5 (not the parent)",
-    agent.getAgentModel('inherit', parent, 'claude-sonnet-5' as never) === 'claude-sonnet-5',
-    agent.getAgentModel('inherit', parent, 'claude-sonnet-5' as never) + ' · fix getAgentModel in src/models/catalogue/agentModel.ts',
+    agent.getCrewmateModel('inherit', parent, 'claude-sonnet-5' as never) === 'claude-sonnet-5',
+    agent.getCrewmateModel('inherit', parent, 'claude-sonnet-5' as never) + ' · fix getAgentModel in src/models/catalogue/agentModel.ts',
   )
   check(
     "restored 'glm-5.2' dispatches glm-5.2 (the zai transport — no silent provider switch)",
-    agent.getAgentModel('inherit', parent, 'glm-5.2' as never) === 'glm-5.2',
-    agent.getAgentModel('inherit', parent, 'glm-5.2' as never) + ' · fix getAgentModel in src/models/catalogue/agentModel.ts',
+    agent.getCrewmateModel('inherit', parent, 'glm-5.2' as never) === 'glm-5.2',
+    agent.getCrewmateModel('inherit', parent, 'glm-5.2' as never) + ' · fix getAgentModel in src/models/catalogue/agentModel.ts',
   )
-  const haikuRestore = agent.getAgentModel('inherit', parent, 'haiku' as never)
+  const haikuRestore = agent.getCrewmateModel('inherit', parent, 'haiku' as never)
   check('a restored haiku alias dispatches as the haiku row', /haiku/i.test(haikuRestore), haikuRestore + ' · fix getAgentModel in src/models/catalogue/agentModel.ts')
   check(
     'absent persisted model ⇒ legacy re-resolution (inherit → parent)',
-    agent.getAgentModel('inherit', parent, undefined) === parent,
+    agent.getCrewmateModel('inherit', parent, undefined) === parent,
     'fix getAgentModel in src/models/catalogue/agentModel.ts to return the parent model when no persisted model is given',
   )
 }

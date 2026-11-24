@@ -4,13 +4,13 @@ import { stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { getFocusedSessionConnector } from '../../engine/connector/focusedConnector.js'
 import { crewmateQueuedRows, crewmateQueueSize, crewmateQueueVersion, pruneLandedCrewmateLines, subscribeCrewmateQueue } from './crewmateQueue.js'
-import { isLocalAgentTask } from '../../engine/tasks/local-agent/crewmateTask.js'
+import { isCrewmateTask } from '../../engine/tasks/local-agent/crewmateTask.js'
 import type { TaskState } from '../../engine/tasks/taskState.js'
-import { agentTranscriptFile, resolveAgentTranscriptFile } from '../../crew/crewmates/agentTranscriptReader.js'
+import { crewmateTranscriptFileIn, resolveCrewmateTranscriptFile } from '../../crew/crewmates/agentTranscriptReader.js'
 import { asAgentId } from '../../sessions/transcripts/ids.js'
 import type { Message } from '../../engine/message-shapes/message.js'
 import { loadTranscriptFile } from '../../sessions/transcripts/loading.js'
-import { getAgentTranscriptPath } from '../../sessions/transcripts/paths.js'
+import { getCrewmateTranscriptPath } from '../../sessions/transcripts/paths.js'
 import { getProjectDir } from '../../sessions/transcripts/sessionStoragePortable.js'
 import type { CrewmateInView } from './useCrewmateView.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
@@ -28,14 +28,14 @@ export type CrewmateTranscriptSource = Pick<CrewmateInView, 'taskId' | 'local'> 
 
 export function crewmateTranscriptAgentId(crewmate: CrewmateTranscriptSource): string | null {
   const local = crewmate.local
-  if (local !== undefined && isLocalAgentTask(local)) return local.agentId
+  if (local !== undefined && isCrewmateTask(local)) return local.agentId
   const carried = crewmate.facts?.transcriptAgentId ?? null
   return carried ?? crewmate.taskId
 }
 
 function ownTranscriptDir(agentId: string): string | null {
   try {
-    return dirname(getAgentTranscriptPath(asAgentId(agentId)))
+    return dirname(getCrewmateTranscriptPath(asAgentId(agentId)))
   } catch (error) {
     passedOver(error)
     return null
@@ -46,18 +46,18 @@ export function crewmateTranscriptFile(crewmate: CrewmateTranscriptSource, hoste
   const agentId = crewmateTranscriptAgentId(crewmate)
   if (agentId === null) return null
   const local = crewmate.local
-  const own = local !== undefined && isLocalAgentTask(local) ? ownTranscriptDir(agentId) : null
+  const own = local !== undefined && isCrewmateTask(local) ? ownTranscriptDir(agentId) : null
   const carried = hosted.sessionId === '' || hosted.originalCwd === '' ? null : join(getProjectDir(hosted.originalCwd), hosted.sessionId, 'subagents')
   const dirs = [own, carried].filter((dir, index, all): dir is string => dir !== null && all.indexOf(dir) === index)
   const primary = dirs[0]
   if (primary === undefined) return null
-  if (dirs.length === 1) return agentTranscriptFile(primary, agentId)
-  return resolveAgentTranscriptFile(dirs, agentId) ?? agentTranscriptFile(primary, agentId)
+  if (dirs.length === 1) return crewmateTranscriptFileIn(primary, agentId)
+  return resolveCrewmateTranscriptFile(dirs, agentId) ?? crewmateTranscriptFileIn(primary, agentId)
 }
 
 export function liveTailOf(local: TaskState | undefined): readonly Message[] {
   if (local === undefined) return EMPTY
-  if (isLocalAgentTask(local)) return (local.messages ?? EMPTY) as readonly Message[]
+  if (isCrewmateTask(local)) return (local.messages ?? EMPTY) as readonly Message[]
   return EMPTY
 }
 

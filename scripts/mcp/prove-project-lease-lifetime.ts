@@ -20,11 +20,11 @@ bootstrap.switchSession('00000000-0000-4000-8000-000000000046' as never, root)
 bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { beginAgentProjectLeases, projectLeaseHolder, takeProjectLeases, releaseProjectLeases, listProjectLeases } = await import('../../src/integrations/vulcan/engine/leases.ts')
+const { beginCrewmateProjectLeases, projectLeaseHolder, takeProjectLeases, releaseProjectLeases, listProjectLeases } = await import('../../src/integrations/vulcan/engine/leases.ts')
 const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
-const { registerAsyncAgent, killAsyncAgent } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { registerAsyncCrewmate, killAsyncCrewmate } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
 const realQuery = await import('../../src/engine/turnDoor.ts')
 const modes = new Map<string, string>()
 let checks = 0
@@ -44,7 +44,7 @@ mock.module('../../src/engine/turnDoor.ts', () => ({
     if (modes.get(id) === 'failure') throw new Error('lease fixture failure')
   },
 }))
-const { runAgent } = await import('../../src/tools/crewmate/runCrewmate.ts')
+const { runCrewmate } = await import('../../src/tools/crewmate/runCrewmate.ts')
 const MODEL = 'claude-opus-4-8'
 const definition = { agentType: 'lease-proof', whenToUse: 'lease fixture', source: 'projectSettings', omitProjectInstructions: true, getSystemPrompt: () => 'Lease fixture.' } as never
 const allow = (async (_tool: unknown, input: Record<string, unknown>) => ({ behavior: 'allow', updatedInput: input })) as never
@@ -53,7 +53,7 @@ function launch(agentId: string, mode: string) {
   modes.set(agentId, mode)
   let state = getDefaultAppState()
   const setAppState = (update: (prev: typeof state) => typeof state): void => { state = update(state) }
-  const task = registerAsyncAgent({ agentId, description: 'lease fixture', prompt: 'Lease fixture.', setAppState })
+  const task = registerAsyncCrewmate({ agentId, description: 'lease fixture', prompt: 'Lease fixture.', setAppState })
   const controller = task.abortController!
   const context = {
     abortController: new AbortController(),
@@ -69,7 +69,7 @@ function launch(agentId: string, mode: string) {
     updateFileHistoryState: () => {},
     updateAttributionState: () => {},
   } as unknown as ToolUseContext
-  const stream = runAgent({ agentDefinition: definition, promptMessages: [createUserMessage({ content: 'Lease fixture.' })], toolUseContext: context, canUseTool: allow, isAsync: true, canShowPermissionPrompts: false, querySource: 'agent:custom:lease-proof' as never, availableTools: [], model: MODEL, override: { agentId, abortController: controller, systemPrompt: ['Lease fixture.'], userContext: {}, systemContext: {} }, cwd: root })
+  const stream = runCrewmate({ agentDefinition: definition, promptMessages: [createUserMessage({ content: 'Lease fixture.' })], toolUseContext: context, canUseTool: allow, isAsync: true, canShowPermissionPrompts: false, querySource: 'agent:custom:lease-proof' as never, availableTools: [], model: MODEL, override: { agentId, abortController: controller, systemPrompt: ['Lease fixture.'], userContext: {}, systemContext: {} }, cwd: root })
   return { stream, controller, setAppState }
 }
 async function firstLease(run: ReturnType<typeof launch>): Promise<void> {
@@ -97,7 +97,7 @@ try {
     await firstLease(run)
     check(`${mode}: the lease exists before the end`, (await paths()).includes(`${mode}.ts`))
     if (mode === 'interrupt') run.controller.abort('operator-interrupt')
-    if (mode === 'kill') killAsyncAgent(mode, run.setAppState)
+    if (mode === 'kill') killAsyncCrewmate(mode, run.setAppState)
     if (mode === 'interrupt' || mode === 'kill') {
       check(`${mode}: abort frees the lease before the stream unwinds`, !(await paths()).includes(`${mode}.ts`))
     }
@@ -127,12 +127,12 @@ try {
   check('the successor releases its leases at its own end', !(await paths()).includes('handover.ts'))
 
   const controller = new AbortController()
-  const end = beginAgentProjectLeases('pending', controller.signal)
+  const end = beginCrewmateProjectLeases('pending', controller.signal)
   const holder = projectLeaseHolder('pending')
   const pending = takeProjectLeases(root, ['pending.ts'], holder).then(() => '', error => String(error))
   controller.abort()
   const resumedController = new AbortController()
-  const endResumed = beginAgentProjectLeases('pending', resumedController.signal)
+  const endResumed = beginCrewmateProjectLeases('pending', resumedController.signal)
   check('an in-flight take from an aborted lifetime cannot land after resume', (await pending).includes('agent has ended') && !(await paths()).includes('pending.ts'))
   await end()
   check('a resumed lifetime takes new leases', (await takeProjectLeases(root, ['pending-new.ts'], holder)).ok)

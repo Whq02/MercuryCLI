@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { CanUseToolFn, ToolUseContext } from '../../tools/kit/tool.js'
 import { findToolByName } from '../../tools/kit/tool.js'
-import { AGENT_TOOL_NAME } from '../../tools/kit/names/agent.js'
+import { CREWMATE_TOOL_NAME } from '../../tools/kit/names/agent.js'
 import type { AssistantMessage } from '../message-shapes/message.js'
 import type { PermissionDecision } from '../../permissions/rules/permissions.js'
 import type { ToolUseBlock } from '../message-shapes/wire.js'
@@ -119,7 +119,7 @@ export class EarlyStarts {
       try {
         const claim = await batchClaimOf(block, this.context)
         if (generation !== this.generation) return
-        const launchesCrewmate = findToolByName(this.context.options.tools, block.name)?.name === AGENT_TOOL_NAME
+        const launchesCrewmate = findToolByName(this.context.options.tools, block.name)?.name === CREWMATE_TOOL_NAME
         const answersStop = this.adopted.get(block.id)?.stops === true
         const admitted = (!this.declined || answersStop) && !launchesCrewmate && (claim.kind === 'free' || claim.kind === 'reads') && this.claims.every(held => claimsCompatible(held, claim)) && !windowHoldsNoWholeResult(this.context)
         this.claims.push(claim)

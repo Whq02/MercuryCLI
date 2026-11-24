@@ -34,7 +34,7 @@ import type { ContentReplacementRecord } from '../../engine/tool-dispatch/toolRe
 import { cleanForTranscript, type Transcript } from './chain.js'
 import { sessionFilePath } from './loading.js'
 import {
-  getAgentTranscriptPath,
+  getCrewmateTranscriptPath,
   getNodeEnv,
   getTranscriptPath,
   isChainParticipant,
@@ -70,21 +70,21 @@ export const getSessionMessages = memoize(
   (sessionId: UUID) => sessionId,
 )
 
-const agentTranscriptDestinations = new Map<string, string>()
+const crewmateTranscriptDestinations = new Map<string, string>()
 
-export function registerAgentTranscriptDestination(
+export function registerCrewmateTranscriptDestination(
   agentId: string,
   filePath: string,
 ): void {
-  agentTranscriptDestinations.set(agentId, filePath)
+  crewmateTranscriptDestinations.set(agentId, filePath)
 }
 
-const reportedAgentReadFailures = new Set<string>()
+const reportedCrewmateReadFailures = new Set<string>()
 
-const agentFileMessages = new Map<string, Set<string>>()
+const crewmateFileMessages = new Map<string, Set<string>>()
 
-async function getAgentFileMessages(filePath: string): Promise<Set<string>> {
-  const cached = agentFileMessages.get(filePath)
+async function getCrewmateFileMessages(filePath: string): Promise<Set<string>> {
+  const cached = crewmateFileMessages.get(filePath)
   if (cached !== undefined) return cached
   try {
     const head = historyHead(filePath)
@@ -99,16 +99,16 @@ async function getAgentFileMessages(filePath: string): Promise<Set<string>> {
         if (typeof id === 'string') set.add(id)
       } catch (error) { passedOver(error) }
     }
-    const known = agentFileMessages.get(filePath)
+    const known = crewmateFileMessages.get(filePath)
     if (known !== undefined) return known
-    agentFileMessages.set(filePath, set)
+    crewmateFileMessages.set(filePath, set)
     return set
   } catch (error) {
     const code = getErrnoCode(error)
     if (code !== 'ENOENT' && code !== 'ENOTDIR') {
       logForDebugging(`agent transcript read failed for ${filePath} (${code ?? 'unknown'})`, { level: 'error' })
-      if (!reportedAgentReadFailures.has(filePath)) {
-        reportedAgentReadFailures.add(filePath)
+      if (!reportedCrewmateReadFailures.has(filePath)) {
+        reportedCrewmateReadFailures.add(filePath)
         setStoreHealth({
           failing: true,
           sentence: `Agent transcript at ${filePath} could not be read (${errorMessage(error)}), so entries may be duplicated — restore read permission on the file.`,
@@ -159,7 +159,7 @@ export function resetProjectFlushStateForTesting(): void {
 
 export function resetProjectForTesting(): void {
   resetTranscriptFormatCacheForTesting()
-  reportedAgentReadFailures.clear()
+  reportedCrewmateReadFailures.clear()
   project = null
 }
 
@@ -258,12 +258,12 @@ export async function recordSidechainTranscript(
   )
 }
 
-export function closeAgentTranscript(agentId: string): void {
+export function closeCrewmateTranscript(agentId: string): void {
   const currentProject = peekProject()
   if (!currentProject) return
   const file =
-    agentTranscriptDestinations.get(agentId) ??
-    getAgentTranscriptPath(asAgentId(agentId))
+    crewmateTranscriptDestinations.get(agentId) ??
+    getCrewmateTranscriptPath(asAgentId(agentId))
   currentProject.closeTranscript(file)
 }
 
@@ -535,8 +535,8 @@ class Project {
 
     if (entry.type === 'content-replacement') {
       const target = entry.agentId
-        ? (agentTranscriptDestinations.get(entry.agentId) ??
-            getAgentTranscriptPath(entry.agentId))
+        ? (crewmateTranscriptDestinations.get(entry.agentId) ??
+            getCrewmateTranscriptPath(entry.agentId))
         : file
       void this.queuePart
         .enqueueWrite(target, entry)
@@ -554,9 +554,9 @@ class Project {
     const message = entry as TranscriptMessage
     if (message.isSidechain && message.agentId !== undefined) {
       const agentFile =
-        agentTranscriptDestinations.get(message.agentId) ??
-        getAgentTranscriptPath(asAgentId(message.agentId))
-      const existing = await getAgentFileMessages(agentFile)
+        crewmateTranscriptDestinations.get(message.agentId) ??
+        getCrewmateTranscriptPath(asAgentId(message.agentId))
+      const existing = await getCrewmateFileMessages(agentFile)
       if (existing.has(message.uuid)) return
       existing.add(message.uuid)
       this.settlePart.enqueueMessageWrite(agentFile, message)

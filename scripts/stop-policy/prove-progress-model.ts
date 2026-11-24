@@ -190,12 +190,12 @@ section('§7 one continuation per attempt across families; wording demoted; drai
 
 section('§8 ONE persistence law on the seat that works a task for a caller; the session\'s finishing clause is the constitution\'s (SS-08/10/11)')
 {
-  const { MERCURY_CONSTITUTION, MERCURY_SUBAGENT_CONTRACT } = await import(
+  const { MERCURY_CONSTITUTION, MERCURY_CREWMATE_CONTRACT } = await import(
     '../../src/engine/system-prompt/mercuryContract.ts'
   )
   const PERSIST = 'keep going while evidence advances the outcome'
-  check('sub-agent: the law suggests and never counts (keep going while evidence advances; no repetition count, no strategy switch)', MERCURY_SUBAGENT_CONTRACT.includes(PERSIST) && !/strategy once|stop looping|handoff|strateg/.test(MERCURY_SUBAGENT_CONTRACT), 'MERCURY_SUBAGENT_CONTRACT in src/engine/system-prompt/mercuryContract.ts must contain the persistence sentence and no repetition count, handoff or strategy switch wording')
-  check('sub-agent: a block stops for what only the caller can give, named', /returning blocked, with what you need named/.test(MERCURY_SUBAGENT_CONTRACT), 'MERCURY_SUBAGENT_CONTRACT in src/engine/system-prompt/mercuryContract.ts must say a block returns blocked, with what you need named')
+  check('sub-agent: the law suggests and never counts (keep going while evidence advances; no repetition count, no strategy switch)', MERCURY_CREWMATE_CONTRACT.includes(PERSIST) && !/strategy once|stop looping|handoff|strateg/.test(MERCURY_CREWMATE_CONTRACT), 'MERCURY_SUBAGENT_CONTRACT in src/engine/system-prompt/mercuryContract.ts must contain the persistence sentence and no repetition count, handoff or strategy switch wording')
+  check('sub-agent: a block stops for what only the caller can give, named', /returning blocked, with what you need named/.test(MERCURY_CREWMATE_CONTRACT), 'MERCURY_SUBAGENT_CONTRACT in src/engine/system-prompt/mercuryContract.ts must say a block returns blocked, with what you need named')
   check('session: the constitution asks only when a necessary fact, consequential decision or required permission cannot be resolved, and carries a given task through without asking again (no repetition count, no strategy switch)', MERCURY_CONSTITUTION.includes('ask only when a necessary fact, consequential decision or required permission cannot be resolved from the available context.') && MERCURY_CONSTITUTION.includes('Once a task is given, carry it through investigation, execution and proportionate verification.') && MERCURY_CONSTITUTION.includes('Do not ask again for routine steps already covered.') && !/strategy once|stop looping|strateg/.test(MERCURY_CONSTITUTION), 'MERCURY_CONSTITUTION in src/engine/system-prompt/mercuryContract.ts must keep its three sentences about asking only when needed, carrying a given task through and not asking again for covered steps, and no strategy switch wording')
 }
 

@@ -3,20 +3,20 @@ import { mirrorSwarmResume, swarmPeerMessage, swarmRoad } from '../../crew/board
 import { buildTool, type ToolDef, type ToolUseContext } from '../kit/tool.js'
 import type { CanUseToolFn } from '../kit/tool.js'
 import type { AssistantMessage } from '../../engine/message-shapes/message.js'
-import { AGENT_INTERRUPT_BY_OPERATOR, isLocalAgentTask, queuePendingMessage, speakAgentMessageFrame } from '../../engine/tasks/local-agent/crewmateTask.js'
+import { CREWMATE_INTERRUPT_BY_OPERATOR, isCrewmateTask, queuePendingMessage, speakAgentMessageFrame } from '../../engine/tasks/local-agent/crewmateTask.js'
 import { errorMessage } from '../../platform/errors/errors.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { lazySchema } from '../../platform/primitives/lazySchema.js'
-import { endedWords, mapMessageResult, messageNoticeFor, resolveCrewAddress, selfAddressRefusalText, senderAgentTask, unknownAgentRefusal, validateCrewMessage, type CrewMessageInput, type MessageOutput } from '../send-message/crewAddress.js'
+import { endedWords, mapMessageResult, messageNoticeFor, resolveCrewAddress, selfAddressRefusalText, senderCrewmateTask, unknownCrewmateRefusal, validateCrewMessage, type CrewMessageInput, type MessageOutput } from '../send-message/crewAddress.js'
 import { renderToolResultMessage, renderToolUseMessage } from '../send-message/rows.js'
-import { RESUME_AGENT_TOOL_NAME } from '../kit/names/resumeAgent.js'
+import { RESUME_CREWMATE_TOOL_NAME } from '../kit/names/resumeAgent.js'
 import { DESCRIPTION, getPrompt } from './prompt.js'
 import { EFFORT_LEVELS, type EffortLevel } from '../../models/effort/effort.js'
-import { stopAgentByOperator } from '../../crew/agents/operatorStop.js'
+import { stopCrewmateByOperator } from '../../crew/agents/operatorStop.js'
 import { flushSessionStorage } from '../../sessions/transcripts/sessionStorage.js'
-import { liveAgentOwner } from '../crewmate/liveAgentOwner.js'
+import { liveCrewmateOwner } from '../crewmate/liveAgentOwner.js'
 
-type ResumeAgentToolOutput = MessageOutput
+type ResumeCrewmateToolOutput = MessageOutput
 type Input = CrewMessageInput & { model?: string; effort?: EffortLevel; interrupt?: boolean }
 const inputSchema = lazySchema(() => z.object({
   to: z.string().describe('The crewmate to resume: the id its launch receipt names or the name its launch gave it, running or finished; a name two launches carried reaches the newest'),
@@ -28,8 +28,8 @@ const inputSchema = lazySchema(() => z.object({
 type InputSchema = ReturnType<typeof inputSchema>
 const outputSchema = lazySchema(() => z.object({ success: z.boolean(), message: z.string() }))
 
-export const ResumeAgentTool = buildTool({
-  name: RESUME_AGENT_TOOL_NAME,
+export const ResumeCrewmateTool = buildTool({
+  name: RESUME_CREWMATE_TOOL_NAME,
   searchHint: 'give a crewmate of this session a new turn, resuming it from its transcript if it has finished',
   shouldDefer: true,
   maxResultSizeChars: 100_000,
@@ -46,13 +46,13 @@ export const ResumeAgentTool = buildTool({
     if (self !== null) return { data: { success: false, message: self } }
     const address = await resolveCrewAddress(to, context)
     if (address.kind === 'main') return { data: { success: false, message: 'Cannot resume "main": the main agent is not a crewmate. A background crewmate reaches it with SendMessage to "main".' } }
-    if (address.kind === 'unknown') return { data: { success: false, message: await unknownAgentRefusal(to, context, 'resume') } }
+    if (address.kind === 'unknown') return { data: { success: false, message: await unknownCrewmateRefusal(to, context, 'resume') } }
     const resolvedSelf = selfAddressRefusalText(to, context, 'resume', address.agentId)
     if (resolvedSelf !== null) return { data: { success: false, message: resolvedSelf } }
     if (context.agentId !== undefined && (swarmRoad(context.agentId) || swarmRoad(address.agentId)) && (input.interrupt || address.task?.status !== 'running' || input.model !== undefined || input.effort !== undefined)) return { data: { success: false, message: 'A board peer cannot resume, interrupt or change another seat. Ask the lead on its next active turn.' } }
     const overrides = [input.model !== undefined ? `model ${input.model}` : null, input.effort !== undefined ? `effort ${input.effort}` : null].filter((word): word is string => word !== null)
     if (overrides.length > 0 && address.task?.status !== 'running') {
-      const owner = liveAgentOwner(address.agentId, context.getAppState().tasks)
+      const owner = liveCrewmateOwner(address.agentId, context.getAppState().tasks)
       if (owner !== null) return { data: { success: false, message: `${owner.words} Model and effort overrides apply only to a finished crewmate; nothing was queued.` } }
     }
     if (address.task?.status === 'running') {
@@ -65,15 +65,15 @@ export const ResumeAgentTool = buildTool({
         const kept = overrides.length === 0 ? '' : ` Its ${overrides.join(' and ')} ${overrides.length === 1 ? 'was' : 'were'} not applied: a running crewmate keeps its model and effort; name them again on ResumeCrewmate once it has finished.`
         return { data: { success: true, message: `Crewmate ${address.who} is still running, so nothing was resumed: the message was queued and ${queue}.${kept}` } }
       }
-      const stopped = await stopAgentByOperator(address.agentId, {
+      const stopped = await stopCrewmateByOperator(address.agentId, {
         getAppState: context.getAppState,
         setAppState: context.setAppStateForTasks ?? context.setAppState,
-      }, { reason: AGENT_INTERRUPT_BY_OPERATOR })
+      }, { reason: CREWMATE_INTERRUPT_BY_OPERATOR })
       if (stopped.outcome === 'refused') return { data: { success: false, message: stopped.reason } }
       await flushSessionStorage()
       context.abortController.signal.throwIfAborted()
       const task = context.getAppState().tasks[address.agentId]
-      if (isLocalAgentTask(task)) address.task = task
+      if (isCrewmateTask(task)) address.task = task
       else delete address.task
     }
     if (address.task === undefined && address.transcriptPath === null) return { data: { success: false, message: `Cannot resume ${address.who}: no running task by that id in this session and no transcript on disk to resume from — the crewmate may belong to another process, or its record was cleaned up. Launch a new crewmate with Crewmate if the work is still wanted.` } }
@@ -87,13 +87,13 @@ export const ResumeAgentTool = buildTool({
       const mirrored = mirrorSwarmResume(context, address.agentId, input.message)
       if (mirrored && !mirrored.ok) logForDebugging(`crew board: ${mirrored.reason}`)
       speakAgentMessageFrame(address.agentId, notice)
-      const completion = senderAgentTask(context) === undefined
+      const completion = senderCrewmateTask(context) === undefined
         ? ', and its completion notice will come to you.'
         : '. Its completion notice goes to the main agent, not to you.'
       return { data: { success: true, message: `Crewmate ${address.who} had ${ended}; it was resumed in the background with your message${completion} Output file: ${resumed.outputFile}${resumed.note ?? ''}` } }
     } catch (error) {
       const words = errorMessage(error)
-      const owner = liveAgentOwner(address.agentId, context.getAppState().tasks)
+      const owner = liveCrewmateOwner(address.agentId, context.getAppState().tasks)
       const next = owner?.words === words ? '' : ' Launch a new crewmate with Crewmate if the work is still wanted.'
       return { data: { success: false, message: `Crewmate ${address.who} had ${ended} and could not be resumed: ${words}${next}` } }
     }
@@ -101,4 +101,4 @@ export const ResumeAgentTool = buildTool({
   mapToolResultToToolResultBlockParam: mapMessageResult,
   renderToolUseMessage,
   renderToolResultMessage,
-} satisfies ToolDef<InputSchema, ResumeAgentToolOutput>)
+} satisfies ToolDef<InputSchema, ResumeCrewmateToolOutput>)

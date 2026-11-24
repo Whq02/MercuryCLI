@@ -165,7 +165,7 @@ const { createFileStateCacheWithSizeLimit } = await import(
 const { SYNTHETIC_OUTPUT_TOOL_NAME } = await import(
   '../../src/tools/structured-output/SyntheticOutputTool.ts'
 )
-const { AGENT_TOOL_NAME } = await import('../../src/tools/kit/names/agent.ts')
+const { CREWMATE_TOOL_NAME } = await import('../../src/tools/kit/names/agent.ts')
 const { logError } = await import('../../src/platform/logs/errorLog.ts')
 const printMod = await import('../../src/daemon/runner/runHeadless.ts')
 const resumeMod = await import('../../src/daemon/runner/resume.ts')
@@ -709,7 +709,7 @@ section('E13 DENIALS — recorded via the wrap; the Crewmate tool under its own 
     message: 'rig denies',
     decisionReason: { type: 'other', reason: 'rig' },
   })
-  const agentishTool = { name: AGENT_TOOL_NAME }
+  const agentishTool = { name: CREWMATE_TOOL_NAME }
   const plainTool = { name: 'EchoTool' }
   const r = await runEngine({
     canUseTool: denyAll,

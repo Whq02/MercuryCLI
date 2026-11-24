@@ -21,12 +21,12 @@ enableConfigs()
 await import('../../src/engine/tasks/tasks.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { getCommandQueue, resetCommandQueue } = await import('../../src/screen/composer/input-core/command-queue.ts')
-const { registerAsyncAgent, failAgentTask } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { registerAsyncCrewmate, failCrewmateTask } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
 const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
-const { writeAgentMetadata } = await import('../../src/sessions/transcripts/paths.ts')
+const { writeCrewmateMetadata } = await import('../../src/sessions/transcripts/paths.ts')
 const { recordSidechainTranscript, flushSessionStorage } = await import('../../src/sessions/transcripts/writer.ts')
-const { readAgentPauseRecord } = await import('../../src/engine/tasks/local-agent/pauseCarry.ts')
+const { readCrewmatePauseRecord } = await import('../../src/engine/tasks/local-agent/pauseCarry.ts')
 const { armBudgetCutResume, armOverloadProbe, automaticResumePending, closeOverloadEpisode } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
 type AppState = ReturnType<typeof getDefaultAppState>
 
@@ -54,11 +54,11 @@ const receipts = (id: string): string[] => getCommandQueue().filter(command => c
 async function pausedCrewmate(id: string, description: string): Promise<{ store: { get: () => AppState; set: (update: (before: AppState) => AppState) => void }; launch: Record<string, unknown>; registration: AbortController }> {
   let state = { ...getDefaultAppState(), effortValue: 'high' } as AppState
   const store = { get: () => state, set: (update: (before: AppState) => AppState) => { state = update(state) } }
-  await writeAgentMetadata(id as never, { agentType: 'mercury-crew', description, launchedAt: Date.now() - 60_000, model: MODEL })
+  await writeCrewmateMetadata(id as never, { agentType: 'mercury-crew', description, launchedAt: Date.now() - 60_000, model: MODEL })
   await recordSidechainTranscript([createUserMessage({ content: 'carry the brief to its end' }), createAssistantMessage({ content: 'Working on it.' })] as never, id)
   await flushSessionStorage()
-  const task = registerAsyncAgent({ agentId: id, description, prompt: 'work', setAppState: store.set as never })
-  failAgentTask(id, 'API Error: the window is spent', store.set as never, task.abortController)
+  const task = registerAsyncCrewmate({ agentId: id, description, prompt: 'work', setAppState: store.set as never })
+  failCrewmateTask(id, 'API Error: the window is spent', store.set as never, task.abortController)
   const launch: Record<string, unknown> = {
     abortController: new AbortController(),
     getAppState: store.get,
@@ -88,7 +88,7 @@ for (const interrupted of [false, true]) {
   const started = await until(() => receipts(id).length > 0, 6_000)
   const row = store.get().tasks[id] as Row | undefined
   check(`${interrupted ? 'the launching turn was interrupted' : 'the launching turn ended whole'}: the timer fires and the crewmate is resumed by itself (a receipt row says so)`, fired && started, { fired, started, row: { status: row?.status, paused: row?.paused !== undefined } })
-  check(`${interrupted ? 'interrupted' : 'whole'}: the row no longer claims a retry that nothing holds`, row?.paused === undefined || automaticResumePending(id), { status: row?.status, paused: row?.paused !== undefined, armed: automaticResumePending(id), record: (await readAgentPauseRecord(id)) !== null })
+  check(`${interrupted ? 'interrupted' : 'whole'}: the row no longer claims a retry that nothing holds`, row?.paused === undefined || automaticResumePending(id), { status: row?.status, paused: row?.paused !== undefined, armed: automaticResumePending(id), record: (await readCrewmatePauseRecord(id)) !== null })
 }
 
 console.log('── the same for a crewmate paused on an overloaded provider ──')
@@ -112,8 +112,8 @@ console.log('── a retry that cannot start stops being claimed ──')
   const id = 'aresume0none'
   let state = { ...getDefaultAppState(), effortValue: 'high' } as AppState
   const set = (update: (before: AppState) => AppState): void => { state = update(state) }
-  const task = registerAsyncAgent({ agentId: id, description: 'no transcript', prompt: 'work', setAppState: set as never })
-  failAgentTask(id, 'API Error: the window is spent', set as never, task.abortController)
+  const task = registerAsyncCrewmate({ agentId: id, description: 'no transcript', prompt: 'work', setAppState: set as never })
+  failCrewmateTask(id, 'API Error: the window is spent', set as never, task.abortController)
   armBudgetCutResume({ taskId: id, description: id, registration: task.abortController!, toolUseContext: { abortController: new AbortController(), getAppState: () => state, setAppState: set, setAppStateForTasks: set, options: { tools: [] }, messages: [] } as never, rootSetAppState: set as never, delayMs: 60, pause: { why: 'usage limit', words: 'the window is spent', resumesAtMs: Date.now() + 60 } })
   check('armed, the row wears its pause', (state.tasks[id] as Row | undefined)?.paused !== undefined && automaticResumePending(id))
   const lifted = await until(() => (state.tasks[id] as Row | undefined)?.paused === undefined, 4_000)

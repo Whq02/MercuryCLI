@@ -18,7 +18,7 @@ import { enqueue, remove as removeQueuedCommands } from './messageQueueManager.j
 import { operatorPauseGate } from '../../engine/loop/pauseGate.js'
 import { saturnQueueStamp, screenCommandQueueStamp } from '../../engine/message-shapes/noticeRows.js'
 import { queuedWordsWaitForTurnEnd, subscribeQueueConsumption } from '../../screen/composer/input-core/command-queue.js'
-import { handOverForegroundAgentsToQueuedMessage } from '../../engine/tasks/local-agent/crewmateTask.js'
+import { handOverForegroundCrewmatesToQueuedMessage } from '../../engine/tasks/local-agent/crewmateTask.js'
 import { emptyInputRow, promptSchemaRefusal } from './structuredIO.js'
 import { invalidParams } from '../runner-wire/errors.js'
 import type { InputRow } from '../../engine/rows/vocabulary.js'
@@ -142,7 +142,7 @@ export async function acceptInput(input: AcceptedInput, ports: RunnerPorts): Pro
   if (localCommandInput(command)) command.localCommand = true
   enqueue(command)
   if (input.kind === 'prompt' && command.localCommand !== true && input.priority !== 'later' && !('origin' in saturnQueueStamp(input.origin)) && driver.isRunning() && !queuedWordsWaitForTurnEnd()) {
-    handOverForegroundAgentsToQueuedMessage(getAppState, setAppState)
+    handOverForegroundCrewmatesToQueuedMessage(getAppState, setAppState)
   }
   driver.kick()
   return { accepted: true }

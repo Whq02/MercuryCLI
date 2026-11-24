@@ -2,7 +2,7 @@ import type { TaskStatus } from '../../../engine/tasks/taskBase.js'
 import type { TaskState } from '../../../engine/tasks/taskState.js'
 import type { SessionListing } from '../../../sessions/transcripts/transcriptEntries.js'
 import type { WorkRosterV1 } from '../../../engine/connector/types.js'
-import type { CrewAgentFacts } from '../../../engine/connector/crewFacts.js'
+import type { CrewmateFacts } from '../../../engine/connector/crewFacts.js'
 import type { CrewLedgerRow } from '../../app-state/crewLedger.js'
 import type { RunSnapshot } from '../../../engine/run/runKernel.js'
 import type { ActiveSourceUsage } from '../../../models/roads/providerUsage.js'
@@ -16,7 +16,7 @@ import type { MercuryThemeTokens } from '../../theme/mercuryTokens.js'
 export type RunKind = 'shell' | 'monitor' | 'run'
 export type RunRow = { id: string; title: string; status: TaskStatus; kind: RunKind; startedAtMs: number }
 
-export type CrewRow = { id: string; label: string; status: TaskStatus; hosted?: boolean; facts?: CrewAgentFacts }
+export type CrewRow = { id: string; label: string; status: TaskStatus; hosted?: boolean; facts?: CrewmateFacts }
 export type CrewEntry = { kind: 'task'; row: CrewRow }
 
 export type WorkLedgerRow = { id: string; status: string; blockedBy?: readonly string[] }

@@ -470,21 +470,21 @@ t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly 
   t.check('picking a connect row routes to sign-in', agentModelPickOutcome(rows.find(r => r.value === '__mercury_connect__:zai')!).kind === 'needs-sign-in')
 
   {
-    const { getAgentModel } = await import('../../src/models/catalogue/agentModel.js')
+    const { getCrewmateModel } = await import('../../src/models/catalogue/agentModel.js')
     const { classifyModelRoute } = await import('../../src/models/roads/routeLaw.js')
     const PARENT = DEFAULT_OPUS
     t.check(
       'every offered model row dispatches deterministically',
-      rows.filter(r => r.kind === 'model').every(r => getAgentModel(r.value, PARENT).length > 0),
+      rows.filter(r => r.kind === 'model').every(r => getCrewmateModel(r.value, PARENT).length > 0),
     )
     t.check(
       'the haiku spellings resolve to the haiku row',
-      ['haiku', 'claude-haiku-4-5-20251001'].every(v => /haiku/.test(getAgentModel(v, PARENT))),
+      ['haiku', 'claude-haiku-4-5-20251001'].every(v => /haiku/.test(getCrewmateModel(v, PARENT))),
     )
     t.check(
       'a hand-saved sentinel never lands a family silently (unrecognised, refused at admission)',
       ['__mercury_test_sentinel__', '__mercury_connect__:zai'].every(
-        v => classifyModelRoute(getAgentModel(v, PARENT)).kind === 'unrecognised',
+        v => classifyModelRoute(getCrewmateModel(v, PARENT)).kind === 'unrecognised',
       ),
     )
   }
@@ -693,7 +693,7 @@ t.section('§9 — THE BUILT-IN MODEL DIAL (AGENTDIALS C1: the override round-tr
     '../../src/tools/crewmate/loadAgentsDir.js'
   )
   const { buildStudioRows } = await import('../../src/screen/agents/studio/studioData.js')
-  const { getAgentModel } = await import('../../src/models/catalogue/agentModel.js')
+  const { getCrewmateModel } = await import('../../src/models/catalogue/agentModel.js')
   const { parseUserSpecifiedModel } = await import('../../src/models/catalogue/engineModel.js')
   const { resolveEffectiveAgentRuntime } = await import('../../src/crew/agents/resolver.js')
   const { agentFaceDetailLines, BootAgentsScreen } = await import('../../src/screen/boot-face/BootAgentsScreen.js')
@@ -713,7 +713,7 @@ t.section('§9 — THE BUILT-IN MODEL DIAL (AGENTDIALS C1: the override round-tr
   t.check('the provenance keeps the pre-override intent', (worn?.operatorOverride?.intentModel ?? 'inherit') === 'inherit')
   t.check(
     'DISPATCH WEARS IT at the one chokepoint (override → definition.model → the floor predicates)',
-    getAgentModel(worn?.model, 'claude-fable-5') === parseUserSpecifiedModel('fixture-dial/model-x'),
+    getCrewmateModel(worn?.model, 'claude-fable-5') === parseUserSpecifiedModel('fixture-dial/model-x'),
   )
   await setAgentOverride('user', walkCwd, firstType, undefined)
   clearAgentDefinitionsCache()

@@ -1,11 +1,11 @@
 import { foregroundNotKeptLine } from '../../../engine/tasks/local-agent/launchReceipts.js'
 import { crewWorktreeLeftoverNoted, crewWorktreeReminderTail } from '../../../crew/crewmates/crewWorktreeReminder.js'
-import { RESUME_AGENT_TOOL_NAME } from '../../kit/names/resumeAgent.js'
+import { RESUME_CREWMATE_TOOL_NAME } from '../../kit/names/resumeAgent.js'
 import { PROMOTED_NARRATION_NOTE, structuredResultBlock } from '../crewmateLifecycle.js'
 import { ONE_SHOT_BUILTIN_AGENT_TYPES } from '../../kit/names/agent.js'
 import { envelopeFor } from '../../../crew/agent-results/ingest.js'
 import { formatEnvelopeBlock } from '../../../crew/agent-results/normalize.js'
-import type { AgentToolOutput } from './schema.js'
+import type { CrewmateToolOutput } from './schema.js'
 
 function usageBlock(data: {
   totalTokens?: number
@@ -21,7 +21,7 @@ function usageBlock(data: {
 }
 
 function continuationHint(agentId: string, name?: string): string {
-  return `agentId: ${agentId} (internal — do not mention it to the user). To continue this crewmate, use ${RESUME_AGENT_TOOL_NAME} addressed to that id${name ? ` or to its name "${name}"` : ''}.`
+  return `agentId: ${agentId} (internal — do not mention it to the user). To continue this crewmate, use ${RESUME_CREWMATE_TOOL_NAME} addressed to that id${name ? ` or to its name "${name}"` : ''}.`
 }
 
 function worktreeKeptLine(data: { worktreePath?: string; worktreeBranch?: string }): string | null {
@@ -31,8 +31,8 @@ function worktreeKeptLine(data: { worktreePath?: string; worktreeBranch?: string
   return `Worktree kept: ${data.worktreePath}${at ? ` (${at})` : ''}${leftover !== null ? ` — ${crewWorktreeReminderTail(leftover, Date.now())}` : ''}`
 }
 
-export function agentToolResultBlock(
-  output: AgentToolOutput,
+export function crewmateToolResultBlock(
+  output: CrewmateToolOutput,
   toolUseID: string,
 ) {
   const status: string = output.status

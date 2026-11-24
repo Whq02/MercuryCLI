@@ -80,7 +80,7 @@ section('§2 runner partition: excluded never reaches the member half')
 
 section('§3 subagent ∩: names resolve only within the parent catalogue')
 {
-  const { connectAgentMcpServers } = await import('../../src/tools/crewmate/runCrewmate.ts')
+  const { connectCrewmateMcpServers } = await import('../../src/tools/crewmate/runCrewmate.ts')
   const { connectToServer, getServerCacheKey } = await import('../../src/integrations/mcp/client.ts')
 
   const parentCfg = { type: 'stdio', command: 'parent-cmd', scope: 'local' } as never
@@ -103,7 +103,7 @@ section('§3 subagent ∩: names resolve only within the parent catalogue')
   const parentKey = getServerCacheKey('shared-server', parentCfg)
   memo.set(parentKey, Promise.resolve(fakeConnection))
 
-  const outcome = await connectAgentMcpServers(
+  const outcome = await connectCrewmateMcpServers(
     ['shared-server', 'outside-server', 'blocked-server'] as never,
     definition,
     catalogue as never,

@@ -1,6 +1,6 @@
 import { setLastMainRequestId } from 'src/boot/process-state/processState.js'
 import { addToTotalSessionCost } from 'src/models/usage/sessionCost.js'
-import { getAgentContext } from 'src/crew/agents/agentContext.js'
+import { getCrewmateContext } from 'src/crew/agents/agentContext.js'
 import { calculateUSDCost } from 'src/models/usage/modelCost.js'
 import { stopSessionActivity } from '../../../../engine/requests/sessionActivity.js'
 import { clearModelRefusal } from '../modelRefusal.js'
@@ -38,7 +38,7 @@ export function closeSucceededRequest(ctx: CallCtx, call: CallState): void {
   }
   if (
     call.streamRequestId &&
-    !getAgentContext() &&
+    !getCrewmateContext() &&
     (ctx.options.querySource.startsWith('main_thread') ||
       ctx.options.querySource === 'sdk')
   ) {

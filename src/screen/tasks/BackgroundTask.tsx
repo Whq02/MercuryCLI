@@ -2,7 +2,7 @@ import React from 'react'
 import { Text } from '../themedRenderer.js'
 import type { TaskState } from '../../engine/tasks/taskState.js'
 import type { LocalShellTaskState } from '../../engine/tasks/local-shell/shellTaskState.js'
-import type { LocalAgentTaskState } from '../../engine/tasks/local-agent/crewmateTask.js'
+import type { CrewmateTaskState } from '../../engine/tasks/local-agent/crewmateTask.js'
 import { truncateToWidth } from '../theme/glyphs.js'
 import { ShellProgress, TaskStatusText } from './ShellProgress.js'
 
@@ -27,11 +27,11 @@ function ShellLine({
   )
 }
 
-function AgentLine({
+function CrewmateLine({
   task,
   width,
 }: {
-  task: LocalAgentTaskState | (TaskState & { description: string })
+  task: CrewmateTaskState | (TaskState & { description: string })
   width: number
 }): React.ReactNode {
   const unread =
@@ -59,5 +59,5 @@ export function BackgroundTask({
   if (task.type === 'local_bash') {
     return <ShellLine shell={task} width={maxActivityWidth} />
   }
-  return <AgentLine task={task} width={maxActivityWidth} />
+  return <CrewmateLine task={task} width={maxActivityWidth} />
 }

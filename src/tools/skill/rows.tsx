@@ -1,6 +1,6 @@
 import * as React from 'react'
 
-import { SubAgentProvider } from '../../screen/messages/CtrlOToExpand.js'
+import { NestedRowsProvider } from '../../screen/messages/CtrlOToExpand.js'
 import { Byline } from '../../screen/theme/Byline.js'
 import { FallbackToolUseErrorMessage } from '../kit/FallbackToolUseErrorMessage.js'
 import { isDenialResultText } from '../../engine/message-shapes/rejectionText.js'
@@ -12,7 +12,7 @@ import type { Tools } from '../kit/tool.js'
 import type { ProgressMessage } from '../../engine/message-shapes/message.js'
 import type { SkillToolProgress } from '../kit/toolProgress.js'
 import type { ToolResultBlockParam } from '../../engine/message-shapes/wire.js'
-import { buildSubagentLookups } from '../../engine/messages/messages.js'
+import { buildNestedLookups } from '../../engine/messages/messages.js'
 import { plural } from '../../platform/text/strings.js'
 import type { Output } from './SkillTool.js'
 
@@ -66,9 +66,9 @@ function ProgressRows({
   }
   const visible = verbose ? rows : rows.slice(-VISIBLE_PROGRESS_TAIL)
   const hidden = rows.length - visible.length
-  const { lookups } = buildSubagentLookups(rows.map(row => ({ message: row.data.message })))
+  const { lookups } = buildNestedLookups(rows.map(row => ({ message: row.data.message })))
   return (
-    <SubAgentProvider>
+    <NestedRowsProvider>
       <MessageResponse>
         <Box flexDirection="column">
           {hidden > 0 ? (
@@ -95,7 +95,7 @@ function ProgressRows({
           ))}
         </Box>
       </MessageResponse>
-    </SubAgentProvider>
+    </NestedRowsProvider>
   )
 }
 

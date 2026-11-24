@@ -1,12 +1,12 @@
 
 import { existsSync, realpathSync } from 'node:fs'
 import {
-  readAgentTranscript,
+  readCrewmateTranscript,
   transcriptEndWords,
-  type AgentTranscriptView,
+  type CrewmateTranscriptView,
 } from '../../../crew/crewmates/agentTranscriptReader.js'
 import type { AgentId } from '../../../sessions/transcripts/ids.js'
-import { getAgentTranscriptPath } from '../../../sessions/transcripts/paths.js'
+import { getCrewmateTranscriptPath } from '../../../sessions/transcripts/paths.js'
 import { historyTail } from '../../../sessions/transcripts/historyParts.js'
 import { getTaskOutputPath } from '../../../engine/task-framework/diskOutput.js'
 import {
@@ -63,7 +63,7 @@ function tasksFrom(ctx: ResourceContext): TaskRow[] | null {
 function contentPathFor(id: string, task: TaskRow | undefined): string | null {
   const candidates: string[] = []
   try {
-    candidates.push(getAgentTranscriptPath(id as AgentId))
+    candidates.push(getCrewmateTranscriptPath(id as AgentId))
   } catch (error) {
     passedOver(error)
   }
@@ -83,7 +83,7 @@ function contentPathFor(id: string, task: TaskRow | undefined): string | null {
   return null
 }
 
-function reportText(view: AgentTranscriptView, running: boolean): string {
+function reportText(view: CrewmateTranscriptView, running: boolean): string {
   const lines: string[] = []
   if (view.finalText) {
     lines.push(view.finalText)
@@ -154,7 +154,7 @@ export const agentAdapter: ResourceAdapter = {
             : `no crewmate/process '${ref.id}' in this session and no transcript on disk`,
         }
       }
-      const view = await readAgentTranscript(contentPath)
+      const view = await readCrewmateTranscript(contentPath)
       if (!view) {
         return { state: 'absent', note: `transcript for '${ref.id}' is unreadable (${contentPath})` }
       }
@@ -213,7 +213,7 @@ export const agentAdapter: ResourceAdapter = {
     }
     const status = task
       ? agentStatusWord(task.status)
-      : transcriptEndWords(contentPath ? (await readAgentTranscript(contentPath))?.end : undefined)
+      : transcriptEndWords(contentPath ? (await readCrewmateTranscript(contentPath))?.end : undefined)
     const elapsed = task ? (task.endTime ?? Date.now()) - task.startTime : undefined
     return {
       state: 'ok',

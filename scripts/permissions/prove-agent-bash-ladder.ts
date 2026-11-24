@@ -20,10 +20,10 @@ await import('../../src/tools/kit/tool.ts')
 const { decideToolPermissionWithModes, defaultWrapperPorts } = await import('../../src/permissions/rules/decision/wrapper.ts')
 const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
-const { resolveAgentPromptPosture, composeAgentAppState, withAllowedCommandRules } = await import(
+const { resolveCrewmatePromptPosture, composeCrewmateAppState, withAllowedCommandRules } = await import(
   '../../src/tools/crewmate/agentPermissionPosture.ts'
 )
-const { resolveAgentTools, filterToolsForAgent } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+const { resolveAgentTools, filterToolsForCrewmate } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
 const { MERCURY_SCOUT_AGENT } = await import('../../src/tools/crewmate/built-in/mercuryScoutAgent.ts')
 const { MERCURY_CREW_AGENT } = await import('../../src/tools/crewmate/built-in/mercuryCrewAgent.ts')
 
@@ -54,7 +54,7 @@ guard.unref?.()
 section('§1 the prompt-posture owner — an agent inherits its parent\'s ask road')
 {
   const base = { isAsync: false, canShowPermissionPrompts: undefined, definitionMode: undefined, parentAvoidsPrompts: false, parentNonInteractive: false as boolean | undefined }
-  const rows: Array<{ label: string; facts: Parameters<typeof resolveAgentPromptPosture>[0]; want: { avoidPrompts: boolean; isNonInteractiveSession: boolean; hostHoldsAsks?: boolean } }> = [
+  const rows: Array<{ label: string; facts: Parameters<typeof resolveCrewmatePromptPosture>[0]; want: { avoidPrompts: boolean; isNonInteractiveSession: boolean; hostHoldsAsks?: boolean } }> = [
     { label: "a background agent of a hosted seat asks through the seat's own door", facts: { ...base, isAsync: true, parentNonInteractive: true, parentHostHoldsAsks: true }, want: { avoidPrompts: false, isNonInteractiveSession: true, hostHoldsAsks: true } },
     { label: 'a foreground agent of a hosted run inherits that road', facts: { ...base, parentNonInteractive: true, parentHostHoldsAsks: true }, want: { avoidPrompts: false, isNonInteractiveSession: true, hostHoldsAsks: true } },
     { label: 'a prompt-less child of a seat has no road (it avoids prompts by law)', facts: { ...base, isAsync: true, parentNonInteractive: true, parentHostHoldsAsks: true, parentAvoidsPrompts: true }, want: { avoidPrompts: true, isNonInteractiveSession: true } },
@@ -72,7 +72,7 @@ section('§1 the prompt-posture owner — an agent inherits its parent\'s ask ro
     { label: 'an unstated parent interactivity reads interactive for a child', facts: { ...base, isAsync: true, parentNonInteractive: undefined }, want: { avoidPrompts: false, isNonInteractiveSession: false } },
   ]
   for (const row of rows) {
-    const got = resolveAgentPromptPosture(row.facts)
+    const got = resolveCrewmatePromptPosture(row.facts)
     check(row.label, got.avoidPrompts === row.want.avoidPrompts && got.isNonInteractiveSession === row.want.isNonInteractiveSession && got.hostHoldsAsks === row.want.hostHoldsAsks, `got ${j(got)} want ${j(row.want)}`)
   }
 }
@@ -138,7 +138,7 @@ function contextFor(subject: Subject, mode: Mode, rules: Rules): unknown {
   let isNonInteractiveSession: boolean | undefined = parentPrint || parentSeat
   let hostHoldsAsks: boolean | undefined = parentSeat ? true : undefined
   if (isAgent) {
-    const posture = resolveAgentPromptPosture({
+    const posture = resolveCrewmatePromptPosture({
       isAsync,
       canShowPermissionPrompts: undefined,
       definitionMode: undefined,
@@ -148,7 +148,7 @@ function contextFor(subject: Subject, mode: Mode, rules: Rules): unknown {
     })
     isNonInteractiveSession = posture.isNonInteractiveSession
     hostHoldsAsks = posture.hostHoldsAsks
-    getAppState = () => composeAgentAppState(parent as never, { definitionMode: undefined, avoidPrompts: posture.avoidPrompts, isAsync, allowedTools: undefined, effortValue: undefined })
+    getAppState = () => composeCrewmateAppState(parent as never, { definitionMode: undefined, avoidPrompts: posture.avoidPrompts, isAsync, allowedTools: undefined, effortValue: undefined })
   }
   return {
     abortController: new AbortController(),
@@ -285,7 +285,7 @@ section('§3 the roster — the shell rides every definition that carries it, fo
     check(`${definition.agentType} keeps Bash (one derivation, foreground and background)`, names.includes('Bash'), names.join(','))
     check(`${definition.agentType} never carries the Crewmate tool itself`, !names.includes('Crewmate'))
   }
-  const kept = filterToolsForAgent({ tools: pool, isBuiltIn: true }).map(t => (t as { name: string }).name)
+  const kept = filterToolsForCrewmate({ tools: pool, isBuiltIn: true }).map(t => (t as { name: string }).name)
   check('the one filter keeps Bash', kept.includes('Bash'), kept.join(','))
   const readOnly = resolveAgentTools(MERCURY_SCOUT_AGENT as never, pool).resolvedTools.map(t => (t as { name: string }).name)
   check('the read-only scout keeps the shell and loses the editors (its shell is read-only by prompt, the read-only lane by verdict)', readOnly.includes('Bash') && !readOnly.includes('Edit') && !readOnly.includes('Write'))
@@ -301,9 +301,9 @@ section('§4 the allow-rule merge — allowedTools ADD to the operator\'s layers
   check('the operator\'s settings layer survives', j(merged.toolPermissionContext.alwaysAllowRules.userSettings) === j(['Bash(git *)']), j(merged.toolPermissionContext.alwaysAllowRules))
   check('the command layer gains the run\'s rules, deduplicated', j(merged.toolPermissionContext.alwaysAllowRules.command) === j(['Read', 'Bash(npm test *)']), j(merged.toolPermissionContext.alwaysAllowRules))
   check('an empty list is the identity', withAllowedCommandRules(state as never, []) === (state as never))
-  const composed = composeAgentAppState(state as never, { definitionMode: undefined, avoidPrompts: false, isAsync: true, allowedTools: ['Bash(npm test *)'], effortValue: undefined }) as typeof state
+  const composed = composeCrewmateAppState(state as never, { definitionMode: undefined, avoidPrompts: false, isAsync: true, allowedTools: ['Bash(npm test *)'], effortValue: undefined }) as typeof state
   check('the agent\'s composed view keeps the settings layer beside the run\'s rules', j(composed.toolPermissionContext.alwaysAllowRules.userSettings) === j(['Bash(git *)']) && (composed.toolPermissionContext.alwaysAllowRules.command ?? []).includes('Bash(npm test *)'), j(composed.toolPermissionContext.alwaysAllowRules))
-  const bare = composeAgentAppState(state as never, { definitionMode: undefined, avoidPrompts: false, isAsync: false, allowedTools: undefined, effortValue: undefined })
+  const bare = composeCrewmateAppState(state as never, { definitionMode: undefined, avoidPrompts: false, isAsync: false, allowedTools: undefined, effortValue: undefined })
   check('an agent with nothing to overlay reads the parent state itself', bare === (state as never))
 }
 

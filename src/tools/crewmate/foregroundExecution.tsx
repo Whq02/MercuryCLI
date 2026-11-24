@@ -1,31 +1,31 @@
 import {
   clearInvokedSkillsForAgent,
-  getSdkAgentProgressSummariesEnabled,
+  getSdkCrewmateProgressSummariesEnabled,
 } from '../../boot/process-state/processState.js'
-import { startAgentSummarization } from '../../crew/agent-summary/crewmateSummary.js'
+import { startCrewmateSummarization } from '../../crew/agent-summary/crewmateSummary.js'
 import {
-  AGENT_WINDOW_RESUME_NOTE,
-  agentStopReasonOf,
-  backgroundAgentTask,
-  completeAgentTask,
+  CREWMATE_WINDOW_RESUME_NOTE,
+  crewmateStopReasonOf,
+  backgroundCrewmateTask,
+  completeCrewmateTask,
   createActivityDescriptionResolver,
   createProgressTracker,
-  enqueueAgentNotification,
-  failAgentTask as failAsyncAgent,
+  enqueueCrewmateNotification,
+  failCrewmateTask as failAsyncAgent,
   getProgressUpdate,
   getTokenCountFromTracker,
-  isLocalAgentTask,
-  killAsyncAgent,
-  type LocalAgentTaskState,
+  isCrewmateTask,
+  killAsyncCrewmate,
+  type CrewmateTaskState,
   overloadPauseOf,
-  pauseAgentTask,
-  publishAgentProgressSoon,
-  publishAgentWaitFromEvent,
-  registerAgentForeground,
-  registerAgentName,
-  settleAgentForeground,
+  pauseCrewmateTask,
+  publishCrewmateProgressSoon,
+  publishCrewmateWaitFromEvent,
+  registerCrewmateForeground,
+  registerCrewmateName,
+  settleCrewmateForeground,
   takeSiblingEnd,
-  unregisterAgentForeground,
+  unregisterCrewmateForeground,
   updateProgressFromMessage,
   usageWindowPauseOf,
 } from '../../engine/tasks/local-agent/crewmateTask.js'
@@ -36,22 +36,22 @@ import type {
   Message,
   NormalizedUserMessage,
 } from '../../engine/message-shapes/message.js'
-import type { AgentToolProgress, ShellProgress } from '../kit/toolProgress.js'
+import type { CrewmateToolProgress, ShellProgress } from '../kit/toolProgress.js'
 import type { SetAppState } from '../../engine/tasks/taskBase.js'
-import { runWithAgentContext, type AgentContext } from '../../crew/agents/agentContext.js'
+import { runWithCrewmateContext, type AgentContext } from '../../crew/agents/agentContext.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { mirrorSwarmNotice, watchSwarmLaunch } from '../../crew/board/seam.js'
 import { AbortError, errorMessage } from '../../platform/errors/errors.js'
 import { flushSessionStorage } from '../../sessions/transcripts/sessionStorage.js'
 import type { CacheSafeParams } from '../../crew/agents/forkedAgent.js'
-import { pauseLineWords, type AgentPauseV1 } from '../../engine/tasks/local-agent/agentPause.js'
+import { pauseLineWords, type CrewmatePauseV1 } from '../../engine/tasks/local-agent/agentPause.js'
 import {
   extractTextContent,
   isSyntheticMessage,
   normalizeMessages,
 } from '../../engine/messages/messages.js'
 import { emitTaskEnded } from '../../daemon/runner/sdkEventQueue.js'
-import { emitBackgroundAgentRows } from '../../engine/task-framework/sdkAgentFrames.js'
+import { emitBackgroundCrewmateRows } from '../../engine/task-framework/sdkAgentFrames.js'
 import { getTaskOutputPath } from '../../engine/task-framework/diskOutput.js'
 import { getAssistantMessageContentLength } from '../../engine/context-window/contextTokenCount.js'
 import { BASH_TOOL_NAME } from '../kit/names/bash.js'
@@ -59,7 +59,7 @@ import { BackgroundHint } from '../shell/rows.js'
 import { READ_TOOL_NAME } from '../kit/names/fileRead.js'
 import { noteOverloadDeath, overloadDeathNotifies, overloadNoticeWords } from '../../engine/tasks/local-agent/agentOverload.js'
 import {
-  deriveAgentTerminalOutcome,
+  deriveCrewmateTerminalOutcome,
   emitTaskProgress,
   armBudgetCutResume,
   armOverloadProbe,
@@ -70,17 +70,17 @@ import {
   budgetCutResumeDelayMs,
   recoveryBudgetCutOf,
   overloadBudgetCutOf,
-  finalizeAgentTool,
+  finalizeCrewmateTool,
   getLastToolUseName,
   landedWritesOf,
   lastToolCallsOf,
   PROMOTED_NARRATION_NOTE,
   structuredResultBlock,
-  type AgentToolResult,
+  type CrewmateToolResult,
 } from './crewmateLifecycle.js'
 import type { BackgroundHandoverReason } from '../../engine/tasks/local-agent/launchReceipts.js'
 import type { AgentDefinition } from '../../crew/agents/agentDefinition.js'
-import { runAgent, type RunAgentParams } from './runCrewmate.js'
+import { runCrewmate, type RunCrewmateParams } from './runCrewmate.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
 const BACKGROUND_HINT_DELAY_MS = 2_000
@@ -88,7 +88,7 @@ const BACKGROUND_HINT_DELAY_MS = 2_000
 const BACKGROUNDED = Symbol('foreground-agent-backgrounded')
 const TURN_ABORTED = Symbol('foreground-agent-turn-aborted')
 
-export type ForegroundAgentMetadata = {
+export type ForegroundCrewmateMetadata = {
   prompt: string
   resolvedAgentModel: string
   isBuiltInAgent: boolean
@@ -100,10 +100,10 @@ export type ForegroundAgentMetadata = {
 
 type WorktreeFields = { worktreePath?: string; worktreeBranch?: string }
 
-type ForegroundAgentResult = {
+type ForegroundCrewmateResult = {
   data:
-    | (AgentToolResult & { status: 'completed'; prompt: string } & WorktreeFields)
-    | (AgentToolResult & {
+    | (CrewmateToolResult & { status: 'completed'; prompt: string } & WorktreeFields)
+    | (CrewmateToolResult & {
         status: 'failed'
         error: string
         prompt: string
@@ -124,14 +124,14 @@ type ForegroundAgentResult = {
   detached?: Promise<void>
 }
 
-type ForegroundAgentExecutionInput = {
-  runAgentParams: RunAgentParams
+type ForegroundCrewmateExecutionInput = {
+  runAgentParams: RunCrewmateParams
   promptMessages: Message[]
   prompt: string
   description: string
   name?: string
   modelNote?: string
-  metadata: ForegroundAgentMetadata
+  metadata: ForegroundCrewmateMetadata
   startTime: number
   syncAgentId: AgentId
   syncAgentContext: AgentContext
@@ -140,16 +140,16 @@ type ForegroundAgentExecutionInput = {
   assistantMessage: AssistantMessage
   onProgress?: (progress: {
     toolUseID: string
-    data: AgentToolProgress | ShellProgress
+    data: CrewmateToolProgress | ShellProgress
   }) => void
   rootSetAppState: SetAppState
   backgroundTasksDisabled: boolean
   cleanupWorktreeIfNeeded: () => Promise<WorktreeFields>
 }
 
-export async function runForegroundAgentExecution(
-  i: ForegroundAgentExecutionInput,
-): Promise<ForegroundAgentResult> {
+export async function runForegroundCrewmateExecution(
+  i: ForegroundCrewmateExecutionInput,
+): Promise<ForegroundCrewmateResult> {
   const {
     runAgentParams,
     promptMessages,
@@ -197,7 +197,7 @@ export async function runForegroundAgentExecution(
   let removeTurnAbortListener: (() => void) | undefined
 
   if (!backgroundTasksDisabled) {
-    foregroundTask = registerAgentForeground({
+    foregroundTask = registerCrewmateForeground({
       agentId: syncAgentId,
       description,
       prompt,
@@ -208,7 +208,7 @@ export async function runForegroundAgentExecution(
     })
     watchSwarmLaunch(syncAgentId, foregroundTask.abortController.signal)
     if (name !== undefined) {
-      registerAgentName(name, syncAgentId, rootSetAppState)
+      registerCrewmateName(name, syncAgentId, rootSetAppState)
     }
     backgroundedSignal = foregroundTask.backgroundSignal.then(
       (): typeof BACKGROUNDED => BACKGROUNDED,
@@ -230,9 +230,9 @@ export async function runForegroundAgentExecution(
     summarization?.stop()
     summarization = undefined
   }
-  const enableSummarization = getSdkAgentProgressSummariesEnabled()
+  const enableSummarization = getSdkCrewmateProgressSummariesEnabled()
 
-  const agentIterator = runAgent({
+  const agentIterator = runCrewmate({
     ...runAgentParams,
     override: {
       ...runAgentParams.override,
@@ -242,14 +242,14 @@ export async function runForegroundAgentExecution(
     ...(foregroundTask !== undefined
       ? {
           onQueryProgress: event =>
-            publishAgentWaitFromEvent(foregroundTask.taskId, tracker, event, rootSetAppState),
+            publishCrewmateWaitFromEvent(foregroundTask.taskId, tracker, event, rootSetAppState),
         }
       : {}),
     ...(foregroundTask !== undefined && enableSummarization
       ? {
           onCacheSafeParams: (cacheSafeParams: CacheSafeParams) => {
             if (summarization === undefined) {
-              summarization = startAgentSummarization(
+              summarization = startCrewmateSummarization(
                 foregroundTask.taskId,
                 syncAgentId,
                 cacheSafeParams,
@@ -264,7 +264,7 @@ export async function runForegroundAgentExecution(
   let backgrounded = false
   let hintShown = false
   let heldError: unknown
-  let seatPause: AgentPauseV1 | null = null
+  let seatPause: CrewmatePauseV1 | null = null
   let worktreeFields: WorktreeFields = {}
 
   try {
@@ -300,13 +300,13 @@ export async function runForegroundAgentExecution(
         if (winner === TURN_ABORTED || winner === BACKGROUNDED) {
           const handedByTurnAbort = winner === TURN_ABORTED
           if (handedByTurnAbort) {
-            backgroundAgentTask(foregroundTask.taskId, toolUseContext.getAppState, rootSetAppState)
+            backgroundCrewmateTask(foregroundTask.taskId, toolUseContext.getAppState, rootSetAppState)
           }
           const task = toolUseContext.getAppState().tasks?.[foregroundTask.taskId]
-          if (isLocalAgentTask(task) && task.isBackgrounded) {
+          if (isCrewmateTask(task) && task.isBackgrounded) {
             backgrounded = true
             const sibling = takeSiblingEnd(foregroundTask.taskId)
-            const detached = runWithAgentContext(syncAgentContext, () =>
+            const detached = runWithCrewmateContext(syncAgentContext, () =>
               runDetachedContinuation(
                 {
                   agentMessages,
@@ -365,7 +365,7 @@ export async function runForegroundAgentExecution(
 
       if (foregroundTask !== undefined) {
         if (message.type === 'assistant') {
-          publishAgentProgressSoon(foregroundTask.taskId, tracker, rootSetAppState)
+          publishCrewmateProgressSoon(foregroundTask.taskId, tracker, rootSetAppState)
         }
         const lastToolName = getLastToolUseName(message)
         if (lastToolName !== undefined) {
@@ -406,7 +406,7 @@ export async function runForegroundAgentExecution(
     }
     if (foregroundTask !== undefined) {
       if (backgrounded) {
-        unregisterAgentForeground(foregroundTask.taskId, rootSetAppState)
+        unregisterCrewmateForeground(foregroundTask.taskId, rootSetAppState)
       } else {
         seatPause = foregroundSeatSettled({
           heldError,
@@ -442,7 +442,7 @@ export async function runForegroundAgentExecution(
 function forwardForegroundProgress(args: {
   message: Message
   toolUseContext: ToolUseContext
-  onProgress: ForegroundAgentExecutionInput['onProgress']
+  onProgress: ForegroundCrewmateExecutionInput['onProgress']
   progressToolUseID: string
   prompt: string
   syncAgentId: AgentId
@@ -482,13 +482,13 @@ function forwardForegroundProgress(args: {
 async function settleForegroundResult(args: {
   agentMessages: Message[]
   heldError: unknown
-  seatPause: AgentPauseV1 | null
+  seatPause: CrewmatePauseV1 | null
   syncAgentId: AgentId
-  metadata: ForegroundAgentMetadata
+  metadata: ForegroundCrewmateMetadata
   prompt: string
   worktreeFields: WorktreeFields
   tracker: ReturnType<typeof createProgressTracker>
-}): Promise<ForegroundAgentResult> {
+}): Promise<ForegroundCrewmateResult> {
   const {
     agentMessages,
     heldError,
@@ -525,7 +525,7 @@ async function settleForegroundResult(args: {
         }
       : undefined
 
-  const finalized = finalizeAgentTool(agentMessages, syncAgentId, metadata, terminalFailure)
+  const finalized = finalizeCrewmateTool(agentMessages, syncAgentId, metadata, terminalFailure)
   const { failureText, data } = foregroundAnswerOf({
     heldError,
     seatPause,
@@ -569,10 +569,10 @@ async function runDetachedContinuation(
 
   const consumeMessage = (message: Message): void => {
     agentMessages.push(message)
-    emitBackgroundAgentRows(toolUseContext.toolUseId, message)
+    emitBackgroundCrewmateRows(toolUseContext.toolUseId, message)
     updateProgressFromMessage(tracker, message, resolveActivity, toolUseContext.options.tools)
     if (message.type === 'assistant') {
-      publishAgentProgressSoon(taskId, tracker, rootSetAppState)
+      publishCrewmateProgressSoon(taskId, tracker, rootSetAppState)
     }
     const lastToolName = getLastToolUseName(message)
     if (lastToolName !== undefined) {
@@ -594,7 +594,7 @@ async function runDetachedContinuation(
       next = await agentIterator.next()
     }
 
-    const finalized = finalizeAgentTool(agentMessages, syncAgentId, metadata)
+    const finalized = finalizeCrewmateTool(agentMessages, syncAgentId, metadata)
     const declined = finalized.outcome?.status === 'failed' ? finalized.outcome : undefined
     const overload =
       declined !== undefined
@@ -624,7 +624,7 @@ async function runDetachedContinuation(
       }
     } else {
       closeOverloadEpisode(taskId)
-      completeAgentTask(
+      completeCrewmateTask(
         { ...finalized, agentId: taskId },
         rootSetAppState,
         registration,
@@ -648,11 +648,11 @@ async function runDetachedContinuation(
     }
     let envelopeBlock: string | undefined
     try {
-      const { buildAgentResultEnvelope, formatEnvelopeBlock } = await import(
+      const { buildCrewmateResultEnvelope, formatEnvelopeBlock } = await import(
         '../../crew/agent-results/normalize.js'
       )
       envelopeBlock = formatEnvelopeBlock(
-        await buildAgentResultEnvelope({
+        await buildCrewmateResultEnvelope({
           agentId: String(syncAgentId),
           agentType: metadata.agentType,
           status: declined !== undefined ? 'failed' : 'completed',
@@ -669,7 +669,7 @@ async function runDetachedContinuation(
     }
 
     if (notifies) {
-      enqueueAgentNotification({
+      enqueueCrewmateNotification({
         taskId,
         description,
         status: declined !== undefined ? 'failed' : 'completed',
@@ -713,8 +713,8 @@ async function runDetachedContinuation(
       durationMs: usage.durationMs,
     }
     if (error instanceof AbortError) {
-      const stopReason = agentStopReasonOf(registration?.signal.reason)
-      killAsyncAgent(taskId, rootSetAppState, stopReason, registration)
+      const stopReason = crewmateStopReasonOf(registration?.signal.reason)
+      killAsyncCrewmate(taskId, rootSetAppState, stopReason, registration)
       closeOverloadEpisode(taskId)
       const worktreeResult = await cleanupWorktreeIfNeeded()
       await flushSessionStorage().catch(passedOver)
@@ -726,7 +726,7 @@ async function runDetachedContinuation(
         partialText: partialResult,
         usage: envelopeUsage,
       })
-      enqueueAgentNotification({
+      enqueueCrewmateNotification({
         taskId,
         description,
         status: 'killed',
@@ -766,7 +766,7 @@ async function runDetachedContinuation(
       usage: envelopeUsage,
     })
     if (notifies) {
-      enqueueAgentNotification({
+      enqueueCrewmateNotification({
         taskId,
         description,
         status: 'failed',
@@ -824,7 +824,7 @@ async function runDetachedContinuation(
   }
 }
 
-function asyncLaunchedAnswer(needs: { backgroundedTaskId: string; description: string; prompt: string; canReadOutputFile: boolean; modelNote: string | undefined; name: string | undefined; handedByTurnAbort: boolean; sibling: ReturnType<typeof takeSiblingEnd>; task: LocalAgentTaskState; detached: Promise<void> }): ForegroundAgentResult {
+function asyncLaunchedAnswer(needs: { backgroundedTaskId: string; description: string; prompt: string; canReadOutputFile: boolean; modelNote: string | undefined; name: string | undefined; handedByTurnAbort: boolean; sibling: ReturnType<typeof takeSiblingEnd>; task: CrewmateTaskState; detached: Promise<void> }): ForegroundCrewmateResult {
   const { backgroundedTaskId, description, prompt, canReadOutputFile, modelNote, name, handedByTurnAbort, sibling, task, detached } = needs
   return {
     data: {
@@ -844,7 +844,7 @@ function asyncLaunchedAnswer(needs: { backgroundedTaskId: string; description: s
   }
 }
 
-function foregroundAnswerOf(needs: { heldError: unknown; seatPause: AgentPauseV1 | null; finalized: ReturnType<typeof finalizeAgentTool>; prompt: string; agentMessages: Message[]; worktreeFields: WorktreeFields }) {
+function foregroundAnswerOf(needs: { heldError: unknown; seatPause: CrewmatePauseV1 | null; finalized: ReturnType<typeof finalizeCrewmateTool>; prompt: string; agentMessages: Message[]; worktreeFields: WorktreeFields }) {
   const { heldError, seatPause, finalized, prompt, agentMessages, worktreeFields } = needs
   const failureText =
     heldError !== undefined
@@ -856,7 +856,7 @@ function foregroundAnswerOf(needs: { heldError: unknown; seatPause: AgentPauseV1
           : finalized.outcome.error
         : undefined
 
-  const data: ForegroundAgentResult['data'] =
+  const data: ForegroundCrewmateResult['data'] =
     failureText !== undefined
       ? {
           status: 'failed' as const,
@@ -870,15 +870,15 @@ function foregroundAnswerOf(needs: { heldError: unknown; seatPause: AgentPauseV1
   return { failureText, data }
 }
 
-async function attachForegroundEnvelope(needs: { syncAgentId: AgentId; metadata: ForegroundAgentMetadata; failureText: string | undefined; finalized: ReturnType<typeof finalizeAgentTool>; tracker: ReturnType<typeof createProgressTracker>; data: ForegroundAgentResult['data'] }): Promise<void> {
+async function attachForegroundEnvelope(needs: { syncAgentId: AgentId; metadata: ForegroundCrewmateMetadata; failureText: string | undefined; finalized: ReturnType<typeof finalizeCrewmateTool>; tracker: ReturnType<typeof createProgressTracker>; data: ForegroundCrewmateResult['data'] }): Promise<void> {
   const { syncAgentId, metadata, failureText, finalized, tracker, data } = needs
   try {
-    const [{ buildAgentResultEnvelope }, { attachAgentEnvelope }] =
+    const [{ buildCrewmateResultEnvelope }, { attachCrewmateEnvelope }] =
       await Promise.all([
         import('../../crew/agent-results/normalize.js'),
         import('../../crew/agent-results/ingest.js'),
       ])
-    const envelope = await buildAgentResultEnvelope({
+    const envelope = await buildCrewmateResultEnvelope({
       agentId: String(syncAgentId),
       agentType: metadata.agentType,
       status: failureText !== undefined ? 'failed' : 'completed',
@@ -889,7 +889,7 @@ async function attachForegroundEnvelope(needs: { syncAgentId: AgentId; metadata:
         durationMs: finalized.totalDurationMs,
       },
     })
-    attachAgentEnvelope(data, envelope)
+    attachCrewmateEnvelope(data, envelope)
   } catch (error) {
     passedOver(error)
   }
@@ -899,19 +899,19 @@ type ForegroundTaskHandle = { taskId: string; abortController: AbortController; 
 
 type DetachedNeeds = {
   agentMessages: Message[]; toolUseContext: ToolUseContext; tracker: ReturnType<typeof createProgressTracker>; resolveActivity: ReturnType<typeof createActivityDescriptionResolver>
-  rootSetAppState: SetAppState; description: string; metadata: ForegroundAgentMetadata; agentIterator: ReturnType<typeof runAgent>; backgrounded: boolean
+  rootSetAppState: SetAppState; description: string; metadata: ForegroundCrewmateMetadata; agentIterator: ReturnType<typeof runCrewmate>; backgrounded: boolean
   foregroundTask: ForegroundTaskHandle | undefined; agentStartTime: number; cleanupWorktreeIfNeeded: () => Promise<WorktreeFields>; stopForegroundSummarization: () => void; syncAgentId: AgentId
 }
 
 type SeatSettledNeeds = {
   heldError: unknown; agentMessages: Message[]; foregroundTask: ForegroundTaskHandle; rootSetAppState: SetAppState; tracker: ReturnType<typeof createProgressTracker>
-  metadata: ForegroundAgentMetadata; description: string; toolUseContext: ToolUseContext; agentStartTime: number
+  metadata: ForegroundCrewmateMetadata; description: string; toolUseContext: ToolUseContext; agentStartTime: number
 }
 
-function foregroundSeatSettled(needs: SeatSettledNeeds): AgentPauseV1 | null {
+function foregroundSeatSettled(needs: SeatSettledNeeds): CrewmatePauseV1 | null {
   const { heldError, agentMessages, foregroundTask, rootSetAppState, tracker, metadata, description, toolUseContext, agentStartTime } = needs
-  let seatPause: AgentPauseV1 | null = null
-  const outcome = heldError === undefined ? deriveAgentTerminalOutcome(agentMessages) : null
+  let seatPause: CrewmatePauseV1 | null = null
+  const outcome = heldError === undefined ? deriveCrewmateTerminalOutcome(agentMessages) : null
   const status: 'completed' | 'failed' | 'stopped' =
     heldError instanceof AbortError
       ? 'stopped'
@@ -924,7 +924,7 @@ function foregroundSeatSettled(needs: SeatSettledNeeds): AgentPauseV1 | null {
       : status === 'failed' && heldError !== undefined
         ? { error: errorMessage(heldError) }
         : undefined
-  settleAgentForeground(foregroundTask.taskId, status, rootSetAppState, getProgressUpdate(tracker), why)
+  settleCrewmateForeground(foregroundTask.taskId, status, rootSetAppState, getProgressUpdate(tracker), why)
   const windowPause = outcome !== null && outcome.status === 'failed' ? usageWindowPauseOf(agentMessages, metadata.resolvedAgentModel) : null
   const overload = heldError !== undefined
     ? overloadBudgetCutOf(heldError, metadata.resolvedAgentModel)
@@ -952,11 +952,11 @@ function foregroundSeatSettled(needs: SeatSettledNeeds): AgentPauseV1 | null {
         rootSetAppState,
         delayMs: Math.max(1_000, windowPause.resumesAtMs - Date.now() + 1_000),
         pause: windowPause,
-        prompt: AGENT_WINDOW_RESUME_NOTE,
+        prompt: CREWMATE_WINDOW_RESUME_NOTE,
         summary: `Agent "${description}" resumed by itself — the usage window reset; its partial work carried forward`,
       })
     } else {
-      pauseAgentTask(foregroundTask.taskId, windowPause, rootSetAppState, foregroundTask.abortController)
+      pauseCrewmateTask(foregroundTask.taskId, windowPause, rootSetAppState, foregroundTask.abortController)
     }
   }
   const mirrored = mirrorSwarmNotice(foregroundTask.taskId, `settled:${foregroundTask.taskId}:${agentStartTime}`, description, seatPause ? 'paused' : status)

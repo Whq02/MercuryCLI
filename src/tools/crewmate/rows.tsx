@@ -1,8 +1,8 @@
 import * as React from 'react'
 import { Box, Text } from '../../screen/themedRenderer.js'
-import { AgentProgressLine } from './CrewmateProgressLine.js'
+import { CrewmateProgressLine } from './CrewmateProgressLine.js'
 import { ConfigurableShortcutHint } from '../../screen/keys/ConfigurableShortcutHint.js'
-import { CtrlOToExpand, SubAgentProvider } from '../../screen/messages/CtrlOToExpand.js'
+import { CtrlOToExpand, NestedRowsProvider } from '../../screen/messages/CtrlOToExpand.js'
 import { Byline } from '../../screen/theme/Byline.js'
 import { KeyboardShortcutHint } from '../../screen/theme/KeyboardShortcutHint.js'
 import { Message as MessageComponent } from '../../screen/messages/Message.js'
@@ -17,7 +17,7 @@ import type {
 } from '../../engine/message-shapes/message.js'
 import type { Tools } from '../kit/tool.js'
 import { safeSearchOrReadClassification, safeUserFacingName } from '../kit/tool.js'
-import { buildSubagentLookups } from '../../engine/messages/messages.js'
+import { buildNestedLookups } from '../../engine/messages/messages.js'
 import { formatTokens } from '../../platform/text/format.js'
 import { getTokenCountFromUsage } from '../../engine/context-window/contextTokenCount.js'
 import type { ApiUsage, ToolResultBlockParam } from '../../engine/message-shapes/wire.js'
@@ -28,17 +28,17 @@ import { getAgentColor } from './crewmateColors.js'
 import { useNowTick } from '../../screen/widgets/components.js'
 import { useFocusedWorkRoster } from '../../screen/tasks/useFocusedWork.js'
 import {
-  crewAgentByToolUse,
-  crewAgentsOf,
+  crewmateByToolUse,
+  crewmatesOf,
   crewElapsedLabel,
   crewModelLabel,
   crewPhaseWords,
   crewStateLabel,
   crewTokensSummary,
   crewToolUsesLabel,
-  type CrewAgentFacts,
+  type CrewmateFacts,
 } from '../../engine/connector/crewFacts.js'
-import type { AgentToolOutput } from './CrewmateTool.js'
+import type { CrewmateToolOutput } from './CrewmateTool.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
 function ExpandHint({ parens }: { parens?: boolean }): React.ReactNode {
@@ -53,16 +53,16 @@ function ExpandHint({ parens }: { parens?: boolean }): React.ReactNode {
   )
 }
 
-const GENERIC_AGENT_LABEL = 'crewmate'
+const GENERIC_CREWMATE_LABEL = 'crewmate'
 
-type AgentProgressData = {
+type CrewmateProgressData = {
   type?: string
   message?: AssistantMessage | NormalizedUserMessage
   prompt?: string
   agentId?: string
 }
 
-type AgentUiInput = {
+type CrewmateUiInput = {
   description?: string
   prompt?: string
   crewmate_type?: string
@@ -86,24 +86,24 @@ function pluralise(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? '' : 's'}`
 }
 
-type AgentProgressDataWithMessage = AgentProgressData & {
+type CrewmateProgressDataWithMessage = CrewmateProgressData & {
   message: AssistantMessage | NormalizedUserMessage
 }
 
 function hasProgressMessage(
-  data: AgentProgressData | undefined,
-): data is AgentProgressDataWithMessage {
+  data: CrewmateProgressData | undefined,
+): data is CrewmateProgressDataWithMessage {
   return Boolean(data && data.message)
 }
 
 function messagesOf(progressMessages: readonly ProgressMessage[]): Array<{
   progress: ProgressMessage
-  data: AgentProgressDataWithMessage
+  data: CrewmateProgressDataWithMessage
 }> {
-  const rows: Array<{ progress: ProgressMessage; data: AgentProgressDataWithMessage }> =
+  const rows: Array<{ progress: ProgressMessage; data: CrewmateProgressDataWithMessage }> =
     []
   for (const progress of progressMessages) {
-    const data = (progress as { data?: AgentProgressData }).data
+    const data = (progress as { data?: CrewmateProgressData }).data
     if (!hasProgressMessage(data)) continue
     rows.push({ progress, data })
   }
@@ -120,7 +120,7 @@ function latestTokenTotal(
   progressMessages: readonly ProgressMessage[],
 ): number {
   for (let i = progressMessages.length - 1; i >= 0; i--) {
-    const data = (progressMessages[i] as { data?: AgentProgressData }).data
+    const data = (progressMessages[i] as { data?: CrewmateProgressData }).data
     const message = data?.message
     if (!message || message.type !== 'assistant') continue
     const usage = (message as AssistantMessage).message.usage
@@ -131,7 +131,7 @@ function latestTokenTotal(
 }
 
 
-function AgentPromptDisplay({
+function CrewmatePromptDisplay({
   prompt,
   dim,
 }: {
@@ -151,7 +151,7 @@ function AgentPromptDisplay({
   )
 }
 
-function AgentResponseDisplay({
+function CrewmateResponseDisplay({
   content,
 }: {
   content: ReadonlyArray<{ type: 'text'; text: string }>
@@ -175,16 +175,16 @@ function AgentResponseDisplay({
   )
 }
 
-export function userFacingName(input?: AgentUiInput): string {
+export function userFacingName(input?: CrewmateUiInput): string {
   const type = input?.crewmate_type
   if (!type || type === 'mercury-crew' || type === 'worker') {
-    return GENERIC_AGENT_LABEL
+    return GENERIC_CREWMATE_LABEL
   }
   return type
 }
 
 export function userFacingNameBackgroundColor(
-  input?: AgentUiInput,
+  input?: CrewmateUiInput,
 ): string | undefined {
   const type = input?.crewmate_type
   if (!type) return undefined
@@ -192,14 +192,14 @@ export function userFacingNameBackgroundColor(
 }
 
 export function renderToolUseMessage(
-  input?: AgentUiInput,
+  input?: CrewmateUiInput,
 ): React.ReactNode | string | null {
   if (!input?.description || !input?.prompt) return null
   return input.description
 }
 
 export function renderToolUseTag(
-  input?: AgentUiInput,
+  input?: CrewmateUiInput,
 ): React.ReactNode | string | null {
   const model = input?.model
   if (!model) return null
@@ -221,7 +221,7 @@ function hasToolUseBlock(
 }
 
 function countAssistantToolUses(
-  rows: ReadonlyArray<{ data: AgentProgressDataWithMessage }>,
+  rows: ReadonlyArray<{ data: CrewmateProgressDataWithMessage }>,
 ): number {
   let count = 0
   for (const row of rows) {
@@ -247,7 +247,7 @@ function firstProgressPrompt(
     : undefined
 }
 
-export function hiddenAgentToolUses(
+export function hiddenCrewmateToolUses(
   progressMessages: readonly ProgressMessage[],
   tools: Tools,
 ): number {
@@ -277,7 +277,7 @@ export function renderToolUseProgressMessage(
   const allMessages = messagesOf(progressMessages)
   if (allMessages.length === 0) {
     return (
-      <AgentFactsOrInitialising
+      <CrewmateFactsOrInitialising
         {...(options.toolUseID !== undefined
           ? { toolUseID: options.toolUseID }
           : {})}
@@ -314,7 +314,7 @@ export function renderToolUseProgressMessage(
   const visible = showAll ? allDisplay : allDisplay.slice(-VISIBLE_TAIL)
   const hiddenToolUseCount = showAll
     ? 0
-    : hiddenAgentToolUses(progressMessages, options.tools)
+    : hiddenCrewmateToolUses(progressMessages, options.tools)
 
   if (visible.length === 0) {
     return (
@@ -327,21 +327,21 @@ export function renderToolUseProgressMessage(
   const prompt = options.isTranscriptMode
     ? firstProgressPrompt(progressMessages)
     : undefined
-  const { lookups, inProgressToolUseIDs } = buildSubagentLookups(
+  const { lookups, inProgressToolUseIDs } = buildNestedLookups(
     allMessages.map(row => ({ message: row.data.message })),
   )
 
   return (
     <MessageResponse>
       <Box flexDirection="column">
-        {prompt !== undefined ? <AgentPromptDisplay prompt={prompt} /> : null}
+        {prompt !== undefined ? <CrewmatePromptDisplay prompt={prompt} /> : null}
         {hiddenToolUseCount > 0 ? (
           <Text dimColor>
             +{pluralise(hiddenToolUseCount, 'more tool use')}{' '}
             <CtrlOToExpand />
           </Text>
         ) : null}
-        <SubAgentProvider>
+        <NestedRowsProvider>
           {visible.map((row, index) => (
             <MessageComponent
               key={row.progress.uuid ?? index}
@@ -359,7 +359,7 @@ export function renderToolUseProgressMessage(
               lookups={lookups}
             />
           ))}
-        </SubAgentProvider>
+        </NestedRowsProvider>
       </Box>
     </MessageResponse>
   )
@@ -367,7 +367,7 @@ export function renderToolUseProgressMessage(
 
 const EMPTY_SET: Set<string> = new Set()
 
-export function isResultTruncated(data: AgentToolOutput): boolean {
+export function isResultTruncated(data: CrewmateToolOutput): boolean {
   const record = data as {
     status?: string
     content?: Array<{ text?: string }>
@@ -382,7 +382,7 @@ export function isResultTruncated(data: AgentToolOutput): boolean {
 }
 
 export function renderToolResultMessage(
-  data: AgentToolOutput & { error?: string },
+  data: CrewmateToolOutput & { error?: string },
   progressMessages: readonly ProgressMessage[],
   options: {
     tools: Tools
@@ -413,7 +413,7 @@ export function renderToolResultMessage(
         ) : null}
         {options.isTranscriptMode && prompt !== undefined ? (
           <MessageResponse>
-            <AgentPromptDisplay prompt={prompt} />
+            <CrewmatePromptDisplay prompt={prompt} />
           </MessageResponse>
         ) : null}
       </Box>
@@ -455,7 +455,7 @@ export function renderToolResultMessage(
     : []
   const transcriptLookups =
     transcriptRows.length > 0
-      ? buildSubagentLookups(
+      ? buildNestedLookups(
           allMessages.map(row => ({ message: row.data.message })),
         ).lookups
       : null
@@ -469,11 +469,11 @@ export function renderToolResultMessage(
     <Box flexDirection="column">
       {options.isTranscriptMode && prompt !== undefined ? (
         <MessageResponse>
-          <AgentPromptDisplay prompt={prompt} />
+          <CrewmatePromptDisplay prompt={prompt} />
         </MessageResponse>
       ) : null}
       {transcriptLookups !== null ? (
-        <SubAgentProvider>
+        <NestedRowsProvider>
           {transcriptRows.map((row, index) => (
             <MessageResponse key={index}>
               <MessageComponent
@@ -492,13 +492,13 @@ export function renderToolResultMessage(
               />
             </MessageResponse>
           ))}
-        </SubAgentProvider>
+        </NestedRowsProvider>
       ) : null}
       {(options.isTranscriptMode || options.verbose) &&
       data.content &&
       data.content.length > 0 ? (
         <MessageResponse>
-          <AgentResponseDisplay content={data.content} />
+          <CrewmateResponseDisplay content={data.content} />
         </MessageResponse>
       ) : null}
       <MessageResponse height={1}>
@@ -522,7 +522,7 @@ export function renderToolResultMessage(
 }
 
 export function renderToolUseRejectedMessage(
-  input?: AgentUiInput,
+  input?: CrewmateUiInput,
   options?: {
     tools?: Tools
     verbose?: boolean
@@ -577,9 +577,9 @@ export function renderToolUseErrorMessage(
 type GroupedToolUse = {
   toolUseID?: string
   toolUse?: { id?: string; input?: unknown }
-  input?: AgentUiInput | string
+  input?: CrewmateUiInput | string
   progressMessages?: ProgressMessage[]
-  output?: AgentToolOutput | { status?: string }
+  output?: CrewmateToolOutput | { status?: string }
   rawResult?: unknown
   isResolved?: boolean
   isErrored?: boolean
@@ -595,12 +595,12 @@ function groupOutput(entry: GroupedToolUse): { status?: string } | undefined {
   return typeof raw === 'object' && raw !== null ? (raw as { status?: string }) : undefined
 }
 
-function parseGroupInput(entry: GroupedToolUse): AgentUiInput {
-  const raw = entry.input ?? (entry.toolUse?.input as AgentUiInput | string | undefined)
+function parseGroupInput(entry: GroupedToolUse): CrewmateUiInput {
+  const raw = entry.input ?? (entry.toolUse?.input as CrewmateUiInput | string | undefined)
   if (!raw) return {}
   if (typeof raw === 'string') {
     try {
-      return JSON.parse(raw) as AgentUiInput
+      return JSON.parse(raw) as CrewmateUiInput
     } catch (error) {
       passedOver(error)
       return {}
@@ -611,7 +611,7 @@ function parseGroupInput(entry: GroupedToolUse): AgentUiInput {
 
 type GroupedEntry = {
   toolUseID?: string
-  input: AgentUiInput
+  input: CrewmateUiInput
   toolUseCount: number
   tokens: number
   lastTool: string | null
@@ -620,19 +620,19 @@ type GroupedEntry = {
   isErrored: boolean
 }
 
-function factsForEntry(agents: readonly CrewAgentFacts[], entry: GroupedEntry): CrewAgentFacts | null {
+function factsForEntry(agents: readonly CrewmateFacts[], entry: GroupedEntry): CrewmateFacts | null {
   if (entry.toolUseID === undefined) return null
-  return crewAgentByToolUse(agents, entry.toolUseID)
+  return crewmateByToolUse(agents, entry.toolUseID)
 }
 
-function factsStatusLine(facts: CrewAgentFacts, nowMs: number): string {
+function factsStatusLine(facts: CrewmateFacts, nowMs: number): string {
   const doing = crewPhaseWords(facts, nowMs) ?? crewStateLabel(facts)
   return `${doing} · ${crewElapsedLabel(facts, nowMs)}`
 }
 
-function CrewAgentRows({ entries, animate }: { entries: GroupedEntry[]; animate: boolean }): React.ReactNode {
+function CrewmateRows({ entries, animate }: { entries: GroupedEntry[]; animate: boolean }): React.ReactNode {
   const roster = useFocusedWorkRoster()
-  const agents = React.useMemo(() => crewAgentsOf(roster.rows, null), [roster])
+  const agents = React.useMemo(() => crewmatesOf(roster.rows, null), [roster])
   const anyRunning = React.useMemo(() => entries.some(entry => factsForEntry(agents, entry)?.running === true), [agents, entries])
   const now = useNowTick(animate || anyRunning ? 1000 : null)
   return (
@@ -652,7 +652,7 @@ function CrewAgentRows({ entries, animate }: { entries: GroupedEntry[]; animate:
         const toolUses = facts?.toolUses ?? entry.output?.totalToolUseCount ?? entry.toolUseCount
         const statusLine = facts !== null ? factsStatusLine(facts, now) : null
         return (
-          <AgentProgressLine
+          <CrewmateProgressLine
             key={entry.toolUseID ?? index}
             agentType={userFacingName(entry.input)}
             {...(entry.input.description !== undefined ? { description: entry.input.description } : {})}
@@ -673,10 +673,10 @@ function CrewAgentRows({ entries, animate }: { entries: GroupedEntry[]; animate:
   )
 }
 
-function AgentFactsOrInitialising({ toolUseID }: { toolUseID?: string }): React.ReactNode {
+function CrewmateFactsOrInitialising({ toolUseID }: { toolUseID?: string }): React.ReactNode {
   const roster = useFocusedWorkRoster()
   const facts = React.useMemo(
-    () => (toolUseID === undefined ? null : crewAgentByToolUse(crewAgentsOf(roster.rows, null), toolUseID)),
+    () => (toolUseID === undefined ? null : crewmateByToolUse(crewmatesOf(roster.rows, null), toolUseID)),
     [roster, toolUseID],
   )
   const now = useNowTick(facts !== null && facts.running ? 1000 : null)
@@ -716,7 +716,7 @@ function isSearchOrReadCall(
 }
 
 function summarizeLastTool(
-  allMessages: ReadonlyArray<{ data: AgentProgressDataWithMessage }>,
+  allMessages: ReadonlyArray<{ data: CrewmateProgressDataWithMessage }>,
   tools: Tools,
 ): string | null {
   const toolUsesById = new Map<string, { name: string; input: unknown }>()
@@ -773,7 +773,7 @@ function summarizeLastTool(
 }
 
 function countToolResultRows(
-  allMessages: ReadonlyArray<{ data: AgentProgressDataWithMessage }>,
+  allMessages: ReadonlyArray<{ data: CrewmateProgressDataWithMessage }>,
 ): number {
   let count = 0
   for (const row of allMessages) {
@@ -789,7 +789,7 @@ function countToolResultRows(
   return count
 }
 
-export function renderGroupedAgentToolUse(
+export function renderGroupedCrewmateToolUse(
   toolUses: GroupedToolUse[],
   options: { shouldAnimate: boolean; tools: Tools },
 ): React.ReactNode {
@@ -840,7 +840,7 @@ export function renderGroupedAgentToolUse(
   const firstName = names[0]
   const commonType =
     firstName !== undefined &&
-    firstName !== GENERIC_AGENT_LABEL &&
+    firstName !== GENERIC_CREWMATE_LABEL &&
     names.every(name => name === firstName)
       ? firstName
       : null
@@ -883,7 +883,7 @@ export function renderGroupedAgentToolUse(
           </Text>
         )}
       </Box>
-      <CrewAgentRows
+      <CrewmateRows
         entries={entries}
         animate={options.shouldAnimate && !allResolved}
       />

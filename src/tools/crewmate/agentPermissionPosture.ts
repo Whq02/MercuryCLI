@@ -8,7 +8,7 @@ import {
   type PermissionMode,
 } from '../../permissions/rules/permissionMode.js'
 
-interface AgentPromptPostureFacts {
+interface CrewmatePromptPostureFacts {
   isAsync: boolean
   canShowPermissionPrompts: boolean | undefined
   definitionMode: PermissionMode | undefined
@@ -17,15 +17,15 @@ interface AgentPromptPostureFacts {
   parentHostHoldsAsks?: boolean | undefined
 }
 
-interface AgentPromptPosture {
+interface CrewmatePromptPosture {
   avoidPrompts: boolean
   isNonInteractiveSession: boolean
   hostHoldsAsks: boolean | undefined
 }
 
-export function resolveAgentPromptPosture(
-  facts: AgentPromptPostureFacts,
-): AgentPromptPosture {
+export function resolveCrewmatePromptPosture(
+  facts: CrewmatePromptPostureFacts,
+): CrewmatePromptPosture {
   const avoidPrompts =
     facts.canShowPermissionPrompts !== undefined
       ? !facts.canShowPermissionPrompts
@@ -55,7 +55,7 @@ export function withAllowedCommandRules<
   }
 }
 
-interface AgentAppStateFacts {
+interface CrewmateAppStateFacts {
   definitionMode: PermissionMode | undefined
   avoidPrompts: boolean
   isAsync: boolean
@@ -77,9 +77,9 @@ export function offeredDefinitionModes(sovereignConsent: boolean): PermissionMod
   return PERMISSION_MODES.filter(mode => sovereignConsent || !modeBypassesPermissions(mode))
 }
 
-export function composeAgentAppState(
+export function composeCrewmateAppState(
   parentState: AppState,
-  facts: AgentAppStateFacts,
+  facts: CrewmateAppStateFacts,
 ): AppState {
   const parentMode = parentState.toolPermissionContext.mode
   let changed = false

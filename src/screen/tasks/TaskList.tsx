@@ -5,7 +5,7 @@ import { stringWidth } from '../renderer/stringWidth.js'
 import { useTimer } from '../effects/effects.js'
 import { useTerminalSize } from '../fullscreen-layout/useTerminalSize.js'
 import { AppStoreContext, type AppState } from '../app-state/AppState.js'
-import { isLocalAgentTask } from '../../engine/tasks/local-agent/crewmateTask.js'
+import { isCrewmateTask } from '../../engine/tasks/local-agent/crewmateTask.js'
 import type { WorkRowV1 } from '../../engine/connector/types.js'
 import { isTaskToolsEnabled } from '../../engine/task-framework/tasks.js'
 import { truncateToWidth } from '../../platform/text/truncate.js'
@@ -31,7 +31,7 @@ function collectRunningOwners(
         const agentTask = appTasks[taskId]
         if (
           agentTask !== undefined &&
-          isLocalAgentTask(agentTask) &&
+          isCrewmateTask(agentTask) &&
           agentTask.status === 'running'
         ) {
           runningOwners.add(name)
@@ -44,7 +44,7 @@ function collectRunningOwners(
       }
     }
     for (const agentTask of Object.values(appTasks)) {
-      if (isLocalAgentTask(agentTask) && agentTask.status === 'running') {
+      if (isCrewmateTask(agentTask) && agentTask.status === 'running') {
         runningOwners.add(agentTask.id)
         runningOwners.add(agentTask.agentId)
         const last = agentTask.progress?.lastActivity

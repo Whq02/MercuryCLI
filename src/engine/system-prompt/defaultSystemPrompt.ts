@@ -47,7 +47,7 @@ import { isAutoFoldEnabled } from '../compaction/autoFold.js'
 import {
   LOCAL_CREWMATE_NOTES,
   LOCAL_POSTURE_WORDS,
-  LOCAL_SUBAGENT_DOCTRINE,
+  LOCAL_CREWMATE_DOCTRINE,
   localEstateSection,
   localLaw,
   localPromptProfileApplies,
@@ -203,7 +203,7 @@ export async function enhanceSystemPromptWithEnvDetails(
     await ensureLocalRecord(model)
     const rewritten = filtered.map(block => {
       if (block === MERCURY_CONSTITUTION) return localLaw(model)
-      if (block.startsWith('<subagent-doctrine>')) return LOCAL_SUBAGENT_DOCTRINE
+      if (block.startsWith('<subagent-doctrine>')) return LOCAL_CREWMATE_DOCTRINE
       return block
     })
     const notesBlock = `Notes:\n${prependBullets([...LOCAL_CREWMATE_NOTES]).join('\n')}`

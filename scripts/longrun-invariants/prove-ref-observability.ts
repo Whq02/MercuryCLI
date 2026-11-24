@@ -11,7 +11,7 @@ import {
 } from '../../src/integrations/resources/registry.js'
 import type { ResourceContext } from '../../src/integrations/resources/contracts.js'
 import { formatEnvelopeBlock } from '../../src/crew/agent-results/normalize.js'
-import type { AgentResultEnvelope } from '../../src/crew/agent-results/contracts.js'
+import type { CrewmateResultEnvelope } from '../../src/crew/agent-results/contracts.js'
 import { makeOwnerKey } from '../../src/engine/run-owner/ownerKey.js'
 import { OUTCOME_CAP_CHARS } from '../../src/crew/crewmates/agentTranscriptReader.js'
 import { entryToRecord } from '../../src/sessions/fabric/entryCodec.js'
@@ -110,7 +110,7 @@ console.log('\n=== items 3: mercury://agent/<id>?child=report (canonical project
   const detail = await resolveRef('mercury://agent/ag-done')
   check('detail view advertises ?child=report', detail.state === 'ok' && (detail.resource.children ?? []).some(c => c.ref.endsWith('?child=report')), `state=${detail.state}; the detail branch of agentAdapter.resolve in src/integrations/resources/adapters/agent.ts must list the ?child=report child`)
 
-  const env: AgentResultEnvelope = {
+  const env: CrewmateResultEnvelope = {
     version: 1,
     agentId: 'ag-done',
     status: 'completed',
@@ -122,7 +122,7 @@ console.log('\n=== items 3: mercury://agent/<id>?child=report (canonical project
     checks: [],
     unresolved: [],
     fullOutputRef: 'mercury://agent/ag-done',
-  } as unknown as AgentResultEnvelope
+  } as unknown as CrewmateResultEnvelope
   check('envelope advertises ?child=report', formatEnvelopeBlock(env).includes('mercury://agent/ag-done?child=report'), 'formatEnvelopeBlock in src/crew/agent-results/normalize.ts must print the fullOutputRef followed by ?child=report')
 }
 

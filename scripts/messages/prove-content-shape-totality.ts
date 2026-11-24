@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { normalizeMessages, isToolUseRequestMessage, isToolUseResultMessage, contentBlocksOf } from '../../src/engine/message-shapes/normalize.js'
-import { buildMessageLookups, buildSubagentLookups, getSiblingToolUseIDs } from '../../src/engine/messages/lookups.js'
+import { buildMessageLookups, buildNestedLookups, getSiblingToolUseIDs } from '../../src/engine/messages/lookups.js'
 import { ensureToolResultPairing, orderToolResultsByUse } from '../../src/engine/messages/wirePairing.js'
 
 let failures = 0
@@ -125,7 +125,7 @@ const HEALTHY_TWO_BLOCK = mk({
 
   threw = ''
   try {
-    buildSubagentLookups([{ message: OBJECT_ASSISTANT }, { message: STRING_ASSISTANT }] as unknown as Parameters<typeof buildSubagentLookups>[0])
+    buildNestedLookups([{ message: OBJECT_ASSISTANT }, { message: STRING_ASSISTANT }] as unknown as Parameters<typeof buildNestedLookups>[0])
   } catch (e) { threw = String(e) }
   t('§2 lookups: buildSubagentLookups survives poisoned subagent rows', threw === '', threw, 'buildSubagentLookups in src/engine/messages/lookups.ts must not throw when subagent messages hold string or object content')
 }

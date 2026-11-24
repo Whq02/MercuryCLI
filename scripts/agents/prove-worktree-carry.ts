@@ -30,7 +30,7 @@ const worktree = await import('../../src/platform/git/worktree/worktree.ts')
 const instructions = await import('../../src/sessions/instructions/instructionFiles.ts')
 const cloneModule = (await import('../../src/platform/git/worktree/worktreeClone.ts')) as unknown as { planCloneCalls: (source: string, held?: (path: string) => boolean, leaveOut?: boolean) => Promise<{ folders: string[]; clones: string[]; links: string[] }> }
 type Made = { worktreePath: string; prepareFailure?: string; ready?: Promise<void> }
-const make = (slug: string, options: Record<string, unknown> = {}): Promise<Made> => (worktree.createAgentWorktree as (slug: string, options: unknown) => Promise<Made>)(slug, options)
+const make = (slug: string, options: Record<string, unknown> = {}): Promise<Made> => (worktree.createCrewmateWorktree as (slug: string, options: unknown) => Promise<Made>)(slug, options)
 const prepare = worktree.prepareWorktreeFiles as (repo: string, path: string, from?: string, preserve?: boolean, permission?: unknown, carry?: boolean) => Promise<void>
 
 if (scenario !== undefined) {

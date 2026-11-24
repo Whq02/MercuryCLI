@@ -193,7 +193,7 @@ const byId = new Map(rows.map(r => [r.id, r]))
 }
 
 console.log('— T3 one record, every surface —')
-const agents = crew.crewAgentsOf(rows, 'fx-session')
+const agents = crew.crewmatesOf(rows, 'fx-session')
 {
   check(
     'T3 the crew = the agent rows (never the main thread)',
@@ -206,7 +206,7 @@ const agents = crew.crewAgentsOf(rows, 'fx-session')
     agents.map(a => a.id).join(','),
   )
   const boardFacts = [...rosterRowsOf(rows, 'agent'), ...rosterRowsOf(rows, 'crewmate')].map(w =>
-    crew.crewAgentFactsOf(w, 'fx-session'),
+    crew.crewmateFactsOf(w, 'fx-session'),
   )
   check(
     'T3 the /tasks board\'s derivation yields the SAME record per agent (byte-equal)',
@@ -235,7 +235,7 @@ const agents = crew.crewAgentsOf(rows, 'fx-session')
   check('T3 every agent names its parent session', agents.every(a => a.sessionId === 'fx-session'))
   check(
     'T3 an empty roster is the empty crew',
-    crew.crewAgentsOf([], null).length === 0 && crew.crewCountLabel([]) === crew.CREW_EMPTY_LINE,
+    crew.crewmatesOf([], null).length === 0 && crew.crewCountLabel([]) === crew.CREW_EMPTY_LINE,
   )
 }
 
@@ -281,7 +281,7 @@ console.log('— T4 the Crew view painted off-screen —')
   check('T4 one list, no spawn door and no second section', !live.includes('n new') && !live.includes('Named agents'))
   const landedRows: WorkRowV1[] = rows.map(r => ({ ...r, status: 'completed', endTime: r.startTime + 60_000 }))
   const landed = await paint(landedRows)
-  const landedFacts = crew.crewAgentsOf(landedRows, 'fx-session')
+  const landedFacts = crew.crewmatesOf(landedRows, 'fx-session')
   check(
     'T4 after landing: both agents still listed with model + tokens, the one status word (landed, never the runner\'s completed)',
     landed.includes(OPENAI_ID) && landed.includes(ANTHROPIC_ID) && landed.includes('landed') && !landed.includes('completed') &&
@@ -323,10 +323,10 @@ console.log('— T5 the usage attribution —')
   check('T5 no settled response ⇒ no line (never a zero that reads as fact)', crew.crewUsageLine([agents.find(a => a.id === 'ag3')!]) === null)
   const { addToTotalSessionCost } = await import('../../src/models/usage/sessionCost.ts')
   const state = await import('../../src/boot/process-state/processState.ts')
-  const { runWithAgentContext } = await import('../../src/crew/agents/agentContext.ts')
+  const { runWithCrewmateContext } = await import('../../src/crew/agents/agentContext.ts')
   const inBefore = state.getTotalInputTokens()
   const outBefore = state.getTotalOutputTokens()
-  runWithAgentContext(
+  runWithCrewmateContext(
     { agentType: 'subagent', agentId: 'fx-agent', invocationKind: 'spawn', invocationEmitted: false } as never,
     () => {
       addToTotalSessionCost(
@@ -368,7 +368,7 @@ console.log('— T7 the status vocabulary and the transcript card —')
   )
   check(
     'T7 the join finds an agent by its tool-use id',
-    crew.crewAgentByToolUse(agents, 'tu-ag1')?.id === 'ag1' && crew.crewAgentByToolUse(agents, 'tu-none') === null,
+    crew.crewmateByToolUse(agents, 'tu-ag1')?.id === 'ag1' && crew.crewmateByToolUse(agents, 'tu-none') === null,
   )
   check('T7 the row line speaks the vocabulary', crew.crewRowLine(agents.find(a => a.id === 'ag4')!, t0).includes(' · landed · '))
   const React = (await import('react')).default
@@ -399,7 +399,7 @@ console.log('— T7 the status vocabulary and the transcript card —')
     }
   }
   const grouped = await paint(
-    ui.renderGroupedAgentToolUse(
+    ui.renderGroupedCrewmateToolUse(
       [
         { toolUseID: 'tu-ag1', input: { description: 'tide-gauges', prompt: 'p', crewmate_type: 'mercury-crew' }, progressMessages: [] },
         { toolUseID: 'tu-ag2', input: { description: 'reef-survey', prompt: 'p', crewmate_type: 'mercury-crew' }, progressMessages: [] },
@@ -444,7 +444,7 @@ console.log('— T7 the status vocabulary and the transcript card —')
   const askRows = projectWorkRoster(askStore)
   const byAsk = new Map(askRows.map(r => [r.id, r]))
   check("T8 a running agent's parked ask rides its row", byAsk.get('ask1')?.pendingAsks === 1, JSON.stringify(byAsk.get('ask1')))
-  const askFacts = crew.crewAgentsOf(askRows, 'fx-session')
+  const askFacts = crew.crewmatesOf(askRows, 'fx-session')
   const f1 = askFacts.find(a => a.id === 'ask1')!
   const f2 = askFacts.find(a => a.id === 'ask2')!
   const f3 = askFacts.find(a => a.id === 'ask3')!

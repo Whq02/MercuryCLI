@@ -4,7 +4,7 @@ import { jevKeyPresence, resolveJevApiKey } from '../../models/jev/jevKey.js'
 import { noteJevAttempt, noteJevWireFailure, settleJevCall } from '../../models/jev/jevLedger.js'
 import { readJevSettings } from '../../models/jev/jevSetting.js'
 import { jevStatus } from '../../models/jev/jevStatus.js'
-import { getAgentContext } from '../../crew/agents/agentContext.js'
+import { getCrewmateContext } from '../../crew/agents/agentContext.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { pendingRows } from './mnemeBuffer.js'
 import { USER_ASKED_RULE_ROAD } from './mnemeCorrect.js'
@@ -263,7 +263,7 @@ const CONTRADICTION_QUESTION: JevQuestion = {
 export function jevJudgeOpen(): boolean {
   const settings = readJevSettings()
   if (!settings.enabled || !jevKeyPresence(hostEnv(), settings.road).present) return false
-  const context = getAgentContext()
+  const context = getCrewmateContext()
   const agent = context === undefined ? undefined : { id: context.agentId, subagent: true }
   if (agent !== undefined && !settings.subagents) return false
   return jevStatus(agent, Date.now(), settings).kind === 'ready'
@@ -276,7 +276,7 @@ const judgeWithJev: ContradictionJudge = async (pairs, signal) => {
   const road = settings.road
   const key = resolveJevApiKey(hostEnv(), road)
   if (key === undefined) return pairs.map(() => null)
-  const context = getAgentContext()
+  const context = getCrewmateContext()
   const agent = context === undefined ? undefined : { id: context.agentId, subagent: true }
   const flights = pairs.map(async (pair): Promise<number | null> => {
     const at = Date.now()

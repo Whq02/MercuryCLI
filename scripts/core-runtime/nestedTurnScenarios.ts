@@ -223,7 +223,7 @@ const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPr
 const { flushSessionStorage } = await import('../../src/sessions/transcripts/sessionStorage.ts')
 const { hookAnswerSchema } = await import('../../src/integrations/event-hooks/contract.ts')
 const { SYNTHETIC_OUTPUT_TOOL_NAME } = await import('../../src/tools/kit/names/syntheticOutput.ts')
-const { runAgent } = await import('../../src/tools/crewmate/runCrewmate.ts')
+const { runCrewmate } = await import('../../src/tools/crewmate/runCrewmate.ts')
 const { runForkedAgent } = await import('../../src/crew/agents/forkedAgent.ts')
 const { runCrewmateHook } = await import('../../src/integrations/event-hook-runners/crewmateRunner.ts')
 
@@ -308,7 +308,7 @@ function parentContext(tools: unknown[], messages: unknown[] = []): Row {
 
 async function crewmate(on: Tape, maxTurns: number | undefined): Promise<unknown> {
   const tools = [echoTool(on)]
-  const stream = runAgent({
+  const stream = runCrewmate({
     agentDefinition: { agentType: 'mercury-crew', whenToUse: 'rig', source: 'projectSettings', getSystemPrompt: () => 'Run the rig.' } as never,
     promptMessages: [createUserMessage({ content: 'Echo once, then say you are done.' })],
     toolUseContext: parentContext(tools) as never,

@@ -15,7 +15,7 @@ const { disposeOwner } = await import('../../src/engine/run-owner/ownerLifecycle
 const { startService, stopService, waitForReady } =
   await import('../../src/tools/engines/project-services/serviceManager.ts')
 const { serviceExecutionOwner } = await import('../../src/tools/engines/project-services/executionProjection.ts')
-const { buildAgentResultEnvelope } = await import('../../src/crew/agent-results/normalize.ts')
+const { buildCrewmateResultEnvelope } = await import('../../src/crew/agent-results/normalize.ts')
 const { processOwnerForLane } = await import('../../src/engine/run-owner/resolveOwner.ts')
 
 let pass = 0
@@ -188,7 +188,7 @@ console.log('envelope evidence refs (additive, deterministic)')
     },
   })
   const build = () =>
-    buildAgentResultEnvelope({
+    buildCrewmateResultEnvelope({
       agentId,
       status: 'completed',
       finalText:

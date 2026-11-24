@@ -80,7 +80,7 @@ const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await impo
 const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
 const { setFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.ts')
 const { resetHelmFocusForTest } = await import('../../src/screen/cockpit/helmFocus.ts')
-const { getProjectDir, getAgentMetadataPath, writeAgentMetadata } = await import('../../src/sessions/transcripts/paths.ts')
+const { getProjectDir, getCrewmateMetadataPath, writeCrewmateMetadata } = await import('../../src/sessions/transcripts/paths.ts')
 const { asAgentId } = await import('../../src/sessions/transcripts/ids.ts')
 const { renderModelChip } = await import('../../src/models/catalogue/engineModel.ts')
 const { keyHintLabel } = await import('../../src/screen/widgets/keyHintLabel.ts')
@@ -134,8 +134,8 @@ function seed(parent: string, data: unknown): void {
 seed(focusedId, { agentType: 'mercury-crew', model: agentModel, effort: 'max' })
 seed('chip-other-parent', { agentType: 'mercury-crew', model: leadModel, effort: 'low' })
 seed('chip-wide-parent', { agentType: 'mercury-crew', model: `${wideModel}[1m]`, effort: 'max' })
-await writeAgentMetadata(localAgentId, { agentType: 'mercury-crew', model: agentModel, effort: 'medium' })
-check('the local metadata fixture has its own agent id and scope', getAgentMetadataPath(localAgentId) !== sidecar(focusedId))
+await writeCrewmateMetadata(localAgentId, { agentType: 'mercury-crew', model: agentModel, effort: 'medium' })
+check('the local metadata fixture has its own agent id and scope', getCrewmateMetadataPath(localAgentId) !== sidecar(focusedId))
 
 let store: ReturnType<typeof useAppStateStore>
 function Harness(): React.ReactNode {

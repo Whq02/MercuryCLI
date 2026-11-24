@@ -1,5 +1,5 @@
 import { SESSION_VERBS, type SessionVerbRow } from '../../daemon/runner-wire/sessionVerbs.js'
-import type { AgentControlReceiptV1, EmptyDetailControlVerbKey } from './types.js'
+import type { CrewmateControlReceiptV1, EmptyDetailControlVerbKey } from './types.js'
 
 const SESSION_CONTROL_OP = SESSION_VERBS.sessionControl.daemon.op
 
@@ -14,7 +14,7 @@ export function registeredEmptyDetailAction(key: string): string | null {
 
 export function installEmptyDetailControlMethods<T extends object>(
   prototype: T,
-  invoke: (self: T, key: EmptyDetailControlVerbKey) => Promise<AgentControlReceiptV1>,
+  invoke: (self: T, key: EmptyDetailControlVerbKey) => Promise<CrewmateControlReceiptV1>,
 ): void {
   for (const key of Object.keys(SESSION_VERBS)) {
     if (registeredEmptyDetailAction(key) === null) continue
@@ -24,7 +24,7 @@ export function installEmptyDetailControlMethods<T extends object>(
       configurable: true,
       writable: true,
       enumerable: false,
-      value(this: T): Promise<AgentControlReceiptV1> {
+      value(this: T): Promise<CrewmateControlReceiptV1> {
         return invoke(this, verb)
       },
     })

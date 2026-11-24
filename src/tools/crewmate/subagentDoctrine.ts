@@ -2,7 +2,7 @@
 import { flagEnv } from '../../platform/substrate/flagRegistry.js'
 import type { AgentDefinition } from '../../crew/agents/agentDefinition.js'
 import type { ToolUseContext } from '../kit/tool.js'
-import { MERCURY_CONSTITUTION, mercurySubagentContract, type MercuryAgentSeat } from '../../engine/system-prompt/mercuryContract.js'
+import { MERCURY_CONSTITUTION, mercuryCrewmateContract, type MercuryCrewmateSeat } from '../../engine/system-prompt/mercuryContract.js'
 import { getRuntimePostureDoctrineLine } from '../../screen/cockpit/runtimePosture.js'
 import { getVulcanDoctrineLine } from '../../integrations/vulcan/vulcanGates.js'
 import { loadMemoryPrompt } from '../../sessions/mneme/mnemeFrontPage.js'
@@ -23,16 +23,16 @@ export function isFixedOutputAgent(def: Pick<AgentDefinition, 'agentType'>): boo
   return FIXED_OUTPUT_AGENT_TYPES.has(def.agentType)
 }
 
-const subagentDoctrineFor = (seat: MercuryAgentSeat): string => `<subagent-doctrine>\n${mercurySubagentContract(seat)}\n</subagent-doctrine>`
+const crewmateDoctrineFor = (seat: MercuryCrewmateSeat): string => `<subagent-doctrine>\n${mercuryCrewmateContract(seat)}\n</subagent-doctrine>`
 
-export function agentFanoutCap(): number | null {
+export function crewmateFanoutCap(): number | null {
   const raw = flagEnv('MERCURY_AGENT_FANOUT_CAP')
   if (raw === undefined || raw.trim() === '') return null
   const parsed = Number.parseInt(raw, 10)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null
 }
 
-export function subagentMemoryLoadNote(error: string): string {
+export function crewmateMemoryLoadNote(error: string): string {
   return `this crewmate runs without your pinned rules: memory could not be loaded (${error})`
 }
 
@@ -51,11 +51,11 @@ function memoryVerbsFor(agentDefinition: Pick<AgentDefinition, 'agentType'>, too
   return 'all'
 }
 
-export function buildSubagentMercurySectionsWithOutcome(args: {
+export function buildCrewmateMercurySectionsWithOutcome(args: {
   agentDefinition: Pick<AgentDefinition, 'agentType'>
   toolUseContext?: Pick<ToolUseContext, 'options'>
   toolNames?: ReadonlySet<string>
-  seat?: MercuryAgentSeat
+  seat?: MercuryCrewmateSeat
 }): { sections: string[]; memoryLoadError?: string } {
 
   const { agentDefinition, seat = 'a crewmate' } = args
@@ -64,7 +64,7 @@ export function buildSubagentMercurySectionsWithOutcome(args: {
 
   const floor = MERCURY_CONSTITUTION
 
-  const operating = subagentDoctrineFor(seat)
+  const operating = crewmateDoctrineFor(seat)
 
   const posture = getRuntimePostureDoctrineLine()
 
@@ -86,11 +86,11 @@ export function buildSubagentMercurySectionsWithOutcome(args: {
   return memory.error !== undefined ? { sections, memoryLoadError: memory.error } : { sections }
 }
 
-export function buildSubagentMercurySections(args: {
+export function buildCrewmateMercurySections(args: {
   agentDefinition: Pick<AgentDefinition, 'agentType'>
   toolUseContext?: Pick<ToolUseContext, 'options'>
   toolNames?: ReadonlySet<string>
-  seat?: MercuryAgentSeat
+  seat?: MercuryCrewmateSeat
 }): string[] {
-  return buildSubagentMercurySectionsWithOutcome(args).sections
+  return buildCrewmateMercurySectionsWithOutcome(args).sections
 }

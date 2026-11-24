@@ -31,11 +31,11 @@ bootstrap.setEngineModelOverride('compat/first/Wrong/First')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 const { turnDoor: startTurn } = await import('../../src/engine/turnDoor.ts')
-const { runAgent } = await import('../../src/tools/crewmate/runCrewmate.ts')
+const { runCrewmate } = await import('../../src/tools/crewmate/runCrewmate.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
-const { getAgentModel } = await import('../../src/models/catalogue/agentModel.ts')
+const { getCrewmateModel } = await import('../../src/models/catalogue/agentModel.ts')
 const { resolveEngineDispatch } = await import('../../src/crew/crewmates/engineDispatch.ts')
-const { flushSessionStorage, readAgentMetadata } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+const { flushSessionStorage, readCrewmateMetadata } = await import('../../src/sessions/transcripts/sessionStorage.ts')
 await import('../../src/engine/tasks/tasks.ts')
 const previousCwd = process.cwd()
 process.chdir(f.home)
@@ -49,7 +49,7 @@ const crewmate = async (prompt: string, opts: { model?: string; effort: string }
   const agentId = `compat-inherit-${launched.length}`
   launched.push(agentId)
   let answer = ''
-  for await (const row of runAgent({ agentDefinition: definition, promptMessages: [createUserMessage({ content: prompt })], toolUseContext: context, canUseTool: allow, isAsync: true, canShowPermissionPrompts: false, querySource: 'agent:custom:compat-inherit' as never, availableTools: [] as never, override: { agentId }, description: prompt, cwd: process.cwd(), model: opts.model, effortOverride: opts.effort } as never) as AsyncIterable<any>) {
+  for await (const row of runCrewmate({ agentDefinition: definition, promptMessages: [createUserMessage({ content: prompt })], toolUseContext: context, canUseTool: allow, isAsync: true, canShowPermissionPrompts: false, querySource: 'agent:custom:compat-inherit' as never, availableTools: [] as never, override: { agentId }, description: prompt, cwd: process.cwd(), model: opts.model, effortOverride: opts.effort } as never) as AsyncIterable<any>) {
     if (row?.type !== 'assistant') continue
     for (const block of row.message?.content ?? []) if (block?.type === 'text') answer = block.text
   }
@@ -60,7 +60,7 @@ let failures = 0
 const inheritanceHint = 'change how a crewmate inherits the parent model and effort: getAgentModel in src/models/catalogue/agentModel.ts, resolveEngineDispatch in src/crew/crewmates/engineDispatch.ts, and the model, effort and thinking handling in runAgent in src/tools/crewmate/runCrewmate.ts'
 const check = (label: string, truth: unknown, detail?: unknown) => { checks++; if (!truth) failures++; console.log(`${truth ? 'PASS' : 'FAIL'} ${label}${!truth ? ' — ' + (detail !== undefined ? JSON.stringify(detail) + '; ' : '') + inheritanceHint : ''}`) }
 try {
-  const resolved = await resolveEngineDispatch(getAgentModel(undefined, model, 'compat'))
+  const resolved = await resolveEngineDispatch(getCrewmateModel(undefined, model, 'compat'))
   check('the Crewmate resolver keeps the context parent endpoint rather than global state', resolved?.model === model, resolved)
   const one = await crewmate('INHERIT-ONE: answer without tools', { effort: 'max' })
   const two = await crewmate('INHERIT-TWO: answer without tools', { model: 'compat', effort: 'high' })
@@ -71,7 +71,7 @@ try {
   check('the compat family word follows the same parent, not the first configured endpoint', f.captures[1]?.body.model === f.model, f.captures[1]?.body.model)
   check('an exact other endpoint remains an explicit override', f.captures[2]?.body.model === 'Wrong/First')
   check('each crewmate keeps its own effort', f.captures.map(row => row.body.reasoning_effort).join(',') === 'max,high,max', f.captures.map(row => row.body.reasoning_effort))
-  const metadata = await Promise.all(launched.map(agentId => readAgentMetadata(agentId as never)))
+  const metadata = await Promise.all(launched.map(agentId => readCrewmateMetadata(agentId as never)))
   check('each crewmate\'s record carries the same exact model identity as its request', metadata[0]?.model === model && metadata[1]?.model === model && metadata[2]?.model === 'compat/first/Wrong/First', metadata.map(row => row?.model))
   check('all three crewmates retain enabled thinking and its original budget', metadata.length === 3 && metadata.every(row => row?.thinkingConfig?.type === 'enabled' && row.thinkingConfig.budgetTokens === 4096), metadata.map(row => row?.thinkingConfig))
 } finally {

@@ -26,7 +26,7 @@ delete process.env.MERCURY_LOCAL_PROMPT_PROFILE
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'local-profile-proof-home-'))
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const { localLaw, LOCAL_SUBAGENT_DOCTRINE, LOCAL_POSTURE_WORDS, localToolForm } = await import('../../src/models/roads/localPromptProfile.ts')
+const { localLaw, LOCAL_CREWMATE_DOCTRINE, LOCAL_POSTURE_WORDS, localToolForm } = await import('../../src/models/roads/localPromptProfile.ts')
 const { MERCURY_CONSTITUTION, MERCURY_HEADLESS_CONSTITUTION } = await import('../../src/engine/system-prompt/mercuryContract.ts')
 
 const CEILINGS = { system: 5_600, tools: 5_700, tokens: 4_700 } as const
@@ -157,7 +157,7 @@ check('no system row rides after position 0 on any request', local.requests.ever
 section('§5 a crewmate on the local model receives the profile, its per-session text in its first user turn')
 const crew = crewRequests[0]
 const crewSystem = crew ? systemTextOf(crew) : ''
-check('RED ON A TREE WITHOUT THE PROFILE: the crewmate\'s system prompt carries the local law and the local doctrine', crewSystem.includes(localLaw(LOCAL_MODEL)) && crewSystem.includes(LOCAL_SUBAGENT_DOCTRINE), JSON.stringify(crewSystem.slice(0, 200)))
+check('RED ON A TREE WITHOUT THE PROFILE: the crewmate\'s system prompt carries the local law and the local doctrine', crewSystem.includes(localLaw(LOCAL_MODEL)) && crewSystem.includes(LOCAL_CREWMATE_DOCTRINE), JSON.stringify(crewSystem.slice(0, 200)))
 check('the crewmate\'s prompt carries neither the cloud constitution nor the model-currency note', !crewSystem.includes(MERCURY_CONSTITUTION) && !crewSystem.includes('Model currency:'))
 check('the crewmate\'s tools defer the same set (no Crewmate, Skill or Eval definition)', crew !== undefined && ['Crewmate', 'Skill', 'Eval'].every(name => !toolNamesOf(crew).includes(name)), crew ? toolNamesOf(crew).join(',') : 'no crewmate request')
 const crewOpening = crew ? userContextReminderOf(crew) : ''

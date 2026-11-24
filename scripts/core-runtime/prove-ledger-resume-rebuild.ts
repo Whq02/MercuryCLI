@@ -38,7 +38,7 @@ const { saveCurrentProjectConfig, getCurrentProjectConfig } = await import('../.
 const { calculateUSDCost } = await import('../../src/models/usage/modelCost.ts')
 const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
 const { loadTranscriptFile } = await import('../../src/sessions/transcripts/loading.ts')
-const { getAgentTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
+const { getCrewmateTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
 const { SYNTHETIC_MODEL } = await import('../../src/engine/message-shapes/factories.ts')
 
 const FABLE = 'claude-fable-5-1'
@@ -263,7 +263,7 @@ const SID5 = '00000000-aaaa-4000-8000-000000000005'
   writeFileSync(file, '')
   const r1 = exchange(file, SID5, null, FABLE, { input_tokens: 500, output_tokens: 80, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 })
   state.switchSession(SID5 as never, STORE)
-  const agentFile = getAgentTranscriptPath('a1b2c3' as never)
+  const agentFile = getCrewmateTranscriptPath('a1b2c3' as never)
   mkdirSync(join(agentFile, '..'), { recursive: true })
   writeFileSync(agentFile, '')
   const agentUsage: Usage = { input_tokens: 2500, output_tokens: 600, cache_read_input_tokens: 30000, cache_creation_input_tokens: 0 }

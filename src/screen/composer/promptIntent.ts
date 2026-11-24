@@ -1,18 +1,18 @@
 
 import { type Command, findCommand, isCommandEnabled } from '../../commands/catalogue/commands.js'
 
-type AgentViewIntent =
+type CrewmateViewIntent =
   | { kind: 'agent-literal'; text: string }
   | { kind: 'session-command'; command: Command }
   | { kind: 'agent-command'; command: Command }
   | { kind: 'unknown-command'; bareName: string }
   | { kind: 'agent-guidance' }
 
-export function classifyAgentViewSubmission(
+export function classifyCrewmateViewSubmission(
   inputParam: string,
   fromKeybinding: boolean,
   commands: Command[],
-): AgentViewIntent {
+): CrewmateViewIntent {
   const trimmed = inputParam.trim()
   if (trimmed.startsWith('//')) {
     return { kind: 'agent-literal', text: trimmed.slice(1) }

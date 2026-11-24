@@ -160,7 +160,7 @@ const { TranscriptSwap } = await import('../../src/screen/chat/CrewmateTranscrip
 const crewmateView = await import('../../src/crew/crewmates/crewmateView.ts')
 const { createTaskStateBase } = await import('../../src/engine/tasks/taskBase.ts')
 const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
-const { getAgentTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
+const { getCrewmateTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
 const { asAgentId } = await import('../../src/sessions/transcripts/ids.ts')
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
 const { builtinCommands, isCommandEnabled } = await import('../../src/commands/catalogue/commands.ts')
@@ -223,7 +223,7 @@ seedHosted(ATLAS.id, [userRow(ATLAS.id, 0, 'atlas — the picker pop-up'), assis
 seedHosted(CEDAR.id, [userRow(CEDAR.id, 0, 'cedar — the jump pill'), assistantRow(CEDAR.id, 1, 'CEDAR-ROW 1 — done, the pill shrinks.')])
 const hostedRecord = (agentId: string): string => join(hostedDir, `agent-${agentId}.meta.json`)
 writeFileSync(hostedRecord(ATLAS.id), JSON.stringify({ agentType: 'mercury-crew', model: CREW_MODEL, effort: 'high' }))
-const localTranscript = getAgentTranscriptPath(asAgentId(LOCAL_ID))
+const localTranscript = getCrewmateTranscriptPath(asAgentId(LOCAL_ID))
 mkdirSync(dirname(localTranscript), { recursive: true })
 writeFileSync(localTranscript, encodeSeedTranscript([userRow(LOCAL_ID, 0, 'local — work quietly'), assistantRow(LOCAL_ID, 1, 'LOCAL-ROW 1 — working.')] as never, SESSION_ID))
 const localRecord = localTranscript.replace(/\.jsonl$/, '.meta.json')
@@ -670,15 +670,15 @@ section("§5 the crewmate's own compaction: the flag on its task makes its query
 
 section("§6 the resume: a finished crewmate's recorded compaction reaches the task that runs its next turn")
 {
-  const { registerAsyncAgent } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+  const { registerAsyncCrewmate } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
   const compactionRequestedOf = (task: unknown): boolean => (task as { compactRequested?: unknown } | undefined)?.compactRequested === true
   let appState: Record<string, unknown> = { tasks: {} }
   const setAppState = (updater: (prev: Record<string, unknown>) => Record<string, unknown>): void => {
     appState = updater(appState)
   }
-  const registered = registerAsyncAgent({ agentId: 'a-resumed', description: 'Lane resumed', prompt: 'carry on', setAppState: setAppState as never, model: CREW_MODEL, compactRequested: true } as never)
+  const registered = registerAsyncCrewmate({ agentId: 'a-resumed', description: 'Lane resumed', prompt: 'carry on', setAppState: setAppState as never, model: CREW_MODEL, compactRequested: true } as never)
   check('a task registered for a resume with the flag asks for the fold', compactionRequestedOf(registered) && compactionRequestedOf((appState.tasks as Record<string, unknown>)['a-resumed']), 'what to change: registerAsyncAgent in src/engine/tasks/local-agent/crewmateTask.tsx must carry compactRequested onto the registered task')
-  const plain = registerAsyncAgent({ agentId: 'a-plain', description: 'Lane plain', prompt: 'carry on', setAppState: setAppState as never, model: CREW_MODEL })
+  const plain = registerAsyncCrewmate({ agentId: 'a-plain', description: 'Lane plain', prompt: 'carry on', setAppState: setAppState as never, model: CREW_MODEL })
   check('a task registered without it does not', !compactionRequestedOf(plain), 'what to change: registerAsyncAgent in src/engine/tasks/local-agent/crewmateTask.tsx must set compactRequested only when asked')
   type RecordMerge = typeof import('../../src/crew/crewmates/crewmateRecord.ts')
   const absent = (): never => { throw new Error('the record merge does not exist on this tree') }

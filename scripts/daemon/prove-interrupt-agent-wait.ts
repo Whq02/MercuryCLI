@@ -14,7 +14,7 @@ const { readSessionTail } = await import('../../src/engine/connector/seatProject
 const { updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 const { statusLine } = await import('../../src/screen/chat/SwitchboardTagBar.tsx')
 const { IDLE_LIVE } = await import('../../src/engine/connector/seatLive.ts')
-const { stopRunningAgentTasks } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { stopRunningCrewmateTasks } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
 const { drainRows } = await import('../../src/daemon/runner/sdkEventQueue.ts')
 const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 
@@ -181,7 +181,7 @@ console.log('\nA4 the stop road reaches every running agent')
   const setAppState = (updater: (prev: typeof state) => typeof state): void => {
     state = updater(state)
   }
-  const stopped = stopRunningAgentTasks(state.tasks, setAppState as never)
+  const stopped = stopRunningCrewmateTasks(state.tasks, setAppState as never)
   check('the two running agents are the ones stopped, in task order', stopped.map(t => t.id).join(',') === 'a1,a2', stopped.map(t => t.id).join(','))
   check("both controllers aborted (the agents' own queries tear down)", aborted.sort().join(',') === 'a1,a2', aborted.join(','))
   const after = state.tasks as Record<string, { status: string; notified: boolean }>
@@ -189,7 +189,7 @@ console.log('\nA4 the stop road reaches every running agent')
   const events = drainRows() as Array<{ type?: string; state?: string; task_id?: string; status?: string; summary?: string }>
   const stops = events.filter(e => e.type === 'task' && e.state === 'ended' && e.status === 'stopped')
   check("a 'stopped' task row rides the stream per agent, naming it", stops.length === 2 && stops.map(e => e.task_id).join(',') === 'a1,a2' && stops[0]!.summary === 'Build the parser', JSON.stringify(events))
-  check('a store with nothing running stops nothing and emits nothing', stopRunningAgentTasks(state.tasks, setAppState as never).length === 0 && drainRows().length === 0)
+  check('a store with nothing running stops nothing and emits nothing', stopRunningCrewmateTasks(state.tasks, setAppState as never).length === 0 && drainRows().length === 0)
   setIsInteractive(true)
 }
 

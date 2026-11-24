@@ -114,9 +114,9 @@ const { enableConfigs } = await import('../../src/platform/config/globalConfig.t
 enableConfigs()
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { runAgent } = await import('../../src/tools/crewmate/runCrewmate.ts')
+const { runCrewmate } = await import('../../src/tools/crewmate/runCrewmate.ts')
 const { resumeAgentBackground } = await import('../../src/tools/crewmate/resumeCrewmate.ts')
-const { deriveAgentTerminalOutcome } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+const { deriveCrewmateTerminalOutcome } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
 const leaf = await import('../../src/tools/crewmate/refusalRetry.ts').catch(() => null)
 const refusalRetryRowOf: (last: Message | undefined, retried: ReadonlySet<string>, model: string) => { refusalClass: string; row: Message & { isMeta?: boolean } } | null = leaf === null ? () => null : leaf.refusalRetryRowOf
 const imageRefusalRetryLine: (model: string, detail: string | undefined) => string = leaf === null ? () => '' : leaf.imageRefusalRetryLine
@@ -125,10 +125,10 @@ const { getDefaultAppState } = await import('../../src/screen/app-state/AppState
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 const { turnDoor: startTurn } = await import('../../src/engine/turnDoor.ts')
-const { getAgentTranscript } = await import('../../src/sessions/transcripts/sessionListings.ts')
-const { getAgentTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
-const { ResumeAgentTool } = await import('../../src/tools/resume-crewmate/ResumeAgentTool.ts')
-const { registerAsyncAgent, failAgentTask, registerAgentName } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { getCrewmateTranscript } = await import('../../src/sessions/transcripts/sessionListings.ts')
+const { getCrewmateTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
+const { ResumeCrewmateTool } = await import('../../src/tools/resume-crewmate/ResumeAgentTool.ts')
+const { registerAsyncCrewmate, failCrewmateTask, registerCrewmateName } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
 const { generateTaskId } = await import('../../src/engine/tasks/taskBase.ts')
 await import('../../src/engine/tasks/tasks.ts')
 type Message = import('../../src/engine/message-shapes/message.ts').Message
@@ -190,7 +190,7 @@ async function drive(store: Store, agentId: string, refuse: number): Promise<Dri
     ],
   }) as Message
   try {
-    const stream = runAgent({
+    const stream = runCrewmate({
       agentDefinition: definition,
       promptMessages: [prompt],
       toolUseContext: makeCtx(store),
@@ -261,12 +261,12 @@ const a = await drive(storeA, idA, 1)
   check('the retry row follows the error row', retryRow !== undefined && retryRow.type === 'user' && textOf(retryRow).includes('refused an image in the last request'), textOf(retryRow))
   const last = a.rows[a.rows.length - 1]
   check('the run ends on the reply to the retried request', last !== undefined && last.type === 'assistant' && !isApiError(last) && textOf(last).includes('I read it in words'), textOf(last))
-  const outcome = deriveAgentTerminalOutcome(a.rows)
+  const outcome = deriveCrewmateTerminalOutcome(a.rows)
   check('the terminal outcome over the rows is completed (the error row stands, the reply ends it)', outcome.status === 'completed', JSON.stringify(outcome))
-  const transcript = await getAgentTranscript(idA as never)
+  const transcript = await getCrewmateTranscript(idA as never)
   const kinds = (transcript?.messages ?? []).map(m => (isApiError(m) ? 'error' : m.type === 'user' && textOf(m).includes('refused an image') ? 'retry' : m.type)).filter(k => k !== 'attachment')
   check('the transcript on disk holds the prompt, the error row, the retry row and the reply in order (the machine\'s own attachment rows aside)', JSON.stringify(kinds) === JSON.stringify(['user', 'error', 'retry', 'assistant']), JSON.stringify(kinds))
-  const record = existsSync(getAgentTranscriptPath(idA as never)) ? readFileSync(getAgentTranscriptPath(idA as never), 'utf8') : ''
+  const record = existsSync(getCrewmateTranscriptPath(idA as never)) ? readFileSync(getCrewmateTranscriptPath(idA as never), 'utf8') : ''
   check('the error row on disk keeps its stamp', record.includes('"mediaRefusal"'))
 }
 
@@ -285,7 +285,7 @@ const b = await drive(storeB, idB, 2)
   check('two error rows stand', errorRows.length === 2, `${errorRows.length}`)
   const retryRows = b.rows.filter(r => r.type === 'user' && textOf(r).includes('refused an image in the last request'))
   check('one retry row', retryRows.length === 1, `${retryRows.length}`)
-  const outcome = deriveAgentTerminalOutcome(b.rows)
+  const outcome = deriveCrewmateTerminalOutcome(b.rows)
   check('the run ends failed, provider-declined, with the second refusal\'s words', outcome.status === 'failed' && outcome.reason === 'provider-declined' && outcome.error.includes('refused the retried request too'), JSON.stringify(outcome))
 }
 
@@ -293,12 +293,12 @@ section('§4 the run that ended on the error stays resumable by message: the nex
 {
   seen.length = 0
   refusals = 0
-  registerAsyncAgent({ agentId: idB, description: 'the picture probe', prompt: 'What is in this picture?', selectedAgent: definition, setAppState: storeB.set as never })
-  registerAgentName('picture', idB, storeB.set as never)
-  failAgentTask(idB, 'API Error: OpenAI stream failed (openai-invalid_image)', storeB.set as never)
+  registerAsyncCrewmate({ agentId: idB, description: 'the picture probe', prompt: 'What is in this picture?', selectedAgent: definition, setAppState: storeB.set as never })
+  registerCrewmateName('picture', idB, storeB.set as never)
+  failCrewmateTask(idB, 'API Error: OpenAI stream failed (openai-invalid_image)', storeB.set as never)
   check('the task row reads failed before the message', storeB.get().tasks[idB]?.status === 'failed', String(storeB.get().tasks[idB]?.status))
   const ctx = makeCtx(storeB)
-  const answer = (await ResumeAgentTool.call({ to: 'picture', message: 'Carry on in words: say what you were asked.' } as never, ctx, undefined as never, { requestId: 'req-1' } as never)) as { data: { success: boolean; message: string } }
+  const answer = (await ResumeCrewmateTool.call({ to: 'picture', message: 'Carry on in words: say what you were asked.' } as never, ctx, undefined as never, { requestId: 'req-1' } as never)) as { data: { success: boolean; message: string } }
   check('the message is delivered: the agent is resumed with it', answer.data.success === true && answer.data.message.includes('had failed') && answer.data.message.includes('resumed in the background with your message'), answer.data.message)
   const deadline = Date.now() + 60_000
   while (Date.now() < deadline) {
@@ -309,7 +309,7 @@ section('§4 the run that ended on the error stays resumable by message: the nex
   check('the resumed run settled completed', storeB.get().tasks[idB]?.status === 'completed', String(storeB.get().tasks[idB]?.status))
   check('one request left for the resumed run', seen.length === 1, `${seen.length}`)
   check('it carried the message and the question, and no image', seen[0] !== undefined && seen[0].images === 0 && seen[0].texts.some(t => t.includes('Carry on in words')) && seen[0].texts.some(t => t.includes('What is in this picture?')), JSON.stringify(seen[0]))
-  const transcript = await getAgentTranscript(idB as never)
+  const transcript = await getCrewmateTranscript(idB as never)
   const last = transcript?.messages[transcript.messages.length - 1]
   check('the transcript on disk ends on the resumed reply, the error rows standing before it', last !== undefined && last.type === 'assistant' && !isApiError(last) && (transcript?.messages ?? []).filter(isApiError).length === 2, textOf(last))
 }

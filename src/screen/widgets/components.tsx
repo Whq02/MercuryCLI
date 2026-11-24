@@ -626,7 +626,7 @@ export function WarningBanner({
 }
 
 
-export function AgentRow({
+export function CrewmateRow({
   name,
   agentType,
   state = 'idle',

@@ -24,7 +24,7 @@ await import('../../src/tools/crewmate/CrewmateTool.js')
 const reader = await import('../../src/crew/crewmates/agentTranscriptReader.js')
 mock.module('../../src/crew/crewmates/agentTranscriptReader.js', () => ({
   ...reader,
-  readAgentTranscript: async () => ({ finalText: 'initial transcript' } as never),
+  readCrewmateTranscript: async () => ({ finalText: 'initial transcript' } as never),
 }))
 const loading = await import('../../src/sessions/transcripts/loading.js')
 let diskReads = 0
@@ -34,7 +34,7 @@ mock.module('../../src/sessions/transcripts/loading.js', () => ({
   loadTranscriptFile: async () => { diskReads++; return diskRead.promise },
 }))
 const { useCrewmateTranscript, crewmateTranscriptFile } = await import('../../src/screen/tasks/useCrewmateTranscript.js')
-const { AsyncAgentDetailDialog } = await import('../../src/screen/tasks/CrewmateDetailDialog.js')
+const { CrewmateDetailDialog } = await import('../../src/screen/tasks/CrewmateDetailDialog.js')
 const { BackgroundTasksDialog } = await import('../../src/screen/tasks/BackgroundTasksDialog.js')
 const { AppStateProvider, getDefaultAppState, useSetAppState } = await import('../../src/screen/app-state/AppState.js')
 const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
@@ -78,7 +78,7 @@ try {
 
   let closed = 0
   const agent = { id: 'fixture-agent', type: 'local_agent', status: 'completed', startTime: 1000, endTime: 2000, agentType: 'fixture', description: 'fixture detail', prompt: 'fixture brief' } as never
-  const card = await mount(<AsyncAgentDetailDialog agent={agent} onDone={() => { closed++ }} />)
+  const card = await mount(<CrewmateDetailDialog agent={agent} onDone={() => { closed++ }} />)
   check('the agent card renders', await waitFor(() => card.screen().includes('fixture brief'), 3000), 'AsyncAgentDetailDialog in src/screen/tasks/CrewmateDetailDialog.tsx should render the agent prompt for a completed agent.')
   card.push(KEY.esc)
   check('escape closes the agent card once', await waitFor(() => closed === 1, 1000), 'AsyncAgentDetailDialog in src/screen/tasks/CrewmateDetailDialog.tsx must call onDone exactly once on escape; closed=' + closed)

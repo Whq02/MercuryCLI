@@ -1,5 +1,5 @@
 import { isTerminalTaskStatus } from '../../engine/tasks/taskBase.js'
-import type { LocalAgentTaskState } from '../../engine/tasks/local-agent/crewmateTask.js'
+import type { CrewmateTaskState } from '../../engine/tasks/local-agent/crewmateTask.js'
 import type { TaskState } from '../../engine/tasks/taskState.js'
 import type { AppState } from '../../screen/app-state/AppStateStore.js'
 
@@ -7,11 +7,11 @@ type SetAppState = (updater: (prev: AppState) => AppState) => void
 
 const EVICT_GRACE_MS = 30_000
 
-function isLocalAgent(task: TaskState | undefined): task is LocalAgentTaskState {
+function isLocalCrewmate(task: TaskState | undefined): task is CrewmateTaskState {
   return task !== undefined && task.type === 'local_agent'
 }
 
-function releaseTask(task: LocalAgentTaskState, evictAfterOverride?: number): LocalAgentTaskState {
+function releaseTask(task: CrewmateTaskState, evictAfterOverride?: number): CrewmateTaskState {
   const evictAfter =
     evictAfterOverride !== undefined
       ? evictAfterOverride
@@ -31,11 +31,11 @@ export function enterCrewmateView(taskId: string, setAppState: SetAppState): voi
   setAppState(prev => {
     const prevId = prev.viewingAgentTaskId
     const prevTask = prevId && prevId !== taskId ? prev.tasks[prevId] : undefined
-    const shouldReleasePrev = isLocalAgent(prevTask) && prevTask.retain === true
+    const shouldReleasePrev = isLocalCrewmate(prevTask) && prevTask.retain === true
 
     const nextTask = prev.tasks[taskId]
     const shouldRetainNext =
-      isLocalAgent(nextTask) && (nextTask.retain !== true || nextTask.evictAfter !== undefined)
+      isLocalCrewmate(nextTask) && (nextTask.retain !== true || nextTask.evictAfter !== undefined)
 
     if (
       !shouldReleasePrev &&
@@ -82,7 +82,7 @@ export function exitCrewmateView(setAppState: SetAppState): void {
     }
 
     const prevTask = prev.tasks[prevId]
-    const shouldRelease = isLocalAgent(prevTask) && prevTask.retain === true
+    const shouldRelease = isLocalCrewmate(prevTask) && prevTask.retain === true
     const tasks = shouldRelease
       ? { ...prev.tasks, [prevId]: releaseTask(prevTask) }
       : prev.tasks
@@ -110,10 +110,10 @@ export function clearMainChat(setAppState: SetAppState): void {
   })
 }
 
-export function stopOrDismissAgent(taskId: string, setAppState: SetAppState, reason?: string): void {
+export function stopOrDismissCrewmate(taskId: string, setAppState: SetAppState, reason?: string): void {
   setAppState(prev => {
     const task = prev.tasks[taskId]
-    if (!isLocalAgent(task)) return prev
+    if (!isLocalCrewmate(task)) return prev
     if (task.status === 'running') {
       task.abortController?.abort(reason)
       return prev

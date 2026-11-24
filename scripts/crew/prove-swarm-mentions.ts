@@ -88,7 +88,7 @@ const seam = await import('../../src/crew/board/seam.ts')
 const { runSwarmCommand } = await import('../../src/commands/swarm/swarm.ts')
 const { operatorPauseGate } = await import('../../src/engine/loop/pauseGate.ts')
 runSwarmCommand('on')
-await seam.latchSwarmAgent('sender', 'Sender')
+await seam.latchSwarmCrewmate('sender', 'Sender')
 let wakes = 0
 const painted: string[] = []
 let idle = true
@@ -130,7 +130,7 @@ sourceBoard.post(sender, { clientOpId: 'after-restart', kind: 'ask', text: '@mai
 check('the restarted watcher paints only the mention newer than the cursor', painted2.length === 1 && painted.length === 4)
 watch2.stop()
 runSwarmCommand('off')
-seam.settleSwarmAgent('sender')
+seam.settleSwarmCrewmate('sender')
 const { bootLead, closeWorld, findFiles, makeWorld, record, userTextsOf } = await import('./crew-world.ts')
 const live = await makeWorld('swarm-mentions', [
   { kind: 'text', text: 'Lead is waiting.' },

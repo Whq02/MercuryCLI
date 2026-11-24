@@ -25,13 +25,13 @@ if (childAt !== -1) {
   bootstrap.setOriginalCwd(process.cwd())
   bootstrap.setCwdState(process.cwd())
   bootstrap.switchSession('00000000-0000-4000-8000-000000000042' as never)
-  const { runAgent } = await import('../../src/tools/crewmate/runCrewmate.ts')
+  const { runCrewmate } = await import('../../src/tools/crewmate/runCrewmate.ts')
   const { resumeAgentBackground } = await import('../../src/tools/crewmate/resumeCrewmate.ts')
   const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
   const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
   const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
   const { turnDoor: startTurn } = await import('../../src/engine/turnDoor.ts')
-  const { readAgentMetadata, flushSessionStorage, getAgentTranscript } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+  const { readCrewmateMetadata, flushSessionStorage, getCrewmateTranscript } = await import('../../src/sessions/transcripts/sessionStorage.ts')
   await import('../../src/engine/tasks/tasks.ts')
   type AppState = import('../../src/screen/app-state/AppStateStore.ts').AppState
   let state: AppState = { ...getDefaultAppState(), effortValue: 'low' } as AppState
@@ -46,7 +46,7 @@ if (childAt !== -1) {
   const allow = (async (_tool: unknown, input: unknown) => ({ behavior: 'allow', updatedInput: input })) as never
   if (mode === 'launch') {
     const definition = { agentType: 'mercury-crew', whenToUse: 'boundary fixture', source: 'projectSettings', getSystemPrompt: () => 'Answer with one line. Do not call tools.' } as never
-    for await (const _row of runAgent({ agentDefinition: definition, promptMessages: [createUserMessage({ content: 'First boundary turn' })], toolUseContext: context, canUseTool: allow, isAsync: true, canShowPermissionPrompts: false, querySource: 'agent:custom:boundary' as never, availableTools: [] as never, model, override: { agentId }, description: 'boundary continuation', cwd: process.cwd() })) {}
+    for await (const _row of runCrewmate({ agentDefinition: definition, promptMessages: [createUserMessage({ content: 'First boundary turn' })], toolUseContext: context, canUseTool: allow, isAsync: true, canShowPermissionPrompts: false, querySource: 'agent:custom:boundary' as never, availableTools: [] as never, model, override: { agentId }, description: 'boundary continuation', cwd: process.cwd() })) {}
   } else {
     await resumeAgentBackground({ agentId, prompt: 'Second boundary turn', toolUseContext: context, canUseTool: allow, ...(mode === 'override' ? { effort: 'medium' as const } : {}) })
     const deadline = Date.now() + 30000
@@ -54,12 +54,12 @@ if (childAt !== -1) {
     assert.equal(state.tasks[agentId]?.status, 'completed', JSON.stringify(state.tasks[agentId]))
   }
   await flushSessionStorage()
-  let metadata = await readAgentMetadata(agentId as never)
+  let metadata = await readCrewmateMetadata(agentId as never)
   for (let attempt = 0; attempt < 100 && !metadata?.effort; attempt++) {
     await new Promise(resolve => setTimeout(resolve, 10))
-    metadata = await readAgentMetadata(agentId as never)
+    metadata = await readCrewmateMetadata(agentId as never)
   }
-  const transcript = await getAgentTranscript(agentId as never)
+  const transcript = await getCrewmateTranscript(agentId as never)
   console.log(JSON.stringify({ metadata, hasFirst: JSON.stringify(transcript?.messages).includes('First boundary turn'), hasSecond: JSON.stringify(transcript?.messages).includes('Second boundary turn') }))
   process.exit(0)
 } else {

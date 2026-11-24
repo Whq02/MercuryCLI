@@ -31,8 +31,8 @@ git(repo, 'commit', '-q', '-m', 'first')
 const state = await import('../../src/boot/process-state/processState.ts')
 const config = await import('../../src/platform/config/globalConfig.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
-const { AgentTool, agentCwdQuestion, resolveAgentCwd } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
-const { createAgentWorktree, preflightWorktreeCapability } = await import('../../src/platform/git/worktree/worktree.ts')
+const { CrewmateTool, crewmateCwdQuestion, resolveCrewmateCwd } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
+const { createCrewmateWorktree, preflightWorktreeCapability } = await import('../../src/platform/git/worktree/worktree.ts')
 const { getCwd } = await import('../../src/platform/files/cwd.ts')
 
 process.chdir(work)
@@ -55,7 +55,7 @@ const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${t
 type Attempt = { value: string; message: string }
 const attempt = (spelling: string): Attempt => {
   try {
-    return { value: resolveAgentCwd(spelling, context), message: '' }
+    return { value: resolveCrewmateCwd(spelling, context), message: '' }
   } catch (error) {
     return { value: '', message: error instanceof Error ? error.message : String(error) }
   }
@@ -81,21 +81,21 @@ try {
     check('a folder outside the session folder resolves too: consent stays with the ordinary permission check', sameFolder(outsideAt.value, realpathSync(outside)), outsideAt.message)
 
     section('the permission ask and the launch read the mapped folder')
-    const question = agentCwdQuestion(posixSpelling(outside), context)
+    const question = crewmateCwdQuestion(posixSpelling(outside), context)
     check('the ask for a folder outside the session folder names the real folder, not the /c/ spelling', question?.behavior === 'ask' && mentions(question.message, realpathSync(outside)) && !question.message.includes(posixSpelling(outside)), question === null ? 'no question was raised' : question.message)
-    check('a /c/ launch inside the session folder needs no folder permission', insideAt.value !== '' && agentCwdQuestion(posixSpelling(inside), context) === null, insideAt.message)
-    const asked = await AgentTool.checkPermissions(launchInput(posixSpelling(outside)), seatIn('default'))
+    check('a /c/ launch inside the session folder needs no folder permission', insideAt.value !== '' && crewmateCwdQuestion(posixSpelling(inside), context) === null, insideAt.message)
+    const asked = await CrewmateTool.checkPermissions(launchInput(posixSpelling(outside)), seatIn('default'))
     check('default: the tool asks before a /c/ launch outside the session folder', asked.behavior === 'ask', asked.behavior)
-    const sovereign = await AgentTool.checkPermissions(launchInput(posixSpelling(outside)), seatIn('sovereign'))
+    const sovereign = await CrewmateTool.checkPermissions(launchInput(posixSpelling(outside)), seatIn('sovereign'))
     check('sovereign: the same launch proceeds without an ask', outsideAt.value !== '' && sovereign.behavior === 'allow', outsideAt.message || sovereign.behavior)
     const nestedAt = attempt(posixSpelling(nested))
     const capability = nestedAt.value === '' ? null : preflightWorktreeCapability(nestedAt.value)
     check("the worktree preflight reads the repository of the folder the /c/ spelling names", capability !== null && capability.available && mentions(capability.detail, repo), capability === null ? nestedAt.message : capability.detail)
-    let cut: Awaited<ReturnType<typeof createAgentWorktree>> | null = null
+    let cut: Awaited<ReturnType<typeof createCrewmateWorktree>> | null = null
     let cutError = nestedAt.message
     if (nestedAt.value !== '') {
       try {
-        cut = await createAgentWorktree('agent-posix001', { from: nestedAt.value })
+        cut = await createCrewmateWorktree('agent-posix001', { from: nestedAt.value })
       } catch (error) {
         cutError = error instanceof Error ? error.message : String(error)
       }

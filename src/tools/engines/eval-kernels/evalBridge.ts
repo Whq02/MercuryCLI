@@ -16,7 +16,7 @@ import type { ThinkingConfig } from '../../../models/effort/thinking.js'
 import { runToolUse } from '../../../engine/tool-dispatch/toolExecution.js'
 import { routedCallModel } from '../../../models/roads/callModelRouter.js'
 import { governorCeilings } from '../../../crew/capacity/governor.js'
-import { AGENT_TOOL_NAME } from '../../kit/names/agent.js'
+import { CREWMATE_TOOL_NAME } from '../../kit/names/agent.js'
 import { EVAL_TOOL_NAME } from '../../eval/constants.js'
 import { compileJsonSchema, formatSchemaIssues } from '../../../platform/json-schema/jsonSchemaEngine.js'
 import { extractJsonValue } from './jsonExtract.js'
@@ -277,7 +277,7 @@ export function makeEvalBridgeServer(deps: EvalBridgeDeps): BridgeServer {
             ...(p.agentType ? { crewmate_type: p.agentType } : {}),
             ...(p.worktree ? { isolation: 'worktree' } : {}),
           }
-          const answer = await reenterTool(AGENT_TOOL_NAME, input, budget)
+          const answer = await reenterTool(CREWMATE_TOOL_NAME, input, budget)
           if (!answer.ok) return answer
           return applySchemaToReply(String(answer.value ?? ''), p.schema, p.strict)
         }

@@ -61,7 +61,7 @@ function trySymlinkLoop(a: string, b: string): boolean {
   }
 }
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
-const { resolveAgentCwd } = await import('../../src/tools/crewmate/call/cwd.ts')
+const { resolveCrewmateCwd } = await import('../../src/tools/crewmate/call/cwd.ts')
 
 {
   const dir = join(scratch, 'cwd-loop')
@@ -71,7 +71,7 @@ const { resolveAgentCwd } = await import('../../src/tools/crewmate/call/cwd.ts')
   if (trySymlinkLoop(loopA, loopB)) {
     let thrown: (Error & { code?: string }) | null = null
     try {
-      resolveAgentCwd(loopA, getEmptyToolPermissionContext())
+      resolveCrewmateCwd(loopA, getEmptyToolPermissionContext())
     } catch (error) {
       thrown = error as Error & { code?: string }
     }
@@ -85,7 +85,7 @@ const { resolveAgentCwd } = await import('../../src/tools/crewmate/call/cwd.ts')
   }
   let missing: Error | null = null
   try {
-    resolveAgentCwd(join(dir, 'absent'), getEmptyToolPermissionContext())
+    resolveCrewmateCwd(join(dir, 'absent'), getEmptyToolPermissionContext())
   } catch (error) {
     missing = error as Error
   }
@@ -106,16 +106,16 @@ const { resolveAgentCwd } = await import('../../src/tools/crewmate/call/cwd.ts')
     let writeCalls = 0
     mock.module(storagePath, () => ({
       ...realStorage,
-      getAgentTranscript: async () => ({
+      getCrewmateTranscript: async () => ({
         messages: [{ type: 'user', uuid: '00000000-0000-4000-8000-000000000001', message: { role: 'user', content: 'hi' } }],
         contentReplacements: [],
       }),
-      readAgentMetadata: async () => {
+      readCrewmateMetadata: async () => {
         readCalls++
         if (readCalls <= 2) return { agentType: 'mercury-crew', description: 'demo' }
         throw Object.assign(new Error('EIO: sidecar unreadable'), { code: 'EIO' })
       },
-      writeAgentMetadata: async () => {
+      writeCrewmateMetadata: async () => {
         writeCalls++
       },
     }))
@@ -123,7 +123,7 @@ const { resolveAgentCwd } = await import('../../src/tools/crewmate/call/cwd.ts')
     const realRunAgent = await import(runAgentPath)
     mock.module(runAgentPath, () => ({
       ...realRunAgent,
-      runAgent: async function* () {},
+      runCrewmate: async function* () {},
     }))
     const { resumeAgentBackground } = await import(path.join(SRC, 'tools/crewmate/resumeCrewmate.ts'))
     const { getEmptyToolPermissionContext } = await import(path.join(SRC, 'tools/kit/tool.ts'))
@@ -161,19 +161,19 @@ const { resolveAgentCwd } = await import('../../src/tools/crewmate/call/cwd.ts')
     let writeCalls = 0
     mock.module(storagePath, () => ({
       ...realStorage,
-      registerAgentTranscriptDestination: () => {
+      registerCrewmateTranscriptDestination: () => {
         if (mode === 'register-fail') throw new Error('register bug')
       },
-      readAgentMetadata: async () => {
+      readCrewmateMetadata: async () => {
         if (mode === 'read-fail') throw Object.assign(new Error('EIO: unreadable sidecar'), { code: 'EIO' })
         return null
       },
-      writeAgentMetadata: async () => {
+      writeCrewmateMetadata: async () => {
         writeCalls++
         if (mode === 'write-fail') throw Object.assign(new Error('EACCES: cannot write sidecar'), { code: 'EACCES' })
       },
     }))
-    const { prepareAgentRun } = await import(path.join(SRC, 'tools/crewmate/run/prepare.ts'))
+    const { prepareCrewmateRun } = await import(path.join(SRC, 'tools/crewmate/run/prepare.ts'))
     const { getEmptyToolPermissionContext } = await import(path.join(SRC, 'tools/kit/tool.ts'))
     const { createFileStateCacheWithSizeLimit } = await import(path.join(SRC, 'platform/files/fileStateCache.ts'))
     const state = { toolPermissionContext: getEmptyToolPermissionContext(), tasks: {}, mcp: { tools: [], clients: [] }, sessionHooks: new Map() }
@@ -225,7 +225,7 @@ const { resolveAgentCwd } = await import('../../src/tools/crewmate/call/cwd.ts')
       mode = m
       writeCalls = 0
       try {
-        await prepareAgentRun(baseArgs())
+        await prepareCrewmateRun(baseArgs())
         return { threw: null, writeCalls }
       } catch (e) {
         return { threw: e instanceof Error ? e.message : String(e), writeCalls }
@@ -525,10 +525,10 @@ const { resolveAgentCwd } = await import('../../src/tools/crewmate/call/cwd.ts')
     let writeErr = 'ENOSPC: disk full'
     mock.module(pauseCarryPath, () => ({
       ...realPauseCarry,
-      clearAgentPauseRecord: async () => {
+      clearCrewmatePauseRecord: async () => {
         throw Object.assign(new Error('EACCES: unlink refused'), { code: 'EACCES' })
       },
-      writeAgentPauseRecord: async () => {
+      writeCrewmatePauseRecord: async () => {
         throw Object.assign(new Error(writeErr), { code: 'ENOSPC' })
       },
     }))
@@ -540,7 +540,7 @@ const { resolveAgentCwd } = await import('../../src/tools/crewmate/call/cwd.ts')
     resetCommandQueue()
     cancelAutomaticResume('agent-drop-fail')
     await new Promise(resolve => setTimeout(resolve, 30))
-    out.dropPath = realPauseCarry.agentPauseRecordPath('agent-drop-fail')
+    out.dropPath = realPauseCarry.crewmatePauseRecordPath('agent-drop-fail')
     out.dropNotes = notes()
 
     let state = getDefaultAppState()
@@ -560,7 +560,7 @@ const { resolveAgentCwd } = await import('../../src/tools/crewmate/call/cwd.ts')
     })
     if (t1) clearTimeout(t1)
     await new Promise(resolve => setTimeout(resolve, 30))
-    out.budgetPath = realPauseCarry.agentPauseRecordPath('agent-save-budget')
+    out.budgetPath = realPauseCarry.crewmatePauseRecordPath('agent-save-budget')
     out.budgetNotes = notes()
 
     resetCommandQueue()
@@ -577,7 +577,7 @@ const { resolveAgentCwd } = await import('../../src/tools/crewmate/call/cwd.ts')
     })
     if (t2) clearTimeout(t2)
     await new Promise(resolve => setTimeout(resolve, 30))
-    out.overloadPath = realPauseCarry.agentPauseRecordPath('agent-save-overload')
+    out.overloadPath = realPauseCarry.crewmatePauseRecordPath('agent-save-overload')
     out.overloadNotes = notes()
   `)
   const dropNotes = (r.dropNotes as string[]).join('\n')

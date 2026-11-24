@@ -5,8 +5,8 @@ const home = mkdtempSync(join(tmpdir(), 'resume-prefix-sibling-'))
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { getAgentTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
-const { getAgentTranscript } = await import('../../src/sessions/transcripts/sessionListings.ts')
+const { getCrewmateTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
+const { getCrewmateTranscript } = await import('../../src/sessions/transcripts/sessionListings.ts')
 const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
 const { asAgentId } = await import('../../src/sessions/transcripts/ids.ts')
 const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.ts')
@@ -36,12 +36,12 @@ const rows = [
   { type: 'user', uuid: middle, parentUuid: assistant, timestamp: stamp(7), message: { role: 'user', content: 'tool settled' } },
   { type: 'assistant', uuid: final, parentUuid: middle, timestamp: stamp(8), message: { role: 'assistant', id: 'msg_final', model: 'fixture', content: [{ type: 'text', text: 'done' }], usage: { input_tokens: 1, output_tokens: 1 } } },
 ].map(row => ({ isSidechain: true, agentId, sessionId, ...row }))
-const path = getAgentTranscriptPath(agentId)
+const path = getCrewmateTranscriptPath(agentId)
 mkdirSync(dirname(path), { recursive: true })
 let ordinal = 0
 writeFileSync(path, rows.map(row => JSON.stringify(entryToRecord(row as never, { sessionId, nextOrdinal: () => ordinalOf(++ordinal), observedAt: stamp(9), source: { channel: 'interactive' } } as never))).join('\n') + '\n')
 const before = readFileSync(path, 'utf8')
-const resumed = await getAgentTranscript(agentId)
+const resumed = await getCrewmateTranscript(agentId)
 const records = resumed?.messages.filter(row => row.type === 'attachment' && row.attachment.type === 'bound_prefix') ?? []
 check('the agent resume read carries the newest matching sibling prefix record', records.length === 1 && records[0]?.uuid === newest, `${records.length} bound_prefix record(s), uuids ${records.map(row => row.uuid).join(',')}, expected only ${newest} — getAgentTranscript in src/sessions/transcripts/sessionListings.ts must append the latest bound_prefix of the same session and the first chain row's uuid`)
 check('the original conversational chain stays in its original order', resumed?.messages.filter(row => row.type !== 'attachment').map(row => row.uuid).join(',') === [first, assistant, middle, final].join(','), 'getAgentTranscript in src/sessions/transcripts/sessionListings.ts must return the conversation chain unchanged, with the prefix record only appended')

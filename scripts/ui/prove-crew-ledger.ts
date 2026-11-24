@@ -184,7 +184,7 @@ const crewmateQueue = await import('../../src/screen/tasks/crewmateQueue.ts')
 const crewViewStore = await import('../../src/screen/cockpit/crewView.ts')
 const { createTaskStateBase } = await import('../../src/engine/tasks/taskBase.ts')
 const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
-const { getAgentTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
+const { getCrewmateTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
 const { asAgentId } = await import('../../src/sessions/transcripts/ids.ts')
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
 const h = React.createElement
@@ -676,7 +676,7 @@ async function run(cols: number, rows: number): Promise<void> {
       messages: [],
       status: 'running',
     }
-    const file = getAgentTranscriptPath(asAgentId(LOCAL_ID))
+    const file = getCrewmateTranscriptPath(asAgentId(LOCAL_ID))
     rmSync(file, { force: true })
     scene.setState(prev => ({ ...prev, tasks: { ...(prev.tasks as Record<string, unknown>), [LOCAL_ID]: base } }))
     await sleep(300)

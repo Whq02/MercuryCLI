@@ -16,15 +16,15 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
 const storage = await import('../../src/sessions/transcripts/sessionStorage.ts')
-type AgentIdArg = Parameters<typeof storage.writeAgentMetadata>[0]
+type AgentIdArg = Parameters<typeof storage.writeCrewmateMetadata>[0]
 
 section('§1 the launch sidecar carries the directory')
-await storage.writeAgentMetadata('cwd-continuation-proof' as AgentIdArg, { agentType: 'mercury-crew', description: 'proof', model: 'claude-fable-5-1', cwd: '/proof/lane' })
-const back = await storage.readAgentMetadata('cwd-continuation-proof' as AgentIdArg)
+await storage.writeCrewmateMetadata('cwd-continuation-proof' as AgentIdArg, { agentType: 'mercury-crew', description: 'proof', model: 'claude-fable-5-1', cwd: '/proof/lane' })
+const back = await storage.readCrewmateMetadata('cwd-continuation-proof' as AgentIdArg)
 check('cwd round-trips through the sidecar', back?.cwd === '/proof/lane', JSON.stringify(back) + ' · fix writeAgentMetadata and readAgentMetadata in src/sessions/transcripts/sessionStorage.ts')
 check('the other launch facts are intact beside it', back?.agentType === 'mercury-crew' && back?.description === 'proof' && back?.model === 'claude-fable-5-1', JSON.stringify(back) + ' · fix writeAgentMetadata and readAgentMetadata in src/sessions/transcripts/sessionStorage.ts')
-await storage.writeAgentMetadata('cwd-continuation-proof-plain' as AgentIdArg, { agentType: 'mercury-crew', description: 'plain' })
-const plain = await storage.readAgentMetadata('cwd-continuation-proof-plain' as AgentIdArg)
+await storage.writeCrewmateMetadata('cwd-continuation-proof-plain' as AgentIdArg, { agentType: 'mercury-crew', description: 'plain' })
+const plain = await storage.readCrewmateMetadata('cwd-continuation-proof-plain' as AgentIdArg)
 check('a sidecar written without a directory reads none', plain !== null && plain.cwd === undefined, JSON.stringify(plain) + ' · fix readAgentMetadata in src/sessions/transcripts/sessionStorage.ts')
 
 

@@ -7,7 +7,7 @@ import type { Notification } from '../notifications/notifications.js'
 import { getFocusedSessionConnector } from '../../engine/connector/focusedConnector.js'
 import type { AppState } from '../app-state/AppState.js'
 import { publishAtomic } from '../../platform/substrate/fileStore.js'
-import { isLocalAgentTask, requestCrewmateFold } from '../../engine/tasks/local-agent/crewmateTask.js'
+import { isCrewmateTask, requestCrewmateFold } from '../../engine/tasks/local-agent/crewmateTask.js'
 import { MERCURY_CREW_AGENT_TYPE } from '../../tools/kit/names/agent.js'
 import {
   crewmateCommandUnreachableWords,
@@ -33,7 +33,7 @@ import { formatDuration, formatTokens } from '../../platform/text/format.js'
 import { logError } from '../../platform/logs/errorLog.js'
 import { parseUserSpecifiedModel, renderModelName } from '../../models/catalogue/engineModel.js'
 import { MODEL_PICKER_PANEL } from '../../models/facts/modelPickerGroups.js'
-import type { AgentMetadata } from '../../sessions/transcripts/paths.js'
+import type { CrewmateMetadata } from '../../sessions/transcripts/paths.js'
 import { formatSessionCost } from '../../models/roads/spendSpelling.js'
 import { panelWidth } from '../widgets/geometry.js'
 import { POPUP_GUTTER } from '../overlays/PopupGutter.js'
@@ -66,27 +66,27 @@ function argsOf(line: string): string {
 
 function crewmateRuns(crewmate: CrewmateInView): boolean {
   const local = crewmate.local
-  if (local !== undefined && isLocalAgentTask(local)) return local.status === 'running'
+  if (local !== undefined && isCrewmateTask(local)) return local.status === 'running'
   return crewmateLive(crewmate)
 }
 
 function runningModelOf(crewmate: CrewmateInView): string | null {
   const local = crewmate.local
-  return (local !== undefined && isLocalAgentTask(local) ? word(local.model) : null) ?? crewmate.facts?.model ?? null
+  return (local !== undefined && isCrewmateTask(local) ? word(local.model) : null) ?? crewmate.facts?.model ?? null
 }
 
-function agentTypeOf(crewmate: CrewmateInView, meta: AgentMetadata | null): string {
+function agentTypeOf(crewmate: CrewmateInView, meta: CrewmateMetadata | null): string {
   const local = crewmate.local
-  return meta?.agentType ?? (local !== undefined && isLocalAgentTask(local) ? local.agentType : null) ?? crewmate.facts?.agentType ?? MERCURY_CREW_AGENT_TYPE
+  return meta?.agentType ?? (local !== undefined && isCrewmateTask(local) ? local.agentType : null) ?? crewmate.facts?.agentType ?? MERCURY_CREW_AGENT_TYPE
 }
 
-async function readRecord(file: string): Promise<AgentMetadata | null> {
+async function readRecord(file: string): Promise<CrewmateMetadata | null> {
   try {
     const parsed: unknown = JSON.parse(await readFile(file, 'utf8'))
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
       throw new SyntaxError('not a JSON object')
     }
-    return parsed as AgentMetadata
+    return parsed as CrewmateMetadata
   } catch (error) {
     if (isENOENT(error)) return null
     const wrapped = new Error(`crewmate metadata ${file} could not be read: ${error instanceof SyntaxError ? 'it is not valid JSON' : errorMessage(error)}`)
@@ -95,11 +95,11 @@ async function readRecord(file: string): Promise<AgentMetadata | null> {
   }
 }
 
-async function writeRecord(file: string, meta: AgentMetadata): Promise<void> {
+async function writeRecord(file: string, meta: CrewmateMetadata): Promise<void> {
   await publishAtomic(file, JSON.stringify(meta))
 }
 
-async function latestRecord(seat: CrewmateSeat): Promise<AgentMetadata> {
+async function latestRecord(seat: CrewmateSeat): Promise<CrewmateMetadata> {
   const latest = await readRecord(seat.file)
   seat.meta = latest ?? seat.meta
   return latest ?? seat.meta ?? { agentType: agentTypeOf(seat.crewmate, null) }
@@ -110,7 +110,7 @@ type CrewmateSeat = {
   name: string
   running: boolean
   file: string
-  meta: AgentMetadata | null
+  meta: CrewmateMetadata | null
   model: string
   io: CrewmateCommandIo
 }
@@ -229,7 +229,7 @@ async function runEffort(seat: CrewmateSeat, args: string): Promise<void> {
 async function runFold(seat: CrewmateSeat, args: string): Promise<void> {
   const note = args === '' ? '' : ` — ${CREWMATE_FOLD_INSTRUCTIONS_NOTE}`
   const local = seat.crewmate.local
-  if (local !== undefined && isLocalAgentTask(local) && local.status === 'running' && requestCrewmateFold(local.id, seat.io.setAppState)) {
+  if (local !== undefined && isCrewmateTask(local) && local.status === 'running' && requestCrewmateFold(local.id, seat.io.setAppState)) {
     seat.io.receipt(`${crewmateFoldWords(seat.name, true)}${note}`)
     return
   }

@@ -81,8 +81,8 @@ try {
     const store = { state: { tasks: {} as Record<string, Record<string, unknown>>, speculation: { status: 'idle' }, agentNameRegistry: new Map() } }
     const set = ((update: (state: typeof store.state) => typeof store.state) => { store.state = update(store.state) }) as never
     const pausedAtAWall = (id: string): void => {
-      const registered = lane.registerAsyncAgent({ agentId: id, description: id, prompt: 'work', setAppState: set })
-      lane.failAgentTask(id, 'API Error: 429 the window is spent', set, registered.abortController)
+      const registered = lane.registerAsyncCrewmate({ agentId: id, description: id, prompt: 'work', setAppState: set })
+      lane.failCrewmateTask(id, 'API Error: 429 the window is spent', set, registered.abortController)
       utils.armBudgetCutResume({ taskId: id, description: id, registration: registered.abortController!, toolUseContext: { options: { tools: [] } } as never, rootSetAppState: set, delayMs: 600_000, pause: { why: 'usage limit', words: 'the window is spent', resumesAtMs: Date.now() + 600_000 } })
     }
     const words = (pending = 0): string | null => census.capabilityHoldWords(census.runnerCapabilityHolds({ pendingControlRequestCount: () => pending }))

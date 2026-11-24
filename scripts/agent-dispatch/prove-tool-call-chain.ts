@@ -1,7 +1,7 @@
 import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
 import { advanceToolCallChain, readToolCallChain, type ToolCallChain, type ToolUseContext } from '../../src/tools/kit/tool.ts'
-import { createSubagentContext } from '../../src/crew/agents/forkedAgent.ts'
+import { createChildContext } from '../../src/crew/agents/forkedAgent.ts'
 import { FileStateCache } from '../../src/platform/files/fileStateCache.ts'
 
 let checks = 0
@@ -48,10 +48,10 @@ const parent = {
   messages: [],
   callChain: { key: 'parent', hop: 4 },
 } as unknown as ToolUseContext
-const first = createSubagentContext(parent)
-const second = createSubagentContext(parent)
-const nested = createSubagentContext(first)
-const withoutChain = createSubagentContext({ ...parent, callChain: undefined })
+const first = createChildContext(parent)
+const second = createChildContext(parent)
+const nested = createChildContext(first)
+const withoutChain = createChildContext({ ...parent, callChain: undefined })
 equal(first.callChain?.hop, 5)
 equal(second.callChain?.hop, 5)
 equal(nested.callChain?.hop, 6)

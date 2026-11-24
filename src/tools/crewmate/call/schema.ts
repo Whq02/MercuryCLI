@@ -2,17 +2,17 @@ import { z } from 'zod'
 import { semanticBoolean } from '../../kit/semanticBoolean.js'
 import { EFFORT_LEVELS, type EffortLevel } from '../../../models/effort/effort.js'
 import { lazySchema } from '../../../platform/primitives/lazySchema.js'
-import { agentToolResultSchema } from '../crewmateLifecycle.js'
+import { crewmateToolResultSchema } from '../crewmateLifecycle.js'
 import { MERCURY_CREW_AGENT_TYPE } from '../../kit/names/agent.js'
-import type { AgentToolProgress, ShellProgress } from '../../kit/toolProgress.js'
+import type { CrewmateToolProgress, ShellProgress } from '../../kit/toolProgress.js'
 import type { describeAgentRuntimeRef } from '../../../models/roads/primaryBackend.js'
-export type Progress = AgentToolProgress | ShellProgress
+export type Progress = CrewmateToolProgress | ShellProgress
 
 export const BACKGROUND_TASKS_DISABLED = false
 
 export const DEFAULT_AGENT_TYPE = MERCURY_CREW_AGENT_TYPE
 
-export type AgentToolInput = {
+export type CrewmateToolInput = {
   description: string
   prompt: string
   name?: string
@@ -133,13 +133,13 @@ export const inputSchema = lazySchema(() =>
 
 export const outputSchema = lazySchema(() =>
   z.union([
-    agentToolResultSchema().extend({
+    crewmateToolResultSchema().extend({
       status: z.literal('completed'),
       prompt: z.string(),
       worktreePath: z.string().optional(),
       worktreeBranch: z.string().optional(),
     }),
-    agentToolResultSchema().extend({
+    crewmateToolResultSchema().extend({
       status: z.literal('failed'),
       error: z.string(),
       prompt: z.string(),
@@ -187,7 +187,7 @@ export const outputSchema = lazySchema(() =>
   ]),
 )
 
-export type AgentToolOutput = z.infer<ReturnType<typeof outputSchema>> & {
+export type CrewmateToolOutput = z.infer<ReturnType<typeof outputSchema>> & {
   isAsync?: true
   agentName?: string
   runtimeRef?: ReturnType<typeof describeAgentRuntimeRef>

@@ -11,7 +11,7 @@ import { msysDrivePathToNative } from '../../../platform/host-os/paths.js'
 import { getErrnoCode } from '../../../platform/errors/errors.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
 
-function agentDirectoryOf(spelling: string): string {
+function crewmateDirectoryOf(spelling: string): string {
   if (!isAbsolute(spelling) || hasControlCharacter(spelling)) {
     throw new Error(`cwd must be an absolute directory: ${spelling} (the session folder is ${getCwd()})`)
   }
@@ -31,14 +31,14 @@ function agentDirectoryOf(spelling: string): string {
   return realpathSync(onDisk)
 }
 
-export function resolveAgentCwd(spelling: string, _permissionContext: ToolPermissionContext, _options?: { admit?: boolean }): string {
-  return agentDirectoryOf(spelling)
+export function resolveCrewmateCwd(spelling: string, _permissionContext: ToolPermissionContext, _options?: { admit?: boolean }): string {
+  return crewmateDirectoryOf(spelling)
 }
 
-export function agentCwdQuestion(spelling: string, permissionContext: ToolPermissionContext): PermissionAskDecision | null {
+export function crewmateCwdQuestion(spelling: string, permissionContext: ToolPermissionContext): PermissionAskDecision | null {
   let dir: string
   try {
-    dir = agentDirectoryOf(spelling)
+    dir = crewmateDirectoryOf(spelling)
   } catch (error) {
     passedOver(error)
     return null

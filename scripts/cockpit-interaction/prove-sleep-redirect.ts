@@ -9,7 +9,7 @@ import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
 import { frameLines, isMainThread, isToolCall, isToolResult } from '../lib/rows.ts'
-import { countTrackedRunningAgents, SleepTool, TERMINAL_TASK_STATUSES, TRACKED_ARM_GRACE_TICKS, TRACKED_SETTLE_POLL_MS, UNTRACKED_TASK_TYPES } from '../../src/tools/sleep/SleepTool.tsx'
+import { countTrackedRunningTasks, SleepTool, TERMINAL_TASK_STATUSES, TRACKED_ARM_GRACE_TICKS, TRACKED_SETTLE_POLL_MS, UNTRACKED_TASK_TYPES } from '../../src/tools/sleep/SleepTool.tsx'
 import { isTerminalTaskStatus, type TaskStatus } from '../../src/engine/tasks/taskBase.ts'
 import { setRunInputClosed } from '../../src/boot/process-state/processState.ts'
 import type { AppState } from '../../src/screen/app-state/AppState.js'
@@ -53,28 +53,28 @@ t.section('§1 — what counts as harness-tracked, TOTAL over the TaskType union
   for (const ty of ['local_agent', 'remote_agent']) {
     t.check(
       `a running ${ty} counts`,
-      countTrackedRunningAgents(stateWith({ a: { id: 'x', type: ty, status: 'running' } })) === 1,
+      countTrackedRunningTasks(stateWith({ a: { id: 'x', type: ty, status: 'running' } })) === 1,
       'one',
     )
   }
   t.check(
     'a PENDING dispatch counts too — dispatch-then-wait can land in the first beat',
-    countTrackedRunningAgents(stateWith({ a: { id: 'x', type: 'local_agent', status: 'pending' } })) === 1,
+    countTrackedRunningTasks(stateWith({ a: { id: 'x', type: 'local_agent', status: 'pending' } })) === 1,
     'non-terminal, not literally running',
   )
   t.check(
     'a FINISHED agent does not',
-    countTrackedRunningAgents(stateWith({ a: { id: 'x', type: 'local_agent', status: 'completed' } })) === 0,
+    countTrackedRunningTasks(stateWith({ a: { id: 'x', type: 'local_agent', status: 'completed' } })) === 0,
     'zero',
   )
   t.check(
     'a running background SHELL does not — the REAL excluded type, not a fictional one',
-    countTrackedRunningAgents(stateWith({ a: { id: 'x', type: 'local_bash', status: 'running' } })) === 0,
+    countTrackedRunningTasks(stateWith({ a: { id: 'x', type: 'local_bash', status: 'running' } })) === 0,
     'local_bash excluded by decision',
   )
   t.check(
     "a subagent's OWN task never counts as work it awaits",
-    countTrackedRunningAgents(
+    countTrackedRunningTasks(
       stateWith({ a: { id: 'agent-self', type: 'local_agent', status: 'running' } }),
       'agent-self',
     ) === 0,
@@ -82,7 +82,7 @@ t.section('§1 — what counts as harness-tracked, TOTAL over the TaskType union
   )
   t.check(
     'an unreadable registry degrades to "nothing tracked" — the redirect is an optimisation, never a dependency',
-    countTrackedRunningAgents(() => {
+    countTrackedRunningTasks(() => {
       throw new Error('no state')
     }) === 0,
     'safe',
@@ -90,39 +90,39 @@ t.section('§1 — what counts as harness-tracked, TOTAL over the TaskType union
   const ownedShell = { s: { id: 'shell-1', type: 'local_bash', status: 'running', agentId: 'agent-self' } }
   t.check(
     "a sub-agent's wait counts the background shell it launched",
-    countTrackedRunningAgents(stateWith(ownedShell), 'agent-self') === 1,
+    countTrackedRunningTasks(stateWith(ownedShell), 'agent-self') === 1,
     'one owned shell',
   )
   t.check(
     "another agent's shell, and the main thread's, do not count for it",
-    countTrackedRunningAgents(stateWith({ a: { id: 'shell-2', type: 'local_bash', status: 'running', agentId: 'agent-other' }, b: { id: 'shell-3', type: 'local_bash', status: 'running' } }), 'agent-self') === 0,
+    countTrackedRunningTasks(stateWith({ a: { id: 'shell-2', type: 'local_bash', status: 'running', agentId: 'agent-other' }, b: { id: 'shell-3', type: 'local_bash', status: 'running' } }), 'agent-self') === 0,
     'not its own',
   )
   t.check(
     "the main thread's wait still leaves every shell out",
-    countTrackedRunningAgents(stateWith({ ...ownedShell, b: { id: 'shell-3', type: 'local_bash', status: 'running' } })) === 0,
+    countTrackedRunningTasks(stateWith({ ...ownedShell, b: { id: 'shell-3', type: 'local_bash', status: 'running' } })) === 0,
     'local_bash excluded for the main thread',
   )
   t.check(
     "a settled owned shell no longer counts",
-    countTrackedRunningAgents(stateWith({ s: { id: 'shell-1', type: 'local_bash', status: 'completed', agentId: 'agent-self' } }), 'agent-self') === 0,
+    countTrackedRunningTasks(stateWith({ s: { id: 'shell-1', type: 'local_bash', status: 'completed', agentId: 'agent-self' } }), 'agent-self') === 0,
     'zero',
   )
   setRunInputClosed(true)
   try {
     t.check(
       "a one-prompt run (input closed): the main thread's wait counts the run's own background shell",
-      countTrackedRunningAgents(stateWith({ b: { id: 'shell-3', type: 'local_bash', status: 'running' } })) === 1,
+      countTrackedRunningTasks(stateWith({ b: { id: 'shell-3', type: 'local_bash', status: 'running' } })) === 1,
       'one owned shell',
     )
     t.check(
       "…and a crewmate's shell still does not count for it",
-      countTrackedRunningAgents(stateWith(ownedShell)) === 0,
+      countTrackedRunningTasks(stateWith(ownedShell)) === 0,
       'not its own',
     )
     t.check(
       "…and the run's settled shell no longer counts",
-      countTrackedRunningAgents(stateWith({ b: { id: 'shell-3', type: 'local_bash', status: 'completed' } })) === 0,
+      countTrackedRunningTasks(stateWith({ b: { id: 'shell-3', type: 'local_bash', status: 'completed' } })) === 0,
       'zero',
     )
   } finally {
@@ -130,7 +130,7 @@ t.section('§1 — what counts as harness-tracked, TOTAL over the TaskType union
   }
   t.check(
     "with the input open again the main thread's wait leaves its shells out",
-    countTrackedRunningAgents(stateWith({ b: { id: 'shell-3', type: 'local_bash', status: 'running' } })) === 0,
+    countTrackedRunningTasks(stateWith({ b: { id: 'shell-3', type: 'local_bash', status: 'running' } })) === 0,
     'local_bash excluded for an open session',
   )
 }

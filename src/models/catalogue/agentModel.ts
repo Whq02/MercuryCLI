@@ -1,4 +1,4 @@
-import { subagentDefaultModel } from '../../crew/agents/agentDefaults.js'
+import { crewmateDefaultModel } from '../../crew/agents/agentDefaults.js'
 
 import { classifyModelRoute } from '../roads/idSpaces.js'
 import { FIRST_PARTY_FAMILY_WORDS, routeOfFamilyWord } from './modelFamilies.js'
@@ -6,7 +6,7 @@ import { getCanonicalName, parseUserSpecifiedModel } from './engineModel.js'
 
 const INHERIT = 'inherit'
 
-export function getDefaultSubagentModel(): string {
+export function getDefaultCrewmateModel(): string {
   return INHERIT
 }
 
@@ -37,7 +37,7 @@ function resolveModelWord(word: string, parentModel: string): string {
   return parseUserSpecifiedModel(word)
 }
 
-export function getAgentModel(
+export function getCrewmateModel(
   agentModel: string | undefined,
   parentModel: string,
   toolSpecifiedModel?: string,
@@ -45,7 +45,7 @@ export function getAgentModel(
   if (toolSpecifiedModel) {
     return resolveModelWord(toolSpecifiedModel, parentModel)
   }
-  const declared = agentModel ?? subagentDefaultModel() ?? INHERIT
+  const declared = agentModel ?? crewmateDefaultModel() ?? INHERIT
   if (declared === INHERIT) {
     return parentModel
   }

@@ -27,7 +27,7 @@ const agentToolModule = await import('../../src/tools/crewmate/CrewmateTool.tsx'
 const utils = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
 const { getPrompt } = await import('../../src/tools/crewmate/prompt.ts')
 const { toolResultText } = await import('../../src/engine/rows/project.ts')
-const { enqueueAgentNotification } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { enqueueCrewmateNotification } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
 const { dequeueAll } = await import('../../src/daemon/runner/messageQueueManager.ts')
 const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
 type Message = import('../../src/engine/message-shapes/message.ts').Message
@@ -35,7 +35,7 @@ type Message = import('../../src/engine/message-shapes/message.ts').Message
 type Block = { type: 'text'; text: string }
 type Mapped = { type: 'tool_result'; tool_use_id: string; is_error?: boolean; content: Block[] }
 const map = (data: Record<string, unknown>, id: string): Mapped =>
-  (agentToolModule.AgentTool as unknown as { mapToolResultToToolResultBlockParam: (d: unknown, id: string) => Mapped }).mapToolResultToToolResultBlockParam(data, id)
+  (agentToolModule.CrewmateTool as unknown as { mapToolResultToToolResultBlockParam: (d: unknown, id: string) => Mapped }).mapToolResultToToolResultBlockParam(data, id)
 const texts = (mapped: Mapped): string[] => mapped.content.map(b => b.text)
 const show = (value: unknown): string => JSON.stringify(value ?? null).slice(0, 300)
 
@@ -163,13 +163,13 @@ const spec = { structuredSpec: { mode: 'permissive' as const, source: 'dispatch'
 
 section('5. the issue words are recorded — the validator\'s words after the unchanged prefix, no data', 'what to change: finalizeAgentTool in src/tools/crewmate/crewmateLifecycle.ts (the structured error it records, and the 300-character cap SCHEMA_ISSUE_WORDS_CAP)')
 {
-  const errored = utils.finalizeAgentTool(transcript('invalid'), 'a5', { ...META, ...spec })
+  const errored = utils.finalizeCrewmateTool(transcript('invalid'), 'a5', { ...META, ...spec })
   check('structured.error is the prefix, a colon, the validator\'s words', errored.structured?.error === `${FAILED_STRUCTURED_YIELD}: ${ISSUE}`, JSON.stringify(errored.structured))
   check('no data is recorded for a failed call', errored.structured?.data === undefined)
-  const long = utils.finalizeAgentTool(transcript('invalid-long'), 'a5b', { ...META, ...spec })
+  const long = utils.finalizeCrewmateTool(transcript('invalid-long'), 'a5b', { ...META, ...spec })
   const longWords = (long.structured?.error ?? '').slice(FAILED_STRUCTURED_YIELD.length + 2)
   check('the words are whitespace-collapsed and clipped to 300 characters with an ellipsis', longWords.length === 301 && longWords.endsWith('…') && !longWords.includes('  '), `${longWords.length} chars`)
-  const missing = utils.finalizeAgentTool(transcript('none'), 'a5c', { ...META, ...spec })
+  const missing = utils.finalizeCrewmateTool(transcript('none'), 'a5c', { ...META, ...spec })
   check('no call records the unchanged miss sentence', missing.structured?.error === NO_STRUCTURED_YIELD, JSON.stringify(missing.structured))
 }
 
@@ -203,7 +203,7 @@ section('8. background — the completion notice carries the block between the s
   const setAppState = (fn: (prev: typeof state) => typeof state): void => {
     state = fn(state)
   }
-  ;(enqueueAgentNotification as unknown as (args: Record<string, unknown>) => void)({
+  ;(enqueueCrewmateNotification as unknown as (args: Record<string, unknown>) => void)({
     taskId: AGENT_ID,
     description: 'Locate function after LEGACY_THRESHOLD',
     status: 'completed',
@@ -231,9 +231,9 @@ section('9. the words — the two field descriptions and the usage note', 'what 
 
 section('10. hooks see the same keys — {data, source, mode} on a hit, {error, source, mode} on a miss', 'what to change: the key order of the structured object that finalizeAgentTool builds in src/tools/crewmate/crewmateLifecycle.ts')
 {
-  const hit = utils.finalizeAgentTool(transcript('valid'), 'a10', { ...META, ...spec })
+  const hit = utils.finalizeCrewmateTool(transcript('valid'), 'a10', { ...META, ...spec })
   check('a hit records data, source, mode in that order', JSON.stringify(Object.keys(hit.structured ?? {})) === '["data","source","mode"]', JSON.stringify(Object.keys(hit.structured ?? {})))
-  const missed = utils.finalizeAgentTool(transcript('none'), 'a10b', { ...META, ...spec })
+  const missed = utils.finalizeCrewmateTool(transcript('none'), 'a10b', { ...META, ...spec })
   check('a miss records error, source, mode in that order', JSON.stringify(Object.keys(missed.structured ?? {})) === '["error","source","mode"]', JSON.stringify(Object.keys(missed.structured ?? {})))
   const mappedHit = map({ ...settled({}), ...hit }, 't10')
   check('the finalized hit maps to the block first (the two halves agree)', mappedHit.content[0]?.text === VALID_BLOCK, show(mappedHit.content[0]?.text))

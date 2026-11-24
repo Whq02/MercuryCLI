@@ -11,7 +11,7 @@ await import('../../src/engine/tasks/tasks.js')
 const { recordSidechainTranscript, recordTranscript, getProject } = await import(
   '../../src/sessions/transcripts/writer.js'
 )
-const { getAgentTranscriptPath } = await import('../../src/sessions/transcripts/paths.js')
+const { getCrewmateTranscriptPath } = await import('../../src/sessions/transcripts/paths.js')
 const { asAgentId } = await import('../../src/sessions/transcripts/ids.js')
 const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.js')
 const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.js')
@@ -45,7 +45,7 @@ const lineCount = (p: string): number =>
 section('§A continuation rounds append only the NEW tail (per-file dedup)')
 {
   const agentId = 'a-cont-growth-1'
-  const file = getAgentTranscriptPath(asAgentId(agentId))
+  const file = getCrewmateTranscriptPath(asAgentId(agentId))
   const u = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 
   await recordSidechainTranscript([msg(u(1), 'one', null), msg(u(2), 'two', u(1))] as never, agentId)
@@ -80,7 +80,7 @@ section('§A continuation rounds append only the NEW tail (per-file dedup)')
 section('§B fork-inherited UUIDs still land in the agent file once')
 {
   const agentId = 'a-cont-growth-2'
-  const file = getAgentTranscriptPath(asAgentId(agentId))
+  const file = getCrewmateTranscriptPath(asAgentId(agentId))
   const shared = '00000000-0000-4000-8000-777700000001'
   await recordTranscript([
     {
@@ -107,7 +107,7 @@ section('§B fork-inherited UUIDs still land in the agent file once')
 section('§C the per-file set seeds from DISK (fresh-process resume shape)')
 {
   const agentId = 'a-cont-growth-3'
-  const file = getAgentTranscriptPath(asAgentId(agentId))
+  const file = getCrewmateTranscriptPath(asAgentId(agentId))
   const u = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(11, '0')}9`
   mkdirSync(dirname(file), { recursive: true })
   let ordinal = 0

@@ -131,7 +131,7 @@ if (posix) {
 
 section('§5 MONITOR — a watch rides the shell task registry with the crewmate\'s id; the Bash seam ends it')
 const { spawnShellTask } = await import('../../src/engine/tasks/local-shell/shellTask.tsx')
-const { killShellTasksForAgent } = await import('../../src/engine/tasks/local-shell/killShellTasks.ts')
+const { killShellTasksForCrewmate } = await import('../../src/engine/tasks/local-shell/killShellTasks.ts')
 const { wrapSpawn } = await import('../../src/platform/shell/shellProcess.ts')
 const { TaskOutput } = await import('../../src/engine/task-framework/taskOutput.ts')
 const { generateTaskId } = await import('../../src/engine/tasks/taskBase.ts')
@@ -144,7 +144,7 @@ if (posix) {
   }
   const handle = await spawnShellTask({ command: 'sleep 300', description: 'crewmate watch', shellCommand: cmd, agentId: 'agent-crew-teardown', kind: 'monitor' } as never, { abortController: new AbortController(), getAppState: () => state, setAppState } as never)
   check('the monitor task is running under the crewmate\'s id', state.tasks[handle.taskId]?.status === 'running' && state.tasks[handle.taskId]?.agentId === 'agent-crew-teardown' && state.tasks[handle.taskId]?.kind === 'monitor', JSON.stringify(state.tasks[handle.taskId]) + ' | spawnShellTask in src/engine/tasks/local-shell/shellTask.tsx must register the task as running with the agentId and kind it was given')
-  killShellTasksForAgent('agent-crew-teardown', () => state as never, setAppState as never)
+  killShellTasksForCrewmate('agent-crew-teardown', () => state as never, setAppState as never)
   check('the task reads killed at once', state.tasks[handle.taskId]?.status === 'killed', 'killShellTasksForAgent in src/engine/tasks/local-shell/killShellTasks.ts must mark every running task of that agent killed')
   const receipt = await Promise.race([(cmd as unknown as { treeKillReceipt?: Promise<unknown> }).treeKillReceipt ?? Promise.resolve('no receipt'), sleep(5_000).then(() => 'receipt pending after 5s')])
   const watchGone = await goneSoon(child.pid)

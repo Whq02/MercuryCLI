@@ -14,7 +14,7 @@ const { createStore } = await import('../../src/platform/primitives/store.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { onChangeAppState } = await import('../../src/screen/app-state/onChangeAppState.ts')
 const { tellTheToolTable } = await import('../../src/tools/kit/toolTable.ts')
-const { agentToolCall } = await import('../../src/tools/crewmate/call/call.ts')
+const { crewmateToolCall } = await import('../../src/tools/crewmate/call/call.ts')
 
 tellTheToolTable({ getAllBaseTools: () => [], assembleToolPool: () => [] })
 
@@ -93,7 +93,7 @@ try {
     }, EVENT_DELAY_MS)
     let message = ''
     try {
-      await agentToolCall(dummyInput, context, dummyCanUseTool, dummyParent)
+      await crewmateToolCall(dummyInput, context, dummyCanUseTool, dummyParent)
     } catch (error) {
       message = error instanceof Error ? error.message : String(error)
     }
@@ -120,7 +120,7 @@ try {
     }, EVENT_DELAY_MS)
     let message = ''
     try {
-      await agentToolCall(dummyInput, context, dummyCanUseTool, dummyParent)
+      await crewmateToolCall(dummyInput, context, dummyCanUseTool, dummyParent)
     } catch (error) {
       message = error instanceof Error ? error.message : String(error)
     }
@@ -139,7 +139,7 @@ try {
     let errName = ''
     let errCode = ''
     try {
-      await agentToolCall(dummyInput, context, dummyCanUseTool, dummyParent)
+      await crewmateToolCall(dummyInput, context, dummyCanUseTool, dummyParent)
     } catch (error) {
       errName = error instanceof Error ? error.name : ''
       errCode = String((error as { code?: unknown } | null)?.code ?? '')

@@ -17,7 +17,7 @@ process.env.MERCURY_TMPDIR = mkdtempSync(join(tmpdir(), 'wj-tmp-'))
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'wj-home-'))
 
 const ROOT = join(import.meta.dir, '..', '..')
-const { cleanupStaleAgentWorktrees } = await import(
+const { cleanupStaleCrewmateWorktrees } = await import(
   join(ROOT, 'src/platform/git/worktree/worktree.ts')
 )
 const { runWithCwdOverride } = await import(join(ROOT, 'src/platform/files/cwd.ts'))
@@ -99,23 +99,23 @@ try {
   await age(external)
 
   const removed: number = await runWithCwdOverride(repo, () =>
-    cleanupStaleAgentWorktrees(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)),
+    cleanupStaleCrewmateWorktrees(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)),
   )
 
   const branches = git(['branch', '--format=%(refname:short)'])
-  check('A stale+clean+pushed agent lane swept', !existsSync(a), '', 'cleanupStaleAgentWorktrees in src/platform/git/worktree/worktree.ts should remove an agent worktree that is stale, clean and pushed; check its age cutoff and clean/pushed tests')
-  check('A lane branch deleted', !branches.includes('worktree-agent-a3cb25bd1c6ce6f74'), '', 'cleanupStaleAgentWorktrees in src/platform/git/worktree/worktree.ts should delete the worktree-agent-* branch together with the swept directory')
-  check('B dirty lane kept', existsSync(join(b, 'app.ts')), '', 'cleanupStaleAgentWorktrees in src/platform/git/worktree/worktree.ts must skip a worktree with uncommitted changes')
-  check('C unpushed lane kept', existsSync(join(c, 'new.ts')), '', 'cleanupStaleAgentWorktrees in src/platform/git/worktree/worktree.ts must skip a worktree whose commits are not pushed')
-  check('D fresh lane kept (7-day floor clamps the 30d cutoff)', existsSync(join(wtHome, 'parcel-d1d2d3d4d5d6')), '', 'cleanupStaleAgentWorktrees in src/platform/git/worktree/worktree.ts must clamp the cutoff with EPHEMERAL_RETENTION_FLOOR_MS so a worktree under 7 days old is kept')
-  check('E orphan dir reaped', !existsSync(e), '', 'cleanupStaleAgentWorktrees in src/platform/git/worktree/worktree.ts should reap an old directory under the worktrees home that git does not know as a worktree')
-  check('F disowned copy reaped', !existsSync(f), '', 'cleanupStaleAgentWorktrees in src/platform/git/worktree/worktree.ts should reap an old copied directory whose git link points at another worktree')
-  check('F original live lane kept', existsSync(w), '', 'cleanupStaleAgentWorktrees in src/platform/git/worktree/worktree.ts must not remove the live worktree that a copied directory was cloned from')
-  check('G user-named worktree kept', existsSync(g), '', 'cleanupStaleAgentWorktrees in src/platform/git/worktree/worktree.ts must only sweep the agent and parcel named lanes, never a user-named worktree')
-  check('H adoption debris reaped', !existsSync(h), '', 'cleanupStaleAgentWorktrees in src/platform/git/worktree/worktree.ts should reap an old worktrees.adopting-* directory left beside the worktrees home')
-  check('I content outside the canonical home untouched', existsSync(join(external, 'junk.txt')), '', 'cleanupStaleAgentWorktrees in src/platform/git/worktree/worktree.ts must only touch the canonical .mercury/worktrees home, not other tools directories')
-  check('I nothing copied into the canonical home', !existsSync(join(wtHome, 'parcel-abcdefabcdef')), '', 'cleanupStaleAgentWorktrees in src/platform/git/worktree/worktree.ts must not copy or move outside content into the canonical worktrees home')
-  check('sweep count == 4 (A + E + F-copy + H)', removed === 4, `removed=${removed}`, 'cleanupStaleAgentWorktrees in src/platform/git/worktree/worktree.ts should return the count of swept entries: the stale agent lane, the orphan dir, the disowned copy and the adoption debris')
+  check('A stale+clean+pushed agent lane swept', !existsSync(a), '', 'cleanupStaleCrewmateWorktrees in src/platform/git/worktree/worktree.ts should remove an agent worktree that is stale, clean and pushed; check its age cutoff and clean/pushed tests')
+  check('A lane branch deleted', !branches.includes('worktree-agent-a3cb25bd1c6ce6f74'), '', 'cleanupStaleCrewmateWorktrees in src/platform/git/worktree/worktree.ts should delete the worktree-agent-* branch together with the swept directory')
+  check('B dirty lane kept', existsSync(join(b, 'app.ts')), '', 'cleanupStaleCrewmateWorktrees in src/platform/git/worktree/worktree.ts must skip a worktree with uncommitted changes')
+  check('C unpushed lane kept', existsSync(join(c, 'new.ts')), '', 'cleanupStaleCrewmateWorktrees in src/platform/git/worktree/worktree.ts must skip a worktree whose commits are not pushed')
+  check('D fresh lane kept (7-day floor clamps the 30d cutoff)', existsSync(join(wtHome, 'parcel-d1d2d3d4d5d6')), '', 'cleanupStaleCrewmateWorktrees in src/platform/git/worktree/worktree.ts must clamp the cutoff with EPHEMERAL_RETENTION_FLOOR_MS so a worktree under 7 days old is kept')
+  check('E orphan dir reaped', !existsSync(e), '', 'cleanupStaleCrewmateWorktrees in src/platform/git/worktree/worktree.ts should reap an old directory under the worktrees home that git does not know as a worktree')
+  check('F disowned copy reaped', !existsSync(f), '', 'cleanupStaleCrewmateWorktrees in src/platform/git/worktree/worktree.ts should reap an old copied directory whose git link points at another worktree')
+  check('F original live lane kept', existsSync(w), '', 'cleanupStaleCrewmateWorktrees in src/platform/git/worktree/worktree.ts must not remove the live worktree that a copied directory was cloned from')
+  check('G user-named worktree kept', existsSync(g), '', 'cleanupStaleCrewmateWorktrees in src/platform/git/worktree/worktree.ts must only sweep the agent and parcel named lanes, never a user-named worktree')
+  check('H adoption debris reaped', !existsSync(h), '', 'cleanupStaleCrewmateWorktrees in src/platform/git/worktree/worktree.ts should reap an old worktrees.adopting-* directory left beside the worktrees home')
+  check('I content outside the canonical home untouched', existsSync(join(external, 'junk.txt')), '', 'cleanupStaleCrewmateWorktrees in src/platform/git/worktree/worktree.ts must only touch the canonical .mercury/worktrees home, not other tools directories')
+  check('I nothing copied into the canonical home', !existsSync(join(wtHome, 'parcel-abcdefabcdef')), '', 'cleanupStaleCrewmateWorktrees in src/platform/git/worktree/worktree.ts must not copy or move outside content into the canonical worktrees home')
+  check('sweep count == 4 (A + E + F-copy + H)', removed === 4, `removed=${removed}`, 'cleanupStaleCrewmateWorktrees in src/platform/git/worktree/worktree.ts should return the count of swept entries: the stale agent lane, the orphan dir, the disowned copy and the adoption debris')
 } catch (err) {
   failures++
   console.log(`  [FAIL] prover crashed — ${err}`)

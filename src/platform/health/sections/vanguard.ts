@@ -24,7 +24,7 @@ export function vanguardChecks(): CheckSpec[] {
       depth: 'deep',
       probe: 'functional',
       timeoutMs: 15_000,
-      run: async () => (await import('../healthDeepProbes.js')).probeAgentEnvelope(),
+      run: async () => (await import('../healthDeepProbes.js')).probeCrewmateEnvelope(),
     },
   ]
 }

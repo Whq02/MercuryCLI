@@ -8,10 +8,10 @@ import { type RecoveryBudget, RecoveryBudgetSpentError, recoveryAnswerRefills, r
 import { heldBusyRetryNotice } from '../../../models/roads/busyRetry.js'
 import { reviewerRefusal } from '../reviewerPolicy.js'
 import { scoutRefusal } from '../scoutPolicy.js'
-import type { agentStalledError, declaredRecoveryWaitMs, RecoveryAccountant, RunAgentParams } from '../runCrewmate.js'
+import type { crewmateStalledError, declaredRecoveryWaitMs, RecoveryAccountant, RunCrewmateParams } from '../runCrewmate.js'
 import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../../platform/async/timers.js'
 
-export interface AgentRun {
+export interface CrewmateRun {
   eventsSeen: number
   toolUsesSeen: number
   deferredTouch: ReturnType<typeof setTimeout> | null
@@ -24,9 +24,9 @@ export interface AgentRun {
   askHeartbeat: ReturnType<typeof setInterval> | null
 }
 
-type StalledNeeds = { agentDefinition: RunAgentParams['agentDefinition']; agentId: AgentId; idleLimitMs: number; startedAt: number; agentStalledError: typeof agentStalledError }
+type StalledNeeds = { agentDefinition: RunCrewmateParams['agentDefinition']; agentId: AgentId; idleLimitMs: number; startedAt: number; agentStalledError: typeof crewmateStalledError }
 
-export function stalledErrorOf(run: AgentRun, { agentDefinition, agentId, idleLimitMs, startedAt, agentStalledError }: StalledNeeds) {
+export function stalledErrorOf(run: CrewmateRun, { agentDefinition, agentId, idleLimitMs, startedAt, agentStalledError }: StalledNeeds) {
   const stalledError = (): DeadlineExceededError =>
     agentStalledError({
       agentType: agentDefinition.agentType,
@@ -40,11 +40,11 @@ export function stalledErrorOf(run: AgentRun, { agentDefinition, agentId, idleLi
   return stalledError
 }
 
-export function unarmedAgentRun(): AgentRun {
+export function unarmedCrewmateRun(): CrewmateRun {
   return { eventsSeen: 0, toolUsesSeen: 0, deferredTouch: null, retryStalledRequest: null, stoppedAfterRetry: false, watchdog: armInactivityDeadline({ seam: 'crewmate', limitMs: 0 }), throttled: null, cuttingWait: { declaredMs: 0, honoredMs: 0 }, pendingAsks: 0, askHeartbeat: null }
 }
 
-export function armWatchdogOf(run: AgentRun, { agentDefinition, agentId, idleLimitMs, stalledError, abortController }: { agentDefinition: RunAgentParams['agentDefinition']; agentId: AgentId; idleLimitMs: number; stalledError: () => DeadlineExceededError; abortController: AbortController }) {
+export function armWatchdogOf(run: CrewmateRun, { agentDefinition, agentId, idleLimitMs, stalledError, abortController }: { agentDefinition: RunCrewmateParams['agentDefinition']; agentId: AgentId; idleLimitMs: number; stalledError: () => DeadlineExceededError; abortController: AbortController }) {
   const armWatchdog = (): ReturnType<typeof armInactivityDeadline> => armInactivityDeadline({
     seam: `crewmate ${agentDefinition.agentType} (${agentId})`,
     limitMs: idleLimitMs,
@@ -61,7 +61,7 @@ export function armWatchdogOf(run: AgentRun, { agentDefinition, agentId, idleLim
   return armWatchdog
 }
 
-export function cutAtBudgetOf(run: AgentRun, { recovery, abortController }: { recovery: RecoveryBudget; abortController: AbortController }) {
+export function cutAtBudgetOf(run: CrewmateRun, { recovery, abortController }: { recovery: RecoveryBudget; abortController: AbortController }) {
   const cutAtBudget = (cutting: { declaredMs: number; honoredMs: number }): void => {
     run.cuttingWait = cutting
     run.throttled = new RecoveryBudgetSpentError(recovery, run.cuttingWait)
@@ -70,7 +70,7 @@ export function cutAtBudgetOf(run: AgentRun, { recovery, abortController }: { re
   return cutAtBudget
 }
 
-export function touchThroughOf(run: AgentRun) {
+export function touchThroughOf(run: CrewmateRun) {
   const touchThrough = (declaredMs: number): void => {
     run.watchdog.touch()
     if (declaredMs <= 0) return
@@ -84,7 +84,7 @@ export function touchThroughOf(run: AgentRun) {
   return touchThrough
 }
 
-export function askLivelyOf(run: AgentRun, canUseTool: NonNullable<RunAgentParams['canUseTool']>, { idleLimitMs, reviewReceipt, worktreePath, readOnlyScout, onPendingAsks }: { idleLimitMs: number; reviewReceipt: string | undefined; worktreePath: RunAgentParams['worktreePath']; readOnlyScout: boolean; onPendingAsks: RunAgentParams['onPendingAsks'] }) {
+export function askLivelyOf(run: CrewmateRun, canUseTool: NonNullable<RunCrewmateParams['canUseTool']>, { idleLimitMs, reviewReceipt, worktreePath, readOnlyScout, onPendingAsks }: { idleLimitMs: number; reviewReceipt: string | undefined; worktreePath: RunCrewmateParams['worktreePath']; readOnlyScout: boolean; onPendingAsks: RunCrewmateParams['onPendingAsks'] }) {
   const askHeartbeatMs = Math.max(1_000, Math.min(30_000, Math.floor(idleLimitMs / 4)))
   return (async (...args: Parameters<NonNullable<typeof canUseTool>>) => {
     if (reviewReceipt !== undefined) {
@@ -116,7 +116,7 @@ export function askLivelyOf(run: AgentRun, canUseTool: NonNullable<RunAgentParam
   }) as NonNullable<typeof canUseTool>
 }
 
-export function callModelOf(run: AgentRun, { deps, agentId }: { deps: ReturnType<typeof productionDeps>; agentId: AgentId }) {
+export function callModelOf(run: CrewmateRun, { deps, agentId }: { deps: ReturnType<typeof productionDeps>; agentId: AgentId }) {
   const callModel: typeof deps.callModel = async function* (request) {
     let retried = false
     for (;;) {
@@ -156,9 +156,9 @@ export function callModelOf(run: AgentRun, { deps, agentId }: { deps: ReturnType
   return callModel
 }
 
-type ObserveNeeds = { recovery: RecoveryBudget; accountant: RecoveryAccountant; onQueryProgress: RunAgentParams['onQueryProgress']; touchThrough: (declaredMs: number) => void; declaredRecoveryWaitMs: typeof declaredRecoveryWaitMs }
+type ObserveNeeds = { recovery: RecoveryBudget; accountant: RecoveryAccountant; onQueryProgress: RunCrewmateParams['onQueryProgress']; touchThrough: (declaredMs: number) => void; declaredRecoveryWaitMs: typeof declaredRecoveryWaitMs }
 
-export function observeProgressOf(run: AgentRun, { recovery, accountant, onQueryProgress, touchThrough, declaredRecoveryWaitMs }: ObserveNeeds) {
+export function observeProgressOf(run: CrewmateRun, { recovery, accountant, onQueryProgress, touchThrough, declaredRecoveryWaitMs }: ObserveNeeds) {
   const observeProgress = (message: LegacyTurnYield): void => {
     run.eventsSeen++
     touchThrough(declaredRecoveryWaitMs(message))
@@ -180,7 +180,7 @@ export function observeProgressOf(run: AgentRun, { recovery, accountant, onQuery
   return observeProgress
 }
 
-export function sdkStatusOf(run: AgentRun, { onQueryProgress, accountant, touchThrough }: { onQueryProgress: RunAgentParams['onQueryProgress']; accountant: RecoveryAccountant; touchThrough: (declaredMs: number) => void }) {
+export function sdkStatusOf(run: CrewmateRun, { onQueryProgress, accountant, touchThrough }: { onQueryProgress: RunCrewmateParams['onQueryProgress']; accountant: RecoveryAccountant; touchThrough: (declaredMs: number) => void }) {
   return (status: unknown) => {
   if (status === null || typeof status !== 'object') return
   if ('streamActivity' in status) {

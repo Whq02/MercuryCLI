@@ -4,7 +4,7 @@ import { lazySchema } from '../../../platform/primitives/lazySchema.js'
 import { semanticBoolean } from '../../kit/semanticBoolean.js'
 import { semanticNumber } from '../../kit/semanticNumber.js'
 import type { Message } from '../../../engine/message-shapes/message.js'
-import type { FileReadToolOutput as Output, OverCapNote } from '../../../engine/attachment-shapes/fileReadOutput.js'
+import type { FileReadOutput as Output, OverCapNote } from '../../../engine/attachment-shapes/fileReadOutput.js'
 import { MAX_LINES_TO_READ, MAX_PDF_PAGES_PER_REQUEST } from '../../kit/names/fileRead.js'
 
 export const MAX_RANGES_PER_READ = 32

@@ -1,10 +1,10 @@
 import type { ContentBlockParam, TextBlockParam } from '../message-shapes/wire.js'
 import type { AnyObject, Tool } from '../../tools/kit/tool.js'
 import type { MessageOrigin, UserMessage } from '../message-shapes/message.js'
-import type { FileReadToolOutput } from '../attachment-shapes/fileReadOutput.js'
+import type { FileReadOutput } from '../attachment-shapes/fileReadOutput.js'
 import { READ_TOOL_NAME } from '../../tools/kit/names/fileRead.js'
 import { SEND_MESSAGE_TOOL_NAME } from '../../tools/kit/names/sendMessage.js'
-import { RESUME_AGENT_TOOL_NAME } from '../../tools/kit/names/resumeAgent.js'
+import { RESUME_CREWMATE_TOOL_NAME } from '../../tools/kit/names/resumeAgent.js'
 import { TASK_CREATE_TOOL_NAME } from '../../tools/kit/names/taskCreate.js'
 import { TASK_STOP_TOOL_NAME } from '../../tools/kit/names/taskStop.js'
 import { TASK_UPDATE_TOOL_NAME } from '../../tools/kit/names/taskUpdate.js'
@@ -57,7 +57,7 @@ function toolRead<Output>(tool: ToolWording<Output>, input: Record<string, strin
 }
 
 function fileRows(file: Of<'file'>): UserMessage[] {
-  const payload = file.content as FileReadToolOutput
+  const payload = file.content as FileReadOutput
   if (!['text', 'image', 'notebook', 'pdf'].includes(payload.type)) return []
   const rows = toolRead(fileReadWording, { file_path: file.filename }, payload)
   if (payload.type === 'text' && file.truncated) {
@@ -165,7 +165,7 @@ function taskRows(tasks: Of<'task_reminder'>): UserMessage[] {
 function rosterLine(row: Of<'agent_roster'>['rows'][number]): string {
   const address = row.address === null
     ? `reach it: ${TASK_STOP_TOOL_NAME} by its id`
-    : row.status === 'running' ? `reach it: ${SEND_MESSAGE_TOOL_NAME} to "${row.address}"` : `resume it: ${RESUME_AGENT_TOOL_NAME} to "${row.address}"`
+    : row.status === 'running' ? `reach it: ${SEND_MESSAGE_TOOL_NAME} to "${row.address}"` : `resume it: ${RESUME_CREWMATE_TOOL_NAME} to "${row.address}"`
   const fields = [
     `${row.taskType} "${row.name}" [${row.taskId}]: ${row.status}`,
     row.wait,
@@ -191,7 +191,7 @@ function rosterRows(roster: Of<'agent_roster'>): UserMessage[] {
     'Agents in flight at the context turnover — every agent this session is running or owes a result from, one line each (kind "name" [id]: status · what it was asked · what is owed · how to reach it · output file):',
     `${roster.rows.length} agent${roster.rows.length === 1 ? '' : 's'}: ${Array.from(totals, ([state, count]) => `${count} ${state}`).join(' · ')}`,
     ...lines,
-    `A running agent is never re-spawned — its completion reaches you as a task notification on its own. A result that is owed is collected from that notification or from the output file, never re-derived. ${SEND_MESSAGE_TOOL_NAME} reaches a running crewmate and ${RESUME_AGENT_TOOL_NAME} gives any one a new turn, by the id or name shown; a task's output is read from the output file shown with ${READ_TOOL_NAME}; ${TASK_STOP_TOOL_NAME} stops one.`,
+    `A running agent is never re-spawned — its completion reaches you as a task notification on its own. A result that is owed is collected from that notification or from the output file, never re-derived. ${SEND_MESSAGE_TOOL_NAME} reaches a running crewmate and ${RESUME_CREWMATE_TOOL_NAME} gives any one a new turn, by the id or name shown; a task's output is read from the output file shown with ${READ_TOOL_NAME}; ${TASK_STOP_TOOL_NAME} stops one.`,
   ].join('\n'))
 }
 

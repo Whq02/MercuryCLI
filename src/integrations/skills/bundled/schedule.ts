@@ -31,7 +31,7 @@ async function daemonStatusLine(): Promise<string> {
   }
 }
 
-export function registerScheduleRemoteAgentsSkill(): void {
+export function registerScheduleSkill(): void {
   registerBundledSkill({
     name: 'schedule',
     description:

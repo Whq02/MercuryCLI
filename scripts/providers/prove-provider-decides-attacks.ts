@@ -152,14 +152,14 @@ const { enableConfigs } = await import('../../src/platform/config/globalConfig.j
 enableConfigs()
 const bootstrap = await import('../../src/boot/process-state/processState.js')
 bootstrap.setIsInteractive(false)
-const { runAgent } = await import('../../src/tools/crewmate/runCrewmate.js')
+const { runCrewmate } = await import('../../src/tools/crewmate/runCrewmate.js')
 const { resumeAgentBackground } = await import('../../src/tools/crewmate/resumeCrewmate.js')
-const { runAsyncAgentLifecycle, automaticResumePending } = await import('../../src/tools/crewmate/crewmateLifecycle.js')
+const { runAsyncCrewmateLifecycle, automaticResumePending } = await import('../../src/tools/crewmate/crewmateLifecycle.js')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
 const { createUserMessage } = await import('../../src/engine/messages/messages.js')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.js')
 const { turnDoor: startTurn } = await import('../../src/engine/turnDoor.ts')
-const { registerAsyncAgent } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
+const { registerAsyncCrewmate } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
 const { pauseStatusWords } = await import('../../src/engine/tasks/local-agent/agentPause.js')
 const { openaiLimitWindow } = await import('../../src/models/roads/openai/openaiLimitState.js')
 const { generateTaskId } = await import('../../src/engine/tasks/taskBase.js')
@@ -181,12 +181,12 @@ process.env.MERCURY_BUSY_RETRY_SCALE = '0.1'
 process.env.MERCURY_MAX_RETRIES = '3'
 const task = (id: string) => state.tasks[id] as { status?: string; paused?: { why: string; words: string; resumesAtMs?: number } } | undefined
 const launch = async (agentId: string, prompt: string): Promise<void> => {
-  const registered = registerAsyncAgent({ agentId, description: 'provider refusal fixture', prompt, selectedAgent: definition, setAppState: setState as never })
+  const registered = registerAsyncCrewmate({ agentId, description: 'provider refusal fixture', prompt, selectedAgent: definition, setAppState: setState as never })
   const registration = registered.abortController as AbortController
-  await runAsyncAgentLifecycle({
+  await runAsyncCrewmateLifecycle({
     taskId: agentId,
     abortController: registration,
-    makeStream: () => runAgent({ agentDefinition: definition, promptMessages: [createUserMessage({ content: prompt })], toolUseContext: ctx, canUseTool: allow, isAsync: true, canShowPermissionPrompts: false, querySource: 'agent:custom:provider-attacks-fixture' as never, availableTools: [] as never, model: MODEL, override: { agentId, abortController: registration }, description: 'provider refusal fixture' }) as never,
+    makeStream: () => runCrewmate({ agentDefinition: definition, promptMessages: [createUserMessage({ content: prompt })], toolUseContext: ctx, canUseTool: allow, isAsync: true, canShowPermissionPrompts: false, querySource: 'agent:custom:provider-attacks-fixture' as never, availableTools: [] as never, model: MODEL, override: { agentId, abortController: registration }, description: 'provider refusal fixture' }) as never,
     metadata: { prompt, resolvedAgentModel: MODEL, isBuiltInAgent: false, startTime: Date.now(), agentType: 'provider-attacks-fixture', isAsync: true },
     description: 'provider refusal fixture',
     toolUseContext: ctx,

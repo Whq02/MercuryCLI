@@ -3,7 +3,7 @@ import type { NotebookCellSource } from '../../tools/kit/notebookShapes.js'
 
 export type OverCapNote = { tokens: number; maxTokens: number; next: { offset: number; limit: number }; room?: true }
 
-export type FileReadToolOutput =
+export type FileReadOutput =
   | {
       type: 'text'
       file: {

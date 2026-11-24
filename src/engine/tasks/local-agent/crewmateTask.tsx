@@ -28,7 +28,7 @@ import { getTokenCountFromUsage } from '../../context-window/contextTokenCount.j
 import { getSpentTokensFromUsage } from '../../context-window/tokenUsage.js'
 import { enqueuePendingNotification } from '../../../daemon/runner/messageQueueManager.js'
 import { consumeAgentMessages, recordAgentMessage } from '../../../sessions/notices/unreadLedger.js'
-import { getAgentTranscriptPath } from '../../../sessions/transcripts/paths.js'
+import { getCrewmateTranscriptPath } from '../../../sessions/transcripts/paths.js'
 import type { AgentId } from '../../../sessions/transcripts/ids.js'
 import { asAgentId } from '../../../sessions/transcripts/ids.js'
 import {
@@ -41,8 +41,8 @@ import { emitTaskProgress } from '../../task-framework/sdkProgress.js'
 import { operatorPauseGate } from '../../loop/pauseGate.js'
 import { emitTaskEnded, enqueueRow, type TaskUsage } from '../../../daemon/runner/sdkEventQueue.js'
 import { AGENT_MESSAGE_STATUS, MAIN_AGENT_MESSAGE_SUMMARY } from './agentMessage.js'
-import { foldAgentWaitEvent, type AgentWaitV1 } from './agentWait.js'
-import type { AgentPauseV1 } from './agentPause.js'
+import { foldCrewmateWaitEvent, type CrewmateWaitV1 } from './agentWait.js'
+import type { CrewmatePauseV1 } from './agentPause.js'
 import { isOverloadAnswerText, overloadPauseWords } from './agentOverload.js'
 import type { BackgroundHandoverReason } from './launchReceipts.js'
 import { isSyntheticApiErrorMessage } from '../../message-shapes/factories.js'
@@ -75,7 +75,7 @@ export type ToolActivity = {
   isRead?: boolean
 }
 
-type AgentProgress = {
+type CrewmateProgress = {
   toolUseCount: number
   tokenCount: number
   totalTokens: number
@@ -89,10 +89,10 @@ type AgentProgress = {
   costUSD?: number
   unpricedTurns?: number
   model?: string
-  phase?: AgentWaitV1
+  phase?: CrewmateWaitV1
 }
 
-type AgentLedger = {
+type CrewmateLedger = {
   inputTokens: number
   outputTokens: number
   cacheReadTokens: number
@@ -108,23 +108,23 @@ export type ProgressTracker = {
   toolUseCount: number
   bridgeToolUseIds?: Set<string>
   recentActivities: ToolActivity[]
-  ledger: AgentLedger
+  ledger: CrewmateLedger
   lastAssistant?: AssistantMessage
-  phase: AgentWaitV1 | null
+  phase: CrewmateWaitV1 | null
 }
 
-export function createAgentLedger(): AgentLedger {
+export function createCrewmateLedger(): CrewmateLedger {
   return { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, contextTokens: 0, costUSD: 0, unpricedTurns: 0 }
 }
 
 export function foldTurnProgressIntoTracker(tracker: ProgressTracker, event: unknown, nowMs: number = Date.now()): boolean {
-  const next = foldAgentWaitEvent(tracker.phase, event, nowMs)
+  const next = foldCrewmateWaitEvent(tracker.phase, event, nowMs)
   if (next === tracker.phase) return false
   tracker.phase = next
   return true
 }
 
-export function foldResponseIntoLedger(ledger: AgentLedger, assistant: AssistantMessage): void {
+export function foldResponseIntoLedger(ledger: CrewmateLedger, assistant: AssistantMessage): void {
   const usage = assistant.message.usage
   if (!usage) return
   const context = getTokenCountFromUsage(usage as ApiUsage)
@@ -174,7 +174,7 @@ export function createProgressTracker(): ProgressTracker {
   return {
     toolUseCount: 0,
     recentActivities: [],
-    ledger: createAgentLedger(),
+    ledger: createCrewmateLedger(),
     phase: null,
   }
 }
@@ -252,7 +252,7 @@ export function updateProgressFromMessage(
   }
 }
 
-export function getProgressUpdate(tracker: ProgressTracker): AgentProgress {
+export function getProgressUpdate(tracker: ProgressTracker): CrewmateProgress {
   const tokenCount = getTokenCountFromTracker(tracker)
   const recentActivities = [...tracker.recentActivities]
   const lastActivity = recentActivities.at(-1)
@@ -279,17 +279,17 @@ export function getProgressUpdate(tracker: ProgressTracker): AgentProgress {
   }
 }
 
-export function publishAgentWaitFromEvent(
+export function publishCrewmateWaitFromEvent(
   taskId: string,
   tracker: ProgressTracker,
   event: unknown,
   setAppState: SetAppState,
 ): void {
-  if (foldTurnProgressIntoTracker(tracker, event)) updateAgentProgress(taskId, getProgressUpdate(tracker), setAppState)
+  if (foldTurnProgressIntoTracker(tracker, event)) updateCrewmateProgress(taskId, getProgressUpdate(tracker), setAppState)
 }
 
 
-export type LocalAgentTaskState = TaskStateBase & {
+export type CrewmateTaskState = TaskStateBase & {
   type: 'local_agent'
   agentId: string
   prompt: string
@@ -301,13 +301,13 @@ export type LocalAgentTaskState = TaskStateBase & {
   cleanup?: () => void
   error?: string
   result?: { agentId: string; [key: string]: unknown }
-  progress?: AgentProgress
+  progress?: CrewmateProgress
   summary?: string
   wait?: string
   pendingAsks?: number
   retrieved?: boolean
   stopReason?: string
-  paused?: AgentPauseV1
+  paused?: CrewmatePauseV1
   messages?: Message[]
   lastReportedToolCount?: number
   lastReportedTokenCount?: number
@@ -322,12 +322,12 @@ export type LocalAgentTaskState = TaskStateBase & {
   evictAfter?: number
 }
 
-export function isLocalAgentTask(task: unknown): task is LocalAgentTaskState {
+export function isCrewmateTask(task: unknown): task is CrewmateTaskState {
   return isRecord(task) && task.type === 'local_agent'
 }
 
-export function isPanelAgentTask(task: unknown): task is LocalAgentTaskState {
-  return isLocalAgentTask(task) && task.agentType !== MAIN_SESSION_AGENT_TYPE
+export function isPanelCrewmateTask(task: unknown): task is CrewmateTaskState {
+  return isCrewmateTask(task) && task.agentType !== MAIN_SESSION_AGENT_TYPE
 }
 
 export function mergeDiskPrefix<M extends { uuid: unknown }>(live: M[], disk: M[]): M[] {
@@ -339,46 +339,46 @@ export function mergeDiskPrefix<M extends { uuid: unknown }>(live: M[], disk: M[
 }
 
 
-export const AGENT_STOP_BY_OPERATOR = 'crew-stop'
-export const AGENT_INTERRUPT_BY_OPERATOR = 'operator-interrupt'
-export const AGENT_INTERRUPTED_STATUS_WORD = 'interrupted'
-export const AGENT_INTERRUPTED_WORDS = CREW_INTERRUPTED_BY_OPERATOR_WORDS
-const AGENT_INTERRUPTED_NOTE = 'the operator cut it off on purpose — not a fault, not a loop stop'
+export const CREWMATE_STOP_BY_OPERATOR = 'crew-stop'
+export const CREWMATE_INTERRUPT_BY_OPERATOR = 'operator-interrupt'
+export const CREWMATE_INTERRUPTED_STATUS_WORD = 'interrupted'
+export const CREWMATE_INTERRUPTED_WORDS = CREW_INTERRUPTED_BY_OPERATOR_WORDS
+const CREWMATE_INTERRUPTED_NOTE = 'the operator cut it off on purpose — not a fault, not a loop stop'
 
-export function agentStopReasonOf(signalReason: unknown): string | undefined {
-  if (signalReason === AGENT_STOP_BY_OPERATOR) return 'stopped from the crew view'
-  if (signalReason === AGENT_INTERRUPT_BY_OPERATOR) return AGENT_INTERRUPTED_WORDS
+export function crewmateStopReasonOf(signalReason: unknown): string | undefined {
+  if (signalReason === CREWMATE_STOP_BY_OPERATOR) return 'stopped from the crew view'
+  if (signalReason === CREWMATE_INTERRUPT_BY_OPERATOR) return CREWMATE_INTERRUPTED_WORDS
   return undefined
 }
 
-export function agentStopStatusWordOf(signalReason: unknown): string | undefined {
-  return signalReason === AGENT_INTERRUPT_BY_OPERATOR ? AGENT_INTERRUPTED_STATUS_WORD : undefined
+export function crewmateStopStatusWordOf(signalReason: unknown): string | undefined {
+  return signalReason === CREWMATE_INTERRUPT_BY_OPERATOR ? CREWMATE_INTERRUPTED_STATUS_WORD : undefined
 }
 
-export const AGENT_RESUME_DOOR = 'resume it from the crew view (r on its row) or by ResumeCrewmate to its id'
+export const CREWMATE_RESUME_DOOR = 'resume it from the crew view (r on its row) or by ResumeCrewmate to its id'
 
-export const AGENT_RESUME_NOTE =
+export const CREWMATE_RESUME_NOTE =
   'The operator resumed you from the crew view after a stop. Continue from where your transcript ends — the work before the stop stands; do not redo it.'
 
-export const AGENT_BUDGET_RESUME_NOTE =
+export const CREWMATE_BUDGET_RESUME_NOTE =
   "The recovery budget's allowance is back and you were resumed by yourself after it was spent waiting on the provider. Continue from where your transcript ends — the work before the cut stands; do not redo it."
 
-export { AGENT_WINDOW_RESUME_NOTE } from './agentPause.js'
+export { CREWMATE_WINDOW_RESUME_NOTE } from './agentPause.js'
 
-export function pauseAgentTask(
+export function pauseCrewmateTask(
   taskId: string,
-  pause: AgentPauseV1,
+  pause: CrewmatePauseV1,
   setAppState: SetAppState,
   registration?: AbortController,
 ): void {
-  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+  updateTaskState<CrewmateTaskState>(taskId, setAppState, task => {
     if (heldByAnotherRegistration(task, registration)) return task
     if (task.status === 'running') return task
     return { ...task, paused: pause }
   })
 }
 
-export function usageWindowPauseOf(messages: readonly Message[], model: string | null | undefined): AgentPauseV1 | null {
+export function usageWindowPauseOf(messages: readonly Message[], model: string | null | undefined): CrewmatePauseV1 | null {
   let last: Message | undefined
   for (let i = messages.length - 1; i >= 0; i--) {
     const message = messages[i]!
@@ -427,7 +427,7 @@ function pauseModelWords(model: string | null | undefined): string {
   }
 }
 
-export function overloadPauseOf(messages: readonly Message[], model: string | null | undefined): { pause: AgentPauseV1; who: string; status: number | null } | null {
+export function overloadPauseOf(messages: readonly Message[], model: string | null | undefined): { pause: CrewmatePauseV1; who: string; status: number | null } | null {
   let last: Message | undefined
   for (let i = messages.length - 1; i >= 0; i--) {
     const message = messages[i]!
@@ -445,21 +445,21 @@ export function overloadPauseOf(messages: readonly Message[], model: string | nu
   return { pause: { why: 'provider overloaded', words: overloadPauseWords(who, undefined, status) }, who, status }
 }
 
-export const AGENT_STOPPED_WHILE_PAUSED = 'stopped while paused'
+export const CREWMATE_STOPPED_WHILE_PAUSED = 'stopped while paused'
 
-export function stopPausedAgentTask(taskId: string, setAppState: SetAppState): { description: string; pause: AgentPauseV1 } | null {
-  let stopped: { description: string; pause: AgentPauseV1 } | null = null
-  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+export function stopPausedCrewmateTask(taskId: string, setAppState: SetAppState): { description: string; pause: CrewmatePauseV1 } | null {
+  let stopped: { description: string; pause: CrewmatePauseV1 } | null = null
+  updateTaskState<CrewmateTaskState>(taskId, setAppState, task => {
     if (task.status === 'running' || task.paused === undefined) return task
     stopped = { description: task.description, pause: task.paused }
     const { paused: _gone, ...withoutPause } = task
-    return terminalPatch(withoutPause, 'killed', { stopReason: AGENT_STOPPED_WHILE_PAUSED })
+    return terminalPatch(withoutPause, 'killed', { stopReason: CREWMATE_STOPPED_WHILE_PAUSED })
   })
   return stopped
 }
 
-export function unpauseAgentTask(taskId: string, setAppState: SetAppState, registration?: AbortController): void {
-  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+export function unpauseCrewmateTask(taskId: string, setAppState: SetAppState, registration?: AbortController): void {
+  updateTaskState<CrewmateTaskState>(taskId, setAppState, task => {
     if (heldByAnotherRegistration(task, registration)) return task
     if (task.paused === undefined) return task
     const { paused: _gone, ...rest } = task
@@ -467,7 +467,7 @@ export function unpauseAgentTask(taskId: string, setAppState: SetAppState, regis
   })
 }
 
-export function enqueueAgentReceiptRow(args: { taskId: string; description: string; summary: string; status?: string }): void {
+export function enqueueCrewmateReceiptRow(args: { taskId: string; description: string; summary: string; status?: string }): void {
   const status = args.status ?? 'resumed'
   const message = `<${TASK_NOTIFICATION_TAG}>
 <${TASK_ID_TAG}>${args.taskId}</${TASK_ID_TAG}>
@@ -527,16 +527,16 @@ function resolveBackgroundSignal(taskId: string): void {
   }
 }
 
-type AgentSiblingEnd = {
+type CrewmateSiblingEnd = {
   taskId: string
   description: string
   status: 'failed' | 'stopped'
   error?: string
 }
 
-const siblingEnds = new Map<string, AgentSiblingEnd>()
+const siblingEnds = new Map<string, CrewmateSiblingEnd>()
 
-function releaseForegroundSiblings(end: AgentSiblingEnd, setAppState: SetAppState): string[] {
+function releaseForegroundSiblings(end: CrewmateSiblingEnd, setAppState: SetAppState): string[] {
   const candidates = [...backgroundSignalResolvers.keys()].filter(id => id !== end.taskId)
   if (candidates.length === 0) return []
   let moved: string[] = []
@@ -545,7 +545,7 @@ function releaseForegroundSiblings(end: AgentSiblingEnd, setAppState: SetAppStat
     let nextTasks: AppState['tasks'] | undefined
     for (const id of candidates) {
       const task = prev.tasks[id]
-      if (!isLocalAgentTask(task) || task.status !== 'running' || task.isBackgrounded) continue
+      if (!isCrewmateTask(task) || task.status !== 'running' || task.isBackgrounded) continue
       if (nextTasks === undefined) nextTasks = { ...prev.tasks }
       nextTasks[id] = { ...task, isBackgrounded: true }
       nextMoved.push(id)
@@ -560,7 +560,7 @@ function releaseForegroundSiblings(end: AgentSiblingEnd, setAppState: SetAppStat
   return moved
 }
 
-export function takeSiblingEnd(taskId: string): AgentSiblingEnd | null {
+export function takeSiblingEnd(taskId: string): CrewmateSiblingEnd | null {
   const end = siblingEnds.get(taskId) ?? null
   siblingEnds.delete(taskId)
   return end
@@ -572,7 +572,7 @@ export function resetSiblingEnds(): void {
 
 const registrationReplyTargets = new WeakMap<AbortController, 'parent' | 'operator'>()
 
-export function registerAsyncAgent(args: {
+export function registerAsyncCrewmate(args: {
   agentId: string
   description: string
   prompt: string
@@ -582,14 +582,14 @@ export function registerAsyncAgent(args: {
   toolUseId?: string
   replyTarget?: 'parent' | 'operator'
   compactRequested?: true
-}): LocalAgentTaskState {
+}): CrewmateTaskState {
   const taskId = args.agentId
-  void initTaskOutputAsSymlink(taskId, getAgentTranscriptPath(taskId as AgentId))
+  void initTaskOutputAsSymlink(taskId, getCrewmateTranscriptPath(taskId as AgentId))
   const abortController = createAbortController()
   const cleanup = registerCleanup(async () => {
-    killAsyncAgent(taskId, args.setAppState)
+    killAsyncCrewmate(taskId, args.setAppState)
   })
-  const state: LocalAgentTaskState = {
+  const state: CrewmateTaskState = {
     ...createTaskStateBase({ task_id: taskId, task_type: 'local_agent', description: args.description, call_id: args.toolUseId }),
     type: 'local_agent',
     status: 'running',
@@ -611,7 +611,7 @@ export function registerAsyncAgent(args: {
   return state
 }
 
-export function registerAgentForeground(args: {
+export function registerCrewmateForeground(args: {
   agentId: string
   description: string
   prompt: string
@@ -625,12 +625,12 @@ export function registerAgentForeground(args: {
   backgroundSignal: Promise<void>
 } {
   const taskId = args.agentId
-  void initTaskOutputAsSymlink(taskId, getAgentTranscriptPath(taskId as AgentId))
+  void initTaskOutputAsSymlink(taskId, getCrewmateTranscriptPath(taskId as AgentId))
   const abortController = createAbortController()
   const cleanup = registerCleanup(async () => {
-    killAsyncAgent(taskId, args.setAppState)
+    killAsyncCrewmate(taskId, args.setAppState)
   })
-  const state: LocalAgentTaskState = {
+  const state: CrewmateTaskState = {
     ...createTaskStateBase({ task_id: taskId, task_type: 'local_agent', description: args.description, call_id: args.toolUseId }),
     type: 'local_agent',
     status: 'running',
@@ -653,7 +653,7 @@ export function registerAgentForeground(args: {
   return { taskId, abortController, backgroundSignal }
 }
 
-export function registerAgentName(name: string, agentId: string, setAppState: SetAppState): void {
+export function registerCrewmateName(name: string, agentId: string, setAppState: SetAppState): void {
   setAppState(prev => {
     const next = new Map(prev.agentNameRegistry)
     next.set(name, asAgentId(agentId))
@@ -661,40 +661,40 @@ export function registerAgentName(name: string, agentId: string, setAppState: Se
   })
 }
 
-export function backgroundAgentTask(
+export function backgroundCrewmateTask(
   taskId: string,
   getAppState: () => AppState,
   setAppState: SetAppState,
 ): boolean {
   const task = getAppState().tasks?.[taskId]
-  if (!task || !isLocalAgentTask(task)) return false
+  if (!task || !isCrewmateTask(task)) return false
   if (task.isBackgrounded) return false
-  updateTaskState<LocalAgentTaskState>(taskId, setAppState, current =>
+  updateTaskState<CrewmateTaskState>(taskId, setAppState, current =>
     current.isBackgrounded ? current : { ...current, isBackgrounded: true },
   )
   resolveBackgroundSignal(taskId)
   return true
 }
 
-export function handOverForegroundAgentsToQueuedMessage(
+export function handOverForegroundCrewmatesToQueuedMessage(
   getAppState: () => AppState,
   setAppState: SetAppState,
 ): number {
   let moved = 0
   for (const task of Object.values(getAppState().tasks ?? {})) {
-    if (!isLocalAgentTask(task) || task.isBackgrounded || task.status !== 'running') continue
+    if (!isCrewmateTask(task) || task.isBackgrounded || task.status !== 'running') continue
     if (task.agentType === MAIN_SESSION_AGENT_TYPE) continue
-    updateTaskState<LocalAgentTaskState>(task.id, setAppState, current => ({ ...current, handoverReason: 'message-queued' }))
-    if (backgroundAgentTask(task.id, getAppState, setAppState)) moved += 1
+    updateTaskState<CrewmateTaskState>(task.id, setAppState, current => ({ ...current, handoverReason: 'message-queued' }))
+    if (backgroundCrewmateTask(task.id, getAppState, setAppState)) moved += 1
   }
   return moved
 }
 
-export function unregisterAgentForeground(taskId: string, setAppState: SetAppState): void {
+export function unregisterCrewmateForeground(taskId: string, setAppState: SetAppState): void {
   let cleanupToRun: (() => void) | undefined
   setAppState(prevState => {
     const task = prevState.tasks?.[taskId]
-    if (!task || !isLocalAgentTask(task)) return prevState
+    if (!task || !isCrewmateTask(task)) return prevState
     if (task.isBackgrounded) return prevState
     cleanupToRun = task.cleanup
     const tasks = { ...prevState.tasks }
@@ -705,16 +705,16 @@ export function unregisterAgentForeground(taskId: string, setAppState: SetAppSta
   cleanupToRun?.()
 }
 
-export function settleAgentForeground(
+export function settleCrewmateForeground(
   taskId: string,
   status: 'completed' | 'failed' | 'stopped',
   setAppState: SetAppState,
-  progress?: AgentProgress,
+  progress?: CrewmateProgress,
   why?: { error: string; stopReason?: string },
 ): void {
   let settled = false
   let description = ''
-  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+  updateTaskState<CrewmateTaskState>(taskId, setAppState, task => {
     if (task.isBackgrounded) return task
     if (task.status !== 'running') return progress !== undefined ? { ...task, progress } : task
     settled = true
@@ -735,7 +735,7 @@ export function settleAgentForeground(
 
 
 function heldByAnotherRegistration(
-  task: LocalAgentTaskState,
+  task: CrewmateTaskState,
   registration: AbortController | undefined,
 ): boolean {
   return (
@@ -748,10 +748,10 @@ function heldByAnotherRegistration(
 const registrationEndTimes = new WeakMap<AbortController, number>()
 
 function terminalPatch(
-  task: LocalAgentTaskState,
+  task: CrewmateTaskState,
   status: TaskStatus,
-  patch: Partial<LocalAgentTaskState>,
-): LocalAgentTaskState {
+  patch: Partial<CrewmateTaskState>,
+): CrewmateTaskState {
   task.cleanup?.()
   const endTime = Date.now()
   const registration = task.registration ?? task.abortController
@@ -768,7 +768,7 @@ function terminalPatch(
   }
 }
 
-export function completeAgentTask(
+export function completeCrewmateTask(
   result: { agentId: string; [key: string]: unknown },
   setAppState: SetAppState,
   registration?: AbortController,
@@ -776,8 +776,8 @@ export function completeAgentTask(
 ): void {
   const taskId = result.agentId
   let successorHolds = false
-  let settled: LocalAgentTaskState | undefined
-  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+  let settled: CrewmateTaskState | undefined
+  updateTaskState<CrewmateTaskState>(taskId, setAppState, task => {
     if (heldByAnotherRegistration(task, registration)) {
       successorHolds = true
       return task
@@ -790,7 +790,7 @@ export function completeAgentTask(
   if (settled !== undefined && options.settleFrame !== false) emitSettleFrame(settled, 'completed', options.usage)
 }
 
-function emitSettleFrame(task: LocalAgentTaskState, status: 'completed' | 'failed', usage?: TaskUsage): void {
+function emitSettleFrame(task: CrewmateTaskState, status: 'completed' | 'failed', usage?: TaskUsage): void {
   emitTaskEnded(task.id, status, {
     ...(task.toolUseId !== undefined ? { toolUseId: task.toolUseId } : {}),
     summary: task.description,
@@ -798,7 +798,7 @@ function emitSettleFrame(task: LocalAgentTaskState, status: 'completed' | 'faile
   })
 }
 
-export function failAgentTask(
+export function failCrewmateTask(
   taskId: string,
   error: string,
   setAppState: SetAppState,
@@ -806,8 +806,8 @@ export function failAgentTask(
   options: { settleFrame?: boolean } = {},
 ): void {
   let successorHolds = false
-  let settled: LocalAgentTaskState | undefined
-  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+  let settled: CrewmateTaskState | undefined
+  updateTaskState<CrewmateTaskState>(taskId, setAppState, task => {
     if (heldByAnotherRegistration(task, registration)) {
       successorHolds = true
       return task
@@ -823,7 +823,7 @@ export function failAgentTask(
   }
 }
 
-export function killAsyncAgent(
+export function killAsyncCrewmate(
   taskId: string,
   setAppState: SetAppState,
   stopReason?: string,
@@ -831,7 +831,7 @@ export function killAsyncAgent(
 ): void {
   let killed = false
   let description = ''
-  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+  updateTaskState<CrewmateTaskState>(taskId, setAppState, task => {
     if (task.status !== 'running') return task
     if (heldByAnotherRegistration(task, registration)) return task
     killed = true
@@ -845,28 +845,28 @@ export function killAsyncAgent(
   }
 }
 
-export function killAllRunningAgentTasks(
+export function killAllRunningCrewmateTasks(
   tasks: Record<string, unknown>,
   setAppState: SetAppState,
 ): void {
   for (const task of Object.values(tasks ?? {})) {
-    if (!isLocalAgentTask(task)) continue
+    if (!isCrewmateTask(task)) continue
     if (task.status !== 'running') continue
-    killAsyncAgent(task.id, setAppState)
+    killAsyncCrewmate(task.id, setAppState)
   }
 }
 
-export function stopRunningAgentTasks(
+export function stopRunningCrewmateTasks(
   tasks: Record<string, unknown>,
   setAppState: SetAppState,
-): LocalAgentTaskState[] {
+): CrewmateTaskState[] {
   const running = Object.values(tasks ?? {}).filter(
-    (task): task is LocalAgentTaskState => isLocalAgentTask(task) && task.status === 'running',
+    (task): task is CrewmateTaskState => isCrewmateTask(task) && task.status === 'running',
   )
   if (running.length === 0) return running
-  killAllRunningAgentTasks(tasks, setAppState)
+  killAllRunningCrewmateTasks(tasks, setAppState)
   for (const task of running) {
-    markAgentsNotified(task.id, setAppState)
+    markCrewmatesNotified(task.id, setAppState)
     emitTaskEnded(task.id, 'stopped', {
       ...(task.toolUseId !== undefined ? { toolUseId: task.toolUseId } : {}),
       summary: task.description,
@@ -875,19 +875,19 @@ export function stopRunningAgentTasks(
   return running
 }
 
-function markAgentsNotified(taskId: string, setAppState: SetAppState): void {
-  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task =>
+function markCrewmatesNotified(taskId: string, setAppState: SetAppState): void {
+  updateTaskState<CrewmateTaskState>(taskId, setAppState, task =>
     task.notified ? task : { ...task, notified: true },
   )
 }
 
 
-function updateAgentProgress(
+function updateCrewmateProgress(
   taskId: string,
-  progress: AgentProgress,
+  progress: CrewmateProgress,
   setAppState: SetAppState,
 ): void {
-  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+  updateTaskState<CrewmateTaskState>(taskId, setAppState, task => {
     if (task.status !== 'running') return task
     return {
       ...task,
@@ -902,32 +902,32 @@ const deferredPublishes = new Map<string, ReturnType<typeof setTimeout>>()
 
 const USAGE_SETTLE_GRACE_MS = 750
 
-export function publishAgentProgressSoon(
+export function publishCrewmateProgressSoon(
   taskId: string,
   tracker: ProgressTracker,
   setAppState: SetAppState,
 ): void {
-  updateAgentProgress(taskId, getProgressUpdate(tracker), setAppState)
+  updateCrewmateProgress(taskId, getProgressUpdate(tracker), setAppState)
   const pending = deferredPublishes.get(taskId)
   if (pending !== undefined) stopTimeout(pending)
   const timer = startTimeout(() => {
     deferredPublishes.delete(taskId)
-    updateAgentProgress(taskId, getProgressUpdate(tracker), setAppState)
+    updateCrewmateProgress(taskId, getProgressUpdate(tracker), setAppState)
   }, USAGE_SETTLE_GRACE_MS)
   timer.unref?.()
   deferredPublishes.set(taskId, timer)
 }
 
-export function updateAgentSummary(
+export function updateCrewmateSummary(
   taskId: string,
   summary: string,
   setAppState: SetAppState,
   options?: { emitSdkProgressEvent?: boolean },
 ): void {
-  let snapshot: LocalAgentTaskState | undefined
-  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+  let snapshot: CrewmateTaskState | undefined
+  updateTaskState<CrewmateTaskState>(taskId, setAppState, task => {
     if (task.status !== 'running') return task
-    const updated: LocalAgentTaskState = { ...task, summary }
+    const updated: CrewmateTaskState = { ...task, summary }
     snapshot = updated
     return updated
   })
@@ -944,26 +944,26 @@ export function updateAgentSummary(
   }
 }
 
-export function setAgentWaitLine(taskId: string, line: string | null, setAppState: SetAppState): void {
-  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+export function setCrewmateWaitLine(taskId: string, line: string | null, setAppState: SetAppState): void {
+  updateTaskState<CrewmateTaskState>(taskId, setAppState, task => {
     if (task.status !== 'running') return task
     if (line === null) {
       if (task.wait === undefined) return task
       const { wait: _gone, ...rest } = task
-      return rest as LocalAgentTaskState
+      return rest as CrewmateTaskState
     }
     if (task.wait === line) return task
     return { ...task, wait: line }
   })
 }
 
-export function setAgentPendingAsks(taskId: string, count: number, setAppState: SetAppState): void {
-  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+export function setCrewmatePendingAsks(taskId: string, count: number, setAppState: SetAppState): void {
+  updateTaskState<CrewmateTaskState>(taskId, setAppState, task => {
     if (task.status !== 'running') return task
     if (count <= 0) {
       if (task.pendingAsks === undefined) return task
       const { pendingAsks: _gone, ...rest } = task
-      return rest as LocalAgentTaskState
+      return rest as CrewmateTaskState
     }
     if (task.pendingAsks === count) return task
     return { ...task, pendingAsks: count }
@@ -978,8 +978,8 @@ export function queuePendingMessage(
   options: { preservePause?: boolean } = {},
 ): void {
   let queued = false
-  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
-    if (!isLocalAgentTask(task)) return task
+  updateTaskState<CrewmateTaskState>(taskId, setAppState, task => {
+    if (!isCrewmateTask(task)) return task
     queued = true
     return { ...task, pendingMessages: [...(task.pendingMessages ?? []), message] }
   })
@@ -993,8 +993,8 @@ export function queueOperatorMessage(
   setAppState: SetAppState,
 ): void {
   let queued = false
-  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
-    if (!isLocalAgentTask(task)) return task
+  updateTaskState<CrewmateTaskState>(taskId, setAppState, task => {
+    if (!isCrewmateTask(task)) return task
     queued = true
     return { ...task, operatorMessages: [...(task.operatorMessages ?? []), message] }
   })
@@ -1003,13 +1003,13 @@ export function queueOperatorMessage(
 }
 
 export function peekOperatorMessages(task: unknown): string[] {
-  return isLocalAgentTask(task) ? [...(task.operatorMessages ?? [])] : []
+  return isCrewmateTask(task) ? [...(task.operatorMessages ?? [])] : []
 }
 
 export function requestCrewmateFold(taskId: string, setAppState: SetAppState): boolean {
   let asked = false
-  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
-    if (!isLocalAgentTask(task) || task.status !== 'running') return task
+  updateTaskState<CrewmateTaskState>(taskId, setAppState, task => {
+    if (!isCrewmateTask(task) || task.status !== 'running') return task
     asked = true
     return task.compactRequested === true ? task : { ...task, compactRequested: true }
   })
@@ -1026,7 +1026,7 @@ export function takeOperatorMessages(
   const all = peekOperatorMessages(task)
   const queued = limit === undefined ? all : all.slice(0, limit)
   if (queued.length === 0) return []
-  updateTaskState<LocalAgentTaskState>(taskId, setAppState, current => ({
+  updateTaskState<CrewmateTaskState>(taskId, setAppState, current => ({
     ...current,
     operatorMessages: (current.operatorMessages ?? []).slice(queued.length),
   }))
@@ -1042,12 +1042,12 @@ export function drainPendingMessages(
   limit?: number,
 ): string[] {
   const task = getAppState().tasks?.[taskId]
-  if (!task || !isLocalAgentTask(task)) return []
+  if (!task || !isCrewmateTask(task)) return []
   const all = task.pendingMessages ?? []
   const pending = limit === undefined ? all : all.slice(0, limit)
   if (pending.length === 0) return []
   if (task.registration !== undefined && task.status === 'running') registrationReplyTargets.set(task.registration, 'parent')
-  updateTaskState<LocalAgentTaskState>(taskId, setAppState, current => ({
+  updateTaskState<CrewmateTaskState>(taskId, setAppState, current => ({
     ...current,
     ...(current.status === 'running' ? { replyTarget: 'parent' as const } : {}),
     pendingMessages: (current.pendingMessages ?? []).slice(pending.length),
@@ -1057,13 +1057,13 @@ export function drainPendingMessages(
   return pending
 }
 
-export function appendMessageToLocalAgent(
+export function appendMessageToCrewmate(
   taskId: string,
   message: Message,
   setAppState: SetAppState,
 ): void {
-  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
-    if (!isLocalAgentTask(task)) return task
+  updateTaskState<CrewmateTaskState>(taskId, setAppState, task => {
+    if (!isCrewmateTask(task)) return task
     return { ...task, messages: [...(task.messages ?? []), message] }
   })
 }
@@ -1083,7 +1083,7 @@ export function boundNotificationResult(finalMessage: string, cap: number = NOTI
   return `${head}\n[... ${omitted.toLocaleString()} characters omitted — the complete final message is in the output file named above ...]\n${tail}`
 }
 
-export function enqueueAgentNotification(args: {
+export function enqueueCrewmateNotification(args: {
   taskId: string
   description: string
   status: TaskStatus
@@ -1108,7 +1108,7 @@ export function enqueueAgentNotification(args: {
   let successorHolds = false
   let completedAt = args.controller !== undefined ? registrationEndTimes.get(args.controller) : undefined
   let replyTarget = (args.controller !== undefined ? registrationReplyTargets.get(args.controller) : undefined) ?? args.replyTarget
-  updateTaskState<LocalAgentTaskState>(args.taskId, args.setAppState, task => {
+  updateTaskState<CrewmateTaskState>(args.taskId, args.setAppState, task => {
     if (heldByAnotherRegistration(task, args.controller)) {
       successorHolds = true
       shouldEnqueue = true
@@ -1130,10 +1130,10 @@ export function enqueueAgentNotification(args: {
     (args.status === 'completed'
       ? `Crewmate "${args.description}" completed`
       : args.status === 'failed'
-        ? `Crewmate "${args.description}" failed: ${args.error || 'unknown error'}${landed} — its work is kept; ${AGENT_RESUME_DOOR}`
-        : args.statusWord === AGENT_INTERRUPTED_STATUS_WORD
-          ? `Crewmate "${args.description}" was ${args.stopReason ?? AGENT_INTERRUPTED_WORDS} — ${AGENT_INTERRUPTED_NOTE}${landed}; its work is kept; ${AGENT_RESUME_DOOR}`
-          : `Crewmate "${args.description}" was ${args.stopReason ?? 'stopped'}${landed} — its work is kept; ${AGENT_RESUME_DOOR}`)
+        ? `Crewmate "${args.description}" failed: ${args.error || 'unknown error'}${landed} — its work is kept; ${CREWMATE_RESUME_DOOR}`
+        : args.statusWord === CREWMATE_INTERRUPTED_STATUS_WORD
+          ? `Crewmate "${args.description}" was ${args.stopReason ?? CREWMATE_INTERRUPTED_WORDS} — ${CREWMATE_INTERRUPTED_NOTE}${landed}; its work is kept; ${CREWMATE_RESUME_DOOR}`
+          : `Crewmate "${args.description}" was ${args.stopReason ?? 'stopped'}${landed} — its work is kept; ${CREWMATE_RESUME_DOOR}`)
 
   const toolUseIdLine = args.toolUseId
     ? `\n<${TOOL_USE_ID_TAG}>${args.toolUseId}</${TOOL_USE_ID_TAG}>`
@@ -1176,11 +1176,11 @@ export function enqueueAgentNotification(args: {
 }
 
 
-export const LocalAgentTask: Task = {
+export const CrewmateTask: Task = {
   name: 'LocalAgentTask',
   type: 'local_agent',
   async kill(taskId, setAppState) {
     logForDebugging(`killing agent task ${taskId}`)
-    killAsyncAgent(taskId, setAppState)
+    killAsyncCrewmate(taskId, setAppState)
   },
 }

@@ -7,14 +7,14 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'terminal-outcome-ho
 
 await import('../../src/engine/tasks/tasks.js')
 const {
-  deriveAgentTerminalOutcome,
-  finalizeAgentTool,
-  runAsyncAgentLifecycle,
+  deriveCrewmateTerminalOutcome,
+  finalizeCrewmateTool,
+  runAsyncCrewmateLifecycle,
   PROMOTED_NARRATION_NOTE,
 } = await import('../../src/tools/crewmate/crewmateLifecycle.js')
 const { createAttachmentMessage } = await import('../../src/engine/attachments/turnAttachments.js')
-const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.js')
-const { registerAsyncAgent } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
+const { CrewmateTool } = await import('../../src/tools/crewmate/CrewmateTool.js')
+const { registerAsyncCrewmate } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
 const { createAssistantMessage, createAssistantAPIErrorMessage } = await import(
   '../../src/engine/message-shapes/factories.js'
 )
@@ -71,9 +71,9 @@ const META = {
 section('§A ONE derivation: decline fails, promotion is labeled, report survives')
 {
   const clean = [userMsg('go'), realReport('the final report')]
-  const o = deriveAgentTerminalOutcome(clean)
+  const o = deriveCrewmateTerminalOutcome(clean)
   check('clean tail derives completed', o.status === 'completed', `${JSON.stringify(o)} — fix deriveAgentTerminalOutcome in src/tools/crewmate/crewmateLifecycle.ts`)
-  const r = finalizeAgentTool(clean, 'ag-clean', META)
+  const r = finalizeCrewmateTool(clean, 'ag-clean', META)
   check('clean finalize: outcome completed, not promoted',
     r.outcome?.status === 'completed' && r.outcome.promotedNarration === false,
     `${JSON.stringify(r.outcome)} — fix finalizeAgentTool in src/tools/crewmate/crewmateLifecycle.ts`)
@@ -83,7 +83,7 @@ section('§A ONE derivation: decline fails, promotion is labeled, report survive
 }
 {
   const promoted = [userMsg('go'), realReport('earlier narration'), toolTail()]
-  const r = finalizeAgentTool(promoted, 'ag-promoted', META)
+  const r = finalizeCrewmateTool(promoted, 'ag-promoted', META)
   check('tool-call tail: outcome completed with promotedNarration=true',
     r.outcome?.status === 'completed' && r.outcome.promotedNarration === true,
     `${JSON.stringify(r.outcome)} — fix finalizeAgentTool or deriveAgentTerminalOutcome in src/tools/crewmate/crewmateLifecycle.ts`)
@@ -93,11 +93,11 @@ section('§A ONE derivation: decline fails, promotion is labeled, report survive
 }
 {
   const declined = [userMsg('go'), realReport('the real partial report'), declineTail('API Error: 529 overloaded')]
-  const o = deriveAgentTerminalOutcome(declined)
+  const o = deriveCrewmateTerminalOutcome(declined)
   check('decline tail derives failed/provider-declined',
     o.status === 'failed' && o.reason === 'provider-declined' && /529/.test(o.error),
     `${JSON.stringify(o)} — fix deriveAgentTerminalOutcome in src/tools/crewmate/crewmateLifecycle.ts`)
-  const r = finalizeAgentTool(declined, 'ag-declined', META)
+  const r = finalizeCrewmateTool(declined, 'ag-declined', META)
   check('declined finalize: outcome failed with the decline text',
     r.outcome?.status === 'failed' && /529/.test(r.outcome.error),
     `${JSON.stringify(r.outcome)} — fix finalizeAgentTool in src/tools/crewmate/crewmateLifecycle.ts`)
@@ -109,23 +109,23 @@ section('§A ONE derivation: decline fails, promotion is labeled, report survive
 }
 {
   const immediate = [userMsg('go'), declineTail('API Error: 400 context')]
-  const r = finalizeAgentTool(immediate, 'ag-immediate', META)
+  const r = finalizeCrewmateTool(immediate, 'ag-immediate', META)
   check('immediate decline: failed outcome with empty content (nothing fabricated)',
     r.outcome?.status === 'failed' && r.content.length === 0,
     JSON.stringify({ outcome: r.outcome, content: r.content }))
 }
 
 {
-  let result: ReturnType<typeof finalizeAgentTool> | undefined
+  let result: ReturnType<typeof finalizeCrewmateTool> | undefined
   const failure = { status: 'failed' as const, reason: 'provider-declined' as const, error: 'typed overload cut' }
-  try { result = finalizeAgentTool([userMsg('go')], 'ag-cut-before-answer', META, failure) } catch {}
+  try { result = finalizeCrewmateTool([userMsg('go')], 'ag-cut-before-answer', META, failure) } catch {}
   check('a declared failure before the first assistant reply finalizes without inventing output or usage', result?.outcome === failure && result.content.length === 0 && result.totalTokens === 0 && result.totalToolUseCount === 0, `${JSON.stringify(result)} — fix finalizeAgentTool in src/tools/crewmate/crewmateLifecycle.ts to accept a declared failure with no assistant message`)
 }
 
 section('§B refusals — the parent transcript never presents partial work as a conclusion')
 type Mapper = (data: unknown, toolUseID: string) => { is_error?: boolean; content: Array<{ type: string; text: string }> }
-const map = (AgentTool as unknown as { mapToolResultToToolResultBlockParam: Mapper })
-  .mapToolResultToToolResultBlockParam.bind(AgentTool)
+const map = (CrewmateTool as unknown as { mapToolResultToToolResultBlockParam: Mapper })
+  .mapToolResultToToolResultBlockParam.bind(CrewmateTool)
 {
   const failed = map(
     {
@@ -229,14 +229,14 @@ async function lifecycleCase(
   resetCommandQueue()
   const store = makeStore()
   const taskId = `ag-life-${name}`
-  const registered = registerAsyncAgent({
+  const registered = registerAsyncCrewmate({
     agentId: taskId,
     description: `lifecycle ${name}`,
     prompt: 'work',
     selectedAgent: FAKE_AGENT_DEF,
     setAppState: store.set as never,
   })
-  await runAsyncAgentLifecycle({
+  await runAsyncCrewmateLifecycle({
     taskId,
     abortController: registered.abortController,
     makeStream: () =>

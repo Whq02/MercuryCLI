@@ -41,7 +41,7 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
   const session = effort.resolveEffortTruth(MODEL, 'medium')
   check("the session's own request: the stamp outranks the session's pick (medium → high, source env)", session.requested === 'high' && session.requestedSource === 'env' && session.applied === 'high', JSON.stringify(session))
 
-  effort.noteAgentEffortWord('agent-own', 'max')
+  effort.noteCrewmateEffortWord('agent-own', 'max')
   const own = effort.resolveEffortTruth(MODEL, 'max', { agentId: 'agent-own' })
   check("a crewmate's own word ranks above the stamp on its request (asked max → max, source agent)", own.requested === 'max' && own.requestedSource === 'agent' && own.applied === 'max' && own.wire === 'max', JSON.stringify(own))
   check('the projections the lanes read carry the same word', effort.resolveWireRequestedEffort(MODEL, 'max', { agentId: 'agent-own' }) === 'max' && effort.resolveAppliedEffort(MODEL, 'max', { agentId: 'agent-own' }) === 'max')
@@ -60,14 +60,14 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
   check('…while the session itself defers to the model default', effort.resolveEffortTruth(MODEL, 'max').requestedSource === 'env-suppressed')
   process.env.MERCURY_EFFORT_LEVEL = 'high'
 
-  effort.noteAgentEffortWord('agent-own', 'xhigh')
+  effort.noteCrewmateEffortWord('agent-own', 'xhigh')
   check('a re-noted word replaces the earlier one', effort.resolveEffortTruth(MODEL, 'xhigh', { agentId: 'agent-own' }).requested === 'xhigh')
-  effort.noteAgentEffortWord('agent-own', undefined)
+  effort.noteCrewmateEffortWord('agent-own', undefined)
   check('noting undefined clears the word (the agent rides the stamp again)', effort.resolveEffortTruth(MODEL, 'max', { agentId: 'agent-own' }).requested === 'high')
-  effort.noteAgentEffortWord('agent-own', 'max')
-  effort.forgetAgentEffortWord('agent-own')
-  check('the run ended: the word leaves the table', effort.agentOwnEffortWordOf('agent-own') === undefined && effort.resolveEffortTruth(MODEL, 'max', { agentId: 'agent-own' }).requestedSource === 'env')
-  check('the session has no id and no own word', effort.agentOwnEffortWordOf(undefined) === undefined)
+  effort.noteCrewmateEffortWord('agent-own', 'max')
+  effort.forgetCrewmateEffortWord('agent-own')
+  check('the run ended: the word leaves the table', effort.crewmateOwnEffortWordOf('agent-own') === undefined && effort.resolveEffortTruth(MODEL, 'max', { agentId: 'agent-own' }).requestedSource === 'env')
+  check('the session has no id and no own word', effort.crewmateOwnEffortWordOf(undefined) === undefined)
 
   const stamped = effort.resolveStampedEffortTruth(MODEL, 'xhigh')
   check("a seat row's stamped truth resolves the seat's own word (no env, no agent)", stamped.requested === 'xhigh' && stamped.requestedSource === 'session')
@@ -77,14 +77,14 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
 
 {
   console.log('\n— §2 · the runner notes the agent\'s OWN word —')
-  const { agentOwnEffortWord, resolveAgentEffort } = runner
-  check('the pin is the own word on a normal run', agentOwnEffortWord({ effortOverride: 'max', useExactTools: false, definitionEffort: 'low' }) === 'max')
-  check('an exact-tools run ignores the pin (the definition is the own word)', agentOwnEffortWord({ effortOverride: 'max', useExactTools: true, definitionEffort: 'low' }) === 'low')
-  check("no pin ⇒ the definition's word", agentOwnEffortWord({ effortOverride: undefined, useExactTools: false, definitionEffort: 'xhigh' }) === 'xhigh')
-  check('no pin, no definition ⇒ no own word (the agent rides the session)', agentOwnEffortWord({ effortOverride: undefined, useExactTools: false, definitionEffort: undefined }) === undefined)
-  check('a pin off the ladder yields to the definition, never rides raw', agentOwnEffortWord({ effortOverride: 'turbo', useExactTools: false, definitionEffort: 'medium' }) === 'medium')
-  check('a spoken pin normalises through the one normaliser', agentOwnEffortWord({ effortOverride: 'x-high', useExactTools: false, definitionEffort: undefined }) === 'xhigh')
-  check("resolveAgentEffort is the own word else the configured sub-agent default (the session's word is not a rung)", resolveAgentEffort({ effortOverride: undefined, useExactTools: false, definitionEffort: undefined, defaultEffort: 'high' }) === 'high' && resolveAgentEffort({ effortOverride: 'max', useExactTools: false, definitionEffort: 'low', defaultEffort: 'high' }) === 'max' && resolveAgentEffort({ effortOverride: undefined, useExactTools: false, definitionEffort: 'low', defaultEffort: 'high' }) === 'low')
+  const { crewmateOwnEffortWord, resolveCrewmateEffort } = runner
+  check('the pin is the own word on a normal run', crewmateOwnEffortWord({ effortOverride: 'max', useExactTools: false, definitionEffort: 'low' }) === 'max')
+  check('an exact-tools run ignores the pin (the definition is the own word)', crewmateOwnEffortWord({ effortOverride: 'max', useExactTools: true, definitionEffort: 'low' }) === 'low')
+  check("no pin ⇒ the definition's word", crewmateOwnEffortWord({ effortOverride: undefined, useExactTools: false, definitionEffort: 'xhigh' }) === 'xhigh')
+  check('no pin, no definition ⇒ no own word (the agent rides the session)', crewmateOwnEffortWord({ effortOverride: undefined, useExactTools: false, definitionEffort: undefined }) === undefined)
+  check('a pin off the ladder yields to the definition, never rides raw', crewmateOwnEffortWord({ effortOverride: 'turbo', useExactTools: false, definitionEffort: 'medium' }) === 'medium')
+  check('a spoken pin normalises through the one normaliser', crewmateOwnEffortWord({ effortOverride: 'x-high', useExactTools: false, definitionEffort: undefined }) === 'xhigh')
+  check("resolveAgentEffort is the own word else the configured sub-agent default (the session's word is not a rung)", resolveCrewmateEffort({ effortOverride: undefined, useExactTools: false, definitionEffort: undefined, defaultEffort: 'high' }) === 'high' && resolveCrewmateEffort({ effortOverride: 'max', useExactTools: false, definitionEffort: 'low', defaultEffort: 'high' }) === 'max' && resolveCrewmateEffort({ effortOverride: undefined, useExactTools: false, definitionEffort: 'low', defaultEffort: 'high' }) === 'low')
 }
 
 {
@@ -103,8 +103,8 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
   catalogue.__resetOpenaiCatalogueForTest()
   await catalogue.refreshOpenaiCatalogue('api-key', { force: true, fetchImpl: fixtureFetch })
   process.env.MERCURY_EFFORT_LEVEL = 'max'
-  effort.noteAgentEffortWord('astra-deep', 'max')
-  effort.noteAgentEffortWord('astra-quick', 'xhigh')
+  effort.noteCrewmateEffortWord('astra-deep', 'max')
+  effort.noteCrewmateEffortWord('astra-quick', 'xhigh')
   const deep = effort.resolveEffortTruth('gpt-6-astra', 'max', { agentId: 'astra-deep' })
   const quick = effort.resolveEffortTruth('gpt-6-astra', 'xhigh', { agentId: 'astra-quick' })
   const seat = effort.resolveEffortTruth('gpt-6-astra', 'high')
@@ -113,16 +113,16 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
   check("the seat's own request still carries its stamp (max)", seat.wire === 'max' && seat.requestedSource === 'env', JSON.stringify(seat))
   const stepped = effort.resolveEffortTruth('gpt-5.5', 'max', { agentId: 'astra-deep' })
   check("an own word the row lacks steps to the nearest served word (max → xhigh) and the record keeps both", stepped.wire === 'xhigh' && stepped.requested === 'max' && stepped.adjustedFrom === 'max', JSON.stringify(stepped))
-  effort.noteAgentEffortWord('astra-top', 'ultra' as never)
+  effort.noteCrewmateEffortWord('astra-top', 'ultra' as never)
   const top = effort.resolveEffortTruth('gpt-6-astra', 'ultra' as never, { agentId: 'astra-top' })
   check("a list word above the ladder is never sent: asked raw, the row default (high on this list) rides", top.wire === 'high' && top.applied === 'high' && top.requestedSource === 'agent', JSON.stringify(top))
-  effort.noteAgentEffortWord('astra-default', 'high')
+  effort.noteCrewmateEffortWord('astra-default', 'high')
   const riding = effort.resolveEffortTruth('gpt-6-astra', 'high', { agentId: 'astra-default' })
   check("a sub-agent on the configured default keeps it under a seat stamped max (the stamp is the seat's, never the crew's)", riding.wire === 'high' && riding.requestedSource === 'agent', JSON.stringify(riding))
-  effort.forgetAgentEffortWord('astra-default')
-  effort.forgetAgentEffortWord('astra-top')
-  effort.forgetAgentEffortWord('astra-deep')
-  effort.forgetAgentEffortWord('astra-quick')
+  effort.forgetCrewmateEffortWord('astra-default')
+  effort.forgetCrewmateEffortWord('astra-top')
+  effort.forgetCrewmateEffortWord('astra-deep')
+  effort.forgetCrewmateEffortWord('astra-quick')
   delete process.env.MERCURY_EFFORT_LEVEL
   catalogue.__resetOpenaiCatalogueForTest()
 }

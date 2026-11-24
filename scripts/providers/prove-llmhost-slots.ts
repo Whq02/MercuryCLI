@@ -897,7 +897,7 @@ try {
   )
 
   await import(`${root}/src/engine/tasks/tasks.ts`)
-  const { runAgent } = await import(`${root}/src/tools/crewmate/runCrewmate.ts`)
+  const { runCrewmate } = await import(`${root}/src/tools/crewmate/runCrewmate.ts`)
   const { turnDoor: startTurn } = await import(`${root}/src/engine/turnDoor.ts`)
   const { getDefaultAppState } = await import(`${root}/src/screen/app-state/AppStateStore.ts`)
   const { createFileStateCacheWithSizeLimit } = await import(`${root}/src/platform/files/fileStateCache.ts`)
@@ -941,7 +941,7 @@ try {
     let agentError = ''
     await runWithCwdOverride(home, async () => {
       try {
-        for await (const row of runAgent({
+        for await (const row of runCrewmate({
           agentDefinition: {
             agentType: 'slow-tool-fixture',
             source: 'projectSettings',

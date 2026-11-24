@@ -27,7 +27,7 @@ export function partialResultOf(text: string): string | null {
   return result !== null && result !== '' ? result : null
 }
 
-export function UserAgentNotificationMessage({
+export function UserCrewmateNotificationMessage({
   addMargin,
   param,
   arrivedAt,
@@ -59,4 +59,4 @@ export function UserAgentNotificationMessage({
   ) : body
 }
 
-export default UserAgentNotificationMessage
+export default UserCrewmateNotificationMessage

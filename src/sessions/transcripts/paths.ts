@@ -30,7 +30,7 @@ function activeProjectDir(): string {
   return getSessionProjectDir() ?? getProjectDir(getOriginalCwd())
 }
 
-function currentSubagents(): string {
+function currentCrewmates(): string {
   return join(activeProjectDir(), getSessionId(), 'subagents')
 }
 
@@ -54,16 +54,16 @@ export function sessionIdExists(sessionId: string): boolean {
   }
 }
 
-export function getAgentTranscriptPath(agentId: AgentId): string {
-  return join(currentSubagents(), `agent-${agentId}.jsonl`)
+export function getCrewmateTranscriptPath(agentId: AgentId): string {
+  return join(currentCrewmates(), `agent-${agentId}.jsonl`)
 }
 
-export function getAgentMetadataPath(agentId: AgentId): string {
-  const transcript = getAgentTranscriptPath(agentId)
+export function getCrewmateMetadataPath(agentId: AgentId): string {
+  const transcript = getCrewmateTranscriptPath(agentId)
   return transcript.replace(/\.jsonl$/, '.meta.json')
 }
 
-export type AgentMetadata = {
+export type CrewmateMetadata = {
   agentType: string
   swarm?: boolean
   worktreePath?: string
@@ -85,14 +85,14 @@ export type AgentMetadata = {
   swarmBrief?: string
   compactOnResume?: boolean
 }
-export type AgentMetadataRow = { agentId: AgentId; metadata: AgentMetadata }
+export type CrewmateMetadataRow = { agentId: AgentId; metadata: CrewmateMetadata }
 
-export async function writeAgentMetadata(agentId: AgentId, metadata: AgentMetadata): Promise<void> {
-  await durableAtomicPublish(getAgentMetadataPath(agentId), JSON.stringify(metadata))
+export async function writeCrewmateMetadata(agentId: AgentId, metadata: CrewmateMetadata): Promise<void> {
+  await durableAtomicPublish(getCrewmateMetadataPath(agentId), JSON.stringify(metadata))
 }
 
-export async function readAgentMetadata(agentId: AgentId): Promise<AgentMetadata | null> {
-  const metaPath = getAgentMetadataPath(agentId)
+export async function readCrewmateMetadata(agentId: AgentId): Promise<CrewmateMetadata | null> {
+  const metaPath = getCrewmateMetadataPath(agentId)
   let content: string
   try {
     content = await readFile(metaPath, 'utf-8')
@@ -101,7 +101,7 @@ export async function readAgentMetadata(agentId: AgentId): Promise<AgentMetadata
     throw error
   }
   try {
-    return JSON.parse(content) as AgentMetadata
+    return JSON.parse(content) as CrewmateMetadata
   } catch (error) {
     passedOver(error)
     logForDebugging(
@@ -126,16 +126,16 @@ function* sidecarIds(names: string[]): Generator<AgentId> {
 
 async function currentSidecarNames(): Promise<string[]> {
   try {
-    return await readdir(currentSubagents())
+    return await readdir(currentCrewmates())
   } catch (failure) {
     return absentDirectory(failure)
   }
 }
 
-export async function listAgentMetadata(): Promise<AgentMetadataRow[]> {
-  const rows: AgentMetadataRow[] = []
+export async function listCrewmateMetadata(): Promise<CrewmateMetadataRow[]> {
+  const rows: CrewmateMetadataRow[] = []
   for (const agentId of sidecarIds(await currentSidecarNames())) {
-    const metadata = await readAgentMetadata(agentId).catch(passedOverAs(null))
+    const metadata = await readCrewmateMetadata(agentId).catch(passedOverAs(null))
     if (metadata !== null) rows.push({ agentId, metadata })
   }
   return rows
@@ -149,7 +149,7 @@ async function readDirectoryEntries(dir: string): Promise<Dirent[]> {
   }
 }
 
-export async function listAgentTranscriptPaths(transcriptPath: string, sessionId: string): Promise<string[]> {
+export async function listCrewmateTranscriptPaths(transcriptPath: string, sessionId: string): Promise<string[]> {
   const root = join(dirname(transcriptPath), sessionId, 'subagents')
   const paths: string[] = []
   const walk = async (dir: string, depth: number): Promise<void> => {

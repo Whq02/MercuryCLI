@@ -7,7 +7,7 @@ const { ComputerTool, COMPUTER_TOOL_NAME } = await import('../../src/tools/compu
 const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
 const { setIsInteractive, getIsInteractive, setAskChannel, getAskChannel } = await import('../../src/boot/process-state/processState.ts')
 const agents = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
-const { ALL_AGENT_DISALLOWED_TOOLS } = await import('../../src/tools/kit/crewmateBarredTools.ts')
+const { ALL_CREWMATE_DISALLOWED_TOOLS } = await import('../../src/tools/kit/crewmateBarredTools.ts')
 
 resetDesktopDriverForTest()
 const names = (): string[] => getAllBaseTools().map(t => t.name)
@@ -67,10 +67,10 @@ section('§4 no agent ever carries the tool')
   const pool = getAllBaseTools()
   check('the pool under test carries Computer', pool.some(t => t.name === 'Computer'))
   for (const isBuiltIn of [true, false]) {
-    const kept = agents.filterToolsForAgent({ tools: pool, isBuiltIn }).map(t => t.name)
+    const kept = agents.filterToolsForCrewmate({ tools: pool, isBuiltIn }).map(t => t.name)
     check(`filterToolsForAgent drops Computer (isBuiltIn ${isBuiltIn})`, !kept.includes('Computer'), kept.join(','))
   }
-  check('the all-agents denial set names Computer', ALL_AGENT_DISALLOWED_TOOLS.has('Computer'))
+  check('the all-agents denial set names Computer', ALL_CREWMATE_DISALLOWED_TOOLS.has('Computer'))
   const asAgent = await ComputerTool.validateInput!({ action: 'screenshot' } as never, toolContext({ agentId: 'agent-x' }))
   check('a context carrying an agent id is refused with the crewmate text', asAgent.result === false && asAgent.message === 'the Computer tool drives the operator\'s own screen; a crewmate never carries it in this release — the main session does', JSON.stringify(asAgent))
 }

@@ -1,15 +1,15 @@
-import type { LocalAgentTaskState } from './local-agent/crewmateTask.js'
+import type { CrewmateTaskState } from './local-agent/crewmateTask.js'
 import type { LocalShellTaskState } from './local-shell/shellTaskState.js'
 import type { MonitorMcpTaskState } from './monitor-mcp/MonitorMcpTask.js'
 
 export type TaskState =
   | LocalShellTaskState
-  | LocalAgentTaskState
+  | CrewmateTaskState
   | MonitorMcpTaskState
 
 export type BackgroundTaskState =
   | LocalShellTaskState
-  | LocalAgentTaskState
+  | CrewmateTaskState
   | MonitorMcpTaskState
 
 export function isBackgroundTask(task: TaskState): task is BackgroundTaskState {

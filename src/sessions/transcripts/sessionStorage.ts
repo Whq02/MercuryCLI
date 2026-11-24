@@ -1,6 +1,6 @@
 
 export {
-  getAgentTranscriptPath,
+  getCrewmateTranscriptPath,
   getNodeEnv,
   getProjectDir,
   getProjectsDir,
@@ -11,9 +11,9 @@ export {
   isEphemeralToolProgress,
   isTranscriptMessage,
   MAX_TRANSCRIPT_READ_BYTES,
-  readAgentMetadata,
+  readCrewmateMetadata,
   sessionIdExists,
-  writeAgentMetadata,
+  writeCrewmateMetadata,
 } from './paths.js'
 export { loadTranscriptFile } from './loading.js'
 export {
@@ -28,7 +28,7 @@ export {
   recordQueueOperation,
   recordSidechainTranscript,
   recordTranscript,
-  registerAgentTranscriptDestination,
+  registerCrewmateTranscriptDestination,
   removeTranscriptMessage,
   resetProjectFlushStateForTesting,
   resetProjectForTesting,
@@ -55,7 +55,7 @@ export {
   extractAgentIdsFromMessages,
   listSessions,
   findUnresolvedToolUse,
-  getAgentTranscript,
+  getCrewmateTranscript,
   getCurrentSessionAgentColor,
   getCurrentSessionTag,
   getCurrentSessionTitle,
@@ -69,12 +69,12 @@ export {
   listingsOfSessionFile,
   listSessionsAcrossProjects,
   listSessionsAcrossProjectsProgressive,
-  loadAllSubagentTranscriptsFromDisk,
+  loadAllCrewmateTranscriptsFromDisk,
   fillSessionListing,
   listProjectSessions,
   listRepoSessions,
   listRepoSessionsProgressive,
-  loadSubagentTranscripts,
+  loadCrewmateTranscripts,
   loadTranscriptFromFile,
   carrySessionBriefs,
   reAppendSessionMetadata,

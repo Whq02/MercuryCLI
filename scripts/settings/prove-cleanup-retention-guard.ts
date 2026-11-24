@@ -161,7 +161,7 @@ for (const road of ['settings', 'runtime', 'invalid-cutoff']) {
       const images = await import(${JSON.stringify(join(SRC, 'platform/images/imageStore.ts'))})
       const trees = await import(${JSON.stringify(join(SRC, 'platform/git/worktree/worktree.ts'))})
       await images.cleanupOldImageCaches(new Date(NaN))
-      await trees.cleanupStaleAgentWorktrees(new Date(NaN))
+      await trees.cleanupStaleCrewmateWorktrees(new Date(NaN))
     } else out.receipt = await cleanup.sweepOldMessageFilesInBackground()
     out.image = fs.existsSync(image) && fs.readFileSync(image, 'utf8') === 'keep this image'
     out.tree = fs.existsSync(tree)
@@ -169,7 +169,7 @@ for (const road of ['settings', 'runtime', 'invalid-cutoff']) {
   `)
   check(`${road}: oversized retention is refused by name`, r.refused === true, '', 'SettingsSchema in src/platform/settings/settingsSchema.ts must reject records.retentionDays above its maximum with an issue on records.retentionDays')
   check(`${road}: another session's pasted image survives`, r.image === true, '', 'the retention window handling in src/sessions/transcripts/retentionSweep.ts and cleanupOldImageCaches in src/platform/images/imageStore.ts must not delete image-cache files when retentionDays is oversized or the cutoff is invalid')
-  check(`${road}: the ten-day-old clean worktree survives`, r.tree === true, '', 'the retention window handling in src/sessions/transcripts/retentionSweep.ts and cleanupStaleAgentWorktrees in src/platform/git/worktree/worktree.ts must not remove agent worktrees when retentionDays is oversized or the cutoff is invalid')
+  check(`${road}: the ten-day-old clean worktree survives`, r.tree === true, '', 'the retention window handling in src/sessions/transcripts/retentionSweep.ts and cleanupStaleCrewmateWorktrees in src/platform/git/worktree/worktree.ts must not remove agent worktrees when retentionDays is oversized or the cutoff is invalid')
   check(`${road}: the old debug log survives`, r.log === true, '', 'sweepOldMessageFilesInBackground in src/sessions/transcripts/retentionSweep.ts must not delete old debug logs when retentionDays is oversized')
 }
 

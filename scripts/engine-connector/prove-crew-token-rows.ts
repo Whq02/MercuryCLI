@@ -87,7 +87,7 @@ check('fixture records decode without refusals or invalid rows', decoded.entries
 for (const row of decoded.entries) updateProgressFromMessage(tracker, row as never)
 const task = { id: 'scout', type: 'local_agent', status: 'completed', description: 'scout', agentId: 'scout', toolUseId: 'launch-scout', agentType: 'mercury-crew', startTime: 1000, endTime: 61000, progress: getProgressUpdate(tracker) }
 const rows = projectWorkRoster({ scout: task } as never)
-const facts = crew.crewAgentFactsOf(rows[0]!, 'fixture')!
+const facts = crew.crewmateFactsOf(rows[0]!, 'fixture')!
 check('three settled record responses sum fresh input and output once', facts.tokens?.input === 9800 && facts.tokens.output === 2500 && facts.tokens.total === 12300, JSON.stringify(facts.tokens))
 check('cache reads survive separately from input through the roster', (facts.tokens as unknown as { cached?: number })?.cached === 42000, JSON.stringify(facts.tokens))
 check('context is the latest response rather than the cumulative spend', facts.tokens?.context === 14300, JSON.stringify(facts.tokens))
@@ -135,14 +135,14 @@ for (const width of [178, 120, 100, 80, 60]) {
   } finally { Date.now = clock; setRows(rows) }
 }
 for (const width of [178, 100, 80, 60]) {
-  const grouped = await paint(ui.renderGroupedAgentToolUse([{ toolUseID: 'launch-scout', input: { name: 'scout', description: 'scout', prompt: 'p', crewmate_type: 'mercury-crew' }, progressMessages: [] }] as never, { shouldAnimate: false, tools: [] as never }), width)
+  const grouped = await paint(ui.renderGroupedCrewmateToolUse([{ toolUseID: 'launch-scout', input: { name: 'scout', description: 'scout', prompt: 'p', crewmate_type: 'mercury-crew' }, progressMessages: [] }] as never, { shouldAnimate: false, tools: [] as never }), width)
   check(`${width} columns: inline AgentProgressLine names context, in, out and cached together`, grouped.includes(expected), grouped)
   check(`${width} columns: inline rows fit`, grouped.split('\n').every(line => stringWidth(line) <= width), grouped)
   save(`crew-tokens-inline-${width}.txt`, grouped)
 }
-const zero = crew.crewAgentFactsOf({ id: 'empty', kind: 'agent', name: 'empty', startTime: 0, status: 'completed', inputTokens: 0, outputTokens: 0, totalTokens: 0, contextTokens: 0 }, null)!
+const zero = crew.crewmateFactsOf({ id: 'empty', kind: 'agent', name: 'empty', startTime: 0, status: 'completed', inputTokens: 0, outputTokens: 0, totalTokens: 0, contextTokens: 0 }, null)!
 check('all-zero carrier usage remains absent', zero.tokens === null, JSON.stringify(zero.tokens))
-const old = crew.crewAgentFactsOf({ id: 'old', kind: 'agent', name: 'old', startTime: 0, status: 'completed', totalTokens: 6000 }, null)!
+const old = crew.crewmateFactsOf({ id: 'old', kind: 'agent', name: 'old', startTime: 0, status: 'completed', totalTokens: 6000 }, null)!
 check('a total-only carrier reports spent without invented halves', crew.crewTokensLabel(old) === '6k spent' && crew.crewTokensBreakdown(old) === null)
 check('no usage is spelled in words rather than a dash or zero', typeof crew.crewTokensSummary === 'function' && crew.crewTokensSummary(zero) === 'usage not reported')
 const encoded = wire.sessionFactsToWire({ model: { effective: 'fixture/crew' }, usage: { totalCostUSD: 0 }, skills: [], mcp: [], permissionMode: 'default', workspace: {}, queue: [], work: rows } as never)
@@ -150,7 +150,7 @@ const decodedFacts = wire.sessionFactsFromWire(encoded)
 check('the hosted facts wire keeps cache reads apart', (encoded.work as Array<{ cache_read_tokens?: number }> | undefined)?.[0]?.cache_read_tokens === 42000 && decodedFacts?.work?.[0]?.cacheReadTokens === 42000, JSON.stringify(encoded.work))
 const cachedOnlyTracker = createProgressTracker()
 updateProgressFromMessage(cachedOnlyTracker, { type: 'assistant', message: { id: 'cached-only', model: 'fixture/crew', content: [], usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 500 } } } as never)
-const cachedOnly = crew.crewAgentFactsOf(projectWorkRoster({ cached: { ...task, id: 'cached', progress: getProgressUpdate(cachedOnlyTracker) } } as never)[0]!, null)!
+const cachedOnly = crew.crewmateFactsOf(projectWorkRoster({ cached: { ...task, id: 'cached', progress: getProgressUpdate(cachedOnlyTracker) } } as never)[0]!, null)!
 check('a measured cache-only response is not mistaken for missing usage', cachedOnly.tokens?.context === 500 && cachedOnly.tokens?.cached === 500 && cachedOnly.tokens?.total === 0, JSON.stringify(cachedOnly.tokens))
 if (writing) registerGeneratedAsset(ROW)
 _resetFocusedSessionConnectorForTesting()

@@ -181,7 +181,7 @@ section('R8 · the address — the receipt\'s id routes, the name routes, a dead
 await import('../../src/engine/tasks/tasks.ts')
 const { toAgentId } = await import('../../src/sessions/transcripts/ids.ts')
 const { generateTaskId } = await import('../../src/engine/tasks/taskBase.ts')
-const { registerAsyncAgent, enqueueAgentNotification } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
+const { registerAsyncCrewmate, enqueueCrewmateNotification } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
 const { SendMessageTool } = await import('../../src/tools/send-message/SendMessageTool.ts')
 const FAKE_DEF = { agentType: 'mercury-crew', source: 'built-in', whenToUse: '', systemPrompt: '' } as never
 type SendAnswer = { data: { success: boolean; message: string } }
@@ -211,7 +211,7 @@ function makeCtx(store: ReturnType<typeof makeStore>): never {
   check('the receipt parser reads the id the receipt names', parsed.length === 2 && parsed[0]?.agentId === 'agent-one')
   const store = makeStore()
   const ctx = makeCtx(store)
-  registerAsyncAgent({ agentId: minted, description: 'harbour-count', prompt: 'count the harbour', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  registerAsyncCrewmate({ agentId: minted, description: 'harbour-count', prompt: 'count the harbour', selectedAgent: FAKE_DEF, setAppState: store.set as never })
   const byId = (await SendMessageTool.call({ to: minted, message: 'a word for the harbour' } as never, ctx, undefined as never, { requestId: 'req_1' } as never)) as SendAnswer
   check("SendMessage to the receipt's id delivers the message to the running agent, read at its next tool boundary", byId.data.success === true && /^Delivered to /.test(byId.data.message) && /next tool boundary/.test(byId.data.message), byId.data.message)
   const pending = (): string[] => ((store.get().tasks[minted] as { pendingMessages?: string[] } | undefined)?.pendingMessages ?? [])
@@ -225,20 +225,20 @@ function makeCtx(store: ReturnType<typeof makeStore>): never {
 }
 
 section("R8b · a queued-guidance resume re-registers the id — the old run's notice never latches the resumed run's row")
-const { completeAgentTask } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
+const { completeCrewmateTask } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
 for (const ordering of ['old-first', 'resumed-first'] as const) {
   queue.resetCommandQueue()
   const store = makeStore()
   const id = generateTaskId('local_agent')
-  const first = registerAsyncAgent({ agentId: id, description: 'twice', prompt: 'count twice', selectedAgent: FAKE_DEF, setAppState: store.set as never })
-  completeAgentTask({ agentId: id }, store.set as never)
-  const second = registerAsyncAgent({ agentId: id, description: 'twice', prompt: 'count twice', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  const first = registerAsyncCrewmate({ agentId: id, description: 'twice', prompt: 'count twice', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  completeCrewmateTask({ agentId: id }, store.set as never)
+  const second = registerAsyncCrewmate({ agentId: id, description: 'twice', prompt: 'count twice', selectedAgent: FAKE_DEF, setAppState: store.set as never })
   check(`${ordering}: the resume minted a fresh controller for the same id`, first.abortController !== second.abortController && store.get().tasks[id]?.status === 'running')
   const oldNotice = (): void =>
-    enqueueAgentNotification({ taskId: id, description: 'twice', status: 'completed', setAppState: store.set as never, controller: first.abortController })
+    enqueueCrewmateNotification({ taskId: id, description: 'twice', status: 'completed', setAppState: store.set as never, controller: first.abortController })
   const resumedSettle = (): void => {
-    completeAgentTask({ agentId: id }, store.set as never)
-    enqueueAgentNotification({ taskId: id, description: 'twice', status: 'completed', setAppState: store.set as never, controller: second.abortController })
+    completeCrewmateTask({ agentId: id }, store.set as never)
+    enqueueCrewmateNotification({ taskId: id, description: 'twice', status: 'completed', setAppState: store.set as never, controller: second.abortController })
   }
   if (ordering === 'old-first') {
     oldNotice()
@@ -251,17 +251,17 @@ for (const ordering of ['old-first', 'resumed-first'] as const) {
   }
   const notes = (): number => queue.getCommandQueue().filter(c => c.mode === 'task-notification').length
   check(`${ordering}: two runs, two notices`, notes() === 2, `${notes()} notice(s)`)
-  enqueueAgentNotification({ taskId: id, description: 'twice', status: 'completed', setAppState: store.set as never, controller: second.abortController })
+  enqueueCrewmateNotification({ taskId: id, description: 'twice', status: 'completed', setAppState: store.set as never, controller: second.abortController })
   check(`${ordering}: the resumed run's second report is swallowed by its own latch`, notes() === 2, `${notes()} notice(s)`)
 }
 {
   queue.resetCommandQueue()
   const store = makeStore()
   const id = generateTaskId('local_agent')
-  const first = registerAsyncAgent({ agentId: id, description: 'fails late', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
-  completeAgentTask({ agentId: id }, store.set as never)
-  const second = registerAsyncAgent({ agentId: id, description: 'fails late', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
-  enqueueAgentNotification({ taskId: id, description: 'fails late', status: 'failed', error: 'late failure', setAppState: store.set as never, controller: first.abortController })
+  const first = registerAsyncCrewmate({ agentId: id, description: 'fails late', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  completeCrewmateTask({ agentId: id }, store.set as never)
+  const second = registerAsyncCrewmate({ agentId: id, description: 'fails late', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  enqueueCrewmateNotification({ taskId: id, description: 'fails late', status: 'failed', error: 'late failure', setAppState: store.set as never, controller: first.abortController })
   const row = store.get().tasks[id] as { notified?: boolean } | undefined
   check("an old run's FAILED notice goes out and leaves the resumed row unlatched", queue.getCommandQueue().filter(c => c.mode === 'task-notification').length === 1 && row?.notified !== true, JSON.stringify(row?.notified))
   void second
@@ -270,30 +270,30 @@ for (const ordering of ['old-first', 'resumed-first'] as const) {
   queue.resetCommandQueue()
   const store = makeStore()
   const id = generateTaskId('local_agent')
-  registerAsyncAgent({ agentId: id, description: 'once', prompt: 'count once', selectedAgent: FAKE_DEF, setAppState: store.set as never })
-  completeAgentTask({ agentId: id }, store.set as never)
-  enqueueAgentNotification({ taskId: id, description: 'once', status: 'completed', setAppState: store.set as never })
-  enqueueAgentNotification({ taskId: id, description: 'once', status: 'completed', setAppState: store.set as never })
+  registerAsyncCrewmate({ agentId: id, description: 'once', prompt: 'count once', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  completeCrewmateTask({ agentId: id }, store.set as never)
+  enqueueCrewmateNotification({ taskId: id, description: 'once', status: 'completed', setAppState: store.set as never })
+  enqueueCrewmateNotification({ taskId: id, description: 'once', status: 'completed', setAppState: store.set as never })
   check('a token-less notice still latches the row once', queue.getCommandQueue().filter(c => c.mode === 'task-notification').length === 1)
 }
 
 section('R8c · a named launch: the foreground road registers the name, the handover receipt names it, both eviction roads prune it')
 {
   const { applyTaskOffsetsAndEvictions } = await import('../../src/engine/task-framework/taskRegistry.ts')
-  const taskModule = (await import('../../src/engine/tasks/local-agent/crewmateTask.js')) as { registerAgentName?: (name: string, agentId: string, set: unknown) => void }
-  const registerAgentName = taskModule.registerAgentName
-  check("the alias helper is the task module's own export", typeof registerAgentName === 'function')
+  const taskModule = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
+  const registerCrewmateName = taskModule.registerCrewmateName
+  check("the alias helper is the task module's own export", typeof registerCrewmateName === 'function')
   const store = makeStore()
   const older = generateTaskId('local_agent')
   const newer = generateTaskId('local_agent')
-  registerAsyncAgent({ agentId: older, description: 'scout', prompt: 'scout the harbour', selectedAgent: FAKE_DEF, setAppState: store.set as never })
-  registerAgentName?.('scout', older, store.set)
-  registerAgentName?.('elder', older, store.set)
-  registerAsyncAgent({ agentId: newer, description: 'scout again', prompt: 'scout the harbour', selectedAgent: FAKE_DEF, setAppState: store.set as never })
-  registerAgentName?.('scout', newer, store.set)
+  registerAsyncCrewmate({ agentId: older, description: 'scout', prompt: 'scout the harbour', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  registerCrewmateName?.('scout', older, store.set as never)
+  registerCrewmateName?.('elder', older, store.set as never)
+  registerAsyncCrewmate({ agentId: newer, description: 'scout again', prompt: 'scout the harbour', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  registerCrewmateName?.('scout', newer, store.set as never)
   check('the registry routes each name to its latest holder', store.get().agentNameRegistry.get('scout') === newer && store.get().agentNameRegistry.get('elder') === older, JSON.stringify([...store.get().agentNameRegistry.entries()]))
-  completeAgentTask({ agentId: older }, store.set as never)
-  enqueueAgentNotification({ taskId: older, description: 'scout', status: 'completed', setAppState: store.set as never })
+  completeCrewmateTask({ agentId: older }, store.set as never)
+  enqueueCrewmateNotification({ taskId: older, description: 'scout', status: 'completed', setAppState: store.set as never })
   store.set(prev => ({ ...prev, tasks: { ...prev.tasks, [older]: { ...prev.tasks[older], evictAfter: 0 } as never } }))
   applyTaskOffsetsAndEvictions(store.set as never, {}, [older])
   const registry = store.get().agentNameRegistry
@@ -304,10 +304,10 @@ section("R8d · a resume reads the live owner right before it registers")
 {
   const resumeModule = (await import('../../src/tools/crewmate/resumeCrewmate.ts')) as {
     resumeAgentBackground: Function
-    liveAgentOwner?: (agentId: string, tasks: unknown) => { kind: string; words: string } | null
+    liveCrewmateOwner?: (agentId: string, tasks: unknown) => { kind: string; words: string } | null
   }
-  const { completeAgentTask, failAgentTask, killAsyncAgent } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
-  const { getAgentTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
+  const { completeCrewmateTask, failCrewmateTask, killAsyncCrewmate } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
+  const { getCrewmateTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
   const { asAgentId } = await import('../../src/sessions/transcripts/ids.ts')
   const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.ts')
   const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.ts')
@@ -325,19 +325,19 @@ section("R8d · a resume reads the live owner right before it registers")
     const encode = (e: unknown): string => JSON.stringify(entryToRecord(e as never, { sessionId, nextOrdinal: () => ordinalOf(++ordinal), observedAt: at, source: { channel: 'interactive' } } as never))
     const first = `00000000-0000-4000-8000-0000000${String(++ordinal).padStart(5, '0')}`
     const second = `00000000-0000-4000-8000-0000000${String(++ordinal).padStart(5, '0')}`
-    const path = getAgentTranscriptPath(asAgentId(agentId))
+    const path = getCrewmateTranscriptPath(asAgentId(agentId))
     mkdirSync(dirname(path), { recursive: true })
     writeFileSync(path, [entry(first, null, 'user', opening), entry(second, first, 'assistant', reply)].map(encode).join('\n') + '\n')
   }
-  check("the resume road exports its live-owner decision", typeof resumeModule.liveAgentOwner === 'function')
+  check("the resume road exports its live-owner decision", typeof resumeModule.liveCrewmateOwner === 'function')
   const store = makeStore()
   const ctx = makeCtx(store)
   const settledChild = generateTaskId('local_agent')
-  if (typeof resumeModule.liveAgentOwner === 'function') {
+  if (typeof resumeModule.liveCrewmateOwner === 'function') {
     const raced = generateTaskId('local_agent')
     seedTranscript(raced, 'race me', 'racing')
     const pending = resumeModule.resumeAgentBackground({ agentId: raced, prompt: 'go on', toolUseContext: ctx }) as Promise<unknown>
-    const live = registerAsyncAgent({ agentId: raced, description: 'raced', prompt: 'race me', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+    const live = registerAsyncCrewmate({ agentId: raced, description: 'raced', prompt: 'race me', selectedAgent: FAKE_DEF, setAppState: store.set as never })
     let racedRefusal = ''
     try {
       await pending
@@ -346,20 +346,20 @@ section("R8d · a resume reads the live owner right before it registers")
     }
     const racedRow = store.get().tasks[raced] as { status?: string; registration?: AbortController } | undefined
     check('a live owner appearing between the lookup and the registration prevents the duplicate: the resume throws, the live row and its registration stand', /running/.test(racedRefusal) && racedRow?.status === 'running' && racedRow.registration === live.abortController, racedRefusal.slice(0, 160))
-    killAsyncAgent(raced, store.set as never)
+    killAsyncCrewmate(raced, store.set as never)
   }
   const afterSettle = (await SendMessageTool.call({ to: settledChild, message: 'anyone there' } as never, ctx, undefined as never, { requestId: 'req_wf2' } as never)) as SendAnswer
   check('an id with no task and no transcript is an unknown address', afterSettle.data.success === false && /no (?:agent named|crewmate by that name or id)/i.test(afterSettle.data.message), afterSettle.data.message.slice(0, 160))
   const twice = generateTaskId('local_agent')
-  const first = registerAsyncAgent({ agentId: twice, description: 'twice', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
-  completeAgentTask({ agentId: twice }, store.set as never)
-  const second = registerAsyncAgent({ agentId: twice, description: 'twice', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
-  ;(completeAgentTask as Function)({ agentId: twice }, store.set, first.abortController)
-  ;(killAsyncAgent as Function)(twice, store.set, 'late stop', first.abortController)
-  ;(failAgentTask as Function)(twice, 'late failure', store.set, first.abortController)
+  const first = registerAsyncCrewmate({ agentId: twice, description: 'twice', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  completeCrewmateTask({ agentId: twice }, store.set as never)
+  const second = registerAsyncCrewmate({ agentId: twice, description: 'twice', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  ;(completeCrewmateTask as Function)({ agentId: twice }, store.set, first.abortController)
+  ;(killAsyncCrewmate as Function)(twice, store.set, 'late stop', first.abortController)
+  ;(failCrewmateTask as Function)(twice, 'late failure', store.set, first.abortController)
   const successor = store.get().tasks[twice] as { status?: string } | undefined
   check("an earlier run's late complete, kill and fail leave the successor running, its controller untouched", successor?.status === 'running' && second.abortController.signal.aborted === false, JSON.stringify(successor?.status))
-  ;(completeAgentTask as Function)({ agentId: twice }, store.set, second.abortController)
+  ;(completeCrewmateTask as Function)({ agentId: twice }, store.set, second.abortController)
   check("…and the successor's own settle lands", (store.get().tasks[twice] as { status?: string } | undefined)?.status === 'completed')
 }
 
@@ -369,7 +369,7 @@ section('R8e · every non-terminal row has a live owner; the exit card counts wh
   const { projectWorkRoster } = await import('../../src/engine/connector/workRoster.ts')
   const { workRowRuns } = await import('../../src/engine/connector/workCounts.ts')
   const { registerMainSessionTask } = await import('../../src/engine/tasks/mainSessionTask.ts')
-  const { killAsyncAgent } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
+  const { killAsyncCrewmate } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
   const store = makeStore()
   const crewAgents = (): number => projectWorkRoster(store.get().tasks ?? {}).filter(r => workRowRuns(r) && (r.kind === 'agent' || r.kind === 'named')).length
   const shellId = generateTaskId('local_bash')
@@ -387,16 +387,16 @@ section('R8e · every non-terminal row has a live owner; the exit card counts wh
   const after = store.get().tasks[stoppedQuery] as { status?: string; stopReason?: string } | undefined
   check('…the door settles it to killed with the reason on the row', settled.length === 1 && settled[0]?.id === stoppedQuery && after?.status === 'killed' && after.stopReason === 'its controller was stopped before the row settled', JSON.stringify(after?.status))
   const liveAgent = generateTaskId('local_agent')
-  registerAsyncAgent({ agentId: liveAgent, description: 'alive', prompt: 'work', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  registerAsyncCrewmate({ agentId: liveAgent, description: 'alive', prompt: 'work', selectedAgent: FAKE_DEF, setAppState: store.set as never })
   check('a live agent has nothing to settle', fw.settleOwnerlessTasks(store.set as never).length === 0 && (store.get().tasks[liveAgent] as { status?: string } | undefined)?.status === 'running')
   counts = fw.liveBackgroundCounts(store.get().tasks)
   check('the words name the kinds in order', fw.liveWorkWords(counts) === '1 shell command and 1 crewmate' && fw.liveWorkWords({ total: 4, shells: 2, agents: 1, other: 1 }) === '2 shell commands, 1 crewmate and 1 background task' && fw.liveWorkWords({ total: 0, shells: 0, agents: 0, other: 0 }) === 'nothing', fw.liveWorkWords(counts))
   check('…and the crew view agrees on the agent', crewAgents() === 1)
   const child = generateTaskId('local_agent')
-  registerAsyncAgent({ agentId: child, description: 'a second row', prompt: 'p', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  registerAsyncCrewmate({ agentId: child, description: 'a second row', prompt: 'p', selectedAgent: FAKE_DEF, setAppState: store.set as never })
   check('a second row with a live controller is counted by both surfaces alike (never settled on a guess)', fw.taskOwnerGone(store.get().tasks[child] as never) === null && fw.liveBackgroundCounts(store.get().tasks).agents === 2 && crewAgents() === 2)
-  killAsyncAgent(liveAgent, store.set as never)
-  killAsyncAgent(child, store.set as never)
+  killAsyncCrewmate(liveAgent, store.set as never)
+  killAsyncCrewmate(child, store.set as never)
 }
 
 section("R8f · the interrupt receipt counts what the crew view lists: a settled agent is not counted")
@@ -404,11 +404,11 @@ section("R8f · the interrupt receipt counts what the crew view lists: a settled
   const crew = (await import('../../src/engine/connector/crewFacts.ts')) as { crewStillRunningLine: Function }
   const { projectWorkRoster } = await import('../../src/engine/connector/workRoster.ts')
   const { workCounts, workRowRuns } = await import('../../src/engine/connector/workCounts.ts')
-  const { completeAgentTask } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
+  const { completeCrewmateTask } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
   const store = makeStore()
   const settled = generateTaskId('local_agent')
-  registerAsyncAgent({ agentId: settled, description: 'settled during the fold', prompt: 'p', selectedAgent: FAKE_DEF, setAppState: store.set as never })
-  completeAgentTask({ agentId: settled }, store.set as never)
+  registerAsyncCrewmate({ agentId: settled, description: 'settled during the fold', prompt: 'p', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  completeCrewmateTask({ agentId: settled }, store.set as never)
   const roster = projectWorkRoster(store.get().tasks ?? {})
   const crewViewRows = roster.filter(r => workRowRuns(r) && (r.kind === 'agent' || r.kind === 'named')).length
   check('the roster holds a settled agent and nothing running — the crew view lists nothing', crewViewRows === 0 && roster.length === 1)
@@ -419,26 +419,26 @@ section("R8f · the interrupt receipt counts what the crew view lists: a settled
   check('…and crewmates keep their words and the crew-view door', both !== null && /2 crewmates still running/.test(both) && /crew view \(\/crewmates\)/.test(both), String(both))
   check('…nothing running, no line', crew.crewStillRunningLine({ agents: 0, shells: 0, asks: 0 }) === null)
   const { drainRows } = await import('../../src/daemon/runner/sdkEventQueue.ts')
-  const { failAgentTask } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
+  const { failCrewmateTask } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
   drainRows()
   const done = generateTaskId('local_agent')
-  registerAsyncAgent({ agentId: done, description: 'settles', prompt: 'p', selectedAgent: FAKE_DEF, setAppState: store.set as never, toolUseId: 'toolu_settles' })
+  registerAsyncCrewmate({ agentId: done, description: 'settles', prompt: 'p', selectedAgent: FAKE_DEF, setAppState: store.set as never, toolUseId: 'toolu_settles' })
   drainRows()
-  completeAgentTask({ agentId: done }, store.set as never, undefined, { usage: { tokens: 48, toolUses: 0, durationMs: 6029 } })
+  completeCrewmateTask({ agentId: done }, store.set as never, undefined, { usage: { tokens: 48, toolUses: 0, durationMs: 6029 } })
   const completedFrames = drainRows().filter(e => (e as { type?: string; state?: string }).type === 'task' && (e as { state?: string }).state === 'ended' && (e as { task_id?: string }).task_id === done)
   check("a background agent's completion emits the ended task row once, with its status, call id and the run's usage", completedFrames.length === 1 && (completedFrames[0] as { status?: string }).status === 'completed' && (completedFrames[0] as { call_id?: string }).call_id === 'toolu_settles' && (completedFrames[0] as { usage?: { tokens?: number } }).usage?.tokens === 48, JSON.stringify(completedFrames).slice(0, 200))
   const noticed = generateTaskId('local_agent')
-  registerAsyncAgent({ agentId: noticed, description: 'noticed', prompt: 'p', selectedAgent: FAKE_DEF, setAppState: store.set as never, toolUseId: 'toolu_noticed' })
+  registerAsyncCrewmate({ agentId: noticed, description: 'noticed', prompt: 'p', selectedAgent: FAKE_DEF, setAppState: store.set as never, toolUseId: 'toolu_noticed' })
   drainRows()
-  completeAgentTask({ agentId: noticed }, store.set as never, undefined, { settleFrame: false })
+  completeCrewmateTask({ agentId: noticed }, store.set as never, undefined, { settleFrame: false })
   check("a completion whose caller knows a parent-addressed notice follows (the runner projects that notice into the ended row) waives the settle: one ended row per end, never a twin — the headless bookend law", drainRows().filter(e => (e as { type?: string; state?: string }).type === 'task' && (e as { state?: string }).state === 'ended' && (e as { task_id?: string }).task_id === noticed).length === 0)
   const failedId = generateTaskId('local_agent')
-  const failedTask = registerAsyncAgent({ agentId: failedId, description: 'fails', prompt: 'p', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  const failedTask = registerAsyncCrewmate({ agentId: failedId, description: 'fails', prompt: 'p', selectedAgent: FAKE_DEF, setAppState: store.set as never })
   drainRows()
-  failAgentTask(failedId, 'boom', store.set as never)
+  failCrewmateTask(failedId, 'boom', store.set as never)
   const failedFrames = drainRows().filter(e => (e as { type?: string; state?: string }).type === 'task' && (e as { state?: string }).state === 'ended' && (e as { task_id?: string }).task_id === failedId)
   check("…and a failure emits it with 'failed'", failedFrames.length === 1 && (failedFrames[0] as { status?: string }).status === 'failed')
-  failAgentTask(failedId, 'again', store.set as never)
+  failCrewmateTask(failedId, 'again', store.set as never)
   check('…a settle that lands nothing emits nothing', drainRows().filter(e => (e as { task_id?: string }).task_id === failedId).length === 0)
   void failedTask
 }
@@ -447,7 +447,7 @@ section('R9 · one status per agent — the inspection verbs read one fact, on t
 const { agentAdapter } = await import('../../src/integrations/resources/adapters/agent.ts')
 const { transcriptAdapter } = await import('../../src/integrations/resources/adapters/transcript.ts')
 const { parseMercuryRef } = await import('../../src/integrations/resources/contracts.ts')
-const { getAgentTranscriptPath, getTranscriptPathForSession } = await import('../../src/sessions/transcripts/paths.ts')
+const { getCrewmateTranscriptPath, getTranscriptPathForSession } = await import('../../src/sessions/transcripts/paths.ts')
 const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
 const { asAgentId } = await import('../../src/sessions/transcripts/ids.ts')
 const { getTaskOutputPath } = await import('../../src/engine/task-framework/diskOutput.ts')
@@ -462,7 +462,7 @@ const recordWriter = { sessionId: 'launch-receipts-proof' as never, nextOrdinal:
 const row = (type: 'user' | 'assistant', content: unknown, extra: Record<string, unknown> = {}): string =>
   JSON.stringify(entryToRecord({ type, uuid: `00000000-0000-4000-8000-${String(rowSeq + 1).padStart(12, '0')}`, timestamp: stamp(), message: { role: type, content }, ...extra } as never, recordWriter as never))
 function writeTranscript(id: string, rows: string[]): string {
-  const file = getAgentTranscriptPath(asAgentId(id))
+  const file = getCrewmateTranscriptPath(asAgentId(id))
   mkdirSync(dirname(file), { recursive: true })
   writeFileSync(file, rows.join('\n') + '\n')
   return file
@@ -523,7 +523,7 @@ const EXPECTED: Record<keyof typeof transcripts, RegExp> = {
 }
 
 section('R10 · a death is delivered once — the typed cause, what landed, never a second notice')
-const { runAsyncAgentLifecycle } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+const { runAsyncCrewmateLifecycle } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
 const { createAssistantMessage, createAssistantAPIErrorMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { streamFaultAfterPartialText, STREAM_FAULT_RECOVERY_NUDGE } = await import('../../src/engine/requests/apiErrorRows.ts')
 const META = { prompt: 'plant the foliage', resolvedAgentModel: 'gpt-5.6-sol', isBuiltInAgent: false, startTime: Date.now(), agentType: 'mercury-crew', isAsync: true }
@@ -532,7 +532,7 @@ async function deathOf(name: string, writes: string[]): Promise<{ record: { stat
   queue.resetCommandQueue()
   const store = makeStore()
   const id = generateTaskId('local_agent')
-  const task = registerAsyncAgent({ agentId: id, description: name, prompt: 'plant the foliage', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  const task = registerAsyncCrewmate({ agentId: id, description: name, prompt: 'plant the foliage', selectedAgent: FAKE_DEF, setAppState: store.set as never })
   async function* stream(): AsyncGenerator<Message, void> {
     yield createUserMessage({ content: 'plant the foliage' })
     let w = 0
@@ -546,7 +546,7 @@ async function deathOf(name: string, writes: string[]): Promise<{ record: { stat
     yield createUserMessage({ content: STREAM_FAULT_RECOVERY_NUDGE, isMeta: true })
     yield createAssistantAPIErrorMessage({ content: FAULT })
   }
-  await runAsyncAgentLifecycle({
+  await runAsyncCrewmateLifecycle({
     taskId: id,
     abortController: task.abortController!,
     makeStream: () => stream() as never,
@@ -571,7 +571,7 @@ async function deathOf(name: string, writes: string[]): Promise<{ record: { stat
   check('the notice carries the typed cause', (death.notes[0] ?? '').includes(FAULT))
   check('the notice says what landed on disk — the one write', /1 file write landed: \/tmp\/foliage\.gd/.test(death.notes[0] ?? ''), (death.notes[0] ?? '').slice(0, 400))
   check('the partial text rides the notice as partial work, never as a report', /half the foliage is planted/.test(death.notes[0] ?? ''))
-  enqueueAgentNotification({ taskId: death.id, description: 'foliage', status: 'failed', error: FAULT, setAppState: () => {} })
+  enqueueCrewmateNotification({ taskId: death.id, description: 'foliage', status: 'failed', error: FAULT, setAppState: () => {} })
   check('a second death report for the same task is swallowed by the notified latch', queue.getCommandQueue().filter(c => c.mode === 'task-notification').length === 1)
   const bare = await deathOf('bare-foliage', [])
   check('a child that wrote nothing says so', bare.notes.length === 1 && /no file writes landed/.test(bare.notes[0] ?? ''), (bare.notes[0] ?? '').slice(0, 400))
@@ -592,7 +592,7 @@ section('R11 · the hand-back — every exit that is not a clean finish carries 
     queue.resetCommandQueue()
     const store = makeStore()
     const id = generateTaskId('local_agent')
-    const task = registerAsyncAgent({ agentId: id, description: `leaves-${exit.name}`, prompt: 'survey the harbour', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+    const task = registerAsyncCrewmate({ agentId: id, description: `leaves-${exit.name}`, prompt: 'survey the harbour', selectedAgent: FAKE_DEF, setAppState: store.set as never })
     async function* stream(): AsyncGenerator<Message, void> {
       yield createUserMessage({ content: 'survey the harbour' })
       yield createAssistantMessage({ content: [{ type: 'tool_use', id: 'toolu_w1', name: 'Write', input: { file_path: '/tmp/harbour-notes.md', content: 'x' } }] })
@@ -601,7 +601,7 @@ section('R11 · the hand-back — every exit that is not a clean finish carries 
       if (exit.name === 'kill') task.abortController?.abort()
       throw exit.thrown()
     }
-    await runAsyncAgentLifecycle({
+    await runAsyncCrewmateLifecycle({
       taskId: id,
       abortController: task.abortController!,
       makeStream: () => stream() as never,
@@ -643,15 +643,15 @@ section('R12 · durability — every row an agent yields is on its transcript fi
     "enableConfigs()",
     "const storage = await import(root + '/src/sessions/transcripts/sessionStorage.ts')",
     "const { asAgentId } = await import(root + '/src/sessions/transcripts/ids.ts')",
-    "const path = storage.getAgentTranscriptPath(asAgentId(agentId))",
-    "storage.registerAgentTranscriptDestination(agentId, path)",
+    "const path = storage.getCrewmateTranscriptPath(asAgentId(agentId))",
+    "storage.registerCrewmateTranscriptDestination(agentId, path)",
     "writeFileSync(home + '/agent-path.txt', path)",
     "const row = (uuid: string, parentUuid: string | null, text: string) => ({ type: 'user', uuid, parentUuid, isSidechain: true, timestamp: new Date().toISOString(), message: { role: 'user', content: text } })",
     "const rows = [row('00000000-0000-4000-8000-0000000000c1', null, 'one'), row('00000000-0000-4000-8000-0000000000c2', '00000000-0000-4000-8000-0000000000c1', 'two'), row('00000000-0000-4000-8000-0000000000c3', '00000000-0000-4000-8000-0000000000c2', 'three')]",
     "if (road === 'durable') {",
     "  const runner = await import(root + '/src/tools/crewmate/runCrewmate.ts')",
     "  let parent: string | null = null",
-    "  for (const r of rows) { await runner.landAgentTranscriptRows([r as never], agentId, parent as never); parent = r.uuid }",
+    "  for (const r of rows) { await runner.landCrewmateTranscriptRows([r as never], agentId, parent as never); parent = r.uuid }",
     "} else {",
     "  let parent: string | null = null",
     "  for (const r of rows) { void storage.recordSidechainTranscript([r as never], agentId, parent as never).catch(() => {}); parent = r.uuid }",
@@ -691,15 +691,15 @@ section('R13 · a seat cut by the recovery budget resumes ONCE by itself, with a
   if (typeof lifecycle.armBudgetCutResume === 'function' && typeof lifecycle.automaticResumePending === 'function') {
     const arm = lifecycle.armBudgetCutResume
     const pending = lifecycle.automaticResumePending
-    const { completeAgentTask, failAgentTask, killAsyncAgent } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
+    const { completeCrewmateTask, failCrewmateTask, killAsyncCrewmate } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
     const settle = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
     const receipts = (): string[] => queue.getCommandQueue().filter(c => c.mode === 'task-notification').map(c => String(c.value ?? '')).filter(v => /<status>resumed<\/status>/.test(v))
     {
       queue.resetCommandQueue()
       const store = makeStore()
       const id = generateTaskId('local_agent')
-      const task = registerAsyncAgent({ agentId: id, description: 'cut by the budget', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
-      failAgentTask(id, budgetCut().message, store.set as never, task.abortController)
+      const task = registerAsyncCrewmate({ agentId: id, description: 'cut by the budget', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+      failCrewmateTask(id, budgetCut().message, store.set as never, task.abortController)
       const resumes: Array<Record<string, unknown>> = []
       arm({ taskId: id, description: 'cut by the budget', registration: task.abortController, toolUseContext: makeCtx(store), rootSetAppState: store.set, delayMs: 5, resume: async (args: Record<string, unknown>) => { resumes.push(args); return { agentId: id } } })
       check('a budget-cut failure arms one pending resume', pending(id) === true)
@@ -718,27 +718,27 @@ section('R13 · a seat cut by the recovery budget resumes ONCE by itself, with a
       const fired: string[] = []
       const resumeInto = (label: string) => async () => { fired.push(label); return {} }
       const byHand = generateTaskId('local_agent')
-      const first = registerAsyncAgent({ agentId: byHand, description: 'by hand', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
-      failAgentTask(byHand, budgetCut().message, store.set as never, first.abortController)
+      const first = registerAsyncCrewmate({ agentId: byHand, description: 'by hand', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+      failCrewmateTask(byHand, budgetCut().message, store.set as never, first.abortController)
       arm({ taskId: byHand, description: 'by hand', registration: first.abortController, toolUseContext: makeCtx(store), rootSetAppState: store.set, delayMs: 30, resume: resumeInto('by-hand') })
-      registerAsyncAgent({ agentId: byHand, description: 'by hand', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+      registerAsyncCrewmate({ agentId: byHand, description: 'by hand', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
       const stoppedEarly = generateTaskId('local_agent')
-      const se = registerAsyncAgent({ agentId: stoppedEarly, description: 'stopped', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
-      killAsyncAgent(stoppedEarly, store.set as never)
+      const se = registerAsyncCrewmate({ agentId: stoppedEarly, description: 'stopped', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+      killAsyncCrewmate(stoppedEarly, store.set as never)
       check('a killed row is not a failed row of its registration — the arm refuses to fire for it', arm({ taskId: stoppedEarly, description: 'stopped', registration: se.abortController, toolUseContext: makeCtx(store), rootSetAppState: store.set, delayMs: 5, resume: resumeInto('stopped') }) !== null)
       const evicted = generateTaskId('local_agent')
-      const e = registerAsyncAgent({ agentId: evicted, description: 'evicted', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
-      failAgentTask(evicted, budgetCut().message, store.set as never, e.abortController)
+      const e = registerAsyncCrewmate({ agentId: evicted, description: 'evicted', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+      failCrewmateTask(evicted, budgetCut().message, store.set as never, e.abortController)
       arm({ taskId: evicted, description: 'evicted', registration: e.abortController, toolUseContext: makeCtx(store), rootSetAppState: store.set, delayMs: 30, resume: resumeInto('evicted') })
       store.set(prev => { const tasks = { ...prev.tasks }; delete tasks[evicted]; return { ...prev, tasks } })
       const automatic = generateTaskId('local_agent')
-      const a = registerAsyncAgent({ agentId: automatic, description: 'automatic', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
-      failAgentTask(automatic, budgetCut().message, store.set as never, a.abortController)
+      const a = registerAsyncCrewmate({ agentId: automatic, description: 'automatic', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+      failCrewmateTask(automatic, budgetCut().message, store.set as never, a.abortController)
       const armed = arm({ taskId: automatic, description: 'automatic', registration: a.abortController, toolUseContext: makeCtx(store), rootSetAppState: store.set, delayMs: 30, automaticResume: true, resume: resumeInto('automatic') })
       check("an automatic run's own budget cut arms nothing (one automatic resume per cut chain)", armed === null && pending(automatic) === false)
       await settle(120)
       check('a hand resume, a stop and an eviction each stop the automatic resume; no receipt row for any', fired.length === 0 && receipts().length === 0, JSON.stringify(fired))
-      completeAgentTask({ agentId: byHand }, store.set as never)
+      completeCrewmateTask({ agentId: byHand }, store.set as never)
     }
     {
       const { cancelAutomaticResume } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
@@ -746,7 +746,7 @@ section('R13 · a seat cut by the recovery budget resumes ONCE by itself, with a
         queue.resetCommandQueue()
         const store = makeStore()
         const id = generateTaskId('local_agent')
-        const task = registerAsyncAgent({ agentId: id, description: kind, prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+        const task = registerAsyncCrewmate({ agentId: id, description: kind, prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
         async function* stream(): AsyncGenerator<Message, void> {
           yield createUserMessage({ content: 'count' })
           yield createAssistantMessage({ content: 'one so far' })
@@ -756,7 +756,7 @@ section('R13 · a seat cut by the recovery budget resumes ONCE by itself, with a
           }
           throw budgetCut()
         }
-        await runAsyncAgentLifecycle({ taskId: id, abortController: task.abortController!, makeStream: () => stream() as never, metadata: META, description: kind, toolUseContext: { options: { tools: [] }, toolUseId: `toolu_${kind}` } as never, rootSetAppState: store.set as never, agentIdForCleanup: id, enableSummarization: false, getWorktreeResult: async () => ({}) })
+        await runAsyncCrewmateLifecycle({ taskId: id, abortController: task.abortController!, makeStream: () => stream() as never, metadata: META, description: kind, toolUseContext: { options: { tools: [] }, toolUseId: `toolu_${kind}` } as never, rootSetAppState: store.set as never, agentIdForCleanup: id, enableSummarization: false, getWorktreeResult: async () => ({}) })
         const armed = pending(id)
         const cancelled = cancelAutomaticResume(id)
         check(kind === 'budget-cut' ? 'the lifecycle arms the one automatic resume on a budget cut' : "the lifecycle's stop road arms nothing", kind === 'budget-cut' ? armed && cancelled : !armed && !cancelled)
@@ -786,13 +786,13 @@ section('R14 · nothing load-bearing on the partial shapes: an old notice paints
   const orphansWithEnd = lr.orphanedBackgroundLaunches([launchMsg, receiptsMsg, endedRow], new Set())
   check('a resume receipt row settles no launch (a restart during the resumed run still writes the death notice)', orphansWithResumed.some(o => o.agentId === 'agent-one'), JSON.stringify(orphansWithResumed.map(o => o.agentId)))
   check("…while the run's own terminal notice does settle it", !orphansWithEnd.some(o => o.agentId === 'agent-one'))
-  const { buildAgentResultEnvelope } = await import('../../src/crew/agent-results/normalize.ts')
-  const failedEnvelope = await buildAgentResultEnvelope({ agentId: generateTaskId('local_agent'), agentType: 'mercury-crew', status: 'failed', finalText: 'three piers so far', usage: { totalTokens: 1, toolUseCount: 1, durationMs: 1 } })
-  const completedEnvelope = await buildAgentResultEnvelope({ agentId: generateTaskId('local_agent'), agentType: 'mercury-crew', status: 'completed', finalText: 'four piers', usage: { totalTokens: 1, toolUseCount: 1, durationMs: 1 } })
+  const { buildCrewmateResultEnvelope } = await import('../../src/crew/agent-results/normalize.ts')
+  const failedEnvelope = await buildCrewmateResultEnvelope({ agentId: generateTaskId('local_agent'), agentType: 'mercury-crew', status: 'failed', finalText: 'three piers so far', usage: { totalTokens: 1, toolUseCount: 1, durationMs: 1 } })
+  const completedEnvelope = await buildCrewmateResultEnvelope({ agentId: generateTaskId('local_agent'), agentType: 'mercury-crew', status: 'completed', finalText: 'four piers', usage: { totalTokens: 1, toolUseCount: 1, durationMs: 1 } })
   check('the envelope of a non-clean exit carries exactly the keys a finished one carries', JSON.stringify(Object.keys(failedEnvelope).sort()) === JSON.stringify(Object.keys(completedEnvelope).sort()), Object.keys(failedEnvelope).join(','))
   {
-    const { getAgentTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
-    const { getAgentTranscript } = await import('../../src/sessions/transcripts/sessionListings.ts')
+    const { getCrewmateTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
+    const { getCrewmateTranscript } = await import('../../src/sessions/transcripts/sessionListings.ts')
     const { asAgentId } = await import('../../src/sessions/transcripts/ids.ts')
     const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.ts')
     const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.ts')
@@ -807,10 +807,10 @@ section('R14 · nothing load-bearing on the partial shapes: an old notice paints
       { type: 'user', uuid: '00000000-0000-4000-8000-0000000000d1', parentUuid: null, isSidechain: true, agentId: old, sessionId, timestamp: '2026-01-01T00:00:00.000Z', message: { role: 'user', content: 'old prompt' } },
       { type: 'assistant', uuid: '00000000-0000-4000-8000-0000000000d2', parentUuid: '00000000-0000-4000-8000-0000000000d1', isSidechain: true, agentId: old, sessionId, timestamp: '2026-01-01T00:00:00.000Z', message: { id: 'msg_old', role: 'assistant', model: 'fixture', content: [{ type: 'text', text: 'old reply' }], usage: { input_tokens: 1, output_tokens: 1 } } },
     ]
-    const path = getAgentTranscriptPath(asAgentId(old))
+    const path = getCrewmateTranscriptPath(asAgentId(old))
     mkdirSync(dirname(path), { recursive: true })
     writeFileSync(path, rowsOld.map(encode).join('\n') + '\n')
-    const loaded = await getAgentTranscript(asAgentId(old))
+    const loaded = await getCrewmateTranscript(asAgentId(old))
     check('an old-shaped transcript reads its two rows unchanged', loaded !== null && loaded.messages.length === 2 && loaded.messages.map(m => m.type).join(',') === 'user,assistant')
   }
 }
@@ -821,8 +821,8 @@ section("R15 · a project-defined agent resumed under another directory's overri
   const { getCwdState, setCwdState, getSessionId, setSessionTrustAccepted: trustTheProject } = await import('../../src/boot/process-state/processState.ts')
   const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
   const { resumeAgentBackground } = await import('../../src/tools/crewmate/resumeCrewmate.ts')
-  const { killAsyncAgent } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
-  const { getAgentTranscriptPath, readAgentMetadata, writeAgentMetadata } = await import('../../src/sessions/transcripts/paths.ts')
+  const { killAsyncCrewmate } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
+  const { getCrewmateTranscriptPath, readCrewmateMetadata, writeCrewmateMetadata } = await import('../../src/sessions/transcripts/paths.ts')
   const { asAgentId } = await import('../../src/sessions/transcripts/ids.ts')
   const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.ts')
   const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.ts')
@@ -845,10 +845,10 @@ section("R15 · a project-defined agent resumed under another directory's overri
     { type: 'user', uuid: '00000000-0000-4000-8000-0000000000e1', parentUuid: null, isSidechain: true, agentId: id, sessionId, timestamp: '2026-01-01T00:00:00.000Z', message: { role: 'user', content: 'probe the harbour' } },
     { type: 'assistant', uuid: '00000000-0000-4000-8000-0000000000e2', parentUuid: '00000000-0000-4000-8000-0000000000e1', isSidechain: true, agentId: id, sessionId, timestamp: '2026-01-01T00:00:00.000Z', message: { id: 'msg_probe', role: 'assistant', model: 'fixture', content: [{ type: 'text', text: 'probing' }], usage: { input_tokens: 1, output_tokens: 1 } } },
   ]
-  const transcriptPath = getAgentTranscriptPath(asAgentId(id))
+  const transcriptPath = getCrewmateTranscriptPath(asAgentId(id))
   mkdirSync(dirname(transcriptPath), { recursive: true })
   writeFileSync(transcriptPath, rows.map(encode).join('\n') + '\n')
-  await writeAgentMetadata(asAgentId(id), { agentType: 'probe-kind', model: 'claude-fable-5-1' })
+  await writeCrewmateMetadata(asAgentId(id), { agentType: 'probe-kind', model: 'claude-fable-5-1' })
   const store = makeStore()
   const ctx = makeCtx(store)
   let refusal = ''
@@ -858,15 +858,15 @@ section("R15 · a project-defined agent resumed under another directory's overri
     refusal = error instanceof Error ? error.message : String(error)
   }
   const row = store.get().tasks[id] as { agentType?: string; selectedAgent?: { agentType?: string; source?: string; tools?: string[] } } | undefined
-  killAsyncAgent(id, store.set as never)
+  killAsyncCrewmate(id, store.set as never)
   check('the resume under the override registers the row (no refusal)', refusal === '' && row !== undefined, refusal.slice(0, 200))
   check("resumed under another directory's override, the row keeps the project-defined kind, never the general agent", row?.agentType === 'probe-kind' && row?.selectedAgent?.agentType === 'probe-kind', JSON.stringify({ agentType: row?.agentType, selected: row?.selectedAgent?.agentType }))
   check("…with the definition's own tool restriction, read from the session's project definitions", JSON.stringify(row?.selectedAgent?.tools) === '["Read","Grep"]' && row?.selectedAgent?.source === 'projectSettings', JSON.stringify({ tools: row?.selectedAgent?.tools, source: row?.selectedAgent?.source }))
   const settle = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
-  let sidecar = await readAgentMetadata(asAgentId(id))
+  let sidecar = await readCrewmateMetadata(asAgentId(id))
   for (let i = 0; i < 40 && sidecar?.description === undefined; i++) {
     await settle(50)
-    sidecar = await readAgentMetadata(asAgentId(id))
+    sidecar = await readCrewmateMetadata(asAgentId(id))
   }
   check('…and the sidecar the resume re-persists keeps the kind (a wrong fallback would poison every later resume)', sidecar !== null && sidecar.description !== undefined && sidecar.agentType === 'probe-kind', JSON.stringify(sidecar))
   setCwdState(sessionDirectory)

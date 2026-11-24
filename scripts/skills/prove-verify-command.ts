@@ -11,7 +11,7 @@ process.chdir(scratch)
 process.on('exit', () => rmSync(scratch, { recursive: true, force: true }))
 
 const { default: command, VERIFIER_BRIEF, verifierPrompt } = await import('../../src/commands/verify/index.ts')
-const { AGENT_TOOL_NAME, MERCURY_CREW_AGENT_TYPE } = await import('../../src/tools/kit/names/agent.ts')
+const { CREWMATE_TOOL_NAME, MERCURY_CREW_AGENT_TYPE } = await import('../../src/tools/kit/names/agent.ts')
 const { getVerificationNudgeNote } = await import('../../src/tools/task-update/prompt.ts')
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -22,7 +22,7 @@ check('the command stays built-in, visible and optionally focused', command.name
 for (const focus of ['', 'the parser boundary']) {
   const text = (await command.getPromptForCommand(focus)).map(block => block.text).join('\n')
   check('the command gathers the change and original intent before delegation', text.includes('git status --short') && text.includes('git diff') && text.includes('Reconstruct the original intent'))
-  check('the launch instruction names the Crewmate tool and the crew type directly', text.includes(`Launch a crewmate through the ${AGENT_TOOL_NAME} tool with crewmate_type \`${MERCURY_CREW_AGENT_TYPE}\``))
+  check('the launch instruction names the Crewmate tool and the crew type directly', text.includes(`Launch a crewmate through the ${CREWMATE_TOOL_NAME} tool with crewmate_type \`${MERCURY_CREW_AGENT_TYPE}\``))
   const brief = text.split('## Verification brief for the crewmate\n')[1]
   const work = focus ? `Focus the verification on: ${focus}` : ''
   check('the launch instruction carries the complete brief and the requested work', brief === verifierPrompt(work))

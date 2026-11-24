@@ -13,7 +13,7 @@ process.chdir(ROOT)
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' · ' : '') + 'change isAgentLane (the WORKTREE_LANE marker), createAgentWorktree and cleanupStaleAgentWorktrees in src/platform/git/worktree/worktree.ts, or crewLeftoverWorktrees in src/crew/crewmates/crewWorktreeReminder.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' · ' : '') + 'change isCrewmateLane (the WORKTREE_LANE marker), createAgentWorktree and cleanupStaleAgentWorktrees in src/platform/git/worktree/worktree.ts, or crewLeftoverWorktrees in src/crew/crewmates/crewWorktreeReminder.ts' : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -44,10 +44,10 @@ const realSlug = (): string => {
 const adminOf = (path: string): string => resolve(path, readFileSync(join(path, '.git'), 'utf8').trim().slice('gitdir:'.length).trim())
 const marked = (path: string): boolean => existsSync(join(adminOf(path), MARKER))
 const lanes = (repo: string): string[] => git(repo, 'worktree', 'list', '--porcelain').split('\n').filter(line => line.startsWith('worktree ')).map(line => resolve(line.slice('worktree '.length)))
-const sweep = (repo: string): Promise<number> => runWithCwdOverride(repo, () => worktree.cleanupStaleAgentWorktrees(new Date(Date.now() - 8 * DAY)))
-const cut = (repo: string, slug: string): ReturnType<typeof worktree.createAgentWorktree> => worktree.createAgentWorktree(slug, { from: repo })
+const sweep = (repo: string): Promise<number> => runWithCwdOverride(repo, () => worktree.cleanupStaleCrewmateWorktrees(new Date(Date.now() - 8 * DAY)))
+const cut = (repo: string, slug: string): ReturnType<typeof worktree.createCrewmateWorktree> => worktree.createCrewmateWorktree(slug, { from: repo })
 const settle = async (repo: string, path: string, days: number): Promise<void> => {
-  await worktree.unlockAgentWorktree(path, repo)
+  await worktree.unlockCrewmateWorktree(path, repo)
   age(path, days)
 }
 
@@ -121,8 +121,8 @@ try {
   check('a second pass takes none of the survivors', (await sweep(repo)) === 0 && there(session.worktreePath) && there(byHand) && there(died.worktreePath) && there(dirty.worktreePath))
 
   section('§5 where it is decided')
-  const isAgentLane = (worktree as unknown as { isAgentLane?: (slug: string, path: string) => Promise<boolean> }).isAgentLane
-  const answers = isAgentLane === undefined ? null : await Promise.all([isAgentLane(dirtySlug, dirty.worktreePath), isAgentLane(diedSlug, died.worktreePath), isAgentLane('agent-analysis', session.worktreePath), isAgentLane('agent-a0000001', join(repo, 'nowhere')), isAgentLane('agent-review', dirty.worktreePath), isAgentLane('agent-AE8QC602', dirty.worktreePath), isAgentLane(`${dirtySlug}9`, dirty.worktreePath)])
+  const isCrewmateLane = (worktree as unknown as { isCrewmateLane?: (slug: string, path: string) => Promise<boolean> }).isCrewmateLane
+  const answers = isCrewmateLane === undefined ? null : await Promise.all([isCrewmateLane(dirtySlug, dirty.worktreePath), isCrewmateLane(diedSlug, died.worktreePath), isCrewmateLane('agent-analysis', session.worktreePath), isCrewmateLane('agent-a0000001', join(repo, 'nowhere')), isCrewmateLane('agent-review', dirty.worktreePath), isCrewmateLane('agent-AE8QC602', dirty.worktreePath), isCrewmateLane(`${dirtySlug}9`, dirty.worktreePath)])
   check('one predicate: a real id with the marker yes; without it no; a person\'s name no; a hex name yes with no folder at all; any other name no', JSON.stringify(answers) === JSON.stringify([true, false, false, true, false, false, false]), JSON.stringify(answers))
 } finally {
   delete process.env.MERCURY_WORKTREE_CLONE

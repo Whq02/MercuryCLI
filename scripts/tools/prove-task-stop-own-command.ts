@@ -8,7 +8,7 @@ process.env.MERCURY_CONFIG_DIR = scratch
 delete process.env.MERCURY_HOME
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
 const { TaskStopTool } = await import('../../src/tools/task-stop/TaskStopTool.ts')
-const { filterToolsForAgent } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+const { filterToolsForCrewmate } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
 const { spawnShellTask } = await import('../../src/engine/tasks/local-shell/shellTask.tsx')
 const { wrapSpawn } = await import('../../src/platform/shell/shellProcess.ts')
 const { TaskOutput } = await import('../../src/engine/task-framework/taskOutput.ts')
@@ -22,7 +22,7 @@ const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { d
 try {
   const shell = wrapSpawn(child, new AbortController().signal, 60_000, new TaskOutput(generateTaskId('local_bash'), null))
   const own = await spawnShellTask({ command: 'fixture wait', description: 'fixture command', shellCommand: shell, agentId: 'child-a' }, context)
-  for (const builtIn of [true, false]) check(`TaskStop is available to ${builtIn ? 'built-in' : 'custom'} crewmates`, filterToolsForAgent({ tools: [TaskStopTool] as any, isBuiltIn: builtIn }).length === 1)
+  for (const builtIn of [true, false]) check(`TaskStop is available to ${builtIn ? 'built-in' : 'custom'} crewmates`, filterToolsForCrewmate({ tools: [TaskStopTool] as any, isBuiltIn: builtIn }).length === 1)
   for (const [id, row] of Object.entries({ sibling: { type: 'local_bash', agentId: 'child-b' }, agent: { type: 'local_agent', agentId: 'child-a' }, ownerless: { type: 'local_bash' }, monitor: { type: 'local_bash', kind: 'monitor', agentId: 'child-b' } })) {
     state.tasks[id] = { ...row, id, status: 'running', description: 'fixture target', command: 'fixture', shellCommand: null }
     const v = await TaskStopTool.validateInput({ task_id: id }, context)

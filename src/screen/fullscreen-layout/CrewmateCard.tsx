@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Box, Text } from '../themedRenderer.js'
-import { crewElapsedLabel, crewModelLabel, crewStatusWords, crewTokensLabel, type CrewAgentFacts } from '../../engine/connector/crewFacts.js'
+import { crewElapsedLabel, crewModelLabel, crewStatusWords, crewTokensLabel, type CrewmateFacts } from '../../engine/connector/crewFacts.js'
 import { useLayoutChrome } from './layoutChromeContext.js'
 import { BACK_HINT, COMPACT_BACK_HINT, crewmateCardKeys, MAIN_CHAT_CARD_LINE } from '../cockpit/crewmateWords.js'
 import { displayWidth, GLYPH, truncateToWidth } from '../theme/glyphs.js'
@@ -9,7 +9,7 @@ import { useMercuryTokens } from '../widgets/useMercuryTokens.js'
 import { useSessionAccent } from '../widgets/sessionAccent.js'
 import type { CrewmateInView } from '../tasks/useCrewmateView.js'
 
-function crewmateFactsLine(facts: CrewAgentFacts | null, nowMs: number): string[] {
+function crewmateFactsLine(facts: CrewmateFacts | null, nowMs: number): string[] {
   if (facts === null) return []
   const parts = [crewModelLabel(facts), crewStatusWords(facts, nowMs)]
   const tokens = crewTokensLabel(facts)

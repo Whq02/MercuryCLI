@@ -2,7 +2,7 @@ import type { Message } from '../message-shapes/message.js'
 import { getEngineModel } from '../../models/catalogue/engineModel.js'
 import { getCwd } from '../../platform/files/cwd.js'
 import type {
-  AgentControlReceiptV1,
+  CrewmateControlReceiptV1,
   BoardPostReceiptV1,
   WithdrawReceiptV1,
   AskReceiptV1,
@@ -123,16 +123,16 @@ export class NoSessionConnector implements EngineConnectorV1 {
   async withdrawSend(): Promise<WithdrawReceiptV1> {
     return { withdrawn: false, reason: 'refused', detail: NO_CHAT_OPEN }
   }
-  async stopAgent(): Promise<AgentControlReceiptV1> {
+  async stopAgent(): Promise<CrewmateControlReceiptV1> {
     return { outcome: 'refused', detail: NO_CHAT_OPEN }
   }
-  async resumeAgent(): Promise<AgentControlReceiptV1> {
+  async resumeAgent(): Promise<CrewmateControlReceiptV1> {
     return { outcome: 'refused', detail: NO_CHAT_OPEN }
   }
   queuedSendCount(): number {
     return 0
   }
-  async pauseGate(): Promise<AgentControlReceiptV1> {
+  async pauseGate(): Promise<CrewmateControlReceiptV1> {
     return { outcome: 'refused', detail: NO_CHAT_OPEN }
   }
   async postBoard(): Promise<BoardPostReceiptV1> {

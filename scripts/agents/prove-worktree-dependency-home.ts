@@ -37,12 +37,12 @@ if (mode !== undefined) {
   mock.module('node:fs/promises', () => instrument(promises, 'async.'))
   const state = await import('../../src/boot/process-state/processState.ts')
   const config = await import('../../src/platform/config/globalConfig.ts')
-  const { createAgentWorktree } = await import('../../src/platform/git/worktree/worktree.ts')
+  const { createCrewmateWorktree } = await import('../../src/platform/git/worktree/worktree.ts')
   const { mercurySecretPath } = await import('../../src/permissions/rules/protectedPaths.ts')
   process.chdir(repo)
   state.setOriginalCwd(repo); state.setCwdState(repo); state.setIsInteractive(true); config.enableConfigs()
   observing = true
-  const copy = (await createAgentWorktree('agent-a123abcd')).worktreePath
+  const copy = (await createCrewmateWorktree('agent-a123abcd')).worktreePath
   observing = false
   const secret = join(copy, 'node_modules', 'private-home', '.credentials.json')
   let secretKind = 'absent'

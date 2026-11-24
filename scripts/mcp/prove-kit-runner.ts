@@ -314,7 +314,7 @@ section('§E the extension AND: off in EITHER store contributes NOTHING, every k
 
 section('§I the inline agent-def door (poison: the byte-identical cache-hit teardown — Q2(b))')
 {
-  const { connectAgentMcpServers } = await import('../../src/tools/crewmate/runCrewmate.ts')
+  const { connectCrewmateMcpServers } = await import('../../src/tools/crewmate/runCrewmate.ts')
   const { connectToServer, getServerCacheKey } = await import('../../src/integrations/mcp/client.ts')
   const memo = (connectToServer as unknown as { cache: Map<string, unknown> }).cache
   const definition = { agentType: 'prover-agent', source: 'built-in' } as never
@@ -326,9 +326,9 @@ section('§I the inline agent-def door (poison: the byte-identical cache-hit tea
     { name: 'off-server', type: 'disabled', config: disabledCfg },
   ] as never[]
 
-  let outcome = await connectAgentMcpServers([{ 'sdk-inline': { type: 'host', name: 'x' } }] as never, definition, catalogue as never)
+  let outcome = await connectCrewmateMcpServers([{ 'sdk-inline': { type: 'host', name: 'x' } }] as never, definition, catalogue as never)
   t('I1 an INLINE spec of a kind the one validator does not accept refuses before any gate and never dials', outcome.clients.length === 0 && !memo.has(getServerCacheKey('sdk-inline', { type: 'host', name: 'x', scope: 'dynamic' } as never)))
-  outcome = await connectAgentMcpServers([{ 'off-server': { type: 'stdio', command: 'smuggle' } }] as never, definition, catalogue as never)
+  outcome = await connectCrewmateMcpServers([{ 'off-server': { type: 'stdio', command: 'smuggle' } }] as never, definition, catalogue as never)
   t("I2 POISON armed (parent-∩-grant at the inline door): an inline RE-SPELLING of a kit/record-excluded name refuses — an agent definition cannot re-enable what the session excluded", outcome.clients.length === 0 && !memo.has(getServerCacheKey('off-server', { type: 'stdio', command: 'smuggle', scope: 'dynamic' } as never)))
 
   let parentTornDown = false
@@ -344,7 +344,7 @@ section('§I the inline agent-def door (poison: the byte-identical cache-hit tea
   }
   const parentKey = getServerCacheKey('shared-server', parentCfg)
   memo.set(parentKey, Promise.resolve(fakeParent))
-  outcome = await connectAgentMcpServers([{ 'shared-server': { type: 'stdio', command: 'definitely-not-a-command-kit-prover' } }] as never, definition, catalogue as never)
+  outcome = await connectCrewmateMcpServers([{ 'shared-server': { type: 'stdio', command: 'definitely-not-a-command-kit-prover' } }] as never, definition, catalogue as never)
   const handedParent = outcome.clients.some(c => c === (fakeParent as never))
   await outcome.cleanup()
   t("I3 POISON armed (Q2(b), closed): a byte-identical inline config NEVER receives the parent's handle — the per-dispatch nonce keys it apart and its own dial fails on the bogus command", !handedParent, outcome.clients.map(c => (c as { type?: string }).type).join(','))
@@ -360,7 +360,7 @@ section('§I the inline agent-def door (poison: the byte-identical cache-hit tea
   const depth1Key = getServerCacheKey('twin', depth1InlineCfg)
   const fakeDepth1 = { type: 'connected', name: 'twin', client: {}, capabilities: {}, config: depth1InlineCfg, cleanup: async () => {} }
   memo.set(depth1Key, Promise.resolve(fakeDepth1))
-  outcome = await connectAgentMcpServers(['twin'] as never, definition, depth2Catalogue as never)
+  outcome = await connectCrewmateMcpServers(['twin'] as never, definition, depth2Catalogue as never)
   t("I5 depth-2 ∩: a name-ref resolves the OPTIONS row first (the depth-1 agent's own grant), cache-hits ITS connection, and never dials the appState twin", outcome.clients.length === 1 && outcome.clients[0] === (fakeDepth1 as never) && !memo.has(getServerCacheKey('twin', appStateCfg)))
   memo.delete(depth1Key)
 

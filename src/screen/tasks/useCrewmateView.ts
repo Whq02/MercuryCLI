@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
-import { crewAgentsOf, crewRunning, type CrewAgentFacts } from '../../engine/connector/crewFacts.js'
+import { crewmatesOf, crewRunning, type CrewmateFacts } from '../../engine/connector/crewFacts.js'
 import type { WorkRowV1 } from '../../engine/connector/types.js'
 import { useAppStateMaybeOutsideOfProvider, type AppState } from '../app-state/AppState.js'
 import { composerTargetTaskId } from '../app-state/selectors.js'
-import { isLocalAgentTask } from '../../engine/tasks/local-agent/crewmateTask.js'
+import { isCrewmateTask } from '../../engine/tasks/local-agent/crewmateTask.js'
 import type { TaskState } from '../../engine/tasks/taskState.js'
 import { projectWorkRoster } from '../../engine/connector/workRoster.js'
 import { useCrewLedgerRow } from './useCrewLedger.js'
@@ -12,7 +12,7 @@ import { focusedSessionIdOrNull, useFocusedWorkRoster } from './useFocusedWork.j
 export type CrewmateInView = {
   taskId: string
   name: string
-  facts: CrewAgentFacts | null
+  facts: CrewmateFacts | null
   local: TaskState | undefined
   pinned: boolean
   running: number
@@ -23,12 +23,12 @@ export function crewmateFacts(
   local: TaskState | undefined,
   rosterRows: readonly WorkRowV1[],
   sessionId: string | null,
-): CrewAgentFacts | null {
+): CrewmateFacts | null {
   if (local !== undefined) {
-    const projected = crewAgentsOf(projectWorkRoster({ [taskId]: local }), sessionId)
+    const projected = crewmatesOf(projectWorkRoster({ [taskId]: local }), sessionId)
     if (projected[0] !== undefined) return projected[0]
   }
-  return crewAgentsOf(rosterRows, sessionId).find(agent => agent.id === taskId) ?? null
+  return crewmatesOf(rosterRows, sessionId).find(agent => agent.id === taskId) ?? null
 }
 
 export function crewmateLive(crewmate: Pick<CrewmateInView, 'facts'> | null): boolean {
@@ -43,9 +43,9 @@ export function targetWords(crewmate: CrewmateInView): { name: string; pinned: b
   return { name: crewmate.name, pinned: crewmate.pinned, live: crewmateLive(crewmate), local: crewmate.local !== undefined }
 }
 
-export function crewmateName(taskId: string, local: TaskState | undefined, facts: CrewAgentFacts | null): string {
+export function crewmateName(taskId: string, local: TaskState | undefined, facts: CrewmateFacts | null): string {
   if (facts !== null) return facts.name
-  if (local !== undefined && isLocalAgentTask(local)) return local.description !== '' ? local.description : local.agentType
+  if (local !== undefined && isCrewmateTask(local)) return local.description !== '' ? local.description : local.agentType
   return taskId
 }
 
@@ -54,7 +54,7 @@ export function crewmateInView(
   state: Pick<AppState, 'tasks' | 'mainChatTaskId'>,
   rosterRows: readonly WorkRowV1[],
   sessionId: string | null,
-  remembered: CrewAgentFacts | null = null,
+  remembered: CrewmateFacts | null = null,
 ): CrewmateInView | null {
   if (taskId === undefined) return null
   const local = state.tasks[taskId]
@@ -65,7 +65,7 @@ export function crewmateInView(
     facts,
     local,
     pinned: state.mainChatTaskId === taskId,
-    running: crewRunning(crewAgentsOf(rosterRows, sessionId)).length,
+    running: crewRunning(crewmatesOf(rosterRows, sessionId)).length,
   }
 }
 

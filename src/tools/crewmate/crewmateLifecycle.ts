@@ -2,39 +2,39 @@ import { z } from 'zod'
 import { evalNestedToolIds } from '../engines/eval-kernels/bridgeProgress.js'
 import { expandLspFamily, lspFamilyMatches } from '../../integrations/lsp-family/toolFamily.js'
 import {
-  ALL_AGENT_DISALLOWED_TOOLS,
-  CUSTOM_AGENT_DISALLOWED_TOOLS,
+  ALL_CREWMATE_DISALLOWED_TOOLS,
+  CUSTOM_CREWMATE_DISALLOWED_TOOLS,
   RULE_INHERITS,
 } from '../kit/crewmateBarredTools.js'
 import type { Message } from '../../engine/message-shapes/message.js'
 import type { SetAppState } from '../../engine/tasks/taskBase.js'
 import {
-  AGENT_BUDGET_RESUME_NOTE,
-  AGENT_RESUME_DOOR,
-  AGENT_WINDOW_RESUME_NOTE,
-  agentStopReasonOf,
-  agentStopStatusWordOf,
-  appendMessageToLocalAgent,
-  completeAgentTask,
+  CREWMATE_BUDGET_RESUME_NOTE,
+  CREWMATE_RESUME_DOOR,
+  CREWMATE_WINDOW_RESUME_NOTE,
+  crewmateStopReasonOf,
+  crewmateStopStatusWordOf,
+  appendMessageToCrewmate,
+  completeCrewmateTask,
   overloadPauseOf,
-  pauseAgentTask,
-  unpauseAgentTask,
+  pauseCrewmateTask,
+  unpauseCrewmateTask,
   usageWindowPauseOf,
   createActivityDescriptionResolver,
-  createAgentLedger,
+  createCrewmateLedger,
   createProgressTracker,
   drainPendingMessages,
-  enqueueAgentNotification,
-  enqueueAgentReceiptRow,
-  failAgentTask,
+  enqueueCrewmateNotification,
+  enqueueCrewmateReceiptRow,
+  failCrewmateTask,
   foldResponseIntoLedger,
   getProgressUpdate,
   getTokenCountFromTracker,
-  isLocalAgentTask,
-  killAsyncAgent,
+  isCrewmateTask,
+  killAsyncCrewmate,
   peekOperatorMessages,
-  publishAgentProgressSoon,
-  publishAgentWaitFromEvent,
+  publishCrewmateProgressSoon,
+  publishCrewmateWaitFromEvent,
   type ProgressTracker,
   takeOperatorMessages,
   updateProgressFromMessage,
@@ -51,11 +51,11 @@ import { recoveryBudgetMs, recoveryBudgetSpentFactsOf } from '../../engine/reque
 import { getMarketingNameForModel } from '../../models/catalogue/engineModel.js'
 import { clearInvokedSkillsForAgent, getCwdState } from '../../boot/process-state/processState.js'
 import { runWithCwdOverride } from '../../platform/files/cwd.js'
-import { pauseResumeWords, type AgentPauseV1 } from '../../engine/tasks/local-agent/agentPause.js'
-import { agentPauseRecordPath, clearAgentPauseRecord, writeAgentPauseRecord } from '../../engine/tasks/local-agent/pauseCarry.js'
+import { pauseResumeWords, type CrewmatePauseV1 } from '../../engine/tasks/local-agent/agentPause.js'
+import { crewmatePauseRecordPath, clearCrewmatePauseRecord, writeCrewmatePauseRecord } from '../../engine/tasks/local-agent/pauseCarry.js'
 import { CREW_ACCOUNT_RESUME_NOTE, crewAccountResumeSummary, subscribeCrewAccountChange } from '../../crew/crewmates/crewAccountChange.js'
 import {
-  AGENT_OVERLOAD_RESUME_NOTE,
+  CREWMATE_OVERLOAD_RESUME_NOTE,
   nextOverloadProbeDelayMs,
   noteOverloadDeath,
   openOverloadEpisode,
@@ -82,10 +82,10 @@ import {
 } from '../../engine/messages/messages.js'
 import { isSyntheticApiErrorMessage } from '../../engine/message-shapes/factories.js'
 import { emitTaskProgress as emitSdkTaskProgress } from '../../engine/task-framework/sdkProgress.js'
-import { emitBackgroundAgentRows } from '../../engine/task-framework/sdkAgentFrames.js'
+import { emitBackgroundCrewmateRows } from '../../engine/task-framework/sdkAgentFrames.js'
 import { permissionRuleValueFromString } from '../../permissions/rules/permissionRuleParser.js'
 import type { CanUseToolFn } from '../kit/tool.js'
-import { AGENT_TOOL_NAME, MERCURY_SCOUT_AGENT_TYPE } from '../kit/names/agent.js'
+import { CREWMATE_TOOL_NAME, MERCURY_SCOUT_AGENT_TYPE } from '../kit/names/agent.js'
 import { STRUCTURED_TAG } from '../../engine/message-shapes/messageTags.js'
 import type { AgentDefinition } from '../../crew/agents/agentDefinition.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
@@ -94,7 +94,7 @@ import { startTimeout, stopTimeout } from '../../platform/async/timers.js'
 const MCP_TOOL_PREFIX = 'mcp__'
 
 
-export function filterToolsForAgent(args: {
+export function filterToolsForCrewmate(args: {
   tools: Tools
   isBuiltIn: boolean
 }): Tools {
@@ -102,9 +102,9 @@ export function filterToolsForAgent(args: {
   const jevAllowed = readJevSettings().subagents
   return tools.filter(tool => {
     if (tool.name.startsWith(MCP_TOOL_PREFIX)) return true
-    if (ALL_AGENT_DISALLOWED_TOOLS.has(tool.name)) return false
+    if (ALL_CREWMATE_DISALLOWED_TOOLS.has(tool.name)) return false
     if (tool.name === JEV_TOOL_NAME && !jevAllowed) return false
-    if (!isBuiltIn && CUSTOM_AGENT_DISALLOWED_TOOLS.has(tool.name)) return false
+    if (!isBuiltIn && CUSTOM_CREWMATE_DISALLOWED_TOOLS.has(tool.name)) return false
     return true
   })
 }
@@ -118,7 +118,7 @@ export type ResolvedAgentTools = {
   allowedAgentTypes?: string[]
 }
 
-export function resolveWorkerTools(
+export function resolveCrewmateTools(
   definition: AgentDefinition,
   workerPermissionMode: NonNullable<AgentDefinition['permissionMode']>,
   pool: Tools,
@@ -136,7 +136,7 @@ export function resolveAgentTools(
 ): ResolvedAgentTools {
   const basePool = isMainThread
     ? availableTools
-    : filterToolsForAgent({ tools: availableTools, isBuiltIn: definition.source === 'built-in' })
+    : filterToolsForCrewmate({ tools: availableTools, isBuiltIn: definition.source === 'built-in' })
 
   const deniedNames = new Set<string>()
   for (const entry of definition.disallowedTools ?? []) {
@@ -180,11 +180,11 @@ export function resolveAgentTools(
   for (const spec of declared) {
     const parsed = permissionRuleValueFromString(spec)
     const isUnqualified = parsed.ruleContent === undefined
-    if (parsed.toolName === AGENT_TOOL_NAME && !isUnqualified) {
+    if (parsed.toolName === CREWMATE_TOOL_NAME && !isUnqualified) {
       allowedAgentTypes = parsed.ruleContent!.split(',').map(part => part.trim()).filter(part => part.length > 0)
       validTools.push(spec)
       if (isMainThread) {
-        const agentTool = surviving.find(tool => toolMatchesName(tool, AGENT_TOOL_NAME))
+        const agentTool = surviving.find(tool => toolMatchesName(tool, CREWMATE_TOOL_NAME))
         if (agentTool) addResolved(agentTool)
       }
       continue
@@ -234,7 +234,7 @@ export function resolveAgentTools(
 }
 
 
-export type AgentTerminalOutcome =
+export type CrewmateTerminalOutcome =
   | { status: 'completed'; promotedNarration: boolean }
   | { status: 'failed'; reason: 'provider-declined' | 'schema-mismatch' | 'loop-stopped'; error: string }
 
@@ -265,9 +265,9 @@ export function loopStoppedRecordOf(
   return null
 }
 
-export function deriveAgentTerminalOutcome(
+export function deriveCrewmateTerminalOutcome(
   messages: readonly Message[],
-): AgentTerminalOutcome {
+): CrewmateTerminalOutcome {
   const stopped = loopStoppedRecordOf(messages)
   if (stopped !== null) {
     return { status: 'failed', reason: 'loop-stopped', error: stopped.message }
@@ -317,7 +317,7 @@ export function stoppedPartWay(response: { messages: readonly Message[]; stopRea
 }
 
 
-export const agentToolResultSchema = lazySchema(() =>
+export const crewmateToolResultSchema = lazySchema(() =>
   z.object({
     agentId: z.string(),
     outcome: z
@@ -348,7 +348,7 @@ export const agentToolResultSchema = lazySchema(() =>
   }),
 )
 
-export type AgentToolResult = z.input<ReturnType<typeof agentToolResultSchema>>
+export type CrewmateToolResult = z.input<ReturnType<typeof crewmateToolResultSchema>>
 
 export function countToolUses(messages: readonly Message[]): number {
   let count = 0
@@ -366,7 +366,7 @@ export function countToolUses(messages: readonly Message[]): number {
   return count + nestedIds.size
 }
 
-const EMPTY_USAGE: AgentToolResult['usage'] = {
+const EMPTY_USAGE: CrewmateToolResult['usage'] = {
   input_tokens: 0,
   output_tokens: 0,
   cache_creation_input_tokens: null,
@@ -388,7 +388,7 @@ function textBlocksOf(message: Message | undefined): { type: 'text'; text: strin
     .map(block => ({ type: 'text' as const, text: block.text }))
 }
 
-export function finalizeAgentTool(
+export function finalizeCrewmateTool(
   messages: readonly Message[],
   agentId: string,
   metadata: {
@@ -400,15 +400,15 @@ export function finalizeAgentTool(
     isAsync: boolean
     structuredSpec?: { mode: 'permissive' | 'strict'; source: 'dispatch' | 'agent-definition' }
   },
-  terminalFailure?: Extract<AgentTerminalOutcome, { status: 'failed' }>,
-): AgentToolResult {
+  terminalFailure?: Extract<CrewmateTerminalOutcome, { status: 'failed' }>,
+): CrewmateToolResult {
   const { startTime, agentType } = metadata
 
   const lastAssistant = getLastAssistantMessage(messages as Message[])
   if (!lastAssistant && terminalFailure === undefined) {
     throw new Error('No assistant message found in crewmate result')
   }
-  const outcome = terminalFailure ?? deriveAgentTerminalOutcome(messages)
+  const outcome = terminalFailure ?? deriveCrewmateTerminalOutcome(messages)
   const lastReal = getLastRealAssistantMessage(messages)
   const anchor =
     outcome.status === 'failed' ? (lastReal ?? lastAssistant) : lastAssistant
@@ -443,7 +443,7 @@ export function finalizeAgentTool(
     }
   }
 
-  const finalOutcome: AgentTerminalOutcome =
+  const finalOutcome: CrewmateTerminalOutcome =
     outcome.status === 'completed'
       ? { status: 'completed', promotedNarration }
       : outcome
@@ -460,17 +460,17 @@ export function finalizeAgentTool(
           server_tool_use: anchor.message.usage?.server_tool_use ?? null,
           service_tier: anchor.message.usage?.service_tier ?? null,
           cache_creation: anchor.message.usage?.cache_creation ?? null,
-        } as AgentToolResult['usage'])
+        } as CrewmateToolResult['usage'])
       : EMPTY_USAGE
 
-  const ledger = createAgentLedger()
+  const ledger = createCrewmateLedger()
   for (const message of messages) {
     if (message.type === 'assistant') foldResponseIntoLedger(ledger, message)
   }
   const totalTokens = ledger.inputTokens + ledger.outputTokens
 
-  let structured: AgentToolResult['structured']
-  let structuredOutcome: AgentTerminalOutcome | undefined
+  let structured: CrewmateToolResult['structured']
+  let structuredOutcome: CrewmateTerminalOutcome | undefined
   if (metadata.structuredSpec !== undefined) {
     const { mode, source } = metadata.structuredSpec
     const found = findLastStructuredYield(messages)
@@ -705,11 +705,11 @@ export async function partialResultEnvelopeBlock(args: {
   usage: { totalTokens: number; toolUseCount: number; durationMs: number }
 }): Promise<string | undefined> {
   try {
-    const { buildAgentResultEnvelope, formatEnvelopeBlock } = await import(
+    const { buildCrewmateResultEnvelope, formatEnvelopeBlock } = await import(
       '../../crew/agent-results/normalize.js'
     )
     return formatEnvelopeBlock(
-      await buildAgentResultEnvelope({
+      await buildCrewmateResultEnvelope({
         agentId: args.agentId,
         agentType: args.agentType,
         status: args.status,
@@ -769,19 +769,19 @@ async function whileFiring(taskId: string, fire: () => Promise<void>): Promise<v
 }
 
 function dropPauseRecord(taskId: string, description?: string): void {
-  void clearAgentPauseRecord(taskId).catch((error: unknown) => {
+  void clearCrewmatePauseRecord(taskId).catch((error: unknown) => {
     const reason = errorMessage(error)
     logForDebugging(`agent lifecycle: the pause record of ${taskId} could not be removed, so the next session start arms it again: ${reason}`)
     const who = description ? `Crewmate "${description}"` : `Crewmate ${taskId}`
-    enqueueAgentReceiptRow({ taskId, description: description ?? taskId, status: 'paused', summary: `${who}: its pause record ${agentPauseRecordPath(taskId)} could not be removed (${reason}) — delete it, or the next session start resumes it` })
+    enqueueCrewmateReceiptRow({ taskId, description: description ?? taskId, status: 'paused', summary: `${who}: its pause record ${crewmatePauseRecordPath(taskId)} could not be removed (${reason}) — delete it, or the next session start resumes it` })
   })
 }
 
-function savePauseRecord(taskId: string, description: string, record: Parameters<typeof writeAgentPauseRecord>[1]): void {
-  void writeAgentPauseRecord(taskId, record).catch((error: unknown) => {
+function savePauseRecord(taskId: string, description: string, record: Parameters<typeof writeCrewmatePauseRecord>[1]): void {
+  void writeCrewmatePauseRecord(taskId, record).catch((error: unknown) => {
     const reason = errorMessage(error)
     logForDebugging(`agent lifecycle: the pause of ${taskId} could not be recorded: ${reason}`)
-    enqueueAgentReceiptRow({ taskId, description, status: 'paused', summary: `Crewmate "${description}": its pause record ${agentPauseRecordPath(taskId)} could not be saved (${reason}) — it will not resume on its own after a restart` })
+    enqueueCrewmateReceiptRow({ taskId, description, status: 'paused', summary: `Crewmate "${description}": its pause record ${crewmatePauseRecordPath(taskId)} could not be saved (${reason}) — it will not resume on its own after a restart` })
   })
 }
 
@@ -804,7 +804,7 @@ export function armBudgetCutResume(args: {
   invokingRequestId?: string
   delayMs?: number
   automaticResume?: boolean
-  pause?: AgentPauseV1
+  pause?: CrewmatePauseV1
   prompt?: string
   summary?: string
   resume?: (resumeArgs: {
@@ -819,7 +819,7 @@ export function armBudgetCutResume(args: {
   if (args.automaticResume === true) return null
   if (pendingAutomaticResumes.has(args.taskId)) return null
   if (cutsAlreadyResumed.has(args.registration)) return null
-  if (args.pause !== undefined) pauseAgentTask(args.taskId, args.pause, args.rootSetAppState, args.registration)
+  if (args.pause !== undefined) pauseCrewmateTask(args.taskId, args.pause, args.rootSetAppState, args.registration)
   let unsubscribeAccount: (() => void) | undefined
   const resumeNow = async (accountChanged: boolean): Promise<void> => {
     unsubscribeAccount?.()
@@ -835,15 +835,15 @@ export function armBudgetCutResume(args: {
       return prev
     })
     const row = tasksNow?.[args.taskId]
-    if (!isLocalAgentTask(row) || row.status !== 'failed' || row.registration !== args.registration) return
-    const { liveAgentOwner, resumeAgentBackground } = await import('./resumeCrewmate.js')
-    if (liveAgentOwner(args.taskId, tasksNow) !== null) return
+    if (!isCrewmateTask(row) || row.status !== 'failed' || row.registration !== args.registration) return
+    const { liveCrewmateOwner, resumeAgentBackground } = await import('./resumeCrewmate.js')
+    if (liveCrewmateOwner(args.taskId, tasksNow) !== null) return
     const resume = args.resume ?? resumeAgentBackground
     let resumed: { note?: string } | void
     try {
       resumed = await resume({
         agentId: args.taskId,
-        prompt: accountChanged ? CREW_ACCOUNT_RESUME_NOTE : (args.prompt ?? AGENT_BUDGET_RESUME_NOTE),
+        prompt: accountChanged ? CREW_ACCOUNT_RESUME_NOTE : (args.prompt ?? CREWMATE_BUDGET_RESUME_NOTE),
         toolUseContext: { ...args.toolUseContext, abortController: new AbortController() },
         canUseTool: args.canUseTool,
         invokingRequestId: args.invokingRequestId,
@@ -851,10 +851,10 @@ export function armBudgetCutResume(args: {
       })
     } catch (error) {
       logForDebugging(`agent lifecycle: the automatic resume of ${args.taskId} did not start: ${errorMessage(error)}`)
-      unpauseAgentTask(args.taskId, args.rootSetAppState, args.registration)
+      unpauseCrewmateTask(args.taskId, args.rootSetAppState, args.registration)
       return
     }
-    enqueueAgentReceiptRow({
+    enqueueCrewmateReceiptRow({
       taskId: args.taskId,
       description: args.description,
       summary: (accountChanged
@@ -953,7 +953,7 @@ export function armOverloadProbe(args: {
   canUseTool?: CanUseToolFn
   invokingRequestId?: string
   model: string
-  pause: AgentPauseV1
+  pause: CrewmatePauseV1
   afterDeath: boolean
   recorded?: boolean
   probe?: (model: string) => Promise<boolean>
@@ -971,12 +971,12 @@ export function armOverloadProbe(args: {
   const episode = overloadEpisodeStanding(args.taskId, nowMs)
   const delayMs = nextOverloadProbeDelayMs(episode, nowMs, args.afterDeath)
   if (delayMs === null) {
-    unpauseAgentTask(args.taskId, args.rootSetAppState, args.registration)
+    unpauseCrewmateTask(args.taskId, args.rootSetAppState, args.registration)
     closeOverloadEpisode(args.taskId)
     dropPauseRecord(args.taskId, args.description)
     return null
   }
-  pauseAgentTask(args.taskId, args.pause, args.rootSetAppState, args.registration)
+  pauseCrewmateTask(args.taskId, args.pause, args.rootSetAppState, args.registration)
   const stillThisRow = (): boolean => {
     let tasksNow: Record<string, unknown> | undefined
     args.rootSetAppState(prev => {
@@ -984,7 +984,7 @@ export function armOverloadProbe(args: {
       return prev
     })
     const row = tasksNow?.[args.taskId]
-    return isLocalAgentTask(row) && row.status === 'failed' && row.registration === args.registration && row.paused !== undefined
+    return isCrewmateTask(row) && row.status === 'failed' && row.registration === args.registration && row.paused !== undefined
   }
   const probeNow = async (): Promise<void> => {
     pendingAutomaticResumes.delete(args.taskId)
@@ -997,27 +997,27 @@ export function armOverloadProbe(args: {
       return
     }
     dropPauseRecord(args.taskId, args.description)
-    const { liveAgentOwner, resumeAgentBackground } = await import('./resumeCrewmate.js')
+    const { liveCrewmateOwner, resumeAgentBackground } = await import('./resumeCrewmate.js')
     let tasksNow: Record<string, unknown> | undefined
     args.rootSetAppState(prev => {
       tasksNow = prev.tasks
       return prev
     })
-    if (liveAgentOwner(args.taskId, tasksNow) !== null) return
+    if (liveCrewmateOwner(args.taskId, tasksNow) !== null) return
     const resume = args.resume ?? resumeAgentBackground
     try {
       const resumed = await resume({
         agentId: args.taskId,
-        prompt: AGENT_OVERLOAD_RESUME_NOTE,
+        prompt: CREWMATE_OVERLOAD_RESUME_NOTE,
         toolUseContext: { ...args.toolUseContext, abortController: new AbortController() },
         canUseTool: args.canUseTool,
         invokingRequestId: args.invokingRequestId,
         automatic: true,
       })
-      if (resumed?.note) enqueueAgentReceiptRow({ taskId: args.taskId, description: args.description, summary: resumed.note.trimStart() })
+      if (resumed?.note) enqueueCrewmateReceiptRow({ taskId: args.taskId, description: args.description, summary: resumed.note.trimStart() })
     } catch (error) {
       logForDebugging(`agent lifecycle: the resume of ${args.taskId} after the provider answered did not start: ${errorMessage(error)}`)
-      unpauseAgentTask(args.taskId, args.rootSetAppState, args.registration)
+      unpauseCrewmateTask(args.taskId, args.rootSetAppState, args.registration)
       closeOverloadEpisode(args.taskId)
     }
   }
@@ -1079,7 +1079,7 @@ export async function deliverOperatorMessagesAfterStop(
       toolUseContext: { ...toolUseContext, abortController: new AbortController() },
       canUseTool,
     })
-    if (resumed.note) enqueueAgentReceiptRow({ taskId, description, summary: resumed.note.trimStart() })
+    if (resumed.note) enqueueCrewmateReceiptRow({ taskId, description, summary: resumed.note.trimStart() })
     takeOperatorMessages(taskId, stateReader, rootSetAppState)
     return true
   } catch (error) {
@@ -1094,7 +1094,7 @@ export function crewmateNoticeOwed(): boolean {
   return noticesOwed.size > 0
 }
 
-export async function runAsyncAgentLifecycle(args: {
+export async function runAsyncCrewmateLifecycle(args: {
   taskId: string
   abortController: AbortController
   makeStream: (
@@ -1139,8 +1139,8 @@ export async function runAsyncAgentLifecycle(args: {
   const onCacheSafeParams = enableSummarization
     ? (params: CacheSafeParams) => {
         void import('../../crew/agent-summary/crewmateSummary.js')
-          .then(({ startAgentSummarization }) => {
-            const handle = startAgentSummarization(taskId, agentIdForCleanup, params, rootSetAppState)
+          .then(({ startCrewmateSummarization }) => {
+            const handle = startCrewmateSummarization(taskId, agentIdForCleanup, params, rootSetAppState)
             if (summaryStopped) handle.stop()
             else stopSummarization = handle.stop
           })
@@ -1150,30 +1150,30 @@ export async function runAsyncAgentLifecycle(args: {
       }
     : undefined
   const onQueryProgress = (event: unknown): void => {
-    publishAgentWaitFromEvent(taskId, tracker, event, rootSetAppState)
+    publishCrewmateWaitFromEvent(taskId, tracker, event, rootSetAppState)
   }
 
   let streamError: unknown
   let hasStreamError = false
-  let result: AgentToolResult | undefined
+  let result: CrewmateToolResult | undefined
   try {
     try {
       for await (const message of makeStream(onCacheSafeParams, onQueryProgress)) {
         accumulated.push(message)
-        emitBackgroundAgentRows(toolUseContext.toolUseId, message)
+        emitBackgroundCrewmateRows(toolUseContext.toolUseId, message)
         const currentTask = readState().tasks?.[taskId]
-        if (isLocalAgentTask(currentTask) && currentTask.retain === true) {
-          appendMessageToLocalAgent(taskId, message, rootSetAppState)
+        if (isCrewmateTask(currentTask) && currentTask.retain === true) {
+          appendMessageToCrewmate(taskId, message, rootSetAppState)
         }
         updateProgressFromMessage(tracker, message, resolveActivity, toolUseContext.options.tools)
-        publishAgentProgressSoon(taskId, tracker, rootSetAppState)
+        publishCrewmateProgressSoon(taskId, tracker, rootSetAppState)
         const lastToolName = getLastToolUseName(message)
         if (lastToolName !== undefined) {
           emitTaskProgress(tracker, taskId, toolUseContext.toolUseId, description, metadata.startTime, lastToolName)
         }
       }
       stopSummary()
-      result = finalizeAgentTool(accumulated, taskId, metadata)
+      result = finalizeCrewmateTool(accumulated, taskId, metadata)
     } catch (error) {
       streamError = error
       hasStreamError = true
@@ -1201,16 +1201,16 @@ export async function runAsyncAgentLifecycle(args: {
 }
 
 async function settleAbortedRun(
-  args: AsyncAgentLifecycleArgs,
+  args: AsyncCrewmateLifecycleArgs,
   tracker: ProgressTracker,
   accumulated: Message[],
   owedKey: object,
 ): Promise<void> {
   const { taskId, abortController, metadata, description, toolUseContext, rootSetAppState, getWorktreeResult, canUseTool } = args
-  const stopReason = agentStopReasonOf(abortController.signal.reason)
-  const stopStatusWord = agentStopStatusWordOf(abortController.signal.reason)
+  const stopReason = crewmateStopReasonOf(abortController.signal.reason)
+  const stopStatusWord = crewmateStopStatusWordOf(abortController.signal.reason)
   noticesOwed.add(owedKey)
-  killAsyncAgent(taskId, rootSetAppState, stopReason, abortController)
+  killAsyncCrewmate(taskId, rootSetAppState, stopReason, abortController)
   closeOverloadEpisode(taskId)
   const worktreeResult = await getWorktreeResult()
   await flushSessionStorage()
@@ -1223,12 +1223,12 @@ async function settleAbortedRun(
     partialText: partialResult,
     usage: { totalTokens: usage.totalTokens, toolUseCount: usage.toolUses, durationMs: usage.durationMs },
   })
-  enqueueAgentNotification(stoppedNoticeOf(args, { partialResult, usage, accumulated, stopReason, stopStatusWord, worktreeResult, envelopeBlock }))
+  enqueueCrewmateNotification(stoppedNoticeOf(args, { partialResult, usage, accumulated, stopReason, stopStatusWord, worktreeResult, envelopeBlock }))
   noticesOwed.delete(owedKey)
   await deliverOperatorMessagesAfterStop(taskId, description, toolUseContext, rootSetAppState, canUseTool)
 }
 
-async function settleErroredRun(args: AsyncAgentLifecycleArgs, streamError: unknown, tracker: ProgressTracker, accumulated: Message[], owedKey: object): Promise<void> {
+async function settleErroredRun(args: AsyncCrewmateLifecycleArgs, streamError: unknown, tracker: ProgressTracker, accumulated: Message[], owedKey: object): Promise<void> {
   const { taskId, abortController, metadata, description, toolUseContext, rootSetAppState, automaticResume, replyTarget, getWorktreeResult, canUseTool } = args
   const errMsg = errorMessage(streamError)
   const overload = overloadBudgetCutOf(streamError, metadata.resolvedAgentModel)
@@ -1241,30 +1241,30 @@ async function settleErroredRun(args: AsyncAgentLifecycleArgs, streamError: unkn
   }
   noticesOwed.add(owedKey)
   const noticeFollows = !overloadSuppressesNotice && replyTarget !== 'operator'
-  failAgentTask(taskId, errMsg, rootSetAppState, abortController, { settleFrame: !noticeFollows })
+  failCrewmateTask(taskId, errMsg, rootSetAppState, abortController, { settleFrame: !noticeFollows })
   const worktreeResult = await getWorktreeResult()
   await flushSessionStorage()
   if (!overloadSuppressesNotice) {
     const partialResult = extractPartialResult(accumulated)
     const usage = { totalTokens: getTokenCountFromTracker(tracker), toolUses: tracker.toolUseCount, durationMs: Date.now() - metadata.startTime }
     const envelopeBlock = await partialResultEnvelopeBlock({ agentId: taskId, agentType: metadata.agentType, status: 'failed', partialText: partialResult, usage: { totalTokens: usage.totalTokens, toolUseCount: usage.toolUses, durationMs: usage.durationMs } })
-    enqueueAgentNotification(failedNoticeOf(args, { errMsg, overload, partialResult, usage, accumulated, worktreeResult, envelopeBlock }))
+    enqueueCrewmateNotification(failedNoticeOf(args, { errMsg, overload, partialResult, usage, accumulated, worktreeResult, envelopeBlock }))
   }
   noticesOwed.delete(owedKey)
   if (overload !== null) {
     armOverloadProbe({ taskId, description, registration: abortController, toolUseContext, rootSetAppState, canUseTool, model: metadata.resolvedAgentModel, pause: overload.pause, afterDeath: true })
   } else if (budgetCut !== null && !automaticResume) {
     const delayMs = budgetCutResumeDelayMs(budgetCut)
-    armBudgetCutResume({ taskId, description, registration: abortController, toolUseContext, rootSetAppState, canUseTool, delayMs, automaticResume, pause: { why: 'provider busy', words: budgetCut.words, resumesAtMs: Date.now() + delayMs }, prompt: AGENT_BUDGET_RESUME_NOTE })
+    armBudgetCutResume({ taskId, description, registration: abortController, toolUseContext, rootSetAppState, canUseTool, delayMs, automaticResume, pause: { why: 'provider busy', words: budgetCut.words, resumesAtMs: Date.now() + delayMs }, prompt: CREWMATE_BUDGET_RESUME_NOTE })
   }
 }
 
-async function tryQueuedGuidance(args: AsyncAgentLifecycleArgs): Promise<boolean> {
+async function tryQueuedGuidance(args: AsyncCrewmateLifecycleArgs): Promise<boolean> {
   const { taskId, description, toolUseContext, rootSetAppState, canUseTool } = args
   try {
     const readState = taskStateReader(toolUseContext, rootSetAppState)
     const currentTask = readState().tasks?.[taskId]
-    const pendingParent = isLocalAgentTask(currentTask) ? [...(currentTask.pendingMessages ?? [])] : []
+    const pendingParent = isCrewmateTask(currentTask) ? [...(currentTask.pendingMessages ?? [])] : []
     const pendingOperator = peekOperatorMessages(currentTask)
     const combined = [...pendingParent, ...pendingOperator]
     if (combined.length === 0) return false
@@ -1272,7 +1272,7 @@ async function tryQueuedGuidance(args: AsyncAgentLifecycleArgs): Promise<boolean
     const { resumeAgentBackground } = await import('./resumeCrewmate.js')
     const resumed = await resumeAgentBackground({ agentId: taskId, prompt: combined.join('\n\n'), toolUseContext, canUseTool, replyTarget: nextReplyTarget })
     if (resumed.note) {
-      enqueueAgentReceiptRow({ taskId, description, summary: resumed.note.trimStart() })
+      enqueueCrewmateReceiptRow({ taskId, description, summary: resumed.note.trimStart() })
     }
     if (pendingParent.length > 0) drainPendingMessages(taskId, readState, rootSetAppState, pendingParent.length)
     if (pendingOperator.length > 0) takeOperatorMessages(taskId, readState, rootSetAppState, pendingOperator.length)
@@ -1283,7 +1283,7 @@ async function tryQueuedGuidance(args: AsyncAgentLifecycleArgs): Promise<boolean
   }
 }
 
-async function settleFinishedRun(args: AsyncAgentLifecycleArgs, result: AgentToolResult, tracker: ProgressTracker, accumulated: Message[], owedKey: object): Promise<void> {
+async function settleFinishedRun(args: AsyncCrewmateLifecycleArgs, result: CrewmateToolResult, tracker: ProgressTracker, accumulated: Message[], owedKey: object): Promise<void> {
   const { taskId, abortController, metadata, rootSetAppState, replyTarget, getWorktreeResult } = args
   const declined = result.outcome?.status === 'failed' ? result.outcome : undefined
   const windowPause = declined ? usageWindowPauseOf(accumulated, metadata.resolvedAgentModel) : null
@@ -1300,7 +1300,7 @@ async function settleFinishedRun(args: AsyncAgentLifecycleArgs, result: AgentToo
   if (declined) {
     settleDeclinedRun(args, declined, noticeFollows, overload, windowPause)
   } else {
-    completeAgentTask(result, rootSetAppState, abortController, {
+    completeCrewmateTask(result, rootSetAppState, abortController, {
       usage: { tokens: getTokenCountFromTracker(tracker), toolUses: result.totalToolUseCount, durationMs: result.totalDurationMs },
       settleFrame: !noticeFollows,
     })
@@ -1322,26 +1322,26 @@ async function settleFinishedRun(args: AsyncAgentLifecycleArgs, result: AgentToo
     const envelopeStatus: 'paused' | 'failed' | 'completed' = windowPause !== null || overload !== null ? 'paused' : declined ? 'failed' : 'completed'
     let envelopeBlock: string | undefined
     try {
-      const { buildAgentResultEnvelope, formatEnvelopeBlock } = await import('../../crew/agent-results/normalize.js')
+      const { buildCrewmateResultEnvelope, formatEnvelopeBlock } = await import('../../crew/agent-results/normalize.js')
       envelopeBlock = formatEnvelopeBlock(
-        await buildAgentResultEnvelope({ agentId: taskId, agentType: metadata.agentType, status: envelopeStatus, finalText: finalMessage, usage: { totalTokens: getTokenCountFromTracker(tracker), toolUseCount: result.totalToolUseCount, durationMs: result.totalDurationMs } }),
+        await buildCrewmateResultEnvelope({ agentId: taskId, agentType: metadata.agentType, status: envelopeStatus, finalText: finalMessage, usage: { totalTokens: getTokenCountFromTracker(tracker), toolUseCount: result.totalToolUseCount, durationMs: result.totalDurationMs } }),
       )
     } catch (error) {
       passedOver(error)
     }
-    enqueueAgentNotification(completionNoticeOf(args, { declined, accumulated, windowPause, overload, finalMessage, result, tracker, worktreeResult, envelopeBlock }))
+    enqueueCrewmateNotification(completionNoticeOf(args, { declined, accumulated, windowPause, overload, finalMessage, result, tracker, worktreeResult, envelopeBlock }))
   }
   noticesOwed.delete(owedKey)
 }
 
-type AsyncAgentLifecycleArgs = Parameters<typeof runAsyncAgentLifecycle>[0]
-type AgentNotice = Parameters<typeof enqueueAgentNotification>[0]
-type DeclinedOutcome = Extract<NonNullable<AgentToolResult['outcome']>, { status: 'failed' }>
-type PartialRunFacts = { partialResult: ReturnType<typeof extractPartialResult>; usage: { totalTokens: number; toolUses: number; durationMs: number }; accumulated: Message[]; worktreeResult: Awaited<ReturnType<AsyncAgentLifecycleArgs['getWorktreeResult']>>; envelopeBlock: Awaited<ReturnType<typeof partialResultEnvelopeBlock>> }
+type AsyncCrewmateLifecycleArgs = Parameters<typeof runAsyncCrewmateLifecycle>[0]
+type CrewmateNotice = Parameters<typeof enqueueCrewmateNotification>[0]
+type DeclinedOutcome = Extract<NonNullable<CrewmateToolResult['outcome']>, { status: 'failed' }>
+type PartialRunFacts = { partialResult: ReturnType<typeof extractPartialResult>; usage: { totalTokens: number; toolUses: number; durationMs: number }; accumulated: Message[]; worktreeResult: Awaited<ReturnType<AsyncCrewmateLifecycleArgs['getWorktreeResult']>>; envelopeBlock: Awaited<ReturnType<typeof partialResultEnvelopeBlock>> }
 
-function settleDeclinedRun(args: AsyncAgentLifecycleArgs, declined: DeclinedOutcome, noticeFollows: boolean, overload: ReturnType<typeof overloadPauseOf>, windowPause: AgentPauseV1 | null): void {
+function settleDeclinedRun(args: AsyncCrewmateLifecycleArgs, declined: DeclinedOutcome, noticeFollows: boolean, overload: ReturnType<typeof overloadPauseOf>, windowPause: CrewmatePauseV1 | null): void {
   const { taskId, description, toolUseContext, rootSetAppState, metadata } = args
-  failAgentTask(taskId, declined.error, rootSetAppState, args.abortController, { settleFrame: !noticeFollows })
+  failCrewmateTask(taskId, declined.error, rootSetAppState, args.abortController, { settleFrame: !noticeFollows })
   if (overload !== null) {
     armOverloadProbe({
       taskId,
@@ -1365,19 +1365,19 @@ function settleDeclinedRun(args: AsyncAgentLifecycleArgs, declined: DeclinedOutc
         canUseTool: args.canUseTool,
         delayMs: windowPauseResumeDelayMs(windowPause.resumesAtMs),
         pause: windowPause,
-        prompt: AGENT_WINDOW_RESUME_NOTE,
+        prompt: CREWMATE_WINDOW_RESUME_NOTE,
         summary: `Crewmate "${description}" resumed by itself — the usage window reset; its partial work carried forward`,
       })
     } else {
-      pauseAgentTask(taskId, windowPause, rootSetAppState, args.abortController)
+      pauseCrewmateTask(taskId, windowPause, rootSetAppState, args.abortController)
     }
   }
 }
 
 function completionNoticeOf(
-  args: AsyncAgentLifecycleArgs,
-  { declined, accumulated, windowPause, overload, finalMessage, result, tracker, worktreeResult, envelopeBlock }: Omit<PartialRunFacts, 'partialResult' | 'usage' | 'envelopeBlock'> & { declined: DeclinedOutcome | undefined; windowPause: AgentPauseV1 | null; overload: ReturnType<typeof overloadPauseOf>; finalMessage: string; result: AgentToolResult; tracker: ReturnType<typeof createProgressTracker>; envelopeBlock: string | undefined },
-): AgentNotice {
+  args: AsyncCrewmateLifecycleArgs,
+  { declined, accumulated, windowPause, overload, finalMessage, result, tracker, worktreeResult, envelopeBlock }: Omit<PartialRunFacts, 'partialResult' | 'usage' | 'envelopeBlock'> & { declined: DeclinedOutcome | undefined; windowPause: CrewmatePauseV1 | null; overload: ReturnType<typeof overloadPauseOf>; finalMessage: string; result: CrewmateToolResult; tracker: ReturnType<typeof createProgressTracker>; envelopeBlock: string | undefined },
+): CrewmateNotice {
   const { taskId, description, toolUseContext, rootSetAppState } = args
   return {
     taskId,
@@ -1387,7 +1387,7 @@ function completionNoticeOf(
     ...(windowPause !== null
       ? {
           statusWord: 'paused',
-          summary: `Crewmate "${description}" paused — ${windowPause.words}; ${pauseResumeWords(windowPause, Date.now())} — its work so far is kept and rides below; ${AGENT_RESUME_DOOR}`,
+          summary: `Crewmate "${description}" paused — ${windowPause.words}; ${pauseResumeWords(windowPause, Date.now())} — its work so far is kept and rides below; ${CREWMATE_RESUME_DOOR}`,
         }
       : {}),
     ...(overload !== null
@@ -1412,7 +1412,7 @@ function completionNoticeOf(
   }
 }
 
-function stoppedNoticeOf(args: AsyncAgentLifecycleArgs, { partialResult, usage, accumulated, stopReason, stopStatusWord, worktreeResult, envelopeBlock }: PartialRunFacts & { stopReason: string | undefined; stopStatusWord: string | undefined }): AgentNotice {
+function stoppedNoticeOf(args: AsyncCrewmateLifecycleArgs, { partialResult, usage, accumulated, stopReason, stopStatusWord, worktreeResult, envelopeBlock }: PartialRunFacts & { stopReason: string | undefined; stopStatusWord: string | undefined }): CrewmateNotice {
   const { taskId, description, toolUseContext, rootSetAppState } = args
   return {
     taskId,
@@ -1433,7 +1433,7 @@ function stoppedNoticeOf(args: AsyncAgentLifecycleArgs, { partialResult, usage, 
   }
 }
 
-function failedNoticeOf(args: AsyncAgentLifecycleArgs, { errMsg, overload, partialResult, usage, accumulated, worktreeResult, envelopeBlock }: PartialRunFacts & { errMsg: string; overload: ReturnType<typeof overloadPauseOf> }): AgentNotice {
+function failedNoticeOf(args: AsyncCrewmateLifecycleArgs, { errMsg, overload, partialResult, usage, accumulated, worktreeResult, envelopeBlock }: PartialRunFacts & { errMsg: string; overload: ReturnType<typeof overloadPauseOf> }): CrewmateNotice {
   const { taskId, description, toolUseContext, rootSetAppState } = args
   return {
     taskId,

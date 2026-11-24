@@ -599,13 +599,13 @@
   },
   "agents": {
    "src/tools/crewmate/CrewmateTool.tsx": [
-    "AgentTool",
-    "agentCwdQuestion",
+    "CrewmateTool",
+    "crewmateCwdQuestion",
     "inputSchema",
     "outputSchema",
-    "resolveAgentCwd",
-    "type:AgentToolInput",
-    "type:AgentToolOutput",
+    "resolveCrewmateCwd",
+    "type:CrewmateToolInput",
+    "type:CrewmateToolOutput",
     "type:Progress"
    ]
   },

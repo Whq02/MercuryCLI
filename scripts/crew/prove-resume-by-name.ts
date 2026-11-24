@@ -33,15 +33,15 @@ enableConfigs()
 await import('../../src/engine/tasks/tasks.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { generateTaskId } = await import('../../src/engine/tasks/taskBase.ts')
-const { registerAsyncAgent, completeAgentTask, enqueueAgentNotification, killAsyncAgent, registerAgentName } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
+const { registerAsyncCrewmate, completeCrewmateTask, enqueueCrewmateNotification, killAsyncCrewmate, registerCrewmateName } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
 const { applyTaskOffsetsAndEvictions } = await import('../../src/engine/task-framework/taskRegistry.ts')
 const { SendMessageTool } = await import('../../src/tools/send-message/SendMessageTool.ts')
-const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
+const { CrewmateTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
 const { getPrompt } = await import('../../src/tools/resume-crewmate/prompt.ts')
-const { ResumeAgentTool } = await import('../../src/tools/resume-crewmate/ResumeAgentTool.ts')
+const { ResumeCrewmateTool } = await import('../../src/tools/resume-crewmate/ResumeAgentTool.ts')
 const lr = (await import('../../src/engine/tasks/local-agent/launchReceipts.ts')) as Record<string, unknown> & { BACKGROUND_LAUNCH_LINE: string }
 const queue = await import('../../src/screen/composer/input-core/command-queue.ts')
-const { getAgentTranscriptPath, getAgentMetadataPath, readAgentMetadata } = await import('../../src/sessions/transcripts/paths.ts')
+const { getCrewmateTranscriptPath, getCrewmateMetadataPath, readCrewmateMetadata } = await import('../../src/sessions/transcripts/paths.ts')
 const { asAgentId, toAgentId } = await import('../../src/sessions/transcripts/ids.ts')
 const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.ts')
 const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.ts')
@@ -95,7 +95,7 @@ const launchRow = (toolUseId: string, name: string | undefined, description: str
       stop_reason: 'tool_use',
     },
   }) as unknown as Message
-const mintReceipt = (AgentTool as unknown as { mapToolResultToToolResultBlockParam: (o: unknown, id: string) => unknown }).mapToolResultToToolResultBlockParam
+const mintReceipt = (CrewmateTool as unknown as { mapToolResultToToolResultBlockParam: (o: unknown, id: string) => unknown }).mapToolResultToToolResultBlockParam
 const receiptRow = (toolUseId: string, agentId: string, name: string | undefined, description: string): Message => {
   const block = mintReceipt({ isAsync: true, status: 'async_launched', agentId, description, prompt: `work as ${description}`, outputFile: join(home, `${agentId}.output`), canReadOutputFile: false, ...(name !== undefined ? { agentName: name } : {}) }, toolUseId)
   return { type: 'user', uuid: `u-${++n}`, timestamp: stamp(), message: { role: 'user', content: [block] } } as unknown as Message
@@ -123,32 +123,32 @@ const seedTranscript = (agentId: string, opening: string, reply: string): void =
   const encode = (e: unknown): string => JSON.stringify(entryToRecord(e as never, { sessionId, nextOrdinal: () => ordinalOf(++ordinal), observedAt: at, source: { channel: 'interactive' } } as never))
   const first = `00000000-0000-4000-8000-0000000${String(++ordinal).padStart(5, '0')}`
   const second = `00000000-0000-4000-8000-0000000${String(++ordinal).padStart(5, '0')}`
-  const path = getAgentTranscriptPath(asAgentId(agentId))
+  const path = getCrewmateTranscriptPath(asAgentId(agentId))
   mkdirSync(dirname(path), { recursive: true })
   writeFileSync(path, [entry(first, null, 'user', opening), entry(second, first, 'assistant', reply)].map(encode).join('\n') + '\n')
 }
 const launchNamed = (store: Store, transcript: Message[], name: string, description: string): string => {
   const id = generateTaskId('local_agent')
   const toolUseId = `toolu_${id}`
-  registerAsyncAgent({ agentId: id, description, prompt: `work as ${description}`, selectedAgent: FAKE_DEF, setAppState: store.set as never })
-  registerAgentName(name, id, store.set as never)
+  registerAsyncCrewmate({ agentId: id, description, prompt: `work as ${description}`, selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  registerCrewmateName(name, id, store.set as never)
   transcript.push(launchRow(toolUseId, name, description), receiptRow(toolUseId, id, name, description))
   seedTranscript(id, `work as ${description}`, `${description}: done`)
   return id
 }
 const finishAndEvict = (store: Store, id: string, description: string): void => {
-  completeAgentTask({ agentId: id }, store.set as never)
-  enqueueAgentNotification({ taskId: id, description, status: 'completed', setAppState: store.set as never })
+  completeCrewmateTask({ agentId: id }, store.set as never)
+  enqueueCrewmateNotification({ taskId: id, description, status: 'completed', setAppState: store.set as never })
   store.set(prev => ({ ...prev, tasks: { ...prev.tasks, [id]: { ...prev.tasks[id], evictAfter: 0 } as never } }))
   applyTaskOffsetsAndEvictions(store.set as never, {}, [id])
   queue.resetCommandQueue()
 }
 const send = (ctx: never, to: string, message: unknown, requestId: string): Promise<SendAnswer> =>
-  ResumeAgentTool.call({ to, message } as never, ctx, undefined as never, { requestId } as never) as Promise<SendAnswer>
+  ResumeCrewmateTool.call({ to, message } as never, ctx, undefined as never, { requestId } as never) as Promise<SendAnswer>
 const deliver = (ctx: never, to: string, message: string, requestId: string): Promise<SendAnswer> =>
   SendMessageTool.call({ to, message }, ctx, undefined as never, { requestId } as never) as Promise<SendAnswer>
 const settleResumed = (store: Store, id: string): void => {
-  killAsyncAgent(id, store.set as never)
+  killAsyncCrewmate(id, store.set as never)
   store.set(prev => {
     const tasks = { ...prev.tasks }
     delete tasks[id]
@@ -169,29 +169,29 @@ const makeLaunchCtx = (store: Store, messages: Message[], toolUseId: string): ne
 const launchReal = async (store: Store, transcript: Message[], name: string, description: string): Promise<{ id: string; receipt: string }> => {
   const toolUseId = `toolu_real_${++n}`
   const parent = { type: 'assistant', requestId: `req_real_${n}`, message: { id: `msg_real_${n}`, content: [] } } as never
-  const answer = (await AgentTool.call(
+  const answer = (await CrewmateTool.call(
     { description, prompt: `work as ${description}`, crewmate_type: 'mercury-crew', run_in_background: true, name } as never,
     makeLaunchCtx(store, transcript, toolUseId),
     (async () => ({ behavior: 'allow', updatedInput: {} })) as never,
     parent,
   )) as { data: { agentId: string } }
   const id = answer.data.agentId
-  killAsyncAgent(id, store.set as never)
+  killAsyncCrewmate(id, store.set as never)
   const block = mintReceipt(answer.data, toolUseId)
   transcript.push(launchRow(toolUseId, name, description), { type: 'user', uuid: `u-${++n}`, timestamp: stamp(), message: { role: 'user', content: [block] } } as unknown as Message)
   seedTranscript(id, `work as ${description}`, `${description}: done`)
   return { id, receipt: textOf(transcript[transcript.length - 1]) }
 }
 const sidecarOf = async (id: string, until: (meta: Sidecar) => boolean = meta => meta !== null): Promise<Sidecar> => {
-  let meta = (await readAgentMetadata(asAgentId(id))) as Sidecar
+  let meta = (await readCrewmateMetadata(asAgentId(id))) as Sidecar
   for (let i = 0; i < 100 && !until(meta); i++) {
     await settle(50)
-    meta = (await readAgentMetadata(asAgentId(id))) as Sidecar
+    meta = (await readCrewmateMetadata(asAgentId(id))) as Sidecar
   }
   return meta
 }
 const evictKilled = async (store: Store, id: string, description: string): Promise<void> => {
-  enqueueAgentNotification({ taskId: id, description, status: 'killed', setAppState: store.set as never })
+  enqueueCrewmateNotification({ taskId: id, description, status: 'killed', setAppState: store.set as never })
   store.set(prev => ({ ...prev, tasks: { ...prev.tasks, [id]: { ...prev.tasks[id], evictAfter: 0 } as never } }))
   applyTaskOffsetsAndEvictions(store.set as never, {}, [id])
   await settle(150)
@@ -225,7 +225,7 @@ const receiptWords = textOf(transcript[1])
 check('the launch receipt the Crewmate tool minted promises both addresses: the id and the name', receiptWords.startsWith(lr.BACKGROUND_LAUNCH_LINE) && receiptWords.includes(`agentId: ${harbour}`) && receiptWords.includes('or to its name "harbour-count"'), receiptWords.slice(0, 300), 'the launch receipt line in src/tools/crewmate/call/resultBlock.ts must carry the agentId and the or to its name clause when the launch had a name')
 finishAndEvict(store, harbour, 'count the harbour')
 check('once the settled row is evicted the registry no longer holds the name (the mechanism behind the defect)', store.get().tasks[harbour] === undefined && !store.get().agentNameRegistry.has('harbour-count'), JSON.stringify([...store.get().agentNameRegistry.entries()]), 'evictTerminalTask in src/engine/task-framework/taskRegistry.ts must prune the name from agentNameRegistry when it evicts a settled agent row')
-check('…while its transcript stays on disk, the record the id road resumes from', existsSync(getAgentTranscriptPath(asAgentId(harbour))), '', 'the eviction sweep must leave the agent transcript file on disk (getAgentTranscriptPath in src/sessions/transcripts/paths.ts)')
+check('…while its transcript stays on disk, the record the id road resumes from', existsSync(getCrewmateTranscriptPath(asAgentId(harbour))), '', 'the eviction sweep must leave the agent transcript file on disk (getAgentTranscriptPath in src/sessions/transcripts/paths.ts)')
 
 section('§2 THE ID ROAD (control) — a message to the finished agent\'s id resumes it from its transcript')
 const byId = await send(ctx, harbour, 'a word for the harbour', 'req_id')
@@ -323,7 +323,7 @@ section('§9 THE READER — the launch receipts by name, read-only, in transcrip
 section('§10 THE WORDS — the prompt tells the model a finished agent\'s name still reaches it (RED on the base)')
 {
   const prompt = getPrompt()
-  const toField = (ResumeAgentTool.inputSchema as { shape: { to: { description?: string } } }).shape.to.description ?? ''
+  const toField = (ResumeCrewmateTool.inputSchema as { shape: { to: { description?: string } } }).shape.to.description ?? ''
   check('the to field keeps the two-address sentence the receipts proof pins', toField.includes('the id its launch receipt names or the name its launch gave it'), toField, 'the to field description in src/tools/resume-crewmate/ResumeAgentTool.ts must keep the two-address sentence')
   check('…and says the name reaches the agent after it has finished, the newest launch when two carried it; the prompt says what a resumed turn is', /running or finished/.test(toField) && /newest/.test(toField) && prompt.includes('resumed from its transcript'), toField, 'the to field in src/tools/resume-crewmate/ResumeAgentTool.ts must say running or finished and newest, and getPrompt in src/tools/resume-crewmate/prompt.ts must say resumed from its transcript')
 }
@@ -338,12 +338,12 @@ check('the launch is a sub-agent launch whose receipt promises the name (the Cre
 check('…and the registry routes the name while the row lives', durable.get().agentNameRegistry.get('harbour-count') === beacon.id)
 const launched = await sidecarOf(beacon.id)
 console.log(`  the sidecar: ${JSON.stringify(launched)}`)
-check('the launch writes its sidecar beside the transcript (the run loop\'s own write, before its first model call)', launched !== null && existsSync(getAgentMetadataPath(asAgentId(beacon.id))), JSON.stringify(launched))
+check('the launch writes its sidecar beside the transcript (the run loop\'s own write, before its first model call)', launched !== null && existsSync(getCrewmateMetadataPath(asAgentId(beacon.id))), JSON.stringify(launched))
 check('the sidecar carries the launch name (RED on the base)', launched?.name === 'harbour-count', JSON.stringify(launched))
 check('…and the launch clock, the Crewmate tool\'s own start time (RED on the base)', typeof launched?.launchedAt === 'number' && launched.launchedAt >= before && launched.launchedAt <= Date.now(), JSON.stringify(launched))
 check('…beside the launch facts it always carried: the kind, the description, the dispatched model', launched?.agentType === 'mercury-crew' && launched?.description === 'count the harbour' && typeof launched?.model === 'string', JSON.stringify(launched))
 const launchClock = launched?.launchedAt
-const launchWrite = existsSync(getAgentMetadataPath(asAgentId(beacon.id))) ? statSync(getAgentMetadataPath(asAgentId(beacon.id))).mtimeMs : 0
+const launchWrite = existsSync(getCrewmateMetadataPath(asAgentId(beacon.id))) ? statSync(getCrewmateMetadataPath(asAgentId(beacon.id))).mtimeMs : 0
 await evictKilled(durable, beacon.id, 'count the harbour')
 check('the settled row is evicted and the registry drops the name (the mechanism, as §1)', durable.get().tasks[beacon.id] === undefined && !durable.get().agentNameRegistry.has('harbour-count'))
 
@@ -367,11 +367,11 @@ check('…and a running row stands under the same id, its prompt the notice carr
 settleResumed(durable, beacon.id)
 
 section('§14 THE REWRITE — the resume re-persists the sidecar and the run loop writes it again: both keep the name and the launch clock, so a later message to the name still resolves')
-const rewritten = await sidecarOf(beacon.id, meta => meta !== null && statSync(getAgentMetadataPath(asAgentId(beacon.id))).mtimeMs > launchWrite)
+const rewritten = await sidecarOf(beacon.id, meta => meta !== null && statSync(getCrewmateMetadataPath(asAgentId(beacon.id))).mtimeMs > launchWrite)
 await settle(300)
-const kept = (await readAgentMetadata(asAgentId(beacon.id))) as Sidecar
+const kept = (await readCrewmateMetadata(asAgentId(beacon.id))) as Sidecar
 console.log(`  the sidecar after the resume: ${JSON.stringify(kept)}`)
-check('the resume rewrote the sidecar (its clock moved past the launch write)', rewritten !== null && statSync(getAgentMetadataPath(asAgentId(beacon.id))).mtimeMs > launchWrite)
+check('the resume rewrote the sidecar (its clock moved past the launch write)', rewritten !== null && statSync(getCrewmateMetadataPath(asAgentId(beacon.id))).mtimeMs > launchWrite)
 check('…and the rewrite kept the launch name (RED on the base)', kept?.name === 'harbour-count', JSON.stringify(kept))
 check('…and the launch clock, carried rather than re-stamped (RED on the base)', typeof launchClock === 'number' && kept?.launchedAt === launchClock, JSON.stringify({ kept: kept?.launchedAt, launchClock }))
 const again = await send(foldCtx, 'harbour-count', 'a second word after the fold', 'req_fold_again')
@@ -389,7 +389,7 @@ section('§15 TWO LAUNCHES, ONE NAME, THE RECEIPTS GONE — the newest by its la
   const newer = await launchReal(twin, twinTranscript, 'scout', 'scout the harbour again')
   const newerSidecar = await sidecarOf(newer.id)
   await evictKilled(twin, newer.id, 'scout the harbour again')
-  const olderSidecar = (await readAgentMetadata(asAgentId(older.id))) as Sidecar
+  const olderSidecar = (await readCrewmateMetadata(asAgentId(older.id))) as Sidecar
   check('both launches wrote their sidecars, the newer with the later clock (RED on the base)', typeof olderSidecar?.launchedAt === 'number' && typeof newerSidecar?.launchedAt === 'number' && newerSidecar.launchedAt > olderSidecar.launchedAt, JSON.stringify({ older: olderSidecar, newer: newerSidecar }))
   const twinFold = makeCtx(twin, await foldOf(twin, twinTranscript, '<summary>\nTwo scouts were launched and both completed.\n</summary>'))
   check('the fold left no receipt and no registry name', (lr.namedLaunchReceipts as Reader)((twinFold as unknown as { messages: Message[] }).messages).length === 0 && !twin.get().agentNameRegistry.has('scout'))

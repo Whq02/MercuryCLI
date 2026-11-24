@@ -157,7 +157,7 @@ section('§2 a keyless box: the session road answers each family\'s first record
     check(`'${word}': the status line reads the word and its row (modelDisplayString)`, model.modelDisplayString(word) === `${word} (${model.renderModelName(head)})`, model.modelDisplayString(word))
     check(`'${word}': renderModelSetting keeps the word, as it keeps grok`, model.renderModelSetting(word) === word && model.renderModelSetting('grok') === 'grok', model.renderModelSetting(word))
     check(`'${word}': the picker door maps the word onto the row's own option`, picker.modelChoiceRow(word) === head, picker.modelChoiceRow(word))
-    check(`'${word}': a sub-agent named the word runs the row`, agent.getAgentModel(undefined, 'claude-opus-5', word) === head && agent.getAgentModel(word, 'claude-opus-5') === head, agent.getAgentModel(undefined, 'claude-opus-5', word))
+    check(`'${word}': a sub-agent named the word runs the row`, agent.getCrewmateModel(undefined, 'claude-opus-5', word) === head && agent.getCrewmateModel(word, 'claude-opus-5') === head, agent.getCrewmateModel(undefined, 'claude-opus-5', word))
     process.env.MERCURY_MODEL = word
     check(`'${word}': MERCURY_MODEL on the word is the main-loop model on the row, and the picker lists that row for its current mark`, model.getEngineModel() === head && getModelOptions().some(option => option.value === head), model.getEngineModel())
     delete process.env.MERCURY_MODEL

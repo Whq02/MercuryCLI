@@ -2,8 +2,8 @@ import { randomUUID, type UUID } from 'node:crypto'
 import { statSync } from 'node:fs'
 import type { AppState } from '../../screen/app-state/AppStateStore.js'
 import {
-  AGENT_RELAUNCH_NOTE,
-  heldAgentNotices,
+  CREWMATE_RELAUNCH_NOTE,
+  heldCrewmateNotices,
   orphanedBackgroundLaunches,
   queueLogRows,
   queuedNoticeIds,
@@ -11,7 +11,7 @@ import {
   settledRecordFor,
   undeliveredLines,
   type BackgroundLaunchReceipt,
-  type HeldAgentNotice,
+  type HeldCrewmateNotice,
   type RestartCarryCounts,
   type RunnerRestartReason,
 } from '../../engine/tasks/local-agent/launchReceipts.js'
@@ -26,7 +26,7 @@ import { saturnQueueStamp, screenCommandQueueStamp } from '../../engine/message-
 import { wrapInSystemReminder } from '../../engine/message-shapes/text.js'
 import { enqueue, enqueuePendingNotification } from '../../screen/composer/input-core/command-queue.js'
 import { emitTaskEnded } from './sdkEventQueue.js'
-import { MAX_TRANSCRIPT_READ_BYTES, getTranscriptPath, readAgentMetadata } from '../../sessions/transcripts/paths.js'
+import { MAX_TRANSCRIPT_READ_BYTES, getTranscriptPath, readCrewmateMetadata } from '../../sessions/transcripts/paths.js'
 import { historyTail } from '../../sessions/transcripts/historyParts.js'
 import { notifyTasksUpdated } from '../../engine/task-framework/tasks.js'
 
@@ -52,10 +52,10 @@ function transcriptTailLines(path: string): string[] {
   }
 }
 
-async function agentFolderStands(agentId: string): Promise<boolean> {
-  let meta: Awaited<ReturnType<typeof readAgentMetadata>> = null
+async function crewmateFolderStands(agentId: string): Promise<boolean> {
+  let meta: Awaited<ReturnType<typeof readCrewmateMetadata>> = null
   try {
-    meta = await readAgentMetadata(agentId as AgentId)
+    meta = await readCrewmateMetadata(agentId as AgentId)
   } catch (error) {
     logForDebugging(`[session-runner] restart carry: metadata read failed for agent ${agentId} — ${error instanceof Error ? error.message : String(error)}`)
     return true
@@ -72,9 +72,9 @@ async function agentFolderStands(agentId: string): Promise<boolean> {
   }
 }
 
-function relaunchNoteFor(held: HeldAgentNotice | undefined): string {
-  if (held?.landedWrites === undefined) return AGENT_RELAUNCH_NOTE
-  return `${AGENT_RELAUNCH_NOTE} Before the restart, ${held.landedWrites}.`
+function relaunchNoteFor(held: HeldCrewmateNotice | undefined): string {
+  if (held?.landedWrites === undefined) return CREWMATE_RELAUNCH_NOTE
+  return `${CREWMATE_RELAUNCH_NOTE} Before the restart, ${held.landedWrites}.`
 }
 
 export function requeueUndeliveredLines(lines: Iterable<string>, recoveredCommandIds: string[] = []): number {
@@ -108,8 +108,8 @@ export async function carryRunnerAcrossRestart(ports: RestartCarryPorts): Promis
   const now = ports.now ?? Date.now()
   const noticed = queuedNoticeIds(ports.messages)
   const open = orphans.filter(receipt => !noticed.has(receipt.agentId) && !noticed.has(receipt.toolUseId))
-  const held = heldAgentNotices(lines, new Set(open.map(receipt => receipt.agentId)))
-  const deliveries: Array<{ receipt: BackgroundLaunchReceipt; notice: HeldAgentNotice }> = []
+  const held = heldCrewmateNotices(lines, new Set(open.map(receipt => receipt.agentId)))
+  const deliveries: Array<{ receipt: BackgroundLaunchReceipt; notice: HeldCrewmateNotice }> = []
   let relaunched = 0
   let context: ToolUseContext | undefined
   for (const receipt of open) {
@@ -120,7 +120,7 @@ export async function carryRunnerAcrossRestart(ports: RestartCarryPorts): Promis
       continue
     }
     let relaunchedThisOne = false
-    if (await agentFolderStands(receipt.agentId)) {
+    if (await crewmateFolderStands(receipt.agentId)) {
       try {
         context ??= await ports.relaunchContext()
         const { resumeAgentBackground } = await import('../../tools/crewmate/resumeCrewmate.js')

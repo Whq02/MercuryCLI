@@ -253,15 +253,15 @@ section('P4 — a chant cut by the output cap takes the chant road, not the resu
 section('P5 — KEY ON: a sub-agent ended for chanting settles to its parent as a typed failure, and the chant is never returned as its report')
 {
   setStopKey(true)
-  const { finalizeAgentTool } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
-  const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
+  const { finalizeCrewmateTool } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+  const { CrewmateTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
   const run = await runReplies([CHANT, CHANT, HONEST], 'agent-rig-chant')
   check('the sub-agent turn ended typed as loop_stopped for the reply', run.terminal.reason === 'loop_stopped' && stops(run).length === 1, JSON.stringify(run.terminal))
   const collected = run.yields.filter(m => m.type === 'assistant' || m.type === 'user' || m.type === 'attachment')
-  const finalized = finalizeAgentTool(collected as never, 'agent-rig-chant', { prompt: 'write', resolvedAgentModel: MODEL, isBuiltInAgent: true, startTime: Date.now(), agentType: 'mercury-crew', isAsync: false })
+  const finalized = finalizeCrewmateTool(collected as never, 'agent-rig-chant', { prompt: 'write', resolvedAgentModel: MODEL, isBuiltInAgent: true, startTime: Date.now(), agentType: 'mercury-crew', isAsync: false })
   check('the finalized outcome is a typed failure with the loop-stopped reason', finalized.outcome?.status === 'failed' && (finalized.outcome as { reason?: string }).reason === 'loop-stopped', JSON.stringify(finalized.outcome))
   check('the finalized content carries none of the chant', (finalized.content ?? []).length === 0, JSON.stringify(finalized.content).slice(0, 200))
-  const block = AgentTool.mapToolResultToToolResultBlockParam({ status: 'failed', prompt: 'write', error: (finalized.outcome as { error?: string }).error, ...finalized } as never, 'tu_parent') as { is_error?: boolean; content?: Array<{ text?: string }> }
+  const block = CrewmateTool.mapToolResultToToolResultBlockParam({ status: 'failed', prompt: 'write', error: (finalized.outcome as { error?: string }).error, ...finalized } as never, 'tu_parent') as { is_error?: boolean; content?: Array<{ text?: string }> }
   const parentText = (block.content ?? []).map(b => b.text ?? '').join('\n')
   check('the parent receives is_error, the failure names the loop guard, and the chant sentence appears nowhere in it', block.is_error === true && /Crewmate execution failed: The loop guard ended the turn/.test(parentText) && !parentText.includes(SENTENCE.trim()), parentText.slice(0, 400))
   setStopKey(null)

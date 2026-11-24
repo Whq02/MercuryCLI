@@ -1,6 +1,6 @@
 import { extendedKeysSupportedNow } from '../renderer/terminal-session/capabilities.js'
 import { getGlobalConfig } from '../../platform/settings/config.js'
-import { envDynamic } from '../../platform/environment/envProbes.js'
+import { envProbes } from '../../platform/environment/envProbes.js'
 
 export function isVimModeEnabled(): boolean {
   return getGlobalConfig().editorMode === 'vim'
@@ -9,7 +9,7 @@ export function isVimModeEnabled(): boolean {
 export function getNewlineInstructions(): string {
   const config = getGlobalConfig()
   if (
-    (process.platform === 'darwin' && envDynamic.terminal === 'Apple_Terminal') ||
+    (process.platform === 'darwin' && envProbes.terminal === 'Apple_Terminal') ||
     config.shiftEnterKeyBindingInstalled ||
     extendedKeysSupportedNow()
   ) {

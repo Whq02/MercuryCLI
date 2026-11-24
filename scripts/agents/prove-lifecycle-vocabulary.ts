@@ -16,7 +16,7 @@ const section = (t: string, hint = ''): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { deriveAgentLifecycle, IDLE_TTL_MS } = await import(
+const { deriveCrewmateLifecycle, IDLE_TTL_MS } = await import(
   '../../src/crew/agent-results/lifecycle.ts'
 )
 
@@ -24,25 +24,25 @@ const NOW = 1_000_000_000
 
 section('§A the derivation truth-table', 'to fix: deriveAgentLifecycle or IDLE_TTL_MS in src/crew/agent-results/lifecycle.ts')
 {
-  const running = deriveAgentLifecycle({ taskStatus: 'running', transcriptExists: true, now: NOW })
+  const running = deriveCrewmateLifecycle({ taskStatus: 'running', transcriptExists: true, now: NOW })
   check('running: not revivable, messages queue', running.state === 'running' && !running.revivable && running.basis.includes('queue'))
-  const pending = deriveAgentLifecycle({ taskStatus: 'pending', transcriptExists: false, now: NOW })
+  const pending = deriveCrewmateLifecycle({ taskStatus: 'pending', transcriptExists: false, now: NOW })
   check('pending counts as running', pending.state === 'running')
-  const idle = deriveAgentLifecycle({ taskStatus: 'completed', finishedAtMs: NOW - IDLE_TTL_MS + 1000, transcriptExists: true, now: NOW })
+  const idle = deriveCrewmateLifecycle({ taskStatus: 'completed', finishedAtMs: NOW - IDLE_TTL_MS + 1000, transcriptExists: true, now: NOW })
   check('completed within the TTL: idle, revivable WARM', idle.state === 'idle' && idle.revivable && idle.basis.includes('warm'))
-  const parked = deriveAgentLifecycle({ taskStatus: 'completed', finishedAtMs: NOW - IDLE_TTL_MS - 1000, transcriptExists: true, now: NOW })
+  const parked = deriveCrewmateLifecycle({ taskStatus: 'completed', finishedAtMs: NOW - IDLE_TTL_MS - 1000, transcriptExists: true, now: NOW })
   check('completed past the TTL: parked, revivable COLD', parked.state === 'parked' && parked.revivable && parked.basis.includes('cold'))
-  const diskOnly = deriveAgentLifecycle({ transcriptExists: true, now: NOW })
+  const diskOnly = deriveCrewmateLifecycle({ transcriptExists: true, now: NOW })
   check('registry row gone + transcript on disk: parked (a resumed session rediscovers it)', diskOnly.state === 'parked' && diskOnly.revivable)
-  const nothing = deriveAgentLifecycle({ transcriptExists: false, now: NOW })
+  const nothing = deriveCrewmateLifecycle({ transcriptExists: false, now: NOW })
   check('no transcript anywhere: aborted, NOT revivable, honest basis', nothing.state === 'aborted' && !nothing.revivable && nothing.basis.includes('nothing to revive'))
 }
 
 section('§B the reconciliation — Mercury keeps aborted revivable', 'to fix: the killed and failed branches of deriveAgentLifecycle in src/crew/agent-results/lifecycle.ts')
 {
-  const killed = deriveAgentLifecycle({ taskStatus: 'killed', transcriptExists: true, now: NOW })
+  const killed = deriveCrewmateLifecycle({ taskStatus: 'killed', transcriptExists: true, now: NOW })
   check('killed + transcript: aborted AND revivable (the documented divergence)', killed.state === 'aborted' && killed.revivable && killed.basis.includes('revives'))
-  const failedNoTranscript = deriveAgentLifecycle({ taskStatus: 'failed', transcriptExists: false, now: NOW })
+  const failedNoTranscript = deriveCrewmateLifecycle({ taskStatus: 'failed', transcriptExists: false, now: NOW })
   check('failed without a transcript: aborted, not revivable', failedNoTranscript.state === 'aborted' && !failedNoTranscript.revivable)
 }
 
@@ -51,7 +51,7 @@ section('§E the transcript\'s own end — one fact for every verb once the regi
 {
   const { mkdtempSync, writeFileSync, rmSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
-  const { readAgentTranscript, transcriptEndWords } = await import('../../src/crew/crewmates/agentTranscriptReader.ts')
+  const { readCrewmateTranscript, transcriptEndWords } = await import('../../src/crew/crewmates/agentTranscriptReader.ts')
   const { INTERRUPT_MESSAGE, turnCutLine } = await import('../../src/engine/message-shapes/rejectionText.ts')
   const dir = mkdtempSync(join(tmpdir(), 'lifecycle-end-'))
   const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.ts')
@@ -66,7 +66,7 @@ section('§E the transcript\'s own end — one fact for every verb once the regi
   const endOf = async (name: string, rows: string[]): Promise<{ kind: string; words: string } | undefined> => {
     const file = join(dir, `${name}.jsonl`)
     writeFileSync(file, rows.join('\n') + '\n')
-    return (await readAgentTranscript(file))?.end
+    return (await readCrewmateTranscript(file))?.end
   }
   const completed = await endOf('completed', [prompt, call('t1'), result('t1'), row('assistant', [{ type: 'text', text: 'the foliage is planted' }])])
   check('a final reply with nothing open: completed', completed?.kind === 'completed' && completed.words === 'completed', JSON.stringify(completed))

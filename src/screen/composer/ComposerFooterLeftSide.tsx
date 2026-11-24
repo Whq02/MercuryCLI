@@ -11,7 +11,7 @@ import { useShortcutDisplay } from '../keys/useShortcutDisplay.js'
 import { isDefaultMode } from '../../permissions/rules/permissionMode.js'
 import { getGlobalConfig, isCopyOnSelectEnabled } from '../../platform/settings/config.js'
 import { isFullscreenActive } from '../fullscreen-layout/fullscreen.js'
-import { isLocalAgentTask } from '../../engine/tasks/local-agent/crewmateTask.js'
+import { isCrewmateTask } from '../../engine/tasks/local-agent/crewmateTask.js'
 import { useSelection } from '../themedRenderer.js'
 import { useHasSelection } from '../renderer/bindings/use-selection.js'
 import {
@@ -236,7 +236,7 @@ export function ComposerFooterLeftSide({
     }
   } else {
     const hasRunningLocalCrewmates = Object.values(tasks).some(
-      task => isLocalAgentTask(task) && task.status === 'running',
+      task => isCrewmateTask(task) && task.status === 'running',
     )
     if (hasRunningLocalCrewmates && !killConfirmPending) {
       parts.push(<KeyboardShortcutHint shortcut={killChord} action="stop crewmates" />)

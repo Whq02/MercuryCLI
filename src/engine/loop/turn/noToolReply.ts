@@ -52,7 +52,7 @@ import {
 } from '../../compaction/checkpointRewind.js'
 import {
   createAttachmentMessage,
-  getAgentPendingMessageAttachments,
+  getCrewmatePendingMessageAttachments,
 } from '../../attachments/attachments.js'
 import { getModelMaxOutputTokens } from '../../../models/facts/capabilities.js'
 import { getTotalCostUSD } from '../../../boot/process-state/processState.js'
@@ -815,7 +815,7 @@ async function* queuedMessage(run: RunCtx, iter: IterationState, reply: NoToolRe
   const { emit } = run
   const { toolUseContext, messagesForQuery, tracking, assistantMessages } = iter
   const { turnCount } = iter.state
-  const queued = getAgentPendingMessageAttachments(toolUseContext).map(attachment => createAttachmentMessage(attachment))
+  const queued = getCrewmatePendingMessageAttachments(toolUseContext).map(attachment => createAttachmentMessage(attachment))
   if (queued.length > 0) {
     for (const row of queued) yield emit({ kind: 'attachment', message: row })
     const next: NextTurn = {

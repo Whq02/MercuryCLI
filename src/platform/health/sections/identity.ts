@@ -12,7 +12,7 @@ import { formatAge } from '../healthCertCore.js'
 import { daemonSnapshot } from '../../../screen/cockpit-gauges/daemonSnapshot.js'
 import { healthFixEnabled } from '../healthFix.js'
 import { assessDeployedAssets } from '../healthDeployedAssets.js'
-import { MERCURY_CONSTITUTION, MERCURY_SUBAGENT_CONTRACT } from '../../../engine/system-prompt/mercuryContract.js'
+import { MERCURY_CONSTITUTION, MERCURY_CREWMATE_CONTRACT } from '../../../engine/system-prompt/mercuryContract.js'
 import { clientContractCheck, modelRefusalsCheck, computeWorkingTreeSha, runRemedyCmd, type CheckSpec, type HealthContext } from '../healthReport.js'
 import { passedOver } from '../../errors/passedOver.js'
 
@@ -147,7 +147,7 @@ export function identityChecks(context: HealthContext): CheckSpec[] {
       label: 'Mercury constitution',
       run: async () => ({
         status: 'ok',
-        evidence: `the constitution ${MERCURY_CONSTITUTION.length} chars — built-in source; crewmate contract ${MERCURY_SUBAGENT_CONTRACT.length} chars`,
+        evidence: `the constitution ${MERCURY_CONSTITUTION.length} chars — built-in source; crewmate contract ${MERCURY_CREWMATE_CONTRACT.length} chars`,
       }),
     },
     {

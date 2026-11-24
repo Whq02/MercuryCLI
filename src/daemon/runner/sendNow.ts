@@ -1,7 +1,7 @@
 import { queuedOperatorLines, releaseQueuedWordsToTurn } from '../../screen/composer/input-core/command-queue.js'
 import type { AppState } from '../../screen/app-state/AppState.js'
 import type { SetAppState } from '../../engine/tasks/taskBase.js'
-import { handOverForegroundAgentsToQueuedMessage } from '../../engine/tasks/local-agent/crewmateTask.js'
+import { handOverForegroundCrewmatesToQueuedMessage } from '../../engine/tasks/local-agent/crewmateTask.js'
 import { requestShellBackground } from '../../tools/shell/backgroundRequest.js'
 
 type SendNowReceiptV1 = {
@@ -17,7 +17,7 @@ export function sendQueuedWordsNow(getAppState: () => AppState, setAppState: Set
   const queued = queuedOperatorLines().length
   if (queued === 0) return SEND_NOW_NOTHING_QUEUED
   const released = releaseQueuedWordsToTurn()
-  const crewmates = handOverForegroundAgentsToQueuedMessage(getAppState, setAppState)
+  const crewmates = handOverForegroundCrewmatesToQueuedMessage(getAppState, setAppState)
   const shells = requestShellBackground()
   return { queued, released, crewmates, shells }
 }

@@ -1,50 +1,50 @@
-import { getCwdState, getSdkAgentProgressSummariesEnabled } from '../../../boot/process-state/processState.js'
+import { getCwdState, getSdkCrewmateProgressSummariesEnabled } from '../../../boot/process-state/processState.js'
 import { enhanceSystemPromptWithEnvDetails } from '../../../engine/system-prompt/defaultSystemPrompt.js'
-import { agentFanoutCap, buildSubagentMercurySectionsWithOutcome, subagentMemoryLoadNote } from '../subagentDoctrine.js'
-import type { MercuryAgentSeat } from '../../../engine/system-prompt/mercuryContract.js'
+import { crewmateFanoutCap, buildCrewmateMercurySectionsWithOutcome, crewmateMemoryLoadNote } from '../subagentDoctrine.js'
+import type { MercuryCrewmateSeat } from '../../../engine/system-prompt/mercuryContract.js'
 import { evaluateLaunchAuthority } from '../../../daemon/switchboard/launchAuthority.js'
-import { enqueueAgentReceiptRow, registerAgentName, registerAsyncAgent, setAgentPendingAsks, setAgentWaitLine } from '../../../engine/tasks/local-agent/crewmateTask.js'
-import { isLocalAgentTask } from '../../../engine/tasks/local-agent/crewmateTask.js'
+import { enqueueCrewmateReceiptRow, registerCrewmateName, registerAsyncCrewmate, setCrewmatePendingAsks, setCrewmateWaitLine } from '../../../engine/tasks/local-agent/crewmateTask.js'
+import { isCrewmateTask } from '../../../engine/tasks/local-agent/crewmateTask.js'
 import { getRunningTasks } from '../../../engine/task-framework/taskRegistry.js'
 import { toolMatchesName, type Tool as ToolShape, type ToolUseContext } from '../../kit/tool.js'
 import { generateTaskId } from '../../../engine/tasks/taskBase.js'
 import type { AssistantMessage, Message } from '../../../engine/message-shapes/message.js'
 import type { AgentId } from '../../../sessions/transcripts/ids.js'
-import { runWithAgentContext, type SubagentContext } from '../../../crew/agents/agentContext.js'
+import { runWithCrewmateContext, type CrewmateContext } from '../../../crew/agents/agentContext.js'
 import { getCwd, runWithCwdOverride, runWithOwnShellCwd } from '../../../platform/files/cwd.js'
 import { logForDebugging } from '../../../platform/logs/debugLog.js'
 import { errorMessage } from '../../../platform/errors/errors.js'
-import { subagentConcurrencyCap } from '../../../crew/agents/agentDefaults.js'
+import { crewmateConcurrencyCap } from '../../../crew/agents/agentDefaults.js'
 import type { CanUseToolFn } from '../../kit/tool.js'
 import { getQuerySourceForAgent } from '../promptCategory.js'
-import { buildAgentLaunchPlan, type AgentLaunchPlan } from '../../../crew/crewmates/agentLaunchPlan.js'
-import { getAgentModel } from '../../../models/catalogue/agentModel.js'
+import { buildCrewmateLaunchPlan, type CrewmateLaunchPlan } from '../../../crew/crewmates/agentLaunchPlan.js'
+import { getCrewmateModel } from '../../../models/catalogue/agentModel.js'
 import { MODEL_LOOKUP_LADDER } from '../../../models/facts/modelLookup.js'
 import { matchReachableModelName, modelNameHeadlessRefusal } from '../../../models/catalogue/modelNameRoad.js'
 import { resolveEngineDispatch, unrecognisedModelWordRefusal } from '../../../crew/crewmates/engineDispatch.js'
 import { describeAgentRuntimeRef } from '../../../models/roads/primaryBackend.js'
 import { getTaskOutputPath } from '../../../engine/task-framework/diskOutput.js'
-import { createAgentWorktree, preflightWorktreeCapability, unlockAgentWorktree } from '../../../platform/git/worktree/worktree.js'
+import { createCrewmateWorktree, preflightWorktreeCapability, unlockCrewmateWorktree } from '../../../platform/git/worktree/worktree.js'
 import { holdToolsUntil, releaseToolHold } from '../run/worktreeReadiness.js'
 import { crewWorktreeLeftoverOf, noteCrewWorktreeLeftover } from '../../../crew/crewmates/crewWorktreeReminder.js'
 import { createUserMessage } from '../../../engine/messages/messages.js'
 import { BASH_TOOL_NAME } from '../../kit/names/bash.js'
 import { READ_TOOL_NAME } from '../../kit/names/fileRead.js'
 import { recordCrewStart } from '../../../crew/crew-start/crewStart.js'
-import { runForegroundAgentExecution, type ForegroundAgentMetadata } from '../foregroundExecution.js'
-import { resolveWorkerTools, runAsyncAgentLifecycle } from '../crewmateLifecycle.js'
+import { runForegroundCrewmateExecution, type ForegroundCrewmateMetadata } from '../foregroundExecution.js'
+import { resolveCrewmateTools, runAsyncCrewmateLifecycle } from '../crewmateLifecycle.js'
 import { createSyntheticOutputTool } from '../../structured-output/SyntheticOutputTool.js'
 import { buildFrozenWorktreeNotice } from '../frozenWorktreeNotice.js'
 import { buildWorktreePrepareNotice } from '../worktreePrepareNotice.js'
 import type { AgentDefinition } from '../../../crew/agents/agentDefinition.js'
 import { isBuiltInAgent } from '../../../crew/agents/agentDefinition.js'
-import { runAgent, type RunAgentParams } from '../runCrewmate.js'
+import { runCrewmate, type RunCrewmateParams } from '../runCrewmate.js'
 import { reserveSwarmLaunch, watchSwarmLaunch } from '../../../crew/board/seam.js'
 import { setAgentColor } from '../crewmateColors.js'
 import { subscribeMcpClientsChange } from '../../../screen/app-state/onChangeAppState.js'
 import { withDeadline } from '../../../platform/async/deadline.js'
-import { type Progress, BACKGROUND_TASKS_DISABLED, DEFAULT_AGENT_TYPE, type AgentToolInput, type AgentToolOutput } from './schema.js'
-import { resolveAgentCwd } from './cwd.js'
+import { type Progress, BACKGROUND_TASKS_DISABLED, DEFAULT_AGENT_TYPE, type CrewmateToolInput, type CrewmateToolOutput } from './schema.js'
+import { resolveCrewmateCwd } from './cwd.js'
 import { toolPoolOfTheTable } from '../../kit/toolTable.js'
 
 export function mcpServerNamesWithTools(tools: readonly ToolShape[]): string[] {
@@ -113,10 +113,10 @@ async function waitForRequiredMcpServers(
   }
 }
 
-const CREWMATE_SEAT: MercuryAgentSeat = 'a crewmate'
+const CREWMATE_SEAT: MercuryCrewmateSeat = 'a crewmate'
 
-export async function agentToolCall(
-  input: AgentToolInput,
+export async function crewmateToolCall(
+  input: CrewmateToolInput,
   context: ToolUseContext,
   canUseTool: CanUseToolFn,
   parentAssistantMessage: AssistantMessage,
@@ -136,18 +136,18 @@ export async function agentToolCall(
     throw new Error(`${modelNameHeadlessRefusal(matchedModel, 'model')} ${MODEL_LOOKUP_LADDER}`)
   }
   const modelWord = matchedModel !== null && (matchedModel.kind === 'match' || matchedModel.kind === 'exact') ? matchedModel.id : typedModel
-  const modelParam = modelWord ? getAgentModel(undefined, options.engineModel, modelWord) : modelWord
+  const modelParam = modelWord ? getCrewmateModel(undefined, options.engineModel, modelWord) : modelWord
   const engineDispatch = await resolveEngineDispatch(modelParam)
   if (engineDispatch === null) {
     const unrecognised = unrecognisedModelWordRefusal(modelWord)
     if (unrecognised !== null) throw new Error(unrecognised)
   }
 
-  const cwdParam = input.cwd !== undefined ? resolveAgentCwd(input.cwd, context.getAppState().toolPermissionContext, { admit: true }) : undefined
+  const cwdParam = input.cwd !== undefined ? resolveCrewmateCwd(input.cwd, context.getAppState().toolPermissionContext, { admit: true }) : undefined
 
   const activeAgents = options.agentDefinitions?.activeAgents ?? []
   const allowedAgentTypes = options.agentDefinitions?.allowedAgentTypes
-  const plan = buildAgentLaunchPlan({
+  const plan = buildCrewmateLaunchPlan({
     requestedType: input.crewmate_type,
     activeAgents,
     allowedAgentTypes,
@@ -173,8 +173,8 @@ export async function agentToolCall(
   })
   const agentDef = plan.definition
 
-  const fanout = subagentConcurrencyCap(agentFanoutCap())
-  const runningAgents = getRunningTasks(context.getAppState()).filter(isLocalAgentTask).length
+  const fanout = crewmateConcurrencyCap(crewmateFanoutCap())
+  const runningAgents = getRunningTasks(context.getAppState()).filter(isCrewmateTask).length
   if (runningAgents >= fanout.cap) {
     const door = fanout.source === 'env' ? 'MERCURY_AGENT_FANOUT_CAP' : 'Crewmates at once in /config'
     throw new Error(
@@ -189,7 +189,7 @@ export async function agentToolCall(
   let promptMessages: Message[] = [createUserMessage({ content: input.prompt })]
   let systemPromptOverride: string[] | undefined
 
-  const workerTools = resolveWorkerTools(
+  const workerTools = resolveCrewmateTools(
         agentDef,
         plan.workerPermissionMode,
         toolPoolOfTheTable(
@@ -232,7 +232,7 @@ export async function agentToolCall(
       )
       systemPromptOverride = built.prompt
       if (built.memoryLoadError !== undefined) {
-        memoryLoadNote = subagentMemoryLoadNote(built.memoryLoadError)
+        memoryLoadNote = crewmateMemoryLoadNote(built.memoryLoadError)
       }
     } catch (error) {
       logForDebugging(
@@ -241,10 +241,10 @@ export async function agentToolCall(
     }
   }
   let worktreeInfo:
-    | Awaited<ReturnType<typeof createAgentWorktree>>
+    | Awaited<ReturnType<typeof createCrewmateWorktree>>
     | undefined
   if (plan.isolation === 'worktree') {
-    worktreeInfo = await createAgentWorktree(`agent-${earlyAgentId.slice(0, 8)}`, {
+    worktreeInfo = await createCrewmateWorktree(`agent-${earlyAgentId.slice(0, 8)}`, {
       ...(input.worktree_at !== undefined ? { at: input.worktree_at } : undefined),
       ...(cwdParam !== undefined ? { from: cwdParam } : {}),
       foldersBehindLaunch: true,
@@ -285,7 +285,7 @@ export async function agentToolCall(
     releaseToolHold(earlyAgentId)
     await worktreeInfo.ready
     try {
-      if (worktreeInfo.gitRoot !== undefined) await unlockAgentWorktree(worktreeInfo.worktreePath, worktreeInfo.gitRoot)
+      if (worktreeInfo.gitRoot !== undefined) await unlockCrewmateWorktree(worktreeInfo.worktreePath, worktreeInfo.gitRoot)
       const leftover = await crewWorktreeLeftoverOf(
         {
           name: input.name ?? input.description,
@@ -329,9 +329,9 @@ export async function agentToolCall(
 
   const effectiveSystemPromptOverride = cwdOverride ? undefined : systemPromptOverride
 
-  const runAgentParams = runAgentParamsOf({ agentDef, promptMessages, context, canUseTool, plan, querySource, structuredOutputSpec, effectiveSystemPromptOverride, modelForRunLoop, input, workerTools, worktreeInfo, launchDirectory, startTime, earlyAgentId, rootSetAppState })
+  const runAgentParams = runCrewmateParamsOf({ agentDef, promptMessages, context, canUseTool, plan, querySource, structuredOutputSpec, effectiveSystemPromptOverride, modelForRunLoop, input, workerTools, worktreeInfo, launchDirectory, startTime, earlyAgentId, rootSetAppState })
 
-  const agentContext = agentContextOf(earlyAgentId, agentDef, parentAssistantMessage)
+  const agentContext = crewmateContextOf(earlyAgentId, agentDef, parentAssistantMessage)
 
   const launchModelNote = [plan.modelNote, memoryLoadNote].filter(Boolean).join('\n') || undefined
 
@@ -339,7 +339,7 @@ export async function agentToolCall(
     const lifecycle = asyncLifecycleOf({ earlyAgentId, input, rootSetAppState, agentDef, plan, context, runAgentParams, metadata, cleanupWorktreeIfNeeded, canUseTool })
 
     backgroundOwnsEnrollment = true
-    void runWithAgentContext(agentContext, () =>
+    void runWithCrewmateContext(agentContext, () =>
       cwdOverride
         ? runWithCwdOverride(cwdOverride, lifecycle)
         : runWithOwnShellCwd(lifecycle),
@@ -348,9 +348,9 @@ export async function agentToolCall(
     return asyncLaunchAnswerOf(options, earlyAgentId, input, plan, agentDef, launchModelNote)
   }
 
-  const result = await runWithAgentContext(agentContext, () => {
+  const result = await runWithCrewmateContext(agentContext, () => {
     const execute = () =>
-      runForegroundAgentExecution({
+      runForegroundCrewmateExecution({
         runAgentParams,
         promptMessages,
         prompt: input.prompt,
@@ -379,7 +379,7 @@ export async function agentToolCall(
     void result.detached.finally(releaseEnrollment)
   }
   if (memoryLoadNote !== undefined && result.data.status !== 'async_launched') {
-    enqueueAgentReceiptRow({
+    enqueueCrewmateReceiptRow({
       taskId: earlyAgentId,
       description: input.description,
       status: result.data.status === 'failed' ? 'failed' : 'completed',
@@ -392,7 +392,7 @@ export async function agentToolCall(
   }
 }
 
-function structuredOutputSpecOf(input: AgentToolInput, definitionSchema: Record<string, unknown> | undefined) {
+function structuredOutputSpecOf(input: CrewmateToolInput, definitionSchema: Record<string, unknown> | undefined) {
   const schema = input.output_schema ?? definitionSchema
   if (schema === undefined) return undefined
   const bound = createSyntheticOutputTool(schema)
@@ -406,7 +406,7 @@ function structuredOutputSpecOf(input: AgentToolInput, definitionSchema: Record<
   }
 }
 
-function metadataOf(input: AgentToolInput, plan: AgentLaunchPlan, agentDef: AgentDefinition, startTime: number, metadataIsAsync: boolean, structuredOutputSpec: ReturnType<typeof structuredOutputSpecOf>): ForegroundAgentMetadata {
+function metadataOf(input: CrewmateToolInput, plan: CrewmateLaunchPlan, agentDef: AgentDefinition, startTime: number, metadataIsAsync: boolean, structuredOutputSpec: ReturnType<typeof structuredOutputSpecOf>): ForegroundCrewmateMetadata {
   return {
     prompt: input.prompt,
     resolvedAgentModel: plan.model,
@@ -420,12 +420,12 @@ function metadataOf(input: AgentToolInput, plan: AgentLaunchPlan, agentDef: Agen
   }
 }
 
-function runAgentParamsOf({ agentDef, promptMessages, context, canUseTool, plan, querySource, structuredOutputSpec, effectiveSystemPromptOverride, modelForRunLoop, input, workerTools, worktreeInfo, launchDirectory, startTime, earlyAgentId, rootSetAppState }: {
-  agentDef: AgentDefinition; promptMessages: Message[]; context: ToolUseContext; canUseTool: CanUseToolFn; plan: AgentLaunchPlan; querySource: ReturnType<typeof getQuerySourceForAgent>
-  structuredOutputSpec: ReturnType<typeof structuredOutputSpecOf>; effectiveSystemPromptOverride: string[] | undefined; modelForRunLoop: string | undefined; input: AgentToolInput
-  workerTools: ReturnType<typeof resolveWorkerTools>; worktreeInfo: Awaited<ReturnType<typeof createAgentWorktree>> | undefined; launchDirectory: string | undefined
+function runCrewmateParamsOf({ agentDef, promptMessages, context, canUseTool, plan, querySource, structuredOutputSpec, effectiveSystemPromptOverride, modelForRunLoop, input, workerTools, worktreeInfo, launchDirectory, startTime, earlyAgentId, rootSetAppState }: {
+  agentDef: AgentDefinition; promptMessages: Message[]; context: ToolUseContext; canUseTool: CanUseToolFn; plan: CrewmateLaunchPlan; querySource: ReturnType<typeof getQuerySourceForAgent>
+  structuredOutputSpec: ReturnType<typeof structuredOutputSpecOf>; effectiveSystemPromptOverride: string[] | undefined; modelForRunLoop: string | undefined; input: CrewmateToolInput
+  workerTools: ReturnType<typeof resolveCrewmateTools>; worktreeInfo: Awaited<ReturnType<typeof createCrewmateWorktree>> | undefined; launchDirectory: string | undefined
   startTime: number; earlyAgentId: AgentId; rootSetAppState: ToolUseContext['setAppState']
-}): RunAgentParams {
+}): RunCrewmateParams {
   return {
     agentDefinition: agentDef,
     seat: CREWMATE_SEAT,
@@ -451,12 +451,12 @@ function runAgentParamsOf({ agentDef, promptMessages, context, canUseTool, plan,
     ...(input.team ? { team: input.team } : {}),
     ...(input.captain !== undefined ? { captain: input.captain } : {}),
     launchedAt: startTime,
-    onWait: line => setAgentWaitLine(earlyAgentId, line, rootSetAppState),
-    onPendingAsks: count => setAgentPendingAsks(earlyAgentId, count, rootSetAppState),
+    onWait: line => setCrewmateWaitLine(earlyAgentId, line, rootSetAppState),
+    onPendingAsks: count => setCrewmatePendingAsks(earlyAgentId, count, rootSetAppState),
   }
 }
 
-function agentContextOf(earlyAgentId: AgentId, agentDef: AgentDefinition, parentAssistantMessage: AssistantMessage): SubagentContext {
+function crewmateContextOf(earlyAgentId: AgentId, agentDef: AgentDefinition, parentAssistantMessage: AssistantMessage): CrewmateContext {
   return {
     agentType: 'subagent',
     agentId: earlyAgentId,
@@ -469,10 +469,10 @@ function agentContextOf(earlyAgentId: AgentId, agentDef: AgentDefinition, parent
 }
 
 function asyncLifecycleOf({ earlyAgentId, input, rootSetAppState, agentDef, plan, context, runAgentParams, metadata, cleanupWorktreeIfNeeded, canUseTool }: {
-  earlyAgentId: AgentId; input: AgentToolInput; rootSetAppState: ToolUseContext['setAppState']; agentDef: AgentDefinition; plan: AgentLaunchPlan; context: ToolUseContext
-  runAgentParams: RunAgentParams; metadata: ForegroundAgentMetadata; cleanupWorktreeIfNeeded: () => Promise<{ worktreePath?: string; worktreeBranch?: string }>; canUseTool: CanUseToolFn
+  earlyAgentId: AgentId; input: CrewmateToolInput; rootSetAppState: ToolUseContext['setAppState']; agentDef: AgentDefinition; plan: CrewmateLaunchPlan; context: ToolUseContext
+  runAgentParams: RunCrewmateParams; metadata: ForegroundCrewmateMetadata; cleanupWorktreeIfNeeded: () => Promise<{ worktreePath?: string; worktreeBranch?: string }>; canUseTool: CanUseToolFn
 }) {
-  const task = registerAsyncAgent({
+  const task = registerAsyncCrewmate({
     agentId: earlyAgentId,
     description: input.description,
     prompt: input.prompt,
@@ -483,16 +483,16 @@ function asyncLifecycleOf({ earlyAgentId, input, rootSetAppState, agentDef, plan
   })
   watchSwarmLaunch(earlyAgentId, task.abortController!.signal)
 
-  if (input.name) registerAgentName(input.name, earlyAgentId, rootSetAppState)
+  if (input.name) registerCrewmateName(input.name, earlyAgentId, rootSetAppState)
 
-  const enableSummarization = getSdkAgentProgressSummariesEnabled()
+  const enableSummarization = getSdkCrewmateProgressSummariesEnabled()
 
   const lifecycle = () =>
-    runAsyncAgentLifecycle({
+    runAsyncCrewmateLifecycle({
       taskId: earlyAgentId,
       abortController: task.abortController!,
       makeStream: (onCacheSafeParams, onQueryProgress) =>
-        runAgent({
+        runCrewmate({
           ...runAgentParams,
           override: {
             ...runAgentParams.override,
@@ -514,7 +514,7 @@ function asyncLifecycleOf({ earlyAgentId, input, rootSetAppState, agentDef, plan
   return lifecycle
 }
 
-function asyncLaunchAnswerOf(options: ToolUseContext['options'], earlyAgentId: AgentId, input: AgentToolInput, plan: AgentLaunchPlan, agentDef: AgentDefinition, modelNote?: string): { data: AgentToolOutput } {
+function asyncLaunchAnswerOf(options: ToolUseContext['options'], earlyAgentId: AgentId, input: CrewmateToolInput, plan: CrewmateLaunchPlan, agentDef: AgentDefinition, modelNote?: string): { data: CrewmateToolOutput } {
   const canReadOutputFile = options.tools.some(
     tool =>
       toolMatchesName(tool, READ_TOOL_NAME) ||
@@ -545,12 +545,12 @@ async function buildDefaultSystemPrompt(
   childModel: string,
   agentId: AgentId,
   toolNames: ReadonlySet<string>,
-  seat: MercuryAgentSeat,
+  seat: MercuryCrewmateSeat,
 ): Promise<{ prompt: string[]; memoryLoadError?: string }> {
   const ownPrompt = isBuiltInAgent(definition)
     ? definition.getSystemPrompt({ toolUseContext: context })
     : definition.getSystemPrompt()
-  const doctrine = buildSubagentMercurySectionsWithOutcome({
+  const doctrine = buildCrewmateMercurySectionsWithOutcome({
     agentDefinition: definition,
     toolUseContext: context,
     toolNames,

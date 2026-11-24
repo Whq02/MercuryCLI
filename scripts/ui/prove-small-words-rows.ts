@@ -30,7 +30,7 @@ const { getDefaultAppState } = await import(join(ROOT, 'src/screen/app-state/App
 const { enableConfigs } = await import(join(ROOT, 'src/platform/config/globalConfig.ts'))
 enableConfigs()
 const { taskNoticeBlock } = await import(join(ROOT, 'src/engine/message-shapes/noticeRows.ts'))
-const { UserAgentNotificationMessage } = await import(join(ROOT, 'src/screen/messages/UserCrewmateNotificationMessage.tsx'))
+const { UserCrewmateNotificationMessage } = await import(join(ROOT, 'src/screen/messages/UserCrewmateNotificationMessage.tsx'))
 const { UserNoticeMessage } = await import(join(ROOT, 'src/screen/messages/UserNoticeMessage.tsx'))
 const { MessageMetaProvider } = await import(join(ROOT, 'src/screen/messages/TranscriptNameplate.tsx'))
 const { KeybindingSetup } = await import(join(ROOT, 'src/screen/keys/KeybindingProviderSetup.tsx'))
@@ -85,10 +85,10 @@ section(
   const block = taskNoticeBlock(bgNoResult)
   check('a background command without <result> marks its count unknown while keeping its expanded lines', block !== null && block.kind === 'task' && block.count === null && block.lines.length === 3, JSON.stringify(block))
 
-  const folded = await paint(h(UserAgentNotificationMessage as never, { param: { type: 'text', text: bgNoResult }, expanded: false }))
+  const folded = await paint(h(UserCrewmateNotificationMessage as never, { param: { type: 'text', text: bgNoResult }, expanded: false }))
   check('its folded done row shows no line count (· done ›, never · 3 lines ›)', folded.includes('● [Background] sleep 20 && echo bg-done2 · done ›') && !/\b\d+ lines?\b/.test(folded), folded)
 
-  const expanded = await paint(h(UserAgentNotificationMessage as never, { param: { type: 'text', text: bgNoResult }, expanded: true }))
+  const expanded = await paint(h(UserCrewmateNotificationMessage as never, { param: { type: 'text', text: bgNoResult }, expanded: true }))
   check('its expanded done row keeps the details without inventing a count', expanded.includes('● [Background] sleep 20 && echo bg-done2 · done ⌄') && expanded.includes('/tmp/bjta8d78f.output') && !/\b\d+ lines?\b/.test(expanded), expanded)
 
   const bgWithResult = `<task-notification>
@@ -99,7 +99,7 @@ section(
 <summary>Background command "echo bg-done2" completed (exit code 0)</summary>
 <result>bg-done2</result>
 </task-notification>`
-  const withResult = await paint(h(UserAgentNotificationMessage as never, { param: { type: 'text', text: bgWithResult }, expanded: false }))
+  const withResult = await paint(h(UserCrewmateNotificationMessage as never, { param: { type: 'text', text: bgWithResult }, expanded: false }))
   check('a background command whose notice already carries <result> shows the output line count', withResult.includes('● [Background] echo bg-done2 · done · 1 line ›'), withResult)
 
   const crewmateNotice = `<task-notification>
@@ -107,7 +107,7 @@ section(
 <status>completed</status>
 <summary>Agent "the errand" completed</summary>
 </task-notification>`
-  const crew = await paint(h(UserAgentNotificationMessage as never, { param: { type: 'text', text: crewmateNotice }, expanded: false }))
+  const crew = await paint(h(UserCrewmateNotificationMessage as never, { param: { type: 'text', text: crewmateNotice }, expanded: false }))
   check('a crewmate notice keeps its count', crew.includes('● [Crewmate] the errand · completed · 1 line ›'), crew)
 
   const plain = await paint(h(UserNoticeMessage as never, { blocks: [{ kind: 'notice', lines: ['first', 'second'] }], fold: true }))

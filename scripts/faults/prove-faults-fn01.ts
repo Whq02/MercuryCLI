@@ -146,7 +146,7 @@ else {
     } finally {
       fs.chmodSync(unreadableTranscript, 0o600)
     }
-    const { AGENT_TOOL_NAME } = await import(${JSON.stringify(join(SRC, 'tools/kit/names/agent.ts'))})
+    const { CREWMATE_TOOL_NAME } = await import(${JSON.stringify(join(SRC, 'tools/kit/names/agent.ts'))})
     const { BACKGROUND_LAUNCH_LINE } = await import(${JSON.stringify(join(SRC, 'engine/tasks/local-agent/launchReceipts.ts'))})
     const agent1 = 'a12345678'
     const agent2 = 'b87654321'
@@ -158,8 +158,8 @@ else {
         message: {
           role: 'assistant',
           content: [
-            { type: 'tool_use', id: 'toolu_1', name: AGENT_TOOL_NAME, input: { description: 'worker1', prompt: 'go1' } },
-            { type: 'tool_use', id: 'toolu_2', name: AGENT_TOOL_NAME, input: { description: 'worker2', prompt: 'go2' } },
+            { type: 'tool_use', id: 'toolu_1', name: CREWMATE_TOOL_NAME, input: { description: 'worker1', prompt: 'go1' } },
+            { type: 'tool_use', id: 'toolu_2', name: CREWMATE_TOOL_NAME, input: { description: 'worker2', prompt: 'go2' } },
           ],
         },
       },
@@ -181,8 +181,8 @@ else {
     const okDir = path.join(HOME, 'ok-worktree')
     fs.mkdirSync(childDir, { recursive: true })
     fs.mkdirSync(okDir, { recursive: true })
-    await paths.writeAgentMetadata(agent1, { agentType: 'general', worktreePath: childDir })
-    await paths.writeAgentMetadata(agent2, { agentType: 'general', worktreePath: okDir })
+    await paths.writeCrewmateMetadata(agent1, { agentType: 'general', worktreePath: childDir })
+    await paths.writeCrewmateMetadata(agent2, { agentType: 'general', worktreePath: okDir })
     fs.chmodSync(parentDir, 0o000)
     try {
       const res = await carry.carryRunnerAcrossRestart(basePorts(absentPath, twoAgents))
@@ -193,7 +193,7 @@ else {
       fs.chmodSync(parentDir, 0o700)
     }
     relaunchedIds.length = 0
-    await paths.writeAgentMetadata(agent1, { agentType: 'general', worktreePath: path.join(HOME, 'no-such-folder') })
+    await paths.writeCrewmateMetadata(agent1, { agentType: 'general', worktreePath: path.join(HOME, 'no-such-folder') })
     out.absentFolder = await carry.carryRunnerAcrossRestart(basePorts(absentPath, twoAgents.map(m => ({ ...m }))))
     out.absentFolderTried = [...relaunchedIds]
   `)

@@ -39,8 +39,8 @@ add('getProjectsDir', 'shape', () => neutral(S.getProjectsDir()))
 add('getTranscriptPathForSession', 'shape', () =>
   neutral(atParityCwd(() => S.getTranscriptPathForSession('00000000-0000-4000-8000-00000000abcd'))),
 )
-add('getAgentTranscriptPath', 'shape', () =>
-  neutral(atParityCwd(() => S.getAgentTranscriptPath('agent-fixture-1' as never))),
+add('getCrewmateTranscriptPath', 'shape', () =>
+  neutral(atParityCwd(() => S.getCrewmateTranscriptPath('agent-fixture-1' as never))),
 )
 add('sessionIdExists', 'absent', () =>
   S.sessionIdExists('00000000-0000-4000-8000-00000000dead'),
@@ -148,12 +148,12 @@ add('isLiteListing', 'lite-vs-full', () =>
 const IO = 'filesystem/session-state IO — pinned by the standing resume/forensics suites; gains fixture cases as the R5 extraction reaches its family'
 const SKIPPED: Record<string, string> = Object.fromEntries(
   [
-    'writeAgentMetadata', 'readAgentMetadata', 'writeRemoteAgentMetadata', 'readRemoteAgentMetadata',
+    'writeCrewmateMetadata', 'readCrewmateMetadata', 'writeRemoteAgentMetadata', 'readRemoteAgentMetadata',
     'deleteRemoteAgentMetadata', 'listRemoteAgentMetadata',
     'getTranscriptPath', 'resetProjectFlushStateForTesting',
     'resetProjectForTesting', 'setSessionFileForTesting', 'recordTranscript',
     'recordSidechainTranscript', 'recordQueueOperation', 'removeTranscriptMessage',
-    'registerAgentTranscriptDestination',
+    'registerCrewmateTranscriptDestination',
     'transcriptCensus',
     'recordFileHistorySnapshot', 'recordAttributionSnapshot', 'recordContentReplacement',
     'resetSessionFilePointer', 'adoptResumedSessionFile', 'recordContextCollapseCommit',
@@ -167,8 +167,8 @@ const SKIPPED: Record<string, string> = Object.fromEntries(
     'searchSessionsByCustomTitle', 'loadTranscriptFile', 'clearSessionMessagesCache',
     'doesMessageExistInSession', 'lastSession', 'listProjectSessions', 'listSessionsAcrossProjects',
     'listSessionsAcrossProjectsProgressive', 'listRepoSessions',
-    'listRepoSessionsProgressive', 'getAgentTranscript', 'loadSubagentTranscripts',
-    'loadAllSubagentTranscriptsFromDisk', 'sessionAtIndex', 'findUnresolvedToolUse',
+    'listRepoSessionsProgressive', 'getCrewmateTranscript', 'loadCrewmateTranscripts',
+    'loadAllCrewmateTranscriptsFromDisk', 'sessionAtIndex', 'findUnresolvedToolUse',
     'sessionFilesWithMtime', 'listingsOfSessionFile', 'sessionFilesLite', 'enrichSessionListings',
   ].map(k => [k, IO]),
 )

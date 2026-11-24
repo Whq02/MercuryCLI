@@ -4,9 +4,9 @@ import { BASH_TOOL_NAME } from '../kit/names/bash.js'
 import { ENTER_WORKTREE_TOOL_NAME } from '../enter-worktree/constants.js'
 import { EXIT_WORKTREE_TOOL_NAME } from '../exit-worktree/constants.js'
 import { SEND_MESSAGE_TOOL_NAME } from '../kit/names/sendMessage.js'
-import { RESUME_AGENT_TOOL_NAME } from '../kit/names/resumeAgent.js'
+import { RESUME_CREWMATE_TOOL_NAME } from '../kit/names/resumeAgent.js'
 import { SKILL_TOOL_NAME } from '../kit/names/skill.js'
-import { AGENT_TOOL_NAME, MERCURY_SCOUT_AGENT_TYPE } from '../kit/names/agent.js'
+import { CREWMATE_TOOL_NAME, MERCURY_SCOUT_AGENT_TYPE } from '../kit/names/agent.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
 const SCOUT_SHELL_REFUSAL_TAIL = 'Read-only commands do run here, with pipes, 2>&1 and input redirects (< file) — for example wc, grep, head, tail and sort — and Read, Grep and Glob read files.'
@@ -36,7 +36,7 @@ function scoutShellRefusal(reason: NotReadOnly): string {
 
 export const SCOUT_TOOLS_DESCRIPTION = 'read-only — Read, Glob, Grep, a read-only shell, and every other tool only in the form that reads'
 
-const SCOUT_DENIED_TOOLS: ReadonlySet<string> = new Set([AGENT_TOOL_NAME, SEND_MESSAGE_TOOL_NAME, RESUME_AGENT_TOOL_NAME, ENTER_WORKTREE_TOOL_NAME, EXIT_WORKTREE_TOOL_NAME])
+const SCOUT_DENIED_TOOLS: ReadonlySet<string> = new Set([CREWMATE_TOOL_NAME, SEND_MESSAGE_TOOL_NAME, RESUME_CREWMATE_TOOL_NAME, ENTER_WORKTREE_TOOL_NAME, EXIT_WORKTREE_TOOL_NAME])
 
 function scoutToolRefusal(toolName: string): string {
   return `${MERCURY_SCOUT_AGENT_TYPE} is read-only: ${toolName} would write or change state here, so the call is refused.`

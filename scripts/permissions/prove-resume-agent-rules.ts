@@ -13,7 +13,7 @@ const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool
 const { assembleToolPool } = await import('../../src/tools/kit/toolList.ts')
 const { getDenyRuleForTool, toolAlwaysAllowedRule, getAskRuleForTool } = await import('../../src/permissions/rules/decision/rules.ts')
 const { wholeToolDenyRulesCovering } = await import('../../src/permissions/rules/ruleReason.ts')
-const { resolveAgentTools, filterToolsForAgent } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+const { resolveAgentTools, filterToolsForCrewmate } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
 const { restrictScoutTools } = await import('../../src/tools/crewmate/scoutPolicy.ts')
 let failures = 0
 let checks = 0
@@ -42,7 +42,7 @@ const narrow = names(resolveAgentTools({ ...definition as object, disallowedTool
 check('a definition can deny only the resume', narrow.includes('SendMessage') && !narrow.includes('ResumeCrewmate'))
 const scoped = names(resolveAgentTools({ source: 'projectSettings', tools: ['SendMessage(foo)'] } as never, pool).resolvedTools)
 check('a content-scoped declared entry does not inherit', !scoped.includes('ResumeCrewmate'))
-const background = names(filterToolsForAgent({ tools: pool, isBuiltIn: true }))
+const background = names(filterToolsForCrewmate({ tools: pool, isBuiltIn: true }))
 check('a crewmate (foreground or background, one filter) can hold both verbs', background.includes('SendMessage') && background.includes('ResumeCrewmate'))
 const scout = names(restrictScoutTools(pool))
 check('the scout holds neither verb', !scout.includes('SendMessage') && !scout.includes('ResumeCrewmate'))

@@ -101,9 +101,9 @@ Investigate failures. Starting or queuing is not completion. Name unresolved fai
 
 Provide the result, the checks and any unresolved blockers in direct, concise, plain language. Expand when requested or as needed. Avoid filler and repetition; base the work closely on the available evidence, and when possible, gather that evidence.`
 
-export type MercuryAgentSeat = 'a crewmate'
+export type MercuryCrewmateSeat = 'a crewmate'
 
-export function mercurySubagentContract(seat: MercuryAgentSeat = 'a crewmate'): string {
+export function mercuryCrewmateContract(seat: MercuryCrewmateSeat = 'a crewmate'): string {
   return (
     'You are one of Mercury\'s agents, ' + seat + ', spawned for one assignment, whose caller reads only the output you return, so end on one real result or a clean "blocked", never on a plan, a promise or a question you could answer yourself. ' +
     'Work the assignment to its end in your own scope and keep going while evidence advances the outcome, acting without asking on reversible in-scope work and returning blocked, with what you need named, for any destructive, out-of-scope, shared-state or credential action the caller did not authorise. ' +
@@ -112,7 +112,7 @@ export function mercurySubagentContract(seat: MercuryAgentSeat = 'a crewmate'): 
   )
 }
 
-export const MERCURY_SUBAGENT_CONTRACT: string = mercurySubagentContract()
+export const MERCURY_CREWMATE_CONTRACT: string = mercuryCrewmateContract()
 
 export type PromptLayerSet = 'stock' | 'replace' | 'whole'
 

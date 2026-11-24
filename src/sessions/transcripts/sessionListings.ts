@@ -43,7 +43,7 @@ import {
 } from './chain.js'
 import { loadSessionFile, loadTranscriptFile, type TranscriptFoldState } from './loading.js'
 import {
-  getAgentTranscriptPath,
+  getCrewmateTranscriptPath,
   getProjectDir,
   getProjectsDir,
   getTranscriptPath,
@@ -758,11 +758,11 @@ async function getStatOnlyListingsForWorktrees(
   return numbered(newestPerKey(perDir.flat(), log => log.sessionId))
 }
 
-export async function getAgentTranscript(agentId: AgentId): Promise<{
+export async function getCrewmateTranscript(agentId: AgentId): Promise<{
   messages: Message[]
   contentReplacements: ContentReplacementRecord[]
 } | null> {
-  const agentFile = getAgentTranscriptPath(agentId)
+  const agentFile = getCrewmateTranscriptPath(agentId)
   const { messages, agentContentReplacements } = await loadTranscriptFile(agentFile, { throwOnError: true })
   const own = [...messages.values()].filter(msg => msg.agentId === agentId && msg.isSidechain)
   const parents = new Set(own.map(msg => msg.parentUuid))
@@ -794,9 +794,9 @@ export function extractAgentIdsFromMessages(messages: Message[]): string[] {
   }))
 }
 
-async function subagentMessages(agentId: string): Promise<Message[] | null> {
+async function crewmateMessages(agentId: string): Promise<Message[] | null> {
   try {
-    const transcript = await getAgentTranscript(asAgentId(agentId))
+    const transcript = await getCrewmateTranscript(asAgentId(agentId))
     return transcript && transcript.messages.length > 0 ? transcript.messages : null
   } catch (error) {
     passedOver(error)
@@ -804,14 +804,14 @@ async function subagentMessages(agentId: string): Promise<Message[] | null> {
   }
 }
 
-export async function loadSubagentTranscripts(
+export async function loadCrewmateTranscripts(
   agentIds: string[],
 ): Promise<{ [agentId: string]: Message[] }> {
-  const loaded = await Promise.all(agentIds.map(async agentId => [agentId, await subagentMessages(agentId)] as const))
+  const loaded = await Promise.all(agentIds.map(async agentId => [agentId, await crewmateMessages(agentId)] as const))
   return Object.fromEntries(loaded.filter((entry): entry is readonly [string, Message[]] => entry[1] !== null))
 }
 
-export async function loadAllSubagentTranscriptsFromDisk(): Promise<{
+export async function loadAllCrewmateTranscriptsFromDisk(): Promise<{
   [agentId: string]: Message[]
 }> {
   const subagentsDir = join(
@@ -830,7 +830,7 @@ export async function loadAllSubagentTranscriptsFromDisk(): Promise<{
     const agentId = entry.isFile() ? /^agent-(.*)\.jsonl$/.exec(entry.name)?.[1] : undefined
     return agentId === undefined ? [] : [agentId]
   })
-  return loadSubagentTranscripts(agentIds)
+  return loadCrewmateTranscripts(agentIds)
 }
 
 export async function sessionAtIndex(index: number): Promise<SessionListing | null> {

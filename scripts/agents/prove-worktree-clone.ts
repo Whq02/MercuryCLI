@@ -23,7 +23,7 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 const state = await import('../../src/boot/process-state/processState.ts')
 const config = await import('../../src/platform/config/globalConfig.ts')
 const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
-const { createAgentWorktree, createWorktreeForSession, keepWorktree, prepareWorktreeFiles, readWorktreeDelta } = await import('../../src/platform/git/worktree/worktree.ts')
+const { createCrewmateWorktree, createWorktreeForSession, keepWorktree, prepareWorktreeFiles, readWorktreeDelta } = await import('../../src/platform/git/worktree/worktree.ts')
 const cloneModule = await import('../../src/platform/git/worktree/worktreeClone.ts').catch(() => null)
 const { getFlagSpec } = await import('../../src/platform/substrate/flagRegistry.ts')
 
@@ -128,7 +128,7 @@ const parentListingBefore = listing(join(deps, 'node_modules'))
 enter(deps)
 state.setIsInteractive(true)
 config.enableConfigs()
-const first = await createAgentWorktree('agent-a1000001')
+const first = await createCrewmateWorktree('agent-a1000001')
 const firstModules = join(first.worktreePath, 'node_modules')
 const firstPack = join(first.worktreePath, 'vendor', 'pack-a')
 if (cloneRoad) {
@@ -171,7 +171,7 @@ const removed = git(deps, 'worktree', 'unlock', first.worktreePath) === '' && gi
 check('an ordinary git worktree remove takes the copy, its cloned folders with it', removed && !existsSync(first.worktreePath))
 
 section('§3 two crewmates at once build in their own folders')
-const [left, right] = await Promise.all([createAgentWorktree('agent-a2000001'), createAgentWorktree('agent-a2000002')])
+const [left, right] = await Promise.all([createCrewmateWorktree('agent-a2000001'), createCrewmateWorktree('agent-a2000002')])
 for (const [lane, word] of [[left, 'left'], [right, 'right']] as const) {
   mkdirSync(join(lane.worktreePath, 'node_modules', '.cache'), { recursive: true })
   writeFileSync(join(lane.worktreePath, 'node_modules', '.cache', 'build-marker'), `${word}\n`)
@@ -243,7 +243,7 @@ if (cloneRoad && cloneModule !== null) {
   }
   enter(big)
   const started = performance.now()
-  const whole = await createAgentWorktree('agent-a3000001')
+  const whole = await createCrewmateWorktree('agent-a3000001')
   const elapsed = performance.now() - started
   console.log(`  the whole copy (git worktree add, the clones, the lock): ${elapsed.toFixed(0)} ms`)
   check('the whole copy holds the ten thousand files as its own', isOwnDirectory(join(whole.worktreePath, 'node_modules')) && JSON.stringify(listing(join(whole.worktreePath, 'node_modules'))) === JSON.stringify(bigListing))
@@ -254,7 +254,7 @@ if (cloneRoad && cloneModule !== null) {
 
 section('§5 MERCURY_WORKTREE_CLONE=off reads as a volume that cannot clone: the links, as before')
 process.env.MERCURY_WORKTREE_CLONE = 'off'
-const linked = await createAgentWorktree('agent-a4000001')
+const linked = await createCrewmateWorktree('agent-a4000001')
 delete process.env.MERCURY_WORKTREE_CLONE
 const tracked = git(deps, 'ls-files').split('\n')
 const expected = [
@@ -292,7 +292,7 @@ if (volumeClones(scratch) && process.platform !== 'win32' && cloneModule !== nul
   execFileSync('mkfifo', [join(special, 'node_modules', 'pkg-0', 'a-pipe')])
   const specialListing = listing(join(special, 'node_modules')).filter(row => !row.startsWith('pkg-0/a-pipe'))
   process.env.MERCURY_WORKTREE_CLONE = 'files'
-  const byFile = await createAgentWorktree('agent-a8000001', { from: special })
+  const byFile = await createCrewmateWorktree('agent-a8000001', { from: special })
   const byFileModules = join(byFile.worktreePath, 'node_modules')
   check('node_modules and the pack are directories of the copy', isOwnDirectory(byFileModules) && isOwnDirectory(join(byFile.worktreePath, 'vendor', 'pack-a')), read(byFileModules))
   check('every file and folder is there, name for name and size for size, the pipe passed over', JSON.stringify(listing(byFileModules)) === JSON.stringify(specialListing), `${listing(byFileModules).length} against ${specialListing.length}`)
@@ -321,7 +321,7 @@ if (volumeClones(scratch) && process.platform !== 'win32' && cloneModule !== nul
   mkdirSync(join(sealedByFile, 'node_modules', 'sealed'))
   writeFileSync(join(sealedByFile, 'node_modules', 'sealed', 'inside'), 'x\n')
   chmodSync(join(sealedByFile, 'node_modules', 'sealed'), 0o000)
-  const afterFileFailure = await createAgentWorktree('agent-a8000002', { from: sealedByFile })
+  const afterFileFailure = await createCrewmateWorktree('agent-a8000002', { from: sealedByFile })
   chmodSync(join(sealedByFile, 'node_modules', 'sealed'), 0o755)
   if (process.getuid?.() !== 0) check('a folder the walk cannot read whole is linked as before, with no half copy left', isLinkTo(join(afterFileFailure.worktreePath, 'node_modules'), join(sealedByFile, 'node_modules')) && isOwnDirectory(join(afterFileFailure.worktreePath, 'vendor', 'pack-a')))
   else skip('this user reads every folder: nothing to fail')
@@ -329,7 +329,7 @@ if (volumeClones(scratch) && process.platform !== 'win32' && cloneModule !== nul
 } else {
   skip("the proof's runtime cannot force a clone of one file here: the file-by-file road answers that it cannot, and the links stand as in §5")
   process.env.MERCURY_WORKTREE_CLONE = 'files'
-  const refusedByFile = await createAgentWorktree('agent-a8000001')
+  const refusedByFile = await createCrewmateWorktree('agent-a8000001')
   delete process.env.MERCURY_WORKTREE_CLONE
   check(links ? 'the file-by-file road on a volume that cannot reflink leaves the links, as before' : 'the file-by-file road on a volume that cannot reflink leaves the folders this account gets in place of the links', placedAs(join(refusedByFile.worktreePath, 'node_modules'), join(deps, 'node_modules')) && placedAs(join(refusedByFile.worktreePath, 'vendor', 'pack-a'), join(deps, 'vendor', 'pack-a')))
 }
@@ -360,8 +360,8 @@ if (volumeClones(scratch) && process.platform !== 'win32' && cloneModule !== nul
   const byCpListing = listing(join(byCpFixture, 'node_modules'))
   process.env.MERCURY_WORKTREE_CLONE = 'cp'
   process.env.PATH = `${join(shims, 'taking')}:${pathBefore}`
-  const takenOne = await createAgentWorktree('agent-a9000001', { from: byCpFixture })
-  const takenTwo = await createAgentWorktree('agent-a9000002', { from: byCpFixture })
+  const takenOne = await createCrewmateWorktree('agent-a9000001', { from: byCpFixture })
+  const takenTwo = await createCrewmateWorktree('agent-a9000002', { from: byCpFixture })
   const afterTaking = askedLines()
   check('the machine\'s cp is asked once whether it takes the flag, however many copies are made', afterTaking.filter(line => line === '--reflink=always --version').length === 1, afterTaking.join(' | '))
   const cloneCalls = afterTaking.filter(line => line.startsWith('-a --reflink=always -T -- ')).map(line => line.slice('-a --reflink=always -T -- '.length))
@@ -373,11 +373,11 @@ if (volumeClones(scratch) && process.platform !== 'win32' && cloneModule !== nul
   writeFileSync(join(takenOne.worktreePath, 'node_modules', 'pkg-0', 'index.js'), 'module.exports = "copy"\n')
   check('a write in the copy does not appear in the checkout or in the other copy', read(join(byCpFixture, 'node_modules', 'pkg-0', 'index.js')) === 'module.exports = "parent"\n' && read(join(takenTwo.worktreePath, 'node_modules', 'pkg-0', 'index.js')) === 'module.exports = "parent"\n')
   process.env.PATH = `${join(shims, 'failing')}:${pathBefore}`
-  const afterCpFailure = await createAgentWorktree('agent-a9000003', { from: byCpFixture })
+  const afterCpFailure = await createCrewmateWorktree('agent-a9000003', { from: byCpFixture })
   check('a cp that fails leaves the link exactly as a failed walk does, with no half copy', isLinkTo(join(afterCpFailure.worktreePath, 'node_modules'), join(byCpFixture, 'node_modules')) && isLinkTo(join(afterCpFailure.worktreePath, 'vendor', 'pack-a'), join(byCpFixture, 'vendor', 'pack-a')) && afterCpFailure.prepareFailure === undefined)
   rmSync(asked, { force: true })
   process.env.PATH = `${join(shims, 'refusing')}:${pathBefore}`
-  const withoutFlag = await createAgentWorktree('agent-a9000004', { from: byCpFixture })
+  const withoutFlag = await createCrewmateWorktree('agent-a9000004', { from: byCpFixture })
   check('a cp that does not take the flag is asked once and never called: the walk takes the folder', isOwnDirectory(join(withoutFlag.worktreePath, 'node_modules')) && askedLines().join(' | ') === '--reflink=always --version', askedLines().join(' | '))
   process.env.PATH = pathBefore
   delete process.env.MERCURY_WORKTREE_CLONE
@@ -396,7 +396,7 @@ if (process.platform === 'linux' && cloneRoad) {
       return false
     }
   })()
-  const byRealCp = await createAgentWorktree('agent-a9000005', { from: paired })
+  const byRealCp = await createCrewmateWorktree('agent-a9000005', { from: paired })
   const firstName = statSync(join(byRealCp.worktreePath, 'node_modules', 'pkg-0', 'index.js'))
   const secondName = statSync(join(byRealCp.worktreePath, 'node_modules', 'pkg-0', 'second-name.js'))
   if (realCpTakes) check('with no seam, on this Linux filesystem, the folder is taken by the machine\'s own cp: two names of one file in the checkout are two names of one file in the copy, and not the checkout\'s file', firstName.ino === secondName.ino && firstName.ino !== statSync(join(paired, 'node_modules', 'pkg-0', 'index.js')).ino, `${firstName.ino} ${secondName.ino}`)
@@ -409,7 +409,7 @@ section('§6 what is linked by the user\'s word, what is left alone, what a link
 mkdirSync(join(deps, '.mercury'), { recursive: true })
 writeFileSync(join(deps, '.mercury', 'settings.json'), JSON.stringify({ workspace: { worktree: { symlinkDirectories: ['node_modules/'] } } }))
 resetSettingsCache()
-const overridden = await createAgentWorktree('agent-a5000001')
+const overridden = await createCrewmateWorktree('agent-a5000001')
 check(links ? 'a dependency folder named in workspace.worktree.symlinkDirectories stays a link' : 'a dependency folder named in workspace.worktree.symlinkDirectories is the folder this account gets in place of the link', placedAs(join(overridden.worktreePath, 'node_modules'), join(deps, 'node_modules')))
 check('…while the pack beside it is cloned where the volume clones', cloneRoad ? isOwnDirectory(join(overridden.worktreePath, 'vendor', 'pack-a')) : placedAs(join(overridden.worktreePath, 'vendor', 'pack-a'), join(deps, 'vendor', 'pack-a')))
 rmSync(join(deps, '.mercury', 'settings.json'))
@@ -427,13 +427,13 @@ if (links) {
   symlinkSync(elsewhere, join(viaLink, 'node_modules'))
   writeFileSync(join(viaLink, '.gitignore'), 'node_modules\nvendor/*/\nkept-modules/\n')
   git(viaLink, 'commit', '-q', '-am', 'the dependency folder may be a link')
-  const fromLink = await createAgentWorktree('agent-a6000001', { from: viaLink })
+  const fromLink = await createCrewmateWorktree('agent-a6000001', { from: viaLink })
   check('a dependency folder that is a link out of the checkout stays a link through it: no file from outside the checkout enters the copy', lstatSync(join(fromLink.worktreePath, 'node_modules')).isSymbolicLink() && realpathSync(join(fromLink.worktreePath, 'node_modules')) === realpathSync(elsewhere))
   check('…while the pack inside the checkout is cloned where the volume clones', cloneRoad ? isOwnDirectory(join(fromLink.worktreePath, 'vendor', 'pack-a')) : isLinkTo(join(fromLink.worktreePath, 'vendor', 'pack-a'), join(viaLink, 'vendor', 'pack-a')))
   rmSync(join(viaLink, 'node_modules'))
   execFileSync('mv', [elsewhere, join(viaLink, 'kept-modules')])
   symlinkSync('kept-modules', join(viaLink, 'node_modules'))
-  const fromInnerLink = await createAgentWorktree('agent-a6000002', { from: viaLink })
+  const fromInnerLink = await createCrewmateWorktree('agent-a6000002', { from: viaLink })
   if (cloneRoad) {
     check('a dependency folder that is a link to a folder inside the checkout is cloned from that folder', isOwnDirectory(join(fromInnerLink.worktreePath, 'node_modules')) && read(join(fromInnerLink.worktreePath, 'node_modules', 'pkg-0', 'index.js')) === 'module.exports = "parent"\n')
     writeFileSync(join(fromInnerLink.worktreePath, 'node_modules', 'pkg-0', 'index.js'), 'module.exports = "copy"\n')
@@ -448,7 +448,7 @@ makeCheckout(unreadable, 40)
 mkdirSync(join(unreadable, 'node_modules', 'sealed'))
 writeFileSync(join(unreadable, 'node_modules', 'sealed', 'inside'), 'x\n')
 chmodSync(join(unreadable, 'node_modules', 'sealed'), 0o000)
-const afterFailure = await createAgentWorktree('agent-a7000001', { from: unreadable })
+const afterFailure = await createCrewmateWorktree('agent-a7000001', { from: unreadable })
 chmodSync(join(unreadable, 'node_modules', 'sealed'), 0o755)
 if (cloneRoad && process.getuid?.() !== 0) {
   check('a folder the clone cannot read whole is linked as before, with no half copy left', isLinkTo(join(afterFailure.worktreePath, 'node_modules'), join(unreadable, 'node_modules')))

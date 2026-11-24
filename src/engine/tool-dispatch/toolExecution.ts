@@ -8,7 +8,7 @@ import type {
 } from '../../tools/kit/tool.js'
 import { closestToolByName, findToolByName, offeredToolNamesClause, toolMatchesName } from '../../tools/kit/tool.js'
 import { BASH_TOOL_NAME } from '../../tools/kit/names/bash.js'
-import { AGENT_TOOL_NAME } from '../../tools/kit/names/agent.js'
+import { CREWMATE_TOOL_NAME } from '../../tools/kit/names/agent.js'
 import { completionIdentity } from '../../crew/agent-results/summaryRoom.js'
 import { addToToolDuration, canAnswerAsks, getSessionId, getSessionKind, getStatsStore } from '../../boot/process-state/processState.js'
 import { guardKeysOf, judgeToolCall } from '../../permissions/guards/guards.js'
@@ -980,7 +980,7 @@ async function buildResultUpdate(blockForEmission: ToolResultBlockParam, { assis
   return {
     message: createUserMessage({
       content: blocks,
-      ...(isSubagent ? tool.name === AGENT_TOOL_NAME && completionIdentity(result!.data) !== null ? { toolUseResult: completionIdentity(result!.data) } : {} : { toolUseResult: result!.data }),
+      ...(isSubagent ? tool.name === CREWMATE_TOOL_NAME && completionIdentity(result!.data) !== null ? { toolUseResult: completionIdentity(result!.data) } : {} : { toolUseResult: result!.data }),
       ...(isSubagent || result!.mcpMeta === undefined
         ? {}
         : { mcpMeta: result!.mcpMeta }),

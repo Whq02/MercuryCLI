@@ -32,7 +32,7 @@ const { SendMessageTool } = await import('../../src/tools/send-message/SendMessa
 const { DESCRIPTION, getPrompt } = await import('../../src/tools/send-message/prompt.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
-const { registerAsyncAgent, registerAgentName } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { registerAsyncCrewmate, registerCrewmateName } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
 const { generateTaskId } = await import('../../src/engine/tasks/taskBase.ts')
 await import('../../src/engine/tasks/tasks.ts')
 const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.ts')
@@ -72,8 +72,8 @@ section('§1 VALIDATION — a plain string is the whole message; no summary is a
 section('§2 DELIVERY — a plain string to a running crewmate of this session is queued for its next tool boundary')
 {
   const id = generateTaskId('local_agent')
-  registerAsyncAgent({ agentId: id, description: 'the researcher', prompt: 'map the auth flow', setAppState: setState as never })
-  registerAgentName('researcher', id, setState as never)
+  registerAsyncCrewmate({ agentId: id, description: 'the researcher', prompt: 'map the auth flow', setAppState: setState as never })
+  registerCrewmateName('researcher', id, setState as never)
   const byName = await call({ to: 'researcher', message: THREE_LINES }, makeContext(), 'req_name')
   check('the message to the name is delivered', byName.data.success === true && /^Delivered to researcher \(id /.test(byName.data.message), byName.data.message)
   const task = state.tasks[id] as { pendingMessages?: unknown[] } | undefined

@@ -156,7 +156,7 @@ export function ladderMentions({
         agentSuggestions.push({
           id: `dm-${name}`,
           displayText: `@${name}`,
-          description: describeAgent(state, name),
+          description: describeCrewmate(state, name),
         })
       }
     }
@@ -377,7 +377,7 @@ export function ladderPaths({
   }
 }
 
-function describeAgent(
+function describeCrewmate(
   state: ReturnType<AppStateStore['getState']>,
   name: string,
 ): string {

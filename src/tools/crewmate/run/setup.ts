@@ -1,13 +1,13 @@
 import { ASK_ADVISOR_TOOL_NAME } from '../../ask-advisor/constants.js'
 import { COMPUTER_TOOL_NAME } from '../../../integrations/desktop/toolName.js'
 import type { InstructionProfile } from '../../../sessions/instruction-contracts/contracts.js'
-import { createSubagentContext } from '../../../crew/agents/forkedAgent.js'
+import { createChildContext } from '../../../crew/agents/forkedAgent.js'
 import { claimDiagnosticsRoot } from '../../../integrations/lsp/LSPDiagnosticRegistry.js'
 import { processOwnerForLane } from '../../../engine/run-owner/resolveOwner.js'
 import type { AgentId } from '../../../sessions/transcripts/ids.js'
 import type { Tool, ToolUseContext, Tools } from '../../kit/tool.js'
 import type { MCPServerConnection } from '../../../integrations/mcp-shapes/mcpServerRecords.js'
-import { subagentDefaultEffort } from '../../../crew/agents/agentDefaults.js'
+import { crewmateDefaultEffort } from '../../../crew/agents/agentDefaults.js'
 import { createFileStateCacheWithSizeLimit } from '../../../platform/files/fileStateCache.js'
 import { logForDebugging } from '../../../platform/logs/debugLog.js'
 import { createSyntheticOutputTool } from '../../structured-output/SyntheticOutputTool.js'
@@ -17,14 +17,14 @@ import { swarmBrief } from '../../../crew/board/seam.js'
 import { type ThinkingConfig, sessionThinkingConfig } from '../../../models/effort/thinking.js'
 import { restrictReviewerTools } from '../reviewerPolicy.js'
 import { restrictScoutTools } from '../scoutPolicy.js'
-import { composeAgentAppState, definitionModeWithinConsent, resolveAgentPromptPosture } from '../agentPermissionPosture.js'
-import type { resolveAgentEffort, RunAgentParams } from '../runCrewmate.js'
+import { composeCrewmateAppState, definitionModeWithinConsent, resolveCrewmatePromptPosture } from '../agentPermissionPosture.js'
+import type { resolveCrewmateEffort, RunCrewmateParams } from '../runCrewmate.js'
 
-type PostureNeeds = Pick<RunAgentParams, 'toolUseContext' | 'agentDefinition' | 'isAsync' | 'canShowPermissionPrompts' | 'allowedTools' | 'effortOverride' | 'useExactTools'> & {
-  resolveAgentEffort: typeof resolveAgentEffort
+type PostureNeeds = Pick<RunCrewmateParams, 'toolUseContext' | 'agentDefinition' | 'isAsync' | 'canShowPermissionPrompts' | 'allowedTools' | 'effortOverride' | 'useExactTools'> & {
+  resolveAgentEffort: typeof resolveCrewmateEffort
 }
 
-export function agentPostureOf({ toolUseContext, agentDefinition, isAsync, canShowPermissionPrompts, allowedTools, effortOverride, useExactTools, resolveAgentEffort }: PostureNeeds) {
+export function crewmatePostureOf({ toolUseContext, agentDefinition, isAsync, canShowPermissionPrompts, allowedTools, effortOverride, useExactTools, resolveAgentEffort }: PostureNeeds) {
   const parentGetAppState = toolUseContext.getAppState
   const definitionMode = agentDefinition.permissionMode as
     | PermissionMode
@@ -39,7 +39,7 @@ export function agentPostureOf({ toolUseContext, agentDefinition, isAsync, canSh
       `runAgent: ${agentDefinition.agentType} declares permissionMode ${definitionMode} — Sovereign Mode requires launching with --sovereign; the agent keeps the session's posture`,
     )
   }
-  const posture = resolveAgentPromptPosture({
+  const posture = resolveCrewmatePromptPosture({
     isAsync,
     canShowPermissionPrompts,
     definitionMode,
@@ -52,7 +52,7 @@ export function agentPostureOf({ toolUseContext, agentDefinition, isAsync, canSh
   const avoidPrompts = posture.avoidPrompts
   const agentGetAppState: typeof parentGetAppState = () => {
     const state = parentGetAppState()
-    return composeAgentAppState(state, {
+    return composeCrewmateAppState(state, {
       definitionMode,
       definitionTools: agentDefinition,
       avoidPrompts,
@@ -62,21 +62,21 @@ export function agentPostureOf({ toolUseContext, agentDefinition, isAsync, canSh
         effortOverride,
         useExactTools,
         definitionEffort: agentDefinition.effort,
-        defaultEffort: subagentDefaultEffort(),
+        defaultEffort: crewmateDefaultEffort(),
       }),
     })
   }
   return { posture, agentGetAppState }
 }
 
-type ToolsNeeds = Pick<RunAgentParams, 'availableTools' | 'structuredOutputSpec' | 'worktreePath'> & {
+type ToolsNeeds = Pick<RunCrewmateParams, 'availableTools' | 'structuredOutputSpec' | 'worktreePath'> & {
   swarm: boolean
   mcp: { tools: Tool[] }
   reviewReceipt: string | undefined
   readOnlyScout: boolean
 }
 
-export function agentToolsOf({ availableTools, swarm, mcp, structuredOutputSpec, reviewReceipt, worktreePath, readOnlyScout }: ToolsNeeds): Tools {
+export function crewmateToolsOf({ availableTools, swarm, mcp, structuredOutputSpec, reviewReceipt, worktreePath, readOnlyScout }: ToolsNeeds): Tools {
   let tools: Tools = availableTools
     .filter(tool => tool.name !== COMPUTER_TOOL_NAME && (swarm || tool.name !== 'CrewBoard'))
     .map(tool => tool.name === 'CrewBoard' ? { ...tool, alwaysLoad: true } : tool)
@@ -108,8 +108,8 @@ export function agentToolsOf({ availableTools, swarm, mcp, structuredOutputSpec,
   return tools
 }
 
-type ChildContextNeeds = Pick<RunAgentParams, 'toolUseContext' | 'thinkingConfigOverride' | 'agentDefinition' | 'isAsync' | 'querySource' | 'contentReplacementState' | 'worktreePath' | 'seatHolder' | 'description' | 'onWait' | 'preserveToolUseResults'> & {
-  posture: ReturnType<typeof resolveAgentPromptPosture>
+type ChildContextNeeds = Pick<RunCrewmateParams, 'toolUseContext' | 'thinkingConfigOverride' | 'agentDefinition' | 'isAsync' | 'querySource' | 'contentReplacementState' | 'worktreePath' | 'seatHolder' | 'description' | 'onWait' | 'preserveToolUseResults'> & {
+  posture: ReturnType<typeof resolveCrewmatePromptPosture>
   agentId: AgentId
   abortController: AbortController
   agentGetAppState: ToolUseContext['getAppState']
@@ -119,7 +119,7 @@ type ChildContextNeeds = Pick<RunAgentParams, 'toolUseContext' | 'thinkingConfig
   isFork: boolean
   readFileState: ReturnType<typeof createFileStateCacheWithSizeLimit>
   childContextRef: { current: ToolUseContext | undefined }
-  agentKind: NonNullable<RunAgentParams['agentKind']>
+  agentKind: NonNullable<RunCrewmateParams['agentKind']>
 }
 
 export function childContextOf({
@@ -150,7 +150,7 @@ export function childContextOf({
     thinkingConfigOverride ?? toolUseContext.options.thinkingConfig ?? sessionThinkingConfig()
   const thinkingOverride = { thinkingConfig }
   const parentOptions = toolUseContext.options
-  const childContext = createSubagentContext(toolUseContext, {
+  const childContext = createChildContext(toolUseContext, {
     agentId,
     agentType: agentDefinition.agentType,
     abortController,
@@ -194,14 +194,14 @@ export function childContextOf({
   return { childContext, thinkingOverride }
 }
 
-type RecordNeeds = Pick<RunAgentParams, 'model' | 'effortOverride' | 'agentDefinition' | 'worktreePath' | 'cwd' | 'description' | 'name' | 'launchedAt' | 'structuredOutputSpec'> & {
+type RecordNeeds = Pick<RunCrewmateParams, 'model' | 'effortOverride' | 'agentDefinition' | 'worktreePath' | 'cwd' | 'description' | 'name' | 'launchedAt' | 'structuredOutputSpec'> & {
   latestRecord: Parameters<typeof recordAtRunStart>[0]
   swarm: boolean
   swarmWords: ReturnType<typeof swarmBrief>
   thinkingOverride: { thinkingConfig: ThinkingConfig }
   instructionCapture: { profile: InstructionProfile; digest?: string | null } | null | undefined
   resolvedAgentModel: string
-  resolvedEffort: ReturnType<typeof resolveAgentEffort>
+  resolvedEffort: ReturnType<typeof resolveCrewmateEffort>
 }
 
 export function runStartRecordOf({ latestRecord, model, effortOverride, agentDefinition, swarm, worktreePath, cwd, description, name, launchedAt, swarmWords, thinkingOverride, structuredOutputSpec, instructionCapture, resolvedAgentModel, resolvedEffort }: RecordNeeds) {

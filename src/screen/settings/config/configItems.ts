@@ -16,7 +16,7 @@ export type SubMenu =
   | typeof LOCAL_SERVER_APPLY_MENU
   | MediaMenu
 
-export const AGENT_INHERIT_ROW: ModelChoice = { id: 'inherit', name: 'Inherit', tag: "the parent's model", ctx: '', group: 'Crewmate', choice: "uses the parent session's model when spawning a crewmate" }
+export const CREWMATE_INHERIT_ROW: ModelChoice = { id: 'inherit', name: 'Inherit', tag: "the parent's model", ctx: '', group: 'Crewmate', choice: "uses the parent session's model when spawning a crewmate" }
 
 type ItemKind = 'boolean' | 'enum' | 'managed-enum' | 'info'
 

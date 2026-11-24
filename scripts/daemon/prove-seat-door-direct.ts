@@ -84,7 +84,7 @@ section('§2 deadlines reach the runner; the refusal kinds are the peer’s', 'r
   const mo = await mode
   check("set-permission-mode asks session/set_mode and relays the runner's mode", j(m.params) === j({ mode: 'flow' }) && mo.outcome === 'applied' && (mo.detail ?? '').endsWith('→ flow'), j(mo))
 
-  const stop = seatModule.controlSessionAgent(SESSION, 'agent-1', 'stop-agent', roster, daemonDir, { note: 'enough' })
+  const stop = seatModule.controlSessionCrewmate(SESSION, 'agent-1', 'stop-agent', roster, daemonDir, { note: 'enough' })
   const st = await stand.nextRequest('agent/stop')
   check('stop-agent asks agent/stop with the agent id and the note', j(st.params) === j({ agent_id: 'agent-1', note: 'enough' }), j(st.params))
   st.answer({ stopped: 'agent-1' })

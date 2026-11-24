@@ -10,10 +10,10 @@ import type { AppStateStore } from '../app-state/AppStateStore.js'
 import { composerTargetTaskId } from '../app-state/selectors.js'
 import { CREWMATE_BETWEEN_TURNS_DETAIL, LEAD_ROW_NAME, crewmateCommandUnreachableWords, crewmateGlobalCommandWords, crewmateQueuedWords, crewmateRefusedWords, crewmateResumedWords, crewmateUnknownCommandWords, operatorLinePlate } from '../cockpit/crewmateWords.js'
 import { queueCrewmateLine, refuseCrewmateLine } from '../tasks/crewmateQueue.js'
-import { classifyAgentViewSubmission } from './promptIntent.js'
+import { classifyCrewmateViewSubmission } from './promptIntent.js'
 import { crewmateCommandReceipt, runCrewmateCommand } from './crewmateCommands.js'
 import { isManageableTask } from '../tasks/taskStatus.js'
-import { appendMessageToLocalAgent, isLocalAgentTask, queueOperatorMessage } from '../../engine/tasks/local-agent/crewmateTask.js'
+import { appendMessageToCrewmate, isCrewmateTask, queueOperatorMessage } from '../../engine/tasks/local-agent/crewmateTask.js'
 import { createUserMessage } from '../../engine/message-shapes/factories.js'
 import { danglingReferences, expandPastedTextRefs, pasteUnavailableLine, resolvePastedContents } from '../../sessions/promptHistory.js'
 import { handleSpeculationAccept } from '../prompt-suggestion/speculation.js'
@@ -73,7 +73,7 @@ function footerSelectionVisible(state: AppState): boolean {
   return state.remoteControlEnabled
 }
 
-async function deliverAgentLine({
+async function deliverCrewmateLine({
   targetTaskId,
   targetName,
   payload,
@@ -114,13 +114,13 @@ async function deliverAgentLine({
     return true
   }
   const localTask = appStateStore.getState().tasks[targetTaskId]
-  if (localTask !== undefined && isLocalAgentTask(localTask)) {
+  if (localTask !== undefined && isCrewmateTask(localTask)) {
     if (localTask.status !== 'running') {
       notifyCrewmate(crewmateRefusedWords(targetName, CREWMATE_BETWEEN_TURNS_DETAIL), 'warning')
       return false
     }
     queueOperatorMessage(targetTaskId, expanded, setAppState)
-    appendMessageToLocalAgent(
+    appendMessageToCrewmate(
       targetTaskId,
       { ...createUserMessage({ content: expanded }), queued: true },
       setAppState,
@@ -289,7 +289,7 @@ export function useComposerSubmit({
           })
         }
 
-        const intent = classifyAgentViewSubmission(
+        const intent = classifyCrewmateViewSubmission(
           text,
           options.fromKeybinding === true,
           commands,
@@ -337,7 +337,7 @@ export function useComposerSubmit({
           case 'agent-guidance': {
             const payload = intent.kind === 'agent-literal' ? intent.text : text
             takeLine(text)
-            const delivered = await deliverAgentLine({
+            const delivered = await deliverCrewmateLine({
               targetTaskId,
               targetName,
               payload,

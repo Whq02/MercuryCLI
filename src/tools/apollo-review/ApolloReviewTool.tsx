@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { buildTool, type ToolPermissionContext } from '../kit/tool.js'
 import { zodToJsonSchema } from '../../platform/primitives/zodToJsonSchema.js'
-import { getAgentContext } from '../../crew/agents/agentContext.js'
+import { getCrewmateContext } from '../../crew/agents/agentContext.js'
 import {
   isFlowGateEnabled,
   setPermissionModeWithGuards,
@@ -115,7 +115,7 @@ export const ApolloReviewTool = buildTool({
     return true
   },
   async validateInput(_input: Input, context) {
-    if (getAgentContext() !== undefined || context.agentId) {
+    if (getCrewmateContext() !== undefined || context.agentId) {
       return {
         result: false as const,
         message:

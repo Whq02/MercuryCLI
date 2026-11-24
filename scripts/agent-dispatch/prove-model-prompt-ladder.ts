@@ -26,16 +26,16 @@ console.log(" the model prompt's ladder: read mercury://models, then mercury://m
 console.log('============================================================')
 
 ;(await import('../../src/platform/settings/config.ts')).enableConfigs()
-const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
+const { CrewmateTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
 const { agentRosterOf, withoutAgentRoster } = await import('../../src/tools/crewmate/prompt.ts')
-const { AGENT_TOOL_NAME } = await import('../../src/tools/kit/names/agent.ts')
+const { CREWMATE_TOOL_NAME } = await import('../../src/tools/kit/names/agent.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
 const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.ts')
-const schema = zodToJsonSchema(AgentTool.inputSchema as never) as { properties?: Record<string, { description?: string }> }
+const schema = zodToJsonSchema(CrewmateTool.inputSchema as never) as { properties?: Record<string, { description?: string }> }
 const wireWords = schema.properties?.model?.description ?? ''
 const permissionContext = getEmptyToolPermissionContext()
-const manual = await AgentTool.prompt({ getToolPermissionContext: async () => permissionContext, tools: [...getAllBaseTools()], agents: [] })
+const manual = await CrewmateTool.prompt({ getToolPermissionContext: async () => permissionContext, tools: [...getAllBaseTools()], agents: [] })
 const MODEL_SECTION = '\n## Model selection\n'
 const modelWords = manual.includes(MODEL_SECTION) ? manual.slice(manual.indexOf(MODEL_SECTION) + MODEL_SECTION.length).split('\n## ')[0]! : ''
 
@@ -45,7 +45,7 @@ section("§1 the launch tool's model parameter")
   check('the field preserves model grammar and precedence', ['[1m]', 'your own family keeps your exact model', 'Overrides the agent definition', "omitted, the definition's model, else the configured crewmate default, else yours"].every(words => wireWords.includes(words)), wireWords)
   check('the operator model/effort choice is preserved once in its field', wireWords.includes("Follow the operator's model and effort; never downgrade to obtain read-only scoping.") && !manual.includes('never downgrade'), wireWords)
   check('the manual has no model ladder or alias inventory', !manual.includes(MODEL_SECTION) && modelWords === '' && !manual.includes('Class aliases:') && !manual.includes('mercury://models'), manual)
-  const wire = AgentTool.wireDescription(manual)
+  const wire = CrewmateTool.wireDescription(manual)
   const purpose = withoutAgentRoster(wire)
   check('the wire is a purpose statement plus the agent roster, not an abridged manual', Buffer.byteLength(purpose) <= 200 && !wire.includes('Model and effort:') && !manual.includes(purpose) && wire.includes(agentRosterOf(manual)))
 }

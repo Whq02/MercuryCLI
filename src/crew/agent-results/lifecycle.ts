@@ -1,15 +1,15 @@
 
 export const IDLE_TTL_MS = 5 * 60 * 1000
 
-type AgentLifecycleState = 'running' | 'idle' | 'parked' | 'aborted'
+type CrewmateLifecycleState = 'running' | 'idle' | 'parked' | 'aborted'
 
-export interface AgentLifecycle {
-  state: AgentLifecycleState
+export interface CrewmateLifecycle {
+  state: CrewmateLifecycleState
   revivable: boolean
   basis: string
 }
 
-interface AgentLifecycleFacts {
+interface CrewmateLifecycleFacts {
   taskStatus?: string
   finishedAtMs?: number
   transcriptExists: boolean
@@ -19,7 +19,7 @@ interface AgentLifecycleFacts {
 const TERMINAL_ABORTED = new Set(['killed', 'failed'])
 const LIVE = new Set(['pending', 'running'])
 
-export function deriveAgentLifecycle(facts: AgentLifecycleFacts): AgentLifecycle {
+export function deriveCrewmateLifecycle(facts: CrewmateLifecycleFacts): CrewmateLifecycle {
   const now = facts.now ?? Date.now()
   if (facts.taskStatus !== undefined && LIVE.has(facts.taskStatus)) {
     return {

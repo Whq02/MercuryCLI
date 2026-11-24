@@ -215,7 +215,7 @@ async function main(): Promise<void> {
 
   section('5. Uncapped output still replays replacements and waits for persistence')
   {
-    const { createContentReplacementState, cloneContentReplacementState, enforceToolResultBudget, reconstructForSubagentResume } =
+    const { createContentReplacementState, cloneContentReplacementState, enforceToolResultBudget, reconstructForCrewmateResume } =
       await import('../../src/engine/tool-dispatch/toolResultStorage.js')
     const messages = toolTurn(0, 1000) as any[]
     messages[1].message.content[0].content = 'unchanged output '.repeat(20_000)
@@ -226,7 +226,7 @@ async function main(): Promise<void> {
     const replayed = await enforceToolResultBudget(messages, state)
     check('an uncapped caller still reapplies recorded content', (replayed.messages[1] as any).message.content[0].content === state.replacements.get('tu-0'), '', 'enforceToolResultBudget in src/engine/tool-dispatch/toolResultStorage.ts must still reapply recorded replacements when budgetChars is Infinity')
     check('inspection preserves the output policy', cloneContentReplacementState(state).budgetChars === Infinity, '', 'cloneContentReplacementState in src/engine/tool-dispatch/toolResultStorage.ts must copy budgetChars')
-    check('resumed agents preserve the inherited output policy', reconstructForSubagentResume(state, messages, [])?.budgetChars === Infinity, '', 'reconstructForSubagentResume in src/engine/tool-dispatch/toolResultStorage.ts must carry budgetChars from the inherited state')
+    check('resumed agents preserve the inherited output policy', reconstructForCrewmateResume(state, messages, [])?.budgetChars === Infinity, '', 'reconstructForSubagentResume in src/engine/tool-dispatch/toolResultStorage.ts must carry budgetChars from the inherited state')
     let release!: () => void
     const persisted = new Promise<void>(resolve => { release = resolve })
     let started!: () => void

@@ -26,7 +26,7 @@ const { enableConfigs } = await import('../../src/platform/config/globalConfig.t
 enableConfigs()
 const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { runAgent } = await import('../../src/tools/crewmate/runCrewmate.ts')
+const { runCrewmate } = await import('../../src/tools/crewmate/runCrewmate.ts')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
@@ -90,7 +90,7 @@ const guard = setTimeout(() => {
 guard.unref?.()
 
 try {
-  const stream = runAgent({
+  const stream = runCrewmate({
     agentDefinition: definition,
     promptMessages: [createUserMessage({ content: brief }) as Message],
     toolUseContext: ctx as never,

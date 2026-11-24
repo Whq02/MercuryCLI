@@ -1,15 +1,15 @@
 import type { Message } from '../../engine/message-shapes/message.js'
-import { updateAgentSummary } from '../../engine/tasks/local-agent/crewmateTask.js'
+import { updateCrewmateSummary } from '../../engine/tasks/local-agent/crewmateTask.js'
 import { filterIncompleteToolCalls } from '../../tools/crewmate/runCrewmate.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { createUserMessage } from '../../engine/messages/messages.js'
 import { runForkedAgent, type ForkedAgentParams } from '../agents/forkedAgent.js'
-import { loadSubagentTranscripts } from '../../sessions/transcripts/sessionStorage.js'
+import { loadCrewmateTranscripts } from '../../sessions/transcripts/sessionStorage.js'
 import { startTimeout, stopTimeout } from '../../platform/async/timers.js'
 const MIN_TRANSCRIPT_MESSAGES = 3
 const SUMMARY_INTERVAL_MS = 30_000
 
-type SetAppState = Parameters<typeof updateAgentSummary>[2]
+type SetAppState = Parameters<typeof updateCrewmateSummary>[2]
 
 function summaryInstruction(previousSummary: string | null): string {
   const lines = [
@@ -39,7 +39,7 @@ function extractSummaryText(messages: Message[]): string | null {
   return null
 }
 
-export function startAgentSummarization(
+export function startCrewmateSummarization(
   taskId: string,
   agentId: string,
   cacheSafeParams: ForkedAgentParams['cacheSafeParams'],
@@ -62,7 +62,7 @@ export function startAgentSummarization(
   const runOnce = async (): Promise<void> => {
     if (stopped) return
     try {
-      const transcripts = await loadSubagentTranscripts([agentId])
+      const transcripts = await loadCrewmateTranscripts([agentId])
       if (stopped) return
       const rawMessages = transcripts[agentId]
       if (!rawMessages || rawMessages.length < MIN_TRANSCRIPT_MESSAGES) return
@@ -96,7 +96,7 @@ export function startAgentSummarization(
       const summary = extractSummaryText(result.messages)
       if (summary !== null) {
         previousSummary = summary
-        updateAgentSummary(taskId, summary, setAppState)
+        updateCrewmateSummary(taskId, summary, setAppState)
       }
     } catch (error) {
       if (!stopped && error instanceof Error) {

@@ -21,7 +21,7 @@ export function isModelAlias(value: string): value is ModelAlias {
   return isOneOf(MODEL_ALIASES, value)
 }
 
-export const AGENT_DISPATCH_MODELS = [
+export const CREWMATE_DISPATCH_MODELS = [
   'sonnet',
   'opus',
   'haiku',

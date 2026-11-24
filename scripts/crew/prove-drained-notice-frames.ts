@@ -32,7 +32,7 @@ const { saturnQueueStamp } = await import('../../src/engine/message-shapes/notic
 const { BOARD_PACKET_RULE } = await import('../../src/crew/board/contracts.ts')
 const { enqueueBoardWake } = await import('../../src/crew/board/seam.ts')
 const { composeRestartLine, deadWatchLine, monitorNoticeBlock } = await import('../../src/tools/monitor/watchReceipts.ts')
-const { enqueueAgentReceiptRow, enqueueMessageToMainAgent, agentMessageNotice, agentMessageSummary, AGENT_RESUME_DOOR } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { enqueueCrewmateReceiptRow, enqueueMessageToMainAgent, agentMessageNotice, agentMessageSummary, CREWMATE_RESUME_DOOR } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
 const { overloadNoticeWords } = await import('../../src/engine/tasks/local-agent/agentOverload.ts')
 const { operatorResumeWords } = await import('../../src/tools/crewmate/resumeCrewmate.ts')
 const { shellNotificationText } = await import('../../src/engine/tasks/local-shell/shellTask.tsx')
@@ -78,7 +78,7 @@ const MISSION = 'A mission completed:'
 const OPERATOR = 'The operator sent a new message while you were working:'
 const WAKE_FIRED = 'A self-paced wake fired while you were working:'
 const SCHEDULE_FIRED = 'A schedule fired while you were working:'
-const crewNotice = (status: string, summary: string): Command => queuedBy(() => enqueueAgentReceiptRow({ taskId: 'a1b2c3', description: 'Read the parser', summary, status }))
+const crewNotice = (status: string, summary: string): Command => queuedBy(() => enqueueCrewmateReceiptRow({ taskId: 'a1b2c3', description: 'Read the parser', summary, status }))
 
 tally.section('§1 one row a kind: the queue item its producer makes, drained at a tool boundary, as the model reads it')
 {
@@ -94,11 +94,11 @@ tally.section('§1 one row a kind: the queue item its producer makes, drained at
     ['a monitor\'s line (the parent calls it a crewmate\'s completion)', plain(monitorNoticeBlock('bk1', 'Watch the build', 'BUILD OK')), WATCH],
     ['a monitor\'s burst of lines', plain(monitorNoticeBlock('bk1', 'Watch the build', 'one\ntwo\nthree', { count: 3, last: 'three' })), WATCH],
     ['the line for a watch that did not survive a restart, which rides the monitor\'s block', plain(monitorNoticeBlock('bk9', 'Watch the queue', deadWatchLine({ toolUseId: 'toolu_9', taskId: 'bk9', description: 'Watch the queue', command: 'tail -f queue.log', persistent: false, armedAt: 0 }, 'update')), { ridesNextWords: true }), WATCH],
-    ['a crewmate that failed (the parent says it completed a task)', crewNotice('failed', `Crewmate "Read the parser" failed: the provider refused — its work is kept; ${AGENT_RESUME_DOOR}`), 'A background crewmate failed:'],
-    ['a crewmate that was stopped', crewNotice('killed', `Crewmate "Read the parser" was stopped — its work is kept; ${AGENT_RESUME_DOOR}`), 'A background crewmate was stopped:'],
-    ['a crewmate the operator cut off', crewNotice('interrupted', `Crewmate "Read the parser" was interrupted by the operator; its work is kept; ${AGENT_RESUME_DOOR}`), 'A background crewmate was interrupted:'],
+    ['a crewmate that failed (the parent says it completed a task)', crewNotice('failed', `Crewmate "Read the parser" failed: the provider refused — its work is kept; ${CREWMATE_RESUME_DOOR}`), 'A background crewmate failed:'],
+    ['a crewmate that was stopped', crewNotice('killed', `Crewmate "Read the parser" was stopped — its work is kept; ${CREWMATE_RESUME_DOOR}`), 'A background crewmate was stopped:'],
+    ['a crewmate the operator cut off', crewNotice('interrupted', `Crewmate "Read the parser" was interrupted by the operator; its work is kept; ${CREWMATE_RESUME_DOOR}`), 'A background crewmate was interrupted:'],
     ['a crewmate paused by an overloaded provider', crewNotice('paused', overloadNoticeWords('Read the parser', 'Anthropic')), 'A background crewmate paused:'],
-    ['a crewmate that resumed', queuedBy(() => enqueueAgentReceiptRow({ taskId: 'a1b2c3', description: 'Read the parser', summary: operatorResumeWords('Read the parser') })), 'A background crewmate resumed:'],
+    ['a crewmate that resumed', queuedBy(() => enqueueCrewmateReceiptRow({ taskId: 'a1b2c3', description: 'Read the parser', summary: operatorResumeWords('Read the parser') })), 'A background crewmate resumed:'],
     ['a mission\'s completion', plain(`<task-notification>\n<task-id>host-0f</task-id>\n<status>completed</status>\n<summary>${MISSION_COMPLETED_HEAD} ship the fix — the tests pass · 3 turns · 2m</summary>\n<result>${MISSION_COMPLETED_HEAD} ship the fix — the tests pass · 3 turns · 2m</result>\n</task-notification>`), MISSION],
     ['a host notice\'s plain words', plain('The disk under the scratch folder is 96% full.'), RUNTIME],
     ['a ready host notice from the host service', queuedBy(() => { const rec = { id: 'pod-1', generation: 'g1', sessionId: 'frames-host', name: 'pod', recipe: 'r', price: 1, startedAt: '2030-01-01T00:00:00.000Z', status: 'RUNNING' }; hostNotice(rec, 'ready', 'Model is ready'); deliverHostNotices(rec.sessionId) }), RUNTIME],

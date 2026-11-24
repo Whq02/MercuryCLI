@@ -70,9 +70,9 @@ export async function rewindSession(
   return refusedRewind(req.mode, 'restore-failed', failure.words)
 }
 
-export const AGENT_VERB_ANSWER_DEADLINE_MS = SESSION_VERBS.stopAgent.runner.deadlineMs
+export const CREWMATE_VERB_ANSWER_DEADLINE_MS = SESSION_VERBS.stopAgent.runner.deadlineMs
 
-export type SessionAgentVerb = typeof SESSION_VERBS.stopAgent.daemon.action | typeof SESSION_VERBS.resumeAgent.daemon.action
+export type SessionCrewmateVerb = typeof SESSION_VERBS.stopAgent.daemon.action | typeof SESSION_VERBS.resumeAgent.daemon.action
 
 function crewVerbRefusal(failure: DoorFailure, older: string): SeatVerbOutcome {
   if (failure.kind === 'older') return { outcome: 'refused', detail: older }
@@ -100,7 +100,7 @@ async function runSeatVerb<K extends HostRequestVerbKey, Out extends SeatVerbOut
   if (blocked !== undefined) return blocked
   const row = SESSION_VERBS[policy.verb]
   const label = policy.label ?? ('daemon' in row && 'action' in row.daemon ? row.daemon.action : row.runner.name)
-  const deadlineMs = policy.deadlineMs ?? row.runner.deadlineMs ?? AGENT_VERB_ANSWER_DEADLINE_MS
+  const deadlineMs = policy.deadlineMs ?? row.runner.deadlineMs ?? CREWMATE_VERB_ANSWER_DEADLINE_MS
   const asked = await askSeat<RunnerMethodOf<K>>(roster, rec.runnerId, row.runner.name as RunnerMethodOf<K>, params, label, deadlineMs)
   if (policy.refreshFacts !== 'none' && runnerAnswered(asked)) {
     requestSessionFacts(rec.runnerId, roster, { immediate: true }, dir)
@@ -110,10 +110,10 @@ async function runSeatVerb<K extends HostRequestVerbKey, Out extends SeatVerbOut
   return crewVerbRefusal(asked.failure, policy.olderDetail ?? asked.failure.words)
 }
 
-export async function controlSessionAgent(
+export async function controlSessionCrewmate(
   sessionId: string,
   agentId: string,
-  verb: SessionAgentVerb,
+  verb: SessionCrewmateVerb,
   roster: SeatRosterPort,
   dir?: string,
   opts?: { note?: string; deadlineMs?: number },
@@ -122,7 +122,7 @@ export async function controlSessionAgent(
   return runSeatVerb(sessionId, params, roster, dir, {
     verb: verb === SESSION_VERBS.stopAgent.daemon.action ? 'stopAgent' : 'resumeAgent',
     label: verb,
-    deadlineMs: opts?.deadlineMs ?? AGENT_VERB_ANSWER_DEADLINE_MS,
+    deadlineMs: opts?.deadlineMs ?? CREWMATE_VERB_ANSWER_DEADLINE_MS,
     validate: () => (agentId === '' ? { outcome: 'refused', detail: `${verb} requires agentId` } : undefined),
     onAnswer: (result, runnerId) => {
       console.error(`[daemon] seat ${verb} applied: ${runnerId} → ${agentId}`)
@@ -213,7 +213,7 @@ export async function pauseSessionGate(
 ): Promise<SeatVerbOutcome> {
   return runSeatVerb(sessionId, { paused }, roster, dir, {
     verb: 'pauseGate',
-    deadlineMs: opts?.deadlineMs ?? AGENT_VERB_ANSWER_DEADLINE_MS,
+    deadlineMs: opts?.deadlineMs ?? CREWMATE_VERB_ANSWER_DEADLINE_MS,
     onAnswer: (result, runnerId) => {
       console.error(`[daemon] seat ${SESSION_VERBS.pauseGate.daemon.action} applied: ${runnerId} → ${paused ? 'closed' : 'open'}`)
       return appliedDetail(result)
@@ -232,7 +232,7 @@ export async function postSessionBoard(
   const params = { client_op_id: post.clientOpId, channel: post.channel, ...(post.target === undefined ? {} : { target: post.target }), text: post.text }
   return runSeatVerb(sessionId, params, roster, dir, {
     verb: 'postBoard',
-    deadlineMs: opts?.deadlineMs ?? AGENT_VERB_ANSWER_DEADLINE_MS,
+    deadlineMs: opts?.deadlineMs ?? CREWMATE_VERB_ANSWER_DEADLINE_MS,
     refreshFacts: 'none',
     onAnswer: result => ({ outcome: result.ok ? 'applied' : 'refused', detail: JSON.stringify(result) }),
     olderDetail: "this session's runner predates the owner's board posts · /daemon restart, then reopen the session",

@@ -177,8 +177,8 @@ const { createAttachmentMessage } = await import('../../src/engine/attachments/t
 const { getSwarmAttachments } = await import('../../src/engine/attachments/queuedCommands.ts')
 const swarmOnText = runSwarmCommand('on')
 assert(swarmOnText.startsWith('Swarm on'), `runSwarmCommand('on') failed in src/commands/swarm/swarm.ts: ${swarmOnText}`)
-await seam.latchSwarmAgent('woken', 'Woken')
-await seam.latchSwarmAgent('poster', 'Poster')
+await seam.latchSwarmCrewmate('woken', 'Woken')
+await seam.latchSwarmCrewmate('poster', 'Poster')
 const board = seam.swarmStore()!
 const woken = seam.swarmPrincipal('woken')!, poster = seam.swarmPrincipal('poster')!, main = seam.swarmPrincipal()!
 let tasks: Record<string, unknown> = { woken: { ...task('running'), id: 'woken', agentId: 'woken' } }
@@ -195,7 +195,7 @@ const resume: typeof import('../../src/tools/crewmate/resumeCrewmate.ts').resume
   assert(args.boardEventIds?.length, 'resumeAgentBackground called without boardEventIds in src/crew/board/seam.ts')
   assert.equal(args.prompt.split('WAKE-PACKET-WITNESS').length, 2)
   tasks = { woken: { ...task('running'), id: 'woken', agentId: 'woken' } }
-  await seam.latchSwarmAgent('woken', 'Woken', true)
+  await seam.latchSwarmCrewmate('woken', 'Woken', true)
   args.onAdmitted?.()
   const attachment = createAttachmentMessage({ type: 'queued_command', prompt: args.prompt, boardEventIds: args.boardEventIds, isMeta: true, origin: { kind: 'coordinator' } })
   assert.equal(getSwarmAttachments({ ...context, agentId: 'woken' } as never, [attachment]).length, 0)
@@ -212,7 +212,7 @@ try {
   check('the public post parser rejects malformed conditions before appending', board.view().snapshot === beforeInvalid)
   const posted = leadContext.run('poster', () => board.post(poster, { clientOpId: 'public-trigger', kind: 'result', text: 'WAKE-PACKET-WITNESS', about: 'public-trigger' }))
   assert(posted.ok, `public-trigger post failed in src/crew/board/store.ts: ${JSON.stringify(posted)}`)
-  seam.settleSwarmAgent('woken')
+  seam.settleSwarmCrewmate('woken')
   check('the real board requires a completed lifecycle after early settlement', board.pendingWakes().length === 0)
   const openWaits = board.boundary(main, new Set())!
   check('the main packet and roster carry the same open wait', openWaits.text.includes('"waits":[{"seat":"Woken","event":"about public-trigger"}]') && openWaits.text.includes('Woken · waiting on about public-trigger') && board.view().seats?.find(seat => seat.agent === 'woken')?.state === 'parked')
@@ -229,7 +229,7 @@ try {
   if (timeout !== undefined) clearTimeout(timeout)
   for (const watcher of watchers) watcher.stop()
   runSwarmCommand('off')
-  seam.settleSwarmAgent('poster'); seam.settleSwarmAgent('woken')
+  seam.settleSwarmCrewmate('poster'); seam.settleSwarmCrewmate('woken')
 }
 if (!process.argv.includes('--source-only')) {
   const { proveWakeJourney } = await import('./swarm-wake-world.ts')

@@ -44,7 +44,7 @@ async function spied(rel: string, wanted: string[]): Promise<void> {
 
 await spied('src/daemon/runner/messageQueueManager.ts', ['enqueue', 'remove'])
 await spied('src/screen/composer/input-core/command-queue.ts', ['subscribeQueueConsumption', 'queuedWordsWaitForTurnEnd'])
-await spied('src/engine/tasks/local-agent/crewmateTask.tsx', ['handOverForegroundAgentsToQueuedMessage'])
+await spied('src/engine/tasks/local-agent/crewmateTask.tsx', ['handOverForegroundCrewmatesToQueuedMessage'])
 await spied('src/daemon/saturn/sessionScheduleBridge.ts', ['registerLocalWakeSink'])
 await spied('src/tools/monitor/laneWall.ts', ['sessionLaneWall'])
 await spied('src/sessions/transcripts/sessionStorage.ts', ['doesMessageExistInSession'])
@@ -141,10 +141,10 @@ section('§2 the foreground crewmates are handed over on a human prompt mid-turn
     s.running.now = true
     prepare(s)
     await within(door.acceptInput(input, s.ports))
-    return said('handOverForegroundAgentsToQueuedMessage').length
+    return said('handOverForegroundCrewmatesToQueuedMessage').length
   }
   const human = await handed({ kind: 'prompt', content: 'look here' })
-  const args = said('handOverForegroundAgentsToQueuedMessage')[0]?.args.length
+  const args = said('handOverForegroundCrewmatesToQueuedMessage')[0]?.args.length
   const cases = {
     'a Tab-held line': await handed({ kind: 'prompt', content: 'later', priority: 'later' }),
     'a cron wake': await handed({ kind: 'prompt', content: 'fire', origin: SATURN }),
