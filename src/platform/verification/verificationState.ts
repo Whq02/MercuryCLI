@@ -242,32 +242,6 @@ export function _treeScanChildrenForTesting(cwd: string): number {
   return activeChildren.get(cwd)?.size ?? 0
 }
 
-export async function invalidateTreeScans(cwd: string): Promise<void> {
-  const children = [...(activeChildren.get(cwd) ?? [])]
-  const inFlight = digestInFlight.get(cwd)
-  for (const child of children) goneChildren.add(child)
-  await Promise.all(
-    children.map(
-      child =>
-        new Promise<void>(done => {
-          if (child.exitCode !== null || child.signalCode !== null) {
-            done()
-            return
-          }
-          child.once('close', () => done())
-          try {
-            child.kill()
-          } catch {
-            done()
-          }
-        }),
-    ),
-  )
-  if (inFlight) await inFlight.catch(passedOverAs(null))
-  activeChildren.delete(cwd)
-  forgetRepository(cwd)
-}
-
 function gitTextSync(cwd: string, env: NodeJS.ProcessEnv, args: string[]): string {
   try {
     return execFileSync(gitExe(), gitArgs(args, cwd), {

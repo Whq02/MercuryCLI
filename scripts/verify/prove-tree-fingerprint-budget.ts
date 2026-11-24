@@ -340,21 +340,8 @@ section('§8 no job outlives its repository — a mid-scan removal quiesces, a c
   const n1 = mark()
   const again = await vs.computeWorkingTreeDigestAsync(gone)
   check('the next reader re-resolves: not a repository, no job', again === null && !since(n1).some(x => x.cwd === gone && isAdd(x)), `got ${again}; computeWorkingTreeDigestAsync in src/platform/verification/verificationState.ts must re-resolve the repository and start no add`)
-
-  const stays = join(SCRATCH, 'stays')
-  makeRepo(stays, 120)
-  const p2 = vs.computeWorkingTreeDigestAsync(stays, { fresh: true })
-  await sleep(450)
-  check('a second scan is in flight', vs._treeScanChildrenForTesting(stays) === 1, `${vs._treeScanChildrenForTesting(stays)} running jobs; the scan child must be tracked in src/platform/verification/verificationState.ts`)
-  await vs.invalidateTreeScans(stays)
-  check('invalidateTreeScans cancels and awaits the running job', vs._treeScanChildrenForTesting(stays) === 0 && (await p2) === null, 'invalidateTreeScans in src/platform/verification/verificationState.ts must cancel the running job and await it')
-  check('…drops the record and the cache (no fault, no notice)', vs.treeScanStatus(stays).state === 'unknown', `${JSON.stringify(vs.treeScanStatus(stays))}; invalidateTreeScans in src/platform/verification/verificationState.ts must drop the record and cache`)
   delete process.env.GIT_SHIM_SLEEP_MS
   delete process.env.GIT_SHIM_SLEEP_FOR
-  const n2 = mark()
-  const d2 = await vs.computeWorkingTreeDigestAsync(stays, { fresh: true })
-  check('a later demand re-resolves the repository and scans it afresh', d2 !== null && since(n2).some(x => x.cwd === stays && isAdd(x)), `got ${d2}; computeWorkingTreeDigestAsync in src/platform/verification/verificationState.ts must rescan after invalidateTreeScans`)
-  check('…and the repository is intact (invalidation is not deletion)', existsSync(join(stays, '.git')), 'invalidateTreeScans in src/platform/verification/verificationState.ts must not remove the repository')
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })
