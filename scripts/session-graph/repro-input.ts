@@ -14,17 +14,4 @@ t.check(
   withoutConcourse.length > 0 ? `no concourse action on ${withoutConcourse.join(' · ')}` : '',
 )
 
-t.section('CS-27 — disposition visibility is prover-pinned')
-let dispatch: Record<string, unknown> | null = null
-try {
-  dispatch = (await import('../../src/crew/crewmates/dispatch.ts')) as Record<string, unknown>
-} catch {
-  dispatch = null
-}
-t.check(
-  'the visible target+disposition label renderer exists (dispositionLabelOf)',
-  typeof dispatch?.dispositionLabelOf === 'function',
-  'no one owner renders `Steer X now` / `Hold for X next` / `Start a turn with X`',
-)
-
 t.finish('repro-input')

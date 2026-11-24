@@ -230,12 +230,6 @@ t.section('§6 — the dispatch transaction')
     'per-attachment outcomes ride the persisted receipt (the field production reads)',
     persisted !== null && persisted.attachmentOutcomes.length === 2,
   )
-  t.check(
-    'dispositionLabelOf renders the visible target+disposition copy',
-    dispatch.dispositionLabelOf('hold-next', 'Atlas') === 'Hold for Atlas next' &&
-      dispatch.dispositionLabelOf('steer-current', 'Atlas') === 'Steer Atlas now' &&
-      dispatch.dispositionLabelOf('start-turn', 'Atlas') === 'Start a turn with Atlas',
-  )
   await bridge.detachExternalSeat(seat.seatId)
 }
 

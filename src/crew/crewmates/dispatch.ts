@@ -150,18 +150,6 @@ const DISPOSITION_CAPABILITY: Record<DispatchDisposition, CapabilityKind> = {
   'start-turn': 'start-turn',
 }
 
-export function dispositionLabelOf(disposition: DispatchDisposition, targetLabel: string): string {
-  switch (disposition) {
-    case 'steer-current':
-      return `Steer ${targetLabel} now`
-    case 'hold-next':
-      return `Hold for ${targetLabel} next`
-    case 'start-turn':
-      return `Start a turn with ${targetLabel}`
-  }
-}
-
-
 export async function readDeliveryReceipt(
   clientMessageId: string,
   opts?: { dir?: string },
