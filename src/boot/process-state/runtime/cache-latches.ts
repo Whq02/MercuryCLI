@@ -5,6 +5,4 @@ export class CacheLatchOwner {
     string,
     { key: string | null; value: string | null; byKey?: Map<string, string | null> }
   > = new Map()
-
-  clearBetaHeaderLatches(): void {}
 }

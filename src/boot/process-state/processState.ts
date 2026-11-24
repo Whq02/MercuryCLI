@@ -543,10 +543,6 @@ export function setPromptCache1hEligible(eligible: boolean | null): void {
   cacheLatches.promptCache1hEligible = eligible
 }
 
-export function clearBetaHeaderLatches(): void {
-  cacheLatches.clearBetaHeaderLatches()
-}
-
 
 export function addInvokedSkill(
   skillName: string,

@@ -1,4 +1,4 @@
-import { clearBetaHeaderLatches, clearSystemPromptSectionState, getSystemPromptSectionCache, setSystemPromptSectionCacheEntry } from '../../boot/process-state/processState.js'
+import { clearSystemPromptSectionState, getSystemPromptSectionCache, setSystemPromptSectionCacheEntry } from '../../boot/process-state/processState.js'
 
 type SectionValue = string | null
 
@@ -66,6 +66,5 @@ export function onSystemPromptSectionsCleared(listener: () => void): () => void 
 
 export function clearSystemPromptSections(): void {
   clearSystemPromptSectionState()
-  clearBetaHeaderLatches()
   for (const listener of clearListeners) listener()
 }

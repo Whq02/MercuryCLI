@@ -224,7 +224,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'getSessionKind', 'setSessionKind',
     'addToTotalCostState', 'addToTotalDurationState', 'addToTotalLinesChanged',
     'addToWorkloadUsageState', 'getWorkloadUnpricedTurns', 'getWorkloadUsage', 'recordWorkloadUnpricedTurn',
-    'canAnswerAsks', 'clearBetaHeaderLatches',
+    'canAnswerAsks',
     'clearInvokedSkillsForAgent', 'clearRegisteredHooks',
     'clearRegisteredExtensionHooks', 'clearSystemPromptSectionState',
     'flushInteractionTime',
@@ -528,17 +528,6 @@ section('LAW 3 TOOL-DURATION — the total accumulates')
   check('tool add: TOTAL accumulates in the same call', state.getTotalToolDuration() === totalToolBefore + 40)
 }
 
-section('LAW 5 LATCH — clear completeness')
-{
-  state.clearBetaHeaderLatches()
-
-  state.setPromptCache1hEligible(true)
-  state.clearBetaHeaderLatches()
-  check('clearBetaHeaderLatches: 1h eligibility NOT in the clear set (session-latched)', state.getPromptCache1hEligible() === true)
-  state.setPromptCache1hEligible(null)
-
-}
-
 section('LAW 6 ASSISTANT — the env matrix · flip supremacy · the memo latch')
 {
   const ASSISTANT_CHILD =
@@ -812,11 +801,6 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
       'totalLinesRemoved', 'totalOutputTokens', 'totalToolDuration',
       'totalWebSearchRequests', 'unpricedTurns',
     ],
-  )
-  scopeLeg(
-    'clearBetaHeaderLatches (/clear + /compact) touches no other observable',
-    () => state.clearBetaHeaderLatches(),
-    [],
   )
   scopeLeg(
     'clearRegisteredHooks touches ONLY the registry',
