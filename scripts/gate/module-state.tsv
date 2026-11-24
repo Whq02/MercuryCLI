@@ -528,6 +528,7 @@ src/daemon/runner/boot/warnAtBoot.ts	warnAtBoot	process	module	Load-time table w
 src/daemon/runner/boot/watchBuildBehind.ts	watchBuildBehind	process	module	Load-time table with no local writer
 src/daemon/runner/boot/watchCrew.ts	watchCrew	process	module	Load-time table with no local writer
 src/daemon/runner/boot/watchDrainedFrames.ts	watchDrainedFrames	process	module	Load-time table with no local writer
+src/daemon/runner/boot/watchLiveMcp.ts	LIST_CHANGED_KINDS	process	module	load-time data; no local writer
 src/daemon/runner/boot/watchLiveMcp.ts	watchLiveMcp	process	module	Load-time table with no local writer
 src/daemon/runner/boot/watchMission.ts	watchMission	process	module	Load-time table with no local writer
 src/daemon/runner/boot/watchMode.ts	watchMode	process	module	Load-time table with no local writer
