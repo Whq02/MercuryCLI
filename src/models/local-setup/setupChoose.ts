@@ -13,13 +13,13 @@ function qwen35(blockCount: number, attentionLayers: number, kvHeadsPerLayer: nu
 }
 
 export const SETUP_PULL_CANDIDATES: readonly SetupPullCandidate[] = [
-  { tag: 'qwen3.5:0.8b', sizeWords: '1.0 GB', sizeBytes: 1.0e9, trainedMax: QWEN35_TRAINED_MAX, geometry: qwen35(24, 6, 2) },
-  { tag: 'qwen3.5:2b', sizeWords: '2.7 GB', sizeBytes: 2.7e9, trainedMax: QWEN35_TRAINED_MAX, geometry: qwen35(24, 6, 2) },
-  { tag: 'qwen3.5:4b', sizeWords: '3.4 GB', sizeBytes: 3.4e9, trainedMax: QWEN35_TRAINED_MAX, geometry: qwen35(32, 8, 4) },
-  { tag: SETUP_MODEL_TAG, sizeWords: '6.6 GB', sizeBytes: 6.6e9, trainedMax: QWEN35_TRAINED_MAX, geometry: qwen35(32, 8, 4), tested: true },
-  { tag: 'qwen3.5:27b', sizeWords: '17 GB', sizeBytes: 17e9, trainedMax: QWEN35_TRAINED_MAX, geometry: qwen35(64, 16, 4) },
-  { tag: 'qwen3.5:35b', sizeWords: '24 GB', sizeBytes: 24e9, trainedMax: QWEN35_TRAINED_MAX, geometry: qwen35(40, 10, 2) },
-  { tag: 'qwen3.6:35b-a3b-coding', sizeWords: '22 GB', sizeBytes: 22.6e9, trainedMax: QWEN35_TRAINED_MAX, geometry: qwen35(41, 10, 2), note: '35B-A3B MoE · 3B active · coding' },
+  { tag: 'qwen3.5:0.8b', sizeWords: '1.2 GB', sizeBytes: 1.2e9, trainedMax: QWEN35_TRAINED_MAX, geometry: qwen35(24, 6, 2) },
+  { tag: 'qwen3.5:2b', sizeWords: '3.1 GB', sizeBytes: 3.1e9, trainedMax: QWEN35_TRAINED_MAX, geometry: qwen35(24, 6, 2) },
+  { tag: 'qwen3.5:4b', sizeWords: '4.0 GB', sizeBytes: 4e9, trainedMax: QWEN35_TRAINED_MAX, geometry: qwen35(32, 8, 4) },
+  { tag: SETUP_MODEL_TAG, sizeWords: '7.6 GB', sizeBytes: 7.6e9, trainedMax: QWEN35_TRAINED_MAX, geometry: qwen35(32, 8, 4), tested: true },
+  { tag: 'qwen3.5:27b', sizeWords: '20 GB', sizeBytes: 20e9, trainedMax: QWEN35_TRAINED_MAX, geometry: qwen35(64, 16, 4) },
+  { tag: 'qwen3.5:35b', sizeWords: '22 GB', sizeBytes: 22e9, trainedMax: QWEN35_TRAINED_MAX, geometry: qwen35(40, 10, 2) },
+  { tag: 'qwen3.6:35b-a3b-coding', sizeWords: '24 GB', sizeBytes: 24e9, trainedMax: QWEN35_TRAINED_MAX, geometry: qwen35(41, 10, 2), note: '35B-A3B MoE · 3B active · coding' },
   { tag: 'qwen3.5:122b', sizeWords: '81 GB', sizeBytes: 81e9, trainedMax: QWEN35_TRAINED_MAX, geometry: qwen35(48, 12, 2) },
 ]
 
