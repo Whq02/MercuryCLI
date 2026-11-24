@@ -503,5 +503,3 @@ export function ElicitationDialog(props: ElicitationDialogProps): React.ReactNod
     <FormElicitationDialog {...props} />
   )
 }
-
-export default ElicitationDialog

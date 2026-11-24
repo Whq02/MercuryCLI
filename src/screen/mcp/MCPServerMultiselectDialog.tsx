@@ -60,5 +60,3 @@ export function MCPServerMultiselectDialog({
     </Box>
   )
 }
-
-export default MCPServerMultiselectDialog

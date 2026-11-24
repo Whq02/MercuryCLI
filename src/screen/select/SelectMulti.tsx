@@ -184,5 +184,3 @@ export function SelectMulti<T = string>({
     </Box>
   )
 }
-
-export default SelectMulti

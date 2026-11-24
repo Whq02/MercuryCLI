@@ -67,5 +67,3 @@ export function SearchBox({
     </Box>
   )
 }
-
-export default SearchBox

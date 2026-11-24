@@ -50,5 +50,3 @@ export function ColorPicker({
     </Box>
   )
 }
-
-export default ColorPicker

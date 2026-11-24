@@ -525,5 +525,3 @@ export function ScrollKeybindingHandler({
 
   return null
 }
-
-export default ScrollKeybindingHandler

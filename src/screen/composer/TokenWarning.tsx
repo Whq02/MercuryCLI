@@ -44,5 +44,3 @@ export function TokenWarning({
     </Text>
   )
 }
-
-export default TokenWarning

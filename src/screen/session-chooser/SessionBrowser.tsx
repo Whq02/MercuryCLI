@@ -426,5 +426,3 @@ export function SessionBrowser({
     </Box>
   )
 }
-
-export default SessionBrowser

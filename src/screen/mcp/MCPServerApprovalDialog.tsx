@@ -80,5 +80,3 @@ export function MCPServerApprovalDialog({
     </Box>
   )
 }
-
-export default MCPServerApprovalDialog

@@ -103,5 +103,3 @@ export function TagTabs({
     </Box>
   )
 }
-
-export default TagTabs

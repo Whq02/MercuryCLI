@@ -83,5 +83,3 @@ export function ListItem({
     </Box>
   )
 }
-
-export default ListItem

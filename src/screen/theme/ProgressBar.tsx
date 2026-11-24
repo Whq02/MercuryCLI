@@ -31,5 +31,3 @@ export function ProgressBar({
     </Text>
   )
 }
-
-export default ProgressBar

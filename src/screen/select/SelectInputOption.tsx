@@ -298,5 +298,3 @@ export function SelectInputOption<T>({
     </Box>
   )
 }
-
-export default SelectInputOption

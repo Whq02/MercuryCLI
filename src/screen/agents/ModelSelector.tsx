@@ -77,5 +77,3 @@ export function ModelSelector({
     </Box>
   )
 }
-
-export default ModelSelector

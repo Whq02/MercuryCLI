@@ -348,5 +348,3 @@ export function ToolSelector({
     </Box>
   )
 }
-
-export default ToolSelector

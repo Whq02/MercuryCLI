@@ -35,5 +35,3 @@ export function SelectOption({
     </ListItem>
   )
 }
-
-export default SelectOption

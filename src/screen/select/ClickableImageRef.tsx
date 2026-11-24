@@ -39,5 +39,3 @@ export function ClickableImageRef({
     </Text>
   )
 }
-
-export default ClickableImageRef

@@ -114,5 +114,3 @@ export function ThinkingToggle({
     </Pane>
   )
 }
-
-export default ThinkingToggle

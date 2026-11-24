@@ -61,5 +61,3 @@ export function MercuryMissionIndicator(): React.ReactNode {
     </Box>
   )
 }
-
-export default MercuryMissionIndicator

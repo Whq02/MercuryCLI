@@ -28,5 +28,3 @@ export function ConfigurableShortcutHint({
     />
   )
 }
-
-export default ConfigurableShortcutHint

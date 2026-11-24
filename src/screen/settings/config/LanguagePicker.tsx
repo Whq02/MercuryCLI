@@ -52,5 +52,3 @@ export function LanguagePicker({
     </Box>
   )
 }
-
-export default LanguagePicker

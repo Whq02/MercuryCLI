@@ -117,5 +117,3 @@ export function SessionPreview({
     </Box>
   )
 }
-
-export default SessionPreview

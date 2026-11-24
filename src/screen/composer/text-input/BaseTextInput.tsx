@@ -194,5 +194,3 @@ export function BaseTextInput({
     </Box>
   )
 }
-
-export default BaseTextInput

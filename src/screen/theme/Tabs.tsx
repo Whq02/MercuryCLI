@@ -257,5 +257,3 @@ export function useTabHeaderFocus(): {
     blurHeader: ctx.blurHeader,
   }
 }
-
-export default Tabs

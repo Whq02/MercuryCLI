@@ -37,5 +37,3 @@ export function PrBadge({
     </Text>
   )
 }
-
-export default PrBadge
