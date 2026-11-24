@@ -1,25 +1,16 @@
 import type { PermissionRuleValue } from './permissions.js'
-
-export function precedingBackslashes(text: string, i: number): number {
-  let count = 0
-  let j = i - 1
-  while (j >= 0 && text[j] === '\\') {
-    count++
-    j--
-  }
-  return count
-}
+import { precedingBackslashCount } from '../../platform/shell/bash/heredoc.js'
 
 function firstUnescaped(text: string, ch: string): number {
   for (let i = 0; i < text.length; i++) {
-    if (text[i] === ch && precedingBackslashes(text, i) % 2 === 0) return i
+    if (text[i] === ch && precedingBackslashCount(text, i) % 2 === 0) return i
   }
   return -1
 }
 
 function lastUnescaped(text: string, ch: string): number {
   for (let i = text.length - 1; i >= 0; i--) {
-    if (text[i] === ch && precedingBackslashes(text, i) % 2 === 0) return i
+    if (text[i] === ch && precedingBackslashCount(text, i) % 2 === 0) return i
   }
   return -1
 }
