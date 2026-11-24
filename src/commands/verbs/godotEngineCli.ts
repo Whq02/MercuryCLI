@@ -263,5 +263,4 @@ export async function godotEngineCli(argv: readonly string[], io: GodotCliIo = d
       return parsed(text) ? 0 : 1
     }
   }
-  return 2
 }
