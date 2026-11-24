@@ -133,6 +133,17 @@ function tableLines(rows: TerminalRows): string[] {
   return lines
 }
 
+function gapsInsideWords(rows: TerminalRows): string[] {
+  const found: string[] = []
+  for (const y of rows.rtlRows()) {
+    const cells = rows.cells[y]!.map(plain)
+    for (let x = 2; x < cells.length; x++) {
+      if (/[\uFEF5-\uFEFC]/.test(cells[x]!) && cells[x - 1] === ' ' && /[\uFB50-\uFDFF\uFE70-\uFEFF]/.test(cells[x - 2]!)) found.push(`row ${y} column ${x}: ${cells.slice(Math.max(0, x - 5), x + 3).join('')}`)
+    }
+  }
+  return found
+}
+
 console.log('============================================================')
 console.log(' right-to-left rows on the wire: the typing box, a streamed answer, a resize, a scroll back')
 console.log('============================================================')
@@ -167,6 +178,8 @@ try {
     rest !== null && rest.rtlRows().length >= 4 && rest.cells.some(row => row.join('').includes('ANSWER-END')),
     `the keys ran late on a loaded machine, so the checks of the answer at rest below mean nothing; run this test alone · ${rest?.rtlRows().length} right-to-left rows`,
   )
+  const gaps = rest === null ? [] : gapsInsideWords(rest)
+  check('Apple_Terminal: no blank cell stands inside a word that holds lam-alef', rest !== null && gaps.length === 0, `${HINT_ORDER} · ${gaps.slice(0, 3).join(' | ')}`)
   const lines = rest === null ? [] : tableLines(rest)
   check(
     "Apple_Terminal: the table's lines stand in the same columns in each of its four rows",

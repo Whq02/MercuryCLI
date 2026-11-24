@@ -101,6 +101,7 @@ const joinsLeft = (type: string): boolean => type === 'D' || type === 'L' || typ
 const joinsRight = (type: string): boolean => type === 'D' || type === 'R' || type === 'C'
 
 const BORDER_CELL = /^[\u2500-\u257F]$/
+const BLANK_CELL = /^\u2068? \u2069?$/
 
 export function shapeBidiForTerminal<T extends BidiChar>(characters: T[]): T[] {
   let out: T[] | undefined
@@ -160,6 +161,7 @@ function shapeStretch<T extends BidiChar>(characters: T[]): T[] {
   }
   const out: T[] = []
   const levels: number[] = []
+  const spares: number[] = []
   let pointIndex = 0
   for (const character of characters) {
     const count = Array.from(character.value).length
@@ -175,9 +177,18 @@ function shapeStretch<T extends BidiChar>(characters: T[]): T[] {
     if (level % 2) {
       value = emoji ? `\u2068${value}\u2069` : Array.from(value, point => `\u2068${point}\u2069`).join('')
     }
+    if (consumed.has(pointIndex)) spares.push(out.length)
     out.push({ ...character, value })
     levels.push(level)
     pointIndex += count
+  }
+  for (let n = spares.length - 1; n >= 0; n--) {
+    const spare = spares[n]!
+    let end = spare
+    while (end + 1 < out.length && levels[end + 1]! % 2 === 1 && !BLANK_CELL.test(out[end + 1]!.value)) end++
+    if (end === spare) continue
+    out.splice(end, 0, ...out.splice(spare, 1))
+    levels.splice(end, 0, ...levels.splice(spare, 1))
   }
   reorderByLevels(out, levels)
   return out

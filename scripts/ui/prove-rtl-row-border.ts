@@ -260,6 +260,8 @@ console.log('§5 contextual forms come from the Unicode source rows')
   const tableRow = '│ بحر │ حقيقة │'
   const linesOf = (text: string): string => Array.from(text.replace(/[\u2068\u2069]/g, ''), (ch, at) => (ch === '│' ? at : -1)).filter(at => at >= 0).join(',')
   check("a table row keeps each of its lines in its own column", linesOf(paint(tableRow)) === linesOf(tableRow), `${linesOf(paint(tableRow))} against ${linesOf(tableRow)}`)
+  const unmarked = (text: string): string => paint(text).replace(/[\u2068\u2069]/g, '')
+  check("a lam-alef pair inside a word leaves its spare cell at the word's end, not inside it", /^ \S{3}$/.test(unmarked('آلاف')) && /^ \S{3} {2}\S{5}$/.test(unmarked('الأحمر آلاف')), JSON.stringify([unmarked('آلاف'), unmarked('الأحمر آلاف')]))
   check('an emoji cluster beside Arabic keeps its own joiners and code points', paint('ب 👨\u200d👩\u200d👧\u200d👦 ب').includes('👨\u200d👩\u200d👧\u200d👦'))
   const pointed = paint('مُحَمَّدٌ שָׁלוֹם')
   check('a combining mark never shares an isolate with its base', Array.from(pointed.matchAll(/\u2068([^\u2069]*)\u2069/g), match => match[1]!).every(value => Array.from(value).length === 1))
