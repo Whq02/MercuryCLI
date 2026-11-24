@@ -77,14 +77,9 @@ async function summarizeViaCacheSharingFork(
       recordFoldRoad(model, 'fork', startedAt, 'aborted')
       return null
     }
-    let lastAssistant: AssistantMessage | undefined
-    for (let i = result.messages.length - 1; i >= 0; i--) {
-      const msg = result.messages[i]
-      if (msg?.type === 'assistant') {
-        lastAssistant = msg
-        break
-      }
-    }
+    const lastAssistant = result.messages.findLast(
+      (msg): msg is AssistantMessage => msg.type === 'assistant',
+    )
     if (lastAssistant !== undefined) {
       if (lastAssistant.isApiErrorMessage !== true && (getAssistantMessageText(lastAssistant) ?? '').trim().length > 0) {
         recordFoldRoad(model, 'fork', startedAt, 'summary')
