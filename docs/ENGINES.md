@@ -1348,10 +1348,11 @@ moment the runner reports it, with no picker opened. The model picker paints
 its cached rows at once and refreshes every signed-in family's list in the
 background on every open, even when that cache is fresh: the Anthropic list
 through each signed-in door, every other signed-in family's catalogue, and the
-local servers' discovery. The `/logins` card asks for the
-lists its readiness rows read when it opens and repaints them as they land,
-so an OpenAI sign-in on a Claude session reads its catalogue's own state
-there within one refresh instead of "not fetched yet" until `/model` opens. The
+local servers' discovery. The `/logins` card opens on the provider family list
+with no separate readiness block; picking a signed-in family shows its account
+card and state chip, while the Boot face's Logins/Keys screen refreshes
+signed-in provider catalogues on open and repaints each family's state as lists
+land. The
 crewmate model choice in `/config` refreshes the same lists
 when its picker opens. A changed
 list replaces the rows in place, keeps the highlighted model and adds a notice
