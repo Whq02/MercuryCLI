@@ -26,11 +26,12 @@ import { blenderBridgeEnabled, blenderBridgePort } from '../../integrations/blen
 import { BLENDER_TOOL_NAME, getBlenderToolDescription } from './prompt.js'
 import { SHOWN_AT_MOST, SHOW_SHAPE_RULE, parseShowList, readShown, showTargets, stampShown, type ShowEntry, type ShownPart } from './show.js'
 import {
-  renderToolResultMessage,
-  renderToolUseErrorMessage,
-  renderToolUseMessage,
-  userFacingName,
-} from './rows.js'
+  formatBridgeResult,
+  renderBridgeToolResultMessage,
+  renderBridgeToolUseErrorMessage,
+  renderBridgeToolUseMessage,
+  summarizeBridgeArgs,
+} from '../kit/bridgeToolRows.js'
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
@@ -237,19 +238,6 @@ function scriptAsBridgeSource(script: string, argv: string[]): string {
   ].join('\n')
 }
 
-function formatResult(result: unknown): string {
-  if (typeof result === 'string') return result
-  return JSON.stringify(result, null, 2) ?? String(result)
-}
-
-function summarizeArgs(args: Record<string, unknown> | undefined, cap = 160): string {
-  if (!args || Object.keys(args).length === 0) return ''
-  const s = Object.entries(args)
-    .map(([k, v]) => `${k}=${typeof v === 'string' ? v : JSON.stringify(v)}`)
-    .join(' ')
-  return s.length > cap ? s.slice(0, cap - 1) + '…' : s
-}
-
 async function runLocalOp(op: string): Promise<string> {
   const installer = await import('../../integrations/blender/bridgeInstaller.js')
   switch (op) {
@@ -323,7 +311,7 @@ async function runOp(input: Input, abortSignal?: AbortSignal, trace?: RoadTrace)
   if (trace) trace.taken = r.ok
   let text: string
   if (r.ok) {
-    text = formatResult(r.result)
+    text = formatBridgeResult(r.result)
   } else {
     text = `${input.op} failed: [${r.error.code}] ${r.error.message}${r.error.hint ? `\nhint: ${r.error.hint}` : ''}`
   }
@@ -332,7 +320,7 @@ async function runOp(input: Input, abortSignal?: AbortSignal, trace?: RoadTrace)
     const shown = events.slice(-8)
     text +=
       `\n\nevents (${events.length}):\n` +
-      shown.map(e => `· ${e.event}: ${formatResult(e.data).slice(0, 200)}`).join('\n')
+      shown.map(e => `· ${e.event}: ${formatBridgeResult(e.data).slice(0, 200)}`).join('\n')
   }
   return `road: bridge (127.0.0.1:${port})\n${text}`
 }
@@ -350,7 +338,7 @@ export const BlenderTool = buildTool({
   async prompt() {
     return getBlenderToolDescription()
   },
-  userFacingName,
+  userFacingName: () => 'Blender',
   shouldDefer: true,
   capability: {
     intents: [
@@ -420,12 +408,12 @@ export const BlenderTool = buildTool({
       }
       return {
         behavior: 'ask' as const,
-        message: `Blender exec: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} — starts a render job in Blender; the durable result is the image file at outputPath (render_finished reports the end). With no bridge answering, a background Blender with no window renders it before the call returns, and ends.`,
+        message: `Blender exec: ${input.op}${summarizeBridgeArgs(input.args) ? ` (${summarizeBridgeArgs(input.args)})` : ''} — starts a render job in Blender; the durable result is the image file at outputPath (render_finished reports the end). With no bridge answering, a background Blender with no window renders it before the call returns, and ends.`,
       }
     }
     return {
       behavior: 'ask' as const,
-      message: `Blender mutate: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} switches the open .blend (no undo step; refuses with BLEND_DIRTY if there are unsaved changes). With no bridge answering, a background Blender with no window opens the file to check it and ends; nothing stays open.`,
+      message: `Blender mutate: ${input.op}${summarizeBridgeArgs(input.args) ? ` (${summarizeBridgeArgs(input.args)})` : ''} switches the open .blend (no undo step; refuses with BLEND_DIRTY if there are unsaved changes). With no bridge answering, a background Blender with no window opens the file to check it and ends; nothing stays open.`,
     }
   },
   async validateInput(input: Input) {
@@ -481,9 +469,9 @@ export const BlenderTool = buildTool({
       content: output.result,
     }
   },
-  renderToolUseMessage,
-  renderToolUseErrorMessage,
-  renderToolResultMessage,
+  renderToolUseMessage: renderBridgeToolUseMessage,
+  renderToolUseErrorMessage: renderBridgeToolUseErrorMessage,
+  renderToolResultMessage: renderBridgeToolResultMessage,
   extractSearchText({ result }) {
     return result ?? ''
   },

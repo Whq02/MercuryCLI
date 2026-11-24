@@ -11,11 +11,12 @@ import { vulcanLiteMode } from '../../integrations/vulcan/vulcanGates.js'
 import { VULCAN_STEP_WALL_MS_PER_FRAME, vulcanOp, vulcanCategories } from '../../integrations/vulcan-optable/optable.generated.js'
 import { GODOT_TOOL_NAME, getGodotToolDescription } from './prompt.js'
 import {
-  renderToolResultMessage,
-  renderToolUseErrorMessage,
-  renderToolUseMessage,
-  userFacingName,
-} from './rows.js'
+  formatBridgeResult,
+  renderBridgeToolResultMessage,
+  renderBridgeToolUseErrorMessage,
+  renderBridgeToolUseMessage,
+  summarizeBridgeArgs,
+} from '../kit/bridgeToolRows.js'
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
@@ -55,20 +56,7 @@ async function staticCapsuleAnswer(input: Input): Promise<string> {
     import('../../integrations/vulcan/godotCapsule.js'),
     import('../../integrations/vulcan/addonInstaller.js'),
   ])
-  return formatResult(staticGodotCapsule(root, input.args?.budget, await vulcanEditorPresence(root)))
-}
-
-function formatResult(result: unknown): string {
-  if (typeof result === 'string') return result
-  return JSON.stringify(result, null, 2) ?? String(result)
-}
-
-function summarizeArgs(args: Record<string, unknown> | undefined, cap = 160): string {
-  if (!args || Object.keys(args).length === 0) return ''
-  const s = Object.entries(args)
-    .map(([k, v]) => `${k}=${typeof v === 'string' ? v : JSON.stringify(v)}`)
-    .join(' ')
-  return s.length > cap ? s.slice(0, cap - 1) + '…' : s
+  return formatBridgeResult(staticGodotCapsule(root, input.args?.budget, await vulcanEditorPresence(root)))
 }
 
 async function runLocalOp(
@@ -96,7 +84,7 @@ async function runLocalOp(
       return installer.applyVulcanUninstall(root, changeRecordRoad(context, parentMessage))
     case 'project_refresh_classes': {
       const { runProjectRefreshClasses } = await import('../../integrations/vulcan/classCache.js')
-      return formatResult(await runProjectRefreshClasses(root, installer.vulcanInstallStatus(root), args?.instance))
+      return formatBridgeResult(await runProjectRefreshClasses(root, installer.vulcanInstallStatus(root), args?.instance))
     }
     default:
       return `unknown local op ${op}`
@@ -164,17 +152,17 @@ async function runOp(input: Input, context: ToolUseContext, parentMessage: Assis
   }
   let text: string
   if (r.ok) {
-    text = formatResult(r.result)
+    text = formatBridgeResult(r.result)
   } else {
     text = `${input.op} failed: [${r.error.code}] ${r.error.message}${r.error.hint ? `\nhint: ${r.error.hint}` : ''}`
   }
-  if (r.instance) text += `\ninstance: ${formatResult(r.instance)}`
-  if (r.via) text += `\nvia: ${formatResult(r.via)}`
+  if (r.instance) text += `\ninstance: ${formatBridgeResult(r.instance)}`
+  if (r.via) text += `\nvia: ${formatBridgeResult(r.via)}`
   if (input.op === 'script_validate') text += await classCacheHint(input.args)
   const events = client.drainEvents()
   if (events.length > 0) {
     const shown = events.slice(-8)
-    text += `\n\nevents (${events.length}):\n` + shown.map(e => `· ${e.event}: ${formatResult(e.data).slice(0, 200)}`).join('\n')
+    text += `\n\nevents (${events.length}):\n` + shown.map(e => `· ${e.event}: ${formatBridgeResult(e.data).slice(0, 200)}`).join('\n')
   }
   return text
 }
@@ -194,7 +182,7 @@ export const GodotTool = buildTool({
   async prompt() {
     return getGodotToolDescription()
   },
-  userFacingName,
+  userFacingName: () => 'Godot',
   shouldDefer: true,
   get inputSchema(): SchemaType {
     return inputSchema()
@@ -224,7 +212,7 @@ export const GodotTool = buildTool({
     if (spec.cls === 'exec') {
       return {
         behavior: 'ask' as const,
-        message: `Godot exec: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} — runs code / drives input in the ${input.op.startsWith('runtime_') || input.op.startsWith('input_') ? 'running game' : 'editor'}`,
+        message: `Godot exec: ${input.op}${summarizeBridgeArgs(input.args) ? ` (${summarizeBridgeArgs(input.args)})` : ''} — runs code / drives input in the ${input.op.startsWith('runtime_') || input.op.startsWith('input_') ? 'running game' : 'editor'}`,
       }
     }
     if (input.op === 'vulcan_install' || input.op === 'vulcan_uninstall') {
@@ -236,12 +224,12 @@ export const GodotTool = buildTool({
     if (FILE_MUTATES.has(input.op)) {
       return {
         behavior: 'ask' as const,
-        message: `Godot mutate: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} — writes project files; the receipt lists previous values (no editor undo step)`,
+        message: `Godot mutate: ${input.op}${summarizeBridgeArgs(input.args) ? ` (${summarizeBridgeArgs(input.args)})` : ''} — writes project files; the receipt lists previous values (no editor undo step)`,
       }
     }
     return {
       behavior: 'ask' as const,
-      message: `Godot mutate: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} — one undo step in the editor (Ctrl+Z reverts)`,
+      message: `Godot mutate: ${input.op}${summarizeBridgeArgs(input.args) ? ` (${summarizeBridgeArgs(input.args)})` : ''} — one undo step in the editor (Ctrl+Z reverts)`,
     }
   },
   async validateInput(input: Input) {
@@ -267,9 +255,9 @@ export const GodotTool = buildTool({
       content: output.result,
     }
   },
-  renderToolUseMessage,
-  renderToolUseErrorMessage,
-  renderToolResultMessage,
+  renderToolUseMessage: renderBridgeToolUseMessage,
+  renderToolUseErrorMessage: renderBridgeToolUseErrorMessage,
+  renderToolResultMessage: renderBridgeToolResultMessage,
   extractSearchText({ result }) {
     return result ?? ''
   },

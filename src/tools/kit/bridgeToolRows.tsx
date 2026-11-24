@@ -1,16 +1,10 @@
-;
 import type { ToolResultBlockParam } from '../../engine/message-shapes/wire.js'
 import React from 'react';
-import { FallbackToolUseErrorMessage } from '../kit/FallbackToolUseErrorMessage.js';
+import { FallbackToolUseErrorMessage } from './FallbackToolUseErrorMessage.js';
 import { Box, Text } from '../../screen/themedRenderer.js';
-import type { Input, Output } from './GodotTool.js';
 
-export function userFacingName(): string {
-  return 'Godot';
-}
-
-export function renderToolUseMessage(
-  input: Partial<Input>,
+export function renderBridgeToolUseMessage(
+  input: { op?: string; args?: Record<string, unknown> },
   { verbose }: { verbose: boolean },
 ): React.ReactNode {
   if (!input.op) return null;
@@ -25,15 +19,15 @@ export function renderToolUseMessage(
   return parts.join(' — ');
 }
 
-export function renderToolUseErrorMessage(
+export function renderBridgeToolUseErrorMessage(
   result: ToolResultBlockParam['content'],
   { verbose }: { verbose: boolean },
 ): React.ReactNode {
   return <FallbackToolUseErrorMessage result={result} verbose={verbose} />;
 }
 
-export function renderToolResultMessage(
-  output: Output,
+export function renderBridgeToolResultMessage(
+  output: { result?: string },
   _progressMessages: unknown[],
   { verbose }: { verbose: boolean },
 ): React.ReactNode {
@@ -49,4 +43,17 @@ export function renderToolResultMessage(
       ) : null}
     </Box>
   );
+}
+
+export function summarizeBridgeArgs(args: Record<string, unknown> | undefined, cap = 160): string {
+  if (!args || Object.keys(args).length === 0) return ''
+  const s = Object.entries(args)
+    .map(([k, v]) => `${k}=${typeof v === 'string' ? v : JSON.stringify(v)}`)
+    .join(' ')
+  return s.length > cap ? s.slice(0, cap - 1) + '…' : s
+}
+
+export function formatBridgeResult(result: unknown): string {
+  if (typeof result === 'string') return result
+  return JSON.stringify(result, null, 2) ?? String(result)
 }

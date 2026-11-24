@@ -12,11 +12,12 @@ import { unityBridgeVerb, unityBridgeVerbNames } from '../../integrations/unity-
 import { unityBridgePort } from '../../integrations/unity-protocol/bridgeGates.js'
 import { UNITY_TOOL_NAME, getUnityToolDescription } from './prompt.js'
 import {
-  renderToolResultMessage,
-  renderToolUseErrorMessage,
-  renderToolUseMessage,
-  userFacingName,
-} from './rows.js'
+  formatBridgeResult,
+  renderBridgeToolResultMessage,
+  renderBridgeToolUseErrorMessage,
+  renderBridgeToolUseMessage,
+  summarizeBridgeArgs,
+} from '../kit/bridgeToolRows.js'
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
@@ -69,19 +70,6 @@ async function persistBridgeRunRecord(data: unknown): Promise<string | null> {
   return `test-run record ${record.id} persisted to the .mercury/test-runs store (framework unity)`
 }
 
-function formatResult(result: unknown): string {
-  if (typeof result === 'string') return result
-  return JSON.stringify(result, null, 2) ?? String(result)
-}
-
-function summarizeArgs(args: Record<string, unknown> | undefined, cap = 160): string {
-  if (!args || Object.keys(args).length === 0) return ''
-  const s = Object.entries(args)
-    .map(([k, v]) => `${k}=${typeof v === 'string' ? v : JSON.stringify(v)}`)
-    .join(' ')
-  return s.length > cap ? s.slice(0, cap - 1) + '…' : s
-}
-
 async function runLocalOp(op: string): Promise<string> {
   const installer = await import('../../integrations/unity/bridgeInstaller.js')
   const root = findUnityProjectRoot()
@@ -131,14 +119,14 @@ async function runOp(input: Input): Promise<string> {
   }
   let text: string
   if (r.ok) {
-    text = formatResult(r.result)
+    text = formatBridgeResult(r.result)
   } else {
     text = `${input.op} failed: [${r.error.code}] ${r.error.message}${r.error.hint ? `\nhint: ${r.error.hint}` : ''}`
   }
   const events = client.drainEvents()
   if (events.length > 0) {
     const shown = events.slice(-8)
-    text += `\n\nevents (${events.length}):\n` + shown.map(e => `· ${e.event}: ${formatResult(e.data).slice(0, 200)}`).join('\n')
+    text += `\n\nevents (${events.length}):\n` + shown.map(e => `· ${e.event}: ${formatBridgeResult(e.data).slice(0, 200)}`).join('\n')
     for (const e of events) {
       if (e.event === 'test_run_finished') {
         const note = await persistBridgeRunRecord(e.data)
@@ -161,7 +149,7 @@ export const UnityTool = buildTool({
   async prompt() {
     return getUnityToolDescription()
   },
-  userFacingName,
+  userFacingName: () => 'Unity',
   shouldDefer: true,
   get inputSchema(): SchemaType {
     return inputSchema()
@@ -189,7 +177,7 @@ export const UnityTool = buildTool({
     if (spec.cls === 'exec') {
       return {
         behavior: 'ask' as const,
-        message: `Unity exec: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} — ${
+        message: `Unity exec: ${input.op}${summarizeBridgeArgs(input.args) ? ` (${summarizeBridgeArgs(input.args)})` : ''} — ${
           input.op === 'tests_run'
             ? 'runs tests in the editor (results land at the .mercury results door)'
             : 'changes the editor play state (a domain reload drops + reconnects the bridge by design)'
@@ -198,7 +186,7 @@ export const UnityTool = buildTool({
     }
     return {
       behavior: 'ask' as const,
-      message: `Unity mutate: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} switches the open scene (no undo step; refuses with SCENE_DIRTY if there are unsaved changes)`,
+      message: `Unity mutate: ${input.op}${summarizeBridgeArgs(input.args) ? ` (${summarizeBridgeArgs(input.args)})` : ''} switches the open scene (no undo step; refuses with SCENE_DIRTY if there are unsaved changes)`,
     }
   },
   async validateInput(input: Input) {
@@ -224,9 +212,9 @@ export const UnityTool = buildTool({
       content: output.result,
     }
   },
-  renderToolUseMessage,
-  renderToolUseErrorMessage,
-  renderToolResultMessage,
+  renderToolUseMessage: renderBridgeToolUseMessage,
+  renderToolUseErrorMessage: renderBridgeToolUseErrorMessage,
+  renderToolResultMessage: renderBridgeToolResultMessage,
   extractSearchText({ result }) {
     return result ?? ''
   },
