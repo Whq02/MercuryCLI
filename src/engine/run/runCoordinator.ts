@@ -1,4 +1,3 @@
-
 import { randomUUID } from 'node:crypto'
 import { installChangeReceiptObserver } from '../../tools/engines/change-transaction/receipts.js'
 import { logError } from '../../platform/logs/errorLog.js'
@@ -128,10 +127,6 @@ export function runSettlement(owner: OwnerKey): LaneSettlement | null {
     return live
   }
   return degradedReceipts.get(owner) ?? null
-}
-
-export function degradedRunSettlements(): Array<{ owner: OwnerKey; settlement: LaneSettlement }> {
-  return [...degradedReceipts].map(([owner, settlement]) => ({ owner, settlement }))
 }
 
 const LIFECYCLE_EVENT_TYPES = new Set<RunEvent['type']>([
