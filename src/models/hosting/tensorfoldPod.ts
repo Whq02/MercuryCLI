@@ -9,7 +9,7 @@ import type { HostRecipe } from './recipes.js'
 import { closeHostTunnel, type HostRunner, type SshTarget } from './ssh.js'
 import { hostRecords, patchHostRecord, readHostRecord, removeHostRecord, type HostRecord } from './store.js'
 import { terminateHostResource } from './cluster.js'
-import { TENSORFOLD_CARDS, TENSORFOLD_HOST_PORT, TENSORFOLD_HOST_VERSION, tensorFoldCardFor, tensorFoldClassWords, tensorFoldKeyPath, tensorFoldKeyWriteCommand, tensorFoldReadyCommand, tensorFoldServedName, tensorFoldStartingPoint, tensorFoldTitle, tensorFoldWindowWords, type TensorFoldCard } from './tensorfoldRelease.js'
+import { TENSORFOLD_CARDS, TENSORFOLD_HOST_PORT, TENSORFOLD_HOST_VERSION, tensorFoldCardFor, tensorFoldClassWords, tensorFoldKeyWriteCommand, tensorFoldReadyCommand, tensorFoldServedName, tensorFoldStartingPoint, tensorFoldTitle, tensorFoldWindowWords } from './tensorfoldRelease.js'
 import { vendorClient, vendorLabel } from './vendors/client.js'
 import type { HostPod, HostVendor } from './vendors/vendor.js'
 import { HostVendorHttpError } from './vendors/http.js'
@@ -44,7 +44,6 @@ export const tensorFoldPodService = (key: string): { port: number; path: string;
 export async function writeTensorFoldPodKey(target: SshTarget, recipe: Pick<HostRecipe, 'id'>, key: string, runner: HostRunner, signal: AbortSignal, sshArguments: (target: SshTarget) => string[]): Promise<void> {
   await runner.run('ssh', [...sshArguments(target), tensorFoldKeyWriteCommand(tensorFoldPodDir(recipe), key)], signal)
 }
-export const tensorFoldPodKeyPath = (recipe: Pick<HostRecipe, 'id'>): string => tensorFoldKeyPath(tensorFoldPodDir(recipe))
 
 export interface TensorFoldPodRegistration { id: string; vendor?: HostRecord['vendor']; recipe: HostRecipe; baseUrl: string; key: string; served: string; window?: number; gpu?: { name: string; memoryGb: number }; target?: SshTarget; memoryGb?: number; arch?: string }
 export async function registerTensorFoldPod(registration: TensorFoldPodRegistration, remember: (host: TensorFoldHost & { key?: string }) => Promise<void> = rememberTensorFoldHost, write: (box: HostBox) => void = writeBox): Promise<{ hostName: string; host: TensorFoldHost; box?: HostBox; remembered: boolean }> {
@@ -128,7 +127,6 @@ export const tensorFoldCardWords = (gpu: string): string | undefined => {
   if (!card) return
   return card.class === 'refused' ? TENSORFOLD_HOST_WORDS.refused(card.gpu, card.evidence) : card.gpu + ' · ' + tensorFoldClassWords(card) + ' · ' + card.evidence
 }
-export const tensorFoldCardsByClass = (kind: TensorFoldCard['class']): readonly TensorFoldCard[] => TENSORFOLD_CARDS.filter(card => card.class === kind)
 
 export async function stopTensorFoldPod(id: string, options: { client?: HostVendor; signal?: AbortSignal; pauseMs?: number; timeoutMs?: number; forget?: (name: string) => Promise<void> } = {}): Promise<{ ok: boolean; words: string }> {
   const record = readHostRecord(id)
