@@ -57,7 +57,7 @@ import {
 } from '../../src/platform/settings/markdownConfigLoader.js'
 import { hashPastedText, storePastedText, retrievePastedText, sweepOldPastes } from '../../src/sessions/pasteStore.js'
 import { getTheme, lerpHex, THEME_NAMES, type Theme, type ThemeName } from '../../src/screen/theme/theme.js'
-import { slowLogging, SLOW_OPERATION_THRESHOLD_MS } from '../../src/platform/logs/slowOperations.js'
+import { slowLogging } from '../../src/platform/logs/slowOperations.js'
 import { isImageFilePath } from '../../src/screen/composer/imagePaste.js'
 import { getMercuryHome } from '../../src/platform/environment/envUtils.js'
 import { TEAL as MERCURY_TEAL, AMBER as MERCURY_AMBER, CRIMSON as MERCURY_CRIMSON } from '../../src/screen/theme/mercuryPalette.js'
@@ -1024,7 +1024,7 @@ console.log('\n── tier-2 additions (73–84) ──')
 {
   const a = slowLogging`op one`
   const b = slowLogging`op two ${42}`
-  check('81. slowLogging returns the ONE shared no-op disposable; threshold resolved once at load', a === b && typeof SLOW_OPERATION_THRESHOLD_MS === 'number')
+  check('81. slowLogging returns the ONE shared no-op disposable', a === b)
 }
 
 

@@ -1,5 +1,3 @@
-export const SLOW_OPERATION_THRESHOLD_MS = process.env.NODE_ENV === 'development' ? 20 : Number.POSITIVE_INFINITY
-
 const NOOP_DISPOSABLE: Disposable = Object.freeze({ [Symbol.dispose]() {} })
 
 export function slowLogging(
