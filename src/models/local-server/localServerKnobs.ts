@@ -54,7 +54,7 @@ export function writeLocalServerSetting(id: LocalServerKnobId, value: number | s
   return updateSettingsForSource('userSettings', { local: { server: { [id]: value } } } as Partial<SettingsJson>)
 }
 
-export function knobEnvValue(id: LocalServerKnobId, value: number | string): string {
+export function knobEnvValue(value: number | string): string {
   return String(value)
 }
 
@@ -62,7 +62,7 @@ export function settingsAsEnv(settings: LocalServerSettings): Record<string, str
   const env: Record<string, string> = {}
   for (const knob of LOCAL_SERVER_KNOBS) {
     const value = settings[knob.id]
-    if (value !== undefined) env[knob.envName] = knobEnvValue(knob.id, value)
+    if (value !== undefined) env[knob.envName] = knobEnvValue(value)
   }
   return env
 }
