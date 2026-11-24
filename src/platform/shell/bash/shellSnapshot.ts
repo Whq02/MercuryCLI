@@ -104,7 +104,7 @@ function aliasesSaidBy(said: string): string[] {
   for (const line of (parts[from + 1] ?? '').split('\n')) {
     if (line === 'alias run-help=man' || line === 'alias which-command=whence') continue
     const shown = /^alias (?:-- )?([^\s\/$`=|&;()<>'"\\]+)=(.+)$/.exec(line)
-    if (shown !== null) lines.push(`alias -- ${shown[1]}=${shown[2]}`)
+    if (shown !== null) lines.push(`type -- '${shown[1]}' >/dev/null 2>&1 || alias -- ${shown[1]}=${shown[2]}`)
   }
   return lines.slice(0, SNAPSHOT_ALIAS_LIMIT)
 }
@@ -537,7 +537,7 @@ function randomSnapshotSuffix(): string {
   return suffix
 }
 
-function mercurySearchTools(): string {
+function buildMercuryToolsContent(pathValue: string): string {
   const rgCommand = ripgrepCommand()
   let rgFallback: string
   if (rgCommand.argv0) {
@@ -553,11 +553,9 @@ function mercurySearchTools(): string {
     'if ! (unalias rg 2>/dev/null; command -v rg >/dev/null 2>&1); then',
     rgFallback,
     'fi',
+    '# Mercury PATH',
+    `export PATH=${quote([pathValue])}`,
   ].join('\n')
-}
-
-function buildMercuryToolsContent(pathValue: string): string {
-  return [mercurySearchTools(), '# Mercury PATH', `export PATH=${quote([pathValue])}`].join('\n')
 }
 
 function buildCaptureScript(params: {
@@ -760,7 +758,7 @@ export async function createAndSaveSnapshot(
       await appendFile(snapshotFilePath, `export PATH=${quote([mergedPath])}\n`, 'utf8')
     }
     if (zshAliases.length > 0) {
-      await appendFile(snapshotFilePath, `${zshAliases.join('\n')}\n${mercurySearchTools()}\n`, 'utf8')
+      await appendFile(snapshotFilePath, `${zshAliases.join('\n')}\n`, 'utf8')
     }
 
     registerCleanup(async () => {
