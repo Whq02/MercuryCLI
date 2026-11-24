@@ -268,8 +268,6 @@ console.log('\n[10] the pure arithmetic of the contract')
   const again = driver.displaysFingerprint(displays.map(d => ({ ...d })))
   const moved = driver.displaysFingerprint(displays.map((d, i) => (i === 1 ? { ...d, originX: -1921 } : d)))
   check('the fingerprint is stable across calls and changes when an origin changes', first === again && first !== moved && /^[0-9a-f]{16}$/.test(first), `${first} ${again} ${moved}`, 'displaysFingerprint in src/integrations/desktop/driver.ts must hash display origins into a stable 16-hex string')
-  const point = driver.capturePixelToPoint({ scale: 2, originX: -1920, originY: 0 }, 100, 50)
-  check('a screenshot pixel maps to its global point through the scale and the origin', point.x === -1870 && point.y === 25, JSON.stringify(point), 'capturePixelToPoint in src/integrations/desktop/driver.ts must divide the pixel by scale and add the display origin')
 }
 
 console.log('\n[11] the health row')

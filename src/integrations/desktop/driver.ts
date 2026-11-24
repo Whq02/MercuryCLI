@@ -64,14 +64,6 @@ export interface DesktopCapture {
   capturedAt: number
 }
 
-export function capturePixelToPoint(
-  capture: Pick<DesktopCapture, 'scale' | 'originX' | 'originY'>,
-  px: number,
-  py: number,
-): DesktopPoint {
-  return { x: capture.originX + px / capture.scale, y: capture.originY + py / capture.scale }
-}
-
 export interface DesktopApplication {
   identity: string
   name: string
