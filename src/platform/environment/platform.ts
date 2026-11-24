@@ -33,19 +33,6 @@ export const getPlatform = memoize((): Platform => {
   }
 })
 
-export const getWslVersion = memoize((): string | undefined => {
-  if (process.platform !== 'linux') return undefined
-  try {
-    const version = readFileSync('/proc/version', 'utf8')
-    const digits = /WSL(\d+)/i.exec(version)?.[1]
-    if (digits) return digits
-    return version.toLowerCase().includes('microsoft') ? '1' : undefined
-  } catch (error) {
-    logError(error)
-    return undefined
-  }
-})
-
 function osReleaseValue(rest: string): string {
   return rest.trim().replace(/^"(.*)"$/, '$1')
 }
