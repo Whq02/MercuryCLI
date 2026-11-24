@@ -1147,10 +1147,10 @@ src/integrations/event-hooks/answer.ts	SINGLE_SETTER_FIELDS	process	module	Load-
 src/integrations/event-hooks/background.ts	resetBackgroundHooksForTesting	reset-export
 src/integrations/event-hooks/background.ts	running	owner	module	session; module (cleared on endBackgroundHooks, no per-owner end); active background hook processes across owners
 src/integrations/event-hooks/background.ts	settled	owner	module	session; module (unbounded array, no per-owner end); banked/settled hook outcomes drained across owners by takeBackgroundHookOutcomes
-src/integrations/event-hooks/contract.ts	FOLD_METHODS	process	module	Load-time list with no local writer
-src/integrations/event-hooks/contract.ts	FOLD_TRIGGERS	process	module	Load-time list with no local writer
 src/integrations/event-hooks/contract.ts	CREWMATE_END_STATUSES	process	module	Load-time list with no local writer
 src/integrations/event-hooks/contract.ts	CUT_REASONS	process	module	Load-time list with no local writer
+src/integrations/event-hooks/contract.ts	FOLD_METHODS	process	module	Load-time list with no local writer
+src/integrations/event-hooks/contract.ts	FOLD_TRIGGERS	process	module	Load-time list with no local writer
 src/integrations/event-hooks/contract.ts	HOOK_ANSWER_FIELDS	process	module	Load-time list with no local writer
 src/integrations/event-hooks/contract.ts	HOOK_BACKGROUND_ANSWER_FIELDS	process	module	Load-time list with no local writer
 src/integrations/event-hooks/contract.ts	HOOK_EVENTS	process	module	Derived collection initialized at load
@@ -2278,8 +2278,8 @@ src/models/roads/openai/call-model/attemptSettle.ts	FINISH_TO_STOP	process	modul
 src/models/roads/openai/call-model/bridgeMessages.ts	foreignRecordNoted	owner	module	agent level (module): Set keyed by sessionId:agentId deduping foreign replay settlement notice
 src/models/roads/openai/call-model/bridgeMessages.ts	reconstructionNoted	owner	module	agent level (module): Set keyed by sessionId:agentId deduping reconstruction debug log
 src/models/roads/openai/call-model/images.ts	OPENAI_SOURCE_KINDS	process	module	Load-time list with no local writer
-src/models/roads/openai/call-model/resumeTrim.ts	prunedToolResultsByConversation	owner	module	agent level (module): Map<conversationKey, Map<toolUseId, replacement>> holding compacted tool results
 src/models/roads/openai/call-model/resumeTrim.ts	priorConversation4xx	owner	module	agent level (module): Map<conversation4xxKey, string> tracking prior 4xx per conversation
+src/models/roads/openai/call-model/resumeTrim.ts	prunedToolResultsByConversation	owner	module	agent level (module): Map<conversationKey, Map<toolUseId, replacement>> holding compacted tool results
 src/models/roads/openai/call-model/turnSettled.ts	openaiLiveProof	process	module	process-wide timestamp/model of most recent live OpenAI turn for diagnostics
 src/models/roads/openai/openaiAccounts.ts	knownDeadRefreshTokens	process	module	process-wide set of permanently rejected OpenAI refresh tokens to prevent retry loops
 src/models/roads/openai/openaiAccounts.ts	refreshInFlight	process	module	single-flight OAuth token refresh deduplication for shared account sign-in
@@ -2679,8 +2679,8 @@ src/permissions/guards/wardsGuard.ts	homeUnknownLogged	process	module	one-time p
 src/permissions/guards/wardsGuard.ts	resetWardsEngagedSessionsForTest	reset-export
 src/permissions/guards/wardsGuard.ts	wardFirings	owner	module	Session guard events retained in the module
 src/permissions/guards/wardsGuard.ts	wardsEngagedSessions	owner	module	Session engagement retained in the module
-src/permissions/rules/bypassPermissionsKillswitch.ts	sovereignCheckRan	owner	module	Session state retained in this module
 src/permissions/rules/bypassPermissionsKillswitch.ts	resetSovereignCheck	reset-export
+src/permissions/rules/bypassPermissionsKillswitch.ts	sovereignCheckRan	owner	module	Session state retained in this module
 src/permissions/rules/capabilityGate.ts	AGENT_CAP_RISK_RANK	process	module	Load-time table with no local writer
 src/permissions/rules/capabilityGate.ts	VALID_CATS	process	module	Load-time lookup with no local writer
 src/permissions/rules/capabilityGate.ts	clearAllCapabilityKills	reset-export

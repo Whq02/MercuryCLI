@@ -170,8 +170,23 @@ function staticEntry(row: Row): Entry | undefined {
   return reason ? { kind: 'process', reason } : undefined
 }
 
+function hooksByFile(hooks: Set<string>): Map<string, number> {
+  const counts = new Map<string, number>()
+  for (const key of hooks) {
+    const file = key.slice(0, key.indexOf('\t'))
+    counts.set(file, (counts.get(file) ?? 0) + 1)
+  }
+  return counts
+}
+
 function limits(now: Inventory, before: Inventory): string[] {
-  const errors = [...now.hooks].filter(key => !before.hooks.has(key)).map(key => `${key}: remove the new reset/clear export; use an owner lifetime or a local fixture`)
+  const held = hooksByFile(before.hooks)
+  const standing = hooksByFile(now.hooks)
+  const grew = (key: string): boolean => {
+    const file = key.slice(0, key.indexOf('\t'))
+    return (standing.get(file) ?? 0) > (held.get(file) ?? 0)
+  }
+  const errors = [...now.hooks].filter(key => !before.hooks.has(key) && grew(key)).map(key => `${key}: remove the new reset/clear export; use an owner lifetime or a local fixture`)
   if (now.outside > before.outside) errors.push(`owner bindings outside a store grew from ${before.outside} to ${now.outside}; place the new owner state in a registered OwnerScopedStore`)
   return errors
 }
@@ -196,6 +211,9 @@ function selfCheck(): void {
   }
   const larger = inventory('src/a.ts\tsettings\towner\tmodule\tagent state\nsrc/a.ts\tresetTags\treset-export\n')
   if (limits(larger, inventory('')).length !== 2 || limits(inventory(''), larger).length) throw new Error(`${self}: both ratchets must accept removals and refuse additions`)
+  const renamed = inventory('src/a.ts\tsettings\towner\tmodule\tagent state\nsrc/a.ts\tclearTags\treset-export\n')
+  const second = inventory('src/a.ts\tsettings\towner\tmodule\tagent state\nsrc/a.ts\tresetTags\treset-export\nsrc/a.ts\tclearTags\treset-export\n')
+  if (limits(renamed, larger).length || limits(second, larger).length !== 1) throw new Error(`${self}: a reset export renamed in its file is not a new one, and a second one in that file is`)
 }
 
 function main(): void {
