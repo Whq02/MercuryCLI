@@ -118,6 +118,21 @@ async function scene(terminal: string): Promise<Scene> {
   return { rows, atRest, run, resized: widths.length === 0 }
 }
 
+const HINT_ORDER = 'what to change: shapeBidiForTerminal in src/screen/renderer/bidi.ts'
+const plain = (cell: string): string => cell.replace(/[\u2066-\u2069]/g, '')
+
+function tableLines(rows: TerminalRows): string[] {
+  const lines: string[] = []
+  for (const y of rows.rtlRows()) {
+    const columns: number[] = []
+    rows.cells[y]!.forEach((cell, x) => {
+      if (plain(cell) === '│') columns.push(x)
+    })
+    if (columns.length >= 5) lines.push(columns.join(','))
+  }
+  return lines
+}
+
 console.log('============================================================')
 console.log(' right-to-left rows on the wire: the typing box, a streamed answer, a resize, a scroll back')
 console.log('============================================================')
@@ -151,6 +166,12 @@ try {
     'Apple_Terminal: the whole answer stood on the screen before the scroll back and the resize',
     rest !== null && rest.rtlRows().length >= 4 && rest.cells.some(row => row.join('').includes('ANSWER-END')),
     `the keys ran late on a loaded machine, so the checks of the answer at rest below mean nothing; run this test alone · ${rest?.rtlRows().length} right-to-left rows`,
+  )
+  const lines = rest === null ? [] : tableLines(rest)
+  check(
+    "Apple_Terminal: the table's lines stand in the same columns in each of its four rows",
+    lines.length >= 4 && lines.every(columns => columns === lines[0]),
+    `${HINT_ORDER} · ${lines.join(' | ')}`,
   )
 } finally {
   apple.run.cleanup()

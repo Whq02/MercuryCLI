@@ -100,7 +100,25 @@ const joiningType = (value: string): string => joiningTypes[pointKey(value)] ?? 
 const joinsLeft = (type: string): boolean => type === 'D' || type === 'L' || type === 'C'
 const joinsRight = (type: string): boolean => type === 'D' || type === 'R' || type === 'C'
 
+const BORDER_CELL = /^[\u2500-\u257F]$/
+
 export function shapeBidiForTerminal<T extends BidiChar>(characters: T[]): T[] {
+  let out: T[] | undefined
+  let from = 0
+  for (let at = 0; at <= characters.length; at++) {
+    if (at < characters.length && !BORDER_CELL.test(characters[at]!.value)) continue
+    const stretch = from === 0 && at === characters.length ? characters : characters.slice(from, at)
+    const shaped = shapeStretch(stretch)
+    if (shaped !== stretch) {
+      out ??= characters.slice()
+      out.splice(from, shaped.length, ...shaped)
+    }
+    from = at + 1
+  }
+  return out ?? characters
+}
+
+function shapeStretch<T extends BidiChar>(characters: T[]): T[] {
   const text = characters.map(c => c.value).join('')
   if (!containsRtl(text)) return characters
   const embedding = getBidi().getEmbeddingLevels(text, 'ltr')
