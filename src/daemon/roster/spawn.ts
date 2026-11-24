@@ -19,6 +19,7 @@ import {
 } from './longLivedRespawn.js'
 import { calculateContextPercentages, getContextWindowForModel } from '../../engine/compaction-window/contextFill.js'
 import { currentVersion } from '../control/controlSocket.js'
+import { getProcessStartInstantAsync } from '../control/ownerWatch.js'
 import type { LongLivedSeat, RosterEntry, RosterOptions, WorkerHandle } from './types.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 import { stopTimeout } from '../../platform/async/timers.js'
@@ -117,8 +118,10 @@ export class SpawnPart {
     h.entry.pid = child.pid
     if (short.startsWith('concourse-w') && typeof child.pid === 'number') {
       const livePid = child.pid
-      void import('../concourse-workers/concourseWorkers.js')
-        .then(sup => sup.markConcourseWorkerRespawn(short, livePid))
+      void Promise.all([import('../concourse-workers/concourseWorkers.js'), getProcessStartInstantAsync(livePid)])
+        .then(([sup, startInstant]) => {
+          if (this.handles.get(short)?.entry.pid === livePid) sup.markConcourseWorkerRespawn(short, livePid, undefined, startInstant)
+        })
         .catch(passedOver)
     }
     h.entry.state = 'running'

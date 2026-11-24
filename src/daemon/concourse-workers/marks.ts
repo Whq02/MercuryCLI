@@ -89,8 +89,8 @@ export function buildTreeFields(): { buildTree?: string } {
   return tree !== null ? { buildTree: tree } : {}
 }
 
-export function markConcourseWorkerRespawn(runnerId: string, pid: number, dir?: string): void {
-  const fields = pidFieldsOf(pid)
+export function markConcourseWorkerRespawn(runnerId: string, pid: number, dir?: string, startInstant?: string | null): void {
+  const fields = pidFieldsOf(pid, startInstant)
   try {
     updateConcourseWorkers(workers => {
       const rec = workers[runnerId]
