@@ -46,12 +46,6 @@ export function operatorLanesFromEnv(env: NodeJS.ProcessEnv = hostEnv()): number
   return Number.isFinite(n) && n >= 1 ? n : null
 }
 
-export function inheritedSeatsFromEnv(env: NodeJS.ProcessEnv = hostEnv()): number | null {
-  const raw = flagEnv('MERCURY_SEATS', env) ?? ''
-  const n = Number.parseInt(raw, 10)
-  return Number.isFinite(n) && n >= 1 ? n : null
-}
-
 function seatsForProcess(): { seats: number; source: SeatCeilingSource | 'inherited' } {
   const facts = seatCeilingFacts()
   if (facts.source === 'operator') return { seats: facts.seats, source: 'operator' }

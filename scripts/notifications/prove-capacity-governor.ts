@@ -155,7 +155,6 @@ t.section('§6 — the composition: the seats, the delegation band, the operator
   const pinnedWhy = compose.composeProvenance({ seats: 3, seatSource: 'consented', delegationBand: null, profileId: null, operatorLanes: 1 }, pinned)
   t.check('…and the provenance names the operator ceiling', pinnedWhy.narrowing?.by === 'operator' && pinnedWhy.narrowing.lanes === 1, JSON.stringify(pinnedWhy))
   t.check('operator-term parsing: registered env → int, junk → null', compose.operatorLanesFromEnv({ MERCURY_MODEL_LANES: '3' }) === 3 && compose.operatorLanesFromEnv({ MERCURY_MODEL_LANES: 'x' }) === null && compose.operatorLanesFromEnv({}) === null, 'parse')
-  t.check('inherited-seats parsing: the daemon stamp → int, junk/absent → null', compose.inheritedSeatsFromEnv({ MERCURY_SEATS: '4' }) === 4 && compose.inheritedSeatsFromEnv({ MERCURY_SEATS: '0' }) === null && compose.inheritedSeatsFromEnv({}) === null, 'parse')
 }
 
 t.section('§7 — the delegation-class clamp at admission')
