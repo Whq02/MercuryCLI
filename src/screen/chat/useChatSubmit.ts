@@ -34,6 +34,7 @@ import { followRouteAlias, holdCommandForLanding, readCommandArgs, runLocalComma
 import { holdForLanding, sendToSession } from './submit/sessionSend.js';
 import { INERT_PROMPT_HELPERS, readSubmitLine, refuseUnknownSlash, takeComposer, type SubmitDeps, type SubmitOptions } from './submit/submitLine.js';
 import type { ToolJSXState } from './useChatDialogs.js';
+import type { ProcessUserInputContext } from '../../engine/user-input/processUserInput.js';
 
 export function useChatReceipts({ addNotification }: { addNotification: ReturnType<typeof useNotifications>['addNotification'] }) {
   const paintScreenRow = useCallback((row: Message, fallbackText: string): void => {
@@ -83,7 +84,7 @@ export function useChatSubmitTools({ store, setAppState, addNotification, remove
   const getToolUseContext = useCallback(
     (currentMessages: Message[], newMessages: Message[], controller: AbortController, model: string) => {
       const state = store.getState();
-      const context = {
+      const context: ProcessUserInputContext = {
         options: {
           commands: commandsRef.current,
           debug,
@@ -109,7 +110,6 @@ export function useChatSubmitTools({ store, setAppState, addNotification, remove
         addNotification,
         appendSystemMessage: (msg: Message) => paintScreenRow(msg, getUserMessageText(msg as UserMessage) ?? ''),
         setInProgressToolUseIDs: () => {},
-        setHasInterruptibleToolInProgress: () => {},
         setResponseLength: () => {},
         setStreamMode: () => {},
         openMessageSelector: () => setShowMessageSelector(true),

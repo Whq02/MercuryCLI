@@ -39,7 +39,7 @@ import { isFullscreenEnvEnabled, isMouseTrackingEnabled } from '../fullscreen-la
 import { passedOver } from '../../platform/errors/passedOver.js';
 import { chatBottomSlot } from './chatBottomSlot.js';
 import { chatMessagesList, chatTranscriptBody } from './chatMessagesList.js';
-import { chatLegacyTree, chatTree } from './chatTree.js';
+import { chatLegacyTree, chatTree, type ChatKeysArgs } from './chatTree.js';
 import type { FocusedInputDialog } from './focusedDialog.js';
 import type { Screen as ScreenName } from './screen.js';
 import { getFocusedSeatLive, useChatFocusedSeat } from './useChatFocusedSeat.js';
@@ -214,7 +214,7 @@ export function Chat({ commands: initialCommands, initialTools, debug = false, d
 
   const transcriptBody = chatTranscriptBody({ inVirtualTranscript, entryLoadingLine, inlineToolJsx, messagesList });
 
-  const keys = {
+  const keys: ChatKeysArgs = {
     legacyTranscript, fullscreen, compactWork, screen, setScreen, showAllInTranscript, setShowAllInTranscript,
     messages, handleEnterTranscript, handleExitTranscript, inVirtualTranscriptMode, inVirtualTranscript,
     searchBarOpen, helpOpen, isSearchingHistory, messageCursorActive, messageActions, messageActionsDisabled,

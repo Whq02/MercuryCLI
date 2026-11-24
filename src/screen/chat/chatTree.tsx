@@ -19,7 +19,7 @@ import type { useChatStatusStrip } from './useChatStatus.js';
 import { AnimatedTitle, type useChatTitle } from './useChatTitle.js';
 import type { useChatTools } from './useChatTools.js';
 
-type ChatKeysArgs = Omit<React.ComponentProps<typeof ChatKeys>, 'children'>;
+export type ChatKeysArgs = Omit<React.ComponentProps<typeof ChatKeys>, 'children'>;
 
 type LegacyTreeArgs = Pick<ReturnType<typeof useChatTitle>, 'title' | 'titleAnimating'> &
   Pick<ReturnType<typeof useChatDialogs>, 'toolJSX'> &
