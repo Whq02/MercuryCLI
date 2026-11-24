@@ -2,8 +2,6 @@
 import { randomUUID } from 'crypto'
 import { getFocusedSessionConnector } from '../../engine/connector/focusedConnector.js'
 
-export const RECEIPT_KINDS = ['dispatch-accepted', 'dispatch-unavailable'] as const
-
 export const mintIntentId = (): string =>
   `di-${randomUUID().replace(/-/g, '').slice(0, 12)}`
 
