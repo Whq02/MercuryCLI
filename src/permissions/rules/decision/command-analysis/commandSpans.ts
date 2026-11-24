@@ -67,3 +67,35 @@ export function preparedCommandSpans(command: string): CommandSpan[] | null {
   if (!root || root.type === 'ERROR') return null
   return commandSpans(root)
 }
+
+const NOT_WORDS: ReadonlySet<string> = new Set(['variable_assignment', 'file_redirect', 'herestring_redirect'])
+const QUOTED_WORDS: ReadonlySet<string> = new Set(['raw_string', 'string'])
+
+function placeIn(command: string, node: Node): number | null {
+  if (command.endsWith(node.text)) return command.length - node.text.length
+  return node.text.startsWith(command) ? 0 : null
+}
+
+export function quotedArguments(command: string, wanted: (argv: string[]) => number[]): { start: number; end: number }[] {
+  const root = preparedCommandRoot(command)
+  const at = root === null ? null : placeIn(command, root)
+  if (root === null || at === null) return []
+  const shift = at - root.startIndex
+  const found: { start: number; end: number }[] = []
+  const visit = (node: Node): void => {
+    if (node.type === 'command') {
+      const words = node.children.filter(child => !NOT_WORDS.has(child.type))
+      const read = parseForSecurityFromAst(node.text, node)
+      const argv = read.kind === 'simple' && read.commands.length === 1 ? read.commands[0]?.argv : undefined
+      if (argv !== undefined && argv.length === words.length) {
+        for (const index of wanted(argv)) {
+          const word = words[index]
+          if (word !== undefined && QUOTED_WORDS.has(word.type)) found.push({ start: word.startIndex + 1 + shift, end: word.endIndex - 1 + shift })
+        }
+      }
+    }
+    for (const child of node.children) visit(child)
+  }
+  visit(root)
+  return found
+}
