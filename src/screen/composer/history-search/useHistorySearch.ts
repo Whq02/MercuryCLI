@@ -92,6 +92,7 @@ export function useHistorySearch(
   setIsSearching: (isSearching: boolean) => void,
   setPastedContents: (pastedContents: Record<number, PastedContent>) => void,
   currentPastedContents: Record<number, PastedContent>,
+  keysHeldByDialog: boolean,
 ): {
   historyQuery: string
   setHistoryQuery: (query: string) => void
@@ -345,7 +346,7 @@ export function useHistorySearch(
     else resolveFixedMatch(settled.record, finish)
   }, [takeFixedMatch, resetSearch])
 
-  useKeybinding('history:search', handleStartSearch, { context: 'Global', isActive: !isSearching })
+  useKeybinding('history:search', handleStartSearch, { context: 'Global', isActive: !isSearching && !keysHeldByDialog })
   useKeybindings(
     {
       'historySearch:next': handleNext,

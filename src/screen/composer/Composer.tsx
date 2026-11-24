@@ -197,6 +197,7 @@ function ComposerInner(props: ComposerProps): React.ReactNode {
       pendingInput.setPastedContents(pastes)
     },
     pastedContents,
+    overlay === 'tasks-dialog' || showBashesDialog !== false || isLocalJSXCommandActive,
   )
 
   const historyNavAllowed = useCallback(
