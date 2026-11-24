@@ -28,6 +28,7 @@ export {
 } from '../config/projectConfig.js'
 export {
   checkHasTrustDialogAccepted,
+  isHomeDirectory,
   isPathTrusted,
   resetTrustDialogAcceptedCacheForTesting,
   setPathTrusted,

@@ -38,6 +38,7 @@ prove-global-config-projects-write.ts
 prove-global-config-read-as-written.ts
 prove-global-refresh-admission.ts
 prove-helper-lifetime.ts
+prove-home-trust-alternate-spellings.ts
 prove-hook-faults-all-named.ts
 prove-hook-schema-teeth.ts
 prove-identity-line.ts

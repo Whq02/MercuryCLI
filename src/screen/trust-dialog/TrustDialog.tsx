@@ -1,5 +1,3 @@
-import { homedir } from 'os';
-import { resolve } from 'path';
 import { useTerminalSize } from '../fullscreen-layout/useTerminalSize.js';
 import { exitChordNoticeText } from '../composer/ExitChordNotice.js'
 import React from 'react';
@@ -7,7 +5,7 @@ import { useTimer } from '../effects/effects.js';
 import { useExitChord } from '../keys/useExitChord.js';
 import { Box, Text } from '../themedRenderer.js';
 import { useKeybinding } from '../keys/useKeybinding.js';
-import { checkHasTrustDialogAccepted, getProjectPathForConfig, saveCurrentProjectConfig, setPathTrusted } from '../../platform/settings/config.js';
+import { checkHasTrustDialogAccepted, getProjectPathForConfig, isHomeDirectory, saveCurrentProjectConfig, setPathTrusted } from '../../platform/settings/config.js';
 import { getCwd } from '../../platform/files/cwd.js';
 import { getFsImplementation } from '../../platform/files/fsOperations.js';
 import { gracefulShutdownSync } from '../../platform/processes/gracefulShutdown.js';
@@ -55,7 +53,7 @@ export function TrustDialog({ onDone }: Props): React.ReactNode {
       exit();
       return;
     }
-    if (normalizePathForConfigKey(resolve(getCwd())) === normalizePathForConfigKey(homedir())) {
+    if (isHomeDirectory(getCwd())) {
       setPathTrusted(getCwd());
     } else {
       saveCurrentProjectConfig(current => ({

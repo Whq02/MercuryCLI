@@ -1,9 +1,11 @@
+import { statSync } from 'fs'
 import { homedir } from 'os'
 import { resolve } from 'path'
 import { getIsNonInteractiveSession, getSessionTrustAccepted, setSessionTrustAccepted } from '../../boot/process-state/processState.js'
 import { getCwd } from '../files/cwd.js'
 import { logForDebugging } from '../logs/debugLog.js'
 import { normalizePathForConfigKey } from '../files/path.js'
+import { passedOver } from '../errors/passedOver.js'
 
 import { DEFAULT_PROJECT_CONFIG, type GlobalConfig } from './schema.js'
 import { getGlobalConfig, isConfigReadingAllowed, saveGlobalConfig } from './globalConfig.js'
@@ -15,8 +17,16 @@ export function resetTrustDialogAcceptedCacheForTesting(): void {
   _trustAccepted = false
 }
 
-function isHomeDirectory(dir: string): boolean {
-  return normalizePathForConfigKey(resolve(dir)) === normalizePathForConfigKey(homedir())
+export function isHomeDirectory(dir: string): boolean {
+  if (normalizePathForConfigKey(resolve(dir)) === normalizePathForConfigKey(homedir())) return true
+  try {
+    const folder = statSync(dir)
+    const home = statSync(homedir())
+    return folder.dev === home.dev && folder.ino === home.ino
+  } catch (error) {
+    passedOver(error)
+    return false
+  }
 }
 
 function trustDialogAnswer(): boolean {
@@ -71,7 +81,7 @@ export function isPathTrusted(dir: string): boolean {
 
 export function setPathTrusted(dir: string): void {
   const key = normalizePathForConfigKey(resolve(dir))
-  if (key === normalizePathForConfigKey(homedir())) {
+  if (isHomeDirectory(dir)) {
     setSessionTrustAccepted(true)
     saveGlobalConfig(current =>
       current.hasHomeTrustDialogAccepted ? current : { ...current, hasHomeTrustDialogAccepted: true },
