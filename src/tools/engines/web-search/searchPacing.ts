@@ -20,9 +20,6 @@ export const COOL_DOWN_CAP_MS = 10 * 60_000
 const COOL_DOWN_JITTER = 0.25
 const STREAK_DECAY_MS = 2 * COOL_DOWN_CAP_MS
 
-const RETRY_BACKOFF_MIN_MS = 1_500
-const RETRY_BACKOFF_MAX_MS = 3_000
-
 export const SEARCH_CACHE_ENTRIES = 64
 export const SEARCH_CACHE_TTL_MS = 10 * 60_000
 
@@ -58,10 +55,6 @@ export function noteRateLimited(door: PacedDoor, clock: Pick<SearchClock, 'now' 
 
 export function noteAnswered(door: PacedDoor): void {
   coolDowns.delete(door)
-}
-
-export function retryBackoffMs(random: () => number): number {
-  return Math.round(RETRY_BACKOFF_MIN_MS + random() * (RETRY_BACKOFF_MAX_MS - RETRY_BACKOFF_MIN_MS))
 }
 
 export function secondsLeftLabel(ms: number): string {

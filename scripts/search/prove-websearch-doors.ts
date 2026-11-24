@@ -522,7 +522,6 @@ section("§11 THE SESSION CACHE — the same query answers with ZERO knocks and 
   const w4 = pacing.noteRateLimited('brave', clockAt(2 * pacing.COOL_DOWN_CAP_MS + 1))
   check('a streak long expired decays: a refusal past the decay window opens the base window again', w3 === 30_000 && w4 === 30_000, j([w3, w4]))
   check('secondsLeftLabel rounds UP and speaks minutes', pacing.secondsLeftLabel(27_400) === '28s' && pacing.secondsLeftLabel(250_000) === '4m 10s' && pacing.secondsLeftLabel(600_000) === '10m' && pacing.secondsLeftLabel(1) === '1s')
-  check('the retry back-off spans 1.5–3 s', pacing.retryBackoffMs(() => 0) === 1_500 && pacing.retryBackoffMs(() => 1) === 3_000)
   pacing.resetSearchPacing()
   fixture.reset()
 }
