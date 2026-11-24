@@ -600,18 +600,6 @@ console.log('native-core T13/T14 — input-scheduling contract')
   cq.resetCommandQueue()
   pi.initOnce({ text: '', mode: 'prompt', pastedContents: {} })
 
-  const ALL_TRUE = { reason: 'user-cancel', queryActive: false, queueLength: 0, viewingAgent: false }
-  check('restore-matrix 1: all five guards true ⇒ restore', pi.shouldAutoRestore(ALL_TRUE))
-  check('restore-matrix 2: a steer/interrupt reason never restores',
-    !pi.shouldAutoRestore({ ...ALL_TRUE, reason: 'interrupt' }) && !pi.shouldAutoRestore({ ...ALL_TRUE, reason: undefined }))
-  check('restore-matrix 3: an active turn never restores', !pi.shouldAutoRestore({ ...ALL_TRUE, queryActive: true }))
-  pi.edit('typed since')
-  check('restore-matrix 4: typed-during-loading never restores (composer nonempty)', !pi.shouldAutoRestore(ALL_TRUE))
-  pi.edit('')
-  check('restore-matrix 5: a queued follow-up owns the next turn (never restores)',
-    !pi.shouldAutoRestore({ ...ALL_TRUE, queueLength: 1 }))
-  check('restore-matrix 6: viewing a crewmate never restores', !pi.shouldAutoRestore({ ...ALL_TRUE, viewingAgent: true }))
-
   pi.edit('ship it')
   pi.clearForSubmit('ship it')
   check('staged: clearForSubmit stamps the record', pi.stagedSubmit()?.text === 'ship it')

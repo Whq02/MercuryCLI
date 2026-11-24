@@ -22,7 +22,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(title: string): void {
   console.log(`\n── ${title} ──`)
 }
-const mcpGaugeFix = 'fix mcpGauge, publishMcpConnections or mcpCountsLabel in src/screen/cockpit-gauges/mcpGauge.ts'
+const mcpGaugeFix = 'fix mcpGauge or publishMcpConnections in src/screen/cockpit-gauges/mcpGauge.ts'
 const modelGaugeFix = 'fix modelGauge in src/screen/cockpit-gauges/modelGauge.ts so each field comes from its owner'
 const fleetGaugeFix = 'fix fleetGauge in src/screen/cockpit-gauges/fleetGauge.ts'
 const contextGaugeFix = 'fix contextGauge in src/screen/cockpit-gauges/contextGauge.ts'
