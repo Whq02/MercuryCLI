@@ -12,12 +12,6 @@ export function composerTargetTaskId(
   return appState.mainChatTaskId ?? appState.viewingAgentTaskId
 }
 
-export function composerTargetPinned(
-  appState: Pick<AppState, 'mainChatTaskId'>,
-): boolean {
-  return appState.mainChatTaskId !== undefined
-}
-
 type ActiveAgentForInput =
   | { type: 'leader' }
   | { type: 'named_agent'; task: CrewmateTaskState }

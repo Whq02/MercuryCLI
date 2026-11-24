@@ -102,43 +102,6 @@ export function selectableUserMessagesFilter(
   return true
 }
 
-export function messagesAfterAreOnlySynthetic(
-  messages: Message[],
-  fromIndex: number,
-): boolean {
-  for (let i = fromIndex + 1; i < messages.length; i++) {
-    const msg = messages[i]!
-    if (
-      msg.type === 'progress' ||
-      msg.type === 'attachment' ||
-      msg.type === 'system'
-    ) {
-      continue
-    }
-    if (msg.type === 'assistant') {
-      const content = msg.message.content
-      if (!Array.isArray(content)) continue
-      const meaningful = content.some(
-        block =>
-          (block.type === 'text' && block.text.trim() !== '') ||
-          block.type === 'tool_use',
-      )
-      if (meaningful) return false
-      continue
-    }
-    if (msg.type === 'user') {
-      if (isSyntheticMessage(msg) || isTurnCutRow(msg) || msg.isMeta) continue
-      const content = msg.message.content
-      if (Array.isArray(content) && content[0]?.type === 'tool_result') {
-        continue
-      }
-      return false
-    }
-  }
-  return true
-}
-
-
 let mountClaimed = false
 
 type RewindPickerProps = {

@@ -7,10 +7,6 @@ export function newSessionTitle(workspaceDir: string): string {
   return `${UNNAMED_SESSION_WORD} · ${projectDisplayName(workspaceDir)} · ready`
 }
 
-export function isWorkerIdTitle(title: string): boolean {
-  return /^concourse-w\d+$/.test(title.trim())
-}
-
 export function sessionTitleOf(
   rec: { title?: string; workspaceId: string },
   briefOf: () => string | null,
