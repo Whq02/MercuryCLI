@@ -1,20 +1,11 @@
 import React from 'react'
 
 import { flagEnv } from '../../platform/substrate/flagRegistry.js'
-import { Text } from '../../screen/themedRenderer.js'
 import { getAccountInformation } from '../../models/sign-in/lifecycle/oauthLifecycle.js'
 
 import { getMTLSConfig, getMTLSReadErrors, mtlsReadFailureSentence } from '../../platform/network/mtls.js'
 import { extraCaCertsStatusLine } from '../../platform/network/caCerts.js'
 import { getProxyUrl } from '../../platform/network/proxy.js'
-import { familyDisplayName } from '../../models/roads/accountSlots.js'
-import {
-  presenceIdentityWords,
-  providerFamilyPresences,
-  type ProviderFamilyPresence,
-} from '../../models/roads/providerUsage.js'
-import { activeWalletEntry, walletEntries, type WalletEntry } from '../../models/wallet/wallet.js'
-import { resolveProviderUsability } from '../../models/roads/providerUsability.js'
 import { hostEnv } from '../../platform/environment/hostEnv.js'
 
 
@@ -38,76 +29,6 @@ function nodeText(value: React.ReactNode): string {
     return nodeText(children)
   }
   return ''
-}
-
-export function buildProviderAccountBlocks(
-  presences: ProviderFamilyPresence[] = providerFamilyPresences(),
-  reads?: {
-    entries?: () => WalletEntry[]
-    activeFor?: (provider: WalletEntry['provider']) => WalletEntry | undefined
-    organization?: () => string | undefined
-    isDemo?: boolean
-    usability?: () => Partial<Record<string, { blockers: string[] }>>
-  },
-): Property[] {
-  const isDemo = reads?.isDemo ?? Boolean(flagEnv('MERCURY_DEMO'))
-  const allEntries = reads?.entries ? reads.entries() : walletEntries()
-  let usabilityByFamily: Partial<Record<string, { blockers: string[] }>> = {}
-  try {
-    usabilityByFamily = reads?.usability ? reads.usability() : resolveProviderUsability()
-  } catch {
-    usabilityByFamily = {}
-  }
-  const rows: Property[] = []
-  for (const family of presences) {
-    const name = familyDisplayName(family.id).toLowerCase()
-    const entries = allEntries.filter(e => e.provider === family.id)
-    if (!family.credentialed && entries.length === 0) {
-      const blocker = usabilityByFamily[family.id]?.blockers?.[0]
-      rows.push({
-        label: name,
-        value: <Text dimColor>{blocker ?? 'not logged in — /logins connects'}</Text>,
-      })
-      continue
-    }
-    const active =
-      entries.length > 0
-        ? (reads?.activeFor ?? activeWalletEntry)(entries[0]!.provider)
-        : undefined
-    const words = isDemo ? family.credentialLabel : presenceIdentityWords(family)
-    rows.push({
-      label: name,
-      value: <Text>{words ?? active?.label ?? entries[0]!.label}</Text>,
-    })
-    if (!isDemo && family.identity !== undefined && family.credentialLabel !== undefined) {
-      rows.push({ label: '', value: <Text dimColor>via · {family.credentialLabel}</Text> })
-    } else if (active?.identity?.email && !isDemo) {
-      rows.push({ label: '', value: <Text dimColor>email · {active.identity.email}</Text> })
-    }
-    if (active?.identity?.plan) {
-      rows.push({ label: '', value: <Text dimColor>plan · {active.identity.plan}</Text> })
-    }
-    if (family.id === 'anthropic') {
-      const organization = reads?.organization
-        ? reads.organization()
-        : getAccountInformation()?.organization
-      if (organization && !isDemo) {
-        rows.push({ label: '', value: <Text dimColor>org · {organization}</Text> })
-      }
-    }
-    if (entries.length > 1) {
-      const activeText = isDemo ? (active?.kind ?? 'none') : (active?.label ?? 'none')
-      rows.push({
-        label: '',
-        value: (
-          <Text dimColor>
-            sources · {entries.length} — active: {activeText}
-          </Text>
-        ),
-      })
-    }
-  }
-  return rows
 }
 
 export function buildAccountProperties(): Property[] {
