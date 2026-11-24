@@ -64,6 +64,36 @@ const APPROVED_PHRASES: readonly string[] = [
   'Polymorphing the serpent',
   'Disassembling the ankh',
   'Hex-editing the sarcophagus',
+  'Load-balancing the camel',
+  'Caching the cistern',
+  'Sandboxing the cobra',
+  'Debouncing the jerboa',
+  'Grepping the bazaar',
+  'Linting the cartouche',
+  'Diffing the strata',
+  'Bisecting the canyon',
+  'Cherry-picking the dates',
+  'Tree-shaking the acacia',
+  'Hydrating the wadi',
+  'Pipelining the aqueduct',
+  'Throttling the sirocco',
+  'Buffering the haboob',
+  'Transpiling the cuneiform',
+  'Typechecking the tablets',
+  'Memoizing the oracle',
+  'Checkpointing the cairn',
+  'Stashing the waterskin',
+  'Tailing the jackal',
+  'Pinging the outpost',
+  'Polling the watchtower',
+  'Forking the canal',
+  'Pruning the saguaro',
+  'Unpacking the saddlebag',
+  'Proxying the vizier',
+  'Symlinking the catacombs',
+  'Benchmarking the gazelle',
+  'Dispatching the falcon',
+  'Compacting the adobe',
 ]
 
 function poolFor(hip: string | undefined, desertOn: string | undefined): string[] {
@@ -107,7 +137,7 @@ const added = desert.slice(37)
 check('20 or more new desert thinking verbs are landed after Sand-slicked (the 30 of the second batch, then the 20 ops verbs of 2026-10-26)', added.length >= 20, `added=${added.length} — MERCURY_DESERT_VERBS in src/screen/spinner/spinnerVerbs.ts needs 20 or more verbs after Sand-slicked`)
 
 console.log('\nMERCURY_DESERT_PHRASES — the approved lines, their hygiene and their place in the pool')
-check('MERCURY_DESERT_PHRASES holds exactly the 24 approved phrases, in order, verbatim', phrases.length === 24 && phrases.every((p, i) => p === APPROVED_PHRASES[i]), `${phrases.join(' | ')} — make MERCURY_DESERT_PHRASES in src/screen/spinner/spinnerVerbs.ts match APPROVED_PHRASES in this file`)
+check('MERCURY_DESERT_PHRASES holds exactly the 54 approved phrases, in order, verbatim', phrases.length === 54 && phrases.every((p, i) => p === APPROVED_PHRASES[i]), `${phrases.join(' | ')} — make MERCURY_DESERT_PHRASES in src/screen/spinner/spinnerVerbs.ts match APPROVED_PHRASES in this file`)
 check('no phrase carries trailing punctuation, an exclamation mark or an emoji', phrases.every(p => !/[.!?,;:…]$/.test(p) && !p.includes('!') && !/\p{Extended_Pictographic}/u.test(p)), 'remove the trailing punctuation, exclamation mark or emoji from the phrase in MERCURY_DESERT_PHRASES in src/screen/spinner/spinnerVerbs.ts')
 {
   const norm = (v: string): string => v.toLowerCase().replace(/[\s-]/g, '')
