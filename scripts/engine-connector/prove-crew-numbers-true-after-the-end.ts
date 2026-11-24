@@ -38,17 +38,17 @@ const { CrewmateCard } = await import('../../src/screen/fullscreen-layout/Crewma
 const { crewmateInView, useViewedCrewmate } = await import('../../src/screen/tasks/useCrewmateView.ts')
 const { HelmLanesRail } = await import('../../src/screen/fullscreen-layout/HelmLanesRail.tsx')
 const { BackgroundTasksDialog, boardCrewmateRowsOf, RosterWorkDetail } = await import('../../src/screen/tasks/BackgroundTasksDialog.tsx')
+const { CrewmateDetailDialog } = await import('../../src/screen/tasks/CrewmateDetailDialog.tsx')
 const { runCrewmateCommand } = await import('../../src/screen/composer/crewmateCommands.tsx')
 const { crewmateMetadataFile } = await import('../../src/screen/tasks/useCrewmateModel.ts')
 const { formatTokens } = await import('../../src/platform/text/format.ts')
-
 type WorkRowV1 = import('../../src/engine/connector/types.ts').WorkRowV1
 type SessionConnector = import('../../src/engine/connector/types.ts').SessionConnector
 type SessionAskV1 = import('../../src/engine/connector/types.ts').SessionAskV1
 type WorkRosterV1 = import('../../src/engine/connector/types.ts').WorkRosterV1
 type LocalJSXCommandContext = import('../../src/commands/catalogue/commands.ts').LocalJSXCommandContext
 type Command = import('../../src/commands/catalogue/commands.ts').Command
-
+type CrewmateTaskState = import('../../src/engine/tasks/local-agent/crewmateTask.ts').CrewmateTaskState
 const MODEL_ID = 'claude-fable-5-1'
 const SESSION_ID = 'fx-session-after-end'
 const NOW = Date.now()
@@ -223,7 +223,51 @@ try {
     )
   }
 
-  section('§5 /usage receipt (crewmateUsageWords in src/screen/composer/crewmateCommands.tsx)')
+  section('§5 CrewmateDetailDialog (src/screen/tasks/CrewmateDetailDialog.tsx)')
+  {
+    const task: CrewmateTaskState = {
+      id: 'bg1',
+      type: 'local_agent',
+      status: 'completed',
+      description: 'bg-scout',
+      prompt: 'Inspect the build',
+      agentType: 'mercury-crew',
+      startTime: START_TIME,
+      endTime: END_TIME,
+      outputFile: join(scratch, 'bg1.out'),
+      outputOffset: 0,
+      notified: true,
+      selectedAgent: { agentType: 'mercury-crew', whenToUse: 'general', source: 'built-in', baseDir: scratch, getSystemPrompt: () => '' },
+      agentId: 'bg1',
+      messages: [],
+      retain: false,
+      diskLoaded: true,
+      evictAfter: END_TIME + 30_000,
+      progress: {
+        toolUseCount: 7,
+        totalToolUseCount: 7,
+        tokenCount: 1500,
+        totalTokens: 1500,
+        recentActivities: [],
+      },
+      lastReportedToolCount: 7,
+      lastReportedTokenCount: 1500,
+      isBackgrounded: true,
+    }
+    const frame = await paint(React.createElement(CrewmateDetailDialog, { agent: task, onDone: () => {} }), 100)
+    const flat = frame.replace(/\s+/g, ' ')
+    check(
+      'CrewmateDetailDialog reads landed in 12s and 1500 tokens from crewLedger, never Completed, never a tool count, never a growing time',
+      flat.includes('landed in 12s') &&
+        flat.includes('1500 tokens') &&
+        !flat.includes('Completed') &&
+        !flat.includes('tool use') &&
+        !flat.includes('42s'),
+      flat.slice(0, 350),
+    )
+  }
+
+  section('§6 /usage receipt (crewmateUsageWords in src/screen/composer/crewmateCommands.tsx)')
   {
     const viewed = crewmateInView('bg1', { tasks: {}, mainChatTaskId: undefined }, [], SESSION_ID, bgFacts)!
     const metaFile = crewmateMetadataFile(viewed)!
