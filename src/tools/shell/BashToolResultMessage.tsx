@@ -41,7 +41,7 @@ export default function BashToolResultMessage({
   if (content.isImage) {
     return (
       <Text color={FAINT} dimColor>
-        [image data detected and sent to the model]
+        [image data sent to the model]
       </Text>
     )
   }

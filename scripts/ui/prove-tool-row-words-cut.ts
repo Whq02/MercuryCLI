@@ -103,5 +103,20 @@ async function paint(node: React.ReactNode, width = 160): Promise<string> {
     JSON.stringify(firstLine),
   )
 }
+
+{
+  const { default: BashToolResultMessage } = await import('../../src/tools/shell/BashToolResultMessage.tsx')
+  const screenText = await paint(
+    React.createElement(BashToolResultMessage, {
+      content: { stdout: '', stderr: '', isImage: true },
+      verbose: false,
+    }),
+  )
+  check(
+    'K-33 Bash image result row reads [image data sent to the model]',
+    screenText === '[image data sent to the model]',
+    JSON.stringify(screenText),
+  )
+}
 console.log(`\ntool-row-words-cut: ${failures} failure(s)`)
 process.exit(failures ? 1 : 0)
