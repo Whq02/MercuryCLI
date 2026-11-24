@@ -161,7 +161,7 @@ export async function runLaunch(args: RunLaunchArgs): Promise<void> {
     if (isStructuredOutputToolEnabled({ isNonInteractiveSession: true })) {
       parsedJsonSchema = JSON.parse(jsonSchemaOpt) as Record<string, unknown>
       const synthetic = getSchemaBoundStructuredOutputTool(parsedJsonSchema)
-      if ('tool' in synthetic) tools = [...tools, synthetic.tool]
+      if (synthetic.ok) tools = [...tools, synthetic.tool]
     }
   }
   profileCheckpoint('action_tools_loaded')

@@ -120,7 +120,7 @@ export function assembleTurnTools(state: AppState, turnSchema: Record<string, un
   const answerSchema = answerSchemaOf(turnSchema)
   if (answerSchema === undefined || !isStructuredOutputToolEnabled({ isNonInteractiveSession: true })) return deduped
   const synthetic = getSchemaBoundStructuredOutputTool(answerSchema)
-  if (!('tool' in synthetic)) return deduped
+  if (!synthetic.ok) return deduped
   const at = deduped.findIndex(tool => tool.name === STRUCTURED_OUTPUT_TOOL_NAME)
   if (at === -1) return [...deduped, synthetic.tool]
   if (deduped[at] === synthetic.tool) return deduped
