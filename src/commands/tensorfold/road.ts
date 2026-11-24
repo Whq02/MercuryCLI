@@ -186,14 +186,14 @@ export async function serveTensorFoldRow(row: TensorFoldInventoryRow, window: nu
     if (row.state === 'not-pulled') {
       const samples: { at: number; bytes: number }[] = []
       const total = row.downloadBytes
-      setAct(key, pullActOf(key, samples, total, window))
+      setAct(key, pullActOf(samples, total, window))
       try {
         await pullTensorFold(
           row.repo,
           progress => {
             samples.push({ at: now(), bytes: progress.bytes })
             if (samples.length > 40) samples.splice(0, samples.length - 40)
-            setAct(key, progress.bytesPerSecond !== undefined ? pullActOf(key, samples, progress.totalBytes, window, progress.bytesPerSecond) : pullActOf(key, samples, total ?? progress.totalBytes, window))
+            setAct(key, progress.bytesPerSecond !== undefined ? pullActOf(samples, progress.totalBytes, window, progress.bytesPerSecond) : pullActOf(samples, total ?? progress.totalBytes, window))
           },
           { ...io.pull, signal: controller.signal },
         )

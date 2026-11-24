@@ -126,7 +126,7 @@ export async function tStates(): Promise<TState[]> {
   const t06 = await tStateFacts('t06', {})
   const checkpoint27b = t06.rows.find(row => row.repo === QWEN_27B_REPO)!.checkpoint
   const nine = inventory.rowOfCheckpoint({ repo: QWEN_9B_REPO, label: 'Qwen3.5 9B', shortName: 'qwen3.5-9b', family: 'qwen3_5', weightsBytes: 5_950_221_072, downloadBytes: 5_977_074_591, kvBytesPerToken: 8 * 4 * 256 * 4, trainedMax: 262_144, promptCacheGib: 1, qualified: false }, MAC_48, { onDisk: false, bytesOnDisk: 0, drafterOnDisk: true })
-  const pulling = scene.pullActOf(QWEN_27B_REPO, [{ at: 0, bytes: 0 }, { at: 148_000, bytes: 6.1e9 }], 19_930_634_001, 131_072)
+  const pulling = scene.pullActOf([{ at: 0, bytes: 0 }, { at: 148_000, bytes: 6.1e9 }], 19_930_634_001, 131_072)
   const memoryRefusal = refusal.readTensorFoldRefusal(MEMORY_REFUSAL_LINE, { window: 131_072, ladder: fit.tensorFoldLadder(checkpoint27b, MAC_48) })
   const limitRefusal = refusal.readTensorFoldRefusal(LIMIT_REFUSAL_LINE, { window: 32_768, needBytes: fit.tensorFoldProjectedBytes(checkpoint27b, 32_768), machine: MAC_32_LOW, ladder: fit.tensorFoldLadder(checkpoint27b, MAC_32_LOW) })
   const exitRefusal = refusal.readTensorFoldRefusal('serving qwen3.5-2b at http://127.0.0.1:8080/v1 (loaded in 1.2s)\n', { exit: { code: null, signal: 'SIGKILL' } })

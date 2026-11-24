@@ -319,7 +319,7 @@ section("pull: the engine's own lines (`  <x> of <y> GiB, <z> MiB/s`, the shape 
     samples.push({ at: Date.now(), bytes: p.bytes })
     seen.push({ bytes: p.bytes, ...(p.bytesPerSecond !== undefined ? { bytesPerSecond: p.bytesPerSecond } : {}) })
   }, { binary: '/fixture/tensorfold-adapter.mjs', spawnImpl: asAdapter, env: adapterWorld.env, cacheRoot: adapterWorld.cache, pollMs: 25, logDir: join(adapterWorld.home, 'logs'), totalBytes: 2_000_000 })
-  const adapterAct = scene.pullActOf(QWEN_2B_REPO, samples.slice(0, 1), 2_000_000, 262_144)
+  const adapterAct = scene.pullActOf(samples.slice(0, 1), 2_000_000, 262_144)
   check("the adapter road (Mercury's engine prints no progress line) keeps reading the mapped GGUF repo's cache whole, the resumed 500 kB included, and reaches the same act", launched[0]?.[2] === '--tensorfold-adapter' && launched[0]?.slice(-2).join(' ') === `pull ${QWEN_2B_REPO}` && seen[0]!.bytes >= 500_000 && seen.every(p => p.bytesPerSecond === undefined) && seen[seen.length - 1]!.bytes === 2_000_000 && adapterAct.kind === 'pulling' && adapterAct.percent === Math.floor((seen[0]!.bytes / 2_000_000) * 100), JSON.stringify({ launched, bytes: seen.map(p => p.bytes), act: adapterAct }))
 }
 
