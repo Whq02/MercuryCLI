@@ -13,6 +13,7 @@ const { AppStateProvider } = await import('../../src/screen/app-state/AppState.j
 const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
 const { createUserMessage } = await import('../../src/engine/message-shapes/factories.js')
 const { MessageResponse } = await import('../../src/tools/kit/MessageResponse.js')
+const { useTerminalSize } = await import('../../src/screen/fullscreen-layout/useTerminalSize.js')
 const { AnsiEmulator } = await import('../ink-runtime/ansiEmulator.js')
 type Scroll = import('../../src/screen/renderer/elements/ScrollBox.js').ScrollBoxHandle
 type Row = ReturnType<typeof createUserMessage>
@@ -123,6 +124,8 @@ async function stage(world: World, start: { lines: number; rows?: number; column
       },
       () => state,
     )
+    const terminal = useTerminalSize()
+    const columns = world.result ? terminal.columns : shown.columns
     const listedLines = world.ownState ? start.lines : shown.lines
     const renderItem = React.useCallback(
       (row: Row): React.ReactNode => {
@@ -136,13 +139,13 @@ async function stage(world: World, start: { lines: number; rows?: number; column
       [listedLines],
     )
     return (
-      <Box width={shown.columns} height={VIEWPORT + 1} flexDirection="column">
+      <Box width={columns} height={VIEWPORT + 1} flexDirection="column">
         <ScrollBox ref={scroll} height={VIEWPORT} flexDirection="column" stickyScroll>
           <Box flexDirection="column" width="100%">
             <VirtualMessageList
               messages={shown.rows as never}
               scrollRef={scroll}
-              columns={shown.columns}
+              columns={columns}
               itemKey={keyOf}
               selectedIndex={world.cursorOnTall ? (shown.cursorAt ?? world.tallAt) : undefined}
               selectedExpanded={world.cursorOnTall === true && (shown.cursorAt ?? world.tallAt) === world.tallAt && shown.lines > world.shut}

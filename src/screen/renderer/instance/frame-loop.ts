@@ -21,7 +21,7 @@ import { writeDiffToTerminal } from '../terminal-session/frameDelivery.js'
 import { ERASE_SCREEN } from '../termio/csi.js'
 import { COMPOSED_TEE_PATH, safeAppend, WRITE_TEE_PATH, dumpTree, teeBeforeDiff, teeAfterDiff } from './tees.js'
 import { liveSize, resetFramesForAltScreen } from './frames.js'
-import { consoleBufferOutlivesWindow, settleResize, applySize } from './resize.js'
+import { consoleBufferOutlivesWindow, settleResize, settleHoldPaints, applySize } from './resize.js'
 import type ScreenInstance from '../screenInstance.js'
 import { startMicrotask } from '../../../platform/async/timers.js'
 import { consoleSizeNeedsPolling } from '../../../platform/host-os/terminal.js'
@@ -48,23 +48,26 @@ type OnRenderReads = Pick<
 
 export function onRender(this: OnRenderReads): void {
   if (this.isUnmounted || this.isPaused || this.isRendering) return
-  if (this.resizeSettleTimer !== null) return
+  const settling = this.resizeSettleTimer !== null
+  if (settling && !settleHoldPaints.call(this)) return
   this.isRendering = true
   try {
-    if (this.isTTY && consoleSizeNeedsPolling()) refreshConsoleSize(this.options.stdout)
-    const { columns, rows } = liveSize.call(this)
-    if (columns !== this.cachedColumns || rows !== this.cachedRows) {
-      if (reconciler.isAlreadyRendering()) {
-        startMicrotask(this.onRender)
-        return
+    if (!settling) {
+      if (this.isTTY && consoleSizeNeedsPolling()) refreshConsoleSize(this.options.stdout)
+      const { columns, rows } = liveSize.call(this)
+      if (columns !== this.cachedColumns || rows !== this.cachedRows) {
+        if (reconciler.isAlreadyRendering()) {
+          startMicrotask(this.onRender)
+          return
+        }
+        if (consoleBufferOutlivesWindow.call(this)) {
+          settleResize.call(this)
+          return
+        }
+        applySize.call(this, columns, rows)
+        if (this.currentTree !== null) this.render(this.currentTree)
+        this.calculateLayout()
       }
-      if (consoleBufferOutlivesWindow.call(this)) {
-        settleResize.call(this)
-        return
-      }
-      applySize.call(this, columns, rows)
-      if (this.currentTree !== null) this.render(this.currentTree)
-      this.calculateLayout()
     }
     renderFrame.call(this)
     this.renderFaultStreak = 0
@@ -102,7 +105,7 @@ type RenderFrameReads = Pick<
   ScreenInstance,
   | 'options' | 'isTTY' | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'cachedColumns' | 'cachedRows' | 'parkPatch'
   | 'pendingAltEntry' | 'lastPoolReset' | 'rootNode' | 'renderer' | 'writer' | 'scheduler' | 'ledger' | 'layoutCounters' | 'lastRenderTime'
-  | 'altScreenActive' | 'displayCursor' | 'wholeFrameDue' | 'resizeEraseDue' | 'wholeFrameAt' | 'watchdogCommitsRemaining' | 'zeroByteRenderStreak' | 'selection'
+  | 'altScreenActive' | 'displayCursor' | 'wholeFrameDue' | 'resizeEraseDue' | 'wholeFrameAt' | 'resizeSettleTimer' | 'watchdogCommitsRemaining' | 'zeroByteRenderStreak' | 'selection'
   | 'selectionListeners' | 'glassOverlay' | 'searchQuery' | 'searchPositions' | 'cursorDeclaration' | 'frameListeners' | 'treeDumpBudget' | 'resetPools'
   | 'firstFrameStamped' | 'onRender' | 'stampFirstFrame' | 'reassertScreenState'
 >
@@ -126,10 +129,15 @@ function renderFrame(this: RenderFrameReads): void {
   }
   this.lastRenderTime = now
 
-  const { columns, rows } = liveSize.call(this)
+  const live = liveSize.call(this)
+  const settling = this.resizeSettleTimer !== null
+  const columns = settling ? this.cachedColumns : live.columns
+  const rows = settling ? this.cachedRows : live.rows
+  const reach = { width: Math.min(columns, live.columns), height: Math.min(rows, live.rows) }
+  const held = (shown: Frame): Frame => (settling ? { ...shown, viewport: reach } : shown)
   const wasContaminated = this.ledger.isContaminated()
   const regionScrollUsable =
-    this.altScreenActive && syncOutputSupportedNow() && regionScrollTrustedNow()
+    this.altScreenActive && !settling && syncOutputSupportedNow() && regionScrollTrustedNow()
   const rendererStart = performance.now()
   const glassOverlay = this.glassOverlay
   if (glassOverlay) glassOverlay.revert(this.frontFrame.screen)
@@ -208,7 +216,7 @@ function renderFrame(this: RenderFrameReads): void {
   this.ledger.assertBaseDeliverable()
 
   const baseFrame: Frame = this.altScreenActive
-    ? { ...this.frontFrame, cursor: HOME_CURSOR }
+    ? held({ ...this.frontFrame, cursor: HOME_CURSOR })
     : this.frontFrame
 
   if (WRITE_TEE_PATH) teeBeforeDiff(baseFrame, frame)
@@ -216,8 +224,8 @@ function renderFrame(this: RenderFrameReads): void {
   const diffStart = performance.now()
   const whole = this.wholeFrameDue && this.altScreenActive
   const patches = whole
-    ? this.writer.overwriteAlt(frame)
-    : this.writer.render(baseFrame, frame, this.altScreenActive, regionScrollUsable)
+    ? this.writer.overwriteAlt(held(frame))
+    : this.writer.render(baseFrame, held(frame), this.altScreenActive, regionScrollUsable)
   if (whole) {
     this.wholeFrameDue = false
     this.wholeFrameAt = performance.now()
@@ -262,8 +270,8 @@ function renderFrame(this: RenderFrameReads): void {
     parked: this.displayCursor,
     prevCursor: { x: baseFrame.cursor.x, y: baseFrame.cursor.y },
     frameCursor: { x: frame.cursor.x, y: frame.cursor.y },
-    rows,
-    cols: columns,
+    rows: reach.height,
+    cols: reach.width,
   })
   this.displayCursor = plan.nextParked
   const finalPatches = [...plan.prelude, ...optimized, ...plan.postlude]

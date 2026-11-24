@@ -32,12 +32,17 @@ export function settleResize(this: SettleResizeReads): void {
   const { columns, rows } = liveSize.call(this)
   if (this.resizeSettleTimer === null) {
     if (columns === this.cachedColumns && rows === this.cachedRows) return
-    this.scheduler.holdForSettle()
     paintResizeHold.call(this, columns, rows)
   } else {
     stopTimeout(this.resizeSettleTimer)
   }
+  if (settleHoldPaints.call(this)) this.scheduler.releaseSettleHold(true)
+  else this.scheduler.holdForSettle()
   this.resizeSettleTimer = startTimeout(this.applySettledResize, RESIZE_SETTLE_MS)
+}
+
+export function settleHoldPaints(this: Pick<ScreenInstance, 'options' | 'isTTY' | 'cachedRows' | 'isPaused' | 'altScreenActive' | 'wholeFrameDue'>): boolean {
+  return this.altScreenActive && this.isTTY && !this.wholeFrameDue && liveSize.call(this).rows === this.cachedRows && !consoleBufferOutlivesWindow.call(this)
 }
 
 export function handleWinch(this: Pick<ScreenInstance, 'options' | 'cachedColumns' | 'cachedRows' | 'resizeSettleTimer' | 'overwriteScreen'>): void {

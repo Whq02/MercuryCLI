@@ -8,3 +8,4 @@ prove-surface-crash-capture.ts
 prove-user-row-single-paint.ts
 prove-view-target-parity.ts
 prove-boot-composition.py
+prove-resize-repaints-whole.ts

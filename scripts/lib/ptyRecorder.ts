@@ -5,6 +5,7 @@ type PtyRecording = {
   records: PtyRecord[]
   exited: Promise<number>
   send: (bytes: string | Uint8Array) => number
+  resize: (cols: number, rows: number) => number
   close: () => Promise<void>
 }
 
@@ -51,6 +52,12 @@ export function recordPty(options: {
       const at = sharedClockMs()
       child.terminal!.write(buffer)
       record('input', buffer, at)
+      return at
+    },
+    resize(cols, rows) {
+      if (ended) throw new Error('the pty child exited before the resize was delivered')
+      const at = sharedClockMs()
+      child.terminal!.resize(cols, rows)
       return at
     },
     async close() {
