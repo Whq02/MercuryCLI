@@ -12,6 +12,7 @@ const { VirtualMessageList } = await import('../../src/screen/virtual-message-li
 const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
 const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
 const { createUserMessage } = await import('../../src/engine/message-shapes/factories.js')
+const { MessageResponse } = await import('../../src/tools/kit/MessageResponse.js')
 const { AnsiEmulator } = await import('../ink-runtime/ansiEmulator.js')
 type Scroll = import('../../src/screen/renderer/elements/ScrollBox.js').ScrollBoxHandle
 type Row = ReturnType<typeof createUserMessage>
@@ -30,7 +31,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
 }
 
-type World = { rows: number; tallAt: number; open: number; shut: number; wide?: boolean; mountMs?: number; ownState?: boolean; cursorOnTall?: boolean; plain?: (at: number) => number; spare?: number; tail?: number }
+type World = { rows: number; tallAt: number; open: number; shut: number; wide?: boolean; result?: boolean; mountMs?: number; ownState?: boolean; cursorOnTall?: boolean; plain?: (at: number) => number; spare?: number; tail?: number }
 type Shown = { lines: number; rows: Row[]; columns: number; tail: number; cursorAt?: number }
 type Stage = {
   view: Mounted
@@ -43,6 +44,7 @@ type Stage = {
   poke: () => void
   set: (open: boolean) => void
   resize: (lines: number) => void
+  wraps: () => number
   drop: (count: number) => void
   add: (count: number) => void
   settleTail: () => void
@@ -126,6 +128,7 @@ async function stage(world: World, start: { lines: number; rows?: number; column
       (row: Row): React.ReactNode => {
         const at = indexOf.get(row.uuid)!
         if (at !== world.tallAt && world.plain) return <Lines at={at} count={world.plain(at)} />
+        if (at !== world.tallAt && world.result) return <MessageResponse><Line words={`${label(at)}${FILL}`} mountMs={0} /></MessageResponse>
         if (at !== world.tallAt) return <Line words={world.wide ? `${label(at)}${FILL}` : label(at)} mountMs={world.mountMs ?? 0} />
         listRenders++
         return world.ownState ? <SelfSizedGroup startLines={listedLines} world={world} hand={hand} committed={committed} /> : <Group lines={listedLines} world={world} />
@@ -160,6 +163,7 @@ async function stage(world: World, start: { lines: number; rows?: number; column
     </AppStateProvider>
   )
   const before = new Set(instances.keys())
+  let wraps = 0
   const view = await mountOffscreen(tree, start.columns, VIEWPORT + 1)
   const stdout = [...instances.keys()].find(key => !before.has(key)) as unknown as { writes: string[] }
   return {
@@ -176,11 +180,13 @@ async function stage(world: World, start: { lines: number; rows?: number; column
     poke: () => publish({ ...state }),
     set: open => resize(open ? world.open : world.shut),
     resize,
+    wraps: () => wraps,
     drop: count => publish({ ...state, rows: state.rows.slice(0, state.rows.length - count) }),
     add: count => publish({ ...state, rows: all.slice(0, state.rows.length + count) }),
     settleTail: () => publish({ ...state, rows: all.slice(0, state.rows.length + 1), tail: 0 }),
     moveCursor: index => publish({ ...state, cursorAt: index }),
     wrap: columns => {
+      wraps++
       publish({ ...state, columns })
       view.resize(tree, columns, VIEWPORT + 1)
     },
@@ -203,7 +209,7 @@ const pane = (view: Mounted): string[] => view.lines().slice(0, VIEWPORT)
 type Spot = { row: number; inner: number }
 
 function spotOf(line: string, world: World): Spot | null {
-  const plain = /^ROW (\d+)(?: \+(\d+))?/.exec(line)
+  const plain = /^(?:  └ )?ROW (\d+)(?: \+(\d+))?/.exec(line)
   if (plain) return { row: Number(plain[1]), inner: Number(plain[2] ?? 0) }
   const inside = /^GROUP (?:open|shut) (\d+)$/.exec(line)
   return inside ? { row: world.tallAt, inner: Number(inside[1]) } : null
@@ -353,7 +359,7 @@ async function run(scene: Case): Promise<void> {
       check(`${scene.name}: the row's head stands on pane row ${scene.headAt}`, head === scene.headAt, `the head stands on pane row ${head}; the pane opens on ${settled[0]}`)
     }
     const columns = live.shown().columns
-    const frames = framesFrom(live.writes, columns === columnsBefore ? mark : 0, columns)
+    const frames = framesFrom(live.writes, columns === columnsBefore && live.wraps() === 0 ? mark : 0, columns)
     const torn = frames.map((frame, at) => ({ at, rows: holes(frame, scene.world, lastRow()) })).filter(entry => entry.rows.length > 0)
     check(
       `${scene.name}: every frame painted after the change shows a row on every row of the pane above the list's end`,
@@ -440,6 +446,11 @@ const scrolledFiveUpThenRewrapped = async (live: Stage): Promise<void> => {
   await rest(live.view)
   live.wrap(40)
 }
+const rewrappedThereAndBack = async (live: Stage): Promise<void> => {
+  live.wrap(40)
+  await rest(live.view)
+  live.wrap(80)
+}
 const cases: Case[] = [
   { name: 'a tall row collapsed off the tail, its head in view', world: TALL, startOpen: true, top: { row: 37, inner: 0 }, act: live => live.set(false) },
   { name: 'a tall row collapsed off the tail from inside it', world: TALL, startOpen: true, top: { row: 40, inner: 150 }, act: live => live.set(false) },
@@ -488,6 +499,7 @@ const cases: Case[] = [
   { name: 'a re-wrap off the tail', world: { ...TALL, wide: true }, startOpen: false, top: { row: 37, inner: 0 }, act: live => live.wrap(40) },
   { name: 'a re-wrap at the tail', world: { ...TALL, wide: true }, startOpen: false, top: 'tail', act: live => live.wrap(40) },
   { name: 'a re-wrap at the tail with no render of the list since its mount', world: { ...TALL, wide: true }, startOpen: false, top: 'tail', act: live => live.wrap(40), coldStart: true },
+  { name: 'a re-wrap there and back at the tail over tool result rows', world: { ...TALL, result: true }, startOpen: false, top: 'tail', act: rewrappedThereAndBack },
 ]
 
 try {

@@ -14,12 +14,13 @@ export function Ratchet({
   children?: React.ReactNode
   lock?: 'always' | 'offscreen'
 }): React.ReactNode {
-  const { rows } = useTerminalSize()
+  const { rows, columns } = useTerminalSize()
   const rowsRef = useRef(rows)
   rowsRef.current = rows
   const innerRef = useRef<DOMElement | null>(null)
-  const [tallest, setTallest] = useState(0)
+  const [latch, setLatch] = useState({ columns, tallest: 0 })
   const [viewportRef, viewport] = useTerminalViewport()
+  const tallest = latch.columns === columns ? latch.tallest : 0
 
   useMeasure(() => {
     const node = innerRef.current
@@ -27,7 +28,7 @@ export function Ratchet({
     const { height } = measureElement(node)
     if (typeof height === 'number' && height > 0) {
       const capped = Math.min(height, rowsRef.current)
-      setTallest(current => (capped > current ? capped : current))
+      setLatch(current => (current.columns === columns && capped <= current.tallest ? current : { columns, tallest: capped }))
     }
   })
 
