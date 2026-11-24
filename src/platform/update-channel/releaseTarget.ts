@@ -32,13 +32,6 @@ export function buildPlatformOf(target: ReleaseTarget): BuildPlatform {
   return { ...PLATFORM_OF[target] }
 }
 
-export function releaseTargetForUname(sysname: string, machine: string): ReleaseTarget | null {
-  const platform = sysname === 'Darwin' ? 'darwin' : sysname === 'Linux' ? 'linux' : null
-  const arch = machine === 'x86_64' || machine === 'amd64' ? 'x64' : machine === 'arm64' || machine === 'aarch64' ? 'arm64' : null
-  if (platform === null || arch === null) return null
-  return releaseTargetFor(platform, arch)
-}
-
 export function archiveNameFor(version: string, target: ReleaseTarget): string {
   return `${archiveBaseNameFor(version, target)}.${target.startsWith('windows-') ? 'zip' : 'tar.gz'}`
 }

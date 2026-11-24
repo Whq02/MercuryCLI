@@ -6,7 +6,7 @@ import { join } from 'node:path'
 
 process.chdir(join(import.meta.dir, '..', '..'))
 const ROOT = process.cwd()
-const { RELEASE_TARGETS, archiveNameFor, buildPlatformOf, isReleaseTarget, platformKey, readBuildTargetRecord, releaseTargetFor, releaseTargetForUname, ripgrepPackageFor } =
+const { RELEASE_TARGETS, archiveNameFor, buildPlatformOf, isReleaseTarget, platformKey, readBuildTargetRecord, releaseTargetFor, ripgrepPackageFor } =
   await import('../../src/platform/update-channel/releaseTarget.ts')
 const { assetNameFor, platformNote } = await import('../../src/platform/update-channel/channelCore.ts')
 const { nodePackPlatform, readRuntimeRecord } = await import('../../src/platform/update-channel/vendoredRuntime.ts')
@@ -17,7 +17,7 @@ const { lockedPackage, platformPackagesFor, registryTarballUrl, resolvePlatformP
 
 let failures = 0
 const WHERE: Record<string, string> = {
-  '§1': 'change RELEASE_TARGETS, releaseTargetFor, archiveNameFor, releaseTargetForUname or readBuildTargetRecord in src/platform/update-channel/releaseTarget.ts, or the pack owner that disagrees (nodePackPlatform in src/platform/update-channel/vendoredRuntime.ts, imagePackPlatform in src/platform/images/imagePackArm.ts, voicePackPlatform in src/integrations/voice-pack/voicePack.ts, brushPackPlatform in src/platform/shell/brushPack.ts)',
+  '§1': 'change RELEASE_TARGETS, releaseTargetFor, archiveNameFor or readBuildTargetRecord in src/platform/update-channel/releaseTarget.ts, or the pack owner that disagrees (nodePackPlatform in src/platform/update-channel/vendoredRuntime.ts, imagePackPlatform in src/platform/images/imagePackArm.ts, voicePackPlatform in src/integrations/voice-pack/voicePack.ts, brushPackPlatform in src/platform/shell/brushPack.ts)',
   '§2': 'change assetNameFor or platformNote in src/platform/update-channel/channelCore.ts so the asset it asks for equals archiveNameFor in src/platform/update-channel/releaseTarget.ts',
   '§5': 'rebuild with bun run build.ts; if it still fails, the manifest record written in build.ts (target, search, runtime and pack records) disagrees with the owners in src/platform/update-channel/releaseTarget.ts',
   '§6': 'bun.lock must pin every package platformPackagesFor names in scripts/vendor/platformPackages.ts (run bun install, or fix platformPackagesFor, lockedPackage or registryTarballUrl there)',
@@ -46,8 +46,6 @@ check('darwin/x64 is the Intel Mac archive', releaseTargetFor('darwin', 'x64') =
 check('linux/arm64 and win32/arm64 are the two arm64 archives', releaseTargetFor('linux', 'arm64') === 'linux-arm64' && releaseTargetFor('win32', 'arm64') === 'windows-arm64')
 check('a pair no archive is published for still answers null (freebsd/x64, linux/riscv64)', releaseTargetFor('freebsd', 'x64') === null && releaseTargetFor('linux', 'riscv64') === null)
 check('archive names: tar.gz on the four POSIX targets, zip on both Windows targets', archiveNameFor('1.0.0-beta.3', 'macos-x64') === 'mercury-v1.0.0-beta.3-macos-x64.tar.gz' && archiveNameFor('1.0.0-beta.3', 'linux-arm64') === 'mercury-v1.0.0-beta.3-linux-arm64.tar.gz' && archiveNameFor('1.0.0-beta.3', 'windows-x64') === 'mercury-v1.0.0-beta.3-windows-x64.zip' && archiveNameFor('1.0.0-beta.3', 'windows-arm64') === 'mercury-v1.0.0-beta.3-windows-arm64.zip')
-check('uname map: Darwin/x86_64 → macos-x64, Darwin/arm64 → macos-arm64, Linux/x86_64 → linux-x64', releaseTargetForUname('Darwin', 'x86_64') === 'macos-x64' && releaseTargetForUname('Darwin', 'arm64') === 'macos-arm64' && releaseTargetForUname('Linux', 'x86_64') === 'linux-x64')
-check('uname map: Linux/aarch64 and Linux/arm64 → linux-arm64; FreeBSD/x86_64 has no archive', releaseTargetForUname('Linux', 'aarch64') === 'linux-arm64' && releaseTargetForUname('Linux', 'arm64') === 'linux-arm64' && releaseTargetForUname('FreeBSD', 'x86_64') === null)
 check('the manifest record decodes when the pair and the release agree', readBuildTargetRecord({ target: { platform: 'darwin', arch: 'x64', release: 'macos-x64', host: 'darwin-arm64' } })?.release === 'macos-x64')
 check('the manifest record is refused when the pair and the release disagree', readBuildTargetRecord({ target: { platform: 'darwin', arch: 'arm64', release: 'macos-x64', host: 'darwin-arm64' } }) === null)
 check('the manifest record decodes a pair with no archive as release null', readBuildTargetRecord({ target: { platform: 'linux', arch: 'riscv64', release: null, host: 'linux-riscv64' } })?.release === null)
