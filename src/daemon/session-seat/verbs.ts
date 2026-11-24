@@ -186,24 +186,6 @@ export async function forwardGenericSeatVerb(
   })
 }
 
-export function backgroundSessionShell(
-  sessionId: string,
-  roster: SeatRosterPort,
-  dir?: string,
-  opts?: { deadlineMs?: number },
-): Promise<SeatVerbOutcome> {
-  return forwardGenericSeatVerb(sessionId, SESSION_VERBS.backgroundShell.daemon.action, roster, dir, opts)
-}
-
-export function sendSessionNow(
-  sessionId: string,
-  roster: SeatRosterPort,
-  dir?: string,
-  opts?: { deadlineMs?: number },
-): Promise<SeatVerbOutcome> {
-  return forwardGenericSeatVerb(sessionId, SESSION_VERBS.sendNow.daemon.action, roster, dir, opts)
-}
-
 export async function pauseSessionGate(
   sessionId: string,
   paused: boolean,
