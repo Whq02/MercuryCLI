@@ -1,6 +1,6 @@
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import type { makeConcourseDispatchHandler } from '../concourse-workers/concourseDispatch.js'
-import { readConcourseControlOps, recordConcourseControlOp, buildConcoursePromptRow, heldGitLaunchesFor, replayGitBlockedDispatches, denyProceedLaunchesFor, replayDenyProceedDispatches } from '../concourse-workers/concourseDispatch.js'
+import { readConcourseControlOps, recordConcourseControlOpRidingOut, buildConcoursePromptRow, heldGitLaunchesFor, replayGitBlockedDispatches, denyProceedLaunchesFor, replayDenyProceedDispatches } from '../concourse-workers/concourseDispatch.js'
 import { pauseConcourseWorker, readSessionWorkers, resumeConcourseWorker, attachYieldConcourseSession, blurConcourseSession, detachRespawnConcourseSession, focusConcourseSession, grantConcourseWorkflows, isNewbornRecord, parkAllConcourseSessions, parkConcourseSession, retireConcourseSession, revokeConcourseWorkflows, turnInFlightOf, workerPidAlive, stopConcourseSession, reviveConcourseWorker, setConcourseSessionTitle } from '../concourse-workers/concourseWorkers.js'
 import type { ControlServerDeps } from '../control/controlServer.js'
 import { isProcessAlive } from '../control/ownerWatch.js'
@@ -42,10 +42,10 @@ export function makeConcourseControl(state: DaemonRunState, { concourseDispatchH
       if (prior && prior.action === action && prior.sessionId === sessionId)
         return { outcome: prior.outcome, ...(prior.detail !== undefined ? { detail: prior.detail } : {}) }
     }
-    const settle = (r: { outcome: 'applied' | 'noop' | 'refused'; detail?: string }): typeof r => {
+    const settle = async (r: { outcome: 'applied' | 'noop' | 'refused'; detail?: string }): Promise<typeof r> => {
       if (clientOpId !== undefined) {
         try {
-          recordConcourseControlOp({ clientOpId, action, sessionId, outcome: r.outcome, ...(r.detail !== undefined ? { detail: r.detail } : {}), atMs: Date.now() })
+          await recordConcourseControlOpRidingOut({ clientOpId, action, sessionId, outcome: r.outcome, ...(r.detail !== undefined ? { detail: r.detail } : {}), atMs: Date.now() })
         } catch (e) {
           logForDebugging(
             `[daemon] concourse-control: applied-ops ledger write failed (${e instanceof Error ? e.message : String(e)}) — receipt returned unrecorded`,

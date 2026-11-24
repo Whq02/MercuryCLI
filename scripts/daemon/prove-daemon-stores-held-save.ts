@@ -35,6 +35,8 @@ const { enableConfigs } = await import('../../src/platform/config/globalConfig.t
 enableConfigs()
 const publish = await import('../../src/platform/substrate/durablePublish.ts')
 const collisions = await import('../../src/daemon/concourse-workers/collisions.ts')
+const dispatch = await import('../../src/daemon/concourse-workers/concourseDispatch.ts')
+const { makeConcourseControl } = await import('../../src/daemon/run/concourseControl.ts')
 
 function holdFile(file: string, forMs: number | null): ReturnType<typeof setTimeout> | null {
   process.env.MERCURY_FAULT_INJECT = `rename@${file}:eperm`
@@ -77,6 +79,43 @@ try {
       'collision row lands on disk once the 900ms hold clears',
       landed,
       'row never appeared on disk — ride out DurablePublishError via rideOutHeldFile in src/daemon/concourse-workers/collisions.ts',
+    )
+  }
+
+  console.log('§2 applied-ops ledger (concourse-control-ops.json)')
+  {
+    const rideOp = (dispatch as Record<string, unknown>).recordConcourseControlOpRidingOut as
+      | ((rec: { clientOpId: string; action: string; sessionId: string; outcome: 'applied'; atMs: number }, dir?: string) => Promise<void>)
+      | undefined
+    check(
+      'recordConcourseControlOpRidingOut is exported from concourseDispatch.ts',
+      typeof rideOp === 'function',
+      'export recordConcourseControlOpRidingOut using rideOutHeldFile in src/daemon/concourse-workers/concourseDispatch.ts',
+    )
+    if (typeof rideOp === 'function') {
+      const timer = holdFile('concourse-control-ops.json', 900)
+      let threw = ''
+      try {
+        await rideOp({ clientOpId: 'op-ride-1', action: 'park', sessionId: 's-1', outcome: 'applied', atMs: Date.now() }, DAEMON_DIR)
+      } catch (error) {
+        threw = error instanceof Error ? error.message : String(error)
+      } finally {
+        if (timer !== null) clearTimeout(timer)
+        delete process.env.MERCURY_FAULT_INJECT
+      }
+      check('recordConcourseControlOpRidingOut rides out a 900ms hold', threw === '' && dispatch.readConcourseControlOps(DAEMON_DIR)['op-ride-1']?.action === 'park', threw || JSON.stringify(dispatch.readConcourseControlOps(DAEMON_DIR)))
+    }
+
+    const noDispatch = Object.assign(async () => ({ ok: false as const, error: 'none' }), { withdraw: async () => false })
+    const control = makeConcourseControl({ roster: null } as Parameters<typeof makeConcourseControl>[0], { concourseDispatchHandler: noDispatch as Parameters<typeof makeConcourseControl>[1]['concourseDispatchHandler'] })
+    const timer = holdFile('concourse-control-ops.json', 900)
+    const reply = await control({ action: 'park', sessionId: '00000000-dddd-4000-8000-000000000001', by: 'operator', clientOpId: 'op-control-ride-1' })
+    if (timer !== null) clearTimeout(timer)
+    delete process.env.MERCURY_FAULT_INJECT
+    check(
+      'concourseControl settle rides out a 900ms held concourse-control-ops.json without saying not recorded',
+      reply.outcome === 'refused' && !(reply.detail ?? '').includes('not recorded') && dispatch.readConcourseControlOps(DAEMON_DIR)['op-control-ride-1'] !== undefined,
+      `${JSON.stringify(reply)} — await recordConcourseControlOpRidingOut in src/daemon/run/concourseControl.ts`,
     )
   }
 } finally {

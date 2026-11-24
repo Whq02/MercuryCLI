@@ -37,6 +37,8 @@ import { isOutsideReportOrigin, type OutsideReportOrigin } from '../../engine/me
 import type { InputBlock, InputRow } from '../../engine/rows/vocabulary.js'
 import { isStoredImageRef, readStoredImageRef } from '../../platform/images/imageStore.js'
 import { passedOver, passedOverAs } from '../../platform/errors/passedOver.js'
+import { rideOutHeldFile } from '../../platform/host-os/files.js'
+import { DurablePublishError } from '../../platform/substrate/durablePublish.js'
 import { startImmediate } from '../../platform/async/timers.js'
 
 export interface ConcourseDispatchRecordV1 {
@@ -449,6 +451,10 @@ export function recordConcourseControlOp(rec: ConcourseControlOpRecordV1, dir?: 
     assertStillHeld()
     publishInDaemonHome('the control-op ledger', path, `${JSON.stringify({ version: 1, ops }, null, 1)}\n`, { dir })
   })
+}
+
+export async function recordConcourseControlOpRidingOut(rec: ConcourseControlOpRecordV1, dir?: string): Promise<void> {
+  await rideOutHeldFile(() => recordConcourseControlOp(rec, dir), err => err instanceof DurablePublishError)
 }
 
 export function envelopeDigestOf(req: ConcourseDispatchRequest, version: 1 | 2 = 2): string {
