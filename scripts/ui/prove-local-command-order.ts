@@ -11,8 +11,8 @@ const { AppStateProvider } = await import('../../src/screen/app-state/AppState.j
 const { Message } = await import('../../src/screen/messages/Message.js')
 const { normalizeMessages } = await import('../../src/engine/message-shapes/normalize.js')
 const { buildMessageLookups } = await import('../../src/engine/messages/lookups.js')
-const { createUserMessage, createAssistantMessage, createCommandInputMessage } = await import('../../src/engine/messages/messages.js')
-const { processSlashCommand, formatCommandLoadingMetadata } = await import('../../src/engine/user-input/processSlashCommand.js')
+const { createUserMessage, createAssistantMessage, createCommandInputMessage, formatCommandInputTags } = await import('../../src/engine/messages/messages.js')
+const { processSlashCommand } = await import('../../src/engine/user-input/processSlashCommand.js')
 const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.js')
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
@@ -72,15 +72,15 @@ reloaded.rawRecords = [...guts.rawRecords]
 reloaded.paint()
 check('a reload gives the same positions as the live transcript', reload.records().map(row => row.uuid).join() === connector.records().map(row => row.uuid).join())
 guts.rawRecords = [before, prompt]
-connector.addDisplayRow({ ...createUserMessage({ content: formatCommandLoadingMetadata('order-fixture', 'on') }), timestamp: echo.timestamp })
+connector.addDisplayRow({ ...createUserMessage({ content: formatCommandInputTags('order-fixture', 'on') }), timestamp: echo.timestamp })
 connector.addDisplayRow(createCommandInputMessage('<local-command-stdout>COMMAND_ANSWER</local-command-stdout>'))
 await assertFrame('screen command receipt after the prompt lands')
 const overlapping = new DaemonSessionConnector({ sessionId: randomUUID(), runnerId: 'fixture', title: 'fixture', projectLabel: 'fixture', workspaceId: 'fixture', home })
 const overlapGuts = (overlapping as unknown as { transcriptPart: Guts }).transcriptPart
 const stamp = (second: number): string => new Date(Date.UTC(2026, 0, 1, 10, 0, second)).toISOString()
-const firstEcho = { ...createUserMessage({ content: formatCommandLoadingMetadata('first', '') }), timestamp: stamp(1) }
+const firstEcho = { ...createUserMessage({ content: formatCommandInputTags('first', '') }), timestamp: stamp(1) }
 const firstAnswer = { ...createCommandInputMessage('<local-command-stdout>FIRST_ANSWER</local-command-stdout>'), timestamp: stamp(4) }
-const secondEcho = { ...createUserMessage({ content: formatCommandLoadingMetadata('second', '') }), timestamp: stamp(2) }
+const secondEcho = { ...createUserMessage({ content: formatCommandInputTags('second', '') }), timestamp: stamp(2) }
 const secondAnswer = { ...createCommandInputMessage('<local-command-stdout>SECOND_ANSWER</local-command-stdout>'), timestamp: stamp(5) }
 const laterPrompt = { ...prompt, timestamp: stamp(3) }
 overlapGuts.rawRecords = [laterPrompt, firstEcho, firstAnswer, secondEcho, secondAnswer]

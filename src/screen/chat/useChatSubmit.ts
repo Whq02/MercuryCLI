@@ -24,8 +24,7 @@ import type { InputMode } from '../composer/input-core/textInput.js';
 import type { PastedContent } from '../../platform/config/schema.js';
 import { logForDebugging } from '../../platform/logs/debugLog.js';
 import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE, type FileStateCache } from '../../platform/files/fileStateCache.js';
-import { createCommandInputMessage, createUserMessage, getUserMessageText } from '../../engine/messages/messages.js';
-import { formatCommandLoadingMetadata } from '../../engine/user-input/processSlashCommand.js';
+import { createCommandInputMessage, createUserMessage, formatCommandInputTags, getUserMessageText } from '../../engine/messages/messages.js';
 import { submitTrace } from './submitTrace.js';
 import { RECEIPT_TIMEOUT_MS, SWITCH_STATUS_TIMEOUT_MS } from './limits.js';
 import type { ResumableListing } from './sessionShapes.js';
@@ -162,7 +161,7 @@ export function useChatSubmitTools({ store, setAppState, addNotification, remove
   const paintScreenCommandReceipt = useCallback((commandName: string, args: string, text: string, timestamp = new Date().toISOString()): void => {
     const focused = getFocusedSessionConnector();
     if (focused.addDisplayRow !== undefined) {
-      focused.addDisplayRow({ ...createUserMessage({ content: formatCommandLoadingMetadata(commandName, args) }), timestamp });
+      focused.addDisplayRow({ ...createUserMessage({ content: formatCommandInputTags(commandName, args) }), timestamp });
       focused.addDisplayRow(createCommandInputMessage(`<${LOCAL_COMMAND_STDOUT_TAG}>${text}</${LOCAL_COMMAND_STDOUT_TAG}>`));
       return;
     }

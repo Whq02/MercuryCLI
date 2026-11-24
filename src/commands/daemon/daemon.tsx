@@ -2,8 +2,7 @@ import { DaemonView } from '../../screen/widgets/parity/DaemonView.js'
 import { LOCAL_COMMAND_STDOUT_TAG } from '../../engine/message-shapes/messageTags.js'
 import { getFocusedSessionConnector } from '../../engine/connector/focusedConnector.js'
 import { haltAll, summarizeHalt } from '../../daemon/control/haltAll.js'
-import { createCommandInputMessage, createUserMessage } from '../../engine/messages/messages.js'
-import { formatCommandLoadingMetadata } from '../../engine/user-input/processSlashCommand.js'
+import { createCommandInputMessage, createUserMessage, formatCommandInputTags } from '../../engine/messages/messages.js'
 import type { LocalCommandResult, LocalJSXCommandCall } from '../catalogue/command.js'
 import type { ToolUseContext } from '../../tools/kit/tool.js'
 
@@ -24,7 +23,7 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
       onDone(words, { display: 'system' })
       return null
     }
-    chat.addDisplayRow(createUserMessage({ content: formatCommandLoadingMetadata('daemon', args.trim()) }))
+    chat.addDisplayRow(createUserMessage({ content: formatCommandInputTags('daemon', args.trim()) }))
     chat.addDisplayRow(createCommandInputMessage(`<${LOCAL_COMMAND_STDOUT_TAG}>${words}</${LOCAL_COMMAND_STDOUT_TAG}>`))
     onDone(undefined, { display: 'skip' })
     return null

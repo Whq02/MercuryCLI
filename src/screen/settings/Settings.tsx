@@ -10,8 +10,7 @@ import type { EngineConnectorV1 } from '../../engine/connector/types.js'
 import { PopupCompactContext } from '../overlays/popupFormContext.js'
 import { SETTINGS_POPUP_COMPACT_HINT, SETTINGS_POPUP_COMPACT_PAGE_HINT, closeSettingsPopup, settingsPopupHintText, wrapSettingsPopupHint, type SettingsPopupRequest } from '../cockpit/settingsPopup.js'
 import { estateGroundBg } from '../theme/mercuryTokens.js'
-import { createCommandInputMessage, createUserMessage } from '../../engine/messages/messages.js'
-import { formatCommandLoadingMetadata } from '../../engine/user-input/processSlashCommand.js'
+import { createCommandInputMessage, createUserMessage, formatCommandInputTags } from '../../engine/messages/messages.js'
 import { cutToWidth } from '../fullscreen-layout/MercuryFilesMenu.js'
 import { ProductLockup } from '../widgets/components.js'
 import { useElevatedSurface } from '../widgets/useElevatedSurface.js'
@@ -58,7 +57,7 @@ export function settingsPopupReceipt(
   if (lines.length === 0) return 'none'
   if (lines.length > 1) {
     if (focused.addDisplayRow !== undefined) {
-      focused.addDisplayRow(createUserMessage({ content: formatCommandLoadingMetadata(view, '') }))
+      focused.addDisplayRow(createUserMessage({ content: formatCommandInputTags(view, '') }))
       focused.addDisplayRow(createCommandInputMessage(`<${LOCAL_COMMAND_STDOUT_TAG}>${summary}</${LOCAL_COMMAND_STDOUT_TAG}>`))
       return 'rows'
     }

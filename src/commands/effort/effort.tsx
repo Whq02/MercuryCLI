@@ -25,9 +25,8 @@ import {
   type EffortLevel,
   type EffortValue,
 } from '../../models/effort/effort.js'
-import { createCommandInputMessage, createUserMessage } from '../../engine/messages/messages.js'
+import { createCommandInputMessage, createUserMessage, formatCommandInputTags } from '../../engine/messages/messages.js'
 import { renderModelName } from '../../models/catalogue/engineModel.js'
-import { formatCommandLoadingMetadata } from '../../engine/user-input/processSlashCommand.js'
 import { updateSettingsForSource } from '../../platform/settings/settings.js'
 import { CommandPopupLease } from '../../screen/overlays/CommandPopupSlot.js'
 import { claimCommandPopup } from '../../screen/cockpit/commandPopup.js'
@@ -267,7 +266,7 @@ function receiptInChat(receipt: EffortReceipt, args: string): boolean {
   if (!receipt.seat) return false
   const chat = getFocusedSessionConnector()
   if (chat.addDisplayRow === undefined) return false
-  chat.addDisplayRow(createUserMessage({ content: formatCommandLoadingMetadata('effort', args) }))
+  chat.addDisplayRow(createUserMessage({ content: formatCommandInputTags('effort', args) }))
   chat.addDisplayRow(createCommandInputMessage(`<${LOCAL_COMMAND_STDOUT_TAG}>${receipt.text}</${LOCAL_COMMAND_STDOUT_TAG}>`))
   return true
 }

@@ -11,8 +11,7 @@ import { Box, Text, useInput } from '../../screen/themedRenderer.js'
 import type { LocalJSXCommandCall } from '../catalogue/command.js'
 import { useSettings } from '../../screen/settings/useSettings.js'
 import { getFocusedSessionConnector } from '../../engine/connector/focusedConnector.js'
-import { createCommandInputMessage, createUserMessage } from '../../engine/messages/messages.js'
-import { formatCommandLoadingMetadata } from '../../engine/user-input/processSlashCommand.js'
+import { createCommandInputMessage, createUserMessage, formatCommandInputTags } from '../../engine/messages/messages.js'
 import { updateSettingsForSource } from '../../platform/settings/settings.js'
 import { themeLabel, type ThemeSetting } from '../../screen/theme/theme.js'
 
@@ -150,7 +149,7 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
       onDone(receipt, { display: 'system' })
       return null
     }
-    chat.addDisplayRow(createUserMessage({ content: formatCommandLoadingMetadata('appearance', args.trim()) }))
+    chat.addDisplayRow(createUserMessage({ content: formatCommandInputTags('appearance', args.trim()) }))
     chat.addDisplayRow(createCommandInputMessage(`<${LOCAL_COMMAND_STDOUT_TAG}>${receipt}</${LOCAL_COMMAND_STDOUT_TAG}>`))
     onDone(undefined, { display: 'skip' })
     return null

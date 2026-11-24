@@ -14,7 +14,6 @@ import { generateCommandSuggestions } from '../../screen/suggestions/commandSugg
 import { concourseOffSentence } from '../../screen/routes/surfaceRoute.js'
 import { markTransitionStart } from '../../platform/observability/frictionStopwatch.js'
 import {
-  COMMAND_ARGS_TAG,
   COMMAND_MESSAGE_TAG,
   COMMAND_NAME_TAG,
   LOCAL_COMMAND_STDERR_TAG,
@@ -37,6 +36,7 @@ import {
   createSyntheticUserCaveatMessage,
   createSystemMessage,
   createUserMessage,
+  formatCommandInputTags,
   INTERRUPT_MESSAGE,
   isFoldBoundaryMessage,
 } from '../messages/messages.js'
@@ -112,11 +112,6 @@ export function formatSkillLoadingMetadata(
   _progressMessage?: string,
 ): string {
   return `<${COMMAND_MESSAGE_TAG}>${skillName}</${COMMAND_MESSAGE_TAG}><${COMMAND_NAME_TAG}>${skillName}</${COMMAND_NAME_TAG}><skill-format>skill</skill-format>`
-}
-
-export function formatCommandLoadingMetadata(fullName: string, args: string): string {
-  const argsTag = args ? `<${COMMAND_ARGS_TAG}>${args}</${COMMAND_ARGS_TAG}>` : ''
-  return `<${COMMAND_MESSAGE_TAG}>${fullName}</${COMMAND_MESSAGE_TAG}><${COMMAND_NAME_TAG}>/${fullName}</${COMMAND_NAME_TAG}>${argsTag}`
 }
 
 export function unavailableCommandLine(real: Command, args = ''): string {
@@ -282,7 +277,7 @@ async function executePromptCommand(
       recordSkillUsage(command.name)
     }
     const metadata = isUserInvocable
-      ? formatCommandLoadingMetadata(getCommandName(command), args)
+      ? formatCommandInputTags(getCommandName(command), args)
       : formatSkillLoadingMetadata(command.name, command.progressMessage)
 
     const allowedTools = parseSlashCommandToolsFromFrontmatter(command.allowedTools)
@@ -329,7 +324,7 @@ async function executePromptCommand(
     }
   } catch (error) {
     const echoed = createUserMessage({
-      content: formatCommandLoadingMetadata(commandName, args),
+      content: formatCommandInputTags(commandName, args),
       ...(uuid ? { uuid } : {}),
     })
     if ((error as { name?: string } | null)?.name === 'AbortError') {
@@ -365,7 +360,7 @@ async function runForkedPromptCommand(
     runForkedAgent,
   } = await import('../../crew/agents/forkedAgent.js')
   const echoed = createUserMessage({
-    content: formatCommandLoadingMetadata(getCommandName(command), args),
+    content: formatCommandInputTags(getCommandName(command), args),
   })
   try {
     const prepared = await prepareForkedCommandContext(command, args, context)
@@ -526,7 +521,7 @@ export async function processSlashCommand(
     return {
       messages: [
         createUserMessage({
-          content: formatCommandLoadingMetadata(getCommandName(command), args),
+          content: formatCommandInputTags(getCommandName(command), args),
           ...(uuid ? { uuid } : {}),
         }),
         createUserMessage({
@@ -593,7 +588,7 @@ async function runLocalJsxCommand(
   uuid?: UUID,
 ): Promise<ProcessUserInputBaseResult> {
   const echoed = createUserMessage({
-    content: formatCommandLoadingMetadata(getCommandName(command), args),
+    content: formatCommandInputTags(getCommandName(command), args),
     ...(uuid ? { uuid } : {}),
   })
   return new Promise(resolve => {
@@ -699,7 +694,7 @@ function answerBareUsage(
   uuid?: UUID,
 ): ProcessUserInputBaseResult {
   const echoed = createUserMessage({
-    content: formatCommandLoadingMetadata(getCommandName(command), args),
+    content: formatCommandInputTags(getCommandName(command), args),
     ...(uuid ? { uuid } : {}),
   })
   const text = bareUsageLine(command)
@@ -720,7 +715,7 @@ async function runLocalCommand(
   const sensitive = command.isSensitive === true
   const echoedArgs = sensitive && args.trim() !== '' ? '[REDACTED]' : args
   const echoed = createUserMessage({
-    content: formatCommandLoadingMetadata(getCommandName(command), echoedArgs),
+    content: formatCommandInputTags(getCommandName(command), echoedArgs),
     ...(uuid ? { uuid } : {}),
   })
   try {
