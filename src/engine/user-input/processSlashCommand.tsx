@@ -450,19 +450,18 @@ export async function processSlashCommand(
   canUseTool?: CanUseToolFn,
 ): Promise<ProcessUserInputBaseResult> {
   const caveat = createSyntheticUserCaveatMessage()
+  const rawInputAnswer = (): ProcessUserInputBaseResult => ({
+    messages: [
+      createUserMessage({
+        content: inputString,
+        ...(uuid ? { uuid } : {}),
+      }),
+      ...attachmentMessages,
+    ],
+    shouldStartTurn: true,
+  })
   const parsed = parseSlashCommand(inputString)
-  if (!parsed) {
-    return {
-      messages: [
-        createUserMessage({
-          content: inputString,
-          ...(uuid ? { uuid } : {}),
-        }),
-        ...attachmentMessages,
-      ],
-      shouldStartTurn: true,
-    }
-  }
+  if (!parsed) return rawInputAnswer()
   const { commandName, args } = parsed
   const commands = context.options?.commands ?? []
   const command = findCommand(commandName, commands)
@@ -507,16 +506,7 @@ export async function processSlashCommand(
       return availabilityAnswer(unavailableCommandLine(builtin))
     }
     if (!looksLikeCommand(commandName) || isExistingPath(`/${commandName}`)) {
-      return {
-        messages: [
-          createUserMessage({
-            content: inputString,
-            ...(uuid ? { uuid } : {}),
-          }),
-          ...attachmentMessages,
-        ],
-        shouldStartTurn: true,
-      }
+      return rawInputAnswer()
     }
     const line = unknownCommandLine(commandName, commands)
     const notice = createSystemMessage(line, 'warning')
