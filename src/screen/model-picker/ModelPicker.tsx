@@ -43,7 +43,6 @@ type Props = {
   isStandaloneCommand?: boolean
   skipSettingsWrite?: boolean
   headerText?: string
-  sessionOverrideNotice?: string
 }
 
 function initialContextToggle(value: string): boolean {
@@ -68,7 +67,6 @@ export function ModelPicker({
   isStandaloneCommand,
   skipSettingsWrite,
   headerText,
-  sessionOverrideNotice,
 }: Props): React.ReactNode {
   const tokens = useMercuryTokens()
   const appEffortValue = useAppState((s: AppState) => s.effortValue)
@@ -255,9 +253,7 @@ export function ModelPicker({
       <Box flexDirection="column">
         <Text bold>Select model</Text>
         <Text dimColor>{headerText ?? DEFAULT_HEADER_TEXT}</Text>
-        {sessionOverrideNotice !== undefined ? (
-          <Text color={tokens.warning}>{sessionOverrideNotice}</Text>
-        ) : hasSessionModelOverride ? (
+        {hasSessionModelOverride ? (
           <Text color={tokens.warning}>
             This session runs{' '}
             <Text bold>
