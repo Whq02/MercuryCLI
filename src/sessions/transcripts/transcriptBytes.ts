@@ -51,42 +51,6 @@ export const transcriptReaderCensus = {
   chainDerivations: 0,
 }
 
-interface TranscriptByteCursor {
-  offset: number
-  carry: string
-}
-
-interface TranscriptBytesAfter {
-  text: string
-  cursor: TranscriptByteCursor
-  rewound: boolean
-  size: number
-}
-
-export function readTranscriptBytesAfter(path: string, cursor: TranscriptByteCursor): TranscriptBytesAfter {
-  const st = transcriptIo.statSync(path)
-  if (st === null) return { text: '', cursor: { offset: 0, carry: '' }, rewound: cursor.offset > 0, size: 0 }
-  let from = cursor.offset
-  let carry = cursor.carry
-  let rewound = false
-  if (st.size < cursor.offset) {
-    from = 0
-    carry = ''
-    rewound = true
-  }
-  if (st.size === from) return { text: '', cursor: { offset: from, carry }, rewound, size: st.size }
-  const buf = transcriptIo.readRangeSync(path, from, st.size)
-  transcriptReaderCensus.bytesRead += buf.length
-  const combined = carry + buf.toString('utf8')
-  const lastNewline = combined.lastIndexOf('\n')
-  return {
-    text: lastNewline === -1 ? '' : combined.slice(0, lastNewline),
-    cursor: { offset: from + buf.length, carry: lastNewline === -1 ? combined : combined.slice(lastNewline + 1) },
-    rewound,
-    size: st.size,
-  }
-}
-
 export function* transcriptLineBytes(
   path: string,
   { start = 0, end = transcriptIo.statSync(path)?.size ?? 0, pieceBytes = 256 * 1024, ino = 0, opened = -1 } = {},

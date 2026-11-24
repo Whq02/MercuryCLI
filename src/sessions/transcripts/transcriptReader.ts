@@ -26,7 +26,7 @@ import { historyHead, historyIndex, historyLines, sealedExtents } from './histor
 import { streamFold } from './streamFold.js'
 import { passedOver, passedOverAs } from '../../platform/errors/passedOver.js'
 
-export { nodeTranscriptReaderIo, readTranscriptBytesAfter, setTranscriptReaderIoForTesting, transcriptReaderCensus } from './transcriptBytes.js'
+export { nodeTranscriptReaderIo, setTranscriptReaderIoForTesting, transcriptReaderCensus } from './transcriptBytes.js'
 
 const WINDOW_BYTES = 4096
 const RECENT_MAX = 2
