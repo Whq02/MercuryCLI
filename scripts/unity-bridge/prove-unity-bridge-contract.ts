@@ -5,7 +5,11 @@ import {
   UNITY_BRIDGE_DEFAULT_PORT,
   UNITY_BRIDGE_MAX_LINE_BYTES,
   UNITY_BRIDGE_HIERARCHY_NODE_CAP,
+  UNITY_BRIDGE_CONSOLE_RING_CAP,
+  UNITY_BRIDGE_SERVER_ERROR_CODES,
+  UNITY_BRIDGE_CLIENT_ERROR_CODES,
   UNITY_BRIDGE_VERBS,
+  UNITY_BRIDGE_EVENTS,
   unityBridgeVerb,
   unityBridgeVerbNames,
   buildUnityBridgeHelloFrame,
@@ -30,6 +34,7 @@ check(
 )
 check('frame cap 8MiB (the vulcan bound)', UNITY_BRIDGE_MAX_LINE_BYTES === 8 * 1024 * 1024)
 check('hierarchy cap bounded and sane', UNITY_BRIDGE_HIERARCHY_NODE_CAP === 2_000)
+check('console ring cap bounded and sane', UNITY_BRIDGE_CONSOLE_RING_CAP === 1_000)
 
 section('2. the verb table — totality + class census')
 {
@@ -72,6 +77,47 @@ section('2. the verb table — totality + class census')
   check('unknown verb answers undefined (the tool teaches, never guesses)', unityBridgeVerb('scene_play') === undefined)
   check('lookup answers the table row', unityBridgeVerb('tests_run')?.cls === 'exec')
 }
+
+section('3. error-code unions — the contract’s named arms')
+{
+  const server = UNITY_BRIDGE_SERVER_ERROR_CODES as readonly string[]
+  const client = UNITY_BRIDGE_CLIENT_ERROR_CODES as readonly string[]
+  for (const code of [
+    'AUTH_FAILED',
+    'VERSION_SKEW',
+    'UNKNOWN_OP',
+    'BAD_ARGS',
+    'PLAY_MODE_ACTIVE',
+    'SCENE_NOT_FOUND',
+    'SCENE_DIRTY',
+    'RUN_IN_FLIGHT',
+    'INTERNAL',
+  ]) {
+    check(`server union carries ${code}`, server.includes(code))
+  }
+  for (const code of [
+    'AUTH_FAILED',
+    'HANDSHAKE_CLOSED',
+    'CONNECTION_LOST',
+    'EDITOR_UNREACHABLE',
+    'REQUEST_TIMEOUT',
+    'CLIENT_CLOSED',
+    'BAD_FRAME',
+    'BRIDGE_VERSION_SKEW',
+  ]) {
+    check(`client union carries ${code}`, client.includes(code))
+  }
+  check('no duplicate server codes', new Set(server).size === server.length)
+  check('no duplicate client codes', new Set(client).size === client.length)
+}
+
+section('4. events — the bounded census')
+check(
+  'exactly play_state_changed + test_run_finished',
+  JSON.stringify([...UNITY_BRIDGE_EVENTS].sort()) ===
+    JSON.stringify(['play_state_changed', 'test_run_finished']),
+)
+
 section('5. frame builders — wire-legal NDJSON')
 {
   const hello = buildUnityBridgeHelloFrame('tok-abc')
