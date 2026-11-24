@@ -105,30 +105,6 @@ export function mapSourceValue<A, B>(s: SourceState<A>, f: (value: A) => B): Sou
   }
 }
 
-export function foldSourceState<T, R>(
-  s: SourceState<T>,
-  on: {
-    ready: (value: T, o: SourceObservation) => R
-    empty: (o: SourceObservation) => R
-    stale: (value: T, reason: string, o: SourceObservation) => R
-    recoverable: (reason: string, o: SourceObservation) => R
-    unavailable: (reason: string, retryable: boolean, o: SourceObservation) => R
-  },
-): R {
-  switch (s.state) {
-    case 'ready':
-      return on.ready(s.value, s)
-    case 'empty':
-      return on.empty(s)
-    case 'stale':
-      return on.stale(s.value, s.reason, s)
-    case 'recoverable':
-      return on.recoverable(s.reason, s)
-    case 'unavailable':
-      return on.unavailable(s.reason, s.retryable, s)
-  }
-}
-
 type ReadFailure =
   | (SourceObservation & { state: 'empty' })
   | (SourceObservation & { state: 'unavailable'; reason: string; retryable: boolean })

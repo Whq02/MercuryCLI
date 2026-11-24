@@ -11,7 +11,6 @@ const t = checker()
 
 const {
   classifyReadFailure,
-  foldSourceState,
   healthOf,
   mapSourceValue,
   reasonOf,
@@ -93,25 +92,6 @@ t.section('§2 — the fold and the flattening seam')
   t.check('wasObserved: stale (we hold a prior value)', wasObserved(sourceStale(1, 'r')))
   t.check('NOT observed: unavailable', !wasObserved(sourceUnavailable('r')))
 
-  const arms = [
-    sourceReady(1),
-    sourceEmpty(),
-    sourceStale(1, 'r'),
-    sourceUnavailable('r'),
-  ].map(s =>
-    foldSourceState(s, {
-      ready: () => 'ready',
-      empty: () => 'empty',
-      stale: () => 'stale',
-      recoverable: () => 'recoverable',
-      unavailable: () => 'unavailable',
-    }),
-  )
-  t.check(
-    'foldSourceState dispatches each arm to its own branch',
-    arms.join(',') === 'ready,empty,stale,unavailable',
-    arms.join(','),
-  )
 }
 
 t.section('§3 — a source that read once degrades to STALE, not to nothing')
