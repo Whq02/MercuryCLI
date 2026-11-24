@@ -55,6 +55,7 @@ import { taskRow } from '../../rows/project.js'
 import { NOTIFICATION_RESULT_CAP_CHARS } from '../../../crew/agent-results/summaryRoom.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
 import { startTimeout, stopTimeout } from '../../../platform/async/timers.js'
+import { STRUCTURED_OUTPUT_TOOL_NAME } from '../../../tools/kit/names/structuredOutput.js'
 
 
 const DEFAULT_AGENT_TYPE = 'mercury-crew'
@@ -62,9 +63,6 @@ const DEFAULT_AGENT_TYPE = 'mercury-crew'
 const MAIN_SESSION_AGENT_TYPE = 'main-session'
 
 const MAX_RECENT_ACTIVITIES = 5
-
-const STRUCTURED_OUTPUT_TOOL_NAME = 'StructuredOutput'
-
 
 export type ToolActivity = {
   toolName: string
