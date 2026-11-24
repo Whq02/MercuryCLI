@@ -9,6 +9,7 @@ import { getEssentialTrafficOnlyReason, isLoopbackUrl, isProofShapeRun, proofSha
 import { passedOver, passedOverAs } from '../../../platform/errors/passedOver.js'
 import { hostEnv } from '../../../platform/environment/hostEnv.js'
 import { startTimeout, stopTimeout } from '../../../platform/async/timers.js'
+import { compareClientContractVersions, readAnswerText } from '../../../engine/requests/clientContractLearned.js'
 
 export const NOUS_PORTAL_CLIENT_ID = 'hermes-cli'
 export const NOUS_PORTAL_SIGNIN_SCOPE = 'inference:invoke'
@@ -56,17 +57,6 @@ export interface NousClientIo {
   env?: NodeJS.ProcessEnv
   fetchImpl?: typeof fetch
   now?: () => number
-}
-
-export function compareNousReleases(a: string, b: string): number {
-  const left = a.split('.')
-  const right = b.split('.')
-  for (let i = 0; i < 3; i++) {
-    const l = Number(left[i] ?? 0)
-    const r = Number(right[i] ?? 0)
-    if (l !== r) return l < r ? -1 : 1
-  }
-  return 0
 }
 
 export function isoDay(ms: number): string {
@@ -155,7 +145,7 @@ export function learnedNousClient(): LearnedNousClient | null {
 
 export function presentedNousClient(): NousClientPresented {
   const learned = learnedNousClient()
-  if (learned !== null && compareNousReleases(learned.release, NOUS_CLIENT_CONTRACT_RELEASE) > 0) {
+  if (learned !== null && compareClientContractVersions(learned.release, NOUS_CLIENT_CONTRACT_RELEASE) > 0) {
     return { clientId: learned.clientId, scope: learned.scope, release: learned.release, source: 'learned', asOf: isoDay(learned.learnedAtMs) }
   }
   return { clientId: NOUS_PORTAL_CLIENT_ID, scope: NOUS_PORTAL_SIGNIN_SCOPE, release: NOUS_CLIENT_CONTRACT_RELEASE, source: 'constant', asOf: NOUS_CLIENT_CONTRACT_AS_OF }
@@ -187,24 +177,6 @@ export function releaseOfTag(tag: unknown): string | undefined {
   return isRelease(bare) ? bare : undefined
 }
 
-async function boundedText(response: Response): Promise<string | null> {
-  const reader = response.body?.getReader()
-  if (reader === undefined) return ''
-  const chunks: Uint8Array[] = []
-  let size = 0
-  for (;;) {
-    const next = await reader.read()
-    if (next.done) break
-    size += next.value.byteLength
-    if (size > ANSWER_MAX_BYTES) {
-      await reader.cancel().catch(passedOverAs(undefined))
-      return null
-    }
-    chunks.push(next.value)
-  }
-  return Buffer.concat(chunks).toString('utf8')
-}
-
 async function readSource(url: string, accept: string, io: NousClientIo | undefined, signal: AbortSignal): Promise<{ ok: true; text: string } | { ok: false; words: string }> {
   const fetchImpl = io?.fetchImpl ?? getApiFetch()
   let response: Response
@@ -225,7 +197,7 @@ async function readSource(url: string, accept: string, io: NousClientIo | undefi
     await response.body?.cancel().catch(passedOverAs(undefined))
     return { ok: false, words: `HTTP ${response.status}` }
   }
-  const text = await boundedText(response)
+  const text = await readAnswerText(response, ANSWER_MAX_BYTES)
   if (text === null) return { ok: false, words: `the answer ran past ${ANSWER_MAX_BYTES / 1024} KiB` }
   return { ok: true, text }
 }
@@ -282,7 +254,7 @@ export function peekNousClient(io?: NousClientIo & { force?: boolean }): Promise
       try { writeNousClientRecord({ ...fresh, lastFailure: { atMs: now(), words: answer.words.slice(0, 256) } }) } catch (error) { passedOver(error) }
       return { kind: 'read', answer, learned: false }
     }
-    const newest = compareNousReleases(answer.facts.release, fresh.learned?.release ?? NOUS_CLIENT_CONTRACT_RELEASE) > 0
+    const newest = compareClientContractVersions(answer.facts.release, fresh.learned?.release ?? NOUS_CLIENT_CONTRACT_RELEASE) > 0
     const next: NousClientRecord = { ...fresh, lastPeekAtMs: now() }
     delete next.lastFailure
     if (newest) next.learned = { ...answer.facts, learnedAtMs: now(), from: answer.from }

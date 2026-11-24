@@ -298,7 +298,7 @@ function networkCode(error: unknown): string | undefined {
   return undefined
 }
 
-async function readAnswerText(response: Response): Promise<string | null> {
+export async function readAnswerText(response: Response, maxBytes: number): Promise<string | null> {
   const reader = response.body?.getReader()
   if (reader === undefined) return ''
   const chunks: Uint8Array[] = []
@@ -307,7 +307,7 @@ async function readAnswerText(response: Response): Promise<string | null> {
     const next = await reader.read()
     if (next.done) break
     size += next.value.byteLength
-    if (size > ANSWER_MAX_BYTES) {
+    if (size > maxBytes) {
       await reader.cancel().catch(passedOverAs(undefined))
       return null
     }
@@ -341,7 +341,7 @@ export async function readClientContractFromRegistry(signal?: AbortSignal): Prom
       await response.body?.cancel().catch(passedOverAs(undefined))
       return { ok: false, failure: { kind: 'status', words: `HTTP ${response.status}` } }
     }
-    const text = await readAnswerText(response)
+    const text = await readAnswerText(response, ANSWER_MAX_BYTES)
     if (text === null) return shapeFailure(`the answer ran past ${ANSWER_MAX_BYTES / 1024} KiB`)
     let body: unknown
     try {

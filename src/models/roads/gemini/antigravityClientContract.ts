@@ -10,6 +10,7 @@ import { getEssentialTrafficOnlyReason, isLoopbackUrl, isProofShapeRun, proofSha
 import { passedOver, passedOverAs } from '../../../platform/errors/passedOver.js'
 import { hostEnv } from '../../../platform/environment/hostEnv.js'
 import { startTimeout, stopTimeout } from '../../../platform/async/timers.js'
+import { compareClientContractVersions, readAnswerText } from '../../../engine/requests/clientContractLearned.js'
 
 export const ANTIGRAVITY_OAUTH_CLIENT_ID = '1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com'
 export const ANTIGRAVITY_OAUTH_CLIENT_SECRET = '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'
@@ -60,17 +61,6 @@ export interface AntigravityClientIo {
   env?: NodeJS.ProcessEnv
   fetchImpl?: typeof fetch
   now?: () => number
-}
-
-export function compareAntigravityVersions(a: string, b: string): number {
-  const left = a.split('.')
-  const right = b.split('.')
-  for (let i = 0; i < 3; i++) {
-    const l = Number(left[i] ?? 0)
-    const r = Number(right[i] ?? 0)
-    if (l !== r) return l < r ? -1 : 1
-  }
-  return 0
 }
 
 export function antigravityIsoDay(ms: number): string {
@@ -154,7 +144,7 @@ export function learnedAntigravityClient(): LearnedAntigravityClient | null {
 
 export function presentedAntigravityClient(): AntigravityClientPresented {
   const learned = learnedAntigravityClient()
-  if (learned !== null && compareAntigravityVersions(learned.version, ANTIGRAVITY_CLIENT_CONTRACT_VERSION) > 0) {
+  if (learned !== null && compareClientContractVersions(learned.version, ANTIGRAVITY_CLIENT_CONTRACT_VERSION) > 0) {
     return { version: learned.version, changelist: ANTIGRAVITY_CLIENT_CONTRACT_CHANGELIST, source: 'learned', asOf: antigravityIsoDay(learned.learnedAtMs) }
   }
   return { version: ANTIGRAVITY_CLIENT_CONTRACT_VERSION, changelist: ANTIGRAVITY_CLIENT_CONTRACT_CHANGELIST, source: 'constant', asOf: ANTIGRAVITY_CLIENT_CONTRACT_AS_OF }
@@ -181,24 +171,6 @@ export function decodeAntigravityManifestVersion(text: string): string | undefin
     return isVersion(version) ? version : undefined
   }
   return undefined
-}
-
-async function boundedText(response: Response): Promise<string | null> {
-  const reader = response.body?.getReader()
-  if (reader === undefined) return ''
-  const chunks: Uint8Array[] = []
-  let size = 0
-  for (;;) {
-    const next = await reader.read()
-    if (next.done) break
-    size += next.value.byteLength
-    if (size > ANSWER_MAX_BYTES) {
-      await reader.cancel().catch(passedOverAs(undefined))
-      return null
-    }
-    chunks.push(next.value)
-  }
-  return Buffer.concat(chunks).toString('utf8')
 }
 
 export async function readAntigravityVersionFromManifest(io?: AntigravityClientIo): Promise<AntigravityManifestAnswer> {
@@ -228,7 +200,7 @@ export async function readAntigravityVersionFromManifest(io?: AntigravityClientI
       await response.body?.cancel().catch(passedOverAs(undefined))
       return { ok: false, words: `HTTP ${response.status}` }
     }
-    const text = await boundedText(response)
+    const text = await readAnswerText(response, ANSWER_MAX_BYTES)
     if (text === null) return { ok: false, words: `the manifest ran past ${ANSWER_MAX_BYTES / 1024} KiB` }
     const version = decodeAntigravityManifestVersion(text)
     if (version === undefined) return { ok: false, words: 'the manifest named no three-part version' }
@@ -259,7 +231,7 @@ export function peekAntigravityClient(io?: AntigravityClientIo & { force?: boole
       try { writeAntigravityClientRecord({ ...fresh, lastFailure: { atMs: now(), words: answer.words.slice(0, 256) } }) } catch (error) { passedOver(error) }
       return { kind: 'read', answer, learned: false }
     }
-    const newest = compareAntigravityVersions(answer.version, fresh.learned?.version ?? ANTIGRAVITY_CLIENT_CONTRACT_VERSION) > 0
+    const newest = compareClientContractVersions(answer.version, fresh.learned?.version ?? ANTIGRAVITY_CLIENT_CONTRACT_VERSION) > 0
     const next: AntigravityClientRecord = { ...fresh, lastPeekAtMs: now() }
     delete next.lastFailure
     if (newest) next.learned = { version: answer.version, learnedAtMs: now(), from: answer.from }
