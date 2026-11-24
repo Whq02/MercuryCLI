@@ -11,6 +11,7 @@ import { hasStoredOAuthToken } from '../../models/sign-in/credentials/auth.js'
 import { subscribeSignInEpoch } from '../../models/sign-in/account-ledger/signInLedger.js'
 import { STORED_TOKEN_SCRUB_VARS } from '../../platform/processes/subprocessEnv.js'
 import { isProcessAlive, OWNER_FD_ENV, OWNER_PID_ENV } from './ownerWatch.js'
+import { stampedTerminalPid, terminalStampsOf } from '../concourse-workers/record.js'
 import { flagEnv, flagPair, flagSpellings, stampFlagOnEnv } from '../../platform/substrate/flagRegistry.js'
 import { stampSpawnReceipt } from '../../platform/substrate/envStamps.js'
 import type { Socket } from 'node:net'
@@ -101,7 +102,7 @@ export function anotherLiveCockpitHoldsDaemon(
   exceptPid: number,
   workersPath: string = join(daemonDir(), 'concourse-workers.json'),
 ): boolean {
-  let parsed: { workers?: Record<string, { endedAt?: number; parkedAt?: number; focusedBy?: string; attachedBy?: string }> }
+  let parsed: { workers?: Record<string, { endedAt?: number; parkedAt?: number; focusedBy?: string; attachedBy?: string; focusedAlso?: Array<{ by: string }> }> }
   try {
     parsed = JSON.parse(readFileSync(workersPath, 'utf8'))
   } catch (err) {
@@ -111,11 +112,9 @@ export function anotherLiveCockpitHoldsDaemon(
   }
   for (const rec of Object.values(parsed.workers ?? {})) {
     if (rec.endedAt !== undefined || rec.parkedAt !== undefined) continue
-    for (const by of [rec.focusedBy, rec.attachedBy]) {
-      const matched = /^operator:(\d+)$/.exec(by ?? '')
-      if (matched === null) continue
-      const pid = Number(matched[1])
-      if (pid !== exceptPid && isProcessAlive(pid)) return true
+    for (const by of terminalStampsOf(rec)) {
+      const pid = stampedTerminalPid(by)
+      if (pid !== undefined && pid !== exceptPid && isProcessAlive(pid)) return true
     }
   }
   return false

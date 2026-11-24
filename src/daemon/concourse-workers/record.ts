@@ -179,6 +179,10 @@ export function withdrawTerminalParkRequest(rec: ConcourseWorkerRecordV1): boole
   return true
 }
 
+export function terminalStampsOf(rec: { attachedBy?: string; focusedBy?: string; focusedAlso?: ReadonlyArray<{ by: string }> }): string[] {
+  return [rec.attachedBy, rec.focusedBy, ...(rec.focusedAlso ?? []).map(stamp => stamp.by)].filter((stamp): stamp is string => typeof stamp === 'string' && stamp.trim() !== '')
+}
+
 export function stampedTerminalPid(by: string | undefined): number | undefined {
   const pid = /^operator:(\d+)$/.exec(by ?? '')?.[1]
   return pid === undefined ? undefined : Number(pid)

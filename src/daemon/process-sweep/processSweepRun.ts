@@ -7,7 +7,7 @@ import { flagEnv } from '../../platform/substrate/flagRegistry.js'
 import { runningBuildTree } from '../../platform/product/artifactIdentity.js'
 import { getMercuryHome } from '../../platform/environment/envUtils.js'
 import { sleep } from '../../platform/async/sleep.js'
-import { readSessionWorkersSnapshot, stampedTerminalPid, type ConcourseWorkerRecordV1 } from '../concourse-workers/concourseWorkers.js'
+import { readSessionWorkersSnapshot, stampedTerminalPid, terminalStampsOf, type ConcourseWorkerRecordV1 } from '../concourse-workers/concourseWorkers.js'
 import { daemonControlRpc, daemonDir } from '../control/controlSocket.js'
 import { sessionParkDrainMs } from '../control/idleRetirement.js'
 import { getProcessStartInstantAsync } from '../control/ownerWatch.js'
@@ -45,7 +45,7 @@ export function processSweepWaitMs(): number {
 }
 
 export function sweepRunnerRecord(record: ConcourseWorkerRecordV1 | undefined, pid: number | undefined, warm: boolean): ProcessSweepRunnerRecord {
-  const stamps = [record?.attachedBy, record?.focusedBy].filter((stamp): stamp is string => typeof stamp === 'string' && stamp.trim() !== '')
+  const stamps = record === undefined ? [] : terminalStampsOf(record)
   return {
     pid,
     procStart: record?.procStart,

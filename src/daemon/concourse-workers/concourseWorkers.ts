@@ -1,6 +1,6 @@
 export { CONCOURSE_SHORT_PREFIX, canonicalWorkspaceId, seatHoldersWords, SEAT_FREEING_MOVES, evaluateConcourseAdmission, effectiveSeatCeiling, resolveDefaultedAdmission } from './admission.js'
 export type { WorkspaceIsolation, WorkspaceClaim, ConcourseMoveV1, AdmissionDecision, DefaultedAdmissionResolution } from './admission.js'
-export { sessionActivityOf, isNewbornRecord, turnInFlightOf, turnCutStanding, stampedTerminalPid } from './record.js'
+export { sessionActivityOf, isNewbornRecord, turnInFlightOf, turnCutStanding, stampedTerminalPid, terminalStampsOf } from './record.js'
 export type { ConcourseWorkerRecordV1 } from './record.js'
 export { concourseCollisionsPath, readCollisionEvidence, recordCollisionEvidence } from './collisions.js'
 export type { CollisionEvidenceV1 } from './collisions.js'
