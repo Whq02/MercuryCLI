@@ -8,7 +8,8 @@ import { tokenBinding } from '../process-sweep/processSweep.js'
 import { readProcessTreeUnder, readProcessBirth } from '../process-sweep/processTree.js'
 import { endProcessTree } from '../../platform/processes/processGroup.js'
 import { pollUntil, withDeadline } from '../../platform/async/deadline.js'
-import { updateConcourseWorkers, readSessionWorkers } from './store.js'
+import { DurablePublishError } from '../../platform/substrate/durablePublish.js'
+import { updateConcourseWorkers, updateConcourseWorkersOrHold, updateConcourseWorkersRidingOut, readSessionWorkers } from './store.js'
 import { isNewbornRecord, turnInFlightOf, stampParked, type ConcourseWorkerRecordV1, withdrawTerminalParkRequest } from './record.js'
 import { terminalsFocusing } from './focus.js'
 import { settleConcourseWorker } from './settle.js'
@@ -21,6 +22,11 @@ export type ConcourseParkOutcome =
   | { outcome: 'noop'; reason: 'already-parked' }
   | { outcome: 'refused'; reason: 'unknown-session' | 'no-kill-channel'; detail?: string }
 
+function keepParked(workers: Record<string, ConcourseWorkerRecordV1>, parked: ConcourseWorkerRecordV1): void {
+  const standing = workers[parked.runnerId]
+  if (standing !== undefined && standing.endedAt === undefined && standing.parkedAt === undefined) workers[parked.runnerId] = parked
+}
+
 export function parkConcourseSession(
   sessionId: string,
   by: string,
@@ -30,7 +36,12 @@ export function parkConcourseSession(
 ): ConcourseParkOutcome {
   let out: ConcourseParkOutcome = { outcome: 'refused', reason: 'unknown-session' }
   let releaseNewborn: string | undefined
-  updateConcourseWorkers(workers => {
+  let parked: ConcourseWorkerRecordV1 | undefined
+  updateConcourseWorkersOrHold(workers => {
+    if (parked !== undefined) {
+      keepParked(workers, parked)
+      return
+    }
     const rec = Object.values(workers).find(r => r.sessionId === sessionId && r.endedAt === undefined)
     if (!rec) return
     if (rec.parkedAt !== undefined) {
@@ -66,6 +77,7 @@ export function parkConcourseSession(
       return
     }
     stampParked(rec, by, opts?.reason)
+    parked = rec
     out = { outcome: 'applied', runnerId: rec.runnerId, released: false }
   }, dir)
   if (releaseNewborn !== undefined) settleConcourseWorker(releaseNewborn, dir)
@@ -134,7 +146,7 @@ export async function retireConcourseSession(
     },
     persistIntent: token => {
       const now = current()
-      updateConcourseWorkers(workers => {
+      return updateConcourseWorkersRidingOut(workers => {
         const w = workers[runnerId]
         if (!w) throw new Error('the record vanished before the intent landed')
         w.parkIntent = { token, by, at: Date.now(), pid: now?.pid ?? 0 }
@@ -142,7 +154,7 @@ export async function retireConcourseSession(
       }, dir)
     },
     clearIntent: token => {
-      updateConcourseWorkers(workers => {
+      updateConcourseWorkersOrHold(workers => {
         const w = workers[runnerId]
         if (w?.parkIntent?.token === token) delete w.parkIntent
       }, dir)
@@ -184,11 +196,17 @@ export async function retireConcourseSession(
       }
     },
     persistParked: token => {
-      updateConcourseWorkers(workers => {
+      let parked: ConcourseWorkerRecordV1 | undefined
+      updateConcourseWorkersOrHold(workers => {
+        if (parked !== undefined) {
+          keepParked(workers, parked)
+          return
+        }
         const w = workers[runnerId]
         if (!w || w.parkIntent?.token !== token) throw new Error('the park intent changed under the retirement')
         delete w.parkIntent
         stampParked(w, by, opts?.reason)
+        parked = w
       }, dir)
     },
   })
@@ -197,10 +215,15 @@ export async function retireConcourseSession(
     const result = await fence.retire(randomUUID().replace(/-/g, ''))
     if (result.outcome === 'parked') return { outcome: 'parked', runnerId }
     if (opts?.requestStands !== true) {
-      updateConcourseWorkers(workers => {
-        const w = workers[runnerId]
-        if (w && w.parkedAt === undefined) w.parkRefused = { reason: result.reason, at: Date.now(), by }
-      }, dir)
+      try {
+        updateConcourseWorkers(workers => {
+          const w = workers[runnerId]
+          if (w && w.parkedAt === undefined) w.parkRefused = { reason: result.reason, at: Date.now(), by }
+        }, dir)
+      } catch (error) {
+        if (!(error instanceof DurablePublishError)) throw error
+        logForDebugging(`[concourse] ${runnerId}: the refused park (${result.reason}) was not stamped on its record: ${error.message}`, { level: 'warn' })
+      }
     }
     return { outcome: 'refused', runnerId, reason: result.reason, fenced: result.fenced }
   } finally {

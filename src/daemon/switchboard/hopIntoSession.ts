@@ -333,13 +333,17 @@ async function parkSessionById(sessionId: string): Promise<string | null> {
   const workers = await import('../concourse-workers/concourseWorkers.js')
   const rec = Object.values(workers.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
   if (rec === undefined) return null
+  let refusal: string
   try {
     const { daemonControlRpc } = await import('../control/controlSocket.js')
     const reply = await daemonControlRpc({ op: 'sessionControl', action: 'park', sessionId, by: `operator:${process.pid}` }, { timeoutMs: 15_000 })
-    return reply.ok === true ? null : String(reply.error ?? 'refused')
+    if (reply.ok === true && reply.outcome !== 'refused') return null
+    refusal = reply.ok === true ? (reply.detail ?? 'refused') : String(reply.error ?? 'refused')
   } catch (error) {
-    return errorMessage(error)
+    refusal = errorMessage(error)
   }
+  const standing = Object.values(workers.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
+  return standing !== undefined && standing.parkedAt === undefined && workers.workerPidAlive(standing) ? refusal : null
 }
 
 async function paintReactivationScheduleWarn(sessionId: string): Promise<void> {

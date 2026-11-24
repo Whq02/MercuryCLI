@@ -95,7 +95,7 @@ export class RetirementFence {
   constructor(private readonly effects: {
     request(request: QuiescenceRequest): Promise<QuiescenceAnswer>
     refusal(): string | null
-    persistIntent(token: string): void
+    persistIntent(token: string): void | Promise<void>
     clearIntent(token: string): void
     expectExit(expected: boolean): void
     observeExit(): Promise<boolean>
@@ -124,6 +124,10 @@ export class RetirementFence {
     this.pending = pending
     void pending.finally(() => { if (this.pending === pending) this.pending = null })
     return pending
+  }
+
+  private standDown(): string | null {
+    return this.cancelled ? 'new demand cancelled retirement' : this.effects.refusal()
   }
 
   private async cancel(token: string, reason: string): Promise<RetirementResult> {
@@ -180,9 +184,11 @@ export class RetirementFence {
       if (!prepared.ok || prepared.token !== token || prepared.phase !== 'prepared') {
         return await this.cancel(token, prepared.ok ? 'runner did not prepare this token' : prepared.reason)
       }
-      const changed = this.cancelled ? 'new demand cancelled retirement' : this.effects.refusal()
+      const changed = this.standDown()
       if (changed !== null) return await this.cancel(token, changed)
-      this.effects.persistIntent(token)
+      await this.effects.persistIntent(token)
+      const changedSince = this.standDown()
+      if (changedSince !== null) return await this.cancel(token, changedSince)
       this.phase = 'committing'
       this.effects.expectExit(true)
       const committed = await this.effects.request({ subtype: 'quiesce', action: 'commit', token })

@@ -4,6 +4,7 @@ prove-boundary-worktree.ts
 prove-box-facts.ts
 prove-build-order-visible.ts
 prove-capability-census.ts
+prove-clear-park-held-save.ts
 prove-close-all.ts
 prove-compat-schedule-account.ts
 prove-control-layer-held.ts
