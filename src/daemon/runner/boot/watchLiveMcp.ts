@@ -19,7 +19,7 @@ async function applyMcpClientLists(
   serverName: string,
   client: MCPServerConnection,
   setAppState: RunnerPorts['setAppState'],
-  reason = `the MCP server ${serverName} joined or reconnected`,
+  reason?: string,
 ): Promise<void> {
   const [tools, commandsForServer, resources] = await Promise.all([
     fetchToolsForClient(client),
@@ -28,8 +28,12 @@ async function applyMcpClientLists(
   ])
   const allTools = [...tools, ...supplementaryToolsForMcpClient(client)]
   const prefix = getMcpPrefix(serverName)
-  if (allTools.length > 0 || client.type === 'connected') {
-    requestDeliberateToolChange(String(processMainOwner()), allTools, reason)
+  if (reason !== undefined || allTools.length > 0) {
+    requestDeliberateToolChange(
+      String(processMainOwner()),
+      allTools,
+      reason ?? `the MCP server ${serverName} joined or reconnected`,
+    )
   }
   setAppState(previous => {
     const nextClients = previous.mcp.clients.some(existing => existing.name === serverName)
