@@ -30,7 +30,7 @@ function bundleArgumentOf(commandLine: string): string | null {
   return part ?? null
 }
 
-function realOrResolved(p: string): string {
+export function realOrResolved(p: string): string {
   try {
     return realpathSync(p)
   } catch {

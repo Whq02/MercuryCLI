@@ -1,6 +1,6 @@
 import net from 'node:net'
-import { existsSync, lstatSync, readFileSync, realpathSync, renameSync } from 'node:fs'
-import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
+import { existsSync, lstatSync, readFileSync, renameSync } from 'node:fs'
+import { basename, dirname, isAbsolute, join, relative } from 'node:path'
 import { getMercuryHome } from '../../platform/environment/envUtils.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { localIpcDoorKind } from '../../platform/host-os/files.js'
@@ -11,6 +11,7 @@ import { payloadVendoredRuntime } from '../../platform/update-channel/vendoredRu
 import { controlSockPath } from './controlSocket.js'
 import { selfScriptPath, vendoredNodeBeside } from './daemonBuild.js'
 import { isProcessAlive } from './ownerWatch.js'
+import { realOrResolved } from '../runner-link/runnerScript.js'
 import { encodeFrame, readControlFrame, type DaemonReply } from './protocol.js'
 import { startTimeout, stopTimeout } from '../../platform/async/timers.js'
 
@@ -85,14 +86,6 @@ export function releaseDeployedRuntime(home: string = getMercuryHome(), platform
     node = null
   }
   return { script, buildTree: facts.buildTree, dir, node: node ?? vendoredNodeBeside(dir, platform), layout: 'release', version: facts.version ?? version }
-}
-
-function realOrResolved(p: string): string {
-  try {
-    return realpathSync(p)
-  } catch {
-    return resolve(p)
-  }
 }
 
 function pathWithin(parent: string, child: string, platform: NodeJS.Platform): boolean {
