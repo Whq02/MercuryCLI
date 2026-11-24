@@ -42,6 +42,13 @@ export function isInputOption<T>(
   return option?.type === 'input'
 }
 
+export function ordinalPrefix(option: { indexLabel?: string }, index1: number, reservedWidth: number): string {
+  if (option.indexLabel !== undefined) {
+    return option.indexLabel.padEnd(Math.max(reservedWidth, option.indexLabel.length + 1))
+  }
+  return (index1 <= 9 ? `${index1}.` : '').padEnd(reservedWidth)
+}
+
 export function optionsEquivalent<T>(
   a: readonly OptionWithDescription<T>[],
   b: readonly OptionWithDescription<T>[],

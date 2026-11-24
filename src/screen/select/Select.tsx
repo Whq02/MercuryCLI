@@ -11,6 +11,7 @@ import type { ImageDimensions } from '../../platform/images/imageResizer.js'
 import {
   isInputOption,
   optionValueOf,
+  ordinalPrefix,
   type InputOption,
   type OptionWithDescription,
 } from './optionMap.js'
@@ -51,21 +52,6 @@ type SelectProps<T = string> = {
   pastedContents?: Record<number, PastedContent>
   onRemoveImage?: (id: number) => void
   onEmptyInputSubmit?: (value: T) => void
-}
-
-function indexPrefix(index1: number, reservedWidth: number): string {
-  const raw = index1 <= 9 ? `${index1}.` : ''
-  return raw.padEnd(reservedWidth)
-}
-
-function rowPrefix(
-  option: { indexLabel?: string },
-  index1: number,
-  reservedWidth: number,
-): string {
-  return option.indexLabel !== undefined
-    ? option.indexLabel.padEnd(Math.max(reservedWidth, option.indexLabel.length + 1))
-    : indexPrefix(index1, reservedWidth)
 }
 
 function renderLabel(
@@ -181,7 +167,7 @@ function renderTwoColumnList<T>({
         const stateColor = stateColorOf(isFocused, isSelected, option.disabled)
         const prefix = hideIndexes
           ? ''
-          : rowPrefix(option, option.index + 1, indexWidth)
+          : ordinalPrefix(option, option.index + 1, indexWidth)
         const labelText = typeof option.label === 'string' ? option.label : ''
         const checkSuffix = isSelected ? ` ${GLYPH.check}` : ''
         const raw = `${prefix}${labelText}${checkSuffix}`
@@ -456,7 +442,6 @@ export function Select<T = string>({
     highlightText,
     hideIndexes,
     inlineDescriptions,
-    rowPrefix,
     renderLabel,
   })
 }

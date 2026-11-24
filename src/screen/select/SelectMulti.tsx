@@ -6,6 +6,7 @@ import type { ImageDimensions } from '../../platform/images/imageResizer.js'
 import {
   isInputOption,
   optionValueOf,
+  ordinalPrefix,
   type InputOption,
   type OptionWithDescription,
 } from './optionMap.js'
@@ -42,18 +43,6 @@ type SelectMultiProps<T = string> = {
   pastedContents?: Record<number, PastedContent>
   onRemoveImage?: (id: number) => void
   onEmptyInputSubmit?: (value: T) => void
-}
-
-function optionIndexPrefix(
-  option: { indexLabel?: string },
-  index1: number,
-  reservedWidth: number,
-): string {
-  if (option.indexLabel !== undefined) {
-    return option.indexLabel.padEnd(Math.max(reservedWidth, option.indexLabel.length + 1))
-  }
-  const raw = index1 <= 9 ? `${index1}.` : ''
-  return raw.padEnd(reservedWidth)
 }
 
 export function SelectMulti<T = string>({
@@ -150,7 +139,7 @@ export function SelectMulti<T = string>({
             )
           }
 
-          const prefix = hideIndexes ? '' : optionIndexPrefix(option, option.index + 1, digitWidth + 1)
+          const prefix = hideIndexes ? '' : ordinalPrefix(option, option.index + 1, digitWidth + 1)
           return (
             <Box
               key={String(option.value)}

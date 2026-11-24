@@ -3,6 +3,7 @@ import { Ansi, Box, Text } from '../themedRenderer.js'
 import {
   isInputOption,
   optionValueOf,
+  ordinalPrefix,
   type InputOption,
   type OptionWithDescription,
 } from './optionMap.js'
@@ -27,7 +28,6 @@ export function selectViewOf<T>({
   highlightText,
   hideIndexes,
   inlineDescriptions,
-  rowPrefix,
   renderLabel,
 }: {
   state: SelectState<T>
@@ -49,7 +49,6 @@ export function selectViewOf<T>({
   highlightText: string | undefined
   hideIndexes: boolean
   inlineDescriptions: boolean
-  rowPrefix: (option: { indexLabel?: string }, index1: number, reservedWidth: number) => string
   renderLabel: (label: React.ReactNode, highlightText: string | undefined) => React.ReactNode
 }): React.ReactNode {
   return (
@@ -63,7 +62,7 @@ export function selectViewOf<T>({
           position,
         )
         const stateColor = stateColorOf(isFocused, isSelected, option.disabled)
-        const prefix = ordinalsHidden ? '' : rowPrefix(option, option.index + 1, textRowReserved)
+        const prefix = ordinalsHidden ? '' : ordinalPrefix(option, option.index + 1, textRowReserved)
         const clickable =
           layout === 'expanded' && disableSelection !== true && !option.disabled && !isDisabled
         const description =

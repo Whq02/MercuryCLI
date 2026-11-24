@@ -12,7 +12,7 @@ import { ClickableImageRef } from './ClickableImageRef.js'
 import Byline from '../theme/Byline.js'
 import TextInput from '../composer/text-input/TextInput.js'
 import { SelectOption } from './select-option.js'
-import type { InputOption } from './optionMap.js'
+import { ordinalPrefix, type InputOption } from './optionMap.js'
 import { logError } from '../../platform/logs/errorLog.js'
 
 const INPUT_WRAP_COLUMNS = 80
@@ -64,13 +64,6 @@ type SelectInputOptionProps<T = string> = {
   selectedImageIndex?: number
   onSelectImage?: (index: number) => void
   onExitImageSelection?: () => void
-}
-
-function inputOrdinalPrefix(option: { indexLabel?: string }, index: number, reservedIndexWidth: number): string {
-  if (option.indexLabel !== undefined) {
-    return option.indexLabel.padEnd(Math.max(reservedIndexWidth + 2, option.indexLabel.length + 1))
-  }
-  return (index <= 9 ? `${index}.` : '').padEnd(reservedIndexWidth + 2)
 }
 
 export function SelectInputOption<T>({
@@ -208,7 +201,7 @@ export function SelectInputOption<T>({
   const removeKey = useShortcutDisplay('attachments:remove', 'Attachments', 'backspace')
   const exitKey = useShortcutDisplay('attachments:exit', 'Attachments', 'esc')
 
-  const number = inputOrdinalPrefix(option, index, reservedIndexWidth)
+  const number = ordinalPrefix(option, index, reservedIndexWidth + 2)
   const placeholder =
     option.placeholder ?? (typeof option.label === 'string' ? option.label : undefined)
   const separator = option.labelValueSeparator ?? ', '
