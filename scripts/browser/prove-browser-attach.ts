@@ -284,6 +284,15 @@ try {
     check('a second close has nothing to close', again.result === 'no open session', again.result)
   }
 
+  section('S11a the localhost spelling reaches the same browser')
+  {
+    const local = `http://localhost:${port}`
+    const joined = await run({ op: 'attach', endpoint: local })
+    check('http://localhost:<port> attaches', joined.outcome === 'succeeded' && first(joined).startsWith(`attached: ${local} (`), joined.result)
+    const closed = await run({ op: 'close' })
+    check('and detaches, the browser alive', closed.result.startsWith(`detached from ${local}: `) && user.exitCode === null, closed.result)
+  }
+
   section('S11b an agent that ends while attached leaves the browser as it found it')
   {
     const ending: Ctx = { agentId: 'attach-ending-owner' }
