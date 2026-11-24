@@ -1,8 +1,8 @@
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { FIT_REMEDY, LOCAL_SERVER_KNOBS, chosenKnobs, fitVerdict, memoryFactsOf, settingsAsEnv, type FitVerdict, type LocalServerSettings } from './localServerKnobs.js'
 import { fetchWithProviderDeadline } from '../roads/fetchDeadline.js'
-import { resolveLocalServerIo, type LaunchFormKind, type LocalServerIo, type LocalServerTruth } from './localServerTruth.js'
+import { defaultReadText, resolveLocalServerIo, type LaunchFormKind, type LocalServerIo, type LocalServerTruth } from './localServerTruth.js'
 import { sleep } from '../../platform/async/sleep.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
@@ -280,15 +280,6 @@ export interface LocalServerApplyIo {
 function defaultWriteText(path: string, text: string): void {
   mkdirSync(dirname(path), { recursive: true })
   writeFileSync(path, text)
-}
-
-function defaultReadText(path: string): string | undefined {
-  try {
-    return readFileSync(path, 'utf8')
-  } catch (error) {
-    passedOver(error)
-    return undefined
-  }
 }
 
 async function defaultProbe(url: string): Promise<boolean> {

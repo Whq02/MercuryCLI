@@ -145,7 +145,7 @@ function defaultRun(file: string, args: string[]): Promise<string | undefined> {
     }
   })
 }
-function defaultReadText(path: string): string | undefined {
+export function defaultReadText(path: string): string | undefined {
   try {
     return readFileSync(path, 'utf8')
   } catch (error) {
