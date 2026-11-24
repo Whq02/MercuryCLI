@@ -6,12 +6,10 @@ import type {
   ApiMessage,
   ApiStreamEvent,
   ContentBlock,
-  MessageParam,
 } from '../../../engine/message-shapes/wire.js'
 import type { Tools } from '../../../tools/kit/tool.js'
 import type {
   AssistantMessage,
-  BusyRefusalV1,
   Message,
   StreamEvent,
 } from '../../../engine/message-shapes/message.js'
@@ -33,13 +31,8 @@ import {
   recordPromptState,
 } from '../../../engine/requests/promptCacheBreakDetection.js'
 import type { Options } from '../anthropic/streamCore.js'
-import {
-  assistantMessageToMessageParam,
-  userMessageToMessageParam,
-} from '../anthropic/messageParams.js'
 import { toolToAPISchema } from '../../../engine/messages/apiSystemAndToolSchema.js'
 import {
-  createAssistantAPIErrorMessage,
   healWalkableForWire,
   normalizeContentFromAPI,
 } from '../../../engine/messages/messages.js'
@@ -60,8 +53,9 @@ import {
   resolveBehaviourContract,
 } from '../../../engine/system-prompt/behaviourContract.js'
 import { imagesSupportedForCompatModel } from '../openaicompat/compatChatCallModel.js'
+import { apiErrorMessage } from '../openaicompat/chat-call-model/faults.js'
+import { toBridgeMessages } from '../openaicompat/chat-call-model/prepare.js'
 import { noteImageRefusal } from '../../../integrations/desktop/desktopSession.js'
-import type { MediaRefusal } from '../../../engine/request-parts/mediaRefusal.js'
 import { retireOlderScreenshots } from '../../../integrations/desktop/screenshotRetention.js'
 import { fitImagesToRequestCap } from '../../../platform/images/imageResizer.js'
 import { stripThinkingFromIndex } from '../../../engine/messages/apiFilters.js'
@@ -106,40 +100,8 @@ import {
 import { passedOver } from '../../../platform/errors/passedOver.js'
 import { hostEnv } from '../../../platform/environment/hostEnv.js'
 
-function apiErrorMessage(
-  content: string,
-  error: NonNullable<AssistantMessage['error']> = 'unknown',
-  errorDetails?: string,
-  overflow?: OverflowSignal | null,
-  busyRefusal?: BusyRefusalV1 | null,
-  mediaRefusal?: MediaRefusal | null,
-): AssistantMessage {
-  return createAssistantAPIErrorMessage({
-    content,
-    error,
-    ...(errorDetails !== undefined ? { errorDetails } : {}),
-    ...(overflow !== undefined ? { overflow } : {}),
-    ...(busyRefusal !== undefined ? { busyRefusal } : {}),
-    ...(mediaRefusal !== undefined ? { mediaRefusal } : {}),
-  })
-}
-
 function overflowOf(fault: Pick<ZaiFault, 'code' | 'message'> & { status?: number }): OverflowSignal | null {
   return classifyOverflowFault({ family: 'zai', status: fault.status, code: fault.code, message: fault.message })
-}
-
-function toBridgeMessages(
-  messages: Message[],
-): MessageParam[] {
-  const out: MessageParam[] = []
-  for (const m of messages) {
-    if (m.type === 'user') {
-      out.push(userMessageToMessageParam(m, false, false))
-    } else if (m.type === 'assistant') {
-      out.push(assistantMessageToMessageParam(m, false, false))
-    }
-  }
-  return out
 }
 
 async function buildApiShapedTools(

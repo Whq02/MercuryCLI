@@ -55,7 +55,7 @@ import { fitToolResultImages } from '../../../../engine/message-shapes/imageRequ
 import { imagesSupportedForCompatModel, laneExtrasWithOperatorEffort, type CompatCallModelParams, type CompatCredential, type CompatLaneProfile } from './lane.js'
 import { apiErrorMessage } from './faults.js'
 
-function toBridgeMessages(
+export function toBridgeMessages(
   messages: Message[],
 ): MessageParam[] {
   const out: MessageParam[] = []
