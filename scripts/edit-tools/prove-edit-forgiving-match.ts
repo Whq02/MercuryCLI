@@ -14,7 +14,6 @@ const utils = (await import('../../src/tools/edit/call/editMatching.ts')) as unk
   findActualString: (content: string, search: string) => string | null
   locateActualString?: (content: string, search: string) => Outcome
   preserveQuoteStyleForFile: (path: string, content: string, oldString: string, actual: string, newString: string) => Promise<string>
-  FORGIVENESS_CONTENT_DRIFT_LIMIT?: number
 }
 const { EditTool } = await import('../../src/tools/edit/EditTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
@@ -28,7 +27,7 @@ let failures = 0
 const forgivingFixHint = (label: string): string =>
   /^[CDEF]/.test(label)
     ? 'to fix: the edit path of src/tools/edit/EditTool.ts (validateInput, call, mapToolResultToToolResultBlockParam) and the matcher it uses in src/tools/edit/call/editMatching.ts (locateActualString)'
-    : 'to fix: locateActualString, findActualString, preserveQuoteStyleForFile or FORGIVENESS_CONTENT_DRIFT_LIMIT in src/tools/edit/call/editMatching.ts (the result mapper is in src/tools/edit/EditTool.ts)'
+    : 'to fix: locateActualString, findActualString or preserveQuoteStyleForFile in src/tools/edit/call/editMatching.ts (the result mapper is in src/tools/edit/EditTool.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` | ${forgivingFixHint(label)}`}`)
@@ -147,7 +146,6 @@ section('A. the unit ladder: each road returns the real slice, its lines and its
 
 section('B. the refusals: content is never forgiven, the bound is zero content drift, and two different slices refuse')
 {
-  check('B0 the bound is one named constant and it is zero', utils.FORGIVENESS_CONTENT_DRIFT_LIMIT === 0, String(utils.FORGIVENESS_CONTENT_DRIFT_LIMIT))
   const content = locate(FOUR, TWO_OLD.replace('total += item.length', 'total -= item.length'))
   check('B1 an old_string that differs in content, not whitespace, is not found', content.kind === 'none', show(content))
   const nearMiss = locate(FOUR, TWO_OLD.replace('item.length > 0', 'item.length > 1'))

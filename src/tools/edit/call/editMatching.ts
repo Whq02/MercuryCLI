@@ -51,9 +51,6 @@ function stripTrailingWhitespace(s: string): string {
   return s.replace(/[^\S\r\n]+(?=\r\n|\r|\n|$)/g, '')
 }
 
-
-export const FORGIVENESS_CONTENT_DRIFT_LIMIT = 0
-
 type ForgivingRoad = 'exact' | 'quotes' | 'characters' | 'whitespace' | 'indentation' | 'escapes'
 
 const CONTROL_SEQUENCES: Readonly<Record<string, string>> = { n: '\n', t: '\t', r: '\r', '\\': '\\' }
