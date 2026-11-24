@@ -35,7 +35,7 @@ export function parseSettingSourcesFlag(flag: string): SettingSource[] {
   return sources
 }
 
-const CHECKOUT_SOURCES: ReadonlySet<SettingSource> = new Set<SettingSource>(['projectSettings', 'localSettings'])
+export const CHECKOUT_SOURCES: ReadonlySet<SettingSource> = new Set<SettingSource>(['projectSettings', 'localSettings'])
 
 export function getLaunchSettingSources(): SettingSource[] {
   const allowed = getAllowedSettingSources()

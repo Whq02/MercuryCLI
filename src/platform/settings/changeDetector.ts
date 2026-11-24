@@ -13,7 +13,7 @@ import { logError } from '../logs/errorLog.js'
 import { createSignal } from '../async/signal.js'
 import { ignoringSpecialFiles, resolveWatchRoot } from '../processes/watchRoot.js'
 import type { SettingSource } from './settingSources.js'
-import { SETTING_SOURCES } from './settingSources.js'
+import { CHECKOUT_SOURCES, SETTING_SOURCES } from './settingSources.js'
 import { clearInternalWrites, consumeInternalWrite } from './internalWrites.js'
 import { getManagedSettingsDropInDir } from './managedPath.js'
 import { refreshMdmSettings, getHkcuSettings, getMdmSettings, setMdmSettingsCache } from './mdm/settings.js'
@@ -49,7 +49,6 @@ let dropInDir: string | null = null
 let watchedRoots = new Set<string>()
 let awaitedParents = new Set<string>()
 const changeSignal = createSignal<[SettingSource]>()
-const PROJECT_SOURCES: ReadonlySet<SettingSource> = new Set<SettingSource>(['projectSettings', 'localSettings'])
 
 function projectWatchRoots(cwd: string): string[] {
   const roots = [resolve(cwd)]
@@ -151,7 +150,7 @@ async function initialize(): Promise<void> {
       const parent = dirname(normalized)
       if (existsSync(parent)) {
         nextRoots.add(normalizeEventPath(parent))
-      } else if (PROJECT_SOURCES.has(source)) {
+      } else if (CHECKOUT_SOURCES.has(source)) {
         const projectRoot = dirname(parent)
         if (existsSync(projectRoot)) {
           nextRoots.add(normalizeEventPath(projectRoot))

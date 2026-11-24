@@ -76,8 +76,8 @@ interface DesktopHealthFacts {
 
 const BUTTONS: readonly DesktopButton[] = ['left', 'right', 'middle']
 const MODIFIERS: readonly DesktopModifier[] = ['shift', 'control', 'alt', 'super']
-const GRANTS: readonly DesktopGrant[] = ['granted', 'denied', 'not-required', 'unknown']
-const SESSION_KINDS: readonly DesktopSessionKind[] = ['desktop', 'no-display', 'wayland', 'locked', 'service', 'unknown']
+export const GRANTS: readonly DesktopGrant[] = ['granted', 'denied', 'not-required', 'unknown']
+export const SESSION_KINDS: readonly DesktopSessionKind[] = ['desktop', 'no-display', 'wayland', 'locked', 'service', 'unknown']
 const TERMINAL_IDENTITIES: Record<string, string> = {
   Apple_Terminal: 'com.apple.Terminal',
   'iTerm.app': 'com.googlecode.iterm2',

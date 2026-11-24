@@ -31,6 +31,7 @@ import {
 import { presenceNudge, probeVulcanEditorPresence } from '../vulcan/editorPresence.js'
 import { formatUnreadableVulcanInstance, scanVulcanInstances } from '../vulcan/instances.js'
 import { resolveVulcanClient, type VulcanClient, type VulcanResult } from '../vulcan/vulcanClient.js'
+import { SKIP_DIRS } from '../vulcan/classCache.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
 const GODOT_LANES_ARM_SURFACE =
@@ -41,7 +42,6 @@ const VULCAN_ARM_SURFACE =
 const VULCAN_OP_TIMEOUT_MS = 8_000
 const GODOT_SCENE_PROFILE_CAP = 50
 const DIR_VISIT_CAP = 4_000
-const SKIP_DIRS = new Set(['.godot', '.git', '.import', 'node_modules'])
 
 
 type GodotLaneArming =

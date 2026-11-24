@@ -67,7 +67,7 @@ const CLASS_CACHE_RELATIVE = path.join('.godot', 'global_script_class_cache.cfg'
 
 const WALK_ENTRY_CAP = 20_000
 const HEAD_BYTES = 4_096
-const SKIP_DIRS = new Set(['.godot', '.git', '.import', 'node_modules'])
+export const SKIP_DIRS = new Set(['.godot', '.git', '.import', 'node_modules'])
 const IMPORT_TIMEOUT_MS = 120_000
 const OUTPUT_TAIL_CHARS = 4_000
 const ANSI_RE = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g')

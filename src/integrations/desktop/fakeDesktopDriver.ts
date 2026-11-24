@@ -35,6 +35,7 @@ import {
   type DesktopValueReceipt,
   type DesktopClickablePoint,
 } from './driver.js'
+import { GRANTS, SESSION_KINDS } from './nativeDriver.js'
 import { bundleWebEngine } from './webEngine.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 import { startTimeout, stopTimeout } from '../../platform/async/timers.js'
@@ -133,8 +134,6 @@ type FakeSceneRead = { state: 'ok'; scene: FakeScene } | { state: 'unavailable';
 
 type FakeDesktopDriverResolution = { state: 'ok'; driver: FakeDesktopDriver } | { state: 'unavailable'; note: string }
 
-const SESSION_KINDS: readonly DesktopSessionKind[] = ['desktop', 'no-display', 'wayland', 'locked', 'service', 'unknown']
-const GRANTS: readonly DesktopGrant[] = ['granted', 'denied', 'not-required', 'unknown']
 const BUTTONS: readonly DesktopButton[] = ['left', 'right', 'middle']
 const MODIFIERS: readonly DesktopModifier[] = ['shift', 'control', 'alt', 'super']
 const SCENE_ACTS: ReadonlySet<FakeActKind> = new Set(['mouseMove', 'mouseDown', 'mouseUp', 'click', 'drag', 'scroll', 'keyTap', 'keyDown', 'keyUp', 'typeText', 'scrollToVisible', 'setValue'])
