@@ -256,6 +256,9 @@ async function daemonRun(args: string[]): Promise<void> {
   let requestShutdown: (signal: string) => void = signal => void (state.askedToLeave ??= signal)
 
   if (controlEnabled) {
+    const ownStartToken = getProcessStartTokenAsync(process.pid)
+    const ownStartInstant = processInstantStartForm() === 'instant' ? getProcessStartInstantAsync(process.pid) : ownStartToken
+    const seatCeiling = seatCeilingFactsAsync()
     const successorOf = parseHandoverFrom(flagEnv('MERCURY_DAEMON_SUCCESSOR_OF'))
     const handoverFrom = parseHandoverFrom(flagEnv('MERCURY_DAEMON_HANDOVER_FROM'))
     const stamp = successorOf !== null ? `successor of pid ${successorOf}` : handoverFrom !== null ? `handover from pid ${handoverFrom}` : 'boot'
@@ -303,7 +306,7 @@ async function daemonRun(args: string[]): Promise<void> {
       if (!state.teardownComplete) daemonExitTeardownSync('exit-before-teardown', code)
     })
     try {
-      await atBootStep(state, 'the seat ceiling')(seatCeilingFactsAsync())
+      await atBootStep(state, 'the seat ceiling')(seatCeiling)
       state.releaseHeldReading = serveHeldReadingFromBackground()
       roster = atBootStep(state, 'the roster')(makeDaemonRoster(state))
       state.roster = roster
@@ -373,8 +376,8 @@ async function daemonRun(args: string[]): Promise<void> {
         return asked
       }
       const restartNeeds = { liveWorkers, askLiveSessionsForFacts, requestShutdown: (signal: string) => requestShutdown(signal) }
-      const bootStartToken = await atBootStep(state, 'the start token')(getProcessStartTokenAsync(process.pid))
-      const bootStartInstant = processInstantStartForm() === 'instant' ? await getProcessStartInstantAsync(process.pid) : bootStartToken
+      const bootStartToken = await atBootStep(state, 'the start token')(ownStartToken)
+      const bootStartInstant = await ownStartInstant
       const persistDaemonRecord = (owner: number | null): Promise<void> =>
         writeDaemonState({
           pid: process.pid,
