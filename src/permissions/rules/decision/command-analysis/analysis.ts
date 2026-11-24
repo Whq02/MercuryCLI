@@ -1,16 +1,10 @@
+import { asNode } from './shellViews.js'
 type Node = {
   type: string
   text: string
   startIndex: number
   endIndex: number
   children: Node[]
-}
-
-function asNode(value: unknown): Node | null {
-  if (value && typeof value === 'object' && 'type' in value && 'children' in value) {
-    return value as Node
-  }
-  return null
 }
 
 type QuoteContext = {

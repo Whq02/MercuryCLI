@@ -1,5 +1,6 @@
 import type { Node } from '../../../../platform/shell/bash/parser.js'
 import { parseForSecurityFromAst } from './exactParse.js'
+import { asNode } from './shellViews.js'
 
 type Word = string | null
 type Stand = { cwds: readonly string[]; left: readonly string[] }
@@ -9,13 +10,6 @@ type View<F> = { argv: Word[]; redirects: Array<{ op: string; target: Word }>; f
 
 const DYNAMIC_KINDS: ReadonlySet<string> = new Set(['simple_expansion', 'expansion', 'command_substitution', 'process_substitution', 'arithmetic_expansion', 'ansi_c_string', 'translated_string'])
 const MAX_FOLDERS = 8
-
-function asNode(value: unknown): Node | null {
-  if (value && typeof value === 'object' && 'type' in value && 'children' in value) {
-    return value as Node
-  }
-  return null
-}
 
 function hasDynamic(node: Node): boolean {
   return DYNAMIC_KINDS.has(node.type) || node.children.some(hasDynamic)

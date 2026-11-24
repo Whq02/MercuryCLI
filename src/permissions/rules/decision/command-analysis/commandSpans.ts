@@ -1,6 +1,7 @@
 import { preparedCommandRoot, type Node } from '../../../../platform/shell/bash/parser.js'
 import { parseForSecurityFromAst } from './exactParse.js'
 import type { ParseForSecurityResult } from './reading.js'
+import { asNode } from './shellViews.js'
 
 export type CommandSpan = {
   declaration: boolean
@@ -9,13 +10,6 @@ export type CommandSpan = {
   text: string
   exact: () => ParseForSecurityResult
   name: { text: string; rest: string; ansiC: boolean; word: () => string | undefined } | undefined
-}
-
-function asNode(value: unknown): Node | null {
-  if (value && typeof value === 'object' && 'type' in value && 'children' in value) {
-    return value as Node
-  }
-  return null
 }
 
 function spanOf(node: Node): CommandSpan {

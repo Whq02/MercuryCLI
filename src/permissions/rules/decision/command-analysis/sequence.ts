@@ -1,15 +1,9 @@
 import { parseCommandRaw, PARSE_ABORTED, preparedCommandRoot, type Node } from '../../../../platform/shell/bash/parser.js'
+import { asNode } from './shellViews.js'
 
 const SEPARATORS = new Set(['&&', '||', ';', '&', '|', '|&', '\n'])
 const CONTAINERS = new Set(['program', 'list', 'pipeline'])
 const WRITES = new Set(['>', '>>', '>|', '&>', '&>>', '>&'])
-
-function asNode(value: unknown): Node | null {
-  if (value && typeof value === 'object' && 'type' in value && 'children' in value) {
-    return value as Node
-  }
-  return null
-}
 
 export function isOutputWriteOperator(op: string): boolean {
   return WRITES.has(op)

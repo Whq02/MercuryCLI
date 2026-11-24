@@ -1,6 +1,6 @@
 import { type Node } from '../../../../platform/shell/bash/parser.js'
 
-function asNode(value: unknown): Node | null {
+export function asNode(value: unknown): Node | null {
   if (value && typeof value === 'object' && 'type' in value && 'children' in value) {
     return value as Node
   }
