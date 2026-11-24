@@ -185,7 +185,7 @@ export function hostPathSpellings(filePath: string, platform: NodeJS.Platform = 
   return platform === 'win32' ? [filePath, win32ToPosixPath(filePath)] : [filePath]
 }
 
-function pathExists(candidate: string): boolean {
+export function pathExists(candidate: string): boolean {
   try {
     return existsSync(candidate)
   } catch (error) {

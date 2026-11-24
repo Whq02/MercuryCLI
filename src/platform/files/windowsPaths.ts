@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { subprocessEnv } from '../processes/subprocessEnv.js'
-import { existsSync, writeSync } from 'node:fs'
+import { writeSync } from 'node:fs'
 import { resolve, sep, win32 as pathWin32 } from 'node:path'
 
 import memoize from 'lodash-es/memoize.js'
@@ -13,21 +13,13 @@ import { memoizeWithLRU } from '../async/memoize.js'
 import { passedOver } from '../errors/passedOver.js'
 import {
   nativeCwdFromRecordedShell,
+  pathExists,
   posixToWin32Path,
   stripExtendedLengthPrefixForPlatform,
   win32ToPosixPath,
   type RecordedCwd,
 } from '../host-os/paths.js'
 
-
-function pathExists(candidate: string): boolean {
-  try {
-    return existsSync(candidate)
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
-}
 
 const CLASSIC_GIT_PATHS = [
   'C:\\Program Files\\Git\\cmd\\git.exe',
