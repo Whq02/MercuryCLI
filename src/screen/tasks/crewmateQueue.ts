@@ -1,6 +1,7 @@
 import type { Message, UserMessage } from '../../engine/message-shapes/message.js'
 import { createUserMessage } from '../../engine/message-shapes/factories.js'
 import { crewmateLineRefusedNote, crewmateLineStrandedNote } from '../cockpit/crewmateWords.js'
+import { createSignal } from '../../platform/async/signal.js'
 
 const CREWMATE_QUEUE_STRAND_MS = 12_000
 
@@ -16,11 +17,11 @@ type CrewmateQueueFacts = { running: boolean; endedAt: number | null } | null
 
 const byCrewmate = new Map<string, CrewmateQueuedLine[]>()
 let version = 0
-const listeners = new Set<() => void>()
+const changed = createSignal()
 
 function notify(): void {
   version += 1
-  for (const listener of listeners) listener()
+  changed.emit()
 }
 
 function queuedRow(content: string): UserMessage {
@@ -81,12 +82,7 @@ export function crewmateQueueVersion(): number {
   return version
 }
 
-export function subscribeCrewmateQueue(listener: () => void): () => void {
-  listeners.add(listener)
-  return () => {
-    listeners.delete(listener)
-  }
-}
+export const subscribeCrewmateQueue = changed.subscribe
 
 export function resetCrewmateQueueForTest(): void {
   byCrewmate.clear()
