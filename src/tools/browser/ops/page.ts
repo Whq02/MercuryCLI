@@ -10,15 +10,18 @@ import {
   MAIN_TAB,
   activeSession,
   approvedOriginList,
+  attachedBrowser,
   browserSessionCap,
   browserTabs,
   driverVersion,
   isBrowserErrorPage,
   liveBrowserSessionCensus,
   originOf,
+  refreshAttachedTabs,
+  sessionAttached,
 } from '../../../integrations/browser/browserSession.js'
 import { heldDevice } from '../../../integrations/browser/browserEmulation.js'
-import { APPROVAL_RULE_LINE, INSTALLED_NOT_DRIVEN } from '../../../integrations/browser/browserWords.js'
+import { APPROVAL_RULE_LINE, ATTACHED_RULE_LINE, INSTALLED_NOT_DRIVEN } from '../../../integrations/browser/browserWords.js'
 import type { OwnerKey } from '../../../engine/run-owner/ownerKey.js'
 import { withDeadline } from '../../../platform/async/deadline.js'
 import { sleep } from '../../../platform/async/sleep.js'
@@ -35,11 +38,11 @@ export function preview(text: string, cap = 40): string {
   return text.length > cap ? `${text.slice(0, cap)}…` : text
 }
 
-async function tabLine(live: LiveSession): Promise<string> {
+export async function tabLine(live: LiveSession): Promise<string> {
   const title = live.crashed ? '' : await withDeadline(live.page.title().catch(passedOverAs('')), 1000, () => '', { unref: true })
   const vp = live.page.viewport()
   const device = heldDevice(live.page)?.device
-  const facts = [`page ${live.serial}`, `viewport ${vp?.width}x${vp?.height}`, device ? `device ${device}` : '', live.persist ? 'persist' : 'idle lease', live.crashed ? 'crashed' : ''].filter(Boolean)
+  const facts = [`page ${live.serial}`, vp === null && sessionAttached(live) ? '' : `viewport ${vp?.width}x${vp?.height}`, device ? `device ${device}` : '', live.persist ? 'persist' : 'idle lease', live.crashed ? 'crashed' : ''].filter(Boolean)
   return `${live.tab}: ${pageWhere(live)}${title ? ` — ${title}` : ''} (${facts.join('; ')})`
 }
 
@@ -71,8 +74,11 @@ export async function statusReport(owner: OwnerKey, input: Input): Promise<strin
           .join(' · ')} — remove one with /browser remove ${managed[0]!.buildId}`
       : 'managed cache: empty — /browser install is the explicit consented download path',
   )
+  await refreshAttachedTabs(owner)
+  const attached = attachedBrowser(owner)
+  if (attached !== null) lines.push(`attached: ${attached.endpoint}${attached.product ? ` (${attached.product})` : ''} — the user's own browser; op:"close" detaches and leaves it open`)
   const tabs = browserTabs(owner)
-  const live = tabs.length === 1 && tabs[0]!.tab === MAIN_TAB ? tabs[0]! : null
+  const live = attached === null && tabs.length === 1 && tabs[0]!.tab === MAIN_TAB ? tabs[0]! : null
   if (tabs.length === 0 || live !== null) {
     lines.push(
       live
@@ -89,7 +95,7 @@ export async function statusReport(owner: OwnerKey, input: Input): Promise<strin
   if (tabs.some(tab => tab.sandboxDowngraded)) lines.push('  sandbox: DISABLED (running as uid 0 — container mode; --no-sandbox appended)')
   const grants = approvedOriginList(owner)
   if (grants.length > 0) lines.push(`approved origins (this session): ${grants.join(' · ')}`)
-  lines.push(APPROVAL_RULE_LINE)
+  lines.push(attached === null ? APPROVAL_RULE_LINE : ATTACHED_RULE_LINE)
   const others = liveBrowserSessionCensus().filter(row => row.owner !== owner)
   if (others.length > 0) {
     const cap = browserSessionCap()
@@ -225,6 +231,7 @@ export function failedNavigationWords(op: string, s: LiveSession, wanted: string
 
 export function viewportWords(s: LiveSession): string {
   const vp = s.page.viewport()
+  if (vp === null && sessionAttached(s)) return 'viewport: the browser window\'s own size'
   return `viewport: ${vp?.width}x${vp?.height}${vp?.deviceScaleFactor ? ` @${vp.deviceScaleFactor}x` : ''}${vp?.isMobile ? ' mobile' : ''}${vp?.hasTouch ? ' touch' : ''}${vp?.isLandscape ? ' landscape' : ''}`
 }
 

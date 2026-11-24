@@ -1,5 +1,6 @@
 prove-browser-allowance.ts
 prove-browser-approval-words.ts
+prove-browser-attach.ts
 prove-browser-auth-boundary.ts
 prove-browser-birth-truth.ts
 prove-browser-bounds.ts

@@ -12,8 +12,10 @@ import {
   bringTabToFront,
   browserSessionCap,
   pageKitOf,
+  sessionAttached,
 } from '../../integrations/browser/browserSession.js'
 import { EMULATION_FIELD_WORDS } from '../../integrations/browser/browserEmulation.js'
+import { ATTACH_OP } from '../../integrations/browser/browserWords.js'
 import { scrubSecretFromText } from '../../integrations/browser/browserSecrets.js'
 import { ownerFromToolUseContext } from '../../engine/run-owner/resolveOwner.js'
 import { renderToolResultMessage, renderToolUseErrorMessage, renderToolUseMessage, userFacingName } from './rows.js'
@@ -21,6 +23,7 @@ import { readFileSync } from 'node:fs'
 import type { OwnerKey } from '../../engine/run-owner/ownerKey.js'
 import {
   ACT_OPS,
+  ATTACHED_ASK_OPS,
   EXTRACT_CAP,
   FRONT_OPS,
   type Input,
@@ -48,6 +51,7 @@ import { firstRequestWords, popupWords } from './ops/settle.js'
 import { checkBrowserPermissions, sentByEmulation } from './ops/permissions.js'
 import { validateBrowserInput } from './ops/validate.js'
 import { runOp } from './ops/ops.js'
+import { actOriginGate } from './ops/targets.js'
 import { errorMessage } from '../../platform/errors/errors.js'
 export { browserToolEnabled, EXTRACT_CAP, WAIT_CAP_MS, WAIT_DEFAULT_MS } from './ops/schema.js'
 export type { Input, Output } from './ops/schema.js'
@@ -66,6 +70,7 @@ export const BrowserTool = buildTool({
     'headless', 'chrome', 'edge', 'chromium', 'provenance', 'status',
     'emulate', 'emulation', 'mobile', 'device', 'iphone', 'android', 'responsive', 'timezone', 'locale',
     'geolocation', 'offline', 'throttle', 'dark mode', 'tab', 'tabs', 'several pages', 'popup', 'new window',
+    ATTACH_OP, 'remote debugging', 'running browser',
   ],
   capability: {
     intents: [
@@ -82,6 +87,7 @@ export const BrowserTool = buildTool({
       'close the driven browser session',
       'emulate a phone or tablet, a timezone, a locale, a slow or offline network',
       'work in several browser tabs side by side',
+      'attach to a Chromium the user started with remote debugging on',
     ],
     units: ['browser-drive'],
     class: 'execution',
@@ -97,15 +103,16 @@ export const BrowserTool = buildTool({
   keepEmptyInputs: ['files'],
   maxResultSizeChars: 20_000,
   async description() {
-    return 'Drive a headless Chrome for Testing from the managed cache (or an operator-pinned browser; installed browsers are never driven) with full provenance: navigate, click, type, scroll, wait on events, extract text or the accessibility tree, read the console, screenshot'
+    return 'Drive a headless Chrome for Testing from the managed cache (or an operator-pinned browser; installed browsers are never launched) with full provenance: navigate, click, type, scroll, wait on events, extract text or the accessibility tree, read the console, screenshot; attach joins a Chromium the user started with remote debugging on'
   },
   wireDescription() {
-    return 'Drive one isolated browser session per agent through the bundled driver. Returns page observations, action results and screenshots. Opening a new origin or first acting on a crossed-to origin asks; reads never ask. Grants belong to this agent and end with its session.'
+    return 'Drive one isolated browser session per agent through the bundled driver. Returns page observations, action results and screenshots. Opening a new origin or first acting on a crossed-to origin asks; reads never ask. attach joins the user\'s own Chromium, where an origin\'s first read asks too. Grants belong to this agent and end with its session.'
   },
   async prompt() {
     const cap = browserSessionCap()
     return `## Operations
-status reports browser resolution (operator pin, then managed Chrome-for-Testing), versions, session state and open tabs without launching. Installed browsers are not driven.
+status reports browser resolution (operator pin, then managed Chrome-for-Testing), versions, session state and open tabs without launching. Installed browsers are not launched.
+attach joins a Chromium the user started with remote debugging on (endpoint, loopback only) and lists its tabs as tab-1, tab-2 and so on; there open adds a tab, download with url or selector is refused, and close detaches: that browser and the user's tabs stay open, tabs opened here are closed.
 open launches on first use and navigates (${NAVIGATION_CAP_MS / 1000}s deadline). tab picks the page an op uses: main unless named, a new name opens another, without url a blank one; persist keeps it past the idle lease.
 click checks actionability; a tab that an act opens is kept and named in the answer (popup, popup-2).
 type focuses a selector target (editable inputs, textarea, contenteditable).
@@ -186,7 +193,8 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
     try {
       if (sessionAtEntry !== null && ACT_OPS.has(input.op)) acting(sessionAtEntry)
       if (sessionAtEntry !== null && !crashedAtEntry && FRONT_OPS.has(input.op)) await bringTabToFront(sessionAtEntry)
-      const answer = runOp({
+      const moved = sessionAtEntry !== null && !crashedAtEntry && ATTACHED_ASK_OPS.has(input.op) && sentByEmulation(input) === null && sessionAttached(sessionAtEntry) ? await actOriginGate(owner, sessionAtEntry, input) : null
+      const answer = moved !== null ? { result: moved, outcome: 'failed' as const } : runOp({
         input,
         owner,
         tab,

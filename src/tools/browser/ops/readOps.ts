@@ -5,7 +5,7 @@ import { readImageWithTokenBudget } from '../../read/ReadTool.js'
 import { imageDimensionsOfBase64 } from '../../../platform/images/imageResizer.js'
 import { modelReceivesImageBlocks } from '../../../models/facts/capabilities.js'
 import { getEngineModel } from '../../../models/catalogue/engineModel.js'
-import { CONSOLE_RING_CAP, pageKitOf } from '../../../integrations/browser/browserSession.js'
+import { CONSOLE_RING_CAP, pageKitOf, sessionAttached } from '../../../integrations/browser/browserSession.js'
 import {
   type LiveSession,
   capExtract,
@@ -41,7 +41,7 @@ export async function extractOp(s: LiveSession, { input, signalFor }: OpRun, sco
     result = capExtract(`extract text (${scope}) at ${where}`, `${frameListing(s)}\n${text}`, input.offset ?? 0)
   } else {
     const surface = targetSurface(s, input.frame) as Page | (Frame & Pick<Page, 'accessibility'>)
-    const snapshot = await surface.accessibility.snapshot({ includeIframes: true, ...(root ? { root } : {}) })
+    const snapshot = await surface.accessibility.snapshot({ includeIframes: !sessionAttached(s), ...(root ? { root } : {}) })
     result = capExtract(`extract tree (${scope}) at ${where}`, `${frameListing(s)}\n${serializeAxTree(snapshot)}`, input.offset ?? 0)
   }
   return { result, outcome }
@@ -122,7 +122,7 @@ export async function screenshotOp(s: LiveSession, { input, signalFor, holdImage
       scaleNote = ` — the image is ${shown.width}x${shown.height} px for ${Math.round(saved.width / ratio)}x${Math.round(saved.height / ratio)} CSS px: 1 image px = ${factor}`
     }
   }
-  result = `screenshot: ${file}${input.selector ? ` (element ${input.selector})` : ''} (${pageWhere(s)}, viewport ${vp?.width}x${vp?.height})${sizeNote}${scaleNote}`
+  result = `screenshot: ${file}${input.selector ? ` (element ${input.selector})` : ''} (${pageWhere(s)}, ${vp === null && sessionAttached(s) ? "the browser window's own size" : `viewport ${vp?.width}x${vp?.height}`})${sizeNote}${scaleNote}`
   outcome = 'succeeded'
   return { result, outcome }
 }

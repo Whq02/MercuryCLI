@@ -10,7 +10,7 @@ import { parseOwnerKey, type OwnerKey } from '../../../engine/run-owner/ownerKey
 import { registerOwnerScopedStore } from '../../../engine/run-owner/ownerLifecycle.js'
 import { OwnerScopedStore } from '../../../engine/run-owner/ownerScopedStore.js'
 import { endTransfers, newTransferBook, sweepIncoming, type Transfer } from '../browserTransfers.js'
-import { MAIN_TAB, ENDED_TABS_KEPT, type Wiring, type Hold, type Session, type CheckedTarget, type CheckedAct, type OwnerBrowserState, BROWSER_CLOSE_BOUND_MS, BROWSER_FINISH_BOUND_MS, BROWSER_IDLE_MS, EXITED, IDLE_ENDED, SELF_CLOSED } from './shapes.js'
+import { MAIN_TAB, ENDED_TABS_KEPT, type Wiring, type Hold, type AttachedBrowser, type Session, type CheckedTarget, type CheckedAct, type OwnerBrowserState, BROWSER_CLOSE_BOUND_MS, BROWSER_FINISH_BOUND_MS, BROWSER_IDLE_MS, EXITED, IDLE_ENDED, IDLE_DETACHED, SELF_CLOSED, CLOSED_IN_BROWSER } from './shapes.js'
 import { withDeadline } from '../../../platform/async/deadline.js'
 import { passedOver, passedOverAs } from '../../../platform/errors/passedOver.js'
 import { sleepSync, startTimeout, stopTimeout } from '../../../platform/async/timers.js'
@@ -32,15 +32,15 @@ export function armIdleLease(state: OwnerBrowserState): void {
     }
     for (const hold of [...state.holds]) {
       const leaving = [...hold.tabs].filter(session => !session.persist)
+      const lapsed = hold.attached === null ? IDLE_ENDED : IDLE_DETACHED
       if (leaving.length === hold.tabs.size) {
-        const browser = hold.browser
-        holdGone(state, hold, IDLE_ENDED)
-        void closeChild(browser)
+        holdGone(state, hold, lapsed)
+        void endHold(hold)
         continue
       }
       for (const session of leaving) {
         if (state.tabs.get(session.tab) === session) state.tabs.delete(session.tab)
-        noteEnded(state, session.tab, IDLE_ENDED)
+        noteEnded(state, session.tab, lapsed)
         void leaveHold(state, session)
       }
     }
@@ -61,7 +61,7 @@ export function beginBrowserActivity(owner: OwnerKey): () => void {
   }
 }
 
-export type CloseOutcome = 'closed' | 'killed' | 'unfinished' | 'gone'
+export type CloseOutcome = 'closed' | 'killed' | 'unfinished' | 'gone' | 'detached'
 
 export function tempProfileDirOf(browser: DriverBrowser): string | null {
   const args = browser.process()?.spawnargs ?? []
@@ -177,6 +177,16 @@ export async function closePage(page: Page): Promise<void> {
   await withDeadline(page.close().catch(passedOverAs(undefined)), BROWSER_CLOSE_BOUND_MS, () => undefined)
 }
 
+export async function endHold(hold: Hold): Promise<CloseOutcome> {
+  if (hold.attached === null) return closeChild(hold.browser)
+  if (hold.browser.connected === false) return 'gone'
+  const ours = [...hold.attached.opened]
+  hold.attached.opened.clear()
+  await Promise.all(ours.map(page => closePage(page)))
+  await withDeadline(hold.browser.disconnect().catch(passedOverAs(undefined)), BROWSER_CLOSE_BOUND_MS, () => undefined)
+  return 'detached'
+}
+
 export type LaunchDriver = (options: LaunchOptions) => Promise<DriverBrowser>
 export let launchDriverForProof: LaunchDriver | null = null
 export function setBrowserLaunchDriverForProof(driver: LaunchDriver | null): void {
@@ -220,7 +230,7 @@ export const ownerStates = new OwnerScopedStore<OwnerBrowserState>({
       closeHoldNetwork(hold)
       endDownloads(state, hold)
     }
-    await Promise.all(holds.map(hold => closeChild(hold.browser)))
+    await Promise.all(holds.map(hold => endHold(hold)))
     await Promise.all(holds.map(hold => sweepDownloads(state, hold)))
   },
   retain: state => state.tabs.size > 0 || state.launching || state.activeCalls > 0 || state.transfers.list.some(transfer => transfer.state === 'pending'),
@@ -360,7 +370,7 @@ export function holdGone(state: OwnerBrowserState, hold: Hold, reason: string): 
     noteEnded(state, session.tab, reason)
   }
   hold.tabs.clear()
-  if (state.tabs.size === 0) sessionOver(state, true)
+  if (state.tabs.size === 0) sessionOver(state, hold.attached === null || reason === EXITED)
   void sweepDownloads(state, hold)
 }
 
@@ -390,10 +400,11 @@ export async function leaveHold(state: OwnerBrowserState, session: Session, move
     state.holds.delete(hold)
     session.closeNetwork()
     endDownloads(state, hold)
-    const outcome = await closeChild(hold.browser)
+    const outcome = await endHold(hold)
     await sweepDownloads(state, hold)
     return outcome
   }
+  if (hold.attached !== null && !hold.attached.opened.delete(session.page)) return 'detached'
   await closePage(session.page)
   return 'closed'
 }
@@ -405,9 +416,20 @@ export function tabClosed(state: OwnerBrowserState, session: Session): void {
     return
   }
   if (state.tabs.get(session.tab) === session) state.tabs.delete(session.tab)
-  noteEnded(state, session.tab, SELF_CLOSED)
+  noteEnded(state, session.tab, holdOf(session).attached === null ? SELF_CLOSED : CLOSED_IN_BROWSER)
   void leaveHold(state, session)
   if (state.tabs.size === 0 && !state.launching) sessionOver(state, false)
+}
+
+export function attachedBrowser(owner: OwnerKey): AttachedBrowser | null {
+  for (const hold of ownerStates.peek(owner)?.holds ?? []) {
+    if (hold.attached !== null && hold.browser.connected) return hold.attached
+  }
+  return null
+}
+
+export function sessionAttached(session: Session): boolean {
+  return holdOf(session).attached !== null
 }
 
 export function activeSession(owner: OwnerKey, tab: string = MAIN_TAB): Session | null {

@@ -1,4 +1,6 @@
 import { parseEmulation } from '../../../integrations/browser/browserEmulation.js'
+import { parseAttachEndpoint } from '../../../integrations/browser/browserSession.js'
+import { ATTACH_OP } from '../../../integrations/browser/browserWords.js'
 import { BROWSER_SECRET_REF_GRAMMAR } from '../../../integrations/browser/browserSecrets.js'
 import { type Input, PRESS_KEYS, browserToolEnabled } from './schema.js'
 import { openSchemeRefusal } from './failures.js'
@@ -10,6 +12,13 @@ export async function validateBrowserInput(asked: Input) {
   }
   if (asked.op === 'download' && [asked.downloadId, asked.url, asked.selector].filter(given => given !== undefined && given !== '').length > 1) {
     return { result: false as const, message: 'download takes one of downloadId, url or selector', errorCode: 1 }
+  }
+  if (asked.op === ATTACH_OP) {
+    const endpoint = parseAttachEndpoint(asked.endpoint)
+    if ('refusal' in endpoint) return { result: false as const, message: endpoint.refusal, errorCode: 1 }
+  }
+  if (asked.endpoint !== undefined && asked.op !== ATTACH_OP) {
+    return { result: false as const, message: 'endpoint requires op attach', errorCode: 1 }
   }
   const input = downloadAct(asked)
   if (input.tab !== undefined && (input.tab.trim() === '' || input.tab !== input.tab.trim() || /[\r\n]/.test(input.tab))) {

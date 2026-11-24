@@ -16,7 +16,17 @@ export function crossingScopeWords(origin: string): string[] {
 export const APPROVAL_RULE_LINE =
   'approvals: an origin you approve is driven for the session (every page on it); pages it links or redirects to are read without asking and the first act on one asks; a new origin opened by address asks by name'
 
-export const INSTALLED_NOT_DRIVEN = 'not driven: it is your app; the tool drives Chrome for Testing'
+export const ATTACH_OP = 'attach'
+
+export const ATTACH_SEES = "Mercury will see the titles and addresses of that browser's open tabs"
+
+export const ATTACH_SCOPE_WORDS =
+  'It is your own browser, signed in as you. Each site asks again before Mercury first reads it or acts on it, and close detaches without closing the browser or your tabs.'
+
+export const ATTACHED_RULE_LINE =
+  'approvals: this is the user\'s own browser — an origin you approve is read and driven for the session; every other origin asks before its first read and its first act'
+
+export const INSTALLED_NOT_DRIVEN = 'not launched: it is your app; the tool drives Chrome for Testing'
 
 export function checkedRuleContent(permissionResult: unknown, input: unknown): string | null {
   if ((input as { op?: string } | null)?.op === 'provision') return null

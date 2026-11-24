@@ -9,9 +9,9 @@ import { subprocessEnv } from '../../../platform/processes/subprocessEnv.js'
 import { parseOwnerKey, type OwnerKey } from '../../../engine/run-owner/ownerKey.js'
 import { driverNodeGate, resolveBrowser, type BrowserResolution } from '../browserResolver.js'
 import { MAIN_TAB, type Wiring, type Hold, type Session, type OwnerBrowserState, BROWSER_PROTOCOL_TIMEOUT_MS, EXITED, MOVE_FAILED, RESTARTED, type EnsureSessionRefusal, type EnsureBrowserSessionOptions, type PageIdentity, type PagePresented, type PageKit } from './shapes.js'
-import { clearIdleLease, armIdleLease, type CloseOutcome, tempProfileDirOf, tempProfiles, closeChild, closePage, type LaunchDriver, launchDriverForProof, ownerStates, installExitHook, browserSessionCap, liveBrowserSessionCensus, originOf, closeHoldNetwork, noteEnded, endDownloads, sweepDownloads, holdGone, reapDeadHolds, leaveHold } from './owners.js'
+import { clearIdleLease, armIdleLease, type CloseOutcome, tempProfileDirOf, tempProfiles, closeChild, closePage, endHold, holdOf, type LaunchDriver, launchDriverForProof, ownerStates, installExitHook, browserSessionCap, liveBrowserSessionCensus, originOf, closeHoldNetwork, noteEnded, endDownloads, sweepDownloads, holdGone, reapDeadHolds, leaveHold } from './owners.js'
 import { resolveHostLanguages, resolveNavigatorPlatform, resolveHostTimeZone, pageKits, prepareDocuments } from './stealth.js'
-import { newWiring, listenProtocol, listenDownloads, targetIdOf, tabSession, listenPage } from './wiring.js'
+import { newWiring, listenProtocol, listenDownloads, targetIdOf, tabSession, listenPage, armAttachedPage } from './wiring.js'
 import { watchFrames, watchBirths } from './births.js'
 import { passedOver, passedOverAs } from '../../../platform/errors/passedOver.js'
 import { posixFileModesApply } from '../../../platform/host-os/files.js'
@@ -75,6 +75,12 @@ async function newHoldPage(hold: Hold): Promise<{ page: Page; wiring: Wiring }> 
   try {
     const page = await hold.browser.newPage()
     try {
+      if (hold.attached !== null) {
+        hold.attached.opened.add(page)
+        const wiring = newWiring()
+        await armAttachedPage(page, wiring, hold.baseline)
+        return { page, wiring }
+      }
       const id = targetIdOf(page)
       const born = id === null ? undefined : hold.births.get(id)
       if (born !== undefined && id !== null) {
@@ -110,8 +116,9 @@ export async function ensureBrowserSession(
   for (;;) {
     const held = state.tabs.get(tab)
     if (held && held.browser.connected) {
-      const sameHeadless = opts.headless === undefined || held.headless === opts.headless
-      const sameOrigin = wantedOrigin === null || held.profileOrigin === wantedOrigin
+      const stays = holdOf(held).attached !== null
+      const sameHeadless = stays || opts.headless === undefined || held.headless === opts.headless
+      const sameOrigin = stays || wantedOrigin === null || held.profileOrigin === wantedOrigin
       if (sameHeadless && sameOrigin) {
         armIdleLease(state)
         return held
@@ -281,7 +288,7 @@ async function placeTab(
   const profileOrigin = opts.origin && opts.origin.startsWith('http') ? originOf(opts.origin) : null
   const headless = opts.headless ?? true
   const home =
-    [...state.holds].find(hold => hold.browser.connected && hold.profileOrigin === profileOrigin && hold.headless === headless) ?? null
+    [...state.holds].find(hold => hold.browser.connected && (hold.attached !== null || (hold.profileOrigin === profileOrigin && hold.headless === headless))) ?? null
   let resolution: BrowserResolution | null = null
   if (home === null) {
     const cap = browserSessionCap()
@@ -407,6 +414,7 @@ async function placeTab(
       }
       hold = {
         browser,
+        attached: null,
         resolution: resolution!,
         sandboxDowngraded,
         profileOrigin,
@@ -516,7 +524,7 @@ export async function closeBrowserSessionDetailed(
     closeHoldNetwork(hold)
     endDownloads(state, hold)
   }
-  const outcomes = await Promise.all(holds.map(hold => closeChild(hold.browser)))
+  const outcomes = await Promise.all(holds.map(hold => endHold(hold)))
   state.tabs.clear()
   state.holds.clear()
   await Promise.all(holds.map(hold => sweepDownloads(state, hold)))
@@ -528,5 +536,5 @@ export async function closeBrowserSessionDetailed(
   state.approvedSecretPairings.clear()
   state.checkedActOrigin = null
   clearIdleLease(state)
-  return { outcome: outcomes.includes('killed') ? 'killed' : outcomes.includes('unfinished') ? 'unfinished' : outcomes.includes('closed') ? 'closed' : 'gone', closed, open: [] }
+  return { outcome: outcomes.includes('killed') ? 'killed' : outcomes.includes('unfinished') ? 'unfinished' : outcomes.includes('closed') ? 'closed' : outcomes.includes('detached') ? 'detached' : 'gone', closed, open: [] }
 }

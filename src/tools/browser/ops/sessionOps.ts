@@ -1,7 +1,8 @@
 import type { ToolEffectOutcome } from '../../kit/tool.js'
-import { BROWSER_CLOSE_BOUND_MS, BROWSER_FINISH_BOUND_MS, closeBrowserSessionDetailed } from '../../../integrations/browser/browserSession.js'
+import { BROWSER_CLOSE_BOUND_MS, BROWSER_FINISH_BOUND_MS, attachBrowserSession, attachedBrowser, browserTabs, closeBrowserSessionDetailed, parseAttachEndpoint } from '../../../integrations/browser/browserSession.js'
 import type { Transfer } from '../../../integrations/browser/browserTransfers.js'
 import { transferWords } from './downloads.js'
+import { tabLine } from './page.js'
 import type { OpDone, OpRun } from './ops.js'
 import { startTimeout, stopTimeout } from '../../../platform/async/timers.js'
 
@@ -40,16 +41,39 @@ export async function downloadOp(wanted: Transfer, outer: AbortSignal | undefine
   return { result, outcome }
 }
 
+export async function attachOp({ input, owner, context }: OpRun): Promise<OpDone> {
+  const endpoint = parseAttachEndpoint(input.endpoint)
+  if ('refusal' in endpoint) return { result: endpoint.refusal, outcome: 'failed' }
+  const joined = await attachBrowserSession(owner, endpoint, context.abortController?.signal)
+  if (joined.state === 'refused') return { result: `attach failed: ${joined.note}`, outcome: 'failed' }
+  const tabs = browserTabs(owner)
+  const lines = [`attached: ${joined.attached.endpoint}${joined.attached.product ? ` (${joined.attached.product})` : ''} — ${tabs.length} tab${tabs.length === 1 ? '' : 's'}`]
+  for (const live of tabs) lines.push(`  ${await tabLine(live)}`)
+  lines.push('  note: this is the user\'s own browser — every origin asks before its first read and its first act; op:"open" adds a tab here; op:"close" detaches and leaves the browser and these tabs open')
+  return { result: lines.join('\n'), outcome: 'succeeded' }
+}
+
 export async function closeOp({ input, owner, tab }: OpRun): Promise<OpDone> {
   let result: string
   let outcome: ToolEffectOutcome = 'no-change'
+  const attached = attachedBrowser(owner)
+  const ours = attached === null ? 0 : attached.opened.size
   const closed = await closeBrowserSessionDetailed(owner, input.tab)
   if (closed.open.length > 0) {
-    result = closed.closed.length === 0 ? `no tab ${tab} — open: ${closed.open.join(', ')}` : `tab ${tab} closed — open: ${closed.open.join(', ')}`
+    result =
+      closed.closed.length === 0
+        ? `no tab ${tab} — open: ${closed.open.join(', ')}`
+        : closed.outcome === 'detached'
+          ? `tab ${tab} let go: it stays open in its browser — open: ${closed.open.join(', ')}`
+          : `tab ${tab} closed — open: ${closed.open.join(', ')}`
     outcome = closed.closed.length === 0 ? 'no-change' : 'succeeded'
     return { result, outcome }
   }
   const several = closed.closed.length > 1 ? `, ${closed.closed.length} tabs: ${closed.closed.join(', ')}` : ''
+  if (closed.outcome === 'detached' && attached !== null) {
+    result = `detached from ${attached.endpoint}: that browser and its user's tabs stay open${ours === 0 ? '' : `; ${ours} tab${ours === 1 ? '' : 's'} opened here ${ours === 1 ? 'was' : 'were'} closed`} (origin approvals wiped)`
+    return { result, outcome: 'succeeded' }
+  }
   result =
     closed.outcome === 'closed'
       ? `session closed (browser reaped${several}; origin approvals wiped)`

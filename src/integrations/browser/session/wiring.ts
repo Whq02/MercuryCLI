@@ -5,7 +5,7 @@ import type { CDPSession, HTTPRequest, Page, Protocol } from 'puppeteer-core'
 import puppeteerPkg from 'puppeteer-core/package.json' with { type: 'json' }
 import { beginTransfer, moveTransfer } from '../browserTransfers.js'
 import { sleep } from '../../../platform/async/sleep.js'
-import { type ConsoleEntry, CONSOLE_RING_CAP, CONSOLE_ENTRY_CAP, POPUP_NOTES_KEPT, type DownloadNotice, isBrowserErrorPage, type Wiring, type Hold, type Session, type OwnerBrowserState } from './shapes.js'
+import { type ConsoleEntry, CONSOLE_RING_CAP, CONSOLE_ENTRY_CAP, POPUP_NOTES_KEPT, type DownloadNotice, isBrowserErrorPage, type Wiring, type Hold, type AttachedBrowser, type Session, type OwnerBrowserState, type PagePresented } from './shapes.js'
 import { closeChild, closeHoldNetwork, sweepDownloads, sessionHolds, sessionWirings, holdOf, tabClosed } from './owners.js'
 import { pageKits } from './stealth.js'
 import { passedOver, passedOverAs } from '../../../platform/errors/passedOver.js'
@@ -191,6 +191,28 @@ export function tabSession(state: OwnerBrowserState, hold: Hold, tab: string, pa
   return session
 }
 
+export async function armAttachedPage(page: Page, wiring: Wiring, baseline: PagePresented): Promise<void> {
+  const cdp = typeof page.createCDPSession === 'function' ? await page.createCDPSession().catch(passedOverAs(null)) : null
+  pageKits.set(page, { cdp, identity: null, languages: baseline.languages, timeZone: baseline.timeZone, presented: null, born: null, fetchHeld: false })
+  if (cdp === null) return
+  await cdp.send('Network.enable').catch(passedOverAs(undefined))
+  listenProtocol(wiring, cdp)
+}
+
+export function adoptAttachedPage(state: OwnerBrowserState, hold: Hold, attached: AttachedBrowser, page: Page): { session: Session; armed: Promise<void> } {
+  const known = [...hold.tabs].find(session => session.page === page)
+  if (known !== undefined) return { session: known, armed: Promise.resolve() }
+  const wiring = newWiring()
+  let name = `tab-${++attached.adopted}`
+  while (state.tabs.has(name)) name = `tab-${++attached.adopted}`
+  const session = tabSession(state, hold, name, page, wiring)
+  listenPage(state, session, wiring)
+  hold.tabs.add(session)
+  state.tabs.set(name, session)
+  state.ended.delete(name)
+  return { session, armed: armAttachedPage(page, wiring, hold.baseline) }
+}
+
 function popupTabName(state: OwnerBrowserState): string {
   for (;;) {
     state.popups++
@@ -272,6 +294,15 @@ export function listenPage(state: OwnerBrowserState, session: Session, wiring: W
       if (!url || url === 'about:blank') {
         await sleep(300)
         url = popup.url()
+      }
+      if (hold.attached !== null) {
+        const kept = session.left || state.disposed || popup.isClosed() ? null : adoptAttachedPage(state, hold, hold.attached, popup).session
+        popups.count++
+        popups.last = redactUrl(url || '(unknown)')
+        popups.log.push({ url: popups.last, tab: kept?.tab ?? null })
+        if (popups.log.length > POPUP_NOTES_KEPT) popups.log.shift()
+        capture('popup', kept === null ? `the page opened a new tab: ${popups.last} — it has closed since` : `the page opened a new tab: ${popups.last} — it stays open in its browser as tab ${kept.tab}`)
+        return
       }
       const download = born !== undefined && hold.downloads === null && (!url || url === 'about:blank') ? born.wiring.downloads.last : null
       let name: string | null = null

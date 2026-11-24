@@ -63,7 +63,7 @@ try {
     assert.ok(normalizedManual.includes(tool.name), `normalizeAttachmentForAPI omitted ${tool.name} manual in src/utils/messages/attachmentText.ts`)
     if (tool.name === 'Browser') {
       const fullBytes = Buffer.byteLength(full)
-      assert.ok(bytes <= 350 && fullBytes <= 3000, `Browser wire/manual size (${bytes}B / ${fullBytes}B) exceeded 350B / 3000B ceiling in src/tools/browser/BrowserTool.ts`)
+      assert.ok(bytes <= 350 && fullBytes <= 3300, `Browser wire/manual size (${bytes}B / ${fullBytes}B) exceeded 350B / 3300B ceiling in src/tools/browser/BrowserTool.ts`)
       assert.ok(!schema.description.includes('status:') && !schema.description.includes('waitFor:'), 'Browser wire description leaked status:/waitFor: manual text in src/tools/browser/BrowserTool.ts')
       assert.equal(schema.input_schema.properties.op.description, 'Browser operation.')
       for (const operation of schema.input_schema.properties.op.enum as string[]) assert.ok(full.includes(operation), `${operation} has manual depth`)

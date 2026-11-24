@@ -67,7 +67,7 @@ console.log('§3 the tool tells the model which browser it drives and what reads
 {
   const description = await BrowserTool.description({} as never)
   check('the description no longer claims installed browsers are driven', !description.includes('installed or managed-cache'), description)
-  check('the description names Chrome for Testing and says installed browsers are never driven', description.includes('Chrome for Testing') && description.includes('installed browsers are never driven'), description)
+  check('the description names Chrome for Testing and says installed browsers are never launched', description.includes('Chrome for Testing') && description.includes('installed browsers are never launched'), description)
   const prompt = await BrowserTool.prompt({} as never)
   check('the status line of the prompt no longer ranks installed browsers as drivable', !prompt.includes('operator pin > installed browser'), prompt.match(/op:"status"[^\n]*/)?.[0] ?? '')
   const wire = BrowserTool.wireDescription()

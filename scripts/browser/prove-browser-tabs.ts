@@ -291,7 +291,7 @@ section('S11 the words and the definition')
   check('the definition carries the two fields in a short clause each', shape.tab?.description === 'Named tab (default main)' && shape.persist?.description === 'open: no idle close', `${shape.tab?.description} | ${shape.persist?.description}`)
   const manual = await BrowserTool.prompt()
   check('the manual says what a tab is and how it is closed', manual.includes('tab picks the page an op uses: main unless named, a new name opens another, without url a blank one; persist keeps it past the idle lease.') && manual.includes('close ends the session, or with tab that tab alone') && manual.includes('session state and open tabs without launching'), manual)
-  check('the short description is unmoved', BrowserTool.wireDescription?.() === 'Drive one isolated browser session per agent through the bundled driver. Returns page observations, action results and screenshots. Opening a new origin or first acting on a crossed-to origin asks; reads never ask. Grants belong to this agent and end with its session.')
+  check('the short description is unmoved', BrowserTool.wireDescription?.() === 'Drive one isolated browser session per agent through the bundled driver. Returns page observations, action results and screenshots. Opening a new origin or first acting on a crossed-to origin asks; reads never ask. attach joins the user\'s own Chromium, where an origin\'s first read asks too. Grants belong to this agent and end with its session.')
 }
 
 section('S12 the end of the agent releases every tab')

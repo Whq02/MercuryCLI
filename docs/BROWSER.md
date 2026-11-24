@@ -26,6 +26,53 @@ A tab whose page crashed says so at once: a call on it answers that the page cra
 
 `close` with `tab` closes that tab alone, and closing the last tab ends the session; `close` without `tab` ends the session with every tab. The number of tabs has no limit, and tabs do not count against `MERCURY_BROWSER_MAX_SESSIONS`.
 
+## Attaching to a browser you started
+
+`attach` joins a Chromium-family browser that is already running with remote debugging on, instead of launching the isolated one. It is the road into a browser where you are signed in. Mercury never launches an installed browser and never turns remote debugging on: you start the browser, and you give its address.
+
+Start it with a debugging port and a profile folder of its own. Since Chrome 136, Chrome ignores `--remote-debugging-port` on its default profile, so `--user-data-dir` has to name another folder; what you sign in to there stays in that folder.
+
+macOS:
+
+```sh
+/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-profile-stable
+```
+
+Linux:
+
+```sh
+google-chrome --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-profile-stable
+```
+
+Windows, in PowerShell:
+
+```powershell
+Start-Process -FilePath chrome -ArgumentList "--remote-debugging-port=9222 --user-data-dir=`"$env:TEMP\chrome-profile-stable`""
+```
+
+Windows, in Command Prompt:
+
+```bat
+start chrome --remote-debugging-port=9222 --user-data-dir=%TEMP%\chrome-profile-stable
+```
+
+`endpoint` is `http://127.0.0.1:<port>` or `http://localhost:<port>`, or the browser's WebSocket address under it (`ws://127.0.0.1:<port>/devtools/browser/<id>`). Any other host is refused, and the refusal says why: a debugging port hands over the whole browser with every signed-in session in it and asks for no password, so Mercury reaches one on this machine only. The address the port answers with is held to the same rule. Chrome 144 and later can also turn remote debugging on in a running browser at `chrome://inspect/#remote-debugging`; that browser answers at its WebSocket address alone and shows its own dialog for each connection, so give the `ws://` form, whose port and path are the two lines of the `DevToolsActivePort` file in the profile folder.
+
+What Mercury asks:
+
+- Once at `attach`. The ask names the endpoint and says that Mercury will see the titles and addresses of that browser's open tabs. Declined, nothing is connected, read or listed. No allow rule answers it; attaching again to the browser already joined asks nothing.
+- For every origin, before its first read as well as before its first act. A tab of an attached browser is your own signed-in session, so `extract`, `console`, `screenshot`, `waitFor` and `viewport` ask there as `click` does; `status` and `info` show titles and addresses only. A grant covers that origin for this agent until the session ends. An allow rule written for the isolated browser does not carry over; a deny rule does. A page that is not a web origin (`chrome://`, `file://`) asks every time.
+- `open` to a new origin, a registered secret and an upload keep the approvals they have in the isolated browser.
+
+The answer to `attach` lists the open tabs as `tab-1`, `tab-2` and so on, each with its address and title; `status` lists them again and takes in tabs opened since. `open` adds a tab to that browser, `main` unless named, and `open` on a listed tab loads the address in it. A tab that a page opens stays open and is listed. An act or a screenshot brings its tab to the front of the browser's window.
+
+What Mercury never does:
+
+- `close` detaches. It never closes the browser, a tab you opened, or the profile; it closes the tabs Mercury itself opened there. `close` with `tab` lets a tab of yours go and leaves it open. The five-minute idle lease detaches in the same way.
+- It does not follow downloads there: the browser saves them where you set them to go, and `download` with `url` or `selector` is refused.
+- It does not present another identity, move traffic through its own relay or change the window's size at attach. A page in an attached browser is your browser's own.
+- It drives one browser at a time for an agent: `attach` is refused while a session of the isolated browser is open, and `close` ends either.
+
 ## Emulation
 
 `viewport` takes an `emulation` object that changes what a page reports about its device and surroundings. `device` names a profile from the bundled driver's catalogue, which `op:"devices"` lists. The other fields are `userAgent`, `mobile`, `touch`, `landscape`, `timezone`, `locale`, `cpuSlowdown` (a factor), `network` (`slow3g`, `fast3g`, `slow4g`, `fast4g`, or `download` and `upload` in bytes per second with `latency` in milliseconds), `offline`, `geolocation` (`latitude`, `longitude`, `accuracy`), `colorScheme` (`dark`, `light`, `no-preference`), `reducedMotion`, `headers` and `credentials`.

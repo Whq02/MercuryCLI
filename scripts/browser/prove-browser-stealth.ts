@@ -701,7 +701,7 @@ try {
     check(
       'control: browser ownership remains in the operator description and manual, without a second wire operation dictionary',
       desc.startsWith('Drive a headless Chrome for Testing from the managed cache') &&
-        prompt.startsWith('## Operations') && prompt.includes('Installed browsers are not driven.') &&
+        prompt.startsWith('## Operations') && prompt.includes('Installed browsers are not launched.') &&
         prompt.endsWith('The driver needs node >= 22.12.'),
     )
   }

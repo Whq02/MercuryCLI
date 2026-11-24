@@ -4,9 +4,11 @@ import {
   type CheckedTarget,
   MAIN_TAB,
   activeSession,
+  attachedBrowser,
   noteCheckedActOrigin,
   originApproved,
   originOf,
+  parseAttachEndpoint,
   secretPairingApproved,
 } from '../../../integrations/browser/browserSession.js'
 import { ownerFromToolUseContext } from '../../../engine/run-owner/resolveOwner.js'
@@ -15,11 +17,12 @@ import { getRuleByContentsForToolName } from '../../../permissions/rules/permiss
 import { logForDebugging } from '../../../platform/logs/debugLog.js'
 import { suggestionForExactCommand } from '../../../permissions/rules/shellRuleMatching.js'
 import { ruleSentence } from '../../../permissions/rules/ruleReason.js'
+import { ATTACH_OP, ATTACH_SCOPE_WORDS, ATTACH_SEES } from '../../../integrations/browser/browserWords.js'
 import type { PermissionRule, ToolPermissionContext } from '../../../permissions/rules/permissions.js'
-import { ACT_OPS, type Input } from './schema.js'
+import { ACT_OPS, ATTACHED_ASK_OPS, type Input } from './schema.js'
 import { CRASH_OPEN_OPS } from './failures.js'
 import { sendOrigin, targetOrigin, targetSurface } from './page.js'
-import { downloadAct } from './downloads.js'
+import { downloadAct, downloadVia } from './downloads.js'
 import { checkedTarget } from './targets.js'
 import { fileCount, judgeUploadSources } from './upload.js'
 
@@ -85,9 +88,24 @@ export async function checkBrowserPermissions(asked: Input, context: ToolUseCont
       }
     }
   }
-  const sent = input.op === 'viewport' ? sentByEmulation(input) : null
-  if (!ACT_OPS.has(input.op) && sent === null) return { behavior: 'allow' as const, updatedInput: asked }
   const owner = ownerFromToolUseContext((context ?? {}) as { owner?: OwnerKey; agentId?: string })
+  const attached = attachedBrowser(owner)
+  if (input.op === ATTACH_OP) {
+    const endpoint = parseAttachEndpoint(input.endpoint)
+    if ('refusal' in endpoint) return { behavior: 'deny' as const, message: endpoint.refusal, decisionReason: { type: 'other' as const, reason: endpoint.refusal } }
+    if (attached?.endpoint === endpoint.address) return { behavior: 'allow' as const, updatedInput: asked }
+    return {
+      behavior: 'ask' as const,
+      message: `Browser attach: ${endpoint.address} — ${ATTACH_SEES}`,
+      decisionReason: { type: 'safetyCheck' as const, reason: ATTACH_SCOPE_WORDS, operatorOnly: true },
+    }
+  }
+  if (attached !== null && downloadVia(asked) !== null) {
+    const refusal = `download refused: ${attached.endpoint} is an attached browser and saves its downloads itself, where its user set them to go — nothing was opened or clicked; op:"close" detaches, and the isolated browser follows downloads`
+    return { behavior: 'deny' as const, message: refusal, decisionReason: { type: 'other' as const, reason: refusal } }
+  }
+  const sent = input.op === 'viewport' ? sentByEmulation(input) : null
+  if (!ACT_OPS.has(input.op) && sent === null && !(attached !== null && ATTACHED_ASK_OPS.has(input.op))) return { behavior: 'allow' as const, updatedInput: asked }
   const permissionContext = (context as Partial<ToolUseContext> | undefined)?.getAppState?.()
     ?.toolPermissionContext as ToolPermissionContext | undefined
   const ruleFor = (content: string): PermissionRule | null => {
@@ -113,8 +131,15 @@ export async function checkBrowserPermissions(asked: Input, context: ToolUseCont
         decisionReason: { type: 'other' as const, reason: `origin:${target} carries a deny rule` },
       }
     }
-    if (ruled === 'allow' || (ruled === null && (!target.startsWith('http') || originApproved(owner, target)))) {
+    if (attached === null ? ruled === 'allow' || (ruled === null && (!target.startsWith('http') || originApproved(owner, target))) : !target.startsWith('http') || originApproved(owner, target)) {
       return { behavior: 'allow' as const, updatedInput: asked }
+    }
+    if (attached !== null) {
+      return {
+        behavior: 'ask' as const,
+        message: `Browser open: ${input.url ?? '(no url)'}${inTab} — first visit to ${target} this session, in your attached browser (${attached.endpoint}) and as you are signed in there`,
+        decisionReason: { type: 'safetyCheck' as const, reason: `${target} opens in your own browser, signed in as you. Yes approves it for this session; every other origin asks before its first read and its first act.`, operatorOnly: true },
+      }
     }
     return {
       behavior: 'ask' as const,
@@ -202,7 +227,7 @@ export async function checkBrowserPermissions(asked: Input, context: ToolUseCont
     decisionReason: sourceAsk?.decisionReason,
     suggestions: [],
   }
-  if (ruled === 'allow' || (ruled === null && origin.startsWith('http') && originApproved(owner, origin))) {
+  if (attached === null ? ruled === 'allow' || (ruled === null && origin.startsWith('http') && originApproved(owner, origin)) : origin.startsWith('http') && originApproved(owner, origin)) {
     noteCheckedActOrigin(owner, input.op, origin, bound)
     return sourceAsk === null ? { behavior: 'allow' as const, updatedInput: asked } : sourcesAsk
   }
@@ -212,6 +237,14 @@ export async function checkBrowserPermissions(asked: Input, context: ToolUseCont
       return sourceAsk === null ? { behavior: 'allow' as const, updatedInput: asked } : sourcesAsk
     }
     noteCheckedActOrigin(owner, input.op, origin, bound)
+    if (attached !== null) {
+      return {
+        behavior: 'ask' as const,
+        message: `Browser ${input.op}${actDetail(input)} on a NON-WEB page (${origin})${inTab} of your attached browser — it asks every time${sourceAsk === null ? '' : `\n${sourceAsk.message}`}`,
+        decisionReason: { type: 'safetyCheck' as const, reason: `${origin} content is open in your own browser; a page that is not a web origin asks every time.`, operatorOnly: true },
+        suggestions: [],
+      }
+    }
     return {
       behavior: 'ask' as const,
       message: `Browser ${input.op}${actDetail(input)} on a NON-WEB page (${origin})${inTab} — page-conjured content, not an approved web origin${sourceAsk === null ? '' : `\n${sourceAsk.message}`}`,
@@ -224,6 +257,14 @@ export async function checkBrowserPermissions(asked: Input, context: ToolUseCont
     }
   }
   noteCheckedActOrigin(owner, input.op, origin, bound)
+  if (attached !== null) {
+    return {
+      behavior: 'ask' as const,
+      message: `${sent?.headers ? `Browser viewport on ${origin}${inTab} with ${sent.words}` : `Browser ${input.op}${actDetail(input)} on ${origin}${inTab}`} — a tab of your attached browser, signed in as you; ${ACT_OPS.has(input.op) || sent !== null ? 'first act' : 'first read'} there, not yet approved this session${sourceAsk === null ? '' : `\n${sourceAsk.message}`}`,
+      decisionReason: { type: 'safetyCheck' as const, reason: `${origin} is open in your own browser, signed in as you. Yes approves it for this session: Mercury reads and drives its pages without asking again; every other origin asks.`, operatorOnly: true },
+      suggestions: [],
+    }
+  }
   const unloaded = sent !== null && !originOf(s.page.url()).startsWith('http')
   return {
     behavior: 'ask' as const,

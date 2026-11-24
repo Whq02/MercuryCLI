@@ -259,7 +259,7 @@ export function resolveBrowser(reads?: BrowserResolverReads): BrowserResolution 
   }
   return {
     state: 'unavailable',
-    note: 'no managed browser — your installed apps are never driven; /browser install downloads Chrome for Testing once with your consent',
+    note: 'no managed browser — your installed apps are never launched; /browser install downloads Chrome for Testing once with your consent',
     remedies: [
       'op:"provision" — a consented download of a Chrome-for-Testing build into the managed cache (the ask names the build and disk cost; /browser install is the same road by hand)',
       '/browser install — the operator\'s one-time consent step; a headless request cannot approve the download',
@@ -279,8 +279,8 @@ export function describeBrowserReadiness(reads?: BrowserResolverReads): { ready:
   }
   const pinned = resolution.source === 'operator-pin'
   const apps = installed.length > 0
-    ? `your installed ${installed.map(b => b.label).join(' · ')} ${installed.length === 1 ? 'is' : 'are'} never driven`
-    : 'installed apps are never driven'
+    ? `your installed ${installed.map(b => b.label).join(' · ')} ${installed.length === 1 ? 'is' : 'are'} never launched`
+    : 'installed apps are never launched'
   return {
     ready: false,
     line: pinned ? resolution.note : `no managed browser — /browser install downloads Chrome for Testing once (the consent step names the exact download size; the current stable is about 185 MB, twice that unpacked); ${apps}`,

@@ -2,7 +2,7 @@ import * as React from 'react'
 import { useMemo } from 'react'
 import { Box, Text } from '../../../screen/themedRenderer.js'
 import { Select } from '../../../screen/select/Select.js'
-import { approvalScopeWords, checkedRuleContent, crossingScopeWords } from '../../../integrations/browser/browserWords.js'
+import { ATTACH_OP, ATTACH_SEES, approvalScopeWords, checkedRuleContent, crossingScopeWords } from '../../../integrations/browser/browserWords.js'
 import { shouldShowAlwaysAllowOptions } from '../../rules/permissionsLoader.js'
 import { resolveThemeName } from '../resolveThemeName.js'
 import { ConsentBodyText } from '../ConsentBodyText.js'
@@ -105,8 +105,22 @@ export function BrowserPermissionRequest({
           {downloadLines.map((line, i) => (
             <Text key={i}>{line}</Text>
           ))}
-          <Text dimColor>Nothing is downloaded until you say yes; your installed browsers are never driven.</Text>
+          <Text dimColor>Nothing is downloaded until you say yes; your installed browsers are never launched.</Text>
           <Text bold>Download this browser build?</Text>
+          <Select scrollMovesFocus={false} options={options} onChange={handleChange} onCancel={() => handleChange('no')} />
+        </Box>
+      </PermissionDialog>
+    )
+  }
+
+  if (input.op === ATTACH_OP) {
+    return (
+      <PermissionDialog title="Browser attach" crewmate={toolUseConfirm.crewmate}>
+        <Box flexDirection="column">
+          {typeof useMessage === 'string' ? <ConsentBodyText text={useMessage} /> : <Text>{useMessage}</Text>}
+          <Text>{ATTACH_SEES}.</Text>
+          <PermissionRuleExplanation permissionResult={toolUseConfirm.permissionResult} />
+          <Text bold>Attach Mercury to this browser?</Text>
           <Select scrollMovesFocus={false} options={options} onChange={handleChange} onCancel={() => handleChange('no')} />
         </Box>
       </PermissionDialog>

@@ -119,6 +119,46 @@ section('first visit — the origin card says what a yes covers: the origin for 
   if (!KEEP) run.cleanup()
 }
 
+section('attach — the card names the endpoint, says what Mercury will see, and asks to attach')
+{
+  const ENDPOINT = 'http://127.0.0.1:65531'
+  const CARD_UP = 'tell Mercury what to do differently'
+  const attachCardFix = 'the attach card is drawn by src/permissions/cards/browser/BrowserPermissionRequest.tsx with words from src/integrations/browser/browserWords.ts'
+  const run = await runArtifactArena({
+    cols: 120,
+    rows: 36,
+    turns: [
+      { kind: 'tool_use', preText: 'Joining your browser.\n', name: 'Browser', input: { op: 'attach', endpoint: ENDPOINT } },
+      { kind: 'text', text: 'Understood, nothing was attached.' },
+    ],
+    sends: ['after:Type a prompt:300:hello', 'after:hello:400:\\r', `after:${CARD_UP}:1500:${ESC}`],
+    anchor: { needle: CARD_UP, atMs: 9000 },
+    seconds: 26,
+    keep: true,
+  })
+  const escs = escSends(run)
+  check('the attach card painted and the decline was delivered', escs.length === 1, `${cardNotDeliveredFix} · esc at ${escs.join(', ')} · driver: ${run.driverOut.slice(-400)}`)
+  if (escs.length === 1) {
+    const [card] = grabScreens(run, 120, 36, [escs[0]! - 700])
+    const rows = card!.rows
+    save('attach-card-120x36', rows)
+    printFrame('attach card 120x36', rows)
+    const flat = rows.map(r => r.replace(/[^\x20-\x7e]/g, ' ').trim()).join(' ').replace(/\s+/g, ' ')
+    check('the card is the attach card with the endpoint, not the page-driving card', rowsHaving(rows, 'Browser attach') && rowsHaving(rows, `attach ${ENDPOINT}`) && !rowsHaving(rows, 'drive this page'), `${attachCardFix}; an attach op must open the dialog titled Browser attach`)
+    check('the card says what Mercury will see', flat.includes("Mercury will see the titles and addresses of that browser's open tabs."), `${attachCardFix}; ${rowMatching(rows, /titles/) ?? '(no row about titles)'}`)
+    check('the card says whose browser it is, that each site asks again, and that close detaches', flat.includes('It is your own browser, signed in as you.') && flat.includes('Each site asks again before Mercury first reads it or acts on it') && flat.includes('close detaches without closing the browser or your tabs'), `${attachCardFix}; ${flat.slice(0, 500)}`)
+    check('the card asks to attach, with a yes and a no and no standing rule', rowsHaving(rows, 'Attach Mercury to this browser?') && rowsHaving(rows, '1. Yes') && rowsHaving(rows, '2. No, and tell Mercury what to do differently (esc)') && !flat.includes('ask again for'), `${attachCardFix}; the question and its two answers must paint`)
+    check('the card does not carry the description written for the isolated browser', !flat.includes('Chrome for Testing'), `${attachCardFix}; the card must not print the tool description`)
+    const [final] = grabScreens(run, 120, 36, [-1])
+    save('attach-declined-final-120x36', final!.rows)
+    check('the decline landed and the turn settled', rowsHaving(final!.rows, 'Understood, nothing was attached.'), `declining the card (esc) must return a refusal to the model and let the turn settle, see the Browser permission path in src/permissions/cards/browser/BrowserPermissionRequest.tsx · ${final!.rows.slice(-12).join(' | ')}`)
+  } else {
+    const [final] = grabScreens(run, 120, 36, [-1])
+    printFrame('final screen (no card)', final!.rows)
+  }
+  if (!KEEP) run.cleanup()
+}
+
 console.log(`\n${checks} checks, ${failures} failures`)
 console.log(failures === 0 ? 'prove-browser-cards-drive: ALL LAWS HOLD' : `prove-browser-cards-drive: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

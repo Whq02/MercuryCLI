@@ -6,6 +6,7 @@ import { FAINT } from '../../screen/theme/mercuryPalette.js';
 import { WithCardTone } from '../../screen/widgets/toolCardGrammar.js';
 import { Box, Text } from '../../screen/themedRenderer.js';
 import type { Input, Output } from './BrowserTool.js';
+import { ATTACH_OP } from '../../integrations/browser/browserWords.js';
 
 export function userFacingName(): string {
   return 'Browser';
@@ -19,6 +20,7 @@ export function renderToolUseMessage(
   const clip = (s: string, n: number): string => (s.length > n ? `${s.slice(0, n)}…` : s);
   const parts: string[] = [input.op];
   if (input.op === 'open' && input.url) parts.push(clip(input.url, 70));
+  if (input.op === ATTACH_OP && input.endpoint) parts.push(clip(input.endpoint, 70));
   if (input.op === 'click')
     parts.push(input.selector ?? (typeof input.x === 'number' ? `(${input.x}, ${input.y})` : ''));
   if (input.op === 'type') {

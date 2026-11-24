@@ -61,9 +61,19 @@ export interface Wiring {
   capture: (kind: string, text: string) => void
 }
 
+export interface AttachedBrowser {
+  endpoint: string
+  product: string
+  opened: Set<Page>
+  adopted: number
+}
+
+export type SessionBrowser = BrowserResolution | { state: 'ok'; source: 'attached'; label: string }
+
 export interface Hold {
   browser: DriverBrowser
-  resolution: BrowserResolution
+  attached: AttachedBrowser | null
+  resolution: SessionBrowser
   sandboxDowngraded: boolean
   profileOrigin: string | null
   profileDir: string | null
@@ -111,7 +121,7 @@ export interface Session {
   opening: string | null
   browser: DriverBrowser
   page: Page
-  resolution: BrowserResolution
+  resolution: SessionBrowser
   driverVersion: string
   consoleRing: ConsoleEntry[]
   nav: { seq: number; seen: number; web: number }
@@ -170,6 +180,8 @@ export const IDLE_ENDED = 'was closed after 5 minutes idle'
 export const SELF_CLOSED = 'closed itself (window.close)'
 export const MOVE_FAILED = 'was closed for its move to another browser, which then failed'
 export const RESTARTED = 'was closed when its browser restarted in another window mode'
+export const IDLE_DETACHED = 'was let go after 5 minutes idle (its browser stays open)'
+export const CLOSED_IN_BROWSER = 'was closed in its browser'
 
 export type EnsureSessionRefusal = { state: 'unavailable' | 'at-capacity' | 'torn-down'; note: string }
 

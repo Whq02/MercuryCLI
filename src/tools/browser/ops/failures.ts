@@ -1,6 +1,7 @@
 import { BROWSER_PROTOCOL_TIMEOUT_MS, MAIN_TAB, browserTabs, endedTab, sessionGoneAt } from '../../../integrations/browser/browserSession.js'
 import type { OwnerKey } from '../../../engine/run-owner/ownerKey.js'
 import type { LiveSession } from './page.js'
+import { ATTACH_OP } from '../../../integrations/browser/browserWords.js'
 
 export function openSchemeRefusal(url: string | undefined): string {
   const scheme = /^([a-zA-Z][a-zA-Z0-9+.-]*):/.exec(url ?? '')?.[1]?.toLowerCase()
@@ -75,7 +76,7 @@ export function errorChainText(err: unknown): string {
 
 export const BROWSER_GONE_ERROR = 'BrowserGoneError'
 export const PAGE_CRASHED_ERROR = 'PageCrashedError'
-export const CRASH_OPEN_OPS: ReadonlySet<string> = new Set(['status', 'devices', 'provision', 'open', 'reload', 'close', 'console'])
+export const CRASH_OPEN_OPS: ReadonlySet<string> = new Set(['status', 'devices', 'provision', 'open', ATTACH_OP, 'reload', 'close', 'console'])
 
 function pageCrashedError(): Error {
   const err = new Error('the page crashed (its process exited mid-op)')

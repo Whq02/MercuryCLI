@@ -8,12 +8,14 @@ import {
   originApproved,
   originOf,
   screenshotPath,
+  sessionAttached,
 } from '../../../integrations/browser/browserSession.js'
 import { emulationLines, heldDevice, parseEmulation } from '../../../integrations/browser/browserEmulation.js'
 import { resolveBrowserSecret } from '../../../integrations/browser/browserSecrets.js'
 import type { Transfer } from '../../../integrations/browser/browserTransfers.js'
 import type { OwnerKey } from '../../../engine/run-owner/ownerKey.js'
 import { type Input, PRESS_KEYS, WAIT_CAP_MS, WAIT_DEFAULT_MS } from './schema.js'
+import { ATTACH_OP } from '../../../integrations/browser/browserWords.js'
 import { CRASH_OPEN_OPS, crashedWords, isDriverTimeout, noSessionWords } from './failures.js'
 import { type LiveSession, errorPageWords, pageWhere, preview, sendOrigin, targetSurface } from './page.js'
 import { transferWords } from './downloads.js'
@@ -25,7 +27,7 @@ import { clickOp, hoverOp, pressOp, scrollOp, selectOp, uploadOp } from './point
 import { typeOp } from './typeOp.js'
 import { devicesOp, viewportEmulationOp, viewportHeldOp, viewportSizeOp } from './viewportOps.js'
 import { consoleOp, extractOp, infoOp, screenshotOp, statusOp } from './readOps.js'
-import { closeOp, downloadOp, provisionOp } from './sessionOps.js'
+import { attachOp, closeOp, downloadOp, provisionOp } from './sessionOps.js'
 
 export interface OpRun {
   input: Input
@@ -62,6 +64,9 @@ export function runOp(run: OpRun): OpDone | Promise<OpDone> {
     }
     case 'open': {
       return openOp(run)
+    }
+    case ATTACH_OP: {
+      return attachOp(run)
     }
     case 'click': {
       const s = activeSession(owner, tab)
@@ -273,7 +278,9 @@ export function runOp(run: OpRun): OpDone | Promise<OpDone> {
       const approval = origin.startsWith('http')
         ? originApproved(owner, origin)
           ? ' (approved this session)'
-          : ' (NOT approved — acts will ask)'
+          : sessionAttached(s)
+            ? ' (NOT approved — reads and acts will ask)'
+            : ' (NOT approved — acts will ask)'
         : isBrowserErrorPage(s.page.url())
           ? ` (${errorPageWords(s)})`
           : ''

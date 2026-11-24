@@ -102,6 +102,8 @@ const EXTERNAL_FLAGS = new Map<string, string>([
   ['--quit-after', 'the Godot binary'],
   ['--remote-debug', 'the Godot binary'],
   ['--warship-checks', 'an example suite argument in a Godot suites file'],
+  ['--remote-debugging-port', 'the Chrome command line'],
+  ['--user-data-dir', 'the Chrome command line'],
 ])
 
 const SLASH_NOT_COMMANDS = new Map<string, string>([

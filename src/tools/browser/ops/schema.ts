@@ -2,10 +2,12 @@ import { z } from 'zod/v4'
 import type { ToolEffectOutcome } from '../../kit/tool.js'
 import { flagEnabled } from '../../../platform/substrate/flagRegistry.js'
 import { lazySchema } from '../../../platform/primitives/lazySchema.js'
+import { ATTACH_OP } from '../../../integrations/browser/browserWords.js'
 
 export const OPS = [
   'status',
   'open',
+  ATTACH_OP,
   'click',
   'type',
   'scroll',
@@ -41,7 +43,8 @@ export const ACT_OPS: ReadonlySet<string> = new Set([
 ])
 
 export const FRONT_OPS: ReadonlySet<string> = new Set(['click', 'type', 'scroll', 'back', 'reload', 'select', 'press', 'hover', 'screenshot', 'upload'])
-export const TABLESS_OPS: ReadonlySet<string> = new Set(['status', 'devices', 'provision', 'download'])
+export const TABLESS_OPS: ReadonlySet<string> = new Set(['status', 'devices', 'provision', 'download', ATTACH_OP])
+export const ATTACHED_ASK_OPS: ReadonlySet<string> = new Set(['waitFor', 'viewport', 'extract', 'console', 'screenshot'])
 export const TOUCH_OPS: ReadonlySet<string> = new Set(['click', 'type', 'select', 'press', 'upload'])
 
 export const PRESS_KEYS: ReadonlySet<string> = new Set([
@@ -90,6 +93,10 @@ export const inputSchema = lazySchema(() =>
     op: z.enum(OPS).describe('Browser operation.'),
     tab: z.string().optional().describe('Named tab (default main)'),
     url: z.string().optional().describe('open: http/https URL'),
+    endpoint: z
+      .string()
+      .optional()
+      .describe('attach: http://127.0.0.1:<port> or http://localhost:<port> (or the ws:// address under it) of a Chromium the user started with remote debugging on'),
     persist: z.boolean().optional().describe('open: no idle close'),
     waitUntil: z
       .enum(['domcontentloaded', 'load', 'networkidle2'])
