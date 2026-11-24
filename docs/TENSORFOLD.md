@@ -7,8 +7,8 @@ endpoints, and never changes model weights. On Windows, until a native Windows
 TensorFold binary is installed, Mercury serves the `TENSORFOLD` group on CPU
 through its own `llama.cpp` adapter (`served by Mercury's engine until TensorFold ships for Windows`; see [Windows](#windows)).
 
-Mercury ships three qualified starting points for TensorFold `1.3.3`, each
-trained to a `256k` (`262,144`-token) context window:
+Mercury pins the native TensorFold archives to `1.3.4` and offers three starting
+points, each trained to a `256k` (`262,144`-token) context window:
 
 - **`Nemotron Lightning`** (`TensorFold/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-MLX-4bit`, served as `local/nemotron-lightning`): ordered first on Macs with under 64 GiB of memory (including 48 GB Macs) and on pre-M5 Apple silicon.
 - **`Qwen3.8 27B`** (`TensorFold/Qwen3.8-27B-MLX-4bit`, served as `local/qwen3.8-27b`): paired automatically with its speculative drafter (`z-lab/Qwen3.8-27B-DFlash2` via `--drafter`). It is ordered first on M5 or newer Macs with 64 GiB or more of memory and on Linux CUDA, and second on 48 GB Macs (`steadier on long tasks · prefill ~350 tok/s · takes most of this Mac's memory`).
@@ -96,16 +96,15 @@ installed, the card shows `needs     Homebrew · brew.sh installs it, then /tens
 
 On Linux with an NVIDIA GPU and driver R580 or newer (CUDA 13), `install TensorFold`
 (`release archive · checksum verified`) downloads
-`tensorfold-1.3.3-linux-x86_64.tar.gz` (or `tensorfold-1.3.3-linux-aarch64.tar.gz`)
+`tensorfold-1.3.4-linux-x86_64.tar.gz` (or `tensorfold-1.3.4-linux-aarch64.tar.gz`)
 and its `.sha256` file into `~/.local/share/mercury-host/runtime/tensorfold`,
 checks `sha256sum -c`, extracts the archive with `--strip-components=1`, and
 removes the archive files. If no NVIDIA GPU is found or the driver is older
 than R580, the footer reports `no NVIDIA GPU found` or
 `driver <version> · TensorFold needs R580 or newer`.
 
-When the installed TensorFold is older than the release this build installs
-and is tested with, the panel shows one line with both versions and the
-command that moves to it: `TensorFold 1.3.3 is supported, 1.2.2 is installed · brew upgrade ashhart/tensorfold/tensorfold`
+When the installed TensorFold is older than the release this build pins, the
+panel shows one line with both versions and the upgrade command: `TensorFold 1.3.4 is supported, 1.2.2 is installed · brew upgrade ashhart/tensorfold/tensorfold`
 on a Mac with Homebrew, the release archive's install commands on Linux.
 Mercury serves the installed engine as it stands and upgrades nothing itself.
 
@@ -270,7 +269,7 @@ rents a cloud CUDA pod for TensorFold:
 
 ```text
 pod       RTX 5090 32 GB · $0.89/h on Runpod or Vast.ai · billing starts when it boots
-serves    Qwen3.8 27B at 128k with TensorFold 1.3.3 for CUDA
+serves    Qwen3.8 27B at 128k with TensorFold 1.3.4 for CUDA
 through   /llmhost rents it, installs TensorFold, pulls, serves, then this session switches · s stops the pod and its billing
 ```
 
@@ -282,7 +281,7 @@ and in `/llmhost`.
   `RTX PRO 6000` (96 GB), `GB10` (128 GB), `A100` (80 GB), `RTX A6000` (48 GB)
   and `RTX 3090` (24 GB), and lists `RTX 4090` (24 GB), `L40S` (48 GB) and `L4`
   (24 GB) as `ships · unqualified by TensorFold`. `H100`, `H200`, `B200`,
-  `B300` and `GB300` are refused before renting (`the 1.3.3 archive holds no sm_90 machine code and no PTX`).
+  `B300` and `GB300` are refused before renting (`the 1.3.4 archive holds no sm_90 machine code and no PTX`).
   On the rented pod, setup checks for NVIDIA driver R580 or newer (CUDA 13.0),
   downloads the release archive into `/workspace/mercury-host/<recipe-id>`,
   verifies both its SHA-256 checksum and its Ed25519 signature, sets
@@ -303,7 +302,7 @@ and in `/llmhost`.
   `TENSORFOLD`), and the `TENSORFOLD HOST` heading names the live hosts and
   counts the rest:
   - `setting up`: the card shows `pod       <gpu> · $<price>/h on <Runpod|Vast.ai> · <elapsed> · ~$<spend> so far · s stops the pod and its billing` and the current provisioning step (`now       <step>`).
-  - `serving` (or `current`): ready for turns as `compat/pod-<id>/<model>`. Its card shows `host      <gpu> · TensorFold 1.3.3 · keyed`, `pod       $<price>/h on <Runpod|Vast.ai> · <elapsed> · ~$<spend> so far · s stops the pod and its billing`, `serving   ~<N> tok/s on its last reply` once a turn has completed, and `window    <N>k · set when the pod was rented`.
+  - `serving` (or `current`): ready for turns as `compat/pod-<id>/<model>`. Its card shows `host      <gpu> · TensorFold 1.3.4 · keyed`, `pod       $<price>/h on <Runpod|Vast.ai> · <elapsed> · ~$<spend> so far · s stops the pod and its billing`, `serving   ~<N> tok/s on its last reply` once a turn has completed, and `window    <N>k · set when the pod was rented`.
   - `paused` or `failed`: shows the cause and `next      Resume or Terminate in /llmhost`.
   - `stopping` and `stopped`: pressing `s` (`s stops the pod`) on a billing pod requests the stop at once. If the vendor confirms within the short wait, the row settles to `stopped` (`<machine> stopped · compute billing ended · ~$<spend> so far · the disk bills until you terminate it · t terminates`); if the vendor has not confirmed yet, the row reads `stopping` (`<machine> · stop requested · the row reads stopping until <Vendor> confirms, then compute billing ends · the disk bills until you terminate it · t terminates`) with the spend preserved, and the panel polls and settles it to `stopped` (or removes it if the vendor reports it gone) once confirmed. Stopping the pod from `/llmhost` also forgets its live `TENSORFOLD HOST` server entry so the row shows as `stopped`.
   While a pod is `stopped`, its container or volume disk continues to bill at

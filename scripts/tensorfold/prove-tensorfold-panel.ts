@@ -217,14 +217,14 @@ section('an installed engine older than the supported release: one line names th
   const found = await engine.findTensorFoldEngine({ ...base, exists: fakeExists })
   const supported = (await import('../../src/models/tensorfold/starting.ts')).TENSORFOLD_RELEASE
   const LINE = `TensorFold ${supported} is supported, 1.2.2 is installed · brew upgrade ashhart/tensorfold/tensorfold`
-  check('the fixture engine is 1.2.2 and the build supports a newer release', found !== null && found.version === '1.2.2' && supported === '1.3.3', `${found?.version} ${supported}`)
+  check('the fixture engine is 1.2.2 and the build supports a newer release', found !== null && found.version === '1.2.2' && supported === '1.3.4', `${found?.version} ${supported}`)
   const older = await scene.readTensorFoldPanelFacts(base)
   check('on a Mac with Homebrew the line names the supported release, the installed one and brew upgrade with the formula', older.newer === LINE, String(older.newer))
   const at = async (version: string): Promise<string | undefined> => (await scene.readTensorFoldPanelFacts({ ...base, engine: { ...found!, version } })).newer
-  const none = [await at(supported), await at('1.4.0'), await at('2.0'), await at('unknown'), await at('1.3.3-rc1')]
+  const none = [await at(supported), await at('1.4.0'), await at('2.0'), await at('unknown'), await at('1.3.4-rc1')]
   check('an engine at the supported release, a newer one and a version that is no dotted number get no line', none.every(line => line === undefined), JSON.stringify(none))
   const [patch, before, minor, short] = [await at('1.3.2'), await at('1.2.10'), await at('1.1.9'), await at('1.3')]
-  check('1.3.2, 1.2.10, 1.1.9 and 1.3 are each older than 1.3.3', [patch, before, minor, short].every((line, i) => line === LINE.replace('1.2.2 is installed', `${['1.3.2', '1.2.10', '1.1.9', '1.3'][i]} is installed`)), JSON.stringify([patch, before, minor, short]))
+  check('1.3.2, 1.2.10, 1.1.9 and 1.3 are each older than 1.3.4', [patch, before, minor, short].every((line, i) => line === LINE.replace('1.2.2 is installed', `${['1.3.2', '1.2.10', '1.1.9', '1.3'][i]} is installed`)), JSON.stringify([patch, before, minor, short]))
   const absent = await scene.readTensorFoldPanelFacts({ ...base, engine: null })
   check('with no engine installed there is no line: the install row stands as before', absent.newer === undefined && absent.engine === null, String(absent.newer))
   const noBrew = await scene.readTensorFoldPanelFacts({ ...base, exists: fakeExists })
