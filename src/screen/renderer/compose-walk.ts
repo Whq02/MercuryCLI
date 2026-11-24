@@ -829,7 +829,7 @@ function paintScrollFastPath(content: FrameNode, walk: Walk, prevScreen: Screen,
   }
 }
 
-function composeScrollBox(node: FrameNode, walk: Walk, prevScreen: Screen | undefined, x: number, y: number, width: number, height: number, layoutNode: LayoutNode, hasRemovedChild: boolean, clipTop: number, clipBottom: number, ownBg: Color | undefined, uniformBg: Color | undefined, rowSampler: RowGround | undefined, childOwn: Own, boxSameRect: boolean): void {
+function composeScrollBox(node: FrameNode, walk: Walk, prevScreen: Screen | undefined, x: number, y: number, width: number, layoutNode: LayoutNode, hasRemovedChild: boolean, clipTop: number, clipBottom: number, ownBg: Color | undefined, uniformBg: Color | undefined, rowSampler: RowGround | undefined, childOwn: Own, boxSameRect: boolean): void {
   const isNested = walk.scrollDepth > 0
   if (isNested) walk.sawInnerScroll = true
   const effectivePrevScreen = isNested ? undefined : prevScreen
@@ -1032,7 +1032,7 @@ function composeBox(node: FrameNode, walk: Walk, placement: Placement, x: number
     composeChildren(node, walk, x, y, hasRemovedChild, childPrevScreen, uniformBg, rowSampler, childOwn)
   } else {
     const scrollPrevScreen = ownBg !== prevOwnBg ? undefined : placement.prevScreen
-    composeScrollBox(node, walk, scrollPrevScreen, x, y, width, height, layoutNode, hasRemovedChild, clipTop, clipBottom, ownBg, uniformBg, rowSampler, childOwn, sameRect)
+    composeScrollBox(node, walk, scrollPrevScreen, x, y, width, layoutNode, hasRemovedChild, clipTop, clipBottom, ownBg, uniformBg, rowSampler, childOwn, sameRect)
   }
 
   if (clipped) walk.buffer.unclip()
