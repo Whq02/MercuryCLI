@@ -4,7 +4,7 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { KEY, mountOffscreen, pinSourceRef, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
+import { KEY, mountOffscreen, painted, pinSourceRef, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
 pinSourceRef()
 const HOME = mkdtempSync(join(tmpdir(), 'first-party-windows-'))
@@ -203,7 +203,7 @@ async function focusRow(scene: Scene, id: string): Promise<boolean> {
     for (let step = 0; step < 40; step++) {
       if (cells(focused(scene.m)).includes(` ${id} `)) return true
       scene.m.push(key)
-      await settle(70)
+      await painted(70)
     }
   }
   return cells(focused(scene.m)).includes(` ${id} `)
