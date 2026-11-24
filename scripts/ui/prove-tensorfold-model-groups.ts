@@ -2,7 +2,7 @@
 import { mkdirSync, truncateSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mock } from 'bun:test'
-import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
+import { KEY, mountOffscreen, painted, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 import type { TensorFoldFit, TensorFoldHost, TensorFoldModelRow, TensorFoldServed, TensorFoldEngine, TensorFoldMachine } from '../../src/models/tensorfold/contracts.ts'
 
 const argAfter = (flag: string): string | undefined => {
@@ -369,9 +369,9 @@ async function open(facts: Facts, current: string, columns: number, rows: number
 async function press(run: Pick<Run, 'm'>, keys: readonly string[]): Promise<void> {
   for (const key of keys) {
     run.m.push(key)
-    await settle(140)
+    await painted(140)
   }
-  await settle(160)
+  await painted(160)
 }
 
 const inner = (line: string): string => line.replace(/^\s*│ ?/, '').replace(/\s*│\s*$/, '')
