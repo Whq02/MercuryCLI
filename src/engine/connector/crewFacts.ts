@@ -4,7 +4,7 @@ import { workRowRuns, type WorkCountsV1 } from './workCounts.js'
 import { formatDuration, formatTokens } from '../../platform/text/format.js'
 import { formatSessionCost } from '../../models/roads/spendSpelling.js'
 import { crewmateWaitWords, type CrewmateWaitV1 } from '../tasks/local-agent/crewmateWait.js'
-import { decodeCrewmatePause, pauseStatusWords, type CrewmatePauseV1 } from '../tasks/local-agent/crewmatePause.js'
+import { decodeCrewmatePause, pauseLineWords, pauseStatusWords, type CrewmatePauseV1 } from '../tasks/local-agent/crewmatePause.js'
 import { operatorPauseWaitParts, pauseGateChipWords } from '../loop/pauseGate.js'
 import { parkedAskRowWords, type ParkedAskFacts } from '../../permissions/rules/askWords.js'
 import { CREW_VIEW_DOOR } from '../../screen/cockpit/crewmateWords.js'
@@ -273,6 +273,11 @@ export function crewPauseChipWords(agents: readonly CrewmateFacts[], gate: { pau
   return pauseGateChipWords({ paused: gate.paused || parkedRows > 0, parked: Math.max(gate.parked, parkedRows) })
 }
 
+export function crewPauseLine(facts: CrewmateFacts, nowMs: number): string | null {
+  if (facts.running || facts.paused === null) return null
+  return pauseLineWords(facts.paused, nowMs)
+}
+
 export function crewPaused(agents: readonly CrewmateFacts[]): CrewmateFacts[] {
   return agents.filter(a => a.state === 'paused')
 }
@@ -290,6 +295,10 @@ export function crewToolUsesLabel(facts: CrewmateFacts): string | null {
 export function crewWaitingWords(running: number): string | null {
   if (!(running > 0)) return null
   return `waiting on ${running} crewmate${running === 1 ? '' : 's'}`
+}
+
+export function crewWaitingLine(agents: readonly CrewmateFacts[]): string | null {
+  return crewWaitingWords(crewRunning(agents).length)
 }
 
 export function crewStillRunningLine(

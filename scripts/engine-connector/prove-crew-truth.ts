@@ -359,6 +359,7 @@ console.log('— T7 the status vocabulary and the transcript card —')
       crew.crewStateOf({ status: 'killed', stopReason: crew.CREW_INTERRUPTED_BY_OPERATOR_WORDS }) === 'interrupted' &&
       crew.crewStateOf({ status: 'killed', stopReason: 'stopped from the crew view' }) === 'stopped',
   )
+  check('T7 the waiting line counts the running crew', crew.crewWaitingLine(agents) === 'waiting on 3 crewmates' && crew.crewWaitingLine([]) === null)
   const ag1 = agents.find(a => a.id === 'ag1')!
   check(
     "T7 the wire carries the launch's tool-use id, its tool-use count and its activity",
