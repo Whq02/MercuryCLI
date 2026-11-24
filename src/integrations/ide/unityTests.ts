@@ -175,25 +175,6 @@ export function readUnityTestResults(
   return parseUnityTestResults(xml)
 }
 
-export function unityRerunFailedArgs(
-  failures: string[],
-  root: string,
-  mode: 'EditMode' | 'PlayMode',
-): string[] {
-  return [
-    '-runTests',
-    '-batchmode',
-    '-projectPath',
-    root,
-    '-testResults',
-    unityTestResultsPath(root, mode),
-    '-testPlatform',
-    mode,
-    '-testFilter',
-    failures.join(';'),
-  ]
-}
-
 export function unityRunToRecord(
   parse: UnityTestRunParse,
   opts: {

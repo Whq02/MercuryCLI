@@ -8,7 +8,7 @@ import * as path from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' | fix parseUnityTestResults, readUnityTestResults or unityRerunFailedArgs in src/integrations/ide/unityTests.ts, or unityTestResultsPath in src/integrations/unity-protocol/unityProject.ts, against the fixtures in scripts/ide/fixtures/unity'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' | fix parseUnityTestResults or readUnityTestResults in src/integrations/ide/unityTests.ts, or unityTestResultsPath in src/integrations/unity-protocol/unityProject.ts, against the fixtures in scripts/ide/fixtures/unity'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -21,7 +21,6 @@ console.log('============================================================')
 const {
   parseUnityTestResults,
   readUnityTestResults,
-  unityRerunFailedArgs,
 } = await import('../../src/integrations/ide/unityTests.js')
 const { unityTestResultsPath } = await import('../../src/integrations/unity-protocol/unityProject.js')
 
@@ -102,14 +101,6 @@ section('§3 · adversarial honesty (rejections + disagreement)')
 
 section('§4 · the hand-off seam (rerun respelling + the convention path)')
 {
-  const args = unityRerunFailedArgs(['A.B.C', 'D.E.F'], '/proj', 'EditMode')
-  check(
-    'rerun argv: the documented -testFilter shape over the same convention path',
-    args[0] === '-runTests' &&
-      args[args.indexOf('-testFilter') + 1] === 'A.B.C;D.E.F' &&
-      args[args.indexOf('-testResults') + 1] === unityTestResultsPath('/proj', 'EditMode') &&
-      !args.includes('-quit'),
-  )
   const scratch = mkdtempSync(path.join(tmpdir(), 'unity-tests-'))
   const absent = readUnityTestResults(scratch, 'EditMode')
   check(
