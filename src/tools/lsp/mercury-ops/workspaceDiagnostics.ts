@@ -124,7 +124,7 @@ export async function opWorkspaceDiagnostics(env: OpEnv): Promise<MercuryLspOpOu
   for (const abs of included) {
     const display = displayPathFor(env.cwd, abs)
     try {
-      await syncFileFromDisk(env.manager, abs)
+      await syncFileFromDisk(env.manager, abs, env.context)
       const pulled = await pullFileDiagnostics(env.manager, abs)
       if (pulled.kind === 'fresh' || pulled.kind === 'unchanged') {
         answered++

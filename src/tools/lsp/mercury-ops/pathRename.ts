@@ -140,7 +140,7 @@ export async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
   const fanOutNotes: string[] = [...unprepared]
   if (askable.length > 0) {
     if (!isDirectory) {
-      await syncFileFromDisk(env.manager, oldPath).catch((error: unknown) => {
+      await syncFileFromDisk(env.manager, oldPath, env.context).catch((error: unknown) => {
         fanOutNotes.push(`${display} could not be re-read for the language server (${errorMessage(error)}), so its import updates come from the copy it already had`)
       })
     }

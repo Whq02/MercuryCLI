@@ -161,7 +161,7 @@ export async function opFormatFamily(env: OpEnv, want: FormatWant): Promise<Merc
     return { changes: { [uri]: edits ?? [] } }
   }
 
-  await syncFileFromDisk(env.manager, env.absolutePath)
+  await syncFileFromDisk(env.manager, env.absolutePath, env.context)
   const prepared = await prepareApply(env, requestEdit)
   if (!prepared.ok) {
     if (/edit set is empty/.test(prepared.reason)) {

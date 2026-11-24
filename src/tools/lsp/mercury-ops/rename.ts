@@ -22,7 +22,7 @@ export async function opRename(env: OpEnv): Promise<MercuryLspOpOutput> {
       },
     }
   }
-  await syncFileFromDisk(env.manager, env.absolutePath)
+  await syncFileFromDisk(env.manager, env.absolutePath, env.context)
   const uri = pathToFileURL(resolve(env.absolutePath)).href
   const position = { line: (input.line ?? 1) - 1, character: (input.character ?? 1) - 1 }
   const requestEdit = (): Promise<WorkspaceEditLike | null | undefined> =>

@@ -112,7 +112,7 @@ export const CODE_ACTION_RERUN_HINT =
 export async function opCodeActions(env: OpEnv): Promise<MercuryLspOpOutput> {
   const input = env.input
   const display = displayPathFor(env.cwd, env.absolutePath)
-  await syncFileFromDisk(env.manager, env.absolutePath)
+  await syncFileFromDisk(env.manager, env.absolutePath, env.context)
   const range = inputRange(input)
   const kind = input.kind?.trim() || undefined
   const only = kind !== undefined ? [kind] : undefined

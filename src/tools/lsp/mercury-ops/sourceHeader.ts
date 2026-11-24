@@ -21,7 +21,7 @@ export async function opSwitchSourceHeader(env: OpEnv): Promise<MercuryLspOpOutp
       },
     }
   }
-  await syncFileFromDisk(env.manager, env.absolutePath)
+  await syncFileFromDisk(env.manager, env.absolutePath, env.context)
   const uri = pathToFileURL(resolve(env.absolutePath)).href
   let response: string | null | undefined
   try {

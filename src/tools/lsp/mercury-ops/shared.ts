@@ -2,7 +2,10 @@ import { readFile, stat } from 'node:fs/promises'
 import { isAbsolute, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { canonicalPathKey } from '../../engines/change-transaction/changeSetPlan.js'
+import { claimDiagnosticsLook } from '../../../integrations/lsp/LSPDiagnosticRegistry.js'
 import type { LSPServerManager } from '../../../integrations/lsp/LSPServerManager.js'
+import { ownerFromToolUseContext } from '../../../engine/run-owner/resolveOwner.js'
+import type { ToolUseContext } from '../../kit/tool.js'
 import { type LspRangeLike, type NormalizedFileEdits } from '../../../integrations/lsp/workspaceEditApply.js'
 
 const MAX_LSP_FILE_BYTES = 10_000_000
@@ -115,7 +118,7 @@ export function countBySeverity(items: LspWireDiagnostic[]): { errors: number; w
   return { errors, warnings }
 }
 
-export async function syncFileFromDisk(manager: LSPServerManager, absolutePath: string): Promise<string> {
+export async function syncFileFromDisk(manager: LSPServerManager, absolutePath: string, context: Pick<ToolUseContext, 'owner' | 'agentId'>): Promise<string> {
   const stats = await stat(absolutePath)
   if (stats.size > MAX_LSP_FILE_BYTES) {
     const megabytes = Math.ceil(stats.size / (1024 * 1024))
@@ -125,6 +128,7 @@ export async function syncFileFromDisk(manager: LSPServerManager, absolutePath: 
   if (manager.isFileOpen(absolutePath)) {
     await manager.changeFile(absolutePath, text)
   } else {
+    claimDiagnosticsLook(absolutePath, ownerFromToolUseContext(context))
     await manager.openFile(absolutePath, text)
   }
   return text

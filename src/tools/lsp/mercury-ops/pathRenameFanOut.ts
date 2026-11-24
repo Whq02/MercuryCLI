@@ -168,7 +168,7 @@ export async function prepareApplyFanOut(
     for (const file of unsynced) {
       const abs = uriToFilePath(file.uri)
       try {
-        snapshots.set(abs, await syncFileFromDisk(env.manager, abs))
+        snapshots.set(abs, await syncFileFromDisk(env.manager, abs, env.context))
       } catch (error) {
         return {
           ok: false,

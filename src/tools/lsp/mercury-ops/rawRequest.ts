@@ -86,7 +86,7 @@ export async function opRawRequest(env: OpEnv): Promise<MercuryLspOpOutput> {
       effect: { outcome: 'failed', changedPaths: [], evidence: 'no claimant' },
     }
   }
-  await syncFileFromDisk(env.manager, env.absolutePath)
+  await syncFileFromDisk(env.manager, env.absolutePath, env.context)
   try {
     const response = await server.sendRequest<unknown>(method, params ?? {})
     const text = JSON.stringify(response, null, 2) ?? 'null'

@@ -40,7 +40,7 @@ export async function opMoveSymbol(env: OpEnv): Promise<MercuryLspOpOutput> {
       effect: { outcome: 'no-change', changedPaths: [], evidence: `no language server claims '${extension}'` },
     }
   }
-  await syncFileFromDisk(env.manager, env.absolutePath)
+  await syncFileFromDisk(env.manager, env.absolutePath, env.context)
   const uri = pathToFileURL(resolve(env.absolutePath)).href
   const position = { line: (input.line ?? 1) - 1, character: (input.character ?? 1) - 1 }
   const requestEdit = (): Promise<WorkspaceEditLike | null | undefined> =>

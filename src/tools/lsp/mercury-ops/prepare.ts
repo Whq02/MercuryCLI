@@ -58,7 +58,7 @@ export async function prepareApply(
         continue
       }
       try {
-        snapshots.set(abs, await syncFileFromDisk(env.manager, abs))
+        snapshots.set(abs, await syncFileFromDisk(env.manager, abs, env.context))
       } catch (error) {
         return {
           ok: false,

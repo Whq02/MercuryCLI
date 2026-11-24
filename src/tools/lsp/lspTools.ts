@@ -502,7 +502,6 @@ async function runLspOperation(
       ...(input.targetPath !== undefined ? { targetPath: input.targetPath } : {}),
     }
     try {
-      if (absolutePath !== '' && !manager.isFileOpen(absolutePath)) claimDiagnosticsLook(absolutePath, ownerFromToolUseContext(context))
       const opOutput = await runMercuryLspOp({
         input: opInput,
         absolutePath,

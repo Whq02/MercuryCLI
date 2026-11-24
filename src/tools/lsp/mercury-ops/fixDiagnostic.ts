@@ -7,7 +7,7 @@ import { inputRange, lineRangesOverlap, CODE_ACTION_RERUN_HINT, opCodeActions } 
 export async function opFixDiagnostic(env: OpEnv): Promise<MercuryLspOpOutput> {
   const input = env.input
   const display = displayPathFor(env.cwd, env.absolutePath)
-  await syncFileFromDisk(env.manager, env.absolutePath)
+  await syncFileFromDisk(env.manager, env.absolutePath, env.context)
   const before = await pullFileDiagnostics(env.manager, env.absolutePath)
   if (before.kind === 'unsupported') {
     return {

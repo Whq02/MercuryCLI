@@ -8,7 +8,7 @@ export async function opDiagnostics(env: OpEnv): Promise<MercuryLspOpOutput> {
   const display = displayPathFor(env.cwd, env.absolutePath)
   let pulled: PullDiagnosticsOutcome
   try {
-    await syncFileFromDisk(env.manager, env.absolutePath)
+    await syncFileFromDisk(env.manager, env.absolutePath, env.context)
     pulled = await pullFileDiagnostics(env.manager, env.absolutePath)
   } catch (err) {
     const primary = env.manager.getServerForFile(env.absolutePath)

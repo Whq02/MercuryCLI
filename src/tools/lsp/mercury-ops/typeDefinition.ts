@@ -8,7 +8,7 @@ import { displayPathFor, isMethodNotFoundError, syncFileFromDisk } from './share
 export async function opTypeDefinition(env: OpEnv): Promise<MercuryLspOpOutput> {
   const input = env.input
   const display = displayPathFor(env.cwd, env.absolutePath)
-  await syncFileFromDisk(env.manager, env.absolutePath)
+  await syncFileFromDisk(env.manager, env.absolutePath, env.context)
   const uri = pathToFileURL(resolve(env.absolutePath)).href
   type Location = { uri?: string; targetUri?: string; range?: LspRangeLike; targetRange?: LspRangeLike; targetSelectionRange?: LspRangeLike }
   let response: Location | Location[] | null | undefined
