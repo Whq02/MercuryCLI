@@ -262,7 +262,7 @@ export function setPermissionModeWithGuards(
 
 export function validateModeEntry(mode: PermissionMode, context: ToolPermissionContext): SetPermissionModeResult {
   if (mode === 'sovereign') {
-    if (isSovereignDisabledBySettingsOrPolicy()) {
+    if (isSovereignDisabled()) {
       return { ok: false, error: 'Sovereign Mode is disabled by settings or organisation policy.' }
     }
     if (context.isBypassPermissionsModeAvailable !== true) {
@@ -304,12 +304,8 @@ export function getFlowUnavailableNotification(reason: FlowUnavailableReason): s
 }
 
 
-function isSovereignDisabledBySettingsOrPolicy(): boolean {
-  return getInitialSettings().guardrails?.disableSovereignMode === true
-}
-
 export function isSovereignDisabled(): boolean {
-  return isSovereignDisabledBySettingsOrPolicy()
+  return getInitialSettings().guardrails?.disableSovereignMode === true
 }
 
 export function createSovereignDisabledContext(
@@ -432,7 +428,7 @@ export function resolvePermissionModeCandidates(
   candidates: readonly PermissionMode[],
   { dangerouslySkipPermissions }: { dangerouslySkipPermissions: boolean },
 ): { mode: PermissionMode; notification?: string } {
-  const sovereignDisabled = isSovereignDisabledBySettingsOrPolicy()
+  const sovereignDisabled = isSovereignDisabled()
   const settingsNotice = 'Sovereign Mode has been disabled by your settings.'
 
   let notification: string | undefined
@@ -490,7 +486,7 @@ export async function initializeToolPermissionContext(args: {
   const diskRules = loadAllPermissionRulesFromDisk()
   const isBypassPermissionsModeAvailable =
     (modeBypassesPermissions(args.permissionMode) || args.allowDangerouslySkipPermissions) &&
-    !isSovereignDisabledBySettingsOrPolicy()
+    !isSovereignDisabled()
   const isFlowAvailable = isFlowGateEnabled()
   const dangerousPermissions =
     args.permissionMode === 'flow' ? findDangerousPermissions(diskRules, allowedTools) : []
