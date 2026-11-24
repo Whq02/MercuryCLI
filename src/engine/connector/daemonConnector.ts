@@ -333,6 +333,10 @@ abstract class ConnectorHandOffs {
     return this.sendsPart.recallableSend()
   }
 
+  sendingSinceMs(): number | null {
+    return this.sendsPart.pendingSinceMs()
+  }
+
   withdrawSend(clientMessageId: string): Promise<WithdrawReceiptV1> {
     return this.deliveryPart.withdrawSend(clientMessageId)
   }

@@ -18,6 +18,10 @@ const getFocusedTailActive = (): boolean => {
   const connector = getFocusedSessionConnector();
   return hasSeatLive(connector) ? connector.tail().getSnapshot() !== null : false;
 };
+const getFocusedSendingSince = (): number | null => {
+  const connector = getFocusedSessionConnector();
+  return hasSeatLive(connector) ? (connector.sendingSinceMs?.() ?? null) : null;
+};
 const getFocusedStatusKey = (): string => {
   const connector = getFocusedSessionConnector();
   return hasSeatLive(connector) ? `${connector.status().interrupting ? 1 : 0}` : '0';
@@ -30,9 +34,10 @@ export function useChatFocusedSeat() {
   const textActive = useSyncExternalStore(subscribeFocusedTail, getFocusedTailActive, getFocusedTailActive);
   const interruptingKey = useSyncExternalStore(subscribeFocusedSeatLive, getFocusedStatusKey, getFocusedStatusKey);
   const isStopping = interruptingKey === '1';
+  const sendingSinceMs = useSyncExternalStore(subscribeFocusedSeatLive, getFocusedSendingSince, getFocusedSendingSince);
   const focusedTail = hasSeatLive(focusedConnector) ? focusedConnector.tail() : null;
   const isLoading = seatLive.inFlight;
   const isLoadingRef = useRef(isLoading);
   isLoadingRef.current = isLoading;
-  return { focusedConnector, seatLive, focusedEffectiveModel, textActive, interruptingKey, isStopping, focusedTail, isLoading, isLoadingRef };
+  return { focusedConnector, seatLive, focusedEffectiveModel, textActive, interruptingKey, isStopping, sendingSinceMs, focusedTail, isLoading, isLoadingRef };
 }

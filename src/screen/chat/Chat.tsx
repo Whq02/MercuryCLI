@@ -131,7 +131,7 @@ export function Chat({ commands: initialCommands, initialTools, debug = false, d
   const chatStore = useChatScreenStore();
   const { controls: compactWork, focus: compactFocus } = useCompactWorkControls();
 
-  const { focusedConnector, seatLive, focusedEffectiveModel, textActive, interruptingKey, isStopping, focusedTail, isLoading, isLoadingRef } = useChatFocusedSeat();
+  const { focusedConnector, seatLive, focusedEffectiveModel, textActive, interruptingKey, isStopping, sendingSinceMs, focusedTail, isLoading, isLoadingRef } = useChatFocusedSeat();
   const messages = useFocusedTranscript();
   const tailAnchor = useFocusedTailAnchor();
   const { conversationId, setConversationId } = useChatConversation(focusedConnector);
@@ -164,12 +164,12 @@ export function Chat({ commands: initialCommands, initialTools, debug = false, d
   const { submitCount, setSubmitCount, getReadFileState, getToolUseContext, resume, paintScreenCommandReceipt, dialogInFlightRef, armedHandedBackRef, queuedDialogCommandsRef } = useChatSubmitTools({ store, setAppState, addNotification, removeNotification, debug, mergedTools, themeName, commandsRef, apiKeyVerification, paintScreenRow, setToolJSX, setShowRewindPicker, setConversationId });
 
   useChatTurnBoundary({ isLoading, setAppState, addNotification });
-  const { seatStartTimeRef, seatPausedMsRef, seatPauseStartRef } = useChatSeatClock({ seatLive, focusedInputDialog, isLoading });
+  const { seatStartTimeRef, seatPausedMsRef, seatPauseStartRef } = useChatSeatClock({ seatLive, focusedInputDialog, isLoading, sendingSinceMs });
   const { lastCompletedAt } = useChatTurnEnd({ focusedConnector, isLoading, setAppState, themeName, getReadFileState, seatPausedMsRef, seatPauseStartRef });
   useTurnEndPing({ lastCompletedAt, busy: isLoading });
   useChatTurnSignals({ isLoading, textActive, toolUseConfirmQueue, messages });
   useAgentNeedsYou(messages, isLoading);
-  const { viewInProgressToolUseIDs, viewStreamMode, spinnerSlotReserved, workingStatusStrip } = useChatStatusStrip({ seatLive, messages, toolJSX, toolUseConfirmQueue, isLoading, isStopping, textActive, streamingSuppressed, isCompact, focusedConnector, spinnerTip, verbose, seatStartTimeRef, seatPausedMsRef, seatPauseStartRef });
+  const { viewInProgressToolUseIDs, viewStreamMode, spinnerSlotReserved, workingStatusStrip } = useChatStatusStrip({ seatLive, messages, toolJSX, toolUseConfirmQueue, isLoading, isStopping, sendingSinceMs, textActive, streamingSuppressed, isCompact, focusedConnector, spinnerTip, verbose, seatStartTimeRef, seatPausedMsRef, seatPauseStartRef });
   const { title, titleAnimating } = useChatTitle({ focusedInputDialog, focusedConnector, isLoading, store });
 
   const { onSubmit, onCancel, landing, armedMessage } = useChatSubmit({ addNotification, removeNotification, setAppState, setInputValue, setInputMode, setPastedContents, authWallHold, repinToBottom, setToolJSX, toolJSX, getToolUseContext, paintScreenCommandReceipt, setSubmitCount, lastCompletedAt, commandsRef, isLoadingRef, dialogInFlightRef, armedHandedBackRef, queuedDialogCommandsRef, getFocusedSeatLive });

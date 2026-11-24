@@ -331,6 +331,14 @@ export class SendsPart {
     return this.sends.some(s => s.state === 'delivered')
   }
 
+  pendingSinceMs(): number | null {
+    let since: number | null = null
+    for (const s of this.sends) {
+      if (s.state === 'pending' && (since === null || s.sentAtMs < since)) since = s.sentAtMs
+    }
+    return since
+  }
+
   redressQueued(): void {
     for (const s of this.sends) if (s.state === 'queued') this.dressSend(s.clientMessageId, 'queued')
   }

@@ -1590,6 +1590,7 @@ type StatusPlant = {
   toolUseConfirmQueue: Parameters<StatusModule['useChatStatusStrip']>[0]['toolUseConfirmQueue']
   messages: Message[]
   isStopping: boolean
+  sendingSinceMs: number | null
   streamingSuppressed: boolean
   isCompact: boolean
   spinnerTip: Parameters<StatusModule['useChatStatusStrip']>[0]['spinnerTip']
@@ -1654,7 +1655,7 @@ export async function openStatusPart(tag: string, options: { keepHome?: boolean 
   const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
   const before = slot.hasFocusedSession() ? slot.getFocusedSessionConnector() : null
   const session: StatusPart['session'] = { chars: 0, tokens: null, facts: { ...seatLive.IDLE_TURN_FACTS }, completedAt: null, records: [], warns: false }
-  let plant: StatusPlant = { seatLive: seatLive.IDLE_LIVE, focusedInputDialog: undefined, textActive: false, toolJSX: null, toolUseConfirmQueue: [], messages: [], isStopping: false, streamingSuppressed: false, isCompact: false, spinnerTip: undefined, verbose: false }
+  let plant: StatusPlant = { seatLive: seatLive.IDLE_LIVE, focusedInputDialog: undefined, textActive: false, toolJSX: null, toolUseConfirmQueue: [], messages: [], isStopping: false, sendingSinceMs: null, streamingSuppressed: false, isCompact: false, spinnerTip: undefined, verbose: false }
   const connectorOf = (id: string): object =>
     Object.assign(new NoSessionConnector(), {
       sessionId: () => id,
@@ -1678,7 +1679,7 @@ export async function openStatusPart(tag: string, options: { keepHome?: boolean 
     const isLoading = plant.seatLive.inFlight
     const setAppState = store.setState
     const boundary = module.useChatTurnBoundary({ isLoading, setAppState, addNotification })
-    const clock = module.useChatSeatClock({ seatLive: plant.seatLive, focusedInputDialog: plant.focusedInputDialog, isLoading })
+    const clock = module.useChatSeatClock({ seatLive: plant.seatLive, focusedInputDialog: plant.focusedInputDialog, isLoading, sendingSinceMs: plant.sendingSinceMs })
     const end = module.useChatTurnEnd({ focusedConnector: connector as never, isLoading, setAppState, themeName: 'dark' as never, getReadFileState, seatPausedMsRef: clock.seatPausedMsRef, seatPauseStartRef: clock.seatPauseStartRef })
     module.useChatTurnSignals({ isLoading, textActive: plant.textActive, toolUseConfirmQueue: plant.toolUseConfirmQueue, messages: plant.messages })
     const strip = module.useChatStatusStrip({ ...plant, isLoading, focusedConnector: connector as never, ...clock })

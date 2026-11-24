@@ -111,10 +111,12 @@ export function useChatSeatClock({
   seatLive,
   focusedInputDialog,
   isLoading,
+  sendingSinceMs,
 }: {
   seatLive: SessionLiveV1;
   focusedInputDialog: FocusedInputDialog | undefined;
   isLoading: boolean;
+  sendingSinceMs: number | null;
 }) {
   const seatStartTimeRef = useRef(0);
   const seatPausedMsRef = useRef(0);
@@ -122,7 +124,7 @@ export function useChatSeatClock({
   {
     const ledger = adoptSeatTurnStart(
       { startMs: seatStartTimeRef.current, pausedMs: seatPausedMsRef.current, pauseStartMs: seatPauseStartRef.current },
-      seatLive.turnStartedAtMs,
+      isLoading || sendingSinceMs === null ? seatLive.turnStartedAtMs : sendingSinceMs,
       Date.now(),
     );
     seatStartTimeRef.current = ledger.startMs;
@@ -274,6 +276,7 @@ export function useChatStatusStrip({
   toolUseConfirmQueue,
   isLoading,
   isStopping,
+  sendingSinceMs,
   textActive,
   streamingSuppressed,
   isCompact,
@@ -290,6 +293,7 @@ export function useChatStatusStrip({
   toolUseConfirmQueue: ToolUseConfirm[];
   isLoading: boolean;
   isStopping: boolean;
+  sendingSinceMs: number | null;
   textActive: boolean;
   streamingSuppressed: boolean;
   isCompact: boolean;
@@ -344,7 +348,7 @@ export function useChatStatusStrip({
   }, [viewInProgressToolUseIDs, messages]);
   const spinnerSlotReserved = (!toolJSX || toolJSX.showSpinner === true) &&
     toolUseConfirmQueue.length === 0 &&
-    (isLoading || isStopping) &&
+    (isLoading || isStopping || sendingSinceMs !== null) &&
     !onlySleepToolActive;
   const showSpinner = spinnerSlotReserved && (
     !textActive || streamingSuppressed

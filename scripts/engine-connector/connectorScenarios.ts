@@ -763,6 +763,7 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
     h.workers({ lastTurnSettledAt: clock.now(), lastDeliveryAt: clock.now() - 40 })
     await h.facts({ busy: false, runnerGeneration: 1 })
     await h.rereadFacts()
+    await h.call('sendingSinceMs')
   })
 
   await scenario('send-queued-then-recalled', async h => {
