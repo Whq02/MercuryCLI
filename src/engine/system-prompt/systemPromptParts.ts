@@ -119,7 +119,6 @@ export async function buildSideQuestionFallbackParams(input: ForkInputs): Promis
     messages: forkContextMessages,
     setResponseLength: () => {},
     updateFileHistoryState: () => {},
-    updateAttributionState: () => {},
   }
 
   return {

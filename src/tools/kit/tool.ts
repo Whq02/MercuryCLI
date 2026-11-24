@@ -268,7 +268,6 @@ export type ToolUseContext = ToolTerminalOptions & ToolCallChainCarrier & {
   setAppStateForTasks?: (f: (prev: AppState) => AppState) => void
   messages: Message[]
   updateFileHistoryState: (updater: (prev: FileHistoryState) => FileHistoryState) => void
-  updateAttributionState: (updater: (prev: any) => any) => void
   agentId?: AgentId
   agentType?: string
   agentKind?: 'crewmate'

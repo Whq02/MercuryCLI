@@ -1,5 +1,4 @@
 import { useCallback, useState } from 'react'
-import { useSetAppState } from '../../screen/app-state/AppState.js'
 import type { ToolUseConfirm } from './PermissionRequest.js'
 import { useOptionAmendments } from './useOptionAmendments.js'
 
@@ -25,7 +24,6 @@ export function useShellPermissionFeedback({
   onDone,
   onReject,
 }: ShellCardArgs): ShellPermissionFeedback {
-  const setAppState = useSetAppState()
   const { amendments, isRole, setText, toggle, collapseAwayFrom } = useOptionAmendments(AMENDABLE)
   const [focusedOption, setFocusedOption] = useState<string>('yes')
 
@@ -67,20 +65,11 @@ export function useShellPermissionFeedback({
     (feedback?: string) => {
       const trimmed = feedback?.trim()
       const normalized = trimmed && trimmed.length > 0 ? trimmed : undefined
-      if (normalized === undefined) {
-        setAppState(prev => ({
-          ...prev,
-          attribution: {
-            ...prev.attribution,
-            escapeCount: prev.attribution.escapeCount + 1,
-          },
-        }))
-      }
       toolUseConfirm.onReject(normalized)
       onReject()
       onDone()
     },
-    [setAppState, toolUseConfirm, onReject, onDone],
+    [toolUseConfirm, onReject, onDone],
   )
 
   return {

@@ -5,27 +5,18 @@ import { useClaim, useLayoutClaim, usePublish } from '../../screen/effects/effec
 import { useStdin } from '../../screen/themedRenderer.js'
 import { ScreenInstanceContext } from '../../screen/renderer/elements/InkInstanceContext.js'
 import { type InputEvent, markInputConsumedThroughCurrentSeq } from '../../screen/renderer/events/input-event.js'
-import { useSetAppState } from '../../screen/app-state/AppState.js'
 import { trySeedComposer } from '../../screen/cockpit/composerSeed.js'
 import type { ToolUseConfirm } from './PermissionRequest.js'
 import { startImmediate } from '../../platform/async/timers.js'
 
 export function usePermissionRequestLogging(toolUseConfirm: ToolUseConfirm, screen?: 'ChangeSetPermissionRequest' | 'MediaPermissionRequest'): void {
-  const setAppState = useSetAppState()
   const lastLoggedId = useRef<string | null>(null)
 
   usePublish(() => {
     if (lastLoggedId.current === toolUseConfirm.toolUseID) return
     lastLoggedId.current = toolUseConfirm.toolUseID
     if (screen) featureReached('screen', screen)
-    setAppState(prev => ({
-      ...prev,
-      attribution: {
-        ...prev.attribution,
-        permissionPromptCount: prev.attribution.permissionPromptCount + 1,
-      },
-    }))
-  }, [toolUseConfirm.toolUseID, screen, setAppState])
+  }, [toolUseConfirm.toolUseID, screen])
 }
 
 export function useKeysHeldUntilFirstPaint(): void {

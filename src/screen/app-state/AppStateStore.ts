@@ -19,7 +19,6 @@ import type { Notification } from '../notifications/notifications.js'
 import type { ElicitationRequestEvent } from '../../integrations/mcp/elicitationHandler.js'
 import type { ServerResource } from '../../integrations/mcp-shapes/mcpServerRecords.js'
 import type { RosterEntry, Health } from '../../integrations/extensions/types.js'
-import { createEmptyAttributionState, type AttributionState } from './commitAttribution.js'
 import type { PromptVariant } from '../prompt-suggestion/promptSuggestion.js'
 import type { TurnAnswerContext } from '../../engine/turn-entry/turnAnswerContext.js'
 import type { Store } from '../../platform/primitives/store.js'
@@ -169,7 +168,6 @@ type AppStateLiveHalf = {
   inbox: { messages: InboxMessage[] }
 
   fileHistory: FileHistoryState
-  attribution: AttributionState
 
   agentDefinitions: { activeAgents: AgentDefinition[]; allAgents: AgentDefinition[] }
   sessionHooks: SessionHooksState
@@ -256,7 +254,6 @@ export function getDefaultAppState(): AppState {
     inbox: { messages: [] },
 
     fileHistory: { snapshots: [], trackedFiles: new Set(), snapshotSequence: 0 },
-    attribution: createEmptyAttributionState(),
 
     agentDefinitions: { activeAgents: [], allAgents: [] },
     sessionHooks: new Map(),

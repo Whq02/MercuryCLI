@@ -14,7 +14,6 @@ import type {
   PersistedWorktreeSession,
   TranscriptMessage,
 } from './transcriptEntries.js'
-import type { AttributionSnapshotEntry } from './transcriptEntries.js'
 import type { Message } from '../../engine/message-shapes/message.js'
 import { storageRowPolicy } from '../../engine/rows/storage.js'
 import { SessionMeta, SESSION_META_COMPAT_FIELDS } from './sessionMeta.js'
@@ -295,12 +294,6 @@ export async function recordFileHistorySnapshot(
   )
 }
 
-export async function recordAttributionSnapshot(
-  snapshot: AttributionSnapshotEntry,
-): Promise<void> {
-  await getProject().insertAttributionSnapshot(snapshot)
-}
-
 export async function recordContentReplacement(
   replacements: ContentReplacementRecord[],
   agentId?: AgentId,
@@ -501,10 +494,6 @@ class Project {
 
   async insertQueueOperation(queueOp: QueueOperationMessage): Promise<void> {
     await this.insertTracked(queueOp)
-  }
-
-  async insertAttributionSnapshot(snapshot: AttributionSnapshotEntry): Promise<void> {
-    await this.insertTracked(snapshot)
   }
 
   async insertContentReplacement(

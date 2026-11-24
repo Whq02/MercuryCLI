@@ -59,12 +59,6 @@ export function contextBuilder({ config, thinkingConfig, turnId, abortController
         return next === prev.fileHistory ? prev : { ...prev, fileHistory: next }
       })
     },
-    updateAttributionState: updater => {
-      config.setAppState(prev => {
-        const next = updater(prev.attribution)
-        return next === prev.attribution ? prev : { ...prev, attribution: next }
-      })
-    },
     handleElicitation: config.handleElicitation,
     setSDKStatus: config.setSDKStatus,
     takeModeNotice: config.takeModeNotice,

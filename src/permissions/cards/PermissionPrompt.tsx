@@ -3,7 +3,6 @@ import { Box, Text } from '../../screen/themedRenderer.js'
 import { Select, type OptionWithDescription } from '../../screen/select/Select.js'
 import { useKeybindings } from '../../screen/keys/useKeybinding.js'
 import type { KeybindingAction } from '../../screen/keys/types.js'
-import { useSetAppStateMaybe } from '../../screen/app-state/AppState.js'
 
 export type PermissionPromptOption<T extends string> = {
   value: T
@@ -40,7 +39,6 @@ export function PermissionPrompt<T extends string>({
   const [acceptInputMode, setAcceptInputMode] = useState(false)
   const [rejectInputMode, setRejectInputMode] = useState(false)
   const [focusedValue, setFocusedValue] = useState<T | undefined>(options[0]?.value)
-  const setAppState = useSetAppStateMaybe()
 
   const focusedOption = options.find(opt => opt.value === focusedValue) ?? options[0]
   const focusedFeedbackType = focusedOption?.feedbackConfig?.type
@@ -61,13 +59,6 @@ export function PermissionPrompt<T extends string>({
   }
 
   function handleCancel(): void {
-    setAppState?.(prev => ({
-      ...prev,
-      attribution: {
-        ...prev.attribution,
-        escapeCount: prev.attribution.escapeCount + 1,
-      },
-    }))
     onCancel?.()
   }
 

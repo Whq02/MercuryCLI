@@ -115,8 +115,6 @@ export function useChatSubmitTools({ store, setAppState, addNotification, remove
         openMessageSelector: () => setShowMessageSelector(true),
         updateFileHistoryState: (updater: (prev: AppState['fileHistory']) => AppState['fileHistory']) =>
           setAppState(prev => ({ ...prev, fileHistory: updater(prev.fileHistory) })),
-        updateAttributionState: (updater: (prev: AppState['attribution']) => AppState['attribution']) =>
-          setAppState(prev => ({ ...prev, attribution: updater(prev.attribution) })),
         setConversationId: (id: UUID) => setConversationId(id),
         messages: currentMessages.concat(newMessages),
         setMessages: (updater: (prev: Message[]) => Message[]) => {

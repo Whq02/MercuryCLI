@@ -255,7 +255,6 @@ export function createChildContext(
     setSDKStatus: overrides?.setSDKStatus,
     setResponseLength,
     updateFileHistoryState: () => {},
-    updateAttributionState: parentContext.updateAttributionState,
     messages: overrides?.messages ?? parentContext.messages,
     agentId: overrides?.agentId ?? createAgentId(),
     agentType: overrides?.agentType,

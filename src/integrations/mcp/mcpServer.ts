@@ -148,7 +148,6 @@ export async function startMCPServer(
       setAppState: () => {},
       setResponseLength: () => {},
       updateFileHistoryState: () => {},
-      updateAttributionState: () => {},
       messages: [],
       readFileState,
     }

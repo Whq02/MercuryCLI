@@ -136,7 +136,6 @@ export class AsksPart {
       messages: this.needs.rows(),
       setResponseLength: () => {},
       updateFileHistoryState: () => {},
-      updateAttributionState: () => {},
     }
   }
 

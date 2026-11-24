@@ -20,7 +20,6 @@ export {
   adoptResumedSessionFile,
   advisorSwitchOfSession,
   flushSessionStorage,
-  recordAttributionSnapshot,
   recordContentReplacement,
   recordContextCollapseCommit,
   recordContextCollapseSnapshot,

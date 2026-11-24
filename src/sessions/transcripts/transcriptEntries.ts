@@ -2,7 +2,7 @@ import type { UUID } from 'crypto'
 import type { Message } from '../../engine/message-shapes/message.js'
 import type { ContentReplacementRecord } from '../../engine/tool-dispatch/toolResultStorage.js'
 import type { FileHistorySnapshot } from './fileHistory.js'
-import type { FileAttribution, StorageRowKind, StorageRowOf, StoredRow, WorktreeBinding } from '../../engine/rows/storage.js'
+import type { StorageRowKind, StorageRowOf, StoredRow, WorktreeBinding } from '../../engine/rows/storage.js'
 
 type Flattened<T> = { [K in keyof T]: T[K] }
 type StoredPayload<K extends StorageRowKind> = Flattened<StorageRowOf<K>>
@@ -17,7 +17,6 @@ type ChainAuthor = Partial<Record<'agentId' | 'agentName' | 'agentColor' | 'prom
 export type TranscriptMessage = SerializedMessage & ChainLinks & ChainAuthor
 
 export type PersistedWorktreeSession = Flattened<WorktreeBinding>
-export type FileAttributionState = Flattened<FileAttribution>
 export type ContentReplacementEntry = StoredPayload<'content-replacement'>
 export type FileHistorySnapshotEntry = StoredPayload<'file-history-snapshot'>
 export type AttributionSnapshotEntry = StoredPayload<'attribution-snapshot'>
