@@ -76,11 +76,6 @@ export function setPathTrusted(dir: string): void {
   })
 }
 
-export function isProjectScopeTrustAccepted(): boolean {
-  return checkHasTrustDialogAccepted()
-}
-
-
 export type PermissionPostureRecord = NonNullable<
   import('./schema.js').ProjectConfig['permissionPosture']
 >

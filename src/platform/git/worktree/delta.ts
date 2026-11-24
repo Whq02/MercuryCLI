@@ -82,11 +82,6 @@ export function deltaBlocksSettlement(delta: WorktreeDelta): boolean {
   )
 }
 
-export async function hasWorktreeChanges(worktreePath: string, headCommit: string): Promise<boolean> {
-  const delta = await readWorktreeDelta(worktreePath, headCommit)
-  return deltaBlocksSettlement(delta)
-}
-
 type WorktreeRemovalVerdict =
   | { safe: true }
   | { safe: false; state: 'uncommitted' | 'unreachable' | 'unowned'; detail: string }

@@ -900,7 +900,7 @@ async function removeCrewmateWorktree(worktreePath: string, worktreeBranch?: str
 }
 
 
-export { classifyPorcelainRecords, hasWorktreeChanges, readWorktreeDelta, worktreeRemovalSafe } from './delta.js'
+export { classifyPorcelainRecords, readWorktreeDelta, worktreeRemovalSafe } from './delta.js'
 
 
 const CREWMATE_LANE_HEX_SLUG = /^agent-a[0-9a-f]{7,32}$/

@@ -235,8 +235,6 @@ export function noteConfigLocklessFallback(): void {
   configLocklessFallbackCount += 1
 }
 
-export const CONFIG_WRITE_DISPLAY_THRESHOLD = 20
-
 type ConfigFieldShape = 'boolean' | 'number' | 'string' | 'list' | 'object'
 
 export type GlobalConfigFieldDrop = { field: string; expected: ConfigFieldShape; found: string }

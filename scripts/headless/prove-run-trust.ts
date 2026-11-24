@@ -36,9 +36,9 @@ for (const trusted of [false, true]) {
     const code = await new Promise<number | null>(resolve => child.on('close', resolve))
     check(`${trusted ? 'trusted' : 'untrusted'} run completes without a trust prompt`, code === 0 && out.trim() === 'The trust turn completed.', JSON.stringify({ code, out, err }), 'a headless run must finish with exit 0 and print only the answer, trusted or not; see the workspace trust checks in src/platform/config/trust.ts (untrustedWorkspaceHeadless) and what the err text names')
     const instructions = JSON.stringify(api.messageRequests().map(request => request.body)).includes('PROJECT_INSTRUCTION_MARKER')
-    check(`${trusted ? 'trusted' : 'untrusted'} project instructions follow the trust grant`, instructions === trusted, String(instructions), 'load MERCURY.md into the request only when the workspace is trusted; the trust grant is read in src/platform/config/trust.ts (isPathTrusted, isProjectScopeTrustAccepted)')
-    check(`${trusted ? 'trusted' : 'untrusted'} project hooks follow the trust grant`, existsSync(hookMark) === trusted, '', 'run project hooks from .mercury/settings.json only when the workspace is trusted; the trust grant is read in src/platform/config/trust.ts (isPathTrusted, isProjectScopeTrustAccepted)')
-    check(`${trusted ? 'trusted' : 'untrusted'} project MCP follows the trust grant`, existsSync(mcpMark) === trusted, '', 'start project MCP servers from .mercury/mcp.json only when the workspace is trusted; the trust grant is read in src/platform/config/trust.ts (isPathTrusted, isProjectScopeTrustAccepted)')
+    check(`${trusted ? 'trusted' : 'untrusted'} project instructions follow the trust grant`, instructions === trusted, String(instructions), 'load MERCURY.md into the request only when the workspace is trusted; the trust grant is read in src/platform/config/trust.ts (isPathTrusted)')
+    check(`${trusted ? 'trusted' : 'untrusted'} project hooks follow the trust grant`, existsSync(hookMark) === trusted, '', 'run project hooks from .mercury/settings.json only when the workspace is trusted; the trust grant is read in src/platform/config/trust.ts (isPathTrusted)')
+    check(`${trusted ? 'trusted' : 'untrusted'} project MCP follows the trust grant`, existsSync(mcpMark) === trusted, '', 'start project MCP servers from .mercury/mcp.json only when the workspace is trusted; the trust grant is read in src/platform/config/trust.ts (isPathTrusted)')
   } finally {
     clearTimeout(timer)
     await api.close()

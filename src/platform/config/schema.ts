@@ -20,12 +20,6 @@ export type PastedContent = {
   dimensions?: ImageDimensions
   sourcePath?: string
 }
-
-export type SerializedStructuredHistoryEntry = {
-  display: string
-  pastedContents?: Record<number, PastedContent>
-}
-
 export type HistoryEntry = {
   display: string
   pastedContents: Record<number, PastedContent>
@@ -323,14 +317,4 @@ export const GLOBAL_CONFIG_KEYS = [
   'agents',
 ] as const satisfies readonly (keyof GlobalConfig)[]
 
-export type GlobalConfigKey = (typeof GLOBAL_CONFIG_KEYS)[number]
 export const isGlobalConfigKey = keyGuard(GLOBAL_CONFIG_KEYS)
-
-export const PROJECT_CONFIG_KEYS = [
-  'allowedTools',
-  'hasTrustDialogAccepted',
-  'hasCompletedProjectOnboarding',
-] as const satisfies readonly (keyof ProjectConfig)[]
-
-export type ProjectConfigKey = (typeof PROJECT_CONFIG_KEYS)[number]
-export const isProjectConfigKey = keyGuard(PROJECT_CONFIG_KEYS)
