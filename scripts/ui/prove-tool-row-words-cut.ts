@@ -118,5 +118,15 @@ async function paint(node: React.ReactNode, width = 160): Promise<string> {
     JSON.stringify(screenText),
   )
 }
+
+{
+  const { renderRecallResult } = await import('../../src/tools/memory/rows.tsx')
+  const screenText = (await paint(renderRecallResult({ kind: 'search', query: 'nothing', pointers: [] } as never))).replace(/^└\s*/, '')
+  check(
+    'K-34 Recall empty search row reads no memory matched',
+    screenText === 'no memory matched',
+    JSON.stringify(screenText),
+  )
+}
 console.log(`\ntool-row-words-cut: ${failures} failure(s)`)
 process.exit(failures ? 1 : 0)
