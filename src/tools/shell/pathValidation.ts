@@ -398,6 +398,18 @@ function extractJqOperands(args: string[]): string[] {
   return operands
 }
 
+const SED_LONG_OPTIONS_BEFORE_THE_SCRIPT: ReadonlySet<string> = new Set([
+  '--in-place',
+  '--quiet',
+  '--silent',
+  '--regexp-extended',
+  '--debug',
+  '--follow-symlinks',
+  '--separate',
+  '--unbuffered',
+  '--zero-terminated',
+])
+
 function extractSedOperands(args: string[]): string[] {
   const operands: string[] = []
   let scriptSeen = false
@@ -423,6 +435,7 @@ function extractSedOperands(args: string[]): string[] {
         if (args[i + 1] !== undefined) i++
         continue
       }
+      if (SED_LONG_OPTIONS_BEFORE_THE_SCRIPT.has(arg) || arg.startsWith('--in-place=')) continue
       if (/[ef]/.test(arg)) scriptSeen = true
       continue
     }
