@@ -3,10 +3,6 @@
   "TURNS_BETWEEN_REMINDERS": 10,
   "TURNS_SINCE_WRITE": 10
  },
- "FLOW_ATTACHMENT_CONFIG/value": {
-  "FULL_REMINDER_EVERY_N_ATTACHMENTS": 5,
-  "TURNS_BETWEEN_ATTACHMENTS": 5
- },
  "extractAtMentionedFiles/samples": [
   [
    "src/utils/messages.ts"

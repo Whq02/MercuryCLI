@@ -136,4 +136,3 @@ export type HookAttachment = AttachmentRow<'hook'>
 export const HOOK_ROW_OUTCOMES = ['context', 'block', 'stop', 'notice', 'failed', 'text'] as const
 export type HookRowOutcome = (typeof HOOK_ROW_OUTCOMES)[number]
 export const TASK_REMINDER_CONFIG = { TURNS_SINCE_WRITE: 10, TURNS_BETWEEN_REMINDERS: 10 } as const
-export const FLOW_ATTACHMENT_CONFIG = { TURNS_BETWEEN_ATTACHMENTS: 5, FULL_REMINDER_EVERY_N_ATTACHMENTS: 5 } as const
