@@ -10,6 +10,7 @@ import { getFileModificationTime, stripLineNumberPrefix } from '../../platform/f
 import { isENOENT } from '../../platform/errors/errors.js'
 import { getErrnoCode } from '../../platform/errors/errors.js'
 import { expandPath } from '../../platform/files/path.js'
+import { isRecord } from '../../platform/primitives/isRecord.js'
 
 const DEFAULT_EXTRACT_CACHE_SIZE = 10
 const SYSTEM_REMINDER_PATTERN = /<system-reminder>[\s\S]*?<\/system-reminder>/g
@@ -17,10 +18,6 @@ const SYSTEM_REMINDER_PATTERN = /<system-reminder>[\s\S]*?<\/system-reminder>/g
 type WriteRecord = {
   path: string
   content: string
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function parseTimestamp(timestamp: string | undefined): number | null {

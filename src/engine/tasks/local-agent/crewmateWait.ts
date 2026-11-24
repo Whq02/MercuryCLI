@@ -1,4 +1,4 @@
-
+import { isRecord } from '../../../platform/primitives/isRecord.js'
 type CrewmateWaitPhase =
   | 'request-sent'
   | 'first-byte'
@@ -47,8 +47,6 @@ function retryReasonOf(event: StreamEventLike): string {
   if (/connection|socket|ECONN|EPIPE|fetch failed|timed? ?out/i.test(message)) return 'a connection fault'
   return 'a provider fault'
 }
-
-const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null
 
 function decodeWait(raw: unknown): { kind: 'first-byte'; budgetMs: number; sinceMs?: number } | { kind: 'retry'; delayMs: number; reason?: string; attempt?: number; of?: number; sinceMs?: number } | null {
   if (!isRecord(raw)) return null
