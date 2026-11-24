@@ -59,6 +59,7 @@ const assist = {
   bareRefusals: 0,
   detailedRefusals: 0,
   overflowRefusals: 0,
+  notFoundRefusals: 0,
   windowTokens: 0,
   charsPerToken: 3.4,
   chatBodies: [] as Array<Record<string, unknown>>,
@@ -212,6 +213,10 @@ const assistServer = Bun.serve({
       if (assist.generateStatus !== 200) return Response.json({ error: { code: assist.generateStatus, message: assist.generateStatus === 429 ? 'Resource has been exhausted (e.g. check quota). Please retry after the reset.' : 'fixture refusal', status: assist.generateStatus === 429 ? 'RESOURCE_EXHAUSTED' : 'PERMISSION_DENIED' } }, { status: assist.generateStatus })
       if (assist.generateError) return new Response(sse({ error: assist.generateError }), { headers: { 'content-type': 'text/event-stream' } })
       assist.chatBodies.push(entry.body ?? {})
+      if (assist.notFoundRefusals > 0) {
+        assist.notFoundRefusals -= 1
+        return Response.json({ error: { code: 404, message: 'Requested entity was not found.', status: 'NOT_FOUND' } }, { status: 404 })
+      }
       if (assist.bareRefusals > 0) {
         assist.bareRefusals -= 1
         return Response.json({ error: { code: 400, message: 'Request contains an invalid argument.', status: 'INVALID_ARGUMENT' } }, { status: 400 })
@@ -399,6 +404,33 @@ try {
   check('a bare id no roster read brings: one chat, one re-read, then the 404 words — no retry', noneChats === 1 && assist.rosterReads === readsBeforeNone + 1 && JSON.stringify(noneReplies.find(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage)?.message ?? '').includes("Google serves no model 'gemini-9-nope' to this Google sign-in (HTTP 404)"), JSON.stringify({ chats: noneChats, reads: assist.rosterReads - readsBeforeNone }))
   assist.lateRows = {}
   await catalogue.refreshGeminiCatalogue('plan', { force: true })
+  console.log('── a stray 404 on a model that already answered in this session rides the busy retry ladder; a model that never answered still refuses at once ──')
+  {
+    const { BUSY_RETRY_RUNGS_MS } = await import('../../src/models/roads/busyRetry.ts')
+    process.env.MERCURY_BUSY_RETRY_SCALE = '0.005'
+    try {
+      const neverStart = requests.length
+      const neverReplies = await driveRoad('gemini-9-unlisted', false)
+      const neverChats = requests.slice(neverStart).filter(r => r.host === 'assist' && r.path === '/v1internal:streamGenerateContent?alt=sse').length
+      check('404 on a model that never answered and is not on the roster: refuses at once with serves no model (1 chat request)', neverChats === 1 && JSON.stringify(neverReplies.find(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage)?.message ?? '').includes("Google serves no model 'gemini-9-unlisted' to this Google sign-in (HTTP 404)"), JSON.stringify({ chats: neverChats }))
+
+      assist.notFoundRefusals = 1
+      const strayStart = requests.length
+      const strayReplies = await driveRoad('gemini-4-neon', false)
+      const strayChats = requests.slice(strayStart).filter(r => r.host === 'assist' && r.path === '/v1internal:streamGenerateContent?alt=sse').length
+      check('a stray 404 (Requested entity was not found.) on a model that already answered retries on the busy ladder and lands the answer without serves no model', strayChats === 2 && strayReplies.some(m => m.type === 'assistant' && !(m as { isApiErrorMessage?: boolean }).isApiErrorMessage) && !strayReplies.some(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage) && !JSON.stringify(strayReplies).includes('serves no model'), JSON.stringify({ chats: strayChats, error: strayReplies.find(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage)?.message }))
+
+      assist.notFoundRefusals = BUSY_RETRY_RUNGS_MS.length + 5
+      const spentStart = requests.length
+      const spentReplies = await driveRoad('gemini-4-neon', false)
+      const spentChats = requests.slice(spentStart).filter(r => r.host === 'assist' && r.path === '/v1internal:streamGenerateContent?alt=sse').length
+      const spentWords = JSON.stringify(spentReplies.find(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage)?.message ?? '')
+      check('a persistent 404 on a model that already answered spends the busy ladder tries (1 + 6) and only then says serves no model with the wire text', spentChats === 1 + BUSY_RETRY_RUNGS_MS.length && spentWords.includes("Google serves no model 'gemini-4-neon' to this Google sign-in (HTTP 404)") && spentWords.includes('Requested entity was not found.'), JSON.stringify({ chats: spentChats, expected: 1 + BUSY_RETRY_RUNGS_MS.length, words: spentWords.slice(0, 300) }))
+    } finally {
+      assist.notFoundRefusals = 0
+      delete process.env.MERCURY_BUSY_RETRY_SCALE
+    }
+  }
 
   console.log('── a long history survives: thirty signed tool rounds, a refusal row, a resume message and more rounds ride as recorded — no placeholder, no synthetic row, every call paired; a refusal in flight is retried once with plain function calling, then said ──')
   const longHistory: unknown[] = [{ type: 'user', uuid: randomUUID(), timestamp: new Date().toISOString(), message: { role: 'user', content: 'Work the lane.' } }]

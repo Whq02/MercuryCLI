@@ -164,6 +164,7 @@ export interface CompatFault {
   retryable: boolean
   silentMs?: number
   inStream?: true
+  busyLadder?: true
   status?: number
   parameter?: string
   errorType?: string

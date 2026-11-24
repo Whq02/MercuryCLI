@@ -26,8 +26,8 @@ export function isBusyRefusal(fault: { code: string; status?: number; retryable:
   return word !== fault.code && BUSY_WORD.test(word)
 }
 
-export function takesBusyLadder(fault: { code: string; status?: number; retryable: boolean; inStream?: true }): boolean {
-  return fault.retryable && (isBusyRefusal(fault) || isTemporaryStreamFault(fault))
+export function takesBusyLadder(fault: { code: string; status?: number; retryable: boolean; inStream?: true; busyLadder?: true }): boolean {
+  return fault.retryable && (fault.busyLadder === true || isBusyRefusal(fault) || isTemporaryStreamFault(fault))
 }
 
 export interface BusyRetryLadder {

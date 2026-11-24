@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto'
 import { geminiApiBase, resolveGeminiAccount, resolveGeminiRequestAuth } from './geminiAccounts.js'
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { geminiEffortVocabularyFor, geminiOutputTokenLimitFor, geminiPlanRosterKin, geminiPlanRosterKinWords, geminiPlanWireModel, refreshGeminiCatalogue, type GeminiPlanRosterKin } from './geminiCatalogue.js'
+import { geminiLaneModelsByLastUse } from './geminiPlanQuota.js'
 import { clearGeminiUsageLimit, recordGeminiRateHeaders } from './geminiUsageState.js'
 import type { CompatStreamEvent } from '../openaicompat/compatChatClient.js'
 import { geminiPlanStreamUrl, streamGeminiContent, type GeminiPlanWire } from './geminiClient.js'
@@ -195,9 +196,23 @@ async function* geminiPlanCallModel(params: CallModelParams): CallModelStream {
       const fitted = fit?.tokens ?? capped
       const request = fitted === undefined ? options.request : { ...options.request, extra: { ...options.request.extra, max_tokens: fitted } }
       const upstream = streamGeminiContent({ ...options, request, messages, plan, onTurn: item => { turn = item } })
+      const answeredInSession = (): boolean => {
+        const wanted = model.toLowerCase()
+        const wantedWire = wireOf(model).toLowerCase()
+        return geminiLaneModelsByLastUse().some(used => {
+          const lower = used.toLowerCase()
+          return lower === wanted || wireOf(used).toLowerCase() === wantedWire
+        })
+      }
       async function* observed(): AsyncGenerator<CompatStreamEvent> {
         for await (const event of upstream) {
-          if (event.type === 'stream-fault') wireSaid = event.fault.message ? `${event.fault.code}: ${event.fault.message}` : event.fault.code
+          if (event.type === 'stream-fault') {
+            wireSaid = event.fault.message ? `${event.fault.code}: ${event.fault.message}` : event.fault.code
+            if (event.fault.status === 404 && answeredInSession()) {
+              yield { type: 'stream-fault', fault: { ...event.fault, retryable: true, busyLadder: true } }
+              continue
+            }
+          }
           yield event
         }
       }

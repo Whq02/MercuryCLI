@@ -462,6 +462,7 @@ export type RetryFault = {
   retryAfterMs?: number
   outage?: OutageCause
   inStream?: true
+  busyLadder?: true
   silentMs?: number
 }
 
