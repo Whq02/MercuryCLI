@@ -56,9 +56,6 @@ const REJECTED_KEY_NAMES = new Set<string>([
   'f12',
 ])
 
-const prevWordStart = (text: string, at: number): number => wordStartBefore(text, at)
-const nextWordEnd = (text: string, at: number): number => wordStartAfter(text, at)
-
 function consume(e: KeyboardEvent): void {
   e.preventDefault()
   e.stopPropagation()
@@ -123,7 +120,7 @@ function handleKillOrYank(e: KeyboardEvent, ctx: SearchDispatchContext): boolean
     consume(e)
     const q = queryRef.current
     const c = cursorRef.current
-    const start = prevWordStart(q, c)
+    const start = wordStartBefore(q, c)
     const killed = q.slice(start, c)
     if (killed.length > 0) {
       pushKill(kr, killed, 'prepend')
@@ -170,14 +167,14 @@ function handleNavigation(e: KeyboardEvent, ctx: SearchDispatchContext): boolean
   if (((e.ctrl || e.meta || e.fn) && k === 'left') || (e.meta && !e.ctrl && lower === 'b')) {
     resetKillAndYank(kr)
     consume(e)
-    applyEdit(queryRef.current, prevWordStart(queryRef.current, cursorRef.current))
+    applyEdit(queryRef.current, wordStartBefore(queryRef.current, cursorRef.current))
     return true
   }
 
   if (((e.ctrl || e.meta || e.fn) && k === 'right') || (e.meta && !e.ctrl && lower === 'f')) {
     resetKillAndYank(kr)
     consume(e)
-    applyEdit(queryRef.current, nextWordEnd(queryRef.current, cursorRef.current))
+    applyEdit(queryRef.current, wordStartAfter(queryRef.current, cursorRef.current))
     return true
   }
 
@@ -292,7 +289,7 @@ function processSearchKey(e: KeyboardEvent, ctx: SearchDispatchContext): void {
     consume(e)
     const q = queryRef.current
     const c = cursorRef.current
-    const end = nextWordEnd(q, c)
+    const end = wordStartAfter(q, c)
     if (end > c) {
       applyEdit(q.slice(0, c) + q.slice(end), c)
     }
