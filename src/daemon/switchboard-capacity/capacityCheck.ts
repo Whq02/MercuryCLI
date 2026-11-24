@@ -389,10 +389,6 @@ function operatorSeatsOf(decision: CapacityDecision | undefined): number | null 
   return typeof n === 'number' && Number.isFinite(n) && n >= 1 ? Math.floor(n) : null
 }
 
-export function operatorSeatsStored(): number | null {
-  return operatorSeatsOf(isConfigReadingAllowed() ? getGlobalConfig().switchboardCapacity : undefined)
-}
-
 export function seatCeilingFacts(): SeatCeilingFacts {
   const decision = isConfigReadingAllowed() ? getGlobalConfig().switchboardCapacity : undefined
   const operator = operatorSeatsOf(decision)

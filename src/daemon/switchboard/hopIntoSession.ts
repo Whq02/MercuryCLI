@@ -303,41 +303,6 @@ async function admitResumedSession(
   return { ok: true, title, admitted, refusal }
 }
 
-type CloseOutcome =
-  | { ok: true; closed: boolean; sessionId: string | null; fate: 'parked' | 'draining' | 'released' | 'ended' | 'none' }
-  | { ok: false; reason: string }
-
-export async function closeFocusedChat(opts: { fate: 'park' | 'end' }): Promise<CloseOutcome> {
-  const slot = await import('../../engine/connector/focusedConnector.js')
-  if (!slot.hasFocusedSession()) return { ok: true, closed: false, sessionId: null, fate: 'none' }
-  const sessionId = slot.getFocusedSessionConnector().sessionId()
-  let fate: Extract<CloseOutcome, { ok: true }>['fate'] = 'none'
-  const workers = await import('../concourse-workers/concourseWorkers.js')
-  const rec = Object.values(workers.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
-  if (rec !== undefined) {
-    try {
-      const { daemonControlRpc } = await import('../control/controlSocket.js')
-      if (opts.fate === 'end') {
-        await daemonControlRpc({ op: 'sessionControl', action: 'stop', sessionId, by: 'operator' }, { timeoutMs: 15_000 })
-        const released = await daemonControlRpc({ op: 'sessionRelease', runnerId: rec.runnerId }, { timeoutMs: 15_000 })
-        if (released.ok === true && released.settled !== false) fate = 'ended'
-      } else {
-        const parked = await daemonControlRpc(
-          { op: 'sessionControl', action: 'park', sessionId, by: `operator:${process.pid}` },
-          { timeoutMs: 15_000 },
-        )
-        if (parked.ok === true) {
-          fate = parked.outcome === 'draining' ? 'draining' : parked.outcome === 'applied' && (parked.detail ?? '').startsWith('released') ? 'released' : parked.outcome === 'applied' || parked.outcome === 'noop' ? 'parked' : 'none'
-        }
-      }
-    } catch (error) {
-      passedOver(error)
-    }
-  }
-  slot.releaseFocusedSessionConnector()
-  return { ok: true, closed: true, sessionId, fate }
-}
-
 export async function clearFocusedSession(): Promise<{ ok: true; cleared: boolean } | { ok: false; reason: string }> {
   const slot = await import('../../engine/connector/focusedConnector.js')
   if (!slot.hasFocusedSession()) return { ok: true, cleared: false }

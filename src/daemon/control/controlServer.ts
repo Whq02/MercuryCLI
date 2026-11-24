@@ -301,10 +301,6 @@ function planeTakeRefusal(): string | null {
 
 let answering = 0
 
-export function requestsBeingAnswered(): number {
-  return answering
-}
-
 export async function startControlServer(
   deps: ControlServerDeps,
   opts: { socketPath?: string } = {},

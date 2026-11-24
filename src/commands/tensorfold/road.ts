@@ -13,7 +13,7 @@ import type { TensorFoldInventoryRow } from '../../models/tensorfold/inventory.j
 import { TensorFoldPullError, pullTensorFold, readHubRepo, stopTensorFoldPull, type PullIo } from '../../models/tensorfold/pull.js'
 import { rowOfCheckpoint } from '../../models/tensorfold/inventory.js'
 import { cachedTensorFoldMachineTruth } from '../../models/tensorfold/engine.js'
-import { TensorFoldStartError, readServedRecord, startTensorFold, stopTensorFold, tensorFoldExit, type ServeIo, type TensorFoldServedByEngine } from '../../models/tensorfold/serve.js'
+import { TensorFoldStartError, readServedRecord, startTensorFold, stopTensorFold, type ServeIo, type TensorFoldServedByEngine } from '../../models/tensorfold/serve.js'
 import { ADAPTER_ENGINE_WORDS, llamaCppWords, servedByAdapter } from '../../models/tensorfold/adapter/identity.js'
 import { readTensorFoldSupportLine, type TensorFoldSupportFocus } from '../../models/roads/local/tensorfoldSupport.js'
 import { subscribeHostRecords } from '../../models/hosting/store.js'
@@ -318,10 +318,4 @@ export async function readOtherCheckpoint(input: string, io: RoadIo = {}): Promi
   const machine = await cachedTensorFoldMachineTruth(io.serve ?? {})
   const row = rowOfCheckpoint(outcome.checkpoint, machine, { onDisk: false, bytesOnDisk: 0, drafterOnDisk: true })
   setOtherCheckpoint({ input, read: row })
-}
-
-export function noteTensorFoldExit(io: Pick<ServeIo, 'servedFile'> = {}): TensorFoldAct | undefined {
-  const exit = tensorFoldExit(io)
-  if (exit === null) return undefined
-  return { kind: 'exited', name: '', port: 0, line: exit.line }
 }
