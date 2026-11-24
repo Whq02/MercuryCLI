@@ -175,14 +175,6 @@ export function togetherCatalogueRows(env: NodeJS.ProcessEnv = hostEnv()): { row
   return { rows, source: { kind: 'live', count: rows.length, otherKinds: snapshot.otherKinds, fetchedAtMs: snapshot.fetchedAtMs } }
 }
 
-export function togetherCatalogueSourceWords(env: NodeJS.ProcessEnv = hostEnv()): string | undefined {
-  const snapshot = getCachedTogetherCatalogue(env)
-  const { source } = togetherCatalogueRows(env)
-  if (source.kind === 'pins') return `pinned list — ${snapshot?.lastError ? `the live list could not be read: ${snapshot.lastError}` : 'the live list returned no chat models'}`
-  if (snapshot?.lastError) return snapshot.lastError
-  return source.kind === 'live' ? `${source.count} chat ${source.count === 1 ? 'model' : 'models'} live${source.otherKinds > 0 ? ` · ${source.otherKinds} image, video, audio and other rows not listed` : ''}` : undefined
-}
-
 export function togetherContextWindowFor(model: string, env: NodeJS.ProcessEnv = hostEnv()): number | undefined {
   return togetherListedModel(getCachedTogetherCatalogue(env), model)?.contextLength ?? togetherDisplayPin(model)?.contextWindow
 }
