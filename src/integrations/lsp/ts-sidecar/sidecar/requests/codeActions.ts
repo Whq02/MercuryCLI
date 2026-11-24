@@ -111,8 +111,14 @@ export function codeActionRequest(params: unknown, docContext: DocContext): unkn
     if (Object.values(edit.changes).every(list => list.length === 0)) continue
     actions.push({ title: source.title, kind: source.kind, edit })
   }
-  if (wanted('refactor')) {
-    const requestedKind = only?.find(o => o.startsWith('refactor.'))
+  const wantsRefactor =
+    wanted('refactor') || (only?.some(o => o.startsWith('refactor.')) ?? false)
+  if (wantsRefactor) {
+    const refactorOnly = only?.filter(o => o === 'refactor' || o.startsWith('refactor.'))
+    const requestedKind =
+      refactorOnly && refactorOnly.length === 1 && refactorOnly[0]!.startsWith('refactor.')
+        ? refactorOnly[0]
+        : undefined
     const refactors = project.service.getApplicableRefactors(
       file,
       start === end ? start : { pos: start, end },
