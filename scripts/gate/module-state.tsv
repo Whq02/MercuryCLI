@@ -2998,9 +2998,7 @@ src/platform/config/projectConfig.ts	getProjectPathForConfig	process	module	memo
 src/platform/config/schema.ts	DEFAULT_GLOBAL_CONFIG	process	module	immutable default global config template
 src/platform/config/schema.ts	DEFAULT_PROJECT_CONFIG	process	module	immutable default project config template
 src/platform/config/schema.ts	GLOBAL_CONFIG_KEYS	process	module	immutable list of allowed global config keys
-src/platform/config/schema.ts	PROJECT_CONFIG_KEYS	process	module	immutable list of allowed project config keys
 src/platform/config/schema.ts	isGlobalConfigKey	process	module	immutable key membership predicate closed over constant Set
-src/platform/config/schema.ts	isProjectConfigKey	process	module	immutable key membership predicate closed over constant Set
 src/platform/config/trust.ts	_trustAccepted	process	module	Workspace trust status retained in the process for the current project
 src/platform/config/trust.ts	resetTrustDialogAcceptedCacheForTesting	reset-export
 src/platform/editor/externalEditor.ts	EDITOR_CANDIDATES	process	module	Load-time list with no local writer
@@ -5572,7 +5570,6 @@ src/tools/skill/rows.tsx	EMPTY_SET	process	module	Load-time lookup with no local
 src/tools/sleep/SleepTool.tsx	SleepTool	process	module	Load-time definition shared by all callers
 src/tools/sleep/SleepTool.tsx	TERMINAL_TASK_STATUSES	process	module	Load-time lookup with no local writer
 src/tools/sleep/SleepTool.tsx	TRACKED_CREWMATE_TASK_TYPES	process	module	Load-time lookup with no local writer
-src/tools/sleep/SleepTool.tsx	UNTRACKED_TASK_TYPES	process	module	Load-time lookup with no local writer
 src/tools/sleep/SleepTool.tsx	WAITER_OWN_TASK_TYPES	process	module	Load-time lookup with no local writer
 src/tools/sleep/SleepTool.tsx	inputSchema	process	module	Load-time definition shared by all callers
 src/tools/sleep/SleepTool.tsx	outputSchema	process	module	Load-time definition shared by all callers
