@@ -305,6 +305,12 @@ section('I. go: the argv, the run road through a stand-in go on a scratch PATH, 
     const subRun = profile ? await runners.runRunnerProfile(profile, { from: root, selection: 'TestTable/two', selectionKind: 'node' }) : null
     const subArgv = JSON.parse(readFileSync(argvFile, 'utf8')) as string[]
     check('I4b selecting a Go subtest anchors every level (^TestTable$/^two$)', subRun?.state === 'ok' && JSON.stringify(subArgv) === JSON.stringify(['test', '-json', '-run', '^TestTable$/^two$', './...']), JSON.stringify(subArgv))
+    const pkgRun = profile ? await runners.runRunnerProfile(profile, { from: root, selection: 'other::TestZero', selectionKind: 'node' }) : null
+    const pkgArgv = JSON.parse(readFileSync(argvFile, 'utf8')) as string[]
+    check('I4c dir::TestName splits package dir and test name (go test -json -run ^TestZero$ ./other)', pkgRun?.state === 'ok' && JSON.stringify(pkgArgv) === JSON.stringify(['test', '-json', '-run', '^TestZero$', './other']), JSON.stringify(pkgArgv))
+    const pkgSubRun = profile ? await runners.runRunnerProfile(profile, { from: root, selection: 'other::TestTable/two', selectionKind: 'node' }) : null
+    const pkgSubArgv = JSON.parse(readFileSync(argvFile, 'utf8')) as string[]
+    check('I4d dir::TestName/sub splits package dir and anchors every level (^TestTable$/^two$ ./other)', pkgSubRun?.state === 'ok' && JSON.stringify(pkgSubArgv) === JSON.stringify(['test', '-json', '-run', '^TestTable$/^two$', './other']), JSON.stringify(pkgSubArgv))
     const changed = runners.changedRunnerSelection({ ...profile!, root })
     check('I5 the changed-file focus keeps -json (or declines honestly on a tree without git)', changed.state === 'unavailable' || (changed.argv[0] === 'go' && changed.argv[1] === 'test' && changed.argv[2] === '-json'), JSON.stringify(changed))
   } finally {
@@ -380,6 +386,27 @@ section('J. the live leg — a real go toolchain on PATH')
       const subRerun = await runners.rerunRunnerFailures(subOnly.record, { from: root })
       check('J5 live go rerunFailed on a single failing subtest keeps only TestTable/two (not TestTable/one)', subRerun.state === 'ok' && subRerun.record.counts.passed === 0 && subRerun.record.counts.failed === 2 && JSON.stringify(subRerun.record.failures) === JSON.stringify(['TestTable', 'TestTable/two']), JSON.stringify(subRerun.state === 'ok' ? { counts: subRerun.record.counts, failures: subRerun.record.failures } : subRerun))
     }
+    mkdirSync(path.join(root, 'other'))
+    writeFileSync(
+      path.join(root, 'other', 'other_test.go'),
+      [
+        'package other',
+        '',
+        'import "testing"',
+        '',
+        'func TestZero(t *testing.T) {}',
+        '',
+        'func TestTable(t *testing.T) {',
+        '\tt.Run("one", func(t *testing.T) {})',
+        '\tt.Run("two", func(t *testing.T) { t.Fatal("other case two") })',
+        '}',
+        '',
+      ].join('\n'),
+    )
+    const dirOnly = await runners.runRunnerProfile(profile, { from: root, selection: 'other::TestZero', selectionKind: 'node' })
+    check('J6 live go dir::TestName runs only other package TestZero (1 passed, not both packages)', dirOnly.state === 'ok' && dirOnly.record.verdict === undefined && dirOnly.record.counts.passed === 1 && dirOnly.record.counts.failed === 0, JSON.stringify(dirOnly.state === 'ok' ? { verdict: dirOnly.record.verdict, counts: dirOnly.record.counts } : dirOnly))
+    const dirSub = await runners.runRunnerProfile(profile, { from: root, selection: 'other::TestTable/two', selectionKind: 'node' })
+    check('J7 live go dir::TestName/sub runs only other package TestTable/two (other_test.go)', dirSub.state === 'ok' && dirSub.record.counts.passed === 0 && dirSub.record.counts.failed === 2 && dirSub.record.cases.some(c => c.id === 'TestTable/two' && c.file === 'other_test.go'), JSON.stringify(dirSub.state === 'ok' ? { verdict: dirSub.record.verdict, counts: dirSub.record.counts, cases: dirSub.record.cases } : dirSub))
     rmSync(root, { recursive: true, force: true })
   }
 }

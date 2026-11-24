@@ -726,10 +726,31 @@ export async function runRunnerProfile(
         }
         if (profile.selection === 'cargo-filter') argv.push(opts.selection)
         else {
+          const sep = opts.selectionKind === 'node' ? opts.selection.indexOf('::') : -1
+          const goName = sep === -1 ? opts.selection : opts.selection.slice(sep + 2)
+          if (sep !== -1) {
+            if (goName.length === 0) {
+              return {
+                state: 'unavailable',
+                reason: `node '${opts.selection}' names no test`,
+                remedy: 'spell the node as TestName, TestName/subtest, or dir::TestName',
+              }
+            }
+            const rawDir = opts.selection.slice(0, sep).trim()
+            const relDir = rawDir === '' || rawDir === '.' ? '.' : path.isAbsolute(rawDir) ? path.relative(profile.root, rawDir) : rawDir
+            const posixDir = relDir.split(path.sep).join('/').replace(/^(?:\.\/)+/, '').replace(/\/+$/, '')
+            argv[argv.length - 1] = posixDir === '' || posixDir === '.' ? '.' : posixDir.startsWith('..') ? posixDir : `./${posixDir}`
+          }
           const goPattern =
-            opts.selectionKind === 'node' && opts.selection.includes('/')
-              ? goRunPattern([opts.selection])
-              : opts.selection
+            sep !== -1
+              ? goName
+                  .split('/')
+                  .filter(Boolean)
+                  .map(s => `^${s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`)
+                  .join('/')
+              : opts.selectionKind === 'node' && goName.includes('/')
+                ? goRunPattern([goName])
+                : goName
           argv.splice(argv.length - 1, 0, '-run', goPattern)
         }
         break
