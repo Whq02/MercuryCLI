@@ -12,7 +12,6 @@ import ScrollBox from '../renderer/elements/ScrollBox.js'
 import type { KeyboardEvent } from '../renderer/events/keyboard-event.js'
 import { useIsInsideModal } from '../overlays/modalContext.js'
 import { useKeybindings } from '../keys/useKeybinding.js'
-import { useTerminalSize } from '../fullscreen-layout/useTerminalSize.js'
 
 type TabProps = {
   title: string
@@ -32,18 +31,14 @@ type TabsProps = {
   onTabChange?: (tabId: string) => void
   children?: React.ReactNode
   hidden?: boolean
-  disableNavigation?: boolean
   initialHeaderFocused?: boolean
   banner?: React.ReactNode
   contentHeight?: number
-  fullWidth?: boolean
-  useFullWidth?: boolean
   navFromContent?: boolean
 }
 
 type TabsContextValue = {
   selectedTab: string
-  width: number | undefined
   headerFocused: boolean
   focusHeader: () => void
   blurHeader: () => void
@@ -78,12 +73,9 @@ export function Tabs({
   onTabChange,
   children,
   hidden = false,
-  disableNavigation = false,
   initialHeaderFocused = true,
   banner,
   contentHeight,
-  fullWidth,
-  useFullWidth,
   navFromContent,
 }: TabsProps): React.ReactNode {
   const tabs = tabEntries(children)
@@ -122,9 +114,6 @@ export function Tabs({
   }, [])
 
   const isInsideModal = useIsInsideModal()
-  const { columns } = useTerminalSize()
-  const isFullWidth = Boolean(fullWidth || useFullWidth)
-  const contentWidth = isFullWidth ? columns : undefined
 
   const currentIndexRef = useRef(selectedIndex)
   currentIndexRef.current = selectedIndex
@@ -145,7 +134,6 @@ export function Tabs({
 
   const navActive =
     !hidden &&
-    !disableNavigation &&
     (headerFocused || (hasNavOptIn && navFromContent !== false))
 
   useKeybindings(
@@ -171,20 +159,18 @@ export function Tabs({
   const contextValue = useMemo<TabsContextValue>(
     () => ({
       selectedTab: activeTab.id,
-      width: contentWidth,
       headerFocused,
       focusHeader,
       blurHeader,
       registerNavOptIn,
     }),
-    [activeTab.id, contentWidth, headerFocused, focusHeader, blurHeader, registerNavOptIn],
+    [activeTab.id, headerFocused, focusHeader, blurHeader, registerNavOptIn],
   )
 
   const content = (
     <Box
       key={activeTab.id}
       flexDirection="column"
-      width={contentWidth}
       flexShrink={isInsideModal ? 0 : 1}
     >
       {activeTab.children}
@@ -205,7 +191,7 @@ export function Tabs({
     <TabsContext.Provider value={contextValue}>
       <Box flexDirection="column" tabIndex={-1} autoFocus onKeyDown={handleKeyDown}>
         {!hidden ? (
-          <Box gap={1} width={useFullWidth ? columns : undefined}>
+          <Box gap={1}>
             {title !== undefined && title !== '' ? (
               <Text bold color={color}>
                 {title}
@@ -225,7 +211,6 @@ export function Tabs({
                 </Text>
               )
             })}
-            {useFullWidth ? <Box flexGrow={1} /> : null}
           </Box>
         ) : null}
         {banner}
