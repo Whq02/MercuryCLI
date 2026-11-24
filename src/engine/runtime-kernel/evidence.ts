@@ -14,7 +14,7 @@ const EVIDENCE_KINDS = [
 
 export type EvidenceKind = (typeof EVIDENCE_KINDS)[number]
 
-export const EVIDENCE_ORIGINS = ['observed', 'derived', 'declared'] as const
+const EVIDENCE_ORIGINS = ['observed', 'derived', 'declared'] as const
 
 export type EvidenceOrigin = (typeof EVIDENCE_ORIGINS)[number]
 
