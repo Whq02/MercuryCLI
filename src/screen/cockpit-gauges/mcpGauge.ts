@@ -4,7 +4,7 @@ import { getProjectMcpConfigsFromCwd, mcpServersSkippedForTrustLine, PROJECT_MCP
 import { untrustedWorkspaceHeadless } from '../../platform/settings/config.js'
 import type { MCPServerConnection } from '../../integrations/mcp-shapes/mcpServerRecords.js'
 import { getCurrentProjectConfig, getGlobalConfig } from '../../platform/settings/config.js'
-import { withState, type Snapshot, type SnapshotState } from '../cockpit/types.js'
+import { withState, type Snapshot } from '../cockpit/types.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
 export type McpServerState =
@@ -218,34 +218,6 @@ export function mcpGauge(): Snapshot<{ data: McpData }> {
     source: SOURCE,
     data: { servers, names, counts, maxRisk, mcpPolicyActive, mcpPolicyHint, runtimeStampedAt },
   }
-}
-
-export function mcpServerSnapshotState(state: McpServerState): SnapshotState {
-  switch (state) {
-    case 'ready':
-      return 'ready'
-    case 'starting':
-      return 'starting'
-    case 'needs-auth':
-      return 'degraded'
-    case 'failed':
-      return 'failed'
-    case 'disabled':
-      return 'disabled'
-    default:
-      return 'configured'
-  }
-}
-
-export function mcpCountsLabel(counts: McpCounts): string {
-  const parts: string[] = []
-  if (counts.ready > 0) parts.push(`${counts.ready} ready`)
-  if (counts.starting > 0) parts.push(`${counts.starting} connecting`)
-  if (counts.needsAuth > 0) parts.push(`${counts.needsAuth} need${counts.needsAuth === 1 ? 's' : ''} auth`)
-  if (counts.failed > 0) parts.push(`${counts.failed} failed`)
-  if (counts.disabled > 0) parts.push(`${counts.disabled} off`)
-  if (counts.configured > 0) parts.push(`${counts.configured} configured`)
-  return parts.join(' · ')
 }
 
 export function resetMcpGaugeForTests(): void {

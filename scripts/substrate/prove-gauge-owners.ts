@@ -45,7 +45,6 @@ section('§1 mcpGauge — configured ≠ ready; a publish is the only way to rea
     JSON.stringify(before.data.servers.map(r => [r.name, r.state])) + ` — ${mcpGaugeFix}`,
   )
   check('counts: 2 configured, 0 ready', before.data.counts.configured === 2 && before.data.counts.ready === 0 && before.data.counts.total === 2, `${JSON.stringify(before.data.counts)} — ${mcpGaugeFix}`)
-  check('count label: "2 configured"', m.mcpCountsLabel(before.data.counts) === '2 configured', `${m.mcpCountsLabel(before.data.counts)} — fix mcpCountsLabel in src/screen/cockpit-gauges/mcpGauge.ts`)
   check('runtimeStampedAt is null before any publish', before.data.runtimeStampedAt === null, `${String(before.data.runtimeStampedAt)} — ${mcpGaugeFix}; resetMcpGaugeForTests must clear the stamp`)
   check('the policy boolean rides the live arm', typeof before.data.mcpPolicyActive === 'boolean' && typeof before.data.mcpPolicyHint === 'string', `${mcpGaugeFix}; the live arm of mcpGauge must return mcpPolicyActive and mcpPolicyHint`)
 
@@ -77,13 +76,7 @@ section('§1 mcpGauge — configured ≠ ready; a publish is the only way to rea
     after.data.counts.ready === 1 && after.data.counts.failed === 1 && after.data.counts.configured === 1 && after.data.counts.total === 3,
     `${JSON.stringify(after.data.counts)} — ${mcpGaugeFix}`,
   )
-  check('count label names each non-zero state', m.mcpCountsLabel(after.data.counts) === '1 ready · 1 failed · 1 configured', `${m.mcpCountsLabel(after.data.counts)} — fix mcpCountsLabel in src/screen/cockpit-gauges/mcpGauge.ts`)
   check('runtimeStampedAt is stamped by the publish', typeof after.data.runtimeStampedAt === 'number', `${String(after.data.runtimeStampedAt)} — publishMcpConnections in src/screen/cockpit-gauges/mcpGauge.ts must stamp the runtime snapshot`)
-
-  const states = ['ready', 'starting', 'needs-auth', 'failed', 'disabled', 'configured'] as const
-  const badges = states.map(s => m.mcpServerSnapshotState(s))
-  check('row→badge map is total over the state union', badges.every(b => typeof b === 'string' && b.length > 0), `${badges.join(',')} — mcpServerSnapshotState in src/screen/cockpit-gauges/mcpGauge.ts must return a badge for every state`)
-  check('needs-auth paints degraded; failed paints failed', m.mcpServerSnapshotState('needs-auth') === 'degraded' && m.mcpServerSnapshotState('failed') === 'failed', 'fix mcpServerSnapshotState in src/screen/cockpit-gauges/mcpGauge.ts')
   m.resetMcpGaugeForTests()
   const reset = m.mcpGauge()
   check('reset ⇒ every configured row is configured again (no ghost of the publish)', reset.data.servers.every(r => r.state === 'configured') && reset.data.servers.length === 2, 'resetMcpGaugeForTests in src/screen/cockpit-gauges/mcpGauge.ts must clear the published connections')
