@@ -18,10 +18,10 @@ export function NestedRowsProvider({
 }
 
 export function CtrlOToExpand(): React.ReactNode {
-  const inSubAgent = useContext(NestedRowsContext)
+  const inNestedRows = useContext(NestedRowsContext)
   const inVirtualList = useContext(InVirtualListContext)
   const chord = useShortcutDisplay('app:toggleTranscript', 'Global', 'ctrl+o')
-  if (inSubAgent) return null
+  if (inNestedRows) return null
   if (inVirtualList) {
     return <Text dimColor>{GLYPH.chevronDown}</Text>
   }

@@ -51,19 +51,19 @@ export function lastActivityTs(
   s: TurnSignals,
   baselineTs: number,
   now: number,
-  agents: CrewmateActivity = NO_CREWMATES,
+  crewmates: CrewmateActivity = NO_CREWMATES,
 ): number {
-  if (signalsActive(s) || agents.liveNow) return now
-  return Math.max(baselineTs, s.lastTurnEndTs ?? 0, agents.lastEventTs)
+  if (signalsActive(s) || crewmates.liveNow) return now
+  return Math.max(baselineTs, s.lastTurnEndTs ?? 0, crewmates.lastEventTs)
 }
 
 export function isAsleepAt(
   s: TurnSignals,
   baselineTs: number,
   now: number,
-  agents: CrewmateActivity = NO_CREWMATES,
+  crewmates: CrewmateActivity = NO_CREWMATES,
 ): boolean {
-  return now - lastActivityTs(s, baselineTs, now, agents) >= SLEEP_AFTER_MS
+  return now - lastActivityTs(s, baselineTs, now, crewmates) >= SLEEP_AFTER_MS
 }
 
 
@@ -117,11 +117,11 @@ function recompute(): void {
   if (mode === 'off') next = 0
   else if (mode === 'forced') next = sleepSince || now
   else {
-    const agents: CrewmateActivity = {
+    const crewmates: CrewmateActivity = {
       liveNow: crewmatesActiveNow() || daemonCrewLivenessSync().workersActive,
       lastEventTs: lastCrewmateEventTs,
     }
-    next = isAsleepAt(turnSignals(), baselineTs, now, agents) ? sleepSince || now : 0
+    next = isAsleepAt(turnSignals(), baselineTs, now, crewmates) ? sleepSince || now : 0
   }
   if (next !== sleepSince) {
     swayAnchor = { phase: swayPhaseAt(now, sleepSince !== 0, swayAnchor), at: now }
