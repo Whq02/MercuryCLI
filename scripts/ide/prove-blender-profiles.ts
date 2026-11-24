@@ -20,7 +20,7 @@ console.log(' blender headless launch profiles (MERCURY_BLENDER) — proof')
 console.log('============================================================')
 
 const { discoverLaunchProfiles } = await import('../../src/integrations/ide/launchProfiles.js')
-const { operatorRunRefusal, unityHeadlessRefusal } = await import(
+const { operatorRunRefusal } = await import(
   '../../src/tools/launch/LaunchTool.js'
 )
 
@@ -171,12 +171,6 @@ section('§4 · the shared operator-run refusal')
     refusal !== null && !refusal.result.toLowerCase().includes('licens'),
     '',
     'operatorRunRefusal in src/tools/launch/LaunchTool.ts adds a license sentence only for unity rows, not blender rows',
-  )
-  check(
-    'the unity compat spelling is the same door',
-    unityHeadlessRefusal === operatorRunRefusal,
-    '',
-    'src/tools/launch/LaunchTool.ts must export unityHeadlessRefusal as the same function as operatorRunRefusal',
   )
 }
 

@@ -8,7 +8,7 @@ import * as path from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond ? ' — change discoverLaunchProfiles in src/integrations/ide/launchProfiles.ts (profiles and args), unityTestResultsPath in src/integrations/unity-protocol/unityProject.ts, or unityHeadlessRefusal in src/tools/launch/LaunchTool.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond ? ' — change discoverLaunchProfiles in src/integrations/ide/launchProfiles.ts (profiles and args), unityTestResultsPath in src/integrations/unity-protocol/unityProject.ts, or operatorRunRefusal in src/tools/launch/LaunchTool.ts' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -23,7 +23,7 @@ const { discoverLaunchProfiles } = await import('../../src/integrations/ide/laun
 const { UNITY_LICENSE_DISCLAIMER, unityTestResultsPath } = await import(
   '../../src/integrations/unity-protocol/unityProject.js'
 )
-const { unityHeadlessRefusal } = await import('../../src/tools/launch/LaunchTool.js')
+const { operatorRunRefusal } = await import('../../src/tools/launch/LaunchTool.js')
 
 const savedEnv = { ...process.env }
 function restore(): void {
@@ -143,7 +143,7 @@ section('§4 · the operator-run refusal contract')
   const test = d.profiles.find(p => p.source === 'unity' && p.kind === 'test')
   const build = d.profiles.find(p => p.source === 'unity' && p.kind === 'build')
   const nonUnity = d.profiles.find(p => p.source !== 'unity')
-  const tRef = test ? unityHeadlessRefusal(test) : null
+  const tRef = test ? operatorRunRefusal(test) : null
   check(
     'test refusal: operator-run + the exact command + disclaimer + the results-XML line, no-change',
     tRef !== null &&
@@ -153,14 +153,14 @@ section('§4 · the operator-run refusal contract')
       tRef.result.includes(UNITY_LICENSE_DISCLAIMER) &&
       tRef.result.includes('results XML'),
   )
-  const bRef = build ? unityHeadlessRefusal(build) : null
+  const bRef = build ? operatorRunRefusal(build) : null
   check(
     'build refusal: same contract, no results-XML line',
     bRef !== null && bRef.outcome === 'no-change' && !bRef.result.includes('results XML'),
   )
   check(
     'non-unity profiles refuse nothing here',
-    nonUnity === undefined || unityHeadlessRefusal(nonUnity) === null,
+    nonUnity === undefined || operatorRunRefusal(nonUnity) === null,
   )
 }
 

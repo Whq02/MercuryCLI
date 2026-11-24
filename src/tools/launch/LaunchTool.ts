@@ -233,8 +233,6 @@ export function operatorRunRefusal(p: LaunchProfile): { result: string; outcome:
   }
 }
 
-export const unityHeadlessRefusal = operatorRunRefusal
-
 async function routeLine(p: LaunchProfile, route: Route, context: ToolUseContext, replaced: boolean): Promise<string> {
   let line = `Launch ${p.id} ran as: ${route.tool} ${JSON.stringify(route.input)}`
   const session = route.input.session ?? 'main'
