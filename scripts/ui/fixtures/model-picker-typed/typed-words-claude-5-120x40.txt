@@ -25,7 +25,7 @@ VITALS                  │ │   Sonnet 5            claude-sonnet-5           
                         │ │   Beam 1.0 501B-A23B                                                                     │ │
                         │ │   ↓ 10 more                                                                              │ │
                         │ │                                                                                          │ │
-                        │ │ context —  · tier API billing                                                            │ │
+                        │ │ context —                                                                                │ │
                         │ │ effort  low [medium] high xhigh max · ctrl+e changes it                                  │ │
                         │ │ 'claude 5' names no listed model (nearest: Opus 5 · GLM-5.3 · GLM-5.2); pick a row below │ │
                         │ │ ↑↓ select · type to search · ↵ switch · tab back to the rows · esc clears the search     │ │

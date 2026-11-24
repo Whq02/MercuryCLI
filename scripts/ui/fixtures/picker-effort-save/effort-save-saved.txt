@@ -33,7 +33,7 @@
                              │ │   ↓ 70 more                                                                                    │ │
                              │ │ ▾ LOCAL MODELS · no local server · /localsetup sets one up                                     │ │
                              │ │                                                                                                │ │
-                             │ │ context —  · tier API billing                                                                  │ │
+                             │ │ context —                                                                                      │ │
                              │ │ effort  low medium high [xhigh] max · ctrl+e changes it                                        │ │
                              │ │ Effort set to xhigh · saved as your default for future sessions                                │ │
                              │ │ ↑↓ select · ↵ switch · ctrl+w context · → ← fold · tab to search · esc or click outside closes │ │

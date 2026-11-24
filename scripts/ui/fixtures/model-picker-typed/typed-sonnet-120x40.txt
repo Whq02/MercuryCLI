@@ -12,7 +12,7 @@ FILES · project         │ │ │ Sonnet 5.5          claude-sonnet-5-5      
                         │ │   Sonnet 5            claude-sonnet-5                        1M ctx                      │ │
 VITALS                  │ │   Sonnet 4.6          claude-sonnet-4-6                      1M ctx                      │ │
   · spend —             │ │                                                                                          │ │
-  · ctx — · —           │ │ context —  · tier API billing                                                            │ │
+  · ctx — · —           │ │ context —                                                                                │ │
   · health — run /health│ │ effort  low medium [high] xhigh max · ctrl+e changes it                                  │ │
                         │ │ ↑↓ select · type to search · ↵ switch · tab back to the rows · esc clears the search     │ │
                         │ │ pgup/pgdn page                                                                           │ │

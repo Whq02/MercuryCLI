@@ -6,7 +6,7 @@ NEXT                    │ │ Mercury · model · 0 of 24 match               
   · /health — health…   │ │ / gpt 6 luna                                                                             │ │
   · /memory — memory    │ │                                                                                          │ │
   · /mission — set a…   │ │                                                                                          │ │
-                        │ │ context —  · tier API billing                                                            │ │
+                        │ │ context —                                                                                │ │
 FILES · project         │ │ effort  low [medium] high xhigh max · ctrl+e changes it                                  │ │
   ↵ or click · browse   │ │ 'gpt 6 luna' names no listed model (nearest: Opus 5 · GLM-5.3 · GLM-5.2); pick a row     │ │
                         │ │ below                                                                                    │ │

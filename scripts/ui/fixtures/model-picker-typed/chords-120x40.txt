@@ -25,7 +25,7 @@ VITALS                  │ │   Sonnet 5            claude-sonnet-5           
                         │ │   ↓ 78 more                                                                              │ │
                         │ │ ▾ LOCAL MODELS · no local server · /localsetup sets one up                               │ │
                         │ │                                                                                          │ │
-                        │ │ context —  · tier API billing                                                            │ │
+                        │ │ context —                                                                                │ │
                         │ │ effort  low medium [high] xhigh max · ctrl+e changes it                                  │ │
                         │ │ 1M ctx · no alternate window                                                             │ │
                         │ │ ↑↓ select · ↵ switch · ctrl+w context · → ← fold · esc or click outside closes           │ │

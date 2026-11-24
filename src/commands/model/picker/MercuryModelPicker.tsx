@@ -17,7 +17,6 @@ import { useMercuryTokens } from '../../../screen/widgets/useMercuryTokens.js'
 import { focusedOptionSupports1m, stripContext1m } from '../../../models/catalogue/modelOptions.js'
 import { has1mContext } from '../../../engine/compaction-window/contextFill.js'
 import { parseUserSpecifiedModel } from '../../../models/catalogue/engineModel.js'
-import { activeSourceUsage } from '../../../models/roads/providerUsage.js'
 import { markTransitionEnd } from '../../../platform/observability/frictionStopwatch.js'
 import { getContextWindowForModel } from '../../../engine/compaction-window/contextFill.js'
 import { AMBER, FAINT, IVORY, SAND, TEAL } from '../../../screen/theme/mercuryPalette.js'
@@ -391,11 +390,7 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
       {compact ? null : <Box height={1} />}
       {liveLine ? <Text color={FAINT} wrap="truncate-end">{live}</Text> : null}
       {shedMeters || panelView ? null : <Box>
-        <Text wrap="truncate-end"><Text color={FAINT}>context </Text>{ctxPct === null ? <Text color={FAINT}>—</Text> : <><Text color={gaugeColor(ctxPct)}>{bar(ctxPct, 12)}</Text><Text color={SAND}> {ctxPct}%</Text></>}{((): React.ReactNode => {
-          if (compact) return null
-          const tier = activeSourceUsage().tier
-          return tier ? <Text><Text color={FAINT}>  · tier </Text><Text color={IVORY}>{tier}</Text></Text> : null
-        })()}</Text>
+        <Text wrap="truncate-end"><Text color={FAINT}>context </Text>{ctxPct === null ? <Text color={FAINT}>—</Text> : <><Text color={gaugeColor(ctxPct)}>{bar(ctxPct, 12)}</Text><Text color={SAND}> {ctxPct}%</Text></>}</Text>
       </Box>}
       {hasEffort && !shedEffort && !panelView ? (
         compact ? (

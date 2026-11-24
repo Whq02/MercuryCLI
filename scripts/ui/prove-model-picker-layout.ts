@@ -116,6 +116,7 @@ const { default: instances } = await import('../../src/screen/renderer/instances
 const { call: openMainPicker } = await import('../../src/commands/model/mercuryModel.tsx')
 const { openCrewmateModelPickerFor } = await import('../../src/screen/composer/crewmateCommands.tsx')
 const { closeSettingsPopup } = await import('../../src/screen/cockpit/settingsPopup.ts')
+const { activeSourceUsage } = await import('../../src/models/roads/providerUsage.ts')
 type AppState = import('../../src/screen/app-state/AppState.tsx').AppState
 type WorkRow = import('../../src/engine/connector/types.ts').WorkRowV1
 type CrewmateInView = import('../../src/screen/tasks/useCrewmateView.ts').CrewmateInView
@@ -215,6 +216,9 @@ for (const [cols, rows] of [[178, 51], [120, 40]] as const) {
   save('main-picker', mainFrame)
   const main = panelOf(mainFrame)
   check(`${size}: the main /model picker paints its panel inside the centre column, within the panel contract's cap`, mainPainted && main !== null && main.width <= MODEL_PICKER_PANEL.cap && main.width >= MODEL_PICKER_PANEL.min, describe(main), 'the main picker call in src/commands/model/mercuryModel.tsx opens it; check its panel width against MODEL_PICKER_PANEL in src/models/facts/modelPickerGroups.ts and the width logic in src/commands/model/picker/MercuryModelPicker.tsx and src/screen/overlays/ModelPickerPopupSlot.tsx')
+  const sourceTier = activeSourceUsage().tier
+  const mainContextLine = main === null ? undefined : mainFrame.slice(main.top + 1, main.bottom).find(line => line.includes('context '))
+  check(`${size}: the main /model picker's context line holds no tier even when activeSourceUsage().tier is non-empty`, typeof sourceTier === 'string' && sourceTier.length > 0 && mainContextLine !== undefined && !mainContextLine.includes('tier'), `tier=${JSON.stringify(sourceTier)} · line=${JSON.stringify(mainContextLine?.trim() ?? '')}`, 'remove the inline tier render and activeSourceUsage import from src/commands/model/picker/MercuryModelPicker.tsx')
   setModal(null)
   await until(() => !lines().some(line => line.includes('Mercury · model')))
   enterCrewmateView(taskId, store!.setState)
