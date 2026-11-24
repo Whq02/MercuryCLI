@@ -10,7 +10,7 @@ import { sessionKindOfAsker, type SessionKind } from './sessionKind.js'
 import { workerPidAlive } from './workerIdentity.js'
 import { updateConcourseWorkers, readSessionWorkers } from './store.js'
 import { buildConcourseWorkerSpec, stampSpawnPosture, spawnPostureOf } from './spec.js'
-import { pidFieldsOf, buildTreeFields } from './marks.js'
+import { buildTreeFields } from './marks.js'
 import { type ConcourseWorkerRecordV1, turnCutStanding, stampParked, clearParkedFields } from './record.js'
 import { errorMessage, isENOENT } from '../../platform/errors/errors.js'
 
@@ -202,7 +202,10 @@ export function detachRespawnConcourseSession(
       delete w.pausedAt
       delete w.pausedBy
       w.lastLiveAt = Date.now()
-      if (reg.pid !== undefined) Object.assign(w, pidFieldsOf(reg.pid))
+      if (reg.pid !== undefined) {
+        w.pid = reg.pid
+        delete w.procStart
+      }
     }, dir)
   } catch (error) {
     roster.kill(rec.runnerId)
@@ -339,7 +342,10 @@ export function reviveConcourseWorker(
       }
       stampSpawnPosture(w, spawnPostureOf(spec))
       w.lastLiveAt = Date.now()
-      if (reg.pid !== undefined) Object.assign(w, pidFieldsOf(reg.pid))
+      if (reg.pid !== undefined) {
+        w.pid = reg.pid
+        delete w.procStart
+      }
       Object.assign(w, buildTreeFields())
     }, dir)
   } catch (error) {
