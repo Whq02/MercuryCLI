@@ -61,13 +61,13 @@ export function PopupListViewport({ above, below, rows, children }: {
 }): React.ReactNode {
   const scrolls = above > 0 || below > 0
   const bodyRef = React.useRef<DOMElement | null>(null)
-  const ink = React.useContext(ScreenInstanceContext)
+  const instance = React.useContext(ScreenInstanceContext)
   const [measured, setMeasured] = React.useState(0)
   const measure = React.useCallback(() => {
     const next = Math.ceil(bodyRef.current?.layoutNode?.getComputedHeight() ?? 0)
     setMeasured(current => current === next ? current : next)
   }, [])
-  useLayoutSubscription(() => ink?.subscribeFrame(measure), [ink, measure])
+  useLayoutSubscription(() => instance?.subscribeFrame(measure), [instance, measure])
   const height = Math.max(1, measured || rows)
   return (
     <Box flexShrink={0}>
@@ -99,7 +99,7 @@ export function usePopupListPaging(cursor: number, total: number, rows: number |
 }
 
 export function usePopupScrollWindow(ref: React.RefObject<ScrollBoxHandle | null>): { top: number; total: number; rows: number } {
-  const ink = React.useContext(ScreenInstanceContext)
+  const instance = React.useContext(ScreenInstanceContext)
   const [view, setView] = React.useState({ top: 0, total: 0, rows: 0 })
   const measure = React.useCallback(() => {
     const body = ref.current
@@ -107,7 +107,7 @@ export function usePopupScrollWindow(ref: React.RefObject<ScrollBoxHandle | null
     const next = { top: body.getScrollTop(), total: body.getFreshScrollHeight(), rows: body.getViewportHeight() }
     setView(current => current.top === next.top && current.total === next.total && current.rows === next.rows ? current : next)
   }, [ref])
-  useLayoutSubscription(() => ink?.subscribeFrame(measure), [ink, measure])
+  useLayoutSubscription(() => instance?.subscribeFrame(measure), [instance, measure])
   return view
 }
 

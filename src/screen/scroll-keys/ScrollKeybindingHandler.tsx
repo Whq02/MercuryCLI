@@ -275,7 +275,7 @@ export function ScrollKeybindingHandler({
   modalScrollRef?: React.RefObject<ScrollBoxHandle | null>
   modalUp?: boolean
 }): React.ReactNode {
-  const ink = React.useContext(ScreenInstanceContext)
+  const instance = React.useContext(ScreenInstanceContext)
   const selection = useSelection()
   const { addNotification } = useNotifications()
   const onScrollRef = useRef(onScroll)
@@ -301,8 +301,8 @@ export function ScrollKeybindingHandler({
   )
 
   useClaim(() => {
-    if (!ink) return
-    return ink.registerTranscriptScrollTarget(() => {
+    if (!instance) return
+    return instance.registerTranscriptScrollTarget(() => {
       if (!isActive || isModal || modalUp) return false
       if (topOverlay() !== null) return false
       if (settingsPopupRequest() !== null) return false
@@ -311,12 +311,12 @@ export function ScrollKeybindingHandler({
       const handle = scrollRef.current
       return handle !== null && handle.getScrollHeight() > handle.getViewportHeight()
     })
-  }, [ink, isActive, isModal, modalUp, scrollRef])
+  }, [instance, isActive, isModal, modalUp, scrollRef])
 
   useClaim(() => {
-    if (!ink) return
-    return ink.registerArrowKeyOwner(isMessageCursorActive)
-  }, [ink])
+    if (!instance) return
+    return instance.registerArrowKeyOwner(isMessageCursorActive)
+  }, [instance])
 
   useClaim(() => {
     return () => {

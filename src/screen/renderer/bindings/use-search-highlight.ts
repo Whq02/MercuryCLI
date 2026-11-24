@@ -20,9 +20,9 @@ const noop = (): void => {}
 const noPositions = (): MatchPosition[] => []
 
 export function useSearchHighlight(): SearchHighlightApi {
-  const ink = useContext(ScreenInstanceContext)
+  const instance = useContext(ScreenInstanceContext)
   return useMemo<SearchHighlightApi>(() => {
-    if (!ink) {
+    if (!instance) {
       return {
         setQuery: noop,
         scanElement: noPositions,
@@ -30,9 +30,9 @@ export function useSearchHighlight(): SearchHighlightApi {
       }
     }
     return {
-      setQuery: query => ink.setSearchHighlight(query),
-      scanElement: element => ink.scanElementSubtree(element),
-      setPositions: state => ink.setSearchPositions(state),
+      setQuery: query => instance.setSearchHighlight(query),
+      scanElement: element => instance.scanElementSubtree(element),
+      setPositions: state => instance.setSearchPositions(state),
     }
-  }, [ink])
+  }, [instance])
 }

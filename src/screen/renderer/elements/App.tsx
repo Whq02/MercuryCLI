@@ -315,14 +315,14 @@ export default class App extends PureComponent<Props, State> {
       if (isDecrqmProbeSafe()) markSyncProbeOutstanding(true)
       const syncQuery = isDecrqmProbeSafe() ? this.querier.send(decrqm(2026)) : Promise.resolve(undefined)
       const kittyQuery = isExtendedCsiSafe() ? this.querier.send(kittyKeyboard()) : Promise.resolve(undefined)
-      const ink = instances.get(this.props.stdout)
+      const instance = instances.get(this.props.stdout)
       const queueWidthProbe = (): (() => void) | null =>
         queueTerminalWidthProbe(this.querier, this.props.stdout, () => {
           instances.get(this.props.stdout)?.forceRedraw()
         }, instances.get(this.props.stdout)?.isAltScreenActive === true)
-      if (ink?.isAltEntryPending() === true) {
-        const stop = ink.subscribeFrame(() => {
-          if (ink.isAltEntryPending()) return
+      if (instance?.isAltEntryPending() === true) {
+        const stop = instance.subscribeFrame(() => {
+          if (instance.isAltEntryPending()) return
           stop()
           if (this.rawModeEnabledCount === 0) return
           const finish = queueWidthProbe()

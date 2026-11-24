@@ -7,7 +7,7 @@ import { updateSettingsForSource, getInitialSettings } from '../../../platform/s
 import type { SettingsJson } from '../../../platform/settings/settingsSchema.js'
 import { clearInstructionFileCaches } from '../../../sessions/instructions/instructionFiles.js'
 import { setSessionInstructionProfile, isInstructionProfile } from '../../../sessions/instructions/profile.js'
-import inkInstances from '../../renderer/instances.js'
+import screenInstances from '../../renderer/instances.js'
 import { endEngineSession, resetShellEngineResolution } from '../../../platform/shell/engineSession.js'
 import type { ThemeSetting } from '../../theme/theme.js'
 import { noteMotionSettingChanged } from '../../cockpit/motionSetting.js'
@@ -91,7 +91,7 @@ export function useConfigExits({
       if (undo.source === 'global') {
         saveGlobalConfig(current => restoreConfigLeaf(current, undo.path, undo.previous) as GlobalConfig)
         if (undo.path[0] === 'motion') noteMotionSettingChanged()
-        if (undo.path[0] === 'mouseCapture') inkInstances.get(process.stdout)?.setMouseTrackingEnabled(undo.previous !== false)
+        if (undo.path[0] === 'mouseCapture') screenInstances.get(process.stdout)?.setMouseTrackingEnabled(undo.previous !== false)
       } else if (undo.source === 'app') {
         setAppState(prev => ({ ...prev, verbose: undo.previous as boolean }))
       } else {

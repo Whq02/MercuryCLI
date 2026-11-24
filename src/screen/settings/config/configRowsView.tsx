@@ -2,7 +2,7 @@ import { Text } from '../../themedRenderer.js'
 import { DUCKDUCKGO_SETTING_KEY, DUCKDUCKGO_SETTING_LABEL, DUCKDUCKGO_TERMS, duckduckgoScrapingEnabled, duckduckgoScrapingPinned } from '../../../tools/engines/web-search/searchSetting.js'
 import { formatTokens } from '../../../platform/text/format.js'
 import { isFullscreenActive } from '../../fullscreen-layout/fullscreen.js'
-import inkInstances from '../../renderer/instances.js'
+import screenInstances from '../../renderer/instances.js'
 import { stripFacts } from '../../routes/surfaceRoute.js'
 import { getFocusedSessionConnector, hasFocusedSession } from '../../../engine/connector/focusedConnector.js'
 import { SEAT_DOORS, seatCeilingValueWords, seatCostWarning, setOperatorSeats, type SeatCeilingFacts } from '../../../daemon/switchboard-capacity/capacityCheck.js'
@@ -284,7 +284,7 @@ export function configSessionRows({ config, tokens, boolValue, writeGlobal, reco
       change: () => {
         const next = config.mouseCapture === false
         writeGlobal(c => ({ ...c, mouseCapture: next }))
-        inkInstances.get(process.stdout)?.setMouseTrackingEnabled(next)
+        screenInstances.get(process.stdout)?.setMouseTrackingEnabled(next)
         recordToggle('mouseCapture', `set mouse capture to ${next ? 'on' : 'off'}`)
       },
     })

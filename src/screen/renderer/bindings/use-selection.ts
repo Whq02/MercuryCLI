@@ -34,23 +34,23 @@ function inertApi(): SelectionApi {
   }
 }
 
-function instanceApi(ink: ScreenInstance): SelectionApi {
+function instanceApi(instance: ScreenInstance): SelectionApi {
   return {
-    copySelection: () => ink.copySelection(),
-    copySelectionNoClear: () => ink.copySelectionNoClear(),
-    copyText: text => ink.copyText(text),
-    clearSelection: () => ink.clearTextSelection(),
-    hasSelection: () => ink.hasTextSelection(),
-    getState: () => ink.selection,
-    subscribe: callback => ink.subscribeToSelectionChange(callback),
-    moveFocus: move => ink.moveSelectionFocus(move),
-    setSelectionBgColor: color => ink.setSelectionBgColor(color),
+    copySelection: () => instance.copySelection(),
+    copySelectionNoClear: () => instance.copySelectionNoClear(),
+    copyText: text => instance.copyText(text),
+    clearSelection: () => instance.clearTextSelection(),
+    hasSelection: () => instance.hasTextSelection(),
+    getState: () => instance.selection,
+    subscribe: callback => instance.subscribeToSelectionChange(callback),
+    moveFocus: move => instance.moveSelectionFocus(move),
+    setSelectionBgColor: color => instance.setSelectionBgColor(color),
   }
 }
 
 export function useSelection(): SelectionApi {
-  const ink = useContext(ScreenInstanceContext)
-  return useMemo(() => (ink ? instanceApi(ink) : inertApi()), [ink])
+  const instance = useContext(ScreenInstanceContext)
+  return useMemo(() => (instance ? instanceApi(instance) : inertApi()), [instance])
 }
 
 export function useHasSelection(): boolean {

@@ -17,7 +17,7 @@ export function useTerminalViewport(): [
   const entryRef = useRef<ViewportEntry>(VISIBLE)
   const size = useContext(TerminalSizeContext)
   const liveSize = useContext(LiveTerminalSizeContext)
-  const ink = useContext(ScreenInstanceContext)
+  const instance = useContext(ScreenInstanceContext)
 
   const ref = useCallback((el: DOMElement | null) => {
     elementRef.current = el
@@ -42,7 +42,7 @@ export function useTerminalViewport(): [
     }
 
     const rootHeight = root.layoutNode?.getComputedHeight() ?? 0
-    const altScreen = ink?.isAltScreenActive === true
+    const altScreen = instance?.isAltScreenActive === true
     const rows = altScreen ? (liveSize ?? size).rows : size.rows
     const viewStart = !altScreen && rootHeight > rows ? rootHeight - rows + 1 : 0
     const viewEnd = viewStart + rows

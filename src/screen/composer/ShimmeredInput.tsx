@@ -36,7 +36,7 @@ export function HighlightedInput({
   const sweepStart = minStart - 10
   const cycleLength = Math.max(1, maxEnd - minStart + 20)
   const [viewportRef, time] = useAnimationFrame(hasShimmer ? 50 : null)
-  const glimmerIndex = hasShimmer
+  const shimmerIndex = hasShimmer
     ? sweepStart + (Math.floor(time / 50) % cycleLength)
     : -100
 
@@ -81,7 +81,7 @@ export function HighlightedInput({
                         key={charIndex}
                         char={char}
                         index={run.startOffset + charIndex}
-                        glimmerIndex={glimmerIndex}
+                        glimmerIndex={shimmerIndex}
                         messageColor={color}
                         shimmerColor={shimmerColor}
                       />

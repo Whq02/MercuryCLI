@@ -69,9 +69,9 @@ const ScrollBox = forwardRef<ScrollBoxHandle, Omit<ScrollBoxProps, 'ref'>>(
     const renderQueuedRef = useRef(false)
     const restsAtTopRef = useRef(restsAtTop)
     restsAtTopRef.current = restsAtTop
-    const ink = useContext(ScreenInstanceContext)
-    const inkRef = useRef(ink)
-    inkRef.current = ink
+    const instance = useContext(ScreenInstanceContext)
+    const instanceRef = useRef(instance)
+    instanceRef.current = instance
     const [, forceRender] = useReducer((n: number) => n + 1, 0)
     const { internal_eventEmitter } = useStdin()
 
@@ -232,9 +232,9 @@ const ScrollBox = forwardRef<ScrollBoxHandle, Omit<ScrollBoxProps, 'ref'>>(
           }
         },
         subscribeLayout(listener: () => void) {
-          const instance = inkRef.current
-          if (!instance) return () => {}
-          return instance.subscribeLayout(listener)
+          const current = instanceRef.current
+          if (!current) return () => {}
+          return current.subscribeLayout(listener)
         },
       }
     }, [])

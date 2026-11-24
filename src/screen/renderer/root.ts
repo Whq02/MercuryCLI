@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import type { FrameEvent } from './frame.js'
-import ScreenInstance, { type Options as InkOptions } from './screenInstance.js'
+import ScreenInstance, { type Options as ScreenInstanceOptions } from './screenInstance.js'
 import instances from './instances.js'
 import { nextMicrotask } from '../../platform/async/timers.js'
 
@@ -30,11 +30,11 @@ export type Root = {
 
 const isStream = (value: unknown): value is NodeJS.WriteStream => typeof value === 'object' && value !== null && 'write' in value
 
-const processKnobs = (stdout: NodeJS.WriteStream): InkOptions => ({ stdout, stdin: process.stdin, stderr: process.stderr, exitOnCtrlC: true, patchConsole: true })
+const processKnobs = (stdout: NodeJS.WriteStream): ScreenInstanceOptions => ({ stdout, stdin: process.stdin, stderr: process.stderr, exitOnCtrlC: true, patchConsole: true })
 
-function knobsFor(options: NodeJS.WriteStream | RenderOptions = {}): InkOptions {
+function knobsFor(options: NodeJS.WriteStream | RenderOptions = {}): ScreenInstanceOptions {
   if (isStream(options)) return processKnobs(options)
-  const given = Object.fromEntries(Object.entries(options).filter(([, value]) => value != null)) as Partial<InkOptions>
+  const given = Object.fromEntries(Object.entries(options).filter(([, value]) => value != null)) as Partial<ScreenInstanceOptions>
   return { ...processKnobs(process.stdout), ...given }
 }
 

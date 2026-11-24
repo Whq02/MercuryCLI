@@ -17,7 +17,7 @@ const AltScreenDepthContext = createContext(0)
 
 export function AlternateScreen({ children, mouseTracking = true }: Props): React.ReactNode {
   const write = useContext(TerminalWriteContext)
-  const ink = useContext(ScreenInstanceContext)
+  const instance = useContext(ScreenInstanceContext)
   const size = useContext(TerminalSizeContext)
   const depth = useContext(AltScreenDepthContext)
   const mouseTrackingRef = useRef(mouseTracking)
@@ -25,13 +25,13 @@ export function AlternateScreen({ children, mouseTracking = true }: Props): Reac
 
   useInsertionEffect(() => {
     if (!write) return
-    const key = ink ?? NO_INSTANCE_KEY
+    const key = instance ?? NO_INSTANCE_KEY
     let entry = altScreenDepths.get(key)
     if (!entry) {
       entry = { n: 0 }
       altScreenDepths.set(key, entry)
     }
-    const wantMouse = mouseTrackingRef.current && (ink?.isMouseTrackingPreferred?.() ?? true)
+    const wantMouse = mouseTrackingRef.current && (instance?.isMouseTrackingPreferred?.() ?? true)
     const wasZero = entry.n === 0
     entry.n += 1
     if (wasZero) {
@@ -41,8 +41,8 @@ export function AlternateScreen({ children, mouseTracking = true }: Props): Reac
         write(RESET_SCROLL_REGION + '\x1b[0m' + arm)
       } else {
         const seq = ENTER_ALT_SCREEN + RESET_SCROLL_REGION + '\x1b[2J\x1b[H' + arm
-        if (ink?.armAltScreenEntry) {
-          ink.armAltScreenEntry(seq)
+        if (instance?.armAltScreenEntry) {
+          instance.armAltScreenEntry(seq)
         } else {
           write(seq)
         }
@@ -52,32 +52,32 @@ export function AlternateScreen({ children, mouseTracking = true }: Props): Reac
       if (wantMouse) {
         noteModeAcquired('alt-screen-session', 'mouse-tracking')
       }
-      ink?.setAltScreenActive(true, wantMouse)
+      instance?.setAltScreenActive(true, wantMouse)
       if (held) {
-        ink?.armAltScreenTakeover()
+        instance?.armAltScreenTakeover()
       }
     } else {
-      if (!ink?.isAltEntryPending?.()) {
+      if (!instance?.isAltEntryPending?.()) {
         write(RESET_SCROLL_REGION)
       }
-      ink?.repaintAfterNestedAltScreenClose?.()
+      instance?.repaintAfterNestedAltScreenClose?.()
     }
 
     return () => {
       entry.n = Math.max(0, entry.n - 1)
       if (entry.n === 0) {
-        ink?.setAltScreenActive(false)
-        ink?.clearTextSelection()
+        instance?.setAltScreenActive(false)
+        instance?.clearTextSelection()
         write(DISABLE_ALTERNATE_SCROLL + DISABLE_MOUSE_TRACKING + EXIT_ALT_SCREEN)
         noteModeReleased('alt-screen-session', 'alt-screen')
         noteModeReleased('alt-screen-session', 'alternate-scroll')
         noteModeReleased('alt-screen-session', 'mouse-tracking')
       } else {
-        ink?.clearTextSelection()
-        ink?.repaintAfterNestedAltScreenClose?.()
+        instance?.clearTextSelection()
+        instance?.repaintAfterNestedAltScreenClose?.()
       }
     }
-  }, [write, ink])
+  }, [write, instance])
 
   const rows = size?.rows ?? 24
   const nested = depth > 0
