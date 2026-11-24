@@ -31,13 +31,8 @@ const TRACKED_CREWMATE_TASK_TYPES: ReadonlySet<string> = new Set([
   'remote_agent',
 ])
 
-export const UNTRACKED_TASK_TYPES: ReadonlyMap<string, string> = new Map([
-  ['local_bash', "an open session's main thread leaves shells out: a background shell's notice arrives between turns on its own; a waiter's OWN shells are the exception, SUBAGENT_TRACKED_TASK_TYPES"],
-  ['monitor_mcp', 'gated off by the MONITOR_TOOL feature macro in Mercury — no producer'],
-])
-
-const WAITER_OWN_TASK_TYPES: ReadonlyMap<string, string> = new Map([
-  ['local_bash', "a waiter's own background shells: a crewmate's wait ends when the shells it launched settle (a shell task carries the spawning crewmate's id), and a one-prompt run's wait — its input closed, so the run ends with the turn and no notice could reach it between turns — ends when the run's own shells settle"],
+const WAITER_OWN_TASK_TYPES: ReadonlySet<string> = new Set([
+  'local_bash',
 ])
 
 export const TERMINAL_TASK_STATUSES: ReadonlySet<string> = new Set([

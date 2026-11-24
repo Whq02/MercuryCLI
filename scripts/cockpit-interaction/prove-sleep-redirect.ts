@@ -9,7 +9,7 @@ import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
 import { frameLines, isMainThread, isToolCall, isToolResult } from '../lib/rows.ts'
-import { countTrackedRunningTasks, SleepTool, TERMINAL_TASK_STATUSES, TRACKED_ARM_GRACE_TICKS, TRACKED_SETTLE_POLL_MS, UNTRACKED_TASK_TYPES } from '../../src/tools/sleep/SleepTool.tsx'
+import { countTrackedRunningTasks, SleepTool, TERMINAL_TASK_STATUSES, TRACKED_ARM_GRACE_TICKS, TRACKED_SETTLE_POLL_MS } from '../../src/tools/sleep/SleepTool.tsx'
 import { isTerminalTaskStatus, type TaskStatus } from '../../src/engine/tasks/taskBase.ts'
 import { setRunInputClosed } from '../../src/boot/process-state/processState.ts'
 import type { AppState } from '../../src/screen/app-state/AppState.js'
@@ -38,11 +38,6 @@ async function runSleep(
 
 t.section('§1 — what counts as harness-tracked, TOTAL over the TaskType union')
 {
-  t.check(
-    'every exclusion carries its reason on the record',
-    [...UNTRACKED_TASK_TYPES.values()].every(r => r.length > 10),
-    'decisions, not omissions',
-  )
   const statuses: TaskStatus[] = ['pending', 'running', 'completed', 'failed', 'killed']
   t.check(
     "the tool's terminal-status mirror matches Task.ts isTerminalTaskStatus exactly",
