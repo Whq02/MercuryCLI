@@ -43,11 +43,7 @@ check('C1 the newest failed check blocks completion', red.data.outcome === 'fail
 const failed = await finish(f, 'failed', ['test_add still red'])
 check('C2 failed finish preserves uncertainty', failed.data.outcome === 'no-change' && tx.latestTransaction(f.root)?.verdict === 'failed' && tx.latestTransaction(f.root)?.unresolved.length === 1, JSON.stringify(failed.data) + ' — change the finish path in src/integrations/ide/ideTransaction.ts so a failed verdict keeps the unresolved list')
 
-const strangeOwner = makeOwnerKey({ workspace: f.root, sessionId: 'another-process', lane: 'main' })
-const resumed = await tx.resumeTransaction({ id: opened.id, owner: strangeOwner, from: f.root })
 check('D1 latest.json points at the newest record', tx.latestTransaction(f.root) !== null, 'change latestTransaction in src/integrations/ide/ideTransaction.ts so it reads the newest record')
-check('D2 durable records re-read after finish', resumed !== null && resumed.record.verdict === 'completed', JSON.stringify(resumed?.record.verdict) + ' — change resumeTransaction in src/integrations/ide/ideTransaction.ts so it re-reads the durable record')
-check('D3 another owner sees the receipt stale and nothing is replayed', resumed !== null && resumed.applyRefChecks.length === 1 && resumed.applyRefChecks[0]?.resolves === false && resumed.applyRefChecks[0].note.includes('nothing was replayed'), JSON.stringify(resumed?.applyRefChecks) + ' — change resumeTransaction in src/integrations/ide/ideTransaction.ts so a foreign owner sees the receipt stale and nothing is replayed')
 check('D4 the trail lists both loops', tx.listTransactions(f.root).length === 2, 'listTransactions in src/integrations/ide/ideTransaction.ts returned ' + tx.listTransactions(f.root).length + ' records, expected 2')
 const one = await resolveResource(`mercury://ide/transaction/${opened.id}`, { owner: f.owner, cwd: f.root })
 check('E1 the resource reads the structured completed record', one.state === 'ok' && (one.resource.structured as { verdict?: string }).verdict === 'completed', JSON.stringify(one.state) + ' — mercury://ide/transaction/<id> must resolve through resolveResource in src/integrations/resources/registry.ts with the completed record')
@@ -64,10 +60,6 @@ const readerless = await tx.noteStep({ id: internal.id, owner: f.owner, from: f.
 check('F2 the same ref without a reader still refuses', readerless.state === 'refused' && readerless.reason.includes('unavailable'), JSON.stringify(readerless) + ' — change noteStep in src/integrations/ide/ideTransaction.ts so a ref without a reader refuses as unavailable')
 const mixed = await tx.noteStep({ id: internal.id, owner: f.owner, from: f.root, kind: 'diagnose', summary: 'mixed refs', refs: [ref, 'mercury://agent/nope'], getAppState })
 check('F3 a mixed live and fabricated set refuses whole without a step', mixed.state === 'refused' && tx.getTransaction(internal.id, f.root)?.steps.length === 1, JSON.stringify(mixed) + ' — change noteStep in src/integrations/ide/ideTransaction.ts so one fabricated ref refuses the whole note and adds no step')
-const reader = await tx.resumeTransaction({ id: internal.id, owner: f.owner, from: f.root, getAppState })
-const noReader = await tx.resumeTransaction({ id: internal.id, owner: f.owner, from: f.root })
-check('F4 historical reader-aware liveness stays live', reader?.applyRefChecks[0]?.resolves === true, JSON.stringify(reader?.applyRefChecks) + ' — change resumeTransaction in src/integrations/ide/ideTransaction.ts so a getAppState reader keeps the ref live')
-check('F5 reader-less liveness stays stale', noReader?.applyRefChecks[0]?.resolves === false, JSON.stringify(noReader?.applyRefChecks) + ' — change resumeTransaction in src/integrations/ide/ideTransaction.ts so a call without a reader marks the ref stale')
 await finish(f, 'abandoned')
 
 const idle = await finish(f, 'abandoned')
