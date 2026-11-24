@@ -25,7 +25,7 @@ import { usageCarryWords, usageForProvider } from '../../models/roads/providerUs
 import { slotSwitchTransient, switchActiveSlot } from '../../models/roads/slotSwitch.js'
 import { paintSlotSwitchReceipt } from '../../models/roads/slotSwitchReceipt.js'
 import { familyDisplayName } from '../../models/roads/accountSlots.js'
-import ModelPicker from '../model-picker/ModelPicker.js'
+import { ModelPicker } from '../model-picker/ModelPicker.js'
 import { TransitionPreviewCard } from '../../commands/model/TransitionPreviewCard.js'
 import { CapOfferCard } from './CapOfferCard.js'
 import { SlotOfferCard } from './SlotOfferCard.js'

@@ -31,5 +31,3 @@ export function Pane({
     </Box>
   )
 }
-
-export default Pane

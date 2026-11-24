@@ -2,14 +2,14 @@ import React from 'react'
 import { KeyboardShortcutHint } from './KeyboardShortcutHint.js'
 import { Box, Text } from '../themedRenderer.js'
 import { exitChordNoticeText } from '../composer/ExitChordNotice.js'
-import { useExitChordKeys } from '../keys/useExitChordKeys.js'
+import { useExitChord } from '../keys/useExitChord.js'
 import { useKeybinding } from '../keys/useKeybinding.js'
 import { useShortcutDisplay } from '../keys/useShortcutDisplay.js'
 import { useElevatedSurface } from '../widgets/useElevatedSurface.js'
-import Byline from './Byline.js'
-import Pane from './Pane.js'
+import { Byline } from './Byline.js'
+import { Pane } from './Pane.js'
 
-type DialogExitState = ReturnType<typeof useExitChordKeys>
+type DialogExitState = ReturnType<typeof useExitChord>
 
 export function Dialog({
   title,
@@ -33,7 +33,7 @@ export function Dialog({
   isCancelActive?: boolean
 }): React.ReactNode {
   const elevatedRef = useElevatedSurface()
-  const exitState = useExitChordKeys(undefined, () => isCancelActive)
+  const exitState = useExitChord(undefined, () => isCancelActive)
   useKeybinding('confirm:no', () => onCancel(), {
     context: 'Confirmation',
     isActive: isCancelActive,
@@ -81,5 +81,3 @@ export function Dialog({
     </Box>
   )
 }
-
-export default Dialog

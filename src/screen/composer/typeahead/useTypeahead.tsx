@@ -243,7 +243,7 @@ export function useTypeahead({
 
   const rerunLadderForInput = useCallback(
     (nextInput: string) => {
-      rerunLadderOf(nextInput, { publish, clearSuggestions, runUnifiedFetch })
+      rerunLadderOf(nextInput, { publish, clearSuggestions, runUnifiedFetch, lastPathQueryRef })
     },
     [publish, clearSuggestions, runUnifiedFetch],
   )

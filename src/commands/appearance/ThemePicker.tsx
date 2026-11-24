@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react'
 import { useClaim, useMeasure } from '../../screen/effects/effects.js'
 import { exitChordNoticeText } from '../../screen/composer/ExitChordNotice.js'
 import { Box, Text } from '../../screen/themedRenderer.js'
-import { useExitChordKeys } from '../../screen/keys/useExitChordKeys.js'
+import { useExitChord } from '../../screen/keys/useExitChord.js'
 import { useSettings } from '../../screen/settings/useSettings.js'
 import { useTerminalSize } from '../../screen/fullscreen-layout/useTerminalSize.js'
 import useApp from '../../screen/renderer/bindings/use-app.js'
@@ -17,8 +17,8 @@ import { updateSettingsForSource } from '../../platform/settings/settings.js'
 import { DEFAULT_THEME_SETTING } from '../../screen/theme/systemTheme.js'
 import { isMonochromeTheme, REACHABLE_THEME_SETTINGS, THEME_LABELS, type ThemeSetting } from '../../screen/theme/theme.js'
 import { Select, type OptionWithDescription } from '../../screen/select/index.js'
-import Byline from '../../screen/theme/Byline.js'
-import Divider from '../../screen/theme/Divider.js'
+import { Byline } from '../../screen/theme/Byline.js'
+import { Divider } from '../../screen/theme/Divider.js'
 import {
   usePreviewTheme,
   useTheme,
@@ -99,7 +99,7 @@ export function ThemePicker({
   const setAppState = useSetAppState()
   const { columns } = useTerminalSize()
   const app = useApp()
-  const exitState = useExitChordKeys(
+  const exitState = useExitChord(
     skipExitHandling ? noop : undefined,
   )
 

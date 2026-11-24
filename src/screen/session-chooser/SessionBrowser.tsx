@@ -11,7 +11,7 @@ import type { SessionListing } from '../../sessions/transcripts/transcriptEntrie
 import { getListingDisplayTitle } from '../../platform/logs/errorLog.js'
 import { SessionPreview } from './SessionPreview.js'
 import { useKeybinding } from '../keys/useKeybinding.js'
-import { useExitChordKeys } from '../keys/useExitChordKeys.js'
+import { useExitChord } from '../keys/useExitChord.js'
 import { useSearchInput } from '../composer/text-input/useSearchInput.js'
 import { useTerminalSize } from '../fullscreen-layout/useTerminalSize.js'
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js'
@@ -317,7 +317,7 @@ export function SessionBrowser({
     }
   })
 
-  const exitState = useExitChordKeys(() => onCancel?.())
+  const exitState = useExitChord(() => onCancel?.())
 
   const submitRename = useCallback(
     (title: string) => {

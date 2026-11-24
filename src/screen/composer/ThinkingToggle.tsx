@@ -1,12 +1,12 @@
 import React, { useState } from 'react'
 import { exitChordNoticeText } from './ExitChordNotice.js'
 import { Box, Text } from '../themedRenderer.js'
-import { useExitChordKeys } from '../keys/useExitChordKeys.js'
+import { useExitChord } from '../keys/useExitChord.js'
 import { useKeybinding } from '../keys/useKeybinding.js'
 import { useShortcutDisplay } from '../keys/useShortcutDisplay.js'
 import { Select } from '../select/index.js'
-import Byline from '../theme/Byline.js'
-import Pane from '../theme/Pane.js'
+import { Byline } from '../theme/Byline.js'
+import { Pane } from '../theme/Pane.js'
 
 type Props = {
   currentValue: boolean
@@ -24,7 +24,7 @@ export function ThinkingToggle({
   onCancel,
 }: Props): React.ReactNode {
   const [pendingValue, setPendingValue] = useState<boolean | null>(null)
-  const exitState = useExitChordKeys()
+  const exitState = useExitChord()
   const cancelKey = useShortcutDisplay('confirm:no', 'Confirmation', 'esc')
 
   useKeybinding(

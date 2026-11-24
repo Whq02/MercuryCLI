@@ -445,5 +445,3 @@ export function Select<T = string>({
     renderLabel,
   })
 }
-
-export default Select

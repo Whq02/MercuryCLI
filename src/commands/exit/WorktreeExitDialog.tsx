@@ -14,7 +14,7 @@ import {
   type WorktreeSession,
 } from '../../platform/git/worktree/worktree.js'
 import { Select } from '../../screen/select/index.js'
-import Dialog from '../../screen/theme/Dialog.js'
+import { Dialog } from '../../screen/theme/Dialog.js'
 import { Spinner } from '../../screen/spinner/Spinner.js'
 
 type ExitChoice =

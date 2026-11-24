@@ -20,6 +20,5 @@ export function useComposerCrewmateRefs(viewedTask: AppState['tasks'][string] | 
         ? viewedTask.description
         : viewedTask.agentType
       : undefined)
-  const viewedAgentColor = undefined
-  return { composerCrewmateRef, viewedCrewmateRef, commandCrewmateRef, viewedAgentName, viewedAgentColor }
+  return { composerCrewmateRef, viewedCrewmateRef, commandCrewmateRef, viewedAgentName }
 }

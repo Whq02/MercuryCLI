@@ -2,7 +2,7 @@ import { mkdirSync } from 'fs'
 import * as React from 'react'
 import { use, useMemo, useState } from 'react'
 import { Box, Text } from '../themedRenderer.js'
-import { useExitChordKeys } from '../keys/useExitChordKeys.js'
+import { useExitChord } from '../keys/useExitChord.js'
 import { useKeybinding } from '../keys/useKeybinding.js'
 import { getInstructionFiles } from '../../sessions/instructions/instructionFiles.js'
 import { attachedRows, getInstructionListing, listingRowWords, loadedStateOf, toolPrefixOf } from '../../sessions/instructions/listing.js'
@@ -101,7 +101,7 @@ export function InstructionFileSelector({
   const [openError, setOpenError] = useState<string | null>(null)
   const [focusedToggle, setFocusedToggle] = useState<number | null>(null)
 
-  useExitChordKeys()
+  useExitChord()
 
   useKeybinding(
     'select:previous',

@@ -25,15 +25,13 @@ import {
   hasCommandArgs,
   rankChannelTargets,
 } from '../../suggestions/commandSuggestions.js'
-import {
-  getPathCompletions,
-  isPathLikeToken,
-} from '../../suggestions/pathCompletion.js'
+import { isPathLikeToken } from '../../suggestions/pathCompletion.js'
 import { getShellHistoryCompletion } from '../../suggestions/shellHistoryCompletion.js'
 import {
   getSlackChannelSuggestions,
   hasSlackMcpServer,
 } from '../../slack-suggestions/slackChannelSuggestions.js'
+import { runPathFetchOf } from './fetch.js'
 import type { Publish, SuggestionsState } from './state.js'
 import { armTypeaheadTimer } from './timers.js'
 import { extractCompletionToken, extractSearchToken, shellMetadataOf } from './tokens.js'
@@ -327,17 +325,7 @@ export function ladderPaths({
     if (token && token.token.startsWith('@')) {
       const search = extractSearchToken(token)
       if (isPathLikeToken(search)) {
-        lastPathQueryRef.current = search
-        void getPathCompletions(search, { maxResults: 10 })
-          .then(entries => {
-            if (lastPathQueryRef.current !== search) return
-            if (entries.length > 0) {
-              publish(entries, 'directory')
-            } else {
-              clearSuggestions()
-            }
-          })
-          .catch(error => logError(error))
+        runPathFetchOf(search, { publish, clearSuggestions, lastPathQueryRef })
       } else if (lastSearchTokenRef.current !== search) {
         runUnifiedFetch(search)
       }

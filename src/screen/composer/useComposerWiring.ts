@@ -53,7 +53,6 @@ export function useComposerWiring({
   viewedCrewmateRef: ComposerCrewmateRefs['viewedCrewmateRef']
   commandCrewmateRef: ComposerCrewmateRefs['commandCrewmateRef']
   viewedAgentName: ComposerCrewmateRefs['viewedAgentName']
-  viewedAgentColor: ComposerCrewmateRefs['viewedAgentColor']
   suggestionApi: ReturnType<typeof usePromptSuggestion>
   insertAtCursor: ComposerAttachments['insertAtCursor']
   insertAtomic: ComposerAttachments['insertAtomic']
@@ -86,7 +85,6 @@ export function useComposerWiring({
     viewedCrewmateRef,
     commandCrewmateRef,
     viewedAgentName,
-    viewedAgentColor,
   } = useComposerCrewmateRefs(viewedTask)
 
   const suggestionApi = usePromptSuggestion({
@@ -139,7 +137,6 @@ export function useComposerWiring({
     viewedCrewmateRef,
     commandCrewmateRef,
     viewedAgentName,
-    viewedAgentColor,
     suggestionApi,
     insertAtCursor,
     insertAtomic,

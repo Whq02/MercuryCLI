@@ -140,7 +140,7 @@ function ComposerInner(props: ComposerProps): React.ReactNode {
 
   const {
     doors, capLaneLine, capLaneCut, composerCrewmateRef, viewedCrewmateRef,
-    commandCrewmateRef, viewedAgentName, viewedAgentColor, suggestionApi,
+    commandCrewmateRef, viewedAgentName, suggestionApi,
     insertAtCursor, insertAtomic, handleImagePaste, handleImageError,
     handleTextPaste, cursorRef, suggestionsState, setSuggestionsState,
     suggestionsMirrorRef,
@@ -312,7 +312,7 @@ function ComposerInner(props: ComposerProps): React.ReactNode {
 
   const inputBody = composerInputBody({
     isCompact, maxVisibleLines, compactBudget, mode, isLoading, input,
-    viewedAgentName, viewedAgentColor, inputBoxRef, handleInputBoxClick,
+    viewedAgentName, inputBoxRef, handleInputBoxClick,
     handleInputTextGesture, vimEnabled, textInputProps, vimMode, setVimMode,
     inputSelectionRangeRef, ownSelection, clearOwnSelection, selectionApi,
     pushAtomic: buffer.pushAtomic, cursorOffset, pastedContents,

@@ -129,29 +129,27 @@ export function promptGhostOf({
   }
 }
 
-export function rerunLadderOf(
-  nextInput: string,
-  {
-    publish,
-    clearSuggestions,
-    runUnifiedFetch,
-  }: {
-    publish: Publish
-    clearSuggestions: () => void
-    runUnifiedFetch: (token: string) => void
-  },
-): void {
+type PathFetchDoors = {
+  publish: Publish
+  clearSuggestions: () => void
+  lastPathQueryRef: React.MutableRefObject<string | null>
+}
+
+export function runPathFetchOf(search: string, { publish, clearSuggestions, lastPathQueryRef }: PathFetchDoors): void {
+  lastPathQueryRef.current = search
+  void getPathCompletions(search, { maxResults: 10 })
+    .then(entries => {
+      if (lastPathQueryRef.current !== search) return
+      if (entries.length > 0) publish(entries, 'directory')
+      else clearSuggestions()
+    })
+    .catch(error => logError(error))
+}
+
+export function rerunLadderOf(nextInput: string, doors: PathFetchDoors & { runUnifiedFetch: (token: string) => void }): void {
   const token = extractCompletionToken(nextInput, nextInput.length, true)
   if (!token) return
   const search = extractSearchToken(token)
-  if (isPathLikeToken(search)) {
-    void getPathCompletions(search, { maxResults: 10 })
-      .then(entries => {
-        if (entries.length > 0) publish(entries, 'directory')
-        else clearSuggestions()
-      })
-      .catch(error => logError(error))
-  } else {
-    runUnifiedFetch(search)
-  }
+  if (isPathLikeToken(search)) runPathFetchOf(search, doors)
+  else doors.runUnifiedFetch(search)
 }

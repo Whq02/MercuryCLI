@@ -49,5 +49,3 @@ export function Divider({
     </Text>
   )
 }
-
-export default Divider

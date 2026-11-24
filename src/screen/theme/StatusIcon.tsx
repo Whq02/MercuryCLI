@@ -39,5 +39,3 @@ export function StatusIcon({
     </Text>
   )
 }
-
-export default StatusIcon

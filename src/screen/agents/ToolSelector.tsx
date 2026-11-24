@@ -9,7 +9,7 @@ import { CREWMATE_TOOL_NAME } from '../../tools/kit/names/agent.js'
 import { filterToolsForCrewmate } from '../../tools/crewmate/crewmateLifecycle.js'
 import type { Tools } from '../../tools/kit/tool.js'
 import { plural } from '../../platform/text/strings.js'
-import Divider from '../theme/Divider.js'
+import { Divider } from '../theme/Divider.js'
 
 const READ_ONLY_BUCKET = new Set([
   'Glob',

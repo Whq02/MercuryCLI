@@ -29,7 +29,7 @@ import {
 } from '../../models/effort/effort.js'
 import { modelSupportsEffort } from '../../models/facts/capabilities.js'
 import { updateSettingsForSource } from '../../platform/settings/settings.js'
-import { useExitChordKeys } from '../keys/useExitChordKeys.js'
+import { useExitChord } from '../keys/useExitChord.js'
 
 const VISIBLE_OPTIONS = 10
 const DEFAULT_HEADER_TEXT =
@@ -133,7 +133,7 @@ export function ModelPicker({
     Math.min(VISIBLE_OPTIONS, selectOptions.length),
   )
 
-  const exitState = useExitChordKeys(
+  const exitState = useExitChord(
     onCancel,
     undefined,
     Boolean(isStandaloneCommand),
@@ -315,5 +315,3 @@ export function ModelPicker({
 
   return content
 }
-
-export default ModelPicker

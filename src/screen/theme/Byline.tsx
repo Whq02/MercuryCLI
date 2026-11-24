@@ -26,5 +26,3 @@ export function Byline({
   })
   return <>{parts}</>
 }
-
-export default Byline

@@ -9,7 +9,7 @@ import { TagTabs } from './TagTabs.js'
 import TextInput from '../composer/text-input/TextInput.js'
 import { TreeSelect } from '../tree-select/TreeSelect.js'
 import { Select } from '../select/index.js'
-import type { useExitChordKeys } from '../keys/useExitChordKeys.js'
+import type { useExitChord } from '../keys/useExitChord.js'
 import type { useSearchInput } from '../composer/text-input/useSearchInput.js'
 import { packFooter } from '../widgets/footerHint.js'
 import type { MercuryThemeTokens } from '../theme/mercuryTokens.js'
@@ -110,7 +110,7 @@ export function sessionBrowserView({
   submitRename: (title: string) => void
   renameCursor: number
   setRenameCursor: React.Dispatch<React.SetStateAction<number>>
-  exitState: ReturnType<typeof useExitChordKeys>
+  exitState: ReturnType<typeof useExitChord>
   hints: string[]
   expandHint: string | null
 }): React.ReactNode {

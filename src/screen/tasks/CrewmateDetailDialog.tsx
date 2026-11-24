@@ -2,7 +2,7 @@ import React from 'react'
 import { exitChordNoticeText } from '../composer/ExitChordNotice.js'
 import { Box, Text, useInput } from '../themedRenderer.js'
 import { useElapsedTime } from '../effects/useElapsedTime.js'
-import { useKeybinding, useKeybindings } from '../keys/useKeybinding.js'
+import { useKeybinding } from '../keys/useKeybinding.js'
 import { useExitChord } from '../keys/useExitChord.js'
 import type { CrewmateTaskState } from '../../engine/tasks/local-agent/crewmateTask.js'
 import type { ToolActivity } from '../../engine/tasks/local-agent/crewmateTask.js'
@@ -37,7 +37,7 @@ export function CrewmateDetailDialog({
   onBack?: () => void
   onForeground?: () => void
 }): React.ReactNode {
-  const exitState = useExitChord(useKeybindings)
+  const exitState = useExitChord()
   const [themeName] = useTheme()
   const theme = getTheme(themeName)
   const tokens = useMercuryTokens()

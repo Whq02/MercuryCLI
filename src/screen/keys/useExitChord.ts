@@ -1,25 +1,16 @@
 import { useState } from 'react'
 import { useApp } from '../themedRenderer.js'
 import { EXIT_CHORD_WINDOW_MS, useDoublePress } from './useDoublePress.js'
-import type {
-  KeybindingHandlerResult,
-  UseKeybindingOptions,
-} from './useKeybinding.js'
+import { useKeybindings } from './useKeybinding.js'
 
-export type ExitState = {
+type ExitState = {
   pending: boolean
   keyName: 'Ctrl-C' | 'Ctrl-D' | null
 }
 
-type UseKeybindingsHook = (
-  handlers: Record<string, () => KeybindingHandlerResult>,
-  options?: UseKeybindingOptions,
-) => void
-
 export function useExitChord(
-  useKeybindingsHook: UseKeybindingsHook,
-  onInterrupt?: () => boolean,
   onExit?: () => void,
+  onInterrupt?: () => boolean,
   isActive = true,
 ): ExitState {
   const { exit } = useApp()
@@ -43,7 +34,7 @@ export function useExitChord(
     EXIT_CHORD_WINDOW_MS,
   )
 
-  useKeybindingsHook(
+  useKeybindings(
     {
       'app:interrupt': () => {
         if (onInterrupt?.() === true) return

@@ -1,21 +1,15 @@
 import { useSyncExternalStore } from 'react'
 import { useLayoutClaim } from '../effects/effects.js'
 import { useIsOverlayActive } from '../overlays/overlayHooks.js'
+import { createSignal } from '../../platform/async/signal.js'
 
 const holders = new Set<symbol>()
-const listeners = new Set<() => void>()
+const listeners = createSignal()
 let version = 0
 
 function moved(): void {
   version++
-  for (const listener of listeners) listener()
-}
-
-function subscribe(listener: () => void): () => void {
-  listeners.add(listener)
-  return () => {
-    listeners.delete(listener)
-  }
+  listeners.emit()
 }
 
 const holdersVersion = (): number => version
@@ -35,6 +29,6 @@ export function useHoldsEscape(holds: boolean): void {
 
 export function useEscapeOwned(): boolean {
   const overlayHolds = useIsOverlayActive()
-  useSyncExternalStore(subscribe, holdersVersion, holdersVersion)
+  useSyncExternalStore(listeners.subscribe, holdersVersion, holdersVersion)
   return overlayHolds || holders.size > 0
 }

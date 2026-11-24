@@ -4,7 +4,7 @@ import { useNotifications, type Notification } from '../notifications/notificati
 import { isTopOverlayNow, useRegisterOverlay } from '../overlays/overlayHooks.js'
 import { useExitChord } from '../keys/useExitChord.js'
 import { Box, Text } from '../themedRenderer.js'
-import { useKeybinding, useKeybindings } from '../keys/useKeybinding.js'
+import { useKeybinding } from '../keys/useKeybinding.js'
 import { getFocusedSessionConnector } from '../../engine/connector/focusedConnector.js'
 import type { EngineConnectorV1 } from '../../engine/connector/types.js'
 import { PopupCompactContext } from '../overlays/popupFormContext.js'
@@ -102,7 +102,7 @@ export function Settings({
     },
     { context: 'Settings', isActive: !bodyOwnsEscape && !request.bodyOwnsEscape },
   )
-  useExitChord(useKeybindings)
+  useExitChord()
   const ground = estateGroundBg(tok)
   const inner = geometry.inner
   const fixed = geometry.rows !== null

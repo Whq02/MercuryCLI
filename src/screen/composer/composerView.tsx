@@ -239,7 +239,6 @@ export function composerInputBody({
   isLoading,
   input,
   viewedAgentName,
-  viewedAgentColor,
   inputBoxRef,
   handleInputBoxClick,
   handleInputTextGesture,
@@ -258,7 +257,7 @@ export function composerInputBody({
   & Pick<ComposerProps, 'isLoading' | 'vimMode' | 'setVimMode'>
   & Pick<ComposerGeometry, 'maxVisibleLines'>
   & Pick<ComposerGates, 'vimEnabled'>
-  & Pick<ComposerCrewmateRefs, 'viewedAgentName' | 'viewedAgentColor'>
+  & Pick<ComposerCrewmateRefs, 'viewedAgentName'>
   & Pick<ReturnType<typeof useComposerSelectionRoad>, 'ownSelection' | 'handleInputBoxClick' | 'handleInputTextGesture'>
   & {
     textInputProps: ReturnType<typeof composerTextInputProps>
@@ -272,7 +271,6 @@ export function composerInputBody({
         isLoading={isLoading}
         inputEmpty={input === ''}
         viewedAgentName={viewedAgentName}
-        viewedAgentColor={viewedAgentColor}
       />
       <Box
         flexGrow={1}

@@ -4,7 +4,7 @@ import { exitChordNoticeText } from '../composer/ExitChordNotice.js'
 import { useMemo, useRef, useState } from 'react'
 import { builtinCommands, type Command } from '../../commands/catalogue/commands.js'
 import { useIsInsideModal, useModalScrollRef } from '../overlays/modalContext.js'
-import { useExitChordKeys } from '../keys/useExitChordKeys.js'
+import { useExitChord } from '../keys/useExitChord.js'
 import { useTerminalSize } from '../fullscreen-layout/useTerminalSize.js'
 import { useKeybinding } from '../keys/useKeybinding.js'
 import type { LocalJSXCommandOnDone } from '../../commands/catalogue/command.js'
@@ -30,7 +30,7 @@ export function Help({
 }): React.ReactNode {
   const { rows, columns } = useTerminalSize()
   const insideModal = useIsInsideModal()
-  const exitState = useExitChordKeys()
+  const exitState = useExitChord()
   const modalScroll = useModalScrollRef()
   const noScroll = useRef(null)
   const bodyWindow = usePopupScrollWindow(modalScroll ?? noScroll)

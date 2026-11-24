@@ -5,7 +5,7 @@ import { exitChordNoticeText } from '../composer/ExitChordNotice.js'
 import { Box, Text, useInput } from '../themedRenderer.js'
 import { useElapsedTime } from '../effects/useElapsedTime.js'
 import { useTerminalSize } from '../fullscreen-layout/useTerminalSize.js'
-import { useKeybinding, useKeybindings } from '../keys/useKeybinding.js'
+import { useKeybinding } from '../keys/useKeybinding.js'
 import { useExitChord } from '../keys/useExitChord.js'
 import type { BashTaskKind, LocalShellTaskState } from '../../engine/tasks/local-shell/shellTaskState.js'
 import type { WorkRowV1 } from '../../engine/connector/types.js'
@@ -168,7 +168,7 @@ export function ShellDetailDialog({
   const running = shell.status === 'running' || shell.status === 'pending'
   const isMonitor = shell.kind === 'monitor'
   const elapsed = useElapsedTime(shell.startTime, running, 1000, shell.totalPausedMs, shell.endTime)
-  const exitState = useExitChord(useKeybindings)
+  const exitState = useExitChord()
 
   const lineCountRef = useRef<LineCount>(freshLineCount(shell.outputFile))
   if (lineCountRef.current.path !== shell.outputFile) {

@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Box, Text } from '../../../screen/themedRenderer.js'
 import TextInput from '../../../screen/composer/text-input/TextInput.js'
 import { useKeybinding } from '../../../screen/keys/useKeybinding.js'
-import { useExitChordKeys } from '../../../screen/keys/useExitChordKeys.js'
+import { useExitChord } from '../../../screen/keys/useExitChord.js'
 import { useTerminalSize } from '../../../screen/fullscreen-layout/useTerminalSize.js'
 import { BASH_TOOL_NAME } from '../../../tools/kit/names/bash.js'
 import { WebFetchTool } from '../../../tools/web-fetch/WebFetchTool.js'
@@ -27,7 +27,7 @@ export function PermissionRuleInput({
 }: PermissionRuleInputProps): React.ReactNode {
   const [input, setInput] = useState('')
   const { columns } = useTerminalSize()
-  const exitState = useExitChordKeys()
+  const exitState = useExitChord()
 
   useKeybinding('confirm:no', onCancel, { context: 'Settings' })
 
