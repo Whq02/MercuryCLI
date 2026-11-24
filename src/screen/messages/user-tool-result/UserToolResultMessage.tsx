@@ -5,7 +5,7 @@ import type { NormalizedUserMessage, ProgressMessage } from '../../../engine/mes
 import { type buildMessageLookups, CANCEL_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE, REJECT_MESSAGE } from '../../../engine/messages/messages.js'
 import type { HermesKillInfo } from '../../../permissions/rules/capabilityGate.js'
 import { isRecord } from '../../../platform/primitives/isRecord.js'
-import { UserToolCanceledMessage } from './UserToolCanceledMessage.js'
+import { FallbackToolUseRejectedMessage } from '../../../tools/kit/FallbackToolUseRejectedMessage.js'
 import { UserToolErrorMessage } from './UserToolErrorMessage.js'
 import { UserToolRejectMessage } from './UserToolRejectMessage.js'
 import { UserToolSuccessMessage } from './UserToolSuccessMessage.js'
@@ -54,7 +54,7 @@ export function UserToolResultMessage({
   const content = param.content
 
   if (typeof content === 'string' && content.startsWith(CANCEL_MESSAGE)) {
-    return <UserToolCanceledMessage />
+    return <FallbackToolUseRejectedMessage />
   }
 
   if (
