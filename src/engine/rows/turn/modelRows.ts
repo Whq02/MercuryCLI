@@ -49,7 +49,7 @@ function inputFloorUsd(messages: readonly Message[], model: string): number | nu
   return null
 }
 
-interface ModelNeeds {
+export interface ModelNeeds {
   queryParams: TurnParams
   config: ConversationConfig
   toolOutcomes: Map<string, 'ok' | 'error' | 'aborted'>

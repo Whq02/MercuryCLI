@@ -572,7 +572,7 @@ export function resetSiblingEnds(): void {
 
 const registrationReplyTargets = new WeakMap<AbortController, 'parent' | 'operator'>()
 
-export function registerAsyncCrewmate(args: {
+type AsyncCrewmateRegistration = {
   agentId: string
   description: string
   prompt: string
@@ -582,7 +582,9 @@ export function registerAsyncCrewmate(args: {
   toolUseId?: string
   replyTarget?: 'parent' | 'operator'
   compactRequested?: true
-}): CrewmateTaskState {
+}
+
+export function registerAsyncCrewmate(args: AsyncCrewmateRegistration): CrewmateTaskState {
   const taskId = args.agentId
   void initTaskOutputAsSymlink(taskId, getCrewmateTranscriptPath(taskId as AgentId))
   const abortController = createAbortController()

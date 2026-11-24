@@ -459,7 +459,7 @@ export async function autoFoldIfNeeded(
     refusal?: string
     paused?: true
     declined?: true
-  }) => ({
+  }): AutoFoldResult => ({
     wasCompacted: false,
     ...(priorFailures !== undefined ? { consecutiveFailures: priorFailures } : {}),
     ...extra,

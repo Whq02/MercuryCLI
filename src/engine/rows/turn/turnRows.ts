@@ -38,7 +38,7 @@ import { MaxTimeCut } from './settle.js'
 import { outcomeFacts } from './outcome.js'
 import { turnEnder } from './end.js'
 import { commandTurnRows } from './command.js'
-import { modelTurnRows } from './modelRows.js'
+import { modelTurnRows, type ModelNeeds } from './modelRows.js'
 import type { TurnOptions } from '../turn.js'
 import type { ConversationState } from './state.js'
 import { startTimeout, stopTimeout } from '../../../platform/async/timers.js'
@@ -254,5 +254,6 @@ export async function* turnRows(this: ConversationState, prompt: string | Conten
   }
   const capturedStopReasonNow = (): string | null => capturedStopReason
   const recoveredUnansweredAskNow = (): boolean => recoveredUnansweredAsk
-  yield* modelTurnRows.call(this, { queryParams, config, toolOutcomes, recoveries, scope, openCalls, persistenceDisabled, turnMessages, recordDelta, eagerFlush, steps, cutOpenCalls, endTurn, effectiveModel, trackCalls, rowsOfMessage, hookNoticeRows, latestAnswer, ledgerAtStart, turnStartedAt, notices, messages, turnId, maxTimeReached, timeLimitFacts, syntheticCallsBeforeTurn, seedMessages, denialsBefore, errorWatermark, captureStopReason, capturedStopReasonNow, recoveredUnansweredAskNow })
+  const needs: ModelNeeds = { queryParams, config, toolOutcomes, recoveries, scope, openCalls, persistenceDisabled, turnMessages, recordDelta, eagerFlush, steps, cutOpenCalls, endTurn, effectiveModel, trackCalls, rowsOfMessage, hookNoticeRows, latestAnswer, ledgerAtStart, turnStartedAt, notices, messages, turnId, maxTimeReached, timeLimitFacts, syntheticCallsBeforeTurn, seedMessages, denialsBefore, errorWatermark, captureStopReason, capturedStopReasonNow, recoveredUnansweredAskNow }
+  yield* modelTurnRows.call(this, needs)
 }

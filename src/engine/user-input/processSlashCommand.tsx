@@ -630,7 +630,7 @@ async function runLocalJsxCommand(
       const metaMessages = (options?.metaMessages ?? []).map(text =>
         createUserMessage({ content: text, isMeta: true }),
       )
-      const forwarded = {
+      const forwarded: Pick<ProcessUserInputBaseResult, 'shouldQuery' | 'nextInput' | 'submitNextInput'> = {
         shouldQuery: options?.shouldQuery ?? false,
         ...(options?.nextInput !== undefined ? { nextInput: options.nextInput } : {}),
         ...(options?.submitNextInput !== undefined
