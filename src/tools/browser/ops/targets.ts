@@ -145,7 +145,7 @@ export async function isDisabledTarget(handle: ElementHandle<Element>): Promise<
   )
 }
 
-export async function clickGate(s: LiveSession, handle: ElementHandle<Element>): Promise<string | null> {
+export async function clickGate(handle: ElementHandle<Element>): Promise<string | null> {
   const disabled = await isDisabledTarget(handle)
   if (disabled) return 'the target is disabled'
   const point = await handle.clickablePoint()

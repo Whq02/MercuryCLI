@@ -169,7 +169,7 @@ export async function sendUpload(
       const names = resolved.sources.map(source => `${basename(source.path)}${source.folder ? ` (a folder of ${fileCount(source.members.length)})` : ` (${bytesWords(source.members[0]!.size)})`}`)
       return after(`upload: ${fileCount(staged.files)} dropped on ${selector} at ${pageWhere(s)} and taken by the page — ${names.join(', ')} (whether the site accepted them is the page’s to show)`)
     }
-    const covered = await clickGate(s, handle)
+    const covered = await clickGate(handle)
     if (covered !== null) return refused(`${selector} took no dropped file, and a click to open its file chooser is refused: ${covered}`)
     let opened: Protocol.Page.FileChooserOpenedEvent | null = null
     let wake = (): void => {}

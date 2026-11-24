@@ -27,7 +27,7 @@ export async function clickOp(s: LiveSession, { input, owner, signalFor }: OpRun
     const handle = await resolveActTarget(s, input.selector, deadline, signalFor(s), input.frame)
     await handle.scrollIntoView()
     await settleBoundingBox(handle, deadline)
-    const refusal = await clickGate(s, handle)
+    const refusal = await clickGate(handle)
     if (refusal !== null && !(input.force === true && refusal.includes('covered by'))) {
       result = `click ${input.selector} refused: ${refusal} — nothing clicked`
       outcome = 'failed'
