@@ -4,7 +4,7 @@ import { mock } from 'bun:test'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import stringWidth from 'string-width'
-import { KEY, mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
+import { KEY, mountOffscreen, painted, pinScratchHome, pinSourceRef, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 import type { DOMElement } from '../../src/screen/themedRenderer.js'
 
 pinSourceRef()
@@ -161,7 +161,7 @@ async function mount(scene: Scene, focus = '') {
   await settle(100)
   return { m, resize: async (next: Scene) => { m.resize(scaffold(next), next.columns, next.rows); await settle(150) }, close: () => { store.closeSettingsPopup(); m.unmount() } }
 }
-async function key(m: Mounted, data: string) { m.push(data); await settle(70) }
+async function key(m: Mounted, data: string) { m.push(data); await painted(70) }
 function save(m: Mounted, scene: Scene, name: string) { if (frames) writeFileSync(join(frames, `${name}-${scene.columns}x${scene.rows}.txt`), m.lines().join('\n') + '\n') }
 function fits(m: Mounted, s: Scene, name: string) {
   const lines = m.lines()
