@@ -252,6 +252,7 @@ export function NavigablePanes<Row>({
   onTypeToCompose,
   regionChrome,
   inputActive = true,
+  borderColor,
 }: NavigablePanesProps<Row>): React.ReactNode {
   const { columns: cols, rows: termRows } = useTerminalSize()
   const layout = pickLayout(cols)
@@ -505,5 +506,5 @@ export function NavigablePanes<Row>({
 
   const body = panesBodyOf({ loading, tokens, emptyState, maxContentWidth, mainWidth, layout, infoVisible, showNav, TabStrip, safeSections, nav, idBase, accent, section, view, sectionRows, ColumnHeader, columns, scrollRef, listHeight, winStart, winEnd, PaneRow, rowKey, sel, N, selectedRow, detailTitle, viewportBudget, renderDetail, sideInfo, detailWidth, regionChrome, splitDetailHeight, SectionNav, NAV_WIDTH, detailVisible, idleSlack })
 
-  return panesFrameOf({ mouseTracking, regionChrome, accent, termRows, view, subtitle, headerRight, headerLine, body, composerSlot, measuredFooterRows, nav, listNavLive, selectedRow, rowActions, footerHeadText, cols, footerTailText, tokens, footerText, idBase })
+  return panesFrameOf({ mouseTracking, regionChrome, borderColor: borderColor ?? accent, termRows, view, subtitle, headerRight, headerLine, body, composerSlot, measuredFooterRows, nav, listNavLive, selectedRow, rowActions, footerHeadText, cols, footerTailText, tokens, footerText, idBase })
 }

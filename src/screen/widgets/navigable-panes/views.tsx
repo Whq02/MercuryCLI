@@ -54,6 +54,7 @@ export type NavigablePanesProps<Row> = {
     chromeRows: number
   }
   inputActive?: boolean
+  borderColor?: string
 }
 
 export function panesBodyOf<Row>({
@@ -355,7 +356,7 @@ export function panesBodyOf<Row>({
 export function panesFrameOf<Row>({
   mouseTracking,
   regionChrome,
-  accent,
+  borderColor,
   termRows,
   view,
   subtitle,
@@ -377,7 +378,7 @@ export function panesFrameOf<Row>({
 }: {
   mouseTracking: boolean
   regionChrome: NavigablePanesProps<Row>['regionChrome']
-  accent: string
+  borderColor: string
   termRows: number
   view: string
   subtitle: string | undefined
@@ -403,7 +404,7 @@ export function panesFrameOf<Row>({
       <Box
         flexDirection="column"
         borderStyle={regionChrome ? undefined : 'round'}
-        borderColor={regionChrome ? undefined : accent}
+        borderColor={regionChrome ? undefined : borderColor}
         paddingX={regionChrome ? 2 : 1}
         width="100%"
         flexShrink={0}

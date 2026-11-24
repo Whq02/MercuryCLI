@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/screen/fullscreen-layout/CrewViewSlot.tsx src/screen/fullscreen-layout/frame.tsx src/screen/fullscreen-layout/FullscreenLayout.tsx src/screen/overlays/promptOverlay.tsx src/screen/composer/composerSurface.tsx src/screen/cockpit/commandPopup.ts src/commands/runs/tasks.tsx src/commands/workbench/workbench.tsx src/commands/diff/diff.tsx
+// gate-watch: src/screen/fullscreen-layout/CrewViewSlot.tsx src/screen/fullscreen-layout/frame.tsx src/screen/fullscreen-layout/FullscreenLayout.tsx src/screen/overlays/promptOverlay.tsx src/screen/composer/composerSurface.tsx src/screen/cockpit/commandPopup.ts src/commands/runs/tasks.tsx src/commands/workbench/workbench.tsx src/commands/diff/diff.tsx src/screen/prompts-panel/panelParts.tsx src/screen/widgets/NavigablePanes.tsx src/screen/widgets/navigable-panes/views.tsx
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, type Mounted } from '../lib/settingsPopupHarness.ts'
@@ -122,12 +122,14 @@ async function unmount(scene: Mounted): Promise<void> {
   scene.unmount()
   resetOverlayStackForTests()
 }
-type CrewShot = { frame: Rect | null; lines: string[] }
-function judge(label: string, { before, host, columns }: Scene, lines: string[], title: string, keys: RegExp, crewShot: CrewShot, width: number): void {
+type CrewShot = { frame: Rect | null; lines: string[]; border: string | null }
+function judge(label: string, { scene, before, host, columns }: Scene, lines: string[], title: string, keys: RegExp, crewShot: CrewShot, width: number): void {
   const crewFrame = crewShot.frame
   const frame = frameOf(lines, title)
   check(`${label}: it is a bordered box with its head line at its top`, frame !== null && lines[frame.top + 1]!.includes(title), `the head ${JSON.stringify(title)} is not on the first row inside a rounded frame`)
   if (frame === null || crewFrame === null) return
+  const border = JSON.stringify(scene.styleAt(frame.left, frame.top))
+  check(`${label}: its border matches the crew popup's border`, crewShot.border !== null && border === crewShot.border, `border at ${frame.left},${frame.top} is ${border}, the crew popup's ${crewShot.border}; set borderColor={tokens.borderStrong} on NavigablePanes in src/screen/prompts-panel/panelParts.tsx (wired through src/screen/widgets/NavigablePanes.tsx and src/screen/widgets/navigable-panes/views.tsx)`)
   const leftMargin = frame.left - host.left
   const rightMargin = host.right - frame.right
   check(`${label}: it stands in the middle (left margin equals right margin within one cell)`, Math.abs(leftMargin - rightMargin) <= 1 && frame.right < host.right, `left margin ${leftMargin}, right margin ${rightMargin} inside the view ${host.left}..${host.right} of ${columns} columns`)
@@ -150,7 +152,8 @@ for (const size of SIZES) {
   const crewScene = await mount(size)
   crew.openCrewView()
   await settledFrame(crewScene.scene, frame => frame.includes('Mercury — crew'))
-  const crewShot: CrewShot = { frame: frameOf(crewScene.scene.lines(), 'Mercury — crew'), lines: crewScene.scene.lines() }
+  const crewFrame = frameOf(crewScene.scene.lines(), 'Mercury — crew')
+  const crewShot: CrewShot = { frame: crewFrame, lines: crewScene.scene.lines(), border: crewFrame === null ? null : JSON.stringify(crewScene.scene.styleAt(crewFrame.left, crewFrame.top)) }
   save(`crew-${size}`, crewShot.lines)
   await unmount(crewScene.scene)
   check(`crew ${size}: the model popup opened`, crewShot.frame !== null, 'the crew popup did not paint its frame')

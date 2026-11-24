@@ -359,6 +359,7 @@ export function panelViewOf({
   return (
     <NavigablePanes<Row>
       initialSectionId={section}
+      borderColor={tokens.borderStrong}
       view="prompts"
       subtitle={`${basename(workspace.cwd) || workspace.cwd} · session ${sessionId.slice(0, 8)}`}
       headerLine={headerLine}
