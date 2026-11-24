@@ -125,6 +125,37 @@ if (!process.argv.includes('--file-roads')) {
   for (const input of ['C:\\project\\file.txt', '/usr/local/file', './file', 'https://localhost/page', String.raw`\\?\C:\project\file`, String.raw`\\.\C:\project\file`, String.raw`"C:\\Users\\someone\\x"`, String.raw`cp "C:\\Users\\someone\\x" D:\\y`]) check(`local or web ${input}`, !uncPathRisk(input).risky)
   for (const command of [String.raw`cp "C:\\Users\\someone\\x" "D:\\y"`, String.raw`type C:\\Users\\someone\\notes.txt`]) check(`an escaped drive path is no share on the command road: ${command}`, !uncPathRisk(command, { command: true }).risky)
   check('an escaped share root still asks', uncPathRisk(String.raw`type \\\\server\\share\\x.txt`, { command: true }).risky)
+  const heredoc = (body: string): string => `python - <<'EOF'\n${body}\nEOF`
+  const noHosts = [
+    ['a negated word class', String.raw`python -c "import re; print(re.sub(r'[^\\W_]+', '', 'a b'))"`],
+    ['digits round an escaped dot', String.raw`python -c "import re; print(re.compile(r'\\d+\\.\\d+'))"`],
+    ['optional spaces', String.raw`python -c "import re; print(re.split(r'\\s*,\\s*', 'a , b'))"`],
+    ['an escaped dot', String.raw`python -c "import re; print(re.sub(r'\\.', '', 'a.b'))"`],
+    ['a counted digit', String.raw`python -c "import re; print(re.compile(r'\\d{3}\\.\\d'))"`],
+    ['a newline joined', String.raw`python -c 'print("\\n".join(["a", "b"]))'`],
+    ['a heredoc of word patterns', heredoc(String.raw`WORD_RE = re.compile(r"[^\\W_]+(?:'[^\\W_]+)*|'+", re.UNICODE)` + '\n' + String.raw`WORD_RE = re.compile(r"[\\w']+", re.UNICODE)`)],
+  ] as const
+  for (const [name, command] of noHosts) check(`a run that cannot be a host is no share on the command road: ${name}`, !uncPathRisk(command, { command: true }).risky)
+  const hostSpellings = [
+    ['a share in a heredoc', heredoc(String.raw`print(open(r'\\server\share\f').read())`)],
+    ['an escaped share in a heredoc', heredoc(String.raw`print(open('\\\\server\\share\\f').read())`)],
+    ['a named machine alone in a call', heredoc(String.raw`print(os.listdir(r'\\files.corp'))`)],
+    ['a named machine alone in a list', heredoc(String.raw`hosts = [r'\\files.corp', 1]`)],
+    ['an admin share on an address', String.raw`dir \\10.0.0.5\c$`],
+    ['a host with ssl', String.raw`dir \\server@SSL\share`],
+    ['a host with a port', String.raw`dir \\server@8080\share`],
+    ['a literal IPv6 host', String.raw`dir \\fe80--1.ipv6-literal.net\share`],
+    ['a host with an underscore', String.raw`type \\file_server\share\f`],
+    ['a host inside a substitution', 'echo $(ls //files.corp)'],
+    ['a host from a variable', 'H=files.corp; cat //$H/share/x'],
+    ['a host from a braced variable', 'cat //${H}/share/x'],
+    ['a host before the next command', 'net view //files.corp;echo done'],
+    ['a URL with a user and a port', 'curl smb://sam@files.corp:445/share/f'],
+    ['a pattern that reads as host and share', String.raw`python -c "import re; print(re.compile(r'\\s\w'))"`],
+  ] as const
+  for (const [name, command] of hostSpellings) check(`what can be a host still asks on the command road: ${name}`, uncPathRisk(command, { command: true }).risky)
+  const patterns = await bashToolHasPermission({ command: noHosts[6][1] }, shellContext)
+  check('Bash on Windows gives a heredoc of word patterns no share reason', !patterns.message.includes('SMB/WebDAV'))
   for (const input of ['file://C:/src/project/notes.txt', 'file:///C:/src/project/notes.txt', String.raw`file://C:\src\project\notes.txt`, String.raw`file://C:\\src\\project\\notes.txt`, 'file://C|/src/project/notes.txt', 'file:///C|/src/project/notes.txt', 'file://C%3A/src/project/notes.txt', 'file://C%7C/src/project/notes.txt']) check(`local drive file URL is no remote host: ${input}`, !uncPathRisk(input).risky)
   for (const command of ['curl file://C:/src/project/notes.txt', 'curl file:///C:/src/project/notes.txt', 'curl file://C|/src/project/notes.txt']) check(`local drive file URL on command road is no remote host: ${command}`, !uncPathRisk(command, { command: true }).risky)
   for (const input of ['file://evil/share/notes.txt', 'smb://C:/share/notes.txt', 'file://C:80/share/notes.txt', 'file://C:/src/DavWWWRoot/notes.txt']) check(`remote or WebDAV URL still asks: ${input}`, uncPathRisk(input).risky)

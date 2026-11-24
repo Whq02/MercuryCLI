@@ -6,6 +6,8 @@ export type QuotedScript = { start: number; end: number }
 
 type Marked = { text: string; escapes: boolean[] }
 
+const HOST_SPELLING = /^(?:\[[0-9a-f:.]+(?:%[\w.-]+)?\])?(?:[\p{L}\p{N}._:@%^-]|\$\w+|\$\{[^}]*\}|\{[^{},]*(?:,[^{},]*)+\}|\$\([^)]*\))*/iu
+
 function escapesOf(input: string, scripts: readonly QuotedScript[]): boolean[] {
   const escapes = new Array<boolean>(input.length).fill(false)
   for (const { start, end } of scripts) {
@@ -60,7 +62,12 @@ export function uncPathRisk(input: string, opts: { command?: boolean; quotedScri
     if (/^file:/i.test(match[0]) && /^[A-Za-z][:|]$/.test(host)) continue
     const before = text.slice(0, match.index)
     if (before.endsWith(':') && spelling[match.index] === '/' && spelling[match.index + 1] === '/') continue
-    if (opts.command === true && !text.slice(match.index + match[0].length).startsWith('/') && !/[.:[\]]/.test(host)) continue
+    if (opts.command === true) {
+      const named = HOST_SPELLING.exec(host)?.[0] ?? ''
+      const trail = host.slice(named.length)
+      if (!/[\p{L}\p{N}]/u.test(named) || (trail !== '' && !/^[;|&<>)}\],]/.test(trail))) continue
+      if ((trail !== '' || !text.slice(match.index + match[0].length).startsWith('/')) && !/[.:[\]]/.test(named)) continue
+    }
     const run = match.index + (/^(?:file|smb):/i.exec(match[0])?.[0].length ?? 0)
     if (marked.escapes.slice(run, match.index + match[0].length - host.length).filter(escape => !escape).length < 2) continue
     return { risky: true, host, form: /@|DavWWWRoot/i.test(match[0] + text.slice(match.index + match[0].length)) ? 'webdav' : 'unc' }
