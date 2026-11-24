@@ -46,7 +46,6 @@ import {
 import { ChainPart } from './writer/chainLinks.js'
 import { FilesPart } from './writer/files.js'
 import { QueuePart } from './writer/queue.js'
-import { RemovePart } from './writer/remove.js'
 import { SettlePart } from './writer/settle.js'
 import { describeTranscriptStoreFailure, setStoreHealth } from './writer/storeHealth.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
@@ -278,10 +277,6 @@ export async function recordTurnEnd(turnId: string, status: string): Promise<voi
   await recordSessionRow(sessionId => ({ type: 'turn-end', sessionId, turnId, status }))
 }
 
-export async function removeTranscriptMessage(targetUuid: UUID): Promise<void> {
-  await getProject().removeMessageByUuid(targetUuid)
-}
-
 export async function recordFileHistorySnapshot(
   messageId: UUID,
   snapshot: FileHistorySnapshot,
@@ -365,11 +360,6 @@ class Project {
     writeQueues: () => this.queuePart.writeQueues,
     shouldSkipPersistence: () => this.shouldSkipPersistence(),
   })
-  private readonly removePart: RemovePart = new RemovePart(this, {
-    trackWrite: <T>(fn: () => Promise<T>) => this.queuePart.trackWrite(fn),
-    serializeWrite: <T>(fn: () => Promise<T>) => this.queuePart.serializeWrite(fn),
-    _drainWriteQueueInner: () => this.queuePart._drainWriteQueueInner(),
-  })
 
   readonly metadata: SessionMeta = new SessionMeta({
     currentId: () => getSessionId(),
@@ -409,12 +399,6 @@ class Project {
 
   flush(): Promise<void> {
     return this.queuePart.flush()
-  }
-
-  async removeMessageByUuid(targetUuid: UUID): Promise<void> {
-    const file = this.sessionFile
-    await this.removePart.removeMessageByUuid(targetUuid)
-    if (file) notifyStorageFile(file)
   }
 
   private shouldSkipPersistence(): boolean {

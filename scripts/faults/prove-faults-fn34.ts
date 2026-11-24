@@ -57,43 +57,6 @@ function runScenario(body: string): Record<string, unknown> {
 {
   if (POSIX_MODES) {
     const r = runScenario(`
-      const writer = await import(path.join(SRC, 'sessions/transcripts/writer.ts'))
-      const { getSessionId } = await import(path.join(SRC, 'boot/process-state/processState.ts'))
-      const sessionId = getSessionId()
-      const file = path.join(HOME, 'session.jsonl')
-      const target = '00000000-0000-4000-8000-000000000011'
-      writer.setSessionFileForTesting(file)
-      writer.appendEntryToFile(file, {
-        type: 'user', uuid: target, parentUuid: null, isSidechain: false, sessionId,
-        timestamp: '2026-01-01T00:00:00.000Z', cwd: PROJECT, version: 'proof',
-        message: { role: 'user', content: 'keep' },
-      })
-      fs.chmodSync(file, 0o400)
-      try {
-        await writer.removeTranscriptMessage(target)
-        out.threw = null
-      } catch (e) {
-        out.threw = { code: e?.code ?? null, message: String(e?.message ?? e) }
-      } finally {
-        fs.chmodSync(file, 0o600)
-      }
-      out.stillPresent = fs.readFileSync(file, 'utf8').includes(target)
-      writer.setSessionFileForTesting(path.join(HOME, 'absent.jsonl'))
-      try {
-        await writer.removeTranscriptMessage(target)
-        out.absentThrew = null
-      } catch (e) {
-        out.absentThrew = String(e)
-      }
-    `)
-    const threw = r.threw as { code: string | null; message: string } | null
-    check('remove-readonly-rejects', threw !== null && (threw.code === 'EACCES' || threw.code === 'EPERM') && r.stillPresent === true && r.absentThrew === null, `${JSON.stringify(r)} — removeTranscriptMessage in src/sessions/transcripts/writer.ts must reject with EACCES/EPERM on a read-only transcript, leave the line in place, and not throw when the file is absent`)
-  }
-}
-
-{
-  if (POSIX_MODES) {
-    const r = runScenario(`
       const { encodeTranscriptLine, resetTranscriptFormatCacheForTesting } = await import(path.join(SRC, 'sessions/transcripts/vnext.ts'))
       const { setStoreHealth, subscribeTranscriptStoreHealth, transcriptStoreHealth } = await import(path.join(SRC, 'sessions/transcripts/writer/storeHealth.ts'))
       const existing = path.join(HOME, 'existing.jsonl')

@@ -149,7 +149,7 @@ const SKIPPED: Record<string, string> = Object.fromEntries(
     'deleteRemoteAgentMetadata', 'listRemoteAgentMetadata',
     'getTranscriptPath', 'resetProjectFlushStateForTesting',
     'resetProjectForTesting', 'setSessionFileForTesting', 'recordTranscript',
-    'recordSidechainTranscript', 'recordQueueOperation', 'removeTranscriptMessage',
+    'recordSidechainTranscript', 'recordQueueOperation',
     'registerCrewmateTranscriptDestination',
     'transcriptCensus',
     'recordFileHistorySnapshot', 'recordContentReplacement',

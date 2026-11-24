@@ -26,7 +26,6 @@ export {
   recordSidechainTranscript,
   recordTranscript,
   registerCrewmateTranscriptDestination,
-  removeTranscriptMessage,
   resetProjectFlushStateForTesting,
   resetProjectForTesting,
   resetSessionFilePointer,
