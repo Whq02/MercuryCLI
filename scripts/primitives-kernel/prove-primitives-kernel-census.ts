@@ -20,7 +20,7 @@ function check(name: string, ok: boolean, detail?: string): void {
 }
 
 const P = await import('../../src/engine/runtime-kernel/index.ts')
-const { EXECUTION_DOMAIN_CENSUS, censusEntry, censusPlaneKinds } =
+const { EXECUTION_DOMAIN_CENSUS, censusPlaneKinds } =
   await import('../../src/engine/runtime-kernel/executionCensus.ts')
 
 await import('../../src/tools/engines/project-services/serviceManager.ts')

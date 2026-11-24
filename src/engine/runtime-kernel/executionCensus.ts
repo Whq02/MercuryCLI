@@ -159,10 +159,6 @@ export const EXECUTION_DOMAIN_CENSUS: readonly ExecutionDomainCensusEntry[] = [
   },
 ]
 
-export function censusEntry(domain: string): ExecutionDomainCensusEntry | undefined {
-  return EXECUTION_DOMAIN_CENSUS.find(e => e.domain === domain)
-}
-
 export function censusPlaneKinds(): string[] {
   return [
     ...new Set(
