@@ -7,7 +7,6 @@ import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
 import { cohereApiBase, resolveCohereApiKey } from './cohereAccounts.js'
 import { COHERE_DISPLAY_PINS, isCohereChatModelId, cohereDisplayName, cohereDisplayPin } from '../../facts/pins/coherePins.js'
-import { passedOverAs } from '../../../platform/errors/passedOver.js'
 import { hostEnv } from '../../../platform/environment/hostEnv.js'
 
 export interface CohereLiveModel {
@@ -129,15 +128,6 @@ export function refreshCohereCatalogue(opts?: { force?: boolean; fetchImpl?: typ
   })()
   inFlight.set(identity, work)
   return work
-}
-
-export function kickCohereCatalogue(opts?: { env?: NodeJS.ProcessEnv; fetchImpl?: typeof fetch }): boolean {
-  const env = opts?.env ?? hostEnv()
-  if (!catalogueTrafficVerdict('cohere', env).allowed) return false
-  const snapshot = getCachedCohereCatalogue(env)
-  if (snapshot && !snapshot.lastError) return false
-  void refreshCohereCatalogue(opts).catch(passedOverAs(null))
-  return true
 }
 
 export interface CohereCatalogueRow {
