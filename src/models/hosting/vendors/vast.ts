@@ -69,7 +69,6 @@ const volumeRows = z.array(volumeRowSchema)
 const volumeListSchema = z.union([volumeRows, z.object({ volumes: volumeRows }), z.object({ data: volumeRows })]).transform(value => Array.isArray(value) ? value : 'volumes' in value ? value.volumes : value.data)
 const volumeCreatedSchema = z.object({ success: z.literal(true), volume_name: z.string().nullable().optional(), volume_id: z.number().nullable().optional(), id: z.number().nullable().optional() })
 export const VAST_VOLUME_MOUNT = '/workspace/mercury-weights'
-export const VAST_VOLUME_NOTICE = 'A Vast.ai volume lives on one physical machine: only an instance on that machine can mount it, it bills per GB-month for its whole size with or without an instance (never while the machine is offline), and it cannot be resized or moved. Delete it from Machines I’m paying for when you stop renting there.'
 export interface VastVolumeOffer { id: number; machineId: number; hostId?: number; diskGb: number; storageCost: number; verification: string; reliability: number; geolocation?: string; hostingType: NonNullable<HostOffer['hostingType']>; cudaMaxGood?: number }
 export interface VastVolume { id: number; name: string; status: string; machineId?: number; diskGb?: number; hourly?: number; instances: string[]; createdAt: string }
 const instanceIds = (value: unknown): string[] => Array.isArray(value) ? value.flatMap(row => typeof row === 'number' ? [String(row)] : row && typeof row === 'object' && typeof (row as { id?: unknown }).id === 'number' ? [String((row as { id: number }).id)] : []) : []

@@ -9,7 +9,7 @@ process.env.HOME = home
 let checks = 0
 const vastVolumesWhere = 'fix the Vast.ai client in src/models/hosting/vendors/vast.ts (VastClient volume and rental methods), the kept-volume records in src/models/hosting/vastVolumes.ts and src/models/hosting/volumes.ts, or engineCacheExports in src/models/hosting/ssh.ts; the fixture is scripts/host/vastFixture.mjs'
 const check = (name: string, truth: unknown, detail?: string) => { assert.ok(truth, name + ' · ' + (detail ?? vastVolumesWhere)); checks++; console.log('PASS ' + name) }
-const { VastClient, VAST_VOLUME_MOUNT, VAST_VOLUME_NOTICE } = await import('../../src/models/hosting/vendors/vast.ts')
+const { VastClient, VAST_VOLUME_MOUNT } = await import('../../src/models/hosting/vendors/vast.ts')
 const { HostCreateError, HostVendorShapeError } = await import('../../src/models/hosting/vendors/http.ts')
 const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
 const { vastFixture } = await import('./vastFixture.mjs')
@@ -107,7 +107,6 @@ try {
   check('a volume Vast no longer lists is marked gone and the row says not kept', volumes.readKeptVolume('20118485')?.state === 'gone' && vastVolumes.vastVolumeState(b200).startsWith('not kept on Vast.ai'))
   const cache = engineCacheExports('/workspace/mercury-weights/engine-cache')
   check('the launch command points every engine cache at the volume: SGLang’s cache dir and its DeepGEMM cache, DeepGEMM’s own JIT cache, FlashInfer, Torch inductor, Triton, CUDA and vLLM', ['SGLANG_CACHE_DIR=\'/workspace/mercury-weights/engine-cache/sglang\'', 'SGLANG_DG_CACHE_DIR=\'/workspace/mercury-weights/engine-cache/sglang/deep_gemm\'', 'DG_JIT_CACHE_DIR=\'/workspace/mercury-weights/engine-cache/deep_gemm\'', 'FLASHINFER_WORKSPACE_BASE=\'/workspace/mercury-weights/engine-cache\'', 'TORCHINDUCTOR_CACHE_DIR=\'/workspace/mercury-weights/engine-cache/inductor\'', 'TRITON_CACHE_DIR=\'/workspace/mercury-weights/engine-cache/triton\'', 'CUDA_CACHE_PATH=\'/workspace/mercury-weights/engine-cache/nv\'', 'VLLM_CACHE_ROOT=\'/workspace/mercury-weights/engine-cache/vllm\''].every(line => cache.includes('export ' + line)) && cache.startsWith("mkdir -p '/workspace/mercury-weights/engine-cache'\n"))
-  check('the volume notice tells the user what Vast sells: one machine, per GB-month with or without an instance, no resize or move', /one physical machine/.test(VAST_VOLUME_NOTICE) && /per GB-month/.test(VAST_VOLUME_NOTICE) && /cannot be resized or moved/.test(VAST_VOLUME_NOTICE))
   check('no request carried the key in a path or left the fixture', fixture.requests.every(row => row.authorization === 'Bearer ' + fixture.key && !row.path.includes(fixture.key)))
   console.log('VAST VOLUMES GREEN — ' + checks + ' checks; search, create, list, delete (verified absent), attach-at-create and the machine-bound records on the fixture; zero billable calls')
 } finally { await fixture.close() }
