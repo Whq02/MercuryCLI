@@ -69,7 +69,3 @@ export function mistralDisplayPin(id: string): MistralDisplayPin | undefined {
 export function mistralDisplayName(id: string): string {
   return mistralDisplayPin(id)?.displayName ?? id
 }
-
-export function mistralAcceptsEffort(model: string, effort: string): boolean {
-  return mistralDisplayPin(model)?.efforts.includes(effort) === true
-}
