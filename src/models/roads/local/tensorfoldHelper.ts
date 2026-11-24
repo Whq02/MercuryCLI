@@ -106,10 +106,6 @@ function readHelper2bOnDisk(reads: { snapshot?: (repo: string) => boolean; adapt
   }
 }
 
-export function helper2bOnDisk(reads: { snapshot?: (repo: string) => boolean; adapter?: boolean } = {}): boolean {
-  return readHelper2bOnDisk(reads).onDisk
-}
-
 const SINGLE_SLOT_FAMILIES: readonly RegExp[] = [/qwen3[._-]?8[-_]27b/i]
 
 export interface HelperModelChoice {
