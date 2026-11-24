@@ -11,6 +11,7 @@ import { errorMessage, getErrnoCode } from '../../platform/errors/errors.js'
 import { projectDirectoryIdentity, resolveProjectStore, type ProjectStoreReadFailure, type StoreSpellingRules } from '../../platform/storage/projectStoreIdentity.js'
 import { setStoreHealth, transcriptStoreHealth } from './writer/storeHealth.js'
 import { stripGroundNote } from './isolationNote.js'
+import { isBuiltInCommandName } from './builtInCommands.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 import { isOneOf } from '../../platform/primitives/isOneOf.js'
 
@@ -176,7 +177,8 @@ export function extractFirstPromptFromHead(head: string, opts: { promptsOnly?: b
       if (text === '') continue
       const commandName = /<command-name>(.*?)<\/command-name>/.exec(text)
       if (commandName) {
-        if (commandNameFallback === null) commandNameFallback = commandName[1] as string
+        const name = commandName[1] as string
+        if (commandNameFallback === null && !isBuiltInCommandName(name.replace(/^\//, ''))) commandNameFallback = name
         continue
       }
       const bashInput = /<bash-input>(.*?)<\/bash-input>/.exec(text)

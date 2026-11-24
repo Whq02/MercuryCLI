@@ -93,9 +93,10 @@ export function sessionPromptFromWindow(chunk: string, builtIn: (name: string) =
         if (portable && (flat === '' || /^\s*<[a-z]/.test(flat) && !flat.includes('<command-name>') && !flat.includes('<bash-input>'))) continue
         const command = /<command-name>([\s\S]*?)<\/command-name>/.exec(flat)?.[1]
         if (command) {
+          if (builtIn(command.replace(/^\//, ''))) continue
           commandFallback ||= command
           const args = /<command-args>([\s\S]*?)<\/command-args>/.exec(flat)?.[1]?.trim()
-          if (builtIn(command.replace(/^\//, '')) || !args) continue
+          if (!args) continue
           return `${command} ${args}`
         }
         const shell = /<bash-input>([\s\S]*?)<\/bash-input>/.exec(flat)?.[1]
