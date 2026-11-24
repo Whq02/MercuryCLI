@@ -140,7 +140,7 @@ function makeNewest(projectDir: string, sessionId: string): void {
   utimesSync(transcriptOf(projectDir, sessionId), at, at)
 }
 
-type Held = { sessionId: string; workspaceId: string; focusedBy?: string; attachedBy?: string; endedAt?: number }
+type Held = { sessionId: string; workspaceId: string; focusedBy?: string; attachedBy?: string; focusedAlso?: ReadonlyArray<{ by: string; at: number }>; endedAt?: number }
 function seedRecords(held: Held[]): void {
   const workers = Object.fromEntries(
     held.map((row, i) => [
@@ -157,6 +157,7 @@ function seedRecords(held: Held[]): void {
         pid: process.pid,
         ...(row.focusedBy !== undefined ? { focusedAt: Date.now() - 60_000, focusedBy: row.focusedBy } : {}),
         ...(row.attachedBy !== undefined ? { attachedAt: Date.now() - 60_000, attachedBy: row.attachedBy } : {}),
+        ...(row.focusedAlso !== undefined ? { focusedAlso: row.focusedAlso } : {}),
         ...(row.endedAt !== undefined ? { endedAt: row.endedAt } : {}),
       },
     ]),
@@ -417,7 +418,18 @@ try {
     const row = stripAnsi(continueLine((await mountFace(freshDir, 120, 34, [{ sessionId: SID_OTHER, workspaceId: otherDir, attachedBy: ELSEWHERE }])).plain))
     check(`another live terminal attached to it counts as holding it: the row reads "${WORDS}"`, row.includes(`in other-trusted · ${WORDS}`), FIX_WORDS, row.trim())
   }
-
+  {
+    const { scanBootCardFacts } = await import('../../src/screen/boot-face/bootCardFacts.ts')
+    const { continueOpenElsewhere } = await import('../../src/screen/boot-face/splash/rowActions.ts')
+    const heldAlso: Held[] = [{ sessionId: SID_OTHER, workspaceId: otherDir, focusedBy: HERE, focusedAlso: [{ by: ELSEWHERE, at: Date.now() - 60_000 }] }]
+    const row = stripAnsi(continueLine((await mountFace(freshDir, 120, 34, heldAlso)).plain))
+    check(
+      `another live terminal named only in focusedAlso counts as holding it: continueOpenElsewhere is true and the row reads "${WORDS}"`,
+      continueOpenElsewhere(scanBootCardFacts()) === true && row.includes(`in other-trusted · ${WORDS}`),
+      FIX_WORDS,
+      row.trim(),
+    )
+  }
   console.log('§5 — Enter on a row whose session is open in another window joins the runner that window is on: no admission, so no second runner')
   {
     await mountFace(freshDir, 120, 34, [{ sessionId: SID_OTHER, workspaceId: otherDir, focusedBy: ELSEWHERE }])

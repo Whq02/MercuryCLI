@@ -4,7 +4,7 @@ import { getCwd } from '../../../platform/files/cwd.js';
 import { enterConcourse, enterRootChat } from '../../routes/surfaceRoute.js';
 import type { scanBootCardFacts, BootProjectFact } from '../bootCardFacts.js';
 import { isProcessAlive } from '../../../daemon/control/ownerWatch.js';
-import { readSessionWorkers, stampedTerminalPid } from '../../../daemon/concourse-workers/concourseWorkers.js';
+import { readSessionWorkers, stampedTerminalPid, terminalStampsOf } from '../../../daemon/concourse-workers/concourseWorkers.js';
 import type { AsyncListNote } from '../../widgets/useInteractiveList.js';
 import type { AppState } from '../../app-state/AppStateStore.js';
 import type { bornSession } from '../../../daemon/switchboard/bornSession.js';
@@ -24,7 +24,7 @@ export function continueOpenElsewhere(facts: ReturnType<typeof scanBootCardFacts
     rec =>
       rec.sessionId === sessionId &&
       rec.endedAt === undefined &&
-      [rec.focusedBy, rec.attachedBy].some(by => {
+      terminalStampsOf(rec).some(by => {
         const pid = stampedTerminalPid(by);
         return pid !== undefined && pid !== process.pid && isProcessAlive(pid);
       }),
