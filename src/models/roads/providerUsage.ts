@@ -932,14 +932,6 @@ export function openaiObservedWindowViews(reads?: ActiveUsageReads): UsageWindow
   return openaiWindowViews(reads)
 }
 
-
-export function openrouterCreditFacts(reads?: ActiveUsageReads): {
-  usage: OpenrouterKeyUsage | null
-  lastError?: string
-} {
-  return (reads?.openrouterObserved ?? openrouterObservedKeyUsage)()
-}
-
 export function openaiSubscriptionCredits(reads?: ActiveUsageReads): UsageCreditsView {
   const credits = (reads?.openaiObserved ?? openaiSubscriptionUsage)().credits
   if (credits === undefined) return { state: 'unreported', reason: 'not stated on this reply yet', compact: 'not stated yet' }

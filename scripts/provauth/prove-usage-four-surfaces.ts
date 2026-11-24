@@ -153,10 +153,6 @@ section('§2 openrouter: the credit cap — equality, the warning, the typed fac
       tab[0]!.usedPct === 75,
     JSON.stringify({ rail: rail.windows, tab }),
   )
-  check(
-    'the typed credit facts hand the tab the SAME observation object',
-    usage.openrouterCreditFacts(reads).usage === (observed.usage as never),
-  )
   const warning = providerLimitWarning({ model: 'openrouter-fixture', reads })
   check(
     'limits ≡ meters: the credit cap at 75% stays quiet',
