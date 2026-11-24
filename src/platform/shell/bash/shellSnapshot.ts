@@ -724,6 +724,7 @@ export async function createAndSaveSnapshot(
         passedOver(error)
         logForDebugging(`snapshots directory ${snapshotDir} no longer exists`)
       }
+      logError(`shell snapshot creation failed: ${LOGIN_RUN_HANDED_OVER.why} (${shell.path})`)
       if (remembersFailedLoginRun(session)) loginRunsThatFailed.add(shell.path)
       if (hostBash) noteLoginFiles(LOGIN_RUN_HANDED_OVER)
       return undefined
