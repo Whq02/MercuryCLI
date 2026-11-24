@@ -27,7 +27,6 @@ import type {
   ApiToolUnion,
   ContentBlock as BetaContentBlock,
   JsonOutputFormat,
-  StreamCapabilityAdvertisement,
 } from '../../../engine/message-shapes/wire.js'
 import { setLastApiCompletionTimestamp } from 'src/boot/process-state/processState.js'
 import { logForDebugging } from 'src/platform/logs/debugLog.js'
@@ -75,14 +74,6 @@ import { watchStream } from './stream-core/watchStream.js'
 import { wireParamsFor } from './stream-core/wireParams.js'
 import { asSystemPrompt } from '../../../engine/system-prompt/systemPromptType.js'
 import { withFixtureReplay } from './fixtureReplay.js'
-
-export const ANTHROPIC_STREAM_ADVERTISEMENT: StreamCapabilityAdvertisement = {
-  textDelta: true,
-  reasoningDelta: true,
-  toolArgsDelta: true,
-  usage: true,
-  timing: true,
-}
 
 export type Options = {
   querySource: QuerySource
