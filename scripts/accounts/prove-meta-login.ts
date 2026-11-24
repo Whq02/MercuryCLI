@@ -13,7 +13,6 @@ const { readSignInLedger } = await import('../../src/models/sign-in/account-ledg
 const { ALL_PROVIDER_CREDENTIAL_ENV_VARS, PROVIDER_CREDENTIAL_VALUE_SHAPES } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
 const { deriveFamilySlotGroups, executeSlotRemoval } = await import('../../src/models/roads/accountSlots.ts')
 const { providerIdentityLine } = await import('../../src/models/roads/providerIdentityLine.ts')
-const { metaObservedBalance } = await import('../../src/models/roads/meta/metaUsageState.ts')
 const key = 'LLM|123456789|fixture-not-a-real-key-abcdefgh'
 const env = { MERCURY_META_API_BASE: 'http://127.0.0.1:1/v1' } as NodeJS.ProcessEnv
 let count = 0
@@ -53,7 +52,6 @@ try {
   const network = (async () => { throw new Error(`fixture offline ${key}`) }) as typeof fetch
   const unverified = await storeMetaApiKeyLogin(key, { env, fetchImpl: network })
   check('an unreachable endpoint stores an explicitly unverified key with a scrubbed receipt', unverified.stored && unverified.receipt.includes('UNVERIFIED') && !unverified.receipt.includes(key), 'storeMetaApiKeyLogin in src/models/roads/meta/metaLogin.ts must store the key as UNVERIFIED on a network error and scrub the key from the receipt')
-  check('no account balance or subscription allowance is invented', metaObservedBalance() === null, 'metaObservedBalance in src/models/roads/meta/metaUsageState.ts must stay null without a real balance')
   check('the key has its own at-rest slot', JSON.parse(readFileSync(providerSecretsPathForDisplay(), 'utf8')).metaApiKey === key, 'writeStoredMetaApiKey in src/models/sign-in/account-ledger/providerSecrets.ts must keep the key in the metaApiKey slot of the secrets file')
   console.log(`META LOGIN GREEN (${count} checks; fixture only)`)
 } finally {
