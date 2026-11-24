@@ -1,4 +1,4 @@
-import { statSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { daemonHomeStands, publishInDaemonHome } from '../control/daemonHome.js'
 import { observeSessionStates } from '../session-seat/sessionStateHooks.js'
@@ -8,6 +8,7 @@ import { canonicalWorkspaceId } from './admission.js'
 import { withDaemonStoreLock } from './storeLock.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 import { defineStore } from '../../platform/substrate/fileStore.js'
+import { statFingerprint } from '../../platform/substrate/startupMenu.js'
 
 interface ConcourseWorkerFileV1 {
   version: 1
@@ -42,16 +43,6 @@ const UNAVAILABLE_SESSION_WORKERS: SessionWorkersSnapshot = freezeWorkersDeep({ 
 
 const workersSnapshotMemo = new Map<string, { fp: string; snapshot: SessionWorkersSnapshot }>()
 
-function workersStatFingerprint(path: string): string | null {
-  try {
-    const st = statSync(path, { bigint: true })
-    return `${st.dev}:${st.ino}:${st.size}:${st.mtimeNs}:${st.ctimeNs}`
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') return 'absent'
-    return null
-  }
-}
-
 function readMutableSessionWorkersFromDisk(
   path: string,
 ): { kind: 'known'; workers: Record<string, ConcourseWorkerRecordV1> } | { kind: 'absent' } | { kind: 'unavailable'; why: string } | { kind: 'unusable'; why: string } {
@@ -79,7 +70,7 @@ function readMutableSessionWorkersFromDisk(
 
 export function readSessionWorkersSnapshot(dir?: string): SessionWorkersSnapshot {
   const path = concourseWorkersPath(dir)
-  const fp = workersStatFingerprint(path)
+  const fp = statFingerprint(path)
   if (fp === null) {
     workersSnapshotMemo.delete(path)
     return UNAVAILABLE_SESSION_WORKERS

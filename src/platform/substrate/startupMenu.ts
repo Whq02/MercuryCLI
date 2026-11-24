@@ -419,7 +419,7 @@ export function __liveBootEnvFileReadsForTests(): number {
   return liveFileReads
 }
 
-function statFingerprint(path: string): string | null {
+export function statFingerprint(path: string): string | null {
   try {
     const st = statSync(path, { bigint: true })
     return `${st.dev}:${st.ino}:${st.size}:${st.mtimeNs}:${st.ctimeNs}`
