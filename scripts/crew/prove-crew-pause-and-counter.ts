@@ -109,7 +109,7 @@ section('C2 — the wire: the counter and a pause cross the feed and read back')
 
 section('C3 — the paused row says PAUSED with why and the countdown')
 {
-  sectionHint = 'to fix, change crewAgentFactsOf, crewStateOf, crewStatusWords, crewPauseLine or crewCountLabel in src/engine/connector/crewFacts.ts, or decodeAgentPause in src/engine/tasks/local-agent/crewmatePause.ts'
+  sectionHint = 'to fix, change crewAgentFactsOf, crewStateOf, crewStatusWords or crewCountLabel in src/engine/connector/crewFacts.ts, or decodeAgentPause or pauseLineWords in src/engine/tasks/local-agent/crewmatePause.ts'
   const now = T0 + 120_000
   const paused = crew.crewmateFactsOf(
     {
@@ -134,8 +134,8 @@ section('C3 — the paused row says PAUSED with why and the countdown')
   check('the status cell: paused, why, and the countdown', paused !== null && crew.crewStatusWords(paused, now) === `paused — Opus 5's 5-hour limit is spent until 15:00 · retries by itself at ${pause.pauseClockWords(now + 42 * 60_000)} (in 42m) · r retries now`, paused === null ? 'null' : crew.crewStatusWords(paused, now))
   check('a pause with no stated reset says so', busy !== null && crew.crewStatusWords(busy, now) === 'paused — the provider refused 3 times in a row (HTTP 429, busy) — the 20m retry budget is spent · no reset stated — a message resumes it · r retries now', busy === null ? 'null' : crew.crewStatusWords(busy, now))
   check('a countdown that has run out reads "resuming now"', paused !== null && crew.crewStatusWords(paused, now + 43 * 60_000) === "paused — Opus 5's 5-hour limit is spent until 15:00 · resuming now · r retries now")
-  check("the row's line carries the pause's own words and the doors", paused !== null && crew.crewPauseLine(paused, now) === `paused — Opus 5's 5-hour limit is spent until 15:00 · retries by itself at ${pause.pauseClockWords(now + 42 * 60_000)} (in 42m) · r retries now; ${pause.CREWMATE_PAUSE_DOORS}`, paused === null ? 'null' : String(crew.crewPauseLine(paused, now)))
-  check('a running row is never paused, whatever it carries', running !== null && running.state === 'running' && crew.crewPauseLine(running, now) === null)
+  check("the row's line carries the pause's own words and the doors", paused !== null && paused.paused !== null && pause.pauseLineWords(paused.paused, now) === `paused — Opus 5's 5-hour limit is spent until 15:00 · retries by itself at ${pause.pauseClockWords(now + 42 * 60_000)} (in 42m) · r retries now; ${pause.CREWMATE_PAUSE_DOORS}`, paused === null || paused.paused === null ? 'null' : String(pause.pauseLineWords(paused.paused, now)))
+  check('a running row is never paused, whatever it carries', running !== null && running.state === 'running' && crew.crewStatusWords(running, now) === 'running')
   check('a failed row without a pause keeps its word', failed !== null && failed.state === 'failed' && failed.paused === null && crew.crewStatusWords(failed, now) === 'failed')
   const all = [running!, paused!, busy!, failed!]
   check('the count line counts the running and the paused rows (the list header beneath carries the total)', crew.crewCountLabel(all) === '1 running · 2 paused' && crew.crewPaused(all).length === 2, crew.crewCountLabel(all))
