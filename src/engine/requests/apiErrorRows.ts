@@ -91,10 +91,6 @@ export function reasoningOnlyRecoveryNudge(fewerWords: boolean): string {
   return fewerWords ? REASONING_ONLY_FEWER_WORDS_NUDGE : REASONING_ONLY_RECOVERY_NUDGE
 }
 
-export function isReasoningOnlyRecoveryNudgeText(text: string): boolean {
-  return text === REASONING_ONLY_RECOVERY_NUDGE || text === REASONING_ONLY_FEWER_WORDS_NUDGE
-}
-
 export function reasoningOnlyNoticeLine(outputLimit: string | null, again: boolean, action: string): string {
   const head = outputLimit === null ? "the model's turn carried thinking only" : `thinking ran to the output limit (${outputLimit})`
   return `${head}${again ? ' again' : ''} — ${action}`
