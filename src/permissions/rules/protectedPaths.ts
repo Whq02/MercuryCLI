@@ -13,7 +13,7 @@ export function spelling(path: string): string {
     .replace(/^(?:\$\{HOME\}|\$HOME|%HOME%)(?=\/|$)/i, home.replace(/\\/g, '/'))
     .replace(/^(?:%USERPROFILE%|\$\{?(?:env:)?USERPROFILE\}?)(?=\/|$)/i, profile.replace(/\\/g, '/'))
     .replace(/^(?:\$\{MERCURY_CONFIG_DIR\}|\$MERCURY_CONFIG_DIR|%MERCURY_CONFIG_DIR%|\$env:MERCURY_CONFIG_DIR)(?=\/|$)/i, getMercuryHome().replace(/\\/g, '/'))
-    .replace(/^\/(?:mnt\/)?([a-z])\//i, '$1:/')
+    .replace(/^\/(?:mnt\/)?([a-z])(?:\/|$)/i, '$1:/')
 }
 
 function comparable(path: string): string {
