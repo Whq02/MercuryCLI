@@ -110,7 +110,7 @@ const keptWords = resultOf(kept)
 check('the model reads "the user kept the rule" as an ordinary result', keptWords.content === kept.message && keptWords.is_error === undefined, j(keptWords))
 const drawn = renderCorrectResult(kept)
 const drawnText = JSON.stringify(drawn)
-check('the chat row says you kept the rule and carries no refusal or error words', drawnText.includes('rule kept') && drawnText.includes('you kept the rule; nothing changed') && !drawnText.includes('refused') && !drawnText.includes('warning'), drawnText.slice(0, 400))
+check('the chat row says rule kept with nothing after it and carries no refusal or error words', drawnText.includes('rule kept') && !drawnText.includes('you kept the rule; nothing changed') && !drawnText.includes('refused') && !drawnText.includes('warning'), drawnText.slice(0, 400))
 const refused = resultOf({ ok: false, op: 'retract', code: 'unknown-target', message: 'no pending row' })
 check('every other refusal still reaches the model as an error', refused.content.startsWith('retract refused (unknown-target)') && refused.is_error === true, j(refused))
 

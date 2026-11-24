@@ -64,7 +64,7 @@ const cardRows = (rows: string[]): string[] => {
 
 for (const scene of [
   { id: 'yes', key: '1', row: 'retract seq 1 →', said: 'The user said yes on the card' },
-  { id: 'no', key: '2', row: 'rule kept you kept the rule; nothing changed', said: 'the user kept the rule' },
+  { id: 'no', key: '2', row: 'rule kept', said: 'the user kept the rule' },
 ]) {
   section(`§ the real cockpit: the model pins a rule the user asked for, then asks to drop it — the card paints with the rule's words verbatim and ${scene.id === 'yes' ? 'Yes drops it' : 'No keeps it'}`)
   const run = await runArtifactArena({
@@ -92,7 +92,7 @@ for (const scene of [
   if (frameDir) writeFileSync(join(frameDir, `rule-card-drive-${scene.id}-final.txt`), `${rows.join('\n')}\n`)
   check(`${scene.id}: the turn went on to its end (the answer never interrupted it)`, rows.some(r => r.includes('Done.')), rows.slice(-14).join('\n'), 'answering the card must let the tool call finish and the turn continue; check how src/tools/memory/MemoryTools.ts handles the card answer')
   check(`${scene.id}: the transcript row reads "${scene.row}"`, rows.some(r => r.includes(scene.row)), rows.filter(r => r.includes('retract') || r.includes('kept')).join(' | ') || rows.slice(-14).join('\n'), 'the transcript row for the Correct call is drawn in src/tools/memory/rows.tsx')
-  if (scene.id === 'no') check('no: the kept answer is never drawn as an error row', !rows.some(r => r.includes('▲ Error') && r.includes('kept')), rows.filter(r => r.includes('▲')).join(' | '), 'a kept answer must render as a plain row, not an error; check the kept branch in src/tools/memory/rows.tsx and the result in src/tools/memory/MemoryTools.ts')
+  if (scene.id === 'no') check('no: the kept answer is never drawn as an error row or with the cut tail', !rows.some(r => r.includes('▲ Error') && r.includes('kept')) && !rows.some(r => r.includes('you kept the rule; nothing changed')), rows.filter(r => r.includes('▲') || r.includes('kept')).join(' | '), 'a kept answer must render as a plain row reading rule kept, not an error; check the kept branch in src/tools/memory/rows.tsx and the result in src/tools/memory/MemoryTools.ts')
   check(`${scene.id}: the model was told: ${scene.said}`, toolResults(run).some(r => r.includes(scene.said)), toolResults(run).join(' | ').slice(0, 900), 'the tool result sent back to the model carries the sentence for the answer given; check the card-answer text in src/tools/memory/MemoryTools.ts')
   const lib = libraryOf(run.paths.home)
   const pinned = lib === null ? [] : pinsOf(lib)

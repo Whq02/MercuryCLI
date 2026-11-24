@@ -122,10 +122,7 @@ export function renderCorrectResult(output?: CorrectToolOutput): React.ReactNode
           </Text>
         </Text>
       ) : output.code === 'user-kept-rule' ? (
-        <Text>
-          <Text>rule kept</Text>
-          <Text dimColor> you kept the rule; nothing changed</Text>
-        </Text>
+        <Text>rule kept</Text>
       ) : (
         <Box flexDirection="column">
           <Text color="warning">

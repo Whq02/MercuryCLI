@@ -128,5 +128,24 @@ async function paint(node: React.ReactNode, width = 160): Promise<string> {
     JSON.stringify(screenText),
   )
 }
+
+{
+  const { renderCorrectResult } = await import('../../src/tools/memory/rows.tsx')
+  const screenText = (
+    await paint(
+      renderCorrectResult({
+        ok: false,
+        op: 'retract',
+        code: 'user-kept-rule',
+        message: 'the user kept the rule — seq 2 stays as it is, word for word; nothing changed',
+      }),
+    )
+  ).replace(/^└\s*/, '')
+  check(
+    'K-35 Correct user-kept-rule row reads rule kept and nothing after it',
+    screenText === 'rule kept',
+    JSON.stringify(screenText),
+  )
+}
 console.log(`\ntool-row-words-cut: ${failures} failure(s)`)
 process.exit(failures ? 1 : 0)
