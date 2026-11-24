@@ -2,6 +2,7 @@ prove-commit-gate-reads-started-commands.ts
 prove-debug-launch-is-read.ts
 prove-delete-ward-continuation.ts
 prove-delete-ward-flag-spellings.ts
+prove-delete-ward-globs-and-rsync.ts
 prove-delete-ward-home-anywhere.ts
 prove-delete-ward-linear.ts
 prove-delete-ward-profile-subfolder.ts

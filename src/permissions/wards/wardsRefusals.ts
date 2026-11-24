@@ -41,7 +41,7 @@ const SCRIPT_RUNNERS = new Set(['sh', 'bash', 'zsh', 'dash', 'ksh', 'ash', 'fish
 const SYSTEM_TREES = ['etc', 'usr', 'bin', 'sbin', 'lib', 'lib64', 'opt', 'boot', 'dev', 'proc', 'sys', 'System', 'Library', 'Applications', 'cores']
 const WINDOWS_SYSTEM_FOLDERS = new Set(['windows', 'program files', 'program files (x86)', 'programdata'])
 const SHORT_NAMES: Record<string, string> = { 'progra~1': 'program files', 'progra~2': 'program files (x86)', 'progra~3': 'programdata' }
-const EVERYTHING = /^[*?.]*\*[*?.]*$/
+const EVERYTHING = /^(?:[*?.]|\[[^\]]+\])*\*(?:[*?.]|\[[^\]]+\])*$/
 const RECURSIVE_LONG = /^--r(?:e(?:c(?:u(?:r(?:s(?:i(?:v(?:e)?)?)?)?)?)?)?)?$/
 const RECURSE_PARAMETER = /^-r(?:e(?:c(?:u(?:r(?:s(?:e)?)?)?)?)?)?(?::\$true)?$/i
 const POSIX_RM_CLUSTER = /^-[dfiIPRrvWx]+$/
@@ -723,6 +723,7 @@ function judgeShellRead(read: ShellRead, world: RefusalWorld, textReading: (text
         const operands = operandsOf(argv)
         const target = operands[operands.length - 1]
         if (operands.length >= 2 && target !== undefined && rootNamed(target, command, world) !== null) hit('no-root-recursive-delete', at)
+        if (operands.length >= 2 && target !== undefined && otherUserNamed(target, command, world)) hit('no-other-user-delete', at)
       }
       const removal = deleteOf(layer, command, read.commands)
       if (removal !== null && layer.wrappers.includes('xargs')) {
