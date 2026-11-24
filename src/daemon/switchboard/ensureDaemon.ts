@@ -122,6 +122,7 @@ async function awaitSuccessor(hs: Handshake, pause: Pause, oldPid: number | null
 
 export async function warmSessionRunner(workspaceDir: string, retiring?: string): Promise<boolean> {
   try {
+    if (!(await ensureOwnedDaemon())) return false
     const { daemonControlRpc } = await import('../control/controlSocket.js')
     const { bootBirthFacts, carriedConsentOf, carriedKitOf } = await import('./bootBirthFacts.js')
     const reply = await daemonControlRpc(

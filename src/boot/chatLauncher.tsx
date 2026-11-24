@@ -33,6 +33,9 @@ export async function launchChat(
   mcpSeed?: McpSeed,
 ): Promise<void> {
   profileCheckpoint('launch_chat_start');
+  void import('../daemon/switchboard/ensureDaemon.js')
+    .then(m => m.warmSessionRunner(getCwd()))
+    .catch(passedOver);
 
   try {
     const { runBootRecovery } = await import('../platform/substrate/recoveryOrchestrator.js');
