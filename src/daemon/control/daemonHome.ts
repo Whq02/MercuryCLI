@@ -1,6 +1,21 @@
-import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { appendFileSync, chmodSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
+import { passedOver } from '../../platform/errors/passedOver.js'
+import { posixFileModesApply } from '../../platform/host-os/files.js'
 import { publishAtomicSync, renameWithWin32RetrySync } from '../../platform/substrate/fileStore.js'
+
+const DAEMON_DIR_MODE = 0o700
+const DAEMON_FILE_MODE = 0o600
+
+export function ensureDaemonHomeDir(dir: string): void {
+  mkdirSync(dir, { recursive: true, mode: DAEMON_DIR_MODE })
+  if (!posixFileModesApply()) return
+  try {
+    chmodSync(dir, DAEMON_DIR_MODE)
+  } catch (error) {
+    passedOver(error)
+  }
+}
 
 type DaemonHomeWatch = { dir: string; onGone: (where: string) => void; gone: boolean }
 
@@ -37,14 +52,16 @@ export function publishInDaemonHome(
   contents: string | Uint8Array,
   opts?: { dir?: string; mode?: number },
 ): 'published' | 'home-gone' {
+  const mode = opts?.mode ?? DAEMON_FILE_MODE
   const w = watchOver(opts?.dir)
   if (w === null) {
-    publishAtomicSync(path, contents, { mode: opts?.mode })
+    mkdirSync(dirname(path), { recursive: true, mode: DAEMON_DIR_MODE })
+    publishAtomicSync(path, contents, { mode })
     return 'published'
   }
   if (w.gone) return 'home-gone'
   try {
-    publishAtomicSync(path, contents, { mode: opts?.mode, parent: 'must-stand' })
+    publishAtomicSync(path, contents, { mode, parent: 'must-stand' })
     return 'published'
   } catch (e) {
     if ((e as { fsCode?: unknown } | null)?.fsCode !== 'ENOENT') throw e
@@ -61,13 +78,13 @@ export function appendInDaemonHome(
 ): 'appended' | 'home-gone' {
   const w = watchOver(opts?.dir)
   if (w === null) {
-    if (opts?.parent !== 'must-stand') mkdirSync(dirname(path), { recursive: true })
-    appendFileSync(path, line)
+    if (opts?.parent !== 'must-stand') mkdirSync(dirname(path), { recursive: true, mode: DAEMON_DIR_MODE })
+    appendFileSync(path, line, { mode: DAEMON_FILE_MODE })
     return 'appended'
   }
   if (w.gone) return 'home-gone'
   try {
-    appendFileSync(path, line)
+    appendFileSync(path, line, { mode: DAEMON_FILE_MODE })
     return 'appended'
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e
@@ -81,7 +98,7 @@ export function publishTransientInDaemonHome(where: string, path: string, conten
   if (w !== null && w.gone) return 'home-gone'
   const tmp = `${path}.${process.pid}.tmp`
   try {
-    writeFileSync(tmp, contents)
+    writeFileSync(tmp, contents, { mode: DAEMON_FILE_MODE })
     renameWithWin32RetrySync(tmp, path)
     return 'published'
   } catch (e) {
@@ -94,7 +111,7 @@ export function publishTransientInDaemonHome(where: string, path: string, conten
 export function ensureDirInDaemonHome(where: string, path: string, dir?: string): boolean {
   const w = watchOver(dir)
   if (w === null) {
-    mkdirSync(path, { recursive: true })
+    mkdirSync(path, { recursive: true, mode: DAEMON_DIR_MODE })
     return true
   }
   if (w.gone) return false
@@ -103,7 +120,7 @@ export function ensureDirInDaemonHome(where: string, path: string, dir?: string)
     return false
   }
   try {
-    mkdirSync(path)
+    mkdirSync(path, { mode: DAEMON_DIR_MODE })
     return true
   } catch (e) {
     const code = (e as NodeJS.ErrnoException).code

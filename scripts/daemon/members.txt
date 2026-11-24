@@ -110,3 +110,4 @@ prove-record-loops-ask-births-in-one-read.ts
 prove-prespawn-start-read-once.ts
 prove-windows-start-road-launches-no-powershell.ts
 prove-daemon-stores-held-save.ts
+prove-daemon-home-file-modes.ts

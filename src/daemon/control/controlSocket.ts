@@ -3,7 +3,6 @@ import net from 'node:net'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { mkdirSync, readFileSync, unlinkSync } from 'node:fs'
 import {
-  mkdir,
   readFile,
   writeFile,
   unlink,
@@ -21,7 +20,7 @@ import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { posixFileModesApply } from '../../platform/host-os/files.js'
 import { errorMessage, getErrnoCode } from '../../platform/errors/errors.js'
 import { recordSpawnExit } from '../roster/spawnLedger.js'
-import { daemonHomeStands, publishInDaemonHome } from './daemonHome.js'
+import { daemonHomeStands, ensureDaemonHomeDir, publishInDaemonHome } from './daemonHome.js'
 import {
   MERCURY_DAEMON_PROTO,
   MIN_PROTO,
@@ -171,7 +170,7 @@ export function daemonExitTeardownSync(reason: string, exitCode?: number): void 
 
 export async function mintControlKey(): Promise<string> {
   const key = randomBytes(32).toString('hex')
-  await mkdir(daemonDir(), { recursive: true })
+  ensureDaemonHomeDir(daemonDir())
   await writeFile(controlKeyPath(), key, { mode: 0o600 })
   await chmod(controlKeyPath(), 0o600).catch(async (err: unknown) => {
     if (!posixFileModesApply()) return
@@ -528,7 +527,7 @@ export interface DaemonLock {
 }
 
 export async function acquireDaemonLock(): Promise<DaemonLock | null> {
-  await mkdir(daemonDir(), { recursive: true })
+  ensureDaemonHomeDir(daemonDir())
   const lockPath = daemonLockPath()
   const owner = mintDaemonIdentity()
   const res = await acquirePidLock(lockPath, owner, {

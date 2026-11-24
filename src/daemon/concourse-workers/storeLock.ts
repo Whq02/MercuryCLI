@@ -3,7 +3,7 @@ import { dirname } from 'node:path'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { STORE_LOCK_OPTIONS } from '../../platform/substrate/fileStore.js'
 import { lockSync } from '../../platform/storage/lockfile.js'
-import { publishTransientInDaemonHome, daemonHomeStands } from '../control/daemonHome.js'
+import { publishTransientInDaemonHome, daemonHomeStands, ensureDirInDaemonHome } from '../control/daemonHome.js'
 import { isProcessAlive } from '../control/ownerWatch.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 import { sleepSync } from '../../platform/async/timers.js'
@@ -116,7 +116,7 @@ function acquireSessionRecordsLock(
       if (code === 'ENOENT') {
         if (!daemonHomeStands(where, dir)) return 'home-gone'
         if (parentCreated) throw err
-        mkdirSync(dirname(path), { recursive: true })
+        if (!ensureDirInDaemonHome(where, dirname(path), dir)) return 'home-gone'
         parentCreated = true
         continue
       }
