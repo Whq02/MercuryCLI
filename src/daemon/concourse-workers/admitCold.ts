@@ -9,7 +9,7 @@ import { getProjectDir } from '../../sessions/transcripts/paths.js'
 import { scanTranscriptLinesBackward } from '../../sessions/transcripts/transcriptReader.js'
 import { kitStampOf, noteRecordlessResumeKit } from '../session-seat/sessionKit.js'
 import { CONCOURSE_SHORT_PREFIX } from './admission.js'
-import { updateConcourseWorkers } from './store.js'
+import { updateConcourseWorkersRidingOut } from './store.js'
 import { buildConcourseWorkerSpec, spawnPostureOf } from './spec.js'
 import { pidFieldsOf, buildTreeFields } from './marks.js'
 import { migrateTranscriptHomeToLaw } from './revive.js'
@@ -99,9 +99,9 @@ export function coldSpecOf({ req, records, workspaceId, sessionId, runnerId, wor
   return { snapshot, effort, runnerArgv, spec }
 }
 
-export function coldSeatAnswer({ req, deps, workspaceId, effectiveIsolation, modelKey, modelDisplayName, keyless, kit, preset, retainedNote, liveWorkers, runnerId, sessionId, workspaceKind, worktreePath, worktreeBranch, snapshot, effort, runnerArgv, spec, reg, pidFields }: AdmitSeat & ReturnType<typeof coldSpecOf> & { liveWorkers: ConcourseWorkerRecordV1[]; runnerId: string; sessionId: string; workspaceKind: ReturnType<typeof workspaceKindOf>; worktreePath: string | undefined; worktreeBranch: string | undefined; reg: ReturnType<WorkerRosterPort['registerLongLived']>; pidFields: ReturnType<typeof pidFieldsOf> }): ConcourseAdmitResult {
+export async function coldSeatAnswer({ req, deps, workspaceId, effectiveIsolation, modelKey, modelDisplayName, keyless, kit, preset, retainedNote, liveWorkers, runnerId, sessionId, workspaceKind, worktreePath, worktreeBranch, snapshot, effort, runnerArgv, spec, reg, pidFields }: AdmitSeat & ReturnType<typeof coldSpecOf> & { liveWorkers: ConcourseWorkerRecordV1[]; runnerId: string; sessionId: string; workspaceKind: ReturnType<typeof workspaceKindOf>; worktreePath: string | undefined; worktreeBranch: string | undefined; reg: ReturnType<WorkerRosterPort['registerLongLived']>; pidFields: ReturnType<typeof pidFieldsOf> }): Promise<ConcourseAdmitResult> {
   try {
-    updateConcourseWorkers(workers => {
+    await updateConcourseWorkersRidingOut(workers => {
       workers[runnerId!] = {
         schema: 1,
         runnerId: runnerId!,

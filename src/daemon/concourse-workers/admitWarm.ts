@@ -2,7 +2,7 @@ import { partiallySanitizeUnicode } from '../../platform/text/unicodeSanitizatio
 import type { resolveEffectiveSettingsSnapshot } from '../../platform/substrate/startupMenu.js'
 import { inspectWorkspaceKind, workspaceGitCheckNote } from './concourseWorktrees.js'
 import { kitStampOf, type SessionKitV1 } from '../session-seat/sessionKit.js'
-import { updateConcourseWorkers } from './store.js'
+import { updateConcourseWorkersRidingOut } from './store.js'
 import type { seatInitialPermissionMode } from './spec.js'
 import { type pidFieldsOf, buildTreeFields } from './marks.js'
 import type { AdmitSeat, ConcourseAdmitDeps, ConcourseAdmitResult } from './admit.js'
@@ -23,7 +23,7 @@ export function rewarmAfterFirstLine(deps: ConcourseAdmitDeps, runnerId: string 
   const unheard = runnerId === undefined ? undefined : deps.roster()?.afterFirstLine?.(runnerId, rewarm)
 }
 
-export function warmSeatAnswer({ req, deps, workspaceId, effectiveIsolation, kind, modelKey, modelDisplayName, kit, preset, retainedNote, runnerId, claimSessionId, claimEffort, claimPosture, snapshot, pidFields, claimed }: AdmitSeat & { runnerId: string; claimSessionId: string; claimEffort: string; claimPosture: ReturnType<typeof seatInitialPermissionMode>; snapshot: ReturnType<typeof resolveEffectiveSettingsSnapshot>; pidFields: ReturnType<typeof pidFieldsOf>; claimed: Extract<Awaited<ReturnType<NonNullable<ConcourseAdmitDeps['claimWarm']>>>, { claimed: true }> }): ConcourseAdmitResult {
+export async function warmSeatAnswer({ req, deps, workspaceId, effectiveIsolation, kind, modelKey, modelDisplayName, kit, preset, retainedNote, runnerId, claimSessionId, claimEffort, claimPosture, snapshot, pidFields, claimed }: AdmitSeat & { runnerId: string; claimSessionId: string; claimEffort: string; claimPosture: ReturnType<typeof seatInitialPermissionMode>; snapshot: ReturnType<typeof resolveEffectiveSettingsSnapshot>; pidFields: ReturnType<typeof pidFieldsOf>; claimed: Extract<Awaited<ReturnType<NonNullable<ConcourseAdmitDeps['claimWarm']>>>, { claimed: true }> }): Promise<ConcourseAdmitResult> {
   const inspectedKind = inspectWorkspaceKind(workspaceId)
   let note = retainedNote
   if (inspectedKind.kind === 'plain-folder' && inspectedKind.gitCheckError !== undefined) {
@@ -32,7 +32,7 @@ export function warmSeatAnswer({ req, deps, workspaceId, effectiveIsolation, kin
     else if (!note.includes(gitNote)) note = `${note} — ${gitNote}`
   }
   try {
-    updateConcourseWorkers(workers => {
+    await updateConcourseWorkersRidingOut(workers => {
       workers[runnerId] = {
         schema: 1,
         runnerId,

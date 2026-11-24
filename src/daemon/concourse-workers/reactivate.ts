@@ -5,10 +5,10 @@ import { deriveSessionKitForWorkspace, kitDeltasUnreadNote, restampSessionKit, t
 import { sessionKindOfAsker, type SessionKind } from './sessionKind.js'
 import { workerPidAlive } from './workerIdentity.js'
 import { turnInFlightOf, sessionActivityOf, type ConcourseWorkerRecordV1, clearParkedFields, stampParked } from './record.js'
-import { updateConcourseWorkers } from './store.js'
+import { updateConcourseWorkers, updateConcourseWorkersRidingOut } from './store.js'
 import type { ConcourseRefusalCode, ConcourseAdmitResult, ConcourseAdmitDeps } from './admit.js'
 import { type ConcourseMoveV1, evaluateConcourseAdmission, type WorkspaceIsolation } from './admission.js'
-import { runnerRestartReasonOf, reviveConcourseWorker } from './revive.js'
+import { runnerRestartReasonOf, reviveConcourseWorkerRidingOut } from './revive.js'
 import { seatInitialPermissionMode, stampSpawnPosture, buildConcourseWorkerSpec } from './spec.js'
 import { claimedPidFields, buildTreeFields } from './marks.js'
 import { rewarmAfterFirstLine } from './admitWarm.js'
@@ -151,7 +151,7 @@ export async function reactivateConcourseSession(
       const short = claimed.short
       const fields = await claimedPidFields(claimed)
       try {
-        updateConcourseWorkers(workers => {
+        await updateConcourseWorkersRidingOut(workers => {
           const current = workers[rec.runnerId]
           if (!current || current.endedAt !== undefined) return
           if (short !== rec.runnerId) delete workers[rec.runnerId]
@@ -201,7 +201,7 @@ export async function reactivateConcourseSession(
   const runnerArgvDrift = args.runnerArgv !== undefined && args.runnerArgv.length > 0 && JSON.stringify(args.runnerArgv) !== JSON.stringify(rec.runnerArgv)
   if (args.modelKey !== rec.modelKey || effort !== rec.effort || isolationDrift || keylessDrift || runnerArgvDrift) {
     try {
-      updateConcourseWorkers(workers => {
+      await updateConcourseWorkersRidingOut(workers => {
         const w = workers[rec.runnerId]
         if (!w || w.endedAt !== undefined) return
         w.modelKey = args.modelKey
@@ -220,7 +220,7 @@ export async function reactivateConcourseSession(
     has: (short: string): { present: boolean } => roster.has(short),
     registerLongLived: (short: string, spec: RunnerChildSpec): { ok: boolean; pid?: number; error?: string } => roster.registerLongLived(short, spec),
   }
-  const revived = reviveConcourseWorker(
+  const revived = await reviveConcourseWorkerRidingOut(
     rec.sessionId,
     args.by,
     reviveRoster,
@@ -243,7 +243,7 @@ export async function reactivateConcourseSession(
   }
   if (revived.outcome === 'applied') {
     try {
-      updateConcourseWorkers(workers => {
+      await updateConcourseWorkersRidingOut(workers => {
         const w = workers[rec.runnerId]
         if (!w || w.endedAt !== undefined) return
         restampSessionKit(w, kit, kitSource, args.by)

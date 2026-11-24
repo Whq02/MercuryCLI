@@ -112,3 +112,4 @@ prove-windows-start-road-launches-no-powershell.ts
 prove-daemon-opens-the-credential-store-without-blocking.ts
 prove-daemon-stores-held-save.ts
 prove-daemon-home-file-modes.ts
+prove-birth-rides-out-held-records.ts

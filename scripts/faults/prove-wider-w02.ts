@@ -292,7 +292,7 @@ else {
       )
       const daemonDir = path.join(HOME, 'daemon-w02-3')
       fs.mkdirSync(daemonDir, { recursive: true })
-      const warmRes = warm.warmSeatAnswer({
+      const warmRes = await warm.warmSeatAnswer({
         req: { workspaceDir: lockedDir, by: 'operator' },
         deps: { dir: daemonDir, roster: () => null },
         records: {},

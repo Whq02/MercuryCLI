@@ -8,7 +8,7 @@ import { getProjectDir } from '../../sessions/transcripts/paths.js'
 import type { SessionKitV1 } from '../session-seat/sessionKit.js'
 import { sessionKindOfAsker, type SessionKind } from './sessionKind.js'
 import { workerPidAlive } from './workerIdentity.js'
-import { updateConcourseWorkers, readSessionWorkers } from './store.js'
+import { updateConcourseWorkers, updateConcourseWorkersRidingOut, readSessionWorkers } from './store.js'
 import { buildConcourseWorkerSpec, stampSpawnPosture, spawnPostureOf } from './spec.js'
 import { buildTreeFields } from './marks.js'
 import { type ConcourseWorkerRecordV1, turnCutStanding, stampParked, clearParkedFields } from './record.js'
@@ -241,48 +241,71 @@ export function runnerRestartReasonOf(
   return turnCutStanding(rec) ? 'stop' : 'relaunch'
 }
 
-export function reviveConcourseWorker(
-  sessionId: string,
-  by: string,
-  roster:
-    | {
-        kill(short: string): boolean
-        has(short: string): { present: boolean; alive?: boolean }
-        registerLongLived(
-          short: string,
-          spec: RunnerChildSpec,
-        ): { ok: boolean; pid?: number; error?: string }
-      }
-    | undefined,
-  opts?: {
-    allowStopped?: boolean
-    clearCrash?: boolean
-    kitOverride?: SessionKitV1
-    modelOverride?: string
-    permissionMode?: PermissionMode
-    permissionModeTyped?: true
-    bypassConsent?: boolean
-    kind?: SessionKind
-    restartReason?: 'update'
-  },
-  dir?: string,
-): ConcourseReviveOutcome {
+type ReviveRoster = {
+  kill(short: string): boolean
+  has(short: string): { present: boolean; alive?: boolean }
+  registerLongLived(
+    short: string,
+    spec: RunnerChildSpec,
+  ): { ok: boolean; pid?: number; error?: string }
+}
+
+type ReviveOptions = {
+  allowStopped?: boolean
+  clearCrash?: boolean
+  kitOverride?: SessionKitV1
+  modelOverride?: string
+  permissionMode?: PermissionMode
+  permissionModeTyped?: true
+  bypassConsent?: boolean
+  kind?: SessionKind
+  restartReason?: 'update'
+}
+
+type RevivedSpawn =
+  | { kind: 'settled'; outcome: ConcourseReviveOutcome }
+  | { kind: 'spawned'; applied: ConcourseReviveOutcome; stamp: (workers: Record<string, ConcourseWorkerRecordV1>) => void; unsaved: (error: unknown) => ConcourseReviveOutcome }
+
+export function reviveConcourseWorker(sessionId: string, by: string, roster: ReviveRoster | undefined, opts?: ReviveOptions, dir?: string): ConcourseReviveOutcome {
+  const revived = spawnRevivedRunner(sessionId, by, roster, opts, dir)
+  if (revived.kind === 'settled') return revived.outcome
+  try {
+    updateConcourseWorkers(revived.stamp, dir)
+  } catch (error) {
+    return revived.unsaved(error)
+  }
+  return revived.applied
+}
+
+export async function reviveConcourseWorkerRidingOut(sessionId: string, by: string, roster: ReviveRoster | undefined, opts?: ReviveOptions, dir?: string): Promise<ConcourseReviveOutcome> {
+  const revived = spawnRevivedRunner(sessionId, by, roster, opts, dir)
+  if (revived.kind === 'settled') return revived.outcome
+  try {
+    await updateConcourseWorkersRidingOut(revived.stamp, dir)
+  } catch (error) {
+    return revived.unsaved(error)
+  }
+  return revived.applied
+}
+
+function spawnRevivedRunner(sessionId: string, by: string, roster: ReviveRoster | undefined, opts: ReviveOptions | undefined, dir: string | undefined): RevivedSpawn {
+  const settled = (outcome: ConcourseReviveOutcome): RevivedSpawn => ({ kind: 'settled', outcome })
   const rec = Object.values(readSessionWorkers(dir)).find(
     r => r.sessionId === sessionId && r.endedAt === undefined,
   )
-  if (!rec) return { outcome: 'refused', reason: 'unknown-session' }
+  if (!rec) return settled({ outcome: 'refused', reason: 'unknown-session' })
   if (rec.attachedAt !== undefined)
-    return { outcome: 'refused', reason: 'attached', detail: 'the session is with the operator' }
+    return settled({ outcome: 'refused', reason: 'attached', detail: 'the session is with the operator' })
   if (rec.stoppedAt !== undefined && opts?.allowStopped !== true)
-    return {
+    return settled({
       outcome: 'refused',
       reason: 'stopped',
       detail: 'stopped — the session was stopped on purpose; resume it to bring it back',
-    }
-  if (workerPidAlive(rec)) return { outcome: 'noop', reason: 'already-live' }
+    })
+  if (workerPidAlive(rec)) return settled({ outcome: 'noop', reason: 'already-live' })
   if (!roster)
-    return { outcome: 'refused', reason: 'respawn-failed', detail: 'daemon roster not ready' }
-  if (roster.has(rec.runnerId).alive === true) return { outcome: 'noop', reason: 'already-live' }
+    return settled({ outcome: 'refused', reason: 'respawn-failed', detail: 'daemon roster not ready' })
+  if (roster.has(rec.runnerId).alive === true) return settled({ outcome: 'noop', reason: 'already-live' })
   if (!existsSync(concourseTranscriptPath(rec))) {
     const detail = 'its transcript is gone — nothing to resume it around; start a new session'
     updateConcourseWorkers(workers => {
@@ -291,7 +314,7 @@ export function reviveConcourseWorker(
       if (w.parkedAt === undefined) stampParked(w, by, detail)
       else w.parkReason = detail
     }, dir)
-    return { outcome: 'refused', reason: 'transcript-lost', detail }
+    return settled({ outcome: 'refused', reason: 'transcript-lost', detail })
   }
   const reviveKit = opts?.kitOverride ?? rec.kit
   const reviveModel = opts?.modelOverride ?? rec.modelKey
@@ -319,13 +342,19 @@ export function reviveConcourseWorker(
   })
   const reg = roster.registerLongLived(rec.runnerId, spec)
   if (!reg.ok)
-    return {
+    return settled({
       outcome: 'refused',
       reason: 'respawn-failed',
       ...(reg.error !== undefined ? { detail: reg.error } : {}),
-    }
-  try {
-    updateConcourseWorkers(workers => {
+    })
+  return {
+    kind: 'spawned',
+    applied: {
+      outcome: 'applied',
+      runnerId: rec.runnerId,
+      ...(reg.pid !== undefined ? { pid: reg.pid } : {}),
+    },
+    stamp: workers => {
       const w = workers[rec.runnerId]
       if (!w) return
       delete w.stoppedAt
@@ -347,14 +376,10 @@ export function reviveConcourseWorker(
         delete w.procStart
       }
       Object.assign(w, buildTreeFields())
-    }, dir)
-  } catch (error) {
-    roster.kill(rec.runnerId)
-    return { outcome: 'refused', reason: 'respawn-failed', detail: error instanceof Error ? error.message : String(error) }
-  }
-  return {
-    outcome: 'applied',
-    runnerId: rec.runnerId,
-    ...(reg.pid !== undefined ? { pid: reg.pid } : {}),
+    },
+    unsaved: error => {
+      roster.kill(rec.runnerId)
+      return { outcome: 'refused', reason: 'respawn-failed', detail: error instanceof Error ? error.message : String(error) }
+    },
   }
 }
