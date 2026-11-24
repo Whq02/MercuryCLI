@@ -2,11 +2,10 @@ import * as React from 'react'
 import { useClaim, useLoad } from '../../screen/effects/effects.js'
 import { MercuryModelPicker } from '../model/picker/MercuryModelPicker.js'
 import { ModelPickerPopupLease } from '../../screen/overlays/ModelPickerPopupSlot.js'
-import { focusedSessionModelFacts } from '../../engine/connector/focusedConnector.js'
 import { modelDoorRoad } from '../../models/hosting/door.js'
 import { runHostedModel } from '../../models/hosting/index.js'
 import { stopTensorFoldPod, terminateTensorFoldPod } from '../../models/hosting/tensorfoldPod.js'
-import { resolveSetupIo } from '../../models/local-setup/setupIo.js'
+import { defaultCurrentModel, resolveSetupIo } from '../../models/local-setup/setupIo.js'
 import { pickAndProve, switchSessionModel } from '../../models/local-setup/setupProve.js'
 import { PAIRING_WORDS } from '../../daemon/lan/pairing.js'
 import { forgetTensorFoldHost, rememberTensorFoldHost, rememberTensorFoldPort, tensorFoldHosts } from '../../models/roads/local/tensorfoldHosts.js'
@@ -17,7 +16,6 @@ import { tensorFoldPairingCode } from '../../models/tensorfold/serve.js'
 import type { LocalJSXCommandCall } from '../catalogue/command.js'
 import { claimModelPickerPopup } from '../../screen/cockpit/modelPickerPopup.js'
 import { openSettingsPopup } from '../../screen/cockpit/settingsPopup.js'
-import { getEngineModel } from '../../models/catalogue/engineModel.js'
 import { llmHostPopupRequest } from '../llmhost/llmhost.js'
 import { pairTensorFoldHost, refreshTensorFoldAnnouncements, subscribeTensorFoldFacts, tensorFoldAnnouncementsNow, tensorFoldFactsStamp } from '../../screen/tensorfold/tensorfoldFacts.js'
 import { pickerFactsOf, type TensorFoldPickerAct } from './pickerFacts.js'
@@ -46,17 +44,8 @@ import { localServerProbingOff } from '../../models/local-server/localServerTrut
 import { TENSORFOLD_WORDS as W } from './words.js'
 import { consumeFirstRunServeAsk } from '../../platform/substrate/splashHandover.js'
 import { bytesWords } from '../../models/hosting/bank.js'
-import { passedOver, passedOverAs } from '../../platform/errors/passedOver.js'
+import { passedOverAs } from '../../platform/errors/passedOver.js'
 export type TensorFoldPanelIo = { facts?: FactsIo; road?: RoadIo; current?: () => string | undefined }
-
-function currentModelId(): string | undefined {
-  try {
-    return focusedSessionModelFacts()?.effective ?? getEngineModel()
-  } catch (error) {
-    passedOver(error)
-    return undefined
-  }
-}
 
 export function TensorFoldPanel({ onDone, io = {}, repo }: { onDone: (words?: string) => void; io?: TensorFoldPanelIo; repo?: string }): React.ReactNode {
   const version = React.useSyncExternalStore(subscribeTensorFoldRoad, tensorFoldRoadVersion, tensorFoldRoadVersion)
@@ -69,7 +58,7 @@ export function TensorFoldPanel({ onDone, io = {}, repo }: { onDone: (words?: st
   const alive = React.useRef(true)
   const read = React.useCallback(async (again = false): Promise<void> => {
     if (again) engineRef.current = undefined
-    const current = io.current?.() ?? currentModelId()
+    const current = io.current?.() ?? defaultCurrentModel()
     const state = tensorFoldRoadState()
     const next = await readTensorFoldPanelFacts({ ...io.facts, ...(current !== undefined ? { current } : {}), ...(engineRef.current !== undefined ? { engine: engineRef.current } : {}) }, state)
     engineRef.current = next.engine as TensorFoldEngineFound | null

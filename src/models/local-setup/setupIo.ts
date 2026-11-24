@@ -57,7 +57,7 @@ export interface ResolvedSetupIo {
   persist: (setting: string) => { sentence: string }
 }
 
-function defaultCurrentModel(): string | undefined {
+export function defaultCurrentModel(): string | undefined {
   try {
     return focusedSessionModelFacts()?.effective ?? getEngineModel()
   } catch (error) {
