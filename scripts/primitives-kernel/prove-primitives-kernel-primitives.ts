@@ -154,14 +154,6 @@ console.log('transaction graph laws')
 
 console.log('evidence laws')
 {
-  let promotions = 0
-  for (const from of P.EVIDENCE_ORIGINS) {
-    for (const to of P.EVIDENCE_ORIGINS) {
-      if (from !== to && P.canPromoteEvidenceOrigin(from, to)) promotions++
-    }
-  }
-  check('no origin promotion exists (declared never becomes observed)', promotions === 0,
-    `${promotions} promotions allowed; canPromoteEvidenceOrigin in src/engine/runtime-kernel/evidence.ts must return false for every pair of different origins`)
   const owner = P.makeOwnerKey({ workspace: '/w', sessionId: 's1', lane: P.MAIN_LANE })
   const base = {
     version: 1 as const,

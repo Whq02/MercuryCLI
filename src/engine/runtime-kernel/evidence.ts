@@ -35,10 +35,6 @@ export interface EvidenceRecord {
   details?: Record<string, unknown>
 }
 
-export function canPromoteEvidenceOrigin(from: EvidenceOrigin, to: EvidenceOrigin): boolean {
-  return from === to
-}
-
 export function evidenceRecordProblems(record: EvidenceRecord): string[] {
   const problems: string[] = []
   if (record.version !== EVIDENCE_CONTRACT_VERSION) problems.push('unknown version')
