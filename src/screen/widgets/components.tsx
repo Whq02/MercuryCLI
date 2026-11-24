@@ -551,29 +551,6 @@ export function Sparkline({
   return <Text color={color ?? t.info}>{cells}</Text>
 }
 
-export function CommandRow({
-  command,
-  hint,
-  disabled = false,
-  reason,
-}: {
-  command: string
-  hint?: string
-  disabled?: boolean
-  reason?: string
-}): React.ReactNode {
-  const t = useMercuryTokens()
-  return (
-    <Text>
-      <Text color={disabled ? t.textMuted : t.accent}>{GLYPH.prompt} </Text>
-      <Text color={disabled ? t.textMuted : t.textPrimary}>{command}</Text>
-      {hint ? <Text color={t.textMuted}> {hint}</Text> : null}
-      {disabled && reason ? <Text color={t.warning}> {reason}</Text> : null}
-    </Text>
-  )
-}
-
-
 export function EmptyState({
   title,
   hint,
@@ -734,32 +711,6 @@ export function ActivityFeed({
         <TraceRow key={i} {...e} />
       ))}
     </>
-  )
-}
-
-export function GateRow({
-  name,
-  on,
-  hint,
-  nameWidth = 27,
-  hintWidth,
-}: {
-  name: string
-  on: boolean
-  hint?: string
-  nameWidth?: number
-  hintWidth?: number
-}): React.ReactNode {
-  const t = useMercuryTokens()
-  const nm = padTo(truncateToWidth(name, nameWidth - 1), nameWidth)
-  const ht = hint ? (hintWidth ? truncateToWidth(hint, hintWidth) : hint) : ''
-  return (
-    <Text>
-      <Text color={on ? t.success : t.textMuted}>{on ? GLYPH.done : GLYPH.pending}</Text>
-      <Text> </Text>
-      <Text color={on ? t.textPrimary : t.textSecondary}>{nm}</Text>
-      {ht ? <Text color={t.textMuted}>{ht}</Text> : null}
-    </Text>
   )
 }
 
