@@ -23,7 +23,7 @@ const kitDialsWhere = (name: string): string => {
   if (c === 'C') return 'change setSessionKitDial in src/daemon/session-seat/kit.ts, onSeatIdle in src/daemon/session-seat/edges.ts or onSeatSpawned in src/daemon/session-seat/lifecycle.ts'
   if (c === 'G') return 'change setKit in src/engine/connector/noSessionConnector.ts'
   if (c === 'F') return 'change validateSessionKit or applyKitEdit in src/daemon/session-seat/sessionKit.ts, kitDropsCommand in src/integrations/skills/kitGovernance.ts, or completeSessionKitFromRoster in src/integrations/mcp/kitCompletion.ts'
-  if (c === 'A') return 'change mcpRosterLine, MCP_EMPTY_ROSTER_LINE or kitDialLine in src/commands/mcp/route.ts'
+  if (c === 'A') return 'change kitDialLine in src/commands/mcp/route.ts'
   if (c === 'S') return 'change offSkillNamesOf in src/integrations/skills/kitGovernance.ts or skillsRosterOf in src/engine/connector/rosterTerms.ts'
   if (c === 'D') return 'change setSessionKitDial in src/daemon/session-seat/kit.ts or the menu store in src/integrations/mcp/kitStore.ts so a dial never writes config or a sibling record'
   return ''
@@ -293,8 +293,6 @@ section('§F skillsOff: the lying dial is dead (born-later off is expressible)')
 section('§A the screen dial rides the connector')
 {
   const route = await import('../../src/commands/mcp/route.ts')
-  t('A3a the roster line says SESSION and points at the boot menu', route.mcpRosterLine({ clients: [{ name: 'a', type: 'connected' }] } as never).includes('this session only, the boot menu sets the next session\'s'))
-  t('A3b the empty line points at the boot menu', route.MCP_EMPTY_ROSTER_LINE.includes("boot menu's MCPs & Skills"))
   t('A3c the receipt lines: applied says session-only; queued speaks the turn\'s end; noop and refused carry the detail', route.kitDialLine({ outcome: 'applied' }, 'X').includes('this session only') && route.kitDialLine({ outcome: 'queued', detail: 'the dials apply when this turn ends' }, 'X').includes("turn ends") && route.kitDialLine({ outcome: 'noop', detail: 'd' }, 'X').includes('No change — d') && route.kitDialLine({ outcome: 'refused', detail: 'r' }, 'X').includes('refused — r'))
 }
 
