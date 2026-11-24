@@ -119,9 +119,10 @@ export async function getPathCompletions(
 
   return matched.map(entry => {
     const reconstructed = `${displayPrefix}${entry.name}`
+    const shown = entry.kind === 'directory' ? `${reconstructed}/` : reconstructed
     return {
-      id: reconstructed,
-      displayText: entry.kind === 'directory' ? `${reconstructed}/` : reconstructed,
+      id: shown,
+      displayText: shown,
       metadata: entry.kind,
     }
   })
