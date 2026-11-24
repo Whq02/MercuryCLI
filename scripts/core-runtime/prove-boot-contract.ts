@@ -1,4 +1,6 @@
 #!/usr/bin/env bun
+import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import {
   existsSync,
   mkdirSync,
@@ -25,6 +27,7 @@ let checks = 0
 const WHERE: Array<[string, string]> = [
   ['profiler:', 'src/boot/startupProfiler.ts (profileCheckpoint, profileReport, getStartupPerfLogPath)'],
   ['launch-graph:', 'src/boot/launchGraph.ts (registerBackgroundNode, armBackgroundDiscovery, signalInputLive)'],
+  ['boot-nodes:', 'registerBootBackgroundNodes in src/boot/main/interactiveLaunch.ts'],
   ['boot-env:', 'src/platform/substrate/startupMenu.ts (applyBootMenuEnv, writeBootEnvChoice, readBootEnvChoices, bootEnvPath)'],
   ['early-input:', 'src/boot/earlyInput.ts'],
   ['launch:', 'launchChat in src/boot/chatLauncher.ts'],
@@ -379,6 +382,118 @@ console.log('native-core T15 — launch-graph boot contract')
     Object.keys(initialState as Record<string, unknown>).every(key => forwarded[key] === (initialState as Record<string, unknown>)[key]) &&
       Object.keys(forwarded).every(key => key in (initialState as Record<string, unknown>)),
     JSON.stringify(Object.keys(forwarded)),
+  )
+}
+
+{
+  const srcRoot = join(fileURLToPath(import.meta.url), '..', '..', '..', 'src')
+  const probeDir = join(HERMETIC, 'boot-nodes')
+  mkdirSync(probeDir, { recursive: true })
+  const probeFile = join(probeDir, 'probe.ts')
+  writeFileSync(
+    probeFile,
+    `
+import { join } from 'node:path'
+import { mock } from 'bun:test'
+;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+const SRC = ${JSON.stringify(srcRoot)}
+const nodes: Array<{ id: string; run: () => void | Promise<void> }> = []
+let warmedModel = 0
+let loadedExtensions = 0
+const inkPath = join(SRC, 'screen/themedRenderer.ts')
+const realInk = await import(inkPath)
+mock.module(inkPath, () => ({
+  ...realInk,
+  createRoot: async () => ({ render() {}, unmount() {}, waitUntilExit: async () => {} }),
+}))
+const setupPath = join(SRC, 'boot/setupScreens.tsx')
+const realSetup = await import(setupPath)
+mock.module(setupPath, () => ({
+  ...realSetup,
+  showSetupScreens: async () => false,
+}))
+const modelPath = join(SRC, 'models/catalogue/engineModel.ts')
+const realModel = await import(modelPath)
+mock.module(modelPath, () => ({
+  ...realModel,
+  getEngineModel: () => {
+    warmedModel++
+    return 'claude-sonnet-4-6'
+  },
+}))
+const extPath = join(SRC, 'integrations/extensions/boot.ts')
+const realExt = await import(extPath)
+mock.module(extPath, () => ({
+  ...realExt,
+  ensureExtensionsLoaded: async () => {
+    loadedExtensions++
+    return { loaded: [], failed: [] }
+  },
+}))
+mock.module(join(SRC, 'boot/launchGraph.ts'), () => ({
+  armBackgroundDiscovery: () => {},
+  registerBackgroundNode: (id: string, run: () => void | Promise<void>) => {
+    nodes.push({ id, run })
+  },
+}))
+const { setIsInteractive } = await import(join(SRC, 'boot/process-state/processState.ts'))
+const { enableConfigs } = await import(join(SRC, 'platform/settings/config.ts'))
+enableConfigs()
+setIsInteractive(false)
+const { getEmptyToolPermissionContext } = await import(join(SRC, 'tools/kit/tool.ts'))
+const { interactiveLaunch } = await import(join(SRC, 'boot/main/interactiveLaunch.ts'))
+await interactiveLaunch({
+  opts: {},
+  commands: [],
+  prompt: undefined,
+  permissionMode: 'default',
+  toolPermissionContext: getEmptyToolPermissionContext(),
+  allowDangerousSkip: false,
+  dynamicMcpConfig: undefined,
+  thinkingConfig: { type: 'disabled' },
+  resolvedInitialModel: 'claude-sonnet-4-6',
+  userSpecifiedModel: undefined,
+  mainThreadAgentDefinition: undefined,
+  activeAgents: [],
+  allAgents: [],
+  sessionTitle: undefined,
+})
+const target = nodes.find(node => node.id === 'model-and-extensions')
+warmedModel = 0
+loadedExtensions = 0
+if (target) await target.run()
+console.log('PROBE_JSON=' + JSON.stringify({ ids: nodes.map(node => node.id), warmedModel, loadedExtensions }))
+`,
+  )
+  const res = spawnSync(process.execPath, [probeFile], {
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      MERCURY_CONFIG_DIR: join(probeDir, 'config'),
+      MERCURY_DAEMON_DIR: join(probeDir, 'daemon'),
+    },
+  })
+  const marker = (res.stdout ?? '').split('\n').find(line => line.startsWith('PROBE_JSON='))
+  const parsed = marker
+    ? (JSON.parse(marker.slice('PROBE_JSON='.length)) as { ids: string[]; warmedModel: number; loadedExtensions: number })
+    : null
+  check(
+    'boot-nodes: interactiveLaunch registers its background nodes cleanly',
+    res.status === 0 && parsed !== null && parsed.ids.length > 0,
+    `rc=${res.status} stderr=${(res.stderr ?? '').trim().slice(0, 300)}`,
+  )
+  check(
+    'boot-nodes: no registered background node is named with telemetry',
+    parsed !== null && parsed.ids.every(id => !/telemetry/i.test(id)),
+    parsed ? `ids=${parsed.ids.join(', ')}` : 'no probe result',
+  )
+  check(
+    'boot-nodes: model-and-extensions is registered and warms the engine model and loads extensions',
+    parsed !== null &&
+      parsed.ids.includes('model-and-extensions') &&
+      parsed.warmedModel === 1 &&
+      parsed.loadedExtensions === 1,
+    parsed ? `ids=${parsed.ids.join(', ')} warmedModel=${parsed.warmedModel} loadedExtensions=${parsed.loadedExtensions}` : 'no probe result',
   )
 }
 

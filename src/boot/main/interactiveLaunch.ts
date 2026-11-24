@@ -240,7 +240,7 @@ function registerBootBackgroundNodes(args: { sessionTitle: string | undefined })
       logForDebugging(`preserved thinking: the prefix record sweep did not run (${String(error)})`)
     }
   })
-  registerBackgroundNode('session-telemetry', async () => {
+  registerBackgroundNode('model-and-extensions', async () => {
     void getEngineModel()
     const { ensureExtensionsLoaded } = await import('../../integrations/extensions/boot.js')
     await ensureExtensionsLoaded().catch(passedOver)
