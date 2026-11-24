@@ -38,16 +38,9 @@ import { useInteractiveList } from '../widgets/useInteractiveList.js';
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js';
 import { useSplashCoreAccent } from '../widgets/useSplashCoreAccent.js';
 import { kitMenuView } from '../kit-menu/kitMenuView.js';
-import { logError } from '../../platform/logs/errorLog.js';
+import { readLiveSessionCount } from './BootSettingsScreen.js';
 import { passedOver } from '../../platform/errors/passedOver.js';
 import { afterMicrotask } from '../../platform/async/timers.js';
-
-export function readKitLiveSessionCount(load: () => Promise<number>): Promise<number | null> {
-  return load().catch(error => {
-    logError(error);
-    return null;
-  });
-}
 
 
 interface KitMenuScreenProps {
@@ -304,7 +297,7 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
 
   const [liveCount, setLiveCount] = useState<number | null>(null);
   useLoad(signal => {
-    void readKitLiveSessionCount(() => import('../../daemon/concourse-workers/concourseWorkers.js').then(sup => sup.countLiveConcourseWorkers())).then(count => {
+    void readLiveSessionCount(() => import('../../daemon/concourse-workers/concourseWorkers.js').then(sup => sup.countLiveConcourseWorkers())).then(count => {
       if (!signal.aborted) setLiveCount(count);
     });
   }, []);
