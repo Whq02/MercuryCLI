@@ -6,7 +6,6 @@ import { basename, dirname, join, resolve, sep } from 'node:path'
 
 import chalk from 'chalk'
 import ignore from 'ignore'
-import { getSessionId } from '../../../boot/process-state/processState.js'
 import type { ToolPermissionContext } from '../../../tools/kit/tool.js'
 import { getCwd } from '../../files/cwd.js'
 import { logForDebugging } from '../../logs/debugLog.js'

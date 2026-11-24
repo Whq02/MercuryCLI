@@ -19,7 +19,7 @@ import { flagEnabled, flagEnv } from '../substrate/flagRegistry.js'
 import { isReadOnlyDiagnostic } from '../logs/diagnosticReadOnly.js'
 import { loadDeclaredGates, matchDeclaredGate } from './projectGates.js'
 import { scanCeiling } from './scanCeiling.js'
-import { passedOver, passedOverAs } from '../errors/passedOver.js'
+import { passedOver } from '../errors/passedOver.js'
 import { startInterval, startTimeout, stopInterval, stopTimeout } from '../async/timers.js'
 
 export type VerificationScope =
