@@ -222,7 +222,7 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
     section(`${label} — S2: a crew seat whose request never answers its headers ends typed within the budget`)
     check(`${label}: vshot ran the crew journey as written`, res.status === 0, `status=${res.status} ${(res.stderr ?? '').split('\n').slice(-3).join(' | ')}`)
     check(`${label}: the seat's request was parked with no headers (once, then at most the bounded retry)`, heldHeaders.length >= 1 && heldHeaders.length <= 2, JSON.stringify(heldHeaders))
-    check(`${label}: while parked, the agent's row stood on the card as running (its own wait word is the card owner's — see the receipt)`, /first-byte-seat/.test(waiting) && /· running ·/.test(waiting), tail(waiting))
+    check(`${label}: while parked, the agent's row stood on the card as running (its own wait word is the card owner's — see the receipt)`, /first-byte-seat/.test(waiting) && /· running for /.test(waiting), tail(waiting))
     check(`${label}: the parent's follow-up carried the seat's typed end and landed the final text`, parent.some(c => ((c as { step?: number }).step ?? 0) >= 1) && afterSeat.includes(REPLY), JSON.stringify(parent.map(c => [c.n, (c as { step?: number }).step])))
     const seatCalls = calls.filter(c => c.arm === 'seat-hold')
     const seatTokens = (seatCalls[0] as { promptTokens?: number } | undefined)?.promptTokens ?? 0
