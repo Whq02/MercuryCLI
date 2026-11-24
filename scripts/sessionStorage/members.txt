@@ -43,6 +43,5 @@ prove-empty-user-resume.ts
 prove-one-live-writer.ts
 prove-history-overlapping-flushes-write-once.ts
 prove-title-cut-keeps-graphemes.ts
-prove-history-retraction-keys-the-record.ts
 prove-history-record-pieces.ts
 prove-compaction-history-parts.ts

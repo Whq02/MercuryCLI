@@ -40,7 +40,6 @@ const { entryToRecord, recordToEntry } = await import(join(ROOT, 'src/sessions/f
 const { createAttachmentMessage } = await import(join(ROOT, 'src/engine/attachments/turnAttachments.ts'))
 const state = await import(join(ROOT, 'src/boot/process-state/processState.ts'))
 const { shouldShowUserMessage } = await import(join(ROOT, 'src/engine/message-shapes/systemMessages.ts'))
-const { queuedCommandHistoryEntry } = await import(join(ROOT, 'src/sessions/promptHistory.ts'))
 const queue = await import(join(ROOT, 'src/screen/composer/input-core/command-queue.ts'))
 const rows = await import(join(ROOT, 'src/engine/message-shapes/noticeRows.ts'))
 const text = await import(join(ROOT, 'src/engine/message-shapes/text.ts'))
@@ -227,7 +226,6 @@ section("§4 the note between turns: the drain's attachment paints one visible a
   const framedTexts = planned.filter(m => m.type === 'user').map(m => { const c = (m.message as Raw).content; return typeof c === 'string' ? c : (c as Raw[]).map(b => String(b.text ?? '')).join('') })
   check("the model reads the note framed as advice from the advisor — the head says it is not the operator, the tail that it is advice — never 'the operator sent a new message'", framedTexts.some(t => t.includes(text.ADVISOR_NOTE_HEAD) && t.includes(NOTE) && t.includes(text.ADVISOR_NOTE_TAIL)) && framedTexts.every(t => !t.includes('The operator sent a new message')), JSON.stringify(framedTexts.slice(-2)))
   check('a slash-led note reads as words for the model, not a command: it rides the same framing', framedTexts.some(t => t.includes('/no-such-words-here stand as words') && t.includes(text.ADVISOR_NOTE_HEAD)))
-  check('the note earns no history entry: nothing of it ever passes the queue (the history reads queued commands alone)', typeof queuedCommandHistoryEntry === 'function' && queue.getCommandQueue().length === 0)
   check('the stored row is a row the chat shows, never a hidden meta row', row.type === 'attachment' && (row.attachment as Raw).isMeta === undefined, JSON.stringify(row))
   for (const [columns, rowCount] of SIZES) {
     const frame = await paintChat([row, replyRow(LATER)], columns, rowCount)

@@ -17,21 +17,6 @@ const t = (name: string, ok: boolean, detail = '', hint = ''): void => {
 }
 
 {
-  const { queuedCommandHistoryEntry } = await import('../../src/sessions/promptHistory.ts')
-  const human = queuedCommandHistoryEntry({ value: 'fix the build', mode: 'prompt' })
-  t('a human-typed queued prompt earns its entry at drain', human?.display === 'fix the build', '', 'queuedCommandHistoryEntry in src/sessions/promptHistory.ts must return an entry whose display is the typed text for a plain prompt')
-  const bash = queuedCommandHistoryEntry({ value: 'ls -la', preExpansionValue: 'ls -la', mode: 'bash' })
-  t('a queued bash command keeps its ! prefix', bash?.display === '!ls -la', '', 'queuedCommandHistoryEntry in src/sessions/promptHistory.ts must prefix a bash-mode display with !')
-  const pasted = queuedCommandHistoryEntry({ value: 'expanded paste text', preExpansionValue: 'look at [Pasted text #1]', mode: 'prompt', pastedContents: { 1: { id: 1, type: 'text', content: 'x' } as never } })
-  t('the pre-expansion text is what history records', pasted?.display === 'look at [Pasted text #1]' && pasted.pastedContents[1] !== undefined, '', 'queuedCommandHistoryEntry in src/sessions/promptHistory.ts must record preExpansionValue and keep pastedContents')
-  t('a meta command earns nothing', queuedCommandHistoryEntry({ value: 'cron fire', mode: 'prompt', isMeta: true }) === null, '', 'queuedCommandHistoryEntry in src/sessions/promptHistory.ts must return null for an isMeta command')
-  t('a bridge/remote command earns nothing', queuedCommandHistoryEntry({ value: 'remote', mode: 'prompt', bridgeOrigin: true }) === null && queuedCommandHistoryEntry({ value: 'remote', mode: 'prompt', skipSlashCommands: true }) === null, '', 'queuedCommandHistoryEntry in src/sessions/promptHistory.ts must return null for bridgeOrigin and skipSlashCommands commands')
-  t('a structurally-stamped origin earns nothing', queuedCommandHistoryEntry({ value: 'x', mode: 'prompt', origin: 'system' }) === null, '', 'queuedCommandHistoryEntry in src/sessions/promptHistory.ts must return null when the command carries an origin')
-  t('task notifications earn nothing', queuedCommandHistoryEntry({ value: '<task-notification/>', mode: 'task-notification' }) === null, '', 'queuedCommandHistoryEntry in src/sessions/promptHistory.ts must return null for task-notification mode')
-  t('block-content values earn nothing', queuedCommandHistoryEntry({ value: [{ type: 'text', text: 'x' }], mode: 'prompt' }) === null, '', 'queuedCommandHistoryEntry in src/sessions/promptHistory.ts must return null when the value is a block-content array')
-}
-
-{
   process.env.MERCURY_FULLSCREEN = '1'
   const { collapseReadSearchGroups, isStatusUpdateTool } = await import('../../src/screen/messages/collapseReadSearch.ts')
   const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')

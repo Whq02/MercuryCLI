@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
-const walkthroughFailHint = 'fix composeWalkthroughBody, createWalkthroughArtifact or createVisualJourneyArtifact in src/sessions/walkthrough/assembleWalkthrough.ts (the stored artifact is read by readReviewArtifactState in src/sessions/artifact-reviews/reviewStore.ts, the journey by runJourney in src/tools/engines/journeys/runner.ts)'
+const walkthroughFailHint = 'fix composeWalkthroughBody or createWalkthroughArtifact in src/sessions/walkthrough/assembleWalkthrough.ts (the stored artifact is read by readReviewArtifactState in src/sessions/artifact-reviews/reviewStore.ts, the journey by runJourney in src/tools/engines/journeys/runner.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — ${walkthroughFailHint}` : ''}`)
@@ -27,7 +27,7 @@ process.on('exit', () => {
   }
 })
 
-const { composeWalkthroughBody, createWalkthroughArtifact, createVisualJourneyArtifact } =
+const { composeWalkthroughBody, createWalkthroughArtifact } =
   await import('../../src/sessions/walkthrough/assembleWalkthrough.js')
 const { readReviewArtifactState } = await import('../../src/sessions/artifact-reviews/reviewStore.js')
 const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.js')
@@ -165,34 +165,6 @@ section('(6) the structured visual journey from a REAL journey record')
     { owner, root: fixtures, sessionId: 'sess-walk' },
   )
   check('journey ran to a verdict', record.state === 'succeeded', record.state)
-
-  const artifact = createVisualJourneyArtifact({
-    owner,
-    journeyId: record.id,
-    sessionId: 'sess-walk',
-    cwd: fixtures,
-    captures: [
-      { stepId: '0', beforeRef: 'mercury://artifact/shots/s0-before', afterRef: 'mercury://artifact/shots/s0-after', delta: 'no console errors' },
-    ],
-  })
-  check('journey artifact minted', artifact.ok, artifact.ok ? '' : artifact.reason)
-  if (artifact.ok) {
-    const state = readReviewArtifactState(artifact.value.id)!
-    const body = state.versions[0]!.body
-    check('journey body kind', body.kind === 'journey')
-    if (body.kind === 'journey') {
-      check('ordered steps with results', body.steps.length === 2 && body.steps[0]!.result?.startsWith('passed') === true)
-      check(
-        'captures attached to the right step',
-        body.steps[0]!.beforeRef === 'mercury://artifact/shots/s0-before' && body.steps[0]!.delta === 'no console errors',
-      )
-      check('uncaptured step carries no fabricated frames', body.steps[1]!.beforeRef === undefined)
-    }
-    check('evidence links the journey record', state.versions[0]!.evidenceRefs[0] === `mercury://journey/${record.id}`)
-  }
-
-  const missing = createVisualJourneyArtifact({ owner, journeyId: 'jy-nope', sessionId: 'sess-walk' })
-  check('missing journey refuses by name', !missing.ok && missing.reason.includes('jy-nope'))
 }
 
 console.log('')

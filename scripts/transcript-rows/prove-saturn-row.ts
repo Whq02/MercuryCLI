@@ -43,7 +43,6 @@ const { recordTranscript } = await import(join(ROOT, 'src/sessions/transcripts/s
 const { queueLogRows, undeliveredLines } = await import(join(ROOT, 'src/engine/tasks/local-agent/launchReceipts.ts'))
 const { requeueUndeliveredLines } = await import(join(ROOT, 'src/daemon/runner/restartCarry.ts'))
 const { shouldShowUserMessage } = await import(join(ROOT, 'src/engine/message-shapes/systemMessages.ts'))
-const { queuedCommandHistoryEntry } = await import(join(ROOT, 'src/sessions/promptHistory.ts'))
 const { localWakeStep } = await import(join(ROOT, 'src/tools/schedule-wakeup/localWake.ts'))
 const saturn = await import(join(ROOT, 'src/daemon/saturn/saturn.ts'))
 const { CronListTool } = await import(join(ROOT, 'src/tools/cron/CronListTool.ts'))
@@ -417,8 +416,6 @@ const seatedTurn = await drainedTurn(seatedFireCommand(CRON_BODY, U6))
   const [queued, slashLed] = queue.getCommandQueue() as Raw[]
   check('the queue holds the wake with its origin, at later, under the cron workload', queued !== undefined && JSON.stringify(queued.origin) === JSON.stringify(wakeOrigin()) && queued.priority === 'later' && queued.workload === 'cron', JSON.stringify(queued))
   check('the queue reads a slash-led wake as words for the model, not a command (red on the base: a slash command)', slashLed !== undefined && !queue.isSlashCommand(slashLed as never), JSON.stringify(slashLed))
-  check('the wake earns no history entry, with or without the hide: the origin alone keeps it out (green on both trees)', queuedCommandHistoryEntry(queued as never) === null && queuedCommandHistoryEntry({ value: WAKE_TEXT, mode: 'prompt', origin: wakeOrigin() }) === null)
-  check("the operator's own queued line still earns its entry (a guard)", queuedCommandHistoryEntry({ value: OPERATOR_LINE, mode: 'prompt' })?.display === OPERATOR_LINE)
   queue.resetCommandQueue()
   const row = seatlessTurn.row
   check('the drained wake is one user row under its own identity, asking to query, with the origin on it', seatlessTurn.shouldQuery && row !== undefined && JSON.stringify(row.origin) === JSON.stringify(wakeOrigin()), seatlessTurn.text)

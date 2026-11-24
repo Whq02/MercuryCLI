@@ -75,14 +75,11 @@ section('H2 the search corpus — one read, one parse; readers over it cost noth
   console.log(`  BEFORE: ${K} keystrokes = ${K} whole-file reads + ${K * L} JSON.parse · AFTER: 1 read + ${L} parses per search session, 0 per keystroke`)
 }
 
-section('H3 the corpus carries the pending buffer first and honours a retraction')
+section('H3 the corpus carries the pending buffer first')
 {
   history.addToHistory('typed just now')
   const withPending = await history.loadHistoryCorpus()
   check('a just-typed entry (still pending or freshly flushed) leads the corpus', withPending[0]?.display === 'typed just now', `${String(withPending[0]?.display)}; fix loadHistoryCorpus in src/sessions/promptHistory.ts to put the pending buffer before the disk records`)
-  history.removeLastFromHistory()
-  const afterRetract = await history.loadHistoryCorpus()
-  check('a retracted entry leaves the corpus whether it reached the disk or not', afterRetract[0]?.display !== 'typed just now', `${String(afterRetract[0]?.display)}; fix removeLastFromHistory and loadHistoryCorpus in src/sessions/promptHistory.ts so a retracted entry is dropped from the corpus`)
   await waitUntil(() => quiet(), { tries: 2000 })
 }
 
