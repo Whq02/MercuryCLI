@@ -616,7 +616,7 @@ export async function writeConcourseSeedOverride(
     }
     if (
       next.isolation !== undefined &&
-      next.isolation === resolveIsolationSeed({ ...next, isolation: undefined }, getCwd())
+      next.isolation === resolveIsolationSeed({ ...next, isolation: undefined })
     ) {
       delete next.isolation
     }
@@ -672,7 +672,6 @@ export async function writeConcourseSessionDraft(sessionId: string, text: string
 
 export function resolveIsolationSeed(
   seeds: ConcourseSeedOverridesV1,
-  cwd: string,
 ): 'isolated-worktree' | 'exclusive' | 'shared-read-only' {
   if (seeds.isolation !== undefined) return seeds.isolation
   return 'exclusive'
@@ -692,7 +691,7 @@ export function dispatchSeedInputs(
   agentName?: string
   seatsMax?: 1 | 2
 } {
-  const isolation = resolveIsolationSeed(seeds, cwd)
+  const isolation = resolveIsolationSeed(seeds)
   const effort = seeds.effort ?? savedEffort
   return {
     workspaceDir: seeds.projectDir ?? cwd,
@@ -1215,7 +1214,7 @@ export async function buildConcourseSnapshot(
         modelIsDefault: chosenModelId === defaultWorkerModelId(workerRegistry, 'session'),
         effortLevel: seedOverrides.effort ?? savedEffort ?? 'high',
         effortIsDefault: (seedOverrides.effort ?? savedEffort ?? 'high') === (savedEffort ?? 'high'),
-        isolation: resolveIsolationSeed(seedOverrides, getCwd()),
+        isolation: resolveIsolationSeed(seedOverrides),
         seatsMax: seedOverrides.seatsMax ?? 2,
       },
       draft,
