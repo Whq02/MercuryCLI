@@ -63,6 +63,10 @@ const SUMMARY_SECTIONS = `Your summary must contain these ten numbered sections:
 9. Next Move (optional): the next step directly in line with the operator's most recent explicit request and the task in flight. Do not start tangential or already-completed work without confirming first. Include verbatim quotes from the most recent conversation showing exactly what task was in hand and where it stopped.
 ${AGENTS_IN_FLIGHT_SECTION}`
 
+export function summarySkeleton(): string {
+  return SUMMARY_SECTIONS.split('\n').flatMap(line => /^\d{1,2}\. [^:]+:/.exec(line)?.[0] ?? []).join('\n')
+}
+
 const UP_TO_SECTIONS = `Your summary must contain these ten numbered sections:
 1. Operator Intent: every explicit request, in detail.
 2. Technical Ground: technologies, patterns and frameworks in play.

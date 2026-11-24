@@ -11,7 +11,7 @@ import { roughTokenCountEstimationForMessages } from '../../../models/facts/toke
 import { getTurnReserveTokens } from '../../compaction-window/autoFoldWindow.js'
 import { groupMessagesByApiRound } from '../groupByApiRound.js'
 import { estimateContextTokens } from '../pruneToolResults.js'
-import { renderFoldedWork } from '../summariserPrompt.js'
+import { renderFoldedWork, summarySkeleton } from '../summariserPrompt.js'
 import { computeVerbatimRecentTail, foldLandingCeiling, foldableResults, foldedResultPlaceholder, isMercuryFoldKeepTailEnabled, MIN_HEAD_ROUNDS, withFoldedResults } from '../verbatimTail.js'
 import { operatorTextOf, selectOperatorMessages } from '../../compaction-window/operatorMessages.js'
 import { stripThinkingFromIndex } from '../../messages/apiFilters.js'
@@ -62,7 +62,7 @@ export async function projectManualFold(
   const landing = ceiling === undefined ? undefined : foldLandingCeiling(ceiling, messages, meter.gauge?.density.ratio ?? 1, meter.gauge?.density.residuals, getTurnReserveTokens(context.options.engineModel))
   const newestMessageFollows = (cacheSafeParams.postFoldCarry ?? []).some(row => operatorTextOf(row) !== null)
   const previousSummaries = messages.filter(row => row.type === 'user' && row.isCompactSummary === true)
-  const standIn = 'summary '.repeat(Math.ceil(Math.max(DEGRADED_SUMMARY_LENGTH / 4, roughTokenCountEstimationForMessages(previousSummaries)) / 2))
+  const standIn = `<summary>\n${summarySkeleton()}\n${'summary '.repeat(Math.ceil(Math.max(DEGRADED_SUMMARY_LENGTH / 4, roughTokenCountEstimationForMessages(previousSummaries)) / 2))}</summary>`
   const marker = createFoldBoundaryMessage('manual', meter.context)
   const capsule = buildRunContinuationCapsule(owner, [...context.readFileState.keys()])
   const memoryText = previewFoldMemoryText({
