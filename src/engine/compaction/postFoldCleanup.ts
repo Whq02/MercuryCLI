@@ -4,14 +4,13 @@ import { clearSessionMessagesCache } from '../../sessions/transcripts/sessionLis
 import { resetInstructionFilesCache } from '../../sessions/instructions/instructionFiles.js'
 import type { Message } from '../message-shapes/message.js'
 import { restoreBoundPrefixFromMessages } from '../../models/roads/anthropic/boundPrefixRecord.js'
+import type { QuerySource } from '../requests/querySource.js'
 
 
 type PostFoldScope = {
   querySource?: string
   agentId?: string
 }
-
-type QuerySource = string
 
 const MAIN_THREAD_PREFIX = 'main_thread'
 
