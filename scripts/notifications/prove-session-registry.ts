@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // gate-watch: src/sessions/transcripts/concurrentSessions.ts
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { checker, scratchRoot } from '../engine-durability/harness.ts'
 
@@ -11,7 +11,7 @@ delete process.env.MERCURY_HOME
 process.env.MERCURY_ENTRYPOINT = 'cli'
 
 const { getMercuryHome } = await import('../../src/platform/environment/envUtils.ts')
-const { countConcurrentSessions, registerSession, updateSessionBridgeId, updateSessionName } = await import('../../src/sessions/transcripts/concurrentSessions.ts')
+const { registerSession, updateSessionBridgeId, updateSessionName } = await import('../../src/sessions/transcripts/concurrentSessions.ts')
 const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
 const dir = join(getMercuryHome(), 'sessions')
 const own = join(dir, `${process.pid}.json`)
@@ -37,24 +37,6 @@ t.section('§2 the patches merge into the record')
   t.check('the bridge id lands', record().bridgeSessionId === 'bridge-1')
   await updateSessionBridgeId(null)
   t.check('a null bridge id clears it and keeps the name', record().bridgeSessionId === null && record().name === 'a named session')
-}
-
-t.section('§3 the count: live records count, dead ones are swept, odd names are left alone')
-{
-  const dead = join(dir, '999999.json')
-  const odd = join(dir, '999999-notes.json')
-  const alien = join(dir, 'readme.txt')
-  writeFileSync(dead, JSON.stringify({ pid: 999999 }))
-  writeFileSync(odd, '{}')
-  writeFileSync(alien, 'x')
-  const count = await countConcurrentSessions()
-  t.check('the own session counts and the dead pid does not', count === 1, String(count))
-  t.check('the dead record was swept', !existsSync(dead))
-  t.check('a file that merely starts with digits is never read as a pid nor deleted', existsSync(odd) && existsSync(alien))
-  t.check('the own record survives the sweep', existsSync(own))
-  mkdirSync(join(root, 'elsewhere'), { recursive: true })
-  process.env.MERCURY_CONFIG_DIR = join(root, 'elsewhere', 'missing')
-  t.check('a missing sessions folder counts zero', (await countConcurrentSessions()) === 0)
 }
 
 t.finish('prove-session-registry')

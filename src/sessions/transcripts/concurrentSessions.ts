@@ -1,14 +1,11 @@
-import { chmod, mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { flagEnv } from '../../platform/substrate/flagRegistry.js'
 import { getOriginalCwd, getSessionId, onSessionSwitch } from '../../boot/process-state/processState.js'
 import { registerCleanup } from '../../platform/processes/cleanupRegistry.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
-import { getPlatform } from '../../platform/environment/platform.js'
 import { getMercuryHome } from '../../platform/environment/envUtils.js'
-import { isFsInaccessible } from '../../platform/errors/errors.js'
-import { isProcessRunning } from '../../platform/processes/processLiveness.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
 type SessionKind = 'interactive' | 'bg' | 'daemon'
@@ -26,7 +23,6 @@ type SessionRecord = {
 
 const PRIVATE_DIR = 0o700
 const PRIVATE_FILE = 0o600
-const RECORD_NAME = /^(\d+)\.json$/
 
 const sessionsDir = (): string => join(getMercuryHome(), 'sessions')
 const recordPathOf = (pid: number): string => join(sessionsDir(), `${pid}.json`)
@@ -68,27 +64,4 @@ export async function updateSessionName(name: string | undefined): Promise<void>
 
 export async function updateSessionBridgeId(bridgeSessionId: string | null): Promise<void> {
   await patchOwnRecord({ bridgeSessionId })
-}
-
-async function recordedPids(): Promise<number[]> {
-  try {
-    return (await readdir(sessionsDir())).flatMap(entry => {
-      const digits = RECORD_NAME.exec(entry)?.[1]
-      return digits === undefined ? [] : [Number(digits)]
-    })
-  } catch (err) {
-    if (!isFsInaccessible(err)) note('could not list sessions dir', err)
-    return []
-  }
-}
-
-const isLive = (pid: number): boolean => pid === process.pid || isProcessRunning(pid)
-
-export async function countConcurrentSessions(): Promise<number> {
-  const pids = await recordedPids()
-  const live = pids.filter(isLive)
-  if (getPlatform() !== 'wsl') {
-    for (const pid of pids) if (!isLive(pid)) await unlinkQuietly(recordPathOf(pid))
-  }
-  return live.length
 }
