@@ -16,7 +16,7 @@ export function isBackgroundTask(task: TaskState): task is BackgroundTaskState {
   if (task.status !== 'running' && task.status !== 'pending') {
     return false
   }
-  if (task.type !== 'monitor_mcp' && !task.isBackgrounded) {
+  if (task.type !== 'monitor_mcp' && task.isBackgrounded === false) {
     return false
   }
   return true
