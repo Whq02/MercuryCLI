@@ -228,14 +228,14 @@ async function decidePowerShellPermission(
   }
 
   if (!parsed.valid) {
+    const fragDeny = fragmentDenyScan(trimmed, context)
+    if (fragDeny) return fragDeny
     if (slot === null && exact.behavior === 'allow') {
       const firstWord = trimmed.split(/\s+/)[0] ?? ''
       if (pinnedCommandAnalysis.classifyCommandName(firstWord) !== 'application') {
         return exact
       }
     }
-    const fragDeny = fragmentDenyScan(trimmed, context)
-    if (fragDeny) return fragDeny
     if (slot) return slot
     const errMsg = parsed.errors[0]?.message ?? 'unknown error'
     return { behavior: 'ask', message: `The command has malformed syntax that cannot be parsed: ${errMsg}` }
