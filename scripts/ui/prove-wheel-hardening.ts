@@ -119,8 +119,8 @@ pending.edit('')
 pending.setMode('prompt')
 pending.setPastedContents({})
 
-const listRows = (m: Mounted): string[] => m.lines().filter(line => /^│ [▸ ] (\d\d:\d\d|queued) /.test(line))
-const selectedPrompt = (m: Mounted): string | undefined => m.lines().find(line => /^│ ▸ /.test(line))?.match(/PROMPT_\d\d/)?.[0]
+const listRows = (m: Mounted): string[] => m.lines().filter(line => /│ [▸ ] (\d\d:\d\d|queued) /.test(line))
+const selectedPrompt = (m: Mounted): string | undefined => m.lines().find(line => /│ ▸ /.test(line))?.match(/PROMPT_\d\d/)?.[0]
 const sectionsLine = (m: Mounted): string | undefined => m.lines().find(line => /PROMPTS \(\d+\)/.test(line))
 const transcriptRows = (m: Mounted): string[] => m.lines().map(line => line.match(/(?:PROMPT|ANSWER)_\d\d/g)?.join(' ') ?? '').filter(Boolean)
 const composerRow = (m: Mounted): string => m.lines().find(line => /^│[❯!] /.test(line)) ?? ''
@@ -289,9 +289,9 @@ try {
     await settle(400)
     check('the workbench opened over the transcript on the newest prompt', selectedPrompt(m) === 'PROMPT_69', m.screen())
     await push(m, WHEEL_UP.repeat(40), 800)
-    check(`the burst moves the workbench selection a page of body rows (${Math.floor(PAGE / 3)} rows) and the list stays painted`, selectedPrompt(m) === `PROMPT_${String(69 - Math.floor(PAGE / 3)).padStart(2, '0')}` && listRows(m).length === 33 && listRows(m).every(line => /PROMPT_\d\d/.test(line)), m.screen())
+    check(`the burst moves the workbench selection a page of body rows (${Math.floor(PAGE / 3)} rows) and the list stays painted`, selectedPrompt(m) === `PROMPT_${String(69 - Math.floor(PAGE / 3)).padStart(2, '0')}` && listRows(m).length === 22 && listRows(m).every(line => /PROMPT_\d\d/.test(line)), m.screen())
     await push(m, (WHEEL_DOWN + WHEEL_UP).repeat(10), 400)
-    check('reversals leave the workbench selection and paint alone', selectedPrompt(m) === `PROMPT_${String(69 - Math.floor(PAGE / 3)).padStart(2, '0')}` && listRows(m).length === 33, m.screen())
+    check('reversals leave the workbench selection and paint alone', selectedPrompt(m) === `PROMPT_${String(69 - Math.floor(PAGE / 3)).padStart(2, '0')}` && listRows(m).length === 22, m.screen())
     await push(m, WHEEL_DOWN.repeat(40), 800)
     await push(m, WHEEL_DOWN.repeat(5), 400)
     check('a burst past the newest prompt stays on the workbench prompts list', selectedPrompt(m) === 'PROMPT_69' && /PROMPTS \(70\)/.test(m.screen()), m.screen())

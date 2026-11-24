@@ -304,10 +304,10 @@ const boxedMarker = (lines: string[]): boolean => {
 }
 const MARKER_ALWAYS = new Set(['accounts', 'appearance', 'caching', 'capabilities', 'critter', 'defaultprovider', 'effort', 'export', 'feedback', 'health', 'hooks', 'keys', 'logins', 'memory', 'model', 'palette', 'samples', 'sessions', 'submodels', 'tensorfold'])
 const MARKER_AFTER_WALK = new Set(['permissions'])
-const MARKER_WIDE_NAV = new Set(['extensions', 'workbench'])
+const MARKER_WIDE_NAV = new Map([['extensions', 177], ['workbench', 204]])
 const diffListsFiles = (lines: string[]): boolean => region(lines).some(line => /Mercury — diff · \d+ files? /.test(line))
 const markerExpected = (name: string, cols: number, stage: 'open' | 'walked', frame: string[] = []): boolean =>
-  MARKER_ALWAYS.has(name) || (MARKER_AFTER_WALK.has(name) && stage === 'walked') || (MARKER_WIDE_NAV.has(name) && cols >= 177) || (name === 'diff' && diffListsFiles(frame))
+  MARKER_ALWAYS.has(name) || (MARKER_AFTER_WALK.has(name) && stage === 'walked') || cols >= (MARKER_WIDE_NAV.get(name) ?? Number.POSITIVE_INFINITY) || (name === 'diff' && diffListsFiles(frame))
 const markerPainted = (lines: string[], name = ''): boolean => glyphMarker(lines) || ((name === 'model' || name === 'tensorfold') && boxedMarker(lines))
 const LOADING_LINE = /Loading conversations|loading…|examining the harness|◐ Checking…/
 function routeOpenPainted(name: string, cols: number, mark: RegExp, frame: string[]): boolean {

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/screen/fullscreen-layout/CrewViewSlot.tsx src/screen/fullscreen-layout/frame.tsx src/screen/fullscreen-layout/FullscreenLayout.tsx src/screen/overlays/promptOverlay.tsx src/screen/composer/composerSurface.tsx src/screen/cockpit/commandPopup.ts src/commands/runs/tasks.tsx
+// gate-watch: src/screen/fullscreen-layout/CrewViewSlot.tsx src/screen/fullscreen-layout/frame.tsx src/screen/fullscreen-layout/FullscreenLayout.tsx src/screen/overlays/promptOverlay.tsx src/screen/composer/composerSurface.tsx src/screen/cockpit/commandPopup.ts src/commands/runs/tasks.tsx src/commands/workbench/workbench.tsx
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, type Mounted } from '../lib/settingsPopupHarness.ts'
@@ -42,6 +42,7 @@ const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await impo
 const crew = await import('../../src/screen/cockpit/crewView.ts')
 const commandPopup = await import('../../src/screen/cockpit/commandPopup.ts')
 const runsCommand = await import('../../src/commands/runs/tasks.tsx')
+const workbenchCommand = await import('../../src/commands/workbench/workbench.tsx')
 const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
 enableConfigs()
 saveCurrentProjectConfig(c => ({ ...c, hasCompletedProjectOnboarding: true }))
@@ -172,6 +173,20 @@ for (const size of SIZES) {
     check(`runs from the footer ${size}: esc closes it and the typing box is still on its row`, picked.scene.lines().findIndex(line => line.includes('Type a prompt')) === picked.before.findIndex(line => line.includes('Type a prompt')), 'the typing box moved after the popup closed')
     await unmount(picked.scene)
   }
+  for (const popup of [
+    { name: 'prompts', route: '/workbench', title: 'Mercury — prompts', open: () => workbenchCommand.call(() => setModal(null), context, '') },
+  ]) {
+    if (only !== undefined && only !== popup.name) continue
+    const opened = await mount(size)
+    setModal(await popup.open())
+    await settledFrame(opened.scene, frame => frame.includes(popup.title))
+    save(`${popup.name}-${size}`, opened.scene.lines())
+    judge(`${popup.route} ${size}`, opened, opened.scene.lines(), popup.title, /esc close/, crewShot, 140)
+    opened.scene.push('\x1b')
+    await settledFrame(opened.scene, frame => !frame.includes(popup.title))
+    check(`${popup.route} ${size}: esc closes it and the screen is as it was`, opened.scene.lines().join('\n') === opened.before.join('\n'), 'the frame after esc differs from the frame before the popup opened')
+    await unmount(opened.scene)
+  }
 }
 if (only === undefined || only === 'keys') {
   const size = SIZES[0]!
@@ -206,6 +221,18 @@ if (only === undefined || only === 'keys') {
   check(`runs keys ${size}: a click on the keys row at its foot closes it`, await settledFrame(runs.scene, frame => !frame.includes('Mercury — runs')).catch(() => false), 'the popup is still open after the click')
   await unmount(runs.scene)
   releaseFocusedSessionConnector()
+  const prompts = await mount(size, null, true)
+  setModal(await workbenchCommand.call(() => setModal(null), context, ''))
+  await settledFrame(prompts.scene, frame => frame.includes('Mercury — prompts'))
+  prompts.scene.push('3')
+  check(`prompts keys ${size}: the section key 3 opens the saved prompts`, await settledFrame(prompts.scene, frame => frame.includes('no saved prompts yet')).catch(() => false), 'the saved prompts hint was not drawn after 3')
+  const first = at(prompts.scene.lines(), '1 PROMPTS')
+  click(prompts.scene, first.x, first.y)
+  check(`prompts keys ${size}: a click on the section PROMPTS goes back to it`, await settledFrame(prompts.scene, frame => frame.includes('no prompts sent in this chat yet')).catch(() => false), `clicked ${first.x},${first.y}; the prompts hint was not drawn after the click`)
+  prompts.scene.push('z')
+  await settledFrame(prompts.scene)
+  check(`prompts keys ${size}: a letter typed while it is open does not reach the typing box behind it`, typingBox(prompts.scene.lines()) === typingBox(prompts.before), `the typing box reads ${JSON.stringify(typingBox(prompts.scene.lines()).trim())}`)
+  await unmount(prompts.scene)
 }
 if (only === undefined || only === 'quiet') {
   process.env.MERCURY_RECESS = '1'
@@ -220,6 +247,7 @@ if (only === undefined || only === 'quiet') {
   check(`quiet backdrop ${size}: with the crew popup open the transcript behind it is drawn one step quieter`, quiet !== loud, `the transcript's ink is ${loud} with and without the crew popup`)
   for (const popup of [
     { route: '/runs', title: 'Mercury — runs', open: () => runsCommand.call(() => setModal(null), context, '') },
+    { route: '/workbench', title: 'Mercury — prompts', open: () => workbenchCommand.call(() => setModal(null), context, '') },
   ]) {
     const behind = await mount(size)
     setModal(await popup.open())

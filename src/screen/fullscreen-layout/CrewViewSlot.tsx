@@ -14,6 +14,7 @@ import { ModalContext } from '../overlays/modalContext.js'
 import { usePromptOverlayDialog } from '../overlays/promptOverlay.js'
 
 const CREW_POPUP_WIDTH = 124
+export const CREW_POPUP_WIDE = 140
 const CREW_VIEW_CHROME = 4
 
 type CrewPopupGeometry = { left: number; top: number; width: number; rows: number }

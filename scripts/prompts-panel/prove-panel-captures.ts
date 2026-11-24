@@ -40,6 +40,20 @@ type Grid = { grid: Cell[][]; endReason?: string }
 const text = (g: Grid): string => g.grid.map(r => r.map(c => c.c || ' ').join('')).join('\n')
 const flat = (s: string): string => s.replace(/[│╭╮╰╯─▔]/g, ' ').replace(/\s+/g, ' ')
 const painted = (g: Grid): number => g.grid.reduce((n, r) => n + r.filter(c => c.c && c.c !== ' ').length, 0)
+function panel(g: Grid): Grid {
+  const at = (x: number, y: number): string => g.grid[y]?.[x]?.c ?? ' '
+  const y = g.grid.findIndex(row => /Mercury — (prompts|workbench)/.test(row.map(c => c.c || ' ').join('')))
+  if (y < 0) return g
+  let left = g.grid[y]!.map(c => c.c || ' ').join('').search(/Mercury — (prompts|workbench)/)
+  while (left >= 0 && at(left, y) !== '│') left--
+  let top = y
+  while (top >= 0 && at(left, top) !== '╭') top--
+  const right = left < 0 || top < 0 ? -1 : g.grid[top]!.findIndex((c, x) => x > left && c.c === '╮')
+  let bottom = y
+  while (bottom < g.grid.length && at(left, bottom) !== '╰') bottom++
+  if (right < 0 || bottom >= g.grid.length) return g
+  return { ...g, grid: g.grid.slice(top, bottom + 1).map(row => row.slice(left, right + 1)) }
+}
 
 const ESC = '\u001b'
 const UP = `${ESC}[A`
@@ -196,22 +210,22 @@ const OPEN_PANEL_BARE: Send[] = [
   then('/workbench', ENTER),
 ]
 
-const SIZES: Array<[number, number]> = [
-  [120, 40],
-  [100, 30],
+const SIZES: Array<[number, number, number, number]> = [
+  [120, 40, 184, 50],
+  [100, 30, 164, 40],
 ]
 
 console.log('============================================================')
 console.log(' PROMPTS PANEL — captures on the built bundle (120x40 · 100x30)')
 console.log('============================================================')
 
-for (const [cols, rows] of SIZES) {
+for (const [cols, rows, screenCols, screenRows] of SIZES) {
   const size = `${cols}x${rows}`
   console.log(`\n▶ ${size}`)
 
   {
     clearSavedPrompts()
-    const g = text(capture('L1-prompts', cols, rows, { transcript: POPULATED, sends: OPEN_PANEL, readyText: 'SAVED PROMPTS' }))
+    const g = text(panel(capture('L1-prompts', screenCols, screenRows, { transcript: POPULATED, sends: OPEN_PANEL, readyText: 'SAVED PROMPTS' })))
     check(`[${size}] L1 the three tabs are on screen`, /PROMPTS/.test(g) && /CREW TRAFFIC/.test(g) && /SAVED PROMPTS/.test(g))
     check(`[${size}] L1 the receipt roll lists the sent prompts in order`, g.indexOf('audit the retry ladder') !== -1 && g.indexOf('audit the retry ladder') < g.indexOf('refactor the switchboard') && g.indexOf('refactor the switchboard') !== -1 && g.indexOf('refactor the switchboard') < g.indexOf('ship it'))
     check(`[${size}] L1 modes read plain · bash · slash`, /plain/.test(g) && /bash/.test(g) && /slash/.test(g))
@@ -226,32 +240,32 @@ for (const [cols, rows] of SIZES) {
 
   {
     setSwarmMaster(true)
-    const g = text(capture('L1-board', cols, rows, { transcript: POPULATED, sends: OPEN_PANEL, readyText: 'SAVED PROMPTS' }))
+    const g = text(panel(capture('L1-board', screenCols, screenRows, { transcript: POPULATED, sends: OPEN_PANEL, readyText: 'SAVED PROMPTS' })))
     setSwarmMaster(false)
     check(`[${size}] L1b with the board on, the middle tab is the crew chat (Crew chat · PROMPTS · SAVED PROMPTS)`, /PROMPTS/.test(g) && /Crew chat/.test(g) && /SAVED PROMPTS/.test(g) && !/CREW TRAFFIC/.test(g))
   }
 
   {
-    const g = text(
-      capture('L1-prompts-expanded', cols, rows, {
+    const g = text(panel(
+      capture('L1-prompts-expanded', screenCols, screenRows, {
         transcript: POPULATED,
         sends: [...OPEN_PANEL, then('SAVED PROMPTS', UP), after(1, UP), after(1, UP), after(1, ENTER)],
         readyText: 'the prompt as sent',
       }),
-    )
+    ))
     check(`[${size}] L1x ↵ expands the long prompt — the whole text shows`, /keep the reap law/.test(g) && /one pool per boundary/.test(g))
     check(`[${size}] L1x the detail names the prompt (prompt #2)`, /prompt #2/.test(g))
     check(`[${size}] L1x the length facts are honest (3 lines)`, /3 lines/.test(g))
   }
 
   {
-    const g = text(capture('L1-prompts-empty', cols, rows, { transcript: 'none', sends: OPEN_PANEL_BARE, readyText: 'SAVED PROMPTS' }))
+    const g = text(panel(capture('L1-prompts-empty', screenCols, screenRows, { transcript: 'none', sends: OPEN_PANEL_BARE, readyText: 'SAVED PROMPTS' })))
     check(`[${size}] L1e an empty chat says so honestly`, /no prompts sent in this chat yet/.test(g))
     check(`[${size}] L6e the limits line reads nothing sent`, /0 prompts · nothing sent in this chat yet/.test(g))
   }
 
   {
-    const g = text(capture('L3-crew', cols, rows, { transcript: POPULATED, sends: [...OPEN_PANEL, then('SAVED PROMPTS', '2')], readyText: 'PANEL replied' }))
+    const g = text(panel(capture('L3-crew', screenCols, screenRows, { transcript: POPULATED, sends: [...OPEN_PANEL, then('SAVED PROMPTS', '2')], readyText: 'PANEL replied' })))
     check(`[${size}] L3 two agent threads (PANEL · CLAM), first-seen order`, g.indexOf('PANEL') !== -1 && g.indexOf('PANEL') < g.indexOf('CLAM'))
     check(`[${size}] L3 the lead's messages TO an agent and the reply back`, /to PANEL/.test(g) && /PANEL replied/.test(g) && /to CLAM/.test(g))
     check(`[${size}] L3 the launch brief is marked`, /brief ·/.test(g))
@@ -260,13 +274,13 @@ for (const [cols, rows] of SIZES) {
   }
 
   {
-    const g = text(capture('L3-crew-empty', cols, rows, { transcript: NO_CREW, sends: [...OPEN_PANEL, then('SAVED PROMPTS', '2')], readyText: 'no crewmate traffic this session' }))
+    const g = text(panel(capture('L3-crew-empty', screenCols, screenRows, { transcript: NO_CREW, sends: [...OPEN_PANEL, then('SAVED PROMPTS', '2')], readyText: 'no crewmate traffic this session' })))
     check(`[${size}] L3e no agents ⇒ the honest empty line`, /no crewmate traffic this session/.test(g))
   }
 
   {
     clearSavedPrompts()
-    const g = text(capture('L7-saved-empty', cols, rows, { transcript: NO_CREW, sends: [...OPEN_PANEL, then('SAVED PROMPTS', '3')], readyText: 'no saved prompts yet' }))
+    const g = text(panel(capture('L7-saved-empty', screenCols, screenRows, { transcript: NO_CREW, sends: [...OPEN_PANEL, then('SAVED PROMPTS', '3')], readyText: 'no saved prompts yet' })))
     check(`[${size}] L7e an empty list says so and teaches a`, /no saved prompts yet — a writes one/.test(g))
     check(`[${size}] L7e the footer offers a new`, /a new/.test(g))
     check(`[${size}] L7e an empty tab never advertises c clear (armed ⇔ advertised)`, !/c clear/.test(g))
@@ -274,8 +288,8 @@ for (const [cols, rows] of SIZES) {
 
   {
     clearSavedPrompts()
-    const g = text(
-      capture('L7-saved-written', cols, rows, {
+    const g = text(panel(
+      capture('L7-saved-written', screenCols, screenRows, {
         transcript: NO_CREW,
         sends: [
           ...OPEN_PANEL,
@@ -291,7 +305,7 @@ for (const [cols, rows] of SIZES) {
         ],
         readyText: 'moved #2 up',
       }),
-    )
+    ))
     check(`[${size}] L7w both saved prompts are listed`, /audit the retry ladder — MUST name file:line/.test(g) && /write the release notes for 1\.5\.8/.test(g))
     check(`[${size}] L7w [ reordered — the release notes now sit above the audit`, g.indexOf('write the release notes') !== -1 && g.indexOf('write the release notes') < g.indexOf('audit the retry ladder — MUST'))
     check(`[${size}] L7w the receipt names the move`, /moved #2 up/.test(g))
@@ -305,23 +319,23 @@ for (const [cols, rows] of SIZES) {
   }
 
   {
-    const g = text(
-      capture('L7-saved-clear-confirm', cols, rows, {
+    const g = text(panel(
+      capture('L7-saved-clear-confirm', screenCols, screenRows, {
         transcript: NO_CREW,
         sends: [...OPEN_PANEL, then('SAVED PROMPTS', '3'), then('release notes', 'c')],
         readyText: 'clear all 2 saved prompts?',
       }),
-    )
+    ))
     check(`[${size}] L7c the confirm paints in place before anything is wiped`, /clear all 2 saved prompts\? · ↵ clears · esc keeps them/.test(flat(g)))
     check(`[${size}] L7c the list is still there behind the confirm`, /write the release notes for 1\.5\.8/.test(g) && /audit the retry ladder — MUST/.test(g))
     check(`[${size}] L7c the row verbs are parked while the confirm owns input`, !/s to composer/.test(g) && /esc composer/.test(g))
-    const g2 = text(
-      capture('L7-saved-cleared', cols, rows, {
+    const g2 = text(panel(
+      capture('L7-saved-cleared', screenCols, screenRows, {
         transcript: NO_CREW,
         sends: [...OPEN_PANEL, then('SAVED PROMPTS', '3'), then('release notes', 'c'), then('clear all', ENTER)],
         readyText: 'no saved prompts yet',
       }),
-    )
+    ))
     check(`[${size}] L7c ↵ clears — the honest empty state paints`, /no saved prompts yet — a writes one/.test(g2))
     check(`[${size}] L7c the receipt says what was cleared`, /cleared 2 saved prompts — the list is empty/.test(flat(g2)))
     check(`[${size}] L7c the empty list no longer advertises c clear (armed ⇔ advertised)`, !/c clear/.test(g2))
@@ -339,14 +353,14 @@ for (const [cols, rows] of SIZES) {
   }
 
   {
-    const g = text(
-      capture('L7-saved-sent', cols, rows, {
+    const g = text(panel(
+      capture('L7-saved-sent', screenCols, screenRows, {
         transcript: NO_CREW,
         sends: [...OPEN_PANEL, then('SAVED PROMPTS', '3'), then('release notes', 's')],
         readyText: 'write the release notes for 1.5.8',
         total: 120,
       }),
-    )
+    ))
     check(`[${size}] L7s the panel closed and the composer holds the saved prompt, unsent`, /write the release notes for 1\.5\.8/.test(g) && !/SAVED PROMPTS \(/.test(g))
   }
 
@@ -354,7 +368,7 @@ for (const [cols, rows] of SIZES) {
     clearSavedPrompts()
     mkdirSync(savedPromptsDir, { recursive: true })
     writeFileSync(join(savedPromptsDir, `${projectSlug(RUNTIME_CWD.normalize('NFC'))}.json`), '{"_v":1,"drafts":[{"id":"aa11bb","text":"was here" this is not json')
-    const g = text(capture('L7-saved-corrupt', cols, rows, { transcript: NO_CREW, sends: [...OPEN_PANEL, then('SAVED PROMPTS', '3')], readyText: 'could not be read' }))
+    const g = text(panel(capture('L7-saved-corrupt', screenCols, screenRows, { transcript: NO_CREW, sends: [...OPEN_PANEL, then('SAVED PROMPTS', '3')], readyText: 'could not be read' })))
     check(`[${size}] L7x a damaged file is said out loud in the tab (never 'reading…' for ever)`, /the saved-prompts file could not be read/.test(flat(g)) && /saved prompts unreadable/.test(flat(g)))
     check(`[${size}] L7x the tab still offers a (a fresh list)`, /a new/.test(g))
     check(`[${size}] L7x no crash — the panel's chrome is whole`, /SAVED PROMPTS \(0\)/.test(g) && /esc close/.test(g))

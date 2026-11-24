@@ -1,6 +1,9 @@
 import * as React from 'react'
 import type { LocalJSXCommandCall } from '../catalogue/command.js'
 import { PromptsPanel } from '../../screen/prompts-panel/PromptsPanel.js'
+import { CommandPopupLease } from '../../screen/overlays/CommandPopupSlot.js'
+import { claimCommandPopup } from '../../screen/cockpit/commandPopup.js'
+import { CREW_POPUP_WIDE, crewDoorShape } from '../../screen/fullscreen-layout/CrewViewSlot.js'
 import { getFocusedSessionConnector } from '../../engine/connector/focusedConnector.js'
 import { saveSwarmSwitch } from '../../sessions/transcripts/sessionListings.js'
 import { closeIdleSwarm, swarmMasterEnabled, swarmSessionEnabled, swarmStore } from '../../crew/board/seam.js'
@@ -31,7 +34,7 @@ export const call: LocalJSXCommandCall = async (onDone, context, raw) => {
   const op = raw.trim().toLowerCase()
   if (!context.options.isNonInteractiveSession && ['', 'on', 'off', 'status'].includes(op)) {
     const connector = getFocusedSessionConnector()
-    if (op === '' && connector.swarmBoard?.()?.on) return React.createElement(PromptsPanel, { initialSection: 'crew', onClose: () => onDone(undefined, { display: 'skip' }) })
+    if (op === '' && connector.swarmBoard?.()?.on) return React.createElement(CommandPopupLease, { token: claimCommandPopup(crewDoorShape('prompts', CREW_POPUP_WIDE)), children: React.createElement(PromptsPanel, { initialSection: 'crew', onClose: () => onDone(undefined, { display: 'skip' }) }) })
     const receipt = await connector.sendWords(`/swarm ${op}`.trimEnd())
     onDone(receipt.state === 'refused' ? receipt.detail : undefined, { display: receipt.state === 'refused' ? 'system' : 'skip' })
     return null
