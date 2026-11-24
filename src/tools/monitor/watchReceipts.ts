@@ -1,5 +1,5 @@
 import { TASK_ID_TAG, TASK_NOTIFICATION_TAG, TOOL_USE_ID_TAG } from '../../engine/message-shapes/messageTags.js'
-import type { RunnerRestartReason } from '../../engine/tasks/local-agent/launchReceipts.js'
+import { textOf, type RunnerRestartReason } from '../../engine/tasks/local-agent/launchReceipts.js'
 import type { OrphanedLaunch, OrphanProcessFate } from '../../engine/tasks/taskLaunchLedger.js'
 import type { Message } from '../../engine/message-shapes/message.js'
 import { enqueuePendingNotification } from '../../daemon/runner/messageQueueManager.js'
@@ -61,15 +61,6 @@ type Block = { type?: string; id?: string; name?: string; input?: unknown; tool_
 
 function blocksOf(content: unknown): Block[] {
   return Array.isArray(content) ? (content as Block[]) : []
-}
-
-function textOf(content: unknown): string {
-  if (typeof content === 'string') return content
-  if (!Array.isArray(content)) return ''
-  return (content as Block[])
-    .filter(block => block?.type === 'text' && typeof block.text === 'string')
-    .map(block => block.text as string)
-    .join('\n')
 }
 
 const STARTED_TASK = /^Monitor started \(task (\S+?)[,)]/

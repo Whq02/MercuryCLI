@@ -100,7 +100,7 @@ function blocksOf(content: unknown): Block[] {
   return Array.isArray(content) ? (content as Block[]) : []
 }
 
-function textOf(content: unknown): string {
+export function textOf(content: unknown): string {
   if (typeof content === 'string') return content
   if (!Array.isArray(content)) return ''
   return (content as Block[])
