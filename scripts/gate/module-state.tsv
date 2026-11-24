@@ -5450,6 +5450,7 @@ src/tools/schedule-wakeup/ScheduleWakeupTool.ts	outputSchema	process	module	Load
 src/tools/send-message/SendMessageTool.ts	SendMessageTool	process	module	Load-time definition shared by all callers
 src/tools/send-message/SendMessageTool.ts	inputSchema	process	module	Load-time definition shared by all callers
 src/tools/send-message/SendMessageTool.ts	outputSchema	process	module	Load-time definition shared by all callers
+src/tools/send-message/rows.tsx	MODEL_ONLY_TAILS	process	module	load-time data; no local writer
 src/tools/service/ServiceTool.ts	MUTATING_OPS	process	module	Load-time lookup with no local writer
 src/tools/service/ServiceTool.ts	OPS	process	module	Load-time list with no local writer
 src/tools/service/ServiceTool.ts	ServiceTool	process	module	Load-time definition shared by all callers
