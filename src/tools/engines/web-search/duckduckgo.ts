@@ -18,6 +18,7 @@ import {
   failureLine,
   filterHitsByDomain,
   normaliseHits,
+  operatorSearchQuery,
   searchFailure,
   searchUserAgent,
   type SearchHit,
@@ -121,22 +122,12 @@ export function parseDuckDuckGoLite(html: string): DuckDuckGoPage {
   return { kind: 'results', hits }
 }
 
-export function keylessQueryFor(request: SearchRequest): string {
-  const parts = [request.query.trim()]
-  const allowed = (request.allowedDomains ?? []).filter(d => d.trim() !== '')
-  if (allowed.length === 1) parts.push(`site:${allowed[0]!.trim()}`)
-  for (const domain of (request.blockedDomains ?? []).filter(d => d.trim() !== '').slice(0, 5)) {
-    parts.push(`-site:${domain.trim()}`)
-  }
-  return parts.join(' ')
-}
-
 export interface KeylessSearchIo { fetchImpl?: typeof fetch; clock?: SearchClock; enabled?: boolean }
 type KeylessDoor = 'duckduckgo' | 'duckduckgo-lite'
 const DDG_RATE_POLICY = { intervalMs: 3000, coolDownWaitMs: 40_000, why: 'Read 2026-10-13: https://duckduckgo.com/terms and https://duckduckgo.com/acceptable-use — no blanket automation ban and no published API rate for these pages; on by default and off by the user\'s choice is Mercury policy (the owner\'s ruling 2026-10-14). Client courtesy: serial requests three seconds apart; refusal stops both hosts, Retry-After and exponential backoff are respected.' }
 
 async function attemptDoor(door: KeylessDoor, url: string, request: SearchRequest, io: KeylessSearchIo, clock: SearchClock): Promise<SearchOutcome> {
-  const form = new URLSearchParams({ q: keylessQueryFor(request), kl: 'us-en' })
+  const form = new URLSearchParams({ q: operatorSearchQuery(request), kl: 'us-en' })
   if (door === 'duckduckgo') form.set('b', '')
   let response: Response
   try {

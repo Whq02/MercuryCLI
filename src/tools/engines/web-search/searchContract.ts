@@ -193,3 +193,13 @@ export function failureLine(failure: SearchFailure): string {
       return `Web search cancelled.`
   }
 }
+
+export function operatorSearchQuery(request: SearchRequest): string {
+  const parts = [request.query.trim()]
+  const allowed = (request.allowedDomains ?? []).filter(d => d.trim() !== '')
+  if (allowed.length === 1) parts.push(`site:${allowed[0]!.trim()}`)
+  for (const domain of (request.blockedDomains ?? []).filter(d => d.trim() !== '').slice(0, 5)) {
+    parts.push(`-site:${domain.trim()}`)
+  }
+  return parts.join(' ')
+}

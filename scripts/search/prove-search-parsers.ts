@@ -13,7 +13,7 @@ const SECTION_HINTS: Record<string, string> = {
   '3': 'change decodeBraveWebSearch in src/tools/engines/web-search/brave.ts; the fixture is scripts/search/fixtures/brave-web-search.json',
   '4': 'change decodeTavilySearch in src/tools/engines/web-search/tavily.ts; the fixture is scripts/search/fixtures/tavily-search.json',
   '5': 'change filterHitsByDomain or normaliseHits in src/tools/engines/web-search/searchContract.ts',
-  '6': 'change failureLine, viaLine, viaChip or KEYED_DOOR_REMEDY in src/tools/engines/web-search/searchContract.ts, the query builders (keylessQueryFor in duckduckgo.ts, braveQueryFor in brave.ts, tavilyRequestBodyFor in tavily.ts) or the entity helpers in src/tools/engines/web-search/htmlText.ts',
+  '6': 'change failureLine, viaLine, viaChip, operatorSearchQuery or KEYED_DOOR_REMEDY in src/tools/engines/web-search/searchContract.ts, tavilyRequestBodyFor in tavily.ts, or the entity helpers in src/tools/engines/web-search/htmlText.ts',
 }
 let sectionHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -31,8 +31,8 @@ const j = (v: unknown): string => JSON.stringify(v) ?? ''
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), 'fixtures')
 const page = (name: string): string => readFileSync(join(FIXTURES, name), 'utf8')
 
-const { parseDuckDuckGoHtml, parseDuckDuckGoLite, resolveDuckDuckGoHref, keylessQueryFor } = await import('../../src/tools/engines/web-search/duckduckgo.js')
-const { decodeBraveWebSearch, braveQueryFor } = await import('../../src/tools/engines/web-search/brave.js')
+const { parseDuckDuckGoHtml, parseDuckDuckGoLite, resolveDuckDuckGoHref } = await import('../../src/tools/engines/web-search/duckduckgo.js')
+const { decodeBraveWebSearch } = await import('../../src/tools/engines/web-search/brave.js')
 const { decodeTavilySearch, tavilyRequestBodyFor } = await import('../../src/tools/engines/web-search/tavily.js')
 const { decodeHtmlEntities, htmlToText, readAttribute } = await import('../../src/tools/engines/web-search/htmlText.js')
 const contract = await import('../../src/tools/engines/web-search/searchContract.js')
@@ -153,10 +153,10 @@ section('§6 the honest lines and the query builders')
   check('the hint sentence names both key variables and the free tiers',
     contract.KEYED_DOOR_REMEDY.includes('BRAVE_API_KEY') && contract.KEYED_DOOR_REMEDY.includes('TAVILY_API_KEY') && contract.KEYED_DOOR_REMEDY.includes('free tier'), contract.KEYED_DOOR_REMEDY)
   check('viaChip(keyed/native) name the tier', contract.viaChip('brave', 'keyed') === 'via Brave Search (keyed)' && contract.viaChip('openai-native', 'native') === 'via OpenAI web search (native)')
-  check('one allowed domain rides as site: on the keyless query', keylessQueryFor({ query: 'q', allowedDomains: ['example.com'] }) === 'q site:example.com')
-  check('several allowed domains do NOT ride the query (the post-filter is the law)', keylessQueryFor({ query: 'q', allowedDomains: ['a.com', 'b.com'] }) === 'q')
-  check('blocked domains ride as -site:, bounded at five', keylessQueryFor({ query: 'q', blockedDomains: ['a.com', 'b.com', 'c.com', 'd.com', 'e.com', 'f.com'] }) === 'q -site:a.com -site:b.com -site:c.com -site:d.com -site:e.com')
-  check('the Brave query builder speaks the same operators', braveQueryFor({ query: 'q', allowedDomains: ['example.com'], blockedDomains: ['x.net'] }) === 'q site:example.com -site:x.net')
+  check('one allowed domain rides as site: on the keyless query', contract.operatorSearchQuery({ query: 'q', allowedDomains: ['example.com'] }) === 'q site:example.com')
+  check('several allowed domains do NOT ride the query (the post-filter is the law)', contract.operatorSearchQuery({ query: 'q', allowedDomains: ['a.com', 'b.com'] }) === 'q')
+  check('blocked domains ride as -site:, bounded at five', contract.operatorSearchQuery({ query: 'q', blockedDomains: ['a.com', 'b.com', 'c.com', 'd.com', 'e.com', 'f.com'] }) === 'q -site:a.com -site:b.com -site:c.com -site:d.com -site:e.com')
+  check('the Brave query builder speaks the same operators', contract.operatorSearchQuery({ query: 'q', allowedDomains: ['example.com'], blockedDomains: ['x.net'] }) === 'q site:example.com -site:x.net')
   const body = tavilyRequestBodyFor({ query: 'q', allowedDomains: ['a.com'], blockedDomains: ['b.com'], maxResults: 7 })
   check('the Tavily body carries the documented fields and the native domain lists', j(body) === j({ query: 'q', max_results: 7, search_depth: 'basic', include_answer: false, include_raw_content: false, include_domains: ['a.com'], exclude_domains: ['b.com'] }))
   check('entity decoding handles named, decimal and hex forms', decodeHtmlEntities('&amp;&#65;&#x42;&nbsp;&unknown;') === '&AB &unknown;')

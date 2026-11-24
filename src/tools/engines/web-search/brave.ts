@@ -8,6 +8,7 @@ import {
   DEFAULT_MAX_RESULTS,
   filterHitsByDomain,
   normaliseHits,
+  operatorSearchQuery,
   searchFailure,
   searchUserAgent,
   type SearchHit,
@@ -61,16 +62,6 @@ export function decodeBraveWebSearch(body: unknown): BraveDecode {
   return { kind: 'results', hits }
 }
 
-export function braveQueryFor(request: SearchRequest): string {
-  const parts = [request.query.trim()]
-  const allowed = (request.allowedDomains ?? []).filter(d => d.trim() !== '')
-  if (allowed.length === 1) parts.push(`site:${allowed[0]!.trim()}`)
-  for (const domain of (request.blockedDomains ?? []).filter(d => d.trim() !== '').slice(0, 5)) {
-    parts.push(`-site:${domain.trim()}`)
-  }
-  return parts.join(' ')
-}
-
 export interface KeyedSearchIo {
   fetchImpl?: typeof fetch
   env?: Record<string, string | undefined>
@@ -93,7 +84,7 @@ async function requestBraveSearch(request: SearchRequest, io: KeyedSearchIo): Pr
   const fetchImpl = io.fetchImpl ?? getApiFetch()
   const proxyOptions = io.fetchImpl ? {} : getProxyFetchOptions()
   const url = new URL(braveSearchUrl())
-  url.searchParams.set('q', braveQueryFor(request))
+  url.searchParams.set('q', operatorSearchQuery(request))
   url.searchParams.set('count', String(Math.min(BRAVE_MAX_COUNT, Math.max(1, request.maxResults ?? DEFAULT_MAX_RESULTS))))
   url.searchParams.set('text_decorations', '0')
   url.searchParams.set('safesearch', 'moderate')
