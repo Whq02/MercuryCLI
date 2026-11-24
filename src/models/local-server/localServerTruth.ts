@@ -11,6 +11,7 @@ import { kvGeometryOf, type KvGeometry } from './localServerMemory.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 import { hostEnv } from '../../platform/environment/hostEnv.js'
 import { posixProcessTableSupported } from '../../platform/host-os/processes.js'
+import { createSignal } from '../../platform/async/signal.js'
 
 export type { LocalServerKind }
 
@@ -753,7 +754,7 @@ export const LOCAL_SERVER_TRUTH_TTL_MS = 15_000
 let cached: LocalServerTruth | null = null
 let inFlight: Promise<LocalServerTruth> | null = null
 let stamp = 0
-const listeners = new Set<() => void>()
+const listeners = createSignal()
 
 export function cachedLocalServerTruth(): LocalServerTruth | null {
   return cached
@@ -764,10 +765,7 @@ export function localServerTruthStamp(): number {
 }
 
 export function subscribeLocalServerTruth(listener: () => void): () => void {
-  listeners.add(listener)
-  return () => {
-    listeners.delete(listener)
-  }
+  return listeners.subscribe(listener)
 }
 
 let pinned: LocalServerTruth | null = null
@@ -776,7 +774,7 @@ export function __pinLocalServerTruthForTest(truth: LocalServerTruth | null): vo
   pinned = truth
   cached = truth
   stamp++
-  for (const listener of listeners) listener()
+  listeners.emit()
 }
 
 export function refreshLocalServerTruth(opts?: LocalServerIo & { force?: boolean }): Promise<LocalServerTruth> {
@@ -790,7 +788,7 @@ export function refreshLocalServerTruth(opts?: LocalServerIo & { force?: boolean
       const truth = await readLocalServerTruth(io)
       cached = truth
       stamp++
-      for (const listener of listeners) listener()
+      listeners.emit()
       return truth
     } finally {
       inFlight = null
@@ -818,7 +816,7 @@ export function refreshLocalMachineTruth(kind?: LocalServerKind, opts?: LocalSer
       const truth = await readLocalMachineTruth(io, kind)
       machineCached = truth
       stamp++
-      for (const listener of listeners) listener()
+      listeners.emit()
       return truth
     } finally {
       machineInFlight = null
