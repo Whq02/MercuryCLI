@@ -70,7 +70,7 @@ const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPr
 const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
 const { resolvePrimaryAgentBackend } = await import('../../src/models/roads/primaryBackend.ts')
-const { refreshTogetherCatalogue, __resetTogetherCatalogueForTest, togetherCatalogueRows, getCachedTogetherCatalogue } = await import('../../src/models/roads/together/togetherCatalogue.ts')
+const { refreshTogetherCatalogue, __resetTogetherCatalogueForTest, togetherCatalogueRows, togetherCatalogueSourceWords, getCachedTogetherCatalogue } = await import('../../src/models/roads/together/togetherCatalogue.ts')
 const { buildTogetherExtras } = await import('../../src/models/roads/together/togetherCallModel.ts')
 const { storeTogetherApiKeyLogin } = await import('../../src/models/roads/together/togetherLogin.ts')
 const { usageForProvider } = await import('../../src/models/roads/providerUsage.ts')
@@ -150,7 +150,7 @@ try {
 
   section('the catalogue and the login')
   const rows = togetherCatalogueRows()
-  check('the picker lists the chat rows only, pinned first then the rest, with image, audio and moderation rows set aside', rows.source.kind === 'live' && rows.rows.length === 6 && rows.rows[0]?.id === 'together/moonshotai/Kimi-K3' && rows.rows.at(-1)?.id === 'together/fixture-org/Fixture-Chat-1' && rows.source.otherKinds === 3 && keyLanePins('together').some(pin => pin.id === 'together/fixture-org/Fixture-Chat-1' && pin.liveUnknown === true))
+  check('the picker lists the chat rows only, pinned first then the rest, with image, audio and moderation rows set aside', rows.source.kind === 'live' && rows.rows.length === 6 && rows.rows[0]?.id === 'together/moonshotai/Kimi-K3' && rows.rows.at(-1)?.id === 'together/fixture-org/Fixture-Chat-1' && rows.source.otherKinds === 3 && (togetherCatalogueSourceWords() ?? '').includes('3 image, video, audio and other rows not listed') && keyLanePins('together').some(pin => pin.id === 'together/fixture-org/Fixture-Chat-1' && pin.liveUnknown === true))
   listShape = 'data'; __resetTogetherCatalogueForTest(); await refreshTogetherCatalogue({ force: true })
   check('the { data: [...] } list shape decodes the same rows', getCachedTogetherCatalogue()?.models.length === 6)
   listShape = 'array'
@@ -198,7 +198,7 @@ try {
   check('an empty inner id refuses before inference, naming the namespace', captures.length === before && bareNamespace.some(row => row.isApiErrorMessage) && words(bareNamespace).includes('together/'))
   modelList = []; __resetTogetherCatalogueForTest(); await refreshTogetherCatalogue({ force: true })
   const emptyPins = togetherCatalogueRows()
-  check('an empty live list falls to the 23 pins labelled as pins, and a pinned id still rides under the note', emptyPins.source.kind === 'pins' && emptyPins.rows.length === 23 && emptyPins.rows.every(row => row.listedLive === false && row.observedAt === '2026-10-17') && keyLaneListState('together').kind === 'pin' && !(await run(params('together/zai-org/GLM-5.3'))).some(row => row.isApiErrorMessage) && captures.length === before + 1)
+  check('an empty live list falls to the 23 pins labelled as pins, and a pinned id still rides under the note', emptyPins.source.kind === 'pins' && emptyPins.rows.length === 23 && emptyPins.rows.every(row => row.listedLive === false && row.observedAt === '2026-10-17') && keyLaneListState('together').kind === 'pin' && (togetherCatalogueSourceWords() ?? '').includes('pinned list — ') && !(await run(params('together/zai-org/GLM-5.3'))).some(row => row.isApiErrorMessage) && captures.length === before + 1)
   before = captures.length
   modelList = TOGETHER_FIXTURE_MODELS
   listStatus = 401; __resetTogetherCatalogueForTest(); await refreshTogetherCatalogue({ force: true })
@@ -210,7 +210,7 @@ try {
   __resetTogetherCatalogueForTest()
   await refreshTogetherCatalogue({ force: true })
   const pinRows = togetherCatalogueRows()
-  check('with the list unreachable the picker shows the 23 pins, labelled as pins, dated from the vendor page', pinRows.source.kind === 'pins' && pinRows.rows.length === 23 && pinRows.rows.every(row => row.listedLive === false && row.observedAt === '2026-10-17' && row.id.startsWith('together/')) && keyLaneListState('together').kind === 'pin')
+  check('with the list unreachable the picker shows the 23 pins, labelled as pins, dated from the vendor page', pinRows.source.kind === 'pins' && pinRows.rows.length === 23 && pinRows.rows.every(row => row.listedLive === false && row.observedAt === '2026-10-17' && row.id.startsWith('together/')) && keyLaneListState('together').kind === 'pin' && (togetherCatalogueSourceWords() ?? '').includes('pinned list — ') && (togetherCatalogueSourceWords() ?? '').includes('HTTP 500'))
   before = captures.length
   const unreachableTurn = await run(params('together/zai-org/GLM-5.3'))
   check('with the list unreachable a pinned id still rides, with the note that the gateway decides', captures.length === before + 1 && captures.at(-1)?.body.model === 'zai-org/GLM-5.3' && textOf(unreachableTurn).startsWith('Together AI model list unavailable') && textOf(unreachableTurn).endsWith('TOGETHER-FIXTURE-SETTLED'))
