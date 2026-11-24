@@ -45,7 +45,8 @@ import { shellRowNow } from '../shell/shellRecord.js'
 import { describeWindowsShellRoad } from '../shell/windowsShellRoad.js'
 import { extensionReadinessRows } from '../../integrations/extensions/boot.js'
 import { searchToolsAvailability } from '../shell/ripgrep.js'
-import { bounded, mcpGauge } from '../../screen/cockpit-gauges/mcpGauge.js'
+import { mcpGauge } from '../../screen/cockpit-gauges/mcpGauge.js'
+import { collapseAndClip } from '../text/strings.js'
 import { whichSync } from '../processes/which.js'
 import { withheldTools } from '../../engine/tool-dispatch/withheldTools.js'
 
@@ -105,7 +106,7 @@ function guardedSection(
         kind,
         label,
         state: 'unavailable',
-        detail: `section failed: ${bounded(messageOf(e), 160)}`,
+        detail: `section failed: ${collapseAndClip(messageOf(e), 160)}`,
         source: 'readiness section guard',
         lastCheckedAt: Date.now(),
       },
@@ -155,8 +156,8 @@ function toolRecords(): ReadinessRecord[] {
       kind: 'tool',
       label: `${withheld.tool} tool`,
       state: 'unavailable',
-      detail: `withheld from the catalog — ${bounded(withheld.why, 180)}`,
-      ...(withheld.remedy !== undefined ? { remedy: bounded(withheld.remedy, 240) } : {}),
+      detail: `withheld from the catalog — ${collapseAndClip(withheld.why, 180)}`,
+      ...(withheld.remedy !== undefined ? { remedy: collapseAndClip(withheld.remedy, 240) } : {}),
       source: 'catalog withholding census',
       lastCheckedAt: Date.now(),
     })
@@ -216,7 +217,7 @@ function computerToolRecord(): ReadinessRecord {
     return {
       ...base,
       state: 'unavailable',
-      detail: `${bounded(resolution.note, 180)} — Computer tool absent from the catalog`,
+      detail: `${collapseAndClip(resolution.note, 180)} — Computer tool absent from the catalog`,
       ...(resolution.remedy !== null ? { remedy: resolution.remedy } : {}),
       latencyMs: Date.now() - t0,
     }
@@ -236,7 +237,7 @@ function computerToolRecord(): ReadinessRecord {
     return {
       ...base,
       state: 'degraded',
-      detail: `driver ${resolution.source} resolved — ${denied} denied${permissions?.reason ? `: ${bounded(permissions.reason, 140)}` : ''}`,
+      detail: `driver ${resolution.source} resolved — ${denied} denied${permissions?.reason ? `: ${collapseAndClip(permissions.reason, 140)}` : ''}`,
       remedy: desktopGrantWords(),
       latencyMs: Date.now() - t0,
     }
@@ -314,7 +315,7 @@ function mcpRow(
       return {
         ...base,
         state: 'failed',
-        detail: `connection failed${connection.error ? `: ${bounded(connection.error, 140)}` : ''}${injected}${oauthTail}`,
+        detail: `connection failed${connection.error ? `: ${collapseAndClip(connection.error, 140)}` : ''}${injected}${oauthTail}`,
         remedy: 'check the server command/url and its logs; reconnect via /mcp',
       }
     case 'disabled':
@@ -400,7 +401,7 @@ function lspLaneRecords(): ReadinessRecord[] {
       kind: 'lane',
       label: 'LSP bridge',
       state: 'failed',
-      detail: `manager initialization failed: ${bounded(messageOf(status.error), 160)}`,
+      detail: `manager initialization failed: ${collapseAndClip(messageOf(status.error), 160)}`,
       remedy: 'reload extensions (re-initializes the manager) or relaunch',
       source: 'LSP manager',
       lastCheckedAt: Date.now(),
@@ -476,7 +477,7 @@ function lspLaneRecords(): ReadinessRecord[] {
       records.push({
         ...base,
         state: 'failed',
-        detail: `server errored${server.lastError ? `: ${bounded(messageOf(server.lastError), 120)}` : ''} (${server.restartCount} restart(s))`,
+        detail: `server errored${server.lastError ? `: ${collapseAndClip(messageOf(server.lastError), 120)}` : ''} (${server.restartCount} restart(s))`,
         remedy: 'reload extensions to re-initialize, or fix the server binary/config it names',
       })
     } else {
@@ -505,7 +506,7 @@ function pythonLaneRecord(): ReadinessRecord {
     return {
       ...base,
       state: 'unavailable',
-      detail: `python unavailable: ${bounded(py.detail, 140)}`,
+      detail: `python unavailable: ${collapseAndClip(py.detail, 140)}`,
       remedy: py.remedy,
     }
   }
@@ -614,7 +615,7 @@ function dapLaneRecords(): ReadinessRecord[] {
       kind: 'lane',
       label: 'DAP debug lane',
       state: 'unavailable',
-      detail: `python adapter unavailable: ${bounded(python.reason, 140)}`,
+      detail: `python adapter unavailable: ${collapseAndClip(python.reason, 140)}`,
       remedy: python.remedy,
       source: 'debugpy resolver (the launch path probe)',
       lastCheckedAt: Date.now(),
@@ -641,7 +642,7 @@ function dapLaneRecords(): ReadinessRecord[] {
       kind: 'lane',
       label: 'DAP · python',
       state: 'unavailable',
-      detail: `no viable Python debug adapter — ${bounded(python.reason, 140)}`,
+      detail: `no viable Python debug adapter — ${collapseAndClip(python.reason, 140)}`,
       remedy:
         'bun run scripts/vendor/fetch-debugpy.ts && bun run build.ts (bundles the pinned adapter), or pip install debugpy',
       source: 'debugpy resolver probe (pydevd import chain, the launch-path probe)',
@@ -780,7 +781,7 @@ function dapLaneRecords(): ReadinessRecord[] {
             kind: 'lane',
             label: 'unity adapter (attach-to-editor)',
             state: 'unavailable',
-            detail: bounded(unity.reason, 200),
+            detail: collapseAndClip(unity.reason, 200),
             remedy: UNITY_ADAPTER_ARM_HINT,
             source: 'unity adapter resolver (pin > vstuc extension > unpack)',
             lastCheckedAt: Date.now(),
@@ -841,7 +842,7 @@ function browserLaneRecord(): ReadinessRecord {
     return {
       ...base,
       state: 'unavailable',
-      detail: bounded(resolution.note, 180),
+      detail: collapseAndClip(resolution.note, 180),
       remedy: resolution.remedies.join(' · '),
       latencyMs: Date.now() - t0,
     }
@@ -851,7 +852,7 @@ function browserLaneRecord(): ReadinessRecord {
     return {
       ...base,
       state: 'degraded',
-      detail: `${resolution.label} resolved (${resolution.source}) — drive ops refused: ${bounded(gate.note, 160)}`,
+      detail: `${resolution.label} resolved (${resolution.source}) — drive ops refused: ${collapseAndClip(gate.note, 160)}`,
       latencyMs: Date.now() - t0,
     }
   }
@@ -906,7 +907,7 @@ function idePlaneRecord(): ReadinessRecord {
     const rows: readonly unknown[] = listTransactions()
     if (rows.length > 0) parts.push(`${rows.length} recorded`)
   } catch (e) {
-    parts.push(`transaction store unreadable: ${bounded(messageOf(e), 80)}`)
+    parts.push(`transaction store unreadable: ${collapseAndClip(messageOf(e), 80)}`)
   }
   try {
     const test = latestRun()
@@ -916,7 +917,7 @@ function idePlaneRecord(): ReadinessRecord {
         : 'no test runs recorded',
     )
   } catch (e) {
-    parts.push(`test-run store unreadable: ${bounded(messageOf(e), 80)}`)
+    parts.push(`test-run store unreadable: ${collapseAndClip(messageOf(e), 80)}`)
   }
   return { ...base, state: 'ready', detail: parts.join(' · ') }
 }
@@ -987,15 +988,15 @@ function backendRecords(): ReadinessRecord[] {
       lastCheckedAt: Date.now(),
     }
     if (receipt.state === 'ready') {
-      records.push({ ...base, state: 'ready', detail: bounded(receipt.detail, 200) })
+      records.push({ ...base, state: 'ready', detail: collapseAndClip(receipt.detail, 200) })
     } else if (receipt.state === 'configured') {
-      records.push({ ...base, state: 'configured', detail: bounded(receipt.detail, 200) })
+      records.push({ ...base, state: 'configured', detail: collapseAndClip(receipt.detail, 200) })
     } else {
       const remedy = backendRemedy(backend.id)
       records.push({
         ...base,
         state: 'unavailable',
-        detail: bounded(receipt.reason, 200),
+        detail: collapseAndClip(receipt.reason, 200),
         ...(remedy !== undefined ? { remedy } : {}),
       })
     }
@@ -1053,7 +1054,7 @@ function flagReadinessRecord(spec: FlagSpec): ReadinessRecord {
     }
   } else if (effective !== undefined) {
     state = 'configured'
-    detail = `= ${bounded(effective, 48)} — ${spec.summary}`
+    detail = `= ${collapseAndClip(effective, 48)} — ${spec.summary}`
   } else {
     state = 'ready'
     detail = `unset — default: ${spec.off}`
@@ -1064,7 +1065,7 @@ function flagReadinessRecord(spec: FlagSpec): ReadinessRecord {
     kind: 'env',
     label: spec.env,
     state,
-    detail: bounded(detail, 300),
+    detail: collapseAndClip(detail, 300),
     source,
     lastCheckedAt: Date.now(),
   }

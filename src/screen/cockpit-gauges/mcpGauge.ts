@@ -6,6 +6,7 @@ import type { MCPServerConnection } from '../../integrations/mcp-shapes/mcpServe
 import { getCurrentProjectConfig, getGlobalConfig } from '../../platform/settings/config.js'
 import { withState, type Snapshot } from '../cockpit/types.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
+import { collapseAndClip } from '../../platform/text/strings.js'
 
 export type McpServerState =
   | 'ready'
@@ -81,11 +82,6 @@ export function getMcpGaugeVersion(): number {
 }
 
 
-export function bounded(text: string, max: number): string {
-  const oneLine = text.replace(/\s+/g, ' ').trim()
-  return oneLine.length <= max ? oneLine : `${oneLine.slice(0, max - 1)}…`
-}
-
 function rowFor(
   name: string,
   connection: MCPServerConnection | undefined,
@@ -121,7 +117,7 @@ function rowFor(
     case 'needs-auth':
       return { name, state: 'needs-auth', detail: 'server requires authentication', source, connection }
     case 'failed': {
-      const error = connection.error ? bounded(connection.error, 140) : undefined
+      const error = connection.error ? collapseAndClip(connection.error, 140) : undefined
       return {
         name,
         state: 'failed',
