@@ -224,7 +224,6 @@ src/commands/update-notes/changelogArchive.ts	DOC_RELEASE_DELTAS	process	module	
 src/commands/update-notes/index.ts	updateNotes	process	module	Load-time table with no local writer
 src/commands/verbs/agents.ts	SOURCE_GROUP_ORDER	process	module	Load-time list with no local writer
 src/commands/verbs/editorBridge.ts	CLI_ROSTER	process	module	Load-time definition shared by all callers
-src/commands/verbs/editorBridge.ts	EDITOR_CLIS	process	module	Load-time list with no local writer
 src/commands/verbs/editorExtensionPackage.ts	EDITOR_EXTENSION_HOMES	process	module	Load-time list with no local writer
 src/commands/verbs/extensionApi.ts	extensionRequest	process	module	Load-time definition shared by all callers
 src/commands/verbs/godotEngineCli.ts	GODOT_CLI_VERBS	process	module	Load-time list with no local writer
@@ -2388,7 +2387,6 @@ src/models/roads/providerDiscovery.ts	cache	process	module	process-wide provider
 src/models/roads/providerDiscovery.ts	inFlight	process	module	in-flight provider discovery deduplication keyed by ProviderFamilyId
 src/models/roads/providerIdentityLine.ts	DOOR_WORDS	process	module	Load-time table with no local writer
 src/models/roads/providerIdentityLine.ts	memo	process	module	2s TTL memo of provider identity lines keyed by signInLedgerEpoch, catalogueEpoch, credential env, and presences
-src/models/roads/providerKeyCommand.ts	OUTSIDE_CHECKOUT_SOURCES	process	module	Load-time lookup with no local writer
 src/models/roads/providerKeyCommand.ts	cache	process	module	Process provider-command cache
 src/models/roads/providerKeyCommand.ts	seenEpoch	process	module	last observed signInLedgerEpoch for invalidating providerKeyCommand cache
 src/models/roads/providerUsage.ts	ALL_FAMILIES	process	module	Load-time list with no local writer
