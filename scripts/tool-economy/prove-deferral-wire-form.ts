@@ -182,11 +182,11 @@ section('§4 THE DURABLE STORE — verdicts persist, go stale, and the probe is 
 
 section('§5 THE POLICY — the probe is the operator\'s to arm; the traffic posture keeps it off')
 {
-  check('unset ⇒ never (a gateway rides the text form, no request the session did not ask for)', probe.gatewayProbePolicyAllows({}) === false && wire.gatewayProbeAllowedByFlag() === false)
+  check('unset ⇒ never (a gateway rides the text form, no request the session did not ask for)', probe.gatewayProbePolicyAllows({}) === false)
   process.env.MERCURY_TOOL_DEFER_PROBE = '0'
-  check('MERCURY_TOOL_DEFER_PROBE=0 ⇒ never', probe.gatewayProbePolicyAllows({}) === false && wire.gatewayProbeAllowedByFlag() === false)
+  check('MERCURY_TOOL_DEFER_PROBE=0 ⇒ never', probe.gatewayProbePolicyAllows({}) === false)
   process.env.MERCURY_TOOL_DEFER_PROBE = '1'
-  check('MERCURY_TOOL_DEFER_PROBE=1 ⇒ armed', probe.gatewayProbePolicyAllows({}) === true && wire.gatewayProbeAllowedByFlag() === true)
+  check('MERCURY_TOOL_DEFER_PROBE=1 ⇒ armed', probe.gatewayProbePolicyAllows({}) === true)
   check('…but MERCURY_DISABLE_NONESSENTIAL_TRAFFIC=1 keeps it off even when armed', probe.gatewayProbePolicyAllows({ MERCURY_DISABLE_NONESSENTIAL_TRAFFIC: '1' }) === false)
   check("…while '0' and 'false' are not the posture", probe.gatewayProbePolicyAllows({ MERCURY_DISABLE_NONESSENTIAL_TRAFFIC: '0' }) === true && probe.gatewayProbePolicyAllows({ MERCURY_DISABLE_NONESSENTIAL_TRAFFIC: 'false' }) === true)
   delete process.env.MERCURY_TOOL_DEFER_PROBE

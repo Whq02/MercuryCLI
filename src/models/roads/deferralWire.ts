@@ -182,10 +182,6 @@ export function toolReferenceWireAccepted(reads: DeferralWireReads = {}): boolea
   return homeLaneWireForm(reads).form === 'block'
 }
 
-export function gatewayProbeAllowedByFlag(): boolean {
-  return flagEnv('MERCURY_TOOL_DEFER_PROBE') === '1'
-}
-
 const SERVER_SEARCH_FORMS: ReadonlySet<DeferralWireForm> = new Set<DeferralWireForm>(['openai-native', 'openrouter-native'])
 
 export function deferralSearchIsServerSide(form: DeferralWireForm): boolean {
