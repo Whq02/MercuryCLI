@@ -14,7 +14,6 @@ const W10_FIX_AT: Record<string, string> = {
   '5': 'getMercuryDaemonStatus and formatMercuryDaemonStatus in src/daemon/control/status.ts',
   '6': 'src/platform/substrate/launchMilestones.ts, src/platform/health/sections/crew/boot.ts, src/platform/health/sections/durability.ts, src/platform/health/sections/runtime/host.ts, src/platform/logs/crashReport.ts',
   '7': 'resolveGitDir in src/platform/git/gitFilesystem.ts',
-  '8': 'createBaselineWorktree in src/platform/git/worktree/worktree.ts',
   '9': 'getSettingsWithAllErrors in src/platform/settings-faults/allErrors.ts',
   '10': 'beforeToolHooks in src/engine/tool-dispatch/toolHooks.ts',
   '11': 'matchingRuleForInput in src/permissions/rules/filesystem.ts',
@@ -394,48 +393,6 @@ console.log('\n§7 w10-7 — resolveGitDir does not cache null on transient/perm
   `)
   check('w10-7: returns null while .git file is unreadable (EACCES)', r.whileUnreadable === null, JSON.stringify(r))
   check('w10-7: does not cache null so recovery succeeds without cache clear', r.afterRecover === r.expected, JSON.stringify(r))
-}
-
-console.log('\n§8 w10-8 — createBaselineWorktree catches scratch lease error, cleans up added worktree, returns refusal')
-{
-  const r = runScenario(`
-    const { execFileSync } = await import('node:child_process')
-    const { existsSync, mkdirSync, writeFileSync } = await import('node:fs')
-    const { join } = await import('node:path')
-    const tmpBase = join(PROJECT, 'tmpbase')
-    mkdirSync(tmpBase, { recursive: true })
-    process.env.MERCURY_TMPDIR = tmpBase
-    const repo = join(PROJECT, 'repo')
-    mkdirSync(repo, { recursive: true })
-    const sh = (args) => execFileSync('git', args, {
-      cwd: repo,
-      encoding: 'utf8',
-      env: { ...process.env, GIT_AUTHOR_NAME: 'p', GIT_AUTHOR_EMAIL: 'p@l', GIT_COMMITTER_NAME: 'p', GIT_COMMITTER_EMAIL: 'p@l' },
-    })
-    sh(['init', '--quiet', '--initial-branch=main'])
-    writeFileSync(join(repo, 'a.txt'), 'v1\\n')
-    sh(['add', '.'])
-    sh(['commit', '--quiet', '-m', 'v1'])
-    const sha = sh(['rev-parse', 'HEAD']).trim()
-    const { getProjectTempDir } = await import(SRC + '/permissions/rules/filesystem.ts')
-    const projTmp = getProjectTempDir()
-    mkdirSync(projTmp, { recursive: true })
-    writeFileSync(join(projTmp, 'scratch-leases.json'), '{not json')
-    const { createBaselineWorktree } = await import(SRC + '/platform/git/worktree/worktree.ts')
-    const targetPath = join(projTmp, 'baselines', sha.slice(0, 12))
-    try {
-      out.result = await createBaselineWorktree(sha, repo)
-      out.threw = null
-    } catch (e) {
-      out.result = null
-      out.threw = e instanceof Error ? e.message : String(e)
-    }
-    out.targetLeftBehind = existsSync(targetPath)
-    out.worktrees = sh(['worktree', 'list', '--porcelain']).split('\\n').filter(l => l.startsWith('worktree ')).length
-  `)
-  const res = r.result as { ok?: boolean; reason?: string } | null
-  check('w10-8: does not reject and returns { ok: false, reason } naming scratch lease error', r.threw === null && res?.ok === false && typeof res.reason === 'string' && res.reason.includes('scratch lease registry') && res.reason.includes('could not be read'), JSON.stringify(r))
-  check('w10-8: removes newly added baseline worktree on lease error', r.targetLeftBehind === false && r.worktrees === 1, JSON.stringify(r))
 }
 
 console.log('\n§9 w10-9 — getSettingsWithAllErrors passes over ConfigAccessBeforeAllowedError and reports real MCP read throws')

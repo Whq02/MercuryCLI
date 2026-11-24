@@ -1146,67 +1146,6 @@ export async function cleanupStaleCrewmateWorktrees(cutoffDate: Date): Promise<n
 }
 
 
-export async function createBaselineWorktree(
-  revision: string,
-  root?: string,
-): Promise<
-  | { ok: true; path: string; revision: string; leaseId: string; dispose: () => Promise<void> }
-  | { ok: false; reason: string }
-> {
-  const repoRoot = root ?? getCwd()
-  const verify = await execFileNoThrowWithCwd('git', ['rev-parse', '--verify', `${revision}^{commit}`], {
-    cwd: repoRoot,
-  })
-  const sha = verify.stdout.trim()
-  if (verify.code !== 0 || sha === '') {
-    return { ok: false, reason: `"${revision}" is not a commit in this repository` }
-  }
-
-  const { getProjectTempDir } = await import('../../../permissions/rules/filesystem.js')
-  const { registerScratchLease, releaseScratchLease } = await import('../../files/scratchLeases.js')
-
-  const targetPath = join(getProjectTempDir(), 'baselines', sha.slice(0, 12))
-
-  let alreadyThere = false
-  const probe = await execFileNoThrowWithCwd('git', ['-C', targetPath, 'rev-parse', 'HEAD'], { cwd: repoRoot })
-  if (probe.code === 0 && probe.stdout.trim() === sha) alreadyThere = true
-
-  if (!alreadyThere) {
-    const add = await execFileNoThrowWithCwd('git', ['worktree', 'add', '--detach', '--force', targetPath, sha], {
-      cwd: repoRoot,
-    })
-    if (add.code !== 0) {
-      const firstLine = (add.stderr.trim() !== '' ? add.stderr : add.stdout).trim().split('\n')[0] ?? ''
-      return { ok: false, reason: firstLine }
-    }
-  }
-
-  let lease: ReturnType<typeof registerScratchLease>
-  try {
-    lease = registerScratchLease({ kind: 'session', id: getSessionId() }, targetPath, {
-      cleanupPolicy: 'on-complete',
-      recovery: `baseline worktree at ${sha}; remove with: git worktree remove --force ${targetPath}`,
-    })
-  } catch (error) {
-    if (!alreadyThere) {
-      await execFileNoThrowWithCwd('git', ['worktree', 'remove', '--force', targetPath], { cwd: repoRoot })
-    }
-    return { ok: false, reason: error instanceof Error ? error.message : String(error) }
-  }
-
-  return {
-    ok: true,
-    path: targetPath,
-    revision: sha,
-    leaseId: lease.leaseId,
-    dispose: async () => {
-      await execFileNoThrowWithCwd('git', ['worktree', 'remove', '--force', targetPath], { cwd: repoRoot })
-      releaseScratchLease(lease.leaseId)
-    },
-  }
-}
-
-
 function parsePRReference(input: string): number | null {
   const urlMatch = input.match(/^https?:\/\/[^/]+\/[^/]+\/[^/]+\/pull\/(\d+)\/?(?:[?#].*)?$/)
   if (urlMatch) return parseInt(urlMatch[1] as string, 10)

@@ -6,7 +6,6 @@ prove-shell-settlement.ts
 prove-stop-ends-the-tree.ts
 prove-task-outcome-envelope.ts
 prove-scratch-leases.ts
-prove-baseline-worktree.ts
 prove-output-tail-truth.ts
 prove-output-budget.ts
 prove-shell-output-filter.ts
