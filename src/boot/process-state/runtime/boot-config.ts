@@ -12,5 +12,4 @@ export class BootConfigOwner {
   ]
   sessionExtensions: Array<string> = []
   mainThreadAgentType: string | undefined = undefined
-  directConnectServerUrl: string | undefined = undefined
 }

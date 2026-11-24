@@ -128,7 +128,6 @@ const OBSERVABLES: Array<{
   { key: 'allowedSettingSources', family: 'boot', scope: 'process', read: () => state.getAllowedSettingSources() },
   { key: 'sessionExtensions', family: 'boot', scope: 'process', read: () => state.getSessionExtensions() },
   { key: 'mainThreadAgentType', family: 'boot', scope: 'process', read: () => state.getMainThreadAgentType() },
-  { key: 'directConnectServerUrl', family: 'boot', scope: 'process', read: () => state.getDirectConnectServerUrl() },
   { key: 'registeredHooks', family: 'hookRegistry', scope: 'session', read: () => state.getRegisteredHooks() },
   { key: 'invokedSkills', family: 'collections', scope: 'session', read: () => state.getInvokedSkillsForAgent(null) },
 ]
@@ -231,7 +230,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'flushInteractionTime',
     'getAskChannel',
     'getAllowedSettingSources',
-    'getCwdState', 'getDirectConnectServerUrl', 'getFlagSettingsInline', 'getFlagSettingsPath',
+    'getCwdState', 'getFlagSettingsInline', 'getFlagSettingsPath',
     'getSessionExtensions',
     'getInvokedSkillsForAgent', 'getIsInteractive',
     'getIsNonInteractiveSession', 'getIsRemoteMode', 'getIsScrollDraining', 'getIsSessionOneShotHeadless', 'isAssistantFamilyAvailable', 'isRunInputClosed', 'setRunInputClosed',
@@ -862,7 +861,7 @@ section('LAW PURITY — zero-arg getters do not mutate')
     .filter(([name, fn]) => /^(?:get|is|has|needs|prefer)[A-Za-z0-9_]*$/.test(name) && typeof fn === 'function' && fn.length === 0)
     .map(([name]) => name)
     .sort()
-  check(`purity: module sweep found a plausible getter population (${getterNames.length})`, getterNames.length >= 59, String(getterNames.length))
+  check(`purity: module sweep found a plausible getter population (${getterNames.length})`, getterNames.length >= 58, String(getterNames.length))
   withClock(() => 2_000_000_000_000, () => {
     const before = snapshot()
     const impure: string[] = []

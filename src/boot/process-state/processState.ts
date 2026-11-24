@@ -436,10 +436,6 @@ export function getIsRemoteMode(): boolean {
 }
 
 
-export function getDirectConnectServerUrl(): string | undefined {
-  return bootConfig.directConnectServerUrl
-}
-
 export function getFlagSettingsPath(): string | undefined {
   return bootConfig.flagSettingsPath
 }
