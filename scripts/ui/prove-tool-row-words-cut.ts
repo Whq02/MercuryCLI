@@ -1,0 +1,60 @@
+#!/usr/bin/env bun
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import stripAnsi from 'strip-ansi'
+
+const proofHome = mkdtempSync(join(tmpdir(), 'tool-row-words-cut-'))
+process.env.MERCURY_CONFIG_DIR = proofHome
+delete process.env.MERCURY_HOME
+process.on('exit', () => rmSync(proofHome, { recursive: true, force: true }))
+;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
+enableConfigs()
+
+const React = (await import('react')).default
+const { renderToAnsiString } = await import('../../src/screen/renderer/staticRender.tsx')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { SleepTool } = await import('../../src/tools/sleep/SleepTool.tsx')
+
+let failures = 0
+function check(label: string, pass: boolean, detail = ''): void {
+  if (!pass) failures++
+  console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && detail ? ` — ${detail}` : ''}`)
+}
+
+async function paint(node: React.ReactNode, width = 160): Promise<string> {
+  const wrapped = React.createElement(ThemeProvider as never, null, node)
+  return stripAnsi(await renderToAnsiString(wrapped as never, width)).trim()
+}
+
+{
+  const fullMessage =
+    'Returned after 3s — the tracked work you were waiting on finished. ' +
+    'Mercury tracks crewmate tasks and your own background commands for you; their completion arrives on its own, so a wait ' +
+    'never needs to run its full duration to poll one.'
+  const output = { message: fullMessage, slept_seconds: 3, interrupted: false }
+  const screenText = await paint(SleepTool.renderToolResultMessage(output, [], { verbose: false, theme: 'dark' } as never))
+  check(
+    'K-29 Sleep early-settle row reads only the short sentence',
+    screenText === 'Returned after 3s — the tracked work you were waiting on finished.',
+    JSON.stringify(screenText),
+  )
+  const block = SleepTool.mapToolResultToToolResultBlockParam(output, 'toolu_sleep_1')
+  const modelPayload = JSON.parse(typeof block.content === 'string' ? block.content : '') as { message?: string }
+  check(
+    'K-29 Sleep model payload keeps the full long sentence byte for byte',
+    modelPayload.message === fullMessage,
+    JSON.stringify(modelPayload.message),
+  )
+  const fullWait = { message: 'Slept for 5s', slept_seconds: 5, interrupted: false }
+  const fullWaitScreen = await paint(SleepTool.renderToolResultMessage(fullWait, [], { verbose: false, theme: 'dark' } as never))
+  check('K-29 Sleep full-wait row stays unchanged', fullWaitScreen === 'Slept for 5s', JSON.stringify(fullWaitScreen))
+  const interruptedWait = { message: 'Sleep interrupted after 2s', slept_seconds: 2, interrupted: true }
+  const interruptedScreen = await paint(SleepTool.renderToolResultMessage(interruptedWait, [], { verbose: false, theme: 'dark' } as never))
+  check('K-29 Sleep interrupted row stays unchanged', interruptedScreen === 'Sleep interrupted after 2s', JSON.stringify(interruptedScreen))
+}
+
+console.log(`\ntool-row-words-cut: ${failures} failure(s)`)
+process.exit(failures ? 1 : 0)

@@ -14,7 +14,9 @@ import { startTimeout, stopTimeout } from '../../platform/async/timers.js'
 
 const MAX_SLEEP_SECONDS = 3600
 const MIN_SLEEP_SECONDS = 1
-
+const TRACKED_SETTLE_MODEL_TAIL =
+  ' Mercury tracks crewmate tasks and your own background commands for you; their completion arrives on its own, so a wait ' +
+  'never needs to run its full duration to poll one.'
 function paintedWait(seconds: unknown): string | null {
   if (typeof seconds !== 'number') return null
   const wait = clampWait('seconds', seconds, MIN_SLEEP_SECONDS, MAX_SLEEP_SECONDS, 's')
@@ -115,9 +117,12 @@ export const SleepTool = buildTool({
     return paintedWait(input?.seconds) ?? ''
   },
   renderToolResultMessage(output) {
+    const shown = output.message.endsWith(TRACKED_SETTLE_MODEL_TAIL)
+      ? output.message.slice(0, -TRACKED_SETTLE_MODEL_TAIL.length)
+      : output.message
     return (
       <Text color={output.interrupted ? 'warning' : undefined} dimColor={!output.interrupted}>
-        {output.message}
+        {shown}
       </Text>
     )
   },
@@ -214,9 +219,7 @@ export const SleepTool = buildTool({
             ? `Sleep interrupted after ${sleptSeconds}s: ${NEW_INPUT_REASON}`
             : `Sleep interrupted after ${sleptSeconds}s`
           : settledEarly
-            ? `Returned after ${sleptSeconds}s — the tracked work you were waiting on finished. ` +
-              'Mercury tracks crewmate tasks and your own background commands for you; their completion arrives on its own, so a wait ' +
-              'never needs to run its full duration to poll one.'
+            ? `Returned after ${sleptSeconds}s — the tracked work you were waiting on finished.${TRACKED_SETTLE_MODEL_TAIL}`
             : `Slept for ${sleptSeconds}s`,
         slept_seconds: sleptSeconds,
         interrupted,
