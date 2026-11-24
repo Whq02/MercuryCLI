@@ -64,7 +64,7 @@ interface VisualBodyCapture {
   elements?: VisualBodyElement[]
 }
 
-export interface JourneyBodyStep {
+interface JourneyBodyStep {
   id: string
   title: string
   action?: string
@@ -137,7 +137,7 @@ export interface ReviewComment {
 }
 
 
-export type ReviewScope =
+type ReviewScope =
   | { t: 'file'; path: string }
   | { t: 'hunk'; path: string; hunkIndex: number }
   | { t: 'plan-item'; headingPath: string[] }
@@ -146,7 +146,7 @@ export type ReviewScope =
   | { t: 'check'; claim: string }
   | { t: 'whole' }
 
-export type ReviewScopeDecisionKind = 'accept' | 'request-revision'
+type ReviewScopeDecisionKind = 'accept' | 'request-revision'
 
 interface ReviewScopeDecision {
   version: number
@@ -176,7 +176,7 @@ function reviewScopeKey(scope: ReviewScope): string {
   }
 }
 
-export interface ScopeDecisionFold {
+interface ScopeDecisionFold {
   latest: Map<string, ReviewScopeDecision>
   accepted: number
   revisionRequested: number

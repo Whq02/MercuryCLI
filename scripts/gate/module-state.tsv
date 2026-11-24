@@ -4893,7 +4893,6 @@ src/sessions/promptHistory.ts	flushChain	process	module	serialized Promise queue
 src/sessions/promptHistory.ts	flushFailureStreak	process	module	consecutive history.jsonl write failure counter reset on success
 src/sessions/promptHistory.ts	historyIoCensus	process	module	process diagnostic I/O counters for history.jsonl reads, parses, and compactions
 src/sessions/promptHistory.ts	inFlightFlush	process	module	active history.jsonl flush Promise for flush health inspection
-src/sessions/promptHistory.ts	lastAppended	process	module	last appended history entry in this process for consecutive-duplicate suppression
 src/sessions/promptHistory.ts	lastFailure	process	module	last history.jsonl flush error timestamp/message for health diagnostics
 src/sessions/promptHistory.ts	pendingEntries	process	module	process write buffer for single history.jsonl file, drained on flush/exit
 src/sessions/promptHistory.ts	retractedRecords	process	module	process Set of retracted history record keys excluded from history reads

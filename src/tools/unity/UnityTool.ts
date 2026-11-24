@@ -30,8 +30,8 @@ const inputSchema = lazySchema(() =>
 )
 
 type SchemaType = ReturnType<typeof inputSchema>
-export type Input = z.infer<SchemaType>
-export type Output = {
+type Input = z.infer<SchemaType>
+type Output = {
   op: string
   result: string
 }

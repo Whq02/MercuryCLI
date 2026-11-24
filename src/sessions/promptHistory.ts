@@ -58,7 +58,6 @@ function historyDisabled(): boolean {
 
 
 let pendingEntries: HistoryRecord[] = []
-let lastAppended: HistoryRecord | null = null
 const retractedRecords: Set<string> = new Set()
 let inFlightFlush: Promise<void> | null = null
 let cleanupRegistered = false
@@ -202,7 +201,6 @@ export function addToHistory(command: HistoryEntry | string): void {
     sessionId: getSessionId(),
   }
   pendingEntries.push(record)
-  lastAppended = record
   if (!cleanupRegistered) {
     cleanupRegistered = true
     registerCleanup(async () => {
