@@ -20,14 +20,13 @@ import {
 import { getLaunchSettingSources, isCheckoutSourceHeldForTrust, SETTING_SOURCES } from '../../platform/settings/settingSources.js'
 import type { EditableSettingSource, SettingSource } from '../../platform/settings/settingSources.js'
 import type { SettingsJson } from '../../platform/settings/settingsSchema.js'
+import { EDITABLE_SOURCES } from '../../platform/settings/unknownKeyRemoval.js'
 import { permissionRuleValueFromString, permissionRuleValueToString } from './permissionRuleParser.js'
 import { normaliseRuleReasons, ruleSpelling } from './ruleReason.js'
 
 export const MAX_PERSISTED_ALLOW_RULE_LENGTH = 256
 
 const BEHAVIORS: PermissionBehavior[] = ['allow', 'deny', 'ask']
-
-const EDITABLE_SOURCES: EditableSettingSource[] = ['userSettings', 'projectSettings', 'localSettings']
 
 function isEditableSource(source: PermissionRuleSource): source is EditableSettingSource {
   return isOneOf(EDITABLE_SOURCES, source)

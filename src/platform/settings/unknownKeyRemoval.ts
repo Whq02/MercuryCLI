@@ -6,7 +6,7 @@ import type { SettingsJson } from './settingsSchema.js'
 import type { ValidationError } from './validation.js'
 import { isRecord as isPlainObject } from '../primitives/isRecord.js'
 
-const EDITABLE_SOURCES: readonly EditableSettingSource[] = ['userSettings', 'projectSettings', 'localSettings']
+export const EDITABLE_SOURCES: readonly EditableSettingSource[] = ['userSettings', 'projectSettings', 'localSettings']
 
 export type UnknownKeyRemoval = { source: EditableSettingSource; file: string; keys: string[] }
 
