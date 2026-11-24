@@ -106,6 +106,7 @@ export async function popupsSettled(session: Session): Promise<void> {
 export async function bringTabToFront(session: Session): Promise<void> {
   const hold = holdOf(session)
   if (hold.front === session) return
-  if (typeof session.page.bringToFront === 'function') await session.page.bringToFront().catch(passedOverAs(undefined))
+  const painting = hold.attached !== null && (await session.page.emulateFocusedPage(true).then(() => true, passedOverAs(false)))
+  if (!painting && typeof session.page.bringToFront === 'function') await session.page.bringToFront().catch(passedOverAs(undefined))
   hold.front = session
 }
