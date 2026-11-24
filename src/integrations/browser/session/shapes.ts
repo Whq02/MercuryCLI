@@ -68,7 +68,7 @@ export interface AttachedBrowser {
   adopted: number
 }
 
-export type SessionBrowser = BrowserResolution | { state: 'ok'; source: 'attached'; label: string }
+type SessionBrowser = BrowserResolution | { state: 'ok'; source: 'attached'; label: string }
 
 export interface Hold {
   browser: DriverBrowser

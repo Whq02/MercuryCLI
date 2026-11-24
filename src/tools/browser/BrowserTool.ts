@@ -112,7 +112,7 @@ export const BrowserTool = buildTool({
     const cap = browserSessionCap()
     return `## Operations
 status reports browser resolution (operator pin, then managed Chrome-for-Testing), versions, session state and open tabs without launching. Installed browsers are not launched.
-attach joins a Chromium the user started with remote debugging on (endpoint, loopback only) and lists its tabs as tab-1, tab-2 and so on; there open adds a tab, download with url or selector is refused, and close detaches: that browser and the user's tabs stay open, tabs opened here are closed.
+attach joins a Chromium the user started with remote debugging on (endpoint, loopback only) and lists its tabs (tab-1, tab-2 and so on); there open adds a tab, download with url or selector is refused, and close detaches: that browser and the user's tabs stay open, tabs opened here are closed.
 open launches on first use and navigates (${NAVIGATION_CAP_MS / 1000}s deadline). tab picks the page an op uses: main unless named, a new name opens another, without url a blank one; persist keeps it past the idle lease.
 click checks actionability; a tab that an act opens is kept and named in the answer (popup, popup-2).
 type focuses a selector target (editable inputs, textarea, contenteditable).

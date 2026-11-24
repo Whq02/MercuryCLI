@@ -43,7 +43,7 @@ export async function downloadOp(wanted: Transfer, outer: AbortSignal | undefine
 
 export async function attachOp({ input, owner, context }: OpRun): Promise<OpDone> {
   const endpoint = parseAttachEndpoint(input.endpoint)
-  if ('refusal' in endpoint) return { result: endpoint.refusal, outcome: 'failed' }
+  if (endpoint.kind === 'refused') return { result: endpoint.refusal, outcome: 'failed' }
   const joined = await attachBrowserSession(owner, endpoint, context.abortController?.signal)
   if (joined.state === 'refused') return { result: `attach failed: ${joined.note}`, outcome: 'failed' }
   const tabs = browserTabs(owner)

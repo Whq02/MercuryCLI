@@ -9,58 +9,63 @@ import { armIdleLease, holdGone, installExitHook, ownerStates, reapDeadHolds } f
 import { resolveHostLanguages, resolveHostTimeZone } from './stealth.js'
 import { adoptAttachedPage } from './wiring.js'
 
-export interface AttachEndpoint {
+interface AttachEndpoint {
   kind: 'http' | 'ws'
   address: string
+}
+
+interface AttachRefusal {
+  kind: 'refused'
+  refusal: string
 }
 
 const ATTACH_HOSTS: ReadonlySet<string> = new Set(['127.0.0.1', 'localhost'])
 const ATTACH_FORMS = 'http://127.0.0.1:<port> or http://localhost:<port>, or the ws:// address under it'
 const ATTACH_START = 'start the browser with --remote-debugging-port=<port> and a --user-data-dir of its own'
 
-export function parseAttachEndpoint(raw: string | undefined): AttachEndpoint | { refusal: string } {
-  if (raw === undefined || raw.trim() === '') return { refusal: `attach requires endpoint: ${ATTACH_FORMS}` }
+export function parseAttachEndpoint(raw: string | undefined): AttachEndpoint | AttachRefusal {
+  if (raw === undefined || raw.trim() === '') return { kind: 'refused', refusal: `attach requires endpoint: ${ATTACH_FORMS}` }
   let url: URL
   try {
     url = new URL(raw.trim())
   } catch (error) {
     passedOver(error)
-    return { refusal: `attach refused: "${raw}" is not an address — endpoint is ${ATTACH_FORMS}` }
+    return { kind: 'refused', refusal: `attach refused: "${raw}" is not an address — endpoint is ${ATTACH_FORMS}` }
   }
   const kind = url.protocol === 'http:' ? 'http' : url.protocol === 'ws:' ? 'ws' : null
-  if (kind === null) return { refusal: `attach refused: a debugging port answers http or ws, not ${url.protocol.slice(0, -1)} — endpoint is ${ATTACH_FORMS}` }
+  if (kind === null) return { kind: 'refused', refusal: `attach refused: a debugging port answers http or ws, not ${url.protocol.slice(0, -1)} — endpoint is ${ATTACH_FORMS}` }
   if (!ATTACH_HOSTS.has(url.hostname)) {
-    return { refusal: `attach refused: ${url.hostname} is not this machine — a debugging port hands over the whole browser with every signed-in session in it, so Mercury attaches on loopback only: ${ATTACH_FORMS}` }
+    return { kind: 'refused', refusal: `attach refused: ${url.hostname} is not this machine — a debugging port hands over the whole browser with every signed-in session in it, so Mercury attaches on loopback only: ${ATTACH_FORMS}` }
   }
-  if (url.username !== '' || url.password !== '') return { refusal: `attach refused: a debugging port takes no credentials — endpoint is ${ATTACH_FORMS}` }
-  if (url.port === '') return { refusal: `attach refused: "${raw}" names no port — endpoint is ${ATTACH_FORMS}` }
+  if (url.username !== '' || url.password !== '') return { kind: 'refused', refusal: `attach refused: a debugging port takes no credentials — endpoint is ${ATTACH_FORMS}` }
+  if (url.port === '') return { kind: 'refused', refusal: `attach refused: "${raw}" names no port — endpoint is ${ATTACH_FORMS}` }
   if (kind === 'http') return { kind, address: url.origin }
-  if (!url.pathname.startsWith('/devtools/browser/')) return { refusal: `attach refused: the ws:// address of a browser ends in /devtools/browser/<id> — "${raw}" does not` }
+  if (!url.pathname.startsWith('/devtools/browser/')) return { kind: 'refused', refusal: `attach refused: the ws:// address of a browser ends in /devtools/browser/<id> — "${raw}" does not` }
   return { kind, address: `ws://${url.host}${url.pathname}` }
 }
 
 const versionAnswer = z.object({ webSocketDebuggerUrl: z.string() })
 
-async function browserSocket(endpoint: AttachEndpoint, signal: AbortSignal | undefined): Promise<{ socket: string } | { failure: string }> {
-  if (endpoint.kind === 'ws') return { socket: endpoint.address }
+async function browserSocket(endpoint: AttachEndpoint, signal: AbortSignal | undefined): Promise<{ kind: 'socket'; socket: string } | { kind: 'failure'; failure: string }> {
+  if (endpoint.kind === 'ws') return { kind: 'socket', socket: endpoint.address }
   let answer: Response
   try {
     answer = await fetch(`${endpoint.address}/json/version`, { redirect: 'error', signal })
   } catch (error) {
     signal?.throwIfAborted()
-    return { failure: `no browser answers at ${endpoint.address} (${errorMessage(error)}) — ${ATTACH_START}, then attach again` }
+    return { kind: 'failure', failure: `no browser answers at ${endpoint.address} (${errorMessage(error)}) — ${ATTACH_START}, then attach again` }
   }
   if (answer.status === 404) {
-    return { failure: `${endpoint.address} answers 404 at /json/version — a Chrome whose remote debugging was turned on at chrome://inspect answers at its ws:// address alone: give endpoint as ws://127.0.0.1:<port>/devtools/browser/<id> (the two lines of the DevToolsActivePort file in its profile folder), or ${ATTACH_START}` }
+    return { kind: 'failure', failure: `${endpoint.address} answers 404 at /json/version — a Chrome whose remote debugging was turned on at chrome://inspect answers at its ws:// address alone: its endpoint is ws://127.0.0.1:<port>/devtools/browser/<id> (the two lines of the DevToolsActivePort file in its profile folder), or ${ATTACH_START}` }
   }
-  if (!answer.ok) return { failure: `${endpoint.address} answered HTTP ${answer.status} at /json/version — that is not a browser's debugging port` }
+  if (!answer.ok) return { kind: 'failure', failure: `${endpoint.address} answered HTTP ${answer.status} at /json/version — that is not a browser's debugging port` }
   const version = versionAnswer.safeParse(await answer.json().catch(passedOverAs(null)))
-  if (!version.success) return { failure: `${endpoint.address} answered /json/version without a webSocketDebuggerUrl — that is not a browser's debugging port` }
+  if (!version.success) return { kind: 'failure', failure: `${endpoint.address} answered /json/version without a webSocketDebuggerUrl — that is not a browser's debugging port` }
   const socket = parseAttachEndpoint(version.data.webSocketDebuggerUrl)
-  if ('refusal' in socket || socket.kind !== 'ws' || new URL(socket.address).port !== new URL(endpoint.address).port) {
-    return { failure: `${endpoint.address} names a WebSocket that is not its own (${version.data.webSocketDebuggerUrl}) — nothing was attached` }
+  if (socket.kind !== 'ws' || new URL(socket.address).port !== new URL(endpoint.address).port) {
+    return { kind: 'failure', failure: `${endpoint.address} names a WebSocket that is not its own (${version.data.webSocketDebuggerUrl}) — nothing was attached` }
   }
-  return { socket: socket.address }
+  return { kind: 'socket', socket: socket.address }
 }
 
 async function adoptPages(state: OwnerBrowserState, hold: Hold, attached: AttachedBrowser): Promise<number> {
@@ -77,7 +82,7 @@ export async function refreshAttachedTabs(owner: OwnerKey): Promise<void> {
   }
 }
 
-export type AttachOutcome = { state: 'attached'; attached: AttachedBrowser } | { state: 'refused'; note: string }
+type AttachOutcome = { state: 'attached'; attached: AttachedBrowser } | { state: 'refused'; note: string }
 
 export async function attachBrowserSession(owner: OwnerKey, endpoint: AttachEndpoint, signal?: AbortSignal): Promise<AttachOutcome> {
   const gate = driverNodeGate()
@@ -98,7 +103,7 @@ export async function attachBrowserSession(owner: OwnerKey, endpoint: AttachEndp
   let unhanded: DriverBrowser | null = null
   try {
     const found = await browserSocket(endpoint, signal)
-    if ('failure' in found) return { state: 'refused', note: found.failure }
+    if (found.kind === 'failure') return { state: 'refused', note: found.failure }
     let browser: DriverBrowser
     try {
       browser = await (await import('puppeteer-core')).default.connect({ browserWSEndpoint: found.socket, defaultViewport: null, protocolTimeout: BROWSER_PROTOCOL_TIMEOUT_MS })

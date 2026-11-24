@@ -15,7 +15,7 @@ export async function validateBrowserInput(asked: Input) {
   }
   if (asked.op === ATTACH_OP) {
     const endpoint = parseAttachEndpoint(asked.endpoint)
-    if ('refusal' in endpoint) return { result: false as const, message: endpoint.refusal, errorCode: 1 }
+    if (endpoint.kind === 'refused') return { result: false as const, message: endpoint.refusal, errorCode: 1 }
   }
   if (asked.endpoint !== undefined && asked.op !== ATTACH_OP) {
     return { result: false as const, message: 'endpoint requires op attach', errorCode: 1 }

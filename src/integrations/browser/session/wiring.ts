@@ -301,7 +301,7 @@ export function listenPage(state: OwnerBrowserState, session: Session, wiring: W
         popups.last = redactUrl(url || '(unknown)')
         popups.log.push({ url: popups.last, tab: kept?.tab ?? null })
         if (popups.log.length > POPUP_NOTES_KEPT) popups.log.shift()
-        capture('popup', kept === null ? `the page opened a new tab: ${popups.last} — it has closed since` : `the page opened a new tab: ${popups.last} — it stays open in its browser as tab ${kept.tab}`)
+        capture('popup', kept === null ? `the page opened a new tab: ${popups.last} — it has closed since` : `the page opened a new tab: ${popups.last} — it stays open in its browser: tab ${kept.tab}`)
         return
       }
       const download = born !== undefined && hold.downloads === null && (!url || url === 'about:blank') ? born.wiring.downloads.last : null
