@@ -69,28 +69,6 @@ export function packHints(
   return out
 }
 
-export function packLines(
-  segments: readonly string[],
-  budget: number,
-  sep = ' · ',
-): string[] {
-  const parts = segments.map(s => s.trim()).filter(s => s.length > 0)
-  if (parts.length === 0 || budget <= 0) return []
-  const lines: string[] = []
-  let line = ''
-  for (const seg of parts) {
-    const candidate = line.length === 0 ? seg : line + sep + seg
-    if (line.length === 0 || stringWidth(candidate) <= budget) {
-      line = candidate
-    } else {
-      lines.push(line)
-      line = seg
-    }
-  }
-  if (line.length > 0) lines.push(line)
-  return lines
-}
-
 export function shedToFit<T extends { text: string; priority: number }>(
   parts: readonly T[],
   budget: number,

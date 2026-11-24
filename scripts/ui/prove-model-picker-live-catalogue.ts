@@ -83,26 +83,6 @@ section('the OpenRouter refresh bumps on success and on failure')
   }
 }
 
-section('group detail lines wrap by whole segments')
-{
-  const { packLines } = await import('../../src/screen/widgets/geometry.ts')
-  const detail = 'frontier: GPT-5.6 Sol · 2026-07-21 · no OpenAI account — /logins'
-  const lines = packLines(detail.split(' · '), 58)
-  check(
-    'a 66-wide detail packs into two whole-segment lines at the 62-panel interior (58)',
-    lines.length === 2 && lines[0] === 'frontier: GPT-5.6 Sol · 2026-07-21' && lines[1] === 'no OpenAI account — /logins',
-    `${JSON.stringify(lines)}; packLines in src/screen/widgets/geometry.ts must break between whole segments at the budget`,
-  )
-  check(
-    'a fitting detail stays one line',
-    packLines('frontier: Fable 5 · Anthropic API key · credential present'.split(' · '), 58).length === 1,
-    'packLines in src/screen/widgets/geometry.ts must keep a detail that fits the budget on one line',
-  )
-  check('an over-wide single segment stands alone (the renderer truncates it)', packLines(['x'.repeat(80)], 58).length === 1, 'packLines in src/screen/widgets/geometry.ts must return one line for a single segment wider than the budget')
-  check('nothing is dropped: every segment survives the wrap', lines.join(' · ') === detail, `packLines in src/screen/widgets/geometry.ts must keep every segment: ${JSON.stringify(lines)}`)
-}
-
-
 section('THE SCREEN: one /model open paints connecting… then the rows (120x40)')
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') {
