@@ -156,7 +156,7 @@ function envFileTargetsInGlobField(glob: string | undefined): string[] {
   return glob ? splitGrepGlobField(glob).flatMap(envFileTargetsInGlob) : []
 }
 
-function envFilesWithheld(input: Input, permission: ToolPermissionContext, givenRoot: string): boolean {
+function envFilesWithheld(permission: ToolPermissionContext, givenRoot: string): boolean {
   if (modeBypassesPermissions(permission.mode)) return false
   return !isProjectEnvFileName(givenRoot)
 }
@@ -804,7 +804,7 @@ async function runGrepCall(
   const searchRoot = realSearchRoot(givenRoot)
   const mode = input.output_mode ?? 'files_with_matches'
   const permission = context.getAppState().toolPermissionContext
-  const withholding = envFilesWithheld(input, permission, givenRoot)
+  const withholding = envFilesWithheld(permission, givenRoot)
   if (mode === 'ranked') {
     return { data: await rankedCall(input, context, searchRoot, givenRoot, withholding) }
   }
