@@ -375,19 +375,6 @@ export function getOpenrouterAvailability(
 }
 
 
-export function openrouterModelsForVendor(
-  vendor: string,
-  env: NodeJS.ProcessEnv = hostEnv(),
-): OpenrouterLiveModel[] {
-  const auth = resolveOpenrouterRequestAuth(env)
-  if (!auth) return []
-  const snapshot = getCachedOpenrouterCatalogue(auth.account.keySource)
-  if (!snapshot) return []
-  const prefix = `${vendor.toLowerCase().replace(/\/+$/, '')}/`
-  return snapshot.models.filter(m => m.id.toLowerCase().startsWith(prefix))
-}
-
-
 export function openrouterListedModel(
   model: string,
   env: NodeJS.ProcessEnv = hostEnv(),

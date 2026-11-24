@@ -43,7 +43,6 @@ const {
   OPENROUTER_EXPAND_OPTION_VALUE,
   OPENROUTER_MODEL_GROUP,
   openrouterDispatchReady,
-  openrouterModelsForVendor,
   refreshOpenrouterCatalogue,
 } = catalogue
 const { isCatalogueDoorRow, isProviderActionRow } = await import('../../src/models/catalogue/modelOptions.js')
@@ -175,7 +174,6 @@ process.env.OPENROUTER_API_KEY = 'sk-or-v1-PROVERKEY000000000000'
   check('a Mercury-dressed openrouter id budgets as its listed base row (no lying 1M)', dressed.effectiveWindow === 200000, String(dressed.effectiveWindow) + ' — see resolveContextWindow in src/models/facts/capabilities.ts')
   const unlisted = resolveContextWindow('openrouter/nobody/unlisted-model')
   check('an unlisted openrouter id falls to the LABELLED conservative default', unlisted.effectiveWindow === 200000 && unlisted.source === 'fallback' && /states no context length/.test(unlisted.fallbackReason ?? ''), JSON.stringify({ s: unlisted.source, r: unlisted.fallbackReason }) + ' — see resolveContextWindow in src/models/facts/capabilities.ts')
-  check('the reroute vendor filter answers mechanically', openrouterModelsForVendor('google').length === 1 && openrouterModelsForVendor('google')[0]!.id === 'google/gemini-fixture')
   check('below the bound there is no door row', !rows.some(r => r.value === OPENROUTER_EXPAND_OPTION_VALUE))
 }
 
