@@ -76,7 +76,6 @@ const prov = await import('../../src/models/facts/providers.js')
 const betas = await import('../../src/models/roads/betas.js')
 const B = await import('../../src/models/roads/betaHeaders.js')
 const model = await import('../../src/models/catalogue/engineModel.js')
-const thinking = await import('../../src/models/effort/thinking.js')
 const effort = await import('../../src/models/effort/effort.js')
 const ctx = await import('../../src/engine/compaction-window/contextFill.js')
 const tokens = await import('../../src/engine/context-window/contextTokenCount.js')
@@ -232,20 +231,20 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
   check('isp: opus-4-8 supported', betas.modelSupportsISP('claude-opus-4-8'))
   check('isp: haiku-4-5 supported (Claude 4+ family)', betas.modelSupportsISP('claude-haiku-4-5-20251001'))
 
-  check('thinking: claude-3-* unsupported', !thinking.modelSupportsThinking('claude-3-7-sonnet-20250219'))
-  check('thinking: opus-4-8 supported', thinking.modelSupportsThinking('claude-opus-4-8'))
-  check('thinking: haiku-4-5 supported (Claude 4+ family)', thinking.modelSupportsThinking('claude-haiku-4-5-20251001'))
+  check('thinking: claude-3-* unsupported', !caps.modelSupportsThinking('claude-3-7-sonnet-20250219'))
+  check('thinking: opus-4-8 supported', caps.modelSupportsThinking('claude-opus-4-8'))
+  check('thinking: haiku-4-5 supported (Claude 4+ family)', caps.modelSupportsThinking('claude-haiku-4-5-20251001'))
 
   check(
     'adaptive: claude-sonnet-5 via the catalog BEFORE the sonnet-substring exclusion (the budget_tokens 400 guard)',
-    thinking.modelSupportsAdaptiveThinking('claude-sonnet-5'),
+    caps.modelSupportsAdaptiveThinking('claude-sonnet-5'),
   )
   check(
     'adaptive: opus-4-8 rides the canonical opus-4-6 allowlist row',
-    thinking.modelSupportsAdaptiveThinking('claude-opus-4-8'),
+    caps.modelSupportsAdaptiveThinking('claude-opus-4-8'),
   )
-  check('adaptive: opus-4-5 excluded (legacy family row)', !thinking.modelSupportsAdaptiveThinking('claude-opus-4-5'))
-  check('adaptive: unknown id defaults TRUE (quality floor)', thinking.modelSupportsAdaptiveThinking('zz-unknown-model-a'))
+  check('adaptive: opus-4-5 excluded (legacy family row)', !caps.modelSupportsAdaptiveThinking('claude-opus-4-5'))
+  check('adaptive: unknown id defaults TRUE (quality floor)', caps.modelSupportsAdaptiveThinking('zz-unknown-model-a'))
 
   check('structured: sonnet-4-6 supported', betas.modelSupportsStructuredOutputs('claude-sonnet-4-6'))
   check('structured: sonnet-5 via the catalog', betas.modelSupportsStructuredOutputs('claude-sonnet-5'))
@@ -594,8 +593,8 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
       r.context.outputDefault === out.default &&
       r.context.outputMax === out.upperLimit &&
       r.context.maxThinkingTokens === ctx.getMaxThinkingTokensForModel(m) &&
-      r.thinking.supported === thinking.modelSupportsThinking(m) &&
-      r.thinking.adaptive === thinking.modelSupportsAdaptiveThinking(m) &&
+      r.thinking.supported === caps.modelSupportsThinking(m) &&
+      r.thinking.adaptive === caps.modelSupportsAdaptiveThinking(m) &&
       r.thinking.interleaved === betas.modelSupportsISP(m) &&
       r.sampling.temperature === betas.modelSupportsTemperature(m) &&
       r.effort.supported === effort.modelSupportsEffort(m) &&
