@@ -96,7 +96,6 @@ t.section('§2 — THE BOARD COMPOSERS (the parity floor survives; state is word
     saturnEmptyDetailLines,
     saturnEntryOf,
     saturnLegendOf,
-    saturnNextFireWords,
     saturnStatusLine,
     saturnSummaryRows,
   } = await import('../../src/screen/boot-face/BootSaturnScreen.js')
@@ -110,7 +109,6 @@ t.section('§2 — THE BOARD COMPOSERS (the parity floor survives; state is word
   const held = byId.get('dddd4444')!
   const box = byId.get('eeee5555')!
 
-  t.check("§2 a paused row's words are 'paused' (paused wins over the clock)", saturnNextFireWords(paused.facts, FIXED_NOW) === 'paused')
   t.check('§2 the entry label leads with the id and carries the spelling verbatim', saturnEntryOf(fire, FIXED_NOW).label === 'aaaa1111  in 2h' && saturnEntryOf(paused, FIXED_NOW).label.includes('every day 09:00'))
   t.check('§2 the owning session is the SECTION title; a parked owner says so', saturnEntryOf(fire, FIXED_NOW).groupTitle === 'journey session' && saturnEntryOf(held, FIXED_NOW).groupTitle === 'ops · parked')
   t.check("§2 a box row's section names the tier", saturnEntryOf(box, FIXED_NOW).groupTitle === 'box (machine)')
