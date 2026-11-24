@@ -49,7 +49,6 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
     TOOL_FAMILY_BY_NAME,
     TOOL_FAMILY_MARKS,
     toolFamilyFor,
-    toolMarkFor,
   } = await import('../../src/screen/widgets/toolGlyphs.ts')
   const { charWidth, GLYPH } = await import('../../src/screen/theme/glyphs.ts')
   const {

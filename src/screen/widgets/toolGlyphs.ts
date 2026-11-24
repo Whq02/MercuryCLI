@@ -122,7 +122,3 @@ export function toolFamilyFor(toolName: string): ToolFamily {
   if (toolName.startsWith('mcp__')) return 'external'
   return 'system'
 }
-
-export function toolMarkFor(toolName: string): ToolFamilyMark {
-  return TOOL_FAMILY_MARKS[toolFamilyFor(toolName)]
-}
