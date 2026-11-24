@@ -216,7 +216,7 @@ console.log('\nw07-3 · clearedSessions + hopIntoSession — failed clear mark r
   check('w07-3 markSessionCleared returns { ok: false, error } on corrupt map', badMark?.ok === false && typeof badMark.error === 'string' && badMark.error.length > 0, JSON.stringify(badMark))
   check(
     'w07-3 clearFocusedSession emits warning receipt when cleared mark fails to save',
-    seen.some(item => item.level === 'warning' && typeof item.text === 'string' && item.text.includes('the cleared mark could not be saved (') && item.text.includes('), so this session may show in the list again')),
+    seen.some(item => item.level === 'warning' && item.text === 'the cleared mark could not be saved, so this session may show in the list again'),
     JSON.stringify(seen),
   )
 }

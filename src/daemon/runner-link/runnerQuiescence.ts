@@ -1,4 +1,12 @@
 import { passedOver } from '../../platform/errors/passedOver.js'
+import { logForDebugging } from '../../platform/logs/debugLog.js'
+import { DurablePublishError } from '../../platform/substrate/durablePublish.js'
+
+function refusalWords(lead: string, error: unknown): string {
+  if (!(error instanceof DurablePublishError)) return `${lead}: ${error instanceof Error ? error.message : String(error)}`
+  logForDebugging(`[quiesce] ${lead}: ${error.message}`, { level: 'warn' })
+  return 'its record could not be saved'
+}
 
 export type QuiescenceRequest = {
   subtype: 'quiesce'
@@ -77,7 +85,7 @@ export class RunnerQuiescence {
       return { ok: true, token, phase: 'committed' }
     } catch (error) {
       if (current()) this.invalidate()
-      return refused(`durable state unavailable: ${error instanceof Error ? error.message : String(error)}`)
+      return refused(refusalWords('durable state unavailable', error))
     }
   }
 }
@@ -197,7 +205,7 @@ export class RetirementFence {
       }
       return await this.finish(token)
     } catch (error) {
-      return await this.cancel(token, `retirement not confirmed: ${error instanceof Error ? error.message : String(error)}`)
+      return await this.cancel(token, refusalWords('retirement not confirmed', error))
     }
   }
 }

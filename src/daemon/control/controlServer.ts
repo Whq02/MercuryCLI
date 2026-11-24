@@ -8,6 +8,7 @@ import { basename, dirname, join } from 'node:path'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { localIpcDoorKind } from '../../platform/host-os/files.js'
 import { errorMessage, isENOENT } from '../../platform/errors/errors.js'
+import { DurablePublishError } from '../../platform/substrate/durablePublish.js'
 import type { DaemonBreaker } from './daemonBreaker.js'
 import {
   CONTROL_FRAME_CAP,
@@ -356,10 +357,11 @@ export async function startControlServer(
         answering++
         void routeControlRequest(deps, leases, sock, line)
           .catch(err => {
+            if (err instanceof DurablePublishError) logForDebugging(`[daemon] the save behind a control request failed: ${err.message}`, { level: 'warn' })
             answer(sock, {
               ok: false,
               code: 'EUNKNOWN',
-              error: `daemon error — ${err instanceof Error ? err.message : String(err)}`,
+              error: err instanceof DurablePublishError ? 'the daemon could not save its records — try again' : `daemon error — ${err instanceof Error ? err.message : String(err)}`,
             })
           })
           .finally(() => {

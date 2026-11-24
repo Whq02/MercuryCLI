@@ -60,8 +60,8 @@ const stands = new Map<string, ReturnType<typeof standInRunner>>()
 const runnerLives = (scene: Scene | undefined): boolean => scene !== undefined && scene.runner.exitCode === null && scene.runner.signalCode === null
 const rec = (runnerId: string): ConcourseWorkerRecordV1 | undefined => sup.readSessionWorkers()[runnerId]
 
-function refuseTheSave(forMs: number | null): void {
-  process.env.MERCURY_FAULT_INJECT = 'rename@concourse-workers.json:eperm'
+function refuseTheSave(forMs: number | null, file = 'concourse-workers.json'): void {
+  process.env.MERCURY_FAULT_INJECT = `rename@${file}:eperm`
   publish._resetFaultInjectionCountersForTests()
   if (forMs !== null) setTimeout(letTheSaveThrough, forMs)
 }
@@ -206,9 +206,29 @@ try {
     check('one plain sentence is minted', out.warnings.length === 1 && out.warnings[0]?.text === PLAIN, JSON.stringify(out.all))
     check('no path, no error code and no count of tries is in it', out.warnings.every(receipt => !receipt.text.includes(DAEMON_DIR) && !/EPERM|EBUSY|EACCES|rename|attempt|daemon error|\d/.test(receipt.text)), JSON.stringify(out.warnings))
     check("the session's true state is told: its runner is alive, its record is not parked, the retirement was called off", isProcessAlive(scene.pid) && rec(scene.runnerId)?.parkedAt === undefined && scene.asked.join(',') === 'prepare,cancel', `asked ${scene.asked.join(',')}; alive ${isProcessAlive(scene.pid)}; ${JSON.stringify(rec(scene.runnerId))}`)
+    const refused = await sock.daemonControlRpc({ op: 'sessionControl', action: 'park', sessionId: scene.sessionId, by: `operator:${process.pid}` }, { timeoutMs: 15_000 })
+    check('parked from the Session Concourse while the save is still refused, the verb says why in plain words', refused.ok === true && refused.outcome === 'refused' && refused.detail === `${scene.runnerId}: its record could not be saved`, JSON.stringify(refused))
     letTheSaveThrough()
     const again = await sock.daemonControlRpc({ op: 'sessionControl', action: 'park', sessionId: scene.sessionId, by: `operator:${process.pid}` }, { timeoutMs: 15_000 })
     check('once the file is free, parking it from the Session Concourse parks it', again.ok === true && again.outcome === 'applied' && (await until(() => rec(scene.runnerId)?.parkedAt !== undefined, 3_000)) && !isProcessAlive(scene.pid), JSON.stringify(again))
+  }
+
+  console.log('(d) a verb whose effect the daemon does not hold, with its save refused')
+  {
+    const scene = stage('5')
+    refuseTheSave(null)
+    const titled = await sock.daemonControlRpc({ op: 'sessionControl', action: 'set-title', sessionId: scene.sessionId, by: 'operator', title: 'a held title', titleSource: 'operator' }, { timeoutMs: 15_000 })
+    letTheSaveThrough()
+    check('the daemon answers one plain sentence, no path and no code', titled.ok === false && titled.error === 'the daemon could not save its records — try again', JSON.stringify(titled))
+    check('and the title is in fact not set', rec(scene.runnerId)?.title === undefined, JSON.stringify(rec(scene.runnerId)))
+  }
+
+  console.log('(e) a verb that applied, with the save of its applied-ops ledger refused')
+  {
+    refuseTheSave(null, 'concourse-control-ops.json')
+    const unrecorded = await sock.daemonControlRpc({ op: 'sessionControl', action: 'park', sessionId: '00000000-dddd-4000-8000-00000000dead', by: 'operator', clientOpId: 'op-held-1' }, { timeoutMs: 15_000 })
+    letTheSaveThrough()
+    check('the note says not recorded with no error text in it', unrecorded.ok === true && unrecorded.detail === 'unknown-session: no live worker record owns this session — not recorded, so sending it again may apply it twice', JSON.stringify(unrecorded))
   }
 } finally {
   letTheSaveThrough()

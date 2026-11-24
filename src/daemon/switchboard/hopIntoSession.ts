@@ -329,7 +329,10 @@ export async function clearFocusedSession(): Promise<{ ok: true; cleared: boolea
     logForDebugging(`[clear] session ${oldSessionId} is still running after its park was asked: ${unparked}`, { level: 'warn' })
     mintImmediateReceipt('the cleared session is still running — park it from the Session Concourse', 'warning')
   }
-  if (!marked.ok) mintImmediateReceipt(`the cleared mark could not be saved (${marked.error}), so this session may show in the list again`, 'warning')
+  if (!marked.ok) {
+    logForDebugging(`[clear] the cleared mark of session ${oldSessionId} was not saved: ${marked.error}`, { level: 'warn' })
+    mintImmediateReceipt('the cleared mark could not be saved, so this session may show in the list again', 'warning')
+  }
   return { ok: true, cleared: true }
 }
 

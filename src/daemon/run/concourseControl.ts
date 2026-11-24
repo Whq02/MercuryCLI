@@ -50,7 +50,7 @@ export function makeConcourseControl(state: DaemonRunState, { concourseDispatchH
           logForDebugging(
             `[daemon] concourse-control: applied-ops ledger write failed (${e instanceof Error ? e.message : String(e)}) — receipt returned unrecorded`,
           )
-          return { ...r, detail: `${r.detail ?? r.outcome} — not recorded (${errorMessage(e)}), so sending it again may apply it twice` }
+          return { ...r, detail: `${r.detail ?? r.outcome} — not recorded, so sending it again may apply it twice` }
         }
       }
       return r
