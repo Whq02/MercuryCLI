@@ -1,5 +1,6 @@
 import type { BackgroundTaskState } from './taskState.js'
 import { plural } from '../../platform/text/strings.js'
+import { DIAMOND_OPEN } from '../../screen/theme/rowGlyphs.js'
 
 export function getPillLabel(tasks: BackgroundTaskState[]): string {
   const firstType: string | undefined = tasks[0]?.type
@@ -24,7 +25,7 @@ export function getPillLabel(tasks: BackgroundTaskState[]): string {
     case 'local_agent':
       return `${tasks.length} ${plural(tasks.length, 'local crewmate')}`
     case 'remote_agent':
-      return `◇ ${tasks.length} ${plural(tasks.length, 'cloud session')}`
+      return `${DIAMOND_OPEN} ${tasks.length} ${plural(tasks.length, 'cloud session')}`
     case 'monitor_mcp':
       return `${tasks.length} ${plural(tasks.length, 'monitor')}`
     default:
