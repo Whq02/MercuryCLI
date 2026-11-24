@@ -84,7 +84,6 @@ export function highlightTextOf(query: string): string {
 }
 
 export function TranscriptSearchBar({
-  columns,
   onQueryChange,
   onCommit,
   onCancel,
