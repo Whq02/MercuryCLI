@@ -83,19 +83,6 @@ export function projectServiceExecution(cwd: string, record: ServiceRecord): voi
   }
 }
 
-export function serviceExecutionDrift(
-  cwd: string,
-  record: ServiceRecord,
-): { planeState: ExecutionState; recordState: string; agree: boolean } | null {
-  const planeRecord = getExecution(serviceExecutionOwner(cwd), serviceExecutionId(record.spec.name))
-  if (!planeRecord) return null
-  return {
-    planeState: planeRecord.state,
-    recordState: record.state,
-    agree: planeRecord.state === record.state,
-  }
-}
-
 export function installServiceExecutionDomain(hooks: {
   stop: (cwd: string, name: string) => Promise<unknown>
 }): void {

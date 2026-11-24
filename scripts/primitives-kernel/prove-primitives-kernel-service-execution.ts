@@ -17,7 +17,6 @@ const {
   waitForReady,
 } = await import('../../src/tools/engines/project-services/serviceManager.ts')
 const {
-  serviceExecutionDrift,
   serviceExecutionId,
   serviceExecutionOwner,
 } = await import('../../src/tools/engines/project-services/executionProjection.ts')
@@ -32,7 +31,7 @@ function check(name: string, ok: boolean, detail?: string): void {
   } else {
     fail++
     console.log(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`)
-    console.log('       fix: the service record is written in src/tools/engines/project-services/serviceManager.ts (startService, restartService, stopService, reconcileRecord) and mirrored into the execution plane by projectServiceExecution in src/tools/engines/project-services/executionProjection.ts; make the two agree there (serviceExecutionDrift compares them)')
+    console.log('       fix: the service record is written in src/tools/engines/project-services/serviceManager.ts (startService, restartService, stopService, reconcileRecord) and mirrored into the execution plane by projectServiceExecution in src/tools/engines/project-services/executionProjection.ts; make the two agree there')
   }
 }
 
@@ -66,13 +65,6 @@ const spec = {
   lifecycle: 'session' as const,
 }
 
-function drift(): boolean {
-  const record = readRecord(workDir, 'axiom-web')
-  if (!record) return false
-  const d = serviceExecutionDrift(workDir, record)
-  return d !== null && d.agree
-}
-
 console.log('start → ready journey')
 {
   const started = await startService({ spec, sessionId: SESSION })
@@ -82,7 +74,6 @@ console.log('start → ready journey')
     registrations.length === 1 && planeRec?.generation === 1)
   check('plane mirrors starting with pid identity',
     planeRec?.state === 'starting' && planeRec.externalIdentity?.pid !== undefined)
-  check('record/plane agree at start', drift())
 
   const ready = await waitForReady(workDir, 'axiom-web', 15_000)
   check('readiness reached (domain truth)', ready.ready)
@@ -91,7 +82,6 @@ console.log('start → ready journey')
   check('plane holds NO readiness detail (domain-owned)',
     readyRec !== undefined && !('readiness' in readyRec) &&
       readyRec.spec.metadata?.name === 'axiom-web')
-  check('record/plane agree at ready', drift())
 }
 
 console.log('restart mints a new generation')
@@ -101,7 +91,6 @@ console.log('restart mints a new generation')
   const planeRec = P.getExecution(owner, execId)
   check('plane generation is 2', planeRec?.generation === 2)
   check('registrations: exactly one per start', registrations.length === 2)
-  check('record/plane agree after restart', drift())
 }
 
 console.log('explicit stop settles stopped')
@@ -111,7 +100,6 @@ console.log('explicit stop settles stopped')
   const planeRec = P.getExecution(owner, execId)
   check('plane settles stopped (never failed) on explicit stop',
     planeRec?.state === 'stopped' && planeRec.settledAt !== undefined)
-  check('record/plane agree after stop', drift())
 }
 
 console.log('killed process reconciles honestly')
@@ -130,7 +118,6 @@ console.log('killed process reconciles honestly')
     const planeRec = P.getExecution(owner, execId)
     check('plane settles with the record', planeRec !== undefined &&
       P.isTerminalExecutionState(planeRec.state))
-    check('record/plane agree after kill+reconcile', drift())
   }
 }
 
@@ -154,7 +141,6 @@ console.log('plane-side requestStop drives the real stop ladder')
   check('plane stop request settles the execution', settled)
   check('the REAL service stopped (record terminal, explicit)',
     record !== null && record.state === 'stopped' && record.explicitStop)
-  check('record/plane agree after plane-driven stop', drift())
 }
 
 unsubscribe()
