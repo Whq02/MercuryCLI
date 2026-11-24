@@ -58,7 +58,7 @@ function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — ${hint}` : ''}`)
 }
-const HINT_BOUNDARY = 'fix projectBoundaryOf, projectScopePathspec or launchFolderBoundsProject in src/platform/files/projectBoundary.ts'
+const HINT_BOUNDARY = 'fix projectScopePathspec or launchFolderBoundsProject in src/platform/files/projectBoundary.ts'
 const HINT_PROBE = 'the git probe named in the label must append the pathspec from projectScopePathspec (src/platform/files/projectBoundary.ts); the PROBES line above lists every call that ran'
 
 const boundary = await import('../../src/platform/files/projectBoundary.js')
@@ -73,17 +73,13 @@ const { enableConfigs } = await import('../../src/platform/config/globalConfig.j
 enableConfigs()
 const suggestions = await import('../../src/screen/composer/typeahead/fileSuggestions.js')
 
-console.log('B1 projectBoundaryOf — the owner')
+console.log('B1 projectScopePathspec and launchFolderBoundsProject — the owner')
 {
-  check('a real project answers its git root from a subfolder', boundary.projectBoundaryOf(SUB) === REAL, boundary.projectBoundaryOf(SUB), HINT_BOUNDARY)
-  check('… and appends no pathspec', boundary.projectScopePathspec(SUB).length === 0, '', HINT_BOUNDARY)
-  check('a folder under a HOME repository answers itself', boundary.projectBoundaryOf(PROJ) === PROJ, boundary.projectBoundaryOf(PROJ), HINT_BOUNDARY)
-  check('… and appends `-- .`', boundary.projectScopePathspec(PROJ).join(' ') === '-- .', '', HINT_BOUNDARY)
-  check('a folder under a user-folder repository (Pictures) answers itself', boundary.projectBoundaryOf(NOTES) === NOTES, boundary.projectBoundaryOf(NOTES), HINT_BOUNDARY)
+  check('a real project appends no pathspec from a subfolder', boundary.projectScopePathspec(SUB).length === 0, '', HINT_BOUNDARY)
+  check('a folder under a HOME repository appends `-- .`', boundary.projectScopePathspec(PROJ).join(' ') === '-- .', '', HINT_BOUNDARY)
   check('a nested Documents folder resolves to the home root today (git says so)', realpathSync(voxelTop) === HOME_FX, voxelTop, 'the fixture is wrong: git rev-parse from Documents/voxel no longer answers the home root')
-  check('… and the boundary answers the nested Documents folder itself, with `-- .`', boundary.projectBoundaryOf(VOXEL) === VOXEL && boundary.projectScopePathspec(VOXEL).join(' ') === '-- .', '', HINT_BOUNDARY)
-  check('the home itself answers itself', boundary.projectBoundaryOf(HOME_FX) === HOME_FX, '', HINT_BOUNDARY)
-  check('a folder outside any repository answers itself and appends nothing', boundary.projectBoundaryOf(OUTSIDE) === OUTSIDE && boundary.projectScopePathspec(OUTSIDE).length === 0, '', HINT_BOUNDARY)
+  check('… and appends `-- .` for the nested Documents folder', boundary.projectScopePathspec(VOXEL).join(' ') === '-- .', '', HINT_BOUNDARY)
+  check('a folder outside any repository appends nothing', boundary.projectScopePathspec(OUTSIDE).length === 0, '', HINT_BOUNDARY)
   check('launchFolderBoundsProject is true only under a non-project root', boundary.launchFolderBoundsProject(PROJ) && boundary.launchFolderBoundsProject(NOTES) && !boundary.launchFolderBoundsProject(SUB) && !boundary.launchFolderBoundsProject(OUTSIDE), '', HINT_BOUNDARY)
 }
 

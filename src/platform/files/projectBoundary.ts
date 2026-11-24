@@ -184,12 +184,6 @@ function computeGitInitRefusal(folder: string): GitInitRefusal | null {
   }
 }
 
-export function projectBoundaryOf(cwd: string): string {
-  const root = findGitRoot(cwd)
-  if (root === null) return resolve(cwd)
-  return nonProjectRootKindOf(root) !== null ? resolve(cwd) : root
-}
-
 export function launchFolderBoundsProject(cwd: string): boolean {
   const root = findGitRoot(cwd)
   return root !== null && nonProjectRootKindOf(root) !== null
