@@ -208,6 +208,23 @@ interface DeferredPublish {
 }
 const deferredPublish = new Map<string, DeferredPublish>()
 
+const isDurablePublishError = (error: unknown): boolean => error instanceof DurablePublishError
+
+async function publishDispatchesRidingOut(dispatches: Record<string, ConcourseDispatchRecordV1>, dir?: string): Promise<void> {
+  await rideOutHeldFile(() => publishDispatches(dispatches, dir), isDurablePublishError)
+}
+
+function publishDispatchesOrHold(dispatches: Record<string, ConcourseDispatchRecordV1>, dir?: string): void {
+  try {
+    publishDispatches(dispatches, dir)
+  } catch (error) {
+    if (!isDurablePublishError(error)) throw error
+    void rideOutHeldFile(() => publishDispatches(dispatches, dir), isDurablePublishError, { error }).catch(lost => {
+      console.error(`[daemon] ${concourseDispatchesPath(dir)}: a change to the dispatch ledger was held in memory and never saved: ${errorMessage(lost)}`)
+    })
+  }
+}
+
 function publishDispatchesAfterReply(dispatches: Record<string, ConcourseDispatchRecordV1>, dir?: string): void {
   const path = concourseDispatchesPath(dir)
   const pending = deferredPublish.get(path)
@@ -215,15 +232,14 @@ function publishDispatchesAfterReply(dispatches: Record<string, ConcourseDispatc
   const entry: DeferredPublish = { map: dispatches, done: Promise.resolve() }
   entry.done = new Promise<void>(resolve => {
     startImmediate(() => {
-      if (deferredPublish.get(path) === entry) {
-        deferredPublish.delete(path)
-        try {
-          publishDispatches(dispatches, dir)
-        } catch (err) {
-          logForDebugging(`[concourse/dispatch] deferred ledger publish failed for ${path}: ${err}`)
-        }
+      if (deferredPublish.get(path) !== entry) {
+        resolve()
+        return
       }
-      resolve()
+      deferredPublish.delete(path)
+      void publishDispatchesRidingOut(dispatches, dir)
+        .catch(err => logForDebugging(`[concourse/dispatch] deferred ledger publish failed for ${path}: ${err}`))
+        .finally(resolve)
     })
   })
   deferredPublish.set(path, entry)
@@ -317,7 +333,7 @@ export function withdrawConcourseDispatch(clientMessageId: string, dir?: string)
     delete rec.heldReason
     delete rec.heldOp
     rec.reason = 'withdrawn by the operator (x on the queued row)'
-    publishDispatches(dispatches, dir)
+    publishDispatchesOrHold(dispatches, dir)
     return true
   })
 }
@@ -331,7 +347,7 @@ export function failWorkingDispatchesForRunner(runnerId: string, reason: string,
       advance(rec, 'failed', { reason })
       if (settledFailed(rec)) moved++
     }
-    if (moved > 0) publishDispatches(dispatches, dir)
+    if (moved > 0) publishDispatchesOrHold(dispatches, dir)
     return moved
   })
 }
@@ -355,7 +371,7 @@ export function reconcileWorkingDispatches(
       advance(rec, 'failed', { reason: 'the worker ended without settling its dispatch — settled at boot reconcile' })
       if (settledFailed(rec)) moved++
     }
-    if (moved > 0) publishDispatches(dispatches, dir)
+    if (moved > 0) publishDispatchesOrHold(dispatches, dir)
     return moved
   })
 }
@@ -454,7 +470,7 @@ export function recordConcourseControlOp(rec: ConcourseControlOpRecordV1, dir?: 
 }
 
 export async function recordConcourseControlOpRidingOut(rec: ConcourseControlOpRecordV1, dir?: string): Promise<void> {
-  await rideOutHeldFile(() => recordConcourseControlOp(rec, dir), err => err instanceof DurablePublishError)
+  await rideOutHeldFile(() => recordConcourseControlOp(rec, dir), isDurablePublishError)
 }
 
 export function envelopeDigestOf(req: ConcourseDispatchRequest, version: 1 | 2 = 2): string {
@@ -774,7 +790,7 @@ async function attemptRedirectDelivery(
     delete rec.heldReason
     delete rec.heldOp
     advance(rec, 'failed', { reason: unwritten.message })
-    publishDispatches(dispatches, deps.dir)
+    await publishDispatchesRidingOut(dispatches, deps.dir)
     return { ok: false, clientMessageId: rec.clientMessageId, state: rec.state, stateRevision: rec.stateRevision, error: unwritten.message }
   }
   const workers = readSessionWorkers(deps.dir)
@@ -785,7 +801,7 @@ async function attemptRedirectDelivery(
     rec.heldReason = 'session-with-you'
     rec.sessionId = target
     rec.workerId = targetRec.runnerId
-    publishDispatches(dispatches, deps.dir)
+    await publishDispatchesRidingOut(dispatches, deps.dir)
     return {
       ok: false,
       clientMessageId: rec.clientMessageId,
@@ -803,7 +819,7 @@ async function attemptRedirectDelivery(
     rec.heldReason = 'session-paused'
     rec.sessionId = target
     rec.workerId = targetRec.runnerId
-    publishDispatches(dispatches, deps.dir)
+    await publishDispatchesRidingOut(dispatches, deps.dir)
     return {
       ok: false,
       clientMessageId: rec.clientMessageId,
@@ -822,7 +838,7 @@ async function attemptRedirectDelivery(
     rec.heldReason = 'session-retiring'
     rec.sessionId = target
     rec.workerId = targetRec.runnerId
-    publishDispatches(dispatches, deps.dir)
+    await publishDispatchesRidingOut(dispatches, deps.dir)
     return {
       ok: false,
       clientMessageId: rec.clientMessageId,
@@ -861,7 +877,7 @@ async function attemptRedirectDelivery(
     delete rec.heldReason
     delete rec.heldOp
     advance(rec, 'failed', { reason: why })
-    publishDispatches(dispatches, deps.dir)
+    await publishDispatchesRidingOut(dispatches, deps.dir)
     return {
       ok: false,
       clientMessageId: rec.clientMessageId,
@@ -883,7 +899,7 @@ async function attemptRedirectDelivery(
   delete rec.heldOp
   advance(rec, 'starting', { workerId: targetRec.runnerId, sessionId: target })
   if (rec.state !== 'starting') {
-    publishDispatches(dispatches, deps.dir)
+    await publishDispatchesRidingOut(dispatches, deps.dir)
     return {
       ok: false,
       clientMessageId: rec.clientMessageId,
@@ -892,7 +908,7 @@ async function attemptRedirectDelivery(
       error: `replay refused: the message already settled '${rec.state}' — a terminal row never re-delivers`,
     }
   }
-  publishDispatches(dispatches, deps.dir)
+  await publishDispatchesRidingOut(dispatches, deps.dir)
   if (operatorSpoke) operatorTookSessionBack(target, deps.dir)
   return deliverDispatch(deps, dispatches, rec, targetRec.runnerId, await buildConcoursePromptRow(prompt, { ...extras, identity: rec.clientMessageId }), 'instruction delivery failed (stdin unavailable)')
 }
@@ -960,7 +976,7 @@ export function makeConcourseDispatchHandler(
       if (imageBlocks > 0) rec.contentImageBlocks = imageBlocks
     }
     dispatches[req.clientMessageId] = rec
-    publishDispatches(dispatches, deps.dir)
+    await publishDispatchesRidingOut(dispatches, deps.dir)
 
     if (req.targetSessionId !== undefined) {
       return attemptRedirectDelivery(deps, rec, dispatches, req.targetSessionId, req.prompt, promptExtrasOf(req))
@@ -1013,7 +1029,7 @@ export function makeConcourseDispatchHandler(
           ...(req.sentAt !== undefined ? { sentAt: req.sentAt } : {}),
           ...(req.origin !== undefined ? { origin: structuredClone(req.origin) } : {}),
         }
-        publishDispatches(dispatches, deps.dir)
+        await publishDispatchesRidingOut(dispatches, deps.dir)
         if ((rec.heldReason === 'no-repository' || rec.heldReason === 'unborn-head') && rec.workspaceId !== undefined) {
           const folder = rec.workspaceId
           void import('../session-seat/permissionAsks.js')
@@ -1039,7 +1055,7 @@ export function makeConcourseDispatchHandler(
         }
       }
       advance(rec, 'failed', { reason: admitted.error })
-      publishDispatches(dispatches, deps.dir)
+      await publishDispatchesRidingOut(dispatches, deps.dir)
       if (admitted.code === 'workspace-collision') {
         try {
           const wsId = canonicalWorkspaceId(req.workspaceDir)
@@ -1080,7 +1096,7 @@ export function makeConcourseDispatchHandler(
       delete other.heldOp
       advance(other, 'failed', { reason: `superseded — the same instruction admitted as ${rec.clientMessageId}` })
     }
-    publishDispatches(dispatches, deps.dir)
+    await publishDispatchesRidingOut(dispatches, deps.dir)
 
     const admittedRec = readSessionWorkers(deps.dir)[admitted.runnerId]
     const groundNote =

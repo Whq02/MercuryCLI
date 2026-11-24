@@ -118,6 +118,66 @@ try {
       `${JSON.stringify(reply)} — await recordConcourseControlOpRidingOut in src/daemon/run/concourseControl.ts`,
     )
   }
+
+  console.log('§3 dispatch ledger (concourse-dispatches.json)')
+  {
+    const handler = dispatch.makeConcourseDispatchHandler({
+      dir: DAEMON_DIR,
+      admit: async () => ({ ok: true, runnerId: 'w-disp-1', sessionId: '00000000-dddd-4000-8000-00000000d001' }),
+      deliver: async () => true,
+    })
+    const timer1 = holdFile('concourse-dispatches.json', 900)
+    let dispatched: { ok: boolean; state?: string } | null = null
+    let threw1 = ''
+    try {
+      dispatched = await handler({
+        clientMessageId: 'cm-held-ride-1',
+        prompt: 'hello held dispatch',
+        workspaceDir: SCRATCH,
+      })
+      await dispatch.flushDeferredDispatchPublishes()
+    } catch (error) {
+      threw1 = error instanceof Error ? error.message : String(error)
+    } finally {
+      if (timer1 !== null) clearTimeout(timer1)
+      delete process.env.MERCURY_FAULT_INJECT
+    }
+    check(
+      'dispatch handler rides out a 900ms held concourse-dispatches.json and lands working on disk',
+      threw1 === '' && dispatched?.ok === true && dispatch.readConcourseDispatches(DAEMON_DIR)['cm-held-ride-1']?.state === 'working',
+      `${threw1 || JSON.stringify(dispatched)} — ride out publishDispatches via rideOutHeldFile in src/daemon/concourse-workers/concourseDispatch.ts`,
+    )
+
+    const holdHandler = dispatch.makeConcourseDispatchHandler({
+      dir: DAEMON_DIR,
+      admit: async () => ({ ok: false, code: 'runtime-ceiling', error: 'seat full' }),
+      deliver: async () => false,
+    })
+    await holdHandler({
+      clientMessageId: 'cm-held-withdraw-1',
+      prompt: 'queued row to withdraw',
+      workspaceDir: SCRATCH,
+    })
+    const timer2 = holdFile('concourse-dispatches.json', 900)
+    let withdrew = false
+    let threw2 = ''
+    try {
+      withdrew = dispatch.withdrawConcourseDispatch('cm-held-withdraw-1', DAEMON_DIR)
+    } catch (error) {
+      threw2 = error instanceof Error ? error.message : String(error)
+    }
+    const withdrawLanded = await until(
+      () => dispatch.readConcourseDispatches(DAEMON_DIR)['cm-held-withdraw-1']?.state === 'failed',
+      4_500,
+    )
+    if (timer2 !== null) clearTimeout(timer2)
+    delete process.env.MERCURY_FAULT_INJECT
+    check(
+      'withdrawConcourseDispatch rides out a 900ms held concourse-dispatches.json without throwing',
+      threw2 === '' && withdrew && withdrawLanded,
+      `${threw2 || `withdrew=${withdrew} landed=${withdrawLanded}`} — use publishDispatchesOrHold via rideOutHeldFile in src/daemon/concourse-workers/concourseDispatch.ts`,
+    )
+  }
 } finally {
   delete process.env.MERCURY_FAULT_INJECT
   rmSync(SCRATCH, { recursive: true, force: true })
