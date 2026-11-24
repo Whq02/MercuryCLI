@@ -33,7 +33,7 @@ const SEARCH_WARMUP_QUIET_MS = 20;
 const SEARCH_WARMUP_SHOW_MS = 2000;
 const EDITOR_STATUS_MS = 4000;
 
-type FrozenTranscriptState = { messageCount: number; streamingToolUseCount: number };
+type FrozenTranscriptState = { messageCount: number };
 
 type UseChatSearchProps = {
   fullscreen: boolean;
@@ -360,7 +360,7 @@ export function useChatSearch({
   const handleEnterTranscript = useCallback(() => {
     captureScrollForFlip();
     const messageCount = getFocusedSessionConnector().records().length;
-    setFrozenTranscript({ messageCount, streamingToolUseCount: 0 });
+    setFrozenTranscript({ messageCount });
     setFlipGeneration(g => g + 1);
   }, [captureScrollForFlip, setFlipGeneration]);
 
