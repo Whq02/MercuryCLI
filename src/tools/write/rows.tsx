@@ -1,7 +1,6 @@
 import * as React from 'react'
 import { useLoad } from '../../screen/effects/effects.js'
 
-import { truncatePathMiddle } from '../../platform/text/truncate.js'
 import { CtrlOToExpand } from '../../screen/messages/CtrlOToExpand.js'
 import { FallbackToolUseErrorMessage } from '../kit/FallbackToolUseErrorMessage.js'
 import { isDenialResultText } from '../../engine/message-shapes/rejectionText.js'
@@ -12,7 +11,6 @@ import { HighlightedCode } from '../../screen/highlighted-code/HighlightedCode.j
 import { MessageResponse } from '../kit/MessageResponse.js'
 import { ToolCardMarker } from '../../screen/widgets/toolCardMeta.js'
 import { useMercuryTokens } from '../../screen/widgets/useMercuryTokens.js'
-import { TOOL_SUMMARY_MAX_LENGTH } from '../kit/toolLimits.js'
 import { isRemotePath } from '../../platform/remote-file-target/target.js'
 import { useTerminalSize } from '../../screen/fullscreen-layout/useTerminalSize.js'
 import { Box, Text } from '../../screen/themedRenderer.js'
@@ -40,10 +38,7 @@ export function userFacingName(_input?: Partial<FileWriteInput>): string {
   return WRITE_TOOL_NAME
 }
 
-export function getToolUseSummary(input: Partial<FileWriteInput> | undefined): string | null {
-  if (!input?.file_path) return null
-  return truncatePathMiddle(getDisplayPath(input.file_path), TOOL_SUMMARY_MAX_LENGTH)
-}
+export { getToolUseSummary } from '../edit/rows.js'
 
 export function renderToolUseMessage(
   input: Partial<FileWriteInput>,

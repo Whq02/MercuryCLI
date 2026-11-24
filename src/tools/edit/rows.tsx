@@ -24,7 +24,7 @@ export function userFacingName(input?: Partial<FileEditInput>): string {
   return input?.old_string === '' ? 'Create' : 'Update'
 }
 
-export function getToolUseSummary(input: Partial<FileEditInput> | undefined): string | null {
+export function getToolUseSummary(input: { file_path?: string } | undefined): string | null {
   if (!input?.file_path) return null
   return truncatePathMiddle(getDisplayPath(input.file_path), TOOL_SUMMARY_MAX_LENGTH)
 }
