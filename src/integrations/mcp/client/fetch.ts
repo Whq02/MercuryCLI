@@ -26,7 +26,7 @@ function jsonRpcMethodOf(body: unknown): string | null {
   }
 }
 
-function mcpRequestBudgetMs(body: unknown): number {
+export function mcpRequestBudgetMs(body: unknown): number {
   return jsonRpcMethodOf(body) === 'tools/call' ? toolTimeoutMs() : REQUEST_TIMEOUT_MS
 }
 
