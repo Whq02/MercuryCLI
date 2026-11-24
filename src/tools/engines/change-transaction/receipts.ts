@@ -111,13 +111,6 @@ export function receiptsFor(owner: OwnerKey): readonly ChangeReceipt[] {
   return store.peek(owner)?.receipts ?? []
 }
 
-export function receiptsSince(
-  owner: OwnerKey,
-  sinceSeq: number,
-): readonly ChangeReceipt[] {
-  return receiptsFor(owner).filter(r => r.seq > sinceSeq)
-}
-
 export function receiptCursor(owner: OwnerKey): number {
   const ring = store.peek(owner)
   return ring ? ring.nextSeq - 1 : 0

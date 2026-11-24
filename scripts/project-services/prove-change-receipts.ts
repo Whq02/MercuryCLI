@@ -15,7 +15,6 @@ const {
   receiptById,
   receiptCursor,
   receiptsFor,
-  receiptsSince,
 } = await import('../../src/tools/engines/change-transaction/receipts.ts')
 const { isMutationOperation } = await import('../../src/tools/engines/change-transaction/contracts.ts')
 const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
@@ -113,9 +112,6 @@ section('L. receipt ring laws (through the real observer seam)')
   check('L6 effect-less event mints nothing', receiptsFor(owner).length === 2, `receipts ${receiptsFor(owner).length} · observeToolTerminal in src/engine/run-owner/effectObserver.ts must skip an event with no effect`)
 
   check('L7 receiptCursor is the high-water seq', receiptCursor(owner) === 2, `cursor ${receiptCursor(owner)} · receiptCursor in src/tools/engines/change-transaction/receipts.ts must return the highest seq`)
-  check('L8 receiptsSince(1) returns only the newer receipt',
-    receiptsSince(owner, 1).length === 1 && receiptsSince(owner, 1)[0]!.seq === 2,
-    `since 1: ${receiptsSince(owner, 1).length} · receiptsSince in src/tools/engines/change-transaction/receipts.ts must return only receipts newer than the cursor`)
 
   const other = makeOwnerKey({
     workspace: '/tmp/vanguard-receipts',
