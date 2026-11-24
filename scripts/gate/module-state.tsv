@@ -371,7 +371,6 @@ src/daemon/concourse-workers/store.ts	EMPTY_SESSION_WORKERS	process	module	Load-
 src/daemon/concourse-workers/store.ts	UNAVAILABLE_SESSION_WORKERS	process	module	Load-time definition shared by all callers
 src/daemon/concourse-workers/store.ts	concourseDeltaRevision	process	module	per-process monotonic delta stamp sequence counter paired with process.pid
 src/daemon/concourse-workers/store.ts	concourseDeltaStore	process	module	Shared definition for change stamp stores selected by daemon directory
-src/daemon/concourse-workers/store.ts	concourseWorkersStore	process	module	Shared definition for worker record stores selected by daemon directory
 src/daemon/concourse-workers/store.ts	sessionRecordsInFlight	call	module	synchronous re-entrancy stack frame for nested updateConcourseWorkers calls, restored in finally
 src/daemon/concourse-workers/store.ts	sessionRecordsLastPublished	process	module	last-published concourse-workers.json text keyed by full file path for corrupt-file recovery
 src/daemon/concourse-workers/store.ts	sessionRecordsUnread	process	module	daemon-wide unreadable workers-file warning and refusal count keyed by file path, deleted on recovery
