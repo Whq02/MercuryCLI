@@ -10,7 +10,6 @@ import {
   stopRunningCrewmateTasks,
 } from '../../engine/tasks/local-agent/crewmateTask.js'
 import { enqueuePendingNotification } from '../composer/input-core/command-queue.js'
-import { pressInterrupt } from '../composer/input-core/interruptArity.js'
 import { useFocusedShellRunning } from '../../engine/connector/shellRunning.js'
 import { requestShellBackground } from '../../tools/shell/backgroundRequest.js'
 import { settingsChangeDetector } from '../../platform/settings/changeDetector.js'
@@ -190,17 +189,6 @@ export function InterruptKeys({
       if (pendingInput.mode() !== 'prompt' && pendingInput.text() === '') {
         return false
       }
-      const press = pressInterrupt('chat')
-      if (!press.fire) {
-        addNotification({
-          key: 'interrupt-arity',
-          text: press.hint,
-          priority: 'immediate',
-          timeoutMs: press.windowMs,
-        })
-        return
-      }
-      removeNotification('interrupt-arity')
       settleAndInterruptFocused()
     },
     { context: 'Chat', isActive: escapeEligible },

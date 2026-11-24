@@ -25,7 +25,6 @@ prove-footer-strip-hint.ts
 prove-frame-dedup.ts
 prove-headless-writes-nothing.ts
 prove-home-hero-noise.ts
-prove-interrupt-arity.ts
 prove-kit-menu.ts
 prove-sovereign-menu-warning.ts
 prove-markdown-layout.ts

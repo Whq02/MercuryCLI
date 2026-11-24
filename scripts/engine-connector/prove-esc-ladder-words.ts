@@ -88,8 +88,6 @@ section('L3 — every state word a running turn can wear keeps to one clause')
 
 section('L4 — the arity-2 arm hint is its own word')
 {
-  const resolved = arity.interruptArityOf('a-surface-nobody-declared')
-  check('an undeclared scope reads arity 1 with the default arm hint', resolved.arity === 1 && resolved.hint === 'esc again interrupts')
   check('the arm hint never rides the row', !frame(live('thinking'), status()).includes('esc again interrupts'))
 }
 
