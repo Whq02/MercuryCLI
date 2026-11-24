@@ -269,7 +269,6 @@ installServiceExecutionDomain({
 
 
 async function checkCondition(
-  cwd: string,
   record: ServiceRecord,
   condition: ReadinessCondition,
   startedAt: number,
@@ -398,7 +397,7 @@ export async function evaluateReadiness(
   const startedAt = record.startedAt ?? Date.now()
   const statuses = await Promise.all(
     record.spec.readiness.map(async c => {
-      const status = await checkCondition(cwd, record, c, startedAt)
+      const status = await checkCondition(record, c, startedAt)
       return record.state === 'failed' ? withPortHolder(cwd, status) : status
     }),
   )

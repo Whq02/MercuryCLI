@@ -187,7 +187,7 @@ function coalesce(ranges: SeenRange[]): SeenRange[] {
   return out
 }
 
-function ledgerFor(owner: OwnerKey, path: string): Map<string, FileLedger> {
+function ledgerFor(owner: OwnerKey): Map<string, FileLedger> {
   const state = store.get(owner)
   return state.files
 }
@@ -246,7 +246,7 @@ export function recordSeenLines(
   cuts: readonly ColumnCut[] = [],
 ): void {
   if (lineCount <= 0 || startLine < 1) return
-  const files = ledgerFor(owner, path)
+  const files = ledgerFor(owner)
   let entry = files.get(path)
   if (!entry || entry.generation !== generation) {
     const cuts = columnCutsOf(owner, path, generation)
@@ -305,7 +305,7 @@ function withoutCutLines(ranges: readonly SeenRange[], cuts: readonly ColumnCut[
 }
 
 export function retainColumnCuts(owner: OwnerKey, path: string, generation: string, cuts: readonly ColumnCut[]): void {
-  const files = ledgerFor(owner, path)
+  const files = ledgerFor(owner)
   const entry = files.get(path)
   files.set(path, { generation, ranges: withoutCutLines(entry?.generation === generation ? entry.ranges : [], cuts), cuts: [...cuts] })
 }
@@ -428,7 +428,7 @@ export function shiftSeenLinesAfterApply(
   spans: readonly HunkSpan[],
   replacementLineCount: (span: HunkSpan) => number,
 ): void {
-  const files = ledgerFor(owner, path)
+  const files = ledgerFor(owner)
   const entry = files.get(path)
   const oldRanges = entry?.ranges ?? []
   const events = [...spans].sort((a, b) => a.start - b.start)
@@ -504,7 +504,7 @@ export function moveSeenLines(owner: OwnerKey, fromPath: string, toPath: string,
     written.delete(fromPath)
     written.set(toPath, { generation: newGeneration, ranges: writtenEntry.ranges })
   }
-  const files = ledgerFor(owner, fromPath)
+  const files = ledgerFor(owner)
   const entry = files.get(fromPath)
   if (!entry) return
   files.delete(fromPath)
