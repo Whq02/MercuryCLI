@@ -187,23 +187,6 @@ function toStoredPastes(
   return stored
 }
 
-export function queuedCommandHistoryEntry(command: {
-  value: unknown
-  preExpansionValue?: string
-  mode: string
-  pastedContents?: Record<number, PastedContent>
-  isMeta?: boolean
-  origin?: unknown
-  bridgeOrigin?: boolean
-  skipSlashCommands?: boolean
-}): HistoryEntry | null {
-  if (command.isMeta || command.origin !== undefined || command.bridgeOrigin || command.skipSlashCommands) return null
-  if (command.mode !== 'prompt' && command.mode !== 'bash') return null
-  const typed = command.preExpansionValue ?? (typeof command.value === 'string' ? command.value : null)
-  if (typed === null || typed.trim() === '') return null
-  return { display: `${command.mode === 'bash' ? '!' : ''}${typed}`, pastedContents: command.pastedContents ?? {} }
-}
-
 export function addToHistory(command: HistoryEntry | string): void {
   if (historyDisabled()) return
   const display = typeof command === 'string' ? command : command.display
@@ -230,18 +213,6 @@ export function addToHistory(command: HistoryEntry | string): void {
     })
   }
   void flushWithRetries()
-}
-
-export function removeLastFromHistory(): void {
-  const target = lastAppended
-  lastAppended = null
-  if (!target) return
-  const index = pendingEntries.indexOf(target)
-  if (index !== -1) {
-    pendingEntries.splice(index, 1)
-    return
-  }
-  retractedRecords.add(recordKey(target))
 }
 
 function recordKey(record: HistoryRecord): string {
