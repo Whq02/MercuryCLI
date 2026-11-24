@@ -18,6 +18,31 @@ export const BLENDER_PYTHON_RUN_NO_SANDBOX_SENTENCE =
 export const BLENDER_PYTHON_RUN_NO_PREEMPTION_SENTENCE =
   'python_run has NO preemption: bpy cannot abort a running script — a runaway script blocks Blender until it finishes (the client times out; the server cannot cancel).'
 
+
+export const BLENDER_BRIDGE_SERVER_ERROR_CODES = [
+  'AUTH_FAILED',
+  'VERSION_SKEW',
+  'UNKNOWN_OP',
+  'BAD_ARGS',
+  'RENDER_ACTIVE',
+  'BLEND_NOT_FOUND',
+  'BLEND_DIRTY',
+  'PYTHON_EXCEPTION',
+  'INTERNAL',
+] as const
+
+export const BLENDER_BRIDGE_CLIENT_ERROR_CODES = [
+  'AUTH_FAILED',
+  'HANDSHAKE_CLOSED',
+  'CONNECTION_LOST',
+  'EDITOR_UNREACHABLE',
+  'REQUEST_TIMEOUT',
+  'REQUEST_ABORTED',
+  'CLIENT_CLOSED',
+  'BAD_FRAME',
+  'BRIDGE_VERSION_SKEW',
+] as const
+
 export interface BlenderBridgeError {
   code: string
   message: string
@@ -135,6 +160,10 @@ export interface BlenderReportEntry {
   source: string
   at: number
 }
+
+
+export const BLENDER_BRIDGE_EVENTS = ['render_finished', 'blend_changed'] as const
+
 
 export function buildBlenderBridgeHelloFrame(token: string): string {
   return (

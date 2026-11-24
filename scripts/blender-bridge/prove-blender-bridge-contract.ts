@@ -10,7 +10,10 @@ import {
   BLENDER_BRIDGE_PYTHON_OUTPUT_CAP_BYTES,
   BLENDER_PYTHON_RUN_NO_SANDBOX_SENTENCE,
   BLENDER_PYTHON_RUN_NO_PREEMPTION_SENTENCE,
+  BLENDER_BRIDGE_SERVER_ERROR_CODES,
+  BLENDER_BRIDGE_CLIENT_ERROR_CODES,
   BLENDER_BRIDGE_VERBS,
+  BLENDER_BRIDGE_EVENTS,
   blenderBridgeVerb,
   blenderBridgeVerbNames,
   buildBlenderBridgeHelloFrame,
@@ -87,6 +90,44 @@ section('2. the verb table — totality + class census')
   check('lookup answers the table row', blenderBridgeVerb('python_run')?.cls === 'exec')
 }
 
+section('3. error-code unions — the contract’s named arms')
+{
+  const server = BLENDER_BRIDGE_SERVER_ERROR_CODES as readonly string[]
+  const client = BLENDER_BRIDGE_CLIENT_ERROR_CODES as readonly string[]
+  for (const code of [
+    'AUTH_FAILED',
+    'VERSION_SKEW',
+    'UNKNOWN_OP',
+    'BAD_ARGS',
+    'RENDER_ACTIVE',
+    'BLEND_NOT_FOUND',
+    'BLEND_DIRTY',
+    'PYTHON_EXCEPTION',
+    'INTERNAL',
+  ]) {
+    check(`server union carries ${code}`, server.includes(code))
+  }
+  for (const code of [
+    'AUTH_FAILED',
+    'HANDSHAKE_CLOSED',
+    'CONNECTION_LOST',
+    'EDITOR_UNREACHABLE',
+    'REQUEST_TIMEOUT',
+    'REQUEST_ABORTED',
+    'CLIENT_CLOSED',
+    'BAD_FRAME',
+    'BRIDGE_VERSION_SKEW',
+  ]) {
+    check(`client union carries ${code}`, client.includes(code))
+  }
+  check('no duplicate server codes', new Set(server).size === server.length)
+  check('no duplicate client codes', new Set(client).size === client.length)
+  check(
+    'no Unity-only codes leaked in (the no-reload law: no PLAY_MODE_ACTIVE, no RUN_IN_FLIGHT)',
+    !server.includes('PLAY_MODE_ACTIVE') && !server.includes('RUN_IN_FLIGHT'),
+  )
+}
+
 section('4. the python_run danger sentences — contract, pinned')
 {
   check(
@@ -110,6 +151,13 @@ section('4. the python_run danger sentences — contract, pinned')
       BLENDER_BRIDGE_VERBS.python_run.args.source.includes(String(BLENDER_BRIDGE_PYTHON_OUTPUT_CAP_BYTES)),
   )
 }
+
+section('5. events — the bounded census')
+check(
+  'exactly render_finished + blend_changed',
+  JSON.stringify([...BLENDER_BRIDGE_EVENTS].sort()) ===
+    JSON.stringify(['blend_changed', 'render_finished']),
+)
 
 section('6. frame builders — wire-legal NDJSON')
 {
