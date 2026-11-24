@@ -506,16 +506,6 @@ export function speakAgentMessageFrame(taskId: string, notice: string): void {
   enqueueRow(taskRow({ session_id: getSessionId() }, { state: 'progress', taskId, outputFile: getTaskOutputPath(taskId), summary: summary === undefined || summary === '' ? 'a message' : summary }))
 }
 
-export function crewStillRunning(tasks: Record<string, unknown> | undefined): number {
-  let n = 0
-  for (const task of Object.values(tasks ?? {})) {
-    const t = task as { type?: string; status?: string; agentType?: string }
-    if (t.status !== 'running') continue
-    if (t.type === 'local_agent' && t.agentType !== MAIN_SESSION_AGENT_TYPE) n++
-  }
-  return n
-}
-
 
 const backgroundSignalResolvers = new Map<string, () => void>()
 

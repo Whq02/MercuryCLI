@@ -12,7 +12,6 @@ const {
   CREWMATE_RESUME_NOTE,
   CREWMATE_STOP_BY_OPERATOR,
   crewmateStopReasonOf,
-  crewStillRunning,
   registerCrewmateForeground,
   registerAsyncCrewmate,
 } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
@@ -77,12 +76,6 @@ section('§K1a the controller law — an agent task owns a fresh controller')
   check('a registered background agent\'s controller is fresh — a turn\'s abort never reaches it', task.abortController !== undefined && !task.abortController.signal.aborted)
   const fg = registerCrewmateForeground({ agentId: 'ag-fg', description: 'fg', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never })
   check('the foreground registration hands back the task\'s own controller for the run to own', fg.abortController instanceof AbortController && !fg.abortController.signal.aborted)
-  check('the crew census counts running agents, never the session\'s own row', crewStillRunning({
-    a: { type: 'local_agent', status: 'running', agentType: 'mercury-crew' },
-    c: { type: 'local_agent', status: 'completed', agentType: 'mercury-crew' },
-    d: { type: 'local_agent', status: 'running', agentType: 'main-session' },
-    e: { type: 'local_bash', status: 'running' },
-  }) === 1)
   check('the interrupted turn\'s receipt names the count and the crew view', crewStillRunningLine(2) === '2 crewmates still running — open the crew view (/crewmates) and press x twice on its row to stop one' && crewStillRunningLine(1)?.startsWith('1 crewmate still') === true && crewStillRunningLine(0) === null)
 }
 
