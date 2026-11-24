@@ -3463,8 +3463,8 @@ src/platform/shell/bash/shellSnapshot.ts	POSIX_SHELL_BASENAMES	process	module	Lo
 src/platform/shell/bash/shellSnapshot.ts	agentsOfTheSession	process	module	set of process-spawned ssh-agent PIDs registered for onExit cleanup
 src/platform/shell/bash/shellSnapshot.ts	carriedFromBash	process	module	process login-shell env exports cache keyed by bash path
 src/platform/shell/bash/shellSnapshot.ts	carriedFromZsh	process	module	one-time process login-shell env exports read from user zsh
-src/platform/shell/bash/shellSnapshot.ts	exportsReadByZsh	process	module	memoized one-time zsh login export probe keyed by (session, zsh)
 src/platform/shell/bash/shellSnapshot.ts	loginRunsThatFailed	process	module	process set of shell paths whose login snapshot failed
+src/platform/shell/bash/shellSnapshot.ts	zshLoginFilesRead	process	module	memoized one-time read of the user zsh login files (exports and aliases) keyed by (session, zsh)
 src/platform/shell/bash/specs/alias.ts	alias	process	module	Load-time table with no local writer
 src/platform/shell/bash/specs/index.ts	localSpecs	process	module	Load-time list with no local writer
 src/platform/shell/bash/specs/nohup.ts	spec	process	module	Load-time table with no local writer
@@ -3703,7 +3703,7 @@ src/screen/app-state/ephemeralProgressStore.ts	frames	process	module	single-term
 src/screen/app-state/ephemeralProgressStore.ts	subscribers	process	module	single-terminal UI ephemeral tool-progress listeners keyed by parentToolUseID
 src/screen/app-state/ephemeralProgressStore.ts	versions	process	module	single-terminal UI ephemeral tool-progress version counters keyed by parentToolUseID
 src/screen/app-state/mailbox.tsx	MailboxContext	process	module	Load-time definition shared by all callers
-src/screen/app-state/onChangeAppState.ts	mcpClientsListeners	process	module	single-terminal AppState MCP clients change subscriber registry
+src/screen/app-state/onChangeAppState.ts	mcpClientsChange	process	module	single-terminal AppState MCP clients change subscriber registry
 src/screen/app-state/selectors.ts	NON_VIEWABLE_TASK_TYPES	process	module	Load-time list with no local writer
 src/screen/app-state/selectors.ts	VIEWABLE_TASK_TYPES	process	module	Load-time list with no local writer
 src/screen/app-state/vitalsBus.ts	coalescer	process	module	single-terminal vitals serial refresh coalescer
@@ -3722,7 +3722,6 @@ src/screen/app-state/vitalsBus.ts	unsubTasks	process	module	single-terminal vita
 src/screen/app-state/vitalsBus.ts	unsubTrace	process	module	Trace file subscription released when the process vitals monitor stops
 src/screen/app-state/vitalsBus.ts	unsubTranscript	process	module	single-terminal vitals focused-records unsubscribe handle
 src/screen/app-state/vitalsBus.ts	unsubWorkers	process	module	Worker subscription released when the process vitals monitor stops
-src/screen/attention/actions.ts	RECEIPT_KINDS	process	module	Load-time list with no local writer
 src/screen/attention/agentNeedsYou.ts	clearAgentStateVerdict	reset-export
 src/screen/attention/agentNeedsYou.ts	verdictBySession	owner	module	session-level latest agent-state verdict keyed by sessionId in module Map
 src/screen/attention/contracts.ts	ATTENTION_BUCKETS	process	module	Load-time list with no local writer
@@ -3763,7 +3762,7 @@ src/screen/chat/CrewmateTranscript.tsx	NO_IDS	process	module	Load-time lookup wi
 src/screen/chat/CrewmateTranscript.tsx	NO_STREAMING	process	module	Load-time list with no local writer
 src/screen/chat/MercuryTurnRollup.tsx	MercuryTurnRollup	process	module	Load-time definition shared by all callers
 src/screen/chat/SwitchboardTagBar.tsx	lastRowFit	process	module	single-TUI last measured status-row column fit geometry
-src/screen/chat/SwitchboardTagBar.tsx	receiptListeners	process	module	single-TUI subscriber set for status-row receipts (removed on unmount)
+src/screen/chat/SwitchboardTagBar.tsx	receiptChange	process	module	single-TUI subscriber set for status-row receipts (removed on unmount)
 src/screen/chat/SwitchboardTagBar.tsx	receiptText	process	module	single-TUI transient status-row receipt text (cleared by 8s timer)
 src/screen/chat/SwitchboardTagBar.tsx	receiptTimer	process	module	single-TUI 8s timer handle clearing receiptText
 src/screen/chat/SwitchboardTagBar.tsx	rowsPainting	process	module	single-TUI mount refcount of FocusedSessionStatusRow
@@ -3970,8 +3969,6 @@ src/screen/composer/input-core/command-queue.ts	takenUuids	owner	module	session;
 src/screen/composer/input-core/command-queue.ts	triedFold	process	module	module definition evaluated once
 src/screen/composer/input-core/command-queue.ts	wordsWaitForTurnEnd	owner	module	session; session flag holding queued operator words until turn end; missing session end
 src/screen/composer/input-core/composer-document.ts	SHELF_ITEM_KINDS	process	module	Load-time list with no local writer
-src/screen/composer/input-core/interruptArity.ts	armedAt	process	module	single-TUI double-Esc gesture timestamp map keyed by UI scope (deleted on fire/unmount)
-src/screen/composer/input-core/interruptArity.ts	declarations	process	module	single-TUI interrupt-key arity registry keyed by UI scope (deleted on unmount)
 src/screen/composer/input-core/pending-input.ts	activeChanged	process	module	single-TUI signal notifying active-typing indicator subscribers
 src/screen/composer/input-core/pending-input.ts	changed	process	module	single-TUI signal notifying pending-input draft subscribers
 src/screen/composer/input-core/pending-input.ts	clearForSubmit	reset-export
@@ -4592,7 +4589,6 @@ src/screen/routes/surfaceRoute.ts	unsubscribeChatPresence	process	module	unsubsc
 src/screen/routes/surfaceRoute.ts	version	process	module	single-terminal surface route subscription version counter
 src/screen/scroll-keys/ScrollKeybindingHandler.tsx	WHEEL_OWNING_OVERLAYS	process	module	Load-time lookup with no local writer
 src/screen/select/popup-list.tsx	PopupPageOwners	process	module	Load-time definition shared by all callers
-src/screen/session-chooser/sessionFilter.ts	PLACEHOLDER_PROMPTS	process	module	Load-time lookup with no local writer
 src/screen/settings/Advisor.tsx	ADVISOR_ROW_IDS	process	module	Load-time list with no local writer
 src/screen/settings/Jev.tsx	JEV_ALLOWANCE_RUNGS	process	module	Load-time list with no local writer
 src/screen/settings/Jev.tsx	JEV_CEILING_RUNGS	process	module	Load-time list with no local writer
@@ -4661,7 +4657,7 @@ src/screen/suggestions/shellHistoryCompletion.ts	corpusCache	process	module	60s 
 src/screen/suggestions/skillUsage.ts	lastRecordedAt	process	module	60s per-skill write-debounce timestamps protecting global config writes
 src/screen/tasks/CompactWorkSummary.tsx	subscribeFocusedSeat	process	module	Load-time definition shared by all callers
 src/screen/tasks/crewmateQueue.ts	byCrewmate	owner	module	agent; queued operator messages keyed by crewmate taskId; missing end (keys never deleted on exit)
-src/screen/tasks/crewmateQueue.ts	listeners	process	module	single-TUI subscriber set for crewmateQueue (removed on unmount)
+src/screen/tasks/crewmateQueue.ts	changed	process	module	single-TUI subscriber set for crewmateQueue (removed on unmount)
 src/screen/tasks/crewmateQueue.ts	resetCrewmateQueueForTest	reset-export
 src/screen/tasks/crewmateQueue.ts	version	process	module	single-TUI external-store revision counter for crewmateQueue
 src/screen/tasks/useCrewLedger.ts	EMPTY_LEDGER	process	module	Load-time table with no local writer
@@ -4923,6 +4919,7 @@ src/sessions/transcripts/clearedSessions.ts	resetClearedSessionsMemo	reset-expor
 src/sessions/transcripts/fileWatch.ts	storageFileWatchers	process	module	Shared watchers indexed by storage path and released when the last subscriber leaves
 src/sessions/transcripts/fold.ts	foldRow	process	module	load-time data; no local writer
 src/sessions/transcripts/ids.ts	AGENT_ID_RE	process	module	Load-time lookup with no local writer
+src/sessions/transcripts/listedSessions.ts	PLACEHOLDER_PROMPTS	process	module	Load-time lookup with no local writer
 src/sessions/transcripts/retentionSweep.ts	blobScanCensus	test	module	test-only streaming blob scan read counters inspected solely by scripts/settings/prove-blob-scan-stream.ts
 src/sessions/transcripts/rowGraph.ts	indexedRows	process	module	WeakMap index attached to transcript message Map instances
 src/sessions/transcripts/sessionListings.ts	clearSessionMessagesCache	reset-export
