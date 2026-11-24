@@ -192,7 +192,6 @@ const launch = async (agentId: string, prompt: string): Promise<void> => {
     toolUseContext: ctx,
     rootSetAppState: setState as never,
     agentIdForCleanup: agentId,
-    enableSummarization: false,
     getWorktreeResult: async () => ({}),
     canUseTool: allow,
   })

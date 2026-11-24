@@ -68,7 +68,6 @@ import {
 import { createUserMessage } from '../../engine/messages/messages.js'
 import { asSystemPrompt } from '../../engine/system-prompt/systemPromptType.js'
 import { getEmptyToolPermissionContext } from '../kit/tool.js'
-import type { CacheSafeParams } from '../../crew/agents/forkedAgent.js'
 import { EDIT_TOOL_NAME } from '../kit/names/fileEdit.js'
 import { WRITE_TOOL_NAME } from '../kit/names/fileWrite.js'
 import { NOTEBOOK_EDIT_TOOL_NAME } from '../notebook-edit/constants.js'
@@ -1097,10 +1096,7 @@ export function crewmateNoticeOwed(): boolean {
 export async function runAsyncCrewmateLifecycle(args: {
   taskId: string
   abortController: AbortController
-  makeStream: (
-    onCacheSafeParams?: (params: CacheSafeParams) => void,
-    onQueryProgress?: (event: unknown) => void,
-  ) => AsyncGenerator<Message, void>
+  makeStream: (onQueryProgress?: (event: unknown) => void) => AsyncGenerator<Message, void>
   metadata: {
     prompt: string
     resolvedAgentModel: string
@@ -1114,7 +1110,6 @@ export async function runAsyncCrewmateLifecycle(args: {
   toolUseContext: ToolUseContext
   rootSetAppState: SetAppState
   agentIdForCleanup: string
-  enableSummarization: boolean
   automaticResume?: boolean
   replyTarget?: 'parent' | 'operator'
   getWorktreeResult: () => Promise<{
@@ -1123,32 +1118,12 @@ export async function runAsyncCrewmateLifecycle(args: {
   }>
   canUseTool?: CanUseToolFn
 }): Promise<void> {
-  const { taskId, makeStream, metadata, description, toolUseContext, rootSetAppState, agentIdForCleanup, enableSummarization } = args
+  const { taskId, makeStream, metadata, description, toolUseContext, rootSetAppState, agentIdForCleanup } = args
   const tracker = createProgressTracker()
   const resolveActivity = createActivityDescriptionResolver(toolUseContext.options.tools)
   const readState = taskStateReader(toolUseContext, rootSetAppState)
   const accumulated: Message[] = []
   const owedKey = {}
-  let stopSummarization: (() => void) | undefined
-  let summaryStopped = false
-  const stopSummary = (): void => {
-    summaryStopped = true
-    stopSummarization?.()
-    stopSummarization = undefined
-  }
-  const onCacheSafeParams = enableSummarization
-    ? (params: CacheSafeParams) => {
-        void import('../../crew/agent-summary/crewmateSummary.js')
-          .then(({ startCrewmateSummarization }) => {
-            const handle = startCrewmateSummarization(taskId, agentIdForCleanup, params, rootSetAppState)
-            if (summaryStopped) handle.stop()
-            else stopSummarization = handle.stop
-          })
-          .catch((error: unknown) => {
-            logForDebugging(`agent lifecycle: summarization start failed: ${errorMessage(error)}`)
-          })
-      }
-    : undefined
   const onQueryProgress = (event: unknown): void => {
     publishCrewmateWaitFromEvent(taskId, tracker, event, rootSetAppState)
   }
@@ -1158,7 +1133,7 @@ export async function runAsyncCrewmateLifecycle(args: {
   let result: CrewmateToolResult | undefined
   try {
     try {
-      for await (const message of makeStream(onCacheSafeParams, onQueryProgress)) {
+      for await (const message of makeStream(onQueryProgress)) {
         accumulated.push(message)
         emitBackgroundCrewmateRows(toolUseContext.toolUseId, message)
         const currentTask = readState().tasks?.[taskId]
@@ -1172,12 +1147,10 @@ export async function runAsyncCrewmateLifecycle(args: {
           emitTaskProgress(tracker, taskId, toolUseContext.toolUseId, description, metadata.startTime, lastToolName)
         }
       }
-      stopSummary()
       result = finalizeCrewmateTool(accumulated, taskId, metadata)
     } catch (error) {
       streamError = error
       hasStreamError = true
-      stopSummary()
     }
 
     if (hasStreamError) {
@@ -1191,7 +1164,6 @@ export async function runAsyncCrewmateLifecycle(args: {
     }
   } finally {
     noticesOwed.delete(owedKey)
-    stopSummary()
     try {
       clearInvokedSkillsForAgent(agentIdForCleanup)
     } catch (error) {

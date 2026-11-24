@@ -44,7 +44,7 @@ import { recordedRequestContexts, restoreBoundPrefixFromMessages } from '../../m
 import { pendingToolRosterRestore } from '../../models/roads/toolEconomy.js'
 import { createSyntheticOutputTool } from '../structured-output/SyntheticOutputTool.js'
 import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../kit/names/syntheticOutput.js'
-import { getCwdState, getSdkCrewmateProgressSummariesEnabled } from '../../boot/process-state/processState.js'
+import { getCwdState } from '../../boot/process-state/processState.js'
 import { automaticResumePending, cancelAutomaticResume, resolveCrewmateTools, runAsyncCrewmateLifecycle } from './crewmateLifecycle.js'
 import { operatorPauseGate } from '../../engine/loop/pauseGate.js'
 import { MERCURY_CREW_AGENT_TYPE } from '../kit/names/agent.js'
@@ -500,14 +500,13 @@ function startResumedLifecycle(input: {
     invokingRequestId,
     invocationEmitted: false,
   }
-  const enableSummarization = getSdkCrewmateProgressSummariesEnabled()
   const startTime = Date.now()
   void runWithCrewmateContext(agentContext, () =>
     runWithCwdOverride(targetCwd, () =>
       runAsyncCrewmateLifecycle({
         taskId: agentId,
         abortController,
-        makeStream: (onCacheSafeParams, onQueryProgress) =>
+        makeStream: onQueryProgress =>
           runCrewmate({
             agentDefinition: selectedAgent,
             promptMessages,
@@ -542,7 +541,6 @@ function startResumedLifecycle(input: {
             ...(meta?.name !== undefined ? { name: meta.name } : {}),
             ...(meta?.launchedAt !== undefined ? { launchedAt: meta.launchedAt } : {}),
             onWait: line => setCrewmateWaitLine(agentId, line, rootSetAppState),
-            onCacheSafeParams,
             ...(onQueryProgress !== undefined ? { onQueryProgress } : {}),
           }),
         metadata: {
@@ -565,7 +563,6 @@ function startResumedLifecycle(input: {
         toolUseContext,
         rootSetAppState,
         agentIdForCleanup: agentId,
-        enableSummarization,
         ...(automatic ? { automaticResume: true } : {}),
         replyTarget,
         getWorktreeResult: async () => (worktreePath !== undefined ? { worktreePath } : {}),

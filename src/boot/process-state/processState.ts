@@ -365,10 +365,6 @@ export function setClientType(clientType: string): void {
   posture.clientType = clientType
 }
 
-export function getSdkCrewmateProgressSummariesEnabled(): boolean {
-  return posture.sdkAgentProgressSummariesEnabled
-}
-
 export function isAssistantFamilyAvailable(): boolean {
   return posture.isAssistantFamilyAvailable()
 }

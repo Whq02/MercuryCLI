@@ -1,8 +1,4 @@
-import {
-  clearInvokedSkillsForAgent,
-  getSdkCrewmateProgressSummariesEnabled,
-} from '../../boot/process-state/processState.js'
-import { startCrewmateSummarization } from '../../crew/agent-summary/crewmateSummary.js'
+import { clearInvokedSkillsForAgent } from '../../boot/process-state/processState.js'
 import {
   CREWMATE_WINDOW_RESUME_NOTE,
   crewmateStopReasonOf,
@@ -43,7 +39,6 @@ import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { mirrorSwarmNotice, watchSwarmLaunch } from '../../crew/board/seam.js'
 import { AbortError, errorMessage } from '../../platform/errors/errors.js'
 import { flushSessionStorage } from '../../sessions/transcripts/sessionStorage.js'
-import type { CacheSafeParams } from '../../crew/agents/forkedAgent.js'
 import { pauseLineWords, type CrewmatePauseV1 } from '../../engine/tasks/local-agent/agentPause.js'
 import {
   extractTextContent,
@@ -225,13 +220,6 @@ export async function runForegroundCrewmateExecution(
     })
   }
 
-  let summarization: { stop(): void } | undefined
-  const stopForegroundSummarization = (): void => {
-    summarization?.stop()
-    summarization = undefined
-  }
-  const enableSummarization = getSdkCrewmateProgressSummariesEnabled()
-
   const agentIterator = runCrewmate({
     ...runAgentParams,
     override: {
@@ -243,20 +231,6 @@ export async function runForegroundCrewmateExecution(
       ? {
           onQueryProgress: event =>
             publishCrewmateWaitFromEvent(foregroundTask.taskId, tracker, event, rootSetAppState),
-        }
-      : {}),
-    ...(foregroundTask !== undefined && enableSummarization
-      ? {
-          onCacheSafeParams: (cacheSafeParams: CacheSafeParams) => {
-            if (summarization === undefined) {
-              summarization = startCrewmateSummarization(
-                foregroundTask.taskId,
-                syncAgentId,
-                cacheSafeParams,
-                rootSetAppState,
-              )
-            }
-          },
         }
       : {}),
   })
@@ -321,7 +295,6 @@ export async function runForegroundCrewmateExecution(
                   foregroundTask,
                   agentStartTime,
                   cleanupWorktreeIfNeeded,
-                  stopForegroundSummarization,
                   syncAgentId,
                 },
                 nextPromise,
@@ -401,9 +374,6 @@ export async function runForegroundCrewmateExecution(
   } finally {
     toolUseContext.setToolJSX?.(null)
     removeTurnAbortListener?.()
-    if (!backgrounded) {
-      stopForegroundSummarization()
-    }
     if (foregroundTask !== undefined) {
       if (backgrounded) {
         unregisterCrewmateForeground(foregroundTask.taskId, rootSetAppState)
@@ -561,7 +531,6 @@ async function runDetachedContinuation(
     foregroundTask,
     agentStartTime,
     cleanupWorktreeIfNeeded,
-    stopForegroundSummarization,
     syncAgentId,
   } = needs
   const taskId = foregroundTask?.taskId ?? String(syncAgentId)
@@ -815,7 +784,6 @@ async function runDetachedContinuation(
       })
     }
   } finally {
-    stopForegroundSummarization()
     try {
       clearInvokedSkillsForAgent(syncAgentId)
     } catch (error) {
@@ -900,7 +868,7 @@ type ForegroundTaskHandle = { taskId: string; abortController: AbortController; 
 type DetachedNeeds = {
   agentMessages: Message[]; toolUseContext: ToolUseContext; tracker: ReturnType<typeof createProgressTracker>; resolveActivity: ReturnType<typeof createActivityDescriptionResolver>
   rootSetAppState: SetAppState; description: string; metadata: ForegroundCrewmateMetadata; agentIterator: ReturnType<typeof runCrewmate>; backgrounded: boolean
-  foregroundTask: ForegroundTaskHandle | undefined; agentStartTime: number; cleanupWorktreeIfNeeded: () => Promise<WorktreeFields>; stopForegroundSummarization: () => void; syncAgentId: AgentId
+  foregroundTask: ForegroundTaskHandle | undefined; agentStartTime: number; cleanupWorktreeIfNeeded: () => Promise<WorktreeFields>; syncAgentId: AgentId
 }
 
 type SeatSettledNeeds = {

@@ -85,7 +85,7 @@ async function pauseOnOverload(store: ReturnType<typeof makeStore>, taskId: stri
     yield createAssistantMessage({ content: 'Working on the launcher.' })
     yield overloaded()
   }
-  await runAsyncCrewmateLifecycle({ taskId, abortController: task.abortController!, makeStream: stream, metadata: { prompt: 'work', resolvedAgentModel: MODEL, isBuiltInAgent: false, startTime: Date.now(), agentType: 'mercury-crew', isAsync: true }, description, toolUseContext: contextOf(store, toolUseId), rootSetAppState: store.set, agentIdForCleanup: taskId, enableSummarization: false, getWorktreeResult: async () => ({}) } as never)
+  await runAsyncCrewmateLifecycle({ taskId, abortController: task.abortController!, makeStream: stream, metadata: { prompt: 'work', resolvedAgentModel: MODEL, isBuiltInAgent: false, startTime: Date.now(), agentType: 'mercury-crew', isAsync: true }, description, toolUseContext: contextOf(store, toolUseId), rootSetAppState: store.set, agentIdForCleanup: taskId, getWorktreeResult: async () => ({}) } as never)
 }
 
 console.log('── §A a crewmate whose turn ends on an overloaded provider pauses, and the pause is recorded beside its transcript ──')

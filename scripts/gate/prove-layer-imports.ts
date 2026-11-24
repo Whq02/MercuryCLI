@@ -582,7 +582,6 @@ const LAYERS: Rule = {
     'src/commands/workbench/',
     'src/commands/zen/',
     'src/crew/agent-results/',
-    'src/crew/agent-summary/',
     'src/crew/agents/codec.ts',
     'src/crew/agents/contracts.ts',
     'src/crew/agents/forkedAgent.ts',

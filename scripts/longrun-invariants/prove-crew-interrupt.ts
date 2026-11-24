@@ -189,7 +189,6 @@ async function lifecycleWith(name: string, drive: (controller: AbortController) 
     toolUseContext: { options: { tools: [] }, toolUseId: 'toolu_crew' } as never,
     rootSetAppState: store.set as never,
     agentIdForCleanup: taskId,
-    enableSummarization: false,
     getWorktreeResult: async () => ({}),
   })
   return {

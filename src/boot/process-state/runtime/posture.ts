@@ -16,7 +16,6 @@ export class PostureOwner {
   sessionKind: SessionKind = 'headless'
   assistantSessionActive = false
   strictToolResultPairing = false
-  sdkAgentProgressSummariesEnabled = false
   clientType = 'cli'
   questionPreviewFormat: 'markdown' | 'html' | undefined = undefined
   isRemoteMode = false

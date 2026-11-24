@@ -6,7 +6,6 @@ const ROOT = join(import.meta.dir, '..', '..')
 const SELF = 'scripts/gate/prove-outside-the-import-cycle.ts'
 
 const OUTSIDE = [
-  'src/crew/agent-summary/crewmateSummary.ts',
   'src/crew/agents/operatorStop.ts',
   'src/crew/crewmates/agentLaunchPlan.ts',
   'src/daemon/saturn/saturn.ts',

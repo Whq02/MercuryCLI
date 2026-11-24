@@ -248,7 +248,6 @@ async function lifecycleCase(
     toolUseContext: { options: { tools: [] }, toolUseId: 'toolu_life' } as never,
     rootSetAppState: store.set as never,
     agentIdForCleanup: taskId,
-    enableSummarization: false,
     getWorktreeResult: async () => ({}),
   })
   const task = store.state.tasks[taskId] as { status: string; error?: string } | undefined

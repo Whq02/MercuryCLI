@@ -37,7 +37,6 @@ import {
   initTaskOutputAsSymlink,
 } from '../../task-framework/diskOutput.js'
 import { PANEL_GRACE_MS, registerTask, updateTaskState } from '../../task-framework/taskRegistry.js'
-import { emitTaskProgress } from '../../task-framework/sdkProgress.js'
 import { operatorPauseGate } from '../../loop/pauseGate.js'
 import { emitTaskEnded, enqueueRow, type TaskUsage } from '../../../daemon/runner/sdkEventQueue.js'
 import { AGENT_MESSAGE_STATUS, MAIN_AGENT_MESSAGE_SUMMARY } from './agentMessage.js'
@@ -302,7 +301,6 @@ export type CrewmateTaskState = TaskStateBase & {
   error?: string
   result?: { agentId: string; [key: string]: unknown }
   progress?: CrewmateProgress
-  summary?: string
   wait?: string
   pendingAsks?: number
   retrieved?: boolean
@@ -908,32 +906,6 @@ export function publishCrewmateProgressSoon(
   }, USAGE_SETTLE_GRACE_MS)
   timer.unref?.()
   deferredPublishes.set(taskId, timer)
-}
-
-export function updateCrewmateSummary(
-  taskId: string,
-  summary: string,
-  setAppState: SetAppState,
-  options?: { emitSdkProgressEvent?: boolean },
-): void {
-  let snapshot: CrewmateTaskState | undefined
-  updateTaskState<CrewmateTaskState>(taskId, setAppState, task => {
-    if (task.status !== 'running') return task
-    const updated: CrewmateTaskState = { ...task, summary }
-    snapshot = updated
-    return updated
-  })
-  if (snapshot && options?.emitSdkProgressEvent) {
-    emitTaskProgress({
-      taskId,
-      toolUseId: snapshot.toolUseId,
-      description: summary,
-      startTime: snapshot.startTime,
-      totalTokens: snapshot.progress?.tokenCount ?? 0,
-      toolUses: snapshot.progress?.toolUseCount ?? 0,
-      summary,
-    })
-  }
 }
 
 export function setCrewmateWaitLine(taskId: string, line: string | null, setAppState: SetAppState): void {

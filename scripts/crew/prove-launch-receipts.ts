@@ -552,7 +552,6 @@ async function deathOf(name: string, writes: string[]): Promise<{ record: { stat
     toolUseContext: { options: { tools: [] }, toolUseId: `toolu_${name}` } as never,
     rootSetAppState: store.set as never,
     agentIdForCleanup: id,
-    enableSummarization: false,
     getWorktreeResult: async () => ({}),
   })
   return {
@@ -607,7 +606,6 @@ section('R11 · the hand-back — every exit that is not a clean finish carries 
       toolUseContext: { options: { tools: [] }, toolUseId: `toolu_${exit.name}` } as never,
       rootSetAppState: store.set as never,
       agentIdForCleanup: id,
-      enableSummarization: false,
       getWorktreeResult: async () => ({}),
     })
     const row = store.get().tasks[id] as { status?: string; error?: string } | undefined
@@ -753,7 +751,7 @@ section('R13 · a seat cut by the recovery budget resumes ONCE by itself, with a
           }
           throw budgetCut()
         }
-        await runAsyncCrewmateLifecycle({ taskId: id, abortController: task.abortController!, makeStream: () => stream() as never, metadata: META, description: kind, toolUseContext: { options: { tools: [] }, toolUseId: `toolu_${kind}` } as never, rootSetAppState: store.set as never, agentIdForCleanup: id, enableSummarization: false, getWorktreeResult: async () => ({}) })
+        await runAsyncCrewmateLifecycle({ taskId: id, abortController: task.abortController!, makeStream: () => stream() as never, metadata: META, description: kind, toolUseContext: { options: { tools: [] }, toolUseId: `toolu_${kind}` } as never, rootSetAppState: store.set as never, agentIdForCleanup: id, getWorktreeResult: async () => ({}) })
         const armed = pending(id)
         const cancelled = cancelAutomaticResume(id)
         check(kind === 'budget-cut' ? 'the lifecycle arms the one automatic resume on a budget cut' : "the lifecycle's stop road arms nothing", kind === 'budget-cut' ? armed && cancelled : !armed && !cancelled)

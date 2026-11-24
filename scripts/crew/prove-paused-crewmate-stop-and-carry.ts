@@ -82,7 +82,7 @@ const resetAt = Date.now() + 30 * MINUTE
     yield createAssistantMessage({ content: 'Working on the launcher.' })
     yield windowRefusal(resetAt)
   }
-  await runAsyncCrewmateLifecycle({ taskId, abortController: task.abortController!, makeStream: stream, metadata: { prompt: 'work', resolvedAgentModel: MODEL, isBuiltInAgent: false, startTime: Date.now(), agentType: 'mercury-crew', isAsync: true }, description: 'GLM core/server gap fixes', toolUseContext: context, rootSetAppState: store.set, agentIdForCleanup: taskId, enableSummarization: false, getWorktreeResult: async () => ({}) })
+  await runAsyncCrewmateLifecycle({ taskId, abortController: task.abortController!, makeStream: stream, metadata: { prompt: 'work', resolvedAgentModel: MODEL, isBuiltInAgent: false, startTime: Date.now(), agentType: 'mercury-crew', isAsync: true }, description: 'GLM core/server gap fixes', toolUseContext: context, rootSetAppState: store.set, agentIdForCleanup: taskId, getWorktreeResult: async () => ({}) })
   const note = notes().at(-1) ?? ''
   check('the parent\'s notification status word is paused, never failed', pick(note, 'status') === 'paused', `${note.slice(0, 400)} — ${life} must queue a task-notification whose status is 'paused' when the stream ends on a provider window refusal`)
   check('the summary names the pause and the retry', (pick(note, 'summary') ?? '').startsWith('Crewmate "GLM core/server gap fixes" paused — ') && note.includes('retries by itself at'), `${pick(note, 'summary')} — the pause notice built in ${life} must start 'Crewmate "<description>" paused — ' and say 'retries by itself at'`)
@@ -122,7 +122,7 @@ console.log('── §C the operator\'s stop door (the crew view) stops a paused
     yield windowRefusal(Date.now() + 10 * MINUTE)
   }
   resetCommandQueue()
-  await runAsyncCrewmateLifecycle({ taskId: id, abortController: task.abortController!, makeStream: stream, metadata: { prompt: 'work', resolvedAgentModel: MODEL, isBuiltInAgent: false, startTime: Date.now(), agentType: 'mercury-crew', isAsync: true }, description: 'surface pass', toolUseContext: { ...(context as object), getAppState: store2.get, setAppState: store2.set, setAppStateForTasks: store2.set } as never, rootSetAppState: store2.set, agentIdForCleanup: id, enableSummarization: false, getWorktreeResult: async () => ({}) })
+  await runAsyncCrewmateLifecycle({ taskId: id, abortController: task.abortController!, makeStream: stream, metadata: { prompt: 'work', resolvedAgentModel: MODEL, isBuiltInAgent: false, startTime: Date.now(), agentType: 'mercury-crew', isAsync: true }, description: 'surface pass', toolUseContext: { ...(context as object), getAppState: store2.get, setAppState: store2.set, setAppStateForTasks: store2.set } as never, rootSetAppState: store2.set, agentIdForCleanup: id, getWorktreeResult: async () => ({}) })
   check('the second crewmate paused with its retry armed', automaticResumePending(id) && (store2.get().tasks[id] as { paused?: unknown } | undefined)?.paused !== undefined, `${life} must pause the second crewmate and arm its retry the same way as the first`)
   const receipt = await stopCrewmateByOperator(id, { getAppState: store2.get, setAppState: store2.set }, { settleMs: 200, sleep: async () => undefined })
   check('the operator\'s stop applies to a paused row', receipt.outcome === 'applied' && receipt.kind === 'agent' && receipt.status === 'killed', `${JSON.stringify(receipt)} — stopAgentByOperator in src/crew/agents/operatorStop.ts must stop a paused row through ${stopAt} and return an applied agent receipt`)

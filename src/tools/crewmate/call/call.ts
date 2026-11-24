@@ -1,4 +1,4 @@
-import { getCwdState, getSdkCrewmateProgressSummariesEnabled } from '../../../boot/process-state/processState.js'
+import { getCwdState } from '../../../boot/process-state/processState.js'
 import { enhanceSystemPromptWithEnvDetails } from '../../../engine/system-prompt/defaultSystemPrompt.js'
 import { crewmateFanoutCap, buildCrewmateMercurySectionsWithOutcome, crewmateMemoryLoadNote } from '../subagentDoctrine.js'
 import type { MercuryCrewmateSeat } from '../../../engine/system-prompt/mercuryContract.js'
@@ -485,13 +485,11 @@ function asyncLifecycleOf({ earlyAgentId, input, rootSetAppState, agentDef, plan
 
   if (input.name) registerCrewmateName(input.name, earlyAgentId, rootSetAppState)
 
-  const enableSummarization = getSdkCrewmateProgressSummariesEnabled()
-
   const lifecycle = () =>
     runAsyncCrewmateLifecycle({
       taskId: earlyAgentId,
       abortController: task.abortController!,
-      makeStream: (onCacheSafeParams, onQueryProgress) =>
+      makeStream: onQueryProgress =>
         runCrewmate({
           ...runAgentParams,
           override: {
@@ -499,7 +497,6 @@ function asyncLifecycleOf({ earlyAgentId, input, rootSetAppState, agentDef, plan
             agentId: earlyAgentId,
             abortController: task.abortController!,
           },
-          onCacheSafeParams,
           ...(onQueryProgress !== undefined ? { onQueryProgress } : {}),
         }),
       metadata,
@@ -507,7 +504,6 @@ function asyncLifecycleOf({ earlyAgentId, input, rootSetAppState, agentDef, plan
       toolUseContext: context,
       rootSetAppState,
       agentIdForCleanup: earlyAgentId,
-      enableSummarization,
       getWorktreeResult: cleanupWorktreeIfNeeded,
       canUseTool,
     })
