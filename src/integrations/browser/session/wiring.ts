@@ -6,7 +6,7 @@ import puppeteerPkg from 'puppeteer-core/package.json' with { type: 'json' }
 import { beginTransfer, moveTransfer } from '../browserTransfers.js'
 import { sleep } from '../../../platform/async/sleep.js'
 import { type ConsoleEntry, CONSOLE_RING_CAP, CONSOLE_ENTRY_CAP, POPUP_NOTES_KEPT, type DownloadNotice, isBrowserErrorPage, type Wiring, type Hold, type AttachedBrowser, type Session, type OwnerBrowserState, type PagePresented } from './shapes.js'
-import { closeChild, closeHoldNetwork, sweepDownloads, sessionHolds, sessionWirings, holdOf, tabClosed } from './owners.js'
+import { closeChild, closeHoldNetwork, sweepDownloads, sessionHolds, sessionWirings, holdOf, originOf, tabClosed } from './owners.js'
 import { pageKits } from './stealth.js'
 import { passedOver, passedOverAs } from '../../../platform/errors/passedOver.js'
 
@@ -225,6 +225,7 @@ export function listenPage(state: OwnerBrowserState, session: Session, wiring: W
   const { page } = session
   const hold = holdOf(session)
   const { nav, popups, navFailure, navWatch, docResponses, capture } = wiring
+  let shown = hold.attached === null ? '' : originOf(page.url())
   const settleNav = (): void => {
     navWatch.pendingUrl = null
     for (const wake of navWatch.waiters.splice(0)) wake()
@@ -248,6 +249,9 @@ export function listenPage(state: OwnerBrowserState, session: Session, wiring: W
       if (/^https?:/i.test(frame.url())) nav.web++
       if (!isBrowserErrorPage(frame.url())) navFailure.last = null
       settleNav()
+      const landed = originOf(frame.url())
+      if (hold.attached !== null && landed !== shown) wiring.consoleRing.splice(0)
+      shown = landed
       capture('nav', `navigated to ${redactUrl(frame.url())}`)
     }
   })
@@ -263,8 +267,12 @@ export function listenPage(state: OwnerBrowserState, session: Session, wiring: W
     const loc = message.location()
     const where = loc.url ? ` @ ${redactUrl(loc.url)}:${loc.lineNumber ?? 0}` : ''
     const args = message.args()
+    const from = shown
+    const said = (text: string): void => {
+      if (hold.attached === null || from === shown) capture(message.type(), text)
+    }
     if (args.length === 0) {
-      capture(message.type(), `${message.text()}${where}`)
+      said(`${message.text()}${where}`)
       return
     }
     void Promise.all(args.map(a => a.jsonValue().catch(passedOverAs(undefined))))
@@ -272,9 +280,9 @@ export function listenPage(state: OwnerBrowserState, session: Session, wiring: W
         const rendered = vals
           .map(v => (v === undefined ? '<unserializable>' : typeof v === 'string' ? v : JSON.stringify(v)))
           .join(' ')
-        capture(message.type(), `${rendered.trim() !== '' ? rendered : message.text()}${where}`)
+        said(`${rendered.trim() !== '' ? rendered : message.text()}${where}`)
       })
-      .catch(() => capture(message.type(), `${message.text()}${where}`))
+      .catch(() => said(`${message.text()}${where}`))
   })
   page.on('pageerror', err => {
     const e = err as Error | undefined

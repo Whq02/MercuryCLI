@@ -157,6 +157,8 @@ try {
     check('approved, the read answers', text.result.includes('signed in as the owner of inbox'), text.result)
     const after = await Promise.all([permission({ op: 'extract', tab: tabA }), permission({ op: 'screenshot', tab: tabA }), permission({ op: 'console', tab: tabA }), permission({ op: 'click', tab: tabA, selector: '#go' })])
     check('the grant holds for that origin: later reads and acts ask nothing', after.every(verdict => verdict.behavior === 'allow'), after.map(verdict => verdict.behavior).join(','))
+    const fill = await permission({ op: 'type', tab: tabA, selector: '#who', secretRef: 'ATTACH_FIXTURE' })
+    check('a registered secret keeps its own pairing ask, in today’s words', fill.behavior === 'ask' && fill.message === `Browser fill secret ATTACH_FIXTURE into ${A.origin} in tab ${tabA} (target #who) — the value never enters the conversation; approve exactly this secret-origin pairing` && JSON.stringify(fill.suggestions ?? []).includes(`secret:ATTACH_FIXTURE@${A.origin}`), JSON.stringify(fill))
     const tree = await run({ op: 'extract', tab: tabE, mode: 'tree' })
     const plain = await run({ op: 'extract', tab: tabE })
     const inner = await permission({ op: 'extract', tab: tabE, frame: 1 })
@@ -185,6 +187,8 @@ try {
     await pageOf(lead, tabA).goto(`${A.origin}/inbox`)
     const stale = await run({ op: 'extract', tab: tabA })
     check('a read whose page moved between the ask and the read is refused', stale.outcome === 'failed' && stale.result.includes(`the page moved from ${C.origin} to ${A.origin}`) && !stale.result.includes('signed in as'), stale.result)
+    const ring = await run({ op: 'console', tab: tabA })
+    check('the console of a granted origin holds nothing the tab logged on another origin', ring.result.includes('inbox loaded') && !ring.result.includes('moved loaded') && !ring.result.includes(C.origin), ring.result)
   }
 
   section('S5 the isolated browser reads and asks exactly as before')
