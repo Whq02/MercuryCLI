@@ -3,7 +3,7 @@ import { basename, dirname, join } from 'node:path'
 
 const PROVENANCE_NOTICE_MARKER_PREFIX = 'provenance-noted-'
 
-function realpathSafe(p: string): string {
+export function realpathSafe(p: string): string {
   try {
     return realpathSync(p)
   } catch {

@@ -7,13 +7,13 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
-  realpathSync,
   rmSync,
   statSync,
   writeFileSync,
 } from 'node:fs'
 import * as path from 'node:path'
 import { getMercuryHome } from '../../platform/environment/envUtils.js'
+import { realpathSafe } from '../../platform/update-channel/provenanceNotice.js'
 import {
   classifyReadFailure,
   sourceEmpty,
@@ -49,14 +49,6 @@ export function reviewArtifactsRoot(): string {
 }
 
 const ID_RE = /^ra-[0-9a-f]{8}$/
-
-function realpathSafe(p: string): string {
-  try {
-    return realpathSync(p)
-  } catch {
-    return p
-  }
-}
 
 function sameRootIdentity(a: string | undefined, b: string): boolean {
   if (!a) return false

@@ -1,9 +1,10 @@
 
-import { existsSync, readFileSync, realpathSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { basename, dirname, join, resolve, sep, win32 as pathWin32 } from 'node:path'
 import { stripExtendedLengthPrefix } from '../files/windowsPaths.js'
 import { resolveLayoutRoots } from './installLayout.js'
 import { nixInstallRoot } from './nixInstallRoot.js'
+import { realpathSafe } from './provenanceNotice.js'
 import { hostEnv } from '../environment/hostEnv.js'
 import { stripExtendedLengthPrefixForPlatform } from '../host-os/paths.js'
 
@@ -194,14 +195,6 @@ function containedIn(root: string, p: string, isWindows: boolean): boolean {
   const t = norm(p)
   const s = win ? '\\' : sep
   return t === r || t.startsWith(r.endsWith(s) ? r : r + s)
-}
-
-function realpathSafe(p: string): string {
-  try {
-    return realpathSync(p)
-  } catch {
-    return p
-  }
 }
 
 const pathSegments = (p: string, isWindows = false): string[] =>

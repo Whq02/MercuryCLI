@@ -10,6 +10,7 @@ import {
 import { subscribeCrewmateMetadataPath } from '../../sessions/transcripts/fileWatch.js'
 import { asAgentId } from '../../sessions/transcripts/ids.js'
 import { computeWorkingTreeDigestAsync } from '../../platform/verification/verificationState.js'
+import { realpathSafe } from '../../platform/update-channel/provenanceNotice.js'
 import { listReviewArtifactHeadsSource } from '../../sessions/artifact-reviews/reviewStore.js'
 import {
   classifyReadFailure,
@@ -141,14 +142,6 @@ async function crewmateMetaFor(agentId: string): Promise<CrewmateMetaFact | null
   } catch (error) {
     passedOver(error)
     return null
-  }
-}
-
-function realpathSafe(p: string): string {
-  try {
-    return (require('node:fs') as typeof import('node:fs')).realpathSync(p)
-  } catch {
-    return p
   }
 }
 
