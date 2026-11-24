@@ -80,6 +80,8 @@ try {
   const transcript = join(home, 'transcripts', 'title.jsonl')
   await saveCustomTitle(getSessionId() as never, dirty, transcript)
   check('saved operator titles contain no hidden controls', getCurrentSessionTitle(getSessionId()) === 'Fix auth flow', getCurrentSessionTitle(getSessionId()), 'saveCustomTitle in src/sessions/transcripts/sessionListings.ts must sanitize the title before it is cached')
+  await saveCustomTitle(getSessionId() as never, 'Fix \u{1F469}\u200D\u{1F4BB} auth', transcript)
+  check('emoji ZWJ sequence in a title strips U+200D while keeping base glyphs', getCurrentSessionTitle(getSessionId()) === 'Fix \u{1F469}\u{1F4BB} auth', getCurrentSessionTitle(getSessionId()), 'partiallySanitizeUnicode in src/platform/text/unicodeSanitization.ts must remove U+200D from the title and keep the emoji glyphs')
   const daemon = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   const dir = join(home, 'daemon')
   mkdirSync(dir, { recursive: true })
