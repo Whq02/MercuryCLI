@@ -80,26 +80,6 @@ export function shiftAnchor(
   moveSpan(s, dRow, minRow, maxRow)
 }
 
-export function shiftSelectionForFollow(
-  s: SelectionState,
-  dRow: number,
-  minRow: number,
-  maxRow: number,
-): boolean {
-  if (!s.anchor) return false
-  const newAnchor = rawRow(s, 'anchor', s.anchor) + dRow
-  const newFocus = s.focus ? rawRow(s, 'focus', s.focus) + dRow : undefined
-  if (pastSameEdge(newAnchor, newFocus, minRow, maxRow)) {
-    clearSelection(s)
-    return true
-  }
-  moveEnd(s, 'anchor', newAnchor, minRow, maxRow)
-  if (newFocus !== undefined) moveEnd(s, 'focus', newFocus, minRow, maxRow)
-  else s.virtualFocusRow = undefined
-  moveSpan(s, dRow, minRow, maxRow)
-  return false
-}
-
 export function captureScrolledRows(
   s: SelectionState,
   screen: Screen,

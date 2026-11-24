@@ -15,6 +15,6 @@ export {
 } from './selection-model.js'
 export { extendSelection, selectLineAt, selectWordAt, wordBoundsAt } from './wordLineSelection.js'
 export { findPlainTextUrlAt } from './urlAtCell.js'
-export { captureScrolledRows, shiftAnchor, shiftSelection, shiftSelectionForFollow } from './selectionShift.js'
+export { captureScrolledRows, shiftAnchor, shiftSelection } from './selectionShift.js'
 export { extractRowText, getSelectedText, joinRows } from './selectedText.js'
 export { applySelectionOverlay } from './selectionOverlay.js'
