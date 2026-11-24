@@ -117,17 +117,6 @@ function skip(label: string, why: string): void {
           heads.state !== 'ready' && heads.state !== 'empty',
           JSON.stringify(heads),
         )
-        let journalThrew: NodeJS.ErrnoException | null = null
-        try {
-          store.readReviewArtifactJournal(id)
-        } catch (err) {
-          journalThrew = err as NodeJS.ErrnoException
-        }
-        check(
-          'reviewStore-journal-throws-unreadable: readReviewArtifactJournal throws EACCES on unreadable file',
-          journalThrew !== null && journalThrew.code === 'EACCES',
-          String(journalThrew),
-        )
       } finally {
         chmodSync(journal, 0o600)
       }
@@ -136,10 +125,6 @@ function skip(label: string, why: string): void {
         readFileSync(journal, 'utf8') === beforeBytes,
       )
     }
-    check(
-      'reviewStore-journal-absent-empty: absent review artifact journal still answers []',
-      store.readReviewArtifactJournal('ra-deadbeef').length === 0,
-    )
   }
 }
 

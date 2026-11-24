@@ -42,7 +42,6 @@ import {
   setSelectionClipBand,
   shiftAnchor,
   shiftSelection,
-  shiftSelectionForFollow,
   startSelection,
   updateSelection,
 } from '../../src/screen/renderer/geometry/selection.js'
@@ -63,7 +62,7 @@ const geometryWhere: Array<[RegExp, string]> = [
   [/^(word|line|extend):/, 'fix selectWordAt, selectLineAt or extendSelection in src/screen/renderer/geometry/wordLineSelection.ts'],
   [/^url:/, 'fix findPlainTextUrlAt in src/screen/renderer/geometry/urlAtCell.ts'],
   [/^overlay:/, 'fix applySelectionOverlay in src/screen/renderer/geometry/selectionOverlay.ts'],
-  [/^(capture|shift guards|follow clear|f4-4|J\d|ledger)/, 'fix captureScrolledRows, shiftSelection, shiftAnchor or shiftSelectionForFollow in src/screen/renderer/geometry/selectionShift.ts'],
+  [/^(capture|shift guards|f4-4|J\d|ledger)/, 'fix captureScrolledRows, shiftSelection or shiftAnchor in src/screen/renderer/geometry/selectionShift.ts'],
   [/^copy/, 'fix getSelectedText in src/screen/renderer/geometry/selectedText.ts'],
   [/^(lifecycle|clip band|moveFocus):/, 'fix the selection state functions that src/screen/renderer/geometry/selection.ts re-exports'],
 ]
@@ -1078,21 +1077,6 @@ function composeScrolled(scrollTop: number): Screen {
     if (m.below.length > newBelow) m.below = m.below.slice(0, newBelow)
   }
 
-  function modelFollow(m: Model, tNew: number): boolean {
-    if (m.cleared || !m.anchor) return false
-    const aRow = m.anchor.doc - tNew
-    const fRow = m.focus ? m.focus.doc - tNew : undefined
-    if (aRow < 0 && fRow !== undefined && fRow < 0) {
-      m.cleared = true
-      m.anchor = null
-      m.focus = null
-      m.above = []
-      m.below = []
-      return true
-    }
-    return false
-  }
-
   type Env = { sel: SelectionState; m: Model; t: number; screen: Screen }
   function mkEnv(t: number): Env {
     return { sel: createSelectionState(), m: { anchor: null, focus: null, above: [], below: [], cleared: false }, t, screen: paintDoc(t) }
@@ -1129,16 +1113,6 @@ function composeScrolled(scrollTop: number): Screen {
     env.t += 1
     if (env.m.focus) env.m.focus.doc = env.t + mouseRow
     env.screen = paintDoc(env.t)
-  }
-  function stepFollow(env: Env, delta: number): boolean {
-    captureScrolledRows(env.sel, env.screen, 0, delta - 1, 'above')
-    modelCapture(env.m, env.t, 0, delta - 1, 'above')
-    const cleared = shiftSelectionForFollow(env.sel, -delta, 0, H - 1)
-    env.t += delta
-    const mCleared = modelFollow(env.m, env.t)
-    env.screen = paintDoc(env.t)
-    check('ledger: follow clear verdicts agree', cleared === mCleared, `impl=${cleared} model=${mCleared}`)
-    return cleared
   }
   function assertLedger(env: Env, tag: string): void {
     const got = getSelectedText(env.sel, env.screen)
@@ -1226,26 +1200,11 @@ function composeScrolled(scrollTop: number): Screen {
     stepDragTickDown(env, 5)
     assertLedger(env, 'J2 tick3')
     finishSelection(env.sel)
-    stepFollow(env, 2)
+    stepPgDn(env, 2)
     assertLedger(env, 'J2 follow2')
     stepPgUp(env, 5)
     assertLedger(env, 'J2 keyboard return')
     check('J2: above accumulator fully popped on return', env.sel.scrolledOffAbove.length === 0, String(env.sel.scrolledOffAbove.length))
-  }
-
-  {
-    const env = mkEnv(0)
-    dragTo(env, 1, 0, 5, 1)
-    finishSelection(env.sel)
-    const cleared = stepFollow(env, 3)
-    check('J4: follow with both ends above the top clears and reports', cleared === true && hasSelection(env.sel) === false)
-
-    const env2 = mkEnv(0)
-    dragTo(env2, 1, 0, 5, 3)
-    finishSelection(env2.sel)
-    const cleared2 = stepFollow(env2, 3)
-    check('J4: landing AT the top edge survives', cleared2 === false && env2.sel.focus?.row === 0, JSON.stringify(env2.sel.focus))
-    assertLedger(env2, 'J4 at-edge')
   }
 
   {
@@ -1304,35 +1263,11 @@ function composeScrolled(scrollTop: number): Screen {
     shiftSelection(s, -2, 0, H - 1, W)
     shiftAnchor(s, -2, 0, H - 1)
     check('shift guards: empty state no-ops', s.anchor === null && s.focus === null)
-    const cleared = shiftSelectionForFollow(s, -2, 0, H - 1)
-    check('shift guards: follow with no anchor returns false', cleared === false)
     startSelection(s, 3, 2)
     shiftSelection(s, -2, 0, H - 1, W)
     check('shift guards: shiftSelection without focus no-ops', s.anchor?.row === 2)
     shiftAnchor(s, -2, 0, H - 1)
     check('shift guards: shiftAnchor moves a focus-less anchor', s.anchor?.row === 0, JSON.stringify(s.anchor))
-  }
-
-  {
-    const above = createSelectionState()
-    startSelection(above, 2, 1)
-    updateSelection(above, 5, 2)
-    const clearedAbove = shiftSelectionForFollow(above, -10, 0, H - 1)
-    check('follow clear: both ends past the TOP clears', clearedAbove === true && hasSelection(above) === false)
-    const below = createSelectionState()
-    startSelection(below, 2, 3)
-    updateSelection(below, 5, 4)
-    const clearedBelow = shiftSelectionForFollow(below, 10, 0, H - 1)
-    check('follow clear: both ends past the BOTTOM clears (the twin)', clearedBelow === true && hasSelection(below) === false)
-    const straddle = createSelectionState()
-    startSelection(straddle, 2, 0)
-    updateSelection(straddle, 5, 3)
-    const notCleared = shiftSelectionForFollow(straddle, 3, 0, H - 1)
-    check(
-      'follow clear: one end inside does not clear (the other clamps to the bottom edge)',
-      notCleared === false && hasSelection(straddle) && straddle.focus?.row === H - 1 && straddle.anchor?.row === 3,
-      JSON.stringify({ anchor: straddle.anchor, focus: straddle.focus }),
-    )
   }
 }
 
@@ -1354,7 +1289,6 @@ function composeScrolled(scrollTop: number): Screen {
   captureScrolledRows(s, wu.screen, 10, 11, 'below')
   shiftSelection(s, -1, 0, WU_H - 1, WU_W)
   shiftAnchor(s, 1, 0, WU_H - 1)
-  shiftSelectionForFollow(s, -1, 0, WU_H - 1)
   hasSelection(s)
   selectionBounds(s)
   setSelectionClipBand(s, 2, 9, WU_W)

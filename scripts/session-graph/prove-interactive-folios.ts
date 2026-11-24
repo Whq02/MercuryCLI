@@ -89,66 +89,16 @@ t.section('§2 — typed authorship beside the legacy string')
   )
 }
 
-t.section('§3 — scope decisions validate + fold')
-{
-  const bad = store.recordReviewScopeDecision({
-    artifactId,
-    version: 1,
-    scope: { t: 'file', path: 'src/ghost.ts' },
-    decision: 'accept',
-  })
-  t.check('a decision on a vanished file refuses', bad.ok === false)
-  const a1 = store.recordReviewScopeDecision({
-    artifactId,
-    version: 1,
-    scope: { t: 'file', path: 'src/a.ts' },
-    decision: 'accept',
-    by: 'operator',
-  })
-  t.check('a file-scope accept records', a1.ok === true && a1.value.fold.accepted === 1)
-  const b1 = store.recordReviewScopeDecision({
-    artifactId,
-    version: 1,
-    scope: { t: 'file', path: 'src/b.ts' },
-    decision: 'request-revision',
-  })
-  t.check(
-    'any request-revision flips the fold suggestion',
-    b1.ok === true && b1.value.fold.suggestion === 'revision-requested',
-  )
-  const b2 = store.recordReviewScopeDecision({
-    artifactId,
-    version: 1,
-    scope: { t: 'file', path: 'src/b.ts' },
-    decision: 'accept',
-  })
-  t.check(
-    'the LAST decision per scope wins (b re-accepted ⇒ all-accepted suggestion)',
-    b2.ok === true &&
-      b2.value.fold.suggestion === 'accepted' &&
-      b2.value.fold.accepted === 2 &&
-      b2.value.fold.revisionRequested === 0,
-  )
-  const hunk = store.recordReviewScopeDecision({
-    artifactId,
-    version: 1,
-    scope: { t: 'hunk', path: 'src/a.ts', hunkIndex: 0 },
-    decision: 'accept',
-  })
-  t.check('a hunk scope validates against the body', hunk.ok === true)
-  const badHunk = store.recordReviewScopeDecision({
-    artifactId,
-    version: 1,
-    scope: { t: 'hunk', path: 'src/a.ts', hunkIndex: 9 },
-    decision: 'accept',
-  })
-  t.check('a vanished hunk refuses', badHunk.ok === false)
-}
-
 t.section('§4 — the fold SUGGESTS, never auto-applies')
 {
+  const decisions: Parameters<typeof contracts.foldScopeDecisions>[0] = [
+    { version: 1, scope: { t: 'file', path: 'src/a.ts' }, decision: 'accept', by: 'operator', at: 1 },
+    { version: 1, scope: { t: 'file', path: 'src/b.ts' }, decision: 'request-revision', at: 2 },
+    { version: 1, scope: { t: 'file', path: 'src/b.ts' }, decision: 'accept', at: 3 },
+    { version: 1, scope: { t: 'hunk', path: 'src/a.ts', hunkIndex: 0 }, decision: 'accept', at: 4 },
+  ]
   const before = store.readReviewArtifactState(artifactId)!
-  const fold = contracts.foldScopeDecisions(before.scopeDecisions, 1)
+  const fold = contracts.foldScopeDecisions(decisions, 1)
   t.check('the fold has decided scopes', fold.latest.size >= 3)
   t.check('the fold suggests accepted (every latest decision is an accept)', fold.suggestion === 'accepted', String(fold.suggestion))
   t.check('the artifact-level status is still draft — the suggestion applied nothing', (before.statuses[1] ?? 'draft') === 'draft', String(before.statuses[1]))
@@ -159,7 +109,7 @@ t.section('§4 — the fold SUGGESTS, never auto-applies')
   const after = store.readReviewArtifactState(artifactId)!
   t.check(
     'the artifact-level status is the EXPLICIT decision (revision-requested), not the fold suggestion (accepted)',
-    after.statuses[1] === 'revision-requested' && contracts.foldScopeDecisions(after.scopeDecisions, 1).suggestion === 'accepted',
+    after.statuses[1] === 'revision-requested' && contracts.foldScopeDecisions(decisions, 1).suggestion === 'accepted',
   )
 }
 

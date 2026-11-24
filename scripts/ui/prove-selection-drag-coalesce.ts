@@ -36,7 +36,7 @@ const { default: instances } = await import(`${ROOT}/src/screen/renderer/instanc
 const { default: useInput } = await import(`${ROOT}/src/screen/renderer/bindings/use-input.js`)
 const { lastComposeCounts } = await import(`${ROOT}/src/screen/renderer/compose-buffer.js`)
 const { AppStateProvider } = await import(`${ROOT}/src/screen/app-state/AppState.js`)
-const { default: ScrollKeybindingHandler, AUTOSCROLL_STEP_ROWS, AUTOSCROLL_TICK_MS } = await import(`${ROOT}/src/screen/scroll-keys/ScrollKeybindingHandler.js`)
+const { ScrollKeybindingHandler, AUTOSCROLL_STEP_ROWS, AUTOSCROLL_TICK_MS } = await import(`${ROOT}/src/screen/scroll-keys/ScrollKeybindingHandler.js`)
 const { subscribeUiClock } = await import(`${ROOT}/src/screen/cockpit/uiClock.js`)
 const countTicks = (): { ticks: () => number; stop: () => void } => {
   let n = 0
