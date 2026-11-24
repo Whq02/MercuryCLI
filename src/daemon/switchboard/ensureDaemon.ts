@@ -156,13 +156,13 @@ function bootCarriesRunnerOptions(): boolean {
 
 let waiting: Promise<'usable' | 'gone' | 'timeout'> | null = null
 
-export async function ensureOwnedDaemon(options: { sleep?: Pause; selfWarm?: 'held' } = {}): Promise<boolean> {
+export async function ensureOwnedDaemon(options: { sleep?: Pause } = {}): Promise<boolean> {
   const usableNow = await ensureOwnedDaemonInner(options)
   if (usableNow) startScreenPresenceBeat()
   return usableNow
 }
 
-async function ensureOwnedDaemonInner(options: { sleep?: Pause; selfWarm?: 'held' }): Promise<boolean> {
+async function ensureOwnedDaemonInner(options: { sleep?: Pause }): Promise<boolean> {
   const pause = options.sleep ?? sleep
   void import('../control/ownedDaemon.js')
     .then(m => m.armDaemonSignInPoke())
@@ -193,7 +193,7 @@ async function ensureOwnedDaemonInner(options: { sleep?: Pause; selfWarm?: 'held
         if ((await awaitDeparture(hs, pause)) === 'usable') return true
         const { spawnOwnedDaemon } = await import('../control/ownedDaemon.js')
         const daemonExtraEnv: Record<string, string> = {}
-        if (options.selfWarm === 'held' || bootCarriesRunnerOptions()) {
+        if (bootCarriesRunnerOptions()) {
           stampFlagOnEnv(daemonExtraEnv, 'MERCURY_DAEMON_NO_SELF_WARM', '1')
         } else {
           const { bootBirthFacts } = await import('./bootBirthFacts.js')
