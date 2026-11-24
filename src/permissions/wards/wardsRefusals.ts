@@ -186,8 +186,9 @@ function windowsShaped(word: string, world: RefusalWorld, anywhere: boolean): bo
 
 function windowsPath(word: string, world: RefusalWorld): string | undefined {
   let text = word.replace(/%([A-Za-z_()0-9]+)%|\$\{?env:([A-Za-z_()0-9]+)\}?|\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?/g, (all, percent: string | undefined, env: string | undefined, plain: string | undefined) => windowsVariable(percent ?? env ?? plain ?? '', world) ?? all)
-  text = text.replace(/\\/g, '/')
-  if (/^\/\/[?.]\//.test(text)) text = text.slice(4)
+  text = text.replace(/\\/g, '/').replace(/^(?:[A-Za-z0-9_.]+\/)?filesystem::/i, '')
+  if (/^\/\/[?.]\/unc\//i.test(text)) text = `//${text.slice(8)}`
+  else if (/^\/\/[?.]\//.test(text)) text = text.slice(4)
   const share = /^\/\/[^/]+\/([A-Za-z])\$(\/[\s\S]*)?$/.exec(text)
   if (share !== null) text = `${share[1]}:${share[2] ?? '/'}`
   text = wardExpandMsysDrivePrefix(text, world.platform)

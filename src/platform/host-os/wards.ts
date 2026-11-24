@@ -25,13 +25,14 @@ export function wardUsesWindowsDeletePatterns(platform: NodeJS.Platform = proces
 }
 
 export function wardWordIsWindowsShaped(word: string, anywhere: boolean, platform: NodeJS.Platform = process.platform): boolean {
-  if (/^(?:[A-Za-z]:|%[A-Za-z_()0-9]+%|\$\{?env:|\\\\)/.test(word)) return anywhere || platform === 'win32'
+  const target = word.replace(/^(?:[A-Za-z0-9_.]+[\\/])?filesystem::/i, '')
+  if (/^(?:[A-Za-z]:|%[A-Za-z_()0-9]+%|\$\{?env:|\\\\)/.test(target)) return anywhere || platform === 'win32'
   if (platform !== 'win32') return false
-  return /^(?:\/(?:mnt\/)?[A-Za-z](?:\/|$)|\/\/[^/]|~(?:$|[/\\])|\$\{?[A-Za-z_])/i.test(word)
+  return /^(?:\/(?:(?:mnt|cygdrive)\/)?[A-Za-z](?:\/|$)|\/\/[^/]|~(?:$|[/\\])|\$\{?[A-Za-z_])/i.test(target)
 }
 
 export function wardExpandMsysDrivePrefix(text: string, platform: NodeJS.Platform = process.platform): string {
-  const msys = platform === 'win32' ? /^\/(?:mnt\/)?([A-Za-z])(\/[\s\S]*)?$/i.exec(text) : null
+  const msys = platform === 'win32' ? /^\/(?:(?:mnt|cygdrive)\/)?([A-Za-z])(\/[\s\S]*)?$/i.exec(text) : null
   return msys === null ? text : `${msys[1]}:${msys[2] ?? '/'}`
 }
 

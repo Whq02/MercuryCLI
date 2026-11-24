@@ -7,6 +7,7 @@ prove-delete-ward-profile-subfolder.ts
 prove-delete-ward-quoted-operand.ts
 prove-delete-ward-quoted-text.ts
 prove-delete-ward-resolves-path.ts
+prove-delete-ward-windows-extra-spellings.ts
 prove-delete-ward-windows-parity.ts
 prove-delete-ward-windows-spellings.ts
 prove-destructive-git-ward.ts
