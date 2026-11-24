@@ -19,10 +19,6 @@ export const RESERVED_LABELS = ['project', 'session', 'mercury'] as const
 export const RESERVED_MODULE_REASON = 'this build loads declarative extensions; `module` is reserved'
 export const DESCRIPTION_MAX = 200
 
-export const TEMPLATE_ROOT = '${MERCURY_EXTENSION_ROOT}'
-export const TEMPLATE_DATA = '${MERCURY_EXTENSION_DATA}'
-export const TEMPLATE_OPTION_PREFIX = '${option.'
-
 export const CONTRIBUTION_KINDS = [
   'skills',
   'commands',
@@ -165,7 +161,6 @@ export const ExtensionManifestSchema = lazySchema(() =>
 )
 
 export type ExtensionManifest = z.infer<ReturnType<typeof ExtensionManifestSchema>>
-export type ManifestContributes = NonNullable<ExtensionManifest['contributes']>
 export type ManifestNeeds = NonNullable<ExtensionManifest['needs']>
 export type ManifestOption = z.infer<ReturnType<typeof optionSchema>>
 export type ManifestHook = z.infer<ReturnType<typeof extensionHookSchema>>

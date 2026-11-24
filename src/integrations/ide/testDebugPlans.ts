@@ -306,10 +306,6 @@ function sourceJsTest(file: string, name: string): { nameParts: string[]; line: 
   return matches.length === 1 ? matches[0]! : null
 }
 
-export function locateJsTest(file: string, fullName: string): number | null {
-  return sourceJsTest(file, fullName)?.line ?? null
-}
-
 function runnerEntryScript(root: string, runner: 'vitest' | 'jest'): string | null {
   const packageDir = path.join(root, 'node_modules', runner)
   try {
