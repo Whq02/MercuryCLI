@@ -4,5 +4,6 @@
 # prover moves here by joining this list and leaving that one. A name listed
 # here but missing on disk is a loud red in this runner.
 prove-prefix-frozen-drive.ts
+prove-enter-to-request-drive.ts
 prove-image-refusal-frames.ts
 prove-authentication-retry-frames.ts

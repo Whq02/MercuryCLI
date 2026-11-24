@@ -13,14 +13,16 @@ export type Road = {
   env: (base: string) => Record<string, string>
   list: (url: string) => unknown
   isTurn: (url: string) => boolean
-  answer: (step: Step, n: number) => string
+  answer: (step: Step, n: number, spent: Spent) => string
   head: (body: Json) => Array<[string, unknown]>
   rows: (body: Json) => unknown[]
   toolNames: (body: Json) => string[]
 }
+export type Spent = { input: number; cached: number }
 export type Repeat = { headBytes: number; cacheBytes: number; sharedBytes: number; lostBytes: number; brokeAt: string; moved: string; toolsGrew: boolean }
 export type RoadServer = { base: string; seen: Seen[]; sides: () => number; close: () => Promise<void> }
 
+export const BYTES_A_TOKEN = 4
 const sse = (value: unknown): string => `data: ${JSON.stringify(value)}\n\n`
 const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : [])
 const bytes = (text: string): number => Buffer.byteLength(text, 'utf8')
@@ -39,7 +41,10 @@ export const roads: Road[] = [
     env: base => ({ ANTHROPIC_API_KEY: FIXTURE_API_KEY, ANTHROPIC_BASE_URL: `${base}/anthropic`, MERCURY_TOOL_SEARCH: 'on' }),
     list: url => (url.endsWith('/models') ? { data: [{ type: 'model', id: 'claude-opus-4-8', display_name: 'Claude Opus 4.8', created_at: '2026-08-01T00:00:00Z' }], has_more: false } : url.includes('count_tokens') ? { input_tokens: 1000 } : undefined),
     isTurn: url => url.endsWith('/messages'),
-    answer: (step, n) => renderTurn('say' in step ? { kind: 'text', text: step.say } : { kind: 'tool_use', name: step.name, input: step.input, id: `toolu_cost_${n}` }, n),
+    answer: (step, n, spent) => {
+      const usage = { input_tokens: 3, output_tokens: 12, cache_read_input_tokens: spent.cached, cache_creation_input_tokens: spent.input - spent.cached }
+      return renderTurn('say' in step ? { kind: 'text', text: step.say, usage } : { kind: 'tool_use', name: step.name, input: step.input, id: `toolu_cost_${n}`, usage }, n)
+    },
     head: body => [['tools', withoutCacheMarks(list(body.tools).filter(tool => (tool as Json).defer_loading !== true))], ['system', withoutCacheMarks(body.system)]],
     rows: body => list(withoutCacheMarks(body.messages)),
     toolNames: body => named(list(body.tools).filter(tool => (tool as Json).defer_loading !== true)),
@@ -50,7 +55,7 @@ export const roads: Road[] = [
     env: base => ({ OPENAI_API_KEY: 'fixture-openai-key', MERCURY_OPENAI_API_BASE: `${base}/openai/v1` }),
     list: url => (url.endsWith('/models') ? { data: [{ id: 'gpt-5.6-sol', supported_reasoning_levels: ['low', 'medium', 'high'], visibility: 'list', supported_in_api: true }] } : undefined),
     isTurn: url => url.endsWith('/responses'),
-    answer: (step, n) => {
+    answer: (step, n, spent) => {
       const item = 'say' in step
         ? { type: 'message', id: `msg_${n}`, role: 'assistant', content: [{ type: 'output_text', text: step.say }] }
         : { type: 'function_call', id: `fc_${n}`, call_id: `call_cost_${n}`, name: step.name, arguments: JSON.stringify(step.input) }
@@ -59,7 +64,7 @@ export const roads: Road[] = [
         sse({ type: 'response.output_item.added', item: 'say' in step ? { ...item, content: [] } : { ...item, arguments: '' } }),
         'say' in step ? sse({ type: 'response.output_text.delta', delta: step.say }) : sse({ type: 'response.function_call_arguments.delta', item_id: `fc_${n}`, delta: JSON.stringify(step.input) }),
         sse({ type: 'response.output_item.done', item }),
-        sse({ type: 'response.completed', response: { id: `resp_${n}`, usage: { input_tokens: 100, output_tokens: 10, input_tokens_details: { cached_tokens: 0 } } } }),
+        sse({ type: 'response.completed', response: { id: `resp_${n}`, usage: { input_tokens: spent.input, output_tokens: 12, input_tokens_details: { cached_tokens: spent.cached } } } }),
       ].join('')
     },
     head: body => [['instructions', body.instructions], ['tools', body.tools]],
@@ -72,9 +77,9 @@ export const roads: Road[] = [
     env: base => ({ GEMINI_API_KEY: 'fixture-gemini-key', MERCURY_GEMINI_API_BASE: `${base}/v1beta` }),
     list: url => (url.endsWith('/models') ? { models: [{ name: 'models/gemini-3.5-flash', displayName: 'Gemini fixture', supportedGenerationMethods: ['generateContent'], inputTokenLimit: 1000000, outputTokenLimit: 65536 }] } : undefined),
     isTurn: url => url.endsWith(':streamGenerateContent'),
-    answer: (step, n) =>
+    answer: (step, n, spent) =>
       sse({ candidates: [{ index: 0, content: { role: 'model', parts: ['say' in step ? { text: step.say } : { functionCall: { name: step.name, args: step.input, id: `call_cost_${n}` } }] } }] }) +
-      sse({ candidates: [{ index: 0, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 10, totalTokenCount: 110 } }),
+      sse({ candidates: [{ index: 0, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: spent.input, cachedContentTokenCount: spent.cached, candidatesTokenCount: 12, totalTokenCount: spent.input + 12 } }),
     head: body => [['systemInstruction', body.systemInstruction], ['tools', body.tools]],
     rows: body => list(body.contents),
     toolNames: body => list(body.tools).flatMap(group => named((group as Json).functionDeclarations)),
@@ -162,12 +167,13 @@ export async function serveRoad(road: Road, next: (body: Json) => { prompt: stri
     if (scripted === undefined) {
       sides++
       onSide?.(body, sides)
-      response.end(road.answer({ say: 'A side answer.' }, 900 + sides))
+      response.end(road.answer({ say: 'A side answer.' }, 900 + sides, { input: Math.ceil(raw.length / BYTES_A_TOKEN), cached: 0 }))
       return
     }
     const row: Seen = { n: seen.length + 1, prompt: scripted.prompt, arrivedMs, answeredMs: 0, wireBytes: raw.length, body }
+    const repeat = repeatOf(road, seen.at(-1), row)
     seen.push(row)
-    response.end(road.answer(scripted.step, row.n), () => { row.answeredMs = clock() })
+    response.end(road.answer(scripted.step, row.n, { input: Math.ceil(repeat.cacheBytes / BYTES_A_TOKEN), cached: Math.floor(repeat.sharedBytes / BYTES_A_TOKEN) }), () => { row.answeredMs = clock() })
   })
   await new Promise<void>(done => api.listen(0, '127.0.0.1', done))
   const address = api.address()
