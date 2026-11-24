@@ -5,7 +5,7 @@ import { type JevSettings, readJevSettings } from './jevSetting.js'
 import { hostEnv } from '../../platform/environment/hostEnv.js'
 import { getCrewmateContext } from '../../crew/agents/crewmateContext.js'
 
-export interface JevAgentIdentity {
+interface JevAgentIdentity {
   id: string
   subagent: boolean
 }
