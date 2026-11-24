@@ -18,7 +18,7 @@
 # gate-watch: scripts/host/measure-recipe.ts scripts/host/prove-measure-recipe.ts scripts/host/prove-frontier-roster.ts
 # gate-watch: scripts/lib/hermetic.ts vendor/** vendor/node.lock.json
 # gate-watch: .github/workflows/engine-image.yml assets/host/llamacpp-engine.json scripts/lib/generated-assets-map.mjs
-# gate-watch: scripts/host/prove-tensorfold-recipe-script.ts scripts/host/prove-tensorfold-pod-road.ts scripts/host/prove-tensorfold-rent-drive.ts scripts/host/fixtures/tensorfold-1.3.3-linux-x86_64.tar.gz.sha256 scripts/host/fixtures/tensorfold-1.3.3-linux-aarch64.tar.gz.sha256
+# gate-watch: scripts/host/prove-tensorfold-recipe-script.ts scripts/host/prove-tensorfold-pod-road.ts scripts/host/prove-tensorfold-rent-drive.ts scripts/host/fixtures/tensorfold-1.3.4-linux-x86_64.tar.gz.sha256 scripts/host/fixtures/tensorfold-1.3.4-linux-aarch64.tar.gz.sha256
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78
