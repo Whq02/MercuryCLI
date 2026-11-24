@@ -23,11 +23,15 @@ export function decodeQwenModel(raw: unknown): QwenLiveModel | undefined {
   return { id: row.id.trim(), created, ...(typeof row.owned_by === 'string' ? { ownedBy: row.owned_by } : {}) }
 }
 
+export function isQwenUnpurchasedCode(code: string | undefined): boolean {
+  return code !== undefined && code.includes('Unpurchased')
+}
+
 export class QwenCatalogueHttpError extends Error {
   readonly refused: boolean
   readonly said: string | undefined
   constructor(readonly status: number, readonly endpointLabel: string, road: 'models' | 'chat' = 'models', words: ServiceWords = {}, key = '') {
-    const refused = status === 401 || status === 403 || (status === 400 && wordsNameTheKey(words))
+    const refused = status === 401 || (status === 403 && !isQwenUnpurchasedCode(words.code)) || (status === 400 && wordsNameTheKey(words))
     const said = (words.message ?? words.code)?.split(key || '\0').join('[redacted]')
     super(`${refused
       ? `${endpointLabel} refused the credential (HTTP ${status})`

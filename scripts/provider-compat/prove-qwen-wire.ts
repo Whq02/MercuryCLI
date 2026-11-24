@@ -72,6 +72,9 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
   if (body.messages.some((row: any, index: number) => row.role === 'system' && index !== 0)) return refuse(400, 'invalid_parameter', 'only messages[0] takes the system role')
   if (/^(?:qwen3-coder-plus|qwen40)/.test(body.model) && ('enable_thinking' in body || 'preserve_thinking' in body)) return refuse(400, 'invalid_parameter', 'thinking knobs on a non-thinking model')
   if (body.model === 'qwen-plus' && 'preserve_thinking' in body) return refuse(400, 'invalid_parameter', 'preserve_thinking on a row that does not take it')
+  if (mode === 'unpurchased-doc') return refuse(403, 'AccessDenied.Unpurchased', 'Access to model denied. Please make sure you are eligible for using the model.')
+  if (mode === 'unpurchased-live') return refuse(403, 'api-AccessDenied.Unpurchased', 'Access to model denied. Please make sure you are eligible for using the model.')
+  if (mode === 'forbidden-key') return refuse(403, 'access_denied', 'Access denied.')
   if (mode === 'billing') return refuse(400, 'Arrearage', 'Access denied, please make sure your account is in good standing.')
   if (mode === 'rate') return refuse(429, 'rate_limit_exceeded', 'Requests rate limit exceeded, please try again later.', { 'retry-after': '3600' })
   if (mode === 'busy') { mode = 'text'; return refuse(503, 'server_error', 'The server is overloaded.') }
@@ -111,7 +114,7 @@ try {
   const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
   const { resolvePrimaryAgentBackend } = await import('../../src/models/roads/primaryBackend.ts')
   const { QWEN_SHARED_ENDPOINTS, qwenProbeEndpoints, qwenEndpointBase, qwenBoundBase, forgetQwenBoundBases, qwenUnboundKeyRefusal } = await import('../../src/models/roads/qwen/qwenAccounts.ts')
-  const { refreshQwenCatalogue, __resetQwenCatalogueForTest, qwenCatalogueRows, qwenCatalogueSourceWords, getCachedQwenCatalogue, probeQwenEndpoints } = await import('../../src/models/roads/qwen/qwenCatalogue.ts')
+  const { refreshQwenCatalogue, __resetQwenCatalogueForTest, qwenCatalogueRows, qwenCatalogueSourceWords, getCachedQwenCatalogue, probeQwenEndpoints, QwenCatalogueHttpError } = await import('../../src/models/roads/qwen/qwenCatalogue.ts')
   const { buildQwenExtras } = await import('../../src/models/roads/qwen/qwenCallModel.ts')
   const { storeQwenApiKeyLogin } = await import('../../src/models/roads/qwen/qwenLogin.ts')
   const { QWEN_DISPLAY_PINS } = await import('../../src/models/facts/pins/qwenPins.ts')
@@ -372,6 +375,46 @@ try {
   section('refusals')
   __resetQwenCatalogueForTest()
   await refreshQwenCatalogue({ force: true })
+  {
+    const { readSignInRefusal } = await import('../../src/models/roads/signInRefusal.ts')
+    const { collectLoginsScreenFacts, loginsCatalogue, loginsRowStateOf } = await import('../../src/screen/boot-face/logins/facts.ts')
+    const { gatherComputedDefaultFacts, resetComputedDefaultMemo } = await import('../../src/models/catalogue/computedDefault.ts')
+    const qwenStanding = (): { refusal: unknown; loginsChip: string; defaultVerdict: ReturnType<ReturnType<typeof gatherComputedDefaultFacts>['laneRow']> } => {
+      resetComputedDefaultMemo()
+      const facts = collectLoginsScreenFacts()
+      const arm = loginsCatalogue().find(item => item.familyId === 'qwen')!
+      return { refusal: readSignInRefusal('qwen'), loginsChip: loginsRowStateOf(arm, facts).chip, defaultVerdict: gatherComputedDefaultFacts().laneRow('qwen') }
+    }
+    await run()
+    const clean = qwenStanding()
+    check('before any 403 refusal, the stored Qwen key stands accepted on /logins and the computed default', clean.refusal === undefined && !clean.loginsChip.includes('key refused') && clean.defaultVerdict.usable && !JSON.stringify(clean.defaultVerdict).includes('key refused'))
+
+    mode = 'unpurchased-doc'
+    const unpurchasedDoc = await run()
+    const afterDoc = qwenStanding()
+    check('a 403 AccessDenied.Unpurchased keeps the error row words and leaves /logins and the computed default free of key refused', unpurchasedDoc.some(row => row.isApiErrorMessage && row.error === 'authentication_failed') && words(unpurchasedDoc).includes('Access to model denied') && words(unpurchasedDoc).includes('Model Studio console (Model Gallery)') && afterDoc.refusal === undefined && !afterDoc.loginsChip.includes('key refused') && afterDoc.defaultVerdict.usable && !JSON.stringify(afterDoc.defaultVerdict).includes('key refused'))
+
+    mode = 'unpurchased-live'
+    const unpurchasedLive = await run()
+    const afterLive = qwenStanding()
+    check('a 403 api-AccessDenied.Unpurchased keeps the error row words and leaves /logins and the computed default free of key refused', unpurchasedLive.some(row => row.isApiErrorMessage && row.error === 'authentication_failed') && words(unpurchasedLive).includes('Access to model denied') && words(unpurchasedLive).includes('Model Studio console (Model Gallery)') && afterLive.refusal === undefined && !afterLive.loginsChip.includes('key refused') && afterLive.defaultVerdict.usable && !JSON.stringify(afterLive.defaultVerdict).includes('key refused'))
+
+    mode = 'forbidden-key'
+    await run()
+    const afterForbidden = qwenStanding()
+    check('a 403 about the key itself (access_denied) still records key refused on /logins and the computed default', afterForbidden.refusal !== undefined && afterForbidden.loginsChip.includes('key refused') && !afterForbidden.defaultVerdict.usable && JSON.stringify(afterForbidden.defaultVerdict).includes('key refused'))
+
+    mode = 'text'
+    await run()
+    mode = 'auth'
+    await run()
+    const after401 = qwenStanding()
+    check('a 401 on the same road still records key refused on /logins and the computed default', after401.refusal !== undefined && after401.loginsChip.includes('key refused') && !after401.defaultVerdict.usable && JSON.stringify(after401.defaultVerdict).includes('key refused'))
+    mode = 'text'
+    await run()
+
+    check('QwenCatalogueHttpError treats 403 Unpurchased (with or without api-) as not a key refusal, while 401 and 403 access_denied stay refused', !new QwenCatalogueHttpError(403, 'Model Studio', 'chat', { code: 'AccessDenied.Unpurchased', message: 'Access to model denied.' }).refused && !new QwenCatalogueHttpError(403, 'Model Studio', 'chat', { code: 'api-AccessDenied.Unpurchased', message: 'Access to model denied.' }).refused && new QwenCatalogueHttpError(403, 'Model Studio', 'chat', { code: 'access_denied', message: 'Access denied.' }).refused && new QwenCatalogueHttpError(401, 'Model Studio', 'chat', { code: 'invalid_api_key', message: 'Incorrect API key provided.' }).refused)
+  }
   boundRefusesChat = true
   let before = captures.length
   const wrongRegion = await run()

@@ -9,7 +9,7 @@ import type { LaneExtrasArgs } from '../openaicompat/compatWire.js'
 import { toolDeclarationRowInResult } from '../zai/zaiCodec.js'
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { QWEN_BASE_OVERRIDE_ENV, QWEN_CONSOLES, QWEN_ENV_KEY, qwenBoundBase, qwenBoundConsole, qwenChatCompletionsUrl, qwenConsolePage, qwenConsoleWords, qwenEndpointWhere, rememberQwenBoundBase, resolveQwenAccount, resolveQwenCredential } from './qwenAccounts.js'
-import { getCachedQwenCatalogue, newestQwenModel, qwenListedModel, qwenModelFacts, qwenPinScope, qwenWireId } from './qwenCatalogue.js'
+import { getCachedQwenCatalogue, isQwenUnpurchasedCode, newestQwenModel, qwenListedModel, qwenModelFacts, qwenPinScope, qwenWireId } from './qwenCatalogue.js'
 import { isQwenTextModelId, qwenDisplayPin, qwenPinsFor, qwenPreservesThinking, qwenWireEffort } from '../../facts/pins/qwenPins.js'
 import { operatorModelFacts } from '../../catalogue/modelOverrides.js'
 import { hostEnv } from '../../../platform/environment/hostEnv.js'
@@ -69,6 +69,7 @@ function qwenLaneProfile(): CompatLaneProfile {
   keepsReasoningHistory: model => qwenPreservesThinking(model),
   buildExtras: buildQwenExtras,
   toolDeclarationRow: toolDeclarationRowInResult,
+  recordsSignInRefusal: fault => !(fault.status === 403 && isQwenUnpurchasedCode(fault.code)),
   }
 }
 

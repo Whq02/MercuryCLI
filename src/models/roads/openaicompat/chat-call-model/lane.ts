@@ -75,6 +75,7 @@ export interface CompatLaneProfile {
   noteRuntime?(reading: { runtime: CompatRuntimeReading | undefined; usage: CompatUsage | undefined; served: string | undefined }): void
   policyFaultNote?(fault: CompatFault, extra: Record<string, unknown> | undefined): string | undefined
   classifyFault?(fault: CompatFault): NonNullable<AssistantMessage['error']> | undefined
+  recordsSignInRefusal?(fault: CompatFault): boolean
   leadingNotes?: readonly string[]
   partialFaultPolicy?: 'stop'
   providerLabel: string

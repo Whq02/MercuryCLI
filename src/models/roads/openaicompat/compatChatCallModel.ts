@@ -144,7 +144,8 @@ export async function* compatChatCallModel(
     const laneClass = profile.classifyFault?.(outcome.fault)
     const typed = laneClass ?? compatFaultToTypedError(outcome.fault)
     const originRefusal = llamacppOriginRefusal(profile.dialect, outcome.fault)
-    if ((laneClass === undefined || typed === 'authentication_failed') && !originRefusal) observeSignInResponse(signInRequest, outcome.fault.status, outcome.fault.message)
+    const recordsRefusal = profile.recordsSignInRefusal?.(outcome.fault) ?? true
+    if ((laneClass === undefined || typed === 'authentication_failed') && !originRefusal && recordsRefusal) observeSignInResponse(signInRequest, outcome.fault.status, outcome.fault.message)
     if (
       typed === 'authentication_failed' &&
       !originRefusal &&
