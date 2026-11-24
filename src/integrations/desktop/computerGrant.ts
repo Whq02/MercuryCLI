@@ -93,17 +93,6 @@ export function readComputerGrant(sessionId: string, now: number = Date.now(), h
   return record
 }
 
-function computerGrantRemainingMs(record: Extract<ComputerGrantRecord, { kind: 'timed' }>, now: number = Date.now()): number {
-  return Math.max(0, record.until - now)
-}
-
-export function computerGrantWords(record: ComputerGrantRecord, now: number = Date.now()): string {
-  if (record.kind === 'session') return 'granted for this session · every application'
-  const left = Math.ceil(computerGrantRemainingMs(record, now) / 60_000)
-  const span = record.hours === 1 ? '1 hour' : '24 hours'
-  return `granted for ${span} · ${left >= 90 ? `${Math.round(left / 60)}h` : `${left}m`} left`
-}
-
 interface ChallengeGrant { window: string; seen: boolean; until: number }
 
 type ChallengeWindow = Pick<DesktopApplication, 'identity' | 'windowId' | 'title'>
