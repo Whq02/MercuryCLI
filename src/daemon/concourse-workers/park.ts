@@ -133,6 +133,7 @@ export async function retireConcourseSession(
   }
   const current = (): ConcourseWorkerRecordV1 | undefined => readSessionWorkers(dir)[runnerId]
   const requestedAt = rec.parkRequestedAt
+  let intentSaved = false
   const fence = new RetirementFence({
     request: request => quiesceSessionRunner(runnerId, request, roster),
     refusal: () => {
@@ -144,16 +145,18 @@ export async function retireConcourseSession(
       }
       return retirementRefusal(now)
     },
-    persistIntent: token => {
+    persistIntent: async token => {
       const now = current()
-      return updateConcourseWorkersRidingOut(workers => {
+      await updateConcourseWorkersRidingOut(workers => {
         const w = workers[runnerId]
         if (!w) throw new Error('the record vanished before the intent landed')
         w.parkIntent = { token, by, at: Date.now(), pid: now?.pid ?? 0 }
         delete w.parkRefused
       }, dir)
+      intentSaved = true
     },
     clearIntent: token => {
+      if (!intentSaved) return
       updateConcourseWorkersOrHold(workers => {
         const w = workers[runnerId]
         if (w?.parkIntent?.token === token) delete w.parkIntent

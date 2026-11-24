@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
 
 import { spawn, type ChildProcess } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -12,6 +12,7 @@ import type { ControlServerDeps } from '../../src/daemon/control/controlServer.t
 import type { TaskRoster } from '../../src/daemon/roster/roster.ts'
 import type { DaemonRunState } from '../../src/daemon/run/state.ts'
 import type { makeConcourseDispatchHandler } from '../../src/daemon/concourse-workers/concourseDispatch.ts'
+import { refused as refusedByRunner } from '../../src/daemon/runner-wire/errors.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const SCRATCH = mkdtempSync(join(tmpdir(), 'clear-park-held-'))
@@ -69,8 +70,9 @@ function letTheSaveThrough(): void {
   delete process.env.MERCURY_FAULT_INJECT
 }
 const saveRefused = (): boolean => process.env.MERCURY_FAULT_INJECT !== undefined
+const savesSoFar = (): number => (JSON.parse(readFileSync(join(DAEMON_DIR, 'concourse-delta.json'), 'utf8')) as { revision: number }).revision
 
-function stage(tail: string, atCommit: () => void = () => {}): Scene {
+function stage(tail: string, atCommit: () => void = () => {}, busy?: string): Scene {
   const runnerId = `concourse-w${tail}`
   const sessionId = `00000000-dddd-4000-8000-${tail.padStart(12, '0')}`
   const runner = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' })
@@ -81,6 +83,7 @@ function stage(tail: string, atCommit: () => void = () => {}): Scene {
       'session/quiesce': (params: unknown) => {
         const request = params as Quiesce
         scene.asked.push(request.action)
+        if (request.action === 'prepare' && busy !== undefined) throw refusedByRunner(busy, 'quiesce')
         if (request.action === 'commit') {
           atCommit()
           setTimeout(() => runner.kill('SIGKILL'), 20)
@@ -229,6 +232,16 @@ try {
     const unrecorded = await sock.daemonControlRpc({ op: 'sessionControl', action: 'park', sessionId: '00000000-dddd-4000-8000-00000000dead', by: 'operator', clientOpId: 'op-held-1' }, { timeoutMs: 15_000 })
     letTheSaveThrough()
     check('the note says not recorded with no error text in it', unrecorded.ok === true && unrecorded.detail === 'unknown-session: no live worker record owns this session — not recorded, so sending it again may apply it twice', JSON.stringify(unrecorded))
+  }
+
+  console.log('(f) a retirement called off before its intent was saved writes the records once, not twice')
+  {
+    const scene = stage('6', () => {}, 'the runner is busy')
+    const before = savesSoFar()
+    const refused = await sock.daemonControlRpc({ op: 'sessionControl', action: 'park', sessionId: scene.sessionId, by: `operator:${process.pid}` }, { timeoutMs: 15_000 })
+    const saves = savesSoFar() - before
+    check('the park is refused with the runner alive and the refusal on its record', refused.ok === true && refused.outcome === 'refused' && isProcessAlive(scene.pid) && rec(scene.runnerId)?.parkRefused !== undefined && rec(scene.runnerId)?.parkIntent === undefined, JSON.stringify({ refused, record: rec(scene.runnerId) }))
+    check('the whole records file was saved once for it (the refusal), with no save to clear an intent that never landed', saves === 1, `${saves} saves`)
   }
 } finally {
   letTheSaveThrough()
