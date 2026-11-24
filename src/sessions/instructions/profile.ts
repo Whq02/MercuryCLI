@@ -8,7 +8,6 @@ import { INSTRUCTION_PROFILES } from '../instruction-contracts/contracts.js'
 import { isOneOf } from '../../platform/primitives/isOneOf.js'
 
 let sessionProfile: InstructionProfile | null = null
-let agentProfile: InstructionProfile | null = null
 
 export function isInstructionProfile(
   value: unknown,
@@ -29,9 +28,6 @@ export function resolveRequestedInstructionProfile(): {
   profile: InstructionProfile
   origin: InstructionProfileOrigin
 } {
-  if (agentProfile !== null) {
-    return { profile: agentProfile, origin: 'agent' }
-  }
   const envCarrier = flagEnv('MERCURY_INSTRUCTION_PROFILE')
   if (isInstructionProfile(envCarrier)) {
     return { profile: envCarrier, origin: 'agent' }
