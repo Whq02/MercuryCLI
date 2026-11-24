@@ -50,7 +50,7 @@ function stripModule(name: string): string {
 
 function matchRuleContent(parsedRule: ShellPermissionRule, candidate: string, mode: 'exact' | 'prefix'): boolean {
   if (parsedRule.type === 'exact') {
-    return mode === 'exact' && parsedRule.command.toLowerCase() === candidate.toLowerCase()
+    return parsedRule.command.toLowerCase() === candidate.toLowerCase()
   }
   return mode === 'prefix' && matchWildcardPattern(parsedRule.pattern, candidate, true)
 }
@@ -166,15 +166,15 @@ async function decidePowerShellPermission(
 ): Promise<PermissionResult> {
   const hiddenReason = hiddenCommandCharacterReason(input.command.replace(/\r\n/g, '\n'))
   if (hiddenReason) {
-    return { behavior: 'deny', message: hiddenReason, decisionReason: other(hiddenReason) }
+    return { behavior: 'deny', message: hiddenReason, decisionReason: { type: 'safetyCheck', reason: hiddenReason, operatorOnly: true } }
   }
 
-  const selfProtect = await shellSelfProtectionReason(input.command, true, effectiveCwd)
+  const trimmed = input.command.trim()
+  const selfProtect = await shellSelfProtectionReason(trimmed, true, effectiveCwd)
   if (selfProtect) {
     return { behavior: 'deny', message: selfProtect, decisionReason: other(selfProtect) }
   }
 
-  const trimmed = input.command.trim()
   if (trimmed === '') {
     return { behavior: 'allow', updatedInput: input, decisionReason: other('Nothing to run.') }
   }
@@ -196,7 +196,7 @@ async function decidePowerShellPermission(
   const uploadReason = credentialUploadReason(trimmed)
   const destructiveReason = uploadReason ? null : getDestructiveCommandWarning(trimmed)
   const deferredReason = uploadReason ?? destructiveReason
-  const deferredAsk: PermissionResult | null = deferredReason
+  let slot: PermissionResult | null = deferredReason
     ? {
         behavior: 'ask',
         message: deferredReason,
@@ -212,44 +212,38 @@ async function decidePowerShellPermission(
     }
   }
 
-  if (exact.behavior === 'ask') return exact
   const prefixAsk = matchRules(trimmed, context, 'ask', 'prefix')
-  if (prefixAsk) return ruledVerdict(context, trimmed, prefixAsk, 'ask')
+  if (prefixAsk) slot = ruledVerdict(context, trimmed, prefixAsk, 'ask')
 
-  const remoteUnc = uncPathRisk(trimmed, { command: true })
-  if (remoteUnc.risky) {
+  const exactAllowRule = matchRules(trimmed, context, 'allow', 'exact') !== null
+  const remoteUnc = uncPathRisk(trimmed)
+  if (remoteUnc.risky && slot === null && !exactAllowRule) {
     const message = uncPathMessage(trimmed, remoteUnc)
-    return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: true } }
+    slot = { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: true } }
   }
 
-  if (containsWindowsDevicePath(trimmed)) {
-    return {
-      behavior: 'ask',
-      message: WINDOWS_DEVICE_PATH_MESSAGE,
-      decisionReason: { type: 'safetyCheck', reason: WINDOWS_DEVICE_PATH_MESSAGE, operatorOnly: true },
-    }
+  if (slot === null && containsWindowsDevicePath(trimmed)) {
+    slot = { behavior: 'ask', message: WINDOWS_DEVICE_PATH_MESSAGE }
   }
 
   if (!parsed.valid) {
-    const fragDeny = fragmentDenyScan(trimmed, context)
-    if (fragDeny) return fragDeny
-    if (!deferredAsk && exact.behavior === 'allow') {
+    if (slot === null && exact.behavior === 'allow') {
       const firstWord = trimmed.split(/\s+/)[0] ?? ''
-      if (pinnedCommandAnalysis.classifyCommandName(stripModule(firstWord)) !== 'application') {
+      if (pinnedCommandAnalysis.classifyCommandName(firstWord) !== 'application') {
         return exact
       }
     }
-    if (deferredAsk) return deferredAsk
+    const fragDeny = fragmentDenyScan(trimmed, context)
+    if (fragDeny) return fragDeny
+    if (slot) return slot
     const errMsg = parsed.errors[0]?.message ?? 'unknown error'
-    const msg = `The command has malformed syntax that cannot be parsed: ${errMsg}`
-    return { behavior: 'ask', message: msg, decisionReason: other(msg) }
+    return { behavior: 'ask', message: `The command has malformed syntax that cannot be parsed: ${errMsg}` }
   }
 
   const allCommands = getAllCommands(parsed)
-  const segments = getPipelineSegments(parsed)
-  const hasCd = allCommands.some(cmd => isCwdChangingCmdlet(cmd.name))
-  const compoundHasCd = (segments.length > 1 || allCommands.length > 1) && hasCd
-  const hasSymlinkCreate = allCommands.some(cmd => isSymlinkCreatingCommand(cmd))
+  const compound = allCommands.length > 1
+  const hasCd = compound && allCommands.some(cmd => isCwdChangingCmdlet(cmd.name))
+  const hasSymlinkCreate = compound && allCommands.some(cmd => isSymlinkCreatingCommand(cmd))
 
   const collected = collectValidAstVerdicts(
     input,
@@ -259,8 +253,9 @@ async function decidePowerShellPermission(
     effectiveCwd,
     context,
     exact,
-    deferredAsk,
-    compoundHasCd,
+    slot,
+    exactAllowRule,
+    hasCd,
   )
   const reduced = reduce(collected)
   if (reduced) return reduced
@@ -276,30 +271,37 @@ function collectValidAstVerdicts(
   effectiveCwd: string,
   context: ToolPermissionContext,
   exact: PermissionResult,
-  deferredAsk: PermissionResult | null,
-  compoundHasCd: boolean,
+  slot: PermissionResult | null,
+  exactAllowRule: boolean,
+  hasCd: boolean,
 ): PermissionResult[] {
   const collected: PermissionResult[] = []
+  const bareAsk = (message: string): void => {
+    collected.push({ behavior: 'ask', message })
+  }
 
-  if (deferredAsk) collected.push(deferredAsk)
+  if (slot) collected.push(slot)
+
+  const hasGit = allCommands.some(cmd => resolveToCanonical(cmd.name) === 'git')
 
   const safety = powershellCommandIsSafe(trimmed, parsed)
   if (safety.behavior === 'ask') {
-    const msg = safety.message ?? 'The command carries security-relevant patterns and needs approval.'
-    collected.push({ behavior: 'ask', message: msg, decisionReason: other(msg) })
+    collected.push({
+      behavior: 'ask',
+      message: safety.message ?? 'The command carries security-relevant patterns and needs approval.',
+      suggestions: exactSuggestions(trimmed),
+    })
   }
 
   if (parsed.hasUsingStatements) {
-    const msg = 'A `using` statement may load external code (a module or an assembly).'
-    collected.push({ behavior: 'ask', message: msg, decisionReason: other(msg) })
+    bareAsk('A `using` statement may load external code (a module or an assembly).')
   }
 
   if (parsed.hasScriptRequirements) {
-    const msg = 'A `#Requires` directive may trigger module loading.'
-    collected.push({ behavior: 'ask', message: msg, decisionReason: other(msg) })
+    bareAsk('A `#Requires` directive may trigger module loading.')
   }
 
-  const providerVerdict = providerUncScan(parsed, exact.behavior === 'allow')
+  const providerVerdict = providerUncScan(parsed, exactAllowRule)
   if (providerVerdict) collected.push(providerVerdict)
 
   for (const cmd of allCommands) {
@@ -307,39 +309,32 @@ function collectValidAstVerdicts(
     if (subVerdict) collected.push(subVerdict)
   }
 
-  const hasGit = allCommands.some(cmd => resolveToCanonical(cmd.name) === 'git')
-  if (compoundHasCd && hasGit) {
-    const msg = 'A compound that mixes a directory change with a git invocation needs approval, because the pairing is the shape of a bare-repository attack.'
-    collected.push({ behavior: 'ask', message: msg, decisionReason: other(msg) })
+  if (hasCd && hasGit) {
+    bareAsk('A compound that mixes a directory change with a git invocation needs approval, because the pairing is the shape of a bare-repository attack.')
   }
 
-  if (hasGit && isCurrentDirectoryBareGitRepo(effectiveCwd) !== false) {
-    const msg = 'The current directory carries bare-repository indicators (HEAD, objects/, refs/) with no valid .git/HEAD; git may treat it as the repository and run hooks from it.'
-    collected.push({ behavior: 'ask', message: msg, decisionReason: other(msg) })
+  if (hasGit) {
+    if (isCurrentDirectoryBareGitRepo(effectiveCwd) !== false) {
+      bareAsk('The current directory carries bare-repository indicators (HEAD, objects/, refs/) with no valid .git/HEAD; git may treat it as the repository and run hooks from it.')
+    }
+    if (gitInternalWrite(parsed, allCommands)) {
+      bareAsk('The command writes into a git-internal location (HEAD, objects/, refs/, hooks/, .git/) and then runs git — a hook could be planted and executed.')
+    }
+    if (allCommands.some(cmd => ARCHIVE_EXTRACTORS.has(cmd.name.toLowerCase()))) {
+      bareAsk('The compound unpacks an archive before running git; an archive can carry the files that make a directory look like a repository root.')
+    }
   }
 
-  const fileRedirs = pinnedCommandAnalysis.getFileRedirections(parsed)
   if (dotGitWrite(parsed, allCommands)) {
-    const msg = 'The command targets .git/; anything planted there runs at the next git operation.'
-    collected.push({ behavior: 'ask', message: msg, decisionReason: other(msg) })
-  } else if (hasGit && gitInternalWrite(parsed, allCommands)) {
-    const msg = 'The command writes into a git-internal location (HEAD, objects/, refs/, hooks/, .git/) and then runs git — a hook could be planted and executed.'
-    collected.push({ behavior: 'ask', message: msg, decisionReason: other(msg) })
+    bareAsk('The command targets .git/; anything planted there runs at the next git operation.')
   }
 
-  const firstArchiveIdx = allCommands.findIndex(
-    cmd => ARCHIVE_EXTRACTORS.has(cmd.name.toLowerCase()) || ARCHIVE_EXTRACTORS.has(resolveToCanonical(cmd.name)),
-  )
-  const lastGitIdx = allCommands.map(cmd => resolveToCanonical(cmd.name)).lastIndexOf('git')
-  if (firstArchiveIdx !== -1 && lastGitIdx !== -1 && firstArchiveIdx < lastGitIdx) {
-    const msg = 'The compound unpacks an archive before running git; an archive can carry the files that make a directory look like a repository root.'
-    collected.push({ behavior: 'ask', message: msg, decisionReason: other(msg) })
-  }
-  const pathVerdict = checkPathConstraints(input, parsed, context, compoundHasCd, effectiveCwd)
+  const pathVerdict = checkPathConstraints({ command: trimmed }, parsed, context, hasCd, effectiveCwd)
   if (pathVerdict.behavior !== 'passthrough') collected.push(pathVerdict)
 
   if (
     exact.behavior === 'allow' &&
+    allCommands.length > 0 &&
     !allCommands.some(cmd => cmd.nameType === 'application') &&
     !allCommands.some(cmd => argLeaksValue(trimmed, cmd))
   ) {
@@ -350,11 +345,15 @@ function collectValidAstVerdicts(
     collected.push({ behavior: 'allow', updatedInput: input, decisionReason: other('The whole command is read-only.') })
   }
 
-  if (fileRedirs.length > 0) {
-    const msg = 'The command has file redirections that could write to arbitrary paths.'
-    collected.push({ behavior: 'ask', message: msg, decisionReason: other(msg) })
+  if (pinnedCommandAnalysis.getFileRedirections(parsed).length > 0) {
+    collected.push({
+      behavior: 'ask',
+      message: 'The command has file redirections that could write to arbitrary paths.',
+      suggestions: exactSuggestions(trimmed),
+    })
   }
-  const modeVerdict = checkPermissionMode(input, parsed, context)
+
+  const modeVerdict = checkPermissionMode({ command: trimmed }, parsed, context)
   if (modeVerdict.behavior !== 'passthrough') collected.push(modeVerdict)
 
   return collected
