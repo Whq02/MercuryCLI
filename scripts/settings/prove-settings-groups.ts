@@ -171,7 +171,6 @@ try {
     check(`memory directory source ${source} respects trust`, getMnemeHome().startsWith(directory) === (source !== 1))
     const executable = source !== 1 && source !== 2
     check(`key command source ${source} respects checkout trust`, pipeline.getApiKeyHelperFromOutsideCheckoutSources() === (executable ? `fixture-${source}` : undefined))
-    check(`hook source ${source} respects checkout trust`, isDeepStrictEqual(pipeline.getHooksFromOutsideCheckoutSources(), executable ? hooks : {}))
   }
   for (const lock of ['disableSovereignMode', 'disableFlowMode']) {
     for (const value of [1, null, {}, 'not-a-boolean']) {

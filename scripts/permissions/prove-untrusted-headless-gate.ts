@@ -129,24 +129,15 @@ section('§3 OUTSIDE-CHECKOUT READERS + THE GATED SITES (call-shaped)')
 {
   const settingsModule = (await import('../../src/platform/settings/settings.js')) as unknown as {
     getApiKeyHelperFromOutsideCheckoutSources?: () => string | undefined
-    getHooksFromOutsideCheckoutSources?: () => unknown
   }
   const getApiKeyHelperFromOutsideCheckoutSources =
     settingsModule.getApiKeyHelperFromOutsideCheckoutSources ?? ((): string | undefined => undefined)
-  const getHooksFromOutsideCheckoutSources = settingsModule.getHooksFromOutsideCheckoutSources ?? ((): unknown => null)
   resetSettingsCache()
   check(
     'the outside-checkout helper is the USER one (checkout helper invisible)',
     getApiKeyHelperFromOutsideCheckoutSources() === 'echo sk-user-fixture',
     String(getApiKeyHelperFromOutsideCheckoutSources()),
     'getApiKeyHelperFromOutsideCheckoutSources in src/platform/settings/settings.ts must read only the non-checkout settings sources',
-  )
-  const outsideHooks = JSON.stringify(getHooksFromOutsideCheckoutSources())
-  check(
-    'the outside-checkout hooks map carries only the config-home hook',
-    outsideHooks.includes('user-marker') && !outsideHooks.includes('proj-marker'),
-    '',
-    'getHooksFromOutsideCheckoutSources in src/platform/settings/settings.ts must return the config-home hooks and no checkout hooks',
   )
 }
 

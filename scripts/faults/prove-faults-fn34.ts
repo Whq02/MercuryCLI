@@ -245,21 +245,16 @@ function runScenario(body: string): Record<string, unknown> {
       try {
         cacheMod.resetSettingsCache()
         out.loaded = settingsMod.loadManagedFileSettings()
-        out.presence = settingsMod.getManagedFileSettingsPresence()
       } finally {
         fs.chmodSync(dropInDir, 0o700)
         fs.rmSync(dropInDir, { recursive: true, force: true })
       }
       cacheMod.resetSettingsCache()
       out.absentLoaded = settingsMod.loadManagedFileSettings()
-      out.absentPresence = settingsMod.getManagedFileSettingsPresence()
     `)
     const loaded = r.loaded as { errors: Array<{ message?: string }> }
-    const presence = r.presence as { hasDropIns: boolean }
     const absentLoaded = r.absentLoaded as { errors: unknown[] }
-    const absentPresence = r.absentPresence as { hasDropIns: boolean }
     check('settings-unreadable-dropin-reported', loaded.errors.some(e => e.message?.includes('settings file unreadable')) && absentLoaded.errors.length === 0, `${JSON.stringify(r)} — loadManagedFileSettings in src/platform/settings/settings.ts must report a 'settings file unreadable' error for an unreadable drop-in directory and no error when it is absent`)
-    check('settings-unreadable-dropin-presence-reads-absent', presence.hasDropIns === false && absentPresence.hasDropIns === false, `${JSON.stringify(r)} — getManagedFileSettingsPresence in src/platform/settings/settings.ts must report hasDropIns false for an unreadable drop-in directory`)
   }
 }
 {

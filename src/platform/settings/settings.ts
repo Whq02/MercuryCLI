@@ -319,24 +319,6 @@ export function loadManagedFileSettings(): { settings: SettingsJson | null; erro
   return { settings: merged, errors }
 }
 
-export function getManagedFileSettingsPresence(): { hasBase: boolean; hasDropIns: boolean } {
-  const base = parseSettingsFile(join(getManagedFilePath(), 'managed-settings.json'))
-  const hasBase = base.settings !== null && Object.keys(base.settings).length > 0
-  let hasDropIns = false
-  try {
-    hasDropIns = readdirSync(getManagedSettingsDropInDir(), { withFileTypes: true }).some(
-      entry =>
-        (entry.isFile() || entry.isSymbolicLink()) && entry.name.endsWith('.json') && !entry.name.startsWith('.'),
-    )
-  } catch (error) {
-    if (!isENOENT(error) && (error as { code?: string }).code !== 'ENOTDIR') {
-      logForDebugging(`managed settings drop-in dir unreadable: ${errorMessage(error)}`, { level: 'error' })
-    }
-    hasDropIns = false
-  }
-  return { hasBase, hasDropIns }
-}
-
 type PolicySelection = {
   origin: 'device' | 'file' | 'hkcu' | null
   settings: SettingsJson | null
@@ -513,18 +495,6 @@ export const OUTSIDE_CHECKOUT_SOURCES: ReadonlySet<SettingSource> = new Set([
   'flagSettings',
   'policySettings',
 ])
-
-export function getHooksFromOutsideCheckoutSources(): NonNullable<NonNullable<SettingsJson['events']>['hooks']> {
-  let merged: SettingsJson = {} as SettingsJson
-  for (const source of getEnabledSettingSources()) {
-    if (!OUTSIDE_CHECKOUT_SOURCES.has(source)) continue
-    const settings = getSettingsForSource(source)
-    if (settings?.events?.hooks) {
-      merged = mergeWith(merged, { events: { hooks: settings.events?.hooks } } as SettingsJson, settingsMergeCustomizer) as SettingsJson
-    }
-  }
-  return merged.events?.hooks ?? {}
-}
 
 export function getApiKeyHelperFromOutsideCheckoutSources(): string | undefined {
   let helper: string | undefined
