@@ -54,6 +54,21 @@ export function listedSessionName(log: SessionListing, renamed = ''): string | n
   return fallback.length > 0 ? fallback : null
 }
 
+function compareStampDesc(a: string, b: string): number {
+  const ta = Date.parse(a)
+  const tb = Date.parse(b)
+  if (Number.isFinite(ta) && Number.isFinite(tb) && tb !== ta) return tb - ta
+  return b.localeCompare(a)
+}
+
+function compareListedSessions(a: SessionListing, b: SessionListing): number {
+  const byModified = b.modified.getTime() - a.modified.getTime()
+  if (byModified !== 0) return byModified
+  const byStamp = compareStampDesc(a.date, b.date)
+  if (byStamp !== 0) return byStamp
+  return (a.sessionId ?? '').localeCompare(b.sessionId ?? '')
+}
+
 export async function readListedSessions(lite: SessionListing[], count: number): Promise<SessionListing[]> {
   const listed: SessionListing[] = []
   let next = 0
@@ -62,5 +77,17 @@ export async function readListedSessions(lite: SessionListing[], count: number):
     next = batch.nextIndex
     listed.push(...listedSessionsOf(batch.logs, ''))
   }
-  return listed
+  if (listed.length > 0 && next < lite.length) {
+    const boundaryMtime = lite[next - 1]!.modified.getTime()
+    let tied = 0
+    while (next + tied < lite.length && lite[next + tied]!.modified.getTime() === boundaryMtime) {
+      tied++
+    }
+    if (tied > 0) {
+      const batch = await enrichSessionListings(lite.slice(next, next + tied), 0, tied)
+      listed.push(...listedSessionsOf(batch.logs, ''))
+    }
+  }
+  listed.sort(compareListedSessions)
+  return listed.slice(0, count)
 }

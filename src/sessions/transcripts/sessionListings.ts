@@ -800,7 +800,9 @@ async function newestSessionFiles(
   limit?: number,
   onReadError?: (path: string, error: unknown) => void,
 ): Promise<IndexedSession[]> {
-  const files = (await statSessionFiles(projectDir, onReadError)).sort((a, b) => b.mtime - a.mtime)
+  const files = (await statSessionFiles(projectDir, onReadError)).sort(
+    (a, b) => b.mtime - a.mtime || a.sessionId.localeCompare(b.sessionId),
+  )
   return limit && files.length > limit ? files.slice(0, limit) : files
 }
 

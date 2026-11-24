@@ -9,6 +9,7 @@ import { removeScratch } from '../lib/removeScratch.ts'
 process.env.NODE_ENV = 'test'
 const HOME = realpathSync(mkdtempSync(join(tmpdir(), 'sessions-list-home-')))
 const PROJ = realpathSync(mkdtempSync(join(tmpdir(), 'sessions-list-proj-')))
+const MIRROR_PROJ = realpathSync(mkdtempSync(join(tmpdir(), 'sessions-list-mirror-')))
 const DAEMON = join(HOME, 'daemon')
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_DAEMON_DIR = DAEMON
@@ -26,6 +27,7 @@ const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${t
 
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
 const { getProjectDir, getProjectsDir } = await import('../../src/sessions/transcripts/paths.ts')
+const { setOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
 const verb = (await import('../../src/commands/verbs/sessionsVerb.ts')) as { sessionsListCli?: (options: { all?: boolean; limit?: number }, io: unknown) => Promise<number> }
 
 const STORE = getProjectDir(PROJ)
@@ -68,6 +70,23 @@ try {
     const one = await run({ limit: 1 })
     check('--limit 1 lists the newest only', one.code === 0 && one.out.filter(l => /^[0-9a-f-]{36} /.test(l)).length === 1 && one.out.some(l => l.startsWith(ids.newer)), one.out.join('\n'))
   }
+  section('§2b mirrored ids with tied file times: the session with the newer internal stamp still leads, and --limit 1 picks it')
+  {
+    const mirrorStore = getProjectDir(MIRROR_PROJ)
+    mkdirSync(mirrorStore, { recursive: true })
+    const mirror = { newer: '11111111-1111-4111-8111-111111111111', older: '22222222-2222-4222-8222-222222222222' }
+    seed(mirrorStore, mirror.newer, '2026-10-02T00:00:00.000Z', 'newer session with smaller id', 'mirrored newer')
+    seed(mirrorStore, mirror.older, '2026-10-01T00:00:00.000Z', 'older session with larger id')
+    setOriginalCwd(MIRROR_PROJ)
+    try {
+      const result = await run({})
+      check('mirrored pair: both sessions are listed, newest first (smaller id carries the newer stamp)', result.code === 0 && result.out.findIndex(l => l.startsWith(mirror.newer)) === 1 && result.out.findIndex(l => l.startsWith(mirror.older)) === 2, result.out.join('\n'))
+      const one = await run({ limit: 1 })
+      check('mirrored pair: --limit 1 lists the newest only', one.code === 0 && one.out.filter(l => /^[0-9a-f-]{36} /.test(l)).length === 1 && one.out.some(l => l.startsWith(mirror.newer)), one.out.join('\n'))
+    } finally {
+      setOriginalCwd(PROJ)
+    }
+  }
   section('§3 the words and the door agree: --help names the listing, a bare `sessions` lists instead of printing the delete help and failing')
   {
     const { builtCli, builtHelp } = await import('../lib/builtProduct.ts')
@@ -81,6 +100,7 @@ try {
 } finally {
   removeScratch(HOME)
   removeScratch(PROJ)
+  removeScratch(MIRROR_PROJ)
 }
 
 console.log(`\n${count} checks, ${failures} failures`)
