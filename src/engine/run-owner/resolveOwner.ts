@@ -17,7 +17,7 @@ function safeWorkspace(): string {
   }
 }
 
-function safeSessionId(): string {
+export function safeSessionId(): string {
   try {
     return String(getSessionId())
   } catch (error) {

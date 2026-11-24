@@ -1,7 +1,7 @@
 import { existsSync, watch, type FSWatcher } from 'node:fs'
 import { mkdir, readFile } from 'node:fs/promises'
 import { dirname, join, relative, sep } from 'node:path'
-import { getSessionId } from '../../boot/process-state/processState.js'
+import { safeSessionId } from '../../engine/run-owner/resolveOwner.js'
 import { conversationIdHere, subscribeFocusedSessionConnector } from '../../engine/connector/focusedConnector.js'
 import { daemonDir } from '../../daemon/control/controlSocket.js'
 import {
@@ -41,19 +41,10 @@ export function desktopClaimPath(): string {
   return join(daemonDir(), DESKTOP_CLAIM_FILE)
 }
 
-function sessionWord(): string {
-  try {
-    return String(getSessionId())
-  } catch (error) {
-    passedOver(error)
-    return 'boot'
-  }
-}
-
 let owner: string | null = null
 
 function desktopClaimOwner(): string {
-  if (owner === null) owner = `${sessionWord()}:${process.pid}`
+  if (owner === null) owner = `${safeSessionId()}:${process.pid}`
   return owner
 }
 
