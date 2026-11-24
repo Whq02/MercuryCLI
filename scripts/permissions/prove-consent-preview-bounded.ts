@@ -26,7 +26,6 @@ const {
   filePaintWidth,
   paintedRows,
   totalHunkRows,
-  totalLineRows,
 } = owner
 
 section('§1 the owner — painted rows, the floor, the measured chrome')
@@ -58,7 +57,6 @@ section('§1 the owner — painted rows, the floor, the measured chrome')
   check('the boundary line is torn at the rows left (short=1, then 2 rows of the long line)', mixed.lines.length === 2 && mixed.cut && stringWidth(mixed.lines[1]!) <= 200 && mixed.hiddenLines === 2)
   check('cutToRows keeps the whole line when it fits', cutToRows('abc', 10, 1) === 'abc')
   check('cutToRows tears to rows×width cells with the mark', cutToRows('x'.repeat(50), 10, 2) === 'x'.repeat(19) + '…')
-  check('totalLineRows sums painted rows', totalLineRows(['x'.repeat(150), 'y'], 100) === 3)
 }
 
 section('§2 the hunk walk — torn boundary, separators, order')

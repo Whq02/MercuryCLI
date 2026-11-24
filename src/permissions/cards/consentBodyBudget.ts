@@ -137,7 +137,3 @@ export function totalHunkRows(hunks: readonly StructuredPatchHunk[], paintWidth:
   })
   return rows
 }
-
-export function totalLineRows(lines: readonly string[], paintWidth: number): number {
-  return lines.reduce((rows, line) => rows + paintedRows(line, paintWidth), 0)
-}
