@@ -4,7 +4,7 @@ import { useLoad, usePublish, useTimer } from '../effects/effects.js'
 import { getProjectRoot } from '../../boot/process-state/processState.js'
 import { conversationIdHere, getFocusedSessionConnector, subscribeFocusedSessionConnector, subscribeThroughFocused } from '../../engine/connector/focusedConnector.js'
 import { promptRows } from '../prompts-panel/rows.js'
-import { filterResumableSessions } from '../session-chooser/sessionResumeFilter.js'
+import { listedSessionsOf } from '../../sessions/transcripts/listedSessions.js'
 import { Box, Text } from '../themedRenderer.js'
 import { InteractiveRow } from '../widgets/InteractiveRow.js'
 import { useAppState } from '../app-state/AppState.js'
@@ -14,7 +14,7 @@ import type { SessionListing } from '../../sessions/transcripts/transcriptEntrie
 import { saturnWakeGlanceOf, type SaturnWakeGlanceV1 } from '../../daemon/saturn/saturn.js'
 import { boardHomedSessionIds, readSessionWorkers } from '../../daemon/concourse-workers/concourseWorkers.js'
 import { subscribeConcourseWorkers } from '../../daemon/concourse-workers/store.js'
-import { isProjectSession, isSubstantiveSession } from '../session-chooser/sessionFilter.js'
+import { isProjectSession } from '../session-chooser/sessionFilter.js'
 import { isSessionCleared } from '../../sessions/transcripts/clearedSessions.js'
 import { sessionIdOfListing, listSessionsAcrossProjects } from '../../sessions/transcripts/sessionStorage.js'
 import { getHelmCursor, getHelmFocus, getHelmLanesVersion, getHelmRows, helmRowSig, publishHelmRows, requestCommandDispatch, requestHelmRowActivation, requestHelmRowActivationBySig, setHelmCursor, setHelmCursorBySig, subscribeHelmFocus } from '../cockpit/helmFocus.js'
@@ -310,8 +310,7 @@ function useRecentSessions(solo: boolean): SessionListing[] | null {
       try {
         const all = await listSessionsAcrossProjects()
         const boardHomed = boardHomedSessionIds()
-        const resumable = filterResumableSessions(all, conversationId)
-          .filter(isSubstantiveSession)
+        const resumable = listedSessionsOf(all, conversationId)
           .filter(l => !boardHomed.has(sessionIdOfListing(l) ?? ''))
           .filter(l => isProjectSession(l, getProjectRoot() || ''))
           .filter(l => !isSessionCleared(sessionIdOfListing(l)))

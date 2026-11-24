@@ -1,8 +1,8 @@
 import type { UUID } from 'node:crypto'
 import { getProjectRoot } from '../../boot/process-state/processState.js'
 import { conversationIdHere } from './focusedConnector.js'
-import { filterResumableSessions } from '../../screen/session-chooser/sessionResumeFilter.js'
-import { isProjectSession, isSubstantiveSession } from '../../screen/session-chooser/sessionFilter.js'
+import { listedSessionsOf } from '../../sessions/transcripts/listedSessions.js'
+import { isProjectSession } from '../../screen/session-chooser/sessionFilter.js'
 import { errorMessage } from '../../platform/errors/errors.js'
 import { isSessionCleared } from '../../sessions/transcripts/clearedSessions.js'
 import { validateUuid } from '../../platform/primitives/uuid.js'
@@ -23,8 +23,7 @@ async function resolveSessionFlipTarget(
   wanted: string,
 ): Promise<{ target: SessionListing; sessionId: UUID } | { target: null; note?: string }> {
   const all = await listSessionsAcrossProjects()  
-  const resumable = filterResumableSessions(all, conversationIdHere())
-    .filter(isSubstantiveSession)
+  const resumable = listedSessionsOf(all, conversationIdHere())
     .filter(l => isProjectSession(l, getProjectRoot() || ''))
     .filter(l => !isSessionCleared(sessionIdOfListing(l)))
   resumable.sort(

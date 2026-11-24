@@ -116,12 +116,11 @@ export async function sessionsDeleteCli(
 
 export async function sessionsListCli(options: { all?: boolean; limit?: number }, io: SessionsCliIo = defaultIo): Promise<number> {
   const cli = binaryName()
-  const { listSessions, listSessionsAcrossProjectsProgressive, enrichSessionListings } = await import('../../sessions/transcripts/sessionListings.js')
-  const { sortSessionListings } = await import('../../sessions/transcripts/transcriptEntries.js')
+  const { listSessions, listSessionsAcrossProjectsProgressive } = await import('../../sessions/transcripts/sessionListings.js')
+  const { listedSessionName, readListedSessions } = await import('../../sessions/transcripts/listedSessions.js')
   const limit = options.limit !== undefined && Number.isFinite(options.limit) && options.limit > 0 ? Math.floor(options.limit) : 50
   const lite = options.all === true ? (await listSessionsAcrossProjectsProgressive(undefined, 0)).allStatLogs : await listSessions()
-  const { logs: enriched } = await enrichSessionListings(lite, 0, lite.length)
-  const logs = sortSessionListings(enriched).slice(0, limit)
+  const logs = await readListedSessions(lite, limit)
   const live = liveSessionIds()
   if (logs.length === 0) {
     io.out(options.all === true ? `No saved sessions under ${getProjectsDir()}.` : `No saved sessions for this project (${getProjectDir(getOriginalCwd())}); ${cli} sessions list --all reads every project.`)
@@ -130,7 +129,7 @@ export async function sessionsListCli(options: { all?: boolean; limit?: number }
   io.out(`${logs.length} saved session${logs.length === 1 ? '' : 's'}${options.all === true ? ' across every project' : ' for this project'}, newest first (id · modified · size · title):`)
   for (const log of logs) {
     const id = log.sessionId ?? (log.fullPath ?? '').split(/[\\/]/).pop()?.replace(/\.jsonl$/, '') ?? '?'
-    const title = (log.customTitle ?? log.summary ?? log.firstPrompt ?? '').replace(/\s+/g, ' ').trim()
+    const title = (listedSessionName(log) ?? '').replace(/\s+/g, ' ').trim()
     const words = title.length > 80 ? `${sliceHeadAtGrapheme(title, 77)}…` : title
     const place = options.all === true && log.projectPath ? ` · ${log.projectPath}` : ''
     io.out(`${id}  ${log.modified.toISOString()}  ${kib(log.fileSize ?? 0)}${live.has(id) ? '  live' : ''}  ${words}${place}`)

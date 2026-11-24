@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { methods, PROTOCOL_VERSION } from '@agentclientprotocol/sdk'
 import type { AgentApp } from '@agentclientprotocol/sdk'
-import { listSessionsImpl } from '../../../sessions/transcripts/listSessions.js'
+import { formatSessionReadFailures, listSessionsAcrossProjectsProgressive, sessionIdOfListing } from '../../../sessions/transcripts/sessionListings.js'
+import { listedSessionName, readListedSessions } from '../../../sessions/transcripts/listedSessions.js'
 import { getProjectDir } from '../../../sessions/transcripts/paths.js'
 import { loadTranscriptFile } from '../../../sessions/transcripts/loading.js'
 import { withoutRetractedReplies } from '../../../engine/connector/midTurnText.js'
@@ -124,14 +125,18 @@ export function sessionRequests(app: AgentApp, server: AcpServerState, opts: Acp
     .onRequest('session/list', async ctx => {
       const cursor = ctx.params?.cursor ? Number(ctx.params.cursor) : 0
       const limit = 50
-      const all = await listSessionsImpl({ limit: cursor + limit + 1 })
+      const { allStatLogs, readFailures } = await listSessionsAcrossProjectsProgressive(undefined, 0)
+      const unread = formatSessionReadFailures(readFailures)
+      if (unread !== null) throw new Error(unread)
+      const all = await readListedSessions(allStatLogs, cursor + limit + 1)
       const page = all.slice(cursor, cursor + limit)
       return {
-        sessions: page.map(s => ({
-          sessionId: s.sessionId,
-          cwd: s.cwd ?? '',
-          ...(s.summary !== '' ? { title: s.summary } : {}),
-        })),
+        sessions: page.flatMap(log => {
+          const sessionId = sessionIdOfListing(log)
+          if (sessionId === undefined) return []
+          const title = listedSessionName(log)
+          return [{ sessionId, cwd: log.projectPath ?? '', ...(title !== null ? { title } : {}) }]
+        }),
         ...(all.length > cursor + limit ? { nextCursor: String(cursor + limit) } : {}),
       }
     })

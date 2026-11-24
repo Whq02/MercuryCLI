@@ -30,7 +30,8 @@ mock.module('../../src/sessions/transcripts/sessionStorage.js', () => ({
   fillSessionListing: async (log: unknown) => { if (hydrationFails) throw new Error('fixture transcript unreadable'); return log },
 }))
 mock.module('../../src/platform/git/worktree/worktreePathsPortable.js', () => ({ getWorktreePathsPortable: async () => [home] }))
-mock.module('../../src/screen/session-chooser/sessionResumeFilter.js', () => ({ filterResumableSessions: (rows: unknown[]) => rows }))
+const listedSessions = await import('../../src/sessions/transcripts/listedSessions.js')
+mock.module('../../src/sessions/transcripts/listedSessions.js', () => ({ ...listedSessions, filterResumableSessions: (rows: unknown[]) => rows }))
 mock.module('../../src/screen/session-chooser/SessionBrowser.js', () => ({ SessionBrowser: (props: { onSelect: typeof selected }) => { selected = props.onSelect; return null } }))
 mock.module('../../src/screen/spinner/Spinner.js', () => ({ Spinner: () => null }))
 const { call } = await import('../../src/commands/sessions/sessions.js')

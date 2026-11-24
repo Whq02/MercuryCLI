@@ -2,14 +2,13 @@ import { useMemo, useState, useSyncExternalStore } from 'react'
 import { useLoad } from '../../effects/effects.js'
 import { conversationIdHere } from '../../../engine/connector/focusedConnector.js'
 import { currentProject, subscribeCurrentProject } from '../../boot-face/bootCardFacts.js'
-import { filterResumableSessions } from '../../session-chooser/sessionResumeFilter.js'
 import type { SessionListing } from '../../../sessions/transcripts/transcriptEntries.js'
-import { getListingDisplayTitle } from '../../../platform/logs/errorLog.js'
 import { formatRelativeTimeAgo } from '../../../platform/text/format.js'
 import { boardHomedSessionIds, readSessionWorkers } from '../../../daemon/concourse-workers/concourseWorkers.js'
 import { sanitizeLabel } from '../../concourse-model/concourseSnapshot.js'
-import { sessionTitleOf } from '../../concourse-model/sessionNaming.js'
-import { isSubstantiveSession, partitionByProject } from '../../session-chooser/sessionFilter.js'
+import { newSessionTitle } from '../../concourse-model/sessionNaming.js'
+import { partitionByProject } from '../../session-chooser/sessionFilter.js'
+import { listedSessionName, listedSessionsOf } from '../../../sessions/transcripts/listedSessions.js'
 import { isSessionCleared } from '../../../sessions/transcripts/clearedSessions.js'
 import {
   enrichSessionListings,
@@ -53,16 +52,7 @@ function workerTitlesBySession(recordsDir?: string): ReadonlyMap<string, string>
 }
 
 export function rowLabel(log: SessionListing, workerTitle?: string): string {
-  const renamed = (workerTitle ?? '').trim() || (log.customTitle ?? '').trim()
-  const workspaceId = log.projectPath || currentProject().dir
-  return sanitizeLabel(
-    sessionTitleOf({ title: renamed, workspaceId }, () => {
-      const prompt = getListingDisplayTitle({ ...log, agentName: undefined, customTitle: undefined, summary: undefined }, '')
-      if (prompt.length > 0 && prompt !== log.sessionId?.slice(0, 8)) return prompt
-      const fallback = getListingDisplayTitle({ ...log, agentName: undefined, customTitle: undefined }, '')
-      return fallback.length > 0 ? fallback : null
-    }),
-  )
+  return sanitizeLabel(listedSessionName(log, workerTitle) ?? newSessionTitle(log.projectPath || currentProject().dir))
 }
 
 export function rowProject(log: SessionListing): string {
@@ -71,7 +61,7 @@ export function rowProject(log: SessionListing): string {
 }
 
 export function resumableNewestFirst(all: SessionListing[], currentSessionId: string): SessionListing[] {
-  const resumable = filterResumableSessions(all, currentSessionId).filter(isSubstantiveSession)
+  const resumable = listedSessionsOf(all, currentSessionId)
   resumable.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime())
   return resumable
 }
