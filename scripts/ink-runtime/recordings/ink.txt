@@ -1129,7 +1129,7 @@ the motion governor: 4 frames seen, level full, trip null
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
 > the alternate screen is given, and the terminal moves to 26 by 6 before the first paint
 out \e[?25l
-out \e[?25l\e[K\e[2;1H\e[K\e[3;1H\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[?25h
+out \e[?25l\e[1;1H\e[K\e[2;1H\e[K\e[3;1H\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[?25h
   modes: dec[] cursor=shown kitty=0 otherkeys=0 region=whole pointer=unset
   held: alt-screen alternate-scroll cursor-hidden
   ink: alt=yes mouse=no prefers=yes wheel=no entry=yes reasserts=0 exit=none
@@ -1146,9 +1146,11 @@ out \e[?25l\e[K\e[2;1H\e[K\e[3;1H\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[?25h
     |
     |
 > 120 ms pass
+out \e[?1049h\e[r\e[2J\e[H\e[?1007h\e[H\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Glong\e[2;1Henough\e[8Gto\e[11Gwrap\e[3;1Hsecond\e[6;1H
+  frame 1: reads=13 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=18 nodes=12/2/6/5
 out \e[?1007h
-out \e[?1049h\e[r\e[2J\e[H\e[?1007h\e[H\e[0m\e[1Ga line that is long enough\e[2;1Hto wrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[6;1H
-  frame 1: reads=12 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=15 nodes=12/2/6/5
+out \e[H\e[0m\e[1Ga line that is long enough\e[2;1Hto wrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[6;1H
+  frame 2: reads=12 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=15 nodes=12/2/6/5
   modes: dec[1007 1049] cursor=shown kitty=0 otherkeys=0 region=whole pointer=unset
   ink: alt=yes mouse=no prefers=yes wheel=no entry=no reasserts=0 exit=none
   timers: none
@@ -1161,13 +1163,13 @@ out \e[?1049h\e[r\e[2J\e[H\e[?1007h\e[H\e[0m\e[1Ga line that is long enough\e[2;
     |
 > 100 ms pass
 > the terminal moves back to 24 by 6
-out \e[?25l\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Glong\e[21Genou\e[K\e[2;1Hto\e[4Gwrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K
+out \e[?25l\e[1;1H\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Glong\e[21Genou\e[K\e[2;1Hto\e[4Gwrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K
   modes: dec[1007 1049] cursor=hidden kitty=0 otherkeys=0 region=whole pointer=unset
   timers: 120
 > 120 ms pass
 out \e[?1007h
 out \e[H\e[0m\e[1Ga line that is long\e[K\e[2;1Henough to wrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[6;1H
-  frame 2: reads=12 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=16 nodes=8/0/5/5
+  frame 3: reads=12 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=16 nodes=8/0/5/5
   timers: none
   screen:
     |a line that is long
@@ -1178,7 +1180,7 @@ out \e[H\e[0m\e[1Ga line that is long\e[K\e[2;1Henough to wrap\e[K\e[3;1Hsecond\
     |
 > 16 ms pass
 > the terminal grows to 30 by 8
-out \e[?25l\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Glong\e[K\e[2;1Henough\e[8Gto\e[11Gwrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[7;1H\e[J
+out \e[?25l\e[1;1H\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Glong\e[K\e[2;1Henough\e[8Gto\e[11Gwrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[7;1H\e[J
   timers: 120
 > a frame is asked for while the size settles
 > a tree is given while the size settles
@@ -1187,7 +1189,7 @@ out \e[?25l\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Glong\e[K\e[2;1Henough\e[8Gto\e[
 > 1 ms pass
 out \e[?1007h
 out \e[H\e[0m\e[1Ga line that is long enough to\e[K\e[2;1Hwrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[7;1H\e[K\e[8;1H\e[K\e[8;1H
-  frame 3: reads=12 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=20 nodes=12/2/6/5
+  frame 4: reads=12 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=20 nodes=12/2/6/5
   timers: none
   screen:
     |a line that is long enough to
@@ -1200,12 +1202,12 @@ out \e[H\e[0m\e[1Ga line that is long enough to\e[K\e[2;1Hwrap\e[K\e[3;1Hsecond\
     |
 > 16 ms pass
 > the terminal shrinks to 16 by 4
-out \e[?25l\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Gl\e[K\e[2;1Hwrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K
+out \e[?25l\e[1;1H\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Gl\e[K\e[2;1Hwrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K
   timers: 120
 > 120 ms pass
 out \e[?1007h
 out \e[H\e[0m\e[1Ga line that is\e[K\e[2;1Hlong enough to\e[K\e[3;1Hwrap\e[K\e[4;1Hsecond\e[K\e[4;1H
-  frame 4: reads=12 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=13 nodes=12/2/6/5
+  frame 5: reads=12 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=13 nodes=12/2/6/5
   timers: none
   screen:
     |a line that is
@@ -1214,7 +1216,7 @@ out \e[H\e[0m\e[1Ga line that is\e[K\e[2;1Hlong enough to\e[K\e[3;1Hwrap\e[K\e[4
     |second
 > 16 ms pass
 > the terminal moves to 20 by 5
-out \e[?25l\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[K\e[2;1Hlong\e[6Genough\e[13Gto\e[K\e[3;1Hwrap\e[K\e[4;1Hsecond\e[K\e[5;1H\e[J
+out \e[?25l\e[1;1H\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[K\e[2;1Hlong\e[6Genough\e[13Gto\e[K\e[3;1Hwrap\e[K\e[4;1Hsecond\e[K\e[5;1H\e[J
   timers: 120
 > 60 ms pass
   timers: 60
@@ -1225,7 +1227,7 @@ out \e[?25l\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[K\e[2;1Hlong\e[6Genough\e[13Gto\e[
 > 60 ms pass
 out \e[?1007h
 out \e[H\e[0m\e[1Ga line that is long\e[K\e[2;1Henough to wrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[6;1H
-  frame 5: reads=12 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=16 nodes=8/0/5/5
+  frame 6: reads=12 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=16 nodes=8/0/5/5
   timers: none
   screen:
     |a line that is long
@@ -1237,13 +1239,13 @@ out \e[H\e[0m\e[1Ga line that is long\e[K\e[2;1Henough to wrap\e[K\e[3;1Hsecond\
 > 16 ms pass
 > a resize is announced at the same size
 > the frame loop is paused, and the terminal moves to 28 by 7
-  frame 6: reads=12 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=8/0/5/5
+  frame 7: reads=12 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=8/0/5/5
   timers: 120
 > 120 ms pass
   timers: none
 > the frame loop is resumed at the new size
 out \e[H\e[2J\e[H\e[1Ga line that is long enough\e[2;1Hto wrap\e[3;1Hsecond\e[4;1H\e[5;1H\e[6;1H\e[7;1H\e[7;1H
-  frame 7: reads=13 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=11 nodes=12/2/6/5 flicker=resize:7/7
+  frame 8: reads=13 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=11 nodes=12/2/6/5 flicker=resize:7/7
   screen:
     |a line that is long enough
     |to wrap
@@ -1254,7 +1256,7 @@ out \e[H\e[2J\e[H\e[1Ga line that is long enough\e[2;1Hto wrap\e[3;1Hsecond\e[4;
     |
 > 16 ms pass
 > the terminal grows, and the tree is unmounted before it settles
-out \e[?25l\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Glong\e[21Genough\e[K\e[2;1Hto\e[4Gwrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[7;1H\e[K\e[8;1H\e[J
+out \e[?25l\e[1;1H\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Glong\e[21Genough\e[K\e[2;1Hto\e[4Gwrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[7;1H\e[K\e[8;1H\e[J
   timers: 120
 > the screen is unmounted
 out \e[?25h
@@ -1281,16 +1283,16 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
 > the terminal resizes after the unmount
 > 200 ms pass
 the launch milestones written: first-frame
-the probe counted: patches 91, frame-recommit 1
-the probe marked: paint:entry=0 x7
-the probe saw 7 frames, the longest of 13 clock reads
-the motion governor: 7 frames seen, level full, trip null
+the probe counted: patches 109, frame-recommit 1
+the probe marked: paint:entry=0 x8
+the probe saw 8 frames, the longest of 13 clock reads
+the motion governor: 8 frames seen, level full, trip null
 
 ## a resize between frames on an atomic terminal
 world: atomic, a terminal that draws atomically and speaks the extended keys, with pointer shapes on
 > the alternate screen is given, and the terminal moves to 26 by 6 before the first paint
 out \e[?25l
-out \e[?2026h\e[?25l\e[K\e[2;1H\e[K\e[3;1H\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[?25h\e[?2026l
+out \e[?2026h\e[?25l\e[1;1H\e[K\e[2;1H\e[K\e[3;1H\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[?25h\e[?2026l
   modes: dec[] cursor=shown kitty=0 otherkeys=0 region=whole pointer=unset
   held: alt-screen alternate-scroll cursor-hidden
   ink: alt=yes mouse=no prefers=yes wheel=no entry=yes reasserts=0 exit=none
@@ -1307,9 +1309,11 @@ out \e[?2026h\e[?25l\e[K\e[2;1H\e[K\e[3;1H\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\
     |
     |
 > 120 ms pass
+out \e[?2026h\e[?1049h\e[r\e[2J\e[H\e[?1007h\e[H\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Glong\e[2;1Henough\e[8Gto\e[11Gwrap\e[3;1Hsecond\e[6;1H\e[?2026l
+  frame 1: reads=13 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=18 nodes=12/2/6/5
 out \e[?1007h
-out \e[?2026h\e[?1049h\e[r\e[2J\e[H\e[?1007h\e[H\e[0m\e[1Ga line that is long enough\e[2;1Hto wrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[6;1H\e[?2026l
-  frame 1: reads=12 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=15 nodes=12/2/6/5
+out \e[?2026h\e[H\e[0m\e[1Ga line that is long enough\e[2;1Hto wrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[6;1H\e[?2026l
+  frame 2: reads=12 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=15 nodes=12/2/6/5
   modes: dec[1007 1049] cursor=shown kitty=0 otherkeys=0 region=whole pointer=unset
   ink: alt=yes mouse=no prefers=yes wheel=no entry=no reasserts=0 exit=none
   timers: none
@@ -1322,13 +1326,13 @@ out \e[?2026h\e[?1049h\e[r\e[2J\e[H\e[?1007h\e[H\e[0m\e[1Ga line that is long en
     |
 > 100 ms pass
 > the terminal moves back to 24 by 6
-out \e[?2026h\e[?25l\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Glong\e[21Genou\e[K\e[2;1Hto\e[4Gwrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[?2026l
+out \e[?2026h\e[?25l\e[1;1H\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Glong\e[21Genou\e[K\e[2;1Hto\e[4Gwrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[?2026l
   modes: dec[1007 1049] cursor=hidden kitty=0 otherkeys=0 region=whole pointer=unset
   timers: 120
 > 120 ms pass
 out \e[?1007h
 out \e[?2026h\e[H\e[0m\e[1Ga line that is long\e[K\e[2;1Henough to wrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[6;1H\e[?2026l
-  frame 2: reads=12 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=16 nodes=8/0/5/5
+  frame 3: reads=12 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=16 nodes=8/0/5/5
   timers: none
   screen:
     |a line that is long
@@ -1339,7 +1343,7 @@ out \e[?2026h\e[H\e[0m\e[1Ga line that is long\e[K\e[2;1Henough to wrap\e[K\e[3;
     |
 > 16 ms pass
 > the terminal grows to 30 by 8
-out \e[?2026h\e[?25l\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Glong\e[K\e[2;1Henough\e[8Gto\e[11Gwrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[7;1H\e[J\e[?2026l
+out \e[?2026h\e[?25l\e[1;1H\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Glong\e[K\e[2;1Henough\e[8Gto\e[11Gwrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[7;1H\e[J\e[?2026l
   timers: 120
 > a frame is asked for while the size settles
 > a tree is given while the size settles
@@ -1348,7 +1352,7 @@ out \e[?2026h\e[?25l\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Glong\e[K\e[2;1Henough\
 > 1 ms pass
 out \e[?1007h
 out \e[?2026h\e[H\e[0m\e[1Ga line that is long enough to\e[K\e[2;1Hwrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[7;1H\e[K\e[8;1H\e[K\e[8;1H\e[?2026l
-  frame 3: reads=12 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=20 nodes=12/2/6/5
+  frame 4: reads=12 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=20 nodes=12/2/6/5
   timers: none
   screen:
     |a line that is long enough to
@@ -1361,12 +1365,12 @@ out \e[?2026h\e[H\e[0m\e[1Ga line that is long enough to\e[K\e[2;1Hwrap\e[K\e[3;
     |
 > 16 ms pass
 > the terminal shrinks to 16 by 4
-out \e[?2026h\e[?25l\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Gl\e[K\e[2;1Hwrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[?2026l
+out \e[?2026h\e[?25l\e[1;1H\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Gl\e[K\e[2;1Hwrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[?2026l
   timers: 120
 > 120 ms pass
 out \e[?1007h
 out \e[?2026h\e[H\e[0m\e[1Ga line that is\e[K\e[2;1Hlong enough to\e[K\e[3;1Hwrap\e[K\e[4;1Hsecond\e[K\e[4;1H\e[?2026l
-  frame 4: reads=12 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=13 nodes=12/2/6/5
+  frame 5: reads=12 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=13 nodes=12/2/6/5
   timers: none
   screen:
     |a line that is
@@ -1375,7 +1379,7 @@ out \e[?2026h\e[H\e[0m\e[1Ga line that is\e[K\e[2;1Hlong enough to\e[K\e[3;1Hwra
     |second
 > 16 ms pass
 > the terminal moves to 20 by 5
-out \e[?2026h\e[?25l\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[K\e[2;1Hlong\e[6Genough\e[13Gto\e[K\e[3;1Hwrap\e[K\e[4;1Hsecond\e[K\e[5;1H\e[J\e[?2026l
+out \e[?2026h\e[?25l\e[1;1H\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[K\e[2;1Hlong\e[6Genough\e[13Gto\e[K\e[3;1Hwrap\e[K\e[4;1Hsecond\e[K\e[5;1H\e[J\e[?2026l
   timers: 120
 > 60 ms pass
   timers: 60
@@ -1386,7 +1390,7 @@ out \e[?2026h\e[?25l\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[K\e[2;1Hlong\e[6Genough\e
 > 60 ms pass
 out \e[?1007h
 out \e[?2026h\e[H\e[0m\e[1Ga line that is long\e[K\e[2;1Henough to wrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[6;1H\e[?2026l
-  frame 5: reads=12 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=16 nodes=8/0/5/5
+  frame 6: reads=12 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=16 nodes=8/0/5/5
   timers: none
   screen:
     |a line that is long
@@ -1398,13 +1402,13 @@ out \e[?2026h\e[H\e[0m\e[1Ga line that is long\e[K\e[2;1Henough to wrap\e[K\e[3;
 > 16 ms pass
 > a resize is announced at the same size
 > the frame loop is paused, and the terminal moves to 28 by 7
-  frame 6: reads=12 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=8/0/5/5
+  frame 7: reads=12 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=8/0/5/5
   timers: 120
 > 120 ms pass
   timers: none
 > the frame loop is resumed at the new size
 out \e[?2026h\e[H\e[2J\e[H\e[1Ga line that is long enough\e[2;1Hto wrap\e[3;1Hsecond\e[4;1H\e[5;1H\e[6;1H\e[7;1H\e[7;1H\e[?2026l
-  frame 7: reads=13 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=11 nodes=12/2/6/5 flicker=resize:7/7
+  frame 8: reads=13 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=11 nodes=12/2/6/5 flicker=resize:7/7
   screen:
     |a line that is long enough
     |to wrap
@@ -1415,7 +1419,7 @@ out \e[?2026h\e[H\e[2J\e[H\e[1Ga line that is long enough\e[2;1Hto wrap\e[3;1Hse
     |
 > 16 ms pass
 > the terminal grows, and the tree is unmounted before it settles
-out \e[?2026h\e[?25l\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Glong\e[21Genough\e[K\e[2;1Hto\e[4Gwrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[7;1H\e[K\e[8;1H\e[J\e[?2026l
+out \e[?2026h\e[?25l\e[1;1H\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Glong\e[21Genough\e[K\e[2;1Hto\e[4Gwrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[7;1H\e[K\e[8;1H\e[J\e[?2026l
   timers: 120
 > the screen is unmounted
 out \e[?25h
@@ -1442,10 +1446,10 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
 > the terminal resizes after the unmount
 > 200 ms pass
 the launch milestones written: first-frame
-the probe counted: patches 91, frame-recommit 1
-the probe marked: paint:entry=0 x7
-the probe saw 7 frames, the longest of 13 clock reads
-the motion governor: 7 frames seen, level full, trip null
+the probe counted: patches 109, frame-recommit 1
+the probe marked: paint:entry=0 x8
+the probe saw 8 frames, the longest of 13 clock reads
+the motion governor: 8 frames seen, level full, trip null
 
 ## a resize on the main screen
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -1873,7 +1877,7 @@ out \e[H\e[0m\e[1Gwindow\e[K\e[2;1Hsignal\e[K\e[3;1H\e[K\e[4;1H\e[K\e[5;1H\e[K\e
 > 16 ms pass
 > the window signal comes with a new size the stream had not announced
 out is asked for its size
-out \e[?25l\e[1Gwindow\e[K\e[2;1Hsignal\e[K\e[3;1H\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[7;1H\e[J
+out \e[?25l\e[1;1H\e[1Gwindow\e[K\e[2;1Hsignal\e[K\e[3;1H\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[7;1H\e[J
   timers: 120
 > and again while that size settles
 out is asked for its size
@@ -1989,7 +1993,7 @@ out \e[?1049h\e[r\e[2J\e[H\e[?1007h\e[H\e[1Gconsole\e[6;1H
     |
     |
 > the window is maximized to 40 by 10, its buffer following
-out \e[?25l\e[1Gconsole\e[K\e[2;1H\e[K\e[3;1H\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[7;1H\e[J
+out \e[?25l\e[1;1H\e[1Gconsole\e[K\e[2;1H\e[K\e[3;1H\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[7;1H\e[J
   timers: 120 4650
 > 120 ms pass
 out \e[?1049h
@@ -2014,7 +2018,7 @@ out \e[H\e[0m\e[1Gconsole\e[K\e[2;1H\e[K\e[3;1H\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H
   timers: 4514
 > a tree is the first to see a restored window of 24 by 6
 out is asked for its size
-out \e[?25l\e[1Gconsole\e[K\e[2;1H\e[K\e[3;1H\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K
+out \e[?25l\e[1;1H\e[1Gconsole\e[K\e[2;1H\e[K\e[3;1H\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K
   timers: 120 4514
 > 16 ms pass
   timers: 104 4498
@@ -2039,7 +2043,7 @@ out \e[H\e[0m\e[1Grestored\e[K\e[2;1H\e[K\e[3;1H\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1
 out is asked for its size
 > the console can no longer say its size, and the five seconds come again
 > 5000 ms pass
-out \e[?25l\e[1Grestored\e[K\e[2;1H\e[K\e[3;1H\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[7;1H\e[J
+out \e[?25l\e[1;1H\e[1Grestored\e[K\e[2;1H\e[K\e[3;1H\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[7;1H\e[J
 out \e[?1049h
 out \e[?1007h
 out \e[H\e[0m\e[1Grestored\e[K\e[2;1H\e[K\e[3;1H\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[7;1H\e[K\e[8;1H\e[K\e[8;1H
@@ -5955,7 +5959,7 @@ out \e[?1049h\e[r\e[2J\e[H\e[?1000h\e[?1002h\e[?1003h\e[?1006h\e[?1007h\e[H\e[1G
     |
     |
 > the terminal resizes, and the screen is detached for shutdown before it settles
-out \e[?25l\e[1Gshutting\e[10Gdown\e[K\e[2;1H\e[K\e[3;1H\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[7;1H\e[J
+out \e[?25l\e[1;1H\e[1Gshutting\e[10Gdown\e[K\e[2;1H\e[K\e[3;1H\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[7;1H\e[J
 stdin raw off
   stdin: raw=off readable=1
 > 200 ms pass
