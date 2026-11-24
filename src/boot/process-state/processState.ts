@@ -547,10 +547,6 @@ export function setPromptCache1hEligible(eligible: boolean | null): void {
   cacheLatches.promptCache1hEligible = eligible
 }
 
-export function getCacheEditingHeaderLatched(): boolean | null {
-  return cacheLatches.cacheEditingHeaderLatched
-}
-
 export function clearBetaHeaderLatches(): void {
   cacheLatches.clearBetaHeaderLatches()
 }

@@ -109,7 +109,6 @@ const OBSERVABLES: Array<{
   { key: 'lastMainRequestId', family: 'apiCapture', scope: 'conversation', read: () => state.getLastMainRequestId() },
   { key: 'lastApiCompletionTimestamp', family: 'apiCapture', scope: 'conversation', read: () => state.getLastApiCompletionTimestamp() },
   { key: 'promptCache1hEligible', family: 'latches', scope: 'session', read: () => state.getPromptCache1hEligible() },
-  { key: 'cacheEditingHeaderLatched', family: 'latches', scope: 'conversation', read: () => state.getCacheEditingHeaderLatched() },
   { key: 'systemPromptSectionCache', family: 'caches', scope: 'session', read: () => state.getSystemPromptSectionCache() },
   { key: 'isInteractive', family: 'posture', scope: 'session', read: () => state.getIsInteractive() },
   { key: 'isNonInteractive', family: 'posture', scope: 'derived', read: () => state.getIsNonInteractiveSession() },
@@ -232,7 +231,6 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'flushInteractionTime',
     'getAskChannel',
     'getAllowedSettingSources',
-    'getCacheEditingHeaderLatched', 
     'getCwdState', 'getDirectConnectServerUrl', 'getFlagSettingsInline', 'getFlagSettingsPath',
     'getSessionExtensions',
     'getInvokedSkillsForAgent', 'getIsInteractive',
@@ -534,7 +532,6 @@ section('LAW 3 TOOL-DURATION — the total accumulates')
 section('LAW 5 LATCH — clear completeness')
 {
   state.clearBetaHeaderLatches()
-  check('latches: null after clear', state.getCacheEditingHeaderLatched() === null)
 
   state.setPromptCache1hEligible(true)
   state.clearBetaHeaderLatches()
@@ -865,7 +862,7 @@ section('LAW PURITY — zero-arg getters do not mutate')
     .filter(([name, fn]) => /^(?:get|is|has|needs|prefer)[A-Za-z0-9_]*$/.test(name) && typeof fn === 'function' && fn.length === 0)
     .map(([name]) => name)
     .sort()
-  check(`purity: module sweep found a plausible getter population (${getterNames.length})`, getterNames.length >= 60, String(getterNames.length))
+  check(`purity: module sweep found a plausible getter population (${getterNames.length})`, getterNames.length >= 59, String(getterNames.length))
   withClock(() => 2_000_000_000_000, () => {
     const before = snapshot()
     const impure: string[] = []
