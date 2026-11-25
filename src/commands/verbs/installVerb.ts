@@ -3,6 +3,7 @@ import { foreignInstallerOf, nixInstallRoot, resolveInstallProvenance } from 'sr
 import { installerRoadWords } from 'src/platform/update-channel/installerUpgrade.js'
 import { formatUninstallReport, resolveLayoutRoots, uninstallLayout } from 'src/platform/update-channel/installLayout.js'
 import { describePathTarget, removeBinDirFromPath, type PathEntryOutcome, type PathRemovalOutcome } from 'src/platform/update-channel/installPath.js'
+import { listProfiles, profileCommands } from 'src/platform/profiles/profiles.js'
 import { describeInstall, pathEntryIo, performInstall, type Progress } from 'src/platform/update-channel/updateService.js'
 import { jsonStringify } from 'src/platform/logs/slowOperations.js'
 import { cliError, cliJsonError, cliOk } from './exit.js'
@@ -84,12 +85,16 @@ export async function installVerb(options: InstallCliOptions = {}): Promise<neve
   }
 
   if (options.uninstall) {
-    const report = uninstallLayout(roots)
+    const listed = listProfiles()
+    const profiles = listed.ok ? listed.profiles : []
+    const commands = profileCommands(roots, profiles)
+    const report = uninstallLayout(roots, { commands })
     const path: PathRemovalOutcome = report.preservedForeign.length > 0 ? { state: 'absent', dir: roots.binDir } : removeBinDirFromPath(roots, pathEntryIo())
     const left = report.leftVersionMembers.length > 0 || report.leftSetMembers.length > 0
     if (options.json) return (left ? failJson : emitJson)({ mode: 'uninstall', ...report, path })
     const pathLine = describePathRemoval(path, roots.isWindows)
-    const text = pathLine === null ? formatUninstallReport(roots, report) : `${formatUninstallReport(roots, report)}\n${pathLine}`
+    const told = [formatUninstallReport(roots, report, commands, profiles.filter(row => !row.current).map(row => row.home)), ...(listed.ok ? [] : [`note: the profile commands were left as found — ${listed.reason}`])].join('\n')
+    const text = pathLine === null ? told : `${told}\n${pathLine}`
     return left ? cliError(text) : cliOk(text)
   }
 

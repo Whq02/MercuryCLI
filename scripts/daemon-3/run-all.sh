@@ -5,7 +5,7 @@
 # gate-watch: src/engine/rows/*
 # gate-watch: docs/DURABILITY.md
 # gate-watch: src/engine/tasks/local-agent/* src/integrations/resources/adapters/*
-# gate-watch: src/platform/update-channel/installLayout.ts src/screen/composer/input-core/* src/tools/cron/**
+# gate-watch: src/screen/composer/input-core/* src/tools/cron/**
 # gate-watch: docs/SESSIONS.md scripts/dap/mock-dap-adapter.mjs scripts/journey/switch-fixture-server.ts
 # gate-watch: scripts/lib/* scripts/staleness/prove-stale-registry.ts
 # gate-watch: scripts/streaming/turn-end-fixture-server.ts

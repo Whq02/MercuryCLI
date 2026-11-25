@@ -1010,6 +1010,7 @@ export interface UninstallReport {
 export interface UninstallDeps {
   runningFrom?: string
   removeAfterExit?: (paths: string[], versionsDir: string) => boolean
+  commands?: readonly string[]
 }
 
 const LAYOUT_FILES = new Set(['current.txt', 'previous.txt', 'last-install.json', 'last-update.json'])
@@ -1101,6 +1102,7 @@ export function uninstallLayout(roots: LayoutRoots, deps: UninstallDeps = {}): U
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
     }
   }
+  ownSet.push(...(deps.commands ?? []))
   const layout = existsSync(roots.versionsDir) ? layoutMembers(roots.versionsDir) : null
   const ownMembers = layout !== null && layout.marked ? layout.members : []
   const preservedConfigHome = getMercuryHome()
@@ -1156,16 +1158,16 @@ function versionsDirLine(roots: LayoutRoots, report: UninstallReport): string {
   return `preserved (not a Mercury versions folder — left as found): ${roots.versionsDir}`
 }
 
-export function formatUninstallReport(roots: LayoutRoots, report: UninstallReport): string {
+export function formatUninstallReport(roots: LayoutRoots, report: UninstallReport, commands: readonly string[] = [], homes: readonly string[] = []): string {
   const lines = [versionsDirLine(roots, report)]
-  for (const path of shimSetPathsOf(roots)) {
+  for (const path of [...shimSetPathsOf(roots), ...commands]) {
     if (report.removedSetMembers.includes(path)) lines.push(`removed: ${path}`)
     else if (report.afterExit.includes(path)) lines.push(`removed once this command has ended: ${path}`)
     else if (report.leftSetMembers.includes(path)) lines.push(`not removed (it could not be deleted) — delete it yourself: ${path}`)
     else if (report.preservedForeign.includes(path)) lines.push(`preserved (not a Mercury-managed command — left as found): ${path}`)
     else lines.push(`nothing to remove at ${path} (absent)`)
   }
-  lines.push(`preserved: ${report.preservedConfigHome} (configuration, sessions, extensions — uninstalling never deletes user state)`)
+  for (const home of [report.preservedConfigHome, ...homes]) lines.push(`preserved: ${home} (configuration, sessions, extensions — uninstalling never deletes user state)`)
   return lines.join('\n')
 }
 

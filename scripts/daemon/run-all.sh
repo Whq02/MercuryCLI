@@ -9,7 +9,7 @@
 # gate-watch: src/integrations/resources/adapters/*
 # gate-watch: src/models/roads/local/**
 # gate-watch: src/models/roads/openaicompat/compatAdapter.ts
-# gate-watch: src/models/roads/routeLaw.ts src/platform/update-channel/installLayout.ts
+# gate-watch: src/models/roads/routeLaw.ts
 # gate-watch: src/screen/composer/input-core/*
 # gate-watch: src/screen/spinner/SpinnerAnimationRow.tsx src/tools/cron/**
 # gate-watch: src/tools/monitor/** src/tools/schedule-wakeup/**

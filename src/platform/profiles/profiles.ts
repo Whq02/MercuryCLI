@@ -1,34 +1,37 @@
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { z } from 'zod/v4'
 import { getMercuryHome } from '../environment/envUtils.js'
 import { errorMessage, isENOENT } from '../errors/errors.js'
 import { passedOver } from '../errors/passedOver.js'
+import { foldPathCase, pathModuleFor } from '../host-os/paths.js'
 import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
 import { flagPair } from '../substrate/flagRegistry.js'
-import { resolveLayoutRoots, shimStatus } from '../update-channel/installLayout.js'
+import { resolveLayoutRoots, shimStatus, type LayoutRoots } from '../update-channel/installLayout.js'
 import { resolveInstallProvenance } from '../update-channel/installProvenance.js'
 
 export type ProfileRow = { id: number; name: string; home: string; command: string | null; current: boolean }
-export type ProfileRefusal = { ok: false; reason: string }
+type ProfileRefusal = { ok: false; reason: string }
 
 const RECORD = 'profiles.json'
-const MARKER = 'profile.json'
-const NOT_INSTALLED = 'Profiles need Mercury started through its installed `mercury` command (a release install or a source deploy), and this session was not: start it that way, then try again.'
+const HOME_MARKER = 'profile.json'
+const COMMAND_MARKER = 'mercury-managed-profile'
+const NOT_INSTALLED = 'Profiles need Mercury started through its installed `mercury` command, and this session was not: start it that way, then try again.'
 
 const recordShape = () => z.object({ profiles: z.array(z.object({ id: z.number().int().min(1), name: z.string().optional() })) })
 const markerShape = () => z.object({ first: z.string().min(1), id: z.number().int().min(2) })
 
 type Labels = z.infer<ReturnType<typeof recordShape>>['profiles']
 type Family = { first: string; currentId: number; labels: Labels }
-type Install = { bin: string; command: string; program: Record<string, string>; isWindows: boolean }
+type Install = { bin: string; command: string; program: Record<string, string>; isWindows: boolean; userHome: string }
 type CommandFile = { path: string; text: string }
 
 const refused = (reason: string): ProfileRefusal => ({ ok: false, reason })
 const notDone = (did: string, again: string) => (error: unknown): ProfileRefusal => refused(`The profile was not ${did} (${errorMessage(error)}): mend that, then ${again} it again.`)
 const homeOf = (first: string, id: number): string => (id === 1 ? first : `${first}${id}`)
 const wordOf = (id: number): string => (id === 1 ? 'mercury' : `mercury${id}`)
+const carries = (text: string | undefined, id: number): boolean => text !== undefined && text.split(/\r?\n/).some(line => line.endsWith(`${COMMAND_MARKER} ${id}`))
 
 function textAt(path: string): string | undefined {
   try {
@@ -52,7 +55,7 @@ function stored<T>(path: string, shape: () => z.ZodType<T>): T | undefined {
 export function programHome(): string {
   const home = getMercuryHome()
   try {
-    return stored(join(home, MARKER), markerShape)?.first ?? home
+    return stored(join(home, HOME_MARKER), markerShape)?.first ?? home
   } catch (error) {
     passedOver(error)
     return home
@@ -61,7 +64,7 @@ export function programHome(): string {
 
 function family(): Family {
   const home = getMercuryHome()
-  const marker = stored(join(home, MARKER), markerShape)
+  const marker = stored(join(home, HOME_MARKER), markerShape)
   const first = marker?.first ?? home
   return { first, currentId: marker?.id ?? 1, labels: stored(join(first, RECORD), recordShape)?.profiles ?? [] }
 }
@@ -72,35 +75,40 @@ function save(first: string, labels: Labels): void {
   else durableAtomicPublishSync(path, `${JSON.stringify({ profiles: [...labels].sort((a, b) => a.id - b.id) }, null, 2)}\n`, { mode: 0o600 })
 }
 
+const released = (roots: LayoutRoots): Install => ({ bin: roots.binDir, command: roots.shimPath, program: flagPair('MERCURY_VERSIONS_DIR', roots.versionsDir), isWindows: roots.isWindows, userHome: homedir() })
+
 function install(first: string): Install | null {
   const bundle = process.argv[1]
   if (bundle === undefined) return null
   const bin = join(first, 'bin')
   const launcher = join(bin, 'mercury')
-  if (['current', 'dist'].some(name => bundle === join(first, 'runtime', name, 'mercury.mjs')) && existsSync(launcher)) {
-    return { bin, command: launcher, program: { MERCURY_DIST: bundle }, isWindows: false }
+  const pointers = ['current', 'dist'].map(name => resolve(first, 'runtime', name, 'mercury.mjs'))
+  const program = pointers.find(pointer => existsSync(pointer))
+  if (program !== undefined && pointers.includes(resolve(bundle)) && existsSync(launcher)) {
+    return { bin, command: launcher, program: { MERCURY_DIST: program }, isWindows: false, userHome: homedir() }
   }
   const roots = resolveLayoutRoots()
-  if (resolveInstallProvenance().kind !== 'managed' || shimStatus(roots) !== 'managed') return null
-  return { bin: roots.binDir, command: roots.shimPath, program: flagPair('MERCURY_VERSIONS_DIR', roots.versionsDir), isWindows: roots.isWindows }
+  return resolveInstallProvenance().kind === 'managed' && shimStatus(roots) === 'managed' ? released(roots) : null
 }
 
-function commandFiles(found: Install, id: number, home: string): CommandFile[] {
+export function commandFiles(found: Install, id: number, home: string): CommandFile[] {
   const env = Object.entries({ ...flagPair('MERCURY_CONFIG_DIR', home), ...found.program })
-  const word = join(found.bin, wordOf(id))
+  const word = pathModuleFor(found.isWindows ? 'win32' : 'linux').join(found.bin, wordOf(id))
+  const mark = `${COMMAND_MARKER} ${id}`
   const sh = (value: string): string => `'${value.replace(/'/g, `'\\''`)}'`
   const assigned = env.map(([name, value]) => `${name}=${sh(value)}`).join(' ')
-  if (!found.isWindows) return [{ path: word, text: `#!/bin/sh\n${assigned} exec ${sh(found.command)} "$@"\n` }]
+  if (!found.isWindows) return [{ path: word, text: `#!/bin/sh\n# ${mark}\n${assigned} exec ${sh(found.command)} "$@"\n` }]
   const ps = (value: string): string => `'${value.replace(/'/g, "''")}'`
-  const own = `${homedir()}\\`
-  const batch = (value: string): string => (value.startsWith(own) ? `%USERPROFILE%\\${value.slice(own.length).replace(/%/g, '%%')}` : value.replace(/%/g, '%%'))
+  const own = `${found.userHome.replace(/[\\/]+$/, '')}\\`
+  const batch = (value: string): string => (foldPathCase(value, 'win32').startsWith(foldPathCase(own, 'win32')) ? `%USERPROFILE%\\${value.slice(own.length).replace(/%/g, '%%')}` : value.replace(/%/g, '%%'))
   const entry = '& (Join-Path $PSScriptRoot \'mercury.ps1\') @args'
   return [
-    { path: `${word}.cmd`, text: ['@echo off', 'setlocal', ...env.map(([name, value]) => `set "${name}=${batch(value)}"`), '"%~dp0mercury.cmd" %*', ''].join('\r\n') },
-    { path: word, text: `#!/bin/sh\n${assigned} exec "$(dirname "$0")/mercury" "$@"\n` },
+    { path: `${word}.cmd`, text: ['@echo off', `rem ${mark}`, 'setlocal DisableDelayedExpansion', ...env.map(([name, value]) => `set "${name}=${batch(value)}"`), '"%~dp0mercury.cmd" %*', ''].join('\r\n') },
+    { path: word, text: `#!/bin/sh\n# ${mark}\n${assigned} exec "$(dirname "$0")/mercury" "$@"\n` },
     {
       path: `${word}.ps1`,
       text: `\uFEFF${[
+        `# ${mark}`,
         ...env.map(([name]) => `$kept_${name} = $env:${name}`),
         ...env.map(([name, value]) => `$env:${name} = ${ps(value)}`),
         `try { if ($MyInvocation.ExpectingInput) { $input | ${entry} } else { ${entry} } }`,
@@ -123,17 +131,22 @@ function rowOf(known: Family, found: Install | null, id: number): ProfileRow {
   }
 }
 
-export function listProfiles(): ProfileRow[] {
-  let known: Family
+export function listProfiles(): { ok: true; profiles: ProfileRow[] } | ProfileRefusal {
   try {
-    known = family()
+    const known = family()
+    const found = install(known.first)
+    const ids = new Set([1, known.currentId, ...known.labels.map(row => row.id)])
+    return { ok: true, profiles: [...ids].sort((a, b) => a - b).map(id => rowOf(known, found, id)) }
   } catch (error) {
-    passedOver(error)
-    known = { first: getMercuryHome(), currentId: 1, labels: [] }
+    return refused(`The profile list could not be read (${errorMessage(error)}): mend that file or move it away, then try again.`)
   }
-  const found = install(known.first)
-  const ids = new Set([1, known.currentId, ...known.labels.map(row => row.id)])
-  return [...ids].sort((a, b) => a - b).map(id => rowOf(known, found, id))
+}
+
+export function profileCommands(roots: LayoutRoots, profiles: readonly ProfileRow[]): string[] {
+  return profiles
+    .filter(row => row.id !== 1)
+    .flatMap(row => commandFiles(released(roots), row.id, row.home).filter(file => carries(textAt(file.path), row.id)))
+    .map(file => file.path)
 }
 
 export function createProfile(): { ok: true; profile: ProfileRow } | ProfileRefusal {
@@ -145,10 +158,10 @@ export function createProfile(): { ok: true; profile: ProfileRow } | ProfileRefu
     while (known.labels.some(row => row.id === id)) id++
     const home = homeOf(known.first, id)
     const files = commandFiles(found, id, home)
-    const taken = files.find(file => ![undefined, file.text].includes(textAt(file.path)))
-    if (taken !== undefined) return refused(`The file ${taken.path} is already there and is not this profile's command: move it away, then create the profile again.`)
+    const stranger = files.find(file => existsSync(file.path) && !carries(textAt(file.path), id))
+    if (stranger !== undefined) return refused(`The file ${stranger.path} is already there and is not this profile's command: move it away, then create the profile again.`)
     mkdirSync(home, { recursive: true, mode: 0o700 })
-    durableAtomicPublishSync(join(home, MARKER), `${JSON.stringify({ first: known.first, id })}\n`, { mode: 0o600 })
+    durableAtomicPublishSync(join(home, HOME_MARKER), `${JSON.stringify({ first: known.first, id })}\n`, { mode: 0o600 })
     for (const file of files) durableAtomicPublishSync(file.path, file.text, { mode: 0o755 })
     const labels = [...known.labels, { id }]
     save(known.first, labels)
@@ -161,8 +174,7 @@ export function createProfile(): { ok: true; profile: ProfileRow } | ProfileRefu
 export function renameProfile(id: number, name: string): { ok: true } | ProfileRefusal {
   try {
     const known = family()
-    const listed = known.labels.some(row => row.id === id)
-    if (id !== 1 && id !== known.currentId && !listed) return refused(`There is no profile ${id}: pick one from the list.`)
+    if (id !== 1 && !known.labels.some(row => row.id === id)) return refused(`Profile ${id} has no row in the list: create a profile to bring it back, then rename it.`)
     const label = name.replace(/\s+/g, ' ').trim()
     const plain = label === '' || label === `Profile ${id}`
     const row = plain ? (id === 1 ? [] : [{ id }]) : [{ id, name: label }]
@@ -182,7 +194,7 @@ export function removeProfile(id: number): { ok: true; keptHome: string } | Prof
     const found = install(known.first)
     if (found === null) return refused(NOT_INSTALLED)
     const home = homeOf(known.first, id)
-    for (const file of commandFiles(found, id, home)) if (textAt(file.path) === file.text) rmSync(file.path)
+    for (const file of commandFiles(found, id, home)) if (carries(textAt(file.path), id)) rmSync(file.path)
     save(known.first, known.labels.filter(row => row.id !== id))
     return { ok: true, keptHome: home }
   } catch (error) {
