@@ -61,6 +61,14 @@ export class TerminalRows {
     return this.lead[y]! + this.cells[y]!.join('')
   }
 
+  get column(): number {
+    return this.x
+  }
+
+  get line(): number {
+    return this.y
+  }
+
   rtlRows(): number[] {
     const out: number[] = []
     for (let y = 0; y < this.rows; y++) if (RTL_LETTER.test(this.rowText(y))) out.push(y)

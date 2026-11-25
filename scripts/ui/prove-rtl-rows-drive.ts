@@ -61,7 +61,7 @@ at += 500
 sends.push(key(READY, at, '\\x7f'))
 at += 1000
 sends.push(key(READY, at, '\\x05'))
-at += 1400
+at += 2400
 sends.push(key(READY, at, '\\r'))
 sends.push(key(FIRST_REPLY, 1500, SECOND_PROMPT))
 sends.push(key(FIRST_REPLY, 2600, '\\r'))
@@ -71,10 +71,8 @@ const NARROW = 61
 const RESIZE_PAINT = '\x1b[?25l\x1b[1;1H'
 const PAGE_UP = '\x1b[5~'
 
-const END_KEY = '\x05'
-
-type Block = { row: number; block: number; lastLetter: number }
-type Scene = { rows: TerminalRows; blockAtEnd: Block | null; atRest: TerminalRows | null; run: ArenaRun; resized: boolean; wire: string }
+type Block = { block: number; lastLetter: number }
+type Scene = { rows: TerminalRows; blocksAtEnd: Block[]; atRest: TerminalRows | null; run: ArenaRun; resized: boolean; wire: string }
 
 function recorded(run: ArenaRun): Array<{ ts: number; kind: 'in' | 'out'; bytes: Buffer }> {
   const events: Array<{ ts: number; kind: 'in' | 'out'; bytes: Buffer }> = []
@@ -123,8 +121,7 @@ async function scene(terminal: string): Promise<Scene> {
   const events = recorded(run)
   const rows = new TerminalRows(COLS, ROWS)
   let atRest: TerminalRows | null = null
-  let blockAtEnd: Block | null = null
-  let atEnd: 'before' | 'there' | 'left' = 'before'
+  const blocksAtEnd: Block[] = []
   const widths = [NARROW, COLS]
   let wire = ''
   for (const event of events) {
@@ -139,16 +136,14 @@ async function scene(terminal: string): Promise<Scene> {
         text = text.slice(cut + RESIZE_PAINT.length)
       }
       rows.feed(text)
-      if (atEnd === 'there') blockAtEnd = blockAndLastLetter(rows) ?? blockAtEnd
+      const seen = blockAtLineEnd(rows)
+      if (seen !== null) blocksAtEnd.push(seen)
       continue
     }
-    const keys = event.bytes.toString('utf8')
-    if (keys === END_KEY) atEnd = 'there'
-    else if (atEnd === 'there' && keys === '\r') atEnd = 'left'
-    else if (keys === PAGE_UP) atRest ??= rows.snapshot()
+    if (event.bytes.toString('utf8') === PAGE_UP) atRest ??= rows.snapshot()
   }
   rows.endFrame()
-  return { rows, blockAtEnd, atRest, run, resized: widths.length === 0, wire }
+  return { rows, blocksAtEnd, atRest, run, resized: widths.length === 0, wire }
 }
 
 const HINT_ORDER = 'what to change: shapeBidiForTerminal in src/screen/renderer/bidi.ts'
@@ -177,12 +172,14 @@ function gapsInsideWords(rows: TerminalRows): string[] {
   return found
 }
 
-function blockAndLastLetter(rows: TerminalRows): Block | null {
-  for (const y of rows.rtlRows()) {
-    const block = rows.inverse[y]!.indexOf(true)
-    if (block >= 0) return { row: y, block, lastLetter: rows.cells[y]!.findIndex(cell => /[\uFB50-\uFDFF\uFE70-\uFEFF]/.test(cell)) }
-  }
-  return null
+function blockAtLineEnd(rows: TerminalRows): Block | null {
+  const cells = rows.cells[rows.line]!.map(plain)
+  const lastLetter = cells.findIndex(cell => /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/.test(cell))
+  const block = rows.inverse[rows.line]!.indexOf(true)
+  if (lastLetter < 0 || block < 0) return null
+  let end = cells.length - 1
+  while (end >= 0 && (cells[end] === ' ' || cells[end] === '' || cells[end] === '│')) end--
+  return rows.column === end + 1 ? { block, lastLetter } : null
 }
 
 console.log('============================================================')
@@ -232,11 +229,14 @@ try {
     lines.length >= 4 && lines.every(columns => columns === lines[0]),
     `${HINT_ORDER} · ${lines.join(' | ')}`,
   )
-  for (const [name, at] of [['Apple_Terminal', apple.blockAtEnd], ['iTerm.app 3.7.6', iterm.blockAtEnd]] as const) {
+  for (const [name, seen] of [['Apple_Terminal', apple.blocksAtEnd], ['iTerm.app 3.7.6', iterm.blocksAtEnd]] as const) {
+    const astray = seen.filter(at => at.block !== at.lastLetter - 1)
     check(
-      `${name}: at the end of the line the cursor block, while it shows, stands directly left of the last letter, where the next letter goes`,
-      at !== null && at.block === at.lastLetter - 1,
-      `what to change: the caret in shapeStretch (src/screen/renderer/bidi.ts) and where the frame carries it (src/screen/renderer/instance/frame-loop.ts) · ${JSON.stringify(at)}`,
+      `${name}: in every frame that parks the cursor at the end of the line and shows the block, the block stands directly left of the last letter, where the next letter goes`,
+      seen.length >= 1 && astray.length === 0,
+      seen.length === 0
+        ? 'no frame showed the block with the cursor parked at the end of the Arabic line (after the paste, after ctrl+e), so this check read nothing: run this test alone'
+        : `what to change: the caret in shapeStretch (src/screen/renderer/bidi.ts) and where the frame loop hands it to the writer (src/screen/renderer/instance/frame-loop.ts) · ${astray.length} of ${seen.length} frames, the first ${JSON.stringify(astray[0])}`,
     )
   }
   const firstLetter = iterm.wire.search(/[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/)
