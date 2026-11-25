@@ -9,7 +9,7 @@ import { treeSight } from '../captcha.js'
 import { FIELD_ROLES, TREE_DEPTH_CAP, TREE_DEPTH_DEFAULT, TREE_LIMIT_CAP, TREE_LIMIT_DEFAULT } from '../call/schema.js'
 import { captchaLine, frontAfterCard } from '../call/plan.js'
 import { faultText } from '../call/act.js'
-import { fieldsWords, interruptedText, treeLimitsOf, treeWords } from '../call/words.js'
+import { fieldsWords, heldTargetWords, interruptedText, treeLimitsOf, treeWords } from '../call/words.js'
 import type { RoadNeeds } from './needs.js'
 
 export async function treeRoad({ run, input, owner, signal, driver }: RoadNeeds, checked: ReturnType<typeof consumeCheckedAct>, judged: DesktopJudgedApp | null, turnFront: Extract<DesktopAnswer<DesktopApplication>, { ok: true }>): Promise<void> {
@@ -35,13 +35,14 @@ export async function treeRoad({ run, input, owner, signal, driver }: RoadNeeds,
     return
   }
   if (checked?.viaGrant !== true) approveApp(owner, judged ?? { identity: app.identity, name: app.name })
+  const walk = treeWalkOf(tree.value, limits, started)
   const keptLimits = { depth: input.depth ?? TREE_DEPTH_DEFAULT, count: input.limit ?? TREE_LIMIT_DEFAULT }
   let root: DesktopTree['elements'][number] | undefined
   if (input.root !== undefined) {
     const named = typeof input.root === 'number' ? resolveTreeRef(owner, app, tree.value, input.root) : []
     const selected = typeof input.root === 'number' ? targetElement({ ...tree.value, elements: named, truncated: tree.value.truncated && named.length !== 1 }, {}) : targetMatches(tree.value, input.root).length === 0 ? { refusal: `${targetWords(input.root)}: 0 matches — read tree or take a screenshot${pageContentNote(app, tree.value) ? `\n${pageContentNote(app, tree.value)}` : ''}` } : targetElement(tree.value, input.root, screenOf(owner))
     if ('refusal' in selected) {
-      run.result = `${input.action} refused: ${typeof input.root === 'number' ? `ref:${input.root}` : ''}${selected.refusal}`
+      run.result = typeof input.root !== 'number' && 'held' in selected && selected.held !== undefined ? heldTargetWords(input.action, owner, app, tree.value, input.root, selected.held, walk, screenOf(owner)) : `${input.action} refused: ${typeof input.root === 'number' ? `ref:${input.root}` : ''}${selected.refusal}`
       run.outcome = 'failed'
       return
     }
@@ -56,7 +57,6 @@ export async function treeRoad({ run, input, owner, signal, driver }: RoadNeeds,
     shown = { ...outlined, elements, truncated: outlined.truncated || elements.length !== matches.length, cut: elements.length !== matches.length ? `the limit of ${keptLimits.count} elements or depth ${depth}` : outlined.cut }
   }
   rememberTreeRefs(owner, app, tree.value, shown)
-  const walk = treeWalkOf(tree.value, limits, started)
   run.result = input.action === 'tree' && !input.pixels && input.root === undefined && input.scope !== 'app' && isTerminalApplication(app) ? await readTerminalText(driver, app, signal, tree.value) : input.action === 'fields' ? fieldsWords(app, shown, walk, screenOf(owner), input.points === true) : treeWords(app, shown, walk, screenOf(owner), input.points === true)
   settleChallenge(String(getSessionId()), app, treeSight(tree.value, app.bounds) === 'challenge')
   run.result += `${back ? `\n${back.returned}` : ''}${captchaLine(tree.value, app)}`

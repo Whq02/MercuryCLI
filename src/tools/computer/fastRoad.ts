@@ -5,7 +5,7 @@ import { pollUntil } from '../../platform/async/deadline.js'
 import { boundsOfPixels, pixelOfPoint, type ScreenMap } from './screenMap.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
-interface ElementTarget {
+export interface ElementTarget {
   role?: string
   name?: string
   text?: string
@@ -52,12 +52,12 @@ export function targetMatches(tree: DesktopTree, target: ElementTarget): Desktop
   )
 }
 
-export function candidateWords(elements: DesktopTreeElement[], map: ScreenMap | null): string {
+export function candidateWords(elements: DesktopTreeElement[], map: ScreenMap | null, first = 1): string {
   return elements.map((element, index) => {
     const frame = element.frame
     const point = frame ? { x: frame.x + frame.width / 2, y: frame.y + frame.height / 2 } : null
     const at = point && map ? pixelOfPoint(map, point) : point
-    return `[${index + 1}] ${element.role} ${JSON.stringify(element.title ?? element.value ?? '')}${at ? ` (${Math.round(at.x)},${Math.round(at.y)})${map ? 'px' : 'pt'}` : ''}`
+    return `[${index + first}] ${element.role} ${JSON.stringify(element.title ?? element.value ?? '')}${at ? ` (${Math.round(at.x)},${Math.round(at.y)})${map ? 'px' : 'pt'}` : ''}`
   }).join('\n')
 }
 
@@ -71,7 +71,7 @@ function textDistance(a: string, b: string): number {
   return previous[b.length]!
 }
 
-export function targetElement(tree: DesktopTree, target: ElementTarget, map: ScreenMap | null = null): DesktopTreeElement | { refusal: string } {
+export function targetElement(tree: DesktopTree, target: ElementTarget, map: ScreenMap | null = null, walk?: TreeWalk): DesktopTreeElement | { refusal: string; held?: DesktopTreeElement } {
   const matches = targetMatches(tree, target)
   const interactive = matches.filter(element => /^(AX)?(Button|CheckBox|ComboBox|Link|MenuButton|MenuItem|PopUpButton|RadioButton|SearchField|Slider|Tab|TextArea|TextField|ToggleButton)$/i.test(element.role))
   const parent = interactive.length === 1 ? interactive[0] : undefined
@@ -88,14 +88,14 @@ export function targetElement(tree: DesktopTree, target: ElementTarget, map: Scr
       const distance = Math.min(textDistance(wanted, text), ...text.split(' ').map(word => textDistance(wanted, word))) + Math.abs(wanted.length - text.length) / 100
       return { element, distance }
     }).sort((a, b) => a.distance - b.distance).slice(0, 3).map(item => item.element)
-    return { refusal: `${targetWords(target)}: 0 matches${tree.truncated ? ' in a truncated tree' : ''}${nearby.length ? ` — nearest ${nearby.length} by text\n${candidateWords(nearby, map)}` : ' — read tree or take a screenshot'}` }
+    return { refusal: `${targetWords(target)}: 0 matches${!tree.truncated ? '' : walk ? ` in the part walked (the tree goes on past ${walkStopWords(tree, walk)})` : ' in a truncated tree'}${nearby.length ? ` — nearest ${nearby.length} by text\n${candidateWords(nearby, map)}` : ' — read tree or take a screenshot'}` }
   }
-  if (tree.truncated) return { refusal: `${targetWords(target)}: the tree is truncated, so uniqueness is unknown — ${tree.reason === TREE_UNANSWERED_REASON ? 'read the tree again' : 'raise depth/limit'} or use screenshot pixels` }
+  if (tree.truncated) return { refusal: `${targetWords(target)}: the tree is truncated, so uniqueness is unknown — ${tree.reason === TREE_UNANSWERED_REASON ? 'read the tree again' : 'raise depth/limit'} or use screenshot pixels`, held: selected }
   return selected
 }
 
-export function targetPoint(tree: DesktopTree, target: ElementTarget, map: ScreenMap | null = null): { x: number; y: number } | { refusal: string } {
-  const element = targetElement(tree, target, map)
+export function targetPoint(tree: DesktopTree, target: ElementTarget, map: ScreenMap | null = null, walk?: TreeWalk): { x: number; y: number } | { refusal: string; held?: DesktopTreeElement } {
+  const element = targetElement(tree, target, map, walk)
   if ('refusal' in element) return element
   const frame = element.frame
   if (frame === null || ![frame.x, frame.y, frame.width, frame.height].every(Number.isFinite) || frame.width <= 0 || frame.height <= 0) {

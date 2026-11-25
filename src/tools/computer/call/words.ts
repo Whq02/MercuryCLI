@@ -7,8 +7,8 @@ import {
   type DesktopTreeLimits,
   TREE_UNANSWERED_REASON,
 } from '../../../integrations/desktop/driver.js'
-import { type DesktopOutline, type ScreenMap, outlineRowWords, pixelOfPoint, pixelOnScreen, resolveTreeRef } from '../screenMap.js'
-import { type TreeWalk, pageContentNote, targetElement, walkStopWords } from '../fastRoad.js'
+import { type DesktopOutline, type ScreenMap, addTreeRef, outlineRowWords, pixelOfPoint, pixelOnScreen, resolveTreeRef } from '../screenMap.js'
+import { type ElementTarget, type TreeWalk, candidateWords, pageContentNote, targetElement, targetWords, walkStopWords } from '../fastRoad.js'
 import {
   FIELD_VALUE_CHARS,
   type Input,
@@ -53,6 +53,10 @@ export function readRefElement(owner: OwnerKey, app: DesktopApplication, tree: D
   const elements = resolveTreeRef(owner, app, tree, ref)
   if (!elements.length) return { refusal: `read ref ${ref}: unavailable or stale — read tree and use its current ref` }
   return targetElement({ ...tree, elements }, {}, map)
+}
+
+export function heldTargetWords(action: string, owner: OwnerKey, app: DesktopApplication, tree: DesktopTree, target: ElementTarget, held: DesktopTreeElement, walk: TreeWalk, map: ScreenMap | null): string {
+  return `${action} not done: ${targetWords(target)}: 1 match in the part walked (the tree goes on past ${walkStopWords(tree, walk)}), so a second match further on is not ruled out — act on it by ref\n${candidateWords([held], map, addTreeRef(owner, app, tree, held))}`
 }
 
 export function readWords(label: string, text: string, truncated = false): string {

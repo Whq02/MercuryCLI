@@ -198,6 +198,18 @@ export function rememberTreeRefs(owner: OwnerKey, app: DesktopApplication, tree:
   }
 }
 
+export function addTreeRef(owner: OwnerKey, app: DesktopApplication, tree: DesktopTree, element: DesktopTreeElement): number {
+  const state = treeRefs.get(owner)
+  if (state.window !== windowKey(app)) {
+    state.window = windowKey(app)
+    state.refs.clear()
+  }
+  const row = elementPaths(tree)[tree.elements.indexOf(element)]!
+  const ref = state.next++
+  state.refs.set(ref, [{ key: row.path, counts: row.counts() }])
+  return ref
+}
+
 export function resolveTreeRef(owner: OwnerKey, app: DesktopApplication, tree: DesktopTree, ref: number): DesktopTreeElement[] {
   const state = treeRefs.peek(owner)
   const keys = state?.window === windowKey(app) ? state.refs.get(ref) : undefined
