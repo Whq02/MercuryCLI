@@ -76,8 +76,8 @@ For example:
 
 | Key | What it sets |
 | --- | --- |
-| `engine.model` | The model id or family word saved by `/model`. Choose from the live catalogue; `--model` and `MERCURY_MODEL` can override the saved default. When `<config home>/settings.json` cannot be written, `/model` names the file and the OS reason (`not saved as your default: ~/.mercury/settings.json …`). |
-| `engine.effort` | `low`, `medium`, `high`, `xhigh` or `max`, also saved by `/effort` or `ctrl+e` in `/model`. Each model uses the levels its provider supports; a failed write to `settings.json` names the file and the OS reason in the picker footer or receipt. |
+| `engine.model` | The model id or family word saved by `/model`. Choose from the live catalogue; `--model` and `MERCURY_MODEL` can override the saved default. When `<config home>/settings.json` cannot be written, `/model` says `not saved as your default — try again` and writes the file and reason to the debug log. |
+| `engine.effort` | `low`, `medium`, `high`, `xhigh` or `max`, also saved by `/effort` or `ctrl+e` in `/model`. Each model uses the levels its provider supports; a failed write to `settings.json` says `not saved as your default — try again` in the picker footer or receipt and writes the detail to the debug log. |
 | `engine.reasoning` | Whether thinking is requested, on every provider that reads it (Anthropic, Z.AI where thinking-locked models keep it on, and the OpenAI-compatible chat roads; GPT models take the effort dial instead). A model that always reasons keeps its own rule. |
 | `engine.agent` | The agent definition used for the session; `--agent` chooses one for a launch. |
 | `engine.roster` | A list limiting which models can be selected. |

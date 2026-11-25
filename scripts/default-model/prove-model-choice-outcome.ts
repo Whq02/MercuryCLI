@@ -66,18 +66,34 @@ section('§3 clearing the default: cleared once, then unchanged with nothing to 
   check('clearing an empty default is unchanged, with an empty sentence', outcomeOf(unchanged) === 'unchanged' && sentenceOf(unchanged) === '', JSON.stringify(unchanged))
 }
 
-section('§4 a refused write: the outcome says refused and the sentence carries the reason')
+section('§4 a refused write: the outcome says refused, the sentence is plain, and the detail goes to the debug log')
 {
-  writeFileSync(settingsPath, '{ "engine": { "model": "env-fixture-model" }, ')
-  const refused = persistModelChoice('claude-fixture-three')
-  check('the outcome is refused', outcomeOf(refused) === 'refused', JSON.stringify(refused))
-  check('the sentence names the refusal', sentenceOf(refused).startsWith(' · not saved as your default: ') && sentenceOf(refused).includes('Invalid JSON'), JSON.stringify(refused))
+  const { readFileSync } = await import('node:fs')
+  const dbg = await import('../../src/platform/logs/debugLog.ts')
+  const prevNodeEnv = process.env.NODE_ENV
+  delete process.env.NODE_ENV
+  dbg.enableDebugLogging()
+  const dbgPath = dbg.getDebugLogPath()
+  try {
+    writeFileSync(settingsPath, '{ "engine": { "model": "env-fixture-model" }, ')
+    const refused = persistModelChoice('claude-fixture-three')
+    await dbg.flushDebugLogs()
+    const dbgText = (() => { try { return readFileSync(dbgPath, 'utf8') } catch { return '' } })()
+    check('the outcome is refused', outcomeOf(refused) === 'refused', JSON.stringify(refused))
+    check(
+      'the sentence is plain and the debug log carries file and reason',
+      sentenceOf(refused) === ' · not saved as your default — try again' && dbgText.includes('settings.json') && dbgText.includes('Invalid JSON'),
+      `${JSON.stringify(refused)} | dbg=${dbgText.slice(-200)}`,
+    )
+  } finally {
+    if (prevNodeEnv !== undefined) process.env.NODE_ENV = prevNodeEnv
   }
+}
 
 section('§4b the effort ladder saves through the same owner: its outcome and its sentence are the owner\'s')
 {
   const refusedEffort = persistEffortChoice('high')
-  check('a refused effort write says refused and the sentence carries the reason', outcomeOf(refusedEffort) === 'refused' && sentenceOf(refusedEffort).startsWith(' · not saved as your default: ') && sentenceOf(refusedEffort).includes('Invalid JSON'), JSON.stringify(refusedEffort))
+  check('a refused effort write says refused with the plain sentence', outcomeOf(refusedEffort) === 'refused' && sentenceOf(refusedEffort) === ' · not saved as your default — try again', JSON.stringify(refusedEffort))
   check('a refused write leaves no effort in the file', storedEffort() === undefined, String(storedEffort()))
   writeFileSync(settingsPath, '{}')
   const savedEffort = persistEffortChoice('high')

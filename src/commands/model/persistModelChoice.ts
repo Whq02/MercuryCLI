@@ -2,6 +2,7 @@ import { flagEnv } from '../../platform/substrate/flagRegistry.js'
 import type { EffortLevel } from '../../models/effort/effortLadder.js'
 import { parseUserSpecifiedModel, type ModelSetting } from '../../models/catalogue/engineModel.js'
 import { displayConfigHome, getMercuryHome } from '../../platform/environment/envUtils.js'
+import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { compatModelEndpoint } from '../../models/roads/openaicompat/compatAccounts.js'
 import { getInitialSettings, getSettingsWriteFilePathForSource, updateSettingsForSource } from '../../platform/settings/settings.js'
 
@@ -23,7 +24,8 @@ function refusedSentence(error: Error): string {
   const cut = typeof syscall === 'string' ? reason.indexOf(`, ${syscall} '`) : -1
   if (cut > 0) reason = reason.slice(0, cut)
   if (path !== undefined) reason = reason.replaceAll(path, file)
-  return ` · not saved as your default: ${reason.includes(file) ? reason : `${file} — ${reason}`}`
+  logForDebugging(`persistModelChoice: default not saved (${reason.includes(file) ? reason : `${file} — ${reason}`})`, { level: 'error' })
+  return ' · not saved as your default — try again'
 }
 
 export function persistEffortChoice(level: EffortLevel): PersistedEffortChoice {
