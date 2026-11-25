@@ -33,7 +33,7 @@ function startWords(profile: ProfileRow): string {
 function detailLinesOf(face: ProfilesFace, selected: ProfileRow | null, said: Said | null): string[] {
   if (face.kind === 'rename') return [`name: ${face.name}▌`, '', 'an empty name puts the default back'];
   if (face.kind === 'remove') return [`remove ${face.profile.name}?`, '', 'its command is removed,', `its folder and logins stay at ${face.profile.home}`];
-  if (said?.where === 'pane') return [said.text];
+  if (said?.where === 'pane') return said.text.split('\n');
   return selected === null ? [] : [selected.home, '', startWords(selected)];
 }
 
@@ -125,7 +125,8 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
       if (face.kind !== 'remove') return;
       if (input === 'y' || key.return) {
         const removed = removeProfile(face.profile.id);
-        settle({ where: 'pane', text: removed.ok ? `${face.profile.name} removed: its folder stays at ${removed.keptHome}` : removed.reason });
+        const left = removed.ok && removed.keptFiles !== undefined ? `;\nleft in place, not its command: ${removed.keptFiles.join(', ')}` : '';
+        settle({ where: 'pane', text: removed.ok ? `${face.profile.name} removed: its folder stays at ${removed.keptHome}${left}` : removed.reason });
       } else if (input === 'n' || key.escape) setFace({ kind: 'list' });
     },
     { isActive: face.kind === 'remove' },
