@@ -79,13 +79,13 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
                 settle({ where: 'pane', text: made.reason });
                 return null;
               }
-              const created = `${made.profile.name} created — ${startWords(made.profile)}`;
+              const created: Said = { where: 'status', text: `${made.profile.name} created — ${startWords(made.profile)}` };
               const from = profiles.find(profile => profile.current)?.name ?? 'this profile';
-              settle({ where: 'status', text: created });
+              settle(created);
               void inheritSkills(made.profile.home)
                 .then(answer => skillsWords(answer, from), errorMessage)
                 .then(line => {
-                  if (line !== null) setSaid({ where: 'pane', text: `${created};\n${line}` });
+                  if (line !== null) setSaid(now => (now === created ? { where: 'pane', text: `${created.text};\n${line}` } : now));
                 });
               return null;
             },

@@ -22,6 +22,7 @@ const engine = captureEngineEntry(driver, root)
 const framesDir = process.argv[2]
 const fixture = await startFixtureApi([])
 const PAGE = 'src/screen/boot-face/BootProfilesScreen.tsx'
+const UP = '\u001b[A'
 const DOWN = '\u001b[B'
 const END = '\u001b[F'
 const ESC = '\u001b'
@@ -67,8 +68,12 @@ const journey = [
 ]
 const refusal = [...toThePage, key('1 · Profile 1', 'n')]
 const stranger = (install: { bin: string }): void => writeFileSync(join(install.bin, 'mercury2'), 'not a profile command\n')
+const oneSkill = (install: { home: string }): void => {
+  mkdirSync(join(install.home, 'skills', 'alpha'), { recursive: true })
+  writeFileSync(join(install.home, 'skills', 'alpha', 'SKILL.md'), '---\ndescription: a skill of the first profile\n---\nits body\n')
+}
 
-async function drive(cols: number, rows: number, scene: { name: string; sends: Array<ReturnType<typeof key>>; readyText: string; stage?: (install: { home: string; bin: string }) => void }): Promise<{ frame: (label: string) => string; home: string; bin: string }> {
+async function drive(cols: number, rows: number, scene: { name: string; sends: Array<ReturnType<typeof key>>; readyText: string | string[]; stage?: (install: { home: string; bin: string }) => void; after?: (install: { home: string }) => boolean }): Promise<{ frame: (label: string) => string; home: string; bin: string; after: boolean }> {
   const userHome = realpathSync(mkdtempSync(join(tmpdir(), 'profiles-page-home-')))
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'profiles-page-project-')))
   const install = stageInstall('source', userHome)
@@ -95,6 +100,7 @@ async function drive(cols: number, rows: number, scene: { name: string; sends: A
   spawnSync(install.command, ['daemon', 'stop'], { env, timeout: 10000, stdio: 'pipe' })
   check(`${cols}x${rows} ${scene.name}: the drive ran to its end`, result.code === 0 && existsSync(output), `an awaited text in the sends list of this drive never painted; compare the last awaited text with the output tail and the words in ${PAGE}. ${result.text.trim().slice(-700)}`)
   const capture = (existsSync(output) ? JSON.parse(readFileSync(output, 'utf8')) : {}) as { grid?: Grid; marks?: Array<{ label: string; grid: Grid }>; sendReceipts?: unknown[] }
+  const after = scene.after?.(install) ?? false
   for (const dir of [userHome, cwd]) removeScratch(dir)
   const marks = new Map([...(capture.marks ?? []).map(mark => [mark.label, textOf(mark.grid)] as const), [scene.name, textOf(capture.grid)] as const])
   if (framesDir !== undefined) {
@@ -102,7 +108,7 @@ async function drive(cols: number, rows: number, scene: { name: string; sends: A
     for (const [label, text] of marks) writeFileSync(join(framesDir, `${label}-${cols}x${rows}.txt`), text + '\n')
   }
   check(`${cols}x${rows} ${scene.name}: every key reached its screen`, capture.sendReceipts?.length === scene.sends.length, `only ${String(capture.sendReceipts?.length)} of ${scene.sends.length} sends were delivered; the first send whose awaited text never painted names the screen that stopped`)
-  return { frame: label => marks.get(label) ?? '', home: install.home, bin: install.bin }
+  return { frame: label => marks.get(label) ?? '', home: install.home, bin: install.bin, after }
 }
 
 try {
@@ -141,13 +147,18 @@ try {
       name: 'skills',
       sends: [...toThePage, key('1 · Profile 1', 'n')],
       readyText: 'skill copied',
-      stage: install => {
-        mkdirSync(join(install.home, 'skills', 'alpha'), { recursive: true })
-        writeFileSync(join(install.home, 'skills', 'alpha', 'SKILL.md'), '---\ndescription: a skill of the first profile\n---\nits body\n')
-      },
+      stage: oneSkill,
     })
     check(`${cols}: a create says how many skills it copied, switched off, and keeps the create line`, says(skilled.frame('skills'), '1 skill copied from Profile 1, switched off') && says(skilled.frame('skills'), 'Profile 2 created — mercury2 starts it') && rowOf(skilled.frame('skills'), 2) !== undefined, `after a createProfile that answers ok the n action must call inheritSkills with the new home and print its answer in the pane, under the create line (${PAGE})`)
   }
+  const late = await drive(120, 40, {
+    name: 'late',
+    sends: [...toThePage, key('1 · Profile 1', 'n' + UP + 'r'), key('name: ▌', ESC)],
+    readyText: ['2 · Profile 2', 'r rename · esc back'],
+    stage: oneSkill,
+    after: install => existsSync(join(`${install.home}2`, 'skills', 'alpha', 'SKILL.md')),
+  })
+  check('120: a rename opened before the skills answer came is not answered with the skills line when it is left', late.after && rowOf(late.frame('late'), 2) !== undefined && !says(late.frame('late'), 'skill copied') && !says(late.frame('late'), 'Profile 2 created'), `the n action must add the skills line only while the page still says that create's own line: one functional update of said that leaves anything else as it stands (${PAGE}); the skill was copied: ${String(late.after)}; the pane reads: ${paneOf(late.frame('late')) ?? 'no pane'}`)
   const short = await drive(120, 34, { name: 'refused', sends: refusal, readyText: 'again.', stage: stranger })
   check('120x34: a refusal from the door is whole in the pane of a short wide window, the count in the status row', short.frame('refused').includes('SETTING DETAIL') && short.frame('refused').includes('again.') && wholeWhereThePaneWraps(short.frame('refused'), join(short.bin, 'mercury2')) && /System ready\s+│\s+1 profile\b/.test(short.frame('refused')), `what the page says in the pane must be held as a confirm's lines are, never dropped for room, and the status row keeps the count: detailOverrideConfirms and statusRight while a pane message shows (${PAGE})`)
   check('the page made no model call', fixture.messageRequests().length === 0, `a key of the profiles page reached the model API; the page must stay on the door in src/platform/profiles/profiles.ts`)
