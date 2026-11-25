@@ -221,11 +221,12 @@ function renderFrame(this: RenderFrameReads): void {
 
   if (WRITE_TEE_PATH) teeBeforeDiff(baseFrame, frame)
 
+  const caret = resolveCursorTarget.call(this)
   const diffStart = performance.now()
   const whole = this.wholeFrameDue && this.altScreenActive
   const patches = whole
-    ? this.writer.overwriteAlt(held(frame))
-    : this.writer.render(baseFrame, held(frame), this.altScreenActive, regionScrollUsable)
+    ? this.writer.overwriteAlt(held(frame), caret)
+    : this.writer.render(baseFrame, held(frame), this.altScreenActive, regionScrollUsable, caret)
   if (whole) {
     this.wholeFrameDue = false
     this.wholeFrameAt = performance.now()
@@ -266,7 +267,7 @@ function renderFrame(this: RenderFrameReads): void {
     altScreen: this.altScreenActive,
     hasDiff,
     parkPatch: this.parkPatch,
-    target: resolveCursorTarget.call(this),
+    target: caret,
     parked: this.displayCursor,
     prevCursor: { x: baseFrame.cursor.x, y: baseFrame.cursor.y },
     frameCursor: { x: frame.cursor.x, y: frame.cursor.y },

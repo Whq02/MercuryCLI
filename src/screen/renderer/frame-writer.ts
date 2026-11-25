@@ -28,7 +28,7 @@ import {
 import { LINK_END, link as oscLink } from './termio/osc.js'
 import { widthMayDisagree as measuredWidthMayDisagree } from './width-probe-table.js'
 import { readTerminalWidthMeasurements } from './terminal-session/widthProbe.js'
-import { holdsRtl, rowHoldsRtl, terminalBidiFrame } from './terminalBidiFrame.js'
+import { type Caret, holdsRtl, rowHoldsRtl, terminalBidiFrame } from './terminalBidiFrame.js'
 import { terminalTextCells } from './terminal-session/terminalTextCells.js'
 
 
@@ -391,6 +391,7 @@ const describeDamage = (damage: Rectangle | undefined): string =>
 
 export class FrameWriter {
   private flushedRows = 0
+  private caret: Caret = null
 
   constructor(private readonly options: Options) {}
 
@@ -400,11 +401,12 @@ export class FrameWriter {
     return []
   }
 
-  render(prev: Frame, next: Frame, altScreen = false, decstbmSafe = true): Diff {
+  render(prev: Frame, next: Frame, altScreen = false, decstbmSafe = true, caret: Caret = null): Diff {
     if (!this.options.isTTY) return this.renderFullFrameString(next)
     const started = performance.now()
-    prev = terminalBidiFrame(prev)
-    next = terminalBidiFrame(next)
+    prev = terminalBidiFrame(prev, this.caret)
+    next = terminalBidiFrame(next, caret)
+    this.caret = caret
     const diff = altScreen
       ? this.renderAlt(prev, next, decstbmSafe)
       : this.renderInline(prev, next)
@@ -464,8 +466,9 @@ export class FrameWriter {
     return out
   }
 
-  overwriteAlt(next: Frame): Diff {
-    next = terminalBidiFrame(next)
+  overwriteAlt(next: Frame, caret: Caret = null): Diff {
+    next = terminalBidiFrame(next, caret)
+    this.caret = caret
     const { viewport } = next
     const out: Diff = [{ type: 'styleStr', str: SGR_RESET }]
     const cursor = new CursorModel({ x: 0, y: 0 }, viewport.width, true)
@@ -488,7 +491,7 @@ export class FrameWriter {
   }
 
   holdingClipPaint(frame: Frame, cols: number, rows: number): Diff {
-    frame = terminalBidiFrame(frame)
+    frame = terminalBidiFrame(frame, this.caret)
     const { width, height, cells, charPool, hyperlinkPool } = frame.screen
     if (width === 0 || height === 0 || cols <= 0 || rows <= 0) return []
     const out: Diff = [{ type: 'cursorHide' }, { type: 'styleStr', str: cursorPosition(1, 1) }]

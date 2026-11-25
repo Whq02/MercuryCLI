@@ -35,7 +35,9 @@ export function rowHoldsRtl(screen: Screen, y: number): boolean {
   return false
 }
 
-export function terminalBidiFrame(frame: Frame): Frame {
+export type Caret = Readonly<{ x: number; y: number }> | null
+
+export function terminalBidiFrame(frame: Frame, at: Caret = null): Frame {
   const profile = terminalTextCells()
   if (!profile.shapeRtl) return frame
   const source = frame.screen
@@ -44,9 +46,11 @@ export function terminalBidiFrame(frame: Frame): Frame {
   for (let y = 0; y < source.height; y++) {
     if (!rowHoldsRtl(source, y)) continue
     const row = []
+    let caret = -1
     for (let x = 0; x < source.width; x++) {
       const cell = cellAt(source, x, y)!
       if (cell.width === CellWidth.SpacerTail) continue
+      if (at?.y === y && at.x === x) caret = row.length
       row.push({
         value: cell.width === CellWidth.SpacerHead ? ' ' : cell.char,
         width: cell.width === CellWidth.Wide ? 2 : 1,
@@ -54,7 +58,7 @@ export function terminalBidiFrame(frame: Frame): Frame {
         hyperlink: cell.hyperlink,
       })
     }
-    const paint = shapeBidiForTerminal(row, !profile.explicitBidi)
+    const paint = shapeBidiForTerminal(row, !profile.explicitBidi, caret)
     if (paint === row) continue
     if (!projected) {
       const cells = source.cells.slice()

@@ -107,13 +107,13 @@ const joinsRight = (type: string): boolean => type === 'D' || type === 'R' || ty
 const BORDER_CELL = /^[\u2500-\u257F]$/
 const BLANK_CELL = /^\u2068? \u2069?$/
 
-function eachStretch<T extends BidiChar>(characters: T[], order: (stretch: T[]) => T[]): T[] {
+function eachStretch<T extends BidiChar>(characters: T[], order: (stretch: T[], from: number) => T[]): T[] {
   let out: T[] | undefined
   let from = 0
   for (let at = 0; at <= characters.length; at++) {
     if (at < characters.length && !BORDER_CELL.test(characters[at]!.value)) continue
     const stretch = from === 0 && at === characters.length ? characters : characters.slice(from, at)
-    const ordered = order(stretch)
+    const ordered = order(stretch, from)
     if (ordered !== stretch) {
       out ??= characters.slice()
       out.splice(from, ordered.length, ...ordered)
@@ -123,11 +123,11 @@ function eachStretch<T extends BidiChar>(characters: T[], order: (stretch: T[]) 
   return out ?? characters
 }
 
-export function shapeBidiForTerminal<T extends BidiChar>(characters: T[], marks = true): T[] {
-  return eachStretch(characters, stretch => shapeStretch(stretch, marks))
+export function shapeBidiForTerminal<T extends BidiChar>(characters: T[], marks = true, caret = -1): T[] {
+  return eachStretch(characters, (stretch, from) => shapeStretch(stretch, marks, caret - from))
 }
 
-function shapeStretch<T extends BidiChar>(characters: T[], marks: boolean): T[] {
+function shapeStretch<T extends BidiChar>(characters: T[], marks: boolean, caret: number): T[] {
   const text = characters.map(c => c.value).join('')
   if (!containsRtl(text)) return characters
   const embedding = getBidi().getEmbeddingLevels(text, 'ltr')
@@ -189,6 +189,17 @@ function shapeStretch<T extends BidiChar>(characters: T[], marks: boolean): T[] 
     out.push({ ...character, value })
     levels.push(level)
     pointIndex += count
+  }
+  if (caret > 0 && caret < out.length && out[caret]!.value === ' ' && levels[caret]! % 2 === 0 && levels[caret - 1]! % 2 === 1) {
+    let start = caret - 1
+    while (start > 0 && levels[start - 1]! % 2 === 1) start--
+    const before = start > 0 ? out[start - 1]! : undefined
+    if (before !== undefined && before.value === ' ') {
+      out[start - 1] = out[caret]!
+      out[caret] = before
+    } else {
+      levels[caret] = levels[caret - 1]!
+    }
   }
   for (let n = spares.length - 1; n >= 0; n--) {
     const spare = spares[n]!
