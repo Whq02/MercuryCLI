@@ -244,10 +244,59 @@ async function listZip(archivePath: string, ceilings: UpdateCeilings): Promise<L
   }
 }
 
+const shown = (name: string): string => JSON.stringify(Buffer.from(name, 'latin1').toString('utf8')).slice(0, 120)
+
+function pathOf(name: string, form: ArchiveForm): string[] | null {
+  const windows = form === 'zip'
+  if (windows ? /^[\\/]/.test(name) || name.includes(':') : name.startsWith('/')) return null
+  const segments = name.split(windows ? /[\\/]/ : '/').filter(segment => segment !== '' && segment !== '.')
+  return segments.some(segment => (windows ? /^\.{2,}$/.test(segment.replace(/[\x00-\x20\x7f-\xff]/g, '')) : segment === '..')) ? null : segments
+}
+
+function linkLands(from: string[], target: string, links: ReadonlySet<string>): 'inside' | 'outside' | 'through-link' {
+  if (target.startsWith('/')) return 'outside'
+  const at = [...from]
+  for (const segment of target.split('/')) {
+    if (segment === '' || segment === '.') continue
+    if (links.has(at.join('/'))) return 'through-link'
+    if (segment !== '..') at.push(segment)
+    else if (at.pop() === undefined) return 'outside'
+  }
+  return 'inside'
+}
+
+function entryRefusal(entries: ListedEntry[], form: ArchiveForm): string | null {
+  const links = new Set<string>()
+  const seen = new Map<string, number>()
+  const placed: Array<{ entry: ListedEntry; name: string; path: string[] }> = []
+  for (const entry of entries) {
+    for (const name of entry.names) {
+      const path = pathOf(name, form)
+      if (path === null || (path.length === 0 && entry.kind !== 'directory')) return `the archive holds an entry that leaves the folder it is unpacked into: ${shown(name)}`
+      if (entry.kind === 'special') return `the archive holds a device, a FIFO or a socket: ${shown(name)}`
+      const key = path.join('/')
+      if (entry.kind === 'symlink') links.add(key)
+      seen.set(key, (seen.get(key) ?? 0) + 1)
+      placed.push({ entry, name, path })
+    }
+  }
+  for (const { entry, name, path } of placed) {
+    const beneathLink = path.some((_, index) => index > 0 && links.has(path.slice(0, index).join('/')))
+    if (beneathLink || (links.has(path.join('/')) && seen.get(path.join('/')) !== 1)) return `the archive writes an entry through a link it made itself: ${shown(name)}`
+    for (const target of entry.targets) {
+      const lands = linkLands(entry.kind === 'symlink' ? path.slice(0, -1) : [], target, links)
+      if (lands === 'outside') return `the archive holds a link that leaves the folder it is unpacked into: ${shown(name)}`
+      if (lands === 'through-link') return `the archive writes an entry through a link it made itself: ${shown(name)}`
+    }
+  }
+  return null
+}
+
 export async function checkArchiveBeforeUnpack(archivePath: string, form: ArchiveForm, ceilings: UpdateCeilings): Promise<ArchiveCheck> {
   try {
     const entries = form === 'zip' ? await listZip(archivePath, ceilings) : await listTar(archivePath, ceilings)
-    return { state: 'ok', entries: entries.length }
+    const refusal = entryRefusal(entries, form)
+    return refusal === null ? { state: 'ok', entries: entries.length } : { state: 'refused', reason: refusal }
   } catch (error) {
     if (error instanceof ArchiveRefusal) return { state: 'refused', reason: error.message }
     return { state: 'unreadable', note: error instanceof Error ? error.message.slice(0, 200) : String(error) }
