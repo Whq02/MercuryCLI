@@ -209,10 +209,10 @@ t.section('§8 — THE RESUME SKIN (one core, the face grammar; the real journey
   t.check('the detail trail names the REAL journey (the chat stop appears; esc opens nothing)', resumeDetailLines(flat[0]!).join('\n').includes('the chat stop appears on the strip') && resumeDetailLines(flat[0]!).join('\n').includes('esc — back to the face, nothing opened'))
   t.check('a cleared row’s trail says resuming reopens it', clearedRow !== undefined && resumeDetailLines(clearedRow!).join('\n').includes('resuming reopens it'))
   t.check('the empty worlds teach n (births here) in both scopes', resumeEmptyDetailLines('all', 0).join('\n').includes('n births a fresh session here') && resumeEmptyDetailLines('project', 3).join('\n').includes('a shows'))
-  t.check('the status line counts sessions · scope and names ↵', resumeStatusLine({ loading: false, count: 4, scope: 'all', pendingMore: 0 }) === '4 sessions in the full history · ↵ opens the real chat')
+  t.check('the status line counts sessions and scope', resumeStatusLine({ loading: false, count: 4, scope: 'all', pendingMore: 0 }) === '4 sessions in the full history')
   t.check('the loading and empty status lines stay honest', resumeStatusLine({ loading: true, count: 0, scope: 'all', pendingMore: 0 }) === 'reading the session store…' && resumeStatusLine({ loading: false, count: 0, scope: 'project', pendingMore: 0 }).includes('n births one'))
   t.check('the legend flips the scope key with the scope and drops moves that do not exist', resumeLegendOf('all', true).includes('a this project') && resumeLegendOf('project', true).includes('a all history') && !resumeLegendOf('all', false).includes('↵ open'))
-  t.check('the summary panel says what ↵ opens (a real chat, in place)', resumeSummaryRows({ scope: 'all', count: 4, elsewhereCount: 0, pendingMore: 0 }).some(r => r.value.includes('a real chat, in place') && r.tone === 'teal'))
+  t.check('the summary panel says what ↵ opens (in place)', resumeSummaryRows({ scope: 'all', count: 4, elsewhereCount: 0, pendingMore: 0 }).some(r => r.key === 'Opens' && r.value === 'in place' && r.tone === undefined))
 
   const wide = composeResume(120, 40, { scope: 'all', sel: 1 }).join('\n')
   t.check('the wide frame carries the sessions panel and the projects as section titles, and no second section', ['SESSIONS', 'orchard-src', 'moodle'].every(s => wide.includes(s)) && !wide.includes('router crews'))

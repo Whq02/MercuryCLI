@@ -16,7 +16,7 @@
    │ moodle                                                         │  │ cleared — deliberately closed; resuming    │
    │   moodle groundwork                                  1 day ago │  │   reopens it                               │
    │                                                                │  │                                            │
-   │ orchard-src                                                    │  │ ↵ opens this session as the real chat —    │
+   │ orchard-src                                                    │  │ ↵ opens this session —                     │
    │   splash ripple study                               2 days ago │  │ the chat stop appears on the strip;        │
    ╰────────────────────────────────────────────────────────────────╯  │ this screen and the face stay beneath.     │
                                                                        │                                            │
@@ -26,7 +26,7 @@
                                                                        │ SESSIONS                                   │
                                                                        │ Scope      all history — every project     │
                                                                        │ Sessions   4                               │
-                                                                       │ Opens      ● a real chat, in place         │
+                                                                       │ Opens      in place                        │
                                                                        ╰────────────────────────────────────────────╯
                                                                        ╭────────────────────────────────────────────╮
                                                                        │ ENVIRONMENT                                │
@@ -35,6 +35,6 @@
                                                                        │ Dir        orchard-src                     │
                                                                        ╰────────────────────────────────────────────╯
    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  4 sessions in the full history · ↵ opens the real chat                                      │
+   │ ● System ready  │  4 sessions in the full history                                                              │
    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
                          ↑↓ move · ↵ open · n new session · d prune · a this project · esc back

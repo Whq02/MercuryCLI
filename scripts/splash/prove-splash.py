@@ -294,7 +294,7 @@ home = tempfile.mkdtemp(prefix='splash-menu-home-')
 try:
     raw = run_pty(100, 34, {'MERCURY_SPLASH_VIEW': 'menu', 'MERCURY_HOME': home})
     plain = STRIP.sub('', raw)
-    check('menu one-shot renders the boot menu', 'boot menu' in plain and 'Debug tool (real debugger)' in plain)
+    check('menu one-shot renders the boot menu', 'boot menu' in plain and 'Debug tool' in plain)
     check('menu footer contract present', 'change (saved)' in raw and 's launch' in raw and 'esc back' in raw)
     lines = vis_lines(raw)
     check('menu fits 100 cols', all(len(l) <= 100 for l in lines), f'max={max(len(l) for l in lines)}')

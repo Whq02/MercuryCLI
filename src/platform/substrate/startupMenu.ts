@@ -70,15 +70,15 @@ export const STARTUP_MENU: readonly MenuRow[] = [
   },
   {
     env: 'MERCURY_DAP',
-    label: 'Debug tool (real debugger)',
+    label: 'Debug tool',
     group: 'trust combo',
     kind: 'toggle',
     options: ['0'],
     defaultLabel: 'on',
     applicationClass: 'live',
-    summary: 'a real debugger the agent can drive (breakpoints, stepping, variables, evaluate) instead of print statements',
+    summary: 'a debugger the agent can drive (breakpoints, stepping, variables, evaluate) instead of print statements',
     detail: {
-      controls: 'The Debug tool speaks the Debug Adapter Protocol to real debuggers (Python via debugpy, native code via lldb-dap). Launching a program under the debugger always asks permission first.',
+      controls: 'The Debug tool speaks the Debug Adapter Protocol to debuggers (Python via debugpy, native code via lldb-dap). Launching a program under the debugger always asks permission first.',
       on: ['the Debug tool joins the catalog', 'launch asks permission like any command execution', 'inspection (stacks, variables) rides the permitted session'],
       off: ['the tool is absent — identical to a build without it'],
     },
@@ -93,7 +93,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     summary: 'C/C++ diagnostics with clang-tidy, rename, and source ⇄ header navigation through clangd',
     detail: {
       controls: 'The C/C++ language lane of the IDE bridge: finds clangd (PATH · Xcode · Homebrew llvm), starts it on the first C/C++ file touched, and answers through LspRead and LspRename. A compile database sharpens it when present (shown in /health).',
-      on: ['C/C++ files get diagnostics · rename · code actions · source ⇄ header jumps', 'clang-tidy findings ride the diagnostics', 'no clangd installed ⇒ the lane stays quiet'],
+      on: ['C/C++ files get diagnostics · rename · code actions · source ⇄ header jumps', 'clang-tidy findings ride the diagnostics', 'no clangd installed ⇒ the lane is inactive'],
       off: ['C/C++ files fall back to plain-text editing — no language server'],
     },
   },
@@ -206,10 +206,10 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     options: ['1'],
     defaultLabel: 'off',
     applicationClass: 'live',
-    summary: 'full editor control for Godot projects — scenes, nodes, resources, play-testing, runtime inspection, input simulation (163 ops)',
+    summary: 'full editor control for Godot projects — scenes, nodes, resources, play-testing, runtime inspection, input simulation',
     detail: {
       controls: "The agent drives your running Godot editor directly: scene and node editing (every change is one Ctrl+Z undo step), scripts, resources, animation, physics, audio, tilemaps, shaders — plus play-testing with live game inspection and input simulation. Arming it also shifts agent behavior: sessions and spawned crewmates learn to prefer editor state over hand-editing scene files. Needs the bundled mercury_vulcan addon installed in the project (the tool installs it on ask) and the editor open. Local and sandboxed: a token-authed loopback connection only; running code or simulating input always asks permission first. Pairs with the Godot language lanes above (symbols + breakpoints stay with LspRead and Debug).",
-      on: ['the Godot tool joins the catalog for the session (163 editor ops + extras); outside a Godot project it answers with a teaching note, and a project created mid-session is found at once', 'reads are free; edits ask like file edits and are undoable in the editor; play/input/execute always ask', 'agents shift behavior: editor-first workflow, play-test natively, memory keeps project facts'],
+      on: ['the Godot tool joins the catalog for the session; outside a Godot project it answers with a teaching note, and a project created mid-session is found at once', 'reads are free; edits ask like file edits and are undoable in the editor; play/input/execute always ask', 'agents shift behavior: editor-first workflow, play-test natively, memory keeps project facts'],
       off: ['no Godot tool, no connection, no addon writes — identical to an unarmed build'],
     },
   },
@@ -253,7 +253,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     applicationClass: 'live',
     summary: 'sprite awareness + the Aseprite batch door (sprite census, PNG/GIF/sprite-sheet exports, new sprites, Lua scripts) — Aseprite located (Steam and itch installs count), never installed or launched as a GUI for you',
     detail: {
-      controls: 'Arms the Aseprite lanes: .aseprite/.ase discovery (bounded), the app located your way — a PATH aseprite, /Applications/Aseprite.app (the direct download), the Steam library, the win32 installer/itch homes, or a MERCURY_ASEPRITE_BIN pin (the road for source builds) — with its version probed, and the `Aseprite` tool driving the app\'s own batch mode: sprite census (layers, tags, frames, size), exports with the real CLI options (scaling, layer/tag selection, split files, sprite-sheet layouts with JSON metadata), new sprites, and Lua scripts. Every operation is a bounded background run of `aseprite -b` — the GUI is never started. Exports and new sprites ask permission naming the destination; running a script always asks (it is code). Mercury never installs or launches Aseprite for you.',
+      controls: 'Arms the Aseprite lanes: .aseprite/.ase discovery (bounded), the app located your way — a PATH aseprite, /Applications/Aseprite.app (the direct download), the Steam library, the win32 installer/itch homes, or a MERCURY_ASEPRITE_BIN pin (the road for source builds) — with its version probed, and the `Aseprite` tool driving the app\'s own batch mode: sprite census (layers, tags, frames, size), exports with the CLI options (scaling, layer/tag selection, split files, sprite-sheet layouts with JSON metadata), new sprites, and Lua scripts. Every operation is a bounded background run of `aseprite -b` — the GUI is never started. Exports and new sprites ask permission naming the destination; running a script always asks (it is code). Mercury never installs or launches Aseprite for you.',
       on: ['the `Aseprite` tool joins the catalog beside sprite files, or anywhere the app is located (creating from nothing works)', 'sprite census reads are free; exports and new sprites ask naming their files; Lua scripts always ask', 'no Aseprite on the box ⇒ honest teaching notes naming every install road'],
       off: ['no Aseprite surface exists — identical to a build without it'],
     },
@@ -962,7 +962,7 @@ export function evaluateExplicitApply(
         env: row.env,
         outcome: 'refused',
         target,
-        reason: 'pinned by the real environment — explicit env always wins (the :634 law); unset it and restart to follow the saved value',
+        reason: 'pinned by the environment — explicit env always wins (the :634 law); unset it and restart to follow the saved value',
       } satisfies ExplicitApplyReceipt
     }
     const current =
