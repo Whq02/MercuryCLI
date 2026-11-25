@@ -12,10 +12,8 @@ const configHome = join(scratch, 'config')
 const daemonDir = join(configHome, 'daemon')
 const freshDir = join(scratch, 'fresh-folder')
 const otherDir = join(scratch, 'other-trusted')
-const fitsDir = join(scratch, `p${'x'.repeat(21)}`)
-const longDir = join(scratch, `p${'x'.repeat(22)}`)
 const ownDir = join(scratch, 'own-project')
-for (const d of [configHome, daemonDir, freshDir, otherDir, fitsDir, longDir, ownDir]) {
+for (const d of [configHome, daemonDir, freshDir, otherDir, ownDir]) {
   mkdirSync(d, { recursive: true })
 }
 
@@ -78,7 +76,7 @@ mock.module('../../src/screen/concourse-model/projectActivity.ts', () => ({
 
 const { enableConfigs, setPathTrusted } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-for (const d of [freshDir, otherDir, fitsDir, longDir, ownDir]) setPathTrusted(d)
+for (const d of [freshDir, otherDir, ownDir]) setPathTrusted(d)
 
 const bootstrapState = await import('../../src/boot/process-state/processState.ts')
 const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
@@ -96,14 +94,11 @@ const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProvid
 const { BootSplashScreen } = await import('../../src/screen/boot-face/BootSplashScreen.tsx')
 
 const SID_OTHER = '00000000-0000-4000-8000-000000000401'
-const SID_FITS = '00000000-0000-4000-8000-000000000402'
-const SID_LONG = '00000000-0000-4000-8000-000000000403'
 const SID_OWN = '00000000-0000-4000-8000-000000000404'
 const RUNNER = 'concourse-w7'
 const WORDS = 'open in another window'
 const ELSEWHERE = `operator:${process.ppid}`
 const HERE = `operator:${process.pid}`
-const GONE = 'operator:2147000000'
 
 function transcriptOf(projectDir: string, sessionId: string): string {
   return join(getProjectDir(projectDir), `${sessionId}.jsonl`)
@@ -293,9 +288,7 @@ const continueLine = (text: string): string => text.split('\n').find(line => str
 const framesAt = process.argv.indexOf('--frames')
 const FRAMES = framesAt < 0 ? undefined : process.argv[framesAt + 1]
 if (FRAMES !== undefined) mkdirSync(FRAMES, { recursive: true })
-const frames = new Map<string, string>()
 const keep = (name: string, frame: Mounted): Mounted => {
-  frames.set(name, frame.plain)
   if (FRAMES !== undefined) writeFileSync(join(FRAMES, `${name}.txt`), `${frame.plain.split('\n').map(line => line.trimEnd()).join('\n')}\n`)
   return frame
 }
@@ -306,15 +299,10 @@ function check(label: string, cond: boolean, fixWhere: string, detail = ''): voi
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${fixWhere}` : ''}`)
 }
 
-const FIX_WORDS = `the Continue Last Session row must read "${WORDS}" in its muted detail when the daemon's record of the session it would continue carries the focus or attach stamp of another live terminal: continueOpenElsewhere in src/screen/boot-face/splash/rowActions.ts, the state BootSplashScreen mounts with in src/screen/boot-face/BootSplashScreen.tsx, and continueDetail in src/screen/boot-face/splash/face.tsx`
-const FIX_FIT = `continueDetail in src/screen/boot-face/splash/face.tsx must put "${WORDS}" beside "in <folder>" when both fit the full card's detail, and in its place when they do not and on the compact face, whose frame grows with its widest row`
-const FIX_FIRST = 'BootSplashScreen in src/screen/boot-face/BootSplashScreen.tsx must read continueOpenElsewhere (src/screen/boot-face/splash/rowActions.ts) in the state it mounts with, so the row is whole on the first paint and nothing on the face moves after it'
-const FIX_QUIET = 'continueOpenElsewhere in src/screen/boot-face/splash/rowActions.ts must answer true only for a record that has not ended and whose focus or attach stamp names a live terminal other than this one'
+const FIX_ROW = `the Continue Last Session row never carries "${WORDS}" or anything else for a session another window holds: its detail is the folder of a session from another project and nothing more (continueDetail and bootSplashCompositionOf in src/screen/boot-face/splash/face.tsx, the rows BootSplashScreen mounts with in src/screen/boot-face/BootSplashScreen.tsx)`
 const FIX_ENTER = 'Enter on the row must go on joining the live runner through focusResumedSession in src/daemon/switchboard/hopIntoSession.ts (hopIntoBoardSession): no sessionAdmit, one focus by this terminal'
 
 seedSession(otherDir, SID_OTHER, 'other trusted prompt')
-seedSession(fitsDir, SID_FITS, 'a folder whose name still fits')
-seedSession(longDir, SID_LONG, 'a folder whose name does not fit')
 seedSession(ownDir, SID_OWN, 'own project prompt')
 
 const SIZES: Array<[number, number, string]> = [
@@ -322,120 +310,38 @@ const SIZES: Array<[number, number, string]> = [
   [100, 34, 'full'],
   [80, 24, 'compact'],
 ]
+const heldElsewhere: Array<[string, Held]> = [
+  ['focused by another live terminal', { sessionId: SID_OTHER, workspaceId: otherDir, focusedBy: ELSEWHERE }],
+  ['attached by another live terminal', { sessionId: SID_OTHER, workspaceId: otherDir, attachedBy: ELSEWHERE }],
+  ['focused here and also by another live terminal', { sessionId: SID_OTHER, workspaceId: otherDir, focusedBy: HERE, focusedAlso: [{ by: ELSEWHERE, at: Date.now() - 60_000 }] }],
+]
 
 try {
-  console.log(`§1 — a cross-project session open in another window: "${WORDS}" beside "in <folder>" on the full face, in its place on the compact one, and nothing else on the face moves`)
+  console.log(`§1 — this folder's own last session open in another window: the row reads Continue Last Session and nothing more, and the card is as wide as when it is open nowhere else`)
+  for (const [cols, rows, layout] of SIZES) {
+    const quiet = keep(`own-project-${cols}x${rows}`, await mountFace(ownDir, cols, rows, []))
+    const held = keep(`own-project-open-elsewhere-${cols}x${rows}`, await mountFace(ownDir, cols, rows, [{ sessionId: SID_OWN, workspaceId: ownDir, focusedBy: ELSEWHERE }]))
+    const row = stripAnsi(continueLine(held.plain))
+    check(`${cols}x${rows} (${layout}): the row reads Continue Last Session and nothing more`, /Continue Last Session\s*[│]?\s*$/.test(row) && !held.plain.includes(WORDS), FIX_ROW, row.trim())
+    check(`${cols}x${rows} (${layout}): the face is cell for cell the face of that session open nowhere else, so the card keeps its width`, held.plain === quiet.plain && held.plain === held.later, FIX_ROW, `rows that differ: ${JSON.stringify(held.plain.split('\n').filter((line, i) => line !== quiet.plain.split('\n')[i]).map(line => line.trim()))}`)
+  }
+
+  console.log('§2 — a session of another project open in another window: the row names its folder as it always did, and nothing more')
   makeNewest(otherDir, SID_OTHER)
   for (const [cols, rows, layout] of SIZES) {
     const quiet = keep(`other-project-${cols}x${rows}`, await mountFace(freshDir, cols, rows, []))
-    const said = keep(`other-project-open-elsewhere-${cols}x${rows}`, await mountFace(freshDir, cols, rows, [{ sessionId: SID_OTHER, workspaceId: otherDir, focusedBy: ELSEWHERE }]))
-    const row = stripAnsi(continueLine(said.plain))
-    const detail = layout === 'compact' ? WORDS : `in other-trusted · ${WORDS}`
-    check(
-      `${cols}x${rows} (${layout}): the row's detail reads "${detail}"`,
-      row.includes(detail) && (layout === 'full' || !row.includes('in other-trusted')),
-      FIX_WORDS,
-      row.trim(),
-    )
-    const muted = /(\x1b\[[0-9;]*m)(?: · )?in other-trusted/.exec(continueLine(quiet.raw))?.[1] ?? ''
-    check(
-      `${cols}x${rows} (${layout}): the words stand in the row's muted detail, in the ink "in other-trusted" is drawn in`,
-      muted !== '' && continueLine(said.raw).includes(`${muted}${layout === 'compact' ? ' · ' : ''}${detail}`),
-      FIX_WORDS,
-      JSON.stringify(continueLine(said.raw).slice(0, 220)),
-    )
-    const before = quiet.plain.split('\n')
-    const after = said.plain.split('\n')
-    const moved = after.map((line, i) => (line === before[i] ? -1 : i)).filter(i => i >= 0)
-    check(
-      `${cols}x${rows} (${layout}): only the Continue Last Session row differs from the face of a session open nowhere else`,
-      before.length === after.length && moved.length === 1 && after[moved[0]!]!.includes('Continue Last Session'),
-      FIX_WORDS,
-      `rows that differ: ${JSON.stringify(moved.map(i => after[i]!.trim()))}`,
-    )
-    check(
-      `${cols}x${rows} (${layout}): the words are on the face as it is first painted, and the face is the same 150 ms later`,
-      said.plain === said.later,
-      FIX_FIRST,
-      `rows that changed after the first paint: ${JSON.stringify(said.later.split('\n').filter((line, i) => line !== after[i]).map(line => line.trim()))}`,
-    )
+    for (const [name, record] of heldElsewhere) {
+      const held = await mountFace(freshDir, cols, rows, [record])
+      check(`${cols}x${rows} (${layout}), ${name}: the face is cell for cell the face of that session open nowhere else`, held.plain === quiet.plain && stripAnsi(continueLine(held.plain)).includes('in other-trusted') && !held.plain.includes(WORDS), FIX_ROW, stripAnsi(continueLine(held.plain)).trim())
+    }
   }
 
-  console.log(`§2 — the fit on the full face: a folder name of 22 letters keeps its place beside the words, one of 23 gives it up to them; the compact face gives it up always`)
-  for (const [cols, rows, layout] of SIZES) {
-    makeNewest(fitsDir, SID_FITS)
-    const fits = stripAnsi(continueLine((await mountFace(freshDir, cols, rows, [{ sessionId: SID_FITS, workspaceId: fitsDir, focusedBy: ELSEWHERE }])).plain))
-    makeNewest(longDir, SID_LONG)
-    const long = stripAnsi(continueLine(keep(`long-folder-open-elsewhere-${cols}x${rows}`, await mountFace(freshDir, cols, rows, [{ sessionId: SID_LONG, workspaceId: longDir, focusedBy: ELSEWHERE }])).plain))
-    check(
-      layout === 'full' ? `${cols}x${rows} (full): "in <22 letters> · ${WORDS}" stands whole` : `${cols}x${rows} (compact): with 22 letters the row reads "${WORDS}" whole, in place of the folder`,
-      layout === 'full' ? fits.includes(`in p${'x'.repeat(21)} · ${WORDS}`) : fits.includes(WORDS) && !fits.includes('in p') && !fits.includes('…'),
-      FIX_FIT,
-      fits.trim(),
-    )
-    check(
-      `${cols}x${rows} (${layout}): with 23 letters the row reads "${WORDS}" whole, in place of the folder`,
-      long.includes(WORDS) && !long.includes('in p') && !long.includes('…'),
-      FIX_FIT,
-      long.trim(),
-    )
-  }
-
-  console.log(`§3 — this folder's own last session open in another window: the row, which names no folder, reads "${WORDS}"`)
-  for (const [cols, rows, layout] of SIZES) {
-    const quiet = stripAnsi(continueLine(keep(`own-project-${cols}x${rows}`, await mountFace(ownDir, cols, rows, [])).plain))
-    const said = stripAnsi(continueLine(keep(`own-project-open-elsewhere-${cols}x${rows}`, await mountFace(ownDir, cols, rows, [{ sessionId: SID_OWN, workspaceId: ownDir, focusedBy: ELSEWHERE }])).plain))
-    check(
-      `${cols}x${rows} (${layout}): the row reads "${WORDS}", and says nothing when the session is open nowhere else`,
-      said.includes(WORDS) && !said.includes(' in own-project') && !quiet.includes(WORDS) && quiet.includes('Continue Last Session'),
-      FIX_WORDS,
-      `open elsewhere: ${said.trim()} | not: ${quiet.trim()}`,
-    )
-    const frameOf = (name: string): string => (frames.get(`${name}-${cols}x${rows}`) ?? '').split('\n').find(line => line.includes('╭')) ?? ''
-    check(
-      `${cols}x${rows} (${layout}): the card then stands at the width it has whenever the row carries a detail, the one a cross-project row gives it`,
-      frameOf('own-project-open-elsewhere') !== '' && frameOf('own-project-open-elsewhere') === frameOf('other-project'),
-      FIX_WORDS,
-      JSON.stringify([frameOf('own-project-open-elsewhere'), frameOf('other-project')]),
-    )
-  }
-
-  console.log('§4 — the row stays as it was when no other live terminal holds the session')
-  makeNewest(otherDir, SID_OTHER)
-  const quietCases: Array<[string, Held[]]> = [
-    ['the daemon holds no record of it', []],
-    ['its runner is live and no terminal holds it', [{ sessionId: SID_OTHER, workspaceId: otherDir }]],
-    ['this terminal holds it', [{ sessionId: SID_OTHER, workspaceId: otherDir, focusedBy: HERE }]],
-    ['the terminal that held it is gone', [{ sessionId: SID_OTHER, workspaceId: otherDir, focusedBy: GONE }]],
-    ['its record ended', [{ sessionId: SID_OTHER, workspaceId: otherDir, focusedBy: ELSEWHERE, endedAt: Date.now() - 1000 }]],
-    ['another terminal holds a different session', [{ sessionId: SID_OWN, workspaceId: ownDir, focusedBy: ELSEWHERE }]],
-  ]
-  for (const [name, held] of quietCases) {
-    const row = stripAnsi(continueLine((await mountFace(freshDir, 120, 34, held)).plain))
-    check(`${name}: the row reads "in other-trusted" and no more`, row.includes('in other-trusted') && !row.includes(WORDS), FIX_QUIET, row.trim())
-  }
-  {
-    const row = stripAnsi(continueLine((await mountFace(freshDir, 120, 34, [{ sessionId: SID_OTHER, workspaceId: otherDir, attachedBy: ELSEWHERE }])).plain))
-    check(`another live terminal attached to it counts as holding it: the row reads "${WORDS}"`, row.includes(`in other-trusted · ${WORDS}`), FIX_WORDS, row.trim())
-  }
-  {
-    const { scanBootCardFacts } = await import('../../src/screen/boot-face/bootCardFacts.ts')
-    const { continueOpenElsewhere } = await import('../../src/screen/boot-face/splash/rowActions.ts')
-    const heldAlso: Held[] = [{ sessionId: SID_OTHER, workspaceId: otherDir, focusedBy: HERE, focusedAlso: [{ by: ELSEWHERE, at: Date.now() - 60_000 }] }]
-    const row = stripAnsi(continueLine((await mountFace(freshDir, 120, 34, heldAlso)).plain))
-    check(
-      `another live terminal named only in focusedAlso counts as holding it: continueOpenElsewhere is true and the row reads "${WORDS}"`,
-      continueOpenElsewhere(scanBootCardFacts()) === true && row.includes(`in other-trusted · ${WORDS}`),
-      FIX_WORDS,
-      row.trim(),
-    )
-  }
-  console.log('§5 — Enter on a row whose session is open in another window joins the runner that window is on: no admission, so no second runner')
+  console.log('§3 — Enter on a row whose session is open in another window joins the runner that window is on: no admission, so no second runner')
   {
     await mountFace(freshDir, 120, 34, [{ sessionId: SID_OTHER, workspaceId: otherDir, focusedBy: ELSEWHERE }])
     const afterDown = await sendKey(KEYS.down)
     const focused = afterDown.plain.split('\n').filter(l => l.includes('❯'))
-    check('↓ lands ❯ on the row: it can be chosen', focused.length === 1 && focused[0]!.includes('Continue Last Session') && focused[0]!.includes(WORDS), FIX_WORDS, focused.join(' | '))
+    check('↓ lands ❯ on the row: it can be chosen', focused.length === 1 && focused[0]!.includes('Continue Last Session'), FIX_ROW, focused.join(' | '))
     rpcCalls = []
     await sendKey(KEYS.enter)
     const deadline = Date.now() + 3_000

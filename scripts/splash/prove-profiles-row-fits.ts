@@ -25,7 +25,7 @@ const compact = (cols: number) => (rows: number, list: Row[]): Painted => {
 }
 const KEYS = '⇧→ concourse'
 const product = (cols: number, isCompact: boolean) => (rows: number, list: Row[]): Painted => {
-  const face = bootSplashCompositionOf({ isCompact, composedRows: list, continueElsewhere: false, selectedIndex: 0, core, columns: cols, rows, modelDefaultDoor: false, stripHint: KEYS, wordGlow: null, rowGlow: null, bottomRowWithNotice: () => null, updateLine: null, chips: { model: 'Opus 5.5', dir: 'proj' }, plainWhy: null, keyMapHint: KEYS })
+  const face = bootSplashCompositionOf({ isCompact, composedRows: list, selectedIndex: 0, core, columns: cols, rows, modelDefaultDoor: false, stripHint: KEYS, wordGlow: null, rowGlow: null, bottomRowWithNotice: () => null, updateLine: null, chips: { model: 'Opus 5.5', dir: 'proj' }, plainWhy: null, keyMapHint: KEYS })
   return { lines: face.placed, boxed: face.boxed }
 }
 const worlds = [

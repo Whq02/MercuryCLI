@@ -3,8 +3,6 @@ import type { Dispatch, RefObject, SetStateAction } from 'react';
 import { getCwd } from '../../../platform/files/cwd.js';
 import { enterConcourse, enterRootChat } from '../../routes/surfaceRoute.js';
 import type { scanBootCardFacts, BootProjectFact } from '../bootCardFacts.js';
-import { isProcessAlive } from '../../../daemon/control/ownerWatch.js';
-import { readSessionWorkers, stampedTerminalPid, terminalStampsOf } from '../../../daemon/concourse-workers/concourseWorkers.js';
 import type { AsyncListNote } from '../../widgets/useInteractiveList.js';
 import type { AppState } from '../../app-state/AppStateStore.js';
 import type { bornSession } from '../../../daemon/switchboard/bornSession.js';
@@ -16,20 +14,6 @@ export type BootRow = {
   ctx: string;
   dim?: boolean;
 };
-
-export function continueOpenElsewhere(facts: ReturnType<typeof scanBootCardFacts>): boolean {
-  const sessionId = (facts.cwdProject ?? facts.recentLast)?.sessionId;
-  if (!sessionId) return false;
-  return Object.values(readSessionWorkers()).some(
-    rec =>
-      rec.sessionId === sessionId &&
-      rec.endedAt === undefined &&
-      terminalStampsOf(rec).some(by => {
-        const pid = stampedTerminalPid(by);
-        return pid !== undefined && pid !== process.pid && isProcessAlive(pid);
-      }),
-  );
-}
 
 async function groundTrustedProject(dir: string): Promise<void> {
   const { isPathTrusted } = await import('../../../platform/settings/config.js');

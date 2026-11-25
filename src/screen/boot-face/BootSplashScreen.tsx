@@ -38,7 +38,7 @@ import { useGreetingShimmer } from '../widgets/useGreetingShimmer.js';
 import { useInteractiveList, type AsyncListNote } from '../widgets/useInteractiveList.js';
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js';
 import { useSplashCoreAccent } from '../widgets/useSplashCoreAccent.js';
-import { continueOpenElsewhere, openProjectOf, runRowOf, type BootRow } from './splash/rowActions.js';
+import { openProjectOf, runRowOf, type BootRow } from './splash/rowActions.js';
 import { bootSplashCompositionOf, bootSplashFaceView } from './splash/face.js';
 import { armBootSettingsLayerDeepLink, consumeBootSettingsLayerDeepLink } from './splash/settingsLayerDeepLink.js';
 import { passedOver } from '../../platform/errors/passedOver.js';
@@ -140,14 +140,6 @@ export function BootSplashScreen(): React.ReactNode {
   const signInEpoch = useSignInEpoch();
 
   const [facts] = useState(() => scanBootCardFacts(getCwd(), getSessionId()));
-  const [continueElsewhere] = useState(() => {
-    try {
-      return continueOpenElsewhere(facts);
-    } catch (error) {
-      passedOver(error)
-      return false;
-    }
-  });
   const [updateLine, setUpdateLine] = useState(() => takeFaceUpdateNotice());
   useTimer(() => {
     if (updateLine === null) return;
@@ -279,8 +271,8 @@ export function BootSplashScreen(): React.ReactNode {
     [facts, concourseLive, plainWhy, chatBoot, liveCount, loginsCtx],
   );
   const composedRows: BootRow[] = useMemo(
-    () => withProfilesRow(cardRows, list => bootSplashCompositionOf({ isCompact, composedRows: list, continueElsewhere, selectedIndex: 0, core, columns, rows, modelDefaultDoor, stripHint, wordGlow: null, rowGlow: null, bottomRowWithNotice, updateLine, chips, plainWhy, keyMapHint }).boxed),
-    [cardRows, core, columns, rows, isCompact, plainWhy, stripHint, keyMapHint, modelDefaultDoor, updateLine, continueElsewhere, chips],
+    () => withProfilesRow(cardRows, list => bootSplashCompositionOf({ isCompact, composedRows: list, selectedIndex: 0, core, columns, rows, modelDefaultDoor, stripHint, wordGlow: null, rowGlow: null, bottomRowWithNotice, updateLine, chips, plainWhy, keyMapHint }).boxed),
+    [cardRows, core, columns, rows, isCompact, plainWhy, stripHint, keyMapHint, modelDefaultDoor, updateLine, chips],
   );
 
   const runRow = (row: BootRow | null): AsyncListNote | null => {
@@ -347,8 +339,8 @@ export function BootSplashScreen(): React.ReactNode {
 
   const selectedIndex = selCleared ? -1 : list.selectedIndex;
   const composition = useMemo(() => {
-    return bootSplashCompositionOf({ isCompact, composedRows, continueElsewhere, selectedIndex, core, columns, rows, modelDefaultDoor, stripHint, wordGlow, rowGlow, bottomRowWithNotice, updateLine, chips, plainWhy, keyMapHint });
-  }, [core, columns, rows, isCompact, plainWhy, stripHint, keyMapHint, modelDefaultDoor, updateLine, selectedIndex, composedRows, continueElsewhere, chips, wordGlow?.peakCell, wordGlow?.gainLevel, rowGlow?.peakCell, rowGlow?.gainLevel]);
+    return bootSplashCompositionOf({ isCompact, composedRows, selectedIndex, core, columns, rows, modelDefaultDoor, stripHint, wordGlow, rowGlow, bottomRowWithNotice, updateLine, chips, plainWhy, keyMapHint });
+  }, [core, columns, rows, isCompact, plainWhy, stripHint, keyMapHint, modelDefaultDoor, updateLine, selectedIndex, composedRows, chips, wordGlow?.peakCell, wordGlow?.gainLevel, rowGlow?.peakCell, rowGlow?.gainLevel]);
 
 
   return bootSplashFaceView({ settingsOpen, columns, rows, setSettingsOpen, kitOpen, setKitOpen, profilesOpen, setProfilesOpen, healthOpen, setHealthOpen, saturnOpen, setSaturnOpen, agentsOpen, loginsOpen, setLoginsOpen, setAgentsOpen, closeLogins, loginsFamily, loginsBack, resumeOpen, setResumeOpen, facts, runningOf, openProject, composition, list, birthReceipt, core, isCompact, keyMapHint, updateLine, bottomRowWithNotice, KEY_MAP_ROW, composedRows, t, modelDefaultOpen, setModelDefaultOpen, setLoginsFamily, setLoginsBack });
