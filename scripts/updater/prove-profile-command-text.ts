@@ -65,5 +65,15 @@ console.log('── a user folder and a versions folder spelt with forward slash
   check('the cmd file spells both homes from %USERPROFILE%, with backslashes after it', show(linesOf(files[0]?.text ?? '').slice(3, 5)) === show([String.raw`set "MERCURY_CONFIG_DIR=%USERPROFILE%\.mercury2"`, String.raw`set "MERCURY_VERSIONS_DIR=%USERPROFILE%\.mercury\versions"`]), show(files[0]?.text))
 }
 
+console.log('── a home outside the user folder whose path holds a letter outside ASCII ──')
+{
+  const files = commandFiles(windows(String.raw`C:\Users\Ada Lovelace`, 'D:\\H\u00e4user\\.mercury\\versions'), 2, 'D:\\H\u00e4user\\.mercury2')
+  const lines = linesOf(files[0]?.text ?? '')
+  check('the cmd file turns cmd.exe to UTF-8 before the lines that carry the letter, so the console\'s code page cannot misread it', show(lines.slice(0, 4)) === show(['@echo off', 'rem mercury-managed-profile 2', 'chcp 65001 >nul 2>nul', 'setlocal DisableDelayedExpansion']), show(files[0]?.text))
+  check('and spells both homes whole after it', show(lines.slice(4, 6)) === show(['set "MERCURY_CONFIG_DIR=D:\\H\u00e4user\\.mercury2"', 'set "MERCURY_VERSIONS_DIR=D:\\H\u00e4user\\.mercury\\versions"']), show(files[0]?.text))
+  const plain = commandFiles(windows(String.raw`C:\Users\Ada Lovelace`, String.raw`D:\100% sure!\it's\.mercury\versions`), 3, String.raw`D:\100% sure!\it's\.mercury3`)
+  check('a cmd file all in ASCII has no chcp line', !(plain[0]?.text ?? '').includes('chcp'), show(plain[0]?.text))
+}
+
 console.log(failures === 0 ? '\nprove-profile-command-text: ALL HOLD' : `\nprove-profile-command-text: ${failures} FAIL`)
 process.exit(failures === 0 ? 0 : 1)

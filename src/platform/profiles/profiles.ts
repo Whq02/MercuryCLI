@@ -107,8 +107,9 @@ export function commandFiles(found: Install, id: number, home: string): CommandF
     return foldPathCase(spelt, 'win32').startsWith(foldPathCase(own, 'win32')) ? `%USERPROFILE%\\${spelt.slice(own.length).replace(/%/g, '%%')}` : value.replace(/%/g, '%%')
   }
   const entry = '& (Join-Path $PSScriptRoot \'mercury.ps1\') @args'
+  const sets = env.map(([name, value]) => `set "${name}=${batch(value)}"`)
   return [
-    { path: `${word}.cmd`, text: ['@echo off', `rem ${mark}`, 'setlocal DisableDelayedExpansion', ...env.map(([name, value]) => `set "${name}=${batch(value)}"`), '"%~dp0mercury.cmd" %*', ''].join('\r\n') },
+    { path: `${word}.cmd`, text: ['@echo off', `rem ${mark}`, ...(sets.some(line => /[^\x00-\x7f]/.test(line)) ? ['chcp 65001 >nul 2>nul'] : []), 'setlocal DisableDelayedExpansion', ...sets, '"%~dp0mercury.cmd" %*', ''].join('\r\n') },
     { path: word, text: `#!/bin/sh\n# ${mark}\n${assigned} exec "$(dirname "$0")/mercury" "$@"\n` },
     {
       path: `${word}.ps1`,
