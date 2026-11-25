@@ -53,7 +53,7 @@ function stored<T>(path: string, shape: () => z.ZodType<T>): T | undefined {
   }
 }
 
-export function programHome(): string {
+export function firstProfileHome(): string {
   const home = getMercuryHome()
   try {
     return stored(join(home, HOME_MARKER), markerShape)?.first ?? home
