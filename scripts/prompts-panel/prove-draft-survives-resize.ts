@@ -52,7 +52,7 @@ t.section('a saved-prompt draft through wide → narrow → wide on the built bu
     draftRow >= 0 && capture.cursor?.y === draftRow && capture.cursor.x === final[draftRow].indexOf(DRAFT) + DRAFT.length,
     `cursor ${JSON.stringify(capture.cursor ?? null)} · draft row ${draftRow}`,
   )
-  t.check('back at 120x40, the panel is still on SAVED PROMPTS', final.some(l => l.includes('▸ 3 SAVED PROMPTS')) && final.some(l => l.includes('kept per project')))
+  t.check('back at 120x40, the panel is still on SAVED PROMPTS', final.some(l => l.includes('no saved prompts yet')) && final.some(l => l.includes('kept per project')))
 }
 
 t.finish('prove-draft-survives-resize')

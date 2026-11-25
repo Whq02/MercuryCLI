@@ -5,7 +5,7 @@ import type { DOMElement } from '../themedRenderer.js'
 import type { ScrollBoxHandle } from '../renderer/elements/ScrollBox.js'
 import { ModalContext } from './modalContext.js'
 import { useTerminalSize } from '../fullscreen-layout/useTerminalSize.js'
-import { releaseCommandPopup, type CommandPopupShape } from '../cockpit/commandPopup.js'
+import { holdCommandPopup, releaseCommandPopup, type CommandPopupShape } from '../cockpit/commandPopup.js'
 import { modelPickerPopupHost, popupBandBounds, type ModelPickerPopupHost } from './ModelPickerPopupSlot.js'
 import { POPUP_GUTTER, PopupGutter, popupCover, popupGeometry, type PopupBand } from './PopupGutter.js'
 
@@ -18,7 +18,10 @@ export function commandPopupGeometry(host: ModelPickerPopupHost, terminalRows: n
 }
 
 export function CommandPopupLease({ token, children }: { token: number; children: React.ReactNode }): React.ReactNode {
-  useClaim(() => () => releaseCommandPopup(token), [token])
+  useClaim(() => {
+    holdCommandPopup(token)
+    return () => releaseCommandPopup(token)
+  }, [token])
   return <>{children}</>
 }
 

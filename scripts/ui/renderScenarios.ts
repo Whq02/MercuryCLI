@@ -1989,22 +1989,29 @@ function scenarioInner(name: string, cols: number, rows: number) {
       rows,
     }
   }
-  if (name === 'prompts-panel-draft-resize') {
+  if (name === 'prompts-panel-draft-resize' || name === 'prompts-panel-draft-narrow-first') {
     writeSyntheticSession('short')
+    const narrowFirst = name === 'prompts-panel-draft-narrow-first'
     return {
       argv: ['node', BIN, '--resume', SID],
       sends: [
-        { atTick: 999, requireAwait: true, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 2, data: '/workbench' },
+        { atTick: 999, requireAwait: true, awaitText: narrowFirst ? 'Type a prompt' : '? for shortcuts', minTick: 5, awaitSettleTicks: 2, data: '/workbench' },
         { atTick: 999, requireAwait: true, awaitText: '/workbench', minTick: 5, awaitSettleTicks: 2, data: '\r' },
         { atTick: 999, requireAwait: true, awaitText: 'SAVED PROMPTS', minTick: 5, awaitSettleTicks: 2, data: '3' },
         { atTick: 999, requireAwait: true, awaitText: 'kept per project', minTick: 5, awaitSettleTicks: 2, data: 'a' },
         { atTick: 999, requireAwait: true, awaitText: 'new saved prompt', minTick: 5, awaitSettleTicks: 2, data: 'Review the open pull requests and list the ones that touch the parser', mark: 'draft' },
       ],
-      resizes: [
-        { afterMark: 'draft', afterMs: 3000, cols: 80, rows: 30 },
-        { afterPrevMs: 4000, cols, rows },
-      ],
-      total: 170,
+      resizes: narrowFirst
+        ? [
+            { afterMark: 'draft', afterMs: 3000, cols: 120, rows: 40 },
+            { afterPrevMs: 4000, cols, rows },
+            { afterPrevMs: 4000, cols: 120, rows: 40 },
+          ]
+        : [
+            { afterMark: 'draft', afterMs: 3000, cols: 80, rows: 30 },
+            { afterPrevMs: 4000, cols, rows },
+          ],
+      total: narrowFirst ? 210 : 170,
       cols,
       rows,
     }

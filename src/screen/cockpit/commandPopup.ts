@@ -8,7 +8,7 @@ export type CommandPopupShape = {
   compact?: 'pane'
 }
 
-type CommandPopupClaim = { token: number; shape: CommandPopupShape; minimumRows?: number }
+type CommandPopupClaim = { token: number; shape: CommandPopupShape; minimumRows?: number; leased: boolean }
 
 let claim: CommandPopupClaim | null = null
 let nextToken = 1
@@ -21,7 +21,7 @@ function notify(): void {
 export function claimCommandPopup(shape: CommandPopupShape): number {
   const token = nextToken
   nextToken += 1
-  claim = { token, shape }
+  claim = { token, shape, leased: true }
   notify()
   return token
 }
@@ -34,14 +34,22 @@ export function growCommandPopup(token: number, minimumRows: number): void {
   notify()
 }
 
-export function releaseCommandPopup(token: number): void {
-  if (claim === null || claim.token !== token) return
-  claim = null
+function lease(token: number, leased: boolean): void {
+  if (claim === null || claim.token !== token || claim.leased === leased) return
+  claim = { ...claim, leased }
   notify()
 }
 
+export function holdCommandPopup(token: number): void {
+  lease(token, true)
+}
+
+export function releaseCommandPopup(token: number): void {
+  lease(token, false)
+}
+
 export function commandPopupClaim(): CommandPopupClaim | null {
-  return claim
+  return claim !== null && claim.leased ? claim : null
 }
 
 export const subscribeCommandPopup = changed.subscribe
