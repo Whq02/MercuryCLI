@@ -1,4 +1,4 @@
-import type { DesktopApplication, DesktopBounds, DesktopCapture, DesktopDisplay, DesktopDriver, DesktopTree, DesktopTreeElement } from '../../integrations/desktop/driver.js'
+import type { DesktopApplication, DesktopBounds, DesktopCapture, DesktopDisplay, DesktopDriver, DesktopTree, DesktopTreeElement, DesktopTreeLimits } from '../../integrations/desktop/driver.js'
 import { TREE_UNANSWERED_REASON } from '../../integrations/desktop/driver.js'
 import { getImageProcessor } from '../../platform/images/imageProcessor.js'
 import { pollUntil } from '../../platform/async/deadline.js'
@@ -15,6 +15,23 @@ interface ElementTarget {
 export type CaptureRegion = DesktopBounds
 
 const normalized = (value: string): string => value.replace(/\s+/g, ' ').trim().toLowerCase()
+
+export interface TreeWalk {
+  count: number
+  depth: number
+  elements: number
+  deepest: number
+  ms: number
+}
+
+export function treeWalkOf(tree: DesktopTree, limits: DesktopTreeLimits, started: number): TreeWalk {
+  return { count: limits.count, depth: limits.depth, elements: tree.elements.length, deepest: tree.elements.reduce((most, element) => Math.max(most, element.depth), 0), ms: Date.now() - started }
+}
+
+export function walkStopWords(tree: DesktopTree, walk: TreeWalk): string {
+  const bound = tree.reason ?? (walk.elements >= walk.count ? `the ${walk.count} elements a walk reads at most, unlisted ones included` : `depth ${walk.depth}, the deepest a walk reads, unlisted levels included`)
+  return `${bound} · walk: ${walk.elements} elements, depth ${walk.deepest}, ${walk.ms} ms`
+}
 
 export function targetWords(target: ElementTarget): string {
   return [target.role, target.name === undefined ? undefined : JSON.stringify(target.name), target.text === undefined ? undefined : `text=${JSON.stringify(target.text)}`, target.nth === undefined ? undefined : `nth=${target.nth}`].filter(Boolean).join(' ')

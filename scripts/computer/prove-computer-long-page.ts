@@ -106,4 +106,38 @@ section('a ref names one element: an act by ref is not refused because the tree 
   check('a root ref an earlier listing gave and the latest one replaced keeps its sentence, word for word', gone.outcome === 'failed' && /^tree refused: ref:\d+: 0 matches in a truncated tree — read tree or take a screenshot$/.test(gone.result), gone.result)
 }
 
+section('a walk that stopped at its own bound says which bound, in the walk\'s numbers, and advises only what can work')
+{
+  const TAIL = ' — act on a row shown here by its ref, or use a screenshot for the rest'
+  const COUNT = 'truncated: the tree goes on past the 2000 elements a walk reads at most, unlisted ones included · walk: 2000 elements, depth 16, N ms' + TAIL
+  const DEPTH = 'truncated: the tree goes on past depth 32, the deepest a walk reads, unlisted levels included · walk: 34 elements, depth 32, N ms' + TAIL
+  const last = (text: string): string => (text.split('\n').find(line => line.startsWith('truncated:')) ?? 'no truncated line').replace(/, \d+ ms/, ', N ms')
+  check('the tree read at limit 500 and depth 32 names the 2000 elements the walk read, not the 500 it was asked to list, with the walk\'s three numbers', last(tree.result) === COUNT && /walk: 2000 elements, depth 16, \d+ ms/.test(tree.result), last(tree.result))
+  const other = await long.call({ action: 'tree', limit: 400 })
+  check('at limit 400 the sentence is the same: the number asked for was never the bound', last(other.result) === COUNT, last(other.result))
+  const found = await long.call({ action: 'find', target: { role: 'AXLink' } })
+  check('a find on that page says the same of its own listing', found.outcome === 'succeeded' && last(found.result) === COUNT, last(found.result))
+  const fields = await long.call({ action: 'fields' })
+  check('a fields read says the same with its own opening', last(fields.result) === COUNT.replace('the tree goes on past', 'more controls past'), last(fields.result))
+  const deep = await stage(sceneFile('deep', [{ role: 'AXWindow', title: 'Feed - Browser', focused: true, frame: bounds, children: [
+    { role: 'AXButton', title: 'Reload', frame: { x: 90, y: 46, width: 28, height: 28 } },
+    wrapped({ role: 'AXButton', title: 'Far down', frame: { x: 300, y: 300, width: 80, height: 20 } }, 40),
+  ] }]))
+  const sunk = await deep.call({ action: 'tree' })
+  check('a walk that met an element at depth 32 with more under it names the depth, and the row beneath is not listed', sunk.outcome === 'succeeded' && deep.walks.at(-1)!.elements < WALK_CAP && last(sunk.result) === DEPTH && !sunk.result.includes('Far down'), `${JSON.stringify(deep.walks.at(-1))} ${last(sunk.result)}`)
+  const resolution = resolveDesktopDriver()
+  if (resolution.state !== 'ok') throw new Error(resolution.note)
+  const read = resolution.driver.accessibilityTree.bind(resolution.driver)
+  resolution.driver.accessibilityTree = async (app, limits, signal) => {
+    const answer = await read(app, limits, signal)
+    return answer.ok ? { ok: true, value: { ...answer.value, truncated: true, reason: 'the walk stopped after 6000 ms' } } : answer
+  }
+  const slow = await deep.call({ action: 'tree' })
+  check('a walk that ran out of time keeps its reason, gains its numbers and loses the advice to raise a limit', last(slow.result) === 'truncated: the tree goes on past the walk stopped after 6000 ms · walk: 34 elements, depth 32, N ms' + TAIL, last(slow.result))
+  const whole = await stage(sceneFile('short', browserWindow(feed.slice(0, 12))))
+  const cut = await whole.call({ action: 'tree', limit: 5 })
+  const raised = await whole.call({ action: 'tree', limit: 500 })
+  check('a listing cut by the limit asked for keeps its sentence byte for byte, and there the advice works: the same read at a higher limit is whole', whole.walks.at(-1)?.truncated === false && last(cut.result) === 'truncated: the tree goes on past the limit of 5 elements or depth 12 — narrow with root or find, raise limit or depth to read more, or act on what is shown' && !raised.result.includes('truncated:'), `${last(cut.result)} | ${last(raised.result)}`)
+}
+
 finish('prove-computer-long-page')

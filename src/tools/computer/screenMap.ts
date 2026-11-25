@@ -74,6 +74,7 @@ interface OutlineElement extends DesktopTreeElement {
 
 export interface DesktopOutline extends DesktopTree {
   elements: OutlineElement[]
+  cut: string | null
 }
 
 export function interactiveRole(role: string): boolean {
@@ -109,7 +110,7 @@ export function outlineTree(tree: DesktopTree, bounds: DesktopBounds | null, opt
   const ancestors: Array<{ rawDepth: number; keptDepth: number; index: number; menu: boolean; value: string | null }> = []
   const sources = (options.root as OutlineElement | undefined)?.sourceIndices
   const start = sources?.[0] ?? (options.root ? tree.elements.indexOf(options.root) : 0)
-  if (start < 0) return { ...tree, elements: [] }
+  if (start < 0) return { ...tree, elements: [], cut: null }
   const rootDepth = options.root?.depth
   let previousParent = -2
   for (let index = start; index < tree.elements.length; index++) {
@@ -138,7 +139,7 @@ export function outlineTree(tree: DesktopTree, bounds: DesktopBounds | null, opt
   const count = options.count ?? 400
   const elements = rows.filter(row => row.depth <= depth).slice(0, count)
   const cut = elements.length !== rows.length
-  return { ...tree, elements, truncated: tree.truncated || cut, reason: cut ? `the limit of ${count} elements or depth ${depth}` : tree.reason }
+  return { ...tree, elements, truncated: tree.truncated || cut, cut: cut ? `the limit of ${count} elements or depth ${depth}` : null }
 }
 
 export function outlineRowWords(element: OutlineElement, map: ScreenMap | null = null, points = false): string {

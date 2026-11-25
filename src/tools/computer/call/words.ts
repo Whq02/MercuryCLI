@@ -8,7 +8,7 @@ import {
   TREE_UNANSWERED_REASON,
 } from '../../../integrations/desktop/driver.js'
 import { type DesktopOutline, type ScreenMap, outlineRowWords, pixelOfPoint, pixelOnScreen, resolveTreeRef } from '../screenMap.js'
-import { pageContentNote, targetElement } from '../fastRoad.js'
+import { type TreeWalk, pageContentNote, targetElement, walkStopWords } from '../fastRoad.js'
 import {
   FIELD_VALUE_CHARS,
   type Input,
@@ -65,7 +65,13 @@ export function treeLimitsOf(input: Input): DesktopTreeLimits {
   return { depth: Math.min(input.depth ?? (targeted ? TREE_DEPTH_CAP : TREE_DEPTH_DEFAULT), TREE_DEPTH_CAP), count: Math.min(input.limit ?? (targeted ? TREE_LIMIT_CAP : TREE_LIMIT_DEFAULT), TREE_LIMIT_CAP), scope: input.scope ?? 'window' }
 }
 
-export function treeWords(app: DesktopApplication, tree: DesktopOutline, limits: { depth: number; count: number }, map: ScreenMap | null, points: boolean): string {
+function cutWords(tree: DesktopOutline, walk: TreeWalk, tails: { raise: string; again: string }): string {
+  if (tree.cut !== null) return `${tree.cut} — ${tails.raise}`
+  if (tree.reason === TREE_UNANSWERED_REASON) return `${tree.reason} — ${tails.again}`
+  return `${walkStopWords(tree, walk)} — act on a row shown here by its ref, or use a screenshot for the rest`
+}
+
+export function treeWords(app: DesktopApplication, tree: DesktopOutline, walk: TreeWalk, map: ScreenMap | null, points: boolean): string {
   const deepest = tree.elements.reduce((most, element) => Math.max(most, element.depth), 0)
   const lines = [
     `tree: ${app.name} — ${tree.elements.length} element${tree.elements.length === 1 ? '' : 's'} to depth ${deepest}`,
@@ -74,13 +80,11 @@ export function treeWords(app: DesktopApplication, tree: DesktopOutline, limits:
   lines.push(tree.scope === undefined ? 'scope not reported by this driver' : `scope ${tree.scope}`)
   const pageNote = pageContentNote(app, tree)
   if (pageNote) lines.push(pageNote)
-  if (tree.truncated) {
-    lines.push(`truncated: the tree goes on past ${tree.reason !== null ? tree.reason : `the limit of ${limits.count} elements or depth ${limits.depth}`} — ${tree.reason === TREE_UNANSWERED_REASON ? 'read again, narrow with root or find, or act on what is shown' : 'narrow with root or find, raise limit or depth to read more, or act on what is shown'}`)
-  }
+  if (tree.truncated) lines.push(`truncated: the tree goes on past ${cutWords(tree, walk, { raise: 'narrow with root or find, raise limit or depth to read more, or act on what is shown', again: 'read again, narrow with root or find, or act on what is shown' })}`)
   return lines.join('\n')
 }
 
-export function fieldsWords(app: DesktopApplication, tree: DesktopOutline, limits: { count: number }, map: ScreenMap | null, points: boolean): string {
+export function fieldsWords(app: DesktopApplication, tree: DesktopOutline, walk: TreeWalk, map: ScreenMap | null, points: boolean): string {
   const rows = tree.elements.map(element => {
     const secure = element.role.includes('Secure')
     const value = element.value ?? ''
@@ -94,7 +98,7 @@ export function fieldsWords(app: DesktopApplication, tree: DesktopOutline, limit
     return parts.join(' ')
   })
   const lines = [`fields: ${app.name} — ${rows.length} control${rows.length === 1 ? '' : 's'}`, ...rows]
-  if (tree.truncated) lines.push(`truncated: more controls past ${tree.reason ?? `the limit of ${limits.count} controls`} — ${tree.reason === TREE_UNANSWERED_REASON ? 'read again, or narrow with root' : 'raise limit, or narrow with root'}`)
+  if (tree.truncated) lines.push(`truncated: more controls past ${cutWords(tree, walk, { raise: 'raise limit, or narrow with root', again: 'read again, or narrow with root' })}`)
   return lines.join('\n')
 }
 
