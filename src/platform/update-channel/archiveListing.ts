@@ -1,4 +1,5 @@
 import { closeSync, createReadStream, fstatSync, openSync, readSync } from 'node:fs'
+import { posix } from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import { createGunzip, createInflateRaw } from 'node:zlib'
 import type { UpdateCeilings } from './channelCore.js'
@@ -249,14 +250,14 @@ const shown = (name: string): string => JSON.stringify(Buffer.from(name, 'latin1
 function pathOf(name: string, form: ArchiveForm): string[] | null {
   const windows = form === 'zip'
   if (windows ? /^[\\/]/.test(name) || name.includes(':') : name.startsWith('/')) return null
-  const segments = name.split(windows ? /[\\/]/ : '/').filter(segment => segment !== '' && segment !== '.')
+  const segments = name.split(windows ? /[\\/]/ : posix.sep).filter(segment => segment !== '' && segment !== '.')
   return segments.some(segment => (windows ? /^\.{2,}$/.test(segment.replace(/[\x00-\x20\x7f-\xff]/g, '')) : segment === '..')) ? null : segments
 }
 
 function linkLands(from: string[], target: string, links: ReadonlySet<string>): 'inside' | 'outside' | 'through-link' {
   if (target.startsWith('/')) return 'outside'
   const at = [...from]
-  for (const segment of target.split('/')) {
+  for (const segment of target.split(posix.sep)) {
     if (segment === '' || segment === '.') continue
     if (links.has(at.join('/'))) return 'through-link'
     if (segment !== '..') at.push(segment)
