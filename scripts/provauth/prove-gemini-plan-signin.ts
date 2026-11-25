@@ -758,8 +758,7 @@ try {
   const usage = events.find(e => (e as { type: string }).type === 'usage') as { usage?: { inputTokens: number } } | undefined
   check('the wrapped stream is unwrapped: the text, the finish reason and the usage land', text === 'OK from the plan fixture' && finish?.reason === 'stop' && usage?.usage?.inputTokens === 7, JSON.stringify(events))
 
-  console.log('── the refresh keeps the project; a dead refresh token drops the sign-in and says so ──')
-  accounts.__resetGeminiAccountsForTest()
+  console.log('── the refresh keeps the project; a dead refresh token ends the sign-in and says so ──')
   const before = JSON.parse(readFileSync(accounts.geminiAuthPathForDisplay(), 'utf8')) as { plan: { tokens: { accessToken: string; refreshToken: string; accessTokenExpiresAtMs: number } } }
   before.plan.tokens.accessTokenExpiresAtMs = Date.now() - 1000
   writeFileSync(accounts.geminiAuthPathForDisplay(), JSON.stringify(before), { mode: 0o600 })
@@ -779,7 +778,8 @@ try {
   dead.plan.tokens.accessTokenExpiresAtMs = Date.now() - 1000
   writeFileSync(accounts.geminiAuthPathForDisplay(), JSON.stringify(dead), { mode: 0o600 })
   const dropped = await accounts.currentGeminiPlanTokens()
-  check('a revoked refresh token (invalid_grant) drops the sign-in: no silent fall-through, the surfaces read signed out', dropped === undefined && accounts.geminiPlanConnected() === false && accounts.resolveGeminiAccount() === undefined, JSON.stringify(accounts.resolveGeminiAccount()))
+  check('a revoked refresh token (invalid_grant) ends the sign-in: no silent fall-through, the surfaces read signed out', dropped === undefined && accounts.geminiPlanConnected() === false && accounts.resolveGeminiAccount() === undefined, JSON.stringify(accounts.resolveGeminiAccount()))
+  check('the expired sign-in keeps its row: the plan block stands with its project and a blank refresh token', (JSON.parse(readFileSync(accounts.geminiAuthPathForDisplay(), 'utf8')) as { plan?: { projectId?: string; tokens?: { refreshToken?: string } } }).plan?.projectId === 'project-fixture-123' && (JSON.parse(readFileSync(accounts.geminiAuthPathForDisplay(), 'utf8')) as { plan?: { tokens?: { refreshToken?: string } } }).plan?.tokens?.refreshToken === '')
   check('the catalogue then names the sign-in door', catalogue.getGeminiAvailability().state === 'disabled' && (catalogue.getGeminiAvailability() as { reason: string }).reason.includes('/logins'))
   google.refreshStatus = 200
   google.refreshError = undefined

@@ -5,6 +5,7 @@ prove-gemini-active-source.ts
 prove-gemini-auth.ts
 prove-gemini-catalogue.ts
 prove-gemini-live-provenance.ts
+prove-gemini-locked-refresh.ts
 prove-gemini-plan-quota-open-read.ts
 prove-gemini-plan-signin.ts
 prove-locked-refresh.ts

@@ -11,6 +11,7 @@ interface RotatingTokenServer {
   live: string | undefined
   status: number
   rotates: boolean
+  readonly revoked: Set<string>
   hold(): () => void
   stop(): void
 }
@@ -37,7 +38,8 @@ export function rotatingTokenServer(first: string): RotatingTokenServer {
         stand.live = undefined
         return Response.json({ error: 'invalid_grant', error_description: 'refresh token used twice; the grant is revoked' }, { status: 400 })
       }
-      if (presented !== stand.live) return Response.json({ error: 'invalid_grant', error_description: 'unknown refresh token' }, { status: 400 })
+      if (stand.revoked.has(presented)) return Response.json({ error: 'invalid_grant', error_description: 'Token has been expired or revoked.' }, { status: 400 })
+      if (stand.rotates && presented !== stand.live) return Response.json({ error: 'invalid_grant', error_description: 'unknown refresh token' }, { status: 400 })
       serial += 1
       if (stand.rotates) {
         spent.add(presented)
@@ -58,6 +60,7 @@ export function rotatingTokenServer(first: string): RotatingTokenServer {
     live: first,
     status: 200,
     rotates: true,
+    revoked: new Set<string>(),
     hold() {
       let release: () => void = () => {}
       held = new Promise<void>(resolve => { release = resolve })

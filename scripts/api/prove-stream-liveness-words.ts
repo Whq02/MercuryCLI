@@ -259,7 +259,6 @@ try {
   }
   const accounts = await import('../../src/models/roads/gemini/geminiAccounts.ts')
   writeFileSync(join(home, '.gemini-auth.json'), JSON.stringify({ version: 1, preferredSource: 'plan', plan: { projectId: 'fixture-project', tokens: { accessToken: 'fixture-access', refreshToken: 'fixture-refresh', accessTokenExpiresAtMs: Date.now() + 3600000 } } }))
-  accounts.__resetGeminiAccountsForTest()
   const planRead = await drive('gemini', 'read')
   check('Google sign-in road: read timeout reconnects, partial kept, exhausted once', planRead.hits >= 2 && planRead.errors.length === 1 && planRead.answers.includes('partial answer kept') && planRead.waits.some(w => /reconnecting/.test(idle.requestWaitLine(w))), JSON.stringify(planRead))
   check('Google sign-in reconnect retains request contents, model and project', planRead.requests.length >= 2 && planRead.requests.every((r: any) => r.project === 'fixture-project' && r.model === (planRead.requests[0] as any).model && JSON.stringify(r.request.contents) === JSON.stringify((planRead.requests[0] as any).request.contents)))
