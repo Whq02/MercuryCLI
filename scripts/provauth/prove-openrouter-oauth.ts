@@ -193,6 +193,31 @@ async function opened(handles: ReturnType<typeof beginOpenrouterConnect>): Promi
 }
 
 {
+  const told: string[] = []
+  let release: () => void = () => {}
+  const released = new Promise<void>(resolve => { release = resolve })
+  const heldExchange: typeof fetch = async () => {
+    await released
+    return new Response(JSON.stringify({ key: FIXTURE_KEY }), { status: 200, headers: { 'content-type': 'application/json' } })
+  }
+  const handles = beginOpenrouterConnect({ skipBrowserOpen: true, fetchImpl: heldExchange, onAuthorizeUrl: address => told.push(address) })
+  handles.completeWithRedirect('PASTED-BEFORE-THE-LISTENER-BOUND')
+  await new Promise(resolve => setTimeout(resolve, 150))
+  check('a sign-in finished by a pasted code before its listener bound hands out no address after it', told.length === 0 && handles.authorizeUrl === '', JSON.stringify(told))
+  release()
+  await handles.result
+  disconnectOpenrouterOauthKey()
+
+  const lateTold: string[] = []
+  const lateIssues: string[] = []
+  const cancelled = beginOpenrouterConnect({ skipBrowserOpen: true, fetchImpl: exchangeFetch([]), onAuthorizeUrl: address => lateTold.push(address), onListenerIssue: message => lateIssues.push(message) })
+  cancelled.cancel('cancelled in the tick it began')
+  await cancelled.result.catch(() => {})
+  await new Promise(resolve => setTimeout(resolve, 150))
+  check('a connect cancelled in the tick it began hands out no address and names no listener', lateTold.length === 0 && lateIssues.length === 0 && cancelled.authorizeUrl === '' && cancelled.boundLoopbackPort() === undefined, JSON.stringify({ lateTold, lateIssues }))
+}
+
+{
   const seen: ExchangeSeen[] = []
   const handles = beginOpenrouterConnect({ skipBrowserOpen: true, fetchImpl: exchangeFetch(seen) })
   handles.completeWithRedirect('   ')
