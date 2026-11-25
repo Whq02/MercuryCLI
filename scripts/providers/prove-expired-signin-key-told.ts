@@ -1,8 +1,10 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
+import { proofHome } from '../lib/hermetic.ts'
 import { createServer, type ServerResponse } from 'node:http'
 import { existsSync, readFileSync } from 'node:fs'
 
+process.env.MERCURY_CONFIG_DIR = proofHome
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
