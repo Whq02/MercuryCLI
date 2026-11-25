@@ -14,6 +14,7 @@ prove-computer-gone-windows.ts
 prove-computer-grants.ts
 prove-computer-interrupt.ts
 prove-computer-latency.ts
+prove-computer-long-page.ts
 prove-computer-outline-size.ts
 prove-computer-outline.ts
 prove-computer-page-note.ts

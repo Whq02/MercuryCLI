@@ -62,7 +62,7 @@ for (const [index, fixture] of fixtures.entries()) {
     const row = reread.result.split('\n').find(line => line.includes(firstControl.role) && (!firstControl.title || line.includes(JSON.stringify(firstControl.title))))!
     const ref = Number(/\[(\d+)\]/.exec(row)?.[1])
     const click = await call({ action: 'click', ref })
-    check(`${fixture.name}: ref uses the same uniqueness check without pixels`, fixture.truncated ? click.outcome === 'failed' && click.result.includes('uniqueness is unknown') : click.outcome === 'succeeded', click.result)
+    check(`${fixture.name}: a ref acts on its row without pixels, on a cut tree as on a whole one`, click.outcome === 'succeeded', click.result)
   }
   check(`${fixture.name}: every recorded title/value is a placeholder`, elements.every(element => [element.title, element.value].every(text => text === null || /^[x\s]*[a-zA-Z0-9]{0,2}\s*$/.test(text))))
 }
