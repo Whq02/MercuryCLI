@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { getCwd } from '../../platform/files/cwd.js';
 import { useInput } from '../themedRenderer.js';
-import { createSplashCore, fmtAge, WORD_W } from '../../../assets/splash/splash-core.mjs';
+import { bootMenuAsks, createSplashCore, fmtAge, WORD_W } from '../../../assets/splash/splash-core.mjs';
 import { isProjectSession } from '../session-chooser/sessionFilter.js';
 import type { BootProjectFact } from './bootCardFacts.js';
 import { getSessionId } from '../../boot/process-state/processState.js';
@@ -237,6 +237,20 @@ export function pruneLegendOf(stage: 'card' | 'deleting' | 'receipt', offered = 
   return stage === 'receipt' ? '↵ / esc back to the list' : 'deleting the named set…';
 }
 
+type PruneFace =
+  | { stage: 'card'; offer: PruneOffer; answer: 'no' | 'yes' }
+  | { stage: 'deleting' }
+  | { stage: 'receipt'; receipt: PruneReceipt };
+
+function pruneAskingOf(prune: PruneFace): string {
+  if (prune.stage === 'deleting') return pruneLegendOf('deleting');
+  if (prune.stage === 'receipt') {
+    return `deleted ${prune.receipt.deleted} transcript${prune.receipt.deleted === 1 ? '' : 's'}${prune.receipt.failed > 0 ? `, ${prune.receipt.failed} not deleted` : ''} · ↵ esc`;
+  }
+  const count = prune.offer.candidates.length;
+  return count === 0 ? 'nothing to prune · ↵ esc' : `delete ${count} transcript${count === 1 ? '' : 's'}? ▸ ${prune.answer === 'yes' ? 'Yes' : 'No'} · ↑↓ ↵ esc`;
+}
+
 function selectableIdOf(row: SelectableRow): string {
   if (row.kind === 'session') return `resume:${sessionIdOfListing(row.flat.row.log) ?? row.flat.row.label}`;
   return `project:${row.project.dir}`;
@@ -277,12 +291,10 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
     [flat, projects],
   );
 
-  const [prune, setPrune] = useState<
-    | { stage: 'card'; offer: PruneOffer; answer: 'no' | 'yes' }
-    | { stage: 'deleting' }
-    | { stage: 'receipt'; receipt: PruneReceipt }
-    | null
-  >(null);
+  const [prune, setPrune] = useState<PruneFace | null>(null);
+  const showPrune = (next: PruneFace): void => {
+    if (bootMenuAsks(columns, rows, pruneAskingOf(next))) setPrune(next);
+  };
   const openPruneDoor = (): void => {
     const offer = buildPruneOffer(
       flat.map(f => f.row.log),
@@ -293,7 +305,7 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
         liveSessionIds: boardHomedSessionIds(),
       },
     );
-    setPrune({ stage: 'card', offer, answer: 'no' });
+    showPrune({ stage: 'card', offer, answer: 'no' });
   };
   async function runPrune(offer: PruneOffer) {
     setPrune({ stage: 'deleting' });
@@ -314,9 +326,10 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
         setPrune(null);
         return;
       }
+      if (!bootMenuAsks(columns, rows, pruneAskingOf(prune))) return;
       if (key.upArrow || key.downArrow) {
         const offered = prune.offer.candidates.length > 0;
-        setPrune({ ...prune, answer: offered && prune.answer === 'no' ? 'yes' : 'no' });
+        showPrune({ ...prune, answer: offered && prune.answer === 'no' ? 'yes' : 'no' });
         return;
       }
       if (key.return) {
@@ -498,6 +511,7 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
                 : resumeProjectDetailLines(selected.project),
           }),
       ...(pruneOverride ?? {}),
+      asking: prune === null ? null : pruneAskingOf(prune),
     };
   }, [flat, elsewhereCount, pendingMore, readNotice, loading, scope, selected, selectable.length, list.selectedIndex, list.note, prune, mainModel, wordGlow?.peakCell, wordGlow?.gainLevel]);
 

@@ -75,6 +75,7 @@ prove-sigint-terminal-restore.ts
 prove-sign-in-no-code-wait.ts
 prove-signed-out-says-so.ts
 prove-small-command-rows.ts
+prove-small-window-asks-drive.ts
 prove-splash-resize-keeps-the-caret.ts
 prove-sqlite-delete-card.ts
 prove-sqlite-delete-reach-card.ts
