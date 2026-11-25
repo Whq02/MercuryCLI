@@ -2,7 +2,6 @@ import { withDeadline } from '../../../platform/async/deadline.js'
 import { gracefulShutdown, TERMINAL_GONE_EXIT_CODE, markRunModeSignalsOwned } from '../../../platform/processes/gracefulShutdown.js'
 import { getSessionId } from '../../../boot/process-state/processState.js'
 import { DRAIN_CUT_WORDS } from '../../../engine/message-shapes/turnCut.js'
-import { logForDiagnosticsNoPII } from '../../../platform/logs/diagnosticsLog.js'
 import { saveCurrentSessionCosts } from '../../../models/usage/sessionCost.js'
 import type { BootMade, BootStep, RunnerPorts } from '../runnerPorts.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
@@ -60,15 +59,12 @@ function run(ports: RunnerPorts): BootMade<never> {
     }
   }
   process.on('SIGINT', () => {
-    logForDiagnosticsNoPII('info', 'headless_shutdown_signal', { signal: 'SIGINT' })
     void settleOnSignal(130)
   })
   process.on('SIGTERM', () => {
-    logForDiagnosticsNoPII('info', 'headless_shutdown_signal', { signal: 'SIGTERM' })
     void settleOnSignal(143, hostCutWords())
   })
   process.on('SIGHUP', () => {
-    logForDiagnosticsNoPII('info', 'headless_shutdown_signal', { signal: 'SIGHUP' })
     void settleOnSignal(TERMINAL_GONE_EXIT_CODE)
   })
   markRunModeSignalsOwned()
