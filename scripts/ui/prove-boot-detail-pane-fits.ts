@@ -249,4 +249,43 @@ t.section('§4 — BELOW 110 COLUMNS A NOTICE WORD LONGER THAN THE LINE WRAPS; W
   t.check('60×20: a notice of ordinary words wraps between words as before', plain.includes('a notice of ordinary words that is longer than one line') && plain.includes('of this window and so wraps between its words as it')  && plain.includes('always did'), `${NOTICE_FIX} | lines=${JSON.stringify(plain.filter(Boolean))}`)
 }
 
+t.section('§5 — AN OPEN CONFIRM IS ON THE SCREEN WHOLE AT EVERY SIZE: IN THE LAYOUT\'S OWN ROOM, OR AS ITS ONE LINE IN PLACE OF THE LEGEND')
+{
+  const ASK_FIX = 'in assets/splash/splash-core.mjs a layout whose own room cuts the confirm it is handed (the notice of composeBootMenuClassic, the pane of composeBootMenuWide) draws m.asking in place of the legend, as composeBootMenuMicro does; where the confirm is whole nothing moves'
+  const card = ['prune transcripts — the one deleting', 'door · nothing is ever deleted', 'automatically', '', "scope: this project's listed chats", 'older than 30 days', '', 'would delete: 2 transcripts · total 1.2 KB', 'age range: 3mo ago → 2mo ago', '', '▸ No — keep everything (default)', '  Yes — delete exactly this set, for good', '', 'deletes exactly the set named above ·', 'asked every time, never remembered']
+  const asking = 'delete 2 transcripts? ▸ No · ↑↓ ↵ esc'
+  const legend = '↑↓ choose · ↵ commit (No is the default) · esc / n keep everything'
+  const bareM = {
+    entries: [{ label: 'alpha chat', group: 'sessions', summary: '2 months ago', valueLabel: '2 months ago', valueIsDefault: true, pinnedVal: null, detail: null }],
+    selIdx: 0,
+    title: 'resume session',
+    summaryTitle: 'SESSIONS',
+    summaryRows: [],
+    environment: env,
+    statusRight: '1 session',
+    legend,
+    detailOverride: card,
+    detailOverrideConfirms: true,
+  }
+  const squashed = (lines: string[]): string => lines.join('').replace(/\s+/g, '')
+  const cut: string[] = []
+  const moved: string[] = []
+  const unasked: string[] = []
+  for (const cols of [40, 48, 80, 120]) {
+    for (let rows = 2; rows <= 50; rows++) {
+      const bare = core.composeBootMenu(cols, rows, bareM).lines
+      const asked = core.composeBootMenu(cols, rows, { ...bareM, asking }).lines
+      const room = bare.some(l => l.includes('SETTING DETAIL')) ? detailInnerLines(bare) : bare
+      if (squashed(room).includes(squashed(card))) {
+        if (asked.join('\n') !== bare.join('\n')) moved.push(`${cols}×${rows}`)
+        continue
+      }
+      cut.push(`${cols}×${rows}`)
+      if (!asked.some(l => l.includes(asking)) || asked.some(l => l.includes('keep everything') && l.includes('↑↓ choose'))) unasked.push(`${cols}×${rows}`)
+    }
+  }
+  t.check(`40, 48, 80 and 120 columns by 2 to 50 rows: wherever the layout's own room cuts the confirm (${cut.length} sizes) its one line stands whole in place of the legend`, cut.length > 0 && unasked.length === 0, `${ASK_FIX} | the line is missing at ${unasked.slice(0, 12).join(', ')}${unasked.length > 12 ? ` and ${unasked.length - 12} more` : ''}`)
+  t.check('…and wherever the confirm is whole, handing the line moves nothing: the frame is byte for byte the frame without it', moved.length === 0, `${ASK_FIX} | the frame differs at ${moved.slice(0, 12).join(', ')}`)
+}
+
 t.finish('prove-boot-detail-pane-fits')
