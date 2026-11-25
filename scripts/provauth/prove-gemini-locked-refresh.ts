@@ -22,6 +22,7 @@ const accounts = await import('../../src/models/roads/gemini/geminiAccounts.ts')
 const contract = await import('../../src/models/roads/gemini/antigravityClientContract.ts')
 const { deriveFamilySlotGroups, executeSlotRemoval } = await import('../../src/models/roads/accountSlots.ts')
 const logins = await import('../../src/screen/boot-face/logins/facts.ts')
+const { providerAuthLogout } = await import('../../src/commands/verbs/providerAuth.ts')
 
 const fixHint = 'fix currentGeminiPlanTokens or currentGeminiTokens in src/models/roads/gemini/geminiAccounts.ts (the roads they hand the door), the Google rows in src/models/roads/account-slots/gemini.ts, or the door in src/models/sign-in/lifecycle/lockedRefresh.ts; the stand-in token server is scripts/provauth/lib/rotating-token-server.ts'
 let failures = 0
@@ -191,6 +192,18 @@ try {
   const removedPlan = planRow ? executeSlotRemoval(planRow) : undefined
   const removedOauth = oauthRow ? executeSlotRemoval(oauthRow) : undefined
   check('removing each expired row takes it off the list and out of the store', removedPlan?.mutated === true && removedOauth?.mutated === true && slot('gemini:plan') === undefined && slot('gemini:oauth') === undefined && file().plan === undefined && file().tokens === undefined && file().client?.clientId === CLIENT, JSON.stringify({ removedPlan, removedOauth, left: Object.keys(file()) }))
+
+  console.log('── mercury auth logout gemini removes the expired rows too ──')
+  writeFileSync(authPath, JSON.stringify({
+    version: 1,
+    client: { clientId: CLIENT },
+    tokens: { accessToken: 'ya29.oauth-old', refreshToken: '' },
+    plan: { tokens: { accessToken: 'ya29.plan-old', refreshToken: '' }, projectId: 'project-fixture-123', email: EMAIL },
+  }) + '\n', { mode: 0o600 })
+  check('the two rows stand as a refused refresh leaves them', slot('gemini:plan')?.expired === true && slot('gemini:oauth')?.expired === true)
+  const said: string[] = []
+  const signedOut = await providerAuthLogout('gemini', { writeOut: text => said.push(text), writeErr: text => said.push(text) })
+  check('the sign-out verb removes both and says so, the client config stands', signedOut.ok && slot('gemini:plan') === undefined && slot('gemini:oauth') === undefined && file().plan === undefined && file().tokens === undefined && file().client?.clientId === CLIENT && !said.join('').includes('No stored gemini credential'), JSON.stringify({ signedOut, said, left: Object.keys(file()) }))
 } finally {
   server.stop()
 }
