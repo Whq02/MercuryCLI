@@ -13,6 +13,7 @@ import { useSettings } from '../../screen/settings/useSettings.js'
 import { getFocusedSessionConnector } from '../../engine/connector/focusedConnector.js'
 import { createCommandInputMessage, createUserMessage, formatCommandInputTags } from '../../engine/messages/messages.js'
 import { updateSettingsForSource } from '../../platform/settings/settings.js'
+import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { themeLabel, type ThemeSetting } from '../../screen/theme/theme.js'
 
 type Props = {
@@ -35,9 +36,10 @@ function AppearanceCenter({ onDone }: Props): React.ReactNode {
       const next = !reduced
       const { error } = updateSettingsForSource('userSettings', { view: { reducedMotion: next } })
       if (!error) setMotionOverride(next)
+      if (error) logForDebugging(`appearance: reducedMotion could not be saved: ${error.message}`, { level: 'error' })
       setMotionNote(
         error
-          ? `not saved: ${error.message}`
+          ? 'appearance change could not be saved — try again'
           : next
             ? 'decorative animation off, state changes stay visible; saved for later boots'
             : 'decorative animation on; saved for later boots',

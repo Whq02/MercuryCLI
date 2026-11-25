@@ -236,6 +236,44 @@ section('§2 /config at 120x40: a theme picked in the Theme sub-list stays when 
   resetOverlayStackForTests()
 }
 
+section('§3 /appearance motion toggle save refusal paints the plain sentence and logs detail')
+{
+  const dbg = await import('../../src/platform/logs/debugLog.ts')
+  dbg.enableDebugLogging()
+  const dbgPath = dbg.getDebugLogPath()
+  const settingsFile = join(HOME, 'settings.json')
+  writeFileSync(settingsFile, '{ broken json')
+  initializeSurfaceRoute(ROOT_CHAT_ROUTE)
+  resetChromeModeLatchForTests()
+  const element = await appearance.call(() => {}, { messages: [], options: {} } as never, '')
+  const m = await mountOffscreen(wrap(h(Harness, { columns: 120, element: (element ?? null) as React.ReactNode })), 120, 40)
+  try {
+    await waitFor(() => m.screen().includes('Mercury — appearance') && m.screen().includes('Black and white'), 10000)
+    await settle(300)
+    m.push('m')
+    const noted = await waitFor(
+      () => m.screen().includes('could not be saved') || m.screen().includes('not saved:'),
+      6000,
+    )
+    await dbg.flushDebugLogs()
+    const screen = m.screen()
+    const dbgText = (() => { try { return readFileSync(dbgPath, 'utf8') } catch { return '' } })()
+    check(
+      'failed motion save paints plain sentence without raw error and logs detail to debug log',
+      noted &&
+        screen.includes('appearance change could not be saved — try again') &&
+        !screen.includes('Invalid JSON') &&
+        !screen.includes('settings.json') &&
+        dbgText.includes('Invalid JSON'),
+      `noteRow=${JSON.stringify(rowOf(m, 'saved'))} | dbg=${JSON.stringify(dbgText.slice(-250))}`,
+    )
+  } finally {
+    writeFileSync(settingsFile, '{}')
+    m.unmount()
+    resetOverlayStackForTests()
+  }
+}
+
 await releaseScratchHome(HOME)
 console.log(`\nappearance digit and config theme: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)
