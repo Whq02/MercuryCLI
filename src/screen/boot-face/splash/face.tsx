@@ -8,6 +8,7 @@ import type { PlainWorldWhy } from '../../routes/surfaceRoute.js';
 import { BootAgentsScreen } from '../BootAgentsScreen.js';
 import { BootHealthScreen } from '../BootHealthScreen.js';
 import { BootLoginsScreen } from '../BootLoginsScreen.js';
+import { BootProfilesScreen } from '../BootProfilesScreen.js';
 import { BootResumeScreen } from '../BootResumeScreen.js';
 import { BootSaturnScreen } from '../BootSaturnScreen.js';
 import { BootSettingsScreen } from '../BootSettingsScreen.js';
@@ -90,13 +91,13 @@ export function bootSplashCompositionOf({ isCompact, composedRows, continueElsew
   };
 }
 
-export function bootSplashFaceView({ settingsOpen, columns, rows, setSettingsOpen, kitOpen, setKitOpen, healthOpen, setHealthOpen, saturnOpen, setSaturnOpen, agentsOpen, loginsOpen, setLoginsOpen, setAgentsOpen, closeLogins, loginsFamily, loginsBack, resumeOpen, setResumeOpen, facts, runningOf, openProject, composition, list, birthReceipt, core, isCompact, keyMapHint, updateLine, bottomRowWithNotice, KEY_MAP_ROW, composedRows, t, modelDefaultOpen, setModelDefaultOpen, setLoginsFamily, setLoginsBack }: { settingsOpen: boolean; columns: number; rows: number; setSettingsOpen: Dispatch<SetStateAction<boolean>>; kitOpen: boolean; setKitOpen: Dispatch<SetStateAction<boolean>>; healthOpen: boolean; setHealthOpen: Dispatch<SetStateAction<boolean>>; saturnOpen: boolean; setSaturnOpen: Dispatch<SetStateAction<boolean>>; agentsOpen: boolean; loginsOpen: boolean; setLoginsOpen: Dispatch<SetStateAction<boolean>>; setAgentsOpen: Dispatch<SetStateAction<boolean>>; closeLogins: () => void; loginsFamily: string | undefined; loginsBack: 'route' | 'picker' | null; resumeOpen: boolean; setResumeOpen: Dispatch<SetStateAction<boolean>>; facts: ReturnType<typeof scanBootCardFacts>; runningOf: (dir: string) => number; openProject: (p: BootProjectFact) => AsyncListNote; composition: ReturnType<typeof bootSplashCompositionOf>; list: ReturnType<typeof useInteractiveList<BootRow>>; birthReceipt: string | null; core: ReturnType<typeof createSplashCore>; isCompact: boolean; keyMapHint: string; updateLine: string | null; bottomRowWithNotice: (core: ReturnType<typeof createSplashCore>, columns: number, keyMapHint: string, notice: string | null, compact: boolean) => string | null; KEY_MAP_ROW: (core: ReturnType<typeof createSplashCore>, hint: string) => string; composedRows: BootRow[]; t: ReturnType<typeof useMercuryTokens>; modelDefaultOpen: boolean; setModelDefaultOpen: Dispatch<SetStateAction<boolean>>; setLoginsFamily: Dispatch<SetStateAction<string | undefined>>; setLoginsBack: Dispatch<SetStateAction<'route' | 'picker' | null>> }) {
-  if (settingsOpen && !kitOpen && !agentsOpen) {
+export function bootSplashFaceView({ settingsOpen, columns, rows, setSettingsOpen, kitOpen, setKitOpen, profilesOpen, setProfilesOpen, healthOpen, setHealthOpen, saturnOpen, setSaturnOpen, agentsOpen, loginsOpen, setLoginsOpen, setAgentsOpen, closeLogins, loginsFamily, loginsBack, resumeOpen, setResumeOpen, facts, runningOf, openProject, composition, list, birthReceipt, core, isCompact, keyMapHint, updateLine, bottomRowWithNotice, KEY_MAP_ROW, composedRows, t, modelDefaultOpen, setModelDefaultOpen, setLoginsFamily, setLoginsBack }: { settingsOpen: boolean; columns: number; rows: number; setSettingsOpen: Dispatch<SetStateAction<boolean>>; kitOpen: boolean; setKitOpen: Dispatch<SetStateAction<boolean>>; profilesOpen: boolean; setProfilesOpen: Dispatch<SetStateAction<boolean>>; healthOpen: boolean; setHealthOpen: Dispatch<SetStateAction<boolean>>; saturnOpen: boolean; setSaturnOpen: Dispatch<SetStateAction<boolean>>; agentsOpen: boolean; loginsOpen: boolean; setLoginsOpen: Dispatch<SetStateAction<boolean>>; setAgentsOpen: Dispatch<SetStateAction<boolean>>; closeLogins: () => void; loginsFamily: string | undefined; loginsBack: 'route' | 'picker' | null; resumeOpen: boolean; setResumeOpen: Dispatch<SetStateAction<boolean>>; facts: ReturnType<typeof scanBootCardFacts>; runningOf: (dir: string) => number; openProject: (p: BootProjectFact) => AsyncListNote; composition: ReturnType<typeof bootSplashCompositionOf>; list: ReturnType<typeof useInteractiveList<BootRow>>; birthReceipt: string | null; core: ReturnType<typeof createSplashCore>; isCompact: boolean; keyMapHint: string; updateLine: string | null; bottomRowWithNotice: (core: ReturnType<typeof createSplashCore>, columns: number, keyMapHint: string, notice: string | null, compact: boolean) => string | null; KEY_MAP_ROW: (core: ReturnType<typeof createSplashCore>, hint: string) => string; composedRows: BootRow[]; t: ReturnType<typeof useMercuryTokens>; modelDefaultOpen: boolean; setModelDefaultOpen: Dispatch<SetStateAction<boolean>>; setLoginsFamily: Dispatch<SetStateAction<string | undefined>>; setLoginsBack: Dispatch<SetStateAction<'route' | 'picker' | null>> }) {
+  if (settingsOpen && !kitOpen && !agentsOpen && !profilesOpen) {
     return (
       <BootSettingsScreen
         fullScene={{ columns, rows }}
         onClose={() => setSettingsOpen(false)}
-        onOpenEditor={editor => editor === 'kit' ? setKitOpen(true) : setAgentsOpen(true)}
+        onOpenEditor={editor => ({ kit: setKitOpen, agents: setAgentsOpen, profiles: setProfilesOpen })[editor](true)}
       />
     );
   }
@@ -105,6 +106,14 @@ export function bootSplashFaceView({ settingsOpen, columns, rows, setSettingsOpe
       <KitMenuScreen
         fullScene={{ columns, rows }}
         onClose={() => setKitOpen(false)}
+      />
+    );
+  }
+  if (profilesOpen) {
+    return (
+      <BootProfilesScreen
+        fullScene={{ columns, rows }}
+        onClose={() => setProfilesOpen(false)}
       />
     );
   }
