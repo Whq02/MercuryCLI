@@ -65,9 +65,7 @@ async function moveDaemonAfterUpdate(): Promise<{ state: string; line: string } 
   }
 }
 
-function openWindowsLine(from: string | null): string {
-  return `any Mercury window still open keeps working on ${from ? `v${from}` : 'the build it started with'} until it is closed and opened again`
-}
+const OPEN_WINDOWS_LINE = 'any Mercury window still open keeps working on the version it started with until it is closed and opened again'
 
 export async function moveDaemonAfterInstallerUpgrade(to: string): Promise<{ state: string; line: string } | null> {
   try {
@@ -168,7 +166,7 @@ async function installerRoad(
   }
   const after = readVersionAfterUpgrade(roots)
   const daemon = after.state === 'read' ? await moveDaemonAfterInstallerUpgrade(after.version) : null
-  const openWindows = after.state === 'read' && after.version !== from ? openWindowsLine(from) : null
+  const openWindows = after.state === 'read' && after.version !== from ? OPEN_WINDOWS_LINE : null
   if (options.json) {
     const record = {
       mode: 'update',
@@ -283,7 +281,7 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
     const rolled = await performRollback(roots, progress)
     if (rolled.state === 'rolled-back') reconcileManagedShims(roots)
     const daemon = rolled.state === 'rolled-back' ? await moveDaemonAfterUpdate() : null
-    const openWindows = rolled.state === 'rolled-back' ? openWindowsLine(rolled.from) : null
+    const openWindows = rolled.state === 'rolled-back' ? OPEN_WINDOWS_LINE : null
     if (options.json) {
       return rolled.state === 'rolled-back' ? emitJson({ mode: 'rollback', ...rolled, daemon, openWindows }) : failJson({ mode: 'rollback', ...rolled })
     }
@@ -353,7 +351,7 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
   }
   const daemon = installCurrent ? await moveDaemonAfterUpdate() : null
   const daemonLine = daemon === null ? '' : `\n${daemon.line}`
-  const openWindows = result.state === 'updated' ? openWindowsLine(result.from) : null
+  const openWindows = result.state === 'updated' ? OPEN_WINDOWS_LINE : null
   const openWindowsLineText = openWindows === null ? '' : `\n${openWindows}`
   const shellCommand = result.state === 'updated' ? commandOnPath(roots) : null
   try {
