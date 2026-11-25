@@ -3,7 +3,6 @@ import { Box, useInput } from '../themedRenderer.js';
 import { createSplashCore, WORD_W } from '../../../assets/splash/splash-core.mjs';
 import { useEngineModel } from '../model-picker/useEngineModel.js';
 import { createProfile, listProfiles, removeProfile, renameProfile, type ProfileRow } from '../../platform/profiles/profiles.js';
-import { errorMessage } from '../../platform/errors/errors.js';
 import { bootEnvironment } from './bootEnvironment.js';
 import { useGreetingShimmer } from '../widgets/useGreetingShimmer.js';
 import { useInteractiveList } from '../widgets/useInteractiveList.js';
@@ -19,7 +18,7 @@ type ProfileFaceRow = ProfileRow & { label: string };
 type ProfilesFace =
   | { kind: 'list' }
   | { kind: 'rename'; profile: ProfileRow; name: string }
-  | { kind: 'remove'; profile: ProfileRow; busy: boolean };
+  | { kind: 'remove'; profile: ProfileRow };
 
 const removable = (profile: ProfileRow): boolean => profile.id !== 1 && !profile.current;
 
@@ -30,11 +29,7 @@ function startWords(profile: ProfileRow): string {
 
 function detailLinesOf(face: ProfilesFace, selected: ProfileRow | null): string[] {
   if (face.kind === 'rename') return [`name: ${face.name}▌`, '', 'an empty name puts the default back'];
-  if (face.kind === 'remove') {
-    return face.busy
-      ? [`removing ${face.profile.name} — signing its logins out…`]
-      : [`remove ${face.profile.name}?`, '', 'its logins are signed out,', 'its command is deleted,', `its folder stays at ${face.profile.home}`];
-  }
+  if (face.kind === 'remove') return [`remove ${face.profile.name}?`, '', 'its command is removed,', `its folder and logins stay at ${face.profile.home}`];
   return selected === null ? [] : [selected.home, '', startWords(selected)];
 }
 
@@ -80,7 +75,7 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
         hint: 'remove',
         when: removable,
         run: profile => {
-          if (profile !== null) setFace({ kind: 'remove', profile, busy: false });
+          if (profile !== null) setFace({ kind: 'remove', profile });
           return null;
         },
       },
@@ -115,13 +110,10 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
   useInput(
     (input, key, event) => {
       event.stopImmediatePropagation();
-      if (face.kind !== 'remove' || face.busy) return;
+      if (face.kind !== 'remove') return;
       if (input === 'y' || key.return) {
-        const { profile } = face;
-        setFace({ kind: 'remove', profile, busy: true });
-        void removeProfile(profile.id)
-          .then(removed => (removed.ok ? `${profile.name} removed — its folder stays at ${removed.keptHome}` : removed.reason), errorMessage)
-          .then(settle);
+        const removed = removeProfile(face.profile.id);
+        settle(removed.ok ? `${face.profile.name} removed — its folder stays at ${removed.keptHome}` : removed.reason);
       } else if (input === 'n' || key.escape) setFace({ kind: 'list' });
     },
     { isActive: face.kind === 'remove' },
