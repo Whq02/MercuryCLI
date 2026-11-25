@@ -29,6 +29,7 @@ import type {
 } from '../../../crew/agents/agentDefinition.js'
 import type { EffortValue } from '../../../models/effort/effort.js'
 import { errorMessage } from '../../../platform/errors/errors.js'
+import { logForDebugging } from '../../../platform/logs/debugLog.js'
 import { logError } from '../../../platform/logs/errorLog.js'
 import { AMBER, CRIMSON, SECOND, TEAL } from '../../theme/mercuryPalette.js'
 import { truncateToWidth } from '../../theme/glyphs.js'
@@ -531,8 +532,9 @@ function studioEditorCore(state: StudioEditorState, { deps, base, cwd, onChange 
         })
         .catch(e => {
           if (state.disposed) return
+          logForDebugging(`studioEditor: draft not saved: ${errorMessage(e)}`, { level: 'error' })
           state.note = {
-            text: `draft not saved (${e instanceof Error ? e.message : String(e)}) — save the agent to keep these edits`,
+            text: 'draft not saved — save the agent to keep these edits',
             tone: AMBER,
           }
           emit()

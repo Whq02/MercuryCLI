@@ -629,5 +629,27 @@ else {
   for (const name of stood.keys()) if (!first.has(name)) fail(`${name}: a recording stands that no scene records; run \`bun run ${SELF} --write\` to drop it`)
 }
 
+{
+  const dbg = await import('../../src/platform/logs/debugLog.js')
+  const prevNodeEnv = process.env.NODE_ENV
+  delete process.env.NODE_ENV
+  dbg.enableDebugLogging()
+  const dbgPath = dbg.getDebugLogPath()
+  const lines: string[] = []
+  const open = stage(lines, { mode: 'edit', base: { filePath: BASE_PATH, raw: BASE_RAW } })
+  open.plan.saveDraft = () => Promise.reject(new Error('studio-draft-disk-full'))
+  open.call('commit', { set: { maxTurns: 7 } })
+  open.fire(1)
+  await open.drain()
+  await dbg.flushDebugLogs()
+  if (prevNodeEnv !== undefined) process.env.NODE_ENV = prevNodeEnv
+  const dbgText = (() => { try { return readFileSync(dbgPath, 'utf8') } catch { return '' } })()
+  if (!dbgText.includes('studio-draft-disk-full')) {
+    fail(`draft save failure did not write error detail to debug log — log the raw error via logForDebugging in src/screen/agents/studio/studioEditorModel.ts`)
+  } else {
+    console.log('  [PASS] draft save failure writes raw error detail to debug log')
+  }
+}
+
 console.log(`\n${failures === 0 ? '✅' : '❌'} prove-studio-machine-recording — ${first.size} scenes, ${failures === 0 ? 'equal to the recording' : `${failures} failed`}`)
 process.exit(failures === 0 ? 0 : 1)
