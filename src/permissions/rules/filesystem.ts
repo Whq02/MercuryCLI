@@ -9,6 +9,7 @@ import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { permissionRuleValueFromString } from './permissionRuleParser.js'
 import { expandRuleBraces } from './ruleBraces.js'
 import { getMercuryHome } from '../../platform/environment/envUtils.js'
+import { firstProfileHome } from '../../platform/profiles/profiles.js'
 import { getFsImplementation, getPathsForPermissionCheck, safeResolvePath } from '../../platform/files/fsOperations.js'
 import {
   expandPath,
@@ -344,7 +345,7 @@ function isProductConfigPath(expandedPath: string, instructionEstate = false, wo
   const cwd = getOriginalCwd()
   const folded = normalizeCaseForComparison(expandedPath)
   for (const home of PROJECT_CONFIG_DIR_NAMES) {
-    if (instructionEstate && [joinWithSep(cwd, home), getMercuryHome()].flatMap(dir => protectedPathForms(dir)).some(base => expandedPath === base || (expandedPath.startsWith(base + '/') && !(worktreesApart && expandedPath.startsWith(base + '/worktrees/'))))) return true
+    if (instructionEstate && [joinWithSep(cwd, home), getMercuryHome(), firstProfileHome()].flatMap(dir => protectedPathForms(dir)).some(base => expandedPath === base || (expandedPath.startsWith(base + '/') && !(worktreesApart && expandedPath.startsWith(base + '/worktrees/'))))) return true
     for (const sub of ['agents', 'skills']) {
       const base = normalizeCaseForComparison(joinWithSep(joinWithSep(cwd, home), sub))
       if (pathHasSegmentContainment(folded, base)) return true
