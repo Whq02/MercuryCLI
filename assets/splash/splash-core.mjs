@@ -429,6 +429,8 @@ function splitHardVis(word, w) {
   return parts
 }
 
+const endVis = (word, w) => [...splitHardVis([...word].reverse().join(''), w)[0]].reverse().join('')
+
 function wrapDetailLine(raw, maxW, wrapW = maxW) {
   const s = String(raw)
   if (!s || vis(s) <= maxW) return [s]
@@ -1159,13 +1161,13 @@ function composeBootMenuClassic(cols, rowsAvail, m) {
   const noticeW = Math.max(20, cols - 4)
   const noticeRoom = Math.max(1, rowsAvail - 4 - 5)
   const noticeOver = endOnly =>
-    wrapWords(noticeText, noticeW).flatMap(l => (vis(l) <= noticeW ? [l] : endOnly ? ['…' + l.slice(-(noticeW - 1))] : splitHardVis(l, noticeW)))
+    wrapWords(noticeText, noticeW).flatMap(l => (vis(l) <= noticeW ? [l] : endOnly ? ['…' + endVis(l, noticeW - 1)] : splitHardVis(l, noticeW)))
   const noticeWhole = noticeText ? noticeOver(false) : []
   const noticeWrapped = noticeWhole.length <= noticeRoom ? noticeWhole : noticeOver(true)
   const noticeBudget = Math.min(noticeWrapped.length, noticeRoom)
   const noticeClipped = noticeBudget < noticeWrapped.length
   const noticeLines = noticeWrapped.slice(0, noticeBudget).map((l, i) => {
-    const text = noticeClipped && i === noticeBudget - 1 ? clipVis(l, Math.max(1, cols - 5)) + '…' : l
+    const text = noticeClipped && i === noticeBudget - 1 && !l.startsWith('…') ? clipVis(l, Math.max(1, cols - 5)) + '…' : l
     return paint(TEALC) + text + R
   })
   const noticeBlank = noticeLines.length > 0 && rowsAvail - 4 - 5 - noticeBudget >= 1
