@@ -142,6 +142,17 @@ try {
     const fallback = await run({ op: 'click', tab: other, selector: '#go', timeoutMs: DEADLINE })
     unknownCommand.name = ''
     check('the click lands, with the tab brought to the front once', kept(fallback) && alive(fallback) && raises() === 1 && (await onShow.title()) === 'onshow clicked 1', `${fallback.ms}ms ${fallback.result} · Page.bringToFront sent ${raises()} time(s)`)
+
+    section('S6 a tab Mercury opens there is added behind the tab on show, and is driven where it stands')
+    const shownBefore = await onShow.evaluate(() => document.visibilityState)
+    await permission({ op: 'open', url: `${site.origin}/opened`, tab: 'fresh' })
+    const opened = await run({ op: 'open', url: `${site.origin}/opened`, tab: 'fresh' })
+    const shownAfter = await onShow.evaluate(() => document.visibilityState)
+    check('open adds the tab and reads it', opened.outcome === 'succeeded' && opened.result.includes(`open: ${site.origin}/opened [200] — opened (attached: ${endpoint})`), opened.result)
+    check('the tab that was on show is still the one on show', shownBefore === 'visible' && shownAfter === 'visible' && (await paints(onShow, 300)) > 0, `on show before ${shownBefore}, after ${shownAfter}`)
+    const inFresh = await run({ op: 'click', tab: 'fresh', selector: '#go', timeoutMs: DEADLINE })
+    check('a click in the tab Mercury opened lands within its deadline', kept(inFresh) && alive(inFresh) && (await pageOf(lead, 'fresh').title()) === 'opened clicked 1', `${inFresh.ms}ms ${inFresh.result}`)
+    check('and no window was raised for the new tab', raises() === 1 && (await onShow.evaluate(() => document.visibilityState)) === 'visible', `Page.bringToFront sent ${raises()} time(s)`)
   }
 } finally {
   Connection.prototype._rawSend = rawSend

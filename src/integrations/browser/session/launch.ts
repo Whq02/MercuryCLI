@@ -73,7 +73,7 @@ async function armLate(page: Page, baseline: PagePresented, deny: boolean, birth
 async function newHoldPage(hold: Hold): Promise<{ page: Page; wiring: Wiring }> {
   hold.creating++
   try {
-    const page = await hold.browser.newPage()
+    const page = await hold.browser.newPage(hold.attached === null ? undefined : { background: true })
     try {
       if (hold.attached !== null) {
         hold.attached.opened.add(page)
@@ -463,7 +463,7 @@ async function placeTab(
       state.holds.add(hold)
     }
     hold.tabs.add(session)
-    hold.front = session
+    if (hold.attached === null) hold.front = session
     state.tabs.set(tab, session)
     state.ended.delete(tab)
     landed = session
