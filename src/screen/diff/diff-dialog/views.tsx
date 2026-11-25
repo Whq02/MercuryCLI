@@ -360,6 +360,7 @@ export function diffDialogViewOf({ composer, setComposer, viewMode, setViewMode,
       closeKeys="esc"
       footer={footer}
       bodyOwnsPageKeys={viewMode === 'list'}
+      bodyRestsAtTop
       elevated
     >
       <Box flexDirection="column">

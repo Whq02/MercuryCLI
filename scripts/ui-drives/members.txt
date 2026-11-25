@@ -22,6 +22,7 @@ prove-notice-rows-drive.ts
 prove-model-picker-one-row-drive.ts
 prove-panel-dismissal-drive.ts
 prove-diff-wrap-drive.ts
+prove-diff-opens-at-hunk-start-drive.ts
 prove-popup-owns-keys-drive.ts
 prove-composer-draft-survives-click-drive.ts
 prove-model-picker-groups-drive.ts

@@ -1994,11 +1994,11 @@ function scenarioInner(name: string, cols: number, rows: number) {
     return {
       argv: ['node', BIN, '--resume', SID],
       sends: [
-        { atTick: 999, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 2, data: '/workbench' },
-        { atTick: 999, awaitText: '/workbench', minTick: 5, awaitSettleTicks: 2, data: '\r' },
-        { atTick: 999, awaitText: 'SAVED PROMPTS', minTick: 5, awaitSettleTicks: 2, data: '3' },
-        { atTick: 999, awaitText: 'kept per project', minTick: 5, awaitSettleTicks: 2, data: 'a' },
-        { atTick: 999, awaitText: 'new saved prompt', minTick: 5, awaitSettleTicks: 2, data: 'Review the open pull requests and list the ones that touch the parser', mark: 'draft' },
+        { atTick: 999, requireAwait: true, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 2, data: '/workbench' },
+        { atTick: 999, requireAwait: true, awaitText: '/workbench', minTick: 5, awaitSettleTicks: 2, data: '\r' },
+        { atTick: 999, requireAwait: true, awaitText: 'SAVED PROMPTS', minTick: 5, awaitSettleTicks: 2, data: '3' },
+        { atTick: 999, requireAwait: true, awaitText: 'kept per project', minTick: 5, awaitSettleTicks: 2, data: 'a' },
+        { atTick: 999, requireAwait: true, awaitText: 'new saved prompt', minTick: 5, awaitSettleTicks: 2, data: 'Review the open pull requests and list the ones that touch the parser', mark: 'draft' },
       ],
       resizes: [
         { afterMark: 'draft', afterMs: 3000, cols: 80, rows: 30 },
@@ -2610,6 +2610,41 @@ function scenarioInner(name: string, cols: number, rows: number) {
       sends,
       ...settled, cols, rows,
       chromeMarkers: name === 'ide' ? ['Select IDE'] : undefined,
+    }
+  }
+  if (name === 'diff-open-long-hunk') {
+    const scratch = join(tmpdir(), `mercury-render-diff-open-long-hunk-${process.pid}`)
+    rmSync(scratch, { recursive: true, force: true })
+    const project = join(scratch, 'project')
+    mkdirSync(project, { recursive: true })
+    const functions = (f: string, body: (i: number) => string): string =>
+      Array.from({ length: 300 }, (_, i) => `def ${f}${i}(x):\n${body(i)}\n`).join('\n')
+    writeFileSync(join(project, 'big.py'), functions('f', i => `    return x + ${i}`))
+    writeFileSync(join(project, 'next.py'), functions('g', i => `    return x - ${i}`))
+    execSync('git init -q && git add big.py next.py && git -c user.email=fix@x -c user.name=fix commit -qm seed', { cwd: project })
+    writeFileSync(join(project, 'big.py'), functions('f', i => `    y = x * 2\n    return y + ${i}`))
+    writeFileSync(join(project, 'next.py'), functions('g', i => `    z = x * 3\n    return z - ${i}`))
+    seedFirstRun(scratch, [project])
+    applyRenderTheme(scratch)
+    process.env.MERCURY_CONFIG_DIR = scratch
+    process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
+    const step = (awaitText: string, data: string, mark?: string) => ({ requireAwait: true, awaitText, minTick: 5, awaitSettleTicks: 3, data, ...(mark === undefined ? {} : { mark }) })
+    return {
+      argv: ['node', BIN],
+      sends: [
+        { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 10, awaitSettleTicks: 6, data: '\r' },
+        step('Type a prompt', '/diff'),
+        step('/diff', '\r'),
+        step('↵ view', '\r', 'list'),
+        step('y = x * 2', '\x1b[F', 'opened'),
+        step('diff truncated', ']'),
+        step('z = x * 3', '\x1b[F', 'stepped'),
+        step('diff truncated', '\x1b[D'),
+        step('↵ view', '\x1b[A'),
+        step('❯ big.py', '\r'),
+      ],
+      readyText: 'y = x * 2', stableTicks: 5,
+      total: 280, cols, rows, cwd: project,
     }
   }
   if (name === 'keys-escape') {

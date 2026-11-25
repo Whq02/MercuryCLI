@@ -4,7 +4,8 @@ import * as React from 'react'
 import { useMemo, useRef, useState } from 'react'
 import { usePopupListPaging } from '../select/popup-list.js'
 import { useKeybinding } from '../keys/useKeybinding.js'
-import { useLoad } from '../effects/effects.js'
+import { useLayoutPublish, useLoad } from '../effects/effects.js'
+import { useModalScrollRef } from '../overlays/modalContext.js'
 import { useTerminalSize } from '../fullscreen-layout/useTerminalSize.js'
 import { useTurnDiffs, type TurnDiff } from './useTurnDiffs.js'
 import { useDiffData } from './useDiffData.js'
@@ -390,6 +391,10 @@ export function DiffDialog({
       ? Math.min(hunkIndex, hunksForSelected.length - 1)
       : 0
   const currentHunk = hunksForSelected[clampedHunkIndex]
+  const bodyScroll = useModalScrollRef()
+  useLayoutPublish(() => {
+    if (viewMode === 'detail') bodyScroll?.current?.scrollTo(0)
+  }, [bodyScroll, viewMode, selectedFile?.path, clampedHunkIndex])
 
   const artifactId = useMemo(() => {
     void reviewRevision
