@@ -5,7 +5,6 @@ export interface SplashHintSegment {
 }
 
 export interface SplashCardRow {
-  icon: string
   label: string
   ctx: string
   dim?: boolean

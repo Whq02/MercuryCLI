@@ -145,7 +145,7 @@ try {
       const sends: Send[] = kind === 'face' || kind === 'roster' ? [] : [faceGate(SHIFT_RIGHT), gate('+ new session · n', kind === 'session' ? 'n' : 'm')]
       if (kind === 'session') sends.push(gate('← back', SHIFT_LEFT), gate('STATUS & TITLE', 'm'))
       if (kind === 'roster') {
-        sends.push({ ...faceGate(click, 'face'), targetText: '⚿ Logins' }, after(4, '\r'), { ...gate('↵ sign in · esc back', click, 'landed'), targetText: geminiRow }, after(4, '\r'), ...keyLeg)
+        sends.push({ ...faceGate(click, 'face'), targetText: 'Logins/Keys' }, after(4, '\r'), { ...gate('↵ sign in · esc back', click, 'landed'), targetText: geminiRow }, after(4, '\r'), ...keyLeg)
       } else {
         if (kind === 'face') sends.push(faceGate('m'))
         sends.push({ ...gate(row, click, 'picker'), targetText: row })
@@ -174,7 +174,7 @@ try {
       check(`${id}: every send delivered`, result.status === 0, 'the capture engine scripts/ui/vshot.py exited non-zero or hit its wall; a gate text it awaited never painted, so read the stderr tail and the awaited text in the sends list of this drive. ' + result.stderr.slice(-600))
       if (kind === 'roster') {
         const hits = fixture.hits.slice(hitsBefore)
-        check(`${id}: the face's own Logins row opened the sign-in layer`, (marks.get('face') ?? '').includes('⚿ Logins') && landed.includes('LOGINS') && landed.includes('Families'), excerpt(landed) + '\nthe Logins face must open from the Logins row; look in src/screen/boot-face/logins')
+        check(`${id}: the face's own Logins row opened the sign-in layer`, (marks.get('face') ?? '').includes('Logins/Keys') && landed.includes('LOGINS') && landed.includes('Families'), excerpt(landed) + '\nthe Logins face must open from the Logins row; look in src/screen/boot-face/logins')
         check(`${id}: the pasted key was proved on the live catalogue with the key itself`, hits.some(h => h.startsWith('GET /v1beta/models') && h.includes(`key=${FIXTURE_KEY}`)) && receipt.includes('Gemini API key stored'), (hits.join(' | ') || excerpt(receipt)) + '\nthe Gemini key must be proved with GET /v1beta/models carrying the key; see src/models/roads/gemini/geminiLogin.ts')
         check(`${id}: the receipt pane's way out reads the roster when no picker opened the door`, receipt.includes('↵ done — the roster refreshes') && !receipt.includes('back to the picker'), receipt.split('\n').filter(l => l.includes('↵ done')).join('\n') + '\nthe way out line comes from signedInWayOut, fed backToPicker by receiptPaneLines, in src/screen/boot-face/logins/anthropicLines.ts')
         check(`${id}: the status bar says the roster when no picker opened the door`, receipt.includes('connected — ↵ returns to the roster') && !receipt.includes('returns to the picker'), receipt.split('\n').filter(l => l.includes('returns to')).join('\n') + '\nthe status words come from signedInStatusWayOut in src/screen/boot-face/logins/anthropicLines.ts, called in src/screen/boot-face/logins/flowLines.ts')

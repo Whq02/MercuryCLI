@@ -123,10 +123,10 @@ section('P4 — the env pins outrank the setting, every road alike')
 
 section('P5 — the words, the custom form, the pins named, the schema')
 {
-  check('the normal row', patience.patienceWords(patience.PATIENCE_NORMAL) === 'idle 6m (quiet 15m) · fallback 15m · retry budget 20m', patience.patienceWords(patience.PATIENCE_NORMAL))
-  check('the patient row', patience.patienceWords(patience.PATIENCE_PATIENT) === 'idle 12m (quiet 30m) · fallback 30m · retry budget 40m', patience.patienceWords(patience.PATIENCE_PATIENT))
+  check('the normal row', patience.patienceWords(patience.PATIENCE_NORMAL) === 'idle 6m (silent 15m) · fallback 15m · retry budget 20m', patience.patienceWords(patience.PATIENCE_NORMAL))
+  check('the patient row', patience.patienceWords(patience.PATIENCE_PATIENT) === 'idle 12m (silent 30m) · fallback 30m · retry budget 40m', patience.patienceWords(patience.PATIENCE_PATIENT))
   const off = patience.patienceOf({ streamIdleSeconds: 45, recoveryBudgetMinutes: 0 }).numbers
-  check('a custom row with the budget off says so', patience.patienceWords(off) === 'idle 45 s (quiet 15m) · fallback 15m · no retry budget', patience.patienceWords(off))
+  check('a custom row with the budget off says so', patience.patienceWords(off) === 'idle 45 s (silent 15m) · fallback 15m · no retry budget', patience.patienceWords(off))
   check('the custom form /config writes carries every number in the file\'s units', JSON.stringify(patience.customPatienceSetting(patience.PATIENCE_NORMAL)) === JSON.stringify({ streamIdleSeconds: 360, quietStreamIdleSeconds: 900, fallbackCeilingSeconds: 900, recoveryBudgetMinutes: 20 }), JSON.stringify(patience.customPatienceSetting(patience.PATIENCE_NORMAL)))
   check('…and reads back as the same numbers', JSON.stringify(patience.patienceOf(patience.customPatienceSetting(patience.PATIENCE_PATIENT)).numbers) === JSON.stringify(patience.PATIENCE_PATIENT))
   check('no pin set: none named', patience.patienceEnvPins().length === 0, JSON.stringify(patience.patienceEnvPins()))

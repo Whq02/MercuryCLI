@@ -38,7 +38,6 @@ export const CRAB_GLYPHS = '▖▟▆▙▗'
 
 export function Wordmark({
   version,
-  greeting = true,
 }: {
   version?: string
   greeting?: boolean
@@ -47,8 +46,7 @@ export function Wordmark({
   const t = useMercuryTokens()
   const [theme] = useTheme()
   const ramp = accent === t.accent ? t.focalRamp : resolveMercuryTokens(theme, accent).focalRamp
-  const shimmer = useGreetingShimmer(ramp, greeting ? displayWidth('Mercury') : 0)
-  const segments = rampSegments('Mercury', ramp, { shimmer })
+  const segments = rampSegments('Mercury', ramp)
   return (
     <Text>
       {segments.map((s, i) => (

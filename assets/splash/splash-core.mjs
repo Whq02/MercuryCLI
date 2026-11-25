@@ -499,7 +499,6 @@ export function assembleCardRows(facts) {
   const rows = []
   rows.push({
     key: 'new',
-    icon: '✶',
     label: 'New Session',
     ctx: 'start fresh here',
   })
@@ -507,31 +506,29 @@ export function assembleCardRows(facts) {
     const ct = facts.continueTarget
     rows.push({
       key: 'continue',
-      icon: '↳',
       label: 'Continue Last Session',
       ctx: ct.cross ? `in ${ct.base}` : `${ct.base} · ${fmtAge(ct.ageMs)}`,
       ...(ct.dim ? { dim: true } : {}),
     })
   }
   if (facts.menuAvailable) {
-    rows.push({ key: 'logins', icon: '⚿', label: 'Logins/Keys', ctx: facts.loginsCtx ?? 'sign in to providers' })
+    rows.push({ key: 'logins', label: 'Logins/Keys', ctx: facts.loginsCtx ?? 'sign in to providers' })
   }
   if (facts.concourse) {
     rows.push({
       key: 'concourse',
-      icon: '⊞',
       label: 'Session Manager (Concourse)',
       ctx: facts.concourse.ctx,
       ...(facts.concourse.dim ? { dim: true } : {}),
     })
   }
-  if (facts.menuAvailable) rows.push({ key: 'menu', icon: '⊞', label: 'Boot Menu', ctx: 'configure boot env' })
+  if (facts.menuAvailable) rows.push({ key: 'menu', label: 'Boot Menu', ctx: 'configure boot env' })
   return rows
 }
 
 export function withProfilesRow(rows, boxed) {
   if (rows[rows.length - 1]?.key !== 'menu') return rows
-  const more = [...rows, { key: 'profiles', icon: '⊞', label: 'Profiles', ctx: 'separate logins and history' }]
+  const more = [...rows, { key: 'profiles', label: 'Profiles', ctx: 'separate logins and history' }]
   return boxed(more) ? more : rows
 }
 
@@ -738,11 +735,9 @@ function composeCard(rows, selIdx, w, seps = true, glowRow = null) {
   const rowLines = []
   rows.forEach((r2, i) => {
     const sel = i === selIdx
-    const bar = sel ? paint(TEALC) + '▎' + R : ' '
     const caret = sel ? red + '❯ ' + R : '  '
-    const icon = (sel ? red : faint) + r2.icon + R
     const label = (sel ? BOLD + rampLabel(r2.label.padEnd(labelW), glowRow) : (r2.dim ? hexFg(FAINT, T256.faint) : paint(MIDCREAM)) + r2.label.padEnd(labelW)) + R
-    const left = bar + caret + icon + ' ' + label
+    const left = ' ' + caret + label
     const arrow = r2.dim ? ' ' : (sel ? red : faint) + '→' + R
     const ctxBudget = inner - vis(left) - 4
     let ctx = r2.ctx
@@ -1262,7 +1257,7 @@ function composeLockup(cols, rows, opts) {
   const strip = opts.stripLines(Math.min(cols - 2, 84))
   const stripHeight = strip.length + 1
   const stackOf = ch => (ch > 0 ? ch + stripHeight + 2 : 0)
-  const cardW = Math.min(cols - 2, opts.cardRows.some(r => r.ctx) ? 84 : Math.max(34, ...opts.cardRows.map(r => vis(r.label) + 12)))
+  const cardW = Math.min(cols - 2, opts.cardRows.some(r => r.ctx) ? 84 : Math.max(32, ...opts.cardRows.map(r => vis(r.label) + 10)))
   const baseNeed = std.lines.length + word.lines.length + 8
   const cardStack = ch => std.lines.length + word.lines.length + 6 + 1 + ch + stripHeight
   const wantFull =

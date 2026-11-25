@@ -53,7 +53,6 @@ export function bootSplashCompositionOf({ isCompact, composedRows, selectedIndex
   }
   const lockupOptions: SplashComposeOpts = {
     cardRows: composedRows.map(r => ({
-      icon: r.icon,
       label: r.label,
       ctx: r.key === 'continue' && r.ctx.startsWith('in ') ? r.ctx : '',
       ...(r.dim ? { dim: true } : {}),

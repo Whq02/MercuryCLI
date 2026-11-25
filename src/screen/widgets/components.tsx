@@ -12,7 +12,6 @@ import { markTransitionEnd } from '../../platform/observability/frictionStopwatc
 import { resolveMercuryTokens, spectralRampFor } from '../theme/mercuryTokens.js'
 import { Crab, Wordmark } from './assets.js'
 import { rampSegments } from './focalRamp.js'
-import { useGreetingShimmer } from './useGreetingShimmer.js'
 import { useSessionAccent } from './sessionAccent.js'
 import { GLYPH, SPARK, displayWidth, padTo } from '../theme/glyphs.js'
 import { InteractiveRow } from './InteractiveRow.js'
@@ -51,7 +50,6 @@ export function ProductLockup({
   const ramp = accent === t.accent ? t.focalRamp : resolveMercuryTokens(theme, accent).focalRamp
   const title = `Mercury${separator}${view}`
   const { isCompact } = useLayoutChrome()
-  const shimmer = useGreetingShimmer(isCompact || plain ? [t.accent] : ramp, displayWidth(title))
   if (isCompact || plain) return <Box height={1} overflow="hidden"><Text bold color={t.textPrimary} wrap="truncate-end">{title}{subtitle ? ` · ${subtitle}` : ''}</Text></Box>
   return (
     <Box>
@@ -59,7 +57,7 @@ export function ProductLockup({
       <Text> </Text>
       {ramp.length > 1 ? (
         <Text>
-          {rampSegments(title, ramp, { shimmer }).map((s, i) => (
+          {rampSegments(title, ramp).map((s, i) => (
             <Text key={i} bold color={s.color}>
               {s.text}
             </Text>

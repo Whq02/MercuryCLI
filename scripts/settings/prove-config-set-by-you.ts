@@ -25,7 +25,7 @@ const SET: Array<[string, Record<string, unknown>]> = [
   ['Instruction profile', { briefs: { profile: 'native' } }],
   ['Shell engine', { shell: { engine: 'brush' } }],
   ['Shell engine sessions', { shell: { sessions: 3 } }],
-  ['Patience with a quiet model', { patience: 'patient' }],
+  ['Stream idle patience', { patience: 'patient' }],
   ['Thinking', { engine: { reasoning: false } }],
   ['Usage notice to the model', { engine: { usageNotice: true } }],
   ['Default permission mode', { guardrails: { mode: 'implement' } }],

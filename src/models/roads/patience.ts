@@ -104,7 +104,7 @@ export function patienceSeconds(ms: number): string {
 
 export function patienceWords(numbers: PatienceNumbers): string {
   const budget = numbers.recoveryBudgetMinutes === 0 ? 'no retry budget' : `retry budget ${patienceSeconds(numbers.recoveryBudgetMinutes * 60_000)}`
-  return `idle ${patienceSeconds(numbers.streamIdleMs)} (quiet ${patienceSeconds(numbers.quietStreamIdleMs)}) · fallback ${patienceSeconds(numbers.fallbackCeilingMs)} · ${budget}`
+  return `idle ${patienceSeconds(numbers.streamIdleMs)} (silent ${patienceSeconds(numbers.quietStreamIdleMs)}) · fallback ${patienceSeconds(numbers.fallbackCeilingMs)} · ${budget}`
 }
 
 export function patienceEnvPins(): string[] {

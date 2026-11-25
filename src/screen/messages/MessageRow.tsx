@@ -300,14 +300,7 @@ function MessageRowInner({
 
   const framed =
     isGroupish || singleToolId !== null ? (
-      <Box
-        borderStyle="single"
-        borderTop={false}
-        borderRight={false}
-        borderBottom={false}
-        borderDimColor
-        paddingLeft={1}
-      >
+      <Box paddingLeft={2}>
         {body}
       </Box>
     ) : (
