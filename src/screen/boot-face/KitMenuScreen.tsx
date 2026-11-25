@@ -36,6 +36,7 @@ import { useInteractiveList } from '../widgets/useInteractiveList.js';
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js';
 import { useSplashCoreAccent } from '../widgets/useSplashCoreAccent.js';
 import { useBootComposition } from './useBootComposition.js';
+import { typedName } from './typedName.js';
 import { kitMenuView } from '../kit-menu/kitMenuView.js';
 import { readLiveSessionCount } from './BootSettingsScreen.js';
 import { passedOver } from '../../platform/errors/passedOver.js';
@@ -375,14 +376,10 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
         setPreset(p => ({ ...p, note: res.ok ? res.receipt : res.reason }));
         return;
       }
-      if (key.backspace || key.delete) {
-        setPreset(p => ({ ...p, name: p.name.slice(0, -1), note: null }));
-        return;
-      }
-      if (key.ctrl || key.meta || key.tab || key.upArrow || key.downArrow || key.leftArrow || key.rightArrow) return;
-      if (input.length > 0 && !/[\x00-\x1f\x7f]/.test(input)) {
-        setPreset(p => ({ ...p, name: (p.name + input).slice(0, PRESET_NAME_MAX), note: null }));
-      }
+      setPreset(p => {
+        const name = typedName(p.name, input, key, PRESET_NAME_MAX);
+        return name === null ? p : { ...p, name, note: null };
+      });
     },
     { isActive: preset.open },
   );

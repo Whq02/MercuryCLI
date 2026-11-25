@@ -10,6 +10,7 @@ import { useMercuryTokens } from '../widgets/useMercuryTokens.js';
 import { useSplashCoreAccent } from '../widgets/useSplashCoreAccent.js';
 import { useBootComposition } from './useBootComposition.js';
 import { settingsRowLine } from './settings/rows.js';
+import { typedName } from './typedName.js';
 
 const PROFILE_NAME_MAX = 24;
 
@@ -20,6 +21,8 @@ type ProfilesFace =
   | { kind: 'rename'; profile: ProfileRow; name: string }
   | { kind: 'remove'; profile: ProfileRow };
 
+type Said = { where: 'status'; line: string } | { where: 'pane'; lines: string[] };
+
 const removable = (profile: ProfileRow): boolean => profile.id !== 1 && !profile.current;
 
 function startWords(profile: ProfileRow): string {
@@ -27,23 +30,28 @@ function startWords(profile: ProfileRow): string {
   return profile.command === null ? 'its command is missing' : `${profile.command} starts it`;
 }
 
-function detailLinesOf(face: ProfilesFace, selected: ProfileRow | null): string[] {
+function detailLinesOf(face: ProfilesFace, selected: ProfileRow | null, said: Said | null): string[] {
   if (face.kind === 'rename') return [`name: ${face.name}▌`, '', 'an empty name puts the default back'];
   if (face.kind === 'remove') return [`remove ${face.profile.name}?`, '', 'its command is removed,', `its folder and logins stay at ${face.profile.home}`];
-  return selected === null ? [] : [selected.home, '', startWords(selected)];
+  return [...(said?.where === 'pane' ? [...said.lines, ''] : []), ...(selected === null ? [] : [selected.home, '', startWords(selected)])];
 }
 
 export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void; fullScene: { columns: number; rows: number } }): React.ReactNode {
   const t = useMercuryTokens();
   const { columns, rows } = fullScene;
   const [tick, setTick] = useState(0);
-  const profiles = useMemo<ProfileFaceRow[]>(() => listProfiles().map(profile => ({ ...profile, label: `${profile.id} · ${profile.name}` })), [tick]);
+  const read = useMemo(() => listProfiles(), [tick]);
+  const profiles = useMemo<ProfileFaceRow[]>(() => (read.ok ? read.profiles : []).map(profile => ({ ...profile, label: `${profile.id} · ${profile.name}` })), [read]);
   const [face, setFace] = useState<ProfilesFace>({ kind: 'list' });
-  const [note, setNote] = useState<string | null>(null);
-  const settle = (line: string | null): void => {
+  const [said, setSaid] = useState<Said | null>(null);
+  const settle = (next: Said | null): void => {
     setFace({ kind: 'list' });
-    setNote(line);
+    setSaid(next);
     setTick(n => n + 1);
+  };
+  const open = (next: ProfilesFace): void => {
+    setSaid(null);
+    setFace(next);
   };
 
   const list = useInteractiveList<ProfileFaceRow>({
@@ -52,34 +60,36 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
     idNamespace: 'boot-profiles',
     active: face.kind === 'list',
     onClose,
-    actions: [
-      {
-        key: 'n',
-        hint: 'new',
-        run: () => {
-          const made = createProfile();
-          settle(made.ok ? `${made.profile.name} created — ${startWords(made.profile)}` : made.reason);
-          return null;
-        },
-      },
-      {
-        key: 'r',
-        hint: 'rename',
-        run: profile => {
-          if (profile !== null) setFace({ kind: 'rename', profile, name: '' });
-          return null;
-        },
-      },
-      {
-        key: 'backspace',
-        hint: 'remove',
-        when: removable,
-        run: profile => {
-          if (profile !== null) setFace({ kind: 'remove', profile });
-          return null;
-        },
-      },
-    ],
+    actions: read.ok
+      ? [
+          {
+            key: 'n',
+            hint: 'new',
+            run: () => {
+              const made = createProfile();
+              settle(made.ok ? { where: 'status', line: `${made.profile.name} created — ${startWords(made.profile)}` } : { where: 'pane', lines: [made.reason] });
+              return null;
+            },
+          },
+          {
+            key: 'r',
+            hint: 'rename',
+            run: profile => {
+              if (profile !== null) open({ kind: 'rename', profile, name: '' });
+              return null;
+            },
+          },
+          {
+            key: 'backspace',
+            hint: 'remove',
+            when: removable,
+            run: profile => {
+              if (profile !== null) open({ kind: 'remove', profile });
+              return null;
+            },
+          },
+        ]
+      : [],
   });
 
   useInput(
@@ -92,17 +102,14 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
       }
       if (key.return) {
         const renamed = renameProfile(face.profile.id, face.name);
-        settle(renamed.ok ? null : renamed.reason);
+        settle(renamed.ok ? null : { where: 'pane', lines: [renamed.reason] });
         return;
       }
-      if (key.backspace || key.delete) {
-        setFace(f => (f.kind === 'rename' ? { ...f, name: f.name.slice(0, -1) } : f));
-        return;
-      }
-      if (key.ctrl || key.meta || key.tab || key.upArrow || key.downArrow || key.leftArrow || key.rightArrow) return;
-      if (input.length > 0 && !/[\x00-\x1f\x7f]/.test(input)) {
-        setFace(f => (f.kind === 'rename' ? { ...f, name: (f.name + input).slice(0, PROFILE_NAME_MAX) } : f));
-      }
+      setFace(f => {
+        if (f.kind !== 'rename') return f;
+        const name = typedName(f.name, input, key, PROFILE_NAME_MAX);
+        return name === null ? f : { ...f, name };
+      });
     },
     { isActive: face.kind === 'rename' },
   );
@@ -113,7 +120,7 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
       if (face.kind !== 'remove') return;
       if (input === 'y' || key.return) {
         const removed = removeProfile(face.profile.id);
-        settle(removed.ok ? `${face.profile.name} removed — its folder stays at ${removed.keptHome}` : removed.reason);
+        settle({ where: 'pane', lines: removed.ok ? [`${face.profile.name} removed —`, `its folder stays at ${removed.keptHome}`] : [removed.reason] });
       } else if (input === 'n' || key.escape) setFace({ kind: 'list' });
     },
     { isActive: face.kind === 'remove' },
@@ -144,19 +151,20 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
       summaryTitle: 'PROFILES',
       summaryRows: profiles.filter(profile => profile.current).map(profile => ({ key: 'This one', value: profile.name })),
       environment: bootEnvironment(mainModel, process.cwd()),
-      statusRight: note ?? `${profiles.length} profile${profiles.length === 1 ? '' : 's'}`,
-      noticeLine: note,
+      statusRight: !read.ok ? 'the profile list could not be read' : said?.where === 'status' ? said.line : `${profiles.length} profile${profiles.length === 1 ? '' : 's'}`,
+      noticeLine: said === null ? null : said.where === 'status' ? said.line : said.lines.join(' '),
       glowWord: wordGlow,
-      legend:
-        face.kind === 'rename'
+      legend: !read.ok
+        ? 'esc back'
+        : face.kind === 'rename'
           ? 'type a name · ↵ save · esc cancel'
           : face.kind === 'remove'
             ? 'y / ↵ remove · n / esc cancel'
             : `↑↓ move · n new · r rename${selected !== null && removable(selected) ? ' · ⌫ remove' : ''} · esc back`,
-      detailOverride: detailLinesOf(face, selected),
-      detailOverrideConfirms: face.kind !== 'list',
+      detailOverride: read.ok ? detailLinesOf(face, selected, said) : [read.reason],
+      detailOverrideConfirms: !read.ok || face.kind !== 'list',
     };
-  }, [profiles, face, note, selected, list.selectedIndex, mainModel, wordGlow?.peakCell, wordGlow?.gainLevel]);
+  }, [read, profiles, face, said, selected, list.selectedIndex, mainModel, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
   const composition = useBootComposition(core, columns, rows, menuM);
 
