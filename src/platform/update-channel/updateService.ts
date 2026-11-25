@@ -166,7 +166,9 @@ async function runningBundleDirs(): Promise<string[] | null> {
       const bundle = bundleArgOf(entry.process.args)
       return bundle === null ? [] : [bundleDirOf(bundle)]
     })
-    for (const profile of listProfiles()) {
+    const listed = listProfiles()
+    if (!listed.ok) throw new Error(listed.reason)
+    for (const profile of listed.profiles) {
       for (const window of (await readCockpitRegistrations(profile.home)) ?? []) {
         if (typeof window.bundle !== 'string') continue
         const holder = running.find(entry => entry.process.pid === window.pid)
