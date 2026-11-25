@@ -33,7 +33,7 @@ function detailLinesOf(face: ProfilesFace, selected: ProfileRow | null): string[
   if (face.kind === 'remove') {
     return face.busy
       ? [`removing ${face.profile.name} — signing its logins out…`]
-      : [`remove ${face.profile.name}?`, '', 'its logins are signed out and its command is deleted —', `its folder stays at ${face.profile.home}`];
+      : [`remove ${face.profile.name}?`, '', 'its logins are signed out,', 'its command is deleted,', `its folder stays at ${face.profile.home}`];
   }
   return selected === null ? [] : [selected.home, '', startWords(selected)];
 }
@@ -150,10 +150,7 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
       selIdx: list.selectedIndex,
       title: 'profiles (beta)',
       summaryTitle: 'PROFILES',
-      summaryRows: [
-        { key: 'Profiles', value: String(profiles.length) },
-        ...profiles.filter(profile => profile.current).map(profile => ({ key: 'This one', value: profile.name })),
-      ],
+      summaryRows: profiles.filter(profile => profile.current).map(profile => ({ key: 'This one', value: profile.name })),
       environment: bootEnvironment(mainModel, process.cwd()),
       statusRight: note ?? `${profiles.length} profile${profiles.length === 1 ? '' : 's'}`,
       noticeLine: note,
