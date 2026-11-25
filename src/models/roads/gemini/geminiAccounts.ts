@@ -4,7 +4,7 @@ import { chmodSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../../../platform/substrate/durablePublish.js'
 import { getAuthConfigHomeDir } from '../../../platform/environment/envUtils.js'
-import { errorMessageWithCause } from '../../../platform/errors/errors.js'
+import { errorMessageWithCause, getErrnoCode } from '../../../platform/errors/errors.js'
 import { logError } from '../../../platform/logs/errorLog.js'
 import { refuseProofWriteIntoAccountStore } from '../proofHomeGuard.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../platform/network/proxy.js'
@@ -765,7 +765,7 @@ function runGoogleLoopbackConnect(road: GoogleLoopbackRoad, opts: GeminiConnectO
     opts?.onListenerIssue?.(
       `loopback listener unavailable (${error instanceof Error ? error.message : String(error)}) — finish by pasting the redirected URL`,
     )
-    if (!opts?.skipBrowserOpen) void openBrowser(authorizeUrl)
+    if (!opts?.skipBrowserOpen && getErrnoCode(error) !== 'EADDRINUSE') void openBrowser(authorizeUrl)
   })
   server.listen(requestedPort, '127.0.0.1', () => {
     if (!opts?.skipBrowserOpen) void openBrowser(authorizeUrl)

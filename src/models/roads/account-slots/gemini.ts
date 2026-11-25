@@ -40,7 +40,7 @@ export function geminiSlots(reads: AccountSlotReads): AccountSlot[] {
       active: active?.kind === 'plan',
       envPinned: false,
       signedIn: plan !== undefined,
-      ...(plan === undefined ? { stateNote: GEMINI_SIGNIN_EXPIRED_NOTE } : {}),
+      ...(plan === undefined ? { expired: true, stateNote: GEMINI_SIGNIN_EXPIRED_NOTE } : {}),
       removal: { route: 'gemini-plan' },
     })
   }
@@ -55,7 +55,7 @@ export function geminiSlots(reads: AccountSlotReads): AccountSlot[] {
       active: active?.kind === 'oauth',
       envPinned: false,
       signedIn: oauthConnected,
-      ...(oauthConnected ? {} : { stateNote: GEMINI_SIGNIN_EXPIRED_NOTE }),
+      ...(oauthConnected ? {} : { expired: true, stateNote: GEMINI_SIGNIN_EXPIRED_NOTE }),
       removal: { route: 'gemini-oauth' },
     })
   }
