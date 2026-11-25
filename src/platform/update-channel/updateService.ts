@@ -56,6 +56,7 @@ import {
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { ensureBinDirOnPath, manualPathLine, planBinDirOnPath, realPathEntryIo, type PathEntryIo, type PathEntryOutcome } from './installPath.js'
 import { foreignInstallerOf, resolveInstallProvenance } from './installProvenance.js'
+import { listProfiles } from '../profiles/profiles.js'
 import { describeRunningRuntime, payloadRuntimeLine, runningBundlePayloadDir, runtimeLine, type RunningRuntime } from './vendoredRuntime.js'
 import { passedOver } from '../errors/passedOver.js'
 import { hostEnv } from '../environment/hostEnv.js'
@@ -165,11 +166,13 @@ async function runningBundleDirs(): Promise<string[] | null> {
       const bundle = bundleArgOf(entry.process.args)
       return bundle === null ? [] : [bundleDirOf(bundle)]
     })
-    for (const window of (await readCockpitRegistrations()) ?? []) {
-      if (typeof window.bundle !== 'string') continue
-      const holder = running.find(entry => entry.process.pid === window.pid)
-      if (holder === undefined || !processNamesMercury(holder.process.args) || tokenBinding(window.startToken, holder.startToken) === 'stranger') continue
-      dirs.push(bundleDirOf(window.bundle))
+    for (const profile of listProfiles()) {
+      for (const window of (await readCockpitRegistrations(profile.home)) ?? []) {
+        if (typeof window.bundle !== 'string') continue
+        const holder = running.find(entry => entry.process.pid === window.pid)
+        if (holder === undefined || !processNamesMercury(holder.process.args) || tokenBinding(window.startToken, holder.startToken) === 'stranger') continue
+        dirs.push(bundleDirOf(window.bundle))
+      }
     }
     return dirs
   } catch (error) {

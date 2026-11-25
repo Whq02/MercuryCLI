@@ -96,13 +96,13 @@ const end = (child: ChildProcess): Promise<void> =>
     child.kill('SIGKILL')
   })
 const commandLineOf = (pid: number): string => spawnSync('ps', ['-ww', '-o', 'args=', '-p', String(pid)], { encoding: 'utf8' }).stdout.trim()
-const processesDir = (): string => join(process.env.MERCURY_CONFIG_DIR!, 'processes')
-const register = (pid: number, bundle: string, startToken: string | null): void => {
+const processesDir = (home: string = process.env.MERCURY_CONFIG_DIR!): string => join(home, 'processes')
+const register = (pid: number, bundle: string, startToken: string | null, home: string = process.env.MERCURY_CONFIG_DIR!): void => {
   const id = randomUUID()
-  mkdirSync(processesDir(), { recursive: true })
-  writeFileSync(join(processesDir(), `cockpit-${pid}-${id}.json`), JSON.stringify({ schema: 1, id, pid, startToken, exe: NODE, bundle, configHome: process.env.MERCURY_CONFIG_DIR, daemonDir: join(process.env.MERCURY_CONFIG_DIR!, 'daemon'), terminal: null, bornAt: Date.now(), heartbeatAt: Date.now() }, null, 2))
+  mkdirSync(processesDir(home), { recursive: true })
+  writeFileSync(join(processesDir(home), `cockpit-${pid}-${id}.json`), JSON.stringify({ schema: 1, id, pid, startToken, exe: NODE, bundle, configHome: home, daemonDir: join(home, 'daemon'), terminal: null, bornAt: Date.now(), heartbeatAt: Date.now() }, null, 2))
 }
-const forgetWindows = (): void => rmSync(processesDir(), { recursive: true, force: true })
+const forgetWindows = (home?: string): void => rmSync(processesDir(home), { recursive: true, force: true })
 
 console.log('============================================================')
 console.log(' the update prune and the version a live Mercury runs from')
@@ -215,6 +215,35 @@ else {
   process.env.PATH = searchPath
   check("the recorded live daemon's version is kept, the version nobody is recorded on goes, and nothing is left or thrown", blind.kept.includes(DAEMON_VERSION) && whole(roots, DAEMON_VERSION) && blind.removed.length === 1 && blind.removed[0] === SUPERSEDED && blind.left.length === 0, describe(blind))
   daemonRecord(null)
+}
+
+console.log('§10 a window opened under another profile of this install: its registration stands in that profile\'s home')
+if (IS_WINDOWS) console.log('  [SKIP] a Windows command line always names the bundle, so no registration decides there')
+else {
+  const first = process.env.MERCURY_CONFIG_DIR!
+  const second = `${first}2`
+  mkdirSync(second, { recursive: true })
+  writeFileSync(join(first, 'profiles.json'), JSON.stringify({ profiles: [{ id: 2 }] }))
+  writeFileSync(join(second, 'profile.json'), JSON.stringify({ first, id: 2 }))
+  for (const [updater, holder] of [[first, second], [second, first]] as const) {
+    const roots = layoutFor(`window-of-${holder === second ? 'profile-2' : 'profile-1'}`)
+    daemonRecord(null)
+    const bundle = join(roots.versionsDir, DAEMON_VERSION, 'mercury.mjs')
+    const window = await startFrom(bundle, WINDOW_BODY)
+    register(window.pid!, bundle, await getProcessStartTokenAsync(window.pid!), holder)
+    process.env.MERCURY_CONFIG_DIR = updater
+    const report = await pruneAsTheUpdateDoes(roots)
+    const told = `an update run under profile ${updater === first ? 1 : 2}`
+    check(`${told} keeps whole the version a window of profile ${holder === first ? 1 : 2} runs from`, report.kept.includes(DAEMON_VERSION) && !report.removed.includes(DAEMON_VERSION) && whole(roots, DAEMON_VERSION), describe(report))
+    check(`${told} still takes the superseded version nobody runs from`, report.removed.includes(SUPERSEDED) && !existsSync(join(roots.versionsDir, SUPERSEDED)), describe(report))
+    await end(window)
+    const later = await pruneAsTheUpdateDoes(roots)
+    check(`${told} takes that version once the window has closed`, later.removed.includes(DAEMON_VERSION) && !existsSync(join(roots.versionsDir, DAEMON_VERSION)), describe(later))
+    process.env.MERCURY_CONFIG_DIR = first
+    forgetWindows(holder)
+  }
+  rmSync(join(first, 'profiles.json'), { force: true })
+  rmSync(second, { recursive: true, force: true })
 }
 
 for (const child of started) await end(child)
