@@ -12,6 +12,7 @@ prove-update-installer-road.ts
 prove-update-source-checkout.ts
 prove-source-checkout-words.ts
 prove-install-layout.ts
+prove-profiles.ts
 prove-install-path-new-terminal.ts
 prove-update-cleanup-eperm.ts
 prove-update-prune-live-version.ts
