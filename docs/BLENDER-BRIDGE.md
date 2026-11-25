@@ -90,6 +90,14 @@ each with truncation counted; a raise answers `PYTHON_EXCEPTION` with the
 type, message, and a bounded traceback tail; a variable named `result` is
 consumed by the answer as its `repr`. The namespace persists between runs.
 
+Over the bridge, every run ends with one undo step named `Mercury python_run`.
+Blender does not count changes made from Python as unsaved work, but it
+counts an undo step, so after a run the window's title shows the file as
+unsaved and `blend_open` refuses `BLEND_DIRTY` until you save. Edit > Undo
+takes the run back. A run that only read is marked too: the bridge cannot
+tell a read from a change. Headless runs are untouched; each process ends
+with its call.
+
 In place of `source` a call may name `script`, a Python file inside the
 working tree, with `argv`, a list of strings. The file runs as `__main__`,
 and `sys.argv` reads as Blender writes it when a script is named on its

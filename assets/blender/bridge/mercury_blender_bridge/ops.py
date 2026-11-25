@@ -13,6 +13,18 @@ RENDER_GUARD_HINT = (
     "wait for render_finished (or read render_state); mutate/exec verbs refuse during renders, reads stay free"
 )
 
+PYTHON_RUN_UNDO_STEP = "Mercury python_run"
+
+
+def _mark_unsaved():
+    try:
+        bpy.ops.ed.undo_push(message=PYTHON_RUN_UNDO_STEP)
+    except Exception as exc:
+        ring.bridge_report(
+            "warning",
+            "python_run could not add its undo step (%s), so Blender may not count its changes as unsaved: save before opening another file" % exc,
+        )
+
 
 def _err(code, message, hint=None):
     body = {"code": code, "message": message}
@@ -230,12 +242,17 @@ def python_run(args):
     stdout_io = io.StringIO()
     stderr_io = io.StringIO()
     t0 = time.monotonic()
+    code = None
     try:
+        code = compile(source, "<mercury_python_run>", "exec")
         with contextlib.redirect_stdout(stdout_io), contextlib.redirect_stderr(stderr_io):
-            exec(compile(source, "<mercury_python_run>", "exec"), state.python_namespace)
+            exec(code, state.python_namespace)
     except Exception as exc:
         tail = "".join(traceback.format_exc().splitlines(keepends=True)[-12:])[:4096]
         return _err("PYTHON_EXCEPTION", "%s: %s" % (type(exc).__name__, exc), "traceback (tail): " + tail)
+    finally:
+        if code is not None:
+            _mark_unsaved()
     elapsed_ms = int((time.monotonic() - t0) * 1000)
 
     def cap(text):

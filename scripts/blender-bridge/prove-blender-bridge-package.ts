@@ -115,11 +115,42 @@ const PROBE = [
   "    out['newestError'] = type(error).__name__ + ': ' + str(error)",
   'finally:',
   '    bridge.stop()',
+  'handlers.load_post = []; handlers.save_post = []; handlers.render_complete = []; handlers.render_cancel = []',
+  'timers = []',
+  'app.timers = types.SimpleNamespace(register=lambda fn, first_interval=0, persistent=False: timers.append(fn), unregister=lambda fn: timers.remove(fn), is_registered=lambda fn: fn in timers)',
+  "app.version_string = '5.3.0'; app.background = False",
+  'undo_steps = []; opens = []',
+  'def undo_push(message=""):',
+  "    undo_steps.append(message); bpy.data.is_dirty = True; return {'FINISHED'}",
+  'def open_mainfile(filepath=""):',
+  "    opens.append(filepath); bpy.data.is_dirty = False; return {'FINISHED'}",
+  'bpy.ops = types.SimpleNamespace(ed=types.SimpleNamespace(undo_push=undo_push), wm=types.SimpleNamespace(open_mainfile=open_mainfile))',
+  'bpy.data.is_dirty = False',
+  "free = socket.socket(); free.bind(('127.0.0.1', 0)); port = free.getsockname()[1]; free.close()",
+  "open(d + '/config.json', 'w', encoding='utf-8').write(json.dumps({'port': port}))",
+  'class _RestrictData:',
+  '    __slots__ = ()',
+  'real_data = bpy.data; bpy.data = _RestrictData(); init = None',
+  'try:',
+  "    spec = importlib.util.spec_from_file_location('mbb', d + '/__init__.py', submodule_search_locations=[d])",
+  "    init = importlib.util.module_from_spec(spec); sys.modules['mbb'] = init; spec.loader.exec_module(init)",
+  '    init.register()',
+  "    out['register'] = 'enabled'",
+  'except Exception as error:',
+  "    out['register'] = type(error).__name__ + ': ' + str(error)",
+  'finally:',
+  '    bpy.data = real_data',
+  "if out['register'] == 'enabled':",
+  '    init.unregister()',
+  "blend = d + '/probe.blend'; open(blend, 'w').write('')",
+  "ran = ops.dispatch('python_run', {'source': \"made = 'what the agent made'\"})",
+  "answer = ops.dispatch('blend_open', {'path': blend})",
+  "out['runOk'] = bool(ran[0]); out['openAfterRun'] = 'opened' if answer[0] else answer[1].get('code'); out['undoSteps'] = undo_steps; out['opens'] = len(opens)",
   'print(json.dumps(out))',
   '',
 ].join('\n')
 
-type BridgeProbe = { python?: string; emitWithAppendRaising?: string; emitAppends?: number; eventsNotOurs?: string[]; reportsNotOurs?: number; eventsOurs?: string[]; activeAfter?: boolean; newest?: { firstGreeted: boolean; firstAnswersBesideAProbe: boolean; secondGreeted: boolean; firstDroppedAtSecondHello: boolean }; newestError?: string }
+type BridgeProbe = { python?: string; emitWithAppendRaising?: string; emitAppends?: number; eventsNotOurs?: string[]; reportsNotOurs?: number; eventsOurs?: string[]; activeAfter?: boolean; newest?: { firstGreeted: boolean; firstAnswersBesideAProbe: boolean; secondGreeted: boolean; firstDroppedAtSecondHello: boolean }; newestError?: string; register?: string; runOk?: boolean; openAfterRun?: string; undoSteps?: string[]; opens?: number }
 
 type BridgeRun = { ran: string; probe: BridgeProbe; said: string }
 let bridgeRun: BridgeRun | null = null
@@ -192,11 +223,11 @@ section('2. bl_info — the legacy-add-on identity (the ruling)')
     init.includes('"blender": (4, 2, 0)'),
   )
   check('register/unregister both defined', init.includes('def register():') && init.includes('def unregister():'))
-  const registerBody = init.slice(init.indexOf('def register():'), init.indexOf('def unregister():'))
+  const enable = bridgeUnderPython()
   check(
-    'register() reads no member of bpy.data: Blender enables an add-on with bpy.data swapped for a _RestrictData (addon_utils.enable runs register() inside RestrictBlend), so a read there fails the enable',
-    registerBody.length > 0 && !registerBody.includes('bpy.data.'),
-    registerBody.match(/bpy\.data\.\w+/)?.[0],
+    'the add-on enables the way Blender enables it: imported and register()ed with bpy.data swapped for a _RestrictData that has no members (addon_utils.enable, RestrictBlend), and its bridge starts',
+    enable.probe.register === 'enabled',
+    `under ${enable.ran}: ${enable.probe.register ?? enable.said.slice(-300)}`,
   )
   check('the port config road reads config.json beside the add-on', init.includes('config.json') && init.includes('_config_port'))
   check('the token path is the file beside the add-on', init.includes('os.path.join(os.path.dirname(__file__), "token")'))
@@ -270,6 +301,11 @@ section('5. the verb mechanics live in the source')
   check('python_run answers PYTHON_EXCEPTION with a bounded traceback tail', ops.includes('PYTHON_EXCEPTION') && ops.includes('traceback (tail):'))
   check('python_run CONSUMES `result` (popped — no stale leak)', ops.includes('state.python_namespace.pop("result")'))
   check('python_run redirects stdout/stderr for the run only', ops.includes('redirect_stdout') && ops.includes('redirect_stderr'))
+  check(
+    'a python_run through the bridge leaves the file marked unsaved with one undo step, so the next blend_open refuses BLEND_DIRTY and discards nothing',
+    bridge.probe.runOk === true && bridge.probe.openAfterRun === 'BLEND_DIRTY' && bridge.probe.undoSteps?.length === 1 && bridge.probe.opens === 0,
+    `under ${bridge.ran}: the open after a run answered ${bridge.probe.openAfterRun ?? bridge.said.slice(-300)}; undo steps ${JSON.stringify(bridge.probe.undoSteps ?? [])}; opens ${bridge.probe.opens ?? '?'}`,
+  )
   check('@persistent on the lifecycle handlers (they survive loads)', (ops.match(/@persistent/g) ?? []).length >= 4)
   check('load_post updates the snapshot AND emits blend_changed', ops.includes('_on_load_post') && ops.includes('"blend_changed"'))
   const ring = file(`${MOD}/ring.py`)
