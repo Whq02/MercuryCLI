@@ -35,7 +35,7 @@
                              │ │                                                                                                │ │
                              │ │ context —                                                                                      │ │
                              │ │ effort  low medium high [xhigh] max · ctrl+e changes it                                        │ │
-                             │ │ Effort set to xhigh · not saved as your default: ~/mercury/settings.json — permission denied   │ │
+                             │ │ Effort set to xhigh · not saved as your default — try again                                    │ │
                              │ │ ↑↓ select · ↵ switch · ctrl+w context · → ← fold · tab to search · esc or click outside closes │ │
                              │ │ pgup/pgdn page                                                                                 │ │
                              │ ╰────────────────────────────────────────────────────────────────────────────────────────────────╯ │

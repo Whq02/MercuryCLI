@@ -53,7 +53,7 @@ if (process.argv.includes('--child')) {
   let failures = 0
   const check = (label: string, ok: boolean, detail = ''): void => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok || !detail ? '' : ` — ${detail}`}`); if (!ok) failures++ }
   const LINES = {
-    refused: 'Effort set to xhigh · not saved as your default: ~/mercury/settings.json — permission denied',
+    refused: 'Effort set to xhigh · not saved as your default — try again',
     saved: 'Effort set to xhigh · saved as your default for future sessions',
   } as const
   try {
