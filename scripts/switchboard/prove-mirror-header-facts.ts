@@ -152,7 +152,7 @@ function capture(cols: number, rows: number): Map<string, string[]> {
     argv: ['node', BIN],
     cwd: REPO,
     sends: [
-      { data: '', awaitText: 'SESSIONS', requireAwait: true, awaitSettleTicks: 4, mark: 'working' },
+      { data: '', awaitText: 'status & title', requireAwait: true, awaitSettleTicks: 4, mark: 'working' },
       { afterPrevTicks: 3, data: DOWN, awaitPattern: `▸ [^│\\n]*${WORKING.slice(0, 12)}` },
       { data: '', awaitText: `${RESTING} ·`, requireAwait: true, awaitSettleTicks: 4, mark: 'resting' },
     ],

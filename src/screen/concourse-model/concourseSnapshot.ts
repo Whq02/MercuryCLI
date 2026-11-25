@@ -1107,7 +1107,7 @@ export async function buildConcourseSnapshot(
   )
   const parkedRows = [...parkedRecordRows, ...parkedTranscriptRows]
   const parkedGroupRows = [...(foreignParkedRow !== undefined ? [foreignParkedRow] : []), ...parkedRows]
-  if (parkedGroupRows.length > 0) groups.push({ id: 'parked', label: 'PARKED', rows: parkedGroupRows })
+  if (parkedGroupRows.length > 0) groups.push({ id: 'parked', label: 'parked', rows: parkedGroupRows })
   rows.push(...parkedTranscriptRows)
   if (foreignParkedRow !== undefined) rows.push(foreignParkedRow)
   const { composeWorkerModelRegistry, canonicalWorkerModelId, defaultWorkerModelId } = await import('./workerModels.js')
@@ -1330,7 +1330,7 @@ function boardGroupsOf(
 ): { groups: ConcourseSnapshotV1['groups']; elsewhere: ConcourseElsewhereV1[] } {
   const groups: ConcourseSnapshotV1['groups'] = []
   const attachedRows = byBucket(['attached'])
-  if (attachedRows.length > 0) groups.push({ id: 'attached', label: 'WITH YOU', rows: attachedRows })
+  if (attachedRows.length > 0) groups.push({ id: 'attached', label: 'with you', rows: attachedRows })
   const needsYouRows = byBucket(['needs-you'])
   const reviewRows = byBucket(['ready-to-review'])
   const workingRows = byBucket(['working'])
@@ -1338,13 +1338,13 @@ function boardGroupsOf(
   const queuedRows = byBucket(['queued'])
   const pausedRows = byBucket(['paused'])
   const stoppedRows = byBucket(['stopped'])
-  if (needsYouRows.length > 0) groups.push({ id: 'needs-you', label: 'NEEDS YOU', rows: needsYouRows })
-  if (reviewRows.length > 0) groups.push({ id: 'ready-to-review', label: 'READY TO REVIEW', rows: reviewRows })
-  if (workingRows.length > 0) groups.push({ id: 'working', label: 'WORKING', rows: workingRows })
-  if (startingRows.length > 0) groups.push({ id: 'starting', label: 'STARTING', rows: startingRows })
-  if (queuedRows.length > 0) groups.push({ id: 'queued', label: 'QUEUED', rows: queuedRows })
-  if (pausedRows.length > 0) groups.push({ id: 'paused', label: 'PAUSED', rows: pausedRows })
-  if (stoppedRows.length > 0) groups.push({ id: 'stopped', label: 'STOPPED', rows: stoppedRows })
+  if (needsYouRows.length > 0) groups.push({ id: 'needs-you', label: 'needs you', rows: needsYouRows })
+  if (reviewRows.length > 0) groups.push({ id: 'ready-to-review', label: 'ready to review', rows: reviewRows })
+  if (workingRows.length > 0) groups.push({ id: 'working', label: 'working', rows: workingRows })
+  if (startingRows.length > 0) groups.push({ id: 'starting', label: 'starting', rows: startingRows })
+  if (queuedRows.length > 0) groups.push({ id: 'queued', label: 'queued', rows: queuedRows })
+  if (pausedRows.length > 0) groups.push({ id: 'paused', label: 'paused', rows: pausedRows })
+  if (stoppedRows.length > 0) groups.push({ id: 'stopped', label: 'stopped', rows: stoppedRows })
   const elsewhere: ConcourseElsewhereV1[] = projectActivity(allRows, {
     current: project,
     excludeSessionId: focusedSessionId,
@@ -1376,7 +1376,7 @@ function boardGroupsOf(
       door: { kind: 'pick-project', more: moreElsewhere },
     })
   }
-  if (doorRows.length > 0) groups.push({ id: 'elsewhere', label: 'OTHER PROJECTS', rows: doorRows })
+  if (doorRows.length > 0) groups.push({ id: 'elsewhere', label: 'other projects', rows: doorRows })
   rows.push(...doorRows)
   return { groups, elsewhere }
 }

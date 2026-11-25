@@ -448,7 +448,7 @@ for (const [cols, rows] of [
       { afterPrevTicks: 2, data: 'stream a long reply please' },
       { afterPrevTicks: 4, data: '\r' },
       g('esc interrupts', '/concourse\r', { awaitSettleTicks: 8, mark: 'mid-turn-chat' }),
-      g('WORKING', '\t', { awaitSettleTicks: 4, mark: 'board' }),
+      g('working · ', '\t', { awaitSettleTicks: 4, mark: 'board' }),
       { afterPrevTicks: 3, data: '\r' },
       { afterPrevTicks: 3, data: '\r' },
       g(keyHintLabel('⇧← back'), '', { awaitSettleTicks: 3, mark: 'back' }),
@@ -467,7 +467,7 @@ for (const [cols, rows] of [
       const partialOnScreen = /streaming-word-0[1-9]/.test(midTurn)
       console.log(`  [PAINT] u5 ${cols}x${rows}: partial reply text visible mid-turn: ${partialOnScreen ? 'YES' : 'NO (the reply lands whole when the runner settles it)'}`)
       check(`u5 ${cols}x${rows}: the reply streams on screen mid-turn (the live tail paints partial words)`, partialOnScreen)
-      check(`u5 ${cols}x${rows}: the board shows the boot session as an ordinary WORKING row`, board.includes('WORKING'), board === '' ? 'no mark' : '')
+      check(`u5 ${cols}x${rows}: the board shows the boot session as an ordinary working row`, board.includes('working · '), board === '' ? 'no mark' : '')
       check(`u5 ${cols}x${rows}: hopping back lands in the same session mid-turn (status row + ⇧← back)`, back.includes(keyHintLabel('⇧← back')) && back.includes('stream a long reply please'))
       const backMidTurn = back.includes('esc interrupts')
       console.log(`  [PAINT] u5 ${cols}x${rows}: the hopped-into chat caught the reply ${backMidTurn ? 'MID-TURN (partial words + the live status row)' : 'SETTLED (the hop landed after the settle)'}`)

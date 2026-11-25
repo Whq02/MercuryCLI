@@ -181,15 +181,15 @@ try {
         writeFileSync(join(KEEP_DIR, `drive-${SIZE.cols}x${SIZE.rows}-at${g.atMs}.txt`), g.rows.map(r => r.replace(/\s+$/, '')).join('\n'))
       }
     }
-    const boardFrames = grabs.filter(g => text(g).includes('SESSIONS'))
+    const boardFrames = grabs.filter(g => text(g).includes('status & title'))
     check('the board painted', boardFrames.length > 0, `frames: ${boardFrames.map(g => g.atMs).join(',')}`)
     const paneLeft = (g: { rows: string[] }): number => {
-      const head = g.rows.find(r => r.includes('STATUS & TITLE')) ?? ''
-      return head.lastIndexOf('│', head.indexOf('STATUS & TITLE'))
+      const head = g.rows.find(r => r.includes('status & title')) ?? ''
+      return head.lastIndexOf('│', head.indexOf('status & title'))
     }
     const listBandRows = (g: { rows: string[] }): string[] => {
       const at = paneLeft(g)
-      const start = g.rows.findIndex(r => r.includes('STATUS & TITLE'))
+      const start = g.rows.findIndex(r => r.includes('status & title'))
       if (start < 0 || at < 0) return []
       const rest = g.rows.slice(start + 1).map(r => r.slice(at))
       const end = rest.findIndex(r => r.startsWith('╰'))
@@ -204,7 +204,7 @@ try {
     if (SIZE.cols < 214) {
       console.log(`  [SKIP] §1 §2 §6 the NOW cell: at ${SIZE.cols} columns the list pane carries no NOW column (it stands from 214 columns); this drive reads it at its default size, 220x50`)
     } else {
-      const nowColumn = boardFrames.filter(g => g.rows.some(r => /PROJECT\s+NOW\s+LAST USED/.test(r)))
+      const nowColumn = boardFrames.filter(g => g.rows.some(r => /project\s+now\s+last used/.test(r)))
       check('the list pane carries its NOW column at this width', nowColumn.length > 0 && nowColumn.length === boardFrames.length, `${nowColumn.length} of ${boardFrames.length} board frames`)
       const streamFrames = boardFrames.filter(g => /tile-alpha (\d{3})/.test(alphaRowText(g)) && !/running/.test(alphaRowText(g)))
       check('§1 the NOW cell streams (tile text in Alpha row)', streamFrames.length >= 2, `frames: ${streamFrames.map(g => g.atMs).join(',') || 'none'}`)
@@ -228,7 +228,7 @@ try {
       opened.length > 0,
       mark === undefined ? `the live view never painted "${MIRROR_MARK}": ${run.outcome.report?.unfired.join(' · ') || run.outcome.reason || 'no driver report'}` : `mark at ${markAt}ms; frames: ${opened.map(g => g.atMs).join(',') || 'none'}`,
     )
-    check('§5 the peek is not a hop (the board frame stays)', opened.length > 0 && opened.every(g => text(g).includes('SESSIONS')))
+    check('§5 the peek is not a hop (the board frame stays)', opened.length > 0 && opened.every(g => text(g).includes('status & title')))
     check('§5 the list keeps its rows beside the live view (nothing displaced)', opened.length > 0 && opened.every(g => /Alpha stream/.test(bandText(g)) && /Beta asker/.test(bandText(g))))
     const selTitle = (g: { rows: string[] }): string => {
       const row = listBandRows(g).find(r => r.includes('▸'))

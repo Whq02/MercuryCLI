@@ -98,12 +98,12 @@ export function switchboardGeometry(
     }
   }
   const interior = cols - 4
-  const mainRows = rows - 4
+  const mainRows = rows - 2
   const mainTop = 1
   const mainEnd = mainTop + mainRows - 1
   const mainBand: [number, number] = [mainTop, mainEnd]
   const statusTop = mainTop + mainRows
-  const helpTop = statusTop + 3
+  const helpTop = statusTop + 1
   if (profile === 'wide') {
     const managerW = Math.max(MANAGER_MIN_COLS, Math.round((interior * MANAGER_SHARE_PCT) / 100))
     const liveW = interior - managerW - 1
@@ -349,7 +349,7 @@ export function ConcourseLayout({
             {thirdPane}
           </Box>
         )}
-        <Box flexDirection="column" flexShrink={0} height={geo.constrained ? 0 : 3} overflow="hidden">
+        <Box flexDirection="column" flexShrink={0} height={geo.constrained ? 0 : 1} overflow="hidden">
           <ConcourseStatusRail
             snapshot={snapshot}
             width={interior}

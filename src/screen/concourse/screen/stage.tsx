@@ -103,7 +103,7 @@ export function concourseStage({ snapshot, callbacks, reducedStage, answerCapaci
         <TrustAskModal cols={cols} rows={termRows} dir={trustAsk.dir} onAnswer={answerTrustAsk} />
       ) : null}
       {rowPick !== null && rowPick.kind === 'model' ? (
-        <FloatingPopup host={{ left: 0, top: Math.max(0, geo.mainBand[0] - 1), columns: cols, rows: Math.min(geo.mainRows + 2, termRows - Math.max(0, geo.mainBand[0] - 1)) }} width={panelWidth(cols, MODEL_PICKER_PANEL)} top={geo.mainBand[0]}>
+        <FloatingPopup host={{ left: 0, top: Math.max(0, geo.mainBand[0] - 1), columns: cols, rows: Math.min(geo.mainRows + 1, Math.max(0, geo.helpTop - 1) - Math.max(0, geo.mainBand[0] - 1)) }} width={panelWidth(cols, MODEL_PICKER_PANEL)} top={geo.mainBand[0]}>
           {size => <ModalContext.Provider value={{ rows: size.rows, columns: cols, scrollRef: null }}>
             <MercurySessionModelPicker
               currentModel={sessionRows.find(r => r.sessionId === rowPick.sessionId)?.modelId}
@@ -159,7 +159,7 @@ export function concourseStage({ snapshot, callbacks, reducedStage, answerCapaci
         </FloatingPopup>
       ) : null}
       {modelDefaultOpen ? (
-        <FloatingPopup host={{ left: 0, top: Math.max(0, geo.mainBand[0] - 1), columns: cols, rows: Math.min(geo.mainRows + 2, termRows - Math.max(0, geo.mainBand[0] - 1)) }} width={panelWidth(cols, MODEL_PICKER_PANEL)} top={geo.mainBand[0]}>
+        <FloatingPopup host={{ left: 0, top: Math.max(0, geo.mainBand[0] - 1), columns: cols, rows: Math.min(geo.mainRows + 1, Math.max(0, geo.helpTop - 1) - Math.max(0, geo.mainBand[0] - 1)) }} width={panelWidth(cols, MODEL_PICKER_PANEL)} top={geo.mainBand[0]}>
           {size => <ModalContext.Provider value={{ rows: size.rows, columns: cols, scrollRef: null }}>
             <MercuryModelDefaultPicker
               onDone={() => {

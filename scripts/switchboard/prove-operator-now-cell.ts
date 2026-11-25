@@ -88,13 +88,13 @@ async function rowsAt(cols: number, rows: number, scene: Scene): Promise<Record<
   })
   const mounted = await mountOffscreen(h(AppStateProvider, { children: h(ThemeProvider, {}, layout) }), cols, rows)
   try {
-    await waitFor(() => mounted.screen().includes('STATUS & TITLE') && mounted.screen().includes('Audit billing'), 5000)
+    await waitFor(() => mounted.screen().includes('status & title') && mounted.screen().includes('Audit billing'), 5000)
     const lines = mounted.lines()
-    const header = lines.find(l => l.includes('STATUS & TITLE')) ?? ''
-    const from = header.indexOf('STATUS & TITLE') - 1
-    const to = header.indexOf('LAST USED') + 'LAST USED'.length
-    const head = lines.findIndex(l => l.includes('STATUS & TITLE'))
-    const rail = lines.findIndex((l, i) => i > head && /NEEDS YOU · \d/.test(l.slice(from)) && !l.includes('⊞'))
+    const header = lines.find(l => l.includes('status & title')) ?? ''
+    const from = header.indexOf('status & title') - 1
+    const to = header.indexOf('last used') + 'last used'.length
+    const head = lines.findIndex(l => l.includes('status & title'))
+    const rail = lines.findLastIndex((l, i) => i > head && /needs you · \d/.test(l.slice(from)))
     const list = lines.slice(head + 1, rail === -1 ? undefined : rail)
     const cut = (needle: string): string => (list.find(l => l.slice(from).includes(needle)) ?? '').slice(from, to)
     return {
@@ -119,9 +119,9 @@ section('§2 a list too narrow for the NOW column: the rows that need the operat
 for (const [cols, rows] of NARROW) {
   const painted = await rowsAt(cols, rows, 'operator')
   const plain = await rowsAt(cols, rows, 'plain')
-  const zone = painted.header.length - painted.header.indexOf('PROJECT')
+  const zone = painted.header.length - painted.header.indexOf('project')
   const dump = Object.entries(painted).map(([k, v]) => `${k}=[${v}]`).join(' ')
-  check(`${cols} columns: no NOW column heads the list`, !painted.header.includes('NOW') && painted.header.includes('PROJECT') && painted.header.endsWith('LAST USED'), painted.header)
+  check(`${cols} columns: no NOW column heads the list`, !painted.header.includes('now') && painted.header.includes('project') && painted.header.endsWith('last used'), painted.header)
   check(`${cols} columns: the crashed row says its reason where its project and age stood`, /crashed — ended/.test(painted.crash) && !painted.crash.includes('Moodle') && !painted.crash.includes('04m'), painted.crash)
   check(`${cols} columns: the asking row says it waits for an answer`, /waiting for your/.test(painted.ask) && !painted.ask.includes('02m'), painted.ask)
   check(`${cols} columns: a headless asker leads with its kind and no workflows lead crowds the cell out`, /headless · wait/.test(painted.headless) && !painted.headless.includes('workflows'), painted.headless)
@@ -135,7 +135,7 @@ for (const [cols, rows] of NARROW) {
 section('§3 a list wide enough for the NOW column is as it was: every row keeps its cells and the column says what it said')
 for (const [cols, rows] of [[214, 50], [96, 64]] as Array<[number, number]>) {
   const painted = await rowsAt(cols, rows, 'operator')
-  check(`${cols} columns: the NOW column heads the list between PROJECT and LAST USED`, /PROJECT\s+NOW\s+LAST USED$/.test(painted.header), painted.header)
+  check(`${cols} columns: the NOW column heads the list between PROJECT and LAST USED`, /project\s+now\s+last used$/.test(painted.header), painted.header)
   check(`${cols} columns: the crashed, asking and refused rows keep project and age beside their words`, /Moodle\s+crashed — /.test(painted.crash) && painted.crash.includes('04m') && /waiting for your/.test(painted.ask) && painted.ask.includes('02m') && /park refused/.test(painted.refused) && painted.refused.includes('07m'), `${painted.crash} | ${painted.ask} | ${painted.refused}`)
   check(`${cols} columns: the column still carries a park in flight and the activity line`, /parking — /.test(painted.parking) && /Bash · bun/.test(painted.plain), `${painted.parking} | ${painted.plain}`)
 }

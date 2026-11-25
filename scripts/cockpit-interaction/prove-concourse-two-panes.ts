@@ -129,7 +129,7 @@ const handleRe = new RegExp(`(^|[^\\w])${HANDLE}([^\\w]|$)`)
 const COORDINATOR_WORDS = /coordinator|⌃s/i
 const slice = (lines: string[], top: number, bottom: number, x0: number, x1: number): string[] =>
   lines.slice(top, bottom + 1).map(l => l.slice(x0, x1 + 1))
-const statusRowOf = (lines: string[]): number => lines.findIndex((l, i) => i > lines.length - 6 && l.includes('▚▛▀▜▞'))
+const statusRowOf = (lines: string[]): number => lines.findIndex((l, i) => i > lines.length - 6 && l.includes('Moodle ⌄') && l.includes(' seats'))
 
 function twoColumns(lines: string[]): { left: [number, number]; right: [number, number]; bottom: number } | null {
   const top = lines[0] ?? ''
@@ -165,18 +165,18 @@ function boardLaws(tag: string, lines: string[], headerLine: RegExp): void {
   )
   check(
     `${tag}·5 the right column is the session list: SESSIONS with "+ new session · n" on its title row`,
-    /SESSIONS\s+\+ new session · n/.test(right[1] ?? ''),
+    /sessions\s+\+ new session · n/.test(right[1] ?? ''),
     (right[1] ?? '').trim(),
   )
-  const header = right.find(l => l.includes('STATUS & TITLE')) ?? ''
+  const header = right.find(l => l.includes('status & title')) ?? ''
   check(
-    `${tag}·6 the column header reads STATUS & TITLE · PROJECT · LAST USED (AGE is gone)`,
-    header.includes('PROJECT') && /LAST USED\s*│?\s*$/.test(header.trimEnd()) && !/\bAGE\b/.test(rightText),
+    `${tag}·6 the column header reads status & title · project · last used (AGE is gone)`,
+    header.includes('project') && /last used\s*│?\s*$/.test(header.trimEnd()) && !/\bAGE\b/.test(rightText),
     header.trim(),
   )
   const rowAt = (needle: string): number => right.findIndex(l => l.includes(needle))
-  const needs = rowAt('NEEDS YOU · ')
-  const lastListRow = right.reduce((at, l, i) => (i < needs && /[⊞▸●◑◒◓□⋮]/.test(l) ? i : at), -1)
+  const needs = rowAt('needs you · ')
+  const lastListRow = right.reduce((at, l, i) => (i < needs && /[▸●◑◒◓□⋮]/.test(l) ? i : at), -1)
   const legend = rowAt('↑↓ choose · ↵ enter · n new · p pause')
   check(
     `${tag}·7 the NEEDS YOU block sits inside the right pane below the list, its ask row under it`,
@@ -192,19 +192,18 @@ function boardLaws(tag: string, lines: string[], headerLine: RegExp): void {
   const status = statusRowOf(lines)
   const statusText = (lines[status] ?? '').trimEnd()
   check(
-    `${tag}·10 the status row is "▚▛▀▜▞ │ Moodle ⌄ … N/M seats" — no live, no need you, no name`,
-    status > 0 && /▚▛▀▜▞ │ Moodle ⌄\s+\d+\/\d+ seats │$/.test(statusText) && !/live|need/.test(statusText) && !handleRe.test(statusText),
-    statusText.trim(),
+    `${tag}·10 the status row is "Moodle ⌄ … N/M seats" — no live, no need you, no name`,
+    status > 0 && /Moodle ⌄\s+\d+\/\d+ seats$/.test(statusText) && !/live|need/.test(statusText) && !handleRe.test(statusText),
   )
   check(`${tag}·11 the legend row carries no coordinator model key`, !(lines[lines.length - 1] ?? '').includes('⌃s'), (lines[lines.length - 1] ?? '').trim())
 }
 
 console.log('W — the wide board (160×48, the list focused on entry): live view left, the session manager right')
-const wide = capture('board-wide-160x48', boardCfg(160, 48, 'STATUS & TITLE'), boardEnv(boardFixture(), 'wide-off'), REPO)
+const wide = capture('board-wide-160x48', boardCfg(160, 48, 'status & title'), boardEnv(boardFixture(), 'wide-off'), REPO)
 boardLaws('W', wide, /^. Audit billing receipts · Moodle · Opus 5\.5 · max\s+↵ enter session .$/)
 
 console.log('S — the board at 110×34: the same two panes side by side')
-const mid = capture('board-mid-110x34', boardCfg(110, 34, 'STATUS & TITLE'), boardEnv(boardFixture(), 'mid-off'), REPO)
+const mid = capture('board-mid-110x34', boardCfg(110, 34, 'status & title'), boardEnv(boardFixture(), 'mid-off'), REPO)
 boardLaws('S', mid, /^. Audit billing receipts · Moodle · \S.*↵ enter session .$/)
 
 console.log('C — the compact board (96×30): the live view stacks on top, the session list below')
@@ -231,7 +230,7 @@ console.log('R — choosing another row switches the live view (160×48: ↓ on 
 {
   const lines = capture(
     'board-wide-160x48-down',
-    boardCfg(160, 48, 'Tracing the callback owner in src/auth.', [{ atTick: 120, awaitText: 'STATUS & TITLE', minTick: 5, awaitSettleTicks: 4, requireAwait: true, data: DOWN }]),
+    boardCfg(160, 48, 'Tracing the callback owner in src/auth.', [{ atTick: 120, awaitText: 'status & title', minTick: 5, awaitSettleTicks: 4, requireAwait: true, data: DOWN }]),
     boardEnv(boardFixture(), 'wide-down'),
     REPO,
   )
