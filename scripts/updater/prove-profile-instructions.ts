@@ -36,9 +36,10 @@ if (mode === '--read') {
   const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   const { getInstructionFilePath, getUserRulesDir } = await import('../../src/platform/config/derived.ts')
   const { getInstructionFiles } = await import('../../src/sessions/instructions/instructionFiles.ts')
+  const { isInstructionEstatePath } = await import('../../src/permissions/rules/filesystem.ts')
   enableConfigs()
   const files = await getInstructionFiles()
-  console.log(JSON.stringify({ userFile: getInstructionFilePath('User'), rulesDir: getUserRulesDir(), read: files.map(file => ({ type: file.type, origin: file.origin, path: file.path, content: file.content })) }))
+  console.log(JSON.stringify({ userFile: getInstructionFilePath('User'), rulesDir: getUserRulesDir(), read: files.map(file => ({ type: file.type, origin: file.origin, path: file.path, content: file.content })), estate: rest.slice(1).map(path => isInstructionEstatePath(path)) }))
   process.exit(0)
 }
 
@@ -49,15 +50,15 @@ const { createProfile } = await import('../../src/platform/profiles/profiles.ts'
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail} — fix firstProfileHome in src/platform/profiles/profiles.ts, or its use by the user file and the user rules folder in src/platform/config/derived.ts`}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail} — fix firstProfileHome in src/platform/profiles/profiles.ts, or its use by the user file and the user rules folder in src/platform/config/derived.ts and by isProductConfigPath in src/permissions/rules/filesystem.ts`}`)
 }
 const show = (value: unknown): string => JSON.stringify(value)
 const here = join(userHome, 'work', 'here')
 mkdirSync(here, { recursive: true })
 const SAID = { file: 'Profile 1 says: answer in plain words.', rule: 'Profile 1 rules: no tabs.', own: 'A file of that name in the home of profile 2.', ownRule: 'A rule in the home of profile 2.', stray: 'A home with no marker says this.', strayRule: 'A home with no marker rules this.' }
-type Reading = { userFile: string; rulesDir: string; read: Array<{ type: string; origin?: string; path: string; content: string }> }
-const reading = (home: string): Reading => {
-  const ran = spawnSync(process.execPath, [import.meta.path, '--read', userHome, home], { encoding: 'utf8', cwd: here, env: process.env, timeout: 120_000 })
+type Reading = { userFile: string; rulesDir: string; read: Array<{ type: string; origin?: string; path: string; content: string }>; estate: boolean[] }
+const reading = (home: string, ...asked: string[]): Reading => {
+  const ran = spawnSync(process.execPath, [import.meta.path, '--read', userHome, home, ...asked], { encoding: 'utf8', cwd: here, env: process.env, timeout: 120_000 })
   if (ran.status !== 0) throw new Error(`the instruction files could not be read under ${home}: ${ran.stderr.slice(-400)}`)
   return JSON.parse(ran.stdout.trim().split('\n').at(-1) ?? '{}') as Reading
 }
@@ -93,6 +94,19 @@ rmSync(join(first, 'MERCURY.md'))
 rmSync(join(first, 'rules'), { recursive: true })
 const none = reading(second)
 check('with no such file in the home of Profile 1 there is no user source under profile 2', none.read.length === 0 && none.userFile === join(first, 'MERCURY.md'), show(none))
+
+console.log('── the instruction estate, in a family whose first home is not named .mercury ──')
+const plain = join(userHome, 'own name', 'home')
+const [plainTwo, apartFromIt] = [`${plain}2`, join(userHome, 'own name', 'other')]
+instruct(plain, SAID.file, SAID.rule)
+instruct(plainTwo, SAID.own, SAID.ownRule)
+instruct(apartFromIt, SAID.stray, SAID.strayRule)
+writeFileSync(join(plainTwo, 'profile.json'), `${JSON.stringify({ first: plain, id: 2 })}\n`)
+const guarded = [join(plain, 'MERCURY.md'), join(plain, 'rules', 'house.md'), join(plainTwo, 'rules', 'house.md')]
+const underTwo = reading(plainTwo, ...guarded)
+check('under profile 2 the rule it reads from the home of Profile 1 is in the instruction estate, as its own home is', sources(underTwo) === show([['User', 'user', join(plain, 'MERCURY.md'), [SAID.file]], ['User', 'user-rules', join(plain, 'rules', 'house.md'), [SAID.rule]]]) && show(underTwo.estate) === show([true, true, true]), show([sources(underTwo), underTwo.estate]))
+check('under Profile 1 every answer is what it was', show(reading(plain, ...guarded).estate) === show([true, true, false]), show(reading(plain, ...guarded).estate))
+check('in a home with no marker every answer is what it was', show(reading(apartFromIt, ...guarded, join(apartFromIt, 'rules', 'house.md')).estate) === show([true, false, false, true]), show(reading(apartFromIt, ...guarded, join(apartFromIt, 'rules', 'house.md')).estate))
 
 console.log(failures === 0 ? '\nprove-profile-instructions: ALL HOLD' : `\nprove-profile-instructions: ${failures} FAIL`)
 process.exit(failures === 0 ? 0 : 1)
