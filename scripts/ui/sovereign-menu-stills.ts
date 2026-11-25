@@ -62,7 +62,7 @@ export function composeSovereignMenu(cols: number, rows: number, options: Sovere
       pinnedVal: null,
       warn: menuRowWarning(row, value),
       detail: row.detail ?? null,
-      detailExtra: [`this session  ${value ?? 'default'} (${value === null ? 'default' : 'profile'})`],
+      detailExtra: [`this session  ${value ?? 'default'} (${value === null ? 'default' : 'saved'})`],
     }
   })
   const selIdx = list.findIndex(row => row.env === SOVEREIGN_ROW_ENV)

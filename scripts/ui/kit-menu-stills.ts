@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { assembleCardRows, createSplashCore } from '../../assets/splash/splash-core.mjs'
+import { assembleCardRows, createSplashCore, withProfilesRow } from '../../assets/splash/splash-core.mjs'
 import { KIT_LEGEND_PRESET, KIT_LEGEND_PRESETS, KIT_LEGEND_PROMPT, kitEntryOf, kitStatusLine, kitSummaryRows, presetLayerEntryOf, presetLayerSummaryRows, presetPromptLines, type PresetRowFact } from '../../src/screen/boot-face/KitMenuScreen.js'
 import { kitCounts, kitRowView, sectionRows, type KitCatalogue, type KitStates } from '../../src/screen/kit-menu-model/kitTypes.js'
 
@@ -31,13 +31,14 @@ export function faceFacts(world: 'full' | 'chat'): Record<string, unknown> {
 }
 
 export function composeFace(world: 'full' | 'chat', cols: number, rows: number, armedPreset?: string): string[] {
-  const res = core.composeLockup(cols, rows, {
-    cardRows: assembleCardRows({ ...faceFacts(world), ...(armedPreset !== undefined ? { kitArmedPreset: armedPreset } : {}) }).map(row => ({ ...row, ctx: '' })),
+  const lockup = (list: ReturnType<typeof assembleCardRows>) => core.composeLockup(cols, rows, {
+    cardRows: list.map(row => ({ ...row, ctx: '' })),
     cardSel: 0,
     hintSegments: [{ key: '↵', label: '', tone: 'ivory' }],
     tinyHint: '↵',
     stripLines: (w: number) => core.composeStrip(chips, w),
-  } as never) as { lines: string[] }
+  } as never) as { lines: string[]; cardShown: boolean }
+  const res = lockup(withProfilesRow(assembleCardRows({ ...faceFacts(world), ...(armedPreset !== undefined ? { kitArmedPreset: armedPreset } : {}) } as never), list => lockup(list).cardShown))
   const { placed } = core.placeBlock(res.lines, rows) as { placed: string[] }
   return placed
 }

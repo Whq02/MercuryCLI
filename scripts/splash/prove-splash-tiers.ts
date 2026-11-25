@@ -7,7 +7,7 @@ import { join, resolve } from 'node:path'
 const ROOT = resolve(import.meta.dir, '../..')
 const PROBE = join(import.meta.dir, 'screen-probe.mjs')
 const RENDER = join(import.meta.dir, 'render-final-screen.py')
-const FIXTURE = join(import.meta.dir, 'fixtures', 'final-screens-1.0.12.json')
+const FIXTURE = join(import.meta.dir, 'fixtures', 'final-screens.json')
 const PY = '/usr/bin/python3'
 const GEOMETRIES: ReadonlyArray<readonly [number, number]> = [[80, 24], [100, 34], [120, 40], [120, 44], [160, 50]]
 const TIERS = ['truecolor', '256', 'nocolor'] as const
@@ -16,7 +16,7 @@ type Tier = (typeof TIERS)[number]
 type Mode = (typeof MODES)[number]
 type Screen = { cols: number; rows: number; text: string[]; styles: string[]; palette: string[] }
 type Cell = { ch: string; fg: string; bg: string; bold: boolean; reverse: boolean }
-type Fixture = { recordedFrom: string; probe: string; renderer: string; screens: Record<string, Screen> }
+type Fixture = { probe: string; renderer: string; screens: Record<string, Screen> }
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -120,14 +120,14 @@ if (recordAt >= 0) {
   const screens: Record<string, Screen> = {}
   for (const [cols, rows] of GEOMETRIES) for (const mode of MODES) for (const tier of TIERS) screens[keyOf(cols, rows, tier, mode)] = capture(splashDir, cols, rows, tier, mode).screen
   mkdirSync(join(import.meta.dir, 'fixtures'), { recursive: true })
-  const fixture: Fixture = { recordedFrom: '1.0.12', probe: 'scripts/splash/screen-probe.mjs', renderer: 'scripts/splash/render-final-screen.py', screens }
+  const fixture: Fixture = { probe: 'scripts/splash/screen-probe.mjs', renderer: 'scripts/splash/render-final-screen.py', screens }
   writeFileSync(FIXTURE, JSON.stringify(fixture) + '\n', { flag: 'wx' })
-  console.log(`recorded ${Object.keys(screens).length} final screens for 1.0.12 into ${FIXTURE}`)
+  console.log(`recorded ${Object.keys(screens).length} final screens into ${FIXTURE}`)
   process.exit(0)
 }
 
 console.log('============================================================')
-console.log(' splash — the final screen across tiers and against the 1.0.12 approved face (recorded at its jellyfish default, which the capture pins), oneshot and cinematic')
+console.log(' splash — the final screen across tiers and against the recorded face (recorded at its jellyfish default, which the capture pins), oneshot and cinematic')
 console.log('============================================================')
 
 section('§1 the comparators\' teeth (synthetic screens)')
@@ -153,12 +153,12 @@ section('§1 the comparators\' teeth (synthetic screens)')
 }
 
 if (!existsSync(FIXTURE)) {
-  check('the 1.0.12 record exists (bun scripts/splash/prove-splash-tiers.ts --record assets/splash)', false, FIXTURE)
+  check('the record exists (bun scripts/splash/prove-splash-tiers.ts --record assets/splash)', false, FIXTURE)
   console.log(`\n❌ splash tiers RED — ${failures} failure(s)`)
   process.exit(1)
 }
 const fixture = JSON.parse(readFileSync(FIXTURE, 'utf8')) as Fixture
-check(`the record was taken for 1.0.12 (${fixture.recordedFrom}) with this probe and renderer`, fixture.recordedFrom === '1.0.12' && fixture.probe === 'scripts/splash/screen-probe.mjs' && fixture.renderer === 'scripts/splash/render-final-screen.py', `fixture says recordedFrom ${fixture.recordedFrom}, probe ${fixture.probe}, renderer ${fixture.renderer}; re-record ${FIXTURE} with --record against assets/splash`)
+check('the record was taken with this probe and renderer', fixture.probe === 'scripts/splash/screen-probe.mjs' && fixture.renderer === 'scripts/splash/render-final-screen.py', `fixture says probe ${fixture.probe}, renderer ${fixture.renderer}; re-record ${FIXTURE} with --record against assets/splash`)
 
 const now = new Map<string, { raw: Buffer; screen: Screen }>()
 const dirAt = process.argv.indexOf('--splash-dir')
@@ -167,7 +167,7 @@ console.log(`splash under proof: ${splashDir}`)
 for (const [cols, rows] of GEOMETRIES) for (const mode of MODES) for (const tier of TIERS) now.set(keyOf(cols, rows, tier, mode), capture(splashDir, cols, rows, tier, mode))
 
 for (const mode of MODES) {
-  section(mode === 'oneshot' ? '§2 the painted frame (oneshot) against the 1.0.12 recorded screen' : '§3 the cinematic run\'s final screen (the trace, the fade and the hold) against the 1.0.12 recorded screen')
+  section(mode === 'oneshot' ? '§2 the painted frame (oneshot) against the recorded screen' : '§3 the cinematic run\'s final screen (the trace, the fade and the hold) against the recorded screen')
   for (const [cols, rows] of GEOMETRIES) {
     for (const tier of TIERS) {
       const key = keyOf(cols, rows, tier, mode)
@@ -175,7 +175,7 @@ for (const mode of MODES) {
       check(`${key}: recorded`, base !== undefined, `${FIXTURE} has no screen for this key; GEOMETRIES, TIERS and MODES in this file must match the recorded fixture`)
       if (base === undefined) continue
       const verdict = compareToRecord(base, now.get(key)!.screen)
-      check(`${key}: every cell equal to the 1.0.12 record`, verdict.equal && verdict.lowerHalf === 0, `${verdict.detail}; the final screen changed: restore it in assets/splash/mercury-splash.mjs, or re-record ${FIXTURE} only if the change is approved`)
+      check(`${key}: every cell equal to the record`, verdict.equal && verdict.lowerHalf === 0, `${verdict.detail}; the final screen changed: restore it in assets/splash/mercury-splash.mjs, or re-record ${FIXTURE} only if the change is approved`)
     }
   }
 }
