@@ -139,11 +139,10 @@ for (const [cols, rows] of SIZES) {
     if (wide) {
       const top = chatFull[0] ?? ''
       check(`${cols}x${rows}: the top row carries the pane's top border — not a copy of the header below it`, top.includes('╭') && top.trimEnd().endsWith('╮') && top.includes('lanes'), `${WHERE_FACE} | ${chat[0] ?? ''}`)
-      const boxTop = chat.findIndex(r => /│╭─+╮│/.test(r))
-      const boxBottom = chat.findIndex(r => /│╰─+╯│/.test(r))
-      check(`${cols}x${rows}: the critter box has both corners whole, bottom border three rows under the top`, boxTop >= 0 && boxBottom === boxTop + 4, `${WHERE_FACE} | top ${boxTop} bottom ${boxBottom}`)
+      const bandRule = chat.findIndex(r => /│ ─+ │/.test(r))
+      check(`${cols}x${rows}: the status band ends on one hairline three rows under the pane top`, bandRule === 4, `${WHERE_FACE} | rule ${bandRule}`)
       const paneBottom = chat.findIndex(r => /^\s*╰─+╯$/.test(r))
-      check(`${cols}x${rows}: the pane's bottom border is one whole row`, paneBottom > boxBottom, `${WHERE_FACE} | row ${paneBottom}`)
+      check(`${cols}x${rows}: the pane's bottom border is one whole row`, paneBottom > bandRule, `${WHERE_FACE} | row ${paneBottom}`)
       const edges = chatFull.slice(1, paneBottom).map((r, i) => [i + 1, r[cols - 1]] as const).filter(([, ch]) => ch !== '│')
       check(`${cols}x${rows}: every pane row between the borders ends with the pane's right edge (no tail shifted off its row)`, edges.length === 0, `${WHERE_FACE} | rows ${edges.map(([i, ch]) => `${i}:${JSON.stringify(ch)}`).join(' ')}`)
       check(`${cols}x${rows}: the hint row is whole on one row`, chat.some(r => r.includes('❯ ↵ sends  ·  /crewmates /saturn /health /trace')), `${WHERE_FACE} | ${chat.filter(r => r.includes('sends')).join(' | ')}`)

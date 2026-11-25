@@ -159,16 +159,16 @@ function hostOf(screen: string[][], panel: Panel): Host | null {
   return host
 }
 const BORDER = new Set(['╭', '╮', '╰', '╯', '│', '─'])
+const CRITTER_RUN = /[▀▄█]{7,}/
 type BandState = 'whole' | 'absent' | 'torn'
 function bandAbove(screen: string[][], host: Host, panel: Panel): { state: BandState; rows: string[] } {
   const rows = Array.from({ length: Math.max(0, panel.top - host.top) }, (_, i) => screen[host.top + i]!.slice(host.left, host.right + 1).join(''))
   const painted = rows.filter(row => row.trim().length > 0)
   if (painted.length === 0) return { state: 'absent', rows }
-  const lid = rows.findIndex(row => row.trimStart().startsWith('╭'))
-  const floor = rows.findIndex(row => row.trimStart().startsWith('╰'))
-  const sidesWhole = lid >= 0 && floor > lid && rows.slice(lid + 1, floor).every(row => row.trimStart().startsWith('│') && row.trimEnd().endsWith('│')) && rows.slice(lid + 1, floor).some(row => row.includes(BAND))
-  if (sidesWhole) return { state: 'whole', rows }
-  return { state: painted.some(row => Array.from(row).some(glyph => BORDER.has(glyph))) ? 'torn' : 'absent', rows }
+  const floor = rows.findIndex(row => /^ ─+ $/.test(row))
+  const bandWhole = floor === 3 && rows.slice(0, floor).some(row => row.includes(BAND)) && rows.slice(0, floor).every(row => CRITTER_RUN.test(row))
+  if (bandWhole) return { state: 'whole', rows }
+  return { state: painted.some(row => CRITTER_RUN.test(row) || row.includes(BAND) || Array.from(row).some(glyph => BORDER.has(glyph))) ? 'torn' : 'absent', rows }
 }
 const save = (name: string, lines: string[]): void => { if (frameDir) writeFileSync(join(frameDir, `${name}.txt`), `${lines.join('\n')}\n`) }
 
@@ -200,8 +200,7 @@ for (const [columns, rows] of SIZES) {
         check(`${surface.name} ${columns}x${rows}: the rows between the pane's top and the popup carry the status band whole or nothing of it — never its top border alone (nor a few columns of it)`, band.state !== 'torn', `the band is ${band.state}:\n${pasted}`)
       } else {
         const above = Array.from({ length: Math.max(0, panel.top - host.top) }, (_, i) => screen[host.top + i]!.slice(host.left, host.right + 1).join(''))
-        const lidRow = above.find(row => row.trimStart().startsWith('╭'))
-        check(`${surface.name} ${columns}x${rows}: a popup narrower than the pane floats over the band and leaves its top border's corners in place`, lidRow !== undefined && lidRow.trimEnd().endsWith('╮'), above.map((row, i) => `row ${host.top + i}: ${row.trimEnd()}`).join('\n'))
+        check(`${surface.name} ${columns}x${rows}: a popup narrower than the pane floats over the band and leaves its top row in place`, above.some(row => CRITTER_RUN.test(row)), above.map((row, i) => `row ${host.top + i}: ${row.trimEnd()}`).join('\n'))
       }
     } finally {
       scene.unmount()

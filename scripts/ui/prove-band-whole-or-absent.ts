@@ -23,7 +23,7 @@ const frameDir = arg('--frames')
 if (frameDir) mkdirSync(frameDir, { recursive: true })
 const SIZES: Array<[number, number]> = (arg('--sizes')?.split(',') ?? ['100x30', '120x44', '160x50', '200x60']).map(size => size.split('x').map(Number) as [number, number])
 const PANE_ROWS = [4, 5, 6, 7, 9] as const
-const BAND_ROWS = 5
+const BAND_ROWS = 4
 
 const BAND_FAIL_HINT = 'change the bandFits rule (centreRows - 2 >= statusBandRows) and the status band slot in src/screen/fullscreen-layout/FullscreenLayout.tsx so the band paints whole or not at all'
 let checks = 0
@@ -63,6 +63,7 @@ function Harness({ columns, cardRows }: { columns: number; cardRows: number }): 
 }
 const wrap = (node: React.ReactNode): React.ReactNode => h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(KeybindingSetup, null, node))
 
+const CRITTER_RUN = /[▀▄█]{7,}/
 type Reading = { paneLeft: number; paneRight: number; paneBottom: number; bandOpens: boolean; bandCloses: number; bandWords: boolean; transcriptCells: number; rows: string[] }
 function readPane(lines: string[], columns: number): Reading | null {
   const screen = lines.map(line => { const cells = Array.from(line); while (cells.length < columns) cells.push(' '); return cells })
@@ -73,10 +74,10 @@ function readPane(lines: string[], columns: number): Reading | null {
   let paneBottom = -1
   for (let y = 1; y < screen.length; y++) if (screen[y]![paneLeft] === '╰') { paneBottom = y; break }
   if (paneBottom < 0) return null
-  const bandOpens = paneBottom > 1 && screen[1]![paneLeft + 1] === '╭'
-  let bandCloses = -1
-  if (bandOpens) for (let y = 2; y < paneBottom; y++) if (screen[y]![paneLeft + 1] === '╰') { bandCloses = y; break }
   const inner = screen.slice(1, paneBottom).map(cells => cells.slice(paneLeft + 1, paneRight).join(''))
+  const bandOpens = inner.length > 0 && CRITTER_RUN.test(inner[0] ?? '')
+  const ruleIdx = inner.findIndex(row => /^ ─+ $/.test(row))
+  const bandCloses = ruleIdx >= 0 ? ruleIdx + 1 : -1
   return { paneLeft, paneRight, paneBottom, bandOpens, bandCloses, bandWords: inner.some(row => row.includes(BAND.repeat(8))), transcriptCells: inner.reduce((sum, row) => sum + Array.from(row).filter(glyph => glyph === SOLID).length, 0), rows: lines.slice(0, paneBottom + 1) }
 }
 const shown = (reading: Reading | null): string => (reading === null ? 'no centre pane on the first row' : `\n${reading.rows.map(row => row.slice(0, 110)).join('\n')}`)
