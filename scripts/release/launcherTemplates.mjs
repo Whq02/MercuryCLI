@@ -391,7 +391,7 @@ rem on exit 0 (a clean exit restored its own modes); exit code preserved.\r
 rem Focus tracking (?1004l) is re-reset AFTER ?1049l: on win32 a reset before\r
 rem the alt-screen exit lands on the alt buffer, so 1004 stays armed on the\r
 rem main buffer and focus flips spew ^[[I/^[[O at the dead prompt (TASK-005 L4).\r
-if "%NODETTY%"=="1" if not "%RT_EXIT%"=="0" "%NODEBIN%" -e "process.stdout.write('\\x1b[?2026l\\x1b[0m\\x1b[?1000l\\x1b[?1002l\\x1b[?1003l\\x1b[?1006l\\x1b[?1004l\\x1b[?2004l\\x1b[?1007l\\x1b[?1049l\\x1b[?1004l\\x1b[?25h\\x1b]111\\x07')" 2>nul\r
+if "%NODETTY%"=="1" if not "%RT_EXIT%"=="0" "%NODEBIN%" -e "process.stdout.isTTY&&process.stdout.write('\\x1b[?2026l\\x1b[0m\\x1b[?1000l\\x1b[?1002l\\x1b[?1003l\\x1b[?1006l\\x1b[?1004l\\x1b[?2004l\\x1b[?1007l\\x1b[?1049l\\x1b[?1004l\\x1b[?25h\\x1b]111\\x07')" 2>nul\r
 exit /b %RT_EXIT%\r
 :node_unsupported\r
 rem the range's < and > must be caret-escaped INSIDE the echo — unescaped\r
@@ -535,7 +535,7 @@ $rtExit = $LASTEXITCODE
 # the alt-screen exit lands on the alt buffer, so 1004 stays armed on the main
 # buffer and focus flips spew ^[[I/^[[O at the dead prompt (field TASK-005 L4).
 if ((-not [Console]::IsOutputRedirected) -and ($rtExit -ne 0)) {
-  & $nodeBin -e "process.stdout.write('\\x1b[?2026l\\x1b[0m\\x1b[?1000l\\x1b[?1002l\\x1b[?1003l\\x1b[?1006l\\x1b[?1004l\\x1b[?2004l\\x1b[?1007l\\x1b[?1049l\\x1b[?1004l\\x1b[?25h\\x1b]111\\x07')" 2>$null
+  & $nodeBin -e "process.stdout.isTTY&&process.stdout.write('\\x1b[?2026l\\x1b[0m\\x1b[?1000l\\x1b[?1002l\\x1b[?1003l\\x1b[?1006l\\x1b[?1004l\\x1b[?2004l\\x1b[?1007l\\x1b[?1049l\\x1b[?1004l\\x1b[?25h\\x1b]111\\x07')" 2>$null
 }
 exit $rtExit
 } finally {

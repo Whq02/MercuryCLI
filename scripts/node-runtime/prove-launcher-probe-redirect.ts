@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
+import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 // @ts-ignore -- untyped .mjs module
-import { cmdLauncher, parseEnginesNode } from '../release/launcherTemplates.mjs'
+import { cmdLauncher, parseEnginesNode, ps1Launcher } from '../release/launcherTemplates.mjs'
 
 let failures = 0
 const check = (name: string, cond: boolean, detail?: string): void => {
@@ -39,6 +40,19 @@ check('after the cut the probe still reads its argv behind the -- terminator', s
 console.log('\n── the boot line is unchanged: the argv is forwarded plainly, nothing to lose at a cut ──')
 check('the boot line forwards argv plainly', lines.includes('"%NODEBIN%" "%DIR%mercury.mjs" %*'))
 check('exactly one probe line', lines.filter(l => l.includes('"%NODEBIN%" -e') && l.includes('process.stdin.isTTY')).length === 1)
+
+console.log('\n── the heal after a failed child: into the console only, never into redirected output ──')
+const RESET = '\x1b[?1049l\x1b[?1004l\x1b[?25h'
+const healFix = 'the post-child heal line in scripts/release/launcherTemplates.mjs must write only when its own stdout is a terminal (process.stdout.isTTY): the launcher\'s gate cannot see a redirect made on the one call'
+for (const [name, text] of [['cmd', cmd], ['ps1', ps1Launcher(parseEnginesNode(pkg.engines?.node)) as string]] as const) {
+  const program = /-e "(process\.stdout\.[^"]*\?1004l\\x1b\[\?2004l[^"]*)"/.exec(text)?.[1] ?? ''
+  check(`${name}: the launcher carries one heal program for a child that ended badly`, program !== '', healFix)
+  const redirected = spawnSync(process.execPath, ['-e', program], { encoding: 'utf8' })
+  check(`${name}: with stdout redirected (mercury health --json > file) the heal writes nothing`, redirected.status === 0 && redirected.stdout === '', `${JSON.stringify(redirected.stdout)} — ${healFix}`)
+  const console_ = spawnSync('python3', ['-c', 'import pty, sys\npty.spawn(sys.argv[1:])', process.execPath, '-e', program], { encoding: 'utf8' })
+  if (console_.status === null || console_.error) console.log(`  [SKIP] ${name}: no python3 pty on this machine — the console leg is not run`)
+  else check(`${name}: with stdout a terminal the heal still writes its reset`, console_.stdout.includes(RESET), `${JSON.stringify(console_.stdout)} — ${healFix}`)
+}
 
 if (failures > 0) {
   console.log(`\nRED: ${failures} check(s) failed — prove-launcher-probe-redirect`)
