@@ -41,6 +41,8 @@ export type Editor =
 
 export type Note = { text: string; tone: 'ok' | 'warn' } | null
 
+export type Held = { section?: SectionId; rowKey?: string | null }
+
 type Tokens = ReturnType<typeof useMercuryTokens>
 
 export function panelColumnsOf({
@@ -155,6 +157,7 @@ export function panelColumnsOf({
 }
 
 export function panelViewOf({
+  held,
   prompts,
   saved,
   tokens,
@@ -183,6 +186,7 @@ export function panelViewOf({
   modeLabel,
   SIDE_BODY_CHARS,
 }: {
+  held: Held
   prompts: PromptRow[]
   saved: SavedRow[]
   tokens: Tokens
@@ -291,6 +295,7 @@ export function panelViewOf({
   }
 
   const lastPromptKey = prompts.length > 0 ? prompts[prompts.length - 1]!.key : undefined
+  const seedRowKey = held.rowKey === undefined ? lastPromptKey : held.rowKey ?? undefined
 
   const headerLine = (
     <Text color={tokens.textMuted} wrap="truncate-end">
@@ -354,7 +359,7 @@ export function panelViewOf({
       </Box>
     ) : null
 
-  if (section === 'crew' && board?.on) return <CrewChatPanel snapshot={board} traffic={crewTrafficMessages(records)} onClose={() => onClose()} onSection={setSection} />
+  if (section === 'crew' && board?.on) return <CrewChatPanel snapshot={board} traffic={crewTrafficMessages(records)} onClose={() => onClose()} onSection={id => { held.rowKey = undefined; setSection(id) }} />
 
   return (
     <NavigablePanes<Row>
@@ -376,7 +381,8 @@ export function panelViewOf({
       detailFooterHints={section === 'saved' ? 'a new' : undefined}
       maxContentWidth={120}
       onSectionChange={id => setSection(id as SectionId)}
-      {...(lastPromptKey !== undefined ? { initialRowKey: lastPromptKey } : {})}
+      onRowChange={rowKey => { held.rowKey = rowKey }}
+      {...(seedRowKey !== undefined ? { initialRowKey: seedRowKey } : {})}
       composerSlot={{
         active: editor !== null,
         node: composerNode,

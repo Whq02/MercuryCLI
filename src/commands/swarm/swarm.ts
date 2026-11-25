@@ -34,7 +34,7 @@ export const call: LocalJSXCommandCall = async (onDone, context, raw) => {
   const op = raw.trim().toLowerCase()
   if (!context.options.isNonInteractiveSession && ['', 'on', 'off', 'status'].includes(op)) {
     const connector = getFocusedSessionConnector()
-    if (op === '' && connector.swarmBoard?.()?.on) return React.createElement(CommandPopupLease, { token: claimCommandPopup({ ...crewDoorShape('prompts', CREW_POPUP_WIDE), compact: 'pane' }), children: React.createElement(PromptsPanel, { initialSection: 'crew', onClose: () => onDone(undefined, { display: 'skip' }) }) })
+    if (op === '' && connector.swarmBoard?.()?.on) return React.createElement(CommandPopupLease, { token: claimCommandPopup({ ...crewDoorShape('prompts', CREW_POPUP_WIDE), compact: 'pane' }), children: React.createElement(PromptsPanel, { initialSection: 'crew', held: {}, onClose: () => onDone(undefined, { display: 'skip' }) }) })
     const receipt = await connector.sendWords(`/swarm ${op}`.trimEnd())
     onDone(receipt.state === 'refused' ? receipt.detail : undefined, { display: receipt.state === 'refused' ? 'system' : 'skip' })
     return null

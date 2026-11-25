@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useInput } from '../themedRenderer.js'
+import { usePublish } from '../effects/effects.js'
 import { useSessionConnector } from '../focused-session/useSessionConnector.js'
 import {
   addSavedPrompt,
@@ -25,7 +26,7 @@ import {
   recordLimits,
   type PromptRow,
 } from './rows.js'
-import { panelColumnsOf, panelViewOf, type Editor, type Note, type Row, type SavedRow, type SectionId } from './panelParts.js'
+import { panelColumnsOf, panelViewOf, type Editor, type Held, type Note, type Row, type SavedRow, type SectionId } from './panelParts.js'
 
 
 const SIDE_BODY_CHARS = 240
@@ -41,9 +42,11 @@ function processStartedAtIso(): string {
 export function PromptsPanel({
   onClose,
   initialSection = 'prompts',
+  held = {},
 }: {
   onClose: (nextInput?: string) => void
   initialSection?: SectionId
+  held?: Held
 }): React.ReactNode {
   const tokens = useMercuryTokens()
   const connector = useSessionConnector()
@@ -65,7 +68,10 @@ export function PromptsPanel({
     useCallback(() => getSavedPromptsProblem(project), [project]),
   )
 
-  const [section, setSection] = useState<SectionId>(initialSection)
+  const [section, setSection] = useState<SectionId>(held.section ?? initialSection)
+  usePublish(() => {
+    held.section = section
+  }, [held, section])
   const subscribeWork = useCallback((cb: () => void) => connector.subscribeWork(cb), [connector])
   const readBoard = useCallback(() => connector.swarmBoard?.() ?? null, [connector])
   const board = useSyncExternalStore(subscribeWork, readBoard, readBoard)
@@ -235,5 +241,5 @@ export function PromptsPanel({
     }
   }
 
-  return panelViewOf({ prompts, saved, tokens, section, limits, queuedCount, crew, problem, drafts, note, editor, setEditor, editorCursor, setEditorCursor, commitEditor, board, records, onClose, setSection, workspace, sessionId, sections, columns, rowActions, confirmClear, modeLabel, SIDE_BODY_CHARS })
+  return panelViewOf({ held, prompts, saved, tokens, section, limits, queuedCount, crew, problem, drafts, note, editor, setEditor, editorCursor, setEditorCursor, commitEditor, board, records, onClose, setSection, workspace, sessionId, sections, columns, rowActions, confirmClear, modeLabel, SIDE_BODY_CHARS })
 }
