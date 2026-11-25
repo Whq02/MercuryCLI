@@ -11,7 +11,7 @@ import { inheritBuildNotices, carryClearModel } from '../switchboard/sessionRece
 import { type SessionKitV1, deriveSessionKitForPreset, deriveSessionKitForWorkspace, kitDeltasUnreadNote } from '../session-seat/sessionKit.js'
 import { sessionKindOfAsker, type SessionKind } from './sessionKind.js'
 import { type WorkspaceIsolation, type ConcourseMoveV1, canonicalWorkspaceId, resolveDefaultedAdmission } from './admission.js'
-import { readSessionWorkers, unwrittenSessionRecordsRefusal } from './store.js'
+import { readSessionWorkers, unwrittenSessionRecordsRefusalRidingOut } from './store.js'
 import { reactivateConcourseSession } from './reactivate.js'
 import type { ConcourseWorkerRecordV1 } from './record.js'
 import { validateWorkerModelChoice, canonicalWorkerModelId } from '../../screen/concourse-model/workerModels.js'
@@ -221,7 +221,7 @@ export function makeConcourseAdmitHandler(
       if (!derived.ok) return { ok: false, code: 'invalid-request', error: derived.reason }
       preset = { name: req.kitPreset, kit: derived.kit, ...(derived.note !== undefined ? { note: derived.note } : {}) }
     }
-    const unwritten = unwrittenSessionRecordsRefusal(deps.dir)
+    const unwritten = await unwrittenSessionRecordsRefusalRidingOut(deps.dir)
     if (unwritten !== null) return { ok: false, code: 'not-ready', error: `no session was started: ${unwritten.message}` }
     const records = readSessionWorkers(deps.dir)
     const liveShorts = new Set(roster.list().filter(j => !j.outcome).map(j => j.short))

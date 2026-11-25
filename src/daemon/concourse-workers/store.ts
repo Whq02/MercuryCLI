@@ -9,7 +9,7 @@ import { canonicalWorkspaceId } from './admission.js'
 import { withDaemonStoreLock } from './storeLock.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 import { errorMessage } from '../../platform/errors/errors.js'
-import { rideOutHeldFile } from '../../platform/host-os/files.js'
+import { isTransientHeldFileCode, rideOutHeldFile } from '../../platform/host-os/files.js'
 import { DurablePublishError } from '../../platform/substrate/durablePublish.js'
 import { defineStore } from '../../platform/substrate/fileStore.js'
 import { statFingerprint } from '../../platform/substrate/startupMenu.js'
@@ -250,13 +250,19 @@ let sessionRecordsInFlight: { path: string; workers: Record<string, ConcourseWor
 
 const sessionRecordsUnread = new Map<string, { why: string; refused: number }>()
 
+class SessionRecordsUnread extends Error {
+  constructor(message: string, readonly why: string) {
+    super(message)
+  }
+}
+
 function sessionRecordsRefusal(path: string, why: string): Error {
   const unread = sessionRecordsUnread.get(path)
   if (unread === undefined || unread.why !== why) {
     console.error(`[daemon] ${path}: the session records are there and could not be read (${why}), so changes to them are refused and the file is left as it stands — make it readable, or move it away and the next change writes a new one`)
   }
   sessionRecordsUnread.set(path, { why, refused: (unread?.refused ?? 0) + 1 })
-  return new Error(`the session records at ${path} were not updated: the file is there and could not be read (${why}); nothing was written`)
+  return new SessionRecordsUnread(`the session records at ${path} were not updated: the file is there and could not be read (${why}); nothing was written`, why)
 }
 
 export function unreadSessionRecordsRefusal(dir?: string): Error | null {
@@ -341,11 +347,25 @@ export function updateConcourseWorkers(
 
 const isDurablePublishError = (error: unknown): boolean => error instanceof DurablePublishError
 
+const isHeldRecordsFile = (error: unknown): boolean => isDurablePublishError(error) || (error instanceof SessionRecordsUnread && isTransientHeldFileCode(error.why))
+
 export async function updateConcourseWorkersRidingOut(
   mutate: (workers: Record<string, ConcourseWorkerRecordV1>) => void,
   dir?: string,
 ): Promise<void> {
-  await rideOutHeldFile(() => updateConcourseWorkers(mutate, dir), isDurablePublishError)
+  await rideOutHeldFile(() => updateConcourseWorkers(mutate, dir), isHeldRecordsFile)
+}
+
+export async function unwrittenSessionRecordsRefusalRidingOut(dir?: string): Promise<Error | null> {
+  try {
+    await rideOutHeldFile(() => {
+      const refusal = unwrittenSessionRecordsRefusal(dir)
+      if (refusal !== null) throw refusal
+    }, isHeldRecordsFile)
+    return null
+  } catch (error) {
+    return error instanceof Error ? error : new Error(String(error))
+  }
 }
 
 export function updateConcourseWorkersOrHold(
