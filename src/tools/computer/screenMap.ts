@@ -81,7 +81,7 @@ export function interactiveRole(role: string): boolean {
   return /^(AX)?(Button|Cell|CheckBox|ColorWell|ComboBox|DateField|DisclosureTriangle|DockItem|Incrementor|Link|MenuButton|MenuItem|OutlineRow|PopUpButton|RadioButton|Row|ScrollBar|SearchField|Slider|Splitter|Tab|TextArea|TextField|ToggleButton|TreeItem)(?:$| \()/i.test(role)
 }
 
-function hasText(value: string | null): boolean {
+function hasText(value: string | null): value is string {
   return value !== null && value.trim() !== ''
 }
 
@@ -175,7 +175,21 @@ function elementPaths(tree: DesktopTree): Array<{ path: string; counts: () => nu
   })
 }
 
-const treeRefs = new OwnerScopedStore<{ next: number; window: string; refs: Map<number, Array<{ key: string; counts: number[] }>> }>({
+const AROUND_ROWS = 3
+
+function aroundOf(tree: DesktopTree, index: number): string {
+  const near = (step: number): string[][] => {
+    const found: string[][] = []
+    for (let at = index + step; at >= 0 && at < tree.elements.length && found.length < AROUND_ROWS; at += step) {
+      const words = [tree.elements[at]!.title, tree.elements[at]!.value].filter(hasText)
+      if (words.length) found.push(words)
+    }
+    return found
+  }
+  return createHash('sha256').update(JSON.stringify([tree.elements[index]!.value, near(-1), near(1)])).digest('hex')
+}
+
+const treeRefs = new OwnerScopedStore<{ next: number; window: string; refs: Map<number, Array<{ key: string; counts: number[]; around: string }>> }>({
   name: 'computer-tree-refs',
   create: () => ({ next: 1, window: '', refs: new Map() }),
   dispose: state => { state.refs.clear() },
@@ -194,29 +208,42 @@ export function rememberTreeRefs(owner: OwnerKey, app: DesktopApplication, tree:
   const paths = elementPaths(tree)
   for (const element of outline.elements) {
     element.ref = state.next++
-    state.refs.set(element.ref, element.sourceIndices.map(index => ({ key: paths[index]!.path, counts: paths[index]!.counts() })))
+    state.refs.set(element.ref, element.sourceIndices.map(index => ({ key: paths[index]!.path, counts: paths[index]!.counts(), around: aroundOf(tree, index) })))
   }
 }
 
-export function addTreeRef(owner: OwnerKey, app: DesktopApplication, tree: DesktopTree, element: DesktopTreeElement): number {
+export function addTreeRef(owner: OwnerKey, app: DesktopApplication, tree: DesktopTree, element: DesktopTreeElement): number | null {
+  const index = tree.elements.indexOf(element)
+  const row = elementPaths(tree)[index]
+  if (row === undefined) return null
   const state = treeRefs.get(owner)
   if (state.window !== windowKey(app)) {
     state.window = windowKey(app)
     state.refs.clear()
   }
-  const row = elementPaths(tree)[tree.elements.indexOf(element)]!
   const ref = state.next++
-  state.refs.set(ref, [{ key: row.path, counts: row.counts() }])
+  state.refs.set(ref, [{ key: row.path, counts: row.counts(), around: aroundOf(tree, index) }])
   return ref
 }
 
-export function resolveTreeRef(owner: OwnerKey, app: DesktopApplication, tree: DesktopTree, ref: number): DesktopTreeElement[] {
+function refRows(owner: OwnerKey, app: DesktopApplication, tree: DesktopTree, ref: number): { matches: number[][]; changed: boolean } | null {
   const state = treeRefs.peek(owner)
   const keys = state?.window === windowKey(app) ? state.refs.get(ref) : undefined
-  if (!keys?.length) return []
+  if (!keys?.length) return null
   const paths = elementPaths(tree)
   const matches = keys.map(entry => paths.flatMap((row, index) => row.path === entry.key && row.counts().join(',') === entry.counts.join(',') ? [index] : []))
-  if (keys.length === 1) return matches[0]!.map(index => tree.elements[index]!)
+  return { matches, changed: tree.truncated && matches.some((indices, at) => indices.some(index => aroundOf(tree, index) !== keys[at]!.around)) }
+}
+
+export function treeRefChanged(owner: OwnerKey, app: DesktopApplication, tree: DesktopTree, ref: number): boolean {
+  return refRows(owner, app, tree, ref)?.changed === true
+}
+
+export function resolveTreeRef(owner: OwnerKey, app: DesktopApplication, tree: DesktopTree, ref: number): DesktopTreeElement[] {
+  const rows = refRows(owner, app, tree, ref)
+  if (rows === null || rows.changed) return []
+  const { matches } = rows
+  if (matches.length === 1) return matches[0]!.map(index => tree.elements[index]!)
   if (matches.some(indices => indices.length !== 1)) return []
   const sourceIndices = matches.map(indices => indices[0]!)
   if (sourceIndices.some((index, offset) => offset > 0 && index !== sourceIndices[offset - 1]! + 1)) return []

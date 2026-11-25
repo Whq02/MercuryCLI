@@ -21,7 +21,7 @@ import { getSessionId } from '../../../boot/process-state/processState.js'
 import { COMPUTER_TOOL_NAME } from '../../../integrations/desktop/toolName.js'
 import type { AssistantMessage, Message } from '../../../engine/message-shapes/message.js'
 import { type KeyChord, appSwitchChord, isAppSwitchChord, isKeyChordRefusal, parseKeyChord } from '../keyChord.js'
-import { type ScreenMap, resolveTreeRef } from '../screenMap.js'
+import { type ScreenMap, resolveTreeRef, treeRefChanged } from '../screenMap.js'
 import {
   type ScreenFacts,
   candidateWords,
@@ -54,7 +54,7 @@ import {
   typesKeys,
 } from './schema.js'
 import { actDetail, faultText, pixelWordsOf, pointWords } from './act.js'
-import { heldTargetWords, interruptedText } from './words.js'
+import { REF_CHANGED, heldFarEndWords, heldTargetWords, interruptedText } from './words.js'
 import { framePixel, ruleFor } from './shot.js'
 
 export interface ActPlan {
@@ -251,6 +251,7 @@ export async function resolveActTargets(driver: DesktopDriver, input: Input, fro
   plan.screens = displays.ok ? { displays: displays.value.displays, spanning: displays.value.spanning ?? true } : undefined
   if (input.ref !== undefined) {
     const elements = resolveTreeRef(owner, front, tree.value, input.ref)
+    if (treeRefChanged(owner, front, tree.value, input.ref)) return `${input.action} refused: ref:${input.ref}: ${REF_CHANGED}`
     if (elements.length !== 1) return `${input.action} refused: ref:${input.ref}: ${elements.length === 0 ? 'no element of the latest tree matches it now' : `${elements.length} elements match it now`} — read the tree or find again${elements.length ? `\n${candidateWords(elements, map)}` : ''}`
     const element = elements[0]!
     const point = targetPoint({ ...tree.value, elements: [element], truncated: false }, {}, map)
@@ -267,7 +268,7 @@ export async function resolveActTargets(driver: DesktopDriver, input: Input, fro
   for (const [selector, field] of [[input.target, 'point'], [input.toTarget, 'target']] as const) {
     if (selector === undefined) continue
     const point = targetPoint(tree.value, selector, map, walk)
-    if ('refusal' in point) return point.held !== undefined && POINT_ACTIONS.has(input.action) ? heldTargetWords(input.action, owner, front, tree.value, selector, point.held, walk, map) : `${input.action} refused: ${point.refusal}${pageContentNote(front, tree.value) ? `\n${pageContentNote(front, tree.value)}` : ''}`
+    if ('refusal' in point) return point.held === undefined || !POINT_ACTIONS.has(input.action) ? `${input.action} refused: ${point.refusal}${pageContentNote(front, tree.value) ? `\n${pageContentNote(front, tree.value)}` : ''}` : field === 'point' ? heldTargetWords(input.action, owner, front, tree.value, selector, point.held, walk, map) : heldFarEndWords(tree.value, selector, point.held, walk)
     const element = targetElement(tree.value, selector, map)
     const clipped = 'refusal' in element || !scrollsInto ? null : clippedWords(tree.value, element, front.bounds, plan.screens)
     if (clipped !== null && !('refusal' in element)) {
