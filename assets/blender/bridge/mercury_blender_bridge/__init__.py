@@ -34,7 +34,7 @@ def register():
     global _server
     state.snapshot_update(
         blender=bpy.app.version_string,
-        blendFile=bpy.data.filepath,
+        blendFile=getattr(bpy.data, "filepath", ""),
         background=bool(bpy.app.background),
     )
     ring.attach_logging()

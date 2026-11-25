@@ -192,6 +192,12 @@ section('2. bl_info — the legacy-add-on identity (the ruling)')
     init.includes('"blender": (4, 2, 0)'),
   )
   check('register/unregister both defined', init.includes('def register():') && init.includes('def unregister():'))
+  const registerBody = init.slice(init.indexOf('def register():'), init.indexOf('def unregister():'))
+  check(
+    'register() reads no member of bpy.data: Blender enables an add-on with bpy.data swapped for a _RestrictData (addon_utils.enable runs register() inside RestrictBlend), so a read there fails the enable',
+    registerBody.length > 0 && !registerBody.includes('bpy.data.'),
+    registerBody.match(/bpy\.data\.\w+/)?.[0],
+  )
   check('the port config road reads config.json beside the add-on', init.includes('config.json') && init.includes('_config_port'))
   check('the token path is the file beside the add-on', init.includes('os.path.join(os.path.dirname(__file__), "token")'))
 }
