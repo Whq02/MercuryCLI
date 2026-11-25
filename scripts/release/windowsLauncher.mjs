@@ -5,7 +5,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const targets = { 'windows-x64': ['x86_64-pc-windows-msvc', 0x8664], 'windows-arm64': ['aarch64-pc-windows-msvc', 0xaa64] }
-const sources = ['Cargo.toml', 'Cargo.lock', 'build.rs', 'policy.mjs', 'src/boot/main.rs'].map(p => `native/windows-launcher/${p}`)
+const sources = ['Cargo.toml', 'Cargo.lock', 'build.rs', 'policy.mjs', 'src/main.rs'].map(p => `native/windows-launcher/${p}`)
   .concat(['package.json', 'scripts/release/windowsLauncher.mjs', 'scripts/release/launcherTemplates.mjs', 'src/boot/main.tsx', 'src/boot/entrypoints/cli.tsx'])
 const digest = bytes => createHash('sha256').update(bytes).digest('hex')
 const sourceDigest = root => digest(sources.map(p => `${p}\n${digest(readFileSync(join(root, p)))}\n`).join(''))
