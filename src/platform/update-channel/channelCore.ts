@@ -94,7 +94,11 @@ export const CHECKSUM_MANIFEST_NAME = 'SHA256SUMS.txt'
 export const UPDATE_CEILINGS = {
   archiveBytes: 1024 ** 3,
   checksumManifestBytes: 4 * 1024 ** 2,
+  unpackedBytes: 4 * 1024 ** 3,
+  entries: 100_000,
 } as const
+
+export type UpdateCeilings = { readonly [K in keyof typeof UPDATE_CEILINGS]: number }
 
 export function assetNameFor(version: string, platform: string, arch: string): string | null {
   const target = releaseTargetFor(platform, arch)

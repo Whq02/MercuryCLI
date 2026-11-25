@@ -16,7 +16,9 @@ import {
   selectRelease,
   UPDATE_CEILINGS,
   type ReleaseSelection,
+  type UpdateCeilings,
 } from './channelCore.js'
+import { checkArchiveBeforeUnpack } from './archiveListing.js'
 import { describeSignatureVerdict, type SignatureVerdict } from './artifactSigning.js'
 import { verifyPayloadDir } from './artifactVerify.js'
 import {
@@ -286,7 +288,7 @@ export function signatureRefusal(verdict: SignatureVerdict, allowUnsigned: boole
 
 const sha256File = (path: string): string => createHash('sha256').update(readFileSync(path)).digest('hex')
 
-type ExtractOutcome = { state: 'ok' } | { state: 'tool-absent'; note: string } | { state: 'failed'; note: string }
+type ExtractOutcome = { state: 'ok' } | { state: 'refused'; reason: string } | { state: 'tool-absent'; note: string } | { state: 'failed'; note: string }
 
 function resolveWindowsShell(): string | null {
   for (const exe of ['pwsh', 'powershell']) {
@@ -310,7 +312,10 @@ export function extractorEnv(shell: string, archivePath: string, destDir: string
   return env
 }
 
-function extractArchive(archivePath: string, destDir: string, isWindows: boolean): ExtractOutcome {
+async function extractArchive(archivePath: string, destDir: string, isWindows: boolean, ceilings: UpdateCeilings): Promise<ExtractOutcome> {
+  const listed = await checkArchiveBeforeUnpack(archivePath, isWindows ? 'zip' : 'tar.gz', ceilings)
+  if (listed.state === 'refused') return listed
+  if (listed.state === 'unreadable') return { state: 'failed', note: listed.note }
   mkdirSync(destDir, { recursive: true })
   if (isWindows) {
     const shell = resolveWindowsShell()
@@ -370,19 +375,19 @@ function writeUpdateReceipt(roots: LayoutRoots, startedAt: string, outcome: Upda
   }
 }
 
-export async function performUpdate(roots: LayoutRoots, progress: Progress, opts: { allowUnsigned?: boolean } = {}): Promise<UpdateOutcome> {
+export async function performUpdate(roots: LayoutRoots, progress: Progress, opts: { allowUnsigned?: boolean; ceilings?: UpdateCeilings } = {}): Promise<UpdateOutcome> {
   const startedAt = new Date().toISOString()
   const allowUnsigned = opts.allowUnsigned === true
-  const outcome = await performUpdateTransaction(roots, progress, allowUnsigned)
+  const outcome = await performUpdateTransaction(roots, progress, allowUnsigned, opts.ceilings ?? UPDATE_CEILINGS)
   if (outcome.state === 'no-update') return outcome
   const receiptPath = writeUpdateReceipt(roots, startedAt, outcome, 'update', allowUnsigned)
   return receiptPath ? { ...outcome, receiptPath } : outcome
 }
 
-async function performUpdateTransaction(roots: LayoutRoots, progress: Progress, allowUnsigned: boolean): Promise<UpdateOutcome> {
+async function performUpdateTransaction(roots: LayoutRoots, progress: Progress, allowUnsigned: boolean, ceilings: UpdateCeilings): Promise<UpdateOutcome> {
   const check = await checkForUpdate(roots, progress)
   if (check.state !== 'update-available') return { state: 'no-update', check }
-  const outcome = await acquireAndActivate(roots, progress, check, allowUnsigned)
+  const outcome = await acquireAndActivate(roots, progress, check, allowUnsigned, ceilings)
   return outcome.state === 'refused' || outcome.state === 'restored' ? { ...outcome, road: check.road } : outcome
 }
 
@@ -408,6 +413,7 @@ async function acquireAndActivate(
   progress: Progress,
   check: Extract<CheckOutcome, { state: 'update-available' }>,
   allowUnsigned: boolean,
+  ceilings: UpdateCeilings,
 ): Promise<UpdateOutcome> {
   const lock = tryAcquireUpdateLock(roots)
   if (lock.state === 'error') {
@@ -437,8 +443,8 @@ async function acquireAndActivate(
       check.channelRepo,
       check.tag,
       [
-        { name: check.assetName, url: check.assetUrl, maxBytes: UPDATE_CEILINGS.archiveBytes },
-        { name: CHECKSUM_MANIFEST_NAME, url: check.checksumUrl, maxBytes: UPDATE_CEILINGS.checksumManifestBytes },
+        { name: check.assetName, url: check.assetUrl, maxBytes: ceilings.archiveBytes },
+        { name: CHECKSUM_MANIFEST_NAME, url: check.checksumUrl, maxBytes: ceilings.checksumManifestBytes },
       ],
       staging,
     )
@@ -477,7 +483,10 @@ async function acquireAndActivate(
     }
 
     const extracted = join(staging, 'extracted')
-    const extraction = extractArchive(archivePath, extracted, roots.isWindows)
+    const extraction = await extractArchive(archivePath, extracted, roots.isWindows, ceilings)
+    if (extraction.state === 'refused') {
+      return { state: 'refused', stage: 'envelope', reason: extraction.reason, remedy: `report the release as malformed; ${NOTHING_ACTIVATED_WORDS}` }
+    }
     if (extraction.state === 'tool-absent') {
       return { state: 'refused', stage: 'extract-tool-absent', reason: extraction.note, remedy: 'install PowerShell 7 (pwsh) and rerun `mercury update`' }
     }
