@@ -1,5 +1,5 @@
 import type { AccountSlotReads, AccountSlot } from './shapes.js'
-import { huggingfaceStoredTokens, huggingfaceStoredTokenIdentity, huggingfaceOauthIdentity } from '../huggingface/huggingfaceAccounts.js'
+import { huggingfaceSignInExpired, huggingfaceSignInRow, huggingfaceStoredTokenIdentity, huggingfaceOauthIdentity } from '../huggingface/huggingfaceAccounts.js'
 import { readStoredHuggingfaceApiKey } from '../../sign-in/account-ledger/providerSecrets.js'
 import { label } from './keyLane.js'
 import { maskedKeyTail } from '../../sign-in/account-ledger/credentialIdentity.js'
@@ -9,7 +9,8 @@ import { hostEnv } from '../../../platform/environment/hostEnv.js'
 export function huggingfaceSlots(reads: AccountSlotReads): AccountSlot[] {
   const envKey =
     reads.huggingfaceEnvKey ? reads.huggingfaceEnvKey() : hostEnv().HF_TOKEN?.trim() || undefined
-  const oauth = (reads.huggingfaceOauth ?? huggingfaceStoredTokens)()
+  const oauth = (reads.huggingfaceOauth ?? huggingfaceSignInRow)()
+  const expired = oauth !== undefined && huggingfaceSignInExpired(oauth)
   const storedKey = (reads.huggingfaceStoredKey ?? readStoredHuggingfaceApiKey)()
   const identityOf = reads.huggingfaceStoredKeyIdentity ?? huggingfaceStoredTokenIdentity
   const slots: AccountSlot[] = []
@@ -30,10 +31,6 @@ export function huggingfaceSlots(reads: AccountSlotReads): AccountSlot[] {
   }
   if (oauth) {
     const identity = (reads.huggingfaceOauthIdentity ?? huggingfaceOauthIdentity)()
-    const expiredUnrefreshable =
-      oauth.accessTokenExpiresAtMs !== undefined &&
-      oauth.accessTokenExpiresAtMs <= Date.now() &&
-      !oauth.refreshToken
     slots.push({
       family: 'huggingface',
       id: 'huggingface:oauth',
@@ -41,10 +38,10 @@ export function huggingfaceSlots(reads: AccountSlotReads): AccountSlot[] {
       kind: 'oauth',
       kindLabel: 'OAuth',
       identity: signInWords('huggingface', 'oauth', identity?.username?.trim() || undefined),
-      active: !envKey && !expiredUnrefreshable,
+      active: !envKey && !expired,
       envPinned: false,
-      signedIn: !expiredUnrefreshable,
-      ...(expiredUnrefreshable
+      signedIn: !expired,
+      ...(expired
         ? { stateNote: 'access token expired with no refresh route — /logins reconnects Hugging Face' }
         : envKey
           ? { stateNote: 'shadowed — the environment variable wins' }
@@ -61,12 +58,12 @@ export function huggingfaceSlots(reads: AccountSlotReads): AccountSlot[] {
       kind: 'api-key',
       kindLabel: 'token',
       identity: label(['stored token (auth-scoped)', identity?.username, maskedKeyTail(storedKey)]),
-      active: !envKey && !oauth,
+      active: !envKey && (!oauth || expired),
       envPinned: false,
       signedIn: true,
       ...(envKey
         ? { stateNote: 'shadowed — the environment variable wins' }
-        : oauth
+        : oauth && !expired
           ? { stateNote: 'shadowed — the OAuth sign-in wins' }
           : {}),
       removal: { route: 'huggingface-stored-key' },

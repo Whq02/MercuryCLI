@@ -14,6 +14,7 @@ import { noteCredentialChange } from '../../sign-in/account-ledger/signInLedger.
 import { passedOver } from '../../../platform/errors/passedOver.js'
 import { hostEnv } from '../../../platform/environment/hostEnv.js'
 import { afterMicrotask } from '../../../platform/async/timers.js'
+import { signInExpiredOnKeyLine } from '../credentialWall.js'
 
 
 const HF_HUB_BASE_URL = 'https://huggingface.co'
@@ -135,9 +136,19 @@ export function writeHuggingfaceTokens(
   })
 }
 
-export function huggingfaceStoredTokens(): HuggingfaceStoredTokens | undefined {
+export function huggingfaceSignInRow(): HuggingfaceStoredTokens | undefined {
   const tokens = readAuthFile()?.tokens
   return tokens && typeof tokens.accessToken === 'string' && tokens.accessToken.trim() ? tokens : undefined
+}
+
+export function huggingfaceSignInExpired(row: Pick<HuggingfaceStoredTokens, 'refreshToken' | 'accessTokenExpiresAtMs'>, now: number = Date.now()): boolean {
+  if (row.refreshToken) return false
+  return row.refreshToken === '' || (row.accessTokenExpiresAtMs !== undefined && row.accessTokenExpiresAtMs <= now)
+}
+
+export function huggingfaceStoredTokens(now: number = Date.now()): HuggingfaceStoredTokens | undefined {
+  const row = huggingfaceSignInRow()
+  return row && !huggingfaceSignInExpired(row, now) ? row : undefined
 }
 
 export function huggingfaceOauthIdentity(): HuggingfaceIdentity | undefined {
@@ -392,7 +403,9 @@ export function refreshHuggingfaceTokens(io?: HuggingfaceOauthIo): Promise<Huggi
         writeHuggingfaceTokens(next, huggingfaceOauthIdentity())
         return next
       }
-      if (result.status === 400 || result.status === 401) writeHuggingfaceTokens(null)
+      if (result.status === 400 || result.status === 401) {
+        writeAuthFile(file => (file.tokens?.refreshToken === stored.refreshToken ? { ...file, tokens: { ...stored, refreshToken: '' } } : file))
+      }
       return undefined
     } finally {
       refreshInFlight.delete(home)
@@ -496,37 +509,25 @@ export function resolveHuggingfaceAccount(
 
 export async function resolveHuggingfaceDispatchCredential(
   io?: HuggingfaceOauthIo,
-): Promise<{ apiKey: string } | undefined> {
+): Promise<{ apiKey: string; note?: string } | undefined> {
   const env = io?.env ?? hostEnv()
   const envKey = env.HF_TOKEN?.trim()
   if (envKey) return { apiKey: envKey }
-  const oauth = huggingfaceStoredTokens()
+  const now = io?.now?.() ?? Date.now()
+  const oauth = huggingfaceStoredTokens(now)
   if (oauth) {
-    const now = io?.now?.() ?? Date.now()
     const expiresAt = oauth.accessTokenExpiresAtMs
-    if (expiresAt !== undefined && expiresAt - now < REFRESH_MARGIN_MS) {
-      if (oauth.refreshToken) {
-        const fresh = await refreshHuggingfaceTokens(io)
-        if (fresh) return { apiKey: fresh.accessToken }
-        const remaining = huggingfaceStoredTokens()
-        if (remaining) {
-          if (remaining.accessTokenExpiresAtMs === undefined || remaining.accessTokenExpiresAtMs > now) {
-            return { apiKey: remaining.accessToken }
-          }
-          return undefined
-        }
-      } else if (expiresAt <= now) {
-        writeHuggingfaceTokens(null)
-      } else {
-        return { apiKey: oauth.accessToken }
-      }
-    } else {
-      return { apiKey: oauth.accessToken }
-    }
+    if (expiresAt === undefined || expiresAt - now >= REFRESH_MARGIN_MS || !oauth.refreshToken) return { apiKey: oauth.accessToken }
+    const fresh = await refreshHuggingfaceTokens(io)
+    if (fresh) return { apiKey: fresh.accessToken }
+    const remaining = huggingfaceStoredTokens(now)
+    if (remaining) return remaining.accessTokenExpiresAtMs === undefined || remaining.accessTokenExpiresAtMs > now ? { apiKey: remaining.accessToken } : undefined
   }
   const { resolveProviderKeyCommand } = require('../providerKeyCommand.js') as typeof import('../providerKeyCommand.js')
   const stored = resolveProviderKeyCommand('huggingface') ?? readStoredHuggingfaceApiKey()
-  return stored ? { apiKey: stored } : undefined
+  if (!stored) return undefined
+  const expired = huggingfaceSignInRow() !== undefined
+  return { apiKey: stored, ...(expired ? { note: signInExpiredOnKeyLine('huggingface') } : {}) }
 }
 
 export function huggingfaceAuthPathForDisplay(): string {

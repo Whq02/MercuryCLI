@@ -5,6 +5,7 @@ import type {
 } from '../../../../engine/message-shapes/message.js'
 import type { Options } from '../../anthropic/streamCore.js'
 import { type EffortWireFact } from '../../../effort/effortStamp.js'
+import { isTurnOwningQuerySource } from '../../../effort/effort.js'
 import { thinkingOffWireEffort } from '../compatWire.js'
 import { nearestSupportedWireEffort } from '../../../facts/pins/gptPins.js'
 import { normalizeModelStringForAPI } from '../../../catalogue/engineModel.js'
@@ -59,6 +60,14 @@ export interface CompatCredential {
   apiKey?: string
   requestUrl?: string
   accountIdentity?: string
+  note?: string
+}
+
+export function credentialNotes(credential: CompatCredential, messages: readonly Message[], querySource: string | undefined): string[] {
+  const note = credential.note
+  if (note === undefined || !isTurnOwningQuerySource(querySource)) return []
+  const said = messages.some(message => message.type === 'assistant' && message.message.content.some(block => block.type === 'text' && block.text.includes(note)))
+  return said ? [] : [note]
 }
 
 export interface CompatLaneProfile {
