@@ -272,8 +272,9 @@ export function FullscreenLayout({
   const modalMounted = modal !== null && modal !== undefined
   const modalUp = modalMounted && modalActive
   const popupUp = modalMounted && modelPickerClaimed
-  const crewDoor = modalMounted && commandPopup !== null && commandPopup.shape.door === 'crew' ? commandPopup.shape : null
-  const commandPopupUp = modalMounted && commandPopup !== null && crewDoor === null
+  const crewClaim = modalMounted && commandPopup !== null && commandPopup.shape.door === 'crew' ? commandPopup.shape : null
+  const crewDoor = crewClaim !== null && isCompact && crewClaim.compact === 'pane' ? null : crewClaim
+  const commandPopupUp = modalMounted && commandPopup !== null && crewClaim === null
 
   const cockpit = fullscreen && chrome === 'cockpit'
   const centerFrame = cockpit

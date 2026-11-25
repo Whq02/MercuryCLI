@@ -7,6 +7,6 @@ import { claimCommandPopup } from '../../screen/cockpit/commandPopup.js';
 import { crewDoorShape } from '../../screen/fullscreen-layout/CrewViewSlot.js';
 export async function call(onDone: LocalJSXCommandOnDone, context: LocalJSXCommandContext, args?: string): Promise<React.ReactNode> {
   const initialDetailTaskId = args?.trim() ? args.trim() : undefined;
-  const token = claimCommandPopup(crewDoorShape('runs'));
+  const token = claimCommandPopup({ ...crewDoorShape('runs'), compact: 'pane' });
   return <CommandPopupLease token={token}><BackgroundTasksDialog toolUseContext={context} onDone={onDone} initialDetailTaskId={initialDetailTaskId} /></CommandPopupLease>;
 }

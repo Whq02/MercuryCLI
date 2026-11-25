@@ -117,10 +117,22 @@ function dump(label: string, frame: string | undefined, cols: number): void {
 
 const rowsOf = (frame: string): string[] => frame.split('\n')
 const inner = (row: string): string => row.replace(/^[\s│]+|[\s│]+$/g, '')
+type CardBox = { left: number; right: number; rows: number }
+const cardBox = (frame: string): CardBox | null => {
+  const rows = rowsOf(frame)
+  const at = rows.findIndex(r => r.includes('Mercury — shell'))
+  if (at < 1) return null
+  const left = rows[at]!.lastIndexOf('│', rows[at]!.indexOf('Mercury — shell'))
+  const right = left < 0 ? -1 : rows[at]!.indexOf('│', left + 1)
+  if (left < 0 || right < 0 || rows[at - 1]![left] !== '╭') return null
+  const floor = rows.findIndex((r, y) => y > at && r[left - 2] === '╰')
+  return { left, right, rows: floor < 0 ? rows.length - at + 1 : floor - at }
+}
 const cardRows = (frame: string): string[] => {
   const rows = rowsOf(frame)
   const at = rows.findIndex(r => r.includes('Mercury — shell'))
-  return at < 0 ? [] : rows.slice(at)
+  const box = cardBox(frame)
+  return at < 0 ? [] : rows.slice(at).map(r => (box === null ? r : r.slice(box.left, box.right + 1)))
 }
 const joined = (frame: string): string => cardRows(frame).map(inner).join('')
 const flat = (frame: string): string => cardRows(frame).join('\n').replace(/\s+/g, ' ')
@@ -254,8 +266,9 @@ for (const { cols, rows } of sizes) {
   tally.check(`${label} S6 at least one output line shows whatever the command's length (the floor counts content lines)`, card !== undefined && /long-run line \d+ of thirty/.test(flat(card)), card === undefined ? '' : flat(card).slice(-400))
   const whole = card !== undefined && joined(card).replace(/\s+/g, '').includes(LONG_COMMAND.replace(/\s+/g, ''))
   const clipped = commandRowsOnCard.some(r => r.trimEnd().endsWith('…'))
-  const commandRowsNeeded = wrapText(LONG_COMMAND, cols - 4 - 8, 'wrap').split('\n').length
-  const rowsForCommand = rows - 9 - 1 - 1
+  const box = card === undefined ? null : cardBox(card)
+  const commandRowsNeeded = wrapText(LONG_COMMAND, (box === null ? cols : box.right - box.left + 1) - 4 - 8, 'wrap').split('\n').length
+  const rowsForCommand = (box === null ? rows : box.rows) - 9 - 1 - 1
   const expectWhole = commandRowsNeeded <= rowsForCommand
   tally.check(expectWhole ? `${label} S7 the window has rows for the whole command (${commandRowsNeeded} of ${rowsForCommand}) and the card shows it whole` : `${label} S7 the command needs ${commandRowsNeeded} rows and the window affords ${rowsForCommand}: the card clips it with … and keeps the output line`, expectWhole ? whole : clipped && !whole, `whole=${whole} clipped=${clipped} rows=${JSON.stringify(commandRowsOnCard.slice(0, 3))}`)
   tally.check(`${label} S8 the turn ended after the card closed`, (cap.marks['settled-landed'] ?? '').includes(LANDED2))
