@@ -629,23 +629,36 @@ try {
         JSON.stringify(writeRes),
       )
 
-      const directive = setActiveMission('ship cleanly', { sessionId: sid })
-      check(
-        'w04-6 setActiveMission appends save-failure sentence when mission card cannot be written',
-        directive.includes(`the mission could not be saved to ${expectedPath} (`) &&
-          directive.includes('), so it will not survive this session'),
-        directive,
-      )
+      const { readFileSync } = await import('node:fs')
+      const dbg = await import('../../src/platform/logs/debugLog.ts')
+      const prevNodeEnv = process.env.NODE_ENV
+      delete process.env.NODE_ENV
+      dbg.enableDebugLogging()
+      const dbgPath = dbg.getDebugLogPath()
+      try {
+        const directive = setActiveMission('ship cleanly', { sessionId: sid })
+        await dbg.flushDebugLogs()
+        const dbgText = (() => { try { return readFileSync(dbgPath, 'utf8') } catch { return '' } })()
+        check(
+          'w04-6 setActiveMission appends plain save-failure sentence and logs path+error to debug log',
+          directive.includes('the mission could not be saved, so it will not survive this session') &&
+            !directive.includes(expectedPath) &&
+            dbgText.includes(expectedPath),
+          `${directive} | dbg=${dbgText.slice(-200)}`,
+        )
 
-      const cleared = clearActiveMission(sid)
-      const viewAfterClear = missionCardView(sid)
-      check(
-        'w04-6 clearActiveMission appends save-failure sentence and updates in-session cardMemo to cleared',
-        Boolean(cleared?.includes(`the mission could not be saved to ${expectedPath} (`)) &&
-          Boolean(cleared?.includes('), so it will not survive this session')) &&
-          viewAfterClear?.state === 'cleared',
-        JSON.stringify({ cleared, viewAfterClear }),
-      )
+        const cleared = clearActiveMission(sid)
+        const viewAfterClear = missionCardView(sid)
+        check(
+          'w04-6 clearActiveMission appends plain save-failure sentence and updates in-session cardMemo to cleared',
+          Boolean(cleared?.includes('the mission could not be saved, so it will not survive this session')) &&
+            !Boolean(cleared?.includes(expectedPath)) &&
+            viewAfterClear?.state === 'cleared',
+          JSON.stringify({ cleared, viewAfterClear }),
+        )
+      } finally {
+        if (prevNodeEnv !== undefined) process.env.NODE_ENV = prevNodeEnv
+      }
     } finally {
       rmSync(missionsBlocker, { force: true })
     }

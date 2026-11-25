@@ -55,7 +55,8 @@ type MissionCardWriteResult =
   | { ok: false; path: string; error: string }
 
 export function missionCardUnwrittenWords(path: string, error: string): string {
-  return `the mission could not be saved to ${path} (${error}), so it will not survive this session`
+  logForDebugging(`missionCard: could not save ${path}: ${error}`, { level: 'error' })
+  return 'the mission could not be saved, so it will not survive this session'
 }
 
 export function writeMissionCard(card: MissionCard, cwd?: string): MissionCardWriteResult {
@@ -66,7 +67,7 @@ export function writeMissionCard(card: MissionCard, cwd?: string): MissionCardWr
   } catch (error) {
     passedOver(error)
     const message = error instanceof Error ? error.message : String(error)
-    logForDebugging(`missionCard: write failed: ${String(error)}`)
+    logForDebugging(`missionCard: write failed for ${path}: ${message}`, { level: 'error' })
     return { ok: false, path, error: message }
   }
 }
