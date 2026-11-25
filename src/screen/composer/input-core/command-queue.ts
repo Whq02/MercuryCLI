@@ -173,7 +173,7 @@ function foldArgs(cmd: QueuedCommand): string | undefined {
   return parsed?.commandName === 'compact' ? parsed.args.trim() : undefined
 }
 
-export function beginQueuedFold(owner: OwnerKey): { fresh: boolean; instructions?: string; complete: () => void } | undefined {
+export function beginQueuedFold(owner: OwnerKey): { fresh: boolean; instructions?: string; complete: () => Array<{ uuid?: QueuedCommand['uuid']; args: string }> } | undefined {
   const { sessionId, lane } = parseOwnerKey(owner)
   const sameSession = (): boolean => sessionId === (owningSessionId ?? getSessionId())
   if (lane !== MAIN_LANE || !sameSession()) return undefined
@@ -189,7 +189,11 @@ export function beginQueuedFold(owner: OwnerKey): { fresh: boolean; instructions
     if (args !== '') instructions = args
   }
   return { fresh, instructions, complete: () => {
-    if (sameSession()) dequeueAllMatching(cmd => cmd.queueId !== undefined && (ids.has(cmd.queueId) || foldArgs(cmd) === ''))
+    if (!sameSession()) return []
+    return dequeueAllMatching(cmd => cmd.queueId !== undefined && (ids.has(cmd.queueId) || foldArgs(cmd) === '')).map(cmd => ({
+      ...(cmd.uuid !== undefined ? { uuid: cmd.uuid } : {}),
+      args: foldArgs(cmd) ?? '',
+    }))
   } }
 }
 

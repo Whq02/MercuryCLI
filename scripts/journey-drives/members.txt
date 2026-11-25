@@ -6,6 +6,7 @@ prove-cap-offer-live.ts
 prove-daemon-departure-drive.ts
 prove-delivery-mid-tool.ts
 prove-launch-overrides-drive.ts
+prove-midturn-compact-row-drive.ts
 prove-mission-continue-live.ts
 prove-model-choice-persists-drive.ts
 prove-overload-lane-resume-drive.ts
