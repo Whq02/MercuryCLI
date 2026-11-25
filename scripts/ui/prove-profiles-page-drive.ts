@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs, vshotBudgetScale } from '../lib/captureDriver.ts'
@@ -76,17 +76,23 @@ const oneSkill = (install: { home: string }): void => {
   writeFileSync(join(install.home, 'skills', 'alpha', 'SKILL.md'), '---\ndescription: a skill of the first profile\n---\nits body\n')
 }
 
-async function drive(cols: number, rows: number, scene: { name: string; sends: Array<ReturnType<typeof key>>; readyText: string | string[]; resizes?: Array<{ afterMark: string; cols: number; rows: number }>; stage?: (install: { home: string; bin: string }) => void; after?: (install: { home: string; bin: string }) => boolean }): Promise<{ frame: (label: string) => string; home: string; bin: string; after: boolean }> {
+async function drive(cols: number, rows: number, scene: { name: string; sends: Array<ReturnType<typeof key>>; readyText: string | string[]; resizes?: Array<{ afterMark: string; cols: number; rows: number }>; linked?: boolean; stage?: (install: { home: string; bin: string }) => void; after?: (install: { home: string; bin: string }) => boolean }): Promise<{ frame: (label: string) => string; home: string; bin: string; after: boolean }> {
   const userHome = realpathSync(mkdtempSync(join(tmpdir(), 'profiles-page-home-')))
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'profiles-page-project-')))
   const install = stageInstall('source', userHome)
   seedFirstRun(install.home, [cwd])
   scene.stage?.(install)
+  const linkDir = join(userHome, 'linked')
+  if (scene.linked) {
+    mkdirSync(linkDir)
+    symlinkSync(install.command, join(linkDir, 'mercury'))
+  }
   const output = join(userHome, 'capture.json')
   const config = join(userHome, 'capture-config.json')
-  writeFileSync(config, JSON.stringify({ argv: [install.command], cwd, cols, rows, out: output, total: 600, sends: scene.sends, resizes: scene.resizes ?? [], readyText: scene.readyText }))
+  writeFileSync(config, JSON.stringify({ argv: [scene.linked ? join(linkDir, 'mercury') : install.command], cwd, cols, rows, out: output, total: 600, sends: scene.sends, resizes: scene.resizes ?? [], readyText: scene.readyText }))
   const env = {
     ...install.env,
+    ...(scene.linked ? { PATH: `${linkDir}${(install.env.PATH ?? '').slice(install.bin.length)}` } : {}),
     TERM: 'xterm-256color',
     MERCURY_VSHOT_BUDGET_SCALE: String(vshotBudgetScale()),
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,
@@ -162,6 +168,8 @@ try {
     after: install => existsSync(join(`${install.home}2`, 'skills', 'alpha', 'SKILL.md')),
   })
   check('120: a rename opened before the skills answer came is not answered with the skills line when it is left', late.after && rowOf(late.frame('late'), 2) !== undefined && !says(late.frame('late'), 'skill copied') && !says(late.frame('late'), 'Profile 2 created'), `the n action must add the skills line only while the page still says that create's own line: one functional update of said that leaves anything else as it stands (${PAGE}); the skill was copied: ${String(late.after)}; the pane reads: ${paneOf(late.frame('late')) ?? 'no pane'}`)
+  const linked = await drive(120, 40, { name: 'linked', linked: true, sends: [...toThePage, key('1 · Profile 1', 'n'), key('2 · Profile 2', DOWN)], readyText: IN_THE_LIST })
+  check('started through a link, with the command folder off PATH, the page names the new command by its full path, and the row keeps its name', says(linked.frame('linked'), `${join(linked.bin, 'mercury2')} starts it`) && /Profile 2\s+mercury2/.test(rowOf(linked.frame('linked'), 2) ?? ''), `startWords must print the row's offPath where the door gives one (${PAGE}); the pane reads: ${paneOf(linked.frame('linked')) ?? 'no pane'}`)
   const shrunk = await drive(120, 40, {
     name: 'shrunk',
     sends: [...toThePage, key('1 · Profile 1', 'n'), key('Profile 2 created', DOWN + BACKSPACE), key('remove Profile 2?', '', 'confirm-wide'), key(SMALL_ROW_1, '\r' + UP, 'confirm-small'), key(`❯ ${SMALL_ROW_1}`, '', 'entered')],

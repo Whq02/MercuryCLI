@@ -29,7 +29,7 @@ const removable = (profile: ProfileRow): boolean => profile.id !== 1 && !profile
 
 function startWords(profile: ProfileRow): string {
   if (profile.current) return 'this session runs in it';
-  return profile.command === null ? 'its command is missing' : `${profile.command} starts it`;
+  return profile.command === null ? 'its command is missing' : `${profile.offPath ?? profile.command} starts it`;
 }
 
 function skillsWords(answer: Awaited<ReturnType<typeof inheritSkills>>, from: string): string | null {
