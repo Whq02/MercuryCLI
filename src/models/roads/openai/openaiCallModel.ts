@@ -63,6 +63,7 @@ async function* openaiTurn(
   if (openaiLimitWindow(account.kind).state === 'limited') await refreshProviderUsage('openai', { force: true, reason: 'operator' })
   const opening: TurnOpening = { params, deferralFormReissued, resumeTrimReissued, systemPrompt, tools, signal, options, requestedId, conversation4xxKey, messages, prior4xxCode, account }
   const prepared = await prepareOpenaiTurn(opening)
+  if (signal.aborted) return
   if ('refusal' in prepared) {
     yield prepared.refusal
     return

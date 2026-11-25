@@ -131,7 +131,7 @@ export async function prepareOpenaiTurn(opening: TurnOpening): Promise<PreparedO
     ) }
   }
 
-  const qualification = await qualifyRequestedModel(requestedId, auth)
+  const qualification = await qualifyRequestedModel(requestedId, auth, signal)
   if (qualification.kind === 'refused') {
     return { refusal: apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${qualification.message}`) }
   }

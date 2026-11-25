@@ -5,6 +5,7 @@ import { spawn } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { rotatingTokenServer } from './lib/rotating-token-server.ts'
+import type { CallModelParams } from '../../src/models/roads/callModelContract.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const home = join(proofHome, 'home')
@@ -15,9 +16,15 @@ const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign
 for (const name of ALL_PROVIDER_CREDENTIAL_ENV_VARS) delete process.env[name]
 const server = rotatingTokenServer('rt-0')
 process.env.MERCURY_OPENAI_AUTH_BASE = server.base
+process.env.MERCURY_OPENAI_CHATGPT_BASE = server.base
+process.env.MERCURY_OPENAI_API_BASE = server.base
 const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const accounts = await import('../../src/models/roads/openai/openaiAccounts.ts')
+const { openaiCallModel } = await import('../../src/models/roads/openai/openaiCallModel.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 
 const fixHint = 'fix currentSubscriptionTokens in src/models/roads/openai/openaiAccounts.ts (the road it hands the door) or the door in src/models/sign-in/lifecycle/lockedRefresh.ts; the stand-in token server is scripts/provauth/lib/rotating-token-server.ts'
 let failures = 0
@@ -147,6 +154,36 @@ try {
   const holderEnd = await holder
   await waiting
   check('the holder still finishes its one exchange', holderEnd.after === liveToken() && storedRefresh() === liveToken() && server.grants.length === beforeWait + 1, JSON.stringify(holderEnd))
+
+  console.log('── a whole turn cancelled while it waits for the lock ends there: it does not wait again for the model list ──')
+  const turnToken = 'rt-of-a-fifth-sign-in'
+  server.live = turnToken
+  seed(turnToken)
+  const beforeTurn = server.grants.length
+  release = server.hold()
+  const turnHolder = child(() => {})
+  await until('the holding process has its grant at the server', () => server.grants.length === beforeTurn + 1)
+  const escaped = new AbortController()
+  const turnParams: CallModelParams = {
+    messages: [createUserMessage({ content: 'say hi' })],
+    systemPrompt: asSystemPrompt(['Fixture system']),
+    thinkingConfig: { type: 'disabled' },
+    tools: [],
+    signal: escaped.signal,
+    options: { model: 'gpt', querySource: 'main_thread', isNonInteractiveSession: true, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], hasAppendSystemPrompt: false, mcpTools: [], hasPendingMcpServers: false },
+  }
+  const rows: string[] = []
+  const turn = (async (): Promise<void> => {
+    for await (const item of openaiCallModel(turnParams)) rows.push(item.type)
+  })()
+  await sleep(300)
+  const cancelledAt = Date.now()
+  escaped.abort()
+  const turnEnded = await Promise.race([turn.then(() => true), sleep(3_000).then(() => false)])
+  check('the turn ends within three seconds of the cancel, says nothing, and sent nothing', turnEnded && rows.length === 0 && server.grants.length === beforeTurn + 1, JSON.stringify({ ended: turnEnded, ms: Date.now() - cancelledAt, rows, grants: server.grants.length - beforeTurn }))
+  release()
+  await turnHolder
+  await turn
 } finally {
   server.stop()
 }

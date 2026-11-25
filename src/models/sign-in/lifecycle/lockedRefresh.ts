@@ -107,6 +107,7 @@ export function lockedRefresh<T extends RefreshablePair>(): (road: LockedRefresh
     if (exchanged.state === 'failed') return { state: 'failed', pair: due.pair, error: exchanged.error }
     if (exchanged.state === 'dead') {
       dead.set(due.refreshToken, exchanged.error)
+      unsaved.delete(road.path)
       try {
         road.write({ ...due.pair, refreshToken: '' })
       } catch (error) {

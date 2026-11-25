@@ -146,6 +146,20 @@ try {
   const afterLanding = await other(proofRoad(store, server.base, true))
   check('so another reader of the store exchanges the live token, never the spent one', afterLanding.state === 'refreshed' && server.live !== undefined && stored()?.refreshToken === server.live, JSON.stringify({ answer: told(afterLanding), live: server.live }))
 
+  console.log('── a kept pair the server then refuses is forgotten: it is never written into the store as if it were live ──')
+  seed(liveToken())
+  writeFileSync(unwritable, '')
+  const keptFirst = await mine(proofRoad(store, server.base))
+  const refused = liveToken()
+  server.revoked.add(refused)
+  before = server.grants.length
+  const refusedKept = await mine(proofRoad(store, server.base, true))
+  check('a forced exchange of the kept pair that the server refuses is answered dead', keptFirst.state === 'refreshed' && refusedKept.state === 'dead' && server.grants.length === before + 1 && server.grants.at(-1)?.refreshToken === refused, JSON.stringify({ first: told(keptFirst), then: told(refusedKept), sent: server.grants.at(-1)?.refreshToken }))
+  rmSync(unwritable)
+  const afterRefusal = await mine(proofRoad(store, server.base))
+  check('once the store can be written the refused pair is not in it, and the row is not left reading signed in', stored()?.refreshToken !== refused && stored()?.refreshToken === '' && afterRefusal.state === 'dead' && readRow(store)?.email === EMAIL, JSON.stringify({ answer: told(afterRefusal), stored: stored()?.refreshToken, refused }))
+  server.live = 'rt-of-a-new-sign-in-after-the-refusal'
+
   console.log('── the store changed while the exchange was out: nothing is written over it ──')
   seed(liveToken())
   before = server.grants.length
