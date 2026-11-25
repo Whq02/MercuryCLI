@@ -342,7 +342,7 @@ section('§3 receipts, evaluateExplicitApply & admitted snapshot revision')
   check(
     'evaluateExplicitApply refuses a real-env-pinned live row as today',
     evalBefore.get('MERCURY_UNITY')?.outcome === 'refused' &&
-      (evalBefore.get('MERCURY_UNITY')?.reason ?? '').includes('pinned by the real environment'),
+      (evalBefore.get('MERCURY_UNITY')?.reason ?? '').includes('pinned by the environment'),
     j(evalBefore.get('MERCURY_UNITY')),
   )
   check(

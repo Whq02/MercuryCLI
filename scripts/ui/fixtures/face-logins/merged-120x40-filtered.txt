@@ -26,7 +26,7 @@
                                                                        │ Scope      all history — every project     │
                                                                        │ Sessions   1                               │
                                                                        │ Repos      2                               │
-                                                                       │ Opens      ● a real chat, in place         │
+                                                                       │ Opens      in place                        │
                                                                        ╰────────────────────────────────────────────╯
                                                                        ╭────────────────────────────────────────────╮
                                                                        │ ENVIRONMENT                                │
@@ -35,6 +35,6 @@
                                                                        │ Dir        orchard-src                     │
                                                                        ╰────────────────────────────────────────────╯
    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  1 session in 'moodle' (filtered) · ↵ opens the real chat                                    │
+   │ ● System ready  │  1 session in 'moodle' (filtered)                                                            │
    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
                     ↑↓ move · ↵ open · n new session · d prune · a this project · ⇥ repos · esc back

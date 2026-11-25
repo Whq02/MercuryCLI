@@ -111,7 +111,7 @@ section('§1 the row — a live-class toggle over a registered flag, through the
   check('the live value decides no-change (an in-session toggle moved the switch on already)', liveReceipts.find(r => r.env === SUB)?.outcome === 'no-change', j(liveReceipts.find(r => r.env === SUB)))
   const pinnedSnap = menu.resolveEffectiveSettingsSnapshot({ sessionId: 'pinned', path, env: pinned })
   const pinnedReceipt = menu.evaluateExplicitApply(pinnedSnap, profile).find(r => r.env === SUB)
-  check('an env-pinned live row refuses on the explicit-env-wins law', pinnedReceipt?.outcome === 'refused' && pinnedReceipt.reason.includes('pinned by the real environment'), j(pinnedReceipt))
+  check('an env-pinned live row refuses on the explicit-env-wins law', pinnedReceipt?.outcome === 'refused' && pinnedReceipt.reason.includes('pinned by the environment'), j(pinnedReceipt))
 }
 
 section('§2 the valve and the latch — one receipt while off; born once, sticky, moved by the toggle')
