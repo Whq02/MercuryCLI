@@ -54,6 +54,7 @@ prove-park-request-lifetime.ts
 prove-parked-state.ts
 prove-parked-wake-exit.ts
 prove-process-sweep.ts
+prove-profile-daemon-follows-deploy.ts
 prove-pty-degrade.ts
 prove-quit-proof-own-daemon-folder.ts
 prove-recall-relay.ts

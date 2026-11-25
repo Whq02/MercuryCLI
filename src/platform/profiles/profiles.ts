@@ -51,6 +51,16 @@ function stored<T>(path: string, schema: z.ZodType<T>): T | undefined {
   }
 }
 
+export function programHome(): string {
+  const home = getMercuryHome()
+  try {
+    return stored(join(home, MARKER), markerSchema)?.first ?? home
+  } catch (error) {
+    passedOver(error)
+    return home
+  }
+}
+
 function family(): Family {
   const home = getMercuryHome()
   const marker = stored(join(home, MARKER), markerSchema)
