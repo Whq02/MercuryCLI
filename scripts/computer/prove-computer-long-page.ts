@@ -41,6 +41,7 @@ function browserWindow(page: Node[]): Node[] {
       { role: 'AXTextField', title: 'Address and search bar', value: 'feed.example/home', frame: { x: 130, y: 46, width: 800, height: 28 } },
     ] },
     wrapped({ role: 'AXWebArea', title: 'Feed', frame: { x: 0, y: 80, width: 1200, height: 720 }, children: page }, 3),
+    { role: 'AXButton', title: 'Sign-in codes', frame: { x: 1100, y: 46, width: 80, height: 28 } },
   ] }]
 }
 
@@ -173,6 +174,26 @@ section('by name on a cut walk: nothing is done on one match, and its ref is han
   const short = await stage(sceneFile('short-by-name', browserWindow(feed.slice(0, 12))))
   const direct = await short.call({ action: 'click', target: { role: 'AXButton', name: 'Like post 3' }, capture: false })
   check('on a walk that is whole a click by name acts at once, as before', short.walks.find(walk => walk.count === WALK_CAP)?.truncated === false && direct.outcome === 'succeeded' && JSON.stringify(short.clicks) === JSON.stringify([{ x: 340, y: 483 }]), `${direct.result} ${JSON.stringify(short.clicks)}`)
+}
+
+section('the nearest matches of a refusal come from the page, not from the browser\'s own furniture')
+{
+  const OTHER_TAB = 'Inbox - your sign-in code is 000000'
+  const shown = await stage(sceneFile('short-nearest', browserWindow(feed.slice(0, 12))))
+  const missed = await shown.call({ action: 'click', target: { text: 'Sign in code' }, capture: false })
+  const near = missed.result.split('\n').slice(1)
+  check('a name that matches nothing in a window that shows a page lists three neighbours, every one a row of the page, and no other tab\'s title', missed.outcome === 'failed' && missed.result.startsWith('click refused: text="Sign in code": 0 matches — nearest 3 by text\n') && near.length === 3 && near.every(row => /^\[\d\] AX(?:Link|StaticText|Button) "(?:Home|Explore|Author \d+|Post \d+ tells its news|Like post \d+)" /.test(row)) && !missed.result.includes(OTHER_TAB) && !missed.result.includes('Sign-in codes') && !missed.result.includes('Reload') && !missed.result.includes('feed.example'), missed.result)
+  const blank = await stage(sceneFile('blank-page', browserWindow([])))
+  const nothing = await blank.call({ action: 'click', target: { text: 'Sign in code' }, capture: false })
+  check('with nothing named under the web area the sentence ends as it does with no neighbours', nothing.outcome === 'failed' && nothing.result === 'click refused: text="Sign in code": 0 matches — read tree or take a screenshot', nothing.result)
+  const tabbed = await shown.call({ action: 'tree', limit: 500 })
+  check('the tree itself still lists the tab strip, as before', tabbed.outcome === 'succeeded' && tabbed.result.includes(`"${OTHER_TAB}"`), tabbed.result.slice(0, 300))
+  const plain = await stage(sceneFile('no-page', [{ role: 'AXWindow', title: 'Feed - Browser', focused: true, frame: bounds, children: [
+    { role: 'AXButton', title: 'Sign in', frame: { x: 90, y: 46, width: 80, height: 28 } },
+    { role: 'AXButton', title: 'Send code', frame: { x: 190, y: 46, width: 80, height: 28 } },
+  ] }]))
+  const windowed = await plain.call({ action: 'click', target: { text: 'Sign in code' }, capture: false })
+  check('a window that holds no web area draws its neighbours from the whole window, as before', windowed.outcome === 'failed' && windowed.result.includes('nearest 3 by text') && windowed.result.includes('AXButton "Sign in"') && windowed.result.includes('AXButton "Send code"') && windowed.result.includes('AXWindow "Feed - Browser"'), windowed.result)
 }
 
 finish('prove-computer-long-page')
