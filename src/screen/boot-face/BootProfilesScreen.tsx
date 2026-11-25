@@ -10,6 +10,7 @@ import { useMercuryTokens } from '../widgets/useMercuryTokens.js';
 import { useSplashCoreAccent } from '../widgets/useSplashCoreAccent.js';
 import { useBootComposition } from './useBootComposition.js';
 import { settingsRowLine } from './settings/rows.js';
+import { typedName } from './typedName.js';
 
 const PROFILE_NAME_MAX = 24;
 
@@ -95,14 +96,11 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
         settle(renamed.ok ? null : renamed.reason);
         return;
       }
-      if (key.backspace || key.delete) {
-        setFace(f => (f.kind === 'rename' ? { ...f, name: f.name.slice(0, -1) } : f));
-        return;
-      }
-      if (key.ctrl || key.meta || key.tab || key.upArrow || key.downArrow || key.leftArrow || key.rightArrow) return;
-      if (input.length > 0 && !/[\x00-\x1f\x7f]/.test(input)) {
-        setFace(f => (f.kind === 'rename' ? { ...f, name: (f.name + input).slice(0, PROFILE_NAME_MAX) } : f));
-      }
+      setFace(f => {
+        if (f.kind !== 'rename') return f;
+        const name = typedName(f.name, input, key, PROFILE_NAME_MAX);
+        return name === null ? f : { ...f, name };
+      });
     },
     { isActive: face.kind === 'rename' },
   );
