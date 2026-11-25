@@ -69,7 +69,7 @@ const appState = () => ({ ...getDefaultAppState(), toolPermissionContext: { ...g
 const toolUseContext = { abortController: new AbortController(), getAppState: appState, setAppState() {}, options: { tools: [BashTool, PowerShellTool] }, messages: [] }
 const assistantMessage = { message: { id: 'card-prefix-choice' } }
 
-async function choices(kind: 'bash' | 'powershell', command: string, permissionResult: unknown, columns: number, focusPrefixChoice: boolean): Promise<string[]> {
+async function choices(kind: 'bash' | 'powershell', command: string, permissionResult: unknown, columns: number, focusPrefixChoice: boolean, retyped?: string): Promise<string[]> {
   const base = getDefaultAppState()
   const initialState = { ...base, toolPermissionContext: { ...base.toolPermissionContext, mode: 'default' } }
   const isPowerShell = kind === 'powershell'
@@ -105,6 +105,16 @@ async function choices(kind: 'bash' | 'powershell', command: string, permissionR
     if (focusPrefixChoice) {
       scene.push(KEY.down)
       await waitFor(() => scene.lines().some(line => line.includes('❯ 2.')), 1500)
+    }
+    if (retyped !== undefined) {
+      for (let line = 0; line < 4; line++) {
+        scene.push('\x15')
+        await painted(120)
+      }
+      for (const key of retyped) {
+        scene.push(key)
+        await painted(60)
+      }
     }
     await painted(1000)
     const rows = scene.lines().map(line => line.replace(/^│ {2}/, '').replace(/ *│$/, ''))
@@ -158,6 +168,15 @@ try {
         JSON.stringify(cut),
       )
     }
+  }
+
+  for (const columns of [65, 68, 72]) {
+    const typed = await choices('bash', COMMAND, ask, columns, true, 'npm run build')
+    check(
+      `${columns} columns: with the prefix cleared (ctrl+u) and npm run build typed in its place, the choice reads "${LEAD}npm run build"`,
+      reads(typed) === `${LEAD}npm run build`,
+      JSON.stringify(typed),
+    )
   }
 
   const shortAsk = await hasPermissionsToUseTool(BashTool, { command: SHORT_COMMAND }, toolUseContext, assistantMessage, 'toolu_card_prefix_choice_short')

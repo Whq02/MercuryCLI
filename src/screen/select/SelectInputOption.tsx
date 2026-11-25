@@ -1,4 +1,4 @@
-import React, { useContext, useRef, useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { Box, Text } from '../themedRenderer.js'
 import useInput from '../renderer/bindings/use-input.js'
 import { useKeybinding } from '../keys/useKeybinding.js'
@@ -14,7 +14,6 @@ import TextInput from '../composer/text-input/TextInput.js'
 import { SelectOption } from './select-option.js'
 import { ordinalPrefix, type InputOption } from './optionMap.js'
 import { logError } from '../../platform/logs/errorLog.js'
-import { PopupFormContext } from '../overlays/popupFormContext.js'
 
 const INPUT_WRAP_COLUMNS = 80
 
@@ -93,7 +92,6 @@ export function SelectInputOption<T>({
   const [cursorOffset, setCursorOffset] = useState(value.length)
   const [pasteError, setPasteError] = useState<string | null>(null)
   const { columns: termCols } = useTerminalSize()
-  const fitToForm = useContext(PopupFormContext)
   const inputColumns = Math.max(20, Math.min(INPUT_WRAP_COLUMNS, termCols - 6))
 
   const keystrokeRef = useRef(false)
@@ -218,7 +216,7 @@ export function SelectInputOption<T>({
       value={value}
       onChange={handleChange}
       onSubmit={text => onSubmit(text)}
-      columns={inputColumns}
+      columns={showsLabel ? Math.max(1, Math.min(inputColumns, termCols - 6 - indent)) : inputColumns}
       cursorOffset={cursorOffset}
       onChangeCursorOffset={setCursorOffset}
       multiline
@@ -251,7 +249,7 @@ export function SelectInputOption<T>({
                 {isFocused || value !== '' ? separatorWords : ''}
               </Text>
             ) : null}
-            <PopupFormContext.Provider value={fitToForm || showsLabel}>{field}</PopupFormContext.Provider>
+            {field}
           </Box>
         </Box>
       </SelectOption>
