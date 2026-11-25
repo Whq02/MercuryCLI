@@ -21,6 +21,7 @@ import { getIsInteractive } from '../../boot/process-state/processState.js'
 import { getCwd } from '../../platform/files/cwd.js'
 import { isEnvDefinedFalsy, isEnvTruthy } from '../../platform/environment/envUtils.js'
 import { errorMessage } from '../../platform/errors/errors.js'
+import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { flagEnv } from '../../platform/substrate/flagRegistry.js'
 import {
   evidenceDemandCount,
@@ -228,10 +229,11 @@ export function mintDeliveryArtifact(owner: OwnerKey, runId: string, hasChanges:
 }
 
 function noteWalkthroughUnwritten(owner: OwnerKey, reason: string): void {
+  logForDebugging(`runStopAdapter: delivered walkthrough could not be saved: ${reason}`, { level: 'error' })
   noteRunEvent(owner, {
     type: 'next-action',
     at: Date.now(),
-    action: `the delivered walkthrough could not be written (${reason}) — review the changes in /diff`,
+    action: 'the delivered walkthrough could not be saved — review the changes in /diff',
   })
 }
 

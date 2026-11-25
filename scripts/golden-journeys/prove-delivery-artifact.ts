@@ -117,6 +117,43 @@ check('the gate function pins all three postures',
   'headlessMintAllowed (src/permissions/guards/runStopAdapter.ts) must return false for undefined when headless, true for 1, and true for undefined when interactive')
 setIsInteractive(false)
 
+{
+  const { readFileSync } = await import('node:fs')
+  const dbg = await import('../../src/platform/logs/debugLog.ts')
+  const prevNodeEnv = process.env.NODE_ENV
+  const prevDir = process.env.MERCURY_REVIEW_ARTIFACTS_DIR
+  const blocker = path.join(SCRATCH, 'blocked-artifacts')
+  writeFileSync(blocker, 'not a dir')
+  process.env.MERCURY_REVIEW_ARTIFACTS_DIR = blocker
+  delete process.env.NODE_ENV
+  dbg.enableDebugLogging()
+  const dbgPath = dbg.getDebugLogPath()
+  setIsInteractive(true)
+  _resetDeliveryLatchForTesting()
+  try {
+    mintDeliveryArtifact(owner, 'run-unwritable', true)
+    let action = ''
+    for (let i = 0; i < 40; i++) {
+      action = getRunSnapshot(owner)?.nextAction ?? ''
+      if (action.includes('could not be')) break
+      await sleep(50)
+    }
+    await dbg.flushDebugLogs()
+    const dbgText = (() => { try { return readFileSync(dbgPath, 'utf8') } catch { return '' } })()
+    check(
+      'a failed walkthrough save records the plain next-action sentence and logs detail to debug log',
+      action === 'the delivered walkthrough could not be saved — review the changes in /diff' &&
+        dbgText.includes('delivered walkthrough could not be saved'),
+      `action=${JSON.stringify(action)} dbg=${JSON.stringify(dbgText.slice(-250))}`,
+    )
+  } finally {
+    setIsInteractive(false)
+    if (prevDir === undefined) delete process.env.MERCURY_REVIEW_ARTIFACTS_DIR
+    else process.env.MERCURY_REVIEW_ARTIFACTS_DIR = prevDir
+    if (prevNodeEnv !== undefined) process.env.NODE_ENV = prevNodeEnv
+  }
+}
+
 rmSync(SCRATCH, { recursive: true, force: true })
 if (failures > 0) {
   console.error(`\nprove-delivery-artifact: RED (${failures})`)
