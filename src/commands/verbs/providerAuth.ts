@@ -407,7 +407,7 @@ export async function providerAuthLogout(familyRaw?: string, io: ProviderAuthIo 
   const familySlots = allAccountSlots().filter(
     slot => slot.family === targetFamily && (endpointFilter === undefined || slot.id.includes(endpointFilter)),
   )
-  const removable = familySlots.filter(slot => slot.signedIn && slot.removal.route !== 'env' && slot.removal.route !== 'settings' && slot.removal.route !== 'excluded')
+  const removable = familySlots.filter(slot => (slot.signedIn || slot.removal.route === 'moonshot-oauth' || slot.removal.route === 'huggingface-oauth') && slot.removal.route !== 'env' && slot.removal.route !== 'settings' && slot.removal.route !== 'excluded')
   const fileOnly = signOutAccountFileNoSlotReads(targetFamily)
   const unread = fileOnly !== null && 'refused' in fileOnly ? fileOnly.refused : null
   if (removable.length === 0 && unread === null) {

@@ -339,7 +339,7 @@ function tokensFromBody(body: Record<string, unknown>, io?: HuggingfaceOauthIo):
   const now = io?.now?.() ?? Date.now()
   return {
     accessToken,
-    ...(typeof body.refresh_token === 'string' ? { refreshToken: body.refresh_token } : {}),
+    ...(typeof body.refresh_token === 'string' && body.refresh_token.trim() ? { refreshToken: body.refresh_token } : {}),
     ...(typeof body.expires_in === 'number' ? { accessTokenExpiresAtMs: now + body.expires_in * 1000 } : {}),
     ...(typeof body.scope === 'string' ? { scope: body.scope } : {}),
   }
@@ -535,7 +535,8 @@ export async function resolveHuggingfaceDispatchCredential(
   const { resolveProviderKeyCommand } = require('../providerKeyCommand.js') as typeof import('../providerKeyCommand.js')
   const stored = resolveProviderKeyCommand('huggingface') ?? readStoredHuggingfaceApiKey()
   if (!stored) return undefined
-  const expired = huggingfaceSignInRow() !== undefined
+  const row = huggingfaceSignInRow()
+  const expired = row !== undefined && huggingfaceSignInExpired(row, now)
   return { apiKey: stored, ...(expired ? { note: signInExpiredOnKeyLine('huggingface') } : {}) }
 }
 

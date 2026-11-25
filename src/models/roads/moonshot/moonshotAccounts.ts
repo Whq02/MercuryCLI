@@ -446,7 +446,7 @@ function tokensFromBody(body: Record<string, unknown>, io?: MoonshotOauthIo): Mo
   const now = io?.now?.() ?? Date.now()
   return {
     accessToken,
-    ...(typeof body.refresh_token === 'string' ? { refreshToken: body.refresh_token } : {}),
+    ...(typeof body.refresh_token === 'string' && body.refresh_token.trim() ? { refreshToken: body.refresh_token } : {}),
     ...(typeof body.expires_in === 'number'
       ? { accessTokenExpiresAtMs: now + body.expires_in * 1000 }
       : {}),
@@ -616,6 +616,7 @@ export async function resolveMoonshotDispatchCredential(
   }
   const stored = resolveProviderKeyCommand('moonshot') ?? readStoredMoonshotApiKey()
   if (!stored) return undefined
-  const expired = moonshotSignInRow() !== undefined
+  const row = moonshotSignInRow()
+  const expired = row !== undefined && moonshotSignInExpired(row, now)
   return { apiKey: stored, requestUrl: moonshotChatCompletionsUrl(env), source: 'stored', accountIdentity: credentialFingerprint(stored), ...(expired ? { note: signInExpiredOnKeyLine('moonshot') } : {}) }
 }
