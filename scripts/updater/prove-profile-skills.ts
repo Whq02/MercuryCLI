@@ -52,12 +52,18 @@ if (mode === '--kit') {
 }
 
 process.env.MERCURY_CONFIG_DIR = first
-const staged = stageInstall('source', userHome)
-process.argv[1] = staged.bundle
+const staged = mode === '--page' ? undefined : stageInstall('source', userHome)
+process.argv[1] = staged?.bundle ?? rest[0] ?? ''
 const { createProfile, removeProfile } = await import('../../src/platform/profiles/profiles.ts')
 const { inheritSkills } = await import('../../src/integrations/skills/inheritSkills.ts')
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
+
+if (staged === undefined) {
+  const made = createProfile()
+  console.log(JSON.stringify({ made, copied: made.ok ? await inheritSkills(made.profile.home) : null }))
+  process.exit(0)
+}
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -85,6 +91,10 @@ const folder = (name: string): string => {
   return dir
 }
 const [here, elsewhere, toggled, trusted] = [folder('here'), folder('elsewhere'), folder('toggled'), folder('trusted')]
+const backups = (): string => {
+  const dir = join(first, 'backups')
+  return existsSync(dir) ? show([statSync(dir).mtimeMs, ...readdirSync(dir).sort().map(name => [name, statSync(join(dir, name)).mtimeMs])]) : 'no folder'
+}
 
 console.log('============================================================')
 console.log(' A new profile inherits the user-made skills, switched off')
@@ -97,13 +107,16 @@ skill(join(first, 'skills', 'not a skill name'), 'a folder the kit cannot name')
 writeFileSync(join(first, 'skills', 'notes.txt'), 'kept beside the skills\n')
 const firstSkills = tree(join(first, 'skills'))
 const firstKit = kit(first, 'skill', here, 'alpha', 'invocable')
+kit(first, 'trust', folder('seen'))
 const firstConfig = readFileSync(join(first, '.mercury.json'), 'base64')
+const firstBackups = backups()
 process.chdir(here)
 
-console.log('── create, then the copy ──')
-const made = createProfile()
-const copied = await inheritSkills(second)
-check('the copy answers the skills it holds off: each name once, in order, the one the kit cannot name left out', made.ok && made.profile.home === second && show(copied) === show({ ok: true, skills: ['alpha', 'beta', 'zeta'] }), show([made, copied]))
+console.log('── create, then the copy, as the page does them in a session of Profile 1 ──')
+const page = spawnSync(process.execPath, [import.meta.path, '--page', userHome, staged.bundle], { encoding: 'utf8', env: process.env, timeout: 120_000 })
+const done: unknown = page.status === 0 ? JSON.parse(page.stdout.trim().split('\n').at(-1) ?? 'null') : null
+check('the copy answers the skills it holds off: each name once, in order, the one the kit cannot name left out', show(done) === show({ made: { ok: true, profile: { id: 2, name: 'Profile 2', home: second, command: 'mercury2', current: false } }, copied: { ok: true, skills: ['alpha', 'beta', 'zeta'] } }), show([page.status, done, page.stderr.slice(-300)]))
+check('with a backup of its own config standing, that session says nothing on stderr and its backups folder is as it was', firstBackups.includes('.mercury.json.backup.') && page.stderr === '' && backups() === firstBackups, show([page.stderr, firstBackups, backups()]))
 check('the new home holds the skills folder byte for byte, and nothing half-made beside it', tree(join(second, 'skills')) === firstSkills && !readdirSync(second).some(name => name.startsWith('skills.')), show(readdirSync(second)))
 
 console.log('── under the new home, the kit ──')
@@ -143,6 +156,7 @@ writeFileSync(join(`${first}4`, '.mercury.json'), '{}\n')
 check('an adopted home with a config and no skills folder: nothing is copied or written', createProfile().ok && show(await inheritSkills(`${first}4`)) === show({ ok: true, skills: [] }) && !existsSync(join(`${first}4`, 'skills')) && readFileSync(join(`${first}4`, '.mercury.json'), 'utf8') === '{}\n', show(readdirSync(`${first}4`)))
 
 console.log('── a create that failed, run again ──')
+rmSync(join(first, 'backups'), { recursive: true })
 const fifth = `${first}5`
 const binMode = statSync(staged.bin).mode
 chmodSync(staged.bin, 0o555)
@@ -152,6 +166,7 @@ check('a create that cannot write its command says so, and the home it made stay
 const retried = createProfile()
 const handed = retried.ok ? await inheritSkills(retried.profile.home) : retried
 check('run again, create takes that home and the copy hands the skills on, off under it', retried.ok && retried.profile.home === fifth && show(handed) === show({ ok: true, skills: ['alpha', 'beta', 'zeta'] }) && tree(join(fifth, 'skills')) === firstSkills && show(kit(fifth, 'read', elsewhere).off) === ALL, show([retried, handed]))
+check('and the backups folder of Profile 1, taken away before that copy, was not made again', !existsSync(join(first, 'backups')), backups())
 
 console.log('── a copy that fails ──')
 writeFileSync(join(first, 'skills', 'zz-locked'), 'no one may read this\n')

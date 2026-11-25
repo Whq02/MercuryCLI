@@ -546,12 +546,12 @@ function saveConfigUnderLock<A extends object>(
   waitForLock: boolean,
 ): LockedSave<A> {
   const defaultConfig = createDefault()
+  const global = file === getGlobalMercuryFile()
   mkdirSync(dirname(file), { recursive: true })
-  backUpOutgoingConfig(file)
+  if (global) backUpOutgoingConfig(file)
   const release = lockConfigFile(file, waitForLock)
   try {
     const current = getConfig(file, createDefault)
-    const global = file === getGlobalMercuryFile()
     if (global && wouldLoseAuthState(current)) {
       logForDebugging(
         'saveConfigWithLock: the re-read view lost auth state the cache still holds; refusing the write (auth-wipe guard).',
@@ -716,7 +716,7 @@ export function getConfig<A>(file: string, createDefault: () => A, throwOnInvali
   } catch (failure) {
     const code = getErrnoCode(failure)
     if (code === 'ENOENT' || code === 'ENOTDIR') {
-      const backup = findMostRecentBackup(file)
+      const backup = file === getGlobalMercuryFile() ? findMostRecentBackup(file) : null
       if (backup) process.stderr.write(`\nNo configuration file at ${file}; defaults are in use.\nThe newest backup is ${backup}; to bring it back: cp "${backup}" "${file}"\n\n`)
       return createDefault()
     }
