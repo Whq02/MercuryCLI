@@ -40,7 +40,7 @@ export function moonshotSlots(reads: AccountSlotReads): AccountSlot[] {
       envPinned: false,
       signedIn: !expired,
       ...(expired
-        ? { stateNote: 'access token expired with no refresh route — /logins moonshot signs in again' }
+        ? { expired: true, stateNote: 'access token expired with no refresh route — /logins moonshot signs in again' }
         : envKey
           ? { stateNote: 'shadowed — the environment variable wins' }
           : {}),
