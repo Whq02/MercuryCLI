@@ -13,7 +13,6 @@ import { helperPort, tensorFoldHostRecords, tensorFoldPorts } from './tensorfold
 import { passedOver, passedOverAs } from '../../../platform/errors/passedOver.js'
 import { hostEnv } from '../../../platform/environment/hostEnv.js'
 import { isOneOf } from '../../../platform/primitives/isOneOf.js'
-import { isEssentialTrafficOnly, isLoopbackUrl } from '../privacyLevel.js'
 
 export type { LocalServerKind }
 
@@ -607,9 +606,9 @@ async function probeTarget(target: { kind: LocalServerKind; root: string }, io: 
   }
 }
 
-export async function discoverLocalServers(io: LocalDiscoveryIo = {}, ownMachineOnly = false): Promise<LocalDiscoverySnapshot> {
+export async function discoverLocalServers(io: LocalDiscoveryIo = {}): Promise<LocalDiscoverySnapshot> {
   const env = io.env ?? hostEnv()
-  const targets = localProbeTargets(env).filter(target => !ownMachineOnly || isLoopbackUrl(target.root))
+  const targets = localProbeTargets(env)
   let targetCount = targets.length
   const results = await Promise.all(targets.map(async target => {
     if (target.kind !== 'llamacpp' || target.root !== 'http://127.0.0.1:8080' || flagEnv('MERCURY_LOCAL_PROBE_TARGETS', env)?.trim()) return probeTarget(target, io).catch(passedOverAs(undefined))
@@ -632,7 +631,7 @@ export async function discoverLocalServers(io: LocalDiscoveryIo = {}, ownMachine
 export const LOCAL_DISCOVERY_TTL_MS = 60_000
 
 let cached: LocalDiscoverySnapshot | null = null
-let inFlight: { run: Promise<LocalDiscoverySnapshot>; ownMachineOnly: boolean } | null = null
+let inFlight: Promise<LocalDiscoverySnapshot> | null = null
 
 export function getCachedLocalDiscovery(): LocalDiscoverySnapshot | null {
   return cached
@@ -641,13 +640,12 @@ export function getCachedLocalDiscovery(): LocalDiscoverySnapshot | null {
 export function refreshLocalDiscovery(opts?: LocalDiscoveryIo & { force?: boolean }): Promise<LocalDiscoverySnapshot> {
   const now = opts?.now ?? Date.now
   if (!opts?.force && cached && now() - cached.probedAtMs < LOCAL_DISCOVERY_TTL_MS) return Promise.resolve(cached)
-  const ownMachineOnly = opts?.force !== true && isEssentialTrafficOnly()
-  if (inFlight) return inFlight.ownMachineOnly && !ownMachineOnly ? inFlight.run.then(() => refreshLocalDiscovery(opts)) : inFlight.run
+  if (inFlight) return inFlight
   const { force: _force, ...io } = opts ?? {}
-  const run = (async (): Promise<LocalDiscoverySnapshot> => {
+  inFlight = (async (): Promise<LocalDiscoverySnapshot> => {
     try {
       const before = cached
-      const snapshot = await discoverLocalServers(io, ownMachineOnly)
+      const snapshot = await discoverLocalServers(io)
       cached = snapshot
       if (before === null || before.targetCount !== snapshot.targetCount || !isDeepStrictEqual(before.servers, snapshot.servers)) {
         bumpCatalogueEpoch()
@@ -657,8 +655,7 @@ export function refreshLocalDiscovery(opts?: LocalDiscoveryIo & { force?: boolea
       inFlight = null
     }
   })()
-  inFlight = { run, ownMachineOnly }
-  return run
+  return inFlight
 }
 
 export function cachedLocalModels(): LocalModelRecord[] {
