@@ -184,6 +184,48 @@ console.log('── §D the reader 1.0.8 shipped skips the new record and still 
   closeOverloadEpisode(id)
 }
 
+console.log('── §E failed pause-record save emits plain summary and logs path+reason ──')
+{
+  const { rmSync } = await import('node:fs')
+  const { getCommandQueueSnapshot } = await import('../../src/screen/composer/input-core/command-queue.ts')
+  const dbg = await import('../../src/platform/logs/debugLog.ts')
+  const prevNodeEnv = process.env.NODE_ENV
+  delete process.env.NODE_ENV
+  dbg.enableDebugLogging()
+  const dbgPath = dbg.getDebugLogPath()
+  const store = makeStore()
+  const failId = 'aovl0savefail'
+  const recordPath = crewmatePauseRecordPath(failId)
+  resetCommandQueue()
+  mkdirSync(recordPath, { recursive: true })
+  try {
+    await pauseOnOverload(store, failId, 'disk full check', 'toolu_savefail_1')
+    const want = 'Crewmate "disk full check": its pause record could not be saved — it will not resume on its own after a restart'
+    const appeared = await until(
+      () => getCommandQueueSnapshot().some(item => typeof item.value === 'string' && item.value.includes('its pause record')),
+      3_000,
+    )
+    await dbg.flushDebugLogs()
+    const dbgText = (() => { try { return readFileSync(dbgPath, 'utf8') } catch { return '' } })()
+    const summaries = getCommandQueueSnapshot()
+      .map(item => (typeof item.value === 'string' ? item.value : ''))
+      .filter(v => v.includes('its pause record'))
+    check(
+      'failed pause-record save emits plain summary without path or raw reason and logs both to debug log',
+      appeared &&
+        summaries.some(s => s.includes(`<summary>${want}</summary>`)) &&
+        !summaries.some(s => s.includes(recordPath)) &&
+        dbgText.includes(recordPath),
+      JSON.stringify({ summaries, dbg: dbgText.slice(-300) }),
+    )
+  } finally {
+    if (prevNodeEnv !== undefined) process.env.NODE_ENV = prevNodeEnv
+    await TaskStopTool.call({ task_id: failId }, { getAppState: store.get, setAppState: store.set } as never)
+    closeOverloadEpisode(failId)
+    rmSync(recordPath, { recursive: true, force: true })
+  }
+}
+
 resetCommandQueue()
 console.log(`\n${checks - failures} passed, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

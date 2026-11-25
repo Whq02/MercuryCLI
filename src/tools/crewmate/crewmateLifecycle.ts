@@ -773,8 +773,8 @@ function dropPauseRecord(taskId: string, description?: string): void {
 function savePauseRecord(taskId: string, description: string, record: Parameters<typeof writeCrewmatePauseRecord>[1]): void {
   void writeCrewmatePauseRecord(taskId, record).catch((error: unknown) => {
     const reason = errorMessage(error)
-    logForDebugging(`agent lifecycle: the pause of ${taskId} could not be recorded: ${reason}`)
-    enqueueCrewmateReceiptRow({ taskId, description, status: 'paused', summary: `Crewmate "${description}": its pause record ${crewmatePauseRecordPath(taskId)} could not be saved (${reason}) — it will not resume on its own after a restart` })
+    logForDebugging(`agent lifecycle: the pause record ${crewmatePauseRecordPath(taskId)} of ${taskId} could not be saved: ${reason}`, { level: 'error' })
+    enqueueCrewmateReceiptRow({ taskId, description, status: 'paused', summary: `Crewmate "${description}": its pause record could not be saved — it will not resume on its own after a restart` })
   })
 }
 
