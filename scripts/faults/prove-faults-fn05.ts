@@ -233,6 +233,13 @@ function runIsolated(body: string): Record<string, unknown> {
       ...realCoord,
       noteRunEvent: (_owner, ev) => { events.push(ev) },
     }))
+    const logged = []
+    const logPath = ${JSON.stringify(join(SRC, 'platform/logs/debugLog.ts'))}
+    const realLog = await import(logPath)
+    mock.module(logPath, () => ({
+      ...realLog,
+      logForDebugging: (line) => { logged.push(String(line)) },
+    }))
     const mod = await import(${JSON.stringify(join(SRC, 'permissions/guards/runStopAdapter.ts'))})
     mod.mintDeliveryArtifact('owner-1', 'run-1', true)
     const deadline = Date.now() + 2000
@@ -241,9 +248,11 @@ function runIsolated(body: string): Record<string, unknown> {
     }
     out.mintedWith = mintedWith
     out.events = events
+    out.debug = logged.filter(line => line.includes('delivered walkthrough could not be saved'))
   `)
   const events = (r.events as Array<{ action?: string }>) ?? []
-  check('runStopAdapter: mintDeliveryArtifact reports getSessionId failure instead of unknown-session', r.mintedWith === null && events.some(e => typeof e.action === 'string' && e.action.includes('session boom')), JSON.stringify(r))
+  const logged = (r.debug as string[] | undefined) ?? []
+  check('runStopAdapter: mintDeliveryArtifact reports getSessionId failure instead of unknown-session', r.mintedWith === null && events.some(e => e.action === 'the delivered walkthrough could not be saved — review the changes in /diff') && logged.length > 0 && logged.every(line => line.includes('session boom') && !line.includes('unknown-session')), JSON.stringify(r))
 }
 
 {
