@@ -36,14 +36,16 @@ type Grid = Array<Array<{ c?: string }>>
 const textOf = (grid: Grid | undefined): string => (grid ?? []).map(row => row.map(cell => cell.c ?? ' ').join('').trimEnd()).join('\n')
 const rowOf = (frame: string, id: number): string | undefined => frame.split('\n').find(line => new RegExp(`^[│❯\\s]*${id} · `).test(line))
 const squash = (text: string): string => text.replace(/\s+/g, '')
-function wholeWhereThePaneWraps(frame: string, path: string): boolean {
+function paneOf(frame: string): string | null {
   const rows = frame.split('\n')
   const head = rows.findIndex(row => row.includes('SETTING DETAIL'))
-  if (head < 0) return true
+  if (head < 0) return null
   const right = rows[head]!.lastIndexOf('│')
   const left = rows[head]!.lastIndexOf('│', right - 1)
-  return squash(rows.slice(head + 1).map(row => row.slice(left + 1, right)).join('')).includes(squash(path))
+  return squash(rows.slice(head + 1).map(row => row.slice(left + 1, right)).join(''))
 }
+const wholeWhereThePaneWraps = (frame: string, path: string): boolean => paneOf(frame)?.includes(squash(path)) ?? true
+const says = (frame: string, words: string): boolean => (paneOf(frame) ?? squash(frame)).includes(squash(words))
 
 const key = (awaitText: string, data: string, mark?: string) => ({ awaitText, requireAwait: true, awaitSettleTicks: 4, data, ...(mark === undefined ? {} : { mark }) })
 const toThePage = [key('New Session', END + '\r', 'face')]
@@ -134,6 +136,17 @@ try {
       },
     })
     check(`${cols}: a file at the command's path that is not the profile's command is left and named after the remove`, squash(kept.frame('kept')).includes(squash('left in place, not its command')) && wholeWhereThePaneWraps(kept.frame('kept'), join(kept.bin, 'mercury2')) && rowOf(kept.frame('kept'), 2) === undefined, `after a remove the page must print the door's keptFiles on a line after the folder line (the remove keys of ${PAGE})`)
+
+    const skilled = await drive(cols, 40, {
+      name: 'skills',
+      sends: [...toThePage, key('1 · Profile 1', 'n')],
+      readyText: 'skill copied',
+      stage: install => {
+        mkdirSync(join(install.home, 'skills', 'alpha'), { recursive: true })
+        writeFileSync(join(install.home, 'skills', 'alpha', 'SKILL.md'), '---\ndescription: a skill of the first profile\n---\nits body\n')
+      },
+    })
+    check(`${cols}: a create that made the home says how many skills it copied, switched off, and keeps the create line`, says(skilled.frame('skills'), '1 skill copied from Profile 1, switched off') && says(skilled.frame('skills'), 'Profile 2 created — mercury2 starts it') && rowOf(skilled.frame('skills'), 2) !== undefined, `after createProfile answers adopted: false the n action must call inheritSkills with the new home and print its answer in the pane (${PAGE})`)
   }
   const short = await drive(120, 34, { name: 'refused', sends: refusal, readyText: 'again.', stage: stranger })
   check('120x34: a refusal from the door is whole in the pane of a short wide window, the count in the status row', short.frame('refused').includes('SETTING DETAIL') && short.frame('refused').includes('again.') && wholeWhereThePaneWraps(short.frame('refused'), join(short.bin, 'mercury2')) && /System ready\s+│\s+1 profile\b/.test(short.frame('refused')), `what the page says in the pane must be held as a confirm's lines are, never dropped for room, and the status row keeps the count: detailOverrideConfirms and statusRight while a pane message shows (${PAGE})`)
