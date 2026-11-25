@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useContext, useRef, useState } from 'react'
 import { Box, Text } from '../themedRenderer.js'
 import useInput from '../renderer/bindings/use-input.js'
 import { useKeybinding } from '../keys/useKeybinding.js'
@@ -14,6 +14,7 @@ import TextInput from '../composer/text-input/TextInput.js'
 import { SelectOption } from './select-option.js'
 import { ordinalPrefix, type InputOption } from './optionMap.js'
 import { logError } from '../../platform/logs/errorLog.js'
+import { PopupFormContext } from '../overlays/popupFormContext.js'
 
 const INPUT_WRAP_COLUMNS = 80
 
@@ -92,6 +93,7 @@ export function SelectInputOption<T>({
   const [cursorOffset, setCursorOffset] = useState(value.length)
   const [pasteError, setPasteError] = useState<string | null>(null)
   const { columns: termCols } = useTerminalSize()
+  const fitToForm = useContext(PopupFormContext)
   const inputColumns = Math.max(20, Math.min(INPUT_WRAP_COLUMNS, termCols - 6))
 
   const keystrokeRef = useRef(false)
@@ -205,6 +207,7 @@ export function SelectInputOption<T>({
   const placeholder =
     option.placeholder ?? (typeof option.label === 'string' ? option.label : undefined)
   const separator = option.labelValueSeparator ?? ', '
+  const separatorWords = separator.trimEnd()
   const showsLabel = showLabelWithValue || option.showLabelWithValue === true
   const indent = reservedIndexWidth + (layout === 'expanded' ? 3 : 4)
   const description =
@@ -239,15 +242,17 @@ export function SelectInputOption<T>({
         declareCursor={false}
       >
         <Box>
-          <Text dimColor>{number}</Text>
+          <Box flexShrink={0}><Text dimColor>{number}</Text></Box>
           {children ? <Box marginRight={1}>{children}</Box> : null}
-          {showsLabel ? (
-            <Text color={isFocused ? 'suggestion' : undefined}>
-              {option.label}
-              {isFocused || value !== '' ? separator : ''}
-            </Text>
-          ) : null}
-          {field}
+          <Box flexWrap="wrap" columnGap={separator.length - separatorWords.length}>
+            {showsLabel ? (
+              <Text color={isFocused ? 'suggestion' : undefined}>
+                {option.label}
+                {isFocused || value !== '' ? separatorWords : ''}
+              </Text>
+            ) : null}
+            <PopupFormContext.Provider value={fitToForm || showsLabel}>{field}</PopupFormContext.Provider>
+          </Box>
         </Box>
       </SelectOption>
       {description !== undefined ? (
