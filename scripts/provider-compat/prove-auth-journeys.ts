@@ -656,7 +656,6 @@ function jsonFetch(
 }
 
 {
-  geminiAccounts.__resetGeminiAccountsForTest()
   geminiAccounts.writeGeminiOauthClientConfig({ clientId: 'client-fixture' })
   writeFileSync(
     geminiAccounts.geminiAuthPathForDisplay(),
@@ -689,7 +688,6 @@ function jsonFetch(
 }
 
 {
-  geminiAccounts.__resetGeminiAccountsForTest()
   writeFileSync(
     geminiAccounts.geminiAuthPathForDisplay(),
     JSON.stringify({
@@ -702,9 +700,15 @@ function jsonFetch(
   const fetchImpl = jsonFetch(() => ({ status: 400, body: { error: 'invalid_grant' } }), counter)
   const result = await geminiAccounts.currentGeminiTokens({ fetchImpl })
   check(
-    'gemini: invalid_grant drops the tokens (the honest signed-out state)',
+    'gemini: invalid_grant ends the sign-in (the honest signed-out state)',
     result === undefined && !geminiAccounts.geminiOauthConnected(),
-    'currentGeminiTokens in src/models/roads/gemini/geminiAccounts.ts must clear the stored tokens on an invalid_grant answer',
+    'currentGeminiTokens in src/models/roads/gemini/geminiAccounts.ts must answer no tokens and read disconnected on an invalid_grant answer',
+  )
+  check(
+    'gemini: the dead refreshToken is BLANKED on disk; the row keeps its access token',
+    (JSON.parse(readFileSync(geminiAccounts.geminiAuthPathForDisplay(), 'utf8')) as { tokens?: { accessToken?: string; refreshToken?: string } }).tokens?.refreshToken === '' &&
+      (JSON.parse(readFileSync(geminiAccounts.geminiAuthPathForDisplay(), 'utf8')) as { tokens?: { accessToken?: string } }).tokens?.accessToken === 'at-old',
+    'currentGeminiTokens in src/models/roads/gemini/geminiAccounts.ts must blank only the refreshToken after invalid_grant, as the OpenAI road does',
   )
   check(
     'gemini: the operator client config SURVIVES the drop (infrastructure, not a credential)',
@@ -716,7 +720,6 @@ function jsonFetch(
 }
 
 {
-  geminiAccounts.__resetGeminiAccountsForTest()
   writeFileSync(
     geminiAccounts.geminiAuthPathForDisplay(),
     JSON.stringify({

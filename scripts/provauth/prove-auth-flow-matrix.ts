@@ -502,7 +502,6 @@ const NOW_MS = Date.now()
 
 {
   const geminiEnv = { ...process.env, MERCURY_GEMINI_OAUTH_CLIENT_ID: 'client-fixture' }
-  gemini.__resetGeminiAccountsForTest()
   const seed = (): void => {
     writeFileSync(
       gemini.geminiAuthPathForDisplay(),
@@ -520,7 +519,6 @@ const NOW_MS = Date.now()
     })) as unknown as typeof fetch
   const fresh = await gemini.currentGeminiTokens({ fetchImpl: rotated, env: geminiEnv })
   check('gemini: refresh-on-expiry rotates (refresh token carried forward)', fresh?.accessToken === 'NEW' && fresh?.refreshToken === 'RT-GEM-1')
-  gemini.__resetGeminiAccountsForTest()
   seed()
   const invalidGrant: typeof fetch = (async () =>
     new Response(JSON.stringify({ error: 'invalid_grant', error_description: 'revoked' }), {
@@ -759,7 +757,6 @@ section('§3 expiry-at-rest: the stranded states paint loud, with the right door
       ...absentReads,
       geminiAccount: () => (gemini.geminiOauthRef() !== undefined ? { kind: 'oauth' as const } : undefined),
     }).gemini
-  gemini.__resetGeminiAccountsForTest()
   writeFileSync(
     gemini.geminiAuthPathForDisplay(),
     JSON.stringify({
@@ -777,7 +774,6 @@ section('§3 expiry-at-rest: the stranded states paint loud, with the right door
       corrupted.blockers.join(' ').includes('/logins'),
     `connected=${gemini.geminiOauthConnected()} blockers=${JSON.stringify(corrupted.blockers)}`,
   )
-  gemini.__resetGeminiAccountsForTest()
   writeFileSync(
     gemini.geminiAuthPathForDisplay(),
     JSON.stringify({
@@ -805,7 +801,6 @@ section('§3 expiry-at-rest: the stranded states paint loud, with the right door
       afterUse.blockers.join(' ').includes('/logins'),
     `connected=${gemini.geminiOauthConnected()} blockers=${JSON.stringify(afterUse.blockers)}`,
   )
-  gemini.__resetGeminiAccountsForTest()
 }
 
 section('§4 expiry-mid-flight: the wall classifies, the line names the family and the door')
@@ -1190,7 +1185,6 @@ const within = <T,>(p: Promise<T>, ms = 900): Promise<T | 'timed-out'> =>
   )
 }
 {
-  gemini.__resetGeminiAccountsForTest()
   writeFileSync(gemini.geminiAuthPathForDisplay(), JSON.stringify({ version: 1 }), { mode: 0o600 })
   const handles = gemini.beginGeminiBrowserConnect({
     skipBrowserOpen: true,
@@ -1226,7 +1220,6 @@ const within = <T,>(p: Promise<T>, ms = 900): Promise<T | 'timed-out'> =>
 }
 
 {
-  gemini.__resetGeminiAccountsForTest()
   writeFileSync(gemini.geminiAuthPathForDisplay(), JSON.stringify({ version: 1 }), { mode: 0o600 })
   const geminiEnv = { ...process.env, MERCURY_GEMINI_OAUTH_CLIENT_ID: 'client-fixture' }
   const geminiTokenUrl = (geminiEnv['MERCURY_GEMINI_OAUTH_TOKEN_BASE']?.trim() || 'https://oauth2.googleapis.com/token')

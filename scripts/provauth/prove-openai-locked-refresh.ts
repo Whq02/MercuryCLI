@@ -2,11 +2,14 @@
 import '../lib/hermetic.ts'
 import { proofHome } from '../lib/hermetic.ts'
 import { spawn } from 'node:child_process'
-import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { rotatingTokenServer } from './lib/rotating-token-server.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+const home = join(proofHome, 'home')
+mkdirSync(home)
+process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
 for (const name of ALL_PROVIDER_CREDENTIAL_ENV_VARS) delete process.env[name]
@@ -67,7 +70,7 @@ function child(onAbout: () => void): Promise<ChildEnd> {
 
 try {
   console.log('── two Mercury processes, one ChatGPT sign-in, a slow first exchange: one grant reaches the server ──')
-  check('the proof writes under its own scratch home', authPath.startsWith(proofHome), authPath)
+  check('the proof writes under its own scratch home', authPath.startsWith(home), authPath)
   seed('rt-0')
   let release = server.hold()
   const first = child(() => {})
@@ -97,10 +100,10 @@ try {
     release = server.hold()
     const refusedWrite = accounts.currentSubscriptionTokens()
     await until('the grant is at the server', () => server.grants.length === before + 1)
-    chmodSync(proofHome, 0o500)
+    chmodSync(home, 0o500)
     release()
     const unsaved = await refusedWrite
-    chmodSync(proofHome, 0o700)
+    chmodSync(home, 0o700)
     const kept = liveToken()
     check('the store refused the write and still holds the spent token', storedRefresh() === spent && kept !== spent, `stored ${storedRefresh()}, spent ${spent}, live ${kept}`)
     check('the call answers the new pair all the same', unsaved?.refreshToken === kept, `answered ${unsaved?.refreshToken}, live ${kept}`)

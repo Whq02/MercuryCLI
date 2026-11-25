@@ -227,7 +227,6 @@ const now = Date.now()
 {
   delete process.env.GEMINI_API_KEY
   delete process.env.GOOGLE_API_KEY
-  geminiAccounts.__resetGeminiAccountsForTest()
   geminiAccounts.writeGeminiOauthClientConfig({ clientId: 'client-fixture' })
   writeFileSync(geminiAccounts.geminiAuthPathForDisplay(), JSON.stringify({ version: 1, client: { clientId: 'client-fixture' }, preferredSource: 'oauth', tokens: { accessToken: 'gemini-at-old', refreshToken: 'gemini-rt', accessTokenExpiresAtMs: now + 3_600_000 } }))
   tokenAnswer = { status: 200, body: { access_token: 'gemini-at-new', refresh_token: 'gemini-rt', expires_in: 3600 } }
@@ -236,7 +235,6 @@ const now = Date.now()
   check('gemini OAuth: the turn SETTLES after the refresh (no error message)', o.errors.length === 0 && o.settled.length > 0, `${o.text.slice(0, 200)} — ${honestyRefreshWhere}`)
   check('gemini OAuth: two wire hits, the retry carrying the NEW bearer', hits.length === 2 && hits[0]?.bearer === 'Bearer gemini-at-old' && hits[1]?.bearer === 'Bearer gemini-at-new', `${JSON.stringify(hits)} — ${honestyRefreshWhere}`)
   check('gemini OAuth: exactly ONE token POST to the pinned Google token endpoint', tokenPosts.length === 1 && tokenPosts[0]?.path === '/gemini/oauth/token' && tokenPosts[0].body.includes('grant_type=refresh_token'), `${JSON.stringify(tokenPosts)} — ${honestyRefreshWhere}`)
-  geminiAccounts.__resetGeminiAccountsForTest()
   writeFileSync(geminiAccounts.geminiAuthPathForDisplay(), JSON.stringify({ version: 1, client: { clientId: 'client-fixture' }, preferredSource: 'oauth', tokens: { accessToken: 'gemini-at-stale', refreshToken: 'gemini-rt', accessTokenExpiresAtMs: now + 3_600_000 } }))
   tokenAnswer = { status: 500, body: {} }
   answers = [{ status: 401, body: { error: { code: 401, message: 'invalid credentials', status: 'UNAUTHENTICATED' } } }]
@@ -244,7 +242,6 @@ const now = Date.now()
   check('gemini OAuth: a failed refresh surfaces ONE typed refusal that says the refresh was attempted', failed.errors.length === 1 && failed.errors[0]?.error === 'authentication_failed' && failed.text.includes('refresh was attempted') && failed.text.includes('/logins'), `${failed.text.slice(0, 240)} — ${honestyRefreshWhere}`)
   check('gemini OAuth: no second wire hit with the same refused token', hits.length === 1 && tokenPosts.length === 1, `hits=${hits.length} tokenPosts=${tokenPosts.length} — ${honestyRefreshWhere}`)
   process.env.GEMINI_API_KEY = KEYS.GEMINI_API_KEY
-  geminiAccounts.__resetGeminiAccountsForTest()
   writeFileSync(geminiAccounts.geminiAuthPathForDisplay(), JSON.stringify({ version: 1, client: { clientId: 'client-fixture' } }))
 }
 {

@@ -2076,8 +2076,8 @@ src/models/roads/gemini/antigravityClientContract.ts	ANTIGRAVITY_OAUTH_SCOPE	pro
 src/models/roads/gemini/antigravityClientContract.ts	peekInFlight	process	module	single-flight deduplication promise for Google Code Assist contract peek
 src/models/roads/gemini/geminiAccounts.ts	SECRET_SHAPES	process	module	Load-time list with no local writer
 src/models/roads/gemini/geminiAccounts.ts	authFileUnreadSaid	process	module	one-time log dedupe string for unreadable provider auth file
-src/models/roads/gemini/geminiAccounts.ts	planRefreshInFlight	process	module	single-flight OAuth token refresh deduplication for shared account sign-in
-src/models/roads/gemini/geminiAccounts.ts	refreshInFlight	process	module	single-flight OAuth token refresh deduplication for shared account sign-in
+src/models/roads/gemini/geminiAccounts.ts	refreshOauth	process	module	the locked-refresh instance of the bring-your-own Google sign-in: the refresh calls joined per auth file, a new pair whose write failed, and the refresh tokens Google refused
+src/models/roads/gemini/geminiAccounts.ts	refreshPlan	process	module	the locked-refresh instance of the Google plan sign-in: the refresh calls joined per auth file, a new pair whose write failed, and the refresh tokens Google refused
 src/models/roads/gemini/geminiAdapter.ts	geminiProviderAdapter	process	module	Load-time table with no local writer
 src/models/roads/gemini/geminiCallModel.ts	geminiLaneProfile	process	module	Load-time table with no local writer
 src/models/roads/gemini/geminiCallModel.ts	planLastGoodBase	process	module	process-wide map of last working Code Assist base URL keyed by projectId

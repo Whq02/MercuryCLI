@@ -1,9 +1,11 @@
 import { looksLikeProofFixtureKey, label } from './keyLane.js'
 import type { AccountSlotReads, AccountSlot } from './shapes.js'
-import { geminiOauthConnected, geminiPlanFacts, resolveGeminiAccount, geminiPlanLabel } from '../gemini/geminiAccounts.js'
+import { geminiExpiredSignIns, geminiOauthConnected, geminiPlanFacts, resolveGeminiAccount, geminiPlanLabel } from '../gemini/geminiAccounts.js'
 import { readStoredGeminiApiKey } from '../../sign-in/account-ledger/providerSecrets.js'
 import { maskedKeyTail } from '../../sign-in/account-ledger/credentialIdentity.js'
 import { hostEnv } from '../../../platform/environment/hostEnv.js'
+
+const GEMINI_SIGNIN_EXPIRED_NOTE = 'sign-in expired — /logins gemini signs in again'
 
 function geminiStoredNote(storedKey: string, shadowed: boolean): string | undefined {
   const notes: string[] = []
@@ -15,6 +17,8 @@ function geminiStoredNote(storedKey: string, shadowed: boolean): string | undefi
 export function geminiSlots(reads: AccountSlotReads): AccountSlot[] {
   const oauthConnected = (reads.geminiOauthConnected ?? geminiOauthConnected)()
   const plan = (reads.geminiPlanFacts ?? geminiPlanFacts)()
+  const expired = (reads.geminiExpiredSignIns ?? geminiExpiredSignIns)()
+  const planRow = plan ?? expired.plan
   const active = (reads.geminiActiveAccount ?? resolveGeminiAccount)()
   const envGoogle = reads.geminiEnvGoogleKey
     ? reads.geminiEnvGoogleKey()
@@ -24,22 +28,23 @@ export function geminiSlots(reads: AccountSlotReads): AccountSlot[] {
     : hostEnv().GEMINI_API_KEY?.trim() || undefined
   const storedKey = (reads.geminiStoredKey ?? readStoredGeminiApiKey)()
   const slots: AccountSlot[] = []
-  if (plan) {
+  if (planRow) {
     slots.push({
       family: 'gemini',
       id: 'gemini:plan',
       name: 'google',
       kind: 'subscription',
       kindLabel: 'Google sign-in',
-      identity: label([geminiPlanLabel(plan), plan.email]),
-      ...(plan.email ? { signInEmail: plan.email } : {}),
+      identity: label([geminiPlanLabel(planRow), planRow.email]),
+      ...(planRow.email ? { signInEmail: planRow.email } : {}),
       active: active?.kind === 'plan',
       envPinned: false,
-      signedIn: true,
+      signedIn: plan !== undefined,
+      ...(plan === undefined ? { stateNote: GEMINI_SIGNIN_EXPIRED_NOTE } : {}),
       removal: { route: 'gemini-plan' },
     })
   }
-  if (oauthConnected) {
+  if (oauthConnected || expired.oauth) {
     slots.push({
       family: 'gemini',
       id: 'gemini:oauth',
@@ -49,7 +54,8 @@ export function geminiSlots(reads: AccountSlotReads): AccountSlot[] {
       identity: 'Google account (OAuth)',
       active: active?.kind === 'oauth',
       envPinned: false,
-      signedIn: true,
+      signedIn: oauthConnected,
+      ...(oauthConnected ? {} : { stateNote: GEMINI_SIGNIN_EXPIRED_NOTE }),
       removal: { route: 'gemini-oauth' },
     })
   }

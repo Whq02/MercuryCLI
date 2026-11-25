@@ -3,7 +3,7 @@ import type { ProviderFamilyPresence, ProviderFamilyReads } from '../providerUsa
 import type { ApiKeySource } from '../../sign-in/credentials/auth.js'
 import type { OpenaiAccountRef } from '../openai/openaiAccounts.js'
 import type { OpenrouterMintedKey } from '../openrouter/openrouterAccounts.js'
-import type { geminiPlanFacts, GeminiAccountRef } from '../gemini/geminiAccounts.js'
+import type { geminiExpiredSignIns, geminiPlanFacts, GeminiAccountRef } from '../gemini/geminiAccounts.js'
 import type { KimiRegion } from '../moonshot/moonshotAccounts.js'
 import type { xaiStoredTokens } from '../xai/xaiOauth.js'
 import type { nousStoredTokens } from '../nous/nousOauth.js'
@@ -94,6 +94,7 @@ export interface AccountSlotReads {
   openrouterStoredKey?: () => string | undefined
   geminiOauthConnected?: () => boolean
   geminiPlanFacts?: () => ReturnType<typeof geminiPlanFacts>
+  geminiExpiredSignIns?: () => ReturnType<typeof geminiExpiredSignIns>
   geminiActiveAccount?: () => GeminiAccountRef | undefined
   geminiEnvGoogleKey?: () => string | undefined
   geminiEnvGeminiKey?: () => string | undefined
