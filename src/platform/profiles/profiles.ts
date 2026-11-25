@@ -142,6 +142,13 @@ export function listProfiles(): { ok: true; profiles: ProfileRow[] } | ProfileRe
   }
 }
 
+export function profileCommands(roots: LayoutRoots, profiles: readonly ProfileRow[]): string[] {
+  return profiles
+    .filter(row => row.id !== 1)
+    .flatMap(row => commandFiles(released(roots), row.id, row.home).filter(file => carries(textAt(file.path), row.id)))
+    .map(file => file.path)
+}
+
 export function createProfile(): { ok: true; profile: ProfileRow } | ProfileRefusal {
   try {
     const known = family()

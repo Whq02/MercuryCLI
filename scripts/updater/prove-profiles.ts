@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpath
 import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import type { ProfileRow } from '../../src/platform/profiles/profiles.ts'
+import { nodeBinPath } from '../lib/nodeBin.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 import { stageInstall, type StagedInstall } from '../lib/stagedInstall.ts'
 
@@ -187,6 +188,12 @@ function walk(staged: StagedInstall): void {
   const blocked = createProfile()
   check('create refuses with one sentence naming the file, and leaves it and the list alone', !blocked.ok && sentence(blocked.reason) && blocked.reason.includes(word3) && textOf(word3) === STRANGER && show(ids()) === show([1, 2]), show(blocked))
 
+  if (staged.kind !== 'release') return
+  console.log('── release: uninstalling Mercury removes the profile commands with it ──')
+  const kept = held()
+  const out = run(staged.command, ['install', '--uninstall'])
+  check('mercury and mercury2 are removed and the report says so', out.status === 0 && !existsSync(staged.command) && !existsSync(word2) && out.stdout.includes(`removed: ${word2}`), show([out.status, out.stdout, out.stderr.slice(-300)]))
+  check('the stranger, the second home with its login and the record stay, and the report names that home as preserved', textOf(word3) === STRANGER && held() === kept && existsSync(record) && out.stdout.includes(`preserved: ${home2} (`) && login(nodeBinPath(), { MERCURY_CONFIG_DIR: home2 }, [DIST]).includes('2222'), out.stdout)
 }
 
 console.log('============================================================')
