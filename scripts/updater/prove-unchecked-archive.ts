@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -115,13 +115,50 @@ const REMEDY = 'report the release as malformed; nothing was activated — the a
 const refusedWith = (outcome: Outcome, reason: string): boolean => outcome.state === 'refused' && outcome.stage === 'envelope' && outcome.reason === reason && outcome.remedy === REMEDY
 const shown = (outcome: Outcome): string => JSON.stringify({ state: outcome.state, stage: outcome.stage, reason: outcome.reason }).slice(0, 260)
 
+function hostCan(act: () => boolean): boolean {
+  try {
+    return act()
+  } catch {
+    return false
+  }
+}
+function checkWhere(can: boolean, why: string, label: string, cond: boolean, detail = ''): void {
+  if (can) check(label, cond, detail)
+  else console.log(`  [NOT STAGED] ${label} — ${why}`)
+}
+const probe = join(scratch, 'host-probe')
+for (const name of ['plain', 'linked']) mkdirSync(join(probe, name), { recursive: true })
+writeFileSync(join(probe, 'plain.tar.gz'), tarGz([dir('mercury/'), file('mercury/a.txt')]))
+writeFileSync(join(probe, 'linked.tar.gz'), tarGz([dir('mercury/'), file('mercury/a.txt'), link('mercury/alias', 'a.txt')]))
+const host = {
+  tarUnpacks: hostCan(() => {
+    execFileSync('tar', ['-xzf', join(probe, 'plain.tar.gz'), '-C', join(probe, 'plain')], { stdio: 'pipe' })
+    return existsSync(join(probe, 'plain', 'mercury', 'a.txt'))
+  }),
+  tarLinks: hostCan(() => {
+    execFileSync('tar', ['-xzf', join(probe, 'linked.tar.gz'), '-C', join(probe, 'linked')], { stdio: 'pipe' })
+    return lstatSync(join(probe, 'linked', 'mercury', 'alias')).isSymbolicLink()
+  }),
+  links: hostCan(() => {
+    symlinkSync('plain.tar.gz', join(probe, 'made-link'))
+    return lstatSync(join(probe, 'made-link')).isSymbolicLink()
+  }),
+  fifos: hostCan(() => {
+    execFileSync('mkfifo', [join(probe, 'made-fifo')], { stdio: 'pipe' })
+    return lstatSync(join(probe, 'made-fifo')).isFIFO()
+  }),
+}
+const TAR_CANNOT = "this host's tar does not unpack an archive at the fixture's path"
+const LINKS_CANNOT = 'this host does not let this account make a symbolic link'
+const linkedTar = { can: host.tarUnpacks && host.tarLinks, why: host.tarUnpacks ? "this host's tar does not make the fixture's link" : TAR_CANNOT }
+
 try {
   console.log('── the bounds of the unpacking ──')
   const five = tarGz([dir('mercury/'), file('mercury/manifest.json', '{}'), file('mercury/b'), file('mercury/c'), file('mercury/d')])
   const many = await update(five, { entries: 4 })
   check('a tar that lists more entries than the ceiling is refused before it is unpacked', refusedWith(many.outcome, 'the archive lists more than 4 entries, the most a release may hold'), shown(many.outcome))
   const atCeiling = await update(five, { entries: 5 })
-  check('a tar that lists exactly the ceiling is unpacked as before and judged by its payload', atCeiling.outcome.state === 'refused' && atCeiling.outcome.stage === 'payload', shown(atCeiling.outcome))
+  checkWhere(host.tarUnpacks, TAR_CANNOT, 'a tar that lists exactly the ceiling is unpacked as before and judged by its payload', atCeiling.outcome.state === 'refused' && atCeiling.outcome.stage === 'payload', shown(atCeiling.outcome))
   const heavy = tarGz([dir('mercury/'), file('mercury/a', 'a'.repeat(4096)), file('mercury/b', 'b'.repeat(4096)), file('mercury/c', 'c'.repeat(4096))])
   const big = await update(heavy, { unpackedBytes: 8192 })
   check('a tar that unpacks to more bytes than the ceiling is refused before it is unpacked', refusedWith(big.outcome, 'the archive unpacks to more than 8192 bytes, the most a release may hold'), shown(big.outcome))
@@ -164,7 +201,7 @@ try {
   const device = await update(tarGz([dir('mercury/'), { name: 'mercury/dev', type: '3' }]))
   check('a tar that holds a device is refused', refusedWith(device.outcome, 'the archive holds a device, a FIFO or a socket: "mercury/dev"'), shown(device.outcome))
   const insideLink = await update(tarGz([dir('mercury/'), file('mercury/manifest.json', '{}'), link('mercury/alias', 'manifest.json'), link('mercury/again', './../mercury/manifest.json'), link('mercury/twin', 'mercury/manifest.json', '1')]))
-  check('links that stay inside the folder are not refused: the archive is unpacked and judged by its payload', insideLink.outcome.state === 'refused' && insideLink.outcome.stage === 'payload', shown(insideLink.outcome))
+  checkWhere(linkedTar.can, linkedTar.why, 'links that stay inside the folder are not refused: the archive is unpacked and judged by its payload', insideLink.outcome.state === 'refused' && insideLink.outcome.stage === 'payload', shown(insideLink.outcome))
   const viaLink = await update(tarGz([dir('mercury/'), dir('mercury/sub/'), link('mercury/l', 'sub'), file('mercury/l/x.txt')]))
   check('a tar entry written through a link the archive made is refused even when the link stays inside', refusedWith(viaLink.outcome, `${THROUGH}"mercury/l/x.txt"`), shown(viaLink.outcome))
   const chained = await update(tarGz([dir('mercury/'), dir('mercury/d1/'), dir('mercury/d1/d2/'), link('mercury/d1/d2/up', '../..'), link('mercury/d1/d2/out', 'up/../../outside')]))
@@ -186,13 +223,11 @@ try {
   const gnuListed = await checkArchiveBeforeUnpack(gnuPath, 'tar.gz', UPDATE_CEILINGS)
   check('a GNU tar whose long-named file has a header name cut at 100 bytes right after a slash is read, as GNU tar on Linux packs a release', gnuListed.state === 'ok' && gnuListed.entries === 4, `CUT holds ${CUT.length} bytes; ${JSON.stringify(gnuListed)}`)
   const gnuUpdate = await update(gnuShape)
-  check('such an archive is unpacked and judged by its payload', gnuUpdate.outcome.state === 'refused' && gnuUpdate.outcome.stage === 'payload', shown(gnuUpdate.outcome))
-  if (process.platform !== 'win32') {
-    const gnuDest = join(scratch, 'gnu-shape')
-    mkdirSync(gnuDest)
-    execFileSync('tar', ['-xzf', gnuPath, '-C', gnuDest])
-    check("this host's tar unpacks that entry as a file under its long name, where the listing judged it", existsSync(join(gnuDest, longFile)) && readFileSync(join(gnuDest, longFile), 'utf8') === 'long' && unpackedFolderRefusal(gnuDest, UPDATE_CEILINGS) === null)
-  }
+  checkWhere(host.tarUnpacks, TAR_CANNOT, 'such an archive is unpacked and judged by its payload', gnuUpdate.outcome.state === 'refused' && gnuUpdate.outcome.stage === 'payload', shown(gnuUpdate.outcome))
+  const gnuDest = join(scratch, 'gnu-shape')
+  mkdirSync(gnuDest)
+  if (host.tarUnpacks) execFileSync('tar', ['-xzf', gnuPath, '-C', gnuDest])
+  checkWhere(host.tarUnpacks, TAR_CANNOT, "this host's tar unpacks that entry as a file under its long name, where the listing judged it", existsSync(join(gnuDest, longFile)) && readFileSync(join(gnuDest, longFile), 'utf8') === 'long' && unpackedFolderRefusal(gnuDest, UPDATE_CEILINGS) === null)
   const longFolder = await update(tarGz([{ ...dir('mercury/'), gnu: true }, longNote(`${CUT}sub/`), { name: CUT, data: tarHeader({ name: 'mercury/hidden-pipe', type: '6' }), gnu: true }]))
   check('a file entry whose waiting long name ends in a slash is still refused by the reading', longFolder.outcome.state === 'refused' && longFolder.outcome.stage === 'extract' && longFolder.outcome.reason === 'archive extraction failed: a header gives a file the name of a folder', shown(longFolder.outcome))
   const paxFolder = await update(tarGz([dir('mercury/'), { name: 'PaxHeader/x', type: 'x', data: pax('path', 'mercury/sub/') }, { name: 'mercury/x', data: tarHeader({ name: 'mercury/hidden-pipe', type: '6' }) }]))
@@ -207,13 +242,11 @@ try {
   const dotsListed = await checkArchiveBeforeUnpack(dotsPath, 'tar.gz', UPDATE_CEILINGS)
   check('a GNU tar whose long name is cut at 100 bytes right after the first two dots of a name like ..data is read', dotsListed.state === 'ok' && dotsListed.entries === 4, `the cut holds ${DOTS.length} bytes; ${JSON.stringify(dotsListed).slice(0, 220)}`)
   const dotsUpdate = await update(dotsShape)
-  check('such an archive is unpacked and judged by its payload', dotsUpdate.outcome.state === 'refused' && dotsUpdate.outcome.stage === 'payload', shown(dotsUpdate.outcome))
-  if (process.platform !== 'win32') {
-    const dotsDest = join(scratch, 'dots-shape')
-    mkdirSync(dotsDest)
-    execFileSync('tar', ['-xzf', dotsPath, '-C', dotsDest])
-    check("this host's tar unpacks that entry as a file under its long name", existsSync(join(dotsDest, dotsFile)) && readFileSync(join(dotsDest, dotsFile), 'utf8') === 'dots' && unpackedFolderRefusal(dotsDest, UPDATE_CEILINGS) === null)
-  }
+  checkWhere(host.tarUnpacks, TAR_CANNOT, 'such an archive is unpacked and judged by its payload', dotsUpdate.outcome.state === 'refused' && dotsUpdate.outcome.stage === 'payload', shown(dotsUpdate.outcome))
+  const dotsDest = join(scratch, 'dots-shape')
+  mkdirSync(dotsDest)
+  if (host.tarUnpacks) execFileSync('tar', ['-xzf', dotsPath, '-C', dotsDest])
+  checkWhere(host.tarUnpacks, TAR_CANNOT, "this host's tar unpacks that entry as a file under its long name", existsSync(join(dotsDest, dotsFile)) && readFileSync(join(dotsDest, dotsFile), 'utf8') === 'dots' && unpackedFolderRefusal(dotsDest, UPDATE_CEILINGS) === null)
   const climbingLong = `mercury/../../../${'x'.repeat(100)}`
   const cutClimb = await update(tarGz([{ ...dir('mercury/'), gnu: true }, longNote(climbingLong), { name: climbingLong.slice(0, 100), data: Buffer.from('x'), gnu: true }]))
   check('a waiting long name that itself climbs is refused, cut or no cut', refusedWith(cutClimb.outcome, `${LEAVES}${JSON.stringify(climbingLong).slice(0, 120)}`) && !stoodOutside(cutClimb.home, 'x'.repeat(100)), shown(cutClimb.outcome))
@@ -222,7 +255,7 @@ try {
   const linkNote = (target: string): TarMember => ({ name: '././@LongLink', type: 'K', data: Buffer.from(`${target}\0`), gnu: true })
   const cutTarget = `${'./'.repeat(47)}/../..`
   const longTarget = await update(tarGz([{ ...dir('mercury/'), gnu: true }, { ...file('mercury/manifest.json', '{}'), gnu: true }, linkNote(`${cutTarget}data`), { ...link('mercury/l', cutTarget), gnu: true }]))
-  check('a link whose long target is cut at 100 bytes right after two dots is judged by its whole target, which stays inside', longTarget.outcome.state === 'refused' && longTarget.outcome.stage === 'payload', `the cut holds ${cutTarget.length} bytes; ${shown(longTarget.outcome)}`)
+  checkWhere(linkedTar.can, linkedTar.why, 'a link whose long target is cut at 100 bytes right after two dots is judged by its whole target, which stays inside', longTarget.outcome.state === 'refused' && longTarget.outcome.stage === 'payload', `the cut holds ${cutTarget.length} bytes; ${shown(longTarget.outcome)}`)
   const climbingTarget = await update(tarGz([{ ...dir('mercury/'), gnu: true }, linkNote(`${cutTarget}/${'y'.repeat(20)}`), { ...link('mercury/l', cutTarget), gnu: true }]))
   check('a waiting long target that itself leaves the folder is refused', refusedWith(climbingTarget.outcome, `${LINK_LEAVES}"mercury/l"`), shown(climbingTarget.outcome))
   const targetNotCut = await update(tarGz([{ ...dir('mercury/'), gnu: true }, linkNote(`${'t'.repeat(110)}`), { ...link('mercury/l', '../../outside'), gnu: true }]))
@@ -242,29 +275,27 @@ try {
     fill(root)
     return root
   }
-  const linksWork = process.platform !== 'win32'
+  const lookWhere = (can: boolean, why: string, label: string, name: string, fill: (root: string) => void, expected: string | null): void => {
+    if (!can) return checkWhere(false, why, label, false)
+    const told = unpackedFolderRefusal(staged(name, fill), UPDATE_CEILINGS)
+    check(label, told === expected, String(told))
+  }
+  const LINK_LEFT = 'the unpacker left a link that leaves the folder it unpacked into: '
   check('a folder of files and folders within the ceilings is passed', unpackedFolderRefusal(staged('plain', () => {}), UPDATE_CEILINGS) === null)
   check('a folder with one entry more than the ceiling is refused', unpackedFolderRefusal(staged('many', () => {}), { ...UPDATE_CEILINGS, entries: 3 }) === 'the unpacker wrote more than 3 entries, the most a release may hold')
   check('a folder with one byte more than the ceiling is refused', unpackedFolderRefusal(staged('heavy', () => {}), { ...UPDATE_CEILINGS, unpackedBytes: 7 }) === 'the unpacker wrote more than 7 bytes, the most a release may hold' && unpackedFolderRefusal(staged('exact', () => {}), { ...UPDATE_CEILINGS, unpackedBytes: 8, entries: 4 }) === null)
-  if (linksWork) {
-    const inside = staged('inside-link', root => {
-      symlinkSync('a.txt', join(root, 'mercury', 'alias'))
-      symlinkSync('../a.txt', join(root, 'mercury', 'sub', 'up-one'))
-      symlinkSync('nowhere.txt', join(root, 'mercury', 'dangling'))
-    })
-    check('links that stay inside the folder are passed', unpackedFolderRefusal(inside, UPDATE_CEILINGS) === null, String(unpackedFolderRefusal(inside, UPDATE_CEILINGS)))
-    const out = staged('out-link', root => symlinkSync(join(scratch, 'looked'), join(root, 'mercury', 'door')))
-    check('a link that leaves the folder is refused', unpackedFolderRefusal(out, UPDATE_CEILINGS) === `the unpacker left a link that leaves the folder it unpacked into: ${JSON.stringify(join('mercury', 'door'))}`, String(unpackedFolderRefusal(out, UPDATE_CEILINGS)))
-    const chain = staged('chain-link', root => {
-      symlinkSync('..', join(root, 'mercury', 'sub', 'up'))
-      symlinkSync('up/../..', join(root, 'mercury', 'sub', 'out'))
-    })
-    check('a link that leaves the folder only through another link is refused', unpackedFolderRefusal(chain, UPDATE_CEILINGS) === `the unpacker left a link that leaves the folder it unpacked into: ${JSON.stringify(join('mercury', 'sub', 'out'))}`, String(unpackedFolderRefusal(chain, UPDATE_CEILINGS)))
-    const lost = staged('lost-link', root => symlinkSync('../../../nowhere', join(root, 'mercury', 'lost')))
-    check('a link to a missing place outside the folder is refused', unpackedFolderRefusal(lost, UPDATE_CEILINGS) === `the unpacker left a link that leaves the folder it unpacked into: ${JSON.stringify(join('mercury', 'lost'))}`, String(unpackedFolderRefusal(lost, UPDATE_CEILINGS)))
-    const pipe = staged('fifo', root => void execFileSync('mkfifo', [join(root, 'mercury', 'pipe')]))
-    check('a FIFO is refused', unpackedFolderRefusal(pipe, UPDATE_CEILINGS) === `the unpacker left a device, a FIFO or a socket: ${JSON.stringify(join('mercury', 'pipe'))}`, String(unpackedFolderRefusal(pipe, UPDATE_CEILINGS)))
-  }
+  lookWhere(host.links, LINKS_CANNOT, 'links that stay inside the folder are passed', 'inside-link', root => {
+    symlinkSync('a.txt', join(root, 'mercury', 'alias'))
+    symlinkSync('../a.txt', join(root, 'mercury', 'sub', 'up-one'))
+    symlinkSync('nowhere.txt', join(root, 'mercury', 'dangling'))
+  }, null)
+  lookWhere(host.links, LINKS_CANNOT, 'a link that leaves the folder is refused', 'out-link', root => symlinkSync(join(scratch, 'looked'), join(root, 'mercury', 'door')), `${LINK_LEFT}${JSON.stringify(join('mercury', 'door'))}`)
+  lookWhere(host.links, LINKS_CANNOT, 'a link that leaves the folder only through another link is refused', 'chain-link', root => {
+    symlinkSync('..', join(root, 'mercury', 'sub', 'up'))
+    symlinkSync('up/../..', join(root, 'mercury', 'sub', 'out'))
+  }, `${LINK_LEFT}${JSON.stringify(join('mercury', 'sub', 'out'))}`)
+  lookWhere(host.links, LINKS_CANNOT, 'a link to a missing place outside the folder is refused', 'lost-link', root => symlinkSync('../../../nowhere', join(root, 'mercury', 'lost')), `${LINK_LEFT}${JSON.stringify(join('mercury', 'lost'))}`)
+  lookWhere(host.fifos, 'this host has no mkfifo that makes a FIFO here', 'a FIFO is refused', 'fifo', root => void execFileSync('mkfifo', [join(root, 'mercury', 'pipe')]), `the unpacker left a device, a FIFO or a socket: ${JSON.stringify(join('mercury', 'pipe'))}`)
 
   check('the unpacked ceiling is a round figure of at least 4 GiB', UPDATE_CEILINGS.unpackedBytes >= 4 * 1024 ** 3 && UPDATE_CEILINGS.unpackedBytes % 1024 ** 3 === 0, String(UPDATE_CEILINGS.unpackedBytes))
   check('the entries ceiling is a round figure of at least 100,000', UPDATE_CEILINGS.entries >= 100_000 && UPDATE_CEILINGS.entries % 10_000 === 0, String(UPDATE_CEILINGS.entries))
