@@ -282,6 +282,38 @@ try {
         dbgText.includes('another writer held its lock'),
       `err=${caught ? `${caught.name}: ${caught.message}` : 'none'} dbg=${dbgText.slice(-250)}`,
     )
+
+    const dispatchTarget = join(DAEMON_DIR, 'dispatch-lock-busy-probe.json')
+    writeFileSync(dispatchTarget, '{}\n')
+    const dispatchLockDir = `${dispatchTarget}.lock`
+    const dispatchOwnerPath = `${dispatchLockDir}.owner`
+    mkdirSync(dispatchLockDir, { recursive: true })
+    writeFileSync(dispatchOwnerPath, `${process.pid}\n`)
+    const baseNow2 = origNow()
+    const futureSec2 = (baseNow2 + 120_000) / 1000
+    utimesSync(dispatchLockDir, futureSec2, futureSec2)
+    let calls2 = 0
+    Date.now = () => {
+      calls2++
+      return calls2 === 1 ? baseNow2 : baseNow2 + 60_000
+    }
+    let caughtDispatch: Error | null = null
+    try {
+      withDaemonStoreLock('the dispatch ledger', dispatchTarget, DAEMON_DIR, () => {})
+    } catch (error) {
+      caughtDispatch = error instanceof Error ? error : new Error(String(error))
+    } finally {
+      Date.now = origNow
+      rmSync(dispatchLockDir, { recursive: true, force: true })
+      rmSync(dispatchOwnerPath, { force: true })
+    }
+    check(
+      'storeLock timeout on the dispatch ledger keeps its own name, path and wait sentence',
+      caughtDispatch !== null &&
+        caughtDispatch.name === 'SessionRecordsLockError' &&
+        caughtDispatch.message.startsWith(`the dispatch ledger at ${dispatchTarget} were not updated: another writer held its lock for `),
+      `err=${caughtDispatch ? `${caughtDispatch.name}: ${caughtDispatch.message}` : 'none'} — keep non-session-records storeLock timeout sentence unchanged in src/daemon/concourse-workers/storeLock.ts`,
+    )
   }
 } finally {
   delete process.env.MERCURY_FAULT_INJECT

@@ -123,8 +123,12 @@ function acquireSessionRecordsLock(
       if (code !== 'ELOCKED') throw err
       if (reclaimAbandonedLock(lockDir, ownerPath)) continue
       if (Date.now() >= deadline) {
-        logForDebugging(`[concourse] ${where} at ${path} were not updated: another writer held its lock for ${SESSION_RECORDS_LOCK_WAIT_MS} ms`, { level: 'error' })
-        throw new SessionRecordsLockError("the daemon's session records were busy — try again")
+        const raw = `${where} at ${path} were not updated: another writer held its lock for ${SESSION_RECORDS_LOCK_WAIT_MS} ms`
+        if (where === 'the session records') {
+          logForDebugging(`[concourse] ${raw}`, { level: 'error' })
+          throw new SessionRecordsLockError("the daemon's session records were busy — try again")
+        }
+        throw new SessionRecordsLockError(raw)
       }
       sleepSync(backoffMs + Math.floor(Math.random() * backoffMs))
       backoffMs = Math.min(backoffMs * 2, 50)
