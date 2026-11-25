@@ -71,7 +71,27 @@ function textDistance(a: string, b: string): number {
   return previous[b.length]!
 }
 
-export function targetElement(tree: DesktopTree, target: ElementTarget, map: ScreenMap | null = null, walk?: TreeWalk): DesktopTreeElement | { refusal: string; held?: DesktopTreeElement } {
+function pageRows(tree: DesktopTree): DesktopTreeElement[] | null {
+  const rows: DesktopTreeElement[] = []
+  let area: number | null = null
+  let page = false
+  for (const element of tree.elements) {
+    if (area !== null && element.depth <= area) area = null
+    if (area !== null) rows.push(element)
+    else if (element.role.startsWith('AXWebArea')) {
+      area = element.depth
+      page = true
+    }
+  }
+  return page ? rows : null
+}
+
+export interface HeldTarget {
+  element: DesktopTreeElement
+  of: number
+}
+
+export function targetElement(tree: DesktopTree, target: ElementTarget, map: ScreenMap | null = null, walk?: TreeWalk): DesktopTreeElement | { refusal: string; held?: HeldTarget } {
   const matches = targetMatches(tree, target)
   const interactive = matches.filter(element => /^(AX)?(Button|CheckBox|ComboBox|Link|MenuButton|MenuItem|PopUpButton|RadioButton|SearchField|Slider|Tab|TextArea|TextField|ToggleButton)$/i.test(element.role))
   const parent = interactive.length === 1 ? interactive[0] : undefined
@@ -83,18 +103,18 @@ export function targetElement(tree: DesktopTree, target: ElementTarget, map: Scr
   if (!selected) {
     if (matches.length) return { refusal: `${targetWords(target)}: ${matches.length} matches${target.nth === undefined ? ' (ambiguous)' : `; nth ${target.nth} is outside them`} — choose target.nth (1-based)\n${candidateWords(matches.slice(0, 8), map)}` }
     const wanted = normalized(target.name ?? target.text ?? target.role ?? '').slice(0, 120)
-    const nearby = tree.elements.filter(element => (element.title ?? element.value ?? '').trim()).map(element => {
+    const nearby = (pageRows(tree) ?? tree.elements).filter(element => (element.title ?? element.value ?? '').trim()).map(element => {
       const text = normalized(element.title ?? element.value ?? '').slice(0, 120)
       const distance = Math.min(textDistance(wanted, text), ...text.split(' ').map(word => textDistance(wanted, word))) + Math.abs(wanted.length - text.length) / 100
       return { element, distance }
     }).sort((a, b) => a.distance - b.distance).slice(0, 3).map(item => item.element)
     return { refusal: `${targetWords(target)}: 0 matches${!tree.truncated ? '' : walk ? ` in the part walked (the tree goes on past ${walkStopWords(tree, walk)})` : ' in a truncated tree'}${nearby.length ? ` — nearest ${nearby.length} by text\n${candidateWords(nearby, map)}` : ' — read tree or take a screenshot'}` }
   }
-  if (tree.truncated) return { refusal: `${targetWords(target)}: the tree is truncated, so uniqueness is unknown — ${tree.reason === TREE_UNANSWERED_REASON ? 'read the tree again' : 'raise depth/limit'} or use screenshot pixels`, held: selected }
+  if (tree.truncated) return { refusal: `${targetWords(target)}: the tree is truncated, so uniqueness is unknown — ${tree.reason === TREE_UNANSWERED_REASON ? 'read the tree again' : 'raise depth/limit'} or use screenshot pixels`, held: { element: selected, of: matches.length } }
   return selected
 }
 
-export function targetPoint(tree: DesktopTree, target: ElementTarget, map: ScreenMap | null = null, walk?: TreeWalk): { x: number; y: number } | { refusal: string; held?: DesktopTreeElement } {
+export function targetPoint(tree: DesktopTree, target: ElementTarget, map: ScreenMap | null = null, walk?: TreeWalk): { x: number; y: number } | { refusal: string; held?: HeldTarget } {
   const element = targetElement(tree, target, map, walk)
   if ('refusal' in element) return element
   const frame = element.frame

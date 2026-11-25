@@ -92,7 +92,7 @@ section('every other incomplete tree keeps its sentence byte for byte')
     return tree.ok ? { ok: true, value: { ...tree.value, truncated: true } } : tree
   }
   const clicked = await call({ action: 'click', target: { name: 'Share' }, capture: false })
-  check('an act by target on a tree cut for any other reason is not done either, and hands the row its ref', clicked.outcome === 'failed' && clicked.result.includes('click not done: "Share": 1 match in the part walked (the tree goes on past ') && /, so a second match further on is not ruled out — act on it by ref\n\[\d+\] AXButton "Share" /.test(clicked.result), clicked.result)
+  check('an act by target on a tree cut for any other reason is not done either, and hands the row its ref', clicked.outcome === 'failed' && clicked.result.includes('click not done: "Share": 1 match in the part walked (the tree goes on past ') && !clicked.result.includes(REASON) && /, so a second match further on is not ruled out — act on it by ref\n\[\d+\] AXButton "Share" /.test(clicked.result), clicked.result)
 }
 
 section('the scene, the reason and both native walks')

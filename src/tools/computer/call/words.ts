@@ -7,8 +7,8 @@ import {
   type DesktopTreeLimits,
   TREE_UNANSWERED_REASON,
 } from '../../../integrations/desktop/driver.js'
-import { type DesktopOutline, type ScreenMap, addTreeRef, outlineRowWords, pixelOfPoint, pixelOnScreen, resolveTreeRef } from '../screenMap.js'
-import { type ElementTarget, type TreeWalk, candidateWords, pageContentNote, targetElement, targetWords, walkStopWords } from '../fastRoad.js'
+import { type DesktopOutline, type ScreenMap, addTreeRef, outlineRowWords, pixelOfPoint, pixelOnScreen, resolveTreeRef, treeRefChanged } from '../screenMap.js'
+import { type ElementTarget, type HeldTarget, type TreeWalk, candidateWords, pageContentNote, targetElement, targetWords, walkStopWords } from '../fastRoad.js'
 import {
   FIELD_VALUE_CHARS,
   type Input,
@@ -18,6 +18,8 @@ import {
   TREE_LIMIT_DEFAULT,
   TREE_READS,
 } from './schema.js'
+
+export const REF_CHANGED = 'its row or the rows around it changed since the tree was read — read the tree again'
 
 export function interruptedText(action: string): string {
   return `${action} interrupted by the operator — the act in flight ended, held keys and buttons were released, nothing further was done`
@@ -51,12 +53,22 @@ async function frontmostWords(driver: DesktopDriver): Promise<string> {
 
 export function readRefElement(owner: OwnerKey, app: DesktopApplication, tree: DesktopTree, ref: number, map: ScreenMap | null): DesktopTreeElement | { refusal: string } {
   const elements = resolveTreeRef(owner, app, tree, ref)
-  if (!elements.length) return { refusal: `read ref ${ref}: unavailable or stale — read tree and use its current ref` }
+  if (!elements.length) return { refusal: treeRefChanged(owner, app, tree, ref) ? `read ref ${ref}: ${REF_CHANGED}` : `read ref ${ref}: unavailable or stale — read tree and use its current ref` }
   return targetElement({ ...tree, elements }, {}, map)
 }
 
-export function heldTargetWords(action: string, owner: OwnerKey, app: DesktopApplication, tree: DesktopTree, target: ElementTarget, held: DesktopTreeElement, walk: TreeWalk, map: ScreenMap | null): string {
-  return `${action} not done: ${targetWords(target)}: 1 match in the part walked (the tree goes on past ${walkStopWords(tree, walk)}), so a second match further on is not ruled out — act on it by ref\n${candidateWords([held], map, addTreeRef(owner, app, tree, held))}`
+function heldWords(tree: DesktopTree, target: ElementTarget, held: HeldTarget, walk: TreeWalk): string {
+  const past = `(the tree goes on past ${walkStopWords(tree, walk)})`
+  return `${targetWords(target)}: ${target.nth === undefined ? `1 match in the part walked ${past}, so a second match further on is not ruled out` : `match ${target.nth} of ${held.of} in the part walked ${past}; the part not walked may hold others`}`
+}
+
+export function heldTargetWords(action: string, owner: OwnerKey, app: DesktopApplication, tree: DesktopTree, target: ElementTarget, held: HeldTarget, walk: TreeWalk, map: ScreenMap | null): string {
+  const ref = addTreeRef(owner, app, tree, held.element)
+  return ref === null ? `${action} refused: ${heldWords(tree, target, held, walk)} — read the tree and act on its row by ref` : `${action} not done: ${heldWords(tree, target, held, walk)} — act on it by ref\n${candidateWords([held.element], map, ref)}`
+}
+
+export function heldFarEndWords(tree: DesktopTree, target: ElementTarget, held: HeldTarget, walk: TreeWalk): string {
+  return `drag refused: ${heldWords(tree, target, held, walk)} — the far end of a drag takes no ref: give it as toX/toY from a screenshot`
 }
 
 export function readWords(label: string, text: string, truncated = false): string {

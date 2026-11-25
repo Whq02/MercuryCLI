@@ -7,6 +7,8 @@ import { allowEverything, ownerOf, resultOf, toolContext, toolUseTurn } from './
 const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
 const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
 const session = await import('../../src/integrations/desktop/desktopSession.ts')
+const { addTreeRef } = await import('../../src/tools/computer/screenMap.ts')
+const { heldTargetWords } = await import('../../src/tools/computer/call/words.ts')
 
 type Frame = { x: number; y: number; width: number; height: number }
 type Node = { role: string; title?: string; value?: string; frame?: Frame; focused?: boolean; children?: Node[] }
@@ -41,6 +43,7 @@ function browserWindow(page: Node[]): Node[] {
       { role: 'AXTextField', title: 'Address and search bar', value: 'feed.example/home', frame: { x: 130, y: 46, width: 800, height: 28 } },
     ] },
     wrapped({ role: 'AXWebArea', title: 'Feed', frame: { x: 0, y: 80, width: 1200, height: 720 }, children: page }, 3),
+    { role: 'AXButton', title: 'Sign-in codes', frame: { x: 1100, y: 46, width: 80, height: 28 } },
   ] }]
 }
 
@@ -51,11 +54,11 @@ const feed: Node[] = [
   { role: 'AXLink', title: 'Release day draws a crowd', frame: { x: 950, y: 200, width: 220, height: 24 } },
 ]
 
-function sceneFile(name: string, tree: Node[]): string {
+function sceneFile(name: string, tree: Node[], windowId = 'feed'): string {
   const path = join(scratch, `${name}.json`)
   writeFileSync(path, JSON.stringify({
     displays: [{ index: 0, id: 'proof', originX: 0, originY: 0, width: 1200, height: 800, scale: 1, primary: true }],
-    frontmost: { identity: 'com.example.Browser', name: 'Browser', pid: 700, windowId: 'feed', title: 'Feed - Browser', bounds },
+    frontmost: { identity: 'com.example.Browser', name: 'Browser', pid: 700, windowId, title: 'Feed - Browser', bounds },
     cursor: { x: 10, y: 10 },
     tree,
   }))
@@ -64,27 +67,36 @@ function sceneFile(name: string, tree: Node[]): string {
 
 let serial = 0
 async function stage(scene: string) {
-  process.env.MERCURY_DESKTOP_FAKE_SCENE = scene
-  resetDesktopDriverForTest()
-  const resolution = resolveDesktopDriver()
-  if (resolution.state !== 'ok') throw new Error(resolution.note)
   const context = toolContext()
   session.forgetDesktopOwner(ownerOf(context))
   const walks: Array<{ count: number; depth: number; elements: number; truncated: boolean }> = []
-  const whole = resolution.driver.accessibilityTree.bind(resolution.driver)
-  resolution.driver.accessibilityTree = async (app, limits, signal) => {
-    const tree = await whole(app, limits, signal)
-    if (tree.ok) walks.push({ count: limits.count, depth: limits.depth, elements: tree.value.elements.length, truncated: tree.value.truncated })
-    return tree
-  }
   const clicks: Array<{ x: number; y: number }> = []
-  const press = resolution.driver.click.bind(resolution.driver)
-  resolution.driver.click = async (point, button, count, signal) => {
-    clicks.push({ x: point.x, y: point.y })
-    return press(point, button, count, signal)
+  const drags: Array<{ from: { x: number; y: number }; to: { x: number; y: number } }> = []
+  const show = (file: string): void => {
+    process.env.MERCURY_DESKTOP_FAKE_SCENE = file
+    resetDesktopDriverForTest()
+    const resolution = resolveDesktopDriver()
+    if (resolution.state !== 'ok') throw new Error(resolution.note)
+    const whole = resolution.driver.accessibilityTree.bind(resolution.driver)
+    resolution.driver.accessibilityTree = async (app, limits, signal) => {
+      const tree = await whole(app, limits, signal)
+      if (tree.ok) walks.push({ count: limits.count, depth: limits.depth, elements: tree.value.elements.length, truncated: tree.value.truncated })
+      return tree
+    }
+    const press = resolution.driver.click.bind(resolution.driver)
+    resolution.driver.click = async (point, button, count, signal) => {
+      clicks.push({ x: point.x, y: point.y })
+      return press(point, button, count, signal)
+    }
+    const pull = resolution.driver.drag.bind(resolution.driver)
+    resolution.driver.drag = async (from, to, button, signal) => {
+      drags.push({ from: { x: from.x, y: from.y }, to: { x: to.x, y: to.y } })
+      return pull(from, to, button, signal)
+    }
   }
+  show(scene)
   const call = async (input: Record<string, unknown>) => resultOf(await ComputerTool.call(input as never, context, allowEverything, toolUseTurn(`long-page-${++serial}`, 'Computer', input) as never))
-  return { call, walks, clicks }
+  return { call, walks, clicks, drags, show, owner: ownerOf(context) }
 }
 
 const refOf = (listing: string, words: string): number => Number(/\[(\d+)\]/.exec(listing.split('\n').find(line => line.includes(words)) ?? '')?.[1])
@@ -134,6 +146,20 @@ section('a walk that stopped at its own bound says which bound, in the walk\'s n
   const resolution = resolveDesktopDriver()
   if (resolution.state !== 'ok') throw new Error(resolution.note)
   const read = resolution.driver.accessibilityTree.bind(resolution.driver)
+  const front = resolution.driver.frontmostApplication.bind(resolution.driver)
+  let walked = false
+  resolution.driver.accessibilityTree = async (app, limits, signal) => {
+    const answer = await read(app, limits, signal)
+    walked = true
+    return answer
+  }
+  resolution.driver.frontmostApplication = async () => {
+    if (walked) await new Promise(resolve => setTimeout(resolve, 400))
+    return front()
+  }
+  const lagged = await deep.call({ action: 'tree' })
+  resolution.driver.frontmostApplication = front
+  check('the milliseconds are the walk\'s own: a slow answer to which window is in front, asked after the walk, is not counted in them', Number(/walk: 34 elements, depth 32, (\d+) ms/.exec(lagged.result)?.[1]) < 200, lagged.result.split('\n').find(line => line.startsWith('truncated:')) ?? lagged.result)
   resolution.driver.accessibilityTree = async (app, limits, signal) => {
     const answer = await read(app, limits, signal)
     return answer.ok ? { ok: true, value: { ...answer.value, truncated: true, reason: 'the walk stopped after 6000 ms' } } : answer
@@ -161,7 +187,7 @@ section('by name on a cut walk: nothing is done on one match, and its ref is han
   const old = await page.call({ action: 'click', ref: earlier, capture: false })
   check('a ref the tree gave before that answer still stands', old.outcome === 'succeeded' && JSON.stringify(page.clicks.at(-1)) === JSON.stringify({ x: 340, y: 393 }), `${old.result} ${JSON.stringify(page.clicks)}`)
   const second = await page.call({ action: 'click', target: { role: 'AXLink', text: 'Author 1', nth: 2 }, capture: false })
-  check('an nth that names one of the matches found is answered the same way, with that match', second.outcome === 'failed' && page.clicks.length === 2 && timed(second.result).startsWith(`click not done: AXLink text="Author 1" nth=2: 1 match in the part walked ${CUT}`) && /\n\[\d+\] AXLink "Author 10" /.test(second.result), second.result)
+  check('an nth that names one of the matches found is not done either: the answer says which match of how many, that the rest may hold others, and gives that match its ref', second.outcome === 'failed' && page.clicks.length === 2 && timed(second.result).startsWith(`click not done: AXLink text="Author 1" nth=2: match 2 of 11 in the part walked ${CUT}; the part not walked may hold others — act on it by ref\n[`) && /\n\[\d+\] AXLink "Author 10" /.test(second.result) && !second.result.includes('1 match') && !second.result.includes('second match'), second.result)
   const many = await page.call({ action: 'click', target: { role: 'AXLink', text: 'Author 1' }, capture: false })
   check('two or more matches are refused as on a whole walk, the candidates listed', many.outcome === 'failed' && page.clicks.length === 2 && many.result.startsWith('click refused: AXLink text="Author 1": 11 matches (ambiguous) — choose target.nth (1-based)\n[1] AXLink "Author 1" ') && many.result.includes('[8] AXLink "Author 16"'), many.result)
   const none = await page.call({ action: 'click', target: { role: 'AXLink', text: 'Release day' }, capture: false })
@@ -173,6 +199,120 @@ section('by name on a cut walk: nothing is done on one match, and its ref is han
   const short = await stage(sceneFile('short-by-name', browserWindow(feed.slice(0, 12))))
   const direct = await short.call({ action: 'click', target: { role: 'AXButton', name: 'Like post 3' }, capture: false })
   check('on a walk that is whole a click by name acts at once, as before', short.walks.find(walk => walk.count === WALK_CAP)?.truncated === false && direct.outcome === 'succeeded' && JSON.stringify(short.clicks) === JSON.stringify([{ x: 340, y: 483 }]), `${direct.result} ${JSON.stringify(short.clicks)}`)
+}
+
+section('a ref on a cut walk acts only while the rows around it read as they did when the tree was read')
+{
+  const CHANGED = 'its row or the rows around it changed since the tree was read — read the tree again'
+  const row = (slot: number, id: number, words = `Post ${id} tells its news`): Node => {
+    const y = 140 + slot * 90
+    const frame = { x: 300, y, width: 600, height: 86 }
+    return wrapped({ role: 'AXGroup (AXArticle)', frame, children: [
+      { role: 'AXLink', title: `Author ${id}`, frame: { x: 310, y: y + 4, width: 120, height: 18 } },
+      wrapped({ role: 'AXStaticText', value: words, frame: { x: 310, y: y + 26, width: 560, height: 36 } }, 6),
+      wrapped({ role: 'AXButton', title: 'Like', frame: { x: 310, y: y + 64, width: 60, height: 18 } }, 6),
+      ...filler(frame, 11),
+    ] }, 3)
+  }
+  const list = (ids: number[], reworded = -1): Node[] => browserWindow(ids.map((id, slot) => (id === reworded ? row(slot, id, `Post ${id} was written again`) : row(slot, id))))
+  const ids = Array.from({ length: POSTS }, (_, index) => index)
+  const likeUnder = (listing: string, words: string): number => {
+    const lines = listing.split('\n')
+    return Number(/\[(\d+)\] AXButton "Like"/.exec(lines.slice(lines.findIndex(line => line.includes(words))).find(line => line.includes('AXButton "Like"')) ?? '')?.[1])
+  }
+  const refused = (answer: { outcome: string; result: string }, ref: number): boolean => answer.outcome === 'failed' && answer.result === `click refused: ref:${ref}: ${CHANGED}`
+  const asRead = sceneFile('rows-as-read', list(ids))
+  const page = await stage(asRead)
+  const listing = await page.call({ action: 'tree', depth: 32, limit: 500 })
+  const like = likeUnder(listing.result, '"Post 3 tells its news"')
+  const words = refOf(listing.result, '"Post 3 tells its news"')
+  const before = likeUnder(listing.result, '"Post 2 tells its news"')
+  const further = likeUnder(listing.result, '"Post 6 tells its news"')
+  check('the scene is the one meant: rows of one shape, each with a button of the same name, on a walk cut at its 2000 elements', page.walks.at(-1)?.truncated === true && page.walks.at(-1)?.elements === WALK_CAP && [like, words, before, further].every(Number.isInteger) && new Set([like, words, before, further]).size === 4 && rowsOf(listing.result).filter(line => line.includes('AXButton "Like"')).length > 5, listing.result.slice(0, 300))
+  page.show(sceneFile('rows-one-put-in-above', list([1000, ...ids.slice(0, POSTS - 1)])))
+  const above = await page.call({ action: 'click', ref: like, capture: false })
+  check('with one row put in above, the ref of the fourth row\'s button clicks nothing: the button now at that place is the third row\'s', refused(above, like) && page.clicks.length === 0, `${above.result} ${JSON.stringify(page.clicks)}`)
+  page.show(sceneFile('rows-scrolled-by-one', list(ids.map(id => id + 1))))
+  const scrolled = await page.call({ action: 'click', ref: like, capture: false })
+  check('with the list scrolled by one row, the same', refused(scrolled, like) && page.clicks.length === 0, `${scrolled.result} ${JSON.stringify(page.clicks)}`)
+  const rooted = await page.call({ action: 'tree', root: words })
+  check('a root given by such a ref is refused with the same sentence', rooted.outcome === 'failed' && rooted.result === `tree refused: ref:${words}: ${CHANGED}`, rooted.result)
+  const unread = await page.call({ action: 'read', ref: words })
+  check('a read by such a ref is refused with the same sentence', unread.outcome === 'failed' && unread.result === `read refused: read ref ${words}: ${CHANGED}`, unread.result)
+  page.show(asRead)
+  const same = await page.call({ action: 'click', ref: like, capture: false })
+  check('with the list as it was read, the same ref acts on its row', same.outcome === 'succeeded' && JSON.stringify(page.clicks) === JSON.stringify([{ x: 340, y: 483 }]), `${same.result} ${JSON.stringify(page.clicks)}`)
+  page.show(sceneFile('rows-one-written-again', list(ids, 3)))
+  const own = await page.call({ action: 'click', ref: words, capture: false })
+  const beside = await page.call({ action: 'click', ref: like, capture: false })
+  const ahead = await page.call({ action: 'click', ref: before, capture: false })
+  check('with one row\'s words written again and nothing moved, the ref of those words clicks nothing, and neither does the ref of the button after them nor of the button before them', refused(own, words) && refused(beside, like) && refused(ahead, before) && page.clicks.length === 1, `${own.result} | ${beside.result} | ${ahead.result} ${JSON.stringify(page.clicks)}`)
+  const far = await page.call({ action: 'click', ref: further, capture: false })
+  check('and a ref three rows further down, whose own rows read as they did, still acts', far.outcome === 'succeeded' && JSON.stringify(page.clicks.at(-1)) === JSON.stringify({ x: 340, y: 753 }), `${far.result} ${JSON.stringify(page.clicks)}`)
+  const fewIds = ids.slice(0, 6)
+  const few = await stage(sceneFile('few-rows-as-read', list(fewIds)))
+  const wholeListing = await few.call({ action: 'tree', depth: 32, limit: 500 })
+  const wholeLike = likeUnder(wholeListing.result, '"Post 3 tells its news"')
+  few.show(sceneFile('few-rows-one-written-again', list(fewIds, 4)))
+  const beside4 = await few.call({ action: 'click', ref: wholeLike, capture: false })
+  check('on a walk that is whole a ref acts as it always did, though the row after it reads differently', few.walks.find(walk => walk.count === WALK_CAP)?.truncated === false && beside4.outcome === 'succeeded' && JSON.stringify(few.clicks) === JSON.stringify([{ x: 340, y: 483 }]), `${beside4.result} ${JSON.stringify(few.clicks)}`)
+  few.show(sceneFile('few-rows-one-put-in-above', list([1000, ...fewIds])))
+  const grown = await few.call({ action: 'click', ref: wholeLike, capture: false })
+  check('and there a row put in above ends the ref with the sentence it always had', grown.outcome === 'failed' && few.clicks.length === 1 && grown.result.startsWith(`click refused: ref:${wholeLike}: no element of the latest tree matches it now — read the tree or find again`), `${grown.result} ${JSON.stringify(few.clicks)}`)
+}
+
+section('a drag\'s far end by name on a cut walk, and a ref handed over in another window')
+{
+  const page = await stage(sceneFile('feed-drag', browserWindow(feed)))
+  const listing = await page.call({ action: 'tree', depth: 32, limit: 500 })
+  const from = refOf(listing.result, '"Like post 2"')
+  const far = await page.call({ action: 'drag', ref: from, toTarget: { role: 'AXButton', name: 'Like post 5' }, capture: false })
+  check('a drag whose far end is one match by name on a cut walk is not done, and is not told to act by a ref the far end cannot take', far.outcome === 'failed' && page.drags.length === 0 && far.result.replace(/, \d+ ms/, ', N ms') === 'drag refused: AXButton "Like post 5": 1 match in the part walked (the tree goes on past the 2000 elements a walk reads at most, unlisted ones included · walk: 2000 elements, depth 16, N ms), so a second match further on is not ruled out — the far end of a drag takes no ref: give it as toX/toY from a screenshot', far.result)
+  const resolution = resolveDesktopDriver()
+  if (resolution.state !== 'ok') throw new Error(resolution.note)
+  const front = await resolution.driver.frontmostApplication()
+  if (!front.ok) throw new Error(front.error.note)
+  const walked = await resolution.driver.accessibilityTree(front.value, { depth: 32, count: WALK_CAP, scope: 'window' }, new AbortController().signal)
+  if (!walked.ok) throw new Error(walked.error.note)
+  const copy = { ...walked.value.elements[5]! }
+  const attempt = <T,>(run: () => T): T | string => {
+    try {
+      return run()
+    } catch (error) {
+      return String(error)
+    }
+  }
+  const stranger = attempt(() => addTreeRef(page.owner, { ...front.value, windowId: 'elsewhere' }, walked.value, copy))
+  const stillThere = await page.call({ action: 'click', ref: from, capture: false })
+  check('neither that refusal nor a ref asked for an element that is not in the tree, in another window, touches the refs the tree gave', stranger === null && stillThere.outcome === 'succeeded' && JSON.stringify(page.clicks.at(-1)) === JSON.stringify({ x: 340, y: 393 }), `${String(stranger)} | ${stillThere.result}`)
+  const lone = attempt(() => heldTargetWords('click', page.owner, front.value, walked.value, { name: 'Like post 3' }, { element: copy, of: 1 }, { count: WALK_CAP, depth: 32, elements: WALK_CAP, deepest: 16, ms: 1 }, null))
+  check('an answer that has no ref to hand over says so, and sends the model to the tree', lone === 'click refused: "Like post 3": 1 match in the part walked (the tree goes on past the 2000 elements a walk reads at most, unlisted ones included · walk: 2000 elements, depth 16, 1 ms), so a second match further on is not ruled out — read the tree and act on its row by ref', String(lone))
+  page.show(sceneFile('feed-other-window', browserWindow(feed), 'other'))
+  const handedOver = await page.call({ action: 'click', target: { role: 'AXButton', name: 'Like post 3' }, capture: false })
+  const fresh = Number(/\n\[(\d+)\] AXButton "Like post 3" /.exec(handedOver.result)?.[1])
+  const old = await page.call({ action: 'click', ref: from, capture: false })
+  const now = await page.call({ action: 'click', ref: fresh, capture: false })
+  check('a ref handed over in another window ends the refs of the window before it, and acts itself', handedOver.outcome === 'failed' && old.outcome === 'failed' && old.result.startsWith(`click refused: ref:${from}: no element of the latest tree matches it now`) && now.outcome === 'succeeded' && JSON.stringify(page.clicks.at(-1)) === JSON.stringify({ x: 340, y: 483 }), `${old.result} | ${now.result}`)
+}
+
+section('the nearest matches of a refusal come from the page, not from the browser\'s own furniture')
+{
+  const OTHER_TAB = 'Inbox - your sign-in code is 000000'
+  const shown = await stage(sceneFile('short-nearest', browserWindow(feed.slice(0, 12))))
+  const missed = await shown.call({ action: 'click', target: { text: 'Sign in code' }, capture: false })
+  const near = missed.result.split('\n').slice(1)
+  check('a name that matches nothing in a window that shows a page lists three neighbours, every one a row of the page, and no other tab\'s title', missed.outcome === 'failed' && missed.result.startsWith('click refused: text="Sign in code": 0 matches — nearest 3 by text\n') && near.length === 3 && near.every(row => /^\[\d\] AX(?:Link|StaticText|Button) "(?:Home|Explore|Author \d+|Post \d+ tells its news|Like post \d+)" /.test(row)) && !missed.result.includes(OTHER_TAB) && !missed.result.includes('Sign-in codes') && !missed.result.includes('Reload') && !missed.result.includes('feed.example'), missed.result)
+  const blank = await stage(sceneFile('blank-page', browserWindow([])))
+  const nothing = await blank.call({ action: 'click', target: { text: 'Sign in code' }, capture: false })
+  check('with nothing named under the web area the sentence ends as it does with no neighbours', nothing.outcome === 'failed' && nothing.result === 'click refused: text="Sign in code": 0 matches — read tree or take a screenshot', nothing.result)
+  const tabbed = await shown.call({ action: 'tree', limit: 500 })
+  check('the tree itself still lists the tab strip, as before', tabbed.outcome === 'succeeded' && tabbed.result.includes(`"${OTHER_TAB}"`), tabbed.result.slice(0, 300))
+  const plain = await stage(sceneFile('no-page', [{ role: 'AXWindow', title: 'Feed - Browser', focused: true, frame: bounds, children: [
+    { role: 'AXButton', title: 'Sign in', frame: { x: 90, y: 46, width: 80, height: 28 } },
+    { role: 'AXButton', title: 'Send code', frame: { x: 190, y: 46, width: 80, height: 28 } },
+  ] }]))
+  const windowed = await plain.call({ action: 'click', target: { text: 'Sign in code' }, capture: false })
+  check('a window that holds no web area draws its neighbours from the whole window, as before', windowed.outcome === 'failed' && windowed.result.includes('nearest 3 by text') && windowed.result.includes('AXButton "Sign in"') && windowed.result.includes('AXButton "Send code"') && windowed.result.includes('AXWindow "Feed - Browser"'), windowed.result)
 }
 
 finish('prove-computer-long-page')

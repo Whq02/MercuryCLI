@@ -3,13 +3,13 @@ import type { DesktopAnswer, DesktopApplication, DesktopTree } from '../../../in
 import { type DesktopJudgedApp, approveApp, consumeCheckedAct, screenOf } from '../../../integrations/desktop/desktopSession.js'
 import { settleChallenge } from '../../../integrations/desktop/computerGrant.js'
 import { getSessionId } from '../../../boot/process-state/processState.js'
-import { type DesktopOutline, outlineTree, rememberTreeRefs, resolveTreeRef } from '../screenMap.js'
+import { type DesktopOutline, outlineTree, rememberTreeRefs, resolveTreeRef, treeRefChanged } from '../screenMap.js'
 import { pageContentNote, sameWindow, targetElement, targetMatches, targetWords, treeWalkOf } from '../fastRoad.js'
 import { treeSight } from '../captcha.js'
 import { FIELD_ROLES, TREE_DEPTH_CAP, TREE_DEPTH_DEFAULT, TREE_LIMIT_CAP, TREE_LIMIT_DEFAULT } from '../call/schema.js'
 import { captchaLine, frontAfterCard } from '../call/plan.js'
 import { faultText } from '../call/act.js'
-import { fieldsWords, heldTargetWords, interruptedText, treeLimitsOf, treeWords } from '../call/words.js'
+import { REF_CHANGED, fieldsWords, heldTargetWords, interruptedText, treeLimitsOf, treeWords } from '../call/words.js'
 import type { RoadNeeds } from './needs.js'
 
 export async function treeRoad({ run, input, owner, signal, driver }: RoadNeeds, checked: ReturnType<typeof consumeCheckedAct>, judged: DesktopJudgedApp | null, turnFront: Extract<DesktopAnswer<DesktopApplication>, { ok: true }>): Promise<void> {
@@ -28,6 +28,7 @@ export async function treeRoad({ run, input, owner, signal, driver }: RoadNeeds,
     run.outcome = 'failed'
     return
   }
+  const walk = treeWalkOf(tree.value, limits, started)
   const after = await driver.frontmostApplication()
   if (!after.ok || !sameWindow(after.value, app)) {
     run.result = `${input.action} refused: the front window changed while reading — re-issue`
@@ -35,12 +36,11 @@ export async function treeRoad({ run, input, owner, signal, driver }: RoadNeeds,
     return
   }
   if (checked?.viaGrant !== true) approveApp(owner, judged ?? { identity: app.identity, name: app.name })
-  const walk = treeWalkOf(tree.value, limits, started)
   const keptLimits = { depth: input.depth ?? TREE_DEPTH_DEFAULT, count: input.limit ?? TREE_LIMIT_DEFAULT }
   let root: DesktopTree['elements'][number] | undefined
   if (input.root !== undefined) {
     const named = typeof input.root === 'number' ? resolveTreeRef(owner, app, tree.value, input.root) : []
-    const selected = typeof input.root === 'number' ? targetElement({ ...tree.value, elements: named, truncated: tree.value.truncated && named.length !== 1 }, {}) : targetMatches(tree.value, input.root).length === 0 ? { refusal: `${targetWords(input.root)}: 0 matches — read tree or take a screenshot${pageContentNote(app, tree.value) ? `\n${pageContentNote(app, tree.value)}` : ''}` } : targetElement(tree.value, input.root, screenOf(owner))
+    const selected = typeof input.root === 'number' ? (treeRefChanged(owner, app, tree.value, input.root) ? { refusal: `: ${REF_CHANGED}` } : targetElement({ ...tree.value, elements: named, truncated: tree.value.truncated && named.length !== 1 }, {})) : targetMatches(tree.value, input.root).length === 0 ? { refusal: `${targetWords(input.root)}: 0 matches — read tree or take a screenshot${pageContentNote(app, tree.value) ? `\n${pageContentNote(app, tree.value)}` : ''}` } : targetElement(tree.value, input.root, screenOf(owner))
     if ('refusal' in selected) {
       run.result = typeof input.root !== 'number' && 'held' in selected && selected.held !== undefined ? heldTargetWords(input.action, owner, app, tree.value, input.root, selected.held, walk, screenOf(owner)) : `${input.action} refused: ${typeof input.root === 'number' ? `ref:${input.root}` : ''}${selected.refusal}`
       run.outcome = 'failed'
