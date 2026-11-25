@@ -282,7 +282,7 @@ for (const kind of ['bounds', 'truncated'] as const) {
     return tree
   }
   const refused = await call({ action: 'click', target, capture: false })
-  check(`${kind}: no coordinate guessing for a tree target`, refused.outcome === 'failed' && refused.result.includes(kind === 'bounds' ? 'no usable bounds' : 'truncated'), refused.result)
+  check(`${kind}: no coordinate guessing for a tree target`, refused.outcome === 'failed' && refused.result.includes(kind === 'bounds' ? 'no usable bounds' : 'click not done'), refused.result)
 }
 driver.accessibilityTree = async (...args) => {
   const tree = await originalTree(...args)

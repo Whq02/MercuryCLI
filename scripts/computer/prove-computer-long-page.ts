@@ -77,8 +77,14 @@ async function stage(scene: string) {
     if (tree.ok) walks.push({ count: limits.count, depth: limits.depth, elements: tree.value.elements.length, truncated: tree.value.truncated })
     return tree
   }
+  const clicks: Array<{ x: number; y: number }> = []
+  const press = resolution.driver.click.bind(resolution.driver)
+  resolution.driver.click = async (point, button, count, signal) => {
+    clicks.push({ x: point.x, y: point.y })
+    return press(point, button, count, signal)
+  }
   const call = async (input: Record<string, unknown>) => resultOf(await ComputerTool.call(input as never, context, allowEverything, toolUseTurn(`long-page-${++serial}`, 'Computer', input) as never))
-  return { call, walks }
+  return { call, walks, clicks }
 }
 
 const refOf = (listing: string, words: string): number => Number(/\[(\d+)\]/.exec(listing.split('\n').find(line => line.includes(words)) ?? '')?.[1])
@@ -104,6 +110,69 @@ section('a ref names one element: an act by ref is not refused because the tree 
   check('a ref the latest tree never gave is still refused, by its own sentence', stale.outcome === 'failed' && stale.result.includes('ref:9999: no element of the latest tree matches it now'), stale.result)
   const gone = await long.call({ action: 'tree', root: refOf(again.result, 'AXWebArea "Feed"') })
   check('a root ref an earlier listing gave and the latest one replaced keeps its sentence, word for word', gone.outcome === 'failed' && /^tree refused: ref:\d+: 0 matches in a truncated tree — read tree or take a screenshot$/.test(gone.result), gone.result)
+}
+
+section('a walk that stopped at its own bound says which bound, in the walk\'s numbers, and advises only what can work')
+{
+  const TAIL = ' — act on a row shown here by its ref, or use a screenshot for the rest'
+  const COUNT = 'truncated: the tree goes on past the 2000 elements a walk reads at most, unlisted ones included · walk: 2000 elements, depth 16, N ms' + TAIL
+  const DEPTH = 'truncated: the tree goes on past depth 32, the deepest a walk reads, unlisted levels included · walk: 34 elements, depth 32, N ms' + TAIL
+  const last = (text: string): string => (text.split('\n').find(line => line.startsWith('truncated:')) ?? 'no truncated line').replace(/, \d+ ms/, ', N ms')
+  check('the tree read at limit 500 and depth 32 names the 2000 elements the walk read, not the 500 it was asked to list, with the walk\'s three numbers', last(tree.result) === COUNT && /walk: 2000 elements, depth 16, \d+ ms/.test(tree.result), last(tree.result))
+  const other = await long.call({ action: 'tree', limit: 400 })
+  check('at limit 400 the sentence is the same: the number asked for was never the bound', last(other.result) === COUNT, last(other.result))
+  const found = await long.call({ action: 'find', target: { role: 'AXLink' } })
+  check('a find on that page says the same of its own listing', found.outcome === 'succeeded' && last(found.result) === COUNT, last(found.result))
+  const fields = await long.call({ action: 'fields' })
+  check('a fields read says the same with its own opening', last(fields.result) === COUNT.replace('the tree goes on past', 'more controls past'), last(fields.result))
+  const deep = await stage(sceneFile('deep', [{ role: 'AXWindow', title: 'Feed - Browser', focused: true, frame: bounds, children: [
+    { role: 'AXButton', title: 'Reload', frame: { x: 90, y: 46, width: 28, height: 28 } },
+    wrapped({ role: 'AXButton', title: 'Far down', frame: { x: 300, y: 300, width: 80, height: 20 } }, 40),
+  ] }]))
+  const sunk = await deep.call({ action: 'tree' })
+  check('a walk that met an element at depth 32 with more under it names the depth, and the row beneath is not listed', sunk.outcome === 'succeeded' && deep.walks.at(-1)!.elements < WALK_CAP && last(sunk.result) === DEPTH && !sunk.result.includes('Far down'), `${JSON.stringify(deep.walks.at(-1))} ${last(sunk.result)}`)
+  const resolution = resolveDesktopDriver()
+  if (resolution.state !== 'ok') throw new Error(resolution.note)
+  const read = resolution.driver.accessibilityTree.bind(resolution.driver)
+  resolution.driver.accessibilityTree = async (app, limits, signal) => {
+    const answer = await read(app, limits, signal)
+    return answer.ok ? { ok: true, value: { ...answer.value, truncated: true, reason: 'the walk stopped after 6000 ms' } } : answer
+  }
+  const slow = await deep.call({ action: 'tree' })
+  check('a walk that ran out of time keeps its reason, gains its numbers and loses the advice to raise a limit', last(slow.result) === 'truncated: the tree goes on past the walk stopped after 6000 ms · walk: 34 elements, depth 32, N ms' + TAIL, last(slow.result))
+  const whole = await stage(sceneFile('short', browserWindow(feed.slice(0, 12))))
+  const cut = await whole.call({ action: 'tree', limit: 5 })
+  const raised = await whole.call({ action: 'tree', limit: 500 })
+  check('a listing cut by the limit asked for keeps its sentence byte for byte, and there the advice works: the same read at a higher limit is whole', whole.walks.at(-1)?.truncated === false && last(cut.result) === 'truncated: the tree goes on past the limit of 5 elements or depth 12 — narrow with root or find, raise limit or depth to read more, or act on what is shown' && !raised.result.includes('truncated:'), `${last(cut.result)} | ${last(raised.result)}`)
+}
+
+section('by name on a cut walk: nothing is done on one match, and its ref is handed over; two matches and no match are refused as before')
+{
+  const CUT = '(the tree goes on past the 2000 elements a walk reads at most, unlisted ones included · walk: 2000 elements, depth 16, N ms)'
+  const timed = (text: string): string => text.replace(/, \d+ ms/, ', N ms')
+  const page = await stage(sceneFile('feed-by-name', browserWindow(feed)))
+  const listing = await page.call({ action: 'tree', depth: 32, limit: 500 })
+  const earlier = refOf(listing.result, '"Like post 2"')
+  const named = await page.call({ action: 'click', target: { role: 'AXButton', name: 'Like post 3' }, capture: false })
+  const handed = Number(/\n\[(\d+)\] AXButton "Like post 3" \(340,483\)pt$/.exec(named.result)?.[1])
+  check('a click by a name that one row answers is not done, says why with the walk\'s numbers, and gives that row its ref', named.outcome === 'failed' && page.clicks.length === 0 && timed(named.result).startsWith(`click not done: AXButton "Like post 3": 1 match in the part walked ${CUT}, so a second match further on is not ruled out — act on it by ref\n[`) && Number.isInteger(handed), named.result)
+  const byRef = await page.call({ action: 'click', ref: handed, capture: false })
+  check('the next call acts on it by that ref', byRef.outcome === 'succeeded' && JSON.stringify(page.clicks) === JSON.stringify([{ x: 340, y: 483 }]), `${byRef.result} ${JSON.stringify(page.clicks)}`)
+  const old = await page.call({ action: 'click', ref: earlier, capture: false })
+  check('a ref the tree gave before that answer still stands', old.outcome === 'succeeded' && JSON.stringify(page.clicks.at(-1)) === JSON.stringify({ x: 340, y: 393 }), `${old.result} ${JSON.stringify(page.clicks)}`)
+  const second = await page.call({ action: 'click', target: { role: 'AXLink', text: 'Author 1', nth: 2 }, capture: false })
+  check('an nth that names one of the matches found is answered the same way, with that match', second.outcome === 'failed' && page.clicks.length === 2 && timed(second.result).startsWith(`click not done: AXLink text="Author 1" nth=2: 1 match in the part walked ${CUT}`) && /\n\[\d+\] AXLink "Author 10" /.test(second.result), second.result)
+  const many = await page.call({ action: 'click', target: { role: 'AXLink', text: 'Author 1' }, capture: false })
+  check('two or more matches are refused as on a whole walk, the candidates listed', many.outcome === 'failed' && page.clicks.length === 2 && many.result.startsWith('click refused: AXLink text="Author 1": 11 matches (ambiguous) — choose target.nth (1-based)\n[1] AXLink "Author 1" ') && many.result.includes('[8] AXLink "Author 16"'), many.result)
+  const none = await page.call({ action: 'click', target: { role: 'AXLink', text: 'Release day' }, capture: false })
+  check('a name that nothing in the part walked answers is refused with the bound that cut the walk', none.outcome === 'failed' && page.clicks.length === 2 && timed(none.result).startsWith(`click refused: AXLink text="Release day": 0 matches in the part walked ${CUT} — nearest 3 by text\n`), none.result)
+  const rooted = await page.call({ action: 'tree', root: { role: 'AXWebArea' } })
+  const area = Number(/\n\[(\d+)\] AXWebArea "Feed" /.exec(rooted.result)?.[1])
+  const under = await page.call({ action: 'tree', root: area, limit: 500 })
+  check('a root given by name is answered the same way, and the tree under its ref lists the page', rooted.outcome === 'failed' && timed(rooted.result).startsWith(`tree not done: AXWebArea: 1 match in the part walked ${CUT}, so a second match further on is not ruled out — act on it by ref\n[`) && under.outcome === 'succeeded' && rowsOf(under.result).some(row => row.includes('"Like post 3"')), `${rooted.result} | ${under.result.slice(0, 200)}`)
+  const short = await stage(sceneFile('short-by-name', browserWindow(feed.slice(0, 12))))
+  const direct = await short.call({ action: 'click', target: { role: 'AXButton', name: 'Like post 3' }, capture: false })
+  check('on a walk that is whole a click by name acts at once, as before', short.walks.find(walk => walk.count === WALK_CAP)?.truncated === false && direct.outcome === 'succeeded' && JSON.stringify(short.clicks) === JSON.stringify([{ x: 340, y: 483 }]), `${direct.result} ${JSON.stringify(short.clicks)}`)
 }
 
 finish('prove-computer-long-page')

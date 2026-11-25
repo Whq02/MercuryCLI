@@ -63,7 +63,7 @@ section('an element whose children could not be read leaves the tree incomplete,
   const dialog = await call({ action: 'wait', until: { dialog: true, gone: true }, durationMs: 200, capture: false })
   check('a dialog-gone wait is not met on it either', dialog.outcome === 'failed' && dialog.result.includes('timed out'), dialog.result)
   const clicked = await call({ action: 'click', target: { name: 'Share' }, capture: false })
-  check('an act by target is refused there as on every incomplete tree, which is why only a message that failed counts, and the refusal sends the model to a call that can help', clicked.outcome === 'failed' && clicked.result.includes('"Share": the tree is truncated, so uniqueness is unknown — read the tree again or use screenshot pixels'), clicked.result)
+  check('an act by target is not done there, as on every incomplete tree, which is why only a message that failed counts, and the answer names the reason and hands the row its ref', clicked.outcome === 'failed' && clicked.result.includes(`click not done: "Share": 1 match in the part walked (the tree goes on past ${REASON} · walk: `) && /, so a second match further on is not ruled out — act on it by ref\n\[\d+\] AXButton "Share" /.test(clicked.result), clicked.result)
 }
 
 section('the same window once the element answers: the tree is whole and the wait is met')
@@ -92,7 +92,7 @@ section('every other incomplete tree keeps its sentence byte for byte')
     return tree.ok ? { ok: true, value: { ...tree.value, truncated: true } } : tree
   }
   const clicked = await call({ action: 'click', target: { name: 'Share' }, capture: false })
-  check('an act by target on a tree cut for any other reason is refused with the tail it had', clicked.outcome === 'failed' && clicked.result.includes('"Share": the tree is truncated, so uniqueness is unknown — raise depth/limit or use screenshot pixels'), clicked.result)
+  check('an act by target on a tree cut for any other reason is not done either, and hands the row its ref', clicked.outcome === 'failed' && clicked.result.includes('click not done: "Share": 1 match in the part walked (the tree goes on past ') && /, so a second match further on is not ruled out — act on it by ref\n\[\d+\] AXButton "Share" /.test(clicked.result), clicked.result)
 }
 
 section('the scene, the reason and both native walks')

@@ -31,6 +31,7 @@ import {
   targetElement,
   targetPoint,
   targetWords,
+  treeWalkOf,
   withOrdinal,
 } from '../fastRoad.js'
 import {
@@ -53,7 +54,7 @@ import {
   typesKeys,
 } from './schema.js'
 import { actDetail, faultText, pixelWordsOf, pointWords } from './act.js'
-import { interruptedText } from './words.js'
+import { heldTargetWords, interruptedText } from './words.js'
 import { framePixel, ruleFor } from './shot.js'
 
 export interface ActPlan {
@@ -236,12 +237,14 @@ export async function resolveActTargets(driver: DesktopDriver, input: Input, fro
   plan.captcha = titled
   const fullReach = input.ref !== undefined || input.target !== undefined || input.toTarget !== undefined || input.verify === true
   const limitsOf = (reach: boolean): DesktopTreeLimits => ({ depth: Math.min(input.depth ?? (reach ? TREE_DEPTH_CAP : TREE_DEPTH_DEFAULT), TREE_DEPTH_CAP), count: Math.min(input.limit ?? (reach ? TREE_LIMIT_CAP : TREE_LIMIT_DEFAULT), TREE_LIMIT_CAP), scope: 'window' })
+  const started = Date.now()
   let tree = await driver.accessibilityTree(front, limitsOf(fullReach), signal)
   if (tree.ok && !fullReach && treeSight(tree.value, front.bounds) === 'widget') tree = await driver.accessibilityTree(front, limitsOf(true), signal)
   if (!tree.ok) return input.ref !== undefined || input.target !== undefined || input.toTarget !== undefined ? faultText(input.action, tree.error) : null
   const seen = treeSight(tree.value, front.bounds)
   plan.captcha = titled === 'challenge' || seen === 'challenge' ? 'challenge' : seen ?? titled
   plan.beforeTree = tree.value
+  const walk = treeWalkOf(tree.value, limitsOf(fullReach), started)
   const scrollsInto = input.action !== 'scroll'
   plan.clipped = []
   const displays = await driver.displays()
@@ -263,8 +266,8 @@ export async function resolveActTargets(driver: DesktopDriver, input: Input, fro
   }
   for (const [selector, field] of [[input.target, 'point'], [input.toTarget, 'target']] as const) {
     if (selector === undefined) continue
-    const point = targetPoint(tree.value, selector, map)
-    if ('refusal' in point) return `${input.action} refused: ${point.refusal}${pageContentNote(front, tree.value) ? `\n${pageContentNote(front, tree.value)}` : ''}`
+    const point = targetPoint(tree.value, selector, map, walk)
+    if ('refusal' in point) return point.held !== undefined && POINT_ACTIONS.has(input.action) ? heldTargetWords(input.action, owner, front, tree.value, selector, point.held, walk, map) : `${input.action} refused: ${point.refusal}${pageContentNote(front, tree.value) ? `\n${pageContentNote(front, tree.value)}` : ''}`
     const element = targetElement(tree.value, selector, map)
     const clipped = 'refusal' in element || !scrollsInto ? null : clippedWords(tree.value, element, front.bounds, plan.screens)
     if (clipped !== null && !('refusal' in element)) {
