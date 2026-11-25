@@ -66,6 +66,7 @@ export interface AttachedBrowser {
   product: string
   opened: Set<Page>
   adopted: number
+  opensBehind: boolean
 }
 
 type SessionBrowser = BrowserResolution | { state: 'ok'; source: 'attached'; label: string }

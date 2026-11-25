@@ -8,6 +8,7 @@ import { type AttachedBrowser, type Hold, type OwnerBrowserState, BROWSER_PROTOC
 import { armIdleLease, holdGone, installExitHook, ownerStates, reapDeadHolds } from './owners.js'
 import { resolveHostLanguages, resolveHostTimeZone } from './stealth.js'
 import { adoptAttachedPage } from './wiring.js'
+import { tabsOpenBehindTheOneOnShow } from '../../../platform/host-os/browser.js'
 
 interface AttachEndpoint {
   kind: 'http' | 'ws'
@@ -113,7 +114,7 @@ export async function attachBrowserSession(owner: OwnerKey, endpoint: AttachEndp
     unhanded = browser
     if (state.disposed) return { state: 'refused', note: 'the owner was torn down while the attach was in flight — nothing is attached' }
     const hostLang = resolveHostLanguages()
-    const attached: AttachedBrowser = { endpoint: endpoint.address, product: await browser.version().catch(passedOverAs('')), opened: new Set(), adopted: 0 }
+    const attached: AttachedBrowser = { endpoint: endpoint.address, product: await browser.version().catch(passedOverAs('')), opened: new Set(), adopted: 0, opensBehind: tabsOpenBehindTheOneOnShow() }
     const hold: Hold = {
       browser,
       attached,

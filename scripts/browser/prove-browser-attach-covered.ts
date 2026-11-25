@@ -7,10 +7,11 @@ import { join } from 'node:path'
 import puppeteer from 'puppeteer-core'
 import { removeScratch } from '../lib/removeScratch.ts'
 
-const { ROOT, check, finish, lead, pageOf, permission, requireBrowser, run, section, serve } = await import('./harness.ts')
+const { ROOT, check, finish, lead, ownerOf, pageOf, permission, requireBrowser, run, section, serve, sessions } = await import('./harness.ts')
 
 await requireBrowser()
 const { resolveBrowser } = await import(join(ROOT, 'src/integrations/browser/browserResolver.ts'))
+const { tabsOpenBehindTheOneOnShow } = await import(join(ROOT, 'src/platform/host-os/browser.ts'))
 
 const fixture = (req: http.IncomingMessage, res: http.ServerResponse): void => {
   const name = new URL(req.url ?? '/', 'http://fixture').pathname.slice(1) || 'root'
@@ -144,6 +145,8 @@ try {
     check('the click lands, with the tab brought to the front once', kept(fallback) && alive(fallback) && raises() === 1 && (await onShow.title()) === 'onshow clicked 1', `${fallback.ms}ms ${fallback.result} · Page.bringToFront sent ${raises()} time(s)`)
 
     section('S6 a tab Mercury opens there is added behind the tab on show, and is driven where it stands')
+    const joinedBrowser: { opensBehind: boolean } = sessions.attachedBrowser(ownerOf(lead))
+    joinedBrowser.opensBehind = true
     const shownBefore = await onShow.evaluate(() => document.visibilityState)
     await permission({ op: 'open', url: `${site.origin}/opened`, tab: 'fresh' })
     const opened = await run({ op: 'open', url: `${site.origin}/opened`, tab: 'fresh' })
@@ -153,6 +156,18 @@ try {
     const inFresh = await run({ op: 'click', tab: 'fresh', selector: '#go', timeoutMs: DEADLINE })
     check('a click in the tab Mercury opened lands within its deadline', kept(inFresh) && alive(inFresh) && (await pageOf(lead, 'fresh').title()) === 'opened clicked 1', `${inFresh.ms}ms ${inFresh.result}`)
     check('and no window was raised for the new tab', raises() === 1 && (await onShow.evaluate(() => document.visibilityState)) === 'visible', `Page.bringToFront sent ${raises()} time(s)`)
+
+    section('S7 where a tab born behind does not paint (Windows), the tab is opened on show, and is driven as fast')
+    check('only macOS opens its tabs behind', tabsOpenBehindTheOneOnShow('darwin') && !tabsOpenBehindTheOneOnShow('win32') && !tabsOpenBehindTheOneOnShow('linux'))
+    joinedBrowser.opensBehind = false
+    await permission({ op: 'open', url: `${site.origin}/upfront`, tab: 'upfront' })
+    const upfront = await run({ op: 'open', url: `${site.origin}/upfront`, tab: 'upfront' })
+    const shownThen = await onShow.evaluate(() => document.visibilityState)
+    const upfrontShown = await pageOf(lead, 'upfront').evaluate(() => document.visibilityState)
+    check('open puts the new tab on show there', upfront.outcome === 'succeeded' && shownThen === 'hidden' && upfrontShown === 'visible', `${upfront.result} · earlier tab ${shownThen}, new tab ${upfrontShown}`)
+    await cover()
+    const inUpfront = await run({ op: 'click', tab: 'upfront', selector: '#go', timeoutMs: DEADLINE })
+    check('covered again, a click in that tab lands within its deadline, and nothing is raised', kept(inUpfront) && alive(inUpfront) && raises() === 1 && (await pageOf(lead, 'upfront').title()) === 'upfront clicked 1', `${inUpfront.ms}ms ${inUpfront.result} · Page.bringToFront sent ${raises()} time(s)`)
   }
 } finally {
   Connection.prototype._rawSend = rawSend

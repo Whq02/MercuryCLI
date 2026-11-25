@@ -42,3 +42,7 @@ export async function openBrowser(url: string, onError?: (error: string) => void
     return false
   }
 }
+
+export function tabsOpenBehindTheOneOnShow(platform: NodeJS.Platform = process.platform): boolean {
+  return platform === 'darwin'
+}

@@ -73,7 +73,7 @@ async function armLate(page: Page, baseline: PagePresented, deny: boolean, birth
 async function newHoldPage(hold: Hold): Promise<{ page: Page; wiring: Wiring }> {
   hold.creating++
   try {
-    const page = await hold.browser.newPage(hold.attached === null ? undefined : { background: true })
+    const page = await hold.browser.newPage(hold.attached?.opensBehind === true ? { background: true } : undefined)
     try {
       if (hold.attached !== null) {
         hold.attached.opened.add(page)
