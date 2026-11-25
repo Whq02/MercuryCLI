@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
 import { getMercuryHome } from '../environment/envUtils.js'
@@ -92,20 +93,22 @@ function commandFiles(found: Install, id: number, home: string): CommandFile[] {
   const assigned = env.map(([name, value]) => `${name}=${sh(value)}`).join(' ')
   if (!found.isWindows) return [{ path: word, text: `#!/bin/sh\n${assigned} exec ${sh(found.command)} "$@"\n` }]
   const ps = (value: string): string => `'${value.replace(/'/g, "''")}'`
+  const own = `${homedir()}\\`
+  const batch = (value: string): string => (value.startsWith(own) ? `%USERPROFILE%\\${value.slice(own.length).replace(/%/g, '%%')}` : value.replace(/%/g, '%%'))
   const entry = '& (Join-Path $PSScriptRoot \'mercury.ps1\') @args'
   return [
-    { path: `${word}.cmd`, text: ['@echo off', 'setlocal', ...env.map(([name, value]) => `set "${name}=${value.replace(/%/g, '%%')}"`), '"%~dp0mercury.cmd" %*', ''].join('\r\n') },
+    { path: `${word}.cmd`, text: ['@echo off', 'setlocal', ...env.map(([name, value]) => `set "${name}=${batch(value)}"`), '"%~dp0mercury.cmd" %*', ''].join('\r\n') },
     { path: word, text: `#!/bin/sh\n${assigned} exec "$(dirname "$0")/mercury" "$@"\n` },
     {
       path: `${word}.ps1`,
-      text: [
+      text: `\uFEFF${[
         ...env.map(([name]) => `$kept_${name} = $env:${name}`),
         ...env.map(([name, value]) => `$env:${name} = ${ps(value)}`),
         `try { if ($MyInvocation.ExpectingInput) { $input | ${entry} } else { ${entry} } }`,
         `finally { ${env.map(([name]) => `$env:${name} = $kept_${name}`).join('; ')} }`,
         'exit $LASTEXITCODE',
         '',
-      ].join('\r\n'),
+      ].join('\r\n')}`,
     },
   ]
 }
