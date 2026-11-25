@@ -151,7 +151,7 @@ lines.push('')
 lines.push('## Bundled runtime packages')
 lines.push('')
 lines.push(
-  `The built artifact (\`dist/mercury.mjs\`) is a self-contained bundle that inlines the ${rows.length} runtime packages below (versions = the installed/bun.lock resolutions). Full licence texts are retained in each package's \`node_modules/<name>/\` tree in the source checkout; per-file copyright headers survive inside the bundle where the sources carried them.`,
+  `The built artifact (\`dist/mercury.mjs\`) is a self-contained bundle that inlines the ${rows.length} runtime packages below (versions = the installed/bun.lock resolutions). Their copyright notices and full licence texts follow under \`Bundled runtime package licences\` below.`,
 )
 lines.push('')
 for (const [license, list] of [...byLicense.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
@@ -286,8 +286,108 @@ lines.push(
 )
 lines.push('')
 
-writeFileSync(join(ROOT, 'THIRD_PARTY_NOTICES.md'), lines.join('\n'))
-registerGeneratedAsset(ROW)
-console.log(
-  `THIRD_PARTY_NOTICES.md written — ${rows.length} runtime packages across ${byLicense.size} licence identifiers + 8 vendor payloads + source attributions`,
+const LICENSE_FILE_RE = /^(?:LICEN[CS]E|COPYING|COPYRIGHT)(?:[.-].*)?$/i
+const README_FILE_RE = /^README(?:\..+)?$/i
+
+function findPackageFile(dir: string, pattern: RegExp): string | null {
+  if (!existsSync(dir)) return null
+  const matches = readdirSync(dir)
+    .filter(name => pattern.test(name) && statSync(join(dir, name)).isFile())
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+  return matches[0] ?? null
+}
+
+function normalizeLicenceText(text: string): string {
+  return text.replace(/\r\n/g, '\n').replace(/`{3}/g, '` ` `').trimEnd()
+}
+
+function extractCopyrightLine(text: string): string | null {
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim()
+    if (/^#?\s*(?:Copyright\s+(?:\(c\)\s*)?(?:\d{4}|[A-Z])|©)/.test(line)) return line
+  }
+  return null
+}
+
+function fallbackCopyrightHolder(pkgDir: string): string | null {
+  const readme = findPackageFile(pkgDir, README_FILE_RE)
+  if (readme !== null) {
+    const fromReadme = extractCopyrightLine(readFileSync(join(pkgDir, readme), 'utf8'))
+    if (fromReadme !== null) return fromReadme
+  }
+  const metaPath = join(pkgDir, 'package.json')
+  if (!existsSync(metaPath)) return null
+  const meta = JSON.parse(readFileSync(metaPath, 'utf8')) as { author?: string | { name?: string } }
+  const author = typeof meta.author === 'string' ? meta.author.trim() : (meta.author?.name?.trim() ?? '')
+  return author === '' ? null : `Copyright ${author}`
+}
+
+lines.push('## Bundled runtime package licences')
+lines.push('')
+lines.push(
+  'Each bundled runtime package\'s copyright notice and full licence text from its installed `node_modules/<name>/` package follows.',
 )
+lines.push('')
+
+const withoutLicenseFile: Array<{ row: Row; holder: string }> = []
+for (const r of rows) {
+  const pkgDir = join(ROOT, 'node_modules', r.name)
+  const licenseFile = findPackageFile(pkgDir, LICENSE_FILE_RE)
+  if (licenseFile === null) {
+    if (r.license !== 'Apache-2.0') {
+      throw new Error(`${r.name}@${r.version} (${r.license}) ships no licence file in node_modules/${r.name}/`)
+    }
+    const holder = fallbackCopyrightHolder(pkgDir)
+    if (holder === null) {
+      throw new Error(`${r.name}@${r.version} has no licence file and no copyright holder in package.json or README`)
+    }
+    withoutLicenseFile.push({ row: r, holder })
+    continue
+  }
+  const content = normalizeLicenceText(readFileSync(join(pkgDir, licenseFile), 'utf8'))
+  lines.push(`### ${r.name} ${r.version} — ${r.license} (\`${licenseFile}\`)`)
+  lines.push('')
+  if (extractCopyrightLine(content) === null) {
+    const holder = fallbackCopyrightHolder(pkgDir)
+    if (holder !== null) {
+      lines.push(holder)
+      lines.push('')
+    }
+  }
+  lines.push('```text')
+  lines.push(content)
+  lines.push('```')
+  lines.push('')
+}
+
+if (withoutLicenseFile.length > 0) {
+  const apachePath = join(ROOT, 'sdk', 'LICENSE')
+  if (!existsSync(apachePath)) throw new Error('sdk/LICENSE missing — cannot embed Apache License 2.0 text')
+  const apacheText = normalizeLicenceText(readFileSync(apachePath, 'utf8'))
+  lines.push('### Packages without a bundled licence file (Apache-2.0)')
+  lines.push('')
+  lines.push(
+    'The following bundled runtime packages declare `Apache-2.0` in their `package.json` and omit a licence file from their published npm tarball. Each copyright holder is taken from the package\'s own `package.json` or `README`, followed by the Apache License 2.0 text once:',
+  )
+  lines.push('')
+  for (const { row, holder } of withoutLicenseFile) {
+    lines.push(`- **${row.name}** ${row.version} — ${row.license} — ${holder}`)
+  }
+  lines.push('')
+  lines.push('```text')
+  lines.push(apacheText)
+  lines.push('```')
+  lines.push('')
+}
+
+const outFlag = process.argv.indexOf('--out')
+const outPath = outFlag !== -1 ? process.argv[outFlag + 1] : undefined
+if (outFlag !== -1 && !outPath) throw new Error('--out requires a file path')
+const destination = outPath ?? join(ROOT, 'THIRD_PARTY_NOTICES.md')
+writeFileSync(destination, lines.join('\n'))
+if (outPath === undefined) {
+  registerGeneratedAsset(ROW)
+  console.log(
+    `THIRD_PARTY_NOTICES.md written — ${rows.length} runtime packages across ${byLicense.size} licence identifiers + 8 vendor payloads + source attributions`,
+  )
+}

@@ -1,3 +1,4 @@
+prove-bundled-package-licences.ts
 prove-dependency-census.ts
 prove-distribution-boundaries.ts
 prove-distribution-links.ts

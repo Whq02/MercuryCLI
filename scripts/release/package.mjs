@@ -12,6 +12,25 @@ import { collectVerifyReceiptFacts, decideVerifyReceiptBind, readLedgerRows } fr
 import { preparedWindowsLauncher } from './windowsLauncher.mjs'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
+const fail = (msg) => {
+  console.error(`✗ ${msg}`)
+  process.exit(1)
+}
+const stageNotices = (destDir) => {
+  const noticesSrc = join(ROOT, 'THIRD_PARTY_NOTICES.md')
+  if (!existsSync(noticesSrc)) fail('THIRD_PARTY_NOTICES.md missing — run bun run scripts/distribution/generate-third-party-notices.ts')
+  const text = readFileSync(noticesSrc, 'utf8')
+  writeFileSync(join(destDir, 'NOTICES.md'), text)
+  return text
+}
+const argStageNotices = process.argv.indexOf('--stage-notices')
+if (argStageNotices !== -1) {
+  const dest = process.argv[argStageNotices + 1]
+  if (!dest) fail('--stage-notices requires a destination directory')
+  mkdirSync(dest, { recursive: true })
+  stageNotices(dest)
+  process.exit(0)
+}
 const argTarget = process.argv.indexOf('--target')
 const TARGET = argTarget !== -1 ? process.argv[argTarget + 1] : null
 const KNOWN = ['linux-x64', 'linux-arm64', 'macos-arm64', 'macos-x64', 'windows-x64', 'windows-arm64']
@@ -28,10 +47,6 @@ const PKG = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))
 const VERSION = PKG.version
 const NODE_POLICY = parseEnginesNode(PKG.engines?.node)
 
-const fail = (msg) => {
-  console.error(`✗ ${msg}`)
-  process.exit(1)
-}
 const ok = (msg) => console.log(`  · ${msg}`)
 
 const dist = join(ROOT, 'dist')
@@ -168,10 +183,7 @@ const { releaseNotesFor } = await import('./notesFromChangelog.mjs')
 const RELEASE_NOTES = releaseNotesFor(VERSION, ROOT)
 if (!RELEASE_NOTES) fail(`docs/releases/${VERSION}.md carries no ## What changed section — author the release notes there before packaging`)
 
-const noticesSrc = join(ROOT, 'THIRD_PARTY_NOTICES.md')
-if (!existsSync(noticesSrc)) fail('THIRD_PARTY_NOTICES.md missing — run bun run scripts/distribution/generate-third-party-notices.ts')
-const NOTICES = readFileSync(noticesSrc, 'utf8')
-
+const NOTICES = stageNotices(pkgDir)
 if (IS_WIN) {
   cpSync(preparedWindowsLauncher(ROOT, TARGET), join(pkgDir, 'mercury.exe'))
   writeFileSync(join(pkgDir, 'mercury.cmd'), CMD_LAUNCHER)
@@ -187,8 +199,6 @@ writeFileSync(join(pkgDir, 'README-FIRST.md'), README_FIRST)
 writeFileSync(join(pkgDir, 'INSTALLING.md'), INSTALLING_MD)
 writeFileSync(join(pkgDir, 'UPDATING.md'), UPDATING_MD)
 writeFileSync(join(pkgDir, 'RELEASE-NOTES.md'), RELEASE_NOTES)
-writeFileSync(join(pkgDir, 'NOTICES.md'), NOTICES)
-
 {
   const docs = checkReleaseDocuments({ root: ROOT })
   if (!docs.ok) {
