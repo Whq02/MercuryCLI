@@ -13,7 +13,7 @@ import { SAMPLE_CATALOGUE, SAMPLE_STATES, STILLS, composeManager, faceFacts, rea
 
 const t = checker()
 
-type Row = { key: string; icon: string; label: string; ctx: string }
+type Row = { key: string; label: string; ctx: string }
 const rowsOf = (facts: Record<string, unknown>): Row[] => assembleCardRows(facts) as Row[]
 const keysOf = (facts: Record<string, unknown>): string[] => rowsOf(facts).map(r => r.key)
 const BASE = { cwdBase: 'proj', continueTarget: null, menuAvailable: true, projects: [] as unknown[] }
@@ -31,10 +31,10 @@ t.section('§1 — THE FACE AND BOOT MENU DOOR, BOTH HOSTS, EVERY WORLD')
   t.check("MCPs & Skills opens from Boot Menu with its ruled label and summary", kitEditor?.label === 'MCPs & Skills' && kitEditor?.summary === 'what the next session loads', JSON.stringify(kitEditor))
   t.check('menuAvailable: false drops both logins and Boot Menu', !keysOf({ ...FULL, menuAvailable: false }).includes('menu') && !keysOf({ ...FULL, menuAvailable: false }).includes('logins') && !keysOf({ ...CHAT, menuAvailable: false }).includes('menu'))
   t.check('the four no-history rows keep their exact bytes', JSON.stringify(rowsOf(FULL)) === JSON.stringify([
-    { key: 'new', icon: '✶', label: 'New Session', ctx: 'start fresh here' },
-    { key: 'logins', icon: '⚿', label: 'Logins/Keys', ctx: 'sign in to providers' },
-    { key: 'concourse', icon: '⊞', label: 'Session Manager (Concourse)', ctx: 'the live board' },
-    { key: 'menu', icon: '⊞', label: 'Boot Menu', ctx: 'configure boot env' },
+    { key: 'new', label: 'New Session', ctx: 'start fresh here' },
+    { key: 'logins', label: 'Logins/Keys', ctx: 'sign in to providers' },
+    { key: 'concourse', label: 'Session Manager (Concourse)', ctx: 'the live board' },
+    { key: 'menu', label: 'Boot Menu', ctx: 'configure boot env' },
   ]))
   t.check('Boot Menu stays LAST in both worlds', full[full.length - 1] === 'menu' && chat[chat.length - 1] === 'menu')
 

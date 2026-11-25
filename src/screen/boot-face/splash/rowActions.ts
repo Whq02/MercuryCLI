@@ -9,7 +9,6 @@ import type { bornSession } from '../../../daemon/switchboard/bornSession.js';
 
 export type BootRow = {
   key: string;
-  icon: string;
   label: string;
   ctx: string;
   dim?: boolean;
