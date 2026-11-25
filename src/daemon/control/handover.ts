@@ -1,7 +1,7 @@
 import net from 'node:net'
 import { existsSync, lstatSync, readFileSync, renameSync } from 'node:fs'
 import { basename, dirname, isAbsolute, join, relative } from 'node:path'
-import { programHome } from '../../platform/profiles/profiles.js'
+import { firstProfileHome } from '../../platform/profiles/profiles.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { localIpcDoorKind } from '../../platform/host-os/files.js'
 import { foldPathCase } from '../../platform/host-os/paths.js'
@@ -56,7 +56,7 @@ function manifestFacts(dir: string): { buildTree: string | null; version: string
   }
 }
 
-export function sourceDeployedRuntime(home: string = programHome(), platform: NodeJS.Platform = process.platform): DeployedRuntimeV1 | null {
+export function sourceDeployedRuntime(home: string = firstProfileHome(), platform: NodeJS.Platform = process.platform): DeployedRuntimeV1 | null {
   for (const name of RUNTIME_POINTER_NAMES) {
     const dir = join(home, 'runtime', name)
     const script = join(dir, 'mercury.mjs')
@@ -67,11 +67,11 @@ export function sourceDeployedRuntime(home: string = programHome(), platform: No
   return null
 }
 
-export function releaseVersionsDir(home: string = programHome()): string {
+export function releaseVersionsDir(home: string = firstProfileHome()): string {
   return flagEnv('MERCURY_VERSIONS_DIR') || join(home, 'versions')
 }
 
-export function releaseDeployedRuntime(home: string = programHome(), platform: NodeJS.Platform = process.platform): DeployedRuntimeV1 | null {
+export function releaseDeployedRuntime(home: string = firstProfileHome(), platform: NodeJS.Platform = process.platform): DeployedRuntimeV1 | null {
   const roots = { ...resolveLayoutRoots(platform), versionsDir: releaseVersionsDir(home) }
   const version = readCurrentVersion(roots)
   if (version === null || /[\\/"]|\.\./.test(version)) return null
@@ -95,7 +95,7 @@ function pathWithin(parent: string, child: string, platform: NodeJS.Platform): b
   return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel)
 }
 
-export function deployedRuntime(home: string = programHome(), opts: DeployedRuntimeOptions = {}): DeployedRuntimeV1 | null {
+export function deployedRuntime(home: string = firstProfileHome(), opts: DeployedRuntimeOptions = {}): DeployedRuntimeV1 | null {
   const platform = opts.platform ?? process.platform
   const source = sourceDeployedRuntime(home, platform)
   const release = releaseDeployedRuntime(home, platform)

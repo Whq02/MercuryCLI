@@ -1,7 +1,7 @@
 import { existsSync, watch as watchDir, type FSWatcher } from 'node:fs'
 import { basename, dirname, join } from 'path'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
-import { programHome } from '../../platform/profiles/profiles.js'
+import { firstProfileHome } from '../../platform/profiles/profiles.js'
 import { localIpcDoorKind } from '../../platform/host-os/files.js'
 import { controlKeyPath, controlSockPath, daemonStatePath, reassertControlKey } from '../control/controlSocket.js'
 import { daemonHomeStands } from '../control/daemonHome.js'
@@ -135,7 +135,7 @@ export function armPlaneHeal(state: DaemonRunState, { controlKey, persistDaemonR
     console.error(`[daemon] the installed build moved to ${tree} — ${asked} live session(s) asked for their facts now`)
   }
   const installedWatchers: FSWatcher[] = []
-  for (const pointerDir of new Set([join(programHome(), 'runtime'), releaseVersionsDir()])) {
+  for (const pointerDir of new Set([join(firstProfileHome(), 'runtime'), releaseVersionsDir()])) {
     try {
       const watcher = watchDir(pointerDir, { persistent: false }, (_event, name) => {
         if (name !== null && name !== undefined && !INSTALLED_POINTER_NAMES.has(String(name))) return
