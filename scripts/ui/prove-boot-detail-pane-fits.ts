@@ -217,4 +217,30 @@ t.section('§2 — OVERLONG DETAIL LINES WRAP WHEN THE PANE HAS ROWS FREE (AGENT
   t.check(`agents and mcps & skills, 120 columns, 31 to 50 rows: no pane ends on the first half of a wrapped line (${cuts} panes carry the trail line)`, cuts > 0 && halves.length === 0, cuts === 0 ? 'no pane carried the trail line: the sweep proves nothing, widen its rows' : `${WHOLE_FIX} | ${halves.join(' · ')}`)
 }
 
+t.section('§4 — BELOW 110 COLUMNS A NOTICE WORD LONGER THAN THE LINE WRAPS; WHERE THE LINES RUN OUT ITS END IS KEPT')
+{
+  const NOTICE_FIX = 'in composeBootMenuClassic (assets/splash/splash-core.mjs) a notice word wider than the line is split over the notice\'s lines, and when the notice has more lines than its room the word is cut to its end on one line'
+  const file = '/Users/operator/workspace/very-deep-repository-name/.local/bin/mercury2'
+  const refusalM = {
+    entries: [{ label: '1 · Profile 1', group: 'profiles', summary: 'this session runs in it', valueLabel: 'mercury · this one', valueIsDefault: false, pinnedVal: null, detail: null }],
+    selIdx: 0,
+    title: 'profiles',
+    summaryTitle: 'PROFILES',
+    summaryRows: [],
+    environment: env,
+    statusRight: '1 profile',
+    legend: '↑↓ move · n new · r rename · esc back',
+    detailOverride: [`The file ${file} is already there and is not this profile's command: move it away, then create the profile again.`],
+    detailOverrideConfirms: true,
+  }
+  const squashed = (lines: string[]): string => lines.join('').replace(/\s+/g, '')
+  const roomy = core.composeBootMenu(60, 20, refusalM).lines
+  t.check('60×20: the file a notice names is whole over its lines and the sentence ends', squashed(roomy).includes(file) && roomy.some(l => l.includes('again.')), `${NOTICE_FIX} | lines=${JSON.stringify(roomy.map(l => l.trim()).filter(Boolean))}`)
+  const tight = core.composeBootMenu(60, 12, refusalM).lines
+  t.check('60×12: with room for three notice lines the file is cut to its end, the name of the file whole', tight.some(l => l.trim().startsWith('…') && l.trimEnd().endsWith('/.local/bin/mercury2')), `${NOTICE_FIX} | lines=${JSON.stringify(tight.map(l => l.trim()).filter(Boolean))}`)
+  const plainM = { ...refusalM, detailOverride: ['a notice of ordinary words that is longer than one line of this window and so wraps between its words as it always did'] }
+  const plain = core.composeBootMenu(60, 20, plainM).lines.map(l => l.trim())
+  t.check('60×20: a notice of ordinary words wraps between words as before', plain.includes('a notice of ordinary words that is longer than one line') && plain.includes('of this window and so wraps between its words as it')  && plain.includes('always did'), `${NOTICE_FIX} | lines=${JSON.stringify(plain.filter(Boolean))}`)
+}
+
 t.finish('prove-boot-detail-pane-fits')

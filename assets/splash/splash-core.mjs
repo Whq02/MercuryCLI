@@ -533,6 +533,10 @@ export function withProfilesRow(rows, boxed) {
   return boxed(more) ? more : rows
 }
 
+export function bootMenuMicro(cols, rowsAvail) {
+  return rowsAvail < 10 || cols < 48
+}
+
 function placeBlock(block, rows) {
   const pad = rows - block.length
   if (pad <= 0) return { placed: block, top: 0 }
@@ -805,7 +809,7 @@ const menuWantsLine = (cols, rowsAvail) =>
   `wants at least ${MENU_FLOOR_COLS}×${MENU_FLOOR_ROWS} · this window is ${cols}×${rowsAvail}`
 
 function composeBootMenu(cols, rowsAvail, m) {
-  if (rowsAvail < 10 || cols < 48) return composeBootMenuMicro(cols, rowsAvail, m)
+  if (bootMenuMicro(cols, rowsAvail)) return composeBootMenuMicro(cols, rowsAvail, m)
   if (cols >= 110 && !menuBelowFloor(cols, rowsAvail)) {
     for (const withHead of [true, false]) {
       const w = composeBootMenuWide(cols, rowsAvail, m, withHead)
@@ -826,7 +830,7 @@ function composeBootMenuMicro(cols, rowsAvail, m) {
     const full = red + '(>_) ' + ivory + 'menu' + R + faint + ' · esc back · ↵ cycles' + R
     const noCycle = red + '(>_) ' + ivory + 'menu' + R + faint + ' · esc back' + R
     const exitOnly = faint + 'esc back' + R
-    const line = vis(full) <= cols ? full : vis(noCycle) <= cols ? noCycle : clip(exitOnly)
+    const line = m.legendMicro === undefined && vis(full) <= cols ? full : vis(noCycle) <= cols ? noCycle : clip(exitOnly)
     return { lines: [line], entryLines: [] }
   }
   const lines = []
@@ -849,7 +853,7 @@ function composeBootMenuMicro(cols, rowsAvail, m) {
       lines.push(clip(lead + label + val))
     }
   }
-  lines.push(clip(faint + '↑↓ · ↵ cycles · esc back' + R))
+  lines.push(clip(faint + (m.legendMicro ?? '↑↓ · ↵ cycles · esc back') + R))
   return { lines, entryLines }
 }
 
@@ -1152,11 +1156,13 @@ function composeBootMenuClassic(cols, rowsAvail, m) {
     }
   })
   const noticeText = m.detailOverride && m.detailOverrideConfirms ? m.detailOverride.filter(Boolean).join(' ') : m.noticeLine
-  const noticeWrapped = noticeText ? wrapWords(noticeText, Math.max(20, cols - 4)) : []
-  const noticeBudget =
-    noticeWrapped.length > 0
-      ? Math.max(1, Math.min(noticeWrapped.length, rowsAvail - 4 - 5))
-      : 0
+  const noticeW = Math.max(20, cols - 4)
+  const noticeRoom = Math.max(1, rowsAvail - 4 - 5)
+  const noticeOver = endOnly =>
+    wrapWords(noticeText, noticeW).flatMap(l => (vis(l) <= noticeW ? [l] : endOnly ? ['…' + l.slice(-(noticeW - 1))] : splitHardVis(l, noticeW)))
+  const noticeWhole = noticeText ? noticeOver(false) : []
+  const noticeWrapped = noticeWhole.length <= noticeRoom ? noticeWhole : noticeOver(true)
+  const noticeBudget = Math.min(noticeWrapped.length, noticeRoom)
   const noticeClipped = noticeBudget < noticeWrapped.length
   const noticeLines = noticeWrapped.slice(0, noticeBudget).map((l, i) => {
     const text = noticeClipped && i === noticeBudget - 1 ? clipVis(l, Math.max(1, cols - 5)) + '…' : l

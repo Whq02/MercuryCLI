@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Box, useInput } from '../themedRenderer.js';
-import { createSplashCore, WORD_W } from '../../../assets/splash/splash-core.mjs';
+import { bootMenuMicro, createSplashCore, WORD_W } from '../../../assets/splash/splash-core.mjs';
 import { useEngineModel } from '../model-picker/useEngineModel.js';
 import { createProfile, listProfiles, removeProfile, renameProfile, type ProfileRow } from '../../platform/profiles/profiles.js';
 import { inheritSkills } from '../../integrations/skills/inheritSkills.js';
@@ -29,7 +29,7 @@ const removable = (profile: ProfileRow): boolean => profile.id !== 1 && !profile
 
 function startWords(profile: ProfileRow): string {
   if (profile.current) return 'this session runs in it';
-  return profile.command === null ? 'its command is missing' : `${profile.command} starts it`;
+  return profile.command === null ? 'its command is missing' : `${profile.offPath ?? profile.command} starts it`;
 }
 
 function skillsWords(answer: Awaited<ReturnType<typeof inheritSkills>>, from: string): string | null {
@@ -51,6 +51,8 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
   const read = useMemo(() => listProfiles(), [tick]);
   const profiles = useMemo<ProfileFaceRow[]>(() => (read.ok ? read.profiles : []).map(profile => ({ ...profile, label: `${profile.id} · ${profile.name}` })), [read]);
   const [face, setFace] = useState<ProfilesFace>({ kind: 'list' });
+  const listOnly = bootMenuMicro(columns, rows);
+  if (listOnly && face.kind !== 'list') setFace({ kind: 'list' });
   const [said, setSaid] = useState<Said | null>(null);
   const settle = (next: Said | null): void => {
     setFace({ kind: 'list' });
@@ -68,7 +70,7 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
     idNamespace: 'boot-profiles',
     active: face.kind === 'list',
     onClose,
-    actions: read.ok
+    actions: read.ok && !listOnly
       ? [
           {
             key: 'n',
@@ -177,6 +179,7 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
       statusRight: !read.ok ? 'the profile list could not be read' : said?.where === 'status' ? said.text : `${profiles.length} profile${profiles.length === 1 ? '' : 's'}`,
       noticeLine: said?.where === 'status' ? said.text : null,
       glowWord: wordGlow,
+      legendMicro: read.ok ? '↑↓ · esc back' : 'esc back',
       legend: !read.ok
         ? 'esc back'
         : face.kind === 'rename'

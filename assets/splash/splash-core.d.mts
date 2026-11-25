@@ -77,6 +77,7 @@ export interface BootMenuData {
   statusRight: string
   legend: string
   legendClassic?: string
+  legendMicro?: string
   detailOverride?: string[]
   glowWord?: GlowPhase | null
   title?: string
@@ -251,6 +252,7 @@ export interface CardFacts {
   sessionsCtx?: string
 }
 export function assembleCardRows(facts: CardFacts): Array<SplashCardRow & { key: string }>
+export function bootMenuMicro(cols: number, rowsAvail: number): boolean
 export function withProfilesRow(rows: Array<SplashCardRow & { key: string }>, boxed: (rows: Array<SplashCardRow & { key: string }>) => boolean): Array<SplashCardRow & { key: string }>
 export declare const GROUND: number[];
 export declare const GROUND_FAMILIES: { dark: number[]; 'true-black': number[] };
