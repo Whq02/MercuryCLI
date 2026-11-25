@@ -333,7 +333,7 @@ async function leg(cols: number, rows: number): Promise<void> {
     see('atlas', 'usage-receipt', 4, { awaitPattern: USAGE_RECEIPT }),
     ...popup('/config', CONFIG_HINT, 'config'),
     ...popup('/model', CREWMATE_PICKER_HINT, 'model'),
-    ...(cols >= 178 ? [clickOn('FILES ·')] : [clickOn('or click · browse'), { data: CLICK, targetText: 'or click · browse', afterPrevTicks: 4 }]),
+    ...(cols >= 178 ? [clickOn('files ·')] : [clickOn('↵ browse'), { data: CLICK, targetText: '↵ browse', afterPrevTicks: 4 }]),
     seePopup(FILES_TITLE, '↑↓ move · ↵ open', 'files-open'),
     type(ESC, 3),
     later(8, 'files-closed'),

@@ -1,17 +1,17 @@
   lanes             ╭──────────────────────────────────────────────────────────────────────────────╮
-WORKBENCH           │                                                                              │
-  no prompts sent y…│ ╭──────────────────────────────────────────────────────────────────────────╮ │
+workbench           │                                                                              │
+  no prompts yet    │ ╭──────────────────────────────────────────────────────────────────────────╮ │
                     │ │ ▖▟▆▙▗ Mercury · config                                                   │ │
-NEXT                │ │ orchard · 84 settings · 1 set by you                                     │ │
-  · /health…        │ │                                                                          │ │
+next                │ │ orchard · 84 settings · 1 set by you                                     │ │
+  /health           │ │                                                                          │ │
                     │ │ / Search settings…                                                       │ │
-FILES · orchard     │ │                                                                          │ │
-  ↵ or click…       │ │ › Auto-compact                      on                                   │ │
+files · orchard     │ │                                                                          │ │
+  ↵ browse          │ │ › Auto-compact                      on                                   │ │
                     │ │   Auto-compact window               auto                                 │ │
-VITALS              │ │   Session concourse                 on                                   │ │
-  · spend —         │ │   Seats                             17 · this machine's reading          │ │
-  · ctx — · —       │ │   Tips                              on                                   │ │
-  · health — run…   │ │   Reduced motion                    off                                  │ │
+vitals              │ │   Session concourse                 on                                   │ │
+  spend —           │ │   Seats                             17 · this machine's reading          │ │
+  ctx — · —         │ │   Tips                              on                                   │ │
+  health — run…     │ │   Reduced motion                    off                                  │ │
                     │ │   Ping                              on                                   │ │
                     │ │   Account identity                  shown                                │ │
                     │ │   Zen mode — rails hidden           off                                  │ │

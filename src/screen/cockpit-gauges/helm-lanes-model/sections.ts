@@ -72,7 +72,7 @@ function glanceLabelsOf(reads: GlanceReads, tok: MercuryThemeTokens): {
       ? `${String(chip.verdict).toLowerCase()}${chip.ageMs != null ? ` · ${formatCountdown(chip.ageMs)} old` : ''}`
       : 'health — run /health'
   const healthTone = verdictUp === 'FAULT' ? tok.failure : verdictUp === 'CAUTION' ? tok.warning : tok.textSecondary
-  const healthGlyph = verdictUp === 'FAULT' ? GLYPH.fail : verdictUp === 'CAUTION' ? GLYPH.warn : GLYPH.dot
+  const healthGlyph = verdictUp === 'FAULT' ? GLYPH.fail : verdictUp === 'CAUTION' ? GLYPH.warn : ''
   return { usage: usageLabel, ctx: ctxLabel, health: healthLabel, healthTone, healthGlyph }
 }
 
@@ -143,7 +143,7 @@ export function crewSection({ input, tok, accent, keptIds, crewEntries, crewShow
   }
   if (crewMore > 0) rows.push({ kind: 'more', key: 'crew:more', n: crewMore, row: { kind: 'command', command: '/crewmates', label: 'crew:more' } })
   const crewWord = crewEntries.length === 1 ? 'crewmate' : 'crewmates'
-  return { key: 'crew', glyph: GLYPH.fisheye, label: 'CREW', count: `${crewEntries.length} ${crewWord}`, open: '/crewmates', rows }
+  return { key: 'crew', glyph: GLYPH.fisheye, label: 'crew', count: `${crewEntries.length} ${crewWord}`, open: '/crewmates', rows }
 }
 
 export function workSection({ work }: SectionFacts): LanesSectionSpec | null {
@@ -151,7 +151,7 @@ export function workSection({ work }: SectionFacts): LanesSectionSpec | null {
   return {
     key: 'work',
     glyph: work.terminal ? GLYPH.done : GLYPH.busy,
-    label: 'WORK',
+    label: 'work',
     count: work.total > 0 ? `${work.doneCount}/${work.total}` : undefined,
     open: '/workbench',
     rows: work.rows.map((r, i) => ({ kind: 'text', key: `work:${i}`, text: `  ${r.text}`, color: r.color })),
@@ -177,7 +177,7 @@ export function runsSection({ tok, nowMs, runsShown, runsMore, runsLive, solo }:
     }
   })
   if (runsMore > 0) rows.push({ kind: 'more', key: 'runs:more', n: runsMore, row: { kind: 'command', command: '/runs', label: 'runs:more' } })
-  return { key: 'runs', glyph: GLYPH.turns, label: 'RUNS', count: `${runsLive} live`, open: '/runs', rows }
+  return { key: 'runs', glyph: GLYPH.turns, label: 'runs', count: `${runsLive} live`, open: '/runs', rows }
 }
 
 export function recentSection({ input, tok, solo }: SectionFacts): LanesSectionSpec | null {
@@ -197,7 +197,7 @@ export function recentSection({ input, tok, solo }: SectionFacts): LanesSectionS
   }
   if (input.recent == null) rows.push({ kind: 'text', key: 'recent:scanning', text: '  scanning…', color: tok.textMuted })
   if (rows.length === 0) return null
-  return { key: 'recent', glyph: GLYPH.read, label: 'RECENT', open: '/sessions', rows }
+  return { key: 'recent', glyph: GLYPH.read, label: 'recent', open: '/sessions', rows }
 }
 
 export function missionSection({ tok, solo, mission }: SectionFacts): LanesSectionSpec | null {
@@ -205,7 +205,7 @@ export function missionSection({ tok, solo, mission }: SectionFacts): LanesSecti
   return {
     key: 'mission',
     glyph: GLYPH.mission,
-    label: 'MISSION',
+    label: 'mission',
     open: '/mission',
     rows: [
       {
@@ -225,7 +225,7 @@ export function workbenchSection({ workbenchRows }: SectionFacts): LanesSectionS
   return {
     key: 'workbench',
     glyph: GLYPH.prompt,
-    label: 'WORKBENCH',
+    label: 'workbench',
     open: '/workbench',
     rows: [{ kind: 'card', key: 'workbench:last', lines: workbenchRows, row: { kind: 'command', command: '/workbench', label: 'workbench:last' } }],
   }
@@ -233,22 +233,19 @@ export function workbenchSection({ workbenchRows }: SectionFacts): LanesSectionS
 
 export function nextSection({ tok, solo, mission, hintCap }: SectionFacts): LanesSectionSpec | null {
   if (!solo) return null
-  const hints: Array<{ command: string; label: string }> = [
-    { command: '/health', label: '/health — health cert' },
-    { command: '/memory', label: '/memory — memory' },
-  ]
-  if (mission === null) hints.push({ command: '/mission', label: '/mission — set a mission' })
-  const rows: LanesRowSpec[] = hints.slice(0, hintCap).map(h => ({
+  const hints: string[] = ['/health', '/memory']
+  if (mission === null) hints.push('/mission')
+  const rows: LanesRowSpec[] = hints.slice(0, hintCap).map(command => ({
     kind: 'rail',
-    key: `hint:${h.command}`,
-    glyph: GLYPH.dot,
+    key: `hint:${command}`,
+    glyph: '',
     glyphColor: tok.textMuted,
-    name: h.label,
+    name: command,
     nameColor: tok.textMuted,
-    row: { kind: 'command', command: h.command, label: `hint:${h.command}` },
+    row: { kind: 'command', command, label: `hint:${command}` },
   }))
   if (rows.length === 0) return null
-  return { key: 'next', glyph: GLYPH.cursor, label: 'NEXT', open: '/help', rows }
+  return { key: 'next', glyph: GLYPH.cursor, label: 'next', open: '/help', rows }
 }
 
 export function filesSection({ input, tok }: SectionFacts): LanesSectionSpec | null {
@@ -256,7 +253,7 @@ export function filesSection({ input, tok }: SectionFacts): LanesSectionSpec | n
   return {
     key: 'files',
     glyph: '▤',
-    label: 'FILES',
+    label: 'files',
     count: input.filesFolder,
     open: 'files',
     rows: [
@@ -265,7 +262,7 @@ export function filesSection({ input, tok }: SectionFacts): LanesSectionSpec | n
         key: 'files:browse',
         glyph: '↵',
         glyphColor: tok.textMuted,
-        name: 'or click · browse',
+        name: 'browse',
         nameColor: tok.textMuted,
         row: { kind: 'files', label: 'files:browse' },
       },
@@ -279,7 +276,7 @@ export function saturnSection({ input, tok, nowMs }: SectionFacts): LanesSection
   return {
     key: 'saturn',
     glyph: GLYPH.inProgress,
-    label: 'SATURN',
+    label: 'saturn',
     open: '/saturn',
     rows: [
       {
@@ -303,7 +300,7 @@ export function glanceSection({ input, tok }: SectionFacts): LanesSectionSpec | 
   const muted = (name: string, label: string, command: string): LanesRowSpec => ({
     kind: 'rail',
     key: label,
-    glyph: GLYPH.dot,
+    glyph: '',
     glyphColor: tok.textMuted,
     name,
     nameColor: tok.textSecondary,
@@ -312,7 +309,7 @@ export function glanceSection({ input, tok }: SectionFacts): LanesSectionSpec | 
   return {
     key: 'vitals',
     glyph: '',
-    label: 'VITALS',
+    label: 'vitals',
     marginAlways: true,
     rows: [
       muted(labels.usage, 'tel:usage', '/usage'),

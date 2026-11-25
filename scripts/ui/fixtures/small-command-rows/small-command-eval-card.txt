@@ -1,24 +1,24 @@
   lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-WORKBENCH               │╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮│
+workbench               │╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮│
   run the cell          ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
                         ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
-NEXT                    ││  ▀▄▄▄▀▄▄▄▀                                                                                                     ││
-  · /health — health…   │╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
+next                    ││  ▀▄▄▄▀▄▄▄▀                                                                                                     ││
+  /health               │╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
                         │                                                                                                                  │
-FILES · project         │                                                                                                                  │
-  ↵ or click · browse   │ 06:37:35 [sam] ❯ start                                                                                           │
+files · project         │                                                                                                                  │
+  ↵ browse              │ 23:21:41 [sam] ❯ start                                                                                           │
                         │                                                                                                                  │
-VITALS                  │ 06:37:35 [Mercury] Command rows ready.                                                                           │
-  · spend $0.00         │                                                                                                                  │
-  · ctx 0% · 1000k      │ ❯ /crewmates off                                                                                                 │
-  · health — run /health│   └ crewmates off for this session                                                                               │
+vitals                  │ 23:21:41 [Mercury] Command rows ready.                                                                           │
+  spend $0.00           │                                                                                                                  │
+  ctx 0% · 1000k        │ ❯ /crewmates off                                                                                                 │
+  health — run /health  │   └ crewmates off for this session                                                                               │
                         │     the Crewmate tool leaves the roster from the next turn; reasoning restarts on the next turn; a spawn already │
                         │     running finishes                                                                                             │
                         │ you turned crewmates off: the Crewmate tool has left the roster; reasoning restarts on the next turn             │
                         │                                                                                                                  │
-                        │ 06:37:53 [sam] ❯ run the cell                                                                                    │
+                        │ 23:21:59 [sam] ❯ run the cell                                                                                    │
                         │ │                                                                                                                │
-                        │ │ 06:37:53 [Mercury] ▰ Eval         js · Calculate the value                                                     │
+                        │ │ 23:21:59 [Mercury] ▰ Eval         js · Calculate the value                                                     │
                         │ │   └ Starting kernel…                                                                                           │
                         │                                                                                                                  │
                         │                                                                                                                  │

@@ -1,19 +1,19 @@
   lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
-WORKBENCH               │╭────────────────────────────────────────────────────────────────────────────────────────────╮│
+workbench               │╭────────────────────────────────────────────────────────────────────────────────────────────╮│
   say something settled ││  ▄▄▄▄▄▄▄▄▄                                                                                 ││
                         ││  ▄▄▄▄▄▄▄▄▄                                                                                 ││
-NEXT                    ││  ▀▀▄▀▀▀▄▀▀                                                                                 ││
-  · /health — health…   │╰────────────────────────────────────────────────────────────────────────────────────────────╯│
-  · /memory — memory    │                                                                                              │
-  · /mission — set a…   │                                                                                              │
+next                    ││  ▀▀▄▀▀▀▄▀▀                                                                                 ││
+  /health               │╰────────────────────────────────────────────────────────────────────────────────────────────╯│
+  /memory               │                                                                                              │
+  /mission              │                                                                                              │
                         │ hh:mm:ss [sam] ❯ say something settled                                                       │
-FILES · flux-arena-cwd-…│                                                                                              │
-  ↵ or click · browse   │ hh:mm:ss [Mercury] Settled and quiet.                                                        │
+files · flux-arena-cwd-…│                                                                                              │
+  ↵ browse              │ hh:mm:ss [Mercury] Settled and quiet.                                                        │
                         │                                                                                              │
-VITALS                  │                                                                                              │
-  · spend $0.00         │                                                                                              │
-  · ctx 0% · 1000k      │                                                                                              │
-  · health — run /health│                                                                                              │
+vitals                  │                                                                                              │
+  spend $0.00           │                                                                                              │
+  ctx 0% · 1000k        │                                                                                              │
+  health — run /health  │                                                                                              │
                         │                                                                                              │
                         │                                                                                              │
                         │                                                                                              │

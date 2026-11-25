@@ -97,15 +97,15 @@ for (const shape of SHAPES) {
     sends: [
       { atTick: 999, awaitText: 'New Session', minTick: 8, awaitSettleTicks: 4, awaitStableTicks: 3, data: '\r', mark: 'face' },
       { atTick: 999, requireAwait: true, awaitText: 'shortcuts', minTick: 4, awaitSettleTicks: 8, data: '\x1b[I', mark: 'chat' },
-      { atTick: 999, requireAwait: true, awaitText: 'no prompts sent yet', minTick: 2, awaitSettleTicks: 3, data: '/mission relay probe\r', mark: 'mission' },
-      { atTick: 999, requireAwait: true, awaitText: 'no prompts sent yet', minTick: 2, awaitSettleTicks: 3, data: '\t', mark: 'focus' },
-      { atTick: 999, requireAwait: true, awaitText: '❯ no prompts sent yet', minTick: 2, awaitSettleTicks: 3, targetText: '◆ relay probe', targetDx: 2, data: CLICK, mark: 'warmup' },
-      { atTick: 999, requireAwait: true, awaitText: '❯ ◆ relay probe', minTick: 2, awaitSettleTicks: 3, targetText: 'no prompts sent yet', data: CLICK, mark: 'click1' },
-      { atTick: 999, requireAwait: true, awaitText: '❯ no prompts sent yet', minTick: 1, awaitSettleTicks: 2, data: '', mark: 'after1' },
+      { atTick: 999, requireAwait: true, awaitText: 'no prompts yet', minTick: 2, awaitSettleTicks: 3, data: '/mission relay probe\r', mark: 'mission' },
+      { atTick: 999, requireAwait: true, awaitText: 'no prompts yet', minTick: 2, awaitSettleTicks: 3, data: '\t', mark: 'focus' },
+      { atTick: 999, requireAwait: true, awaitText: '❯ no prompts yet', minTick: 2, awaitSettleTicks: 3, targetText: '◆ relay probe', targetDx: 2, data: CLICK, mark: 'warmup' },
+      { atTick: 999, requireAwait: true, awaitText: '❯ ◆ relay probe', minTick: 2, awaitSettleTicks: 3, targetText: 'no prompts yet', data: CLICK, mark: 'click1' },
+      { atTick: 999, requireAwait: true, awaitText: '❯ no prompts yet', minTick: 1, awaitSettleTicks: 2, data: '', mark: 'after1' },
       { atTick: 999, requireAwait: true, awaitText: '◆ relay probe', minTick: SHRINK_AT + 3, awaitSettleTicks: 3, targetText: '◆ relay probe', targetDx: 2, data: CLICK, mark: 'click2' },
       { atTick: 999, requireAwait: true, awaitText: '❯ ◆ relay probe', minTick: 1, awaitSettleTicks: 2, data: '', mark: 'after2' },
-      { atTick: 999, requireAwait: true, awaitText: 'no prompts sent yet', minTick: GROW_AT + 3, awaitSettleTicks: 3, targetText: 'no prompts sent yet', data: CLICK, mark: 'click3' },
-      { atTick: 999, requireAwait: true, awaitText: '❯ no prompts sent yet', minTick: 1, awaitSettleTicks: 2, data: '', mark: 'after3' },
+      { atTick: 999, requireAwait: true, awaitText: 'no prompts yet', minTick: GROW_AT + 3, awaitSettleTicks: 3, targetText: 'no prompts yet', data: CLICK, mark: 'click3' },
+      { atTick: 999, requireAwait: true, awaitText: '❯ no prompts yet', minTick: 1, awaitSettleTicks: 2, data: '', mark: 'after3' },
       { atTick: 999, requireAwait: true, awaitText: '◆ relay probe', minTick: STORM_AT + 6, awaitSettleTicks: 3, targetText: '◆ relay probe', targetDx: 2, data: CLICK, mark: 'click4' },
       { atTick: 999, requireAwait: true, awaitText: '❯ ◆ relay probe', minTick: 1, awaitSettleTicks: 2, data: '', mark: 'after4' },
     ],
@@ -133,27 +133,27 @@ for (const shape of SHAPES) {
   const click1 = mark('click1')
 
   check(`${shape.tag}: the warm-up press moves the caret from the workbench card, where the rail rested, to the mission row`,
-    warmup !== undefined && caretOn(warmup.grid, 'no prompts sent yet') && click1 !== undefined && caretOn(click1.grid, '◆ relay probe') && !caretOn(click1.grid, 'no prompts sent yet'),
-    `before ${warmup ? JSON.stringify(rowWith(warmup.grid, 'no prompts sent yet')) : 'no warmup mark'} after ${click1 ? JSON.stringify(rowWith(click1.grid, '◆ relay probe')) : 'no click1 mark'} — ${RAIL_CLICK_HINT}`)
+    warmup !== undefined && caretOn(warmup.grid, 'no prompts yet') && click1 !== undefined && caretOn(click1.grid, '◆ relay probe') && !caretOn(click1.grid, 'no prompts yet'),
+    `before ${warmup ? JSON.stringify(rowWith(warmup.grid, 'no prompts yet')) : 'no warmup mark'} after ${click1 ? JSON.stringify(rowWith(click1.grid, '◆ relay probe')) : 'no click1 mark'} — ${RAIL_CLICK_HINT}`)
   check(`${shape.tag}: phase 1 closed before the shrink`, (after1?.atTick ?? 999) < tk(SHRINK_AT), `after1 @${after1?.atTick} — phase 1 ran too late: the drive is starved or an earlier send stalled, check the awaitText of the sends list in this file`)
   check(`${shape.tag}: phase 2 fired after the shrink and closed before the grow`,
     (click2?.atTick ?? 0) > tk(SHRINK_AT) && (after2?.atTick ?? 999) < tk(GROW_AT),
     `click2 @${click2?.atTick} after2 @${after2?.atTick} — the click did not land between the shrink and the grow: the drive is starved or a send stalled, check the awaitText and minTick of click2 and after2 in the sends list of this file`)
 
   check(`${shape.tag}: pre-resize click claims the workbench card`,
-    after1 !== undefined && caretOn(after1.grid, 'no prompts sent yet'),
-    `${after1 ? JSON.stringify(rowWith(after1.grid, 'no prompts sent yet')) : 'no after1 mark'} — ${RAIL_CLICK_HINT}`)
+    after1 !== undefined && caretOn(after1.grid, 'no prompts yet'),
+    `${after1 ? JSON.stringify(rowWith(after1.grid, 'no prompts yet')) : 'no after1 mark'} — ${RAIL_CLICK_HINT}`)
 
   check(`${shape.tag}: post-shrink click claims the mission row`,
     after2 !== undefined && caretOn(after2.grid, '◆ relay probe'),
     `${after2 ? JSON.stringify(rowWith(after2.grid, '◆ relay probe')) : 'no after2 mark'} — ${RAIL_CLICK_HINT}`)
   check(`${shape.tag}: post-shrink the workbench card released the caret`,
-    after2 !== undefined && !caretOn(after2.grid, 'no prompts sent yet'),
-    `${after2 ? JSON.stringify(rowWith(after2.grid, 'no prompts sent yet')) : 'no after2 mark'} — ${RAIL_CLICK_HINT}`)
+    after2 !== undefined && !caretOn(after2.grid, 'no prompts yet'),
+    `${after2 ? JSON.stringify(rowWith(after2.grid, 'no prompts yet')) : 'no after2 mark'} — ${RAIL_CLICK_HINT}`)
 
   check(`${shape.tag}: post-grow click claims the workbench card again`,
-    after3 !== undefined && caretOn(after3.grid, 'no prompts sent yet'),
-    `${after3 ? JSON.stringify(rowWith(after3.grid, 'no prompts sent yet')) : 'no after3 mark'} — ${RAIL_CLICK_HINT}`)
+    after3 !== undefined && caretOn(after3.grid, 'no prompts yet'),
+    `${after3 ? JSON.stringify(rowWith(after3.grid, 'no prompts yet')) : 'no after3 mark'} — ${RAIL_CLICK_HINT}`)
   check(`${shape.tag}: post-grow the mission row released the caret`,
     after3 !== undefined && !caretOn(after3.grid, '◆ relay probe'),
     `${after3 ? JSON.stringify(rowWith(after3.grid, '◆ relay probe')) : 'no after3 mark'} — ${RAIL_CLICK_HINT}`)
@@ -162,8 +162,8 @@ for (const shape of SHAPES) {
     after4 !== undefined && caretOn(after4.grid, '◆ relay probe'),
     `${after4 ? JSON.stringify(rowWith(after4.grid, '◆ relay probe')) : 'no after4 mark'} — ${RAIL_CLICK_HINT}`)
   check(`${shape.tag}: post-storm the workbench card released the caret`,
-    after4 !== undefined && !caretOn(after4.grid, 'no prompts sent yet'),
-    `${after4 ? JSON.stringify(rowWith(after4.grid, 'no prompts sent yet')) : 'no after4 mark'} — ${RAIL_CLICK_HINT}`)
+    after4 !== undefined && !caretOn(after4.grid, 'no prompts yet'),
+    `${after4 ? JSON.stringify(rowWith(after4.grid, 'no prompts yet')) : 'no after4 mark'} — ${RAIL_CLICK_HINT}`)
 
 }
 

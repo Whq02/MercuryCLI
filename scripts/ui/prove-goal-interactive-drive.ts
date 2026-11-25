@@ -108,7 +108,7 @@ async function drive(cols: number, rows: number): Promise<ArenaRun> {
       { kind: 'text', text: `1. ${SECOND} — ${SECOND_ANSWER}\n${MISSION_MET_SENTINEL}` },
     ],
     sends: [
-      { awaitText: 'no prompts sent yet', text: `/goal ${FIRST}\r` },
+      { awaitText: 'no prompts yet', text: `/goal ${FIRST}\r` },
       { awaitText: MET_NEEDLE, afterPrevMs: 1500, text: `/goal ${SECOND}\r` },
     ],
     seconds: 45,

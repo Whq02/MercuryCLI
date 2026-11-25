@@ -1,17 +1,17 @@
   lanes                      ╭────────────────────────────────────────────────────────────────────────────────────────────────────╮  vitals
 ╭───────────────────────────╮│                                                                                                    │╭───────────────────────────╮
-│ ❯ WORKBENCH               ││                                                                                                    ││ ▆ USAGE                   │
-│   no prompts sent yet     ││ ╭────────────────────────────────────────────────────────────────────────────────────────────────╮ ││   API usage               │
+│ ❯ workbench               ││                                                                                                    ││ ▆ usage                   │
+│   no prompts yet          ││ ╭────────────────────────────────────────────────────────────────────────────────────────────────╮ ││   API usage               │
 ╰───────────────────────────╯│ │ Mercury · model                                                                                │ ││   API key · …-key         │
 ╭───────────────────────────╮│ │ / type to search by name or id                                                                 │ ││   spend none yet          │
-│ ▸ NEXT                    ││ │                                                                                                │ ││   credits not reported    │
-│   · /health — health cert ││ │ ▾ ANTHROPIC · API key · …-key · 13 live                                                        │ │╰───────────────────────────╯
-│   · /memory — memory      ││ │   Fable 5.2             claude-fable-5-2                           1M ctx                      │ │╭───────────────────────────╮
-│   · /mission — set a…     ││ │ ╭────────────────────────────────────────────────────────────────────────────────────────────╮ │ ││ ✓ HEALTH                  │
+│ ▸ next                    ││ │                                                                                                │ ││   credits not reported    │
+│   /health                 ││ │ ▾ ANTHROPIC · API key · …-key · 13 live                                                        │ │╰───────────────────────────╯
+│   /memory                 ││ │   Fable 5.2             claude-fable-5-2                           1M ctx                      │ │╭───────────────────────────╮
+│   /mission                ││ │ ╭────────────────────────────────────────────────────────────────────────────────────────────╮ │ ││ ✓ health                  │
 ╰───────────────────────────╯│ │ │ Fable 5.1             claude-fable-5-1              current      1M ctx                    │ │ ││   ◌ no cert · /health     │
 ╭───────────────────────────╮│ │ ╰────────────────────────────────────────────────────────────────────────────────────────────╯ │ │╰───────────────────────────╯
-│ ▤ FILES · project         ││ │   Fable 5               claude-fable-5                             1M ctx                      │ │
-│   ↵ or click · browse     ││ │   Sonnet 5.5            claude-sonnet-5-5                          1M ctx                      │ │
+│ ▤ files · project         ││ │   Fable 5               claude-fable-5                             1M ctx                      │ │
+│   ↵ browse                ││ │   Sonnet 5.5            claude-sonnet-5-5                          1M ctx                      │ │
 ╰───────────────────────────╯│ │   Sonnet 5              claude-sonnet-5                            1M ctx                      │ │
                              │ │   Sonnet 4.6            claude-sonnet-4-6                          1M ctx                      │ │
                              │ │   Opus 5.5              claude-opus-5-5                            1M ctx                      │ │

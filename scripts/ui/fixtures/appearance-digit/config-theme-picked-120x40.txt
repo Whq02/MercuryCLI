@@ -1,19 +1,19 @@
   lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
-WORKBENCH               │                                                                                              │
-  no prompts sent yet   │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
+workbench               │                                                                                              │
+  no prompts yet        │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
                         │ │ ▖▟▆▙▗ Mercury · config                                                                   │ │
-NEXT                    │ │ project · 84 settings · 2 set by you                                                     │ │
-  · /health — health…   │ │                                                                                          │ │
-  · /memory — memory    │ │ / theme                                                                                  │ │
-  · /mission — set a…   │ │                                                                                          │ │
+next                    │ │ project · 84 settings · 2 set by you                                                     │ │
+  /health               │ │                                                                                          │ │
+  /memory               │ │ / theme                                                                                  │ │
+  /mission              │ │                                                                                          │ │
                         │ │ › Theme                             Oasis dark                                           │ │
-FILES · project         │ │                                                                                          │ │
-  ↵ or click · browse   │ │                                                                                          │ │
+files · project         │ │                                                                                          │ │
+  ↵ browse              │ │                                                                                          │ │
                         │ │                                                                                          │ │
-VITALS                  │ │                                                                                          │ │
-  · spend —             │ │                                                                                          │ │
-  · ctx — · —           │ │                                                                                          │ │
-  · health — run /health│ │                                                                                          │ │
+vitals                  │ │                                                                                          │ │
+  spend —               │ │                                                                                          │ │
+  ctx — · —             │ │                                                                                          │ │
+  health — run /health  │ │                                                                                          │ │
                         │ │                                                                                          │ │
                         │ │                                                                                          │ │
                         │ │                                                                                          │ │

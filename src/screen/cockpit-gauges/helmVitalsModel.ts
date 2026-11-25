@@ -236,14 +236,14 @@ export function buildVitalsModel(input: VitalsInput): VitalsModel {
   const shedPointers = [...(healthShed ? ['/health'] : [])]
   const shed = shedPointers.map(k => k.slice(1) as 'health')
   const sections: VitalsSectionSpec[] = [
-    { key: 'usage', glyph: '', label: 'USAGE', open: '/usage', rows: usageRows },
+    { key: 'usage', glyph: '', label: 'usage', open: '/usage', rows: usageRows },
     ...(healthShed
       ? []
       : [
           {
             key: 'health' as const,
             glyph: GLYPH.check,
-            label: 'HEALTH',
+            label: 'health',
             count: certChip.state === 'live' && certChip.data.verdict !== null ? certChip.data.ageLabel.replace(' ago', '') : undefined,
             open: '/health',
             rows: healthRows,
