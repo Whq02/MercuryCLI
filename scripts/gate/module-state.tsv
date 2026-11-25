@@ -4470,6 +4470,7 @@ src/screen/renderer/terminal-session/terminalFocusStore.ts	subscribers	process	m
 src/screen/renderer/terminal-session/terminalQuerier.ts	SENTINEL	process	module	Load-time definition shared by all callers
 src/screen/renderer/terminal-session/terminalQuerier.ts	queriers	process	module	WeakMap associating each WriteStream with its TerminalQuerier
 src/screen/renderer/terminal-session/terminalTextCells.ts	DEFAULT_TEXT_CELL_PROFILE	process	module	Load-time table with no local writer
+src/screen/renderer/terminal-session/terminalTextCells.ts	EXPLICIT_BIDI_PROFILE	process	module	load-time data; no local writer
 src/screen/renderer/terminal-session/terminalTextCells.ts	TEXT_CELL_PROFILES	process	module	Load-time lookup with no local writer
 src/screen/renderer/terminal-session/widthProbe.ts	WIDTH_PROBE_SAMPLES	process	module	Load-time list with no local writer
 src/screen/renderer/terminal-session/widthProbe.ts	measurements	process	module	single-terminal frozen glyph-width probe measurements
@@ -4487,6 +4488,8 @@ src/screen/renderer/termio/ansi.ts	ESC	process	module	Load-time definition share
 src/screen/renderer/termio/ansi.ts	ESCAPE_INTRODUCERS	process	module	Load-time table with no local writer
 src/screen/renderer/termio/ansi.ts	ESC_TYPE	process	module	Load-time definition shared by all callers
 src/screen/renderer/termio/ansi.ts	isEscFinal	process	module	Load-time definition shared by all callers
+src/screen/renderer/termio/csi.ts	BIDI_EXPLICIT	process	module	Load-time definition shared by all callers
+src/screen/renderer/termio/csi.ts	BIDI_IMPLICIT	process	module	Load-time definition shared by all callers
 src/screen/renderer/termio/csi.ts	CSI	process	module	Load-time definition shared by all callers
 src/screen/renderer/termio/csi.ts	CURSOR_COLUMN_ONE	process	module	Load-time definition shared by all callers
 src/screen/renderer/termio/csi.ts	CURSOR_HOME	process	module	Load-time definition shared by all callers
