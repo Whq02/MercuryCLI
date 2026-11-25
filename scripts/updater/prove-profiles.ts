@@ -184,7 +184,7 @@ function walk(staged: StagedInstall): void {
   console.log(`── ${staged.kind}: a stranger at a command's path ──`)
   writeFileSync(word3, STRANGER)
   const gone = removeProfile(3)
-  check('remove leaves the stranger where it is and drops the row', gone.ok && textOf(word3) === STRANGER && show(ids()) === show([1, 2]), show([gone, ids()]))
+  check('remove leaves the stranger where it is, names it in its answer, and drops the row', show(gone) === show({ ok: true, keptHome: `${home}3`, keptFiles: [word3] }) && textOf(word3) === STRANGER && show(ids()) === show([1, 2]), show([gone, ids()]))
   const blocked = createProfile()
   check('create refuses with one sentence naming the file, and leaves it and the list alone', !blocked.ok && sentence(blocked.reason) && blocked.reason.includes(word3) && textOf(word3) === STRANGER && show(ids()) === show([1, 2]), show(blocked))
 
