@@ -252,6 +252,31 @@ section('§6 — the runner handler: every typed refusal arm, and the conversati
   const { projectRewoundWindows } = await import('../../src/engine/compaction/checkpointRewind.ts')
   const next = projectRewoundWindows(live as never)
   check("the next provider-bound view is the classic truncation (first turn only)", next.length === 2 && (next[0] as { uuid: string }).uuid === t1.uuid)
+
+  const { rmSync } = await import('node:fs')
+  const dbg = await import('../../src/platform/logs/debugLog.ts')
+  const prevNodeEnv = process.env.NODE_ENV
+  delete process.env.NODE_ENV
+  dbg.enableDebugLogging()
+  const dbgPath = dbg.getDebugLogPath()
+  rmSync(transcript, { recursive: true, force: true })
+  mkdirSync(transcript, { recursive: true })
+  try {
+    const failed = await handleRewindSession({ subtype: 'rewind_session', user_message_id: t2.uuid, mode: 'conversation' }, ctx([t1, r1, t2, r2]))
+    await dbg.flushDebugLogs()
+    const dbgText = (() => { try { return readFileSync(dbgPath, 'utf8') } catch { return '' } })()
+    check(
+      'a failed transcript write refuses with the plain sentence and logs detail to debug log',
+      failed.outcome === 'refused' &&
+        failed.refusal === 'restore-failed' &&
+        failed.detail === 'the conversation boundary could not be written to the transcript — try again' &&
+        dbgText.includes('EISDIR'),
+      `${j(failed)} | dbg=${dbgText.slice(-250)}`,
+    )
+  } finally {
+    if (prevNodeEnv !== undefined) process.env.NODE_ENV = prevNodeEnv
+    rmSync(transcript, { recursive: true, force: true })
+  }
   delete process.env.MERCURY_CONCOURSE_WORKER
 }
 

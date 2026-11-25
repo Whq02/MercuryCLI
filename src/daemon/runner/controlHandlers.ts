@@ -1,4 +1,5 @@
 import { errorMessage } from '../../platform/errors/errors.js'
+import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { isOneOf } from '../../platform/primitives/isOneOf.js'
 import { type UUID } from 'crypto'
 import { type ToolPermissionContext } from 'src/tools/kit/tool.js'
@@ -156,8 +157,9 @@ export async function handleRewindSession(
       await recordTranscript([record], uuid as UUID, ctx.messages)
       await flushSessionStorage()
     } catch (error) {
+      logForDebugging(`controlHandlers: conversation boundary could not be written to transcript: ${errorMessage(error)}`, { level: 'error' })
       const landed = receipt.code !== undefined ? `the files were restored (${receipt.code.filesChanged.length}); ` : ''
-      return { ...receipt, outcome: 'refused', refusal: 'restore-failed', detail: `${landed}the conversation boundary could not be written to the transcript: ${errorMessage(error)}` }
+      return { ...receipt, outcome: 'refused', refusal: 'restore-failed', detail: `${landed}the conversation boundary could not be written to the transcript — try again` }
     }
     receipt.conversation = { turnUuid: uuid, removed }
   }
