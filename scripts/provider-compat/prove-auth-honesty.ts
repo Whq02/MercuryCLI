@@ -249,7 +249,6 @@ const now = Date.now()
 }
 {
   delete process.env.HF_TOKEN
-  hfAccounts.__resetHuggingfaceAccountsForTest()
   hfAccounts.writeHuggingfaceTokens({ accessToken: 'hf-at-old', refreshToken: 'hf-rt', accessTokenExpiresAtMs: now + 3_600_000 })
   tokenAnswer = { status: 200, body: { access_token: 'hf-at-new', refresh_token: 'hf-rt', expires_in: 3600 } }
   answers = [{ status: 401, body: { error: 'Invalid username or password.' } }, 'ok']
