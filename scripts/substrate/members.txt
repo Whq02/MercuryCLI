@@ -13,6 +13,7 @@ prove-pidlock.ts
 prove-flag-registry.ts
 prove-env-names.ts
 prove-env-switches.ts
+prove-automatic-requests-switch.ts
 prove-prompt-provenance.ts
 prove-runtime-posture.ts
 prove-prompt-stable-across-mode-and-task.ts
