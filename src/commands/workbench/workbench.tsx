@@ -5,7 +5,7 @@ import { claimCommandPopup } from '../../screen/cockpit/commandPopup.js'
 import { CREW_POPUP_WIDE, crewDoorShape } from '../../screen/fullscreen-layout/CrewViewSlot.js'
 
 export const call: LocalJSXCommandCall = async onDone => {
-  const token = claimCommandPopup(crewDoorShape('prompts', CREW_POPUP_WIDE))
+  const token = claimCommandPopup({ ...crewDoorShape('prompts', CREW_POPUP_WIDE), compact: 'pane' })
   return (
     <CommandPopupLease token={token}>
       <PromptsPanel

@@ -204,9 +204,10 @@ try {
       const threeAt = lines.findIndex(line => line.includes('Three lines:'))
       assert(threeAt >= 0 && lines[threeAt + 1]!.includes('the header row,') && lines[threeAt + 2]!.includes('the footer row.') && !lines[threeAt + 2]!.includes('…'), 'a post of exactly three lines paints whole, without an ellipsis')
       const longAt = lines.findIndex(line => line.includes('The parser keeps every row'))
-      assert(longAt >= 0 && !/\d{2}:\d{2}/.test(lines[longAt + 1]!) && !/\d{2}:\d{2}/.test(lines[longAt + 2]!) && /…\s*│?\s*$/.test(lines[longAt + 2]!) && !text.includes(LONG_TAIL), 'a longer post paints three lines and the third ends with an ellipsis')
+      assert(longAt >= 0 && !/\d{2}:\d{2}/.test(lines[longAt + 1]!) && !/\d{2}:\d{2}/.test(lines[longAt + 2]!) && trimmed(lines[longAt + 2]!).endsWith('…') && !text.includes(LONG_TAIL), 'a longer post paints three lines and the third ends with an ellipsis')
       const column = lines[longAt]!.indexOf('The parser keeps')
-      assert(trimmed(lines[longAt + 1]!.slice(0, column)) === '' && lines[longAt + 1]!.length > column && lines[longAt + 1]![column] !== ' ', 'continuation lines sit under the body column')
+      const edge = lines[longAt]!.lastIndexOf('│', column)
+      assert(lines[longAt + 1]!.slice(edge + 1, column).trim() === '' && lines[longAt + 1]!.length > column && lines[longAt + 1]![column] !== ' ', 'continuation lines sit under the body column')
     }
     if (leg === 'thread') {
       const top = (grid.marks as Array<{ label: string; grid: { c: string }[][] }> | undefined)?.find(mark => mark.label === 'top')?.grid.map(line => line.map(cell => cell.c || ' ').join('')).join('\n') ?? ''
