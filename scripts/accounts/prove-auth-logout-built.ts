@@ -347,6 +347,27 @@ try {
   check('Nous auth file tokens cleared', readJson('.nous-auth.json').tokens === undefined)
   const globalCfg = readJson('.mercury.json')
   check('.mercury.json cleared oauthAccount and preserved onboarding state', globalCfg.oauthAccount === undefined && globalCfg.hasCompletedOnboarding === true, JSON.stringify(globalCfg))
+
+  console.log('\n§4 built `mercury auth logout <family>` — a sign-in that has expired is the user\'s to sign out')
+  const past = Date.now() - 3600_000
+  moonshot.writeMoonshotTokens({ accessToken: 'fixture-kimi-access', refreshToken: '', accessTokenExpiresAtMs: past }, 'global')
+  huggingface.writeHuggingfaceTokens({ accessToken: 'fixture-hf-access', refreshToken: '', accessTokenExpiresAtMs: past }, { username: 'fixture', observedAtMs: Date.now() })
+  xai.writeXaiTokens({ accessToken: 'fixture-xai-access', refreshToken: '', expiresAtMs: past })
+  writeFileSync(credentialsPath(), JSON.stringify({ claudeAiOauth: { accessToken: 'fixture-anthropic-access-token', refreshToken: '', expiresAt: past, scopes: ['user:inference', 'user:profile'], subscriptionType: 'max' } }), { mode: 0o600 })
+  writeFileSync(join(home, '.mercury.json'), JSON.stringify({ ...readJson('.mercury.json'), oauthAccount: { accountUuid: 'fixture-acct-uuid', emailAddress: 'fixture@example.test', organizationUuid: 'fixture-org-uuid' } }))
+  clearOAuthTokenCache()
+  resetProviderSnapshotMemo()
+  const expiredRows = deriveFamilySlotGroups().flatMap(group => group.slots).filter(slot => slot.expired === true)
+  check('four expired rows stand, none of them signed in: claude.ai, Kimi, Hugging Face, Grok', expiredRows.map(slot => slot.family).sort().join(',') === 'anthropic,huggingface,moonshot,xai' && expiredRows.every(slot => !slot.signedIn), JSON.stringify(expiredRows.map(slot => [slot.family, slot.signedIn])))
+  const revokesBefore = revokeCalls.length
+  for (const [family, file] of [['moonshot', '.moonshot-auth.json'], ['huggingface', '.huggingface-auth.json'], ['xai', '.xai-auth.json']] as const) {
+    const out = await runBuiltCli(['auth', 'logout', family])
+    check(`auth logout ${family} exits 0 and removes the expired row`, out.status === 0 && readJson(file).tokens === undefined && !out.stdout.includes('No stored'), `rc=${out.status} stdout=${JSON.stringify(out.stdout)} stderr=${JSON.stringify(out.stderr.slice(0, 200))} tokens=${JSON.stringify(readJson(file).tokens ?? null)}`)
+  }
+  const anthropicOut = await runBuiltCli(['auth', 'logout', 'anthropic'])
+  console.log(`    auth logout anthropic said: ${JSON.stringify(anthropicOut.stdout.trim())}`)
+  check('auth logout anthropic exits 0 and removes the expired claude.ai sign-in', anthropicOut.status === 0 && !existsSync(credentialsPath()) && readJson('.mercury.json').oauthAccount === undefined && !anthropicOut.stdout.includes('No stored'), `rc=${anthropicOut.status} stdout=${JSON.stringify(anthropicOut.stdout)} stderr=${JSON.stringify(anthropicOut.stderr.slice(0, 200))}`)
+  check('an expired claude.ai sign-in holds no refresh token, so nothing is sent to the revoke address', revokeCalls.length === revokesBefore, JSON.stringify(revokeCalls.slice(revokesBefore)))
 } finally {
   oauthServer.stop(true)
   rmSync(scratch, { recursive: true, force: true })

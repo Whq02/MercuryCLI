@@ -227,7 +227,6 @@ const now = Date.now()
 {
   delete process.env.GEMINI_API_KEY
   delete process.env.GOOGLE_API_KEY
-  geminiAccounts.__resetGeminiAccountsForTest()
   geminiAccounts.writeGeminiOauthClientConfig({ clientId: 'client-fixture' })
   writeFileSync(geminiAccounts.geminiAuthPathForDisplay(), JSON.stringify({ version: 1, client: { clientId: 'client-fixture' }, preferredSource: 'oauth', tokens: { accessToken: 'gemini-at-old', refreshToken: 'gemini-rt', accessTokenExpiresAtMs: now + 3_600_000 } }))
   tokenAnswer = { status: 200, body: { access_token: 'gemini-at-new', refresh_token: 'gemini-rt', expires_in: 3600 } }
@@ -236,7 +235,6 @@ const now = Date.now()
   check('gemini OAuth: the turn SETTLES after the refresh (no error message)', o.errors.length === 0 && o.settled.length > 0, `${o.text.slice(0, 200)} — ${honestyRefreshWhere}`)
   check('gemini OAuth: two wire hits, the retry carrying the NEW bearer', hits.length === 2 && hits[0]?.bearer === 'Bearer gemini-at-old' && hits[1]?.bearer === 'Bearer gemini-at-new', `${JSON.stringify(hits)} — ${honestyRefreshWhere}`)
   check('gemini OAuth: exactly ONE token POST to the pinned Google token endpoint', tokenPosts.length === 1 && tokenPosts[0]?.path === '/gemini/oauth/token' && tokenPosts[0].body.includes('grant_type=refresh_token'), `${JSON.stringify(tokenPosts)} — ${honestyRefreshWhere}`)
-  geminiAccounts.__resetGeminiAccountsForTest()
   writeFileSync(geminiAccounts.geminiAuthPathForDisplay(), JSON.stringify({ version: 1, client: { clientId: 'client-fixture' }, preferredSource: 'oauth', tokens: { accessToken: 'gemini-at-stale', refreshToken: 'gemini-rt', accessTokenExpiresAtMs: now + 3_600_000 } }))
   tokenAnswer = { status: 500, body: {} }
   answers = [{ status: 401, body: { error: { code: 401, message: 'invalid credentials', status: 'UNAUTHENTICATED' } } }]
@@ -244,12 +242,10 @@ const now = Date.now()
   check('gemini OAuth: a failed refresh surfaces ONE typed refusal that says the refresh was attempted', failed.errors.length === 1 && failed.errors[0]?.error === 'authentication_failed' && failed.text.includes('refresh was attempted') && failed.text.includes('/logins'), `${failed.text.slice(0, 240)} — ${honestyRefreshWhere}`)
   check('gemini OAuth: no second wire hit with the same refused token', hits.length === 1 && tokenPosts.length === 1, `hits=${hits.length} tokenPosts=${tokenPosts.length} — ${honestyRefreshWhere}`)
   process.env.GEMINI_API_KEY = KEYS.GEMINI_API_KEY
-  geminiAccounts.__resetGeminiAccountsForTest()
   writeFileSync(geminiAccounts.geminiAuthPathForDisplay(), JSON.stringify({ version: 1, client: { clientId: 'client-fixture' } }))
 }
 {
   delete process.env.HF_TOKEN
-  hfAccounts.__resetHuggingfaceAccountsForTest()
   hfAccounts.writeHuggingfaceTokens({ accessToken: 'hf-at-old', refreshToken: 'hf-rt', accessTokenExpiresAtMs: now + 3_600_000 })
   tokenAnswer = { status: 200, body: { access_token: 'hf-at-new', refresh_token: 'hf-rt', expires_in: 3600 } }
   answers = [{ status: 401, body: { error: 'Invalid username or password.' } }, 'ok']
@@ -265,7 +261,6 @@ const now = Date.now()
 }
 {
   delete process.env.OPENAI_API_KEY
-  openaiAccounts.__resetOpenaiAccountsForTest()
   const b64url = (v: unknown): string => Buffer.from(JSON.stringify(v)).toString('base64url')
   const fakeJwt = (expSecFromNow: number): string => `h.${b64url({ exp: Math.floor(Date.now() / 1000) + expSecFromNow })}.s`
   const oldAccess = fakeJwt(3600)
@@ -279,7 +274,6 @@ const now = Date.now()
   check('openai subscription: exactly ONE token POST to the pinned issuer', tokenPosts.length === 1 && tokenPosts[0]?.path === '/openai/auth/oauth/token', `${JSON.stringify(tokenPosts.map(t => t.path))} — ${honestyRefreshWhere}`)
   answers = [{ status: 401, body: { error: { message: 'Invalid token', code: 'invalid_token' } } }]
   tokenAnswer = { status: 500, body: {} }
-  openaiAccounts.__resetOpenaiAccountsForTest()
   writeFileSync(openaiAccounts.openaiAuthPathForDisplay(), JSON.stringify({ version: 1, preferredSource: 'chatgpt-subscription', tokens: { idToken: '', accessToken: oldAccess, refreshToken: 'rt-1', accessTokenExpiresAtMs: now + 3_600_000 } }))
   const failed = await drive('gpt-5.6-sol')
   check('openai subscription: a failed refresh surfaces ONE typed refusal naming /logins and the attempted refresh', failed.errors.length === 1 && failed.errors[0]?.error === 'authentication_failed' && failed.text.includes('/logins') && failed.text.includes('refresh was attempted'), `${failed.text.slice(0, 240)} — ${honestyRefreshWhere}`)

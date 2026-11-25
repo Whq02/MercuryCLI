@@ -1,21 +1,12 @@
 import { createServer, type Server } from 'node:http'
 import { flagEnv } from '../../../platform/substrate/flagRegistry.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
-import {
-  chmodSync,
-  closeSync,
-  mkdirSync,
-  openSync,
-  readFileSync,
-  unlinkSync,
-  writeSync,
-} from 'node:fs'
+import { chmodSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../../../platform/substrate/durablePublish.js'
 import { getAuthConfigHomeDir } from '../../../platform/environment/envUtils.js'
 import { errorMessageWithCause } from '../../../platform/errors/errors.js'
 import { refuseProofWriteIntoAccountStore } from '../proofHomeGuard.js'
-import { pollUntil } from '../../../platform/async/deadline.js'
 import { sleep } from '../../../platform/async/sleep.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../platform/network/proxy.js'
 import { getUserAgent } from '../requestHeaders.js'
@@ -29,6 +20,7 @@ import {
 import { credentialFileUnwritten, credentialJsonToWriteOver, readStoredOpenaiApiKey } from '../../sign-in/account-ledger/providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { recordSignIn, noteCredentialChange } from '../../sign-in/account-ledger/signInLedger.js'
+import { lockedRefresh } from '../../sign-in/lifecycle/lockedRefresh.js'
 import { forgetOpenaiLimitSource } from './openaiLimitState.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
 import { hostEnv } from '../../../platform/environment/hostEnv.js'
@@ -293,12 +285,7 @@ export function resolveOpenaiAccount(
 
 
 const REFRESH_SKEW_MS = 5 * 60_000
-const REFRESH_LOCK_STALE_MS = 30_000
-const REFRESH_WAIT_TOTAL_MS = 8_000
-const REFRESH_WAIT_STEP_MS = 200
-let refreshInFlight: Promise<OpenaiStoredTokens | undefined> | undefined
-
-const knownDeadRefreshTokens = new Set<string>()
+const refreshSubscription = lockedRefresh<OpenaiStoredTokens>()
 
 function isTerminalGrantRefusal(error: unknown): boolean {
   const e = error as { httpStatus?: number; oauthErrorCode?: string } | null
@@ -308,23 +295,6 @@ function isTerminalGrantRefusal(error: unknown): boolean {
     e.httpStatus < 500 &&
     e.oauthErrorCode === 'invalid_grant'
   )
-}
-
-function blankDeadRefreshTokenOnDisk(usedRefreshToken: string): void {
-  try {
-    if (readAuthFile()?.tokens?.refreshToken !== usedRefreshToken) return
-    writeAuthFile(file => {
-      const stored = file.tokens
-      if (!stored || stored.refreshToken !== usedRefreshToken) return file
-      return { ...file, tokens: { ...stored, refreshToken: '' } }
-    })
-  } catch (error) {
-    passedOver(error)
-  }
-}
-
-function refreshLockPath(): string {
-  return `${authFilePath()}.refresh-lock`
 }
 
 function tokensFresh(tokens: OpenaiStoredTokens | undefined, nowMs: number): boolean {
@@ -337,54 +307,6 @@ function tokensFresh(tokens: OpenaiStoredTokens | undefined, nowMs: number): boo
 
 export function openaiSubscriptionTokenFresh(nowMs: number = Date.now()): boolean {
   return tokensFresh(readAuthFile()?.tokens, nowMs)
-}
-
-function acquireRefreshLock(nowMs: number): boolean {
-  const path = refreshLockPath()
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const fd = openSync(path, 'wx', 0o600)
-      try {
-        writeSync(fd, `${process.pid} ${nowMs}\n`)
-      } finally {
-        closeSync(fd)
-      }
-      return true
-    } catch {
-      try {
-        const stamp = readFileSync(path, 'utf8')
-        const stampedAt = Number(stamp.trim().split(/\s+/)[1])
-        if (Number.isFinite(stampedAt) && nowMs - stampedAt > REFRESH_LOCK_STALE_MS) {
-          unlinkSync(path)
-          continue
-        }
-      } catch (error) {
-        passedOver(error)
-      }
-      return false
-    }
-  }
-  return false
-}
-
-export function refreshLockStampedBy(path: string, pid: number): boolean {
-  try {
-    const holder = Number(readFileSync(path, 'utf8').trim().split(/\s+/)[0])
-    return !Number.isFinite(holder) || holder === pid
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
-}
-
-function releaseRefreshLock(): void {
-  const path = refreshLockPath()
-  if (!refreshLockStampedBy(path, process.pid)) return
-  try {
-    unlinkSync(path)
-  } catch (error) {
-    passedOver(error)
-  }
 }
 
 async function postTokenEndpoint(
@@ -439,77 +361,53 @@ export async function currentSubscriptionTokens(opts?: {
   now?: () => number
   readOnly?: boolean
   force?: boolean
+  signal?: AbortSignal
 }): Promise<OpenaiStoredTokens | undefined> {
   const env = opts?.env ?? hostEnv()
   const now = opts?.now ?? Date.now
   const tokens = readAuthFile()?.tokens
   if (!tokens?.refreshToken) return undefined
   if (opts?.readOnly) return tokensFresh(tokens, now()) && !opts.force ? tokens : undefined
-  const adoptable = (latest: OpenaiStoredTokens | undefined): boolean =>
-    tokensFresh(latest, now()) && (!opts?.force || latest?.accessToken !== tokens.accessToken)
-  if (adoptable(tokens)) return tokens
-  if (knownDeadRefreshTokens.has(tokens.refreshToken)) return undefined
-  if (refreshInFlight) return refreshInFlight
-  refreshInFlight = (async () => {
-    let locked = false
-    let usedRefreshToken: string | undefined
-    try {
-      locked = acquireRefreshLock(now())
-      if (!locked) {
-        const deadline = now() + REFRESH_WAIT_TOTAL_MS
-        const adopted = await pollUntil<OpenaiStoredTokens | null, null>(
-          () => {
-            const latest = readAuthFile()?.tokens
-            if (adoptable(latest)) return latest
-            if (now() >= deadline) return null
-            return undefined
-          },
-          REFRESH_WAIT_STEP_MS,
-          REFRESH_WAIT_TOTAL_MS,
-          () => null,
-          { unref: true },
-        )
-        if (adopted) return adopted
-      }
-      const latest = readAuthFile()?.tokens
-      if (adoptable(latest)) return latest
-      const base = latest?.refreshToken ? latest : tokens
-      if (knownDeadRefreshTokens.has(base.refreshToken)) return undefined
-      usedRefreshToken = base.refreshToken
+  const answer = await refreshSubscription({
+    path: authFilePath(),
+    exchangeDeadlineMs: LOGIN_EXCHANGE_TIMEOUT_MS,
+    force: opts?.force === true,
+    ...(opts?.signal ? { signal: opts.signal } : {}),
+    read: () => readAuthFile()?.tokens,
+    write: pair => writeAuthFile(file => ({ ...file, tokens: pair, lastRefreshMs: now() })),
+    fresh: pair => tokensFresh(pair, now()),
+    exchange: async old => {
       const body = new URLSearchParams({
         grant_type: 'refresh_token',
         client_id: OPENAI_OAUTH_CLIENT_ID,
-        refresh_token: base.refreshToken,
+        refresh_token: old.refreshToken,
       })
-      const raw = await postTokenEndpoint(body, opts?.fetchImpl ?? getApiFetch(), env)
-      const next = tokensFromExchange({
-        id_token: raw.id_token || base.idToken,
-        access_token: raw.access_token,
-        refresh_token: raw.refresh_token || base.refreshToken,
-      })
-      writeAuthFile(f => ({ ...f, tokens: next, lastRefreshMs: now() }))
-      return next
-    } catch (error) {
-      const latest = readAuthFile()?.tokens
-      if (
-        latest?.refreshToken &&
-        (tokensFresh(latest, now()) ||
-          (usedRefreshToken !== undefined && latest.refreshToken !== usedRefreshToken))
-      ) {
-        return latest
+      try {
+        const raw = await postTokenEndpoint(body, opts?.fetchImpl ?? getApiFetch(), env)
+        return {
+          state: 'refreshed',
+          pair: tokensFromExchange({
+            id_token: raw.id_token || old.idToken,
+            access_token: raw.access_token,
+            refresh_token: raw.refresh_token || old.refreshToken,
+          }),
+        }
+      } catch (error) {
+        if (isTerminalGrantRefusal(error)) return { state: 'dead', error }
+        throw error
       }
-      if (usedRefreshToken !== undefined && isTerminalGrantRefusal(error)) {
-        knownDeadRefreshTokens.add(usedRefreshToken)
-        blankDeadRefreshTokenOnDisk(usedRefreshToken)
-        return undefined
-      }
-      return latest?.refreshToken ? latest : tokens
-    } finally {
-      if (locked) releaseRefreshLock()
-      refreshInFlight = undefined
-    }
-  })()
-  return refreshInFlight
+    },
+  })
+  switch (answer.state) {
+    case 'refreshed':
+    case 'current':
+    case 'busy':
+    case 'failed':
+      return answer.pair
+    case 'absent':
+    case 'dead':
+      return undefined
+  }
 }
 
 export function disconnectOpenaiSubscription(): void {
@@ -888,6 +786,7 @@ export async function resolveOpenaiRequestAuth(opts?: {
   sourceKind?: OpenaiAccountSourceKind
   forceRefresh?: boolean
   readOnly?: boolean
+  signal?: AbortSignal
 }): Promise<OpenaiRequestAuth | undefined> {
   const env = opts?.env ?? hostEnv()
   const account = resolveOpenaiAccount(env)
@@ -912,6 +811,7 @@ export async function resolveOpenaiRequestAuth(opts?: {
     env,
     ...(opts?.forceRefresh ? { force: true } : {}),
     ...(opts?.readOnly ? { readOnly: true } : {}),
+    ...(opts?.signal ? { signal: opts.signal } : {}),
   })
   if (!tokens?.accessToken) return undefined
   return {
@@ -930,9 +830,4 @@ export async function resolveOpenaiRequestAuth(opts?: {
       ...(tokens.accountId ? { 'ChatGPT-Account-Id': tokens.accountId } : {}),
     },
   }
-}
-
-export function __resetOpenaiAccountsForTest(): void {
-  refreshInFlight = undefined
-  knownDeadRefreshTokens.clear()
 }

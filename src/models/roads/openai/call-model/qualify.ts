@@ -1,3 +1,4 @@
+import { withDeadline } from '../../../../platform/async/deadline.js'
 import { modelNotOfferedByCatalogue } from '../../catalogueAdmission.js'
 import {
   type OpenaiRequestAuth,
@@ -17,9 +18,10 @@ type QualificationOutcome =
 export async function qualifyRequestedModel(
   requestedId: string,
   auth: OpenaiRequestAuth,
+  signal: AbortSignal,
 ): Promise<QualificationOutcome> {
   const sourceKind = auth.account.kind
-  const snapshot = await refreshOpenaiCatalogue(sourceKind)
+  const snapshot = await withDeadline(refreshOpenaiCatalogue(sourceKind), Number.POSITIVE_INFINITY, () => null, { signal, onAbort: () => null })
   if (requestedId === 'gpt') {
     const candidates = qualifiedGptCandidates('specialist', sourceKind)
     const head = candidates[0]

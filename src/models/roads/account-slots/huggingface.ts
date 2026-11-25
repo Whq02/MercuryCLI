@@ -42,7 +42,7 @@ export function huggingfaceSlots(reads: AccountSlotReads): AccountSlot[] {
       envPinned: false,
       signedIn: !expired,
       ...(expired
-        ? { stateNote: 'access token expired with no refresh route — /logins reconnects Hugging Face' }
+        ? { expired: true, stateNote: 'access token expired with no refresh route — /logins reconnects Hugging Face' }
         : envKey
           ? { stateNote: 'shadowed — the environment variable wins' }
           : {}),

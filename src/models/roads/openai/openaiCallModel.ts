@@ -63,6 +63,7 @@ async function* openaiTurn(
   if (openaiLimitWindow(account.kind).state === 'limited') await refreshProviderUsage('openai', { force: true, reason: 'operator' })
   const opening: TurnOpening = { params, deferralFormReissued, resumeTrimReissued, systemPrompt, tools, signal, options, requestedId, conversation4xxKey, messages, prior4xxCode, account }
   const prepared = await prepareOpenaiTurn(opening)
+  if (signal.aborted) return
   if ('refusal' in prepared) {
     yield prepared.refusal
     return
@@ -73,7 +74,7 @@ async function* openaiTurn(
   while (retries.next()) {
     if (retries.attempt > 1) {
       await refreshProviderUsage('openai', { force: true, reason: 'operator' })
-      const refreshed = await resolveOpenaiRequestAuth({ sourceKind: turn.auth.account.kind })
+      const refreshed = await resolveOpenaiRequestAuth({ sourceKind: turn.auth.account.kind, signal })
       if (refreshed) turn.auth = refreshed
     }
     attemptStartedAtMs = Date.now()
@@ -117,6 +118,7 @@ async function* openaiTurn(
         const fresh = await resolveOpenaiRequestAuth({
           sourceKind: 'chatgpt-subscription',
           forceRefresh: true,
+          signal,
         }).catch(passedOverAs(undefined))
         if (signal.aborted) return
         if (fresh && fresh.headers.authorization !== turn.auth.headers.authorization) {

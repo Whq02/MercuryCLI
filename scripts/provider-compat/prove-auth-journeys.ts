@@ -656,7 +656,6 @@ function jsonFetch(
 }
 
 {
-  geminiAccounts.__resetGeminiAccountsForTest()
   geminiAccounts.writeGeminiOauthClientConfig({ clientId: 'client-fixture' })
   writeFileSync(
     geminiAccounts.geminiAuthPathForDisplay(),
@@ -689,7 +688,6 @@ function jsonFetch(
 }
 
 {
-  geminiAccounts.__resetGeminiAccountsForTest()
   writeFileSync(
     geminiAccounts.geminiAuthPathForDisplay(),
     JSON.stringify({
@@ -702,9 +700,15 @@ function jsonFetch(
   const fetchImpl = jsonFetch(() => ({ status: 400, body: { error: 'invalid_grant' } }), counter)
   const result = await geminiAccounts.currentGeminiTokens({ fetchImpl })
   check(
-    'gemini: invalid_grant drops the tokens (the honest signed-out state)',
+    'gemini: invalid_grant ends the sign-in (the honest signed-out state)',
     result === undefined && !geminiAccounts.geminiOauthConnected(),
-    'currentGeminiTokens in src/models/roads/gemini/geminiAccounts.ts must clear the stored tokens on an invalid_grant answer',
+    'currentGeminiTokens in src/models/roads/gemini/geminiAccounts.ts must answer no tokens and read disconnected on an invalid_grant answer',
+  )
+  check(
+    'gemini: the dead refreshToken is BLANKED on disk; the row keeps its access token',
+    (JSON.parse(readFileSync(geminiAccounts.geminiAuthPathForDisplay(), 'utf8')) as { tokens?: { accessToken?: string; refreshToken?: string } }).tokens?.refreshToken === '' &&
+      (JSON.parse(readFileSync(geminiAccounts.geminiAuthPathForDisplay(), 'utf8')) as { tokens?: { accessToken?: string } }).tokens?.accessToken === 'at-old',
+    'currentGeminiTokens in src/models/roads/gemini/geminiAccounts.ts must blank only the refreshToken after invalid_grant, as the OpenAI road does',
   )
   check(
     'gemini: the operator client config SURVIVES the drop (infrastructure, not a credential)',
@@ -716,7 +720,6 @@ function jsonFetch(
 }
 
 {
-  geminiAccounts.__resetGeminiAccountsForTest()
   writeFileSync(
     geminiAccounts.geminiAuthPathForDisplay(),
     JSON.stringify({
@@ -736,7 +739,6 @@ function jsonFetch(
 }
 
 {
-  openaiAccounts.__resetOpenaiAccountsForTest()
   writeFileSync(
     openaiAccounts.openaiAuthPathForDisplay(),
     JSON.stringify({
@@ -773,7 +775,6 @@ function jsonFetch(
 }
 
 {
-  openaiAccounts.__resetOpenaiAccountsForTest()
   writeFileSync(
     openaiAccounts.openaiAuthPathForDisplay(),
     JSON.stringify({
@@ -835,7 +836,6 @@ function jsonFetch(
 }
 
 {
-  openaiAccounts.__resetOpenaiAccountsForTest()
   writeFileSync(
     openaiAccounts.openaiAuthPathForDisplay(),
     JSON.stringify({
@@ -872,7 +872,6 @@ for (const [faultLabel, faultResponse] of [
   ['HTTP 500 (even with a verdict-shaped body)', { status: 500, body: { error: 'invalid_grant' } }],
   ['HTTP 400 WITHOUT the invalid_grant verdict', { status: 400, body: { error: 'temporarily_unavailable' } }],
 ] as const) {
-  openaiAccounts.__resetOpenaiAccountsForTest()
   writeFileSync(
     openaiAccounts.openaiAuthPathForDisplay(),
     JSON.stringify({
@@ -899,7 +898,6 @@ for (const [faultLabel, faultResponse] of [
     `posts=${counter.posts}; currentSubscriptionTokens in src/models/roads/openai/openaiAccounts.ts must keep the stored set unless the answer is HTTP 400 with invalid_grant`,
   )
   arm = 'recover'
-  openaiAccounts.__resetOpenaiAccountsForTest()
   const recovered = await openaiAccounts.currentSubscriptionTokens({ fetchImpl })
   check(
     `openai: after ${faultLabel} the next call RETRIES and adopts the rotation`,
@@ -1049,7 +1047,6 @@ for (const [faultLabel, faultResponse] of [
 }
 
 {
-  huggingfaceAccounts.__resetHuggingfaceAccountsForTest()
   huggingfaceAccounts.writeHuggingfaceTokens({ accessToken: 'hf_at', refreshToken: 'hf_rt' })
   const io = {
     fetchImpl: jsonFetch(() => ({ status: 400, body: { error: 'invalid_grant' } }), { posts: 0 }),
@@ -1064,7 +1061,6 @@ for (const [faultLabel, faultResponse] of [
     result === undefined && huggingfaceAccounts.huggingfaceStoredTokens() === undefined,
     'refreshHuggingfaceTokens in src/models/roads/huggingface/huggingfaceAccounts.ts must clear the stored tokens when the refresh is refused with invalid_grant',
   )
-  huggingfaceAccounts.__resetHuggingfaceAccountsForTest()
   huggingfaceAccounts.writeHuggingfaceTokens({ accessToken: 'hf_at2', refreshToken: 'hf_rt2' })
   const failIo = {
     fetchImpl: (async () => {
@@ -1085,7 +1081,6 @@ for (const [faultLabel, faultResponse] of [
 }
 
 {
-  huggingfaceAccounts.__resetHuggingfaceAccountsForTest()
   huggingfaceAccounts.writeHuggingfaceTokens({
     accessToken: 'hf_at_expired',
     refreshToken: 'hf_rt_live',

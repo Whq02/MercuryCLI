@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { existsSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmdirSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -25,10 +25,10 @@ for (const key of ['OPENAI_API_KEY', 'MERCURY_CONFIG_DIR', 'MERCURY_AUTH_SCOPE_D
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-openai-auth-'))
 
 const accounts = await import('../../src/models/roads/openai/openaiAccounts.js')
-const { currentSubscriptionTokens, openaiAuthPathForDisplay, __resetOpenaiAccountsForTest } = accounts
+const { currentSubscriptionTokens, openaiAuthPathForDisplay } = accounts
 
 const authPath = openaiAuthPathForDisplay()
-const lockPath = `${authPath}.refresh-lock`
+const lockPath = `${authPath}.lock`
 
 function fakeJwt(expMs: number): string {
   const payload = Buffer.from(JSON.stringify({ exp: Math.floor(expMs / 1000) })).toString('base64url')
@@ -76,7 +76,6 @@ const throwingFetch: typeof fetch = (async () => {
 }) as unknown as typeof fetch
 
 {
-  __resetOpenaiAccountsForTest()
   seedAuthFile({ refreshToken: 'RT1', accessExpMs: Date.now() - 1000, extra: { foreignKey: 'preserved' } })
   const counter = { posts: 0 }
   const tokens = await currentSubscriptionTokens({ fetchImpl: rotatingFetch(counter, 'RT2') })
@@ -91,31 +90,26 @@ const throwingFetch: typeof fetch = (async () => {
 }
 
 {
-  __resetOpenaiAccountsForTest()
   seedAuthFile({ refreshToken: 'RT3', accessExpMs: Date.now() + 60 * 60_000 })
   const tokens = await currentSubscriptionTokens({ fetchImpl: throwingFetch })
   check('fresh disk tokens adopted without any refresh POST', tokens?.refreshToken === 'RT3')
 }
 
 {
-  __resetOpenaiAccountsForTest()
   seedAuthFile({ refreshToken: 'RT4', accessExpMs: Date.now() - 1000 })
-  writeFileSync(lockPath, `99999 ${Date.now()}\n`, { mode: 0o600 })
+  mkdirSync(lockPath)
   setTimeout(() => {
     seedAuthFile({ refreshToken: 'RT5', accessExpMs: Date.now() + 60 * 60_000 })
-    try {
-      require('node:fs').unlinkSync(lockPath)
-    } catch {
-    }
+    rmdirSync(lockPath)
   }, 400)
   const tokens = await currentSubscriptionTokens({ fetchImpl: throwingFetch })
   check("lock loser adopts the winner's rotation (zero POSTs)", tokens?.refreshToken === 'RT5')
 }
 
 {
-  __resetOpenaiAccountsForTest()
   seedAuthFile({ refreshToken: 'RT6', accessExpMs: Date.now() - 1000 })
-  writeFileSync(lockPath, `99999 ${Date.now() - 120_000}\n`, { mode: 0o600 })
+  mkdirSync(lockPath)
+  utimesSync(lockPath, new Date(Date.now() - 120_000), new Date(Date.now() - 120_000))
   const counter = { posts: 0 }
   const tokens = await currentSubscriptionTokens({ fetchImpl: rotatingFetch(counter, 'RT7') })
   check('stale lock taken over — refresh proceeds', counter.posts === 1 && tokens?.refreshToken === 'RT7')
@@ -123,7 +117,6 @@ const throwingFetch: typeof fetch = (async () => {
 }
 
 {
-  __resetOpenaiAccountsForTest()
   seedAuthFile({ refreshToken: 'RT8', accessExpMs: Date.now() - 1000 })
   const midFlightWinnerFetch: typeof fetch = (async () => {
     seedAuthFile({ refreshToken: 'RT9', accessExpMs: Date.now() + 60 * 60_000 })
@@ -134,7 +127,6 @@ const throwingFetch: typeof fetch = (async () => {
 }
 
 {
-  __resetOpenaiAccountsForTest()
   require('node:fs').rmSync(authPath, { force: true })
   const tokens = await currentSubscriptionTokens({ fetchImpl: throwingFetch })
   check('no stored subscription ⇒ undefined (never a throw)', tokens === undefined)

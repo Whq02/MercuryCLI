@@ -19,6 +19,7 @@ import {
 import { credentialFileUnwritten, credentialJsonToWriteOver, probeCredentialJson, readStoredGeminiApiKey } from '../../sign-in/account-ledger/providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { recordSignIn, noteCredentialChange } from '../../sign-in/account-ledger/signInLedger.js'
+import { lockedRefresh } from '../../sign-in/lifecycle/lockedRefresh.js'
 import { flagEnv } from '../../../platform/substrate/flagRegistry.js'
 import {
   ANTIGRAVITY_OAUTH_CLIENT_ID,
@@ -99,13 +100,18 @@ interface GeminiAuthFile {
   [k: string]: unknown
 }
 
-function planOf(file: GeminiAuthFile | null): GeminiPlanStored | undefined {
+function storedPlanOf(file: GeminiAuthFile | null): GeminiPlanStored | undefined {
   const plan = file?.plan
   if (!plan || typeof plan !== 'object') return undefined
   const tokens = plan.tokens
-  if (!tokens || typeof tokens.accessToken !== 'string' || typeof tokens.refreshToken !== 'string' || tokens.refreshToken === '') return undefined
+  if (!tokens || typeof tokens.accessToken !== 'string' || typeof tokens.refreshToken !== 'string') return undefined
   if (typeof plan.projectId !== 'string' || plan.projectId === '') return undefined
   return plan
+}
+
+function planOf(file: GeminiAuthFile | null): GeminiPlanStored | undefined {
+  const plan = storedPlanOf(file)
+  return plan?.tokens.refreshToken ? plan : undefined
 }
 
 function authFilePath(): string {
@@ -207,14 +213,26 @@ export function geminiPlanConnected(): boolean {
   return planOf(readAuthFile()) !== undefined
 }
 
-export function geminiPlanFacts(): GeminiPlanFacts | undefined {
-  const plan = planOf(readAuthFile())
-  if (!plan) return undefined
+function planFactsOf(plan: GeminiPlanStored): GeminiPlanFacts {
   return {
     ...(plan.email ? { email: plan.email } : {}),
     ...(plan.tier ? { tier: plan.tier } : {}),
     ...(plan.tierReadAtMs !== undefined ? { tierReadAtMs: plan.tierReadAtMs } : {}),
     projectId: plan.projectId,
+  }
+}
+
+export function geminiPlanFacts(): GeminiPlanFacts | undefined {
+  const plan = planOf(readAuthFile())
+  return plan ? planFactsOf(plan) : undefined
+}
+
+export function geminiExpiredSignIns(): { plan?: GeminiPlanFacts; oauth: boolean } {
+  const file = readAuthFile()
+  const plan = storedPlanOf(file)
+  return {
+    ...(plan && plan.tokens.refreshToken === '' ? { plan: planFactsOf(plan) } : {}),
+    oauth: file?.tokens?.refreshToken === '',
   }
 }
 
@@ -341,7 +359,8 @@ export function resolveGeminiAccount(
 
 
 const REFRESH_SKEW_MS = 5 * 60_000
-let refreshInFlight: Promise<GeminiStoredTokens | undefined> | undefined
+const refreshOauth = lockedRefresh<GeminiStoredTokens>()
+const refreshPlan = lockedRefresh<GeminiStoredTokens>()
 
 function tokensFresh(tokens: GeminiStoredTokens | undefined, nowMs: number): boolean {
   return Boolean(
@@ -407,106 +426,78 @@ function tokensFromTokenResponse(
   }
 }
 
-export async function currentGeminiTokens(opts?: {
+interface GoogleRefreshOptions {
   fetchImpl?: typeof fetch
   env?: NodeJS.ProcessEnv
   now?: () => number
   force?: boolean
-}): Promise<GeminiStoredTokens | undefined> {
-  const env = opts?.env ?? hostEnv()
-  const now = opts?.now ?? Date.now
-  const tokens = readAuthFile()?.tokens
-  if (!tokens?.refreshToken) return undefined
-  if (!opts?.force && tokensFresh(tokens, now())) return tokens
-  if (refreshInFlight) return refreshInFlight
-  refreshInFlight = (async () => {
-    try {
-      const latest = readAuthFile()?.tokens
-      if (
-        tokensFresh(latest, now()) &&
-        (!opts?.force || latest?.accessToken !== tokens.accessToken)
-      ) {
-        return latest
-      }
-      const client = geminiOauthClientConfig(env)
-      if (!client) return undefined
-      const base = latest?.refreshToken ? latest : tokens
-      const body = new URLSearchParams({
-        grant_type: 'refresh_token',
-        refresh_token: base.refreshToken,
-        client_id: client.clientId,
-        ...(client.clientSecret ? { client_secret: client.clientSecret } : {}),
-      })
-      const raw = await postGoogleToken(body, opts?.fetchImpl ?? getApiFetch(), env)
-      const next = tokensFromTokenResponse(raw, base.refreshToken, now)
-      writeAuthFile(f => ({ ...f, tokens: next, lastRefreshMs: now() }))
-      return next
-    } catch (error) {
-      if (error instanceof Error && /\binvalid_grant\b/.test(error.message)) {
-        writeAuthFile(file => {
-          const next = { ...file }
-          delete next.tokens
-          delete next.lastRefreshMs
-          return next
-        })
-        return undefined
-      }
-      return readAuthFile()?.tokens ?? tokens
-    } finally {
-      refreshInFlight = undefined
-    }
-  })()
-  return refreshInFlight
+  signal?: AbortSignal
 }
 
-let planRefreshInFlight: Promise<GeminiStoredTokens | undefined> | undefined
-
-export async function currentGeminiPlanTokens(opts?: {
-  fetchImpl?: typeof fetch
-  env?: NodeJS.ProcessEnv
-  now?: () => number
-  force?: boolean
-}): Promise<GeminiStoredTokens | undefined> {
+async function refreshedGoogleTokens(
+  refresh: ReturnType<typeof lockedRefresh<GeminiStoredTokens>>,
+  opts: GoogleRefreshOptions | undefined,
+  read: () => GeminiStoredTokens | undefined,
+  stored: (file: GeminiAuthFile, pair: GeminiStoredTokens, nowMs: number) => GeminiAuthFile,
+  client: Record<string, string> | undefined,
+): Promise<GeminiStoredTokens | undefined> {
   const env = opts?.env ?? hostEnv()
   const now = opts?.now ?? Date.now
-  const plan = planOf(readAuthFile())
-  if (!plan) return undefined
-  if (!opts?.force && tokensFresh(plan.tokens, now())) return plan.tokens
-  if (planRefreshInFlight) return planRefreshInFlight
-  planRefreshInFlight = (async () => {
-    try {
-      const latest = planOf(readAuthFile())
-      if (!latest) return undefined
-      if (tokensFresh(latest.tokens, now()) && (!opts?.force || latest.tokens.accessToken !== plan.tokens.accessToken)) return latest.tokens
-      const body = new URLSearchParams({
-        grant_type: 'refresh_token',
-        refresh_token: latest.tokens.refreshToken,
-        client_id: ANTIGRAVITY_OAUTH_CLIENT_ID,
-        client_secret: ANTIGRAVITY_OAUTH_CLIENT_SECRET,
-      })
-      const raw = await postGoogleToken(body, opts?.fetchImpl ?? getApiFetch(), env)
-      const next = tokensFromTokenResponse(raw, latest.tokens.refreshToken, now)
-      writeAuthFile(f => {
-        const kept = planOf(f) ?? latest
-        return { ...f, plan: { ...kept, tokens: next, lastRefreshMs: now() } }
-      })
-      return next
-    } catch (error) {
-      if (error instanceof Error && /\binvalid_grant\b/.test(error.message)) {
-        writeAuthFile(file => {
-          const next = { ...file }
-          delete next.plan
-          if (next.preferredSource === 'plan') delete next.preferredSource
-          return next
-        })
-        return undefined
+  const answer = await refresh({
+    path: authFilePath(),
+    exchangeDeadlineMs: LOGIN_EXCHANGE_TIMEOUT_MS,
+    force: opts?.force === true,
+    ...(opts?.signal ? { signal: opts.signal } : {}),
+    read,
+    write: pair => writeAuthFile(file => stored(file, pair, now())),
+    fresh: pair => tokensFresh(pair, now()),
+    exchange: async old => {
+      if (!client) throw new Error('no Google OAuth client is configured')
+      const body = new URLSearchParams({ grant_type: 'refresh_token', refresh_token: old.refreshToken, ...client })
+      try {
+        const raw = await postGoogleToken(body, opts?.fetchImpl ?? getApiFetch(), env)
+        return { state: 'refreshed', pair: tokensFromTokenResponse(raw, old.refreshToken, now) }
+      } catch (error) {
+        if (error instanceof Error && /\binvalid_grant\b/.test(error.message)) return { state: 'dead', error }
+        throw error
       }
-      return planOf(readAuthFile())?.tokens ?? plan.tokens
-    } finally {
-      planRefreshInFlight = undefined
-    }
-  })()
-  return planRefreshInFlight
+    },
+  })
+  switch (answer.state) {
+    case 'refreshed':
+    case 'current':
+      return answer.pair
+    case 'busy':
+    case 'failed':
+      return client ? answer.pair : undefined
+    case 'absent':
+    case 'dead':
+      return undefined
+  }
+}
+
+export async function currentGeminiTokens(opts?: GoogleRefreshOptions): Promise<GeminiStoredTokens | undefined> {
+  const client = geminiOauthClientConfig(opts?.env ?? hostEnv())
+  return refreshedGoogleTokens(
+    refreshOauth,
+    opts,
+    () => readAuthFile()?.tokens,
+    (file, pair, nowMs) => ({ ...file, tokens: pair, lastRefreshMs: nowMs }),
+    client && { client_id: client.clientId, ...(client.clientSecret ? { client_secret: client.clientSecret } : {}) },
+  )
+}
+
+export async function currentGeminiPlanTokens(opts?: GoogleRefreshOptions): Promise<GeminiStoredTokens | undefined> {
+  return refreshedGoogleTokens(
+    refreshPlan,
+    opts,
+    () => planOf(readAuthFile())?.tokens,
+    (file, pair, nowMs) => {
+      const kept = storedPlanOf(file)
+      return kept ? { ...file, plan: { ...kept, tokens: pair, lastRefreshMs: nowMs } } : file
+    },
+    { client_id: ANTIGRAVITY_OAUTH_CLIENT_ID, client_secret: ANTIGRAVITY_OAUTH_CLIENT_SECRET },
+  )
 }
 
 export function disconnectGeminiOauth(): void {
@@ -532,6 +523,7 @@ export async function resolveGeminiRequestAuth(opts?: {
   env?: NodeJS.ProcessEnv
   sourceKind?: GeminiSourceKind
   forceRefresh?: boolean
+  signal?: AbortSignal
 }): Promise<GeminiRequestAuth | undefined> {
   const env = opts?.env ?? hostEnv()
   const account = resolveGeminiAccount(env)
@@ -542,6 +534,7 @@ export async function resolveGeminiRequestAuth(opts?: {
       ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}),
       env,
       ...(opts?.forceRefresh ? { force: true } : {}),
+      ...(opts?.signal ? { signal: opts.signal } : {}),
     })
     const facts = geminiPlanFacts()
     if (!tokens?.accessToken || !facts) return undefined
@@ -576,6 +569,7 @@ export async function resolveGeminiRequestAuth(opts?: {
     ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}),
     env,
     ...(opts?.forceRefresh ? { force: true } : {}),
+    ...(opts?.signal ? { signal: opts.signal } : {}),
   })
   if (!tokens?.accessToken) return undefined
   return {
@@ -995,9 +989,4 @@ export async function rereadGeminiPlanTierOnShow(opts?: { fetchImpl?: typeof fet
   const now = (opts?.now ?? Date.now)()
   if (opts?.force !== true && before.tierReadAtMs !== undefined && now - before.tierReadAtMs < usagePollTtlMs()) return geminiPlanFacts()
   return rereadGeminiPlanTier(opts)
-}
-
-export function __resetGeminiAccountsForTest(): void {
-  refreshInFlight = undefined
-  planRefreshInFlight = undefined
 }

@@ -39,7 +39,6 @@ process.env.MERCURY_GEMINI_OAUTH_TOKEN_BASE = 'https://fixture.invalid/token'
 const accounts = await import('../../src/models/roads/gemini/geminiAccounts.js')
 const secrets = await import('../../src/models/sign-in/account-ledger/providerSecrets.js')
 const {
-  __resetGeminiAccountsForTest,
   beginGeminiBrowserConnect,
   currentGeminiTokens,
   disconnectGeminiOauth,
@@ -174,7 +173,6 @@ const {
 }
 
 {
-  __resetGeminiAccountsForTest()
   const mint: typeof fetch = (async () =>
     new Response(
       JSON.stringify({ access_token: 'OLD', refresh_token: 'RT-1', expires_in: -100 }),
@@ -199,14 +197,12 @@ const {
   const tokens = await currentGeminiTokens({ fetchImpl: refreshFetch })
   check('expired set refreshed ONCE; refresh token retained (no rotation)', counter.posts === 1 && tokens?.accessToken === 'NEW' && tokens?.refreshToken === 'RT-1', `posts=${counter.posts} tokens=${JSON.stringify(tokens)}; currentGeminiTokens in src/models/roads/gemini/geminiAccounts.ts must refresh an expired set once and keep the refresh token`)
 
-  __resetGeminiAccountsForTest()
   const throwingFetch: typeof fetch = (async () => {
     throw new Error('prover: network must not be touched on this leg')
   }) as unknown as typeof fetch
   const fresh = await currentGeminiTokens({ fetchImpl: throwingFetch })
   check('fresh disk tokens adopted with ZERO network', fresh?.accessToken === 'NEW')
 
-  __resetGeminiAccountsForTest()
   const path = geminiAuthPathForDisplay()
   const file = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>
   const t = file.tokens as Record<string, unknown>
@@ -219,7 +215,6 @@ const {
   const stale = await currentGeminiTokens({ fetchImpl: failingRefresh })
   check('failed refresh returns the stored set (typed 401 downstream, never a throw)', stale?.refreshToken === 'RT-1')
 
-  __resetGeminiAccountsForTest()
   const revokedRefresh: typeof fetch = (async () =>
     new Response(
       JSON.stringify({ error: 'invalid_grant', error_description: 'Token has been expired or revoked.' }),
@@ -227,11 +222,11 @@ const {
     )) as unknown as typeof fetch
   const revoked = await currentGeminiTokens({ fetchImpl: revokedRefresh })
   check('terminal invalid_grant ⇒ no tokens returned', revoked === undefined)
-  check('terminal invalid_grant ⇒ stored tokens DROPPED (re-auth required)', !geminiOauthConnected())
+  check('terminal invalid_grant ⇒ the sign-in reads disconnected (re-auth required)', !geminiOauthConnected())
   const fileAfterDrop = JSON.parse(readFileSync(geminiAuthPathForDisplay(), 'utf8')) as Record<string, unknown>
   check('the operator client config SURVIVES the drop (infrastructure, not a credential)', fileAfterDrop.clientConfig !== undefined || fileAfterDrop.client !== undefined, Object.keys(fileAfterDrop).join(','))
+  check('the expired sign-in keeps its row: the tokens stand with a blank refresh token', (fileAfterDrop.tokens as { refreshToken?: string } | undefined)?.refreshToken === '', JSON.stringify(Object.keys(fileAfterDrop)))
 
-  __resetGeminiAccountsForTest()
   fileAfterDrop.tokens = {
     accessToken: 'NEW',
     refreshToken: 'RT-1',
