@@ -57,7 +57,7 @@ const until = async (ok: () => boolean | Promise<boolean>, ms = 5000): Promise<b
 
 const resolved = resolveBrowser() as { executablePath: string }
 const profile = mkdtempSync(join(tmpdir(), 'mercury-attach-user-'))
-const flags = ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--no-first-run', '--no-default-browser-check', 'about:blank']
+const flags = ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--no-first-run', '--use-mock-keychain', '--password-store=basic', '--no-default-browser-check', 'about:blank']
 if (process.platform === 'linux' && typeof process.getuid === 'function' && process.getuid() === 0) flags.push('--no-sandbox')
 const user: ChildProcess = spawn(resolved.executablePath, flags, { stdio: ['ignore', 'ignore', 'pipe'] })
 const socket = await new Promise<string>((done, fail) => {
