@@ -22,7 +22,7 @@ import {
 import { estimateContextTokens, projectTimeBasedPrune } from '../../compaction/pruneToolResults.js'
 import { estimateOverflowSignal } from '../../requests/overflowSignal.js'
 import { API_ERROR_MESSAGE_PREFIX, PROMPT_TOO_LONG_ERROR_MESSAGE } from '../../requests/apiErrorRows.js'
-import { createAssistantAPIErrorMessage, createCommandInputMessage, createSystemMessage, createUserMessage } from '../../messages/messages.js'
+import { createAssistantAPIErrorMessage, createCommandInputMessage, createSystemMessage, createUserMessage, formatCommandInputTags } from '../../messages/messages.js'
 import { createDeadThinkingAttachment, deadThinkingMarks } from '../../../models/roads/anthropic/thinkingBinding.js'
 import { getSessionId } from '../../../boot/process-state/processState.js'
 import { fireHooks } from '../../../integrations/event-hooks/fire.js'
@@ -191,6 +191,13 @@ export async function* planContext(run: RunCtx, state: TurnState, toolUseContext
   return { requestPlan, messagesForRequest, prunedTokensFreed, thinkingRecords, fullSystemPrompt }
 }
 
+function foldCommandEchoRows(commands: AutoFolded['consumedCommands']): Message[] {
+  if (commands === undefined || commands.length === 0) return []
+  return commands.map(cmd => ({
+    ...createCommandInputMessage(formatCommandInputTags('compact', cmd.args)),
+    ...(cmd.uuid !== undefined ? { uuid: cmd.uuid } : {}),
+  }))
+}
 export async function* foldContext(run: RunCtx, state: TurnState, toolUseContext: ToolUseContext, opened: Pick<FoldedContext, 'tracking' | 'overflowEpisode'>, planned: PlannedContext): AsyncGenerator<RunEvent, FoldedContext | SettledDecision> {
   const { emit, querySource } = run
   const { pendingOverflow } = state
@@ -218,7 +225,7 @@ export async function* foldContext(run: RunCtx, state: TurnState, toolUseContext
           planned.prunedTokensFreed,
           forced,
         )
-  const { foldResult, consecutiveFailures, consecutiveRapidRefills, rapidRefillBreakerTripped, measuredRawTokenCount, refusal, paused, declined } = asked
+  const { foldResult, consecutiveFailures, consecutiveRapidRefills, rapidRefillBreakerTripped, measuredRawTokenCount, refusal, paused, declined, consumedCommands } = asked
 
   if (rapidRefillBreakerTripped) {
     yield emit({ kind: 'notice', message: createSystemMessage(`${AUTO_FOLD_THRASH_MESSAGE} ${rapidRefillPauseText({ nonInteractive })}`, 'warning') })
@@ -262,6 +269,7 @@ export async function* foldContext(run: RunCtx, state: TurnState, toolUseContext
   }
 
   if (forced === undefined && (paused === true || declined === true) && refusal !== undefined) {
+    for (const echo of foldCommandEchoRows(consumedCommands)) yield emit({ kind: 'notice', message: echo })
     yield emit({ kind: 'notice', message: createSystemMessage(refusal, 'warning') })
   }
 
@@ -283,6 +291,7 @@ export async function* foldContext(run: RunCtx, state: TurnState, toolUseContext
     const postFold = buildPostFoldMessages(foldResult)
     const carried = foldSplit.carry.map(row => ({ ...row, uuid: randomUUID() }))
     yield emit({ kind: 'compaction_boundary', trigger: forced !== undefined ? 'overflow' : 'auto', messages: [...postFold, ...carried] })
+    for (const echo of foldCommandEchoRows(consumedCommands)) yield emit({ kind: 'notice', message: echo })
     if (toolUseContext.agentId === undefined && foldResult.boundaryMarker.compactMetadata.trigger === 'manual') {
       const { manualFoldDisplayText } = await import('../../compaction/manualReceipt.js')
       const display = manualFoldDisplayText(toolUseContext, foldResult, foldSplit.head.length)
