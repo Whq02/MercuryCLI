@@ -21,7 +21,6 @@ import { isEnvTruthy } from '../../platform/environment/envUtils.js'
 import { GLYPH, truncateToWidth } from '../theme/glyphs.js'
 import { sampleSpinnerVerb } from './spinnerVerbs.js'
 import { WAITING_VERB } from '../cockpit/toolVerb.js'
-import { CockpitActiveContext } from '../cockpit/cockpitActiveContext.js'
 import { WorkCapsuleContext } from '../widgets/WorkCapsule.js'
 import { useNowTick } from '../widgets/components.js'
 import { SpinnerAnimationRow } from './SpinnerAnimationRow.js'
@@ -103,7 +102,6 @@ export function SpinnerWithVerb({
   compactWarning = false,
 }: SpinnerWithVerbProps): React.ReactNode {
   const { columns } = useTerminalSize()
-  const cockpitActive = useContext(CockpitActiveContext)
   const inWorkCapsule = useContext(WorkCapsuleContext)
   const focusedModel = useSyncExternalStore(
     subscribeFocusedSpinnerModel,
@@ -242,11 +240,10 @@ export function SpinnerWithVerb({
     )
   }
 
-  const showRail = !inWorkCapsule && !cockpitActive
   const row = (
     <SpinnerAnimationRow
       activeToolCount={activeToolCount}
-      columns={showRail ? Math.max(1, columns - 2) : columns}
+      columns={columns}
       effortSuffix={effortSuffix}
       hookWaitKeys={hookWaitKeys}
       inWorkCapsule={inWorkCapsule}
@@ -292,18 +289,7 @@ export function SpinnerWithVerb({
 
   return (
     <Box flexDirection="column" width="100%">
-      {showRail ? (
-        <Box width="100%">
-          <Box width={2} flexShrink={0} marginTop={1}>
-            <Text color="claude">▎</Text>
-          </Box>
-          <Box flexDirection="column" flexGrow={1} minWidth={0}>
-            {row}
-          </Box>
-        </Box>
-      ) : (
-        row
-      )}
+      {row}
       {tail}
     </Box>
   )
