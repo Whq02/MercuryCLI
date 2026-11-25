@@ -1,24 +1,9 @@
 #!/usr/bin/env bun
-import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
-import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs, vshotBudgetScale } from '../lib/captureDriver.ts'
-import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
-import { removeScratch } from '../lib/removeScratch.ts'
-import { stageInstall } from '../lib/stagedInstall.ts'
+import { key, stagedPageDrive } from '../lib/stagedPageDrive.ts'
 
-const root = resolve(import.meta.dir, '..', '..')
-const driver = resolveCaptureDriver()
-if (!existsSync(join(root, 'dist', 'mercury.mjs'))) throw new Error('Build the product before running the profiles page drive')
-if (driver.kind === 'unavailable') throw new Error(driver.reason + ': ' + driver.remedy)
-if (driver.kind !== 'posix-pty') {
-  console.log('The profiles page drive requires the POSIX capture driver.')
-  process.exit(0)
-}
-const python = driver.python
-const engine = captureEngineEntry(driver, root)
 const framesDir = process.argv[2]
 const fixture = await startFixtureApi([])
 const PAGE = 'src/screen/boot-face/BootProfilesScreen.tsx'
@@ -28,7 +13,6 @@ const END = '\u001b[F'
 const ESC = '\u001b'
 const BACKSPACE = '\u007f'
 const IN_THE_LIST = 'r rename · ⌫ remove · esc back'
-const SMALL_ROW_1 = '1 · Profile 1 · mercury'
 const SMALL = { cols: 40, rows: 10 }
 const WIDE = { cols: 120, rows: 40 }
 let failures = 0
@@ -36,8 +20,6 @@ const check = (label: string, ok: boolean, fix: string): void => {
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ': ' + fix}`)
 }
-type Grid = Array<Array<{ c?: string }>>
-const textOf = (grid: Grid | undefined): string => (grid ?? []).map(row => row.map(cell => cell.c ?? ' ').join('').trimEnd()).join('\n')
 const rowOf = (frame: string, id: number): string | undefined => frame.split('\n').find(line => new RegExp(`^[│❯\\s]*${id} · `).test(line))
 const squash = (text: string): string => text.replace(/\s+/g, '')
 function paneOf(frame: string): string | null {
@@ -51,7 +33,6 @@ function paneOf(frame: string): string | null {
 const wholeWhereThePaneWraps = (frame: string, path: string): boolean => paneOf(frame)?.includes(squash(path)) ?? true
 const says = (frame: string, words: string): boolean => (paneOf(frame) ?? squash(frame)).includes(squash(words))
 
-const key = (awaitText: string, data: string, mark?: string) => ({ awaitText, requireAwait: true, awaitSettleTicks: 4, data, ...(mark === undefined ? {} : { mark }) })
 const toThePage = [key('New Session', END + '\r', 'face')]
 const journey = [
   ...toThePage,
@@ -76,48 +57,11 @@ const oneSkill = (install: { home: string }): void => {
   writeFileSync(join(install.home, 'skills', 'alpha', 'SKILL.md'), '---\ndescription: a skill of the first profile\n---\nits body\n')
 }
 
-async function drive(cols: number, rows: number, scene: { name: string; sends: Array<ReturnType<typeof key>>; readyText: string | string[]; resizes?: Array<{ afterMark: string; cols: number; rows: number }>; linked?: boolean; stage?: (install: { home: string; bin: string }) => void; after?: (install: { home: string; bin: string }) => boolean }): Promise<{ frame: (label: string) => string; home: string; bin: string; after: boolean }> {
-  const userHome = realpathSync(mkdtempSync(join(tmpdir(), 'profiles-page-home-')))
-  const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'profiles-page-project-')))
-  const install = stageInstall('source', userHome)
-  seedFirstRun(install.home, [cwd])
-  scene.stage?.(install)
-  const linkDir = join(userHome, 'linked')
-  if (scene.linked) {
-    mkdirSync(linkDir)
-    symlinkSync(install.command, join(linkDir, 'mercury'))
-  }
-  const output = join(userHome, 'capture.json')
-  const config = join(userHome, 'capture-config.json')
-  writeFileSync(config, JSON.stringify({ argv: [scene.linked ? join(linkDir, 'mercury') : install.command], cwd, cols, rows, out: output, total: 600, sends: scene.sends, resizes: scene.resizes ?? [], readyText: scene.readyText }))
-  const env = {
-    ...install.env,
-    ...(scene.linked ? { PATH: `${linkDir}${(install.env.PATH ?? '').slice(install.bin.length)}` } : {}),
-    TERM: 'xterm-256color',
-    MERCURY_VSHOT_BUDGET_SCALE: String(vshotBudgetScale()),
-    ANTHROPIC_API_KEY: FIXTURE_API_KEY,
-    ANTHROPIC_BASE_URL: fixture.url,
-  }
-  const result = await new Promise<{ code: number | null; text: string }>(resolveRun => {
-    const child = spawn(python, [engine, config], { cwd: root, env })
-    let text = ''
-    child.stdout.on('data', value => { text += value })
-    child.stderr.on('data', value => { text += value })
-    const deadline = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(150000))
-    child.on('close', code => { clearTimeout(deadline); resolveRun({ code, text }) })
-  })
-  spawnSync(install.command, ['daemon', 'stop'], { env, timeout: 10000, stdio: 'pipe' })
-  check(`${cols}x${rows} ${scene.name}: the drive ran to its end`, result.code === 0 && existsSync(output), `an awaited text in the sends list of this drive never painted; compare the last awaited text with the output tail and the words in ${PAGE}. ${result.text.trim().slice(-700)}`)
-  const capture = (existsSync(output) ? JSON.parse(readFileSync(output, 'utf8')) : {}) as { grid?: Grid; marks?: Array<{ label: string; grid: Grid }>; sendReceipts?: unknown[] }
-  const after = scene.after?.(install) ?? false
-  for (const dir of [userHome, cwd]) removeScratch(dir)
-  const marks = new Map([...(capture.marks ?? []).map(mark => [mark.label, textOf(mark.grid)] as const), [scene.name, textOf(capture.grid)] as const])
-  if (framesDir !== undefined) {
-    mkdirSync(framesDir, { recursive: true })
-    for (const [label, text] of marks) writeFileSync(join(framesDir, `${label}-${cols}x${rows}.txt`), text + '\n')
-  }
-  check(`${cols}x${rows} ${scene.name}: every key reached its screen`, capture.sendReceipts?.length === scene.sends.length, `only ${String(capture.sendReceipts?.length)} of ${scene.sends.length} sends were delivered; the first send whose awaited text never painted names the screen that stopped`)
-  return { frame: label => marks.get(label) ?? '', home: install.home, bin: install.bin, after }
+const drive = stagedPageDrive({ name: 'profiles-page', page: PAGE, framesDir, fixtureUrl: fixture.url, check })
+if (drive === null) {
+  console.log('The profiles page drive requires the POSIX capture driver.')
+  await fixture.close()
+  process.exit(0)
 }
 
 try {
@@ -170,23 +114,34 @@ try {
   check('120: a rename opened before the skills answer came is not answered with the skills line when it is left', late.after && rowOf(late.frame('late'), 2) !== undefined && !says(late.frame('late'), 'skill copied') && !says(late.frame('late'), 'Profile 2 created'), `the n action must add the skills line only while the page still says that create's own line: one functional update of said that leaves anything else as it stands (${PAGE}); the skill was copied: ${String(late.after)}; the pane reads: ${paneOf(late.frame('late')) ?? 'no pane'}`)
   const linked = await drive(120, 40, { name: 'linked', linked: true, sends: [...toThePage, key('1 · Profile 1', 'n'), key('2 · Profile 2', DOWN)], readyText: IN_THE_LIST })
   check('started through a link, with the command folder off PATH, the page names the new command by its full path, and the row keeps its name', says(linked.frame('linked'), `${join(linked.bin, 'mercury2')} starts it`) && /Profile 2\s+mercury2/.test(rowOf(linked.frame('linked'), 2) ?? ''), `startWords must print the row's offPath where the door gives one (${PAGE}); the pane reads: ${paneOf(linked.frame('linked')) ?? 'no pane'}`)
-  const shrunk = await drive(120, 40, {
-    name: 'shrunk',
-    sends: [...toThePage, key('1 · Profile 1', 'n'), key('Profile 2 created', DOWN + BACKSPACE), key('remove Profile 2?', '', 'confirm-wide'), key(SMALL_ROW_1, '\r' + UP, 'confirm-small'), key(`❯ ${SMALL_ROW_1}`, '', 'entered')],
-    resizes: [{ afterMark: 'confirm-wide', ...SMALL }, { afterMark: 'entered', ...WIDE }],
+  const small = await drive(120, 40, {
+    name: 'small',
+    sends: [
+      ...toThePage,
+      key('1 · Profile 1', 'n'),
+      key('Profile 2 created', DOWN + BACKSPACE),
+      key('remove Profile 2?', '', 'confirm-wide'),
+      key('remove Profile 2? y ↵ · n esc', 'n', 'confirm-small'),
+      key(IN_THE_LIST, 'n' + UP + DOWN + 'r', 'list-small'),
+      key('name: ▌ ↵ · esc', 'Zed', 'rename-small'),
+      key('name: Zed▌ ↵ · esc', '\r'),
+      key('2 · Zed · mercury2', BACKSPACE, 'renamed-small'),
+      key('remove Zed? y ↵ · n esc', 'y'),
+    ],
+    resizes: [{ afterMark: 'confirm-wide', ...SMALL }],
+    readyText: '↑↓ · r rename · esc back',
+    after: install => !existsSync(join(install.bin, 'mercury2')) && !existsSync(join(install.bin, 'mercury3')),
+  })
+  check('at 40 by 10 an open confirm and an open rename are drawn on the legend\'s line, and their keys act: cancelled, renamed, removed, and n made no profile', small.after && small.frame('confirm-small').includes('2 · Profile 2 · mercury2') && small.frame('renamed-small').includes('2 · Zed · mercury2') && rowOf(small.frame('small'), 2) === undefined && rowOf(small.frame('small'), 3) === undefined, `the page must hand the layout its open prompt as one line (asking in ${PAGE}; bootMenuAsks in assets/splash/splash-core.mjs says whether it is drawn); mercury2 removed and no mercury3: ${String(small.after)}; the last screen reads: ${small.frame('small').split('\n').map(line => line.trim()).filter(Boolean).join(' | ')}`)
+  check('at 40 by 10 the legend at rest names the keys that work there and no other', small.frame('list-small').includes(`↑↓ · ${IN_THE_LIST}`) && !/cycles|n new/.test(small.frame('list-small')) && small.frame('small').includes('↑↓ · r rename · esc back'), `the page must hand composeBootMenuMicro its own legend for that layout (legendMicro in ${PAGE}); the screen reads: ${small.frame('list-small').split('\n').map(line => line.trim()).filter(Boolean).join(' | ')}`)
+  const slim = await drive(120, 40, {
+    name: 'slim',
+    sends: [...toThePage, key('1 · Profile 1', 'n'), key('Profile 2 created', DOWN + BACKSPACE), key('remove Profile 2?', '', 'confirm-wide'), key('(>_) profiles', '\ry' + ESC, 'confirm-slim'), key('↑↓ · r rename · esc back', BACKSPACE + 'y' + UP, 'closed'), key('❯ 1 · Profile 1', '', 'entered')],
+    resizes: [{ afterMark: 'confirm-wide', cols: 24, rows: 10 }, { afterMark: 'entered', ...WIDE }],
     readyText: 'SETTING DETAIL',
     after: install => existsSync(join(install.bin, 'mercury2')),
   })
-  check('a remove confirm open when the window shrinks to 40 by 10 is closed there, and ↵ removes nothing: wide again, the profile and its command stand', shrunk.after && shrunk.frame('entered').includes('2 · Profile 2 · mercury2') && rowOf(shrunk.frame('shrunk'), 2) !== undefined && !shrunk.frame('shrunk').includes('remove Profile 2?'), `in the layout bootMenuMicro (assets/splash/splash-core.mjs) names, the page must put an open rename or remove back to the list (${PAGE}); the command still stands: ${String(shrunk.after)}; wide again row 2 reads: ${rowOf(shrunk.frame('shrunk'), 2)?.trim() ?? 'no row'}`)
-  check('at 40 by 10 the legend names the keys that work on this page and no other', shrunk.frame('entered').includes('↑↓ · esc back') && !shrunk.frame('entered').includes('cycles'), `the page must hand composeBootMenuMicro its own legend for that layout (legendMicro in ${PAGE}); the screen reads: ${shrunk.frame('entered').split('\n').map(line => line.trim()).filter(Boolean).join(' | ')}`)
-  const blind = await drive(120, 40, {
-    name: 'blind',
-    sends: [...toThePage, key('1 · Profile 1', 'n'), key('Profile 2 created', DOWN), key('⌫ remove', '', 'list-wide'), key('❯ 2 · Profile 2 · mercury2', 'n' + 'rZed\r' + BACKSPACE + 'y' + UP, 'list-small'), key(`❯ ${SMALL_ROW_1}`, '', 'typed')],
-    resizes: [{ afterMark: 'list-wide', ...SMALL }, { afterMark: 'typed', ...WIDE }],
-    readyText: 'SETTING DETAIL',
-    after: install => existsSync(join(install.bin, 'mercury2')) && !existsSync(join(install.bin, 'mercury3')),
-  })
-  check('at 40 by 10 n, r with a typed name, and ⌫ then y do nothing: wide again there is Profile 2 by its name and no third profile', blind.after && /Profile 2\s+mercury2/.test(rowOf(blind.frame('blind'), 2) ?? '') && rowOf(blind.frame('blind'), 3) === undefined, `in the layout bootMenuMicro (assets/splash/splash-core.mjs) names, the page must hand its list no action (${PAGE}); mercury2 stands and no mercury3: ${String(blind.after)}; wide again row 2 reads: ${rowOf(blind.frame('blind'), 2)?.trim() ?? 'no row'}; row 3: ${rowOf(blind.frame('blind'), 3)?.trim() ?? 'no row'}`)
+  check('at 24 columns the confirm\'s line cannot be drawn whole, so ↵ and y remove nothing, esc closes it, and ⌫ then opens none: wide again the profile and its command stand, no confirm open', slim.after && rowOf(slim.frame('slim'), 2) !== undefined && !slim.frame('slim').includes('remove Profile 2?') && !slim.frame('entered').includes('⌫ remove'), `where bootMenuAsks (assets/splash/splash-core.mjs) answers that the line is not drawn, the keys of the open prompt must not act, esc and n excepted, and no prompt opens (${PAGE}); the command still stands: ${String(slim.after)}; wide again row 2 reads: ${rowOf(slim.frame('slim'), 2)?.trim() ?? 'no row'}`)
   const narrow = await drive(60, 20, { name: 'refused', sends: refusal, readyText: 'again.', stage: stranger })
   check('60x20: a refusal names its file whole, wrapped over the notice\'s lines', squash(narrow.frame('refused')).includes(squash(join(narrow.bin, 'mercury2'))), `below 110 columns a notice word longer than the line must wrap, not be cut: the notice lines of composeBootMenuClassic in assets/splash/splash-core.mjs; the screen reads: ${narrow.frame('refused').split('\n').map(line => line.trim()).filter(Boolean).slice(0, 8).join(' | ')}`)
   const short = await drive(120, 34, { name: 'refused', sends: refusal, readyText: 'again.', stage: stranger })

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Box, useInput } from '../themedRenderer.js';
-import { bootMenuMicro, createSplashCore, WORD_W } from '../../../assets/splash/splash-core.mjs';
+import { bootMenuAsks, bootMenuMicro, createSplashCore, WORD_W } from '../../../assets/splash/splash-core.mjs';
 import { useEngineModel } from '../model-picker/useEngineModel.js';
 import { createProfile, listProfiles, removeProfile, renameProfile, type ProfileRow } from '../../platform/profiles/profiles.js';
 import { inheritSkills } from '../../integrations/skills/inheritSkills.js';
@@ -37,6 +37,11 @@ function skillsWords(answer: Awaited<ReturnType<typeof inheritSkills>>, from: st
   return answer.skills.length === 0 ? null : `${answer.skills.length} skill${answer.skills.length === 1 ? '' : 's'} copied from ${from}, switched off`;
 }
 
+function askingOf(face: ProfilesFace): string | null {
+  if (face.kind === 'rename') return `name: ${face.name}▌ ↵ · esc`;
+  return face.kind === 'remove' ? `remove ${face.profile.name}? y ↵ · n esc` : null;
+}
+
 function detailLinesOf(face: ProfilesFace, selected: ProfileRow | null, said: Said | null): string[] {
   if (face.kind === 'rename') return [`name: ${face.name}▌`, '', 'an empty name puts the default back'];
   if (face.kind === 'remove') return [`remove ${face.profile.name}?`, '', 'its command is removed,', `its folder and logins stay at ${face.profile.home}`];
@@ -51,8 +56,7 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
   const read = useMemo(() => listProfiles(), [tick]);
   const profiles = useMemo<ProfileFaceRow[]>(() => (read.ok ? read.profiles : []).map(profile => ({ ...profile, label: `${profile.id} · ${profile.name}` })), [read]);
   const [face, setFace] = useState<ProfilesFace>({ kind: 'list' });
-  const listOnly = bootMenuMicro(columns, rows);
-  if (listOnly && face.kind !== 'list') setFace({ kind: 'list' });
+  const asks = (next: ProfilesFace): boolean => bootMenuAsks(columns, rows, askingOf(next) ?? '');
   const [said, setSaid] = useState<Said | null>(null);
   const settle = (next: Said | null): void => {
     setFace({ kind: 'list' });
@@ -60,6 +64,7 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
     setTick(n => n + 1);
   };
   const open = (next: ProfilesFace): void => {
+    if (!asks(next)) return;
     setSaid(null);
     setFace(next);
   };
@@ -70,10 +75,11 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
     idNamespace: 'boot-profiles',
     active: face.kind === 'list',
     onClose,
-    actions: read.ok && !listOnly
+    actions: read.ok
       ? [
           {
             key: 'n',
+            when: () => !bootMenuMicro(columns, rows),
             hint: 'new',
             run: () => {
               const made = createProfile();
@@ -103,7 +109,7 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
           {
             key: 'backspace',
             hint: 'remove',
-            when: removable,
+            when: profile => removable(profile) && asks({ kind: 'remove', profile }),
             run: profile => {
               if (profile !== null) open({ kind: 'remove', profile });
               return null;
@@ -125,6 +131,7 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
         setFace({ kind: 'list' });
         return;
       }
+      if (!asks(face)) return;
       if (key.return) {
         const renamed = renameProfile(face.profile.id, face.name);
         settle(renamed.ok ? null : { where: 'pane', text: renamed.reason });
@@ -133,7 +140,7 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
       setFace(f => {
         if (f.kind !== 'rename') return f;
         const name = typedName(f.name, input, key, PROFILE_NAME_MAX);
-        return name === null ? f : { ...f, name };
+        return name === null || !asks({ ...f, name }) ? f : { ...f, name };
       });
     },
     { isActive: face.kind === 'rename' },
@@ -143,11 +150,12 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
     (input, key, event) => {
       event.stopImmediatePropagation();
       if (face.kind !== 'remove') return;
-      if (input === 'y' || key.return) {
+      if (input === 'n' || key.escape) setFace({ kind: 'list' });
+      else if (asks(face) && (input === 'y' || key.return)) {
         const removed = removeProfile(face.profile.id);
         const left = removed.ok && removed.keptFiles !== undefined ? `;\nleft in place, not its command: ${removed.keptFiles.join(', ')}` : '';
         settle({ where: 'pane', text: removed.ok ? `${face.profile.name} removed: its folder stays at ${removed.keptHome}${left}` : removed.reason });
-      } else if (input === 'n' || key.escape) setFace({ kind: 'list' });
+      }
     },
     { isActive: face.kind === 'remove' },
   );
@@ -179,7 +187,8 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
       statusRight: !read.ok ? 'the profile list could not be read' : said?.where === 'status' ? said.text : `${profiles.length} profile${profiles.length === 1 ? '' : 's'}`,
       noticeLine: said?.where === 'status' ? said.text : null,
       glowWord: wordGlow,
-      legendMicro: read.ok ? '↑↓ · esc back' : 'esc back',
+      legendMicro: read.ok ? `↑↓ · r rename${selected !== null && removable(selected) && asks({ kind: 'remove', profile: selected }) ? ' · ⌫ remove' : ''} · esc back` : 'esc back',
+      asking: askingOf(face),
       legend: !read.ok
         ? 'esc back'
         : face.kind === 'rename'
@@ -190,7 +199,7 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
       detailOverride: read.ok ? detailLinesOf(face, selected, said) : [read.reason],
       detailOverrideConfirms: !read.ok || face.kind !== 'list' || said?.where === 'pane',
     };
-  }, [read, profiles, face, said, selected, list.selectedIndex, mainModel, wordGlow?.peakCell, wordGlow?.gainLevel]);
+  }, [read, profiles, face, said, selected, list.selectedIndex, mainModel, columns, rows, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
   const composition = useBootComposition(core, columns, rows, menuM);
 

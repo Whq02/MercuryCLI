@@ -539,6 +539,10 @@ export function bootMenuMicro(cols, rowsAvail) {
   return rowsAvail < 10 || cols < 48
 }
 
+export function bootMenuAsks(cols, rowsAvail, asking) {
+  return !bootMenuMicro(cols, rowsAvail) || (rowsAvail >= 2 && vis(asking) <= cols)
+}
+
 function placeBlock(block, rows) {
   const pad = rows - block.length
   if (pad <= 0) return { placed: block, top: 0 }
@@ -855,7 +859,7 @@ function composeBootMenuMicro(cols, rowsAvail, m) {
       lines.push(clip(lead + label + val))
     }
   }
-  lines.push(clip(faint + (m.legendMicro ?? '↑↓ · ↵ cycles · esc back') + R))
+  lines.push(clip(m.asking ? paint(TEALC) + m.asking + R : faint + (m.legendMicro ?? '↑↓ · ↵ cycles · esc back') + R))
   return { lines, entryLines }
 }
 
