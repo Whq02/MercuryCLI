@@ -84,7 +84,7 @@ async function main(): Promise<void> {
     return
   }
 
-  const { inspectSessionArgs, readSessionOption } = await import('../sessionArgs.js')
+  const { inspectSessionArgs, isInstallDryRunArgv, readSessionOption } = await import('../sessionArgs.js')
   const invocation = inspectSessionArgs(args)
   const projectGiven = args[0] === '--project' || args[0]?.startsWith('--project=') === true
   if (projectGiven) {
@@ -129,7 +129,7 @@ async function main(): Promise<void> {
 
   const { applyBankedFlagSpellings } = await import('../../platform/substrate/argvSpellings.js')
   applyBankedFlagSpellings(process.argv)
-  if (underNode && home !== null) {
+  if (underNode && home !== null && !isInstallDryRunArgv()) {
     await armCompileCache(home)
     if (env.NODE_DISABLE_COMPILE_CACHE === undefined) {
       void import('../../platform/node-runtime/compileCachePrune.js')

@@ -69,8 +69,8 @@ export const SPLASH_SKIP_FLAGS = ['-h', '--help', '-v', '-V', '--version']
 
 export const SPLASH_VERSION_TTY_PROBE_JS =
   `const a=process.argv.slice(1);const f=[${SPLASH_SKIP_FLAGS.map(f => `'${f}'`).join(',')}];` +
-  "const d=a.length>0&&a[0].charAt(0)==='-';" +
-  "process.stdout.write(process.versions.node+' '+(process.stdin.isTTY&&!d&&!a.some(x=>f.includes(x))?'1':'0'))"
+  "const d=a.length>0&&a[0].charAt(0)==='-';const e=a.indexOf('--');" +
+  "process.stdout.write(process.versions.node+' '+(process.stdin.isTTY&&!d&&!a.some(x=>f.includes(x))?'1':'0')+' '+(a[0]==='install'&&(e<0?a:a.slice(0,e)).includes('--dry-run')?'1':'0'))"
 
 export const VENDORED_RUNTIME_POSIX = 'vendor/node/bin/node'
 export const VENDORED_RUNTIME_WIN32 = 'vendor\\node\\node.exe'
@@ -153,7 +153,7 @@ fi
 # bundle on the field HDD host). Node creates the dir and silently disables
 # on failure; an operator's own NODE_COMPILE_CACHE wins, and
 # NODE_DISABLE_COMPILE_CACHE opts out entirely. Covers the splash run too.
-case " $* " in " install "*"--dry-run "*) NODE_DISABLE_COMPILE_CACHE=1; export NODE_DISABLE_COMPILE_CACHE ;; esac
+if [ "\${1:-}" = "install" ]; then for _mercury_arg in "$@"; do case "$_mercury_arg" in --) break ;; --dry-run) NODE_DISABLE_COMPILE_CACHE=1; export NODE_DISABLE_COMPILE_CACHE; break ;; esac; done; fi
 if [ -z "\${NODE_COMPILE_CACHE:-}" ] && [ -z "\${NODE_DISABLE_COMPILE_CACHE:-}" ]; then
   NODE_COMPILE_CACHE="$MERCURY_SA_HOME/compile-cache"
   export NODE_COMPILE_CACHE
@@ -287,6 +287,7 @@ rem the boot line does, and the for /f reads only OUR probe's own\r
 rem single-line digits-and-dots output back from the file.\r
 set "NODEV="\r
 set "NODETTY="\r
+set "NODEDRY="\r
 rem %RANDOM% is time-seeded per process — two same-second launches collide;\r
 rem the %TIME% tail (colon-stripped, path-safe) discriminates them. TEMP\r
 rem unset/unwritable ⇒ the file never appears and the probe falls to a\r
@@ -297,7 +298,7 @@ set "MERCURY_PROBE_OUT=%TEMP%\\mercury-probe-%RANDOM%-%TIME::=%.txt"\r
 if not defined TEMP set "MERCURY_PROBE_OUT=%DIR%mercury-probe-%RANDOM%-%TIME::=%.txt"\r
 "%NODEBIN%" -e "${SPLASH_VERSION_TTY_PROBE_JS}" >"%MERCURY_PROBE_OUT%" 2>nul -- %*\r
 if not exist "%MERCURY_PROBE_OUT%" goto :boot\r
-for /f "usebackq tokens=1,2" %%v in ("%MERCURY_PROBE_OUT%") do (set "NODEV=%%v" & set "NODETTY=%%w")\r
+for /f "usebackq tokens=1,2,3" %%v in ("%MERCURY_PROBE_OUT%") do (set "NODEV=%%v" & set "NODETTY=%%w" & set "NODEDRY=%%x")\r
 del /q "%MERCURY_PROBE_OUT%" >nul 2>nul\r
 if not defined NODEV set "NODEV=none"\r
 echo %NODEV%| findstr /r /c:"^${p.major}\\.[0-9][0-9]*\\.[0-9][0-9]*$" >nul || goto :node_unsupported\r
@@ -336,7 +337,7 @@ rem node's cache machinery SPIN at one core with no output (TASK-014\r
 rem w1-f15-01) — and the env form runs BEFORE any Mercury JS, so the\r
 rem in-process guard (compileCachePath.ts, same 200 + \\\\?\\ opt-out)\r
 rem cannot cover a launcher boot. Over the bound: skip the cache, boot on.\r
-if "%~1"=="install" for %%a in (%*) do if "%%~a"=="--dry-run" set "NODE_DISABLE_COMPILE_CACHE=1"\r
+if "%NODEDRY%"=="1" set "NODE_DISABLE_COMPILE_CACHE=1"\r
 set "MERCURY_SA_CACHE=%MERCURY_SA_HOME%\\compile-cache"\r
 set "MERCURY_SA_CACHE_OVER="\r
 if not "%MERCURY_SA_CACHE:~200%"=="" set "MERCURY_SA_CACHE_OVER=1"\r
