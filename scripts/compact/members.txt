@@ -67,6 +67,7 @@ prove-local-window-one-truth.ts
 prove-manual-compact-never-grows.ts
 prove-manual-fold-never-grows.ts
 prove-memory-fold-work.ts
+prove-midturn-compact-wire-parity.ts
 prove-notice-rows-never-operator.ts
 prove-nothing-to-compact-words.ts
 prove-operator-block-law.ts
