@@ -6,12 +6,13 @@ import { getMercuryHome } from '../environment/envUtils.js'
 import { errorMessage, isENOENT } from '../errors/errors.js'
 import { passedOver } from '../errors/passedOver.js'
 import { foldPathCase, pathModuleFor, toNativeSeparators } from '../host-os/paths.js'
+import { envPathDirs } from '../host-os/programs.js'
 import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
 import { flagPair } from '../substrate/flagRegistry.js'
-import { resolveLayoutRoots, shimStatus, type LayoutRoots } from '../update-channel/installLayout.js'
+import { pathEntryEquals, resolveLayoutRoots, shimStatus, type LayoutRoots } from '../update-channel/installLayout.js'
 import { resolveInstallProvenance } from '../update-channel/installProvenance.js'
 
-export type ProfileRow = { id: number; name: string; home: string; command: string | null; current: boolean }
+export type ProfileRow = { id: number; name: string; home: string; command: string | null; offPath?: string; current: boolean }
 type ProfileRefusal = { ok: false; reason: string }
 
 const RECORD = 'profiles.json'
@@ -126,11 +127,13 @@ export function commandFiles(found: Install, id: number, home: string): CommandF
 
 function rowOf(known: Family, found: Install | null, id: number): ProfileRow {
   const stands = found !== null && existsSync(join(found.bin, `${wordOf(id)}${found.isWindows ? '.cmd' : ''}`))
+  const off = stands && id !== 1 && !envPathDirs().some(entry => pathEntryEquals(entry, found.bin, found.isWindows))
   return {
     id,
     name: known.labels.find(row => row.id === id)?.name ?? `Profile ${id}`,
     home: homeOf(known.first, id),
     command: stands ? wordOf(id) : null,
+    ...(off ? { offPath: join(found.bin, wordOf(id)) } : {}),
     current: id === known.currentId,
   }
 }

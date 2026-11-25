@@ -74,8 +74,8 @@ function isInstalledBuild(tree: string | null, installed: InstalledBuildFacts | 
 }
 
 export function screenIsOlder(daemon: { buildTree: string | null; version: string }, client: ClientVersionFacts, installed: InstalledBuildFacts | null): boolean {
-  if (versionIsNewer(daemon.version, client.version)) return true
-  return isInstalledBuild(daemon.buildTree, installed) && !isInstalledBuild(client.buildTree, installed)
+  if (isInstalledBuild(client.buildTree, installed)) return false
+  return versionIsNewer(daemon.version, client.version) || isInstalledBuild(daemon.buildTree, installed)
 }
 
 export type HelloOutcome =

@@ -2,7 +2,7 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { delimiter, join, resolve } from 'node:path'
 import type { ProfileRow } from '../../src/platform/profiles/profiles.ts'
 import { nodeBinPath } from '../lib/nodeBin.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
@@ -109,6 +109,9 @@ function walk(staged: StagedInstall): void {
   }
   const held = (): string => show(readdirSync(home2).sort().map(name => [name, statSync(join(home2, name)).mtimeMs]))
   const ids = (): number[] => rows().map(row => row.id)
+  const elsewhere = process.env.PATH ?? ''
+  const near = staged.env.PATH ?? ''
+  process.env.PATH = near
   process.argv[1] = staged.bundle
 
   console.log(`── ${staged.kind}: before the first create ──`)
@@ -142,6 +145,29 @@ function walk(staged: StagedInstall): void {
   const named = sections.flatMap(section => section.checks).find(row => row.id === 'config-home')?.evidence ?? ''
   check('mercury2 health --json names the second home as its config home', named.startsWith(`${home2} via `), show([health.status, named, health.stderr.slice(-300)]))
   check('the second home holds no program of its own', !existsSync(join(home2, 'runtime')) && !existsSync(join(home2, 'versions')) && !existsSync(join(home2, 'bin')), show(readdirSync(home2)))
+
+  if (staged.kind === 'source') {
+    console.log('── source: a session reached through a link to mercury, the folder of the commands not on its PATH ──')
+    const linked = join(userHome, 'linked')
+    mkdirSync(linked)
+    symlinkSync(staged.command, join(linked, 'mercury'))
+    const row = (id: number, off: boolean): ProfileRow => ({ id, name: `Profile ${id}`, home: id === 1 ? home : `${home}${id}`, command: id === 1 ? 'mercury' : `mercury${id}`, ...(off ? { offPath: join(staged.bin, `mercury${id}`) } : {}), current: id === 1 })
+    process.env.PATH = linked
+    const third = createProfile()
+    const listed = rows()
+    process.env.PATH = `${linked}${delimiter}${staged.bin}/`
+    const spelt = rows()
+    process.env.PATH = near
+    check('create answers the path of mercury3 beside its name, since the name alone will not be found', show(third) === show({ ok: true, profile: row(3, true) }), show(third))
+    check('the list gives each profile command its path, and leaves Profile 1 the name it was started by', show(listed) === show([row(1, false), row(2, true), row(3, true)]), show(listed))
+    const lookup = (name: string): string => run('/bin/sh', ['-c', `command -v ${name} || echo not found`], { PATH: `${linked}${delimiter}/usr/bin${delimiter}/bin` }).stdout.trim()
+    const given = third.ok ? third.profile.offPath : undefined
+    const found = [lookup('mercury'), lookup('mercury3'), given === undefined ? 'no path' : String(run(given, ['--version'], { PATH: `${linked}${delimiter}${elsewhere}` }).stdout).trim()]
+    check('a shell with that PATH finds mercury through the link and no mercury3, and the path the row gives starts it', show(found) === show([join(linked, 'mercury'), 'not found', `Mercury ${version}`]), show(found))
+    check('with the folder of the commands on PATH, spelt with a closing slash or without, no row carries a path', show(spelt) === show([row(1, false), row(2, false), row(3, false)]) && show(rows()) === show(spelt), show([spelt, rows()]))
+    removeProfile(3)
+    rmSync(`${home}3`, { recursive: true, force: true })
+  }
 
   console.log(`── ${staged.kind}: a login saved under one home is absent under the other (file store) ──`)
   check('a key is saved under Profile 1', run(staged.command, ['auth', 'login', 'anthropic', '--key', 'sk-ant-profile-one-00000000001111']).status === 0 && login(staged.command).includes('1111'), login(staged.command))

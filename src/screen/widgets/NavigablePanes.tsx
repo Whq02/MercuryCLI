@@ -243,6 +243,7 @@ export function NavigablePanes<Row>({
   initialRowKey,
   initialSectionId,
   onSectionChange,
+  onRowChange,
   closeHint,
   maxContentWidth,
   headerRight,
@@ -334,6 +335,8 @@ export function NavigablePanes<Row>({
   const selectedRow = sectionRows[sel]
   selKeyRef.current = selectedRow ? rowKey(selectedRow) : null
   if (sel !== nav.sel) nav.selectRow(sel)
+  const selectedKey = selKeyRef.current
+  usePublish(() => onRowChange?.(selectedKey), [selectedKey])
 
   useInput(
     (input, key) => {

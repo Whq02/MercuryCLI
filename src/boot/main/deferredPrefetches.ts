@@ -2,7 +2,6 @@ import { getIsInteractive } from '../process-state/processState.js'
 import { getSystemContext, getUserContext } from '../../engine/requestContext.js'
 import { flagEnv } from '../../platform/substrate/flagRegistry.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
-import { logForDiagnosticsNoPII } from '../../platform/logs/diagnosticsLog.js'
 import { isBareMode } from '../../platform/environment/envUtils.js'
 import { startEventLoopStallDetector } from './eventLoopStallDetector.js'
 import { logError } from '../../platform/logs/errorLog.js'
@@ -23,13 +22,9 @@ export function startDeferredPrefetches(): void {
     try {
       void getUserContext().catch(passedOver)
       if (!getIsInteractive()) {
-        logForDiagnosticsNoPII('info', 'prefetch_system_context_non_interactive')
         void getSystemContext().catch(passedOver)
       } else if (checkHasTrustDialogAccepted()) {
-        logForDiagnosticsNoPII('info', 'prefetch_system_context_has_trust')
         void getSystemContext().catch(passedOver)
-      } else {
-        logForDiagnosticsNoPII('info', 'prefetch_system_context_skipped_no_trust')
       }
       void getTipToShowOnSpinner().catch(passedOver)
       await import('../../engine/messages/apiSystemAndToolSchema.js')

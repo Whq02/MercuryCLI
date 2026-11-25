@@ -15,6 +15,7 @@ import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { credentialFingerprint } from '../../sign-in/account-ledger/credentialIdentity.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
 import { hostEnv } from '../../../platform/environment/hostEnv.js'
+import { signInExpiredOnKeyLine } from '../credentialWall.js'
 
 
 const MOONSHOT_API_BASE_URL = 'https://api.moonshot.ai/v1'
@@ -311,9 +312,19 @@ export function writeMoonshotRegion(region: KimiRegion): void {
   writeAuthFile(file => ({ ...file, region }))
 }
 
-export function moonshotStoredTokens(): MoonshotStoredTokens | undefined {
+export function moonshotSignInRow(): MoonshotStoredTokens | undefined {
   const tokens = readAuthFile()?.tokens
   return tokens && typeof tokens.accessToken === 'string' && tokens.accessToken.trim() ? tokens : undefined
+}
+
+export function moonshotSignInExpired(row: Pick<MoonshotStoredTokens, 'refreshToken' | 'accessTokenExpiresAtMs'>, now: number = Date.now()): boolean {
+  if (row.refreshToken) return false
+  return row.refreshToken === '' || (row.accessTokenExpiresAtMs !== undefined && row.accessTokenExpiresAtMs <= now)
+}
+
+export function moonshotStoredTokens(now: number = Date.now()): MoonshotStoredTokens | undefined {
+  const row = moonshotSignInRow()
+  return row && !moonshotSignInExpired(row, now) ? row : undefined
 }
 
 export function moonshotStoredRegion(): KimiRegion | undefined {
@@ -501,7 +512,9 @@ export function refreshMoonshotTokens(io?: MoonshotOauthIo): Promise<MoonshotSto
         writeAuthFile(file => withServedModelsMoved(withTokens(file, next, region), tokenIdentity(stored), tokenIdentity(next)))
         return next
       }
-      if (result.status === 400 || result.status === 401) writeMoonshotTokens(null)
+      if (result.status === 400 || result.status === 401) {
+        writeAuthFile(file => (file.tokens?.refreshToken === stored.refreshToken ? { ...file, tokens: { ...stored, refreshToken: '' } } : file))
+      }
       return undefined
     } finally {
       refreshInFlight = null
@@ -567,6 +580,7 @@ export interface MoonshotDispatchCredential {
   requestUrl: string
   source: MoonshotDispatchSource
   accountIdentity: string
+  note?: string
 }
 
 export async function resolveMoonshotDispatchCredential(
@@ -575,33 +589,21 @@ export async function resolveMoonshotDispatchCredential(
   const env = io?.env ?? hostEnv()
   const envKey = env.MOONSHOT_API_KEY?.trim()
   if (envKey) return { apiKey: envKey, requestUrl: moonshotChatCompletionsUrl(env), source: 'env', accountIdentity: credentialFingerprint(envKey) }
-  const oauth = moonshotStoredTokens()
+  const now = io?.now?.() ?? Date.now()
+  const oauth = moonshotStoredTokens(now)
   if (oauth) {
     const region = ioRegion(io)
     const requestUrl = kimiCodingChatCompletionsUrl(region, env)
     const signedIn = (tokens: MoonshotStoredTokens): MoonshotDispatchCredential => ({ apiKey: tokens.accessToken, requestUrl, source: 'kimi-oauth', accountIdentity: tokenIdentity(tokens) })
-    const now = io?.now?.() ?? Date.now()
     const expiresAt = oauth.accessTokenExpiresAtMs
-    if (expiresAt !== undefined && expiresAt - now < accessTokenRefreshMarginMs(oauth)) {
-      if (oauth.refreshToken) {
-        const fresh = await refreshMoonshotTokens(io)
-        if (fresh) return signedIn(fresh)
-        const remaining = moonshotStoredTokens()
-        if (remaining) {
-          if (remaining.accessTokenExpiresAtMs === undefined || remaining.accessTokenExpiresAtMs > now) {
-            return signedIn(remaining)
-          }
-          return undefined
-        }
-      } else if (expiresAt <= now) {
-        writeMoonshotTokens(null)
-      } else {
-        return signedIn(oauth)
-      }
-    } else {
-      return signedIn(oauth)
-    }
+    if (expiresAt === undefined || expiresAt - now >= accessTokenRefreshMarginMs(oauth) || !oauth.refreshToken) return signedIn(oauth)
+    const fresh = await refreshMoonshotTokens(io)
+    if (fresh) return signedIn(fresh)
+    const remaining = moonshotStoredTokens(now)
+    if (remaining) return remaining.accessTokenExpiresAtMs === undefined || remaining.accessTokenExpiresAtMs > now ? signedIn(remaining) : undefined
   }
   const stored = resolveProviderKeyCommand('moonshot') ?? readStoredMoonshotApiKey()
-  return stored ? { apiKey: stored, requestUrl: moonshotChatCompletionsUrl(env), source: 'stored', accountIdentity: credentialFingerprint(stored) } : undefined
+  if (!stored) return undefined
+  const expired = moonshotSignInRow() !== undefined
+  return { apiKey: stored, requestUrl: moonshotChatCompletionsUrl(env), source: 'stored', accountIdentity: credentialFingerprint(stored), ...(expired ? { note: signInExpiredOnKeyLine('moonshot') } : {}) }
 }

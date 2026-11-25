@@ -1,6 +1,5 @@
 import { getIsInteractive, setEngineModelOverride } from '../process-state/processState.js'
 import { getCommands } from '../../commands/catalogue/commands.js'
-import { MERCURY_VERSION } from '../../platform/product/product.js'
 import { getSystemContext, getUserContext } from '../../engine/requestContext.js'
 import { initBundledSkills } from '../../integrations/skills/bundled/index.js'
 import { getInstructionFiles } from '../../sessions/instructions/instructionFiles.js'
@@ -9,12 +8,10 @@ import { flagEnv, setFlagEnv } from '../../platform/substrate/flagRegistry.js'
 import { recordLaunchMilestone } from '../../platform/substrate/launchMilestones.js'
 import { getAgentDefinitionsWithOverrides } from '../../tools/crewmate/loadAgentsDir.js'
 import { binaryName } from '../../platform/settings/config.js'
-import { logForDiagnosticsNoPII } from '../../platform/logs/diagnosticsLog.js'
 import { startCapturingEarlyInput } from '../earlyInput.js'
 import { getDefaultEngineModelSetting, getEngineModel } from '../../models/catalogue/engineModel.js'
 import { profileCheckpoint } from '../startupProfiler.js'
 import { checkHasTrustDialogAccepted } from '../../platform/settings/config.js'
-import { registerCleanup } from '../../platform/processes/cleanupRegistry.js'
 import { sessionSetup } from '../sessionSetup.js'
 import { applyMergedConfigEnv, failCli, typedString, writeErr, type RootOptions } from './cli.js'
 import { readBriefFile, readRunFormats, refuseMissingTmux, refuseModeAndBriefClashes, refuseResumeClashes, refuseSchemaFlag, refuseSessionIdClash, refuseTerminalMismatch } from './bootFlags.js'
@@ -208,13 +205,6 @@ export async function defaultAction(inputPromptArg: string | undefined, opts: Ro
     void getSystemContext().catch(passedOver)
     void getUserContext().catch(passedOver)
   }
-  logForDiagnosticsNoPII('info', 'mercury_started', {
-    version: MERCURY_VERSION,
-    bundled: typeof (globalThis as { MACRO?: unknown }).MACRO !== 'undefined',
-  })
-  registerCleanup(async () => {
-    logForDiagnosticsNoPII('info', 'mercury_exited')
-  })
 
   if (opts.concourseOff === true || opts.concourseOn === true) {
     const { setConcourseEnabled } = await import('../../screen/concourse-model/concourseEnabled.js')

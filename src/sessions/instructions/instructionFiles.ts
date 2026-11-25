@@ -12,7 +12,6 @@ import {
   getContextWindowForModel,
   MODEL_CONTEXT_WINDOW_DEFAULT,
 } from '../../engine/compaction-window/contextFill.js'
-import { logForDiagnosticsNoPII } from '../../platform/logs/diagnosticsLog.js'
 import { normalizePathForComparison } from '../../platform/files/file.js'
 import { detectEncodingForResolvedPath } from '../../platform/files/syncFileRead.js'
 import type { FileStateCache } from '../../platform/files/fileStateCache.js'
@@ -409,9 +408,6 @@ export const getInstructionFiles = memoize(
   async (
     forceIncludeExternal: boolean = false,
   ): Promise<InstructionSourceEntry[]> => {
-    const startTime = Date.now()
-    logForDiagnosticsNoPII('info', 'memory_files_started')
-
     const { profile: requested, origin: requestedOrigin } =
       resolveRequestedInstructionProfile()
     const adapter = adapterForProfile()
@@ -444,17 +440,6 @@ export const getInstructionFiles = memoize(
         eagerLoadReason ??
         (forceIncludeExternal ? 'external-check' : 'cache-refresh'),
     }
-
-    const totalContentLength = result.reduce(
-      (sum, f) => sum + f.content.length,
-      0,
-    )
-
-    logForDiagnosticsNoPII('info', 'memory_files_completed', {
-      duration_ms: Date.now() - startTime,
-      file_count: result.length,
-      total_content_length: totalContentLength,
-    })
 
     return result
   },

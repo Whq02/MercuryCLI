@@ -1,7 +1,6 @@
 import { APIError } from '../../../../engine/request-parts/sdkErrors.js'
 import type { ApiMessage as BetaMessage } from '../../../../engine/message-shapes/wire.js'
 import { logForDebugging } from 'src/platform/logs/debugLog.js'
-import { logForDiagnosticsNoPII } from 'src/platform/logs/diagnosticsLog.js'
 import { resetApiConnectionPool } from 'src/platform/network/proxy.js'
 import { noteRequestOnWire } from '../prefixLedger.js'
 import type {
@@ -28,7 +27,6 @@ export function preEventReissueRow(call: CallState, streamingError: unknown, pre
   const silence = preEventSilenceWords()
   call.preFirstEventStreamRetryUsed = true
   resetApiConnectionPool()
-  logForDiagnosticsNoPII('info', 'cli_stream_preevent_streaming_retry')
   logForDebugging(`watchdog: ${silence} — reissuing the stream (pass 2)`, { level: 'warn' })
   const noticeError = Object.assign(new Error(`${silence}; reissuing the stream`), { cause: streamingError })
   return createSystemAPIErrorMessage(noticeError, 0, 1, 2, {
@@ -43,7 +41,6 @@ export function streamCutReissueRow(call: CallState, options: Options, cut: NonN
   if (options.onStreamingFallback) {
     options.onStreamingFallback()
   }
-  logForDiagnosticsNoPII('warn', 'cli_stream_cut_streaming_retry')
   logForDebugging(`${cutWords} — reissuing the stream on a fresh connection (pass 2)`, { level: 'warn' })
   return createStreamCutMessage({
     count: 1,

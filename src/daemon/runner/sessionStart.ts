@@ -3,7 +3,6 @@ import { getSessionId } from '../../boot/process-state/processState.js'
 import type { HookResultMessage } from '../../engine/message-shapes/message.js'
 import { createAttachmentMessage } from '../../engine/attachments/turnAttachments.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
-import { withDiagnosticsTiming } from '../../platform/logs/diagnosticsLog.js'
 import { isBareMode } from '../../platform/environment/envUtils.js'
 import { fireHooks } from '../../integrations/event-hooks/fire.js'
 import { managedHooksOnly } from '../../integrations/event-hooks/hooksConfigSnapshot.js'
@@ -24,7 +23,7 @@ export function takeFirstPrompt(): string | undefined {
 
 async function loadExtensionHooksGuarded(reason: SessionStartReason): Promise<void> {
   try {
-    await withDiagnosticsTiming('session_start_extension_hooks_load', () => ensureExtensionsLoaded())
+    await ensureExtensionsLoaded()
   } catch (err) {
     const original = err instanceof Error ? err : new Error(String(err))
     const wrapped = new Error(`Extension hook loading failed at session.start (${reason}): ${original.message}`)

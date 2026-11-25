@@ -7,7 +7,6 @@ import { asSystemPrompt } from '../../system-prompt/systemPromptType.js'
 import { logError } from '../../../platform/logs/errorLog.js'
 import { isRecord } from '../../../platform/primitives/isRecord.js'
 import { findLastFoldBoundaryIndex, getAssistantMessageText } from '../../messages/messages.js'
-import { isSessionActivityTrackingActive, sendSessionActivitySignal } from '../../requests/sessionActivity.js'
 import { tokenCountWithEstimation } from '../../context-window/contextTokenCount.js'
 import { isToolSearchEnabled } from '../../messages/toolSearch.js'
 import { LOCAL_WINDOW_REMEDY, localFitRefusalFacts } from '../../../models/roads/local/localCatalogue.js'
@@ -18,12 +17,11 @@ import { rosterOwnerFromToolUseContext } from '../../run-owner/resolveOwner.js'
 import { ReadTool } from '../../../tools/read/ReadTool.js'
 import { ToolSearchTool } from '../../../tools/tool-search/ToolSearchTool.js'
 import { projectRewoundWindows } from '../checkpointRewind.js'
-import { ERROR_MESSAGE_INCOMPLETE_RESPONSE, KEEPALIVE_INTERVAL_MS } from './foldLimits.js'
+import { ERROR_MESSAGE_INCOMPLETE_RESPONSE } from './foldLimits.js'
 import { isOverflowAnswer, malformedHistoryRefusalOf, foldRemedyIsHeadless, foldWindowRefusalText, FoldRefusedForHistoryError } from './refusals.js'
 import { ERROR_MESSAGE_FOLD_TIMEOUT, type FoldBound, armFoldBound, foldCutWords, shouldRideCacheSharingFork, recordFoldRoad } from './foldBound.js'
 import { createFoldCanUseTool } from './summariserInput.js'
 import { summaryAnswerFault, summaryRefusedByModel } from './summaryCheck.js'
-import { startInterval, stopInterval } from '../../../platform/async/timers.js'
 
 async function summarizeViaCacheSharingFork(
   messages: Message[],
@@ -300,22 +298,10 @@ export async function runSummarization(
   context: ToolUseContext,
   directOnly: boolean = false,
 ): Promise<AssistantMessage> {
-  let keepalive: ReturnType<typeof startInterval> | null = null
-  if (isSessionActivityTrackingActive()) {
-    keepalive = startInterval(() => {
-      sendSessionActivitySignal()
-      context.setSDKStatus?.('compacting')
-    }, KEEPALIVE_INTERVAL_MS)
-    keepalive.unref?.()
+  if (!directOnly && shouldRideCacheSharingFork(context.options.engineModel, context.options.thinkingConfig)) {
+    const forked = await summarizeViaCacheSharingFork(messages, cacheSafeParams, promptMessage, context)
+    if (forked !== null) return forked
+    if (context.abortController.signal.aborted) throw new APIUserAbortError()
   }
-  try {
-    if (!directOnly && shouldRideCacheSharingFork(context.options.engineModel, context.options.thinkingConfig)) {
-      const forked = await summarizeViaCacheSharingFork(messages, cacheSafeParams, promptMessage, context)
-      if (forked !== null) return forked
-      if (context.abortController.signal.aborted) throw new APIUserAbortError()
-    }
-    return await summarizeDirect(messages, cacheSafeParams, promptMessage, context)
-  } finally {
-    if (keepalive !== null) stopInterval(keepalive)
-  }
+  return await summarizeDirect(messages, cacheSafeParams, promptMessage, context)
 }

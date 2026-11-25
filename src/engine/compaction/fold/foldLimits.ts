@@ -67,5 +67,4 @@ export const PART_TEXT_CHUNK_FLOOR_CHARS = 2_000
 export const MODEL_REFUSAL_STOP_KEY = 'stop_reason: refusal'
 export const PTL_TRUNCATION_MARKER = '[earlier turns folded for the compaction retry]'
 export const LEGACY_PTL_TRUNCATION_MARKER = '[earlier conversation truncated for compaction retry]'
-export const KEEPALIVE_INTERVAL_MS = 30_000
 export const DEGRADED_SUMMARY_LENGTH = 80

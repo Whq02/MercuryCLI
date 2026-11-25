@@ -5,7 +5,6 @@ import {
 import type { ApiMessage as BetaMessage } from '../../../../engine/message-shapes/wire.js'
 import type { AnthropicMessageParams as BetaMessageStreamParams } from '../anthropicWire.js'
 import type { QuerySource } from 'src/engine/requests/querySource.js'
-import { logForDiagnosticsNoPII } from 'src/platform/logs/diagnosticsLog.js'
 import type { ThinkingConfig } from 'src/models/effort/thinking.js'
 import type { SystemAPIErrorMessage } from '../../../../engine/message-shapes/message.js'
 import { normalizeModelStringForAPI } from '../../../catalogue/engineModel.js'
@@ -81,7 +80,6 @@ export async function* executeNonStreamingRequest(
         if (error instanceof APIUserAbortError) {
           throw error
         }
-        logForDiagnosticsNoPII('error', 'cli_nonstreaming_fallback_error')
         if (afterSilence && isFirstByteTimeout(error)) {
           throw new Error(
             `the stream went quiet for ${patienceSeconds(afterSilence.idleMs)} and one non-streamed answer got nothing in ${patienceSeconds(fallbackTimeoutMs)} from ${afterSilence.model} — no keep-alive arrived: a dead connection, or a request the provider parked; the turn was ended`,
