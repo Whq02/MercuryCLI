@@ -3,6 +3,7 @@ import { getDefaultBranch, getBranch, getIsGit } from './git.js'
 import { jsonParse } from '../logs/slowOperations.js'
 import { passedOver } from '../errors/passedOver.js'
 import { isRecord } from '../primitives/isRecord.js'
+import { isEssentialTrafficOnly } from '../../models/roads/privacyLevel.js'
 
 export type PrReviewState = 'approved' | 'pending' | 'changes_requested' | 'draft' | 'merged' | 'closed'
 
@@ -10,6 +11,7 @@ type PrStatus = { reviewState: PrReviewState; url: string; number: number }
 
 export async function fetchPrStatus(): Promise<PrStatus | null> {
   try {
+    if (isEssentialTrafficOnly()) return null
     if (!(await getIsGit())) return null
     const [branch, defaultBranch] = await Promise.all([getBranch(), getDefaultBranch()])
     if (branch === defaultBranch) return null
