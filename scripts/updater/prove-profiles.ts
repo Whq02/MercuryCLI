@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import type { ProfileRow } from '../../src/platform/profiles/profiles.ts'
@@ -10,7 +10,7 @@ import { stageInstall, type StagedInstall } from '../lib/stagedInstall.ts'
 
 const TREE = resolve(import.meta.dir, '..', '..')
 const DIST = join(TREE, 'dist', 'mercury.mjs')
-const SCENES = ['checkout', 'source', 'release'] as const
+const SCENES = ['checkout', 'source', 'release', 'unread', 'unread json'] as const
 const at = process.argv.indexOf('--scene')
 
 if (at < 0) {
@@ -189,11 +189,28 @@ function walk(staged: StagedInstall): void {
   check('create refuses with one sentence naming the file, and leaves it and the list alone', !blocked.ok && sentence(blocked.reason) && blocked.reason.includes(word3) && textOf(word3) === STRANGER && show(ids()) === show([1, 2]), show(blocked))
 
   if (staged.kind !== 'release') return
-  console.log('── release: uninstalling Mercury removes the profile commands with it ──')
+  console.log('── release: uninstalling Mercury removes the profile commands with it, and only those ──')
+  rmSync(word3)
+  const three = createProfile()
+  writeFileSync(word2, STRANGER)
   const kept = held()
   const out = run(staged.command, ['install', '--uninstall'])
-  check('mercury and mercury2 are removed and the report says so', out.status === 0 && !existsSync(staged.command) && !existsSync(word2) && out.stdout.includes(`removed: ${word2}`), show([out.status, out.stdout, out.stderr.slice(-300)]))
-  check('the stranger, the second home with its login and the record stay, and the report names that home as preserved', textOf(word3) === STRANGER && held() === kept && existsSync(record) && out.stdout.includes(`preserved: ${home2} (`) && login(nodeBinPath(), { MERCURY_CONFIG_DIR: home2 }, [DIST]).includes('2222'), out.stdout)
+  check('mercury and the command of profile 3 are removed and the report says so', three.ok && out.status === 0 && !existsSync(staged.command) && !existsSync(word3) && out.stdout.includes(`removed: ${word3}`), show([three, out.status, out.stdout, out.stderr.slice(-300)]))
+  check('a stranger at the path of profile 2\'s command stands and is not said to be removed', textOf(word2) === STRANGER && !out.stdout.includes(word2), out.stdout)
+  check('the second home with its login and the record stay, and the report names both other homes as preserved', held() === kept && existsSync(record) && out.stdout.includes(`preserved: ${home2} (`) && out.stdout.includes(`preserved: ${home}3 (`) && login(nodeBinPath(), { MERCURY_CONFIG_DIR: home2 }, [DIST]).includes('2222'), out.stdout)
+}
+
+function unread(staged: StagedInstall, json: boolean): void {
+  console.log(`── uninstalling Mercury when the profile list does not read${json ? ', asked for JSON' : ''} ──`)
+  const word2 = join(staged.bin, 'mercury2')
+  process.argv[1] = staged.bundle
+  const made = createProfile()
+  writeFileSync(record, '{ "profiles": ')
+  const out = spawnSync(staged.command, ['install', '--uninstall', ...(json ? ['--json'] : [])], { env: staged.env, encoding: 'utf8', timeout: 120_000 })
+  const note = json ? ((JSON.parse(out.stdout) as { note?: string }).note ?? '') : (out.stdout.split('\n').find(line => line.startsWith('note: ')) ?? '')
+  check('Mercury itself is uninstalled', made.ok && out.status === 0 && !existsSync(staged.command), show([made, out.status, out.stdout, out.stderr.slice(-300)]))
+  check('nothing of a profile is removed: its command stands', existsSync(word2) && !out.stdout.includes(`removed: ${word2}`), out.stdout)
+  check('the answer says the profile commands were left and names the file that does not read', note.includes('the profile commands were left as found') && note.includes(record), out.stdout)
 }
 
 console.log('============================================================')
@@ -201,6 +218,7 @@ console.log(` Profiles — ${scene}`)
 console.log('============================================================')
 if (scene === 'checkout') checkout()
 else if (scene === 'source' || scene === 'release') walk(stageInstall(scene, userHome))
+else if (scene === 'unread' || scene === 'unread json') unread(stageInstall('release', userHome), scene === 'unread json')
 else failed++
 console.log(`prove-profiles (${scene}): ${passed} passed, ${failed} failed`)
 process.exit(failed === 0 ? 0 : 1)
