@@ -106,11 +106,10 @@ export function imageRowNumbersOf(
       }
     }
   }
-  const unique = [...seen]
-  if (unique.length >= imageCount) {
-    return unique.sort((a, b) => a - b).slice(-imageCount)
+  for (let next = 1; seen.size < imageCount; next++) {
+    seen.add(next)
   }
-  return Array.from({ length: imageCount }, (_, index) => unique[index] ?? index + 1)
+  return [...seen].sort((a, b) => a - b).slice(-imageCount)
 }
 
 function userBlockRows(parent: UserMessage, blocks: (ContentBlock | ContentBlockParam)[], latched: boolean): NormalizedMessage[] {

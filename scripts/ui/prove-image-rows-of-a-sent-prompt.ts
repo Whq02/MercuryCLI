@@ -106,9 +106,19 @@ try {
     '[Image #1] [Image #2]',
   )
   await checkBoth(
-    'one higher name with two images keeps it and counts the unnamed row from its position (#5 and #2)',
+    'one name ([2]) with two images fills the smallest unused number ascending (#1 and #2)',
+    createUserMessage({ content: [words('look at [Image #2] and the other one'), image, image] }),
+    '[Image #1] [Image #2]',
+  )
+  await checkBoth(
+    'one higher name ([5]) with two images fills the smallest unused number ascending (#1 and #5)',
     createUserMessage({ content: [words('look at [Image #5] and the other one'), image, image] }),
-    '[Image #5] [Image #2]',
+    '[Image #1] [Image #5]',
+  )
+  await checkBoth(
+    'one name ([1]) with three images fills the smallest unused numbers ascending (#1, #2 and #3)',
+    createUserMessage({ content: [words('look at [Image #1] and two more'), image, image, image] }),
+    '[Image #1] [Image #2] [Image #3]',
   )
   await checkBoth(
     'a hand-typed earlier reference with one pasted image ([1, 2], one image) reads #2',
