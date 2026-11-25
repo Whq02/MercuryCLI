@@ -107,7 +107,7 @@ function world(tag: string): { repo: string; sentinel: string } {
 type Mark = { label: string; grid: Array<Array<{ c: string }>> }
 const rowsOf = (grid: Mark['grid']): string[] => grid.map(row => row.map(cell => cell.c || ' ').join('').replace(/\s+$/, ''))
 
-async function start(tag: string, answer: string): Promise<{ status: number | null; card: string[]; sentinel: string; stderr: string } | null> {
+async function start(tag: string, answer: string): Promise<{ status: number | null; card: string[]; face: boolean; sentinel: string; stderr: string } | null> {
   const driver = resolveCaptureDriver()
   if (driver.kind !== 'posix-pty') {
     console.log(`  [SKIP] capture driver unavailable — ${driver.kind === 'unavailable' ? `${driver.reason}; ${driver.remedy}` : driver.kind}`)
@@ -116,11 +116,18 @@ async function start(tag: string, answer: string): Promise<{ status: number | nu
   const at = world(tag)
   const out = join(SCRATCH, `${tag}.json`)
   const cfgPath = join(SCRATCH, `${tag}-cfg.json`)
-  const sends = [
-    { requireAwait: true, awaitText: 'Yes, I trust this folder', minTick: 2, awaitSettleTicks: 3, data: answer, mark: 'card' },
-    { afterPrevTicks: 25, data: '', mark: 'after' },
-  ]
-  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN, '--worktree', `o02-${tag}`], cwd: at.repo, cols: 120, rows: 40, sends, total: 120, out }))
+  writeFileSync(cfgPath, JSON.stringify({
+    argv: ['node', BIN, '--worktree', `o02-${tag}`],
+    cwd: at.repo,
+    cols: 120,
+    rows: 40,
+    total: 120,
+    out,
+    sends: [
+      { requireAwait: true, awaitText: 'Yes, I trust this folder', minTick: 2, awaitSettleTicks: 3, data: answer, mark: 'card' },
+      { requireAwait: true, awaitText: 'New Session', minTick: 1, awaitSettleTicks: 2, data: '', mark: 'after' },
+    ],
+  }))
   const res = await runChild(driver.python, [join(REPO, 'scripts', 'ui', 'vshot.py'), cfgPath], vshotBudgetMs(300_000))
   let marks: Mark[] = []
   try {
@@ -129,7 +136,8 @@ async function start(tag: string, answer: string): Promise<{ status: number | nu
     console.log(`  the capture of ${tag} left no frames: ${String(error)}`)
   }
   const card = marks.find(mark => mark.label === 'card')
-  return { status: res.status, card: card === undefined ? [] : rowsOf(card.grid), sentinel: existsSync(at.sentinel) ? readFileSync(at.sentinel, 'utf8') : '', stderr: res.stderr.slice(-240) }
+  const after = marks.find(mark => mark.label === 'after')
+  return { status: res.status, card: card === undefined ? [] : rowsOf(card.grid), face: after !== undefined && rowsOf(after.grid).some(row => row.includes('New Session')), sentinel: existsSync(at.sentinel) ? readFileSync(at.sentinel, 'utf8') : '', stderr: res.stderr.slice(-240) }
 }
 
 try {
@@ -137,12 +145,14 @@ try {
   const yes = await start('yes', '\r')
   if (yes !== null) {
     check('the trust card was shown', yes.card.some(row => row.includes('Yes, I trust this folder')), `${yes.status} ${yes.stderr} ${yes.card.slice(0, 6).join(' / ')}`)
+    check('the start went on to the Boot face', yes.face, `${yes.status} ${yes.stderr}`)
     check('the held prepare step ran after the yes, once', yes.sentinel === 'ran', `the sentinel reads ${JSON.stringify(yes.sentinel)}`)
   }
   console.log('N: the same start, the trust card answered no')
   const no = await start('no', '\x1b[B\r')
   if (no !== null) {
     check('the trust card was shown', no.card.some(row => row.includes('No, exit')), `${no.status} ${no.stderr} ${no.card.slice(0, 6).join(' / ')}`)
+    check('the start ended at the card and never reached the Boot face', !no.face, `${no.status} ${no.stderr}`)
     check('the prepare step never ran', no.sentinel === '', `the sentinel reads ${JSON.stringify(no.sentinel)}`)
   }
 } finally {
