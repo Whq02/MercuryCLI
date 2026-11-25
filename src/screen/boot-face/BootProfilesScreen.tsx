@@ -152,11 +152,11 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
         detail: null,
       })),
       selIdx: list.selectedIndex,
-      title: 'profiles (beta)',
+      title: 'profiles',
       summaryTitle: 'PROFILES',
       summaryRows: profiles.filter(profile => profile.current).map(profile => ({ key: 'This one', value: profile.name })),
       environment: bootEnvironment(mainModel, process.cwd()),
-      statusRight: !read.ok ? 'the profile list could not be read' : said === null ? `${profiles.length} profile${profiles.length === 1 ? '' : 's'}` : said.text.replace(/: .*$/s, ''),
+      statusRight: !read.ok ? 'the profile list could not be read' : said?.where === 'status' ? said.text : `${profiles.length} profile${profiles.length === 1 ? '' : 's'}`,
       noticeLine: said?.where === 'status' ? said.text : null,
       glowWord: wordGlow,
       legend: !read.ok
