@@ -1994,11 +1994,11 @@ function scenarioInner(name: string, cols: number, rows: number) {
     return {
       argv: ['node', BIN, '--resume', SID],
       sends: [
-        { atTick: 999, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 2, data: '/workbench' },
-        { atTick: 999, awaitText: '/workbench', minTick: 5, awaitSettleTicks: 2, data: '\r' },
-        { atTick: 999, awaitText: 'SAVED PROMPTS', minTick: 5, awaitSettleTicks: 2, data: '3' },
-        { atTick: 999, awaitText: 'kept per project', minTick: 5, awaitSettleTicks: 2, data: 'a' },
-        { atTick: 999, awaitText: 'new saved prompt', minTick: 5, awaitSettleTicks: 2, data: 'Review the open pull requests and list the ones that touch the parser', mark: 'draft' },
+        { atTick: 999, requireAwait: true, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 2, data: '/workbench' },
+        { atTick: 999, requireAwait: true, awaitText: '/workbench', minTick: 5, awaitSettleTicks: 2, data: '\r' },
+        { atTick: 999, requireAwait: true, awaitText: 'SAVED PROMPTS', minTick: 5, awaitSettleTicks: 2, data: '3' },
+        { atTick: 999, requireAwait: true, awaitText: 'kept per project', minTick: 5, awaitSettleTicks: 2, data: 'a' },
+        { atTick: 999, requireAwait: true, awaitText: 'new saved prompt', minTick: 5, awaitSettleTicks: 2, data: 'Review the open pull requests and list the ones that touch the parser', mark: 'draft' },
       ],
       resizes: [
         { afterMark: 'draft', afterMs: 3000, cols: 80, rows: 30 },
@@ -2634,7 +2634,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
       sends: [
         { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 10, awaitSettleTicks: 6, data: '\r' },
         step('Type a prompt', '/diff'),
-        { afterPrevTicks: 3, data: '\r' },
+        step('/diff', '\r'),
         step('↵ view', '\r', 'list'),
         step('y = x * 2', '\x1b[F', 'opened'),
         step('diff truncated', ']'),
