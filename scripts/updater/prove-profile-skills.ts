@@ -116,7 +116,7 @@ const firstBackups = backups()
 process.chdir(here)
 
 console.log('── create, then the copy, as the page does them in a session of Profile 1 ──')
-const page = spawnSync(process.execPath, [import.meta.path, '--page', userHome, staged.bundle], { encoding: 'utf8', env: process.env, timeout: 120_000 })
+const page = spawnSync(process.execPath, [import.meta.path, '--page', userHome, staged.bundle], { encoding: 'utf8', env: { ...process.env, PATH: staged.env.PATH }, timeout: 120_000 })
 const done: unknown = page.status === 0 ? JSON.parse(page.stdout.trim().split('\n').at(-1) ?? 'null') : null
 check('the copy answers the skills it holds off: each name once, in order, the one the kit cannot name left out', show(done) === show({ made: { ok: true, profile: { id: 2, name: 'Profile 2', home: second, command: 'mercury2', current: false } }, copied: { ok: true, skills: ['alpha', 'beta', 'zeta'] } }), show([page.status, done, page.stderr.slice(-300)]))
 check('with a backup of its own config standing, that session says nothing on stderr and its backups folder is as it was', firstBackups.includes('.mercury.json.backup.') && page.stderr === '' && backups() === firstBackups, show([page.stderr, firstBackups, backups()]))
