@@ -219,7 +219,7 @@ const stubMercury = (version: string): void => writeStub('mercury', IS_WIN ? `ec
 writeStub('brew', IS_WIN ? 'exit /b 0\r\n' : 'exit 0\n')
 writeStub('npm', IS_WIN ? 'exit /b 0\r\n' : 'exit 0\n')
 const installerDaemonLast = (to: string): string => `background daemon: none running — the next session starts one on v${to}`
-const openWindowsLine = (from: string): string => `any Mercury window still open keeps working on v${from} until it is closed and opened again`
+const openWindowsLine = 'any Mercury window still open keeps working on the version it started with until it is closed and opened again'
 const endsLikeEveryRoad = (label: string, bundle: string, installerName: string, command: string): void => {
   rmSync(versionsDir, { recursive: true, force: true })
   mkdirSync(versionsDir, { recursive: true })
@@ -228,7 +228,7 @@ const endsLikeEveryRoad = (label: string, bundle: string, installerName: string,
   const lines = r.stdout.trim().split('\n').map(l => l.trim())
   check(
     `${label}: the installer ran and the road ends with the daemon line and then the open-windows line`,
-    r.code === 0 && lines[0] === `updated: ${RUNNING} → ${V_INSTALLER} (${installerName}: \`${command}\`)` && lines[lines.length - 2] === installerDaemonLast(V_INSTALLER) && lines[lines.length - 1] === openWindowsLine(RUNNING),
+    r.code === 0 && lines[0] === `updated: ${RUNNING} → ${V_INSTALLER} (${installerName}: \`${command}\`)` && lines[lines.length - 2] === installerDaemonLast(V_INSTALLER) && lines[lines.length - 1] === openWindowsLine,
     r.all.slice(0, 700),
   )
   const j = run(bundle, ['update', '--yes', '--json'], env(pathOf(stubBin)))
@@ -236,7 +236,7 @@ const endsLikeEveryRoad = (label: string, bundle: string, installerName: string,
   const daemon = record?.daemon as { state?: string; line?: string } | undefined
   check(
     `${label}: --json carries the daemon record and the open-windows sentence beside installer-ran`,
-    j.code === 0 && record?.state === 'installer-ran' && record?.to === V_INSTALLER && daemon?.state === 'absent' && daemon?.line === installerDaemonLast(V_INSTALLER) && record?.openWindows === openWindowsLine(RUNNING),
+    j.code === 0 && record?.state === 'installer-ran' && record?.to === V_INSTALLER && daemon?.state === 'absent' && daemon?.line === installerDaemonLast(V_INSTALLER) && record?.openWindows === openWindowsLine,
     j.stdout.slice(0, 700),
   )
   stubMercury(RUNNING)
@@ -275,7 +275,6 @@ const seedForUpdate = (): string => {
   check('(a) and nothing is said about the `mercury` the shell runs', !r.stdout.includes('your shell runs') && !r.stdout.includes('is on your PATH'), r.stdout)
 }
 const daemonLast = `background daemon: none running — the next session starts one on v${V_NEW}`
-const openWindowsLast = `any Mercury window still open keeps working on v${V_OLD} until it is closed and opened again`
 {
   const bundle = seedForUpdate()
   const r = run(bundle, ['update', '--allow-unsigned'], env(pathOf(otherBin, binDir)))
@@ -283,7 +282,7 @@ const openWindowsLast = `any Mercury window still open keeps working on v${V_OLD
   const last = lines.slice(-4, -2)
   check(
     '(b) another `mercury` ahead of it: the update lands, the two lines above the daemon line name both paths and the fix, the daemon line says what the background daemon did, and the last line says that open windows keep working on the old build until reopened',
-    r.code === 0 && pointer() === V_NEW && last[0] === `the \`mercury\` your shell runs is ${foreignMercury}; the updated one is ${shim}` && last[1] === aheadFix && lines[lines.length - 2] === daemonLast && lines[lines.length - 1] === openWindowsLast,
+    r.code === 0 && pointer() === V_NEW && last[0] === `the \`mercury\` your shell runs is ${foreignMercury}; the updated one is ${shim}` && last[1] === aheadFix && lines[lines.length - 2] === daemonLast && lines[lines.length - 1] === openWindowsLine,
     r.all.slice(0, 900),
   )
 }
@@ -296,7 +295,7 @@ if (IS_WIN) {
   const last = lines.slice(-4, -2)
   check(
     '(c) no `mercury` on PATH at all: the update lands, the two lines above the daemon line say so with the fix, the daemon line says what the background daemon did, and the last line says that open windows keep working on the old build until reopened',
-    r.code === 0 && pointer() === V_NEW && last[0] === `no \`mercury\` is on your PATH; the updated one is ${shim}` && last[1] === onFix && lines[lines.length - 2] === daemonLast && lines[lines.length - 1] === openWindowsLast,
+    r.code === 0 && pointer() === V_NEW && last[0] === `no \`mercury\` is on your PATH; the updated one is ${shim}` && last[1] === onFix && lines[lines.length - 2] === daemonLast && lines[lines.length - 1] === openWindowsLine,
     r.all.slice(0, 900),
   )
 }
