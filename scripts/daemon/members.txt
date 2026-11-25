@@ -65,6 +65,7 @@ prove-respawn-retires-asks.ts
 prove-restart-starts-installed-daemon.ts
 prove-resume-id-admission.ts
 prove-resumed-session-at-rest.ts
+prove-rollback-second-home-daemon.ts
 prove-roster-stdin.ts
 prove-runner-asked-to-end.ts
 prove-runner-quiescence.ts
