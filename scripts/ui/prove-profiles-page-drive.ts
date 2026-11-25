@@ -65,12 +65,12 @@ const journey = [
 ]
 const refusal = [...toThePage, key('1 · Profile 1', 'n')]
 
-async function drive(cols: number, scene: { name: string; sends: Array<ReturnType<typeof key>>; readyText: string; stranger: boolean }): Promise<{ frame: (label: string) => string; home: string; bin: string }> {
+async function drive(cols: number, scene: { name: string; sends: Array<ReturnType<typeof key>>; readyText: string; stage?: (install: { home: string; bin: string }) => void }): Promise<{ frame: (label: string) => string; home: string; bin: string }> {
   const userHome = realpathSync(mkdtempSync(join(tmpdir(), 'profiles-page-home-')))
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'profiles-page-project-')))
   const install = stageInstall('source', userHome)
   seedFirstRun(install.home, [cwd])
-  if (scene.stranger) writeFileSync(join(install.bin, 'mercury2'), 'not a profile command\n')
+  scene.stage?.(install)
   const output = join(userHome, 'capture.json')
   const config = join(userHome, 'capture-config.json')
   writeFileSync(config, JSON.stringify({ argv: [install.command], cwd, cols, rows: 40, out: output, total: 600, sends: scene.sends, readyText: scene.readyText }))
@@ -104,7 +104,7 @@ async function drive(cols: number, scene: { name: string; sends: Array<ReturnTyp
 
 try {
   for (const cols of [120, 80]) {
-    const { frame, home } = await drive(cols, { name: 'removed', sends: journey, readyText: 'Work removed', stranger: false })
+    const { frame, home } = await drive(cols, { name: 'removed', sends: journey, readyText: 'Work removed' })
     const menu = frame('menu').split('\n')
     const agentsAt = menu.findIndex(line => /Agents\s+↵ open/.test(line))
     check(`${cols}: the Boot Menu shows Profiles (Beta) under Agents`, agentsAt >= 0 && /Profiles \(Beta\)\s+↵ open/.test(menu[agentsAt + 1] ?? ''), `put the profiles row after the agents row of settingsEditors in src/screen/boot-face/settings/menuModel.ts; the editor rows read: ${menu.filter(line => line.includes('↵ open')).map(line => line.trim()).join(' | ')}`)
@@ -117,8 +117,11 @@ try {
     check(`${cols}: esc and n each leave the remove with the profile still there`, /Work\s+mercury2/.test(rowOf(frame('remove-left-esc'), 2) ?? '') && /Work\s+mercury2/.test(rowOf(frame('remove-left-n'), 2) ?? ''), `esc and n in the confirm must close it and call nothing (the remove keys of ${PAGE}); after esc the row reads: ${rowOf(frame('remove-left-esc'), 2)?.trim() ?? 'no row'}; after n: ${rowOf(frame('remove-left-n'), 2)?.trim() ?? 'no row'}`)
     check(`${cols}: after the remove the list is Profile 1 alone again and the kept folder is named whole where the pane wraps`, rowOf(frame('removed'), 1) !== undefined && rowOf(frame('removed'), 2) === undefined && wholeWhereThePaneWraps(frame('removed'), `${home}2`), `y must call removeProfile, re-read the list and print keptHome in the detail pane, where it wraps (the remove keys and detailLinesOf of ${PAGE}); row 2 reads: ${rowOf(frame('removed'), 2)?.trim() ?? 'no row'}`)
 
-    const refused = await drive(cols, { name: 'refused', sends: refusal, readyText: 'again.', stranger: true })
+    const refused = await drive(cols, { name: 'refused', sends: refusal, readyText: 'again.', stage: install => writeFileSync(join(install.bin, 'mercury2'), 'not a profile command\n') })
     check(`${cols}: a refusal from the door is on screen to its last word, its path whole where the pane wraps`, refused.frame('refused').includes('again.') && wholeWhereThePaneWraps(refused.frame('refused'), join(refused.bin, 'mercury2')) && rowOf(refused.frame('refused'), 2) === undefined, `a door reason must go to the detail pane, where it wraps, and never to the status row alone (settle and detailLinesOf of ${PAGE})`)
+
+    const unread = await drive(cols, { name: 'unread', sends: toThePage, readyText: 'again.', stage: install => writeFileSync(join(install.home, 'profiles.json'), '{') })
+    check(`${cols}: a list that does not read says so, names the file, draws no row and offers only esc`, unread.frame('unread').includes('again.') && wholeWhereThePaneWraps(unread.frame('unread'), join(unread.home, 'profiles.json')) && rowOf(unread.frame('unread'), 1) === undefined && unread.frame('unread').includes('esc back') && !/n new|r rename|⌫ remove/.test(unread.frame('unread')), `when listProfiles answers ok: false the page must print its reason in the detail pane, pass no action to the list and show the legend esc back (${PAGE})`)
   }
   check('the page made no model call', fixture.messageRequests().length === 0, `a key of the profiles page reached the model API; the page must stay on the door in src/platform/profiles/profiles.ts`)
 } finally {
