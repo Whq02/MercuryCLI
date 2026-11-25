@@ -8,6 +8,7 @@ const { engineLadderOf } = await import('../../src/engine/requests/backupEngines
 const { FallbackTriggeredError } = await import('../../src/engine/requests/withRetry.ts')
 const { ImageSizeError } = await import('../../src/engine/requests/imageValidation.ts')
 const { createAssistantAPIErrorMessage } = await import('../../src/engine/messages/messages.ts')
+const { lastSentRequestFor } = await import('../../src/crew/agents/forkedAgent.ts')
 
 const f = t.fixtures
 type Row = Record<string, unknown>
@@ -107,6 +108,15 @@ section('(3) one stream of one call')
   const retried = await t.drain(stream.streamOneCall(swapped.run, swapped.it, swapped.emit, call(swapped) as never, engineLadderOf(swapped.run, undefined)))
   check('when the provider falls back mid-stream what had settled is taken back before the fresh reply settles', kinds(retried.events) === 'assistant_settled,assistant_retracted,assistant_settled' && (swapped.iter.assistantMessages as unknown[]).length === 1, kinds(retried.events))
   swapped.planted.close()
+
+  const told = await before({ script: [f.yields(f.says('done.'))] })
+  told.planted.run.userContext = { rig: 'a fact of the first turn' }
+  await t.drain(stream.streamOneCall(told.run, told.it, told.emit, call(told) as never, engineLadderOf(told.run, undefined)))
+  const asked = told.iter.messagesForRequest as unknown[]
+  const sent = told.planted.requests[0]?.messages ?? []
+  const recorded = lastSentRequestFor(String(told.planted.requests[0]?.options.ownerKey)) ?? []
+  check('a run whose messages hold no user context yet sends its own ahead of them, and that list is the one recorded as sent', sent.length === asked.length + 1 && j(sent[0]).includes('a fact of the first turn') && asked.every((row, at) => sent[at + 1] === row) && recorded.length === sent.length && recorded.every((row, at) => row === sent[at]), `${asked.length} asked · ${sent.length} sent, the first ${j(sent[0]).slice(0, 160)} · ${recorded.length} recorded`)
+  told.planted.close()
 }
 
 section('(4) settling one reply')
