@@ -3,7 +3,6 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { nodeBinPath } from '../lib/nodeBin.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 import { stageInstall, type StagedInstall } from '../lib/stagedInstall.ts'
 
@@ -56,7 +55,7 @@ const sentence = (reason: string): boolean => /^[A-Z`][^\n]+\.$/.test(reason)
 const record = join(home, 'profiles.json')
 const home2 = `${home}2`
 
-async function checkout(): Promise<void> {
+function checkout(): void {
   console.log('── a checkout run by node dist/mercury.mjs: no installed command ──')
   process.argv[1] = join(TREE, 'dist', 'mercury.mjs')
   const made = createProfile()
@@ -65,13 +64,12 @@ async function checkout(): Promise<void> {
   check('the list is Profile 1 alone, current, with no command', show(listProfiles()) === show([{ id: 1, name: 'Profile 1', home, command: null, current: true }]), show(listProfiles()))
   check('a rename is a label in the record', renameProfile(1, 'Main').ok && listProfiles()[0]?.name === 'Main' && existsSync(record), show(listProfiles()))
   check('the default name back deletes the record', renameProfile(1, '').ok && listProfiles()[0]?.name === 'Profile 1' && !existsSync(record), show(listProfiles()))
-  const first = await removeProfile(1)
-  const none = await removeProfile(2)
+  const first = removeProfile(1)
+  const none = removeProfile(2)
   check('remove refuses Profile 1 and a profile that is not there, each with one sentence', !first.ok && sentence(first.reason) && !none.ok && sentence(none.reason), show([first, none]))
 }
 
-async function walk(staged: StagedInstall): Promise<void> {
-  const node = process.execPath
+function walk(staged: StagedInstall): void {
   const word2 = join(staged.bin, 'mercury2')
   const program: NodeJS.ProcessEnv = staged.kind === 'source' ? { MERCURY_DIST: staged.bundle } : { MERCURY_VERSIONS_DIR: join(home, 'versions') }
   const version = (JSON.parse(readFileSync(join(TREE, 'dist', 'manifest.json'), 'utf8')) as { version: string }).version
@@ -91,8 +89,8 @@ async function walk(staged: StagedInstall): Promise<void> {
       delete process.env.MERCURY_VERSIONS_DIR
     }
   }
+  const held = (): string => show(readdirSync(home2).sort().map(name => [name, statSync(join(home2, name)).mtimeMs]))
   process.argv[1] = staged.bundle
-  process.execPath = nodeBinPath()
 
   console.log(`── ${staged.kind}: before the first create ──`)
   check('the list is Profile 1 alone, current, started by mercury', show(listProfiles()) === show([{ id: 1, name: 'Profile 1', home, command: 'mercury', current: true }]), show(listProfiles()))
@@ -123,37 +121,34 @@ async function walk(staged: StagedInstall): Promise<void> {
   check('both profiles take a label', renameProfile(2, '  Work  ').ok && renameProfile(1, 'Main').ok && show(listProfiles().map(row => row.name)) === show(['Main', 'Work']), show(listProfiles()))
   const seen = asSecond(() => listProfiles())
   check('a session in the second home lists the same profiles and marks itself current', show(seen) === show([{ id: 1, name: 'Main', home, command: 'mercury', current: false }, { id: 2, name: 'Work', home: home2, command: 'mercury2', current: true }]), show(seen))
-  const own = await asSecond(() => removeProfile(2))
+  const own = asSecond(() => removeProfile(2))
   check('remove refuses the profile the session runs in, and no profile 9 can be renamed', !own.ok && sentence(own.reason) && existsSync(word2) && !renameProfile(9, 'x').ok, show(own))
   check('the default name back for Profile 1 keeps the record while profile 2 stands', renameProfile(1, '').ok && listProfiles()[0]?.name === 'Profile 1' && existsSync(record), show(listProfiles()))
 
   console.log(`── ${staged.kind}: remove ──`)
-  process.execPath = join(userHome, 'no-such-node')
-  const unsigned = await removeProfile(2)
-  process.execPath = nodeBinPath()
-  check('a sign-out that cannot run refuses with one sentence and leaves the command, the row and the login', !unsigned.ok && sentence(unsigned.reason) && unsigned.reason.includes('`mercury2 auth logout`') && existsSync(word2) && listProfiles().length === 2 && login(word2).includes('2222'), show(unsigned))
-  const removed = await removeProfile(2)
+  const before = held()
+  const removed = removeProfile(2)
+  const after = held()
   check('remove answers the folder it kept', show(removed) === show({ ok: true, keptHome: home2 }), show(removed))
   check('the command is deleted and mercury stands alone', !existsSync(word2) && show(readdirSync(staged.bin)) === show(['mercury']), show(readdirSync(staged.bin)))
-  check('the home is signed out through the program, and Profile 1 keeps its login', login(staged.command, { MERCURY_CONFIG_DIR: home2, ...program }) === 'none' && login(staged.command).includes('1111'), show([login(staged.command, { MERCURY_CONFIG_DIR: home2, ...program }), login(staged.command)]))
-  check('the folder stays and is no profile any more', existsSync(join(home2, '.mercury.json')) && !existsSync(join(home2, 'profile.json')), show(readdirSync(home2)))
+  check('nothing inside the kept folder is touched', after === before, `${before} → ${after}`)
+  check('the login saved in the kept folder is still there, and Profile 1 keeps its own', login(staged.command, { MERCURY_CONFIG_DIR: home2, ...program }).includes('2222') && login(staged.command).includes('1111'), show([login(staged.command, { MERCURY_CONFIG_DIR: home2, ...program }), login(staged.command)]))
   check('the record is gone and the list is Profile 1 alone', !existsSync(record) && show(listProfiles()) === show([{ id: 1, name: 'Profile 1', home, command: 'mercury', current: true }]), show(listProfiles()))
 
   console.log(`── ${staged.kind}: the next create adopts the kept folder; a stranger at the command's path stops it ──`)
   const again = createProfile()
-  check('create takes number 2 again and leaves what the folder held', again.ok && again.profile.home === home2 && existsSync(join(home2, '.mercury.json')), show(again))
-  check('that profile is removed again', (await removeProfile(2)).ok && !existsSync(word2) && !existsSync(record))
+  check('create takes number 2 again and the folder is adopted as it stands, its login with it', again.ok && again.profile.home === home2 && login(word2).includes('2222'), show([again, login(word2)]))
+  check('that profile is removed again', removeProfile(2).ok && !existsSync(word2) && !existsSync(record))
   writeFileSync(word2, '#!/bin/sh\necho not mercury\n')
   const blocked = createProfile()
   check('create refuses with one sentence naming the file, and leaves it and the record alone', !blocked.ok && sentence(blocked.reason) && blocked.reason.includes(word2) && readFileSync(word2, 'utf8').includes('not mercury') && !existsSync(record), show(blocked))
-  process.execPath = node
 }
 
 console.log('============================================================')
 console.log(` Profiles — ${scene}`)
 console.log('============================================================')
-if (scene === 'checkout') await checkout()
-else if (scene === 'source' || scene === 'release') await walk(stageInstall(scene, userHome))
+if (scene === 'checkout') checkout()
+else if (scene === 'source' || scene === 'release') walk(stageInstall(scene, userHome))
 else failed++
 console.log(`prove-profiles (${scene}): ${passed} passed, ${failed} failed`)
 process.exit(failed === 0 ? 0 : 1)

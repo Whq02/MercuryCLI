@@ -4,7 +4,6 @@ import { z } from 'zod/v4'
 import { getMercuryHome } from '../environment/envUtils.js'
 import { errorMessage, isENOENT } from '../errors/errors.js'
 import { passedOver } from '../errors/passedOver.js'
-import { execFileNoThrow } from '../processes/execFileNoThrow.js'
 import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
 import { flagPair } from '../substrate/flagRegistry.js'
 import { resolveLayoutRoots, shimStatus } from '../update-channel/installLayout.js'
@@ -16,7 +15,6 @@ export type ProfileRefusal = { ok: false; reason: string }
 const RECORD = 'profiles.json'
 const MARKER = 'profile.json'
 const SOURCE_POINTERS = ['current', 'dist']
-const SIGN_OUT_TIMEOUT_MS = 60_000
 const NOT_INSTALLED = 'Profiles need Mercury started through its installed `mercury` command (a release install or a source deploy), and this session was not: start it that way, then try again.'
 
 const recordSchema = z.object({ profiles: z.array(z.object({ id: z.number().int().min(1), name: z.string().optional() })) })
@@ -24,7 +22,7 @@ const markerSchema = z.object({ first: z.string().min(1), id: z.number().int().m
 
 type Labels = z.infer<typeof recordSchema>['profiles']
 type Family = { first: string; currentId: number; labels: Labels }
-type Install = { bundle: string; bin: string; command: string; program: Record<string, string>; isWindows: boolean }
+type Install = { bin: string; command: string; program: Record<string, string>; isWindows: boolean }
 type CommandFile = { path: string; text: string }
 
 const refused = (reason: string): ProfileRefusal => ({ ok: false, reason })
@@ -80,11 +78,11 @@ function install(first: string): Install | null {
   const bin = join(first, 'bin')
   const launcher = join(bin, 'mercury')
   if (SOURCE_POINTERS.some(name => bundle === join(first, 'runtime', name, 'mercury.mjs')) && existsSync(launcher)) {
-    return { bundle, bin, command: launcher, program: { MERCURY_DIST: bundle }, isWindows: false }
+    return { bin, command: launcher, program: { MERCURY_DIST: bundle }, isWindows: false }
   }
   const roots = resolveLayoutRoots()
   if (resolveInstallProvenance().kind !== 'managed' || shimStatus(roots) !== 'managed') return null
-  return { bundle, bin: roots.binDir, command: roots.shimPath, program: flagPair('MERCURY_VERSIONS_DIR', roots.versionsDir), isWindows: roots.isWindows }
+  return { bin: roots.binDir, command: roots.shimPath, program: flagPair('MERCURY_VERSIONS_DIR', roots.versionsDir), isWindows: roots.isWindows }
 }
 
 function commandFiles(found: Install, id: number, home: string): CommandFile[] {
@@ -142,7 +140,7 @@ export function createProfile(): { ok: true; profile: ProfileRow } | ProfileRefu
     const found = install(known.first)
     if (found === null) return refused(NOT_INSTALLED)
     let id = 2
-    while (id === known.currentId || known.labels.some(row => row.id === id)) id++
+    while (known.labels.some(row => row.id === id)) id++
     const home = homeOf(known.first, id)
     const files = commandFiles(found, id, home)
     const taken = files.find(file => ![undefined, file.text].includes(textAt(file.path)))
@@ -173,7 +171,7 @@ export function renameProfile(id: number, name: string): { ok: true } | ProfileR
   }
 }
 
-export async function removeProfile(id: number): Promise<{ ok: true; keptHome: string } | ProfileRefusal> {
+export function removeProfile(id: number): { ok: true; keptHome: string } | ProfileRefusal {
   try {
     const known = family()
     if (id === 1) return refused('Profile 1 is the home Mercury starts in by default and is never removed: remove a profile numbered 2 or above.')
@@ -182,13 +180,7 @@ export async function removeProfile(id: number): Promise<{ ok: true; keptHome: s
     const found = install(known.first)
     if (found === null) return refused(NOT_INSTALLED)
     const home = homeOf(known.first, id)
-    const signOut = await execFileNoThrow(process.execPath, [found.bundle, 'auth', 'logout'], { env: flagPair('MERCURY_CONFIG_DIR', home), stdin: 'ignore', timeout: SIGN_OUT_TIMEOUT_MS })
-    if (signOut.code !== 0) {
-      const why = (signOut.stderr.trim() || signOut.stdout.trim() || signOut.error || `exit ${signOut.code}`).split('\n')[0]
-      return refused(`Profile ${id} could not be signed out (${why}): run \`${wordOf(id)} auth logout\` to see why, then remove it again.`)
-    }
     for (const file of commandFiles(found, id, home)) if (textAt(file.path) === file.text) rmSync(file.path)
-    rmSync(join(home, MARKER), { force: true })
     save(known.first, known.labels.filter(row => row.id !== id))
     return { ok: true, keptHome: home }
   } catch (error) {
