@@ -322,7 +322,7 @@ type LoadedSkill = { command: Command; filePath: string; source: string }
 
 export const SKILL_WALK_MAX_DEPTH = 8
 
-async function findSkillDirs(dir: string): Promise<string[] | null> {
+export async function findSkillDirs(dir: string): Promise<string[] | null> {
   const found: string[] = []
   const visited = new Set<string>()
   const walk = async (current: string, depth: number): Promise<boolean> => {

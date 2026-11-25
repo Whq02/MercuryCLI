@@ -172,6 +172,7 @@ type Servers = {
   claudeAiMcpEverConnected?: string[]
   githubRepoPaths?: Record<string, string[]>
   kitPresets?: Record<string, { mcpOff: string[]; skillStates: SkillStates; extensionsOff: string[] }>
+  inheritedSkillsOff?: string[]
   duckduckgoScraping?: boolean
 }
 
