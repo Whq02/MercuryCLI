@@ -179,9 +179,9 @@ export function canonicalizeCheckoutRows(
     const last = runs[runs.length - 1]
     const gone =
       (after >= 2 || (after === 0 && walled)) && before - need >= 2 && before - need > Math.max(after, 1)
-        ? at - need
+        ? at - before
         : after >= need && (walled || after - need >= 2)
-          ? end
+          ? end + after - need
           : last?.index !== undefined && last[0].length - need >= 2
             ? last.index
             : -1
