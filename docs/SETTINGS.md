@@ -34,6 +34,12 @@ honoured on the next call). `--config-layers user,local` selects which
 of the three user-owned sources load; flag settings and managed policy still
 apply. Permission denies and managed locks remain binding.
 
+**Profiles (Beta)** in the Boot Menu makes a second config home beside the
+first (`~/.mercury2`) and a `mercury2` command that starts Mercury in it. A
+profile has its own logins, settings and history; the program and your
+project folders are shared. Removing a profile there signs it out and deletes
+its command; its folder stays on disk until you delete it.
+
 Mercury writes an editor-schema pointer as `$schema` in your settings file.
 The schema at `<config home>/schema/settings.schema.json` belongs to the
 installed build and works offline. Use it for completion and validation.
