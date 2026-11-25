@@ -127,9 +127,9 @@ export function resumeProjectDetailLines(p: BootProjectFact & { running?: number
     'highlighted: the sessions above show',
     'this repo alone (↑ walks back out)',
     '',
-    '↵ opens the newest chat there as the',
-    'chat (a history-less repo births',
-    'one); the refusal paints on the row.',
+    '↵ opens the newest chat there',
+    '(a history-less repo births one);',
+    'the refusal paints on the row.',
   ];
 }
 
