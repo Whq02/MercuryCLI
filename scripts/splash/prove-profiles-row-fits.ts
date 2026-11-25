@@ -1,5 +1,7 @@
 #!/usr/bin/env bun
 import { assembleCardRows, createSplashCore, withProfilesRow } from '../../assets/splash/splash-core.mjs'
+;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+const { bootSplashCompositionOf } = await import('../../src/screen/boot-face/splash/face.tsx')
 
 const core = createSplashCore({ nocolor: true })
 const FIX = 'change withProfilesRow in assets/splash/splash-core.mjs, or the answer its callers give it (bootSplashCompositionOf in src/screen/boot-face/splash/face.tsx, shownCardRows in assets/splash/mercury-splash.mjs)'
@@ -21,20 +23,28 @@ const compact = (cols: number) => (rows: number, list: Row[]): Painted => {
   const face = core.composeCompactFace(cols, rows, { cardRows: bare(list), cardSel: 0, hintSegments: [{ key: '>_', label: '', tone: 'faint' }, { key: '↵', label: '', tone: 'ivory' }, { key: '↑↓', label: '', tone: 'faint' }], keyMap: '⇧→ concourse', stripLines: strip, pointer: '❯' })
   return { lines: face.lines, boxed: face.framed }
 }
+const KEYS = '⇧→ concourse'
+const product = (cols: number, isCompact: boolean) => (rows: number, list: Row[]): Painted => {
+  const face = bootSplashCompositionOf({ isCompact, composedRows: list, continueElsewhere: false, selectedIndex: 0, core, columns: cols, rows, modelDefaultDoor: false, stripHint: KEYS, wordGlow: null, rowGlow: null, bottomRowWithNotice: () => null, updateLine: null, chips: { model: 'Opus 5.5', dir: 'proj' }, plainWhy: null, keyMapHint: KEYS })
+  return { lines: face.placed, boxed: face.boxed }
+}
 const worlds = [
   { name: 'a home with history (five rows)', rows: assembleCardRows({ cwdBase: 'proj', continueTarget: { base: 'proj', ageMs: 60_000, cross: false }, menuAvailable: true, concourse: { ctx: 'the live board' } }) },
   { name: 'a fresh home (four rows)', rows: assembleCardRows({ cwdBase: 'proj', continueTarget: null, menuAvailable: true, concourse: { ctx: 'the live board' } }) },
 ]
-const layouts = [
-  { name: 'the full layout at 120 columns', paint: full(120), from: 8, to: 64 },
-  { name: 'the compact face at 80 columns', paint: compact(80), from: 4, to: 40 },
-  { name: 'the compact face at 40 columns', paint: compact(40), from: 4, to: 40 },
+const layouts: Array<{ name: string; paint: (rows: number, list: Row[]) => Painted; from: number; to: number; pins?: Array<{ first: number; gaveWay: number[] }> }> = [
+  { name: 'the launcher\'s full layout at 120 columns', paint: full(120), from: 8, to: 64 },
+  { name: 'the launcher\'s compact face at 80 columns', paint: compact(80), from: 4, to: 40 },
+  { name: 'the launcher\'s compact face at 40 columns', paint: compact(40), from: 4, to: 40 },
+  { name: 'the product\'s full layout at 120 columns, from its first height', paint: product(120, false), from: 26, to: 64, pins: [{ first: 26, gaveWay: [36] }, { first: 26, gaveWay: [35] }] },
+  { name: 'the product\'s compact face at 80 columns', paint: product(80, true), from: 4, to: 40, pins: [{ first: 12, gaveWay: [16] }, { first: 11, gaveWay: [15] }] },
+  { name: 'the product\'s compact face at 40 columns', paint: product(40, true), from: 4, to: 40, pins: [{ first: 12, gaveWay: [] }, { first: 11, gaveWay: [] }] },
 ]
 const ink = (lines: string[]): number => lines.filter(line => line.trim() !== '').length
 const caretOn = (lines: string[], labels: string[]): string | undefined => labels.find(label => lines.some(line => line.includes('❯') && line.includes(label)))
 
 console.log('the Profiles row on the Boot face: it shows wherever the card boxes one more row, and nothing 1.1.0 painted in rows or caret is lost')
-for (const world of worlds) {
+for (const [w, world] of worlds.entries()) {
   const labels = world.rows.map(row => row.label)
   for (const layout of layouts) {
     const shows: number[] = []
@@ -58,6 +68,8 @@ for (const world of worlds) {
     check(`${where}: no row and no caret that the face without it paints is lost at any height`, lost.length === 0, lost.slice(0, 6).join(' | '))
     check(`${where}: where the row is absent the face is cell for cell the face without it`, moved.length === 0, `it differs at ${moved.join(', ')} rows`)
     console.log(`         with the row, the strip, the big logo or the banner gives way one row earlier at: ${gaveWay.length === 0 ? 'no height' : gaveWay.join(', ')}`)
+    const pin = layout.pins?.[w]
+    if (pin !== undefined) check(`${where}: the row first shows at ${pin.first} rows and the big logo or the banner gives way at ${pin.gaveWay.join(', ') || 'no height'}`, first === pin.first && gaveWay.join(' ') === pin.gaveWay.join(' '), `it first shows at ${first ?? 'no height'} and a decoration gives way at ${gaveWay.join(', ') || 'no height'}`)
   }
 }
 

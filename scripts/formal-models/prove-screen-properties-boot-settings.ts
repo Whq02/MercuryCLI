@@ -333,12 +333,10 @@ async function mountBootFace(scenario: Pick<Scenario, 'history' | 'concourseLive
     ),
   )
   const frame = await settleFrame()
-  const expectedRows: RowLabel[] = [
-    ...(scenario.history === 'none'
-      ? (['New Session', 'Logins/Keys', 'Session Manager (Concourse)', 'Boot Menu'] as const)
-      : (['New Session', 'Continue Last Session', 'Logins/Keys', 'Session Manager (Concourse)', 'Boot Menu'] as const)),
-    ...(frame.includes('Profiles') ? (['Profiles'] as const) : []),
-  ]
+  const expectedRows: RowLabel[] =
+    scenario.history === 'none'
+      ? ['New Session', 'Logins/Keys', 'Session Manager (Concourse)', 'Boot Menu', 'Profiles']
+      : ['New Session', 'Continue Last Session', 'Logins/Keys', 'Session Manager (Concourse)', 'Boot Menu', 'Profiles']
   const disabledRows = new Set<RowLabel>()
   if (!scenario.concourseLive) disabledRows.add('Session Manager (Concourse)')
   return { frame, expectedSessionId, expectedRows, disabledRows }

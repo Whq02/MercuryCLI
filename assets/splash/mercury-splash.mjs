@@ -1274,6 +1274,7 @@ out.on('resize', () => {
     rowsAvail = Math.max(8, out.rows || 24)
     menuAvailable = computeMenuAvailable()
     if (view === 'menu' && !menuAvailable) view = 'lockup'
+    cardSel = Math.min(cardSel, shownCardRows(cols, rowsAvail).length - 1)
     sizeEpoch++
     if (inRipple) wakeRippleWaiters()
     if (!inRipple && !leaving) paintView()
