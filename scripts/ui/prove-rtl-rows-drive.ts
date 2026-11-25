@@ -71,7 +71,7 @@ const NARROW = 61
 const RESIZE_PAINT = '\x1b[?25l\x1b[1;1H'
 const PAGE_UP = '\x1b[5~'
 
-type Scene = { rows: TerminalRows; atRest: TerminalRows | null; run: ArenaRun; resized: boolean }
+type Scene = { rows: TerminalRows; atRest: TerminalRows | null; run: ArenaRun; resized: boolean; wire: string }
 
 async function scene(terminal: string): Promise<Scene> {
   const run = await runArtifactArena({
@@ -82,7 +82,7 @@ async function scene(terminal: string): Promise<Scene> {
     rows: ROWS,
     keep: true,
     resizes: [`44000:${NARROW}:${ROWS}`, `49000:${COLS}:${ROWS}`],
-    extraEnv: { TERM_PROGRAM: terminal },
+    extraEnv: { TERM_PROGRAM: terminal, TERM_PROGRAM_VERSION: terminal === 'iTerm.app' ? '3.7.6' : '' },
   })
   if (frameDir) copyFileSync(run.paths.drive, join(frameDir, `${terminal}.drive.jsonl`))
   const decoder = new TextDecoder('utf-8')
@@ -99,9 +99,11 @@ async function scene(terminal: string): Promise<Scene> {
   const rows = new TerminalRows(COLS, ROWS)
   let atRest: TerminalRows | null = null
   const widths = [NARROW, COLS]
+  let wire = ''
   for (const event of events) {
     if (event.kind === 'out') {
       let text = decoder.decode(event.bytes, { stream: true })
+      wire += text
       for (let cut = text.indexOf(RESIZE_PAINT); cut >= 0 && widths.length > 0; cut = text.indexOf(RESIZE_PAINT)) {
         rows.feed(text.slice(0, cut))
         atRest ??= rows.snapshot()
@@ -115,7 +117,7 @@ async function scene(terminal: string): Promise<Scene> {
     if (event.bytes.toString('utf8') === PAGE_UP) atRest ??= rows.snapshot()
   }
   rows.endFrame()
-  return { rows, atRest, run, resized: widths.length === 0 }
+  return { rows, atRest, run, resized: widths.length === 0, wire }
 }
 
 const HINT_ORDER = 'what to change: shapeBidiForTerminal in src/screen/renderer/bidi.ts'
@@ -185,6 +187,27 @@ try {
     "Apple_Terminal: the table's lines stand in the same columns in each of its four rows",
     lines.length >= 4 && lines.every(columns => columns === lines[0]),
     `${HINT_ORDER} · ${lines.join(' | ')}`,
+  )
+  const firstLetter = iterm.wire.search(/[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/)
+  const explicit = iterm.wire.indexOf('\x1b[8l')
+  check(
+    'iTerm.app 3.7.6: CSI 8 l is sent before the first right-to-left letter, so the terminal leaves the rows as they are drawn',
+    explicit >= 0 && explicit < firstLetter,
+    `what to change: unorderedByTerminal in src/screen/renderer/frame-writer.ts and terminalTextCells in src/screen/renderer/terminal-session/terminalTextCells.ts · CSI 8 l at ${explicit}, the first letter at ${firstLetter}`,
+  )
+  const itermRest = iterm.atRest
+  const stored = itermRest === null ? ['no screen'] : itermRest.rtlRows().filter(y => /[\u0621-\u064A]/.test(itermRest.rowText(y))).map(String)
+  check(
+    'iTerm.app 3.7.6: every Arabic letter on the screen is a joined form in drawn order, and no direction mark is sent',
+    stored.length === 0 && !/[\u2066-\u2069]/.test(iterm.wire),
+    `${HINT_ORDER} · rows that hold stored-order letters: ${stored.join(',')}`,
+  )
+  const itermGaps = itermRest === null ? ['no screen'] : gapsInsideWords(itermRest)
+  const itermLines = itermRest === null ? [] : tableLines(itermRest)
+  check(
+    "iTerm.app 3.7.6: no blank stands inside a word, and the table's lines stand in the same columns in each of its four rows",
+    itermGaps.length === 0 && itermLines.length >= 4 && itermLines.every(columns => columns === itermLines[0]),
+    `${HINT_ORDER} · ${itermGaps.slice(0, 2).join(' | ')} · ${itermLines.join(' | ')}`,
   )
 } finally {
   apple.run.cleanup()

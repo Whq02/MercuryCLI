@@ -345,6 +345,46 @@ if (appleTerminal) {
 }
 
 if (!appleTerminal) {
+  console.log('§7 iTerm2 from 3.7.6: Mercury orders and joins, sends no marks, and tells the terminal not to order (CSI 8 l)')
+  sectionFixHint = 'change terminalTextCells in src/screen/renderer/terminal-session/terminalTextCells.ts, terminalBidiFrame in src/screen/renderer/terminalBidiFrame.ts and FrameWriter in src/screen/renderer/frame-writer.ts'
+  const { terminalTextCells } = await import('../../src/screen/renderer/terminal-session/terminalProfile.js')
+  const { shapeBidiForTerminal } = await import('../../src/screen/renderer/bidi.js')
+  const { getGraphemeSegmenter } = await import('../../src/platform/text/textSegments.js')
+  const { FrameWriter } = await import('../../src/screen/renderer/frame-writer.js')
+  const { optimizePatches } = await import('../../src/screen/renderer/patch-stream.js')
+  const { writeDiffToTerminal } = await import('../../src/screen/renderer/terminal-session/frameDelivery.js')
+  const { composeScene, makeContext } = await import('../ink-runtime/frameHarness.js')
+  const iterm = (version: string | undefined) => terminalTextCells({ TERM_PROGRAM: 'iTerm.app', TERM_PROGRAM_VERSION: version })
+  check(
+    'iTerm2 3.7.6 and later take the explicit road; an earlier or unknown version stays as it was',
+    iterm('3.7.6').explicitBidi === true && iterm('3.7.9').shapeRtl && iterm('3.10.0').explicitBidi === true && iterm('3.7.5').explicitBidi === false && !iterm('3.7.5').shapeRtl && iterm(undefined).explicitBidi === false && terminalTextCells({ TERM_PROGRAM: 'Apple_Terminal' }).explicitBidi === false,
+  )
+  const text = 'آلاف السنين'
+  const cells = Array.from(getGraphemeSegmenter().segment(text), ({ segment }) => ({ value: segment, width: stringWidth(segment), styleId: 0, hyperlink: undefined }))
+  const drawn = shapeBidiForTerminal(cells, false).map(c => c.value).join('')
+  check('without marks the drawn order holds joined forms only', /^[ \uFB50-\uFDFF\uFE70-\uFEFF]+$/.test(drawn) && drawn.length === text.length, JSON.stringify(drawn))
+  const serialize = (diff: ReturnType<typeof optimizePatches>): string => {
+    let captured = ''
+    const fake = { stdout: { write(s: string) { captured += s; return true }, isTTY: false } }
+    writeDiffToTerminal(fake as never, diff, true)
+    return captured
+  }
+  process.env.TERM_PROGRAM = 'iTerm.app'
+  process.env['TERM_PROGRAM_VERSION'] = '3.7.6'
+  const ctx = makeContext()
+  const writer = new FrameWriter({ isTTY: true, stylePool: ctx.stylePool })
+  const empty = composeScene({ name: 'empty', cols: 60, rows: 8, root: { kind: 'box' } }, ctx, undefined, { altScreen: true })
+  const frame = composeScene({ name: 'rtl', cols: 60, rows: 8, root: { kind: 'text', text } }, ctx, undefined, { altScreen: true })
+  const bytes = serialize(optimizePatches(writer.render(empty, frame, true, true)))
+  const printed = bytes.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '')
+  check('the frame that first draws a right-to-left row begins with CSI 8 l', bytes.startsWith('\x1b[8l'), JSON.stringify(bytes.slice(0, 24)))
+  check('its letters travel in drawn order, joined, with no direction mark', printed.includes(drawn) && !/[\u2066-\u2069\u202A-\u202E]/.test(bytes), JSON.stringify(printed.trim().slice(0, 40)))
+  check('an unchanged frame still emits no bytes', writer.render(frame, frame, true, true).length === 0)
+  const latin = composeScene({ name: 'latin', cols: 60, rows: 8, root: { kind: 'text', text: 'Only Latin text, 123.' } }, makeContext(), undefined, { altScreen: true })
+  check('a screen that never held a right-to-left letter is sent no CSI 8 l', !serialize(optimizePatches(new FrameWriter({ isTTY: true, stylePool: ctx.stylePool }).overwriteAlt(latin))).includes('\x1b[8l'))
+  delete process.env['TERM_PROGRAM_VERSION']
+  process.env.TERM_PROGRAM = 'xterm'
+
   sectionFixHint = 'the --apple arm of this script failed; read its FAIL lines printed just above and fix the area each names'
   const apple = spawnSync(process.execPath, [import.meta.filename, '--apple'], { env: process.env, encoding: 'utf8' })
   process.stdout.write(apple.stdout ?? '')

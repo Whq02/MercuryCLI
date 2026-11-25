@@ -7,7 +7,8 @@ import instances from '../instances.js'
 import { noteModeSettledEverywhere, shutdownReleaseObligations } from '../root/terminalModeLedger.js'
 import { isExtendedCsiSafe } from './capabilities.js'
 import { resolveTerminalExperience } from './terminalExperience.js'
-import { DISABLE_KITTY_KEYBOARD, DISABLE_MODIFY_OTHER_KEYS } from '../termio/csi.js'
+import { terminalTextCells } from './terminalTextCells.js'
+import { BIDI_IMPLICIT, DISABLE_KITTY_KEYBOARD, DISABLE_MODIFY_OTHER_KEYS } from '../termio/csi.js'
 import { DBP, DFE, DISABLE_ALTERNATE_SCROLL, DISABLE_MOUSE_TRACKING, EXIT_ALT_SCREEN, SHOW_CURSOR } from '../termio/dec.js'
 import { CLEAR_ITERM2_PROGRESS, CLEAR_TAB_STATUS, CLEAR_TERMINAL_TITLE, supportsTabStatus, wrapForMultiplexer } from '../termio/osc.js'
 import { binaryName } from '../../../platform/settings/config.js'
@@ -103,6 +104,7 @@ export function cleanupTerminalModes(): void {
       sequence += SHOW_CURSOR
       noteModeSettledEverywhere('cursor-hidden')
     }
+    if (terminalTextCells().explicitBidi) sequence += BIDI_IMPLICIT
 
     writeStdoutSync(sequence)
 

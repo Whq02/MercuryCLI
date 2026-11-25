@@ -103,13 +103,13 @@ const joinsRight = (type: string): boolean => type === 'D' || type === 'R' || ty
 const BORDER_CELL = /^[\u2500-\u257F]$/
 const BLANK_CELL = /^\u2068? \u2069?$/
 
-export function shapeBidiForTerminal<T extends BidiChar>(characters: T[]): T[] {
+export function shapeBidiForTerminal<T extends BidiChar>(characters: T[], marks = true): T[] {
   let out: T[] | undefined
   let from = 0
   for (let at = 0; at <= characters.length; at++) {
     if (at < characters.length && !BORDER_CELL.test(characters[at]!.value)) continue
     const stretch = from === 0 && at === characters.length ? characters : characters.slice(from, at)
-    const shaped = shapeStretch(stretch)
+    const shaped = shapeStretch(stretch, marks)
     if (shaped !== stretch) {
       out ??= characters.slice()
       out.splice(from, shaped.length, ...shaped)
@@ -119,7 +119,7 @@ export function shapeBidiForTerminal<T extends BidiChar>(characters: T[]): T[] {
   return out ?? characters
 }
 
-function shapeStretch<T extends BidiChar>(characters: T[]): T[] {
+function shapeStretch<T extends BidiChar>(characters: T[], marks: boolean): T[] {
   const text = characters.map(c => c.value).join('')
   if (!containsRtl(text)) return characters
   const embedding = getBidi().getEmbeddingLevels(text, 'ltr')
@@ -174,7 +174,7 @@ function shapeStretch<T extends BidiChar>(characters: T[]): T[] {
         ? ' '
         : mirrors.get(offsets[j]!) ?? shaped[j]!
     }
-    if (level % 2) {
+    if (marks && level % 2) {
       value = emoji ? `\u2068${value}\u2069` : Array.from(value, point => `\u2068${point}\u2069`).join('')
     }
     if (consumed.has(pointIndex)) spares.push(out.length)

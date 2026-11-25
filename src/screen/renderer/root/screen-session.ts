@@ -1,5 +1,7 @@
 import { isExtendedCsiSafe } from '../terminal-session/capabilities.js'
+import { terminalTextCells } from '../terminal-session/terminalTextCells.js'
 import {
+  BIDI_IMPLICIT,
   CURSOR_HOME,
   DISABLE_KITTY_KEYBOARD,
   DISABLE_MODIFY_OTHER_KEYS,
@@ -36,6 +38,7 @@ export function enterEditorBytes(opts: { altActive: boolean; mouseTracking: bool
     (opts.mouseTracking ? DISABLE_MOUSE_TRACKING : '') +
     (opts.altActive ? '' : ENTER_ALT_SCREEN) +
     DFE +
+    (terminalTextCells().explicitBidi ? BIDI_IMPLICIT : '') +
     SGR_RESET +
     CURSOR_SHOW +
     ERASE_SCREEN +

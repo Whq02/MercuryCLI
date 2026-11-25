@@ -1,10 +1,11 @@
 import { isExtendedCsiSafe } from '../terminal-session/capabilities.js'
 import { DBP, DFE, DISABLE_ALTERNATE_SCROLL, DISABLE_MOUSE_TRACKING, ESU, EXIT_ALT_SCREEN, SHOW_CURSOR } from '../termio/dec.js'
-import { DISABLE_KITTY_KEYBOARD, DISABLE_MODIFY_OTHER_KEYS } from '../termio/csi.js'
+import { terminalTextCells } from '../terminal-session/terminalTextCells.js'
+import { BIDI_IMPLICIT, DISABLE_KITTY_KEYBOARD, DISABLE_MODIFY_OTHER_KEYS } from '../termio/csi.js'
 import { CLEAR_ITERM2_PROGRESS, CLEAR_TAB_STATUS, wrapForMultiplexer } from '../termio/osc.js'
 
 type TeardownStep =
-  | { kind: 'bytes'; when: 'alt-only' | 'always' | 'tab-status' | 'extended-csi'; bytes: string; why: string }
+  | { kind: 'bytes'; when: 'alt-only' | 'always' | 'tab-status' | 'extended-csi' | 'explicit-bidi'; bytes: string; why: string }
   | { kind: 'pointer-reset'; why: string }
   | { kind: 'drain-stdin'; why: string }
 
@@ -32,6 +33,7 @@ export const TEARDOWN_SUITE: readonly TeardownStep[] = Object.freeze([
   { kind: 'drain-stdin', why: "drain stdin so in-flight mouse events don't leak to the shell" },
   { kind: 'bytes', when: 'extended-csi', bytes: DISABLE_MODIFY_OTHER_KEYS, why: 'extended key reporting off' },
   { kind: 'bytes', when: 'extended-csi', bytes: DISABLE_KITTY_KEYBOARD, why: 'kitty keyboard pop' },
+  { kind: 'bytes', when: 'explicit-bidi', bytes: BIDI_IMPLICIT, why: 'the terminal orders right-to-left text itself again (SM 8)' },
   { kind: 'bytes', when: 'always', bytes: DFE, why: 'focus events off (DECSET 1004)' },
   { kind: 'bytes', when: 'always', bytes: DBP, why: 'bracketed paste off' },
   { kind: 'bytes', when: 'always', bytes: SHOW_CURSOR, why: 'the cursor back' },
@@ -58,6 +60,7 @@ export function runTeardownSuite(host: TeardownHost): void {
       case 'bytes':
         if (step.when === 'extended-csi' && !isExtendedCsiSafe()) break
         if (step.when === 'alt-only' && !host.altScreenActive) break
+        if (step.when === 'explicit-bidi' && !terminalTextCells().explicitBidi) break
         if (step.when === 'tab-status') {
           if (host.tabStatusSupported) host.write(wrapForMultiplexer(CLEAR_TAB_STATUS))
           break

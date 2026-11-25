@@ -36,7 +36,8 @@ export function rowHoldsRtl(screen: Screen, y: number): boolean {
 }
 
 export function terminalBidiFrame(frame: Frame): Frame {
-  if (!terminalTextCells().shapeRtl) return frame
+  const profile = terminalTextCells()
+  if (!profile.shapeRtl) return frame
   const source = frame.screen
   if (!holdsRtl(source)) return frame
   let projected: Screen | undefined
@@ -53,7 +54,7 @@ export function terminalBidiFrame(frame: Frame): Frame {
         hyperlink: cell.hyperlink,
       })
     }
-    const paint = shapeBidiForTerminal(row)
+    const paint = shapeBidiForTerminal(row, !profile.explicitBidi)
     if (paint === row) continue
     if (!projected) {
       const cells = source.cells.slice()

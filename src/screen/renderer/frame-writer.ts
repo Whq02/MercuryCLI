@@ -15,6 +15,7 @@ import {
   visibleCellAtIndex,
 } from './cell-grid.js'
 import {
+  BIDI_EXPLICIT,
   CURSOR_HOME,
   cursorPosition,
   eraseToEndOfLine,
@@ -28,6 +29,7 @@ import { LINK_END, link as oscLink } from './termio/osc.js'
 import { widthMayDisagree as measuredWidthMayDisagree } from './width-probe-table.js'
 import { readTerminalWidthMeasurements } from './terminal-session/widthProbe.js'
 import { holdsRtl, rowHoldsRtl, terminalBidiFrame } from './terminalBidiFrame.js'
+import { terminalTextCells } from './terminal-session/terminalTextCells.js'
 
 
 type Options = {
@@ -379,6 +381,11 @@ function emitDirtyCells(
   }
 }
 
+function unorderedByTerminal(out: Diff, frame: Frame): Diff {
+  if (out.length === 0 || !terminalTextCells().explicitBidi || !holdsRtl(frame.screen)) return out
+  return [{ type: 'stdout', content: BIDI_EXPLICIT }, ...out]
+}
+
 const describeDamage = (damage: Rectangle | undefined): string =>
   damage === undefined ? 'none' : `${damage.width}x${damage.height} at (${damage.x},${damage.y})`
 
@@ -408,7 +415,7 @@ export class FrameWriter {
           `damage: ${describeDamage(next.screen.damage)}, patches: ${diff.length}`,
       )
     }
-    return diff
+    return unorderedByTerminal(diff, next)
   }
 
   private renderAlt(prev: Frame, next: Frame, decstbmSafe: boolean): Diff {
@@ -465,7 +472,7 @@ export class FrameWriter {
     const attrs = new AttributeCursor(this.options.stylePool)
     for (let y = 0; y < viewport.height; y++) overwriteRow(out, cursor, attrs, next, y)
     attrs.resetAll(out)
-    return out
+    return unorderedByTerminal(out, next)
   }
 
   private altFullRepaint(
@@ -512,7 +519,7 @@ export class FrameWriter {
       out.push({ type: 'stdout', content: eraseToEndOfScreen() })
     }
     if (frame.cursor.visible) out.push({ type: 'cursorShow' })
-    return out
+    return unorderedByTerminal(out, frame)
   }
 
   private renderInline(prev: Frame, next: Frame): Diff {

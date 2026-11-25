@@ -87,6 +87,8 @@ export const eraseToEndOfScreen = (): string => csi(FINAL_LETTERS.ED)
 const ERASE_WHOLE_LINE = csi(2, FINAL_LETTERS.EL)
 export const ERASE_SCREEN = csi(2, FINAL_LETTERS.ED)
 export const ERASE_SCROLLBACK = csi(3, FINAL_LETTERS.ED)
+export const BIDI_EXPLICIT = csi(8, FINAL_LETTERS.RM)
+export const BIDI_IMPLICIT = csi(8, FINAL_LETTERS.SM)
 
 export function eraseLines(n: number): string {
   if (n <= 0) return ''
