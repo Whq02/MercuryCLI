@@ -6,7 +6,7 @@ import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, rea
 import { homedir, tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 
-import { adoptGroundFamily, createSplashCore, emitCells, HEADSTD, WORD, MENU, MODEL_NAMES, GROUND, assembleCardRows, withProfilesRow, fmtAge, ACCENT_FAMILIES, DEFAULT_CRITTER, accentFamilyKeyOf, glowPhaseAt, glowSettled, GLOW_TICK_MS, WORD_W, CARD_LABEL_W, cpWidth, MARK_RE, truecolorFingerprintOf } from './splash-core.mjs'
+import { adoptGroundFamily, createSplashCore, emitCells, HEADSTD, WORD, MENU, MODEL_NAMES, GROUND, assembleCardRows, withProfilesRow, fmtAge, ACCENT_FAMILIES, DEFAULT_CRITTER, accentFamilyKeyOf, glowPhaseAt, glowSettled, GLOW_TICK_MS, WORD_W, cpWidth, MARK_RE, truecolorFingerprintOf } from './splash-core.mjs'
 
 const out = process.stdout
 
@@ -39,7 +39,6 @@ function composeWith(cols, rows, list) {
       ],
       reserveKeyMap: true,
       glowWord: glowWordPhase(),
-      glowRow: glowRowPhase(),
     })
   }
   return composeLockup(cols, rows, {
@@ -53,7 +52,6 @@ function composeWith(cols, rows, list) {
     stripLines: w => composeStrip(w),
     ...(CINEMATIC ? { hintCinematic: true } : {}),
     glowWord: glowWordPhase(),
-    glowRow: glowRowPhase(),
   })
 }
 function shownCardRows(cols, rows) {
@@ -1051,7 +1049,6 @@ const glowEnabled = () =>
   process.env.MERCURY_REDUCED_MOTION !== '1'
 let glowTimer = null
 let glowWordStart = null
-let glowRowStart = null
 let glowViewArmed = null
 let lastPlaced = null
 let lastPlacedEpoch = -1
@@ -1059,24 +1056,13 @@ let sizeEpoch = 0
 
 const glowWordPhase = () =>
   glowWordStart === null ? null : glowPhaseAt(Date.now() - glowWordStart, WORD_W)
-const glowRowPhase = () =>
-  glowRowStart === null || cardSel < 0
-    ? null
-    : glowPhaseAt(Date.now() - glowRowStart, CARD_LABEL_W)
-
 function glowLive() {
   const now = Date.now()
-  const wordLive =
+  return (
     glowWordStart !== null &&
     !glowSettled(now - glowWordStart) &&
     (view === 'lockup' || view === 'menu')
-  const rowLive =
-    glowRowStart !== null &&
-    !glowSettled(now - glowRowStart) &&
-    view === 'lockup' &&
-    cardSel >= 0 &&
-    lockupCardShown
-  return wordLive || rowLive
+  )
 }
 function ensureGlowTimer() {
   if (glowTimer !== null || !glowEnabled() || !glowLive()) return
@@ -1092,11 +1078,6 @@ function stopGlowTimer() {
 function armGlowWord() {
   if (!glowEnabled()) return
   glowWordStart = Date.now()
-  ensureGlowTimer()
-}
-function armGlowRow() {
-  if (!glowEnabled()) return
-  glowRowStart = Date.now()
   ensureGlowTimer()
 }
 function glowTick() {
@@ -1143,7 +1124,6 @@ function paintView() {
   if (view !== glowViewArmed) {
     glowViewArmed = view
     if (view === 'lockup' || view === 'menu') armGlowWord()
-    if (view === 'lockup' && cardSel >= 0) armGlowRow()
   }
   out.write('\x1b[?2026h\x1b[2J\x1b[H' + frame(placed) + '\x1b[?2026l')
 }
@@ -1352,7 +1332,6 @@ function handleKey(s) {
       const n = shownCardRows(cols, rowsAvail).length
       if (n === 0) return
       cardSel = isDown ? (cardSel + 1) % n : cardSel <= 0 ? n - 1 : cardSel - 1
-      armGlowRow()
       paintView()
       return
     }

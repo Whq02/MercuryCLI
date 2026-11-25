@@ -280,18 +280,13 @@ export function accentFamilyKeyOf(raw) {
 
 const GLOW = {
   TICK_MS: 80,
-  GREETING_MS: 10_000,
+  GREETING_MS: 2_700,
   EASE_IN_MS: 350,
-  EASE_OUT_MS: 1500,
-  LEG_MS_PER_CELL: 55,
-  LEG_MIN_MS: 1300,
-  LEG_MAX_MS: 3200,
-  LIFT: 0.85,
+  EASE_OUT_MS: 600,
+  LIFT: 0.45,
   GAIN_LEVELS: 5,
 }
 const glowRadius = span => Math.max(3, Math.min(8, Math.round(span * 0.28)))
-const glowLegMs = span =>
-  Math.max(GLOW.LEG_MIN_MS, Math.min(GLOW.LEG_MAX_MS, span * GLOW.LEG_MS_PER_CELL))
 const glowEnvelope = t => {
   if (t <= 0 || t >= GLOW.GREETING_MS) return 0
   const outStart = GLOW.GREETING_MS - GLOW.EASE_OUT_MS
@@ -301,9 +296,8 @@ const glowEnvelope = t => {
 }
 const glowPeakAt = (t, span) => {
   if (span <= 1) return 0
-  const leg = glowLegMs(span)
-  const tau = (t % (2 * leg)) / (2 * leg)
-  return ((1 - Math.cos(tau * 2 * Math.PI)) / 2) * (span - 1)
+  const u = Math.min(1, Math.max(0, t / GLOW.GREETING_MS))
+  return ((1 - Math.cos(u * Math.PI)) / 2) * (span - 1)
 }
 export function glowPhaseAt(elapsedMs, spanCells) {
   if (elapsedMs >= GLOW.GREETING_MS) return null
@@ -326,7 +320,7 @@ export const glowSettled = elapsedMs => elapsedMs >= GLOW.GREETING_MS
 export const GLOW_TICK_MS = GLOW.TICK_MS
 
 export const WORD_W = Math.max(...WORD.map(r => r.length))
-export const CARD_LABEL_W = 23
+const CARD_LABEL_W = 23
 
 const SGR_RE = /\x1b\[[0-9;]*m/g
 const cpWidth = cp => {
@@ -640,12 +634,8 @@ function rasterHard(grid, toneAt) {
 const accentFg = () => hexFg(ACC_HEX, ACC.t256)
 
 function dividerLine(width) {
-  const sigil = '(>_)'
-  const dots = '···'
-  const fixed = 2 + 2 + dots.length + 1 + sigil.length + 1 + dots.length + 2 + 2
-  const seg = Math.max(2, Math.floor((width - fixed) / 2))
-  const line = '─'.repeat(seg)
-  return accentFg() + `■ ${line}${dots} ${sigil} ${dots}${line} ■` + R
+  const total = 16 + 2 * Math.max(2, Math.floor((width - 20) / 2))
+  return accentFg() + '─'.repeat(total) + R
 }
 
 const sampleFace = u => {
@@ -663,14 +653,12 @@ const wordTone = (ch, x, W, phase = null) => {
   return ch === 'R' ? face : mixc(ACC.deep, face, 0.5)
 }
 const wordToneGlow = phase => (ch, x, W) => wordTone(ch, x, W, phase)
-function rampLabel(text, phase = null) {
+function rampLabel(text) {
   if (!TRUECOLOR) return hexFg(IVORY, T256.cream) + text
   let out = ''
   let run = null
   for (let i = 0; i < text.length; i++) {
-    let u = (i + 0.5) / text.length
-    const boost = glowBoostAt(i + 0.5, phase)
-    if (boost > 0) u = u + boost * (1 - u)
+    const u = (i + 0.5) / text.length
     const sgr = rgbFg(sampleFace(u))
     if (sgr !== run) { out += sgr; run = sgr }
     out += text[i]
@@ -724,7 +712,7 @@ function composeHint(segments, withCard) {
   return s
 }
 
-function composeCard(rows, selIdx, w, seps = true, glowRow = null) {
+function composeCard(rows, selIdx, w, seps = true) {
   if (rows.length === 0) return { lines: [], rowLines: [] }
   const bc = paint(DUNE)
   const faint = hexFg(FAINT, T256.faint)
@@ -736,7 +724,7 @@ function composeCard(rows, selIdx, w, seps = true, glowRow = null) {
   rows.forEach((r2, i) => {
     const sel = i === selIdx
     const caret = sel ? red + '❯ ' + R : '  '
-    const label = (sel ? BOLD + rampLabel(r2.label.padEnd(labelW), glowRow) : (r2.dim ? hexFg(FAINT, T256.faint) : paint(MIDCREAM)) + r2.label.padEnd(labelW)) + R
+    const label = (sel ? BOLD + rampLabel(r2.label.padEnd(labelW)) : (r2.dim ? hexFg(FAINT, T256.faint) : paint(MIDCREAM)) + r2.label.padEnd(labelW)) + R
     const left = ' ' + caret + label
     const arrow = r2.dim ? ' ' : (sel ? red : faint) + '→' + R
     const ctxBudget = inner - vis(left) - 4
@@ -1296,7 +1284,7 @@ function composeLockup(cols, rows, opts) {
       hintFor(wantCard),
     ]
     if (wantCard) {
-      const card = composeCard(opts.cardRows, opts.cardSel, cardW, false, opts.glowRow ?? null)
+      const card = composeCard(opts.cardRows, opts.cardSel, cardW, false)
       block.push(blank)
       cardAt = block.length
       cardIdx = card.rowLines
@@ -1306,7 +1294,7 @@ function composeLockup(cols, rows, opts) {
     wordRow = head.lines.length + 4 + wordCentre
   } else if (headlessCard) {
     cardShown = true
-    const card = composeCard(opts.cardRows, opts.cardSel, hlCardW, false, opts.glowRow ?? null)
+    const card = composeCard(opts.cardRows, opts.cardSel, hlCardW, false)
     block = [
       blank,
       dividerLine(word.width + 2),
@@ -1403,7 +1391,7 @@ function composeCompactFace(cols, rows, opts) {
     const selected = i === sel
     const gutter = ' ' + (selected ? red + pointer + R : ' ') + ' '
     const label = selected
-      ? BOLD + rampLabel(r.label, opts.glowRow ?? null) + R
+      ? BOLD + rampLabel(r.label) + R
       : (r.dim ? faint : paint(MIDCREAM)) + r.label + R
     const ctx = withCtx && r.ctx !== '' ? faint + ' · ' + r.ctx + R : ''
     return gutter + label + ctx

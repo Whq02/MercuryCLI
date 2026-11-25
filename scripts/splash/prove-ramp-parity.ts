@@ -324,14 +324,12 @@ t.section('§7 — GLOW: accent families + the mirrored greeting law')
   t.check('the settle law mirrors (settled at exactly the greeting window)', core.glowSettled(kit.SHIMMER_GREETING_MS) === true && core.glowSettled(kit.SHIMMER_GREETING_MS - 1) === false, 'settle edge')
 
   const jelly = core.createSplashCore({ nocolor: false, truecolor: true, accent: 'jellyfish' })
-  const settled = jelly.rampLabel('New Session in mercury')
-  t.check('rampLabel(text, null) ≡ rampLabel(text) (null phase is the settled frame)', jelly.rampLabel('New Session in mercury', null) === settled, 'null-phase fixed point')
+  const wordSettled = JSON.stringify(jelly.rasterHard(core.WORD, jelly.wordTone).lines)
+  t.check('wordToneGlow(null) ≡ the settled word', JSON.stringify(jelly.rasterHard(core.WORD, jelly.wordToneGlow(null)).lines) === wordSettled, 'word fixed point')
   const farPhase = { peakCell: -1000, gainLevel: 5, radiusCells: 8 }
-  t.check('an out-of-band phase emits the settled bytes (boost 0 everywhere)', jelly.rampLabel('New Session in mercury', farPhase) === settled, 'out-of-band fixed point')
-  const midPhase = core.glowPhaseAt(2_000, 22)
-  t.check('an in-band phase CHANGES bytes (the greeting is visible)', midPhase !== null && jelly.rampLabel('New Session in mercury', midPhase) !== settled, 'in-band delta')
-  const wordSettled = JSON.stringify(jelly.rasterHard(core.WORD, jelly.wordToneGlow(null)).lines)
-  t.check('wordToneGlow(null) ≡ the settled word', wordSettled === JSON.stringify(jelly.rasterHard(core.WORD, jelly.wordTone).lines), 'word fixed point')
+  t.check('an out-of-band phase emits the settled bytes (boost 0 everywhere)', JSON.stringify(jelly.rasterHard(core.WORD, jelly.wordToneGlow(farPhase)).lines) === wordSettled, 'out-of-band fixed point')
+  const midPhase = core.glowPhaseAt(1_500, core.WORD_W)
+  t.check('an in-band phase CHANGES bytes (the greeting is visible)', midPhase !== null && JSON.stringify(jelly.rasterHard(core.WORD, jelly.wordToneGlow(midPhase)).lines) !== wordSettled, 'in-band delta')
 }
 
 t.finish('prove-ramp-parity')
