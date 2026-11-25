@@ -10,7 +10,9 @@ import {
   scanTailForEndedOnError,
   validateUuid,
 } from './sessionStoragePortable.js'
-import { readTranscriptTailSync } from './transcriptReader.js'
+import { readTranscriptTailSync, scanTranscriptLinesBackward } from './transcriptReader.js'
+import { historyHead } from './historyParts.js'
+import { isRecord } from '../../platform/primitives/isRecord.js'
 import { getErrnoCode } from '../../platform/errors/errors.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
@@ -119,70 +121,99 @@ function firstField(head: string, field: string): unknown {
   }
   return undefined
 }
-function isConversationActivityRecord(record: Record<string, unknown>): boolean {
-  const payload = record.payload
-  if (payload === null || typeof payload !== 'object') return false
-  const kind = (payload as { kind?: unknown }).kind
-  if (kind === 'output') return true
-  if (kind === 'session-meta') return (payload as { metaKind?: unknown }).metaKind === 'turn-end'
-  if (kind !== 'input') return false
-  const annotations = record.annotations
-  if (annotations !== null && typeof annotations === 'object') {
-    const a = annotations as { isMeta?: unknown; hiddenFromTranscript?: unknown; isVirtual?: unknown }
-    if (a.isMeta === true || a.hiddenFromTranscript === true || a.isVirtual === true) return false
+
+const FUTURE_SKEW_GRACE_MS = 5_000
+
+function hasAnyFlag(obj: unknown, keys: readonly string[]): boolean {
+  if (!isRecord(obj)) return false
+  for (const key of keys) {
+    if (obj[key] === true) return true
   }
-  const meta = (payload as { meta?: unknown }).meta
-  if (meta !== null && typeof meta === 'object') {
-    const m = meta as { isMeta?: unknown; hiddenFromTranscript?: unknown; isVirtual?: unknown }
-    if (m.isMeta === true || m.hiddenFromTranscript === true || m.isVirtual === true) return false
-  }
-  return true
+  return false
 }
 
-export function lastConversationActivityMs(tail: string): number | null {
+function isConversationActivityRecord(record: Record<string, unknown>): boolean {
+  const payload = record.payload
+  if (!isRecord(payload)) return false
+  const kind = payload.kind
+  if (kind === 'output') {
+    return !hasAnyFlag(record.annotations, ['isVirtual', 'isApiErrorMessage']) && !hasAnyFlag(payload.meta, ['isVirtual'])
+  }
+  if (kind === 'session-meta') return payload.metaKind === 'turn-end'
+  if (kind !== 'input') return false
+  const skipKeys = ['isMeta', 'hiddenFromTranscript', 'isVirtual', 'isCompactSummary', 'isVisibleInTranscriptOnly']
+  return !hasAnyFlag(record.annotations, skipKeys) && !hasAnyFlag(payload.meta, skipKeys)
+}
+
+function parseConversationActivityLine(raw: string, nowMs: number): number | null {
+  const line = raw.trim()
+  if (!line || line.charCodeAt(0) !== 123) return null
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(line)
+  } catch (error) {
+    passedOver(error)
+    return null
+  }
+  if (!isRecord(parsed)) return null
+  if (!isConversationActivityRecord(parsed)) return null
+  if (typeof parsed.occurredAt !== 'string') return null
+  const ms = Date.parse(parsed.occurredAt)
+  if (!Number.isFinite(ms)) return null
+  if (ms > nowMs + FUTURE_SKEW_GRACE_MS) return null
+  return ms > nowMs ? nowMs : ms
+}
+
+export function lastConversationActivityMs(tail: string, nowMs: number = Date.now()): number | null {
   if (!tail) return null
   const lines = tail.split('\n')
   for (let i = lines.length - 1; i >= 0; i--) {
-    const line = lines[i]!.trim()
-    if (!line || line.charCodeAt(0) !== 123) continue
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(line)
-    } catch (error) {
-      passedOver(error)
-      continue
-    }
-    if (parsed === null || typeof parsed !== 'object') continue
-    const record = parsed as Record<string, unknown>
-    if (!isConversationActivityRecord(record)) continue
-    if (typeof record.occurredAt !== 'string') continue
-    const ms = Date.parse(record.occurredAt)
-    if (Number.isFinite(ms)) return ms
+    const ms = parseConversationActivityLine(lines[i]!, nowMs)
+    if (ms !== null) return ms
   }
   return null
 }
 
-function sessionLastUsedMs(tail: string, mtimeMs: number): number {
-  return lastConversationActivityMs(tail) ?? Math.floor(mtimeMs)
+function scanLastConversationActivityMsSync(filePath: string, nowMs: number = Date.now()): number | null {
+  let found: number | null = null
+  try {
+    scanTranscriptLinesBackward(filePath, line => {
+      const ms = parseConversationActivityLine(line, nowMs)
+      if (ms !== null) {
+        found = ms
+        return true
+      }
+      return false
+    })
+  } catch (error) {
+    passedOver(error)
+  }
+  return found
 }
 
-export function readSessionLastUsedMsSync(filePath: string, mtimeMs: number): number {
-  return sessionLastUsedMs(readTranscriptTailSync(filePath, LITE_READ_BUF_SIZE), mtimeMs)
+export function readSessionLastUsedMsSync(filePath: string, fileSize?: number, nowMs: number = Date.now()): number | null {
+  const fromTail = lastConversationActivityMs(readTranscriptTailSync(filePath, LITE_READ_BUF_SIZE), nowMs)
+  if (fromTail !== null) return fromTail
+  if ((fileSize !== undefined && fileSize > LITE_READ_BUF_SIZE) || historyHead(filePath).before > 0) {
+    return scanLastConversationActivityMsSync(filePath, nowMs)
+  }
+  return null
 }
 
 export function compareSessionRecency(
-  a: { lastUsedMs: number; mtimeMs: number; createdMs?: number; sessionId?: string },
-  b: { lastUsedMs: number; mtimeMs: number; createdMs?: number; sessionId?: string },
+  a: { lastUsedMs: number | null; mtimeMs: number; createdMs?: number; sessionId?: string },
+  b: { lastUsedMs: number | null; mtimeMs: number; createdMs?: number; sessionId?: string },
 ): number {
-  if (b.lastUsedMs !== a.lastUsedMs) return b.lastUsedMs - a.lastUsedMs
-  const ma = Math.floor(a.mtimeMs)
-  const mb = Math.floor(b.mtimeMs)
+  const aHas = a.lastUsedMs !== null && Number.isFinite(a.lastUsedMs)
+  const bHas = b.lastUsedMs !== null && Number.isFinite(b.lastUsedMs)
+  if (aHas !== bHas) return aHas ? -1 : 1
+  if (aHas && bHas && b.lastUsedMs !== a.lastUsedMs) return b.lastUsedMs! - a.lastUsedMs!
+  const ma = Number.isFinite(a.mtimeMs) ? Math.floor(a.mtimeMs) : 0
+  const mb = Number.isFinite(b.mtimeMs) ? Math.floor(b.mtimeMs) : 0
   if (mb !== ma) return mb - ma
-  if (a.createdMs !== undefined && b.createdMs !== undefined) {
-    const ca = Math.floor(a.createdMs)
-    const cb = Math.floor(b.createdMs)
-    if (cb !== ca) return cb - ca
-  }
+  const ca = a.createdMs !== undefined && Number.isFinite(a.createdMs) ? Math.floor(a.createdMs) : 0
+  const cb = b.createdMs !== undefined && Number.isFinite(b.createdMs) ? Math.floor(b.createdMs) : 0
+  if (cb !== ca) return cb - ca
   return (a.sessionId ?? '').localeCompare(b.sessionId ?? '')
 }
 
@@ -224,5 +255,12 @@ export async function readSessionLabelFacts(
   onReadError?: (path: string, error: unknown) => void,
 ) {
   const { head, tail } = await readHeadAndTail(filePath, fileSize, buffer, onReadError)
-  return head ? sessionLabelFacts(head, tail, builtIn) : { firstPrompt: '', isSidechain: false }
+  if (!head) return { firstPrompt: '', isSidechain: false }
+  const facts = sessionLabelFacts(head, tail, builtIn)
+  const lastUsedAt =
+    facts.lastUsedAt ??
+    (fileSize > LITE_READ_BUF_SIZE || historyHead(filePath).before > 0
+      ? scanLastConversationActivityMsSync(filePath) ?? undefined
+      : undefined)
+  return { ...facts, lastUsedAt }
 }

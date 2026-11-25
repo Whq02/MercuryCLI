@@ -65,8 +65,8 @@ export function resumableNewestFirst(all: SessionListing[], currentSessionId: st
   const resumable = listedSessionsOf(all, currentSessionId)
   resumable.sort((a, b) =>
     compareSessionRecency(
-      { lastUsedMs: a.lastUsedAt ?? new Date(a.modified).getTime(), mtimeMs: new Date(a.modified).getTime(), sessionId: a.sessionId },
-      { lastUsedMs: b.lastUsedAt ?? new Date(b.modified).getTime(), mtimeMs: new Date(b.modified).getTime(), sessionId: b.sessionId },
+      { lastUsedMs: a.lastUsedAt ?? null, mtimeMs: new Date(a.modified).getTime(), sessionId: a.sessionId },
+      { lastUsedMs: b.lastUsedAt ?? null, mtimeMs: new Date(b.modified).getTime(), sessionId: b.sessionId },
     ),
   )
   return resumable

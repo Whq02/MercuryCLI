@@ -74,8 +74,8 @@ export function sortSessionListings(logs: SessionListing[]): SessionListing[] {
   return logs.sort(
     (a, b) =>
       compareSessionRecency(
-        { lastUsedMs: a.lastUsedAt ?? a.modified.getTime(), mtimeMs: a.modified.getTime(), createdMs: a.created.getTime(), sessionId: a.sessionId },
-        { lastUsedMs: b.lastUsedAt ?? b.modified.getTime(), mtimeMs: b.modified.getTime(), createdMs: b.created.getTime(), sessionId: b.sessionId },
+        { lastUsedMs: a.lastUsedAt ?? null, mtimeMs: a.modified.getTime(), createdMs: a.created.getTime(), sessionId: a.sessionId },
+        { lastUsedMs: b.lastUsedAt ?? null, mtimeMs: b.modified.getTime(), createdMs: b.created.getTime(), sessionId: b.sessionId },
       ) || newestDate(a, b),
   )
 }

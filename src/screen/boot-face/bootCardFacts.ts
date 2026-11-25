@@ -151,7 +151,7 @@ function readProjectCard(store: string): ProjectCard | null {
 
 interface StoreDirFacts {
   card: ProjectCard | null
-  newest: { file: string; mtime: number; lastUsedMs: number } | null
+  newest: { file: string; mtime: number; lastUsedMs: number | null } | null
 }
 
 function readStoreDirFacts(store: string, skip: string | null): StoreDirFacts | null {
@@ -175,16 +175,16 @@ function readStoreDirFacts(store: string, skip: string | null): StoreDirFacts | 
     }
   }
   candidates.sort((a, b) => b.mtime - a.mtime)
-  const live: Array<{ file: string; mtime: number; lastUsedMs: number; sessionId: string }> = []
+  const live: Array<{ file: string; mtime: number; lastUsedMs: number | null; sessionId: string }> = []
   for (const c of candidates.slice(0, HUSK_WALK)) {
     if (isAuthFailureHusk(c.file, c.size)) continue
-    live.push({ file: c.file, mtime: c.mtime, lastUsedMs: readSessionLastUsedMsSync(c.file, c.mtime), sessionId: sessionIdOf(c.file) })
+    live.push({ file: c.file, mtime: c.mtime, lastUsedMs: readSessionLastUsedMsSync(c.file, c.size), sessionId: sessionIdOf(c.file) })
   }
   live.sort((a, b) => compareSessionRecency({ lastUsedMs: a.lastUsedMs, mtimeMs: a.mtime, sessionId: a.sessionId }, { lastUsedMs: b.lastUsedMs, mtimeMs: b.mtime, sessionId: b.sessionId }))
-  let picked: { file: string; mtime: number; lastUsedMs: number } | null = live[0] ?? null
+  let picked: { file: string; mtime: number; lastUsedMs: number | null } | null = live[0] ?? null
   if (picked === null && candidates.length > HUSK_WALK) {
     const fallback = candidates[HUSK_WALK]
-    if (fallback !== undefined) picked = { file: fallback.file, mtime: fallback.mtime, lastUsedMs: readSessionLastUsedMsSync(fallback.file, fallback.mtime) }
+    if (fallback !== undefined) picked = { file: fallback.file, mtime: fallback.mtime, lastUsedMs: readSessionLastUsedMsSync(fallback.file, fallback.size) }
   }
   if (picked === null && card === null) return null
   return { card, newest: picked }
@@ -271,14 +271,14 @@ export function parkedSessionsOf(
     }
   }
   candidates.sort((a, b) => b.mtime - a.mtime)
-  const ranked: Array<{ sessionId: string; transcriptPath: string; mtimeMs: number; lastUsedMs: number }> = []
+  const ranked: Array<{ sessionId: string; transcriptPath: string; mtimeMs: number; lastUsedMs: number | null }> = []
   for (const c of candidates.slice(0, cap + HUSK_WALK)) {
     if (isAuthFailureHusk(c.file, c.size)) continue
     ranked.push({
       sessionId: sessionIdOf(c.file),
       transcriptPath: c.file,
       mtimeMs: c.mtime,
-      lastUsedMs: readSessionLastUsedMsSync(c.file, c.mtime),
+      lastUsedMs: readSessionLastUsedMsSync(c.file, c.size),
     })
   }
   ranked.sort(compareSessionRecency)
@@ -311,7 +311,7 @@ export function capDirsByRecency(
 function scanWorkedInProjects(excludeSessionId?: string): BootProjectFact[] {
   const root = getProjectsDir()
   const skip = excludeSessionId ? `${excludeSessionId}.jsonl` : null
-  const perDir: Array<{ facts: StoreDirFacts; mtime: number; lastUsedMs: number }> = []
+  const perDir: Array<{ facts: StoreDirFacts; mtime: number; lastUsedMs: number | null }> = []
   for (const d of capDirsByRecency(readdirSync(root), name => statSync(join(root, name)).mtimeMs)) {
     let facts: StoreDirFacts | null
     try {
@@ -324,7 +324,7 @@ function scanWorkedInProjects(excludeSessionId?: string): BootProjectFact[] {
     perDir.push({
       facts,
       mtime: Math.max(facts.newest?.mtime ?? 0, facts.card?.firstChatAt ?? 0),
-      lastUsedMs: Math.max(facts.newest?.lastUsedMs ?? 0, facts.card?.firstChatAt ?? 0),
+      lastUsedMs: facts.newest !== null ? facts.newest.lastUsedMs : (facts.card?.firstChatAt ?? null),
     })
   }
   perDir.sort((a, b) => compareSessionRecency({ lastUsedMs: a.lastUsedMs, mtimeMs: a.mtime }, { lastUsedMs: b.lastUsedMs, mtimeMs: b.mtime }))

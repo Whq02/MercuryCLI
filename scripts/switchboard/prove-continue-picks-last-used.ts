@@ -336,18 +336,61 @@ try {
 
     const sidFallback = sid('03')
     const fFallback = join(dir, `${sidFallback}.jsonl`)
-    appendFileSync(fFallback, encodeSeedTranscript([{ type: 'last-prompt', lastPrompt: 'metadata only', sessionId: sidFallback }] as Parameters<typeof encodeSeedTranscript>[0], sidFallback))
-    const fallbackTime = new Date(base - 10_000)
+    appendFileSync(fFallback, encodeSeedTranscript([{ type: 'last-prompt', lastPrompt: 'metadata only newer', sessionId: sidFallback }] as Parameters<typeof encodeSeedTranscript>[0], sidFallback))
+    const fallbackTime = new Date(base + 40_000)
     utimesSync(fFallback, fallbackTime, fallbackTime)
+
+    const sidFallbackOlder = sid('04')
+    const fFallbackOlder = join(dir, `${sidFallbackOlder}.jsonl`)
+    appendFileSync(fFallbackOlder, encodeSeedTranscript([{ type: 'last-prompt', lastPrompt: 'metadata only older', sessionId: sidFallbackOlder }] as Parameters<typeof encodeSeedTranscript>[0], sidFallbackOlder))
+    const fallbackOlderTime = new Date(base - 50_000)
+    utimesSync(fFallbackOlder, fallbackOlderTime, fallbackOlderTime)
+
+    const sidFuture = sid('05')
+    const fFuture = join(dir, `${sidFuture}.jsonl`)
+    const futureAt = Date.now() + 86_400_000
+    writeFileSync(
+      fFuture,
+      encodeSeedTranscript(
+        [
+          makeRow(sidFuture, futureAt, { type: 'user', message: { role: 'user', content: 'wrong future clock prompt' } }),
+          makeRow(sidFuture, futureAt + 1_000, {
+            type: 'assistant',
+            message: { id: 'm_fut', type: 'message', role: 'assistant', model: 'claude-sonnet-5', content: [{ type: 'text', text: 'future reply' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
+          }),
+        ] as Parameters<typeof encodeSeedTranscript>[0],
+        sidFuture,
+      ),
+    )
+    const futureDate = new Date(futureAt + 1_000)
+    utimesSync(fFuture, futureDate, futureDate)
+
+    const sidBigTail = sid('06')
+    const fBigTail = join(dir, `${sidBigTail}.jsonl`)
+    writeFileSync(
+      fBigTail,
+      encodeSeedTranscript(
+        [
+          makeRow(sidBigTail, base - 2_000, { type: 'user', message: { role: 'user', content: 'latest prompt before huge tail' } }),
+          makeRow(sidBigTail, base - 1_000, {
+            type: 'assistant',
+            message: { id: 'm_big', type: 'message', role: 'assistant', model: 'claude-sonnet-5', content: [{ type: 'text', text: 'latest reply before huge tail' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
+          }),
+          makeRow(sidBigTail, base + 5_000, { type: 'attachment', attachment: { type: 'file', body: 'y'.repeat(70_000) } }),
+        ] as Parameters<typeof encodeSeedTranscript>[0],
+        sidBigTail,
+      ),
+    )
+    const bigTailDate = new Date(base + 5_000)
+    utimesSync(fBigTail, bigTailDate, bigTailDate)
 
     setGround(P_ADV)
     const advIdx0 = await sessionAtIndex(0)
     const advBoot = scanBootCardFacts(P_ADV)
-    check('§3 restamped pr-link, pasted "timestamp", and later isMeta input never beat a newer real turn (-c)', advIdx0?.sessionId === sidReal, `got ${advIdx0?.sessionId ?? 'null'}`)
-    check('§3 Boot face agrees on the adversarial case', advBoot.cwdProject?.sessionId === sidReal, `got ${advBoot.cwdProject?.sessionId ?? 'null'}`)
+    check('§3 future-clock, metadata-only, and restamped pr-link never beat latest real turn (-c; >64 KiB tail still finds real turn)', advIdx0?.sessionId === sidBigTail, `got ${advIdx0?.sessionId ?? 'null'}`)
+    check('§3 Boot face agrees on future-clock, metadata-only, and >64 KiB tail', advBoot.cwdProject?.sessionId === sidBigTail, `got ${advBoot.cwdProject?.sessionId ?? 'null'}`)
     const advAll = await listProjectSessions()
-    check('§3 metadata-only session falls back to file mtime (sorts between real turn and older pr-link turn)', advAll.map(l => l.sessionId).join(',') === [sidReal, sidFallback, sidPr].join(','), advAll.map(l => l.sessionId?.slice(-2)).join(','))
-
+    check('§3 real turns strictly outrank metadata-only/future sessions; null-activity sessions fall back to mtime', advAll.map(l => l.sessionId).join(',') === [sidBigTail, sidReal, sidPr, sidFuture, sidFallback, sidFallbackOlder].join(','), advAll.map(l => l.sessionId?.slice(-2)).join(','))
     const hundredDir = paths.getProjectDir(P_HUNDRED)
     mkdirSync(hundredDir, { recursive: true })
     const payloadBytes = 200

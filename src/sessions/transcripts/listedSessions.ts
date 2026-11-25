@@ -65,8 +65,8 @@ function compareStampDesc(a: string, b: string): number {
 function compareListedSessions(a: SessionListing, b: SessionListing): number {
   return (
     compareSessionRecency(
-      { lastUsedMs: a.lastUsedAt ?? a.modified.getTime(), mtimeMs: a.modified.getTime(), sessionId: a.sessionId },
-      { lastUsedMs: b.lastUsedAt ?? b.modified.getTime(), mtimeMs: b.modified.getTime(), sessionId: b.sessionId },
+      { lastUsedMs: a.lastUsedAt ?? null, mtimeMs: a.modified.getTime(), sessionId: a.sessionId },
+      { lastUsedMs: b.lastUsedAt ?? null, mtimeMs: b.modified.getTime(), sessionId: b.sessionId },
     ) || compareStampDesc(a.date, b.date)
   )
 }
