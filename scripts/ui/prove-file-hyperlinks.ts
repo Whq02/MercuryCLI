@@ -17,7 +17,9 @@ process.env.MERCURY_FULLSCREEN = '1'
 process.env.MERCURY_REDUCED_MOTION = '1'
 const paths: string[] = []
 const urls: string[] = []
+const hostBrowser = await import('../../src/platform/host-os/browser.js')
 mock.module('../../src/platform/host-os/browser.js', () => ({
+  ...hostBrowser,
   openPath: async (path: string) => { paths.push(path); return true },
   openBrowser: async (url: string) => { urls.push(url); return true },
 }))
