@@ -250,7 +250,7 @@ export async function resolveActTargets(driver: DesktopDriver, input: Input, fro
     const elements = resolveTreeRef(owner, front, tree.value, input.ref)
     if (elements.length !== 1) return `${input.action} refused: ref:${input.ref}: ${elements.length === 0 ? 'no element of the latest tree matches it now' : `${elements.length} elements match it now`} — read the tree or find again${elements.length ? `\n${candidateWords(elements, map)}` : ''}`
     const element = elements[0]!
-    const point = targetPoint({ ...tree.value, elements: [element] }, {}, map)
+    const point = targetPoint({ ...tree.value, elements: [element], truncated: false }, {}, map)
     if ('refusal' in point) return `${input.action} refused: ref:${input.ref}${point.refusal}`
     const clipped = scrollsInto ? clippedWords(tree.value, element, front.bounds, plan.screens) : null
     if (clipped !== null) {

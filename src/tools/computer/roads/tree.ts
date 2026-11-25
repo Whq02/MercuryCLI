@@ -37,7 +37,8 @@ export async function treeRoad({ run, input, owner, signal, driver }: RoadNeeds,
   const keptLimits = { depth: input.depth ?? TREE_DEPTH_DEFAULT, count: input.limit ?? TREE_LIMIT_DEFAULT }
   let root: DesktopTree['elements'][number] | undefined
   if (input.root !== undefined) {
-    const selected = typeof input.root === 'number' ? targetElement({ ...tree.value, elements: resolveTreeRef(owner, app, tree.value, input.root) }, {}) : targetMatches(tree.value, input.root).length === 0 ? { refusal: `${targetWords(input.root)}: 0 matches — read tree or take a screenshot${pageContentNote(app, tree.value) ? `\n${pageContentNote(app, tree.value)}` : ''}` } : targetElement(tree.value, input.root, screenOf(owner))
+    const named = typeof input.root === 'number' ? resolveTreeRef(owner, app, tree.value, input.root) : []
+    const selected = typeof input.root === 'number' ? targetElement({ ...tree.value, elements: named, truncated: tree.value.truncated && named.length !== 1 }, {}) : targetMatches(tree.value, input.root).length === 0 ? { refusal: `${targetWords(input.root)}: 0 matches — read tree or take a screenshot${pageContentNote(app, tree.value) ? `\n${pageContentNote(app, tree.value)}` : ''}` } : targetElement(tree.value, input.root, screenOf(owner))
     if ('refusal' in selected) {
       run.result = `${input.action} refused: ${typeof input.root === 'number' ? `ref:${input.root}` : ''}${selected.refusal}`
       run.outcome = 'failed'
