@@ -2,7 +2,6 @@ import { setLastMainRequestId } from 'src/boot/process-state/processState.js'
 import { addToTotalSessionCost } from 'src/models/usage/sessionCost.js'
 import { getCrewmateContext } from 'src/crew/agents/crewmateContext.js'
 import { calculateUSDCost } from 'src/models/usage/modelCost.js'
-import { stopSessionActivity } from '../../../../engine/requests/sessionActivity.js'
 import { clearModelRefusal } from '../modelRefusal.js'
 import {
   EMPTY_USAGE,
@@ -14,7 +13,6 @@ import { updateUsage } from '../cacheAndUsage.js'
 import type { CallState, CallCtx } from './callState.js'
 
 export function settleAttemptLedger(ctx: CallCtx, call: CallState): void {
-  stopSessionActivity('api_call')
   ctx.releaseStreamResources()
   ctx.settleUnpricedAttempt()
   if (!call.settledNormally) {

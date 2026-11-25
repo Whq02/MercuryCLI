@@ -38,7 +38,6 @@ import { errorMessage } from '../../../platform/errors/errors.js'
 import { fitImagesToRequestCap, manyImageLimitStatedIn } from '../../../platform/images/imageResizer.js'
 import { captureAPIRequest } from '../../../platform/logs/errorLog.js'
 import { processOwnerForLane } from '../../../engine/run-owner/resolveOwner.js'
-import { startSessionActivity } from '../../../engine/requests/sessionActivity.js'
 import { createAssistantAPIErrorMessage, createUserMessage } from '../../../engine/messages/messages.js'
 import { toolToAPISchema } from '../../../engine/messages/apiSystemAndToolSchema.js'
 import { utilityCallFor } from '../../catalogue/utilityModel.js'
@@ -452,7 +451,6 @@ async function* runStreamPass(
     ctx.stoppedBlockIndices,
   )
   const watch = watchStream(ctx, call, pass)
-  startSessionActivity('api_call')
 
   try {
     try {

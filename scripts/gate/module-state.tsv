@@ -811,8 +811,6 @@ src/engine/requests/promptCacheBreakDetection.ts	resetPromptCacheBreakDetection	
 src/engine/requests/querySource.ts	FOLD_SOURCES	process	module	Load-time list with no local writer
 src/engine/requests/reconnectLadder.ts	CONNECT_TIMEOUT_CODES	process	module	Load-time lookup with no local writer
 src/engine/requests/reconnectLadder.ts	OUTAGE_WORDS	process	module	Load-time lookup with no local writer
-src/engine/requests/sessionActivity.ts	perReason	process	module	process-wide active operation counts by reason for shutdown diagnostic
-src/engine/requests/sessionActivity.ts	refcount	process	module	process-wide active api_call/tool_exec refcount for shutdown diagnostic
 src/engine/requests/withRetry.ts	FOREGROUND_QUERY_SOURCES	process	module	Load-time lookup with no local writer
 src/engine/rows/child.ts	messages	owner	module	session (module, keyed by session_id+parent_call_id+messageId, FIFO bounded at 1000)
 src/engine/rows/project.ts	MESSAGE_STAMPER	process	module	process-level monotonic row sequence stamper (createRowStamper closure)

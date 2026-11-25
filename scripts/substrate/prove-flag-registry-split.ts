@@ -195,7 +195,6 @@ const AREAS: Record<string, string> = {
   'src/daemon/tcp-bridge/entry.ts': 'session.ts',
   'src/engine/requests/imageValidation.ts': 'session.ts',
   'src/engine/requests/querySource.ts': 'session.ts',
-  'src/engine/requests/sessionActivity.ts': 'session.ts',
   'src/engine/rows/turn/ledgerMark.ts': 'session.ts',
   'src/engine/tasks/local-agent/agentMessage.ts': 'session.ts',
   'src/engine/turn-entry/filesReadInMessages.ts': 'session.ts',
