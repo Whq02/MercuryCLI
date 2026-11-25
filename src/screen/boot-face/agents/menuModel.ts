@@ -1,4 +1,3 @@
-import { basename } from 'node:path';
 import type { useEngineModel } from '../../model-picker/useEngineModel.js';
 import { resolveEffectiveAgentRuntime } from '../../../crew/agents/resolver.js';
 import { bootBirthFacts } from '../../../daemon/switchboard/bootBirthFacts.js';
@@ -6,8 +5,7 @@ import { getInitialEffortSetting, parseEffortValue, type EffortValue } from '../
 import { computeStudioValidation, effectiveStudioRuntime, studioDestinationPath, type FieldId, type StudioEditorSnapshot, type StudioValidation } from '../../agents/studio/studioEditorModel.js';
 import type { Tools } from '../../../tools/kit/tool.js';
 import { agentModelAvailabilityNote } from '../../../models/catalogue/agentModelPicker.js';
-import { renderModelChip } from '../../../models/catalogue/engineModel.js';
-import { getSessionAccent, getSessionCritterKey } from '../../widgets/sessionAccent.js';
+import { bootEnvironment } from '../bootEnvironment.js';
 import type { useGreetingShimmer } from '../../widgets/useGreetingShimmer.js';
 import { AGENT_FACE_LEGEND_FORM, agentFormEntryOf, agentFormDetailLines, AGENT_FACE_LEGEND_TRASH, AGENT_FACE_LEGEND_PROMPT, AGENT_FACE_LEGEND_PICK, agentFaceEntryOf, AGENT_FACE_LEGEND_CONFIRM, agentDeleteConfirmLines, agentFaceSummaryRows, type FaceEntry, AGENT_FACE_LEGEND, agentTrashEntryOf, agentFaceStatusLine, agentFaceDetailLines } from './face.js';
 import type { AgentDefinitions, AgentFormState, AgentLists, AgentsFaceBase } from './context.js';
@@ -17,14 +15,7 @@ export function bootSessionEffort(): EffortValue | undefined {
 }
 
 export function agentsFaceBase({ counts, mainModel, wordGlow, workspaceDir }: { counts: AgentDefinitions['counts']; mainModel: ReturnType<typeof useEngineModel>; wordGlow: ReturnType<typeof useGreetingShimmer>; workspaceDir: string }) {
-  const critterKey = getSessionCritterKey();
-  const environment = {
-    model: renderModelChip(mainModel),
-    critter: critterKey.charAt(0).toUpperCase() + critterKey.slice(1),
-    critterHue: getSessionAccent().accent,
-    dirBase: basename(workspaceDir) || workspaceDir,
-    dirTail: '',
-  };
+  const environment = bootEnvironment(mainModel, workspaceDir);
   const base = {
     title: 'agents',
     summaryTitle: 'AGENTS',

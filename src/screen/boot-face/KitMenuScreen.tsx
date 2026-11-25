@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from 'react';
-import { basename } from 'node:path';
 import { useInput } from '../themedRenderer.js';
 import { createSplashCore, WORD_W } from '../../../assets/splash/splash-core.mjs';
 import { leaveCurrentSurface } from '../routes/surfaceRoute.js';
@@ -31,8 +30,7 @@ import {
   type KitRowView,
   type KitStates,
 } from '../kit-menu-model/kitTypes.js';
-import { renderModelChip } from '../../models/catalogue/engineModel.js';
-import { getSessionAccent, getSessionCritterKey } from '../widgets/sessionAccent.js';
+import { bootEnvironment } from './bootEnvironment.js';
 import { useGreetingShimmer } from '../widgets/useGreetingShimmer.js';
 import { useInteractiveList } from '../widgets/useInteractiveList.js';
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js';
@@ -398,14 +396,7 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
   const mainModel = useEngineModel();
 
   const menuM = useMemo(() => {
-    const critterKey = getSessionCritterKey();
-    const environment = {
-      model: renderModelChip(mainModel),
-      critter: critterKey.charAt(0).toUpperCase() + critterKey.slice(1),
-      critterHue: getSessionAccent().accent,
-      dirBase: basename(process.cwd()) || process.cwd(),
-      dirTail: '',
-    };
+    const environment = bootEnvironment(mainModel, process.cwd());
     if (presetsLayer.open) {
       const armed = peekWornPresetKit()?.name ?? null;
       const empty = presetsLayer.facts.length === 0;

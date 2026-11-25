@@ -1,5 +1,4 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { basename } from 'node:path';
 import { getCwd } from '../../platform/files/cwd.js';
 import { useInput } from '../themedRenderer.js';
 import { createSplashCore, fmtAge, WORD_W } from '../../../assets/splash/splash-core.mjs';
@@ -25,8 +24,7 @@ import {
   type PruneReceipt,
 } from '../../daemon/switchboard/transcriptPruneDoor.js';
 import { sessionIdOfListing } from '../../sessions/transcripts/sessionStorage.js';
-import { renderModelChip } from '../../models/catalogue/engineModel.js';
-import { getSessionAccent, getSessionCritterKey } from '../widgets/sessionAccent.js';
+import { bootEnvironment } from './bootEnvironment.js';
 import { useGreetingShimmer } from '../widgets/useGreetingShimmer.js';
 import { useInteractiveList, type AsyncListNote } from '../widgets/useInteractiveList.js';
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js';
@@ -441,14 +439,7 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
   const mainModel = useEngineModel();
 
   const menuM = useMemo(() => {
-    const critterKey = getSessionCritterKey();
-    const environment = {
-      model: renderModelChip(mainModel),
-      critter: critterKey.charAt(0).toUpperCase() + critterKey.slice(1),
-      critterHue: getSessionAccent().accent,
-      dirBase: basename(getCwd()) || getCwd(),
-      dirTail: '',
-    };
+    const environment = bootEnvironment(mainModel, getCwd());
     const entries: ResumeEntry[] = [
       ...flat.map(resumeEntryOf),
       ...(scope === 'project' && elsewhereCount > 0 ? [resumeElsewhereEntry(elsewhereCount)] : []),
