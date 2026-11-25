@@ -14,11 +14,10 @@ import {
   parsePrivateVersion,
   PAYLOAD_ROOT,
   selectRelease,
-  updateCeilings,
   type ReleaseSelection,
-  type UpdateCeilings,
 } from './channelCore.js'
-import { checkArchiveBeforeUnpack, unpackedFolderRefusal } from './archiveListing.js'
+import { checkArchiveBeforeUnpack, updateCeilings, type UpdateCeilings } from './archiveListing.js'
+import { unpackedFolderRefusal } from './unpackedFolder.js'
 import { describeSignatureVerdict, type SignatureVerdict } from './artifactSigning.js'
 import { verifyPayloadDir } from './artifactVerify.js'
 import {

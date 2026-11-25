@@ -3,3 +3,4 @@ prove-release-local.ts
 prove-windows-launcher.ts
 prove-windows-payload-bash-pack.ts
 prove-changelog-one-source.ts
+prove-verify-archive-reader.ts

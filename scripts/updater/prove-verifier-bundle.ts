@@ -11,6 +11,7 @@ const DIST_BUNDLE = join(ROOT, 'dist', 'mercury.mjs')
 const DIST_MANIFEST = join(ROOT, 'dist', 'manifest.json')
 const SIZE_CEILING_BYTES = 64 * 1024
 const MODULES_ALLOWED = [
+  'src/platform/update-channel/archiveListing.ts',
   'src/platform/update-channel/artifactSigning.ts',
   'src/platform/update-channel/artifactVerify.ts',
   'src/platform/update-channel/payloadDigest.ts',

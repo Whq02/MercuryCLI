@@ -23,13 +23,14 @@ const usage = () => {
 if (!['signed', 'unsigned'].includes(expect)) usage()
 let archive = opt('--archive')
 const target = opt('--target')
-if (archive === null && target !== null) {
-  const built = join(root, 'dist', 'verify-artifact.mjs')
-  if (!existsSync(built)) {
-    console.error(`✗ ${built} is missing — the archive name is read from the built library (run bun run build.ts first)`)
-    process.exit(2)
-  }
-  const owner = await import(pathToFileURL(built).href)
+if (archive === null && target === null) usage()
+const built = join(root, 'dist', 'verify-artifact.mjs')
+if (!existsSync(built)) {
+  console.error(`✗ ${built} is missing — the archive name and the updater's archive check are read from the built library (run bun run build.ts first)`)
+  process.exit(2)
+}
+const owner = await import(pathToFileURL(built).href)
+if (archive === null) {
   if (!owner.isReleaseTarget(target)) {
     console.error(`✗ --target wants one of ${owner.RELEASE_TARGETS.join(', ')} (got ${target})`)
     process.exit(2)
@@ -37,13 +38,16 @@ if (archive === null && target !== null) {
   const signedName = owner.archiveNameFor(version, target)
   archive = join(root, 'release-out', expect === 'unsigned' ? unsignedArchiveName(signedName) : signedName)
 }
-if (archive === null) usage()
 
 const fail = msg => {
   console.error(`✗ ${msg}`)
   process.exit(1)
 }
 if (!existsSync(archive)) fail(`no archive at ${archive} — package first (node scripts/release/package.mjs --target <target>${expect === 'unsigned' ? ' --unsigned' : ''})`)
+
+const read = await owner.checkArchiveBeforeUnpack(archive, archive.endsWith('.zip') ? 'zip' : 'tar.gz', owner.updateCeilings())
+if (read.state !== 'ok') fail(`${basename(archive)}: an installed updater would refuse this archive: ${read.state === 'refused' ? read.reason : read.note} — nothing may publish`)
+console.log(`${basename(archive)}: an installed updater's archive check passes (${read.entries} entries)`)
 
 const scratch = mkdtempSync(join(tmpdir(), 'mercury-verify-archive-'))
 try {

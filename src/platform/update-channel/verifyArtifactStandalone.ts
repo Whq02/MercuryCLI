@@ -19,6 +19,7 @@ export {
 export { verifyPayloadDir, type PayloadVerification } from './artifactVerify.js'
 export { trustedSigningKeys, PRODUCTION_SIGNING_KEY, type TrustedSigningKey } from './signingTrust.js'
 export { archiveBaseNameFor, archiveNameFor, isReleaseTarget, releaseTargetFor, RELEASE_TARGETS, type ReleaseTarget } from './releaseTarget.js'
+export { checkArchiveBeforeUnpack, updateCeilings } from './archiveListing.js'
 
 const EXIT_BY_STATE: Record<string, number> = {
   signed: 0,

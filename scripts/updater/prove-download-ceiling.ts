@@ -7,13 +7,13 @@ import { join } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '9.9.9' }
 
 const { downloadChannelAssets } = await import('../../src/platform/update-channel/channelTransport.js')
-const { updateCeilings } = await import('../../src/platform/update-channel/channelCore.js')
+const { updateCeilings } = await import('../../src/platform/update-channel/archiveListing.js')
 const UPDATE_CEILINGS = updateCeilings()
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : " — to fix: bound the bytes anonymousDownloadAsset writes in src/platform/update-channel/channelTransport.ts by the asset's maxBytes, and keep the ceilings in updateCeilings in src/platform/update-channel/channelCore.ts"}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : " — to fix: bound the bytes anonymousDownloadAsset writes in src/platform/update-channel/channelTransport.ts by the asset's maxBytes, and keep the ceilings in updateCeilings in src/platform/update-channel/archiveListing.ts"}`)
 }
 
 const CEILING = 64 * 1024

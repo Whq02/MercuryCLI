@@ -1,10 +1,18 @@
-import { closeSync, createReadStream, fstatSync, lstatSync, openSync, readdirSync, readlinkSync, readSync, realpathSync } from 'node:fs'
-import { dirname, isAbsolute, join, posix, relative, resolve } from 'node:path'
+import { closeSync, createReadStream, fstatSync, openSync, readSync } from 'node:fs'
+import { posix } from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import { createGunzip, createInflateRaw } from 'node:zlib'
-import type { UpdateCeilings } from './channelCore.js'
-import { passedOver } from '../errors/passedOver.js'
-import { isEscapingRelativePath } from '../host-os/paths.js'
+
+export interface UpdateCeilings {
+  readonly archiveBytes: number
+  readonly checksumManifestBytes: number
+  readonly unpackedBytes: number
+  readonly entries: number
+}
+
+export function updateCeilings(): UpdateCeilings {
+  return { archiveBytes: 1024 ** 3, checksumManifestBytes: 4 * 1024 ** 2, unpackedBytes: 4 * 1024 ** 3, entries: 100_000 }
+}
 
 type ArchiveForm = 'tar.gz' | 'zip'
 
@@ -308,38 +316,4 @@ export async function checkArchiveBeforeUnpack(archivePath: string, form: Archiv
     if (error instanceof ArchiveRefusal) return { state: 'refused', reason: error.message }
     return { state: 'unreadable', note: error instanceof Error ? error.message.slice(0, 200) : String(error) }
   }
-}
-
-function linkOnDiskLands(link: string): string {
-  try {
-    return realpathSync(link)
-  } catch (error) {
-    passedOver(error)
-    return resolve(dirname(link), readlinkSync(link))
-  }
-}
-
-export function unpackedFolderRefusal(root: string, ceilings: UpdateCeilings): string | null {
-  const home = realpathSync(root)
-  const tally = { entries: 0, bytes: 0 }
-  const folders = [home]
-  for (let folder = folders.pop(); folder !== undefined; folder = folders.pop()) {
-    for (const name of readdirSync(folder)) {
-      const full = join(folder, name)
-      const stat = lstatSync(full)
-      const told = JSON.stringify(relative(home, full)).slice(0, 120)
-      tally.entries++
-      if (tally.entries > ceilings.entries) return `the unpacker wrote more than ${ceilings.entries} entries, the most a release may hold`
-      if (stat.isDirectory()) folders.push(full)
-      else if (stat.isSymbolicLink()) {
-        const away = relative(home, linkOnDiskLands(full))
-        if (isAbsolute(away) || isEscapingRelativePath(away)) return `the unpacker left a link that leaves the folder it unpacked into: ${told}`
-      } else if (!stat.isFile()) return `the unpacker left a device, a FIFO or a socket: ${told}`
-      else {
-        tally.bytes += stat.size
-        if (tally.bytes > ceilings.unpackedBytes) return `the unpacker wrote more than ${ceilings.unpackedBytes} bytes, the most a release may hold`
-      }
-    }
-  }
-  return null
 }

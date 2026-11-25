@@ -10,10 +10,11 @@ import { gzipSync } from 'node:zlib'
 import { zipSync } from 'fflate'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '9.9.0-beta.1' }
 
-const { assetNameFor, updateCeilings } = await import('../../src/platform/update-channel/channelCore.js')
-const UPDATE_CEILINGS = updateCeilings()
+const { assetNameFor } = await import('../../src/platform/update-channel/channelCore.js')
 const { performUpdate } = await import('../../src/platform/update-channel/updateService.js')
-const { checkArchiveBeforeUnpack, unpackedFolderRefusal } = await import('../../src/platform/update-channel/archiveListing.js')
+const { checkArchiveBeforeUnpack, updateCeilings } = await import('../../src/platform/update-channel/archiveListing.js')
+const { unpackedFolderRefusal } = await import('../../src/platform/update-channel/unpackedFolder.js')
+const UPDATE_CEILINGS = updateCeilings()
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
