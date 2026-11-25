@@ -123,6 +123,17 @@ try {
 
     const unread = await drive(cols, 40, { name: 'unread', sends: toThePage, readyText: 'again.', stage: install => writeFileSync(join(install.home, 'profiles.json'), '{') })
     check(`${cols}: a list that does not read says so, names the file, draws no row and offers only esc`, unread.frame('unread').includes('again.') && wholeWhereThePaneWraps(unread.frame('unread'), join(unread.home, 'profiles.json')) && rowOf(unread.frame('unread'), 1) === undefined && unread.frame('unread').includes('esc back') && !/n new|r rename|⌫ remove/.test(unread.frame('unread')), `when listProfiles answers ok: false the page must print its reason in the detail pane, pass no action to the list and show the legend esc back (${PAGE})`)
+
+    const kept = await drive(cols, 40, {
+      name: 'kept',
+      sends: [...toThePage, key('2 · Profile 2', DOWN + BACKSPACE), key('remove Profile 2?', 'y')],
+      readyText: 'Profile 2 removed',
+      stage: install => {
+        writeFileSync(join(install.home, 'profiles.json'), JSON.stringify({ profiles: [{ id: 2 }] }))
+        stranger(install)
+      },
+    })
+    check(`${cols}: a file at the command's path that is not the profile's command is left and named after the remove`, squash(kept.frame('kept')).includes(squash('left in place, not its command')) && wholeWhereThePaneWraps(kept.frame('kept'), join(kept.bin, 'mercury2')) && rowOf(kept.frame('kept'), 2) === undefined, `after a remove the page must print the door's keptFiles on a line after the folder line (the remove keys of ${PAGE})`)
   }
   const short = await drive(120, 34, { name: 'refused', sends: refusal, readyText: 'again.', stage: stranger })
   check('120x34: a refusal from the door is whole in a short wide window', short.frame('refused').includes('SETTING DETAIL') && short.frame('refused').includes('again.') && wholeWhereThePaneWraps(short.frame('refused'), join(short.bin, 'mercury2')), `what the page says in the pane must be held as a confirm's lines are, never dropped for room: detailOverrideConfirms while a pane message shows (${PAGE})`)
