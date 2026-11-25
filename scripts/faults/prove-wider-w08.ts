@@ -476,18 +476,30 @@ async function w08_7_polyglotUnreadableDirAndStatNoted(): Promise<void> {
 }
 
 async function w08_9_gitOperationTrackingPrLinkFailureSurfaced(): Promise<void> {
-  const { mkdirSync } = await import('node:fs')
+  const { mkdirSync, readFileSync } = await import('node:fs')
   const { getTranscriptPathForSession } = await import(join(SRC, 'sessions/transcripts/sessionStorage.ts'))
   const { getSessionId } = await import(join(SRC, 'boot/process-state/processState.ts'))
   const { trackGitOperations } = await import(join(SRC, 'tools/kit/gitOperationTracking.ts'))
   const { BashTool } = await import(join(SRC, 'tools/shell/BashTool.tsx'))
   const { getDefaultAppState } = await import(join(SRC, 'screen/app-state/AppStateStore.ts'))
+  const dbg = await import(join(SRC, 'platform/logs/debugLog.ts'))
+  const prevNodeEnv = process.env.NODE_ENV
+  delete process.env.NODE_ENV
+  dbg.enableDebugLogging()
+  const dbgPath = dbg.getDebugLogPath()
   const transcriptPath = getTranscriptPathForSession(String(getSessionId()) as never)
   rmSync(transcriptPath, { recursive: true, force: true })
   mkdirSync(transcriptPath, { recursive: true })
   try {
     const note = await trackGitOperations('gh pr create --fill', 0, 'https://github.com/org/repo/pull/42\n')
-    check('w08-9: trackGitOperations returns failure note when PR link write fails', typeof note === 'string' && note.includes('the pull request link could not be saved (') && note.includes('so this session will not show it'), JSON.stringify(note))
+    const dbgText = (() => { try { return readFileSync(dbgPath, 'utf8') } catch { return '' } })()
+    check(
+      'w08-9: trackGitOperations returns plain failure note and logs detail when PR link write fails',
+      note === 'the pull request link could not be saved, so this session will not show it' &&
+        dbgText.includes('https://github.com/org/repo/pull/42') &&
+        dbgText.includes('EISDIR'),
+      `note=${JSON.stringify(note)} dbg=${JSON.stringify(dbgText.slice(-300))}`,
+    )
 
     const ctx = {
       abortController: new AbortController(),
@@ -502,8 +514,9 @@ async function w08_9_gitOperationTrackingPrLinkFailureSurfaced(): Promise<void> 
       nestedMemoryAttachmentTriggers: new Set(),
     } as never
     const res = await BashTool.call({ command: 'echo https://github.com/org/repo/pull/42 # gh pr create' } as never, ctx)
-    check('w08-9: BashTool includes the PR link save failure note in output', (res.data as { stdout: string }).stdout.includes('the pull request link could not be saved (') && (res.data as { stdout: string }).stdout.includes('so this session will not show it'), JSON.stringify(res.data))
+    check('w08-9: BashTool includes the plain PR link save failure note in output', (res.data as { stdout: string }).stdout.includes('the pull request link could not be saved, so this session will not show it'), JSON.stringify(res.data))
   } finally {
+    if (prevNodeEnv !== undefined) process.env.NODE_ENV = prevNodeEnv
     rmSync(transcriptPath, { recursive: true, force: true })
   }
 }

@@ -155,8 +155,12 @@ export async function trackGitOperations(command: string, exitCode: number, stdo
     return undefined
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    const { logError } = await import('../../platform/logs/errorLog.js')
+    const [{ logError }, { logForDebugging }] = await Promise.all([
+      import('../../platform/logs/errorLog.js'),
+      import('../../platform/logs/debugLog.js'),
+    ])
     logError(new Error(`the session could not be recorded against pull request ${url}, so it is not listed with it: ${message}`))
-    return `the pull request link could not be saved (${message}), so this session will not show it`
+    logForDebugging(`gitOperationTracking: pull request link ${url} could not be saved: ${message}`, { level: 'error' })
+    return 'the pull request link could not be saved, so this session will not show it'
   }
 }
