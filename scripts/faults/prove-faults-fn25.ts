@@ -532,6 +532,13 @@ const { resolveCrewmateCwd } = await import('../../src/tools/crewmate/call/cwd.t
         throw Object.assign(new Error(writeErr), { code: 'ENOSPC' })
       },
     }))
+    const logged = []
+    const logPath = path.join(SRC, 'platform/logs/debugLog.ts')
+    const realLog = await import(logPath)
+    mock.module(logPath, () => ({
+      ...realLog,
+      logForDebugging: line => { logged.push(String(line)) },
+    }))
     const { getCommandQueue, resetCommandQueue } = await import(path.join(SRC, 'screen/composer/input-core/command-queue.ts'))
     const { cancelAutomaticResume, armBudgetCutResume, armOverloadProbe } = await import(path.join(SRC, 'tools/crewmate/crewmateLifecycle.ts'))
     const { getDefaultAppState } = await import(path.join(SRC, 'screen/app-state/AppStateStore.ts'))
@@ -579,6 +586,7 @@ const { resolveCrewmateCwd } = await import('../../src/tools/crewmate/call/cwd.t
     await new Promise(resolve => setTimeout(resolve, 30))
     out.overloadPath = realPauseCarry.crewmatePauseRecordPath('agent-save-overload')
     out.overloadNotes = notes()
+    out.logged = logged
   `)
   const dropNotes = (r.dropNotes as string[]).join('\n')
   const budgetNotes = (r.budgetNotes as string[]).join('\n')
@@ -588,15 +596,17 @@ const { resolveCrewmateCwd } = await import('../../src/tools/crewmate/call/cwd.t
     dropNotes.includes(String(r.dropPath)) && dropNotes.includes('could not be removed (EACCES: unlink refused)') && dropNotes.includes('delete it, or the next session start resumes it'),
     dropNotes || '(no notification)',
   )
+  const logged = (r.logged as string[]) ?? []
+  const loggedFor = (recordPath: unknown, reason: string): boolean => logged.some(line => line.includes(String(recordPath)) && line.includes(reason))
   check(
-    'agentToolUtils: armBudgetCutResume pause record save failure notifies with crewmate, path, error, and restart consequence',
-    budgetNotes.includes('Crewmate "budget worker"') && budgetNotes.includes(String(r.budgetPath)) && budgetNotes.includes('could not be saved (ENOSPC: disk full)') && budgetNotes.includes('after a restart'),
-    budgetNotes || '(no notification)',
+    'agentToolUtils: armBudgetCutResume pause record save failure notifies with crewmate and restart consequence, the path and the error in the debug log',
+    budgetNotes.includes('Crewmate "budget worker": its pause record could not be saved — it will not resume on its own after a restart') && !budgetNotes.includes(String(r.budgetPath)) && loggedFor(r.budgetPath, 'ENOSPC: disk full'),
+    `${budgetNotes || '(no notification)'} | debug log: ${logged.join(' / ')}`,
   )
   check(
-    'agentToolUtils: armOverloadProbe pause record save failure notifies with crewmate, path, error, and restart consequence',
-    overloadNotes.includes('Crewmate "overload worker"') && overloadNotes.includes(String(r.overloadPath)) && overloadNotes.includes('could not be saved (EACCES: read-only dir)') && overloadNotes.includes('after a restart'),
-    overloadNotes || '(no notification)',
+    'agentToolUtils: armOverloadProbe pause record save failure notifies with crewmate and restart consequence, the path and the error in the debug log',
+    overloadNotes.includes('Crewmate "overload worker": its pause record could not be saved — it will not resume on its own after a restart') && !overloadNotes.includes(String(r.overloadPath)) && loggedFor(r.overloadPath, 'EACCES: read-only dir'),
+    `${overloadNotes || '(no notification)'} | debug log: ${logged.join(' / ')}`,
   )
 }
 
