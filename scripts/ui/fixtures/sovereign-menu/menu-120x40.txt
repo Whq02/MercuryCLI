@@ -24,7 +24,7 @@
    │ SAMPLES                                                        │  ╰────────────────────────────────────────────╯
    │   Samples                                        default (off) │  ╭────────────────────────────────────────────╮
    │                                                                │  │ LAUNCH SUMMARY                             │
-   │ AGENTS                                                         │  │ Profile    r1 · custom · 1 set             │
+   │ AGENTS                                                         │  │ Saved      r1 · custom · 1 set             │
    │   Crewmates                                       default (on) │  │ Harness    helm                            │
    │                                                                │  │ Readiness  ● ready                         │
    │ MISCELLANEOUS                                                  │  ╰────────────────────────────────────────────╯
