@@ -1,5 +1,5 @@
 import type { ToolEffectOutcome } from '../../kit/tool.js'
-import { approveSecretPairing, driverVersion, noteEmulatedPage } from '../../../integrations/browser/browserSession.js'
+import { approveSecretPairing, driverVersion, noteEmulatedPage, originApproved, sessionAttached } from '../../../integrations/browser/browserSession.js'
 import {
   type EmulationOutcome,
   applyEmulation,
@@ -23,14 +23,18 @@ export async function viewportSizeOp(s: LiveSession, width: number, height: numb
   return { result, outcome }
 }
 
+function locationGrantable(s: LiveSession, owner: OpRun['owner']): ((origin: string) => boolean) | null {
+  return sessionAttached(s) ? origin => originApproved(owner, origin) : null
+}
+
 export async function viewportHeldOp(s: LiveSession, run: OpRun, held: ReturnType<typeof heldDevice>): Promise<OpDone> {
-  const { input } = run
+  const { input, owner } = run
   let applied: EmulationOutcome
   applied = await applyEmulation(s.page, {}, {
     width: Math.min(Math.max(Math.floor(input.width!), 320), 3840),
     height: Math.min(Math.max(Math.floor(input.height!), 240), 2160),
     ...(input.deviceScaleFactor !== undefined ? { scale: Math.min(Math.max(input.deviceScaleFactor, 1), 3) } : {}),
-  })
+  }, '', locationGrantable(s, owner))
   return viewportAnswer(s, run, held, applied)
 }
 
@@ -46,6 +50,7 @@ export async function viewportEmulationOp(s: LiveSession, run: OpRun, held: Retu
       ...(input.deviceScaleFactor !== undefined ? { scale: input.deviceScaleFactor } : {}),
     },
     answers,
+    locationGrantable(s, owner),
   )
   const paired = parsed.request.credentials?.secret
   if (paired !== undefined && applied.refusal === undefined && !applied.failures.some(line => line.startsWith('credentials'))) {

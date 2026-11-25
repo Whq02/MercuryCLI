@@ -3,6 +3,7 @@ prove-browser-approval-words.ts
 prove-browser-attach-coord-cross-origin-frame.ts
 prove-browser-attach-covered.ts
 prove-browser-attach-cross-origin-frame-url.ts
+prove-browser-attach-geolocation-detach.ts
 prove-browser-attach-unapproved-origin-gate.ts
 prove-browser-attach.ts
 prove-browser-auth-boundary.ts

@@ -190,6 +190,7 @@ interface PageEmulation {
   grants: Set<string>
   grantError: { origin: string; message: string } | null
   regrant: ((frame: Frame) => void) | null
+  grantable: ((origin: string) => boolean) | null
   answering: boolean
   credentials: Environment['credentials']
   answered: Set<string>
@@ -213,7 +214,7 @@ const rememberedAuth = new WeakMap<object, Set<string>>()
 function stateOf(page: Page): PageEmulation {
   let state = emulations.get(page)
   if (state === undefined) {
-    state = { fields: {}, environment: null, unsettled: new Set(), grants: new Set(), grantError: null, regrant: null, answering: false, credentials: null, answered: new Set(), usedFor: new Set() }
+    state = { fields: {}, environment: null, unsettled: new Set(), grants: new Set(), grantError: null, regrant: null, grantable: null, answering: false, credentials: null, answered: new Set(), usedFor: new Set() }
     emulations.set(page, state)
   }
   return state
@@ -395,6 +396,7 @@ async function setGrant(page: Page, origin: string, state: 'granted' | 'prompt')
 async function grantLocation(page: Page, state: PageEmulation): Promise<void> {
   const origin = originOf(page.url())
   if (!origin.startsWith('http') || state.grants.has(origin)) return
+  if (state.grantable !== null && !state.grantable(origin)) return
   const context: object = typeof page.browserContext === 'function' ? page.browserContext() : page
   const byOrigin = grantHolders.get(context) ?? new Map<string, Set<Page>>()
   grantHolders.set(context, byOrigin)
@@ -722,7 +724,7 @@ async function settle(page: Page, kit: PageKit, state: PageEmulation, next: Fiel
   return { reloaded, stale, lines: describe(state, kit), failures, notes }
 }
 
-export async function applyEmulation(page: Page, request: EmulationRequest, size: EmulationSize, origin = ''): Promise<EmulationOutcome> {
+export async function applyEmulation(page: Page, request: EmulationRequest, size: EmulationSize, origin = '', grantable: PageEmulation['grantable'] = null): Promise<EmulationOutcome> {
   const kit = pageKitOf(page)
   if (kit === null) return { refusal: 'this page was not prepared for emulation', reloaded: false, stale: false, lines: [], failures: [], notes: [] }
   if (typeof request.device === 'string') {
@@ -741,6 +743,7 @@ export async function applyEmulation(page: Page, request: EmulationRequest, size
     }
   }
   const state = stateOf(page)
+  state.grantable = grantable
   return settle(page, kit, state, merged(state.fields, request, size, origin))
 }
 
@@ -799,7 +802,9 @@ export async function carryEmulation(from: Page, to: Page): Promise<EmulationOut
   const earlier = emulations.get(from)
   const kit = pageKitOf(to)
   if (earlier === undefined || kit === null || !emulationActive(from)) return null
-  return settle(to, kit, stateOf(to), { ...earlier.fields })
+  const state = stateOf(to)
+  state.grantable = earlier.grantable
+  return settle(to, kit, state, { ...earlier.fields })
 }
 
 export async function inheritEmulation(from: Page, to: Page, reloadSafe: boolean): Promise<EmulationOutcome | null> {
@@ -808,6 +813,7 @@ export async function inheritEmulation(from: Page, to: Page, reloadSafe: boolean
   if (earlier === undefined || kit === null || !emulationActive(from)) return null
   const { devices, networks } = await tables()
   const state = stateOf(to)
+  state.grantable = earlier.grantable
   const next: Fields = { ...earlier.fields }
   const baseline = environmentOf({}, kit, devices, networks)
   const born = kit.born
