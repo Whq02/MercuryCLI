@@ -40,7 +40,7 @@ for (const command of plainCommands) {
   const hasPlain = built.commandString.includes("$PSStyle.OutputRendering = 'PlainText'")
   const hasUtf8 = built.commandString.includes(UTF8_OUTPUT_PRELUDE)
   const cmdAt = built.commandString.indexOf(`\n${command}\n`)
-  const trailerAt = built.commandString.indexOf('\n; exit $mc')
+  const trailerAt = built.commandString.indexOf('\n; $host.SetShouldExit($mc)')
   check(
     `plain command omits location-history prelude: ${command}`,
     !hasClear && hasPlain && hasUtf8 && cmdAt !== -1 && trailerAt > cmdAt,

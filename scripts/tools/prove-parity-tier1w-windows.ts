@@ -81,7 +81,7 @@ const plain = await provider.buildExecCommand('Write-Output hi', { id: 7 })
 const prelude = "$PSStyle.OutputRendering = 'PlainText'"
 const preludeAt = plain.commandString.indexOf(prelude)
 const commandAt = plain.commandString.indexOf('Write-Output hi')
-const trailerAt = plain.commandString.indexOf('exit $mc')
+const trailerAt = plain.commandString.indexOf('SetShouldExit($mc)')
 t('plain lane: rendering pinned before the command', preludeAt !== -1 && commandAt > preludeAt)
 t('plain lane: the cwd/exit trailer still follows the command', trailerAt > commandAt)
 t(

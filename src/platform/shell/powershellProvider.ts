@@ -64,7 +64,7 @@ function buildTrailer(cwdFileInShell: string): string {
     '',
     '; $mc = if ($null -ne $LASTEXITCODE) { $LASTEXITCODE } elseif ($?) { 0 } else { 1 }',
     `; [IO.File]::WriteAllText('${literal}', (Get-Location).Path, [Text.UTF8Encoding]::new($false))`,
-    '; exit $mc',
+    '; $host.SetShouldExit($mc)',
   ].join('\n')
 }
 
