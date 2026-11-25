@@ -69,10 +69,12 @@
     "src/platform/substrate/operationJournal.ts",
     "src/platform/config/globalConfig.ts",
     "src/platform/secure-storage/sealedStoreStart.ts",
-    "src/platform/settings/settings.ts"
+    "src/platform/settings/settings.ts",
+    "src/models/sign-in/lifecycle/lockedRefresh.ts"
   ],
   "reasons": {
     "src/platform/secure-storage/sealedStoreStart.ts": "synchronous cross-process lock (proper-lockfile lockSync via src/platform/storage/lockfile.ts) on the site src/models/sign-in/credentials/auth.ts names for the OAuth refresh (oauthRefreshLockSite), held from the last read of the credential file to its publish, so that the first sealing of a plain credential store at start cannot land inside another process's token refresh",
-    "src/daemon/concourse-workers/storeLock.ts": "synchronous cross-process lock (proper-lockfile lockSync via src/platform/storage/lockfile.ts) serialising updateConcourseWorkers and the sibling daemon stores across helper daemons and the daemon-down settle"
+    "src/daemon/concourse-workers/storeLock.ts": "synchronous cross-process lock (proper-lockfile lockSync via src/platform/storage/lockfile.ts) serialising updateConcourseWorkers and the sibling daemon stores across helper daemons and the daemon-down settle",
+    "src/models/sign-in/lifecycle/lockedRefresh.ts": "cross-process lock (proper-lockfile lock via src/platform/storage/lockfile.ts) held from the re-read of a sign-in's stored pair across its token exchange to the write of the new pair, by the one refresh door of the OpenAI, Google, Kimi, Hugging Face and xAI sign-ins; it took the place of two hand-built lock files and four refreshes that took no lock"
   }
 }
