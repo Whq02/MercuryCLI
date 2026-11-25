@@ -991,7 +991,7 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
   const sRows = m.summaryRows
     ? m.summaryRows.map(r2 => kv(r2.key, r2.value, toneOf(r2.tone)))
     : [
-        kv('Profile', m.summary.profile),
+        kv('Saved', m.summary.profile),
         kv('Harness', m.summary.harness),
         kv('Readiness', '', undefined) + paint(TEALC) + '● ready' + R,
       ]

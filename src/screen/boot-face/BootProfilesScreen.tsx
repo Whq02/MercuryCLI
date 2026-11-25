@@ -21,7 +21,7 @@ type ProfilesFace =
   | { kind: 'rename'; profile: ProfileRow; name: string }
   | { kind: 'remove'; profile: ProfileRow };
 
-type Said = { where: 'status'; line: string } | { where: 'pane'; lines: string[] };
+type Said = { where: 'status' | 'pane'; text: string };
 
 const removable = (profile: ProfileRow): boolean => profile.id !== 1 && !profile.current;
 
@@ -33,7 +33,8 @@ function startWords(profile: ProfileRow): string {
 function detailLinesOf(face: ProfilesFace, selected: ProfileRow | null, said: Said | null): string[] {
   if (face.kind === 'rename') return [`name: ${face.name}▌`, '', 'an empty name puts the default back'];
   if (face.kind === 'remove') return [`remove ${face.profile.name}?`, '', 'its command is removed,', `its folder and logins stay at ${face.profile.home}`];
-  return [...(said?.where === 'pane' ? [...said.lines, ''] : []), ...(selected === null ? [] : [selected.home, '', startWords(selected)])];
+  if (said?.where === 'pane') return said.text.split('\n');
+  return selected === null ? [] : [selected.home, '', startWords(selected)];
 }
 
 export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void; fullScene: { columns: number; rows: number } }): React.ReactNode {
@@ -67,7 +68,7 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
             hint: 'new',
             run: () => {
               const made = createProfile();
-              settle(made.ok ? { where: 'status', line: `${made.profile.name} created — ${startWords(made.profile)}` } : { where: 'pane', lines: [made.reason] });
+              settle(made.ok ? { where: 'status', text: `${made.profile.name} created — ${startWords(made.profile)}` } : { where: 'pane', text: made.reason });
               return null;
             },
           },
@@ -91,6 +92,10 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
         ]
       : [],
   });
+  const selected = list.selectedRow;
+  const [saidBeside, setSaidBeside] = useState<{ said: Said | null; id: number | undefined }>({ said: null, id: undefined });
+  if (saidBeside.said !== said) setSaidBeside({ said, id: selected?.id });
+  else if (said !== null && saidBeside.id !== selected?.id) setSaid(null);
 
   useInput(
     (input, key, event) => {
@@ -102,7 +107,7 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
       }
       if (key.return) {
         const renamed = renameProfile(face.profile.id, face.name);
-        settle(renamed.ok ? null : { where: 'pane', lines: [renamed.reason] });
+        settle(renamed.ok ? null : { where: 'pane', text: renamed.reason });
         return;
       }
       setFace(f => {
@@ -120,7 +125,8 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
       if (face.kind !== 'remove') return;
       if (input === 'y' || key.return) {
         const removed = removeProfile(face.profile.id);
-        settle({ where: 'pane', lines: removed.ok ? [`${face.profile.name} removed —`, `its folder stays at ${removed.keptHome}`] : [removed.reason] });
+        const left = removed.ok && removed.keptFiles !== undefined ? `;\nleft in place, not its command: ${removed.keptFiles.join(', ')}` : '';
+        settle({ where: 'pane', text: removed.ok ? `${face.profile.name} removed: its folder stays at ${removed.keptHome}${left}` : removed.reason });
       } else if (input === 'n' || key.escape) setFace({ kind: 'list' });
     },
     { isActive: face.kind === 'remove' },
@@ -134,7 +140,6 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
   const wordGlow = useGreetingShimmer(rampStops, WORD_W);
   const mainModel = useEngineModel();
 
-  const selected = list.selectedRow;
   const menuM = useMemo(() => {
     return {
       entries: profiles.map(profile => ({
@@ -151,8 +156,8 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
       summaryTitle: 'PROFILES',
       summaryRows: profiles.filter(profile => profile.current).map(profile => ({ key: 'This one', value: profile.name })),
       environment: bootEnvironment(mainModel, process.cwd()),
-      statusRight: !read.ok ? 'the profile list could not be read' : said?.where === 'status' ? said.line : `${profiles.length} profile${profiles.length === 1 ? '' : 's'}`,
-      noticeLine: said === null ? null : said.where === 'status' ? said.line : said.lines.join(' '),
+      statusRight: !read.ok ? 'the profile list could not be read' : said === null ? `${profiles.length} profile${profiles.length === 1 ? '' : 's'}` : said.text.replace(/: .*$/s, ''),
+      noticeLine: said?.where === 'status' ? said.text : null,
       glowWord: wordGlow,
       legend: !read.ok
         ? 'esc back'
@@ -162,7 +167,7 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
             ? 'y / ↵ remove · n / esc cancel'
             : `↑↓ move · n new · r rename${selected !== null && removable(selected) ? ' · ⌫ remove' : ''} · esc back`,
       detailOverride: read.ok ? detailLinesOf(face, selected, said) : [read.reason],
-      detailOverrideConfirms: !read.ok || face.kind !== 'list',
+      detailOverrideConfirms: !read.ok || face.kind !== 'list' || said?.where === 'pane',
     };
   }, [read, profiles, face, said, selected, list.selectedIndex, mainModel, wordGlow?.peakCell, wordGlow?.gainLevel]);
 

@@ -962,7 +962,7 @@ export function evaluateExplicitApply(
         env: row.env,
         outcome: 'refused',
         target,
-        reason: 'pinned by the real environment — explicit env always wins (the :634 law); unset it and restart to follow the profile',
+        reason: 'pinned by the real environment — explicit env always wins (the :634 law); unset it and restart to follow the saved value',
       } satisfies ExplicitApplyReceipt
     }
     const current =
@@ -974,7 +974,7 @@ export function evaluateExplicitApply(
         env: row.env,
         outcome: 'no-change',
         target,
-        reason: 'already at the profile value — nothing to apply',
+        reason: 'already at the saved value — nothing to apply',
       } satisfies ExplicitApplyReceipt
     }
     if (row.applicationClass === 'live') {
@@ -991,7 +991,7 @@ export function evaluateExplicitApply(
       env: row.env,
       outcome: 'refused',
       target,
-      reason: `applies at session creation (application class: ${row.applicationClass}) — the session keeps its captured snapshot r${snapshot.profileRevision}; recreate or resume-fresh to receive the newer profile`,
+      reason: `applies at session creation (application class: ${row.applicationClass}) — the session keeps its captured snapshot r${snapshot.profileRevision}; recreate or resume-fresh to receive the newer saved values`,
     } satisfies ExplicitApplyReceipt
   })
 }

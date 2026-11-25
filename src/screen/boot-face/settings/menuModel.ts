@@ -99,7 +99,7 @@ export function settingsMenuModel({ apply, backgroundLaunchOn, changed, chatBoot
       warn: menuRowWarning(row, envPinned ? (effective?.value ?? null) : (saved[row.env] ?? null)),
       detail: row.detail ?? null,
       detailExtra: [
-        `this session  ${effective ? (effective.value ?? 'default') : 'default'} (${effective?.source ?? 'default'})`,
+        `this session  ${effective ? (effective.value ?? 'default') : 'default'} (${effective?.source === 'profile' ? 'saved' : (effective?.source ?? 'default')})`,
       ],
     };
   });
@@ -160,7 +160,7 @@ function applyOverrideRows(workers: WorkerApplySummary[], error?: string): strin
     const noChange = w.receipts.filter(r => r.outcome === 'no-change');
     const live = w.receipts.filter(r => r.outcome === 'applied' || r.outcome === 'queued');
     rows.push(
-      `${w.runnerId} · ${w.sessionId.slice(0, 8)} — snapshot r${w.snapshotRevision ?? 0} · ${noChange.length} at profile · ${refused.length} refused${live.length > 0 ? ` · ${live.length} live (${live.map(r => r.outcome).join(', ')})` : ''}`,
+      `${w.runnerId} · ${w.sessionId.slice(0, 8)} — snapshot r${w.snapshotRevision ?? 0} · ${noChange.length} as saved · ${refused.length} refused${live.length > 0 ? ` · ${live.length} live (${live.map(r => r.outcome).join(', ')})` : ''}`,
     );
     if (live.length > 0 && live[0]?.reason) rows.push(`  · ${live[0].reason}`);
     if (refused.length > 0 && refused[0]?.reason) rows.push(`  · ${refused[0].reason}`);
