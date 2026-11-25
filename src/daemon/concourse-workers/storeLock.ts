@@ -11,8 +11,8 @@ import { sleepSync } from '../../platform/async/timers.js'
 const SESSION_RECORDS_LOCK_WAIT_MS = STORE_LOCK_OPTIONS.stale + 5_000
 
 class SessionRecordsLockError extends Error {
-  constructor(path: string, detail: string, where: string = 'the session records') {
-    super(`${where} at ${path} were not updated: ${detail}`)
+  constructor(message: string) {
+    super(message)
     this.name = 'SessionRecordsLockError'
   }
 }
@@ -123,7 +123,8 @@ function acquireSessionRecordsLock(
       if (code !== 'ELOCKED') throw err
       if (reclaimAbandonedLock(lockDir, ownerPath)) continue
       if (Date.now() >= deadline) {
-        throw new SessionRecordsLockError(path, `another writer held its lock for ${SESSION_RECORDS_LOCK_WAIT_MS} ms`, where)
+        logForDebugging(`[concourse] ${where} at ${path} were not updated: another writer held its lock for ${SESSION_RECORDS_LOCK_WAIT_MS} ms`, { level: 'error' })
+        throw new SessionRecordsLockError("the daemon's session records were busy — try again")
       }
       sleepSync(backoffMs + Math.floor(Math.random() * backoffMs))
       backoffMs = Math.min(backoffMs * 2, 50)
@@ -145,7 +146,7 @@ export function withDaemonStoreLock<T>(
       homeGone: existing === 'home-gone',
       assertStillHeld: () => {
         if (existing !== 'home-gone' && !existing.stillHeld()) {
-          throw new SessionRecordsLockError(path, 'its lock was lost before the publish', where)
+          throw new SessionRecordsLockError(`${where} at ${path} were not updated: its lock was lost before the publish`)
         }
       },
     })
@@ -157,7 +158,7 @@ export function withDaemonStoreLock<T>(
       homeGone: lock === 'home-gone',
       assertStillHeld: () => {
         if (lock !== 'home-gone' && !lock.stillHeld()) {
-          throw new SessionRecordsLockError(path, 'its lock was lost before the publish', where)
+          throw new SessionRecordsLockError(`${where} at ${path} were not updated: its lock was lost before the publish`)
         }
       },
     })

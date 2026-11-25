@@ -235,6 +235,54 @@ try {
       )
     }
   }
+
+  console.log('§5 storeLock timeout (plain busy sentence + path and wait logged)')
+  {
+    const { readFileSync, utimesSync, writeFileSync } = await import('node:fs')
+    const { withDaemonStoreLock } = await import('../../src/daemon/concourse-workers/storeLock.ts')
+    const dbg = await import('../../src/platform/logs/debugLog.ts')
+    const prevNodeEnv = process.env.NODE_ENV
+    delete process.env.NODE_ENV
+    dbg.enableDebugLogging()
+    const dbgPath = dbg.getDebugLogPath()
+    const target = join(DAEMON_DIR, 'lock-busy-probe.json')
+    writeFileSync(target, '{}\n')
+    const lockDir = `${target}.lock`
+    const ownerPath = `${lockDir}.owner`
+    mkdirSync(lockDir, { recursive: true })
+    writeFileSync(ownerPath, `${process.pid}\n`)
+    const origNow = Date.now
+    const baseNow = origNow()
+    const futureSec = (baseNow + 120_000) / 1000
+    utimesSync(lockDir, futureSec, futureSec)
+    let calls = 0
+    Date.now = () => {
+      calls++
+      return calls === 1 ? baseNow : baseNow + 60_000
+    }
+    let caught: Error | null = null
+    try {
+      withDaemonStoreLock('the session records', target, DAEMON_DIR, () => {})
+    } catch (error) {
+      caught = error instanceof Error ? error : new Error(String(error))
+    } finally {
+      Date.now = origNow
+      if (prevNodeEnv !== undefined) process.env.NODE_ENV = prevNodeEnv
+      rmSync(lockDir, { recursive: true, force: true })
+      rmSync(ownerPath, { force: true })
+    }
+    await dbg.flushDebugLogs()
+    const dbgText = (() => { try { return readFileSync(dbgPath, 'utf8') } catch { return '' } })()
+    check(
+      'storeLock timeout throws plain busy sentence and logs path and wait ms to debug log',
+      caught !== null &&
+        caught.name === 'SessionRecordsLockError' &&
+        caught.message === "the daemon's session records were busy — try again" &&
+        dbgText.includes(target) &&
+        dbgText.includes('another writer held its lock'),
+      `err=${caught ? `${caught.name}: ${caught.message}` : 'none'} dbg=${dbgText.slice(-250)}`,
+    )
+  }
 } finally {
   delete process.env.MERCURY_FAULT_INJECT
   rmSync(SCRATCH, { recursive: true, force: true })
