@@ -1,6 +1,7 @@
 import { ADAPTER_HEADING_WORDS, ADAPTER_NAME, ADAPTER_NO_SHARING_WORDS, ADAPTER_SENTENCE, tensorFoldEngineLabel } from '../../models/tensorfold/adapter/identity.js'
 import { ADAPTER_QUALIFIED_WORDS, adapterCheckpointOf, ggufWords } from '../../models/tensorfold/adapter/models.js'
 import type { TensorFoldEngine, TensorFoldFit, TensorFoldFitParts, TensorFoldHost, TensorFoldLastReply, TensorFoldMachine, TensorFoldModelRow, TensorFoldServed } from '../../models/tensorfold/contracts.js'
+import { engineServedByAdapter } from '../../models/tensorfold/engine.js'
 import { LLAMACPP_INSTALL_WORDS } from '../../models/tensorfold/install.js'
 import { tensorFoldWillRun } from '../../models/tensorfold/serve.js'
 import { TENSORFOLD_STARTING_POINTS } from '../../models/tensorfold/starting.js'
@@ -259,6 +260,17 @@ function modelChoice(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi, row: 
   const base = { id, name: row.label ?? row.shortName, tag: '', ctx: at > 0 ? `${tok(at)} ctx` : '', group: TENSORFOLD_MODEL_GROUP, rest }
   const projected = (tone: TensorFoldTone = fit === undefined || fit.verdict === 'fits' ? 'faint' : 'amber'): TensorFoldCell => (unqualified ? { text: 'unqualified', tone: 'faint' } : { text: fit === undefined || fit.neededGib <= 0 ? '' : gib(fit.neededGib), tone })
   const portLines = (width: number): TensorFoldCardLine[] => (facts.port === undefined ? [] : kv('port', `${facts.port.port} · ${facts.port.taken} ${facts.port.keyed === true ? 'is the keyed TensorFold server' : `answers as ${facts.port.by}`} · Mercury remembers it`, width))
+  if ((facts.adapter !== undefined || engineServedByAdapter(facts.engine)) && adapterCheckpointOf(row.repo) === undefined && !isServed(row)) {
+    return {
+      ...base,
+      tensorfold: {
+        state: { text: 'Mac only', tone: 'sand' },
+        memory: projected('faint'),
+        card: width => kv('needs', 'an Apple Silicon Mac', width),
+        keys: {},
+      },
+    }
+  }
   if (act?.phase === 'pulling' || row.state === 'pulling') {
     const percent = pulledPercent(row, act)
     return {

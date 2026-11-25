@@ -10,7 +10,8 @@ import { pickAndProve, switchSessionModel } from '../../models/local-setup/setup
 import { PAIRING_WORDS } from '../../daemon/lan/pairing.js'
 import { forgetTensorFoldHost, rememberTensorFoldHost, rememberTensorFoldPort, tensorFoldHosts } from '../../models/roads/local/tensorfoldHosts.js'
 import type { TensorFoldHost } from '../../models/tensorfold/contracts.js'
-import type { TensorFoldEngineFound } from '../../models/tensorfold/engine.js'
+import { adapterCheckpointOf } from '../../models/tensorfold/adapter/models.js'
+import { engineServedByAdapter, type TensorFoldEngineFound } from '../../models/tensorfold/engine.js'
 import type { TensorFoldInventoryRow } from '../../models/tensorfold/inventory.js'
 import { tensorFoldPairingCode } from '../../models/tensorfold/serve.js'
 import type { LocalJSXCommandCall } from '../catalogue/command.js'
@@ -141,6 +142,7 @@ export async function onTensorFoldAct(act: TensorFoldPickerAct, facts: TensorFol
     case 'serve': {
       const row = inventoryRow(act.row.repo)
       if (row === undefined) return
+      if (engineServedByAdapter(facts.engine) && adapterCheckpointOf(row.repo) === undefined) return
       if (consumeFirstRunServeAsk()) {
         setTensorFoldNotice(W.firstRunAsk(W.firstRunServe(row.label, row.state, row.downloadBytes === undefined ? undefined : bytesWords(row.downloadBytes), bytesWords(row.checkpoint.weightsBytes), facts.engine === null || facts.install?.kind === 'llamacpp')))
         return

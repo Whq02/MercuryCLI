@@ -927,6 +927,46 @@ console.log('\n§6 the more line is a stop (the owner, 2026-11-05): ↓ from the
   }
 }
 
+
+{
+  const { onTensorFoldAct } = await import('../../src/commands/tensorfold/tensorfold.tsx')
+  const WIN_64: TensorFoldMachine = { chip: 'Intel Core i7', usableGib: 48 }
+  const macOnlyRow = rowOf(QWEN_27B, 'not-pulled', WIN_64)
+  const servableRow = rowOf(QWEN_4B_GGUF, 'not-pulled', WIN_64)
+  const adapterFacts = await factsFor({ engine: ADAPTER, machine: WIN_64, inventory: [servableRow, macOnlyRow], best: QWEN_4B_GGUF.repo }, 'win32')
+  const run = await open(adapterFacts, 'claude-opus-5-5', 160, 48)
+  await focusHeading(run, 'TENSORFOLD ·')
+  await press(run, [RIGHT])
+  check('win32 adapter servable row: untouched with download state, will run lines and Enter pull/serve', cells(run, 'Qwen3.5 4B', 'local/qwen3.5-4b', '↓ 2.7 GB') && has(run, 'will run') && legendOf(run).includes('↵ pull, serve and switch'), flat(run).filter(l => /qwen3\.5-4b|will run/.test(l)).join(' | ') + ' · ' + legendOf(run))
+  await press(run, [KEY.enter])
+  check('win32 adapter servable row: pressing Enter still fires serve act', run.acts.some(act => act.kind === 'serve' && act.row.repo === QWEN_4B_GGUF.repo), JSON.stringify(run.acts))
+  run.acts.length = 0
+  await press(run, [DOWN, KEY.enter])
+  const cardText = flat(run).filter(l => /^\s*│\s+(needs|will run|window|memory|engine|weights|pull)\s/.test(l)).join(' | ')
+  check('win32 adapter Mac-only row: state reads Mac only', cells(run, 'Qwen3.8 27B', 'local/qwen3.8-27b', 'Mac only'), flat(run).filter(l => l.includes('qwen3.8-27b')).join(' | '))
+  check('win32 adapter Mac-only row: card shows only needs an Apple Silicon Mac and no will run lines', has(run, 'needs     an Apple Silicon Mac') && !has(run, 'will run') && !has(run, 'MLX-4bit'), cardText || flat(run).slice(4, 22).join(' | '))
+  check('win32 adapter Mac-only row: footer does not offer pull or serve on Enter', !legendOf(run).includes('pull') && !legendOf(run).includes('serve'), legendOf(run))
+  await press(run, [KEY.enter])
+  check('win32 adapter Mac-only row: pressing Enter starts no pull or serve', run.acts.length === 0 && run.selected.length === 0, JSON.stringify({ acts: run.acts, selected: run.selected }))
+  run.m.unmount()
+  await settle(60)
+  const panelRead = await readModelTensorFoldFacts({ platform: 'win32', engine: ADAPTER as never })
+  const beforeActs = Object.keys(road.tensorFoldRoadState().acts).length
+  let touchedRoad = false
+  try {
+    await onTensorFoldAct(
+      { kind: 'serve', row: macOnlyRow, window: macOnlyRow.window },
+      panelRead.panel,
+      {
+        pull: { spawn: (() => { touchedRoad = true; throw new Error('must not pull') }) as never },
+        serve: { spawn: (() => { touchedRoad = true; throw new Error('must not serve') }) as never },
+      },
+    )
+  } catch {
+    touchedRoad = true
+  }
+  check('win32 adapter Mac-only row: direct serve act starts no download or serve', !touchedRoad && Object.keys(road.tensorFoldRoadState().acts).length === beforeActs)
+}
 await releaseScratchHome(home)
 console.log(failures === 0 ? '\nprove-tensorfold-model-groups: ALL GREEN' : `\nprove-tensorfold-model-groups: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
