@@ -10,7 +10,7 @@ import { PassThrough } from 'node:stream'
 import { mock } from 'bun:test'
 import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourse-workers/concourseWorkers.ts'
 
-const SCENES = ['warm', 'unlined', 'own'] as const
+const SCENES = ['warm', 'unlined', 'own', 'cold'] as const
 type Scene = (typeof SCENES)[number]
 const scene = process.argv.find(arg => arg.startsWith('--scene='))?.slice(8)
 if (scene === undefined) {
@@ -148,6 +148,7 @@ const { TaskRoster } = await import('../../src/daemon/roster/roster.ts')
 const warm = await import('../../src/daemon/runner-link/warmRunner.ts')
 const { DaemonBreaker } = await import('../../src/daemon/control/daemonBreaker.ts')
 
+class SceneEnd extends Error {}
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -218,9 +219,24 @@ const admit = sup.makeConcourseAdmitHandler({
   },
 })
 
-console.log(`\n── ${scene}: a home with six old session records whose pids went to other processes, a daemon up, a warm runner standing (the Windows seams: win32, every launch counted) ──`)
+console.log(`\n── ${scene}: a home with six old session records whose pids went to other processes, a daemon up, ${scene === 'cold' ? 'no warm runner' : 'a warm runner standing'} (the Windows seams: win32, every launch counted) ──`)
 try {
   Object.defineProperty(process, 'platform', { value: 'win32', configurable: true })
+  if (scene === 'cold') {
+    const before = launches.length
+    const admitted = await admit({ by: 'operator', workspaceDir: WORK })
+    const ofRunner = launches.slice(before).filter(launch => launch.pids.includes(FIRST_RUNNER))
+    const record = admitted.ok ? sup.readSessionWorkers(dir)[admitted.runnerId] : undefined
+    const cold = 'change: the admission of a session on a runner spawned for it keeps the start read the roster made at the spawn (registerLongLived hands it back; claimedPidFields in src/daemon/concourse-workers/marks.ts takes it, in src/daemon/concourse-workers/admit.ts) and reads again only when that read gave nothing'
+    const told1 = (label: string, cond: boolean, detail = ''): void => {
+      if (!cond) failures++
+      console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${scene}: ${label}${cond ? '' : ` — ${[detail, cold].filter(Boolean).join(' | ')}`}`)
+    }
+    told1('the Enter is answered by a runner spawned for the session', admitted.ok === true && runners.length === 1, JSON.stringify(admitted).slice(0, 300))
+    told1('that runner’s start is read once: one PowerShell for one fact', ofRunner.length === 1, `${ofRunner.length} launch(es): ${told(ofRunner)}`)
+    told1('the session record names the pid and the start instant that read gave', record?.pid === FIRST_RUNNER && record.procStart === instantOf(FIRST_RUNNER), JSON.stringify({ pid: record?.pid, procStart: record?.procStart }))
+    throw new SceneEnd()
+  }
   const stood = await warm.ensureWarmRunner({ workspaceDir: WORK }, warmDeps)
   await until(() => roster.has(stood.short ?? '').ready, 5_000)
   await sleep(50)
@@ -245,6 +261,8 @@ try {
     const road = launches.slice(before)
     console.log(`  [note] ${scene}: launched after the Enter with no line sent: ${told(road)}`)
   }
+} catch (error) {
+  if (!(error instanceof SceneEnd)) throw error
 } finally {
   Object.defineProperty(process, 'platform', { value: HOST, configurable: true })
   for (const entry of roster.list()) roster.kill(entry.short)

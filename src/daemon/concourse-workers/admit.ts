@@ -25,11 +25,10 @@ import { resumeModelKeyOf, localModelNotServedNote } from './admitModel.js'
 import { rewarmAfterFirstLine, warmSeatAnswer } from './admitWarm.js'
 import { coldRunnerIdOf, coldSpecOf, coldSeatAnswer } from './admitCold.js'
 import { randomUUID } from '../../platform/primitives/crypto.js'
-import { getProcessStartInstantAsync } from '../control/ownerWatch.js'
 import { inspectWorkspaceKind, workspaceGitCheckNote, ensureWorkerWorktree } from './concourseWorktrees.js'
 import { describeSeatReading } from '../switchboard-capacity/capacityCheck.js'
 import { effectiveSeatCeiling } from './admission.js'
-import { claimedPidFields, pidFieldsOf } from './marks.js'
+import { claimedPidFields } from './marks.js'
 
 export interface WorkerRosterPort {
   has(short: string): { present: boolean; alive?: boolean }
@@ -39,7 +38,7 @@ export interface WorkerRosterPort {
     spec: RunnerChildSpec,
     opts?: Partial<LongLivedRespawnConfig>,
     start?: { cwd: string; worktree?: string },
-  ): { ok: boolean; pid?: number; error?: string }
+  ): { ok: boolean; pid?: number; error?: string; startInstant?: Promise<string | null> }
   currentLongLivedModel?(short: string): string | undefined
   afterFirstLine?(short: string, listener: () => void): () => void
 }
@@ -399,7 +398,7 @@ export function makeConcourseAdmitHandler(
     carryBuildNotices(sessionId)
     const reg = roster.registerLongLived(runnerId, spec)
     if (!reg.ok) return { ok: false, code: 'spawn-failed', error: reg.error ?? 'registerLongLived refused' }
-    const pidFields = pidFieldsOf(reg.pid, reg.pid === undefined ? null : await getProcessStartInstantAsync(reg.pid))
+    const pidFields = await claimedPidFields(reg)
     return coldSeatAnswer({ ...seat, liveWorkers, runnerId, sessionId, workspaceKind, worktreePath, worktreeBranch, snapshot, effort, runnerArgv, spec, reg, pidFields })
   }
 }
