@@ -28,6 +28,9 @@ const END = '\u001b[F'
 const ESC = '\u001b'
 const BACKSPACE = '\u007f'
 const IN_THE_LIST = 'r rename · ⌫ remove · esc back'
+const SMALL_ROW_1 = '1 · Profile 1 · mercury'
+const SMALL = { cols: 40, rows: 10 }
+const WIDE = { cols: 120, rows: 40 }
 let failures = 0
 const check = (label: string, ok: boolean, fix: string): void => {
   if (!ok) failures++
@@ -73,7 +76,7 @@ const oneSkill = (install: { home: string }): void => {
   writeFileSync(join(install.home, 'skills', 'alpha', 'SKILL.md'), '---\ndescription: a skill of the first profile\n---\nits body\n')
 }
 
-async function drive(cols: number, rows: number, scene: { name: string; sends: Array<ReturnType<typeof key>>; readyText: string | string[]; stage?: (install: { home: string; bin: string }) => void; after?: (install: { home: string }) => boolean }): Promise<{ frame: (label: string) => string; home: string; bin: string; after: boolean }> {
+async function drive(cols: number, rows: number, scene: { name: string; sends: Array<ReturnType<typeof key>>; readyText: string | string[]; resizes?: Array<{ afterMark: string; cols: number; rows: number }>; stage?: (install: { home: string; bin: string }) => void; after?: (install: { home: string; bin: string }) => boolean }): Promise<{ frame: (label: string) => string; home: string; bin: string; after: boolean }> {
   const userHome = realpathSync(mkdtempSync(join(tmpdir(), 'profiles-page-home-')))
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'profiles-page-project-')))
   const install = stageInstall('source', userHome)
@@ -81,7 +84,7 @@ async function drive(cols: number, rows: number, scene: { name: string; sends: A
   scene.stage?.(install)
   const output = join(userHome, 'capture.json')
   const config = join(userHome, 'capture-config.json')
-  writeFileSync(config, JSON.stringify({ argv: [install.command], cwd, cols, rows, out: output, total: 600, sends: scene.sends, readyText: scene.readyText }))
+  writeFileSync(config, JSON.stringify({ argv: [install.command], cwd, cols, rows, out: output, total: 600, sends: scene.sends, resizes: scene.resizes ?? [], readyText: scene.readyText }))
   const env = {
     ...install.env,
     TERM: 'xterm-256color',
@@ -159,6 +162,25 @@ try {
     after: install => existsSync(join(`${install.home}2`, 'skills', 'alpha', 'SKILL.md')),
   })
   check('120: a rename opened before the skills answer came is not answered with the skills line when it is left', late.after && rowOf(late.frame('late'), 2) !== undefined && !says(late.frame('late'), 'skill copied') && !says(late.frame('late'), 'Profile 2 created'), `the n action must add the skills line only while the page still says that create's own line: one functional update of said that leaves anything else as it stands (${PAGE}); the skill was copied: ${String(late.after)}; the pane reads: ${paneOf(late.frame('late')) ?? 'no pane'}`)
+  const shrunk = await drive(120, 40, {
+    name: 'shrunk',
+    sends: [...toThePage, key('1 · Profile 1', 'n'), key('Profile 2 created', DOWN + BACKSPACE), key('remove Profile 2?', '', 'confirm-wide'), key(SMALL_ROW_1, '\r' + UP, 'confirm-small'), key(`❯ ${SMALL_ROW_1}`, '', 'entered')],
+    resizes: [{ afterMark: 'confirm-wide', ...SMALL }, { afterMark: 'entered', ...WIDE }],
+    readyText: 'SETTING DETAIL',
+    after: install => existsSync(join(install.bin, 'mercury2')),
+  })
+  check('a remove confirm open when the window shrinks to 40 by 10 is closed there, and ↵ removes nothing: wide again, the profile and its command stand', shrunk.after && shrunk.frame('entered').includes('2 · Profile 2 · mercury2') && rowOf(shrunk.frame('shrunk'), 2) !== undefined && !shrunk.frame('shrunk').includes('remove Profile 2?'), `in the layout bootMenuMicro (assets/splash/splash-core.mjs) names, the page must put an open rename or remove back to the list (${PAGE}); the command still stands: ${String(shrunk.after)}; wide again row 2 reads: ${rowOf(shrunk.frame('shrunk'), 2)?.trim() ?? 'no row'}`)
+  check('at 40 by 10 the legend names the keys that work on this page and no other', shrunk.frame('entered').includes('↑↓ · esc back') && !shrunk.frame('entered').includes('cycles'), `the page must hand composeBootMenuMicro its own legend for that layout (legendMicro in ${PAGE}); the screen reads: ${shrunk.frame('entered').split('\n').map(line => line.trim()).filter(Boolean).join(' | ')}`)
+  const blind = await drive(120, 40, {
+    name: 'blind',
+    sends: [...toThePage, key('1 · Profile 1', 'n'), key('Profile 2 created', DOWN), key('⌫ remove', '', 'list-wide'), key('❯ 2 · Profile 2 · mercury2', 'n' + 'rZed\r' + BACKSPACE + 'y' + UP, 'list-small'), key(`❯ ${SMALL_ROW_1}`, '', 'typed')],
+    resizes: [{ afterMark: 'list-wide', ...SMALL }, { afterMark: 'typed', ...WIDE }],
+    readyText: 'SETTING DETAIL',
+    after: install => existsSync(join(install.bin, 'mercury2')) && !existsSync(join(install.bin, 'mercury3')),
+  })
+  check('at 40 by 10 n, r with a typed name, and ⌫ then y do nothing: wide again there is Profile 2 by its name and no third profile', blind.after && /Profile 2\s+mercury2/.test(rowOf(blind.frame('blind'), 2) ?? '') && rowOf(blind.frame('blind'), 3) === undefined, `in the layout bootMenuMicro (assets/splash/splash-core.mjs) names, the page must hand its list no action (${PAGE}); mercury2 stands and no mercury3: ${String(blind.after)}; wide again row 2 reads: ${rowOf(blind.frame('blind'), 2)?.trim() ?? 'no row'}; row 3: ${rowOf(blind.frame('blind'), 3)?.trim() ?? 'no row'}`)
+  const narrow = await drive(60, 20, { name: 'refused', sends: refusal, readyText: 'again.', stage: stranger })
+  check('60x20: a refusal names its file whole, wrapped over the notice\'s lines', squash(narrow.frame('refused')).includes(squash(join(narrow.bin, 'mercury2'))), `below 110 columns a notice word longer than the line must wrap, not be cut: the notice lines of composeBootMenuClassic in assets/splash/splash-core.mjs; the screen reads: ${narrow.frame('refused').split('\n').map(line => line.trim()).filter(Boolean).slice(0, 8).join(' | ')}`)
   const short = await drive(120, 34, { name: 'refused', sends: refusal, readyText: 'again.', stage: stranger })
   check('120x34: a refusal from the door is whole in the pane of a short wide window, the count in the status row', short.frame('refused').includes('SETTING DETAIL') && short.frame('refused').includes('again.') && wholeWhereThePaneWraps(short.frame('refused'), join(short.bin, 'mercury2')) && /System ready\s+│\s+1 profile\b/.test(short.frame('refused')), `what the page says in the pane must be held as a confirm's lines are, never dropped for room, and the status row keeps the count: detailOverrideConfirms and statusRight while a pane message shows (${PAGE})`)
   check('the page made no model call', fixture.messageRequests().length === 0, `a key of the profiles page reached the model API; the page must stay on the door in src/platform/profiles/profiles.ts`)
