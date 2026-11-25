@@ -39,7 +39,7 @@ Running `mercury` with no arguments opens the home screen, with no chat behind i
 In Boot Menu, **MCPs & Skills** and **Agents** set up the next session. Inside a chat, use `/mcp`, `/skills` or `/agents`. Use `/health` for diagnostics (`mercury health` also runs from a terminal) and `/saturn` for the [scheduler](SATURN.md). To reopen another folder’s chat before starting one, open Session Manager, press `Ctrl+G`, choose the folder, then open a parked chat or press `Enter` on **older chats** to browse. Inside a chat, `/sessions` opens the session picker.
 
 Pressing `m` on the home screen opens the default model and effort picker whenever `engine.sessionDefaults` is not `false`. Boot Menu starts with **NEXT SESSION** and the two editors, followed by **TRUST COMBO**
-(`Content-rule wards`, `Debug tool (real debugger)`, `C/C++ IDE lane (clangd)`,
+(`Content-rule wards`, `Debug tool`, `C/C++ IDE lane (clangd)`,
 `Sovereign mode`), **COMPUTER USE** (`Computer use`, `Access type`),
 **SAMPLES** (`Samples`), **AGENTS** (`Crewmates`, `Crewmates while
 backgrounded`, `JEV`), **MISCELLANEOUS** (`Launch animation`, `Godot language
