@@ -8,6 +8,7 @@ import type { GlobalConfig } from '../../platform/settings/config.js'
 import { PERMISSION_MODES } from '../../permissions/rules/permissionMode.js'
 import { getEngineModel } from '../../models/catalogue/engineModel.js'
 import { useFocusedServedModel } from '../model-picker/useDisplayedSessionModel.js'
+import { useSessionConnector } from '../focused-session/useSessionConnector.js'
 import { useClaim, useLoad } from '../effects/effects.js'
 import { declaredRouteOf } from '../../models/roads/callModelRouter.js'
 import { useTheme, useThemeSetting } from '../theme/ThemeProvider.js'
@@ -78,7 +79,8 @@ export function Config({
     permissions.mode,
     'default',
   )
-  const sessionMode = getEffectivePermissionMode(appState.toolPermissionContext.mode)
+  const connector = useSessionConnector()
+  const sessionMode = getEffectivePermissionMode(appState.toolPermissionContext.mode, connector.joinedLiveSession?.() === true)
   const sessionModeDiffers = sessionMode.source !== 'session-choice' && sessionMode.mode !== defaultMode
   const modeOptions: ReadonlyArray<(typeof PERMISSION_MODES)[number]> = ['default', 'implement', 'apollo', 'flow', 'dontAsk']
 

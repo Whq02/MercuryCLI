@@ -137,6 +137,42 @@ console.log('§5 the row is not selected: the explanation stays off the screen w
   await close(m)
 }
 
+
+console.log('§6 joined live session: a window that joined another window\'s live session shows this session\'s mode from the session\'s birth')
+{
+  const { daemonSessionConnectorFor } = await import('../../src/engine/connector/daemonConnector.js')
+  const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.js')
+  const joinedRecord = {
+    sessionId: 'joined-live-session-s3',
+    runnerId: 'runner-other-window',
+    title: 'joined session',
+    projectLabel: 'mercury',
+    workspaceId: REPO,
+    home: HOME,
+  }
+  const connector = daemonSessionConnectorFor(joinedRecord, false)
+  check('a connector created before live hop does not claim joinedLiveSession', connector.joinedLiveSession() === false)
+  daemonSessionConnectorFor(joinedRecord, true)
+  check('adoptRecord with runnerLive=true marks the connector as joinedLiveSession', connector.joinedLiveSession() === true)
+  setFocusedSessionConnector(connector)
+  try {
+    const m = await openPopup('sovereign', { mode: 'implement', source: 'mode-argument' })
+    await selectRow(m)
+    check('joined window row reads the saved word and the live session mode: Flow · this session: Sovereign Mode', shown(m) === 'Flow · this session: Sovereign Mode', rowLine(m))
+    check(
+      "joined window selected row names the session's birth as the source",
+      belowRow(m).startsWith("this session: Sovereign Mode · from the session's birth; the saved switch governs the next boot, never this one"),
+      belowRow(m),
+    )
+    await close(m)
+    const agreed = await openPopup('flow', { mode: 'implement', source: 'mode-argument' })
+    await selectRow(agreed)
+    check('joined window stays silent when the live session mode matches the saved default', shown(agreed) === 'Flow' && !rowLine(agreed).includes(SESSION_WORDS), rowLine(agreed))
+    await close(agreed)
+  } finally {
+    releaseFocusedSessionConnector()
+  }
+}
 await releaseScratchHome(HOME)
 if (failures > 0) {
   console.error(`\nprove-config-session-mode-row: ${failures} FAILED`)

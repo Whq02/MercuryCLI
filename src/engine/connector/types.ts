@@ -504,6 +504,7 @@ export interface EngineConnectorV1 extends EmptyDetailControlMethods {
   permissionMode(): PermissionMode | null
   subscribePermissionMode(listener: () => void): () => void
   setPermissionMode(mode: PermissionMode): Promise<PermissionModeReceiptV1>
+  joinedLiveSession?(): boolean
 
   workspace(): WorkspaceFactsV1
 

@@ -447,7 +447,12 @@ abstract class ConnectorHandOffs {
   }
 
   setPermissionMode(mode: PermissionMode): Promise<PermissionModeReceiptV1> {
+    this.admissionPart.clearJoinedLiveSession()
     return this.dialsPart.setPermissionMode(mode)
+  }
+
+  joinedLiveSession(): boolean {
+    return this.admissionPart.joinedLiveSession()
   }
 
   workspace(): WorkspaceFactsV1 {
@@ -897,6 +902,7 @@ export function daemonSessionConnectorFor(record: DaemonSessionRecordV1, runnerL
   let c = connectors.get(record.sessionId)
   if (c === undefined) {
     c = new DaemonSessionConnector(record)
+    if (runnerLive) c.adoptRecord(record, true)
     connectors.set(record.sessionId, c)
   } else {
     c.adoptRecord(record, runnerLive)

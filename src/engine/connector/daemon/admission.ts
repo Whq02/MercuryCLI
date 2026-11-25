@@ -13,6 +13,7 @@ export class AdmissionPart {
   private awaitingRunnerFacts = false
   private admission: Promise<string | null> | null = null
   private refusedAdmission: string | null = null
+  private joinedLive = false
 
   constructor(private readonly needs: AdmissionNeeds) {}
 
@@ -23,6 +24,14 @@ export class AdmissionPart {
 
   awaiting(): boolean {
     return this.awaitingRunnerFacts
+  }
+
+  joinedLiveSession(): boolean {
+    return this.joinedLive
+  }
+
+  clearJoinedLiveSession(): void {
+    this.joinedLive = false
   }
 
   pending(): Promise<string | null> | null {
@@ -39,10 +48,12 @@ export class AdmissionPart {
     this.startShownSinceMs = null
     this.refusedAdmission = null
     this.awaitingRunnerFacts = true
+    this.joinedLive = false
   }
 
   runnerLive(): void {
     this.refusedAdmission = null
+    this.joinedLive = true
     if (this.awaitingRunnerFacts) {
       this.awaitingRunnerFacts = false
       this.startShownSinceMs = this.openedAtMs
