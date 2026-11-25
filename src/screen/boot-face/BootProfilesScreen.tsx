@@ -40,7 +40,8 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
   const t = useMercuryTokens();
   const { columns, rows } = fullScene;
   const [tick, setTick] = useState(0);
-  const profiles = useMemo<ProfileFaceRow[]>(() => listProfiles().map(profile => ({ ...profile, label: `${profile.id} · ${profile.name}` })), [tick]);
+  const read = useMemo(() => listProfiles(), [tick]);
+  const profiles = useMemo<ProfileFaceRow[]>(() => (read.ok ? read.profiles : []).map(profile => ({ ...profile, label: `${profile.id} · ${profile.name}` })), [read]);
   const [face, setFace] = useState<ProfilesFace>({ kind: 'list' });
   const [said, setSaid] = useState<Said | null>(null);
   const settle = (next: Said | null): void => {
@@ -59,34 +60,36 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
     idNamespace: 'boot-profiles',
     active: face.kind === 'list',
     onClose,
-    actions: [
-      {
-        key: 'n',
-        hint: 'new',
-        run: () => {
-          const made = createProfile();
-          settle(made.ok ? { where: 'status', line: `${made.profile.name} created — ${startWords(made.profile)}` } : { where: 'pane', lines: [made.reason] });
-          return null;
-        },
-      },
-      {
-        key: 'r',
-        hint: 'rename',
-        run: profile => {
-          if (profile !== null) open({ kind: 'rename', profile, name: '' });
-          return null;
-        },
-      },
-      {
-        key: 'backspace',
-        hint: 'remove',
-        when: removable,
-        run: profile => {
-          if (profile !== null) open({ kind: 'remove', profile });
-          return null;
-        },
-      },
-    ],
+    actions: read.ok
+      ? [
+          {
+            key: 'n',
+            hint: 'new',
+            run: () => {
+              const made = createProfile();
+              settle(made.ok ? { where: 'status', line: `${made.profile.name} created — ${startWords(made.profile)}` } : { where: 'pane', lines: [made.reason] });
+              return null;
+            },
+          },
+          {
+            key: 'r',
+            hint: 'rename',
+            run: profile => {
+              if (profile !== null) open({ kind: 'rename', profile, name: '' });
+              return null;
+            },
+          },
+          {
+            key: 'backspace',
+            hint: 'remove',
+            when: removable,
+            run: profile => {
+              if (profile !== null) open({ kind: 'remove', profile });
+              return null;
+            },
+          },
+        ]
+      : [],
   });
 
   useInput(
@@ -148,19 +151,20 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
       summaryTitle: 'PROFILES',
       summaryRows: profiles.filter(profile => profile.current).map(profile => ({ key: 'This one', value: profile.name })),
       environment: bootEnvironment(mainModel, process.cwd()),
-      statusRight: said?.where === 'status' ? said.line : `${profiles.length} profile${profiles.length === 1 ? '' : 's'}`,
+      statusRight: !read.ok ? 'the profile list could not be read' : said?.where === 'status' ? said.line : `${profiles.length} profile${profiles.length === 1 ? '' : 's'}`,
       noticeLine: said === null ? null : said.where === 'status' ? said.line : said.lines.join(' '),
       glowWord: wordGlow,
-      legend:
-        face.kind === 'rename'
+      legend: !read.ok
+        ? 'esc back'
+        : face.kind === 'rename'
           ? 'type a name · ↵ save · esc cancel'
           : face.kind === 'remove'
             ? 'y / ↵ remove · n / esc cancel'
             : `↑↓ move · n new · r rename${selected !== null && removable(selected) ? ' · ⌫ remove' : ''} · esc back`,
-      detailOverride: detailLinesOf(face, selected, said),
-      detailOverrideConfirms: face.kind !== 'list',
+      detailOverride: read.ok ? detailLinesOf(face, selected, said) : [read.reason],
+      detailOverrideConfirms: !read.ok || face.kind !== 'list',
     };
-  }, [profiles, face, said, selected, list.selectedIndex, mainModel, wordGlow?.peakCell, wordGlow?.gainLevel]);
+  }, [read, profiles, face, said, selected, list.selectedIndex, mainModel, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
   const composition = useBootComposition(core, columns, rows, menuM);
 
