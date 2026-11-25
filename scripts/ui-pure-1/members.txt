@@ -27,6 +27,7 @@ prove-sovereign-menu-warning.ts
 prove-markdown-layout.ts
 prove-model-chip.ts
 prove-viewed-model-chip.ts
+prove-gemini-model-shown-by-name.ts
 prove-never-stranded-input.ts
 prove-no-color-honored.ts
 prove-one-shot-render-settles.ts

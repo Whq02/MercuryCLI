@@ -257,6 +257,11 @@ export function getPublicModelDisplayName(model: string): string | null {
     const { orcarouterListedModel } = require('../roads/orcarouter/orcarouterCatalogue.js') as typeof import('../roads/orcarouter/orcarouterCatalogue.js')
     return orcarouterListedModel(bare)?.displayName ?? null
   }
+  if (/^gemini-/i.test(bare)) {
+    const { geminiListedModel } = require('../roads/gemini/geminiCatalogue.js') as typeof import('../roads/gemini/geminiCatalogue.js')
+    const listed = geminiListedModel(bare)
+    return listed !== undefined && listed.id.toLowerCase() === bare.trim().toLowerCase() ? (listed.displayName ?? null) : null
+  }
   if (/^groq\//i.test(bare)) {
     const { groqDisplayPin } = require('../facts/pins/groqPins.js') as typeof import('../facts/pins/groqPins.js')
     return groqDisplayPin(bare)?.displayName ?? null
