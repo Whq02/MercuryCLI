@@ -1,4 +1,3 @@
-import { basename } from 'node:path';
 import type { chatOnlyBoot, stripFacts } from '../../routes/surfaceRoute.js';
 import { menuRowValueLabel, menuRowWarning, type readBootDefaultsProfile, type resolveEffectiveSettingsSnapshot, type ExplicitApplyReceipt, type MenuRow } from '../../../platform/substrate/startupMenu.js';
 import { seatCeilingDetailLines, type SeatCeilingFacts, seatCeilingValueWords } from '../../../daemon/switchboard-capacity/capacityCheck.js';
@@ -6,8 +5,7 @@ import { motionDetailLines, motionValueWords, type readMotionSetting } from '../
 import { jevValueWords, type readJevSettings } from '../../../models/jev/jevSetting.js';
 import { backgroundLaunchValueWords, type backgroundSessionsLaunchCrewmates } from '../../../daemon/switchboard/backgroundLaunch.js';
 import type { useEngineModel } from '../../model-picker/useEngineModel.js';
-import { renderModelChip } from '../../../models/catalogue/engineModel.js';
-import { getSessionAccent, getSessionCritterKey } from '../../widgets/sessionAccent.js';
+import { bootEnvironment } from '../bootEnvironment.js';
 import { isHelmHomeEnabled } from '../../fullscreen-layout/fullscreen.js';
 import type { useGreetingShimmer } from '../../widgets/useGreetingShimmer.js';
 import type { useInteractiveList } from '../../widgets/useInteractiveList.js';
@@ -16,6 +14,7 @@ import { backgroundLaunchBootDetailLines } from './detailLines.js';
 export const settingsEditors = [
   { editor: 'kit', label: 'MCPs & Skills', summary: 'what the next session loads' },
   { editor: 'agents', label: 'Agents', summary: 'create and edit agents' },
+  { editor: 'profiles', label: 'Profiles (Beta)', summary: 'separate logins and history' },
 ] as const;
 
 type EditorRow = (typeof settingsEditors)[number];
@@ -107,7 +106,6 @@ export function settingsMenuModel({ apply, backgroundLaunchOn, changed, chatBoot
   const harness = [
     isHelmHomeEnabled() ? 'helm' : null,
   ].filter(Boolean) as string[];
-  const critterKey = getSessionCritterKey();
   const idleStatus =
     profileReadError
       ? `could not be read (${profileReadError})`
@@ -123,13 +121,7 @@ export function settingsMenuModel({ apply, backgroundLaunchOn, changed, chatBoot
         : `r${profile?.revision ?? 0} · ${changed > 0 ? `custom · ${changed} set` : 'default'}`,
       harness: harness.join(' · ') || 'none',
     },
-    environment: {
-      model: renderModelChip(mainModel),
-      critter: critterKey.charAt(0).toUpperCase() + critterKey.slice(1),
-      critterHue: getSessionAccent().accent,
-      dirBase: basename(process.cwd()) || process.cwd(),
-      dirTail,
-    },
+    environment: bootEnvironment(mainModel, process.cwd(), dirTail),
     statusRight,
     glowWord: wordGlow,
     legend: `↑↓ move · ${list.selectedRow && 'editor' in list.selectedRow ? '↵ open' : '↵ change (saved) · ⌫ default'} · a apply receipts${concourseLive && !chatBoot ? ` · o ${plainWorld ? 'live view' : 'concourse'}` : ''} · esc ${apply.phase === 'closed' ? 'back' : 'close receipts'}`,

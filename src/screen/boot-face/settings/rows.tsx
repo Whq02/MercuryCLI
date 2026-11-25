@@ -1,11 +1,10 @@
 import { Box } from '../../themedRenderer.js';
-import type { SettingsRow } from './menuModel.js';
 import { InteractiveRow } from '../../widgets/InteractiveRow.js';
 import { renderSceneLine } from '../../widgets/SceneCanvas.js';
 import type { useInteractiveList } from '../../widgets/useInteractiveList.js';
 import type { useMercuryTokens } from '../../widgets/useMercuryTokens.js';
 
-export function settingsRowLine({ composition, list, menuRows, t }: { composition: { placed: string[]; entryAt: Map<number, number> }; list: ReturnType<typeof useInteractiveList<SettingsRow>>; menuRows: readonly SettingsRow[]; t: ReturnType<typeof useMercuryTokens> }, i: number) {
+export function settingsRowLine<Row extends { label: string }>({ composition, list, menuRows, t }: { composition: { placed: string[]; entryAt: Map<number, number> }; list: ReturnType<typeof useInteractiveList<Row>>; menuRows: readonly Row[]; t: ReturnType<typeof useMercuryTokens> }, i: number) {
   const line = composition.placed[i] ?? '';
   const entryIdx = composition.entryAt.get(i);
   if (entryIdx !== undefined && menuRows[entryIdx] !== undefined) {

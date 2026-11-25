@@ -1,5 +1,4 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { basename } from 'node:path';
 import { useSignInEpoch } from '../../models/sign-in/account-ledger/useSignInEpoch.js';
 import { useCatalogueEpoch } from '../model-picker/useCatalogueEpoch.js';
 import { useClaim, useLoad } from '../effects/effects.js';
@@ -12,11 +11,10 @@ import { resolveProviderUsability } from '../../models/roads/providerUsability.j
 import { mostRecentSignInFamily } from '../../models/catalogue/computedDefault.js';
 import { useEngineModel } from '../model-picker/useEngineModel.js';
 import { useTerminalSize } from '../fullscreen-layout/useTerminalSize.js';
-import { renderModelChip } from '../../models/catalogue/engineModel.js';
 import { loginFamilyFocusFor, loginFamilyInitialFocus } from '../../models/sign-in/flow-cards/loginFamilyRows.js';
 import { InteractiveRow } from '../widgets/InteractiveRow.js';
 import { renderSceneLine } from '../widgets/SceneCanvas.js';
-import { getSessionAccent, getSessionCritterKey } from '../widgets/sessionAccent.js';
+import { bootEnvironment } from './bootEnvironment.js';
 import { useGreetingShimmer } from '../widgets/useGreetingShimmer.js';
 import { useInteractiveList } from '../widgets/useInteractiveList.js';
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js';
@@ -258,16 +256,9 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
   const mainModel = useEngineModel();
 
   const menuM = useMemo(() => {
-    const critterKey = getSessionCritterKey();
     return loginsMenuModelOf(facts, {
       selIdx: list.selectedIndex,
-      environment: {
-        model: renderModelChip(mainModel),
-        critter: critterKey.charAt(0).toUpperCase() + critterKey.slice(1),
-        critterHue: getSessionAccent().accent,
-        dirBase: basename(process.cwd()) || process.cwd(),
-        dirTail: '',
-      },
+      environment: bootEnvironment(mainModel, process.cwd()),
       statusNote: list.note,
       glowWord: wordGlow,
       notice,

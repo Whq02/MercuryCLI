@@ -116,6 +116,7 @@ export function BootSplashScreen(): React.ReactNode {
   permissionModeRef.current = permissionMode;
   const [settingsOpen, setSettingsOpen] = useState(() => consumeBootSettingsLayerDeepLink());
   const [kitOpen, setKitOpen] = useState(() => consumeKitManagerDeepLink());
+  const [profilesOpen, setProfilesOpen] = useState(false);
   const [faceDoorOpener] = useState(() => peekFaceDoorOpener());
   const [faceDoor] = useState(() => consumeFaceDoorDeepLink());
   const [healthOpen, setHealthOpen] = useState(faceDoor === 'health');
@@ -262,7 +263,7 @@ export function BootSplashScreen(): React.ReactNode {
     rowId: r => r.key,
     idNamespace: 'boot-splash',
     initialId: initialRowId,
-    active: !settingsOpen && !kitOpen && !healthOpen && !resumeOpen && !saturnOpen && !agentsOpen && !loginsOpen && !modelDefaultOpen,
+    active: !settingsOpen && !kitOpen && !profilesOpen && !healthOpen && !resumeOpen && !saturnOpen && !agentsOpen && !loginsOpen && !modelDefaultOpen,
     onClose: () => {
       if (!selClearedRef.current) {
         setSelCleared(true);
@@ -345,5 +346,5 @@ export function BootSplashScreen(): React.ReactNode {
   }, [core, columns, rows, isCompact, plainWhy, stripHint, keyMapHint, modelDefaultDoor, updateLine, selectedIndex, composedRows, continueElsewhere, chips, wordGlow?.peakCell, wordGlow?.gainLevel, rowGlow?.peakCell, rowGlow?.gainLevel]);
 
 
-  return bootSplashFaceView({ settingsOpen, columns, rows, setSettingsOpen, kitOpen, setKitOpen, healthOpen, setHealthOpen, saturnOpen, setSaturnOpen, agentsOpen, loginsOpen, setLoginsOpen, setAgentsOpen, closeLogins, loginsFamily, loginsBack, resumeOpen, setResumeOpen, facts, runningOf, openProject, composition, list, birthReceipt, core, isCompact, keyMapHint, updateLine, bottomRowWithNotice, KEY_MAP_ROW, composedRows, t, modelDefaultOpen, setModelDefaultOpen, setLoginsFamily, setLoginsBack });
+  return bootSplashFaceView({ settingsOpen, columns, rows, setSettingsOpen, kitOpen, setKitOpen, profilesOpen, setProfilesOpen, healthOpen, setHealthOpen, saturnOpen, setSaturnOpen, agentsOpen, loginsOpen, setLoginsOpen, setAgentsOpen, closeLogins, loginsFamily, loginsBack, resumeOpen, setResumeOpen, facts, runningOf, openProject, composition, list, birthReceipt, core, isCompact, keyMapHint, updateLine, bottomRowWithNotice, KEY_MAP_ROW, composedRows, t, modelDefaultOpen, setModelDefaultOpen, setLoginsFamily, setLoginsBack });
 }
