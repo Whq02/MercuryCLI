@@ -583,7 +583,7 @@ async function acquireAndActivate(
     const provenance = verifyPayloadDir(payloadDir, { depth: 'deep', roster })
     const refusal = signatureRefusal(provenance.verdict, allowUnsigned)
     if (refusal) return refusal
-    const unsignedOverride = provenance.verdict.state === 'unsigned' && allowUnsigned
+    const unsignedOverride = allowUnsigned && (provenance.verdict.state === 'unsigned' || check.archiveSignature.state === 'removed')
 
     sweepUpdaterResidue(roots)
     progress('staging')

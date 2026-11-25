@@ -94,6 +94,13 @@ const mercury = (args: string[]): Promise<{ status: number | null; out: string }
     child.on('close', status => done({ status, out: Buffer.concat(said).toString('utf8').trim() }))
   })
 const pointer = (): string => readFileSync(join(versionsDir, 'current.txt'), 'utf8').trim()
+const layoutOf = (name: string, version: string): typeof roots => {
+  const dir = join(SCRATCH, name)
+  mkdirSync(join(dir, 'versions'), { recursive: true })
+  makePayload(join(dir, 'versions', version), version)
+  writeFileSync(join(dir, 'versions', 'current.txt'), `${version}\n`)
+  return { versionsDir: join(dir, 'versions'), binDir: join(dir, 'bin'), shimPath: join(dir, 'bin', 'mercury'), isWindows: false }
+}
 const untouched = (): boolean => pointer() === was && !existsSync(join(versionsDir, NEW))
 const told = (outcome: Outcome): string => JSON.stringify({ state: outcome.state, stage: outcome.stage, reason: outcome.reason }).slice(0, 400)
 
@@ -126,6 +133,31 @@ try {
   check('signed by a key outside the roster: refused, --allow-unsigned or not', refusedUnopened(foreign, `signed by key ${stranger.trusted.keyId}`), told(foreign))
   const stripped = await update(`v${NEW}`, { [good.asset]: good.archive, [CHECKSUM_MANIFEST_NAME]: good.sums }, { ceilings: ONE_ENTRY })
   check('the signature stripped: refused, and the sentence says it was removed', refusedUnopened(stripped, `carries no ${SIG}, and every release from v${SIGNED_ARCHIVES_FIRST_VERSION} on carries one`), told(stripped))
+  const malformed: Array<[string, Buffer, string]> = [
+    ['not JSON', Buffer.from('not a signature\n'), 'the signature file is not JSON'],
+    ['the wrong shape', Buffer.from('{}'), 'signing schema undefined'],
+    ['a signature of the wrong size', Buffer.from(JSON.stringify({ ...signArchive(good.asset, sha256(good.archive), release.pem), signatureB64: 'AAAA' })), `does not vouch for the downloaded ${good.asset}`],
+  ]
+  for (const [what, bytes, words] of malformed) {
+    const outcome = await update(`v${NEW}`, { [good.asset]: good.archive, [CHECKSUM_MANIFEST_NAME]: good.sums, [SIG]: bytes }, { ceilings: ONE_ENTRY, allowUnsigned: true })
+    check(`a signature file that is ${what}: refused, --allow-unsigned or not`, refusedUnopened(outcome, words), told(outcome))
+  }
+  const huge = await update(`v${NEW}`, { [good.asset]: good.archive, [CHECKSUM_MANIFEST_NAME]: good.sums, [SIG]: Buffer.alloc(updateCeilings().checksumManifestBytes + 1, 0x20) }, { ceilings: ONE_ENTRY, allowUnsigned: true })
+  check('a signature file past the ceiling of a small release file: cut off at the download, the archive never opened', huge.state === 'refused' && huge.stage === 'download' && (huge.reason ?? '').includes(SIG) && untouched(), told(huge))
+  const hostile = await update(`v${NEW}`, { [good.asset]: good.archive, [CHECKSUM_MANIFEST_NAME]: good.sums, [SIG]: signature }, { ceilings: ONE_ENTRY })
+  check('an archive that carries a VALID signature is still judged by the unpacker\'s own checks (here its entries ceiling)', hostile.state === 'refused' && hostile.stage === 'envelope' && untouched(), told(hostile))
+
+  console.log(`── a prerelease OF v${SIGNED_ARCHIVES_FIRST_VERSION} is in the signed era ──`)
+  const before = `${SIGNED_ARCHIVES_FIRST_VERSION}-beta.1`
+  const candidate = releaseOf(`${SIGNED_ARCHIVES_FIRST_VERSION}-beta.2`)
+  const early = await update(`v${SIGNED_ARCHIVES_FIRST_VERSION}-beta.2`, { [candidate.asset]: candidate.archive, [CHECKSUM_MANIFEST_NAME]: candidate.sums }, { ceilings: ONE_ENTRY }, layoutOf('prerelease', before))
+  check(`v${before} installed, v${SIGNED_ARCHIVES_FIRST_VERSION}-beta.2 with no signature: refused, the archive never opened`, early.state === 'refused' && early.stage === 'archive-signature' && (early.reason ?? '').includes(`carries no ${candidate.asset}.sig`), told(early))
+
+  console.log('── the exception, when it is what let a release through, is said and recorded ──')
+  const excepted = layoutOf('excepted', '9.8.0')
+  const through = await update(`v${NEW}`, { [good.asset]: good.archive, [CHECKSUM_MANIFEST_NAME]: good.sums }, { allowUnsigned: true }, excepted)
+  const receipt = JSON.parse(readFileSync(join(excepted.versionsDir, 'last-update.json'), 'utf8')) as { signature?: string; unsignedOverride?: boolean }
+  check('--allow-unsigned over a stripped signature and a signed payload: updated, and both the result and the receipt name the exception', through.state === 'updated' && through.signature === 'signed' && through.unsignedOverride === true && receipt.signature === 'signed' && receipt.unsignedOverride === true, `${JSON.stringify(through).slice(0, 300)} · ${JSON.stringify(receipt)}`)
 
   console.log('── the same two through the installed command ──')
   Object.assign(served, { tag: `v${NEW}`, assets: { [good.asset]: good.archive, [CHECKSUM_MANIFEST_NAME]: good.sums } })
@@ -136,12 +168,8 @@ try {
   check('mercury update --allow-unsigned, a key the build does not carry: exit 1 at archive-signature', cliForeign.status === 1 && cliForeign.out.includes(`update refused at archive-signature: ${SIG} is signed by key ${release.trusted.keyId}`) && untouched(), cliForeign.out.slice(-500))
 
   console.log(`── an old release: below v${SIGNED_ARCHIVES_FIRST_VERSION}, no signature ──`)
-  const oldVersions = join(SCRATCH, 'old', 'versions')
-  mkdirSync(oldVersions, { recursive: true })
-  makePayload(join(oldVersions, '1.0.11'), '1.0.11')
-  writeFileSync(join(oldVersions, 'current.txt'), '1.0.11\n')
   const old = releaseOf('1.0.12')
-  const aged = await update('v1.0.12', { [old.asset]: old.archive, [CHECKSUM_MANIFEST_NAME]: old.sums }, {}, { versionsDir: oldVersions, binDir: join(SCRATCH, 'old', 'bin'), shimPath: join(SCRATCH, 'old', 'bin', 'mercury'), isWindows: false })
+  const aged = await update('v1.0.12', { [old.asset]: old.archive, [CHECKSUM_MANIFEST_NAME]: old.sums }, {}, layoutOf('old', '1.0.11'))
   check('takes the road it took before: unpacked, judged by its payload signature, activated', aged.state === 'updated' && aged.to === '1.0.12' && aged.signature === 'signed', told(aged))
 
   console.log(`── the release v${NEW} with its signature ──`)

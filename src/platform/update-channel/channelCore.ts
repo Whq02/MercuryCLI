@@ -153,7 +153,7 @@ export function selectRelease(
 function archiveSignatureOf(release: ChannelRelease, version: PrivateVersion, name: string): ArchiveSignatureListing {
   if (release.assetNames.includes(name)) return { state: 'listed', name, url: release.assetUrls?.[name] ?? null }
   const first = parsePrivateVersion(SIGNED_ARCHIVES_FIRST_VERSION)
-  return first !== null && comparePrivateVersions(version, first) < 0 ? { state: 'before-signing' } : { state: 'removed', name }
+  return first !== null && comparePrivateVersions({ ...version, label: '', counter: 0 }, first) < 0 ? { state: 'before-signing' } : { state: 'removed', name }
 }
 
 type BridgePrevious =
