@@ -218,7 +218,8 @@ export async function prepareCompatTurn(
         imagesSupported,
       }
     : undefined
-  const wireMessages = renderAdmissionRecordsAsText(messages.map(message => (message.type === 'user' ? withToolReferenceTurnBoundary(message) : message)), plan.wireForm)
+  const resumable = plan.wireForm === 'text' ? messages.map(message => (message.type === 'user' ? withToolReferenceTurnBoundary(message) : message)) : messages
+  const wireMessages = renderAdmissionRecordsAsText(resumable, plan.wireForm)
   const effortView = effortVocabularyFor(modelId)
   const servedEfforts = effortView.kind === 'ladder' || effortView.kind === 'provider' ? effortView.vocabulary : []
   const floorWanted = options.effortPinned === true && options.effortValue === undefined && servedEfforts.length > 0
