@@ -89,7 +89,7 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
 }
 
 {
-  fixHint = 'consolidateLockOwnedBy in src/sessions/mneme/mnemeConsolidate.ts, artifactLockOwnedBy in src/sessions/artifact-reviews/reviewStore.ts or refreshLockStampedBy in src/models/roads/openai/openaiAccounts.ts (the one named in the failed label)'
+  fixHint = 'consolidateLockOwnedBy in src/sessions/mneme/mnemeConsolidate.ts or artifactLockOwnedBy in src/sessions/artifact-reviews/reviewStore.ts (the one named in the failed label)'
   const { consolidateLockOwnedBy } = await import('../../src/sessions/mneme/mnemeConsolidate.ts')
   const lock = join(SCRATCH, '.consolidate.lock')
   mkdirSync(lock)
@@ -108,14 +108,6 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
   t('review fence: a different token ⇒ a successor owns it', !artifactLockOwnedBy(fence, '1:zzz'))
   rmSync(join(fence, 'owner'))
   t('review fence: no token (pre-token lock) ⇒ releasable', artifactLockOwnedBy(fence, '1:abc'))
-
-  const { refreshLockStampedBy } = await import('../../src/models/roads/openai/openaiAccounts.ts')
-  const stamp = join(SCRATCH, 'auth.refresh-lock')
-  writeFileSync(stamp, `${process.pid} ${Date.now()}\n`)
-  t('refresh lock: our stamp ⇒ ours', refreshLockStampedBy(stamp, process.pid))
-  writeFileSync(stamp, `${process.pid + 3} ${Date.now()}\n`)
-  t("refresh lock: a takeover's stamp ⇒ not ours", !refreshLockStampedBy(stamp, process.pid))
-  t('refresh lock: missing ⇒ nothing to release', !refreshLockStampedBy(join(SCRATCH, 'absent-lock'), process.pid))
 }
 
 {

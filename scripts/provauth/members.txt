@@ -11,6 +11,7 @@ prove-locked-refresh.ts
 prove-meta-active-source.ts
 prove-meta-muse-code-signin.ts
 prove-openai-catalogue-follows-account.ts
+prove-openai-locked-refresh.ts
 prove-openrouter-catalogue.ts
 prove-openrouter-oauth.ts
 prove-proof-home-write-refusal.ts

@@ -736,7 +736,6 @@ function jsonFetch(
 }
 
 {
-  openaiAccounts.__resetOpenaiAccountsForTest()
   writeFileSync(
     openaiAccounts.openaiAuthPathForDisplay(),
     JSON.stringify({
@@ -773,7 +772,6 @@ function jsonFetch(
 }
 
 {
-  openaiAccounts.__resetOpenaiAccountsForTest()
   writeFileSync(
     openaiAccounts.openaiAuthPathForDisplay(),
     JSON.stringify({
@@ -835,7 +833,6 @@ function jsonFetch(
 }
 
 {
-  openaiAccounts.__resetOpenaiAccountsForTest()
   writeFileSync(
     openaiAccounts.openaiAuthPathForDisplay(),
     JSON.stringify({
@@ -872,7 +869,6 @@ for (const [faultLabel, faultResponse] of [
   ['HTTP 500 (even with a verdict-shaped body)', { status: 500, body: { error: 'invalid_grant' } }],
   ['HTTP 400 WITHOUT the invalid_grant verdict', { status: 400, body: { error: 'temporarily_unavailable' } }],
 ] as const) {
-  openaiAccounts.__resetOpenaiAccountsForTest()
   writeFileSync(
     openaiAccounts.openaiAuthPathForDisplay(),
     JSON.stringify({
@@ -899,7 +895,6 @@ for (const [faultLabel, faultResponse] of [
     `posts=${counter.posts}; currentSubscriptionTokens in src/models/roads/openai/openaiAccounts.ts must keep the stored set unless the answer is HTTP 400 with invalid_grant`,
   )
   arm = 'recover'
-  openaiAccounts.__resetOpenaiAccountsForTest()
   const recovered = await openaiAccounts.currentSubscriptionTokens({ fetchImpl })
   check(
     `openai: after ${faultLabel} the next call RETRIES and adopts the rotation`,

@@ -265,7 +265,6 @@ const now = Date.now()
 }
 {
   delete process.env.OPENAI_API_KEY
-  openaiAccounts.__resetOpenaiAccountsForTest()
   const b64url = (v: unknown): string => Buffer.from(JSON.stringify(v)).toString('base64url')
   const fakeJwt = (expSecFromNow: number): string => `h.${b64url({ exp: Math.floor(Date.now() / 1000) + expSecFromNow })}.s`
   const oldAccess = fakeJwt(3600)
@@ -279,7 +278,6 @@ const now = Date.now()
   check('openai subscription: exactly ONE token POST to the pinned issuer', tokenPosts.length === 1 && tokenPosts[0]?.path === '/openai/auth/oauth/token', `${JSON.stringify(tokenPosts.map(t => t.path))} — ${honestyRefreshWhere}`)
   answers = [{ status: 401, body: { error: { message: 'Invalid token', code: 'invalid_token' } } }]
   tokenAnswer = { status: 500, body: {} }
-  openaiAccounts.__resetOpenaiAccountsForTest()
   writeFileSync(openaiAccounts.openaiAuthPathForDisplay(), JSON.stringify({ version: 1, preferredSource: 'chatgpt-subscription', tokens: { idToken: '', accessToken: oldAccess, refreshToken: 'rt-1', accessTokenExpiresAtMs: now + 3_600_000 } }))
   const failed = await drive('gpt-5.6-sol')
   check('openai subscription: a failed refresh surfaces ONE typed refusal naming /logins and the attempted refresh', failed.errors.length === 1 && failed.errors[0]?.error === 'authentication_failed' && failed.text.includes('/logins') && failed.text.includes('refresh was attempted'), `${failed.text.slice(0, 240)} — ${honestyRefreshWhere}`)
