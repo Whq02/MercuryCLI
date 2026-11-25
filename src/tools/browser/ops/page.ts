@@ -1,4 +1,4 @@
-import type { Frame, Page, SerializedAXNode } from 'puppeteer-core'
+import type { ElementHandle, Frame, Page, SerializedAXNode } from 'puppeteer-core'
 import {
   browserVersionOf,
   detectInstalledBrowsers,
@@ -229,17 +229,35 @@ async function innerFrameAt(frame: Frame, point: FramePoint | null): Promise<{ f
   return null
 }
 
-export async function actOrigin(s: LiveSession, input: Input): Promise<string> {
-  const pointed = input.op === 'click' && !input.selector
-  if (!sessionAttached(s) || input.frame !== undefined || !(pointed || input.op === 'press')) return targetOrigin(s, input.frame)
-  const top = s.page.mainFrame()
-  let landing = { frame: top, point: pointed ? { x: input.x ?? 0, y: input.y ?? 0 } : null }
+async function landingOrigin(s: LiveSession, from: { frame: Frame; point: FramePoint | null }): Promise<string> {
+  let landing = from
   for (;;) {
     const inner = await innerFrameAt(landing.frame, landing.point)
     if (inner === null) break
     landing = inner
   }
-  return surfaceOrigin(s, landing.frame === top ? s.page : landing.frame)
+  return surfaceOrigin(s, landing.frame === s.page.mainFrame() ? s.page : landing.frame)
+}
+
+export async function heldFrameOrigin(s: LiveSession, holder: ElementHandle<Element>): Promise<string | null> {
+  const held = await holder.contentFrame()
+  if (held === null) return null
+  return landingOrigin(s, { frame: held, point: await holder.evaluate(el => ({ x: el.clientWidth / 2, y: el.clientHeight / 2 })) })
+}
+
+export async function actOrigin(s: LiveSession, input: Input): Promise<string> {
+  if (!sessionAttached(s)) return targetOrigin(s, input.frame)
+  if (input.op === 'click' && input.selector) {
+    const selector = input.selector
+    const looked = (async () => {
+      const holder = await targetSurface(s, input.frame).$(selector)
+      return holder === null ? null : heldFrameOrigin(s, holder)
+    })().catch(passedOverAs(null))
+    return (await withDeadline(looked, 1000, () => null, { unref: true })) ?? targetOrigin(s, input.frame)
+  }
+  const pointed = input.op === 'click'
+  if (input.frame !== undefined || !(pointed || input.op === 'press')) return targetOrigin(s, input.frame)
+  return landingOrigin(s, { frame: s.page.mainFrame(), point: pointed ? { x: input.x ?? 0, y: input.y ?? 0 } : null })
 }
 
 export function sendOrigin(s: LiveSession): string {

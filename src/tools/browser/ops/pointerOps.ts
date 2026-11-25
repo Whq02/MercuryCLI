@@ -5,7 +5,7 @@ import { ensureScratchpadDir } from '../../../platform/files/scratchpad.js'
 import type { ToolPermissionContext } from '../../../permissions/rules/permissions.js'
 import { type LiveSession, pageWhere, targetOrigin } from './page.js'
 import { actConsequences, markAct, settleAfterAct } from './settle.js'
-import { actDeadline, actOriginGate, clickGate, resolveActTarget, settleBoundingBox } from './targets.js'
+import { actDeadline, actOriginGate, clickGate, heldFrameRefusal, resolveActTarget, settleBoundingBox } from './targets.js'
 import { humanClickPoint, humanMoveTo, pickTargetPoint } from './human.js'
 import { sendUpload } from './upload.js'
 import type { OpDone, OpRun } from './ops.js'
@@ -25,6 +25,12 @@ export async function clickOp(s: LiveSession, { input, owner, signalFor }: OpRun
   let target: string
   if (input.selector) {
     const handle = await resolveActTarget(s, input.selector, deadline, signalFor(s), input.frame)
+    const strayed = await heldFrameRefusal(owner, s, input.op, handle)
+    if (strayed !== null) {
+      result = strayed
+      outcome = 'failed'
+      return { result, outcome }
+    }
     await handle.scrollIntoView()
     await settleBoundingBox(handle, deadline)
     const refusal = await clickGate(handle)

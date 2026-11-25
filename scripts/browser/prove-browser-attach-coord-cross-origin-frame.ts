@@ -34,6 +34,17 @@ const B = await serve(0, (req: http.IncomingMessage, res: http.ServerResponse) =
     '<input id="inp" style="position:fixed;left:10px;top:10px;width:10px;height:10px" onkeydown="if(event.key===\'Enter\')fetch(\'/hit-key\')">',
   )
 })
+let originCClicks = 0
+const C = await serve(0, (req: http.IncomingMessage, res: http.ServerResponse) => {
+  if (new URL(req.url ?? '/', 'http://fixture').pathname === '/hit-click') {
+    originCClicks++
+    res.writeHead(204)
+    res.end()
+    return
+  }
+  res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' })
+  res.end('<!doctype html><style>html,body{margin:0;padding:0;width:100%;height:100%}</style><button style="position:fixed;left:0;top:0;width:100%;height:100%" onclick="fetch(\'/hit-click\')">confirm</button>')
+})
 const A = await serve(0, (_req: http.IncomingMessage, res: http.ServerResponse) => {
   res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' })
   res.end(
@@ -41,6 +52,7 @@ const A = await serve(0, (_req: http.IncomingMessage, res: http.ServerResponse) 
   )
 })
 
+const DEADLINE = 6000
 const until = async (ok: () => boolean | Promise<boolean>, ms = 5000): Promise<boolean> => {
   const end = Date.now() + ms
   while (Date.now() < end) {
@@ -93,6 +105,54 @@ try {
     `perm=${clickPerm.behavior} outcome=${clickRes.outcome} originBClicks=${originBClicks} result=${clickRes.result}`,
   )
 
+  section('a selector that names the frame element itself is judged by the frame it holds')
+  const framePerm = await permission({ op: 'click', tab: tabA, selector: '#f' })
+  const frameRes = framePerm.behavior === 'allow' ? await run({ op: 'click', tab: tabA, selector: '#f' }) : { outcome: 'refused-by-perm', result: framePerm.message ?? '' }
+  await new Promise(done => setTimeout(done, 400))
+  check(
+    'a click on the frame element by its selector asks for origin B before it lands inside B',
+    framePerm.behavior === 'ask' && (framePerm.message ?? '').includes(`on ${B.origin} in tab ${tabA}`) && originBClicks === 0,
+    `perm=${framePerm.behavior} outcome=${frameRes.outcome} originBClicks=${originBClicks} result=${frameRes.result}`,
+  )
+  const addFrame = (id: string, left: number, afterMs: number): Promise<void> =>
+    pageOf(lead, tabA).evaluate(
+      (url: string, name: string, x: number, wait: number) => {
+        setTimeout(() => {
+          const el = document.createElement('iframe')
+          el.id = name
+          el.src = url
+          el.style.cssText = `position:fixed;left:${x}px;top:0;width:150px;height:120px;border:0`
+          document.body.appendChild(el)
+        }, wait)
+      },
+      `${C.origin}/framed`,
+      id,
+      left,
+      afterMs,
+    )
+  const framesOfC = (): number => pageOf(lead, tabA).frames().filter(f => f.url().startsWith(`${C.origin}/framed`)).length
+  const earlyPerm = await permission({ op: 'click', tab: tabA, selector: '#early' })
+  await addFrame('early', 320, 0)
+  await until(() => framesOfC() === 1, 5000)
+  const earlyRes = await run({ op: 'click', tab: tabA, selector: '#early', timeoutMs: DEADLINE })
+  await new Promise(done => setTimeout(done, 400))
+  check(
+    'a frame element that came after the check is not clicked into: the gate says the page moved',
+    earlyPerm.behavior === 'allow' && earlyRes.outcome === 'failed' && earlyRes.result.includes(`the page moved from ${A.origin} to ${C.origin}`) && originCClicks === 0,
+    `perm=${earlyPerm.behavior} outcome=${earlyRes.outcome} originCClicks=${originCClicks} result=${earlyRes.result}`,
+  )
+  await permission({ op: 'click', tab: tabA, selector: '#later' })
+  await addFrame('later', 480, 1500)
+  const laterRes = await run({ op: 'click', tab: tabA, selector: '#later', timeoutMs: DEADLINE })
+  await new Promise(done => setTimeout(done, 400))
+  check(
+    'a frame element that comes while the act waits for it is not clicked into either',
+    laterRes.outcome === 'failed' && laterRes.result.includes('the frame is another one than the permission check saw') && originCClicks === 0,
+    `outcome=${laterRes.outcome} originCClicks=${originCClicks} result=${laterRes.result}`,
+  )
+  const asked = await permission({ op: 'click', tab: tabA, selector: '#later' })
+  check('asked again, the click asks for that frame\'s origin', asked.behavior === 'ask' && (asked.message ?? '').includes(`on ${C.origin} in tab ${tabA}`), `${asked.behavior}: ${asked.message ?? ''}`)
+
   await pageOf(lead, tabA).mouse.click(150, 100)
   const focused = await until(() => originBClicks === 1, 3000)
   check('setup: the user clicked inside iframe B, so the focus sits in B', focused && originBKeys === 0, `originBClicks=${originBClicks}`)
@@ -119,6 +179,10 @@ try {
   const again = await permission({ op: 'press', tab: tabA, key: 'Enter' })
   const keyed = again.behavior === 'allow' ? await run({ op: 'press', tab: tabA, key: 'Enter' }) : { outcome: 'asked-again', result: again.message ?? '' }
   const keyCounted = await until(() => originBKeys === 1, 3000)
+  const byName = await permission({ op: 'click', tab: tabA, selector: '#f' })
+  const named = byName.behavior === 'allow' ? await run({ op: 'click', tab: tabA, selector: '#f', timeoutMs: DEADLINE }) : { outcome: 'asked-again', result: byName.message ?? '' }
+  const namedCounted = await until(() => originBClicks === clicksBefore + 2, 3000)
+  check('and the frame element by its selector is clicked without a second ask', byName.behavior === 'allow' && named.outcome === 'succeeded' && namedCounted, `perm=${byName.behavior} outcome=${named.outcome} originBClicks=${originBClicks} result=${named.result}`)
   check('and origin B, once approved, takes the key without a second ask', again.behavior === 'allow' && keyed.outcome === 'succeeded' && keyCounted, `perm=${again.behavior} outcome=${keyed.outcome} originBKeys=${originBKeys}`)
 
   await run({ op: 'close' })

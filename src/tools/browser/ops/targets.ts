@@ -3,7 +3,7 @@ import { type CheckedTarget, approveWebOrigin, consumeCheckedActOrigin, originAp
 import type { OwnerKey } from '../../../engine/run-owner/ownerKey.js'
 import { type Input, WAIT_CAP_MS, WAIT_DEFAULT_MS } from './schema.js'
 import { isDriverTimeout } from './failures.js'
-import { type LiveSession, actOrigin, targetSurface } from './page.js'
+import { type LiveSession, actOrigin, heldFrameOrigin, targetSurface } from './page.js'
 import { passedOver, passedOverAs } from '../../../platform/errors/passedOver.js'
 
 function framesDiagnosis(s: LiveSession): string {
@@ -56,6 +56,12 @@ export async function actOriginGate(owner: OwnerKey, s: LiveSession, input: Inpu
   }
   approveWebOrigin(owner, judged ?? live)
   return null
+}
+
+export async function heldFrameRefusal(owner: OwnerKey, s: LiveSession, op: string, holder: ElementHandle<Element>): Promise<string | null> {
+  if (!sessionAttached(s)) return null
+  const origin = await heldFrameOrigin(s, holder)
+  return origin === null || !origin.startsWith('http') || originApproved(owner, origin) ? null : otherFrameWords(op)
 }
 
 export function actDeadline(input: Input): number {
