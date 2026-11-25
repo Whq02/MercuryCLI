@@ -42,6 +42,8 @@ function octalField(block: Buffer, start: number, length: number): number {
   return text === '' ? 0 : Number.parseInt(text, 8)
 }
 
+const isCutOf = (field: string, waiting: readonly string[]): boolean => waiting.some(whole => whole.startsWith(field))
+
 function tarKind(type: string): EntryKind | 'note' {
   switch (type) {
     case '0':
@@ -155,9 +157,9 @@ class TarListing {
     const own = prefix === '' ? [name] : [`${prefix}/${name}`, name]
     if (kind === 'file' && (this.names.length > 0 ? this.names : own).some(used => used.endsWith('/'))) throw new Error('a header gives a file the name of a folder')
     this.entries.push({
-      names: [...own, ...this.names],
+      names: [...own.filter(field => !isCutOf(field, this.names)), ...this.names],
       kind,
-      targets: kind === 'symlink' || kind === 'hardlink' ? [textField(block, 157, 100), ...this.targets] : [],
+      targets: kind === 'symlink' || kind === 'hardlink' ? [...[textField(block, 157, 100)].filter(field => !isCutOf(field, this.targets)), ...this.targets] : [],
     })
     this.names = []
     this.targets = []

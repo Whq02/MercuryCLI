@@ -197,6 +197,36 @@ try {
   const paxFolder = await update(tarGz([dir('mercury/'), { name: 'PaxHeader/x', type: 'x', data: pax('path', 'mercury/sub/') }, { name: 'mercury/x', data: tarHeader({ name: 'mercury/hidden-pipe', type: '6' }) }]))
   check('a file entry whose waiting pax path ends in a slash is still refused by the reading', paxFolder.outcome.state === 'refused' && paxFolder.outcome.stage === 'extract' && paxFolder.outcome.reason === 'archive extraction failed: a header gives a file the name of a folder', shown(paxFolder.outcome))
 
+  const DOTS = `mercury/${'d'.repeat(89)}/..`
+  const dotsFolder = `${DOTS}data/`
+  const dotsFile = `${DOTS}data/file.txt`
+  const dotsShape = tarGz([{ ...dir('mercury/'), gnu: true }, { ...file('mercury/manifest.json', '{}'), gnu: true }, longNote(dotsFolder), { name: DOTS, type: '5', gnu: true }, longNote(dotsFile), { name: DOTS, data: Buffer.from('dots'), gnu: true }])
+  const dotsPath = join(scratch, 'dots-shape.tar.gz')
+  writeFileSync(dotsPath, dotsShape)
+  const dotsListed = await checkArchiveBeforeUnpack(dotsPath, 'tar.gz', UPDATE_CEILINGS)
+  check('a GNU tar whose long name is cut at 100 bytes right after the first two dots of a name like ..data is read', dotsListed.state === 'ok' && dotsListed.entries === 4, `the cut holds ${DOTS.length} bytes; ${JSON.stringify(dotsListed).slice(0, 220)}`)
+  const dotsUpdate = await update(dotsShape)
+  check('such an archive is unpacked and judged by its payload', dotsUpdate.outcome.state === 'refused' && dotsUpdate.outcome.stage === 'payload', shown(dotsUpdate.outcome))
+  if (process.platform !== 'win32') {
+    const dotsDest = join(scratch, 'dots-shape')
+    mkdirSync(dotsDest)
+    execFileSync('tar', ['-xzf', dotsPath, '-C', dotsDest])
+    check("this host's tar unpacks that entry as a file under its long name", existsSync(join(dotsDest, dotsFile)) && readFileSync(join(dotsDest, dotsFile), 'utf8') === 'dots' && unpackedFolderRefusal(dotsDest, UPDATE_CEILINGS) === null)
+  }
+  const climbingLong = `mercury/../../../${'x'.repeat(100)}`
+  const cutClimb = await update(tarGz([{ ...dir('mercury/'), gnu: true }, longNote(climbingLong), { name: climbingLong.slice(0, 100), data: Buffer.from('x'), gnu: true }]))
+  check('a waiting long name that itself climbs is refused, cut or no cut', refusedWith(cutClimb.outcome, `${LEAVES}${JSON.stringify(climbingLong).slice(0, 120)}`) && !stoodOutside(cutClimb.home, 'x'.repeat(100)), shown(cutClimb.outcome))
+  const notCut = await update(tarGz([{ ...dir('mercury/'), gnu: true }, longNote(`mercury/${'h'.repeat(110)}`), { name: 'mercury/../../../climbed.txt', data: Buffer.from('x'), gnu: true }]))
+  check('a header name that climbs and is not the cut of the harmless long name before it is refused', refusedWith(notCut.outcome, `${LEAVES}"mercury/../../../climbed.txt"`) && !stoodOutside(notCut.home, 'climbed.txt'), shown(notCut.outcome))
+  const linkNote = (target: string): TarMember => ({ name: '././@LongLink', type: 'K', data: Buffer.from(`${target}\0`), gnu: true })
+  const cutTarget = `${'./'.repeat(47)}/../..`
+  const longTarget = await update(tarGz([{ ...dir('mercury/'), gnu: true }, { ...file('mercury/manifest.json', '{}'), gnu: true }, linkNote(`${cutTarget}data`), { ...link('mercury/l', cutTarget), gnu: true }]))
+  check('a link whose long target is cut at 100 bytes right after two dots is judged by its whole target, which stays inside', longTarget.outcome.state === 'refused' && longTarget.outcome.stage === 'payload', `the cut holds ${cutTarget.length} bytes; ${shown(longTarget.outcome)}`)
+  const climbingTarget = await update(tarGz([{ ...dir('mercury/'), gnu: true }, linkNote(`${cutTarget}/${'y'.repeat(20)}`), { ...link('mercury/l', cutTarget), gnu: true }]))
+  check('a waiting long target that itself leaves the folder is refused', refusedWith(climbingTarget.outcome, `${LINK_LEAVES}"mercury/l"`), shown(climbingTarget.outcome))
+  const targetNotCut = await update(tarGz([{ ...dir('mercury/'), gnu: true }, linkNote(`${'t'.repeat(110)}`), { ...link('mercury/l', '../../outside'), gnu: true }]))
+  check('a header link target that leaves the folder and is not the cut of the harmless long target before it is refused', refusedWith(targetNotCut.outcome, `${LINK_LEAVES}"mercury/l"`), shown(targetNotCut.outcome))
+
   for (const name of ['..\\..\\..\\climbed.txt', 'mercury/../../../../climbed.txt', 'C:\\mercury-o03\\evil.txt', '/mercury-o03-absolute/evil.txt', '\\\\host\\share\\evil.txt', 'mercury/ .. / .. / .. / .. /trimmed.txt', 'mercury/\u00a0..\u00a0/\t..\t/\u3000..\u3000/. ./trimmed.txt', 'mercury/file.txt:stream']) {
     const climbed = await update(zip({ 'mercury/ok.txt': 'x', [name]: 'x' }), { windows: true })
     check(`a zip entry named ${JSON.stringify(name)} is refused before PowerShell is looked for`, refusedWith(climbed.outcome, `${LEAVES}${JSON.stringify(name)}`) && !stoodOutside(climbed.home, 'climbed.txt') && !stoodOutside(climbed.home, 'trimmed.txt'), shown(climbed.outcome))
