@@ -9,10 +9,10 @@ import { untilAsync } from '../lib/untilAsync.ts'
 
 const NEXT_TREE = 'c3c3c3c3c3c3'
 
-export type OtherHome = { dir: string; log: string; env: NodeJS.ProcessEnv }
+type OtherHome = { dir: string; log: string; env: NodeJS.ProcessEnv }
 type Said = { status: number | null; out: string }
 
-export type RollbackScene = {
+type RollbackScene = {
   was: string
   next: string
   project: string
