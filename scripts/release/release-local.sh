@@ -14,7 +14,7 @@ options
   --target <t>             linux-x64 | linux-arm64 | macos-arm64 | macos-x64
                            (the Windows targets build on a Windows machine)
   --root <tree>            the checkout to build (default: the tree this script sits in)
-  --out <dir>              copy the archive there and refresh <dir>/SHA256SUMS.txt
+  --out <dir>              copy the archive and its .sig there and refresh <dir>/SHA256SUMS.txt
   --logs <dir>             per-step logs (default: <root>/release-out/release-local-logs/<target>)
   --unsigned               ship without the release key, by decision (the name says -unsigned)
   --skip <steps>           comma list to leave out: install, fetch, node-pin, rosetta,
@@ -207,6 +207,8 @@ collect_step() {
   local archive=$1 f
   [ -n "$OUT" ] || { echo "no --out: the archive stays at $archive"; return 0; }
   cp "$archive" "$OUT/" || return 1
+  rm -f "$OUT/$(basename "$archive").sig"
+  if [ -f "$archive.sig" ]; then cp "$archive.sig" "$OUT/" || return 1; fi
   (cd "$OUT" && for f in mercury-*.tar.gz mercury-*.zip; do [ -e "$f" ] || continue; if command -v sha256sum > /dev/null 2>&1; then sha256sum "$f"; else shasum -a 256 "$f"; fi; done > SHA256SUMS.txt) || return 1
   echo "collected $(basename "$archive") into $OUT; SHA256SUMS.txt refreshed over $(grep -c . "$OUT/SHA256SUMS.txt") archive(s)"
 }

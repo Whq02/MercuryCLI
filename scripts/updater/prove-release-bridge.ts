@@ -148,9 +148,12 @@ try {
   mkdirSync(join(fixtures, 'assets', tag), { recursive: true })
   cpSync(candidatePath, join(fixtures, 'assets', tag, candidateAsset!))
   writeFileSync(join(fixtures, 'assets', tag, 'SHA256SUMS.txt'), `${sha256File(candidatePath)}  ${candidateAsset}\n`)
+  const signed = existsSync(`${candidatePath}.sig`)
+  if (signed) cpSync(`${candidatePath}.sig`, join(fixtures, 'assets', tag, `${candidateAsset}.sig`))
+  console.log(`  · the candidate's own signature: ${signed ? `${candidatePath}.sig, staged beside it` : 'none beside it'}`)
   writeFileSync(
     join(fixtures, 'releases.json'),
-    JSON.stringify([{ tag_name: tag, draft: false, prerelease: true, assets: [{ name: candidateAsset }, { name: 'SHA256SUMS.txt' }] }], null, 1),
+    JSON.stringify([{ tag_name: tag, draft: false, prerelease: true, assets: [{ name: candidateAsset }, { name: 'SHA256SUMS.txt' }, ...(signed ? [{ name: `${candidateAsset}.sig` }] : [])] }], null, 1),
   )
 
   const fakeGhJs = join(ROOT, 'scripts', 'updater', 'fake-gh.mjs')

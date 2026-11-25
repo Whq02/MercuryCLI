@@ -4,7 +4,7 @@ import { createHash, generateKeyPairSync } from 'node:crypto'
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { keyIdOf, verifySignatureBlock } from '../../src/platform/update-channel/artifactSigning.ts'
+import { keyIdOf, verifyArchiveSignature, verifySignatureBlock } from '../../src/platform/update-channel/artifactSigning.ts'
 import { archiveNameFor } from '../../src/platform/update-channel/releaseTarget.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -151,6 +151,8 @@ const assetSha = sha256File(asset)
 const sums = existsSync(join(assets, 'SHA256SUMS.txt')) ? readFileSync(join(assets, 'SHA256SUMS.txt'), 'utf8') : ''
 check('SHA256SUMS.txt beside it carries the sha256sum row (<sha256>  <name>)', sums.split('\n').includes(`${assetSha}  ${name}`), sums.slice(0, 200))
 check('the TARGET line states that sha256', (run.stdout ?? '').includes(`sha256=${assetSha}`))
+const ownSignature = existsSync(`${asset}.sig`) ? verifyArchiveSignature(readFileSync(`${asset}.sig`, 'utf8'), name, assetSha, [{ keyId, publicKeySpkiB64: spki, label: 'release-local proof key (throwaway)' }]) : null
+check(`${name}.sig beside it is the throwaway key's signature over that name and that sha256`, ownSignature?.state === 'signed' && ownSignature.keyId === keyId, JSON.stringify(ownSignature))
 
 const logNames = readdirSync(logs)
 const logOf = (step: string): string => {
@@ -158,6 +160,7 @@ const logOf = (step: string): string => {
   return f ? readFileSync(join(logs, f), 'utf8') : ''
 }
 check('the packager smoked the friend path inside the script run', logOf('package').includes('packaged + friend-path smoked'))
+check("the verify step read the archive's own signature", logOf('verify').includes(`${name}.sig: signed by key ${keyId}`))
 check(`the packager signed with the throwaway key ${keyId}`, logOf('package').includes(`signed: key ${keyId}`))
 check('the verify step read the archive back at full depth and found it signed by that key', logOf('verify').includes(`signed by key ${keyId}`) && logOf('verify').includes('(deep, exit 0)'))
 check('the verify step read the licence documents back out of the archive', logOf('verify').includes('Apache License 2.0 — LICENSE.md; NOTICE; TRADEMARKS.md'))

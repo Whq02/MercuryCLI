@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync, spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
@@ -80,6 +81,15 @@ try {
     : verdict.state + (verdict.note ? ` — ${verdict.note}` : '') + (verdict.keyId ? ` (key ${verdict.keyId})` : '')
   console.log(`${basename(archive)}: ${said} (deep, exit ${run.status})`)
   if (verdict.state !== expect) fail(`expected the verdict '${expect}', the archive verifies as '${verdict.state}' — nothing may publish`)
+
+  const signaturePath = `${archive}.sig`
+  if (expect === 'unsigned' && existsSync(signaturePath)) fail(`${basename(archive)} is unsigned by decision and ${basename(signaturePath)} stands beside it — nothing may publish`)
+  if (expect === 'signed') {
+    if (!existsSync(signaturePath)) fail(`${basename(archive)} has no ${basename(signaturePath)} beside it — every updater from the first signed version on refuses an archive without its signature; nothing may publish`)
+    const own = owner.verifyArchiveSignature(readFileSync(signaturePath, 'utf8'), basename(archive), createHash('sha256').update(readFileSync(archive)).digest('hex'), owner.trustedSigningKeys())
+    if (own.state !== 'signed') fail(`${basename(signaturePath)} verifies as '${own.state}'${own.state === 'unrecognized-key' ? ` (key ${own.keyId})` : `: ${own.note}`} — an installed updater would refuse this archive; nothing may publish`)
+    console.log(`${basename(signaturePath)}: signed by key ${own.keyId} (${own.keyLabel}) over the archive's name and SHA-256`)
+  }
 
   const docs = checkReleaseDocuments({ root, archiveDir: payload })
   if (!docs.ok) fail(`the archive's licence documents: ${docs.findings.join('; ')}`)
