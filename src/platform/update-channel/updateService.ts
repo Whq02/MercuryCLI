@@ -18,7 +18,7 @@ import {
   type ReleaseSelection,
   type UpdateCeilings,
 } from './channelCore.js'
-import { checkArchiveBeforeUnpack } from './archiveListing.js'
+import { checkArchiveBeforeUnpack, unpackedFolderRefusal } from './archiveListing.js'
 import { describeSignatureVerdict, type SignatureVerdict } from './artifactSigning.js'
 import { verifyPayloadDir } from './artifactVerify.js'
 import {
@@ -317,6 +317,13 @@ async function extractArchive(archivePath: string, destDir: string, isWindows: b
   if (listed.state === 'refused') return listed
   if (listed.state === 'unreadable') return { state: 'failed', note: listed.note }
   mkdirSync(destDir, { recursive: true })
+  const unpacked = runUnpacker(archivePath, destDir, isWindows)
+  if (unpacked.state !== 'ok') return unpacked
+  const left = unpackedFolderRefusal(destDir, ceilings)
+  return left === null ? unpacked : { state: 'refused', reason: left }
+}
+
+function runUnpacker(archivePath: string, destDir: string, isWindows: boolean): ExtractOutcome {
   if (isWindows) {
     const shell = resolveWindowsShell()
     if (!shell) {

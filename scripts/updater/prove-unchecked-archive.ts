@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -12,6 +13,7 @@ import { zipSync } from 'fflate'
 const { assetNameFor, updateCeilings } = await import('../../src/platform/update-channel/channelCore.js')
 const UPDATE_CEILINGS = updateCeilings()
 const { performUpdate } = await import('../../src/platform/update-channel/updateService.js')
+const { unpackedFolderRefusal } = await import('../../src/platform/update-channel/archiveListing.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -176,6 +178,39 @@ try {
   for (const name of ['..\\..\\..\\climbed.txt', 'mercury/../../../../climbed.txt', 'C:\\mercury-o03\\evil.txt', '/mercury-o03-absolute/evil.txt', '\\\\host\\share\\evil.txt', 'mercury/ .. / .. / .. / .. /trimmed.txt', 'mercury/\u00a0..\u00a0/\t..\t/\u3000..\u3000/. ./trimmed.txt', 'mercury/file.txt:stream']) {
     const climbed = await update(zip({ 'mercury/ok.txt': 'x', [name]: 'x' }), { windows: true })
     check(`a zip entry named ${JSON.stringify(name)} is refused before PowerShell is looked for`, refusedWith(climbed.outcome, `${LEAVES}${JSON.stringify(name)}`) && !stoodOutside(climbed.home, 'climbed.txt') && !stoodOutside(climbed.home, 'trimmed.txt'), shown(climbed.outcome))
+  }
+
+  console.log('── the look at the folder after the unpacker ──')
+  const staged = (name: string, fill: (root: string) => void): string => {
+    const root = join(scratch, 'looked', name, 'extracted')
+    mkdirSync(join(root, 'mercury', 'sub'), { recursive: true })
+    writeFileSync(join(root, 'mercury', 'a.txt'), 'aaaa')
+    writeFileSync(join(root, 'mercury', 'sub', 'b.txt'), 'bbbb')
+    fill(root)
+    return root
+  }
+  const linksWork = process.platform !== 'win32'
+  check('a folder of files and folders within the ceilings is passed', unpackedFolderRefusal(staged('plain', () => {}), UPDATE_CEILINGS) === null)
+  check('a folder with one entry more than the ceiling is refused', unpackedFolderRefusal(staged('many', () => {}), { ...UPDATE_CEILINGS, entries: 3 }) === 'the unpacker wrote more than 3 entries, the most a release may hold')
+  check('a folder with one byte more than the ceiling is refused', unpackedFolderRefusal(staged('heavy', () => {}), { ...UPDATE_CEILINGS, unpackedBytes: 7 }) === 'the unpacker wrote more than 7 bytes, the most a release may hold' && unpackedFolderRefusal(staged('exact', () => {}), { ...UPDATE_CEILINGS, unpackedBytes: 8, entries: 4 }) === null)
+  if (linksWork) {
+    const inside = staged('inside-link', root => {
+      symlinkSync('a.txt', join(root, 'mercury', 'alias'))
+      symlinkSync('../a.txt', join(root, 'mercury', 'sub', 'up-one'))
+      symlinkSync('nowhere.txt', join(root, 'mercury', 'dangling'))
+    })
+    check('links that stay inside the folder are passed', unpackedFolderRefusal(inside, UPDATE_CEILINGS) === null, String(unpackedFolderRefusal(inside, UPDATE_CEILINGS)))
+    const out = staged('out-link', root => symlinkSync(join(scratch, 'looked'), join(root, 'mercury', 'door')))
+    check('a link that leaves the folder is refused', unpackedFolderRefusal(out, UPDATE_CEILINGS) === `the unpacker left a link that leaves the folder it unpacked into: ${JSON.stringify(join('mercury', 'door'))}`, String(unpackedFolderRefusal(out, UPDATE_CEILINGS)))
+    const chain = staged('chain-link', root => {
+      symlinkSync('..', join(root, 'mercury', 'sub', 'up'))
+      symlinkSync('up/../..', join(root, 'mercury', 'sub', 'out'))
+    })
+    check('a link that leaves the folder only through another link is refused', unpackedFolderRefusal(chain, UPDATE_CEILINGS) === `the unpacker left a link that leaves the folder it unpacked into: ${JSON.stringify(join('mercury', 'sub', 'out'))}`, String(unpackedFolderRefusal(chain, UPDATE_CEILINGS)))
+    const lost = staged('lost-link', root => symlinkSync('../../../nowhere', join(root, 'mercury', 'lost')))
+    check('a link to a missing place outside the folder is refused', unpackedFolderRefusal(lost, UPDATE_CEILINGS) === `the unpacker left a link that leaves the folder it unpacked into: ${JSON.stringify(join('mercury', 'lost'))}`, String(unpackedFolderRefusal(lost, UPDATE_CEILINGS)))
+    const pipe = staged('fifo', root => void execFileSync('mkfifo', [join(root, 'mercury', 'pipe')]))
+    check('a FIFO is refused', unpackedFolderRefusal(pipe, UPDATE_CEILINGS) === `the unpacker left a device, a FIFO or a socket: ${JSON.stringify(join('mercury', 'pipe'))}`, String(unpackedFolderRefusal(pipe, UPDATE_CEILINGS)))
   }
 
   check('the unpacked ceiling is a round figure of at least 4 GiB', UPDATE_CEILINGS.unpackedBytes >= 4 * 1024 ** 3 && UPDATE_CEILINGS.unpackedBytes % 1024 ** 3 === 0, String(UPDATE_CEILINGS.unpackedBytes))
