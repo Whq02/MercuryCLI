@@ -15,13 +15,12 @@ export type ProfileRefusal = { ok: false; reason: string }
 
 const RECORD = 'profiles.json'
 const MARKER = 'profile.json'
-const SOURCE_POINTERS = ['current', 'dist']
 const NOT_INSTALLED = 'Profiles need Mercury started through its installed `mercury` command (a release install or a source deploy), and this session was not: start it that way, then try again.'
 
-const recordSchema = z.object({ profiles: z.array(z.object({ id: z.number().int().min(1), name: z.string().optional() })) })
-const markerSchema = z.object({ first: z.string().min(1), id: z.number().int().min(2) })
+const recordShape = () => z.object({ profiles: z.array(z.object({ id: z.number().int().min(1), name: z.string().optional() })) })
+const markerShape = () => z.object({ first: z.string().min(1), id: z.number().int().min(2) })
 
-type Labels = z.infer<typeof recordSchema>['profiles']
+type Labels = z.infer<ReturnType<typeof recordShape>>['profiles']
 type Family = { first: string; currentId: number; labels: Labels }
 type Install = { bin: string; command: string; program: Record<string, string>; isWindows: boolean }
 type CommandFile = { path: string; text: string }
@@ -40,11 +39,11 @@ function textAt(path: string): string | undefined {
   }
 }
 
-function stored<T>(path: string, schema: z.ZodType<T>): T | undefined {
+function stored<T>(path: string, shape: () => z.ZodType<T>): T | undefined {
   const text = textAt(path)
   if (text === undefined) return undefined
   try {
-    return schema.parse(JSON.parse(text))
+    return shape().parse(JSON.parse(text))
   } catch (error) {
     throw new Error(`${path} does not read as Mercury wrote it`, { cause: error })
   }
@@ -53,7 +52,7 @@ function stored<T>(path: string, schema: z.ZodType<T>): T | undefined {
 export function programHome(): string {
   const home = getMercuryHome()
   try {
-    return stored(join(home, MARKER), markerSchema)?.first ?? home
+    return stored(join(home, MARKER), markerShape)?.first ?? home
   } catch (error) {
     passedOver(error)
     return home
@@ -62,9 +61,9 @@ export function programHome(): string {
 
 function family(): Family {
   const home = getMercuryHome()
-  const marker = stored(join(home, MARKER), markerSchema)
+  const marker = stored(join(home, MARKER), markerShape)
   const first = marker?.first ?? home
-  return { first, currentId: marker?.id ?? 1, labels: stored(join(first, RECORD), recordSchema)?.profiles ?? [] }
+  return { first, currentId: marker?.id ?? 1, labels: stored(join(first, RECORD), recordShape)?.profiles ?? [] }
 }
 
 function save(first: string, labels: Labels): void {
@@ -78,7 +77,7 @@ function install(first: string): Install | null {
   if (bundle === undefined) return null
   const bin = join(first, 'bin')
   const launcher = join(bin, 'mercury')
-  if (SOURCE_POINTERS.some(name => bundle === join(first, 'runtime', name, 'mercury.mjs')) && existsSync(launcher)) {
+  if (['current', 'dist'].some(name => bundle === join(first, 'runtime', name, 'mercury.mjs')) && existsSync(launcher)) {
     return { bin, command: launcher, program: { MERCURY_DIST: bundle }, isWindows: false }
   }
   const roots = resolveLayoutRoots()
