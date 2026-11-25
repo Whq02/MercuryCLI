@@ -258,9 +258,9 @@ section('(6) console UTF-8 + enter-screen chain — structural, all three')
       "Object.defineProperty(process.stdin,'isTTY',{value:true,configurable:true});" +
       SPLASH_VERSION_TTY_PROBE_JS
     const dashRun = spawnSync('node', ['-e', probeWrap, '--', '--rollback'], { encoding: 'utf8', timeout: 15_000 })
-    check('CMD probe verdict: leading-dash first arg ⇒ takeover 0', dashRun.stdout.trim().endsWith(' 0'), dashRun.stdout)
+    check('CMD probe verdict: leading-dash first arg ⇒ takeover 0', dashRun.stdout.trim().split(' ')[1] === '0', dashRun.stdout)
     const bareRun = spawnSync('node', ['-e', probeWrap, '--'], { encoding: 'utf8', timeout: 15_000 })
-    check('CMD probe verdict: bare boot ⇒ takeover 1', bareRun.stdout.trim().endsWith(' 1'), bareRun.stdout)
+    check('CMD probe verdict: bare boot ⇒ takeover 1', bareRun.stdout.trim().split(' ')[1] === '1', bareRun.stdout)
   }
   {
     const cmdT = cmdLauncher(policy)
@@ -307,7 +307,7 @@ section('(6) console UTF-8 + enter-screen chain — structural, all three')
     const probeLine = cmdT.split('\r\n').find(l => l.includes('"%NODEBIN%" -e') && l.includes('process.stdin.isTTY')) ?? ''
     check('CMD probe line exists (plain command line, temp-file capture)', probeLine !== '' && probeLine.includes('>"%MERCURY_PROBE_OUT%"'))
     check('AR-01 ratchet: NO for /f line re-parses a command containing node/argv', cmdT.split('\r\n').filter(l => l.includes('for /f')).every(l => !l.includes('node') && !l.includes('%*')))
-    check('CMD probe output is consumed first-line-only from the temp file (usebackq)', cmdT.includes('for /f "usebackq tokens=1,2" %%v in ("%MERCURY_PROBE_OUT%")'))
+    check('CMD probe output is consumed first-line-only from the temp file (usebackq)', cmdT.includes('for /f "usebackq tokens=1,2,3" %%v in ("%MERCURY_PROBE_OUT%")'))
     const nodeELines = cmdT.split('\r\n').filter(l => l.includes('"%NODEBIN%" -e'))
     check('CMD has exactly ONE pre-app node -e probe (version+tty merged)', nodeELines.filter(l => !l.includes('?1049l')).length === 1)
     check(
@@ -508,7 +508,7 @@ if (mode === 'handoff') {
     }
     const verdictOf = (out: string): string | null => {
       const toks = out.trim().split(/\s+/)
-      return toks.length >= 2 ? toks[toks.length - 1]! : null
+      return toks.length >= 3 ? toks[toks.length - 2]! : null
     }
     const probeQ = SPLASH_VERSION_TTY_PROBE_JS.replace(/'/g, "'\\''")
     {
