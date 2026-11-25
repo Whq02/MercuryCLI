@@ -116,6 +116,7 @@ export function runRowOf({ flipFirstBirth, facts, permissionModeRef, setSettings
       enterConcourse();
       return null;
     case 'profiles':
+      featureReached('screen', 'profiles');
       setProfilesOpen(true);
       return null;
   }

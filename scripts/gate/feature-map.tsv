@@ -85,6 +85,7 @@ screen	boot-settings	scripts/command-catalogue/prove-feedback-issue-road.ts	term
 screen	concourse	scripts/formal-models/prove-major-flows.ts	source
 screen	logins	scripts/formal-models/prove-screen-properties-boot-settings.ts	source
 screen	menu	scripts/formal-models/prove-screen-properties-boot-settings.ts	source
+screen	profiles	scripts/formal-models/prove-screen-properties-boot-settings.ts	source
 screen	repl	scripts/command-catalogue/prove-beta-journey-matrix.ts	terminal
 screen	session	scripts/formal-models/prove-major-flows.ts	source
 tool	ApolloReview	none	none
