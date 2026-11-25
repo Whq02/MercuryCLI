@@ -50,7 +50,7 @@ let memberProbes = 0
 let memberProbesAtAsk = -1
 
 const ownerWatch = await import('../../src/daemon/control/ownerWatch.ts')
-const real = { isProcessAlive: ownerWatch.isProcessAlive, getProcessStartTokenAsync: ownerWatch.getProcessStartTokenAsync }
+const real = { isProcessAlive: ownerWatch.isProcessAlive, getProcessStartTokenAsync: ownerWatch.getProcessStartTokenAsync, getProcessStartTokensAsync: ownerWatch.getProcessStartTokensAsync }
 mock.module('../../src/daemon/control/ownerWatch.ts', () => ({
   ...ownerWatch,
   isProcessAlive: (pid: number) => (pid === STAND_IN_PID ? alive : pid === MEMBER_PID ? memberAlive : real.isProcessAlive(pid)),
@@ -58,6 +58,12 @@ mock.module('../../src/daemon/control/ownerWatch.ts', () => ({
     if (pid !== STAND_IN_PID) return real.getProcessStartTokenAsync(pid, like)
     probes.push(birth)
     return birth
+  },
+  getProcessStartTokensAsync: async (holders: ReadonlyArray<{ pid: number; procStart?: string }>, maxAgeMs?: number, patienceMs?: number) => {
+    const others = holders.filter(holder => holder.pid !== STAND_IN_PID)
+    const births = others.length > 0 ? await real.getProcessStartTokensAsync(others, maxAgeMs, patienceMs) : new Map<number, string | null>()
+    if (others.length < holders.length) births.set(STAND_IN_PID, birth)
+    return births
   },
 }))
 let treeListings: number[] = []
