@@ -5,7 +5,6 @@
 
 
 
-
                         ■ ─────────────────··· (>_) ···───────────────── ■
 
                        ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
@@ -20,6 +19,7 @@
                               │   ⚿ Logins/Keys                     │
                               │   ⊞ Session Manager (Concourse)     │
                               │   ⊞ Boot Menu                       │
+                              │   ⊞ Profiles                        │
                               ╰─────────────────────────────────────╯
 
                                   Model Opus 5   Dir: orchard-src

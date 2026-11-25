@@ -7,7 +7,7 @@ import { consumeCommandDispatch, requestCommandDispatch } from '../../screen/coc
 import { passedOver } from '../errors/passedOver.js'
 import { addBootNote } from './bootNotes.js'
 
-const ACTIONS = new Set(['continue', 'health', 'project', 'resume', 'concourse', 'kit', 'saturn', 'logins', 'agents', 'cancel'])
+const ACTIONS = new Set(['continue', 'health', 'project', 'resume', 'concourse', 'kit', 'saturn', 'logins', 'agents', 'profiles', 'cancel'])
 
 let pendingKitManagerDeepLink = false
 export function consumeKitManagerDeepLink(): boolean {
@@ -16,7 +16,7 @@ export function consumeKitManagerDeepLink(): boolean {
   return armed
 }
 
-export type FaceDoorDeepLink = 'health' | 'resume' | 'saturn' | 'logins' | 'agents' | 'model'
+export type FaceDoorDeepLink = 'health' | 'resume' | 'saturn' | 'logins' | 'agents' | 'profiles' | 'model'
 interface FaceDoorOpenerV1 {
   family?: string
   returnToOpener?: boolean
@@ -154,6 +154,7 @@ export function decideSplashReceipt(
   else if (receipt.action === 'saturn') pendingFaceDoorDeepLink = 'saturn'
   else if (receipt.action === 'logins') pendingFaceDoorDeepLink = 'logins'
   else if (receipt.action === 'agents') pendingFaceDoorDeepLink = 'agents'
+  else if (receipt.action === 'profiles') pendingFaceDoorDeepLink = 'profiles'
   else if (receipt.action === 'kit') pendingKitManagerDeepLink = true
   const spliceArg =
     receipt.action === 'continue'

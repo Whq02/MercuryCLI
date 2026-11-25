@@ -8,7 +8,6 @@ import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 import { stageInstall } from '../lib/stagedInstall.ts'
-import { settingsEditors } from '../../src/screen/boot-face/settings/menuModel.ts'
 
 const root = resolve(import.meta.dir, '..', '..')
 const driver = resolveCaptureDriver()
@@ -24,6 +23,7 @@ const framesDir = process.argv[2]
 const fixture = await startFixtureApi([])
 const PAGE = 'src/screen/boot-face/BootProfilesScreen.tsx'
 const DOWN = '\u001b[B'
+const END = '\u001b[F'
 const ESC = '\u001b'
 const BACKSPACE = '\u007f'
 const IN_THE_LIST = 'r rename · ⌫ remove · esc back'
@@ -36,17 +36,19 @@ type Grid = Array<Array<{ c?: string }>>
 const textOf = (grid: Grid | undefined): string => (grid ?? []).map(row => row.map(cell => cell.c ?? ' ').join('').trimEnd()).join('\n')
 const rowOf = (frame: string, id: number): string | undefined => frame.split('\n').find(line => new RegExp(`^[│❯\\s]*${id} · `).test(line))
 const squash = (text: string): string => text.replace(/\s+/g, '')
-function wholeWhereThePaneWraps(frame: string, path: string): boolean {
+function paneOf(frame: string): string | null {
   const rows = frame.split('\n')
   const head = rows.findIndex(row => row.includes('SETTING DETAIL'))
-  if (head < 0) return true
+  if (head < 0) return null
   const right = rows[head]!.lastIndexOf('│')
   const left = rows[head]!.lastIndexOf('│', right - 1)
-  return squash(rows.slice(head + 1).map(row => row.slice(left + 1, right)).join('')).includes(squash(path))
+  return squash(rows.slice(head + 1).map(row => row.slice(left + 1, right)).join(''))
 }
+const wholeWhereThePaneWraps = (frame: string, path: string): boolean => paneOf(frame)?.includes(squash(path)) ?? true
+const says = (frame: string, words: string): boolean => (paneOf(frame) ?? squash(frame)).includes(squash(words))
 
 const key = (awaitText: string, data: string, mark?: string) => ({ awaitText, requireAwait: true, awaitSettleTicks: 4, data, ...(mark === undefined ? {} : { mark }) })
-const toThePage = [key('New Session', 's'), key('MCPs & Skills', DOWN.repeat(settingsEditors.length - 1) + '\r', 'menu')]
+const toThePage = [key('New Session', END + '\r', 'face')]
 const journey = [
   ...toThePage,
   key('1 · Profile 1', BACKSPACE + 'n', 'one'),
@@ -106,9 +108,9 @@ async function drive(cols: number, rows: number, scene: { name: string; sends: A
 try {
   for (const cols of [120, 80]) {
     const { frame, home } = await drive(cols, 40, { name: 'removed', sends: journey, readyText: 'Work removed' })
-    const menu = frame('menu').split('\n')
-    const agentsAt = menu.findIndex(line => /Agents\s+↵ open/.test(line))
-    check(`${cols}: the Boot Menu shows Profiles (Beta) under Agents`, agentsAt >= 0 && /Profiles \(Beta\)\s+↵ open/.test(menu[agentsAt + 1] ?? ''), `put the profiles row after the agents row of settingsEditors in src/screen/boot-face/settings/menuModel.ts; the editor rows read: ${menu.filter(line => line.includes('↵ open')).map(line => line.trim()).join(' | ')}`)
+    const face = frame('face').split('\n')
+    const menuAt = face.findIndex(line => line.includes('Boot Menu'))
+    check(`${cols}: the Boot face shows Profiles directly under Boot Menu`, menuAt >= 0 && /Profiles\b/.test(face[menuAt + 1] ?? '') && !frame('face').includes('(Beta)'), `the row joins the face through withProfilesRow in assets/splash/splash-core.mjs, called where src/screen/boot-face/BootSplashScreen.tsx builds its rows; the face's rows read: ${face.filter(line => /New Session|Logins|Concourse|Boot Menu|Profiles/.test(line)).map(line => line.trim()).join(' | ')}`)
     check(`${cols}: the page lists Profile 1 alone, marked as this one`, /mercury · this one/.test(rowOf(frame('one'), 1) ?? '') && rowOf(frame('one'), 2) === undefined, `the row of the profile this session runs in must read "1 · Profile 1" with "mercury · this one" (the entries of ${PAGE}); it reads: ${rowOf(frame('one'), 1)?.trim() ?? 'no row'}`)
     check(`${cols}: Profile 1 is offered no remove, and ⌫ on it opens no confirm (the n after it creates Profile 2)`, !frame('one').includes('⌫ remove') && /Profile 2\s+mercury2/.test(rowOf(frame('two'), 2) ?? ''), `the remove action must keep its when: removable and the legend must leave ⌫ remove out on Profile 1 and on this session's profile (${PAGE})`)
     check(`${cols}: create adds Profile 2 with mercury2 and says which command starts it`, /Profile 2\s+mercury2/.test(rowOf(frame('two'), 2) ?? '') && frame('two').includes('Profile 2 created — mercury2 starts it'), `n must call createProfile and print its command (the n action of ${PAGE}); the row reads: ${rowOf(frame('two'), 2)?.trim() ?? 'no row'}`)
@@ -134,9 +136,20 @@ try {
       },
     })
     check(`${cols}: a file at the command's path that is not the profile's command is left and named after the remove`, squash(kept.frame('kept')).includes(squash('left in place, not its command')) && wholeWhereThePaneWraps(kept.frame('kept'), join(kept.bin, 'mercury2')) && rowOf(kept.frame('kept'), 2) === undefined, `after a remove the page must print the door's keptFiles on a line after the folder line (the remove keys of ${PAGE})`)
+
+    const skilled = await drive(cols, 40, {
+      name: 'skills',
+      sends: [...toThePage, key('1 · Profile 1', 'n')],
+      readyText: 'skill copied',
+      stage: install => {
+        mkdirSync(join(install.home, 'skills', 'alpha'), { recursive: true })
+        writeFileSync(join(install.home, 'skills', 'alpha', 'SKILL.md'), '---\ndescription: a skill of the first profile\n---\nits body\n')
+      },
+    })
+    check(`${cols}: a create that made the home says how many skills it copied, switched off, and keeps the create line`, says(skilled.frame('skills'), '1 skill copied from Profile 1, switched off') && says(skilled.frame('skills'), 'Profile 2 created — mercury2 starts it') && rowOf(skilled.frame('skills'), 2) !== undefined, `after createProfile answers adopted: false the n action must call inheritSkills with the new home and print its answer in the pane (${PAGE})`)
   }
   const short = await drive(120, 34, { name: 'refused', sends: refusal, readyText: 'again.', stage: stranger })
-  check('120x34: a refusal from the door is whole in a short wide window', short.frame('refused').includes('SETTING DETAIL') && short.frame('refused').includes('again.') && wholeWhereThePaneWraps(short.frame('refused'), join(short.bin, 'mercury2')), `what the page says in the pane must be held as a confirm's lines are, never dropped for room: detailOverrideConfirms while a pane message shows (${PAGE})`)
+  check('120x34: a refusal from the door is whole in the pane of a short wide window, the count in the status row', short.frame('refused').includes('SETTING DETAIL') && short.frame('refused').includes('again.') && wholeWhereThePaneWraps(short.frame('refused'), join(short.bin, 'mercury2')) && /System ready\s+│\s+1 profile\b/.test(short.frame('refused')), `what the page says in the pane must be held as a confirm's lines are, never dropped for room, and the status row keeps the count: detailOverrideConfirms and statusRight while a pane message shows (${PAGE})`)
   check('the page made no model call', fixture.messageRequests().length === 0, `a key of the profiles page reached the model API; the page must stay on the door in src/platform/profiles/profiles.ts`)
 } finally {
   await fixture.close()

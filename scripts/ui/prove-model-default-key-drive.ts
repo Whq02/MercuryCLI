@@ -349,14 +349,14 @@ section('§6 a fresh home with no sign-in: the bottom row stands at the height w
   check('177×49: the drive delivered every send (exit 0)', tight.status === 0, `exit ${tight.status}`)
   const at49 = tight.marks.get('face') ?? []
   check('177×49: the status line reads Model no sign-in yet and Dir:', rowWith(at49, 'Model no sign-in yet') !== '' && rowWith(at49, 'Model no sign-in yet').includes('Dir:'), rowWith(at49, 'Model'))
-  check('177×49: the card has four rows (no Continue row on a fresh home)', cardRows(at49) === 4, `${cardRows(at49)} rows`)
+  check('177×49: the card has five rows (no Continue row on a fresh home; Profiles under Boot Menu)', cardRows(at49) === 5, `${cardRows(at49)} rows`)
   check('177×49: the bottom row names the concourse and m', (at49[48] ?? '').trim() === `${SHIFT_ARROW} concourse · ${PHRASE}`, JSON.stringify((at49[48] ?? '').trim()))
   check('177×49: the block ends above the bottom row', !(at49[48] ?? '').includes('Model ') && at49.some((l, i) => i < 48 && l.includes('Model no sign-in yet')), (at49[48] ?? '').trim())
   const wide = capture('fresh-51', seededHome('fresh-51'), [], faceSends, { total: 200, ready: [CHAT_HINT], env: noSignIn })
   check('178×51: the drive delivered every send (exit 0)', wide.status === 0, `exit ${wide.status}`)
   const at51 = wide.marks.get('face') ?? []
   check('178×51: the bottom row names the concourse and m', (at51[50] ?? '').trim() === `${SHIFT_ARROW} concourse · ${PHRASE}`, JSON.stringify((at51[50] ?? '').trim()))
-  check('178×51: the block fits cleanly above the bottom row with its four-row card and unboxed status line', at51.some(l => l.includes('▀')) && cardRows(at51) === 4 && at51.some((l, i) => i < 50 && l.includes('Model no sign-in yet')), `rows ${cardRows(at51)}`)
+  check('178×51: the block fits cleanly above the bottom row with its five-row card and unboxed status line', at51.some(l => l.includes('▀')) && cardRows(at51) === 5 && at51.some((l, i) => i < 50 && l.includes('Model no sign-in yet')), `rows ${cardRows(at51)}`)
 }
 
 section('§7 the Boot face picker asks OpenAI for the live list when it opens: the GPT rows land before any session exists')

@@ -3,6 +3,8 @@ import { Box, useInput } from '../themedRenderer.js';
 import { createSplashCore, WORD_W } from '../../../assets/splash/splash-core.mjs';
 import { useEngineModel } from '../model-picker/useEngineModel.js';
 import { createProfile, listProfiles, removeProfile, renameProfile, type ProfileRow } from '../../platform/profiles/profiles.js';
+import { inheritSkills } from '../../integrations/skills/inheritSkills.js';
+import { errorMessage } from '../../platform/errors/errors.js';
 import { bootEnvironment } from './bootEnvironment.js';
 import { useGreetingShimmer } from '../widgets/useGreetingShimmer.js';
 import { useInteractiveList } from '../widgets/useInteractiveList.js';
@@ -28,6 +30,11 @@ const removable = (profile: ProfileRow): boolean => profile.id !== 1 && !profile
 function startWords(profile: ProfileRow): string {
   if (profile.current) return 'this session runs in it';
   return profile.command === null ? 'its command is missing' : `${profile.command} starts it`;
+}
+
+function skillsWords(answer: Awaited<ReturnType<typeof inheritSkills>>, from: string): string | null {
+  if (!answer.ok) return answer.reason;
+  return answer.skills.length === 0 ? null : `${answer.skills.length} skill${answer.skills.length === 1 ? '' : 's'} copied from ${from}, switched off`;
 }
 
 function detailLinesOf(face: ProfilesFace, selected: ProfileRow | null, said: Said | null): string[] {
@@ -68,7 +75,18 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
             hint: 'new',
             run: () => {
               const made = createProfile();
-              settle(made.ok ? { where: 'status', text: `${made.profile.name} created — ${startWords(made.profile)}` } : { where: 'pane', text: made.reason });
+              if (!made.ok) {
+                settle({ where: 'pane', text: made.reason });
+                return null;
+              }
+              const created = `${made.profile.name} created — ${startWords(made.profile)}`;
+              const from = profiles.find(profile => profile.current)?.name ?? 'this profile';
+              settle({ where: 'status', text: created });
+              void inheritSkills(made.profile.home)
+                .then(answer => skillsWords(answer, from), errorMessage)
+                .then(line => {
+                  if (line !== null) setSaid({ where: 'pane', text: `${created};\n${line}` });
+                });
               return null;
             },
           },
@@ -152,11 +170,11 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
         detail: null,
       })),
       selIdx: list.selectedIndex,
-      title: 'profiles (beta)',
+      title: 'profiles',
       summaryTitle: 'PROFILES',
       summaryRows: profiles.filter(profile => profile.current).map(profile => ({ key: 'This one', value: profile.name })),
       environment: bootEnvironment(mainModel, process.cwd()),
-      statusRight: !read.ok ? 'the profile list could not be read' : said === null ? `${profiles.length} profile${profiles.length === 1 ? '' : 's'}` : said.text.replace(/: .*$/s, ''),
+      statusRight: !read.ok ? 'the profile list could not be read' : said?.where === 'status' ? said.text : `${profiles.length} profile${profiles.length === 1 ? '' : 's'}`,
       noticeLine: said?.where === 'status' ? said.text : null,
       glowWord: wordGlow,
       legend: !read.ok

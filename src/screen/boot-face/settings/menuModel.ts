@@ -14,7 +14,6 @@ import { backgroundLaunchBootDetailLines } from './detailLines.js';
 export const settingsEditors = [
   { editor: 'kit', label: 'MCPs & Skills', summary: 'what the next session loads' },
   { editor: 'agents', label: 'Agents', summary: 'create and edit agents' },
-  { editor: 'profiles', label: 'Profiles (Beta)', summary: 'separate logins and history' },
 ] as const;
 
 type EditorRow = (typeof settingsEditors)[number];
