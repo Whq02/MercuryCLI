@@ -69,14 +69,16 @@ export function PromptsPanel({
   )
 
   const [section, setSection] = useState<SectionId>(held.section ?? initialSection)
-  usePublish(() => {
-    held.section = section
-  }, [held, section])
   const subscribeWork = useCallback((cb: () => void) => connector.subscribeWork(cb), [connector])
   const readBoard = useCallback(() => connector.swarmBoard?.() ?? null, [connector])
   const board = useSyncExternalStore(subscribeWork, readBoard, readBoard)
-  const [editor, setEditor] = useState<Editor>(null)
-  const [editorCursor, setEditorCursor] = useState(0)
+  const [editor, setEditor] = useState<Editor>(held.editor ?? null)
+  const [editorCursor, setEditorCursor] = useState(held.editorCursor ?? 0)
+  usePublish(() => {
+    held.section = section
+    held.editor = editor
+    held.editorCursor = editorCursor
+  }, [held, section, editor, editorCursor])
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [note, setNote] = useState<Note>(null)
   const startedAtRef = useRef(processStartedAtIso())
