@@ -24,66 +24,6 @@ export function indexLine(bytes: Buffer, from: number): IndexedLine {
   return { from, to: from + end, id }
 }
 
-type SpineEntry = { type?: unknown; uuid?: unknown; parentUuid?: unknown; subtype?: unknown; message?: unknown }
-type SpineSideLookup = {
-  entryOf(id: string): SpineEntry | null
-  childrenOf(parentId: string): Iterable<string> | undefined
-  siblingsOf(messageId: string): Iterable<string> | undefined
-  parentOf?(id: string, entry: SpineEntry): string | null
-}
-
-export function keptBesideSpine(spine: ReadonlySet<string>, lookup: SpineSideLookup): Set<string> {
-  const liveMessageIds = new Set<string>()
-  const assistantIds = new Set<string>()
-  const noteAssistant = (e: SpineEntry, id: string): void => {
-    if (e.type !== 'assistant') return
-    const message = e.message as { id?: unknown } | undefined
-    if (typeof message?.id === 'string' && message.id !== '') liveMessageIds.add(message.id)
-    assistantIds.add(id)
-  }
-  for (const id of spine) {
-    const e = lookup.entryOf(id)
-    if (e !== null) noteAssistant(e, id)
-  }
-  const keepsAsToolResult = (e: SpineEntry, parent: string): boolean => {
-    if (e.type !== 'user' || !assistantIds.has(parent)) return false
-    const content = (e.message as { content?: unknown } | undefined)?.content
-    if (!Array.isArray(content)) return false
-    return (content as Array<{ type?: unknown }>).some(block => block?.type === 'tool_result')
-  }
-  const keepsAsNote = (e: SpineEntry): boolean =>
-    e.type === 'system' && e.subtype !== 'compact_boundary' && e.subtype !== 'microcompact_boundary'
-  const kept = new Set<string>()
-  const parentQueue: string[] = [...spine]
-  const messageIdQueue: string[] = [...liveMessageIds]
-  const consider = (id: string, road: 'parent' | 'sibling'): void => {
-    if (spine.has(id) || kept.has(id)) return
-    const e = lookup.entryOf(id)
-    if (e === null || typeof e.uuid !== 'string' || e.uuid !== id) return
-    const parent = lookup.parentOf
-      ? lookup.parentOf(id, e)
-      : (typeof e.parentUuid === 'string' && e.parentUuid ? e.parentUuid : null)
-    const parentStands = parent !== null && (spine.has(parent) || kept.has(parent))
-    const message = e.message as { id?: unknown } | undefined
-    const sibling = road === 'sibling' && e.type === 'assistant' && typeof message?.id === 'string' && liveMessageIds.has(message.id)
-    const toolResult = road === 'parent' && parentStands && parent !== null && keepsAsToolResult(e, parent)
-    const note = road === 'parent' && parentStands && keepsAsNote(e)
-    if (!sibling && !toolResult && !note) return
-    kept.add(id)
-    if (note) return
-    noteAssistant(e, id)
-    parentQueue.push(id)
-    if (sibling && typeof message?.id === 'string') messageIdQueue.push(message.id)
-  }
-  while (parentQueue.length > 0 || messageIdQueue.length > 0) {
-    const parentId = parentQueue.pop()
-    if (parentId !== undefined) for (const id of lookup.childrenOf(parentId) ?? []) consider(id, 'parent')
-    const messageId = messageIdQueue.pop()
-    if (messageId !== undefined) for (const id of lookup.siblingsOf(messageId) ?? []) consider(id, 'sibling')
-  }
-  return kept
-}
-
 export function selectBranchIds(lines: readonly IndexedLine[], read: (r: IndexedLine) => Buffer): Set<string> | null {
   const QUOTE = 34
   const nodes = lines.filter(r => r.id !== null)
@@ -117,14 +57,21 @@ export function selectBranchIds(lines: readonly IndexedLine[], read: (r: Indexed
   if (leaf === null) return null
 
   const liveIds = new Set<string>()
-  const spineEntries = new Map<string, Record<string, unknown>>()
+  const liveMessageIds = new Set<string>()
+  const assistantIds = new Set<string>()
+  const noteAssistant = (e: Record<string, unknown>, id: string): void => {
+    if (e.type !== 'assistant') return
+    const message = e.message as { id?: unknown } | undefined
+    if (typeof message?.id === 'string' && message.id !== '') liveMessageIds.add(message.id)
+    assistantIds.add(id)
+  }
   let liveBytes = 0
   let cur: Record<string, unknown> | null = leaf
   while (cur) {
     const id = typeof cur.uuid === 'string' ? cur.uuid : null
     if (id === null || liveIds.has(id)) break
     liveIds.add(id)
-    spineEntries.set(id, cur)
+    noteAssistant(cur, id)
     for (const slot of idToSlots.get(id) ?? []) {
       liveBytes += nodeIdx[slot * 2 + 1]! - nodeIdx[slot * 2]!
     }
@@ -136,38 +83,66 @@ export function selectBranchIds(lines: readonly IndexedLine[], read: (r: Indexed
   }
   if (liveIds.size === 0) return null
 
-  const byParent = new Map<string, string[]>()
-  const byMessageId = new Map<string, string[]>()
-  const indexInto = (index: Map<string, string[]>, line: Buffer, needle: Buffer, cap: number, id: string): void => {
+  const byParent = new Map<string, number[]>()
+  const byMessageId = new Map<string, number[]>()
+  const indexInto = (index: Map<string, number[]>, line: Buffer, needle: Buffer, cap: number, slot: number): void => {
     let at = line.indexOf(needle)
     while (at !== -1) {
       const from = at + needle.length
       const close = line.indexOf(QUOTE, from)
       if (close > from && close - from <= cap) {
         const key = line.toString('latin1', from, close)
-        const ids = index.get(key)
-        if (ids) ids.push(id)
-        else index.set(key, [id])
+        const slots = index.get(key)
+        if (slots) slots.push(slot)
+        else index.set(key, [slot])
       }
       at = line.indexOf(needle, from)
     }
   }
   for (let slot = 0; slot < nodeIds.length; slot++) {
-    const id = nodeIds[slot]!
-    if (liveIds.has(id)) continue
+    if (liveIds.has(nodeIds[slot]!)) continue
     const line = readSlot(slot)
-    indexInto(byParent, line, PRUNE_PARENT_NEEDLE, 64, id)
-    indexInto(byMessageId, line, PRUNE_MESSAGE_ID_NEEDLE, 128, id)
+    indexInto(byParent, line, PRUNE_PARENT_NEEDLE, 64, slot)
+    indexInto(byMessageId, line, PRUNE_MESSAGE_ID_NEEDLE, 128, slot)
   }
+  const kept = new Set<string>()
+  const parentQueue: string[] = [...liveIds]
+  const messageIdQueue: string[] = [...liveMessageIds]
   const settledEntryOf = (id: string): Record<string, unknown> | null => {
     const slots = idToSlots.get(id)
     return slots === undefined || slots.length === 0 ? null : decodeSlot(slots[slots.length - 1]!)
   }
-  const kept = keptBesideSpine(liveIds, {
-    entryOf: id => spineEntries.get(id) ?? settledEntryOf(id),
-    childrenOf: parentId => byParent.get(parentId),
-    siblingsOf: messageId => byMessageId.get(messageId),
-  })
+  const keepsAsToolResult = (e: Record<string, unknown>, parent: string): boolean => {
+    if (e.type !== 'user' || !assistantIds.has(parent)) return false
+    const content = (e.message as { content?: unknown } | undefined)?.content
+    if (!Array.isArray(content)) return false
+    return (content as Array<{ type?: unknown }>).some(block => block?.type === 'tool_result')
+  }
+  const keepsAsNote = (e: Record<string, unknown>): boolean => e.type === 'system' && e.subtype !== 'compact_boundary' && e.subtype !== 'microcompact_boundary'
+  const consider = (slot: number, road: 'parent' | 'sibling'): void => {
+    const id = nodeIds[slot]!
+    if (liveIds.has(id) || kept.has(id)) return
+    const e = settledEntryOf(id)
+    if (e === null || typeof e.uuid !== 'string' || e.uuid !== id) return
+    const parent = typeof e.parentUuid === 'string' && e.parentUuid ? e.parentUuid : null
+    const parentStands = parent !== null && (liveIds.has(parent) || kept.has(parent))
+    const message = e.message as { id?: unknown } | undefined
+    const sibling = road === 'sibling' && e.type === 'assistant' && typeof message?.id === 'string' && liveMessageIds.has(message.id)
+    const toolResult = road === 'parent' && parentStands && parent !== null && keepsAsToolResult(e, parent)
+    const note = road === 'parent' && parentStands && keepsAsNote(e)
+    if (!sibling && !toolResult && !note) return
+    kept.add(id)
+    if (note) return
+    noteAssistant(e, id)
+    parentQueue.push(id)
+    if (sibling && typeof message?.id === 'string') messageIdQueue.push(message.id)
+  }
+  while (parentQueue.length > 0 || messageIdQueue.length > 0) {
+    const parentId = parentQueue.pop()
+    if (parentId !== undefined) for (const slot of byParent.get(parentId) ?? []) consider(slot, 'parent')
+    const messageId = messageIdQueue.pop()
+    if (messageId !== undefined) for (const slot of byMessageId.get(messageId) ?? []) consider(slot, 'sibling')
+  }
   for (const id of kept) {
     for (const slot of idToSlots.get(id) ?? []) {
       liveBytes += nodeIdx[slot * 2 + 1]! - nodeIdx[slot * 2]!

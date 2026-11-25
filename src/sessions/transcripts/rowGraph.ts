@@ -3,7 +3,6 @@ import type { TranscriptMessage } from './transcriptEntries.js'
 import type { SystemFoldBoundaryMessage } from '../../engine/message-shapes/message.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { logError } from '../../platform/logs/errorLog.js'
-import { keptBesideSpine } from './branchSelection.js'
 
 type Segment = NonNullable<SystemFoldBoundaryMessage['compactMetadata']['preservedSegment']>
 type BoundaryRow = TranscriptMessage & SystemFoldBoundaryMessage
@@ -147,19 +146,11 @@ class TranscriptRows {
   }
 
   private keptBySegment(segment: Segment): Set<UUID> | null {
-    const spine = new Set<UUID>()
+    const kept = new Set<UUID>()
     let cursor = this.get(segment.tailUuid)
-    while (cursor && !spine.has(cursor.uuid)) {
-      spine.add(cursor.uuid)
-      if (cursor.uuid === segment.headUuid) {
-        const side = keptBesideSpine(spine, {
-          entryOf: id => this.get(id as UUID) ?? null,
-          childrenOf: parentId => this.children.get(parentId as UUID),
-          siblingsOf: messageId => this.assistants.get(messageId),
-        })
-        for (const id of side) spine.add(id as UUID)
-        return spine
-      }
+    while (cursor && !kept.has(cursor.uuid)) {
+      kept.add(cursor.uuid)
+      if (cursor.uuid === segment.headUuid) return kept
       cursor = cursor.parentUuid ? this.get(cursor.parentUuid) : undefined
     }
     return null

@@ -43,4 +43,3 @@ prove-history-overlapping-flushes-write-once.ts
 prove-title-cut-keeps-graphemes.ts
 prove-history-record-pieces.ts
 prove-compaction-history-parts.ts
-prove-fold-keeps-parallel-tool-results.ts

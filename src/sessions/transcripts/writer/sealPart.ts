@@ -6,16 +6,14 @@ import { sleep } from '../../../platform/async/sleep.js'
 import { asRecordId } from '../../fabric/ids.js'
 import { entryToRecord, recordToEntry } from '../../fabric/entryCodec.js'
 import type { MercuryRecord } from '../../fabric/record.js'
-import { decodeTranscriptBuffer } from '../../fabric/transcriptDecode.js'
 import { faultPoint, fsyncEnabled, publishAtomicSync } from '../../../platform/substrate/fileStore.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
-import { keptBesideSpine } from '../branchSelection.js'
 import { foldWorkerRecord } from '../mirrorRecord.js'
 import { historyHead, historyPartDir, sealedFile, type HistoryIndexRow } from '../historyParts.js'
 import { rangeFromFd, transcriptLineBytes } from '../transcriptBytes.js'
 
 type Range = { at: number; len: number; torn: boolean; relinkTo?: string }
-type ChainRow = Range & { parent?: string; originalParent?: string; messageId?: string }
+type ChainRow = Range & { parent?: string; originalParent?: string }
 type Segment = { headUuid: string; tailUuid: string; anchorUuid: string }
 const sticky = new Set(['summary', 'custom-title', 'ai-title', 'last-prompt', 'tag', 'agent-name', 'agent-color', 'agent-setting', 'session-brief', 'session-brief-add', 'mode', 'advisor-switch', 'swarm-switch', 'model', 'worktree-state', 'pr-link'])
 
@@ -108,8 +106,7 @@ export async function sealHistoryPart(file: string, line: string, boundary: Merc
           else if (segment && (payload.metaKind === 'file-history-snapshot' || payload.metaKind === 'attribution-snapshot')) metadata.set(JSON.stringify([payload.metaKind, payload.fields.messageId]), range)
           else if (segment && payload.metaKind === 'content-replacement') metadata.set(id, range)
         } else if (segment) {
-          const messageId = payload.kind === 'output' && typeof payload.providerMessageId === 'string' && payload.providerMessageId !== '' ? payload.providerMessageId : undefined
-          nodes.set(id, { ...range, parent: record.parentId, originalParent: record.parentId, messageId })
+          nodes.set(id, { ...range, parent: record.parentId, originalParent: record.parentId })
           if (payload.kind === 'boundary' && payload.boundaryKind === 'compact') {
             const prior = (payload.fields?.compactMetadata as { preservedSegment?: Segment } | undefined)?.preservedSegment
             if (prior) segments.push(prior)
@@ -119,7 +116,6 @@ export async function sealHistoryPart(file: string, line: string, boundary: Merc
       if (batch) writeAll(index, Buffer.from(batch))
     } finally { closeSync(index) }
     const carry = [...metadata.values()]
-    const spine = new Set<string>()
     if (segment) {
       for (const prior of segments) {
         const first = nodes.get(prior.headUuid)
@@ -129,44 +125,21 @@ export async function sealHistoryPart(file: string, line: string, boundary: Merc
         }
       }
       let id: string | undefined = segment.tailUuid
+      const seen = new Set<string>()
       for (;;) {
         const row: ChainRow | undefined = id === undefined ? undefined : nodes.get(id)
-        if (!row || !id || spine.has(id)) return false
+        if (!row || !id || seen.has(id)) return false
         if (id !== segment.headUuid && row.parent !== row.originalParent) row.relinkTo = row.parent
         carry.push(row)
-        spine.add(id)
         if (id === segment.headUuid) break
+        seen.add(id)
         id = row.parent
       }
     }
+    carry.sort((a, b) => a.at - b.at)
     const source = openSync(file, 'r')
     let carrySize = 0
     try {
-      if (spine.size > 0) {
-        const byParent = new Map<string, string[]>(), byMessageId = new Map<string, string[]>()
-        const push = (map: Map<string, string[]>, key: string | undefined, value: string): void => {
-          if (key === undefined) return
-          const list = map.get(key)
-          if (list) list.push(value)
-          else map.set(key, [value])
-        }
-        for (const [nodeId, row] of nodes) if (!spine.has(nodeId)) { push(byParent, row.parent, nodeId); push(byMessageId, row.messageId, nodeId) }
-        const entryOf = (nodeId: string): Record<string, unknown> | null => {
-          const row = nodes.get(nodeId)
-          if (!row) return null
-          const bytes = rangeFromFd(source, row.at, row.at + row.len)
-          if (bytes.length !== row.len) throw new Error(`History changed while sealing ${file}`)
-          const decoded = decodeTranscriptBuffer<Record<string, unknown>>(bytes)
-          return decoded.entries.length === 1 ? decoded.entries[0]! : null
-        }
-        for (const nodeId of keptBesideSpine(spine, { entryOf, childrenOf: id => byParent.get(id), siblingsOf: id => byMessageId.get(id), parentOf: id => nodes.get(id)?.parent ?? null })) {
-          const row = nodes.get(nodeId)
-          if (!row) continue
-          if (row.parent !== row.originalParent) row.relinkTo = row.parent
-          carry.push(row)
-        }
-      }
-      carry.sort((a, b) => a.at - b.at)
       for (const row of carry) carrySize += row.relinkTo === undefined ? row.len + Number(row.torn) : linkedCopy(source, row, row.relinkTo, file).length
     } finally { closeSync(source) }
     const current = statSync(file)
