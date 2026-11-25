@@ -642,7 +642,7 @@ section('L /accounts and the Logins chip (which reads the slot words) name the a
 
 section('R OpenRouter — an OAuth-minted KEY keeps its masked tail; no identity')
 {
-  const handles = openrouterAccounts.beginOpenrouterConnect({ fetchImpl: fetch, env: process.env, mode: 'headless', skipBrowserOpen: true, loopbackPort: 0 })
+  const handles = openrouterAccounts.beginOpenrouterConnect({ fetchImpl: fetch, env: process.env, mode: 'headless', skipBrowserOpen: true })
   handles.completeWithRedirect('fixture-openrouter-code')
   const ref = await handles.result
   check('R1 the minted key lands through the loopback exchange', ref.kind === 'oauth-key', JSON.stringify(ref))

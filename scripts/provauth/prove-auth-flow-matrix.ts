@@ -1009,7 +1009,6 @@ const within = <T,>(p: Promise<T>, ms = 900): Promise<T | 'timed-out'> =>
   let notified = false
   const handles = openrouter.beginOpenrouterConnect({
     skipBrowserOpen: true,
-    loopbackPort: 0,
     fetchImpl: (async () => {
       throw new Error('prover: the pre-fire arm must never reach the wire')
     }) as unknown as typeof fetch,
@@ -1034,7 +1033,6 @@ const within = <T,>(p: Promise<T>, ms = 900): Promise<T | 'timed-out'> =>
   let disclosed: unknown = null
   const handles = openrouter.beginOpenrouterConnect({
     skipBrowserOpen: true,
-    loopbackPort: 0,
     fetchImpl: (async (url: RequestInfo | URL) => {
       if (String(url).includes('/auth/keys')) {
         gate.signalStarted()
@@ -1087,7 +1085,6 @@ const within = <T,>(p: Promise<T>, ms = 900): Promise<T | 'timed-out'> =>
   const issues: string[] = []
   const handles = openrouter.beginOpenrouterConnect({
     skipBrowserOpen: true,
-    loopbackPort: 0,
     fetchImpl: (async (url: RequestInfo | URL) => {
       if (String(url).includes('/auth/keys')) {
         gate.signalStarted()

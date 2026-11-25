@@ -274,12 +274,11 @@ export interface OpenrouterConnectHandles {
 function buildOpenrouterAuthorizeUrl(
   env: NodeJS.ProcessEnv,
   challenge: string,
-  mode: 'browser' | 'headless',
-  redirectPort: number,
+  callbackPort?: number,
 ): string {
   const params = new URLSearchParams({
-    ...(mode === 'browser' ? { callback_url: openrouterRedirectUri(redirectPort) } : {}),
-    ...(mode === 'headless' ? { key_label: OPENROUTER_KEY_LABEL } : {}),
+    ...(callbackPort !== undefined ? { callback_url: openrouterRedirectUri(callbackPort) } : {}),
+    key_label: OPENROUTER_KEY_LABEL,
     code_challenge: challenge,
     code_challenge_method: 'S256',
   })
@@ -332,15 +331,14 @@ export function beginOpenrouterConnect(opts?: {
   mode?: 'browser' | 'headless'
   skipBrowserOpen?: boolean
   onListenerIssue?: (message: string) => void
-  loopbackPort?: number
+  onAuthorizeUrl?: (authorizeUrl: string) => void
   onSettledAfterCancel?: (ref: OpenrouterAccountRef) => void
 }): OpenrouterConnectHandles {
   const env = opts?.env ?? hostEnv()
   const mode = opts?.mode ?? 'browser'
-  const requestedPort = opts?.loopbackPort ?? OPENROUTER_REDIRECT_PORT
   const verifier = generateCodeVerifier()
   const challenge = generateCodeChallenge(verifier)
-  const authorizeUrl = buildOpenrouterAuthorizeUrl(env, challenge, mode, requestedPort)
+  let authorizeUrl = mode === 'headless' ? buildOpenrouterAuthorizeUrl(env, challenge) : ''
   const fetchImpl = opts?.fetchImpl ?? getApiFetch()
 
   let settle!: (ref: OpenrouterAccountRef) => void
@@ -441,6 +439,11 @@ export function beginOpenrouterConnect(opts?: {
     }
   }
 
+  const portOf = (bound: Server | undefined): number | undefined => {
+    const address = bound?.address()
+    return typeof address === 'object' && address !== null ? address.port : undefined
+  }
+
   const extractCode = (pasted: string): string | undefined => {
     const trimmed = pasted.trim()
     try {
@@ -452,8 +455,13 @@ export function beginOpenrouterConnect(opts?: {
   }
 
   if (mode === 'browser') {
-    server = createServer((req, res) => {
-      const url = new URL(req.url ?? '/', `http://127.0.0.1:${requestedPort}`)
+    const openAt = (callbackPort: number): void => {
+      authorizeUrl = buildOpenrouterAuthorizeUrl(env, challenge, callbackPort)
+      opts?.onAuthorizeUrl?.(authorizeUrl)
+      if (!opts?.skipBrowserOpen) void openBrowser(authorizeUrl)
+    }
+    const listener = createServer((req, res) => {
+      const url = new URL(req.url ?? '/', 'http://127.0.0.1')
       if (url.pathname !== '/auth/callback') {
         res.writeHead(404).end()
         return
@@ -467,18 +475,17 @@ export function beginOpenrouterConnect(opts?: {
       }
       void finishFromListener(code, res)
     })
-    server.on('error', error => {
+    server = listener
+    listener.on('error', error => {
       server?.close()
       server = undefined
       opts?.onListenerIssue?.(
         `loopback listener unavailable (${error instanceof Error ? error.message : String(error)}) — finish by pasting the redirected URL`,
       )
-      if (!opts?.skipBrowserOpen) void openBrowser(authorizeUrl)
+      openAt(OPENROUTER_REDIRECT_PORT)
     })
-    server.listen(requestedPort, '127.0.0.1', () => {
-      if (!opts?.skipBrowserOpen) void openBrowser(authorizeUrl)
-    })
-    server.unref?.()
+    listener.listen(0, '127.0.0.1', () => openAt(portOf(listener) ?? OPENROUTER_REDIRECT_PORT))
+    listener.unref?.()
   } else if (!opts?.skipBrowserOpen) {
     void openBrowser(authorizeUrl)
   }
@@ -492,7 +499,9 @@ export function beginOpenrouterConnect(opts?: {
   }
 
   return {
-    authorizeUrl,
+    get authorizeUrl(): string {
+      return authorizeUrl
+    },
     result,
     completeWithRedirect(pasted: string): void {
       const code = extractCode(pasted)
@@ -509,9 +518,6 @@ export function beginOpenrouterConnect(opts?: {
       server = undefined
       doFail(new Error(reason ?? 'openrouter connect cancelled'))
     },
-    boundLoopbackPort(): number | undefined {
-      const address = server?.address()
-      return typeof address === 'object' && address !== null ? address.port : undefined
-    },
+    boundLoopbackPort: () => portOf(server),
   }
 }

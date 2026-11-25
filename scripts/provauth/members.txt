@@ -12,6 +12,7 @@ prove-meta-muse-code-signin.ts
 prove-openai-catalogue-follows-account.ts
 prove-openrouter-catalogue.ts
 prove-openrouter-oauth.ts
+prove-openrouter-two-signins.ts
 prove-proof-home-write-refusal.ts
 prove-provider-wallet-surfaces.ts
 prove-refresh-legs-user-agent.ts
