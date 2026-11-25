@@ -70,8 +70,15 @@ const coalesced: unknown[] = []
 new GodotPacketDecoder().push(packets, value => coalesced.push(value))
 assert.deepEqual(coalesced, received)
 check('fragmented and coalesced TCP packets retain message boundaries', true)
+assert.deepEqual(decodeGodotVariant(encodeGodotVariant(scalar), '4.6.1'), scalar)
+assert.deepEqual(decodeGodotVariant(encodeGodotVariant(scalar), '4.7.2'), scalar)
+assert.deepEqual(decodeGodotVariant(word(0), '4.7.0'), null)
+check('Variant decoding accepts Godot 4.6 and 4.7 versions', true)
 assert.throws(() => decodeGodotVariant(word(255)), /unknown Variant type 255/)
-assert.throws(() => decodeGodotVariant(word(0), '4.7.0'), /version 4\.7\.0 is unsupported.*4\.6/)
+assert.throws(() => decodeGodotVariant(word(4 | 0x10000)), /unsupported Variant header/)
+for (const bad of ['4.5.4', '4.8.0', '5.0.0', 'not-a-version']) {
+  assert.throws(() => decodeGodotVariant(word(0), bad), new RegExp(`version ${bad.replace(/\./g, '\\.')} is unsupported; the decoder carries Godot 4\\.6 and 4\\.7`))
+}
 assert.throws(() => decodeGodotVariant(Buffer.concat([word(4), word(9999)])), /truncated/)
 assert.throws(() => decodeGodotVariant(Buffer.concat([word(0), word(0)])), /trailing bytes/)
 assert.throws(() => new GodotPacketDecoder().push(word(9 << 20), () => {}), /invalid packet length/)
@@ -79,7 +86,7 @@ const truncated = new GodotPacketDecoder()
 truncated.push(packets.subarray(0, 7), () => {})
 assert.throws(() => truncated.finish(), /truncated packet/)
 assert.throws(() => decodeGodotProfileFrame([1, 0, 0, 0, 0, 0, 0, 4]), /malformed/)
-check('unknown types, wrong versions, truncation and oversize refuse with words', true)
+check('unknown types, bad headers, wrong versions, truncation and oversize refuse with words', true)
 const inlineTour = { script: 'res://tests/debugger_hot.gd', steps: [{ name: 'steady' }, { name: 'steady-again' }] }
 const parsed = parseEngineMediaRequest('profile', { tour: inlineTour }, scratch)
 check('default source is auto and the CLI retains explicit source', parsed.source === 'auto' && parseGodotCliArgs(['profile', '--source', 'engine']).flags.source === 'engine')
@@ -92,10 +99,22 @@ const client = connect(wrongVersion.transport.port, '127.0.0.1')
 try {
   await once(client, 'connect')
   const closed = once(client, 'close')
-  client.write(encodeGodotPacket(['mercury_profile:hello', 1, [wrongVersion.transport.token, { major: 4, minor: 7, patch: 0 }]]))
+  client.write(encodeGodotPacket(['mercury_profile:hello', 1, [wrongVersion.transport.token, { major: 4, minor: 8, patch: 0 }]]))
   await closed
-  check('a connected unsupported worker is refused rather than selected', /version 4\.7\.0 is unsupported/.test(wrongVersion.transport.error ?? '') && !wrongVersion.finished, wrongVersion.transport.error)
+  check('a connected unsupported worker is refused rather than selected', /version 4\.8\.0 is unsupported; the decoder carries Godot 4\.6 and 4\.7/.test(wrongVersion.transport.error ?? '') && !wrongVersion.finished, wrongVersion.transport.error)
 } finally { client.destroy(); await wrongVersion.transport.close() }
+const ok47 = new GodotDebuggerProfile(parsed)
+await ok47.transport.open()
+const client47 = connect(ok47.transport.port, '127.0.0.1')
+try {
+  await once(client47, 'connect')
+  const firstReply = once(client47, 'data')
+  client47.write(encodeGodotPacket(['mercury_profile:hello', 1, [ok47.transport.token, { major: 4, minor: 7, patch: 2, status: 'stable', string: '4.7.2-stable (official)' }]]))
+  await firstReply
+  const ev = ok47.evidence()
+  const eng = ev.engine as Record<string, unknown> | null
+  check('a 4.7.2 hello is admitted and its evidence carries both engine and decoder versions', ev.connected === true && ev.error === null && ev.decoderVersion === '4.6 and 4.7' && eng?.major === 4 && eng?.minor === 7 && eng?.patch === 2, { connected: ev.connected, error: ev.error, decoderVersion: ev.decoderVersion, engine: eng })
+} finally { client47.destroy(); await ok47.transport.close() }
 async function portIsFree(port: number): Promise<boolean> {
   const server = createServer()
   try {
@@ -104,7 +123,7 @@ async function portIsFree(port: number): Promise<boolean> {
   } catch { return false }
   finally { if (server.listening) await new Promise<void>(resolve => server.close(() => resolve())) }
 }
-check('refused connections release their listener', await portIsFree(wrongVersion.transport.port))
+check('refused and admitted connections release their listeners', await portIsFree(wrongVersion.transport.port) && await portIsFree(ok47.transport.port))
 const executable = await (await import('./proofGodot.ts')).resolveProofGodot()
 if (!executable.resolved) {
   console.log(`[SKIP] real engine debugger profiles: ${executable.reason}`)
@@ -136,7 +155,7 @@ if (!executable.resolved) {
     const record = await run(args)
     const engine = engineEvidence(record)
     check('the real headless engine source completes without project instrumentation', record.media?.selectedSource === 'engine' && engine.complete && record.media.evidence[0].projectTables === false && record.results.every((row: any) => row.instance === null), record)
-    check('actual engine and decoder versions are carried', engine.decoderVersion === '4.6' && engine.engine.major === 4 && engine.engine.minor === 6)
+    check('actual engine and decoder versions are carried', engine.decoderVersion === '4.6 and 4.7' && engine.engine.major === 4 && (engine.engine.minor === 6 || engine.engine.minor === 7))
     check('one boot keeps both variants and all tour steps', record.media?.boots === 1 && record.media.phases.map(p => `${p.variant}/${p.stepIndex}`).join(',') === 'a/0,a/1,b/0,b/1')
     for (const phase of engine.phases) {
       const hot = phase.scripts.find((s: any) => /debugger_hot\.gd::\d+::hot_function$/.test(s.script))

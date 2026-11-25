@@ -447,7 +447,7 @@ phases separately. Project tables are unchanged when both are present.
 
 Each engine profile owns a loopback TCP listener on a free port, passed to
 its isolated worker through `--remote-debug`. The binary Variant decoder
-carries Godot 4.6 and refuses other versions or unknown types. The debugger
+carries Godot 4.6 and 4.7 and refuses other versions or unknown types. The debugger
 evidence names both the decoder version and the connected engine version.
 Script rows name Godot's resource/line/function signature and include
 `selfMs`, `totalMs`, `internalMs`, per-frame `calls` summaries and `totalCalls`

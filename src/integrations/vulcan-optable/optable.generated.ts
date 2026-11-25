@@ -8,7 +8,7 @@ export interface VulcanOp {
   args: Readonly<Record<string, string>>
 }
 
-export const VULCAN_OPTABLE_DIGEST = '4ce72f23b84b8fd6509a9d2e8b31b18a70013fd2ecb1e501dd003d9e9cfa27ee'
+export const VULCAN_OPTABLE_DIGEST = 'aca17ef38cf900db07471f207ba3d632d57fc859fa98c6b8385576e194afc586'
 
 export const VULCAN_STEP_WALL_MS_PER_FRAME = 50
 
@@ -2299,7 +2299,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "cls": "exec",
     "lite": false,
     "side": "mercury",
-    "summary": "Mercury-side settled profile job: Godot 4.6 debugger script/server timings and call counts, frame/physics/memory monitors, median/p95, beside unchanged project instrumentation and available viewport timings. Default engine source when connected, explicit project fallback when no game connects. A/B toggles share one boot. The quiet-machine guard refuses or flags contention; immutable commit baselines compare matching measurements side by side",
+    "summary": "Mercury-side settled profile job: Godot 4.6 and 4.7 debugger script/server timings and call counts, frame/physics/memory monitors, median/p95, beside unchanged project instrumentation and available viewport timings. Default engine source when connected, explicit project fallback when no game connects. A/B toggles share one boot. The quiet-machine guard refuses or flags contention; immutable commit baselines compare matching measurements side by side",
     "args": {
       "tour": "registered tour name or {scene|script,steps}; project source needs mercury_media_sample; engine source does not",
       "source": "optional: auto (default) | engine | project; engine reads the debugger over its own loopback port and fails when no game connects; project keeps the instrumented tables; auto takes the engine when it connects and otherwise falls back to project with a reason; an unsupported protocol refuses",

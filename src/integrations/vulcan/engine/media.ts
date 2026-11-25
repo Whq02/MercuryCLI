@@ -206,7 +206,7 @@ export function newEngineMediaRecord(request: EngineMediaRequest): EngineMediaRe
       'Headless uses Godot dummy rendering: images come from the project Image hook, not a rendered viewport.',
       'Godot global RNG is seeded; independently created RNGs, external randomness, wall clocks, autoload initialization, and shader TIME require project hook cooperation. No universal freeze is claimed.',
       'Capture simulation is paused with Engine.time_scale=0; the project hook applies the requested simulation time and deterministic shader uniforms. Built-in shader TIME has no exposed setter.',
-      'Project script and physics tables are instrumentation. The separately labelled engine debugger source carries Godot 4.6 profiler tables when connected; the selected source is named.',
+      'Project script and physics tables are instrumentation. The separately labelled engine debugger source carries Godot 4.6 and 4.7 profiler tables when connected; the selected source is named.',
       'The quiet guard samples the process census and live worker registry; short-lived workers between observations can escape detection.',
       'Hidden routing is refused on stock Godot: its native bootstrap shows the main window before scripts can hide it.',
     ],

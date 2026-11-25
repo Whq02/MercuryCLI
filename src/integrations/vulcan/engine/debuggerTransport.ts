@@ -1,15 +1,16 @@
 import { createServer, type Server, type Socket } from 'node:net'
 import { randomBytes } from 'node:crypto'
 
-export const GODOT_DEBUGGER_VERSION = '4.6'
+export const GODOT_DEBUGGER_VERSION = '4.6 and 4.7'
+const DEFAULT_GODOT_DEBUGGER_VERSION = '4.7'
 const MAX_PACKET = 8 << 20
 const MAX_VALUES = 1_000_000
 
 export function requireGodotDebuggerVersion(version: string): void {
-  if (!/^4\.6(?:\.|$)/.test(version)) throw new Error(`Godot debugger version ${version} is unsupported; the decoder carries Godot ${GODOT_DEBUGGER_VERSION}`)
+  if (!/^4\.[67](?:\.|$)/.test(version)) throw new Error(`Godot debugger version ${version} is unsupported; the decoder carries Godot ${GODOT_DEBUGGER_VERSION}`)
 }
 
-export function decodeGodotVariant(bytes: Buffer, version = GODOT_DEBUGGER_VERSION): unknown {
+export function decodeGodotVariant(bytes: Buffer, version = DEFAULT_GODOT_DEBUGGER_VERSION): unknown {
   requireGodotDebuggerVersion(version)
   if (bytes.length > MAX_PACKET) throw new Error('Godot debugger packet exceeds 8 MiB')
   let offset = 0
