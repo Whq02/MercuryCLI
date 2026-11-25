@@ -155,19 +155,19 @@ try {
   check(
     'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC summary drops surveys, analytics',
     nonessential !== undefined && !nonessential.summary.includes('surveys, analytics') && nonessential.summary.includes('capability refreshes AND all model-catalogue traffic'),
-    `got ${JSON.stringify(nonessential?.summary)} — update MERCURY_DISABLE_NONESSENTIAL_TRAFFIC in src/platform/substrate/flags/permissions.ts`,
+    `got ${JSON.stringify(nonessential?.summary)} — update MERCURY_DISABLE_NONESSENTIAL_TRAFFIC in the flag registry`,
   )
   const accountUuid = FLAG_REGISTRY.find(f => f.env === 'MERCURY_ACCOUNT_UUID')
   check(
     'MERCURY_ACCOUNT_UUID summary says early account-info race',
     accountUuid !== undefined && accountUuid.summary.includes('removes the early account-info race in env-token boots') && !accountUuid.summary.includes('early-telemetry'),
-    `got ${JSON.stringify(accountUuid?.summary)} — update MERCURY_ACCOUNT_UUID in src/platform/substrate/flags/accounts.ts`,
+    `got ${JSON.stringify(accountUuid?.summary)} — update MERCURY_ACCOUNT_UUID in the flag registry`,
   )
   const maxOut = FLAG_REGISTRY.find(f => f.env === 'MERCURY_MAX_OUTPUT_TOKENS')
   check(
     'MERCURY_MAX_OUTPUT_TOKENS summary drops envPinned turn telemetry clause',
     maxOut !== undefined && !maxOut.summary.includes('envPinned') && !maxOut.summary.includes('telemetry'),
-    `got ${JSON.stringify(maxOut?.summary)} — update MERCURY_MAX_OUTPUT_TOKENS in src/platform/substrate/flags/providers.ts`,
+    `got ${JSON.stringify(maxOut?.summary)} — update MERCURY_MAX_OUTPUT_TOKENS in the flag registry`,
   )
 
   const { LIFECYCLE_MANIFEST } = await import('../../src/platform/substrate/stateLifecycle.ts')
