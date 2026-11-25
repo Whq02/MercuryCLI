@@ -136,7 +136,7 @@ export function createProfile(): { ok: true; profile: ProfileRow } | ProfileRefu
     const home = homeOf(known.first, id)
     const files = commandFiles(found, id, home)
     const taken = files.find(file => ![undefined, file.text].includes(textAt(file.path)))
-    if (taken !== undefined) return refused(`${taken.path} is already there and is not this profile's command: move it away, then create the profile again.`)
+    if (taken !== undefined) return refused(`The file ${taken.path} is already there and is not this profile's command: move it away, then create the profile again.`)
     mkdirSync(home, { recursive: true, mode: 0o700 })
     durableAtomicPublishSync(join(home, MARKER), `${JSON.stringify({ first: known.first, id })}\n`, { mode: 0o600 })
     for (const file of files) durableAtomicPublishSync(file.path, file.text, { mode: 0o755 })
