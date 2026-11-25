@@ -153,7 +153,7 @@ export function profileCommands(roots: LayoutRoots, profiles: readonly ProfileRo
     .map(file => file.path)
 }
 
-export function createProfile(): { ok: true; profile: ProfileRow; adopted: boolean } | ProfileRefusal {
+export function createProfile(): { ok: true; profile: ProfileRow } | ProfileRefusal {
   try {
     const known = family()
     const found = install(known.first)
@@ -164,13 +164,12 @@ export function createProfile(): { ok: true; profile: ProfileRow; adopted: boole
     const files = commandFiles(found, id, home)
     const stranger = files.find(file => strange(file, id))
     if (stranger !== undefined) return refused(`The file ${stranger.path} is already there and is not this profile's command: move it away, then create the profile again.`)
-    const adopted = existsSync(home)
     mkdirSync(home, { recursive: true, mode: 0o700 })
     durableAtomicPublishSync(join(home, HOME_MARKER), `${JSON.stringify({ first: known.first, id })}\n`, { mode: 0o600 })
     for (const file of files) durableAtomicPublishSync(file.path, file.text, { mode: 0o755 })
     const labels = [...known.labels, { id }]
     save(known.first, labels)
-    return { ok: true, profile: rowOf({ ...known, labels }, found, id), adopted }
+    return { ok: true, profile: rowOf({ ...known, labels }, found, id) }
   } catch (error) {
     return notDone('created', 'create')(error)
   }

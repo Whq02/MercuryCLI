@@ -102,9 +102,8 @@ process.chdir(here)
 
 console.log('── create, then the copy ──')
 const made = createProfile()
-check('create says it made the home', made.ok && made.adopted === false && made.profile.home === second, show(made))
 const copied = await inheritSkills(second)
-check('the copy answers the skills it holds off: each name once, in order, the one the kit cannot name left out', show(copied) === show({ ok: true, skills: ['alpha', 'beta', 'zeta'] }), show(copied))
+check('the copy answers the skills it holds off: each name once, in order, the one the kit cannot name left out', made.ok && made.profile.home === second && show(copied) === show({ ok: true, skills: ['alpha', 'beta', 'zeta'] }), show([made, copied]))
 check('the new home holds the skills folder byte for byte, and nothing half-made beside it', tree(join(second, 'skills')) === firstSkills && !readdirSync(second).some(name => name.startsWith('skills.')), show(readdirSync(second)))
 
 console.log('── under the new home, the kit ──')
@@ -135,21 +134,34 @@ const kept = tree(join(second, 'skills'))
 const dropped = removeProfile(2)
 const again = createProfile()
 const none = await inheritSkills(second)
-check('a second create adopts the home, and the copy leaves its skills folder as it stands', dropped.ok && again.ok && again.adopted === true && show(none) === show({ ok: true, skills: [] }) && tree(join(second, 'skills')) === kept, show([again, none]))
+check('a second create takes the home as it stands, and the copy leaves its skills folder alone', dropped.ok && again.ok && again.profile.home === second && show(none) === show({ ok: true, skills: [] }) && tree(join(second, 'skills')) === kept, show([again, none]))
 skill(join(`${first}3`, 'skills', 'own'), 'this folder had skills of its own')
 const third = tree(join(`${first}3`, 'skills'))
 check('an adopted home with a skills folder and no config: nothing is copied', createProfile().ok && show(await inheritSkills(`${first}3`)) === show({ ok: true, skills: [] }) && tree(join(`${first}3`, 'skills')) === third && !existsSync(join(`${first}3`, '.mercury.json')), tree(join(`${first}3`, 'skills')))
 mkdirSync(`${first}4`)
 writeFileSync(join(`${first}4`, '.mercury.json'), '{}\n')
 check('an adopted home with a config and no skills folder: nothing is copied or written', createProfile().ok && show(await inheritSkills(`${first}4`)) === show({ ok: true, skills: [] }) && !existsSync(join(`${first}4`, 'skills')) && readFileSync(join(`${first}4`, '.mercury.json'), 'utf8') === '{}\n', show(readdirSync(`${first}4`)))
+
+console.log('── a create that failed, run again ──')
+const fifth = `${first}5`
+const binMode = statSync(staged.bin).mode
+chmodSync(staged.bin, 0o555)
+const broken = createProfile()
+chmodSync(staged.bin, binMode)
+check('a create that cannot write its command says so, and the home it made stays', !broken.ok && show(readdirSync(fifth)) === show(['profile.json']), show([broken, existsSync(fifth) ? readdirSync(fifth) : 'no folder']))
+const retried = createProfile()
+const handed = retried.ok ? await inheritSkills(retried.profile.home) : retried
+check('run again, create takes that home and the copy hands the skills on, off under it', retried.ok && retried.profile.home === fifth && show(handed) === show({ ok: true, skills: ['alpha', 'beta', 'zeta'] }) && tree(join(fifth, 'skills')) === firstSkills && show(kit(fifth, 'read', elsewhere).off) === ALL, show([retried, handed]))
+
+console.log('── a copy that fails ──')
 writeFileSync(join(first, 'skills', 'zz-locked'), 'no one may read this\n')
 chmodSync(join(first, 'skills', 'zz-locked'), 0o000)
-const fifth = createProfile()
-const failed = fifth.ok ? await inheritSkills(fifth.profile.home) : fifth
-check('a copy that fails half way says so in one sentence and leaves nothing of itself in the new home', fifth.ok && !failed.ok && /^[A-Z][^\n]+\.$/.test(failed.reason) && show(readdirSync(fifth.profile.home)) === show(['profile.json']), show([failed, fifth.ok ? readdirSync(fifth.profile.home) : fifth]))
+const sixth = createProfile()
+const failed = sixth.ok ? await inheritSkills(sixth.profile.home) : sixth
+check('a copy that fails half way says so in one sentence and leaves nothing of itself in the new home', sixth.ok && !failed.ok && /^[A-Z][^\n]+\.$/.test(failed.reason) && show(readdirSync(sixth.profile.home)) === show(['profile.json']), show([failed, sixth.ok ? readdirSync(sixth.profile.home) : sixth]))
 rmSync(join(first, 'skills'), { recursive: true })
 const bare = createProfile()
-check('a home with no skills of its own hands nothing on, and writes nothing into the new home', bare.ok && bare.adopted === false && show(await inheritSkills(bare.profile.home)) === show({ ok: true, skills: [] }) && show(readdirSync(bare.profile.home)) === show(['profile.json']), bare.ok ? show(readdirSync(bare.profile.home)) : show(bare))
+check('a home with no skills of its own hands nothing on, and writes nothing into the new home', bare.ok && show(await inheritSkills(bare.profile.home)) === show({ ok: true, skills: [] }) && show(readdirSync(bare.profile.home)) === show(['profile.json']), bare.ok ? show(readdirSync(bare.profile.home)) : show(bare))
 
 console.log(failures === 0 ? '\nprove-profile-skills: ALL HOLD' : `\nprove-profile-skills: ${failures} FAIL`)
 process.exit(failures === 0 ? 0 : 1)
