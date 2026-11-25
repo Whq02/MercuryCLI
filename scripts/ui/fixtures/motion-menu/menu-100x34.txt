@@ -4,7 +4,7 @@
 
   trust combo
     Content-rule wards              default (on)
-    Debug tool (real debugger)      default (on)
+    Debug tool                      default (on)
     C/C++ IDE lane (clangd)         default (on)
     Sovereign mode                  default (off)
   computer use

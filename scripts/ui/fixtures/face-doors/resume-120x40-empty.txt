@@ -26,7 +26,7 @@
                                                                        │ SESSIONS                                   │
                                                                        │ Scope      all history — every project     │
                                                                        │ Sessions   0                               │
-                                                                       │ Opens      ● a real chat, in place         │
+                                                                       │ Opens      in place                        │
                                                                        ╰────────────────────────────────────────────╯
                                                                        ╭────────────────────────────────────────────╮
                                                                        │ ENVIRONMENT                                │

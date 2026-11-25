@@ -12,7 +12,7 @@
    │                                                                │  │ ❯ Sovereign mode                           │
    │ TRUST COMBO                                                    │  │                                            │
    │   Content-rule wards                              default (on) │  │ What it controls                           │
-   │   Debug tool (real debugger)                      default (on) │  │ Interactive boots start in sovereign mode  │
+   │   Debug tool                                      default (on) │  │ Interactive boots start in sovereign mode  │
    │   C/C++ IDE lane (clangd)                         default (on) │  │ (as if --sovereign was passed) with no     │
    │ ❯ Sovereign mode                                            on │  │ permission prompts for files, commands,    │
    │ ▲ nothing asks or stops you — every action runs as you         │  │ or computer use. Saving this row is        │

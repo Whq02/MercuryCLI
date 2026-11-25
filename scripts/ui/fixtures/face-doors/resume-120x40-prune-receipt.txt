@@ -26,7 +26,7 @@
                                                                        │ SESSIONS                                   │
                                                                        │ Scope      all history — every project     │
                                                                        │ Sessions   6                               │
-                                                                       │ Opens      ● a real chat, in place         │
+                                                                       │ Opens      in place                        │
                                                                        ╰────────────────────────────────────────────╯
                                                                        ╭────────────────────────────────────────────╮
                                                                        │ ENVIRONMENT                                │
@@ -35,6 +35,6 @@
                                                                        │ Dir        orchard-src                     │
                                                                        ╰────────────────────────────────────────────╯
    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  6 sessions in the full history · ↵ opens the real chat                                      │
+   │ ● System ready  │  6 sessions in the full history                                                              │
    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
                                                 ↵ / esc back to the list
