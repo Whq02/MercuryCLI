@@ -30,7 +30,6 @@ import type {
 } from '../../../engine/message-shapes/wire.js'
 import { setLastApiCompletionTimestamp } from 'src/boot/process-state/processState.js'
 import { logForDebugging } from 'src/platform/logs/debugLog.js'
-import { logForDiagnosticsNoPII } from 'src/platform/logs/diagnosticsLog.js'
 import { resetApiConnectionPool } from 'src/platform/network/proxy.js'
 import { transportCutOf } from '../../../engine/request-parts/transportEvidence.js'
 import { effortStampOf } from '../../effort/effortStamp.js'
@@ -600,7 +599,6 @@ async function* runStreamPass(
         watch.streamIdleWatchdog,
         watch.preEventSilenceWords,
       )
-      logForDiagnosticsNoPII('info', 'cli_nonstreaming_fallback_started')
 
       const fallbackResult = yield* executeNonStreamingRequest(
         {

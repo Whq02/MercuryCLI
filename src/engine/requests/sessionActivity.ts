@@ -1,12 +1,7 @@
-import { registerCleanup } from '../../platform/processes/cleanupRegistry.js'
-import { logForDiagnosticsNoPII } from '../../platform/logs/diagnosticsLog.js'
-
 type SessionActivityReason = 'api_call' | 'tool_exec'
 
 let refcount = 0
 const perReason: Record<SessionActivityReason, number> = { api_call: 0, tool_exec: 0 }
-let oldestActivityStartMs: number | null = null
-let shutdownDiagnosticRegistered = false
 
 export function sendSessionActivitySignal(): void {}
 
@@ -15,23 +10,11 @@ export function isSessionActivityTrackingActive(): boolean {
 }
 
 export function startSessionActivity(reason: SessionActivityReason): void {
-  if (refcount === 0) oldestActivityStartMs = Date.now()
   refcount++
   perReason[reason]++
-  if (!shutdownDiagnosticRegistered) {
-    shutdownDiagnosticRegistered = true
-    registerCleanup(async () => {
-      logForDiagnosticsNoPII('info', 'session_activity_at_shutdown', {
-        refcount,
-        active: { ...perReason },
-        oldest_activity_ms: refcount > 0 && oldestActivityStartMs !== null ? Date.now() - oldestActivityStartMs : null,
-      })
-    })
-  }
 }
 
 export function stopSessionActivity(reason: SessionActivityReason): void {
   if (refcount > 0) refcount--
   if (perReason[reason] > 0) perReason[reason]--
-  if (refcount === 0) oldestActivityStartMs = null
 }

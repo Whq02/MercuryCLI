@@ -7,7 +7,6 @@ import {
   onInstructionCacheInvalidated,
 } from '../sessions/instructions/instructionFiles.js'
 import { logForDebugging } from '../platform/logs/debugLog.js'
-import { logForDiagnosticsNoPII } from '../platform/logs/diagnosticsLog.js'
 import { isBareMode } from '../platform/environment/envUtils.js'
 import { execFileNoThrow } from '../platform/processes/execFileNoThrow.js'
 import { getCwd } from '../platform/files/cwd.js'
@@ -47,23 +46,14 @@ async function gitOutcome(args: string[]): Promise<{ stdout: string; code: numbe
 export const getGitStatus: ReturnType<typeof memoizeByCwd<Promise<string | null>>> = memoizeByCwd(
   async (): Promise<string | null> => {
     if (process.env.NODE_ENV === 'test') return null
-    const startedAt = Date.now()
-    logForDiagnosticsNoPII('info', 'git_status_started')
     try {
-      const isGitStartedAt = Date.now()
       const isGit = await getIsGit()
-      logForDiagnosticsNoPII('info', 'git_is_git_check_completed', {
-        is_git: isGit,
-        duration_ms: Date.now() - isGitStartedAt,
-      })
       if (!isGit) {
-        logForDiagnosticsNoPII('info', 'git_status_skipped_not_git')
         return null
       }
 
       const liveCwd = getCwd()
       const branchCwd = resolve(liveCwd) !== resolve(getCwdState()) ? liveCwd : undefined
-      const commandsStartedAt = Date.now()
       const [currentBranch, mainBranch, statusOutcome, log, gitUser] = await Promise.all([
         getBranch(branchCwd),
         getDefaultBranch(branchCwd),
@@ -71,14 +61,8 @@ export const getGitStatus: ReturnType<typeof memoizeByCwd<Promise<string | null>
         rawGit(['--no-optional-locks', 'log', '--oneline', '-n', '5']),
         rawGit(['config', 'user.name']),
       ])
-      logForDiagnosticsNoPII('info', 'git_commands_completed', {
-        duration_ms: Date.now() - commandsStartedAt,
-        status_length: statusOutcome.stdout.length,
-        status_code: statusOutcome.code,
-      })
 
       let statusBody: string
-      let truncated = false
       if (statusOutcome.code !== 0) {
         const errorSuffix = statusOutcome.error ? `: ${statusOutcome.error}` : ''
         logForDebugging(
@@ -86,7 +70,6 @@ export const getGitStatus: ReturnType<typeof memoizeByCwd<Promise<string | null>
         )
         statusBody = '(not read: the git status command did not run)'
       } else if (statusOutcome.stdout.length > GIT_STATUS_MAX_LENGTH) {
-        truncated = true
         statusBody = `${statusOutcome.stdout.slice(0, GIT_STATUS_MAX_LENGTH)}\n${GIT_STATUS_TRUNCATED_NOTE}`
       } else {
         statusBody = statusOutcome.stdout || '(clean)'
@@ -101,15 +84,8 @@ export const getGitStatus: ReturnType<typeof memoizeByCwd<Promise<string | null>
         `Recent commits:\n${log}`,
       ]
 
-      logForDiagnosticsNoPII('info', 'git_status_completed', {
-        duration_ms: Date.now() - startedAt,
-        truncated,
-      })
       return blocks.join('\n\n')
     } catch (error) {
-      logForDiagnosticsNoPII('info', 'git_status_failed', {
-        duration_ms: Date.now() - startedAt,
-      })
       logError(error)
       return null
     }
@@ -132,19 +108,12 @@ function armInstructionInvalidation(): void {
 export const getSystemContext: ReturnType<typeof memoizeByCwd<Promise<Record<string, string>>>> = memoizeByCwd(
   async (): Promise<Record<string, string>> => {
     armInstructionInvalidation()
-    const startedAt = Date.now()
-    logForDiagnosticsNoPII('info', 'system_context_started')
     const gitStatus = shouldIncludeGitInstructions() ? await getGitStatus() : null
     const rules = gitStatus ? gitRulesText() : ''
     const result: Record<string, string> = {
       ...(gitStatus ? { gitStatus } : {}),
       ...(gitStatus && rules ? { gitRules: rules } : {}),
     }
-    logForDiagnosticsNoPII('info', 'system_context_completed', {
-      duration_ms: Date.now() - startedAt,
-      has_git_status: Boolean(gitStatus),
-      has_injection: false,
-    })
     return result
   },
   CONTEXT_MEMO_CAP,
@@ -161,8 +130,6 @@ function localIsoDate(): string {
 export const getUserContext: ReturnType<typeof memoizeByCwd<Promise<Record<string, string>>>> = memoizeByCwd(
   async (): Promise<Record<string, string>> => {
     armInstructionInvalidation()
-    const startedAt = Date.now()
-    logForDiagnosticsNoPII('info', 'user_context_started')
     const disabled = isInstructionDiscoveryDisabled()
     const [instructions, isGit] = await Promise.all([
       disabled
@@ -175,11 +142,6 @@ export const getUserContext: ReturnType<typeof memoizeByCwd<Promise<Record<strin
       environment: `Is a git repository: ${isGit ? 'Yes' : 'No'}`,
       currentDate: `Today's date is ${localIsoDate()}.`,
     }
-    logForDiagnosticsNoPII('info', 'user_context_completed', {
-      duration_ms: Date.now() - startedAt,
-      instruction_length: instructions.length,
-      disabled,
-    })
     return result
   },
   CONTEXT_MEMO_CAP,
