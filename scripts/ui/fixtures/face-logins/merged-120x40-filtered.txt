@@ -18,7 +18,7 @@
    ╰────────────────────────────────────────────────────────────────╯  │ highlighted: the sessions above show       │
                                                                        │ this repo alone (↑ walks back out)         │
                                                                        │                                            │
-                                                                       │ ↵ opens the newest chat there as the       │
+                                                                       │ ↵ opens the newest chat there              │
                                                                        │ … (the trail continues — taller terminal)  │
                                                                        ╰────────────────────────────────────────────╯
                                                                        ╭────────────────────────────────────────────╮
