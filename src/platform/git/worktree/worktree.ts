@@ -13,7 +13,8 @@ import { findCanonicalGitRoot, findGitRoot, gitExe } from '../git.js'
 import { readGitHead, readWorktreeHeadSha, resolveGitDir, getCommonDir } from '../gitFilesystem.js'
 import { parseGitConfigValue } from '../gitConfigParser.js'
 import { registerCleanup } from '../../processes/cleanupRegistry.js'
-import { saveCurrentProjectConfig } from '../../settings/config.js'
+import { checkHasTrustDialogAccepted, saveCurrentProjectConfig } from '../../settings/config.js'
+import { getIsNonInteractiveSession, holdStepForTrust } from '../../../boot/process-state/processState.js'
 import { containsPathTraversal } from '../../files/path.js'
 import { MERCURY_PROJECT_DIR, PROJECT_CONFIG_DIR_NAMES, resolveProjectConfigPath } from '../../settings/projectConfig.js'
 import { execFileNoThrowWithCwd } from '../../processes/execFileNoThrow.js'
@@ -642,10 +643,10 @@ async function setWorktreeHooksPath(repoRoot: string, worktreePath: string): Pro
   }
 }
 
-async function runPostCreationSetup(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string, permission?: SessionRules, carry = false): Promise<string | undefined> {
+async function runPostCreationSetup(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string, permission?: SessionRules, carry = false, waitsForTrust = false): Promise<string | undefined> {
   if (!(await prepareWorktreeFiles(repoRoot, worktreePath, dependencyLinksFrom, false, permission, carry))) return undefined
   await setWorktreeHooksPath(repoRoot, worktreePath)
-  return runWorktreePrepareCommand(worktreePath)
+  return runWorktreePrepareCommand(worktreePath, waitsForTrust)
 }
 
 async function launchWaitsForFolders(repoRoot: string): Promise<boolean> {
@@ -674,9 +675,16 @@ function placeFoldersBehindLaunch(repoRoot: string, worktreePath: string, from: 
 
 const WORKTREE_PREPARE_TIMEOUT_MS = 10 * 60 * 1000
 
-async function runWorktreePrepareCommand(worktreePath: string): Promise<string | undefined> {
+async function runWorktreePrepareCommand(worktreePath: string, waitsForTrust: boolean): Promise<string | undefined> {
   const command = getInitialSettings().workspace?.worktree?.prepare
   if (command === undefined || command.trim() === '') return undefined
+  if (waitsForTrust && !getIsNonInteractiveSession() && !checkHasTrustDialogAccepted()) {
+    holdStepForTrust(async () => {
+      const failure = await runWorktreePrepareCommand(worktreePath, false)
+      if (failure !== undefined) logForDebugging(failure, { level: 'warn' })
+    })
+    return undefined
+  }
   const process = await startCommandHook({ command, shell: 'bash', name: 'workspace.worktree.prepare', event: 'workspace.worktree.prepare', index: 0, payloadJson: '', timeoutMs: WORKTREE_PREPARE_TIMEOUT_MS, source: { kind: 'settings' }, cwd: worktreePath })
   const end = await process.result
   if (end.kind === 'ended') return `workspace.worktree.prepare ${end.ending.class === 'timed_out' ? `timed out after ${end.ending.detail ?? ''} and was killed` : end.ending.class === 'spawn' ? `could not run${end.ending.detail ? `: ${end.ending.detail}` : ''}` : end.ending.class.replace('_', ' ')}`
@@ -720,7 +728,7 @@ export async function createWorktreeForSession(sessionId: string, slug: string, 
   const created = await createOrResumeWorktree(gitRoot, slug, { ...(options?.prNumber !== undefined ? { prNumber: options.prNumber } : {}), baseFrom })
   const creationDurationMs = Date.now() - startedAt
   logForDebugging(created.existed ? `resumed worktree ${created.worktreePath}` : `created worktree ${created.worktreePath} from ${created.baseBranch ?? 'HEAD'}`)
-  const prepareFailure = created.existed ? undefined : await runPostCreationSetup(gitRoot, created.worktreePath, originalCwd, options?.permission, options?.prNumber === undefined)
+  const prepareFailure = created.existed ? undefined : await runPostCreationSetup(gitRoot, created.worktreePath, originalCwd, options?.permission, options?.prNumber === undefined, true)
   const usedSparsePaths = !created.existed && (getInitialSettings().workspace?.worktree?.sparsePaths ?? []).length > 0
   const session: WorktreeSession = {
     originalCwd,

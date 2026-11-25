@@ -31,7 +31,7 @@ import {
   recordPermissionPosture,
   setPathTrusted,
 } from '../platform/config/trust.js'
-import { setSessionTrustAccepted } from './process-state/processState.js'
+import { runStepsHeldForTrust, setSessionTrustAccepted } from './process-state/processState.js'
 import { setStatsStore } from './process-state/processState.js'
 import { handleProjectMcpServerApprovals } from '../screen/mcp/mcpServerApproval.js'
 import { getExternalInstructionIncludes, getInstructionFiles, shouldShowExternalInstructionIncludesWarning } from '../sessions/instructions/instructionFiles.js'
@@ -237,6 +237,7 @@ export async function showSetupScreens(
       ))
     }
     setSessionTrustAccepted(true)
+    await runStepsHeldForTrust()
     if (!trustedBefore) {
       clearCommandMemoizationCaches()
       if (commands !== undefined) commands.splice(0, commands.length, ...await getCommands(cwd))

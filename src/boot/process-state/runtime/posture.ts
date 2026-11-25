@@ -22,6 +22,7 @@ export class PostureOwner {
   sessionSovereign = false
   permissionModeResolution: Readonly<SessionPermissionModeResolution> | null = null
   sessionTrustAccepted = false
+  stepsHeldForTrust: Array<() => Promise<void>> = []
   sessionPersistenceDisabled = false
   private assistantDefaultCache: boolean | null = null
 

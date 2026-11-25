@@ -49,3 +49,4 @@ prove-worktree-janitor-real-id.ts
 prove-worktree-removed-during-copy.ts
 prove-worktree-under-first-request.ts
 prove-worktree-unlocked-at-end.ts
+prove-worktree-prepare-waits-for-trust.ts

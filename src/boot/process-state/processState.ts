@@ -423,6 +423,14 @@ export function getSessionTrustAccepted(): boolean {
   return posture.sessionTrustAccepted
 }
 
+export function holdStepForTrust(step: () => Promise<void>): void {
+  posture.stepsHeldForTrust.push(step)
+}
+
+export async function runStepsHeldForTrust(): Promise<void> {
+  for (const step of posture.stepsHeldForTrust.splice(0)) await step()
+}
+
 export function setSessionPersistenceDisabled(value: boolean): void {
   posture.sessionPersistenceDisabled = value
 }
