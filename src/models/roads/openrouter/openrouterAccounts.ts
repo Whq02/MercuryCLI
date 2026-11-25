@@ -455,7 +455,10 @@ export function beginOpenrouterConnect(opts?: {
   }
 
   if (mode === 'browser') {
+    let opened = false
     const openAt = (callbackPort: number): void => {
+      if (done || opened) return
+      opened = true
       authorizeUrl = buildOpenrouterAuthorizeUrl(env, challenge, callbackPort)
       opts?.onAuthorizeUrl?.(authorizeUrl)
       if (!opts?.skipBrowserOpen) void openBrowser(authorizeUrl)
@@ -477,6 +480,7 @@ export function beginOpenrouterConnect(opts?: {
     })
     server = listener
     listener.on('error', error => {
+      if (done) return
       server?.close()
       server = undefined
       opts?.onListenerIssue?.(
