@@ -72,6 +72,7 @@ prove-tool-error-ansi.ts
 prove-powershell-single-quote-literals.ts
 prove-transport-retry-silent.ts
 prove-image-row-numbers.ts
+prove-image-rows-of-a-sent-prompt.ts
 prove-notice-way-out.ts
 prove-force-color-off.ts
 prove-vim-display-count.ts

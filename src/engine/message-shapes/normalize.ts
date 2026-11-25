@@ -10,6 +10,7 @@ import type {
 import { createUserMessage } from './factories.js'
 import { storedBlocksOf } from '../rows/content.js'
 import { deriveUUID } from './identity.js'
+import { parseReferences } from '../../sessions/promptHistory.js'
 
 export function contentBlocksOf(content: unknown): (ContentBlock | ContentBlockParam)[] {
   return storedBlocksOf(content)
@@ -88,9 +89,10 @@ function assistantRows(parent: AssistantMessage, blocks: (ContentBlock | Content
 }
 
 function userBlockRows(parent: UserMessage, blocks: (ContentBlock | ContentBlockParam)[], latched: boolean): NormalizedMessage[] {
+  const numbers = parent.imagePasteIds ?? blocks.flatMap(block => (block.type === 'text' ? parseReferences(block.text).filter(ref => ref.match.startsWith('[Image')).map(ref => ref.id) : []))
   let images = 0
   return blocks.map((block, index) => {
-    const pasteId = block.type === 'image' ? parent.imagePasteIds?.[images++] : undefined
+    const pasteId = block.type === 'image' ? numbers[images++] : undefined
     return {
       ...createUserMessage({
         content: [block],
