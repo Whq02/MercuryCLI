@@ -1047,7 +1047,6 @@ for (const [faultLabel, faultResponse] of [
 }
 
 {
-  huggingfaceAccounts.__resetHuggingfaceAccountsForTest()
   huggingfaceAccounts.writeHuggingfaceTokens({ accessToken: 'hf_at', refreshToken: 'hf_rt' })
   const io = {
     fetchImpl: jsonFetch(() => ({ status: 400, body: { error: 'invalid_grant' } }), { posts: 0 }),
@@ -1062,7 +1061,6 @@ for (const [faultLabel, faultResponse] of [
     result === undefined && huggingfaceAccounts.huggingfaceStoredTokens() === undefined,
     'refreshHuggingfaceTokens in src/models/roads/huggingface/huggingfaceAccounts.ts must clear the stored tokens when the refresh is refused with invalid_grant',
   )
-  huggingfaceAccounts.__resetHuggingfaceAccountsForTest()
   huggingfaceAccounts.writeHuggingfaceTokens({ accessToken: 'hf_at2', refreshToken: 'hf_rt2' })
   const failIo = {
     fetchImpl: (async () => {
@@ -1083,7 +1081,6 @@ for (const [faultLabel, faultResponse] of [
 }
 
 {
-  huggingfaceAccounts.__resetHuggingfaceAccountsForTest()
   huggingfaceAccounts.writeHuggingfaceTokens({
     accessToken: 'hf_at_expired',
     refreshToken: 'hf_rt_live',

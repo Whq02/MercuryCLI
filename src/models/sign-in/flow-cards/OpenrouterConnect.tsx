@@ -58,11 +58,16 @@ export function OpenrouterConnect({
     settle(outcome.receipt, outcome.ok)
   }
 
-  useLoad(() => {
+  useLoad(signal => {
     if (leg !== 'browser' && leg !== 'headless') return
     const handles = beginOpenrouterConnect({
       mode: leg === 'browser' ? 'browser' : 'headless',
-      onListenerIssue: message => setListenerNote(message),
+      onListenerIssue: message => {
+        if (!signal.aborted) setListenerNote(message)
+      },
+      onAuthorizeUrl: address => {
+        if (!signal.aborted) setAuthorizeUrl(address)
+      },
     })
     handlesRef.current = handles
     setAuthorizeUrl(handles.authorizeUrl)

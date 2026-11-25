@@ -14,7 +14,7 @@ export function xaiSlots(reads: AccountSlotReads): AccountSlot[] {
     if (active) for (const slot of slots) { slot.active = false; slot.stateNote = 'Grok subscription selected' }
     slots.unshift({ family: 'xai', id: 'xai:oauth', name: 'subscription', kind: 'oauth', kindLabel: 'Grok subscription',
       identity: oauth.email ?? 'Grok account', active, envPinned: false, signedIn: Boolean(oauth.refreshToken),
-      ...(oauth.refreshToken ? {} : { stateNote: 'sign-in expired — /logins xai reconnects it' }), removal: { route: 'xai-oauth' } })
+      ...(oauth.refreshToken ? {} : { expired: true, stateNote: 'sign-in expired — /logins xai reconnects it' }), removal: { route: 'xai-oauth' } })
   }
   const managementEnv = reads.xaiManagementEnvKey ? reads.xaiManagementEnvKey() : hostEnv().XAI_MANAGEMENT_API_KEY?.trim() || undefined
   const managementStored = (reads.xaiManagementStoredKey ?? readStoredXaiManagementApiKey)()

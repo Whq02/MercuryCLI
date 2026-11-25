@@ -63,8 +63,9 @@ try {
     assert.equal(getAuthScope(), f.home)
     writeHuggingfaceTokens({ accessToken: 'fixture-stale-' + name, refreshToken: 'fixture-scope-' + name, accessTokenExpiresAtMs: Date.now() - 1 })
     const first = refreshHuggingfaceTokens()
-    assert.equal(first, refreshHuggingfaceTokens())
+    const second = refreshHuggingfaceTokens()
     const result = await first
+    assert.equal(await second, result)
     assert.equal(getAuthConfigHomeDir(), join(f.home, name))
     assert.equal(result?.accessToken, 'fixture-scope-' + name + '-fresh')
     assert.equal(huggingfaceStoredTokens()?.accessToken, result?.accessToken)
@@ -72,5 +73,5 @@ try {
   assert.equal(refreshes, 5)
   assert.equal(getAuthConfigHomeDir(), f.home)
   clearAuthScope()
-  console.log('PASS two homes refresh independently across await; one home shares one promise')
+  console.log('PASS two homes refresh independently across await; one home shares one refresh')
 } finally { globalThis.fetch = nativeFetch; oauth.stop(true); await hf.close(); f.close() }

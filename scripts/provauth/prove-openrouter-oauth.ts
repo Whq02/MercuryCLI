@@ -67,13 +67,21 @@ function exchangeFetch(
   }) as unknown as typeof fetch
 }
 
+async function opened(handles: ReturnType<typeof beginOpenrouterConnect>): Promise<URL> {
+  for (let i = 0; i < 400 && handles.authorizeUrl === ''; i++) await new Promise(resolve => setTimeout(resolve, 5))
+  return new URL(handles.authorizeUrl)
+}
+
 {
-  const handles = beginOpenrouterConnect({ skipBrowserOpen: true, fetchImpl: exchangeFetch([]), loopbackPort: 0 })
-  const url = new URL(handles.authorizeUrl)
+  const told: string[] = []
+  const handles = beginOpenrouterConnect({ skipBrowserOpen: true, fetchImpl: exchangeFetch([]), onAuthorizeUrl: address => told.push(address) })
+  const url = await opened(handles)
+  check('the address is told once, when the listener has bound, and it is the handle\'s own', told.length === 1 && told[0] === handles.authorizeUrl, JSON.stringify(told))
   check('authorize URL rides the PINNED base', handles.authorizeUrl.startsWith('https://fixture.invalid/auth?'))
   const challenge = url.searchParams.get('code_challenge') ?? ''
   check('S256 method stated', url.searchParams.get('code_challenge_method') === 'S256')
-  check('browser variant carries a LITERAL-127.0.0.1 callback_url (matches the bound listener)', (url.searchParams.get('callback_url') ?? '').includes('http://127.0.0.1:'))
+  check('browser variant carries a LITERAL-127.0.0.1 callback_url (matches the bound listener)', url.searchParams.get('callback_url') === `http://127.0.0.1:${handles.boundLoopbackPort()}/auth/callback`, String(url.searchParams.get('callback_url')))
+  check('browser variant states key_label too', url.searchParams.get('key_label') === 'Mercury')
   check('no client id and no state (the documented protocol)', !url.searchParams.has('client_id') && !url.searchParams.has('state'))
   check('challenge present and base64url-shaped', /^[A-Za-z0-9_-]{40,50}$/.test(challenge))
   handles.cancel('shape leg done')
@@ -88,8 +96,8 @@ function exchangeFetch(
 
 {
   const seen: ExchangeSeen[] = []
-  const handles = beginOpenrouterConnect({ skipBrowserOpen: true, fetchImpl: exchangeFetch(seen), loopbackPort: 0 })
-  const challenge = new URL(handles.authorizeUrl).searchParams.get('code_challenge') ?? ''
+  const handles = beginOpenrouterConnect({ skipBrowserOpen: true, fetchImpl: exchangeFetch(seen) })
+  const challenge = (await opened(handles)).searchParams.get('code_challenge') ?? ''
   handles.completeWithRedirect('http://localhost:1456/auth/callback?code=FIXTURE-CODE-1')
   const ref = await handles.result
   check('exchange POSTed to the PINNED api base /auth/keys', seen.length === 1 && seen[0]!.url === 'https://fixture.invalid/api/v1/auth/keys')
@@ -133,7 +141,7 @@ function exchangeFetch(
 
 {
   const rejecting = exchangeFetch([], () => new Response('{}', { status: 403 }))
-  const handles = beginOpenrouterConnect({ skipBrowserOpen: true, fetchImpl: rejecting, loopbackPort: 0 })
+  const handles = beginOpenrouterConnect({ skipBrowserOpen: true, fetchImpl: rejecting })
   handles.completeWithRedirect('http://localhost:1456/auth/callback?code=EXPIRED')
   const outcome = await handles.result.then(
     () => 'resolved',
@@ -159,7 +167,6 @@ function exchangeFetch(
   const handles = beginOpenrouterConnect({
     skipBrowserOpen: true,
     fetchImpl: selectiveExchange,
-    loopbackPort: 0,
     onListenerIssue: message => notices.push(message),
   })
   let port: number | undefined
@@ -167,7 +174,7 @@ function exchangeFetch(
     port = handles.boundLoopbackPort()
     if (port === undefined) await new Promise(resolve => setTimeout(resolve, 10))
   }
-  check('listener bound on the lane-scoped ephemeral port', typeof port === 'number' && port! > 0)
+  check('listener bound on a free port of its own, never the old fixed one', typeof port === 'number' && port! > 0 && port !== 1456)
   const junk = await fetch(`http://127.0.0.1:${port}/auth/callback?code=JUNK-SCAN-HIT`)
   check('junk hit answers 400 with the still-waiting copy', junk.status === 400 && (await junk.text()).includes('still waiting'))
   check('the junk refusal surfaces as a listener note, not a flow abort', notices.length === 1 && notices[0]!.includes('still listening'))
@@ -183,6 +190,31 @@ function exchangeFetch(
   )
   check('the listener closes after success (no lingering socket)', dead === 'refused')
   disconnectOpenrouterOauthKey()
+}
+
+{
+  const told: string[] = []
+  let release: () => void = () => {}
+  const released = new Promise<void>(resolve => { release = resolve })
+  const heldExchange: typeof fetch = async () => {
+    await released
+    return new Response(JSON.stringify({ key: FIXTURE_KEY }), { status: 200, headers: { 'content-type': 'application/json' } })
+  }
+  const handles = beginOpenrouterConnect({ skipBrowserOpen: true, fetchImpl: heldExchange, onAuthorizeUrl: address => told.push(address) })
+  handles.completeWithRedirect('PASTED-BEFORE-THE-LISTENER-BOUND')
+  await new Promise(resolve => setTimeout(resolve, 150))
+  check('a sign-in finished by a pasted code before its listener bound hands out no address after it', told.length === 0 && handles.authorizeUrl === '', JSON.stringify(told))
+  release()
+  await handles.result
+  disconnectOpenrouterOauthKey()
+
+  const lateTold: string[] = []
+  const lateIssues: string[] = []
+  const cancelled = beginOpenrouterConnect({ skipBrowserOpen: true, fetchImpl: exchangeFetch([]), onAuthorizeUrl: address => lateTold.push(address), onListenerIssue: message => lateIssues.push(message) })
+  cancelled.cancel('cancelled in the tick it began')
+  await cancelled.result.catch(() => {})
+  await new Promise(resolve => setTimeout(resolve, 150))
+  check('a connect cancelled in the tick it began hands out no address and names no listener', lateTold.length === 0 && lateIssues.length === 0 && cancelled.authorizeUrl === '' && cancelled.boundLoopbackPort() === undefined, JSON.stringify({ lateTold, lateIssues }))
 }
 
 {
@@ -218,4 +250,4 @@ if (failures > 0) {
   console.error(`❌ ${failures} openrouter-oauth proof(s) failed`)
   process.exit(1)
 }
-console.log('✅ OPENROUTER PKCE CONNECT PROVEN (fixture rig; listener on an ephemeral port — the :1456 bind under a real browser = DEFERRED-LIVE)')
+console.log('✅ OPENROUTER PKCE CONNECT PROVEN (fixture rig; the listener takes a free port of its own — a real browser against openrouter.ai = DEFERRED-LIVE)')

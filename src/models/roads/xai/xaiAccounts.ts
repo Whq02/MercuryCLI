@@ -78,9 +78,18 @@ export function resolveXaiCredentialSnapshot(env: NodeJS.ProcessEnv = hostEnv())
   }
   return resolveXaiApiKey(env)
 }
+async function refreshedOrStillGood(io?: XaiOauthIo): ReturnType<typeof refreshXaiTokens> {
+  try {
+    return await refreshXaiTokens(io)
+  } catch (error) {
+    const stored = xaiStoredTokens()
+    if (stored?.refreshToken && stored.expiresAtMs !== undefined && stored.expiresAtMs > (io?.now?.() ?? Date.now())) return stored
+    throw error
+  }
+}
 export async function resolveXaiCredential(io?: XaiOauthIo): Promise<{ key: string; source: 'env' | 'stored' | 'oauth' } | undefined> {
   if (resolveXaiAccount(io?.env)?.kind === 'grok-subscription') {
-    const tokens = await refreshXaiTokens(io)
+    const tokens = await refreshedOrStillGood(io)
     return tokens?.refreshToken ? { key: tokens.accessToken, source: 'oauth' } : undefined
   }
   return resolveXaiApiKey(io?.env)

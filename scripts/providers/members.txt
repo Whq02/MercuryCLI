@@ -28,6 +28,7 @@ prove-device-verification-url.ts
 prove-disabled-providers.ts
 prove-dotted-model-facts.ts
 prove-empty-stream-retry.ts
+prove-expired-signin-key-told.ts
 prove-expired-signin-not-counted.ts
 prove-extra-usage-reason-words.ts
 prove-first-byte-budget.ts

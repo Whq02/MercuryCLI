@@ -15,9 +15,11 @@ prove-openai-catalogue-follows-account.ts
 prove-openai-locked-refresh.ts
 prove-openrouter-catalogue.ts
 prove-openrouter-oauth.ts
+prove-openrouter-two-signins.ts
 prove-proof-home-write-refusal.ts
 prove-provider-wallet-surfaces.ts
 prove-refresh-legs-user-agent.ts
+prove-road-locked-refresh.ts
 prove-sign-in-refusal-wire.ts
 prove-signin-roads-pinned.ts
 prove-status-config-neutrality.ts
@@ -26,3 +28,4 @@ prove-usage-credential-reset.ts
 prove-usage-four-surfaces.ts
 prove-usage-truth-surfaces.ts
 prove-vitals-rows-follow-the-turn.ts
+prove-xai-refresh-in-a-turn.ts

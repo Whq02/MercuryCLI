@@ -2103,7 +2103,7 @@ src/models/roads/groq/groqCatalogue.ts	cache	process	module	process-wide TTL cac
 src/models/roads/groq/groqCatalogue.ts	inFlight	process	module	in-flight provider catalogue fetch deduplication keyed by credential/endpoint identity
 src/models/roads/groq/groqUsageState.ts	readings	process	module	process-wide provider account usage/rate-limit observation state shared across single account sign-in
 src/models/roads/huggingface/huggingfaceAccounts.ts	authFileUnreadSaid	process	module	one-time log dedupe string for unreadable provider auth file
-src/models/roads/huggingface/huggingfaceAccounts.ts	refreshInFlight	process	module	single-flight OAuth token refresh deduplication for shared account sign-in
+src/models/roads/huggingface/huggingfaceAccounts.ts	refreshHuggingfaceSignIn	process	module	the locked-refresh instance of the Hugging Face sign-in: the refresh calls joined per auth file, a new pair whose write failed, and the refresh tokens the server refused
 src/models/roads/huggingface/huggingfaceAdapter.ts	HUGGINGFACE_STATIC_CATALOGUE	process	module	Derived collection initialized at load
 src/models/roads/huggingface/huggingfaceAdapter.ts	huggingfaceProviderAdapter	process	module	Load-time table with no local writer
 src/models/roads/huggingface/huggingfaceCallModel.ts	huggingfaceLaneProfile	process	module	Load-time table with no local writer
@@ -2225,7 +2225,7 @@ src/models/roads/modelRegistry.ts	snapshotMemo	process	module	5s TTL process-wid
 src/models/roads/moonshot/moonshotAccounts.ts	KIMI_REGIONS	process	module	Load-time list with no local writer
 src/models/roads/moonshot/moonshotAccounts.ts	KIMI_REGION_PROFILES	process	module	Load-time table with no local writer
 src/models/roads/moonshot/moonshotAccounts.ts	authFileUnreadSaid	process	module	one-time log dedupe string for unreadable provider auth file
-src/models/roads/moonshot/moonshotAccounts.ts	refreshInFlight	process	module	single-flight OAuth token refresh deduplication for shared account sign-in
+src/models/roads/moonshot/moonshotAccounts.ts	refreshKimiSignIn	process	module	the locked-refresh instance of the Kimi sign-in: the refresh calls joined per auth file, a new pair whose write failed, and the refresh tokens the server refused
 src/models/roads/moonshot/moonshotAdapter.ts	moonshotProviderAdapter	process	module	Load-time table with no local writer
 src/models/roads/moonshot/moonshotCallModel.ts	moonshotLaneProfile	process	module	Load-time table with no local writer
 src/models/roads/moonshot/moonshotCatalogue.ts	NO_IDS	process	module	Load-time lookup with no local writer
@@ -2443,7 +2443,7 @@ src/models/roads/xai/xaiCatalogue.ts	catalogueInFlight	process	module	in-flight 
 src/models/roads/xai/xaiCatalogue.ts	liveIdSets	process	module	WeakMap<CatalogueSnapshot, ReadonlySet<string>> memoizing live model ID lookup per snapshot
 src/models/roads/xai/xaiLogin.ts	XAI_CONNECT_ROWS	process	module	Load-time list with no local writer
 src/models/roads/xai/xaiOauth.ts	clearStoredXaiSubscription	reset-export
-src/models/roads/xai/xaiOauth.ts	refreshes	process	module	in-flight OAuth token refresh deduplication map keyed by account/token
+src/models/roads/xai/xaiOauth.ts	refreshGrokSignIn	process	module	the locked-refresh instance of the Grok sign-in: the refresh calls joined per auth file, a new pair whose write failed, and the refresh tokens the server refused
 src/models/roads/xai/xaiUsageState.ts	failure	process	module	process-wide provider account usage/rate-limit observation state shared across single account sign-in
 src/models/roads/xai/xaiUsageState.ts	generation	process	module	process-wide provider account usage/rate-limit observation state shared across single account sign-in
 src/models/roads/xai/xaiUsageState.ts	identity	process	module	process-wide provider account usage/rate-limit observation state shared across single account sign-in

@@ -1,5 +1,5 @@
 import type { AccountSlotReads, AccountSlot } from './shapes.js'
-import { moonshotStoredTokens, moonshotLoginRegion } from '../moonshot/moonshotAccounts.js'
+import { moonshotSignInExpired, moonshotSignInRow, moonshotLoginRegion } from '../moonshot/moonshotAccounts.js'
 import { readStoredMoonshotApiKey } from '../../sign-in/account-ledger/providerSecrets.js'
 import { label } from './keyLane.js'
 import { maskedKeyTail } from '../../sign-in/account-ledger/credentialIdentity.js'
@@ -9,7 +9,8 @@ import { hostEnv } from '../../../platform/environment/hostEnv.js'
 export function moonshotSlots(reads: AccountSlotReads): AccountSlot[] {
   const envKey =
     reads.moonshotEnvKey ? reads.moonshotEnvKey() : hostEnv().MOONSHOT_API_KEY?.trim() || undefined
-  const oauth = (reads.moonshotOauth ?? moonshotStoredTokens)()
+  const oauth = (reads.moonshotOauth ?? moonshotSignInRow)()
+  const expired = oauth !== undefined && moonshotSignInExpired(oauth)
   const storedKey = (reads.moonshotStoredKey ?? readStoredMoonshotApiKey)()
   const slots: AccountSlot[] = []
   if (envKey) {
@@ -28,10 +29,6 @@ export function moonshotSlots(reads: AccountSlotReads): AccountSlot[] {
   }
   if (oauth) {
     const region = (reads.moonshotOauthRegion ?? moonshotLoginRegion)()
-    const expiredUnrefreshable =
-      oauth.accessTokenExpiresAtMs !== undefined &&
-      oauth.accessTokenExpiresAtMs <= Date.now() &&
-      !oauth.refreshToken
     slots.push({
       family: 'moonshot',
       id: 'moonshot:oauth',
@@ -39,11 +36,11 @@ export function moonshotSlots(reads: AccountSlotReads): AccountSlot[] {
       kind: 'oauth',
       kindLabel: 'Kimi sign-in',
       identity: signInWords('moonshot', 'oauth', undefined, kimiHostWords(region)),
-      active: !envKey && !expiredUnrefreshable,
+      active: !envKey && !expired,
       envPinned: false,
-      signedIn: !expiredUnrefreshable,
-      ...(expiredUnrefreshable
-        ? { stateNote: 'access token expired with no refresh route — /logins moonshot signs in again' }
+      signedIn: !expired,
+      ...(expired
+        ? { expired: true, stateNote: 'access token expired with no refresh route — /logins moonshot signs in again' }
         : envKey
           ? { stateNote: 'shadowed — the environment variable wins' }
           : {}),
@@ -58,12 +55,12 @@ export function moonshotSlots(reads: AccountSlotReads): AccountSlot[] {
       kind: 'api-key',
       kindLabel: 'API key',
       identity: label(['stored key (auth-scoped)', maskedKeyTail(storedKey)]),
-      active: !envKey && !oauth,
+      active: !envKey && (!oauth || expired),
       envPinned: false,
       signedIn: true,
       ...(envKey
         ? { stateNote: 'shadowed — the environment variable wins' }
-        : oauth
+        : oauth && !expired
           ? { stateNote: 'shadowed — the Kimi sign-in wins' }
           : {}),
       removal: { route: 'moonshot-stored-key' },
