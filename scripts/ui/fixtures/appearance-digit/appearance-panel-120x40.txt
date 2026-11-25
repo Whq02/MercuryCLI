@@ -7,7 +7,7 @@
 
 ▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│ ▖▟▆▙▗ Mercury — appearance · theme · accent · motion                                                                 │
+│ Mercury — appearance · theme · accent · motion                                                                       │
 │ THEME                                                                                                                │
 │ The Mercury appearance:                                                                                              │
 │   1. Oasis dark       the oasis ground — the Mercury identity                                                        │

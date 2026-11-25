@@ -1,7 +1,7 @@
   lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
 WORKBENCH               │                                                                                              │
   no prompts sent yet   │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
-                        │ │ ▖▟▆▙▗ Mercury · config                                                                   │ │
+                        │ │ Mercury · config                                                                         │ │
 NEXT                    │ │ project · 84 settings · 2 set by you                                                     │ │
   · /health — health…   │ │                                                                                          │ │
   · /memory — memory    │ │ / think                                                                                  │ │

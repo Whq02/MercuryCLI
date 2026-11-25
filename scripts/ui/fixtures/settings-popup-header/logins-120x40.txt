@@ -3,7 +3,7 @@ WORKBENCH               │ transcript row 48 · · · · · · · · · · · �
   no prompts sent yet   │ transcript row 49 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
                         │                                                                                              │
 NEXT                    │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
-  · /health — health…   │ │ ▖▟▆▙▗ Mercury · logins                                                                   │ │
+  · /health — health…   │ │ Mercury · logins                                                                         │ │
   · /memory — memory    │ │                                                                                          │ │
   · /mission — set a…   │ │                                                                                          │ │
                         │ │ Sign in                                                                                  │ │
