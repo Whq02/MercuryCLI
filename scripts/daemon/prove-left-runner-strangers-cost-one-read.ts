@@ -33,6 +33,8 @@ const RUNNER = 600_106
 const GONE = 600_107
 const standIn = (pid: number): boolean => pid >= 600_100 && pid < 600_200
 const alive = new Set<number>()
+const unlisted = new Set<number>()
+const UNLISTED = [600_111, 600_112, 600_113, 600_114, 600_115, 600_116, 600_117, 600_118, 600_119]
 const realKill = process.kill
 process.kill = ((pid: number, signal?: NodeJS.Signals | number) => {
   if (!standIn(pid)) return realKill(pid, signal)
@@ -49,6 +51,7 @@ type Launch = { kind: 'first look' | 'tree listing' | 'single read'; pids: numbe
 let launches: Launch[] = []
 let events: string[] = []
 let firstLookAnswers = true
+let noiseOnStderr = ''
 const noted = (launch: Launch): void => {
   launches.push(launch)
   events.push(`${launch.kind}${launch.pids.length > 0 ? ` ${launch.pids.join(',')}` : ''}`)
@@ -67,9 +70,9 @@ mock.module('node:child_process', () => ({
     const together = file === 'ps' ? args.includes('pid=') : command.includes('ConvertTo-Json')
     const pids = file === 'ps' ? (args[args.indexOf('-p') + 1] ?? '').split(',').map(Number) : [...command.matchAll(/ProcessId\s*=\s*(\d+)/g)].map(match => Number(match[1]))
     noted({ kind: together ? 'first look' : 'single read', pids })
-    const here = pids.filter(pid => alive.has(pid))
+    const here = pids.filter(pid => alive.has(pid) && !unlisted.has(pid))
     if (!together) queueMicrotask(() => callback(null, here.length > 0 ? `${born(here[0]!)}\n` : '', ''))
-    else if (firstLookAnswers) queueMicrotask(() => callback(null, file === 'ps' ? `${here.map(pid => `${pid} ${born(pid)}`).join('\n')}\n` : JSON.stringify(here.map(pid => ({ pid, token: born(pid) }))), ''))
+    else if (firstLookAnswers) queueMicrotask(() => callback(null, file === 'ps' ? `${here.map(pid => `${pid} ${born(pid)}`).join('\n')}\n` : JSON.stringify(here.map(pid => ({ pid, token: born(pid) }))), file === 'ps' ? '' : noiseOnStderr))
     return child
   },
 }))
@@ -94,9 +97,11 @@ function check(label: string, cond: boolean, detail = ''): void {
 const j = (value: unknown): string => JSON.stringify(value)
 
 type Swept = { ended: string[]; launches: Launch[]; events: string[]; tookMs: number }
-async function sweep(strangers: readonly number[], answers: boolean): Promise<Swept> {
+async function sweep(strangers: readonly number[], answers: boolean, noProcess: readonly number[] = []): Promise<Swept> {
   alive.clear()
-  for (const pid of [...strangers, RUNNER]) alive.add(pid)
+  unlisted.clear()
+  for (const pid of [...strangers, RUNNER, ...noProcess]) alive.add(pid)
+  for (const pid of noProcess) unlisted.add(pid)
   launches = []
   events = []
   firstLookAnswers = answers
@@ -104,7 +109,7 @@ async function sweep(strangers: readonly number[], answers: boolean): Promise<Sw
   Object.defineProperty(process, 'platform', { value: HOST, configurable: true })
   sup.updateConcourseWorkers(workers => {
     for (const id of Object.keys(workers)) delete workers[id]
-    const records: Array<[number, string]> = [...strangers.map((pid): [number, string] => [pid, anEarlierBirth(pid)]), [RUNNER, born(RUNNER)], [GONE, born(GONE)]]
+    const records: Array<[number, string]> = [...strangers.map((pid): [number, string] => [pid, anEarlierBirth(pid)]), [RUNNER, born(RUNNER)], [GONE, born(GONE)], ...noProcess.map((pid): [number, string] => [pid, born(pid)])]
     for (const [index, [pid, procStart]] of records.entries()) {
       const runnerId = `concourse-w${index + 1}`
       workers[runnerId] = { schema: 1, runnerId, sessionId: `00000000-eeee-4000-8000-${String(index + 1).padStart(12, '0')}`, workspaceId: SCRATCH, isolation: 'exclusive', modelKey: 'claude-sonnet-5', spawnedAt: now - 60_000, lastLiveAt: now - 1_000, pid, procStart } as ConcourseWorkerRecordV1
@@ -137,6 +142,20 @@ try {
   const blind = await sweep(few, false)
   check('a look that cannot be read is no verdict: every record then goes the road it went before, read by itself', of(blind, 'first look').length === 1 && j(of(blind, 'single read').map(read => read.pids[0]).sort()) === j([...few, RUNNER]) && of(blind, 'tree listing').length === (platform === 'win32' ? 0 : 3), j(blind.events))
   check('the pids that went to other processes are still left alone and the runner is still ended', j(signalled(blind)) === j([`SIGTERM ${RUNNER}`]) && j(blind.ended) === j([runnerId(few)]), j({ signalled: signalled(blind), ended: blind.ended }))
+
+  console.log(`\n── ${platform}: nine records name pids the system still answers for, and the first look lists no process for any of them ──`)
+  const none = await sweep([], true, UNLISTED)
+  check('one first look asks about all of them and the runner, in one launch', of(none, 'first look').length === 1 && j([...(of(none, 'first look')[0]?.pids ?? [])].sort()) === j([RUNNER, ...UNLISTED].sort()), j(none.events))
+  check('a pid the answered look does not list is a process that is gone: none of the nine is read by itself', of(none, 'single read').filter(read => read.pids.some(pid => UNLISTED.includes(pid))).length === 0, `${of(none, 'single read').filter(read => read.pids.some(pid => UNLISTED.includes(pid))).length} single read(s), one launch each, before the daemon opens its socket: ${j(none.events)}`)
+  check('nothing is signalled but the runner that is still itself', j(signalled(none)) === j([`SIGTERM ${RUNNER}`]) && j(none.ended) === j([runnerId([])]), j({ signalled: signalled(none), ended: none.ended }))
+
+  if (platform === 'win32') {
+    console.log(`\n── ${platform}: the first look answers on stdout with bytes on stderr beside it ──`)
+    noiseOnStderr = '#< CLIXML\n<Objs Version="1.1.0.1"><Obj S="progress"><MS><PR N="Record"><AV>Preparing modules for first use.</AV></PR></MS></Obj></Objs>'
+    const noisy = await sweep(STRANGERS, true)
+    noiseOnStderr = ''
+    check('a reply that ends well is read by what it wrote on stdout: one look, no pid that went to another process read by itself', of(noisy, 'first look').length === 1 && of(noisy, 'single read').filter(read => read.pids.some(pid => STRANGERS.includes(pid))).length === 0 && j(signalled(noisy)) === j([`SIGTERM ${RUNNER}`]), j(noisy.events))
+  }
 } finally {
   Object.defineProperty(process, 'platform', { value: HOST, configurable: true })
   rmSync(SCRATCH, { recursive: true, force: true })

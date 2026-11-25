@@ -358,7 +358,10 @@ async function pidsGoneToOthers(left: readonly LeftRunnerRecord[]): Promise<Set<
     const alike = left.filter(rec => isProcessStartInstant(rec.procStart) === instant)
     if (alike.length === 0) continue
     const births = await getProcessStartTokensAsync(alike, undefined, HOSTLESS_FIRST_LOOK_MS)
-    for (const rec of alike) if (tokenBinding(rec.procStart, births.get(rec.pid)) === 'stranger') strangers.add(rec)
+    for (const rec of alike) {
+      const birth = births.get(rec.pid)
+      if (birth === '' || tokenBinding(rec.procStart, birth) === 'stranger') strangers.add(rec)
+    }
   }
   return strangers
 }
