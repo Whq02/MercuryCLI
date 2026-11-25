@@ -34,7 +34,7 @@ const second = `${first}2`
 if (mode === '--kit') {
   const [home = '', op = '', folder = '', name = '', state = ''] = rest
   process.env.MERCURY_CONFIG_DIR = home
-  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
+  const { enableConfigs, getGlobalConfigFieldDrops } = await import('../../src/platform/config/globalConfig.ts')
   const { getProjectConfigForWorkspace } = await import('../../src/platform/config/projectConfig.ts')
   const { DEFAULT_PROJECT_CONFIG } = await import('../../src/platform/config/schema.ts')
   const { setPathTrusted } = await import('../../src/platform/config/trust.ts')
@@ -47,7 +47,7 @@ if (mode === '--kit') {
   if (op === 'trust') setPathTrusted(folder)
   const record = getProjectConfigForWorkspace(folder)
   const deltas = kitDeltasForWorkspace(folder)
-  console.log(JSON.stringify({ off: offSkillNamesOf(deriveSessionKitForWorkspace(folder), []).sort(), states: deltas.skillStates, mcpOff: deltas.mcpOff, trusted: record.hasTrustDialogAccepted === true, theConstant: record === DEFAULT_PROJECT_CONFIG }))
+  console.log(JSON.stringify({ off: offSkillNamesOf(deriveSessionKitForWorkspace(folder), []).sort(), states: deltas.skillStates, mcpOff: deltas.mcpOff, trusted: record.hasTrustDialogAccepted === true, theConstant: record === DEFAULT_PROJECT_CONFIG, drops: getGlobalConfigFieldDrops().map(drop => drop.field) }))
   process.exit(0)
 }
 
@@ -79,7 +79,7 @@ const skill = (dir: string, body: string): void => {
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, 'SKILL.md'), `---\ndescription: ${body}\n---\n${body}\n`)
 }
-type Kit = { off: string[]; states: Record<string, string>; mcpOff: string[]; trusted: boolean; theConstant: boolean }
+type Kit = { off: string[]; states: Record<string, string>; mcpOff: string[]; trusted: boolean; theConstant: boolean; drops: string[] }
 const kit = (home: string, op: string, folder: string, ...more: string[]): Kit => {
   const ran = spawnSync(process.execPath, [import.meta.path, '--kit', userHome, home, op, folder, ...more], { encoding: 'utf8', env: process.env, timeout: 120_000 })
   if (ran.status !== 0) throw new Error(`the kit could not be read under ${home}: ${ran.stderr.slice(-400)}`)
@@ -140,6 +140,11 @@ const allOn = kit(second, 'skill', elsewhere, 'zeta', 'on')
 check('with the last one switched on there nothing is off in that folder, and it stays so', allOn.off.length === 0 && !allOn.theConstant && kit(second, 'read', elsewhere).off.length === 0, show(allOn))
 skill(join(second, 'skills', 'gamma'), 'added in the new profile later')
 check('a skill added to the new profile later is not held off', show(kit(second, 'read', folder('later')).off) === ALL, show(kit(second, 'read', folder('later'))))
+const edited = join(userHome, 'edited by hand')
+mkdirSync(edited)
+writeFileSync(join(edited, '.mercury.json'), '{"inheritedSkillsOff":"alpha"}\n')
+const misread = kit(edited, 'read', elsewhere)
+check('a key edited by hand into something that is not a list holds nothing off, and the config says which key it dropped', misread.off.length === 0 && misread.theConstant && show(misread.drops) === show(['inheritedSkillsOff']), show(misread))
 
 console.log('── Profile 1 ──')
 const own = kit(first, 'read', elsewhere)

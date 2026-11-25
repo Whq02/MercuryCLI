@@ -249,6 +249,7 @@ const OPTIONAL_GLOBAL_CONFIG_FIELD_SHAPES: Record<string, ConfigFieldShape> = {
   localModelWindows: 'object',
   localModelBatch: 'object',
   helperModel: 'object',
+  inheritedSkillsOff: 'list',
 }
 
 function configFieldShapeOf(value: unknown): ConfigFieldShape | null {
