@@ -56,7 +56,6 @@ import { ownerFromToolUseContext } from '../run-owner/resolveOwner.js'
 import { observeToolStart, observeToolTerminal, type ToolTerminalEvent } from '../run-owner/effectObserver.js'
 import { emitInvocationTrace } from '../../platform/observability/invocationTrace.js'
 import { isToolKilled } from '../../permissions/rules/capabilityGate.js'
-import { startSessionActivity, stopSessionActivity } from '../requests/sessionActivity.js'
 import { formatError } from '../../tools/kit/toolErrors.js'
 import { getCwd } from '../../platform/files/cwd.js'
 import { Stream } from '../../platform/async/stream.js'
@@ -92,8 +91,6 @@ function shellRunOfError(tool: Tool, error: unknown): ShellRunFact | null {
 const SLOW_PHASE_THRESHOLD_MS = 2000
 
 const PRE_TOOL_HOOK_DURATION_METRIC = 'pre_tool_hook_duration_ms'
-
-const TOOL_EXEC_ACTIVITY = 'tool_exec'
 
 const SIMULATED_EDIT_MARKER = '_simulatedSedEdit'
 
@@ -761,7 +758,6 @@ async function runAdmittedCall(needs: ToolCallNeeds): Promise<void> {
     for (const row of hookRowsOfResult(fired, { callId: toolUseID })) push({ message: createAttachmentMessage(row) })
   }
 
-  startSessionActivity(TOOL_EXEC_ACTIVITY)
   const startedAt = Date.now()
   let executed = false
   let succeeded = false
@@ -941,7 +937,6 @@ async function runAdmittedCall(needs: ToolCallNeeds): Promise<void> {
     } else {
       traceOnce({ ok: false })
     }
-    stopSessionActivity(TOOL_EXEC_ACTIVITY)
     toolUseContext.toolDecisions?.delete(toolUseID)
   }
 }
