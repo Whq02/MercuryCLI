@@ -10,7 +10,7 @@ import { PassThrough } from 'node:stream'
 import { mock } from 'bun:test'
 import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourse-workers/concourseWorkers.ts'
 
-const SCENES = ['warm', 'unlined', 'own', 'cold'] as const
+const SCENES = ['warm', 'unlined', 'own', 'own-noisy', 'cold'] as const
 type Scene = (typeof SCENES)[number]
 const scene = process.argv.find(arg => arg.startsWith('--scene='))?.slice(8)
 if (scene === undefined) {
@@ -92,7 +92,7 @@ mock.module('node:child_process', () => ({
     if (!isPowerShell(file)) return real.execFile(file, args, options, callback)
     const read = noted('execFile', file, args)
     const done = typeof options === 'function' ? (options as ExecFileCallback) : callback
-    setTimeout(() => done?.(null, startReadAnswer(read), ''), 5)
+    setTimeout(() => done?.(null, startReadAnswer(read), read.both && scene === 'own-noisy' ? '#< CLIXML\n<Objs Version="1.1.0.1"><Obj S="progress"><MS><PR N="Record"><AV>Preparing modules for first use.</AV></PR></MS></Obj></Objs>' : ''), 5)
     return { kill: () => true }
   },
   spawnSync: (file: string, args: string[], options: unknown) => {
@@ -167,7 +167,7 @@ const until = async (cond: () => boolean, withinMs: number): Promise<boolean> =>
 }
 const told = (some: readonly Launch[]): string => (some.length === 0 ? 'none' : some.map(launch => `${launch.exe} by ${launch.seam}: ${launch.reads}${launch.pids.length > 0 ? ` of ${launch.pids.join(',')}` : ''}`).join(' · '))
 
-if (scene === 'own') {
+if (scene === 'own' || scene === 'own-noisy') {
   console.log(`\n── ${scene}: a process asks for its own start in both forms, the date words for its locks and the instant for its records (the Windows seams: win32, every launch counted) ──`)
   const watch = await import('../../src/daemon/control/ownerWatch.ts')
   const hint = 'change: on Windows a process reads both forms of its own start in one launch and keeps them (startTokenOfAsync in src/daemon/control/ownerWatch.ts), so every later ask of its own pid, in either form, singly or in a batch, launches nothing'
@@ -182,7 +182,7 @@ if (scene === 'own') {
     const [words, instant] = await Promise.all([asWords, asInstant])
     own('the date words are what a single read gives', words === wordsOf(process.pid), JSON.stringify(words))
     own('the instant is what a single read gives', instant === instantOf(process.pid), JSON.stringify(instant))
-    own('both forms came from one PowerShell', launches.length === 1, `${launches.length} launch(es): ${told(launches)}`)
+    own(scene === 'own-noisy' ? 'both forms came from one PowerShell, read by what it wrote on stdout whatever stood on stderr' : 'both forms came from one PowerShell', launches.length === 1, `${launches.length} launch(es): ${told(launches)}`)
     const atStart = launches.length
     const again = await Promise.all([watch.getProcessStartTokenAsync(process.pid), watch.getProcessStartInstantAsync(process.pid)])
     const batched = await watch.getProcessStartTokensAsync([{ pid: process.pid, procStart: instantOf(process.pid) }])

@@ -202,7 +202,7 @@ async function probeOwnStartForms(pid: number): Promise<Record<StartForm, string
     `$ErrorActionPreference='Stop'; ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process -Filter "ProcessId=${pid}" -ErrorAction Stop | ForEach-Object { [pscustomobject]@{ token=${WIN32_BATCH_TOKEN.token}; instant=${WIN32_BATCH_TOKEN.instant} } })`,
   ], performance.now() + OWN_START_PROBE_TIMEOUT_MS)
   const unread = { token: null, instant: null }
-  if (reply.kind !== 'reply' || reply.code !== 0 || reply.stderr.trim()) return unread
+  if (reply.kind !== 'reply' || reply.code !== 0) return unread
   try {
     const rows: unknown = JSON.parse(reply.stdout)
     if (!Array.isArray(rows) || rows.length !== 1) return unread
@@ -329,7 +329,7 @@ function runStartProbe(file: string, args: string[], deadline: number): Promise<
 }
 
 function parseStartBatch(pids: readonly number[], reply: StartProbeResult, windows: boolean): Map<number, string | null> | null {
-  if (reply.kind !== 'reply' || reply.stderr.trim() || (reply.code !== 0 && (windows || reply.code !== 1 || reply.stdout.trim()))) return null
+  if (reply.kind !== 'reply' || (!windows && reply.stderr.trim()) || (reply.code !== 0 && (windows || reply.code !== 1 || reply.stdout.trim()))) return null
   const tokens = new Map<number, string | null>(pids.map(pid => [pid, '']))
   try {
     const rows: unknown = windows ? JSON.parse(reply.stdout) : reply.stdout.split('\n').filter(line => line.trim()).map(line => {
@@ -339,9 +339,9 @@ function parseStartBatch(pids: readonly number[], reply: StartProbeResult, windo
     if (!Array.isArray(rows)) return null
     const seen = new Set<number>()
     for (const row of rows) {
-      if (!row || !tokens.has(row.pid) || seen.has(row.pid) || typeof row.token !== 'string' || !row.token.trim()) return null
+      if (!row || !tokens.has(row.pid) || seen.has(row.pid) || typeof row.token !== 'string') return null
       seen.add(row.pid)
-      tokens.set(row.pid, row.token.trim())
+      tokens.set(row.pid, row.token.trim() || null)
     }
     return tokens
   } catch (error) {
