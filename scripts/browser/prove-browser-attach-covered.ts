@@ -148,7 +148,7 @@ try {
     await onShow.goto(`${site.origin}/onshow`)
     const behind = await run({ op: 'click', tab, selector: '#go', timeoutMs: DEADLINE })
     const showing = await onShow.evaluate(() => document.visibilityState)
-    check('the click lands on the tab behind', kept(behind) && alive(behind) && (await pageOf(lead, tab).title()) === 'next-covered clicked 1', `${behind.ms}ms ${behind.result}`)
+    check('the click lands on the tab behind', kept(behind) && alive(behind) && (await pageOf(lead, tab).title()) === (staged ? 'next-covered clicked 1' : 'covered clicked 2'), `${behind.ms}ms ${behind.result}`)
     check('the tab its user was looking at is still the one on show', showing === 'visible' && (await paints(onShow, 300)) > 0 && raises() === 0, `on show: ${showing} · Page.bringToFront sent ${raises()} time(s)`)
 
     section('S5 a browser that does not know how to keep a covered page painting: there, and only there, the tab is brought to the front')
