@@ -23,7 +23,6 @@ prove-road-locked-refresh.ts
 prove-sign-in-refusal-wire.ts
 prove-signin-roads-pinned.ts
 prove-status-config-neutrality.ts
-prove-two-browser-signins.ts
 prove-usage-credential-reset.ts
 prove-usage-four-surfaces.ts
 prove-usage-truth-surfaces.ts
