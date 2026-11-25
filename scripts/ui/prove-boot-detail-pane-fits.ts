@@ -2,7 +2,7 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { createSplashCore } from '../../assets/splash/splash-core.mjs'
+import { createSplashCore, vis } from '../../assets/splash/splash-core.mjs'
 import { checker } from '../engine-durability/harness.ts'
 import { enableConfigs } from '../../src/platform/config/globalConfig.js'
 import { kitEntryOf, kitSummaryRows } from '../../src/screen/boot-face/KitMenuScreen.js'
@@ -238,6 +238,12 @@ t.section('§4 — BELOW 110 COLUMNS A NOTICE WORD LONGER THAN THE LINE WRAPS; W
   t.check('60×20: the file a notice names is whole over its lines and the sentence ends', squashed(roomy).includes(file) && roomy.some(l => l.includes('again.')), `${NOTICE_FIX} | lines=${JSON.stringify(roomy.map(l => l.trim()).filter(Boolean))}`)
   const tight = core.composeBootMenu(60, 12, refusalM).lines
   t.check('60×12: with room for three notice lines the file is cut to its end, the name of the file whole', tight.some(l => l.trim().startsWith('…') && l.trimEnd().endsWith('/.local/bin/mercury2')), `${NOTICE_FIX} | lines=${JSON.stringify(tight.map(l => l.trim()).filter(Boolean))}`)
+  const tighter = core.composeBootMenu(60, 11, refusalM).lines.map(l => l.trim())
+  t.check('60×11: with room for two notice lines the file cut to its end is the last one, whole to its name and cut once', tighter.some(l => l.startsWith('…') && l.endsWith('/.local/bin/mercury2')) && !tighter.some(l => l.includes('……')), `${NOTICE_FIX}; the last notice line is not cut again when it is the word already cut to its end | lines=${JSON.stringify(tighter.filter(Boolean))}`)
+  const wideFile = '/Users/operator/工作空间/非常深的仓库名称/另一个很长的子项目目录名称/.local/bin/mercury2'
+  const wideM = { ...refusalM, detailOverride: [`The file ${wideFile} is already there and is not this profile's command: move it away, then create the profile again.`] }
+  const wide = core.composeBootMenu(60, 12, wideM).lines.map(l => l.trim())
+  t.check('60×12: a file named in wide characters is cut to its end by cells, its name whole and the line inside the window', wide.some(l => l.startsWith('…') && l.endsWith('/.local/bin/mercury2') && vis(l) <= 56), `${NOTICE_FIX}; the cut counts cells with the core's own measure | lines=${JSON.stringify(wide.filter(Boolean))}`)
   const plainM = { ...refusalM, detailOverride: ['a notice of ordinary words that is longer than one line of this window and so wraps between its words as it always did'] }
   const plain = core.composeBootMenu(60, 20, plainM).lines.map(l => l.trim())
   t.check('60×20: a notice of ordinary words wraps between words as before', plain.includes('a notice of ordinary words that is longer than one line') && plain.includes('of this window and so wraps between its words as it')  && plain.includes('always did'), `${NOTICE_FIX} | lines=${JSON.stringify(plain.filter(Boolean))}`)
