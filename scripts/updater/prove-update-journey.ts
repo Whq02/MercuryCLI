@@ -3,7 +3,8 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { isAbsolute, join, relative, resolve } from 'node:path'
-import { closedLoopbackPort, FLOOR, IS_WIN, hostAllowlist, makeFixtures as mintFixtures, makePayload, spawnFixtureReleaseServer, type ReleaseFixtureSpec } from './journeyFixtures.js'
+import { SIGNED_ARCHIVES_FIRST_VERSION } from '../../src/platform/update-channel/channelCore.js'
+import { closedLoopbackPort, FLOOR, IS_WIN, hostAllowlist, hostAssetName, makeFixtures as mintFixtures, makePayload, spawnFixtureReleaseServer, type ReleaseFixtureSpec } from './journeyFixtures.js'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const DIST = process.env.MERCURY_JOURNEY_DIST ?? join(ROOT, 'dist', 'mercury.mjs')
@@ -101,6 +102,8 @@ function seedInstalled(version: string): void {
 
 const V_OLD = '9.9.0-beta.1'
 const V_NEW = '9.9.0-beta.2'
+const V_BEFORE_OLD = '1.0.0-beta.1'
+const V_BEFORE_NEW = '1.0.0-beta.2'
 const stateMarker = join(configHome, 'user-state-marker.json')
 writeFileSync(stateMarker, '{"survives":true}\n')
 const stableShim = IS_WIN ? join(home, 'AppData', 'Local', 'Mercury', 'bin', 'mercury.cmd') : join(home, '.local', 'bin', 'mercury')
@@ -260,25 +263,32 @@ console.log('── §3b signatures refuse before staging; unsigned needs its ex
       check('the unknown-key fixture is valid under its ephemeral roster, not a corrupt signature', trusted.state === 'signed')
       check('a signed payload passes the actual update/install policy without any exception', signatureRefusal(trusted, false) === null && signatureRefusal(trusted, true) === null)
     }
-    for (const allowUnsigned of [false, true]) {
-      seedInstalled(V_OLD)
+    const eras = [
+      { name: 'from the first signed archive on', from: V_OLD, to: V_NEW, fixtures: f, signatureDue: true },
+      { name: `before v${SIGNED_ARCHIVES_FIRST_VERSION}`, from: V_BEFORE_OLD, to: V_BEFORE_NEW, fixtures: makeFixtures(`signature-${verdict}-before`, [{ version: V_BEFORE_OLD }, { version: V_BEFORE_NEW, payload }]), signatureDue: false },
+    ]
+    for (const era of eras) for (const allowUnsigned of [false, true]) {
+      seedInstalled(era.from)
       writeFileSync(join(versionsDir, 'previous.txt'), '8.8.0-beta.1\n')
-      const oldBundle = readFileSync(join(versionsDir, V_OLD, 'mercury.mjs'))
+      const oldBundle = readFileSync(join(versionsDir, era.from, 'mercury.mjs'))
       const oldShim = existsSync(stableShim) ? readFileSync(stableShim) : null
-      const r = runCli(['update', ...(allowUnsigned ? ['--allow-unsigned'] : [])], { fixtures: f })
+      const r = runCli(['update', ...(allowUnsigned ? ['--allow-unsigned'] : [])], { fixtures: era.fixtures })
       const all = r.stdout + r.stderr
       const receipt = JSON.parse(readFileSync(join(versionsDir, 'last-update.json'), 'utf8'))
       const accepted = verdict === 'unsigned' && allowUnsigned
-      const label = `${verdict}, exception ${allowUnsigned}`
+      const unvouched = era.signatureDue && !allowUnsigned
+      const label = `${verdict}, ${era.name}, exception ${allowUnsigned}`
       if (accepted) {
-        check(`${label}: activates and names the explicit exception on the result`, r.code === 0 && currentPointer() === V_NEW && r.stdout.includes('signature: unsigned (accepted by explicit --allow-unsigned)'), all)
+        check(`${label}: activates and names the explicit exception on the result`, r.code === 0 && currentPointer() === era.to && r.stdout.includes('signature: unsigned (accepted by explicit --allow-unsigned)'), all)
         check(`${label}: receipt records verdict and exception`, receipt.schema === 1 && receipt.outcome === 'updated' && receipt.stage === 'complete' && receipt.signature === 'unsigned' && receipt.allowUnsigned === true && receipt.unsignedOverride === true)
       } else {
-        check(`${label}: refuses at verify with verdict, roster and Security remedy`, r.code === 1 && all.includes(`refused at verify: signature verdict ${verdict}`) && all.includes('compiled-in trusted roster') && all.includes('Security tab'), all)
-        check(`${label}: active payload and both pointers are unchanged`, currentPointer() === V_OLD && previousPointer() === '8.8.0-beta.1' && readFileSync(join(versionsDir, V_OLD, 'mercury.mjs')).equals(oldBundle))
-        check(`${label}: no staging or activation happened`, !existsSync(join(versionsDir, V_NEW)) && !/^(staging|activating|complete)(:|$)/m.test(r.stderr) && !readdirSync(versionsDir).some(name => name.startsWith('.download-')))
+        if (unvouched) check(`${label}: refuses at archive-signature, before the archive is opened, with the roster and Security remedy`, r.code === 1 && all.includes(`refused at archive-signature: release v${era.to} carries no ${hostAssetName(era.to)}.sig`) && all.includes('compiled-in trusted roster') && all.includes('Security tab'), all)
+        else check(`${label}: refuses at verify with verdict, roster and Security remedy`, r.code === 1 && all.includes(`refused at verify: signature verdict ${verdict}`) && all.includes('compiled-in trusted roster') && all.includes('Security tab'), all)
+        check(`${label}: active payload and both pointers are unchanged`, currentPointer() === era.from && previousPointer() === '8.8.0-beta.1' && readFileSync(join(versionsDir, era.from, 'mercury.mjs')).equals(oldBundle))
+        check(`${label}: no staging or activation happened`, !existsSync(join(versionsDir, era.to)) && !/^(staging|activating|complete)(:|$)/m.test(r.stderr) && !readdirSync(versionsDir).some(name => name.startsWith('.download-')))
         check(`${label}: active launcher is untouched`, oldShim === null ? !existsSync(stableShim) : existsSync(stableShim) && readFileSync(stableShim).equals(oldShim))
-        check(`${label}: receipt records refused verdict without claiming an exception`, receipt.schema === 1 && receipt.outcome === 'refused' && receipt.stage === 'verify' && receipt.signature === verdict && receipt.allowUnsigned === allowUnsigned && receipt.unsignedOverride === false && receipt.reason.includes(verdict))
+        if (unvouched) check(`${label}: receipt records the refusal at archive-signature and claims neither a payload verdict nor an exception`, receipt.schema === 1 && receipt.outcome === 'refused' && receipt.stage === 'archive-signature' && receipt.signature === undefined && receipt.allowUnsigned === false && receipt.reason.includes(`${hostAssetName(era.to)}.sig`))
+        else check(`${label}: receipt records refused verdict without claiming an exception`, receipt.schema === 1 && receipt.outcome === 'refused' && receipt.stage === 'verify' && receipt.signature === verdict && receipt.allowUnsigned === allowUnsigned && receipt.unsignedOverride === false && receipt.reason.includes(verdict))
       }
       check(`${label}: user state is preserved`, readFileSync(stateMarker, 'utf8') === '{"survives":true}\n')
     }

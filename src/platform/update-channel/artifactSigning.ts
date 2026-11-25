@@ -81,22 +81,35 @@ export interface SignatureBlockV1 {
   signatureB64: string
 }
 
-export function signStatement(statement: SigningStatementV1, privateKeyPem: string): SignatureBlockV1 {
+interface DetachedSignature {
+  keyId: string
+  publicKeySpkiB64: string
+  signatureB64: string
+}
+
+function signBytes(bytes: Buffer, privateKeyPem: string): DetachedSignature {
   const key: KeyObject = createPrivateKey(privateKeyPem)
   if (key.asymmetricKeyType !== 'ed25519') {
     throw new Error(`signing key is ${String(key.asymmetricKeyType)} — the artifact signature law is ed25519`)
   }
-  const publicDer = createPublicKey(key).export({ format: 'der', type: 'spki' })
-  const publicKeySpkiB64 = publicDer.toString('base64')
-  const signature = edSign(null, canonicalStatementBytes(statement), key)
-  return {
-    schema: 1,
-    algorithm: 'ed25519',
-    keyId: keyIdOf(publicKeySpkiB64),
-    publicKeySpkiB64,
-    statement,
-    signatureB64: signature.toString('base64'),
-  }
+  const publicKeySpkiB64 = createPublicKey(key).export({ format: 'der', type: 'spki' }).toString('base64')
+  return { keyId: keyIdOf(publicKeySpkiB64), publicKeySpkiB64, signatureB64: edSign(null, bytes, key).toString('base64') }
+}
+
+export function signStatement(statement: SigningStatementV1, privateKeyPem: string): SignatureBlockV1 {
+  const { keyId, publicKeySpkiB64, signatureB64 } = signBytes(canonicalStatementBytes(statement), privateKeyPem)
+  return { schema: 1, algorithm: 'ed25519', keyId, publicKeySpkiB64, statement, signatureB64 }
+}
+
+interface ArchiveSignatureV1 extends DetachedSignature {
+  schema: 1
+  algorithm: 'ed25519'
+}
+
+const archiveSignedBytes = (archiveName: string, sha256: string): Buffer => Buffer.from(`mercury-archive-v1\n${archiveName}\n${sha256}\n`, 'utf8')
+
+export function signArchive(archiveName: string, sha256: string, privateKeyPem: string): ArchiveSignatureV1 {
+  return { schema: 1, algorithm: 'ed25519', ...signBytes(archiveSignedBytes(archiveName, sha256), privateKeyPem) }
 }
 
 export type SignatureVerdict =
@@ -112,6 +125,58 @@ interface ContentBinds {
   payloadDigest: string | null
 }
 
+type DetachedVerdict =
+  | { state: 'signed'; keyId: string; keyLabel: string }
+  | { state: 'unrecognized-key'; keyId: string }
+  | { state: 'tampered'; note: string }
+  | { state: 'malformed'; note: string }
+
+function detachedSignatureOf(value: object, where: string): { state: 'ok'; block: Record<string, unknown>; signed: DetachedSignature } | { state: 'malformed'; note: string } {
+  const block = value as Record<string, unknown>
+  if (block.schema !== 1) return { state: 'malformed', note: `signing schema ${String(block.schema)} — this verifier decodes schema 1` }
+  if (block.algorithm !== 'ed25519') return { state: 'malformed', note: `signing algorithm ${String(block.algorithm)} — the law is ed25519` }
+  if (typeof block.publicKeySpkiB64 !== 'string' || typeof block.signatureB64 !== 'string' || typeof block.keyId !== 'string') {
+    return { state: 'malformed', note: `${where} is missing keyId/publicKeySpkiB64/signatureB64` }
+  }
+  return { state: 'ok', block, signed: { keyId: block.keyId, publicKeySpkiB64: block.publicKeySpkiB64, signatureB64: block.signatureB64 } }
+}
+
+function verifyBytes(bytes: Buffer, signed: DetachedSignature, over: string, roster: TrustedSigningKey[]): DetachedVerdict {
+  let signatureOk = false
+  try {
+    const publicKey = createPublicKey({ key: Buffer.from(signed.publicKeySpkiB64, 'base64'), format: 'der', type: 'spki' })
+    if (publicKey.asymmetricKeyType !== 'ed25519') {
+      return { state: 'malformed', note: `embedded public key is ${String(publicKey.asymmetricKeyType)} — the law is ed25519` }
+    }
+    signatureOk = edVerify(null, bytes, publicKey, Buffer.from(signed.signatureB64, 'base64'))
+  } catch (e) {
+    return { state: 'malformed', note: `embedded public key undecodable: ${e instanceof Error ? e.message.slice(0, 120) : String(e)}` }
+  }
+  if (!signatureOk) {
+    return { state: 'tampered', note: `signature does not verify over ${over}` }
+  }
+  const embeddedKeyId = keyIdOf(signed.publicKeySpkiB64)
+  if (embeddedKeyId !== signed.keyId) {
+    return { state: 'tampered', note: `declared keyId ${signed.keyId} does not match the embedded key (${embeddedKeyId})` }
+  }
+  const trusted = roster.find(k => k.publicKeySpkiB64 === signed.publicKeySpkiB64 && k.keyId === embeddedKeyId)
+  if (!trusted) return { state: 'unrecognized-key', keyId: embeddedKeyId }
+  return { state: 'signed', keyId: trusted.keyId, keyLabel: trusted.label }
+}
+
+export function verifyArchiveSignature(signatureText: string, archiveName: string, sha256: string, roster: TrustedSigningKey[]): DetachedVerdict {
+  let value: unknown
+  try {
+    value = JSON.parse(signatureText)
+  } catch (e) {
+    return { state: 'malformed', note: `the signature file is not JSON: ${e instanceof Error ? e.message.slice(0, 120) : String(e)}` }
+  }
+  if (typeof value !== 'object' || value === null) return { state: 'malformed', note: 'the signature file is not an object' }
+  const decoded = detachedSignatureOf(value, 'the signature file')
+  if (decoded.state !== 'ok') return decoded
+  return verifyBytes(archiveSignedBytes(archiveName, sha256), decoded.signed, "the archive's name and SHA-256", roster)
+}
+
 export function verifySignatureBlock(
   blockValue: unknown,
   binds: ContentBinds,
@@ -119,13 +184,9 @@ export function verifySignatureBlock(
 ): SignatureVerdict {
   if (blockValue === undefined || blockValue === null) return { state: 'unsigned' }
   if (typeof blockValue !== 'object') return { state: 'malformed', note: 'manifest.signing is not an object' }
-  const block = blockValue as Record<string, unknown>
-  if (block.schema !== 1) return { state: 'malformed', note: `signing schema ${String(block.schema)} — this verifier decodes schema 1` }
-  if (block.algorithm !== 'ed25519') return { state: 'malformed', note: `signing algorithm ${String(block.algorithm)} — the law is ed25519` }
-  if (typeof block.publicKeySpkiB64 !== 'string' || typeof block.signatureB64 !== 'string' || typeof block.keyId !== 'string') {
-    return { state: 'malformed', note: 'signing block is missing keyId/publicKeySpkiB64/signatureB64' }
-  }
-  const parsed = parseStatement(block.statement)
+  const decoded = detachedSignatureOf(blockValue, 'signing block')
+  if (decoded.state !== 'ok') return decoded
+  const parsed = parseStatement(decoded.block.statement)
   if (parsed.state !== 'ok') return { state: 'malformed', note: parsed.note }
   const statement = parsed.statement
 
@@ -139,26 +200,8 @@ export function verifySignatureBlock(
     return { state: 'tampered', note: `payload tree differs from the signed digest (signed ${statement.payloadDigest.slice(0, 12)}…, actual ${binds.payloadDigest.slice(0, 12)}…)` }
   }
 
-  let signatureOk = false
-  try {
-    const publicKey = createPublicKey({ key: Buffer.from(block.publicKeySpkiB64, 'base64'), format: 'der', type: 'spki' })
-    if (publicKey.asymmetricKeyType !== 'ed25519') {
-      return { state: 'malformed', note: `embedded public key is ${String(publicKey.asymmetricKeyType)} — the law is ed25519` }
-    }
-    signatureOk = edVerify(null, canonicalStatementBytes(statement), publicKey, Buffer.from(block.signatureB64, 'base64'))
-  } catch (e) {
-    return { state: 'malformed', note: `embedded public key undecodable: ${e instanceof Error ? e.message.slice(0, 120) : String(e)}` }
-  }
-  if (!signatureOk) {
-    return { state: 'tampered', note: 'signature does not verify over the canonical statement bytes' }
-  }
-  const embeddedKeyId = keyIdOf(block.publicKeySpkiB64)
-  if (embeddedKeyId !== block.keyId) {
-    return { state: 'tampered', note: `declared keyId ${block.keyId} does not match the embedded key (${embeddedKeyId})` }
-  }
-  const trusted = roster.find(k => k.publicKeySpkiB64 === block.publicKeySpkiB64 && k.keyId === embeddedKeyId)
-  if (!trusted) return { state: 'unrecognized-key', keyId: embeddedKeyId, statement }
-  return { state: 'signed', keyId: trusted.keyId, keyLabel: trusted.label, statement }
+  const verdict = verifyBytes(canonicalStatementBytes(statement), decoded.signed, 'the canonical statement bytes', roster)
+  return verdict.state === 'signed' || verdict.state === 'unrecognized-key' ? { ...verdict, statement } : verdict
 }
 
 export function describeSignatureVerdict(verdict: SignatureVerdict): string {

@@ -27,6 +27,7 @@ prove-gitbash-resolution.ts
 prove-update-journey.ts
 prove-anonymous-channel.ts
 prove-artifact-signing.ts
+prove-signed-archive.ts
 prove-verifier-bundle.ts
 prove-signing-surfaces.ts
 prove-payload-untouched-by-ripgrep-repair.ts

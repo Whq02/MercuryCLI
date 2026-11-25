@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { gzipSync } from 'node:zlib'
 import { zipSync } from 'fflate'
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '9.9.0-beta.1' }
+;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0-beta.1' }
 
 const { assetNameFor } = await import('../../src/platform/update-channel/channelCore.js')
 const { performUpdate } = await import('../../src/platform/update-channel/updateService.js')
@@ -67,7 +67,7 @@ function pax(key: string, value: string): Buffer {
 }
 const zip = (names: Record<string, string>): Buffer => Buffer.from(zipSync(Object.fromEntries(Object.entries(names).map(([name, text]) => [name, Buffer.from(text)]))))
 
-const V_NEW = '9.9.0-beta.2'
+const V_NEW = '1.0.0-beta.2'
 const ASSET = assetNameFor(V_NEW, process.platform, process.arch)
 if (ASSET === null) {
   console.log('  [FAIL] this host has no release asset name')

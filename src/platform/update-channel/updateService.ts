@@ -14,12 +14,15 @@ import {
   parsePrivateVersion,
   PAYLOAD_ROOT,
   selectRelease,
+  SIGNED_ARCHIVES_FIRST_VERSION,
+  type ArchiveSignatureListing,
   type ReleaseSelection,
 } from './channelCore.js'
 import { checkArchiveBeforeUnpack, updateCeilings, type UpdateCeilings } from './archiveListing.js'
 import { unpackedFolderRefusal } from './unpackedFolder.js'
-import { describeSignatureVerdict, type SignatureVerdict } from './artifactSigning.js'
+import { describeSignatureVerdict, verifyArchiveSignature, type SignatureVerdict } from './artifactSigning.js'
 import { verifyPayloadDir } from './artifactVerify.js'
+import { trustedSigningKeys, type TrustedSigningKey } from './signingTrust.js'
 import {
   channelRepoSlug,
   checkChannelAccess,
@@ -195,6 +198,7 @@ export type CheckOutcome =
       road: ChannelRoadName
       assetUrl: string | null
       checksumUrl: string | null
+      archiveSignature: ArchiveSignatureListing
     }
   | { state: 'current'; installed: string; channelRepo: string; road: ChannelRoadName }
   | { state: 'no-releases'; installed: string; channelRepo: string; road: ChannelRoadName }
@@ -229,6 +233,7 @@ export async function checkForUpdate(roots: LayoutRoots, progress: Progress): Pr
         road: listed.road,
         assetUrl: selection.assetUrl,
         checksumUrl: selection.checksumUrl,
+        archiveSignature: selection.archiveSignature,
       }
     case 'current':
       progress('no update')
@@ -250,6 +255,7 @@ type UpdateStage =
   | 'lock'
   | 'download'
   | 'checksum'
+  | 'archive-signature'
   | 'extract-tool-absent'
   | 'extract'
   | 'envelope'
@@ -278,6 +284,8 @@ type UpdateOutcome =
   | { state: 'refused'; stage: UpdateStage; reason: string; remedy: string; retryable?: boolean; road?: ChannelRoadName; signature?: SignatureVerdict['state']; unsignedOverride?: boolean; receiptPath?: string }
   | { state: 'restored'; stage: UpdateStage; reason: string; activeVersion: string; road?: ChannelRoadName; receiptPath?: string }
 
+const SIGNATURE_REMEDY = `${NOTHING_ACTIVATED_WORDS}; require the Mercury release key in this build's compiled-in trusted roster (src/platform/update-channel/signingTrust.ts); download the official release again, and report an unexpected verdict through the repository's Security tab`
+
 export function signatureRefusal(verdict: SignatureVerdict, allowUnsigned: boolean): Extract<UpdateOutcome, { state: 'refused' }> | null {
   if (verdict.state === 'signed' || (verdict.state === 'unsigned' && allowUnsigned)) return null
   return {
@@ -286,7 +294,45 @@ export function signatureRefusal(verdict: SignatureVerdict, allowUnsigned: boole
     signature: verdict.state,
     unsignedOverride: false,
     reason: `signature verdict ${verdict.state}: ${describeSignatureVerdict(verdict)}`,
-    remedy: `${NOTHING_ACTIVATED_WORDS}; require the Mercury release key in this build's compiled-in trusted roster (src/platform/update-channel/signingTrust.ts); download the official release again, and report an unexpected verdict through the repository's Security tab`,
+    remedy: SIGNATURE_REMEDY,
+  }
+}
+
+function archiveSignatureRefusal(
+  check: Extract<CheckOutcome, { state: 'update-available' }>,
+  staging: string,
+  sha256: string,
+  allowUnsigned: boolean,
+  roster: TrustedSigningKey[],
+): Extract<UpdateOutcome, { state: 'refused' }> | null {
+  const signature = check.archiveSignature
+  switch (signature.state) {
+    case 'before-signing':
+      return null
+    case 'removed':
+      if (allowUnsigned) return null
+      return {
+        state: 'refused',
+        stage: 'archive-signature',
+        reason: `release ${check.tag} carries no ${signature.name}, and every release from v${SIGNED_ARCHIVES_FIRST_VERSION} on carries one for each archive: it was removed after the release was published`,
+        remedy: SIGNATURE_REMEDY,
+      }
+    case 'listed': {
+      const signaturePath = join(staging, signature.name)
+      if (!existsSync(signaturePath)) {
+        return { state: 'refused', stage: 'download', reason: `download finished but ${signature.name} is absent`, remedy: 'rerun `mercury update`', retryable: true }
+      }
+      const verdict = verifyArchiveSignature(readFileSync(signaturePath, 'utf8'), check.assetName, sha256, roster)
+      switch (verdict.state) {
+        case 'signed':
+          return null
+        case 'unrecognized-key':
+          return { state: 'refused', stage: 'archive-signature', reason: `${signature.name} is signed by key ${verdict.keyId}, which is not in this build's trusted roster`, remedy: SIGNATURE_REMEDY }
+        case 'tampered':
+        case 'malformed':
+          return { state: 'refused', stage: 'archive-signature', reason: `${signature.name} does not vouch for the downloaded ${check.assetName}: ${verdict.note}`, remedy: SIGNATURE_REMEDY }
+      }
+    }
   }
 }
 
@@ -386,19 +432,19 @@ function writeUpdateReceipt(roots: LayoutRoots, startedAt: string, outcome: Upda
   }
 }
 
-export async function performUpdate(roots: LayoutRoots, progress: Progress, opts: { allowUnsigned?: boolean; ceilings?: UpdateCeilings } = {}): Promise<UpdateOutcome> {
+export async function performUpdate(roots: LayoutRoots, progress: Progress, opts: { allowUnsigned?: boolean; ceilings?: UpdateCeilings; roster?: TrustedSigningKey[] } = {}): Promise<UpdateOutcome> {
   const startedAt = new Date().toISOString()
   const allowUnsigned = opts.allowUnsigned === true
-  const outcome = await performUpdateTransaction(roots, progress, allowUnsigned, opts.ceilings ?? updateCeilings())
+  const outcome = await performUpdateTransaction(roots, progress, allowUnsigned, opts.ceilings ?? updateCeilings(), opts.roster ?? trustedSigningKeys())
   if (outcome.state === 'no-update') return outcome
   const receiptPath = writeUpdateReceipt(roots, startedAt, outcome, 'update', allowUnsigned)
   return receiptPath ? { ...outcome, receiptPath } : outcome
 }
 
-async function performUpdateTransaction(roots: LayoutRoots, progress: Progress, allowUnsigned: boolean, ceilings: UpdateCeilings): Promise<UpdateOutcome> {
+async function performUpdateTransaction(roots: LayoutRoots, progress: Progress, allowUnsigned: boolean, ceilings: UpdateCeilings, roster: TrustedSigningKey[]): Promise<UpdateOutcome> {
   const check = await checkForUpdate(roots, progress)
   if (check.state !== 'update-available') return { state: 'no-update', check }
-  const outcome = await acquireAndActivate(roots, progress, check, allowUnsigned, ceilings)
+  const outcome = await acquireAndActivate(roots, progress, check, allowUnsigned, ceilings, roster)
   return outcome.state === 'refused' || outcome.state === 'restored' ? { ...outcome, road: check.road } : outcome
 }
 
@@ -425,6 +471,7 @@ async function acquireAndActivate(
   check: Extract<CheckOutcome, { state: 'update-available' }>,
   allowUnsigned: boolean,
   ceilings: UpdateCeilings,
+  roster: TrustedSigningKey[],
 ): Promise<UpdateOutcome> {
   const lock = tryAcquireUpdateLock(roots)
   if (lock.state === 'error') {
@@ -456,6 +503,7 @@ async function acquireAndActivate(
       [
         { name: check.assetName, url: check.assetUrl, maxBytes: ceilings.archiveBytes },
         { name: CHECKSUM_MANIFEST_NAME, url: check.checksumUrl, maxBytes: ceilings.checksumManifestBytes },
+        ...(check.archiveSignature.state === 'listed' ? [{ name: check.archiveSignature.name, url: check.archiveSignature.url, maxBytes: ceilings.checksumManifestBytes }] : []),
       ],
       staging,
     )
@@ -492,6 +540,8 @@ async function acquireAndActivate(
         retryable: true,
       }
     }
+    const unvouched = archiveSignatureRefusal(check, staging, actual, allowUnsigned, roster)
+    if (unvouched) return unvouched
 
     const extracted = join(staging, 'extracted')
     const extraction = await extractArchive(archivePath, extracted, roots.isWindows, ceilings)
@@ -530,7 +580,7 @@ async function acquireAndActivate(
         remedy: `report the release as malformed; ${NOTHING_ACTIVATED_WORDS}`,
       }
     }
-    const provenance = verifyPayloadDir(payloadDir, { depth: 'deep' })
+    const provenance = verifyPayloadDir(payloadDir, { depth: 'deep', roster })
     const refusal = signatureRefusal(provenance.verdict, allowUnsigned)
     if (refusal) return refusal
     const unsignedOverride = provenance.verdict.state === 'unsigned' && allowUnsigned
