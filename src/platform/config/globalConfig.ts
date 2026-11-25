@@ -55,12 +55,17 @@ type GlobalConfigSaveRefusal =
   | { kind: 'locked'; filePath: string }
   | { kind: 'auth-wipe'; filePath: string }
 
+const EXIT_FLUSH_HELD_LINE =
+  'Could not save the settings changed in this session, so those changes are lost — close what holds the settings file, then make them again.'
+
 function exitFlushRefusalLine(refusal: GlobalConfigSaveRefusal): string {
   switch (refusal.kind) {
     case 'read':
-      return `Could not save the settings changed in this session: ${refusal.filePath} could not be read (${refusal.code}); nothing was written and those changes were lost. Close what holds the file, then try again.`
+      logForDebugging(`Failed to save session settings to ${refusal.filePath}: could not be read (${refusal.code})`, { level: 'error' })
+      return EXIT_FLUSH_HELD_LINE
     case 'locked':
-      return `Could not save the settings changed in this session: ${refusal.filePath} could not be written (another Mercury kept its lock); nothing was written and those changes were lost. Close what holds the file, then try again.`
+      logForDebugging(`Failed to save session settings to ${refusal.filePath}: another Mercury kept its lock`, { level: 'error' })
+      return EXIT_FLUSH_HELD_LINE
     case 'auth-wipe':
       return `Could not save the settings changed in this session: ${refusal.filePath} was not written over (it read back without the sign-in this session holds); nothing was written and those changes were lost. Set them again next time.`
   }
@@ -82,13 +87,10 @@ function armDeferredExitFlush(): void {
       if (!alreadyReported) {
         if (error instanceof AtomicWriteRefusal && error.phase === 'rename') {
           logForDebugging(`Failed to save session settings to ${error.targetPath}: ${error.message}`, { level: 'error' })
-          const code = error.code ?? 'write error'
-          process.stderr.write(
-            `\nCould not save the settings changed in this session: ${error.targetPath} could not be written (${code}); nothing was written and those changes were lost. Close what holds the file, then try again.\n`,
-          )
         } else {
-          process.stderr.write(`\nThe settings changed in this session could not be saved to ${getGlobalMercuryFile()} (${errorMessage(error)}); they are lost — set them again next time.\n`)
+          logForDebugging(`Failed to save session settings to ${getGlobalMercuryFile()}: ${errorMessage(error)}`, { level: 'error' })
         }
+        process.stderr.write(`\n${EXIT_FLUSH_HELD_LINE}\n`)
       }
     }
   })

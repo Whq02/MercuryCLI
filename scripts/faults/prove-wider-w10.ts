@@ -618,7 +618,7 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
   check('w10-13(R5): user settings switch says one plain held-file sentence with no rename/temp internals', r5.ok === false && r5.reason === expectR5, JSON.stringify(r5))
   check('w10-13(R7): project-local settings switch says one plain held-file sentence with no rename/temp internals', r7.ok === false && r7.reason === expectR7, JSON.stringify(r7))
 
-  const runR10Child = (body: string): { status: number | null; stderr: string; mercuryJson: string | null } => {
+  const runR10Child = (body: string): { status: number | null; stderr: string; mercuryJson: string | null; debugLog: string } => {
     const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'wider-w10-r10-')))
     const userHome = join(scratch, 'userhome')
     const home = join(scratch, 'home')
@@ -627,12 +627,14 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
     const appData = join(userHome, 'AppData', 'Roaming')
     const xdgConfigHome = join(userHome, '.config')
     const project = join(scratch, 'project')
+    const debugLogPath = join(scratch, 'debug.log')
     mkdirSync(userHome, { recursive: true })
     mkdirSync(home, { recursive: true })
     mkdirSync(localAppData, { recursive: true })
     mkdirSync(appData, { recursive: true })
     mkdirSync(project, { recursive: true })
     const script = `
+      process.argv = [process.argv[0] ?? 'bun', 'eval', ${JSON.stringify(`--log-file=${debugLogPath}`)}]
       process.env.HOME = ${JSON.stringify(userHome)}
       process.env.USERPROFILE = ${JSON.stringify(userHome)}
       process.env.LOCALAPPDATA = ${JSON.stringify(localAppData)}
@@ -678,7 +680,11 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
       try {
         mercuryJson = require('node:fs').readFileSync(cfgPath, 'utf8')
       } catch {}
-      return { status: res.status, stderr: res.stderr, mercuryJson }
+      let debugLog = ''
+      try {
+        debugLog = require('node:fs').readFileSync(debugLogPath, 'utf8')
+      } catch {}
+      return { status: res.status, stderr: res.stderr, mercuryJson, debugLog }
     } finally {
       rmSync(scratch, { recursive: true, force: true })
     }
@@ -763,12 +769,16 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
     process.exit(0)
   `)
   const errLinesC = r10c.stderr.split('\n').map(l => l.trim()).filter(Boolean)
-  const expectedFlushRe =
-    /^Could not save the settings changed in this session: .+[/\\]\.mercury\.json could not be written \(EPERM\); nothing was written and those changes were lost\. Close what holds the file, then try again\.$/
+  const expectedFlushLine =
+    'Could not save the settings changed in this session, so those changes are lost — close what holds the settings file, then make them again.'
   check(
-    'w10-13(R10c): with no prior refusal, a held-file exit flush prints the unified sentence without naming inner store steps',
-    errLinesC.some(l => expectedFlushRe.test(l)) && !r10c.stderr.includes('rename step'),
-    `rc=${r10c.status} lines=${JSON.stringify(errLinesC)}`,
+    'w10-13(R10c): with no prior refusal, a held-file exit flush prints the plain sentence and logs path+code to debug log',
+    errLinesC.includes(expectedFlushLine) &&
+      !r10c.stderr.includes('.mercury.json') &&
+      !r10c.stderr.includes('EPERM') &&
+      r10c.debugLog.includes('.mercury.json') &&
+      r10c.debugLog.includes('EPERM'),
+    `rc=${r10c.status} lines=${JSON.stringify(errLinesC)} debugLog=${JSON.stringify(r10c.debugLog)}`,
   )
 
   const r10d = runR10Child(`
@@ -791,8 +801,8 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
   `)
   const errLinesD = r10d.stderr.split('\n').map(l => l.trim()).filter(Boolean)
   check(
-    'w10-13(R10d): when a caller swallows a failed save without saying anything, the held-file exit flush prints the unified sentence',
-    errLinesD.some(l => expectedFlushRe.test(l)) && !r10d.stderr.includes('rename step'),
+    'w10-13(R10d): when a caller swallows a failed save without saying anything, the held-file exit flush prints the plain sentence',
+    errLinesD.includes(expectedFlushLine) && !r10d.stderr.includes('rename step'),
     `rc=${r10d.status} lines=${JSON.stringify(errLinesD)}`,
   )
 
@@ -825,14 +835,14 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
     process.exit(0)
   `)
   const errLinesE = r10e.stderr.split('\n').map(l => l.trim()).filter(Boolean)
-  const expectedReadFlushRe =
-    /^Could not save the settings changed in this session: .+[/\\]\.mercury\.json could not be read \(EBUSY\); nothing was written and those changes were lost\. Close what holds the file, then try again\.$/
   check(
-    'w10-13(R10e): with no prior refusal, a read-refused exit flush with deferred saves prints the sentence once and keeps .mercury.json byte-equal',
+    'w10-13(R10e): with no prior refusal, a read-refused exit flush with deferred saves prints the plain sentence once, logs detail, and keeps .mercury.json byte-equal',
     errLinesE.length === 1 &&
-      expectedReadFlushRe.test(errLinesE[0] ?? '') &&
+      errLinesE[0] === expectedFlushLine &&
+      r10e.debugLog.includes('.mercury.json') &&
+      r10e.debugLog.includes('EBUSY') &&
       r10e.mercuryJson === initialBodyE,
-    `rc=${r10e.status} lines=${JSON.stringify(errLinesE)} sameBytes=${String(r10e.mercuryJson === initialBodyE)}`,
+    `rc=${r10e.status} lines=${JSON.stringify(errLinesE)} debugLog=${JSON.stringify(r10e.debugLog)} sameBytes=${String(r10e.mercuryJson === initialBodyE)}`,
   )
   check(
     'w10-13(R10f): read-refused exit flush ends with the same exit status as rename-refused exit flush (R10c)',
@@ -902,15 +912,15 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
     process.exit(0)
   `)
   const errLinesH = r10h.stderr.split('\n').map(l => l.trim()).filter(Boolean)
-  const expectedLockFlushRe =
-    /^Could not save the settings changed in this session: .+[/\\]\.mercury\.json could not be written \(another Mercury kept its lock\); nothing was written and those changes were lost\. Close what holds the file, then try again\.$/
   check(
-    'w10-13(R10h): with no prior refusal, a lock-contention exit flush with deferred saves prints the lock sentence once, keeps .mercury.json byte-equal, and matches R10c status',
+    'w10-13(R10h): with no prior refusal, a lock-contention exit flush with deferred saves prints the plain sentence once, logs detail, keeps .mercury.json byte-equal, and matches R10c status',
     errLinesH.length === 1 &&
-      expectedLockFlushRe.test(errLinesH[0] ?? '') &&
+      errLinesH[0] === expectedFlushLine &&
+      r10h.debugLog.includes('.mercury.json') &&
+      r10h.debugLog.includes('lock') &&
       r10h.mercuryJson === initialBodyE &&
       r10h.status === r10c.status,
-    `rc=${r10h.status} r10c=${r10c.status} lines=${JSON.stringify(errLinesH)} sameBytes=${String(r10h.mercuryJson === initialBodyE)}`,
+    `rc=${r10h.status} r10c=${r10c.status} lines=${JSON.stringify(errLinesH)} debugLog=${JSON.stringify(r10h.debugLog)} sameBytes=${String(r10h.mercuryJson === initialBodyE)}`,
   )
 
   const initialBodyI = `${JSON.stringify({ hasCompletedOnboarding: true, numStartups: 11 }, null, 2)}\n`
