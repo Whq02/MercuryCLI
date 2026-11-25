@@ -21,6 +21,7 @@ enableConfigs()
 const accounts = await import('../../src/models/roads/gemini/geminiAccounts.ts')
 const contract = await import('../../src/models/roads/gemini/antigravityClientContract.ts')
 const { deriveFamilySlotGroups, executeSlotRemoval } = await import('../../src/models/roads/accountSlots.ts')
+const logins = await import('../../src/screen/boot-face/logins/facts.ts')
 
 const fixHint = 'fix currentGeminiPlanTokens or currentGeminiTokens in src/models/roads/gemini/geminiAccounts.ts (the roads they hand the door), the Google rows in src/models/roads/account-slots/gemini.ts, or the door in src/models/sign-in/lifecycle/lockedRefresh.ts; the stand-in token server is scripts/provauth/lib/rotating-token-server.ts'
 let failures = 0
@@ -182,6 +183,11 @@ try {
   const oauthRow = slot('gemini:oauth')
   check('/accounts keeps the Google account row, not signed in, not active, with the expired words', oauthRow?.signedIn === false && oauthRow.active === false && oauthRow.identity === 'Google account (OAuth)' && oauthRow.stateNote === EXPIRED_NOTE && oauthRow.removal.route === 'gemini-oauth', JSON.stringify(oauthRow))
   check('with both expired no Google source is active and a request resolves to none', accounts.resolveGeminiAccount() === undefined && (await accounts.resolveGeminiRequestAuth()) === undefined)
+  check('both rows carry the mark every expired sign-in row carries', planRow?.expired === true && oauthRow?.expired === true && slot('gemini:plan')?.expired === true, JSON.stringify({ plan: planRow?.expired, oauth: oauthRow?.expired }))
+  const face = logins.collectLoginsScreenFacts()
+  const googleArm = logins.loginsCatalogue().find(arm => arm.familyId === 'gemini')
+  const faceRow = googleArm ? logins.loginsRowStateOf(googleArm, face) : undefined
+  check('the Boot face says it as it does for an expired Anthropic sign-in: the Logins glance, the row loud with its identity and the word expired, the family not counted as signed in', logins.loginsGlance(face.groups) === 'Gemini sign-in expired — sign in again' && faceRow?.chip === `Google sign-in (tier unknown) ${EMAIL} · expired` && faceRow.loud === true && faceRow.signedIn === false && logins.loginsFamilyCounts(face.groups).signed === 0, JSON.stringify({ glance: logins.loginsGlance(face.groups), row: faceRow, signed: logins.loginsFamilyCounts(face.groups).signed }))
   const removedPlan = planRow ? executeSlotRemoval(planRow) : undefined
   const removedOauth = oauthRow ? executeSlotRemoval(oauthRow) : undefined
   check('removing each expired row takes it off the list and out of the store', removedPlan?.mutated === true && removedOauth?.mutated === true && slot('gemini:plan') === undefined && slot('gemini:oauth') === undefined && file().plan === undefined && file().tokens === undefined && file().client?.clientId === CLIENT, JSON.stringify({ removedPlan, removedOauth, left: Object.keys(file()) }))
