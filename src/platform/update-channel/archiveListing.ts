@@ -3,7 +3,7 @@ import { pipeline } from 'node:stream/promises'
 import { createGunzip, createInflateRaw } from 'node:zlib'
 import type { UpdateCeilings } from './channelCore.js'
 
-export type ArchiveForm = 'tar.gz' | 'zip'
+type ArchiveForm = 'tar.gz' | 'zip'
 
 type EntryKind = 'file' | 'directory' | 'symlink' | 'hardlink' | 'special'
 
@@ -13,7 +13,7 @@ interface ListedEntry {
   targets: string[]
 }
 
-export type ArchiveCheck = { state: 'ok'; entries: number } | { state: 'refused'; reason: string } | { state: 'unreadable'; note: string }
+type ArchiveCheck = { state: 'ok'; entries: number } | { state: 'refused'; reason: string } | { state: 'unreadable'; note: string }
 
 class ArchiveRefusal extends Error {}
 
