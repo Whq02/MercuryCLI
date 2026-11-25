@@ -26,6 +26,7 @@ export async function inheritSkills(home: string): Promise<{ ok: true; skills: s
     return { ok: true, skills }
   } catch (error) {
     rmSync(incoming, { recursive: true, force: true })
+    if (!existsSync(to)) rmSync(config, { force: true })
     return { ok: false, reason: `The skills were not copied (${errorMessage(error)}): the new profile starts without them.` }
   }
 }

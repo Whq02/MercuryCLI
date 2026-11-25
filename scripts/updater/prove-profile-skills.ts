@@ -174,11 +174,22 @@ check('run again, create takes that home and the copy hands the skills on, off u
 check('and the backups folder of Profile 1, taken away before that copy, was not made again', !existsSync(join(first, 'backups')), backups())
 
 console.log('── a copy that fails ──')
+const sixth = createProfile()
+const sixthHome = `${first}6`
+symlinkSync(join(userHome, 'gone'), join(sixthHome, 'skills'))
+const unmoved = await inheritSkills(sixthHome)
+check('a copy whose move into place fails after the key was written takes the key back, and leaves nothing of itself', sixth.ok && sixth.profile.home === sixthHome && !unmoved.ok && /^[A-Z][^\n]+\.$/.test(unmoved.reason) && show(readdirSync(sixthHome).sort()) === show(['profile.json', 'skills']) && readlinkSync(join(sixthHome, 'skills')) === join(userHome, 'gone'), show([unmoved, readdirSync(sixthHome)]))
+const seventh = createProfile()
+const seventhHome = `${first}7`
+const flight = inheritSkills(seventhHome)
+mkdirSync(join(seventhHome, 'skills', 'made-meanwhile'), { recursive: true })
+const beaten = await flight
+check('a copy that finds a skills folder made while it ran leaves that folder, and keeps the names off', seventh.ok && seventh.profile.home === seventhHome && !beaten.ok && show(readdirSync(seventhHome).sort()) === show(['.mercury.json', 'profile.json', 'skills']) && show(readdirSync(join(seventhHome, 'skills'))) === show(['made-meanwhile']) && show(kit(seventhHome, 'read', elsewhere).off) === ALL, show([beaten, readdirSync(seventhHome)]))
 writeFileSync(join(first, 'skills', 'zz-locked'), 'no one may read this\n')
 chmodSync(join(first, 'skills', 'zz-locked'), 0o000)
-const sixth = createProfile()
-const failed = sixth.ok ? await inheritSkills(sixth.profile.home) : sixth
-check('a copy that fails half way says so in one sentence and leaves nothing of itself in the new home', sixth.ok && !failed.ok && /^[A-Z][^\n]+\.$/.test(failed.reason) && show(readdirSync(sixth.profile.home)) === show(['profile.json']), show([failed, sixth.ok ? readdirSync(sixth.profile.home) : sixth]))
+const eighth = createProfile()
+const failed = eighth.ok ? await inheritSkills(eighth.profile.home) : eighth
+check('a copy that fails half way says so in one sentence and leaves nothing of itself in the new home', eighth.ok && !failed.ok && /^[A-Z][^\n]+\.$/.test(failed.reason) && show(readdirSync(eighth.profile.home)) === show(['profile.json']), show([failed, eighth.ok ? readdirSync(eighth.profile.home) : eighth]))
 rmSync(join(first, 'skills'), { recursive: true })
 const bare = createProfile()
 check('a home with no skills of its own hands nothing on, and writes nothing into the new home', bare.ok && show(await inheritSkills(bare.profile.home)) === show({ ok: true, skills: [] }) && show(readdirSync(bare.profile.home)) === show(['profile.json']), bare.ok ? show(readdirSync(bare.profile.home)) : show(bare))
