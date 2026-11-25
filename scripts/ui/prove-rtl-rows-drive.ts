@@ -73,6 +73,37 @@ const PAGE_UP = '\x1b[5~'
 
 type Scene = { rows: TerminalRows; atRest: TerminalRows | null; run: ArenaRun; resized: boolean; wire: string }
 
+function recorded(run: ArenaRun): Array<{ ts: number; kind: 'in' | 'out'; bytes: Buffer }> {
+  const events: Array<{ ts: number; kind: 'in' | 'out'; bytes: Buffer }> = []
+  for (const line of readFileSync(run.paths.drive, 'utf8').split('\n')) {
+    if (line === '') continue
+    const row = JSON.parse(line) as { ts?: number; sent?: number; b64?: string }
+    if (row.b64 === undefined) continue
+    const bytes = Buffer.from(row.b64, 'base64')
+    if (row.sent !== undefined) events.push({ ts: row.sent, kind: 'in', bytes })
+    else if (row.ts !== undefined) events.push({ ts: row.ts, kind: 'out', bytes })
+  }
+  return events.sort((a, b) => a.ts - b.ts)
+}
+
+async function leaving(): Promise<{ ended: string | undefined; explicit: number; implicit: number }> {
+  const run = await runArtifactArena({
+    turns: [],
+    sends: [key(READY, 1200, `\\x1b[200~${LINE}\\x1b[201~`), key(READY, 3000, '\\x15'), key(READY, 3800, '/exit'), key(READY, 4800, '\\r')],
+    seconds: 30,
+    cols: COLS,
+    rows: ROWS,
+    keep: true,
+    extraEnv: { TERM_PROGRAM: 'iTerm.app', TERM_PROGRAM_VERSION: '3.7.6' },
+  })
+  try {
+    const wire = Buffer.concat(recorded(run).filter(event => event.kind === 'out').map(event => event.bytes)).toString('utf8')
+    return { ended: run.outcome.report?.ended, explicit: wire.lastIndexOf('\x1b[8l'), implicit: wire.lastIndexOf('\x1b[8h') }
+  } finally {
+    run.cleanup()
+  }
+}
+
 async function scene(terminal: string): Promise<Scene> {
   const run = await runArtifactArena({
     turns,
@@ -86,16 +117,7 @@ async function scene(terminal: string): Promise<Scene> {
   })
   if (frameDir) copyFileSync(run.paths.drive, join(frameDir, `${terminal}.drive.jsonl`))
   const decoder = new TextDecoder('utf-8')
-  const events: Array<{ ts: number; kind: 'in' | 'out'; bytes: Buffer }> = []
-  for (const line of readFileSync(run.paths.drive, 'utf8').split('\n')) {
-    if (line === '') continue
-    const row = JSON.parse(line) as { ts?: number; sent?: number; b64?: string }
-    if (row.b64 === undefined) continue
-    const bytes = Buffer.from(row.b64, 'base64')
-    if (row.sent !== undefined) events.push({ ts: row.sent, kind: 'in', bytes })
-    else if (row.ts !== undefined) events.push({ ts: row.ts, kind: 'out', bytes })
-  }
-  events.sort((a, b) => a.ts - b.ts)
+  const events = recorded(run)
   const rows = new TerminalRows(COLS, ROWS)
   let atRest: TerminalRows | null = null
   const widths = [NARROW, COLS]
@@ -150,8 +172,13 @@ console.log('============================================================')
 console.log(' right-to-left rows on the wire: the typing box, a streamed answer, a resize, a scroll back')
 console.log('============================================================')
 
-const [apple, iterm] = await Promise.all([scene('Apple_Terminal'), scene('iTerm.app')])
+const [apple, iterm, left] = await Promise.all([scene('Apple_Terminal'), scene('iTerm.app'), leaving()])
 try {
+  check(
+    'iTerm.app 3.7.6: /exit after an Arabic line ends the screen, and CSI 8 h follows the last CSI 8 l, so the shell is ordered by the terminal again',
+    left.ended === 'eof' && left.explicit >= 0 && left.implicit > left.explicit,
+    `what to change: the explicit-bidi step of TEARDOWN_SUITE in src/screen/renderer/root/teardown.ts and the restore in src/screen/renderer/terminal-session/shutdownRestoration.ts · ${JSON.stringify(left)}`,
+  )
   saveRows('apple-at-rest', apple.atRest)
   saveRows('apple-last', apple.rows)
   saveRows('iterm-at-rest', iterm.atRest)
