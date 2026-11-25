@@ -911,7 +911,7 @@ async function writeProjectMcpFile(document: ProjectMcpDocument, action = 'updat
     if (held !== null) {
       logForDebugging(`Failed to write to ${mcpJsonPath}: ${error instanceof Error ? error.message : String(error)}`, { level: 'error' })
       throw new Error(
-        `Could not ${action}: ${held.path} could not be written (${held.code}); nothing was written. Close what holds the file, then try again.`,
+        `Could not ${action} — the MCP configuration file could not be written; close what holds it and try again.`,
       )
     }
     throw new Error(
@@ -994,7 +994,7 @@ export async function addMcpConfig(
           noteGlobalConfigRefusalSaid()
           logForDebugging(`Failed to save MCP server ${name} to ${held.path}: ${error instanceof Error ? error.message : String(error)}`, { level: 'error' })
           throw new Error(
-            `Could not add MCP server ${name}: ${held.path} could not be written (${held.code}); nothing was written. Close what holds the file, then try again.`,
+            `Could not add MCP server ${name} — the MCP configuration file could not be written; close what holds it and try again.`,
           )
         }
         throw error

@@ -580,6 +580,11 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
   const r457 = runScenario(`
     const { mock } = await import('bun:test')
     const { join } = await import('node:path')
+    const { readFileSync } = await import('node:fs')
+    delete process.env.NODE_ENV
+    const dbg = await import(SRC + '/platform/logs/debugLog.ts')
+    dbg.enableDebugLogging()
+    const dbgPath = dbg.getDebugLogPath()
     const realPub = await import(SRC + '/platform/substrate/durablePublish.ts')
     const DurablePublishError = realPub.DurablePublishError
     const makeHeldErr = (targetPath) =>
@@ -607,14 +612,16 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
     out.r5Path = join(HOME, 'settings.json')
     out.r7 = setSwitch('filmcraft@mercury', true, 'project', 'shell')
     out.r7Path = join(PROJECT, '.mercury', 'settings.local.json')
+    try { out.r4Debug = readFileSync(dbgPath, 'utf8') } catch { out.r4Debug = '' }
   `)
   const r4 = String(r457.r4 ?? '')
+  const r4Debug = String(r457.r4Debug ?? '')
   const r5 = (r457.r5 as { ok?: boolean; reason?: string } | undefined) ?? {}
   const r7 = (r457.r7 as { ok?: boolean; reason?: string } | undefined) ?? {}
-  const expectR4 = `Could not add MCP server heldsrv: ${String(r457.r4Path)} could not be written (EPERM); nothing was written. Close what holds the file, then try again.`
+  const expectR4 = 'Could not add MCP server heldsrv — the MCP configuration file could not be written; close what holds it and try again.'
   const expectR5 = `Could not save settings: ${String(r457.r5Path)} could not be written (EPERM); nothing was written. Close what holds the file, then try again.`
   const expectR7 = `Could not save settings: ${String(r457.r7Path)} could not be written (EPERM); nothing was written. Close what holds the file, then try again.`
-  check('w10-13(R4): project mcp add says one plain held-file sentence with no rename/temp internals', r4 === expectR4, r4)
+  check('w10-13(R4): project mcp add says one plain held-file sentence and logs path+code to debug log', r4 === expectR4 && r4Debug.includes('mcp.json') && r4Debug.includes('EPERM'), `${r4} | debug=${r4Debug}`)
   check('w10-13(R5): user settings switch says one plain held-file sentence with no rename/temp internals', r5.ok === false && r5.reason === expectR5, JSON.stringify(r5))
   check('w10-13(R7): project-local settings switch says one plain held-file sentence with no rename/temp internals', r7.ok === false && r7.reason === expectR7, JSON.stringify(r7))
 
@@ -746,11 +753,13 @@ console.log('\n§13 w10-13 — held-file rename refusals (R4, R5, R7, R10) show 
   `)
   const errLinesB = r10b.stderr.split('\n').map(l => l.trim()).filter(Boolean)
   check(
-    'w10-13(R10b): file still held at exit after refusal was said prints the refusal once and not twice',
+    'w10-13(R10b): file still held at exit after refusal was said prints the plain refusal once and logs detail',
     r10b.status === 1 &&
       errLinesB.length === 1 &&
-      /^Could not add MCP server heldu1: .+[/\\]\.mercury\.json could not be written \(EPERM\); nothing was written\. Close what holds the file, then try again\.$/.test(errLinesB[0] ?? ''),
-    `rc=${r10b.status} lines=${JSON.stringify(errLinesB)}`,
+      errLinesB[0] === 'Could not add MCP server heldu1 — the MCP configuration file could not be written; close what holds it and try again.' &&
+      r10b.debugLog.includes('.mercury.json') &&
+      r10b.debugLog.includes('EPERM'),
+    `rc=${r10b.status} lines=${JSON.stringify(errLinesB)} debugLog=${JSON.stringify(r10b.debugLog)}`,
   )
 
   const r10c = runR10Child(`
