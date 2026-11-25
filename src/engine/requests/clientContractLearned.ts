@@ -421,9 +421,9 @@ async function settleRecord(home: string, next: (fresh: ClientContractRecord) =>
     await clientContractStore(home).mutate(next)
   } catch (error) {
     refused = recordFailureCode(error)
-    logForDebugging(`client contract: the record could not be saved (${refused})`, { level: 'warn' })
+    logForDebugging(`client contract: the record at ${home} could not be saved (${refused})`, { level: 'warn' })
   }
-  noteTrouble(home, refused === null ? null : `the last registry answer was not saved to the config home (${refused})`)
+  noteTrouble(home, refused === null ? null : 'the last registry answer could not be saved')
   return refused
 }
 
@@ -664,7 +664,7 @@ export function clientContractStory(heal: ClientContractHeal): string {
   if (heal.kind === 'retry') {
     const learned =
       heal.via === 'registry'
-        ? `the registry said ${heal.to}${heal.unsaved !== undefined ? `, not saved to the config home (${heal.unsaved})` : ''}`
+        ? `the registry said ${heal.to}${heal.unsaved !== undefined ? ', but it could not be saved' : ''}`
         : heal.via === 'peer'
           ? `another session's registry read said ${heal.to}`
           : `the config home held the learned ${heal.to}`

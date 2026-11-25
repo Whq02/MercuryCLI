@@ -569,8 +569,16 @@ section('§8 durable publication — a refused write is said, never claimed as s
       process.env.MERCURY_FAULT_INJECT = 'rename@client-contract.json:eacces'
     },
   }
+  const dbg = await import('../../src/platform/logs/debugLog.ts')
+  const prevNodeEnv = process.env.NODE_ENV
+  delete process.env.NODE_ENV
+  dbg.enableDebugLogging()
+  const dbgPath = dbg.getDebugLogPath()
   const result = await drive(NEWER)
   delete process.env.MERCURY_FAULT_INJECT
+  await dbg.flushDebugLogs()
+  if (prevNodeEnv !== undefined) process.env.NODE_ENV = prevNodeEnv
+  const dbgText = (() => { try { return readFileSync(dbgPath, 'utf8') } catch { return '' } })()
   check('a refused save of the answer still retries once on the number the registry said', result.requests.length === 2 && result.requests[1]?.version === NEWER && result.answered && registryReads - readsBefore === 1, `${result.requests.map(r => r.version).join(' -> ')}; ${registryReads - readsBefore} read(s)`)
   const record = readLearnedFile(home)
   check('the config home holds only the claim: no learned number and no answer is claimed as saved', record !== null && record.learned === undefined && record.lastRead?.by === 'heal' && record.lastRead.answer === undefined, JSON.stringify(record))
@@ -578,7 +586,7 @@ section('§8 durable publication — a refused write is said, never claimed as s
   check('this process presents the learned number it could not save', described.presented === NEWER && described.source === 'learned', JSON.stringify(described))
   if (typeof health.clientContractCheck === 'function') {
     const row = await health.clientContractCheck().run()
-    check('the health row says the answer was not saved', row.evidence === `subscription door presents cc_version ${NEWER} · learned ${dayOf(Date.now())} from the registry · the last registry answer was not saved to the config home (EACCES)`, row.evidence)
+    check('the health row says the answer could not be saved and logs the code', row.evidence === `subscription door presents cc_version ${NEWER} · learned ${dayOf(Date.now())} from the registry · the last registry answer could not be saved` && dbgText.includes('EACCES'), `${row.evidence} | dbg=${dbgText.slice(-200)}`)
   }
 }
 {
@@ -598,7 +606,7 @@ section('§8 durable publication — a refused write is said, never claimed as s
   check('…and nothing claims it was saved: the config home holds the bare claim, no learned number and no day stamp', record !== null && record.learned === undefined && record.lastPeekAtMs === undefined && record.lastRead?.by === 'peek' && record.lastRead.answer === undefined, JSON.stringify(record))
   rmSync(join(home, 'client-contract.json.lock'), { recursive: true, force: true })
 }
-check('the words of a still-refused retry whose answer was not saved say so in the one sentence', learnedModule?.clientContractStory({ kind: 'retry', sent: { presented: CONTRACT, source: 'constant' }, to: NEWER, via: 'registry', unsaved: 'EACCES' }) === `Mercury presented ${CONTRACT} (constant) (the registry said ${NEWER}, not saved to the config home (EACCES)); retried once, still refused`)
+check('the words of a still-refused retry whose answer was not saved say so in the one sentence', learnedModule?.clientContractStory({ kind: 'retry', sent: { presented: CONTRACT, source: 'constant' }, to: NEWER, via: 'registry', unsaved: 'EACCES' }) === `Mercury presented ${CONTRACT} (constant) (the registry said ${NEWER}, but it could not be saved); retried once, still refused`)
 
 section('§9 the quiet window is claimed across processes — two sessions refused together make one registry read')
 {
