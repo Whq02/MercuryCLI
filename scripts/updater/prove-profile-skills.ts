@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
@@ -105,6 +105,9 @@ skill(join(first, 'skills', 'attic', 'zeta'), 'the third, found before the secon
 skill(join(first, 'skills', 'attic', 'alpha'), 'a second folder of the first one\'s name')
 skill(join(first, 'skills', 'not a skill name'), 'a folder the kit cannot name')
 writeFileSync(join(first, 'skills', 'notes.txt'), 'kept beside the skills\n')
+mkdirSync(join(first, 'skills', 'shared'))
+writeFileSync(join(first, 'skills', 'shared', 'house-style.md'), 'what two skills both read\n')
+symlinkSync('../shared', join(first, 'skills', 'alpha', 'shared'))
 const firstSkills = tree(join(first, 'skills'))
 const firstKit = kit(first, 'skill', here, 'alpha', 'invocable')
 kit(first, 'trust', folder('seen'))
@@ -118,6 +121,8 @@ const done: unknown = page.status === 0 ? JSON.parse(page.stdout.trim().split('\
 check('the copy answers the skills it holds off: each name once, in order, the one the kit cannot name left out', show(done) === show({ made: { ok: true, profile: { id: 2, name: 'Profile 2', home: second, command: 'mercury2', current: false } }, copied: { ok: true, skills: ['alpha', 'beta', 'zeta'] } }), show([page.status, done, page.stderr.slice(-300)]))
 check('with a backup of its own config standing, that session says nothing on stderr and its backups folder is as it was', firstBackups.includes('.mercury.json.backup.') && page.stderr === '' && backups() === firstBackups, show([page.stderr, firstBackups, backups()]))
 check('the new home holds the skills folder byte for byte, and nothing half-made beside it', tree(join(second, 'skills')) === firstSkills && !readdirSync(second).some(name => name.startsWith('skills.')), show(readdirSync(second)))
+const link = join(second, 'skills', 'alpha', 'shared')
+check('a link inside the skills folder is copied as it was written, and leads to the copy', readlinkSync(link) === '../shared' && realpathSync(link) === join(second, 'skills', 'shared'), show([readlinkSync(link), realpathSync(link)]))
 
 console.log('── under the new home, the kit ──')
 const ALL = show(['alpha', 'beta', 'zeta'])
