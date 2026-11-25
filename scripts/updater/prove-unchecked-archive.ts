@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -13,7 +13,7 @@ import { zipSync } from 'fflate'
 const { assetNameFor, updateCeilings } = await import('../../src/platform/update-channel/channelCore.js')
 const UPDATE_CEILINGS = updateCeilings()
 const { performUpdate } = await import('../../src/platform/update-channel/updateService.js')
-const { unpackedFolderRefusal } = await import('../../src/platform/update-channel/archiveListing.js')
+const { checkArchiveBeforeUnpack, unpackedFolderRefusal } = await import('../../src/platform/update-channel/archiveListing.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -26,6 +26,7 @@ interface TarMember {
   type?: string
   data?: Buffer
   link?: string
+  gnu?: boolean
 }
 
 function tarHeader(member: TarMember): Buffer {
@@ -39,7 +40,7 @@ function tarHeader(member: TarMember): Buffer {
   block.write('        ', 148, 'latin1')
   block.write(member.type ?? '0', 156, 'latin1')
   if (member.link !== undefined) block.write(member.link, 157, 100, 'latin1')
-  block.write('ustar\0' + '00', 257, 'latin1')
+  block.write(member.gnu === true ? 'ustar  \0' : 'ustar\0' + '00', 257, 'latin1')
   const sum = block.reduce((total, byte) => total + byte, 0)
   block.write(`${sum.toString(8).padStart(6, '0')}\0 `, 148, 'latin1')
   return block
@@ -174,6 +175,27 @@ try {
 
   const hidden = await update(tarGz([dir('mercury/'), { name: 'mercury/x/', data: tarHeader({ name: 'mercury/hidden-pipe', type: '6' }) }]))
   check('a tar that hides entries in the bytes of a file named as a folder is refused by the reading, before the unpacker sees it', hidden.outcome.state === 'refused' && hidden.outcome.stage === 'extract' && hidden.outcome.reason === 'archive extraction failed: a header gives a file the name of a folder', shown(hidden.outcome))
+
+  const CUT = `mercury/${'d'.repeat(91)}/`
+  const longFile = `${CUT}file.txt`
+  const longNote = (name: string): TarMember => ({ name: '././@LongLink', type: 'L', data: Buffer.from(`${name}\0`), gnu: true })
+  const gnuShape = tarGz([{ ...dir('mercury/'), gnu: true }, { ...file('mercury/manifest.json', '{}'), gnu: true }, { ...dir(CUT), gnu: true }, longNote(longFile), { name: CUT, data: Buffer.from('long'), gnu: true }])
+  const gnuPath = join(scratch, 'gnu-shape.tar.gz')
+  writeFileSync(gnuPath, gnuShape)
+  const gnuListed = await checkArchiveBeforeUnpack(gnuPath, 'tar.gz', UPDATE_CEILINGS)
+  check('a GNU tar whose long-named file has a header name cut at 100 bytes right after a slash is read, as GNU tar on Linux packs a release', gnuListed.state === 'ok' && gnuListed.entries === 4, `CUT holds ${CUT.length} bytes; ${JSON.stringify(gnuListed)}`)
+  const gnuUpdate = await update(gnuShape)
+  check('such an archive is unpacked and judged by its payload', gnuUpdate.outcome.state === 'refused' && gnuUpdate.outcome.stage === 'payload', shown(gnuUpdate.outcome))
+  if (process.platform !== 'win32') {
+    const gnuDest = join(scratch, 'gnu-shape')
+    mkdirSync(gnuDest)
+    execFileSync('tar', ['-xzf', gnuPath, '-C', gnuDest])
+    check("this host's tar unpacks that entry as a file under its long name, where the listing judged it", existsSync(join(gnuDest, longFile)) && readFileSync(join(gnuDest, longFile), 'utf8') === 'long' && unpackedFolderRefusal(gnuDest, UPDATE_CEILINGS) === null)
+  }
+  const longFolder = await update(tarGz([{ ...dir('mercury/'), gnu: true }, longNote(`${CUT}sub/`), { name: CUT, data: tarHeader({ name: 'mercury/hidden-pipe', type: '6' }), gnu: true }]))
+  check('a file entry whose waiting long name ends in a slash is still refused by the reading', longFolder.outcome.state === 'refused' && longFolder.outcome.stage === 'extract' && longFolder.outcome.reason === 'archive extraction failed: a header gives a file the name of a folder', shown(longFolder.outcome))
+  const paxFolder = await update(tarGz([dir('mercury/'), { name: 'PaxHeader/x', type: 'x', data: pax('path', 'mercury/sub/') }, { name: 'mercury/x', data: tarHeader({ name: 'mercury/hidden-pipe', type: '6' }) }]))
+  check('a file entry whose waiting pax path ends in a slash is still refused by the reading', paxFolder.outcome.state === 'refused' && paxFolder.outcome.stage === 'extract' && paxFolder.outcome.reason === 'archive extraction failed: a header gives a file the name of a folder', shown(paxFolder.outcome))
 
   for (const name of ['..\\..\\..\\climbed.txt', 'mercury/../../../../climbed.txt', 'C:\\mercury-o03\\evil.txt', '/mercury-o03-absolute/evil.txt', '\\\\host\\share\\evil.txt', 'mercury/ .. / .. / .. / .. /trimmed.txt', 'mercury/\u00a0..\u00a0/\t..\t/\u3000..\u3000/. ./trimmed.txt', 'mercury/file.txt:stream']) {
     const climbed = await update(zip({ 'mercury/ok.txt': 'x', [name]: 'x' }), { windows: true })
