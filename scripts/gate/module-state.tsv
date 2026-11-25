@@ -717,15 +717,15 @@ src/engine/execution-plane/externalProjection.ts	REGISTERABLE	process	module	Loa
 src/engine/loop/model-lane.ts	resetForRetry	reset-export
 src/engine/loop/pauseGate.ts	operatorPauseGate	process	module	process-level operator pause gate shared across main seat and crewmates on purpose (keyed per seat inside gate)
 src/engine/loop/turn-machine.ts	STEPS_BEFORE_THE_LAST	process	module	Load-time list with no local writer
+src/engine/loop/turn/callPolicy.ts	effortAdjustmentsReceipted	owner	module	agent/session (module, keyed by agentId+model+asked+sent, missing end)
+src/engine/loop/turn/callPolicy.ts	streamEndsReceipted	owner	module	agent/session (module, keyed by assistant message uuid, missing end)
 src/engine/loop/turn/makeRequest.ts	PRUNE_PROJECTION	process	module	load-time data; no local writer
 src/engine/loop/turn/noToolReply.ts	EMPTY_STOP_HOOK_RESULT	process	module	Load-time table with no local writer
 src/engine/loop/turn/noToolReply.ts	NO_TOOL_RULES	process	module	Load-time list with no local writer
 src/engine/loop/turn/noToolReply.ts	OUTPUT_LIMIT_STOP_WORDS	process	module	Load-time table with no local writer
 src/engine/loop/turn/runToolCalls.ts	MAX_TURNS_CUT	process	module	Load-time table with no local writer
 src/engine/loop/turn/streamModel.ts	busyRecoveriesReceipted	owner	module	agent/session (module, keyed by message uuid, missing end)
-src/engine/loop/turn/streamModel.ts	effortAdjustmentsReceipted	owner	module	agent/session (module, keyed by agentId+model+asked+sent, missing end)
 src/engine/loop/turn/streamModel.ts	responsesClassified	process	module	FIFO-bounded (cap 64) dedupe set keyed by unique provider response message.id
-src/engine/loop/turn/streamModel.ts	streamEndsReceipted	owner	module	agent/session (module, keyed by assistant message uuid, missing end)
 src/engine/loop/turn/streamModel.ts	switchReceipts	owner	module	agent/session (module, keyed by receipt.key embedding owner, missing end)
 src/engine/message-shapes/authWallHold.ts	FINISHED_LOCAL_COMMAND	process	module	Load-time lookup with no local writer
 src/engine/message-shapes/authWallHold.ts	HARNESS_ROW	process	module	Load-time lookup with no local writer
