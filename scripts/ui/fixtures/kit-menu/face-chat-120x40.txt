@@ -26,12 +26,12 @@
 
                                                     >_  ·  ↵  ·  ↑↓
 
-                                          ╭────────────────────────────────╮
-                                          │▎❯ ✶ New Session                │
-                                          │   ↳ Continue Last Session      │
-                                          │   ⚿ Logins/Keys                │
-                                          │   ⊞ Boot Menu                  │
-                                          │   ⊞ Profiles                   │
-                                          ╰────────────────────────────────╯
+                                           ╭──────────────────────────────╮
+                                           │ ❯ New Session                │
+                                           │   Continue Last Session      │
+                                           │   Logins/Keys                │
+                                           │   Boot Menu                  │
+                                           │   Profiles                   │
+                                           ╰──────────────────────────────╯
 
                                             Model Opus 5   Dir: orchard-src
