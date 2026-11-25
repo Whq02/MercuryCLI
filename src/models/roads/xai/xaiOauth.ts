@@ -1,5 +1,4 @@
-import { mkdirSync, readFileSync, openSync, closeSync, writeSync, unlinkSync } from 'node:fs'
-import { randomUUID } from 'node:crypto'
+import { mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { flagEnv } from '../../../platform/substrate/flagRegistry.js'
 import { getAuthConfigHomeDir } from '../../../platform/environment/envUtils.js'
@@ -9,12 +8,14 @@ import { getUserAgent } from '../requestHeaders.js'
 import { noteCredentialChange } from '../../sign-in/account-ledger/signInLedger.js'
 import { refuseProofWriteIntoAccountStore } from '../proofHomeGuard.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
-import { sleep } from '../../../platform/async/sleep.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
 import { hostEnv } from '../../../platform/environment/hostEnv.js'
+import { lockedRefresh } from '../../sign-in/lifecycle/lockedRefresh.js'
 
 const XAI_OAUTH_CLIENT_ID = 'b1a00492-073a-47ea-816f-4c329264a828'
 const XAI_OAUTH_SCOPE = 'openid profile email offline_access grok-cli:access api:access'
+const EXCHANGE_DEADLINE_MS = 15_000
+const REFRESH_SKEW_MS = 120_000
 interface XaiTokens {
   accessToken: string
   refreshToken: string
@@ -90,7 +91,7 @@ function tokensFromBody(body: Record<string, unknown>, io?: XaiOauthIo, old?: Xa
 async function exchange(path: string, body: Record<string, string>, io?: XaiOauthIo): Promise<{ status: number; body: Record<string, unknown> }> {
   let response: Response
   try {
-    response = await fetchWithProviderDeadline(io?.fetchImpl ?? getApiFetch(), 'xai', 15_000, `${xaiAuthBase(io?.env)}${path}`, {
+    response = await fetchWithProviderDeadline(io?.fetchImpl ?? getApiFetch(), 'xai', EXCHANGE_DEADLINE_MS, `${xaiAuthBase(io?.env)}${path}`, {
       method: 'POST', redirect: 'error',
       headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json', 'user-agent': getUserAgent() },
       body: new URLSearchParams(body).toString(), ...(io?.fetchImpl ? {} : getProxyFetchOptions()),
@@ -141,58 +142,33 @@ export async function pollXaiDeviceToken(start: XaiDeviceAuthStart, io?: XaiOaut
     default: return { state: 'refused' }
   }
 }
-async function withRefreshLock<T>(path: string, run: () => Promise<T>): Promise<T> {
-  const lock = `${path}.refresh-lock`
-  const stamp = `${process.pid} ${randomUUID()}`
-  const deadline = performance.now() + 20_000
-  for (;;) {
-    try {
-      const fd = openSync(lock, 'wx', 0o600)
-      try { writeSync(fd, stamp) } finally { closeSync(fd) }
-      break
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw new Error('Could not lock the Grok sign-in store.')
-      try {
-        const previous = readFileSync(lock, 'utf8')
-        const pid = Number(previous.split(' ')[0])
-        if (Number.isSafeInteger(pid) && pid > 0) {
-          try { process.kill(pid, 0) } catch (error) {
-            if ((error as NodeJS.ErrnoException).code === 'ESRCH' && readFileSync(lock, 'utf8') === previous) unlinkSync(lock)
-          }
-        }
-      } catch (error) { passedOver(error) }
-      if (performance.now() >= deadline) throw new Error('Another process is refreshing Grok; retry after it finishes.')
-      await sleep(100)
-    }
+const refreshGrokSignIn = lockedRefresh<XaiTokens>()
+export async function refreshXaiTokens(io?: XaiOauthIo, force = false): Promise<XaiTokens | undefined> {
+  const answer = await refreshGrokSignIn({
+    path: xaiAuthPathForDisplay(),
+    exchangeDeadlineMs: EXCHANGE_DEADLINE_MS,
+    force,
+    read: xaiStoredTokens,
+    write: writeXaiTokens,
+    fresh: pair => pair.expiresAtMs !== undefined && pair.expiresAtMs > (io?.now?.() ?? Date.now()) + REFRESH_SKEW_MS,
+    exchange: async old => {
+      const result = await exchange('/oauth2/token', { client_id: XAI_OAUTH_CLIENT_ID, grant_type: 'refresh_token', refresh_token: old.refreshToken }, io)
+      if (result.status === 200) return { state: 'refreshed', pair: tokensFromBody(result.body, io, old) }
+      const failed = new Error(`Grok sign-in refresh failed (HTTP ${result.status}); /logins xai reconnects it. No API-key fallback was used.`)
+      if (result.status >= 400 && result.status < 500 && result.body.error === 'invalid_grant') return { state: 'dead', error: failed }
+      throw failed
+    },
+  })
+  switch (answer.state) {
+    case 'refreshed':
+    case 'current':
+      return answer.pair
+    case 'absent':
+      return undefined
+    case 'dead':
+    case 'failed':
+      throw answer.error
+    case 'busy':
+      throw new Error('Another process is refreshing Grok; retry after it finishes.')
   }
-  try { return await run() } finally {
-    try { if (readFileSync(lock, 'utf8') === stamp) unlinkSync(lock) } catch (error) { passedOver(error) }
-  }
-}
-const refreshes = new Map<string, Promise<XaiTokens | undefined>>()
-export function refreshXaiTokens(io?: XaiOauthIo, force = false): Promise<XaiTokens | undefined> {
-  const path = xaiAuthPathForDisplay()
-  const existing = refreshes.get(path)
-  if (existing) return existing
-  const beforeLock = xaiStoredTokens()
-  if (!beforeLock?.refreshToken) return Promise.resolve(undefined)
-  if (!force && beforeLock.expiresAtMs && beforeLock.expiresAtMs > (io?.now?.() ?? Date.now()) + 120_000) return Promise.resolve(beforeLock)
-  const work = withRefreshLock(path, async () => {
-    if (xaiAuthPathForDisplay() !== path) return undefined
-    const old = xaiStoredTokens()
-    if (old?.refreshToken && old.refreshToken !== beforeLock.refreshToken) return old
-    if (!old?.refreshToken) return undefined
-    if (!force && old.expiresAtMs && old.expiresAtMs > (io?.now?.() ?? Date.now()) + 120_000) return old
-    const result = await exchange('/oauth2/token', { client_id: XAI_OAUTH_CLIENT_ID, grant_type: 'refresh_token', refresh_token: old.refreshToken }, io)
-    if (xaiAuthPathForDisplay() !== path || xaiStoredTokens()?.refreshToken !== old.refreshToken) return undefined
-    if (result.status !== 200) {
-      if (result.status >= 400 && result.status < 500 && result.body.error === 'invalid_grant') writeXaiTokens({ ...old, refreshToken: '' })
-      throw new Error(`Grok sign-in refresh failed (HTTP ${result.status}); /logins xai reconnects it. No API-key fallback was used.`)
-    }
-    const tokens = tokensFromBody(result.body, io, old)
-    writeXaiTokens(tokens)
-    return tokens
-  }).finally(() => refreshes.delete(path))
-  refreshes.set(path, work)
-  return work
 }

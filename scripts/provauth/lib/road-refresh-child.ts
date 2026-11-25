@@ -6,12 +6,14 @@ const { enableConfigs } = await import('../../../src/platform/settings/config.ts
 enableConfigs()
 const kimi = await import('../../../src/models/roads/moonshot/moonshotAccounts.ts')
 const huggingface = await import('../../../src/models/roads/huggingface/huggingfaceAccounts.ts')
+const xai = await import('../../../src/models/roads/xai/xaiOauth.ts')
 
 const roads = {
   kimi: { store: kimi.moonshotAuthPathForDisplay(), refresh: () => kimi.refreshMoonshotTokens() },
   huggingface: { store: huggingface.huggingfaceAuthPathForDisplay(), refresh: () => huggingface.refreshHuggingfaceTokens() },
+  xai: { store: xai.xaiAuthPathForDisplay(), refresh: () => xai.refreshXaiTokens(undefined, true) },
 }
-if (road !== 'kimi' && road !== 'huggingface') throw new Error(`no such road: ${road}`)
+if (road !== 'kimi' && road !== 'huggingface' && road !== 'xai') throw new Error(`no such road: ${road}`)
 const { store, refresh } = roads[road]
 const stored = (): string | undefined => (JSON.parse(readFileSync(store, 'utf8')) as { tokens?: { refreshToken?: string } }).tokens?.refreshToken
 const before = stored()

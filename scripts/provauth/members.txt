@@ -27,3 +27,4 @@ prove-usage-credential-reset.ts
 prove-usage-four-surfaces.ts
 prove-usage-truth-surfaces.ts
 prove-vitals-rows-follow-the-turn.ts
+prove-xai-refresh-in-a-turn.ts

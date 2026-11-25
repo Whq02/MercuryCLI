@@ -10,7 +10,9 @@ import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProvide
 import { xaiChatCompletionsUrl, xaiGrokProxyChatHeaders, resolveXaiCredential, resolveXaiAccount } from './xaiAccounts.js'
 import { getCachedXaiCatalogue, xaiModelFacts } from './xaiCatalogue.js'
 import { isXaiChatModelId } from '../../facts/pins/xaiPins.js'
-import { refreshXaiTokens } from './xaiOauth.js'
+import { refreshXaiTokens, xaiStoredTokens } from './xaiOauth.js'
+import { errorMessage } from '../../../platform/errors/errors.js'
+import { passedOver } from '../../../platform/errors/passedOver.js'
 import { xaiResponsesTransport } from './xaiResponsesTransport.js'
 
 export const xaiLaneProfile: CompatLaneProfile = {
@@ -66,20 +68,40 @@ export async function* xaiCallModel(params: CallModelParams): CallModelStream {
   }
   const notes = snapshot?.lastError || !snapshot?.fetchedAtMs ? [`xAI model list unavailable — the named id '${model}' is sent for the provider to decide.`] : undefined
   const subscription = account.kind === 'grok-subscription'
+  let refreshFailure: string | undefined
   yield* compatChatCallModel({ ...xaiLaneProfile,
     ...(subscription ? { streamTransport: xaiResponsesTransport,
       extraHeaders: () => xaiGrokProxyChatHeaders(model!),
       recoverCredential: async () => {
         if (resolveXaiAccount()?.kind !== 'grok-subscription') return undefined
-        const tokens = await refreshXaiTokens(undefined, true)
-        return tokens ? { apiKey: tokens.accessToken, requestUrl: xaiChatCompletionsUrl(undefined, 'oauth') } : undefined
+        try {
+          const tokens = await refreshXaiTokens(undefined, true)
+          return tokens ? { apiKey: tokens.accessToken, requestUrl: xaiChatCompletionsUrl(undefined, 'oauth') } : undefined
+        } catch (error) {
+          if (xaiStoredTokens()?.refreshToken) {
+            refreshFailure = errorMessage(error)
+            return null
+          }
+          passedOver(error)
+          return undefined
+        }
       },
-      authRemedy: '/logins xai reconnects your Grok subscription; xAI decides eligibility for this account.',
       billingRemedy: 'check the subscription pool in your Grok account; /model picks another model meanwhile.',
     } : {}),
     resolveCredential: async () => {
       if (resolveXaiAccount()?.kind !== account.kind) return undefined
-      return xaiLaneProfile.resolveCredential()
+      try {
+        return await xaiLaneProfile.resolveCredential()
+      } catch (error) {
+        refreshFailure = errorMessage(error)
+        return undefined
+      }
+    },
+    get credentialHint(): string {
+      return refreshFailure ?? xaiLaneProfile.credentialHint
+    },
+    get authRemedy(): string | undefined {
+      return refreshFailure ?? (subscription ? '/logins xai reconnects your Grok subscription; xAI decides eligibility for this account.' : xaiLaneProfile.authRemedy)
     },
     ...(notes ? { leadingNotes: notes } : {}), wireModelId: () => model!
   }, { ...params, options: { ...params.options, model: model! } })

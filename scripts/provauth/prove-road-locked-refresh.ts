@@ -15,17 +15,20 @@ for (const name of Object.keys(process.env)) {
 }
 const kimiServer = rotatingTokenServer('rt-0')
 const huggingfaceServer = rotatingTokenServer('rt-0')
+const xaiServer = rotatingTokenServer('rt-0')
 process.env.MERCURY_MOONSHOT_OAUTH_BASE = kimiServer.base
 process.env.MERCURY_HUGGINGFACE_HUB_BASE = huggingfaceServer.base
+process.env.MERCURY_XAI_AUTH_BASE = xaiServer.base
 const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const kimi = await import('../../src/models/roads/moonshot/moonshotAccounts.ts')
 const huggingface = await import('../../src/models/roads/huggingface/huggingfaceAccounts.ts')
+const xai = await import('../../src/models/roads/xai/xaiOauth.ts')
 
 type Pair = { accessToken: string; refreshToken?: string }
 type Road = {
   name: string
-  child: 'kimi' | 'huggingface'
+  child: 'kimi' | 'huggingface' | 'xai'
   server: ReturnType<typeof rotatingTokenServer>
   store: string
   seed: (refreshToken: string) => void
@@ -57,6 +60,17 @@ const roads: Road[] = [
     grantPath: '/oauth/token',
     clientId: 'fixture-client',
     fix: 'fix refreshHuggingfaceTokens in src/models/roads/huggingface/huggingfaceAccounts.ts (the road it hands the door) or the door in src/models/sign-in/lifecycle/lockedRefresh.ts',
+  },
+  {
+    name: 'xAI',
+    child: 'xai',
+    server: xaiServer,
+    store: xai.xaiAuthPathForDisplay(),
+    seed: refreshToken => xai.writeXaiTokens({ accessToken: SEEDED_ACCESS, refreshToken, expiresAtMs: Date.now() + 30_000 }),
+    refresh: () => xai.refreshXaiTokens(undefined, true).catch(() => undefined),
+    grantPath: '/oauth2/token',
+    clientId: 'b1a00492-073a-47ea-816f-4c329264a828',
+    fix: 'fix refreshXaiTokens in src/models/roads/xai/xaiOauth.ts (the road it hands the door) or the door in src/models/sign-in/lifecycle/lockedRefresh.ts',
   },
 ]
 
@@ -151,6 +165,7 @@ try {
 } finally {
   kimiServer.stop()
   huggingfaceServer.stop()
+  xaiServer.stop()
 }
 console.log(failures === 0 ? `\nROADS ON THE LOCKED REFRESH GREEN (${passes} checks; ${roads.length} roads, two real processes each, loopback token servers, no live host)` : `\n${failures} FAILURE(S) of ${passes + failures}`)
 process.exit(failures === 0 ? 0 : 1)
