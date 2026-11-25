@@ -431,6 +431,7 @@ interface GoogleRefreshOptions {
   env?: NodeJS.ProcessEnv
   now?: () => number
   force?: boolean
+  signal?: AbortSignal
 }
 
 async function refreshedGoogleTokens(
@@ -438,7 +439,7 @@ async function refreshedGoogleTokens(
   opts: GoogleRefreshOptions | undefined,
   read: () => GeminiStoredTokens | undefined,
   stored: (file: GeminiAuthFile, pair: GeminiStoredTokens, nowMs: number) => GeminiAuthFile,
-  client: Record<string, string>,
+  client: Record<string, string> | undefined,
 ): Promise<GeminiStoredTokens | undefined> {
   const env = opts?.env ?? hostEnv()
   const now = opts?.now ?? Date.now
@@ -446,10 +447,12 @@ async function refreshedGoogleTokens(
     path: authFilePath(),
     exchangeDeadlineMs: LOGIN_EXCHANGE_TIMEOUT_MS,
     force: opts?.force === true,
+    ...(opts?.signal ? { signal: opts.signal } : {}),
     read,
     write: pair => writeAuthFile(file => stored(file, pair, now())),
     fresh: pair => tokensFresh(pair, now()),
     exchange: async old => {
+      if (!client) throw new Error('no Google OAuth client is configured')
       const body = new URLSearchParams({ grant_type: 'refresh_token', refresh_token: old.refreshToken, ...client })
       try {
         const raw = await postGoogleToken(body, opts?.fetchImpl ?? getApiFetch(), env)
@@ -463,9 +466,10 @@ async function refreshedGoogleTokens(
   switch (answer.state) {
     case 'refreshed':
     case 'current':
+      return answer.pair
     case 'busy':
     case 'failed':
-      return answer.pair
+      return client ? answer.pair : undefined
     case 'absent':
     case 'dead':
       return undefined
@@ -473,17 +477,13 @@ async function refreshedGoogleTokens(
 }
 
 export async function currentGeminiTokens(opts?: GoogleRefreshOptions): Promise<GeminiStoredTokens | undefined> {
-  const tokens = readAuthFile()?.tokens
-  if (!tokens?.refreshToken) return undefined
-  if (!opts?.force && tokensFresh(tokens, (opts?.now ?? Date.now)())) return tokens
   const client = geminiOauthClientConfig(opts?.env ?? hostEnv())
-  if (!client) return undefined
   return refreshedGoogleTokens(
     refreshOauth,
     opts,
     () => readAuthFile()?.tokens,
     (file, pair, nowMs) => ({ ...file, tokens: pair, lastRefreshMs: nowMs }),
-    { client_id: client.clientId, ...(client.clientSecret ? { client_secret: client.clientSecret } : {}) },
+    client && { client_id: client.clientId, ...(client.clientSecret ? { client_secret: client.clientSecret } : {}) },
   )
 }
 
@@ -523,6 +523,7 @@ export async function resolveGeminiRequestAuth(opts?: {
   env?: NodeJS.ProcessEnv
   sourceKind?: GeminiSourceKind
   forceRefresh?: boolean
+  signal?: AbortSignal
 }): Promise<GeminiRequestAuth | undefined> {
   const env = opts?.env ?? hostEnv()
   const account = resolveGeminiAccount(env)
@@ -533,6 +534,7 @@ export async function resolveGeminiRequestAuth(opts?: {
       ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}),
       env,
       ...(opts?.forceRefresh ? { force: true } : {}),
+      ...(opts?.signal ? { signal: opts.signal } : {}),
     })
     const facts = geminiPlanFacts()
     if (!tokens?.accessToken || !facts) return undefined
@@ -567,6 +569,7 @@ export async function resolveGeminiRequestAuth(opts?: {
     ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}),
     env,
     ...(opts?.forceRefresh ? { force: true } : {}),
+    ...(opts?.signal ? { signal: opts.signal } : {}),
   })
   if (!tokens?.accessToken) return undefined
   return {
