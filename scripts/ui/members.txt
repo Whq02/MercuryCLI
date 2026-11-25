@@ -57,6 +57,7 @@ prove-pending-card-not-ran-drive.ts
 prove-picker-ctrl-pn.ts
 prove-picker-effort-save-refusal.ts
 prove-popup-page-keys.ts
+prove-profiles-page-drive.ts
 prove-quiet-boot-journey.ts
 prove-rail-click-after-resize.ts
 prove-rail-mission-birth.ts
