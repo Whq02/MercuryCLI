@@ -14,7 +14,7 @@ import {
   parsePrivateVersion,
   PAYLOAD_ROOT,
   selectRelease,
-  UPDATE_CEILINGS,
+  updateCeilings,
   type ReleaseSelection,
   type UpdateCeilings,
 } from './channelCore.js'
@@ -378,7 +378,7 @@ function writeUpdateReceipt(roots: LayoutRoots, startedAt: string, outcome: Upda
 export async function performUpdate(roots: LayoutRoots, progress: Progress, opts: { allowUnsigned?: boolean; ceilings?: UpdateCeilings } = {}): Promise<UpdateOutcome> {
   const startedAt = new Date().toISOString()
   const allowUnsigned = opts.allowUnsigned === true
-  const outcome = await performUpdateTransaction(roots, progress, allowUnsigned, opts.ceilings ?? UPDATE_CEILINGS)
+  const outcome = await performUpdateTransaction(roots, progress, allowUnsigned, opts.ceilings ?? updateCeilings())
   if (outcome.state === 'no-update') return outcome
   const receiptPath = writeUpdateReceipt(roots, startedAt, outcome, 'update', allowUnsigned)
   return receiptPath ? { ...outcome, receiptPath } : outcome

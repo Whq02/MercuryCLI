@@ -7,12 +7,13 @@ import { join } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '9.9.9' }
 
 const { downloadChannelAssets } = await import('../../src/platform/update-channel/channelTransport.js')
-const { UPDATE_CEILINGS } = (await import('../../src/platform/update-channel/channelCore.js')) as { UPDATE_CEILINGS?: Record<string, number> }
+const { updateCeilings } = await import('../../src/platform/update-channel/channelCore.js')
+const UPDATE_CEILINGS = updateCeilings()
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : " — to fix: bound the bytes anonymousDownloadAsset writes in src/platform/update-channel/channelTransport.ts by the asset's maxBytes, and keep the ceilings in UPDATE_CEILINGS in src/platform/update-channel/channelCore.ts"}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : " — to fix: bound the bytes anonymousDownloadAsset writes in src/platform/update-channel/channelTransport.ts by the asset's maxBytes, and keep the ceilings in updateCeilings in src/platform/update-channel/channelCore.ts"}`)
 }
 
 const CEILING = 64 * 1024
@@ -84,8 +85,8 @@ try {
   const ghBig = await downloadChannelAssets('gh', 'o/r', 'v1', [{ name: 'big.bin', url: null, maxBytes: CEILING }], ghDest)
   check('through gh, a file past its ceiling is refused with the same sentence and removed', ghBig.state === 'failed' && ghBig.note === `download of big.bin stopped: it holds more than ${CEILING} bytes, the most this release file may hold` && !existsSync(join(ghDest, 'big.bin')), JSON.stringify(ghBig))
 
-  check('the archive ceiling is a round figure of at least 1 GiB, in one named place', typeof UPDATE_CEILINGS?.archiveBytes === 'number' && UPDATE_CEILINGS.archiveBytes >= 1024 ** 3 && UPDATE_CEILINGS.archiveBytes % 1024 ** 3 === 0, String(UPDATE_CEILINGS?.archiveBytes))
-  check('the sums file ceiling is a few megabytes', typeof UPDATE_CEILINGS?.checksumManifestBytes === 'number' && UPDATE_CEILINGS.checksumManifestBytes >= 1024 * 1024 && UPDATE_CEILINGS.checksumManifestBytes <= 16 * 1024 * 1024, String(UPDATE_CEILINGS?.checksumManifestBytes))
+  check('the archive ceiling is a round figure of at least 1 GiB, in one named place', UPDATE_CEILINGS.archiveBytes >= 1024 ** 3 && UPDATE_CEILINGS.archiveBytes % 1024 ** 3 === 0, String(UPDATE_CEILINGS.archiveBytes))
+  check('the sums file ceiling is a few megabytes', UPDATE_CEILINGS.checksumManifestBytes >= 1024 * 1024 && UPDATE_CEILINGS.checksumManifestBytes <= 16 * 1024 * 1024, String(UPDATE_CEILINGS.checksumManifestBytes))
 } finally {
   server.closeAllConnections()
   server.close()

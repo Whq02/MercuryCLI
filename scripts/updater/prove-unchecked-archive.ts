@@ -9,7 +9,8 @@ import { gzipSync } from 'node:zlib'
 import { zipSync } from 'fflate'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '9.9.0-beta.1' }
 
-const { assetNameFor, UPDATE_CEILINGS } = await import('../../src/platform/update-channel/channelCore.js')
+const { assetNameFor, updateCeilings } = await import('../../src/platform/update-channel/channelCore.js')
+const UPDATE_CEILINGS = updateCeilings()
 const { performUpdate } = await import('../../src/platform/update-channel/updateService.js')
 
 let failures = 0
@@ -174,8 +175,8 @@ try {
     check(`a zip entry named ${JSON.stringify(name)} is refused before PowerShell is looked for`, refusedWith(climbed.outcome, `${LEAVES}${JSON.stringify(name)}`) && !stoodOutside(climbed.home, 'climbed.txt') && !stoodOutside(climbed.home, 'trimmed.txt'), shown(climbed.outcome))
   }
 
-  check('the unpacked ceiling is a round figure of at least 4 GiB', typeof UPDATE_CEILINGS.unpackedBytes === 'number' && UPDATE_CEILINGS.unpackedBytes >= 4 * 1024 ** 3 && UPDATE_CEILINGS.unpackedBytes % 1024 ** 3 === 0, String(UPDATE_CEILINGS.unpackedBytes))
-  check('the entries ceiling is a round figure of at least 100,000', typeof UPDATE_CEILINGS.entries === 'number' && UPDATE_CEILINGS.entries >= 100_000 && UPDATE_CEILINGS.entries % 10_000 === 0, String(UPDATE_CEILINGS.entries))
+  check('the unpacked ceiling is a round figure of at least 4 GiB', UPDATE_CEILINGS.unpackedBytes >= 4 * 1024 ** 3 && UPDATE_CEILINGS.unpackedBytes % 1024 ** 3 === 0, String(UPDATE_CEILINGS.unpackedBytes))
+  check('the entries ceiling is a round figure of at least 100,000', UPDATE_CEILINGS.entries >= 100_000 && UPDATE_CEILINGS.entries % 10_000 === 0, String(UPDATE_CEILINGS.entries))
 } finally {
   server.closeAllConnections()
   server.close()
