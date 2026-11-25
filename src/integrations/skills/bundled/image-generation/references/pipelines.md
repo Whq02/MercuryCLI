@@ -19,7 +19,7 @@ Document: `pipeline`
 }
 ```
 
-Edit `.pipeline.json`, never completed run records under `media/`. Resuming from a `step` reruns that step and its dependents, reusing earlier outputs only when inputs and hashes match (`resume` requires `step`; full runs rerun all steps).
+Edit `.pipeline.json`, never completed run records under `media/`. Resuming from a `step` reruns that step and later steps, reusing earlier outputs only when inputs and hashes match (`resume` requires `step`; full runs rerun all steps).
 
 ## ComfyUI format
 
@@ -27,7 +27,7 @@ Inspect a single-request workflow via `image_generate` (`dry: true`) or import e
 
 **CODE inspected 2026-11-13, media 0.2.9:** `src/integrations/extensions/bundled/mercury-media/server/server.js` runs resolveSampling once for both writeExport and rendering, refusing unknown sampling defaults or unrepresentable custom sigma schedules; do not force explicit CFG/sampler overrides or drop a saved schedule just to export.
 
-`export_workflow` exports one request as API JSON (even with `dry: true`); `pipeline_export_workflow` exports mappable steps only (`downsize`, `palette`, `sheet`, `count` > 1 and `pixel-party-xl` downsize refuse; keep the user's pipeline rather than stripping steps, and choose a new destination path since existing files are never overwritten).
+`export_workflow` exports one request as API JSON (even with `dry: true`); `pipeline_export_workflow` exports mappable steps only (`downsize`, `palette` and `sheet` steps, a render step's `palette`, a `downsize` or `sheet` that does not divide evenly, and `count` > 1 with `reference_image` or an `upscale` step refuse; keep the user's pipeline rather than stripping steps, and choose a new destination path since existing files are never overwritten).
 
 ## Remote execution
 

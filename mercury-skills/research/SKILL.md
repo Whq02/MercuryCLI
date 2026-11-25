@@ -11,7 +11,7 @@ Establish the question, corpus, scope and requested deliverable. Keep source fil
 ## Evidence before production
 
 - Pair every material claim with its URL/DOI or local file plus exact page, section or table, noting whether the source supports, contradicts or leaves it unsupported. Distinguish printed page labels from PDF page indices; a bibliography entry alone never proves a claim.
-- Read relevant paper sections rather than relying on structure or abstracts alone. For garbled or scanned PDFs, use Document inspect to check text layers and image flags and Read (`pages` or `ocr: true`) for page images or OCR; verify numbers, symbols and table borders against the page image, and mark unreadable spans rather than guessing.
+- Read relevant paper sections rather than relying on structure or abstracts alone. For garbled or scanned PDFs, use Document inspect to check text layers and image flags and Read (`pages`) for page images, with OCR automatic on a page without a text layer; verify numbers, symbols and table borders against the page image, and mark unreadable spans rather than guessing.
 - Adapt search to fill missing evidence and resolve contradictions rather than chasing a fixed source count. Stop once questions have solid backing and material disagreements are addressed, or when remaining gaps cannot be settled within scope; state those limits without treating absent evidence as a negative proof.
 
 ## Deliverable production
