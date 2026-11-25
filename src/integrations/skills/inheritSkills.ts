@@ -16,7 +16,7 @@ export async function inheritSkills(home: string): Promise<{ ok: true; skills: s
   if (!existsSync(from) || existsSync(to) || existsSync(config)) return { ok: true, skills: [] }
   const incoming = `${to}.incoming-${process.pid}`
   try {
-    cpSync(from, incoming, { recursive: true })
+    cpSync(from, incoming, { recursive: true, verbatimSymlinks: true })
     const found = (await findSkillDirs(incoming)) ?? []
     const skills = [...new Set(found.map(dir => basename(dir)).filter(isKitSkillName))].sort()
     if (skills.length > 0 && !saveConfigWithLock(config, createDefaultGlobalConfig, current => ({ ...current, inheritedSkillsOff: skills }))) {
@@ -26,6 +26,7 @@ export async function inheritSkills(home: string): Promise<{ ok: true; skills: s
     return { ok: true, skills }
   } catch (error) {
     rmSync(incoming, { recursive: true, force: true })
+    if (!existsSync(to)) rmSync(config, { force: true })
     return { ok: false, reason: `The skills were not copied (${errorMessage(error)}): the new profile starts without them.` }
   }
 }

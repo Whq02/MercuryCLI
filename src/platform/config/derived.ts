@@ -4,10 +4,10 @@ import type { PermissionMode } from '../../permissions/rules/permissions.js'
 import type { SessionPermissionModeResolution } from '../../permissions/rules/permissionSetup.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import {
-  getMercuryHome,
   isEnvDefinedFalsy,
   } from '../environment/envUtils.js'
 import type { InstructionFileType } from '../../sessions/instruction-contracts/instructionFileType.js'
+import { firstProfileHome } from '../profiles/profiles.js'
 import { getManagedFilePath } from '../settings/managedPath.js'
 
 import { getGlobalConfig, isConfigReadingAllowed, saveGlobalConfigDeferred } from './globalConfig.js'
@@ -51,7 +51,7 @@ export function recordFirstStartTime(): void {
 }
 
 const INSTRUCTION_HOME_FILE: Record<InstructionFileType, (originalCwd: string) => string> = {
-  User: () => join(getMercuryHome(), 'MERCURY.md'),
+  User: () => join(firstProfileHome(), 'MERCURY.md'),
   Local: originalCwd => join(originalCwd, 'MERCURY.local.md'),
   Project: originalCwd => join(originalCwd, 'MERCURY.md'),
   Managed: () => join(getManagedFilePath(), 'MERCURY.md'),
@@ -66,7 +66,7 @@ export function getManagedRulesDir(): string {
 }
 
 export function getUserRulesDir(): string {
-  return join(getMercuryHome(), 'rules')
+  return join(firstProfileHome(), 'rules')
 }
 
 export function getEffectivePermissionMode(sessionMode: PermissionMode): SessionPermissionModeResolution {

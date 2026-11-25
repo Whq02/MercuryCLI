@@ -43,7 +43,7 @@ const logged = (home: Home): string => readFileSync(home.log, 'utf8')
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail} — fix programHome in src/platform/profiles/profiles.ts, or its use by the home defaults of src/daemon/control/handover.ts and the installed-build watch of src/daemon/run/heal.ts`}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail} — fix firstProfileHome in src/platform/profiles/profiles.ts, or its use by the home defaults of src/daemon/control/handover.ts and the installed-build watch of src/daemon/run/heal.ts`}`)
 }
 
 console.log('============================================================')
