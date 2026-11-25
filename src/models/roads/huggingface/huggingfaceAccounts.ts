@@ -382,12 +382,12 @@ function huggingfaceAccessFresh(tokens: HuggingfaceStoredTokens, now: number): b
   return expiresAt === undefined || expiresAt - now >= REFRESH_MARGIN_MS
 }
 
-export async function refreshHuggingfaceTokens(io?: HuggingfaceOauthIo): Promise<HuggingfaceStoredTokens | undefined> {
+export async function refreshHuggingfaceTokens(io?: HuggingfaceOauthIo, force = true): Promise<HuggingfaceStoredTokens | undefined> {
   const env = io?.env ?? hostEnv()
   const answer = await refreshHuggingfaceSignIn({
     path: authFilePath(),
     exchangeDeadlineMs: LOGIN_EXCHANGE_TIMEOUT_MS,
-    force: true,
+    force,
     read: () => {
       const row = huggingfaceSignInRow()
       return row?.refreshToken === undefined ? undefined : { ...row, refreshToken: row.refreshToken }
@@ -526,8 +526,8 @@ export async function resolveHuggingfaceDispatchCredential(
   const now = io?.now?.() ?? Date.now()
   const oauth = huggingfaceStoredTokens(now)
   if (oauth) {
-    if (huggingfaceAccessFresh(oauth, now) || !oauth.refreshToken) return { apiKey: oauth.accessToken }
-    const fresh = await refreshHuggingfaceTokens(io)
+    if (!oauth.refreshToken) return { apiKey: oauth.accessToken }
+    const fresh = await refreshHuggingfaceTokens(io, false)
     if (fresh) return { apiKey: fresh.accessToken }
     const remaining = huggingfaceStoredTokens(now)
     if (remaining) return remaining.accessTokenExpiresAtMs === undefined || remaining.accessTokenExpiresAtMs > now ? { apiKey: remaining.accessToken } : undefined

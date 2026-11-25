@@ -491,13 +491,13 @@ function kimiAccessFresh(tokens: MoonshotStoredTokens, now: number): boolean {
   return expiresAt === undefined || expiresAt - now >= accessTokenRefreshMarginMs(tokens)
 }
 
-export async function refreshMoonshotTokens(io?: MoonshotOauthIo): Promise<MoonshotStoredTokens | undefined> {
+export async function refreshMoonshotTokens(io?: MoonshotOauthIo, force = true): Promise<MoonshotStoredTokens | undefined> {
   const env = io?.env ?? hostEnv()
   const region = ioRegion(io)
   const answer = await refreshKimiSignIn({
     path: authFilePath(),
     exchangeDeadlineMs: LOGIN_EXCHANGE_TIMEOUT_MS,
-    force: true,
+    force,
     read: () => {
       const row = moonshotSignInRow()
       return row?.refreshToken === undefined ? undefined : { ...row, refreshToken: row.refreshToken }
@@ -608,8 +608,8 @@ export async function resolveMoonshotDispatchCredential(
     const region = ioRegion(io)
     const requestUrl = kimiCodingChatCompletionsUrl(region, env)
     const signedIn = (tokens: MoonshotStoredTokens): MoonshotDispatchCredential => ({ apiKey: tokens.accessToken, requestUrl, source: 'kimi-oauth', accountIdentity: tokenIdentity(tokens) })
-    if (kimiAccessFresh(oauth, now) || !oauth.refreshToken) return signedIn(oauth)
-    const fresh = await refreshMoonshotTokens(io)
+    if (!oauth.refreshToken) return signedIn(oauth)
+    const fresh = await refreshMoonshotTokens(io, false)
     if (fresh) return signedIn(fresh)
     const remaining = moonshotStoredTokens(now)
     if (remaining) return remaining.accessTokenExpiresAtMs === undefined || remaining.accessTokenExpiresAtMs > now ? signedIn(remaining) : undefined

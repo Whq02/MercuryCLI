@@ -2,8 +2,8 @@
 import '../lib/hermetic.ts'
 import { proofHome } from '../lib/hermetic.ts'
 import { spawn } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { chmodSync, existsSync, readFileSync, rmSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { rotatingTokenServer } from './lib/rotating-token-server.ts'
 
 process.env.MERCURY_CONFIG_DIR = proofHome
@@ -24,6 +24,7 @@ enableConfigs()
 const kimi = await import('../../src/models/roads/moonshot/moonshotAccounts.ts')
 const huggingface = await import('../../src/models/roads/huggingface/huggingfaceAccounts.ts')
 const xai = await import('../../src/models/roads/xai/xaiOauth.ts')
+const xaiAccounts = await import('../../src/models/roads/xai/xaiAccounts.ts')
 
 type Pair = { accessToken: string; refreshToken?: string }
 type Road = {
@@ -31,8 +32,9 @@ type Road = {
   child: 'kimi' | 'huggingface' | 'xai'
   server: ReturnType<typeof rotatingTokenServer>
   store: string
-  seed: (refreshToken: string) => void
+  seed: (refreshToken: string, expiresInMs?: number) => void
   refresh: () => Promise<Pair | undefined>
+  resolve: () => Promise<string | undefined>
   grantPath: string
   clientId: string
   fix: string
@@ -44,8 +46,9 @@ const roads: Road[] = [
     child: 'kimi',
     server: kimiServer,
     store: kimi.moonshotAuthPathForDisplay(),
-    seed: refreshToken => kimi.writeMoonshotTokens({ accessToken: SEEDED_ACCESS, refreshToken, accessTokenExpiresAtMs: Date.now() + 30_000 }, 'global'),
+    seed: (refreshToken, expiresInMs = 30_000) => kimi.writeMoonshotTokens({ accessToken: SEEDED_ACCESS, refreshToken, accessTokenExpiresAtMs: Date.now() + expiresInMs }, 'global'),
     refresh: () => kimi.refreshMoonshotTokens(),
+    resolve: () => kimi.resolveMoonshotDispatchCredential().then(credential => credential?.apiKey),
     grantPath: '/api/oauth/token',
     clientId: kimi.KIMI_OAUTH_CLIENT_ID,
     fix: 'fix refreshMoonshotTokens in src/models/roads/moonshot/moonshotAccounts.ts (the road it hands the door) or the door in src/models/sign-in/lifecycle/lockedRefresh.ts',
@@ -55,8 +58,9 @@ const roads: Road[] = [
     child: 'huggingface',
     server: huggingfaceServer,
     store: huggingface.huggingfaceAuthPathForDisplay(),
-    seed: refreshToken => huggingface.writeHuggingfaceTokens({ accessToken: SEEDED_ACCESS, refreshToken, accessTokenExpiresAtMs: Date.now() + 30_000, clientId: 'fixture-client' }, { username: 'fixture-user', observedAtMs: Date.now() }),
+    seed: (refreshToken, expiresInMs = 30_000) => huggingface.writeHuggingfaceTokens({ accessToken: SEEDED_ACCESS, refreshToken, accessTokenExpiresAtMs: Date.now() + expiresInMs, clientId: 'fixture-client' }, { username: 'fixture-user', observedAtMs: Date.now() }),
     refresh: () => huggingface.refreshHuggingfaceTokens(),
+    resolve: () => huggingface.resolveHuggingfaceDispatchCredential().then(credential => credential?.apiKey),
     grantPath: '/oauth/token',
     clientId: 'fixture-client',
     fix: 'fix refreshHuggingfaceTokens in src/models/roads/huggingface/huggingfaceAccounts.ts (the road it hands the door) or the door in src/models/sign-in/lifecycle/lockedRefresh.ts',
@@ -66,8 +70,9 @@ const roads: Road[] = [
     child: 'xai',
     server: xaiServer,
     store: xai.xaiAuthPathForDisplay(),
-    seed: refreshToken => xai.writeXaiTokens({ accessToken: SEEDED_ACCESS, refreshToken, expiresAtMs: Date.now() + 30_000 }),
+    seed: (refreshToken, expiresInMs = 30_000) => xai.writeXaiTokens({ accessToken: SEEDED_ACCESS, refreshToken, expiresAtMs: Date.now() + expiresInMs }),
     refresh: () => xai.refreshXaiTokens(undefined, true).catch(() => undefined),
+    resolve: () => xaiAccounts.resolveXaiCredential().then(credential => credential?.key),
     grantPath: '/oauth2/token',
     clientId: 'b1a00492-073a-47ea-816f-4c329264a828',
     fix: 'fix refreshXaiTokens in src/models/roads/xai/xaiOauth.ts (the road it hands the door) or the door in src/models/sign-in/lifecycle/lockedRefresh.ts',
@@ -161,6 +166,44 @@ try {
     check('a refused refresh answers nothing and keeps the row, its refresh token blank', refused === undefined && row()?.refreshToken === '' && row()?.accessToken === SEEDED_ACCESS, JSON.stringify(row() ?? null))
     const again = await road.refresh()
     check('the refused token was sent once: the next call sends nothing', again === undefined && server.grants.length === beforeRefused + 1 && server.live === standing, sent())
+
+    console.log(`── ${road.name}: a new pair the store would not take is the one the next resolve answers, and is never rotated again ──`)
+    if (process.platform === 'win32' || process.getuid?.() === 0) {
+      console.log('[SKIP] not staged on Windows or as root: chmod 0o500 does not stop a write into the home there')
+      continue
+    }
+    const home = dirname(store)
+    const withTheWriteRefused = async <T>(call: () => Promise<T>): Promise<T> => {
+      const before = server.grants.length
+      const letGo = server.hold()
+      const calling = call()
+      await until('the grant is at the server', () => server.grants.length === before + 1)
+      chmodSync(home, 0o500)
+      letGo()
+      try {
+        return await calling
+      } finally {
+        chmodSync(home, 0o700)
+        rmSync(`${store}.lock`, { recursive: true, force: true })
+      }
+    }
+    server.live = 'rt-inside-its-margin'
+    road.seed('rt-inside-its-margin')
+    const beforeRotated = server.grants.length
+    const rotated = await withTheWriteRefused(() => road.resolve())
+    const unsaved = server.live
+    check('the store refused the new pair and still holds the old one; the resolve answers the new access token all the same', row()?.refreshToken === 'rt-inside-its-margin' && unsaved !== 'rt-inside-its-margin' && rotated !== undefined && rotated !== SEEDED_ACCESS, JSON.stringify({ stored: row()?.refreshToken, live: unsaved, answeredTheOldAccessToken: rotated === SEEDED_ACCESS, answeredNothing: rotated === undefined }))
+    const resolvedAgain = await road.resolve()
+    check('the next resolve answers that pair again and sends nothing: a pair just received is not exchanged a second time', resolvedAgain === rotated && server.grants.length === beforeRotated + 1 && server.live === unsaved, sent())
+    check('and now that the home can be written, that pair is in the store', row()?.refreshToken === unsaved, JSON.stringify({ stored: row()?.refreshToken, unsaved }))
+
+    server.live = 'rt-of-a-pair-that-reads-fresh'
+    road.seed('rt-of-a-pair-that-reads-fresh', 3_600_000)
+    const beforeForced = server.grants.length
+    const forced = await withTheWriteRefused(() => road.refresh())
+    check('a forced refresh (the retry after a 401) answers the new pair though the store refused it and still holds one that reads fresh', forced?.refreshToken === server.live && forced?.accessToken !== SEEDED_ACCESS && row()?.refreshToken === 'rt-of-a-pair-that-reads-fresh', JSON.stringify({ answered: forced?.refreshToken, stored: row()?.refreshToken, live: server.live }))
+    const resolvedAfterForced = await road.resolve()
+    check('the next resolve answers the new pair, not the one on disk, and sends nothing', resolvedAfterForced !== undefined && resolvedAfterForced === forced?.accessToken && server.grants.length === beforeForced + 1, JSON.stringify({ answeredTheOldAccessToken: resolvedAfterForced === SEEDED_ACCESS, answeredTheNewOne: resolvedAfterForced === forced?.accessToken, grants: server.grants.length - beforeForced }))
   }
 } finally {
   kimiServer.stop()
