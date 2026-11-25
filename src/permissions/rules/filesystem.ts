@@ -1094,7 +1094,7 @@ export function checkReadPermissionForTool(
     const remote = checkUncPathPermission(resolved, context)
     if (remote && remote.behavior !== 'allow') return remote
   }
-  for (const resolved of resolutionSet) {
+  for (const resolved of [path, ...resolutionSet]) {
     if (suspiciousWindowsPattern(resolved)) {
       return ask(
         `${path} contains a suspicious Windows path pattern requiring manual approval.`,

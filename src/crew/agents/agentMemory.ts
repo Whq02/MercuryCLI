@@ -1,4 +1,4 @@
-import { normalize, join, relative, sep } from 'node:path'
+import { normalize, join, relative, sep, isAbsolute } from 'node:path'
 import { getMemoryBaseDir, isMnemeEnabled } from '../../sessions/mneme/paths.js'
 import { getCwd } from '../../platform/files/cwd.js'
 import { projectConfigDirs } from '../../platform/settings/projectConfig.js'
@@ -23,7 +23,7 @@ const AGENT_MEMORY_LOCAL_SUBDIR = 'agent-memory-local'
 
 function isUnder(candidate: string, dir: string): boolean {
   const rel = relative(dir, candidate)
-  return rel !== '' && !rel.startsWith('..') && !rel.includes(`..${sep}`)
+  return rel !== '' && !rel.startsWith('..') && !rel.includes(`..${sep}`) && !isAbsolute(rel)
 }
 
 export function isAgentMemoryPath(absolutePath: string): boolean {
