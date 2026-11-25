@@ -59,12 +59,15 @@ export function* announceModelCall(iter: IterationState, emit: EventMint, callId
   return { effortValue, callReference }
 }
 
-async function sentMessages(run: RunCtx, iter: IterationState): Promise<Message[]> {
+function firstTurnContext(run: RunCtx, iter: IterationState): Promise<Record<string, string>> | null {
   const { toolUseContext } = iter
-  const { options } = toolUseContext
   return latestUserContextBody(iter.messagesForRequest) === null
-    ? prependUserContext(iter.messagesForRequest, await firstTurnUserContext(run.userContext, run.systemContext, options.engineModel, toolUseContext.agentId, iter.messagesForRequest))
-    : iter.messagesForRequest
+    ? firstTurnUserContext(run.userContext, run.systemContext, toolUseContext.options.engineModel, toolUseContext.agentId, iter.messagesForRequest)
+    : null
+}
+
+function sentMessages(iter: IterationState, firstTurn: Record<string, string> | null): Message[] {
+  return firstTurn === null ? iter.messagesForRequest : prependUserContext(iter.messagesForRequest, firstTurn)
 }
 
 function openCall(run: RunCtx, iter: IterationState, call: CallTerms & { streamController: AbortController }, backups: EngineLadder, sending: CallSending): ReturnType<RunCtx['deps']['callModel']> {
@@ -110,7 +113,8 @@ function openCall(run: RunCtx, iter: IterationState, call: CallTerms & { streamC
 
 export function streamOneCall(run: RunCtx, iter: IterationState, emit: EventMint, call: ModelCall, backups: EngineLadder): AsyncGenerator<RunEvent> {
   return readStream(run, iter, emit, call, {
-    sent: () => sentMessages(run, iter),
+    firstTurnContext: () => firstTurnContext(run, iter),
+    sent: firstTurn => sentMessages(iter, firstTurn),
     open: sending => openCall(run, iter, call, backups, sending),
     receipts: streamReceipts,
   })

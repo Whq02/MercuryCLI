@@ -196,7 +196,8 @@ type CallSending = {
 }
 
 type StreamSteps = {
-  sent: () => Promise<Message[]>
+  firstTurnContext: () => Promise<Record<string, string>> | null
+  sent: (firstTurnContext: Record<string, string> | null) => Message[]
   open: (sending: CallSending) => ReturnType<RunCtx['deps']['callModel']>
   receipts: (iter: IterationState, emit: EventMint, settleGauge: (message: AssistantMessage) => void) => Generator<RunEvent>
 }
@@ -206,7 +207,8 @@ export async function* readStream(run: RunCtx, iter: IterationState, emit: Event
   const { options } = toolUseContext
   const { callId, streamController } = call
   const ownerKey = String(rosterOwnerFromToolUseContext(toolUseContext))
-  const sent = await steps.sent()
+  const firstTurnContext = steps.firstTurnContext()
+  const sent = steps.sent(firstTurnContext === null ? null : await firstTurnContext)
 
   const gauge = boundGaugeOf(iter)
   const settling: ReplySettling = {
