@@ -1,7 +1,7 @@
 
 import { basename, join } from 'node:path'
 import { homedir } from 'node:os'
-import { readdirSync, statSync } from 'node:fs'
+import { statSync } from 'node:fs'
 import { defineStore } from '../../platform/substrate/fileStore.js'
 import { workerTranscriptPath } from './workerTranscript.js'
 import { recordToEntry } from '../../sessions/fabric/entryCodec.js'
@@ -18,7 +18,6 @@ import { saturnSoonestFireMs } from '../../daemon/saturn/saturn.js'
 import {
   currentProject,
   inProject,
-  isAuthFailureHusk,
   PARKED_CAP,
   PARKED_WEEK_MS,
   parkedSessionsOf,
@@ -26,14 +25,21 @@ import {
   type ParkedSessionFact,
   type ProjectIdentity,
 } from '../boot-face/bootCardFacts.js'
-import { compareSessionRecency, readSessionLastUsedMsSync } from '../../sessions/transcripts/sessionIndex.js'
-import { extractFirstPromptFromHead, extractLastJsonStringField, getProjectDir, isTranscriptFileName, LITE_READ_BUF_SIZE } from '../../sessions/transcripts/sessionStoragePortable.js'
-import { historyHead, historyRange } from '../../sessions/transcripts/historyParts.js'
-import { missionGoalBeside } from '../../sessions/mission-card/missionCard.js'
+import { readSessionLastUsedMsCachedSync } from '../../sessions/transcripts/sessionIndex.js'
+import {
+  headBriefLabel,
+  olderChatsCensus,
+  sanitizeLabel,
+  transcriptTitleOf,
+  transcriptWindowLines,
+  type OlderChatFact,
+  type OlderChatsCensusV1,
+} from './olderChats.js'
 import type { ConcourseElsewhereV1, ConcourseRowV1, ConcourseSnapshotV1 } from '../concourse/contracts.js'
 import { ELSEWHERE_CAP, elsewhereLine, projectActivity } from './projectActivity.js'
 import { sessionTitleOf } from './sessionNaming.js'
-import { stripTerminalControls } from '../../platform/text/strings.js'
+
+export { headBriefLabel, olderChatsCensus, sanitizeLabel, type OlderChatFact, type OlderChatsCensusV1 }
 import { keyHintLabel } from '../widgets/keyHintLabel.js'
 import { concourseRecordState, type ConcourseWorkerRecordV1 } from '../../daemon/concourse-workers/concourseWorkers.js'
 import type { DaemonSessionRecordV1 } from '../../engine/connector/daemonConnector.js'
@@ -91,16 +97,6 @@ function entryShapeOf(entry: unknown): { type?: unknown; message?: { content?: u
     }
   }
   return null
-}
-
-function transcriptWindowLines(rec: { sessionId: string; workspaceId: string }, span: number, from: 'head' | 'tail'): string[] | null {
-  const path = workerTranscriptPath(rec)
-  const extent = historyHead(path)
-  const size = extent.before + extent.end - extent.start
-  if (size === 0) return null
-  const take = Math.min(size, span)
-  const buf = from === 'head' ? historyRange(extent, 0, take) : historyRange(extent, size - take, size)
-  return buf.toString('utf8').split('\n')
 }
 
 const timestampMsOf = (raw: unknown): number | undefined => {
@@ -184,20 +180,6 @@ export function nowWordsAreLive(activity: TailActivity | null | undefined, nowLa
 export function tailActivityLabel(rec: { sessionId: string; workspaceId: string }): string | null {
   return activityNowLabel(tailActivity(rec))
 }
-
-export function headBriefLabel(rec: { sessionId: string; workspaceId: string }, maxChars = 200, opts: { promptsOnly?: boolean } = {}): string | null {
-  try {
-    const lines = transcriptWindowLines(rec, LITE_READ_BUF_SIZE, 'head')
-    if (lines === null) return null
-    const flat = (missionGoalBeside(workerTranscriptPath(rec)) ?? extractFirstPromptFromHead(lines.join('\n'), opts)).replace(/\s+/g, ' ').trim()
-    if (flat.length === 0) return null
-    return sanitizeLabel(flat.length > maxChars ? `${flat.slice(0, maxChars)}…` : flat)
-  } catch (error) {
-    passedOver(error)
-    return null
-  }
-}
-
 
 export interface ConcourseSeedOverridesV1 {
   projectDir?: string
@@ -729,114 +711,6 @@ export function olderChatsRow(projectDir: string, projectLabel: string, older: n
 }
 
 
-export interface OlderChatFact {
-  sessionId: string
-  transcriptPath: string
-  ageMs: number
-  title: string
-}
-
-export interface OlderChatsCensusV1 {
-  total: number
-  entries: OlderChatFact[]
-  readError?: string
-}
-
-const olderFactCache = new Map<string, { mtimeMs: number; size: number; husk: boolean; title: string | null; lastUsedMs?: number | null }>()
-const OLDER_FACT_CACHE_CAP = 2048
-
-function transcriptTitleOf(rec: { sessionId: string; workspaceId: string }): string | null {
-  let custom: string | undefined
-  try {
-    for (const from of ['tail', 'head'] as const) {
-      const raw = transcriptWindowLines(rec, LITE_READ_BUF_SIZE, from)?.join('\n')
-      const hit = raw !== undefined ? extractLastJsonStringField(raw, 'customTitle')?.trim() : undefined
-      if (hit !== undefined && hit.length > 0) { custom = hit; break }
-    }
-  } catch (error) { passedOver(error) }
-  const brief = headBriefLabel(rec, 48, { promptsOnly: true })
-  if (brief === null && custom === undefined) return null
-  return sanitizeLabel(sessionTitleOf({ title: custom, workspaceId: rec.workspaceId }, () => brief))
-}
-
-function olderFactOf(projectDir: string, file: string, mtimeMs: number, size: number, needLastUsed = false): { husk: boolean; title: string | null; lastUsedMs?: number | null } {
-  const held = olderFactCache.get(file)
-  if (held !== undefined && held.mtimeMs === mtimeMs && held.size === size) {
-    if (needLastUsed && held.lastUsedMs === undefined && !held.husk && held.title !== null) held.lastUsedMs = readSessionLastUsedMsSync(file, size)
-    return held
-  }
-  const husk = isAuthFailureHusk(file, size)
-  const title = husk ? null : transcriptTitleOf({ sessionId: basename(file).replace(/\.jsonl$/, ''), workspaceId: projectDir })
-  if (olderFactCache.size >= OLDER_FACT_CACHE_CAP) olderFactCache.clear()
-  const fact = { mtimeMs, size, husk, title, ...(needLastUsed && !husk && title !== null ? { lastUsedMs: readSessionLastUsedMsSync(file, size) } : {}) }
-  olderFactCache.set(file, fact)
-  return fact
-}
-
-export function olderChatsCensus(
-  projectDir: string,
-  excludedSessionIds: ReadonlySet<string>,
-  nowMs: number,
-  opts: { excludeSessionId?: string; entryCap?: number; sessions?: readonly ParkedSessionFact[] } = {},
-): OlderChatsCensusV1 {
-  try {
-    const entryCap = Math.max(0, opts.entryCap ?? 0)
-    const skip = opts.excludeSessionId !== undefined ? `${opts.excludeSessionId}.jsonl` : null
-    const candidates: Array<{ sessionId: string; file: string; mtimeMs: number; size: number; ageMs: number }> = []
-    if (opts.sessions !== undefined) {
-      for (const s of opts.sessions) {
-        let st: { mtimeMs: number; size: number }
-        try {
-          st = statSync(s.transcriptPath)
-        } catch (error) {
-          passedOver(error)
-          continue
-        }
-        candidates.push({ sessionId: s.sessionId, file: s.transcriptPath, mtimeMs: st.mtimeMs, size: st.size, ageMs: s.ageMs })
-      }
-    } else {
-      const home = getProjectDir(projectDir)
-      for (const f of readdirSync(home)) {
-        if (!isTranscriptFileName(f) || f === skip) continue
-        try {
-          const st = statSync(join(home, f))
-          if (st.size === 0) continue
-          candidates.push({
-            sessionId: f.slice(0, -'.jsonl'.length),
-            file: join(home, f),
-            mtimeMs: st.mtimeMs,
-            size: st.size,
-            ageMs: Math.max(0, nowMs - st.mtimeMs),
-          })
-        } catch (error) {
-          passedOver(error)
-        }
-      }
-    }
-    candidates.sort((a, b) => b.mtimeMs - a.mtimeMs)
-    let total = 0
-    const ranked: Array<{ entry: OlderChatFact; mtimeMs: number; lastUsedMs: number | null }> = []
-    for (const c of candidates) {
-      if (excludedSessionIds.has(c.sessionId)) continue
-      const fact = olderFactOf(projectDir, c.file, c.mtimeMs, c.size, entryCap > 0)
-      if (fact.husk || fact.title === null) continue
-      total += 1
-      if (entryCap > 0) ranked.push({ entry: { sessionId: c.sessionId, transcriptPath: c.file, ageMs: c.ageMs, title: fact.title }, mtimeMs: c.mtimeMs, lastUsedMs: fact.lastUsedMs ?? null })
-    }
-    ranked.sort((a, b) => compareSessionRecency({ lastUsedMs: a.lastUsedMs, mtimeMs: a.mtimeMs, sessionId: a.entry.sessionId }, { lastUsedMs: b.lastUsedMs, mtimeMs: b.mtimeMs, sessionId: b.entry.sessionId }))
-    return { total, entries: ranked.slice(0, entryCap).map(r => r.entry) }
-  } catch (error) {
-    const code = (error as NodeJS.ErrnoException | null)?.code
-    if (code === 'ENOENT' || code === 'ENOTDIR') {
-      return { total: 0, entries: [] }
-    }
-    const detail = errorMessage(error)
-    logForDebugging(`[concourse] olderChatsCensus failed: ${detail}`, { level: 'warn' })
-    passedOver(error)
-    return { total: 0, entries: [], readError: detail }
-  }
-}
-
 export function parkedBoardRows(
   projectDir: string,
   liveSessionIds: ReadonlySet<string>,
@@ -890,17 +764,6 @@ export function parkedBoardRows(
     onReadError?.(error, 'parked')
   }
   return rows
-}
-
-export function sanitizeLabel(raw: string): string {
-  let out = ''
-  for (const ch of stripTerminalControls(raw)) {
-    const code = ch.codePointAt(0) ?? 0
-    if (code < 0x20 || code === 0x7f || (code >= 0x80 && code <= 0x9f)) continue
-    out += ch
-    if (out.length >= 160) break
-  }
-  return out
 }
 
 export function ageLabelOf(nowMs: number, sinceMs: number): string {
@@ -1241,8 +1104,10 @@ function hostedLastUsedAt(
   }
   if (latest > 0) return latest
   try {
-    const path = workerTranscriptPath(rec), st = statSync(path)
-    return Number.isFinite(st.mtimeMs) && st.mtimeMs > 0 ? readSessionLastUsedMsSync(path, st.size) ?? Math.floor(st.mtimeMs) : null
+    const path = workerTranscriptPath(rec)
+    const st = statSync(path)
+    if (!Number.isFinite(st.mtimeMs) || st.mtimeMs <= 0) return null
+    return readSessionLastUsedMsCachedSync(path, st.mtimeMs, st.size) ?? Math.floor(st.mtimeMs)
   } catch (error) {
     passedOver(error)
     return null

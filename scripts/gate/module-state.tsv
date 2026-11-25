@@ -4030,7 +4030,7 @@ src/screen/concourse-model/boardControl.ts	notedOps	process	module	bounded 200-e
 src/screen/concourse-model/closeChordSlot.ts	resetConcourseCloseChordForTesting	reset-export
 src/screen/concourse-model/closeChordSlot.ts	slot	process	module	single active foreground TUI close-chord callback slot
 src/screen/concourse-model/concourseSnapshot.ts	draftStore	process	module	stateless defineStore disk-store factory for concourse-draft.json
-src/screen/concourse-model/concourseSnapshot.ts	olderFactCache	process	module	bounded cap-2048 pure file-metadata cache keyed by (file, mtimeMs, size)
+src/screen/concourse-model/olderChats.ts	olderFactCache	process	module	bounded cap-2048 pure file-metadata cache keyed by (file, mtimeMs, size)
 src/screen/concourse-model/sessionTitle.ts	TITLE_OUTPUT_FORMAT	process	module	Load-time table with no local writer
 src/screen/concourse-model/sessionTitle.ts	TITLE_RESPONSE_SCHEMA	process	module	module definition evaluated once
 src/screen/concourse-model/sessionTitle.ts	TITLE_SYSTEM_PROMPT	process	module	Load-time list with no local writer
@@ -4901,6 +4901,7 @@ src/sessions/transcripts/ids.ts	AGENT_ID_RE	process	module	Load-time lookup with
 src/sessions/transcripts/listedSessions.ts	PLACEHOLDER_PROMPTS	process	module	Load-time lookup with no local writer
 src/sessions/transcripts/retentionSweep.ts	blobScanCensus	test	module	test-only streaming blob scan read counters inspected solely by scripts/settings/prove-blob-scan-stream.ts
 src/sessions/transcripts/rowGraph.ts	indexedRows	process	module	WeakMap index attached to transcript message Map instances
+src/sessions/transcripts/sessionIndex.ts	lastUsedCache	process	module	bounded cap-2048 pure file-metadata cache of last conversation use keyed by (file, mtimeMs, size)
 src/sessions/transcripts/sessionListings.ts	clearSessionMessagesCache	reset-export
 src/sessions/transcripts/sessionListings.ts	clearSessionMetadata	reset-export
 src/sessions/transcripts/sessionListings.ts	listingCensus	process	module	process-wide diagnostic counters for session listing sweeps/hits/joins

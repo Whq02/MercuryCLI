@@ -412,16 +412,32 @@ try {
     }
     check('§3 lastConversationActivityMs parses occurredAt from real records and returns null for metadata-only tails', lastConversationActivityMs(readFileSync(fPr, 'utf8')) === base - 29_000 && lastConversationActivityMs(readFileSync(fFallback, 'utf8')) === null)
     const readFiles = new Set<string>()
+    let readCount = 0
     setTranscriptReaderIoForTesting({
       ...nodeTranscriptReaderIo,
       readRangeSync(path, start, end) {
-        if (path.startsWith(hundredDir)) readFiles.add(path)
+        if (path.startsWith(hundredDir)) {
+          readFiles.add(path)
+          readCount++
+        }
         return nodeTranscriptReaderIo.readRangeSync(path, start, end)
       },
     })
     try {
       const hundredBoot = scanBootCardFacts(P_HUNDRED)
       check('§3 40-session folder: scanBootCardFacts reads at most 4 files in that folder, never all 40', hundredBoot.cwdProject?.sessionId === sid('139') && readFiles.size <= 4, `filesRead=${readFiles.size}`)
+
+      readCount = 0
+      parkedSessionsOf(P_HUNDRED)
+      const warmParkedReadsBefore = readCount
+      readCount = 0
+      parkedSessionsOf(P_HUNDRED)
+      check('§3 warm parkedSessionsOf does 0 tail reads on unchanged files', readCount === 0, `coldReads=${warmParkedReadsBefore} warmReads=${readCount}`)
+
+      olderChatsCensus(P_HUNDRED, new Set(), Date.now(), { entryCap: 0 })
+      readCount = 0
+      const warmOlder = olderChatsCensus(P_HUNDRED, new Set(), Date.now(), { entryCap: 10 })
+      check('§3 warm olderChatsCensus browse (entryCap=10 after board paint entryCap=0) does 0 tail reads', warmOlder.entries.length === 10 && readCount === 0, `warmReads=${readCount}`)
     } finally {
       setTranscriptReaderIoForTesting(nodeTranscriptReaderIo)
     }

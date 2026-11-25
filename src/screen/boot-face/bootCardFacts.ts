@@ -11,7 +11,7 @@ import { logError } from '../../platform/logs/errorLog.js'
 import { PROJECT_CONFIG_DIR_NAMES } from '../../platform/settings/projectConfig.js'
 import { getProjectsDir } from '../../sessions/transcripts/paths.js'
 import { historyHead } from '../../sessions/transcripts/historyParts.js'
-import { compareSessionRecency, readSessionLastUsedMsSync } from '../../sessions/transcripts/sessionIndex.js'
+import { compareSessionRecency, readSessionLastUsedMsCachedSync } from '../../sessions/transcripts/sessionIndex.js'
 import { getProjectDir, validateUuid } from '../../sessions/transcripts/sessionStoragePortable.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 import { foldPathCase } from '../../platform/host-os/paths.js'
@@ -105,22 +105,26 @@ export function scanBootCardFacts(cwd: string = process.cwd(), excludeSessionId?
 
 const HUSK_WALK = 4
 const HUSK_MAX_BYTES = 64 * 1024
-export function isAuthFailureHusk(file: string, size: number): boolean {
-  if (size > HUSK_MAX_BYTES) return false
+function readHuskCheck(file: string, size: number): { husk: boolean; fullText?: string } {
+  if (size > HUSK_MAX_BYTES) return { husk: false }
   try {
-    if (historyHead(file).before > 0) return false
+    if (historyHead(file).before > 0) return { husk: false }
     const text = readHead(file, HUSK_MAX_BYTES)
     let outputs = 0
     for (const line of text.split('\n')) {
       if (!line.includes('"kind":"output"')) continue
       outputs += 1
-      if (!line.includes('"error":"authentication_failed"')) return false
+      if (!line.includes('"error":"authentication_failed"')) return { husk: false, fullText: text }
     }
-    return outputs > 0
+    return { husk: outputs > 0, fullText: text }
   } catch (error) {
     passedOver(error)
-    return false
+    return { husk: false }
   }
+}
+
+export function isAuthFailureHusk(file: string, size: number): boolean {
+  return readHuskCheck(file, size).husk
 }
 
 
@@ -154,7 +158,7 @@ interface StoreDirFacts {
   newest: { file: string; mtime: number; lastUsedMs: number | null } | null
 }
 
-function readStoreDirFacts(store: string, skip: string | null): StoreDirFacts | null {
+function readStoreDirFacts(store: string, skip: string | null, opts: { rankByUse?: boolean } = {}): StoreDirFacts | null {
   let names: string[]
   try {
     names = readdirSync(store)
@@ -175,16 +179,36 @@ function readStoreDirFacts(store: string, skip: string | null): StoreDirFacts | 
     }
   }
   candidates.sort((a, b) => b.mtime - a.mtime)
+  if (opts.rankByUse === false) {
+    let picked: { file: string; mtime: number; lastUsedMs: number | null } | null = null
+    for (const c of candidates.slice(0, HUSK_WALK)) {
+      if (readHuskCheck(c.file, c.size).husk) continue
+      picked = { file: c.file, mtime: c.mtime, lastUsedMs: null }
+      break
+    }
+    if (picked === null && candidates.length > HUSK_WALK) {
+      const fallback = candidates[HUSK_WALK]
+      if (fallback !== undefined) picked = { file: fallback.file, mtime: fallback.mtime, lastUsedMs: null }
+    }
+    if (picked === null && card === null) return null
+    return { card, newest: picked }
+  }
   const live: Array<{ file: string; mtime: number; lastUsedMs: number | null; sessionId: string }> = []
   for (const c of candidates.slice(0, HUSK_WALK)) {
-    if (isAuthFailureHusk(c.file, c.size)) continue
-    live.push({ file: c.file, mtime: c.mtime, lastUsedMs: readSessionLastUsedMsSync(c.file, c.size), sessionId: sessionIdOf(c.file) })
+    const check = readHuskCheck(c.file, c.size)
+    if (check.husk) continue
+    live.push({
+      file: c.file,
+      mtime: c.mtime,
+      lastUsedMs: readSessionLastUsedMsCachedSync(c.file, c.mtime, c.size, check.fullText),
+      sessionId: sessionIdOf(c.file),
+    })
   }
   live.sort((a, b) => compareSessionRecency({ lastUsedMs: a.lastUsedMs, mtimeMs: a.mtime, sessionId: a.sessionId }, { lastUsedMs: b.lastUsedMs, mtimeMs: b.mtime, sessionId: b.sessionId }))
   let picked: { file: string; mtime: number; lastUsedMs: number | null } | null = live[0] ?? null
   if (picked === null && candidates.length > HUSK_WALK) {
     const fallback = candidates[HUSK_WALK]
-    if (fallback !== undefined) picked = { file: fallback.file, mtime: fallback.mtime, lastUsedMs: readSessionLastUsedMsSync(fallback.file, fallback.size) }
+    if (fallback !== undefined) picked = { file: fallback.file, mtime: fallback.mtime, lastUsedMs: readSessionLastUsedMsCachedSync(fallback.file, fallback.mtime, fallback.size) }
   }
   if (picked === null && card === null) return null
   return { card, newest: picked }
@@ -273,12 +297,13 @@ export function parkedSessionsOf(
   candidates.sort((a, b) => b.mtime - a.mtime)
   const ranked: Array<{ sessionId: string; transcriptPath: string; mtimeMs: number; lastUsedMs: number | null }> = []
   for (const c of candidates.slice(0, cap + HUSK_WALK)) {
-    if (isAuthFailureHusk(c.file, c.size)) continue
+    const check = readHuskCheck(c.file, c.size)
+    if (check.husk) continue
     ranked.push({
       sessionId: sessionIdOf(c.file),
       transcriptPath: c.file,
       mtimeMs: c.mtime,
-      lastUsedMs: readSessionLastUsedMsSync(c.file, c.size),
+      lastUsedMs: readSessionLastUsedMsCachedSync(c.file, c.mtime, c.size, check.fullText),
     })
   }
   ranked.sort(compareSessionRecency)
@@ -414,7 +439,7 @@ function isCatalogedGround(canonicalDir: string): boolean {
   let answer = false
   let decided = false
   try {
-    answer = readStoreDirFacts(store, null) !== null
+    answer = readStoreDirFacts(store, null, { rankByUse: false }) !== null
     decided = true
   } catch (error) {
     passedOver(error)

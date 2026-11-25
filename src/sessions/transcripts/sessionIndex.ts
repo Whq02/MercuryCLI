@@ -174,7 +174,7 @@ export function lastConversationActivityMs(tail: string, nowMs: number = Date.no
   return null
 }
 
-function scanLastConversationActivityMsSync(filePath: string, nowMs: number = Date.now()): number | null {
+export function scanLastConversationActivityMsSync(filePath: string, nowMs: number = Date.now()): number | null {
   let found: number | null = null
   try {
     scanTranscriptLinesBackward(filePath, line => {
@@ -191,6 +191,9 @@ function scanLastConversationActivityMsSync(filePath: string, nowMs: number = Da
   return found
 }
 
+const lastUsedCache = new Map<string, { mtimeMs: number; size: number; lastUsedMs: number | null }>()
+const LAST_USED_CACHE_CAP = 2048
+
 export function readSessionLastUsedMsSync(filePath: string, fileSize?: number, nowMs: number = Date.now()): number | null {
   const fromTail = lastConversationActivityMs(readTranscriptTailSync(filePath, LITE_READ_BUF_SIZE), nowMs)
   if (fromTail !== null) return fromTail
@@ -198,6 +201,24 @@ export function readSessionLastUsedMsSync(filePath: string, fileSize?: number, n
     return scanLastConversationActivityMsSync(filePath, nowMs)
   }
   return null
+}
+
+export function readSessionLastUsedMsCachedSync(
+  filePath: string,
+  mtimeMs: number,
+  fileSize: number,
+  preReadText?: string,
+  nowMs: number = Date.now(),
+): number | null {
+  const held = lastUsedCache.get(filePath)
+  if (held !== undefined && held.mtimeMs === mtimeMs && held.size === fileSize) return held.lastUsedMs
+  const lastUsedMs =
+    preReadText !== undefined
+      ? lastConversationActivityMs(preReadText, nowMs)
+      : readSessionLastUsedMsSync(filePath, fileSize, nowMs)
+  if (lastUsedCache.size >= LAST_USED_CACHE_CAP) lastUsedCache.clear()
+  lastUsedCache.set(filePath, { mtimeMs, size: fileSize, lastUsedMs })
+  return lastUsedMs
 }
 
 export function compareSessionRecency(
