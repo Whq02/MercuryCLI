@@ -105,6 +105,12 @@ console.log('w03-1: startTensorFold and stopTensorFold surface side-step failure
   road.__resetTensorFoldRoadForTest()
   const facts = await scene.readTensorFoldPanelFacts({ cacheRoot: world.cache, machine: MAC_48, engine: null, env: world.env, home: world.home, servedFile, localModels: () => [], hosts: () => [] })
   const row = { ...facts.rows.find(candidate => candidate.repo === QWEN_2B_REPO)!, port }
+  const { readFileSync: readDbg } = await import('node:fs')
+  const dbg = await import('../../src/platform/logs/debugLog.ts')
+  const prevNodeEnv = process.env.NODE_ENV
+  delete process.env.NODE_ENV
+  dbg.enableDebugLogging()
+  const dbgPath = dbg.getDebugLogPath()
   const servedOutcome = await road.serveTensorFoldRow(
     row,
     262_144,
@@ -119,18 +125,26 @@ console.log('w03-1: startTensorFold and stopTensorFold surface side-step failure
     },
     { share: true },
   )
+  await dbg.flushDebugLogs()
+  if (prevNodeEnv !== undefined) process.env.NODE_ENV = prevNodeEnv
+  const dbgText = (() => { try { return readDbg(dbgPath, 'utf8') } catch { return '' } })()
   const startWarnings = (servedOutcome?.served as { warnings?: readonly string[] } | undefined)?.warnings ?? []
   const startNotice = road.tensorFoldRoadState().notice ?? ''
+  const wantPort = `port ${port} could not be saved — the next start may pick another`
+  const wantWindow = 'the window for qwen3.5-2b could not be saved — the next start may offer the earlier window'
   check(
-    'start side-step failures (rememberPort, rememberWindow, announce) are returned and put in the notice while start succeeds',
+    'start side-step failures (rememberPort, rememberWindow, announce) return plain sentences in the notice and log raw errors to debug log',
     servedOutcome !== null &&
-      startWarnings.some(w => w.includes('port-store-ro')) &&
-      startWarnings.some(w => w.includes('window-store-ro')) &&
+      startWarnings.includes(wantPort) &&
+      startWarnings.includes(wantWindow) &&
+      !startWarnings.some(w => w.includes('port-store-ro') || w.includes('window-store-ro')) &&
       startWarnings.some(w => w.includes('mdns-down')) &&
-      startNotice.includes('port-store-ro') &&
-      startNotice.includes('window-store-ro') &&
-      startNotice.includes('mdns-down'),
-    JSON.stringify({ startWarnings, startNotice }),
+      startNotice.includes(wantPort) &&
+      startNotice.includes(wantWindow) &&
+      startNotice.includes('mdns-down') &&
+      dbgText.includes('port-store-ro') &&
+      dbgText.includes('window-store-ro'),
+    JSON.stringify({ startWarnings, startNotice, dbg: dbgText.slice(-300) }),
   )
   await serve.stopTensorFold('qwen3.5-2b', { servedFile, forgetPort: () => undefined, forgetHost: async () => undefined })
 
@@ -188,7 +202,7 @@ console.log('w03-1: startTensorFold and stopTensorFold surface side-step failure
   const shareNotice = road.tensorFoldRoadState().notice ?? ''
   check(
     'share act keeps both the pairing code and start side-step warnings in the notice',
-    shareNotice.includes('654321') && shareNotice.includes('share-port-ro'),
+    shareNotice.includes('654321') && shareNotice.includes('could not be saved — the next start may pick another') && !shareNotice.includes('share-port-ro'),
     JSON.stringify(shareNotice),
   )
   await serve.stopTensorFold('qwen3.5-2b', { servedFile, forgetPort: () => undefined, forgetHost: async () => undefined })

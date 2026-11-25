@@ -425,16 +425,20 @@ export async function startTensorFold(request: TensorFoldServeRequest, io: Serve
     rememberPort(pick.port)
   } catch (error) {
     passedOver(error)
-    logError(new Error(`port ${pick.port} of the TensorFold server could not be remembered in the hosts store (${errorMessage(error)}) — local discovery does not look for it there`))
-    warnings.push(`port ${pick.port} was not saved (${errorMessage(error)}), so the next start may pick another`)
+    const detail = `port ${pick.port} of the TensorFold server could not be remembered in the hosts store (${errorMessage(error)}) — local discovery does not look for it there`
+    logError(new Error(detail))
+    logForDebugging(`tensorfold: ${detail}`, { level: 'error' })
+    warnings.push(`port ${pick.port} could not be saved — the next start may pick another`)
   }
   if (role === 'session') {
     try {
       ;(io.rememberWindow ?? rememberTensorFoldWindow)(request.repo, request.window)
     } catch (error) {
       passedOver(error)
-      logError(new Error(`the window ${request.window} for ${request.repo} could not be remembered in the hosts store (${errorMessage(error)}) — the next start offers the earlier window`))
-      warnings.push(`the window for ${name} was not saved (${errorMessage(error)}), so the next start may offer the earlier window`)
+      const detail = `the window ${request.window} for ${request.repo} could not be remembered in the hosts store (${errorMessage(error)}) — the next start offers the earlier window`
+      logError(new Error(detail))
+      logForDebugging(`tensorfold: ${detail}`, { level: 'error' })
+      warnings.push(`the window for ${name} could not be saved — the next start may offer the earlier window`)
     }
   }
   if (role === 'session') {
