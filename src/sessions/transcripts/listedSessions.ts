@@ -1,5 +1,6 @@
 import { getListingDisplayTitle } from '../../platform/logs/errorLog.js'
 import { enrichSessionListings, sessionIdOfListing } from './sessionListings.js'
+import { compareSessionRecency } from './sessionIndex.js'
 import type { SessionListing } from './transcriptEntries.js'
 
 const SUBSTANTIVE_FILE_SIZE = 4096
@@ -62,11 +63,12 @@ function compareStampDesc(a: string, b: string): number {
 }
 
 function compareListedSessions(a: SessionListing, b: SessionListing): number {
-  const byModified = b.modified.getTime() - a.modified.getTime()
-  if (byModified !== 0) return byModified
-  const byStamp = compareStampDesc(a.date, b.date)
-  if (byStamp !== 0) return byStamp
-  return (a.sessionId ?? '').localeCompare(b.sessionId ?? '')
+  return (
+    compareSessionRecency(
+      { lastUsedMs: a.lastUsedAt ?? a.modified.getTime(), mtimeMs: a.modified.getTime(), sessionId: a.sessionId },
+      { lastUsedMs: b.lastUsedAt ?? b.modified.getTime(), mtimeMs: b.modified.getTime(), sessionId: b.sessionId },
+    ) || compareStampDesc(a.date, b.date)
+  )
 }
 
 export async function readListedSessions(lite: SessionListing[], count: number): Promise<SessionListing[]> {

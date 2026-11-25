@@ -26,6 +26,7 @@ import {
   type ParkedSessionFact,
   type ProjectIdentity,
 } from '../boot-face/bootCardFacts.js'
+import { compareSessionRecency, readSessionLastUsedMsSync } from '../../sessions/transcripts/sessionIndex.js'
 import { extractFirstPromptFromHead, extractLastJsonStringField, getProjectDir, isTranscriptFileName, LITE_READ_BUF_SIZE } from '../../sessions/transcripts/sessionStoragePortable.js'
 import { historyHead, historyRange } from '../../sessions/transcripts/historyParts.js'
 import { missionGoalBeside } from '../../sessions/mission-card/missionCard.js'
@@ -741,7 +742,7 @@ export interface OlderChatsCensusV1 {
   readError?: string
 }
 
-const olderFactCache = new Map<string, { mtimeMs: number; size: number; husk: boolean; title: string | null }>()
+const olderFactCache = new Map<string, { mtimeMs: number; size: number; husk: boolean; title: string | null; lastUsedMs?: number }>()
 const OLDER_FACT_CACHE_CAP = 2048
 
 function transcriptTitleOf(rec: { sessionId: string; workspaceId: string }): string | null {
@@ -758,14 +759,16 @@ function transcriptTitleOf(rec: { sessionId: string; workspaceId: string }): str
   return sanitizeLabel(sessionTitleOf({ title: custom, workspaceId: rec.workspaceId }, () => brief))
 }
 
-function olderFactOf(projectDir: string, file: string, mtimeMs: number, size: number): { husk: boolean; title: string | null } {
+function olderFactOf(projectDir: string, file: string, mtimeMs: number, size: number, needLastUsed = false): { husk: boolean; title: string | null; lastUsedMs?: number } {
   const held = olderFactCache.get(file)
-  if (held !== undefined && held.mtimeMs === mtimeMs && held.size === size) return held
-  const sessionId = basename(file).replace(/\.jsonl$/, '')
+  if (held !== undefined && held.mtimeMs === mtimeMs && held.size === size) {
+    if (needLastUsed && held.lastUsedMs === undefined && !held.husk && held.title !== null) held.lastUsedMs = readSessionLastUsedMsSync(file, mtimeMs)
+    return held
+  }
   const husk = isAuthFailureHusk(file, size)
-  const title = husk ? null : transcriptTitleOf({ sessionId, workspaceId: projectDir })
+  const title = husk ? null : transcriptTitleOf({ sessionId: basename(file).replace(/\.jsonl$/, ''), workspaceId: projectDir })
   if (olderFactCache.size >= OLDER_FACT_CACHE_CAP) olderFactCache.clear()
-  const fact = { mtimeMs, size, husk, title }
+  const fact = { mtimeMs, size, husk, title, ...(needLastUsed && !husk && title !== null ? { lastUsedMs: readSessionLastUsedMsSync(file, mtimeMs) } : {}) }
   olderFactCache.set(file, fact)
   return fact
 }
@@ -812,17 +815,16 @@ export function olderChatsCensus(
     }
     candidates.sort((a, b) => b.mtimeMs - a.mtimeMs)
     let total = 0
-    const entries: OlderChatFact[] = []
+    const ranked: Array<{ entry: OlderChatFact; mtimeMs: number; lastUsedMs: number }> = []
     for (const c of candidates) {
       if (excludedSessionIds.has(c.sessionId)) continue
-      const fact = olderFactOf(projectDir, c.file, c.mtimeMs, c.size)
+      const fact = olderFactOf(projectDir, c.file, c.mtimeMs, c.size, entryCap > 0)
       if (fact.husk || fact.title === null) continue
       total += 1
-      if (entries.length < entryCap) {
-        entries.push({ sessionId: c.sessionId, transcriptPath: c.file, ageMs: c.ageMs, title: fact.title })
-      }
+      if (entryCap > 0) ranked.push({ entry: { sessionId: c.sessionId, transcriptPath: c.file, ageMs: c.ageMs, title: fact.title }, mtimeMs: c.mtimeMs, lastUsedMs: fact.lastUsedMs ?? Math.floor(c.mtimeMs) })
     }
-    return { total, entries }
+    ranked.sort((a, b) => compareSessionRecency({ lastUsedMs: a.lastUsedMs, mtimeMs: a.mtimeMs, sessionId: a.entry.sessionId }, { lastUsedMs: b.lastUsedMs, mtimeMs: b.mtimeMs, sessionId: b.entry.sessionId }))
+    return { total, entries: ranked.slice(0, entryCap).map(r => r.entry) }
   } catch (error) {
     const code = (error as NodeJS.ErrnoException | null)?.code
     if (code === 'ENOENT' || code === 'ENOTDIR') {
@@ -1239,8 +1241,8 @@ function hostedLastUsedAt(
   }
   if (latest > 0) return latest
   try {
-    const mtime = statSync(workerTranscriptPath(rec)).mtimeMs
-    return Number.isFinite(mtime) && mtime > 0 ? mtime : null
+    const path = workerTranscriptPath(rec), mtime = statSync(path).mtimeMs
+    return Number.isFinite(mtime) && mtime > 0 ? readSessionLastUsedMsSync(path, mtime) : null
   } catch (error) {
     passedOver(error)
     return null

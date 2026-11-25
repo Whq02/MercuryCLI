@@ -542,7 +542,7 @@ async function progressivePage(
     0,
     initialEnrichCount,
   )
-  numberInOrder(logs)
+  numbered(logs)
   const merged = mergeSessionReadFailures(priorFailures, readFailures)
   return {
     logs,
@@ -918,6 +918,7 @@ type LiteLabelFacts = {
   prRepository?: string
   endedOnError?: boolean
   lastTimestamp?: string
+  lastUsedAt?: number
 }
 
 async function enrichListing(
@@ -963,6 +964,7 @@ async function enrichListing(
     ...(facts.prUrl !== undefined ? { prUrl: facts.prUrl } : {}),
     ...(facts.prRepository !== undefined ? { prRepository: facts.prRepository } : {}),
     ...(facts.endedOnError !== undefined ? { endedOnError: facts.endedOnError } : {}),
+    ...(facts.lastUsedAt !== undefined ? { lastUsedAt: facts.lastUsedAt } : {}),
     ...(projectPath !== undefined ? { projectPath } : {}),
   }
 }

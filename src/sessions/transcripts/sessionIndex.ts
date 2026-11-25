@@ -5,10 +5,12 @@ import { sliceHeadAtGrapheme } from '../../platform/text/textSegments.js'
 import {
   extractJsonStringField,
   extractLastJsonStringField,
+  LITE_READ_BUF_SIZE,
   readHeadAndTail,
   scanTailForEndedOnError,
   validateUuid,
 } from './sessionStoragePortable.js'
+import { readTranscriptTailSync } from './transcriptReader.js'
 import { getErrnoCode } from '../../platform/errors/errors.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
@@ -117,6 +119,72 @@ function firstField(head: string, field: string): unknown {
   }
   return undefined
 }
+function isConversationActivityRecord(record: Record<string, unknown>): boolean {
+  const payload = record.payload
+  if (payload === null || typeof payload !== 'object') return false
+  const kind = (payload as { kind?: unknown }).kind
+  if (kind === 'output') return true
+  if (kind === 'session-meta') return (payload as { metaKind?: unknown }).metaKind === 'turn-end'
+  if (kind !== 'input') return false
+  const annotations = record.annotations
+  if (annotations !== null && typeof annotations === 'object') {
+    const a = annotations as { isMeta?: unknown; hiddenFromTranscript?: unknown; isVirtual?: unknown }
+    if (a.isMeta === true || a.hiddenFromTranscript === true || a.isVirtual === true) return false
+  }
+  const meta = (payload as { meta?: unknown }).meta
+  if (meta !== null && typeof meta === 'object') {
+    const m = meta as { isMeta?: unknown; hiddenFromTranscript?: unknown; isVirtual?: unknown }
+    if (m.isMeta === true || m.hiddenFromTranscript === true || m.isVirtual === true) return false
+  }
+  return true
+}
+
+export function lastConversationActivityMs(tail: string): number | null {
+  if (!tail) return null
+  const lines = tail.split('\n')
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i]!.trim()
+    if (!line || line.charCodeAt(0) !== 123) continue
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(line)
+    } catch (error) {
+      passedOver(error)
+      continue
+    }
+    if (parsed === null || typeof parsed !== 'object') continue
+    const record = parsed as Record<string, unknown>
+    if (!isConversationActivityRecord(record)) continue
+    if (typeof record.occurredAt !== 'string') continue
+    const ms = Date.parse(record.occurredAt)
+    if (Number.isFinite(ms)) return ms
+  }
+  return null
+}
+
+function sessionLastUsedMs(tail: string, mtimeMs: number): number {
+  return lastConversationActivityMs(tail) ?? Math.floor(mtimeMs)
+}
+
+export function readSessionLastUsedMsSync(filePath: string, mtimeMs: number): number {
+  return sessionLastUsedMs(readTranscriptTailSync(filePath, LITE_READ_BUF_SIZE), mtimeMs)
+}
+
+export function compareSessionRecency(
+  a: { lastUsedMs: number; mtimeMs: number; createdMs?: number; sessionId?: string },
+  b: { lastUsedMs: number; mtimeMs: number; createdMs?: number; sessionId?: string },
+): number {
+  if (b.lastUsedMs !== a.lastUsedMs) return b.lastUsedMs - a.lastUsedMs
+  const ma = Math.floor(a.mtimeMs)
+  const mb = Math.floor(b.mtimeMs)
+  if (mb !== ma) return mb - ma
+  if (a.createdMs !== undefined && b.createdMs !== undefined) {
+    const ca = Math.floor(a.createdMs)
+    const cb = Math.floor(b.createdMs)
+    if (cb !== ca) return cb - ca
+  }
+  return (a.sessionId ?? '').localeCompare(b.sessionId ?? '')
+}
 
 function sessionLabelFacts(head: string, tail: string, builtIn: (name: string) => boolean) {
   const first = (field: string) => extractJsonStringField(head, field)
@@ -144,6 +212,7 @@ function sessionLabelFacts(head: string, tail: string, builtIn: (name: string) =
     prRepository: last('prRepository'),
     endedOnError: scanTailForEndedOnError(tail),
     lastTimestamp: last('timestamp') ?? first('timestamp'),
+    lastUsedAt: lastConversationActivityMs(tail) ?? undefined,
   }
 }
 

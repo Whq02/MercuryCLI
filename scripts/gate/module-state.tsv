@@ -4929,7 +4929,6 @@ src/sessions/transcripts/streamFold.ts	previousPartMetadata	process	module	Fixed
 src/sessions/transcripts/transcriptBytes.ts	nodeTranscriptReaderIo	process	module	Load-time table with no local writer
 src/sessions/transcripts/transcriptBytes.ts	transcriptIo	test	module	test-only IO hook mutated solely by setTranscriptReaderIoForTesting
 src/sessions/transcripts/transcriptBytes.ts	transcriptReaderCensus	process	module	process-wide diagnostic counters for transcript reader IO
-src/sessions/transcripts/transcriptEntries.ts	LISTING_ORDER	process	module	Load-time list with no local writer
 src/sessions/transcripts/transcriptProjector.ts	registered	process	module	Transcript projection callbacks installed at process startup
 src/sessions/transcripts/transcriptReader.ts	EMPTY	process	module	Load-time definition shared by all callers
 src/sessions/transcripts/transcriptReader.ts	ZERO_ACCOUNTING	process	module	Derived collection initialized at load

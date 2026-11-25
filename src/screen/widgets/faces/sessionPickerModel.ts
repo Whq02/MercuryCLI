@@ -9,6 +9,7 @@ import { sanitizeLabel } from '../../concourse-model/concourseSnapshot.js'
 import { newSessionTitle } from '../../concourse-model/sessionNaming.js'
 import { partitionByProject } from '../../session-chooser/sessionFilter.js'
 import { listedSessionName, listedSessionsOf } from '../../../sessions/transcripts/listedSessions.js'
+import { compareSessionRecency } from '../../../sessions/transcripts/sessionIndex.js'
 import { isSessionCleared } from '../../../sessions/transcripts/clearedSessions.js'
 import {
   enrichSessionListings,
@@ -62,7 +63,12 @@ export function rowProject(log: SessionListing): string {
 
 export function resumableNewestFirst(all: SessionListing[], currentSessionId: string): SessionListing[] {
   const resumable = listedSessionsOf(all, currentSessionId)
-  resumable.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime())
+  resumable.sort((a, b) =>
+    compareSessionRecency(
+      { lastUsedMs: a.lastUsedAt ?? new Date(a.modified).getTime(), mtimeMs: new Date(a.modified).getTime(), sessionId: a.sessionId },
+      { lastUsedMs: b.lastUsedAt ?? new Date(b.modified).getTime(), mtimeMs: new Date(b.modified).getTime(), sessionId: b.sessionId },
+    ),
+  )
   return resumable
 }
 
