@@ -11,7 +11,7 @@ import type {
 } from '../../../integrations/desktop/driver.js'
 import { isKeyChordRefusal, parseKeyChord } from '../keyChord.js'
 import { targetWords, withOrdinal } from '../fastRoad.js'
-import { waitConditionPassed } from '../waitCondition.js'
+import { dialogCounts } from '../waitCondition.js'
 import {
   FIELD_VALUE_CHARS,
   FILE_CLOSE_MS,
@@ -135,19 +135,31 @@ function fileDialogKeys(path: string): Array<{ key: string } | { text: string }>
   return [{ key: process.platform === 'darwin' ? 'cmd+shift+g' : 'ctrl+l' }, { text: path }, { key: 'Enter' }]
 }
 
-async function dialogOpen(driver: DesktopDriver, signal: AbortSignal): Promise<boolean | null> {
+async function readDialogs(driver: DesktopDriver, signal: AbortSignal): Promise<Map<string, number> | null> {
   const front = await driver.frontmostApplication()
   if (!front.ok) return null
   const tree = await driver.accessibilityTree(front.value, { depth: TREE_DEPTH_CAP, count: TREE_LIMIT_CAP, scope: 'window' }, signal)
   if (!tree.ok) return null
-  return waitConditionPassed({ dialog: true }, front.value, tree.value)
+  return dialogCounts(tree.value)
 }
 
-async function awaitDialog(driver: DesktopDriver, signal: AbortSignal, open: boolean, deadline: number): Promise<'met' | 'unmet' | 'unread'> {
+function hasNewDialog(current: ReadonlyMap<string, number>, baseline: ReadonlyMap<string, number>): boolean {
+  for (const [key, count] of current) {
+    if (count > (baseline.get(key) ?? 0)) return true
+  }
+  return false
+}
+
+async function dialogOpen(driver: DesktopDriver, signal: AbortSignal, baseline: ReadonlyMap<string, number>): Promise<boolean | null> {
+  const current = await readDialogs(driver, signal)
+  return current === null ? null : hasNewDialog(current, baseline)
+}
+
+async function awaitDialog(driver: DesktopDriver, signal: AbortSignal, open: boolean, deadline: number, baseline: ReadonlyMap<string, number>): Promise<'met' | 'unmet' | 'unread'> {
   let read = false
   return pollUntil<'met' | 'unmet' | 'unread', 'unmet' | 'unread', 'unmet' | 'unread'>(
     async () => {
-      const state = await dialogOpen(driver, signal)
+      const state = await dialogOpen(driver, signal, baseline)
       read ||= state !== null
       if (state === open) return 'met'
       if (signal.aborted) return read ? 'unmet' : 'unread'
@@ -163,9 +175,11 @@ async function awaitDialog(driver: DesktopDriver, signal: AbortSignal, open: boo
 async function performFile(driver: DesktopDriver, input: Input, plan: ActPlan, signal: AbortSignal): Promise<ActWords> {
   const run = new ActRun(driver, 'file', signal)
   const path = input.path!
+  const before = (await readDialogs(driver, signal)) ?? (plan.beforeTree ? dialogCounts(plan.beforeTree) : new Map<string, number>())
+  if (signal.aborted) return { ok: false, aborted: true, text: '' }
   if ((await run.step(driver.click(plan.point!, 'left', 1, signal))) === null) return run.failed()
   const pause = clamp(input.durationMs ?? FILE_DIALOG_MS, 0, WAIT_CAP_MS)
-  const opened = await awaitDialog(driver, signal, true, Date.now() + pause)
+  const opened = await awaitDialog(driver, signal, true, Date.now() + pause, before)
   if (opened === 'unread') return { ok: false, aborted: signal.aborted, text: `file failed: the window's tree could not be read, so whether ${startWords(input)} opened a file dialog is unknown — nothing typed; take a screenshot and drive the dialog with key and type` }
   if (opened === 'unmet') return { ok: false, aborted: signal.aborted, text: `file failed: ${startWords(input)} opened no file dialog within ${pause}ms — nothing typed; take a screenshot and re-issue` }
   for (const step of fileDialogKeys(path)) {
@@ -177,11 +191,11 @@ async function performFile(driver: DesktopDriver, input: Input, plan: ActPlan, s
     } else if ((await run.step(driver.typeText(step.text, {}, signal))) === null) return run.failed()
   }
   const closed = Date.now() + FILE_CLOSE_MS
-  if ((await awaitDialog(driver, signal, false, Date.now() + FILE_KEY_GAP_MS * 2)) !== 'met') {
+  if ((await awaitDialog(driver, signal, false, Date.now() + FILE_KEY_GAP_MS * 2, before)) !== 'met') {
     const enter = parseKeyChord('Enter')
     if (!isKeyChordRefusal(enter) && (await run.step(driver.keyTap(enter.key, enter.modifiers, signal))) === null) return run.failed()
   }
-  const gone = await awaitDialog(driver, signal, false, closed)
+  const gone = await awaitDialog(driver, signal, false, closed, before)
   if (gone === 'unread') return { ok: false, aborted: signal.aborted, text: `file failed: the window's tree could not be read after ${path}, so whether the dialog closed is unknown — take a screenshot` }
   if (gone === 'unmet') return { ok: false, aborted: signal.aborted, text: `file failed: the file dialog is still open after ${path} — it may not accept that path; take a screenshot` }
   return { ok: true, words: `file ${startWords(input)} ← ${basename(path)} → ${pointWords(plan.point!)}${scrolledWords(plan)} · the dialog opened and closed` }
