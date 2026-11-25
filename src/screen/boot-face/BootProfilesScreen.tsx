@@ -82,13 +82,11 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
               const created = `${made.profile.name} created — ${startWords(made.profile)}`;
               const from = profiles.find(profile => profile.current)?.name ?? 'this profile';
               settle({ where: 'status', text: created });
-              if (!made.adopted) {
-                void inheritSkills(made.profile.home)
-                  .then(answer => skillsWords(answer, from), errorMessage)
-                  .then(line => {
-                    if (line !== null) setSaid({ where: 'pane', text: `${created};\n${line}` });
-                  });
-              }
+              void inheritSkills(made.profile.home)
+                .then(answer => skillsWords(answer, from), errorMessage)
+                .then(line => {
+                  if (line !== null) setSaid({ where: 'pane', text: `${created};\n${line}` });
+                });
               return null;
             },
           },
