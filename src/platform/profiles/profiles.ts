@@ -7,7 +7,7 @@ import { errorMessage, isENOENT } from '../errors/errors.js'
 import { passedOver } from '../errors/passedOver.js'
 import { foldPathCase, pathModuleFor, toNativeSeparators } from '../host-os/paths.js'
 import { envPathDirs } from '../host-os/programs.js'
-import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
+import { publishAtomicSync } from '../substrate/fileStore.js'
 import { flagPair } from '../substrate/flagRegistry.js'
 import { pathEntryEquals, resolveLayoutRoots, shimStatus, type LayoutRoots } from '../update-channel/installLayout.js'
 import { resolveInstallProvenance } from '../update-channel/installProvenance.js'
@@ -74,7 +74,7 @@ function family(): Family {
 function save(first: string, labels: Labels): void {
   const path = join(first, RECORD)
   if (labels.length === 0) rmSync(path, { force: true })
-  else durableAtomicPublishSync(path, `${JSON.stringify({ profiles: [...labels].sort((a, b) => a.id - b.id) }, null, 2)}\n`, { mode: 0o600 })
+  else publishAtomicSync(path, `${JSON.stringify({ profiles: [...labels].sort((a, b) => a.id - b.id) }, null, 2)}\n`, { mode: 0o600 })
 }
 
 const released = (roots: LayoutRoots): Install => ({ bin: roots.binDir, command: roots.shimPath, program: flagPair('MERCURY_VERSIONS_DIR', roots.versionsDir), isWindows: roots.isWindows, userHome: homedir() })
@@ -169,8 +169,8 @@ export function createProfile(): { ok: true; profile: ProfileRow } | ProfileRefu
     const stranger = files.find(file => strange(file, id))
     if (stranger !== undefined) return refused(`The file ${stranger.path} is already there and is not this profile's command: move it away, then create the profile again.`)
     mkdirSync(home, { recursive: true, mode: 0o700 })
-    durableAtomicPublishSync(join(home, HOME_MARKER), `${JSON.stringify({ first: known.first, id })}\n`, { mode: 0o600 })
-    for (const file of files) durableAtomicPublishSync(file.path, file.text, { mode: 0o755 })
+    publishAtomicSync(join(home, HOME_MARKER), `${JSON.stringify({ first: known.first, id })}\n`, { mode: 0o600 })
+    for (const file of files) publishAtomicSync(file.path, file.text, { mode: 0o755 })
     const labels = [...known.labels, { id }]
     save(known.first, labels)
     return { ok: true, profile: rowOf({ ...known, labels }, found, id) }
