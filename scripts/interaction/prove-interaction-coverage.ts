@@ -88,6 +88,7 @@ reg(
     'src/screen/boot-face/BootResumeScreen.tsx',
     'src/screen/boot-face/resume/resumeView.tsx',
     'src/screen/boot-face/KitMenuScreen.tsx',
+    'src/screen/boot-face/BootProfilesScreen.tsx',
     'src/screen/kit-menu/kitMenuView.tsx',
     'src/screen/concourse/CompactConcourse.tsx',
  'src/screen/concourse/screen/fullTree.tsx',

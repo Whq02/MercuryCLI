@@ -8,7 +8,6 @@ import type {
 } from '../../../../engine/message-shapes/wire.js'
 import { cacheClockObserve } from 'src/platform/cache-clock/cacheClock.js'
 import { logForDebugging } from 'src/platform/logs/debugLog.js'
-import { logForDiagnosticsNoPII } from 'src/platform/logs/diagnosticsLog.js'
 import { noteRunPhase } from 'src/platform/logs/runPhases.js'
 import { noteCacheDiagnostics } from '../cacheDiagnostics.js'
 import { addToTotalSessionCost } from 'src/models/usage/sessionCost.js'
@@ -190,10 +189,6 @@ export function noteWatchdogCleanExit(pass: StreamPass): void {
     pass.streamWatchdogFiredAt !== null
       ? Math.round(performance.now() - pass.streamWatchdogFiredAt)
       : -1
-  logForDiagnosticsNoPII(
-    'info',
-    'cli_stream_loop_exited_after_watchdog_clean',
-  )
   logForDebugging(
     `stream loop exited ${exitDelayMs}ms after watchdog abort (clean exit)`,
   )
@@ -228,10 +223,6 @@ export function observeStreamEnd(call: CallState, pass: StreamPass, turnOwning: 
 
 export function noteWatchdogErrorExit(pass: StreamPass & { streamWatchdogFiredAt: number }): void {
   const exitDelayMs = Math.round(performance.now() - pass.streamWatchdogFiredAt)
-  logForDiagnosticsNoPII(
-    'info',
-    'cli_stream_loop_exited_after_watchdog_error',
-  )
   logForDebugging(
     `stream loop exited ${exitDelayMs}ms after watchdog abort (error exit)`,
   )

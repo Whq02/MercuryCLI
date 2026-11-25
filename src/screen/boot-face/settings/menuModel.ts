@@ -1,4 +1,3 @@
-import { basename } from 'node:path';
 import type { chatOnlyBoot, stripFacts } from '../../routes/surfaceRoute.js';
 import { menuRowValueLabel, menuRowWarning, type readBootDefaultsProfile, type resolveEffectiveSettingsSnapshot, type ExplicitApplyReceipt, type MenuRow } from '../../../platform/substrate/startupMenu.js';
 import { seatCeilingDetailLines, type SeatCeilingFacts, seatCeilingValueWords } from '../../../daemon/switchboard-capacity/capacityCheck.js';
@@ -6,8 +5,7 @@ import { motionDetailLines, motionValueWords, type readMotionSetting } from '../
 import { jevValueWords, type readJevSettings } from '../../../models/jev/jevSetting.js';
 import { backgroundLaunchValueWords, type backgroundSessionsLaunchCrewmates } from '../../../daemon/switchboard/backgroundLaunch.js';
 import type { useEngineModel } from '../../model-picker/useEngineModel.js';
-import { renderModelChip } from '../../../models/catalogue/engineModel.js';
-import { getSessionAccent, getSessionCritterKey } from '../../widgets/sessionAccent.js';
+import { bootEnvironment } from '../bootEnvironment.js';
 import { isHelmHomeEnabled } from '../../fullscreen-layout/fullscreen.js';
 import type { useGreetingShimmer } from '../../widgets/useGreetingShimmer.js';
 import type { useInteractiveList } from '../../widgets/useInteractiveList.js';
@@ -100,14 +98,13 @@ export function settingsMenuModel({ apply, backgroundLaunchOn, changed, chatBoot
       warn: menuRowWarning(row, envPinned ? (effective?.value ?? null) : (saved[row.env] ?? null)),
       detail: row.detail ?? null,
       detailExtra: [
-        `this session  ${effective ? (effective.value ?? 'default') : 'default'} (${effective?.source ?? 'default'})`,
+        `this session  ${effective ? (effective.value ?? 'default') : 'default'} (${effective?.source === 'profile' ? 'saved' : (effective?.source ?? 'default')})`,
       ],
     };
   });
   const harness = [
     isHelmHomeEnabled() ? 'helm' : null,
   ].filter(Boolean) as string[];
-  const critterKey = getSessionCritterKey();
   const idleStatus =
     profileReadError
       ? `could not be read (${profileReadError})`
@@ -123,13 +120,7 @@ export function settingsMenuModel({ apply, backgroundLaunchOn, changed, chatBoot
         : `r${profile?.revision ?? 0} · ${changed > 0 ? `custom · ${changed} set` : 'default'}`,
       harness: harness.join(' · ') || 'none',
     },
-    environment: {
-      model: renderModelChip(mainModel),
-      critter: critterKey.charAt(0).toUpperCase() + critterKey.slice(1),
-      critterHue: getSessionAccent().accent,
-      dirBase: basename(process.cwd()) || process.cwd(),
-      dirTail,
-    },
+    environment: bootEnvironment(mainModel, process.cwd(), dirTail),
     statusRight,
     glowWord: wordGlow,
     legend: `↑↓ move · ${list.selectedRow && 'editor' in list.selectedRow ? '↵ open' : '↵ change (saved) · ⌫ default'} · a apply receipts${concourseLive && !chatBoot ? ` · o ${plainWorld ? 'live view' : 'concourse'}` : ''} · esc ${apply.phase === 'closed' ? 'back' : 'close receipts'}`,
@@ -168,7 +159,7 @@ function applyOverrideRows(workers: WorkerApplySummary[], error?: string): strin
     const noChange = w.receipts.filter(r => r.outcome === 'no-change');
     const live = w.receipts.filter(r => r.outcome === 'applied' || r.outcome === 'queued');
     rows.push(
-      `${w.runnerId} · ${w.sessionId.slice(0, 8)} — snapshot r${w.snapshotRevision ?? 0} · ${noChange.length} at profile · ${refused.length} refused${live.length > 0 ? ` · ${live.length} live (${live.map(r => r.outcome).join(', ')})` : ''}`,
+      `${w.runnerId} · ${w.sessionId.slice(0, 8)} — snapshot r${w.snapshotRevision ?? 0} · ${noChange.length} as saved · ${refused.length} refused${live.length > 0 ? ` · ${live.length} live (${live.map(r => r.outcome).join(', ')})` : ''}`,
     );
     if (live.length > 0 && live[0]?.reason) rows.push(`  · ${live[0].reason}`);
     if (refused.length > 0 && refused[0]?.reason) rows.push(`  · ${refused[0].reason}`);

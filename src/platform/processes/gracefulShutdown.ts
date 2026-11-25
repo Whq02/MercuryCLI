@@ -8,7 +8,6 @@ import type { SESSION_END_REASONS } from '../../integrations/event-hooks/contrac
 
 import { runCleanupFunctions } from './cleanupRegistry.js'
 import { logForDebugging } from '../logs/debugLog.js'
-import { logForDiagnosticsNoPII } from '../logs/diagnosticsLog.js'
 import { getErrnoCode } from '../errors/errors.js'
 import { logError } from '../logs/errorLog.js'
 import { isPeerGoneWriteError, registerProcessInputErrorHandler, registerProcessOutputErrorHandlers } from './process.js'
@@ -157,10 +156,8 @@ export function failLoud(error: unknown, origin: LoudFailureOrigin): void {
   logForDebugging(
     `failLoud(${origin}): ${err.name}: ${truncate(err.message, 2000)}\n${truncate(err.stack ?? '', 4000)}`,
   )
-  logForDiagnosticsNoPII('error', 'boot_failed_loud', { origin, moduleFailure })
   const { isMissingCwd, MISSING_CWD_LINE } = require('../node-runtime/nodePolicy.js') as typeof import('../node-runtime/nodePolicy.js')
   if (isMissingCwd(err)) {
-    logForDiagnosticsNoPII('error', 'boot_cwd_missing', { origin })
     try {
       writeSync(2, `${MISSING_CWD_LINE}\n`)
     } catch (error) { passedOver(error) }
@@ -304,7 +301,6 @@ function onUncaughtException(error: unknown): void {
   const name = error instanceof Error ? error.name : 'Error'
   const message = error instanceof Error ? error.message : String(error)
   logForDebugging(`uncaughtException: ${name}: ${truncate(message, 2000)}`)
-  logForDiagnosticsNoPII('error', 'uncaught_exception', { name })
   const tripped = recordUncaughtAndCheckBreaker(Date.now())
   if (tripped || breaker.ring.length < BREAKER_RING_CAPACITY) breaker.ring.push({ name, message: truncate(message, 200) })
   if (!persistedUncaughtOnce) {
@@ -328,7 +324,6 @@ function onUnhandledRejection(reason: unknown): void {
   if (shutdownInProgress && isPeerGoneWriteError(reason)) {
     const code = getErrnoCode(reason)
     logForDebugging(`unhandledRejection during shutdown: a peer's pipe closed (${code}) — the shutdown ends its peers; no crash record`)
-    logForDiagnosticsNoPII('info', 'shutdown_peer_gone_write', { code })
     return
   }
   if (reason instanceof Error) {
@@ -337,16 +332,13 @@ function onUnhandledRejection(reason: unknown): void {
       persistedRejectionOnce = true
       persistCrash(reason, 'unhandled-rejection')
     }
-    logForDiagnosticsNoPII('error', 'unhandled_rejection', { kind: 'error', name: reason.name })
     return
   }
   if (typeof reason === 'string') {
     logForDebugging(`unhandledRejection: ${truncate(reason, 2000)}`)
-    logForDiagnosticsNoPII('error', 'unhandled_rejection', { kind: 'string' })
     return
   }
   logForDebugging('unhandledRejection: unknown reason')
-  logForDiagnosticsNoPII('error', 'unhandled_rejection', { kind: 'unknown' })
 }
 
 function installSignalHandlers(): void {
@@ -355,13 +347,11 @@ function installSignalHandlers(): void {
     process.on(signal, () => {
       if (signal === 'SIGHUP') markTerminalGone()
       if (runModeOwnsSignals()) return
-      logForDiagnosticsNoPII('info', 'shutdown_signal', { signal })
       writePreflightSignal(codes[signal])
       gracefulShutdownSync(codes[signal])
     })
   }
   process.on('SIGBREAK', () => {
-    logForDiagnosticsNoPII('info', 'shutdown_signal', { signal: 'SIGBREAK' })
     gracefulShutdownSync(149)
   })
 }
@@ -372,12 +362,10 @@ function watchTheTerminal(): void {
     code => {
       markTerminalGone()
       logForDebugging(terminalGoneReadLine(code), { level: 'warn' })
-      logForDiagnosticsNoPII('warn', 'orphan_detected', { stdoutWritable: process.stdout.writable, stdinReadable: false, stdinReadError: code })
       gracefulShutdownSync(TERMINAL_GONE_EXIT_CODE)
     },
     (code, syscall) => {
       logForDebugging(editorHandoverStdinFaultLine(code, syscall), { level: 'warn' })
-      logForDiagnosticsNoPII('warn', 'stdin_fault_after_editor', { stdoutWritable: process.stdout.writable, stdinError: code, syscall })
     },
   )
   if (process.platform === 'win32') return
@@ -388,7 +376,6 @@ function watchTheTerminal(): void {
     if (stdoutWritable && stdinReadable) return
     stopInterval(orphanCheck)
     markTerminalGone()
-    logForDiagnosticsNoPII('warn', 'orphan_detected', { stdoutWritable, stdinReadable })
     gracefulShutdownSync(TERMINAL_GONE_EXIT_CODE)
   }, ORPHAN_CHECK_INTERVAL_MS)
   orphanCheck.unref()

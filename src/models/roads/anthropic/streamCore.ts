@@ -30,7 +30,6 @@ import type {
 } from '../../../engine/message-shapes/wire.js'
 import { setLastApiCompletionTimestamp } from 'src/boot/process-state/processState.js'
 import { logForDebugging } from 'src/platform/logs/debugLog.js'
-import { logForDiagnosticsNoPII } from 'src/platform/logs/diagnosticsLog.js'
 import { resetApiConnectionPool } from 'src/platform/network/proxy.js'
 import { transportCutOf } from '../../../engine/request-parts/transportEvidence.js'
 import { effortStampOf } from '../../effort/effortStamp.js'
@@ -39,7 +38,6 @@ import { errorMessage } from '../../../platform/errors/errors.js'
 import { fitImagesToRequestCap, manyImageLimitStatedIn } from '../../../platform/images/imageResizer.js'
 import { captureAPIRequest } from '../../../platform/logs/errorLog.js'
 import { processOwnerForLane } from '../../../engine/run-owner/resolveOwner.js'
-import { startSessionActivity } from '../../../engine/requests/sessionActivity.js'
 import { createAssistantAPIErrorMessage, createUserMessage } from '../../../engine/messages/messages.js'
 import { toolToAPISchema } from '../../../engine/messages/apiSystemAndToolSchema.js'
 import { utilityCallFor } from '../../catalogue/utilityModel.js'
@@ -453,7 +451,6 @@ async function* runStreamPass(
     ctx.stoppedBlockIndices,
   )
   const watch = watchStream(ctx, call, pass)
-  startSessionActivity('api_call')
 
   try {
     try {
@@ -600,7 +597,6 @@ async function* runStreamPass(
         watch.streamIdleWatchdog,
         watch.preEventSilenceWords,
       )
-      logForDiagnosticsNoPII('info', 'cli_nonstreaming_fallback_started')
 
       const fallbackResult = yield* executeNonStreamingRequest(
         {

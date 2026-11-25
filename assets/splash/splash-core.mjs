@@ -527,6 +527,12 @@ export function assembleCardRows(facts) {
   return rows
 }
 
+export function withProfilesRow(rows, boxed) {
+  if (rows[rows.length - 1]?.key !== 'menu') return rows
+  const more = [...rows, { key: 'profiles', icon: '⊞', label: 'Profiles', ctx: 'separate logins and history' }]
+  return boxed(more) ? more : rows
+}
+
 function placeBlock(block, rows) {
   const pad = rows - block.length
   if (pad <= 0) return { placed: block, top: 0 }
@@ -991,7 +997,7 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
   const sRows = m.summaryRows
     ? m.summaryRows.map(r2 => kv(r2.key, r2.value, toneOf(r2.tone)))
     : [
-        kv('Profile', m.summary.profile),
+        kv('Saved', m.summary.profile),
         kv('Harness', m.summary.harness),
         kv('Readiness', '', undefined) + paint(TEALC) + '● ready' + R,
       ]
@@ -1444,6 +1450,7 @@ function composeCompactFace(cols, rows, opts) {
     hero,
     wordRow: wordRow === null ? null : wordRow + top,
     top,
+    framed: frame,
   }
 }
 

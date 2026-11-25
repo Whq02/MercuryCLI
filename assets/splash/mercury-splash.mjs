@@ -6,7 +6,7 @@ import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, rea
 import { homedir, tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 
-import { adoptGroundFamily, createSplashCore, emitCells, HEADSTD, WORD, MENU, MODEL_NAMES, GROUND, assembleCardRows, fmtAge, ACCENT_FAMILIES, DEFAULT_CRITTER, accentFamilyKeyOf, glowPhaseAt, glowSettled, GLOW_TICK_MS, WORD_W, CARD_LABEL_W, cpWidth, MARK_RE, truecolorFingerprintOf } from './splash-core.mjs'
+import { adoptGroundFamily, createSplashCore, emitCells, HEADSTD, WORD, MENU, MODEL_NAMES, GROUND, assembleCardRows, withProfilesRow, fmtAge, ACCENT_FAMILIES, DEFAULT_CRITTER, accentFamilyKeyOf, glowPhaseAt, glowSettled, GLOW_TICK_MS, WORD_W, CARD_LABEL_W, cpWidth, MARK_RE, truecolorFingerprintOf } from './splash-core.mjs'
 
 const out = process.stdout
 
@@ -24,10 +24,11 @@ const COMPACT_HOST_COLS = 100
 const COMPACT_HOST_ROWS = 26
 const compactHost = (c, r) => CINEMATIC && !(c >= COMPACT_HOST_COLS && r >= COMPACT_HOST_ROWS)
 let lockupCompactHero = null
-function compose(cols, rows) {
+function composeWith(cols, rows, list) {
+  const shown = list.map(r => ({ ...r, ctx: r.key === 'continue' && r.ctx.startsWith('in ') ? r.ctx : '' }))
   if (compactHost(cols, rows)) {
-    const res = composeCompactFace(cols, rows, {
-      cardRows: cardRows(true).map(r => ({ ...r, ctx: r.key === 'continue' && r.ctx.startsWith('in ') ? r.ctx : '' })),
+    return composeCompactFace(cols, rows, {
+      cardRows: shown,
       stripLines: composeStrip,
       cardSel,
       hintSegments: [
@@ -40,15 +41,9 @@ function compose(cols, rows) {
       glowWord: glowWordPhase(),
       glowRow: glowRowPhase(),
     })
-    lockupCardShown = false
-    lockupWordRow = res.wordRow
-    lockupActionLines = res.actions.map(a => a.line)
-    lockupCompactHero = res.hero
-    return res.lines
   }
-  lockupCompactHero = null
-  const res = composeLockup(cols, rows, {
-    cardRows: cardRows().map(r => ({ ...r, ctx: r.key === 'continue' && r.ctx.startsWith('in ') ? r.ctx : '' })),
+  return composeLockup(cols, rows, {
+    cardRows: shown,
     cardSel,
     hintSegments: [
       { key: '↵', label: '', tone: 'ivory' },
@@ -60,6 +55,23 @@ function compose(cols, rows) {
     glowWord: glowWordPhase(),
     glowRow: glowRowPhase(),
   })
+}
+function shownCardRows(cols, rows) {
+  return withProfilesRow(cardRows(compactHost(cols, rows) ? true : menuAvailable), list => {
+    const res = composeWith(cols, rows, list)
+    return compactHost(cols, rows) ? res.framed : res.cardShown
+  })
+}
+function compose(cols, rows) {
+  const res = composeWith(cols, rows, shownCardRows(cols, rows))
+  if (compactHost(cols, rows)) {
+    lockupCardShown = false
+    lockupWordRow = res.wordRow
+    lockupActionLines = res.actions.map(a => a.line)
+    lockupCompactHero = res.hero
+    return res.lines
+  }
+  lockupCompactHero = null
   lockupCardShown = CINEMATIC ? false : res.cardShown
   lockupWordRow = res.wordRow
   lockupActionLines = res.actionLines
@@ -848,6 +860,7 @@ function activateCardRow(r2) {
   else if (r2.key === 'saturn') writeSplashAction('saturn')
   else if (r2.key === 'logins') writeSplashAction('logins')
   else if (r2.key === 'agents') writeSplashAction('agents')
+  else if (r2.key === 'profiles') writeSplashAction('profiles')
   launch()
 }
 
@@ -1261,6 +1274,7 @@ out.on('resize', () => {
     rowsAvail = Math.max(8, out.rows || 24)
     menuAvailable = computeMenuAvailable()
     if (view === 'menu' && !menuAvailable) view = 'lockup'
+    cardSel = Math.min(cardSel, shownCardRows(cols, rowsAvail).length - 1)
     sizeEpoch++
     if (inRipple) wakeRippleWaiters()
     if (!inRipple && !leaving) paintView()
@@ -1335,7 +1349,7 @@ function handleKey(s) {
     const isDown = s === '\x1b[B' || s === '\x1bOB'
     if (isUp || isDown) {
       if (!lockupCardShown) return
-      const n = cardRows().length
+      const n = shownCardRows(cols, rowsAvail).length
       if (n === 0) return
       cardSel = isDown ? (cardSel + 1) % n : cardSel <= 0 ? n - 1 : cardSel - 1
       armGlowRow()
@@ -1345,7 +1359,7 @@ function handleKey(s) {
     if (s === '\x1b' && cardSel >= 0) { cardSel = -1; paintView(); return }
     const isEnter = s === '\r' || s === '\n' || s === '\r\n'
     if (isEnter && lockupCardShown && cardSel >= 0) {
-      activateCardRow(cardRows()[cardSel])
+      activateCardRow(shownCardRows(cols, rowsAvail)[cardSel])
       return
     }
     if (isEnter) {

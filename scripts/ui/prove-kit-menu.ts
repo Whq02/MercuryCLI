@@ -93,7 +93,7 @@ t.section("§3 — THE COMPOSER STAYS ONE: composeBootMenu's host fields are opt
     const a = (core.composeBootMenu(cols, rows, legacy) as { lines: string[] }).lines.join('\n')
     const b = (core.composeBootMenu(cols, rows, explicit) as { lines: string[] }).lines.join('\n')
     t.check(`${cols}x${rows}: absent host fields ≡ their explicit defaults (byte-identical)`, a === b)
-    t.check(`${cols}x${rows}: the boot menu keeps its caption and panels`, a.includes(cols >= 110 ? '⌁ boot menu' : '· boot menu') && (cols < 110 || (a.includes('LAUNCH SUMMARY') && a.includes('Profile') && a.includes('ENVIRONMENT'))))
+    t.check(`${cols}x${rows}: the boot menu keeps its caption and panels`, a.includes(cols >= 110 ? '⌁ boot menu' : '· boot menu') && (cols < 110 || (a.includes('LAUNCH SUMMARY') && a.includes('Saved') && a.includes('ENVIRONMENT'))))
   }
   const inertM = {
     entries: sectionRows(EMPTY_KIT_CATALOGUE).map(row => kitEntryOf(row)),
@@ -116,7 +116,7 @@ t.section("§3 — THE COMPOSER STAYS ONE: composeBootMenu's host fields are opt
     }
     const plain = lines.map(l => l.replace(/\x1b\[[0-9;]*m/g, ''))
     t.check(`${cols}x${rows}: the empty manager composes (no throw) with both section titles verbatim and no ❯ on an inert line`, !threw && plain.some(l => l.includes('MCPs')) && plain.some(l => l.includes('Skills')) && !plain.some(l => l.includes('❯ no ')), threw ? 'threw' : plain.filter(l => /MCPs|Skills|❯/.test(l)).join(' | ').slice(0, 160))
-    t.check(`${cols}x${rows}: the manager wears its own caption and (wide) its NEXT SESSION panel — never the boot menu's Profile rows`, plain.some(l => l.includes(cols >= 110 ? '⌁ mcps & skills' : '· mcps & skills')) && !plain.some(l => l.includes('Profile')) && (cols < 110 || plain.some(l => l.includes('NEXT SESSION'))))
+    t.check(`${cols}x${rows}: the manager wears its own caption and (wide) its NEXT SESSION panel — never the boot menu's Saved rows`, plain.some(l => l.includes(cols >= 110 ? '⌁ mcps & skills' : '· mcps & skills')) && !plain.some(l => l.includes('Saved')) && (cols < 110 || plain.some(l => l.includes('NEXT SESSION'))))
     t.check(`${cols}x${rows}: the empty catalogue composes with ZERO entries too (no undefined-row read)`, (() => { try { core.composeBootMenu(cols, rows, { ...inertM, entries: [] }); return true } catch { return false } })())
   }
   t.check('the wide tier titles a section verbatim (groupTitle) — never an upper-cased MCPS', (core.composeBootMenu(120, 40, inertM) as { lines: string[] }).lines.some(l => l.includes('MCPs')) && !(core.composeBootMenu(120, 40, inertM) as { lines: string[] }).lines.some(l => l.includes('MCPS')))

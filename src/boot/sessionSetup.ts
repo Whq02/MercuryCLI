@@ -6,7 +6,6 @@ import type { ToolPermissionContext } from '../tools/kit/tool.js'
 import { asSessionId } from '../sessions/transcripts/ids.js'
 import { checkAndRestoreTerminalBackup } from '../commands/keysetup/appleTerminalBackup.js'
 import { checkHasTrustDialogAccepted, getGlobalConfig } from '../platform/settings/config.js'
-import { logForDiagnosticsNoPII } from '../platform/logs/diagnosticsLog.js'
 import { isBareMode } from '../platform/environment/envUtils.js'
 import { findCanonicalGitRoot, getIsGit } from '../platform/git/git.js'
 import { captureHooksSnapshot } from '../integrations/event-hooks/hooksConfigSnapshot.js'
@@ -63,9 +62,7 @@ function leaveWithRefusal(line: string): never {
 }
 
 function snapshotHooksForCwd(cwd: string): void {
-  const startedAt = Date.now()
   captureHooksSnapshot()
-  logForDiagnosticsNoPII('info', 'setup_hooks_captured', { duration_ms: Date.now() - startedAt })
   initializeFileChangedWatcher(cwd)
 }
 
@@ -76,7 +73,6 @@ async function groundAtRepositoryRoot(cwd: string): Promise<string> {
   const root = findCanonicalGitRoot(cwd)
   if (!root) leaveWithRefusal('Cannot create a worktree: the repository root could not be resolved.')
   if (root !== cwd) {
-    logForDiagnosticsNoPII('info', 'worktree_resolved_to_main_repo')
     setCwd(root)
   }
   return root
@@ -150,7 +146,6 @@ export async function sessionSetup(
   _messagingSocketPath?: string,
   worktreeRules?: ToolPermissionContext,
 ): Promise<void> {
-  logForDiagnosticsNoPII('info', 'setup_started')
   if (customSessionId) {
     switchSession(asSessionId(customSessionId), consumeSessionHomePin())
   }
@@ -168,7 +163,6 @@ export async function sessionSetup(
     })
   }
   profileCheckpoint('setup_before_prefetch')
-  logForDiagnosticsNoPII('info', 'setup_prefetch_starting')
   if (!isBareMode()) {
     warmExtensionsAndCommands()
   }

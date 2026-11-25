@@ -1,6 +1,5 @@
 import type { ApiStreamEvent as BetaRawMessageStreamEvent } from '../../../../engine/message-shapes/wire.js'
 import { logForDebugging } from 'src/platform/logs/debugLog.js'
-import { logForDiagnosticsNoPII } from 'src/platform/logs/diagnosticsLog.js'
 import type { AssistantMessage } from '../../../../engine/message-shapes/message.js'
 import { getPublicModelDisplayName } from '../../../catalogue/engineModel.js'
 import { settleTranscriptMessage } from '../../../../sessions/transcripts/writer.js'
@@ -49,7 +48,6 @@ export function watchStream(ctx: CallCtx, call: CallState, pass: StreamPass): St
     silentAfterHeadersMs,
     onWarning: () => {
       logForDebugging(`stream silent for ${patienceSeconds(STREAM_IDLE_WARNING_MS)} — watchdog warning`, { level: 'warn' })
-      logForDiagnosticsNoPII('warn', 'cli_streaming_idle_warning')
     },
     onFire: fire => {
       pass.streamIdleAborted = true
@@ -60,7 +58,6 @@ export function watchStream(ctx: CallCtx, call: CallState, pass: StreamPass): St
           : `stream silent for ${patienceSeconds(STREAM_IDLE_TIMEOUT_MS)} — watchdog aborting the stream`,
         { level: 'error' },
       )
-      logForDiagnosticsNoPII('error', 'cli_streaming_idle_timeout')
       ctx.releaseStreamResources()
     },
   })

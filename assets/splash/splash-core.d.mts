@@ -123,6 +123,7 @@ export interface SplashCompactComposition {
   hero: string[]
   wordRow: number | null
   top: number
+  framed: boolean
 }
 
 export interface SplashCore {
@@ -250,6 +251,7 @@ export interface CardFacts {
   sessionsCtx?: string
 }
 export function assembleCardRows(facts: CardFacts): Array<SplashCardRow & { key: string }>
+export function withProfilesRow(rows: Array<SplashCardRow & { key: string }>, boxed: (rows: Array<SplashCardRow & { key: string }>) => boolean): Array<SplashCardRow & { key: string }>
 export declare const GROUND: number[];
 export declare const GROUND_FAMILIES: { dark: number[]; 'true-black': number[] };
 export declare function adoptGroundFamily(name: string): void;

@@ -59,6 +59,10 @@ export function credentialWallLine(
   return `${name} ${state} — switch providers (/model) or ${reconnect} (${door})`
 }
 
+export function signInExpiredOnKeyLine(route: string): string {
+  return `${displayNameOf(route)} sign-in expired — this turn runs on the stored API key and is billed to it; reconnect (${reconnectDoorFor(route)})`
+}
+
 export function observedCredentialWall(route: string): CredentialWallCause | undefined {
   try {
     if (route === 'anthropic') {

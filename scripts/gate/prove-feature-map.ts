@@ -164,7 +164,7 @@ const sites: [string, string, string, number][] = [
   ['command', 'src/engine/user-input/processSlashCommand.tsx', 'runLocalJsxCommand', 1],
   ['command', 'src/screen/chat/submit/screenCommand.ts', 'runLocalCommand', 1],
   ['command', 'src/screen/chat/useChatSubmit.ts', 'useChatSubmit', 1],
-  ['screen', 'src/screen/boot-face/splash/rowActions.ts', 'runRowOf', 2],
+  ['screen', 'src/screen/boot-face/splash/rowActions.ts', 'runRowOf', 3],
   ['screen', 'src/screen/routes/surfaceRoute.ts', 'commitTransition', 1],
   ['screen', 'src/boot/dialogLaunchers.tsx', 'launchResumeChooser', 1],
   ['screen', 'src/screen/settings/config/useConfigExits.ts', 'useConfigExits', 1],

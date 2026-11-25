@@ -1,15 +1,13 @@
 import type { RefObject } from 'react';
-import { basename } from 'node:path';
 import { Box } from '../../themedRenderer.js';
 import { saturnNextFireMs } from '../../../daemon/saturn/saturn.js';
 import { compileWhenSpelling } from '../../../daemon/saturn/whenSpelling.js';
 import type { SessionReceiptEntry } from '../../../daemon/switchboard/sessionReceipts.js';
 import { projectDisplayName } from '../bootCardFacts.js';
 import type { useEngineModel } from '../../model-picker/useEngineModel.js';
-import { renderModelChip } from '../../../models/catalogue/engineModel.js';
 import { InteractiveRow } from '../../widgets/InteractiveRow.js';
 import { renderSceneLine } from '../../widgets/SceneCanvas.js';
-import { getSessionAccent, getSessionCritterKey } from '../../widgets/sessionAccent.js';
+import { bootEnvironment } from '../bootEnvironment.js';
 import type { useGreetingShimmer } from '../../widgets/useGreetingShimmer.js';
 import type { useInteractiveList } from '../../widgets/useInteractiveList.js';
 import type { useMercuryTokens } from '../../widgets/useMercuryTokens.js';
@@ -17,14 +15,7 @@ import type { SaturnFormPreflightV1, SaturnFormStateV1, SaturnScreenFactsV1, Sat
 import type { SaturnFormRowId } from './actions.js';
 
 export function saturnMenuOf({ mainModel, saturnSummaryRows, facts, nowMs, wordGlow, form, givenNow, preflightOf, livePreflightOf, formPick, SATURN_WORKSPACE_CUSTOM_ROW, clampText, SATURN_OPENING_AUDIT_ROW, SATURN_AUDIT_MISSION, SATURN_OPENING_REVIEW_ROW, SATURN_REVIEW_MISSION, saturnOpeningRowIsCurrent, pickList, saturnFormLegendOf, saturnFormDetailLines, formPrompt, saturnFormEntries, formList, formNote, saturnEntryOf, list, note, saturnStatusLine, selected, saturnLegendOf, busy, saturnDetailLines, receiptsOf, liveReceiptsOf, saturnEmptyDetailLines }: { mainModel: ReturnType<typeof useEngineModel>; saturnSummaryRows: typeof saturnSummaryRowsDoor; facts: SaturnScreenFactsV1; nowMs: number; wordGlow: ReturnType<typeof useGreetingShimmer>; form: SaturnFormStateV1 | null; givenNow: number | undefined; preflightOf: ((modelKey: string, nextFireMs: number | null) => SaturnFormPreflightV1) | undefined; livePreflightOf: (modelKey: string, nextFireMs: number | null) => SaturnFormPreflightV1; formPick: { field: 'model' | 'kit' | 'workspace' | 'opening'; options: string[] } | null; SATURN_WORKSPACE_CUSTOM_ROW: string; clampText: (s: string, w: number) => string; SATURN_OPENING_AUDIT_ROW: string; SATURN_AUDIT_MISSION: string; SATURN_OPENING_REVIEW_ROW: string; SATURN_REVIEW_MISSION: string; saturnOpeningRowIsCurrent: typeof saturnOpeningRowIsCurrentDoor; pickList: ReturnType<typeof useInteractiveList<string>>; saturnFormLegendOf: typeof saturnFormLegendOfDoor; saturnFormDetailLines: typeof saturnFormDetailLinesDoor; formPrompt: { field: SaturnFormRowId; draft: string } | null; saturnFormEntries: typeof saturnFormEntriesDoor; formList: ReturnType<typeof useInteractiveList<SaturnFormRowId>>; formNote: string | null; saturnEntryOf: typeof saturnEntryOfDoor; list: ReturnType<typeof useInteractiveList<SaturnScreenRowV1>>; note: string | null; saturnStatusLine: typeof saturnStatusLineDoor; selected: ReturnType<typeof useInteractiveList<SaturnScreenRowV1>>['selectedRow']; saturnLegendOf: typeof saturnLegendOfDoor; busy: RefObject<boolean>; saturnDetailLines: typeof saturnDetailLinesDoor; receiptsOf: ((row: SaturnScreenRowV1) => SessionReceiptEntry[]) | undefined; liveReceiptsOf: (row: SaturnScreenRowV1) => SessionReceiptEntry[]; saturnEmptyDetailLines: typeof saturnEmptyDetailLinesDoor }) {
-  const critterKey = getSessionCritterKey();
-  const environment = {
-    model: renderModelChip(mainModel),
-    critter: critterKey.charAt(0).toUpperCase() + critterKey.slice(1),
-    critterHue: getSessionAccent().accent,
-    dirBase: basename(process.cwd()) || process.cwd(),
-    dirTail: '',
-  };
+  const environment = bootEnvironment(mainModel, process.cwd());
   const base = {
     title: 'saturn scheduler',
     summaryTitle: 'SATURN',

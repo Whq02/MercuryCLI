@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useLoad, useTimer } from '../effects/effects.js';
 import { getCwd } from '../../platform/files/cwd.js';
-import { adoptGroundFamily, createSplashCore, assembleCardRows, CARD_LABEL_W, WORD_W } from '../../../assets/splash/splash-core.mjs';
+import { adoptGroundFamily, createSplashCore, assembleCardRows, withProfilesRow, CARD_LABEL_W, WORD_W } from '../../../assets/splash/splash-core.mjs';
 import { useTheme } from '../theme/ThemeProvider.js';
 import {
   chatOnlyBoot,
@@ -122,6 +122,7 @@ export function BootSplashScreen(): React.ReactNode {
   const [resumeOpen, setResumeOpen] = useState(faceDoor === 'resume');
   const [saturnOpen, setSaturnOpen] = useState(faceDoor === 'saturn');
   const [agentsOpen, setAgentsOpen] = useState(faceDoor === 'agents');
+  const [profilesOpen, setProfilesOpen] = useState(faceDoor === 'profiles');
   const [loginsOpen, setLoginsOpen] = useState(faceDoor === 'logins');
   const [loginsFamily, setLoginsFamily] = useState<string | undefined>(faceDoor === 'logins' ? faceDoorOpener?.family : undefined);
   const [loginsBack, setLoginsBack] = useState<'route' | 'picker' | null>(faceDoor === 'logins' && faceDoorOpener?.returnToOpener === true ? 'route' : null);
@@ -223,7 +224,41 @@ export function BootSplashScreen(): React.ReactNode {
     return openProjectOf({ flipFirstBirth }, p);
   };
 
-  const composedRows: BootRow[] = useMemo(
+  const { accent: coreAccent, rampStops } = useSplashCoreAccent();
+  const [resolvedTheme] = useTheme();
+  const core = useMemo(() => {
+    adoptGroundFamily(resolvedTheme === 'true-black' ? 'true-black' : 'dark');
+    return createSplashCore({ nocolor: false, truecolor: true, accent: coreAccent });
+  }, [coreAccent, resolvedTheme]);
+  const mainModel = useEngineModel();
+
+  const catalogueEpoch = useCatalogueEpoch();
+  useLoad(() => {
+    let pending = false;
+    try {
+      const decision = computedDefault();
+      pending = getUserSpecifiedModelSetting() === null && decision.considered.length > 0 && decision.considered[0]?.verdict.usable !== true;
+    } catch {
+      pending = false;
+    }
+    if (!pending) return;
+    void readComputedDefaultCatalogue().catch(passedOver);
+  }, [signInEpoch, catalogueEpoch]);
+  const chips = useMemo(() => {
+    let keylessRow: string | null = null;
+    try {
+      const decision = computedDefault();
+      keylessRow = getUserSpecifiedModelSetting() === null && decision.source === 'keyless' ? decision.row : null;
+    } catch {
+      keylessRow = null;
+    }
+    return {
+      model: keylessRow ?? renderModelChip(mainModel),
+      dir: projectDisplayName(getCwd()),
+    };
+  }, [mainModel, presenceEpoch, catalogueEpoch, signInEpoch]);
+
+  const cardRows: BootRow[] = useMemo(
     () =>
       assembleCardRows({
         cwdBase: projectDisplayName(getCwd()),
@@ -243,9 +278,13 @@ export function BootSplashScreen(): React.ReactNode {
       }) as BootRow[],
     [facts, concourseLive, plainWhy, chatBoot, liveCount, loginsCtx],
   );
+  const composedRows: BootRow[] = useMemo(
+    () => withProfilesRow(cardRows, list => bootSplashCompositionOf({ isCompact, composedRows: list, continueElsewhere, selectedIndex: 0, core, columns, rows, modelDefaultDoor, stripHint, wordGlow: null, rowGlow: null, bottomRowWithNotice, updateLine, chips, plainWhy, keyMapHint }).boxed),
+    [cardRows, core, columns, rows, isCompact, plainWhy, stripHint, keyMapHint, modelDefaultDoor, updateLine, continueElsewhere, chips],
+  );
 
   const runRow = (row: BootRow | null): AsyncListNote | null => {
-    return runRowOf({ flipFirstBirth, facts, permissionModeRef, setSettingsOpen, setLoginsOpen }, row);
+    return runRowOf({ flipFirstBirth, facts, permissionModeRef, setSettingsOpen, setLoginsOpen, setProfilesOpen }, row);
   };
 
   const [initialRowId] = useState<string | undefined>(() => {
@@ -262,7 +301,7 @@ export function BootSplashScreen(): React.ReactNode {
     rowId: r => r.key,
     idNamespace: 'boot-splash',
     initialId: initialRowId,
-    active: !settingsOpen && !kitOpen && !healthOpen && !resumeOpen && !saturnOpen && !agentsOpen && !loginsOpen && !modelDefaultOpen,
+    active: !settingsOpen && !kitOpen && !profilesOpen && !healthOpen && !resumeOpen && !saturnOpen && !agentsOpen && !loginsOpen && !modelDefaultOpen,
     onClose: () => {
       if (!selClearedRef.current) {
         setSelCleared(true);
@@ -299,45 +338,12 @@ export function BootSplashScreen(): React.ReactNode {
   }
 
 
-  const { accent: coreAccent, rampStops } = useSplashCoreAccent();
-  const [resolvedTheme] = useTheme();
-  const core = useMemo(() => {
-    adoptGroundFamily(resolvedTheme === 'true-black' ? 'true-black' : 'dark');
-    return createSplashCore({ nocolor: false, truecolor: true, accent: coreAccent });
-  }, [coreAccent, resolvedTheme]);
   const wordGlow = useGreetingShimmer(rampStops, isCompact ? 0 : WORD_W);
   const rowGlow = useGreetingShimmer(
     rampStops,
     isCompact ? 0 : CARD_LABEL_W,
     `card:${selCleared ? -1 : list.selectedIndex}`,
   );
-  const mainModel = useEngineModel();
-
-  const catalogueEpoch = useCatalogueEpoch();
-  useLoad(() => {
-    let pending = false;
-    try {
-      const decision = computedDefault();
-      pending = getUserSpecifiedModelSetting() === null && decision.considered.length > 0 && decision.considered[0]?.verdict.usable !== true;
-    } catch {
-      pending = false;
-    }
-    if (!pending) return;
-    void readComputedDefaultCatalogue().catch(passedOver);
-  }, [signInEpoch, catalogueEpoch]);
-  const chips = useMemo(() => {
-    let keylessRow: string | null = null;
-    try {
-      const decision = computedDefault();
-      keylessRow = getUserSpecifiedModelSetting() === null && decision.source === 'keyless' ? decision.row : null;
-    } catch {
-      keylessRow = null;
-    }
-    return {
-      model: keylessRow ?? renderModelChip(mainModel),
-      dir: projectDisplayName(getCwd()),
-    };
-  }, [mainModel, presenceEpoch, catalogueEpoch, signInEpoch]);
 
   const selectedIndex = selCleared ? -1 : list.selectedIndex;
   const composition = useMemo(() => {
@@ -345,5 +351,5 @@ export function BootSplashScreen(): React.ReactNode {
   }, [core, columns, rows, isCompact, plainWhy, stripHint, keyMapHint, modelDefaultDoor, updateLine, selectedIndex, composedRows, continueElsewhere, chips, wordGlow?.peakCell, wordGlow?.gainLevel, rowGlow?.peakCell, rowGlow?.gainLevel]);
 
 
-  return bootSplashFaceView({ settingsOpen, columns, rows, setSettingsOpen, kitOpen, setKitOpen, healthOpen, setHealthOpen, saturnOpen, setSaturnOpen, agentsOpen, loginsOpen, setLoginsOpen, setAgentsOpen, closeLogins, loginsFamily, loginsBack, resumeOpen, setResumeOpen, facts, runningOf, openProject, composition, list, birthReceipt, core, isCompact, keyMapHint, updateLine, bottomRowWithNotice, KEY_MAP_ROW, composedRows, t, modelDefaultOpen, setModelDefaultOpen, setLoginsFamily, setLoginsBack });
+  return bootSplashFaceView({ settingsOpen, columns, rows, setSettingsOpen, kitOpen, setKitOpen, profilesOpen, setProfilesOpen, healthOpen, setHealthOpen, saturnOpen, setSaturnOpen, agentsOpen, loginsOpen, setLoginsOpen, setAgentsOpen, closeLogins, loginsFamily, loginsBack, resumeOpen, setResumeOpen, facts, runningOf, openProject, composition, list, birthReceipt, core, isCompact, keyMapHint, updateLine, bottomRowWithNotice, KEY_MAP_ROW, composedRows, t, modelDefaultOpen, setModelDefaultOpen, setLoginsFamily, setLoginsBack });
 }

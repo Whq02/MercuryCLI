@@ -9,7 +9,6 @@
 # gate-watch: scripts/engine-durability/harness.ts
 # gate-watch: scripts/ink-runtime/prove-viewport-clamp.ts
 # gate-watch: scripts/lib/*
-# gate-watch: scripts/ops/launcher-mercury.sh
 # gate-watch: scripts/search/lib/bundle-for-node.ts
 # gate-watch: scripts/host/runpodFixture.mjs scripts/providers/lib/llmhostFixture.ts
 set -uo pipefail

@@ -40,7 +40,6 @@ prove-early-start-room.ts
 prove-delivery-interleavings.ts
 prove-field-findings-input-family.ts
 prove-boot-contract.ts
-prove-diagnostics-timing.ts
 prove-bootenv-attribution.ts
 prove-provider-contract.ts
 prove-utility-model-road.ts

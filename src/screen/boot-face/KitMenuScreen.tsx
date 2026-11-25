@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from 'react';
-import { basename } from 'node:path';
 import { useInput } from '../themedRenderer.js';
 import { createSplashCore, WORD_W } from '../../../assets/splash/splash-core.mjs';
 import { leaveCurrentSurface } from '../routes/surfaceRoute.js';
@@ -31,13 +30,13 @@ import {
   type KitRowView,
   type KitStates,
 } from '../kit-menu-model/kitTypes.js';
-import { renderModelChip } from '../../models/catalogue/engineModel.js';
-import { getSessionAccent, getSessionCritterKey } from '../widgets/sessionAccent.js';
+import { bootEnvironment } from './bootEnvironment.js';
 import { useGreetingShimmer } from '../widgets/useGreetingShimmer.js';
 import { useInteractiveList } from '../widgets/useInteractiveList.js';
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js';
 import { useSplashCoreAccent } from '../widgets/useSplashCoreAccent.js';
 import { useBootComposition } from './useBootComposition.js';
+import { typedName } from './typedName.js';
 import { kitMenuView } from '../kit-menu/kitMenuView.js';
 import { readLiveSessionCount } from './BootSettingsScreen.js';
 import { passedOver } from '../../platform/errors/passedOver.js';
@@ -377,14 +376,10 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
         setPreset(p => ({ ...p, note: res.ok ? res.receipt : res.reason }));
         return;
       }
-      if (key.backspace || key.delete) {
-        setPreset(p => ({ ...p, name: p.name.slice(0, -1), note: null }));
-        return;
-      }
-      if (key.ctrl || key.meta || key.tab || key.upArrow || key.downArrow || key.leftArrow || key.rightArrow) return;
-      if (input.length > 0 && !/[\x00-\x1f\x7f]/.test(input)) {
-        setPreset(p => ({ ...p, name: (p.name + input).slice(0, PRESET_NAME_MAX), note: null }));
-      }
+      setPreset(p => {
+        const name = typedName(p.name, input, key, PRESET_NAME_MAX);
+        return name === null ? p : { ...p, name, note: null };
+      });
     },
     { isActive: preset.open },
   );
@@ -398,14 +393,7 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
   const mainModel = useEngineModel();
 
   const menuM = useMemo(() => {
-    const critterKey = getSessionCritterKey();
-    const environment = {
-      model: renderModelChip(mainModel),
-      critter: critterKey.charAt(0).toUpperCase() + critterKey.slice(1),
-      critterHue: getSessionAccent().accent,
-      dirBase: basename(process.cwd()) || process.cwd(),
-      dirTail: '',
-    };
+    const environment = bootEnvironment(mainModel, process.cwd());
     if (presetsLayer.open) {
       const armed = peekWornPresetKit()?.name ?? null;
       const empty = presetsLayer.facts.length === 0;

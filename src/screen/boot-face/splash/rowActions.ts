@@ -72,7 +72,7 @@ export function openProjectOf({ flipFirstBirth }: { flipFirstBirth: (start: (bor
   };
 }
 
-export function runRowOf({ flipFirstBirth, facts, permissionModeRef, setSettingsOpen, setLoginsOpen }: { flipFirstBirth: (start: (born: typeof bornSession) => ReturnType<typeof bornSession>) => Promise<string | null>; facts: ReturnType<typeof scanBootCardFacts>; permissionModeRef: RefObject<AppState['toolPermissionContext']['mode'] | undefined>; setSettingsOpen: Dispatch<SetStateAction<boolean>>; setLoginsOpen: Dispatch<SetStateAction<boolean>> }, row: BootRow | null): AsyncListNote | null {
+export function runRowOf({ flipFirstBirth, facts, permissionModeRef, setSettingsOpen, setLoginsOpen, setProfilesOpen }: { flipFirstBirth: (start: (born: typeof bornSession) => ReturnType<typeof bornSession>) => Promise<string | null>; facts: ReturnType<typeof scanBootCardFacts>; permissionModeRef: RefObject<AppState['toolPermissionContext']['mode'] | undefined>; setSettingsOpen: Dispatch<SetStateAction<boolean>>; setLoginsOpen: Dispatch<SetStateAction<boolean>>; setProfilesOpen: Dispatch<SetStateAction<boolean>> }, row: BootRow | null): AsyncListNote | null {
   if (row == null || row.dim) return null;
   switch (row.key) {
     case 'new': {
@@ -114,6 +114,10 @@ export function runRowOf({ flipFirstBirth, facts, permissionModeRef, setSettings
       return null;
     case 'concourse':
       enterConcourse();
+      return null;
+    case 'profiles':
+      featureReached('screen', 'profiles');
+      setProfilesOpen(true);
       return null;
   }
   return null;

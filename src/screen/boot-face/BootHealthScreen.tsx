@@ -1,5 +1,4 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { basename } from 'node:path';
 import { Box, useInput } from '../themedRenderer.js';
 import { createSplashCore, WORD_W } from '../../../assets/splash/splash-core.mjs';
 import { useEngineModel } from '../model-picker/useEngineModel.js';
@@ -16,10 +15,9 @@ import {
 } from '../../platform/health/healthReport.js';
 import { formatAge, isFixable, sha7 } from '../../platform/health/healthCertCore.js';
 import { applyRemedy, healthFixEnabled, type AppliedFix } from '../../platform/health/healthFix.js';
-import { renderModelChip } from '../../models/catalogue/engineModel.js';
 import { InteractiveRow } from '../widgets/InteractiveRow.js';
 import { renderSceneLine } from '../widgets/SceneCanvas.js';
-import { getSessionAccent, getSessionCritterKey } from '../widgets/sessionAccent.js';
+import { bootEnvironment } from './bootEnvironment.js';
 import { useGreetingShimmer } from '../widgets/useGreetingShimmer.js';
 import { useInteractiveList } from '../widgets/useInteractiveList.js';
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js';
@@ -375,14 +373,7 @@ export function BootHealthScreen({ onClose, fullScene, certificate: given }: Boo
   const mainModel = useEngineModel();
 
   const menuM = useMemo(() => {
-    const critterKey = getSessionCritterKey();
-    const environment = {
-      model: renderModelChip(mainModel),
-      critter: critterKey.charAt(0).toUpperCase() + critterKey.slice(1),
-      critterHue: getSessionAccent().accent,
-      dirBase: basename(process.cwd()) || process.cwd(),
-      dirTail: '',
-    };
+    const environment = bootEnvironment(mainModel, process.cwd());
     const statusRight =
       list.note ??
       (loadFailed !== null

@@ -4,7 +4,6 @@ import { join } from 'node:path'
 import escapeRegExp from 'lodash-es/escapeRegExp.js'
 
 import { logForDebugging } from '../../logs/debugLog.js'
-import { logForDiagnosticsNoPII } from '../../logs/diagnosticsLog.js'
 import { getErrnoCode } from '../../errors/errors.js'
 import { isRecord } from '../../primitives/isRecord.js'
 import { safeParseJSON } from '../../storage/json.js'
@@ -21,7 +20,6 @@ import {
 import type { RawReadResult } from './rawRead.js'
 import { fireRawRead, getMdmRawReadPromise } from './rawRead.js'
 import { recordMdmProbeOutcome } from './probeMemo.js'
-import { passedOver } from '../../errors/passedOver.js'
 
 export { mdmBootAwaitsRawRead } from './probeMemo.js'
 
@@ -112,11 +110,6 @@ async function loadMdmSettings(): Promise<void> {
   const keys = Object.keys(mdm.settings)
   if (keys.length === 0) return
   logForDebugging(`MDM policy keys: ${keys.join(', ')}`)
-  try {
-    logForDiagnosticsNoPII('info', 'mdm_settings_loaded', { durationMs, keyCount: keys.length, errorCount: mdm.errors.length })
-  } catch (error) {
-    passedOver(error)
-  }
 }
 
 export async function ensureMdmSettingsLoaded(): Promise<void> {

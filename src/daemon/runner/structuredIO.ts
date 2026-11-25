@@ -9,7 +9,6 @@ import type { ParamsOf } from '../runner-wire/methods.js'
 import type { SESSION_VERBS } from '../runner-wire/sessionVerbs.js'
 import { compileJsonSchema } from '../../platform/json-schema/jsonSchemaEngine.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
-import { logForDiagnosticsNoPII } from '../../platform/logs/diagnosticsLog.js'
 import { stripBOM } from '../../platform/storage/jsonRead.js'
 import { Stream } from '../../platform/async/stream.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
@@ -133,7 +132,7 @@ export class StructuredIO {
         }
         if (newlineIndex < 0) break
         if (!skipping && buffer.trim().length > 0) {
-          const row = this.#classifyLine(stripBOM(buffer), true)
+          const row = this.#classifyLine(stripBOM(buffer))
           yield* this.#takePrepended()
           if (row !== undefined) yield row
         }
@@ -145,7 +144,7 @@ export class StructuredIO {
       yield* this.#takePrepended()
     }
     if (!skipping && buffer.trim().length > 0) {
-      const row = this.#classifyLine(stripBOM(buffer), false)
+      const row = this.#classifyLine(stripBOM(buffer))
       yield* this.#takePrepended()
       if (row !== undefined) yield row
     }
@@ -153,17 +152,12 @@ export class StructuredIO {
   }
 
 
-  #classifyLine(line: string, emitDiagnostic: boolean): InputRow | undefined {
+  #classifyLine(line: string): InputRow | undefined {
     let parsed: unknown
     try {
       parsed = JSON.parse(line)
     } catch (error) {
       fatalProtocolError(`Error parsing stdin line: ${line}\n${error instanceof Error ? error.message : String(error)}`)
-    }
-    if (emitDiagnostic) {
-      logForDiagnosticsNoPII('debug', 'headless_stdin_message', {
-        type: String((parsed as { type?: unknown } | null)?.type ?? 'unknown'),
-      })
     }
     const refusal = inputRefusal(parsed)
     if (refusal !== null) {

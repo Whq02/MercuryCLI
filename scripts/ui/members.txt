@@ -57,6 +57,7 @@ prove-pending-card-not-ran-drive.ts
 prove-picker-ctrl-pn.ts
 prove-picker-effort-save-refusal.ts
 prove-popup-page-keys.ts
+prove-profiles-page-drive.ts
 prove-quiet-boot-journey.ts
 prove-rail-click-after-resize.ts
 prove-rail-mission-birth.ts
@@ -74,6 +75,7 @@ prove-sigint-terminal-restore.ts
 prove-sign-in-no-code-wait.ts
 prove-signed-out-says-so.ts
 prove-small-command-rows.ts
+prove-splash-resize-keeps-the-caret.ts
 prove-sqlite-delete-card.ts
 prove-sqlite-delete-reach-card.ts
 prove-sqlite-row-not-checkpointed.ts

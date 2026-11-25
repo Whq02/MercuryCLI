@@ -9,7 +9,6 @@ import { getCwd } from '../files/cwd.js'
 import { MERCURY_PROJECT_DIR } from '../settings/projectConfig.js'
 import { projectScopePathspec } from '../files/projectBoundary.js'
 import { logForDebugging } from '../logs/debugLog.js'
-import { logForDiagnosticsNoPII } from '../logs/diagnosticsLog.js'
 import { execFileNoThrowWithCwd } from '../processes/execFileNoThrow.js'
 import {
   getCachedBranch,
@@ -69,10 +68,7 @@ const IS_GIT_CACHE_ENTRIES = 50
 
 export const getIsGit = memoizeWithLRU(
   async (): Promise<boolean> => {
-    const startedAt = Date.now()
-    logForDiagnosticsNoPII('debug', 'is_git_check_started')
     const result = findGitRoot(getCwd()) !== null
-    logForDiagnosticsNoPII('debug', 'is_git_check_completed', { result, duration_ms: Date.now() - startedAt })
     return result
   },
   () => resolve(getCwd()),
@@ -722,24 +718,20 @@ function classifyGitEntry(directory: string, canonicalCwd: string): GitEntryClas
 
 export function isCurrentDirectoryBareGitRepo(cwd: string = getCwd()): BareRepoVerdict {
   const canonicalCwd = canonicalizeForGate(cwd)
-  const emit = (verdict: BareRepoVerdict): BareRepoVerdict => {
-    logForDiagnosticsNoPII('debug', 'bare_repo_gate', { verdict: verdict === false ? 'safe' : verdict })
-    return verdict
-  }
   const own = classifyGitEntry(cwd, canonicalCwd)
-  if (own === 'plantable') return emit('gitdir-redirect-plantable')
-  if (own === 'oversized') return emit('gitdir-file-oversized')
-  if (own === 'trusted') return emit(false)
+  if (own === 'plantable') return 'gitdir-redirect-plantable'
+  if (own === 'oversized') return 'gitdir-file-oversized'
+  if (own === 'trusted') return false
 
   let current = cwd
   for (;;) {
-    if (hasBareIndicators(current)) return emit('bare-indicators')
+    if (hasBareIndicators(current)) return 'bare-indicators'
     const parent = dirname(current)
-    if (parent === current) return emit(false)
+    if (parent === current) return false
     current = parent
     const ancestor = classifyGitEntry(current, canonicalCwd)
-    if (ancestor === 'trusted') return emit(false)
-    if (ancestor === 'plantable') return emit('gitdir-redirect-plantable')
-    if (ancestor === 'oversized') return emit('gitdir-file-oversized')
+    if (ancestor === 'trusted') return false
+    if (ancestor === 'plantable') return 'gitdir-redirect-plantable'
+    if (ancestor === 'oversized') return 'gitdir-file-oversized'
   }
 }

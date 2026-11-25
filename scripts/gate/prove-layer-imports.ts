@@ -105,7 +105,6 @@ const LAYERS: Rule = {
     'src/engine/message-shapes/wireEdits.ts',
     'src/engine/messages/editForm.ts',
     'src/engine/request-parts/',
-    'src/engine/requests/sessionActivity.ts',
     'src/engine/rows/turn/ledgerMark.ts',
     'src/engine/run-owner/',
     'src/engine/system-prompt/antiSycophancy.ts',

@@ -3,7 +3,6 @@ import pickBy from 'lodash-es/pickBy.js'
 import { basename, dirname, join } from 'path'
 import { registerCleanup } from '../processes/cleanupRegistry.js'
 import { logForDebugging } from '../logs/debugLog.js'
-import { logForDiagnosticsNoPII } from '../logs/diagnosticsLog.js'
 import { getGlobalMercuryFile } from '../environment/env.js'
 import { getMercuryHome } from '../environment/envUtils.js'
 import { ConfigParseError, ConfigReadError, errorMessage, getErrnoCode } from '../errors/errors.js'
@@ -591,11 +590,8 @@ export function isConfigReadingAllowed(): boolean {
 
 export function enableConfigs(): void {
   if (configReadingAllowed) return
-  const startedAt = Date.now()
-  logForDiagnosticsNoPII('info', 'enable_configs_started')
   configReadingAllowed = true
   getConfig(getGlobalMercuryFile(), createDefaultGlobalConfig, true)
-  logForDiagnosticsNoPII('info', 'enable_configs_completed', { duration_ms: Date.now() - startedAt })
 }
 
 export function getConfigBackupDir(): string {

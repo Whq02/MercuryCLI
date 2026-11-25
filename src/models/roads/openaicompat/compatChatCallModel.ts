@@ -25,7 +25,7 @@ import {
   type CompatFault,
 } from './compatChatClient.js'
 import { localServerKind } from '../localPromptProfile.js'
-import { compatDispatchModelId, type CompatCallModelParams, type CompatLaneId, type CompatLaneProfile } from './chat-call-model/lane.js'
+import { compatDispatchModelId, credentialNotes, type CompatCallModelParams, type CompatLaneId, type CompatLaneProfile } from './chat-call-model/lane.js'
 import { apiErrorMessage, compatFaultToTypedError, compatTerminalFaultText, overflowOf } from './chat-call-model/faults.js'
 import { openCompatTurn, prepareCompatTurn } from './chat-call-model/prepare.js'
 import { streamOneCompatAttempt } from './chat-call-model/attempt.js'
@@ -107,6 +107,7 @@ export async function* compatChatCallModel(
     attemptStartedAtMs = Date.now()
     if (!toolsInPrompt) request.messages = replayKimiHistory(mappedMessages, preparedMessages, wireModel, credential.requestUrl ?? profile.requestUrl())
     const signInRequest = captureSignInRequest(profile.lane, credential.apiKey)
+    const notes = [...leadingNotes, ...credentialNotes(credential, messages, options.querySource)]
     const outcome = yield* streamOneCompatAttempt({
       profile,
       request,
@@ -124,7 +125,7 @@ export async function* compatChatCallModel(
       imagesSupported,
       servedByTensorFold,
       ...(deferral !== undefined ? { deferral } : {}),
-      ...(leadingNotes.length ? { leadingNotes } : {}),
+      ...(notes.length ? { leadingNotes: notes } : {}),
       ...(retries.busy !== undefined ? { busy: retries.busy } : {}),
     })
     if (outcome.kind === 'done') {
