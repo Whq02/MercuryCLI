@@ -173,6 +173,23 @@ if (!process.argv.includes('--file-roads')) {
     const verdict = await powershellToolHasPermission({ command }, context)
     check(`PowerShell on Windows still asks for ${name}`, verdict.behavior === 'ask' && verdict.message.includes('SMB/WebDAV'))
   }
+  const psSemi = await powershellToolHasPermission({ command: String.raw`dir \\server;echo done` }, context)
+  check('PowerShell UNC reason names only the host before a semicolon, not server;echo', psSemi.behavior === 'ask' && psSemi.message.includes('the remote host server over SMB/WebDAV') && !psSemi.message.includes('server;echo over'))
+  const bashSemi = await bashToolHasPermission({ command: 'net view //files.corp;echo done' }, shellContext)
+  check('Bash UNC reason names only the host before a semicolon, not files.corp;echo', bashSemi.behavior === 'ask' && bashSemi.message.includes('the remote host files.corp over SMB/WebDAV') && !bashSemi.message.includes('files.corp;echo over'))
+  const psMulti = [
+    String.raw`Get-ChildItem \\fileserver\team`,
+    ...Array.from({ length: 19 }, (_, i) => `Write-Output "step ${i + 1}"`),
+  ].join('\n')
+  const psMultiVerdict = await powershellToolHasPermission({ command: psMulti }, context)
+  check('PowerShell 20-line command UNC reason quotes the line holding the share, not the last line', psMultiVerdict.behavior === 'ask' && psMultiVerdict.message.startsWith(String.raw`Get-ChildItem \\fileserver\team may reach the remote host fileserver over SMB/WebDAV`) && !psMultiVerdict.message.includes('step 19'))
+  const bashMulti = [
+    'echo start',
+    String.raw`type \\files.corp\share\notes.txt`,
+    ...Array.from({ length: 18 }, (_, i) => `echo "step ${i + 1}"`),
+  ].join('\n')
+  const bashMultiVerdict = await bashToolHasPermission({ command: bashMulti }, shellContext)
+  check('Bash 20-line command UNC reason quotes the line holding the share, not the last line', bashMultiVerdict.behavior === 'ask' && bashMultiVerdict.message.startsWith(String.raw`type \\files.corp\share\notes.txt may reach the remote host files.corp over SMB/WebDAV`) && !bashMultiVerdict.message.includes('step 18'))
   for (const input of ['file://C:/src/project/notes.txt', 'file:///C:/src/project/notes.txt', String.raw`file://C:\src\project\notes.txt`, String.raw`file://C:\\src\\project\\notes.txt`, 'file://C|/src/project/notes.txt', 'file:///C|/src/project/notes.txt', 'file://C%3A/src/project/notes.txt', 'file://C%7C/src/project/notes.txt']) check(`local drive file URL is no remote host: ${input}`, !uncPathRisk(input).risky)
   for (const command of ['curl file://C:/src/project/notes.txt', 'curl file:///C:/src/project/notes.txt', 'curl file://C|/src/project/notes.txt']) check(`local drive file URL on command road is no remote host: ${command}`, !uncPathRisk(command, { command: true }).risky)
   for (const input of ['file://evil/share/notes.txt', 'smb://C:/share/notes.txt', 'file://C:80/share/notes.txt', 'file://C:/src/DavWWWRoot/notes.txt']) check(`remote or WebDAV URL still asks: ${input}`, uncPathRisk(input).risky)
