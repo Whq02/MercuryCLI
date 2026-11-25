@@ -4,7 +4,7 @@
 # gate-watch: src/daemon/runner/*
 # gate-watch: docs/DURABILITY.md
 # gate-watch: src/engine/loop/turn/** src/engine/rows/*
-# gate-watch: src/engine/tasks/local-agent/* src/integrations/resources/adapters/* src/platform/update-channel/installLayout.ts
+# gate-watch: src/engine/tasks/local-agent/* src/integrations/resources/adapters/*
 # gate-watch: scripts/dap/mock-dap-adapter.mjs
 # gate-watch: scripts/lib/* scripts/staleness/prove-stale-registry.ts
 # gate-watch: scripts/streaming/turn-end-fixture-server.ts
