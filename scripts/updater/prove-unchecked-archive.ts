@@ -170,6 +170,9 @@ try {
   const paxName = await update(tarGz([dir('mercury/'), { name: 'PaxHeader/harmless.txt', type: 'x', data: pax('path', 'mercury/../../../pax.txt') }, file('mercury/harmless.txt')]))
   check('a climbing name carried in a pax header is refused though the plain header names a harmless file', refusedWith(paxName.outcome, `${LEAVES}"mercury/../../../pax.txt"`) && !stoodOutside(paxName.home, 'pax.txt'), shown(paxName.outcome))
 
+  const hidden = await update(tarGz([dir('mercury/'), { name: 'mercury/x/', data: tarHeader({ name: 'mercury/hidden-pipe', type: '6' }) }]))
+  check('a tar that hides entries in the bytes of a file named as a folder is refused by the reading, before the unpacker sees it', hidden.outcome.state === 'refused' && hidden.outcome.stage === 'extract' && hidden.outcome.reason === 'archive extraction failed: a header gives a file the name of a folder', shown(hidden.outcome))
+
   for (const name of ['..\\..\\..\\climbed.txt', 'mercury/../../../../climbed.txt', 'C:\\mercury-o03\\evil.txt', '/mercury-o03-absolute/evil.txt', '\\\\host\\share\\evil.txt', 'mercury/ .. / .. / .. / .. /trimmed.txt', 'mercury/\u00a0..\u00a0/\t..\t/\u3000..\u3000/. ./trimmed.txt', 'mercury/file.txt:stream']) {
     const climbed = await update(zip({ 'mercury/ok.txt': 'x', [name]: 'x' }), { windows: true })
     check(`a zip entry named ${JSON.stringify(name)} is refused before PowerShell is looked for`, refusedWith(climbed.outcome, `${LEAVES}${JSON.stringify(name)}`) && !stoodOutside(climbed.home, 'climbed.txt') && !stoodOutside(climbed.home, 'trimmed.txt'), shown(climbed.outcome))

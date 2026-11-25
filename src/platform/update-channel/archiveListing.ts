@@ -150,8 +150,10 @@ class TarListing {
     if (this.entries.length >= this.ceilings.entries) throw tooManyEntries(this.ceilings)
     const name = textField(block, 0, 100)
     const prefix = textField(block, 345, 155)
+    const names = [...(prefix === '' ? [name] : [`${prefix}/${name}`, name]), ...this.names]
+    if (kind === 'file' && names.some(candidate => candidate.endsWith('/'))) throw new Error('a header gives a file the name of a folder')
     this.entries.push({
-      names: [...(prefix === '' ? [name] : [`${prefix}/${name}`, name]), ...this.names],
+      names,
       kind,
       targets: kind === 'symlink' || kind === 'hardlink' ? [textField(block, 157, 100), ...this.targets] : [],
     })
