@@ -29,11 +29,11 @@ try {
     const send = run.sendLog.find(entry => entry.after === needle)
     return send ? grabScreens(run, 120, 40, [sendStamp(run, send) + offset])[0]!.rows.join('\n') : ''
   }
-  const card = (frame: string): string => frame.slice(frame.lastIndexOf('⦿'))
+  const card = (frame: string): string => frame.slice(frame.lastIndexOf('Write SQLite row'))
   const update = card(frameAt('items/1', -300)), insert = card(frameAt('items/9', -300))
   console.log(`UPDATE CARD\n${update}\nNEW ROW CARD\n${insert}`)
   for (const [name, frame, address, json] of [['the update of an existing row', update, 'data.sqlite:items/1', '{"value":"changed"}'], ['a new row', insert, 'data.sqlite:items/9', '{"value":"ninth"}']] as const) {
-    check(`${name}: the card is titled Write SQLite row`, frame.includes('⦿ Write SQLite row'), `${frame}\nchange the title of the row-write card in src/permissions/cards/file-write/FileWritePermissionRequest.tsx to Write SQLite row`)
+    check(`${name}: the card is titled Write SQLite row`, frame.includes('Write SQLite row'), `${frame}\nchange the title of the row-write card in src/permissions/cards/file-write/FileWritePermissionRequest.tsx to Write SQLite row`)
     check(`${name}: the card asks Write this row?`, frame.includes('Write this row?'), `${frame}\nchange the question of the row-write card in src/permissions/cards/file-write/FileWritePermissionRequest.tsx to Write this row?`)
     check(`${name}: the card does not call the row a file`, !frame.includes('Create file') && !frame.includes('Overwrite file') && !/Do you want to (?:create|overwrite)/.test(frame), `${frame}\nremove the file wording (Create file, Overwrite file, Do you want to create or overwrite) from the row-write card in src/permissions/cards/file-write/FileWritePermissionRequest.tsx`)
     const at = { address: frame.indexOf(address), json: frame.indexOf(json), note: frame.indexOf(NOTE), question: frame.indexOf('Write this row?') }

@@ -56,7 +56,7 @@ const toolResults = (run: ArenaRun): string[] =>
     )
   })
 const cardRows = (rows: string[]): string[] => {
-  const start = rows.findIndex(r => r.includes('⦿ Memory rule'))
+  const start = rows.findIndex(r => r.includes('│  Memory rule'))
   if (start === -1) return []
   const end = rows.findIndex((r, i) => i > start && /^\s*╰/.test(r))
   return rows.slice(start, end === -1 ? rows.length : end + 1).map(r => r.replace(/\s+$/, ''))
@@ -82,7 +82,7 @@ for (const scene of [
     const card = cardRows(atCard!.rows)
     if (frameDir) writeFileSync(join(frameDir, `rule-card-drive-${scene.id}.txt`), `${atCard!.rows.map(r => r.replace(/\s+$/, '')).join('\n')}\n`)
     const joined = card.join('\n')
-    check(`${scene.id}: the card is the memory card, titled Memory rule`, joined.includes('⦿ Memory rule'), atCard!.rows.join('\n').slice(-1800), 'the card title comes from src/permissions/cards/memory-rule/MemoryRulePermissionRequest.tsx and the card body from src/tools/memory/ruleCard.ts')
+    check(`${scene.id}: the card is the memory card, titled Memory rule`, joined.includes('Memory rule'), atCard!.rows.join('\n').slice(-1800), 'the card title comes from src/permissions/cards/memory-rule/MemoryRulePermissionRequest.tsx and the card body from src/tools/memory/ruleCard.ts')
     check(`${scene.id}: the card shows the rule's words verbatim`, joined.includes(`seq 1: "${RULE}"`), joined, 'the card must quote the rule text verbatim; check the line that names the seq and its words in src/tools/memory/ruleCard.ts')
     check(`${scene.id}: the card says what will happen and gives Mercury's reason as Mercury's`, joined.includes('It will be unpinned and struck; its wording is kept in history.') && joined.includes("Mercury's reason: the user said it is not a rule"), joined, 'the card must state the effect and the reason as Mercury; check the effect line and the reason line in src/tools/memory/ruleCard.ts')
     check(`${scene.id}: the card offers exactly Yes and No, keep the rule`, joined.includes('1. Yes') && joined.includes('2. No, keep the rule') && !joined.includes('3.') && !joined.includes("don't ask again"), joined, 'the card must offer only Yes and No, keep the rule; check the options in src/permissions/cards/memory-rule/MemoryRulePermissionRequest.tsx')

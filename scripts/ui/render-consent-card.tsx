@@ -127,7 +127,7 @@ if (process.env.CONSENT_RENDER_CHILD) {
     const grid = capture(cols, 'default')
     check(`@${cols}: round card top corner (╭)`, /╭/.test(grid))
     check(`@${cols}: round card bottom corner (╰)`, /╰/.test(grid))
-    check(`@${cols}: gated glyph ⦿ leads the title`, /⦿/.test(grid))
+    check(`@${cols}: title carries no gated glyph ⦿`, !/⦿/.test(grid))
     check(`@${cols}: title present`, /Bash command/.test(grid))
     check(`@${cols}: the ask`, /Do you want to proceed\?/.test(grid))
     check(
@@ -142,7 +142,7 @@ if (process.env.CONSENT_RENDER_CHILD) {
       /❯ 1\./.test(grid),
     )
     if (cols === 120) {
-      const first = grid.split('\n').find(l => l.includes('⦿')) ?? ''
+      const first = grid.split('\n').find(l => l.includes('Bash command')) ?? ''
       console.log(`  header @120: ${first.trim().slice(0, 100)}`)
     }
   }
