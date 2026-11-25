@@ -19,6 +19,7 @@ prove-profiles.ts
 prove-install-path-new-terminal.ts
 prove-update-cleanup-eperm.ts
 prove-update-prune-live-version.ts
+prove-install-dry-run-writes-nothing.ts
 prove-version-contract.ts
 prove-release-workflow.ts
 prove-never-public.ts

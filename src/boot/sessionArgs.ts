@@ -69,3 +69,8 @@ export function inspectSessionArgs(args: readonly string[]): { command?: string;
 export function isSessionRunArgv(argv: readonly string[] = process.argv): boolean {
   return inspectSessionArgs(argv.slice(2)).runner
 }
+
+export function isInstallDryRunArgv(argv: readonly string[] = process.argv): boolean {
+  const args = argv.slice(2)
+  return inspectSessionArgs(args).command === 'install' && readSessionOption(args, '--dry-run').present
+}
