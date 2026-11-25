@@ -9,6 +9,7 @@ export const call: LocalJSXCommandCall = async onDone => {
   return (
     <CommandPopupLease token={token}>
       <PromptsPanel
+        held={{}}
         onClose={(nextInput?: string) =>
           nextInput !== undefined && nextInput.trim().length > 0
             ? onDone(undefined, { display: 'skip', nextInput })

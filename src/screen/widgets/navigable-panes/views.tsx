@@ -39,6 +39,7 @@ export type NavigablePanesProps<Row> = {
   initialRowKey?: string
   initialSectionId?: string
   onSectionChange?: (id: string, index: number) => void
+  onRowChange?: (key: string | null) => void
   closeHint?: string
   maxContentWidth?: number
   headerRight?: React.ReactNode
