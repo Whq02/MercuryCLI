@@ -1989,6 +1989,26 @@ function scenarioInner(name: string, cols: number, rows: number) {
       rows,
     }
   }
+  if (name === 'prompts-panel-draft-resize') {
+    writeSyntheticSession('short')
+    return {
+      argv: ['node', BIN, '--resume', SID],
+      sends: [
+        { atTick: 999, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 2, data: '/workbench' },
+        { atTick: 999, awaitText: '/workbench', minTick: 5, awaitSettleTicks: 2, data: '\r' },
+        { atTick: 999, awaitText: 'SAVED PROMPTS', minTick: 5, awaitSettleTicks: 2, data: '3' },
+        { atTick: 999, awaitText: 'kept per project', minTick: 5, awaitSettleTicks: 2, data: 'a' },
+        { atTick: 999, awaitText: 'new saved prompt', minTick: 5, awaitSettleTicks: 2, data: 'Review the open pull requests and list the ones that touch the parser', mark: 'draft' },
+      ],
+      resizes: [
+        { afterMark: 'draft', afterMs: 3000, cols: 80, rows: 30 },
+        { afterPrevMs: 4000, cols, rows },
+      ],
+      total: 170,
+      cols,
+      rows,
+    }
+  }
   if (name === 'accounts') {
     writeSyntheticSession('short')
     return {

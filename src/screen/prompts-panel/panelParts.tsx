@@ -41,7 +41,7 @@ export type Editor =
 
 export type Note = { text: string; tone: 'ok' | 'warn' } | null
 
-export type Held = { section?: SectionId; rowKey?: string | null }
+export type Held = { section?: SectionId; rowKey?: string | null; editor?: Editor; editorCursor?: number }
 
 type Tokens = ReturnType<typeof useMercuryTokens>
 

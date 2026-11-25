@@ -1,2 +1,3 @@
 prove-panel-captures.ts
 prove-hop-follows-focus.ts
+prove-draft-survives-resize.ts
