@@ -5,7 +5,7 @@ import { z } from 'zod/v4'
 import { getMercuryHome } from '../environment/envUtils.js'
 import { errorMessage, isENOENT } from '../errors/errors.js'
 import { passedOver } from '../errors/passedOver.js'
-import { foldPathCase, pathModuleFor } from '../host-os/paths.js'
+import { foldPathCase, pathModuleFor, toNativeSeparators } from '../host-os/paths.js'
 import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
 import { flagPair } from '../substrate/flagRegistry.js'
 import { resolveLayoutRoots, shimStatus, type LayoutRoots } from '../update-channel/installLayout.js'
@@ -99,8 +99,11 @@ export function commandFiles(found: Install, id: number, home: string): CommandF
   const assigned = env.map(([name, value]) => `${name}=${sh(value)}`).join(' ')
   if (!found.isWindows) return [{ path: word, text: `#!/bin/sh\n# ${mark}\n${assigned} exec ${sh(found.command)} "$@"\n` }]
   const ps = (value: string): string => `'${value.replace(/'/g, "''")}'`
-  const own = `${found.userHome.replace(/[\\/]+$/, '')}\\`
-  const batch = (value: string): string => (foldPathCase(value, 'win32').startsWith(foldPathCase(own, 'win32')) ? `%USERPROFILE%\\${value.slice(own.length).replace(/%/g, '%%')}` : value.replace(/%/g, '%%'))
+  const own = `${toNativeSeparators(found.userHome, 'win32').replace(/\\+$/, '')}\\`
+  const batch = (value: string): string => {
+    const spelt = toNativeSeparators(value, 'win32')
+    return foldPathCase(spelt, 'win32').startsWith(foldPathCase(own, 'win32')) ? `%USERPROFILE%\\${spelt.slice(own.length).replace(/%/g, '%%')}` : value.replace(/%/g, '%%')
+  }
   const entry = '& (Join-Path $PSScriptRoot \'mercury.ps1\') @args'
   return [
     { path: `${word}.cmd`, text: ['@echo off', `rem ${mark}`, 'setlocal DisableDelayedExpansion', ...env.map(([name, value]) => `set "${name}=${batch(value)}"`), '"%~dp0mercury.cmd" %*', ''].join('\r\n') },

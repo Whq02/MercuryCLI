@@ -59,5 +59,11 @@ console.log('── a user folder spelt with a lower-case drive letter and a clo
   check('so no byte outside ASCII stands in the cmd file, which cmd.exe reads in the console\'s code page', /^[\x00-\x7f]*$/.test(files[0]?.text ?? '\u00ff'), show(files[0]?.text))
 }
 
+console.log('── a user folder and a versions folder spelt with forward slashes ──')
+{
+  const files = commandFiles(windows('C:/Users/J\u00f6rg', 'C:/Users/J\u00f6rg/.mercury/versions'), 2, 'C:\\Users\\J\u00f6rg\\.mercury2')
+  check('the cmd file spells both homes from %USERPROFILE%, with backslashes after it', show(linesOf(files[0]?.text ?? '').slice(3, 5)) === show([String.raw`set "MERCURY_CONFIG_DIR=%USERPROFILE%\.mercury2"`, String.raw`set "MERCURY_VERSIONS_DIR=%USERPROFILE%\.mercury\versions"`]), show(files[0]?.text))
+}
+
 console.log(failures === 0 ? '\nprove-profile-command-text: ALL HOLD' : `\nprove-profile-command-text: ${failures} FAIL`)
 process.exit(failures === 0 ? 0 : 1)
