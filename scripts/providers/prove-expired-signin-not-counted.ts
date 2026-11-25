@@ -1,6 +1,7 @@
 import { mkdtempSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import type { AccountSlotReads } from '../../src/models/roads/accountSlots.js'
 
 const parent = process.env.MERCURY_CONFIG_DIR
 const realHome = join(homedir(), '.mercury')
@@ -62,17 +63,18 @@ console.log(`  other scope: ${words(otherSlot)}`)
 check('the expiry is a fact about the current sign-in only', otherSlot?.signedIn === true && otherSlot.expired === undefined, words(otherSlot))
 
 console.log('§4 an expired Kimi, Hugging Face or Grok sign-in reads on the Boot face as the expired claude.ai sign-in does')
-const { loginsGlance } = await import('../../src/screen/boot-face/logins/facts.js')
+const { loginsGlance } = logins
+const { buildProviderSnapshot } = await import('../../src/models/roads/modelRegistry.js')
 check('the Boot face\'s Logins row names the expired claude.ai sign-in', loginsGlance(dead) === 'Anthropic sign-in expired — sign in again', loginsGlance(dead))
 const noKeys = { moonshotEnvKey: () => undefined, moonshotStoredKey: () => undefined, huggingfaceEnvKey: () => undefined, huggingfaceStoredKey: () => undefined, huggingfaceStoredKeyIdentity: () => undefined, xaiEnvKey: () => undefined, xaiStoredKey: () => undefined, xaiManagementEnvKey: () => undefined, xaiManagementStoredKey: () => undefined }
 const refusedRow = { accessToken: 'fixture-access-of-an-expired-row', refreshToken: '' }
-const expiredWorlds = [
+const expiredWorlds: Array<{ family: 'moonshot' | 'huggingface' | 'xai'; slotId: string; glance: string; reads: AccountSlotReads }> = [
   { family: 'moonshot', slotId: 'moonshot:oauth', glance: 'Moonshot sign-in expired — sign in again', reads: { ...noKeys, moonshotOauth: () => refusedRow, moonshotOauthRegion: () => 'global' as const } },
   { family: 'huggingface', slotId: 'huggingface:oauth', glance: 'Hugging Face sign-in expired — sign in again', reads: { ...noKeys, huggingfaceOauth: () => refusedRow, huggingfaceOauthIdentity: () => ({ username: 'fixture-user', observedAtMs: 1 }) } },
   { family: 'xai', slotId: 'xai:oauth', glance: 'xAI sign-in expired — sign in again', reads: { ...noKeys, xaiOauth: () => ({ ...refusedRow, email: 'grok@example.com' }) } },
 ]
 for (const each of expiredWorlds) {
-  const groups = slots.deriveFamilySlotGroups([{ id: each.family, available: true, description: { account: { kind: 'oauth', label: 'sign-in' } } }] as never, each.reads as never)
+  const groups = slots.deriveFamilySlotGroups(buildProviderSnapshot().providers.filter(provider => provider.id === each.family), each.reads)
   const slot = groups.find(g => g.family.id === each.family)?.slots.find(s => s.id === each.slotId)
   const arm = logins.loginsCatalogue().find(candidate => candidate.familyId === each.family)!
   const rowState = logins.loginsRowStateOf(arm, factsOf(groups))

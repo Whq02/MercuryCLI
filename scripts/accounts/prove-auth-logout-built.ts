@@ -368,6 +368,17 @@ try {
   console.log(`    auth logout anthropic said: ${JSON.stringify(anthropicOut.stdout.trim())}`)
   check('auth logout anthropic exits 0 and removes the expired claude.ai sign-in', anthropicOut.status === 0 && !existsSync(credentialsPath()) && readJson('.mercury.json').oauthAccount === undefined && !anthropicOut.stdout.includes('No stored'), `rc=${anthropicOut.status} stdout=${JSON.stringify(anthropicOut.stdout)} stderr=${JSON.stringify(anthropicOut.stderr.slice(0, 200))}`)
   check('an expired claude.ai sign-in holds no refresh token, so nothing is sent to the revoke address', revokeCalls.length === revokesBefore, JSON.stringify(revokeCalls.slice(revokesBefore)))
+  check('and what it says is true: the tokens were dropped, none was revoked', anthropicOut.stdout.includes('tokens dropped') && !anthropicOut.stdout.includes('revoked'), JSON.stringify(anthropicOut.stdout))
+
+  writeFileSync(credentialsPath(), JSON.stringify({ claudeAiOauth: { accessToken: 'fixture-anthropic-access-token', refreshToken: '', expiresAt: past, scopes: ['user:inference', 'user:profile'], subscriptionType: 'max' } }), { mode: 0o600 })
+  clearOAuthTokenCache()
+  resetProviderSnapshotMemo()
+  const bareRow = deriveFamilySlotGroups().flatMap(group => group.slots).find(slot => slot.family === 'anthropic' && slot.expired === true)
+  check('an expired claude.ai row stands again, this time with no account snapshot in .mercury.json', bareRow !== undefined && !bareRow.signedIn && bareRow.scope?.email === undefined && bareRow.scope?.uuid === undefined && readJson('.mercury.json').oauthAccount === undefined, JSON.stringify({ row: bareRow ?? null, oauthAccount: readJson('.mercury.json').oauthAccount ?? null }))
+  const bareOut = await runBuiltCli(['auth', 'logout', 'anthropic'])
+  console.log(`    auth logout anthropic said: ${JSON.stringify(bareOut.stdout.trim())}`)
+  check('auth logout anthropic removes that row too and does not say there was nothing to sign out', bareOut.status === 0 && !existsSync(credentialsPath()) && !bareOut.stdout.includes('nothing to sign out') && !bareOut.stdout.includes('No stored'), `rc=${bareOut.status} stdout=${JSON.stringify(bareOut.stdout)} stderr=${JSON.stringify(bareOut.stderr.slice(0, 200))} left=${existsSync(credentialsPath())}`)
+  check('what it says is true there as well, and nothing reached the revoke address', bareOut.stdout.includes('tokens dropped') && !bareOut.stdout.includes('revoked') && revokeCalls.length === revokesBefore, JSON.stringify({ said: bareOut.stdout, revokes: revokeCalls.slice(revokesBefore) }))
 } finally {
   oauthServer.stop(true)
   rmSync(scratch, { recursive: true, force: true })

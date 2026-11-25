@@ -210,7 +210,7 @@ function routeSlotRemoval(
     case 'anthropic-oauth': {
       const snapshot =
         slot.scope !== undefined && (slot.scope.uuid !== undefined || slot.scope.email !== undefined)
-      if (!slot.signedIn && !snapshot) {
+      if (!slot.signedIn && slot.expired !== true && !snapshot) {
         forgetScopeIdentity(removal.dir)
         return { note: 'not signed in — nothing to sign out (↵ signs in)', mutated: false }
       }
@@ -223,7 +223,7 @@ function routeSlotRemoval(
       }
       return loginLeft
         ? {
-            note: 'signing out this Claude login — tokens revoked and dropped; the home, transcripts, and config stay (/logout stays the global verb)',
+            note: `signing out this Claude login — tokens ${slot.signedIn ? 'revoked and dropped' : 'dropped'}; the home, transcripts, and config stay (/logout stays the global verb)`,
             mutated: true,
           }
         : {

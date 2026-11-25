@@ -2,8 +2,8 @@
 import '../lib/hermetic.ts'
 import { proofHome } from '../lib/hermetic.ts'
 import { createServer, type ServerResponse } from 'node:http'
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { chmodSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import type { CallModelParams } from '../../src/models/roads/callModelContract.ts'
 import type { QuerySource } from '../../src/engine/requests/querySource.ts'
 import type { AssistantMessage, Message } from '../../src/engine/message-shapes/message.ts'
@@ -19,6 +19,7 @@ const FIX = {
   row: 'a refused refresh keeps the row with a blank refresh token (refreshMoonshotTokens in src/models/roads/moonshot/moonshotAccounts.ts, refreshHuggingfaceTokens in src/models/roads/huggingface/huggingfaceAccounts.ts); moonshotSignInExpired and huggingfaceSignInExpired there say which row is expired, and src/models/roads/account-slots/moonshot.ts and huggingface.ts draw the rows',
   renewed: 'a refresh token is taken from a token answer only when it is not empty: tokensFromBody in src/models/roads/moonshot/moonshotAccounts.ts and in src/models/roads/huggingface/huggingfaceAccounts.ts',
   signOut: 'the sign-out of one family is providerAuthLogout in src/commands/verbs/providerAuth.ts: the rows it removes are chosen in its removable list, and an expired sign-in that still stands in the store is one of them',
+  unsaved: 'a new pair the store would not take is kept by the door (src/models/sign-in/lifecycle/lockedRefresh.ts) and is what the next resolve answers: resolveMoonshotDispatchCredential in src/models/roads/moonshot/moonshotAccounts.ts asks the door every time and forces no exchange; only the retry after a 401 (recoverCredential in src/models/roads/moonshot/moonshotCallModel.ts) forces one',
   wire: 'the stored key is chosen at the end of the road\'s resolver (resolveMoonshotDispatchCredential, resolveHuggingfaceDispatchCredential); the stand-in server is the createServer block of scripts/providers/prove-expired-signin-key-told.ts',
 }
 let failures = 0
@@ -44,6 +45,8 @@ const HF_ROW_WORDS = 'access token expired with no refresh route — /logins rec
 type Hit = { path: string; bearer: string | undefined; form: URLSearchParams }
 const hits: Hit[] = []
 let refreshAnswer: { status: number; body: unknown } = { status: 400, body: { error: 'invalid_grant', error_description: 'the refresh token was revoked' } }
+let rejectedBearers = new Set<string>()
+let beforeRefreshAnswer: (() => void) | undefined
 const sse = (value: unknown): string => `data: ${JSON.stringify(value)}\n\n`
 const json = (res: ServerResponse, status: number, body: unknown): void => {
   res.writeHead(status, { 'content-type': 'application/json' })
@@ -56,12 +59,16 @@ const server = createServer((req, res) => {
     const path = (req.url ?? '').split('?')[0] ?? ''
     const auth = req.headers.authorization
     hits.push({ path, bearer: typeof auth === 'string' ? auth.replace(/^Bearer\s+/i, '') : undefined, form: new URLSearchParams(Buffer.concat(chunks).toString('utf8')) })
-    if (path === '/kimi/oauth/api/oauth/token' || path === '/hf/hub/oauth/token') return json(res, refreshAnswer.status, refreshAnswer.body)
+    if (path === '/kimi/oauth/api/oauth/token' || path === '/hf/hub/oauth/token') {
+      beforeRefreshAnswer?.()
+      return json(res, refreshAnswer.status, refreshAnswer.body)
+    }
     if (path === '/hf/hub/api/whoami-v2') return json(res, 200, { name: 'fixture-user' })
     if (path === '/hf/hub/oauth/register') return json(res, 201, { client_id: 'registered-client' })
     if (path === '/hf/router/v1/models') return json(res, 200, { object: 'list', data: [{ id: 'openai/gpt-oss-120b', object: 'model', owned_by: 'openai', providers: [{ provider: 'fixture', status: 'live', supports_tools: true }] }] })
     if (path.endsWith('/models')) return json(res, 200, { object: 'list', data: [{ id: 'kimi-k3', object: 'model', owned_by: 'moonshot' }] })
     if (path.endsWith('/chat/completions')) {
+      if (rejectedBearers.has(hits.at(-1)?.bearer ?? '')) return json(res, 401, { error: { message: 'Invalid Authentication', type: 'invalid_authentication_error' } })
       res.writeHead(200, { 'content-type': 'text/event-stream' })
       res.end(
         sse({ id: 'c', object: 'chat.completion.chunk', created: 0, model: 'kimi-k3', choices: [{ index: 0, delta: { role: 'assistant', content: 'settled' }, finish_reason: null }] }) +
@@ -294,6 +301,42 @@ try {
   check('an expired row and a stored token stand before the sign-out', slotOf('huggingface:oauth')?.signedIn === false && slotOf('huggingface:stored-key') !== undefined, FIX.row, JSON.stringify(slotOf('huggingface:oauth') ?? null))
   const hfSignedOut = await signOut('huggingface')
   check('the sign-out of the family removes both; the registered client stays', hfSignedOut.ok && storedRow(hfStore) === undefined && slotOf('huggingface:oauth') === undefined && slotOf('huggingface:stored-key') === undefined && hf.huggingfaceRegisteredClientId() === 'registered-client', FIX.signOut, JSON.stringify({ said: hfSignedOut.said, row: storedRow(hfStore) ?? null }))
+
+  console.log('── Kimi: the road rejects the access token, the refresh answers a new pair and the store refuses the write: the retry goes on the new pair ──')
+  if (process.platform === 'win32' || process.getuid?.() === 0) {
+    console.log('[SKIP] not staged on Windows or as root: chmod 0o500 does not stop a write into the home there')
+  } else {
+    const kimiStore = kimi.moonshotAuthPathForDisplay()
+    const kimiHome = dirname(kimiStore)
+    const spentToken = kimiSignedIn(3_600_000)
+    let storedWhenTheHomeCameBack: string | undefined
+    let homeBack = false
+    rejectedBearers = new Set([KIMI_ACCESS])
+    refreshAnswer = { status: 200, body: { access_token: KIMI_ACCESS_NEW, refresh_token: 'kimi-refresh-of-the-unsaved-pair', expires_in: 3600, token_type: 'Bearer' } }
+    beforeRefreshAnswer = () => {
+      beforeRefreshAnswer = undefined
+      chmodSync(kimiHome, 0o500)
+      setTimeout(() => {
+        storedWhenTheHomeCameBack = storedRow(kimiStore)?.refreshToken
+        chmodSync(kimiHome, 0o700)
+        rmSync(`${kimiStore}.lock`, { recursive: true, force: true })
+        homeBack = true
+      }, 400)
+    }
+    try {
+      const retried = await turn('kimi-k3', [])
+      const patience = Date.now() + 5_000
+      while (!homeBack && Date.now() < patience) await new Promise(resolve => setTimeout(resolve, 20))
+      check('the store refused the new pair: it still held the spent refresh token when the home could be written again', storedWhenTheHomeCameBack === spentToken, FIX.unsaved, `stored then: ${storedWhenTheHomeCameBack}`)
+      check('the turn settles: the retry after the 401 goes on the new access token', retried.errors.length === 0 && retried.texts.join('|') === 'settled' && retried.chats.map(hit => hit.bearer).join(',') === `${KIMI_ACCESS},${KIMI_ACCESS_NEW}` && retried.refreshes.length === 1, FIX.unsaved, show(retried))
+      const sentBefore = hits.length
+      const afterwards = await kimi.resolveMoonshotDispatchCredential()
+      check('the next resolve answers the new pair and sends nothing; the store now holds it', afterwards?.apiKey === KIMI_ACCESS_NEW && hits.slice(sentBefore).every(hit => !hit.path.endsWith('/oauth/token')) && storedRow(kimiStore)?.refreshToken === 'kimi-refresh-of-the-unsaved-pair', FIX.unsaved, JSON.stringify({ answeredTheNewAccessToken: afterwards?.apiKey === KIMI_ACCESS_NEW, stored: storedRow(kimiStore)?.refreshToken }))
+    } finally {
+      chmodSync(kimiHome, 0o700)
+      rejectedBearers = new Set()
+    }
+  }
 } finally {
   server.close()
 }
