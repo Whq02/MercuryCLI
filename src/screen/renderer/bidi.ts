@@ -44,6 +44,10 @@ function getBidi(): BidiApi {
 
 export function reorderBidi<T extends BidiChar>(characters: T[]): T[] {
   if (!needsSoftwareBidi()) return characters
+  return eachStretch(characters, reorderStretch)
+}
+
+function reorderStretch<T extends BidiChar>(characters: T[]): T[] {
   if (characters.length === 0) return characters
   let text = ''
   for (const ch of characters) {
@@ -103,20 +107,24 @@ const joinsRight = (type: string): boolean => type === 'D' || type === 'R' || ty
 const BORDER_CELL = /^[\u2500-\u257F]$/
 const BLANK_CELL = /^\u2068? \u2069?$/
 
-export function shapeBidiForTerminal<T extends BidiChar>(characters: T[], marks = true): T[] {
+function eachStretch<T extends BidiChar>(characters: T[], order: (stretch: T[]) => T[]): T[] {
   let out: T[] | undefined
   let from = 0
   for (let at = 0; at <= characters.length; at++) {
     if (at < characters.length && !BORDER_CELL.test(characters[at]!.value)) continue
     const stretch = from === 0 && at === characters.length ? characters : characters.slice(from, at)
-    const shaped = shapeStretch(stretch, marks)
-    if (shaped !== stretch) {
+    const ordered = order(stretch)
+    if (ordered !== stretch) {
       out ??= characters.slice()
-      out.splice(from, shaped.length, ...shaped)
+      out.splice(from, ordered.length, ...ordered)
     }
     from = at + 1
   }
   return out ?? characters
+}
+
+export function shapeBidiForTerminal<T extends BidiChar>(characters: T[], marks = true): T[] {
+  return eachStretch(characters, stretch => shapeStretch(stretch, marks))
 }
 
 function shapeStretch<T extends BidiChar>(characters: T[], marks: boolean): T[] {
