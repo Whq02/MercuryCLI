@@ -99,7 +99,7 @@ export function settingsMenuModel({ apply, backgroundLaunchOn, changed, chatBoot
       warn: menuRowWarning(row, envPinned ? (effective?.value ?? null) : (saved[row.env] ?? null)),
       detail: row.detail ?? null,
       detailExtra: [
-        `this session  ${effective ? (effective.value ?? 'default') : 'default'} (${effective?.source ?? 'default'})`,
+        `this session  ${effective ? (effective.value ?? 'default') : 'default'} (${effective?.source === 'profile' ? 'saved' : (effective?.source ?? 'default')})`,
       ],
     };
   });
