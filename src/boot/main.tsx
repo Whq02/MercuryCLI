@@ -27,7 +27,7 @@ import { setFlagSettingsInline, setFlagSettingsPath, setAllowedSettingSources } 
 import { startMdmRawRead } from '../platform/settings/mdm/rawRead.js'
 import { ensureKeychainPrefetchCompleted, startKeychainPrefetch, startWaitNote } from '../platform/secure-storage/keychainPrefetch.js'
 import { initSinks } from './sinks.js'
-import { inspectSessionArgs as inspectRunArgs, isSessionRunArgv as isRunArgv, readSessionOption } from './sessionArgs.js'
+import { inspectSessionArgs as inspectRunArgs, isInstallDryRunArgv, isSessionRunArgv as isRunArgv, readSessionOption } from './sessionArgs.js'
 import { exitForCommanderError, failCli, PRINT_ONLY_VERBS, USAGE_ERROR_CODES, wantsOutcomeEnvelope, type RootOptions } from './main/cli.js'
 import { addRootOptions } from './main/rootOptions.js'
 import { registerSubcommands } from './main/subcommands.js'
@@ -73,7 +73,7 @@ export async function main(): Promise<void> {
   applyBootMenuEnv();
   recordBootAdmissionSnapshot(resolveEffectiveSettingsSnapshot({ sessionId: getSessionId() }));
   try {
-    ensurePrivateConfigHome();
+    if (!isInstallDryRunArgv()) ensurePrivateConfigHome();
   } catch (error) {
     addBootNote('warn', error instanceof Error ? error.message : String(error));
   }
@@ -217,7 +217,7 @@ async function run(): Promise<void> {
     return values
   }
   program.hook('preAction', async (_thisCommand, actionCommand) => {
-    if (actionCommand === program || actionCommand.name() === 'run' || PRINT_ONLY_VERBS.has(actionCommand.name())) return
+    if (actionCommand === program || actionCommand.name() === 'run' || PRINT_ONLY_VERBS.has(actionCommand.name()) || isInstallDryRunArgv()) return
     try {
       const names: string[] = []
       let node: CommanderCommand | null = actionCommand
@@ -260,7 +260,7 @@ async function run(): Promise<void> {
   profileCheckpoint('run_main_options_built')
 
   program.hook('preAction', async (_thisCommand, actionCommand) => {
-    if (PRINT_ONLY_VERBS.has(actionCommand.name())) return
+    if (PRINT_ONLY_VERBS.has(actionCommand.name()) || isInstallDryRunArgv()) return
     profileCheckpoint('preAction_start')
     const slowBootNote = startTimeout(() => {
       if (process.stderr.isTTY) process.stderr.write(`${startWaitNote(process.platform)}\n`)

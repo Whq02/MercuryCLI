@@ -153,6 +153,7 @@ fi
 # bundle on the field HDD host). Node creates the dir and silently disables
 # on failure; an operator's own NODE_COMPILE_CACHE wins, and
 # NODE_DISABLE_COMPILE_CACHE opts out entirely. Covers the splash run too.
+case " $* " in " install "*"--dry-run "*) NODE_DISABLE_COMPILE_CACHE=1; export NODE_DISABLE_COMPILE_CACHE ;; esac
 if [ -z "\${NODE_COMPILE_CACHE:-}" ] && [ -z "\${NODE_DISABLE_COMPILE_CACHE:-}" ]; then
   NODE_COMPILE_CACHE="$MERCURY_SA_HOME/compile-cache"
   export NODE_COMPILE_CACHE
@@ -335,6 +336,7 @@ rem node's cache machinery SPIN at one core with no output (TASK-014\r
 rem w1-f15-01) — and the env form runs BEFORE any Mercury JS, so the\r
 rem in-process guard (compileCachePath.ts, same 200 + \\\\?\\ opt-out)\r
 rem cannot cover a launcher boot. Over the bound: skip the cache, boot on.\r
+if "%~1"=="install" for %%a in (%*) do if "%%~a"=="--dry-run" set "NODE_DISABLE_COMPILE_CACHE=1"\r
 set "MERCURY_SA_CACHE=%MERCURY_SA_HOME%\\compile-cache"\r
 set "MERCURY_SA_CACHE_OVER="\r
 if not "%MERCURY_SA_CACHE:~200%"=="" set "MERCURY_SA_CACHE_OVER=1"\r
@@ -419,7 +421,7 @@ $dir = $PSScriptRoot
 # the finally below on EVERY outcome (ready, cancel, refusal, child error).
 # Console encodings stay deliberately unrestored (the
 # rule: the runtime seam restores only what IT changes).
-$mercuryOwnedEnv = @('MERCURY_SPLASH_HANDOFF','MERCURY_ALT_HELD','MERCURY_LAUNCH_ID','MERCURY_WIN32_UTF8_PRESET','MERCURY_LAUNCHER','NODE_COMPILE_CACHE')
+$mercuryOwnedEnv = @('MERCURY_SPLASH_HANDOFF','MERCURY_ALT_HELD','MERCURY_LAUNCH_ID','MERCURY_WIN32_UTF8_PRESET','MERCURY_LAUNCHER','NODE_COMPILE_CACHE','NODE_DISABLE_COMPILE_CACHE')
 $mercuryEnvSnapshot = @{}
 foreach ($k in $mercuryOwnedEnv) { $mercuryEnvSnapshot[$k] = [Environment]::GetEnvironmentVariable($k) }
 try {
@@ -475,6 +477,7 @@ $saHome = if ($env:MERCURY_CONFIG_DIR) { $env:MERCURY_CONFIG_DIR }
 # runs before any Mercury JS — the in-process guard (compileCachePath.ts,
 # same 200 + \\\\?\\ opt-out) cannot cover a launcher boot. Over the bound:
 # skip the cache, boot on.
+if ($args.Count -gt 0 -and [string]$args[0] -ceq 'install' -and $args -ccontains '--dry-run') { $env:NODE_DISABLE_COMPILE_CACHE = '1' }
 $saCache = Join-Path $saHome 'compile-cache'
 if (-not $env:NODE_COMPILE_CACHE -and -not $env:NODE_DISABLE_COMPILE_CACHE -and
     ($saCache.Length -le 200 -or $saCache.StartsWith('\\\\?\\'))) {
