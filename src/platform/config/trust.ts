@@ -7,9 +7,9 @@ import { logForDebugging } from '../logs/debugLog.js'
 import { normalizePathForConfigKey } from '../files/path.js'
 import { passedOver } from '../errors/passedOver.js'
 
-import { DEFAULT_PROJECT_CONFIG, type GlobalConfig } from './schema.js'
+import type { GlobalConfig } from './schema.js'
 import { getGlobalConfig, isConfigReadingAllowed, saveGlobalConfig } from './globalConfig.js'
-import { getProjectPathForConfig, saveCurrentProjectConfigDeferred } from './projectConfig.js'
+import { getProjectPathForConfig, saveCurrentProjectConfigDeferred, unseenProjectConfig } from './projectConfig.js'
 
 let _trustAccepted = false
 
@@ -93,7 +93,7 @@ export function setPathTrusted(dir: string): void {
     if (record?.hasTrustDialogAccepted) return current
     return {
       ...current,
-      projects: { ...current.projects, [key]: { ...(record ?? DEFAULT_PROJECT_CONFIG), hasTrustDialogAccepted: true } },
+      projects: { ...current.projects, [key]: { ...(record ?? unseenProjectConfig(current)), hasTrustDialogAccepted: true } },
     }
   })
 }
