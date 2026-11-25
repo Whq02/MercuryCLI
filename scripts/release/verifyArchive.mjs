@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync, spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
@@ -44,6 +45,15 @@ const fail = msg => {
   process.exit(1)
 }
 if (!existsSync(archive)) fail(`no archive at ${archive} — package first (node scripts/release/package.mjs --target <target>${expect === 'unsigned' ? ' --unsigned' : ''})`)
+
+const signaturePath = `${archive}.sig`
+if (expect === 'unsigned' && existsSync(signaturePath)) fail(`${basename(archive)} is unsigned by decision and ${basename(signaturePath)} stands beside it — nothing may publish`)
+if (expect === 'signed') {
+  if (!existsSync(signaturePath)) fail(`${basename(archive)} has no ${basename(signaturePath)} beside it — every updater from the first signed version on refuses an archive without its signature; nothing may publish`)
+  const own = owner.verifyArchiveSignature(readFileSync(signaturePath, 'utf8'), basename(archive), createHash('sha256').update(readFileSync(archive)).digest('hex'), owner.trustedSigningKeys())
+  if (own.state !== 'signed') fail(`${basename(signaturePath)} verifies as '${own.state}'${own.state === 'unrecognized-key' ? ` (key ${own.keyId})` : `: ${own.note}`} — an installed updater would refuse this archive; nothing may publish`)
+  console.log(`${basename(signaturePath)}: signed by key ${own.keyId} (${own.keyLabel}) over the archive's name and SHA-256`)
+}
 
 const read = await owner.checkArchiveBeforeUnpack(archive, archive.endsWith('.zip') ? 'zip' : 'tar.gz', owner.updateCeilings())
 if (read.state !== 'ok') fail(`${basename(archive)}: an installed updater would refuse this archive: ${read.state === 'refused' ? read.reason : read.note} — nothing may publish`)

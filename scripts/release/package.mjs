@@ -357,6 +357,15 @@ if (IS_WIN && process.platform !== 'win32') {
   execFileSync('tar', ['-czf', archive, '-C', stage, 'mercury'], { stdio: 'inherit' })
 }
 ok(`archive: ${archive}`)
+rmSync(`${archive}.sig`, { force: true })
+if (process.env.MERCURY_SIGNING_KEY_FILE) {
+  const archiveSha256 = createHash('sha256').update(readFileSync(archive)).digest('hex')
+  const signatureText = `${JSON.stringify(signingLib.signArchive(ARCHIVE_NAME, archiveSha256, readFileSync(process.env.MERCURY_SIGNING_KEY_FILE, 'utf8')), null, 2)}\n`
+  const own = signingLib.verifyArchiveSignature(signatureText, ARCHIVE_NAME, archiveSha256, signingLib.trustedSigningKeys())
+  if (own.state !== shippedSignatureState) fail(`the archive's own signature verifies as ${own.state} where its payload's verifies as ${shippedSignatureState} — the signing step is broken; nothing was published`)
+  writeFileSync(`${archive}.sig`, signatureText)
+  ok(`archive signature: ${ARCHIVE_NAME}.sig (key ${own.keyId}, over the archive's name and SHA-256)`)
+}
 if (ASSEMBLE_ONLY) {
   console.log(`${NAME} assembled; Windows execution was not tested on this host`)
   if (process.argv.includes('--keep-stage')) console.log(`stage: ${pkgDir}`)

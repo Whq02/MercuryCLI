@@ -339,6 +339,7 @@ jobs:
           path: |
             release-out/*.tar.gz
             release-out/*.zip
+            release-out/*.sig
           if-no-files-found: error
 
   bridge-gate:
@@ -424,6 +425,22 @@ jobs:
           cd assets
           sha256sum mercury-*.tar.gz mercury-*.zip > SHA256SUMS.txt
           cat SHA256SUMS.txt
+      - name: every signed archive carries its signature
+        run: |
+          ARCHIVES=0
+          for f in assets/mercury-*.tar.gz assets/mercury-*.zip; do
+            [ -e "$f" ] || continue
+            ARCHIVES=$((ARCHIVES + 1))
+            case "$f" in *-unsigned.*) continue;; esac
+            if [ ! -e "$f.sig" ]; then
+              echo "::error::$f has no $f.sig beside it — every updater from the first signed version on refuses an archive without its signature"
+              exit 1
+            fi
+          done
+          if [ "$ARCHIVES" = 0 ]; then
+            echo "::error::no archive stands in assets — nothing to publish"
+            exit 1
+          fi
       - name: resolve tag
         id: tag
         run: echo "tag=${{ github.event.inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
@@ -438,6 +455,10 @@ jobs:
           fi
           PRERELEASE=''
           case "$TAG" in *-*.*) PRERELEASE='--prerelease';; esac
+          SIGNATURES=()
+          for f in assets/mercury-*.sig; do
+            [ -e "$f" ] && SIGNATURES+=("$f")
+          done
           PROVENANCE_NOTE='Provenance: every archive manifest is signed with the Mercury release key (`mercury health` shows the verdict; docs/TRUST.md says how to check).'
           for f in assets/*-unsigned.tar.gz assets/*-unsigned.zip; do
             [ -e "$f" ] && PROVENANCE_NOTE='**UNSIGNED BUILD** — published by decision without the release key: these archives carry no provenance signature (their names end in `-unsigned`, `mercury health` reports "unsigned"), and `mercury update` in earlier installs does not pick them up — install from this page.'
@@ -447,12 +468,12 @@ jobs:
             gh release create "$TAG" $PRERELEASE \
               --title "Mercury $TAG" \
               --notes-file release-notes-final.md \
-              assets/mercury-*.tar.gz assets/mercury-*.zip assets/SHA256SUMS.txt
+              assets/mercury-*.tar.gz assets/mercury-*.zip assets/SHA256SUMS.txt "${SIGNATURES[@]}"
           else
             RANGE="$(python3 -c 'import json;print(json.load(open("package.json"))["engines"]["node"])')"
             NOTES=$(printf '%s\n\nPrivate collaborator build of commit %s.\n\nVerification: full local gate green at tag time; CI re-ran the typecheck ratchet, native builds, the isolated-artifact smoke, the core suites, and the per-OS friend-path smoke (spaced-path unpack, --version with no node on PATH, --help, no dev residue) before this release was created.\n\nInstall: download your OS archive, extract, run mercury/mercury (mercury\\mercury.exe on Windows). The archive carries its own Node 24 LTS runtime, so no Node install is needed; MERCURY_NODE or a PATH Node inside %s may stand in for it. See README-FIRST.md inside the archive.' "$PROVENANCE_NOTE" "$GITHUB_SHA" "$RANGE")
             gh release create "$TAG" $PRERELEASE \
               --title "Mercury $TAG" \
               --notes "$NOTES" \
-              assets/mercury-*.tar.gz assets/mercury-*.zip assets/SHA256SUMS.txt
+              assets/mercury-*.tar.gz assets/mercury-*.zip assets/SHA256SUMS.txt "${SIGNATURES[@]}"
           fi

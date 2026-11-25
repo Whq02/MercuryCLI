@@ -74,6 +74,8 @@ export function projectReleases(raw: unknown): ChannelRelease[] | null {
   return releases
 }
 
+export type ArchiveSignatureListing = { state: 'listed'; name: string; url: string | null } | { state: 'removed'; name: string } | { state: 'before-signing' }
+
 export type ReleaseSelection =
   | {
       state: 'update-available'
@@ -83,6 +85,7 @@ export type ReleaseSelection =
       checksumName: string
       assetUrl: string | null
       checksumUrl: string | null
+      archiveSignature: ArchiveSignatureListing
     }
   | { state: 'current' }
   | { state: 'no-releases' }
@@ -90,6 +93,7 @@ export type ReleaseSelection =
   | { state: 'malformed-release'; tag: string; note: string }
 
 export const CHECKSUM_MANIFEST_NAME = 'SHA256SUMS.txt'
+export const SIGNED_ARCHIVES_FIRST_VERSION = '1.1.1'
 
 export function assetNameFor(version: string, platform: string, arch: string): string | null {
   const target = releaseTargetFor(platform, arch)
@@ -142,7 +146,14 @@ export function selectRelease(
     checksumName: CHECKSUM_MANIFEST_NAME,
     assetUrl: pick.r.assetUrls?.[assetName] ?? null,
     checksumUrl: pick.r.assetUrls?.[CHECKSUM_MANIFEST_NAME] ?? null,
+    archiveSignature: archiveSignatureOf(pick.r, pick.v, `${assetName}.sig`),
   }
+}
+
+function archiveSignatureOf(release: ChannelRelease, version: PrivateVersion, name: string): ArchiveSignatureListing {
+  if (release.assetNames.includes(name)) return { state: 'listed', name, url: release.assetUrls?.[name] ?? null }
+  const first = parsePrivateVersion(SIGNED_ARCHIVES_FIRST_VERSION)
+  return first !== null && comparePrivateVersions({ ...version, label: '', counter: 0 }, first) < 0 ? { state: 'before-signing' } : { state: 'removed', name }
 }
 
 type BridgePrevious =
