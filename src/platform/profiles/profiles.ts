@@ -5,7 +5,7 @@ import { z } from 'zod/v4'
 import { getMercuryHome } from '../environment/envUtils.js'
 import { errorMessage, isENOENT } from '../errors/errors.js'
 import { passedOver } from '../errors/passedOver.js'
-import { foldPathCase, pathModuleFor } from '../host-os/paths.js'
+import { foldPathCase, pathModuleFor, toNativeSeparators } from '../host-os/paths.js'
 import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
 import { flagPair } from '../substrate/flagRegistry.js'
 import { resolveLayoutRoots, shimStatus, type LayoutRoots } from '../update-channel/installLayout.js'
@@ -32,6 +32,7 @@ const notDone = (did: string, again: string) => (error: unknown): ProfileRefusal
 const homeOf = (first: string, id: number): string => (id === 1 ? first : `${first}${id}`)
 const wordOf = (id: number): string => (id === 1 ? 'mercury' : `mercury${id}`)
 const carries = (text: string | undefined, id: number): boolean => text !== undefined && text.split(/\r?\n/).some(line => line.endsWith(`${COMMAND_MARKER} ${id}`))
+const strange = (file: CommandFile, id: number): boolean => existsSync(file.path) && !carries(textAt(file.path), id)
 
 function textAt(path: string): string | undefined {
   try {
@@ -99,8 +100,11 @@ export function commandFiles(found: Install, id: number, home: string): CommandF
   const assigned = env.map(([name, value]) => `${name}=${sh(value)}`).join(' ')
   if (!found.isWindows) return [{ path: word, text: `#!/bin/sh\n# ${mark}\n${assigned} exec ${sh(found.command)} "$@"\n` }]
   const ps = (value: string): string => `'${value.replace(/'/g, "''")}'`
-  const own = `${found.userHome.replace(/[\\/]+$/, '')}\\`
-  const batch = (value: string): string => (foldPathCase(value, 'win32').startsWith(foldPathCase(own, 'win32')) ? `%USERPROFILE%\\${value.slice(own.length).replace(/%/g, '%%')}` : value.replace(/%/g, '%%'))
+  const own = `${toNativeSeparators(found.userHome, 'win32').replace(/\\+$/, '')}\\`
+  const batch = (value: string): string => {
+    const spelt = toNativeSeparators(value, 'win32')
+    return foldPathCase(spelt, 'win32').startsWith(foldPathCase(own, 'win32')) ? `%USERPROFILE%\\${spelt.slice(own.length).replace(/%/g, '%%')}` : value.replace(/%/g, '%%')
+  }
   const entry = '& (Join-Path $PSScriptRoot \'mercury.ps1\') @args'
   return [
     { path: `${word}.cmd`, text: ['@echo off', `rem ${mark}`, 'setlocal DisableDelayedExpansion', ...env.map(([name, value]) => `set "${name}=${batch(value)}"`), '"%~dp0mercury.cmd" %*', ''].join('\r\n') },
@@ -158,7 +162,7 @@ export function createProfile(): { ok: true; profile: ProfileRow } | ProfileRefu
     while (known.labels.some(row => row.id === id)) id++
     const home = homeOf(known.first, id)
     const files = commandFiles(found, id, home)
-    const stranger = files.find(file => existsSync(file.path) && !carries(textAt(file.path), id))
+    const stranger = files.find(file => strange(file, id))
     if (stranger !== undefined) return refused(`The file ${stranger.path} is already there and is not this profile's command: move it away, then create the profile again.`)
     mkdirSync(home, { recursive: true, mode: 0o700 })
     durableAtomicPublishSync(join(home, HOME_MARKER), `${JSON.stringify({ first: known.first, id })}\n`, { mode: 0o600 })
@@ -185,7 +189,7 @@ export function renameProfile(id: number, name: string): { ok: true } | ProfileR
   }
 }
 
-export function removeProfile(id: number): { ok: true; keptHome: string } | ProfileRefusal {
+export function removeProfile(id: number): { ok: true; keptHome: string; keptFiles?: string[] } | ProfileRefusal {
   try {
     const known = family()
     if (id === 1) return refused('Profile 1 is the home Mercury starts in by default and is never removed: remove a profile numbered 2 or above.')
@@ -194,9 +198,11 @@ export function removeProfile(id: number): { ok: true; keptHome: string } | Prof
     const found = install(known.first)
     if (found === null) return refused(NOT_INSTALLED)
     const home = homeOf(known.first, id)
-    for (const file of commandFiles(found, id, home)) if (carries(textAt(file.path), id)) rmSync(file.path)
+    const files = commandFiles(found, id, home)
+    const keptFiles = files.filter(file => strange(file, id)).map(file => file.path)
+    for (const file of files) if (carries(textAt(file.path), id)) rmSync(file.path)
     save(known.first, known.labels.filter(row => row.id !== id))
-    return { ok: true, keptHome: home }
+    return { ok: true, keptHome: home, ...(keptFiles.length > 0 ? { keptFiles } : {}) }
   } catch (error) {
     return notDone('removed', 'remove')(error)
   }
