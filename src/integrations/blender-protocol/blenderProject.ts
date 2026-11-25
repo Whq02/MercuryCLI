@@ -142,6 +142,7 @@ interface BlenderVersionProbe {
 
 const versionCache = new Map<string, { at: number; stamp?: string; result: BlenderVersionProbe }>()
 const VERSION_CACHE_TTL_MS = 30_000
+const VERSION_PROBE_TIMEOUT_MS = 30_000
 
 export function _resetBlenderVersionProbeForTesting(): void {
   versionCache.clear()
@@ -168,11 +169,11 @@ export function probeBlenderVersion(bin: string): BlenderVersionProbe {
   }
   let result: BlenderVersionProbe
   try {
-    const r = spawnSync(bin, ['--version'], { windowsHide: true, timeout: 5_000, encoding: 'utf8', env: { ...subprocessEnv() } })
+    const r = spawnSync(bin, ['--version'], { windowsHide: true, timeout: VERSION_PROBE_TIMEOUT_MS, encoding: 'utf8', env: { ...subprocessEnv() } })
     const firstLine = (r.stdout ?? '').split('\n')[0] ?? ''
     const m = firstLine.match(/Blender\s+(\d+\.\d+(?:\.\d+)?)/)
     if ((r.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT') {
-      result = { reason: 'blender --version timed out after 5s — the binary hangs; check the install' }
+      result = { reason: `blender --version timed out after ${VERSION_PROBE_TIMEOUT_MS / 1000}s — the binary hangs; check the install` }
     } else if (r.status !== 0 || !m || m[1] === undefined) {
       result = { reason: `blender --version unparseable: ${firstLine.slice(0, 80) || `exit ${r.status ?? 'null'}`}` }
     } else {

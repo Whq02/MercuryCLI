@@ -4,6 +4,7 @@ prove-blender-bridge-install.ts
 prove-blender-bridge-package.ts
 prove-blender-bridge-protocol.ts
 prove-blender-bridge-session.ts
+prove-blender-bridge-slow-version.ts
 prove-blender-bridge-token.ts
 prove-blender-bridge-tool.ts
 prove-blender-denied-read.ts
