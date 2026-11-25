@@ -17,7 +17,7 @@ const chips = {
   health: { verdict: 'certified', age: '2h' },
 }
 
-export function faceFacts(world: 'full' | 'chat'): Record<string, unknown> {
+export function faceFacts(world: 'full' | 'chat') {
   return {
     cwdBase: 'orchard-src',
     continueTarget: { base: 'orchard-src', ageMs: 5 * 60000, cross: false },
@@ -37,8 +37,8 @@ export function composeFace(world: 'full' | 'chat', cols: number, rows: number, 
     hintSegments: [{ key: '↵', label: '', tone: 'ivory' }],
     tinyHint: '↵',
     stripLines: (w: number) => core.composeStrip(chips, w),
-  } as never) as { lines: string[]; cardShown: boolean }
-  const res = lockup(withProfilesRow(assembleCardRows({ ...faceFacts(world), ...(armedPreset !== undefined ? { kitArmedPreset: armedPreset } : {}) } as never), list => lockup(list).cardShown))
+  })
+  const res = lockup(withProfilesRow(assembleCardRows({ ...faceFacts(world), ...(armedPreset !== undefined ? { kitArmedPreset: armedPreset } : {}) }), list => lockup(list).cardShown))
   const { placed } = core.placeBlock(res.lines, rows) as { placed: string[] }
   return placed
 }
