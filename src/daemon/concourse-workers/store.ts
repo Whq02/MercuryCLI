@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { daemonHomeStands, publishInDaemonHome } from '../control/daemonHome.js'
 import { observeSessionStates } from '../session-seat/sessionStateHooks.js'
@@ -44,7 +45,7 @@ const EMPTY_SESSION_WORKERS: SessionWorkersSnapshot = freezeWorkersDeep({ state:
 
 const UNAVAILABLE_SESSION_WORKERS: SessionWorkersSnapshot = freezeWorkersDeep({ state: 'unavailable' })
 
-const workersSnapshotMemo = new Map<string, { fp: string; snapshot: SessionWorkersSnapshot }>()
+const workersSnapshotMemo = new Map<string, { fp: string; snapshot: SessionWorkersSnapshot; rows?: string; stampedAt?: bigint }>()
 
 function readMutableSessionWorkersFromDisk(
   path: string,
@@ -107,18 +108,21 @@ export interface ConcourseDeltaStampV1 {
   revision: number
   pid: number
   at: number
+  rows?: string
+}
+
+function decodeConcourseDelta(raw: unknown): ConcourseDeltaStampV1 | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const stamp = raw as Partial<ConcourseDeltaStampV1>
+  if (stamp.version !== 1 || typeof stamp.revision !== 'number' || typeof stamp.pid !== 'number') return null
+  return stamp as ConcourseDeltaStampV1
 }
 
 const concourseDeltaStore = defineStore<ConcourseDeltaStampV1, [dir?: string]>({
   name: 'concourse-delta',
   path: (dir?: string) => concourseDeltaPath(dir),
   schemaVersion: 1,
-  decode: raw => {
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
-    const stamp = raw as Partial<ConcourseDeltaStampV1>
-    if (stamp.version !== 1 || typeof stamp.revision !== 'number' || typeof stamp.pid !== 'number') return null
-    return stamp as ConcourseDeltaStampV1
-  },
+  decode: decodeConcourseDelta,
   empty: () => ({ version: 1, revision: 0, pid: 0, at: 0 }),
   onReadFailure: 'empty',
 })
@@ -129,19 +133,64 @@ export function subscribeConcourseDelta(cb: () => void, dir?: string): () => voi
 
 let concourseDeltaRevision = 0
 
-function stampConcourseDelta(dir?: string): void {
+function sessionRowsDigest(workers: Record<string, ConcourseWorkerRecordV1>): string {
+  const rows = Object.values(workers).map(rec => [rec.runnerId, rec.sessionId, rec.endedAt, rec.attachedAt, rec.pid, rec.procStart, rec.pausedAt, rec.parkedAt, rec.stoppedAt, rec.schedules, rec.heldFires])
+  return createHash('sha256').update(JSON.stringify(rows)).digest('hex').slice(0, 24)
+}
+
+function stampConcourseDelta(workers: Record<string, ConcourseWorkerRecordV1>, dir?: string): void {
   try {
     if (!daemonHomeStands('the delta stamp', dir)) return
     concourseDeltaRevision += 1
     publishInDaemonHome(
       'the delta stamp',
       concourseDeltaPath(dir),
-      `${JSON.stringify({ version: 1, revision: concourseDeltaRevision, pid: process.pid, at: Date.now() } satisfies ConcourseDeltaStampV1)}\n`,
+      `${JSON.stringify({ version: 1, revision: concourseDeltaRevision, pid: process.pid, at: Date.now(), rows: sessionRowsDigest(workers) } satisfies ConcourseDeltaStampV1)}\n`,
       { dir },
     )
   } catch (error) {
     passedOver(error)
   }
+}
+
+function writtenAt(path: string): bigint | null {
+  try {
+    return statSync(path, { bigint: true }).mtimeNs
+  } catch (error) {
+    passedOver(error)
+    return null
+  }
+}
+
+function stampedRows(dir?: string): string | null {
+  try {
+    const rows = decodeConcourseDelta(JSON.parse(readFileSync(concourseDeltaPath(dir), 'utf8')))?.rows
+    return typeof rows === 'string' ? rows : null
+  } catch (error) {
+    passedOver(error)
+    return null
+  }
+}
+
+export function readSessionRowsSnapshot(dir?: string): SessionWorkersSnapshot {
+  const path = concourseWorkersPath(dir)
+  const stampedAt = writtenAt(concourseDeltaPath(dir))
+  const recordsAt = writtenAt(path)
+  if (stampedAt === null || recordsAt === null || stampedAt < recordsAt) return readSessionWorkersSnapshot(dir)
+  const held = workersSnapshotMemo.get(path)
+  if (held?.rows !== undefined && held.stampedAt === stampedAt) return held.snapshot
+  const rows = stampedRows(dir)
+  if (rows !== null && held?.rows === rows) {
+    held.stampedAt = stampedAt
+    return held.snapshot
+  }
+  const snapshot = readSessionWorkersSnapshot(dir)
+  const fresh = workersSnapshotMemo.get(path)
+  if (rows !== null && fresh?.snapshot === snapshot) {
+    fresh.rows = rows
+    fresh.stampedAt = stampedAt
+  }
+  return snapshot
 }
 
 function publishConcourseWorkers(workers: Record<string, ConcourseWorkerRecordV1>, dir?: string): void {
@@ -155,7 +204,7 @@ function publishConcourseWorkers(workers: Record<string, ConcourseWorkerRecordV1
   const path = concourseWorkersPath(dir)
   const text = `${JSON.stringify({ version: 1, workers } satisfies ConcourseWorkerFileV1, null, 1)}\n`
   if (publishInDaemonHome('the session records', path, text, { dir }) === 'published') sessionRecordsLastPublished.set(path, text)
-  stampConcourseDelta(dir)
+  stampConcourseDelta(workers, dir)
 }
 
 const sessionRecordsLastPublished = new Map<string, string>()

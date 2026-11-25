@@ -12,8 +12,8 @@ import { useSessionCrew } from '../tasks/useCrewLedger.js'
 import { useFocusedWorkRoster } from '../tasks/useFocusedWork.js'
 import type { SessionListing } from '../../sessions/transcripts/transcriptEntries.js'
 import { saturnWakeGlanceOf, type SaturnWakeGlanceV1 } from '../../daemon/saturn/saturn.js'
-import { boardHomedSessionIds, readSessionWorkers } from '../../daemon/concourse-workers/concourseWorkers.js'
-import { subscribeConcourseDelta } from '../../daemon/concourse-workers/store.js'
+import { boardHomedSessionIds } from '../../daemon/concourse-workers/concourseWorkers.js'
+import { readSessionRowsSnapshot, subscribeConcourseDelta } from '../../daemon/concourse-workers/store.js'
 import { isProjectSession } from '../session-chooser/sessionFilter.js'
 import { isSessionCleared } from '../../sessions/transcripts/clearedSessions.js'
 import { sessionIdOfListing, listSessionsAcrossProjects } from '../../sessions/transcripts/sessionStorage.js'
@@ -333,7 +333,8 @@ function useWakeGlance(): SaturnWakeGlanceV1 | null {
   useTimer(signal => {
     const probe = () => {
       try {
-        const records = Object.values(readSessionWorkers()).filter(r => r.endedAt === undefined)
+        const rows = readSessionRowsSnapshot()
+        const records = rows.state === 'known' ? Object.values(rows.workers).filter(r => r.endedAt === undefined) : []
         const s = saturnWakeGlanceOf(records)
         const next = s.count > 0 ? s : null
         lastKnownWakeGlance = next

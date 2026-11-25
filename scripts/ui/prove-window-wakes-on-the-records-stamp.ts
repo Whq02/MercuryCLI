@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pinScratchHome, releaseScratchHome, settle } from '../lib/settingsPopupHarness.js'
 
@@ -19,7 +19,7 @@ const store = await import('../../src/daemon/concourse-workers/store.js')
 const { _setEmitReadGateForProofs } = await import('../../src/platform/substrate/fileStore.js')
 const vitals = await import('../../src/screen/app-state/vitalsBus.js')
 
-const WHERE = 'a window must learn of a change to the session records from the two-line stamp (subscribeConcourseDelta in src/daemon/concourse-workers/store.ts), never from a watch that reads concourse-workers.json whole: see startEngine in src/screen/app-state/vitalsBus.ts and useWakeGlance in src/screen/fullscreen-layout/HelmLanesRail.tsx'
+const WHERE = 'a window must learn of a change to the session records from the two-line stamp (subscribeConcourseDelta in src/daemon/concourse-workers/store.ts), never from a watch that reads concourse-workers.json whole, and must read the records again only when the stamp says a row moved (readSessionRowsSnapshot in the same file): see startEngine and refreshOnce in src/screen/app-state/vitalsBus.ts and useWakeGlance in src/screen/fullscreen-layout/HelmLanesRail.tsx'
 const PARKED = 300
 const WATCH_SETTLE_MS = 1500
 const REFRESH_BUDGET_MS = 4000
@@ -87,6 +87,34 @@ try {
   console.log(`MEASURE a save by the daemon's door: the window shows the paused row after ${shown} ms; ${watchReads} read(s) by its watch`)
   check("a save through the daemon's door reaches the window: the paused session reads paused, every other row as it was", rowsShown() === rowsExpected(true), `${shown} ms`)
   check("for that save the window's watch reads one file, the stamp", watchReads === 1, `${watchReads} read(s)`)
+
+  if (process.platform !== 'win32') {
+    watchReads = 0
+    store.updateConcourseWorkers(workers => {
+      workers[`concourse-w${LIVE}`]!.lastLiveAt = Date.now()
+    })
+    chmodSync(recordsPath, 0o000)
+    await until(() => watchReads > 0, REFRESH_BUDGET_MS)
+    await settle(600)
+    const closed = rowsShown()
+    chmodSync(recordsPath, 0o644)
+    console.log(`MEASURE a save that changes no row, the records file then closed to reading: the window's watch read ${watchReads} file(s) and its rows read ${closed === rowsExpected(true) ? 'as before' : closed.slice(0, 60)}`)
+    check('a save that changes no row of the window opens the records file in no window: closed to reading, the rows still stand', closed === rowsExpected(true), closed.slice(0, 80))
+  }
+
+  store.updateConcourseWorkers(workers => {
+    delete workers[`concourse-w${LIVE}`]!.pausedAt
+  })
+  const resumed = await until(() => rowsShown() === rowsExpected(false), REFRESH_BUDGET_MS)
+  check('a save that changes a row is read: the paused session reads running again', rowsShown() === rowsExpected(false), `${resumed} ms`)
+
+  await settle(50)
+  const past = JSON.parse(readFileSync(recordsPath, 'utf8')) as { version: 1; workers: Records }
+  past.workers[`concourse-w${LIVE}`]!.pausedAt = Date.now()
+  writeFileSync(recordsPath, `${JSON.stringify(past, null, 1)}\n`)
+  vitals.pokeVitals()
+  const seen = await until(() => rowsShown() === rowsExpected(true), REFRESH_BUDGET_MS)
+  check("a records file rewritten past the daemon's door, newer than the stamp, is read at the window's next refresh", rowsShown() === rowsExpected(true), `${seen} ms`)
 } finally {
   _setEmitReadGateForProofs(null)
   unsubscribe()

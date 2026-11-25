@@ -13,8 +13,8 @@ import {
 } from '../cockpit-gauges/index.js'
 import { subscribeThroughFocused, getFocusedSessionConnector, hasFocusedSession } from '../../engine/connector/focusedConnector.js'
 import { subscribeExecutionEvents } from '../../engine/execution-plane/executionPlane.js'
-import { readSessionWorkersSnapshot, workerPidAlive } from '../../daemon/concourse-workers/concourseWorkers.js'
-import { subscribeConcourseDelta } from '../../daemon/concourse-workers/store.js'
+import { workerPidAlive } from '../../daemon/concourse-workers/concourseWorkers.js'
+import { readSessionRowsSnapshot, subscribeConcourseDelta } from '../../daemon/concourse-workers/store.js'
 import { runnerRecordAlive } from '../../engine/connector/workCounts.js'
 import { subscribeUiClock } from '../cockpit/uiClock.js'
 import { getInvocationTracePath } from '../../platform/observability/invocationTrace.js'
@@ -87,7 +87,7 @@ async function gitStateForRefresh(): Promise<GitRepoState | null> {
 async function refreshOnce(): Promise<void> {
   const next: Partial<VitalsSnapshots> = {}
   if (sessionConsumers > 0) {
-    const sessions = readSessionWorkersSnapshot()
+    const sessions = readSessionRowsSnapshot()
     const sessionRows = sessions.state === 'known' ? Object.values(sessions.workers) : null
     next.sessions = sessionRows !== null && sessionRows.every(rec => typeof rec.sessionId === 'string' && rec.sessionId !== '')
       ? { state: 'known', rows: sessionRows.map(rec => ({ sessionId: rec.sessionId, live: runnerRecordAlive(rec, () => workerPidAlive(rec)), paused: rec.pausedAt !== undefined, parked: rec.parkedAt !== undefined, stopped: rec.stoppedAt !== undefined })) }
