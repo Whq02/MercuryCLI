@@ -1,7 +1,11 @@
 #!/usr/bin/env bun
+import { EventEmitter } from 'node:events'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { PassThrough } from 'node:stream'
+import React from 'react'
+import stripAnsi from 'strip-ansi'
 
 const scratch = mkdtempSync(join(tmpdir(), 'gemini-model-shown-by-name-'))
 const path = process.env.PATH ?? ''
@@ -21,12 +25,16 @@ mkdirSync(join(scratch, 'os-home'), { recursive: true })
 const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 const { refreshGeminiCatalogue, __resetGeminiCatalogueForTest } = await import('../../src/models/roads/gemini/geminiCatalogue.ts')
-const { resolveDisplayedSessionModel } = await import('../../src/screen/model-picker/useDisplayedSessionModel.ts')
+const { resolveDisplayedSessionModel, useDisplayedSessionModel } = await import('../../src/screen/model-picker/useDisplayedSessionModel.ts')
+const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+const { setFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.ts')
+const { render, Text, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.ts')
+type EngineConnectorV1 = import('../../src/engine/connector/types.ts').EngineConnectorV1
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ` — ${detail} | to fix: the session card's model line and the status line both read renderModelChip, whose names come from getPublicModelDisplayName in src/models/catalogue/engineModel.ts: a Gemini id the build has no row for must take the name Google's own list gives it (geminiListedModel in src/models/roads/gemini/geminiCatalogue.ts), as the picker does`}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ` — ${detail} | to fix: the session card's model line and the status line both read useDisplayedSessionModel in src/screen/model-picker/useDisplayedSessionModel.ts (which must subscribe to useCatalogueEpoch) and renderModelChip -> getPublicModelDisplayName in src/models/catalogue/engineModel.ts (which must take the name Google's own list gives an exact row via geminiListedModel in src/models/roads/gemini/geminiCatalogue.ts)`}`)
 }
 
 const LISTED = [
@@ -35,13 +43,60 @@ const LISTED = [
 ]
 const listing: typeof fetch = async () => new Response(JSON.stringify({ models: LISTED }), { status: 200, headers: { 'content-type': 'application/json' } })
 
+let mounted: Awaited<ReturnType<typeof render>> | null = null
+const stream = new PassThrough()
+stream.resume()
 try {
   console.log('a session on a Gemini model the build has no row for, shown on its card\'s model line and its status line')
   __resetGeminiCatalogueForTest()
   const before = resolveDisplayedSessionModel('gemini-4-hydrogen-medium')
   check('before the list has been read there is no name to show: the id stands', before.label === 'gemini-4-hydrogen-medium', before.label)
+  const baseConnector = noSessionConnector()
+  const standInConnector: EngineConnectorV1 = Object.assign(Object.create(Object.getPrototypeOf(baseConnector)), baseConnector, {
+    modelFacts: () => ({ effective: 'gemini-4-hydrogen-medium', main: 'gemini-4-hydrogen-medium', setting: null, sessionPin: null, pendingSwitch: null }),
+    subscribeModel: () => () => {},
+  })
+  setFocusedSessionConnector(standInConnector)
+  const stdin = Object.assign(new EventEmitter(), {
+    isTTY: true,
+    isRaw: false,
+    setRawMode() { return this },
+    setEncoding() { return this },
+    read() { return null },
+    unref() { return this },
+    ref() { return this },
+    pause() { return this },
+    resume() { return this },
+  }) as unknown as NodeJS.ReadStream
+  const stdout = Object.assign(stream, { columns: 100, rows: 10 }) as unknown as NodeJS.WriteStream
+  function StatusRowReading(): React.ReactNode {
+    return React.createElement(Text, null, useDisplayedSessionModel().compact)
+  }
+  let painted = (): void => {}
+  const first = new Promise<void>(resolve => { painted = resolve })
+  mounted = await render(React.createElement(StatusRowReading), { stdin, stdout, patchConsole: false, exitOnCtrlC: false, onFrame: () => painted() })
+  await first
+  for (let tick = 0; tick < 4; tick++) {
+    flushPendingSyncWork()
+    await new Promise<void>(resolve => setTimeout(resolve, 10))
+  }
+  const mountedBefore = stripAnsi(mounted.lastFrame()).trim()
   const snapshot = await refreshGeminiCatalogue('api-key', { force: true, fetchImpl: listing })
   check('the list is read from the stand-in, two models', snapshot !== null && snapshot.models.length === 2, JSON.stringify(snapshot?.models.map(model => model.id)))
+  for (let tick = 0; tick < 6; tick++) {
+    flushPendingSyncWork()
+    await new Promise<void>(resolve => setTimeout(resolve, 10))
+  }
+  const mountedAfter = stripAnsi(mounted.lastFrame()).trim()
+  check(
+    'a mounted status-row reading flips from the raw id to the name when the list lands without any other redraw',
+    mountedBefore === 'gemini-4-hydrogen-medium' && mountedAfter === 'Gemini 4 Hydrogen (Medium)',
+    `before=${mountedBefore} · after=${mountedAfter}`,
+  )
+  mounted.unmount()
+  mounted.cleanup()
+  mounted = null
+  setFocusedSessionConnector(noSessionConnector())
   const named = resolveDisplayedSessionModel('gemini-4-hydrogen-medium')
   check('the model the list names reads by that name', named.label === 'Gemini 4 Hydrogen (Medium)' && named.compact === 'Gemini 4 Hydrogen (Medium)', `${named.label} · ${named.compact}`)
   const unnamed = resolveDisplayedSessionModel('gemini-4-hydrogen-high')
@@ -87,6 +142,12 @@ try {
     `${bareAlone.compact} · ${bareRide.compact} · ${exactRow.compact}`,
   )
 } finally {
+  if (mounted !== null) {
+    mounted.unmount()
+    mounted.cleanup()
+  }
+  stream.destroy()
+  setFocusedSessionConnector(noSessionConnector())
   __resetGeminiCatalogueForTest()
   rmSync(scratch, { recursive: true, force: true })
 }
