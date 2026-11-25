@@ -361,17 +361,18 @@ export async function currentSubscriptionTokens(opts?: {
   now?: () => number
   readOnly?: boolean
   force?: boolean
+  signal?: AbortSignal
 }): Promise<OpenaiStoredTokens | undefined> {
   const env = opts?.env ?? hostEnv()
   const now = opts?.now ?? Date.now
   const tokens = readAuthFile()?.tokens
   if (!tokens?.refreshToken) return undefined
   if (opts?.readOnly) return tokensFresh(tokens, now()) && !opts.force ? tokens : undefined
-  if (!opts?.force && tokensFresh(tokens, now())) return tokens
   const answer = await refreshSubscription({
     path: authFilePath(),
     exchangeDeadlineMs: LOGIN_EXCHANGE_TIMEOUT_MS,
     force: opts?.force === true,
+    ...(opts?.signal ? { signal: opts.signal } : {}),
     read: () => readAuthFile()?.tokens,
     write: pair => writeAuthFile(file => ({ ...file, tokens: pair, lastRefreshMs: now() })),
     fresh: pair => tokensFresh(pair, now()),
@@ -785,6 +786,7 @@ export async function resolveOpenaiRequestAuth(opts?: {
   sourceKind?: OpenaiAccountSourceKind
   forceRefresh?: boolean
   readOnly?: boolean
+  signal?: AbortSignal
 }): Promise<OpenaiRequestAuth | undefined> {
   const env = opts?.env ?? hostEnv()
   const account = resolveOpenaiAccount(env)
@@ -809,6 +811,7 @@ export async function resolveOpenaiRequestAuth(opts?: {
     env,
     ...(opts?.forceRefresh ? { force: true } : {}),
     ...(opts?.readOnly ? { readOnly: true } : {}),
+    ...(opts?.signal ? { signal: opts.signal } : {}),
   })
   if (!tokens?.accessToken) return undefined
   return {

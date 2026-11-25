@@ -140,7 +140,7 @@ async function* geminiPlanCallModel(params: CallModelParams): CallModelStream {
   let bases: string[] = []
   let userAgent = ''
   const credentialOf = async (forceRefresh: boolean) => {
-    const auth = await resolveGeminiRequestAuth({ sourceKind: 'plan', ...(forceRefresh ? { forceRefresh: true } : {}) })
+    const auth = await resolveGeminiRequestAuth({ sourceKind: 'plan', ...(forceRefresh ? { forceRefresh: true } : {}), signal: params.signal })
     if (!auth?.plan) return undefined
     projectId = auth.plan.projectId
     bases = orderedGeminiPlanBases(auth.plan.projectId, auth.plan.bases)
@@ -316,7 +316,7 @@ export async function* geminiCallModel(params: CallModelParams): CallModelStream
     ...geminiLaneProfile,
     ...(kind === 'oauth' ? { billingRemedy: GEMINI_ACCOUNT_BILLING_REMEDY } : {}),
     resolveCredential: async () => {
-      const auth = await resolveGeminiRequestAuth({ sourceKind: kind })
+      const auth = await resolveGeminiRequestAuth({ sourceKind: kind, signal: params.signal })
       if (!auth) return undefined
       bearer = bearerFromAuthHeaders(auth.headers)
       return bearer ? { apiKey: bearer, requestUrl: nativeUrl(auth.baseUrl) } : undefined
@@ -325,7 +325,7 @@ export async function* geminiCallModel(params: CallModelParams): CallModelStream
       ? {
           recoverCredential: async () => {
             recovery = 'no-new-credential'
-            const auth = await resolveGeminiRequestAuth({ sourceKind: 'oauth', forceRefresh: true })
+            const auth = await resolveGeminiRequestAuth({ sourceKind: 'oauth', forceRefresh: true, signal: params.signal })
             if (!auth) return undefined
             const fresh = bearerFromAuthHeaders(auth.headers)
             if (fresh && fresh !== bearer) recovery = 'retried'

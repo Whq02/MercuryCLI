@@ -2,7 +2,7 @@
 import '../lib/hermetic.ts'
 import { proofHome } from '../lib/hermetic.ts'
 import { spawn } from 'node:child_process'
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { PROOF_EXCHANGE_DEADLINE_MS, proofRoad, readRow, told, writeRow, type ProofPair } from './lib/locked-refresh-road.ts'
 import { rotatingTokenServer } from './lib/rotating-token-server.ts'
@@ -30,6 +30,8 @@ async function until(what: string, holds: () => boolean, timeoutMs = 15_000): Pr
 const server = rotatingTokenServer('rt-0')
 const store = join(proofHome, '.locked-refresh-proof.json')
 const unwritable = `${store}.unwritable`
+const lockDir = `${store}.lock`
+const PROOF_STALE_MS = PROOF_EXCHANGE_DEADLINE_MS + 2_000
 const EMAIL = 'row@example.invalid'
 const seed = (refreshToken: string): void => writeRow(store, { email: EMAIL, tokens: { accessToken: `at-of-${refreshToken}`, refreshToken, expiresAtMs: Date.now() - 1_000 } })
 const stored = (): ProofPair | undefined => readRow(store)?.tokens
@@ -138,8 +140,11 @@ try {
   const forcedKept = await mine(proofRoad(store, server.base, true))
   check('a forced call exchanges the kept pair, never the spent one on disk', forcedKept.state === 'refreshed' && server.grants.at(-1)?.refreshToken === kept && server.live !== undefined && forcedKept.pair.refreshToken === server.live, JSON.stringify({ sent: server.grants.at(-1)?.refreshToken, live: server.live }))
   rmSync(unwritable)
-  const landed = await mine(proofRoad(store, server.base, true))
-  check('once the store can be written the newest pair lands in it', landed.state === 'refreshed' && server.live !== undefined && stored()?.refreshToken === server.live, JSON.stringify({ stored: stored()?.refreshToken, live: server.live }))
+  before = server.grants.length
+  const landed = await mine(proofRoad(store, server.base))
+  check('once the store can be written the next ordinary call lands the kept pair in it, with nothing sent', landed.state === 'current' && server.live !== undefined && landed.pair.refreshToken === server.live && stored()?.refreshToken === server.live && server.grants.length === before, JSON.stringify({ answer: told(landed), stored: stored()?.refreshToken, live: server.live, grants: server.grants.length - before }))
+  const afterLanding = await other(proofRoad(store, server.base, true))
+  check('so another reader of the store exchanges the live token, never the spent one', afterLanding.state === 'refreshed' && server.live !== undefined && stored()?.refreshToken === server.live, JSON.stringify({ answer: told(afterLanding), live: server.live }))
 
   console.log('── the store changed while the exchange was out: nothing is written over it ──')
   seed(liveToken())
@@ -171,6 +176,49 @@ try {
   const failedButChanged = await failedMeanwhile
   server.status = 200
   check('an exchange that fails while another writer stores a pair answers the pair that stands', failedButChanged.state === 'current' && failedButChanged.pair.refreshToken === 'rt-of-another-writer' && stored()?.refreshToken === 'rt-of-another-writer', JSON.stringify(told(failedButChanged)))
+
+  console.log('── a holder that held its lock past the stale time does not remove its successor\'s ──')
+  seed(liveToken())
+  before = server.grants.length
+  const releaseHolder = server.hold()
+  const displaced = child(() => {})
+  await until('the holder has its grant at the server', () => server.grants.length === before + 1)
+  const heldSince = Date.now()
+  const releaseSuccessor = server.hold()
+  const successor = mine(proofRoad(store, server.base))
+  await sleep(Math.max(0, heldSince + PROOF_STALE_MS + 150 - Date.now()))
+  utimesSync(lockDir, new Date(Date.now() - 60_000), new Date(Date.now() - 60_000))
+  await until('a waiter has taken the lock that went stale and has its own grant at the server', () => server.grants.length === before + 2)
+  server.status = 503
+  releaseHolder()
+  const displacedEnd = await displaced
+  server.status = 200
+  check('the holder that lost its lock ends its own exchange, which failed, and writes nothing', displacedEnd.answer.state === 'failed' && stored()?.refreshToken === server.live, JSON.stringify(displacedEnd))
+  check('its release leaves the successor\'s lock standing', existsSync(lockDir))
+  const third = other(proofRoad(store, server.base))
+  await sleep(400)
+  check('a third caller sends nothing while the successor is still out', server.grants.length === before + 2, `${server.grants.length - before} grants`)
+  releaseSuccessor()
+  const [successorEnd, thirdEnd] = await Promise.all([successor, third])
+  check('the successor finishes its exchange, the third takes its pair, the grant stands and no lock is left', successorEnd.state === 'refreshed' && thirdEnd.state === 'current' && thirdEnd.pair.refreshToken === successorEnd.pair.refreshToken && server.live !== undefined && stored()?.refreshToken === server.live && server.grants.length === before + 2 && !existsSync(lockDir), JSON.stringify({ successor: told(successorEnd), third: told(thirdEnd), live: server.live, grants: server.grants.length - before, lock: existsSync(lockDir) }))
+
+  console.log('── a caller that gives up waiting is answered at once; the refresh goes on for the others ──')
+  seed(liveToken())
+  before = server.grants.length
+  release = server.hold()
+  const busyHolder = child(() => {})
+  await until('the holding process has its grant at the server', () => server.grants.length === before + 1)
+  const gaveUp = new AbortController()
+  const askedAt = Date.now()
+  const impatient = mine({ ...proofRoad(store, server.base), signal: gaveUp.signal })
+  const patient = mine(proofRoad(store, server.base))
+  await sleep(300)
+  gaveUp.abort()
+  const leftEarly = await Promise.race([impatient, sleep(1_000).then(() => undefined)])
+  check('it is answered busy at once with the pair that stands, and nothing was sent', leftEarly?.state === 'busy' && Date.now() - askedAt < 1_300 && server.grants.length === before + 1, JSON.stringify({ answer: leftEarly ? told(leftEarly) : 'no answer one second after it gave up', ms: Date.now() - askedAt }))
+  release()
+  const [busyHolderEnd, patientEnd] = await Promise.all([busyHolder, patient, impatient])
+  check('the caller that kept waiting takes the pair the holder wrote', busyHolderEnd.answer.state === 'refreshed' && patientEnd.state === 'current' && patientEnd.pair.refreshToken === busyHolderEnd.answer.refreshToken && server.grants.length === before + 1, JSON.stringify({ holder: busyHolderEnd.answer, patient: told(patientEnd) }))
 
   console.log('── a waiter that cannot get the lock in time never refreshes without it ──')
   seed(liveToken())

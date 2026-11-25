@@ -124,7 +124,7 @@ type PreparedOpenaiTurn = {
 
 export async function prepareOpenaiTurn(opening: TurnOpening): Promise<PreparedOpenaiTurn | { refusal: AssistantMessage }> {
   const { deferralFormReissued, resumeTrimReissued, tools, signal, options, requestedId, messages, account } = opening
-  let auth = await resolveOpenaiRequestAuth({ sourceKind: account.kind })
+  let auth = await resolveOpenaiRequestAuth({ sourceKind: account.kind, signal })
   if (!auth) {
     return { refusal: apiErrorMessage(
       `${API_ERROR_MESSAGE_PREFIX}: the ${account.label} source failed to produce request credentials (expired/revoked sign-in or missing key) — reconnect the OpenAI account. Model '${requestedId}' cannot run.`,

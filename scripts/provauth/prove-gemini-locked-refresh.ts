@@ -2,7 +2,7 @@
 import '../lib/hermetic.ts'
 import { proofHome } from '../lib/hermetic.ts'
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { rotatingTokenServer } from './lib/rotating-token-server.ts'
 
@@ -51,8 +51,8 @@ const CLIENT = 'client-fixture.apps.googleusercontent.com'
 const EXPIRED_NOTE = 'sign-in expired — /logins gemini signs in again'
 type Pair = { accessToken: string; refreshToken: string; accessTokenExpiresAtMs?: number }
 type Stored = { client?: { clientId?: string }; preferredSource?: string; padding?: string; tokens?: Pair; plan?: { tokens: Pair; projectId?: string; email?: string } }
-function seed(padding = ''): void {
-  const expired = Date.now() - 60_000
+function seed(padding = '', validForMs = -60_000): void {
+  const expired = Date.now() + validForMs
   writeFileSync(authPath, JSON.stringify({
     version: 1,
     client: { clientId: CLIENT },
@@ -143,6 +143,24 @@ try {
   check('a 503 answers the stored tokens of each sign-in after one grant each and leaves the store byte for byte', stalePlan?.accessToken === 'ya29.plan-old' && staleOauth?.accessToken === 'ya29.oauth-old' && server.grants.length === before + 2 && readFileSync(authPath, 'utf8') === bytes && slot('gemini:plan')?.signedIn === true && slot('gemini:oauth')?.signedIn === true, JSON.stringify({ plan: stalePlan?.accessToken, oauth: staleOauth?.accessToken, grants: server.grants.length - before }))
   const recovered = await accounts.currentGeminiPlanTokens()
   check('the next call refreshes', recovered !== undefined && recovered.accessToken !== 'ya29.plan-old' && file().plan?.tokens.accessToken === recovered.accessToken)
+
+  console.log('── a forced refresh whose write fails: the next ordinary call answers the new token, not the one on disk ──')
+  if (process.platform === 'win32' || process.getuid?.() === 0) {
+    console.log('[SKIP] not staged on Windows or as root: chmod 0o500 does not stop a write into the home there')
+  } else {
+    seed('', 3_600_000)
+    before = server.grants.length
+    const releaseForced = server.hold()
+    const forcedCall = accounts.currentGeminiTokens({ force: true })
+    await until('the forced grant is at the server', () => server.grants.length === before + 1)
+    chmodSync(home, 0o500)
+    releaseForced()
+    const renewed = await forcedCall
+    chmodSync(home, 0o700)
+    check('the forced call answers a new access token though the store refused the write and still holds one that reads fresh', renewed !== undefined && renewed.accessToken !== 'ya29.oauth-old' && file().tokens?.accessToken === 'ya29.oauth-old', JSON.stringify({ answered: renewed?.accessToken, stored: file().tokens?.accessToken }))
+    const ordinary = await accounts.currentGeminiTokens()
+    check('the next ordinary call answers the new token, sends nothing, and lands it in the store', ordinary?.accessToken === renewed?.accessToken && server.grants.length === before + 1 && file().tokens?.accessToken === renewed?.accessToken, JSON.stringify({ answered: ordinary?.accessToken, stored: file().tokens?.accessToken, grants: server.grants.length - before }))
+  }
 
   console.log('── a dead grant keeps the row: /accounts shows the sign-in as expired, like the other roads ──')
   seed()

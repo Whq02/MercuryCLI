@@ -37,10 +37,10 @@ async function until(what: string, holds: () => boolean, timeoutMs = 30_000): Pr
 }
 
 const authPath = accounts.openaiAuthPathForDisplay()
-const expiredAccess = `h.${Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) - 60 })).toString('base64url')}.s`
+const accessUntil = (ms: number): string => `h.${Buffer.from(JSON.stringify({ exp: Math.floor((Date.now() + ms) / 1000) })).toString('base64url')}.s`
 const EMAIL = 'row@example.invalid'
-function seed(refreshToken: string): void {
-  writeFileSync(authPath, JSON.stringify({ version: 1, preferredSource: 'chatgpt-subscription', tokens: { idToken: 'h.e30.s', accessToken: expiredAccess, refreshToken, email: EMAIL, planType: 'plus', accessTokenExpiresAtMs: Date.now() - 60_000 } }, null, 2) + '\n', { mode: 0o600 })
+function seed(refreshToken: string, validForMs = -60_000): void {
+  writeFileSync(authPath, JSON.stringify({ version: 1, preferredSource: 'chatgpt-subscription', tokens: { idToken: 'h.e30.s', accessToken: accessUntil(validForMs), refreshToken, email: EMAIL, planType: 'plus', accessTokenExpiresAtMs: Date.now() + validForMs } }, null, 2) + '\n', { mode: 0o600 })
 }
 const storedRefresh = (): string | undefined => (JSON.parse(readFileSync(authPath, 'utf8')) as { tokens?: { refreshToken?: string } }).tokens?.refreshToken
 const liveToken = (): string => server.live ?? 'the grant is revoked'
@@ -109,7 +109,44 @@ try {
     check('the call answers the new pair all the same', unsaved?.refreshToken === kept, `answered ${unsaved?.refreshToken}, live ${kept}`)
     const next = await accounts.currentSubscriptionTokens()
     check('the next call answers the new pair again and sends nothing, so the grant stands', next?.refreshToken === kept && server.grants.length === before + 1 && server.live === kept, JSON.stringify({ answered: next?.refreshToken, sent: server.grants.slice(before + 1).map(g => g.refreshToken), live: server.live }))
+    check('and now that the home can be written, that call landed the new pair in the store', storedRefresh() === kept, `stored ${storedRefresh()}, live ${kept}`)
+
+    console.log('── a forced refresh whose write fails: the next ordinary call answers the new pair, not the one on disk ──')
+    const replaced = 'rt-of-a-third-sign-in'
+    server.live = replaced
+    seed(replaced, 3_600_000)
+    const beforeForced = server.grants.length
+    release = server.hold()
+    const forcedCall = accounts.currentSubscriptionTokens({ force: true })
+    await until('the forced grant is at the server', () => server.grants.length === beforeForced + 1)
+    chmodSync(home, 0o500)
+    release()
+    const rotated = await forcedCall
+    chmodSync(home, 0o700)
+    check('the forced call answers the new pair though the store refused the write and still holds a pair that reads fresh', rotated?.refreshToken === liveToken() && storedRefresh() === replaced && liveToken() !== replaced, JSON.stringify({ answered: rotated?.refreshToken, stored: storedRefresh(), live: server.live }))
+    const ordinary = await accounts.currentSubscriptionTokens()
+    check('the next ordinary call answers the new pair and sends nothing', ordinary?.refreshToken === liveToken() && ordinary.accessToken === rotated?.accessToken && server.grants.length === beforeForced + 1, JSON.stringify({ answered: ordinary?.refreshToken, live: server.live, grants: server.grants.length - beforeForced }))
   }
+
+  console.log('── a turn cancelled while it waits for the lock is answered at once ──')
+  const waitedFor = 'rt-of-a-fourth-sign-in'
+  server.live = waitedFor
+  seed(waitedFor)
+  const beforeWait = server.grants.length
+  release = server.hold()
+  const holder = child(() => {})
+  await until('the holding process has its grant at the server', () => server.grants.length === beforeWait + 1)
+  const cancelled = new AbortController()
+  const askedAt = Date.now()
+  const waiting = accounts.resolveOpenaiRequestAuth({ sourceKind: 'chatgpt-subscription', signal: cancelled.signal })
+  await sleep(300)
+  cancelled.abort()
+  const answered = await Promise.race([waiting.then(() => true), sleep(1_000).then(() => false)])
+  check('the request for credentials returns within a second of the cancel, and sent nothing', answered && Date.now() - askedAt < 1_300 && server.grants.length === beforeWait + 1, `${Date.now() - askedAt} ms, ${server.grants.length - beforeWait} grants`)
+  release()
+  const holderEnd = await holder
+  await waiting
+  check('the holder still finishes its one exchange', holderEnd.after === liveToken() && storedRefresh() === liveToken() && server.grants.length === beforeWait + 1, JSON.stringify(holderEnd))
 } finally {
   server.stop()
 }

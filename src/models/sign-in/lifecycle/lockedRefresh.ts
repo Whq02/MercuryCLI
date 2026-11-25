@@ -1,4 +1,5 @@
-import { pollUntil } from '../../../platform/async/deadline.js'
+import { mkdir, rmdir, rmdirSync, stat, utimes } from 'node:fs'
+import { pollUntil, withDeadline } from '../../../platform/async/deadline.js'
 import { getErrnoCode } from '../../../platform/errors/errors.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
 import { logError } from '../../../platform/logs/errorLog.js'
@@ -19,6 +20,7 @@ export interface LockedRefreshRoad<T extends RefreshablePair> {
   path: string
   exchangeDeadlineMs: number
   force?: boolean
+  signal?: AbortSignal
   read(): T | undefined
   write(pair: T): void
   fresh(pair: T): boolean
@@ -44,6 +46,25 @@ function unlessHeld(error: unknown): undefined {
   throw error
 }
 
+function lockOwnedUntilStale(path: string, stale: number): Promise<() => Promise<void>> {
+  const asked = Date.now()
+  const lapsed = (): boolean => Date.now() - asked >= stale
+  return lock(path, {
+    realpath: false,
+    stale,
+    onCompromised: passedOver,
+    fs: {
+      mkdir,
+      stat,
+      utimes,
+      rmdir: (dir: string, done: (error: NodeJS.ErrnoException | null) => void): void => (lapsed() ? done(null) : rmdir(dir, done)),
+      rmdirSync: (dir: string): void => {
+        if (!lapsed()) rmdirSync(dir)
+      },
+    },
+  })
+}
+
 export function lockedRefresh<T extends RefreshablePair>(): (road: LockedRefreshRoad<T>) => Promise<LockedRefreshAnswer<T>> {
   const joined = new Map<string, Promise<LockedRefreshAnswer<T>>>()
   const unsaved = new Map<string, { replaces: T; pair: T }>()
@@ -60,6 +81,18 @@ export function lockedRefresh<T extends RefreshablePair>(): (road: LockedRefresh
     if (dead.has(refreshToken)) return { state: 'dead', pair, error: dead.get(refreshToken) }
     const forced = road.force === true && (began === undefined || samePair(pair, began))
     return road.fresh(pair) && !forced ? { state: 'current', pair } : { state: 'due', pair, stored, refreshToken }
+  }
+
+  function saveUnsaved(road: LockedRefreshRoad<T>): void {
+    const held = unsaved.get(road.path)
+    const stored = road.read()
+    if (held === undefined || stored === undefined || !samePair(stored, held.replaces)) return
+    try {
+      road.write(held.pair)
+      unsaved.delete(road.path)
+    } catch (error) {
+      passedOver(error)
+    }
   }
 
   async function exchange(road: LockedRefreshRoad<T>, due: Due<T>): Promise<LockedRefreshAnswer<T>> {
@@ -91,19 +124,22 @@ export function lockedRefresh<T extends RefreshablePair>(): (road: LockedRefresh
     return { state: 'refreshed', pair: exchanged.pair }
   }
 
-  async function refresh(road: LockedRefreshRoad<T>, began: T): Promise<LockedRefreshAnswer<T>> {
+  async function refresh(road: LockedRefreshRoad<T>, began: T | undefined): Promise<LockedRefreshAnswer<T>> {
     const stale = road.exchangeDeadlineMs + LOCK_STALE_MARGIN_MS
-    let release: (() => Promise<void>) | null
+    let release: (() => Promise<void>) | null = null
+    let unusable: { error: unknown } | undefined
     try {
-      release = await pollUntil(() => lock(road.path, { realpath: false, stale, onCompromised: passedOver }).catch(unlessHeld), LOCK_POLL_MS, stale + LOCK_PATIENCE_MARGIN_MS, () => null)
+      release = await pollUntil(() => lockOwnedUntilStale(road.path, stale).catch(unlessHeld), LOCK_POLL_MS, stale + LOCK_PATIENCE_MARGIN_MS, () => null)
     } catch (error) {
-      return { state: 'failed', pair: began, error }
+      unusable = { error }
     }
     if (release === null) {
       const waited = standing(road, began)
-      return waited.state === 'due' ? { state: 'busy', pair: waited.pair } : waited
+      if (waited.state !== 'due') return waited
+      return unusable ? { state: 'failed', pair: waited.pair, error: unusable.error } : { state: 'busy', pair: waited.pair }
     }
     try {
+      saveUnsaved(road)
       const under = standing(road, began)
       return under.state === 'due' ? await exchange(road, under) : under
     } finally {
@@ -113,11 +149,12 @@ export function lockedRefresh<T extends RefreshablePair>(): (road: LockedRefresh
 
   return road => {
     const first = standing(road, undefined)
-    if (first.state !== 'due') return Promise.resolve(first)
+    if (first.state !== 'due' && !unsaved.has(road.path)) return Promise.resolve(first)
     const existing = joined.get(road.path)
-    if (existing !== undefined) return existing
-    const work = refresh(road, first.pair).finally(() => joined.delete(road.path))
-    joined.set(road.path, work)
-    return work
+    const work = existing ?? refresh(road, first.state === 'absent' ? undefined : first.pair).finally(() => joined.delete(road.path))
+    if (existing === undefined) joined.set(road.path, work)
+    if (road.signal === undefined) return work
+    const leaves = (): LockedRefreshAnswer<T> => (first.state === 'due' ? { state: 'busy', pair: first.pair } : first)
+    return withDeadline(work, Number.POSITIVE_INFINITY, leaves, { signal: road.signal, onAbort: leaves })
   }
 }
