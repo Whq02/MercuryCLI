@@ -124,6 +124,7 @@ const ScrollBox = forwardRef<ScrollBoxHandle, Omit<ScrollBoxProps, 'ref'>>(
           markUnstick(scroll)
           scroll.scrollTop = Math.max(0, Math.floor(y))
           scroll.stickyScroll = false
+          if (restsAtTopRef.current) scroll.lastStableAtBottom = false
           scroll.pendingScrollDelta = 0
           scroll.scrollAnchor = undefined
           commitNormal(node)
