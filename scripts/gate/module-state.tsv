@@ -2266,8 +2266,7 @@ src/models/roads/openai/call-model/images.ts	OPENAI_SOURCE_KINDS	process	module	
 src/models/roads/openai/call-model/resumeTrim.ts	priorConversation4xx	owner	module	agent level (module): Map<conversation4xxKey, string> tracking prior 4xx per conversation
 src/models/roads/openai/call-model/resumeTrim.ts	prunedToolResultsByConversation	owner	module	agent level (module): Map<conversationKey, Map<toolUseId, replacement>> holding compacted tool results
 src/models/roads/openai/call-model/turnSettled.ts	openaiLiveProof	process	module	process-wide timestamp/model of most recent live OpenAI turn for diagnostics
-src/models/roads/openai/openaiAccounts.ts	knownDeadRefreshTokens	process	module	process-wide set of permanently rejected OpenAI refresh tokens to prevent retry loops
-src/models/roads/openai/openaiAccounts.ts	refreshInFlight	process	module	single-flight OAuth token refresh deduplication for shared account sign-in
+src/models/roads/openai/openaiAccounts.ts	refreshSubscription	process	module	the locked-refresh instance of the ChatGPT sign-in: the refresh calls joined per auth file, a new pair whose write failed, and the refresh tokens the server refused
 src/models/roads/openai/openaiAdapter.ts	DEPRECATED_GPT_IDS	process	module	Load-time list with no local writer
 src/models/roads/openai/openaiAdapter.ts	openaiProviderAdapter	process	module	Load-time table with no local writer
 src/models/roads/openai/openaiCacheRetention.ts	EXTENDED_RETENTION	process	module	Load-time lookup with no local writer

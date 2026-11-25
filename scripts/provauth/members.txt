@@ -7,9 +7,11 @@ prove-gemini-catalogue.ts
 prove-gemini-live-provenance.ts
 prove-gemini-plan-quota-open-read.ts
 prove-gemini-plan-signin.ts
+prove-locked-refresh.ts
 prove-meta-active-source.ts
 prove-meta-muse-code-signin.ts
 prove-openai-catalogue-follows-account.ts
+prove-openai-locked-refresh.ts
 prove-openrouter-catalogue.ts
 prove-openrouter-oauth.ts
 prove-openrouter-two-signins.ts
