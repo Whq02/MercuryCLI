@@ -55,7 +55,13 @@ export function projectConfigKeyForWorkspace(workspaceDir: string): string {
 
 export const getProjectPathForConfig = memoize((): string => projectConfigKeyOf(getOriginalCwd()))
 
-const recordOf = (config: GlobalConfig, key: string): ProjectConfig => config.projects?.[key] ?? DEFAULT_PROJECT_CONFIG
+export function unseenProjectConfig(config: GlobalConfig): ProjectConfig {
+  const names = config.inheritedSkillsOff
+  if (!Array.isArray(names)) return DEFAULT_PROJECT_CONFIG
+  return { ...DEFAULT_PROJECT_CONFIG, skillStates: Object.fromEntries(names.map((name): [string, 'off'] => [name, 'off'])) }
+}
+
+const recordOf = (config: GlobalConfig, key: string): ProjectConfig => config.projects?.[key] ?? unseenProjectConfig(config)
 
 function withRecordReplaced(config: GlobalConfig, key: string, updater: SliceUpdater): GlobalConfig | null {
   const current = recordOf(config, key)
