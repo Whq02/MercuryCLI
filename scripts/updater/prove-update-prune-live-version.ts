@@ -242,6 +242,17 @@ else {
     process.env.MERCURY_CONFIG_DIR = first
     forgetWindows(holder)
   }
+  console.log('§11 a profile list that cannot be read: the update cannot know whose windows run what, so it prunes nothing')
+  const roots = layoutFor('unread-profile-list')
+  daemonRecord(null)
+  const bundle = join(roots.versionsDir, DAEMON_VERSION, 'mercury.mjs')
+  const window = await startFrom(bundle, WINDOW_BODY)
+  register(window.pid!, bundle, await getProcessStartTokenAsync(window.pid!), second)
+  writeFileSync(join(first, 'profiles.json'), '{ "profiles": ')
+  const blind = await pruneAsTheUpdateDoes(roots)
+  check('with profiles.json unreadable every installed version is kept, the one a window of profile 2 runs from among them', blind.removed.length === 0 && whole(roots, DAEMON_VERSION) && whole(roots, SUPERSEDED), describe(blind))
+  await end(window)
+  forgetWindows(second)
   rmSync(join(first, 'profiles.json'), { force: true })
   rmSync(second, { recursive: true, force: true })
 }
