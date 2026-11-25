@@ -1,4 +1,4 @@
-import { createWriteStream } from 'node:fs'
+import { createWriteStream, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
@@ -290,6 +290,16 @@ export async function listChannelReleases(slug: string): Promise<ChannelListing>
 interface ChannelAsset {
   name: string
   url: string | null
+  maxBytes: number
+}
+
+function overCeiling(asset: ChannelAsset, destDir: string): DownloadResult {
+  rmSync(join(destDir, asset.name), { force: true })
+  return {
+    state: 'failed',
+    note: `download of ${asset.name} stopped: it holds more than ${asset.maxBytes} bytes, the most this release file may hold`,
+    remedy: 'report the release as malformed — nothing was activated',
+  }
 }
 
 async function anonymousDownloadAsset(asset: ChannelAsset, destDir: string): Promise<DownloadResult> {
@@ -308,6 +318,7 @@ async function anonymousDownloadAsset(asset: ChannelAsset, destDir: string): Pro
     return { state: 'failed', note: `download of ${asset.name} failed: ${why}`, remedy: 'check your network and rerun `mercury update` — nothing was activated' }
   }
   const { response, deadline } = got
+  const arrived = { bytes: 0 }
   try {
     if (response.status !== 200) discardBody(response)
     if (isRateLimitStatus(response)) {
@@ -317,11 +328,23 @@ async function anonymousDownloadAsset(asset: ChannelAsset, destDir: string): Pro
     if (response.status !== 200 || !response.body) {
       return { state: 'failed', note: `download of ${asset.name} answered HTTP ${response.status}`, remedy: 'the release publication may be incomplete — rerun `mercury update`; if it repeats, report it' }
     }
+    if (Number(response.headers.get('content-length') ?? '0') > asset.maxBytes) {
+      discardBody(response)
+      return overCeiling(asset, destDir)
+    }
     const source = Readable.fromWeb(response.body as WebReadableStream)
-    source.on('data', () => deadline.touch())
-    await deadline.within(pipeline(source, createWriteStream(join(destDir, asset.name))))
+    const bounded = async function* (chunks: AsyncIterable<Uint8Array>): AsyncGenerator<Uint8Array> {
+      for await (const chunk of chunks) {
+        deadline.touch()
+        arrived.bytes += chunk.byteLength
+        if (arrived.bytes > asset.maxBytes) throw new Error(`more than ${asset.maxBytes} bytes arrived`)
+        yield chunk
+      }
+    }
+    await deadline.within(pipeline(source, bounded, createWriteStream(join(destDir, asset.name))))
     return { state: 'ok' }
   } catch (error) {
+    if (arrived.bytes > asset.maxBytes) return overCeiling(asset, destDir)
     const why = isDeadlineExceeded(error) ? error.message : describeFetchError(error)
     return { state: 'failed', note: `download of ${asset.name} failed: ${why}`, remedy: 'check your network and rerun `mercury update` — nothing was activated' }
   } finally {
@@ -330,7 +353,11 @@ async function anonymousDownloadAsset(asset: ChannelAsset, destDir: string): Pro
 }
 
 export async function downloadChannelAssets(road: ChannelRoadName, slug: string, tag: string, assets: ChannelAsset[], destDir: string): Promise<DownloadResult> {
-  if (road === 'gh') return downloadReleaseAssets(slug, tag, assets.map(a => a.name), destDir)
+  if (road === 'gh') {
+    const fetched = await downloadReleaseAssets(slug, tag, assets.map(a => a.name), destDir)
+    const over = fetched.state === 'ok' ? assets.find(asset => (statSync(join(destDir, asset.name), { throwIfNoEntry: false })?.size ?? 0) > asset.maxBytes) : undefined
+    return over === undefined ? fetched : overCeiling(over, destDir)
+  }
   for (const asset of assets) {
     const one = await anonymousDownloadAsset(asset, destDir)
     if (one.state !== 'ok') return one

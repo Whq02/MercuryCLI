@@ -38,3 +38,4 @@ prove-gh-timeout-live.ts
 prove-archive-journey.ts
 prove-cross-archive-rosetta.ts
 prove-manifest-runtime-path-traversal.ts
+prove-download-ceiling.ts

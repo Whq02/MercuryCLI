@@ -14,6 +14,7 @@ import {
   parsePrivateVersion,
   PAYLOAD_ROOT,
   selectRelease,
+  UPDATE_CEILINGS,
   type ReleaseSelection,
 } from './channelCore.js'
 import { describeSignatureVerdict, type SignatureVerdict } from './artifactSigning.js'
@@ -436,8 +437,8 @@ async function acquireAndActivate(
       check.channelRepo,
       check.tag,
       [
-        { name: check.assetName, url: check.assetUrl },
-        { name: CHECKSUM_MANIFEST_NAME, url: check.checksumUrl },
+        { name: check.assetName, url: check.assetUrl, maxBytes: UPDATE_CEILINGS.archiveBytes },
+        { name: CHECKSUM_MANIFEST_NAME, url: check.checksumUrl, maxBytes: UPDATE_CEILINGS.checksumManifestBytes },
       ],
       staging,
     )

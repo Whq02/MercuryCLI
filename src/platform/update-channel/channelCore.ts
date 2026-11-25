@@ -91,6 +91,11 @@ export type ReleaseSelection =
 
 export const CHECKSUM_MANIFEST_NAME = 'SHA256SUMS.txt'
 
+export const UPDATE_CEILINGS = {
+  archiveBytes: 1024 ** 3,
+  checksumManifestBytes: 4 * 1024 ** 2,
+} as const
+
 export function assetNameFor(version: string, platform: string, arch: string): string | null {
   const target = releaseTargetFor(platform, arch)
   return target === null ? null : archiveNameFor(version, target)
