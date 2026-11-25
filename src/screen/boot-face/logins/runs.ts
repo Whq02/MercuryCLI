@@ -146,6 +146,10 @@ export function startHandlesRunOf(ctx: LoginsFlowContext, leg: HandlesLegId): vo
     if (!live()) return;
     setFlow(f => (f?.kind === 'handles' ? { kind: 'handles', handles: { ...f.handles, listenerNote: message } } : f));
   };
+  const onAuthorizeUrl = (authorizeUrl: string): void => {
+    if (!live()) return;
+    setFlow(f => (f?.kind === 'handles' ? { kind: 'handles', handles: { ...f.handles, authorizeUrl } } : f));
+  };
   const legFamily = leg === 'openai-browser' ? 'openai' : leg === 'gemini-oauth' || leg === 'gemini-plan' ? 'gemini' : 'openrouter';
   const onSettledAfterCancel = (): void => discloseLateSettle(lateSettleNotice(legFamily));
   const handles =
@@ -155,7 +159,7 @@ export function startHandlesRunOf(ctx: LoginsFlowContext, leg: HandlesLegId): vo
         ? beginGeminiBrowserConnect({ onListenerIssue, onSettledAfterCancel })
         : leg === 'gemini-plan'
           ? beginGeminiPlanBrowserConnect({ onListenerIssue, onSettledAfterCancel })
-          : beginOpenrouterConnect({ mode: leg === 'openrouter-browser' ? 'browser' : 'headless', onListenerIssue, onSettledAfterCancel });
+          : beginOpenrouterConnect({ mode: leg === 'openrouter-browser' ? 'browser' : 'headless', onListenerIssue, onAuthorizeUrl, onSettledAfterCancel });
   handlesRef.current = { cancel: reason => handles.cancel(reason), completeWithRedirect: pasted => handles.completeWithRedirect(pasted) };
   setFlow({
     kind: 'handles',

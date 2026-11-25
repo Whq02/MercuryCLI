@@ -63,6 +63,7 @@ export function OpenrouterConnect({
     const handles = beginOpenrouterConnect({
       mode: leg === 'browser' ? 'browser' : 'headless',
       onListenerIssue: message => setListenerNote(message),
+      onAuthorizeUrl: setAuthorizeUrl,
     })
     handlesRef.current = handles
     setAuthorizeUrl(handles.authorizeUrl)
