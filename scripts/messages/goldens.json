@@ -963,6 +963,9 @@
    "uuid": "«u2»"
   },
   {
+   "imagePasteIds": [
+    1
+   ],
    "message": {
     "content": [
      {
@@ -4080,6 +4083,9 @@
    "uuid": "«u2»"
   },
   {
+   "imagePasteIds": [
+    1
+   ],
    "message": {
     "content": [
      {

@@ -88,8 +88,33 @@ function assistantRows(parent: AssistantMessage, blocks: (ContentBlock | Content
   )
 }
 
+export function imageRowNumbersOf(
+  blocks: readonly (ContentBlock | ContentBlockParam)[],
+  imagePasteIds?: readonly number[],
+): readonly number[] {
+  if (imagePasteIds !== undefined) return imagePasteIds
+  let imageCount = 0
+  for (const block of blocks) {
+    if (block.type === 'image') imageCount++
+  }
+  if (imageCount === 0) return []
+  const seen = new Set<number>()
+  for (const block of blocks) {
+    if (block.type === 'text') {
+      for (const ref of parseReferences(block.text)) {
+        if (ref.match.startsWith('[Image')) seen.add(ref.id)
+      }
+    }
+  }
+  const unique = [...seen]
+  if (unique.length >= imageCount) {
+    return unique.sort((a, b) => a - b).slice(-imageCount)
+  }
+  return Array.from({ length: imageCount }, (_, index) => unique[index] ?? index + 1)
+}
+
 function userBlockRows(parent: UserMessage, blocks: (ContentBlock | ContentBlockParam)[], latched: boolean): NormalizedMessage[] {
-  const numbers = parent.imagePasteIds ?? blocks.flatMap(block => (block.type === 'text' ? parseReferences(block.text).filter(ref => ref.match.startsWith('[Image')).map(ref => ref.id) : []))
+  const numbers = imageRowNumbersOf(blocks, parent.imagePasteIds)
   let images = 0
   return blocks.map((block, index) => {
     const pasteId = block.type === 'image' ? numbers[images++] : undefined
