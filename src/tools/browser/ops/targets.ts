@@ -5,6 +5,7 @@ import { type Input, WAIT_CAP_MS, WAIT_DEFAULT_MS } from './schema.js'
 import { isDriverTimeout } from './failures.js'
 import { type LiveSession, actOrigin, heldFrameOrigin, targetSurface } from './page.js'
 import { passedOver, passedOverAs } from '../../../platform/errors/passedOver.js'
+import { withDeadline } from '../../../platform/async/deadline.js'
 
 function framesDiagnosis(s: LiveSession): string {
   try {
@@ -73,10 +74,9 @@ async function framedOnly(s: LiveSession, selector: string): Promise<string | nu
     const children = s.page.frames().filter(f => f.parentFrame() !== null)
     if (children.length === 0) return null
     if ((await s.page.$(selector)) !== null) return null
-    for (const frame of children) {
-      if ((await frame.$(selector).catch(passedOverAs(null))) !== null) return frame.url().split('?')[0] ?? frame.url()
-    }
-    return null
+    const held = await Promise.all(children.map(frame => withDeadline(frame.$(selector).catch(passedOverAs(null)), 1000, () => null, { unref: true })))
+    const holder = children[held.findIndex(handle => handle !== null)]
+    return holder === undefined ? null : (holder.url().split('?')[0] ?? holder.url())
   } catch (error) {
     passedOver(error)
     return null

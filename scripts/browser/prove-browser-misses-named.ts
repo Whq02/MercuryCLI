@@ -96,6 +96,14 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'content-type': 'text/html' })
     return res.end('<title>framed</title><body><button id="inner-btn">Frame button</button></body>')
   }
+  if (req.url === '/stalled') {
+    res.writeHead(200, { 'content-type': 'text/html' })
+    return res.end('<title>stalled</title><body><script>addEventListener("load", () => setTimeout(() => { for (;;) {} }, 100))</script></body>')
+  }
+  if (req.url === '/behind') {
+    res.writeHead(200, { 'content-type': 'text/html' })
+    return res.end(`<title>behind</title><body><h1>Behind</h1>${`<iframe src="${A.replace('127.0.0.1', 'localhost')}/stalled"></iframe>`.repeat(3)}<iframe src="/framed"></iframe></body>`)
+  }
   res.writeHead(200, { 'content-type': 'text/html' })
   res.end(`<title>misses</title><body><h1>Misses</h1>
 <input id="dis" disabled aria-label="Disabled field"><input id="ro" readonly value="frozen">
@@ -158,6 +166,30 @@ console.log('§6 a point outside the viewport is refused by name; a disabled fie
   await run({ op: 'click', selector: '#ro' })
   const disabled = await run({ op: 'type', selector: '#dis', text: 'z', timeoutMs: 1500 })
   check('typing into a disabled input is refused as disabled, not as a focus miss', disabled.outcome === 'failed' && /#dis is disabled/.test(disabled.result) && !/holds focus instead/.test(disabled.result), disabled.result, 'the type op in src/tools/browser/ops/typeOp.ts must refuse a disabled input as disabled before any focus check')
+}
+
+console.log('§7 child frames that never answer hold no act past its deadline, and hide no frame beside them')
+{
+  const HELD_MS = 20_000
+  const held = (input: ToolInput): Promise<{ result: string; outcome: string; ms: number }> => {
+    let bound: ReturnType<typeof setTimeout> | undefined
+    const given = new Promise<{ result: string; outcome: string; ms: number }>(done => {
+      bound = setTimeout(() => done({ result: `no answer in ${HELD_MS}ms`, outcome: 'held', ms: HELD_MS }), HELD_MS)
+    })
+    return Promise.race([run(input), given]).finally(() => clearTimeout(bound))
+  }
+  const opened = await run({ op: 'open', url: `${A}/behind` })
+  check('the page with three frames of another site, each silent once loaded, opens', opened.outcome === 'succeeded', opened.result, 'the open op of the Browser tool (src/tools/browser/ops/navigateOps.ts) failed on the local fixture page')
+  await new Promise(done => setTimeout(done, 500))
+  const hint = 'framedOnly in src/tools/browser/ops/targets.ts must ask every child frame at once and wait a bounded time for each answer, so frames whose pages never answer cost an act one second together and not the driver\'s 90s each'
+  const miss = await held({ op: 'click', selector: 'aria/Nowhere[role="button"]', timeoutMs: 1500 })
+  check('a missing target fails by name within its deadline and the two bounded looks at the frames', miss.outcome === 'failed' && miss.result.includes('aria/Nowhere[role="button"]') && miss.result.includes('1500ms deadline') && miss.result.includes('4 child frame(s) present') && miss.ms < 5000, `${miss.ms}ms · ${miss.result}`, hint)
+  const framed = miss.outcome === 'held' ? miss : await held({ op: 'click', selector: 'aria/Frame button[role="button"]', timeoutMs: 8000 })
+  check('a target in the frame after the silent ones is named at once', framed.outcome === 'failed' && /lives inside a child frame \(http:\/\/127\.0\.0\.1:\d+\/framed\)/.test(framed.result) && framed.ms < 3000, `${framed.ms}ms · ${framed.result}`, hint)
+  if (framed.outcome === 'held') {
+    console.error(`browser misses named: ${failures} FAILURES (an act is still held by a silent frame; the browser is left to the process's end)`)
+    process.exit(1)
+  }
 }
 
 await run({ op: 'close' })
