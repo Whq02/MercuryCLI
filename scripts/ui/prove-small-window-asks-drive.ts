@@ -69,6 +69,17 @@ try {
     after: staged => transcriptsOf(staged).every(file => existsSync(file)),
   })
   check('sessions, 30 columns: the card\'s line cannot be drawn, so ↓ and ↵ delete nothing; esc closes the card and both transcripts stand', unasked.after && !unasked.frame('card-slim').includes('↑↓ ↵ esc') && unasked.frame('kept').includes('alpha chat') && unasked.frame('kept').includes('beta chat'), `where the line is not drawn the card's keys must not act, esc and n excepted (the prune keys of ${RESUME}); ${DOOR}; both transcripts stand: ${String(unasked.after)}; wide again the screen reads: ${screenOf(unasked.frame('kept')).slice(0, 400)}`)
+  for (const rows of [10, 12]) {
+    const short = await drive(120, 40, {
+      name: 'short',
+      ...theSessionsPage,
+      sends: [...toTheCard, key('(>_) MERCURY · resume session', DOWN, 'card-short'), key('(>_) MERCURY · resume session', '\r', 'yes-short')],
+      resizes: [{ afterMark: 'card-wide', cols: 80, rows }],
+      readyText: 'deleted 2 transcripts',
+      after: staged => transcriptsOf(staged).every(file => !existsSync(file)),
+    })
+    check(`sessions, 80 by ${rows}: the window is too short for the card, so its question stands on the legend's line, whole, when ↵ deletes the two transcripts`, short.after && short.frame('card-short').includes('delete 2 transcripts? ▸ No · ↑↓ ↵ esc') && short.frame('yes-short').includes('delete 2 transcripts? ▸ Yes · ↑↓ ↵ esc'), `a layout whose own room cuts the card must draw the page's asking line in place of the legend (composeBootMenuClassic and composeBootMenuWide in assets/splash/splash-core.mjs); both transcripts deleted: ${String(short.after)}; when ↵ was pressed the screen read: ${screenOf(short.frame('yes-short'))}`)
+  }
   check('the pages made no model call', fixture.messageRequests().length === 0, 'a key of a boot page reached the model API; these pages must stay on their own doors')
 } finally {
   await fixture.close()

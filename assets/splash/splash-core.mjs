@@ -540,7 +540,7 @@ export function bootMenuMicro(cols, rowsAvail) {
 }
 
 export function bootMenuAsks(cols, rowsAvail, asking) {
-  return !bootMenuMicro(cols, rowsAvail) || (rowsAvail >= 2 && vis(asking) <= cols)
+  return rowsAvail >= 2 && vis(asking) <= cols
 }
 
 function placeBlock(block, rows) {
@@ -1103,7 +1103,8 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
     ),
     boxBot(totalW - 2, bc),
   )
-  lines.push(...legendLines.map(line => faint + line + R))
+  const askCut = m.asking && m.detailOverrideConfirms && dRows.length > effectiveDetailBudget
+  lines.push(...(askCut ? [paint(TEALC) + clipVis(m.asking, totalW) + R] : legendLines.map(line => faint + line + R)))
   const blockW = Math.max(...lines.map(vis))
   const left = Math.max(0, Math.floor((cols - blockW) / 2))
   const centered = lines.map(l => {
@@ -1164,14 +1165,21 @@ function composeBootMenuClassic(cols, rowsAvail, m) {
   const noticeText = m.detailOverride && m.detailOverrideConfirms ? m.detailOverride.filter(Boolean).join(' ') : m.noticeLine
   const noticeW = Math.max(20, cols - 4)
   const noticeRoom = Math.max(1, rowsAvail - 4 - 5)
+  const cutToEnd = new Set()
   const noticeOver = endOnly =>
-    wrapWords(noticeText, noticeW).flatMap(l => (vis(l) <= noticeW ? [l] : endOnly ? ['…' + endVis(l, noticeW - 1)] : splitHardVis(l, noticeW)))
+    wrapWords(noticeText, noticeW).flatMap(l => {
+      if (vis(l) <= noticeW) return [l]
+      if (!endOnly) return splitHardVis(l, noticeW)
+      const kept = '…' + endVis(l, noticeW - 1)
+      cutToEnd.add(kept)
+      return [kept]
+    })
   const noticeWhole = noticeText ? noticeOver(false) : []
   const noticeWrapped = noticeWhole.length <= noticeRoom ? noticeWhole : noticeOver(true)
   const noticeBudget = Math.min(noticeWrapped.length, noticeRoom)
   const noticeClipped = noticeBudget < noticeWrapped.length
   const noticeLines = noticeWrapped.slice(0, noticeBudget).map((l, i) => {
-    const text = noticeClipped && i === noticeBudget - 1 && !l.startsWith('…') ? clipVis(l, Math.max(1, cols - 5)) + '…' : l
+    const text = noticeClipped && i === noticeBudget - 1 && !cutToEnd.has(l) ? clipVis(l, Math.max(1, cols - 5)) + '…' : l
     return paint(TEALC) + text + R
   })
   const noticeBlank = noticeLines.length > 0 && rowsAvail - 4 - 5 - noticeBudget >= 1
@@ -1179,7 +1187,8 @@ function composeBootMenuClassic(cols, rowsAvail, m) {
     noticeLines.length > 0
       ? 4 + noticeBudget + (noticeBlank ? 1 : 0) + 2
       : 7
-  const listBudget = Math.max(5, rowsAvail - chrome - Math.max(0, legendLines.length - 1))
+  const footLines = m.asking && noticeClipped ? [paint(TEALC) + clipVis(m.asking, cols) + R] : legendLines.map(line => faint + line + R)
+  const listBudget = Math.max(5, rowsAvail - chrome - Math.max(0, footLines.length - 1))
   let shownList = listLines
   let shownEntry = listEntry
   if (listLines.length > listBudget) {
@@ -1215,10 +1224,10 @@ function composeBootMenuClassic(cols, rowsAvail, m) {
       ) +
       R,
   )
-  lines.push(...legendLines.map(line => faint + line + R))
+  lines.push(...footLines)
   const blockW = Math.max(...lines.map(vis))
   const left = Math.max(0, Math.floor((cols - blockW) / 2))
-  const legendAt = lines.length - legendLines.length
+  const legendAt = lines.length - footLines.length
   const centered = lines.map((l, i) => {
     const padded = ' '.repeat(left) + l
     if (i >= legendAt) return padded
