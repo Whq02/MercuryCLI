@@ -21,19 +21,20 @@ const realKill = process.kill
 const realNow = Date.now
 let age = 0
 Date.now = () => realNow() + age
-type Launch = { file: string; pid: number; form: 'token' | 'instant' }
+type Launch = { file: string; pid: number; form: 'token' | 'instant' | 'both' }
 const launches: Launch[] = []
 let answers = true
-const tokenOf = (pid: number, form: Launch['form']): string => (form === 'instant' ? `2026-11-24T10:00:${String(pid % 60).padStart(2, '0')}.0000000Z` : `Tue Nov 24 10:00:${String(pid % 60).padStart(2, '0')} 2026`)
+const tokenOf = (pid: number, form: 'token' | 'instant'): string => (form === 'instant' ? `2026-11-24T10:00:${String(pid % 60).padStart(2, '0')}.0000000Z` : `Tue Nov 24 10:00:${String(pid % 60).padStart(2, '0')} 2026`)
 mock.module('node:child_process', () => ({
   ...cp,
   execFile: (file: string, args: string[], _options: unknown, callback: (error: Error | null, stdout: string, stderr: string) => void) => {
     const command = args.at(-1) ?? ''
     const pid = file === 'ps' ? Number(args[args.indexOf('-p') + 1]) : Number(/ProcessId\s*=\s*(\d+)/.exec(command)?.[1])
-    const form: Launch['form'] = file !== 'ps' && command.includes("ToString('o')") ? 'instant' : 'token'
+    const form: Launch['form'] = file !== 'ps' && command.includes('ConvertTo-Json') ? 'both' : file !== 'ps' && command.includes("ToString('o')") ? 'instant' : 'token'
     launches.push({ file, pid, form })
     const said = answers
-    queueMicrotask(() => callback(said ? null : Object.assign(new Error('ENOENT'), { code: 'ENOENT' }), said ? `${tokenOf(pid, form)}\n` : '', ''))
+    const stdout = form === 'both' ? JSON.stringify([{ token: tokenOf(pid, 'token'), instant: tokenOf(pid, 'instant') }]) : `${tokenOf(pid, form)}\n`
+    queueMicrotask(() => callback(said ? null : Object.assign(new Error('ENOENT'), { code: 'ENOENT' }), said ? stdout : '', ''))
     return { kill: () => true }
   },
 }))
@@ -52,8 +53,8 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${platform}: ${label}${cond ? '' : ` — ${[detail, 'change: startTokenOfAsync and the cached reads in src/daemon/control/ownerWatch.ts: a process’s own start token cannot change, so one answered read serves every later ask of this process, and asks made while it is out share it'].filter(Boolean).join(' | ')}`}`)
 }
-const own = (form: Launch['form']): number => launches.filter(launch => launch.pid === process.pid && launch.form === form).length
-const instantForm: Launch['form'] = platform === 'win32' ? 'instant' : 'token'
+const own = (form: 'token' | 'instant'): number => launches.filter(launch => launch.pid === process.pid && (launch.form === form || launch.form === 'both')).length
+const instantForm: 'token' | 'instant' = platform === 'win32' ? 'instant' : 'token'
 
 console.log(`\n── ${platform}: this process asks for its own start token ──`)
 try {
@@ -75,7 +76,7 @@ try {
   check('a minute later the cached ask still answers and reads nothing', cached === tokenOf(process.pid, 'token') && own('token') === 2, `${JSON.stringify(cached)} after ${own('token') - 2} more read(s)`)
   const before = own(instantForm)
   const instants = [await watch.getProcessStartInstantAsync(process.pid), await watch.getProcessStartInstantAsync(process.pid)]
-  check(platform === 'win32' ? 'the instant form is its own single read' : 'the instant form is the token form here, so it reads nothing', own(instantForm) - before === (platform === 'win32' ? 1 : 0) && instants.every(token => token === tokenOf(process.pid, instantForm)), `${own(instantForm) - before} read(s): ${JSON.stringify(instants)}`)
+  check(platform === 'win32' ? 'the instant form came with that one read, so it reads nothing more' : 'the instant form is the token form here, so it reads nothing', own(instantForm) - before === 0 && instants.every(token => token === tokenOf(process.pid, instantForm)), `${own(instantForm) - before} read(s): ${JSON.stringify(instants)}`)
 
   console.log(`\n── ${platform}: another process is read each time it is asked ──`)
   const others = [await watch.getProcessStartTokenAsync(OTHER), await watch.getProcessStartTokenAsync(OTHER)]

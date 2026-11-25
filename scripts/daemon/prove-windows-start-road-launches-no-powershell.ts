@@ -10,7 +10,7 @@ import { PassThrough } from 'node:stream'
 import { mock } from 'bun:test'
 import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourse-workers/concourseWorkers.ts'
 
-const SCENES = ['warm', 'unlined'] as const
+const SCENES = ['warm', 'unlined', 'own'] as const
 type Scene = (typeof SCENES)[number]
 const scene = process.argv.find(arg => arg.startsWith('--scene='))?.slice(8)
 if (scene === undefined) {
@@ -66,18 +66,20 @@ function scriptOf(args: readonly string[]): string {
   if (encoded >= 0) return Buffer.from(args[encoded + 1] ?? '', 'base64').toString('utf16le')
   return args.at(-1) ?? ''
 }
-function noted(seam: Launch['seam'], file: string, args: readonly string[]): { script: string; pids: number[]; together: boolean; words: boolean } {
+function noted(seam: Launch['seam'], file: string, args: readonly string[]): { script: string; pids: number[]; together: boolean; words: boolean; both: boolean } {
   const script = scriptOf(args)
   const pids = [...script.matchAll(/ProcessId\s*=\s*(\d+)/g)].map(match => Number(match[1]))
   const together = script.includes('ConvertTo-Json')
+  const both = together && script.includes('Out-String') && script.includes("ToString('o')")
   const words = together ? script.includes('Out-String') : !script.includes("ToString('o')")
-  const reads = !script.includes('Win32_Process') ? (script.includes('ProtectedData') ? 'the credential store' : 'something else') : pids.length === 0 ? 'the process census' : `${together ? 'a batched start read' : 'a start read'} (${words ? 'the date words' : 'the instant form'})`
+  const reads = !script.includes('Win32_Process') ? (script.includes('ProtectedData') ? 'the credential store' : 'something else') : pids.length === 0 ? 'the process census' : `${together ? 'a batched start read' : 'a start read'} (${both ? 'both forms' : words ? 'the date words' : 'the instant form'})`
   launches.push({ exe: exeOf(file), seam, reads, pids, at: Date.now() })
-  return { script, pids, together, words }
+  return { script, pids, together, words, both }
 }
-function startReadAnswer(read: { pids: number[]; together: boolean; words: boolean }): string {
+function startReadAnswer(read: { pids: number[]; together: boolean; words: boolean; both: boolean }): string {
   const here = read.pids.filter(pid => alive.has(pid) || pid === process.pid)
   const token = (pid: number): string => (read.words ? wordsOf(pid) : instantOf(pid))
+  if (read.both) return JSON.stringify(here.map(pid => ({ token: wordsOf(pid), instant: instantOf(pid) })))
   if (read.together) return JSON.stringify(here.map(pid => ({ pid, token: token(pid) })))
   return here.length > 0 ? `${token(here[0]!)}\n` : ''
 }
@@ -163,6 +165,37 @@ const until = async (cond: () => boolean, withinMs: number): Promise<boolean> =>
   return cond()
 }
 const told = (some: readonly Launch[]): string => (some.length === 0 ? 'none' : some.map(launch => `${launch.exe} by ${launch.seam}: ${launch.reads}${launch.pids.length > 0 ? ` of ${launch.pids.join(',')}` : ''}`).join(' · '))
+
+if (scene === 'own') {
+  console.log(`\n── ${scene}: a process asks for its own start in both forms, the date words for its locks and the instant for its records (the Windows seams: win32, every launch counted) ──`)
+  const watch = await import('../../src/daemon/control/ownerWatch.ts')
+  const hint = 'change: on Windows a process reads both forms of its own start in one launch and keeps them (startTokenOfAsync in src/daemon/control/ownerWatch.ts), so every later ask of its own pid, in either form, singly or in a batch, launches nothing'
+  const own = (label: string, cond: boolean, detail = ''): void => {
+    if (!cond) failures++
+    console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${scene}: ${label}${cond ? '' : ` — ${[detail, hint].filter(Boolean).join(' | ')}`}`)
+  }
+  try {
+    Object.defineProperty(process, 'platform', { value: 'win32', configurable: true })
+    const asWords = watch.getProcessStartTokenAsync(process.pid)
+    const asInstant = watch.getProcessStartInstantAsync(process.pid)
+    const [words, instant] = await Promise.all([asWords, asInstant])
+    own('the date words are what a single read gives', words === wordsOf(process.pid), JSON.stringify(words))
+    own('the instant is what a single read gives', instant === instantOf(process.pid), JSON.stringify(instant))
+    own('both forms came from one PowerShell', launches.length === 1, `${launches.length} launch(es): ${told(launches)}`)
+    const atStart = launches.length
+    const again = await Promise.all([watch.getProcessStartTokenAsync(process.pid), watch.getProcessStartInstantAsync(process.pid)])
+    const batched = await watch.getProcessStartTokensAsync([{ pid: process.pid, procStart: instantOf(process.pid) }])
+    const forALock = await watch.getProcessStartTokensAsync([{ pid: process.pid, procStart: wordsOf(process.pid) }])
+    const cached = watch.getProcessStartInstantCachedOrRefresh(process.pid)
+    await sleep(60)
+    own('every later ask of its own pid is answered from that one read', again[0] === words && again[1] === instant && batched.get(process.pid) === instant && forALock.get(process.pid) === words && cached === instant, JSON.stringify({ again, batched: [...batched], forALock: [...forALock], cached }))
+    own('and launches nothing', launches.length === atStart, `${launches.length - atStart} launch(es) more: ${told(launches.slice(atStart))}`)
+  } finally {
+    Object.defineProperty(process, 'platform', { value: HOST, configurable: true })
+    rmSync(SCRATCH, { recursive: true, force: true })
+  }
+  process.exit(failures === 0 ? 0 : 1)
+}
 
 const dir = process.env.MERCURY_DAEMON_DIR!
 const now = Date.now()

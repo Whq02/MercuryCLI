@@ -173,12 +173,45 @@ function startTokenOfAsync(pid: number, form: StartForm): Promise<string | null>
   if (known !== undefined) return Promise.resolve(known.token)
   const flying = startTokenInflight.get(key)
   if (flying !== undefined) return flying
+  if (processStartProbeKind() === 'win32-cim') return ownStartFormsAsked(pid)[form]
   const asked: Promise<string | null> = probeStartToken(pid, form).then(token => {
     if (startTokenInflight.get(key) === asked) startTokenInflight.delete(key)
     return ownStartTokenNoted(pid, form, token)
   })
   startTokenInflight.set(key, asked)
   return asked
+}
+
+function ownStartFormsAsked(pid: number): Record<StartForm, Promise<string | null>> {
+  const both = probeOwnStartForms(pid)
+  const asked = (form: StartForm): Promise<string | null> => {
+    const key = startKey(form, pid)
+    const flight: Promise<string | null> = both.then(forms => {
+      if (startTokenInflight.get(key) === flight) startTokenInflight.delete(key)
+      return ownStartTokenNoted(pid, form, forms[form])
+    })
+    startTokenInflight.set(key, flight)
+    return flight
+  }
+  return { token: asked('token'), instant: asked('instant') }
+}
+
+async function probeOwnStartForms(pid: number): Promise<Record<StartForm, string | null>> {
+  const reply = await runStartProbe(win32PsExe(), [
+    '-NoProfile', '-NonInteractive', '-Command',
+    `$ErrorActionPreference='Stop'; ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process -Filter "ProcessId=${pid}" -ErrorAction Stop | ForEach-Object { [pscustomobject]@{ token=${WIN32_BATCH_TOKEN.token}; instant=${WIN32_BATCH_TOKEN.instant} } })`,
+  ], performance.now() + OWN_START_PROBE_TIMEOUT_MS)
+  const unread = { token: null, instant: null }
+  if (reply.kind !== 'reply' || reply.code !== 0 || reply.stderr.trim()) return unread
+  try {
+    const rows: unknown = JSON.parse(reply.stdout)
+    if (!Array.isArray(rows) || rows.length !== 1) return unread
+    const read = (value: unknown): string | null => (typeof value === 'string' && value.trim() ? value.trim() : null)
+    return { token: read(rows[0]?.token), instant: read(rows[0]?.instant) }
+  } catch (error) {
+    passedOver(error)
+    return unread
+  }
 }
 
 function probeStartToken(pid: number, form: StartForm): Promise<string | null> {
@@ -258,6 +291,7 @@ function ownStartTokenNoted(pid: number, form: StartForm, token: string | null):
 
 const PROCESS_START_CACHE_MS = 3000
 const PROCESS_START_PROBE_TIMEOUT_MS = 1500
+const OWN_START_PROBE_TIMEOUT_MS = 3000
 
 type StartProbeResult = { kind: 'reply'; code: number; stdout: string; stderr: string } | { kind: 'failed' | 'timeout' }
 
