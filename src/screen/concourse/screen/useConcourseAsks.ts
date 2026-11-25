@@ -3,6 +3,7 @@ import { useLoad } from '../../effects/effects.js'
 import { isPathTrusted, setPathTrusted } from '../../../platform/settings/config.js'
 import { getCwd } from '../../../platform/files/cwd.js'
 import { errorMessage } from '../../../platform/errors/errors.js'
+import { logForDebugging } from '../../../platform/logs/debugLog.js'
 import { logError } from '../../../platform/logs/errorLog.js'
 import { basename } from 'node:path'
 import type { Draft, Panes, ScreenProps } from './state.js'
@@ -71,9 +72,10 @@ export function useConcourseAsks({ callbacks, setGroundPickerOpen, setNote }: Pi
       .catch((error: unknown) => {
         const why = error instanceof SyntaxError ? 'a config file is not valid JSON' : errorMessage(error)
         logError(new Error(`the capacity answer could not be saved: ${why}`))
+        logForDebugging(`concourseAsks: capacity answer could not be saved: ${why}`, { level: 'error' })
         setNote({
           tone: 'warning',
-          text: `capacity answer not saved (${why}) — the board asks again next time`,
+          text: 'capacity answer not saved — the board will ask again next time',
         })
       })
   }
