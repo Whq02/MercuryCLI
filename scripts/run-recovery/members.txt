@@ -1,4 +1,5 @@
 prove-composed-reply-survives-esc.ts
+prove-continued-run-finds-its-scratchpad.ts
 prove-cut-off-turn-continuation.ts
 prove-cut-while-asked-again-reads-as-cut.ts
 prove-ended-run-keeps-its-call.ts

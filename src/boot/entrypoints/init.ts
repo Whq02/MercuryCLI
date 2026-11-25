@@ -24,7 +24,8 @@ import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { sendPassedOverToDebugLog } from '../../platform/errors/passedOverSink.js'
 import { isSessionMarkedNonInteractive } from '../../screen/cockpit/runtimePosture.js'
 import { profileCheckpoint } from '../startupProfiler.js'
-import { armScratchpadSweep } from '../../platform/files/scratchpad.js'
+import { armScratchpadSweep, ensureScratchpadDir } from '../../platform/files/scratchpad.js'
+import { onSessionSwitch } from '../process-state/processState.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 import { startImmediate } from '../../platform/async/timers.js'
 
@@ -60,6 +61,7 @@ export const init: () => Promise<void> = memoize(async (): Promise<void> => {
 
     setupGracefulShutdown()
     armScratchpadSweep()
+    onSessionSwitch(() => { ensureScratchpadDir() })
     profileCheckpoint('init_shutdown_installed')
 
     if (
