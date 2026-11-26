@@ -41,6 +41,7 @@ import {
   findLatestMessage,
   removeExtraFields,
 } from './chain.js'
+import { electConversationEnd } from './conversationEnd.js'
 import { loadSessionFile, loadTranscriptFile, type TranscriptFoldState } from './loading.js'
 import {
   getCrewmateTranscriptPath,
@@ -471,10 +472,10 @@ export async function lastSession(
   sessionId: UUID,
 ): Promise<SessionListing | null> {
   const fold = await loadSessionFile(sessionId)
-  if (fold.messages.size === 0) return null
-  const leaf = resumeLeafOf(fold.messages)
+  const elected = electConversationEnd(fold.messages)
+  const leaf = elected === undefined ? lastRowOfSessionWithNoTurn(fold.messages) : (elected.rows.at(-1) ?? elected.primary)
   if (!leaf) return null
-  const chain = buildConversationChain(fold.messages, leaf)
+  const chain = elected?.rows ?? buildConversationChain(fold.messages, leaf)
   const anchor = chain.at(-1) ?? leaf
   const summary = fold.summaries.get(leaf.uuid)
   return {
@@ -485,7 +486,7 @@ export async function lastSession(
   }
 }
 
-export function resumeLeafOf(messages: Map<UUID, TranscriptMessage>): TranscriptMessage | undefined {
+export function lastRowOfSessionWithNoTurn(messages: Map<UUID, TranscriptMessage>): TranscriptMessage | undefined {
   const nonSidechainParents = new Set<UUID>()
   for (const msg of messages.values()) {
     if (!msg.isSidechain && msg.parentUuid) nonSidechainParents.add(msg.parentUuid)
