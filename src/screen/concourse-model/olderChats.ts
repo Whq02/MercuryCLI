@@ -4,8 +4,7 @@ import { workerTranscriptPath } from './workerTranscript.js'
 import { isAuthFailureHusk, type ParkedSessionFact } from '../boot-face/bootCardFacts.js'
 import {
   compareSessionRecency,
-  lastConversationActivityMs,
-  scanLastConversationActivityMsSync,
+  readSessionLastUsedMsCachedSync,
 } from '../../sessions/transcripts/sessionIndex.js'
 import {
   extractFirstPromptFromHead,
@@ -81,7 +80,7 @@ export interface OlderChatsCensusV1 {
 
 const olderFactCache = new Map<
   string,
-  { mtimeMs: number; size: number; husk: boolean; title: string | null; lastUsedMs: number | null }
+  { mtimeMs: number; size: number; husk: boolean; title: string | null }
 >()
 const OLDER_FACT_CACHE_CAP = 2048
 
@@ -109,19 +108,6 @@ function readTitleAndTail(rec: { sessionId: string; workspaceId: string }): { ti
   return { title, tailRaw }
 }
 
-function readTitleAndLastUsed(
-  rec: { sessionId: string; workspaceId: string },
-  file: string,
-  size: number,
-): { title: string | null; lastUsedMs: number | null } {
-  const { title, tailRaw } = readTitleAndTail(rec)
-  let lastUsedMs = tailRaw !== undefined ? lastConversationActivityMs(tailRaw) : null
-  if (lastUsedMs === null && (size > LITE_READ_BUF_SIZE || historyHead(file).before > 0)) {
-    lastUsedMs = scanLastConversationActivityMsSync(file)
-  }
-  return { title, lastUsedMs }
-}
-
 export function transcriptTitleOf(rec: { sessionId: string; workspaceId: string }): string | null {
   return readTitleAndTail(rec).title
 }
@@ -131,18 +117,28 @@ function olderFactOf(
   file: string,
   mtimeMs: number,
   size: number,
+  nowMs: number,
 ): { husk: boolean; title: string | null; lastUsedMs: number | null } {
   const held = olderFactCache.get(file)
-  if (held !== undefined && held.mtimeMs === mtimeMs && held.size === size) return held
+  if (held !== undefined && held.mtimeMs === mtimeMs && held.size === size) {
+    const lastUsedMs =
+      held.husk || held.title === null ? null : readSessionLastUsedMsCachedSync(file, mtimeMs, size, undefined, nowMs)
+    return { ...held, lastUsedMs }
+  }
   const sessionId = basename(file).replace(/\.jsonl$/, '')
   const husk = isAuthFailureHusk(file, size)
-  const { title, lastUsedMs } = husk
-    ? { title: null, lastUsedMs: null }
-    : readTitleAndLastUsed({ sessionId, workspaceId: projectDir }, file, size)
+  let title: string | null = null
+  let lastUsedMs: number | null = null
+  if (!husk) {
+    const read = readTitleAndTail({ sessionId, workspaceId: projectDir })
+    title = read.title
+    if (title !== null) {
+      lastUsedMs = readSessionLastUsedMsCachedSync(file, mtimeMs, size, read.tailRaw, nowMs)
+    }
+  }
   if (olderFactCache.size >= OLDER_FACT_CACHE_CAP) olderFactCache.clear()
-  const fact = { mtimeMs, size, husk, title, lastUsedMs }
-  olderFactCache.set(file, fact)
-  return fact
+  olderFactCache.set(file, { mtimeMs, size, husk, title })
+  return { husk, title, lastUsedMs }
 }
 
 export function olderChatsCensus(
@@ -190,7 +186,7 @@ export function olderChatsCensus(
     const ranked: Array<{ entry: OlderChatFact; mtimeMs: number; lastUsedMs: number | null }> = []
     for (const c of candidates) {
       if (excludedSessionIds.has(c.sessionId)) continue
-      const fact = olderFactOf(projectDir, c.file, c.mtimeMs, c.size)
+      const fact = olderFactOf(projectDir, c.file, c.mtimeMs, c.size, nowMs)
       if (fact.husk || fact.title === null) continue
       total += 1
       if (entryCap > 0) {

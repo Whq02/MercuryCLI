@@ -55,7 +55,7 @@ const { daemonControlRpc } = await import('../../src/daemon/control/controlSocke
 const { setCwdState, setOriginalCwd, setProjectRoot } = await import('../../src/boot/process-state/processState.ts')
 const paths = await import('../../src/sessions/transcripts/paths.ts')
 const { lastConversationActivityMs, readSessionLastUsedMsCachedSync } = await import('../../src/sessions/transcripts/sessionIndex.ts')
-const { listProjectSessions, listRepoSessions, listSessions, sessionAtIndex, invalidateSessionListingMemo } = await import('../../src/sessions/transcripts/sessionListings.ts')
+const { lastSession, listProjectSessions, listRepoSessions, listSessions, sessionAtIndex, invalidateSessionListingMemo } = await import('../../src/sessions/transcripts/sessionListings.ts')
 const { readListedSessions } = await import('../../src/sessions/transcripts/listedSessions.ts')
 const { resumableNewestFirst, projectSessionPickerRows } = await import('../../src/screen/widgets/faces/sessionPickerModel.ts')
 const { scanBootCardFacts, parkedSessionsOf, projectIdentity, PARKED_WEEK_MS } = await import('../../src/screen/boot-face/bootCardFacts.ts')
@@ -445,8 +445,94 @@ try {
     )
     const graceSt = statSync(fGrace)
     const graceClamped = readSessionLastUsedMsCachedSync(fGrace, graceSt.mtimeMs, graceSt.size, undefined, graceNow)
+    const graceMid = readSessionLastUsedMsCachedSync(fGrace, graceSt.mtimeMs, graceSt.size, undefined, graceNow + 2_000)
     const graceExact = readSessionLastUsedMsCachedSync(fGrace, graceSt.mtimeMs, graceSt.size, undefined, graceNow + 4_000)
-    check('§3 time clamped inside 5s grace carries recheckAtMs and returns exact occurredAt once clock passes it', graceClamped === graceNow && graceExact === graceAt, `clamped=${String(graceClamped)} exact=${String(graceExact)} want=${graceAt}`)
+    check('§3 time clamped inside 5s grace advances with nowMs on cache hits and returns exact occurredAt after grace', graceClamped === graceNow && graceMid === graceNow + 2_000 && graceExact === graceAt, `clamped=${String(graceClamped)} mid=${String(graceMid)} exact=${String(graceExact)} want=${graceAt}`)
+
+    const pOlderGrace = join(SCRATCH, 'proj-older-grace')
+    mkdirSync(pOlderGrace, { recursive: true })
+    const olderGraceDir = paths.getProjectDir(pOlderGrace)
+    mkdirSync(olderGraceDir, { recursive: true })
+    const sidFast = sid('96')
+    const sidNorm = sid('97')
+    const fFast = join(olderGraceDir, `${sidFast}.jsonl`)
+    const fNorm = join(olderGraceDir, `${sidNorm}.jsonl`)
+    const ogBase = Date.now()
+    writeFileSync(
+      fFast,
+      encodeSeedTranscript(
+        [
+          makeRow(sidFast, ogBase - 400_000, { cwd: pOlderGrace, type: 'user', message: { role: 'user', content: 'fast old prompt' } }),
+          makeRow(sidFast, ogBase + 60_000, {
+            cwd: pOlderGrace,
+            type: 'assistant',
+            message: { id: 'm_fg', type: 'message', role: 'assistant', model: 'claude-sonnet-5', content: [{ type: 'text', text: 'fast reply' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
+          }),
+        ] as Parameters<typeof encodeSeedTranscript>[0],
+        sidFast,
+      ),
+    )
+    utimesSync(fFast, new Date(ogBase + 60_000), new Date(ogBase + 60_000))
+    writeFileSync(
+      fNorm,
+      encodeSeedTranscript(
+        [
+          makeRow(sidNorm, ogBase - 300_000, { cwd: pOlderGrace, type: 'user', message: { role: 'user', content: 'normal prompt' } }),
+          makeRow(sidNorm, ogBase - 15_000, {
+            cwd: pOlderGrace,
+            type: 'assistant',
+            message: { id: 'm_ng', type: 'message', role: 'assistant', model: 'claude-sonnet-5', content: [{ type: 'text', text: 'normal reply' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
+          }),
+        ] as Parameters<typeof encodeSeedTranscript>[0],
+        sidNorm,
+      ),
+    )
+    utimesSync(fNorm, new Date(ogBase - 12_000), new Date(ogBase - 12_000))
+    const olderBefore = olderChatsCensus(pOlderGrace, new Set(), ogBase, { entryCap: 2 }).entries
+    const olderAfter = olderChatsCensus(pOlderGrace, new Set(), ogBase + 60_500, { entryCap: 2 }).entries
+    check('§3 olderChatsCensus shares clock-aware expiry and recovers once future clock catches up without file writes', olderBefore[0]?.sessionId === sidNorm && olderAfter[0]?.sessionId === sidFast && olderAfter[0]?.ageMs === 500, `before=${olderBefore[0]?.sessionId?.slice(-2)} after=${olderAfter[0]?.sessionId?.slice(-2)} age=${olderAfter[0]?.ageMs}`)
+
+    const fSingle7M = join(SCRATCH, 'single-7m.jsonl')
+    writeFileSync(
+      fSingle7M,
+      encodeSeedTranscript(
+        [
+          makeRow(sid('94'), base - 90_000, { type: 'user', message: { role: 'user', content: 'early before 7m row' } }),
+          makeRow(sid('94'), base - 4_000, { type: 'attachment', attachment: { type: 'file', body: 'x'.repeat(7 * 1024 * 1024) } }),
+        ] as Parameters<typeof encodeSeedTranscript>[0],
+        sid('94'),
+      ),
+    )
+    const fMultiByte = join(SCRATCH, 'multibyte-7m.jsonl')
+    const mbHead = encodeSeedTranscript(
+      [makeRow(sid('95'), base - 90_000, { type: 'user', message: { role: 'user', content: 'early before multibyte' } })] as Parameters<typeof encodeSeedTranscript>[0],
+      sid('95'),
+    )
+    const mbLine = encodeSeedTranscript(
+      [makeRow(sid('95'), base - 4_000, { type: 'attachment', attachment: { type: 'file', body: '記'.repeat(64_000) } })] as Parameters<typeof encodeSeedTranscript>[0],
+      sid('95'),
+    ).split('\n').filter(Boolean).pop()! + '\n'
+    writeFileSync(fMultiByte, mbHead + mbLine.repeat(40))
+    const st7m = statSync(fSingle7M)
+    const stMb = statSync(fMultiByte)
+    let bytes7m = 0
+    let bytesMb = 0
+    setTranscriptReaderIoForTesting({
+      ...nodeTranscriptReaderIo,
+      readRangeSync(path, start, end) {
+        const buf = nodeTranscriptReaderIo.readRangeSync(path, start, end)
+        if (path === fSingle7M) bytes7m += buf.length
+        if (path === fMultiByte) bytesMb += buf.length
+        return buf
+      },
+    })
+    try {
+      const r7m = readSessionLastUsedMsCachedSync(fSingle7M, st7m.mtimeMs, st7m.size)
+      const rMb = readSessionLastUsedMsCachedSync(fMultiByte, stMb.mtimeMs, stMb.size)
+      check('§3 actual-byte 2 MiB budget bounds single 7 MiB row and 3-byte UTF-8 multibyte rows (<= 2.5 MiB each)', r7m === null && rMb === null && bytes7m <= 2_600_000 && bytesMb <= 2_600_000, `single=${bytes7m}/${st7m.size} multibyte=${bytesMb}/${stMb.size}`)
+    } finally {
+      setTranscriptReaderIoForTesting(nodeTranscriptReaderIo)
+    }
 
     const fHuge = join(SCRATCH, 'huge-no-tail-turn.jsonl')
     const hugeHeader = encodeSeedTranscript(
@@ -712,6 +798,102 @@ try {
     const idBurst = projectIdentity(P_BURST)
     const idOld = projectIdentity(deadOnlyDir)
     check('§4 Boot face projectIdentity ageMs reflects last use (newer project has smaller ageMs than older restamped project)', (idBurst.newestChat?.ageMs ?? Infinity) < (idOld.newestChat?.ageMs ?? 0), `burst=${idBurst.newestChat?.ageMs} old=${idOld.newestChat?.ageMs}`)
+
+    const pHusk = join(SCRATCH, 'proj-husk-align')
+    mkdirSync(pHusk, { recursive: true })
+    const huskDir = paths.getProjectDir(pHusk)
+    mkdirSync(huskDir, { recursive: true })
+    const sidAnswered = sid('701')
+    const sidHusk = sid('702')
+    const fAns = join(huskDir, `${sidAnswered}.jsonl`)
+    const fHsk = join(huskDir, `${sidHusk}.jsonl`)
+    const hT = Date.now()
+    writeFileSync(
+      fAns,
+      encodeSeedTranscript(
+        [
+          makeRow(sidAnswered, hT - 90_000, { cwd: pHusk, type: 'user', message: { role: 'user', content: 'answered prompt' } }),
+          makeRow(sidAnswered, hT - 85_000, {
+            cwd: pHusk,
+            type: 'assistant',
+            message: { id: 'm_ans', type: 'message', role: 'assistant', model: 'claude-sonnet-5', content: [{ type: 'text', text: 'real answer' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
+          }),
+        ] as Parameters<typeof encodeSeedTranscript>[0],
+        sidAnswered,
+      ),
+    )
+    utimesSync(fAns, new Date(hT - 84_000), new Date(hT - 84_000))
+    writeFileSync(
+      fHsk,
+      encodeSeedTranscript(
+        [
+          makeRow(sidHusk, hT - 5_000, { cwd: pHusk, type: 'user', message: { role: 'user', content: 'failed sign in prompt' } }),
+          makeRow(sidHusk, hT - 3_000, {
+            cwd: pHusk,
+            isApiErrorMessage: true,
+            error: 'authentication_failed',
+            type: 'assistant',
+            message: { id: 'm_hsk', type: 'message', role: 'assistant', model: 'claude-sonnet-5', content: [{ type: 'text', text: 'Please sign in' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
+          }),
+        ] as Parameters<typeof encodeSeedTranscript>[0],
+        sidHusk,
+      ),
+    )
+    utimesSync(fHsk, new Date(hT - 2_000), new Date(hT - 2_000))
+    setGround(pHusk)
+    const huskCli0 = await sessionAtIndex(0)
+    const huskBoot = scanBootCardFacts(pHusk)
+    const huskRepo = await listRepoSessions([pHusk])
+    const huskExplicit = await lastSession(sidHusk as Parameters<typeof lastSession>[0])
+    check('§4 auth-failure husk ranks below answered session across all implicit doors while explicit resume keeps husk', huskCli0?.sessionId === sidAnswered && huskBoot.cwdProject?.sessionId === sidAnswered && huskRepo[0]?.sessionId === sidAnswered && huskExplicit?.sessionId === sidHusk, `cli=${huskCli0?.sessionId?.slice(-3)} boot=${huskBoot.cwdProject?.sessionId?.slice(-3)} explicit=${huskExplicit?.sessionId?.slice(-3)}`)
+
+    const pBulk = join(SCRATCH, 'proj-bulk-51')
+    mkdirSync(pBulk, { recursive: true })
+    const bulkDir = paths.getProjectDir(pBulk)
+    mkdirSync(bulkDir, { recursive: true })
+    const bT = Date.now()
+    const sidBulkWin = sid('800')
+    const fBulkWin = join(bulkDir, `${sidBulkWin}.jsonl`)
+    writeFileSync(
+      fBulkWin,
+      encodeSeedTranscript(
+        [
+          makeRow(sidBulkWin, bT - 21_000, { cwd: pBulk, type: 'user', message: { role: 'user', content: 'bulk winner prompt' } }),
+          makeRow(sidBulkWin, bT - 20_000, {
+            cwd: pBulk,
+            type: 'assistant',
+            message: { id: 'm_bw', type: 'message', role: 'assistant', model: 'claude-sonnet-5', content: [{ type: 'text', text: 'bulk winner reply' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
+          }),
+        ] as Parameters<typeof encodeSeedTranscript>[0],
+        sidBulkWin,
+      ),
+    )
+    utimesSync(fBulkWin, new Date(bT - 19_000), new Date(bT - 19_000))
+    for (let i = 0; i < 51; i++) {
+      const idleId = sid(String(801 + i))
+      const fIdle = join(bulkDir, `${idleId}.jsonl`)
+      writeFileSync(
+        fIdle,
+        encodeSeedTranscript(
+          [
+            makeRow(idleId, bT - 240_000 - i * 1_000, { cwd: pBulk, type: 'user', message: { role: 'user', content: `bulk idle ${i}` } }),
+            makeRow(idleId, bT - 200_000 - i * 1_000, {
+              cwd: pBulk,
+              type: 'assistant',
+              message: { id: `m_bi_${i}`, type: 'message', role: 'assistant', model: 'claude-sonnet-5', content: [{ type: 'text', text: `idle reply ${i}` }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
+            }),
+          ] as Parameters<typeof encodeSeedTranscript>[0],
+          idleId,
+        ),
+      )
+      utimesSync(fIdle, new Date(bT - 8_000 + i), new Date(bT - 8_000 + i))
+    }
+    setGround(pBulk)
+    const bulkBoot = scanBootCardFacts(pBulk)
+    const bulkParked = parkedSessionsOf(pBulk, { withinMs: PARKED_WEEK_MS, cap: 10 })
+    const bulkRepo = await listRepoSessions([pBulk])
+    const bulkCli1 = await readListedSessions(await listSessions(), 1)
+    check('§4 51 restamped old chats ahead of winner (52nd by mtime): Boot, parked, /sessions page 1, and CLI --limit 1 all find winner', bulkBoot.cwdProject?.sessionId === sidBulkWin && bulkParked[0]?.sessionId === sidBulkWin && bulkRepo[0]?.sessionId === sidBulkWin && bulkCli1[0]?.sessionId === sidBulkWin, `boot=${bulkBoot.cwdProject?.sessionId?.slice(-3)} parked=${bulkParked[0]?.sessionId?.slice(-3)} repo=${bulkRepo[0]?.sessionId?.slice(-3)} cli1=${bulkCli1[0]?.sessionId?.slice(-3)}`)
   }
 } finally {
   clearTimeout(watchdog)

@@ -53,7 +53,7 @@ type ListingPlace = Partial<{
   worktreeSession: PersistedWorktreeSession | null
 }>
 export type TurnEnded = { turnId: string; status: string; trailing: UUID[] }
-type ListingRun = { endedOnError?: boolean; mode?: 'coordinator' | 'normal'; advisor?: boolean; swarm?: boolean; model?: string; turnEnd?: TurnEnded; turnOpen?: boolean }
+type ListingRun = { endedOnError?: boolean; isAuthFailureHusk?: boolean; mode?: 'coordinator' | 'normal'; advisor?: boolean; swarm?: boolean; model?: string; turnEnd?: TurnEnded; turnOpen?: boolean }
 type ListingRecords = Partial<{
   fileHistorySnapshots: FileHistorySnapshot[]
   attributionSnapshots: AttributionSnapshotEntry[]
@@ -71,6 +71,9 @@ const newestDate = (a: SessionListing, b: SessionListing): number => {
 }
 
 export function compareSessionListings(a: SessionListing, b: SessionListing): number {
+  const aHusk = a.isAuthFailureHusk === true
+  const bHusk = b.isAuthFailureHusk === true
+  if (aHusk !== bHusk) return aHusk ? 1 : -1
   return compareSessionRecency(
     { lastUsedMs: a.lastUsedAt ?? null, mtimeMs: new Date(a.modified).getTime(), createdMs: a.created ? new Date(a.created).getTime() : undefined, sessionId: a.sessionId },
     { lastUsedMs: b.lastUsedAt ?? null, mtimeMs: new Date(b.modified).getTime(), createdMs: b.created ? new Date(b.created).getTime() : undefined, sessionId: b.sessionId },
