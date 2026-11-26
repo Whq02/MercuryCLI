@@ -26,7 +26,7 @@ export function liveComposerGateOf(
   if (sel.state === 'stopped') return { ok: false, line: `stopped — nothing listens; ${keyHintLabel('⌃x ⌃x')} archives it` }
   if (sel.state === 'needs-you' || openAsk) return { ok: false, line: 'needs you · ↵↵ to answer' }
   if (credentialWall !== undefined) return { ok: false, line: credentialWall }
-  return { ok: true, placeholder: `message ${sel.title} · queued for its next turn` }
+  return { ok: true, placeholder: `message ${sel.title}` }
 }
 
 export function broadcastFaceOf(markedOnBoard: number): { placeholder: string } | null {

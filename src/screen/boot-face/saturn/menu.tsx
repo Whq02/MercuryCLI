@@ -90,6 +90,7 @@ export function saturnMenuOf({ mainModel, saturnSummaryRows, facts, nowMs, wordG
     selIdx: selected !== null ? list.selectedIndex : -1,
     statusRight,
     legend: saturnLegendOf({ busy: busy.current }),
+    noticeLine: selected === null ? saturnEmptyDetailLines(facts).filter(Boolean).join(' ') : null,
     detailOverride:
       selected !== null
         ? saturnDetailLines(selected, nowMs, (receiptsOf ?? liveReceiptsOf)(selected))

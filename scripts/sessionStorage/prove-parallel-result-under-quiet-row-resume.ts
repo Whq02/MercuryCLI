@@ -22,7 +22,7 @@ const { loadConversationForResume } = await import('../../src/sessions/resume/co
 const { loadTranscriptFile } = await import('../../src/sessions/transcripts/loading.ts')
 const { buildConversationChain, buildScreenConversation } = await import('../../src/sessions/transcripts/chain.ts')
 const { _resetTranscriptReaderForTesting } = await import('../../src/sessions/transcripts/transcriptReader.ts')
-const { createTranscriptRows } = await import('../../src/sessions/transcripts/rowGraph.ts')
+const { createTranscriptRows, transcriptRows } = await import('../../src/sessions/transcripts/rowGraph.ts')
 const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
 const { createFoldBoundaryMessage, createSystemMessage } = await import(
   '../../src/engine/message-shapes/systemMessages.ts'
@@ -337,6 +337,103 @@ try {
       chain.some(row => row.uuid === r1.uuid) && !chain.some(row => row.uuid === postResult.uuid),
       JSON.stringify(chain.map(row => row.uuid)),
     )
+  }
+
+  section('§4 timestamp ties preserve position order and quiet-row descent avoids per-node sorting')
+  {
+    const sid = randomUUID()
+    const stampRow = (row: Message, parentUuid: UUID | null): TranscriptMessage => ({
+      ...row,
+      parentUuid,
+      isSidechain: false,
+      cwd: workdir,
+      sessionId: sid,
+      version: '1.0.0',
+    }) as TranscriptMessage
+
+    const u1 = atNextTick(createUserMessage({ content: 'three parallel calls' }))
+    const msgId = 'msg_tie_pos'
+    const a1 = toolUseRow(msgId, 'toolu_t1', 'Read', { file_path: '/1' })
+    const a2 = toolUseRow(msgId, 'toolu_t2', 'Read', { file_path: '/2' })
+    const a3 = toolUseRow(msgId, 'toolu_t3', 'Read', { file_path: '/3' })
+    const q2 = atNextTick(createSystemMessage('note 2', 'info'))
+    const q3 = atNextTick(createSystemMessage('note 3', 'info'))
+    const tiedStamp = nextStamp()
+    const r2 = toolResultRow('toolu_t2', a2.uuid, 'res 2')
+    const r3 = toolResultRow('toolu_t3', a3.uuid, 'res 3')
+    r2.timestamp = tiedStamp
+    r3.timestamp = tiedStamp
+    const r1 = toolResultRow('toolu_t1', a1.uuid, 'res 1')
+    const reply = atNextTick(createAssistantMessage({ content: 'all three.' }))
+    reply.message.stop_reason = 'end_turn'
+
+    const logicalOrder: UUID[] = [u1.uuid, a1.uuid, a2.uuid, a3.uuid, q2.uuid, q3.uuid, r2.uuid, r3.uuid, r1.uuid, reply.uuid]
+    const reverseEntries: Array<[UUID, TranscriptMessage]> = [
+      [u1.uuid, stampRow(u1, null)],
+      [a1.uuid, stampRow(a1, u1.uuid)],
+      [a3.uuid, stampRow(a3, a2.uuid)],
+      [a2.uuid, stampRow(a2, a1.uuid)],
+      [q3.uuid, stampRow(q3, a3.uuid)],
+      [q2.uuid, stampRow(q2, a2.uuid)],
+      [r3.uuid, stampRow(r3, q3.uuid)],
+      [r2.uuid, stampRow(r2, q2.uuid)],
+      [r1.uuid, stampRow(r1, a1.uuid)],
+      [reply.uuid, stampRow(reply, r1.uuid)],
+    ]
+    const tieMap = createTranscriptRows(reverseEntries, logicalOrder)
+    const tieChain = buildConversationChain(tieMap, tieMap.get(reply.uuid)!)
+    const pos2 = tieChain.findIndex(row => row.uuid === r2.uuid)
+    const pos3 = tieChain.findIndex(row => row.uuid === r3.uuid)
+    check(
+      'results with identical timestamps keep their positionOf order even when child set insertion order differs',
+      pos2 >= 0 && pos3 >= 0 && pos2 < pos3,
+      `pos2=${pos2} pos3=${pos3}`,
+    )
+
+    const N = 500
+    for (const shape of ['chain', 'fanout'] as const) {
+      const pu1 = atNextTick(createUserMessage({ content: `quiet ${shape}` }))
+      const pMsgId = `msg_work_${shape}`
+      const pa1 = toolUseRow(pMsgId, `toolu_${shape}_1`, 'Crewmate', { description: 'a' })
+      const pa2 = toolUseRow(pMsgId, `toolu_${shape}_2`, 'Crewmate', { description: 'b' })
+      const rows: Array<[UUID, TranscriptMessage]> = [
+        [pu1.uuid, stampRow(pu1, null)],
+        [pa1.uuid, stampRow(pa1, pu1.uuid)],
+        [pa2.uuid, stampRow(pa2, pa1.uuid)],
+      ]
+      let parent = pa2.uuid
+      for (let i = 0; i < N; i++) {
+        const q = atNextTick(
+          createAttachmentMessage({ type: 'dead_thinking', dead: [{ messageId: pMsgId, blockIndex: i }] }),
+        )
+        rows.push([q.uuid, stampRow(q, shape === 'chain' ? parent : pa2.uuid)])
+        parent = q.uuid
+      }
+      const pr2 = toolResultRow(`toolu_${shape}_2`, pa2.uuid, 'res b')
+      const pr1 = toolResultRow(`toolu_${shape}_1`, pa1.uuid, 'res a')
+      const preply = atNextTick(createAssistantMessage({ content: 'done' }))
+      preply.message.stop_reason = 'end_turn'
+      rows.push(
+        [pr2.uuid, stampRow(pr2, parent)],
+        [pr1.uuid, stampRow(pr1, pa1.uuid)],
+        [preply.uuid, stampRow(preply, pr1.uuid)],
+      )
+      const map = createTranscriptRows(rows, rows.map(([id]) => id))
+      const graph = transcriptRows(map)
+      let orderedCalls = 0
+      const origOrdered = graph.ordered.bind(graph)
+      graph.ordered = (ids: Iterable<UUID>) => {
+        orderedCalls++
+        return origOrdered(ids)
+      }
+      const out = graph.chain(map.get(preply.uuid)!)
+      graph.ordered = origOrdered
+      check(
+        `${shape} of ${N} quiet rows restores the result without per-node ordered() calls in decorateOf`,
+        out.some(row => row.uuid === pr2.uuid) && orderedCalls <= 3 * N + 30,
+        `hasResult=${out.some(row => row.uuid === pr2.uuid)} orderedCalls=${orderedCalls} (limit ${3 * N + 30})`,
+      )
+    }
   }
 } finally {
   rmSync(home, { recursive: true, force: true })

@@ -232,9 +232,8 @@ function renderUserBody(
         />,
       )
     } else if (block.type === 'image') {
-      const imageIndex = imageCounter
-      imageCounter += 1
-      const imageId = imageIds[imageIndex] ?? imageIndex + 1
+      const imageId = imageIds[imageCounter++]
+      if (imageId === null) continue
       rendered.push(
         <UserImageMessage
           key={index}

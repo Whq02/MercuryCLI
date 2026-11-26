@@ -117,6 +117,78 @@ async function paint(node: React.ReactNode, width = 160): Promise<string> {
     screenText === '[image data sent to the model]',
     JSON.stringify(screenText),
   )
+  const bgBash = (await paint(
+    React.createElement(BashToolResultMessage, {
+      content: { stdout: '', stderr: '', backgroundTaskId: 'b1' },
+      verbose: false,
+    }),
+  )).replace(/^└\s*/, '')
+  check(
+    'Bash background row reads Running in the background with no ↓ manage hint',
+    bgBash === 'Running in the background',
+    JSON.stringify(bgBash),
+  )
+}
+
+{
+  const { renderToolResultMessage: renderCrewmateResult } = await import('../../src/tools/crewmate/rows.tsx')
+  const withPrompt = await paint(
+    renderCrewmateResult(
+      {
+        status: 'async_launched',
+        isAsync: true,
+        agentId: 'a1',
+        description: 'probe',
+        prompt: 'check',
+        outputFile: '/tmp/a1.out',
+      },
+      [],
+      { tools: [], verbose: false },
+    ),
+  )
+  check(
+    'single background crewmate row keeps expand hint and drops ↓ manage when prompt is present',
+    withPrompt.includes('Crewmate launched in the background') &&
+      withPrompt.includes('expand') &&
+      !withPrompt.includes('manage') &&
+      !withPrompt.includes('↓'),
+    JSON.stringify(withPrompt),
+  )
+  const noPrompt = (await paint(
+    renderCrewmateResult(
+      {
+        status: 'async_launched',
+        isAsync: true,
+        agentId: 'a2',
+        description: 'probe',
+        prompt: '',
+        outputFile: '/tmp/a2.out',
+      },
+      [],
+      { tools: [], verbose: false },
+    ),
+  )).replace(/^└\s*/, '')
+  check(
+    'single background crewmate row without prompt reads only Crewmate launched in the background',
+    noPrompt === 'Crewmate launched in the background',
+    JSON.stringify(noPrompt),
+  )
+}
+
+{
+  const { renderToolResultMessage: renderPowerShellResult } = await import('../../src/tools/powershell/rows.tsx')
+  const bgPs = (await paint(
+    renderPowerShellResult(
+      { stdout: '', stderr: '', backgroundTaskId: 'p1' },
+      [],
+      { verbose: false },
+    ),
+  )).replace(/^└\s*/, '')
+  check(
+    'PowerShell background row reads Running in the background with no ↓ manage hint',
+    bgPs === 'Running in the background',
+    JSON.stringify(bgPs),
+  )
 }
 
 {
