@@ -11,7 +11,7 @@ import { logError } from '../../platform/logs/errorLog.js'
 import { PROJECT_CONFIG_DIR_NAMES } from '../../platform/settings/projectConfig.js'
 import { getProjectsDir } from '../../sessions/transcripts/paths.js'
 import { historyHead } from '../../sessions/transcripts/historyParts.js'
-import { compareSessionRecency, readSessionLastUsedMsCachedSync } from '../../sessions/transcripts/sessionIndex.js'
+import { compareSessionRecency, readSessionLastUsedMsCachedSync, RECENCY_CLOCK_SLACK_MS } from '../../sessions/transcripts/sessionIndex.js'
 import { getProjectDir, validateUuid } from '../../sessions/transcripts/sessionStoragePortable.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 import { foldPathCase } from '../../platform/host-os/paths.js'
@@ -105,8 +105,8 @@ export function scanBootCardFacts(cwd: string = process.cwd(), excludeSessionId?
 
 const HUSK_WALK = 4
 const HUSK_MAX_BYTES = 64 * 1024
-const RECENCY_CLOCK_SLACK_MS = 1_000
 const RESTAMP_BURST_CAP = 32
+const RESTAMP_SCAN_GUARD = RESTAMP_BURST_CAP * 8
 function readHuskCheck(file: string, size: number): { husk: boolean; fullText?: string } {
   if (size > HUSK_MAX_BYTES) return { husk: false }
   try {
@@ -197,8 +197,8 @@ function readStoreDirFacts(store: string, skip: string | null, opts: { rankByUse
   }
   const live: Array<{ file: string; mtime: number; lastUsedMs: number | null; sessionId: string }> = []
   let bestLastUsedMs: number | null = null
-  const scanLimit = Math.min(candidates.length, RESTAMP_BURST_CAP)
-  for (let i = 0; i < scanLimit; i++) {
+  const scanLimit = Math.min(candidates.length, RESTAMP_SCAN_GUARD)
+  for (let i = 0; i < scanLimit && live.length < RESTAMP_BURST_CAP; i++) {
     const c = candidates[i]!
     if (live.length > 0 && bestLastUsedMs !== null && c.mtime + RECENCY_CLOCK_SLACK_MS < bestLastUsedMs) break
     if (live.length === 0 && i >= HUSK_WALK) break
@@ -305,8 +305,8 @@ export function parkedSessionsOf(
   }
   candidates.sort((a, b) => b.mtime - a.mtime)
   const ranked: Array<{ sessionId: string; transcriptPath: string; mtimeMs: number; lastUsedMs: number | null }> = []
-  const scanLimit = Math.min(candidates.length, cap + RESTAMP_BURST_CAP)
-  for (let i = 0; i < scanLimit; i++) {
+  const scanLimit = Math.min(candidates.length, cap + RESTAMP_SCAN_GUARD)
+  for (let i = 0; i < scanLimit && ranked.length < cap + RESTAMP_BURST_CAP; i++) {
     const c = candidates[i]!
     if (ranked.length >= cap) {
       ranked.sort(compareSessionRecency)

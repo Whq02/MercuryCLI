@@ -13,7 +13,8 @@ const P_NOCRA = join(SCRATCH, 'proj-nocrash')
 const P_ADV = join(SCRATCH, 'proj-adv')
 const P_HUNDRED = join(SCRATCH, 'proj-hundred')
 const P_BURST = join(SCRATCH, 'proj-burst')
-for (const d of [HOME, DAEMON_DIR, P_CRASH, P_NOCRA, P_ADV, P_HUNDRED, P_BURST]) mkdirSync(d, { recursive: true })
+const P_SLACK = join(SCRATCH, 'proj-slack')
+for (const d of [HOME, DAEMON_DIR, P_CRASH, P_NOCRA, P_ADV, P_HUNDRED, P_BURST, P_SLACK]) mkdirSync(d, { recursive: true })
 for (const dir of [P_CRASH, P_NOCRA]) {
   execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: dir })
   execFileSync('git', ['-c', 'user.email=proof@invalid', '-c', 'user.name=proof', 'commit', '-q', '--allow-empty', '-m', 'init'], { cwd: dir })
@@ -64,7 +65,7 @@ const { flipToSession } = await import('../../src/engine/connector/sessionFlip.t
 const { formatListingMetadata } = await import('../../src/platform/text/format.ts')
 const { sessionsListCli } = await import('../../src/commands/verbs/sessionsVerb.ts')
 const { groupListings } = await import('../../src/screen/session-chooser/SessionBrowser.tsx')
-seedFirstRun(HOME, [P_CRASH, P_NOCRA, P_ADV, P_HUNDRED, P_BURST])
+seedFirstRun(HOME, [P_CRASH, P_NOCRA, P_ADV, P_HUNDRED, P_BURST, P_SLACK])
 
 const api = await startFixtureApi([
   { kind: 'text', text: 'ALPHA_REPLY', whenBody: 'alpha prompt' },
@@ -400,16 +401,22 @@ try {
     check('§3 real turns strictly outrank metadata-only/future sessions; null-activity sessions fall back to mtime', advAll.map(l => l.sessionId).join(',') === [sidBigTail, sidReal, sidPr, sidFuture, sidFallback, sidFallbackOlder].join(','), advAll.map(l => l.sessionId?.slice(-2)).join(','))
     const hundredDir = paths.getProjectDir(P_HUNDRED)
     mkdirSync(hundredDir, { recursive: true })
-    const payloadBytes = 200
+    const bigPayload = 'x'.repeat(68_000)
     for (let i = 0; i < 40; i++) {
       const s = sid(String(100 + i))
       const f = join(hundredDir, `${s}.jsonl`)
-      const at = base - (40 - i) * 1000
+      const at = base - (40 - i) * 10_000
       writeFileSync(
         f,
         encodeSeedTranscript(
           [
-            makeRow(s, at, { cwd: P_HUNDRED, type: 'user', message: { role: 'user', content: `session ${i} ${'x'.repeat(payloadBytes)}` } }),
+            makeRow(s, at - 200, { cwd: P_HUNDRED, type: 'user', message: { role: 'user', content: `session ${i} prompt` } }),
+            makeRow(s, at - 100, { cwd: P_HUNDRED, type: 'attachment', attachment: { type: 'file', body: bigPayload } }),
+            makeRow(s, at, {
+              cwd: P_HUNDRED,
+              type: 'assistant',
+              message: { id: `mh_${i}`, type: 'message', role: 'assistant', model: 'claude-sonnet-5', content: [{ type: 'text', text: `reply ${i}` }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
+            }),
           ] as Parameters<typeof encodeSeedTranscript>[0],
           s,
         ),
@@ -475,14 +482,19 @@ try {
     })
     try {
       const hundredBoot = scanBootCardFacts(P_HUNDRED)
-      check('§3 40-session folder: scanBootCardFacts reads at most 4 files in that folder, never all 40', hundredBoot.cwdProject?.sessionId === sid('139') && readFiles.size <= 4, `filesRead=${readFiles.size}`)
+      const coldBootReads = readCount
+      readCount = 0
+      const warmBoot = scanBootCardFacts(P_HUNDRED)
+      const warmBootReads = readCount
+      check('§3 40-session >64 KiB folder: cold scanBootCardFacts reads 1 file (early stop), warm reads 0 (lastUsedCache)', hundredBoot.cwdProject?.sessionId === sid('139') && warmBoot.cwdProject?.sessionId === sid('139') && coldBootReads === 1 && warmBootReads === 0, `coldReads=${coldBootReads} warmReads=${warmBootReads} files=${readFiles.size}`)
 
       readCount = 0
       parkedSessionsOf(P_HUNDRED)
-      const warmParkedReadsBefore = readCount
+      const coldParkedReads = readCount
       readCount = 0
       parkedSessionsOf(P_HUNDRED)
-      check('§3 warm parkedSessionsOf does 0 tail reads on unchanged files', readCount === 0, `coldReads=${warmParkedReadsBefore} warmReads=${readCount}`)
+      const warmParkedReads = readCount
+      check('§3 >64 KiB parkedSessionsOf: cold reads remaining 9 of top 10 (never all 40), warm reads 0 (lastUsedCache)', coldParkedReads === 9 && warmParkedReads === 0, `coldReads=${coldParkedReads} warmReads=${warmParkedReads}`)
 
       olderChatsCensus(P_HUNDRED, new Set(), Date.now(), { entryCap: 0 })
       readCount = 0
@@ -491,6 +503,63 @@ try {
     } finally {
       setTranscriptReaderIoForTesting(nodeTranscriptReaderIo)
     }
+
+    const slackDir = paths.getProjectDir(P_SLACK)
+    mkdirSync(slackDir, { recursive: true })
+    const slackT = Date.now() - 10_000
+    const sidSlackA = sid('401')
+    const fSlackA = join(slackDir, `${sidSlackA}.jsonl`)
+    writeFileSync(
+      fSlackA,
+      encodeSeedTranscript(
+        [
+          makeRow(sidSlackA, slackT - 1_500, { cwd: P_SLACK, type: 'user', message: { role: 'user', content: 'slack older A' } }),
+        ] as Parameters<typeof encodeSeedTranscript>[0],
+        sidSlackA,
+      ),
+    )
+    utimesSync(fSlackA, new Date(slackT - 1_500), new Date(slackT - 1_500))
+
+    for (let i = 1; i <= 33; i++) {
+      const junkId = sid(String(500 + i))
+      const fJunk = join(slackDir, `${junkId}.jsonl`)
+      writeFileSync(
+        fJunk,
+        encodeSeedTranscript(
+          [
+            makeRow(junkId, slackT - 2_500, { cwd: P_SLACK, type: 'user', message: { role: 'user', content: '<command-name>/clear</command-name>' } }),
+            makeRow(junkId, slackT - 2_490, {
+              cwd: P_SLACK,
+              error: 'authentication_failed',
+              isApiErrorMessage: true,
+              type: 'assistant',
+              message: { id: `mhusk_${i}`, type: 'message', role: 'assistant', model: 'claude-sonnet-5', content: [{ type: 'text', text: 'auth failed' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 0, output_tokens: 0 } },
+            }),
+          ] as Parameters<typeof encodeSeedTranscript>[0],
+          junkId,
+        ),
+      )
+      utimesSync(fJunk, new Date(slackT - 2_500), new Date(slackT - 2_500))
+    }
+
+    const sidSlackB = sid('402')
+    const fSlackB = join(slackDir, `${sidSlackB}.jsonl`)
+    writeFileSync(
+      fSlackB,
+      encodeSeedTranscript(
+        [
+          makeRow(sidSlackB, slackT - 1_000, { cwd: P_SLACK, type: 'user', message: { role: 'user', content: 'slack newer B with 2s FAT mtime lag' } }),
+        ] as Parameters<typeof encodeSeedTranscript>[0],
+        sidSlackB,
+      ),
+    )
+    utimesSync(fSlackB, new Date(slackT - 3_000), new Date(slackT - 3_000))
+
+    setGround(P_SLACK)
+    const slackBoot = scanBootCardFacts(P_SLACK)
+    const slackListedOne = await readListedSessions(await listSessions(), 1)
+    check('§3 2s FAT/exFAT mtime lag + 33 filtered husks between A and B: Boot face early-stop slack (>= 5s) counts only kept rows and finds B', slackBoot.cwdProject?.sessionId === sidSlackB, `got ${slackBoot.cwdProject?.sessionId?.slice(-3) ?? 'null'}`)
+    check('§3 2s mtime lag + 33 filtered command-only rows between A and B: readListedSessions(lite, 1) counts only kept rows and finds B', slackListedOne[0]?.sessionId === sidSlackB, `got ${slackListedOne[0]?.sessionId?.slice(-3) ?? 'null'}`)
 
     const burstDir = paths.getProjectDir(P_BURST)
     mkdirSync(burstDir, { recursive: true })
