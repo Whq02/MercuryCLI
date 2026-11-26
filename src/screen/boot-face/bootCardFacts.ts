@@ -387,7 +387,7 @@ function scanWorkedInProjects(excludeSessionId?: string): BootProjectFact[] {
     seen.push({
       dir: sessionCwd,
       base: projectDisplayName(sessionCwd),
-      ageMs: Date.now() - e.mtime,
+      ageMs: Math.max(0, Date.now() - (e.lastUsedMs ?? e.mtime)),
       sessionId: newest !== null ? sessionIdOf(newest.file) : null,
       transcriptPath: newest !== null ? newest.file : null,
       firstChatAt: e.facts.card?.firstChatAt ?? null,
@@ -416,7 +416,7 @@ export function projectIdentity(dir: string): ProjectIdentity {
     firstChatAt: facts?.card?.firstChatAt ?? null,
     newestChat:
       newest !== null
-        ? { sessionId: sessionIdOf(newest.file), transcriptPath: newest.file, ageMs: Date.now() - newest.mtime }
+        ? { sessionId: sessionIdOf(newest.file), transcriptPath: newest.file, ageMs: Math.max(0, Date.now() - (newest.lastUsedMs ?? newest.mtime)) }
         : null,
   }
 }

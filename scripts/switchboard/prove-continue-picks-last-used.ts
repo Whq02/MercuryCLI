@@ -51,15 +51,19 @@ const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
 const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
-const { setCwdState, setOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
+const { setCwdState, setOriginalCwd, setProjectRoot } = await import('../../src/boot/process-state/processState.ts')
 const paths = await import('../../src/sessions/transcripts/paths.ts')
 const { lastConversationActivityMs } = await import('../../src/sessions/transcripts/sessionIndex.ts')
-const { listProjectSessions, listRepoSessions, listSessions, sessionAtIndex } = await import('../../src/sessions/transcripts/sessionListings.ts')
+const { listProjectSessions, listRepoSessions, listSessions, sessionAtIndex, invalidateSessionListingMemo } = await import('../../src/sessions/transcripts/sessionListings.ts')
 const { readListedSessions } = await import('../../src/sessions/transcripts/listedSessions.ts')
-const { resumableNewestFirst } = await import('../../src/screen/widgets/faces/sessionPickerModel.ts')
+const { resumableNewestFirst, projectSessionPickerRows } = await import('../../src/screen/widgets/faces/sessionPickerModel.ts')
 const { scanBootCardFacts, parkedSessionsOf, projectIdentity } = await import('../../src/screen/boot-face/bootCardFacts.ts')
 const { olderChatsCensus, buildConcourseSnapshot } = await import('../../src/screen/concourse-model/concourseSnapshot.ts')
 const { nodeTranscriptReaderIo, setTranscriptReaderIoForTesting } = await import('../../src/sessions/transcripts/transcriptReader.ts')
+const { flipToSession } = await import('../../src/engine/connector/sessionFlip.ts')
+const { formatListingMetadata } = await import('../../src/platform/text/format.ts')
+const { sessionsListCli } = await import('../../src/commands/verbs/sessionsVerb.ts')
+const { groupListings } = await import('../../src/screen/session-chooser/SessionBrowser.tsx')
 seedFirstRun(HOME, [P_CRASH, P_NOCRA, P_ADV, P_HUNDRED, P_BURST])
 
 const api = await startFixtureApi([
@@ -491,6 +495,65 @@ try {
     const burstIdx0 = await sessionAtIndex(0)
     const burstBoot = scanBootCardFacts(P_BURST)
     check('§3 6-session restamp burst (real session stands 6th by mtime): Boot face Continue Last Session picks real session and agrees with -c', burstIdx0?.sessionId === sidBurstReal && burstBoot.cwdProject?.sessionId === sidBurstReal, `cli=${burstIdx0?.sessionId?.slice(-3) ?? 'null'} boot=${burstBoot.cwdProject?.sessionId?.slice(-3) ?? 'null'}`)
+
+    console.log('\n§4 remaining surfaces (sessionFlip) and consistent age/timestamp labels')
+    setProjectRoot(P_BURST)
+    invalidateSessionListingMemo()
+    let flippedId = ''
+    await flipToSession(async id => { flippedId = id })
+    check('§4 sessionFlip (flipToSession) picks real last-used session, not a restamped dead burst session', flippedId === sidBurstReal, `got ${flippedId.slice(-3) || 'none'}`)
+
+    const burstLogs = await listProjectSessions()
+    const grouped = groupListings(burstLogs, true)
+    check('§4 SessionBrowser groupListings (/sessions & --resume) keeps real last-used session first', grouped[0]?.listing.sessionId === sidBurstReal, `got ${grouped[0]?.listing.sessionId?.slice(-3) ?? 'null'}`)
+
+    const pickerRows = projectSessionPickerRows(burstLogs, {
+      scope: 'project',
+      projectDir: P_BURST,
+      boardHomed: new Set(),
+      isCleared: () => false,
+      nowMs: burstNow + 10_000,
+    }).flat
+    const seen0 = pickerRows[0]?.row.seen ?? ''
+    const seen1 = pickerRows[1]?.row.seen ?? ''
+    check('§4 session picker seen label matches last-used order (row 0 seconds, row 1 ~10m ago — never inverted)', /seconds? ago$|s ago$/.test(seen0) && /minutes? ago$|m ago$/.test(seen1), `row0=${seen0} row1=${seen1}`)
+
+    const deadLog = burstLogs.find(l => l.sessionId === sid('201'))!
+    const deadMeta = formatListingMetadata(deadLog)
+    check('§4 /sessions formatListingMetadata labels restamped dead session by last use (~10m ago), not file mtime', /\b(?:9|10|11)\s*(?:minutes?|m) ago\b/.test(deadMeta), deadMeta)
+
+    const cliLines: string[] = []
+    await sessionsListCli({ limit: 6 }, { out: (l: string) => cliLines.push(l), err: (l: string) => cliLines.push(l), interactive: false, ask: async () => false })
+    const rowStamps = cliLines
+      .filter(l => /^00000000-d490/.test(l))
+      .map(l => Date.parse(l.split(/\s+/)[1] ?? ''))
+    check('§4 mercury sessions CLI prints ISO timestamps in descending order matching its sort order', rowStamps.length >= 2 && rowStamps[0]! > rowStamps[1]!, rowStamps.map(t => new Date(t).toISOString()).slice(0, 2).join(' vs '))
+
+    const deadOnlyDir = join(SCRATCH, 'proj-dead-only')
+    mkdirSync(deadOnlyDir, { recursive: true })
+    const deadOnlyStore = paths.getProjectDir(deadOnlyDir)
+    mkdirSync(deadOnlyStore, { recursive: true })
+    const sidDeadOnly = sid('301')
+    const fDeadOnly = join(deadOnlyStore, `${sidDeadOnly}.jsonl`)
+    writeFileSync(
+      fDeadOnly,
+      encodeSeedTranscript(
+        [
+          makeRow(sidDeadOnly, burstNow - 600_000, { cwd: deadOnlyDir, type: 'user', message: { role: 'user', content: 'old project prompt' } }),
+          makeRow(sidDeadOnly, burstNow - 599_000, {
+            cwd: deadOnlyDir,
+            type: 'assistant',
+            message: { id: 'm_do', type: 'message', role: 'assistant', model: 'claude-sonnet-5', content: [{ type: 'text', text: 'old reply' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
+          }),
+        ] as Parameters<typeof encodeSeedTranscript>[0],
+        sidDeadOnly,
+      ),
+    )
+    const laterRestamp = new Date(burstNow + 500)
+    utimesSync(fDeadOnly, laterRestamp, laterRestamp)
+    const idBurst = projectIdentity(P_BURST)
+    const idOld = projectIdentity(deadOnlyDir)
+    check('§4 Boot face projectIdentity ageMs reflects last use (newer project has smaller ageMs than older restamped project)', (idBurst.newestChat?.ageMs ?? Infinity) < (idOld.newestChat?.ageMs ?? 0), `burst=${idBurst.newestChat?.ageMs} old=${idOld.newestChat?.ageMs}`)
   }
 } finally {
   clearTimeout(watchdog)

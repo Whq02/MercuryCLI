@@ -88,7 +88,7 @@ export function projectSessionPickerRows(
 ): { flat: SessionPickerFlatRow[]; elsewhereCount: number } {
   const now = facts.nowMs !== undefined ? new Date(facts.nowMs) : undefined
   const seenOf = (log: SessionListing): string =>
-    formatRelativeTimeAgo(new Date(log.modified), { style: 'short', ...(now !== undefined ? { now } : {}) })
+    formatRelativeTimeAgo(new Date(log.lastUsedAt ?? log.modified), { style: 'short', ...(now !== undefined ? { now } : {}) })
   const titles = facts.workerTitles ?? workerTitlesBySession()
   const operatorLogs = logs.filter(l => !facts.boardHomed.has(sessionIdOfListing(l) ?? ''))
   const scoped =

@@ -124,7 +124,8 @@ export async function sessionsListCli(options: { all?: boolean; limit?: number }
     const title = (listedSessionName(log) ?? '').replace(/\s+/g, ' ').trim()
     const words = title.length > 80 ? `${sliceHeadAtGrapheme(title, 77)}…` : title
     const place = options.all === true && log.projectPath ? ` · ${log.projectPath}` : ''
-    io.out(`${id}  ${log.modified.toISOString()}  ${kib(log.fileSize ?? 0)}${live.has(id) ? '  live' : ''}  ${words}${place}`)
+    const stamp = new Date(log.lastUsedAt ?? log.modified.getTime()).toISOString()
+    io.out(`${id}  ${stamp}  ${kib(log.fileSize ?? 0)}${live.has(id) ? '  live' : ''}  ${words}${place}`)
   }
   io.out(`${cli} --resume <id> reopens one; ${cli} sessions delete <id> removes one.`)
   return 0

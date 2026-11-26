@@ -10,7 +10,7 @@ import { InteractiveRow } from '../widgets/InteractiveRow.js'
 import { useAppState } from '../app-state/AppState.js'
 import { useSessionCrew } from '../tasks/useCrewLedger.js'
 import { useFocusedWorkRoster } from '../tasks/useFocusedWork.js'
-import type { SessionListing } from '../../sessions/transcripts/transcriptEntries.js'
+import { compareSessionListings, type SessionListing } from '../../sessions/transcripts/transcriptEntries.js'
 import { saturnWakeGlanceOf, type SaturnWakeGlanceV1 } from '../../daemon/saturn/saturn.js'
 import { boardHomedSessionIds } from '../../daemon/concourse-workers/concourseWorkers.js'
 import { readSessionRowsSnapshot, subscribeConcourseDelta } from '../../daemon/concourse-workers/store.js'
@@ -314,7 +314,7 @@ function useRecentSessions(solo: boolean): SessionListing[] | null {
           .filter(l => !boardHomed.has(sessionIdOfListing(l) ?? ''))
           .filter(l => isProjectSession(l, getProjectRoot() || ''))
           .filter(l => !isSessionCleared(sessionIdOfListing(l)))
-        resumable.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime())
+        resumable.sort(compareSessionListings)
         if (!signal.aborted) {
           const rows = resumable.slice(0, 3)
           lastKnownRecent.set(recentScopeKey, rows)

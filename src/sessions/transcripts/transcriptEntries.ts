@@ -70,12 +70,13 @@ const newestDate = (a: SessionListing, b: SessionListing): number => {
   return b.date.localeCompare(a.date)
 }
 
-export function sortSessionListings(logs: SessionListing[]): SessionListing[] {
-  return logs.sort(
-    (a, b) =>
-      compareSessionRecency(
-        { lastUsedMs: a.lastUsedAt ?? null, mtimeMs: a.modified.getTime(), createdMs: a.created.getTime(), sessionId: a.sessionId },
-        { lastUsedMs: b.lastUsedAt ?? null, mtimeMs: b.modified.getTime(), createdMs: b.created.getTime(), sessionId: b.sessionId },
-      ) || newestDate(a, b),
+export function compareSessionListings(a: SessionListing, b: SessionListing): number {
+  return compareSessionRecency(
+    { lastUsedMs: a.lastUsedAt ?? null, mtimeMs: new Date(a.modified).getTime(), createdMs: a.created ? new Date(a.created).getTime() : undefined, sessionId: a.sessionId },
+    { lastUsedMs: b.lastUsedAt ?? null, mtimeMs: new Date(b.modified).getTime(), createdMs: b.created ? new Date(b.created).getTime() : undefined, sessionId: b.sessionId },
   )
+}
+
+export function sortSessionListings(logs: SessionListing[]): SessionListing[] {
+  return logs.sort((a, b) => compareSessionListings(a, b) || newestDate(a, b))
 }

@@ -7,7 +7,7 @@ import React, {
 } from 'react'
 import { useLoad, usePublish } from '../effects/effects.js'
 import { Box, Text, useInput } from '../themedRenderer.js'
-import type { SessionListing } from '../../sessions/transcripts/transcriptEntries.js'
+import { compareSessionListings, type SessionListing } from '../../sessions/transcripts/transcriptEntries.js'
 import { getListingDisplayTitle } from '../../platform/logs/errorLog.js'
 import { SessionPreview } from './SessionPreview.js'
 import { useKeybinding } from '../keys/useKeybinding.js'
@@ -143,7 +143,7 @@ function matchesQuery(log: SessionListing, needle: string): boolean {
   )
 }
 
-function groupListings(logs: SessionListing[], renaming: boolean): ListingGroup[] {
+export function groupListings(logs: SessionListing[], renaming: boolean): ListingGroup[] {
   if (!renaming) return logs.map((listing): ListingGroup => ({ listing, children: [] }))
   const groups: ListingGroup[] = []
   const bySession = new Map<string, SessionListing[]>()
@@ -157,10 +157,10 @@ function groupListings(logs: SessionListing[], renaming: boolean): ListingGroup[
     else bySession.set(listing.sessionId, [listing])
   }
   for (const bucket of bySession.values()) {
-    const [newest, ...rest] = [...bucket].sort((x, y) => y.modified.getTime() - x.modified.getTime())
+    const [newest, ...rest] = [...bucket].sort(compareSessionListings)
     if (newest !== undefined) groups.push({ listing: newest, children: rest })
   }
-  return groups.sort((x, y) => y.listing.modified.getTime() - x.listing.modified.getTime())
+  return groups.sort((x, y) => compareSessionListings(x.listing, y.listing))
 }
 
 function tagTabsOf(logs: SessionListing[]): string[] {
