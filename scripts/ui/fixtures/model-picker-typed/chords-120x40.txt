@@ -12,17 +12,17 @@ files · project         │ │   Fable 5.1           claude-fable-5-1         
                         │ │   Sonnet 5.5          claude-sonnet-5-5                      1M ctx                      │ │
 vitals                  │ │   Sonnet 5            claude-sonnet-5                        1M ctx                      │ │
   spend —               │ │   Sonnet 4.6          claude-sonnet-4-6                      1M ctx                      │ │
-  ctx — · —             │ │ ╭──────────────────────────────────────────────────────────────────────────────────────╮ │ │
-  health — run /health  │ │ │ Opus 5.5            claude-opus-5-5           current      1M ctx                    │ │ │
-                        │ │ ╰──────────────────────────────────────────────────────────────────────────────────────╯ │ │
-                        │ │   Opus 5              claude-opus-5                          1M ctx                      │ │
+  ctx — · —             │ │ ❯ Opus 5.5            claude-opus-5-5           current      1M ctx                      │ │
+  health — run /health  │ │   Opus 5              claude-opus-5                          1M ctx                      │ │
                         │ │   Opus 4.8            claude-opus-4-8                        1M ctx                      │ │
                         │ │   Opus 4.7            claude-opus-4-7                        1M ctx                      │ │
                         │ │   Opus 4.6            claude-opus-4-6                        1M ctx                      │ │
                         │ │   Haiku 5.5           claude-haiku-5-5                       1M ctx                      │ │
                         │ │   Haiku 4.5           claude-haiku-4-5-20251001              200k ctx                    │ │
                         │ │ ▾ OPENAI · connect OpenAI to browse its models — /logins connects                        │ │
-                        │ │   ↓ 78 more                                                                              │ │
+                        │ │   GPT — sign in                                                                          │ │
+                        │ │ ▾ OPENROUTER · connect OpenRouter to browse its models — /logins connects                │ │
+                        │ │   ↓ 76 more                                                                              │ │
                         │ │ ▾ LOCAL MODELS · no local server · /localsetup sets one up                               │ │
                         │ │                                                                                          │ │
                         │ │ context —                                                                                │ │

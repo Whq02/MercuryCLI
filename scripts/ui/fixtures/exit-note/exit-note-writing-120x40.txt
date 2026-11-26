@@ -1,14 +1,14 @@
   lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
-workbench               │╭────────────────────────────────────────────────────────────────────────────────────────────╮│
-  say something settled ││  ▄▄▄▄▄▄▄▄▄                                                                                 ││
-                        ││  ▄▄▄▄▄▄▄▄▄                                                                                 ││
-next                    ││  ▀▀▄▀▀▀▄▀▀                                                                                 ││
-  /health               │╰────────────────────────────────────────────────────────────────────────────────────────────╯│
+workbench               │   ▄▄▄▄▄▄▄▄▄                                                                                  │
+  say something settled │   ▄▄▄▄▄▄▄▄▄                                                                                  │
+                        │   ▀▀▄▀▀▀▄▀▀                                                                                  │
+next                    │ ──────────────────────────────────────────────────────────────────────────────────────────── │
+  /health               │                                                                                              │
   /memory               │                                                                                              │
-  /mission              │                                                                                              │
-                        │ hh:mm:ss [sam] ❯ say something settled                                                       │
-files · flux-arena-cwd-…│                                                                                              │
-  ↵ browse              │ hh:mm:ss [Mercury] Settled and quiet.                                                        │
+  /mission              │ hh:mm:ss [sam] ❯ say something settled                                                       │
+                        │                                                                                              │
+files · flux-arena-cwd-…│ hh:mm:ss [Mercury] Settled and quiet.                                                        │
+  ↵ browse              │                                                                                              │
                         │                                                                                              │
 vitals                  │                                                                                              │
   spend $0.00           │                                                                                              │

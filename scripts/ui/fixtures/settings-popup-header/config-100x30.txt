@@ -1,7 +1,7 @@
   lanes             ╭──────────────────────────────────────────────────────────────────────────────╮
 workbench           │                                                                              │
   no prompts yet    │ ╭──────────────────────────────────────────────────────────────────────────╮ │
-                    │ │ ▖▟▆▙▗ Mercury · config                                                   │ │
+                    │ │ Mercury · config                                                         │ │
 next                │ │ orchard · 84 settings · 1 set by you                                     │ │
   /health           │ │                                                                          │ │
                     │ │ / Search settings…                                                       │ │

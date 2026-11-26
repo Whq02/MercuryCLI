@@ -1,7 +1,7 @@
   lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
 workbench               │                                                                                              │
   no prompts yet        │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
-                        │ │ ▖▟▆▙▗ Mercury · config                                                                   │ │
+                        │ │ Mercury · config                                                                         │ │
 next                    │ │ orchard · 84 settings · 1 set by you                                                     │ │
   /health               │ │                                                                                          │ │
   /memory               │ │ / Search settings…                                                                       │ │
@@ -20,7 +20,7 @@ vitals                  │ │   Tips                              on          
                         │ │   JEV                               off · official                                       │ │
                         │ │   Instruction profile               auto                                                 │ │
                         │ │   Shell engine                      system                                               │ │
-                        │ │   Patience with a quiet model       normal · idle 6m (quiet 15m) · fallback 15m · retr…  │ │
+                        │ │   Stream idle patience              normal · idle 6m (silent 15m) · fallback 15m · ret…  │ │
                         │ │   OpenRouter routing policy         n/a — applies to OpenRouter models (Anthropic is a…  │ │
                         │ │   Shell engine sessions             8 · the conversation + 7 crewmates                   │ │
                         │ │   Thinking                          n/a — Opus 5.5 keeps thinking on                     │ │

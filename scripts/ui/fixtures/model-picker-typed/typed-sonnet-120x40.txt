@@ -6,18 +6,18 @@ next                    │ │ Mercury · model · 3 of 24 match               
   /health               │ │ / sonnet                                                                                 │ │
   /memory               │ │                                                                                          │ │
   /mission              │ │ ▾ ANTHROPIC · API key · …-key · 3 of 13                                                  │ │
-                        │ │ ╭──────────────────────────────────────────────────────────────────────────────────────╮ │ │
-files · project         │ │ │ Sonnet 5.5          claude-sonnet-5-5                      1M ctx                    │ │ │
-  ↵ browse              │ │ ╰──────────────────────────────────────────────────────────────────────────────────────╯ │ │
-                        │ │   Sonnet 5            claude-sonnet-5                        1M ctx                      │ │
-vitals                  │ │   Sonnet 4.6          claude-sonnet-4-6                      1M ctx                      │ │
-  spend —               │ │                                                                                          │ │
-  ctx — · —             │ │ context —                                                                                │ │
-  health — run /health  │ │ effort  low medium [high] xhigh max · ctrl+e changes it                                  │ │
-                        │ │ ↑↓ select · type to search · ↵ switch · tab back to the rows · esc clears the search     │ │
-                        │ │ pgup/pgdn page                                                                           │ │
+                        │ │ ❯ Sonnet 5.5          claude-sonnet-5-5                      1M ctx                      │ │
+files · project         │ │   Sonnet 5            claude-sonnet-5                        1M ctx                      │ │
+  ↵ browse              │ │   Sonnet 4.6          claude-sonnet-4-6                      1M ctx                      │ │
+                        │ │                                                                                          │ │
+vitals                  │ │ context —                                                                                │ │
+  spend —               │ │ effort  low medium [high] xhigh max · ctrl+e changes it                                  │ │
+  ctx — · —             │ │ ↑↓ select · type to search · ↵ switch · tab back to the rows · esc clears the search     │ │
+  health — run /health  │ │ pgup/pgdn page                                                                           │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
                         │                                                                                              │
+                        │ transcript row 45 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
+                        │ transcript row 46 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
                         │ transcript row 47 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
                         │ transcript row 48 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
                         │ transcript row 49 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
