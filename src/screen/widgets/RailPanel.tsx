@@ -16,6 +16,7 @@ export function RailPanel({
   glyph,
   label,
   count,
+  countSep = ' · ',
   width,
   children,
   headerAction,
@@ -23,6 +24,7 @@ export function RailPanel({
   glyph: string
   label: string
   count?: string
+  countSep?: string
   width: number
   children?: React.ReactNode
   headerAction?: { id: string; run: () => void }
@@ -35,7 +37,7 @@ export function RailPanel({
       <Text color={hover ? 'infoShimmer' : headerHue} bold>
         {label}
       </Text>
-      {count ? <Text color={tokens.textMuted}>{` · ${count}`}</Text> : null}
+      {count ? <Text color={tokens.textMuted}>{`${countSep}${count}`}</Text> : null}
     </Text>
   )
   return (

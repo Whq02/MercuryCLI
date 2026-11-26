@@ -59,6 +59,7 @@ export type LanesSectionSpec = {
   glyph: string
   label: string
   count?: string
+  countSep?: string
   open?: string | 'files'
   rows: LanesRowSpec[]
   marginAlways?: boolean
