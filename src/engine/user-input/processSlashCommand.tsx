@@ -128,6 +128,11 @@ export function unavailableCommandLine(real: Command, args = ''): string {
     if (real.type === 'local-jsx' || commandSeat(real) === 'screen') {
       const verbs = real.type === 'local-jsx' ? real.headlessVerbs : undefined
       if (verbs === undefined || verbs.length === 0) {
+        const hint = real.argumentHint?.trim() ?? ''
+        if (runsPromptWithArgs(real, hint || 'words')) {
+          const tail = hint !== '' ? `: /${name} ${hint}` : ''
+          return `The /${name} command is an interactive surface — it needs the foreground session; with words it runs here too${tail}.`
+        }
         return `The /${name} command is an interactive surface — it needs the foreground session and has no headless form.`
       }
       const typed = args.trim().split(/\s+/)[0] ?? ''
