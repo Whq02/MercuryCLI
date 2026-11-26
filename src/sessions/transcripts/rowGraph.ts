@@ -11,8 +11,8 @@ const snipped = (row: TranscriptMessage): UUID[] | undefined => (row as { snipMe
 
 export const sideNote = (row: { type: string; subtype?: string } | null | undefined): boolean => row?.type === 'system' && row.subtype !== 'local_command' && row.subtype?.endsWith('_boundary') !== true
 
-export function keptLine<Id>(listed: readonly Id[], parentOf: (id: Id) => Id | null | undefined, notesUnder: (id: Id) => Iterable<Id>): Id[] {
-  const named = new Set(listed)
+export function keptLine<Id>(listed: readonly Id[], parentOf: (id: Id) => Id | null | undefined, notesUnder: (id: Id) => Iterable<Id>, isNote: (id: Id) => boolean): Id[] {
+  const named = new Set(listed.filter((id, at) => at === 0 || at === listed.length - 1 || !isNote(id)))
   const under = new Map<Id, Id[]>()
   const seen = new Set<Id>()
   let loose: Id[] = []
@@ -25,22 +25,26 @@ export function keptLine<Id>(listed: readonly Id[], parentOf: (id: Id) => Id | n
     whole = id === listed[0]
   }
   if (!whole) under.clear()
+  const placed = new Set([...under.values()].flat())
   const reached = new Set<Id>()
-  for (const row of listed.slice(0, -1)) {
+  const owners = listed.slice(0, -1)
+  for (const row of [...owners.filter(id => named.has(id)), ...owners.filter(id => !named.has(id))]) {
+    if (placed.has(row)) continue
     const group = under.get(row) ?? []
-    const line = new Set(group)
     const open = [row]
     for (const from of open) {
       for (const note of notesUnder(from)) {
         if (named.has(note) || reached.has(note)) continue
         reached.add(note)
         open.push(note)
-        if (!line.has(note)) group.push(note)
+        if (placed.has(note)) continue
+        placed.add(note)
+        group.push(note)
       }
     }
     under.set(row, group)
   }
-  return listed.flatMap(row => [row, ...(under.get(row) ?? [])])
+  return listed.flatMap(row => placed.has(row) ? [] : [row, ...(under.get(row) ?? [])])
 }
 
 class TranscriptRows {
@@ -178,7 +182,7 @@ class TranscriptRows {
       const folds = this.boundariesOldestFirst()
       const fold = folds.findIndex(row => row.compactMetadata?.preservedSegment === segment)
       const floor = fold < 1 ? -1 : this.positionOf(folds[fold - 1]!.uuid), end = fold < 0 ? Infinity : this.positionOf(folds[fold]!.uuid)
-      const line = keptLine(ids, id => this.get(id)?.parentUuid, id => [...this.children.get(id) ?? []].filter(note => this.positionOf(note) > floor && this.positionOf(note) < end && sideNote(this.get(note))))
+      const line = keptLine(ids, id => this.get(id)?.parentUuid, id => [...this.children.get(id) ?? []].filter(note => this.positionOf(note) > floor && this.positionOf(note) < end && sideNote(this.get(note))), id => sideNote(this.get(id)))
       const kept = new Set(line)
       return kept.size === line.length && !kept.has(segment.anchorUuid) ? kept : null
     }

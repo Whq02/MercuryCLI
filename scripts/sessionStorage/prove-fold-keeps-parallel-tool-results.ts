@@ -14,7 +14,7 @@ Object.assign(process.env, { HOME: home, MERCURY_CONFIG_DIR: home, MERCURY_TMPDI
 delete process.env.NODE_ENV
 delete process.env.MERCURY_SKIP_PROMPT_HISTORY
 process.chdir(home)
-const api = await startFixtureApi(Array.from({ length: 24 }, () => ({ kind: 'text' as const, text: 'The earlier work is complete. Continue with the saved tool reports and the current request.' })))
+const api = await startFixtureApi(Array.from({ length: 32 }, () => ({ kind: 'text' as const, text: 'The earlier work is complete. Continue with the saved tool reports and the current request.' })))
 process.env.ANTHROPIC_BASE_URL = api.url
 const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
@@ -35,6 +35,7 @@ const { listCrewmateTranscriptPaths } = await import('../../src/sessions/transcr
 const { historyHead, historyLines, historyPartDir } = await import('../../src/sessions/transcripts/historyParts.ts')
 const { pairConversationMessages } = await import('../../src/engine/message-shapes/resultPairing.ts')
 const { planApiConversation } = await import('../../src/engine/messages/apiPlan.ts')
+const { electConversationEnd } = await import('../../src/sessions/transcripts/conversationEnd.ts')
 const { SNAPSHOT_SCHEMA, snapshotPathFor, tryLoadResumeSnapshot } = await import('../../src/sessions/transcripts/resumeSnapshot.ts')
 const { buildPostFoldMessages, foldConversation, partialFoldConversation, annotateBoundaryWithPreservedSegment } = await import('../../src/engine/compaction/foldConversation.ts')
 const { contextBuilder } = await import('../../src/engine/rows/turn/context.ts')
@@ -284,6 +285,80 @@ try {
     check(`${scene}, a flattened copy folded again`, 'the copy stands unsealed with both earlier boundaries in it', historyHead(file).before === 0 && raw(file).filter(r => r.recordId === result.boundaryMarker.uuid || r.recordId === cut.boundaryMarker.uuid).length === 2)
     const third = await fold(again, { at: again.findIndex(row => row.uuid === a.row.uuid), direction: 'up_to' })
     await verify(`${scene}, a flattened copy folded again`, sid, [...line, ...cleanForTranscript(again.slice(again.findIndex(m => m.uuid === end.uuid) + 1))], [...gone, cut.boundaryMarker, ...cut.summaryMessages], third)
+  }
+  for (const scene of ['listed notes of an earlier kept turn', 'listed notes beside a typed command']) {
+    const sid = start(), group = `msg_${sid}`, file = getTranscriptPath()
+    const a = call('A', group)
+    const before = [user('Earlier question.'), reply('Earlier material. '.repeat(1400)), user('Second question.'), reply('Second answer.'), user('Third question.'), reply('Third answer.')]
+    const ask = user('Run the slow check.'), end = reply('The check ran.'), then = user('And a slow answer.'), done = reply('The slow answer.')
+    const joined = crew('joined'), post = crew('@main BOARD-POST-IN-AN-EARLIER-TURN?'), typed = createCommandInputMessage('/swarm on')
+    const held: Message[] = [...before]
+    const runner = async (row: Message) => { held.push(row); await recordTranscript([row], undefined, held) }
+    await recordTranscript([...before, ask, a.row])
+    await runner(joined)
+    await runner(post)
+    if (scene !== 'listed notes of an earlier kept turn') await runner(typed)
+    await recordTranscript([a.result])
+    await recordTranscript([end])
+    await recordTranscript([then, done])
+    await flushSessionStorage()
+    held.push(ask, a.row, a.result, end, then, done)
+    const tail = held.slice(3)
+    const written = [...before.slice(3), ask, a.row, joined, post, ...tail.filter(row => row === typed), a.result, end, then, done]
+    const line = scene === 'listed notes of an earlier kept turn' ? written : [...before.slice(3), typed, ask, a.row, joined, post, a.result, end, then, done]
+    _resetTranscriptReaderForTesting()
+    const shown = ids(buildScreenConversation((await loadTranscriptFile(file, { throwOnError: true })).messages))
+    check(scene, 'before the fold the screen reads the turn as it was written, the notes under its call', isDeepStrictEqual(shown.filter(id => written.some(row => row.uuid === id)), ids(written)))
+    const result = await fold(held)
+    check(scene, 'the list of the actual fold names the notes, ahead of the prompt of their turn', isDeepStrictEqual(ids(result.messagesToKeep ?? []), ids(tail)) && tail.indexOf(joined) < tail.indexOf(ask))
+    const next = await verify(scene, sid, line, before.slice(0, 3), result)
+    _resetTranscriptReaderForTesting()
+    const elected = electConversationEnd((await loadTranscriptFile(file, { throwOnError: true })).messages)?.rows ?? []
+    check(scene, 'the elected line holds the kept rows in that same order', isDeepStrictEqual(ids(elected).filter(id => line.some(row => row.uuid === id)), ids(line)))
+    _resetTranscriptReaderForTesting()
+    const resumed = (await loadConversationForResume(sid, file))?.messages ?? []
+    const sent = ids(planApiConversation(resumed).selected)
+    check(scene, 'the request a resume plans holds the rows a request takes in the order of the list, and no note', isDeepStrictEqual(sent.filter(id => tail.some(row => row.uuid === id)), ids(tail.filter(row => row !== joined && row !== post))))
+    const cut = await fold(next, { at: next.findIndex(row => row.uuid === tail[0]!.uuid), direction: 'up_to' })
+    await verify(`${scene}, refold`, sid, [...line, ...cleanForTranscript(next.slice(next.findIndex(m => m.uuid === done.uuid) + 1))], [...before.slice(0, 3), result.boundaryMarker, ...result.summaryMessages], cut)
+  }
+  {
+    const sid = start(), a = call('A', `msg_${sid}`)
+    const asked = user('Run the slow check.'), end = reply('The check ran.'), last = crew('joined')
+    const held: Message[] = [asked]
+    await recordTranscript([asked, a.row])
+    held.push(last)
+    await recordTranscript([last], undefined, held)
+    await recordTranscript([a.result])
+    await recordTranscript([end])
+    await flushSessionStorage()
+    const boundary = createFoldBoundaryMessage('manual', 100, end.uuid), summary = createUserMessage({ content: 'Earlier work.', isCompactSummary: true })
+    const kept = [a.row, a.result, end, last]
+    annotateBoundaryWithPreservedSegment(boundary, summary.uuid, kept)
+    await verify('list ends on a note written earlier', sid, kept, [asked], { boundaryMarker: boundary, summaryMessages: [summary], messagesToKeep: kept, hookResults: [], attachments: [], preFoldTokenCount: 100, postFoldTokenCount: 10 })
+  }
+  {
+    const scene = 'a listed note beside the line'
+    const sid = start(), group = `msg_${sid}`, file = getTranscriptPath()
+    const a = call('A', group), b = call('B', group)
+    const before = [user('Earlier question.'), reply('Earlier material. '.repeat(1400)), user('Second question.'), reply('Second answer.'), user('Third question.'), reply('Third answer.')]
+    const ask = user('Launch both.'), end = reply('Both reports arrived.'), joined = crew('joined'), echo = createSystemMessage('Under the listed note.', 'info')
+    const held: Message[] = [...before]
+    await recordTranscript([...before, ask, a.row, b.row])
+    held.push(joined)
+    await recordTranscript([joined], undefined, held)
+    await recordTranscript([a.result])
+    await recordTranscript([b.result])
+    await flushSessionStorage()
+    beside(file, sid, echo, joined)
+    await recordTranscript([end])
+    await flushSessionStorage()
+    held.push(ask, a.row, b.row, a.result, b.result, end)
+    const parents = new Map(raw(file).map(r => [r.recordId, r.parentId]))
+    check(scene, 'the writer hung the note beside the line under the second call, and a note under it', parents.get(joined.uuid) === b.row.uuid && parents.get(echo.uuid) === joined.uuid && parents.get(b.result.uuid) === b.row.uuid && parents.get(end.uuid) === b.result.uuid)
+    const result = await fold(held)
+    check(scene, 'the list of the actual fold names the first note ahead of the prompt and not the note under it', isDeepStrictEqual(ids(result.messagesToKeep ?? []), ids(held.slice(3))))
+    await verify(scene, sid, [...before.slice(3), ask, a.row, b.row, joined, echo, a.result, b.result, end], before.slice(0, 3), result)
   }
   for (const scene of ['side rows, results in order', 'side rows, results reversed']) {
     const sid = start(), group = `msg_${sid}`, file = getTranscriptPath()
