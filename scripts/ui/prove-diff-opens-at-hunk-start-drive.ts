@@ -65,7 +65,7 @@ const firstLinesOf = (fn: string, local: string, sign: string): RegExp[] => [
 const BIG = firstLinesOf('f', 'y', '+')
 const NEXT = firstLinesOf('g', 'z', '-')
 const startsAt = (rows: string[], lines: RegExp[]): boolean => lines.every(line => rows.some(row => line.test(row)))
-const RAILS = ['workbench', 'vitals']
+const RAILS = ['workbench', 'usage']
 const WHERE = 'line 1 of the file and its change are not on screen, so the diff stands further down its hunk than its start. The /diff body is the scroll box of CommandCenter in src/screen/widgets/components.tsx: the pop-up passes bodyRestsAtTop (src/screen/diff/diff-dialog/views.tsx), DiffDialog sends the body to its top for each file and hunk it shows (src/screen/diff/DiffDialog.tsx), and a box that rests at its top stops counting as at its end when it is sent somewhere (scrollTo in src/screen/renderer/elements/ScrollBox.tsx)'
 
 console.log('prove-diff-opens-at-hunk-start-drive: the built product over a scratch repo whose big.py and next.py each have one long hunk (300 functions changed); /diff, ↵ on big.py, end, ] to next.py, end, ← to the list, ↑, ↵ on big.py: every opening must show the hunk from its first lines')
