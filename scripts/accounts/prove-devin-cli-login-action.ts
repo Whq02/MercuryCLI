@@ -102,13 +102,16 @@ const { resolveProviderUsability } = await import('../../src/models/roads/provid
 const { deriveFamilySlotGroups } = await import('../../src/models/roads/accountSlots.js')
 const { SIGN_IN_WORDS } = await import('../../src/boot/first-run/Onboarding.js')
 const { providerAuthList } = await import('../../src/commands/verbs/providerAuth.js')
-const { runDevinCliAction } = await import('../../src/screen/boot-face/logins/devinCliAction.js')
+const { devinCliMissingOutcome, runDevinCliAction } = await import('../../src/screen/boot-face/logins/devinCliAction.js')
 const { devinCliInstallHintWords } = await import('../../src/platform/host-os/words.js')
 
 async function send(m: Mounted, data: string): Promise<void> {
   m.push(data)
   await painted(60)
 }
+
+const installLineIn = (frame: string): boolean => frame.includes('cli.devin.ai/install.sh') || frame.includes('static.devin.ai/cli/setup.ps1')
+const wordsOf = (frame: string): string => frame.split('\n').map(row => row.replace(/[│╭╮╰╯─]/g, ' ').replace(/\s+/g, ' ').trim()).filter(row => /Devin|devin|install/.test(row)).join(' / ')
 
 try {
   console.log('§1 — PROVIDER COUNT & NEGATIVE IDENTITY INVARIANTS')
@@ -130,23 +133,56 @@ try {
     let closedCount = 0
     let signedInCount = 0
     const facts = collectLoginsScreenFacts()
-    const el = h(AppStateProvider, {
-      children: h(ThemeProvider, {
-        children: h(KeybindingSetup, {
-          children: h(
-            Box,
-            { width: 120, height: 42, flexDirection: 'column' },
-            h(BootLoginsScreen, {
-              facts,
-              fullScene: { columns: 120, rows: 42 },
-              onClose: () => { closedCount++ },
-              onSignedIn: () => { signedInCount++ },
-            }),
-          ),
+    const bootLogins = (columns = 120, rows = 42): React.ReactElement =>
+      h(AppStateProvider, {
+        children: h(ThemeProvider, {
+          children: h(KeybindingSetup, {
+            children: h(
+              Box,
+              { width: columns, height: rows, flexDirection: 'column' },
+              h(BootLoginsScreen, {
+                facts,
+                fullScene: { columns, rows },
+                onClose: () => { closedCount++ },
+                onSignedIn: () => { signedInCount++ },
+              }),
+            ),
+          }),
         }),
-      }),
-    })
-    const m = await mountOffscreen(el, 120, 42)
+      })
+
+    process.env.PATH = withoutStubPath
+    const bare = await mountOffscreen(bootLogins(), 120, 42)
+    await waitFor(() => bare.screen().includes('Families'), 1500)
+    await send(bare, '\x1b[F')
+    const paneSays = await waitFor(() => bare.screen().includes('is not installed'), 1500)
+    check(
+      'with no devin on PATH the focused Devin CLI pane says it is not installed, gives the install line and offers no devin auth action',
+      paneSays && installLineIn(bare.screen()) && !bare.screen().includes('Press Enter to run devin auth') && bare.screen().includes('/crew attach devin') && readInvocations().length === 0,
+      wordsOf(bare.screen()),
+    )
+    await send(bare, KEY.enter)
+    const told = await waitFor(() => bare.screen().includes('returns to the roster'), 1500)
+    check(
+      'Enter on that row opens no action menu: the not-installed line and the way back, zero child runs',
+      told && bare.screen().includes('is not installed') && installLineIn(bare.screen()) && !bare.screen().includes('devin auth status') && readInvocations().length === 0,
+      wordsOf(bare.screen()),
+    )
+    await send(bare, KEY.enter)
+    await waitFor(() => !bare.screen().includes('returns to the roster'), 1500)
+    process.env.PATH = withStubPath
+    await send(bare, KEY.enter)
+    const menuOnceInstalled = await waitFor(() => bare.screen().includes('devin auth login') && bare.screen().includes('devin auth status') && bare.screen().includes('devin auth logout'), 1500)
+    await send(bare, KEY.esc)
+    const paneOnceInstalled = await waitFor(() => bare.screen().includes('Press Enter to run devin auth'), 1500)
+    check(
+      'once devin is on PATH the next Enter opens the three actions and the pane offers them again',
+      menuOnceInstalled && paneOnceInstalled && !bare.screen().includes('is not installed') && closedCount === 0 && signedInCount === 0 && readInvocations().length === 0,
+      wordsOf(bare.screen()),
+    )
+    bare.unmount()
+
+    const m = await mountOffscreen(bootLogins(), 120, 42)
     const rosterUp = await waitFor(() => m.screen().includes('Families') && m.screen().includes('22'), 1500)
     check('Boot Logins keeps Families at 22 while zero child runs on mount', rosterUp && readInvocations().length === 0, `invocations=${readInvocations().length}`)
 
@@ -231,6 +267,19 @@ try {
     const popupUp = await waitFor(() => m.screen().includes('Devin CLI (external agent)'), 3000)
     check('/logins devin opens popup focused on Devin CLI (external agent) with zero child runs', popupUp && m.screen().includes('❯ Devin CLI (external agent)') && readInvocations().length === 0)
 
+    process.env.PATH = withoutStubPath
+    await send(m, KEY.enter)
+    const cardSays = await waitFor(() => m.screen().includes('is not installed'), 2000)
+    check(
+      '/logins with no devin on PATH: Enter on the row lists no devin auth action, only the not-installed line and the install line',
+      cardSays && installLineIn(m.screen()) && !m.screen().includes('devin auth status') && readInvocations().length === 0,
+      wordsOf(m.screen()),
+    )
+    await send(m, KEY.enter)
+    const rosterAgain = await waitFor(() => m.screen().includes('❯ Devin CLI (external agent)') && !m.screen().includes('is not installed'), 1500)
+    check('/logins: Enter on the not-installed line returns to the family list', rosterAgain && popupStore.isSettingsPopupOpen() && readInvocations().length === 0, wordsOf(m.screen()))
+    process.env.PATH = withStubPath
+
     await send(m, KEY.enter)
     const cardUp = await waitFor(() => m.screen().includes('devin auth login') && m.screen().includes('devin auth status') && m.screen().includes('devin auth logout'), 2000)
     check('/logins Devin CLI card lists all three distinct actions with zero child runs', cardUp && readInvocations().length === 0)
@@ -250,9 +299,7 @@ try {
     process.env.PATH = withStubPath
 
     await send(m, KEY.enter)
-    await waitFor(() => m.screen().includes('devin auth login'), 1500)
-    await send(m, KEY.esc)
-    await waitFor(() => m.screen().includes('OpenAI — ChatGPT'), 1500)
+    await waitFor(() => m.screen().includes('OpenAI — ChatGPT') && !m.screen().includes('is not installed'), 1500)
     await send(m, KEY.esc)
     const closed = await waitFor(() => !popupStore.isSettingsPopupOpen(), 1500)
     check('closing /logins after external CLI action leaves Mercury provider credentials and signed history untouched', closed && keyChanges === 0 && currentMessages === signedHistory && readInvocations().length === 0)
@@ -265,6 +312,14 @@ try {
     clearInvocations()
     const nonTtyIn = { isTTY: false } as NodeJS.ReadStream
     const nonTtyOut = { isTTY: false } as NodeJS.WriteStream
+    const emptyWorld = { platform: process.platform, path: withoutStubPath }
+    const said = [devinCliMissingOutcome(emptyWorld)?.receipt]
+    for (const action of ['login', 'status', 'logout'] as const) said.push((await runDevinCliAction(action, { world: emptyWorld })).receipt)
+    check(
+      'the pane, sign-in, status and sign-out say one not-installed sentence with no devin on PATH, and the lookup answers nothing when devin is there',
+      said[0] !== undefined && new Set(said).size === 1 && said[0].endsWith(devinCliInstallHintWords(process.platform)) && devinCliMissingOutcome({ platform: process.platform, path: withStubPath }) === null && readInvocations().length === 0,
+      JSON.stringify(said),
+    )
     for (const action of ['login', 'status', 'logout'] as const) {
       const refused = await runDevinCliAction(action, {
         world: { platform: process.platform, path: withStubPath },

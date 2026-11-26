@@ -12,6 +12,7 @@ export function loginsMenuModelOf(
     statusNote?: string | null;
     glowWord?: BootMenuData['glowWord'];
     notice?: string | null;
+    devinCliMissing?: string | null;
     flow?: LoginsFlowPaneV1;
   },
 ): BootMenuData {
@@ -65,7 +66,7 @@ export function loginsMenuModelOf(
     statusRight: opts.statusNote ?? loginsStatusLine(facts),
     legend: loginsLegendOf(selected !== undefined && selected.kind === 'provider' && loginsSwitchableFamily(selected.arm, facts) !== null),
     moreHint: '… (the trail continues — taller terminal)',
-    ...(selected !== undefined ? { detailOverride: loginsRosterDetailLines(selected, facts) } : {}),
+    ...(selected !== undefined ? { detailOverride: loginsRosterDetailLines(selected, facts, opts.devinCliMissing ?? null) } : {}),
     ...(opts.glowWord !== undefined ? { glowWord: opts.glowWord } : {}),
     ...(flowPane ?? {}),
   };
