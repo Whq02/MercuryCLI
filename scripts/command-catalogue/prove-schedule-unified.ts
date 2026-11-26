@@ -239,13 +239,26 @@ try {
       )
 
       const bareRes = await runOne('/schedule')
+      const expectedBare = `The /schedule command is an interactive surface — it needs the foreground session; with words it runs here too: /schedule ${EXPECTED_HINT}.`
       check(
-        'bare /schedule refuses as interactive surface headlessly with zero model requests',
+        'bare /schedule refuses as interactive surface headlessly naming its with-words form and with zero model requests',
         bareRes.status === 1 &&
           bareRes.stdout === '' &&
           bareRes.stderr.includes('The /schedule command is an interactive surface') &&
+          bareRes.stderr.includes(expectedBare) &&
+          !bareRes.stderr.includes('has no headless form') &&
           fixture.messageRequests().length === 0,
         `status=${bareRes.status} out=${JSON.stringify(bareRes.stdout)} err=${JSON.stringify(bareRes.stderr)} reqs=${fixture.messageRequests().length}`,
+      )
+
+      const helpRes = await runOne('/help')
+      check(
+        'local-jsx command without promptWithArgs (/help) keeps its unchanged headless refusal sentence',
+        helpRes.status === 1 &&
+          helpRes.stdout === '' &&
+          helpRes.stderr.includes('The /help command is an interactive surface — it needs the foreground session and has no headless form.') &&
+          fixture.messageRequests().length === 0,
+        `status=${helpRes.status} out=${JSON.stringify(helpRes.stdout)} err=${JSON.stringify(helpRes.stderr)} reqs=${fixture.messageRequests().length}`,
       )
 
       const wordsRes = await runOne('/schedule remind me at 3pm to check the build')

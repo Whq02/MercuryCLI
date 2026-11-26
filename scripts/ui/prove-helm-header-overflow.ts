@@ -12,7 +12,7 @@ function check(label: string, cond: boolean, detail = '', hint = ''): void {
 }
 
 console.log('============================================================')
-console.log(' cockpit text-overflow — the standing mission + generic tips')
+console.log(' cockpit text-overflow — the standing goal + generic tips')
 console.log('============================================================')
 
 console.log('\n(A) render — cockpit-mission at 120 (real dist binary, PTY)')
@@ -42,9 +42,9 @@ const g = capture()
 if (g) {
   const rows = g.grid.map(r => r.map(c => c.c))
   const text = rows.map(r => r.join(''))
-  check('no MISSION: row paints inside the centre pane (the pane opens on its border, then the berth card)', !text.some(t => t.includes('MISSION:')), '', 'the standing mission belongs only in the lanes rail MISSION box (missionSection in src/screen/cockpit-gauges/helm-lanes-model/sections.ts); remove the MISSION: row from the centre pane')
+  check('no MISSION: row paints inside the centre pane (the pane opens on its border, then the berth card)', !text.some(t => t.includes('MISSION:')), '', 'the standing goal belongs only in the lanes rail goal box (missionSection in src/screen/cockpit-gauges/helm-lanes-model/sections.ts); remove the MISSION: row from the centre pane')
   const label = text.findIndex(t => /^goal\b/.test(t))
-  check('the standing mission lives in the lanes rail (its MISSION box)', label >= 0, '', 'missionSection in src/screen/cockpit-gauges/helm-lanes-model/sections.ts returns null unless the session is solo and a mission is set; check the cockpit-mission scenario in scripts/ui/renderScenarios.ts still seeds one')
+  check('the standing goal lives in the lanes rail (its goal box)', label >= 0, '', 'missionSection in src/screen/cockpit-gauges/helm-lanes-model/sections.ts returns null unless the session is solo and a goal is set; check the cockpit-mission scenario in scripts/ui/renderScenarios.ts still seeds one')
   const spilled: number[] = []
   rows.forEach((line, y) => {
     if (!/Run a targeted|bug audit|hardening pass|workflow engine/.test(text[y]!)) return
@@ -57,7 +57,7 @@ if (g) {
       if (line[x] && line[x] !== ' ') { spilled.push(y); break }
     }
   })
-  check('nothing bleeds past a panel border on the rows that carry the mission\'s words', spilled.length === 0, `rows ${spilled.join(',')}`, 'the mission text on those rows must be clipped to its panel; look at src/screen/fullscreen-layout/HelmLanesRail.tsx where the rail row is drawn')
+  check('nothing bleeds past a panel border on the rows that carry the goal\'s words', spilled.length === 0, `rows ${spilled.join(',')}`, 'the goal text on those rows must be clipped to its panel; look at src/screen/fullscreen-layout/HelmLanesRail.tsx where the rail row is drawn')
   const paneTop = text.findIndex(t => /╭─+╮/.test(t))
   const paneFirst = text[paneTop + 1] ?? ''
   check('the centre pane\'s first interior row is the berth card\'s top edge or the transcript, never a title row', paneTop >= 0 && !/VIEW|MISSION:/.test(paneFirst), paneFirst.trim(), 'a title row (VIEW or MISSION:) is painted as the first interior row of the centre pane; remove it from the centre pane layout so the pane opens on the berth card or the transcript')

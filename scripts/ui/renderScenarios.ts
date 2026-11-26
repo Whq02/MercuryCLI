@@ -1664,7 +1664,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     return {
       argv: ['node', BIN, '--resume', SID],
       sends: [
-        { atTick: 40, data: `/mission ${LONG_MISSION}` },
+        { atTick: 40, data: `/goal ${LONG_MISSION}` },
         { atTick: 62, data: '\r' },
       ],
       total: 96,

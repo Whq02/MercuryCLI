@@ -1,19 +1,19 @@
-  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
-workbench               │ transcript row 47 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
-  no prompts yet        │ transcript row 48 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
-                        │ transcript row 49 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
-next                    │                                                                                              │
-  /health               │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
-  /memory               │ │ Mercury · usage                                                                          │ │
-  /mission              │ │ API usage session on · 0 subscriptions signed in                                         │ │
+workbench               ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
+  no prompts yet        │ transcript row 47 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
+                        │ transcript row 48 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
+next                    │ transcript row 49 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
+  /health               │                                                                                              │
+  /memory               │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
+  /goal                 │ │ Mercury · usage                                                                          │ │
+                        │ │ API usage session on · 0 subscriptions signed in                                         │ │
+files · orchard         │ │                                                                                          │ │
+  ↵ browse              │ │ Anthropic usage                                                                          │ │
+                        │ │ API key · …-key                                                                          │ │
+vitals                  │ │ credits: not reported by the provider                                                    │ │
+  spend —               │ │                                                                                          │ │
+  ctx — · —             │ │ Subscription                                                                             │ │
+  health — run /health  │ │ none — /logins anthropic connects a subscription account · n/a                           │ │
                         │ │                                                                                          │ │
-files · orchard         │ │ Anthropic usage                                                                          │ │
-  ↵ browse              │ │ API key · …-key                                                                          │ │
-                        │ │ credits: not reported by the provider                                                    │ │
-vitals                  │ │                                                                                          │ │
-  spend —               │ │ Subscription                                                                             │ │
-  ctx — · —             │ │ none — /logins anthropic connects a subscription account · n/a                           │ │
-  health — run /health  │ │                                                                                          │ │
                         │ │ API key                                                                                  │ │
                         │ │ Anthropic API key (ANTHROPIC_API_KEY)                                                    │ │
                         │ │ no usage endpoint is read for an API key on this lane — the provider console is the view │ │

@@ -5,6 +5,7 @@ import { useIsModalOverlayActive } from '../overlays/overlayHooks.js'
 import type { ComposerHelpers } from '../composer/input-core/composerHelpers.js'
 import { findCommand } from '../../commands/catalogue/commands.js'
 import type { Command } from '../../commands/catalogue/commands.js'
+import { unknownCommandLine } from '../../engine/user-input/processSlashCommand.js'
 
 const COMMAND_PREFIX = 'command:'
 
@@ -16,6 +17,7 @@ const inertHelpers: ComposerHelpers = {
 
 export function CommandKeybindingHandlers({
   onSubmit,
+  paintScreenCommandReceipt,
   commands,
   isActive = true,
 }: {
@@ -25,6 +27,7 @@ export function CommandKeybindingHandlers({
     speculationAccept?: undefined,
     options?: { fromKeybinding?: boolean },
   ) => Promise<void>
+  paintScreenCommandReceipt: (commandName: string, args: string, text: string) => void
   commands: Command[]
   isActive?: boolean
 }): null {
@@ -44,12 +47,16 @@ export function CommandKeybindingHandlers({
       const name = action.slice(COMMAND_PREFIX.length)
       const command = `/${name}`
       out[action] = () => {
-        if (findCommand(name, commandsRef.current) === undefined) return
+        if (findCommand(name, commandsRef.current) === undefined) {
+          const trimmed = name.trim()
+          paintScreenCommandReceipt(trimmed, '', unknownCommandLine(trimmed, commandsRef.current))
+          return
+        }
         void onSubmit(command, inertHelpers, undefined, { fromKeybinding: true })
       }
     }
     return out
-  }, [keybindings, onSubmit])
+  }, [keybindings, onSubmit, paintScreenCommandReceipt])
 
   useKeybindings(handlers, {
     context: 'Chat',

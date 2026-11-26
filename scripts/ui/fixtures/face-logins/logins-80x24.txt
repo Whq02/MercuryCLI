@@ -17,7 +17,7 @@ available
   Mistral — API key                            not signed in
   Nous Portal — sign-in or API key             not signed in
   MiniMax — API key or M Plan key              not signed in
-↓ 9 more
+↓ 11 more
 
 OpenAI · ChatGPT Plus
 ↑↓ move · pgup/pgdn page · ↵ sign in · esc back

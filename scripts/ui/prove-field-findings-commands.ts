@@ -324,7 +324,7 @@ function submitRows(path: string): Array<{ site: string; digest?: string; len?: 
 }
 
 async function keybindingLeg(): Promise<void> {
-  console.log('\n— keybinding: a command:* naming no command is inert; a real one runs —')
+  console.log('\n— keybinding: a command:* naming no command paints Unknown command without submitting; a real one runs —')
   const fixture = await startFixture()
   const { home, cwd } = seedWorld()
   writeFileSync(join(home, 'keybindings.json'), JSON.stringify({ bindings: [{ context: 'Chat', bindings: { 'ctrl+x e': 'command:effortr', 'ctrl+x b': 'command:workbench' } }] }))
@@ -357,8 +357,8 @@ async function keybindingLeg(): Promise<void> {
   const { marks } = cap
   if (process.env.FIELD_KEEP === '1') for (const [label, frame] of Object.entries(marks)) dump(`keybinding · ${label}`, frame)
   const afterBad = marks['after-bad'] ?? ''
-  check('keybinding: the mis-bound chord painted NO "Unknown command" line', !/Unknown command/.test(afterBad), flat(afterBad).match(/Unknown command[^│]*/)?.[0] ?? 'clean')
-  check('keybinding: the mis-bound chord submitted NOTHING (no /effortr in the composer or transcript)', !/effortr/.test(afterBad), flat(afterBad).match(/[^ ]*effortr[^ ]*/)?.[0] ?? 'clean')
+  check('keybinding: the mis-bound chord painted the Unknown command line for /effortr', /Unknown command: \/effortr/.test(afterBad), flat(afterBad).match(/Unknown command[^│]*/)?.[0] ?? 'missing')
+  check('keybinding: the mis-bound chord left the composer empty (never typed /effortr into it)', !/│❯[^\n]*effortr/.test(afterBad), flat(afterBad).match(/│❯[^│]*/)?.[0] ?? 'clean')
   const rows = submitRows(tracePath)
   check('keybinding: the census carries no submit of /effortr (digest)', !rows.some(r => r.digest === EFFORTR_DIGEST), rows.filter(r => r.digest === EFFORTR_DIGEST).map(r => r.site).join(' ') || 'none')
   const workbench = marks['workbench'] ?? ''

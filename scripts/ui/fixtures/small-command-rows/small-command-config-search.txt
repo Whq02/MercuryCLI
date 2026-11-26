@@ -1,19 +1,19 @@
-  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-workbench               │                                                                                                                  │
-  start                 │  ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────╮  │
-                        │  │ Mercury · config                                                                                           │  │
-next                    │  │ project · 86 settings · 1 set by you                                                                       │  │
-  /health               │  │                                                                                                            │  │
-  /memory               │  │ / journal                                                                                                  │  │
-  /mission              │  │                                                                                                            │  │
-                        │  │   Session journal                   off                                                                    │  │
-files · project         │  │   Journal on the entry page         off                                                                    │  │
-  ↵ browse              │  │                                                                                                            │  │
+workbench               ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+  start                 │                                                                                                                  │
+                        │  ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────╮  │
+next                    │  │ Mercury · config                                                                                           │  │
+  /health               │  │ project · 86 settings · 1 set by you                                                                       │  │
+  /memory               │  │                                                                                                            │  │
+  /goal                 │  │ / journal                                                                                                  │  │
+                        │  │                                                                                                            │  │
+files · project         │  │   Session journal                   off                                                                    │  │
+  ↵ browse              │  │   Journal on the entry page         off                                                                    │  │
                         │  │                                                                                                            │  │
 vitals                  │  │                                                                                                            │  │
   spend $0.00           │  │                                                                                                            │  │
   ctx 0% · 1000k        │  │                                                                                                            │  │
   health — run /health  │  │                                                                                                            │  │
+                        │  │                                                                                                            │  │
                         │  │                                                                                                            │  │
                         │  │                                                                                                            │  │
                         │  │                                                                                                            │  │
