@@ -30,6 +30,7 @@ try {
   const { copyTextOf } = await import('../../src/screen/messages/messageActions.tsx')
   const { renderableSearchText } = await import('../../src/screen/virtual-message-list/transcriptSearch.ts')
   const { EMPTY_LOOKUPS } = await import('../../src/engine/messages/lookups.ts')
+  const { createAttachmentMessage } = await import('../../src/engine/attachment-shapes/attachmentMessage.ts')
   const { createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
   const { normalizeMessages } = await import('../../src/engine/message-shapes/normalize.ts')
   const { normalizeMessagesForAPI } = await import('../../src/engine/messages/apiView.ts')
@@ -177,6 +178,25 @@ try {
       copyTextOf(ownerNormalized[0]!) === '[Image #3] look at this',
     `rows=${ownerNormalized.length} search=${JSON.stringify(ownerNormalized[0] ? renderableSearchText(ownerNormalized[0]) : '')} copy=${JSON.stringify(ownerNormalized[0] ? copyTextOf(ownerNormalized[0]) : '')}`,
   )
+
+  const queuedImageRows = async (prompt: string | Block[], imagePasteIds?: number[]): Promise<string[]> => {
+    const baseText = typeof prompt === 'string'
+      ? prompt
+      : prompt.filter(block => block.type === 'text').map(block => block.text).join('\n')
+    const baseLines = nonEmptyLines(await paintMessage(createAttachmentMessage({ type: 'queued_command', prompt: baseText, commandMode: 'prompt' })))
+    const allLines = nonEmptyLines(await paintMessage(createAttachmentMessage({ type: 'queued_command', prompt, imagePasteIds, commandMode: 'prompt' })))
+    return allLines.slice(baseLines.length)
+  }
+  const queuedNamed = await queuedImageRows([words('[Image #3] queued check'), image], [3])
+  check('a queued prompt whose text names its image draws no grey row', queuedNamed.join(' ') === '', `got=${JSON.stringify(queuedNamed)}`)
+  const queuedNamedString = await queuedImageRows('[Image #4] queued string check', [4])
+  check('a queued string prompt whose text names its image draws no grey row', queuedNamedString.join(' ') === '', `got=${JSON.stringify(queuedNamedString)}`)
+  const queuedUnnamed = await queuedImageRows([words('queued without ref'), image], [3])
+  check('a queued prompt whose text does not name its image draws its row (#3)', queuedUnnamed.join(' ') === '[Image #3]', `got=${JSON.stringify(queuedUnnamed)}`)
+  const queuedUnnamedString = await queuedImageRows('queued string without ref', [5])
+  check('a queued string prompt whose text does not name its image draws its row (#5)', queuedUnnamedString.join(' ') === '[Image #5]', `got=${JSON.stringify(queuedUnnamedString)}`)
+  const queuedMixed = await queuedImageRows([words('see [Image #3] and the other'), image, image], [3, 4])
+  check('a queued mixed prompt draws only the unnamed image row (#4)', queuedMixed.join(' ') === '[Image #4]', `got=${JSON.stringify(queuedMixed)}`)
 } finally {
   rmSync(HOME, { recursive: true, force: true })
 }

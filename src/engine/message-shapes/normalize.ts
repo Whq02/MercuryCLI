@@ -96,6 +96,7 @@ export function imageRowNumbersOf(
   for (const block of blocks) {
     if (block.type === 'image') imageCount++
   }
+  if (imageCount === 0) imageCount = imagePasteIds?.length ?? 0
   if (imageCount === 0) return []
   const named = new Set<number>()
   for (const block of blocks) {
