@@ -47,17 +47,17 @@ try {
   check('a boot that never paints the face gets no arena send and no failure from it', plain.run.outcome.complete && plain.typed.length === 0 && plain.sent?.arena === 0 && plain.report?.unfired.length === 0, j({ typed: plain.typed, sent: plain.sent, report: plain.report }))
 
   console.log('\n§2 the Boot face')
-  const face = await show(['                    >_  ·  ↵  ·  m menu  ·  ↑↓'])
+  const face = await show(['                    >_     ↵     m menu     ↑↓'])
   check('the Boot face receives exactly one Enter', face.run.outcome.complete && j(face.typed) === j([13]), `typed ${j(face.typed)}`)
   check("…and that Enter is on the record as the arena's: one row marked by arena, counted, and not among the drive's own sends", face.sent?.arena === 1 && face.sent.drive === 0 && face.every?.length === 1 && face.every[0]?.by === 'arena' && face.run.sendLog.length === 0 && face.report?.sends === 1, j({ sent: face.sent, every: face.every?.map(row => row.by), sendLog: face.run.sendLog.length, driver: face.report?.sends }))
-  const compact = await show(['        │ >_ · ↵ · ↑↓                                         │'])
+  const compact = await show(['        │ >_   ↵   ↑↓                                         │'])
   check('the compact face, whose ready line stands in the card, receives it too', j(compact.typed) === j([13]) && compact.sent?.arena === 1, j({ typed: compact.typed, sent: compact.sent }))
-  const pieces = await show(['', '', '', '', '          >_  ·  ↵'], { then: ['\x1b[2;1H│ ❯ New Session │', '\x1b[5;19H  ·  ↑↓'] })
+  const pieces = await show(['', '', '', '', '          >_     ↵'], { then: ['\x1b[2;1H│ ❯ New Session │', '\x1b[5;19H     ↑↓'] })
   check('a face whose ready line reaches the terminal in two writes with another row between (a painter that writes only the cells that changed) is read off the screen, not the byte stream', j(pieces.typed) === j([13]) && pieces.sent?.arena === 1, j({ typed: pieces.typed, sent: pieces.sent, report: pieces.report }))
-  const own = await show(['                    >_  ·  ↵  ·  ↑↓'], { sends: ['after:>_:200:x', ...(helper !== null ? [helper.afterBootFace(1500, 'y')] : [])] })
+  const own = await show(['                    >_     ↵     ↑↓'], { sends: ['after:>_:200:x', ...(helper !== null ? [helper.afterBootFace(1500, 'y')] : [])] })
   const authors = own.every?.map(row => row.by) ?? []
   check("a drive's own sends beside it stay the drive's, each key arrives in its turn (x, the arena's Enter, y), and both counts sum to the driver's", j(own.typed) === j([120, 13, 121]) && own.sent?.arena === 1 && own.sent.drive === 2 && own.run.sendLog.length === 2 && own.run.sendLog.every(row => (row as { by?: string }).by === 'drive') && j(authors) === j(['drive', 'arena', 'drive']) && own.report?.sends === own.every?.length, j({ typed: own.typed, sent: own.sent, authors, driver: own.report?.sends }))
-  const off = await show(['                    >_  ·  ↵  ·  m menu  ·  ↑↓'], { passBootFace: false })
+  const off = await show(['                    >_     ↵     m menu     ↑↓'], { passBootFace: false })
   check('a drive that tests the Boot face itself turns the pass off: no key, no row, nothing skipped', off.typed.length === 0 && off.sent?.arena === 0 && off.every?.length === 0 && off.report?.skipped?.length === 0, j({ typed: off.typed, sent: off.sent, report: off.report }))
 } finally {
   rmSync(scratch, { recursive: true, force: true })

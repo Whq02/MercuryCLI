@@ -10,7 +10,7 @@ requireDist()
 
 const COLS = 120
 const ROWS = 40
-const FACE_READY = '>_  ·  ↵  ·  ↑↓'
+const FACE_READY = '>_     ↵     ↑↓'
 const COMPOSER_READY = 'Type a prompt'
 const PROMPT = 'hello there'
 const DUD = 'choose a model'
