@@ -114,6 +114,15 @@ const fixHint = (ok: boolean, text: string): string => (ok ? '' : ' — ' + text
   const widthsKept = fromLong.text[0]!.length === 35 && fromLong.text[1]!.length === recorded('mercury-28', 'working-28').text[1]!.length && fromLong.text[0]!.startsWith('│ │ mercury ▸') && fromLong.text[1]!.includes('mercury ⌥ main  ⇧← back')
   console.log(`  [${stylesSame && nameRun && statusRuns && widthsKept ? 'PASS' : 'FAIL'}] two checkouts of different name lengths store byte-identical rows, styles included: the checkout words' runs take the fixed spelling's widths (the folder's dim run, the branch's run) and the freed cells join the longer neighbouring padding run, so a right-aligned chip stays right-aligned — ${JSON.stringify(fromLong.styles)}${fixHint(stylesSame && nameRun && statusRuns && widthsKept, 'fix the style-run rewrite in canonicalizeCheckoutRows in scripts/ui/visualBaseline.ts')}`)
   if (!(stylesSame && nameRun && statusRuns && widthsKept)) fail = 1
+  const fromLane = recorded('d4', 'd4-d4')
+  const rail = (name: string) => canonicalizeCheckoutRows(oneRow(`FILES · ${name}` + ' '.repeat(16 - name.length) + '│ transcript'), { basename: name, branch: 'x' }).text[0]
+  const shortSame =
+    JSON.stringify(fromLane) === JSON.stringify(fromLong) &&
+    inlineBand('d4', 'd4-d4') === inlineBand('mercury-28', 'working-28') &&
+    rail('d4') === rail('some-worktree') &&
+    rail('d4') === 'FILES · mercury' + ' '.repeat(9) + '│ transcript'
+  console.log(`  [${shortSame ? 'PASS' : 'FAIL'}] a checkout named shorter than the fixed spelling stores the same bytes as a longer one, styles included: the cells the longer spelling needs come out of the padding run that holds the slack — ${JSON.stringify([fromLane.text, rail('d4')])}${fixHint(shortSame, 'fix widen in canonicalizeCheckoutRows in scripts/ui/visualBaseline.ts')}`)
+  if (!shortSame) fail = 1
   console.log(`  [${clippedOk ? 'PASS' : 'FAIL'}] the narrow statusline's clipped checkout chip (ctx — · some…) stores the fixed spelling's prefix at the same width; a clipped word elsewhere and a clip longer than the fixed spelling are left as captured — ${JSON.stringify(clippedCanon)}${fixHint(clippedOk, 'fix canonicalizeCheckoutRows in scripts/ui/visualBaseline.ts')}`)
   if (!clippedOk) fail = 1
   console.log(`  [${restingNamed ? 'PASS' : 'FAIL'}] the resting row names no checkout, so the canonical spelling leaves it as captured${fixHint(restingNamed, 'fix canonicalizeCheckoutRows in scripts/ui/visualBaseline.ts')}`)

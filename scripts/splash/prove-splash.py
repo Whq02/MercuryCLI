@@ -155,7 +155,7 @@ print('\n── STANDARD @120×44')
 raw = run_pty(120, 44)
 lines = vis_lines(raw)
 check('half-block head cells present', any(c in raw for c in '▀▄█'))
-check('the (>_) rule present', '(>_)' in raw and '─' in raw)
+check('the hairline rule present', '─' * 20 in raw)
 check('hint present (>_ · ↵)', HINT_RE.search(raw) is not None)
 check('every visible line fits 120 cols', all(len(l) <= 120 for l in lines), f'max={max(len(l) for l in lines)}')
 check('head engaged (tall lockup ≥ 20 lines)', sum(1 for l in lines if l.strip()) >= 20)
@@ -167,7 +167,7 @@ INLINE = {'MERCURY_FULLSCREEN': '0', 'MERCURY_REDUCED_MOTION': '1'}
 raw = run_pty(80, 24, env_extra=dict(INLINE))
 lines = vis_lines(raw)
 plain80 = STRIP.sub('', raw)
-check('rule + hint present', '(>_)' in raw and HINT_RE.search(raw) is not None)
+check('rule + hint present', '─' * 20 in raw and HINT_RE.search(raw) is not None)
 check('launcher card present (New Session row — the bare-↵ path made visible)',
       'New Session' in plain80)
 check('head art dropped (no cream head SGR — actions outrank art)', '38;2;240;232;214' not in raw)
@@ -208,7 +208,7 @@ raw = run_pty(220, 50, env_extra=dict(INLINE), oneshot=False, resize=[(0.8, 80, 
 check('alt screen entered exactly once', raw.count('\x1b[?1049h') == 1, f"count={raw.count(chr(27)+'[?1049h')}")
 check('resize repainted from a clean slate (≥2 clears)', raw.count('\x1b[2J') >= 2, f"clears={raw.count(chr(27)+'[2J')}")
 post = raw.split('\x1b[2J')[-1]
-check('post-resize keeps rule + hint (headless-card tier)', '(>_)' in post and HINT_RE.search(post) is not None)
+check('post-resize keeps rule + hint (headless-card tier)', '─' * 20 in post and HINT_RE.search(post) is not None)
 check('post-resize dropped the head (no cream head SGR)', '38;2;240;232;214' not in post)
 lines_post = [l for l in vis_lines(post) if l.strip()]
 check('post-resize fits 80 cols', all(len(l) <= 80 for l in lines_post),
@@ -264,13 +264,13 @@ _sgr_re = _re.compile(r'\x1b\[[0-9;]*m')
 _arrival_row = None
 _arr_body = raw_cov[raw_cov.index('\x1b[2J\x1b[H') + len('\x1b[2J\x1b[H'):].split('\x1b[?2026l')[0]
 for _i, _ln in enumerate(_arr_body.split('\n')):
-    if '··· (>_) ···' in _sgr_re.sub('', _ln):
+    if '─' * 20 in _sgr_re.sub('', _ln):
         _arrival_row = _i + 1
         break
 _hold_row = None
 _hold_parts = _re.split(r'\x1b\[(\d+);1H', raw_cov[raw_cov.rindex('\x1b[2J'):])
 for _j in range(1, len(_hold_parts) - 1, 2):
-    if '··· (>_) ···' in _sgr_re.sub('', _hold_parts[_j + 1]):
+    if '─' * 20 in _sgr_re.sub('', _hold_parts[_j + 1]):
         _hold_row = int(_hold_parts[_j])
         break
 check('the hold repaints the divider on the arrival row (no jump into the hold)',

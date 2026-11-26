@@ -1,23 +1,13 @@
 
 export const SHIMMER_TICK_MS = 80
-export const SHIMMER_GREETING_MS = 10_000
+export const SHIMMER_GREETING_MS = 2_700
 const SHIMMER_EASE_IN_MS = 350
-export const SHIMMER_EASE_OUT_MS = 1500
-const SHIMMER_LEG_MS_PER_CELL = 55
-const SHIMMER_LEG_MIN_MS = 1300
-const SHIMMER_LEG_MAX_MS = 3200
-const SHIMMER_LIFT = 0.85
+export const SHIMMER_EASE_OUT_MS = 600
+const SHIMMER_LIFT = 0.45
 export const SHIMMER_GAIN_LEVELS = 5
 
 export function shimmerRadius(spanCells: number): number {
   return Math.max(3, Math.min(8, Math.round(spanCells * 0.28)))
-}
-
-function shimmerLegMs(spanCells: number): number {
-  return Math.max(
-    SHIMMER_LEG_MIN_MS,
-    Math.min(SHIMMER_LEG_MAX_MS, spanCells * SHIMMER_LEG_MS_PER_CELL),
-  )
 }
 
 export type ShimmerPhase = {
@@ -42,9 +32,8 @@ function shimmerEnvelope(elapsedMs: number): number {
 
 function shimmerPeakAt(elapsedMs: number, spanCells: number): number {
   if (spanCells <= 1) return 0
-  const leg = shimmerLegMs(spanCells)
-  const tau = (elapsedMs % (2 * leg)) / (2 * leg)
-  return ((1 - Math.cos(tau * 2 * Math.PI)) / 2) * (spanCells - 1)
+  const u = Math.min(1, Math.max(0, elapsedMs / SHIMMER_GREETING_MS))
+  return ((1 - Math.cos(u * Math.PI)) / 2) * (spanCells - 1)
 }
 
 export const SHIMMER_SETTLED = 'settled'

@@ -122,14 +122,14 @@ const DELETE_LEGEND = keyHintLabel('⌃x ⌃x delete')
 const TAG = keyHintLabel('⇧← back')
 const tagLine = (lines: string[]): string | undefined => lines.find(l => l.includes(TAG))
 const has = (lines: string[], needle: string): boolean => lines.some(l => l.includes(needle))
-const isBoard = (lines: string[]): boolean => has(lines, 'SESSIONS') && has(lines, 'STATUS & TITLE')
+const isBoard = (lines: string[]): boolean => has(lines, 'needs you · ') && (has(lines, 'status & title') || has(lines, 'no sessions yet'))
 const isFace = (lines: string[]): boolean => has(lines, 'New Session') && paintsBootFaceReady(lines.join('\n'))
 
 const SHIFT_LEFT = '\x1b[1;2D'
 const SHIFT_RIGHT = '\x1b[1;2C'
 const CTRL_X = '\x18'
 const REAP_CHORDS: Send[] = [
-  { atTick: 999, awaitText: 'SESSIONS', minTick: 5, awaitSettleTicks: 3, data: CTRL_X },
+  { atTick: 999, awaitText: 'status & title', minTick: 5, awaitSettleTicks: 3, data: CTRL_X },
   { afterPrevTicks: 2, data: CTRL_X },
   { atTick: 999, awaitText: ARCHIVE_LEGEND, minTick: 2, awaitSettleTicks: 3, data: CTRL_X },
   { afterPrevTicks: 2, data: CTRL_X },
@@ -202,8 +202,8 @@ try {
     if (o.ref === 'permission:git-init:deadbeef0001') await obligations.resolveObligation(o.obligationId, { kind: 'withdrawn', by: 'prover', scope: 'switchboard' } as never)
   }
 
-  const board = drive('reap-board', [], 150, { text: ['STATUS & TITLE', 'alpha probe', 'beta probe'], stable: 8 })
-  const listHeader = board.findIndex(l => l.includes('STATUS & TITLE'))
+  const board = drive('reap-board', [], 150, { text: ['status & title', 'alpha probe', 'beta probe'], stable: 8 })
+  const listHeader = board.findIndex(l => l.includes('status & title'))
   const listRows = listHeader >= 0 ? board.slice(listHeader + 1) : []
   const listCell = (l: string): string => l.split('│').find(c => c.includes('alpha probe') || c.includes('beta probe'))?.trim() ?? ''
   const rowA = listRows.findIndex(l => listCell(l).includes('alpha probe'))
@@ -246,7 +246,7 @@ try {
       { afterPrevTicks: 8, data: SHIFT_RIGHT, mark: 'after-right' },
     ],
     300,
-    { text: ['SESSIONS', 'STATUS & TITLE'], settle: 90 },
+    { text: ['needs you · '], settle: 90 },
   )
   const r2Landing = markOf('reap-last', 'landing')
   const r2AfterRight = markOf('reap-last', 'after-right')
@@ -254,15 +254,15 @@ try {
   check('R2 no session tag bar on the landing (no chat is open)', tagLine(r2Landing) === undefined, tagLine(r2Landing) ?? '')
   check('R2 ⇧→ from the board is NO MOVEMENT (no chat stop exists after the last reap): still the board', isBoard(r2AfterRight) && tagLine(r2AfterRight) === undefined && !isFace(r2AfterRight), r2AfterRight.filter(l => l.trim()).slice(0, 3).join(' | '))
   check('R2 …and again: the final frame is still the board — never the dead chat, never a bounce back to the menu', isBoard(r2) && tagLine(r2) === undefined && !isFace(r2), r2.filter(l => l.trim()).slice(0, 3).join(' | '))
-  check('R2 …and no dead session title anywhere on it', !has(r2, otherTitle) || has(r2, 'SESSIONS'), r2.filter(l => l.includes(otherTitle)).join(' | '))
+  check('R2 …and no dead session title anywhere on it', !has(r2, otherTitle) || has(r2, 'needs you · '), r2.filter(l => l.includes(otherTitle)).join(' | '))
   check('R2 the roster is empty', await untilAsync(() => liveIds().length === 0, 15_000), liveIds().join(','), 'the last reap must empty the roster; see readSessionWorkers in src/daemon/concourse-workers/concourseWorkers.ts')
 
   console.log('R3 the honesty leg — ⇧← from the board')
-  const r3 = drive('board-shift-left', [{ atTick: 999, awaitText: 'SESSIONS', minTick: 5, awaitSettleTicks: 3, data: SHIFT_LEFT }], 150, { text: ['New Session'], settle: 5 })
-  const r3Face = isFace(r3) ? 'the Boot face' : has(r3, 'SESSIONS') ? 'the board (no-op)' : has(r3, TAG) ? 'A SESSION TAG BAR' : 'another surface'
+  const r3 = drive('board-shift-left', [{ atTick: 999, awaitText: 'needs you · ', minTick: 5, awaitSettleTicks: 3, data: SHIFT_LEFT }], 150, { text: ['New Session'], settle: 5 })
+  const r3Face = isFace(r3) ? 'the Boot face' : has(r3, 'needs you · ') ? 'the board (no-op)' : has(r3, TAG) ? 'A SESSION TAG BAR' : 'another surface'
   console.log(`  [INFO] ⇧← from the board lands on: ${r3Face} — first rows: ${r3.filter(l => l.trim()).slice(0, 3).map(l => l.trim().slice(0, 60)).join(' | ')}`)
   check('R3 ⇧← from the board never opens a dead session', tagLine(r3) === undefined)
-  check('R3 ⇧← from the board lands the Boot face (the strip\'s left stop)', isFace(r3) && !has(r3, 'SESSIONS'), r3.filter(l => l.trim()).slice(0, 3).join(' | '), 'shift-left from the board must land the Boot face; open the board-shift-left capture in the captures directory printed at the end')
+  check('R3 ⇧← from the board lands the Boot face (the strip\'s left stop)', isFace(r3) && !has(r3, 'needs you · '), r3.filter(l => l.trim()).slice(0, 3).join(' | '), 'shift-left from the board must land the Boot face; open the board-shift-left capture in the captures directory printed at the end')
 } finally {
   clientBeat.stop()
   try {

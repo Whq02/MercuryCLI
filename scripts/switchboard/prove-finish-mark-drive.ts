@@ -99,7 +99,7 @@ const WARNING = hexOf(theme.warning)
 const SUCCESS = hexOf(theme.success)
 
 const COMPOSER = 'Type a prompt'
-const BOARD = 'SESSIONS'
+const BOARD = 'needs you · '
 const TAG = keyHintLabel('⇧← back')
 const SHIFT_LEFT = '\x1b[1;2D'
 const DOWN = '\x1b[B'
@@ -346,7 +346,7 @@ const pBoard = markText(c, 'p-board-finished')
 printFrame("P's board once Z settled in Q (the view elsewhere)", pBoard)
 check('P\'s board is on screen once Z\'s turn settled elsewhere', isBoard(pBoard), firstRows(pBoard))
 check('Z rides P\'s board as the ✦ carry-over from Q, settled (● ready), not working', pBoard.split('\n').some(l => starRow(l) && l.includes(TITLE_Z) && l.includes(GLYPH.ok)), `${rowsWith(pBoard, GLYPH.sparkBright)} — a settled turn elsewhere should show as ready; see state mapping in src/screen/concourse-model/concourseSnapshot.ts`)
-check('nothing was minted for the finish: no "needs you" count, no "switch to · finished" row on P\'s board', !/[1-9]\d* needs? you/.test(pBoard) && !pBoard.includes('· finished') && !/NEEDS YOU · [1-9]/.test(pBoard), `${rowsWith(pBoard, 'need') || rowsWith(pBoard, 'NEEDS') || rowsWith(pBoard, 'finished')} — a finish must not be minted as a need or a finished row; the amber mark is only the finishedUnseen flag set in src/screen/concourse-model/concourseSnapshot.ts`)
+check('nothing was minted for the finish: no "needs you" count, no "switch to · finished" row on P\'s board', !/[1-9]\d* needs? you/.test(pBoard) && !pBoard.includes('· finished') && !/needs you · [1-9]/.test(pBoard), `${rowsWith(pBoard, 'need') || rowsWith(pBoard, 'NEEDS') || rowsWith(pBoard, 'finished')} — a finish must not be minted as a need or a finished row; the amber mark is only the finishedUnseen flag set in src/screen/concourse-model/concourseSnapshot.ts`)
 const starInk = rowInk(markGrid(c, 'p-board-finished'), TITLE_Z, starRow)
 check(`the carried row is ready (${GLYPH.ok}) and its state glyph wears the board's amber (#${WARNING}) while the finish stands unseen`, starInk?.glyph === GLYPH.ok && starInk.glyphFg === WARNING, `${inkWord(starInk)} — an unseen finish should colour the state glyph with the warning theme colour; see finishedUnseen in src/screen/concourse/layout/listPane.tsx`)
 const xInk = rowInk(markGrid(c, 'p-board-finished'), 'new session', line => line.includes(basename(CWD)) && !line.includes('running in'))

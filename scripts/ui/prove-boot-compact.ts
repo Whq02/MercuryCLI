@@ -34,7 +34,7 @@ const APPROVED_80x21 = [
   "             ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █",
   "             █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀",
   "             ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀",
-  "                 ■ ───────────────··· (>_) ···─────────────── ■",
+  "                 ──────────────────────────────────────────────",
   "",
   "        ╭──────────────────────────────────────────────────────────────╮",
   "        │ ❯ New Session in City St George's · start fresh here         │",
@@ -176,7 +176,7 @@ for (const [cols, rows] of sizes) {
       check(`${cols}x${rows}: the ready hint row is on the face`, boot.some(l => l.includes(LIVE_HINT_ROW)), 'the compact Boot face lost its ready hint row; check the hint segments src/screen/boot-face/splash/face.tsx passes to composeCompactFace in assets/splash/splash-core.mjs')
     }
     if (cols === 80 && rows === 21) {
-      check('80x21: the banner and rule stand above the centred card', boot.some(l => l.includes('██▄██')) && boot.some(l => l.includes('(>_)') && l.includes('■')), 'the 80x21 compact face should show the banner and rule above the card (composeCompactFace in assets/splash/splash-core.mjs); top rows: ' + boot.slice(0, 8).join(' | '))
+      check('80x21: the banner and rule stand above the centred card', boot.some(l => l.includes('██▄██')) && boot.some(l => l.includes('─'.repeat(40))), 'the 80x21 compact face should show the banner and rule above the card (composeCompactFace in assets/splash/splash-core.mjs); top rows: ' + boot.slice(0, 8).join(' | '))
       check('80x21: the framed card is 37 wide, centred, with the hint as its last inner row', boot.some(l => l === topBorder(37, 21)) && boot.some(l => l.trim().startsWith('╰')) && boot.some(liveInFrameHint), 'the 80x21 card frame is wrong in the live face; fix the card width, centring or hint row in composeCompactFace in assets/splash/splash-core.mjs. Boot frame is printed above')
     }
     if (cols === 80 && rows === 14) {
