@@ -134,7 +134,7 @@ export function browseKeysFor(opts: {
   )
 }
 
-type BoardSelectionClass =
+export type BoardSelectionClass =
   | 'live'
   | 'paused'
   | 'attached'

@@ -59,7 +59,7 @@ const env = {
 }
 
 const sends = [
-  { data: '\x03', requireAwait: true, awaitText: 'LAST USED', awaitSettleTicks: 4 },
+  { data: '\x03', requireAwait: true, awaitText: 'last used', awaitSettleTicks: 4 },
   { data: '', requireAwait: true, awaitText: NOTICE, awaitSettleTicks: 2, mark: 'notice' },
 ]
 const out = join(OUT_DIR, 'exit-notice-board-120x40.json')
