@@ -729,6 +729,12 @@ async function getStatOnlyListingsForWorktrees(
   return numbered(newestPerKey(perDir.flat(), log => log.sessionId))
 }
 
+function lastRowOfSeatWithNoTurn(messages: Map<UUID, TranscriptMessage>, agentId: AgentId): TranscriptMessage | undefined {
+  const own = [...messages.values()].filter(msg => msg.agentId === agentId && msg.isSidechain)
+  const parents = new Set(own.map(msg => msg.parentUuid))
+  return findLatestMessage(own, msg => !parents.has(msg.uuid))
+}
+
 export async function getCrewmateTranscript(agentId: AgentId): Promise<{
   messages: Message[]
   contentReplacements: ContentReplacementRecord[]
@@ -736,11 +742,12 @@ export async function getCrewmateTranscript(agentId: AgentId): Promise<{
   const agentFile = getCrewmateTranscriptPath(agentId)
   const { messages, agentContentReplacements } = await loadTranscriptFile(agentFile, { throwOnError: true })
   const end = electConversationEnd(messages, { kind: 'crewmate', agentId })
-  if (end === undefined) return null
-  const chain = [...end.rows]
+  const leaf = end === undefined ? lastRowOfSeatWithNoTurn(messages, agentId) : end.rows.at(-1)
+  if (leaf === undefined) return null
+  const chain = end === undefined ? buildConversationChain(messages, leaf).filter(msg => msg.agentId === agentId) : [...end.rows]
   const first = chain.find(msg => msg.type === 'assistant' || (msg.type === 'user' && msg.isMeta !== true))
   const prefix = first === undefined ? undefined : findLatestMessage(messages.values(), msg =>
-    msg.agentId === agentId && msg.isSidechain && msg.sessionId === end.primary.sessionId && msg.type === 'attachment' && msg.attachment.type === 'bound_prefix' &&
+    msg.agentId === agentId && msg.isSidechain && msg.sessionId === leaf.sessionId && msg.type === 'attachment' && msg.attachment.type === 'bound_prefix' &&
     msg.attachment.boundKey.split('|').at(-2) === first.uuid,
   )
   if (prefix !== undefined && !chain.some(msg => msg.uuid === prefix.uuid)) chain.push(prefix)

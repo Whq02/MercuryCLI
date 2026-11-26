@@ -33,6 +33,7 @@ const { _resetTranscriptReaderForTesting } = await import('../../src/sessions/tr
 const { asAgentId, asSessionId } = await import('../../src/sessions/transcripts/ids.ts')
 const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
 const { createFoldBoundaryMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
+const { createAttachmentMessage } = await import('../../src/engine/attachments/turnAttachments.ts')
 const { settleToolUsesOfEndedRun } = await import('../../src/engine/messages/apiFilters.ts')
 const { ENDED_RUN_TOOL_RESULT } = await import('../../src/engine/message-shapes/rejectionText.ts')
 
@@ -193,6 +194,46 @@ try {
     const rows = await resumed(crew.agentId)
     check("§5 the resume ends on the crewmate's own reply", rows.at(-1)?.uuid === final.uuid, j(shapeOf(rows)))
     check('§5 neither foreign row is in it', !j(rows).includes('C5-OTHER-SEAT') && !j(rows).includes('C5-THE-LEAD') && rows[0]?.uuid === brief.uuid, j(shapeOf(rows)))
+  }
+
+  section('§6 a seat whose file holds no prompt and no reply is handed back as it always was, and still resumes')
+  {
+    const lone = lane()
+    const fold = stamped(createFoldBoundaryMessage('auto', 1500))
+    await lone.land(said('C6-BRIEF'), replied('C6-REPLY'), fold)
+    const loneRows = await resumed(lone.agentId)
+    check('§6 the seat folded and its summary never landed: the fold line is handed back', j(loneRows.map(row => row.uuid)) === j([fold.uuid]), j(shapeOf(loneRows)))
+
+    const twice = lane()
+    const second = stamped(createFoldBoundaryMessage('auto', 900))
+    await twice.land(said('C6-BRIEF-2'), replied('C6-REPLY-2'), stamped(createFoldBoundaryMessage('auto', 1500)), stamped(createUserMessage({ content: 'C6-SUMMARY-2', isCompactSummary: true })), replied('C6-ONWARD-2'), second)
+    const twiceRows = await resumed(twice.agentId)
+    check('§6 the same after an earlier whole fold: the newer fold line alone', j(twiceRows.map(row => row.uuid)) === j([second.uuid]), j(shapeOf(twiceRows)))
+
+    const late = lane()
+    const call = called('c6_call', 'msg_c6')
+    await late.land(said('C6-BRIEF-3'), call, stamped(createFoldBoundaryMessage('auto', 1500)))
+    const report = reported('c6_call', call, 'C6-LATE-REPORT')
+    await late.land(report)
+    const lateRows = await resumed(late.agentId)
+    check('§6 a result of a call that was sealed away lands behind the fold line: that result is handed back', j(lateRows.map(row => row.uuid)) === j([report.uuid]), j(shapeOf(lateRows)))
+
+    const quiet = lane()
+    const notes = [stamped(createAttachmentMessage({ type: 'dead_thinking', dead: [{ messageId: 'msg_c6', blockIndex: 0 }] })), stamped(createAttachmentMessage({ type: 'dead_thinking', dead: [{ messageId: 'msg_c6', blockIndex: 1 }] }))]
+    await quiet.land(...notes)
+    const quietRows = await resumed(quiet.agentId)
+    check('§6 a file of attachments only: its rows are handed back in order', j(quietRows.map(row => row.uuid)) === j(notes.map(row => row.uuid)), j(shapeOf(quietRows)))
+
+    const bound = lane()
+    const prefix = stamped(createAttachmentMessage({ type: 'bound_prefix', boundKey: 'c6-owner|c6-conversation|fixture', rosterEnabled: false, roster: [], sections: [], systemContext: {} }))
+    await bound.land(prefix)
+    const boundRows = await resumed(bound.agentId)
+    check('§6 a file that holds a bound prefix record alone: the record is handed back', j(boundRows.map(row => row.uuid)) === j([prefix.uuid]), j(shapeOf(boundRows)))
+
+    const absent = lane()
+    appendEntryToFile(getCrewmateTranscriptPath(absent.agentId), { ...replied('C6-OTHER-SEAT'), parentUuid: null, cwd: workdir, sessionId: state.getSessionId(), version: '1.0.0', isSidechain: true, agentId: lane().agentId })
+    _resetTranscriptReaderForTesting()
+    check('§6 a file that holds no row of the seat still has no transcript', (await getCrewmateTranscript(absent.agentId)) === null && (await getCrewmateTranscript(lane().agentId)) === null)
   }
 } finally {
   removeScratch(scratch)
