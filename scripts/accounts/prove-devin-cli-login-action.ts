@@ -101,7 +101,8 @@ const { resolveProviderUsability } = await import('../../src/models/roads/provid
 const { deriveFamilySlotGroups } = await import('../../src/models/roads/accountSlots.js')
 const { SIGN_IN_WORDS } = await import('../../src/boot/first-run/Onboarding.js')
 const { providerAuthList } = await import('../../src/commands/verbs/providerAuth.js')
-const { devinCliInstallHint, runDevinCliAction } = await import('../../src/screen/boot-face/logins/devinCliAction.js')
+const { runDevinCliAction } = await import('../../src/screen/boot-face/logins/devinCliAction.js')
+const { devinCliInstallHintWords } = await import('../../src/platform/host-os/words.js')
 
 async function send(m: Mounted, data: string): Promise<void> {
   m.push(data)
@@ -271,7 +272,7 @@ try {
       })
       check(`non-TTY devin auth ${action} refuses honestly and never spawns in background`, refused.kind === 'refused' && refused.ok === false && refused.receipt.includes('interactive terminal') && readInvocations().length === 0, JSON.stringify(refused))
     }
-    check('platform install lines match official docs for macOS, Linux and Windows', devinCliInstallHint('darwin').includes('cli.devin.ai/install.sh') && devinCliInstallHint('darwin').includes('brew install --cask devin-cli') && devinCliInstallHint('linux').includes('cli.devin.ai/install.sh') && devinCliInstallHint('win32').includes('static.devin.ai/cli/setup.ps1'))
+    check('platform install lines match official docs for macOS, Linux and Windows', devinCliInstallHintWords('darwin').includes('cli.devin.ai/install.sh') && devinCliInstallHintWords('darwin').includes('brew install --cask devin-cli') && devinCliInstallHintWords('linux').includes('cli.devin.ai/install.sh') && devinCliInstallHintWords('win32').includes('static.devin.ai/cli/setup.ps1'))
   }
 } finally {
   rmSync(scratch, { recursive: true, force: true })

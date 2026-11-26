@@ -1,13 +1,16 @@
 import { dirname } from 'node:path'
 import type { ServerCapabilities } from 'vscode-languageserver-protocol'
-import { clearDeliveredDiagnosticsForFile, foldDriveCase, snapshotDiagnosticsBeforeWrite, subscribeLSPDiagnosticPublish } from '../../../integrations/lsp/LSPDiagnosticRegistry.js'
+import { clearDeliveredDiagnosticsForFile, foldDriveCase, rearmAfterMultiFileSync, snapshotDiagnosticsBeforeWrite, subscribeLSPDiagnosticPublish } from '../../../integrations/lsp/LSPDiagnosticRegistry.js'
 import type { LSPServerManager } from '../../../integrations/lsp/LSPServerManager.js'
+import { pullServersOf } from '../../../integrations/lsp/publishedDiagnostics.js'
 import type { OwnerKey } from '../../../engine/run-owner/ownerKey.js'
 import { logForDebugging } from '../../../platform/logs/debugLog.js'
 import { SERVER_SYNC_DEADLINE_MS, STABILIZE_DEADLINE_MS, STABILIZE_QUIET_WINDOW_MS, countBySeverity } from './shared.js'
 import { pullFileDiagnostics, unavailableWords } from './pull.js'
 import { withDeadline } from '../../../platform/async/deadline.js'
 import { startTimeout, stopTimeout } from '../../../platform/async/timers.js'
+
+type ServerSync = { ok: true } | { ok: false; reason: string }
 
 export async function syncServersAfterWrite(
   manager: LSPServerManager,
@@ -16,23 +19,43 @@ export async function syncServersAfterWrite(
   before: string | null = null,
   owner?: OwnerKey,
   deadlineMs: number = SERVER_SYNC_DEADLINE_MS,
-): Promise<{ ok: true } | { ok: false; reason: string }> {
-  snapshotDiagnosticsBeforeWrite(absolutePath, before, newText, manager.getDocumentVersion(absolutePath), owner)
-  clearDeliveredDiagnosticsForFile(absolutePath)
-  try {
-    await withDeadline(
-      manager.changeAndSaveFile(absolutePath, newText),
-      deadlineMs,
-      () => {
-        throw new Error(`server sync timed out after ${deadlineMs}ms`)
-      },
-    )
-    return { ok: true }
-  } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error)
-    logForDebugging(`lsp ops: post-write server sync failed for ${absolutePath}: ${reason}`)
-    return { ok: false, reason }
+): Promise<ServerSync> {
+  const [sync] = await syncServersAfterWrites(manager, [{ absolutePath, newText, before }], owner, deadlineMs)
+  return sync!
+}
+
+export async function syncServersAfterWrites(
+  manager: LSPServerManager,
+  writes: ReadonlyArray<{ absolutePath: string; newText: string; before: string | null }>,
+  owner?: OwnerKey,
+  deadlineMs: number = SERVER_SYNC_DEADLINE_MS,
+): Promise<ServerSync[]> {
+  const armed = writes.map(w => ({ path: w.absolutePath, docVersion: manager.getDocumentVersion(w.absolutePath) }))
+  writes.forEach((w, i) => {
+    snapshotDiagnosticsBeforeWrite(w.absolutePath, w.before, w.newText, armed[i]!.docVersion, owner)
+    clearDeliveredDiagnosticsForFile(w.absolutePath)
+  })
+  const syncs: ServerSync[] = []
+  for (const w of writes) {
+    if (writes.length > 1 && syncs.length === writes.length - 1) {
+      rearmAfterMultiFileSync(armed.map(write => ({ ...write, pulled: pullServersOf(manager, write.path).length > 0 })), owner)
+    }
+    try {
+      await withDeadline(
+        manager.changeAndSaveFile(w.absolutePath, w.newText),
+        deadlineMs,
+        () => {
+          throw new Error(`server sync timed out after ${deadlineMs}ms`)
+        },
+      )
+      syncs.push({ ok: true })
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error)
+      logForDebugging(`lsp ops: post-write server sync failed for ${w.absolutePath}: ${reason}`)
+      syncs.push({ ok: false, reason })
+    }
   }
+  return syncs
 }
 
 type DiagnosticStabilization =
