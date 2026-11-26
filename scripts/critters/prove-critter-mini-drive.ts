@@ -163,10 +163,14 @@ function sameLook(label: string, a: Grid, b: Grid): void {
   }
   check(label, off === 0 && paneBottom(a, 30, 147) === bottom, `${off} cells differ (${first}); pane bottom ${paneBottom(a, 30, 147)} vs ${bottom}`)
 }
+function paneBounds(row0: string): { paneLeft: number; paneRight: number } {
+  const paneLeft = row0.startsWith('╭') ? row0.indexOf('╭', 1) : row0.indexOf('╭')
+  const paneRight = paneLeft < 0 ? -1 : row0.indexOf('╮', paneLeft + 1)
+  return { paneLeft, paneRight }
+}
 function bandRows(g: Grid): { top: number; bottom: number } {
   const t = text(g)
-  const paneLeft = (t[0] ?? '').indexOf('╭')
-  const paneRight = (t[0] ?? '').lastIndexOf('╮')
+  const { paneLeft, paneRight } = paneBounds(t[0] ?? '')
   if (paneLeft < 0 || paneRight < 0) return { top: -1, bottom: -1 }
   for (let r = 1; r < t.length; r++) {
     if (/^ ─+ $/.test(t[r]!.slice(paneLeft + 1, paneRight))) return { top: 1, bottom: r }
@@ -174,7 +178,7 @@ function bandRows(g: Grid): { top: number; bottom: number } {
   return { top: -1, bottom: -1 }
 }
 function berthLeft(g: Grid): number {
-  return (text(g)[0] ?? '').indexOf('╭') + 1
+  return paneBounds(text(g)[0] ?? '').paneLeft + 1
 }
 function slotLeft(g: Grid): number {
   return berthLeft(g) + 3
@@ -183,8 +187,7 @@ function slotLeft(g: Grid): number {
 type Berth = { left: number; right: number; top: number; bottom: number; workTop: number; workBottom: number; workLeft: number; x: number; y: number; cells: number }
 function berthOf(g: Grid): Berth {
   const t = text(g)
-  const paneLeft = (t[0] ?? '').indexOf('╭')
-  const paneRight = (t[0] ?? '').lastIndexOf('╮')
+  const { paneLeft, paneRight } = paneBounds(t[0] ?? '')
   const left = paneLeft + 1
   const right = paneRight - 1
   const { top, bottom } = bandRows(g)
@@ -265,7 +268,7 @@ try {
   console.log('§3 the landing form sits under the band')
   check('the wordmark starts three rows under the band', text(boot)[bx.bottom + 3]!.includes('█▄▄▄█'))
   check('model · dir · memory sit seven, eight and nine rows under the band (no critter row)', text(boot)[bx.bottom + 7]!.includes('model') && text(boot)[bx.bottom + 8]!.includes('dir') && text(boot)[bx.bottom + 9]!.includes('memory') && !text(boot).slice(bx.bottom + 1, bx.bottom + 12).some(row => row.includes('critter')))
-  check('the command hints follow their blank line', text(boot)[bx.bottom + 11]!.includes('/crewmates  /saturn  /health  /trace'))
+  check('the command hints follow their blank line', text(boot)[bx.bottom + 11]!.includes('/crewmates  /schedule  /health  /trace'))
 
   console.log('§4 /view is an unknown command like any other')
   check('typed, /view on answers the ordinary unknown-command line', rowWith(typed, 'Unknown command: /view') >= 0)
@@ -280,7 +283,7 @@ try {
   let midSprite = 0
   for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(midBoot[mx.top + r]![slotLeft(midBoot) + col]!, band.grid[r]![2 + col]!)) midSprite++
   check('the sprite cells equal the band’s (27 cells)', midSprite === 0, `${midSprite} cells differ`)
-  const midBottom = paneBottom(midBoot, midLeft - 1, text(midBoot)[0]!.lastIndexOf('╮'))
+  const midBottom = paneBottom(midBoot, midLeft - 1, paneBounds(text(midBoot)[0] ?? '').paneRight)
   check('the pane’s bottom border sits directly above the status row', midBottom >= 0 && text(midBoot)[midBottom + 1]!.includes('ready ·'), `pane ${midBottom}`)
 
   console.log('§7 a resize from wide to narrow and back keeps the one sprite')

@@ -1,3 +1,4 @@
+import type { CrewmatePickerSeat } from '../../screen/composer/crewmateCommands.js'
 import type * as React from 'react'
 import type { UUID } from 'crypto'
 import type { CanUseToolFn, ToolUseContext } from '../../tools/kit/tool.js'
@@ -98,6 +99,7 @@ type LocalJSXCommand = CommandBase & {
   type: 'local-jsx'
   load: () => Promise<{ call: LocalJSXCommandCall }>
   headlessVerbs?: readonly string[]
+  promptWithArgs?: true
 }
 
 export type Command = PromptCommand | LocalCommand | LocalJSXCommand
@@ -129,6 +131,7 @@ type CommandDoneOptions = {
 export type LocalJSXCommandOnDone = (result?: string, options?: CommandDoneOptions) => void
 
 export type LocalJSXCommandContext = ToolUseContext & {
+  crewmateSeat?: (command: 'model' | 'effort') => Promise<CrewmatePickerSeat | undefined>
   setMessages: (updater: (prev: Message[]) => Message[]) => void
   canUseTool?: CanUseToolFn
   onChangeAPIKey: () => void
@@ -149,4 +152,8 @@ export function getCommandName(command: Command): string {
 
 export function isCommandEnabled(command: Command): boolean {
   return command.isEnabled?.() ?? true
+}
+
+export function runsPromptWithArgs(command: Command | undefined, args: string): boolean {
+  return command !== undefined && command.type === 'local-jsx' && command.promptWithArgs === true && args.trim() !== ''
 }

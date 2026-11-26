@@ -13,7 +13,7 @@ Mercury CLI（mercury-cli.ai、npm パッケージ `mercury-tech-cli`）は、ma
 - **Mneme ハイブリッド RAG のプロジェクトメモリ：** デバイス上で動作する 118 MB の BGE セマンティック埋め込みモデル（`bge-base-en-v1.5`）を使い、BM25 の単語ランキングと引用の追跡、原文のまま保持されるピン留めルール、ブランチを意識した起動時のコンテキスト、書き込み時の矛盾チェック、セッションの引き継ぎメモ、`/memory page` のブラウザーグラフを備えます。
 - **コンパイラー、AST、DAP のデバッグツール：** LSP によるコードインテリジェンスとプレビュー付きのリファクタリング（`LspRead`、`LspRename`、`LspMoveSymbol`、`LspMoveFile`、`LspCodeAction`、`LspFormat`）に接続し、57 言語対応の tree-sitter による AST の構造検索と書き換え（`AstSearch`、`AstEdit`）を使えます。組み込みの Debug Adapter Protocol デバッガー（`Debug`、`debugpy`、`js-debug`、`lldb`、`gdb`、`dlv`）は、失敗した Python、Node、Go、Rust のテストにステップ実行で入り込めます。永続化される Python と JavaScript の `Eval` セルも使えます。
 - **キー不要の `WebSearch` と Markdown 形式の `WebFetch`：** プロバイダー提供のネイティブ検索、Brave または Tavily のキー、公式 API（Stack Exchange、npm、PyPI、crates.io、GitHub、Hacker News、Wikipedia）、SearXNG、キー不要の DuckDuckGo で検索し、38,000 文字の呼び出し予算の中で、公開ドキュメントを Markdown として取得します。
-- **デスクトップ操作、Whisper 音声入力、Saturn スケジューリング、エディターブリッジ：** デスクトップアプリケーションを操作し（`Computer`）、プッシュトゥトーク方式の音声入力をデバイス上の Whisper で文字に起こし（`/voice`）、Saturn で定期的または単発のセッションを予約し（`/saturn`）、Agent Client Protocol（`mercury acp`）経由で VS Code に接続します。Unity、Blender、Godot、Aseprite とも連携します。
+- **デスクトップ操作、Whisper 音声入力、Saturn スケジューリング、エディターブリッジ：** デスクトップアプリケーションを操作し（`Computer`）、プッシュトゥトーク方式の音声入力をデバイス上の Whisper で文字に起こし（`/voice`）、Saturn で定期的または単発のセッションを予約し（`/schedule`）、Agent Client Protocol（`mercury acp`）経由で VS Code に接続します。Unity、Blender、Godot、Aseprite とも連携します。
 - **動画生成（`Video`）：** 設定済みの MiniMax ジェネレーターにプロンプトとプロジェクトの参照ファイルを送り（[docs/VIDEO.md](../VIDEO.md)）、生成された MP4 と、必要に応じて 1 秒の PNG プレビューフレームを、プロジェクトに保存します。
 
 Mercury は Mercury 自身の開発にも使われており、複数のセッションとモデルを組み合わせて長時間のタスクを進めています。難しいのは、その作業全体を把握し続けることです。何がまだ実行中か、何が変わったか、何に判断が必要か。各セッションは終了時に自分の引き継ぎメモを書き、次のセッションは起動時に、私のピン留めされたルールと一緒にそのメモを一度読み込みます。これにより、セッション間のコンテキスト汚染を防ぎます。
@@ -365,7 +365,7 @@ docker run --rm mercury --version
 - **エージェント、プロバイダーをまたぐ crewmate（`Crewmate`）、ワークツリー、ファイルリース。** 組み込みのエージェントは 2 つあります。`mercury-crew` はあらゆる種類の委任作業向け、`mercury-scout` は読み取り専用の調査向けです。これらは、`/agents` で作成したエージェント定義と並んで存在します。サインイン済みの任意のプロバイダーで crewmate を起動し、並列の作業を `git worktree` のチェックアウト（`isolation: "worktree"`）で分離し、プロセス内のプロジェクトファイルリース（`mcp__mercury__lease_take`、`mcp__mercury__lease_release`、`mcp__mercury__lease_list`）で共有ファイルを調整できます。また、`SendMessage` と `ResumeCrewmate` を使って、名前または ID で crewmate に指示したり再開したりできます。crewmate は、`/crewmates` と `/runs` で追跡できます。[docs/CREW.md](../CREW.md) を参照してください。
 - **デスクトップのコンピューター操作。** ネイティブのデスクトップドライバーが利用可能な場合は、既定で有効です。`Computer` ツールは、スクリーンショットを取得し、前面のアプリケーションでマウスとキーボードを操作します。Mercury は、操作の前にアプリケーションの名前と ID を確認します。権限ルール、セッションの許可、アクセス設定、権限モードでその操作がすでに許可されていない限り、承認を求めます。`Esc` で停止でき、同時にデスクトップを操作できるのは 1 つのセッションだけです。スクリーンショットは、保存された会話ファイルには残しません。ツールを削除するには `MERCURY_COMPUTER_USE=0` を設定します。[docs/COMPUTER-USE.md](../COMPUTER-USE.md) を参照してください。
 - **デバイス上の Whisper 音声入力（`/voice`）。** `/voice on` を実行すると、初回使用時に 60 MB の英語音声モデル（`base.en-q5_1`）がダウンロードされ、SHA-256 のダイジェストが検証されて、音声入力が有効になります。`/voice off` で無効になります。スペースキーを 1 秒間押し続けると話し始め、離すと停止します。音声がオンのときに引数なしの `/voice` を実行すると、録音（take）の開始と停止を切り替えられます。Whisper はデバイス上で文字起こしを行うため、音声データがマシンの外に出ることはありません。`MERCURY_WHISPER_MODEL` で、`tiny.en-q5_1`、`small.en-q5_1`、多言語の `base-q5_1`、またはローカルの `.gguf` ファイルを選べます。[docs/VOICE.md](../VOICE.md) を参照してください。
-- **Saturn の cron とセッションスケジューラー（`/saturn`）。** 既存のセッション向けにプロンプトをスケジュールする（`CronCreate`、`CronList`、`CronDelete`、`ScheduleWakeup`、`/loop`）か、新しいセッションを指定の時刻に開始するようスケジュールします。スケジュールは 1 回だけ実行することも、繰り返し実行することもできます。[docs/SATURN.md](../SATURN.md) を参照してください。
+- **Saturn の cron とセッションスケジューラー（`/schedule`）。** 既存のセッション向けにプロンプトをスケジュールする（`CronCreate`、`CronList`、`CronDelete`、`ScheduleWakeup`、`/loop`）か、新しいセッションを指定の時刻に開始するようスケジュールします。スケジュールは 1 回だけ実行することも、繰り返し実行することもできます。[docs/SATURN.md](../SATURN.md) を参照してください。
 - **VS Code（ACP）、Unity、Blender、Godot、Aseprite のブリッジ。** `mercury acp` は、Agent Client Protocol に対応したエディターに接続します。VS Code 拡張機能（`mercury bridge install`）は、このプロトコル経由でエディター内に Mercury を実行します。チャット、セッション、エージェント、アーティファクト、レビューが使えて、エディターの選択範囲と診断情報が各プロンプトに添えられます。別途オプトインで有効にする統合機能は、実行中の Unity（`MERCURY_UNITY=1`）、Blender（`MERCURY_BLENDER=1`）、Godot（`MERCURY_GODOT_TOOLS=1`）のエディターに接続し、Aseprite へのバッチアクセスも提供します（`MERCURY_ASEPRITE=1`）。[Unity](../UNITY-BRIDGE.md)、[Blender](../BLENDER-BRIDGE.md)、[Godot](../VULCAN-GODOT-TOOLS.md)、[Aseprite](../ASEPRITE-BRIDGE.md) を参照してください。
 - **拡張機能。** 各拡張機能はマニフェストを 1 つ持ちます。ソースは git URL、ローカルフォルダー、またはアーカイブから追加します。その際、コントリビューションのハッシュによって承認されます。[docs/EXTENSIONS.md](../EXTENSIONS.md) を参照してください。
 - **MCPs & Skills。** セッションが読み込む内容をリポジトリごとに設定します。名前付きのプリセットと、セッション中に変更できるコントロールがあります。[docs/KIT.md](../KIT.md) を参照してください。
@@ -382,8 +382,8 @@ docker run --rm mercury --version
 
 | 分類 | コマンド |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
-| crew & delegation | `/agents` `/crewmates` `/crew` `/swarm` `/swarmchat` `/general` `/team` `/whisper` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/goal` |
+| crew & delegation | `/agents` `/crewmates` `/crew` `/swarm` `/swarmchat` `/general` `/team` `/whisper` `/daemon` `/schedule` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/export` `/copy` `/usage` `/restart` |
 | memory & goals | `/memory` |
 | model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |

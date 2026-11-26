@@ -14,6 +14,7 @@ const React = await import('react')
 const { Box } = await import('../../src/screen/themedRenderer.js')
 const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
 const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const { PopupHost } = await import('../../src/screen/overlays/PopupHost.js')
 const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.js')
 const store = await import('../../src/screen/cockpit/settingsPopup.js')
 const { configPopupRequest } = await import('../../src/commands/config/config.js')
@@ -32,7 +33,7 @@ for (const [columns, rows] of [[178, 51], [80, 21]] as const) {
   const hostRef = React.createRef<DOMElement>()
   const element = React.createElement(AppStateProvider as never, {}, React.createElement(ThemeProvider as never, {}, React.createElement(Box, { width: columns, height: rows, flexDirection: 'column' },
     React.createElement(Box, { ref: hostRef, height: rows - 4, flexShrink: 0 }),
-    React.createElement(SettingsPopupSlot, { overlay: true, hostRef, framed: false }),
+    React.createElement(PopupHost, { hostRef, children: host => React.createElement(SettingsPopupSlot, { host, overlay: true }) }),
   )))
   const mounted = await mountOffscreen(element, columns, rows)
   try {

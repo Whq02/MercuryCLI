@@ -13,3 +13,4 @@ prove-export-masking.ts
 prove-merged-verbs.ts
 prove-review-command.ts
 prove-audit-command.ts
+prove-schedule-unified.ts

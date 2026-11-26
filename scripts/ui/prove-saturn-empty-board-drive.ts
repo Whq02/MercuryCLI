@@ -16,7 +16,7 @@ const PAGE = 'src/screen/boot-face/saturn/menu.tsx'
 const LAYOUT = 'composeBootMenuClassic in assets/splash/splash-core.mjs'
 const DEAD = 'http://127.0.0.1:1'
 const LEGEND = 'a schedule birth…'
-const CLASSIC_TITLE = '(>_) MERCURY · saturn scheduler'
+const CLASSIC_TITLE = 'MERCURY · saturn scheduler'
 const WORDS = [
   'no schedules stand.',
   'press a to schedule a session birth — a fresh session born on the clock.',
@@ -60,8 +60,8 @@ const textOf = (grid: Grid | undefined): string[] => (grid ?? []).map(row => row
 
 const toTheChat: Send[] = [
   { awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, awaitSettleTicks: 2, data: '\r' },
-  { awaitText: 'Type a prompt', requireAwait: true, awaitSettleTicks: 2, data: '/saturn' },
-  { awaitText: 'Schedules — next fire', requireAwait: true, awaitSettleTicks: 2, data: '\r' },
+  { awaitText: 'Type a prompt', requireAwait: true, awaitSettleTicks: 2, data: '/schedule' },
+  { awaitText: 'Schedules (Saturn): the board', requireAwait: true, awaitSettleTicks: 2, data: '\r' },
   { awaitText: LEGEND, requireAwait: true, awaitSettleTicks: 4, data: '', mark: 'saturn' },
 ]
 const onTheFace: Send[] = [{ awaitText: LEGEND, requireAwait: true, awaitSettleTicks: 4, data: '', mark: 'saturn' }]
@@ -101,7 +101,7 @@ async function capture(cols: number, rows: number, scene: { name: string; door: 
       child.on('close', code => { clearTimeout(deadline); resolveRun({ code, text }) })
     })
     const captured = (existsSync(output) ? JSON.parse(readFileSync(output, 'utf8')) : {}) as { marks?: Array<{ label: string; grid: Grid }>; sendReceipts?: unknown[] }
-    check(`${cols}x${rows} ${scene.name}: the drive reached the Saturn page`, result.code === 0 && captured.sendReceipts?.length === sends.length, `an awaited text never painted (${scene.door ? 'the splash receipt opens the page on the face' : '/saturn typed in a new chat'}); the output tail reads: ${result.text.trim().slice(-700)}`)
+    check(`${cols}x${rows} ${scene.name}: the drive reached the Saturn page`, result.code === 0 && captured.sendReceipts?.length === sends.length, `an awaited text never painted (${scene.door ? 'the splash receipt opens the page on the face' : '/schedule typed in a new chat'}); the output tail reads: ${result.text.trim().slice(-700)}`)
     const grid = captured.marks?.find(m => m.label === 'saturn')?.grid
     const frame = textOf(grid)
     if (framesDir !== undefined) {
@@ -116,19 +116,32 @@ async function capture(cols: number, rows: number, scene: { name: string; door: 
   }
 }
 
-function pageOf(frame: readonly string[]): string[] {
-  const title = frame.findIndex(r => r.includes(CLASSIC_TITLE))
+const POPUP_TITLE = 'Mercury — saturn'
+
+function pageOf(frame: readonly string[], titleNeedle: string): string[] {
+  const title = frame.findIndex(r => r.includes(titleNeedle))
   const legend = frame.findIndex((r, i) => i > title && r.includes(LEGEND))
-  return title < 0 || legend < 0 ? [] : frame.slice(title, legend + 2)
+  if (title < 0 || legend < 0) return []
+  const slice = frame.slice(title, legend + 2)
+  const left = frame[title]!.lastIndexOf('│', frame[title]!.indexOf(titleNeedle))
+  const right = left >= 0 ? frame[title]!.indexOf('│', frame[title]!.indexOf(titleNeedle) + titleNeedle.length) : -1
+  return left >= 0 && right > left ? slice.map(r => r.slice(left + 1, right)) : slice
 }
 
 try {
   for (const [cols, rows, name, door] of [[120, 40, 'chat', false], [100, 30, 'chat', false], [80, 24, 'chat', false], [100, 30, 'face', true], [80, 24, 'face', true]] as const) {
     const frame = await capture(cols, rows, { name, door })
-    const page = pageOf(frame)
+    const titleNeedle = door ? CLASSIC_TITLE : POPUP_TITLE
+    const page = pageOf(frame, titleNeedle)
     console.log(`[record] ${cols}x${rows} ${name}: ${shown(page)}`)
-    check(`${cols}x${rows} ${name}: the page opens in the classic layout (its title row and its legend)`, page.length > 0, `the classic title row "${CLASSIC_TITLE}" and the legend must both paint; the frame reads: ${shown(frame).slice(0, 600)}`)
-    check(`${cols}x${rows} ${name}: with no schedules, the empty board's words stand between the title and the legend, whole and in order`, inOrder(squash(page.join('\n')), WORDS), `the board with no schedules hands its empty-state words to the classic layout as the line it draws under the title (noticeLine in saturnMenuOf, ${PAGE}; ${LAYOUT} draws only noticeLine or a confirming detailOverride); the page reads: ${shown(page)}`)
+    check(
+      door
+        ? `${cols}x${rows} ${name}: the page opens in the classic layout (its title row and its legend)`
+        : `${cols}x${rows} ${name}: /schedule opens in the pop-up (its title row and its legend, no (>_) classic banner)`,
+      page.length > 0 && (door || !frame.some(r => r.includes('(>_)'))),
+      `the title row "${titleNeedle}" and the legend must both paint; the frame reads: ${shown(frame).slice(0, 600)}`,
+    )
+    check(`${cols}x${rows} ${name}: with no schedules, the empty board's words stand between the title and the legend, whole and in order`, inOrder(squash(page.join('\n')), WORDS), `the empty board must paint its words from saturnEmptyDetailLines between title and legend (${PAGE} / src/commands/saturn/saturn.tsx); the page reads: ${shown(page)}`)
   }
   for (const [cols, rows] of [[120, 40], [120, 47]] as const) {
     const frame = await capture(cols, rows, { name: 'wide', door: true })
@@ -140,7 +153,7 @@ try {
     check(`${cols}x${rows} wide: the words stand once, in the detail pane beside the empty list box`, at >= 0 && /╭─+╮\s+$/.test(frame[at]!.slice(0, col)) && countOf(squash(frame.join('\n')), WORDS[0]!) === 1 && inOrder(squash(pane.join('\n')), WORDS) && !frame.some(r => r.includes(CLASSIC_TITLE)), `the wide layout draws the board's detail pane right of the list box, and nothing else of it (composeBootMenuWide in assets/splash/splash-core.mjs reads detailOverride, never noticeLine); the frame reads: ${shown(frame).slice(0, 900)}`)
     check(`${cols}x${rows} wide: the facts block, the status line and the legend keep their places under the pane`, facts > 0 && /^Next fire\s+—/.test(pane[facts + 1] ?? '') && /^Held\s+0\b/.test(pane[facts + 2] ?? '') && /^Sessions\s+\d+ live\b/.test(pane[facts + 3] ?? '') && frame.some(r => /^\s+no (schedules on \d+ live sessions?|live sessions hold schedules)\s*$/.test(r)) && frame.some(r => r.includes(LEGEND)), `the summary rows (saturnSummaryRows) and the status line (saturnStatusLine) of src/screen/boot-face/BootSaturnScreen.tsx keep their places in the wide layout; the pane reads: ${shown(pane)}`)
   }
-  check('the Saturn page made no model call', fixture.messageRequests().length === 0, 'opening /saturn and the face door must stay on the page; a key reached the model API')
+  check('the Saturn page made no model call', fixture.messageRequests().length === 0, 'opening /schedule and the face door must stay on the page; a key reached the model API')
 } finally {
   await fixture.close()
 }

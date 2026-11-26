@@ -107,8 +107,8 @@ const deployEnv = (): NodeJS.ProcessEnv => ({
   MERCURY_CREDENTIAL_STORE: 'file',
   ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key',
 })
-const deploy = (): { rc: number; out: string } => {
-  const r = spawnSync('bash', [DEPLOY, '--allow-dirty'], { cwd: REPO, encoding: 'utf8', env: deployEnv(), maxBuffer: 1 << 26 })
+const deploy = (extraEnv: Record<string, string> = {}): { rc: number; out: string } => {
+  const r = spawnSync('bash', [DEPLOY, '--allow-dirty'], { cwd: REPO, encoding: 'utf8', env: { ...deployEnv(), ...extraEnv }, maxBuffer: 1 << 26 })
   return { rc: r.status ?? -1, out: `${r.stdout ?? ''}${r.stderr ?? ''}` }
 }
 const buildsDir = join(runtime, 'builds')
@@ -148,7 +148,21 @@ let exited = false
 daemon.once('exit', () => {
   exited = true
 })
+const dummies: ChildProcess[] = []
+const killChild = async (child: ChildProcess): Promise<void> => {
+  if (child.exitCode !== null || child.signalCode !== null) return
+  try {
+    child.kill('SIGTERM')
+  } catch {}
+  await untilAsync(() => child.exitCode !== null || child.signalCode !== null, 5_000, 50)
+  if (child.exitCode === null && child.signalCode === null) {
+    try {
+      child.kill('SIGKILL')
+    } catch {}
+  }
+}
 const cleanup = async (): Promise<void> => {
+  await Promise.all(dummies.map(killChild))
   if (!exited) {
     try {
       daemon.kill('SIGTERM')
@@ -211,6 +225,159 @@ try {
   check('exactly one build folder remains (the deployed bytes; nothing runs from any other)', buildFolders().length === 1, buildFolders().join(', '))
   const lv2 = launcherVersion()
   check('the launcher still boots the deployed build', lv2.rc === 0 && /^Mercury \d/.test(lv2.out) && lv2.dist.includes(`${join(runtime, 'current')}/`), `rc=${lv2.rc} ${lv2.dist}`)
+
+  section('§4 swarm ps road: 40 live processes carrying a build path keep that folder under pipefail (no SIGPIPE false-free)')
+  {
+    const swarmBuild = join(buildsDir, 'aaaaaaaaaaaa-11111111')
+    mkdirSync(swarmBuild, { recursive: true })
+    writeFileSync(join(swarmBuild, 'manifest.json'), JSON.stringify({ ...repoManifest, buildTree: 'a'.repeat(40) }, null, 2))
+    writeFileSync(join(swarmBuild, 'mercury.mjs'), 'console.log("Mercury 0.0.0-swarm")\n')
+    const holdBin = join(swarmBuild, 'hold-node')
+    copyFileSync(NODE, holdBin)
+    spawnSync('chmod', ['+x', holdBin])
+    const swarmChildren: ChildProcess[] = []
+    const pad = 'p'.repeat(300)
+    for (let i = 0; i < 40; i++) {
+      const child = spawn(holdBin, ['-e', 'setTimeout(() => {}, 120000)', pad, String(i)], { stdio: 'ignore' })
+      swarmChildren.push(child)
+      dummies.push(child)
+    }
+    const allUp = await untilAsync(() => swarmChildren.every(c => c.pid !== undefined && alive(c.pid) && psCommand(c.pid).includes(`${swarmBuild}/`)), 10_000, 50)
+    check('40 dummy processes started carrying the build folder path', allUp && swarmChildren.length === 40)
+    const third = deploy()
+    check('deploy over 40 matching processes succeeded', third.rc === 0, third.out.slice(-800))
+    check('the build folder with 40 live processes is KEPT (never pruned by SIGPIPE under pipefail)', existsSync(swarmBuild) && existsSync(holdBin), `builds: ${buildFolders().join(', ')}`)
+    check('the deploy log says kept for the 40-process build folder', third.out.includes(`kept`) && third.out.includes(swarmBuild) && third.out.includes('a daemon or session still runs from it'), third.out.split('\n').filter(l => /kept|deployed/.test(l)).join(' | '))
+    await Promise.all(swarmChildren.map(killChild))
+  }
+
+  section('§5 lsof road: a copied binary running with manifest.json unopened keeps its build folder (no partial-open exit-1 false-free)')
+  {
+    const lsofBuild = join(buildsDir, 'bbbbbbbbbbbb-22222222')
+    const lsofBinDir = join(lsofBuild, 'vendor', 'node', 'bin')
+    mkdirSync(lsofBinDir, { recursive: true })
+    writeFileSync(join(lsofBuild, 'manifest.json'), JSON.stringify({ ...repoManifest, buildTree: 'b'.repeat(40) }, null, 2))
+    writeFileSync(join(lsofBuild, 'mercury.mjs'), 'console.log("Mercury 0.0.0-lsof")\n')
+    const lsofNode = join(lsofBinDir, 'node')
+    copyFileSync(NODE, lsofNode)
+    spawnSync('chmod', ['+x', lsofNode])
+    const holder = spawn('./node', ['-e', 'setTimeout(() => {}, 120000)'], { cwd: lsofBinDir, stdio: 'ignore' })
+    dummies.push(holder)
+    const holderPid = holder.pid ?? 0
+    const holderReady = await untilAsync(() => holderPid > 0 && alive(holderPid) && psCommand(holderPid).includes('./node'), 5_000, 50)
+    check('copied vendor/node/bin/node started with relative ./node command line (not carrying build path in ps)', holderReady && !psCommand(holderPid).includes(lsofBuild), psCommand(holderPid))
+    const fourth = deploy()
+    check('deploy over lsof-only live build succeeded', fourth.rc === 0, fourth.out.slice(-800))
+    check('the lsof-only build folder is KEPT while its manifest.json is open in no process', existsSync(lsofBuild) && existsSync(lsofNode), `builds: ${buildFolders().join(', ')}`)
+    check('the deploy log says kept for the lsof-only build folder', fourth.out.includes(`kept`) && fourth.out.includes(lsofBuild) && fourth.out.includes('a daemon or session still runs from it'), fourth.out.split('\n').filter(l => /kept|deployed/.test(l)).join(' | '))
+    await killChild(holder)
+    check('the previous 40-process folder (now free) was pruned once its processes exited', !existsSync(join(buildsDir, 'aaaaaaaaaaaa-11111111')), buildFolders().join(', '))
+  }
+
+  section('§6 inventory fallbacks and fail-closed reason: POSIX ps fallback prunes unused and keeps live shell; failed inventory keeps with honest reason')
+  {
+    const basePath = process.env.PATH ?? '/usr/bin:/bin'
+    const realPs = (spawnSync('which', ['ps'], { encoding: 'utf8' }).stdout ?? '').trim() || '/bin/ps'
+    const makeStubs = (dirName: string, tools: Record<string, string>): string => {
+      const dir = join(SCRATCH, dirName)
+      mkdirSync(dir, { recursive: true })
+      for (const [tool, body] of Object.entries(tools)) {
+        const p = join(dir, tool)
+        writeFileSync(p, `#!/bin/sh\n${body}\n`)
+        spawnSync('chmod', ['+x', p])
+      }
+      return `${dir}:${basePath}`
+    }
+    const seedBuild = (name: string, fill: string): string => {
+      const dir = join(buildsDir, name)
+      mkdirSync(dir, { recursive: true })
+      writeFileSync(join(dir, 'manifest.json'), JSON.stringify({ ...repoManifest, buildTree: fill.repeat(40) }, null, 2))
+      writeFileSync(join(dir, 'mercury.mjs'), `console.log("Mercury 0.0.0-${name}")\n`)
+      return dir
+    }
+    const keptLineFor = (out: string, dir: string): string => out.split('\n').find(l => l.includes('kept') && l.includes(dir)) ?? ''
+    const holderReason = '(a daemon or session still runs from it)'
+    const unknownReason = '(could not tell whether a process still runs from it)'
+
+    const posixOnlyPsPath = makeStubs('stub-ps-posix', {
+      ps: `if [ "$1" = "-axo" ]; then exit 1; fi\nexec "${realPs}" "$@"`,
+    })
+    const shellBuild = seedBuild('dddddddddddd-44444444', 'd')
+    const shellBinDir = join(shellBuild, 'vendor', 'bash', 'host')
+    mkdirSync(shellBinDir, { recursive: true })
+    const shellBin = join(shellBinDir, 'bash')
+    copyFileSync(NODE, shellBin)
+    spawnSync('chmod', ['+x', shellBin])
+    const shellHolder = spawn(shellBin, ['-e', 'setTimeout(() => {}, 120000)'], { stdio: 'ignore' })
+    dummies.push(shellHolder)
+    const shellPid = shellHolder.pid ?? 0
+    const shellReady = await untilAsync(() => shellPid > 0 && alive(shellPid) && psCommand(shellPid).includes(`${shellBuild}/vendor/bash/`), 5_000, 50)
+    check('live vendor/bash holder started (a file lsof is not asked about)', shellReady)
+
+    const rPosixLive = deploy({ PATH: posixOnlyPsPath })
+    const posixLiveLine = keptLineFor(rPosixLive.out, shellBuild)
+    check('POSIX-only ps keeps a live vendor/bash folder with the holder reason', rPosixLive.rc === 0 && existsSync(shellBuild) && posixLiveLine.includes(holderReason), `rc=${rPosixLive.rc} exists=${existsSync(shellBuild)} line=${posixLiveLine}`)
+
+    const psFailPath = makeStubs('stub-ps-fail', { ps: 'exit 1' })
+    const rPsFailShell = deploy({ PATH: psFailPath })
+    const psFailShellLine = keptLineFor(rPsFailShell.out, shellBuild)
+    check('failing ps with working lsof still keeps a live vendor/bash folder and logs could-not-tell', rPsFailShell.rc === 0 && existsSync(shellBuild) && psFailShellLine.includes(unknownReason), `rc=${rPsFailShell.rc} exists=${existsSync(shellBuild)} line=${psFailShellLine}`)
+
+    await killChild(shellHolder)
+    const rPosixPrune = deploy({ PATH: posixOnlyPsPath })
+    check('POSIX-only ps prunes the unused folder once the shell holder exits', rPosixPrune.rc === 0 && !existsSync(shellBuild), `rc=${rPosixPrune.rc} builds=${buildFolders().join(', ')}`)
+
+    const lsofOnlyBuild = seedBuild('eeeeeeeeeeee-55555555', 'e')
+    const lsofOnlyBinDir = join(lsofOnlyBuild, 'vendor', 'node', 'bin')
+    mkdirSync(lsofOnlyBinDir, { recursive: true })
+    const lsofOnlyNode = join(lsofOnlyBinDir, 'node')
+    copyFileSync(NODE, lsofOnlyNode)
+    spawnSync('chmod', ['+x', lsofOnlyNode])
+    const relHolder = spawn('./node', ['-e', 'setTimeout(() => {}, 120000)'], { cwd: lsofOnlyBinDir, stdio: 'ignore' })
+    dummies.push(relHolder)
+    const relPid = relHolder.pid ?? 0
+    await untilAsync(() => relPid > 0 && alive(relPid) && psCommand(relPid).includes('./node'), 5_000, 50)
+    const rPsFailRel = deploy({ PATH: psFailPath })
+    const psFailRelLine = keptLineFor(rPsFailRel.out, lsofOnlyBuild)
+    check('failing ps with working lsof keeps a live ./node holder with the holder reason', rPsFailRel.rc === 0 && existsSync(lsofOnlyBuild) && psFailRelLine.includes(holderReason), `rc=${rPsFailRel.rc} exists=${existsSync(lsofOnlyBuild)} line=${psFailRelLine}`)
+    await killChild(relHolder)
+
+    const probeBuild = seedBuild('cccccccccccc-33333333', 'c')
+    const rPs = deploy({ PATH: psFailPath })
+    const psLine = keptLineFor(rPs.out, probeBuild)
+    check('failing ps keeps the build folder and logs could-not-tell instead of holder', rPs.rc === 0 && existsSync(probeBuild) && psLine.includes(unknownReason), `rc=${rPs.rc} exists=${existsSync(probeBuild)} line=${psLine}`)
+
+    const bothFailPath = makeStubs('stub-ps-and-lsof-fail', { ps: 'exit 1', lsof: 'exit 2' })
+    const rBoth = deploy({ PATH: bothFailPath })
+    const bothLine = keptLineFor(rBoth.out, probeBuild)
+    check('failing ps and failing lsof exit 2 keeps the build folder with could-not-tell reason', rBoth.rc === 0 && existsSync(probeBuild) && bothLine.includes(unknownReason), `rc=${rBoth.rc} exists=${existsSync(probeBuild)} line=${bothLine}`)
+
+    const lsofFail2Path = makeStubs('stub-lsof-fail2', { lsof: 'exit 2' })
+    const rLsof2 = deploy({ PATH: lsofFail2Path })
+    const lsof2Line = keptLineFor(rLsof2.out, probeBuild)
+    check('unexpected lsof exit 2 keeps the build folder with could-not-tell reason', rLsof2.rc === 0 && existsSync(probeBuild) && lsof2Line.includes(unknownReason), `rc=${rLsof2.rc} exists=${existsSync(probeBuild)} line=${lsof2Line}`)
+
+    const lsofErr1Path = makeStubs('stub-lsof-err1', { lsof: 'echo "lsof: unexpected permission failure" >&2; exit 1' })
+    const rLsof1 = deploy({ PATH: lsofErr1Path })
+    const lsof1Line = keptLineFor(rLsof1.out, probeBuild)
+    check('unexpected lsof stderr with exit 1 keeps the build folder with could-not-tell reason', rLsof1.rc === 0 && existsSync(probeBuild) && lsof1Line.includes(unknownReason), `rc=${rLsof1.rc} exists=${existsSync(probeBuild)} line=${lsof1Line}`)
+
+    rmSync(oldDist, { recursive: true, force: true })
+    mkdirSync(oldDist, { recursive: true })
+    writeFileSync(join(oldDist, 'manifest.json'), JSON.stringify({ ...repoManifest, buildTree: 'f'.repeat(40) }, null, 2))
+    writeFileSync(join(oldDist, 'mercury.mjs'), 'console.log("Mercury 0.0.0-legacy-dist")\n')
+    const distPrev = join(runtime, 'dist.prev')
+    mkdirSync(distPrev, { recursive: true })
+    writeFileSync(join(distPrev, 'mercury.mjs'), 'console.log("Mercury 0.0.0-legacy-prev")\n')
+    const rLegacyFail = deploy({ PATH: psFailPath })
+    const distLine = rLegacyFail.out.split('\n').find(l => l.startsWith('runtime/dist ')) ?? ''
+    const distPrevLine = rLegacyFail.out.split('\n').find(l => l.startsWith('runtime/dist.prev ')) ?? ''
+    check('failing ps keeps legacy runtime/dist and logs could-not-tell instead of daemon running', rLegacyFail.rc === 0 && isRealDir(oldDist) && !isLink(oldDist) && distLine.includes('could not tell whether a process still runs from it'), `rc=${rLegacyFail.rc} line=${distLine}`)
+    check('failing ps keeps legacy runtime/dist.prev and logs could-not-tell instead of process running', rLegacyFail.rc === 0 && isRealDir(distPrev) && !isLink(distPrev) && distPrevLine.includes('could not tell whether a process still runs from it'), `rc=${rLegacyFail.rc} line=${distPrevLine}`)
+
+    const rNormal = deploy()
+    check('normal deploy prunes the unused folders and restores runtime/dist once ps and lsof succeed', rNormal.rc === 0 && !existsSync(probeBuild) && !existsSync(lsofOnlyBuild) && isLink(oldDist) && !existsSync(distPrev), `rc=${rNormal.rc} builds=${buildFolders().join(', ')}`)
+  }
 } finally {
   await cleanup()
 }

@@ -4,16 +4,17 @@
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { pinRecorderTerminal } from '../lib/proofHome.ts'
 
 const FIXTURES = join(import.meta.dirname, 'fixtures', 'agent-face')
 
 const scratchHome = mkdtempSync(join(tmpdir(), 'agent-face-stills-'))
 process.chdir(scratchHome)
+pinRecorderTerminal()
 process.env['MERCURY_CONFIG_DIR'] = 'proof-home'
 process.env['FORCE_COLOR'] = '0'
 process.env['MERCURY_CRITTER_GAZE'] = '0'
 process.env['MERCURY_LIVE_GLYPHS'] = '0'
-
 const FIXTURE_AGENT_RAW = [
   '---',
   'name: fixture-scout',

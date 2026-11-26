@@ -267,7 +267,7 @@ function MercuryHomeBody(): React.ReactNode {
 
       <Box marginTop={1}>
         <Text wrap="truncate-end" color={tok.textMuted}>
-          {`  ${CREW_VIEW_DOOR}  /saturn  /health  /trace`}
+          {`  ${CREW_VIEW_DOOR}  /schedule  /health  /trace`}
         </Text>
       </Box>
     </Box>

@@ -13,7 +13,7 @@ import { checkWritePermissionForTool, pathInAllowedWorkingPath } from '../../../
 import { modeBypassesPermissions } from '../../../permissions/rules/permissionMode.js'
 import type { MercuryLspOpOutput, OpEnv } from './types.js'
 import { displayPathFor, uriToFilePath } from './shared.js'
-import { syncServersAfterWrite, awaitDiagnosticStabilization } from './afterWrite.js'
+import { syncServersAfterWrites, awaitDiagnosticStabilization } from './afterWrite.js'
 import { changeViewOf, planFiles, planTokenOf, editRowsFor, type PlannedFile } from './preview.js'
 import { readKnowledgeHolds, touchedLinesOf } from './readKnowledge.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
@@ -274,8 +274,6 @@ export async function applyPrepared(
     } catch (error) {
       logForDebugging(`lsp ops: read-state refresh failed for ${w.abs}: ${String(error)}`)
     }
-    const sync = await syncServersAfterWrite(manager, w.abs, w.newText, w.create ? null : w.originalText, owner)
-    if (!sync.ok) syncFailures.push(`${displayPathFor(env.cwd, w.abs)}: ${sync.reason}`)
     try {
       rememberAnchoredSnapshot(owner, mintFileAnchor(w.newText), w.newText, w.abs)
       dropSeenLines(owner, w.abs)
@@ -283,6 +281,10 @@ export async function applyPrepared(
       logForDebugging(`lsp ops: anchor bookkeeping failed for ${w.abs}: ${String(error)}`)
     }
   }
+  const syncs = await syncServersAfterWrites(manager, written.map(w => ({ absolutePath: w.abs, newText: w.newText, before: w.create ? null : w.originalText })), owner)
+  syncs.forEach((sync, i) => {
+    if (!sync.ok) syncFailures.push(`${displayPathFor(env.cwd, written[i]!.abs)}: ${sync.reason}`)
+  })
   const primary = written[0]!.abs
   const stabilization = await awaitDiagnosticStabilization(manager, primary)
   try {

@@ -16,6 +16,7 @@ mock.module('../../src/screen/notifications/notifications.js', () => ({ ...notif
 const { Box, Text } = await import('../../src/screen/themedRenderer.js')
 const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
+const { PopupHost } = await import('../../src/screen/overlays/PopupHost.js')
 const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.js')
 const popup = await import('../../src/screen/cockpit/settingsPopup.js')
 const { call } = await import('../../src/commands/logins/login.js')
@@ -33,7 +34,7 @@ try {
     const mounted = await mountOffscreen(React.createElement(AppStateProvider as never, {}, React.createElement(ThemeProvider as never, {}, React.createElement(KeybindingSetup, {},
       React.createElement(Box, { width: columns, height, flexDirection: 'column' },
         React.createElement(Box, { ref: host, height, flexDirection: 'column' }, React.createElement(Text, {}, 'Fixture chat')),
-        React.createElement(SettingsPopupSlot, { overlay: true, hostRef: host }),
+        React.createElement(PopupHost, { hostRef: host, children: host => React.createElement(SettingsPopupSlot, { host, overlay: true }) }),
       )))), columns!, height!)
     await call((text: string | undefined) => { receipt = text ?? '' }, { onChangeAPIKey() {}, setMessages() {}, getAppState: () => ({}), setAppState() {} } as never, 'compat/east')
     try {

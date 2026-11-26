@@ -33,7 +33,6 @@ import { TranscriptNameplate } from './TranscriptNameplate.js'
 import { useSelectedMessageBg } from './messageActions.js'
 
 const EDIT_META_TOOLS = new Set(['Edit', 'Write', 'MultiEdit'])
-const NAME_MIN_COLUMNS = 12
 const ELAPSED_VISIBLE_MS = 10_000
 const ELAPSED_TICK_MS = 960
 const START_STAMP_BOUND = 256
@@ -349,12 +348,6 @@ export function AssistantToolUseMessage({
     }
   }
 
-  const nameWidth = stringWidth(displayName)
-  const paddedName =
-    nameBgColor === undefined && nameWidth < NAME_MIN_COLUMNS
-      ? `${displayName}${' '.repeat(NAME_MIN_COLUMNS - nameWidth)}`
-      : displayName
-
   const hasTarget =
     toolUseMessage !== '' &&
     toolUseMessage !== false
@@ -371,19 +364,21 @@ export function AssistantToolUseMessage({
       backgroundColor={selectedBg}
     >
       <Box>
+        <Box flexShrink={0}>
+          <ToolRowLead state={rowState} />
+        </Box>
         {shouldShowDot ? (
           <Box flexShrink={0}>
             <TranscriptNameplate />
           </Box>
         ) : null}
         <Text wrap="truncate-middle">
-          <ToolRowLead state={rowState} />
           {nameBgColor !== undefined ? (
             <Text bold backgroundColor={nameBgColor} color="inverseText">
               {displayName}
             </Text>
           ) : (
-            <Text bold>{paddedName}</Text>
+            <Text bold>{displayName}</Text>
           )}
           {hasTarget ? <Text color="subtle"> {toolUseMessage}</Text> : null}
           {isRunning && shouldAnimate ? (
@@ -407,22 +402,28 @@ export function AssistantToolUseMessage({
           {hasTag ? <Text> {toolUseTag}</Text> : null}
         </Text>
       </Box>
-      {showBlockSummary && resultSummary !== null ? (
-        <MessageResponse height={1}>
-          <Text dimColor wrap="truncate">
-            {resultSummary}
-          </Text>
-        </MessageResponse>
-      ) : null}
-      {isRunning ? renderProgressBlock() : null}
-      {isRunning &&
-      shouldAnimate &&
-      !isTranscriptMode &&
-      tool.name === BASH_TOOL_NAME ? (
-        <RunningShellBackgroundHint id={param.id} />
-      ) : null}
-      {queuedNode !== null && queuedNode !== undefined && queuedNode !== false ? (
-        <MessageResponse height={1}>{queuedNode}</MessageResponse>
+      {(showBlockSummary && resultSummary !== null) ||
+      isRunning ||
+      (queuedNode !== null && queuedNode !== undefined && queuedNode !== false) ? (
+        <Box flexDirection="column" paddingLeft={2}>
+          {showBlockSummary && resultSummary !== null ? (
+            <MessageResponse height={1}>
+              <Text dimColor wrap="truncate">
+                {resultSummary}
+              </Text>
+            </MessageResponse>
+          ) : null}
+          {isRunning ? renderProgressBlock() : null}
+          {isRunning &&
+          shouldAnimate &&
+          !isTranscriptMode &&
+          tool.name === BASH_TOOL_NAME ? (
+            <RunningShellBackgroundHint id={param.id} />
+          ) : null}
+          {queuedNode !== null && queuedNode !== undefined && queuedNode !== false ? (
+            <MessageResponse height={1}>{queuedNode}</MessageResponse>
+          ) : null}
+        </Box>
       ) : null}
     </Box>
   )

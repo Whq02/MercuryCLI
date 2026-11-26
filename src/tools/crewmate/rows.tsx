@@ -7,7 +7,6 @@ import { Message as MessageComponent } from '../../screen/messages/Message.js'
 import { MessageResponse } from '../kit/MessageResponse.js'
 import { FallbackToolUseErrorMessage } from '../kit/FallbackToolUseErrorMessage.js'
 import { FallbackToolUseRejectedMessage } from '../kit/FallbackToolUseRejectedMessage.js'
-import { ToolRowLead, toolRowStateOf } from '../../screen/messages/ToolRowLead.js'
 import type {
   AssistantMessage,
   NormalizedUserMessage,
@@ -764,7 +763,6 @@ export function renderGroupedCrewmateToolUse(
     )
     const resolved = Boolean(raw.isResolved || output !== undefined)
     const isErrored = Boolean(raw.isErrored || output?.status === 'failed')
-    const isDenied = Boolean(raw.isDenied)
     const rawOutput: unknown = raw.output ?? raw.rawResult
     const outputMetrics = isRecord(rawOutput)
       ? {
@@ -782,7 +780,7 @@ export function renderGroupedCrewmateToolUse(
       resolved,
       isErrored,
     }
-    return { entry, isBackground, isDenied }
+    return { entry, isBackground }
   })
 
   const entries = analyzed.map(item => item.entry)
@@ -790,8 +788,6 @@ export function renderGroupedCrewmateToolUse(
     analyzed.length > 0 && analyzed.every(item => item.entry.resolved)
   const allBackground =
     analyzed.length > 0 && analyzed.every(item => item.isBackground)
-  const anyErrored = analyzed.some(item => item.entry.isErrored)
-  const anyDenied = analyzed.some(item => item.isDenied)
 
   const names = entries.map(entry => userFacingName(entry.input))
   const firstName = names[0]
@@ -813,13 +809,6 @@ export function renderGroupedCrewmateToolUse(
   return (
     <Box flexDirection="column">
       <Box>
-        <ToolRowLead
-          state={toolRowStateOf({
-            resolved: allResolved,
-            errored: anyErrored,
-            denied: anyDenied,
-          })}
-        />
         {allResolved && allBackground ? (
           <Text bold>{entries.length} background crewmates launched</Text>
         ) : (

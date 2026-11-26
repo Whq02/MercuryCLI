@@ -21,7 +21,8 @@ import { useNotifications } from '../../../screen/notifications/notifications.js
 import { useInput } from '../../../screen/themedRenderer.js'
 import { useAnthropicLoginModel } from '../../../screen/widgets/faces/anthropicLoginModel.js'
 import { CompatConnect } from './CompatConnect.js'
-import { localRoadOpen, loginFamilyRows, SIGN_IN_LATER_ROW, TENSORFOLD_FAMILY_VALUE, type LoginFamilyValue, type TensorFoldOffer } from './loginFamilyRows.js'
+import { DEVIN_EXTERNAL_AGENT_VALUE, localRoadOpen, loginFamilyRows, SIGN_IN_LATER_ROW, TENSORFOLD_FAMILY_VALUE, type LoginFamilyValue, type TensorFoldOffer } from './loginFamilyRows.js'
+import { DevinCliCard } from '../../../screen/boot-face/logins/DevinCliCard.js'
 import { localDiscoverySummary } from '../../roads/local/localCatalogue.js'
 import { refreshLocalDiscovery } from '../../roads/local/localDiscovery.js'
 import { armFaceDoorDeepLink, armTensorFoldDeepLink, disarmTensorFoldDeepLink } from '../../../platform/substrate/splashHandover.js'
@@ -55,6 +56,7 @@ export function ConsoleOAuthFlow({
   initialFocus,
   onSkip,
   onAbandonLeg,
+  externalAgents,
 }: {
   tensorfold?: TensorFoldOffer | null
   onAccountChange?: (receipt: string) => void
@@ -67,6 +69,7 @@ export function ConsoleOAuthFlow({
   initialFocus?: LoginFamilyFocus
   onSkip?: () => void
   onAbandonLeg?: () => void
+  externalAgents?: boolean
 }): React.ReactNode {
   const tokens = useMercuryTokens()
   const { columns, rows } = useTerminalSize()
@@ -104,6 +107,7 @@ export function ConsoleOAuthFlow({
 
   const [leg, setLeg] = useState<EngineLeg | null>(null)
   const [accountFamily, setAccountFamily] = useState<LoginFamilyValue | null>(null)
+  const [externalAgent, setExternalAgent] = useState<'devin' | null>(null)
   const [code, setCodeState] = useState('')
   const codeRef = useRef('')
   const setCode = useCallback((next: string): void => {
@@ -115,12 +119,11 @@ export function ConsoleOAuthFlow({
   const [rosterVisibleTo, setRosterVisibleTo] = useState<number | null>(null)
 
   const engineLegs = onOpenaiDone !== undefined && !setupToken
-  const familyRows = loginFamilyRows({ engineLegs, tensorfold })
+  const familyRows = loginFamilyRows({ engineLegs, tensorfold, ...(externalAgents === true ? { externalAgents: true } : {}) })
   const totalMenuRows = familyRows.length + (hasSkip ? 1 : 0)
-  const onIdleMenu = accountFamily === null && leg === null && model.flow.name === 'idle'
+  const onIdleMenu = accountFamily === null && leg === null && externalAgent === null && model.flow.name === 'idle'
   const showingSelectionList =
-    model.flow.name === 'idle' && (leg === null || leg === 'anthropic' || leg === 'openai')
-
+    externalAgent === null && model.flow.name === 'idle' && (leg === null || leg === 'anthropic' || leg === 'openai')
   useLayoutClaim(() => {
     if (!settingsPopup) return
     if (!showingSelectionList) {
@@ -173,6 +176,10 @@ export function ConsoleOAuthFlow({
         return
       }
       disarmTensorFoldDeepLink()
+      if (value === DEVIN_EXTERNAL_AGENT_VALUE) {
+        setExternalAgent('devin')
+        return
+      }
       const nextLeg = toEngineLeg(value)
       if (nextLeg !== null) setLeg(nextLeg)
     },
@@ -190,6 +197,7 @@ export function ConsoleOAuthFlow({
       key.escape &&
       accountFamily === null &&
       leg === null &&
+      externalAgent === null &&
       (model.flow.name === 'ready' || model.flow.name === 'waiting' || model.flow.name === 'error')
     ) {
       event.stopImmediatePropagation()
@@ -201,6 +209,7 @@ export function ConsoleOAuthFlow({
     if (
       accountFamily === null &&
       leg === null &&
+      externalAgent === null &&
       model.flow.name === 'waiting' &&
       model.pastePromptUp &&
       codeRef.current === '' &&
@@ -262,6 +271,10 @@ export function ConsoleOAuthFlow({
         }}
       />,
     )
+  }
+
+  if (externalAgent === 'devin') {
+    return frame(<DevinCliCard compact={compact} onBack={() => setExternalAgent(null)} />)
   }
 
   if (leg !== null) {

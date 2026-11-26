@@ -446,7 +446,7 @@ section('§2 the standalone tool row (the plain chrome) — the hint under a run
   const rowAt = rowLine(old, marker('old'))
   const hintAt = hintLines(old)[0] ?? -1
   check('the hint sits under the row, below the running line', hintAt > rowAt && hintAt - rowAt <= 3 && old.slice(rowAt + 1, hintAt).some(line => line.includes('running')), around(old, marker('old')))
-  check('the hint is one dim line indented under the row\'s response connector', (old[hintAt] ?? '').trimEnd() === `    ${HINT}`, JSON.stringify(old[hintAt] ?? ''))
+  check('the hint is one dim line indented under the row\'s response connector', (old[hintAt] ?? '').trimEnd() === `      ${HINT}`, JSON.stringify(old[hintAt] ?? ''))
   check('the elapsed tail still names the age beside the hint', /· 10[5-9]s/.test(old[rowAt] ?? ''), old[rowAt] ?? '')
   console.log(`  old row: ${around(old, marker('old'))}`)
 
@@ -642,8 +642,8 @@ async function chromeWorld(name: string, helmHome: '0' | '1'): Promise<void> {
   }
   const world = await mountTree(COLS, ROWS, h(Harness))
   await until(`${name}: the chrome mounts with the composer armed`, () => insertRef.current !== null && world.stdin.isRaw && world.frame().length > 0)
-  if (helmHome === '1') await until(`${name}: the lanes rail paints (the cockpit)`, () => world.frame().includes('lanes'))
-  else await until(`${name}: no lanes rail paints (the wide non-cockpit view)`, () => world.frame().length > 0 && !world.frame().includes('lanes'))
+  if (helmHome === '1') await until(`${name}: the lanes rail paints (the cockpit)`, () => world.frame().includes('workbench'))
+  else await until(`${name}: no lanes rail paints (the wide non-cockpit view)`, () => world.frame().length > 0 && !world.frame().includes('workbench'))
   await until(`${name}: the fold paints the running shell as the collapsed row`, () => world.frame().includes(RUNNING_ROW) && world.frame().includes(COMMAND_LINE))
   await until(`${name}: the hint paints under the row`, () => hintLines(world.lines()).length === 1)
   await until(`${name}: the footer names the chord beside esc interrupt`, () => world.frame().includes(FOOTER_HINT))

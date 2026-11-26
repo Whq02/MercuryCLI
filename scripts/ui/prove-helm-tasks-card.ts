@@ -196,7 +196,7 @@ async function mount(name: string, work: WorkRoster): Promise<Mount> {
   }
   ink.render(h(App, { initialState: { ...getDefaultAppState(), expandedView: 'none' }, getFpsMetrics: () => undefined }, h(Harness)))
   const frame = (): string => stripAnsi(ink.lastFrameText())
-  await until(`${name}: the cockpit mounts with the composer and the lanes rail`, () => insertRef.current !== null && stdin.isRaw && frame().includes('lanes'))
+  await until(`${name}: the cockpit mounts with the composer and the lanes rail`, () => insertRef.current !== null && stdin.isRaw && frame().includes('files ·'))
   await until(`${name}: the vitals bus carries the fixture ledger (${work.mission.length} rows)`, () => vitals.getVitals().version > 0 && vitals.getVitals().tasks.length === work.mission.length, 15_000)
   const seen = frames
   await until(`${name}: the cockpit composed two more frames after the ledger landed (the working strip's clock keeps them coming)`, () => frames >= seen + 2)

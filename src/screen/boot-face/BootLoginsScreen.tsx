@@ -11,7 +11,7 @@ import { resolveProviderUsability } from '../../models/roads/providerUsability.j
 import { mostRecentSignInFamily } from '../../models/catalogue/computedDefault.js';
 import { useEngineModel } from '../model-picker/useEngineModel.js';
 import { useTerminalSize } from '../fullscreen-layout/useTerminalSize.js';
-import { loginFamilyFocusFor, loginFamilyInitialFocus } from '../../models/sign-in/flow-cards/loginFamilyRows.js';
+import { DEVIN_EXTERNAL_AGENT_VALUE, loginFamilyFocusFor, loginFamilyInitialFocus } from '../../models/sign-in/flow-cards/loginFamilyRows.js';
 import { InteractiveRow } from '../widgets/InteractiveRow.js';
 import { renderSceneLine } from '../widgets/SceneCanvas.js';
 import { bootEnvironment } from './bootEnvironment.js';
@@ -20,17 +20,18 @@ import { useInteractiveList } from '../widgets/useInteractiveList.js';
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js';
 import { useSplashCoreAccent } from '../widgets/useSplashCoreAccent.js';
 import { useBootComposition } from './useBootComposition.js';
-import { loginsSwitchableFamily, loginsFlowReady, type LoginsScreenFactsV1, loginsSortedArms, collectLoginsScreenFacts, type LoginsArmV1 } from './logins/facts.js';
+import { loginsSwitchableFamily, loginsFlowReady, type LoginsScreenFactsV1, loginsRosterRows, loginsRosterRowValue, loginsRosterRowLabel, collectLoginsScreenFacts, type LoginsRosterRowV1 } from './logins/facts.js';
 import { loginsPickOptions, type FaceKeyLegId, type LoginsPickId } from './logins/pickLines.js';
 import type { OpenFlowState, FaceDeviceFamily, HandlesLegId } from './logins/flowLines.js';
 import { loginsMenuModelOf, loginsFlowPaneOf } from './logins/menuModel.js';
-import { postLoginSettleOf, startDeviceRunOf, openGuideStepOf, startHandlesRunOf, startOpenaiDeviceRunOf } from './logins/runs.js';
-import { openFlowOf, resolvePickOf } from './logins/picks.js';
+import { postLoginSettleOf, startDeviceRunOf, openGuideStepOf, startHandlesRunOf, startOpenaiDeviceRunOf, startDevinCliRunOf } from './logins/runs.js';
+import { openRosterFlowOf, resolvePickOf } from './logins/picks.js';
 import { submitKeyOf, keyEscapeOf } from './logins/keyLegs.js';
 import { receiptFlowKeys, deviceFlowKeys, handlesFlowKeys, opdeviceFlowKeys, clientFlowKeys, keyFlowKeys, anthropicFlowKeys } from './logins/flowKeys.js';
 import type { LoginsFlowContext } from './logins/context.js';
-export type { LoginsScreenFactsV1, LoginsArmV1, LoginsRowStateV1, LoginsEntry } from './logins/facts.js';
-export { collectLoginsScreenFacts, loginsCatalogue, loginsFamilyCounts, loginsExpiredFamilies, loginsGlance, loginsArmSlots, loginsSwitchableFamily, loginsRowStateOf, loginsSortedArms, loginsEntryOf, loginsDetailLines, lateSettleNotice, loginsSummaryRows, loginsStatusLine, loginsFlowReady, loginsLegendOf } from './logins/facts.js';
+import type { DevinCliAction } from './logins/devinCliAction.js';
+export type { LoginsScreenFactsV1, LoginsArmV1, LoginsRowStateV1, LoginsEntry, LoginsRosterRowV1 } from './logins/facts.js';
+export { collectLoginsScreenFacts, loginsCatalogue, loginsFamilyCounts, loginsExpiredFamilies, loginsGlance, loginsArmSlots, loginsSwitchableFamily, loginsRowStateOf, loginsSortedArms, loginsRosterRows, loginsRosterRowValue, loginsRosterRowLabel, loginsEntryOf, loginsDetailLines, lateSettleNotice, loginsSummaryRows, loginsStatusLine, loginsFlowReady, loginsLegendOf } from './logins/facts.js';
 export { maskedDraftLine, wrapHard, wrapClauses, anthropicFlowPaneLines, anthropicFlowLegendOf, anthropicFlowStatusOf, receiptPaneLines, signedInWayOut, signedInStatusWayOut } from './logins/anthropicLines.js';
 export type { LoginsPickId, FaceKeyLegId } from './logins/pickLines.js';
 export { geminiPickOptions, metaPickOptions, loginsPickOptions, loginsPickPaneLines, keyLegTitle, keyLegStoreLine, keyLegGuardOpts, keyPromptPaneLines } from './logins/pickLines.js';
@@ -59,8 +60,7 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
     () => given ?? collectLoginsScreenFacts(),
     [given, signInEpoch, catalogueEpoch, factsTick],
   );
-  const arms = useMemo(() => loginsSortedArms(facts), [facts]);
-
+  const roster = useMemo(() => loginsRosterRows(facts), [facts]);
   const [flow, setFlow] = useState<OpenFlowState | null>(null);
   const flowRef = useRef(flow);
   const xaiApiReceipt = useRef('xAI API key kept.');
@@ -121,6 +121,8 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
 
   const startOpenaiDeviceRun = (): void => startOpenaiDeviceRunOf(ctx);
 
+  const startDevinCliRun = (action: DevinCliAction): void => startDevinCliRunOf(ctx, action);
+
   const model = useAnthropicLoginModel({
     onDone: () => {
       settleSignedIn();
@@ -131,21 +133,22 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
     pickList.moveTo(cursor);
   };
 
-  const openFlow = (arm: LoginsArmV1): void => openFlowOf(ctx, arm);
+  const openRosterFlow = (row: LoginsRosterRowV1): void => openRosterFlowOf(ctx, row);
 
   const resolvePick = (pick: LoginsPickId, value: string): void => resolvePickOf(ctx, pick, value);
 
   const submitKey = (leg: FaceKeyLegId, raw: string): void => submitKeyOf(ctx, leg, raw);
 
   const keyEscape = (leg: FaceKeyLegId): void => keyEscapeOf(ctx, leg);
-  const ctx: LoginsFlowContext = { given, setAppStateMaybe, flowRef, draftRef, deviceRunRef, handlesRef, anthropicKeyDraft, anthropicKeyRequest, xaiApiReceipt, mistralApiReceipt, setFlow, setNotice, setDraft, refreshFacts, closeFlow, settleSignedIn, discloseLateSettle, startDeviceRun, openGuideStep, startHandlesRun, startOpenaiDeviceRun, model, openPick, submitKey, keyEscape };
+  const ctx: LoginsFlowContext = { given, setAppStateMaybe, flowRef, draftRef, deviceRunRef, handlesRef, anthropicKeyDraft, anthropicKeyRequest, xaiApiReceipt, mistralApiReceipt, setFlow, setNotice, setDraft, refreshFacts, closeFlow, settleSignedIn, discloseLateSettle, startDeviceRun, openGuideStep, startHandlesRun, startOpenaiDeviceRun, startDevinCliRun, model, openPick, submitKey, keyEscape };
 
   const recordedFocus = loginFamilyFocusFor(mostRecentSignInFamily());
-  const initialFocus = loginFamilyInitialFocus(arms.map(arm => arm.row), recordedFocus, loginFamilyFocusFor(family));
+  const requestedFocus = family === 'devin' || family === DEVIN_EXTERNAL_AGENT_VALUE ? DEVIN_EXTERNAL_AGENT_VALUE : loginFamilyFocusFor(family);
+  const initialFocus = loginFamilyInitialFocus(roster.map(row => ({ value: loginsRosterRowValue(row) })), recordedFocus, requestedFocus);
 
-  const list = useInteractiveList<LoginsArmV1>({
-    rows: arms,
-    rowId: a => `logins:${a.row.value}`,
+  const list = useInteractiveList<LoginsRosterRowV1>({
+    rows: roster,
+    rowId: r => `logins:${loginsRosterRowValue(r)}`,
     idNamespace: 'boot-logins',
     ...(initialFocus !== undefined ? { initialId: `logins:${initialFocus}` } : {}),
     active: flow === null,
@@ -154,19 +157,19 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
       {
         key: 'return',
         hint: 'sign in',
-        when: a => loginsFlowReady(a.row.value),
-        run: a => {
-          if (a !== null && loginsFlowReady(a.row.value)) openFlow(a);
+        when: r => loginsFlowReady(loginsRosterRowValue(r)),
+        run: r => {
+          if (r !== null && loginsFlowReady(loginsRosterRowValue(r))) openRosterFlow(r);
           return null;
         },
       },
       {
         key: 's',
         hint: 'switch active slot',
-        when: a => given === undefined && loginsSwitchableFamily(a, facts) !== null,
-        run: a => {
-          if (a === null || given !== undefined) return null;
-          const family = loginsSwitchableFamily(a, facts);
+        when: r => given === undefined && r.kind === 'provider' && loginsSwitchableFamily(r.arm, facts) !== null,
+        run: r => {
+          if (r === null || given !== undefined || r.kind !== 'provider') return null;
+          const family = loginsSwitchableFamily(r.arm, facts);
           if (family === null) return null;
           const { switchActiveSlot } =
             require('../../models/roads/slotSwitch.js') as typeof import('../../models/roads/slotSwitch.js');
@@ -187,6 +190,10 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
     onClose: () => {
       if (flowRef.current?.kind === 'pick' && flowRef.current.pick === 'kimi-region') {
         openPick('moonshot');
+        return;
+      }
+      if (flowRef.current?.kind === 'pick' && flowRef.current.pick === 'devin-cli-logout-confirm') {
+        openPick('devin-cli', 2);
         return;
       }
       closeFlow();
@@ -233,11 +240,11 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
         keyFlowKeys(ctx, current, input, key);
         return;
       }
+      if (current.kind === 'external-run') return;
       anthropicFlowKeys(ctx, input, key);
     },
     { isActive: flow !== null && flow.kind !== 'pick' },
   );
-
   useInput(
     (_input, key, event) => {
       if (!key.leftArrow) return;
@@ -280,8 +287,8 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
         const target =
           entryIdx === undefined
             ? null
-            : flow === null && arms[entryIdx] !== undefined
-              ? { props: list.rowProps(arms[entryIdx]!, entryIdx), hoverLabel: arms[entryIdx]!.row.label }
+            : flow === null && roster[entryIdx] !== undefined
+              ? { props: list.rowProps(roster[entryIdx]!, entryIdx), hoverLabel: loginsRosterRowLabel(roster[entryIdx]!) }
               : flow?.kind === 'pick' && pickOptions[entryIdx] !== undefined
                 ? { props: pickList.rowProps(pickOptions[entryIdx]!, entryIdx), hoverLabel: pickOptions[entryIdx]!.label }
                 : null;

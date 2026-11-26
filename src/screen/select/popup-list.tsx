@@ -67,7 +67,10 @@ export function PopupListViewport({ above, below, rows, children }: {
     const next = Math.ceil(bodyRef.current?.layoutNode?.getComputedHeight() ?? 0)
     setMeasured(current => current === next ? current : next)
   }, [])
-  useLayoutSubscription(() => instance?.subscribeFrame(measure), [instance, measure])
+  useLayoutSubscription(() => {
+    measure()
+    return instance?.subscribeLayout(measure)
+  }, [instance, measure])
   const height = Math.max(1, measured || rows)
   return (
     <Box flexShrink={0}>

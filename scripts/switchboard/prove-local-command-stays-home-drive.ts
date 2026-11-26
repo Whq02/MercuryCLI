@@ -164,7 +164,7 @@ try {
   check('both probes answered on their own transcripts', await untilAsync(() => readFileSync(tA, 'utf8').includes('alpha is ready.') && readFileSync(tB, 'utf8').includes('beta is ready.'), 40_000), '', 'a probe session never wrote its fixture reply to its own transcript within 40s: read daemon.log in the scratch folder')
   check('both transcripts stand, each in its own project folder', existsSync(tA) && existsSync(tB) && paths.getProjectDir(sandbox) !== paths.getProjectDir(ground), '', 'each session must write its transcript under getProjectDir of its own folder (src/sessions/transcripts/paths.ts)')
 
-  const LIST_FOCUSED = 'new session · n'
+  const LIST_FOCUSED = '+ new · n'
   const ARMED = 'armed — ↵ again enters'
   const CHAT = '? for shortcuts'
   const screen1 = runScreen('beta-screen', ground, [

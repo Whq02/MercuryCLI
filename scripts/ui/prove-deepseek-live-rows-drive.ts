@@ -180,9 +180,9 @@ console.log('\n[1] the live list: the fixture names three ids and the picker pai
   daemonDirs.push(join(scratch, 'daemon-live'))
   const res = drive('live', home, fixture.port, [
     ...openSends,
-    { requireAwait: true, awaitText: '│ │ DeepSeek V4 Pro', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'open', data: '' },
+    { requireAwait: true, awaitText: '│ ❯ DeepSeek V4 Pro', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'open', data: '' },
     { requireAwait: true, awaitText: 'deepseek-fixture-next', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'live', data: DOWN },
-    { requireAwait: true, awaitText: '│ │ DeepSeek V4.1', awaitStableTicks: 2, awaitStableRegion: PICKER_REGION, mark: 'flash', data: ESC },
+    { requireAwait: true, awaitText: '│ ❯ DeepSeek V4.1', awaitStableTicks: 2, awaitStableRegion: PICKER_REGION, mark: 'flash', data: ESC },
     { afterPrevTicks: 3, data: '' },
   ], 220)
   fixture.stop()
@@ -202,7 +202,7 @@ console.log('\n[1] the live list: the fixture names three ids and the picker pai
   check('live: the unrecorded id states no provider context window rather than presenting an internal budget as a provider fact', nextRow !== '' && !/\d+[kM]? ctx/.test(nextRow), nextRow)
   check('live: both pinned rows keep their pinned window', proRow.includes('1.05M ctx') && flashRow.includes('1.05M ctx'), proRow + '\n' + flashRow)
   check('live: the group line names the key and three live rows, never a frontier row', /DEEPSEEK · API key · …0001 · 3 live$/.test(groupLine(live, 'DEEPSEEK ·')) && !live.includes('frontier:'), groupLine(live, 'DEEPSEEK ·'))
-  check('live: the focused Flash row keeps its exact current id beside its pin label', /│ │ DeepSeek V4\.1 Fla…\s+deepseek-flash/.test(lines(flash, 'deepseek-flash')), lines(flash, 'deepseek-flash'))
+  check('live: the focused Flash row keeps its exact current id beside its pin label', /│ ❯ DeepSeek V4\.1 Fla…\s+deepseek-flash/.test(lines(flash, 'deepseek-flash')), lines(flash, 'deepseek-flash'))
   check('live: the retired id is nowhere on the screen', !live.includes('deepseek-v4-flash') && !flash.includes('deepseek-v4-flash'))
   dumpOnRed('live', before, res)
 }
@@ -216,9 +216,9 @@ console.log('\n[2] the pins stand in: the fixture refuses the list (HTTP 503)')
   daemonDirs.push(join(scratch, 'daemon-refuse'))
   const res = drive('refuse', home, fixture.port, [
     ...openSends,
-    { requireAwait: true, awaitText: '│ │ DeepSeek V4 Pro', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'open', data: '' },
+    { requireAwait: true, awaitText: '│ ❯ DeepSeek V4 Pro', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'open', data: '' },
     { requireAwait: true, awaitText: 'deepseek-flash', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'rows', data: '' },
-    { requireAwait: true, awaitText: '│ │ DeepSeek V4 Pro', awaitStableTicks: 2, awaitStableRegion: PICKER_REGION, mark: 'pro', data: ESC },
+    { requireAwait: true, awaitText: '│ ❯ DeepSeek V4 Pro', awaitStableTicks: 2, awaitStableRegion: PICKER_REGION, mark: 'pro', data: ESC },
     { afterPrevTicks: 3, data: '' },
   ], 200)
   fixture.stop()
@@ -239,13 +239,13 @@ console.log('\n[3] the alias: a saved deepseek-v4-flash setting opens on the Fla
   daemonDirs.push(join(scratch, 'daemon-alias'))
   const res = drive('alias', home, fixture.port, [
     ...openSends,
-    { requireAwait: true, awaitText: '│ │ DeepSeek V4.1', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'alias', data: ESC },
+    { requireAwait: true, awaitText: '│ ❯ DeepSeek V4.1', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'alias', data: ESC },
     { afterPrevTicks: 3, data: '' },
   ], 160)
   fixture.stop()
   check('alias: the drive delivered every send (exit 0)', res.status === 0, `exit ${res.status}: ${res.stderr.slice(-300)}`)
   const alias = res.marks.get('alias') ?? ''
-  check('alias: the picker opens on the focused Flash row, marked current', /│ │ DeepSeek V4\.1 Fla…\s+deepseek-flash\s+current/.test(lines(alias, 'deepseek-flash')), lines(alias, 'deepseek-flash'))
+  check('alias: the picker opens on the focused Flash row, marked current', /│ ❯ DeepSeek V4\.1 Fla…\s+deepseek-flash\s+current/.test(lines(alias, 'deepseek-flash')), lines(alias, 'deepseek-flash'))
   check('alias: the row paints the current id (deepseek-flash), never the retired one', /DeepSeek V4\.1 Fla…\s+deepseek-flash\s/.test(alias) && !alias.includes('deepseek-v4-flash'), lines(alias, 'deepseek-flash'))
   check('alias: the saved setting still holds the retired spelling (nothing rewritten on open)', readFileSync(join(home, 'settings.json'), 'utf8').includes('deepseek-v4-flash'))
   dumpOnRed('alias', before, res)

@@ -1,13 +1,17 @@
-import { fileURLToPath } from 'node:url'
+import { resolve } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { foldDriveCase } from './LSPDiagnosticRegistry.js'
 
-import type { PublishDiagnosticsParams } from 'vscode-languageserver-protocol'
+import type { DocumentDiagnosticReport, PublishDiagnosticsParams } from 'vscode-languageserver-protocol'
 
+import { withDeadline } from '../../platform/async/deadline.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { logError } from '../../platform/logs/errorLog.js'
 import { isRecord } from '../../platform/primitives/isRecord.js'
 import type { Diagnostic, DiagnosticFile } from './diagnosticTracking.js'
-import { recordPublishedReport, registerPendingLSPDiagnostic } from './LSPDiagnosticRegistry.js'
+import { pulledReportsFor, recordPublishedReport, registerPendingLSPDiagnostic } from './LSPDiagnosticRegistry.js'
+import type { LSPServerInstance } from './LSPServerInstance.js'
 import type { LSPServerManager } from './LSPServerManager.js'
 
 
@@ -56,6 +60,33 @@ function convertDiagnostics(rawDiagnostics: PublishDiagnosticsParams['diagnostic
     ...(diag.source !== undefined ? { source: diag.source } : {}),
     ...(diag.code !== undefined && diag.code !== null ? { code: String(diag.code) } : {}),
   }))
+}
+
+export function pullServersOf(manager: LSPServerManager, path: string): LSPServerInstance[] {
+  return manager.getServersForFile(path).filter(server => server.config.pullIsPush === true && server.state === 'running' && Boolean(server.capabilities?.diagnosticProvider))
+}
+
+export function pullWrittenFiles(manager: LSPServerManager, paths: readonly string[], deadlineMs: number): Map<string, Promise<unknown>> {
+  const pulls = new Map<string, Promise<unknown>>()
+  for (const path of paths) {
+    const reportFor = pulledReportsFor(path)
+    if (reportFor === undefined) continue
+    const textDocument = { uri: pathToFileURL(resolve(path)).href }
+    pulls.set(
+      path,
+      Promise.all(
+        pullServersOf(manager, path).map(server => {
+          const land = reportFor(server.name)
+          return withDeadline(server.sendRequest<DocumentDiagnosticReport>('textDocument/diagnostic', { textDocument }), deadlineMs, () => undefined)
+            .then(answer => {
+              if (answer?.kind === 'full') land(convertDiagnostics(answer.items))
+            })
+            .catch(passedOver)
+        }),
+      ),
+    )
+  }
+  return pulls
 }
 
 export function registerLSPNotificationHandlers(manager: LSPServerManager): HandlerRegistrationResult {

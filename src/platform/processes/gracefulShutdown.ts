@@ -10,7 +10,7 @@ import { runCleanupFunctions } from './cleanupRegistry.js'
 import { logForDebugging } from '../logs/debugLog.js'
 import { getErrnoCode } from '../errors/errors.js'
 import { logError } from '../logs/errorLog.js'
-import { isPeerGoneWriteError, registerProcessInputErrorHandler, registerProcessOutputErrorHandlers } from './process.js'
+import { isConsoleLent, isPeerGoneWriteError, registerProcessInputErrorHandler, registerProcessOutputErrorHandlers } from './process.js'
 import { profileReport } from '../../boot/startupProfiler.js'
 import { pollUntil, withDeadline } from '../async/deadline.js'
 import { passedOver } from '../errors/passedOver.js'
@@ -346,6 +346,7 @@ function installSignalHandlers(): void {
   for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
     process.on(signal, () => {
       if (signal === 'SIGHUP') markTerminalGone()
+      if (signal === 'SIGINT' && isConsoleLent()) return
       if (runModeOwnsSignals()) return
       writePreflightSignal(codes[signal])
       gracefulShutdownSync(codes[signal])

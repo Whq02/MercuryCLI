@@ -13,7 +13,7 @@ Mercury CLI(mercury-cli.ai, npm 패키지 `mercury-tech-cli`)는 macOS, Linux, W
 - **Mneme 하이브리드 RAG 프로젝트 메모리:** 기기 내에서 실행되는 118 MB BGE 시맨틱 임베딩 모델(`bge-base-en-v1.5`)을 사용하며, BM25 단어 순위와 인용 추적, 원문 그대로의 고정 규칙(pinned rules), 브랜치를 인식하는 시작 컨텍스트, 쓰기 시점의 모순 검사, 세션 인계 노트, 그리고 `/memory page` 브라우저 그래프를 제공합니다.
 - **컴파일러, AST, DAP 디버깅 도구:** LSP 코드 인텔리전스와 미리보기로 확인하는 리팩터링(`LspRead`, `LspRename`, `LspMoveSymbol`, `LspMoveFile`, `LspCodeAction`, `LspFormat`), 57개 언어를 지원하는 tree-sitter AST 구조 검색과 재작성(`AstSearch`, `AstEdit`), 실패하는 Python, Node, Go, Rust 테스트를 단계별로 따라가는 내장 Debug Adapter Protocol(`Debug`) 디버거(`debugpy`, `js-debug`, `lldb`, `gdb`, `dlv`), 그리고 지속되는 Python 및 JavaScript `Eval` 셀을 제공합니다.
 - **키 없이 사용하는 `WebSearch`와 마크다운 `WebFetch`:** 제공자 고유 검색, Brave 또는 Tavily 키, 공식 API(Stack Exchange, npm, PyPI, crates.io, GitHub, Hacker News, Wikipedia), SearXNG, 키가 필요 없는 DuckDuckGo로 검색하고, 공개 문서를 호출당 38,000자 예산 안에서 마크다운으로 가져옵니다.
-- **데스크톱 컴퓨터 사용, Whisper 음성, Saturn 스케줄링, 에디터 브리지:** 데스크톱 애플리케이션(`Computer`)을 제어하고, Whisper로 푸시투토크 음성 받아쓰기를 기기 내에서 변환하며(`/voice`), Saturn으로 반복 또는 일회성 세션을 예약하고(`/saturn`), Agent Client Protocol(`mercury acp`)로 VS Code와 연결하고, Unity, Blender, Godot, Aseprite와도 연결합니다.
+- **데스크톱 컴퓨터 사용, Whisper 음성, Saturn 스케줄링, 에디터 브리지:** 데스크톱 애플리케이션(`Computer`)을 제어하고, Whisper로 푸시투토크 음성 받아쓰기를 기기 내에서 변환하며(`/voice`), Saturn으로 반복 또는 일회성 세션을 예약하고(`/schedule`), Agent Client Protocol(`mercury acp`)로 VS Code와 연결하고, Unity, Blender, Godot, Aseprite와도 연결합니다.
 - **동영상 생성(`Video`):** 설정된 MiniMax 생성기([docs/VIDEO.md](../VIDEO.md))로 프롬프트와 프로젝트 참조 파일을 보내고, 생성된 MP4와 선택 사항인 1초짜리 PNG 미리보기 프레임을 프로젝트에 저장합니다.
 
 Mercury는 Mercury 자체를 만드는 데 사용되며, 긴 작업에 걸쳐 여러 세션과 모델을 실행합니다. 그 작업을 추적하는 것이 가장 어려운 부분입니다. 아직 실행 중인 것, 바뀐 것, 결정이 필요한 것을 파악해야 하기 때문입니다. 각 세션은 끝날 때 자체 인계 노트를 작성하고, 다음 세션은 시작할 때 그 노트를 제가 고정해 둔 규칙(pinned rules)과 함께 한 번 읽어, 세션 사이의 컨텍스트 오염을 막습니다.
@@ -365,7 +365,7 @@ docker run --rm mercury --version
 - **에이전트, 교차 제공자 crewmate(`Crewmate`), 워크트리, 파일 리스.** 내장 에이전트 두 개(`mercury-crew`: 위임된 모든 종류의 작업용, `mercury-scout`: 읽기 전용 정찰용)가 `/agents`에서 만드는 에이전트 정의 옆에 함께 있습니다. 로그인된 제공자라면 어디에서든 crewmate를 실행할 수 있고, 병렬 작업은 `git worktree` 체크아웃(`isolation: "worktree"`)으로 격리합니다. 공유 파일은 프로세스 내 프로젝트 파일 리스(`mcp__mercury__lease_take`, `mcp__mercury__lease_release`, `mcp__mercury__lease_list`)로 조율합니다. `SendMessage`와 `ResumeCrewmate`로 이름이나 ID를 기준으로 crewmate에 지시하거나 재개할 수 있습니다. `/crewmates`와 `/runs`에서 crewmate를 따라갈 수 있습니다. [docs/CREW.md](../CREW.md)를 참조합니다.
 - **데스크톱 컴퓨터 사용.** 네이티브 데스크톱 드라이버를 사용할 수 있으면 기본으로 켜집니다. `Computer` 도구는 스크린샷을 캡처하고, 전경 애플리케이션의 마우스와 키보드를 제어합니다. Mercury는 행동하기 전에 이름과 정체를 기준으로 애플리케이션을 확인하고, 사용자의 권한 규칙, 세션 허용, 접근 설정 또는 권한 모드가 이미 그 동작을 허용하지 않는 한 승인을 요청합니다. `Esc`를 누르면 멈추며, 한 번에 한 세션만 데스크톱을 제어하도록 하고, 스크린샷은 저장된 대화 파일에 남기지 않습니다. 도구를 제거하려면 `MERCURY_COMPUTER_USE=0`을 설정합니다. [docs/COMPUTER-USE.md](../COMPUTER-USE.md)를 참조합니다.
 - **기기 내 Whisper 음성 입력(`/voice`).** `/voice on`은 처음 사용할 때 60 MB 영어 음성 모델(`base.en-q5_1`)을 내려받고, SHA-256 다이제스트를 검증한 뒤 받아쓰기를 켭니다. `/voice off`는 받아쓰기를 끕니다. 스페이스를 1초 동안 누르고 있으면 말하기 시작하고, 놓으면 멈춥니다. 또는 음성이 켜진 상태에서 인수 없이 `/voice`를 실행해 테이크(take)를 시작하고 멈출 수 있습니다. Whisper는 기기 안에서 변환하므로 음성 오디오는 기기 밖으로 나가지 않으며, `MERCURY_WHISPER_MODEL`로 `tiny.en-q5_1`, `small.en-q5_1`, 다국어 `base-q5_1`, 또는 로컬 `.gguf` 파일을 고를 수 있습니다. [docs/VOICE.md](../VOICE.md)를 참조합니다.
-- **Saturn 크론 및 세션 스케줄러(`/saturn`).** 기존 세션에 프롬프트를 예약하거나(`CronCreate`, `CronList`, `CronDelete`, `ScheduleWakeup`, `/loop`), 정해진 시각에 시작하는 새 세션을 예약합니다. 예약은 한 번 실행하거나 반복할 수 있습니다. [docs/SATURN.md](../SATURN.md)를 참조합니다.
+- **Saturn 크론 및 세션 스케줄러(`/schedule`).** 기존 세션에 프롬프트를 예약하거나(`CronCreate`, `CronList`, `CronDelete`, `ScheduleWakeup`, `/loop`), 정해진 시각에 시작하는 새 세션을 예약합니다. 예약은 한 번 실행하거나 반복할 수 있습니다. [docs/SATURN.md](../SATURN.md)를 참조합니다.
 - **VS Code(ACP), Unity, Blender, Godot, Aseprite 브리지.** `mercury acp`는 Agent Client Protocol을 지원하는 에디터에 연결합니다. VS Code 확장(`mercury bridge install`)은 그 프로토콜을 통해 에디터 안에서 Mercury를 실행합니다. 채팅, 세션, 에이전트, 아티팩트, 리뷰를 다루며, 에디터의 선택 영역과 진단 정보가 각 프롬프트에 함께 실립니다. 별도의 선택적 통합 기능은 실행 중인 Unity(`MERCURY_UNITY=1`), Blender(`MERCURY_BLENDER=1`), Godot(`MERCURY_GODOT_TOOLS=1`) 에디터에 연결하며, Aseprite(`MERCURY_ASEPRITE=1`)에는 일괄 처리 방식으로 접근합니다. [Unity](../UNITY-BRIDGE.md), [Blender](../BLENDER-BRIDGE.md), [Godot](../VULCAN-GODOT-TOOLS.md), [Aseprite](../ASEPRITE-BRIDGE.md)를 참조합니다.
 - **확장.** 각 확장에는 매니페스트가 하나씩 있습니다. 소스는 git URL, 로컬 폴더 또는 아카이브에서 추가하며, 기여(contributions) 해시로 승인됩니다. [docs/EXTENSIONS.md](../EXTENSIONS.md)를 참조합니다.
 - **MCPs & Skills.** 세션이 로드하는 항목을 저장소별로 설정하며, 이름이 붙은 프리셋과 세션 중에 바꿀 수 있는 컨트롤을 제공합니다. [docs/KIT.md](../KIT.md)를 참조합니다.
@@ -382,8 +382,8 @@ docker run --rm mercury --version
 
 | 영역 | 명령 |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
-| crew & delegation | `/agents` `/crewmates` `/crew` `/swarm` `/swarmchat` `/general` `/team` `/whisper` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/goal` |
+| crew & delegation | `/agents` `/crewmates` `/crew` `/swarm` `/swarmchat` `/general` `/team` `/whisper` `/daemon` `/schedule` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/export` `/copy` `/usage` `/restart` |
 | memory & goals | `/memory` |
 | model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |

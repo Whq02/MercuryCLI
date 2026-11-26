@@ -26,6 +26,7 @@ const React = await import('react')
 const { Box, Text } = await import('../../src/screen/themedRenderer.js')
 const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
 const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const { PopupHost } = await import('../../src/screen/overlays/PopupHost.js')
 const slot = await import('../../src/screen/overlays/SettingsPopupSlot.js')
 const store = await import('../../src/screen/cockpit/settingsPopup.js')
 const { configPopupRequest } = await import('../../src/commands/config/config.js')
@@ -90,7 +91,7 @@ function scaffold(scene: Scene, centreRef: React.RefObject<DOMElement | null>): 
           rail(plan.vitalsW, body, 'R', 'VITALS'),
         ),
         React.createElement(Box, { height: bottom, flexShrink: 0 }, React.createElement(Text, {}, 'B'.repeat(scene.columns))),
-        React.createElement(slot.SettingsPopupSlot, { overlay: true, hostRef: centreRef, framed: true }),
+        React.createElement(PopupHost, { hostRef: centreRef, framed: true, children: host => React.createElement(slot.SettingsPopupSlot, { host, overlay: true }) }),
       ),
     ),
   )
@@ -194,17 +195,17 @@ function untouched(before: string[], after: string[], from: number, to: number, 
 function judge(label: string, scene: Scene, paint: Painted | null, before: string[], after: string[], requested: number): void {
   const centre = centreOf(scene)
   const want = Math.min(requested, centre.innerWidth - 2)
-  check(`${label}: the popup painted`, paint !== null, '', 'the screen did not change after openSettingsPopup; check that SettingsPopupSlot in src/screen/overlays/SettingsPopupSlot.tsx renders a placement for the host (settingsPopupHost, settingsPopupGeometry)')
+  check(`${label}: the popup painted`, paint !== null, '', 'the screen did not change after openSettingsPopup; check that SettingsPopupSlot in src/screen/overlays/SettingsPopupSlot.tsx renders a placement for the host (settingsPopupGeometry)')
   if (paint === null) return
   const width = paint.right - paint.left + 1
-  check(`${label}: the framed host's top border stays above the opaque top gutter (the gutter never rises above the pane's first interior row)`, paint.top - 1 >= 1 && untouched(before, after, centre.innerLeft, centre.innerRight, 0, 0), `border row 0, gutter row ${paint.top - 1}, popup frame row ${paint.top}`, 'the popup reached the host border row; the top of the placement comes from settingsPopupGeometry and the host band (settingsPopupHost) in src/screen/overlays/SettingsPopupSlot.tsx')
+  check(`${label}: the framed host's top border stays above the opaque top gutter (the gutter never rises above the pane's first interior row)`, paint.top - 1 >= 1 && untouched(before, after, centre.innerLeft, centre.innerRight, 0, 0), `border row 0, gutter row ${paint.top - 1}, popup frame row ${paint.top}`, 'the popup reached the host border row; check the frame inset in popupHostBounds in src/screen/overlays/PopupHost.tsx and the top gutter in settingsPopupGeometry in src/screen/overlays/SettingsPopupSlot.tsx')
   check(`${label}: the painted right edge never passes the centre column's inner edge (${centre.innerRight})`, paint.right <= centre.innerRight, `painted ${paint.left}..${paint.right}`, 'the popup runs past the centre column; clamp the width to the host columns in settingsPopupGeometry in src/screen/overlays/SettingsPopupSlot.tsx')
-  check(`${label}: the painted left edge never passes the centre column's inner edge (${centre.innerLeft})`, paint.left >= centre.innerLeft, `painted ${paint.left}..${paint.right}`, 'the popup starts left of the centre column; the left comes from the host left that settingsPopupHost measures and settingsPopupGeometry uses, in src/screen/overlays/SettingsPopupSlot.tsx')
+  check(`${label}: the painted left edge never passes the centre column's inner edge (${centre.innerLeft})`, paint.left >= centre.innerLeft, `painted ${paint.left}..${paint.right}`, 'the popup starts left of the centre column; check the host left in popupHostBounds in src/screen/overlays/PopupHost.tsx and its use in settingsPopupGeometry in src/screen/overlays/SettingsPopupSlot.tsx')
   check(`${label}: the popup is ${want} wide (the request ${requested} clamped to the centre's ${centre.innerWidth}) and centred in the column`, width === want && paint.left === centre.innerLeft + Math.floor((centre.innerWidth - want) / 2), `${width} wide at ${paint.left}`, 'the width or the left of the placement differs from the expected one; see settingsPopupGeometry in src/screen/overlays/SettingsPopupSlot.tsx')
   check(`${label}: no row is wider than its frame (every row keeps its two border cells at the frame's edges)`, paint.ragged.length === 0, `ragged rows ${JSON.stringify(paint.ragged)}: ${JSON.stringify(paint.ragged.map(y => (after[y] ?? '').slice(paint.left, paint.right + 1)))}`, 'a popup row is wider or narrower than its frame; compare the width given to the popup body with the frame width in settingsPopupGeometry (inner is width minus 4) in src/screen/overlays/SettingsPopupSlot.tsx')
   const plan = railPlanAt(scene.columns, true)
-  check(`${label}: the right rail's column is untouched beside the popup`, untouched(before, after, scene.columns - plan.vitalsW, scene.columns - 1, paint.top, paint.bottom), '', 'the popup painted over the right rail; the popup must stay inside the host columns that settingsPopupGeometry receives from settingsPopupHost in src/screen/overlays/SettingsPopupSlot.tsx')
-  check(`${label}: the lanes rail and the panel are untouched beside the popup`, untouched(before, after, 0, centre.left - 1, paint.top, paint.bottom), '', 'the popup painted over the lanes rail or the panel; its left must start at the host left that settingsPopupHost measures in src/screen/overlays/SettingsPopupSlot.tsx')
+  check(`${label}: the right rail's column is untouched beside the popup`, untouched(before, after, scene.columns - plan.vitalsW, scene.columns - 1, paint.top, paint.bottom), '', 'the popup painted over the right rail; check the interior width in popupHostBounds in src/screen/overlays/PopupHost.tsx and the width clamp in settingsPopupGeometry in src/screen/overlays/SettingsPopupSlot.tsx')
+  check(`${label}: the lanes rail and the panel are untouched beside the popup`, untouched(before, after, 0, centre.left - 1, paint.top, paint.bottom), '', 'the popup painted over the lanes rail or the panel; check the measured left edge in popupHostBounds in src/screen/overlays/PopupHost.tsx')
   check(`${label}: the frame closes on both corners`, paint.rows[0]!.startsWith('╭') && paint.rows[0]!.endsWith('╮') && paint.rows.at(-1)!.startsWith('╰') && paint.rows.at(-1)!.endsWith('╯'), '', 'the frame lost a corner; the popup was cut by the host or its width was miscomputed in settingsPopupGeometry in src/screen/overlays/SettingsPopupSlot.tsx')
 }
 

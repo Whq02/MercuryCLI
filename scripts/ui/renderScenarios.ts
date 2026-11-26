@@ -944,23 +944,24 @@ export function writeSyntheticSession(
 }
 
 function writePriorSession(): void {
+  const olderMs = Date.now() - 3_600_000
   const base = (extra: Record<string, unknown>) => ({
     isSidechain: false, entrypoint: 'cli', cwd: RUNTIME_CWD, sessionId: SID_PRIOR,
     version: '1.0.0-beta.1', gitBranch: 'main', ...extra,
   })
   const lines = [
     base({ parentUuid: null, type: 'user', uuid: '00000000-0000-4000-8000-000000000101',
-      message: { role: 'user', content: PRIOR_SESSION_TITLE }, timestamp: '2026-06-18T12:00:01.000Z' }),
+      message: { role: 'user', content: PRIOR_SESSION_TITLE }, timestamp: new Date(olderMs - 1_000).toISOString() }),
     base({ parentUuid: '00000000-0000-4000-8000-000000000101', type: 'assistant',
       uuid: '00000000-0000-4000-8000-000000000102', requestId: 'req_synth_p1',
       message: { id: 'msg_synth_p1', type: 'message', role: 'assistant', model: 'claude-opus-4-8',
         content: [{ type: 'text', text: 'Done.' }], stop_reason: 'end_turn', stop_sequence: null,
         usage: { input_tokens: 1, output_tokens: 1 } },
-      timestamp: '2026-06-18T12:00:02.000Z' }),
+      timestamp: new Date(olderMs).toISOString() }),
   ]
   const path = join(PROJECTS, `${SID_PRIOR}.jsonl`)
   writeFileSync(path, encodeFixtureTranscript(lines, SID_PRIOR))
-  const older = new Date(Date.now() - 3_600_000)
+  const older = new Date(olderMs)
   utimesSync(path, older, older)
 }
 
@@ -2537,7 +2538,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     return {
       argv: ['node', BIN, '--resume', SID],
       sends: [
-        { atTick: 30, data: '/saturn' },
+        { atTick: 30, data: '/schedule' },
         { atTick: 36, data: '\r' },
         { atTick: 44, data: '\u001b[B' },
         { atTick: 46, data: '\u001b[B' },

@@ -73,6 +73,16 @@ export function firstProfileHome(): string {
   }
 }
 
+export function currentProfileId(): number {
+  const home = getMercuryHome()
+  try {
+    return stored(join(home, HOME_MARKER), markerShape)?.id ?? 1
+  } catch (error) {
+    passedOver(error)
+    return 1
+  }
+}
+
 function family(): Family {
   const home = getMercuryHome()
   const marker = stored(join(home, HOME_MARKER), markerShape)
@@ -106,7 +116,7 @@ export function commandFiles(found: Install, id: number, home: string): CommandF
   const env = Object.entries({ ...flagPair('MERCURY_CONFIG_DIR', home), ...found.program })
   const pathMod = found.isWindows && (found.bin.includes('\\') || /^[A-Za-z]:/.test(found.bin))
     ? pathModuleFor('win32')
-    : pathModuleFor(process.platform === 'win32' ? 'win32' : 'linux')
+    : pathModuleFor()
   const word = pathMod.join(found.bin, wordOf(id))
   const mark = `${COMMAND_MARKER} ${id}`
   const sh = (value: string): string => `'${value.replace(/'/g, `'\\''`)}'`
@@ -200,7 +210,7 @@ function refreshManagedProfileCommands(roots: LayoutRoots): void {
           if (!stat.isFile()) continue
           const existing = textAt(file.path)
           if (existing === undefined || existing === file.text || !carries(file.path, existing, id)) continue
-          publishAtomicSync(file.path, file.text, { mode: 0o755, parent: 'must-stand', platform: found.isWindows ? 'win32' : process.platform })
+          publishAtomicSync(file.path, file.text, { mode: 0o755, parent: 'must-stand', ...(found.isWindows ? { platform: 'win32' as const } : {}) })
         } catch (error) {
           logError(new Error(`profile ${id} command at ${file.path} could not be refreshed (${errorMessage(error)}); the existing file stays as it was`))
         }
