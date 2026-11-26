@@ -153,7 +153,7 @@ for (const world of worlds) {
   if (full) {
     const boardMark = payloadMarks.find(m => m.label === 'board')
     const boardText = boardMark ? textOf(boardMark.grid) : ''
-    check(`${world.tag}: ⇧← reached the two-pane board with the list focused and the face-born chat on it`, boardText.includes('+ new · n') && boardText.includes('status & title'), boardText.split('\n').filter(l => /\+ new|status & title/.test(l)).map(l => l.trim().slice(0, 100)).join(' | '))
+    check(`${world.tag}: ⇧← reached the two-pane board with the list focused and the face-born chat on it`, boardText.includes('+ new · n') && boardText.includes('Status & title'), boardText.split('\n').filter(l => /\+ new|Status & title/.test(l)).map(l => l.trim().slice(0, 100)).join(' | '))
     const boardBorn = all.find(r => r.sessionId !== faceBorn?.sessionId)
     check(`${world.tag}: a second chat was born through the board's n door`, boardBorn !== undefined, all.map(brief).join(' | '))
     check(`${world.tag}: the board-born worker's record carries '${world.expected}'`, boardBorn?.effort === world.expected, brief(boardBorn))

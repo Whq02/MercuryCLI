@@ -420,9 +420,9 @@ section('§8 the board with sessions keeps the new-session line as its first row
   const c = capture('board-with-sessions', home, [], [
     { atTick: 999, requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: SHIFT_RIGHT },
     ...birth,
-    { requireAwait: true, awaitText: 'status & title', awaitStableTicks: 3, data: '' },
+    { requireAwait: true, awaitText: 'Status & title', awaitStableTicks: 3, data: '' },
     ...birth,
-    { requireAwait: true, awaitText: 'status & title', awaitStableTicks: 3, mark: 'board', data: UP },
+    { requireAwait: true, awaitText: 'Status & title', awaitStableTicks: 3, mark: 'board', data: UP },
     { afterPrevTicks: 3, data: UP },
     { afterPrevTicks: 3, data: UP },
     { afterPrevTicks: 4, data: '', mark: 'line' },
@@ -443,7 +443,7 @@ section('§8 the board with sessions keeps the new-session line as its first row
   const row = c.marks.get('row') ?? []
   const sessionPicker = c.marks.get('session-picker') ?? []
   const sessionPicked = c.marks.get('session-picked') ?? []
-  const headerAt = (lines: string[]): number => lines.findIndex(l => l.includes('status & title'))
+  const headerAt = (lines: string[]): number => lines.findIndex(l => l.includes('Status & title'))
   const sessionRows = (lines: string[]): string[] => lines.filter(l => /new session · fixture-cwd/.test(l))
   check('two blank sessions stand on the board', sessionRows(board).length >= 2, sessionRows(board).map(l => l.trim().slice(0, 80)).join(' | '))
   check('the first row under the column header is the new-session line with its door words, unselected while a session row holds the cursor', headerAt(board) >= 0 && (board[headerAt(board) + 1] ?? '').includes(`  ${LINE} · Opus 5.5 · ●`) && !(board[headerAt(board) + 1] ?? '').includes(`▸ ${LINE}`), (board[headerAt(board) + 1] ?? '').trim())
@@ -467,7 +467,7 @@ if (CASE === undefined || CASE === 'session-effort') {
       { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 3, data: SHIFT_RIGHT },
       { requireAwait: true, awaitText: '+ new · n', awaitSettleTicks: 3, data: 'n' },
         { requireAwait: true, awaitText: '← back', awaitSettleTicks: 4, data: `${ESC}[1;2D` },
-      { requireAwait: true, awaitText: 'status & title', awaitSettleTicks: 4, data: 'e' },
+      { requireAwait: true, awaitText: 'Status & title', awaitSettleTicks: 4, data: 'e' },
       { requireAwait: true, awaitText: "sets this session's effort", awaitSettleTicks: 3, mark: 'effort-door', data: '\r' },
       { requireAwait: true, awaitText: 'effort → low', awaitSettleTicks: 4, mark: 'low-receipt', data: 'm' },
       { requireAwait: true, awaitText: 'Mercury · model', awaitSettleTicks: 5, mark: 'opened', data: CTRL_E },

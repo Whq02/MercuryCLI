@@ -162,7 +162,7 @@ try {
         for (const r of g.rows) if (r.trim()) console.log(r.slice(0, 138))
       }
     }
-    const entered = grabs.filter(g => !text(g).includes('status & title') && /stage-\d\d live-body/.test(text(g)))
+    const entered = grabs.filter(g => !text(g).includes('Status & title') && /stage-\d\d live-body/.test(text(g)))
     check('§1 the entered view paints the live transcript', entered.length > 0, `entered frames: ${entered.map(g => g.atMs).join(',') || 'none'}`, 'after tab then enter the screen must show the followed runner live transcript instead of the SESSIONS board; rerun with ENTER_LIVE_KEEP=1 to print the frames')
     const tokenMax = (g: { rows: string[] }): number =>
       Math.max(-1, ...[...text(g).matchAll(/stage-(\d\d) live-body/g)].map(m => Number(m[1])))

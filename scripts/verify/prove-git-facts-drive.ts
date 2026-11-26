@@ -122,7 +122,7 @@ seedFirstRun(TEMPLATE, [FIX])
 
 const faceReady = (data: string, extra: Send = {}): Send => g('↑↓', data, { awaitPattern: BOOT_FACE_READY, ...extra })
 const COMPOSER = 'Type a prompt'
-const BOARD = '│ sessions '
+const BOARD = '│ Sessions '
 const SHIFT_LEFT = '\x1b[1;2D'
 const WARM_TICKS = 25
 type Send = Record<string, unknown>

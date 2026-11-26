@@ -111,7 +111,7 @@ function capture(cols: number, rows: number): Map<string, string[]> {
     argv: ['node', BIN],
     cwd: REPO,
     sends: [
-      { data: '', awaitText: 'status & title', requireAwait: true, awaitSettleTicks: 4, mark: 'refused' },
+      { data: '', awaitText: 'Status & title', requireAwait: true, awaitSettleTicks: 4, mark: 'refused' },
       { afterPrevTicks: 3, data: DOWN, awaitPattern: selects(TITLES.refused) },
       { afterPrevTicks: 3, data: '\r', awaitPattern: selects(TITLES.live) },
       { data: '', awaitText: 'armed —', requireAwait: true, awaitSettleTicks: 3, mark: 'armed' },

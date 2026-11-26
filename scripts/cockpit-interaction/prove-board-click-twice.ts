@@ -112,13 +112,13 @@ try {
   const run = await runArtifactArena({
     turns: [],
     sends: [
-      { awaitText: ['status & title', TITLE, TITLE_B], text: '\x1b[A', settleMs: 120 } as never,
-      { awaitText: ['status & title', TITLE], targetHeader: 'status & title', targetText: TITLE, settleMs: 120 } as never,
-      { awaitText: ['status & title', 'enter session'], targetHeader: 'status & title', targetText: TITLE, settleMs: 60, arrivedText: ['live-body', 'Type a prompt'], arrivedAbsent: 'status & title' } as never,
-      { awaitText: ['live-body', 'Type a prompt'], awaitAbsent: 'status & title', text: '\x1b[1;2D', settleMs: 120 } as never,
-      { awaitText: ['status & title', TITLE_B], targetHeader: 'status & title', targetText: TITLE_B, settleMs: 120 } as never,
-      { awaitText: ['status & title', 'enter session'], targetHeader: 'status & title', targetText: TITLE_B, settleMs: 60, arrivedText: ['live-body', 'Type a prompt'], arrivedAbsent: 'status & title' } as never,
-      { awaitText: ['live-body', 'Type a prompt'], awaitAbsent: 'status & title', text: '', settleMs: 120 } as never,
+      { awaitText: ['Status & title', TITLE, TITLE_B], text: '\x1b[A', settleMs: 120 } as never,
+      { awaitText: ['Status & title', TITLE], targetHeader: 'Status & title', targetText: TITLE, settleMs: 120 } as never,
+      { awaitText: ['Status & title', 'enter session'], targetHeader: 'Status & title', targetText: TITLE, settleMs: 60, arrivedText: ['live-body', 'Type a prompt'], arrivedAbsent: 'Status & title' } as never,
+      { awaitText: ['live-body', 'Type a prompt'], awaitAbsent: 'Status & title', text: '\x1b[1;2D', settleMs: 120 } as never,
+      { awaitText: ['Status & title', TITLE_B], targetHeader: 'Status & title', targetText: TITLE_B, settleMs: 120 } as never,
+      { awaitText: ['Status & title', 'enter session'], targetHeader: 'Status & title', targetText: TITLE_B, settleMs: 60, arrivedText: ['live-body', 'Type a prompt'], arrivedAbsent: 'Status & title' } as never,
+      { awaitText: ['live-body', 'Type a prompt'], awaitAbsent: 'Status & title', text: '', settleMs: 120 } as never,
     ],
     seconds: 34,
     anchor: null,
@@ -175,7 +175,7 @@ try {
       const selectedBeforeSecond = (second?.screen ?? []).some(row => row.includes('▸') && row.includes(leg.title))
       check(`${leg.name}: the first click selected the row (the cursor sits on it when the second click fires)`, selectedBeforeSecond, (second?.screen ?? []).filter(row => row.includes(leg.title)).join(' | ').slice(0, 300))
       const arrived = run.sendLog.find(s => s.step === leg.arrivedStep)
-      const entered = arrived !== undefined && (arrived.screen ?? []).some(row => row.includes('live-body')) && !(arrived.screen ?? []).some(row => row.includes('status & title'))
+      const entered = arrived !== undefined && (arrived.screen ?? []).some(row => row.includes('live-body')) && !(arrived.screen ?? []).some(row => row.includes('Status & title'))
       check(`${leg.name}: the second click entered the session — ${gapMs} ms after the first${gapMs >= 0 && gapMs <= MULTI_CLICK_WINDOW_MS ? ' (inside the double-click window)' : ''}`, entered, run.outcome.complete ? 'entered view never painted' : `the walk did not complete: ${run.outcome.reason ?? ''} ${run.driverOut.slice(-200)}`)
       if (gapMs > MULTI_CLICK_WINDOW_MS) console.log(`  … ${leg.name}: the two clicks fell ${gapMs} ms apart, outside the ${MULTI_CLICK_WINDOW_MS} ms window: the quick-second-click road was not exercised in this leg`)
     }

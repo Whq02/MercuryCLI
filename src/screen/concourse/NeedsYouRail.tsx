@@ -96,11 +96,11 @@ export function NeedsYouRail({
     >
       <Box height={1} overflow="hidden">
         {total === 0 ? (
-          <Text color={t.textMuted}>needs you · 0</Text>
+          <Text color={t.textMuted}>Needs you · 0</Text>
         ) : (
           <Text>
             <Text color={t.warning} bold>
-              {GLYPH.mission} needs you
+              {GLYPH.mission} Needs you
             </Text>
             <Text color={t.textSecondary}> · {total}</Text>
             {win.above > 0 ? <Text color={t.textMuted}> · ↑{win.above}</Text> : null}

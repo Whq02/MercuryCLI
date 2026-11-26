@@ -91,7 +91,7 @@ let boardLog = ''
 try {
   const { runArtifactArena, grabScreens } = await import('../streaming/artifactArena.ts')
   const N = 'Busy probe'
-  const BOARD = 'status & title'
+  const BOARD = 'Status & title'
   const PICKER = 'where new sessions launch'
   const COMPOSER = 'Type a prompt'
   const ARMED = 'again enters'
@@ -218,7 +218,7 @@ try {
     const stageMax = (s: string): number => Math.max(-1, ...[...s.matchAll(/b-stage-(\d\d) body/g)].map(m => Number(m[1])))
     const kind = (g: { rows: string[] }): 'board' | 'seat' | 'hopped' | 'other' => {
       const s = text(g)
-      if (s.includes('status & title')) return 'board'
+      if (s.includes('Status & title')) return 'board'
       if (stageMax(s) >= 0 || s.includes(B_SAID)) return 'hopped'
       if (seatMax(s) >= 0) return 'seat'
       return 'other'

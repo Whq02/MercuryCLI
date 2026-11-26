@@ -97,7 +97,7 @@ async function openAtlasFor(
     40,
   )
   try {
-    await waitFor(() => mounted.screen().includes('status & title') && mounted.screen().includes(row.title), 5000)
+    await waitFor(() => mounted.screen().includes('Status & title') && mounted.screen().includes(row.title), 5000)
     const beforeLines = mounted.lines()
     const legend = (beforeLines[beforeLines.length - 1] ?? '').trim()
     mounted.push('?')

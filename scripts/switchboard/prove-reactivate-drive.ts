@@ -53,7 +53,7 @@ seedFirstRun(TEMPLATE, [CWD])
 const { keyHintLabel } = await import('../../src/screen/widgets/keyHintLabel.ts')
 const gFace = (data: string, extra: Send = {}): Send => g('↑↓', data, { awaitPattern: BOOT_FACE_READY, ...extra })
 const COMPOSER = 'Type a prompt'
-const BOARD = 'needs you · '
+const BOARD = 'Needs you · '
 const EMPTY_BOARD = 'no sessions yet'
 const FACE_TO_CONCOURSE = keyHintLabel('⇧→ concourse')
 const FACE_TO_CHAT = keyHintLabel('⇧→ chat')

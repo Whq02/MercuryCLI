@@ -164,18 +164,18 @@ function boardLaws(tag: string, lines: string[], headerLine: RegExp): void {
     left.slice(-6).map(l => l.trimEnd()).join(' | '),
   )
   check(
-    `${tag}·5 the right column is the session list: SESSIONS with "+ new · n" on its title row`,
-    /sessions\s+\+ new · n/.test(right[1] ?? ''),
+    `${tag}·5 the right column is the session list: Sessions with "+ new · n" on its title row`,
+    /Sessions\s+\+ new · n/.test(right[1] ?? ''),
     (right[1] ?? '').trim(),
   )
-  const header = right.find(l => l.includes('status & title')) ?? ''
+  const header = right.find(l => l.includes('Status & title')) ?? ''
   check(
-    `${tag}·6 the column header reads status & title · project · last used (AGE is gone)`,
-    header.includes('project') && /last used\s*│?\s*$/.test(header.trimEnd()) && !/\bAGE\b/.test(rightText),
+    `${tag}·6 the column header reads Status & title · Project · Last used (AGE is gone)`,
+    header.includes('Project') && /Last used\s*│?\s*$/.test(header.trimEnd()) && !/\bAGE\b/.test(rightText),
     header.trim(),
   )
   const rowAt = (needle: string): number => right.findIndex(l => l.includes(needle))
-  const needs = rowAt('needs you · ')
+  const needs = rowAt('Needs you · ')
   const lastListRow = right.reduce((at, l, i) => (i < needs && /[▸●◑◒◓□⋮]/.test(l) ? i : at), -1)
   const legend = rowAt('↑↓ choose · ↵ enter · n new · p pause')
   check(
@@ -199,11 +199,11 @@ function boardLaws(tag: string, lines: string[], headerLine: RegExp): void {
 }
 
 console.log('W — the wide board (160×48, the list focused on entry): live view left, the session manager right')
-const wide = capture('board-wide-160x48', boardCfg(160, 48, 'status & title'), boardEnv(boardFixture(), 'wide-off'), REPO)
+const wide = capture('board-wide-160x48', boardCfg(160, 48, 'Status & title'), boardEnv(boardFixture(), 'wide-off'), REPO)
 boardLaws('W', wide, /^. Audit billing receipts · Moodle · Opus 5\.5 · max\s+↵ enter session .$/)
 
 console.log('S — the board at 110×34: the same two panes side by side')
-const mid = capture('board-mid-110x34', boardCfg(110, 34, 'status & title'), boardEnv(boardFixture(), 'mid-off'), REPO)
+const mid = capture('board-mid-110x34', boardCfg(110, 34, 'Status & title'), boardEnv(boardFixture(), 'mid-off'), REPO)
 boardLaws('S', mid, /^. Audit billing receipts · Moodle · \S.*↵ enter session .$/)
 
 console.log('C — the compact board (96×30): the live view stacks on top, the session list below')
@@ -230,7 +230,7 @@ console.log('R — choosing another row switches the live view (160×48: ↓ on 
 {
   const lines = capture(
     'board-wide-160x48-down',
-    boardCfg(160, 48, 'Tracing the callback owner in src/auth.', [{ atTick: 120, awaitText: 'status & title', minTick: 5, awaitSettleTicks: 4, requireAwait: true, data: DOWN }]),
+    boardCfg(160, 48, 'Tracing the callback owner in src/auth.', [{ atTick: 120, awaitText: 'Status & title', minTick: 5, awaitSettleTicks: 4, requireAwait: true, data: DOWN }]),
     boardEnv(boardFixture(), 'wide-down'),
     REPO,
   )

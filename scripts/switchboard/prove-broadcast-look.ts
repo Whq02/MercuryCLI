@@ -77,7 +77,7 @@ const env = {
 {
   const DOWN = String.fromCharCode(27) + '[B'
   const sends: Send[] = [
-    { data: ' ', awaitText: 'status & title', requireAwait: true, awaitSettleTicks: 2 },
+    { data: ' ', awaitText: 'Status & title', requireAwait: true, awaitSettleTicks: 2 },
     { data: DOWN, afterPrevTicks: 1 },
     { data: ' ', afterPrevTicks: 1 },
     { data: '', awaitText: 'message 2 sessions', requireAwait: true, awaitSettleTicks: 2, mark: 'two-marked' },

@@ -66,11 +66,11 @@ async function paintEmptyPane(opts: {
   })
   const mounted = await mountOffscreen(h(AppStateProvider, { children: h(ThemeProvider, {}, layout) }), opts.cols, opts.rows)
   try {
-    await waitFor(() => mounted.screen().includes('sessions') && mounted.screen().includes('no sessions yet'), 5000)
+    await waitFor(() => mounted.screen().includes('Sessions') && mounted.screen().includes('no sessions yet'), 5000)
     const lines = mounted.lines()
-    const headIdx = lines.findIndex(l => l.includes('sessions'))
+    const headIdx = lines.findIndex(l => l.includes('Sessions'))
     const headLine = lines[headIdx] ?? ''
-    const sessionsCol = headLine.indexOf('sessions')
+    const sessionsCol = headLine.indexOf('Sessions')
     const borderAt = (line: string, from: number, dir: -1 | 1): number => {
       for (let i = from; i >= 0 && i < line.length; i += dir) {
         if (line[i] === '│' || line[i] === '┃') return i
@@ -81,7 +81,7 @@ async function paintEmptyPane(opts: {
     const rightBorder = borderAt(headLine, sessionsCol + 1, 1)
     const sliceInner = (line: string): string =>
       leftBorder >= 0 && rightBorder > leftBorder ? line.slice(leftBorder + 1, rightBorder) : line
-    const railIdx = lines.findIndex((l, i) => i > headIdx && sliceInner(l).includes('needs you'))
+    const railIdx = lines.findIndex((l, i) => i > headIdx && sliceInner(l).includes('Needs you'))
     const bodyLines = lines
       .slice(headIdx + 1, railIdx > headIdx ? railIdx : undefined)
       .map(l => sliceInner(l).trim())

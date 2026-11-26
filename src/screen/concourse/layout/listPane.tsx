@@ -81,18 +81,18 @@ function boardRowsOf({
   const columnHeaderRow = (
     <Box key="columns" paddingX={1} flexShrink={0} height={1}>
       <Box flexGrow={1}>
-        <Text color={t.textInstruction}>status & title</Text>
+        <Text color={t.textInstruction}>Status & title</Text>
       </Box>
       <Box width={colProject} flexShrink={0} paddingRight={1}>
-        <Text color={t.textInstruction}>project</Text>
+        <Text color={t.textInstruction}>Project</Text>
       </Box>
       {nowWidth > 0 ? (
         <Box width={nowWidth} flexShrink={0} paddingRight={1}>
-          <Text color={t.textInstruction}>now</Text>
+          <Text color={t.textInstruction}>Now</Text>
         </Box>
       ) : null}
       <Box width={colAge} justifyContent="flex-end" flexShrink={0}>
-        <Text color={t.textInstruction}>last used</Text>
+        <Text color={t.textInstruction}>Last used</Text>
       </Box>
     </Box>
   )
@@ -389,7 +389,7 @@ export function listPaneOf({
           <InteractiveRow id="concourse:board:focus" directActivate hoverStyle="chrome-ink" onActivate={() => wiring.focusList?.()}>
             {hover => (
               <Text color={region === 'list' || hover ? t.infoText : t.textMuted} bold>
-                sessions
+                Sessions
               </Text>
             )}
           </InteractiveRow>

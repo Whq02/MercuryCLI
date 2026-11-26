@@ -83,14 +83,14 @@ seedFirstRun(TEMPLATE, [CWD, OTHER])
 const { keyHintLabel } = await import('../../src/screen/widgets/keyHintLabel.ts')
 const FACE_WAIT: Send = { awaitPattern: BOOT_FACE_READY }
 const COMPOSER = 'Type a prompt'
-const BOARD = 'needs you · '
+const BOARD = 'Needs you · '
 const TAG = keyHintLabel('⇧← back')
 const FROM_P = `✦ from ${basename(CWD)}`
 const LINE_P = `running in ${basename(CWD)}`
 const LINE_Q = `running in ${basename(OTHER)}`
 const lineRe = (count: number | null, project: string): RegExp => new RegExp(`${count === null ? '\\d+' : String(count)} running in [^│\\n]*?${basename(project)}\\b`)
 const DOOR = 'switch to see them'
-const GROUP = 'other projects'
+const GROUP = 'Other projects'
 const SHIFT_LEFT = '\x1b[1;2D'
 const SHIFT_RIGHT = '\x1b[1;2C'
 const DOWN = '\x1b[B'
@@ -240,7 +240,7 @@ console.log('D1 — X and Y born in P (Y focused); pick Q: Y ★ from P, "1 runn
       g('↑↓', '', FACE_WAIT),
       { afterPrevTicks: WARM_TICKS, data: '\r' },
       g(COMPOSER, SHIFT_LEFT, { awaitSettleTicks: 4 }),
-      g('needs you · ', '', { awaitSettleTicks: 3 }),
+      g('Needs you · ', '', { awaitSettleTicks: 3 }),
       { afterPrevTicks: 4, data: 'n' },
       { afterPrevTicks: 6, data: ESC },
       g(COMPOSER, SHIFT_LEFT, { awaitSettleTicks: 4, mark: 'p-board-before-pick' }),
@@ -261,8 +261,8 @@ console.log('D1 — X and Y born in P (Y focused); pick Q: Y ★ from P, "1 runn
   check('D1 the pick landed Q\'s board', isBoard(carried), `${firstRows(carried)} \u2014 the \u2303g project pick did not land on the board; look at the pick-project handling that opens the board, and at dist/mercury.mjs being current`)
   check(`D1 the focused chat (Y, of P) rides Q's board with the star (the glyph leads; the row names its home)`, carried.split('\n').some(l => l.includes('✦') && l.includes('proj-p')), `${rowsWith(carried, '✦')} \u2014 the focused chat of the other project should ride this board as a carry-over row; the rows are built in src/screen/concourse-model/concourseSnapshot.ts`)
   check(`D1 P's other session is a LINE, not a row: "1 ${LINE_P}" under ${GROUP} (its "${DOOR}" rides the NOW column, which a 120-column list does not paint)`, carried.includes(GROUP) && lineRe(1, CWD).test(carried), `${rowsWith(carried, 'running in')} \u2014 the OTHER PROJECTS group and its running-in line are built in src/screen/concourse-model/concourseSnapshot.ts (elsewhere, doorRows)`)
-  check('D1 Q\'s old chat is a parked row of Q (the current project\'s chats)', carried.includes('parked · ') && carried.split('\n').some(l => l.includes('an old chat i') && l.includes(basename(OTHER))), `${rowsWith(carried, 'an old chat')} \u2014 the old chat of the current project should be a parked row with its project named; see the paused and parked grouping in src/screen/concourse-model/concourseSnapshot.ts`)
-  check('D1 after n births Z in Q, Y is HANDED BACK — no star on Q\'s board, no notice', isBoard(handedBack) && !handedBack.includes('✦') && !/needs you · [1-9]/.test(handedBack), `${rowsWith(handedBack, '✦')} \u2014 birthing a session in this project should hand the carried chat back silently; look at the focused-session carry-over in src/screen/concourse-model/concourseSnapshot.ts`)
+  check('D1 Q\'s old chat is a parked row of Q (the current project\'s chats)', carried.includes('Parked · ') && carried.split('\n').some(l => l.includes('an old chat i') && l.includes(basename(OTHER))), `${rowsWith(carried, 'an old chat')} \u2014 the old chat of the current project should be a parked row with its project named; see the paused and parked grouping in src/screen/concourse-model/concourseSnapshot.ts`)
+  check('D1 after n births Z in Q, Y is HANDED BACK — no star on Q\'s board, no notice', isBoard(handedBack) && !handedBack.includes('✦') && !/Needs you · [1-9]/.test(handedBack), `${rowsWith(handedBack, '✦')} \u2014 birthing a session in this project should hand the carried chat back silently; look at the focused-session carry-over in src/screen/concourse-model/concourseSnapshot.ts`)
   check(`D1 P's line now counts both: "2 ${LINE_P}"`, lineRe(2, CWD).test(handedBack), `${rowsWith(handedBack, 'running in')} \u2014 the line counts running sessions of the other project; see elsewhereLine and projectActivity in src/screen/concourse-model/concourseSnapshot.ts`)
   const live = liveRecords(home)
   const homes = Object.values(live).map(r => r.workspaceId)
@@ -280,7 +280,7 @@ console.log('D2 — ↵ on P\'s line switches the view to P (X, Y plain; Z ★ f
       g('↑↓', '', FACE_WAIT),
       { afterPrevTicks: WARM_TICKS, data: '\r' },
       g(COMPOSER, SHIFT_LEFT, { awaitSettleTicks: 4 }),
-      g('needs you · ', '', { awaitSettleTicks: 3 }),
+      g('Needs you · ', '', { awaitSettleTicks: 3 }),
       { afterPrevTicks: 4, data: 'n' },
       { afterPrevTicks: 6, data: ESC },
       g(COMPOSER, SHIFT_LEFT, { awaitSettleTicks: 4 }),
